@@ -386,9 +386,13 @@ from typed I/O failure, follows filesystem realpaths, and exposes
 deterministically ordered immediate entries under an explicit or detected
 case profile. The shared program-layer decoder now consumes those bytes with
 the vendored Node host's BOM, endian, odd-byte, and invalid-UTF-8 rules, and
-package metadata uses that same decoded text. Recursive program discovery,
-library and reference loading, `PreparedProgram` equivalence, and
-filesystem-backed diagnostic execution remain in the following H0.4 slices.
+package metadata uses that same decoded text. The syntax parser now owns the
+single leading-pragma observation for path, type, and lib references, and the
+source request plan projects those references together with the module keys
+and the exact resolution-only versus source-loading distinction. Recursive
+program discovery, library and reference loading, `PreparedProgram`
+equivalence, and filesystem-backed diagnostic execution remain in the
+following H0.4 slices.
 
 ### H0.5 — tsconfig and command-line driver
 

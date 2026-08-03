@@ -254,7 +254,11 @@ struct FinishedParse {
     root: NodeId,
     parse_diagnostics: DiagnosticList,
     js_doc_diagnostics: DiagnosticList,
+    referenced_files: Vec<crate::FileReference>,
     type_reference_directives: Vec<TypeReferenceDirective>,
+    lib_reference_directives: Vec<crate::FileReference>,
+    has_jsx_import_source_pragma: bool,
+    has_jsx_runtime_pragma: bool,
     comment_directives: Vec<crate::CommentDirective>,
 }
 
@@ -481,7 +485,7 @@ fn named_pragma_attribute<'text>(
     let mut search = 0;
     while search < comment.len() {
         let ch = comment[search..].chars().next()?;
-        if !ch.is_whitespace() {
+        if !is_js_whitespace(ch) {
             search += ch.len_utf8();
             continue;
         }
@@ -498,15 +502,22 @@ fn named_pragma_attribute<'text>(
             }
             cursor += 1;
             cursor = skip_pragma_whitespace(comment, cursor);
-            let quote = *comment.as_bytes().get(cursor)?;
+            let Some(&quote) = comment.as_bytes().get(cursor) else {
+                search += ch.len_utf8();
+                continue;
+            };
             if quote != b'\'' && quote != b'"' {
                 search += ch.len_utf8();
                 continue;
             }
             let value_start = cursor + 1;
-            let relative_end = comment[value_start..]
+            let Some(relative_end) = comment[value_start..]
                 .bytes()
-                .position(|byte| byte == quote)?;
+                .position(|byte| byte == quote)
+            else {
+                search += ch.len_utf8();
+                continue;
+            };
             let value_end = value_start + relative_end;
             return Some(PragmaAttribute {
                 value: &comment[value_start..value_end],
@@ -520,25 +531,110 @@ fn named_pragma_attribute<'text>(
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-struct RawTypeReferenceDirective {
+struct RawFileReference {
     file_name: String,
     start: usize,
     end: usize,
+    preserve: bool,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct RawTypeReferenceDirective {
+    reference: RawFileReference,
     resolution_mode: Option<TypeReferenceDirectiveResolutionMode>,
 }
 
-/// Native projection of tsc's
-/// processCommentPragmas/processPragmasIntoFields(reference) and
-/// parseResolutionMode. Invalid-mode diagnostics intentionally cover the
-/// `types` value: tsc passes `(types.pos, types.end)` into
-/// parseResolutionMode.
-fn leading_type_reference_directives(
-    text: &str,
-) -> (Vec<RawTypeReferenceDirective>, Vec<(usize, usize)>) {
+#[derive(Default)]
+struct RawReferenceDirectives {
+    paths: Vec<RawFileReference>,
+    types: Vec<RawTypeReferenceDirective>,
+    libs: Vec<RawFileReference>,
+    errors: Vec<(usize, usize, &'static tsc_diagnostics::DiagnosticMessage)>,
+    has_jsx_import_source_pragma: bool,
+    has_jsx_runtime_pragma: bool,
+}
+
+/// tsc-port: extractPragmas(multiLinePragmaRegEx) @6.0.3
+/// tsc-hash: 1be7ba54b89b11744fd0f3119a6b69f0b1b1030d107d0b495b48311e8e4b335a
+/// tsc-span: _tsc.js:36358-36364
+///
+/// This deliberately models `/@(\S+)(\s+(?:\S.*)?)?$/gm` rather than
+/// splitting into logical lines. Its `\s+` may cross line terminators, and a
+/// global match for an unknown pragma can therefore consume a later `@`.
+fn observe_multiline_jsx_pragmas(comment: &str, directives: &mut RawReferenceDirectives) {
+    let mut search = 0;
+    while let Some(relative_at) = comment[search..].find('@') {
+        let at = search + relative_at;
+        let name_start = at + 1;
+        let mut cursor = name_start;
+        while let Some(ch) = comment[cursor..].chars().next() {
+            if is_js_whitespace(ch) {
+                break;
+            }
+            cursor += ch.len_utf8();
+        }
+        if cursor == name_start {
+            search = name_start;
+            continue;
+        }
+
+        let name_end = cursor;
+        let arguments_start = cursor;
+        let mut has_argument_group = false;
+        if comment[cursor..]
+            .chars()
+            .next()
+            .is_some_and(is_js_whitespace)
+        {
+            has_argument_group = true;
+            cursor = skip_pragma_whitespace(comment, cursor);
+            if cursor < comment.len() {
+                while let Some(ch) = comment[cursor..].chars().next() {
+                    if matches!(ch, '\n' | '\r' | '\u{2028}' | '\u{2029}') {
+                        break;
+                    }
+                    cursor += ch.len_utf8();
+                }
+            }
+        }
+
+        let arguments_are_valid = !has_argument_group
+            || comment[arguments_start..cursor]
+                .chars()
+                .any(|ch| !is_js_whitespace(ch));
+        if arguments_are_valid {
+            let name = &comment[name_start..name_end];
+            if name.eq_ignore_ascii_case("jsximportsource") {
+                directives.has_jsx_import_source_pragma = true;
+            } else if name.eq_ignore_ascii_case("jsxruntime") {
+                directives.has_jsx_runtime_pragma = true;
+            }
+        }
+        search = cursor;
+    }
+}
+
+/// tsc-port: processCommentPragmas/processPragmasIntoFields(reference) @6.0.3
+/// tsc-hash: 1b63813a23c1caa22bb88c100f69ae4253dd3bc888161c212e173d7f341d7201
+/// tsc-span: _tsc.js:36215-36354
+///
+/// Native projection of tsc's complete leading triple-slash `reference`
+/// pragma, including `path`/`types`/`lib` precedence and parseResolutionMode.
+/// Invalid-mode diagnostics intentionally cover the `types` value; malformed
+/// reference pragmas cover the complete comment range.
+fn leading_reference_directives(text: &str) -> RawReferenceDirectives {
+    enum RawReferenceDirective {
+        Ignored,
+        Path(RawFileReference),
+        Type(RawTypeReferenceDirective),
+        Lib(RawFileReference),
+        Invalid,
+    }
+
     fn directive_from_comment(
         comment: &str,
         comment_start: usize,
-    ) -> Option<(RawTypeReferenceDirective, Option<(usize, usize)>)> {
+    ) -> Option<(RawReferenceDirective, Option<(usize, usize)>)> {
         let after_slashes = comment.strip_prefix("///")?;
         let after_space = after_slashes.trim_start_matches(is_js_whitespace);
         let after_open = after_space.strip_prefix('<')?;
@@ -551,28 +647,57 @@ fn leading_type_reference_directives(
         if named_pragma_attribute(comment, comment_start, "no-default-lib")
             .is_some_and(|attribute| attribute.value == "true")
         {
-            return None;
+            return Some((RawReferenceDirective::Ignored, None));
         }
-        let types = named_pragma_attribute(comment, comment_start, "types")?;
-        let mode = named_pragma_attribute(comment, comment_start, "resolution-mode");
-        let (resolution_mode, error) = match mode.map(|attribute| attribute.value) {
-            None | Some("") => (None, None),
-            Some("import") => (Some(TypeReferenceDirectiveResolutionMode::Import), None),
-            Some("require") => (Some(TypeReferenceDirectiveResolutionMode::Require), None),
-            Some(_) => (
+        let preserve = named_pragma_attribute(comment, comment_start, "preserve")
+            .is_some_and(|attribute| attribute.value == "true");
+        if let Some(types) = named_pragma_attribute(comment, comment_start, "types") {
+            let mode = named_pragma_attribute(comment, comment_start, "resolution-mode");
+            let (resolution_mode, error) = match mode.map(|attribute| attribute.value) {
+                None | Some("") => (None, None),
+                Some("import") => (Some(TypeReferenceDirectiveResolutionMode::Import), None),
+                Some("require") => (Some(TypeReferenceDirectiveResolutionMode::Require), None),
+                Some(_) => (
+                    None,
+                    Some((types.start, types.end.saturating_sub(types.start))),
+                ),
+            };
+            return Some((
+                RawReferenceDirective::Type(RawTypeReferenceDirective {
+                    reference: RawFileReference {
+                        file_name: types.value.to_owned(),
+                        start: types.start,
+                        end: types.end,
+                        preserve,
+                    },
+                    resolution_mode,
+                }),
+                error,
+            ));
+        }
+        if let Some(lib) = named_pragma_attribute(comment, comment_start, "lib") {
+            return Some((
+                RawReferenceDirective::Lib(RawFileReference {
+                    file_name: lib.value.to_owned(),
+                    start: lib.start,
+                    end: lib.end,
+                    preserve,
+                }),
                 None,
-                Some((types.start, types.end.saturating_sub(types.start))),
-            ),
-        };
-        Some((
-            RawTypeReferenceDirective {
-                file_name: types.value.to_owned(),
-                start: types.start,
-                end: types.end,
-                resolution_mode,
-            },
-            error,
-        ))
+            ));
+        }
+        if let Some(path) = named_pragma_attribute(comment, comment_start, "path") {
+            return Some((
+                RawReferenceDirective::Path(RawFileReference {
+                    file_name: path.value.to_owned(),
+                    start: path.start,
+                    end: path.end,
+                    preserve,
+                }),
+                None,
+            ));
+        }
+        Some((RawReferenceDirective::Invalid, None))
     }
 
     let mut offset = 0;
@@ -581,8 +706,7 @@ fn leading_type_reference_directives(
             .find(['\n', '\r', '\u{2028}', '\u{2029}'])
             .unwrap_or(text.len());
     }
-    let mut directives = Vec::new();
-    let mut errors = Vec::new();
+    let mut directives = RawReferenceDirectives::default();
     loop {
         offset = skip_leading_comment_whitespace(text, offset);
         let rest = &text[offset..];
@@ -591,9 +715,23 @@ fn leading_type_reference_directives(
                 .find(['\n', '\r', '\u{2028}', '\u{2029}'])
                 .unwrap_or(rest.len());
             if let Some((directive, error)) = directive_from_comment(&rest[..length], offset) {
-                directives.push(directive);
+                match directive {
+                    RawReferenceDirective::Ignored => {}
+                    RawReferenceDirective::Path(reference) => directives.paths.push(reference),
+                    RawReferenceDirective::Type(reference) => directives.types.push(reference),
+                    RawReferenceDirective::Lib(reference) => directives.libs.push(reference),
+                    RawReferenceDirective::Invalid => directives.errors.push((
+                        offset,
+                        length,
+                        &gen::Invalid_reference_directive_syntax,
+                    )),
+                }
                 if let Some(error) = error {
-                    errors.push(error);
+                    directives.errors.push((
+                        error.0,
+                        error.1,
+                        &gen::resolution_mode_should_be_either_require_or_import,
+                    ));
                 }
             }
             offset += length;
@@ -601,14 +739,17 @@ fn leading_type_reference_directives(
         }
         if let Some(after_open) = rest.strip_prefix("/*") {
             let Some(end) = after_open.find("*/") else {
+                observe_multiline_jsx_pragmas(rest, &mut directives);
                 break;
             };
-            offset += 2 + end + 2;
+            let length = 2 + end + 2;
+            observe_multiline_jsx_pragmas(&rest[..length], &mut directives);
+            offset += length;
             continue;
         }
         break;
     }
-    (directives, errors)
+    directives
 }
 
 impl<'text> Parser<'text> {
@@ -9215,6 +9356,7 @@ impl<'text> Parser<'text> {
         mut self,
         statements: crate::NodeArrayId,
         end_of_file_token: NodeId,
+        process_pragmas: bool,
     ) -> FinishedParse {
         let eof_end = self.arena.node(end_of_file_token).end as usize;
         // tsc createSourceFile2 (29214) passes sourceFlags: the root
@@ -9231,14 +9373,28 @@ impl<'text> Parser<'text> {
         );
         self.arena.finalize_tree(root);
 
-        // M8-P01: tsc runs processCommentPragmas/processPragmasIntoFields
-        // after building the SourceFile and appends pragma diagnostics
-        // to the syntactic bucket.
-        let type_reference_directives = self.process_leading_type_reference_directives();
+        // M8-P01: parseSourceFile runs pragma processing after building the
+        // SourceFile and appends its diagnostics to the syntactic bucket;
+        // parseJsonText deliberately skips that step.
+        let (
+            referenced_files,
+            type_reference_directives,
+            lib_reference_directives,
+            has_jsx_import_source_pragma,
+            has_jsx_runtime_pragma,
+        ) = if process_pragmas {
+            self.process_leading_reference_directives()
+        } else {
+            (Vec::new(), Vec::new(), Vec::new(), false, false)
+        };
 
         // tsc parseSourceFileWorker: sourceFile.commentDirectives =
         // scanner.getCommentDirectives().
-        let comment_directives = self.scanner.take_comment_directives();
+        let comment_directives = if process_pragmas {
+            self.scanner.take_comment_directives()
+        } else {
+            Vec::new()
+        };
         FinishedParse {
             file_name: self.file_name,
             language_version: self.language_version,
@@ -9249,30 +9405,66 @@ impl<'text> Parser<'text> {
             root,
             parse_diagnostics: self.parse_diagnostics,
             js_doc_diagnostics: self.js_doc_diagnostics,
+            referenced_files,
             type_reference_directives,
+            lib_reference_directives,
+            has_jsx_import_source_pragma,
+            has_jsx_runtime_pragma,
             comment_directives,
         }
     }
 
-    fn process_leading_type_reference_directives(&mut self) -> Vec<TypeReferenceDirective> {
-        let (directives, errors) = leading_type_reference_directives(self.source_text);
-        for (start, length) in errors {
-            self.push_parse_diagnostic(
-                start,
-                length,
-                &gen::resolution_mode_should_be_either_require_or_import,
-                Vec::new(),
-            );
+    fn process_leading_reference_directives(
+        &mut self,
+    ) -> (
+        Vec<crate::FileReference>,
+        Vec<TypeReferenceDirective>,
+        Vec<crate::FileReference>,
+        bool,
+        bool,
+    ) {
+        let directives = leading_reference_directives(self.source_text);
+        for (start, length, message) in directives.errors {
+            self.push_parse_diagnostic(start, length, message, Vec::new());
         }
-        directives
+        let paths = directives
+            .paths
+            .into_iter()
+            .map(|reference| crate::FileReference {
+                file_name: reference.file_name,
+                pos: self.to_utf16(reference.start),
+                end: self.to_utf16(reference.end),
+                preserve: reference.preserve,
+            })
+            .collect();
+        let types = directives
+            .types
             .into_iter()
             .map(|directive| TypeReferenceDirective {
-                file_name: directive.file_name,
-                pos: self.to_utf16(directive.start),
-                end: self.to_utf16(directive.end),
+                file_name: directive.reference.file_name,
+                pos: self.to_utf16(directive.reference.start),
+                end: self.to_utf16(directive.reference.end),
                 resolution_mode: directive.resolution_mode,
+                preserve: directive.reference.preserve,
             })
-            .collect()
+            .collect();
+        let libs = directives
+            .libs
+            .into_iter()
+            .map(|reference| crate::FileReference {
+                file_name: reference.file_name,
+                pos: self.to_utf16(reference.start),
+                end: self.to_utf16(reference.end),
+                preserve: reference.preserve,
+            })
+            .collect();
+        (
+            paths,
+            types,
+            libs,
+            directives.has_jsx_import_source_pragma,
+            directives.has_jsx_runtime_pragma,
+        )
     }
 
     fn finish_node_at(&mut self, id: NodeId, pos: usize, end: usize) -> NodeId {
@@ -9399,7 +9591,7 @@ pub fn parse_source_file(
         });
 
     parser.materialize_jsdoc_attachments(statements, end_of_file_token, reparse_top_level_await);
-    let finished = parser.finish(statements, end_of_file_token);
+    let finished = parser.finish(statements, end_of_file_token, true);
     let external_module_indicator = detected_external_module_indicator
         .or_else(|| force_external_module.then_some(finished.root));
     SourceFile {
@@ -9415,7 +9607,11 @@ pub fn parse_source_file(
         external_module_indicator,
         parse_diagnostics: finished.parse_diagnostics,
         js_doc_diagnostics: finished.js_doc_diagnostics,
+        referenced_files: finished.referenced_files,
         type_reference_directives: finished.type_reference_directives,
+        lib_reference_directives: finished.lib_reference_directives,
+        has_jsx_import_source_pragma: finished.has_jsx_import_source_pragma,
+        has_jsx_runtime_pragma: finished.has_jsx_runtime_pragma,
         comment_directives: finished.comment_directives,
     }
 }
@@ -9517,7 +9713,9 @@ pub fn parse_json_text_with_bases(
         (statements, end_of_file_token)
     };
 
-    let finished = parser.finish(statements, end_of_file_token);
+    // Upstream Parser.parseJsonText creates a JSON SourceFile directly and
+    // deliberately skips processCommentPragmas/processPragmasIntoFields.
+    let finished = parser.finish(statements, end_of_file_token, false);
     SourceFile {
         file_name: finished.file_name,
         text,
@@ -9531,7 +9729,11 @@ pub fn parse_json_text_with_bases(
         external_module_indicator: None,
         parse_diagnostics: finished.parse_diagnostics,
         js_doc_diagnostics: finished.js_doc_diagnostics,
+        referenced_files: finished.referenced_files,
         type_reference_directives: finished.type_reference_directives,
+        lib_reference_directives: finished.lib_reference_directives,
+        has_jsx_import_source_pragma: finished.has_jsx_import_source_pragma,
+        has_jsx_runtime_pragma: finished.has_jsx_runtime_pragma,
         comment_directives: finished.comment_directives,
     }
 }
@@ -10862,6 +11064,37 @@ mod tests {
                 }
             }
         }
+    }
+
+    #[test]
+    fn parse_json_text_does_not_publish_source_file_pragmas() {
+        let source = parse_json_text(
+            "a.json".to_owned(),
+            concat!(
+                "/// <reference path=\"./dependency.ts\" />\n",
+                "/// <reference types=\"pkg\" resolution-mode=\"invalid\" />\n",
+                "/// <reference lib=\"es2023\" />\n",
+                "/** @jsxRuntime automatic */\n",
+                "// @ts-ignore\n",
+                "{}",
+            )
+            .to_owned(),
+        );
+
+        assert!(source.parse_diagnostics.is_empty());
+        assert!(source.referenced_files.is_empty());
+        assert!(source.type_reference_directives.is_empty());
+        assert!(source.lib_reference_directives.is_empty());
+        assert!(!source.has_jsx_import_source_pragma);
+        assert!(!source.has_jsx_runtime_pragma);
+        assert!(source.comment_directives.is_empty());
+
+        let unterminated = parse_json_text(
+            "unterminated.json".to_owned(),
+            "/* @jsxRuntime automatic".to_owned(),
+        );
+        assert!(!unterminated.has_jsx_import_source_pragma);
+        assert!(!unterminated.has_jsx_runtime_pragma);
     }
 
     #[test]
@@ -12914,6 +13147,24 @@ mod tests {
     }
 
     #[test]
+    fn triple_slash_reference_spans_are_utf16_offsets() {
+        let source = parse_source_file(
+            "/index.ts".to_owned(),
+            "/// <reference types=\"😀pkg\" resolution-mode=\"esm\"/>\nexport {};".to_owned(),
+            ParseOptions::default(),
+            None,
+        );
+
+        assert_eq!(source.parse_diagnostics.len(), 1);
+        assert_eq!(source.parse_diagnostics[0].start, Some(22));
+        assert_eq!(source.parse_diagnostics[0].length, Some(5));
+        let reference = &source.type_reference_directives[0];
+        assert_eq!(reference.file_name, "😀pkg");
+        assert_eq!(reference.pos, 22);
+        assert_eq!(reference.end, 27);
+    }
+
+    #[test]
     fn triple_slash_type_references_retain_exact_spelling_span_mode_and_order() {
         let source = parse_source_file(
             "/index.ts".to_owned(),
@@ -12941,6 +13192,166 @@ mod tests {
             source.type_reference_directives[2].resolution_mode,
             Some(TypeReferenceDirectiveResolutionMode::Require)
         );
+    }
+
+    #[test]
+    fn triple_slash_path_type_and_lib_references_share_upstream_precedence() {
+        let text = concat!(
+            "/// <reference path=\"./first.ts\" preserve=\"true\" />\n",
+            "/// <reference lib='es2023' />\n",
+            "/// <reference path='ignored.ts' lib='dom' />\n",
+            "/// <reference path='ignored-again.ts' lib='ignored' types='pkg' />\n",
+            "/// <reference no-default-lib='true' path='also-ignored.ts' />\n",
+            "export {};",
+        );
+        let source = parse_source_file(
+            "/index.ts".to_owned(),
+            text.to_owned(),
+            ParseOptions::default(),
+            None,
+        );
+
+        assert!(source.parse_diagnostics.is_empty());
+        assert_eq!(source.referenced_files.len(), 1);
+        assert_eq!(source.referenced_files[0].file_name, "./first.ts");
+        assert_eq!(source.referenced_files[0].pos, 21);
+        assert_eq!(source.referenced_files[0].end, 31);
+        assert!(source.referenced_files[0].preserve);
+
+        assert_eq!(source.lib_reference_directives.len(), 2);
+        assert_eq!(source.lib_reference_directives[0].file_name, "es2023");
+        assert_eq!(source.lib_reference_directives[1].file_name, "dom");
+        assert!(!source.lib_reference_directives[0].preserve);
+
+        assert_eq!(source.type_reference_directives.len(), 1);
+        assert_eq!(source.type_reference_directives[0].file_name, "pkg");
+        assert!(!source.type_reference_directives[0].preserve);
+    }
+
+    #[test]
+    fn malformed_triple_slash_reference_reports_the_complete_comment_span() {
+        let comment = "/// <reference resolution-mode=\"import\" />";
+        let source = parse_source_file(
+            "/index.ts".to_owned(),
+            format!("{comment}\nexport {{}};"),
+            ParseOptions::default(),
+            None,
+        );
+
+        assert_eq!(source.parse_diagnostics.len(), 1);
+        let diagnostic = &source.parse_diagnostics[0];
+        assert_eq!(
+            diagnostic.code(),
+            gen::Invalid_reference_directive_syntax.code
+        );
+        assert_eq!(diagnostic.start, Some(0));
+        assert_eq!(diagnostic.length, Some(comment.len() as u32));
+        assert!(source.referenced_files.is_empty());
+        assert!(source.type_reference_directives.is_empty());
+        assert!(source.lib_reference_directives.is_empty());
+    }
+
+    #[test]
+    fn triple_slash_attributes_use_javascript_whitespace_boundaries() {
+        let source = parse_source_file(
+            "/index.ts".to_owned(),
+            concat!(
+                "/// <reference\u{FEFF}path\u{FEFF}=\u{FEFF}\"./dependency.ts\" />\n",
+                "/// <reference\u{0085}path=\"ignored.ts\" />\n",
+                "export {};",
+            )
+            .to_owned(),
+            ParseOptions::default(),
+            None,
+        );
+
+        assert!(source.parse_diagnostics.is_empty());
+        assert_eq!(source.referenced_files.len(), 1);
+        assert_eq!(source.referenced_files[0].file_name, "./dependency.ts");
+    }
+
+    #[test]
+    fn malformed_pragma_attribute_does_not_hide_a_later_valid_duplicate() {
+        let source = parse_source_file(
+            "/index.ts".to_owned(),
+            "/// <reference types=\"broken types='good' />\nexport {};".to_owned(),
+            ParseOptions::default(),
+            None,
+        );
+
+        assert!(source.parse_diagnostics.is_empty());
+        assert_eq!(source.type_reference_directives.len(), 1);
+        assert_eq!(source.type_reference_directives[0].file_name, "good");
+    }
+
+    #[test]
+    fn jsx_runtime_pragmas_are_limited_to_recognized_leading_multiline_comments() {
+        let source = parse_source_file(
+            "/index.tsx".to_owned(),
+            concat!(
+                "/** @jsxImportSource preact */\n",
+                "/*\n * @jsxRuntime automatic\n */\n",
+                "const value = 1;",
+            )
+            .to_owned(),
+            ParseOptions::default(),
+            None,
+        );
+        assert!(source.has_jsx_import_source_pragma);
+        assert!(source.has_jsx_runtime_pragma);
+
+        for text in [
+            "// @jsxRuntime automatic\nconst value = 1;",
+            "/* @unknown value @jsxRuntime automatic */\nconst value = 1;",
+            "const text = '@jsxRuntime automatic';\n/** @jsxImportSource preact */",
+        ] {
+            let control = parse_source_file(
+                "/control.tsx".to_owned(),
+                text.to_owned(),
+                ParseOptions::default(),
+                None,
+            );
+            assert!(!control.has_jsx_import_source_pragma, "{text:?}");
+            assert!(!control.has_jsx_runtime_pragma, "{text:?}");
+        }
+
+        let unknown_consumes_next_line = parse_source_file(
+            "/unknown.tsx".to_owned(),
+            "/**\n * @unknown\n * @jsxRuntime automatic\n */".to_owned(),
+            ParseOptions::default(),
+            None,
+        );
+        assert!(!unknown_consumes_next_line.has_jsx_import_source_pragma);
+        assert!(!unknown_consumes_next_line.has_jsx_runtime_pragma);
+
+        let runtime_consumes_next_line = parse_source_file(
+            "/runtime.tsx".to_owned(),
+            "/**\n * @jsxRuntime\n * @jsxImportSource preact\n */".to_owned(),
+            ParseOptions::default(),
+            None,
+        );
+        assert!(runtime_consumes_next_line.has_jsx_runtime_pragma);
+        assert!(!runtime_consumes_next_line.has_jsx_import_source_pragma);
+
+        let trailing_whitespace = parse_source_file(
+            "/trailing.tsx".to_owned(),
+            "/**\n * @jsxRuntime   \n */".to_owned(),
+            ParseOptions::default(),
+            None,
+        );
+        assert!(trailing_whitespace.has_jsx_runtime_pragma);
+
+        let unterminated = parse_source_file(
+            "/unterminated.tsx".to_owned(),
+            "/* @jsxRuntime automatic".to_owned(),
+            ParseOptions::default(),
+            None,
+        );
+        assert!(unterminated.has_jsx_runtime_pragma);
+        assert!(unterminated
+            .parse_diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.code() == 1010));
     }
 
     #[test]

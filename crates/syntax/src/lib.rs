@@ -40,6 +40,19 @@ pub enum TypeReferenceDirectiveResolutionMode {
     Require,
 }
 
+/// Exact source-owned triple-slash `path` or `lib` reference observation.
+///
+/// `pos` and `end` are UTF-16 offsets covering only the selected attribute
+/// value, matching the vendored `FileReference` contract. `preserve` records
+/// only the exact `preserve="true"` pragma value.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct FileReference {
+    pub file_name: String,
+    pub pos: u32,
+    pub end: u32,
+    pub preserve: bool,
+}
+
 /// Exact source-owned type-reference directive observation.
 ///
 /// `pos` and `end` are UTF-16 offsets covering only the directive's `types`
@@ -50,6 +63,8 @@ pub struct TypeReferenceDirective {
     pub pos: u32,
     pub end: u32,
     pub resolution_mode: Option<TypeReferenceDirectiveResolutionMode>,
+    /// Whether the directive explicitly requested `preserve="true"`.
+    pub preserve: bool,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -72,8 +87,18 @@ pub struct SourceFile {
     /// parsing attached JSDoc. They are merged into bind/check diagnostics
     /// only for checked JavaScript files, never into syntactic diagnostics.
     pub js_doc_diagnostics: DiagnosticList,
+    /// tsc SourceFile.referencedFiles, in leading pragma order.
+    pub referenced_files: Vec<FileReference>,
     /// tsc SourceFile.typeReferenceDirectives, in leading pragma order.
     pub type_reference_directives: Vec<TypeReferenceDirective>,
+    /// tsc SourceFile.libReferenceDirectives, in leading pragma order.
+    pub lib_reference_directives: Vec<FileReference>,
+    /// Whether leading multiline comments contain a recognized
+    /// `@jsxImportSource` pragma.
+    pub has_jsx_import_source_pragma: bool,
+    /// Whether leading multiline comments contain a recognized `@jsxRuntime`
+    /// pragma.
+    pub has_jsx_runtime_pragma: bool,
     /// tsc SourceFile.commentDirectives: scanner-collected
     /// `@ts-expect-error`/`@ts-ignore` markers, in scan order (byte
     /// offsets; see CommentDirective).

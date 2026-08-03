@@ -73,10 +73,10 @@ fn expanded_plan_includes_export_from_and_literal_dynamic_imports() {
     assert_eq!(requests.len(), 3);
     assert_eq!(requests[0].specifier(), "./other.js");
     assert_eq!(requests[0].mode(), ResolutionMode::CommonJs);
-    assert_eq!(requests[1].specifier(), "inner");
-    assert_eq!(requests[1].mode(), ResolutionMode::EsNext);
-    assert_eq!(requests[2].specifier(), "inner/static");
-    assert_eq!(requests[2].mode(), ResolutionMode::CommonJs);
+    assert_eq!(requests[1].specifier(), "inner/static");
+    assert_eq!(requests[1].mode(), ResolutionMode::CommonJs);
+    assert_eq!(requests[2].specifier(), "inner");
+    assert_eq!(requests[2].mode(), ResolutionMode::EsNext);
 }
 
 #[test]
@@ -97,6 +97,52 @@ fn expanded_plan_includes_external_import_equals_as_common_js() {
     assert_eq!(requests[1].mode(), ResolutionMode::EsNext);
     assert_eq!(requests[2].specifier(), "inner/dynamic");
     assert_eq!(requests[2].mode(), ResolutionMode::EsNext);
+}
+
+#[test]
+fn empty_static_specifiers_are_ignored_while_dynamic_occurrences_are_retained() {
+    let static_source = source(
+        concat!(
+            "import \"\";\n",
+            "export * from \"\";\n",
+            "import alias = require(\"\");\n",
+        ),
+        ResolutionMode::EsNext,
+    );
+    let static_plan =
+        plan_source_requests(&static_source, &node_options()).expect("plan empty static controls");
+    assert!(static_plan.module_requests().is_empty());
+    assert_eq!(static_plan.observed_request_occurrence_count(), 0);
+
+    let dynamic_source = source(
+        concat!("type Imported = import(\"\").Value;\n", "import(\"\");\n"),
+        ResolutionMode::EsNext,
+    );
+    let dynamic_plan = plan_source_requests(&dynamic_source, &node_options())
+        .expect("plan empty dynamic requests");
+    assert_eq!(dynamic_plan.module_requests().len(), 1);
+    assert_eq!(dynamic_plan.module_requests()[0].specifier(), "");
+    assert_eq!(dynamic_plan.observed_request_occurrence_count(), 2);
+
+    let jsdoc_source = source_at(
+        "/a.js",
+        "/** @import { Empty } from '' */\nconst value = 0;\n",
+        Some(ResolutionMode::EsNext),
+    );
+    let jsdoc_plan =
+        plan_source_requests(&jsdoc_source, &node_options()).expect("plan empty JSDoc control");
+    assert!(jsdoc_plan.module_requests().is_empty());
+    assert_eq!(jsdoc_plan.observed_request_occurrence_count(), 0);
+
+    let require_source = source_at(
+        "/a.js",
+        "const loaded = require(\"\");\n",
+        Some(ResolutionMode::CommonJs),
+    );
+    let require_plan = plan_source_requests(&require_source, &node_options())
+        .expect("plan empty JavaScript require");
+    assert_eq!(require_plan.module_requests().len(), 1);
+    assert_eq!(require_plan.module_requests()[0].specifier(), "");
 }
 
 #[test]
@@ -124,8 +170,8 @@ fn jsdoc_imports_retain_source_order_and_exact_resolution_mode_keys() {
             .map(|request| (request.specifier(), request.mode()))
             .collect::<Vec<_>>(),
         [
-            ("foo", ResolutionMode::EsNext),
             ("after-jsdoc", ResolutionMode::CommonJs),
+            ("foo", ResolutionMode::EsNext),
             ("foo", ResolutionMode::CommonJs),
             ("fallback", ResolutionMode::CommonJs),
         ]
@@ -152,6 +198,7 @@ fn source_plan_reuses_the_parse_for_exact_type_reference_directives() {
     let plan = plan_source_requests(&source, &options).expect("plan source requests once");
     assert_eq!(plan.module_requests().len(), 1);
     assert_eq!(plan.module_requests()[0].specifier(), "module-request");
+    assert_eq!(plan.observed_request_occurrence_count(), 5);
 
     let directives = plan.type_reference_directives();
     assert_eq!(directives.len(), 4);
@@ -197,6 +244,59 @@ fn source_plan_reuses_the_parse_for_exact_type_reference_directives() {
             .mode(),
         ResolutionMode::CommonJs
     );
+}
+
+#[test]
+fn source_plan_projects_path_and_lib_references_from_the_same_parse() {
+    let text = concat!(
+        "/// <reference path=\"./dependency.ts\" preserve=\"true\" />\n",
+        "/// <reference lib='es2023' preserve='true' />\n",
+        "/// <reference types=\"pkg\" preserve=\"true\" />\n",
+        "import \"module-request\";\n",
+    );
+    let source = source_at("/index.ts", text, Some(ResolutionMode::EsNext));
+    let plan = plan_source_requests(&source, &node_options()).expect("plan all source requests");
+
+    assert_eq!(plan.path_references().len(), 1);
+    let path = &plan.path_references()[0];
+    assert_eq!(path.file_name(), "./dependency.ts");
+    assert_eq!(
+        path.length(),
+        "./dependency.ts".encode_utf16().count() as u32
+    );
+    assert_eq!(utf16_text_at(text, path.span()), path.file_name());
+    assert!(path.preserve());
+
+    assert_eq!(plan.lib_reference_directives().len(), 1);
+    let lib = &plan.lib_reference_directives()[0];
+    assert_eq!(lib.file_name(), "es2023");
+    assert_eq!(lib.length(), 6);
+    assert_eq!(utf16_text_at(text, lib.span()), lib.file_name());
+    assert!(lib.preserve());
+
+    assert_eq!(plan.type_reference_directives().len(), 1);
+    assert!(plan.type_reference_directives()[0].preserve());
+    assert_eq!(plan.module_requests().len(), 1);
+    assert_eq!(plan.observed_request_occurrence_count(), 4);
+}
+
+#[test]
+fn recoverable_parse_diagnostics_do_not_hide_source_requests() {
+    let source = source_at(
+        "/index.ts",
+        concat!(
+            "/// <reference resolution-mode=\"import\" />\n",
+            "const broken = ;\n",
+            "import \"dependency\";\n",
+        ),
+        Some(ResolutionMode::EsNext),
+    );
+
+    let plan = plan_source_requests(&source, &node_options())
+        .expect("tsc still discovers requests from a recovered source file");
+    assert!(plan.path_references().is_empty());
+    assert_eq!(plan.module_requests().len(), 1);
+    assert_eq!(plan.module_requests()[0].specifier(), "dependency");
 }
 
 #[test]
@@ -308,12 +408,36 @@ fn synthetic_tslib_request_obeys_the_upstream_source_boundary() {
 
     let jsx = CompilerOptions {
         jsx: Some(4),
-        ..options
+        ..options.clone()
     };
-    let plan = plan_source_requests(&source_at("/automatic.tsx", "<div />;\n", None), &jsx)
-        .expect("plan JSX-detected synthetic request");
-    assert_eq!(plan.module_requests().len(), 1);
-    assert_eq!(plan.module_requests()[0].specifier(), "tslib");
+    assert!(matches!(
+        plan_source_requests(&source_at("/automatic.tsx", "<div />;\n", None), &jsx),
+        Err(ResolutionError::Unsupported { .. })
+    ));
+
+    let jsx_import_source = CompilerOptions {
+        jsx_import_source: Some("preact".to_owned()),
+        ..options.clone()
+    };
+    assert!(matches!(
+        plan_source_requests(
+            &source_at("/option.tsx", "const value = 1;\n", None),
+            &jsx_import_source,
+        ),
+        Err(ResolutionError::Unsupported { .. })
+    ));
+
+    assert!(matches!(
+        plan_source_requests(
+            &source_at(
+                "/pragma.tsx",
+                "/** @jsxRuntime automatic */\nconst value = 1;\n",
+                None,
+            ),
+            &options,
+        ),
+        Err(ResolutionError::Unsupported { .. })
+    ));
 }
 
 #[test]
@@ -499,9 +623,9 @@ fn expanded_javascript_require_calls_use_the_effective_commonjs_mode() {
                 .map(|request| (request.specifier(), request.mode()))
                 .collect::<Vec<_>>(),
             [
+                ("static", expected_modes[2]),
                 ("untyped", expected_modes[0]),
                 ("templated", expected_modes[1]),
-                ("static", expected_modes[2]),
             ],
             "{label}"
         );
@@ -524,10 +648,89 @@ fn module_augmentation_uses_static_mode_and_deduplicates_its_import() {
         ..CompilerOptions::default()
     };
 
-    let requests = plan_module_requests(&source, &options).expect("plan module augmentation");
+    let plan = plan_source_requests(&source, &options).expect("plan module augmentation");
+    let requests = plan.module_requests();
     assert_eq!(requests.len(), 1);
     assert_eq!(requests[0].specifier(), "foo");
     assert_eq!(requests[0].mode(), ResolutionMode::CommonJs);
+    assert_eq!(plan.module_request_loads_source(&requests[0]), Some(true));
+}
+
+#[test]
+fn external_module_augmentation_resolves_without_loading_its_target() {
+    let source = source_at(
+        "/a.ts",
+        "export {};\ndeclare module \"foo\" { export const x: number; }\n",
+        None,
+    );
+    let options = CompilerOptions {
+        module: Some(1),
+        module_resolution: Some(100),
+        ..CompilerOptions::default()
+    };
+
+    let plan = plan_source_requests(&source, &options).expect("plan resolution-only augmentation");
+    assert_eq!(plan.module_requests().len(), 1);
+    assert_eq!(
+        plan.module_request_loads_source(&plan.module_requests()[0]),
+        Some(false)
+    );
+}
+
+#[test]
+fn imports_precede_augmentations_and_a_loadable_duplicate_wins() {
+    let source = source_at(
+        "/a.ts",
+        concat!(
+            "export {};\n",
+            "declare module \"foo\" { export const x: number; }\n",
+            "import \"bar\";\n",
+            "import \"foo\";\n",
+        ),
+        None,
+    );
+    let options = CompilerOptions {
+        module: Some(1),
+        module_resolution: Some(100),
+        ..CompilerOptions::default()
+    };
+
+    let plan = plan_source_requests(&source, &options).expect("plan imports before augmentations");
+    assert_eq!(
+        plan.module_requests()
+            .iter()
+            .map(|request| request.specifier())
+            .collect::<Vec<_>>(),
+        ["bar", "foo"]
+    );
+    assert!(plan
+        .module_requests()
+        .iter()
+        .all(|request| plan.module_request_loads_source(request) == Some(true)));
+}
+
+#[test]
+fn jsdoc_imports_are_planned_only_for_javascript_files() {
+    let text = "/** @import { Value } from 'dependency' */\nconst value = 0;\n";
+    let options = CompilerOptions {
+        module: Some(1),
+        module_resolution: Some(100),
+        allow_js: true,
+        ..CompilerOptions::default()
+    };
+
+    let typescript = plan_source_requests(&source_at("/a.ts", text, None), &options)
+        .expect("TypeScript JSDoc control");
+    assert!(typescript.module_requests().is_empty());
+
+    let javascript = plan_source_requests(&source_at("/a.js", text, None), &options)
+        .expect("JavaScript JSDoc request");
+    assert_eq!(javascript.module_requests().len(), 1);
+    assert_eq!(javascript.module_requests()[0].specifier(), "dependency");
+    assert_eq!(
+        javascript.module_request_loads_source(&javascript.module_requests()[0]),
+        Some(true)
+    );
 }
 
 #[test]

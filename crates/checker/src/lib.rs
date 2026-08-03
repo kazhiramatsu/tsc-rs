@@ -755,136 +755,6 @@ fn resolve_host_current_directory(current_directory: &str) -> String {
     resolved.replace('\\', "/")
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
-struct PathReference {
-    file_name: String,
-    start: usize,
-    end: usize,
-}
-
-/// tsc-port: processCommentPragmas/processPragmasIntoFields(reference) @6.0.3
-/// tsc-hash: 1b63813a23c1caa22bb88c100f69ae4253dd3bc888161c212e173d7f341d7201
-/// tsc-span: _tsc.js:36215-36354
-///
-/// Only the `path` face is projected here: M7 8.5a owns the
-/// getSourceFileFromReferenceWorker missing-file diagnostic, while
-/// type/lib directives and malformed/unsupported references retain
-/// their own producers. Like getLeadingCommentRanges(text, 0), this
-/// stops at the first token and ignores triple-slash-looking text in
-/// later comments, strings, and program bodies.
-fn leading_path_references(text: &str) -> Vec<PathReference> {
-    fn skip_white_space(text: &str, mut offset: usize) -> usize {
-        while let Some(ch) = text[offset..].chars().next() {
-            if !ch.is_whitespace() && ch != '\u{FEFF}' {
-                break;
-            }
-            offset += ch.len_utf8();
-        }
-        offset
-    }
-
-    fn named_xml_attribute(comment: &str, name: &str) -> Option<(String, usize, usize)> {
-        let mut search = 0;
-        while search < comment.len() {
-            let ch = comment[search..].chars().next()?;
-            if !ch.is_whitespace() {
-                search += ch.len_utf8();
-                continue;
-            }
-            let mut cursor = search + ch.len_utf8();
-            if comment
-                .get(cursor..cursor + name.len())
-                .is_some_and(|candidate| candidate.eq_ignore_ascii_case(name))
-            {
-                cursor += name.len();
-                cursor = skip_white_space(comment, cursor);
-                if comment.as_bytes().get(cursor) != Some(&b'=') {
-                    search += ch.len_utf8();
-                    continue;
-                }
-                cursor += 1;
-                cursor = skip_white_space(comment, cursor);
-                let quote = *comment.as_bytes().get(cursor)?;
-                if quote != b'\'' && quote != b'"' {
-                    search += ch.len_utf8();
-                    continue;
-                }
-                let value_start = cursor + 1;
-                let relative_end = comment[value_start..]
-                    .bytes()
-                    .position(|byte| byte == quote)?;
-                let value_end = value_start + relative_end;
-                return Some((
-                    comment[value_start..value_end].to_owned(),
-                    value_start,
-                    value_end,
-                ));
-            }
-            search += ch.len_utf8();
-        }
-        None
-    }
-
-    fn path_from_comment(comment: &str, comment_start: usize) -> Option<PathReference> {
-        let after_slashes = comment.strip_prefix("///")?;
-        let after_space = after_slashes.trim_start_matches(char::is_whitespace);
-        let after_open = after_space.strip_prefix('<')?;
-        let name_end = after_open.find(char::is_whitespace)?;
-        if !after_open[..name_end].eq_ignore_ascii_case("reference")
-            || !after_open[name_end..].contains("/>")
-        {
-            return None;
-        }
-        // processPragmasIntoFields gives these attributes precedence
-        // over `path`, even if a path attribute is also present.
-        if named_xml_attribute(comment, "no-default-lib")
-            .is_some_and(|(value, _, _)| value == "true")
-            || named_xml_attribute(comment, "types").is_some()
-            || named_xml_attribute(comment, "lib").is_some()
-        {
-            return None;
-        }
-        let (file_name, start, end) = named_xml_attribute(comment, "path")?;
-        Some(PathReference {
-            file_name,
-            start: comment_start + start,
-            end: comment_start + end,
-        })
-    }
-
-    let mut offset = 0;
-    if text.starts_with("#!") {
-        offset = text
-            .find(['\n', '\r', '\u{2028}', '\u{2029}'])
-            .unwrap_or(text.len());
-    }
-    let mut references = Vec::new();
-    loop {
-        offset = skip_white_space(text, offset);
-        let rest = &text[offset..];
-        if rest.starts_with("//") {
-            let length = rest
-                .find(['\n', '\r', '\u{2028}', '\u{2029}'])
-                .unwrap_or(rest.len());
-            let comment = &rest[..length];
-            if let Some(reference) = path_from_comment(comment, offset) {
-                references.push(reference);
-            }
-            offset += length;
-            continue;
-        }
-        if let Some(after_open) = rest.strip_prefix("/*") {
-            let Some(end) = after_open.find("*/") else {
-                break;
-            };
-            offset += 2 + end + 2;
-            continue;
-        }
-        break;
-    }
-    references
-}
-
 fn is_supported_path_reference(file_name: &str, options: &CompilerOptions) -> bool {
     [".ts", ".tsx", ".mts", ".cts"]
         .iter()
@@ -916,7 +786,7 @@ fn missing_path_reference_diagnostics(
         let source_directory = source_path
             .rsplit_once('/')
             .map_or("/", |(directory, _)| directory);
-        for reference in leading_path_references(&source.text) {
+        for reference in &source.referenced_files {
             if !is_supported_path_reference(&reference.file_name, options) {
                 continue;
             }
@@ -925,22 +795,10 @@ fn missing_path_reference_diagnostics(
             if known_paths.contains(&resolved) {
                 continue;
             }
-            let start = source
-                .line_map
-                .byte_to_utf16
-                .get(reference.start)
-                .copied()
-                .unwrap_or(reference.start as u32);
-            let end = source
-                .line_map
-                .byte_to_utf16
-                .get(reference.end)
-                .copied()
-                .unwrap_or(reference.end as u32);
             diagnostics.push(Diagnostic::new(
                 Some(source.file_name.clone()),
-                Some(start),
-                Some(end.saturating_sub(start)),
+                Some(reference.pos),
+                Some(reference.end.saturating_sub(reference.pos)),
                 tsc_diagnostics::MessageChain::new(
                     &tsc_diagnostics::gen::File_0_not_found,
                     &[resolved],
