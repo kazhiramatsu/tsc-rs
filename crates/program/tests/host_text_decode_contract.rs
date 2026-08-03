@@ -158,7 +158,7 @@ fn package_resolution_uses_the_central_host_text_decoder() {
 }
 
 #[test]
-fn package_resolution_surfaces_unrepresentable_utf16_as_invalid_data() {
+fn raw_unpaired_utf16_is_invalid_but_escaped_surrogates_follow_read_json() {
     let mut json = utf16_bytes(
         r#"{"name":"pkg","types":"./index.d.ts"}"#,
         HostTextEncoding::Utf16Le,
@@ -194,10 +194,18 @@ fn package_resolution_surfaces_unrepresentable_utf16_as_invalid_data() {
         .expect("build escaped-surrogate package host");
     let mut resolver =
         ModuleResolver::new(&escaped_host, &options).expect("create escaped resolver");
-    let error = resolver
+    let resolved = resolver
         .resolve(Path::new("/index.mts"), "pkg", ResolutionMode::EsNext)
-        .expect_err("an escaped lone surrogate must also fail closed");
-    assert_eq!(error.kind(), tsc_program::ResolutionErrorKind::InvalidData);
-    assert!(error.to_string().contains("cannot parse"));
-    assert!(error.to_string().contains("package.json"));
+        .expect("an escaped surrogate is valid JSON text");
+    let ResolutionOutcome::Resolved(resolved) = resolved else {
+        panic!("escaped-surrogate package must resolve");
+    };
+    let metadata = resolved
+        .package_metadata()
+        .expect("escaped-surrogate package retains metadata");
+    assert_eq!(metadata.name(), Some("p\u{fffd}kg"));
+    assert_eq!(
+        metadata.text(),
+        r#"{"name":"p\ud800kg","types":"./index.d.ts"}"#
+    );
 }

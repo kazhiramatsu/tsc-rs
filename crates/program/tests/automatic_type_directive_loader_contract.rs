@@ -189,7 +189,7 @@ fn wildcard_expansion_preserves_root_and_host_order_filters_and_stably_deduplica
         )
         .file(
             "/types/z-root/skip/package.json",
-            br#"{"typings":null}"#.to_vec(),
+            br#"{/* JSONC */"typings":null,}"#.to_vec(),
         )
         .file(
             "/types/z-root/skip/index.d.ts",
@@ -202,6 +202,14 @@ fn wildcard_expansion_preserves_root_and_host_order_filters_and_stably_deduplica
         .file(
             "/types/z-root/types-null/index.d.ts",
             b"declare const typesNull: true;\n".to_vec(),
+        )
+        .file(
+            "/types/z-root/invalid/package.json",
+            br#"{"typings":null,"nested":{unquoted:true}}"#.to_vec(),
+        )
+        .file(
+            "/types/z-root/invalid/index.d.ts",
+            b"declare const invalidManifest: true;\n".to_vec(),
         )
         .file("/types/z-root/README.txt", b"not a package\n".to_vec())
         .file(
@@ -235,6 +243,7 @@ fn wildcard_expansion_preserves_root_and_host_order_filters_and_stably_deduplica
             "/types/z-root/pre/index.d.ts",
             "/types/z-root/alpha/index.d.ts",
             "/types/z-root/dup/index.d.ts",
+            "/types/z-root/invalid/index.d.ts",
             "/types/z-root/post/index.d.ts",
             "/types/z-root/types-null/index.d.ts",
             "/types/a-root/beta/index.d.ts",
@@ -243,7 +252,7 @@ fn wildcard_expansion_preserves_root_and_host_order_filters_and_stably_deduplica
         .map(Path::new)
         .collect::<Vec<_>>()
     );
-    assert_eq!(program.resolutions().type_reference_len(), 6);
+    assert_eq!(program.resolutions().type_reference_len(), 7);
     assert!(source_paths(&program)
         .iter()
         .all(|source| !source.to_string_lossy().contains(".hidden")));

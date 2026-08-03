@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use tsc_host::{HostError, HostErrorKind, HostOperation, MemoryCompilerHost};
+use tsc_host::{CompilerHost, HostError, HostErrorKind, HostOperation, MemoryCompilerHost};
 use tsc_program::{
     CompilerOptions, HostResolvedModule, ModuleExtension, ModuleResolver, PackageId,
     PackageJsonType, PathMapping, ProgramOptions, ProgramPath, ResolutionError, ResolutionMode,
@@ -21,6 +21,45 @@ const INNER_PACKAGE_JSON: &str = r#"{
         "./array": ["./index.js"]
     }
 }"#;
+
+struct MissingManifestContentsHost {
+    inner: MemoryCompilerHost,
+    manifest: PathBuf,
+}
+
+impl CompilerHost for MissingManifestContentsHost {
+    fn current_directory(&self) -> Result<PathBuf, HostError> {
+        self.inner.current_directory()
+    }
+
+    fn use_case_sensitive_file_names(&self) -> bool {
+        self.inner.use_case_sensitive_file_names()
+    }
+
+    fn read_file(&self, path: &Path) -> Result<Option<Vec<u8>>, HostError> {
+        if path == self.manifest {
+            Ok(None)
+        } else {
+            self.inner.read_file(path)
+        }
+    }
+
+    fn file_exists(&self, path: &Path) -> Result<bool, HostError> {
+        self.inner.file_exists(path)
+    }
+
+    fn directory_exists(&self, path: &Path) -> Result<bool, HostError> {
+        self.inner.directory_exists(path)
+    }
+
+    fn read_directory(&self, path: &Path) -> Result<Vec<PathBuf>, HostError> {
+        self.inner.read_directory(path)
+    }
+
+    fn realpath(&self, path: &Path) -> Result<Option<PathBuf>, HostError> {
+        self.inner.realpath(path)
+    }
+}
 
 fn fixture_host() -> (MemoryCompilerHost, HostError) {
     let denied = HostError::new(
@@ -4085,6 +4124,207 @@ fn relative_package_ids_follow_file_and_directory_manifest_boundaries() {
     );
     assert_eq!(manifestless_directory.package_id(), None);
     assert!(manifestless_directory.is_external_library_import());
+}
+
+#[test]
+fn package_manifest_read_json_accepts_jsonc_fields_and_retains_exact_text() {
+    let exports_manifest = r#"{
+        // TypeScript's readJson fallback accepts comments and trailing commas.
+        "name": "jsonc-exports",
+        "version": "1.2.3",
+        "type": "module",
+        "exports": { ".": "./dist/index.js", },
+    }"#;
+    let types_manifest = r#"{
+        "name": "jsonc-types",
+        "version": "2.0.0",
+        "types": "./missing.d.ts",
+        "types": "./actual.d.ts",
+    }"#;
+    let host = MemoryCompilerHost::builder("/work")
+        .file("/work/main.mts", b"export {};".to_vec())
+        .file(
+            "/work/node_modules/jsonc-exports/package.json",
+            exports_manifest.as_bytes().to_vec(),
+        )
+        .file(
+            "/work/node_modules/jsonc-exports/dist/index.d.ts",
+            b"export const value: true;".to_vec(),
+        )
+        .file(
+            "/work/node_modules/jsonc-types/package.json",
+            types_manifest.as_bytes().to_vec(),
+        )
+        .file(
+            "/work/node_modules/jsonc-types/actual.d.ts",
+            b"export const value: true;".to_vec(),
+        )
+        .build()
+        .expect("build JSONC package host");
+    let options = options_for_module(199);
+    let mut resolver = ModuleResolver::new(&host, &options).expect("create JSONC resolver");
+
+    for (specifier, expected, manifest, name, module_type) in [
+        (
+            "jsonc-exports",
+            "/work/node_modules/jsonc-exports/dist/index.d.ts",
+            exports_manifest,
+            "jsonc-exports",
+            PackageJsonType::Module,
+        ),
+        (
+            "jsonc-types",
+            "/work/node_modules/jsonc-types/actual.d.ts",
+            types_manifest,
+            "jsonc-types",
+            PackageJsonType::Unspecified,
+        ),
+    ] {
+        let module = resolved(
+            resolver
+                .resolve(
+                    Path::new("/work/main.mts"),
+                    specifier,
+                    ResolutionMode::EsNext,
+                )
+                .expect("resolve JSONC package"),
+        );
+        assert_eq!(
+            module.resolved_file().canonical().as_path(),
+            Path::new(expected)
+        );
+        let metadata = module
+            .package_metadata()
+            .expect("JSONC package retains its manifest observation");
+        assert_eq!(metadata.text(), manifest);
+        assert_eq!(metadata.name(), Some(name));
+        assert_eq!(metadata.module_type(), module_type);
+    }
+}
+
+#[test]
+fn invalid_and_non_object_manifests_are_found_empty_package_scopes() {
+    let manifests = [
+        ("empty", ""),
+        ("null", "null"),
+        ("array", "[]"),
+        ("primitive", "true"),
+        ("malformed", r#"{"name":"malformed""#),
+        ("unquoted", r#"{name:"unquoted"}"#),
+        (
+            "nested-invalid",
+            r#"{"name":"nested-invalid","nested":{bad:true}}"#,
+        ),
+    ];
+    let mut builder =
+        MemoryCompilerHost::builder("/work").file("/work/main.ts", b"export {};".to_vec());
+    for (package, manifest) in manifests {
+        builder = builder
+            .file(
+                format!("/work/node_modules/{package}/package.json"),
+                manifest.as_bytes().to_vec(),
+            )
+            .file(
+                format!("/work/node_modules/{package}/index.d.ts"),
+                b"export const value: true;".to_vec(),
+            );
+    }
+    let host = builder.build().expect("build empty-semantics package host");
+    let options = options_for_module(1);
+    let mut resolver = ModuleResolver::new(&host, &options).expect("create legacy resolver");
+
+    for (package, manifest) in manifests {
+        let module = resolved(
+            resolver
+                .resolve(
+                    Path::new("/work/main.ts"),
+                    package,
+                    ResolutionMode::CommonJs,
+                )
+                .expect("an unreadable semantic object falls through to legacy index"),
+        );
+        assert_eq!(
+            module.resolved_file().canonical().as_path(),
+            PathBuf::from(format!("/work/node_modules/{package}/index.d.ts"))
+        );
+        let metadata = module
+            .package_metadata()
+            .expect("present manifest remains the nearest package scope");
+        assert_eq!(metadata.text(), manifest);
+        assert_eq!(metadata.name(), None);
+        assert_eq!(metadata.version(), None);
+        assert_eq!(metadata.module_type(), PackageJsonType::Unspecified);
+    }
+}
+
+#[test]
+fn invalid_manifest_text_does_not_hide_a_later_target_host_failure() {
+    let target_failure = HostError::new(
+        HostErrorKind::PermissionDenied,
+        HostOperation::FileExists,
+        Some(PathBuf::from("/work/node_modules/broken/index.d.ts")),
+        "legacy index probe denied",
+    );
+    let host = MemoryCompilerHost::builder("/work")
+        .file("/work/main.ts", b"export {};".to_vec())
+        .file(
+            "/work/node_modules/broken/package.json",
+            br#"{"name":"broken""#.to_vec(),
+        )
+        .file(
+            "/work/node_modules/broken/index.d.ts",
+            b"export const value: true;".to_vec(),
+        )
+        .failure(target_failure.clone())
+        .build()
+        .expect("build invalid-manifest failure host");
+    let options = options_for_module(1);
+    let mut resolver = ModuleResolver::new(&host, &options).expect("create legacy resolver");
+    let error = resolver
+        .resolve(
+            Path::new("/work/main.ts"),
+            "broken",
+            ResolutionMode::CommonJs,
+        )
+        .expect_err("the later legacy-index host failure must win");
+    let ResolutionError::Host(actual) = error else {
+        panic!("expected target host error, got {error:?}");
+    };
+    assert_eq!(actual, target_failure);
+}
+
+#[test]
+fn a_manifest_that_disappears_after_file_exists_is_a_found_empty_scope() {
+    let manifest = PathBuf::from("/work/node_modules/racy/package.json");
+    let inner = MemoryCompilerHost::builder("/work")
+        .file("/work/main.ts", b"export {};".to_vec())
+        .file(
+            manifest.clone(),
+            br#"{"name":"racy","types":"./missing.d.ts"}"#.to_vec(),
+        )
+        .file(
+            "/work/node_modules/racy/index.d.ts",
+            b"export const value: true;".to_vec(),
+        )
+        .build()
+        .expect("build racy package host");
+    let host = MissingManifestContentsHost { inner, manifest };
+    let options = options_for_module(1);
+    let mut resolver = ModuleResolver::new(&host, &options).expect("create legacy resolver");
+    let module = resolved(
+        resolver
+            .resolve(Path::new("/work/main.ts"), "racy", ResolutionMode::CommonJs)
+            .expect("missing contents expose empty manifest fields"),
+    );
+    assert_eq!(
+        module.resolved_file().canonical().as_path(),
+        Path::new("/work/node_modules/racy/index.d.ts")
+    );
+    let metadata = module
+        .package_metadata()
+        .expect("fileExists keeps a package boundary despite the absent read");
+    assert_eq!(metadata.text(), "");
+    assert_eq!(metadata.name(), None);
 }
 
 #[test]

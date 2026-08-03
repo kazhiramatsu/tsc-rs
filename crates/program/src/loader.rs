@@ -3,11 +3,11 @@ use std::error::Error;
 use std::fmt;
 use std::path::{Path, PathBuf};
 
-use serde_json::Value;
 use tsc_diagnostics::{gen, Diagnostic, MessageChain};
 use tsc_host::{to_file_name_lower_case, CompilerHost, HostError};
 use tsc_types::CompilerOptions;
 
+use crate::json::parse_json_object;
 use crate::library::LibraryCatalog;
 use crate::module_requests::{
     plan_source_requests, PlannedLibReferenceDirective, PlannedPathReference,
@@ -1138,13 +1138,10 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
             path: package_json.to_path_buf(),
             source,
         })?;
-        match serde_json::from_str::<Value>(&text) {
-            Ok(value) => Ok(value
-                .as_object()
-                .and_then(|object| object.get("typings"))
-                .is_some_and(Value::is_null)),
-            Err(_) => Ok(loose_json_typings_is_null(package_json, text)),
-        }
+        let (_, object) = parse_json_object(package_json, text);
+        Ok(object
+            .get("typings")
+            .is_some_and(serde_json::Value::is_null))
     }
 
     fn automatic_types_containing_file(&self) -> Result<ProgramPath, ProgramLoadError> {
@@ -2529,162 +2526,6 @@ fn automatic_type_reference_diagnostic(name: &str, uses_wildcard: bool) -> Diagn
     )
 }
 
-fn loose_json_typings_is_null(package_json: &Path, text: String) -> bool {
-    let file_name = package_json.to_string_lossy().into_owned();
-    let source = tsc_syntax::parse_json_text(file_name, text);
-    if !source.parse_diagnostics.is_empty() {
-        return false;
-    }
-    let Some(source_file) = source.arena.node(source.root).data.as_source_file() else {
-        return false;
-    };
-    let Some(statements) = source_file
-        .statements
-        .map(|statements| source.arena.node_array(statements))
-    else {
-        return false;
-    };
-    let [statement] = statements.nodes.as_slice() else {
-        return false;
-    };
-    let Some(expression) = source
-        .arena
-        .node(*statement)
-        .data
-        .as_expression_statement()
-        .and_then(|statement| statement.expression)
-    else {
-        return false;
-    };
-    if !is_valid_loose_json_value(&source, expression) {
-        return false;
-    }
-    let Some(object) = source
-        .arena
-        .node(expression)
-        .data
-        .as_object_literal_expression()
-    else {
-        return false;
-    };
-    let Some(properties) = object
-        .properties
-        .map(|properties| source.arena.node_array(properties))
-    else {
-        return false;
-    };
-
-    let mut typings_is_null = None;
-    for property in &properties.nodes {
-        let Some(property) = source.arena.node(*property).data.as_property_assignment() else {
-            return false;
-        };
-        let Some(name_id) = property.name else {
-            return false;
-        };
-        // convertConfigFileToObject rejects JSONC object keys that are not
-        // quoted string literals; readJson then falls back to an empty object.
-        if !is_double_quoted_json_string(&source, name_id) {
-            return false;
-        }
-        let Some(name) = source.arena.node(name_id).data.as_string_literal() else {
-            return false;
-        };
-        let is_typings = name.text == "typings";
-        if is_typings {
-            typings_is_null = property
-                .initializer
-                .map(|initializer| source.arena.node(initializer).kind)
-                .map(|kind| kind == tsc_syntax::SyntaxKind::NullKeyword);
-        }
-    }
-    typings_is_null == Some(true)
-}
-
-fn is_valid_loose_json_value(source: &tsc_syntax::SourceFile, value: tsc_syntax::NodeId) -> bool {
-    let mut pending = vec![value];
-    while let Some(value) = pending.pop() {
-        let node = source.arena.node(value);
-        match node.kind {
-            tsc_syntax::SyntaxKind::StringLiteral => {
-                if !is_double_quoted_json_string(source, value) {
-                    return false;
-                }
-            }
-            tsc_syntax::SyntaxKind::NumericLiteral
-            | tsc_syntax::SyntaxKind::TrueKeyword
-            | tsc_syntax::SyntaxKind::FalseKeyword
-            | tsc_syntax::SyntaxKind::NullKeyword => {}
-            tsc_syntax::SyntaxKind::PrefixUnaryExpression => {
-                let Some(expression) = node.data.as_prefix_unary_expression() else {
-                    return false;
-                };
-                if expression.operator != tsc_syntax::SyntaxKind::MinusToken
-                    || !expression.operand.is_some_and(|operand| {
-                        source.arena.node(operand).kind == tsc_syntax::SyntaxKind::NumericLiteral
-                    })
-                {
-                    return false;
-                }
-            }
-            tsc_syntax::SyntaxKind::ArrayLiteralExpression => {
-                let Some(elements) = node
-                    .data
-                    .as_array_literal_expression()
-                    .and_then(|array| array.elements)
-                    .map(|elements| source.arena.node_array(elements))
-                else {
-                    return false;
-                };
-                pending.extend(elements.nodes.iter().copied());
-            }
-            tsc_syntax::SyntaxKind::ObjectLiteralExpression => {
-                let Some(properties) = node
-                    .data
-                    .as_object_literal_expression()
-                    .and_then(|object| object.properties)
-                    .map(|properties| source.arena.node_array(properties))
-                else {
-                    return false;
-                };
-                for &property in &properties.nodes {
-                    let Some(property) = source.arena.node(property).data.as_property_assignment()
-                    else {
-                        return false;
-                    };
-                    if !property
-                        .name
-                        .is_some_and(|name| is_double_quoted_json_string(source, name))
-                    {
-                        return false;
-                    }
-                    let Some(initializer) = property.initializer else {
-                        return false;
-                    };
-                    pending.push(initializer);
-                }
-            }
-            _ => return false,
-        }
-    }
-    true
-}
-
-fn is_double_quoted_json_string(
-    source: &tsc_syntax::SourceFile,
-    value: tsc_syntax::NodeId,
-) -> bool {
-    let node = source.arena.node(value);
-    if node.kind != tsc_syntax::SyntaxKind::StringLiteral {
-        return false;
-    }
-    source
-        .text
-        .as_bytes()
-        .get(tsc_syntax::skip_trivia(&source.text, node.pos as usize))
-        == Some(&b'"')
-}
-
 fn script_target_name(options: &CompilerOptions) -> &'static str {
     match options.emit_script_target().bits() {
         0 => "es3",
@@ -2749,42 +2590,4 @@ fn path_text(path: &Path) -> Result<String, ProgramLoadError> {
             "program path is not valid Unicode",
         )
     })
-}
-
-#[cfg(test)]
-mod tests {
-    use super::loose_json_typings_is_null;
-    use std::path::Path;
-
-    #[test]
-    fn loose_json_typings_filter_accepts_only_valid_jsonc_objects() {
-        let package = Path::new("/types/pkg/package.json");
-        assert!(loose_json_typings_is_null(
-            package,
-            "{/* comment */\"typings\": null, \"nested\": [1, -2, {}],}".to_owned(),
-        ));
-        assert!(loose_json_typings_is_null(
-            package,
-            "{\"typings\": \"first\", \"typings\": null}".to_owned(),
-        ));
-        assert!(!loose_json_typings_is_null(
-            package,
-            "{\"typings\": null, \"typings\": \"last\"}".to_owned(),
-        ));
-        for invalid in [
-            "{typings: null}",
-            "{'typings': null}",
-            "{\"typings\": null, \"x\": 'value'}",
-            "{\"typings\": null, \"x\": {bad: 1}}",
-            "{\"typings\": null, \"x\": undefined}",
-            "{\"typings\": null, \"x\": [1,,2]}",
-            "{\"typings\": null",
-            "[null]",
-        ] {
-            assert!(
-                !loose_json_typings_is_null(package, invalid.to_owned()),
-                "invalid loose JSON must behave like readJson's empty object: {invalid}"
-            );
-        }
-    }
 }
