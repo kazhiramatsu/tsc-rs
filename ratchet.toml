@@ -658,8 +658,13 @@
 # Bundler alternate result). The planner, resolver, and checker transport
 # preserve the exact modes/path; T1-T3 gain the same buckets with no loss
 # or all-corpus FP.
-rate = 0.999918
-matched = 49020
+# H0.3 untyped-package consumer slice: +4 exact buckets (three TS2339
+# loaded-JavaScript member errors and one TS2665 untyped augmentation).
+# Literal JavaScript require calls and external-module augmentations now
+# enter the authoritative table with their exact CommonJS keys; the typed
+# controls remain unchanged and T1-T3 gain the same buckets with no FP.
+rate = 1.0
+matched = 49024
 total = 49024
 allowed_regression = 0.0
 
@@ -679,8 +684,8 @@ allowed_regression = 0.0
 # T1 at 48,783/48,783 with no accepted loss and all-corpus FP=0. The
 # one-time tier1-3-input-schema-extension records that complete bucket
 # set; this exact artifact-derived count closes the active T1 gate.
-rate = 0.999918
-matched = 49020
+rate = 1.0
+matched = 49024
 total = 49024
 allowed_regression = 0.0
 
@@ -688,8 +693,8 @@ allowed_regression = 0.0
 # Written from A1's complete-multiset T2 bucket set by the reviewed
 # tier1-3-input-schema-extension. The activated set is the exact
 # artifact-derived supported 48,783/48,783 measurement.
-rate = 0.999918
-matched = 49020
+rate = 1.0
+matched = 49024
 total = 49024
 allowed_regression = 0.0
 
@@ -698,8 +703,8 @@ allowed_regression = 0.0
 # one-time activation. The activated set is supported
 # 48,783/48,783; as with T1/T2, the accepted identity set is the
 # authority and this section is a verified derived summary.
-rate = 0.999918
-matched = 49020
+rate = 1.0
+matched = 49024
 total = 49024
 allowed_regression = 0.0
 
@@ -842,8 +847,10 @@ allowed_regression = 0.0
 # H0.3 alternate resolution adds 6 exact Classic TS2792 buckets and one
 # Node10 TS2307 bucket, including the exact TS6280 alternate-result child,
 # with the same no-loss, all-corpus-FP-zero evidence.
-rate = 0.99981
-matched = 21047
+# H0.3 untyped-package consumers add 3 exact TS2339 buckets and 1 exact
+# TS2665 bucket with the same no-loss, all-corpus-FP-zero evidence.
+rate = 1.0
+matched = 21051
 total = 21051
 allowed_regression = 0.0
 

@@ -338,16 +338,29 @@ external-helper-consumer rows. The reviewed alternate-resolution slice closes
 the 7/7 resolution-mode-and-message-selection rows: Classic mode owns the 6
 TS2792 diagnostics across import-type and type-only import matrices, while
 Node10 preserves the alternate package location needed for its single TS2307
-diagnostic. This brings the registry to 237/241 closed with 4 rows open.
-It does not claim general H0.2 resolution beyond the reviewed in-memory routes,
-filesystem hosting, or H0 completion.
+diagnostic. The reviewed untyped-package consumer slice closes the remaining
+3 TS2339 rows by planning checked-JavaScript literal `require` requests and
+loading their resolved module symbols, and closes the remaining TS2665 row by
+planning an external-module augmentation whose JavaScript target remains
+authoritatively untyped. Exact Bundler ambient and unloaded-package controls
+remain non-emitting. This brings the registry to 241/241 closed with 0 rows
+open. It does not claim general H0.2 resolution beyond the reviewed in-memory
+routes, filesystem hosting, or H0 completion.
 
 ### H0.3 — residual host consumers
 
-Close the remaining host rows by exact owner:
+The reviewed residual consumers are complete:
 
-- TS2339 untyped-package member behavior (3 rows);
-- TS2665 untyped-module augmentation (1 row).
+- TS2339 untyped-package member behavior (3/3 rows); and
+- TS2665 untyped-module augmentation (1/1 row).
+
+The source planner publishes checked-JavaScript literal `require` requests in
+their exact mode and external-module augmentation literals in the file's
+static mode. The authoritative provider keeps loaded JavaScript targets as
+real module symbols while unloaded JavaScript targets remain untyped, so the
+checker selects the underlying member and augmentation diagnostics without a
+diagnostic-specific shortcut. The exact Bundler controls freeze the negative
+boundary.
 
 No diagnostic-specific shortcut may replace the underlying resolution fact.
 

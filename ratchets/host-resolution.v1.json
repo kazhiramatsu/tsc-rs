@@ -131,8 +131,8 @@
   ],
   "summary": {
     "rows": 241,
-    "open": 4,
-    "closed": 237,
+    "open": 0,
+    "closed": 241,
     "lapsed": 0,
     "fixtures": 30,
     "by_code": {
@@ -14659,7 +14659,7 @@
       ],
       "owner_evidence": "Reviewed TypeScript 6.0.3 declaration owner chain: Primary:reportNonexistentProperty -> Dependency:resolveModuleName -> Dependency:getModeForUsageLocationWorker -> Dependency:createModeAwareCacheKey -> Dependency:createModeAwareCache -> Dependency:resolveExternalModule.",
       "rust_boundary": {
-        "readiness": "seam-only",
+        "readiness": "authoritative",
         "seam_anchors": [
           {
             "role": "producer",
@@ -14672,6 +14672,32 @@
             "crate_name": "tsc-program",
             "path": "crates/program/src/prepared.rs",
             "symbol": "require_module"
+          },
+          {
+            "role": "driver",
+            "crate_name": "tsc-compiler",
+            "path": "crates/compiler/src/lib.rs",
+            "symbol": "pub fn run(self)"
+          },
+          {
+            "role": "diagnostic-consumer",
+            "crate_name": "tsc-checker",
+            "path": "crates/checker/src/access.rs",
+            "symbol": "fn report_nonexistent_property"
+          }
+        ],
+        "authoritative_anchors": [
+          {
+            "role": "producer",
+            "crate_name": "tsc-program",
+            "path": "crates/program/src/module_resolution.rs",
+            "symbol": "pub fn resolve_with_facts("
+          },
+          {
+            "role": "table-consumer",
+            "crate_name": "tsc-compiler",
+            "path": "crates/compiler/src/lib.rs",
+            "symbol": "impl AuthoritativeModuleProvider for PreparedModuleProvider"
           },
           {
             "role": "driver",
@@ -14708,8 +14734,21 @@
           "evidence": "Same Node10 untyped-package consumer with no frozen host-dependent member error."
         }
       },
-      "status": "open",
-      "source_evidence": "member verdicts on 'typeof import(/node_modules/untyped/index)' — require of untyped node_modules package (host: node_modules)"
+      "status": "closed",
+      "source_evidence": "member verdicts on 'typeof import(/node_modules/untyped/index)' — require of untyped node_modules package (host: node_modules)",
+      "closure_evidence": {
+        "tiers": [
+          "t0",
+          "t1",
+          "t2",
+          "t3",
+          "t4"
+        ],
+        "artifact": "ratchets/conformance-matches.v1.json.zst",
+        "artifact_sha256": "a23698eb2d909465f46727a7514d940452892a6cca9db6b7c48f5d7e3c8dc492",
+        "note": "H0.3 routes three loaded-JavaScript member diagnostics and one untyped-module augmentation diagnostic through the authoritative module-resolution table; the exact Bundler controls remain non-emitting through T0--T4."
+      },
+      "closing_commit": "4ce9055237d4b5ce7280073adb3efe6110a88b1e"
     },
     {
       "id": "h0:41dcad2a45f7a985e9c64447025f7cd2b5f021fd46a30971e23d709b90769308",
@@ -19654,7 +19693,7 @@
       ],
       "owner_evidence": "Reviewed TypeScript 6.0.3 declaration owner chain: Primary:reportNonexistentProperty -> Dependency:resolveModuleName -> Dependency:getModeForUsageLocationWorker -> Dependency:createModeAwareCacheKey -> Dependency:createModeAwareCache -> Dependency:resolveExternalModule.",
       "rust_boundary": {
-        "readiness": "seam-only",
+        "readiness": "authoritative",
         "seam_anchors": [
           {
             "role": "producer",
@@ -19667,6 +19706,32 @@
             "crate_name": "tsc-program",
             "path": "crates/program/src/prepared.rs",
             "symbol": "require_module"
+          },
+          {
+            "role": "driver",
+            "crate_name": "tsc-compiler",
+            "path": "crates/compiler/src/lib.rs",
+            "symbol": "pub fn run(self)"
+          },
+          {
+            "role": "diagnostic-consumer",
+            "crate_name": "tsc-checker",
+            "path": "crates/checker/src/access.rs",
+            "symbol": "fn report_nonexistent_property"
+          }
+        ],
+        "authoritative_anchors": [
+          {
+            "role": "producer",
+            "crate_name": "tsc-program",
+            "path": "crates/program/src/module_resolution.rs",
+            "symbol": "pub fn resolve_with_facts("
+          },
+          {
+            "role": "table-consumer",
+            "crate_name": "tsc-compiler",
+            "path": "crates/compiler/src/lib.rs",
+            "symbol": "impl AuthoritativeModuleProvider for PreparedModuleProvider"
           },
           {
             "role": "driver",
@@ -19703,8 +19768,21 @@
           "evidence": "Same Node10 untyped-package consumer with no frozen host-dependent member error."
         }
       },
-      "status": "open",
-      "source_evidence": "member verdicts on 'typeof import(/node_modules/untyped/index)' — require of untyped node_modules package (host: node_modules)"
+      "status": "closed",
+      "source_evidence": "member verdicts on 'typeof import(/node_modules/untyped/index)' — require of untyped node_modules package (host: node_modules)",
+      "closure_evidence": {
+        "tiers": [
+          "t0",
+          "t1",
+          "t2",
+          "t3",
+          "t4"
+        ],
+        "artifact": "ratchets/conformance-matches.v1.json.zst",
+        "artifact_sha256": "a23698eb2d909465f46727a7514d940452892a6cca9db6b7c48f5d7e3c8dc492",
+        "note": "H0.3 routes three loaded-JavaScript member diagnostics and one untyped-module augmentation diagnostic through the authoritative module-resolution table; the exact Bundler controls remain non-emitting through T0--T4."
+      },
+      "closing_commit": "4ce9055237d4b5ce7280073adb3efe6110a88b1e"
     },
     {
       "id": "h0:517b4c24e46e9fb4472b08206d2aed90ebbe2a0b26639202d5cacb93881e4f5b",
@@ -35248,7 +35326,7 @@
       ],
       "owner_evidence": "Reviewed TypeScript 6.0.3 declaration owner chain: Primary:reportNonexistentProperty -> Dependency:resolveModuleName -> Dependency:getModeForUsageLocationWorker -> Dependency:createModeAwareCacheKey -> Dependency:createModeAwareCache -> Dependency:resolveExternalModule.",
       "rust_boundary": {
-        "readiness": "seam-only",
+        "readiness": "authoritative",
         "seam_anchors": [
           {
             "role": "producer",
@@ -35261,6 +35339,32 @@
             "crate_name": "tsc-program",
             "path": "crates/program/src/prepared.rs",
             "symbol": "require_module"
+          },
+          {
+            "role": "driver",
+            "crate_name": "tsc-compiler",
+            "path": "crates/compiler/src/lib.rs",
+            "symbol": "pub fn run(self)"
+          },
+          {
+            "role": "diagnostic-consumer",
+            "crate_name": "tsc-checker",
+            "path": "crates/checker/src/access.rs",
+            "symbol": "fn report_nonexistent_property"
+          }
+        ],
+        "authoritative_anchors": [
+          {
+            "role": "producer",
+            "crate_name": "tsc-program",
+            "path": "crates/program/src/module_resolution.rs",
+            "symbol": "pub fn resolve_with_facts("
+          },
+          {
+            "role": "table-consumer",
+            "crate_name": "tsc-compiler",
+            "path": "crates/compiler/src/lib.rs",
+            "symbol": "impl AuthoritativeModuleProvider for PreparedModuleProvider"
           },
           {
             "role": "driver",
@@ -35297,8 +35401,21 @@
           "evidence": "Same Node10 untyped-package consumer with no frozen host-dependent member error."
         }
       },
-      "status": "open",
-      "source_evidence": "member verdict on 'typeof import(/node_modules/foo/index)' — untyped module resolved through node_modules (host: node_modules)"
+      "status": "closed",
+      "source_evidence": "member verdict on 'typeof import(/node_modules/foo/index)' — untyped module resolved through node_modules (host: node_modules)",
+      "closure_evidence": {
+        "tiers": [
+          "t0",
+          "t1",
+          "t2",
+          "t3",
+          "t4"
+        ],
+        "artifact": "ratchets/conformance-matches.v1.json.zst",
+        "artifact_sha256": "a23698eb2d909465f46727a7514d940452892a6cca9db6b7c48f5d7e3c8dc492",
+        "note": "H0.3 routes three loaded-JavaScript member diagnostics and one untyped-module augmentation diagnostic through the authoritative module-resolution table; the exact Bundler controls remain non-emitting through T0--T4."
+      },
+      "closing_commit": "4ce9055237d4b5ce7280073adb3efe6110a88b1e"
     },
     {
       "id": "h0:8b42e0e4e6890b5b93342ec518d6b5d20510fa8ff7fdd60ad65b2b4c1e81c485",
@@ -60605,7 +60722,7 @@
       ],
       "owner_evidence": "Reviewed TypeScript 6.0.3 declaration owner chain: Primary:resolveExternalModule -> Dependency:resolveModuleName -> Dependency:getModeForUsageLocationWorker -> Dependency:createModeAwareCacheKey -> Dependency:createModeAwareCache.",
       "rust_boundary": {
-        "readiness": "seam-only",
+        "readiness": "authoritative",
         "seam_anchors": [
           {
             "role": "producer",
@@ -60618,6 +60735,32 @@
             "crate_name": "tsc-program",
             "path": "crates/program/src/prepared.rs",
             "symbol": "require_module"
+          },
+          {
+            "role": "driver",
+            "crate_name": "tsc-compiler",
+            "path": "crates/compiler/src/lib.rs",
+            "symbol": "pub fn run(self)"
+          },
+          {
+            "role": "diagnostic-consumer",
+            "crate_name": "tsc-checker",
+            "path": "crates/checker/src/modules.rs",
+            "symbol": "fn resolve_external_module"
+          }
+        ],
+        "authoritative_anchors": [
+          {
+            "role": "producer",
+            "crate_name": "tsc-program",
+            "path": "crates/program/src/module_resolution.rs",
+            "symbol": "pub fn resolve_with_facts("
+          },
+          {
+            "role": "table-consumer",
+            "crate_name": "tsc-compiler",
+            "path": "crates/compiler/src/lib.rs",
+            "symbol": "impl AuthoritativeModuleProvider for PreparedModuleProvider"
           },
           {
             "role": "driver",
@@ -60654,8 +60797,21 @@
           "evidence": "Same untyped package plus ambient-module contrast without TS2665."
         }
       },
-      "status": "open",
-      "source_evidence": "2665: augmentation target 'foo' resolves to untyped /node_modules/foo/index.js (host: node_modules)"
+      "status": "closed",
+      "source_evidence": "2665: augmentation target 'foo' resolves to untyped /node_modules/foo/index.js (host: node_modules)",
+      "closure_evidence": {
+        "tiers": [
+          "t0",
+          "t1",
+          "t2",
+          "t3",
+          "t4"
+        ],
+        "artifact": "ratchets/conformance-matches.v1.json.zst",
+        "artifact_sha256": "a23698eb2d909465f46727a7514d940452892a6cca9db6b7c48f5d7e3c8dc492",
+        "note": "H0.3 routes three loaded-JavaScript member diagnostics and one untyped-module augmentation diagnostic through the authoritative module-resolution table; the exact Bundler controls remain non-emitting through T0--T4."
+      },
+      "closing_commit": "4ce9055237d4b5ce7280073adb3efe6110a88b1e"
     },
     {
       "id": "h0:f33ff22f8f752a914b1b90710ade6db38db8e8e85414003d12d6aa3d818b84c4",

@@ -3830,11 +3830,19 @@ mod tests {
     #[test]
     fn lapsed_transition_state_machine_is_fail_closed_and_reactivatable() {
         let workspace = workspace();
-        let open = committed_registry(&workspace)
+        let mut open = committed_registry(&workspace)
             .rows
             .into_iter()
-            .find(|row| row.status == RowStatus::Open)
-            .expect("committed registry retains an open row");
+            .next()
+            .expect("committed registry retains a row");
+        // The production registry may legitimately reach zero open rows.
+        // Reconstruct the row's historical pre-closure shape so the transition
+        // state machine remains covered after complete H0 owner closure.
+        open.status = RowStatus::Open;
+        open.closing_commit = None;
+        open.closure_evidence = None;
+        open.rust_boundary.readiness = BoundaryReadiness::SeamOnly;
+        open.rust_boundary.authoritative_anchors.clear();
 
         let mut lapsed = open.clone();
         lapsed.status = RowStatus::Lapsed;
@@ -3925,23 +3933,8 @@ mod tests {
         );
 
         let mut false_closure = registry.clone();
-        let open_index = false_closure
-            .rows
-            .iter()
-            .position(|row| row.status == RowStatus::Open)
-            .expect("committed registry retains an open row");
-        false_closure.rows[open_index].status = RowStatus::Closed;
-        false_closure.rows[open_index].rust_boundary.readiness = BoundaryReadiness::Authoritative;
-        false_closure.rows[open_index]
-            .rust_boundary
-            .authoritative_anchors = false_closure.rows[open_index]
-            .rust_boundary
-            .seam_anchors
-            .clone();
-        false_closure.rows[open_index]
-            .rust_boundary
-            .authoritative_anchors[0]
-            .symbol = "try_add_module_resolution".to_owned();
+        false_closure.rows[0].closing_commit = None;
+        false_closure.rows[0].closure_evidence = None;
         false_closure.summary = summarize(&false_closure.rows);
         let error = validate_registry_with_cached_history(
             &workspace,
