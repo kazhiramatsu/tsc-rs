@@ -451,6 +451,7 @@ impl<'a> ModuleResolver<'a> {
     }
 
     /// tsc-port: classicNameResolver @6.0.3
+    /// tsc-hash: d928985c6c8e588d5b3e35a9135bf163db3cb28ca5f94d1580e68d218230341b
     /// tsc-span: _tsc.js:42110-42186
     ///
     /// The owned Classic slice is deliberately the legacy file search plus
@@ -531,6 +532,7 @@ impl<'a> ModuleResolver<'a> {
 
     /// tsc-port: nodeModuleNameResolverWorker @6.0.3 (Node10 branch and
     /// diagnostic Bundler retry)
+    /// tsc-hash: ccf7790e149deb18d5f0d7ebb0c71377781e460ec97b5e8c5d332298727be3f3
     /// tsc-span: _tsc.js:40935-41020
     fn resolve_node10(
         &mut self,
