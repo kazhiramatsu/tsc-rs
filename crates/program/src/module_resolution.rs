@@ -13,6 +13,7 @@ use crate::resolution::{
     ModuleExtension, PackageId, ResolutionError, ResolutionMode, ResolutionOutcome, ResolvedModule,
     ResolvedModuleTarget,
 };
+use crate::text::decode_host_text;
 
 /// Filesystem-derived module facts that have not yet been bound to a program
 /// source id.
@@ -1984,14 +1985,13 @@ impl<'a> ModuleResolver<'a> {
                 package_json_path.display()
             ))
         })?;
-        let text = std::str::from_utf8(&bytes).map_err(|error| {
+        let text = decode_host_text(bytes).map_err(|error| {
             ResolutionError::invalid_data(format!(
-                "{} is not UTF-8: {error}",
+                "cannot decode {}: {error}",
                 Path::new(package_json).display()
             ))
         })?;
-        let json_text = text.strip_prefix('\u{feff}').unwrap_or(text);
-        let value: Value = serde_json::from_str(json_text).map_err(|error| {
+        let value: Value = serde_json::from_str(&text).map_err(|error| {
             ResolutionError::invalid_data(format!(
                 "cannot parse {}: {error}",
                 Path::new(package_json).display()

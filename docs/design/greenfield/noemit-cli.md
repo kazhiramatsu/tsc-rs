@@ -131,7 +131,12 @@ program loader.
 
 Byte decoding is centralized and matches the vendored Node host for UTF-8,
 UTF-8 BOM, UTF-16LE, UTF-16BE, and invalid UTF-8 replacement. A no-emit
-host exposes no write operation.
+host exposes no write operation. The program boundary currently owns Rust
+`String` source text and JSON values, so either a raw UTF-16 payload or a JSON
+escape whose value contains an unpaired surrogate cannot preserve Node's
+JavaScript-string identity. They are typed decode or parse failures rather than
+silent U+FFFD substitutions. Lossless support remains coupled to the existing
+WTF-8 source-representation debt.
 
 ### 5.2 `PreparedProgram`
 
@@ -379,9 +384,11 @@ Implementation status: H0.4 is active and partial. The production
 `FsCompilerHost` primitive now preserves raw bytes, distinguishes absence
 from typed I/O failure, follows filesystem realpaths, and exposes
 deterministically ordered immediate entries under an explicit or detected
-case profile. Central source decoding, recursive program discovery, library
-and reference loading, `PreparedProgram` equivalence, and filesystem-backed
-diagnostic execution remain in the following H0.4 slices.
+case profile. The shared program-layer decoder now consumes those bytes with
+the vendored Node host's BOM, endian, odd-byte, and invalid-UTF-8 rules, and
+package metadata uses that same decoded text. Recursive program discovery,
+library and reference loading, `PreparedProgram` equivalence, and
+filesystem-backed diagnostic execution remain in the following H0.4 slices.
 
 ### H0.5 — tsconfig and command-line driver
 
