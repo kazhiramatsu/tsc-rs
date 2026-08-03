@@ -111,6 +111,8 @@ pub(crate) const EMIT_HELPER_SPREAD_ARRAY: u32 = 1 << 10;
 pub(crate) const EMIT_HELPER_EXPORT_STAR: u32 = 1 << 15;
 pub(crate) const EMIT_HELPER_IMPORT_STAR: u32 = 1 << 16;
 pub(crate) const EMIT_HELPER_IMPORT_DEFAULT: u32 = 1 << 17;
+pub(crate) const EMIT_HELPER_CLASS_PRIVATE_FIELD_GET: u32 = 1 << 19;
+pub(crate) const EMIT_HELPER_CLASS_PRIVATE_FIELD_SET: u32 = 1 << 20;
 pub(crate) const EMIT_HELPER_SET_FUNCTION_NAME: u32 = 1 << 22;
 pub(crate) const EMIT_HELPER_PROP_KEY: u32 = 1 << 23;
 pub(crate) const EMIT_HELPER_ADD_DISPOSABLE_RESOURCE_AND_DISPOSE_RESOURCES: u32 = 1 << 24;
@@ -4866,7 +4868,11 @@ impl<'a> CheckerState<'a> {
             {
                 Some(ambient)
             } else {
-                match self.resolve_program_module(location, "tslib") {
+                // Upstream resolves the synthetic importHelpers import from the
+                // source file, so its key always uses the file's static mode.
+                // A helper-emitting expression can itself sit below import()
+                // or require(), whose usage mode must not leak into this lookup.
+                match self.resolve_program_module(source_root, "tslib") {
                     ProgramModuleResolution::Resolved(resolved) => {
                         let root = self.binder.source(resolved.file_index).root;
                         self.binder
@@ -4933,8 +4939,8 @@ impl<'a> CheckerState<'a> {
                         continue;
                     };
                     let required_parameter_count = match helper {
-                        524_288 => Some(4usize),
-                        1_048_576 => Some(5usize),
+                        EMIT_HELPER_CLASS_PRIVATE_FIELD_GET => Some(4usize),
+                        EMIT_HELPER_CLASS_PRIVATE_FIELD_SET => Some(5usize),
                         EMIT_HELPER_SPREAD_ARRAY => Some(3usize),
                         _ => None,
                     };
@@ -4986,8 +4992,8 @@ impl<'a> CheckerState<'a> {
             EMIT_HELPER_IMPORT_STAR => &["__importStar"],
             EMIT_HELPER_IMPORT_DEFAULT => &["__importDefault"],
             262_144 => &["__makeTemplateObject"],
-            524_288 => &["__classPrivateFieldGet"],
-            1_048_576 => &["__classPrivateFieldSet"],
+            EMIT_HELPER_CLASS_PRIVATE_FIELD_GET => &["__classPrivateFieldGet"],
+            EMIT_HELPER_CLASS_PRIVATE_FIELD_SET => &["__classPrivateFieldSet"],
             2_097_152 => &["__classPrivateFieldIn"],
             EMIT_HELPER_SET_FUNCTION_NAME => &["__setFunctionName"],
             EMIT_HELPER_PROP_KEY => &["__propKey"],

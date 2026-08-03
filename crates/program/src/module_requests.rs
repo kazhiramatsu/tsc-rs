@@ -156,6 +156,23 @@ fn plan_module_requests_worker(
     } else {
         LanguageVariant::Standard
     };
+    let is_declaration_file = file_name.ends_with(".d.ts")
+        || file_name.ends_with(".d.cts")
+        || file_name.ends_with(".d.mts");
+    let module_detection = options.emit_module_detection_kind();
+    let force_external_module = !is_declaration_file
+        && match module_detection {
+            3 => true,
+            2 => {
+                [".cjs", ".cts", ".mjs", ".mts"]
+                    .iter()
+                    .any(|extension| file_name.ends_with(extension))
+                    || source.implied_node_format() == Some(ResolutionMode::EsNext)
+            }
+            _ => false,
+        };
+    let detect_external_module_from_jsx =
+        !is_declaration_file && module_detection == 2 && matches!(options.jsx, Some(4 | 5));
     let parsed = parse_source_file(
         file_name.to_owned(),
         source.text().to_owned(),
@@ -163,6 +180,8 @@ fn plan_module_requests_worker(
             script_target: options.emit_script_target(),
             language_variant,
             javascript_file,
+            force_external_module,
+            detect_external_module_from_jsx,
             ..ParseOptions::default()
         },
         None,
@@ -453,6 +472,22 @@ fn plan_module_requests_worker(
     occurrences.sort_by_key(|occurrence| occurrence.pos);
     let mut module_requests = Vec::new();
     let mut seen_module_requests = BTreeSet::new();
+    // tsc collectExternalModuleReferences prepends a synthesized `tslib`
+    // import when importHelpers can participate in this source. The checker
+    // later resolves that exact synthetic specifier while validating the
+    // requested helper shape, so the authoritative table must contain the
+    // row even though no source-text module literal exists.
+    let computed_isolated_modules =
+        options.isolated_modules == Some(true) || options.verbatim_module_syntax == Some(true);
+    if options.import_helpers == Some(true)
+        && (javascript_file
+            || (!parsed.is_declaration_file
+                && (computed_isolated_modules || parsed.external_module_indicator.is_some())))
+    {
+        let key = ResolutionKey::new(source.path().canonical().clone(), "tslib", static_mode);
+        seen_module_requests.insert(key.clone());
+        module_requests.push(key);
+    }
     for occurrence in occurrences {
         if seen_module_requests.insert(occurrence.key.clone()) {
             module_requests.push(occurrence.key);

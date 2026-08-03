@@ -4,6 +4,7 @@ use tsc_program::{
     plan_module_requests, plan_source_requests, plan_static_module_requests, CompilerOptions,
     PreparedSourceFile, ProgramPath, ResolutionError, ResolutionMode,
 };
+use tsc_types::ScriptTarget;
 
 fn path(display: &str) -> ProgramPath {
     ProgramPath::from_trusted_parts(display, display).expect("trusted test path")
@@ -220,6 +221,99 @@ fn source_plan_accepts_the_es2015_module_default_used_by_typings_fixtures() {
         plan.type_reference_directives()[0].key().specifier(),
         "jquery"
     );
+}
+
+#[test]
+fn import_helpers_prepends_the_exact_synthetic_tslib_request() {
+    let source = source_at(
+        "/main.ts",
+        "export class C { #value = 1; }\nimport \"tslib\";\nimport \"after\";\n",
+        None,
+    );
+    let options = CompilerOptions {
+        target: Some(ScriptTarget::ES2015.bits()),
+        import_helpers: Some(true),
+        isolated_modules: Some(true),
+        ..CompilerOptions::default()
+    };
+
+    let plan = plan_source_requests(&source, &options).expect("plan synthetic tslib request");
+    assert_eq!(
+        plan.module_requests()
+            .iter()
+            .map(|request| (request.specifier(), request.mode()))
+            .collect::<Vec<_>>(),
+        [
+            ("tslib", ResolutionMode::EsNext),
+            ("after", ResolutionMode::EsNext),
+        ]
+    );
+    assert!(plan
+        .module_requests()
+        .iter()
+        .all(|request| request.source().as_path() == Path::new("/main.ts")));
+}
+
+#[test]
+fn synthetic_tslib_request_obeys_the_upstream_source_boundary() {
+    let options = CompilerOptions {
+        module: Some(99),
+        module_resolution: Some(100),
+        import_helpers: Some(true),
+        ..CompilerOptions::default()
+    };
+    for (file_name, text) in [
+        ("/global.ts", "const value = 1;\n"),
+        ("/external.d.ts", "export declare const value: number;\n"),
+    ] {
+        let plan = plan_source_requests(&source_at(file_name, text, None), &options)
+            .expect("plan non-synthetic control");
+        assert!(plan.module_requests().is_empty(), "{file_name}");
+    }
+
+    let isolated = CompilerOptions {
+        isolated_modules: Some(true),
+        ..options.clone()
+    };
+    let plan = plan_source_requests(
+        &source_at("/isolated.ts", "const value = 1;\n", None),
+        &isolated,
+    )
+    .expect("plan isolated synthetic request");
+    assert_eq!(plan.module_requests().len(), 1);
+    assert_eq!(plan.module_requests()[0].specifier(), "tslib");
+    assert_eq!(plan.module_requests()[0].mode(), ResolutionMode::EsNext);
+
+    let forced = CompilerOptions {
+        module_detection: Some(3),
+        ..options.clone()
+    };
+    let plan = plan_source_requests(
+        &source_at("/forced.ts", "const value = 1;\n", None),
+        &forced,
+    )
+    .expect("plan force-detected synthetic request");
+    assert_eq!(plan.module_requests().len(), 1);
+    assert_eq!(plan.module_requests()[0].specifier(), "tslib");
+
+    let package_esm = source_at(
+        "/package-source.ts",
+        "const value = 1;\n",
+        Some(ResolutionMode::EsNext),
+    );
+    let plan = plan_source_requests(&package_esm, &options)
+        .expect("plan package-format synthetic request");
+    assert_eq!(plan.module_requests().len(), 1);
+    assert_eq!(plan.module_requests()[0].specifier(), "tslib");
+
+    let jsx = CompilerOptions {
+        jsx: Some(4),
+        ..options
+    };
+    let plan = plan_source_requests(&source_at("/automatic.tsx", "<div />;\n", None), &jsx)
+        .expect("plan JSX-detected synthetic request");
+    assert_eq!(plan.module_requests().len(), 1);
+    assert_eq!(plan.module_requests()[0].specifier(), "tslib");
 }
 
 #[test]

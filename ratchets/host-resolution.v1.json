@@ -131,8 +131,8 @@
   ],
   "summary": {
     "rows": 241,
-    "open": 15,
-    "closed": 226,
+    "open": 11,
+    "closed": 230,
     "lapsed": 0,
     "fixtures": 30,
     "by_code": {
@@ -26480,7 +26480,7 @@
       ],
       "owner_evidence": "Reviewed TypeScript 6.0.3 declaration owner chain: Primary:checkExternalEmitHelpers -> Dependency:resolveModuleName -> Dependency:getModeForUsageLocationWorker -> Dependency:createModeAwareCacheKey -> Dependency:createModeAwareCache.",
       "rust_boundary": {
-        "readiness": "seam-only",
+        "readiness": "authoritative",
         "seam_anchors": [
           {
             "role": "producer",
@@ -26493,6 +26493,32 @@
             "crate_name": "tsc-program",
             "path": "crates/program/src/prepared.rs",
             "symbol": "require_module"
+          },
+          {
+            "role": "driver",
+            "crate_name": "tsc-compiler",
+            "path": "crates/compiler/src/lib.rs",
+            "symbol": "pub fn run(self)"
+          },
+          {
+            "role": "diagnostic-consumer",
+            "crate_name": "tsc-checker",
+            "path": "crates/checker/src/modules.rs",
+            "symbol": "fn check_external_emit_helpers"
+          }
+        ],
+        "authoritative_anchors": [
+          {
+            "role": "producer",
+            "crate_name": "tsc-program",
+            "path": "crates/program/src/module_resolution.rs",
+            "symbol": "pub fn resolve("
+          },
+          {
+            "role": "table-consumer",
+            "crate_name": "tsc-compiler",
+            "path": "crates/compiler/src/lib.rs",
+            "symbol": "impl AuthoritativeModuleProvider for PreparedModuleProvider"
           },
           {
             "role": "driver",
@@ -26529,8 +26555,21 @@
           "evidence": "Closest corpus control for the external-helper consumer under the same Node10 kind; it exercises helper lookup without TS2807 (the corpus has no successful sibling with the same private-helper ABI)."
         }
       },
-      "status": "open",
-      "source_evidence": "importHelpers resolves 'tslib' via node_modules/tslib/index.d.ts; 2807 helper-shape verdict reads the node_modules-resolved module (host: node_modules); contrast: all corpus 2343 rows ride in-program/ambient tslib and stay supported"
+      "status": "closed",
+      "source_evidence": "importHelpers resolves 'tslib' via node_modules/tslib/index.d.ts; 2807 helper-shape verdict reads the node_modules-resolved module (host: node_modules); contrast: all corpus 2343 rows ride in-program/ambient tslib and stay supported",
+      "closure_evidence": {
+        "tiers": [
+          "t0",
+          "t1",
+          "t2",
+          "t3",
+          "t4"
+        ],
+        "artifact": "ratchets/conformance-matches.v1.json.zst",
+        "artifact_sha256": "ac4c1655f11f294f2c16aa7d44ee04c0126879b0d9d63737f59b4fd0b8d3db72",
+        "note": "H0.3 publishes the synthetic tslib request and validates private get/set helper arity through the authoritative declaration target, while the exact missing-tslib control remains non-emitting for TS2807 through T0--T4."
+      },
+      "closing_commit": "595af54fd73630f0184286de777fc3c2f314e080"
     },
     {
       "id": "h0:634a231f89edd79c962be2aa5ae826c8cb440e69ee8a241b2eff5e24fc3857b3",
@@ -43979,7 +44018,7 @@
       ],
       "owner_evidence": "Reviewed TypeScript 6.0.3 declaration owner chain: Primary:checkExternalEmitHelpers -> Dependency:resolveModuleName -> Dependency:getModeForUsageLocationWorker -> Dependency:createModeAwareCacheKey -> Dependency:createModeAwareCache.",
       "rust_boundary": {
-        "readiness": "seam-only",
+        "readiness": "authoritative",
         "seam_anchors": [
           {
             "role": "producer",
@@ -43992,6 +44031,32 @@
             "crate_name": "tsc-program",
             "path": "crates/program/src/prepared.rs",
             "symbol": "require_module"
+          },
+          {
+            "role": "driver",
+            "crate_name": "tsc-compiler",
+            "path": "crates/compiler/src/lib.rs",
+            "symbol": "pub fn run(self)"
+          },
+          {
+            "role": "diagnostic-consumer",
+            "crate_name": "tsc-checker",
+            "path": "crates/checker/src/modules.rs",
+            "symbol": "fn check_external_emit_helpers"
+          }
+        ],
+        "authoritative_anchors": [
+          {
+            "role": "producer",
+            "crate_name": "tsc-program",
+            "path": "crates/program/src/module_resolution.rs",
+            "symbol": "pub fn resolve("
+          },
+          {
+            "role": "table-consumer",
+            "crate_name": "tsc-compiler",
+            "path": "crates/compiler/src/lib.rs",
+            "symbol": "impl AuthoritativeModuleProvider for PreparedModuleProvider"
           },
           {
             "role": "driver",
@@ -44028,8 +44093,21 @@
           "evidence": "Closest corpus control for the external-helper consumer under the same Node10 kind; it exercises helper lookup without TS2807 (the corpus has no successful sibling with the same private-helper ABI)."
         }
       },
-      "status": "open",
-      "source_evidence": "importHelpers resolves 'tslib' via node_modules/tslib/index.d.ts; 2807 helper-shape verdict reads the node_modules-resolved module (host: node_modules)"
+      "status": "closed",
+      "source_evidence": "importHelpers resolves 'tslib' via node_modules/tslib/index.d.ts; 2807 helper-shape verdict reads the node_modules-resolved module (host: node_modules)",
+      "closure_evidence": {
+        "tiers": [
+          "t0",
+          "t1",
+          "t2",
+          "t3",
+          "t4"
+        ],
+        "artifact": "ratchets/conformance-matches.v1.json.zst",
+        "artifact_sha256": "ac4c1655f11f294f2c16aa7d44ee04c0126879b0d9d63737f59b4fd0b8d3db72",
+        "note": "H0.3 publishes the synthetic tslib request and validates private get/set helper arity through the authoritative declaration target, while the exact missing-tslib control remains non-emitting for TS2807 through T0--T4."
+      },
+      "closing_commit": "595af54fd73630f0184286de777fc3c2f314e080"
     },
     {
       "id": "h0:a7e28dfa986075fd33ac549196be5cd683d9b8afa57d94f60e36b610cbe79e52",
@@ -46353,7 +46431,7 @@
       ],
       "owner_evidence": "Reviewed TypeScript 6.0.3 declaration owner chain: Primary:checkExternalEmitHelpers -> Dependency:resolveModuleName -> Dependency:getModeForUsageLocationWorker -> Dependency:createModeAwareCacheKey -> Dependency:createModeAwareCache.",
       "rust_boundary": {
-        "readiness": "seam-only",
+        "readiness": "authoritative",
         "seam_anchors": [
           {
             "role": "producer",
@@ -46366,6 +46444,32 @@
             "crate_name": "tsc-program",
             "path": "crates/program/src/prepared.rs",
             "symbol": "require_module"
+          },
+          {
+            "role": "driver",
+            "crate_name": "tsc-compiler",
+            "path": "crates/compiler/src/lib.rs",
+            "symbol": "pub fn run(self)"
+          },
+          {
+            "role": "diagnostic-consumer",
+            "crate_name": "tsc-checker",
+            "path": "crates/checker/src/modules.rs",
+            "symbol": "fn check_external_emit_helpers"
+          }
+        ],
+        "authoritative_anchors": [
+          {
+            "role": "producer",
+            "crate_name": "tsc-program",
+            "path": "crates/program/src/module_resolution.rs",
+            "symbol": "pub fn resolve("
+          },
+          {
+            "role": "table-consumer",
+            "crate_name": "tsc-compiler",
+            "path": "crates/compiler/src/lib.rs",
+            "symbol": "impl AuthoritativeModuleProvider for PreparedModuleProvider"
           },
           {
             "role": "driver",
@@ -46402,8 +46506,21 @@
           "evidence": "Closest corpus control for the external-helper consumer under the same Node10 kind; it exercises helper lookup without TS2807 (the corpus has no successful sibling with the same private-helper ABI)."
         }
       },
-      "status": "open",
-      "source_evidence": "importHelpers resolves 'tslib' via node_modules/tslib/index.d.ts; 2807 helper-shape verdict reads the node_modules-resolved module (host: node_modules)"
+      "status": "closed",
+      "source_evidence": "importHelpers resolves 'tslib' via node_modules/tslib/index.d.ts; 2807 helper-shape verdict reads the node_modules-resolved module (host: node_modules)",
+      "closure_evidence": {
+        "tiers": [
+          "t0",
+          "t1",
+          "t2",
+          "t3",
+          "t4"
+        ],
+        "artifact": "ratchets/conformance-matches.v1.json.zst",
+        "artifact_sha256": "ac4c1655f11f294f2c16aa7d44ee04c0126879b0d9d63737f59b4fd0b8d3db72",
+        "note": "H0.3 publishes the synthetic tslib request and validates private get/set helper arity through the authoritative declaration target, while the exact missing-tslib control remains non-emitting for TS2807 through T0--T4."
+      },
+      "closing_commit": "595af54fd73630f0184286de777fc3c2f314e080"
     },
     {
       "id": "h0:b5b36927e602ba249cfc9b5b463f5d7e8a5627159e29b126f89a9ebcc645b9e2",
@@ -57249,7 +57366,7 @@
       ],
       "owner_evidence": "Reviewed TypeScript 6.0.3 declaration owner chain: Primary:checkExternalEmitHelpers -> Dependency:resolveModuleName -> Dependency:getModeForUsageLocationWorker -> Dependency:createModeAwareCacheKey -> Dependency:createModeAwareCache.",
       "rust_boundary": {
-        "readiness": "seam-only",
+        "readiness": "authoritative",
         "seam_anchors": [
           {
             "role": "producer",
@@ -57262,6 +57379,32 @@
             "crate_name": "tsc-program",
             "path": "crates/program/src/prepared.rs",
             "symbol": "require_module"
+          },
+          {
+            "role": "driver",
+            "crate_name": "tsc-compiler",
+            "path": "crates/compiler/src/lib.rs",
+            "symbol": "pub fn run(self)"
+          },
+          {
+            "role": "diagnostic-consumer",
+            "crate_name": "tsc-checker",
+            "path": "crates/checker/src/modules.rs",
+            "symbol": "fn check_external_emit_helpers"
+          }
+        ],
+        "authoritative_anchors": [
+          {
+            "role": "producer",
+            "crate_name": "tsc-program",
+            "path": "crates/program/src/module_resolution.rs",
+            "symbol": "pub fn resolve("
+          },
+          {
+            "role": "table-consumer",
+            "crate_name": "tsc-compiler",
+            "path": "crates/compiler/src/lib.rs",
+            "symbol": "impl AuthoritativeModuleProvider for PreparedModuleProvider"
           },
           {
             "role": "driver",
@@ -57298,8 +57441,21 @@
           "evidence": "Closest corpus control for the external-helper consumer under the same Node10 kind; it exercises helper lookup without TS2807 (the corpus has no successful sibling with the same private-helper ABI)."
         }
       },
-      "status": "open",
-      "source_evidence": "importHelpers resolves 'tslib' via node_modules/tslib/index.d.ts; 2807 helper-shape verdict reads the node_modules-resolved module (host: node_modules); contrast: all corpus 2343 rows ride in-program/ambient tslib and stay supported"
+      "status": "closed",
+      "source_evidence": "importHelpers resolves 'tslib' via node_modules/tslib/index.d.ts; 2807 helper-shape verdict reads the node_modules-resolved module (host: node_modules); contrast: all corpus 2343 rows ride in-program/ambient tslib and stay supported",
+      "closure_evidence": {
+        "tiers": [
+          "t0",
+          "t1",
+          "t2",
+          "t3",
+          "t4"
+        ],
+        "artifact": "ratchets/conformance-matches.v1.json.zst",
+        "artifact_sha256": "ac4c1655f11f294f2c16aa7d44ee04c0126879b0d9d63737f59b4fd0b8d3db72",
+        "note": "H0.3 publishes the synthetic tslib request and validates private get/set helper arity through the authoritative declaration target, while the exact missing-tslib control remains non-emitting for TS2807 through T0--T4."
+      },
+      "closing_commit": "595af54fd73630f0184286de777fc3c2f314e080"
     },
     {
       "id": "h0:e27e2578c22b78f415744737f5e751596a8504ed4bb05d4bc23273f74338b442",

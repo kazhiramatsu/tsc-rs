@@ -1091,6 +1091,158 @@ fn synthetic_tslib_uses_the_same_fail_closed_authoritative_table() {
 }
 
 #[test]
+fn private_emit_helpers_consume_the_authoritative_tslib_declaration_target() {
+    let tslib = "export declare function __classPrivateFieldGet<T extends object, V>(receiver: T, state: any): V;\n\
+                 export declare function __classPrivateFieldSet<T extends object, V>(receiver: T, state: any, value: V): V;\n";
+    let main = "export class C {\n\
+                    #a = 1;\n\
+                    #b() { this.#c = 42; }\n\
+                    set #c(v: number) { this.#a += v; }\n\
+                }\n";
+    let prepared = authoritative_program(
+        &[
+            ("/node_modules/tslib/index.d.ts", tslib),
+            ("/main.ts", main),
+        ],
+        &[1],
+        CompilerOptions {
+            target: Some(2), // ScriptTarget.ES2015
+            import_helpers: Some(true),
+            isolated_modules: Some(true),
+            ..CompilerOptions::default()
+        },
+        |builder, ids| {
+            let module = ResolvedModule::new(
+                ResolvedModuleTarget::Source {
+                    source: ids[0],
+                    resolved_file: path("/node_modules/tslib/index.d.ts"),
+                },
+                ModuleExtension::Dts,
+            )
+            .with_external_library_import(true)
+            .with_package_id(PackageId::new("tslib", "index.d.ts", "1.0.0"));
+            builder
+                .add_module_resolution(
+                    module_key("/main.ts", "tslib", ResolutionMode::EsNext),
+                    Ok(ModuleResolution::resolved(module)),
+                )
+                .expect("add authoritative tslib row");
+        },
+    );
+
+    let outcome = consume(ProgramSession::new(prepared));
+    let rows = outcome
+        .semantic_diagnostics()
+        .iter()
+        .filter(|diagnostic| diagnostic.code() == 2807)
+        .map(|diagnostic| {
+            (
+                diagnostic.file_name.as_deref(),
+                diagnostic.start,
+                diagnostic.length,
+                diagnostic.message_text(),
+            )
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(
+        rows,
+        [
+            (
+                Some("/main.ts"),
+                Some(main.find("this.#c").expect("private setter") as u32),
+                Some("this.#c".len() as u32),
+                "This syntax requires an imported helper named '__classPrivateFieldSet' with 5 parameters, which is not compatible with the one in 'tslib'. Consider upgrading your version of 'tslib'.",
+            ),
+            (
+                Some("/main.ts"),
+                Some(main.find("this.#a").expect("private getter") as u32),
+                Some("this.#a".len() as u32),
+                "This syntax requires an imported helper named '__classPrivateFieldGet' with 4 parameters, which is not compatible with the one in 'tslib'. Consider upgrading your version of 'tslib'.",
+            ),
+        ]
+    );
+}
+
+#[test]
+fn private_emit_helpers_use_the_source_files_static_resolution_mode() {
+    let tslib = "export declare function __classPrivateFieldGet<T extends object, V>(receiver: T, state: any): V;\n";
+    let main = "export class C {\n\
+                    #specifier = \"pkg\";\n\
+                    load() { return import(this.#specifier); }\n\
+                }\n";
+    let options = CompilerOptions {
+        no_emit: Some(true),
+        target: Some(2),            // ScriptTarget.ES2015
+        module: Some(100),          // ModuleKind.Node16
+        module_resolution: Some(3), // ModuleResolutionKind.Node16
+        import_helpers: Some(true),
+        isolated_modules: Some(true),
+        ..CompilerOptions::default()
+    };
+    let mut builder =
+        PreparedProgram::builder(PathContext::new(current_directory(), true), options);
+    let lib = builder
+        .add_source_file(PreparedSourceFile::new(path("/lib.d.ts"), MINIMAL_GLOBALS))
+        .expect("add lib");
+    let tslib_source = builder
+        .add_source_file(PreparedSourceFile::new(
+            path("/node_modules/tslib/index.d.ts"),
+            tslib,
+        ))
+        .expect("add tslib");
+    let main_source = builder
+        .add_source_file(
+            PreparedSourceFile::new(path("/main.ts"), main)
+                .with_implied_node_format(ResolutionMode::CommonJs),
+        )
+        .expect("add main");
+    builder.add_library_file(lib).expect("add library");
+    builder.add_root_file(main_source).expect("add root");
+    builder
+        .add_module_resolution(
+            module_key("/main.ts", "tslib", ResolutionMode::CommonJs),
+            Ok(ModuleResolution::resolved(
+                ResolvedModule::new(
+                    ResolvedModuleTarget::Source {
+                        source: tslib_source,
+                        resolved_file: path("/node_modules/tslib/index.d.ts"),
+                    },
+                    ModuleExtension::Dts,
+                )
+                .with_external_library_import(true)
+                .with_package_id(PackageId::new("tslib", "index.d.ts", "1.0.0")),
+            )),
+        )
+        .expect("add CommonJS tslib row");
+
+    let outcome = consume(ProgramSession::new(
+        builder.build().expect("build authoritative program"),
+    ));
+    let rows = outcome
+        .semantic_diagnostics()
+        .iter()
+        .filter(|diagnostic| diagnostic.code() == 2807)
+        .map(|diagnostic| {
+            (
+                diagnostic.file_name.as_deref(),
+                diagnostic.start,
+                diagnostic.length,
+                diagnostic.message_text(),
+            )
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(
+        rows,
+        [(
+            Some("/main.ts"),
+            Some(main.find("this.#specifier").expect("private getter") as u32),
+            Some("this.#specifier".len() as u32),
+            "This syntax requires an imported helper named '__classPrivateFieldGet' with 4 parameters, which is not compatible with the one in 'tslib'. Consider upgrading your version of 'tslib'.",
+        )]
+    );
+}
+
+#[test]
 fn prepared_implied_node_format_selects_the_exact_esnext_key() {
     let mut builder = PreparedProgram::builder(
         PathContext::new(current_directory(), true),
