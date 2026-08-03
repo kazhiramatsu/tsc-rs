@@ -24,7 +24,8 @@ mod text;
 pub use error::{PreparationError, PreparationErrorKind, PreparationOperation};
 pub use module_requests::{
     plan_module_requests, plan_source_requests, plan_static_module_requests,
-    PlannedTypeReferenceDirective, SourceRequestPlan,
+    PlannedLibReferenceDirective, PlannedPathReference, PlannedTypeReferenceDirective,
+    SourceRequestPlan,
 };
 pub use module_resolution::{
     HostModuleResolution, HostResolvedModule, HostResolvedTypeReferenceDirective, ModuleResolver,

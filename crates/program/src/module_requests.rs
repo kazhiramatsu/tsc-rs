@@ -5,7 +5,7 @@ use tsc_syntax::{
     for_each_child, parse_source_file, LanguageVariant, NodeData, NodeId, ParseOptions, SourceFile,
     SyntaxKind, TypeReferenceDirectiveResolutionMode,
 };
-use tsc_types::CompilerOptions;
+use tsc_types::{CompilerOptions, NodeFlags};
 
 use crate::prepared::PreparedSourceFile;
 use crate::resolution::{
@@ -23,6 +23,7 @@ pub struct PlannedTypeReferenceDirective {
     key: TypeReferenceResolutionKey,
     pos: u32,
     end: u32,
+    preserve: bool,
 }
 
 impl PlannedTypeReferenceDirective {
@@ -45,34 +46,138 @@ impl PlannedTypeReferenceDirective {
     pub fn span(&self) -> Range<u32> {
         self.pos..self.end
     }
+
+    pub const fn preserve(&self) -> bool {
+        self.preserve
+    }
+}
+
+/// A source-owned triple-slash path reference and its diagnostic span.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct PlannedPathReference {
+    file_name: String,
+    pos: u32,
+    end: u32,
+    preserve: bool,
+}
+
+impl PlannedPathReference {
+    pub fn file_name(&self) -> &str {
+        &self.file_name
+    }
+
+    pub const fn pos(&self) -> u32 {
+        self.pos
+    }
+
+    pub const fn end(&self) -> u32 {
+        self.end
+    }
+
+    pub const fn length(&self) -> u32 {
+        self.end - self.pos
+    }
+
+    pub fn span(&self) -> Range<u32> {
+        self.pos..self.end
+    }
+
+    pub const fn preserve(&self) -> bool {
+        self.preserve
+    }
+}
+
+/// A source-owned triple-slash lib reference and its diagnostic span.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct PlannedLibReferenceDirective {
+    file_name: String,
+    pos: u32,
+    end: u32,
+    preserve: bool,
+}
+
+impl PlannedLibReferenceDirective {
+    pub fn file_name(&self) -> &str {
+        &self.file_name
+    }
+
+    pub const fn pos(&self) -> u32 {
+        self.pos
+    }
+
+    pub const fn end(&self) -> u32 {
+        self.end
+    }
+
+    pub const fn length(&self) -> u32 {
+        self.end - self.pos
+    }
+
+    pub fn span(&self) -> Range<u32> {
+        self.pos..self.end
+    }
+
+    pub const fn preserve(&self) -> bool {
+        self.preserve
+    }
 }
 
 /// Exact source-owned resolution requests discovered by one syntax parse.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct SourceRequestPlan {
+    path_references: Vec<PlannedPathReference>,
     module_requests: Vec<ResolutionKey>,
+    loadable_module_requests: BTreeSet<ResolutionKey>,
     type_reference_directives: Vec<PlannedTypeReferenceDirective>,
+    lib_reference_directives: Vec<PlannedLibReferenceDirective>,
+    observed_request_occurrence_count: usize,
 }
 
 impl SourceRequestPlan {
+    pub fn path_references(&self) -> &[PlannedPathReference] {
+        &self.path_references
+    }
+
     pub fn module_requests(&self) -> &[ResolutionKey] {
         &self.module_requests
+    }
+
+    pub fn module_requests_with_loadability(
+        &self,
+    ) -> impl ExactSizeIterator<Item = (&ResolutionKey, bool)> {
+        self.module_requests
+            .iter()
+            .map(|key| (key, self.loadable_module_requests.contains(key)))
+    }
+
+    /// Whether a resolved target participates in program source discovery.
+    /// External-module augmentations still require a resolution row but do
+    /// not load their target unless another request for the same exact key
+    /// does so. A key outside this plan returns `None` rather than being
+    /// confused with a resolution-only request.
+    pub fn module_request_loads_source(&self, key: &ResolutionKey) -> Option<bool> {
+        self.module_requests
+            .contains(key)
+            .then(|| self.loadable_module_requests.contains(key))
     }
 
     pub fn type_reference_directives(&self) -> &[PlannedTypeReferenceDirective] {
         &self.type_reference_directives
     }
 
-    pub fn into_module_requests(self) -> Vec<ResolutionKey> {
+    pub fn lib_reference_directives(&self) -> &[PlannedLibReferenceDirective] {
+        &self.lib_reference_directives
+    }
+
+    /// Count every observed path/type/lib/module occurrence before exact-key
+    /// deduplication. Program loaders use this input-sensitive count for
+    /// bounded edge admission; repeated imports cannot evade the ceiling.
+    pub const fn observed_request_occurrence_count(&self) -> usize {
+        self.observed_request_occurrence_count
+    }
+
+    fn into_module_requests(self) -> Vec<ResolutionKey> {
         self.module_requests
-    }
-
-    pub fn into_type_reference_directives(self) -> Vec<PlannedTypeReferenceDirective> {
-        self.type_reference_directives
-    }
-
-    pub fn into_parts(self) -> (Vec<ResolutionKey>, Vec<PlannedTypeReferenceDirective>) {
-        (self.module_requests, self.type_reference_directives)
     }
 }
 
@@ -102,12 +207,17 @@ pub fn plan_module_requests(
     Ok(plan_source_requests(source, options)?.into_module_requests())
 }
 
-/// Plan module requests and leading triple-slash type-reference directives
+/// Plan module requests and leading triple-slash path/type/lib directives
 /// from the same parse of a prepared source file.
 ///
-/// Module requests retain their first source occurrence and repeated exact
-/// keys are emitted once. Every type-reference occurrence is retained so a
-/// cached resolution can still produce diagnostics at each directive span.
+/// Synthetic helpers precede top-level static imports/re-exports in statement
+/// order, followed by dynamic/type/JSDoc/require requests in text order and
+/// then module augmentations in source order. This matches upstream
+/// `collectExternalModuleReferences`/`getModuleNames`; repeated exact keys are
+/// emitted once and any loadable occurrence wins. Every type-reference
+/// occurrence is retained so a cached resolution can still produce a
+/// diagnostic at each directive span. Automatic JSX runtime requests remain
+/// a typed unsupported boundary until their synthetic source order is owned.
 pub fn plan_source_requests(
     source: &PreparedSourceFile,
     options: &CompilerOptions,
@@ -160,6 +270,17 @@ fn plan_module_requests_worker(
         (ResolutionMode::Unspecified, ResolutionMode::Unspecified)
     };
     let javascript_file = is_javascript_file_name(file_name);
+    let has_automatic_jsx_option = matches!(options.jsx, Some(4 | 5))
+        || options
+            .jsx_import_source
+            .as_deref()
+            .is_some_and(|source| !source.is_empty());
+    if has_automatic_jsx_option {
+        return Err(unsupported(
+            source,
+            "automatic JSX runtime requests are not yet owned",
+        ));
+    }
     let language_variant = if file_name.ends_with(".tsx") || javascript_file {
         LanguageVariant::Jsx
     } else {
@@ -195,15 +316,32 @@ fn plan_module_requests_worker(
         },
         None,
     );
-    if !parsed.parse_diagnostics.is_empty() {
+    if parsed.has_jsx_import_source_pragma || parsed.has_jsx_runtime_pragma {
         return Err(unsupported(
             source,
-            format!(
-                "the source has {} parse diagnostic(s)",
-                parsed.parse_diagnostics.len()
-            ),
+            "source-level JSX runtime pragmas are not yet owned",
         ));
     }
+    let path_references: Vec<PlannedPathReference> = parsed
+        .referenced_files
+        .iter()
+        .map(|reference| PlannedPathReference {
+            file_name: reference.file_name.clone(),
+            pos: reference.pos,
+            end: reference.end,
+            preserve: reference.preserve,
+        })
+        .collect();
+    let lib_reference_directives: Vec<PlannedLibReferenceDirective> = parsed
+        .lib_reference_directives
+        .iter()
+        .map(|reference| PlannedLibReferenceDirective {
+            file_name: reference.file_name.clone(),
+            pos: reference.pos,
+            end: reference.end,
+            preserve: reference.preserve,
+        })
+        .collect();
 
     let mut type_reference_directives = Vec::new();
     for directive in &parsed.type_reference_directives {
@@ -224,10 +362,17 @@ fn plan_module_requests_worker(
             key,
             pos: directive.pos,
             end: directive.end,
+            preserve: directive.preserve,
         });
     }
 
-    let mut occurrences = Vec::new();
+    // collectExternalModuleReferences publishes ordinary imports first and
+    // appends module augmentations afterwards, independently of source
+    // position. createProgram uses that boundary to resolve augmentations
+    // without loading their target source.
+    let mut static_occurrences = Vec::new();
+    let mut dynamic_occurrences = Vec::new();
+    let mut augmentation_occurrences = Vec::new();
     let mut stack = vec![parsed.root];
     while let Some(node_id) = stack.pop() {
         let node = parsed.arena.node(node_id);
@@ -280,14 +425,17 @@ fn plan_module_requests_worker(
                         "an import declaration has a non-string module specifier",
                     ));
                 };
-                occurrences.push(ModuleRequestOccurrence {
-                    pos: module_specifier.pos,
-                    key: ResolutionKey::new(
-                        source.path().canonical().clone(),
-                        literal.text.clone(),
-                        mode,
-                    ),
-                });
+                if !literal.text.is_empty() {
+                    static_occurrences.push(ModuleRequestOccurrence {
+                        pos: module_specifier.pos,
+                        loads_source: true,
+                        key: ResolutionKey::new(
+                            source.path().canonical().clone(),
+                            literal.text.clone(),
+                            mode,
+                        ),
+                    });
+                }
             }
             NodeData::ExportDeclaration(export) if export.module_specifier.is_some() => {
                 if !expanded {
@@ -315,14 +463,17 @@ fn plan_module_requests_worker(
                         "an export declaration has a non-string module specifier",
                     ));
                 };
-                occurrences.push(ModuleRequestOccurrence {
-                    pos: module_specifier.pos,
-                    key: ResolutionKey::new(
-                        source.path().canonical().clone(),
-                        literal.text.clone(),
-                        static_mode,
-                    ),
-                });
+                if !literal.text.is_empty() {
+                    static_occurrences.push(ModuleRequestOccurrence {
+                        pos: module_specifier.pos,
+                        loads_source: true,
+                        key: ResolutionKey::new(
+                            source.path().canonical().clone(),
+                            literal.text.clone(),
+                            static_mode,
+                        ),
+                    });
+                }
             }
             NodeData::ImportEqualsDeclaration(import_equals) => {
                 if !expanded {
@@ -357,18 +508,21 @@ fn plan_module_requests_worker(
                             "an external import-equals declaration has a non-string specifier",
                         ));
                     };
-                    occurrences.push(ModuleRequestOccurrence {
-                        pos: expression.pos,
-                        key: ResolutionKey::new(
-                            source.path().canonical().clone(),
-                            literal.text.clone(),
-                            if import_syntax_affects_resolution {
-                                ResolutionMode::CommonJs
-                            } else {
-                                ResolutionMode::Unspecified
-                            },
-                        ),
-                    });
+                    if !literal.text.is_empty() {
+                        static_occurrences.push(ModuleRequestOccurrence {
+                            pos: expression.pos,
+                            loads_source: true,
+                            key: ResolutionKey::new(
+                                source.path().canonical().clone(),
+                                literal.text.clone(),
+                                if import_syntax_affects_resolution {
+                                    ResolutionMode::CommonJs
+                                } else {
+                                    ResolutionMode::Unspecified
+                                },
+                            ),
+                        });
+                    }
                 }
                 // An internal `import alias = namespace.member` declaration does
                 // not issue a module-resolution request.
@@ -418,8 +572,10 @@ fn plan_module_requests_worker(
                         })?
                     }
                 };
-                occurrences.push(ModuleRequestOccurrence {
+                dynamic_occurrences.push(ModuleRequestOccurrence {
                     pos: literal.pos,
+                    loads_source: javascript_file
+                        || !NodeFlags::from_bits(node.flags).contains(NodeFlags::JS_DOC),
                     key: ResolutionKey::new(
                         source.path().canonical().clone(),
                         literal_data.text.clone(),
@@ -450,14 +606,17 @@ fn plan_module_requests_worker(
                     .attributes
                     .and_then(|attributes| resolution_mode_override(&parsed, attributes))
                     .unwrap_or(static_mode);
-                occurrences.push(ModuleRequestOccurrence {
-                    pos: module_specifier.pos,
-                    key: ResolutionKey::new(
-                        source.path().canonical().clone(),
-                        literal.text.clone(),
-                        mode,
-                    ),
-                });
+                if !literal.text.is_empty() {
+                    dynamic_occurrences.push(ModuleRequestOccurrence {
+                        pos: module_specifier.pos,
+                        loads_source: javascript_file,
+                        key: ResolutionKey::new(
+                            source.path().canonical().clone(),
+                            literal.text.clone(),
+                            mode,
+                        ),
+                    });
+                }
             }
             NodeData::ModuleDeclaration(module)
                 if module.name.is_some_and(|name| {
@@ -502,8 +661,9 @@ fn plan_module_requests_worker(
                             "a module augmentation is outside the static-import slice",
                         ));
                     }
-                    occurrences.push(ModuleRequestOccurrence {
+                    augmentation_occurrences.push(ModuleRequestOccurrence {
                         pos: parsed.arena.node(name).pos,
+                        loads_source: false,
                         key: ResolutionKey::new(
                             source.path().canonical().clone(),
                             literal.text.clone(),
@@ -547,8 +707,9 @@ fn plan_module_requests_worker(
                             "a dynamic import call has a non-string argument",
                         ));
                     };
-                    occurrences.push(ModuleRequestOccurrence {
+                    dynamic_occurrences.push(ModuleRequestOccurrence {
                         pos: argument.pos,
+                        loads_source: true,
                         key: ResolutionKey::new(
                             source.path().canonical().clone(),
                             literal.text.clone(),
@@ -594,8 +755,9 @@ fn plan_module_requests_worker(
                     let argument = arguments[0];
                     let specifier = string_literal_like_text(&parsed, argument)
                         .expect("guarded string-literal-like require argument");
-                    occurrences.push(ModuleRequestOccurrence {
+                    dynamic_occurrences.push(ModuleRequestOccurrence {
                         pos: parsed.arena.node(argument).pos,
+                        loads_source: true,
                         key: ResolutionKey::new(
                             source.path().canonical().clone(),
                             specifier.to_owned(),
@@ -612,12 +774,13 @@ fn plan_module_requests_worker(
         }
 
         // JSDoc is an internal attachment rather than a for_each_child edge.
-        // It is nevertheless reachable from its syntax host and can contain
-        // import tags, so include those attached roots without scanning the
-        // arena's speculative or abandoned nodes.
+        // collectExternalModuleReferences descends into those attachments
+        // only for JavaScript sources.
         let mut children = Vec::new();
-        if let Some(js_doc) = node.js_doc {
-            children.extend(parsed.arena.node_array(js_doc).nodes.iter().copied());
+        if javascript_file {
+            if let Some(js_doc) = node.js_doc {
+                children.extend(parsed.arena.node_array(js_doc).nodes.iter().copied());
+            }
         }
         for_each_child(&parsed.arena, node, |child| {
             children.push(child);
@@ -626,8 +789,11 @@ fn plan_module_requests_worker(
         stack.extend(children.into_iter().rev());
     }
 
-    occurrences.sort_by_key(|occurrence| occurrence.pos);
+    static_occurrences.sort_by_key(|occurrence| occurrence.pos);
+    dynamic_occurrences.sort_by_key(|occurrence| occurrence.pos);
+    augmentation_occurrences.sort_by_key(|occurrence| occurrence.pos);
     let mut module_requests = Vec::new();
+    let mut loadable_module_requests = BTreeSet::new();
     let mut seen_module_requests = BTreeSet::new();
     // tsc collectExternalModuleReferences prepends a synthesized `tslib`
     // import when importHelpers can participate in this source. The checker
@@ -636,29 +802,50 @@ fn plan_module_requests_worker(
     // row even though no source-text module literal exists.
     let computed_isolated_modules =
         options.isolated_modules == Some(true) || options.verbatim_module_syntax == Some(true);
-    if options.import_helpers == Some(true)
+    let has_synthetic_tslib = options.import_helpers == Some(true)
         && (javascript_file
             || (!parsed.is_declaration_file
-                && (computed_isolated_modules || parsed.external_module_indicator.is_some())))
-    {
+                && (computed_isolated_modules || parsed.external_module_indicator.is_some())));
+    let observed_request_occurrence_count = path_references
+        .len()
+        .saturating_add(type_reference_directives.len())
+        .saturating_add(lib_reference_directives.len())
+        .saturating_add(static_occurrences.len())
+        .saturating_add(dynamic_occurrences.len())
+        .saturating_add(augmentation_occurrences.len())
+        .saturating_add(usize::from(has_synthetic_tslib));
+    if has_synthetic_tslib {
         let key = ResolutionKey::new(source.path().canonical().clone(), "tslib", static_mode);
         seen_module_requests.insert(key.clone());
+        loadable_module_requests.insert(key.clone());
         module_requests.push(key);
     }
-    for occurrence in occurrences {
+    for occurrence in static_occurrences
+        .into_iter()
+        .chain(dynamic_occurrences)
+        .chain(augmentation_occurrences)
+    {
+        if occurrence.loads_source {
+            loadable_module_requests.insert(occurrence.key.clone());
+        }
         if seen_module_requests.insert(occurrence.key.clone()) {
             module_requests.push(occurrence.key);
         }
     }
 
     Ok(SourceRequestPlan {
+        path_references,
         module_requests,
+        loadable_module_requests,
         type_reference_directives,
+        lib_reference_directives,
+        observed_request_occurrence_count,
     })
 }
 
 struct ModuleRequestOccurrence {
     pos: u32,
+    loads_source: bool,
     key: ResolutionKey,
 }
 
@@ -673,8 +860,10 @@ fn module_body_request_syntax(
     javascript_file: bool,
 ) -> Option<(u32, &'static str)> {
     let mut stack = body.into_iter().collect::<Vec<_>>();
-    if let Some(js_doc) = parsed.arena.node(declaration).js_doc {
-        stack.extend(parsed.arena.node_array(js_doc).nodes.iter().copied());
+    if javascript_file {
+        if let Some(js_doc) = parsed.arena.node(declaration).js_doc {
+            stack.extend(parsed.arena.node_array(js_doc).nodes.iter().copied());
+        }
     }
     while let Some(node_id) = stack.pop() {
         let node = parsed.arena.node(node_id);
@@ -729,8 +918,10 @@ fn module_body_request_syntax(
             return Some((node.pos, detail));
         }
 
-        if let Some(js_doc) = node.js_doc {
-            stack.extend(parsed.arena.node_array(js_doc).nodes.iter().copied());
+        if javascript_file {
+            if let Some(js_doc) = node.js_doc {
+                stack.extend(parsed.arena.node_array(js_doc).nodes.iter().copied());
+            }
         }
         let mut children = Vec::new();
         for_each_child(&parsed.arena, node, |child| {
