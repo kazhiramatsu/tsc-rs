@@ -10,10 +10,10 @@ use std::{fs, io};
 use tsc_host::FsCompilerHost;
 use tsc_host::{CompilerHost, HostError, HostErrorKind, HostOperation, MemoryCompilerHost};
 use tsc_program::{
-    load_no_lib_program, plan_source_requests, CompilerOptions, PreparedProgram, ProgramLoadError,
-    ProgramLoadErrorKind, ProgramLoadLimit, ProgramLoadLimits, ProgramLoadOperation,
-    ProgramOptions, ResolutionError, ResolutionKey, ResolutionOutcome, ResolvedModuleTarget,
-    TypeReferenceResolutionKey,
+    load_no_lib_program, plan_source_requests, CompilerOptions, PathMapping, PreparedProgram,
+    ProgramLoadError, ProgramLoadErrorKind, ProgramLoadLimit, ProgramLoadLimits,
+    ProgramLoadOperation, ProgramOptions, ResolutionError, ResolutionKey, ResolutionOutcome,
+    ResolvedModuleTarget, TypeReferenceResolutionKey,
 };
 
 const GENEROUS_LIMIT: usize = 1_024;
@@ -122,8 +122,18 @@ fn load(
     roots: &[&str],
     limits: ProgramLoadLimits,
 ) -> Result<PreparedProgram, ProgramLoadError> {
+    load_with_options(host, roots, compiler_options(), program_options(), limits)
+}
+
+fn load_with_options(
+    host: &dyn CompilerHost,
+    roots: &[&str],
+    compiler_options: CompilerOptions,
+    program_options: ProgramOptions,
+    limits: ProgramLoadLimits,
+) -> Result<PreparedProgram, ProgramLoadError> {
     let roots = roots.iter().map(PathBuf::from).collect::<Vec<_>>();
-    load_no_lib_program(host, &roots, compiler_options(), program_options(), limits)
+    load_no_lib_program(host, &roots, compiler_options, program_options, limits)
 }
 
 fn module_key(program: &PreparedProgram, source_path: &str, specifier: &str) -> ResolutionKey {
@@ -241,6 +251,114 @@ fn loads_dependencies_postorder_while_preserving_root_order_and_duplicates() {
     assert_eq!(program.roots()[0].source(), program.roots()[2].source());
     assert_ne!(program.roots()[0].source(), program.roots()[1].source());
     assert!(program.library_files().is_empty());
+}
+
+#[test]
+fn paths_and_base_url_candidates_join_recursive_source_membership() {
+    let host = MemoryCompilerHost::builder("/work")
+        .file(
+            "/work/root.ts",
+            b"import { mapped } from '@app/mapped';\nimport { based } from 'based';\nexport { mapped, based };"
+                .to_vec(),
+        )
+        .file(
+            "/work/src/mapped.ts",
+            b"export const mapped = 1;".to_vec(),
+        )
+        .file(
+            "/work/base/based.ts",
+            b"export const based = 1;".to_vec(),
+        )
+        .build()
+        .expect("build paths host");
+    let options = CompilerOptions {
+        base_url: Some("/work/base".to_owned()),
+        ..compiler_options()
+    };
+    let program_options = program_options().with_paths(vec![PathMapping::new(
+        "@app/*",
+        vec!["../src/*".to_owned()],
+    )]);
+
+    let program = load_with_options(
+        &host,
+        &["/work/root.ts"],
+        options,
+        program_options,
+        generous_limits(),
+    )
+    .expect("load paths and baseUrl candidates");
+
+    assert_eq!(
+        source_paths(&program),
+        [
+            Path::new("/work/src/mapped.ts"),
+            Path::new("/work/base/based.ts"),
+            Path::new("/work/root.ts"),
+        ]
+    );
+    for (specifier, expected) in [
+        ("@app/mapped", "/work/src/mapped.ts"),
+        ("based", "/work/base/based.ts"),
+    ] {
+        let key = module_key(&program, "/work/root.ts", specifier);
+        let resolution = program
+            .resolutions()
+            .require_module(&key)
+            .expect("mapped request has an authoritative row");
+        let ResolutionOutcome::Resolved(resolved) = resolution.outcome() else {
+            panic!("{specifier} must resolve");
+        };
+        let ResolvedModuleTarget::Source { resolved_file, .. } = resolved.target() else {
+            panic!("mapped TypeScript target must join source membership");
+        };
+        assert_eq!(resolved_file.display(), Path::new(expected));
+    }
+}
+
+#[test]
+fn a_matched_paths_miss_suppresses_base_url_but_keeps_package_fallback() {
+    let host = MemoryCompilerHost::builder("/work")
+        .file("/work/root.ts", b"import { value } from 'pkg';".to_vec())
+        .file(
+            "/work/base/pkg.ts",
+            b"export const value = 'wrong baseUrl candidate';".to_vec(),
+        )
+        .file(
+            "/work/node_modules/pkg/package.json",
+            br#"{"name":"pkg","version":"1.0.0","types":"index.d.ts"}"#.to_vec(),
+        )
+        .file(
+            "/work/node_modules/pkg/index.d.ts",
+            b"export declare const value: 'package';".to_vec(),
+        )
+        .build()
+        .expect("build fallback host");
+    let options = CompilerOptions {
+        base_url: Some("/work/base".to_owned()),
+        ..compiler_options()
+    };
+    let program_options = program_options().with_paths(vec![PathMapping::new(
+        "pkg",
+        vec!["missing/pkg".to_owned()],
+    )]);
+
+    let program = load_with_options(
+        &host,
+        &["/work/root.ts"],
+        options,
+        program_options,
+        generous_limits(),
+    )
+    .expect("fall through from a matched paths miss to node_modules");
+
+    assert_eq!(
+        source_paths(&program),
+        [
+            Path::new("/work/node_modules/pkg/index.d.ts"),
+            Path::new("/work/root.ts"),
+        ]
+    );
 }
 
 #[test]
@@ -1188,6 +1306,8 @@ fn memory_and_filesystem_hosts_build_identical_prepared_programs() {
         "/// <reference path=\"./path.ts\" />\n",
         "/// <reference types=\"./types\" />\n",
         "import './dependency';\n",
+        "import '@src/aliased';\n",
+        "import 'src/based';\n",
         "import './missing';\n",
         "export {};\n",
     );
@@ -1199,6 +1319,8 @@ fn memory_and_filesystem_hosts_build_identical_prepared_programs() {
         ("src/types.d.ts", b"declare const types: 1;".as_slice()),
         ("src/dependency.ts", dependency.as_bytes()),
         ("src/leaf.ts", b"export const leaf = 1;".as_slice()),
+        ("src/aliased.ts", b"export const aliased = 1;".as_slice()),
+        ("src/based.ts", b"export const based = 1;".as_slice()),
     ];
     for (relative, bytes) in files {
         fs::write(tree.path(relative), bytes).expect("write temp source tree");
@@ -1212,11 +1334,29 @@ fn memory_and_filesystem_hosts_build_identical_prepared_programs() {
     let memory = memory.build().expect("construct memory host");
     let root_path = tree.path("src/root.ts");
     let root_text = root_path.to_str().expect("temp path is Unicode");
+    let options = CompilerOptions {
+        base_url: Some(tree.root().to_string_lossy().into_owned()),
+        ..compiler_options()
+    };
+    let program_options =
+        program_options().with_paths(vec![PathMapping::new("@src/*", vec!["src/*".to_owned()])]);
 
-    let from_memory = load(&memory, &[root_text], generous_limits())
-        .expect("load prepared program from memory host");
-    let from_filesystem = load(&filesystem, &[root_text], generous_limits())
-        .expect("load prepared program from filesystem host");
+    let from_memory = load_with_options(
+        &memory,
+        &[root_text],
+        options.clone(),
+        program_options.clone(),
+        generous_limits(),
+    )
+    .expect("load prepared program from memory host");
+    let from_filesystem = load_with_options(
+        &filesystem,
+        &[root_text],
+        options,
+        program_options,
+        generous_limits(),
+    )
+    .expect("load prepared program from filesystem host");
 
     assert_eq!(from_memory, from_filesystem);
 }

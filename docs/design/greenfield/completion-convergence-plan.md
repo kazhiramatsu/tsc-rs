@@ -1,10 +1,13 @@
 # Completion convergence plan
 
-Status: M8 closed; active execution plan through M9. The current
-implementation frontier is M9 steady state. Adopted after the 2026-07-16
-full-project review.
+Status: M8 closed; M9 paused after the landed M9.1b true-replay foundation.
+The current implementation frontier is the separate H0 filesystem-hosted
+`--noEmit` track. Adopted after the 2026-07-16 full-project review and scoped
+to the M4-through-M9 convergence sequence.
 
-This document owns delivery order, dependencies, and acceptance gates.
+This document owns M4-through-M9 delivery order, dependencies, and acceptance
+gates. [noemit-cli.md](noemit-cli.md) owns the H0 order and gates while M9 is
+paused; H0 does not renumber the historical table in section 4.
 It intentionally does not repeat supporting schemas:
 
 - [definition-of-done.md](definition-of-done.md) owns WHAT Done means;
@@ -419,7 +422,8 @@ green.
 | 17 | M9 preflight, producer/history foundation, owner-task closure, frozen 14-window steady state, and zero unresolved task | `completion --require-done` |
 
 Rows 1-16 are closed, their fresh machine evidence is verified, and the stage
-marker is `M8`. Row 17 is the only remaining implementation milestone.
+marker is `M8`. Row 17 is the only remaining M-track implementation milestone,
+but it is paused while H0 executes; it is not the current repository frontier.
 
 Row 17 expands in this fixed order without renumbering the completed rows:
 

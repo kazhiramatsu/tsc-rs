@@ -422,14 +422,16 @@ pub fn load_no_lib_program(
 ) -> Result<PreparedProgram, ProgramLoadError> {
     validate_admitted_options(&compiler_options, &program_options)?;
 
-    let mut resolver = ModuleResolver::new(host, &compiler_options).map_err(|error| {
-        ProgramLoadError::resolution(
-            ProgramLoadOperation::InitializeResolver,
-            error.path().map(Path::to_path_buf),
-            None,
-            error,
-        )
-    })?;
+    let mut resolver =
+        ModuleResolver::new_with_program_options(host, &compiler_options, &program_options)
+            .map_err(|error| {
+                ProgramLoadError::resolution(
+                    ProgramLoadOperation::InitializeResolver,
+                    error.path().map(Path::to_path_buf),
+                    None,
+                    error,
+                )
+            })?;
     let path_context = resolver.path_context().clone();
     validate_type_roots(&program_options, &path_context)?;
 
@@ -511,21 +513,6 @@ fn validate_admitted_options(
         return Err(reject_feature(
             "rootDirs",
             "rootDirs source discovery is not yet owned by this loader",
-        ));
-    }
-    if program_options
-        .paths()
-        .is_some_and(|paths| !paths.is_empty())
-    {
-        return Err(reject_feature(
-            "paths",
-            "paths mapping source discovery is not yet owned by this loader",
-        ));
-    }
-    if compiler_options.base_url.is_some() {
-        return Err(reject_feature(
-            "baseUrl",
-            "baseUrl source discovery is not yet owned by this loader",
         ));
     }
     if compiler_options.no_dts_resolution == Some(true) {

@@ -35,8 +35,8 @@ fuzz qualification resumes only through its own execution contract.
 The M8 checker has no remaining known relation, inference, flow, JSDoc, or
 diagnostic-producer backlog on its frozen prepared-program contract.
 
-The remaining all-corpus exclusions are exactly 241 `host-resolution` rows
-across 30 fixtures:
+At H0 entry, the remaining all-corpus exclusions were exactly 241
+`host-resolution` rows across 30 fixtures:
 
 | Code | Rows |
 | ---: | ---: |
@@ -53,7 +53,7 @@ The largest owner cluster is package `exports` pattern handling: 144 rows.
 These rows are H0's initial host-owner inventory, not unfinished M8 checker
 work.
 
-The current implementation also has these driver-level gaps:
+At that entry baseline the implementation also had these driver-level gaps:
 
 - no production compiler binary;
 - no filesystem `CompilerHost`;
@@ -64,6 +64,11 @@ The current implementation also has these driver-level gaps:
 - no exact command-line diagnostic gate or exit-status API;
 - only the conformance per-file getter aggregate, which includes suggestion
   diagnostics that `tsc --noEmit` does not print.
+
+Sections H0.0--H0.4 below are the current status authority: the 241-row
+registry is now closed, the owned five-bucket `ProgramSession` and production
+`FsCompilerHost` have landed, and the remaining config, CLI, and general
+program-construction work is listed explicitly there.
 
 ## 3. Scope
 
@@ -349,8 +354,13 @@ loading their resolved module symbols, and closes the remaining TS2665 row by
 planning an external-module augmentation whose JavaScript target remains
 authoritatively untyped. Exact Bundler ambient and unloaded-package controls
 remain non-emitting. This brings the registry to 241/241 closed with 0 rows
-open. It does not claim general H0.2 resolution beyond the reviewed in-memory
-routes, filesystem hosting, or H0 completion.
+open. The general optional-settings slice additionally applies ordered
+`paths` exact and longest-prefix wildcard selection, ordered substitutions,
+and cwd- or `baseUrl`-relative candidates before the ordinary lookup in the
+vendored Classic, Node10, Node16/NodeNext, and Bundler extension-pass order.
+A matched mapping miss suppresses only `baseUrl` and still permits package
+fallback. It does not claim the remaining general H0.2 resolution surface or
+H0 completion.
 
 ### H0.3 — residual host consumers
 
@@ -394,12 +404,13 @@ resolution-only versus source-loading distinction.
 The first bounded recursive loader slice is complete through
 `load_no_lib_program`. It accepts explicit TypeScript-family roots only with
 `noEmit=true`, `noLib=true`, and `allowJs=false`; `types` must be absent or
-empty, and explicit libraries, `rootDirs`, `paths`/`baseUrl`, and
-`noDtsResolution` are outside this slice. Roots are normalized and visited
-one at a time, preserving input order, multiplicity, and observable failure
-precedence. Canonical source identities are loaded once, cycles and diamonds
-are staged without duplicate files, and `SourceFileId`s are assigned only
-after dependency-postorder discovery.
+empty, and explicit libraries, `rootDirs`, and `noDtsResolution` are outside
+this slice. Ordered `paths` mappings and `baseUrl` participate in recursive
+source discovery through the shared resolver. Roots are normalized and
+visited one at a time, preserving input order, multiplicity, and observable
+failure precedence. Canonical source identities are loaded once, cycles and
+diamonds are staged without duplicate files, and `SourceFileId`s are assigned
+only after dependency-postorder discovery.
 
 For each source the loader follows the vendored construction phases: each
 path reference performs its DFS before the next path reference; every unique
@@ -412,8 +423,10 @@ authoritative type/module rows. Supported misses remain normal tsc
 diagnostics or `NotFound` rows, JavaScript resolutions remain unloaded under
 `allowJs=false`, and an explicit `.json` request loads JSON only when
 `resolveJsonModule` is effective. External-library reachability remains part
-of source emit eligibility. A same-tree Unix canary proves that
-`MemoryCompilerHost` and `FsCompilerHost` produce the same prepared program.
+of source emit eligibility. Same-tree Unix canaries, including `paths` and
+`baseUrl` candidates, prove that `MemoryCompilerHost` and `FsCompilerHost`
+produce the same prepared program and the same five-bucket `ProgramSession`
+diagnostic outcome.
 
 Each invocation supplies independent ceilings for unique source files,
 request occurrences before resolution-key deduplication, zero-based source
@@ -426,12 +439,11 @@ claim to bound a host's single-read allocation or all resolver I/O.
 
 This is deliberately not general H0.4 program construction. Default and
 explicit library loading, post-root automatic `types`, JavaScript source
-membership, `paths`/`baseUrl` and `rootDirs` discovery, config-derived roots,
-the remaining path and physical-alias policies, the complete cross-platform
-case/separator/symlink/encoding matrix, and filesystem-backed diagnostic
-execution remain in later slices. Discovery stays sequential where vendored
-host calls and failure precedence are observable; future pipeline parallelism
-must preserve that contract.
+membership, `rootDirs` discovery, config-derived roots, the remaining path and
+physical-alias policies, and the complete cross-platform
+case/separator/symlink/encoding matrix remain in later slices. Discovery stays
+sequential where vendored host calls and failure precedence are observable;
+future pipeline parallelism must preserve that contract.
 
 ### H0.5 — tsconfig and command-line driver
 
