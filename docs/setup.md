@@ -24,8 +24,7 @@ All gates run from the repository root:
 
 ```sh
 cargo xtask ci                      # full merge-gate suite (must be green on main)
-CARGO_BUILD_JOBS=2 RUST_TEST_THREADS=2 TSRS_INVARIANT_WORKERS=2 \
-  cargo xtask ci --lane hosted --baseline origin/main  # hosted guardrail
+CARGO_BUILD_JOBS=2 cargo xtask ci --lane hosted  # hosted static guardrail
 cargo xtask conformance             # conformance sweep (optionally --band 2xxx)
 cargo xtask conformance --syntactic-only
 cargo xtask invariants --suite all  # sampled determinism/idempotence developer run
@@ -42,17 +41,18 @@ repository root and review changed links, anchors, and generated-block
 boundaries. Any non-Markdown or generated-status change uses the full merge
 gate.
 
-The hosted lane is deliberately smaller than the merge gate. It runs format/
-clippy, workspace tests, Node syntax, generated-schema/inventory, relation
-pins, fixed All/2XXX/syntactic conformance, recovery census, sampled
-invariants, ledger, and escape contracts with at most two Cargo/test workers.
-Actions adds `--history-sensitive` only when a fail-closed classifier sees an
-evidence-authority input change; that performs one immutable-base semantic
-history and M8-plan audit instead of duplicating the same decode in workspace
-tests. Hosted never runs receipt-bound B2-B4 evidence production, full-corpus
-invariants, readiness/README rendering, or calibrated performance observations. Those
-remain mandatory in the unsplit local command and its result is recorded in
-the PR body; hosted success alone is not acceptance evidence.
+The hosted lane is deliberately a compile-and-static-contract guardrail, not a
+second merge gate. It runs workspace audit, format/clippy over all targets,
+Node syntax, generated-schema/inventory, relation pins, ledger, and escape
+contracts with at most two Cargo workers. Actions runs this lane on pull
+requests or manual dispatch; host/path changes additionally receive a focused
+Windows filesystem smoke. It does not run workspace tests, semantic history,
+corpus binding/conformance, recovery census, invariants, receipt-bound B2-B4
+evidence, readiness/README rendering, or calibrated performance observations.
+Those remain mandatory in the unsplit local command and its result is recorded
+in the PR body; hosted success alone is not acceptance evidence. The explicit
+`--history-sensitive --baseline <trusted-sha>` option remains available only
+for manually diagnosing immutable-history policy.
 
 `cargo xtask completion` is report-only during M8 and succeeds while naming
 pending rows in `target/completion/report.json`. The post-M9 release gate is

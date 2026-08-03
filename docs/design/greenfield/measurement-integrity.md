@@ -52,12 +52,12 @@ bootstrap, a pointer to an older-but-not-immediate version, or any
 shrinking edge fails.
 
 The full local merge gate always compares HEAD directly with its recorded
-trusted-base artifact. Hosted PR CI repeats that comparison when a fail-closed
-classifier finds any base/HEAD change in the conservative evidence-authority
-input closure; an unprovable diff is history-sensitive. Hosted may omit the
-comparison only when no closure path changed. This prevents a rewritten branch
-from manufacturing a smaller self-consistent chain without paying the history
-decode on unrelated slices. The only missing-base exception is the initial
+trusted-base artifact. The ordinary hosted static guardrail does not repeat
+that history decode; `ci --lane hosted --history-sensitive --baseline
+<trusted-sha>` retains the same comparison only as an explicit manual
+diagnostic. Required local evidence prevents a rewritten branch from
+manufacturing a smaller self-consistent chain, while unrelated Actions runs do
+not pay for the decode. The only missing-base exception is the initial
 bootstrap PR: the base has no artifact and the candidate has exactly one
 oldest bootstrap version. After that, absence is an error.
 
@@ -72,12 +72,15 @@ An adjudicated set freezes in two changes:
 The checker reads the artifact at the recorded ancestor commit and
 compares identities, not only a self-hash. A later re-baseline is an
 explicit reviewed event; it cannot ride an implementation slice. The full
-local gate compares a global frozen snapshot with the trusted base. Hosted PR
-CI repeats it for every history-sensitive input-closure change, so an
-add-and-reanchor pair of branch commits cannot redefine it.
+local gate compares a global frozen snapshot with the trusted base, so an
+add-and-reanchor pair of branch commits cannot redefine it. The explicit
+manual history diagnostic can repeat that proof but ordinary hosted CI does
+not own it.
 
-Every anchor check fails on insufficient clone depth. CI must fetch the
-unique bootstrap and every recorded adjudication or transition commit.
+Every anchor check fails on insufficient clone depth. Any local or manual
+history invocation must reach the unique bootstrap and every recorded
+adjudication or transition commit; the depth-one hosted static guardrail does
+not invoke anchor checks.
 
 ## 2. A1 — accepted conformance state
 
@@ -321,11 +324,11 @@ complete live identity set, then changes status to `frozen`.
 The audit re-verifies every band pin and the global snapshot. After
 freeze, additions, edits, pinned-set changes, reanchoring, and status
 downgrade fail. A deletion requires the same A1 tombstone. The global
-set never changes. The full local gate, and hosted CI for every
-history-sensitive closure change, require the base and HEAD global records to
-be byte-identical after the first valid transition. That first transition is
-allowed only when the trusted base is `draft` and the candidate contains
-exactly one valid global record.
+set never changes. The full local gate requires the base and HEAD global
+records to be byte-identical after the first valid transition; the explicit
+manual hosted history diagnostic repeats that comparison when requested.
+That first transition is allowed only when the trusted base is `draft` and the
+candidate contains exactly one valid global record.
 
 Acceptance:
 

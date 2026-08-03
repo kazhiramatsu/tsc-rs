@@ -7528,32 +7528,21 @@ fn ci_rust_gates() -> Result<(), Box<dyn Error>> {
             .arg("build")
             .arg("--workspace"),
     )?;
-    ci_workspace_tests(&workspace, &[])?;
+    ci_workspace_tests(&workspace)?;
     ci_oracle_syntax_gates(&workspace)?;
     Ok(())
 }
-
-const HOSTED_WORKSPACE_TEST_SKIPS: [&str; 2] = [
-    "committed_registry_passes_full_owner_and_canary_validation",
-    "full_validator_rejects_owner_canary_closure_and_universe_drift",
-];
 
 fn ci_hosted_gates(baseline: &str, history_sensitive: bool) -> Result<(), Box<dyn Error>> {
     let workspace = find_workspace_root()?;
     let hosted_started = std::time::Instant::now();
 
-    // Hosted Actions is a bounded guardrail, not the acceptance authority.
-    // Keep the highest-signal compile/test and cheap repository-contract
-    // checks here. The full local `all` lane remains the only gate that runs
-    // full-corpus invariants, evidence production, readiness, and calibrated
-    // performance observations.
+    // Hosted Actions is a static repository guardrail. The workspace audit ran
+    // at CI entry; this lane verifies formatting, lint, generated inventories,
+    // pinned inputs, the port ledger, and escape ownership without executing
+    // workspace tests or corpus traversals.
     ci_format_gate(&workspace)?;
     ci_clippy_gate(&workspace)?;
-    // These two conformance-crate tests each enter the same real accepted-pair
-    // history validator. The local full lane keeps them. Hosted either proves
-    // the immutable trusted-base history once below or relies on the required
-    // local gate when the classifier proves its authority inputs unchanged.
-    ci_workspace_tests(&workspace, &HOSTED_WORKSPACE_TEST_SKIPS)?;
     ci_oracle_syntax_gates(&workspace)?;
     codegen_band_inventory(
         ["--by-function", "--band", "all", "--check"]
@@ -7564,9 +7553,8 @@ fn ci_hosted_gates(baseline: &str, history_sensitive: bool) -> Result<(), Box<dy
     schema_audit(std::iter::empty())?;
     relpin::run(std::iter::empty())?;
     if history_sensitive {
-        // Keep decoded history allocator pages out of the later checker-heavy
-        // conformance traversal. The child still performs A1 -> A2 -> H0 -> A5
-        // once and reuses each accepted-history blob within that process.
+        // Explicit manual diagnostics retain the trusted-history and frozen
+        // M8-plan checks without making them part of the ordinary hosted lane.
         let executable = std::env::current_exe()?;
         run_command(
             Command::new(executable)
@@ -7584,14 +7572,6 @@ fn ci_hosted_gates(baseline: &str, history_sensitive: bool) -> Result<(), Box<dy
             .into_iter(),
         )?;
     }
-    bind_corpus(std::iter::empty())?;
-    let summaries = ci_hosted_conformance(&workspace)?;
-    recovery_census::check_with_summary(&workspace, summaries.two_xxx.as_summary())?;
-    invariants(
-        ["--suite", "all", "--limit", "200"]
-            .into_iter()
-            .map(str::to_owned),
-    )?;
     ledger_check()?;
     let stage = fs::read_to_string(workspace.join("STAGE"))?;
     escapes(["--stale", stage.trim()].into_iter().map(str::to_owned))?;
@@ -7600,32 +7580,6 @@ fn ci_hosted_gates(baseline: &str, history_sensitive: bool) -> Result<(), Box<dy
         hosted_started.elapsed().as_secs_f64()
     );
     Ok(())
-}
-
-fn ci_hosted_conformance(
-    workspace: &Path,
-) -> Result<tsc_conformance::CiConformanceSummaries, Box<dyn Error>> {
-    let output_dir = workspace.join("target/hosted-ci");
-    fs::create_dir_all(&output_dir)?;
-    let all = output_dir.join("conformance-all.json");
-    let two_xxx = output_dir.join("conformance-2xxx.json");
-    let syntactic = output_dir.join("conformance-syntactic.json");
-    let families = output_dir.join("families.json");
-    let summaries = tsc_conformance::run_ci_conformance(
-        workspace,
-        [&all, &two_xxx, &syntactic],
-        &families,
-        |summary| {
-            let output = match summary.band.as_str() {
-                "all" => &all,
-                "2xxx" => &two_xxx,
-                "syntactic" => &syntactic,
-                _ => &syntactic,
-            };
-            print_conformance_summary(summary, output);
-        },
-    )?;
-    Ok(summaries)
 }
 
 fn ci_format_gate(workspace: &Path) -> Result<(), Box<dyn Error>> {
@@ -7652,19 +7606,13 @@ fn ci_clippy_gate(workspace: &Path) -> Result<(), Box<dyn Error>> {
     )
 }
 
-fn ci_workspace_tests(workspace: &Path, skipped_tests: &[&str]) -> Result<(), Box<dyn Error>> {
-    let mut command = Command::new("cargo");
-    command
-        .current_dir(workspace)
-        .arg("test")
-        .arg("--workspace");
-    if !skipped_tests.is_empty() {
-        command.arg("--");
-        for test in skipped_tests {
-            command.arg("--skip").arg(test);
-        }
-    }
-    run_command(&mut command)
+fn ci_workspace_tests(workspace: &Path) -> Result<(), Box<dyn Error>> {
+    run_command(
+        Command::new("cargo")
+            .current_dir(workspace)
+            .arg("test")
+            .arg("--workspace"),
+    )
 }
 
 fn ci_oracle_syntax_gates(workspace: &Path) -> Result<(), Box<dyn Error>> {
@@ -7841,7 +7789,7 @@ mod ci_lane_tests {
     }
 
     #[test]
-    fn history_sensitive_audit_is_explicit_and_hosted_only() {
+    fn history_sensitive_diagnostics_are_manual_and_hosted_only() {
         let args = parse_ci_args(
             [
                 "--history-sensitive",
@@ -7873,17 +7821,6 @@ mod ci_lane_tests {
             .map(str::to_owned)
         )
         .is_err());
-    }
-
-    #[test]
-    fn hosted_workspace_tests_skip_only_duplicate_real_history_proofs() {
-        assert_eq!(
-            HOSTED_WORKSPACE_TEST_SKIPS,
-            [
-                "committed_registry_passes_full_owner_and_canary_validation",
-                "full_validator_rejects_owner_canary_closure_and_universe_drift",
-            ]
-        );
     }
 
     #[test]
