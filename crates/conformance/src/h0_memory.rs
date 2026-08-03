@@ -18,7 +18,7 @@ use tsc_program::{
 
 use crate::ConformanceResult;
 
-const SUPPORTED_FIXTURES: [&str; 39] = [
+const SUPPORTED_FIXTURES: [&str; 42] = [
     "conformance/node/nodeModulesPackagePatternExportsExclude.ts",
     "conformance/node/nodeModulesPackagePatternExports.ts",
     "conformance/node/allowJs/nodeModulesAllowJsPackagePatternExportsExclude.ts",
@@ -58,6 +58,9 @@ const SUPPORTED_FIXTURES: [&str; 39] = [
     "conformance/typings/typingsLookup3.ts",
     "conformance/externalModules/verbatimModuleSyntaxAmbientConstEnum.ts",
     "conformance/externalModules/verbatimModuleSyntaxConstEnumUsage.ts",
+    "conformance/classes/members/privateNames/privateNameEmitHelpers.ts",
+    "conformance/classes/members/privateNames/privateNameStaticEmitHelpers.ts",
+    "conformance/es2020/modules/exportAsNamespace_missingEmitHelpers.ts",
 ];
 
 pub(crate) fn supports_fixture(fixture: &str) -> bool {
@@ -611,6 +614,9 @@ mod tests {
             "conformance/typings/typingsLookup3.ts",
             "conformance/externalModules/verbatimModuleSyntaxAmbientConstEnum.ts",
             "conformance/externalModules/verbatimModuleSyntaxConstEnumUsage.ts",
+            "conformance/classes/members/privateNames/privateNameEmitHelpers.ts",
+            "conformance/classes/members/privateNames/privateNameStaticEmitHelpers.ts",
+            "conformance/es2020/modules/exportAsNamespace_missingEmitHelpers.ts",
         ] {
             assert!(supports_fixture(fixture), "missing H0 route: {fixture}");
         }
@@ -675,6 +681,86 @@ mod tests {
         let control =
             run_fixture("conformance/externalModules/verbatimModuleSyntaxConstEnumUsage.ts");
         assert!(control.all.is_empty());
+        assert!(control.syntactic.is_empty());
+    }
+
+    #[test]
+    fn external_helper_fixtures_and_missing_tslib_control_match_the_reviewed_boundary() {
+        let workspace = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .and_then(Path::parent)
+            .expect("workspace root");
+        let vendor_lib_dir = workspace.join("vendor/typescript-6.0.3/lib");
+
+        let run_fixture = |fixture: &str| {
+            let programs = tsc_harness::expand_fixture_file(
+                &workspace.join("ts-tests/tests/cases").join(fixture),
+                &vendor_lib_dir,
+            )
+            .expect("expand focused H0 fixture");
+            assert_eq!(programs.len(), 1, "unexpected matrix expansion: {fixture}");
+            crate::current_case_tsrs(fixture, &programs[0], &vendor_lib_dir)
+                .expect("run focused H0 fixture")
+        };
+
+        for (fixture, expected) in [
+            (
+                "conformance/classes/members/privateNames/privateNameEmitHelpers.ts",
+                vec![
+                    ("main.ts", 6133, 34, 2, 3, 4),
+                    ("main.ts", 2807, 41, 7, 3, 11),
+                    ("main.ts", 2807, 81, 7, 4, 24),
+                ],
+            ),
+            (
+                "conformance/classes/members/privateNames/privateNameStaticEmitHelpers.ts",
+                vec![
+                    ("main.ts", 6133, 29, 2, 2, 11),
+                    ("main.ts", 2807, 55, 7, 3, 18),
+                    ("main.ts", 6133, 86, 2, 4, 15),
+                    ("main.ts", 2807, 100, 4, 4, 29),
+                ],
+            ),
+        ] {
+            let observed = run_fixture(fixture);
+            assert_eq!(
+                observed
+                    .all
+                    .iter()
+                    .map(|diagnostic| {
+                        (
+                            diagnostic.file.as_deref().unwrap_or_default(),
+                            diagnostic.code,
+                            diagnostic.start.unwrap_or_default(),
+                            diagnostic.length.unwrap_or_default(),
+                            diagnostic.line.unwrap_or_default(),
+                            diagnostic.col.unwrap_or_default(),
+                        )
+                    })
+                    .collect::<Vec<_>>(),
+                expected,
+                "unexpected external-helper stream: {fixture}"
+            );
+            assert!(observed.syntactic.is_empty());
+        }
+
+        let control =
+            run_fixture("conformance/es2020/modules/exportAsNamespace_missingEmitHelpers.ts");
+        assert_eq!(
+            control
+                .all
+                .iter()
+                .map(|diagnostic| {
+                    (
+                        diagnostic.file.as_deref(),
+                        diagnostic.code,
+                        diagnostic.line,
+                        diagnostic.col,
+                    )
+                })
+                .collect::<Vec<_>>(),
+            [(Some("b.ts"), 2354, Some(0), Some(0))]
+        );
         assert!(control.syntactic.is_empty());
     }
 

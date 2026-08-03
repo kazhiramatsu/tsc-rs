@@ -3572,6 +3572,115 @@ mod tests {
     }
 
     #[test]
+    fn external_emit_helpers_check_private_get_and_set_arity() {
+        let tslib = InputFile {
+            name: "types.d.ts".to_owned(),
+            text: concat!(
+                "declare module \"tslib\" {\n",
+                "  export function __classPrivateFieldGet<T extends object, V>(receiver: T, state: any): V;\n",
+                "  export function __classPrivateFieldSet<T extends object, V>(receiver: T, state: any, value: V): V;\n",
+                "}\n",
+            )
+            .to_owned(),
+        };
+        let cases = [
+            (
+                "instance.ts",
+                concat!(
+                    "\nexport class C {\n",
+                    "    #a = 1;\n",
+                    "    #b() { this.#c = 42; }\n",
+                    "    set #c(v: number) { this.#a += v; }\n",
+                    "}\n",
+                ),
+                [
+                    (41, 7, "__classPrivateFieldSet", "5 parameters"),
+                    (81, 7, "__classPrivateFieldGet", "4 parameters"),
+                ],
+            ),
+            (
+                "static.ts",
+                concat!(
+                    "\nexport class S {\n",
+                    "    static #a = 1;\n",
+                    "    static #b() { this.#a = 42; }\n",
+                    "    static get #c() { return S.#b(); }\n",
+                    "}\n",
+                ),
+                [
+                    (55, 7, "__classPrivateFieldSet", "5 parameters"),
+                    (100, 4, "__classPrivateFieldGet", "4 parameters"),
+                ],
+            ),
+        ];
+        let options = CompilerOptions {
+            target: Some(tsc_types::ScriptTarget::ES2015.bits()),
+            import_helpers: Some(true),
+            isolated_modules: Some(true),
+            ..CompilerOptions::default()
+        };
+
+        for (file_name, text, expected) in cases {
+            let result = check_program(
+                &[
+                    tslib.clone(),
+                    InputFile {
+                        name: file_name.to_owned(),
+                        text: text.to_owned(),
+                    },
+                ],
+                &options,
+            );
+            let observed = result
+                .diagnostics
+                .iter()
+                .filter(|diagnostic| diagnostic.code() == 2807)
+                .map(|diagnostic| {
+                    (
+                        diagnostic.start.unwrap_or_default(),
+                        diagnostic.length.unwrap_or_default(),
+                        diagnostic.message_text(),
+                    )
+                })
+                .collect::<Vec<_>>();
+            assert_eq!(observed.len(), expected.len(), "{file_name}: {observed:#?}");
+            for (observed, expected) in observed.iter().zip(expected) {
+                assert_eq!((observed.0, observed.1), (expected.0, expected.1));
+                assert!(
+                    observed.2.contains(expected.2),
+                    "{file_name}: {}",
+                    observed.2
+                );
+                assert!(
+                    observed.2.contains(expected.3),
+                    "{file_name}: {}",
+                    observed.2
+                );
+            }
+        }
+
+        let native = check_program(
+            &[
+                tslib,
+                InputFile {
+                    name: "native.ts".to_owned(),
+                    text: "export class C { #x = 1; read() { return this.#x; } }\n".to_owned(),
+                },
+            ],
+            &CompilerOptions {
+                target: Some(tsc_types::ScriptTarget::ES_NEXT.bits()),
+                import_helpers: Some(true),
+                isolated_modules: Some(true),
+                ..CompilerOptions::default()
+            },
+        );
+        assert!(native
+            .diagnostics
+            .iter()
+            .all(|diagnostic| diagnostic.code() != 2807));
+    }
+
+    #[test]
     fn external_emit_helpers_cover_decorator_named_evaluation_helpers() {
         let result = check_program(
             &[

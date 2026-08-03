@@ -2123,7 +2123,6 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:75201-75322
     ///
     /// Elisions/dispositions, each FN-only or unobservable:
-    /// - checkExternalEmitHelpers (emit-marking artifact);
     /// - markLinkedReferences' non-alias bookkeeping; its
     ///   identifier/property/export/JSX alias paths are live from M7
     ///   8.3a;
@@ -2162,8 +2161,26 @@ impl<'a> CheckerState<'a> {
             .unwrap_or_default();
         let mut prop: Option<SymbolId>;
         if right_is_private {
-            // Emit-helper gates skip (languageVersion probes are
-            // checkExternalEmitHelpers bookkeeping).
+            // Private access transforms request the get/set helpers. In TS
+            // 6.0, ClassAndClassElementDecorators has an ESNext minimum, so
+            // the two upstream language-version disjuncts collapse to the
+            // ESNext comparison below.
+            if self.options.emit_script_target() < tsc_types::ScriptTarget::ES_NEXT
+                || !self.options.use_define_for_class_fields_effective()
+            {
+                if assignment_kind != crate::expr::AssignmentKind::None {
+                    self.check_external_emit_helpers(
+                        node,
+                        crate::modules::EMIT_HELPER_CLASS_PRIVATE_FIELD_SET,
+                    )?;
+                }
+                if assignment_kind != crate::expr::AssignmentKind::Definite {
+                    self.check_external_emit_helpers(
+                        node,
+                        crate::modules::EMIT_HELPER_CLASS_PRIVATE_FIELD_GET,
+                    )?;
+                }
+            }
             let lexically_scoped_symbol =
                 self.lookup_symbol_for_private_identifier_declaration(&right_text, right)?;
             if assignment_kind != crate::expr::AssignmentKind::None {
