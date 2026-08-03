@@ -1014,27 +1014,812 @@ fn node10_legacy_primary_and_bundler_retry_keep_their_exact_boundaries() {
 }
 
 #[test]
-fn classic_and_node10_remain_unsupported_for_type_reference_resolution() {
-    let host = MemoryCompilerHost::builder("/")
-        .file("/index.ts", b"export {};".to_vec())
+fn classic_and_node10_type_references_share_the_node_style_primary_secondary_spine() {
+    let linked = b"declare const linked: true;".to_vec();
+    let host = MemoryCompilerHost::builder("/work/project")
+        .file("/work/project/src/main.ts", b"export {};".to_vec())
+        .file(
+            "/work/custom/direct.d.ts",
+            b"declare const direct: true;".to_vec(),
+        )
+        .file(
+            "/work/custom/pkg/package.json",
+            br#"{"name":"custom-pkg","version":"1.2.3","types":"legacy.d.ts"}"#.to_vec(),
+        )
+        .file(
+            "/work/custom/pkg/legacy.d.ts",
+            b"declare const customPackage: true;".to_vec(),
+        )
+        .file("/work/custom/linked.d.ts", linked.clone())
+        .file("/physical/linked.d.ts", linked)
+        .realpath("/work/custom/linked.d.ts", "/physical/linked.d.ts")
+        .file(
+            "/work/project/node_modules/@types/defaulted/package.json",
+            br#"{"name":"@types/defaulted","version":"2.0.0","types":"index.d.ts"}"#.to_vec(),
+        )
+        .file(
+            "/work/project/node_modules/@types/defaulted/index.d.ts",
+            b"declare const defaulted: true;".to_vec(),
+        )
+        .file(
+            "/work/project/src/node_modules/secondary/package.json",
+            br#"{"name":"secondary","version":"3.0.0","types":"index.d.ts"}"#.to_vec(),
+        )
+        .file(
+            "/work/project/src/node_modules/secondary/index.d.ts",
+            b"declare const secondary: true;".to_vec(),
+        )
+        .file(
+            "/work/project/src/relative.d.ts",
+            b"declare const relative: true;".to_vec(),
+        )
         .build()
-        .expect("build resolver-mode boundary host");
+        .expect("build legacy type-reference host");
+    let custom_root = ProgramPath::from_trusted_parts("/work/custom", "/work/custom")
+        .expect("create custom type root");
+    let no_primary_roots: Vec<ProgramPath> = Vec::new();
+
     for module_resolution in [1, 2] {
         let options = CompilerOptions {
             module_resolution: Some(module_resolution),
             ..CompilerOptions::default()
         };
         let mut resolver =
-            ModuleResolver::new(&host, &options).expect("create legacy module resolver");
-        let error = resolver
+            ModuleResolver::new(&host, &options).expect("create legacy type resolver");
+
+        let ResolutionOutcome::Resolved(direct) = resolver
             .resolve_type_reference(
-                Path::new("/index.ts"),
+                Path::new("/work/project/src/main.ts"),
+                "direct",
+                ResolutionMode::Unspecified,
+                Some(std::slice::from_ref(&custom_root)),
+            )
+            .expect("resolve a direct custom-root declaration")
+        else {
+            panic!("expected direct custom-root type reference");
+        };
+        assert_eq!(
+            direct.resolved_file().canonical().as_path(),
+            Path::new("/work/custom/direct.d.ts")
+        );
+        assert!(direct.primary());
+        assert!(!direct.is_external_library_import());
+
+        let ResolutionOutcome::Resolved(package) = resolver
+            .resolve_type_reference(
+                Path::new("/work/project/src/main.ts"),
                 "pkg",
+                ResolutionMode::Unspecified,
+                Some(std::slice::from_ref(&custom_root)),
+            )
+            .expect("resolve a custom-root package")
+        else {
+            panic!("expected custom-root package type reference");
+        };
+        assert_eq!(
+            package.resolved_file().canonical().as_path(),
+            Path::new("/work/custom/pkg/legacy.d.ts")
+        );
+        assert_eq!(
+            package.package_id().map(PackageId::name),
+            Some("custom-pkg")
+        );
+        assert!(package.primary());
+
+        let ResolutionOutcome::Resolved(linked) = resolver
+            .resolve_type_reference(
+                Path::new("/work/project/src/main.ts"),
+                "linked",
+                ResolutionMode::Unspecified,
+                Some(std::slice::from_ref(&custom_root)),
+            )
+            .expect("resolve a custom-root realpath transition")
+        else {
+            panic!("expected linked custom-root type reference");
+        };
+        assert_eq!(
+            linked.resolved_file().canonical().as_path(),
+            Path::new("/physical/linked.d.ts")
+        );
+        assert_eq!(
+            linked
+                .original_path()
+                .expect("retain the lexical custom-root path")
+                .canonical()
+                .as_path(),
+            Path::new("/work/custom/linked.d.ts")
+        );
+        assert!(linked.primary());
+
+        let ResolutionOutcome::Resolved(defaulted) = resolver
+            .resolve_type_reference(
+                Path::new("/work/project/src/main.ts"),
+                "defaulted",
                 ResolutionMode::Unspecified,
                 None,
             )
-            .expect_err("legacy modes are admitted only for module resolution");
-        assert_unsupported(error, "module-resolution-kind");
+            .expect("resolve a default @types primary")
+        else {
+            panic!("expected default-root type reference");
+        };
+        assert_eq!(
+            defaulted.resolved_file().canonical().as_path(),
+            Path::new("/work/project/node_modules/@types/defaulted/index.d.ts")
+        );
+        assert!(defaulted.primary());
+        assert!(defaulted.is_external_library_import());
+        assert_eq!(
+            defaulted.package_id().map(PackageId::name),
+            Some("@types/defaulted")
+        );
+
+        let ResolutionOutcome::Resolved(secondary) = resolver
+            .resolve_type_reference(
+                Path::new("/work/project/src/main.ts"),
+                "secondary",
+                ResolutionMode::Unspecified,
+                Some(&no_primary_roots),
+            )
+            .expect("resolve a nearest node_modules secondary")
+        else {
+            panic!("expected secondary type reference");
+        };
+        assert_eq!(
+            secondary.resolved_file().canonical().as_path(),
+            Path::new("/work/project/src/node_modules/secondary/index.d.ts")
+        );
+        assert!(!secondary.primary());
+        assert!(secondary.is_external_library_import());
+
+        let ResolutionOutcome::Resolved(relative) = resolver
+            .resolve_type_reference(
+                Path::new("/work/project/src/main.ts"),
+                "./relative",
+                ResolutionMode::Unspecified,
+                Some(&no_primary_roots),
+            )
+            .expect("resolve a relative secondary declaration")
+        else {
+            panic!("expected relative type reference");
+        };
+        assert_eq!(
+            relative.resolved_file().canonical().as_path(),
+            Path::new("/work/project/src/relative.d.ts")
+        );
+        assert!(!relative.primary());
+        assert!(!relative.is_external_library_import());
+    }
+}
+
+#[test]
+fn legacy_type_reference_modes_enable_exports_only_for_secondary_lookup() {
+    let host = MemoryCompilerHost::builder("/work")
+        .file("/work/main.ts", b"export {};".to_vec())
+        .file(
+            "/work/types/conditional/package.json",
+            br#"{
+                "name":"conditional-types",
+                "version":"1.0.0",
+                "types":"legacy.d.ts",
+                "exports":{
+                    ".":{
+                        "import":"./import.d.mts",
+                        "require":"./require.d.cts"
+                    }
+                }
+            }"#
+            .to_vec(),
+        )
+        .file(
+            "/work/types/conditional/legacy.d.ts",
+            b"declare const selected: 'legacy';".to_vec(),
+        )
+        .file(
+            "/work/types/conditional/import.d.mts",
+            b"export declare const selected: 'import';".to_vec(),
+        )
+        .file(
+            "/work/types/conditional/require.d.cts",
+            b"export declare const selected: 'require';".to_vec(),
+        )
+        .file(
+            "/work/node_modules/secondary-conditional/package.json",
+            br#"{
+                "name":"secondary-conditional-types",
+                "version":"1.0.0",
+                "types":"legacy.d.ts",
+                "exports":{
+                    ".":{
+                        "import":"./import.d.mts",
+                        "require":"./require.d.cts"
+                    }
+                }
+            }"#
+            .to_vec(),
+        )
+        .file(
+            "/work/node_modules/secondary-conditional/legacy.d.ts",
+            b"declare const selected: 'secondary-legacy';".to_vec(),
+        )
+        .file(
+            "/work/node_modules/secondary-conditional/import.d.mts",
+            b"export declare const selected: 'secondary-import';".to_vec(),
+        )
+        .file(
+            "/work/node_modules/secondary-conditional/require.d.cts",
+            b"export declare const selected: 'secondary-require';".to_vec(),
+        )
+        .build()
+        .expect("build legacy conditional type-reference host");
+    let type_root = ProgramPath::from_trusted_parts("/work/types", "/work/types")
+        .expect("create custom type root");
+
+    for module_resolution in [1, 2] {
+        let options = CompilerOptions {
+            module_resolution: Some(module_resolution),
+            ..CompilerOptions::default()
+        };
+        let mut resolver =
+            ModuleResolver::new(&host, &options).expect("create legacy type resolver");
+        for mode in [
+            ResolutionMode::Unspecified,
+            ResolutionMode::CommonJs,
+            ResolutionMode::EsNext,
+        ] {
+            let ResolutionOutcome::Resolved(reference) = resolver
+                .resolve_type_reference(
+                    Path::new("/work/main.ts"),
+                    "conditional",
+                    mode,
+                    Some(std::slice::from_ref(&type_root)),
+                )
+                .expect("resolve a legacy conditional type reference")
+            else {
+                panic!("expected legacy conditional type reference");
+            };
+            assert_eq!(
+                reference.resolved_file().canonical().as_path(),
+                Path::new("/work/types/conditional/legacy.d.ts")
+            );
+            assert_eq!(reference.extension(), &ModuleExtension::Dts);
+            assert_eq!(
+                reference.package_id().map(PackageId::name),
+                Some("conditional-types")
+            );
+            assert!(reference.primary());
+        }
+
+        for (mode, expected, extension) in [
+            (
+                ResolutionMode::Unspecified,
+                "/work/node_modules/secondary-conditional/legacy.d.ts",
+                ModuleExtension::Dts,
+            ),
+            (
+                ResolutionMode::CommonJs,
+                "/work/node_modules/secondary-conditional/require.d.cts",
+                ModuleExtension::Dcts,
+            ),
+            (
+                ResolutionMode::EsNext,
+                "/work/node_modules/secondary-conditional/import.d.mts",
+                ModuleExtension::Dmts,
+            ),
+        ] {
+            let ResolutionOutcome::Resolved(reference) = resolver
+                .resolve_type_reference(
+                    Path::new("/work/main.ts"),
+                    "secondary-conditional",
+                    mode,
+                    Some(&[]),
+                )
+                .expect("resolve a secondary legacy conditional type reference")
+            else {
+                panic!("expected secondary legacy conditional type reference");
+            };
+            assert_eq!(
+                reference.resolved_file().canonical().as_path(),
+                Path::new(expected)
+            );
+            assert_eq!(reference.extension(), &extension);
+            assert_eq!(
+                reference.package_id().map(PackageId::name),
+                Some("secondary-conditional-types")
+            );
+            assert!(!reference.primary());
+        }
+    }
+}
+
+#[test]
+fn node10_unspecified_type_reference_exports_use_an_empty_condition_set() {
+    let host = MemoryCompilerHost::builder("/work")
+        .file("/work/main.ts", b"export {};".to_vec())
+        .file(
+            "/work/node_modules/conditions/package.json",
+            br#"{
+                "name":"conditions",
+                "version":"1.0.0",
+                "types":"legacy.d.ts",
+                "exports":{
+                    ".":{
+                        "types":"./types.d.ts",
+                        "require":"./require.d.cts",
+                        "custom":"./custom.d.ts",
+                        "default":"./default.d.ts"
+                    }
+                }
+            }"#
+            .to_vec(),
+        )
+        .file(
+            "/work/node_modules/conditions/legacy.d.ts",
+            b"declare const selected: 'legacy';".to_vec(),
+        )
+        .file(
+            "/work/node_modules/conditions/types.d.ts",
+            b"declare const selected: 'types';".to_vec(),
+        )
+        .file(
+            "/work/node_modules/conditions/require.d.cts",
+            b"export declare const selected: 'require';".to_vec(),
+        )
+        .file(
+            "/work/node_modules/conditions/custom.d.ts",
+            b"declare const selected: 'custom';".to_vec(),
+        )
+        .file(
+            "/work/node_modules/conditions/default.d.ts",
+            b"declare const selected: 'default';".to_vec(),
+        )
+        .build()
+        .expect("build legacy condition-set host");
+    let no_primary_roots: Vec<ProgramPath> = Vec::new();
+
+    for (module_resolution, expected) in [
+        (1, "/work/node_modules/conditions/types.d.ts"),
+        (2, "/work/node_modules/conditions/default.d.ts"),
+    ] {
+        let options = CompilerOptions {
+            module_resolution: Some(module_resolution),
+            resolve_package_json_exports: Some(true),
+            custom_conditions: Some(vec!["custom".to_owned()]),
+            ..CompilerOptions::default()
+        };
+        let mut resolver =
+            ModuleResolver::new(&host, &options).expect("create legacy type resolver");
+        let ResolutionOutcome::Resolved(reference) = resolver
+            .resolve_type_reference(
+                Path::new("/work/main.ts"),
+                "conditions",
+                ResolutionMode::Unspecified,
+                Some(&no_primary_roots),
+            )
+            .expect("resolve an unspecified legacy conditional type reference")
+        else {
+            panic!("expected legacy conditional type reference");
+        };
+        assert_eq!(
+            reference.resolved_file().canonical().as_path(),
+            Path::new(expected)
+        );
+        assert!(!reference.primary());
+    }
+}
+
+#[test]
+fn legacy_secondary_subpaths_honor_nested_packages_for_ordinary_and_at_types_lookups() {
+    let host = MemoryCompilerHost::builder("/work")
+        .file("/work/main.ts", b"export {};".to_vec())
+        .file(
+            "/work/node_modules/pkg/package.json",
+            br#"{"name":"root-pkg","version":"1.0.0","types":"root.d.ts"}"#.to_vec(),
+        )
+        .file(
+            "/work/node_modules/pkg/sub/package.json",
+            br#"{
+                "name":"nested-pkg",
+                "version":"2.0.0",
+                "types":"index.d.ts",
+                "typesVersions":{"*":{"index.d.ts":["v6/index"]}}
+            }"#
+            .to_vec(),
+        )
+        .file(
+            "/work/node_modules/pkg/sub/index.d.ts",
+            b"declare const wrongVersion: true;".to_vec(),
+        )
+        .file(
+            "/work/node_modules/pkg/sub/v6/index.d.ts",
+            b"declare const nestedPackage: true;".to_vec(),
+        )
+        .file(
+            "/work/node_modules/@types/only/sub/package.json",
+            br#"{"name":"nested-at-types","version":"3.0.0","types":"entry.d.ts"}"#.to_vec(),
+        )
+        .file(
+            "/work/node_modules/@types/only/sub/entry.d.ts",
+            b"declare const nestedAtTypes: true;".to_vec(),
+        )
+        .file(
+            "/work/node_modules/direct/sub.d.ts",
+            b"declare const directFile: true;".to_vec(),
+        )
+        .file(
+            "/work/node_modules/direct/sub/package.json",
+            br#"{"name":"nested-direct","version":"4.0.0","types":"entry.d.ts"}"#.to_vec(),
+        )
+        .file(
+            "/work/node_modules/direct/sub/entry.d.ts",
+            b"declare const wrongNestedDirectory: true;".to_vec(),
+        )
+        .file(
+            "/work/node_modules/governed/package.json",
+            br#"{
+                "name":"governed-root",
+                "version":"5.0.0",
+                "exports":{"./sub":{"require":"./root-export.d.cts"}}
+            }"#
+            .to_vec(),
+        )
+        .file(
+            "/work/node_modules/governed/root-export.d.cts",
+            b"export declare const rootExport: true;".to_vec(),
+        )
+        .file(
+            "/work/node_modules/governed/sub/package.json",
+            br#"{"name":"wrong-nested-governed","version":"9.0.0","types":"entry.d.ts"}"#.to_vec(),
+        )
+        .file(
+            "/work/node_modules/governed/sub/entry.d.ts",
+            b"declare const wrongNestedGoverned: true;".to_vec(),
+        )
+        .build()
+        .expect("build nested secondary type-reference host");
+    let no_primary_roots: Vec<ProgramPath> = Vec::new();
+
+    for module_resolution in [1, 2] {
+        let options = CompilerOptions {
+            module_resolution: Some(module_resolution),
+            ..CompilerOptions::default()
+        };
+        let mut resolver =
+            ModuleResolver::new(&host, &options).expect("create legacy type resolver");
+
+        for (specifier, expected, package_name) in [
+            (
+                "pkg/sub",
+                "/work/node_modules/pkg/sub/v6/index.d.ts",
+                Some("nested-pkg"),
+            ),
+            (
+                "only/sub",
+                "/work/node_modules/@types/only/sub/entry.d.ts",
+                Some("nested-at-types"),
+            ),
+            ("direct/sub", "/work/node_modules/direct/sub.d.ts", None),
+        ] {
+            let ResolutionOutcome::Resolved(reference) = resolver
+                .resolve_type_reference(
+                    Path::new("/work/main.ts"),
+                    specifier,
+                    ResolutionMode::Unspecified,
+                    Some(&no_primary_roots),
+                )
+                .expect("resolve a legacy secondary subpath")
+            else {
+                panic!("expected secondary subpath type reference for {specifier}");
+            };
+            assert_eq!(
+                reference.resolved_file().canonical().as_path(),
+                Path::new(expected)
+            );
+            assert_eq!(reference.package_id().map(PackageId::name), package_name);
+            assert!(!reference.primary());
+            assert!(reference.is_external_library_import());
+        }
+
+        let ResolutionOutcome::Resolved(governed) = resolver
+            .resolve_type_reference(
+                Path::new("/work/main.ts"),
+                "governed/sub",
+                ResolutionMode::CommonJs,
+                Some(&no_primary_roots),
+            )
+            .expect("root exports govern after the nested manifest observation")
+        else {
+            panic!("expected root-governed secondary subpath");
+        };
+        assert_eq!(
+            governed.resolved_file().canonical().as_path(),
+            Path::new("/work/node_modules/governed/root-export.d.cts")
+        );
+        assert_eq!(
+            governed.package_id().map(PackageId::name),
+            Some("governed-root")
+        );
+        assert!(!governed.primary());
+    }
+}
+
+#[test]
+fn nested_type_module_extensionless_entries_are_blocked_only_in_node_esm_modes() {
+    let host = MemoryCompilerHost::builder("/work")
+        .file("/work/main.ts", b"export {};".to_vec())
+        .file(
+            "/work/node_modules/extensionless/sub/package.json",
+            br#"{
+                "name":"extensionless-nested",
+                "version":"1.0.0",
+                "type":"module",
+                "types":"entry"
+            }"#
+            .to_vec(),
+        )
+        .file(
+            "/work/node_modules/extensionless/sub/entry.d.ts",
+            b"declare const extensionless: true;".to_vec(),
+        )
+        .file(
+            "/work/node_modules/versioned/sub/package.json",
+            br#"{
+                "name":"extensionless-versioned-nested",
+                "version":"2.0.0",
+                "type":"module",
+                "types":"index.d.ts",
+                "typesVersions":{"*":{"index.d.ts":["entry"]}}
+            }"#
+            .to_vec(),
+        )
+        .file(
+            "/work/node_modules/versioned/sub/entry.d.ts",
+            b"declare const extensionlessVersioned: true;".to_vec(),
+        )
+        .build()
+        .expect("build extensionless nested-package host");
+    let no_primary_roots: Vec<ProgramPath> = Vec::new();
+
+    for (module_resolution, mode, should_resolve) in [
+        (1, ResolutionMode::EsNext, true),
+        (2, ResolutionMode::EsNext, true),
+        (3, ResolutionMode::CommonJs, true),
+        (99, ResolutionMode::CommonJs, true),
+        (3, ResolutionMode::EsNext, false),
+        (99, ResolutionMode::EsNext, false),
+    ] {
+        let options = CompilerOptions {
+            module_resolution: Some(module_resolution),
+            ..CompilerOptions::default()
+        };
+        let mut resolver =
+            ModuleResolver::new(&host, &options).expect("create type-reference resolver");
+        for (specifier, expected, package_name) in [
+            (
+                "extensionless/sub",
+                "/work/node_modules/extensionless/sub/entry.d.ts",
+                "extensionless-nested",
+            ),
+            (
+                "versioned/sub",
+                "/work/node_modules/versioned/sub/entry.d.ts",
+                "extensionless-versioned-nested",
+            ),
+        ] {
+            let outcome = resolver
+                .resolve_type_reference(
+                    Path::new("/work/main.ts"),
+                    specifier,
+                    mode,
+                    Some(&no_primary_roots),
+                )
+                .expect("resolve an extensionless nested package entry");
+
+            if should_resolve {
+                let ResolutionOutcome::Resolved(reference) = outcome else {
+                    panic!(
+                        "expected {specifier} with moduleResolution {module_resolution} in {mode:?} mode to resolve"
+                    );
+                };
+                assert_eq!(
+                    reference.resolved_file().canonical().as_path(),
+                    Path::new(expected)
+                );
+                assert_eq!(
+                    reference.package_id().map(PackageId::name),
+                    Some(package_name)
+                );
+                assert!(!reference.primary());
+            } else {
+                assert_eq!(outcome, ResolutionOutcome::NotFound);
+            }
+        }
+    }
+}
+
+#[test]
+fn legacy_secondary_subpath_manifest_failures_precede_root_exports() {
+    let denied = HostError::new(
+        HostErrorKind::PermissionDenied,
+        HostOperation::FileExists,
+        Some(PathBuf::from(
+            "/work/node_modules/governed/sub/package.json",
+        )),
+        "nested manifest denied",
+    );
+    let host = MemoryCompilerHost::builder("/work")
+        .file("/work/main.ts", b"export {};".to_vec())
+        .file(
+            "/work/node_modules/governed/package.json",
+            br#"{
+                "name":"governed-root",
+                "version":"1.0.0",
+                "exports":{"./sub":{"require":"./root-export.d.cts"}}
+            }"#
+            .to_vec(),
+        )
+        .file(
+            "/work/node_modules/governed/root-export.d.cts",
+            b"export declare const rootExport: true;".to_vec(),
+        )
+        .file(
+            "/work/node_modules/governed/sub/index.d.ts",
+            b"declare const nestedDirectoryExists: true;".to_vec(),
+        )
+        .failure(denied.clone())
+        .build()
+        .expect("build nested-manifest failure host");
+    let options = CompilerOptions {
+        module_resolution: Some(2),
+        ..CompilerOptions::default()
+    };
+    let mut resolver = ModuleResolver::new(&host, &options).expect("create Node10 type resolver");
+    let no_primary_roots: Vec<ProgramPath> = Vec::new();
+    let error = resolver
+        .resolve_type_reference(
+            Path::new("/work/main.ts"),
+            "governed/sub",
+            ResolutionMode::CommonJs,
+            Some(&no_primary_roots),
+        )
+        .expect_err("nested manifest failure must precede root exports");
+    assert_eq!(error, ResolutionError::Host(denied));
+}
+
+#[test]
+fn legacy_direct_type_reference_hits_do_not_read_unrelated_ancestor_manifests() {
+    let unrelated_manifest = HostError::new(
+        HostErrorKind::PermissionDenied,
+        HostOperation::FileExists,
+        Some(PathBuf::from("/work/package.json")),
+        "an unrelated manifest must not be observed",
+    );
+    let host = MemoryCompilerHost::builder("/work")
+        .file("/work/main.ts", b"export {};".to_vec())
+        .file(
+            "/work/types/direct.d.ts",
+            b"declare const direct: true;".to_vec(),
+        )
+        .file(
+            "/work/relative.d.ts",
+            b"declare const relative: true;".to_vec(),
+        )
+        .failure(unrelated_manifest)
+        .build()
+        .expect("build direct custom-root precedence host");
+    let type_root = ProgramPath::from_trusted_parts("/work/types", "/work/types")
+        .expect("create custom type root");
+
+    for module_resolution in [1, 2] {
+        let options = CompilerOptions {
+            module_resolution: Some(module_resolution),
+            ..CompilerOptions::default()
+        };
+        let mut resolver =
+            ModuleResolver::new(&host, &options).expect("create legacy type resolver");
+        let ResolutionOutcome::Resolved(reference) = resolver
+            .resolve_type_reference(
+                Path::new("/work/main.ts"),
+                "direct",
+                ResolutionMode::Unspecified,
+                Some(std::slice::from_ref(&type_root)),
+            )
+            .expect("resolve without observing an unrelated package manifest")
+        else {
+            panic!("expected direct custom-root type reference");
+        };
+        assert_eq!(
+            reference.resolved_file().canonical().as_path(),
+            Path::new("/work/types/direct.d.ts")
+        );
+        assert_eq!(reference.package_id(), None);
+        assert!(reference.primary());
+
+        let ResolutionOutcome::Resolved(relative) = resolver
+            .resolve_type_reference(
+                Path::new("/work/main.ts"),
+                "./relative",
+                ResolutionMode::Unspecified,
+                Some(&[]),
+            )
+            .expect("resolve a relative file without observing an unrelated manifest")
+        else {
+            panic!("expected relative type reference");
+        };
+        assert_eq!(
+            relative.resolved_file().canonical().as_path(),
+            Path::new("/work/relative.d.ts")
+        );
+        assert_eq!(relative.package_id(), None);
+        assert!(!relative.primary());
+    }
+}
+
+#[test]
+fn legacy_external_custom_root_direct_hits_use_the_actual_package_root_before_realpath() {
+    let declaration = b"declare const direct: true;".to_vec();
+    let host = MemoryCompilerHost::builder("/work")
+        .file("/work/main.ts", b"export {};".to_vec())
+        .file(
+            "/work/node_modules/pkg/package.json",
+            br#"{"name":"actual-package","version":"1.2.3"}"#.to_vec(),
+        )
+        .file(
+            "/work/node_modules/pkg/types/package.json",
+            br#"{"name":"wrong-nested-package","version":"9.9.9"}"#.to_vec(),
+        )
+        .file(
+            "/work/node_modules/pkg/types/direct.d.ts",
+            declaration.clone(),
+        )
+        .file("/store/pkg/direct.d.ts", declaration)
+        .realpath(
+            "/work/node_modules/pkg/types/direct.d.ts",
+            "/store/pkg/direct.d.ts",
+        )
+        .build()
+        .expect("build external custom-root direct-hit host");
+    let type_root = ProgramPath::from_trusted_parts(
+        "/work/node_modules/pkg/types",
+        "/work/node_modules/pkg/types",
+    )
+    .expect("create external custom type root");
+
+    for module_resolution in [1, 2] {
+        let options = CompilerOptions {
+            module_resolution: Some(module_resolution),
+            ..CompilerOptions::default()
+        };
+        let mut resolver =
+            ModuleResolver::new(&host, &options).expect("create legacy type resolver");
+        let ResolutionOutcome::Resolved(reference) = resolver
+            .resolve_type_reference(
+                Path::new("/work/main.ts"),
+                "direct",
+                ResolutionMode::Unspecified,
+                Some(std::slice::from_ref(&type_root)),
+            )
+            .expect("resolve through the actual node_modules package root")
+        else {
+            panic!("expected external direct type reference");
+        };
+        assert_eq!(
+            reference.resolved_file().canonical().as_path(),
+            Path::new("/store/pkg/direct.d.ts")
+        );
+        assert_eq!(
+            reference
+                .original_path()
+                .expect("retain the lexical node_modules path")
+                .canonical()
+                .as_path(),
+            Path::new("/work/node_modules/pkg/types/direct.d.ts")
+        );
+        assert_eq!(
+            reference.package_id().map(PackageId::name),
+            Some("actual-package")
+        );
+        assert!(reference.primary());
+        assert!(reference.is_external_library_import());
     }
 }
 

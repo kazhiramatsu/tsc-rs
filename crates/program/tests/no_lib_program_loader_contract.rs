@@ -398,6 +398,62 @@ fn discovers_path_then_type_then_module_and_skips_lib_references_under_no_lib() 
 }
 
 #[test]
+fn classic_and_node10_load_triple_slash_types_into_the_authoritative_table() {
+    let root_text = "/// <reference types=\"legacy-types\" />\nexport {};\n";
+    let host = MemoryCompilerHost::builder("/work")
+        .file("/work/root.ts", root_text.as_bytes().to_vec())
+        .file(
+            "/work/node_modules/@types/legacy-types/package.json",
+            br#"{"name":"@types/legacy-types","version":"1.0.0","types":"index.d.ts"}"#.to_vec(),
+        )
+        .file(
+            "/work/node_modules/@types/legacy-types/index.d.ts",
+            b"declare const legacyTypes: true;".to_vec(),
+        )
+        .build()
+        .expect("build legacy type-reference program");
+
+    for module_resolution in [1, 2] {
+        let options = CompilerOptions {
+            no_emit: Some(true),
+            module_resolution: Some(module_resolution),
+            ..CompilerOptions::default()
+        };
+        let program = load_with_options(
+            &host,
+            &["/work/root.ts"],
+            options,
+            program_options(),
+            generous_limits(),
+        )
+        .expect("load a legacy type-reference program");
+
+        assert_eq!(
+            source_paths(&program),
+            [
+                Path::new("/work/node_modules/@types/legacy-types/index.d.ts"),
+                Path::new("/work/root.ts"),
+            ]
+        );
+        let key = type_reference_key(&program, "/work/root.ts", "legacy-types");
+        let resolution = program
+            .resolutions()
+            .require_type_reference(&key)
+            .expect("legacy type-reference row is authoritative");
+        let ResolutionOutcome::Resolved(reference) = resolution.outcome() else {
+            panic!("expected a bound legacy type-reference target");
+        };
+        assert!(reference.primary());
+        assert!(reference.is_external_library_import());
+        assert_eq!(
+            reference.target().display(),
+            Path::new("/work/node_modules/@types/legacy-types/index.d.ts")
+        );
+        assert!(resolution.diagnostics().is_empty());
+    }
+}
+
+#[test]
 fn cycles_and_diamonds_produce_one_source_per_canonical_path() {
     let host = MemoryCompilerHost::builder("/work")
         .file(
@@ -1334,31 +1390,34 @@ fn memory_and_filesystem_hosts_build_identical_prepared_programs() {
     let memory = memory.build().expect("construct memory host");
     let root_path = tree.path("src/root.ts");
     let root_text = root_path.to_str().expect("temp path is Unicode");
-    let options = CompilerOptions {
-        base_url: Some(tree.root().to_string_lossy().into_owned()),
-        ..compiler_options()
-    };
     let program_options =
         program_options().with_paths(vec![PathMapping::new("@src/*", vec!["src/*".to_owned()])]);
 
-    let from_memory = load_with_options(
-        &memory,
-        &[root_text],
-        options.clone(),
-        program_options.clone(),
-        generous_limits(),
-    )
-    .expect("load prepared program from memory host");
-    let from_filesystem = load_with_options(
-        &filesystem,
-        &[root_text],
-        options,
-        program_options,
-        generous_limits(),
-    )
-    .expect("load prepared program from filesystem host");
+    for module_resolution in [1, 2, 100] {
+        let options = CompilerOptions {
+            base_url: Some(tree.root().to_string_lossy().into_owned()),
+            module_resolution: Some(module_resolution),
+            ..compiler_options()
+        };
+        let from_memory = load_with_options(
+            &memory,
+            &[root_text],
+            options.clone(),
+            program_options.clone(),
+            generous_limits(),
+        )
+        .expect("load prepared program from memory host");
+        let from_filesystem = load_with_options(
+            &filesystem,
+            &[root_text],
+            options,
+            program_options.clone(),
+            generous_limits(),
+        )
+        .expect("load prepared program from filesystem host");
 
-    assert_eq!(from_memory, from_filesystem);
+        assert_eq!(from_memory, from_filesystem);
+    }
 }
 
 #[test]

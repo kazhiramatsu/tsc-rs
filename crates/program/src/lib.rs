@@ -21,8 +21,10 @@
 //! raw-byte ceilings and reports host, decode, resolution, preparation,
 //! unsupported-scope, and resource failures as typed [`ProgramLoadError`]s.
 //! Non-relative source discovery applies ordered `paths` mappings and
-//! `baseUrl` through the same resolver used by direct resolution. This first
-//! slice does not load default or explicit libraries, discover automatic
+//! `baseUrl` through the same resolver used by direct resolution. Source-owned
+//! type-reference directives use the shared Classic, Node10, Node16/NodeNext,
+//! or Bundler primary/secondary lookup selected by the compiler options. This
+//! first slice does not load default or explicit libraries, discover automatic
 //! `types`, admit JavaScript sources, apply `rootDirs`, discover config roots,
 //! or claim the remaining platform and CLI surfaces of H0.4 and H0.5.
 
