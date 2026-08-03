@@ -595,15 +595,6 @@ fn validate_admitted_options(
             ));
         }
     }
-    if program_options
-        .root_dirs()
-        .is_some_and(|root_dirs| !root_dirs.is_empty())
-    {
-        return Err(reject_feature(
-            "rootDirs",
-            "rootDirs source discovery is not yet owned by this loader",
-        ));
-    }
     if compiler_options.no_dts_resolution == Some(true) {
         return Err(reject_feature(
             "noDtsResolution",

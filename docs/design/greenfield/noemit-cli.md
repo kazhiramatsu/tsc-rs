@@ -416,9 +416,14 @@ resolution-only versus source-loading distinction.
 
 The bounded recursive loader is complete through both `load_no_lib_program`
 and the catalog-enabled `load_program`. Both accept explicit
-TypeScript-family roots only with `noEmit=true` and `allowJs=false`; `rootDirs`
-and `noDtsResolution` are still outside this slice. The no-lib wrapper requires
-explicit `noLib=true`. The
+TypeScript-family roots only with `noEmit=true` and `allowJs=false`;
+`noDtsResolution` is still outside this slice. The no-lib wrapper requires
+explicit `noLib=true`. Ordered `rootDirs` participate in relative module
+resolution and recursive source membership. Their normalized display paths
+select the strict longest prefix, probe the original candidate first, and
+visit the remaining roots in declaration order. Classic and Node10 preserve
+their outer TypeScript/declaration then JavaScript/JSON passes, while
+Node16/NodeNext/Bundler finish all admitted extensions per root candidate. The
 catalog-enabled route also admits absent or false `noLib`, retains lowercased
 raw `compilerOptions.lib` keys, treats an explicit empty list as suppressing
 the default library, and fails typed on the `noLib` plus `lib` combination
@@ -486,8 +491,8 @@ authoritative type/module rows. Supported misses remain normal tsc
 diagnostics or `NotFound` rows, JavaScript resolutions remain unloaded under
 `allowJs=false`, and an explicit `.json` request loads JSON only when
 `resolveJsonModule` is effective. External-library reachability remains part
-of source emit eligibility. Same-tree Unix canaries, including `paths`,
-`baseUrl`, and Classic/Node10 type-reference candidates, prove that
+of source emit eligibility. Same-tree Unix canaries, including `rootDirs`,
+`paths`, `baseUrl`, and Classic/Node10 type-reference candidates, prove that
 `MemoryCompilerHost` and `FsCompilerHost` produce the same prepared program;
 the compiler-level canary separately proves the same five-bucket
 `ProgramSession` diagnostic outcome.
@@ -509,8 +514,8 @@ package fields directly, and object/array nesting above 256 does the same. The
 converter itself uses an explicit task stack.
 
 This is deliberately not general H0.4 program construction. JavaScript source
-membership, `rootDirs` discovery, config-derived root-file selection, the
-remaining path and physical-alias policies, and the complete cross-platform
+membership, config-derived root-file selection, the remaining path and
+physical-alias policies, and the complete cross-platform
 case/separator/symlink/encoding matrix remain in later slices. Discovery stays
 sequential where vendored host calls and failure precedence are observable;
 future pipeline parallelism must preserve that contract.

@@ -10,6 +10,7 @@ use tsc_compiler::ProgramSession;
 use tsc_host::{FsCompilerHost, MemoryCompilerHost};
 use tsc_program::{
     load_no_lib_program, CompilerOptions, PathMapping, ProgramLoadLimits, ProgramOptions,
+    ProgramPath,
 };
 
 const GENEROUS_LIMIT: usize = 1_024 * 1_024;
@@ -94,16 +95,18 @@ fn limits() -> ProgramLoadLimits {
 }
 
 #[test]
-fn paths_and_base_url_produce_identical_filesystem_backed_diagnostics() {
+fn paths_base_url_and_root_dirs_produce_identical_filesystem_backed_diagnostics() {
     let tree = TempTree::new();
     fs::create_dir(tree.path("src")).expect("create paths directory");
     fs::create_dir(tree.path("base")).expect("create baseUrl directory");
+    fs::create_dir(tree.path("generated")).expect("create rootDirs directory");
     let root = concat!(
         "/// <reference path=\"./globals.d.ts\" />\n",
         "import { mapped } from '@app/mapped';\n",
         "import { based } from 'based';\n",
+        "import { rooted } from './rooted';\n",
         "const result: number = mapped;\n",
-        "export { result, based };\n",
+        "export { result, based, rooted };\n",
     );
     let files = [
         ("root.ts", root.as_bytes()),
@@ -113,6 +116,10 @@ fn paths_and_base_url_produce_identical_filesystem_backed_diagnostics() {
             b"export const mapped = 'mapped';".as_slice(),
         ),
         ("base/based.ts", b"export const based = 1;".as_slice()),
+        (
+            "generated/rooted.ts",
+            b"export const rooted = 1;".as_slice(),
+        ),
     ];
     for (relative, bytes) in files {
         fs::write(tree.path(relative), bytes).expect("write temp source tree");
@@ -129,9 +136,17 @@ fn paths_and_base_url_produce_identical_filesystem_backed_diagnostics() {
         base_url: Some("base".to_owned()),
         ..CompilerOptions::default()
     };
+    let root_dirs = [tree.root().to_path_buf(), tree.path("generated")]
+        .into_iter()
+        .map(|path| {
+            ProgramPath::from_trusted_parts(path.clone(), path)
+                .expect("construct normalized rootDirs identity")
+        })
+        .collect();
     let program_options = ProgramOptions::default()
         .with_no_lib(true)
         .with_types(Vec::new())
+        .with_root_dirs(root_dirs)
         .with_paths(vec![PathMapping::new(
             "@app/*",
             vec!["../src/*".to_owned()],
