@@ -59,17 +59,31 @@ pub(crate) struct ResolvedProgramModule {
     pub package_bundles_types: bool,
 }
 
-/// The resolver's three-way verdict: `Suppressed` marks a miss that
-/// unmodeled machinery (node_modules, baseUrl/paths, allowJs targets,
-/// mode-dependent extensions) might turn into a hit for tsc — the
-/// error tail stays silent (FN-side) instead of fabricating 2307.
+/// The resolver's verdict. `Missed` may retain diagnostic-only host facts;
+/// `Suppressed` marks a miss that unmodeled machinery (node_modules,
+/// baseUrl/paths, allowJs targets, mode-dependent extensions) might turn into
+/// a hit for tsc — the error tail stays silent (FN-side) instead of
+/// fabricating 2307.
 #[derive(Clone, Debug)]
 pub(crate) enum ProgramModuleResolution {
     Resolved(ResolvedProgramModule),
     Untyped(UntypedModuleResolution),
     Suppressed,
-    Missed,
+    Missed(UnresolvedProgramModule),
     AuthorityFailed,
+}
+
+/// Authoritative facts retained for a module lookup that found no target.
+/// They cannot produce a symbol, but may refine the final not-found chain.
+#[derive(Clone, Debug, Default)]
+pub(crate) struct UnresolvedProgramModule {
+    alternate_result: Option<String>,
+}
+
+impl ProgramModuleResolution {
+    fn missed() -> Self {
+        Self::Missed(UnresolvedProgramModule::default())
+    }
 }
 
 /// Diagnostic-only projection of a host module target. Ordinary
@@ -3032,7 +3046,7 @@ impl<'a> CheckerState<'a> {
         // permitted to introduce an otherwise unresolved module. A
         // .ts module augmentation still reports 2664.
         if is_for_augmentation
-            && matches!(resolution, ProgramModuleResolution::Missed)
+            && matches!(resolution, ProgramModuleResolution::Missed(_))
             && self.binder.source_of_node(location).is_declaration_file
         {
             return Ok(None);
@@ -3118,11 +3132,28 @@ impl<'a> CheckerState<'a> {
                 // only yields typed results); the NOT-FOUND face rides
                 // the plain tail below in tsc too.
             }
-            self.error_at(
-                Some(error_node),
-                module_not_found_error,
-                &[module_reference],
-            );
+            let alternate_result = match &resolution {
+                ProgramModuleResolution::Missed(unresolved) => {
+                    unresolved.alternate_result.as_deref()
+                }
+                _ => None,
+            };
+            if let Some(alternate_result) = alternate_result {
+                let details = self
+                    .alternate_result_module_not_found_detail(alternate_result, module_reference);
+                let chain =
+                    MessageChain::new(module_not_found_error, &[module_reference.to_owned()])
+                        .with_next(vec![details]);
+                let span = self.diag_span_of_node(error_node);
+                let diagnostic = self.diagnostic_at_span(&span, chain);
+                self.push_error_diagnostic(diagnostic);
+            } else {
+                self.error_at(
+                    Some(error_node),
+                    module_not_found_error,
+                    &[module_reference],
+                );
+            }
         }
         Ok(None)
     }
@@ -3668,7 +3699,11 @@ impl<'a> CheckerState<'a> {
             .authoritative_module_provider
             .expect("authoritative resolver branch requires a provider");
         match provider.resolve_module(request) {
-            Ok(crate::AuthoritativeModuleResolution::NotFound) => ProgramModuleResolution::Missed,
+            Ok(crate::AuthoritativeModuleResolution::NotFound(not_found)) => {
+                ProgramModuleResolution::Missed(UnresolvedProgramModule {
+                    alternate_result: not_found.alternate_result,
+                })
+            }
             Ok(crate::AuthoritativeModuleResolution::Untyped(untyped)) => {
                 ProgramModuleResolution::Untyped(UntypedModuleResolution {
                     resolved_file_name: untyped.resolved_file_name,
@@ -3750,7 +3785,7 @@ impl<'a> CheckerState<'a> {
             return self.resolve_authoritative_program_module(location, module_reference);
         }
         if module_reference.is_empty() {
-            return ProgramModuleResolution::Missed;
+            return ProgramModuleResolution::missed();
         }
         let importing_index = self.binder.file_index_of_node(location);
         let importer =
@@ -3781,7 +3816,7 @@ impl<'a> CheckerState<'a> {
                 if resolution_mode == ModuleResolutionMode::EsNext
                     && (extensionless || directory_reference)
                 {
-                    return ProgramModuleResolution::Missed;
+                    return ProgramModuleResolution::missed();
                 }
                 // package.json among the host inputs makes an unknown
                 // implied format mode-dependent. Directory references
@@ -3842,7 +3877,7 @@ impl<'a> CheckerState<'a> {
                 if self.miss_is_undecidable(&candidate) {
                     return ProgramModuleResolution::Suppressed;
                 }
-                return ProgramModuleResolution::Missed;
+                return ProgramModuleResolution::missed();
             }
             if let Some(resolved) = self.probe_module_candidates(&candidate, is_classic) {
                 return ProgramModuleResolution::Resolved(resolved);
@@ -3850,7 +3885,7 @@ impl<'a> CheckerState<'a> {
             if self.miss_is_undecidable(&candidate) {
                 return ProgramModuleResolution::Suppressed;
             }
-            ProgramModuleResolution::Missed
+            ProgramModuleResolution::missed()
         } else {
             if is_classic {
                 // Classic non-relative: walk up from the importing
@@ -3950,7 +3985,7 @@ impl<'a> CheckerState<'a> {
             {
                 return ProgramModuleResolution::Suppressed;
             }
-            ProgramModuleResolution::Missed
+            ProgramModuleResolution::missed()
         }
     }
 
@@ -4142,6 +4177,31 @@ impl<'a> CheckerState<'a> {
             .is_some_and(|range| compiler_version_satisfies(range) == Some(true))
     }
 
+    /// tsc createModuleNotFoundChain's alternateResult arm. Both an
+    /// unresolved lookup and an untyped JavaScript hit consume the same
+    /// per-resolution host fact; only their top-level diagnostic differs.
+    fn alternate_result_module_not_found_detail(
+        &self,
+        alternate_result: &str,
+        package_name: &str,
+    ) -> MessageChain {
+        if self.options.emit_module_resolution_kind() == 2 {
+            return MessageChain::new(
+                &diagnostics::There_are_types_at_0_but_this_result_could_not_be_resolved_under_your_current_moduleResolution_setting_Consider_updating_to_node16_nodenext_or_bundler,
+                &[alternate_result.to_owned()],
+            );
+        }
+        let library_name = if alternate_result.contains("/node_modules/@types/") {
+            format!("@types/{}", Self::mangle_scoped_package_name(package_name))
+        } else {
+            package_name.to_owned()
+        };
+        MessageChain::new(
+            &diagnostics::There_are_types_at_0_but_this_result_could_not_be_resolved_when_respecting_package_json_exports_The_1_library_may_need_to_update_its_package_json_or_typings,
+            &[alternate_result.to_owned(), library_name],
+        )
+    }
+
     /// tsrs-native: diagnostic adapter for resolveExternalModule's
     /// implicit-any branch and createModuleNotFoundChain. The exact
     /// upstream producer identities remain in the frozen D2
@@ -4167,45 +4227,33 @@ impl<'a> CheckerState<'a> {
             .as_ref()
             .filter(|_| !Self::is_external_module_name_relative(module_reference))
             .map(|package_name| {
-            if let Some(alternate_result) = &resolution.alternate_result {
-                if self.options.emit_module_resolution_kind() == 2 {
-                    return MessageChain::new(
-                        &diagnostics::There_are_types_at_0_but_this_result_could_not_be_resolved_under_your_current_moduleResolution_setting_Consider_updating_to_node16_nodenext_or_bundler,
-                        std::slice::from_ref(alternate_result),
-                    );
-                }
-                let library_name = if alternate_result.contains("/node_modules/@types/") {
-                    format!("@types/{}", Self::mangle_scoped_package_name(package_name))
+                if let Some(alternate_result) = &resolution.alternate_result {
+                    self.alternate_result_module_not_found_detail(
+                        alternate_result,
+                        package_name,
+                    )
+                } else if resolution.types_package_exists {
+                    MessageChain::new(
+                        &diagnostics::If_the_0_package_actually_exposes_this_module_consider_sending_a_pull_request_to_amend_https_github_com_DefinitelyTyped_DefinitelyTyped_tree_master_types_1,
+                        &[
+                            package_name.clone(),
+                            Self::mangle_scoped_package_name(package_name),
+                        ],
+                    )
+                } else if resolution.package_bundles_types {
+                    MessageChain::new(
+                        &diagnostics::If_the_0_package_actually_exposes_this_module_try_adding_a_new_declaration_d_ts_file_containing_declare_module_1,
+                        &[package_name.clone(), module_reference.to_owned()],
+                    )
                 } else {
-                    package_name.clone()
-                };
-                return MessageChain::new(
-                    &diagnostics::There_are_types_at_0_but_this_result_could_not_be_resolved_when_respecting_package_json_exports_The_1_library_may_need_to_update_its_package_json_or_typings,
-                    &[alternate_result.clone(), library_name],
-                );
-            }
-            if resolution.types_package_exists {
-                return MessageChain::new(
-                    &diagnostics::If_the_0_package_actually_exposes_this_module_consider_sending_a_pull_request_to_amend_https_github_com_DefinitelyTyped_DefinitelyTyped_tree_master_types_1,
-                    &[
-                        package_name.clone(),
-                        Self::mangle_scoped_package_name(package_name),
-                    ],
-                );
-            }
-            if resolution.package_bundles_types {
-                return MessageChain::new(
-                    &diagnostics::If_the_0_package_actually_exposes_this_module_try_adding_a_new_declaration_d_ts_file_containing_declare_module_1,
-                    &[package_name.clone(), module_reference.to_owned()],
-                );
-            }
-            MessageChain::new(
-                &diagnostics::Try_npm_i_save_dev_types_1_if_it_exists_or_add_a_new_declaration_d_ts_file_containing_declare_module_0,
-                &[
-                    module_reference.to_owned(),
-                    Self::mangle_scoped_package_name(package_name),
-                ],
-            )
+                    MessageChain::new(
+                        &diagnostics::Try_npm_i_save_dev_types_1_if_it_exists_or_add_a_new_declaration_d_ts_file_containing_declare_module_0,
+                        &[
+                            module_reference.to_owned(),
+                            Self::mangle_scoped_package_name(package_name),
+                        ],
+                    )
+                }
             });
         let mut chain = MessageChain::new(
             &diagnostics::Could_not_find_a_declaration_file_for_module_0_1_implicitly_has_an_any_type,
@@ -4885,7 +4933,7 @@ impl<'a> CheckerState<'a> {
                     // diagnostic contract and does not fabricate a symbol
                     // for an unloaded implementation.
                     ProgramModuleResolution::Untyped(_) => None,
-                    ProgramModuleResolution::Missed => {
+                    ProgramModuleResolution::Missed(_) => {
                         self.error_at(
                             Some(location),
                             &diagnostics::This_syntax_requires_an_imported_helper_but_module_0_cannot_be_found,

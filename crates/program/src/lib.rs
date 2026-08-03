@@ -26,7 +26,7 @@ pub use module_requests::{
     PlannedTypeReferenceDirective, SourceRequestPlan,
 };
 pub use module_resolution::{
-    HostResolvedModule, HostResolvedTypeReferenceDirective, ModuleResolver,
+    HostModuleResolution, HostResolvedModule, HostResolvedTypeReferenceDirective, ModuleResolver,
 };
 pub use path::{CanonicalPath, ProgramPath};
 pub use prepared::{

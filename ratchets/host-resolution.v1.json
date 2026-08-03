@@ -131,8 +131,8 @@
   ],
   "summary": {
     "rows": 241,
-    "open": 11,
-    "closed": 230,
+    "open": 4,
+    "closed": 237,
     "lapsed": 0,
     "fixtures": 30,
     "by_code": {
@@ -4425,7 +4425,7 @@
       ],
       "owner_evidence": "TypeScript 6.0.3 resolveExternalModuleName selects TS2792 directly from the effective Classic module-resolution kind; the Bundler matrix sibling is a canary, not a Node resolver call on this diagnostic path.",
       "rust_boundary": {
-        "readiness": "seam-only",
+        "readiness": "authoritative",
         "seam_anchors": [
           {
             "role": "producer",
@@ -4438,6 +4438,32 @@
             "crate_name": "tsc-program",
             "path": "crates/program/src/prepared.rs",
             "symbol": "require_module"
+          },
+          {
+            "role": "driver",
+            "crate_name": "tsc-compiler",
+            "path": "crates/compiler/src/lib.rs",
+            "symbol": "pub fn run(self)"
+          },
+          {
+            "role": "diagnostic-consumer",
+            "crate_name": "tsc-checker",
+            "path": "crates/checker/src/modules.rs",
+            "symbol": "fn resolve_external_module"
+          }
+        ],
+        "authoritative_anchors": [
+          {
+            "role": "producer",
+            "crate_name": "tsc-program",
+            "path": "crates/program/src/module_resolution.rs",
+            "symbol": "pub fn resolve_with_facts("
+          },
+          {
+            "role": "table-consumer",
+            "crate_name": "tsc-compiler",
+            "path": "crates/compiler/src/lib.rs",
+            "symbol": "impl AuthoritativeModuleProvider for PreparedModuleProvider"
           },
           {
             "role": "driver",
@@ -4474,8 +4500,21 @@
           "evidence": "Intentional same-source Classic-to-Bundler contrast: Bundler resolves the request and therefore omits TS2792."
         }
       },
-      "status": "open",
-      "source_evidence": "2792-vs-2307 code choice = alternate-resolver probe against materialized node_modules/foo (host: node_modules probing)"
+      "status": "closed",
+      "source_evidence": "2792-vs-2307 code choice = alternate-resolver probe against materialized node_modules/foo (host: node_modules probing)",
+      "closure_evidence": {
+        "tiers": [
+          "t0",
+          "t1",
+          "t2",
+          "t3",
+          "t4"
+        ],
+        "artifact": "ratchets/conformance-matches.v1.json.zst",
+        "artifact_sha256": "310bf205b9aa3b175d44538d28473cf2b067281e4f3e0d85ee547433fc6ae1ad",
+        "note": "H0.3 routes Classic and Node10 alternate-resolution facts through the authoritative module provider and diagnostic consumer, while the exact Bundler and Node10 untyped-target controls remain non-emitting for the closed diagnostic through T0--T4."
+      },
+      "closing_commit": "95f3f1ec2d9db93973723a782810b8dd53b3718c"
     },
     {
       "id": "h0:0f92657eb6f2057a829e45c2e914101c6b98fc4ce908a6567344fde5dddc7e19",
@@ -5450,7 +5489,7 @@
       ],
       "owner_evidence": "Reviewed TypeScript 6.0.3 declaration owner chain: Primary:createModuleNotFoundChain -> Dependency:resolveModuleName -> Dependency:getModeForUsageLocationWorker -> Dependency:createModeAwareCacheKey -> Dependency:createModeAwareCache -> Dependency:nodeModuleNameResolverWorker -> Diagnostic:resolveExternalModule.",
       "rust_boundary": {
-        "readiness": "seam-only",
+        "readiness": "authoritative",
         "seam_anchors": [
           {
             "role": "producer",
@@ -5463,6 +5502,32 @@
             "crate_name": "tsc-program",
             "path": "crates/program/src/prepared.rs",
             "symbol": "require_module"
+          },
+          {
+            "role": "driver",
+            "crate_name": "tsc-compiler",
+            "path": "crates/compiler/src/lib.rs",
+            "symbol": "pub fn run(self)"
+          },
+          {
+            "role": "diagnostic-consumer",
+            "crate_name": "tsc-checker",
+            "path": "crates/checker/src/modules.rs",
+            "symbol": "fn resolve_external_module"
+          }
+        ],
+        "authoritative_anchors": [
+          {
+            "role": "producer",
+            "crate_name": "tsc-program",
+            "path": "crates/program/src/module_resolution.rs",
+            "symbol": "pub fn resolve_with_facts("
+          },
+          {
+            "role": "table-consumer",
+            "crate_name": "tsc-compiler",
+            "path": "crates/compiler/src/lib.rs",
+            "symbol": "impl AuthoritativeModuleProvider for PreparedModuleProvider"
           },
           {
             "role": "driver",
@@ -5499,8 +5564,21 @@
           "evidence": "Same Node10 alternate-result branch with a package target that does not emit TS2307."
         }
       },
-      "status": "open",
-      "source_evidence": "'pkg' failure verdict produced by node_modules package.json main/exports probing (node10 alternate-result messaging) (host: node_modules+package.json)"
+      "status": "closed",
+      "source_evidence": "'pkg' failure verdict produced by node_modules package.json main/exports probing (node10 alternate-result messaging) (host: node_modules+package.json)",
+      "closure_evidence": {
+        "tiers": [
+          "t0",
+          "t1",
+          "t2",
+          "t3",
+          "t4"
+        ],
+        "artifact": "ratchets/conformance-matches.v1.json.zst",
+        "artifact_sha256": "310bf205b9aa3b175d44538d28473cf2b067281e4f3e0d85ee547433fc6ae1ad",
+        "note": "H0.3 routes Classic and Node10 alternate-resolution facts through the authoritative module provider and diagnostic consumer, while the exact Bundler and Node10 untyped-target controls remain non-emitting for the closed diagnostic through T0--T4."
+      },
+      "closing_commit": "95f3f1ec2d9db93973723a782810b8dd53b3718c"
     },
     {
       "id": "h0:11d6bfc7ebf074883619d2585b38794c0e325a8e752a4b9c61417f60b5acb2ea",
@@ -10385,7 +10463,7 @@
       ],
       "owner_evidence": "TypeScript 6.0.3 resolveExternalModuleName selects TS2792 directly from the effective Classic module-resolution kind; the Bundler matrix sibling is a canary, not a Node resolver call on this diagnostic path.",
       "rust_boundary": {
-        "readiness": "seam-only",
+        "readiness": "authoritative",
         "seam_anchors": [
           {
             "role": "producer",
@@ -10398,6 +10476,32 @@
             "crate_name": "tsc-program",
             "path": "crates/program/src/prepared.rs",
             "symbol": "require_module"
+          },
+          {
+            "role": "driver",
+            "crate_name": "tsc-compiler",
+            "path": "crates/compiler/src/lib.rs",
+            "symbol": "pub fn run(self)"
+          },
+          {
+            "role": "diagnostic-consumer",
+            "crate_name": "tsc-checker",
+            "path": "crates/checker/src/modules.rs",
+            "symbol": "fn resolve_external_module"
+          }
+        ],
+        "authoritative_anchors": [
+          {
+            "role": "producer",
+            "crate_name": "tsc-program",
+            "path": "crates/program/src/module_resolution.rs",
+            "symbol": "pub fn resolve_with_facts("
+          },
+          {
+            "role": "table-consumer",
+            "crate_name": "tsc-compiler",
+            "path": "crates/compiler/src/lib.rs",
+            "symbol": "impl AuthoritativeModuleProvider for PreparedModuleProvider"
           },
           {
             "role": "driver",
@@ -10434,8 +10538,21 @@
           "evidence": "Intentional same-source Classic-to-Bundler contrast: Bundler resolves the request and therefore omits TS2792."
         }
       },
-      "status": "open",
-      "source_evidence": "2792-vs-2307 code choice = alternate-resolver probe SUCCEEDS against materialized node_modules/foo under non-classic resolution (host: node_modules probing)"
+      "status": "closed",
+      "source_evidence": "2792-vs-2307 code choice = alternate-resolver probe SUCCEEDS against materialized node_modules/foo under non-classic resolution (host: node_modules probing)",
+      "closure_evidence": {
+        "tiers": [
+          "t0",
+          "t1",
+          "t2",
+          "t3",
+          "t4"
+        ],
+        "artifact": "ratchets/conformance-matches.v1.json.zst",
+        "artifact_sha256": "310bf205b9aa3b175d44538d28473cf2b067281e4f3e0d85ee547433fc6ae1ad",
+        "note": "H0.3 routes Classic and Node10 alternate-resolution facts through the authoritative module provider and diagnostic consumer, while the exact Bundler and Node10 untyped-target controls remain non-emitting for the closed diagnostic through T0--T4."
+      },
+      "closing_commit": "95f3f1ec2d9db93973723a782810b8dd53b3718c"
     },
     {
       "id": "h0:276b6e867c43a204c91ff68b684d6c19f7d8f74b4a743969ba40e39416ed2e88",
@@ -19724,7 +19841,7 @@
       ],
       "owner_evidence": "TypeScript 6.0.3 resolveExternalModuleName selects TS2792 directly from the effective Classic module-resolution kind; the Bundler matrix sibling is a canary, not a Node resolver call on this diagnostic path.",
       "rust_boundary": {
-        "readiness": "seam-only",
+        "readiness": "authoritative",
         "seam_anchors": [
           {
             "role": "producer",
@@ -19737,6 +19854,32 @@
             "crate_name": "tsc-program",
             "path": "crates/program/src/prepared.rs",
             "symbol": "require_module"
+          },
+          {
+            "role": "driver",
+            "crate_name": "tsc-compiler",
+            "path": "crates/compiler/src/lib.rs",
+            "symbol": "pub fn run(self)"
+          },
+          {
+            "role": "diagnostic-consumer",
+            "crate_name": "tsc-checker",
+            "path": "crates/checker/src/modules.rs",
+            "symbol": "fn resolve_external_module"
+          }
+        ],
+        "authoritative_anchors": [
+          {
+            "role": "producer",
+            "crate_name": "tsc-program",
+            "path": "crates/program/src/module_resolution.rs",
+            "symbol": "pub fn resolve_with_facts("
+          },
+          {
+            "role": "table-consumer",
+            "crate_name": "tsc-compiler",
+            "path": "crates/compiler/src/lib.rs",
+            "symbol": "impl AuthoritativeModuleProvider for PreparedModuleProvider"
           },
           {
             "role": "driver",
@@ -19773,8 +19916,21 @@
           "evidence": "Intentional same-source Classic-to-Bundler contrast: Bundler resolves the request and therefore omits TS2792."
         }
       },
-      "status": "open",
-      "source_evidence": "2792-vs-2307 code choice = alternate-resolver probe against materialized node_modules/foo (host: node_modules probing)"
+      "status": "closed",
+      "source_evidence": "2792-vs-2307 code choice = alternate-resolver probe against materialized node_modules/foo (host: node_modules probing)",
+      "closure_evidence": {
+        "tiers": [
+          "t0",
+          "t1",
+          "t2",
+          "t3",
+          "t4"
+        ],
+        "artifact": "ratchets/conformance-matches.v1.json.zst",
+        "artifact_sha256": "310bf205b9aa3b175d44538d28473cf2b067281e4f3e0d85ee547433fc6ae1ad",
+        "note": "H0.3 routes Classic and Node10 alternate-resolution facts through the authoritative module provider and diagnostic consumer, while the exact Bundler and Node10 untyped-target controls remain non-emitting for the closed diagnostic through T0--T4."
+      },
+      "closing_commit": "95f3f1ec2d9db93973723a782810b8dd53b3718c"
     },
     {
       "id": "h0:51a072bc93d045dea3344b9d27c22ac27027f855028e6f4801215e88ffee774f",
@@ -29958,7 +30114,7 @@
       ],
       "owner_evidence": "TypeScript 6.0.3 resolveExternalModuleName selects TS2792 directly from the effective Classic module-resolution kind; the Bundler matrix sibling is a canary, not a Node resolver call on this diagnostic path.",
       "rust_boundary": {
-        "readiness": "seam-only",
+        "readiness": "authoritative",
         "seam_anchors": [
           {
             "role": "producer",
@@ -29971,6 +30127,32 @@
             "crate_name": "tsc-program",
             "path": "crates/program/src/prepared.rs",
             "symbol": "require_module"
+          },
+          {
+            "role": "driver",
+            "crate_name": "tsc-compiler",
+            "path": "crates/compiler/src/lib.rs",
+            "symbol": "pub fn run(self)"
+          },
+          {
+            "role": "diagnostic-consumer",
+            "crate_name": "tsc-checker",
+            "path": "crates/checker/src/modules.rs",
+            "symbol": "fn resolve_external_module"
+          }
+        ],
+        "authoritative_anchors": [
+          {
+            "role": "producer",
+            "crate_name": "tsc-program",
+            "path": "crates/program/src/module_resolution.rs",
+            "symbol": "pub fn resolve_with_facts("
+          },
+          {
+            "role": "table-consumer",
+            "crate_name": "tsc-compiler",
+            "path": "crates/compiler/src/lib.rs",
+            "symbol": "impl AuthoritativeModuleProvider for PreparedModuleProvider"
           },
           {
             "role": "driver",
@@ -30007,8 +30189,21 @@
           "evidence": "Intentional same-source Classic-to-Bundler contrast: Bundler resolves the request and therefore omits TS2792."
         }
       },
-      "status": "open",
-      "source_evidence": "2792-vs-2307 code choice = alternate-resolver probe SUCCEEDS against materialized node_modules/foo under non-classic resolution (host: node_modules probing)"
+      "status": "closed",
+      "source_evidence": "2792-vs-2307 code choice = alternate-resolver probe SUCCEEDS against materialized node_modules/foo under non-classic resolution (host: node_modules probing)",
+      "closure_evidence": {
+        "tiers": [
+          "t0",
+          "t1",
+          "t2",
+          "t3",
+          "t4"
+        ],
+        "artifact": "ratchets/conformance-matches.v1.json.zst",
+        "artifact_sha256": "310bf205b9aa3b175d44538d28473cf2b067281e4f3e0d85ee547433fc6ae1ad",
+        "note": "H0.3 routes Classic and Node10 alternate-resolution facts through the authoritative module provider and diagnostic consumer, while the exact Bundler and Node10 untyped-target controls remain non-emitting for the closed diagnostic through T0--T4."
+      },
+      "closing_commit": "95f3f1ec2d9db93973723a782810b8dd53b3718c"
     },
     {
       "id": "h0:7174bb4c1f00d05ae6107b75eca4168b27ac6be7c45fad4a319091208b8b4f6f",
@@ -34275,7 +34470,7 @@
       ],
       "owner_evidence": "TypeScript 6.0.3 resolveExternalModuleName selects TS2792 directly from the effective Classic module-resolution kind; the Bundler matrix sibling is a canary, not a Node resolver call on this diagnostic path.",
       "rust_boundary": {
-        "readiness": "seam-only",
+        "readiness": "authoritative",
         "seam_anchors": [
           {
             "role": "producer",
@@ -34288,6 +34483,32 @@
             "crate_name": "tsc-program",
             "path": "crates/program/src/prepared.rs",
             "symbol": "require_module"
+          },
+          {
+            "role": "driver",
+            "crate_name": "tsc-compiler",
+            "path": "crates/compiler/src/lib.rs",
+            "symbol": "pub fn run(self)"
+          },
+          {
+            "role": "diagnostic-consumer",
+            "crate_name": "tsc-checker",
+            "path": "crates/checker/src/modules.rs",
+            "symbol": "fn resolve_external_module"
+          }
+        ],
+        "authoritative_anchors": [
+          {
+            "role": "producer",
+            "crate_name": "tsc-program",
+            "path": "crates/program/src/module_resolution.rs",
+            "symbol": "pub fn resolve_with_facts("
+          },
+          {
+            "role": "table-consumer",
+            "crate_name": "tsc-compiler",
+            "path": "crates/compiler/src/lib.rs",
+            "symbol": "impl AuthoritativeModuleProvider for PreparedModuleProvider"
           },
           {
             "role": "driver",
@@ -34324,8 +34545,21 @@
           "evidence": "Intentional same-source Classic-to-Bundler contrast: Bundler resolves the request and therefore omits TS2792."
         }
       },
-      "status": "open",
-      "source_evidence": "2792-vs-2307 code choice = alternate-resolver probe SUCCEEDS against materialized node_modules/foo under non-classic resolution (host: node_modules probing)"
+      "status": "closed",
+      "source_evidence": "2792-vs-2307 code choice = alternate-resolver probe SUCCEEDS against materialized node_modules/foo under non-classic resolution (host: node_modules probing)",
+      "closure_evidence": {
+        "tiers": [
+          "t0",
+          "t1",
+          "t2",
+          "t3",
+          "t4"
+        ],
+        "artifact": "ratchets/conformance-matches.v1.json.zst",
+        "artifact_sha256": "310bf205b9aa3b175d44538d28473cf2b067281e4f3e0d85ee547433fc6ae1ad",
+        "note": "H0.3 routes Classic and Node10 alternate-resolution facts through the authoritative module provider and diagnostic consumer, while the exact Bundler and Node10 untyped-target controls remain non-emitting for the closed diagnostic through T0--T4."
+      },
+      "closing_commit": "95f3f1ec2d9db93973723a782810b8dd53b3718c"
     },
     {
       "id": "h0:86b898558bbd45a5d4e7d98d1959c03f74dec7468b429e8d39f0a3fadc7cf4fe",
@@ -50716,7 +50950,7 @@
       ],
       "owner_evidence": "TypeScript 6.0.3 resolveExternalModuleName selects TS2792 directly from the effective Classic module-resolution kind; the Bundler matrix sibling is a canary, not a Node resolver call on this diagnostic path.",
       "rust_boundary": {
-        "readiness": "seam-only",
+        "readiness": "authoritative",
         "seam_anchors": [
           {
             "role": "producer",
@@ -50729,6 +50963,32 @@
             "crate_name": "tsc-program",
             "path": "crates/program/src/prepared.rs",
             "symbol": "require_module"
+          },
+          {
+            "role": "driver",
+            "crate_name": "tsc-compiler",
+            "path": "crates/compiler/src/lib.rs",
+            "symbol": "pub fn run(self)"
+          },
+          {
+            "role": "diagnostic-consumer",
+            "crate_name": "tsc-checker",
+            "path": "crates/checker/src/modules.rs",
+            "symbol": "fn resolve_external_module"
+          }
+        ],
+        "authoritative_anchors": [
+          {
+            "role": "producer",
+            "crate_name": "tsc-program",
+            "path": "crates/program/src/module_resolution.rs",
+            "symbol": "pub fn resolve_with_facts("
+          },
+          {
+            "role": "table-consumer",
+            "crate_name": "tsc-compiler",
+            "path": "crates/compiler/src/lib.rs",
+            "symbol": "impl AuthoritativeModuleProvider for PreparedModuleProvider"
           },
           {
             "role": "driver",
@@ -50765,8 +51025,21 @@
           "evidence": "Intentional same-source Classic-to-Bundler contrast: Bundler resolves the request and therefore omits TS2792."
         }
       },
-      "status": "open",
-      "source_evidence": "2792-vs-2307 code choice = alternate-resolver probe against materialized node_modules/foo (host: node_modules probing)"
+      "status": "closed",
+      "source_evidence": "2792-vs-2307 code choice = alternate-resolver probe against materialized node_modules/foo (host: node_modules probing)",
+      "closure_evidence": {
+        "tiers": [
+          "t0",
+          "t1",
+          "t2",
+          "t3",
+          "t4"
+        ],
+        "artifact": "ratchets/conformance-matches.v1.json.zst",
+        "artifact_sha256": "310bf205b9aa3b175d44538d28473cf2b067281e4f3e0d85ee547433fc6ae1ad",
+        "note": "H0.3 routes Classic and Node10 alternate-resolution facts through the authoritative module provider and diagnostic consumer, while the exact Bundler and Node10 untyped-target controls remain non-emitting for the closed diagnostic through T0--T4."
+      },
+      "closing_commit": "95f3f1ec2d9db93973723a782810b8dd53b3718c"
     },
     {
       "id": "h0:c96076681f488098712bb72ca2a62e98e8c7353d9ebb1631070933ba081ad279",

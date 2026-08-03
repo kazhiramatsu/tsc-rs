@@ -142,18 +142,24 @@ pub struct AuthoritativeUntypedModule {
     pub package_bundles_types: bool,
 }
 
+/// An unsuccessful authoritative lookup together with host facts that remain
+/// observable in the module-not-found diagnostic chain.
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub struct AuthoritativeNotFoundModule {
+    pub alternate_result: Option<String>,
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum AuthoritativeModuleResolution {
     Resolved(AuthoritativeResolvedModule),
     Untyped(AuthoritativeUntypedModule),
-    NotFound,
+    NotFound(AuthoritativeNotFoundModule),
 }
 
 /// A present table row that this checker slice cannot yet consume
 /// losslessly. These are infrastructure failures, never `NotFound`.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum UnsupportedAuthoritativeResolution {
-    AlternateResult,
     ResolutionDiagnostics,
     ResolvedFileIdentity,
     OriginalPath,
@@ -2800,7 +2806,9 @@ mod tests {
                 if self.fail {
                     Err(AuthoritativeModuleLookupFailure::Missing)
                 } else {
-                    Ok(AuthoritativeModuleResolution::NotFound)
+                    Ok(AuthoritativeModuleResolution::NotFound(
+                        AuthoritativeNotFoundModule::default(),
+                    ))
                 }
             }
         }
@@ -2862,6 +2870,91 @@ mod tests {
         let cached_failure =
             run(true, &Provider { fail: true }).expect_err("cached authoritative failure");
         assert_eq!(owned_failure, cached_failure);
+    }
+
+    #[test]
+    fn authoritative_not_found_facts_reach_the_node10_diagnostic_chain() {
+        struct Provider;
+
+        impl AuthoritativeModuleProvider for Provider {
+            fn resolve_module(
+                &self,
+                request: AuthoritativeModuleRequest<'_>,
+            ) -> Result<AuthoritativeModuleResolution, AuthoritativeModuleLookupFailure>
+            {
+                assert_eq!(request.source_token, AuthoritativeSourceToken(1));
+                assert_eq!(request.containing_file, "/index.ts");
+                assert_eq!(request.specifier, "pkg");
+                assert_eq!(request.mode, AuthoritativeResolutionMode::Unspecified);
+                Ok(AuthoritativeModuleResolution::NotFound(
+                    AuthoritativeNotFoundModule {
+                        alternate_result: Some(
+                            "/node_modules/pkg/definitely-not-index.d.ts".to_owned(),
+                        ),
+                    },
+                ))
+            }
+        }
+
+        let source = "import { pkg } from \"pkg\";\n";
+        let files = [InputFile {
+            name: "/index.ts".to_owned(),
+            text: source.to_owned(),
+        }];
+        let metadata = [AuthoritativeSourceMetadata {
+            token: AuthoritativeSourceToken(1),
+            file_name: files[0].name.clone(),
+            may_be_emitted: true,
+            implied_node_format: None,
+        }];
+        let result = check_program_with_authoritative_modules_at_cache_mode(
+            &[],
+            &files,
+            &[],
+            &metadata,
+            &CompilerOptions {
+                no_emit: Some(true),
+                module_resolution: Some(2),
+                ..CompilerOptions::default()
+            },
+            "/",
+            &Provider,
+            false,
+        )
+        .expect("authoritative alternate-result miss");
+
+        let diagnostic = result
+            .semantic_diagnostics
+            .iter()
+            .find(|diagnostic| diagnostic.code() == 2307)
+            .expect("module-not-found diagnostic");
+        assert_eq!(
+            (
+                diagnostic.file_name.as_deref(),
+                diagnostic.start,
+                diagnostic.length,
+                diagnostic.message_text(),
+            ),
+            (
+                Some("/index.ts"),
+                Some(source.find("\"pkg\"").expect("module specifier") as u32),
+                Some("\"pkg\"".len() as u32),
+                "Cannot find module 'pkg' or its corresponding type declarations.",
+            )
+        );
+        assert_eq!(diagnostic.message.next.len(), 1);
+        assert_eq!(
+            (
+                diagnostic.message.next[0].code,
+                diagnostic.message.next[0].category,
+                diagnostic.message.next[0].text.as_str(),
+            ),
+            (
+                6280,
+                DiagnosticCategory::Message,
+                "There are types at '/node_modules/pkg/definitely-not-index.d.ts', but this result could not be resolved under your current 'moduleResolution' setting. Consider updating to 'node16', 'nodenext', or 'bundler'.",
+            )
+        );
     }
 
     #[test]

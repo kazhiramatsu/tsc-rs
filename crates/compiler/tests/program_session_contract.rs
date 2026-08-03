@@ -1433,20 +1433,14 @@ fn require_call_in_an_esm_file_uses_the_commonjs_row() {
 
 #[test]
 fn unsupported_authoritative_records_fail_closed_without_becoming_not_found() {
-    let cases = [
-        (
-            UnsupportedAuthoritativeResolution::AlternateResult,
-            ModuleResolution::not_found().with_alternate_result(path("/types/alternate.d.ts")),
-        ),
-        (
-            UnsupportedAuthoritativeResolution::ResolutionDiagnostics,
-            ModuleResolution::not_found().with_diagnostics(vec![located_diagnostic(
-                9701,
-                "/main.ts",
-                "resolution diagnostic",
-            )]),
-        ),
-    ];
+    let cases = [(
+        UnsupportedAuthoritativeResolution::ResolutionDiagnostics,
+        ModuleResolution::not_found().with_diagnostics(vec![located_diagnostic(
+            9701,
+            "/main.ts",
+            "resolution diagnostic",
+        )]),
+    )];
 
     for (expected, resolution) in cases {
         let prepared = authoritative_program(
@@ -1485,6 +1479,60 @@ fn unsupported_authoritative_records_fail_closed_without_becoming_not_found() {
         assert_eq!(mode, tsc_checker::AuthoritativeResolutionMode::Unspecified);
         assert_eq!(actual, expected);
     }
+}
+
+#[test]
+fn authoritative_not_found_preserves_node10_alternate_result_chain() {
+    let source = "import { pkg } from \"pkg\";\n";
+    let alternate_result = "/node_modules/pkg/definitely-not-index.d.ts";
+    let prepared = authoritative_program(
+        &[("/index.ts", source)],
+        &[0],
+        CompilerOptions {
+            module_resolution: Some(2),
+            ..CompilerOptions::default()
+        },
+        |builder, _| {
+            builder
+                .add_module_resolution(
+                    module_key("/index.ts", "pkg", ResolutionMode::Unspecified),
+                    Ok(ModuleResolution::not_found().with_alternate_result(path(alternate_result))),
+                )
+                .expect("add authoritative alternate-result miss");
+        },
+    );
+
+    let outcome = consume(ProgramSession::new(prepared));
+    let diagnostics = outcome.semantic_diagnostics();
+    assert_eq!(codes(diagnostics), [2307]);
+    let diagnostic = &diagnostics[0];
+    assert_eq!(
+        (
+            diagnostic.file_name.as_deref(),
+            diagnostic.start,
+            diagnostic.length,
+            diagnostic.message_text(),
+        ),
+        (
+            Some("/index.ts"),
+            Some(source.find("\"pkg\"").expect("module specifier") as u32),
+            Some("\"pkg\"".len() as u32),
+            "Cannot find module 'pkg' or its corresponding type declarations.",
+        )
+    );
+    assert_eq!(diagnostic.message.next.len(), 1);
+    assert_eq!(
+        (
+            diagnostic.message.next[0].code,
+            diagnostic.message.next[0].category,
+            diagnostic.message.next[0].text.as_str(),
+        ),
+        (
+            6280,
+            DiagnosticCategory::Message,
+            "There are types at '/node_modules/pkg/definitely-not-index.d.ts', but this result could not be resolved under your current 'moduleResolution' setting. Consider updating to 'node16', 'nodenext', or 'bundler'.",
+        )
+    );
 }
 
 #[test]

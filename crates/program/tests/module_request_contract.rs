@@ -440,6 +440,148 @@ fn request_modes_follow_node_bundler_and_emit_module_semantics() {
 }
 
 #[test]
+fn classic_import_types_retain_explicit_modes_and_use_unspecified_fallback() {
+    let source = source_at(
+        "/app.ts",
+        concat!(
+            "type Default = typeof import(\"foo\").x;\n",
+            "type Import = typeof import(\"foo\", { with: { \"resolution-mode\": \"import\" } }).x;\n",
+            "type Require = typeof import(\"foo\", { with: { \"resolution-mode\": \"require\" } }).x;\n",
+            "type ImportRelative = typeof import(\"./other\", { with: { \"resolution-mode\": \"import\" } }).x;\n",
+            "type RequireRelative = typeof import(\"./other\", { with: { \"resolution-mode\": \"require\" } }).x;\n",
+        ),
+        None,
+    );
+    let classic = CompilerOptions {
+        module: Some(99),
+        module_resolution: Some(1),
+        ..CompilerOptions::default()
+    };
+
+    let requests = plan_module_requests(&source, &classic).expect("plan Classic import types");
+    assert_eq!(
+        requests
+            .iter()
+            .map(|request| (request.specifier(), request.mode()))
+            .collect::<Vec<_>>(),
+        [
+            ("foo", ResolutionMode::Unspecified),
+            ("foo", ResolutionMode::EsNext),
+            ("foo", ResolutionMode::CommonJs),
+            ("./other", ResolutionMode::EsNext),
+            ("./other", ResolutionMode::CommonJs),
+        ]
+    );
+
+    let bundler = CompilerOptions {
+        module_resolution: Some(100),
+        ..classic
+    };
+    let requests = plan_module_requests(&source, &bundler).expect("plan Bundler import types");
+    assert_eq!(
+        requests
+            .iter()
+            .map(|request| (request.specifier(), request.mode()))
+            .collect::<Vec<_>>(),
+        [
+            ("foo", ResolutionMode::EsNext),
+            ("foo", ResolutionMode::CommonJs),
+            ("./other", ResolutionMode::EsNext),
+            ("./other", ResolutionMode::CommonJs),
+        ],
+        "the default and explicit-import requests share one Bundler cache key"
+    );
+}
+
+#[test]
+fn classic_type_only_imports_retain_explicit_modes_and_use_unspecified_fallback() {
+    let source = source_at(
+        "/app.ts",
+        concat!(
+            "import type { x as Default } from \"foo\";\n",
+            "import type { x as Import } from \"foo\" with { \"resolution-mode\": \"import\" };\n",
+            "import type { x as Require } from \"foo\" with { \"resolution-mode\": \"require\" };\n",
+            "import type { x as ImportRelative } from \"./other\" with { \"resolution-mode\": \"import\" };\n",
+            "import type { x as RequireRelative } from \"./other\" with { \"resolution-mode\": \"require\" };\n",
+        ),
+        None,
+    );
+    let classic = CompilerOptions {
+        module: Some(99),
+        module_resolution: Some(1),
+        ..CompilerOptions::default()
+    };
+
+    let requests = plan_module_requests(&source, &classic).expect("plan Classic type imports");
+    assert_eq!(
+        requests
+            .iter()
+            .map(|request| (request.specifier(), request.mode()))
+            .collect::<Vec<_>>(),
+        [
+            ("foo", ResolutionMode::Unspecified),
+            ("foo", ResolutionMode::EsNext),
+            ("foo", ResolutionMode::CommonJs),
+            ("./other", ResolutionMode::EsNext),
+            ("./other", ResolutionMode::CommonJs),
+        ]
+    );
+
+    let bundler = CompilerOptions {
+        module_resolution: Some(100),
+        ..classic
+    };
+    let requests = plan_module_requests(&source, &bundler).expect("plan Bundler type imports");
+    assert_eq!(
+        requests
+            .iter()
+            .map(|request| (request.specifier(), request.mode()))
+            .collect::<Vec<_>>(),
+        [
+            ("foo", ResolutionMode::EsNext),
+            ("foo", ResolutionMode::CommonJs),
+            ("./other", ResolutionMode::EsNext),
+            ("./other", ResolutionMode::CommonJs),
+        ],
+        "the default and explicit-import requests share one Bundler cache key"
+    );
+}
+
+#[test]
+fn node10_static_import_uses_the_unspecified_resolution_mode() {
+    let source = source_at("/index.ts", "import { pkg } from \"pkg\";\n", None);
+    let options = CompilerOptions {
+        module: Some(99),
+        module_resolution: Some(2),
+        ..CompilerOptions::default()
+    };
+
+    let requests = plan_module_requests(&source, &options).expect("plan Node10 static import");
+    assert_eq!(requests.len(), 1);
+    assert_eq!(requests[0].specifier(), "pkg");
+    assert_eq!(requests[0].mode(), ResolutionMode::Unspecified);
+}
+
+#[test]
+fn resolution_mode_attributes_outside_the_owned_type_only_shape_fail_closed() {
+    let options = CompilerOptions {
+        module: Some(99),
+        module_resolution: Some(1),
+        ..CompilerOptions::default()
+    };
+    for text in [
+        "import { x } from \"foo\" with { \"resolution-mode\": \"import\" };\n",
+        "import type { x } from \"foo\" with { \"type\": \"json\" };\n",
+        "type Imported = import(\"foo\", { with: { \"type\": \"json\" } });\n",
+    ] {
+        assert!(matches!(
+            plan_module_requests(&source_at("/index.ts", text, None), &options),
+            Err(ResolutionError::Unsupported { .. })
+        ));
+    }
+}
+
+#[test]
 fn raw_default_commonjs_can_fall_back_to_the_emit_module_kind() {
     let source = PreparedSourceFile::new(
         path("/index.ts"),
@@ -472,7 +614,7 @@ fn internal_import_equals_does_not_publish_a_resolution_request() {
 #[test]
 fn expanded_plan_still_fails_closed_for_unowned_request_syntax() {
     for text in [
-        "type Imported = import(\"inner/typed\").Value;\n",
+        "type Imported = import(123).Value;\n",
         "const required = require(\"inner/call\");\n",
         "import(getName());\n",
     ] {
