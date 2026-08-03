@@ -464,11 +464,59 @@ fn plan_module_requests_worker(
                     parsed.arena.node(name).kind == SyntaxKind::StringLiteral
                 }) =>
             {
-                return Err(unsupported_at(
-                    source,
-                    node.pos,
-                    "a string-named module declaration may require module resolution",
-                ));
+                let name = module
+                    .name
+                    .expect("guarded string-named module declaration");
+                let NodeData::StringLiteral(literal) = &parsed.arena.node(name).data else {
+                    unreachable!("guarded string-named module declaration")
+                };
+                let top_level = node.parent == Some(parsed.root);
+                if !top_level {
+                    return Err(unsupported_at(
+                        source,
+                        node.pos,
+                        "a nested string-named module declaration is outside the owned augmentation surface",
+                    ));
+                }
+                let has_declare_modifier = module.modifiers.is_some_and(|modifiers| {
+                    parsed
+                        .arena
+                        .node_array(modifiers)
+                        .nodes
+                        .iter()
+                        .any(|&modifier| {
+                            parsed.arena.node(modifier).kind == SyntaxKind::DeclareKeyword
+                        })
+                });
+                let ambient_syntax = has_declare_modifier || parsed.is_declaration_file;
+                if let Some((position, detail)) =
+                    module_body_request_syntax(&parsed, node_id, module.body, javascript_file)
+                {
+                    return Err(unsupported_at(source, position, detail));
+                }
+                if ambient_syntax && parsed.external_module_indicator.is_some() {
+                    if !expanded {
+                        return Err(unsupported_at(
+                            source,
+                            node.pos,
+                            "a module augmentation is outside the static-import slice",
+                        ));
+                    }
+                    occurrences.push(ModuleRequestOccurrence {
+                        pos: parsed.arena.node(name).pos,
+                        key: ResolutionKey::new(
+                            source.path().canonical().clone(),
+                            literal.text.clone(),
+                            static_mode,
+                        ),
+                    });
+                }
+                // A script ambient declaration introduces an external module,
+                // while a bare `module "name"` is not ambient syntax. Neither
+                // asks the host to resolve that name.
+                // collectModuleReferences owns the declaration as a boundary:
+                // its body is not part of the source-level traversal.
+                continue;
             }
             NodeData::CallExpression(call) => {
                 let callee = call.expression.map(|id| parsed.arena.node(id));
@@ -525,11 +573,39 @@ fn plan_module_requests_worker(
                         SyntaxKind::StringLiteral | SyntaxKind::NoSubstitutionTemplateLiteral
                     )
                 {
-                    return Err(unsupported_at(
-                        source,
-                        node.pos,
-                        "a require call is outside the static-import slice",
-                    ));
+                    if !expanded {
+                        return Err(unsupported_at(
+                            source,
+                            node.pos,
+                            "a require call is outside the static-import slice",
+                        ));
+                    }
+                    if !javascript_file {
+                        return Err(unsupported_at(
+                            source,
+                            node.pos,
+                            "a TypeScript require call is outside the owned JavaScript request surface",
+                        ));
+                    }
+                    // collectExternalModuleReferences only treats require()
+                    // as a module request in JavaScript files. Node/Bundler
+                    // records CommonJS even when ordinary static imports emit
+                    // as ESM; Classic/Node10 retain upstream's undefined mode.
+                    let argument = arguments[0];
+                    let specifier = string_literal_like_text(&parsed, argument)
+                        .expect("guarded string-literal-like require argument");
+                    occurrences.push(ModuleRequestOccurrence {
+                        pos: parsed.arena.node(argument).pos,
+                        key: ResolutionKey::new(
+                            source.path().canonical().clone(),
+                            specifier.to_owned(),
+                            if import_syntax_affects_resolution {
+                                ResolutionMode::CommonJs
+                            } else {
+                                ResolutionMode::Unspecified
+                            },
+                        ),
+                    });
                 }
             }
             _ => {}
@@ -584,6 +660,86 @@ fn plan_module_requests_worker(
 struct ModuleRequestOccurrence {
     pos: u32,
     key: ResolutionKey,
+}
+
+/// A string-named module declaration is a collectModuleReferences boundary.
+/// This slice does not model the upstream `inAmbientModule` traversal rules,
+/// so request-bearing syntax under that boundary must fail closed rather than
+/// leaking into the source-level request list or being silently omitted.
+fn module_body_request_syntax(
+    parsed: &SourceFile,
+    declaration: NodeId,
+    body: Option<NodeId>,
+    javascript_file: bool,
+) -> Option<(u32, &'static str)> {
+    let mut stack = body.into_iter().collect::<Vec<_>>();
+    if let Some(js_doc) = parsed.arena.node(declaration).js_doc {
+        stack.extend(parsed.arena.node_array(js_doc).nodes.iter().copied());
+    }
+    while let Some(node_id) = stack.pop() {
+        let node = parsed.arena.node(node_id);
+        let detail = match &node.data {
+            NodeData::ImportDeclaration(_) => {
+                Some("an import declaration appears inside a string-named module")
+            }
+            NodeData::ExportDeclaration(export) if export.module_specifier.is_some() => {
+                Some("an export-from declaration appears inside a string-named module")
+            }
+            NodeData::ImportEqualsDeclaration(_) => {
+                Some("an import-equals declaration appears inside a string-named module")
+            }
+            NodeData::ImportType(_) => Some("an import type appears inside a string-named module"),
+            NodeData::JSDocImportTag(_) => {
+                Some("a JSDoc import appears inside a string-named module")
+            }
+            NodeData::ModuleDeclaration(module)
+                if module.name.is_some_and(|name| {
+                    parsed.arena.node(name).kind == SyntaxKind::StringLiteral
+                }) =>
+            {
+                Some("a nested string-named module requires ambient-context tracking")
+            }
+            NodeData::CallExpression(call) => {
+                let callee = call.expression.map(|id| parsed.arena.node(id));
+                let dynamic_import =
+                    callee.is_some_and(|callee| callee.kind == SyntaxKind::ImportKeyword);
+                let literal_require = javascript_file
+                    && callee.is_some_and(|callee| {
+                        matches!(
+                            &callee.data,
+                            NodeData::Identifier(identifier)
+                                if identifier.escaped_text == "require"
+                        )
+                    })
+                    && call.arguments.is_some_and(|arguments| {
+                        let arguments = &parsed.arena.node_array(arguments).nodes;
+                        arguments.len() == 1
+                            && matches!(
+                                parsed.arena.node(arguments[0]).kind,
+                                SyntaxKind::StringLiteral
+                                    | SyntaxKind::NoSubstitutionTemplateLiteral
+                            )
+                    });
+                (dynamic_import || literal_require)
+                    .then_some("a dynamic module request appears inside a string-named module")
+            }
+            _ => None,
+        };
+        if let Some(detail) = detail {
+            return Some((node.pos, detail));
+        }
+
+        if let Some(js_doc) = node.js_doc {
+            stack.extend(parsed.arena.node_array(js_doc).nodes.iter().copied());
+        }
+        let mut children = Vec::new();
+        for_each_child(&parsed.arena, node, |child| {
+            children.push(child);
+            false
+        });
+        stack.extend(children.into_iter().rev());
+    }
+    None
 }
 
 /// tsc `getResolutionModeOverride`: only the exact one-element

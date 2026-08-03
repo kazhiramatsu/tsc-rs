@@ -440,6 +440,193 @@ fn request_modes_follow_node_bundler_and_emit_module_semantics() {
 }
 
 #[test]
+fn expanded_javascript_require_calls_use_the_effective_commonjs_mode() {
+    let text = concat!(
+        "const untyped = require(\"untyped\");\n",
+        "const templated = require(`templated`);\n",
+        "import \"static\";\n",
+    );
+    for (label, module_resolution, expected_modes) in [
+        (
+            "Bundler",
+            100,
+            [
+                ResolutionMode::CommonJs,
+                ResolutionMode::CommonJs,
+                ResolutionMode::EsNext,
+            ],
+        ),
+        (
+            "Node16",
+            3,
+            [
+                ResolutionMode::CommonJs,
+                ResolutionMode::CommonJs,
+                ResolutionMode::EsNext,
+            ],
+        ),
+        (
+            "Classic",
+            1,
+            [
+                ResolutionMode::Unspecified,
+                ResolutionMode::Unspecified,
+                ResolutionMode::Unspecified,
+            ],
+        ),
+        (
+            "Node10",
+            2,
+            [
+                ResolutionMode::Unspecified,
+                ResolutionMode::Unspecified,
+                ResolutionMode::Unspecified,
+            ],
+        ),
+    ] {
+        let options = CompilerOptions {
+            module: Some(99),
+            module_resolution: Some(module_resolution),
+            allow_js: true,
+            check_js: Some(true),
+            ..CompilerOptions::default()
+        };
+        let requests = plan_module_requests(&source_at("/bug40140.js", text, None), &options)
+            .unwrap_or_else(|error| panic!("{label}: request planning failed: {error}"));
+        assert_eq!(
+            requests
+                .iter()
+                .map(|request| (request.specifier(), request.mode()))
+                .collect::<Vec<_>>(),
+            [
+                ("untyped", expected_modes[0]),
+                ("templated", expected_modes[1]),
+                ("static", expected_modes[2]),
+            ],
+            "{label}"
+        );
+    }
+}
+
+#[test]
+fn module_augmentation_uses_static_mode_and_deduplicates_its_import() {
+    let source = source_at(
+        "/a.ts",
+        concat!(
+            "declare module \"foo\" { export const x: number; }\n",
+            "import { x } from \"foo\";\n",
+        ),
+        None,
+    );
+    let options = CompilerOptions {
+        module: Some(1),
+        module_resolution: Some(100),
+        ..CompilerOptions::default()
+    };
+
+    let requests = plan_module_requests(&source, &options).expect("plan module augmentation");
+    assert_eq!(requests.len(), 1);
+    assert_eq!(requests[0].specifier(), "foo");
+    assert_eq!(requests[0].mode(), ResolutionMode::CommonJs);
+}
+
+#[test]
+fn top_level_script_ambient_module_has_no_resolution_request() {
+    let options = CompilerOptions {
+        module: Some(1),
+        module_resolution: Some(100),
+        ..CompilerOptions::default()
+    };
+
+    for file_name in ["/declarations.d.ts", "/ambient.ts"] {
+        let source = source_at(
+            file_name,
+            "declare module \"foo\" { export const x: number; }\n",
+            None,
+        );
+        let requests = plan_module_requests(&source, &options)
+            .unwrap_or_else(|error| panic!("{file_name}: ambient planning failed: {error}"));
+        assert!(requests.is_empty(), "{file_name}");
+    }
+}
+
+#[test]
+fn bare_string_named_module_in_external_source_is_not_an_augmentation_request() {
+    let source = source_at(
+        "/bare.ts",
+        concat!("export {};\n", "module \"foo\" { export const x = 1; }\n",),
+        None,
+    );
+    let options = CompilerOptions {
+        module: Some(1),
+        module_resolution: Some(100),
+        ..CompilerOptions::default()
+    };
+
+    let requests = plan_module_requests(&source, &options).expect("plan bare module control");
+    assert!(requests.is_empty());
+}
+
+#[test]
+fn module_body_requests_fail_closed_instead_of_leaking_into_the_source_plan() {
+    let options = CompilerOptions {
+        module: Some(1),
+        module_resolution: Some(100),
+        ..CompilerOptions::default()
+    };
+    for (label, file_name, text) in [
+        (
+            "external bare module",
+            "/bare.ts",
+            "export {}; module \"foo\" { import \"bar\"; }\n",
+        ),
+        (
+            "external augmentation",
+            "/augmentation.ts",
+            "export {}; declare module \"foo\" { import \"bar\"; }\n",
+        ),
+        (
+            "script ambient non-relative import",
+            "/ambient.d.ts",
+            "declare module \"foo\" { import \"bar\"; }\n",
+        ),
+        (
+            "script ambient relative import",
+            "/ambient-relative.d.ts",
+            "declare module \"foo\" { import \"./bar\"; }\n",
+        ),
+    ] {
+        let result = plan_module_requests(&source_at(file_name, text, None), &options);
+        assert!(
+            matches!(result, Err(ResolutionError::Unsupported { .. })),
+            "{label}: {result:?}"
+        );
+    }
+}
+
+#[test]
+fn nested_string_named_module_fails_closed_without_ambient_context_tracking() {
+    let source = source_at(
+        "/nested.ts",
+        concat!(
+            "export {};\n",
+            "declare namespace outer { module \"foo\" { export const x: number; } }\n",
+        ),
+        None,
+    );
+    let options = CompilerOptions {
+        module: Some(1),
+        module_resolution: Some(100),
+        ..CompilerOptions::default()
+    };
+
+    assert!(matches!(
+        plan_module_requests(&source, &options),
+        Err(ResolutionError::Unsupported { .. })
+    ));
+}
+
+#[test]
 fn classic_import_types_retain_explicit_modes_and_use_unspecified_fallback() {
     let source = source_at(
         "/app.ts",
@@ -657,6 +844,20 @@ fn incomplete_static_plans_fail_closed() {
     );
     assert!(matches!(
         plan_static_module_requests(&jsdoc_import, &node_options()),
+        Err(ResolutionError::Unsupported { .. })
+    ));
+
+    let checked_js_require = source_at(
+        "/index.js",
+        "const required = require(\"inner/call\");\n",
+        Some(ResolutionMode::CommonJs),
+    );
+    let checked_js_options = CompilerOptions {
+        check_js: Some(true),
+        ..node_options()
+    };
+    assert!(matches!(
+        plan_static_module_requests(&checked_js_require, &checked_js_options),
         Err(ResolutionError::Unsupported { .. })
     ));
 }

@@ -18,7 +18,7 @@ use tsc_program::{
 
 use crate::ConformanceResult;
 
-const SUPPORTED_FIXTURES: [&str; 46] = [
+const SUPPORTED_FIXTURES: [&str; 51] = [
     "conformance/node/nodeModulesPackagePatternExportsExclude.ts",
     "conformance/node/nodeModulesPackagePatternExports.ts",
     "conformance/node/allowJs/nodeModulesAllowJsPackagePatternExportsExclude.ts",
@@ -65,6 +65,11 @@ const SUPPORTED_FIXTURES: [&str; 46] = [
     "conformance/moduleResolution/resolutionModeTypeOnlyImport1.ts",
     "conformance/moduleResolution/node10AlternateResult_noResolution.ts",
     "conformance/moduleResolution/node10Alternateresult_noTypes.ts",
+    "conformance/salsa/namespaceAssignmentToRequireAlias.ts",
+    "conformance/moduleResolution/untypedModuleImport_allowJs.ts",
+    "conformance/moduleResolution/untypedModuleImport_withAugmentation.ts",
+    "conformance/moduleResolution/untypedModuleImport.ts",
+    "conformance/moduleResolution/untypedModuleImport_vsAmbient.ts",
 ];
 
 pub(crate) fn supports_fixture(fixture: &str) -> bool {
@@ -629,6 +634,11 @@ mod tests {
             "conformance/moduleResolution/resolutionModeTypeOnlyImport1.ts",
             "conformance/moduleResolution/node10AlternateResult_noResolution.ts",
             "conformance/moduleResolution/node10Alternateresult_noTypes.ts",
+            "conformance/salsa/namespaceAssignmentToRequireAlias.ts",
+            "conformance/moduleResolution/untypedModuleImport_allowJs.ts",
+            "conformance/moduleResolution/untypedModuleImport_withAugmentation.ts",
+            "conformance/moduleResolution/untypedModuleImport.ts",
+            "conformance/moduleResolution/untypedModuleImport_vsAmbient.ts",
         ] {
             assert!(supports_fixture(fixture), "missing H0 route: {fixture}");
         }
@@ -999,6 +1009,191 @@ mod tests {
             )]
         );
         assert!(untyped[0].1.syntactic.is_empty());
+    }
+
+    #[test]
+    fn untyped_package_consumers_and_controls_match_the_reviewed_boundary() {
+        let workspace = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .and_then(Path::parent)
+            .expect("workspace root");
+        let vendor_lib_dir = workspace.join("vendor/typescript-6.0.3/lib");
+
+        let run_fixture = |fixture: &str| {
+            let programs = tsc_harness::expand_fixture_file(
+                &workspace.join("ts-tests/tests/cases").join(fixture),
+                &vendor_lib_dir,
+            )
+            .expect("expand focused H0 fixture");
+            assert_eq!(programs.len(), 1, "unexpected matrix expansion: {fixture}");
+            crate::current_case_tsrs(fixture, &programs[0], &vendor_lib_dir)
+                .expect("run focused H0 fixture")
+        };
+
+        let expected_diag = |file: &str,
+                             code: u32,
+                             start: u32,
+                             length: u32,
+                             line: u32,
+                             col: u32,
+                             category: &str,
+                             text: &str| crate::GoldenDiag {
+            file: Some(file.to_owned()),
+            start: Some(start),
+            length: Some(length),
+            line: Some(line),
+            col: Some(col),
+            code,
+            pass: None,
+            category: category.to_owned(),
+            chain: crate::GoldenMessageChain {
+                text: text.to_owned(),
+                code,
+                category: category.to_owned(),
+                next: Vec::new(),
+            },
+            related: Vec::new(),
+            reports_unnecessary: false,
+            reports_deprecated: false,
+            source: None,
+        };
+
+        let cases = [
+            (
+                "conformance/salsa/namespaceAssignmentToRequireAlias.ts",
+                vec![
+                    expected_diag(
+                        "bug40140.js",
+                        7016,
+                        18,
+                        9,
+                        0,
+                        18,
+                        "suggestion",
+                        "Could not find a declaration file for module 'untyped'. '/node_modules/untyped/index.js' implicitly has an 'any' type.",
+                    ),
+                    expected_diag(
+                        "bug40140.js",
+                        2339,
+                        32,
+                        10,
+                        1,
+                        2,
+                        "error",
+                        "Property 'assignment' does not exist on type 'typeof import(\"/node_modules/untyped/index\")'.",
+                    ),
+                    expected_diag(
+                        "bug40140.js",
+                        2339,
+                        59,
+                        7,
+                        2,
+                        2,
+                        "error",
+                        "Property 'noError' does not exist on type 'typeof import(\"/node_modules/untyped/index\")'.",
+                    ),
+                ],
+            ),
+            (
+                "conformance/moduleResolution/untypedModuleImport_allowJs.ts",
+                vec![
+                    expected_diag(
+                        "/a.ts",
+                        7016,
+                        16,
+                        5,
+                        0,
+                        16,
+                        "suggestion",
+                        "Could not find a declaration file for module 'foo'. '/node_modules/foo/index.js' implicitly has an 'any' type.",
+                    ),
+                    expected_diag(
+                        "/a.ts",
+                        2339,
+                        28,
+                        3,
+                        1,
+                        4,
+                        "error",
+                        "Property 'bar' does not exist on type 'typeof import(\"/node_modules/foo/index\")'.",
+                    ),
+                ],
+            ),
+            (
+                "conformance/moduleResolution/untypedModuleImport_withAugmentation.ts",
+                vec![
+                    expected_diag(
+                        "/a.ts",
+                        2665,
+                        15,
+                        5,
+                        0,
+                        15,
+                        "error",
+                        "Invalid module name in augmentation. Module 'foo' resolves to an untyped module at '/node_modules/foo/index.js', which cannot be augmented.",
+                    ),
+                    expected_diag(
+                        "/a.ts",
+                        7016,
+                        74,
+                        5,
+                        3,
+                        18,
+                        "suggestion",
+                        "Could not find a declaration file for module 'foo'. '/node_modules/foo/index.js' implicitly has an 'any' type.",
+                    ),
+                ],
+            ),
+            (
+                "conformance/moduleResolution/untypedModuleImport.ts",
+                vec![
+                    expected_diag(
+                        "/a.ts",
+                        7016,
+                        21,
+                        5,
+                        0,
+                        21,
+                        "suggestion",
+                        "Could not find a declaration file for module 'foo'. '/node_modules/foo/index.js' implicitly has an 'any' type.",
+                    ),
+                    expected_diag(
+                        "/b.ts",
+                        7016,
+                        21,
+                        5,
+                        0,
+                        21,
+                        "suggestion",
+                        "Could not find a declaration file for module 'foo'. '/node_modules/foo/index.js' implicitly has an 'any' type.",
+                    ),
+                    expected_diag(
+                        "/c.ts",
+                        7016,
+                        25,
+                        5,
+                        0,
+                        25,
+                        "suggestion",
+                        "Could not find a declaration file for module 'foo'. '/node_modules/foo/index.js' implicitly has an 'any' type.",
+                    ),
+                ],
+            ),
+            (
+                "conformance/moduleResolution/untypedModuleImport_vsAmbient.ts",
+                Vec::new(),
+            ),
+        ];
+
+        for (fixture, expected) in cases {
+            let observed = run_fixture(fixture);
+            assert_eq!(observed.all, expected, "unexpected stream: {fixture}");
+            assert!(
+                observed.all_empty_related_information.is_empty(),
+                "unexpected present-but-empty related information: {fixture}"
+            );
+            assert!(observed.syntactic.is_empty(), "{fixture}");
+        }
     }
 
     #[test]
