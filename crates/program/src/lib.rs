@@ -21,8 +21,13 @@ mod prepared;
 mod resolution;
 
 pub use error::{PreparationError, PreparationErrorKind, PreparationOperation};
-pub use module_requests::{plan_module_requests, plan_static_module_requests};
-pub use module_resolution::{HostResolvedModule, ModuleResolver};
+pub use module_requests::{
+    plan_module_requests, plan_source_requests, plan_static_module_requests,
+    PlannedTypeReferenceDirective, SourceRequestPlan,
+};
+pub use module_resolution::{
+    HostResolvedModule, HostResolvedTypeReferenceDirective, ModuleResolver,
+};
 pub use path::{CanonicalPath, ProgramPath};
 pub use prepared::{
     PackageJsonType, PackageMetadata, PathContext, PathMapping, PreparationDiagnostics,

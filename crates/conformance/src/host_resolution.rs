@@ -2389,7 +2389,7 @@ fn rust_diagnostic_consumer(
         2688 => (
             "tsc-compiler",
             "crates/compiler/src/lib.rs",
-            "for diagnostic in preparation.program()",
+            "for diagnostic in &program_diagnostics",
         ),
         2748 => (
             "tsc-checker",

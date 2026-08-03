@@ -1,8 +1,8 @@
 use std::path::Path;
 
 use tsc_program::{
-    plan_module_requests, plan_static_module_requests, CompilerOptions, PreparedSourceFile,
-    ProgramPath, ResolutionError, ResolutionMode,
+    plan_module_requests, plan_source_requests, plan_static_module_requests, CompilerOptions,
+    PreparedSourceFile, ProgramPath, ResolutionError, ResolutionMode,
 };
 
 fn path(display: &str) -> ProgramPath {
@@ -96,6 +96,130 @@ fn expanded_plan_includes_external_import_equals_as_common_js() {
     assert_eq!(requests[1].mode(), ResolutionMode::EsNext);
     assert_eq!(requests[2].specifier(), "inner/dynamic");
     assert_eq!(requests[2].mode(), ResolutionMode::EsNext);
+}
+
+#[test]
+fn jsdoc_imports_retain_source_order_and_exact_resolution_mode_keys() {
+    let source = source_at(
+        "/a.js",
+        concat!(
+            "/** @import { Import } from 'foo' with { 'resolution-mode': 'import' } */\n",
+            "import \"after-jsdoc\";\n",
+            "/** @import { Require } from 'foo' with { 'resolution-mode': 'require' } */\n",
+            "const requireUse = 0;\n",
+            "/** @import { Fallback } from 'fallback' */\n",
+            "const fallbackUse = 0;\n",
+            "/** @import { Duplicate } from 'foo' with { 'resolution-mode': 'import' } */\n",
+            "const duplicateUse = 0;\n",
+        ),
+        Some(ResolutionMode::CommonJs),
+    );
+
+    let requests = plan_module_requests(&source, &node_options()).expect("plan JSDoc imports");
+    assert_eq!(requests.len(), 4);
+    assert_eq!(
+        requests
+            .iter()
+            .map(|request| (request.specifier(), request.mode()))
+            .collect::<Vec<_>>(),
+        [
+            ("foo", ResolutionMode::EsNext),
+            ("after-jsdoc", ResolutionMode::CommonJs),
+            ("foo", ResolutionMode::CommonJs),
+            ("fallback", ResolutionMode::CommonJs),
+        ]
+    );
+}
+
+#[test]
+fn source_plan_reuses_the_parse_for_exact_type_reference_directives() {
+    let text = concat!(
+        "/// <reference types=\"JqUeRy\" />\n",
+        "/// <reference types='@scope/pkg' resolution-mode='import'/>\n",
+        "/// <reference types=\"JqUeRy\" />\n",
+        "/// <reference types=\"@scope/pkg\" resolution-mode=\"require\"/>\n",
+        "import \"module-request\";\n",
+    );
+    let source = source_at("/index.ts", text, None)
+        .with_implied_node_formats(Some(ResolutionMode::CommonJs), None);
+    let options = CompilerOptions {
+        module: Some(99),
+        module_resolution: Some(100),
+        ..CompilerOptions::default()
+    };
+
+    let plan = plan_source_requests(&source, &options).expect("plan source requests once");
+    assert_eq!(plan.module_requests().len(), 1);
+    assert_eq!(plan.module_requests()[0].specifier(), "module-request");
+
+    let directives = plan.type_reference_directives();
+    assert_eq!(directives.len(), 4);
+    assert_eq!(directives[0].key().specifier(), "JqUeRy");
+    assert_eq!(directives[0].key().mode(), ResolutionMode::Unspecified);
+    assert_eq!(directives[0].span(), 22..28);
+    assert_eq!(directives[0].pos(), 22);
+    assert_eq!(directives[0].end(), 28);
+    assert_eq!(directives[0].length(), 6);
+    assert_eq!(utf16_text_at(text, directives[0].span()), "JqUeRy");
+
+    assert_eq!(directives[1].key().specifier(), "@scope/pkg");
+    assert_eq!(directives[1].key().mode(), ResolutionMode::EsNext);
+    assert_eq!(
+        utf16_text_at(text, directives[1].span()),
+        directives[1].key().specifier()
+    );
+
+    assert_eq!(directives[2].key(), directives[0].key());
+    assert_ne!(directives[2].span(), directives[0].span());
+    assert_eq!(
+        utf16_text_at(text, directives[2].span()),
+        directives[2].key().specifier()
+    );
+
+    assert_eq!(directives[3].key().specifier(), "@scope/pkg");
+    assert_eq!(directives[3].key().mode(), ResolutionMode::CommonJs);
+    assert_eq!(
+        utf16_text_at(text, directives[3].span()),
+        directives[3].key().specifier()
+    );
+
+    let containing_mode_source = source_at(
+        "/mode.cts",
+        "/// <reference types=\"fallback\" />\n",
+        Some(ResolutionMode::CommonJs),
+    );
+    let containing_mode_plan = plan_source_requests(&containing_mode_source, &node_options())
+        .expect("plan fallback type-reference mode");
+    assert_eq!(
+        containing_mode_plan.type_reference_directives()[0]
+            .key()
+            .mode(),
+        ResolutionMode::CommonJs
+    );
+}
+
+#[test]
+fn source_plan_accepts_the_es2015_module_default_used_by_typings_fixtures() {
+    let source = source_at(
+        "/a.ts",
+        "/// <reference types=\"jquery\" />\nimport \"module-request\";\n",
+        None,
+    );
+    let options = CompilerOptions {
+        module: Some(5),
+        module_resolution: Some(100),
+        ..CompilerOptions::default()
+    };
+
+    let plan = plan_source_requests(&source, &options).expect("plan ES2015 source requests");
+    assert_eq!(plan.module_requests().len(), 1);
+    assert_eq!(plan.module_requests()[0].specifier(), "module-request");
+    assert_eq!(plan.module_requests()[0].mode(), ResolutionMode::EsNext);
+    assert_eq!(plan.type_reference_directives().len(), 1);
+    assert_eq!(
+        plan.type_reference_directives()[0].key().specifier(),
+        "jquery"
+    );
 }
 
 #[test]
@@ -289,4 +413,20 @@ fn incomplete_static_plans_fail_closed() {
         plan_static_module_requests(&missing_mode, &node_options()),
         Err(ResolutionError::Unsupported { .. })
     ));
+
+    let jsdoc_import = source_at(
+        "/a.js",
+        "/** @import { Value } from 'inner/jsdoc' */\nconst value = 0;\n",
+        Some(ResolutionMode::EsNext),
+    );
+    assert!(matches!(
+        plan_static_module_requests(&jsdoc_import, &node_options()),
+        Err(ResolutionError::Unsupported { .. })
+    ));
+}
+
+fn utf16_text_at(text: &str, span: std::ops::Range<u32>) -> String {
+    let utf16 = text.encode_utf16().collect::<Vec<_>>();
+    String::from_utf16(&utf16[span.start as usize..span.end as usize])
+        .expect("directive span contains valid UTF-16")
 }

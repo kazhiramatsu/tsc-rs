@@ -5395,6 +5395,7 @@ impl<'a> CheckerState<'a> {
                     data.attributes
                 }
                 NodeData::ImportType(data) => data.attributes,
+                NodeData::JSDocImportTag(data) => data.attributes,
                 _ => {
                     current = self.parent_of(node);
                     continue;

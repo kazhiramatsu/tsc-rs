@@ -32,6 +32,26 @@ pub use scanner::{
     CommentDirectiveKind, LanguageVariant, TokenRecord,
 };
 
+/// Resolution-mode override retained from a leading
+/// `/// <reference types="...">` directive.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum TypeReferenceDirectiveResolutionMode {
+    Import,
+    Require,
+}
+
+/// Exact source-owned type-reference directive observation.
+///
+/// `pos` and `end` are UTF-16 offsets covering only the directive's `types`
+/// value, matching the vendored `FileReference` contract and TS2688 span.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct TypeReferenceDirective {
+    pub file_name: String,
+    pub pos: u32,
+    pub end: u32,
+    pub resolution_mode: Option<TypeReferenceDirectiveResolutionMode>,
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct SourceFile {
     pub file_name: String,
@@ -52,6 +72,8 @@ pub struct SourceFile {
     /// parsing attached JSDoc. They are merged into bind/check diagnostics
     /// only for checked JavaScript files, never into syntactic diagnostics.
     pub js_doc_diagnostics: DiagnosticList,
+    /// tsc SourceFile.typeReferenceDirectives, in leading pragma order.
+    pub type_reference_directives: Vec<TypeReferenceDirective>,
     /// tsc SourceFile.commentDirectives: scanner-collected
     /// `@ts-expect-error`/`@ts-ignore` markers, in scan order (byte
     /// offsets; see CommentDirective).

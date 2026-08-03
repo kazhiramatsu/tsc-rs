@@ -95,6 +95,65 @@ impl HostResolvedModule {
     }
 }
 
+/// Filesystem-derived facts for one resolved type-reference directive before
+/// the program loader binds the target to a [`SourceFileId`](crate::SourceFileId).
+///
+/// Type-reference resolution shares package probing and package metadata with
+/// module resolution, but retains the distinct `primary` result bit published
+/// by `resolveTypeReferenceDirective`.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct HostResolvedTypeReferenceDirective {
+    resolved_file: ProgramPath,
+    extension: ModuleExtension,
+    original_path: Option<ProgramPath>,
+    primary: bool,
+    is_external_library_import: bool,
+    package_id: Option<PackageId>,
+    package_metadata: Option<Rc<PackageMetadata>>,
+}
+
+impl HostResolvedTypeReferenceDirective {
+    fn from_module(module: HostResolvedModule, primary: bool) -> Self {
+        Self {
+            resolved_file: module.resolved_file,
+            extension: module.extension,
+            original_path: module.original_path,
+            primary,
+            is_external_library_import: module.is_external_library_import,
+            package_id: module.package_id,
+            package_metadata: module.package_metadata,
+        }
+    }
+
+    pub fn resolved_file(&self) -> &ProgramPath {
+        &self.resolved_file
+    }
+
+    pub fn extension(&self) -> &ModuleExtension {
+        &self.extension
+    }
+
+    pub fn original_path(&self) -> Option<&ProgramPath> {
+        self.original_path.as_ref()
+    }
+
+    pub const fn primary(&self) -> bool {
+        self.primary
+    }
+
+    pub const fn is_external_library_import(&self) -> bool {
+        self.is_external_library_import
+    }
+
+    pub fn package_id(&self) -> Option<&PackageId> {
+        self.package_id.as_ref()
+    }
+
+    pub fn package_metadata(&self) -> Option<&PackageMetadata> {
+        self.package_metadata.as_deref()
+    }
+}
+
 #[derive(Clone, Debug)]
 struct CachedPackage {
     root: String,
@@ -140,6 +199,8 @@ enum Search<T> {
 enum ExtensionProbePass {
     All,
     Preferred,
+    Declaration,
+    DeclarationPackageField,
     Fallback,
 }
 
@@ -175,6 +236,25 @@ const MTS_PROBES: &[ExtensionProbe] = &[(ModuleExtension::Mts, ".mts")];
 const DMTS_PROBES: &[ExtensionProbe] = &[(ModuleExtension::Dmts, ".d.mts")];
 const CTS_PROBES: &[ExtensionProbe] = &[(ModuleExtension::Cts, ".cts")];
 const DCTS_PROBES: &[ExtensionProbe] = &[(ModuleExtension::Dcts, ".d.cts")];
+const DECLARATION_PACKAGE_CJS_PROBES: &[ExtensionProbe] = &[
+    (ModuleExtension::Dcts, ".d.cts"),
+    (ModuleExtension::Cts, ".cts"),
+];
+const DECLARATION_PACKAGE_MJS_PROBES: &[ExtensionProbe] = &[
+    (ModuleExtension::Dmts, ".d.mts"),
+    (ModuleExtension::Mts, ".mts"),
+];
+const DECLARATION_PACKAGE_JS_PROBES: &[ExtensionProbe] = &[
+    (ModuleExtension::Dts, ".d.ts"),
+    (ModuleExtension::Ts, ".ts"),
+    (ModuleExtension::Tsx, ".tsx"),
+];
+const DECLARATION_PACKAGE_JSX_PROBES: &[ExtensionProbe] = &[
+    (ModuleExtension::Dts, ".d.ts"),
+    (ModuleExtension::Tsx, ".tsx"),
+    (ModuleExtension::Ts, ".ts"),
+];
+const DJSON_PROBES: &[ExtensionProbe] = &[(ModuleExtension::Dts, ".d.json.ts")];
 
 #[derive(Clone, Copy)]
 struct ExportProbeContext {
@@ -300,6 +380,86 @@ impl<'a> ModuleResolver<'a> {
         }
 
         self.resolve_non_relative(&containing_directory, specifier, mode)
+    }
+
+    /// Resolve one source-owned or automatic type-reference directive.
+    ///
+    /// `type_roots` preserves the compiler option's three observable states:
+    /// `None` computes the default ancestor `node_modules/@types` roots,
+    /// `Some([])` has no primary roots, and a non-empty slice is searched in
+    /// the declared order. A supported miss is `NotFound`; host and unsupported
+    /// resolver failures remain typed errors.
+    ///
+    /// tsc-port: resolveTypeReferenceDirective @6.0.3
+    /// tsc-hash: 5f070f09ecb058d7fdfc0df788d8305900e2ab87d4c0d7a6fc329e5ec4927519
+    /// tsc-span: _tsc.js:40060-40250
+    pub fn resolve_type_reference(
+        &mut self,
+        containing_file: &Path,
+        specifier: &str,
+        mode: ResolutionMode,
+        type_roots: Option<&[ProgramPath]>,
+    ) -> Result<ResolutionOutcome<HostResolvedTypeReferenceDirective>, ResolutionError> {
+        self.validate_supported_configuration(mode)?;
+        if specifier.is_empty() || specifier.contains(['\\', '\0', ':']) {
+            return Err(ResolutionError::invalid_data(format!(
+                "invalid type-reference directive name {specifier:?}"
+            )));
+        }
+
+        let current_directory = self.current_directory_text()?.to_owned();
+        let containing_file = normalize_absolute_path(containing_file, Some(&current_directory))?;
+        let custom_type_roots = type_roots.is_some();
+        let effective_type_roots = match type_roots {
+            Some(roots) => roots
+                .iter()
+                .map(|root| self.normalized_type_root(root))
+                .collect::<Result<Vec<_>, _>>()?,
+            None => ancestor_directories(&current_directory)
+                .into_iter()
+                .map(|ancestor| {
+                    join_normalized(&join_normalized(&ancestor, "node_modules"), "@types")
+                })
+                .collect(),
+        };
+
+        for type_root in effective_type_roots {
+            let outcome = self.resolve_type_reference_from_root(
+                &type_root,
+                specifier,
+                mode,
+                custom_type_roots,
+            )?;
+            if let ResolutionOutcome::Resolved(module) = outcome {
+                return Ok(ResolutionOutcome::Resolved(
+                    HostResolvedTypeReferenceDirective::from_module(module, true),
+                ));
+            }
+        }
+
+        // Vendored createProgram uses this synthetic containing file for
+        // automatic names. Explicit custom roots make that primary search
+        // authoritative and suppress the ordinary node_modules fallback.
+        if custom_type_roots && base_name(&containing_file) == "__inferred type names__.ts" {
+            return Ok(ResolutionOutcome::NotFound);
+        }
+
+        let outcome = if is_relative_specifier(specifier) {
+            self.resolve_relative_type_reference(&containing_file, specifier, mode)?
+        } else {
+            let request = parse_package_request(specifier)?;
+            self.resolve_type_reference_from_node_modules(
+                &directory_name(&containing_file),
+                &request,
+                mode,
+            )?
+        };
+        Ok(match outcome {
+            ResolutionOutcome::Resolved(module) => ResolutionOutcome::Resolved(
+                HostResolvedTypeReferenceDirective::from_module(module, false),
+            ),
+            ResolutionOutcome::NotFound => ResolutionOutcome::NotFound,
+        })
     }
 
     fn resolve_non_relative(
@@ -554,6 +714,7 @@ impl<'a> ModuleResolver<'a> {
                                 resolved_using_ts_extension: false,
                                 follow_realpath: true,
                             },
+                            /* allow_node_esm_index_fallback */ true,
                         )?
                     };
                     if let ResolutionOutcome::Resolved(module) = &mut outcome {
@@ -573,6 +734,7 @@ impl<'a> ModuleResolver<'a> {
                                         resolved_using_ts_extension: false,
                                         follow_realpath: true,
                                     },
+                                    /* allow_node_esm_index_fallback */ true,
                                 )?
                             {
                                 module.alternate_result = Some(alternate.resolved_file().clone());
@@ -599,21 +761,277 @@ impl<'a> ModuleResolver<'a> {
                             &at_types,
                             &mangle_scoped_package_name(request.package_name),
                         );
-                        if self.host.directory_exists(Path::new(&types_package))? {
-                            return Err(ResolutionError::unsupported(
-                                "node-modules-at-types-fallback",
-                                format!(
-                                    "{} may satisfy {specifier:?} through the unported @types fallback",
-                                    Path::new(&types_package).display(),
-                                    specifier = request.package_name,
-                                ),
-                            ));
+                        let outcome = self.resolve_declaration_package(
+                            &types_package,
+                            &request.exports_subpath,
+                            mode,
+                        )?;
+                        if matches!(outcome, ResolutionOutcome::Resolved(_)) {
+                            return Ok(outcome);
                         }
                     }
                 }
             }
         }
         Ok(ResolutionOutcome::NotFound)
+    }
+
+    /// Resolve one package candidate with declaration extensions only. This is
+    /// the shared worker for the module resolver's `@types` fallback and the
+    /// type-reference resolver's secondary node_modules search.
+    fn resolve_declaration_package(
+        &mut self,
+        package_root: &str,
+        exports_subpath: &str,
+        mode: ResolutionMode,
+    ) -> Result<ResolutionOutcome<HostResolvedModule>, ResolutionError> {
+        let package = if self.host.directory_exists(Path::new(package_root))? {
+            self.load_package(&join_normalized(package_root, "package.json"))?
+        } else {
+            None
+        };
+        if let Some(package) = package {
+            let uses_exports = self.options.resolve_package_json_exports != Some(false)
+                && !matches!(package.exports.as_ref(), None | Some(Value::Null));
+            if !uses_exports && exports_subpath == "." && !self.is_node_esm_mode(mode) {
+                let direct = self.probe_legacy_file(
+                    Some(&package),
+                    package_root,
+                    ExtensionProbePass::Declaration,
+                    /* allow_implicit */ true,
+                    LegacyResolutionContext {
+                        is_external_library_import: true,
+                        attach_package_id: true,
+                        resolved_using_ts_extension: false,
+                        follow_realpath: true,
+                    },
+                )?;
+                if matches!(direct, ResolutionOutcome::Resolved(_)) {
+                    return Ok(direct);
+                }
+            }
+            if uses_exports {
+                self.resolve_package_exports(
+                    &package,
+                    exports_subpath,
+                    /* is_external_library_import */ true,
+                    ExtensionProbePass::Declaration,
+                    mode,
+                )
+            } else {
+                self.resolve_legacy_package(
+                    &package,
+                    exports_subpath,
+                    ExtensionProbePass::Declaration,
+                    mode,
+                    LegacyResolutionContext {
+                        is_external_library_import: true,
+                        attach_package_id: true,
+                        resolved_using_ts_extension: false,
+                        follow_realpath: true,
+                    },
+                    /* allow_node_esm_index_fallback */ true,
+                )
+            }
+        } else {
+            self.resolve_manifestless_package(
+                package_root,
+                exports_subpath,
+                ExtensionProbePass::Declaration,
+                mode,
+            )
+        }
+    }
+
+    fn normalized_type_root(&self, root: &ProgramPath) -> Result<String, ResolutionError> {
+        let normalized =
+            normalize_absolute_path(root.display(), Some(self.current_directory_text()?))?;
+        let expected = canonical_text(
+            &normalized,
+            self.path_context.use_case_sensitive_file_names(),
+        );
+        if root.canonical().as_path().to_str() != Some(expected.as_str()) {
+            return Err(ResolutionError::canonicalization(
+                Some(root.display().to_path_buf()),
+                "typeRoots display and canonical paths do not match the resolver path profile",
+            ));
+        }
+        Ok(normalized)
+    }
+
+    fn resolve_type_reference_from_root(
+        &mut self,
+        type_root: &str,
+        specifier: &str,
+        mode: ResolutionMode,
+        custom_type_roots: bool,
+    ) -> Result<ResolutionOutcome<HostResolvedModule>, ResolutionError> {
+        if !self.host.directory_exists(Path::new(type_root))? {
+            return Ok(ResolutionOutcome::NotFound);
+        }
+        let name_for_lookup = if type_root.ends_with("/node_modules/@types") {
+            mangle_scoped_package_name(specifier)
+        } else {
+            specifier.to_owned()
+        };
+        let candidate = normalize_absolute_path(
+            Path::new(&join_normalized(type_root, &name_for_lookup)),
+            None,
+        )?;
+        let external = path_contains_node_modules(&candidate);
+        let context = LegacyResolutionContext {
+            is_external_library_import: external,
+            attach_package_id: external,
+            resolved_using_ts_extension: false,
+            follow_realpath: true,
+        };
+
+        // An explicitly configured type root first receives the declaration
+        // file probe that default node_modules/@types roots deliberately omit.
+        if custom_type_roots {
+            let package = if external {
+                self.find_nearest_package_scope(&directory_name(&candidate))?
+            } else {
+                None
+            };
+            let direct = self.probe_legacy_file(
+                package.as_deref(),
+                &candidate,
+                ExtensionProbePass::Declaration,
+                /* allow_implicit */ !self.is_node_esm_mode(mode),
+                context,
+            )?;
+            if matches!(direct, ResolutionOutcome::Resolved(_)) {
+                return Ok(direct);
+            }
+        }
+
+        if !self.host.directory_exists(Path::new(&candidate))? {
+            return Ok(ResolutionOutcome::NotFound);
+        }
+        let package_json = join_normalized(&candidate, "package.json");
+        if let Some(package) = self.load_package(&package_json)? {
+            return self.resolve_legacy_package(
+                &package,
+                ".",
+                ExtensionProbePass::Declaration,
+                mode,
+                LegacyResolutionContext {
+                    attach_package_id: true,
+                    ..context
+                },
+                /* allow_node_esm_index_fallback */ false,
+            );
+        }
+        if self.is_node_esm_mode(mode) {
+            return Ok(ResolutionOutcome::NotFound);
+        }
+        self.probe_legacy_file(
+            None,
+            &join_normalized(&candidate, "index"),
+            ExtensionProbePass::Declaration,
+            /* allow_implicit */ true,
+            LegacyResolutionContext {
+                attach_package_id: false,
+                ..context
+            },
+        )
+    }
+
+    fn resolve_type_reference_from_node_modules(
+        &mut self,
+        containing_directory: &str,
+        request: &PackageRequest<'_>,
+        mode: ResolutionMode,
+    ) -> Result<ResolutionOutcome<HostResolvedModule>, ResolutionError> {
+        for ancestor in ancestor_directories(containing_directory) {
+            if base_name(&ancestor) == "node_modules" {
+                continue;
+            }
+            let node_modules = join_normalized(&ancestor, "node_modules");
+            if !self.host.directory_exists(Path::new(&node_modules))? {
+                continue;
+            }
+
+            let package_root = join_normalized(&node_modules, request.package_name);
+            let outcome =
+                self.resolve_declaration_package(&package_root, &request.exports_subpath, mode)?;
+            if matches!(outcome, ResolutionOutcome::Resolved(_)) {
+                return Ok(outcome);
+            }
+
+            let at_types = join_normalized(&node_modules, "@types");
+            if !self.host.directory_exists(Path::new(&at_types))? {
+                continue;
+            }
+            let types_package =
+                join_normalized(&at_types, &mangle_scoped_package_name(request.package_name));
+            let outcome =
+                self.resolve_declaration_package(&types_package, &request.exports_subpath, mode)?;
+            if matches!(outcome, ResolutionOutcome::Resolved(_)) {
+                return Ok(outcome);
+            }
+        }
+        Ok(ResolutionOutcome::NotFound)
+    }
+
+    fn resolve_relative_type_reference(
+        &mut self,
+        containing_file: &str,
+        specifier: &str,
+        mode: ResolutionMode,
+    ) -> Result<ResolutionOutcome<HostResolvedModule>, ResolutionError> {
+        let target = normalize_absolute_path(
+            Path::new(&join_normalized(
+                &directory_name(containing_file),
+                specifier,
+            )),
+            None,
+        )?;
+        let package = self.find_nearest_package_scope(&directory_name(&target))?;
+        let external = path_contains_node_modules(&target);
+        let context = LegacyResolutionContext {
+            is_external_library_import: external,
+            attach_package_id: external,
+            resolved_using_ts_extension: false,
+            follow_realpath: true,
+        };
+        let allow_implicit = !self.is_node_esm_mode(mode);
+        let direct = self.probe_legacy_file(
+            package.as_deref(),
+            &target,
+            ExtensionProbePass::Declaration,
+            allow_implicit,
+            context,
+        )?;
+        if matches!(direct, ResolutionOutcome::Resolved(_)) {
+            return Ok(direct);
+        }
+        if !allow_implicit || !self.host.directory_exists(Path::new(&target))? {
+            return Ok(ResolutionOutcome::NotFound);
+        }
+        if let Some(directory_package) =
+            self.load_package(&join_normalized(&target, "package.json"))?
+        {
+            return self.resolve_legacy_package(
+                &directory_package,
+                ".",
+                ExtensionProbePass::Declaration,
+                mode,
+                context,
+                /* allow_node_esm_index_fallback */ true,
+            );
+        }
+        self.probe_legacy_file(
+            None,
+            &join_normalized(&target, "index"),
+            ExtensionProbePass::Declaration,
+            /* allow_implicit */ true,
+            LegacyResolutionContext {
+                attach_package_id: false,
+                ..context
+            },
+        )
     }
 
     /// Resolve a relative request through the legacy file/directory loader.
@@ -675,6 +1093,7 @@ impl<'a> ModuleResolver<'a> {
                         resolved_using_ts_extension: false,
                         follow_realpath: false,
                     },
+                    /* allow_node_esm_index_fallback */ true,
                 )?;
                 if matches!(outcome, ResolutionOutcome::Resolved(_)) {
                     return Ok(outcome);
@@ -758,6 +1177,7 @@ impl<'a> ModuleResolver<'a> {
         probe_pass: ExtensionProbePass,
         mode: ResolutionMode,
         context: LegacyResolutionContext,
+        allow_node_esm_index_fallback: bool,
     ) -> Result<ResolutionOutcome<HostResolvedModule>, ResolutionError> {
         let rest = package_subpath(exports_subpath)?;
         let logical_name = rest.map(str::to_owned).unwrap_or_else(|| {
@@ -793,10 +1213,18 @@ impl<'a> ModuleResolver<'a> {
             || package.metadata.module_type() != PackageJsonType::Module;
         if let Some(field) = selected_package_entry_field(package, probe_pass) {
             let candidate = normalize_package_target(package, field)?;
+            // loadNodeModuleFromDirectoryWorker first probes a declaration
+            // twin for a written package-json extension, then expands to
+            // TypeScript + declaration files.
+            let field_probe_pass = if matches!(probe_pass, ExtensionProbePass::Declaration) {
+                ExtensionProbePass::DeclarationPackageField
+            } else {
+                probe_pass
+            };
             let outcome = self.probe_legacy_path(
                 Some(package),
                 &candidate,
-                probe_pass,
+                field_probe_pass,
                 allow_package_field_directory,
                 LegacyResolutionContext {
                     resolved_using_ts_extension: false,
@@ -812,7 +1240,10 @@ impl<'a> ModuleResolver<'a> {
         // manifest has no effective exports value. Subpath and relative
         // directory requests do not receive this exception.
         let node_esm = self.is_node_esm_mode(mode);
-        if node_esm && !matches!(package.exports.as_ref(), None | Some(Value::Null)) {
+        if node_esm
+            && (!allow_node_esm_index_fallback
+                || !matches!(package.exports.as_ref(), None | Some(Value::Null)))
+        {
             return Ok(ResolutionOutcome::NotFound);
         }
         let index = if node_esm {
@@ -916,10 +1347,18 @@ impl<'a> ModuleResolver<'a> {
                     }
                 }
             }
+            let mapping_probe_pass =
+                if matches!(probe_pass, ExtensionProbePass::Declaration) && is_package_root {
+                    // The directory package loader applies package-field
+                    // declaration-twin precedence to root substitutions.
+                    ExtensionProbePass::DeclarationPackageField
+                } else {
+                    probe_pass
+                };
             let outcome = self.probe_legacy_path(
                 Some(package),
                 &candidate,
-                probe_pass,
+                mapping_probe_pass,
                 !self.is_node_esm_mode(mode)
                     || (is_package_root
                         && package.metadata.module_type() != PackageJsonType::Module),
@@ -971,14 +1410,25 @@ impl<'a> ModuleResolver<'a> {
         allow_implicit: bool,
         context: LegacyResolutionContext,
     ) -> Result<ResolutionOutcome<HostResolvedModule>, ResolutionError> {
-        let (base, probes, preferred_len) = match extension_probe_plan(candidate) {
+        let plan = match probe_pass {
+            ExtensionProbePass::Declaration => declaration_extension_probe_plan(candidate),
+            ExtensionProbePass::DeclarationPackageField => {
+                declaration_package_field_probe_plan(candidate)
+            }
+            _ => extension_probe_plan(candidate),
+        };
+        let (base, probes, preferred_len) = match plan {
             Ok(plan) => plan,
             Err(ResolutionError::Unsupported { feature, .. })
                 if feature == "module-target-extension"
                     && allow_implicit
                     && !base_name(candidate).contains('.') =>
             {
-                (candidate, JS_PROBES, 3)
+                if matches!(probe_pass, ExtensionProbePass::Declaration) {
+                    (candidate, DTS_PROBES, 1)
+                } else {
+                    (candidate, JS_PROBES, 3)
+                }
             }
             Err(ResolutionError::Unsupported { feature, .. })
                 if feature == "module-target-extension" =>
@@ -990,6 +1440,8 @@ impl<'a> ModuleResolver<'a> {
         let probes = match probe_pass {
             ExtensionProbePass::All => probes,
             ExtensionProbePass::Preferred => &probes[..preferred_len],
+            ExtensionProbePass::Declaration => probes,
+            ExtensionProbePass::DeclarationPackageField => &probes[..preferred_len],
             ExtensionProbePass::Fallback => &probes[preferred_len..],
         };
         if !self
@@ -1474,8 +1926,23 @@ impl<'a> ModuleResolver<'a> {
         attach_package_id: bool,
         raw_package_target: Option<&str>,
     ) -> Result<ResolutionOutcome<HostResolvedModule>, ResolutionError> {
-        let (base, probes, preferred_len) = match extension_probe_plan(target) {
+        let plan = match context.pass {
+            ExtensionProbePass::Declaration => declaration_extension_probe_plan(target),
+            ExtensionProbePass::DeclarationPackageField => {
+                declaration_package_field_probe_plan(target)
+            }
+            _ => extension_probe_plan(target),
+        };
+        let (base, probes, preferred_len) = match plan {
             Ok(plan) => plan,
+            Err(ResolutionError::Unsupported { feature, .. })
+                if feature == "module-target-extension"
+                    && matches!(context.pass, ExtensionProbePass::Declaration)
+                    && !self.is_node_esm_mode(context.mode)
+                    && !base_name(target).contains('.') =>
+            {
+                (target, DTS_PROBES, 1)
+            }
             Err(ResolutionError::Unsupported { feature, .. })
                 if feature == "module-target-extension"
                     && context.mode == ResolutionMode::EsNext
@@ -1489,6 +1956,8 @@ impl<'a> ModuleResolver<'a> {
         let probes = match context.pass {
             ExtensionProbePass::All => probes,
             ExtensionProbePass::Preferred => &probes[..preferred_len],
+            ExtensionProbePass::Declaration => probes,
+            ExtensionProbePass::DeclarationPackageField => &probes[..preferred_len],
             ExtensionProbePass::Fallback => &probes[preferred_len..],
         };
         let target_directory = directory_name(target);
@@ -1548,28 +2017,27 @@ impl<'a> ModuleResolver<'a> {
         context: LegacyResolutionContext,
     ) -> Result<ResolutionOutcome<HostResolvedModule>, ResolutionError> {
         let lexical = self.program_path(lexical_path)?;
-        let (resolved_file, original_path) =
-            if context.is_external_library_import && context.follow_realpath {
-                let real_path = self
-                    .host
-                    .realpath(Path::new(lexical_path))?
-                    .ok_or_else(|| {
-                        ResolutionError::invalid_data(format!(
-                            "host reported {} as a file but returned no realpath",
-                            Path::new(lexical_path).display()
-                        ))
-                    })?;
-                let normalized_real_path =
-                    normalize_absolute_path(&real_path, Some(self.current_directory_text()?))?;
-                let real = self.program_path(&normalized_real_path)?;
-                if real.canonical() == lexical.canonical() {
-                    (lexical, None)
-                } else {
-                    (real, Some(lexical))
-                }
-            } else {
+        let (resolved_file, original_path) = if context.follow_realpath {
+            let real_path = self
+                .host
+                .realpath(Path::new(lexical_path))?
+                .ok_or_else(|| {
+                    ResolutionError::invalid_data(format!(
+                        "host reported {} as a file but returned no realpath",
+                        Path::new(lexical_path).display()
+                    ))
+                })?;
+            let normalized_real_path =
+                normalize_absolute_path(&real_path, Some(self.current_directory_text()?))?;
+            let real = self.program_path(&normalized_real_path)?;
+            if real.canonical() == lexical.canonical() {
                 (lexical, None)
-            };
+            } else {
+                (real, Some(lexical))
+            }
+        } else {
+            (lexical, None)
+        };
 
         let package_id = match package
             .map(|package| (package, package.metadata.name(), package.metadata.version()))
@@ -1704,7 +2172,10 @@ fn selected_package_entry_field(
     probe_pass: ExtensionProbePass,
 ) -> Option<&str> {
     match probe_pass {
-        ExtensionProbePass::All | ExtensionProbePass::Preferred => package
+        ExtensionProbePass::All
+        | ExtensionProbePass::Preferred
+        | ExtensionProbePass::Declaration
+        | ExtensionProbePass::DeclarationPackageField => package
             .typings
             .as_deref()
             .or(package.types.as_deref())
@@ -1836,6 +2307,84 @@ fn extension_probe_plan(target: &str) -> Result<ExtensionProbePlan<'_>, Resoluti
         return Err(ResolutionError::unsupported(
             "module-target-extension",
             format!("target has no supported written extension: {target}"),
+        ));
+    };
+    Ok(plan)
+}
+
+/// `tryAddingExtensions` with the vendored `Declaration` extension bit only.
+/// Package-json root entries deliberately expand to the ordinary preferred
+/// pass at their call site, matching `loadNodeModuleFromDirectoryWorker`.
+fn declaration_extension_probe_plan(
+    target: &str,
+) -> Result<ExtensionProbePlan<'_>, ResolutionError> {
+    let plan = if let Some(base) = target.strip_suffix(".d.cts") {
+        (base, DCTS_PROBES, 1)
+    } else if let Some(base) = target.strip_suffix(".d.mts") {
+        (base, DMTS_PROBES, 1)
+    } else if let Some(base) = target.strip_suffix(".d.ts") {
+        (base, DTS_PROBES, 1)
+    } else if let Some(base) = target.strip_suffix(".cjs") {
+        (base, DCTS_PROBES, 1)
+    } else if let Some(base) = target.strip_suffix(".cts") {
+        (base, DCTS_PROBES, 1)
+    } else if let Some(base) = target.strip_suffix(".mjs") {
+        (base, DMTS_PROBES, 1)
+    } else if let Some(base) = target.strip_suffix(".mts") {
+        (base, DMTS_PROBES, 1)
+    } else if let Some(base) = target.strip_suffix(".jsx") {
+        (base, DTS_PROBES, 1)
+    } else if let Some(base) = target.strip_suffix(".tsx") {
+        (base, DTS_PROBES, 1)
+    } else if let Some(base) = target.strip_suffix(".js") {
+        (base, DTS_PROBES, 1)
+    } else if let Some(base) = target.strip_suffix(".ts") {
+        (base, DTS_PROBES, 1)
+    } else {
+        return Err(ResolutionError::unsupported(
+            "module-target-extension",
+            format!("target has no supported written declaration extension: {target}"),
+        ));
+    };
+    Ok(plan)
+}
+
+/// The declaration directory loader treats a package-json entry differently
+/// from an ordinary declaration probe: a written extension first receives its
+/// declaration twin, followed by the TypeScript + declaration expansion.
+fn declaration_package_field_probe_plan(
+    target: &str,
+) -> Result<ExtensionProbePlan<'_>, ResolutionError> {
+    let plan = if let Some(base) = target.strip_suffix(".d.cts") {
+        (base, DECLARATION_PACKAGE_CJS_PROBES, 2)
+    } else if let Some(base) = target.strip_suffix(".d.mts") {
+        (base, DECLARATION_PACKAGE_MJS_PROBES, 2)
+    } else if let Some(base) = target.strip_suffix(".d.ts") {
+        (base, DECLARATION_PACKAGE_JS_PROBES, 3)
+    } else if let Some(base) = target.strip_suffix(".cjs") {
+        (base, DECLARATION_PACKAGE_CJS_PROBES, 2)
+    } else if let Some(base) = target.strip_suffix(".cts") {
+        (base, DECLARATION_PACKAGE_CJS_PROBES, 2)
+    } else if let Some(base) = target.strip_suffix(".mjs") {
+        (base, DECLARATION_PACKAGE_MJS_PROBES, 2)
+    } else if let Some(base) = target.strip_suffix(".mts") {
+        (base, DECLARATION_PACKAGE_MJS_PROBES, 2)
+    } else if let Some(base) = target.strip_suffix(".jsx") {
+        (base, DECLARATION_PACKAGE_JSX_PROBES, 3)
+    } else if let Some(base) = target.strip_suffix(".tsx") {
+        (base, DECLARATION_PACKAGE_JSX_PROBES, 3)
+    } else if let Some(base) = target.strip_suffix(".js") {
+        (base, DECLARATION_PACKAGE_JS_PROBES, 3)
+    } else if let Some(base) = target.strip_suffix(".ts") {
+        (base, DECLARATION_PACKAGE_JS_PROBES, 3)
+    } else if let Some(base) = target.strip_suffix(".json") {
+        (base, DJSON_PROBES, 1)
+    } else if !base_name(target).contains('.') {
+        (target, JS_PROBES, 3)
+    } else {
+        return Err(ResolutionError::unsupported(
+            "module-target-extension",
+            format!("package field has no supported written extension: {target}"),
         ));
     };
     Ok(plan)

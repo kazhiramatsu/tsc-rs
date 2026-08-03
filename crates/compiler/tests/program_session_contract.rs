@@ -8,8 +8,9 @@ use tsc_host::MemoryCompilerHost;
 use tsc_program::{
     CompilerOptions, ModuleExtension, ModuleResolution, ModuleResolver, PackageId, PathContext,
     PreparationDiagnostics, PreparedAuxiliaryFile, PreparedProgram, PreparedProgramBuilder,
-    PreparedSourceFile, ProgramPath, ResolutionKey, ResolutionMode, ResolutionOutcome,
-    ResolutionRequestKind, ResolvedModule, ResolvedModuleTarget, SourceFileId,
+    PreparedSourceFile, ProgramOptions, ProgramPath, ResolutionKey, ResolutionMode,
+    ResolutionOutcome, ResolutionRequestKind, ResolvedModule, ResolvedModuleTarget, SourceFileId,
+    TypeReferenceResolution, TypeReferenceResolutionKey,
 };
 
 const MINIMAL_GLOBALS: &str = r#"
@@ -263,6 +264,108 @@ fn located_program_diagnostics_route_by_text_owner() {
     assert_eq!(codes(outcome.options_diagnostics()), [9501]);
     assert!(outcome.global_diagnostics().is_empty());
     assert!(outcome.semantic_diagnostics().is_empty());
+    assert_eq!(
+        outcome
+            .conformance_diagnostics()
+            .iter()
+            .filter(|diagnostic| matches!(diagnostic.code(), 9501 | 9502))
+            .map(|diagnostic| diagnostic.code())
+            .collect::<Vec<_>>(),
+        [9502]
+    );
+}
+
+#[test]
+fn type_reference_resolution_diagnostics_join_program_diagnostics_once_in_key_order() {
+    let mut builder = PreparedProgram::builder(
+        PathContext::new(current_directory(), true),
+        CompilerOptions {
+            no_emit: Some(true),
+            ..CompilerOptions::default()
+        },
+    );
+    let lib = builder
+        .add_source_file(PreparedSourceFile::new(path("lib.d.ts"), MINIMAL_GLOBALS))
+        .expect("add lib");
+    let source = builder
+        .add_source_file(PreparedSourceFile::new(path("/main.ts"), "export {};"))
+        .expect("add source");
+    builder.add_library_file(lib).expect("add library");
+    builder.add_root_file(source).expect("add root");
+
+    // Insert in the opposite order to prove the public table traversal is
+    // derived from exact key order rather than discovery order.
+    builder
+        .add_type_reference_resolution(
+            TypeReferenceResolutionKey::source(
+                path("/main.ts").canonical().clone(),
+                "zeta",
+                ResolutionMode::Unspecified,
+            ),
+            Ok(
+                TypeReferenceResolution::not_found().with_diagnostics(vec![located_diagnostic(
+                    9602,
+                    "/main.ts",
+                    "missing zeta types",
+                )]),
+            ),
+        )
+        .expect("add zeta type-reference row");
+    builder
+        .add_type_reference_resolution(
+            TypeReferenceResolutionKey::source(
+                path("/main.ts").canonical().clone(),
+                "alpha",
+                ResolutionMode::Unspecified,
+            ),
+            Ok(
+                TypeReferenceResolution::not_found().with_diagnostics(vec![located_diagnostic(
+                    9601,
+                    "/main.ts",
+                    "missing alpha types",
+                )]),
+            ),
+        )
+        .expect("add alpha type-reference row");
+
+    let prepared = builder.build().expect("build prepared program");
+    let specifiers = prepared
+        .resolutions()
+        .type_references()
+        .map(|(key, _)| key.specifier())
+        .collect::<Vec<_>>();
+    assert_eq!(specifiers, ["alpha", "zeta"]);
+
+    let outcome = consume(ProgramSession::new(prepared));
+    assert_eq!(codes(outcome.semantic_diagnostics()), [9601, 9602]);
+    assert_eq!(
+        outcome
+            .conformance_diagnostics()
+            .iter()
+            .filter(|diagnostic| matches!(diagnostic.code(), 9601 | 9602))
+            .map(|diagnostic| diagnostic.code())
+            .collect::<Vec<_>>(),
+        [9601, 9602]
+    );
+    assert_eq!(
+        outcome
+            .semantic_diagnostics()
+            .iter()
+            .filter(|diagnostic| matches!(diagnostic.code(), 9601 | 9602))
+            .count(),
+        2
+    );
+}
+
+#[test]
+fn program_options_preserve_absent_and_explicit_types() {
+    assert_eq!(ProgramOptions::default().types(), None);
+
+    let options = ProgramOptions::default().with_types(Vec::new());
+    assert_eq!(options.types(), Some([].as_slice()));
+
+    let options = ProgramOptions::default().with_types(vec!["jquery".to_owned()]);
+    assert_eq!(options.types(), Some(["jquery".to_owned()].as_slice()));
 }
 
 #[test]
@@ -1068,6 +1171,78 @@ fn resolution_mode_overrides_select_distinct_rows_for_the_same_request() {
 
     let outcome = consume(ProgramSession::new(prepared));
     assert!(outcome.semantic_diagnostics().is_empty());
+}
+
+#[test]
+fn jsdoc_import_resolution_mode_overrides_select_distinct_rows() {
+    let prepared = authoritative_program(
+        &[
+            (
+                "/types/import.d.mts",
+                "export declare const Import: \"module\";\n",
+            ),
+            (
+                "/types/require.d.cts",
+                "export declare const Require: \"script\";\n",
+            ),
+            (
+                "/main.js",
+                concat!(
+                    "/** @import { Import } from 'pkg' with { 'resolution-mode': 'import' } */\n",
+                    "/** @import { Require } from 'pkg' with { 'resolution-mode': 'require' } */\n",
+                    "/** @returns {Import} */\n",
+                    "export function imported() { return 1; }\n",
+                    "/** @returns {Require} */\n",
+                    "export function required() { return 1; }\n",
+                ),
+            ),
+        ],
+        &[2],
+        CompilerOptions {
+            allow_js: true,
+            check_js: Some(true),
+            module: Some(100),
+            module_resolution: Some(3),
+            ..CompilerOptions::default()
+        },
+        |builder, ids| {
+            for (mode, target, target_path, extension) in [
+                (
+                    ResolutionMode::EsNext,
+                    ids[0],
+                    "/types/import.d.mts",
+                    ModuleExtension::Dmts,
+                ),
+                (
+                    ResolutionMode::CommonJs,
+                    ids[1],
+                    "/types/require.d.cts",
+                    ModuleExtension::Dcts,
+                ),
+            ] {
+                builder
+                    .add_module_resolution(
+                        module_key("/main.js", "pkg", mode),
+                        Ok(source_resolution(target, target_path, extension)),
+                    )
+                    .expect("add JSDoc mode-specific row");
+            }
+        },
+    );
+
+    let outcome = consume(ProgramSession::new(prepared));
+    assert_eq!(
+        outcome
+            .semantic_diagnostics()
+            .iter()
+            .filter(|diagnostic| diagnostic.code() == 2322)
+            .count(),
+        2
+    );
+    assert!(outcome
+        .semantic_diagnostics()
+        .iter()
+        .all(|diagnostic| diagnostic.code() != 2305));
 }
 
 #[test]

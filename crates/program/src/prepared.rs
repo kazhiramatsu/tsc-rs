@@ -428,6 +428,7 @@ impl PathMapping {
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct ProgramOptions {
     no_lib: Option<bool>,
+    types: Option<Vec<String>>,
     type_roots: Option<Vec<ProgramPath>>,
     root_dirs: Option<Vec<ProgramPath>>,
     paths: Option<Vec<PathMapping>>,
@@ -436,6 +437,11 @@ pub struct ProgramOptions {
 impl ProgramOptions {
     pub fn with_no_lib(mut self, value: bool) -> Self {
         self.no_lib = Some(value);
+        self
+    }
+
+    pub fn with_types(mut self, value: Vec<String>) -> Self {
+        self.types = Some(value);
         self
     }
 
@@ -456,6 +462,10 @@ impl ProgramOptions {
 
     pub const fn no_lib(&self) -> Option<bool> {
         self.no_lib
+    }
+
+    pub fn types(&self) -> Option<&[String]> {
+        self.types.as_deref()
     }
 
     pub fn type_roots(&self) -> Option<&[ProgramPath]> {
@@ -531,6 +541,17 @@ impl ResolutionTable {
         self.type_references
             .get(key)
             .ok_or_else(|| MissingResolutionError::type_reference(key))
+    }
+
+    /// Iterate authoritative type-reference rows in exact key order.
+    ///
+    /// The underlying `BTreeMap` order is stable across insertion order and
+    /// supplies the program driver with a deterministic diagnostic stream.
+    pub fn type_references(
+        &self,
+    ) -> impl ExactSizeIterator<Item = (&TypeReferenceResolutionKey, &TypeReferenceResolution)>
+    {
+        self.type_references.iter()
     }
 
     pub fn module_len(&self) -> usize {

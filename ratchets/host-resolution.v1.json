@@ -28761,7 +28761,7 @@
             "role": "diagnostic-consumer",
             "crate_name": "tsc-compiler",
             "path": "crates/compiler/src/lib.rs",
-            "symbol": "for diagnostic in preparation.program()"
+            "symbol": "for diagnostic in &program_diagnostics"
           }
         ]
       },
