@@ -359,8 +359,13 @@ open. The general optional-settings slice additionally applies ordered
 and cwd- or `baseUrl`-relative candidates before the ordinary lookup in the
 vendored Classic, Node10, Node16/NodeNext, and Bundler extension-pass order.
 A matched mapping miss suppresses only `baseUrl` and still permits package
-fallback. It does not claim the remaining general H0.2 resolution surface or
-H0 completion.
+fallback. The general legacy type-reference slice additionally admits Classic
+and Node10 on the same node-style primary/secondary lookup used by the modern
+profiles. It preserves custom/default root order, nearest
+`node_modules`/`@types` fallback, package identity, lexical-to-realpath
+transitions, local direct-hit manifest isolation, and the explicit-mode
+secondary exports boundary. It does not claim the remaining general H0.2
+resolution surface or H0 completion.
 
 ### H0.3 — residual host consumers
 
@@ -423,10 +428,11 @@ authoritative type/module rows. Supported misses remain normal tsc
 diagnostics or `NotFound` rows, JavaScript resolutions remain unloaded under
 `allowJs=false`, and an explicit `.json` request loads JSON only when
 `resolveJsonModule` is effective. External-library reachability remains part
-of source emit eligibility. Same-tree Unix canaries, including `paths` and
-`baseUrl` candidates, prove that `MemoryCompilerHost` and `FsCompilerHost`
-produce the same prepared program and the same five-bucket `ProgramSession`
-diagnostic outcome.
+of source emit eligibility. Same-tree Unix canaries, including `paths`,
+`baseUrl`, and Classic/Node10 type-reference candidates, prove that
+`MemoryCompilerHost` and `FsCompilerHost` produce the same prepared program;
+the compiler-level canary separately proves the same five-bucket
+`ProgramSession` diagnostic outcome.
 
 Each invocation supplies independent ceilings for unique source files,
 request occurrences before resolution-key deduplication, zero-based source

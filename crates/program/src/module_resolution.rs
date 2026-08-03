@@ -681,7 +681,7 @@ impl<'a> ModuleResolver<'a> {
         if let ResolutionOutcome::Resolved(mut module) =
             self.probe_legacy_file(None, candidate, probe_pass, allow_implicit, context)?
         {
-            self.attach_optional_node_package(&mut module)?;
+            self.attach_direct_node_package(&mut module)?;
             if external {
                 self.follow_module_realpath(&mut module)?;
             }
@@ -722,10 +722,10 @@ impl<'a> ModuleResolver<'a> {
     }
 
     /// Attach the package facts used by `nodeLoadModuleByRelativeName` after
-    /// a direct file probe has succeeded. Local optional candidates do not
-    /// search ancestor manifests; an external candidate consults only its
-    /// actual `node_modules` package root.
-    fn attach_optional_node_package(
+    /// a direct file probe has succeeded. Local candidates do not search
+    /// ancestor manifests; an external optional-setting or type-reference
+    /// candidate consults only its actual `node_modules` package root.
+    fn attach_direct_node_package(
         &mut self,
         module: &mut HostResolvedModule,
     ) -> Result<(), ResolutionError> {
@@ -774,6 +774,37 @@ impl<'a> ModuleResolver<'a> {
         module.resolved_file = resolved_file;
         module.original_path = original_path;
         Ok(())
+    }
+
+    /// Probe the file phase shared by custom type roots and relative
+    /// type-reference directives. The successful lexical path determines its
+    /// actual `node_modules` package before every type-reference result follows
+    /// realpath, including local files.
+    fn probe_direct_type_reference_file(
+        &mut self,
+        candidate: &str,
+        mode: ResolutionMode,
+    ) -> Result<ResolutionOutcome<HostResolvedModule>, ResolutionError> {
+        let external = path_contains_node_modules(candidate);
+        let context = LegacyResolutionContext {
+            is_external_library_import: external,
+            attach_package_id: false,
+            resolved_using_ts_extension: false,
+            follow_realpath: false,
+        };
+        let outcome = self.probe_legacy_file(
+            None,
+            candidate,
+            ExtensionProbePass::Declaration,
+            /* allow_implicit */ !self.is_node_esm_mode(mode),
+            context,
+        )?;
+        let ResolutionOutcome::Resolved(mut module) = outcome else {
+            return Ok(ResolutionOutcome::NotFound);
+        };
+        self.attach_direct_node_package(&mut module)?;
+        self.follow_module_realpath(&mut module)?;
+        Ok(ResolutionOutcome::Resolved(module))
     }
 
     /// tsc-port: classicNameResolver @6.0.3
@@ -1210,7 +1241,7 @@ impl<'a> ModuleResolver<'a> {
         mode: ResolutionMode,
         type_roots: Option<&[ProgramPath]>,
     ) -> Result<ResolutionOutcome<HostResolvedTypeReferenceDirective>, ResolutionError> {
-        self.validate_supported_configuration(mode)?;
+        self.validate_supported_type_reference_configuration(mode)?;
         if specifier.is_empty() || specifier.contains(['\\', '\0', ':']) {
             return Err(ResolutionError::invalid_data(format!(
                 "invalid type-reference directive name {specifier:?}"
@@ -1262,6 +1293,7 @@ impl<'a> ModuleResolver<'a> {
                 &directory_name(&containing_file),
                 &request,
                 mode,
+                self.type_reference_uses_package_exports(mode),
             )?
         };
         Ok(match outcome {
@@ -1335,20 +1367,41 @@ impl<'a> ModuleResolver<'a> {
         self.resolve_from_node_modules(containing_directory, &request, mode)
     }
 
-    fn validate_supported_configuration(
+    fn validate_supported_type_reference_configuration(
         &self,
         _mode: ResolutionMode,
     ) -> Result<(), ResolutionError> {
         let resolution_kind = self.options.emit_module_resolution_kind();
-        if !matches!(resolution_kind, 3 | 99 | 100) {
+        if !matches!(resolution_kind, 1 | 2 | 3 | 99 | 100) {
             return Err(ResolutionError::unsupported(
                 "module-resolution-kind",
                 format!(
-                    "package exports are implemented only for Node16, NodeNext, and Bundler; got {resolution_kind}"
+                    "type-reference resolution is implemented only for Classic, Node10, Node16, NodeNext, and Bundler; got {resolution_kind}"
                 ),
             ));
         }
         self.validate_common_configuration()
+    }
+
+    /// tsc-port: getNodeResolutionFeatures @6.0.3
+    /// tsc-hash: 0f196c9d68f11eb9044f8a8b91dc3932ce0282c7825241c05ed817faab092b98
+    /// tsc-span: _tsc.js:40251-40274
+    ///
+    /// `resolveTypeReferenceDirective` adds `AllFeatures` after applying the
+    /// ordinary option overrides whenever the directive carries an explicit
+    /// resolution mode. That deliberately re-enables package exports even
+    /// when `resolvePackageJsonExports` is false. With an unspecified mode,
+    /// Classic and Node10 remain legacy unless exports were explicitly
+    /// enabled, while the modern resolvers use their computed defaults.
+    fn type_reference_uses_package_exports(&self, mode: ResolutionMode) -> bool {
+        if mode != ResolutionMode::Unspecified {
+            return true;
+        }
+        match self.options.emit_module_resolution_kind() {
+            3 | 99 | 100 => self.options.resolve_package_json_exports != Some(false),
+            1 | 2 => self.options.resolve_package_json_exports == Some(true),
+            _ => false,
+        }
     }
 
     fn validate_supported_module_configuration(
@@ -1596,10 +1649,13 @@ impl<'a> ModuleResolver<'a> {
                             &at_types,
                             &mangle_scoped_package_name(request.package_name),
                         );
+                        let use_package_exports =
+                            self.options.resolve_package_json_exports != Some(false);
                         let outcome = self.resolve_declaration_package(
                             &types_package,
                             &request.exports_subpath,
                             mode,
+                            use_package_exports,
                         )?;
                         if matches!(outcome, ResolutionOutcome::Resolved(_)) {
                             return Ok(outcome);
@@ -1614,19 +1670,56 @@ impl<'a> ModuleResolver<'a> {
     /// Resolve one package candidate with declaration extensions only. This is
     /// the shared worker for the module resolver's `@types` fallback and the
     /// type-reference resolver's secondary node_modules search.
+    ///
+    /// tsc-port: loadModuleFromSpecificNodeModulesDirectory @6.0.3
+    /// tsc-hash: cea26d829ab986a3959897a336dc743f1787f9b7880bb1c5d6f6849c6ea69153
+    /// tsc-span: _tsc.js:41979-42035
     fn resolve_declaration_package(
         &mut self,
         package_root: &str,
         exports_subpath: &str,
         mode: ResolutionMode,
+        use_package_exports: bool,
     ) -> Result<ResolutionOutcome<HostResolvedModule>, ResolutionError> {
-        let package = if self.host.directory_exists(Path::new(package_root))? {
-            self.load_package(&join_normalized(package_root, "package.json"))?
+        let rest = package_subpath(exports_subpath)?;
+        let mut root_package = None;
+        let mut root_package_loaded = false;
+
+        // A package subpath is itself allowed to be a package boundary. The
+        // candidate manifest is observed before the root manifest, even when
+        // the root exports map will ultimately own the request.
+        if let Some(rest) = rest {
+            let candidate =
+                normalize_absolute_path(Path::new(&join_normalized(package_root, rest)), None)?;
+            let nested_package = self.load_package(&join_normalized(&candidate, "package.json"))?;
+            if let Some(nested_package) = nested_package {
+                let root_exports_govern = if use_package_exports {
+                    root_package = self.load_declaration_package_manifest(package_root)?;
+                    root_package_loaded = true;
+                    root_package
+                        .as_ref()
+                        .is_some_and(|package| package.exports.is_some())
+                } else {
+                    false
+                };
+                if !root_exports_govern {
+                    return self.resolve_nested_declaration_package(
+                        &candidate,
+                        rest,
+                        &nested_package,
+                        mode,
+                    );
+                }
+            }
+        }
+
+        let package = if root_package_loaded {
+            root_package
         } else {
-            None
+            self.load_declaration_package_manifest(package_root)?
         };
         if let Some(package) = package {
-            let uses_exports = self.options.resolve_package_json_exports != Some(false)
+            let uses_exports = use_package_exports
                 && !matches!(package.exports.as_ref(), None | Some(Value::Null));
             if !uses_exports && exports_subpath == "." && !self.is_node_esm_mode(mode) {
                 let direct = self.probe_legacy_file(
@@ -1678,6 +1771,53 @@ impl<'a> ModuleResolver<'a> {
         }
     }
 
+    fn load_declaration_package_manifest(
+        &mut self,
+        package_root: &str,
+    ) -> Result<Option<Rc<CachedPackage>>, ResolutionError> {
+        if !self.host.directory_exists(Path::new(package_root))? {
+            return Ok(None);
+        }
+        self.load_package(&join_normalized(package_root, "package.json"))
+    }
+
+    fn resolve_nested_declaration_package(
+        &self,
+        candidate: &str,
+        written_subpath: &str,
+        package: &CachedPackage,
+        mode: ResolutionMode,
+    ) -> Result<ResolutionOutcome<HostResolvedModule>, ResolutionError> {
+        let direct = self.probe_legacy_file(
+            None,
+            candidate,
+            ExtensionProbePass::Declaration,
+            /* allow_implicit */ !self.is_node_esm_mode(mode),
+            LegacyResolutionContext {
+                is_external_library_import: true,
+                attach_package_id: false,
+                resolved_using_ts_extension: is_typescript_family_specifier(written_subpath),
+                follow_realpath: true,
+            },
+        )?;
+        if matches!(direct, ResolutionOutcome::Resolved(_)) {
+            return Ok(direct);
+        }
+        self.resolve_legacy_package(
+            package,
+            ".",
+            ExtensionProbePass::Declaration,
+            mode,
+            LegacyResolutionContext {
+                is_external_library_import: true,
+                attach_package_id: true,
+                resolved_using_ts_extension: false,
+                follow_realpath: true,
+            },
+            /* allow_node_esm_index_fallback */ false,
+        )
+    }
+
     fn normalized_type_root(&self, root: &ProgramPath) -> Result<String, ResolutionError> {
         let normalized =
             normalize_absolute_path(root.display(), Some(self.current_directory_text()?))?;
@@ -1724,18 +1864,7 @@ impl<'a> ModuleResolver<'a> {
         // An explicitly configured type root first receives the declaration
         // file probe that default node_modules/@types roots deliberately omit.
         if custom_type_roots {
-            let package = if external {
-                self.find_nearest_package_scope(&directory_name(&candidate))?
-            } else {
-                None
-            };
-            let direct = self.probe_legacy_file(
-                package.as_deref(),
-                &candidate,
-                ExtensionProbePass::Declaration,
-                /* allow_implicit */ !self.is_node_esm_mode(mode),
-                context,
-            )?;
+            let direct = self.probe_direct_type_reference_file(&candidate, mode)?;
             if matches!(direct, ResolutionOutcome::Resolved(_)) {
                 return Ok(direct);
             }
@@ -1778,6 +1907,7 @@ impl<'a> ModuleResolver<'a> {
         containing_directory: &str,
         request: &PackageRequest<'_>,
         mode: ResolutionMode,
+        use_package_exports: bool,
     ) -> Result<ResolutionOutcome<HostResolvedModule>, ResolutionError> {
         for ancestor in ancestor_directories(containing_directory) {
             if base_name(&ancestor) == "node_modules" {
@@ -1789,8 +1919,12 @@ impl<'a> ModuleResolver<'a> {
             }
 
             let package_root = join_normalized(&node_modules, request.package_name);
-            let outcome =
-                self.resolve_declaration_package(&package_root, &request.exports_subpath, mode)?;
+            let outcome = self.resolve_declaration_package(
+                &package_root,
+                &request.exports_subpath,
+                mode,
+                use_package_exports,
+            )?;
             if matches!(outcome, ResolutionOutcome::Resolved(_)) {
                 return Ok(outcome);
             }
@@ -1801,8 +1935,12 @@ impl<'a> ModuleResolver<'a> {
             }
             let types_package =
                 join_normalized(&at_types, &mangle_scoped_package_name(request.package_name));
-            let outcome =
-                self.resolve_declaration_package(&types_package, &request.exports_subpath, mode)?;
+            let outcome = self.resolve_declaration_package(
+                &types_package,
+                &request.exports_subpath,
+                mode,
+                use_package_exports,
+            )?;
             if matches!(outcome, ResolutionOutcome::Resolved(_)) {
                 return Ok(outcome);
             }
@@ -1823,7 +1961,6 @@ impl<'a> ModuleResolver<'a> {
             )),
             None,
         )?;
-        let package = self.find_nearest_package_scope(&directory_name(&target))?;
         let external = path_contains_node_modules(&target);
         let context = LegacyResolutionContext {
             is_external_library_import: external,
@@ -1832,13 +1969,7 @@ impl<'a> ModuleResolver<'a> {
             follow_realpath: true,
         };
         let allow_implicit = !self.is_node_esm_mode(mode);
-        let direct = self.probe_legacy_file(
-            package.as_deref(),
-            &target,
-            ExtensionProbePass::Declaration,
-            allow_implicit,
-            context,
-        )?;
+        let direct = self.probe_direct_type_reference_file(&target, mode)?;
         if matches!(direct, ResolutionOutcome::Resolved(_)) {
             return Ok(direct);
         }
@@ -1853,7 +1984,10 @@ impl<'a> ModuleResolver<'a> {
                 ".",
                 ExtensionProbePass::Declaration,
                 mode,
-                context,
+                LegacyResolutionContext {
+                    attach_package_id: true,
+                    ..context
+                },
                 /* allow_node_esm_index_fallback */ true,
             );
         }
@@ -2245,6 +2379,16 @@ impl<'a> ModuleResolver<'a> {
         allow_implicit: bool,
         context: LegacyResolutionContext,
     ) -> Result<ResolutionOutcome<HostResolvedModule>, ResolutionError> {
+        // loadNodeModuleFromDirectoryWorker retains EsmMode for a package
+        // whose `type` is `module`. Its expanded package-field loader may
+        // replace a written extension, but must not add one to an
+        // extensionless `types` or `typesVersions` target.
+        if matches!(probe_pass, ExtensionProbePass::DeclarationPackageField)
+            && !allow_implicit
+            && !base_name(candidate).contains('.')
+        {
+            return Ok(ResolutionOutcome::NotFound);
+        }
         let plan = match probe_pass {
             ExtensionProbePass::Declaration => declaration_extension_probe_plan(candidate),
             ExtensionProbePass::DeclarationPackageField => {
@@ -2789,6 +2933,11 @@ impl<'a> ModuleResolver<'a> {
     ) -> bool {
         if condition == "default" {
             return true;
+        }
+        // getConditions returns an empty set for Node10 when package exports
+        // were explicitly enabled without a per-directive resolution mode.
+        if mode == ResolutionMode::Unspecified && resolution_kind == 2 {
+            return false;
         }
         let mode = if mode == ResolutionMode::Unspecified && resolution_kind == 100 {
             ResolutionMode::EsNext
