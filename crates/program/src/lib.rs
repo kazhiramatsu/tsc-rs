@@ -19,6 +19,7 @@ mod module_resolution;
 mod path;
 mod prepared;
 mod resolution;
+mod text;
 
 pub use error::{PreparationError, PreparationErrorKind, PreparationOperation};
 pub use module_requests::{
@@ -40,4 +41,5 @@ pub use resolution::{
     ResolvedModule, ResolvedModuleTarget, ResolvedTypeReferenceDirective, TypeReferenceResolution,
     TypeReferenceResolutionKey, TypeReferenceResolutionOrigin,
 };
+pub use text::{decode_host_text, HostTextDecodeError, HostTextEncoding};
 pub use tsc_types::CompilerOptions;
