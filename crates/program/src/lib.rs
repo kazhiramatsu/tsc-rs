@@ -20,10 +20,11 @@
 //! Every load requires explicit source-count, request-occurrence, depth, and
 //! raw-byte ceilings and reports host, decode, resolution, preparation,
 //! unsupported-scope, and resource failures as typed [`ProgramLoadError`]s.
-//! This first slice does not load default or explicit libraries, discover
-//! automatic `types`, admit JavaScript sources, apply `paths`/`baseUrl` or
-//! `rootDirs`, discover config roots, or claim the remaining platform and CLI
-//! surfaces of H0.4 and H0.5.
+//! Non-relative source discovery applies ordered `paths` mappings and
+//! `baseUrl` through the same resolver used by direct resolution. This first
+//! slice does not load default or explicit libraries, discover automatic
+//! `types`, admit JavaScript sources, apply `rootDirs`, discover config roots,
+//! or claim the remaining platform and CLI surfaces of H0.4 and H0.5.
 
 mod error;
 mod loader;

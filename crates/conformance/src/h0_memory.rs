@@ -145,10 +145,10 @@ pub(crate) fn run(
 
     let mut options = tsc_harness::compiler_options_from_program(program);
     options.no_emit = Some(true);
-    let mut resolver = ModuleResolver::new(&host, &options)?;
+    let program_options = program_options_from_program(program, &current_directory)?;
+    let mut resolver = ModuleResolver::new_with_program_options(&host, &options, &program_options)?;
     let mut prepared_builder =
         PreparedProgram::builder(resolver.path_context().clone(), options.clone());
-    let program_options = program_options_from_program(program, &current_directory)?;
     prepared_builder.set_program_options(program_options.clone());
 
     let mut source_by_canonical = BTreeMap::<PathBuf, (SourceFileId, ProgramPath)>::new();

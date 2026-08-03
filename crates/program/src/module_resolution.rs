@@ -1,5 +1,5 @@
 use std::cmp::Ordering;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
 
@@ -8,7 +8,9 @@ use tsc_host::{to_file_name_lower_case, CompilerHost};
 use tsc_types::{compiler_version_satisfies, CompilerOptions};
 
 use crate::path::ProgramPath;
-use crate::prepared::{PackageJsonType, PackageMetadata, PathContext, SourceFileId};
+use crate::prepared::{
+    PackageJsonType, PackageMetadata, PathContext, PathMapping, ProgramOptions, SourceFileId,
+};
 use crate::resolution::{
     ModuleExtension, PackageId, ResolutionError, ResolutionMode, ResolutionOutcome, ResolvedModule,
     ResolvedModuleTarget, ResolvedTypeReferenceDirective,
@@ -363,6 +365,12 @@ enum PackageMapKind {
     Imports,
 }
 
+#[derive(Clone, Copy)]
+enum OptionalResolutionLoader {
+    Classic,
+    Node,
+}
+
 /// Sequential Node16/NodeNext/Bundler resolver for the H0.2 package-map
 /// slices.
 ///
@@ -372,6 +380,8 @@ pub struct ModuleResolver<'a> {
     host: &'a dyn CompilerHost,
     options: &'a CompilerOptions,
     path_context: PathContext,
+    base_url: Option<String>,
+    paths: Option<Vec<PathMapping>>,
     package_cache: BTreeMap<String, PackageCacheEntry>,
     active_resolutions: Vec<ActiveResolution>,
     active_package_maps: Vec<String>,
@@ -385,14 +395,39 @@ impl<'a> ModuleResolver<'a> {
         host: &'a dyn CompilerHost,
         options: &'a CompilerOptions,
     ) -> Result<Self, ResolutionError> {
+        Self::new_with_owned_paths(host, options, None)
+    }
+
+    /// Construct a resolver with the ordered program-owned `paths` mappings.
+    ///
+    /// The mappings are cloned into this one-shot resolver so later resolution
+    /// does not borrow the program configuration. [`Self::new`] deliberately
+    /// remains the compatibility entry point with no `paths` mappings.
+    pub fn new_with_program_options(
+        host: &'a dyn CompilerHost,
+        options: &'a CompilerOptions,
+        program_options: &ProgramOptions,
+    ) -> Result<Self, ResolutionError> {
+        Self::new_with_owned_paths(host, options, program_options.paths())
+    }
+
+    fn new_with_owned_paths(
+        host: &'a dyn CompilerHost,
+        options: &'a CompilerOptions,
+        paths: Option<&[PathMapping]>,
+    ) -> Result<Self, ResolutionError> {
         let current_directory = host.current_directory()?;
         let normalized = normalize_absolute_path(&current_directory, None)?;
         let case_sensitive = host.use_case_sensitive_file_names();
         let current_directory = make_program_path(&normalized, case_sensitive)?;
+        let base_url = normalize_base_url(options.base_url.as_deref(), &normalized)?;
+        let paths = validate_and_clone_paths(paths)?;
         Ok(Self {
             host,
             options,
             path_context: PathContext::new(current_directory, case_sensitive),
+            base_url,
+            paths,
             package_cache: BTreeMap::new(),
             active_resolutions: Vec::new(),
             active_package_maps: Vec::new(),
@@ -408,10 +443,23 @@ impl<'a> ModuleResolver<'a> {
         path_context: PathContext,
     ) -> Result<Self, ResolutionError> {
         validate_path_context(host, &path_context)?;
+        let current_directory = path_context
+            .current_directory()
+            .display()
+            .to_str()
+            .ok_or_else(|| {
+                ResolutionError::canonicalization(
+                    Some(path_context.current_directory().display().to_path_buf()),
+                    "current directory is not valid Unicode",
+                )
+            })?;
+        let base_url = normalize_base_url(options.base_url.as_deref(), current_directory)?;
         Ok(Self {
             host,
             options,
             path_context,
+            base_url,
+            paths: None,
             package_cache: BTreeMap::new(),
             active_resolutions: Vec::new(),
             active_package_maps: Vec::new(),
@@ -492,13 +540,249 @@ impl<'a> ModuleResolver<'a> {
             .map(|outcome| HostModuleResolution::new(outcome, None))
     }
 
+    /// tsc-port: tryLoadModuleUsingOptionalResolutionSettings @6.0.3
+    /// tsc-hash: ee22a81bb770c0dd9e251189adb12da01762e6557d3c9c770616ff4affb7dd3d
+    /// tsc-span: _tsc.js:40717-40749
+    /// tsc-port: tryLoadModuleUsingPaths @6.0.3
+    /// tsc-hash: f79098a1c1d51c3d0b6e955bc3e8c700491405adc3f4606ae7bb2044219399dd
+    /// tsc-span: _tsc.js:42036-42061
+    ///
+    /// A matching `paths` key owns the optional-settings attempt even when all
+    /// of its substitutions miss. That suppresses `baseUrl` only; the caller
+    /// must still continue to its ordinary Classic or Node lookup.
+    fn resolve_using_optional_settings(
+        &mut self,
+        specifier: &str,
+        probe_pass: ExtensionProbePass,
+        mode: ResolutionMode,
+        loader: OptionalResolutionLoader,
+    ) -> Result<ResolutionOutcome<HostResolvedModule>, ResolutionError> {
+        let has_paths = self.paths.as_ref().is_some_and(|paths| !paths.is_empty());
+        if is_relative_specifier(specifier) || (!has_paths && self.base_url.is_none()) {
+            return Ok(ResolutionOutcome::NotFound);
+        }
+        validate_owned_path_text(specifier, "module specifier", /* allow_empty */ false)?;
+
+        if let Some((substitutions, capture)) = self.matching_paths(specifier) {
+            let base_directory = self
+                .base_url
+                .clone()
+                .unwrap_or(self.current_directory_text()?.to_owned());
+            for substitution in substitutions {
+                let expanded = match capture.as_deref() {
+                    Some(capture) if !capture.is_empty() => substitution.replacen('*', capture, 1),
+                    None => substitution.clone(),
+                    Some(_) => substitution.clone(),
+                };
+                let candidate = normalize_optional_candidate(&expanded, &base_directory)?;
+
+                // tryLoadModuleUsingPaths probes a substitution whose raw text
+                // has a recognized extension exactly before invoking the
+                // extension-family loader. The raw text is intentional: a
+                // wildcard capture which happens to end in `.ts` does not
+                // enable this shortcut.
+                if let Some(extension) = recognized_module_extension(&substitution) {
+                    if self.host.file_exists(Path::new(&candidate))? {
+                        return self.finish_legacy_resolution(
+                            None,
+                            &candidate,
+                            extension,
+                            LegacyResolutionContext {
+                                is_external_library_import: path_contains_node_modules(&candidate),
+                                attach_package_id: false,
+                                resolved_using_ts_extension: false,
+                                follow_realpath: path_contains_node_modules(&candidate),
+                            },
+                        );
+                    }
+                }
+
+                let outcome =
+                    self.probe_optional_candidate(&candidate, &expanded, probe_pass, mode, loader)?;
+                if matches!(outcome, ResolutionOutcome::Resolved(_)) {
+                    return Ok(outcome);
+                }
+            }
+            return Ok(ResolutionOutcome::NotFound);
+        }
+
+        let Some(base_url) = self.base_url.clone() else {
+            return Ok(ResolutionOutcome::NotFound);
+        };
+        let candidate = normalize_optional_candidate(specifier, &base_url)?;
+        self.probe_optional_candidate(&candidate, specifier, probe_pass, mode, loader)
+    }
+
+    fn matching_paths(&self, specifier: &str) -> Option<(Vec<String>, Option<String>)> {
+        let paths = self.paths.as_deref()?;
+        if let Some(mapping) = paths.iter().find(|mapping| mapping.pattern() == specifier) {
+            return Some((mapping.substitutions().to_vec(), None));
+        }
+
+        let mut best: Option<(&PathMapping, usize, String)> = None;
+        for mapping in paths {
+            let pattern = mapping.pattern();
+            let Some(star) = pattern.find('*') else {
+                continue;
+            };
+            let prefix = &pattern[..star];
+            let suffix = &pattern[star + 1..];
+            if !specifier.starts_with(prefix)
+                || !specifier.ends_with(suffix)
+                || specifier.len() < prefix.len() + suffix.len()
+            {
+                continue;
+            }
+            if best
+                .as_ref()
+                .is_some_and(|(_, longest_prefix, _)| *longest_prefix >= prefix.len())
+            {
+                continue;
+            }
+            let capture = specifier[prefix.len()..specifier.len() - suffix.len()].to_owned();
+            best = Some((mapping, prefix.len(), capture));
+        }
+        best.map(|(mapping, _, capture)| (mapping.substitutions().to_vec(), Some(capture)))
+    }
+
+    fn probe_optional_candidate(
+        &mut self,
+        candidate: &str,
+        written_candidate: &str,
+        probe_pass: ExtensionProbePass,
+        mode: ResolutionMode,
+        loader: OptionalResolutionLoader,
+    ) -> Result<ResolutionOutcome<HostResolvedModule>, ResolutionError> {
+        match loader {
+            OptionalResolutionLoader::Classic => {
+                self.probe_classic_file(candidate, written_candidate, probe_pass)
+            }
+            OptionalResolutionLoader::Node => {
+                self.probe_optional_node_candidate(candidate, written_candidate, probe_pass, mode)
+            }
+        }
+    }
+
+    fn probe_optional_node_candidate(
+        &mut self,
+        candidate: &str,
+        written_candidate: &str,
+        probe_pass: ExtensionProbePass,
+        mode: ResolutionMode,
+    ) -> Result<ResolutionOutcome<HostResolvedModule>, ResolutionError> {
+        let external = path_contains_node_modules(candidate);
+        let allow_implicit = !self.is_node_esm_mode(mode);
+        let context = LegacyResolutionContext {
+            is_external_library_import: external,
+            attach_package_id: false,
+            resolved_using_ts_extension: is_typescript_family_specifier(written_candidate),
+            follow_realpath: false,
+        };
+        if let ResolutionOutcome::Resolved(mut module) =
+            self.probe_legacy_file(None, candidate, probe_pass, allow_implicit, context)?
+        {
+            self.attach_optional_node_package(&mut module)?;
+            if external {
+                self.follow_module_realpath(&mut module)?;
+            }
+            return Ok(ResolutionOutcome::Resolved(module));
+        }
+        if !allow_implicit || !self.host.directory_exists(Path::new(candidate))? {
+            return Ok(ResolutionOutcome::NotFound);
+        }
+
+        let package_json = join_normalized(candidate, "package.json");
+        if let Some(directory_package) = self.load_package(&package_json)? {
+            return self.resolve_legacy_package(
+                &directory_package,
+                ".",
+                probe_pass,
+                mode,
+                LegacyResolutionContext {
+                    attach_package_id: true,
+                    resolved_using_ts_extension: false,
+                    follow_realpath: external,
+                    ..context
+                },
+                /* allow_node_esm_index_fallback */ true,
+            );
+        }
+        self.probe_legacy_file(
+            None,
+            &join_normalized(candidate, "index"),
+            probe_pass,
+            /* allow_implicit */ true,
+            LegacyResolutionContext {
+                attach_package_id: false,
+                resolved_using_ts_extension: false,
+                follow_realpath: external,
+                ..context
+            },
+        )
+    }
+
+    /// Attach the package facts used by `nodeLoadModuleByRelativeName` after
+    /// a direct file probe has succeeded. Local optional candidates do not
+    /// search ancestor manifests; an external candidate consults only its
+    /// actual `node_modules` package root.
+    fn attach_optional_node_package(
+        &mut self,
+        module: &mut HostResolvedModule,
+    ) -> Result<(), ResolutionError> {
+        if !module.is_external_library_import {
+            return Ok(());
+        }
+        let lexical_path = module
+            .resolved_file
+            .display()
+            .to_str()
+            .ok_or_else(|| {
+                ResolutionError::canonicalization(
+                    Some(module.resolved_file.display().to_path_buf()),
+                    "resolved module path is not valid Unicode",
+                )
+            })?
+            .to_owned();
+        let Some(package_root) = node_modules_package_root(&lexical_path) else {
+            return Ok(());
+        };
+        let Some(package) = self.load_package(&join_normalized(&package_root, "package.json"))?
+        else {
+            return Ok(());
+        };
+        module.package_id = package_id_for_legacy_path(&package, &lexical_path, true)?;
+        module.package_metadata = Some(Rc::clone(&package.metadata));
+        Ok(())
+    }
+
+    fn follow_module_realpath(
+        &self,
+        module: &mut HostResolvedModule,
+    ) -> Result<(), ResolutionError> {
+        let lexical_path = module
+            .resolved_file
+            .display()
+            .to_str()
+            .ok_or_else(|| {
+                ResolutionError::canonicalization(
+                    Some(module.resolved_file.display().to_path_buf()),
+                    "resolved module path is not valid Unicode",
+                )
+            })?
+            .to_owned();
+        let (resolved_file, original_path) = self.realpath_program_path(&lexical_path)?;
+        module.resolved_file = resolved_file;
+        module.original_path = original_path;
+        Ok(())
+    }
+
     /// tsc-port: classicNameResolver @6.0.3
     /// tsc-hash: d928985c6c8e588d5b3e35a9135bf163db3cb28ca5f94d1580e68d218230341b
     /// tsc-span: _tsc.js:42110-42186
     ///
-    /// The owned Classic slice is deliberately the legacy file search plus
-    /// its nearest automatic `node_modules/@types` fallback. Optional
-    /// baseUrl/paths remain outside the admitted configuration boundary.
+    /// The owned Classic slice includes optional `paths`/`baseUrl`, legacy
+    /// ancestor file search, and its nearest automatic `node_modules/@types`
+    /// fallback in the upstream extension-pass order.
     fn resolve_classic(
         &mut self,
         containing_file: &str,
@@ -512,9 +796,7 @@ impl<'a> ModuleResolver<'a> {
         }
         let containing_directory = directory_name(containing_file);
         let relative = is_relative_specifier(specifier);
-        let request = (!relative)
-            .then(|| parse_package_request(specifier))
-            .transpose()?;
+        let mut request = None;
 
         for probe_pass in [ExtensionProbePass::Preferred, ExtensionProbePass::Fallback] {
             if relative {
@@ -527,6 +809,18 @@ impl<'a> ModuleResolver<'a> {
                     return Ok(HostModuleResolution::new(outcome, None));
                 }
             } else {
+                let optional = self.resolve_using_optional_settings(
+                    specifier,
+                    probe_pass,
+                    mode,
+                    OptionalResolutionLoader::Classic,
+                )?;
+                if matches!(optional, ResolutionOutcome::Resolved(_)) {
+                    return Ok(HostModuleResolution::new(optional, None));
+                }
+                if request.is_none() {
+                    request = Some(parse_package_request(specifier)?);
+                }
                 for ancestor in ancestor_directories(&containing_directory) {
                     let candidate = normalize_absolute_path(
                         Path::new(&join_normalized(&ancestor, specifier)),
@@ -567,7 +861,7 @@ impl<'a> ModuleResolver<'a> {
                 is_external_library_import: path_contains_node_modules(candidate),
                 attach_package_id: false,
                 resolved_using_ts_extension: is_typescript_family_specifier(written_specifier),
-                follow_realpath: false,
+                follow_realpath: path_contains_node_modules(candidate),
             },
         )
     }
@@ -586,18 +880,19 @@ impl<'a> ModuleResolver<'a> {
             let outcome = self.resolve_relative(containing_file, specifier, mode)?;
             return Ok(HostModuleResolution::new(outcome, None));
         }
-        let request = parse_package_request(specifier)?;
         let containing_directory = directory_name(containing_file);
         let (outcome, resolved_package_directory) =
-            self.resolve_node10_non_relative(&containing_directory, &request, mode)?;
+            self.resolve_node10_non_relative(&containing_directory, specifier, mode)?;
         let retry_for_types = resolved_package_directory
             && match &outcome {
                 ResolutionOutcome::NotFound => true,
                 ResolutionOutcome::Resolved(module) => module.extension().is_javascript(),
             };
         let alternate_result = if retry_for_types {
+            let request = parse_package_request(specifier)?;
             match self.resolve_bundler_preferred_non_relative(
                 &containing_directory,
+                specifier,
                 &request,
                 mode,
             )? {
@@ -615,11 +910,28 @@ impl<'a> ModuleResolver<'a> {
     fn resolve_node10_non_relative(
         &mut self,
         containing_directory: &str,
-        request: &PackageRequest<'_>,
+        specifier: &str,
         mode: ResolutionMode,
     ) -> Result<(ResolutionOutcome<HostResolvedModule>, bool), ResolutionError> {
         let mut resolved_package_directory = false;
+        let mut request = None;
         for probe_pass in [ExtensionProbePass::Preferred, ExtensionProbePass::Fallback] {
+            let optional = self.resolve_using_optional_settings(
+                specifier,
+                probe_pass,
+                mode,
+                OptionalResolutionLoader::Node,
+            )?;
+            if matches!(optional, ResolutionOutcome::Resolved(_)) {
+                // Upstream sets `resolvedPackageDirectory` only while walking
+                // the ordinary node_modules package lookup, not when an
+                // optional paths/baseUrl candidate happens to carry metadata.
+                return Ok((optional, resolved_package_directory));
+            }
+            if request.is_none() {
+                request = Some(parse_package_request(specifier)?);
+            }
+            let request = request.as_ref().expect("non-relative request was parsed");
             for ancestor in ancestor_directories(containing_directory) {
                 if base_name(&ancestor) == "node_modules" {
                     continue;
@@ -749,9 +1061,19 @@ impl<'a> ModuleResolver<'a> {
     fn resolve_bundler_preferred_non_relative(
         &mut self,
         containing_directory: &str,
+        specifier: &str,
         request: &PackageRequest<'_>,
         mode: ResolutionMode,
     ) -> Result<ResolutionOutcome<HostResolvedModule>, ResolutionError> {
+        let optional = self.resolve_using_optional_settings(
+            specifier,
+            ExtensionProbePass::Preferred,
+            mode,
+            OptionalResolutionLoader::Node,
+        )?;
+        if matches!(optional, ResolutionOutcome::Resolved(_)) {
+            return Ok(optional);
+        }
         for ancestor in ancestor_directories(containing_directory) {
             if base_name(&ancestor) == "node_modules" {
                 continue;
@@ -986,6 +1308,15 @@ impl<'a> ModuleResolver<'a> {
         specifier: &str,
         mode: ResolutionMode,
     ) -> Result<ResolutionOutcome<HostResolvedModule>, ResolutionError> {
+        let optional = self.resolve_using_optional_settings(
+            specifier,
+            ExtensionProbePass::All,
+            mode,
+            OptionalResolutionLoader::Node,
+        )?;
+        if matches!(optional, ResolutionOutcome::Resolved(_)) {
+            return Ok(optional);
+        }
         if specifier.starts_with('#') {
             if let Search::Terminal(outcome) =
                 self.resolve_package_imports(containing_directory, specifier, mode)?
@@ -1041,12 +1372,6 @@ impl<'a> ModuleResolver<'a> {
             return Err(ResolutionError::unsupported(
                 "no-dts-resolution",
                 "implementation-only exports probing is outside the H0.2b slice",
-            ));
-        }
-        if self.options.base_url.is_some() {
-            return Err(ResolutionError::unsupported(
-                "base-url-before-package-exports",
-                "baseUrl candidates must be resolved before node_modules lookup",
             ));
         }
         Ok(())
@@ -1943,7 +2268,8 @@ impl<'a> ModuleResolver<'a> {
             Err(ResolutionError::Unsupported { feature, .. })
                 if feature == "module-target-extension" =>
             {
-                return Ok(ResolutionOutcome::NotFound);
+                return self
+                    .probe_arbitrary_declaration_twin(package, candidate, probe_pass, context);
             }
             Err(error) => return Err(error),
         };
@@ -1976,6 +2302,37 @@ impl<'a> ModuleResolver<'a> {
             }
         }
         Ok(ResolutionOutcome::NotFound)
+    }
+
+    fn probe_arbitrary_declaration_twin(
+        &self,
+        package: Option<&CachedPackage>,
+        candidate: &str,
+        probe_pass: ExtensionProbePass,
+        context: LegacyResolutionContext,
+    ) -> Result<ResolutionOutcome<HostResolvedModule>, ResolutionError> {
+        if matches!(probe_pass, ExtensionProbePass::Fallback) {
+            return Ok(ResolutionOutcome::NotFound);
+        }
+        let Some((path, extension)) = arbitrary_declaration_twin(candidate) else {
+            return Ok(ResolutionOutcome::NotFound);
+        };
+        if !self
+            .host
+            .directory_exists(Path::new(&directory_name(candidate)))?
+            || !self.host.file_exists(Path::new(&path))?
+        {
+            return Ok(ResolutionOutcome::NotFound);
+        }
+        self.finish_legacy_resolution(
+            package,
+            &path,
+            ModuleExtension::Arbitrary(extension),
+            LegacyResolutionContext {
+                resolved_using_ts_extension: false,
+                ..context
+            },
+        )
     }
 
     fn is_node_esm_mode(&self, mode: ResolutionMode) -> bool {
@@ -2562,48 +2919,18 @@ impl<'a> ModuleResolver<'a> {
         extension: ModuleExtension,
         context: LegacyResolutionContext,
     ) -> Result<ResolutionOutcome<HostResolvedModule>, ResolutionError> {
-        let lexical = self.program_path(lexical_path)?;
         let (resolved_file, original_path) = if context.follow_realpath {
-            let real_path = self
-                .host
-                .realpath(Path::new(lexical_path))?
-                .ok_or_else(|| {
-                    ResolutionError::invalid_data(format!(
-                        "host reported {} as a file but returned no realpath",
-                        Path::new(lexical_path).display()
-                    ))
-                })?;
-            let normalized_real_path =
-                normalize_absolute_path(&real_path, Some(self.current_directory_text()?))?;
-            let real = self.program_path(&normalized_real_path)?;
-            if real.canonical() == lexical.canonical() {
-                (lexical, None)
-            } else {
-                (real, Some(lexical))
-            }
+            self.realpath_program_path(lexical_path)?
         } else {
-            (lexical, None)
+            (self.program_path(lexical_path)?, None)
         };
 
-        let package_id = match package
-            .map(|package| (package, package.metadata.name(), package.metadata.version()))
-        {
-            Some((package, Some(name), Some(version))) if context.attach_package_id => {
-                let submodule_name = lexical_path
-                    .strip_prefix(&package.root)
-                    // withPackageId slices one character after the package
-                    // directory even for the sibling-file shape `pkg.ts`.
-                    .map(|path| path.get(1..).unwrap_or(""))
-                    .ok_or_else(|| {
-                        ResolutionError::invalid_data(format!(
-                            "resolved path {lexical_path} is outside package {}",
-                            package.root
-                        ))
-                    })?;
-                Some(PackageId::new(name, submodule_name, version))
-            }
-            _ => None,
-        };
+        let package_id = package
+            .map(|package| {
+                package_id_for_legacy_path(package, lexical_path, context.attach_package_id)
+            })
+            .transpose()?
+            .flatten();
 
         Ok(ResolutionOutcome::Resolved(HostResolvedModule {
             resolved_file,
@@ -2617,12 +2944,133 @@ impl<'a> ModuleResolver<'a> {
         }))
     }
 
+    fn realpath_program_path(
+        &self,
+        lexical_path: &str,
+    ) -> Result<(ProgramPath, Option<ProgramPath>), ResolutionError> {
+        let lexical = self.program_path(lexical_path)?;
+        let real_path = self
+            .host
+            .realpath(Path::new(lexical_path))?
+            .ok_or_else(|| {
+                ResolutionError::invalid_data(format!(
+                    "host reported {} as a file but returned no realpath",
+                    Path::new(lexical_path).display()
+                ))
+            })?;
+        let normalized_real_path =
+            normalize_absolute_path(&real_path, Some(self.current_directory_text()?))?;
+        let real = self.program_path(&normalized_real_path)?;
+        if real.canonical() == lexical.canonical() {
+            Ok((lexical, None))
+        } else {
+            Ok((real, Some(lexical)))
+        }
+    }
+
     fn program_path(&self, normalized_path: &str) -> Result<ProgramPath, ResolutionError> {
         make_program_path(
             normalized_path,
             self.path_context.use_case_sensitive_file_names(),
         )
     }
+}
+
+fn normalize_base_url(
+    base_url: Option<&str>,
+    current_directory: &str,
+) -> Result<Option<String>, ResolutionError> {
+    let Some(base_url) = base_url else {
+        return Ok(None);
+    };
+    validate_owned_path_text(base_url, "baseUrl", /* allow_empty */ false)?;
+    normalize_absolute_path(Path::new(base_url), Some(current_directory)).map(Some)
+}
+
+fn normalize_optional_candidate(
+    candidate: &str,
+    base_directory: &str,
+) -> Result<String, ResolutionError> {
+    if candidate.is_empty() {
+        return Ok(base_directory.to_owned());
+    }
+    validate_owned_path_text(
+        candidate,
+        "optional resolution candidate",
+        /* allow_empty */ true,
+    )?;
+    normalize_absolute_path(Path::new(candidate), Some(base_directory))
+}
+
+fn validate_and_clone_paths(
+    paths: Option<&[PathMapping]>,
+) -> Result<Option<Vec<PathMapping>>, ResolutionError> {
+    let Some(paths) = paths else {
+        return Ok(None);
+    };
+    let mut patterns = BTreeSet::new();
+    for mapping in paths {
+        let pattern = mapping.pattern();
+        validate_owned_path_text(pattern, "paths pattern", /* allow_empty */ false)?;
+        if pattern.matches('*').count() > 1 {
+            return Err(ResolutionError::invalid_data(format!(
+                "paths pattern {pattern:?} contains more than one '*'"
+            )));
+        }
+        if !patterns.insert(pattern.to_owned()) {
+            return Err(ResolutionError::invalid_data(format!(
+                "duplicate paths pattern {pattern:?} has no object-equivalent ordering semantics"
+            )));
+        }
+        if mapping.substitutions().is_empty() {
+            return Err(ResolutionError::invalid_data(format!(
+                "paths pattern {pattern:?} has no substitutions"
+            )));
+        }
+        for substitution in mapping.substitutions() {
+            validate_owned_path_text(
+                substitution,
+                "paths substitution",
+                /* allow_empty */ true,
+            )?;
+            if substitution.matches('*').count() > 1 {
+                return Err(ResolutionError::invalid_data(format!(
+                    "paths substitution {substitution:?} for pattern {pattern:?} contains more than one '*'"
+                )));
+            }
+        }
+    }
+    Ok(Some(paths.to_vec()))
+}
+
+fn validate_owned_path_text(
+    value: &str,
+    role: &str,
+    allow_empty: bool,
+) -> Result<(), ResolutionError> {
+    if (!allow_empty && value.is_empty()) || value.contains('\0') {
+        return Err(ResolutionError::invalid_data(format!(
+            "{role} is empty or contains a NUL byte"
+        )));
+    }
+    if value.is_empty() {
+        return Ok(());
+    }
+    let slashed = value.replace('\\', "/");
+    let drive_relative = slashed.len() >= 2
+        && slashed.as_bytes()[0].is_ascii_alphabetic()
+        && slashed.as_bytes()[1] == b':'
+        && slashed.as_bytes().get(2) != Some(&b'/');
+    let windows_root_relative = value.starts_with('\\') && !value.starts_with("\\\\");
+    if slashed.starts_with("//") || drive_relative || windows_root_relative {
+        return Err(ResolutionError::unsupported(
+            "windows-path-form",
+            format!(
+                "{role} {value:?} uses an unowned UNC, extended-length, root-relative, or drive-relative path form"
+            ),
+        ));
+    }
+    Ok(())
 }
 
 fn validate_path_context(
@@ -2824,6 +3272,62 @@ fn is_typescript_module_extension(extension: &ModuleExtension) -> bool {
 
 fn path_contains_node_modules(path: &str) -> bool {
     path.split('/').any(|component| component == "node_modules")
+}
+
+fn node_modules_package_root(path: &str) -> Option<String> {
+    const MARKER: &str = "/node_modules/";
+    let marker = path.rfind(MARKER)?;
+    let package_start = marker + MARKER.len();
+    let remainder = &path[package_start..];
+    let first_separator = remainder.find('/')?;
+    if first_separator == 0 {
+        return None;
+    }
+    let package_end = if remainder.starts_with('@') {
+        let scoped_remainder = &remainder[first_separator + 1..];
+        let second_separator = scoped_remainder.find('/')?;
+        if second_separator == 0 {
+            return None;
+        }
+        package_start + first_separator + 1 + second_separator
+    } else {
+        package_start + first_separator
+    };
+    Some(path[..package_end].to_owned())
+}
+
+fn package_id_for_legacy_path(
+    package: &CachedPackage,
+    lexical_path: &str,
+    attach_package_id: bool,
+) -> Result<Option<PackageId>, ResolutionError> {
+    let (Some(name), Some(version)) = (package.metadata.name(), package.metadata.version()) else {
+        return Ok(None);
+    };
+    if !attach_package_id {
+        return Ok(None);
+    }
+    let submodule_name = lexical_path
+        .strip_prefix(&package.root)
+        // withPackageId slices one character after the package directory even
+        // for the sibling-file shape `pkg.ts`.
+        .map(|path| path.get(1..).unwrap_or(""))
+        .ok_or_else(|| {
+            ResolutionError::invalid_data(format!(
+                "resolved path {lexical_path} is outside package {}",
+                package.root
+            ))
+        })?;
+    Ok(Some(PackageId::new(name, submodule_name, version)))
+}
+
+fn arbitrary_declaration_twin(candidate: &str) -> Option<(String, String)> {
+    let file_name = base_name(candidate);
+    let dot = file_name.rfind('.')?;
+    let original_extension = &file_name[dot..];
+    let base = candidate.get(..candidate.len() - original_extension.len())?;
+    let extension = format!(".d{original_extension}.ts");
+    Some((format!("{base}{extension}"), extension))
 }
 
 fn extension_probe_plan(

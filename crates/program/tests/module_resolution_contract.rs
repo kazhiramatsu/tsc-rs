@@ -3,8 +3,8 @@ use std::path::{Path, PathBuf};
 use tsc_host::{HostError, HostErrorKind, HostOperation, MemoryCompilerHost};
 use tsc_program::{
     CompilerOptions, HostResolvedModule, ModuleExtension, ModuleResolver, PackageId,
-    PackageJsonType, ProgramPath, ResolutionError, ResolutionMode, ResolutionOutcome,
-    ResolvedModuleTarget, SourceFileId,
+    PackageJsonType, PathMapping, ProgramOptions, ProgramPath, ResolutionError, ResolutionMode,
+    ResolutionOutcome, ResolvedModuleTarget, SourceFileId,
 };
 
 const INNER_PACKAGE_JSON: &str = r#"{
@@ -96,6 +96,592 @@ fn assert_unsupported(error: ResolutionError, expected_feature: &str) {
     };
     assert_eq!(feature, expected_feature);
     assert!(!detail.is_empty());
+}
+
+#[test]
+fn paths_exact_longest_prefix_and_substitution_order_are_stable() {
+    let host = MemoryCompilerHost::builder("/work")
+        .file("/work/main.ts", b"export {};".to_vec())
+        .file("/work/general/item.ts", b"export {};".to_vec())
+        .file("/work/general/special/other.ts", b"export {};".to_vec())
+        .file("/work/specific/item.ts", b"export {};".to_vec())
+        .file("/work/specific/other.ts", b"export {};".to_vec())
+        .file("/work/exact/item.ts", b"export {};".to_vec())
+        .file("/work/tie-first/x.ts", b"export {};".to_vec())
+        .file("/work/tie-second/x/tail.ts", b"export {};".to_vec())
+        .file("/work/ordered/second.ts", b"export {};".to_vec())
+        .build()
+        .expect("build ordered paths host");
+    let options = CompilerOptions {
+        module_resolution: Some(100),
+        ..CompilerOptions::default()
+    };
+    let program_options = ProgramOptions::default().with_paths(vec![
+        PathMapping::new("@pkg/*", vec!["general/*".to_owned()]),
+        PathMapping::new("@pkg/special/*", vec!["specific/*".to_owned()]),
+        PathMapping::new("@pkg/special/item", vec!["exact/item".to_owned()]),
+        PathMapping::new("@tie/*/tail", vec!["tie-first/*".to_owned()]),
+        PathMapping::new("@tie/*", vec!["tie-second/*".to_owned()]),
+        PathMapping::new(
+            "@ordered/*",
+            vec!["ordered/missing/*".to_owned(), "ordered/*".to_owned()],
+        ),
+    ]);
+    let mut resolver = ModuleResolver::new_with_program_options(&host, &options, &program_options)
+        .expect("create paths resolver");
+
+    for (specifier, expected) in [
+        ("@pkg/item", "/work/general/item.ts"),
+        ("@pkg/special/other", "/work/specific/other.ts"),
+        ("@pkg/special/item", "/work/exact/item.ts"),
+        ("@tie/x/tail", "/work/tie-first/x.ts"),
+        ("@ordered/second", "/work/ordered/second.ts"),
+    ] {
+        let module = resolved(
+            resolver
+                .resolve(
+                    Path::new("/work/main.ts"),
+                    specifier,
+                    ResolutionMode::CommonJs,
+                )
+                .expect("resolve ordered paths candidate"),
+        );
+        assert_eq!(
+            module.resolved_file().canonical().as_path(),
+            Path::new(expected),
+            "{specifier}"
+        );
+    }
+}
+
+#[test]
+fn optional_settings_preserve_legacy_passes_and_modern_substitution_order() {
+    let host = MemoryCompilerHost::builder("/work")
+        .file("/work/main.ts", b"export {};".to_vec())
+        .file("/work/first/priority.js", b"module.exports = {};".to_vec())
+        .file("/work/second/priority.ts", b"export {};".to_vec())
+        .file("/work/first/explicit.js", b"module.exports = {};".to_vec())
+        .build()
+        .expect("build extension-pass paths host");
+    let program_options = ProgramOptions::default().with_paths(vec![
+        PathMapping::new(
+            "priority",
+            vec!["first/priority".to_owned(), "second/priority".to_owned()],
+        ),
+        PathMapping::new("explicit", vec!["first/explicit.js".to_owned()]),
+    ]);
+
+    for (resolution_kind, expected_priority) in [
+        (1, "/work/second/priority.ts"),
+        (2, "/work/second/priority.ts"),
+        (3, "/work/first/priority.js"),
+        (99, "/work/first/priority.js"),
+        (100, "/work/first/priority.js"),
+    ] {
+        let options = CompilerOptions {
+            module_resolution: Some(resolution_kind),
+            ..CompilerOptions::default()
+        };
+        let mut resolver =
+            ModuleResolver::new_with_program_options(&host, &options, &program_options)
+                .expect("create resolver-kind paths resolver");
+        let priority = resolved(
+            resolver
+                .resolve(
+                    Path::new("/work/main.ts"),
+                    "priority",
+                    ResolutionMode::CommonJs,
+                )
+                .expect("resolve extension-pass candidate"),
+        );
+        assert_eq!(
+            priority.resolved_file().canonical().as_path(),
+            Path::new(expected_priority),
+            "moduleResolution={resolution_kind}"
+        );
+
+        let explicit = resolved(
+            resolver
+                .resolve(
+                    Path::new("/work/main.ts"),
+                    "explicit",
+                    ResolutionMode::CommonJs,
+                )
+                .expect("resolve raw explicit-extension substitution"),
+        );
+        assert_eq!(explicit.extension(), &ModuleExtension::Js);
+        assert_eq!(
+            explicit.resolved_file().canonical().as_path(),
+            Path::new("/work/first/explicit.js")
+        );
+    }
+}
+
+#[test]
+fn matched_paths_miss_suppresses_base_url_but_keeps_ordinary_fallbacks() {
+    let host = MemoryCompilerHost::builder("/work")
+        .file("/work/main.ts", b"export {};".to_vec())
+        .file("/work/base/pkg.ts", b"export const wrong = true;".to_vec())
+        .file("/work/base/unmapped.ts", b"export {};".to_vec())
+        .file("/work/node_modules/pkg/index.d.ts", b"export {};".to_vec())
+        .file(
+            "/work/node_modules/@types/pkg/index.d.ts",
+            b"export {};".to_vec(),
+        )
+        .build()
+        .expect("build paths fallback host");
+    let program_options = ProgramOptions::default().with_paths(vec![PathMapping::new(
+        "pkg",
+        vec!["missing/pkg".to_owned()],
+    )]);
+
+    for resolution_kind in [1, 2, 3, 99, 100] {
+        let options = CompilerOptions {
+            module_resolution: Some(resolution_kind),
+            base_url: Some("./base".to_owned()),
+            ..CompilerOptions::default()
+        };
+        let mut resolver =
+            ModuleResolver::new_with_program_options(&host, &options, &program_options)
+                .expect("create fallback resolver");
+        let module = resolved(
+            resolver
+                .resolve(Path::new("/work/main.ts"), "pkg", ResolutionMode::CommonJs)
+                .expect("fall through from matched paths miss"),
+        );
+        let expected = if resolution_kind == 1 {
+            "/work/node_modules/@types/pkg/index.d.ts"
+        } else {
+            "/work/node_modules/pkg/index.d.ts"
+        };
+        assert_eq!(
+            module.resolved_file().canonical().as_path(),
+            Path::new(expected),
+            "moduleResolution={resolution_kind}"
+        );
+
+        let base_url = resolved(
+            resolver
+                .resolve(
+                    Path::new("/work/main.ts"),
+                    "unmapped",
+                    ResolutionMode::CommonJs,
+                )
+                .expect("a paths non-match continues to baseUrl"),
+        );
+        assert_eq!(
+            base_url.resolved_file().canonical().as_path(),
+            Path::new("/work/base/unmapped.ts")
+        );
+    }
+}
+
+#[test]
+fn paths_without_base_url_use_cwd_and_path_matching_remains_case_sensitive() {
+    let host = MemoryCompilerHost::builder("/Work/Project")
+        .case_sensitive(false)
+        .file("/work/project/main.ts", b"export {};".to_vec())
+        .file("/work/project/src/value.ts", b"export {};".to_vec())
+        .file("/work/shared/parent.ts", b"export {};".to_vec())
+        .file("/shared/absolute.ts", b"export {};".to_vec())
+        .file(
+            "/work/project/package.json",
+            br#"{"name":"cwd","version":"1.0.0"}"#.to_vec(),
+        )
+        .file("/work/project/index.ts", b"export {};".to_vec())
+        .build()
+        .expect("build case-insensitive cwd host");
+    let options = CompilerOptions {
+        module_resolution: Some(100),
+        ..CompilerOptions::default()
+    };
+    let program_options = ProgramOptions::default().with_paths(vec![
+        PathMapping::new("@Alias/*", vec!["./src/*".to_owned()]),
+        PathMapping::new("@parent", vec!["../shared/parent".to_owned()]),
+        PathMapping::new("@absolute", vec!["/shared/absolute".to_owned()]),
+        PathMapping::new("@cwd", vec![String::new()]),
+    ]);
+    let mut resolver = ModuleResolver::new_with_program_options(&host, &options, &program_options)
+        .expect("create cwd paths resolver");
+
+    for (specifier, expected) in [
+        ("@Alias/Value", "/work/project/src/value.ts"),
+        ("@parent", "/work/shared/parent.ts"),
+        ("@absolute", "/shared/absolute.ts"),
+        ("@cwd", "/work/project/index.ts"),
+    ] {
+        let module = resolved(
+            resolver
+                .resolve(
+                    Path::new("/Work/Project/main.ts"),
+                    specifier,
+                    ResolutionMode::CommonJs,
+                )
+                .expect("resolve cwd-relative paths mapping"),
+        );
+        assert_eq!(
+            module.resolved_file().canonical().as_path(),
+            Path::new(expected),
+            "{specifier}"
+        );
+    }
+    assert_eq!(
+        resolver
+            .resolve(
+                Path::new("/Work/Project/main.ts"),
+                "@alias/Value",
+                ResolutionMode::CommonJs,
+            )
+            .expect("case-distinct pattern is a supported miss"),
+        ResolutionOutcome::NotFound
+    );
+
+    let base_options = CompilerOptions {
+        module_resolution: Some(100),
+        base_url: Some("./base/../src".to_owned()),
+        ..CompilerOptions::default()
+    };
+    let mut base_resolver =
+        ModuleResolver::new(&host, &base_options).expect("normalize relative baseUrl from cwd");
+    let module = resolved(
+        base_resolver
+            .resolve(
+                Path::new("/Work/Project/main.ts"),
+                "Value",
+                ResolutionMode::CommonJs,
+            )
+            .expect("resolve normalized baseUrl candidate"),
+    );
+    assert_eq!(
+        module.resolved_file().canonical().as_path(),
+        Path::new("/work/project/src/value.ts")
+    );
+}
+
+#[test]
+fn paths_host_failures_stop_before_later_substitutions() {
+    let denied = HostError::new(
+        HostErrorKind::PermissionDenied,
+        HostOperation::FileExists,
+        Some(PathBuf::from("/work/first/value.ts")),
+        "first paths substitution denied",
+    );
+    let host = MemoryCompilerHost::builder("/work")
+        .file("/work/main.ts", b"export {};".to_vec())
+        .file("/work/first/placeholder.txt", b"present".to_vec())
+        .file("/work/second/value.ts", b"export {};".to_vec())
+        .failure(denied.clone())
+        .build()
+        .expect("build paths failure host");
+    let options = CompilerOptions {
+        module_resolution: Some(100),
+        ..CompilerOptions::default()
+    };
+    let program_options = ProgramOptions::default().with_paths(vec![PathMapping::new(
+        "@value",
+        vec!["first/value".to_owned(), "second/value".to_owned()],
+    )]);
+    let mut resolver = ModuleResolver::new_with_program_options(&host, &options, &program_options)
+        .expect("create paths failure resolver");
+
+    let error = resolver
+        .resolve(
+            Path::new("/work/main.ts"),
+            "@value",
+            ResolutionMode::CommonJs,
+        )
+        .expect_err("first substitution host failure must not become a miss");
+    assert_eq!(error, ResolutionError::Host(denied));
+}
+
+#[test]
+fn malformed_paths_configuration_fails_before_resolution() {
+    let host = MemoryCompilerHost::builder("/work")
+        .file("/work/main.ts", b"export {};".to_vec())
+        .build()
+        .expect("build paths validation host");
+    let options = CompilerOptions::default();
+    let cases = [
+        ProgramOptions::default().with_paths(vec![PathMapping::new("", vec!["value".to_owned()])]),
+        ProgramOptions::default().with_paths(vec![
+            PathMapping::new("dup", vec!["first".to_owned()]),
+            PathMapping::new("dup", vec!["second".to_owned()]),
+        ]),
+        ProgramOptions::default()
+            .with_paths(vec![PathMapping::new("two**", vec!["value".to_owned()])]),
+        ProgramOptions::default().with_paths(vec![PathMapping::new("empty", Vec::new())]),
+        ProgramOptions::default()
+            .with_paths(vec![PathMapping::new("two", vec!["value**".to_owned()])]),
+        ProgramOptions::default().with_paths(vec![PathMapping::new(
+            "nul",
+            vec!["value\0path".to_owned()],
+        )]),
+        ProgramOptions::default().with_paths(vec![PathMapping::new(
+            "unc",
+            vec![r"\\server\share\*".to_owned()],
+        )]),
+        ProgramOptions::default().with_paths(vec![PathMapping::new(
+            "drive",
+            vec!["C:relative/*".to_owned()],
+        )]),
+    ];
+
+    for program_options in cases {
+        let error =
+            match ModuleResolver::new_with_program_options(&host, &options, &program_options) {
+                Ok(_) => panic!("malformed paths configuration must fail closed"),
+                Err(error) => error,
+            };
+        assert!(matches!(
+            error,
+            ResolutionError::InvalidData(_) | ResolutionError::Unsupported { .. }
+        ));
+    }
+
+    for base_url in ["\0", r"\\server\share", "C:relative"] {
+        let options = CompilerOptions {
+            base_url: Some(base_url.to_owned()),
+            ..CompilerOptions::default()
+        };
+        let error = match ModuleResolver::new(&host, &options) {
+            Ok(_) => panic!("malformed baseUrl must fail closed"),
+            Err(error) => error,
+        };
+        assert!(matches!(
+            error,
+            ResolutionError::InvalidData(_) | ResolutionError::Unsupported { .. }
+        ));
+    }
+}
+
+#[test]
+fn optional_local_file_probe_does_not_read_an_ancestor_package() {
+    let denied = HostError::new(
+        HostErrorKind::PermissionDenied,
+        HostOperation::ReadFile,
+        Some(PathBuf::from("/work/package.json")),
+        "local optional resolution must not inspect an ancestor package",
+    );
+    let host = MemoryCompilerHost::builder("/work")
+        .file("/work/main.ts", b"export {};".to_vec())
+        .file("/work/src/value.ts", b"export const value = 1;".to_vec())
+        .file(
+            "/work/package.json",
+            br#"{"name":"unrelated","version":"1.0.0"}"#.to_vec(),
+        )
+        .failure(denied)
+        .build()
+        .expect("build local optional package-failure host");
+    let options = CompilerOptions {
+        module_resolution: Some(100),
+        ..CompilerOptions::default()
+    };
+    let program_options = ProgramOptions::default().with_paths(vec![PathMapping::new(
+        "value",
+        vec!["src/value".to_owned()],
+    )]);
+    let mut resolver = ModuleResolver::new_with_program_options(&host, &options, &program_options)
+        .expect("create local optional resolver");
+
+    let module = resolved(
+        resolver
+            .resolve(
+                Path::new("/work/main.ts"),
+                "value",
+                ResolutionMode::CommonJs,
+            )
+            .expect("resolve before unrelated ancestor package metadata"),
+    );
+    assert_eq!(
+        module.resolved_file().canonical().as_path(),
+        Path::new("/work/src/value.ts")
+    );
+    assert_eq!(module.package_id(), None);
+    assert_eq!(module.package_metadata(), None);
+}
+
+#[test]
+fn optional_external_files_use_the_package_root_and_follow_realpath() {
+    let source = b"export const value = 1;".to_vec();
+    let host = MemoryCompilerHost::builder("/work")
+        .file("/work/main.ts", b"export {};".to_vec())
+        .file(
+            "/work/node_modules/pkg/package.json",
+            br#"{"name":"pkg","version":"1.0.0"}"#.to_vec(),
+        )
+        .file(
+            "/work/node_modules/pkg/sub/package.json",
+            br#"{"name":"wrong-nested-package","version":"9.0.0"}"#.to_vec(),
+        )
+        .file("/work/node_modules/pkg/sub/value.ts", source.clone())
+        .file("/store/pkg/sub/value.ts", source)
+        .realpath(
+            "/work/node_modules/pkg/sub/value.ts",
+            "/store/pkg/sub/value.ts",
+        )
+        .build()
+        .expect("build external optional realpath host");
+    let options = CompilerOptions {
+        module_resolution: Some(100),
+        ..CompilerOptions::default()
+    };
+    let program_options = ProgramOptions::default().with_paths(vec![
+        PathMapping::new("value", vec!["node_modules/pkg/sub/value".to_owned()]),
+        PathMapping::new("exact", vec!["node_modules/pkg/sub/value.ts".to_owned()]),
+    ]);
+    let mut resolver = ModuleResolver::new_with_program_options(&host, &options, &program_options)
+        .expect("create external optional resolver");
+
+    let module = resolved(
+        resolver
+            .resolve(
+                Path::new("/work/main.ts"),
+                "value",
+                ResolutionMode::CommonJs,
+            )
+            .expect("resolve external optional file"),
+    );
+    assert_eq!(
+        module.resolved_file().canonical().as_path(),
+        Path::new("/store/pkg/sub/value.ts")
+    );
+    assert_eq!(
+        module
+            .original_path()
+            .expect("external lexical path is retained")
+            .canonical()
+            .as_path(),
+        Path::new("/work/node_modules/pkg/sub/value.ts")
+    );
+    let package_id = module.package_id().expect("node package id is attached");
+    assert_eq!(package_id.name(), "pkg");
+    assert_eq!(package_id.submodule_name(), "sub/value.ts");
+    assert_eq!(
+        module
+            .package_metadata()
+            .and_then(|metadata| metadata.name()),
+        Some("pkg")
+    );
+
+    let exact = resolved(
+        resolver
+            .resolve(
+                Path::new("/work/main.ts"),
+                "exact",
+                ResolutionMode::CommonJs,
+            )
+            .expect("resolve exact-extension external optional file"),
+    );
+    assert_eq!(
+        exact.resolved_file().canonical().as_path(),
+        Path::new("/store/pkg/sub/value.ts")
+    );
+    assert!(exact.original_path().is_some());
+    assert_eq!(exact.package_id(), None);
+}
+
+#[test]
+fn arbitrary_extension_twins_resolve_in_legacy_and_node_esm_modes() {
+    let host = MemoryCompilerHost::builder("/work")
+        .file("/work/main.ts", b"export {};".to_vec())
+        .file(
+            "/work/src/theme.d.css.ts",
+            b"declare const theme: string; export default theme;".to_vec(),
+        )
+        .build()
+        .expect("build arbitrary declaration-twin host");
+    let program_options = ProgramOptions::default().with_paths(vec![PathMapping::new(
+        "theme",
+        vec!["src/theme.css".to_owned()],
+    )]);
+
+    for resolution_kind in [1, 2, 3, 99, 100] {
+        let options = CompilerOptions {
+            module_resolution: Some(resolution_kind),
+            ..CompilerOptions::default()
+        };
+        let mut resolver =
+            ModuleResolver::new_with_program_options(&host, &options, &program_options)
+                .expect("create arbitrary-extension resolver");
+        let mode = if matches!(resolution_kind, 3 | 99) {
+            ResolutionMode::EsNext
+        } else {
+            ResolutionMode::CommonJs
+        };
+        let module = resolved(
+            resolver
+                .resolve(Path::new("/work/main.ts"), "theme", mode)
+                .expect("resolve arbitrary declaration twin"),
+        );
+        assert_eq!(
+            module.resolved_file().canonical().as_path(),
+            Path::new("/work/src/theme.d.css.ts"),
+            "moduleResolution={resolution_kind}"
+        );
+        assert_eq!(
+            module.extension(),
+            &ModuleExtension::Arbitrary(".d.css.ts".to_owned())
+        );
+    }
+}
+
+#[test]
+fn empty_captures_keep_the_literal_star_and_paths_precede_modern_package_maps() {
+    let host = MemoryCompilerHost::builder("/work")
+        .file("/work/main.ts", b"export {};".to_vec())
+        .file(
+            "/work/package.json",
+            br##"{
+                "name":"app",
+                "imports":{"#mapped":"./imports.ts","#fallback":"./fallback.ts"},
+                "exports":{"./self":"./self.ts"}
+            }"##
+            .to_vec(),
+        )
+        .file("/work/literal/*.ts", b"export {};".to_vec())
+        .file("/work/literal/bar.ts", b"export {};".to_vec())
+        .file("/work/paths/imports.ts", b"export {};".to_vec())
+        .file("/work/paths/self.ts", b"export {};".to_vec())
+        .file("/work/imports.ts", b"export {};".to_vec())
+        .file("/work/fallback.ts", b"export {};".to_vec())
+        .file("/work/self.ts", b"export {};".to_vec())
+        .build()
+        .expect("build paths/package-map precedence host");
+    let options = CompilerOptions {
+        module: Some(199),
+        ..CompilerOptions::default()
+    };
+    let program_options = ProgramOptions::default().with_paths(vec![
+        PathMapping::new("foo*", vec!["literal/*.ts".to_owned()]),
+        PathMapping::new("#mapped", vec!["paths/imports.ts".to_owned()]),
+        PathMapping::new("#fallback", vec!["missing/imports".to_owned()]),
+        PathMapping::new("app/self", vec!["paths/self.ts".to_owned()]),
+    ]);
+    let mut resolver = ModuleResolver::new_with_program_options(&host, &options, &program_options)
+        .expect("create paths/package-map resolver");
+
+    for (specifier, expected) in [
+        ("foo", "/work/literal/*.ts"),
+        ("foobar", "/work/literal/bar.ts"),
+        ("#mapped", "/work/paths/imports.ts"),
+        ("#fallback", "/work/fallback.ts"),
+        ("app/self", "/work/paths/self.ts"),
+    ] {
+        let module = resolved(
+            resolver
+                .resolve(
+                    Path::new("/work/main.ts"),
+                    specifier,
+                    ResolutionMode::EsNext,
+                )
+                .expect("resolve paths/package-map precedence candidate"),
+        );
+        assert_eq!(
+            module.resolved_file().canonical().as_path(),
+            Path::new(expected),
+            "{specifier}"
+        );
+    }
 }
 
 #[test]
