@@ -1,0 +1,1904 @@
+use std::collections::{BTreeMap, BTreeSet};
+use std::error::Error;
+use std::fmt;
+use std::path::{Path, PathBuf};
+
+use tsc_diagnostics::{gen, Diagnostic, MessageChain};
+use tsc_host::{CompilerHost, HostError};
+use tsc_types::CompilerOptions;
+
+use crate::module_requests::{
+    plan_source_requests, PlannedPathReference, PlannedTypeReferenceDirective,
+};
+use crate::module_resolution::{
+    directory_name, make_program_path, normalize_absolute_path, HostModuleResolution,
+    HostResolvedTypeReferenceDirective, ModuleResolver,
+};
+use crate::path::{CanonicalPath, ProgramPath};
+use crate::prepared::{
+    PackageJsonType, PackageMetadata, PathContext, PreparationDiagnostics, PreparedProgram,
+    PreparedRoot, PreparedSourceFile, ProgramOptions, SourceFileId,
+};
+use crate::resolution::{
+    ModuleExtension, ModuleResolution, PackageId, ResolutionError, ResolutionKey, ResolutionMode,
+    ResolutionOutcome, ResolvedModuleTarget, TypeReferenceResolution, TypeReferenceResolutionKey,
+};
+use crate::text::{decode_host_text, HostTextDecodeError};
+use crate::PreparationError;
+
+/// The deepest source chain admitted by the recursive H0.4 loader worker.
+///
+/// A caller may declare a larger resource ceiling, but the structural ceiling
+/// remains in force so adversarial input cannot overflow the Rust call stack.
+const MAX_RECURSIVE_SOURCE_DEPTH: usize = 256;
+
+const TYPESCRIPT_SOURCE_EXTENSIONS: [&str; 7] =
+    [".ts", ".tsx", ".d.ts", ".cts", ".d.cts", ".mts", ".d.mts"];
+const PATH_REFERENCE_PROBE_EXTENSIONS: [&str; 3] = [".ts", ".tsx", ".d.ts"];
+const TYPESCRIPT_SOURCE_EXTENSION_LIST: &str =
+    "'.ts', '.tsx', '.d.ts', '.cts', '.d.cts', '.mts', '.d.mts'";
+
+/// Explicit resource limits for one [`load_no_lib_program`] call.
+///
+/// Byte limits apply to unique source payloads after `CompilerHost::read_file`
+/// returns. The current host contract returns an owned `Vec<u8>`, so these
+/// limits bound retained/decoded source work but cannot prevent the host's
+/// one-call allocation. Resolver-owned `package.json` payloads are likewise
+/// outside these source-byte counters.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct ProgramLoadLimits {
+    max_source_files: usize,
+    max_request_edges: usize,
+    max_source_depth: usize,
+    max_source_file_bytes: usize,
+    max_total_source_bytes: usize,
+}
+
+impl ProgramLoadLimits {
+    pub const fn new(
+        max_source_files: usize,
+        max_request_edges: usize,
+        max_source_depth: usize,
+        max_source_file_bytes: usize,
+        max_total_source_bytes: usize,
+    ) -> Self {
+        Self {
+            max_source_files,
+            max_request_edges,
+            max_source_depth,
+            max_source_file_bytes,
+            max_total_source_bytes,
+        }
+    }
+
+    pub const fn max_source_files(self) -> usize {
+        self.max_source_files
+    }
+
+    pub const fn max_request_edges(self) -> usize {
+        self.max_request_edges
+    }
+
+    /// Maximum zero-based source depth. Roots have depth zero.
+    pub const fn max_source_depth(self) -> usize {
+        self.max_source_depth
+    }
+
+    pub const fn max_source_file_bytes(self) -> usize {
+        self.max_source_file_bytes
+    }
+
+    pub const fn max_total_source_bytes(self) -> usize {
+        self.max_total_source_bytes
+    }
+}
+
+/// The independently bounded dimensions of no-lib source discovery.
+#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
+pub enum ProgramLoadLimit {
+    SourceFiles,
+    RequestEdges,
+    SourceDepth,
+    SourceFileBytes,
+    TotalSourceBytes,
+}
+
+impl ProgramLoadLimit {
+    pub const fn name(self) -> &'static str {
+        match self {
+            Self::SourceFiles => "source files",
+            Self::RequestEdges => "source request edges",
+            Self::SourceDepth => "source depth",
+            Self::SourceFileBytes => "source file bytes",
+            Self::TotalSourceBytes => "total source bytes",
+        }
+    }
+}
+
+/// Structured evidence for a rejected resource observation.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ProgramLoadLimitExceeded {
+    limit: ProgramLoadLimit,
+    path: Option<PathBuf>,
+    maximum: usize,
+    observed: usize,
+}
+
+impl ProgramLoadLimitExceeded {
+    pub const fn limit(&self) -> ProgramLoadLimit {
+        self.limit
+    }
+
+    pub fn path(&self) -> Option<&Path> {
+        self.path.as_deref()
+    }
+
+    pub const fn maximum(&self) -> usize {
+        self.maximum
+    }
+
+    pub const fn observed(&self) -> usize {
+        self.observed
+    }
+}
+
+/// Stable loader stages used to preserve deterministic failure context.
+#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
+pub enum ProgramLoadOperation {
+    ValidateOptions,
+    InitializeResolver,
+    NormalizeRoot,
+    NormalizeReference,
+    ReadSource,
+    ObserveRealPath,
+    DecodeSource,
+    ObservePackageScope,
+    PlanSourceRequests,
+    ResolveTypeReference,
+    ResolveModule,
+    BindResolutions,
+    BuildPreparedProgram,
+}
+
+impl ProgramLoadOperation {
+    pub const fn name(self) -> &'static str {
+        match self {
+            Self::ValidateOptions => "validate no-lib loader options",
+            Self::InitializeResolver => "initialize program resolver",
+            Self::NormalizeRoot => "normalize root path",
+            Self::NormalizeReference => "normalize path reference",
+            Self::ReadSource => "read program source",
+            Self::ObserveRealPath => "observe source real path",
+            Self::DecodeSource => "decode program source",
+            Self::ObservePackageScope => "observe source package scope",
+            Self::PlanSourceRequests => "plan source requests",
+            Self::ResolveTypeReference => "resolve type-reference directive",
+            Self::ResolveModule => "resolve module request",
+            Self::BindResolutions => "bind authoritative resolutions",
+            Self::BuildPreparedProgram => "build loaded prepared program",
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
+pub enum ProgramLoadErrorKind {
+    InvalidInput,
+    Unsupported,
+    InvalidData,
+    ResourceLimit,
+    Host,
+    Decode,
+    Resolution,
+    Preparation,
+}
+
+/// Typed failure from deterministic no-lib source discovery.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum ProgramLoadError {
+    InvalidInput {
+        operation: ProgramLoadOperation,
+        path: Option<PathBuf>,
+        detail: String,
+    },
+    Unsupported {
+        operation: ProgramLoadOperation,
+        path: Option<PathBuf>,
+        feature: String,
+        detail: String,
+    },
+    InvalidData {
+        operation: ProgramLoadOperation,
+        path: Option<PathBuf>,
+        detail: String,
+    },
+    LimitExceeded {
+        operation: ProgramLoadOperation,
+        exceeded: ProgramLoadLimitExceeded,
+    },
+    Host {
+        operation: ProgramLoadOperation,
+        path: Option<PathBuf>,
+        source: HostError,
+    },
+    Decode {
+        operation: ProgramLoadOperation,
+        path: PathBuf,
+        source: HostTextDecodeError,
+    },
+    Resolution {
+        operation: ProgramLoadOperation,
+        path: Option<PathBuf>,
+        specifier: Option<String>,
+        source: ResolutionError,
+    },
+    Preparation {
+        operation: ProgramLoadOperation,
+        source: PreparationError,
+    },
+}
+
+impl ProgramLoadError {
+    pub const fn kind(&self) -> ProgramLoadErrorKind {
+        match self {
+            Self::InvalidInput { .. } => ProgramLoadErrorKind::InvalidInput,
+            Self::Unsupported { .. } => ProgramLoadErrorKind::Unsupported,
+            Self::InvalidData { .. } => ProgramLoadErrorKind::InvalidData,
+            Self::LimitExceeded { .. } => ProgramLoadErrorKind::ResourceLimit,
+            Self::Host { .. } => ProgramLoadErrorKind::Host,
+            Self::Decode { .. } => ProgramLoadErrorKind::Decode,
+            Self::Resolution { .. } => ProgramLoadErrorKind::Resolution,
+            Self::Preparation { .. } => ProgramLoadErrorKind::Preparation,
+        }
+    }
+
+    pub const fn operation(&self) -> ProgramLoadOperation {
+        match self {
+            Self::InvalidInput { operation, .. }
+            | Self::Unsupported { operation, .. }
+            | Self::InvalidData { operation, .. }
+            | Self::LimitExceeded { operation, .. }
+            | Self::Host { operation, .. }
+            | Self::Decode { operation, .. }
+            | Self::Resolution { operation, .. }
+            | Self::Preparation { operation, .. } => *operation,
+        }
+    }
+
+    pub fn path(&self) -> Option<&Path> {
+        match self {
+            Self::InvalidInput { path, .. }
+            | Self::Unsupported { path, .. }
+            | Self::InvalidData { path, .. }
+            | Self::Host { path, .. }
+            | Self::Resolution { path, .. } => path.as_deref(),
+            Self::LimitExceeded { exceeded, .. } => exceeded.path(),
+            Self::Decode { path, .. } => Some(path),
+            Self::Preparation { source, .. } => source.path(),
+        }
+    }
+
+    pub fn limit_exceeded(&self) -> Option<&ProgramLoadLimitExceeded> {
+        match self {
+            Self::LimitExceeded { exceeded, .. } => Some(exceeded),
+            _ => None,
+        }
+    }
+
+    fn invalid_input(
+        operation: ProgramLoadOperation,
+        path: Option<PathBuf>,
+        detail: impl Into<String>,
+    ) -> Self {
+        Self::InvalidInput {
+            operation,
+            path,
+            detail: detail.into(),
+        }
+    }
+
+    fn unsupported(
+        operation: ProgramLoadOperation,
+        path: Option<PathBuf>,
+        feature: impl Into<String>,
+        detail: impl Into<String>,
+    ) -> Self {
+        Self::Unsupported {
+            operation,
+            path,
+            feature: feature.into(),
+            detail: detail.into(),
+        }
+    }
+
+    fn invalid_data(
+        operation: ProgramLoadOperation,
+        path: Option<PathBuf>,
+        detail: impl Into<String>,
+    ) -> Self {
+        Self::InvalidData {
+            operation,
+            path,
+            detail: detail.into(),
+        }
+    }
+
+    fn host(operation: ProgramLoadOperation, path: Option<PathBuf>, source: HostError) -> Self {
+        Self::Host {
+            operation,
+            path,
+            source,
+        }
+    }
+
+    fn resolution(
+        operation: ProgramLoadOperation,
+        path: Option<PathBuf>,
+        specifier: Option<String>,
+        source: ResolutionError,
+    ) -> Self {
+        Self::Resolution {
+            operation,
+            path,
+            specifier,
+            source,
+        }
+    }
+
+    fn preparation(operation: ProgramLoadOperation, source: PreparationError) -> Self {
+        Self::Preparation { operation, source }
+    }
+}
+
+impl fmt::Display for ProgramLoadError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(formatter, "{}", self.operation().name())?;
+        if let Some(path) = self.path() {
+            write!(formatter, " for {}", path.display())?;
+        }
+        match self {
+            Self::InvalidInput { detail, .. } | Self::InvalidData { detail, .. } => {
+                write!(formatter, ": {detail}")
+            }
+            Self::Unsupported {
+                feature, detail, ..
+            } => {
+                write!(formatter, ": unsupported feature {feature}")?;
+                if !detail.is_empty() {
+                    write!(formatter, ": {detail}")?;
+                }
+                Ok(())
+            }
+            Self::LimitExceeded { exceeded, .. } => write!(
+                formatter,
+                ": {} limit {} exceeded by observation {}",
+                exceeded.limit.name(),
+                exceeded.maximum,
+                exceeded.observed
+            ),
+            Self::Host { source, .. } => write!(formatter, ": {source}"),
+            Self::Decode { source, .. } => write!(formatter, ": {source}"),
+            Self::Resolution {
+                specifier, source, ..
+            } => {
+                if let Some(specifier) = specifier {
+                    write!(formatter, " for specifier {specifier:?}")?;
+                }
+                write!(formatter, ": {source}")
+            }
+            Self::Preparation { source, .. } => write!(formatter, ": {source}"),
+        }
+    }
+}
+
+impl Error for ProgramLoadError {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        match self {
+            Self::Host { source, .. } => Some(source),
+            Self::Decode { source, .. } => Some(source),
+            Self::Resolution { source, .. } => Some(source),
+            Self::Preparation { source, .. } => Some(source),
+            Self::InvalidInput { .. }
+            | Self::Unsupported { .. }
+            | Self::InvalidData { .. }
+            | Self::LimitExceeded { .. } => None,
+        }
+    }
+}
+
+/// Load one finite TypeScript root closure without default libraries.
+///
+/// Roots are processed in input order. Each source is discovered with the
+/// upstream path-reference, type-reference, skipped-lib, and module phases,
+/// and is published after its children. Type and module phases resolve every
+/// exact key before descending into the first target, preserving observable
+/// host-failure precedence. The returned program owns all source text and
+/// resolution facts and no longer borrows `host`.
+pub fn load_no_lib_program(
+    host: &dyn CompilerHost,
+    root_names: &[PathBuf],
+    compiler_options: CompilerOptions,
+    program_options: ProgramOptions,
+    limits: ProgramLoadLimits,
+) -> Result<PreparedProgram, ProgramLoadError> {
+    validate_admitted_options(&compiler_options, &program_options)?;
+
+    let mut resolver = ModuleResolver::new(host, &compiler_options).map_err(|error| {
+        ProgramLoadError::resolution(
+            ProgramLoadOperation::InitializeResolver,
+            error.path().map(Path::to_path_buf),
+            None,
+            error,
+        )
+    })?;
+    let path_context = resolver.path_context().clone();
+    validate_type_roots(&program_options, &path_context)?;
+
+    let mut graph = StagedGraph::new(
+        host,
+        &compiler_options,
+        &program_options,
+        limits,
+        &mut resolver,
+    );
+    for root_name in root_names {
+        let root = normalize_root(root_name, &path_context)?;
+        graph.load_root(root)?;
+    }
+    let staged = graph.finish();
+    let packages = resolver
+        .observed_package_metadata()
+        .cloned()
+        .collect::<Vec<_>>();
+    drop(resolver);
+
+    publish_program(
+        staged,
+        packages,
+        path_context,
+        compiler_options,
+        program_options,
+    )
+}
+
+fn validate_admitted_options(
+    compiler_options: &CompilerOptions,
+    program_options: &ProgramOptions,
+) -> Result<(), ProgramLoadError> {
+    let reject_input = |detail| {
+        ProgramLoadError::invalid_input(ProgramLoadOperation::ValidateOptions, None, detail)
+    };
+    let reject_feature = |feature, detail| {
+        ProgramLoadError::unsupported(ProgramLoadOperation::ValidateOptions, None, feature, detail)
+    };
+
+    if compiler_options.no_emit != Some(true) {
+        return Err(reject_input(
+            "compilerOptions.noEmit must be explicitly true",
+        ));
+    }
+    if program_options.no_lib() != Some(true) {
+        return Err(reject_input("programOptions.noLib must be explicitly true"));
+    }
+    if compiler_options.allow_js {
+        return Err(reject_feature(
+            "allowJs",
+            "the first recursive loader admits TypeScript-family sources only",
+        ));
+    }
+    if program_options
+        .types()
+        .is_some_and(|types| !types.is_empty())
+    {
+        return Err(reject_feature(
+            "automatic-types",
+            "non-empty programOptions.types requires post-root automatic type discovery",
+        ));
+    }
+    if compiler_options
+        .lib
+        .as_deref()
+        .is_some_and(|libs| !libs.is_empty())
+    {
+        return Err(reject_feature(
+            "explicit-libraries",
+            "noLib program loading does not admit explicit compilerOptions.lib entries",
+        ));
+    }
+    if program_options
+        .root_dirs()
+        .is_some_and(|root_dirs| !root_dirs.is_empty())
+    {
+        return Err(reject_feature(
+            "rootDirs",
+            "rootDirs source discovery is not yet owned by this loader",
+        ));
+    }
+    if program_options
+        .paths()
+        .is_some_and(|paths| !paths.is_empty())
+    {
+        return Err(reject_feature(
+            "paths",
+            "paths mapping source discovery is not yet owned by this loader",
+        ));
+    }
+    if compiler_options.base_url.is_some() {
+        return Err(reject_feature(
+            "baseUrl",
+            "baseUrl source discovery is not yet owned by this loader",
+        ));
+    }
+    if compiler_options.no_dts_resolution == Some(true) {
+        return Err(reject_feature(
+            "noDtsResolution",
+            "the first recursive loader requires ordinary declaration resolution",
+        ));
+    }
+    Ok(())
+}
+
+fn normalize_root(
+    root: &Path,
+    path_context: &PathContext,
+) -> Result<ProgramPath, ProgramLoadError> {
+    let current_directory = path_context
+        .current_directory()
+        .display()
+        .to_str()
+        .expect("resolver path context is representable");
+    reject_unowned_windows_path(root, ProgramLoadOperation::NormalizeRoot)?;
+    let normalized = normalize_absolute_path(root, Some(current_directory)).map_err(|error| {
+        ProgramLoadError::resolution(
+            ProgramLoadOperation::NormalizeRoot,
+            Some(root.to_path_buf()),
+            None,
+            error,
+        )
+    })?;
+    let path = make_program_path(&normalized, path_context.use_case_sensitive_file_names())
+        .map_err(|error| {
+            ProgramLoadError::resolution(
+                ProgramLoadOperation::NormalizeRoot,
+                Some(root.to_path_buf()),
+                None,
+                error,
+            )
+        })?;
+    if !is_typescript_source(path.canonical()) {
+        return Err(ProgramLoadError::unsupported(
+            ProgramLoadOperation::NormalizeRoot,
+            Some(path.display().to_path_buf()),
+            "root-extension",
+            format!("explicit roots must end in one of {TYPESCRIPT_SOURCE_EXTENSION_LIST}"),
+        ));
+    }
+    Ok(path)
+}
+
+fn validate_type_roots(
+    options: &ProgramOptions,
+    path_context: &PathContext,
+) -> Result<(), ProgramLoadError> {
+    let Some(type_roots) = options.type_roots() else {
+        return Ok(());
+    };
+    let current_directory = path_context
+        .current_directory()
+        .display()
+        .to_str()
+        .expect("resolver path context is representable");
+    for type_root in type_roots {
+        reject_unowned_windows_path(type_root.display(), ProgramLoadOperation::ValidateOptions)?;
+        let normalized = normalize_absolute_path(type_root.display(), Some(current_directory))
+            .map_err(|error| {
+                ProgramLoadError::resolution(
+                    ProgramLoadOperation::ValidateOptions,
+                    Some(type_root.display().to_path_buf()),
+                    None,
+                    error,
+                )
+            })?;
+        let normalized =
+            make_program_path(&normalized, path_context.use_case_sensitive_file_names()).map_err(
+                |error| {
+                    ProgramLoadError::resolution(
+                        ProgramLoadOperation::ValidateOptions,
+                        Some(type_root.display().to_path_buf()),
+                        None,
+                        error,
+                    )
+                },
+            )?;
+        if &normalized != type_root {
+            return Err(ProgramLoadError::invalid_input(
+                ProgramLoadOperation::ValidateOptions,
+                Some(type_root.display().to_path_buf()),
+                "typeRoots entries must already carry normalized display and canonical identities",
+            ));
+        }
+    }
+    Ok(())
+}
+
+fn reject_unowned_windows_path(
+    path: &Path,
+    operation: ProgramLoadOperation,
+) -> Result<(), ProgramLoadError> {
+    let Some(text) = path.to_str() else {
+        return Err(ProgramLoadError::invalid_input(
+            operation,
+            Some(path.to_path_buf()),
+            "path is not valid Unicode",
+        ));
+    };
+    let slashed = text.replace('\\', "/");
+    let drive_relative = slashed.len() >= 2
+        && slashed.as_bytes()[0].is_ascii_alphabetic()
+        && slashed.as_bytes()[1] == b':'
+        && slashed.as_bytes().get(2) != Some(&b'/');
+    if slashed.starts_with("//") || slashed.starts_with("//?/") || drive_relative {
+        return Err(ProgramLoadError::unsupported(
+            operation,
+            Some(path.to_path_buf()),
+            "windows-path-form",
+            "UNC, extended-length, and drive-relative paths are not yet owned",
+        ));
+    }
+    Ok(())
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum VisitState {
+    Visiting(usize),
+    Complete(usize),
+    Missing,
+}
+
+impl VisitState {
+    const fn source(self) -> Option<usize> {
+        match self {
+            Self::Visiting(source) | Self::Complete(source) => Some(source),
+            Self::Missing => None,
+        }
+    }
+}
+
+#[derive(Clone, Copy)]
+struct DiscoveryReason {
+    seeds_non_external_reachability: bool,
+}
+
+impl DiscoveryReason {
+    const ROOT: Self = Self {
+        seeds_non_external_reachability: true,
+    };
+    const DEPENDENCY: Self = Self {
+        seeds_non_external_reachability: false,
+    };
+}
+
+struct StagedSource {
+    prepared: PreparedSourceFile,
+    has_non_external_reason: bool,
+}
+
+struct StagedRoot {
+    path: ProgramPath,
+    source: Option<usize>,
+    missing_diagnostic: Option<Diagnostic>,
+}
+
+struct StagedModuleResolution {
+    key: ResolutionKey,
+    host: HostModuleResolution,
+    loads_source: bool,
+}
+
+struct StagedTypeResolution {
+    key: TypeReferenceResolutionKey,
+    host: ResolutionOutcome<HostResolvedTypeReferenceDirective>,
+    diagnostics: Vec<Diagnostic>,
+}
+
+struct CompleteGraph {
+    sources: Vec<StagedSource>,
+    postorder: Vec<usize>,
+    roots: Vec<StagedRoot>,
+    module_resolutions: Vec<StagedModuleResolution>,
+    type_resolutions: Vec<StagedTypeResolution>,
+    program_diagnostics: Vec<Diagnostic>,
+}
+
+struct StagedGraph<'host, 'options, 'resolver> {
+    host: &'host dyn CompilerHost,
+    compiler_options: &'options CompilerOptions,
+    program_options: &'options ProgramOptions,
+    limits: ProgramLoadLimits,
+    resolver: &'resolver mut ModuleResolver<'host>,
+    states: BTreeMap<CanonicalPath, VisitState>,
+    physical_owners: BTreeMap<CanonicalPath, usize>,
+    sources: Vec<StagedSource>,
+    source_edges: Vec<Vec<(usize, bool)>>,
+    postorder: Vec<usize>,
+    roots: Vec<StagedRoot>,
+    module_resolution_by_key: BTreeMap<ResolutionKey, usize>,
+    module_resolutions: Vec<StagedModuleResolution>,
+    type_resolution_by_key: BTreeMap<TypeReferenceResolutionKey, usize>,
+    type_resolutions: Vec<StagedTypeResolution>,
+    package_targets: BTreeMap<PackageId, CanonicalPath>,
+    diagnosed_missing_roots: BTreeSet<PathBuf>,
+    program_diagnostics: Vec<Diagnostic>,
+    request_edges: usize,
+    total_source_bytes: usize,
+}
+
+impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
+    fn new(
+        host: &'host dyn CompilerHost,
+        compiler_options: &'options CompilerOptions,
+        program_options: &'options ProgramOptions,
+        limits: ProgramLoadLimits,
+        resolver: &'resolver mut ModuleResolver<'host>,
+    ) -> Self {
+        Self {
+            host,
+            compiler_options,
+            program_options,
+            limits,
+            resolver,
+            states: BTreeMap::new(),
+            physical_owners: BTreeMap::new(),
+            sources: Vec::new(),
+            source_edges: Vec::new(),
+            postorder: Vec::new(),
+            roots: Vec::new(),
+            module_resolution_by_key: BTreeMap::new(),
+            module_resolutions: Vec::new(),
+            type_resolution_by_key: BTreeMap::new(),
+            type_resolutions: Vec::new(),
+            package_targets: BTreeMap::new(),
+            diagnosed_missing_roots: BTreeSet::new(),
+            program_diagnostics: Vec::new(),
+            request_edges: 0,
+            total_source_bytes: 0,
+        }
+    }
+
+    fn load_root(&mut self, path: ProgramPath) -> Result<(), ProgramLoadError> {
+        let source = self.visit_source(path.clone(), 0, DiscoveryReason::ROOT)?;
+        let missing_diagnostic = source.is_none().then(|| missing_root_diagnostic(&path));
+        if let Some(diagnostic) = missing_diagnostic.clone() {
+            if self
+                .diagnosed_missing_roots
+                .insert(path.display().to_path_buf())
+            {
+                self.program_diagnostics.push(diagnostic);
+            }
+        }
+        self.roots.push(StagedRoot {
+            path,
+            source,
+            missing_diagnostic,
+        });
+        Ok(())
+    }
+
+    fn finish(mut self) -> CompleteGraph {
+        self.propagate_non_external_reachability();
+        CompleteGraph {
+            sources: self.sources,
+            postorder: self.postorder,
+            roots: self.roots,
+            module_resolutions: self.module_resolutions,
+            type_resolutions: self.type_resolutions,
+            program_diagnostics: self.program_diagnostics,
+        }
+    }
+
+    fn visit_source(
+        &mut self,
+        path: ProgramPath,
+        depth: usize,
+        reason: DiscoveryReason,
+    ) -> Result<Option<usize>, ProgramLoadError> {
+        if let Some(state) = self.states.get(path.canonical()).copied() {
+            if let Some(source) = state.source() {
+                let first_path = self.sources[source].prepared.path();
+                if first_path.display() != path.display() {
+                    return Err(ProgramLoadError::unsupported(
+                        ProgramLoadOperation::ReadSource,
+                        Some(path.display().to_path_buf()),
+                        "canonical-source-display-alias",
+                        format!(
+                            "the path has the same canonical identity as already discovered source {} but a different display spelling",
+                            first_path.display().display()
+                        ),
+                    ));
+                }
+                self.sources[source].has_non_external_reason |=
+                    reason.seeds_non_external_reachability;
+            }
+            return Ok(state.source());
+        }
+        if let Some(&owner) = self.physical_owners.get(path.canonical()) {
+            return Err(ProgramLoadError::unsupported(
+                ProgramLoadOperation::ReadSource,
+                Some(path.display().to_path_buf()),
+                "physical-source-alias",
+                format!(
+                    "the path aliases already discovered source {} whose lexical identity differs",
+                    self.sources[owner].prepared.path().display().display()
+                ),
+            ));
+        }
+
+        let bytes = self.host.read_file(path.display()).map_err(|error| {
+            ProgramLoadError::host(
+                ProgramLoadOperation::ReadSource,
+                Some(path.display().to_path_buf()),
+                error,
+            )
+        })?;
+        let Some(bytes) = bytes else {
+            self.states
+                .insert(path.canonical().clone(), VisitState::Missing);
+            return Ok(None);
+        };
+
+        self.enforce_limit(
+            ProgramLoadOperation::ReadSource,
+            ProgramLoadLimit::SourceDepth,
+            Some(path.display().to_path_buf()),
+            self.limits.max_source_depth.min(MAX_RECURSIVE_SOURCE_DEPTH),
+            depth,
+        )?;
+        let source_count = self.sources.len().saturating_add(1);
+        self.enforce_limit(
+            ProgramLoadOperation::ReadSource,
+            ProgramLoadLimit::SourceFiles,
+            Some(path.display().to_path_buf()),
+            self.limits.max_source_files,
+            source_count,
+        )?;
+        self.enforce_limit(
+            ProgramLoadOperation::ReadSource,
+            ProgramLoadLimit::SourceFileBytes,
+            Some(path.display().to_path_buf()),
+            self.limits.max_source_file_bytes,
+            bytes.len(),
+        )?;
+        let total_source_bytes = self.total_source_bytes.saturating_add(bytes.len());
+        self.enforce_limit(
+            ProgramLoadOperation::ReadSource,
+            ProgramLoadLimit::TotalSourceBytes,
+            Some(path.display().to_path_buf()),
+            self.limits.max_total_source_bytes,
+            total_source_bytes,
+        )?;
+
+        let text = decode_host_text(bytes).map_err(|source| ProgramLoadError::Decode {
+            operation: ProgramLoadOperation::DecodeSource,
+            path: path.display().to_path_buf(),
+            source,
+        })?;
+        let real_path = self.observe_real_path(&path)?;
+        if let Some(real_path) = &real_path {
+            if let Some(existing) = self
+                .states
+                .get(real_path.canonical())
+                .and_then(|state| state.source())
+            {
+                return Err(self.physical_alias_error(&path, existing));
+            }
+            if let Some(&existing) = self.physical_owners.get(real_path.canonical()) {
+                return Err(self.physical_alias_error(&path, existing));
+            }
+        }
+        let package_scope = self
+            .resolver
+            .package_scope_for_file(path.display())
+            .map_err(|error| {
+                ProgramLoadError::resolution(
+                    ProgramLoadOperation::ObservePackageScope,
+                    Some(path.display().to_path_buf()),
+                    None,
+                    error,
+                )
+            })?;
+        let file_name = path
+            .display()
+            .to_str()
+            .expect("program paths are representable");
+        let implied = implied_node_format(file_name, package_scope.as_ref(), self.compiler_options);
+        let implied_for_emit =
+            implied_node_format_for_emit(file_name, package_scope.as_ref(), self.compiler_options);
+        let mut prepared = PreparedSourceFile::new(path.clone(), text)
+            .with_implied_node_formats(implied, implied_for_emit);
+        if is_json_source(path.canonical()) {
+            prepared = prepared.with_may_be_emitted(false);
+        }
+        if let Some(real_path) = real_path {
+            prepared = prepared.with_real_path(real_path);
+        }
+        if let Some(package_scope) = package_scope {
+            prepared =
+                prepared.with_package_scope(package_scope.package_json().canonical().clone());
+        }
+        let plan = if is_json_source(path.canonical()) {
+            None
+        } else {
+            Some(
+                plan_source_requests(&prepared, self.compiler_options).map_err(|error| {
+                    ProgramLoadError::resolution(
+                        ProgramLoadOperation::PlanSourceRequests,
+                        Some(path.display().to_path_buf()),
+                        None,
+                        error,
+                    )
+                })?,
+            )
+        };
+        let request_edges = self.request_edges.saturating_add(
+            plan.as_ref()
+                .map_or(0, |plan| plan.observed_request_occurrence_count()),
+        );
+        self.enforce_limit(
+            ProgramLoadOperation::PlanSourceRequests,
+            ProgramLoadLimit::RequestEdges,
+            Some(path.display().to_path_buf()),
+            self.limits.max_request_edges,
+            request_edges,
+        )?;
+
+        self.total_source_bytes = total_source_bytes;
+        self.request_edges = request_edges;
+        let source = self.sources.len();
+        if let Some(real_path) = prepared.real_path() {
+            self.physical_owners
+                .insert(real_path.canonical().clone(), source);
+        }
+        self.sources.push(StagedSource {
+            prepared,
+            has_non_external_reason: reason.seeds_non_external_reachability,
+        });
+        self.source_edges.push(Vec::new());
+        self.states
+            .insert(path.canonical().clone(), VisitState::Visiting(source));
+
+        if let Some(plan) = plan {
+            let path_references = plan.path_references().to_vec();
+            for reference in path_references {
+                self.process_path_reference(source, &reference, depth)?;
+            }
+            self.process_type_references(source, plan.type_reference_directives().to_vec(), depth)?;
+            // `noLib=true` deliberately performs no host operation for the
+            // lib directives. Their occurrences were still counted above.
+            self.process_module_requests(
+                source,
+                plan.module_requests_with_loadability()
+                    .map(|(key, loads_source)| (key.clone(), loads_source))
+                    .collect(),
+                depth,
+            )?;
+        }
+
+        self.states
+            .insert(path.canonical().clone(), VisitState::Complete(source));
+        self.postorder.push(source);
+        Ok(Some(source))
+    }
+
+    fn observe_real_path(
+        &self,
+        path: &ProgramPath,
+    ) -> Result<Option<ProgramPath>, ProgramLoadError> {
+        let observed = self.host.realpath(path.display()).map_err(|error| {
+            ProgramLoadError::host(
+                ProgramLoadOperation::ObserveRealPath,
+                Some(path.display().to_path_buf()),
+                error,
+            )
+        })?;
+        let Some(observed) = observed else {
+            return Err(ProgramLoadError::invalid_data(
+                ProgramLoadOperation::ObserveRealPath,
+                Some(path.display().to_path_buf()),
+                "host returned source bytes but no real path for the same entry",
+            ));
+        };
+        let current_directory = self
+            .resolver
+            .path_context()
+            .current_directory()
+            .display()
+            .to_str()
+            .expect("resolver path context is representable");
+        let normalized =
+            normalize_absolute_path(&observed, Some(current_directory)).map_err(|error| {
+                ProgramLoadError::resolution(
+                    ProgramLoadOperation::ObserveRealPath,
+                    Some(observed.clone()),
+                    None,
+                    error,
+                )
+            })?;
+        let real = make_program_path(
+            &normalized,
+            self.resolver.path_context().use_case_sensitive_file_names(),
+        )
+        .map_err(|error| {
+            ProgramLoadError::resolution(
+                ProgramLoadOperation::ObserveRealPath,
+                Some(observed),
+                None,
+                error,
+            )
+        })?;
+        Ok((real.canonical() != path.canonical()).then_some(real))
+    }
+
+    fn process_path_reference(
+        &mut self,
+        source: usize,
+        reference: &PlannedPathReference,
+        depth: usize,
+    ) -> Result<(), ProgramLoadError> {
+        if reference.file_name().is_empty() {
+            return Err(ProgramLoadError::unsupported(
+                ProgramLoadOperation::NormalizeReference,
+                Some(self.sources[source].prepared.path().display().to_path_buf()),
+                "empty-path-reference",
+                "empty triple-slash path references are not yet admitted",
+            ));
+        }
+        let source_path = self.sources[source].prepared.path().clone();
+        let source_text = source_path
+            .display()
+            .to_str()
+            .expect("program paths are representable");
+        let base = directory_name(source_text);
+        let normalized = normalize_absolute_path(Path::new(reference.file_name()), Some(&base))
+            .map_err(|error| {
+                ProgramLoadError::resolution(
+                    ProgramLoadOperation::NormalizeReference,
+                    Some(source_path.display().to_path_buf()),
+                    Some(reference.file_name().to_owned()),
+                    error,
+                )
+            })?;
+        let has_extension = reference
+            .file_name()
+            .rsplit(['/', '\\'])
+            .next()
+            .is_some_and(|name| name.contains('.'));
+        let child_depth = depth.saturating_add(1);
+        if has_extension {
+            let target = make_program_path(
+                &normalized,
+                self.resolver.path_context().use_case_sensitive_file_names(),
+            )
+            .map_err(|error| {
+                ProgramLoadError::resolution(
+                    ProgramLoadOperation::NormalizeReference,
+                    Some(source_path.display().to_path_buf()),
+                    Some(reference.file_name().to_owned()),
+                    error,
+                )
+            })?;
+            let is_json = is_json_source(target.canonical());
+            if !(is_typescript_source(target.canonical())
+                || is_json && self.compiler_options.resolve_json_module_effective())
+            {
+                let (message, arguments) = if is_javascript_source(target.canonical()) {
+                    (
+                        &gen::File_0_is_a_JavaScript_file_Did_you_mean_to_enable_the_allowJs_option,
+                        vec![path_text(target.display())?],
+                    )
+                } else {
+                    (
+                        &gen::File_0_has_an_unsupported_extension_The_only_supported_extensions_are_1,
+                        vec![
+                            path_text(target.display())?,
+                            TYPESCRIPT_SOURCE_EXTENSION_LIST.to_owned(),
+                        ],
+                    )
+                };
+                self.program_diagnostics.push(located_diagnostic(
+                    &self.sources[source].prepared,
+                    reference.pos(),
+                    reference.length(),
+                    message,
+                    &arguments,
+                )?);
+                return Ok(());
+            }
+            let target_source =
+                self.visit_source(target.clone(), child_depth, DiscoveryReason::DEPENDENCY)?;
+            match target_source {
+                Some(target_source) if target_source == source => {
+                    self.record_source_edge(source, target_source, false);
+                    self.program_diagnostics.push(located_diagnostic(
+                        &self.sources[source].prepared,
+                        reference.pos(),
+                        reference.length(),
+                        &gen::A_file_cannot_have_a_reference_to_itself,
+                        &[],
+                    )?)
+                }
+                Some(target_source) => self.record_source_edge(source, target_source, false),
+                None => self.program_diagnostics.push(located_diagnostic(
+                    &self.sources[source].prepared,
+                    reference.pos(),
+                    reference.length(),
+                    &gen::File_0_not_found,
+                    &[path_text(target.display())?],
+                )?),
+            }
+            return Ok(());
+        }
+
+        for extension in PATH_REFERENCE_PROBE_EXTENSIONS {
+            let target_text = format!("{normalized}{extension}");
+            let target = make_program_path(
+                &target_text,
+                self.resolver.path_context().use_case_sensitive_file_names(),
+            )
+            .map_err(|error| {
+                ProgramLoadError::resolution(
+                    ProgramLoadOperation::NormalizeReference,
+                    Some(source_path.display().to_path_buf()),
+                    Some(reference.file_name().to_owned()),
+                    error,
+                )
+            })?;
+            if let Some(target_source) =
+                self.visit_source(target, child_depth, DiscoveryReason::DEPENDENCY)?
+            {
+                self.record_source_edge(source, target_source, false);
+                if target_source == source {
+                    self.program_diagnostics.push(located_diagnostic(
+                        &self.sources[source].prepared,
+                        reference.pos(),
+                        reference.length(),
+                        &gen::A_file_cannot_have_a_reference_to_itself,
+                        &[],
+                    )?);
+                }
+                return Ok(());
+            }
+        }
+        self.program_diagnostics.push(located_diagnostic(
+            &self.sources[source].prepared,
+            reference.pos(),
+            reference.length(),
+            &gen::Could_not_resolve_the_path_0_with_the_extensions_1,
+            &[normalized, TYPESCRIPT_SOURCE_EXTENSION_LIST.to_owned()],
+        )?);
+        Ok(())
+    }
+
+    fn process_type_references(
+        &mut self,
+        source: usize,
+        directives: Vec<PlannedTypeReferenceDirective>,
+        depth: usize,
+    ) -> Result<(), ProgramLoadError> {
+        let mut phase_indices = Vec::new();
+        let mut phase_seen = BTreeSet::new();
+        let containing_source = self.sources[source].prepared.path().clone();
+        let type_roots = self.program_options.type_roots().map(<[_]>::to_vec);
+        for directive in &directives {
+            let key = directive.key().clone();
+            let index = if let Some(index) = self.type_resolution_by_key.get(&key).copied() {
+                index
+            } else {
+                let host = self
+                    .resolver
+                    .resolve_type_reference(
+                        containing_source.display(),
+                        key.specifier(),
+                        key.mode(),
+                        type_roots.as_deref(),
+                    )
+                    .map_err(|error| {
+                        ProgramLoadError::resolution(
+                            ProgramLoadOperation::ResolveTypeReference,
+                            Some(containing_source.display().to_path_buf()),
+                            Some(key.specifier().to_owned()),
+                            error,
+                        )
+                    })?;
+                let index = self.type_resolutions.len();
+                self.type_resolutions.push(StagedTypeResolution {
+                    key: key.clone(),
+                    host,
+                    diagnostics: Vec::new(),
+                });
+                self.type_resolution_by_key.insert(key.clone(), index);
+                index
+            };
+            if phase_seen.insert(index) {
+                phase_indices.push(index);
+            }
+        }
+
+        // Resolution of every key above succeeds before diagnostics or child
+        // traversal from the first directive can occur.
+        for directive in &directives {
+            let index = self.type_resolution_by_key[directive.key()];
+            if matches!(
+                self.type_resolutions[index].host,
+                ResolutionOutcome::NotFound
+            ) {
+                let diagnostic = unresolved_type_reference_diagnostic(
+                    &self.sources[source].prepared,
+                    directive,
+                )?;
+                self.type_resolutions[index].diagnostics.push(diagnostic);
+            }
+        }
+
+        for index in phase_indices {
+            let target = match &self.type_resolutions[index].host {
+                ResolutionOutcome::Resolved(target) => Some((
+                    target.resolved_file().clone(),
+                    target.extension().clone(),
+                    target.is_external_library_import(),
+                )),
+                ResolutionOutcome::NotFound => None,
+            };
+            let Some((target, extension, external)) = target else {
+                continue;
+            };
+            if !matches!(
+                extension,
+                ModuleExtension::Dts | ModuleExtension::Dmts | ModuleExtension::Dcts
+            ) {
+                return Err(ProgramLoadError::invalid_data(
+                    ProgramLoadOperation::ResolveTypeReference,
+                    Some(target.display().to_path_buf()),
+                    "a resolved type-reference target is not a declaration file",
+                ));
+            }
+            let loaded = self.visit_source(
+                target.clone(),
+                depth.saturating_add(1),
+                DiscoveryReason::DEPENDENCY,
+            )?;
+            let Some(target_source) = loaded else {
+                return Err(ProgramLoadError::invalid_data(
+                    ProgramLoadOperation::ReadSource,
+                    Some(target.display().to_path_buf()),
+                    "resolver reported a type-reference target that the host no longer returns",
+                ));
+            };
+            self.record_source_edge(source, target_source, external);
+        }
+        Ok(())
+    }
+
+    fn process_module_requests(
+        &mut self,
+        source: usize,
+        requests: Vec<(ResolutionKey, bool)>,
+        depth: usize,
+    ) -> Result<(), ProgramLoadError> {
+        let mut phase_indices = Vec::with_capacity(requests.len());
+        let containing_file = self.sources[source].prepared.path().display().to_path_buf();
+        for (key, loads_source) in requests {
+            let index = if let Some(index) = self.module_resolution_by_key.get(&key).copied() {
+                self.module_resolutions[index].loads_source |= loads_source;
+                index
+            } else {
+                let host = self
+                    .resolver
+                    .resolve_with_facts(&containing_file, key.specifier(), key.mode())
+                    .map_err(|error| {
+                        ProgramLoadError::resolution(
+                            ProgramLoadOperation::ResolveModule,
+                            Some(containing_file.clone()),
+                            Some(key.specifier().to_owned()),
+                            error,
+                        )
+                    })?;
+                self.observe_package_target(&host)?;
+                let index = self.module_resolutions.len();
+                self.module_resolutions.push(StagedModuleResolution {
+                    key: key.clone(),
+                    host,
+                    loads_source,
+                });
+                self.module_resolution_by_key.insert(key, index);
+                index
+            };
+            phase_indices.push(index);
+        }
+
+        // As with type directives, all requests in this source are resolved
+        // before the first successful target starts its DFS.
+        for index in phase_indices {
+            if !self.module_resolutions[index].loads_source {
+                continue;
+            }
+            let target = match self.module_resolutions[index].host.outcome() {
+                ResolutionOutcome::Resolved(target) => Some((
+                    target.resolved_file().clone(),
+                    target.extension().clone(),
+                    target.is_external_library_import(),
+                    target.original_path().is_some(),
+                )),
+                ResolutionOutcome::NotFound => None,
+            };
+            let Some((target, extension, external, has_original_path)) = target else {
+                continue;
+            };
+            if extension.is_javascript() {
+                // allowJs=false: retain the successful row, but do not admit
+                // the JavaScript file to program membership.
+                if matches!(extension, ModuleExtension::Jsx)
+                    && self.compiler_options.jsx.unwrap_or(0) == 0
+                {
+                    return Err(ProgramLoadError::unsupported(
+                        ProgramLoadOperation::ResolveModule,
+                        Some(target.display().to_path_buf()),
+                        "unloaded-jsx-without-jsx-option",
+                        "an unloaded JSX target requires an explicit JSX option",
+                    ));
+                }
+                if has_original_path {
+                    return Err(ProgramLoadError::unsupported(
+                        ProgramLoadOperation::ResolveModule,
+                        Some(target.display().to_path_buf()),
+                        "unloaded-original-path",
+                        "an unloaded JavaScript target cannot retain a lexical-to-physical transition",
+                    ));
+                }
+                continue;
+            }
+            if has_original_path {
+                return Err(ProgramLoadError::unsupported(
+                    ProgramLoadOperation::ResolveModule,
+                    Some(target.display().to_path_buf()),
+                    "loaded-original-path",
+                    "a loaded source target cannot retain a lexical-to-physical transition at the authoritative checker boundary",
+                ));
+            }
+            if matches!(extension, ModuleExtension::Json) {
+                if !self.compiler_options.resolve_json_module_effective() {
+                    return Err(ProgramLoadError::unsupported(
+                        ProgramLoadOperation::ResolveModule,
+                        Some(target.display().to_path_buf()),
+                        "resolveJsonModule",
+                        "a JSON target was resolved while resolveJsonModule is disabled",
+                    ));
+                }
+                let loaded = self.visit_source(
+                    target.clone(),
+                    depth.saturating_add(1),
+                    DiscoveryReason::DEPENDENCY,
+                )?;
+                let Some(target_source) = loaded else {
+                    return Err(ProgramLoadError::invalid_data(
+                        ProgramLoadOperation::ReadSource,
+                        Some(target.display().to_path_buf()),
+                        "resolver reported a JSON module target that the host no longer returns",
+                    ));
+                };
+                self.record_source_edge(source, target_source, external);
+                continue;
+            }
+            if !is_loadable_typescript_extension(&extension) {
+                return Err(ProgramLoadError::unsupported(
+                    ProgramLoadOperation::ResolveModule,
+                    Some(target.display().to_path_buf()),
+                    "resolved-module-extension",
+                    format!(
+                        "loadable target extension {} is outside the TypeScript-only loader",
+                        extension.as_str()
+                    ),
+                ));
+            }
+            let loaded = self.visit_source(
+                target.clone(),
+                depth.saturating_add(1),
+                DiscoveryReason::DEPENDENCY,
+            )?;
+            let Some(target_source) = loaded else {
+                return Err(ProgramLoadError::invalid_data(
+                    ProgramLoadOperation::ReadSource,
+                    Some(target.display().to_path_buf()),
+                    "resolver reported a module target that the host no longer returns",
+                ));
+            };
+            self.record_source_edge(source, target_source, external);
+        }
+        Ok(())
+    }
+
+    fn observe_package_target(
+        &mut self,
+        resolution: &HostModuleResolution,
+    ) -> Result<(), ProgramLoadError> {
+        let ResolutionOutcome::Resolved(module) = resolution.outcome() else {
+            return Ok(());
+        };
+        let Some(package_id) = module.package_id() else {
+            return Ok(());
+        };
+        let target = module.resolved_file().canonical();
+        match self.package_targets.get(package_id) {
+            Some(existing) if existing != target => Err(ProgramLoadError::unsupported(
+                ProgramLoadOperation::ResolveModule,
+                Some(module.resolved_file().display().to_path_buf()),
+                "package-source-redirect",
+                format!(
+                    "package identity {:?} resolves to both {} and {}",
+                    package_id.name(),
+                    existing,
+                    target
+                ),
+            )),
+            Some(_) => Ok(()),
+            None => {
+                self.package_targets
+                    .insert(package_id.clone(), target.clone());
+                Ok(())
+            }
+        }
+    }
+
+    fn enforce_limit(
+        &self,
+        operation: ProgramLoadOperation,
+        limit: ProgramLoadLimit,
+        path: Option<PathBuf>,
+        maximum: usize,
+        observed: usize,
+    ) -> Result<(), ProgramLoadError> {
+        if observed <= maximum {
+            return Ok(());
+        }
+        Err(ProgramLoadError::LimitExceeded {
+            operation,
+            exceeded: ProgramLoadLimitExceeded {
+                limit,
+                path,
+                maximum,
+                observed,
+            },
+        })
+    }
+
+    fn record_source_edge(
+        &mut self,
+        source: usize,
+        target: usize,
+        crosses_external_library_boundary: bool,
+    ) {
+        self.source_edges[source].push((target, crosses_external_library_boundary));
+    }
+
+    fn propagate_non_external_reachability(&mut self) {
+        let mut pending = self
+            .sources
+            .iter()
+            .enumerate()
+            .filter_map(|(source, staged)| staged.has_non_external_reason.then_some(source))
+            .collect::<Vec<_>>();
+        while let Some(source) = pending.pop() {
+            for &(target, crosses_external_library_boundary) in &self.source_edges[source] {
+                if crosses_external_library_boundary || self.sources[target].has_non_external_reason
+                {
+                    continue;
+                }
+                self.sources[target].has_non_external_reason = true;
+                pending.push(target);
+            }
+        }
+    }
+
+    fn physical_alias_error(&self, path: &ProgramPath, existing: usize) -> ProgramLoadError {
+        ProgramLoadError::unsupported(
+            ProgramLoadOperation::ObserveRealPath,
+            Some(path.display().to_path_buf()),
+            "physical-source-alias",
+            format!(
+                "physical identity is already owned by lexical source {}",
+                self.sources[existing].prepared.path().display().display()
+            ),
+        )
+    }
+}
+
+fn publish_program(
+    staged: CompleteGraph,
+    packages: Vec<PackageMetadata>,
+    path_context: PathContext,
+    compiler_options: CompilerOptions,
+    program_options: ProgramOptions,
+) -> Result<PreparedProgram, ProgramLoadError> {
+    let mut builder = PreparedProgram::builder(path_context, compiler_options.clone());
+    builder.set_program_options(program_options);
+
+    let mut published_ids = vec![None; staged.sources.len()];
+    let mut source_by_canonical = BTreeMap::<CanonicalPath, (SourceFileId, ProgramPath)>::new();
+    for source_index in staged.postorder {
+        let staged_source = &staged.sources[source_index];
+        let may_be_emitted =
+            staged_source.prepared.may_be_emitted() && staged_source.has_non_external_reason;
+        let prepared = staged_source
+            .prepared
+            .clone()
+            .with_may_be_emitted(may_be_emitted);
+        let source_id = builder.add_source_file(prepared.clone()).map_err(|error| {
+            ProgramLoadError::preparation(ProgramLoadOperation::BuildPreparedProgram, error)
+        })?;
+        published_ids[source_index] = Some(source_id);
+        source_by_canonical.insert(
+            prepared.path().canonical().clone(),
+            (source_id, prepared.path().clone()),
+        );
+    }
+
+    for root in staged.roots {
+        let prepared_root = match root.source {
+            Some(source) => PreparedRoot::loaded(
+                root.path,
+                published_ids[source].expect("postorder publishes every staged source"),
+            ),
+            None => PreparedRoot::missing(
+                root.path,
+                root.missing_diagnostic
+                    .expect("missing roots retain their diagnostic"),
+            ),
+        };
+        builder.add_root(prepared_root).map_err(|error| {
+            ProgramLoadError::preparation(ProgramLoadOperation::BuildPreparedProgram, error)
+        })?;
+    }
+
+    for package in packages {
+        builder.add_package_metadata(package).map_err(|error| {
+            ProgramLoadError::preparation(ProgramLoadOperation::BuildPreparedProgram, error)
+        })?;
+    }
+
+    let package_map =
+        package_map_from_facts(staged.module_resolutions.iter().filter_map(|resolution| {
+            let ResolutionOutcome::Resolved(module) = resolution.host.outcome() else {
+                return None;
+            };
+            Some((module.package_id()?, module.extension()))
+        }));
+    for resolution in staged.module_resolutions {
+        let key_path = resolution.key.source().as_path().to_path_buf();
+        let specifier = resolution.key.specifier().to_owned();
+        let bound = bind_module_resolution(
+            resolution.host,
+            &source_by_canonical,
+            &compiler_options,
+            &package_map,
+        )
+        .map_err(|error| {
+            ProgramLoadError::resolution(
+                ProgramLoadOperation::BindResolutions,
+                Some(key_path),
+                Some(specifier),
+                error,
+            )
+        })?;
+        builder
+            .add_module_resolution(resolution.key, Ok(bound))
+            .map_err(|error| {
+                ProgramLoadError::preparation(ProgramLoadOperation::BindResolutions, error)
+            })?;
+    }
+
+    for resolution in staged.type_resolutions {
+        let key_path = resolution
+            .key
+            .origin()
+            .canonical_path()
+            .as_path()
+            .to_path_buf();
+        let specifier = resolution.key.specifier().to_owned();
+        let bound =
+            bind_type_resolution(resolution.host, &source_by_canonical).map_err(|error| {
+                ProgramLoadError::resolution(
+                    ProgramLoadOperation::BindResolutions,
+                    Some(key_path),
+                    Some(specifier),
+                    error,
+                )
+            })?;
+        let bound = bound.with_diagnostics(resolution.diagnostics);
+        builder
+            .add_type_reference_resolution(resolution.key, Ok(bound))
+            .map_err(|error| {
+                ProgramLoadError::preparation(ProgramLoadOperation::BindResolutions, error)
+            })?;
+    }
+
+    builder.set_diagnostics(PreparationDiagnostics::new(
+        Vec::new(),
+        Vec::new(),
+        staged.program_diagnostics,
+    ));
+    builder.build().map_err(|error| {
+        ProgramLoadError::preparation(ProgramLoadOperation::BuildPreparedProgram, error)
+    })
+}
+
+fn bind_module_resolution(
+    host: HostModuleResolution,
+    source_by_canonical: &BTreeMap<CanonicalPath, (SourceFileId, ProgramPath)>,
+    options: &CompilerOptions,
+    package_map: &BTreeMap<String, bool>,
+) -> Result<ModuleResolution, ResolutionError> {
+    let alternate_result = host.alternate_result().cloned();
+    let ResolutionOutcome::Resolved(module) = host.into_outcome() else {
+        let mut resolution = ModuleResolution::not_found();
+        if let Some(alternate_result) = alternate_result {
+            resolution = resolution.with_alternate_result(alternate_result);
+        }
+        return Ok(resolution);
+    };
+    let (types_package_exists, package_bundles_types) =
+        module.package_id().map_or((false, false), |package_id| {
+            (
+                package_map.contains_key(&types_package_name(package_id.name())),
+                package_map.get(package_id.name()).copied().unwrap_or(false),
+            )
+        });
+    let target = if module.extension().is_javascript() && !options.allow_js {
+        if matches!(module.extension(), ModuleExtension::Jsx) && options.jsx.unwrap_or(0) == 0 {
+            return Err(ResolutionError::unsupported(
+                "unloaded-jsx-without-jsx-option",
+                format!(
+                    "resolved JSX target {} cannot be represented without a JSX option",
+                    module.resolved_file().display().display()
+                ),
+            ));
+        }
+        if module.original_path().is_some() {
+            return Err(ResolutionError::unsupported(
+                "unloaded-original-path",
+                format!(
+                    "unloaded JavaScript target {} has a lexical-to-physical transition",
+                    module.resolved_file().display().display()
+                ),
+            ));
+        }
+        ResolvedModuleTarget::Unloaded(module.resolved_file().clone())
+    } else if module.original_path().is_some() {
+        return Err(ResolutionError::unsupported(
+            "loaded-original-path",
+            format!(
+                "loaded source target {} has a lexical-to-physical transition",
+                module.resolved_file().display().display()
+            ),
+        ));
+    } else if let Some((source, path)) = source_by_canonical.get(module.resolved_file().canonical())
+    {
+        ResolvedModuleTarget::Source {
+            source: *source,
+            resolved_file: path.clone(),
+        }
+    } else {
+        return Err(ResolutionError::unsupported(
+            "resolution-only-source-target",
+            format!(
+                "resolved non-JavaScript target {} has no independent program membership",
+                module.resolved_file().display().display()
+            ),
+        ));
+    };
+    let mut resolution = ModuleResolution::resolved(module.into_resolved_module(target)?)
+        .with_types_package_exists(types_package_exists)
+        .with_package_bundles_types(package_bundles_types);
+    if let Some(alternate_result) = alternate_result {
+        resolution = resolution.with_alternate_result(alternate_result);
+    }
+    Ok(resolution)
+}
+
+fn bind_type_resolution(
+    host: ResolutionOutcome<HostResolvedTypeReferenceDirective>,
+    source_by_canonical: &BTreeMap<CanonicalPath, (SourceFileId, ProgramPath)>,
+) -> Result<TypeReferenceResolution, ResolutionError> {
+    let ResolutionOutcome::Resolved(host) = host else {
+        return Ok(TypeReferenceResolution::not_found());
+    };
+    let Some((source, path)) = source_by_canonical.get(host.resolved_file().canonical()) else {
+        return Err(ResolutionError::invalid_data(format!(
+            "resolved type-reference target {} is not owned by the prepared program",
+            host.resolved_file().display().display()
+        )));
+    };
+    Ok(TypeReferenceResolution::resolved(
+        host.into_resolved_type_reference_directive(path.clone(), *source)?,
+    ))
+}
+
+fn package_map_from_facts<'a>(
+    facts: impl IntoIterator<Item = (&'a PackageId, &'a ModuleExtension)>,
+) -> BTreeMap<String, bool> {
+    let mut packages = BTreeMap::new();
+    for (package_id, extension) in facts {
+        let bundles_declaration = matches!(extension, ModuleExtension::Dts);
+        packages
+            .entry(package_id.name().to_owned())
+            .and_modify(|existing| *existing |= bundles_declaration)
+            .or_insert(bundles_declaration);
+    }
+    packages
+}
+
+fn types_package_name(package_name: &str) -> String {
+    let mangled = match package_name.strip_prefix('@') {
+        Some(scoped) => scoped.replace('/', "__"),
+        None => package_name.to_owned(),
+    };
+    format!("@types/{mangled}")
+}
+
+fn implied_node_format(
+    file_name: &str,
+    package_scope: Option<&PackageMetadata>,
+    options: &CompilerOptions,
+) -> Option<ResolutionMode> {
+    if file_name.ends_with(".d.mts") || file_name.ends_with(".mts") || file_name.ends_with(".mjs") {
+        return Some(ResolutionMode::EsNext);
+    }
+    if file_name.ends_with(".d.cts") || file_name.ends_with(".cts") || file_name.ends_with(".cjs") {
+        return Some(ResolutionMode::CommonJs);
+    }
+    if file_name.ends_with(".d.ts")
+        || file_name.ends_with(".ts")
+        || file_name.ends_with(".tsx")
+        || file_name.ends_with(".js")
+        || file_name.ends_with(".jsx")
+    {
+        let package_lookup = matches!(options.emit_module_resolution_kind(), 3..=99)
+            || file_name
+                .split('/')
+                .any(|segment| segment == "node_modules");
+        if !package_lookup {
+            return None;
+        }
+        return Some(
+            if package_scope.is_some_and(|scope| scope.module_type() == PackageJsonType::Module) {
+                ResolutionMode::EsNext
+            } else {
+                ResolutionMode::CommonJs
+            },
+        );
+    }
+    None
+}
+
+fn implied_node_format_for_emit(
+    file_name: &str,
+    package_scope: Option<&PackageMetadata>,
+    options: &CompilerOptions,
+) -> Option<ResolutionMode> {
+    let implied = implied_node_format(file_name, package_scope, options)?;
+    if (100..=199).contains(&options.emit_module_kind())
+        || [".mts", ".mjs", ".cts", ".cjs"]
+            .iter()
+            .any(|extension| file_name.ends_with(extension))
+    {
+        return Some(implied);
+    }
+    match package_scope.map(PackageMetadata::module_type) {
+        Some(PackageJsonType::Module | PackageJsonType::CommonJs) => Some(implied),
+        Some(PackageJsonType::Other | PackageJsonType::Unspecified) | None => None,
+    }
+}
+
+fn is_typescript_source(path: &CanonicalPath) -> bool {
+    path.as_path().to_str().is_some_and(|path| {
+        let base_name = path.rsplit('/').next().unwrap_or(path);
+        let arbitrary_declaration = base_name.ends_with(".ts")
+            && base_name.contains(".d.")
+            && !base_name.ends_with(".d.ts");
+        if arbitrary_declaration {
+            return false;
+        }
+        TYPESCRIPT_SOURCE_EXTENSIONS
+            .iter()
+            .any(|extension| path.ends_with(extension))
+    })
+}
+
+fn is_json_source(path: &CanonicalPath) -> bool {
+    path.as_path()
+        .to_str()
+        .is_some_and(|path| path.ends_with(".json"))
+}
+
+fn is_javascript_source(path: &CanonicalPath) -> bool {
+    path.as_path().to_str().is_some_and(|path| {
+        [".js", ".jsx", ".mjs", ".cjs"]
+            .iter()
+            .any(|extension| path.ends_with(extension))
+    })
+}
+
+fn is_loadable_typescript_extension(extension: &ModuleExtension) -> bool {
+    matches!(
+        extension,
+        ModuleExtension::Ts
+            | ModuleExtension::Tsx
+            | ModuleExtension::Dts
+            | ModuleExtension::Mts
+            | ModuleExtension::Dmts
+            | ModuleExtension::Cts
+            | ModuleExtension::Dcts
+    )
+}
+
+fn missing_root_diagnostic(path: &ProgramPath) -> Diagnostic {
+    let root_reason = MessageChain::new(&gen::Root_file_specified_for_compilation, &[]);
+    let inclusion = MessageChain::new(&gen::The_file_is_in_the_program_because, &[])
+        .with_next(vec![root_reason]);
+    Diagnostic::new(
+        None,
+        None,
+        None,
+        MessageChain::new(
+            &gen::File_0_not_found,
+            &[path
+                .display()
+                .to_str()
+                .expect("program paths are representable")
+                .to_owned()],
+        )
+        .with_next(vec![inclusion]),
+    )
+}
+
+fn unresolved_type_reference_diagnostic(
+    source: &PreparedSourceFile,
+    directive: &PlannedTypeReferenceDirective,
+) -> Result<Diagnostic, ProgramLoadError> {
+    located_diagnostic(
+        source,
+        directive.pos(),
+        directive.length(),
+        &gen::Cannot_find_type_definition_file_for_0,
+        &[directive.key().specifier().to_owned()],
+    )
+}
+
+fn located_diagnostic(
+    source: &PreparedSourceFile,
+    start: u32,
+    length: u32,
+    message: &'static tsc_diagnostics::DiagnosticMessage,
+    args: &[String],
+) -> Result<Diagnostic, ProgramLoadError> {
+    let file_name = source.path().display().to_str().ok_or_else(|| {
+        ProgramLoadError::invalid_data(
+            ProgramLoadOperation::BuildPreparedProgram,
+            Some(source.path().display().to_path_buf()),
+            "diagnostic source path is not valid Unicode",
+        )
+    })?;
+    Ok(Diagnostic::new(
+        Some(file_name.to_owned()),
+        Some(start),
+        Some(length),
+        MessageChain::new(message, args),
+    ))
+}
+
+fn path_text(path: &Path) -> Result<String, ProgramLoadError> {
+    path.to_str().map(str::to_owned).ok_or_else(|| {
+        ProgramLoadError::invalid_data(
+            ProgramLoadOperation::BuildPreparedProgram,
+            Some(path.to_path_buf()),
+            "program path is not valid Unicode",
+        )
+    })
+}

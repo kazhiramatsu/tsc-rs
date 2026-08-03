@@ -8,10 +8,10 @@ use tsc_host::{to_file_name_lower_case, CompilerHost};
 use tsc_types::{compiler_version_satisfies, CompilerOptions};
 
 use crate::path::ProgramPath;
-use crate::prepared::{PackageJsonType, PackageMetadata, PathContext};
+use crate::prepared::{PackageJsonType, PackageMetadata, PathContext, SourceFileId};
 use crate::resolution::{
     ModuleExtension, PackageId, ResolutionError, ResolutionMode, ResolutionOutcome, ResolvedModule,
-    ResolvedModuleTarget,
+    ResolvedModuleTarget, ResolvedTypeReferenceDirective,
 };
 use crate::text::decode_host_text;
 
@@ -195,6 +195,35 @@ impl HostResolvedTypeReferenceDirective {
     pub fn package_metadata(&self) -> Option<&PackageMetadata> {
         self.package_metadata.as_deref()
     }
+
+    /// Bind the host result to a target whose source membership has already
+    /// been decided by the program loader.
+    ///
+    /// tsrs-native: bridges host probing to the owned resolution contract.
+    pub fn into_resolved_type_reference_directive(
+        self,
+        target: ProgramPath,
+        source: SourceFileId,
+    ) -> Result<ResolvedTypeReferenceDirective, ResolutionError> {
+        if target.canonical() != self.resolved_file.canonical() {
+            return Err(ResolutionError::invalid_data(format!(
+                "caller target {} does not match host resolution {}",
+                target.display().display(),
+                self.resolved_file.display().display()
+            )));
+        }
+
+        let mut resolved = ResolvedTypeReferenceDirective::new(target, source)
+            .with_primary(self.primary)
+            .with_external_library_import(self.is_external_library_import);
+        if let Some(original_path) = self.original_path {
+            resolved = resolved.with_original_path(original_path);
+        }
+        if let Some(package_id) = self.package_id {
+            resolved = resolved.with_package_id(package_id);
+        }
+        Ok(resolved)
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -279,6 +308,18 @@ const MTS_PROBES: &[ExtensionProbe] = &[(ModuleExtension::Mts, ".mts")];
 const DMTS_PROBES: &[ExtensionProbe] = &[(ModuleExtension::Dmts, ".d.mts")];
 const CTS_PROBES: &[ExtensionProbe] = &[(ModuleExtension::Cts, ".cts")];
 const DCTS_PROBES: &[ExtensionProbe] = &[(ModuleExtension::Dcts, ".d.cts")];
+const JSON_PROBES: &[ExtensionProbe] = &[
+    (ModuleExtension::Dts, ".d.json.ts"),
+    (ModuleExtension::Json, ".json"),
+];
+const JSON_DISABLED_PROBES: &[ExtensionProbe] = &[
+    (ModuleExtension::Dts, ".d.json.ts"),
+    (ModuleExtension::Ts, ".json.ts"),
+    (ModuleExtension::Tsx, ".json.tsx"),
+    (ModuleExtension::Dts, ".json.d.ts"),
+    (ModuleExtension::Js, ".json.js"),
+    (ModuleExtension::Jsx, ".json.jsx"),
+];
 const DECLARATION_PACKAGE_CJS_PROBES: &[ExtensionProbe] = &[
     (ModuleExtension::Dcts, ".d.cts"),
     (ModuleExtension::Cts, ".cts"),
@@ -1884,7 +1925,7 @@ impl<'a> ModuleResolver<'a> {
             ExtensionProbePass::DeclarationPackageField => {
                 declaration_package_field_probe_plan(candidate)
             }
-            _ => extension_probe_plan(candidate),
+            _ => extension_probe_plan(candidate, self.options.resolve_json_module_effective()),
         };
         let (base, probes, preferred_len) = match plan {
             Ok(plan) => plan,
@@ -2436,7 +2477,7 @@ impl<'a> ModuleResolver<'a> {
             ExtensionProbePass::DeclarationPackageField => {
                 declaration_package_field_probe_plan(target)
             }
-            _ => extension_probe_plan(target),
+            _ => extension_probe_plan(target, self.options.resolve_json_module_effective()),
         };
         let (base, probes, preferred_len) = match plan {
             Ok(plan) => plan,
@@ -2785,7 +2826,10 @@ fn path_contains_node_modules(path: &str) -> bool {
     path.split('/').any(|component| component == "node_modules")
 }
 
-fn extension_probe_plan(target: &str) -> Result<ExtensionProbePlan<'_>, ResolutionError> {
+fn extension_probe_plan(
+    target: &str,
+    resolve_json_module: bool,
+) -> Result<ExtensionProbePlan<'_>, ResolutionError> {
     let plan = if let Some(base) = target.strip_suffix(".d.cts") {
         (base, DCTS_PROBES, 1)
     } else if let Some(base) = target.strip_suffix(".d.mts") {
@@ -2808,6 +2852,12 @@ fn extension_probe_plan(target: &str) -> Result<ExtensionProbePlan<'_>, Resoluti
         (base, MTS_PROBES, 1)
     } else if let Some(base) = target.strip_suffix(".cts") {
         (base, CTS_PROBES, 1)
+    } else if let Some(base) = target.strip_suffix(".json") {
+        if resolve_json_module {
+            (base, JSON_PROBES, 1)
+        } else {
+            (base, JSON_DISABLED_PROBES, 4)
+        }
     } else {
         return Err(ResolutionError::unsupported(
             "module-target-extension",
@@ -3049,7 +3099,7 @@ fn canonical_text(path: &str, case_sensitive: bool) -> String {
     }
 }
 
-fn make_program_path(
+pub(crate) fn make_program_path(
     normalized_path: &str,
     case_sensitive: bool,
 ) -> Result<ProgramPath, ResolutionError> {
@@ -3059,7 +3109,10 @@ fn make_program_path(
     })
 }
 
-fn normalize_absolute_path(path: &Path, base: Option<&str>) -> Result<String, ResolutionError> {
+pub(crate) fn normalize_absolute_path(
+    path: &Path,
+    base: Option<&str>,
+) -> Result<String, ResolutionError> {
     let text = path.to_str().ok_or_else(|| {
         ResolutionError::canonicalization(Some(path.to_path_buf()), "path is not valid Unicode")
     })?;
@@ -3131,7 +3184,7 @@ fn join_normalized(parent: &str, child: &str) -> String {
     }
 }
 
-fn directory_name(path: &str) -> String {
+pub(crate) fn directory_name(path: &str) -> String {
     if path == "/" || is_drive_root(path) {
         return path.to_owned();
     }

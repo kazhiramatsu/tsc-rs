@@ -184,7 +184,7 @@ fn root_requests_preserve_order_multiplicity_and_missing_entries() {
     complete_builder.set_diagnostics(PreparationDiagnostics::new(
         Vec::new(),
         Vec::new(),
-        vec![missing_diagnostic.clone(), missing_diagnostic],
+        vec![missing_diagnostic],
     ));
 
     let program = complete_builder.build().unwrap();

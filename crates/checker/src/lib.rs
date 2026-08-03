@@ -85,7 +85,14 @@ pub struct AuthoritativeSourceMetadata {
     /// Exact source-side `sourceFileMayBeEmitted` verdict. This must remain
     /// separate from per-resolution external-library provenance.
     pub may_be_emitted: bool,
+    /// Raw `SourceFile.impliedNodeFormat` observed while the source was
+    /// created.
     pub implied_node_format: Option<AuthoritativeResolutionMode>,
+    /// Effective `getImpliedNodeFormatForEmitWorker` result. This remains
+    /// distinct from the raw format: an ordinary file below `node_modules`
+    /// can default to CommonJS while a non-Node emit module kind deliberately
+    /// ignores that default unless a package scope states its `type`.
+    pub implied_node_format_for_emit: Option<AuthoritativeResolutionMode>,
 }
 
 /// One exact checker-to-host module lookup. `containing_file` is diagnostic
@@ -2685,12 +2692,14 @@ mod tests {
             file_name: libs[0].name.clone(),
             may_be_emitted: false,
             implied_node_format: None,
+            implied_node_format_for_emit: None,
         }];
         let file_metadata = [AuthoritativeSourceMetadata {
             token: AuthoritativeSourceToken(1),
             file_name: files[0].name.clone(),
             may_be_emitted: true,
             implied_node_format: None,
+            implied_node_format_for_emit: None,
         }];
         let options = CompilerOptions {
             no_emit: Some(true),
@@ -2764,6 +2773,7 @@ mod tests {
             file_name: files[0].name.clone(),
             may_be_emitted: true,
             implied_node_format: None,
+            implied_node_format_for_emit: None,
         }];
         let result = check_program_with_authoritative_modules_at_cache_mode(
             &[],

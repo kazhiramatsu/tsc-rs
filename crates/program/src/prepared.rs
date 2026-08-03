@@ -1126,28 +1126,23 @@ impl PreparedProgramBuilder {
     }
 
     fn validate_missing_root_diagnostics(&self) -> Result<(), PreparationError> {
-        let mut used = vec![false; self.diagnostics.program().len()];
         for root in &self.roots {
             let Some(expected) = root.missing_diagnostic() else {
                 continue;
             };
-            let Some(index) =
-                self.diagnostics
-                    .program()
-                    .iter()
-                    .enumerate()
-                    .find_map(|(index, diagnostic)| {
-                        (!used[index] && diagnostic == expected).then_some(index)
-                    })
-            else {
+            if !self
+                .diagnostics
+                .program()
+                .iter()
+                .any(|diagnostic| diagnostic == expected)
+            {
                 return Err(PreparationError::new(
                     PreparationErrorKind::InvalidReference,
                     PreparationOperation::BuildPreparedProgram,
                     Some(root.path().display().to_path_buf()),
                     "missing root has no matching program-diagnostic occurrence",
                 ));
-            };
-            used[index] = true;
+            }
         }
         Ok(())
     }

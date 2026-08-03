@@ -58,6 +58,7 @@ fn metadata(
         file_name: file_name.to_owned(),
         may_be_emitted,
         implied_node_format,
+        implied_node_format_for_emit: implied_node_format,
     }
 }
 

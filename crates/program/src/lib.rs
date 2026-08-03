@@ -8,12 +8,25 @@
 //! order independently from root order, and accepts only authoritative typed
 //! resolution outcomes.
 //!
-//! H0.2b adds the first bounded host producer: Node16/NodeNext/Bundler package
-//! `exports` exact and pattern resolution. Broader source discovery, the
-//! remaining resolver modes/features, and diagnostic execution stay in the
-//! later program-loader and compiler-session slices.
+//! H0.4 adds the first bounded recursive program loader through
+//! [`load_no_lib_program`]. It accepts explicit TypeScript-family roots under
+//! explicit `noEmit=true` and `noLib=true`, discovers path-, type-, and
+//! source-loading module dependencies through the shared [`tsc_host::CompilerHost`]
+//! seam, and publishes unique sources in dependency postorder while preserving
+//! root order and multiplicity. Resolution within each source deliberately
+//! follows the vendored path/type/skipped-lib/module phases and their observable
+//! failure precedence.
+//!
+//! Every load requires explicit source-count, request-occurrence, depth, and
+//! raw-byte ceilings and reports host, decode, resolution, preparation,
+//! unsupported-scope, and resource failures as typed [`ProgramLoadError`]s.
+//! This first slice does not load default or explicit libraries, discover
+//! automatic `types`, admit JavaScript sources, apply `paths`/`baseUrl` or
+//! `rootDirs`, discover config roots, or claim the remaining platform and CLI
+//! surfaces of H0.4 and H0.5.
 
 mod error;
+mod loader;
 mod module_requests;
 mod module_resolution;
 mod path;
@@ -22,6 +35,10 @@ mod resolution;
 mod text;
 
 pub use error::{PreparationError, PreparationErrorKind, PreparationOperation};
+pub use loader::{
+    load_no_lib_program, ProgramLoadError, ProgramLoadErrorKind, ProgramLoadLimit,
+    ProgramLoadLimitExceeded, ProgramLoadLimits, ProgramLoadOperation,
+};
 pub use module_requests::{
     plan_module_requests, plan_source_requests, plan_static_module_requests,
     PlannedLibReferenceDirective, PlannedPathReference, PlannedTypeReferenceDirective,

@@ -5404,6 +5404,11 @@ impl<'a> CheckerState<'a> {
             if (100..=199).contains(&module_kind) || module_kind == 200 {
                 return ModuleResolutionMode::EsNext;
             }
+            if self.authoritative_module_provider.is_some() {
+                if let Some(mode) = self.implied_node_format_for_emit(location) {
+                    return mode;
+                }
+            }
             if let Some(mode) = self.implied_resolution_mode_from_extension(location) {
                 return mode;
             }
@@ -5588,6 +5593,11 @@ impl<'a> CheckerState<'a> {
         if let Some(mode) = self.implied_resolution_mode_from_extension(location) {
             return mode;
         }
+        if self.authoritative_module_provider.is_some() {
+            if let Some(mode) = self.implied_node_format_for_emit(location) {
+                return mode;
+            }
+        }
         let module_kind = self.options.emit_module_kind();
         if module_kind == 1 {
             ModuleResolutionMode::CommonJs
@@ -5623,6 +5633,27 @@ impl<'a> CheckerState<'a> {
         &self,
         file_name: &str,
     ) -> Option<ModuleResolutionMode> {
+        if self.authoritative_module_provider.is_some() {
+            let normalized = Self::normalize_program_path(file_name, "");
+            return self
+                .program_path_index
+                .get(&normalized)
+                .and_then(|&file_index| {
+                    self.authoritative_implied_node_formats_for_emit
+                        .get(file_index)
+                        .copied()
+                        .flatten()
+                })
+                .and_then(|mode| match mode {
+                    crate::AuthoritativeResolutionMode::CommonJs => {
+                        Some(ModuleResolutionMode::CommonJs)
+                    }
+                    crate::AuthoritativeResolutionMode::EsNext => {
+                        Some(ModuleResolutionMode::EsNext)
+                    }
+                    crate::AuthoritativeResolutionMode::Unspecified => None,
+                });
+        }
         let implied = self.implied_node_format_for_file_name(file_name)?;
         let module_kind = self.options.emit_module_kind();
         if (100..=199).contains(&module_kind) {
