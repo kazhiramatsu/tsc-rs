@@ -282,23 +282,21 @@ impl ProgramSession {
         // combined result.
         let mut available_options = preparation.options().to_vec();
         let mut available_semantic = checked.semantic_diagnostics;
-        let program_diagnostics = preparation
-            .program()
-            .iter()
-            .chain(
-                self.prepared
-                    .resolutions()
-                    .type_references()
-                    .flat_map(|(_, resolution)| resolution.diagnostics()),
-            )
+        let program_diagnostics = self
+            .prepared
+            .resolutions()
+            .type_references()
+            .flat_map(|(_, resolution)| resolution.diagnostics())
             .cloned()
             .collect::<Vec<_>>();
         // The conformance evidence stream is the aggregate of public
         // per-source getters. Source-owned program rows therefore join it,
         // while file-less/config-owned rows remain options diagnostics only.
         conformance_diagnostics.extend(
-            program_diagnostics
+            preparation
+                .program()
                 .iter()
+                .chain(program_diagnostics.iter())
                 .filter(|diagnostic| {
                     diagnostic.file_name.as_deref().is_some_and(|file_name| {
                         prepared_source_owns_diagnostic(&self.prepared, file_name)
@@ -308,16 +306,21 @@ impl ProgramSession {
         );
         sort_and_dedupe_diagnostics(&mut conformance_diagnostics);
 
+        let mut route_program_diagnostic =
+            |diagnostic: &Diagnostic| {
+                if diagnostic.file_name.as_deref().is_some_and(|file_name| {
+                    prepared_source_owns_diagnostic(&self.prepared, file_name)
+                }) {
+                    available_semantic.push(diagnostic.clone());
+                } else {
+                    available_options.push(diagnostic.clone());
+                }
+            };
+        for diagnostic in preparation.program() {
+            route_program_diagnostic(diagnostic);
+        }
         for diagnostic in &program_diagnostics {
-            if diagnostic
-                .file_name
-                .as_deref()
-                .is_some_and(|file_name| prepared_source_owns_diagnostic(&self.prepared, file_name))
-            {
-                available_semantic.push(diagnostic.clone());
-            } else {
-                available_options.push(diagnostic.clone());
-            }
+            route_program_diagnostic(diagnostic);
         }
         sort_and_dedupe_diagnostics(&mut available_options);
         sort_and_dedupe_diagnostics(&mut available_semantic);
