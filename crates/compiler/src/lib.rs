@@ -15,9 +15,10 @@ use tsc_checker::{
     check_program_with_authoritative_modules_at,
     check_program_with_authoritative_modules_at_harness_cached, AuthoritativeModuleFailure,
     AuthoritativeModuleLookupFailure, AuthoritativeModuleProvider, AuthoritativeModuleRequest,
-    AuthoritativeModuleResolution, AuthoritativePackageId, AuthoritativeResolutionMode,
-    AuthoritativeResolvedModule, AuthoritativeSourceMetadata, AuthoritativeSourceToken,
-    AuthoritativeUntypedModule, InputFile, UnsupportedAuthoritativeResolution,
+    AuthoritativeModuleResolution, AuthoritativeNotFoundModule, AuthoritativePackageId,
+    AuthoritativeResolutionMode, AuthoritativeResolvedModule, AuthoritativeSourceMetadata,
+    AuthoritativeSourceToken, AuthoritativeUntypedModule, InputFile,
+    UnsupportedAuthoritativeResolution,
 };
 use tsc_diagnostics::{sort_and_dedupe_diagnostics, Diagnostic, DiagnosticList};
 use tsc_program::{
@@ -64,12 +65,19 @@ impl AuthoritativeModuleProvider for PreparedModuleProvider<'_> {
             ));
         }
         let ResolutionOutcome::Resolved(module) = resolution.outcome() else {
-            if resolution.alternate_result().is_some() {
-                return Err(AuthoritativeModuleLookupFailure::Unsupported(
-                    UnsupportedAuthoritativeResolution::AlternateResult,
-                ));
-            }
-            return Ok(AuthoritativeModuleResolution::NotFound);
+            let alternate_result = resolution
+                .alternate_result()
+                .map(|path| {
+                    path.display().to_str().map(str::to_owned).ok_or(
+                        AuthoritativeModuleLookupFailure::Unsupported(
+                            UnsupportedAuthoritativeResolution::ResolvedFileIdentity,
+                        ),
+                    )
+                })
+                .transpose()?;
+            return Ok(AuthoritativeModuleResolution::NotFound(
+                AuthoritativeNotFoundModule { alternate_result },
+            ));
         };
         if let ResolvedModuleTarget::Unloaded(resolved_file) = module.target() {
             if !module.extension().is_javascript() {

@@ -99,6 +99,360 @@ fn assert_unsupported(error: ResolutionError, expected_feature: &str) {
 }
 
 #[test]
+fn classic_resolution_is_bounded_to_legacy_files_and_at_types() {
+    let host = MemoryCompilerHost::builder("/work")
+        .file("/work/src/app.ts", b"export {};".to_vec())
+        .file("/work/src/other.ts", b"export const x = 1;".to_vec())
+        .file("/work/src/legacy.ts", b"export const x = 1;".to_vec())
+        .file(
+            "/work/node_modules/direct/index.d.ts",
+            b"export const x: 1;".to_vec(),
+        )
+        .file(
+            "/work/node_modules/@types/traditional/package.json",
+            br#"{"name":"@types/traditional","version":"1.0.0","types":"index.d.ts"}"#.to_vec(),
+        )
+        .file(
+            "/work/node_modules/@types/traditional/index.d.ts",
+            b"export const x: 1;".to_vec(),
+        )
+        .file(
+            "/work/node_modules/@types/foo/package.json",
+            br#"{
+                "name":"@types/foo",
+                "version":"1.0.0",
+                "exports":{
+                    ".":{
+                        "import":"./index.d.mts",
+                        "require":"./index.d.cts"
+                    }
+                }
+            }"#
+            .to_vec(),
+        )
+        .file(
+            "/work/node_modules/@types/foo/index.d.mts",
+            b"export const x: \"module\";".to_vec(),
+        )
+        .file(
+            "/work/node_modules/@types/foo/index.d.cts",
+            b"export const x: \"script\";".to_vec(),
+        )
+        .build()
+        .expect("build Classic resolver host");
+    let options = CompilerOptions {
+        module: Some(99),
+        module_resolution: Some(1),
+        ..CompilerOptions::default()
+    };
+    let mut resolver = ModuleResolver::new(&host, &options).expect("create Classic resolver");
+
+    for (specifier, expected) in [
+        ("./other", "/work/src/other.ts"),
+        ("legacy", "/work/src/legacy.ts"),
+        (
+            "traditional",
+            "/work/node_modules/@types/traditional/index.d.ts",
+        ),
+    ] {
+        let module = resolved(
+            resolver
+                .resolve(
+                    Path::new("/work/src/app.ts"),
+                    specifier,
+                    ResolutionMode::EsNext,
+                )
+                .expect("resolve a Classic legacy target"),
+        );
+        assert_eq!(
+            module.resolved_file().canonical().as_path(),
+            Path::new(expected)
+        );
+    }
+
+    assert_eq!(
+        resolver
+            .resolve(
+                Path::new("/work/src/app.ts"),
+                "direct",
+                ResolutionMode::EsNext,
+            )
+            .expect("ordinary node_modules packages are outside Classic"),
+        ResolutionOutcome::NotFound
+    );
+    for mode in [
+        ResolutionMode::Unspecified,
+        ResolutionMode::EsNext,
+        ResolutionMode::CommonJs,
+    ] {
+        let facts = resolver
+            .resolve_with_facts(Path::new("/work/src/app.ts"), "foo", mode)
+            .expect("Classic exports-only @types package is an authoritative miss");
+        assert_eq!(facts.outcome(), &ResolutionOutcome::NotFound);
+        assert_eq!(facts.alternate_result(), None);
+    }
+}
+
+#[test]
+fn node10_primary_miss_retains_the_bundler_declaration_alternate() {
+    let host = MemoryCompilerHost::builder("/")
+        .file("/index.ts", b"import { pkg } from 'pkg';".to_vec())
+        .file(
+            "/node_modules/pkg/package.json",
+            br#"{
+                "name":"pkg",
+                "version":"1.0.0",
+                "exports":{".":"./definitely-not-index.js"}
+            }"#
+            .to_vec(),
+        )
+        .file(
+            "/node_modules/pkg/definitely-not-index.d.ts",
+            b"export {};".to_vec(),
+        )
+        .build()
+        .expect("build Node10 alternate host");
+    let options = CompilerOptions {
+        module_resolution: Some(2),
+        ..CompilerOptions::default()
+    };
+    let mut resolver = ModuleResolver::new(&host, &options).expect("create Node10 resolver");
+
+    let facts = resolver
+        .resolve_with_facts(Path::new("/index.ts"), "pkg", ResolutionMode::Unspecified)
+        .expect("resolve Node10 primary and diagnostic alternate");
+    assert_eq!(facts.outcome(), &ResolutionOutcome::NotFound);
+    assert_eq!(
+        facts
+            .alternate_result()
+            .expect("Bundler preferred retry finds the declaration twin")
+            .canonical()
+            .as_path(),
+        Path::new("/node_modules/pkg/definitely-not-index.d.ts")
+    );
+
+    assert_eq!(
+        resolver
+            .resolve(Path::new("/index.ts"), "pkg", ResolutionMode::Unspecified)
+            .expect("legacy wrapper keeps the primary outcome"),
+        ResolutionOutcome::NotFound
+    );
+}
+
+#[test]
+fn node10_legacy_primary_and_bundler_retry_keep_their_exact_boundaries() {
+    let host = MemoryCompilerHost::builder("/")
+        .file("/index.ts", b"export {};".to_vec())
+        .file(
+            "/node_modules/typed/package.json",
+            br#"{
+                "name":"typed",
+                "version":"1.0.0",
+                "types":"./legacy.d.ts",
+                "exports":{".":"./modern.js"}
+            }"#
+            .to_vec(),
+        )
+        .file("/node_modules/typed/legacy.d.ts", b"export {};".to_vec())
+        .file("/node_modules/typed/modern.d.ts", b"export {};".to_vec())
+        .file(
+            "/node_modules/untyped/package.json",
+            br#"{
+                "name":"untyped",
+                "version":"1.0.0",
+                "main":"./legacy.js",
+                "exports":{".":"./modern.js"}
+            }"#
+            .to_vec(),
+        )
+        .file(
+            "/node_modules/untyped/legacy.js",
+            b"module.exports = {};".to_vec(),
+        )
+        .file("/node_modules/untyped/modern.d.ts", b"export {};".to_vec())
+        .file(
+            "/node_modules/js-only/package.json",
+            br#"{
+                "name":"js-only",
+                "version":"1.0.0",
+                "exports":{".":"./modern.js"}
+            }"#
+            .to_vec(),
+        )
+        .file(
+            "/node_modules/js-only/modern.js",
+            b"module.exports = {};".to_vec(),
+        )
+        .file(
+            "/node_modules/conditions/package.json",
+            br#"{
+                "name":"conditions",
+                "version":"1.0.0",
+                "exports":{
+                    ".":{
+                        "node":"./node.js",
+                        "import":"./import.js",
+                        "require":"./require.js"
+                    }
+                }
+            }"#
+            .to_vec(),
+        )
+        .file("/node_modules/conditions/node.d.ts", b"export {};".to_vec())
+        .file(
+            "/node_modules/conditions/import.d.ts",
+            b"export {};".to_vec(),
+        )
+        .file(
+            "/node_modules/conditions/require.d.ts",
+            b"export {};".to_vec(),
+        )
+        .file(
+            "/node_modules/manifestless/placeholder.txt",
+            b"package directory without a manifest".to_vec(),
+        )
+        .file(
+            "/node_modules/@types/manifestless/package.json",
+            br#"{
+                "name":"@types/manifestless",
+                "version":"1.0.0",
+                "exports":{".":"./modern.js"}
+            }"#
+            .to_vec(),
+        )
+        .file(
+            "/node_modules/@types/manifestless/modern.d.ts",
+            b"export {};".to_vec(),
+        )
+        .file(
+            "/node_modules/no-manifests/placeholder.txt",
+            b"package directory without a manifest".to_vec(),
+        )
+        .file(
+            "/node_modules/@types/no-manifests/placeholder.txt",
+            b"types package directory without a manifest".to_vec(),
+        )
+        .build()
+        .expect("build bounded Node10 host");
+    let options = CompilerOptions {
+        module_resolution: Some(2),
+        ..CompilerOptions::default()
+    };
+    let mut resolver = ModuleResolver::new(&host, &options).expect("create Node10 resolver");
+
+    let typed = resolver
+        .resolve_with_facts(Path::new("/index.ts"), "typed", ResolutionMode::Unspecified)
+        .expect("Node10 legacy types field wins");
+    let ResolutionOutcome::Resolved(typed_primary) = typed.outcome() else {
+        panic!("expected typed legacy primary: {typed:#?}");
+    };
+    assert_eq!(
+        typed_primary.resolved_file().canonical().as_path(),
+        Path::new("/node_modules/typed/legacy.d.ts")
+    );
+    assert_eq!(typed.alternate_result(), None);
+
+    let untyped = resolver
+        .resolve_with_facts(
+            Path::new("/index.ts"),
+            "untyped",
+            ResolutionMode::Unspecified,
+        )
+        .expect("Node10 JavaScript primary retains a declaration alternate");
+    let ResolutionOutcome::Resolved(untyped_primary) = untyped.outcome() else {
+        panic!("expected untyped legacy primary: {untyped:#?}");
+    };
+    assert_eq!(untyped_primary.extension(), &ModuleExtension::Js);
+    assert_eq!(
+        untyped
+            .alternate_result()
+            .expect("Bundler retry finds modern types")
+            .canonical()
+            .as_path(),
+        Path::new("/node_modules/untyped/modern.d.ts")
+    );
+
+    let js_only = resolver
+        .resolve_with_facts(
+            Path::new("/index.ts"),
+            "js-only",
+            ResolutionMode::Unspecified,
+        )
+        .expect("preferred-only retry does not accept JavaScript");
+    assert_eq!(js_only.outcome(), &ResolutionOutcome::NotFound);
+    assert_eq!(js_only.alternate_result(), None);
+
+    let conditions = resolver
+        .resolve_with_facts(
+            Path::new("/index.ts"),
+            "conditions",
+            ResolutionMode::Unspecified,
+        )
+        .expect("Bundler retry uses Bundler default conditions");
+    assert_eq!(conditions.outcome(), &ResolutionOutcome::NotFound);
+    assert_eq!(
+        conditions
+            .alternate_result()
+            .expect("Bundler defaults select import and exclude node")
+            .canonical()
+            .as_path(),
+        Path::new("/node_modules/conditions/import.d.ts")
+    );
+
+    let manifestless = resolver
+        .resolve_with_facts(
+            Path::new("/index.ts"),
+            "manifestless",
+            ResolutionMode::Unspecified,
+        )
+        .expect("an observed @types package manifest enables Bundler retry");
+    assert_eq!(manifestless.outcome(), &ResolutionOutcome::NotFound);
+    assert_eq!(
+        manifestless
+            .alternate_result()
+            .expect("Bundler retry honors the observed @types exports")
+            .canonical()
+            .as_path(),
+        Path::new("/node_modules/@types/manifestless/modern.d.ts")
+    );
+
+    let no_manifests = resolver
+        .resolve_with_facts(
+            Path::new("/index.ts"),
+            "no-manifests",
+            ResolutionMode::Unspecified,
+        )
+        .expect("manifestless package directories do not enable Bundler retry");
+    assert_eq!(no_manifests.outcome(), &ResolutionOutcome::NotFound);
+    assert_eq!(no_manifests.alternate_result(), None);
+}
+
+#[test]
+fn classic_and_node10_remain_unsupported_for_type_reference_resolution() {
+    let host = MemoryCompilerHost::builder("/")
+        .file("/index.ts", b"export {};".to_vec())
+        .build()
+        .expect("build resolver-mode boundary host");
+    for module_resolution in [1, 2] {
+        let options = CompilerOptions {
+            module_resolution: Some(module_resolution),
+            ..CompilerOptions::default()
+        };
+        let mut resolver =
+            ModuleResolver::new(&host, &options).expect("create legacy module resolver");
+        let error = resolver
+            .resolve_type_reference(
+                Path::new("/index.ts"),
+                "pkg",
+                ResolutionMode::Unspecified,
+                None,
+            )
+            .expect_err("legacy modes are admitted only for module resolution");
+        assert_unsupported(error, "module-resolution-kind");
+    }
+}
+
+#[test]
 fn a_more_specific_null_pattern_is_a_terminal_not_found() {
     let (host, _) = fixture_host();
     let options = options_for_module(100);

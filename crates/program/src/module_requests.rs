@@ -134,11 +134,13 @@ fn plan_module_requests_worker(
 
     let resolution_kind = options.emit_module_resolution_kind();
     if (!expanded && !matches!(resolution_kind, 3 | 99))
-        || (expanded && !matches!(resolution_kind, 3 | 99 | 100))
+        || (expanded && !matches!(resolution_kind, 1 | 2 | 3 | 99 | 100))
     {
         return Err(unsupported(
             source,
-            format!("module resolution kind {resolution_kind} is not Node16, NodeNext, or Bundler"),
+            format!(
+                "module resolution kind {resolution_kind} is not Classic, Node10, Node16, NodeNext, or Bundler"
+            ),
         ));
     }
 
@@ -147,9 +149,16 @@ fn plan_module_requests_worker(
         .display()
         .to_str()
         .ok_or_else(|| unsupported(source, "the source display path is not valid Unicode"))?;
-    let file_emit_kind = file_emit_module_kind(source, file_name, module_kind)?;
-    let static_mode = static_request_mode(source, file_emit_kind)?;
-    let dynamic_mode = dynamic_import_mode(source, module_kind, file_emit_kind)?;
+    let import_syntax_affects_resolution = import_syntax_affects_module_resolution(options);
+    let (static_mode, dynamic_mode) = if import_syntax_affects_resolution {
+        let file_emit_kind = file_emit_module_kind(source, file_name, module_kind)?;
+        (
+            static_request_mode(source, file_emit_kind)?,
+            dynamic_import_mode(source, module_kind, file_emit_kind)?,
+        )
+    } else {
+        (ResolutionMode::Unspecified, ResolutionMode::Unspecified)
+    };
     let javascript_file = is_javascript_file_name(file_name);
     let language_variant = if file_name.ends_with(".tsx") || javascript_file {
         LanguageVariant::Jsx
@@ -224,13 +233,38 @@ fn plan_module_requests_worker(
         let node = parsed.arena.node(node_id);
         match &node.data {
             NodeData::ImportDeclaration(import) => {
-                if import.attributes.is_some() {
-                    return Err(unsupported_at(
-                        source,
-                        node.pos,
-                        "an import declaration has attributes",
-                    ));
-                }
+                let mode = match import.attributes {
+                    None => static_mode,
+                    Some(attributes) if expanded => {
+                        let is_type_only = import.import_clause.is_some_and(|clause| {
+                            matches!(
+                                &parsed.arena.node(clause).data,
+                                NodeData::ImportClause(clause) if clause.is_type_only
+                            )
+                        });
+                        if !is_type_only {
+                            return Err(unsupported_at(
+                                source,
+                                node.pos,
+                                "a non-type-only import declaration has attributes",
+                            ));
+                        }
+                        resolution_mode_override(&parsed, attributes).ok_or_else(|| {
+                            unsupported_at(
+                                source,
+                                node.pos,
+                                "a type-only import declaration has unsupported attributes",
+                            )
+                        })?
+                    }
+                    Some(_) => {
+                        return Err(unsupported_at(
+                            source,
+                            node.pos,
+                            "an import declaration has attributes",
+                        ));
+                    }
+                };
                 let module_specifier = import.module_specifier.ok_or_else(|| {
                     unsupported_at(
                         source,
@@ -251,7 +285,7 @@ fn plan_module_requests_worker(
                     key: ResolutionKey::new(
                         source.path().canonical().clone(),
                         literal.text.clone(),
-                        static_mode,
+                        mode,
                     ),
                 });
             }
@@ -328,7 +362,11 @@ fn plan_module_requests_worker(
                         key: ResolutionKey::new(
                             source.path().canonical().clone(),
                             literal.text.clone(),
-                            ResolutionMode::CommonJs,
+                            if import_syntax_affects_resolution {
+                                ResolutionMode::CommonJs
+                            } else {
+                                ResolutionMode::Unspecified
+                            },
                         ),
                     });
                 }
@@ -339,12 +377,55 @@ fn plan_module_requests_worker(
                 // The parser only produces these as the module-reference child of
                 // an import-equals declaration, which the parent arm owns above.
             }
-            NodeData::ImportType(_) => {
-                return Err(unsupported_at(
-                    source,
-                    node.pos,
-                    "an import type is outside the static-import slice",
-                ));
+            NodeData::ImportType(import_type) => {
+                if !expanded {
+                    return Err(unsupported_at(
+                        source,
+                        node.pos,
+                        "an import type is outside the static-import slice",
+                    ));
+                }
+                let argument = import_type.argument.ok_or_else(|| {
+                    unsupported_at(source, node.pos, "an import type has no argument")
+                })?;
+                let NodeData::LiteralType(argument) = &parsed.arena.node(argument).data else {
+                    return Err(unsupported_at(
+                        source,
+                        node.pos,
+                        "an import type has a non-literal argument",
+                    ));
+                };
+                let literal = argument.literal.ok_or_else(|| {
+                    unsupported_at(source, node.pos, "an import type literal has no value")
+                })?;
+                let literal = parsed.arena.node(literal);
+                let NodeData::StringLiteral(literal_data) = &literal.data else {
+                    return Err(unsupported_at(
+                        source,
+                        node.pos,
+                        "an import type has a non-string argument",
+                    ));
+                };
+                let mode = match import_type.attributes {
+                    None => static_mode,
+                    Some(attributes) => {
+                        resolution_mode_override(&parsed, attributes).ok_or_else(|| {
+                            unsupported_at(
+                                source,
+                                node.pos,
+                                "an import type has unsupported attributes",
+                            )
+                        })?
+                    }
+                };
+                occurrences.push(ModuleRequestOccurrence {
+                    pos: literal.pos,
+                    key: ResolutionKey::new(
+                        source.path().canonical().clone(),
+                        literal_data.text.clone(),
+                        mode,
+                    ),
+                });
             }
             NodeData::JSDocImportTag(import) => {
                 if !expanded {

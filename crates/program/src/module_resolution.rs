@@ -95,6 +95,48 @@ impl HostResolvedModule {
     }
 }
 
+/// Lossless filesystem facts for one module-resolution request.
+///
+/// `alternate_result` is independent of the primary outcome because Node10
+/// may miss under its legacy package rules while a diagnostic-only Bundler
+/// retry finds a declaration target. Keeping both values in the return value
+/// avoids a resolver side channel and lets the prepared-program owner bind a
+/// `NotFound` row with its alternate path.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct HostModuleResolution {
+    outcome: ResolutionOutcome<HostResolvedModule>,
+    alternate_result: Option<ProgramPath>,
+}
+
+impl HostModuleResolution {
+    fn new(
+        outcome: ResolutionOutcome<HostResolvedModule>,
+        alternate_result: Option<ProgramPath>,
+    ) -> Self {
+        Self {
+            outcome,
+            alternate_result,
+        }
+    }
+
+    pub fn outcome(&self) -> &ResolutionOutcome<HostResolvedModule> {
+        &self.outcome
+    }
+
+    pub fn alternate_result(&self) -> Option<&ProgramPath> {
+        self.alternate_result
+            .as_ref()
+            .or_else(|| match &self.outcome {
+                ResolutionOutcome::Resolved(module) => module.alternate_result(),
+                ResolutionOutcome::NotFound => None,
+            })
+    }
+
+    pub fn into_outcome(self) -> ResolutionOutcome<HostResolvedModule> {
+        self.outcome
+    }
+}
+
 /// Filesystem-derived facts for one resolved type-reference directive before
 /// the program loader binds the target to a [`SourceFileId`](crate::SourceFileId).
 ///
@@ -261,6 +303,7 @@ struct ExportProbeContext {
     is_external_library_import: bool,
     pass: ExtensionProbePass,
     mode: ResolutionMode,
+    resolution_kind: i32,
     kind: PackageMapKind,
 }
 
@@ -371,15 +414,416 @@ impl<'a> ModuleResolver<'a> {
         specifier: &str,
         mode: ResolutionMode,
     ) -> Result<ResolutionOutcome<HostResolvedModule>, ResolutionError> {
-        self.validate_supported_configuration(mode)?;
+        Ok(self
+            .resolve_with_facts(containing_file, specifier, mode)?
+            .into_outcome())
+    }
+
+    /// Resolve a module while retaining diagnostic-only facts which remain
+    /// observable when the primary outcome is `NotFound`.
+    ///
+    /// Classic and Node10 are admitted only through this module-resolution
+    /// entry point. Type-reference resolution retains its modern-resolver
+    /// boundary below.
+    pub fn resolve_with_facts(
+        &mut self,
+        containing_file: &Path,
+        specifier: &str,
+        mode: ResolutionMode,
+    ) -> Result<HostModuleResolution, ResolutionError> {
+        self.validate_supported_module_configuration(mode)?;
         let current_directory = self.current_directory_text()?;
         let containing_file = normalize_absolute_path(containing_file, Some(current_directory))?;
         let containing_directory = directory_name(&containing_file);
+        match self.options.emit_module_resolution_kind() {
+            1 => return self.resolve_classic(&containing_file, specifier, mode),
+            2 => return self.resolve_node10(&containing_file, specifier, mode),
+            _ => {}
+        }
         if is_relative_specifier(specifier) {
-            return self.resolve_relative(&containing_file, specifier, mode);
+            return self
+                .resolve_relative(&containing_file, specifier, mode)
+                .map(|outcome| HostModuleResolution::new(outcome, None));
         }
 
         self.resolve_non_relative(&containing_directory, specifier, mode)
+            .map(|outcome| HostModuleResolution::new(outcome, None))
+    }
+
+    /// tsc-port: classicNameResolver @6.0.3
+    /// tsc-span: _tsc.js:42110-42186
+    ///
+    /// The owned Classic slice is deliberately the legacy file search plus
+    /// its nearest automatic `node_modules/@types` fallback. Optional
+    /// baseUrl/paths remain outside the admitted configuration boundary.
+    fn resolve_classic(
+        &mut self,
+        containing_file: &str,
+        specifier: &str,
+        mode: ResolutionMode,
+    ) -> Result<HostModuleResolution, ResolutionError> {
+        if specifier.contains(['\\', '\0']) {
+            return Err(ResolutionError::invalid_data(format!(
+                "invalid Classic module specifier {specifier:?}"
+            )));
+        }
+        let containing_directory = directory_name(containing_file);
+        let relative = is_relative_specifier(specifier);
+        let request = (!relative)
+            .then(|| parse_package_request(specifier))
+            .transpose()?;
+
+        for probe_pass in [ExtensionProbePass::Preferred, ExtensionProbePass::Fallback] {
+            if relative {
+                let candidate = normalize_absolute_path(
+                    Path::new(&join_normalized(&containing_directory, specifier)),
+                    None,
+                )?;
+                let outcome = self.probe_classic_file(&candidate, specifier, probe_pass)?;
+                if matches!(outcome, ResolutionOutcome::Resolved(_)) {
+                    return Ok(HostModuleResolution::new(outcome, None));
+                }
+            } else {
+                for ancestor in ancestor_directories(&containing_directory) {
+                    let candidate = normalize_absolute_path(
+                        Path::new(&join_normalized(&ancestor, specifier)),
+                        None,
+                    )?;
+                    let outcome = self.probe_classic_file(&candidate, specifier, probe_pass)?;
+                    if matches!(outcome, ResolutionOutcome::Resolved(_)) {
+                        return Ok(HostModuleResolution::new(outcome, None));
+                    }
+                }
+                if matches!(probe_pass, ExtensionProbePass::Preferred) {
+                    let outcome = self.resolve_legacy_at_types(
+                        &containing_directory,
+                        request.as_ref().expect("non-relative request was parsed"),
+                        mode,
+                    )?;
+                    if matches!(outcome, ResolutionOutcome::Resolved(_)) {
+                        return Ok(HostModuleResolution::new(outcome, None));
+                    }
+                }
+            }
+        }
+        Ok(HostModuleResolution::new(ResolutionOutcome::NotFound, None))
+    }
+
+    fn probe_classic_file(
+        &self,
+        candidate: &str,
+        written_specifier: &str,
+        probe_pass: ExtensionProbePass,
+    ) -> Result<ResolutionOutcome<HostResolvedModule>, ResolutionError> {
+        self.probe_legacy_file(
+            None,
+            candidate,
+            probe_pass,
+            /* allow_implicit */ true,
+            LegacyResolutionContext {
+                is_external_library_import: path_contains_node_modules(candidate),
+                attach_package_id: false,
+                resolved_using_ts_extension: is_typescript_family_specifier(written_specifier),
+                follow_realpath: false,
+            },
+        )
+    }
+
+    /// tsc-port: nodeModuleNameResolverWorker @6.0.3 (Node10 branch and
+    /// diagnostic Bundler retry)
+    /// tsc-span: _tsc.js:40935-41020
+    fn resolve_node10(
+        &mut self,
+        containing_file: &str,
+        specifier: &str,
+        mode: ResolutionMode,
+    ) -> Result<HostModuleResolution, ResolutionError> {
+        if is_relative_specifier(specifier) {
+            let outcome = self.resolve_relative(containing_file, specifier, mode)?;
+            return Ok(HostModuleResolution::new(outcome, None));
+        }
+        let request = parse_package_request(specifier)?;
+        let containing_directory = directory_name(containing_file);
+        let (outcome, resolved_package_directory) =
+            self.resolve_node10_non_relative(&containing_directory, &request, mode)?;
+        let retry_for_types = resolved_package_directory
+            && match &outcome {
+                ResolutionOutcome::NotFound => true,
+                ResolutionOutcome::Resolved(module) => module.extension().is_javascript(),
+            };
+        let alternate_result = if retry_for_types {
+            match self.resolve_bundler_preferred_non_relative(
+                &containing_directory,
+                &request,
+                mode,
+            )? {
+                ResolutionOutcome::Resolved(module) if module.is_external_library_import() => {
+                    Some(module.resolved_file().clone())
+                }
+                ResolutionOutcome::Resolved(_) | ResolutionOutcome::NotFound => None,
+            }
+        } else {
+            None
+        };
+        Ok(HostModuleResolution::new(outcome, alternate_result))
+    }
+
+    fn resolve_node10_non_relative(
+        &mut self,
+        containing_directory: &str,
+        request: &PackageRequest<'_>,
+        mode: ResolutionMode,
+    ) -> Result<(ResolutionOutcome<HostResolvedModule>, bool), ResolutionError> {
+        let mut resolved_package_directory = false;
+        for probe_pass in [ExtensionProbePass::Preferred, ExtensionProbePass::Fallback] {
+            for ancestor in ancestor_directories(containing_directory) {
+                if base_name(&ancestor) == "node_modules" {
+                    continue;
+                }
+                let node_modules = join_normalized(&ancestor, "node_modules");
+                if !self.host.directory_exists(Path::new(&node_modules))? {
+                    continue;
+                }
+                let package_root = join_normalized(&node_modules, request.package_name);
+                let package_directory_exists =
+                    self.host.directory_exists(Path::new(&package_root))?;
+                let package = if package_directory_exists {
+                    self.load_package(&join_normalized(&package_root, "package.json"))?
+                } else {
+                    None
+                };
+                // Upstream records a resolved package directory only after
+                // successfully reading package.json. A manifestless folder is
+                // still eligible for Node10's legacy index probing, but must
+                // not enable the diagnostic-only Bundler retry.
+                resolved_package_directory |= package.is_some();
+                let outcome = if let Some(package) = package {
+                    self.resolve_legacy_package(
+                        &package,
+                        &request.exports_subpath,
+                        probe_pass,
+                        mode,
+                        LegacyResolutionContext {
+                            is_external_library_import: true,
+                            attach_package_id: true,
+                            resolved_using_ts_extension: false,
+                            follow_realpath: true,
+                        },
+                        /* allow_node_esm_index_fallback */ true,
+                    )?
+                } else {
+                    self.resolve_manifestless_package(
+                        &package_root,
+                        &request.exports_subpath,
+                        probe_pass,
+                        mode,
+                    )?
+                };
+                if matches!(outcome, ResolutionOutcome::Resolved(_)) {
+                    return Ok((outcome, resolved_package_directory));
+                }
+
+                if matches!(probe_pass, ExtensionProbePass::Preferred) {
+                    let (outcome, at_types_package_observed) = self
+                        .resolve_legacy_at_types_from_node_modules(&node_modules, request, mode)?;
+                    resolved_package_directory |= at_types_package_observed;
+                    if matches!(outcome, ResolutionOutcome::Resolved(_)) {
+                        return Ok((outcome, resolved_package_directory));
+                    }
+                }
+            }
+        }
+        Ok((ResolutionOutcome::NotFound, resolved_package_directory))
+    }
+
+    fn resolve_legacy_at_types(
+        &mut self,
+        containing_directory: &str,
+        request: &PackageRequest<'_>,
+        mode: ResolutionMode,
+    ) -> Result<ResolutionOutcome<HostResolvedModule>, ResolutionError> {
+        for ancestor in ancestor_directories(containing_directory) {
+            if base_name(&ancestor) == "node_modules" {
+                continue;
+            }
+            let node_modules = join_normalized(&ancestor, "node_modules");
+            if !self.host.directory_exists(Path::new(&node_modules))? {
+                continue;
+            }
+            let (outcome, _) =
+                self.resolve_legacy_at_types_from_node_modules(&node_modules, request, mode)?;
+            if matches!(outcome, ResolutionOutcome::Resolved(_)) {
+                return Ok(outcome);
+            }
+        }
+        Ok(ResolutionOutcome::NotFound)
+    }
+
+    fn resolve_legacy_at_types_from_node_modules(
+        &mut self,
+        node_modules: &str,
+        request: &PackageRequest<'_>,
+        mode: ResolutionMode,
+    ) -> Result<(ResolutionOutcome<HostResolvedModule>, bool), ResolutionError> {
+        let at_types = join_normalized(node_modules, "@types");
+        if !self.host.directory_exists(Path::new(&at_types))? {
+            return Ok((ResolutionOutcome::NotFound, false));
+        }
+        let package_root =
+            join_normalized(&at_types, &mangle_scoped_package_name(request.package_name));
+        let package = if self.host.directory_exists(Path::new(&package_root))? {
+            self.load_package(&join_normalized(&package_root, "package.json"))?
+        } else {
+            None
+        };
+        let package_info_observed = package.is_some();
+        let outcome = if let Some(package) = package {
+            self.resolve_legacy_package(
+                &package,
+                &request.exports_subpath,
+                ExtensionProbePass::Declaration,
+                mode,
+                LegacyResolutionContext {
+                    is_external_library_import: true,
+                    attach_package_id: true,
+                    resolved_using_ts_extension: false,
+                    follow_realpath: true,
+                },
+                /* allow_node_esm_index_fallback */ true,
+            )
+        } else {
+            self.resolve_manifestless_package(
+                &package_root,
+                &request.exports_subpath,
+                ExtensionProbePass::Declaration,
+                mode,
+            )
+        }?;
+        Ok((outcome, package_info_observed))
+    }
+
+    fn resolve_bundler_preferred_non_relative(
+        &mut self,
+        containing_directory: &str,
+        request: &PackageRequest<'_>,
+        mode: ResolutionMode,
+    ) -> Result<ResolutionOutcome<HostResolvedModule>, ResolutionError> {
+        for ancestor in ancestor_directories(containing_directory) {
+            if base_name(&ancestor) == "node_modules" {
+                continue;
+            }
+            let node_modules = join_normalized(&ancestor, "node_modules");
+            if !self.host.directory_exists(Path::new(&node_modules))? {
+                continue;
+            }
+            let package_root = join_normalized(&node_modules, request.package_name);
+            let package = if self.host.directory_exists(Path::new(&package_root))? {
+                self.load_package(&join_normalized(&package_root, "package.json"))?
+            } else {
+                None
+            };
+            let outcome = if let Some(package) = package {
+                let uses_exports = self.options.resolve_package_json_exports != Some(false)
+                    && !matches!(package.exports.as_ref(), None | Some(Value::Null));
+                if uses_exports {
+                    self.resolve_package_exports_with_resolution_kind(
+                        &package,
+                        &request.exports_subpath,
+                        /* is_external_library_import */ true,
+                        ExtensionProbePass::Preferred,
+                        mode,
+                        100,
+                    )?
+                } else {
+                    self.resolve_legacy_package(
+                        &package,
+                        &request.exports_subpath,
+                        ExtensionProbePass::Preferred,
+                        mode,
+                        LegacyResolutionContext {
+                            is_external_library_import: true,
+                            attach_package_id: true,
+                            resolved_using_ts_extension: false,
+                            follow_realpath: true,
+                        },
+                        /* allow_node_esm_index_fallback */ true,
+                    )?
+                }
+            } else {
+                self.resolve_manifestless_package(
+                    &package_root,
+                    &request.exports_subpath,
+                    ExtensionProbePass::Preferred,
+                    mode,
+                )?
+            };
+            if matches!(outcome, ResolutionOutcome::Resolved(_)) {
+                return Ok(outcome);
+            }
+
+            let types_package = PackageRequest {
+                package_name: request.package_name,
+                exports_subpath: request.exports_subpath.clone(),
+            };
+            let outcome =
+                self.resolve_bundler_preferred_at_types(&node_modules, &types_package, mode)?;
+            if matches!(outcome, ResolutionOutcome::Resolved(_)) {
+                return Ok(outcome);
+            }
+        }
+        Ok(ResolutionOutcome::NotFound)
+    }
+
+    fn resolve_bundler_preferred_at_types(
+        &mut self,
+        node_modules: &str,
+        request: &PackageRequest<'_>,
+        mode: ResolutionMode,
+    ) -> Result<ResolutionOutcome<HostResolvedModule>, ResolutionError> {
+        let package_root = join_normalized(
+            &join_normalized(node_modules, "@types"),
+            &mangle_scoped_package_name(request.package_name),
+        );
+        let package = if self.host.directory_exists(Path::new(&package_root))? {
+            self.load_package(&join_normalized(&package_root, "package.json"))?
+        } else {
+            None
+        };
+        if let Some(package) = package {
+            let uses_exports = self.options.resolve_package_json_exports != Some(false)
+                && !matches!(package.exports.as_ref(), None | Some(Value::Null));
+            if uses_exports {
+                self.resolve_package_exports_with_resolution_kind(
+                    &package,
+                    &request.exports_subpath,
+                    /* is_external_library_import */ true,
+                    ExtensionProbePass::Preferred,
+                    mode,
+                    100,
+                )
+            } else {
+                self.resolve_legacy_package(
+                    &package,
+                    &request.exports_subpath,
+                    ExtensionProbePass::Preferred,
+                    mode,
+                    LegacyResolutionContext {
+                        is_external_library_import: true,
+                        attach_package_id: true,
+                        resolved_using_ts_extension: false,
+                        follow_realpath: true,
+                    },
+                    /* allow_node_esm_index_fallback */ true,
+                )
+            }
+        } else {
+            self.resolve_manifestless_package(
+                &package_root,
+                &request.exports_subpath,
+                ExtensionProbePass::Preferred,
+                mode,
+            )
+        }
     }
 
     /// Resolve one source-owned or automatic type-reference directive.
@@ -529,6 +973,26 @@ impl<'a> ModuleResolver<'a> {
                 ),
             ));
         }
+        self.validate_common_configuration()
+    }
+
+    fn validate_supported_module_configuration(
+        &self,
+        _mode: ResolutionMode,
+    ) -> Result<(), ResolutionError> {
+        let resolution_kind = self.options.emit_module_resolution_kind();
+        if !matches!(resolution_kind, 1 | 2 | 3 | 99 | 100) {
+            return Err(ResolutionError::unsupported(
+                "module-resolution-kind",
+                format!(
+                    "module resolution is implemented only for Classic, Node10, Node16, NodeNext, and Bundler; got {resolution_kind}"
+                ),
+            ));
+        }
+        self.validate_common_configuration()
+    }
+
+    fn validate_common_configuration(&self) -> Result<(), ResolutionError> {
         if self.options.no_dts_resolution == Some(true) {
             return Err(ResolutionError::unsupported(
                 "no-dts-resolution",
@@ -600,6 +1064,7 @@ impl<'a> ModuleResolver<'a> {
             /* is_external_library_import */ false,
             ExtensionProbePass::All,
             mode,
+            self.options.emit_module_resolution_kind(),
         )
     }
 
@@ -642,6 +1107,7 @@ impl<'a> ModuleResolver<'a> {
                 is_external_library_import: false,
                 pass: ExtensionProbePass::All,
                 mode,
+                resolution_kind,
                 kind: PackageMapKind::Imports,
             },
         );
@@ -1590,9 +2056,33 @@ impl<'a> ModuleResolver<'a> {
             is_external_library_import,
             probe_pass,
             mode,
+            self.options.emit_module_resolution_kind(),
         )?;
         Ok(match search {
             // A present exports map suppresses every legacy package fallback.
+            Search::Continue => ResolutionOutcome::NotFound,
+            Search::Terminal(outcome) => outcome,
+        })
+    }
+
+    fn resolve_package_exports_with_resolution_kind(
+        &mut self,
+        package: &CachedPackage,
+        subpath: &str,
+        is_external_library_import: bool,
+        probe_pass: ExtensionProbePass,
+        mode: ResolutionMode,
+        resolution_kind: i32,
+    ) -> Result<ResolutionOutcome<HostResolvedModule>, ResolutionError> {
+        let search = self.search_package_exports(
+            package,
+            subpath,
+            is_external_library_import,
+            probe_pass,
+            mode,
+            resolution_kind,
+        )?;
+        Ok(match search {
             Search::Continue => ResolutionOutcome::NotFound,
             Search::Terminal(outcome) => outcome,
         })
@@ -1608,6 +2098,7 @@ impl<'a> ModuleResolver<'a> {
         is_external_library_import: bool,
         probe_pass: ExtensionProbePass,
         mode: ResolutionMode,
+        resolution_kind: i32,
     ) -> Result<Search<HostResolvedModule>, ResolutionError> {
         let exports = package.exports.as_ref().ok_or_else(|| {
             ResolutionError::unsupported(
@@ -1638,6 +2129,7 @@ impl<'a> ModuleResolver<'a> {
                     is_external_library_import,
                     pass: probe_pass,
                     mode,
+                    resolution_kind,
                     kind: PackageMapKind::Exports,
                 },
             )?,
@@ -1662,6 +2154,7 @@ impl<'a> ModuleResolver<'a> {
                                 is_external_library_import,
                                 pass: probe_pass,
                                 mode,
+                                resolution_kind,
                                 kind: PackageMapKind::Exports,
                             },
                         )?
@@ -1677,6 +2170,7 @@ impl<'a> ModuleResolver<'a> {
                             is_external_library_import,
                             pass: probe_pass,
                             mode,
+                            resolution_kind,
                             kind: PackageMapKind::Exports,
                         },
                     )?
@@ -1691,6 +2185,7 @@ impl<'a> ModuleResolver<'a> {
                     is_external_library_import,
                     pass: probe_pass,
                     mode,
+                    resolution_kind,
                     kind: PackageMapKind::Exports,
                 },
             )?,
@@ -1847,7 +2342,11 @@ impl<'a> ModuleResolver<'a> {
             }
             Value::Object(conditions) => {
                 for (condition, target) in conditions {
-                    if !self.package_condition_matches(condition, context.mode) {
+                    if !self.package_condition_matches(
+                        condition,
+                        context.mode,
+                        context.resolution_kind,
+                    ) {
                         continue;
                     }
                     let result =
@@ -1882,11 +2381,15 @@ impl<'a> ModuleResolver<'a> {
     /// tsc-port: isApplicableVersionedTypesKey @6.0.3
     /// tsc-hash: 9af5528adbf587055e813a06f658baa9b9b865f96672f1f2c05c85669b4e7222
     /// tsc-span: _tsc.js:41884-41890
-    fn package_condition_matches(&self, condition: &str, mode: ResolutionMode) -> bool {
+    fn package_condition_matches(
+        &self,
+        condition: &str,
+        mode: ResolutionMode,
+        resolution_kind: i32,
+    ) -> bool {
         if condition == "default" {
             return true;
         }
-        let resolution_kind = self.options.emit_module_resolution_kind();
         let mode = if mode == ResolutionMode::Unspecified && resolution_kind == 100 {
             ResolutionMode::EsNext
         } else {

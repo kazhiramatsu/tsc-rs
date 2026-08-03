@@ -8,8 +8,8 @@ use tsc_compiler::ProgramSession;
 use tsc_diagnostics::{gen, Diagnostic, MessageChain};
 use tsc_host::MemoryCompilerHost;
 use tsc_program::{
-    plan_source_requests, HostResolvedModule, HostResolvedTypeReferenceDirective, ModuleExtension,
-    ModuleResolution, ModuleResolver, PackageId, PackageJsonType, PackageMetadata,
+    plan_source_requests, HostModuleResolution, HostResolvedTypeReferenceDirective,
+    ModuleExtension, ModuleResolution, ModuleResolver, PackageId, PackageJsonType, PackageMetadata,
     PlannedTypeReferenceDirective, PreparedProgram, PreparedSourceFile, ProgramOptions,
     ProgramPath, ResolutionError, ResolutionMode, ResolutionOutcome, ResolvedModuleTarget,
     ResolvedTypeReferenceDirective, SourceFileId, TypeReferenceResolution,
@@ -18,7 +18,7 @@ use tsc_program::{
 
 use crate::ConformanceResult;
 
-const SUPPORTED_FIXTURES: [&str; 42] = [
+const SUPPORTED_FIXTURES: [&str; 46] = [
     "conformance/node/nodeModulesPackagePatternExportsExclude.ts",
     "conformance/node/nodeModulesPackagePatternExports.ts",
     "conformance/node/allowJs/nodeModulesAllowJsPackagePatternExportsExclude.ts",
@@ -61,6 +61,10 @@ const SUPPORTED_FIXTURES: [&str; 42] = [
     "conformance/classes/members/privateNames/privateNameEmitHelpers.ts",
     "conformance/classes/members/privateNames/privateNameStaticEmitHelpers.ts",
     "conformance/es2020/modules/exportAsNamespace_missingEmitHelpers.ts",
+    "conformance/moduleResolution/resolutionModeImportType1.ts",
+    "conformance/moduleResolution/resolutionModeTypeOnlyImport1.ts",
+    "conformance/moduleResolution/node10AlternateResult_noResolution.ts",
+    "conformance/moduleResolution/node10Alternateresult_noTypes.ts",
 ];
 
 pub(crate) fn supports_fixture(fixture: &str) -> bool {
@@ -196,7 +200,7 @@ pub(crate) fn run(
         let plan = plan_source_requests(&source.prepared, &options)?;
         for key in plan.module_requests() {
             let specifier = key.specifier().to_owned();
-            let host_outcome = resolver.resolve(
+            let host_outcome = resolver.resolve_with_facts(
                 source.prepared.path().canonical().as_path(),
                 &specifier,
                 key.mode(),
@@ -234,7 +238,7 @@ pub(crate) fn run(
     // table, so diagnostic facts cannot be finalized while rows are still
     // being discovered.
     let package_map = package_map_from_facts(host_resolutions.iter().filter_map(|(_, outcome)| {
-        let ResolutionOutcome::Resolved(module) = outcome else {
+        let ResolutionOutcome::Resolved(module) = outcome.outcome() else {
             return None;
         };
         Some((module.package_id()?, module.extension()))
@@ -328,15 +332,19 @@ fn option_program_path(current_directory: &Path, path: &str) -> Result<ProgramPa
 }
 
 fn bind_host_outcome(
-    outcome: ResolutionOutcome<HostResolvedModule>,
+    outcome: HostModuleResolution,
     source_by_canonical: &BTreeMap<PathBuf, (SourceFileId, ProgramPath)>,
     options: &tsc_program::CompilerOptions,
     package_map: &BTreeMap<String, bool>,
 ) -> Result<ModuleResolution, ResolutionError> {
-    let ResolutionOutcome::Resolved(host_module) = outcome else {
-        return Ok(ModuleResolution::not_found());
+    let alternate_result = outcome.alternate_result().cloned();
+    let ResolutionOutcome::Resolved(host_module) = outcome.into_outcome() else {
+        let mut resolution = ModuleResolution::not_found();
+        if let Some(alternate_result) = alternate_result {
+            resolution = resolution.with_alternate_result(alternate_result);
+        }
+        return Ok(resolution);
     };
-    let alternate_result = host_module.alternate_result().cloned();
     let (types_package_exists, package_bundles_types) =
         host_module
             .package_id()
@@ -617,6 +625,10 @@ mod tests {
             "conformance/classes/members/privateNames/privateNameEmitHelpers.ts",
             "conformance/classes/members/privateNames/privateNameStaticEmitHelpers.ts",
             "conformance/es2020/modules/exportAsNamespace_missingEmitHelpers.ts",
+            "conformance/moduleResolution/resolutionModeImportType1.ts",
+            "conformance/moduleResolution/resolutionModeTypeOnlyImport1.ts",
+            "conformance/moduleResolution/node10AlternateResult_noResolution.ts",
+            "conformance/moduleResolution/node10Alternateresult_noTypes.ts",
         ] {
             assert!(supports_fixture(fixture), "missing H0 route: {fixture}");
         }
@@ -762,6 +774,231 @@ mod tests {
             [(Some("b.ts"), 2354, Some(0), Some(0))]
         );
         assert!(control.syntactic.is_empty());
+    }
+
+    #[test]
+    fn alternate_resolution_fixtures_and_controls_match_the_reviewed_boundary() {
+        let workspace = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .and_then(Path::parent)
+            .expect("workspace root");
+        let vendor_lib_dir = workspace.join("vendor/typescript-6.0.3/lib");
+
+        let run_fixture = |fixture: &str| {
+            tsc_harness::expand_fixture_file(
+                &workspace.join("ts-tests/tests/cases").join(fixture),
+                &vendor_lib_dir,
+            )
+            .expect("expand focused H0 fixture")
+            .into_iter()
+            .map(|program| {
+                let matrix_key = program.matrix_key.clone();
+                let observed = crate::current_case_tsrs(fixture, &program, &vendor_lib_dir)
+                    .expect("run focused H0 fixture");
+                (matrix_key, observed)
+            })
+            .collect::<Vec<_>>()
+        };
+
+        for (fixture, expected) in [
+            (
+                "conformance/moduleResolution/resolutionModeImportType1.ts",
+                [(29, 5, 0, 29), (67, 5, 1, 28), (149, 5, 2, 29)],
+            ),
+            (
+                "conformance/moduleResolution/resolutionModeTypeOnlyImport1.ts",
+                [(34, 5, 0, 34), (74, 5, 1, 33), (152, 5, 2, 34)],
+            ),
+        ] {
+            let cases = run_fixture(fixture);
+            assert_eq!(cases.len(), 2, "unexpected matrix expansion: {fixture}");
+            let bundler = cases
+                .iter()
+                .find(|(matrix_key, _)| matrix_key == "moduleResolution=bundler")
+                .expect("bundler control");
+            assert!(bundler.1.all.is_empty(), "{fixture}: bundler control");
+            assert!(bundler.1.syntactic.is_empty());
+
+            let classic = cases
+                .iter()
+                .find(|(matrix_key, _)| matrix_key == "moduleResolution=classic")
+                .expect("classic emitting case");
+            assert_eq!(
+                classic
+                    .1
+                    .all
+                    .iter()
+                    .map(|diagnostic| {
+                        (
+                            diagnostic.file.as_deref(),
+                            diagnostic.code,
+                            diagnostic.start.unwrap_or_default(),
+                            diagnostic.length.unwrap_or_default(),
+                            diagnostic.line.unwrap_or_default(),
+                            diagnostic.col.unwrap_or_default(),
+                            diagnostic.chain.text.as_str(),
+                        )
+                    })
+                    .collect::<Vec<_>>(),
+                expected
+                    .into_iter()
+                    .map(|(start, length, line, col)| {
+                        (
+                            Some("/app.ts"),
+                            2792,
+                            start,
+                            length,
+                            line,
+                            col,
+                            "Cannot find module 'foo'. Did you mean to set the 'moduleResolution' option to 'nodenext', or to add aliases to the 'paths' option?",
+                        )
+                    })
+                    .collect::<Vec<_>>(),
+                "unexpected Classic stream: {fixture}"
+            );
+            assert!(classic.1.syntactic.is_empty());
+        }
+
+        let missing =
+            run_fixture("conformance/moduleResolution/node10AlternateResult_noResolution.ts");
+        assert_eq!(missing.len(), 1);
+        assert_eq!(
+            missing[0]
+                .1
+                .all
+                .iter()
+                .map(|diagnostic| {
+                    (
+                        diagnostic.file.as_deref(),
+                        diagnostic.code,
+                        diagnostic.start,
+                        diagnostic.length,
+                        diagnostic.line,
+                        diagnostic.col,
+                        diagnostic.category.as_str(),
+                        diagnostic.pass.as_deref(),
+                        diagnostic.chain.text.as_str(),
+                    )
+                })
+                .collect::<Vec<_>>(),
+            [
+                (
+                    Some("/index.ts"),
+                    6133,
+                    Some(0),
+                    Some(26),
+                    Some(0),
+                    Some(0),
+                    "suggestion",
+                    None,
+                    "'pkg' is declared but its value is never read.",
+                ),
+                (
+                    Some("/index.ts"),
+                    2307,
+                    Some(20),
+                    Some(5),
+                    Some(0),
+                    Some(20),
+                    "error",
+                    None,
+                    "Cannot find module 'pkg' or its corresponding type declarations.",
+                ),
+            ]
+        );
+        let missing_module = missing[0]
+            .1
+            .all
+            .iter()
+            .find(|diagnostic| diagnostic.code == 2307)
+            .expect("Node10 missing-module diagnostic");
+        assert_eq!(
+            missing_module
+                .chain
+                .next
+                .iter()
+                .map(|message| {
+                    (
+                        message.code,
+                        message.category.as_str(),
+                        message.text.as_str(),
+                    )
+                })
+                .collect::<Vec<_>>(),
+            [(
+                6280,
+                "message",
+                "There are types at '/node_modules/pkg/definitely-not-index.d.ts', but this result could not be resolved under your current 'moduleResolution' setting. Consider updating to 'node16', 'nodenext', or 'bundler'.",
+            )]
+        );
+        assert!(missing[0].1.syntactic.is_empty());
+
+        let untyped = run_fixture("conformance/moduleResolution/node10Alternateresult_noTypes.ts");
+        assert_eq!(untyped.len(), 1);
+        assert_eq!(
+            untyped[0]
+                .1
+                .all
+                .iter()
+                .map(|diagnostic| {
+                    (
+                        diagnostic.file.as_deref(),
+                        diagnostic.code,
+                        diagnostic.start,
+                        diagnostic.length,
+                        diagnostic.line,
+                        diagnostic.col,
+                        diagnostic.category.as_str(),
+                        diagnostic.pass.as_deref(),
+                        diagnostic.chain.text.as_str(),
+                    )
+                })
+                .collect::<Vec<_>>(),
+            [
+                (
+                    Some("/index.ts"),
+                    6133,
+                    Some(0),
+                    Some(26),
+                    Some(0),
+                    Some(0),
+                    "suggestion",
+                    None,
+                    "'pkg' is declared but its value is never read.",
+                ),
+                (
+                    Some("/index.ts"),
+                    7016,
+                    Some(20),
+                    Some(5),
+                    Some(0),
+                    Some(20),
+                    "error",
+                    None,
+                    "Could not find a declaration file for module 'pkg'. '/node_modules/pkg/untyped.js' implicitly has an 'any' type.",
+                ),
+            ]
+        );
+        assert_eq!(
+            untyped[0].1.all[1]
+                .chain
+                .next
+                .iter()
+                .map(|message| {
+                    (
+                        message.code,
+                        message.category.as_str(),
+                        message.text.as_str(),
+                    )
+                })
+                .collect::<Vec<_>>(),
+            [(
+                6280,
+                "message",
+                "There are types at '/node_modules/pkg/definitely-not-index.d.ts', but this result could not be resolved under your current 'moduleResolution' setting. Consider updating to 'node16', 'nodenext', or 'bundler'.",
+            )]
+        );
+        assert!(untyped[0].1.syntactic.is_empty());
     }
 
     #[test]
