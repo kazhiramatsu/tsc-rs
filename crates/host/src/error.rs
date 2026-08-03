@@ -7,6 +7,7 @@ use std::path::{Path, PathBuf};
 pub enum HostOperation {
     BuildMemoryHost,
     CurrentDirectory,
+    DetectCaseSensitivity,
     ReadFile,
     FileExists,
     DirectoryExists,
@@ -19,6 +20,7 @@ impl HostOperation {
         match self {
             Self::BuildMemoryHost => "build memory host",
             Self::CurrentDirectory => "read current directory",
+            Self::DetectCaseSensitivity => "detect filesystem case sensitivity",
             Self::ReadFile => "read file",
             Self::FileExists => "test file existence",
             Self::DirectoryExists => "test directory existence",
