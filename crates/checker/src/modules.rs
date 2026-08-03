@@ -3781,6 +3781,22 @@ impl<'a> CheckerState<'a> {
         location: NodeId,
         module_reference: &str,
     ) -> ProgramModuleResolution {
+        // collectExternalModuleReferences omits empty static import/export,
+        // import-equals, and JSDoc specifiers. Empty import types, dynamic
+        // imports, JavaScript require calls, and augmentations remain exact
+        // host requests, so this guard must stay syntax-sensitive.
+        if module_reference.is_empty()
+            && [
+                SyntaxKind::ImportDeclaration,
+                SyntaxKind::ExportDeclaration,
+                SyntaxKind::ImportEqualsDeclaration,
+                SyntaxKind::JSDocImportTag,
+            ]
+            .into_iter()
+            .any(|kind| self.has_ancestor_kind(location, kind))
+        {
+            return ProgramModuleResolution::missed();
+        }
         if self.authoritative_module_provider.is_some() {
             return self.resolve_authoritative_program_module(location, module_reference);
         }
@@ -5374,11 +5390,13 @@ impl<'a> CheckerState<'a> {
     }
 
     /// tsc importSyntaxAffectsModuleResolution over the represented
-    /// option set. resolvePackageJsonExports/Imports have no explicit
-    /// fields yet; their computed defaults are true for Node16,
-    /// NodeNext, and Bundler.
+    /// option set. Node16 and NodeNext always participate; Bundler does so
+    /// only while at least one package-map feature is effectively enabled.
     fn import_syntax_affects_module_resolution(&self) -> bool {
-        matches!(self.options.emit_module_resolution_kind(), 3 | 99 | 100)
+        let module_resolution = self.options.emit_module_resolution_kind();
+        (3..=99).contains(&module_resolution)
+            || (matches!(module_resolution, 3 | 99 | 100)
+                && (self.package_json_exports_enabled() || self.package_json_imports_enabled()))
     }
 
     /// tsc getModeForUsageLocationWorker / getEmitSyntaxForUsageLocationWorker.

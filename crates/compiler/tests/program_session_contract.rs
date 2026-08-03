@@ -1337,6 +1337,111 @@ fn prepared_effective_implied_format_selects_non_node_static_and_dynamic_keys() 
 }
 
 #[test]
+fn empty_static_and_jsdoc_specifiers_do_not_query_the_authoritative_table() {
+    let prepared = authoritative_program(
+        &[
+            (
+                "/static.ts",
+                "import '';\nexport * from '';\nimport alias = require('');\n",
+            ),
+            (
+                "/jsdoc.js",
+                "/** @import { Empty } from '' */\nexport const value = 0;\n",
+            ),
+        ],
+        &[0, 1],
+        CompilerOptions {
+            allow_js: true,
+            check_js: Some(true),
+            module: Some(99),
+            module_resolution: Some(100),
+            ..CompilerOptions::default()
+        },
+        |_, _| {},
+    );
+
+    consume(ProgramSession::new(prepared));
+}
+
+#[test]
+fn empty_dynamic_import_type_and_js_require_still_query_exact_rows() {
+    for (file_name, text, mode, javascript) in [
+        (
+            "/dynamic.ts",
+            "void import('');\n",
+            ResolutionMode::EsNext,
+            false,
+        ),
+        (
+            "/import-type.ts",
+            "type Imported = import('').Value;\n",
+            ResolutionMode::EsNext,
+            false,
+        ),
+        (
+            "/require.js",
+            "const loaded = require('');\n",
+            ResolutionMode::CommonJs,
+            true,
+        ),
+    ] {
+        let prepared = authoritative_program(
+            &[(file_name, text)],
+            &[0],
+            CompilerOptions {
+                allow_js: javascript,
+                check_js: javascript.then_some(true),
+                module: Some(99),
+                module_resolution: Some(100),
+                ..CompilerOptions::default()
+            },
+            |_, _| {},
+        );
+
+        let error = ProgramSession::new(prepared)
+            .run()
+            .expect_err("retained empty request must require an exact row");
+        let DriverError::MissingResolution(missing) = error else {
+            panic!("unexpected driver error: {error:?}");
+        };
+        assert_eq!(missing.request_kind(), ResolutionRequestKind::Module);
+        assert_eq!(missing.origin(), path(file_name).canonical());
+        assert_eq!(missing.specifier(), "");
+        assert_eq!(missing.mode(), mode);
+    }
+}
+
+#[test]
+fn bundler_without_package_maps_uses_unspecified_resolution_keys() {
+    let prepared = authoritative_program(
+        &[(
+            "/main.ts",
+            "import 'static-pkg';\nvoid import('dynamic-pkg');\n",
+        )],
+        &[0],
+        CompilerOptions {
+            module: Some(99),
+            module_resolution: Some(100),
+            resolve_package_json_exports: Some(false),
+            resolve_package_json_imports: Some(false),
+            ..CompilerOptions::default()
+        },
+        |builder, _| {
+            for specifier in ["static-pkg", "dynamic-pkg"] {
+                builder
+                    .add_module_resolution(
+                        module_key("/main.ts", specifier, ResolutionMode::Unspecified),
+                        Ok(ModuleResolution::not_found()),
+                    )
+                    .expect("add exact Bundler-without-package-maps row");
+            }
+        },
+    );
+
+    consume(ProgramSession::new(prepared));
+}
+
+#[test]
 fn resolution_mode_overrides_select_distinct_rows_for_the_same_request() {
     let prepared = authoritative_program(
         &[
