@@ -334,17 +334,20 @@ consumer slices resolve ambient const-enum import and re-export aliases through
 that authoritative module table, and publish the synthetic `tslib` request
 needed to validate private get/set helper shapes in the source file's static
 resolution mode. They close the 2/2 const-enum-module-binding rows and 4/4
-external-helper-consumer rows, bringing the registry to 230/241 closed with 11
-rows open. This does not claim general H0.2 resolution beyond the reviewed
-in-memory routes, filesystem hosting, or H0 completion.
+external-helper-consumer rows. The reviewed alternate-resolution slice closes
+the 7/7 resolution-mode-and-message-selection rows: Classic mode owns the 6
+TS2792 diagnostics across import-type and type-only import matrices, while
+Node10 preserves the alternate package location needed for its single TS2307
+diagnostic. This brings the registry to 237/241 closed with 4 rows open.
+It does not claim general H0.2 resolution beyond the reviewed in-memory routes,
+filesystem hosting, or H0 completion.
 
 ### H0.3 — residual host consumers
 
 Close the remaining host rows by exact owner:
 
-- TS2792 and the remaining TS2307 alternate-resolution/message selection;
-- TS2339 untyped-package member behavior;
-- TS2665 untyped-module augmentation.
+- TS2339 untyped-package member behavior (3 rows);
+- TS2665 untyped-module augmentation (1 row).
 
 No diagnostic-specific shortcut may replace the underlying resolution fact.
 
