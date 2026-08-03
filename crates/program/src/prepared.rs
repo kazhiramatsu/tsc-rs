@@ -1406,7 +1406,7 @@ impl PreparedProgramBuilder {
                     "resolved module",
                 )?;
             }
-            ResolvedModuleTarget::Unloaded(_) => {
+            ResolvedModuleTarget::Unloaded { .. } => {
                 let is_owned = self
                     .source_by_canonical
                     .contains_key(resolved_file.canonical())

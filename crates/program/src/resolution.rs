@@ -260,26 +260,63 @@ impl PackageId {
 /// JavaScript, JSON without `resolveJsonModule`, and arbitrary extensions
 /// without `allowArbitraryExtensions`. Vendored `createProgram` retains the
 /// resolved row but skips `findSourceFile` for those branches.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum UnloadedModuleReason {
+    /// JavaScript was resolved while the effective `allowJs` option was off.
+    JavaScriptNotAdmitted,
+    /// JavaScript found through `node_modules` was elided by the active depth
+    /// limit.
+    NodeModulesDepth,
+    /// The request participates in resolution but does not load a source,
+    /// such as an external-module augmentation.
+    ResolutionOnly,
+    /// A `.jsx` resolution was rejected because no JSX mode is active.
+    JsxWithoutJsxOption,
+    /// JSON was resolved while `resolveJsonModule` was not effective.
+    JsonWithoutResolveJsonModule,
+    /// An arbitrary extension was resolved without its admission option.
+    ArbitraryExtensionWithoutOption,
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ResolvedModuleTarget {
     Source {
         source: SourceFileId,
         resolved_file: ProgramPath,
     },
-    Unloaded(ProgramPath),
+    Unloaded {
+        resolved_file: ProgramPath,
+        reason: UnloadedModuleReason,
+    },
 }
 
 impl ResolvedModuleTarget {
+    pub fn unloaded(resolved_file: ProgramPath, reason: UnloadedModuleReason) -> Self {
+        Self::Unloaded {
+            resolved_file,
+            reason,
+        }
+    }
+
     pub const fn source(&self) -> Option<SourceFileId> {
         match self {
             Self::Source { source, .. } => Some(*source),
-            Self::Unloaded(_) => None,
+            Self::Unloaded { .. } => None,
         }
     }
 
     pub fn resolved_file(&self) -> &ProgramPath {
         match self {
-            Self::Source { resolved_file, .. } | Self::Unloaded(resolved_file) => resolved_file,
+            Self::Source { resolved_file, .. } | Self::Unloaded { resolved_file, .. } => {
+                resolved_file
+            }
+        }
+    }
+
+    pub const fn unloaded_reason(&self) -> Option<UnloadedModuleReason> {
+        match self {
+            Self::Source { .. } => None,
+            Self::Unloaded { reason, .. } => Some(*reason),
         }
     }
 }

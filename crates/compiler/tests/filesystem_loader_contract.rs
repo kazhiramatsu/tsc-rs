@@ -9,8 +9,8 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use tsc_compiler::ProgramSession;
 use tsc_host::{FsCompilerHost, MemoryCompilerHost};
 use tsc_program::{
-    load_no_lib_program, CompilerOptions, PathMapping, ProgramLoadLimits, ProgramOptions,
-    ProgramPath,
+    load_no_lib_program, plan_source_requests, CompilerOptions, PathMapping, ProgramLoadLimits,
+    ProgramOptions, ProgramPath, ResolutionOutcome, ResolvedModuleTarget, UnloadedModuleReason,
 };
 
 const GENEROUS_LIMIT: usize = 1_024 * 1_024;
@@ -188,5 +188,245 @@ fn paths_base_url_and_root_dirs_produce_identical_filesystem_backed_diagnostics(
             .map(|diagnostic| diagnostic.code())
             .collect::<Vec<_>>(),
         [2322]
+    );
+}
+
+#[test]
+fn allow_js_local_closure_produces_identical_filesystem_backed_diagnostics() {
+    let tree = TempTree::new();
+    let root = concat!(
+        "/// <reference path=\"./globals.d.ts\" />\n",
+        "import { checked } from './dependency.js';\n",
+        "import packageValue from 'pkg';\n",
+        "const numeric: number = checked;\n",
+        "packageValue;\n",
+        "export { numeric };\n",
+    );
+    let dependency = concat!(
+        "// @ts-check\n",
+        "import './leaf.cjs';\n",
+        "export const checked = 'text';\n",
+        "checked.missing;\n",
+    );
+    let files = [
+        ("root.ts", root.as_bytes()),
+        ("globals.d.ts", MINIMAL_GLOBALS.as_bytes()),
+        ("dependency.js", dependency.as_bytes()),
+        ("leaf.cjs", b"exports.leaf = 1;".as_slice()),
+        (
+            "node_modules/pkg/package.json",
+            br#"{"name":"pkg","version":"1.0.0","main":"index.js"}"#.as_slice(),
+        ),
+        (
+            "node_modules/pkg/index.js",
+            b"module.exports = 1;".as_slice(),
+        ),
+    ];
+    fs::create_dir_all(tree.path("node_modules/pkg")).expect("create JavaScript package directory");
+    for (relative, bytes) in files {
+        fs::write(tree.path(relative), bytes).expect("write JavaScript source tree");
+    }
+
+    let filesystem = FsCompilerHost::new(tree.root(), true).expect("construct filesystem host");
+    let mut memory = MemoryCompilerHost::builder(tree.root()).case_sensitive(true);
+    for (relative, bytes) in files {
+        memory = memory.file(tree.path(relative), bytes.to_vec());
+    }
+    let memory = memory.build().expect("construct memory host");
+    let compiler_options = CompilerOptions {
+        allow_js: true,
+        check_js: Some(true),
+        no_emit: Some(true),
+        ..CompilerOptions::default()
+    };
+    let program_options = ProgramOptions::default()
+        .with_no_lib(true)
+        .with_types(Vec::new());
+    let roots = [tree.path("root.ts")];
+
+    let from_memory = load_no_lib_program(
+        &memory,
+        &roots,
+        compiler_options.clone(),
+        program_options.clone(),
+        limits(),
+    )
+    .expect("load JavaScript closure from MemoryHost");
+    let from_filesystem = load_no_lib_program(
+        &filesystem,
+        &roots,
+        compiler_options,
+        program_options,
+        limits(),
+    )
+    .expect("load JavaScript closure from FsHost");
+    assert_eq!(from_memory, from_filesystem);
+    assert_eq!(
+        from_memory
+            .source_files()
+            .iter()
+            .map(|source| source.path().display().to_path_buf())
+            .collect::<Vec<_>>(),
+        [
+            tree.path("globals.d.ts"),
+            tree.path("leaf.cjs"),
+            tree.path("dependency.js"),
+            tree.path("root.ts"),
+        ]
+    );
+    let root_source = from_memory
+        .source_files()
+        .iter()
+        .find(|source| source.path().display() == tree.path("root.ts"))
+        .expect("root source is owned");
+    let root_plan = plan_source_requests(root_source, from_memory.compiler_options())
+        .expect("plan root requests");
+    let package_key = root_plan
+        .module_requests()
+        .iter()
+        .find(|key| key.specifier() == "pkg")
+        .expect("package request exists");
+    let package_resolution = from_memory
+        .resolutions()
+        .require_module(package_key)
+        .expect("package request has an authoritative row");
+    let ResolutionOutcome::Resolved(package) = package_resolution.outcome() else {
+        panic!("package JavaScript resolves");
+    };
+    let ResolvedModuleTarget::Unloaded { reason, .. } = package.target() else {
+        panic!("default depth keeps package JavaScript unloaded");
+    };
+    assert_eq!(*reason, UnloadedModuleReason::NodeModulesDepth);
+
+    let memory_outcome = ProgramSession::new(from_memory)
+        .run()
+        .expect("run MemoryHost JavaScript program");
+    let filesystem_outcome = ProgramSession::new(from_filesystem)
+        .run()
+        .expect("run FsHost JavaScript program");
+    assert_eq!(memory_outcome, filesystem_outcome);
+    assert!(memory_outcome.syntactic_diagnostics().is_empty());
+    assert!(memory_outcome.options_diagnostics().is_empty());
+    assert!(memory_outcome.global_diagnostics().is_empty());
+    assert_eq!(
+        memory_outcome
+            .semantic_diagnostics()
+            .iter()
+            .map(|diagnostic| diagnostic.code())
+            .collect::<Vec<_>>(),
+        [2339, 7016, 2322]
+    );
+}
+
+#[test]
+fn jsx_without_mode_flows_from_both_loaders_to_exact_ts6142_diagnostics() {
+    let tree = TempTree::new();
+    fs::create_dir_all(tree.path("node_modules/pkg")).expect("create JSX package directory");
+    let root = concat!(
+        "/// <reference path=\"./globals.d.ts\" />\n",
+        "import './dependency.jsx';\n",
+        "import 'pkg';\n",
+        "export {};\n",
+    );
+    let files = [
+        ("root.ts", root.as_bytes()),
+        ("globals.d.ts", MINIMAL_GLOBALS.as_bytes()),
+        ("dependency.jsx", b"export const local = 1;".as_slice()),
+        (
+            "node_modules/pkg/package.json",
+            br#"{"name":"pkg","version":"1.0.0","main":"index.jsx"}"#.as_slice(),
+        ),
+        (
+            "node_modules/pkg/index.jsx",
+            b"exports.package = 1;".as_slice(),
+        ),
+    ];
+    for (relative, bytes) in files {
+        fs::write(tree.path(relative), bytes).expect("write JSX source tree");
+    }
+
+    let filesystem = FsCompilerHost::new(tree.root(), true).expect("construct filesystem host");
+    let mut memory = MemoryCompilerHost::builder(tree.root()).case_sensitive(true);
+    for (relative, bytes) in files {
+        memory = memory.file(tree.path(relative), bytes.to_vec());
+    }
+    let memory = memory.build().expect("construct memory host");
+    let compiler_options = CompilerOptions {
+        allow_js: true,
+        no_emit: Some(true),
+        ..CompilerOptions::default()
+    };
+    let program_options = ProgramOptions::default()
+        .with_no_lib(true)
+        .with_types(Vec::new());
+    let roots = [tree.path("root.ts")];
+
+    let from_memory = load_no_lib_program(
+        &memory,
+        &roots,
+        compiler_options.clone(),
+        program_options.clone(),
+        limits(),
+    )
+    .expect("load JSX rows from MemoryHost");
+    let from_filesystem = load_no_lib_program(
+        &filesystem,
+        &roots,
+        compiler_options,
+        program_options,
+        limits(),
+    )
+    .expect("load JSX rows from FsHost");
+    assert_eq!(from_memory, from_filesystem);
+    assert!(from_memory.diagnostics().program().is_empty());
+    assert_eq!(
+        from_memory
+            .source_files()
+            .iter()
+            .map(|source| source.path().display().to_path_buf())
+            .collect::<Vec<_>>(),
+        [tree.path("globals.d.ts"), tree.path("root.ts")]
+    );
+    let root_source = from_memory
+        .source_files()
+        .iter()
+        .find(|source| source.path().display() == tree.path("root.ts"))
+        .expect("root source is owned");
+    let root_plan = plan_source_requests(root_source, from_memory.compiler_options())
+        .expect("plan JSX root requests");
+    for key in root_plan.module_requests() {
+        let resolution = from_memory
+            .resolutions()
+            .require_module(key)
+            .expect("JSX request has an authoritative row");
+        let ResolutionOutcome::Resolved(module) = resolution.outcome() else {
+            panic!("JSX request must resolve: {}", key.specifier());
+        };
+        let ResolvedModuleTarget::Unloaded { reason, .. } = module.target() else {
+            panic!(
+                "JSX without a mode must remain unloaded: {}",
+                key.specifier()
+            );
+        };
+        assert_eq!(*reason, UnloadedModuleReason::JsxWithoutJsxOption);
+    }
+
+    let memory_outcome = ProgramSession::new(from_memory)
+        .run()
+        .expect("run MemoryHost JSX program");
+    let filesystem_outcome = ProgramSession::new(from_filesystem)
+        .run()
+        .expect("run FsHost JSX program");
+    assert_eq!(memory_outcome, filesystem_outcome);
+    assert!(memory_outcome.syntactic_diagnostics().is_empty());
+    assert!(memory_outcome.options_diagnostics().is_empty());
+    assert!(memory_outcome.global_diagnostics().is_empty());
+    assert_eq!(
+        memory_outcome
+            .semantic_diagnostics()
+            .iter()
+            .map(|diagnostic| diagnostic.code())
+            .collect::<Vec<_>>(),
+        [6142, 6142]
     );
 }

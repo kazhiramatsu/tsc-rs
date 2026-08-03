@@ -13,7 +13,7 @@ use tsc_program::{
     PlannedTypeReferenceDirective, PreparedProgram, PreparedSourceFile, ProgramOptions,
     ProgramPath, ResolutionError, ResolutionMode, ResolutionOutcome, ResolvedModuleTarget,
     ResolvedTypeReferenceDirective, SourceFileId, TypeReferenceResolution,
-    TypeReferenceResolutionKey,
+    TypeReferenceResolutionKey, UnloadedModuleReason,
 };
 
 use crate::ConformanceResult;
@@ -203,14 +203,14 @@ pub(crate) fn run(
             continue;
         }
         let plan = plan_source_requests(&source.prepared, &options)?;
-        for key in plan.module_requests() {
+        for (key, loads_source) in plan.module_requests_with_loadability() {
             let specifier = key.specifier().to_owned();
             let host_outcome = resolver.resolve_with_facts(
                 source.prepared.path().canonical().as_path(),
                 &specifier,
                 key.mode(),
             )?;
-            host_resolutions.push((key.clone(), host_outcome));
+            host_resolutions.push((key.clone(), host_outcome, loads_source));
         }
         for directive in plan.type_reference_directives() {
             let key = directive.key().clone();
@@ -242,15 +242,21 @@ pub(crate) fn run(
     // tsc's host package map is a fold over the complete resolved-module
     // table, so diagnostic facts cannot be finalized while rows are still
     // being discovered.
-    let package_map = package_map_from_facts(host_resolutions.iter().filter_map(|(_, outcome)| {
-        let ResolutionOutcome::Resolved(module) = outcome.outcome() else {
-            return None;
-        };
-        Some((module.package_id()?, module.extension()))
-    }));
-    for (key, host_outcome) in host_resolutions {
-        let resolution =
-            bind_host_outcome(host_outcome, &source_by_canonical, &options, &package_map)?;
+    let package_map =
+        package_map_from_facts(host_resolutions.iter().filter_map(|(_, outcome, _)| {
+            let ResolutionOutcome::Resolved(module) = outcome.outcome() else {
+                return None;
+            };
+            Some((module.package_id()?, module.extension()))
+        }));
+    for (key, host_outcome, loads_source) in host_resolutions {
+        let resolution = bind_host_outcome(
+            host_outcome,
+            &source_by_canonical,
+            &options,
+            &package_map,
+            loads_source,
+        )?;
         prepared_builder.add_module_resolution(key, Ok(resolution))?;
     }
     for (key, host_outcome, diagnostics) in host_type_reference_resolutions {
@@ -341,6 +347,7 @@ fn bind_host_outcome(
     source_by_canonical: &BTreeMap<PathBuf, (SourceFileId, ProgramPath)>,
     options: &tsc_program::CompilerOptions,
     package_map: &BTreeMap<String, bool>,
+    loads_source: bool,
 ) -> Result<ModuleResolution, ResolutionError> {
     let alternate_result = outcome.alternate_result().cloned();
     let ResolutionOutcome::Resolved(host_module) = outcome.into_outcome() else {
@@ -360,9 +367,45 @@ fn bind_host_outcome(
                 )
             });
     let target_canonical = host_module.resolved_file().canonical().as_path();
-    let target = if host_module.extension().is_javascript() && !options.allow_js {
-        ResolvedModuleTarget::Unloaded(host_module.resolved_file().clone())
-    } else if let Some((target_source, target_path)) = source_by_canonical.get(target_canonical) {
+    let owned_source = source_by_canonical.get(target_canonical);
+    let target = if host_module.extension().is_javascript() && owned_source.is_none() {
+        let reason = if matches!(host_module.extension(), ModuleExtension::Jsx)
+            && options.jsx.unwrap_or(0) == 0
+        {
+            UnloadedModuleReason::JsxWithoutJsxOption
+        } else if !loads_source {
+            UnloadedModuleReason::ResolutionOnly
+        } else if host_module.is_external_library_import()
+            && (host_module.original_path().is_none()
+                || target_canonical.to_str().is_some_and(|path| {
+                    path.split('/').any(|component| component == "node_modules")
+                }))
+        {
+            UnloadedModuleReason::NodeModulesDepth
+        } else if !options.allow_js {
+            UnloadedModuleReason::JavaScriptNotAdmitted
+        } else {
+            return Err(ResolutionError::invalid_data(format!(
+                "resolved JavaScript source {} is not owned by the prepared program",
+                host_module.resolved_file().display().display()
+            )));
+        };
+        if host_module.original_path().is_some()
+            && !matches!(reason, UnloadedModuleReason::JsxWithoutJsxOption)
+        {
+            return Err(ResolutionError::unsupported(
+                "unloaded-original-path",
+                format!(
+                    "unloaded JavaScript target {} retains an unsupported lexical-to-physical transition",
+                    host_module.resolved_file().display().display()
+                ),
+            ));
+        }
+        ResolvedModuleTarget::Unloaded {
+            resolved_file: host_module.resolved_file().clone(),
+            reason,
+        }
+    } else if let Some((target_source, target_path)) = owned_source {
         ResolvedModuleTarget::Source {
             source: *target_source,
             // ProgramSession requires the resolved-file spelling to be exactly

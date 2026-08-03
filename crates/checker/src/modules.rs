@@ -100,7 +100,8 @@ enum HostModuleTarget {
 /// The external-library facts consumed by errorOnImplicitAnyModule.
 /// package_name is the resolved packageId.name face (and therefore
 /// remains absent for packages without name metadata); alternate_result
-/// is the declaration path found by the other resolver regime.
+/// is the declaration path found by the other resolver regime. The closed
+/// resolution-diagnostic field also carries the unloaded-JSX TS6142 face.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct UntypedModuleResolution {
     resolved_file_name: String,
@@ -108,6 +109,7 @@ pub(crate) struct UntypedModuleResolution {
     alternate_result: Option<String>,
     types_package_exists: bool,
     package_bundles_types: bool,
+    resolution_diagnostic: Option<crate::AuthoritativeModuleResolutionDiagnostic>,
 }
 
 /// tsc ResolutionMode at the host-resolution seam. `Unknown` remains
@@ -2971,6 +2973,7 @@ impl<'a> CheckerState<'a> {
                                 alternate_result: resolved.alternate_result.clone(),
                                 types_package_exists: resolved.types_package_exists,
                                 package_bundles_types: resolved.package_bundles_types,
+                                resolution_diagnostic: None,
                             }
                         } else {
                             self.untyped_resolution_from_path(
@@ -3019,6 +3022,19 @@ impl<'a> CheckerState<'a> {
             }
         }
         if let ProgramModuleResolution::Untyped(untyped) = &resolution {
+            if matches!(
+                untyped.resolution_diagnostic,
+                Some(crate::AuthoritativeModuleResolutionDiagnostic::JsxWithoutJsxOption)
+            ) {
+                if let (Some(error_node), Some(_)) = (error_node, module_not_found_error) {
+                    self.error_at(
+                        Some(error_node),
+                        &diagnostics::Module_0_was_resolved_to_1_but_jsx_is_not_set,
+                        &[module_reference, &untyped.resolved_file_name],
+                    );
+                }
+                return Ok(None);
+            }
             if let Some(error_node) = error_node {
                 if is_for_augmentation {
                     self.error_at(
@@ -3028,7 +3044,6 @@ impl<'a> CheckerState<'a> {
                     );
                 } else {
                     let is_error = module_not_found_error.is_some()
-                        && !self.options.allow_js
                         && self
                             .options
                             .strict_option_value(self.options.no_implicit_any);
@@ -3711,6 +3726,7 @@ impl<'a> CheckerState<'a> {
                     alternate_result: untyped.alternate_result,
                     types_package_exists: untyped.types_package_exists,
                     package_bundles_types: untyped.package_bundles_types,
+                    resolution_diagnostic: untyped.resolution_diagnostic,
                 })
             }
             Ok(crate::AuthoritativeModuleResolution::Resolved(resolved)) => {
@@ -4323,6 +4339,7 @@ impl<'a> CheckerState<'a> {
                 alternate_result: None,
                 types_package_exists: false,
                 package_bundles_types: false,
+                resolution_diagnostic: None,
             });
         }
         if module_reference.starts_with('#')
@@ -4388,6 +4405,7 @@ impl<'a> CheckerState<'a> {
                 alternate_result: None,
                 types_package_exists: false,
                 package_bundles_types: false,
+                resolution_diagnostic: None,
             };
         }
         let (package, subpath) = Self::bare_package_parts(module_reference);
@@ -4398,6 +4416,7 @@ impl<'a> CheckerState<'a> {
                 alternate_result: None,
                 types_package_exists: false,
                 package_bundles_types: false,
+                resolution_diagnostic: None,
             };
         };
         self.untyped_package_resolution(
@@ -4450,6 +4469,7 @@ impl<'a> CheckerState<'a> {
             alternate_result,
             types_package_exists,
             package_bundles_types,
+            resolution_diagnostic: None,
         }
     }
 

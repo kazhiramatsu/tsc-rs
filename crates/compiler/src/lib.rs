@@ -7,23 +7,26 @@
 //! exactly one [`PreparedProgram`], projects its already-final source order
 //! into the checker, and is consumed by [`ProgramSession::run`].
 
+use std::cell::RefCell;
+use std::collections::BTreeMap;
 use std::error::Error;
 use std::fmt;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use tsc_checker::{
     check_program_with_authoritative_modules_at,
     check_program_with_authoritative_modules_at_harness_cached, AuthoritativeModuleFailure,
     AuthoritativeModuleLookupFailure, AuthoritativeModuleProvider, AuthoritativeModuleRequest,
-    AuthoritativeModuleResolution, AuthoritativeNotFoundModule, AuthoritativePackageId,
-    AuthoritativeResolutionMode, AuthoritativeResolvedModule, AuthoritativeSourceMetadata,
-    AuthoritativeSourceToken, AuthoritativeUntypedModule, InputFile,
-    UnsupportedAuthoritativeResolution,
+    AuthoritativeModuleResolution, AuthoritativeModuleResolutionDiagnostic,
+    AuthoritativeNotFoundModule, AuthoritativePackageId, AuthoritativeResolutionMode,
+    AuthoritativeResolvedModule, AuthoritativeSourceMetadata, AuthoritativeSourceToken,
+    AuthoritativeUntypedModule, InputFile, UnsupportedAuthoritativeResolution,
 };
 use tsc_diagnostics::{sort_and_dedupe_diagnostics, Diagnostic, DiagnosticList};
 use tsc_program::{
-    MissingResolutionError, ModuleExtension, PreparedProgram, PreparedSourceFile, ResolutionKey,
-    ResolutionMode, ResolutionOutcome, ResolvedModuleTarget, SourceFileId,
+    plan_source_requests, MissingResolutionError, ModuleExtension, PreparedProgram,
+    PreparedSourceFile, ResolutionKey, ResolutionMode, ResolutionOutcome, ResolvedModuleTarget,
+    SourceFileId, SourceRequestPlan, UnloadedModuleReason,
 };
 
 /// A one-shot owner for one prepared no-emit program.
@@ -38,6 +41,41 @@ pub struct ProgramSession {
 
 struct PreparedModuleProvider<'a> {
     prepared: &'a PreparedProgram,
+    request_plans: RefCell<BTreeMap<SourceFileId, SourceRequestPlan>>,
+}
+
+impl PreparedModuleProvider<'_> {
+    fn module_request_loads_source(
+        &self,
+        source_file: SourceFileId,
+        source: &PreparedSourceFile,
+        key: &ResolutionKey,
+    ) -> Result<bool, AuthoritativeModuleLookupFailure> {
+        if let Some(plan) = self.request_plans.borrow().get(&source_file) {
+            return plan.module_request_loads_source(key).ok_or(
+                AuthoritativeModuleLookupFailure::Unsupported(
+                    UnsupportedAuthoritativeResolution::UnloadedTargetAdmission,
+                ),
+            );
+        }
+
+        // Only sources that actually reach an unloaded row pay for this
+        // second plan. Cache the exact aggregate request loadability so a
+        // reason cannot turn a normal import into a resolution-only lookup.
+        let plan =
+            plan_source_requests(source, self.prepared.compiler_options()).map_err(|_| {
+                AuthoritativeModuleLookupFailure::Unsupported(
+                    UnsupportedAuthoritativeResolution::UnloadedTargetAdmission,
+                )
+            })?;
+        let loads_source = plan.module_request_loads_source(key).ok_or(
+            AuthoritativeModuleLookupFailure::Unsupported(
+                UnsupportedAuthoritativeResolution::UnloadedTargetAdmission,
+            ),
+        )?;
+        self.request_plans.borrow_mut().insert(source_file, plan);
+        Ok(loads_source)
+    }
 }
 
 impl AuthoritativeModuleProvider for PreparedModuleProvider<'_> {
@@ -79,25 +117,55 @@ impl AuthoritativeModuleProvider for PreparedModuleProvider<'_> {
                 AuthoritativeNotFoundModule { alternate_result },
             ));
         };
-        if let ResolvedModuleTarget::Unloaded(resolved_file) = module.target() {
+        if let ResolvedModuleTarget::Unloaded {
+            resolved_file,
+            reason,
+        } = module.target()
+        {
             if !module.extension().is_javascript() {
                 return Err(AuthoritativeModuleLookupFailure::Unsupported(
                     UnsupportedAuthoritativeResolution::UnloadedTargetExtension,
                 ));
             }
-            if self.prepared.compiler_options().allow_js {
-                return Err(AuthoritativeModuleLookupFailure::Unsupported(
-                    UnsupportedAuthoritativeResolution::UnloadedTargetAdmission,
-                ));
-            }
             if matches!(module.extension(), ModuleExtension::Jsx)
                 && self.prepared.compiler_options().jsx.unwrap_or(0) == 0
+                && !matches!(reason, UnloadedModuleReason::JsxWithoutJsxOption)
             {
                 return Err(AuthoritativeModuleLookupFailure::Unsupported(
                     UnsupportedAuthoritativeResolution::UnloadedJsxWithoutJsxOption,
                 ));
             }
-            if module.original_path().is_some() {
+            let loads_source = self.module_request_loads_source(source_file, source, &key)?;
+            let node_modules_depth_applies = module.is_external_library_import()
+                && (module.original_path().is_none()
+                    || path_contains_node_modules(resolved_file.canonical().as_path()));
+            let resolution_diagnostic = match reason {
+                UnloadedModuleReason::JsxWithoutJsxOption
+                    if matches!(module.extension(), ModuleExtension::Jsx)
+                        && self.prepared.compiler_options().jsx.unwrap_or(0) == 0 =>
+                {
+                    Some(AuthoritativeModuleResolutionDiagnostic::JsxWithoutJsxOption)
+                }
+                UnloadedModuleReason::ResolutionOnly if !loads_source => None,
+                UnloadedModuleReason::NodeModulesDepth
+                    if loads_source && node_modules_depth_applies =>
+                {
+                    None
+                }
+                UnloadedModuleReason::JavaScriptNotAdmitted
+                    if loads_source
+                        && !node_modules_depth_applies
+                        && !self.prepared.compiler_options().allow_js =>
+                {
+                    None
+                }
+                _ => {
+                    return Err(AuthoritativeModuleLookupFailure::Unsupported(
+                        UnsupportedAuthoritativeResolution::UnloadedTargetAdmission,
+                    ));
+                }
+            };
+            if module.original_path().is_some() && resolution_diagnostic.is_none() {
                 return Err(AuthoritativeModuleLookupFailure::Unsupported(
                     UnsupportedAuthoritativeResolution::OriginalPath,
                 ));
@@ -128,6 +196,7 @@ impl AuthoritativeModuleProvider for PreparedModuleProvider<'_> {
                     alternate_result,
                     types_package_exists: resolution.types_package_exists(),
                     package_bundles_types: resolution.package_bundles_types(),
+                    resolution_diagnostic,
                 },
             ));
         }
@@ -184,6 +253,11 @@ impl AuthoritativeModuleProvider for PreparedModuleProvider<'_> {
             },
         ))
     }
+}
+
+fn path_contains_node_modules(path: &Path) -> bool {
+    path.to_str()
+        .is_some_and(|path| path.split('/').any(|component| component == "node_modules"))
 }
 
 const fn program_resolution_mode(mode: AuthoritativeResolutionMode) -> ResolutionMode {
@@ -251,6 +325,7 @@ impl ProgramSession {
         let has_roots = !self.prepared.roots().is_empty();
         let provider = PreparedModuleProvider {
             prepared: &self.prepared,
+            request_plans: RefCell::new(BTreeMap::new()),
         };
         let checked = if harness_lib_cache {
             check_program_with_authoritative_modules_at_harness_cached(
