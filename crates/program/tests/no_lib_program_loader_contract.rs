@@ -1331,6 +1331,30 @@ fn invalid_loader_options_fail_before_host_discovery_with_typed_context() {
     .expect_err("allowJs broadens the admitted source family");
     assert_eq!(allow_js.kind(), ProgramLoadErrorKind::Unsupported);
     assert_eq!(allow_js.operation(), ProgramLoadOperation::ValidateOptions);
+
+    let no_lib_with_explicit_empty_lib = load_no_lib_program(
+        &host,
+        &roots,
+        CompilerOptions {
+            lib: Some(Vec::new()),
+            ..compiler_options()
+        },
+        program_options(),
+        generous_limits(),
+    )
+    .expect_err("the H0.5 noLib/lib option diagnostic is not yet owned");
+    assert_eq!(
+        no_lib_with_explicit_empty_lib.kind(),
+        ProgramLoadErrorKind::Unsupported
+    );
+    assert_eq!(
+        no_lib_with_explicit_empty_lib.operation(),
+        ProgramLoadOperation::ValidateOptions
+    );
+    let ProgramLoadError::Unsupported { feature, .. } = no_lib_with_explicit_empty_lib else {
+        unreachable!("kind identifies the unsupported variant");
+    };
+    assert_eq!(feature, "explicit-libraries");
 }
 
 #[test]
