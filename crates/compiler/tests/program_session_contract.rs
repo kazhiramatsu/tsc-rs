@@ -1757,6 +1757,92 @@ fn loaded_package_identity_is_consumed_at_the_authoritative_boundary() {
 }
 
 #[test]
+fn ambient_const_enum_aliases_consume_authoritative_bare_module_bindings() {
+    let package = "export declare const enum E { A, B, C }\n\
+                   declare global { const enum F { A, B, C } }\n";
+    let a = "import { E } from \"pkg\";\n\
+             import type { E as _E } from \"pkg\";\n\
+             E.A;\n\
+             F.A;\n";
+    let b = "export { E } from \"pkg\";\n\
+             export type { E as _E } from \"pkg\";\n";
+    let prepared = authoritative_program(
+        &[
+            ("/node_modules/pkg/index.d.ts", package),
+            ("/a.ts", a),
+            ("/b.ts", b),
+        ],
+        &[1, 2],
+        CompilerOptions {
+            module: Some(200),
+            module_resolution: Some(100),
+            verbatim_module_syntax: Some(true),
+            ..CompilerOptions::default()
+        },
+        |builder, ids| {
+            for source in ["/a.ts", "/b.ts"] {
+                let module = ResolvedModule::new(
+                    ResolvedModuleTarget::Source {
+                        source: ids[0],
+                        resolved_file: path("/node_modules/pkg/index.d.ts"),
+                    },
+                    ModuleExtension::Dts,
+                )
+                .with_external_library_import(true)
+                .with_package_id(PackageId::new("pkg", "index.d.ts", "1.0.0"));
+                builder
+                    .add_module_resolution(
+                        module_key(source, "pkg", ResolutionMode::EsNext),
+                        Ok(ModuleResolution::resolved(module)),
+                    )
+                    .expect("add ambient const-enum package row");
+            }
+        },
+    );
+
+    let outcome = consume(ProgramSession::new(prepared));
+    let rows = outcome
+        .semantic_diagnostics()
+        .iter()
+        .map(|diagnostic| {
+            (
+                diagnostic.file_name.as_deref(),
+                diagnostic.code(),
+                diagnostic.start,
+                diagnostic.length,
+                diagnostic.message_text(),
+            )
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(
+        rows,
+        [
+            (
+                Some("/a.ts"),
+                2748,
+                Some(a.find("{ E }").expect("import alias") as u32 + 2),
+                Some(1),
+                "Cannot access ambient const enums when 'verbatimModuleSyntax' is enabled.",
+            ),
+            (
+                Some("/a.ts"),
+                2748,
+                Some(a.find("F.A").expect("global const-enum access") as u32),
+                Some(1),
+                "Cannot access ambient const enums when 'verbatimModuleSyntax' is enabled.",
+            ),
+            (
+                Some("/b.ts"),
+                2748,
+                Some(b.find("{ E }").expect("export alias") as u32 + 2),
+                Some(1),
+                "Cannot access ambient const enums when 'verbatimModuleSyntax' is enabled.",
+            ),
+        ]
+    );
+}
+
+#[test]
 fn external_library_source_metadata_is_consumed_authoritatively() {
     for is_external_library_import in [false, true] {
         let prepared = authoritative_program(

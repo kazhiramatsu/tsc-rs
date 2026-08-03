@@ -72,40 +72,6 @@
       "evidence": "importHelpers resolves 'tslib' via node_modules/tslib/index.d.ts; 2807 helper-shape verdict reads the node_modules-resolved module (host: node_modules)"
     },
     {
-      "fixture": "conformance/externalModules/verbatimModuleSyntaxAmbientConstEnum.ts",
-      "matrix_key": "",
-      "pass": "semantic",
-      "file": "/a.ts",
-      "start": 9,
-      "length": 1,
-      "code": 2748,
-      "category": "error",
-      "chain_sha256": "7c91ca855bceed61d9a7bc593724ce726371df317be40945e61818bc0698f8db",
-      "related_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
-      "occurrence": 0,
-      "line": 0,
-      "col": 9,
-      "reason": "host-resolution",
-      "evidence": "const-enum import/re-export bindings of E resolved via node_modules/pkg (host: node_modules); the sibling F.A row (a.ts 3:0) stays supported — F arrives via declare-global from a rooted in-program file"
-    },
-    {
-      "fixture": "conformance/externalModules/verbatimModuleSyntaxAmbientConstEnum.ts",
-      "matrix_key": "",
-      "pass": "semantic",
-      "file": "/b.ts",
-      "start": 9,
-      "length": 1,
-      "code": 2748,
-      "category": "error",
-      "chain_sha256": "7c91ca855bceed61d9a7bc593724ce726371df317be40945e61818bc0698f8db",
-      "related_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
-      "occurrence": 0,
-      "line": 0,
-      "col": 9,
-      "reason": "host-resolution",
-      "evidence": "const-enum import/re-export bindings of E resolved via node_modules/pkg (host: node_modules); the sibling F.A row (a.ts 3:0) stays supported — F arrives via declare-global from a rooted in-program file"
-    },
-    {
       "fixture": "conformance/moduleResolution/node10AlternateResult_noResolution.ts",
       "matrix_key": "",
       "pass": "semantic",
@@ -15782,6 +15748,34 @@
       "related_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
       "occurrence": 0,
       "resolving_commit": "fa30fb2a8f0ac244976e18b6e4dc29a545f29430"
+    },
+    {
+      "fixture": "conformance/externalModules/verbatimModuleSyntaxAmbientConstEnum.ts",
+      "matrix_key": "",
+      "pass": "semantic",
+      "file": "/a.ts",
+      "start": 9,
+      "length": 1,
+      "code": 2748,
+      "category": "error",
+      "chain_sha256": "7c91ca855bceed61d9a7bc593724ce726371df317be40945e61818bc0698f8db",
+      "related_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "occurrence": 0,
+      "resolving_commit": "e23dc88bf9ac21f7e00df198b52659af1a57c2b7"
+    },
+    {
+      "fixture": "conformance/externalModules/verbatimModuleSyntaxAmbientConstEnum.ts",
+      "matrix_key": "",
+      "pass": "semantic",
+      "file": "/b.ts",
+      "start": 9,
+      "length": 1,
+      "code": 2748,
+      "category": "error",
+      "chain_sha256": "7c91ca855bceed61d9a7bc593724ce726371df317be40945e61818bc0698f8db",
+      "related_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "occurrence": 0,
+      "resolving_commit": "e23dc88bf9ac21f7e00df198b52659af1a57c2b7"
     }
   ],
   "global": {

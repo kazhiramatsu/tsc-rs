@@ -112,7 +112,7 @@ impl<'a> CheckerState<'a> {
                 check_mode,
             )?;
             if self.is_const_enum_object_type(ty) {
-                self.check_const_enum_access(node, ty);
+                self.check_const_enum_access(node, ty)?;
             }
             Ok(ty)
         })();
@@ -422,8 +422,11 @@ impl<'a> CheckerState<'a> {
     /// getRedirectFromOutput tail is observably absent. The valid
     /// type-only-use predicate is represented by the existing ambient
     /// / type-node and type-query classifiers over this function's
-    /// expression-only call domain.
-    fn check_const_enum_access(&mut self, node: NodeId, ty: TypeId) {
+    /// expression-only call domain. Under verbatimModuleSyntax, the
+    /// leftmost-name alias probe distinguishes an imported const enum
+    /// (the declaration binding reports) from a global one (the access
+    /// reports).
+    fn check_const_enum_access(&mut self, node: NodeId, ty: TypeId) -> CheckResult<()> {
         let parent = self.parent_of(node);
         let ok = parent.is_some_and(|parent| match self.data_of(parent) {
             NodeData::PropertyAccessExpression(data) => data.expression == Some(node),
@@ -442,13 +445,31 @@ impl<'a> CheckerState<'a> {
                 &[],
             );
         }
-        let isolated_modules_like = self.options.isolated_modules == Some(true)
-            || self.options.verbatim_module_syntax == Some(true);
-        if !isolated_modules_like {
-            return;
+        let check_ambient_access = if self.options.isolated_modules == Some(true) {
+            true
+        } else if self.options.verbatim_module_syntax == Some(true) && ok {
+            let first = self.first_identifier(node);
+            let name = self
+                .identifier_text_of(first)
+                .unwrap_or_default()
+                .to_owned();
+            self.resolve_name(
+                Some(node),
+                &name,
+                SymbolFlags::ALIAS,
+                /*name_not_found_message*/ None,
+                /*is_use*/ false,
+                /*exclude_globals*/ true,
+            )?
+            .is_none()
+        } else {
+            false
+        };
+        if !check_ambient_access {
+            return Ok(());
         }
         let Some(symbol) = self.tables.type_of(ty).symbol else {
-            return;
+            return Ok(());
         };
         debug_assert!(
             self.binder
@@ -458,7 +479,7 @@ impl<'a> CheckerState<'a> {
             "const-enum object types carry a const-enum symbol"
         );
         let Some(declaration) = self.binder.symbol(symbol).value_declaration else {
-            return;
+            return Ok(());
         };
         let ambient = self.node_flags(declaration) & tsc_types::NodeFlags::AMBIENT.bits() != 0;
         let valid_type_only_use =
@@ -475,6 +496,7 @@ impl<'a> CheckerState<'a> {
                 &[option_name],
             );
         }
+        Ok(())
     }
 
     /// tsc-port: isInRightSideOfImportOrExportAssignment @6.0.3
@@ -4814,19 +4836,26 @@ mod tests {
     }
 
     #[test]
-    fn ambient_const_enum_access_reports_under_verbatim_module_syntax() {
+    fn ambient_const_enum_access_reports_under_isolated_module_options() {
         let text = "declare const enum F { A }\nF.A;\n";
         let start = text.find("F.A").expect("fixture access") as u32;
-        assert_eq!(
-            checked_rows_with(
-                text,
-                &CompilerOptions {
-                    verbatim_module_syntax: Some(true),
-                    ..CompilerOptions::default()
-                },
-            ),
-            [(2748, start, 1)]
-        );
+        for options in [
+            CompilerOptions {
+                isolated_modules: Some(true),
+                ..CompilerOptions::default()
+            },
+            CompilerOptions {
+                verbatim_module_syntax: Some(true),
+                ..CompilerOptions::default()
+            },
+            CompilerOptions {
+                isolated_modules: Some(true),
+                verbatim_module_syntax: Some(true),
+                ..CompilerOptions::default()
+            },
+        ] {
+            assert_eq!(checked_rows_with(text, &options), [(2748, start, 1)]);
+        }
     }
 
     fn rows(state: &CheckerState) -> Vec<(u32, u32, u32)> {

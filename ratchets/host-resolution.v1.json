@@ -131,8 +131,8 @@
   ],
   "summary": {
     "rows": 241,
-    "open": 17,
-    "closed": 224,
+    "open": 15,
+    "closed": 226,
     "lapsed": 0,
     "fixtures": 30,
     "by_code": {
@@ -35428,7 +35428,7 @@
       ],
       "owner_evidence": "Reviewed TypeScript 6.0.3 declaration owner chain: Primary:checkAliasSymbol -> Dependency:resolveModuleName -> Dependency:getModeForUsageLocationWorker -> Dependency:createModeAwareCacheKey -> Dependency:createModeAwareCache.",
       "rust_boundary": {
-        "readiness": "seam-only",
+        "readiness": "authoritative",
         "seam_anchors": [
           {
             "role": "producer",
@@ -35441,6 +35441,32 @@
             "crate_name": "tsc-program",
             "path": "crates/program/src/prepared.rs",
             "symbol": "require_module"
+          },
+          {
+            "role": "driver",
+            "crate_name": "tsc-compiler",
+            "path": "crates/compiler/src/lib.rs",
+            "symbol": "pub fn run(self)"
+          },
+          {
+            "role": "diagnostic-consumer",
+            "crate_name": "tsc-checker",
+            "path": "crates/checker/src/modules.rs",
+            "symbol": "fn check_alias_symbol"
+          }
+        ],
+        "authoritative_anchors": [
+          {
+            "role": "producer",
+            "crate_name": "tsc-program",
+            "path": "crates/program/src/module_resolution.rs",
+            "symbol": "pub fn resolve("
+          },
+          {
+            "role": "table-consumer",
+            "crate_name": "tsc-compiler",
+            "path": "crates/compiler/src/lib.rs",
+            "symbol": "impl AuthoritativeModuleProvider for PreparedModuleProvider"
           },
           {
             "role": "driver",
@@ -35477,8 +35503,21 @@
           "evidence": "Same verbatim-module binding surface using the regular const-enum control without TS2748."
         }
       },
-      "status": "open",
-      "source_evidence": "const-enum import/re-export bindings of E resolved via node_modules/pkg (host: node_modules); the sibling F.A row (a.ts 3:0) stays supported — F arrives via declare-global from a rooted in-program file"
+      "status": "closed",
+      "source_evidence": "const-enum import/re-export bindings of E resolved via node_modules/pkg (host: node_modules); the sibling F.A row (a.ts 3:0) stays supported — F arrives via declare-global from a rooted in-program file",
+      "closure_evidence": {
+        "tiers": [
+          "t0",
+          "t1",
+          "t2",
+          "t3",
+          "t4"
+        ],
+        "artifact": "ratchets/conformance-matches.v1.json.zst",
+        "artifact_sha256": "39e04864125972e2fbdf4721f5c86f9a9a0595d0784a39f6582ed050525fe5e2",
+        "note": "H0.3 resolves ambient const-enum import and re-export aliases through the authoritative module table, while the exact regular const-enum control remains non-emitting through T0--T4."
+      },
+      "closing_commit": "e23dc88bf9ac21f7e00df198b52659af1a57c2b7"
     },
     {
       "id": "h0:8d45a1aec7559c11ad7ff421bd074f77c8fcff875b761418f3f49a6fa877cc8c",
@@ -58461,7 +58500,7 @@
       ],
       "owner_evidence": "Reviewed TypeScript 6.0.3 declaration owner chain: Primary:checkAliasSymbol -> Dependency:resolveModuleName -> Dependency:getModeForUsageLocationWorker -> Dependency:createModeAwareCacheKey -> Dependency:createModeAwareCache.",
       "rust_boundary": {
-        "readiness": "seam-only",
+        "readiness": "authoritative",
         "seam_anchors": [
           {
             "role": "producer",
@@ -58474,6 +58513,32 @@
             "crate_name": "tsc-program",
             "path": "crates/program/src/prepared.rs",
             "symbol": "require_module"
+          },
+          {
+            "role": "driver",
+            "crate_name": "tsc-compiler",
+            "path": "crates/compiler/src/lib.rs",
+            "symbol": "pub fn run(self)"
+          },
+          {
+            "role": "diagnostic-consumer",
+            "crate_name": "tsc-checker",
+            "path": "crates/checker/src/modules.rs",
+            "symbol": "fn check_alias_symbol"
+          }
+        ],
+        "authoritative_anchors": [
+          {
+            "role": "producer",
+            "crate_name": "tsc-program",
+            "path": "crates/program/src/module_resolution.rs",
+            "symbol": "pub fn resolve("
+          },
+          {
+            "role": "table-consumer",
+            "crate_name": "tsc-compiler",
+            "path": "crates/compiler/src/lib.rs",
+            "symbol": "impl AuthoritativeModuleProvider for PreparedModuleProvider"
           },
           {
             "role": "driver",
@@ -58510,8 +58575,21 @@
           "evidence": "Same verbatim-module binding surface using the regular const-enum control without TS2748."
         }
       },
-      "status": "open",
-      "source_evidence": "const-enum import/re-export bindings of E resolved via node_modules/pkg (host: node_modules); the sibling F.A row (a.ts 3:0) stays supported — F arrives via declare-global from a rooted in-program file"
+      "status": "closed",
+      "source_evidence": "const-enum import/re-export bindings of E resolved via node_modules/pkg (host: node_modules); the sibling F.A row (a.ts 3:0) stays supported — F arrives via declare-global from a rooted in-program file",
+      "closure_evidence": {
+        "tiers": [
+          "t0",
+          "t1",
+          "t2",
+          "t3",
+          "t4"
+        ],
+        "artifact": "ratchets/conformance-matches.v1.json.zst",
+        "artifact_sha256": "39e04864125972e2fbdf4721f5c86f9a9a0595d0784a39f6582ed050525fe5e2",
+        "note": "H0.3 resolves ambient const-enum import and re-export aliases through the authoritative module table, while the exact regular const-enum control remains non-emitting through T0--T4."
+      },
+      "closing_commit": "e23dc88bf9ac21f7e00df198b52659af1a57c2b7"
     },
     {
       "id": "h0:ed12aa685f4aff58a4f46ab490433e241f64a57a9c53a26068366223e9b41a2b",
