@@ -60,21 +60,22 @@ there.
    merging.
 7. Trivial process/docs-only changes may land directly on `main`
    and be pushed. Markdown-only changes intentionally skip the local and
-   hosted lane; the hosted workflow runs only its lightweight
+   GitHub guardrail; the hosted workflow runs only its lightweight
    change classifier and required `gates` sentinel.
 8. Pushing to `origin` is allowed and expected: push the slice branch
-   with `-u` while working. PR Actions runs `cargo xtask ci --lane hosted`
-   with Cargo parallelism capped at two. It keeps workspace audit,
-   format/clippy over all targets, Node syntax, generated-schema/inventory,
-   relation pins, ledger, and escapes. Focused Windows host contracts run only
-   when host/path infrastructure changes. Workspace tests, semantic history,
-   corpus conformance/recovery, invariants, evidence, readiness, and
-   performance remain local-only. The workflow runs for pull requests and
-   manual dispatch, not again after every merge to `main`; the final `gates`
-   job requires the applicable hosted checks. Local `cargo xtask ci` remains
-   required before opening and before merging except for the exact
-   Markdown-only rule above; its result and trusted baseline are recorded in
-   the PR body.
+   with `-u` while working. PR Actions uses a GitHub-only guardrail with Cargo
+   parallelism capped at two. Rust/build-input changes run `cargo fmt --check`
+   and one non-linking `cargo check --workspace --locked` pass;
+   oracle-driver changes run pinned-Node syntax checks. The workflow does not
+   build the monolithic xtask. Focused Windows host contracts run only when
+   host/path infrastructure changes. Clippy, workspace tests, static/generated
+   contracts, semantic history, corpus conformance/recovery, invariants,
+   evidence, readiness, and performance remain local-only. The workflow runs
+   for pull requests and manual dispatch, not again after every merge to
+   `main`; the final `gates` job requires the applicable hosted checks. Local
+   `cargo xtask ci` remains required before opening and before merging except
+   for the exact Markdown-only rule above; its result and trusted baseline are
+   recorded in the PR body.
 
 ## Verification quick reference
 
@@ -98,16 +99,17 @@ there.
   full-corpus B2 producer reuses an existing exact-fingerprint artifact
   only after raw schema/hash/inventory/count/review validation; otherwise
   it regenerates the artifact with one single-threaded worker.
-- Hosted guardrail: `CARGO_BUILD_JOBS=2 cargo xtask ci --lane hosted`. It
-  compiles all targets through clippy and runs static repository contracts,
-  but no workspace tests, semantic history, conformance, recovery census,
-  invariants, evidence, readiness, or performance gates. For manual history
-  diagnosis only, add `--history-sensitive --baseline
-  <trusted-ref-or-sha>`. The legacy `--lane rust|semantic [--baseline
-  <trusted-ref-or-sha>]` split remains available for diagnosing either half
-  of the full local gate. Except for the exact Markdown-only rule, slice
-  acceptance still requires the unsplit local command above; a green hosted
-  lane is never a replacement for it.
+- GitHub guardrail: `.github/workflows/ci.yml` directly runs formatting and a
+  single non-linking workspace `cargo check` only for changed Rust/build
+  inputs, plus pinned-Node syntax checks only for changed oracle-driver
+  inputs. This avoids compiling xtask merely to select CI work. The optional
+  `cargo xtask ci --lane hosted` static diagnostic and its
+  `--history-sensitive --baseline <trusted-ref-or-sha>` mode remain available
+  locally but are never selected automatically by Actions. The legacy
+  `--lane rust|semantic [--baseline <trusted-ref-or-sha>]` split remains
+  available for diagnosing either half of the full local gate. Except for the
+  exact Markdown-only rule, slice acceptance still requires the unsplit local
+  command above; a green GitHub guardrail is never a replacement for it.
 - Conformance single band: `cargo xtask conformance [--band 2xxx]`
   (every gating run also enforces the A1 accepted-set ratchet;
   partial `--files`/`--limit` runs gate the executed-fixture

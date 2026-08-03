@@ -15,8 +15,8 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  # Keep the static hosted guardrail within two compiler workers. The
-  # local full gate remains authoritative and uses the same low-CPU profile.
+  # Keep the GitHub-only compile guardrail within two compiler workers. The
+  # local full gate remains authoritative and owns lint/tests/semantic work.
   CARGO_BUILD_JOBS: "2"
   CARGO_INCREMENTAL: "0"
   CARGO_TERM_COLOR: always
@@ -38,7 +38,9 @@ jobs:
     outputs:
       docs_only: ${{ steps.diff.outputs.docs_only }}
       host_platform: ${{ steps.diff.outputs.host_platform }}
+      node_checks: ${{ steps.diff.outputs.node_checks }}
       program_path: ${{ steps.diff.outputs.program_path }}
+      rust_checks: ${{ steps.diff.outputs.rust_checks }}
     steps:
       - name: Checkout enough history for PR path classification
         uses: actions/checkout@v7
@@ -46,7 +48,7 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
-      - name: Detect Markdown-only changes
+      - name: Detect validation scope
         id: diff
         shell: bash
         env:
@@ -56,13 +58,17 @@ jobs:
           # A manual dispatch deliberately exercises the non-doc guardrail.
           docs_only=false
           host_platform=true
+          node_checks=true
           program_path=true
+          rust_checks=true
           if [[ "$GITHUB_EVENT_NAME" == pull_request \
             && -n "$BASE_SHA" && ! "$BASE_SHA" =~ ^0+$ ]] \
             && git cat-file -e "$BASE_SHA^{commit}" \
             && git cat-file -e "$HEAD_SHA^{commit}"; then
             host_platform=false
+            node_checks=false
             program_path=false
+            rust_checks=false
             # Whitespace errors fail even the lightweight documentation path.
             git diff --check "$BASE_SHA" "$HEAD_SHA"
 
@@ -80,25 +86,29 @@ jobs:
             for path in "${changed[@]}"; do
               if [[ "$path" != *.md ]]; then
                 docs_only=false
+                case "$path" in
+                  *.rs|Cargo.toml|*/Cargo.toml|Cargo.lock|.cargo/config.toml|rust-toolchain.toml)
+                    rust_checks=true
+                    ;;
+                esac
+                case "$path" in
+                  crates/oracle/*.mjs|.node-version)
+                    node_checks=true
+                    ;;
+                esac
+                case "$path" in
+                  crates/host/*|crates/program/*)
+                    host_platform=true
+                    program_path=true
+                    ;;
+                  .github/workflows/ci.yml|rust-toolchain.toml)
+                    host_platform=true
+                    program_path=true
+                    rust_checks=true
+                    node_checks=true
+                    ;;
+                esac
               fi
-              case "$path" in
-                crates/host/*)
-                  host_platform=true
-                  program_path=true
-                  ;;
-                crates/program/src/loader.rs|crates/program/src/module_resolution.rs|crates/program/src/path.rs|crates/program/src/prepared.rs)
-                  host_platform=true
-                  program_path=true
-                  ;;
-                crates/program/tests/no_lib_program_loader_contract.rs|crates/program/tests/path_identity_contract.rs)
-                  host_platform=true
-                  program_path=true
-                  ;;
-                .github/workflows/ci.yml|rust-toolchain.toml)
-                  host_platform=true
-                  program_path=true
-                  ;;
-              esac
             done
 
             # README's generated status is semantic evidence even though the
@@ -133,14 +143,17 @@ jobs:
           fi
           printf 'docs_only=%s\n' "$docs_only" >> "$GITHUB_OUTPUT"
           printf 'host_platform=%s\n' "$host_platform" >> "$GITHUB_OUTPUT"
+          printf 'node_checks=%s\n' "$node_checks" >> "$GITHUB_OUTPUT"
           printf 'program_path=%s\n' "$program_path" >> "$GITHUB_OUTPUT"
+          printf 'rust_checks=%s\n' "$rust_checks" >> "$GITHUB_OUTPUT"
 
-  # GitHub Actions is a static guardrail. Receipt-bound evidence, history
-  # audits, full invariants, readiness, and performance gates stay in the
-  # required local `cargo xtask ci`; hosted keeps only the bounded lane owned
-  # by xtask.
-  hosted:
-    name: hosted
+  # GitHub Actions owns only a cheap compile/syntax guardrail. Calling the
+  # monolithic xtask here used to compile and link the checker/conformance
+  # stack before running a second all-target clippy pass. The required local
+  # `cargo xtask ci` remains the authority for clippy, tests, generated/static
+  # contracts, history, corpus, invariants, evidence, and performance.
+  github_guardrail:
+    name: github-check
     needs: classify
     if: ${{ needs.classify.outputs.docs_only != 'true' }}
     runs-on: ubuntu-latest
@@ -151,9 +164,10 @@ jobs:
         with:
           persist-credentials: false
 
-      # Static Node/schema checks use the producer's pinned runtime even
-      # though this lane does not run tests or the corpus.
+      # Oracle-driver syntax checks use the producer's pinned runtime even
+      # though this lane does not execute the oracle or corpus.
       - name: Pin the oracle Node runtime
+        if: ${{ needs.classify.outputs.node_checks == 'true' }}
         uses: actions/setup-node@v7
         with:
           node-version-file: .node-version
@@ -163,6 +177,7 @@ jobs:
       # target directories are deliberately excluded: checkout mtimes
       # make a raw target cache rebuild workspace crates anyway.
       - name: Restore Cargo dependencies
+        if: ${{ needs.classify.outputs.rust_checks == 'true' }}
         uses: actions/cache@v5
         with:
           path: |
@@ -179,17 +194,34 @@ jobs:
       # sccache keys compiler outputs by their actual inputs, so it can
       # reuse workspace crates safely across fresh checkouts.
       - name: Configure compiler cache
+        if: ${{ needs.classify.outputs.rust_checks == 'true' }}
         uses: mozilla-actions/sccache-action@9e7fa8a12102821edf02ca5dbea1acd0f89a2696
         with:
           version: v0.16.0
 
-      # Gate composition stays in xtask so the static omissions are explicit.
-      # The local full gate owns every history-bound check.
-      - name: Run static hosted gates
-        run: cargo xtask ci --lane hosted
+      - name: Check Rust formatting
+        if: ${{ needs.classify.outputs.rust_checks == 'true' }}
+        run: cargo fmt --all -- --check
+
+      # `check` type-checks the workspace's production libraries/binaries
+      # without code generation or linking. Test targets belong to local CI.
+      - name: Type-check the Rust workspace
+        if: ${{ needs.classify.outputs.rust_checks == 'true' }}
+        run: cargo check --workspace --locked
+
+      - name: Check oracle driver syntax
+        if: ${{ needs.classify.outputs.node_checks == 'true' }}
+        run: |
+          for driver in crates/oracle/*.mjs; do
+            node --check "$driver"
+          done
+
+      - name: Record local-only validation scope
+        if: ${{ needs.classify.outputs.rust_checks != 'true' && needs.classify.outputs.node_checks != 'true' }}
+        run: echo "No Rust/build or oracle-driver inputs changed; the required local full gate owns this slice."
 
   # Host and path changes receive a small real-filesystem smoke on Windows.
-  # This stays independent of the hosted lane and caps Cargo/test parallelism
+  # This stays independent of the GitHub compile lane and caps Cargo/test parallelism
   # at two workers.
   host_platform:
     name: host-windows-latest
@@ -218,30 +250,48 @@ jobs:
           --test no_lib_program_loader_contract
 
   # Preserve the stable process-required check name (and the only context a
-  # future branch-protection rule would need). This turns the static hosted
-  # lane or focused Windows smoke failure into one final result.
+  # future branch-protection rule would need). This turns the GitHub compile
+  # canary or focused Windows smoke failure into one final result.
   gates:
     name: gates
     if: always()
     needs:
       - classify
-      - hosted
+      - github_guardrail
       - host_platform
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
       - name: Require every lane
         env:
+          CLASSIFY_RESULT: ${{ needs.classify.result }}
           DOCS_ONLY: ${{ needs.classify.outputs.docs_only }}
           HOST_PLATFORM: ${{ needs.classify.outputs.host_platform }}
           HOST_PLATFORM_RESULT: ${{ needs.host_platform.result }}
-          HOSTED_RESULT: ${{ needs.hosted.result }}
+          GITHUB_GUARDRAIL_RESULT: ${{ needs.github_guardrail.result }}
+          NODE_CHECKS: ${{ needs.classify.outputs.node_checks }}
+          PROGRAM_PATH: ${{ needs.classify.outputs.program_path }}
+          RUST_CHECKS: ${{ needs.classify.outputs.rust_checks }}
         run: |
+          test "$CLASSIFY_RESULT" = success
+          for value in "$DOCS_ONLY" "$HOST_PLATFORM" "$NODE_CHECKS" "$PROGRAM_PATH" "$RUST_CHECKS"; do
+            case "$value" in
+              true|false) ;;
+              *) exit 1 ;;
+            esac
+          done
+          if [ "$PROGRAM_PATH" = true ]; then
+            test "$HOST_PLATFORM" = true
+          fi
           if [ "$DOCS_ONLY" = true ]; then
+            test "$HOST_PLATFORM" = false
+            test "$NODE_CHECKS" = false
+            test "$PROGRAM_PATH" = false
+            test "$RUST_CHECKS" = false
             test "$HOST_PLATFORM_RESULT" = skipped
-            test "$HOSTED_RESULT" = skipped
+            test "$GITHUB_GUARDRAIL_RESULT" = skipped
           else
-            test "$HOSTED_RESULT" = success
+            test "$GITHUB_GUARDRAIL_RESULT" = success
             if [ "$HOST_PLATFORM" = true ]; then
               test "$HOST_PLATFORM_RESULT" = success
             else

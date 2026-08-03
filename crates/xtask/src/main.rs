@@ -7537,10 +7537,12 @@ fn ci_hosted_gates(baseline: &str, history_sensitive: bool) -> Result<(), Box<dy
     let workspace = find_workspace_root()?;
     let hosted_started = std::time::Instant::now();
 
-    // Hosted Actions is a static repository guardrail. The workspace audit ran
-    // at CI entry; this lane verifies formatting, lint, generated inventories,
-    // pinned inputs, the port ledger, and escape ownership without executing
-    // workspace tests or corpus traversals.
+    // Keep the former hosted static suite as an explicit local diagnostic.
+    // Ordinary Actions now uses the direct compile/syntax canary in ci.yml so
+    // it does not build this monolithic binary merely to select work. The
+    // workspace audit ran at CI entry; this lane still verifies formatting,
+    // lint, generated inventories, pinned inputs, the port ledger, and escape
+    // ownership without executing workspace tests or corpus traversals.
     ci_format_gate(&workspace)?;
     ci_clippy_gate(&workspace)?;
     ci_oracle_syntax_gates(&workspace)?;
