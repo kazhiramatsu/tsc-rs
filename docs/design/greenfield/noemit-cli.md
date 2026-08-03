@@ -398,7 +398,8 @@ Filesystem discovery must use the same resolver closed in H0.2 and H0.3.
 Implementation status: H0.4 is active and partial. The production
 `FsCompilerHost` primitive preserves raw bytes, distinguishes absence from
 typed I/O failure, follows filesystem realpaths, and exposes deterministically
-ordered immediate entries under an explicit or detected case profile. The
+ordered immediate entries plus a directory-only `CompilerHost::get_directories`
+projection under an explicit or detected case profile. The
 shared program-layer decoder consumes those bytes with the vendored Node
 host's BOM, endian, odd-byte, and invalid-UTF-8 rules, and package metadata
 uses that same decoded text. The syntax parser owns the single leading-pragma
@@ -408,9 +409,9 @@ resolution-only versus source-loading distinction.
 
 The bounded recursive loader is complete through both `load_no_lib_program`
 and the catalog-enabled `load_program`. Both accept explicit
-TypeScript-family roots only with `noEmit=true` and `allowJs=false`; `types`
-must remain absent or empty, while `rootDirs` and `noDtsResolution` are still
-outside this slice. The no-lib wrapper requires explicit `noLib=true`. The
+TypeScript-family roots only with `noEmit=true` and `allowJs=false`; `rootDirs`
+and `noDtsResolution` are still outside this slice. The no-lib wrapper requires
+explicit `noLib=true`. The
 catalog-enabled route also admits absent or false `noLib`, retains lowercased
 raw `compilerOptions.lib` keys, treats an explicit empty list as suppressing
 the default library, and fails typed on the `noLib` plus `lib` combination
@@ -435,10 +436,32 @@ type-reference key is resolved before any resolved type target is visited;
 each enabled lib reference performs its sequential DFS before the module
 phase; and every module key is resolved before any source-loading module
 target is visited. Under `noLib`, lib-reference occurrences remain counted
-but perform no host work. Default or explicit library roots are selected only
-after all user roots and automatic types would have run. Publication then
-forms a stable catalog-priority default-library prefix followed by ordinary
-dependency postorder without replaying host work. TypeScript keeps distinct
+but perform no host work. After all requested roots finish, non-wildcard
+`types` entries retain input order and multiplicity. An absent or empty list
+performs no automatic discovery. A list containing `"*"` expands effective
+`typeRoots` in declared order, or nearest-to-farthest ancestor
+`node_modules/@types` directories from the config-file directory/current
+directory. Expansion retains host directory order, probes manifests before
+filtering dot directories, excludes exactly packages whose decoded JSON or
+JSONC has `typings: null`, and performs case-sensitive stable first-wins
+deduplication after flattening.
+
+All automatic names are resolved under the normalized
+`__inferred type names__.ts` synthetic origin and unspecified mode before the
+first target is visited. Resolved declaration targets then run sequential DFS
+at root depth zero as ordinary sources; external-library reachability follows
+the resolver fact. Misses produce fileless TS2688 with the explicit or
+implicit inclusion chain. Repeated explicit names retain raw diagnostic
+occurrences while final diagnostic consumption sorts and deduplicates them.
+An empty requested-root list suppresses this phase, whereas a requested but
+missing root does not. A normalized `ProgramOptions::config_file_path` anchors
+both automatic and source-owned default type-root lookup; ownership of the
+config AST and TS1419 related location remains H0.5.
+
+Default or explicit library roots are selected only after the automatic type
+phase. Publication then forms a stable catalog-priority default-library prefix
+followed by ordinary dependency postorder without replaying host work.
+TypeScript keeps distinct
 `processingDefaultLibFiles` ordering and checker-visible `libFiles` sets when
 a default library owns a path reference; the current `PreparedProgram` prefix
 cannot encode that non-contiguous state, so this shape fails typed as
@@ -468,14 +491,16 @@ depth, raw bytes per source, and total raw source bytes. A separate structural
 depth cap of 256 protects the recursive worker. Host, decode, resolution,
 preparation, unsupported-scope, and ceiling failures retain typed operation
 and path context. Source-byte ceilings begin after a host returns its owned
-payload and do not include resolver-owned `package.json` bytes, so they do not
-claim to bound a host's single-read allocation or all resolver I/O.
+payload and do not include resolver-owned or wildcard-discovery `package.json`
+bytes. The request ceiling applies to final automatic-name occurrences, not
+raw directory candidates filtered during wildcard expansion. These limits do
+not claim to bound a host's single-read/listing allocation or all resolver or
+discovery I/O; wildcard enumeration is opt-in through an explicit `"*"`.
 
-This is deliberately not general H0.4 program construction. Post-root
-automatic `types`, JavaScript source membership, `rootDirs` discovery,
-config-derived roots, the remaining path and physical-alias policies, and the
-complete cross-platform case/separator/symlink/encoding matrix remain in later
-slices. Discovery stays
+This is deliberately not general H0.4 program construction. JavaScript source
+membership, `rootDirs` discovery, config-derived root-file selection, the
+remaining path and physical-alias policies, and the complete cross-platform
+case/separator/symlink/encoding matrix remain in later slices. Discovery stays
 sequential where vendored host calls and failure precedence are observable;
 future pipeline parallelism must preserve that contract.
 

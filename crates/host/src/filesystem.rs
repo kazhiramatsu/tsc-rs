@@ -65,6 +65,73 @@ impl FsCompilerHost {
         let case_sensitive = detect_case_sensitivity()?;
         Self::new(current_directory, case_sensitive)
     }
+
+    fn read_immediate_entries(
+        &self,
+        path: &Path,
+        directories_only: bool,
+    ) -> Result<Vec<PathBuf>, HostError> {
+        validate_input_path(path, HostOperation::ReadDirectory)?;
+        let Some(metadata) = metadata_if_present(path, HostOperation::ReadDirectory)? else {
+            return Ok(Vec::new());
+        };
+        if !metadata.is_dir() {
+            return Ok(Vec::new());
+        }
+
+        let reader = match fs::read_dir(path) {
+            Ok(reader) => reader,
+            Err(error) if is_absence(&error) => return Ok(Vec::new()),
+            Err(error) => {
+                return Err(map_io_error(
+                    error,
+                    HostOperation::ReadDirectory,
+                    Some(path.to_path_buf()),
+                ));
+            }
+        };
+
+        let mut entries = Vec::new();
+        for entry in reader {
+            let entry = entry.map_err(|error| {
+                map_io_error(
+                    error,
+                    HostOperation::ReadDirectory,
+                    Some(path.to_path_buf()),
+                )
+            })?;
+            let entry_path = entry.path();
+            let display = validate_observed_path(&entry_path, HostOperation::ReadDirectory)?;
+            let entry_metadata = match fs::metadata(&entry_path) {
+                Ok(metadata) => metadata,
+                Err(error) if is_absence(&error) => continue,
+                Err(error) => {
+                    return Err(map_io_error(
+                        error,
+                        HostOperation::ReadDirectory,
+                        Some(entry_path),
+                    ));
+                }
+            };
+            if directories_only {
+                if !entry_metadata.is_dir() {
+                    continue;
+                }
+            } else if !entry_metadata.is_file() && !entry_metadata.is_dir() {
+                continue;
+            }
+
+            let display = display.to_owned();
+            let canonical = if self.case_sensitive {
+                display.clone()
+            } else {
+                to_file_name_lower_case(&display)
+            };
+            entries.push((canonical, display, entry_path));
+        }
+        entries.sort_by(|left, right| left.0.cmp(&right.0).then_with(|| left.1.cmp(&right.1)));
+        Ok(entries.into_iter().map(|(_, _, path)| path).collect())
+    }
 }
 
 impl CompilerHost for FsCompilerHost {
@@ -109,62 +176,11 @@ impl CompilerHost for FsCompilerHost {
     }
 
     fn read_directory(&self, path: &Path) -> Result<Vec<PathBuf>, HostError> {
-        validate_input_path(path, HostOperation::ReadDirectory)?;
-        let Some(metadata) = metadata_if_present(path, HostOperation::ReadDirectory)? else {
-            return Ok(Vec::new());
-        };
-        if !metadata.is_dir() {
-            return Ok(Vec::new());
-        }
+        self.read_immediate_entries(path, false)
+    }
 
-        let reader = match fs::read_dir(path) {
-            Ok(reader) => reader,
-            Err(error) if is_absence(&error) => return Ok(Vec::new()),
-            Err(error) => {
-                return Err(map_io_error(
-                    error,
-                    HostOperation::ReadDirectory,
-                    Some(path.to_path_buf()),
-                ));
-            }
-        };
-
-        let mut entries = Vec::new();
-        for entry in reader {
-            let entry = entry.map_err(|error| {
-                map_io_error(
-                    error,
-                    HostOperation::ReadDirectory,
-                    Some(path.to_path_buf()),
-                )
-            })?;
-            let entry_path = entry.path();
-            let display = validate_observed_path(&entry_path, HostOperation::ReadDirectory)?;
-            let entry_metadata = match fs::metadata(&entry_path) {
-                Ok(metadata) => metadata,
-                Err(error) if is_absence(&error) => continue,
-                Err(error) => {
-                    return Err(map_io_error(
-                        error,
-                        HostOperation::ReadDirectory,
-                        Some(entry_path),
-                    ));
-                }
-            };
-            if !entry_metadata.is_file() && !entry_metadata.is_dir() {
-                continue;
-            }
-
-            let display = display.to_owned();
-            let canonical = if self.case_sensitive {
-                display.clone()
-            } else {
-                to_file_name_lower_case(&display)
-            };
-            entries.push((canonical, display, entry_path));
-        }
-        entries.sort_by(|left, right| left.0.cmp(&right.0).then_with(|| left.1.cmp(&right.1)));
-        Ok(entries.into_iter().map(|(_, _, path)| path).collect())
+    fn get_directories(&self, path: &Path) -> Result<Vec<PathBuf>, HostError> {
+        self.read_immediate_entries(path, true)
     }
 
     fn realpath(&self, path: &Path) -> Result<Option<PathBuf>, HostError> {

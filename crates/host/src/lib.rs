@@ -80,6 +80,26 @@ pub trait CompilerHost {
     /// failure is returned as `Err`.
     fn read_directory(&self, path: &Path) -> Result<Vec<PathBuf>, HostError>;
 
+    /// Return only the immediate directory entries below `path` in the same
+    /// deterministic order used by [`Self::read_directory`].
+    ///
+    /// This is the exact host shape consumed by TypeScript's automatic type
+    /// directive discovery. Built-in hosts override it to preserve a single
+    /// listing's failure order. The compatibility default keeps existing host
+    /// implementations source-compatible, but adds one fallible
+    /// `directory_exists` observation per mixed directory entry; hosts needing
+    /// exact discovery observability must override it.
+    fn get_directories(&self, path: &Path) -> Result<Vec<PathBuf>, HostError> {
+        self.read_directory(path)?
+            .into_iter()
+            .filter_map(|entry| match self.directory_exists(&entry) {
+                Ok(true) => Some(Ok(entry)),
+                Ok(false) => None,
+                Err(error) => Some(Err(error)),
+            })
+            .collect()
+    }
+
     /// Return the physical path for an existing entry. An absent or dangling
     /// entry is `Ok(None)`; inability to inspect it is `Err`.
     fn realpath(&self, path: &Path) -> Result<Option<PathBuf>, HostError>;

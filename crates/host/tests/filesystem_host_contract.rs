@@ -64,6 +64,10 @@ fn assert_same_observation(filesystem: &dyn CompilerHost, memory: &dyn CompilerH
         memory.directory_exists(path)
     );
     assert_eq!(filesystem.read_directory(path), memory.read_directory(path));
+    assert_eq!(
+        filesystem.get_directories(path),
+        memory.get_directories(path)
+    );
     assert_eq!(filesystem.realpath(path), memory.realpath(path));
 }
 
@@ -253,6 +257,10 @@ fn filesystem_host_follows_symlinks_and_rejects_inspection_failures() {
     assert!(entries.contains(&tree.path("link-dir")));
     assert!(!entries.contains(&tree.path("dangling.ts")));
     assert!(!entries.contains(&tree.path("compiler.sock")));
+    assert_eq!(
+        host.get_directories(tree.root()).unwrap(),
+        [tree.path("actual-dir"), tree.path("link-dir")]
+    );
 
     symlink(tree.path("loop"), tree.path("loop")).unwrap();
     let error = host.file_exists(&tree.path("loop")).unwrap_err();

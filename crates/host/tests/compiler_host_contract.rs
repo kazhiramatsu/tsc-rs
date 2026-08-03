@@ -42,6 +42,14 @@ fn lists_immediate_files_and_directories_deterministically() {
         host.read_directory(Path::new("/Work/src")).unwrap(),
         [PathBuf::from("/Work/src/a.ts")]
     );
+    assert_eq!(
+        host.get_directories(Path::new("/Work")).unwrap(),
+        [PathBuf::from("/Work/src"), PathBuf::from("/Work/types")]
+    );
+    assert!(host
+        .get_directories(Path::new("/Work/src"))
+        .unwrap()
+        .is_empty());
     assert!(host
         .read_directory(Path::new("/Work/missing"))
         .unwrap()
