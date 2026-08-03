@@ -125,6 +125,29 @@ impl CompilerHost for MemoryCompilerHost {
             .unwrap_or_default())
     }
 
+    fn get_directories(&self, path: &Path) -> Result<Vec<PathBuf>, HostError> {
+        let key = self.key(path, HostOperation::ReadDirectory)?;
+        if let Some(error) = self.failure(HostOperation::ReadDirectory, Some(path)) {
+            return Err(error);
+        }
+        if !self.directories.contains_key(&key) {
+            return Ok(Vec::new());
+        }
+
+        Ok(self
+            .directory_entries
+            .get(&key)
+            .into_iter()
+            .flatten()
+            .filter(|entry| {
+                let entry_key = path_key(entry, self.case_sensitive)
+                    .expect("stored memory-host directory entry is representable");
+                self.directories.contains_key(&entry_key)
+            })
+            .cloned()
+            .collect())
+    }
+
     fn realpath(&self, path: &Path) -> Result<Option<PathBuf>, HostError> {
         let key = self.key(path, HostOperation::Realpath)?;
         if let Some(error) = self.failure(HostOperation::Realpath, Some(path)) {

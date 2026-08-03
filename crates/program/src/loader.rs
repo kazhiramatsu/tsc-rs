@@ -3,6 +3,7 @@ use std::error::Error;
 use std::fmt;
 use std::path::{Path, PathBuf};
 
+use serde_json::Value;
 use tsc_diagnostics::{gen, Diagnostic, MessageChain};
 use tsc_host::{to_file_name_lower_case, CompilerHost, HostError};
 use tsc_types::CompilerOptions;
@@ -39,6 +40,7 @@ const TYPESCRIPT_SOURCE_EXTENSIONS: [&str; 7] =
 const PATH_REFERENCE_PROBE_EXTENSIONS: [&str; 3] = [".ts", ".tsx", ".d.ts"];
 const TYPESCRIPT_SOURCE_EXTENSION_LIST: &str =
     "'.ts', '.tsx', '.d.ts', '.cts', '.d.cts', '.mts', '.d.mts'";
+const INFERRED_TYPES_CONTAINING_FILE: &str = "__inferred type names__.ts";
 
 /// Explicit resource limits for one [`load_no_lib_program`] or [`load_program`]
 /// call.
@@ -46,8 +48,10 @@ const TYPESCRIPT_SOURCE_EXTENSION_LIST: &str =
 /// Byte limits apply to unique source payloads after `CompilerHost::read_file`
 /// returns. The current host contract returns an owned `Vec<u8>`, so these
 /// limits bound retained/decoded source work but cannot prevent the host's
-/// one-call allocation. Resolver-owned `package.json` payloads are likewise
-/// outside these source-byte counters.
+/// one-call allocation. Resolver- and wildcard-discovery-owned `package.json`
+/// payloads are likewise outside these source-byte counters. The request-edge
+/// limit counts the final automatic-name occurrences after wildcard filtering,
+/// not raw directory entries.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct ProgramLoadLimits {
     max_source_files: usize,
@@ -157,6 +161,7 @@ pub enum ProgramLoadOperation {
     DecodeSource,
     ObservePackageScope,
     PlanSourceRequests,
+    DiscoverAutomaticTypes,
     ResolveTypeReference,
     ResolveModule,
     BindResolutions,
@@ -175,6 +180,7 @@ impl ProgramLoadOperation {
             Self::DecodeSource => "decode program source",
             Self::ObservePackageScope => "observe source package scope",
             Self::PlanSourceRequests => "plan source requests",
+            Self::DiscoverAutomaticTypes => "discover automatic type directives",
             Self::ResolveTypeReference => "resolve type-reference directive",
             Self::ResolveModule => "resolve module request",
             Self::BindResolutions => "bind authoritative resolutions",
@@ -414,8 +420,10 @@ impl Error for ProgramLoadError {
 /// upstream path-reference, type-reference, skipped-lib, and module phases,
 /// and is published after its children. Type and module phases resolve every
 /// exact key before descending into the first target, preserving observable
-/// host-failure precedence. The returned program owns all source text and
-/// resolution facts and no longer borrows `host`.
+/// host-failure precedence. Explicit or wildcard automatic type directives
+/// run after all requested roots when that list is non-empty. The returned
+/// program owns all source text and resolution facts and no longer borrows
+/// `host`.
 pub fn load_no_lib_program(
     host: &dyn CompilerHost,
     root_names: &[PathBuf],
@@ -439,10 +447,11 @@ pub fn load_no_lib_program(
 ///
 /// User roots retain their observable discovery order. Within each source,
 /// path, type, library, and module phases run in the vendored order; selected
-/// default or explicit library roots run only after every user root. The
-/// returned source list is then published as the stable default-library prefix
-/// followed by ordinary dependency postorder, without replaying any host
-/// operation. Library-owned path references fail typed until
+/// default or explicit library roots run only after every user root and the
+/// post-root automatic type-directive phase. The returned source list is then
+/// published as the stable default-library prefix followed by ordinary
+/// dependency postorder, without replaying any host operation. Library-owned
+/// path references fail typed until
 /// [`PreparedProgram`] can represent TypeScript's distinct processing-order
 /// and checker-membership sets.
 pub fn load_program(
@@ -514,8 +523,11 @@ fn load_program_worker(
         let root = normalize_root(root_name, &path_context)?;
         graph.load_root(root)?;
     }
-    if !root_names.is_empty() && program_options.no_lib() != Some(true) {
-        graph.load_selected_libraries()?;
+    if !root_names.is_empty() {
+        graph.load_automatic_type_directives()?;
+        if program_options.no_lib() != Some(true) {
+            graph.load_selected_libraries()?;
+        }
     }
     let staged = graph.finish();
     let packages = resolver
@@ -558,15 +570,6 @@ fn validate_admitted_options(
         return Err(reject_feature(
             "allowJs",
             "the first recursive loader admits TypeScript-family sources only",
-        ));
-    }
-    if program_options
-        .types()
-        .is_some_and(|types| !types.is_empty())
-    {
-        return Err(reject_feature(
-            "automatic-types",
-            "non-empty programOptions.types requires post-root automatic type discovery",
         ));
     }
     if program_options.no_lib() == Some(true) && compiler_options.lib.is_some() {
@@ -777,6 +780,12 @@ impl DiscoveryReason {
     const DEPENDENCY: Self = Self {
         seeds_non_external_reachability: false,
     };
+
+    const fn automatic_type(is_external_library_import: bool) -> Self {
+        Self {
+            seeds_non_external_reachability: !is_external_library_import,
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -909,6 +918,260 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
             missing_diagnostic,
         });
         Ok(())
+    }
+
+    fn load_automatic_type_directives(&mut self) -> Result<(), ProgramLoadError> {
+        let (names, uses_wildcard) = self.automatic_type_directive_names()?;
+        if names.is_empty() {
+            return Ok(());
+        }
+
+        let containing_file = self.automatic_types_containing_file()?;
+        let request_edges = self.request_edges.saturating_add(names.len());
+        self.enforce_limit(
+            ProgramLoadOperation::DiscoverAutomaticTypes,
+            ProgramLoadLimit::RequestEdges,
+            Some(containing_file.display().to_path_buf()),
+            self.limits.max_request_edges,
+            request_edges,
+        )?;
+        self.request_edges = request_edges;
+
+        let type_roots = self.program_options.type_roots().map(<[_]>::to_vec);
+        let mut resolution_indices = Vec::with_capacity(names.len());
+        for name in &names {
+            let key = TypeReferenceResolutionKey::automatic(
+                containing_file.canonical().clone(),
+                name.clone(),
+            );
+            let index = if let Some(index) = self.type_resolution_by_key.get(&key).copied() {
+                index
+            } else {
+                let host = self
+                    .resolver
+                    .resolve_type_reference(
+                        containing_file.display(),
+                        name,
+                        ResolutionMode::Unspecified,
+                        type_roots.as_deref(),
+                    )
+                    .map_err(|error| {
+                        ProgramLoadError::resolution(
+                            ProgramLoadOperation::ResolveTypeReference,
+                            Some(containing_file.display().to_path_buf()),
+                            Some(name.clone()),
+                            error,
+                        )
+                    })?;
+                let index = self.type_resolutions.len();
+                self.type_resolutions.push(StagedTypeResolution {
+                    key: key.clone(),
+                    host,
+                    diagnostics: Vec::new(),
+                });
+                self.type_resolution_by_key.insert(key, index);
+                index
+            };
+            resolution_indices.push(index);
+        }
+
+        // Vendored createProgram resolves the complete batch before it starts
+        // processing the first target, then processes names sequentially.
+        // Repeated explicit names reuse the same mode-aware cache entry.
+        let mut processed = BTreeSet::new();
+        for (name, index) in names.into_iter().zip(resolution_indices) {
+            let target = match &self.type_resolutions[index].host {
+                ResolutionOutcome::Resolved(target) => Some((
+                    target.resolved_file().clone(),
+                    target.extension().clone(),
+                    target.is_external_library_import(),
+                )),
+                ResolutionOutcome::NotFound => None,
+            };
+            let Some((target, extension, external)) = target else {
+                self.type_resolutions[index]
+                    .diagnostics
+                    .push(automatic_type_reference_diagnostic(&name, uses_wildcard));
+                continue;
+            };
+            if !processed.insert(index) {
+                continue;
+            }
+            if !matches!(
+                extension,
+                ModuleExtension::Dts | ModuleExtension::Dmts | ModuleExtension::Dcts
+            ) {
+                return Err(ProgramLoadError::invalid_data(
+                    ProgramLoadOperation::ResolveTypeReference,
+                    Some(target.display().to_path_buf()),
+                    "a resolved automatic type-reference target is not a declaration file",
+                ));
+            }
+            if self
+                .visit_source(
+                    target.clone(),
+                    0,
+                    DiscoveryReason::automatic_type(external),
+                    SourceClass::Ordinary,
+                )?
+                .is_none()
+            {
+                return Err(ProgramLoadError::invalid_data(
+                    ProgramLoadOperation::ReadSource,
+                    Some(target.display().to_path_buf()),
+                    "resolver reported an automatic type-reference target that the host no longer returns",
+                ));
+            }
+        }
+        Ok(())
+    }
+
+    fn automatic_type_directive_names(&mut self) -> Result<(Vec<String>, bool), ProgramLoadError> {
+        let configured = self
+            .program_options
+            .types()
+            .map_or_else(Vec::new, <[_]>::to_vec);
+        let uses_wildcard = configured.iter().any(|name| name == "*");
+        if !uses_wildcard {
+            return Ok((configured, false));
+        }
+
+        let wildcard_matches = self.discover_wildcard_type_directives()?;
+        let mut seen = BTreeSet::new();
+        let mut names = Vec::new();
+        for configured_name in configured {
+            if configured_name == "*" {
+                for wildcard_match in &wildcard_matches {
+                    if seen.insert(wildcard_match.clone()) {
+                        names.push(wildcard_match.clone());
+                    }
+                }
+            } else if seen.insert(configured_name.clone()) {
+                names.push(configured_name);
+            }
+        }
+        Ok((names, true))
+    }
+
+    fn discover_wildcard_type_directives(&mut self) -> Result<Vec<String>, ProgramLoadError> {
+        let roots = self
+            .resolver
+            .effective_type_roots(self.program_options.type_roots())
+            .map_err(|error| {
+                ProgramLoadError::resolution(
+                    ProgramLoadOperation::DiscoverAutomaticTypes,
+                    error.path().map(Path::to_path_buf),
+                    None,
+                    error,
+                )
+            })?;
+        let mut matches = Vec::new();
+        for root in roots {
+            let root_path = Path::new(&root);
+            if !self.host.directory_exists(root_path).map_err(|error| {
+                ProgramLoadError::host(
+                    ProgramLoadOperation::DiscoverAutomaticTypes,
+                    Some(root_path.to_path_buf()),
+                    error,
+                )
+            })? {
+                continue;
+            }
+            let directories = self.host.get_directories(root_path).map_err(|error| {
+                ProgramLoadError::host(
+                    ProgramLoadOperation::DiscoverAutomaticTypes,
+                    Some(root_path.to_path_buf()),
+                    error,
+                )
+            })?;
+            for directory in directories {
+                let name = directory
+                    .file_name()
+                    .and_then(|name| name.to_str())
+                    .ok_or_else(|| {
+                        ProgramLoadError::invalid_data(
+                            ProgramLoadOperation::DiscoverAutomaticTypes,
+                            Some(directory.clone()),
+                            "automatic type directory has no Unicode base name",
+                        )
+                    })?
+                    .to_owned();
+                let package_json = root_path.join(&name).join("package.json");
+                if self.automatic_package_has_null_typings(&package_json)? {
+                    continue;
+                }
+                // TypeScript probes package.json before applying the hidden
+                // directory filter, so retain that observable failure order.
+                if !name.starts_with('.') {
+                    matches.push(name);
+                }
+            }
+        }
+        Ok(matches)
+    }
+
+    fn automatic_package_has_null_typings(
+        &self,
+        package_json: &Path,
+    ) -> Result<bool, ProgramLoadError> {
+        if !self.host.file_exists(package_json).map_err(|error| {
+            ProgramLoadError::host(
+                ProgramLoadOperation::DiscoverAutomaticTypes,
+                Some(package_json.to_path_buf()),
+                error,
+            )
+        })? {
+            return Ok(false);
+        }
+        let Some(bytes) = self.host.read_file(package_json).map_err(|error| {
+            ProgramLoadError::host(
+                ProgramLoadOperation::DiscoverAutomaticTypes,
+                Some(package_json.to_path_buf()),
+                error,
+            )
+        })?
+        else {
+            return Ok(false);
+        };
+        let text = decode_host_text(bytes).map_err(|source| ProgramLoadError::Decode {
+            operation: ProgramLoadOperation::DiscoverAutomaticTypes,
+            path: package_json.to_path_buf(),
+            source,
+        })?;
+        match serde_json::from_str::<Value>(&text) {
+            Ok(value) => Ok(value
+                .as_object()
+                .and_then(|object| object.get("typings"))
+                .is_some_and(Value::is_null)),
+            Err(_) => Ok(loose_json_typings_is_null(package_json, text)),
+        }
+    }
+
+    fn automatic_types_containing_file(&self) -> Result<ProgramPath, ProgramLoadError> {
+        let normalized = normalize_absolute_path(
+            Path::new(INFERRED_TYPES_CONTAINING_FILE),
+            Some(self.resolver.type_root_base_directory()),
+        )
+        .map_err(|error| {
+            ProgramLoadError::resolution(
+                ProgramLoadOperation::DiscoverAutomaticTypes,
+                None,
+                None,
+                error,
+            )
+        })?;
+        make_program_path(
+            &normalized,
+            self.resolver.path_context().use_case_sensitive_file_names(),
+        )
+        .map_err(|error| {
+            ProgramLoadError::resolution(
+                ProgramLoadOperation::DiscoverAutomaticTypes,
+                Some(PathBuf::from(normalized)),
+                None,
+                error,
+            )
+        })
     }
 
     fn load_selected_libraries(&mut self) -> Result<(), ProgramLoadError> {
@@ -2243,6 +2506,185 @@ fn missing_library_root_diagnostic(path: &ProgramPath, reason: &LibraryRootReaso
     )
 }
 
+fn automatic_type_reference_diagnostic(name: &str, uses_wildcard: bool) -> Diagnostic {
+    let reason = MessageChain::new(
+        if uses_wildcard {
+            &gen::Entry_point_for_implicit_type_library_0
+        } else {
+            &gen::Entry_point_of_type_library_0_specified_in_compilerOptions
+        },
+        &[name.to_owned()],
+    );
+    let inclusion =
+        MessageChain::new(&gen::The_file_is_in_the_program_because, &[]).with_next(vec![reason]);
+    Diagnostic::new(
+        None,
+        None,
+        None,
+        MessageChain::new(
+            &gen::Cannot_find_type_definition_file_for_0,
+            &[name.to_owned()],
+        )
+        .with_next(vec![inclusion]),
+    )
+}
+
+fn loose_json_typings_is_null(package_json: &Path, text: String) -> bool {
+    let file_name = package_json.to_string_lossy().into_owned();
+    let source = tsc_syntax::parse_json_text(file_name, text);
+    if !source.parse_diagnostics.is_empty() {
+        return false;
+    }
+    let Some(source_file) = source.arena.node(source.root).data.as_source_file() else {
+        return false;
+    };
+    let Some(statements) = source_file
+        .statements
+        .map(|statements| source.arena.node_array(statements))
+    else {
+        return false;
+    };
+    let [statement] = statements.nodes.as_slice() else {
+        return false;
+    };
+    let Some(expression) = source
+        .arena
+        .node(*statement)
+        .data
+        .as_expression_statement()
+        .and_then(|statement| statement.expression)
+    else {
+        return false;
+    };
+    if !is_valid_loose_json_value(&source, expression) {
+        return false;
+    }
+    let Some(object) = source
+        .arena
+        .node(expression)
+        .data
+        .as_object_literal_expression()
+    else {
+        return false;
+    };
+    let Some(properties) = object
+        .properties
+        .map(|properties| source.arena.node_array(properties))
+    else {
+        return false;
+    };
+
+    let mut typings_is_null = None;
+    for property in &properties.nodes {
+        let Some(property) = source.arena.node(*property).data.as_property_assignment() else {
+            return false;
+        };
+        let Some(name_id) = property.name else {
+            return false;
+        };
+        // convertConfigFileToObject rejects JSONC object keys that are not
+        // quoted string literals; readJson then falls back to an empty object.
+        if !is_double_quoted_json_string(&source, name_id) {
+            return false;
+        }
+        let Some(name) = source.arena.node(name_id).data.as_string_literal() else {
+            return false;
+        };
+        let is_typings = name.text == "typings";
+        if is_typings {
+            typings_is_null = property
+                .initializer
+                .map(|initializer| source.arena.node(initializer).kind)
+                .map(|kind| kind == tsc_syntax::SyntaxKind::NullKeyword);
+        }
+    }
+    typings_is_null == Some(true)
+}
+
+fn is_valid_loose_json_value(source: &tsc_syntax::SourceFile, value: tsc_syntax::NodeId) -> bool {
+    let mut pending = vec![value];
+    while let Some(value) = pending.pop() {
+        let node = source.arena.node(value);
+        match node.kind {
+            tsc_syntax::SyntaxKind::StringLiteral => {
+                if !is_double_quoted_json_string(source, value) {
+                    return false;
+                }
+            }
+            tsc_syntax::SyntaxKind::NumericLiteral
+            | tsc_syntax::SyntaxKind::TrueKeyword
+            | tsc_syntax::SyntaxKind::FalseKeyword
+            | tsc_syntax::SyntaxKind::NullKeyword => {}
+            tsc_syntax::SyntaxKind::PrefixUnaryExpression => {
+                let Some(expression) = node.data.as_prefix_unary_expression() else {
+                    return false;
+                };
+                if expression.operator != tsc_syntax::SyntaxKind::MinusToken
+                    || !expression.operand.is_some_and(|operand| {
+                        source.arena.node(operand).kind == tsc_syntax::SyntaxKind::NumericLiteral
+                    })
+                {
+                    return false;
+                }
+            }
+            tsc_syntax::SyntaxKind::ArrayLiteralExpression => {
+                let Some(elements) = node
+                    .data
+                    .as_array_literal_expression()
+                    .and_then(|array| array.elements)
+                    .map(|elements| source.arena.node_array(elements))
+                else {
+                    return false;
+                };
+                pending.extend(elements.nodes.iter().copied());
+            }
+            tsc_syntax::SyntaxKind::ObjectLiteralExpression => {
+                let Some(properties) = node
+                    .data
+                    .as_object_literal_expression()
+                    .and_then(|object| object.properties)
+                    .map(|properties| source.arena.node_array(properties))
+                else {
+                    return false;
+                };
+                for &property in &properties.nodes {
+                    let Some(property) = source.arena.node(property).data.as_property_assignment()
+                    else {
+                        return false;
+                    };
+                    if !property
+                        .name
+                        .is_some_and(|name| is_double_quoted_json_string(source, name))
+                    {
+                        return false;
+                    }
+                    let Some(initializer) = property.initializer else {
+                        return false;
+                    };
+                    pending.push(initializer);
+                }
+            }
+            _ => return false,
+        }
+    }
+    true
+}
+
+fn is_double_quoted_json_string(
+    source: &tsc_syntax::SourceFile,
+    value: tsc_syntax::NodeId,
+) -> bool {
+    let node = source.arena.node(value);
+    if node.kind != tsc_syntax::SyntaxKind::StringLiteral {
+        return false;
+    }
+    source
+        .text
+        .as_bytes()
+        .get(tsc_syntax::skip_trivia(&source.text, node.pos as usize))
+        == Some(&b'"')
+}
+
 fn script_target_name(options: &CompilerOptions) -> &'static str {
     match options.emit_script_target().bits() {
         0 => "es3",
@@ -2307,4 +2749,42 @@ fn path_text(path: &Path) -> Result<String, ProgramLoadError> {
             "program path is not valid Unicode",
         )
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::loose_json_typings_is_null;
+    use std::path::Path;
+
+    #[test]
+    fn loose_json_typings_filter_accepts_only_valid_jsonc_objects() {
+        let package = Path::new("/types/pkg/package.json");
+        assert!(loose_json_typings_is_null(
+            package,
+            "{/* comment */\"typings\": null, \"nested\": [1, -2, {}],}".to_owned(),
+        ));
+        assert!(loose_json_typings_is_null(
+            package,
+            "{\"typings\": \"first\", \"typings\": null}".to_owned(),
+        ));
+        assert!(!loose_json_typings_is_null(
+            package,
+            "{\"typings\": null, \"typings\": \"last\"}".to_owned(),
+        ));
+        for invalid in [
+            "{typings: null}",
+            "{'typings': null}",
+            "{\"typings\": null, \"x\": 'value'}",
+            "{\"typings\": null, \"x\": {bad: 1}}",
+            "{\"typings\": null, \"x\": undefined}",
+            "{\"typings\": null, \"x\": [1,,2]}",
+            "{\"typings\": null",
+            "[null]",
+        ] {
+            assert!(
+                !loose_json_typings_is_null(package, invalid.to_owned()),
+                "invalid loose JSON must behave like readJson's empty object: {invalid}"
+            );
+        }
+    }
 }

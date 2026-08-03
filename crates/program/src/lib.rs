@@ -26,12 +26,16 @@
 //! Non-relative source discovery applies ordered `paths` mappings and
 //! `baseUrl` through the same resolver used by direct resolution. Source-owned
 //! type-reference directives use the shared Classic, Node10, Node16/NodeNext,
-//! or Bundler primary/secondary lookup selected by the compiler options. The
-//! library catalog is injected, version-pinned metadata; bytes remain owned by
-//! the same host and no production path parses `_tsc.js`. This slice does not
-//! discover automatic `types`, admit JavaScript sources, apply `rootDirs`,
-//! discover config roots, or claim the remaining platform and CLI surfaces of
-//! H0.4 and H0.5.
+//! or Bundler primary/secondary lookup selected by the compiler options. Both
+//! loaders also discover explicit and wildcard automatic type directives
+//! after requested roots; the catalog-enabled route does so before selected
+//! libraries. Wildcard discovery uses effective `typeRoots` and the host's
+//! directory-only projection; a normalized config-file identity, when
+//! supplied, anchors both that lookup and the synthetic inferred-types origin.
+//! The library catalog is injected, version-pinned metadata; bytes remain owned
+//! by the same host and no production path parses `_tsc.js`. This slice does
+//! not admit JavaScript sources, apply `rootDirs`, discover config-derived root
+//! files, or claim the remaining platform and CLI surfaces of H0.4 and H0.5.
 
 mod error;
 mod library;

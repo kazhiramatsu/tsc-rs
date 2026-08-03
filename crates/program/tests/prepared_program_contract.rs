@@ -117,6 +117,7 @@ fn preserves_final_program_order_independently_from_root_order() {
         ProgramOptions::default()
             .with_no_lib(false)
             .with_type_roots(explicit_empty_type_roots)
+            .with_config_file_path(path("/Work/tsconfig.json", "/work/tsconfig.json"))
             .with_root_dirs(vec![path("/Work/src", "/work/src")])
             .with_paths(vec![PathMapping::new("@app/*", vec!["src/*".to_owned()])]),
     );
@@ -151,6 +152,13 @@ fn preserves_final_program_order_independently_from_root_order() {
     );
     assert_eq!(program.program_options().no_lib(), Some(false));
     assert_eq!(program.program_options().type_roots(), Some([].as_slice()));
+    assert_eq!(
+        program
+            .program_options()
+            .config_file_path()
+            .map(ProgramPath::display),
+        Some(Path::new("/Work/tsconfig.json"))
+    );
     assert_eq!(
         program.program_options().paths().unwrap()[0].substitutions(),
         ["src/*"]
@@ -400,6 +408,15 @@ fn canonical_paths_must_match_the_host_case_profile() {
     let error = invalid_option_path.build().unwrap_err();
     assert_eq!(error.kind(), PreparationErrorKind::InvalidData);
     assert_eq!(error.path(), Some(Path::new("/Work/src")));
+
+    let mut invalid_config_path = builder();
+    invalid_config_path.set_program_options(
+        ProgramOptions::default()
+            .with_config_file_path(path("/Work/tsconfig.json", "/Work/tsconfig.json")),
+    );
+    let error = invalid_config_path.build().unwrap_err();
+    assert_eq!(error.kind(), PreparationErrorKind::InvalidData);
+    assert_eq!(error.path(), Some(Path::new("/Work/tsconfig.json")));
 
     let mut sensitive = PreparedProgram::builder(
         PathContext::new(path("/Work", "/Work"), true),

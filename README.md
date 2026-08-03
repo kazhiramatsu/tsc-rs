@@ -286,14 +286,15 @@ observations, native case profiles, and realpaths. A shared program-layer
 decoder now applies the vendored Node host's BOM, UTF-16 endian/odd-byte, and
 invalid-UTF-8 rules to package metadata. Leading path, type, and lib
 references are observed once by the parser and retained by the source request
-plan. The bounded `noLib` loader now recursively discovers TypeScript-family
-sources through relative requests, `paths`, and `baseUrl`, while preserving
-vendored discovery and failure order. Same-tree Unix canaries prove both
-`PreparedProgram` and five-bucket `ProgramSession` diagnostic equivalence
-between MemoryHost and FsHost; the program-level canary now exercises Classic,
-Node10, and Bundler resolution profiles. Default/explicit libs, automatic `types`,
-JavaScript membership, `rootDirs`, config roots, and the remaining platform
-matrix remain.
+plan. The bounded loaders now recursively discover TypeScript-family sources
+through relative requests, `paths`, and `baseUrl`, while preserving vendored
+discovery and failure order. Default/explicit libraries and post-root explicit
+or wildcard automatic `types` participate in the same owned program graph.
+Same-tree Unix canaries prove both `PreparedProgram` and five-bucket
+`ProgramSession` diagnostic equivalence between MemoryHost and FsHost; the
+program-level canaries exercise Classic, Node10, Bundler, and wildcard
+`@types` discovery. JavaScript membership, `rootDirs`, config-derived roots,
+and the remaining platform matrix remain.
 
 | Phase | State | Focus |
 | --- | --- | --- |

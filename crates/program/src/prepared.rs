@@ -430,6 +430,7 @@ pub struct ProgramOptions {
     no_lib: Option<bool>,
     types: Option<Vec<String>>,
     type_roots: Option<Vec<ProgramPath>>,
+    config_file_path: Option<ProgramPath>,
     root_dirs: Option<Vec<ProgramPath>>,
     paths: Option<Vec<PathMapping>>,
 }
@@ -447,6 +448,13 @@ impl ProgramOptions {
 
     pub fn with_type_roots(mut self, value: Vec<ProgramPath>) -> Self {
         self.type_roots = Some(value);
+        self
+    }
+
+    /// Retain the normalized config-file identity used as the base for
+    /// effective type roots and the synthetic automatic-types origin.
+    pub fn with_config_file_path(mut self, value: ProgramPath) -> Self {
+        self.config_file_path = Some(value);
         self
     }
 
@@ -470,6 +478,10 @@ impl ProgramOptions {
 
     pub fn type_roots(&self) -> Option<&[ProgramPath]> {
         self.type_roots.as_deref()
+    }
+
+    pub fn config_file_path(&self) -> Option<&ProgramPath> {
+        self.config_file_path.as_ref()
     }
 
     pub fn root_dirs(&self) -> Option<&[ProgramPath]> {
@@ -1175,6 +1187,9 @@ impl PreparedProgramBuilder {
             for path in type_roots {
                 self.validate_canonical_case(path.canonical())?;
             }
+        }
+        if let Some(path) = self.program_options.config_file_path() {
+            self.validate_canonical_case(path.canonical())?;
         }
         if let Some(root_dirs) = self.program_options.root_dirs() {
             for path in root_dirs {

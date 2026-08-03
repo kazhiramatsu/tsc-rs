@@ -380,6 +380,7 @@ pub struct ModuleResolver<'a> {
     host: &'a dyn CompilerHost,
     options: &'a CompilerOptions,
     path_context: PathContext,
+    type_root_base_directory: String,
     base_url: Option<String>,
     paths: Option<Vec<PathMapping>>,
     package_cache: BTreeMap<String, PackageCacheEntry>,
@@ -395,7 +396,7 @@ impl<'a> ModuleResolver<'a> {
         host: &'a dyn CompilerHost,
         options: &'a CompilerOptions,
     ) -> Result<Self, ResolutionError> {
-        Self::new_with_owned_paths(host, options, None)
+        Self::new_with_owned_paths(host, options, None, None)
     }
 
     /// Construct a resolver with the ordered program-owned `paths` mappings.
@@ -408,24 +409,46 @@ impl<'a> ModuleResolver<'a> {
         options: &'a CompilerOptions,
         program_options: &ProgramOptions,
     ) -> Result<Self, ResolutionError> {
-        Self::new_with_owned_paths(host, options, program_options.paths())
+        Self::new_with_owned_paths(
+            host,
+            options,
+            program_options.paths(),
+            program_options.config_file_path(),
+        )
     }
 
     fn new_with_owned_paths(
         host: &'a dyn CompilerHost,
         options: &'a CompilerOptions,
         paths: Option<&[PathMapping]>,
+        config_file_path: Option<&ProgramPath>,
     ) -> Result<Self, ResolutionError> {
         let current_directory = host.current_directory()?;
         let normalized = normalize_absolute_path(&current_directory, None)?;
         let case_sensitive = host.use_case_sensitive_file_names();
         let current_directory = make_program_path(&normalized, case_sensitive)?;
+        let type_root_base_directory = match config_file_path {
+            Some(config_file_path) => {
+                let config =
+                    normalize_absolute_path(config_file_path.display(), Some(normalized.as_str()))?;
+                let normalized_config = make_program_path(&config, case_sensitive)?;
+                if &normalized_config != config_file_path {
+                    return Err(ResolutionError::canonicalization(
+                        Some(config_file_path.display().to_path_buf()),
+                        "config-file display and canonical paths do not match the resolver path profile",
+                    ));
+                }
+                directory_name(&config)
+            }
+            None => normalized.clone(),
+        };
         let base_url = normalize_base_url(options.base_url.as_deref(), &normalized)?;
         let paths = validate_and_clone_paths(paths)?;
         Ok(Self {
             host,
             options,
             path_context: PathContext::new(current_directory, case_sensitive),
+            type_root_base_directory,
             base_url,
             paths,
             package_cache: BTreeMap::new(),
@@ -457,6 +480,7 @@ impl<'a> ModuleResolver<'a> {
         Ok(Self {
             host,
             options,
+            type_root_base_directory: current_directory.to_owned(),
             path_context,
             base_url,
             paths: None,
@@ -1242,27 +1266,11 @@ impl<'a> ModuleResolver<'a> {
         type_roots: Option<&[ProgramPath]>,
     ) -> Result<ResolutionOutcome<HostResolvedTypeReferenceDirective>, ResolutionError> {
         self.validate_supported_type_reference_configuration(mode)?;
-        if specifier.is_empty() || specifier.contains(['\\', '\0', ':']) {
-            return Err(ResolutionError::invalid_data(format!(
-                "invalid type-reference directive name {specifier:?}"
-            )));
-        }
 
         let current_directory = self.current_directory_text()?.to_owned();
         let containing_file = normalize_absolute_path(containing_file, Some(&current_directory))?;
         let custom_type_roots = type_roots.is_some();
-        let effective_type_roots = match type_roots {
-            Some(roots) => roots
-                .iter()
-                .map(|root| self.normalized_type_root(root))
-                .collect::<Result<Vec<_>, _>>()?,
-            None => ancestor_directories(&current_directory)
-                .into_iter()
-                .map(|ancestor| {
-                    join_normalized(&join_normalized(&ancestor, "node_modules"), "@types")
-                })
-                .collect(),
-        };
+        let effective_type_roots = self.effective_type_roots(type_roots)?;
 
         for type_root in effective_type_roots {
             let outcome = self.resolve_type_reference_from_root(
@@ -1288,7 +1296,9 @@ impl<'a> ModuleResolver<'a> {
         let outcome = if is_relative_specifier(specifier) {
             self.resolve_relative_type_reference(&containing_file, specifier, mode)?
         } else {
-            let request = parse_package_request(specifier)?;
+            let Ok(request) = parse_package_request(specifier) else {
+                return Ok(ResolutionOutcome::NotFound);
+            };
             self.resolve_type_reference_from_node_modules(
                 &directory_name(&containing_file),
                 &request,
@@ -1832,6 +1842,28 @@ impl<'a> ModuleResolver<'a> {
             ));
         }
         Ok(normalized)
+    }
+
+    pub(crate) fn effective_type_roots(
+        &self,
+        type_roots: Option<&[ProgramPath]>,
+    ) -> Result<Vec<String>, ResolutionError> {
+        match type_roots {
+            Some(roots) => roots
+                .iter()
+                .map(|root| self.normalized_type_root(root))
+                .collect(),
+            None => Ok(ancestor_directories(&self.type_root_base_directory)
+                .into_iter()
+                .map(|ancestor| {
+                    join_normalized(&join_normalized(&ancestor, "node_modules"), "@types")
+                })
+                .collect()),
+        }
+    }
+
+    pub(crate) fn type_root_base_directory(&self) -> &str {
+        &self.type_root_base_directory
     }
 
     fn resolve_type_reference_from_root(
