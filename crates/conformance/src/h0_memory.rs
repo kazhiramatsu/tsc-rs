@@ -18,7 +18,7 @@ use tsc_program::{
 
 use crate::ConformanceResult;
 
-const SUPPORTED_FIXTURES: [&str; 37] = [
+const SUPPORTED_FIXTURES: [&str; 39] = [
     "conformance/node/nodeModulesPackagePatternExportsExclude.ts",
     "conformance/node/nodeModulesPackagePatternExports.ts",
     "conformance/node/allowJs/nodeModulesAllowJsPackagePatternExportsExclude.ts",
@@ -56,6 +56,8 @@ const SUPPORTED_FIXTURES: [&str; 37] = [
     "conformance/jsdoc/importTag17.ts",
     "conformance/typings/typingsLookup1.ts",
     "conformance/typings/typingsLookup3.ts",
+    "conformance/externalModules/verbatimModuleSyntaxAmbientConstEnum.ts",
+    "conformance/externalModules/verbatimModuleSyntaxConstEnumUsage.ts",
 ];
 
 pub(crate) fn supports_fixture(fixture: &str) -> bool {
@@ -592,7 +594,7 @@ mod tests {
     };
 
     #[test]
-    fn dedicated_route_is_exactly_the_reviewed_package_resolution_fixtures() {
+    fn dedicated_route_is_exactly_the_reviewed_h0_fixtures() {
         assert!(SUPPORTED_FIXTURES
             .iter()
             .all(|fixture| supports_fixture(fixture)));
@@ -607,6 +609,8 @@ mod tests {
             "conformance/jsdoc/importTag17.ts",
             "conformance/typings/typingsLookup1.ts",
             "conformance/typings/typingsLookup3.ts",
+            "conformance/externalModules/verbatimModuleSyntaxAmbientConstEnum.ts",
+            "conformance/externalModules/verbatimModuleSyntaxConstEnumUsage.ts",
         ] {
             assert!(supports_fixture(fixture), "missing H0 route: {fixture}");
         }
@@ -616,10 +620,62 @@ mod tests {
             "conformance/declarationEmit/typesVersionsDeclarationEmit.multiFileBackReferenceToSelf.ts.backup",
             "conformance/moduleResolution/packageJsonMain_isNonRecursive.ts.backup",
             "conformance/node/nodeModulesPackagePatternExportsExclude.ts.backup",
+            "conformance/externalModules/verbatimModuleSyntaxConstEnum.ts",
             "node/nodeModulesPackagePatternExportsExclude.ts",
         ] {
             assert!(!supports_fixture(fixture), "unexpected H0 route: {fixture}");
         }
+    }
+
+    #[test]
+    fn const_enum_fixture_and_exact_control_match_the_reviewed_conformance_boundary() {
+        let workspace = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .and_then(Path::parent)
+            .expect("workspace root");
+        let vendor_lib_dir = workspace.join("vendor/typescript-6.0.3/lib");
+
+        let run_fixture = |fixture: &str| {
+            let programs = tsc_harness::expand_fixture_file(
+                &workspace.join("ts-tests/tests/cases").join(fixture),
+                &vendor_lib_dir,
+            )
+            .expect("expand focused H0 fixture");
+            assert_eq!(programs.len(), 1, "unexpected matrix expansion: {fixture}");
+            crate::current_case_tsrs(fixture, &programs[0], &vendor_lib_dir)
+                .expect("run focused H0 fixture")
+        };
+
+        let emitting =
+            run_fixture("conformance/externalModules/verbatimModuleSyntaxAmbientConstEnum.ts");
+        let observed = emitting
+            .all
+            .iter()
+            .map(|diagnostic| {
+                (
+                    diagnostic.file.as_deref(),
+                    diagnostic.code,
+                    diagnostic.start,
+                    diagnostic.length,
+                    diagnostic.line,
+                    diagnostic.col,
+                )
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(
+            observed,
+            [
+                (Some("/a.ts"), 2748, Some(9), Some(1), Some(0), Some(9),),
+                (Some("/a.ts"), 2748, Some(100), Some(1), Some(3), Some(0),),
+                (Some("/b.ts"), 2748, Some(9), Some(1), Some(0), Some(9),),
+            ]
+        );
+        assert!(emitting.syntactic.is_empty());
+
+        let control =
+            run_fixture("conformance/externalModules/verbatimModuleSyntaxConstEnumUsage.ts");
+        assert!(control.all.is_empty());
+        assert!(control.syntactic.is_empty());
     }
 
     #[test]

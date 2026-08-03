@@ -7296,8 +7296,9 @@ impl<'a> CheckerState<'a> {
     /// The checked-JS type-only import/export face and the live
     /// isolatedModules/verbatimModuleSyntax type-only and CommonJS-
     /// format faces are ported here. Isolated import/local-value
-    /// conflicts, exported import-equals, and ambient const enums
-    /// remain with their separately owned producer slices.
+    /// conflicts and exported import-equals remain with their
+    /// separately owned producer slices. The ambient const-enum arm
+    /// consumes the fully resolved alias target below.
     pub(crate) fn check_alias_symbol(&mut self, node: NodeId) -> CheckResult<()> {
         let symbol = self.get_symbol_of_declaration(node)?;
         let target = self.resolve_alias(symbol)?;
@@ -7533,6 +7534,29 @@ impl<'a> CheckerState<'a> {
                     Some(node),
                     &diagnostics::ECMAScript_module_syntax_is_not_allowed_in_a_CommonJS_module_when_module_is_set_to_preserve,
                     &[],
+                );
+            }
+
+            // tsc's getRedirectFromOutput exception is absent for the
+            // in-memory program graph: there are no project-reference
+            // output redirects, so an ambient declaration reached through
+            // the resolved alias is always the declaration being consumed.
+            if self.options.verbatim_module_syntax == Some(true)
+                && target_flags.intersects(SymbolFlags::CONST_ENUM)
+                && self
+                    .binder
+                    .symbol(target)
+                    .value_declaration
+                    .is_some_and(|declaration| {
+                        self.binder
+                            .flags_of(declaration)
+                            .intersects(tsc_types::NodeFlags::AMBIENT)
+                    })
+            {
+                self.error_at(
+                    Some(node),
+                    &diagnostics::Cannot_access_ambient_const_enums_when_0_is_enabled,
+                    &["verbatimModuleSyntax"],
                 );
             }
         }
@@ -10446,6 +10470,94 @@ let unrelated = \"\";\n",
                 1377,
             )]
         );
+    }
+
+    #[test]
+    fn verbatim_ambient_const_enum_aliases_report_binding_and_keep_global_access() {
+        let declaration = "export declare const enum E { A, B, C }\n\
+                           declare global { const enum F { A, B, C } }\n";
+        let importing = "import { E } from \"./pkg\";\n\
+                         import type { E as _E } from \"./pkg\";\n\
+                         E.A;\n\
+                         F.A;\n";
+        let exporting = "export { E } from \"./pkg\";\n\
+                         export type { E as _E } from \"./pkg\";\n";
+        let result = check_program(
+            &[
+                InputFile {
+                    name: "/pkg.d.ts".to_owned(),
+                    text: declaration.to_owned(),
+                },
+                InputFile {
+                    name: "/a.ts".to_owned(),
+                    text: importing.to_owned(),
+                },
+                InputFile {
+                    name: "/b.ts".to_owned(),
+                    text: exporting.to_owned(),
+                },
+            ],
+            &CompilerOptions {
+                module: Some(200),
+                target: Some(99),
+                verbatim_module_syntax: Some(true),
+                ..CompilerOptions::default()
+            },
+        );
+        let message = "Cannot access ambient const enums when 'verbatimModuleSyntax' is enabled.";
+        assert_eq!(
+            targeted_rows(&result, &[2748]),
+            [
+                (
+                    "/a.ts".to_owned(),
+                    2748,
+                    importing.find("E }").expect("import binding") as u32,
+                    1,
+                    message.to_owned(),
+                ),
+                (
+                    "/a.ts".to_owned(),
+                    2748,
+                    importing.find("F.A").expect("global access") as u32,
+                    1,
+                    message.to_owned(),
+                ),
+                (
+                    "/b.ts".to_owned(),
+                    2748,
+                    exporting.find("E }").expect("re-export binding") as u32,
+                    1,
+                    message.to_owned(),
+                ),
+            ]
+        );
+    }
+
+    #[test]
+    fn verbatim_regular_const_enum_aliases_do_not_report_2748() {
+        let result = check_program(
+            &[
+                InputFile {
+                    name: "/enum.ts".to_owned(),
+                    text: "export const enum E { A }\n".to_owned(),
+                },
+                InputFile {
+                    name: "/import.ts".to_owned(),
+                    text: "import { E } from \"./enum\";\nE.A;\n".to_owned(),
+                },
+                InputFile {
+                    name: "/export.ts".to_owned(),
+                    text: "export { E } from \"./enum\";\n".to_owned(),
+                },
+            ],
+            &CompilerOptions {
+                module: Some(200),
+                target: Some(99),
+                verbatim_module_syntax: Some(true),
+                ..CompilerOptions::default()
+            },
+        );
+        assert!(targeted_rows(&result, &[2748]).is_empty());
     }
 
     #[test]
