@@ -329,20 +329,20 @@ TS2877. It closes 6/6 rows. The reviewed types slice additionally preserves
 exact triple-slash type-reference spelling and mode, probes configured and
 default type roots case-sensitively, follows package metadata and real paths,
 and selects import/require conditional exports for JSDoc `@import`. It closes
-the 3/3 types-type-roots-and-reference-directives rows. The first reviewed
-H0.3 consumer slice resolves ambient const-enum import and re-export aliases
-through that authoritative module table, suppresses a duplicate imported
-access diagnostic, and preserves the global ambient access diagnostic. It
-closes the 2/2 const-enum-module-binding rows, bringing the registry to 226/241
-closed with 15 rows open. This does not claim general H0.2 resolution beyond
-the reviewed in-memory routes, filesystem hosting, or H0 completion.
+the 3/3 types-type-roots-and-reference-directives rows. The reviewed H0.3
+consumer slices resolve ambient const-enum import and re-export aliases through
+that authoritative module table, and publish the synthetic `tslib` request
+needed to validate private get/set helper shapes in the source file's static
+resolution mode. They close the 2/2 const-enum-module-binding rows and 4/4
+external-helper-consumer rows, bringing the registry to 230/241 closed with 11
+rows open. This does not claim general H0.2 resolution beyond the reviewed
+in-memory routes, filesystem hosting, or H0 completion.
 
 ### H0.3 — residual host consumers
 
 Close the remaining host rows by exact owner:
 
 - TS2792 and the remaining TS2307 alternate-resolution/message selection;
-- TS2807 external-helper module shape;
 - TS2339 untyped-package member behavior;
 - TS2665 untyped-module augmentation.
 
