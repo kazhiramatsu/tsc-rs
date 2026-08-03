@@ -133,6 +133,17 @@ pub type ViewSets = BTreeMap<String, BTreeMap<String, CaseSets>>;
 /// view name ("all" | "2xxx" | "syntactic") → view sets.
 pub type RunSets = BTreeMap<String, ViewSets>;
 
+/// One case's bucket comparison together with the two T0 universes used to
+/// derive its aggregate counts and mismatches. Keeping the universes produced
+/// by `keyed` avoids walking both diagnostic streams a second time merely to
+/// rebuild the same T0 keys in the conformance accumulator.
+#[derive(Debug, Eq, PartialEq)]
+pub(crate) struct BucketGrading {
+    pub sets: CaseSets,
+    pub expected: BTreeSet<T0Key>,
+    pub actual: BTreeSet<T0Key>,
+}
+
 fn is_false(value: &bool) -> bool {
     !*value
 }
@@ -722,10 +733,10 @@ fn read_optional_bytes(path: &Path, what: &str) -> ConformanceResult<Option<Vec<
 /// matching is sufficient because each tier comparator is an
 /// equivalence relation; buckets are tiny (almost always one), so the
 /// O(n²) walk avoids inventing a second sortable serialization.
-pub(crate) fn bucket_sets<'a>(
+pub(crate) fn bucket_grading<'a>(
     oracle: impl Iterator<Item = &'a GoldenDiag>,
     tsrs: impl Iterator<Item = &'a GoldenDiag>,
-) -> CaseSets {
+) -> BucketGrading {
     fn keyed<'a>(
         diags: impl Iterator<Item = &'a GoldenDiag>,
     ) -> BTreeMap<T0Key, Vec<&'a GoldenDiag>> {
@@ -791,7 +802,18 @@ pub(crate) fn bucket_sets<'a>(
             sets.t3.insert(key.clone());
         }
     }
-    sets
+    BucketGrading {
+        sets,
+        expected: oracle.into_keys().collect(),
+        actual: tsrs.into_keys().collect(),
+    }
+}
+
+pub(crate) fn bucket_sets<'a>(
+    oracle: impl Iterator<Item = &'a GoldenDiag>,
+    tsrs: impl Iterator<Item = &'a GoldenDiag>,
+) -> CaseSets {
+    bucket_grading(oracle, tsrs).sets
 }
 
 fn t0_label(key: &T0Key) -> String {

@@ -1,17 +1,21 @@
 #![forbid(unsafe_code)]
 
 use std::borrow::Cow;
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::error::Error;
 use std::fs;
-use std::io::Read;
+use std::io::{BufWriter, Read, Write};
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::mpsc::{sync_channel, SyncSender};
 use std::sync::{Arc, Mutex, OnceLock};
 
 use serde::{Deserialize, Serialize};
 use toml_edit::{DocumentMut, Item, Table};
 use tsc_checker::{
-    check_program, check_program_with_libs_at, CompilerOptions, InputFile, PartialCheck,
+    check_program, check_program_with_libs_at, check_program_with_prepared_harness_libs_at,
+    harness_lib_bundle_options_key, prepare_harness_lib_bundle, CompilerOptions,
+    HarnessLibBundleOptionsKey, InputFile, PartialCheck, PreparedHarnessLibBundle,
 };
 use tsc_diagnostics::{
     compute_line_map, get_line_and_character_of_position, Diagnostic, MessageChain,
@@ -286,7 +290,7 @@ pub struct ConformanceOptions {
     pub band: DiagnosticBand,
 }
 
-#[derive(Clone, Debug, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct ConformanceSummary {
     pub band: String,
     pub fixtures_total: usize,
@@ -371,7 +375,7 @@ pub struct ConformanceSummary {
     pub mismatches: Vec<MismatchEntry>,
 }
 
-#[derive(Clone, Debug, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct MismatchEntry {
     pub fixture: String,
     pub matrix_key: String,
@@ -380,7 +384,7 @@ pub struct MismatchEntry {
     pub fn_partial_boundary_audit: Vec<FnPartialBoundaryAudit>,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct SupportedTierMismatch {
     pub fixture: String,
     pub matrix_key: String,
@@ -390,7 +394,7 @@ pub struct SupportedTierMismatch {
     pub expected: Vec<GoldenDiag>,
 }
 
-#[derive(Clone, Debug, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct FnPartialBoundaryAudit {
     pub diagnostic: T0Key,
     pub reached_partial_boundary: bool,
@@ -512,16 +516,17 @@ pub fn run_prefix_conformance(
                     .collect::<ConformanceResult<Vec<_>>>()?;
                 let libs = read_lib_inputs(&truncated.libs, &vendor_lib_dir)?;
                 let result = check_program_with_libs_at(
-                    &libs,
+                    libs.as_slice(),
                     &input_files,
                     &tsc_harness::compiler_options_from_program(&truncated),
                     &truncated.cwd,
                 );
+                let mut line_maps = TsrsLineMapCache::new(&file_texts);
                 let actual = t0_set(
                     result
                         .syntactic_diagnostics
                         .iter()
-                        .map(|diag| GoldenDiag::from_tsrs(diag, &file_texts))
+                        .map(|diag| GoldenDiag::from_tsrs(diag, &mut line_maps))
                         .collect::<Vec<_>>()
                         .iter(),
                 );
@@ -677,7 +682,7 @@ pub fn refresh_oracle_goldens(options: &RefreshOptions) -> ConformanceResult<Ref
 /// A gating conformance run: enforces the accepted-set ratchet
 /// (measurement-integrity.md §2) on top of the integer/FP gates.
 pub fn run_conformance(options: &ConformanceOptions) -> ConformanceResult<ConformanceSummary> {
-    run_conformance_inner(options, SetGate::Enforce, false, None, None, false, None)
+    run_conformance_inner(options, SetGate::Enforce, false, None, None, false)
         .map(|run| run.summary)
 }
 
@@ -694,7 +699,7 @@ pub fn run_conformance_with_families_report(
     report_out: &Path,
 ) -> ConformanceResult<ConformanceSummary> {
     let preparation = families::prepare_report(&options.workspace)?;
-    let run = run_conformance_inner(options, SetGate::Enforce, true, None, None, false, None)?;
+    let run = run_conformance_inner(options, SetGate::Enforce, true, None, None, false)?;
     let observation = run
         .observation
         .expect("observing run collects an observation");
@@ -714,7 +719,7 @@ pub fn run_conformance_with_families_report(
 pub(crate) fn run_conformance_collect(
     options: &ConformanceOptions,
 ) -> ConformanceResult<ConformanceRun> {
-    run_conformance_inner(options, SetGate::Collect, false, None, None, false, None)
+    run_conformance_inner(options, SetGate::Collect, false, None, None, false)
 }
 
 pub(crate) fn run_conformance_collect_with_t4(
@@ -733,92 +738,278 @@ pub(crate) fn run_conformance_collect_with_t4(
         planned_t4_pins,
         planned_t4_empty_related_information,
         true,
-        None,
     )
 }
 
-/// The merge-gate shape: grade every fixed view while executing the
-/// checker only once per expanded case. The three grading passes stay
-/// sequential, so this does not increase CPU concurrency; a scoped
-/// in-memory cache replaces the two duplicate checker executions and
-/// is dropped as soon as the fixed-view gates finish.
+/// The merge-gate shape: expand and execute each case once, then grade
+/// all three fixed views from that case's aggregate and syntactic
+/// streams. The three views stay sequential within the grading stage;
+/// a bounded one-case channel overlaps that stage with the next checker
+/// case. At most two stages run at once, and no corpus-sized cache of
+/// checker results is retained.
 ///
-/// No program JSON or per-case cache files are written. `out_json`
-/// retains the historical CI behavior: each view writes it in order,
-/// leaving the syntactic report there when all gates pass.
+/// No program JSON or per-case cache files are written. Each fixed view is
+/// streamed once to its corresponding `out_jsons` path. CI summaries are
+/// intentionally compact: these files are machine-consumed evidence and the
+/// compact encoding avoids allocating and then rewriting hundreds of
+/// megabytes of pretty-printed JSON on standard hosted runners.
 /// `completed_view` runs immediately after each view's gates pass, so
 /// a later-view failure does not hide earlier summaries in CI logs.
 pub fn run_ci_conformance(
     workspace: &Path,
-    out_json: &Path,
+    out_jsons: [&Path; 3],
     families_report_out: &Path,
     mut completed_view: impl FnMut(&ConformanceSummary),
 ) -> ConformanceResult<CiConformanceSummaries> {
-    let mut case_cache = CaseTsrsCache::new();
-    let options_for = |band| ConformanceOptions {
+    let options = ConformanceOptions {
         workspace: workspace.to_owned(),
         limit: None,
         files: Vec::new(),
-        out_json: out_json.to_owned(),
-        band,
+        out_json: out_jsons[0].to_owned(),
+        band: DiagnosticBand::All,
     };
 
     let preparation = families::prepare_report(workspace)?;
-    let all_run = run_conformance_inner(
-        &options_for(DiagnosticBand::All),
+    let measured = measure_ci_conformance(
+        &options,
+        &ratchet::FIXED_VIEWS,
         SetGate::Enforce,
         true,
         None,
         None,
         false,
-        Some(&mut case_cache),
+        ReportIdentityMode::AllViewOnly,
     )?;
-    let all_observation = all_run
-        .observation
-        .expect("observing run collects an observation");
-    families::finish_report(
-        workspace,
-        preparation,
-        &all_run.summary,
-        &all_observation,
-        families_report_out,
+    let MeasuredConformance {
+        views,
+        mut observation,
+        accepted,
+        executed_fixtures,
+        full_run,
+    } = measured;
+    let mut preparation = Some(preparation);
+    let completed = complete_ci_views(
+        views,
+        out_jsons,
+        accepted.as_ref(),
+        &executed_fixtures,
+        full_run,
+        |summary| {
+            let preparation = preparation
+                .take()
+                .ok_or("All families preparation was consumed more than once")?;
+            let all_observation = observation
+                .take()
+                .ok_or("All families observation is missing")?;
+            families::finish_report(
+                workspace,
+                preparation,
+                summary,
+                &all_observation,
+                families_report_out,
+            )
+        },
+        &mut completed_view,
     )?;
-    completed_view(&all_run.summary);
-
-    let two_xxx = run_conformance_inner(
-        &options_for(DiagnosticBand::TwoXxx),
-        SetGate::Enforce,
-        false,
-        None,
-        None,
-        false,
-        Some(&mut case_cache),
-    )?
-    .summary;
-    completed_view(&two_xxx);
-    let syntactic = run_conformance_inner(
-        &options_for(DiagnosticBand::Syntactic),
-        SetGate::Enforce,
-        false,
-        None,
-        None,
-        false,
-        Some(&mut case_cache),
-    )?
-    .summary;
-    completed_view(&syntactic);
+    let [all, two_xxx, syntactic]: [ConformanceSummary; 3] = completed
+        .try_into()
+        .map_err(|_| "CI conformance did not complete exactly three fixed views")?;
 
     Ok(CiConformanceSummaries {
-        all: all_run.summary,
-        two_xxx,
-        syntactic,
+        all: CiConformanceSummary::new(all)?,
+        two_xxx: CiConformanceSummary::new(two_xxx)?,
+        syntactic: CiConformanceSummary::new(syntactic)?,
     })
 }
 
+#[allow(clippy::too_many_arguments)]
+fn complete_ci_views(
+    views: Vec<MeasuredView>,
+    out_jsons: [&Path; 3],
+    accepted: Option<&ratchet::AcceptedState>,
+    executed_fixtures: &BTreeSet<String>,
+    full_run: bool,
+    mut finish_all: impl FnMut(&ConformanceSummary) -> ConformanceResult<()>,
+    mut completed_view: impl FnMut(&ConformanceSummary),
+) -> ConformanceResult<Vec<ConformanceSummary>> {
+    process_fixed_views(
+        views.into_iter().map(|view| (view.band, view.result)),
+        |band, measurement| {
+            let view = measurement.into_full()?;
+            let output_index = ratchet::FIXED_VIEWS
+                .iter()
+                .position(|candidate| *candidate == band)
+                .ok_or_else(|| format!("no CI output path for fixed {} view", band.name()))?;
+            let out_json = out_jsons[output_index];
+            write_ci_and_enforce_view(&view, out_json, accepted, executed_fixtures, full_run)?;
+            if band == DiagnosticBand::All {
+                finish_all(&view.summary)?;
+            }
+            completed_view(&view.summary);
+            // Drop this view's potentially-large RunSets at its gate instead
+            // of retaining three complete FinishedConformanceViews.
+            Ok(view.summary)
+        },
+    )
+}
+
+/// Applies fixed-view gates in the normative order. View-local failures stay
+/// dormant until their turn, while a missing, duplicate, reordered, or extra
+/// view is a normal release-build error rather than a debug-only assertion.
+fn process_fixed_views<T, U>(
+    views: impl IntoIterator<Item = (DiagnosticBand, ConformanceResult<T>)>,
+    mut complete: impl FnMut(DiagnosticBand, T) -> ConformanceResult<U>,
+) -> ConformanceResult<Vec<U>> {
+    let views = views.into_iter().collect::<Vec<_>>();
+    if views.len() != ratchet::FIXED_VIEWS.len() {
+        return Err(format!(
+            "CI conformance fixed-view order requires exactly {} views, observed {}",
+            ratchet::FIXED_VIEWS.len(),
+            views.len()
+        )
+        .into());
+    }
+    for ((observed, _), expected) in views.iter().zip(ratchet::FIXED_VIEWS) {
+        if *observed != expected {
+            return Err(format!(
+                "CI conformance fixed-view order mismatch: expected {}, observed {}",
+                expected.name(),
+                observed.name()
+            )
+            .into());
+        }
+    }
+
+    let mut completed = Vec::with_capacity(ratchet::FIXED_VIEWS.len());
+    for (expected, (_, result)) in ratchet::FIXED_VIEWS.into_iter().zip(views) {
+        completed.push(complete(expected, result?)?);
+    }
+    Ok(completed)
+}
+
+#[derive(Debug)]
 pub struct CiConformanceSummaries {
-    pub all: ConformanceSummary,
-    pub two_xxx: ConformanceSummary,
-    pub syntactic: ConformanceSummary,
+    pub all: CiConformanceSummary,
+    pub two_xxx: CiConformanceSummary,
+    pub syntactic: CiConformanceSummary,
+}
+
+/// A versioned merge-gate projection. This wrapper prevents secondary CI
+/// summaries, whose report-only identity vectors are intentionally omitted,
+/// from being mistaken for a standalone full conformance report.
+#[derive(Debug)]
+pub struct CiConformanceSummary {
+    summary: ConformanceSummary,
+}
+
+impl CiConformanceSummary {
+    pub fn as_summary(&self) -> &ConformanceSummary {
+        &self.summary
+    }
+
+    fn new(summary: ConformanceSummary) -> ConformanceResult<Self> {
+        validate_ci_summary_identity_shape(&summary)?;
+        Ok(Self { summary })
+    }
+}
+
+const CI_SUMMARY_ARTIFACT_SCHEMA: u32 = 1;
+const CI_SUMMARY_PROJECTION: &str = "all-full-secondary-slim-v1";
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct CiSummaryArtifact {
+    schema: u32,
+    projection: String,
+    summary: ConformanceSummary,
+}
+
+#[derive(Serialize)]
+struct CiSummaryArtifactRef<'a> {
+    schema: u32,
+    projection: &'static str,
+    summary: &'a ConformanceSummary,
+}
+
+/// Decode the compact receipt-only summary produced by
+/// [`run_ci_conformance`]. Secondary exact tier identity vectors are
+/// deliberately absent: the producer already enforced their authoritative
+/// `RunSets` before it published the one-shot receipt, while later merge-gate
+/// consumers need only aggregate fields and mismatch details. Their oracle
+/// universe digests remain genuine. The All view keeps its full exact-identity
+/// observation because M8 publishes it as the standing conformance artifact.
+pub fn decode_ci_conformance_summary(bytes: &[u8]) -> ConformanceResult<CiConformanceSummary> {
+    let artifact: CiSummaryArtifact = serde_json::from_slice(bytes)?;
+    if artifact.schema != CI_SUMMARY_ARTIFACT_SCHEMA || artifact.projection != CI_SUMMARY_PROJECTION
+    {
+        return Err("invalid CI conformance summary projection".into());
+    }
+    CiConformanceSummary::new(artifact.summary)
+}
+
+fn validate_ci_summary_identity_shape(summary: &ConformanceSummary) -> ConformanceResult<()> {
+    let all = &summary.shadow_tier_identities;
+    let supported = &summary.supported_shadow_tier_identities;
+    match summary.band.as_str() {
+        "all" => {
+            all.validate(
+                "CI All observation",
+                [
+                    summary.shadow_t1_matched,
+                    summary.shadow_t2_matched,
+                    summary.shadow_t3_matched,
+                ],
+            )?;
+            supported.validate(
+                "CI supported All observation",
+                [
+                    summary.supported_t1_matched,
+                    summary.supported_t2_matched,
+                    summary.supported_t3_matched,
+                ],
+            )?;
+        }
+        "2xxx" | "syntactic" => {
+            // The compact projection omits only the six report-only vectors.
+            // Validation against zero also checks each nested observation's
+            // schema, ordering, uniqueness, and tier-subset invariants.
+            all.validate("CI projected observation", [0, 0, 0])?;
+            supported.validate("CI projected supported observation", [0, 0, 0])?;
+
+            // Every measured case contributes a universe record even if the
+            // selected band has no diagnostics, so a non-empty run may never
+            // carry the empty-universe sentinel. This detects a producer that
+            // accidentally suppresses digest collection along with vectors.
+            if summary.cases_total > 0 {
+                let empty_universe = ShadowTierObservation::new(
+                    Vec::new(),
+                    BTreeSet::new(),
+                    BTreeSet::new(),
+                    BTreeSet::new(),
+                )
+                .oracle_universe_sha256;
+                if all.oracle_universe_sha256 == empty_universe
+                    || supported.oracle_universe_sha256 == empty_universe
+                {
+                    return Err("CI projected observation has an empty universe digest".into());
+                }
+            }
+        }
+        band => return Err(format!("invalid CI conformance summary band {band:?}").into()),
+    }
+    Ok(())
+}
+
+#[derive(Clone, Copy, Eq, PartialEq)]
+enum ReportIdentityMode {
+    AllViews,
+    AllViewOnly,
+}
+
+impl ReportIdentityMode {
+    fn retains(self, band: DiagnosticBand) -> bool {
+        self == Self::AllViews || band == DiagnosticBand::All
+    }
 }
 
 pub struct ConformanceRun {
@@ -836,122 +1027,932 @@ pub(crate) enum SetGate {
     Collect,
 }
 
-fn run_conformance_inner(
+struct ViewAccumulator {
+    band: DiagnosticBand,
+    retain_report_identities: bool,
+    ratchet: Ratchet,
+    t1_ratchet: Option<Ratchet>,
+    run_sets: ratchet::RunSets,
+    case_count: usize,
+    exact_match_cases: usize,
+    oracle_diagnostics: usize,
+    tsrs_diagnostics: usize,
+    matched_t0_diagnostics: usize,
+    shadow_t1_matched: usize,
+    shadow_t2_matched: usize,
+    shadow_t3_matched: usize,
+    shadow_t1_identities: BTreeSet<ShadowTierIdentity>,
+    shadow_t2_identities: BTreeSet<ShadowTierIdentity>,
+    shadow_t3_identities: BTreeSet<ShadowTierIdentity>,
+    shadow_oracle_records: Vec<Vec<u8>>,
+    fp_count: usize,
+    fn_count: usize,
+    fn_with_partial_boundary_count: usize,
+    fn_without_partial_boundary_count: usize,
+    fn_trigger_reasons: BTreeMap<String, usize>,
+    fp_codes: BTreeMap<u32, usize>,
+    fn_codes: BTreeMap<u32, usize>,
+    mismatches: Vec<MismatchEntry>,
+    scope_excluded_diagnostics: usize,
+    scope_unresolved_diagnostics: usize,
+    scope_resolved_t0_diagnostics: usize,
+    supported_oracle_diagnostics: usize,
+    supported_tsrs_diagnostics: usize,
+    supported_matched_t0_diagnostics: usize,
+    supported_t1_matched: usize,
+    supported_t2_matched: usize,
+    supported_t3_matched: usize,
+    supported_t1_identities: BTreeSet<ShadowTierIdentity>,
+    supported_t2_identities: BTreeSet<ShadowTierIdentity>,
+    supported_t3_identities: BTreeSet<ShadowTierIdentity>,
+    supported_tier_mismatches: Vec<SupportedTierMismatch>,
+    supported_shadow_oracle_records: Vec<Vec<u8>>,
+    supported_exact_match_cases: usize,
+    supported_fn_count: usize,
+    supported_false_negative_identities: BTreeSet<ExactIdentity>,
+}
+
+/// Ratchet collection needs the identity sets for every fixed view, but the
+/// full mismatch/summary vectors only for the selected view. Keeping those
+/// projections lightweight preserves the pre-fusion memory contract.
+struct RunSetsAccumulator {
+    band: DiagnosticBand,
+    run_sets: ratchet::RunSets,
+}
+
+enum ViewAccumulatorKind {
+    Full(Box<ViewAccumulator>),
+    RunSetsOnly(RunSetsAccumulator),
+}
+
+struct PendingViewAccumulator {
+    band: DiagnosticBand,
+    state: ConformanceResult<ViewAccumulatorKind>,
+}
+
+impl ViewAccumulator {
+    fn new(
+        band: DiagnosticBand,
+        ratchet_path: &Path,
+        retain_report_identities: bool,
+    ) -> ConformanceResult<Self> {
+        Ok(Self {
+            band,
+            retain_report_identities,
+            ratchet: read_ratchet(ratchet_path, band)?,
+            t1_ratchet: (band == DiagnosticBand::All)
+                .then(|| read_ratchet_section(ratchet_path, "t1"))
+                .transpose()?,
+            run_sets: [(band.name().to_owned(), Default::default())]
+                .into_iter()
+                .collect(),
+            case_count: 0,
+            exact_match_cases: 0,
+            oracle_diagnostics: 0,
+            tsrs_diagnostics: 0,
+            matched_t0_diagnostics: 0,
+            shadow_t1_matched: 0,
+            shadow_t2_matched: 0,
+            shadow_t3_matched: 0,
+            shadow_t1_identities: BTreeSet::new(),
+            shadow_t2_identities: BTreeSet::new(),
+            shadow_t3_identities: BTreeSet::new(),
+            shadow_oracle_records: Vec::new(),
+            fp_count: 0,
+            fn_count: 0,
+            fn_with_partial_boundary_count: 0,
+            fn_without_partial_boundary_count: 0,
+            fn_trigger_reasons: BTreeMap::new(),
+            fp_codes: BTreeMap::new(),
+            fn_codes: BTreeMap::new(),
+            mismatches: Vec::new(),
+            scope_excluded_diagnostics: 0,
+            scope_unresolved_diagnostics: 0,
+            scope_resolved_t0_diagnostics: 0,
+            supported_oracle_diagnostics: 0,
+            supported_tsrs_diagnostics: 0,
+            supported_matched_t0_diagnostics: 0,
+            supported_t1_matched: 0,
+            supported_t2_matched: 0,
+            supported_t3_matched: 0,
+            supported_t1_identities: BTreeSet::new(),
+            supported_t2_identities: BTreeSet::new(),
+            supported_t3_identities: BTreeSet::new(),
+            supported_tier_mismatches: Vec::new(),
+            supported_shadow_oracle_records: Vec::new(),
+            supported_exact_match_cases: 0,
+            supported_fn_count: 0,
+            supported_false_negative_identities: BTreeSet::new(),
+        })
+    }
+}
+
+fn grade_case_for_band(
+    band: DiagnosticBand,
+    golden_case: &GoldenCase,
+    case_tsrs: &CaseTsrs,
+) -> ratchet::BucketGrading {
+    let oracle_side = golden_case
+        .oracle
+        .iter()
+        .filter(|diagnostic| band.matches_oracle(diagnostic));
+    match band {
+        DiagnosticBand::Syntactic => {
+            ratchet::bucket_grading(oracle_side, case_tsrs.syntactic.iter())
+        }
+        _ => ratchet::bucket_grading(
+            oracle_side,
+            case_tsrs
+                .all
+                .iter()
+                .filter(|diagnostic| band.contains(diagnostic.code)),
+        ),
+    }
+}
+
+fn project_two_xxx_grading(all: &ratchet::BucketGrading) -> ratchet::BucketGrading {
+    fn project(keys: &BTreeSet<T0Key>) -> BTreeSet<T0Key> {
+        keys.iter()
+            .filter(|key| TWO_XXX_CODES.contains(&key.code))
+            .cloned()
+            .collect()
+    }
+
+    // `T0Key` contains the diagnostic code, and the 2XXX view applies no
+    // predicate beyond that code range to either side. Consequently every
+    // complete T0 bucket belongs wholly inside or wholly outside this view;
+    // filtering each All set is exactly equivalent to re-bucketing 2XXX.
+    ratchet::BucketGrading {
+        sets: ratchet::CaseSets {
+            matched: project(&all.sets.matched),
+            multiplicity_complete: project(&all.sets.multiplicity_complete),
+            t1: project(&all.sets.t1),
+            t2: project(&all.sets.t2),
+            t3: project(&all.sets.t3),
+            t4: false,
+        },
+        expected: project(&all.expected),
+        actual: project(&all.actual),
+    }
+}
+
+fn grade_fixed_case_views(
+    golden_case: &GoldenCase,
+    case_tsrs: &CaseTsrs,
+) -> [ratchet::BucketGrading; 3] {
+    let all = grade_case_for_band(DiagnosticBand::All, golden_case, case_tsrs);
+    let two_xxx = project_two_xxx_grading(&all);
+    let syntactic = grade_case_for_band(DiagnosticBand::Syntactic, golden_case, case_tsrs);
+    [all, two_xxx, syntactic]
+}
+
+impl RunSetsAccumulator {
+    fn new(band: DiagnosticBand) -> Self {
+        Self {
+            band,
+            run_sets: [(band.name().to_owned(), Default::default())]
+                .into_iter()
+                .collect(),
+        }
+    }
+
+    fn observe_case(
+        &mut self,
+        fixture_key: &str,
+        program: &tsc_harness::ProgramJson,
+        case_sets: ratchet::CaseSets,
+    ) {
+        if !case_sets.matched.is_empty() {
+            self.run_sets
+                .entry(self.band.name().to_owned())
+                .or_default()
+                .entry(fixture_key.to_owned())
+                .or_default()
+                .insert(program.matrix_key.clone(), case_sets);
+        }
+    }
+}
+
+impl ViewAccumulatorKind {
+    fn band(&self) -> DiagnosticBand {
+        match self {
+            Self::Full(accumulator) => accumulator.band,
+            Self::RunSetsOnly(accumulator) => accumulator.band,
+        }
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn observe_case(
+        &mut self,
+        fixture_key: &str,
+        program: &tsc_harness::ProgramJson,
+        golden_schema: u32,
+        golden_case: &GoldenCase,
+        case_tsrs: &CaseTsrs,
+        grading: Option<ratchet::BucketGrading>,
+        excluded_indices: &BTreeSet<usize>,
+        vendor_lib_dir: &Path,
+        measure_t4: bool,
+        planned_t4_pins: Option<&ratchet::T4OraclePins>,
+        planned_t4_empty_related_information: Option<&rendered::T4OracleEmptyRelatedInformation>,
+        observation: Option<&mut families::Observation>,
+    ) -> ConformanceResult<()> {
+        let grading =
+            grading.unwrap_or_else(|| grade_case_for_band(self.band(), golden_case, case_tsrs));
+        match self {
+            Self::Full(accumulator) => accumulator.observe_case(
+                fixture_key,
+                program,
+                golden_schema,
+                golden_case,
+                case_tsrs,
+                grading,
+                excluded_indices,
+                vendor_lib_dir,
+                measure_t4,
+                planned_t4_pins,
+                planned_t4_empty_related_information,
+                observation,
+            ),
+            Self::RunSetsOnly(accumulator) => {
+                accumulator.observe_case(fixture_key, program, grading.sets);
+                Ok(())
+            }
+        }
+    }
+}
+
+impl ViewAccumulator {
+    #[allow(clippy::too_many_arguments)]
+    fn observe_case(
+        &mut self,
+        fixture_key: &str,
+        program: &tsc_harness::ProgramJson,
+        golden_schema: u32,
+        golden_case: &GoldenCase,
+        case_tsrs: &CaseTsrs,
+        grading: ratchet::BucketGrading,
+        excluded_indices: &BTreeSet<usize>,
+        vendor_lib_dir: &Path,
+        measure_t4: bool,
+        planned_t4_pins: Option<&ratchet::T4OraclePins>,
+        planned_t4_empty_related_information: Option<&rendered::T4OracleEmptyRelatedInformation>,
+        observation: Option<&mut families::Observation>,
+    ) -> ConformanceResult<()> {
+        let ratchet::BucketGrading {
+            sets: mut case_sets,
+            expected,
+            actual,
+        } = grading;
+
+        let current = match self.band {
+            DiagnosticBand::Syntactic => &case_tsrs.syntactic,
+            _ => &case_tsrs.all,
+        };
+        let excluded_records = excluded_indices
+            .iter()
+            .copied()
+            .filter(|index| self.band.matches_oracle(&golden_case.oracle[*index]))
+            .collect::<Vec<_>>();
+
+        // Keep the oracle-universe digest genuine even when CI omits the large
+        // secondary identity vectors. Downstream code may not use a projected
+        // summary for identity diffs, but the fields that remain serialized must
+        // still retain their ordinary meaning.
+        //
+        // Include the selected case even when this band has zero oracle
+        // diagnostics. Otherwise two disjoint empty projections would share a
+        // universe hash and appear comparable to `conformance-diff`.
+        let case_record = serde_json::to_vec(&("case", fixture_key, &program.matrix_key))?;
+        self.shadow_oracle_records.push(case_record.clone());
+        self.supported_shadow_oracle_records.push(case_record);
+        for (index, diagnostic) in golden_case.oracle.iter().enumerate() {
+            if !self.band.matches_oracle(diagnostic) {
+                continue;
+            }
+            let record =
+                serde_json::to_vec(&("diagnostic", fixture_key, &program.matrix_key, diagnostic))?;
+            self.shadow_oracle_records.push(record.clone());
+            if !excluded_indices.contains(&index) {
+                self.supported_shadow_oracle_records.push(record);
+            }
+        }
+
+        let fp = actual.difference(&expected).cloned().collect::<Vec<_>>();
+        let fn_ = expected.difference(&actual).cloned().collect::<Vec<_>>();
+        let fn_partial_boundary_audit =
+            classify_fn_partial_boundaries(&fn_, &golden_case.oracle, &case_tsrs.partial_checks);
+        for audit in &fn_partial_boundary_audit {
+            if audit.reached_partial_boundary {
+                self.fn_with_partial_boundary_count += 1;
+                for reason in &audit.reasons {
+                    *self.fn_trigger_reasons.entry(reason.clone()).or_default() += 1;
+                }
+            } else {
+                self.fn_without_partial_boundary_count += 1;
+            }
+        }
+
+        // Exact exclusions are occurrence-level. The tsrs side loses a bucket
+        // only when every oracle occurrence at that key is excluded.
+        let (supported_expected, fully_excluded) = if excluded_indices.is_empty() {
+            (Cow::Borrowed(&expected), BTreeSet::new())
+        } else {
+            let (supported_expected, fully_excluded) =
+                scope::supported_case_view(&golden_case.oracle, self.band, excluded_indices);
+            (Cow::Owned(supported_expected), fully_excluded)
+        };
+        let supported_actual = if fully_excluded.is_empty() {
+            Cow::Borrowed(&actual)
+        } else {
+            Cow::Owned(
+                actual
+                    .iter()
+                    .filter(|key| !fully_excluded.contains(*key))
+                    .cloned()
+                    .collect::<BTreeSet<_>>(),
+            )
+        };
+
+        if measure_t4 && self.band == DiagnosticBand::All {
+            let oracle_t4_pin = if let Some(fixtures) = planned_t4_pins {
+                fixtures
+                    .get(fixture_key)
+                    .and_then(|cases| cases.get(&program.matrix_key))
+                    .map(String::as_str)
+            } else {
+                (golden_schema >= 3).then_some(golden_case.oracle_cli_hash.as_str())
+            }
+            .ok_or_else(|| {
+                format!(
+                    "active T4 measurement lacks a genuine oracle pin for \
+                     {fixture_key} [{}]",
+                    program.matrix_key
+                )
+            })?;
+            let oracle_empty_related_information =
+                if let Some(fixtures) = planned_t4_empty_related_information {
+                    fixtures
+                        .get(fixture_key)
+                        .and_then(|cases| cases.get(&program.matrix_key))
+                        .map(Vec::as_slice)
+                } else {
+                    (golden_schema >= 3)
+                        .then_some(golden_case.oracle_empty_related_information.as_slice())
+                }
+                .ok_or_else(|| {
+                    format!(
+                        "active T4 measurement lacks empty-related-information metadata for \
+                         {fixture_key} [{}]",
+                        program.matrix_key
+                    )
+                })?;
+            if rendered::supported_case_t4_matches(
+                program,
+                vendor_lib_dir,
+                (&golden_case.oracle, oracle_empty_related_information),
+                (&case_tsrs.all, &case_tsrs.all_empty_related_information),
+                excluded_indices,
+                &fully_excluded,
+                oracle_t4_pin,
+            )? {
+                case_sets.t4 = true;
+            }
+        }
+
+        let supported_fn = supported_expected
+            .difference(&supported_actual)
+            .cloned()
+            .collect::<BTreeSet<_>>();
+        if !supported_fn.is_empty() {
+            self.supported_false_negative_identities.extend(
+                exact_supported_false_negative_identities(
+                    fixture_key,
+                    &program.matrix_key,
+                    &golden_case.oracle,
+                    self.band,
+                    excluded_indices,
+                    &supported_fn,
+                )?,
+            );
+        }
+
+        let mut resolved_excluded = 0usize;
+        let mut unresolved_excluded = 0usize;
+        for index in &excluded_records {
+            let bucket = t0_key(&golden_case.oracle[*index]);
+            let oracle_multiplicity = golden_case
+                .oracle
+                .iter()
+                .filter(|diag| self.band.matches_oracle(diag) && t0_key(diag) == bucket)
+                .count();
+            let tsrs_multiplicity = current
+                .iter()
+                .filter(|diag| self.band.contains(diag.code) && t0_key(diag) == bucket)
+                .count();
+            if scope::occurrence_resolved(
+                actual.contains(&bucket),
+                oracle_multiplicity,
+                tsrs_multiplicity,
+            ) {
+                resolved_excluded += 1;
+            } else {
+                unresolved_excluded += 1;
+            }
+        }
+
+        if let Some(observation) = observation {
+            debug_assert_eq!(self.band, DiagnosticBand::All);
+            observation.cases.push(families::CaseObservation::collect(
+                fixture_key,
+                &program.matrix_key,
+                &golden_case.oracle,
+                &case_tsrs.all,
+                excluded_indices,
+                &actual,
+                fp.len(),
+            )?);
+        }
+        if fp.is_empty() && fn_.is_empty() {
+            self.exact_match_cases += 1;
+        } else {
+            self.mismatches.push(MismatchEntry {
+                fixture: fixture_key.to_owned(),
+                matrix_key: program.matrix_key.clone(),
+                false_positive: fp.clone(),
+                false_negative: fn_.clone(),
+                fn_partial_boundary_audit,
+            });
+        }
+        if fp.is_empty() && supported_fn.is_empty() {
+            self.supported_exact_match_cases += 1;
+        }
+
+        for diag in &fp {
+            *self.fp_codes.entry(diag.code).or_default() += 1;
+        }
+        for diag in &fn_ {
+            *self.fn_codes.entry(diag.code).or_default() += 1;
+        }
+
+        let tier_matches = ShadowTierMatchRefs::from(&case_sets);
+        self.matched_t0_diagnostics += expected.intersection(&actual).count();
+        self.shadow_t1_matched += tier_matches.t1.len();
+        self.shadow_t2_matched += tier_matches.t2.len();
+        self.shadow_t3_matched += tier_matches.t3.len();
+        if self.retain_report_identities {
+            extend_shadow_identities(
+                &mut self.shadow_t1_identities,
+                fixture_key,
+                &program.matrix_key,
+                tier_matches.t1,
+            );
+            extend_shadow_identities(
+                &mut self.shadow_t2_identities,
+                fixture_key,
+                &program.matrix_key,
+                tier_matches.t2,
+            );
+            extend_shadow_identities(
+                &mut self.shadow_t3_identities,
+                fixture_key,
+                &program.matrix_key,
+                tier_matches.t3,
+            );
+        }
+        self.supported_matched_t0_diagnostics +=
+            supported_expected.intersection(&supported_actual).count();
+
+        // Supported tiers remove exact oracle records; the tsrs side drops
+        // only fully-excluded buckets because it has no occurrence identity.
+        let recomputed_supported_tier_matches = (!excluded_indices.is_empty()).then(|| {
+            shadow_tier_matches(
+                current.iter().filter(|diagnostic| {
+                    self.band.contains(diagnostic.code)
+                        && !fully_excluded.contains(&t0_key(diagnostic))
+                }),
+                golden_case
+                    .oracle
+                    .iter()
+                    .enumerate()
+                    .filter(|(index, diagnostic)| {
+                        self.band.matches_oracle(diagnostic) && !excluded_indices.contains(index)
+                    })
+                    .map(|(_, diagnostic)| diagnostic),
+            )
+        });
+        let supported_tier_matches = recomputed_supported_tier_matches
+            .as_ref()
+            .map(ShadowTierMatchRefs::from)
+            .unwrap_or(tier_matches);
+        self.supported_tier_mismatches
+            .extend(collect_supported_tier_mismatches(
+                fixture_key,
+                &program.matrix_key,
+                current,
+                &golden_case.oracle,
+                self.band,
+                excluded_indices,
+                &fully_excluded,
+                &supported_expected,
+                supported_tier_matches,
+            ));
+        self.supported_t1_matched += supported_tier_matches.t1.len();
+        self.supported_t2_matched += supported_tier_matches.t2.len();
+        self.supported_t3_matched += supported_tier_matches.t3.len();
+        if self.retain_report_identities {
+            extend_shadow_identities(
+                &mut self.supported_t1_identities,
+                fixture_key,
+                &program.matrix_key,
+                supported_tier_matches.t1,
+            );
+            extend_shadow_identities(
+                &mut self.supported_t2_identities,
+                fixture_key,
+                &program.matrix_key,
+                supported_tier_matches.t2,
+            );
+            extend_shadow_identities(
+                &mut self.supported_t3_identities,
+                fixture_key,
+                &program.matrix_key,
+                supported_tier_matches.t3,
+            );
+        }
+        self.scope_excluded_diagnostics += excluded_records.len();
+        self.scope_unresolved_diagnostics += unresolved_excluded;
+        self.scope_resolved_t0_diagnostics += resolved_excluded;
+        self.supported_oracle_diagnostics += supported_expected.len();
+        self.supported_tsrs_diagnostics += supported_actual.len();
+        self.supported_fn_count += supported_fn.len();
+        self.oracle_diagnostics += expected.len();
+        self.tsrs_diagnostics += actual.len();
+        self.fp_count += fp.len();
+        self.fn_count += fn_.len();
+        self.case_count += 1;
+        if !case_sets.matched.is_empty() || case_sets.t4 {
+            self.run_sets
+                .entry(self.band.name().to_owned())
+                .or_default()
+                .entry(fixture_key.to_owned())
+                .or_default()
+                .insert(program.matrix_key.clone(), case_sets);
+        }
+        Ok(())
+    }
+
+    fn finish(
+        self,
+        fixtures_total: usize,
+        scope_status: &str,
+        scope_manifest_entries: usize,
+    ) -> FinishedConformanceView {
+        let t0_rate = shadow_rate(self.matched_t0_diagnostics, self.oracle_diagnostics);
+        let summary = ConformanceSummary {
+            band: self.band.name().to_owned(),
+            fixtures_total,
+            cases_total: self.case_count,
+            oracle_diagnostics: self.oracle_diagnostics,
+            tsrs_diagnostics: self.tsrs_diagnostics,
+            matched_t0_diagnostics: self.matched_t0_diagnostics,
+            t0_rate,
+            shadow_t1_matched: self.shadow_t1_matched,
+            shadow_t2_matched: self.shadow_t2_matched,
+            shadow_t3_matched: self.shadow_t3_matched,
+            shadow_t1_rate: shadow_rate(self.shadow_t1_matched, self.oracle_diagnostics),
+            shadow_t2_rate: shadow_rate(self.shadow_t2_matched, self.oracle_diagnostics),
+            shadow_t3_rate: shadow_rate(self.shadow_t3_matched, self.oracle_diagnostics),
+            shadow_tier_identities: ShadowTierObservation::new(
+                self.shadow_oracle_records,
+                self.shadow_t1_identities,
+                self.shadow_t2_identities,
+                self.shadow_t3_identities,
+            ),
+            exact_match_cases: self.exact_match_cases,
+            mismatch_cases: self.case_count - self.exact_match_cases,
+            false_positive_diagnostics: self.fp_count,
+            false_negative_diagnostics: self.fn_count,
+            fn_with_partial_boundary_evidence: self.fn_with_partial_boundary_count,
+            fn_without_partial_boundary_evidence: self.fn_without_partial_boundary_count,
+            top_fn_partial_boundary_reasons: top_string_counts(self.fn_trigger_reasons),
+            top_false_positive_codes: top_codes(self.fp_codes),
+            top_false_negative_codes: top_codes(self.fn_codes),
+            scope_status: scope_status.to_owned(),
+            scope_manifest_entries,
+            scope_excluded_diagnostics: self.scope_excluded_diagnostics,
+            scope_unresolved_diagnostics: self.scope_unresolved_diagnostics,
+            scope_resolved_t0_diagnostics: self.scope_resolved_t0_diagnostics,
+            supported_oracle_diagnostics: self.supported_oracle_diagnostics,
+            supported_tsrs_diagnostics: self.supported_tsrs_diagnostics,
+            supported_matched_t0_diagnostics: self.supported_matched_t0_diagnostics,
+            supported_t0_rate: shadow_rate(
+                self.supported_matched_t0_diagnostics,
+                self.supported_oracle_diagnostics,
+            ),
+            supported_t1_matched: self.supported_t1_matched,
+            supported_t2_matched: self.supported_t2_matched,
+            supported_t3_matched: self.supported_t3_matched,
+            supported_t1_rate: shadow_rate(
+                self.supported_t1_matched,
+                self.supported_oracle_diagnostics,
+            ),
+            supported_t2_rate: shadow_rate(
+                self.supported_t2_matched,
+                self.supported_oracle_diagnostics,
+            ),
+            supported_t3_rate: shadow_rate(
+                self.supported_t3_matched,
+                self.supported_oracle_diagnostics,
+            ),
+            supported_shadow_tier_identities: ShadowTierObservation::new(
+                self.supported_shadow_oracle_records,
+                self.supported_t1_identities,
+                self.supported_t2_identities,
+                self.supported_t3_identities,
+            ),
+            supported_tier_mismatches: self.supported_tier_mismatches,
+            supported_exact_match_cases: self.supported_exact_match_cases,
+            supported_mismatch_cases: self.case_count - self.supported_exact_match_cases,
+            supported_false_negative_diagnostics: self.supported_fn_count,
+            supported_false_negative_identities: self
+                .supported_false_negative_identities
+                .into_iter()
+                .collect(),
+            ratchet_rate: self.ratchet.rate,
+            ratchet_allowed_regression: self.ratchet.allowed_regression,
+            mismatches: self.mismatches,
+        };
+        FinishedConformanceView {
+            band: self.band,
+            summary,
+            sets: self.run_sets,
+            ratchet: self.ratchet,
+            t1_ratchet: self.t1_ratchet,
+        }
+    }
+}
+
+struct FinishedConformanceView {
+    band: DiagnosticBand,
+    summary: ConformanceSummary,
+    sets: ratchet::RunSets,
+    ratchet: Ratchet,
+    t1_ratchet: Option<Ratchet>,
+}
+
+enum FinishedViewMeasurement {
+    Full(Box<FinishedConformanceView>),
+    RunSetsOnly {
+        band: DiagnosticBand,
+        sets: ratchet::RunSets,
+    },
+}
+
+impl ViewAccumulatorKind {
+    fn finish(
+        self,
+        fixtures_total: usize,
+        scope_status: &str,
+        scope_manifest_entries: usize,
+    ) -> ConformanceResult<FinishedViewMeasurement> {
+        Ok(match self {
+            Self::Full(accumulator) => FinishedViewMeasurement::Full(Box::new(
+                (*accumulator).finish(fixtures_total, scope_status, scope_manifest_entries),
+            )),
+            Self::RunSetsOnly(accumulator) => FinishedViewMeasurement::RunSetsOnly {
+                band: accumulator.band,
+                sets: accumulator.run_sets,
+            },
+        })
+    }
+}
+
+impl FinishedViewMeasurement {
+    fn band(&self) -> DiagnosticBand {
+        match self {
+            Self::Full(view) => view.band,
+            Self::RunSetsOnly { band, .. } => *band,
+        }
+    }
+
+    fn into_full(self) -> ConformanceResult<FinishedConformanceView> {
+        match self {
+            Self::Full(view) => Ok(*view),
+            Self::RunSetsOnly { band, .. } => Err(format!(
+                "fixed {} view did not retain the summary required by this gate",
+                band.name()
+            )
+            .into()),
+        }
+    }
+}
+
+struct MeasuredView {
+    band: DiagnosticBand,
+    result: ConformanceResult<FinishedViewMeasurement>,
+}
+
+struct MeasuredConformance {
+    views: Vec<MeasuredView>,
+    observation: Option<families::Observation>,
+    accepted: Option<ratchet::AcceptedState>,
+    executed_fixtures: BTreeSet<String>,
+    full_run: bool,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum MeasurementSchedule {
+    Sequential,
+    CiCheckerGradingPipeline,
+}
+
+#[allow(clippy::too_many_arguments)]
+fn measure_conformance(
     options: &ConformanceOptions,
+    views: &[DiagnosticBand],
     set_gate: SetGate,
     families_observe: bool,
     planned_t4_pins: Option<&ratchet::T4OraclePins>,
     planned_t4_empty_related_information: Option<&rendered::T4OracleEmptyRelatedInformation>,
     force_t4_measurement: bool,
-    mut case_cache: Option<&mut CaseTsrsCache>,
-) -> ConformanceResult<ConformanceRun> {
-    let fixtures = select_fixtures(&RefreshOptions {
-        workspace: options.workspace.clone(),
-        limit: options.limit,
-        files: options.files.clone(),
-    })?;
-    let vendor_lib_dir = options.workspace.join("vendor/typescript-6.0.3/lib");
-    let goldens_root = options.workspace.join("goldens");
-    let ratchet_path = options.workspace.join("ratchet.toml");
-    let ratchet = read_ratchet(&ratchet_path, options.band)?;
-    // Partial runs (`--limit`, `--files`) are gated by the accepted-set
-    // projection below, not by the full-corpus integer counts.
-    let full_run = options.limit.is_none() && options.files.is_empty();
-    if families_observe {
-        families::ensure_observation_eligible(options.band, full_run)?;
-    }
-    let mut observation = families_observe.then(families::Observation::default);
-    let accepted = match set_gate {
-        SetGate::Enforce => Some(ratchet::load_accepted_for_gating(&options.workspace)?),
-        SetGate::Collect => None,
-    };
-    if planned_t4_pins.is_some() != planned_t4_empty_related_information.is_some() {
-        return Err(
-            "planned T4 pins and empty-related-information metadata must be supplied together"
-                .into(),
-        );
-    }
-    let measure_t4 = options.band == DiagnosticBand::All
-        && (force_t4_measurement
-            || planned_t4_pins.is_some()
-            || accepted.as_ref().is_some_and(|accepted| accepted.t4_active));
-    let t1_ratchet = if options.band == DiagnosticBand::All {
-        Some(read_ratchet_section(&ratchet_path, "t1")?)
-    } else {
-        None
-    };
-    let mut scope = ScopeManifest::load(&options.workspace.join("m8-scope.json"))?;
+    report_identity_mode: ReportIdentityMode,
+) -> ConformanceResult<MeasuredConformance> {
+    measure_conformance_with(
+        options,
+        views,
+        set_gate,
+        families_observe,
+        planned_t4_pins,
+        planned_t4_empty_related_information,
+        force_t4_measurement,
+        report_identity_mode,
+        current_case_tsrs,
+    )
+}
 
-    // Updates collect every fixed view into one accepted-state version.
-    // Gating runs measure only the explicitly selected fixed view, as
-    // required by measurement-integrity.md §2.
-    let measured_views = match set_gate {
-        SetGate::Collect => ratchet::FIXED_VIEWS.to_vec(),
-        SetGate::Enforce => vec![options.band],
-    };
-    let mut run_sets = measured_views
+#[allow(clippy::too_many_arguments)]
+fn measure_ci_conformance(
+    options: &ConformanceOptions,
+    views: &[DiagnosticBand],
+    set_gate: SetGate,
+    families_observe: bool,
+    planned_t4_pins: Option<&ratchet::T4OraclePins>,
+    planned_t4_empty_related_information: Option<&rendered::T4OracleEmptyRelatedInformation>,
+    force_t4_measurement: bool,
+    report_identity_mode: ReportIdentityMode,
+) -> ConformanceResult<MeasuredConformance> {
+    measure_conformance_with_schedule(
+        options,
+        views,
+        set_gate,
+        families_observe,
+        planned_t4_pins,
+        planned_t4_empty_related_information,
+        force_t4_measurement,
+        report_identity_mode,
+        MeasurementSchedule::CiCheckerGradingPipeline,
+        current_case_tsrs,
+    )
+}
+
+fn initialize_view_accumulators(
+    views: &[DiagnosticBand],
+    set_gate: SetGate,
+    selected_band: DiagnosticBand,
+    ratchet_path: &Path,
+    report_identity_mode: ReportIdentityMode,
+) -> Vec<PendingViewAccumulator> {
+    views
         .iter()
-        .map(|view| (view.name().to_owned(), Default::default()))
-        .collect::<ratchet::RunSets>();
-    let mut executed_fixtures = BTreeSet::<String>::new();
-    let mut case_count = 0usize;
-    let mut exact_match_cases = 0usize;
-    let mut oracle_diagnostics = 0usize;
-    let mut tsrs_diagnostics = 0usize;
-    let mut matched_t0_diagnostics = 0usize;
-    let mut shadow_t1_matched = 0usize;
-    let mut shadow_t2_matched = 0usize;
-    let mut shadow_t3_matched = 0usize;
-    let mut shadow_t1_identities = BTreeSet::new();
-    let mut shadow_t2_identities = BTreeSet::new();
-    let mut shadow_t3_identities = BTreeSet::new();
-    let mut shadow_oracle_records = Vec::new();
-    let mut fp_count = 0usize;
-    let mut fn_count = 0usize;
-    let mut fn_with_partial_boundary_count = 0usize;
-    let mut fn_without_partial_boundary_count = 0usize;
-    let mut fn_trigger_reasons = BTreeMap::<String, usize>::new();
-    let mut fp_codes = BTreeMap::<u32, usize>::new();
-    let mut fn_codes = BTreeMap::<u32, usize>::new();
-    let mut mismatches = Vec::new();
-    let mut scope_excluded_diagnostics = 0usize;
-    let mut scope_unresolved_diagnostics = 0usize;
-    let mut scope_resolved_t0_diagnostics = 0usize;
-    let mut supported_oracle_diagnostics = 0usize;
-    let mut supported_tsrs_diagnostics = 0usize;
-    let mut supported_matched_t0_diagnostics = 0usize;
-    let mut supported_t1_matched = 0usize;
-    let mut supported_t2_matched = 0usize;
-    let mut supported_t3_matched = 0usize;
-    let mut supported_t1_identities = BTreeSet::new();
-    let mut supported_t2_identities = BTreeSet::new();
-    let mut supported_t3_identities = BTreeSet::new();
-    let mut supported_tier_mismatches = Vec::new();
-    let mut supported_shadow_oracle_records = Vec::new();
-    let mut supported_exact_match_cases = 0usize;
-    let mut supported_fn_count = 0usize;
-    let mut supported_false_negative_identities = BTreeSet::new();
+        .copied()
+        .map(|view| {
+            let state = if set_gate == SetGate::Collect && view != selected_band {
+                Ok(ViewAccumulatorKind::RunSetsOnly(RunSetsAccumulator::new(
+                    view,
+                )))
+            } else {
+                ViewAccumulator::new(view, ratchet_path, report_identity_mode.retains(view))
+                    .map(Box::new)
+                    .map(ViewAccumulatorKind::Full)
+            };
+            PendingViewAccumulator { band: view, state }
+        })
+        .collect()
+}
 
-    for fixture in &fixtures {
-        let fixture_key = fixture_key(&options.workspace, fixture)?;
-        let golden = read_golden(&goldens_root, &fixture_key)?;
-        // Pass provenance is required whenever this run records or
-        // enforces the syntactic fixed view.
-        if measured_views.contains(&DiagnosticBand::Syntactic) && golden.schema < 2 {
-            return Err(format!(
-                "golden {fixture_key} has schema {} without pass provenance; \
-                 run `cargo xtask oracle-refresh`",
-                golden.schema
+// The channel holds at most one event. Keeping the case inline avoids one heap
+// allocation per corpus case without making retained memory corpus-sized.
+#[allow(clippy::large_enum_variant)]
+enum CiGradingEvent {
+    Fixture {
+        fixture_key: Arc<str>,
+        golden_schema: u32,
+    },
+    Case {
+        fixture_key: Arc<str>,
+        golden_schema: u32,
+        program: tsc_harness::ProgramJson,
+        golden_case: Arc<GoldenCase>,
+        case_tsrs: CaseTsrs,
+        excluded_indices: BTreeSet<usize>,
+    },
+}
+
+fn observe_fixture_schema(
+    accumulators: &mut [PendingViewAccumulator],
+    fixture_key: &str,
+    golden_schema: u32,
+) {
+    if golden_schema >= 2 {
+        return;
+    }
+    if let Some(syntactic) = accumulators
+        .iter_mut()
+        .find(|accumulator| accumulator.band == DiagnosticBand::Syntactic)
+    {
+        if syntactic.state.is_ok() {
+            syntactic.state = Err(format!(
+                "golden {fixture_key} has schema {golden_schema} without pass provenance; \
+                 run `cargo xtask oracle-refresh`"
             )
             .into());
         }
-        executed_fixtures.insert(fixture_key.clone());
-        let golden_by_matrix = golden
-            .cases
-            .iter()
-            .map(|case| (case.matrix_key.as_str(), case))
-            .collect::<BTreeMap<_, _>>();
-        let programs = tsc_harness::expand_fixture_file(fixture, &vendor_lib_dir)?;
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn observe_case_across_views(
+    views: &[DiagnosticBand],
+    accumulators: &mut [PendingViewAccumulator],
+    observation: &mut Option<families::Observation>,
+    fixture_key: &str,
+    program: &tsc_harness::ProgramJson,
+    golden_schema: u32,
+    golden_case: &GoldenCase,
+    case_tsrs: &CaseTsrs,
+    excluded_indices: &BTreeSet<usize>,
+    vendor_lib_dir: &Path,
+    measure_t4: bool,
+    planned_t4_pins: Option<&ratchet::T4OraclePins>,
+    planned_t4_empty_related_information: Option<&rendered::T4OracleEmptyRelatedInformation>,
+) {
+    let mut fixed_gradings = (views == ratchet::FIXED_VIEWS.as_slice())
+        .then(|| grade_fixed_case_views(golden_case, case_tsrs).map(Some));
+    for (view_index, pending) in accumulators.iter_mut().enumerate() {
+        let case_observation = if pending.band == DiagnosticBand::All {
+            observation.as_mut()
+        } else {
+            None
+        };
+        let Ok(accumulator) = &mut pending.state else {
+            continue;
+        };
+        let grading = fixed_gradings
+            .as_mut()
+            .and_then(|gradings| gradings[view_index].take());
+        let result = accumulator.observe_case(
+            fixture_key,
+            program,
+            golden_schema,
+            golden_case,
+            case_tsrs,
+            grading,
+            excluded_indices,
+            vendor_lib_dir,
+            measure_t4,
+            planned_t4_pins,
+            planned_t4_empty_related_information,
+            case_observation,
+        );
+        if let Err(error) = result {
+            pending.state = Err(error);
+        }
+    }
+}
+
+fn produce_ci_grading_events(
+    workspace: &Path,
+    fixtures: &[PathBuf],
+    vendor_lib_dir: &Path,
+    goldens_root: &Path,
+    mut scope: ScopeManifest,
+    sender: SyncSender<CiGradingEvent>,
+    mut execute_case: impl FnMut(&str, &tsc_harness::ProgramJson, &Path) -> ConformanceResult<CaseTsrs>,
+) -> Result<ScopeManifest, String> {
+    for fixture in fixtures {
+        let fixture_key = fixture_key(workspace, fixture).map_err(|error| error.to_string())?;
+        let golden = read_golden(goldens_root, &fixture_key).map_err(|error| error.to_string())?;
+        let fixture_key = Arc::<str>::from(fixture_key);
+        sender
+            .send(CiGradingEvent::Fixture {
+                fixture_key: Arc::clone(&fixture_key),
+                golden_schema: golden.schema,
+            })
+            .map_err(|_| "CI grading consumer stopped before fixture validation".to_owned())?;
+
+        let programs = tsc_harness::expand_fixture_file(fixture, vendor_lib_dir)
+            .map_err(|error| error.to_string())?;
         let expanded_keys = programs
             .iter()
             .map(|program| program.matrix_key.as_str())
@@ -961,548 +1962,564 @@ fn run_conformance_inner(
                 "golden case {fixture_key} [{orphan}] has no expanded program; the goldens \
                  and the expansion matrix have drifted — refresh the goldens under a \
                  reviewed transition before gating on them"
-            )
-            .into());
+            ));
         }
+        let golden_schema = golden.schema;
+        let golden_by_matrix = golden
+            .cases
+            .into_iter()
+            .map(|case| (case.matrix_key.clone(), Arc::new(case)))
+            .collect::<BTreeMap<_, _>>();
 
         for program in programs {
+            let matrix_key = program.matrix_key.clone();
             let golden_case = golden_by_matrix
-                .get(program.matrix_key.as_str())
-                .ok_or_else(|| {
-                    format!("missing golden case {fixture_key} [{}]", program.matrix_key)
-                })?;
-            let cache_key = (fixture_key.clone(), program.matrix_key.clone());
-            let case_tsrs = if let Some(cache) = case_cache.as_deref_mut() {
-                if let Some(cached) = cache.get(&cache_key) {
-                    cached.clone()
-                } else {
-                    let current =
-                        Arc::new(current_case_tsrs(&fixture_key, &program, &vendor_lib_dir)?);
-                    cache.insert(cache_key, current.clone());
-                    current
-                }
-            } else {
-                Arc::new(current_case_tsrs(&fixture_key, &program, &vendor_lib_dir)?)
-            };
-            // Collection records every fixed view from one pass; a
-            // gating run records only its selected view.
-            let mut selected_tier_matches = None;
-            for view in measured_views.iter().copied() {
-                let oracle_side = golden_case
-                    .oracle
-                    .iter()
-                    .filter(|diag| view.matches_oracle(diag));
-                let case_sets = match view {
-                    DiagnosticBand::Syntactic => {
-                        ratchet::bucket_sets(oracle_side, case_tsrs.syntactic.iter())
-                    }
-                    _ => ratchet::bucket_sets(
-                        oracle_side,
-                        case_tsrs.all.iter().filter(|diag| view.contains(diag.code)),
-                    ),
-                };
-                if view == options.band {
-                    selected_tier_matches = Some(ShadowTierMatches {
-                        t1: case_sets.t1.clone(),
-                        t2: case_sets.t2.clone(),
-                        t3: case_sets.t3.clone(),
-                    });
-                }
-                if !case_sets.matched.is_empty() {
-                    run_sets
-                        .entry(view.name().to_owned())
-                        .or_default()
-                        .entry(fixture_key.clone())
-                        .or_default()
-                        .insert(program.matrix_key.clone(), case_sets);
-                }
-            }
-            let current = match options.band {
-                DiagnosticBand::Syntactic => &case_tsrs.syntactic,
-                _ => &case_tsrs.all,
-            };
-            // Exact schema-2 exclusions: indices of the removed oracle
-            // RECORDS (measurement-integrity.md §3) — occurrence-level,
-            // never a whole T0 bucket unless every record is excluded.
-            let excluded_indices = scope.exclusions_for_case(
-                &fixture_key,
-                &program.matrix_key,
-                &golden_case.oracle,
-            )?;
-            let actual = t0_set(
-                current
-                    .iter()
-                    .filter(|diag| options.band.contains(diag.code)),
-            );
-            let expected = t0_set(
-                golden_case
-                    .oracle
-                    .iter()
-                    .filter(|diag| options.band.matches_oracle(diag)),
-            );
-            let excluded_records = excluded_indices
-                .iter()
-                .copied()
-                .filter(|index| options.band.matches_oracle(&golden_case.oracle[*index]))
-                .collect::<Vec<_>>();
-            // Include the selected case even when this band has zero
-            // oracle diagnostics. Otherwise two disjoint empty
-            // projections would share a universe hash and appear
-            // comparable to `conformance-diff`.
-            let case_record = serde_json::to_vec(&("case", &fixture_key, &program.matrix_key))?;
-            shadow_oracle_records.push(case_record.clone());
-            supported_shadow_oracle_records.push(case_record);
-            for (index, diagnostic) in golden_case.oracle.iter().enumerate() {
-                if !options.band.matches_oracle(diagnostic) {
-                    continue;
-                }
-                let record = serde_json::to_vec(&(
-                    "diagnostic",
-                    &fixture_key,
-                    &program.matrix_key,
-                    diagnostic,
-                ))?;
-                shadow_oracle_records.push(record.clone());
-                if !excluded_indices.contains(&index) {
-                    supported_shadow_oracle_records.push(record);
-                }
-            }
+                .get(&matrix_key)
+                .map(Arc::clone)
+                .ok_or_else(|| format!("missing golden case {fixture_key} [{matrix_key}]"))?;
+            let case_tsrs = execute_case(&fixture_key, &program, vendor_lib_dir)
+                .map_err(|error| error.to_string())?;
+            let excluded_indices = scope
+                .exclusions_for_case(&fixture_key, &program.matrix_key, &golden_case.oracle)
+                .map_err(|error| error.to_string())?;
+            sender
+                .send(CiGradingEvent::Case {
+                    fixture_key: Arc::clone(&fixture_key),
+                    golden_schema,
+                    program,
+                    golden_case,
+                    case_tsrs,
+                    excluded_indices,
+                })
+                .map_err(|_| "CI grading consumer stopped before checker completion".to_owned())?;
+        }
+    }
+    Ok(scope)
+}
 
-            let fp = actual.difference(&expected).cloned().collect::<Vec<_>>();
-            let fn_ = expected.difference(&actual).cloned().collect::<Vec<_>>();
-            let fn_partial_boundary_audit = classify_fn_partial_boundaries(
-                &fn_,
-                &golden_case.oracle,
-                &case_tsrs.partial_checks,
-            );
-            for audit in &fn_partial_boundary_audit {
-                if audit.reached_partial_boundary {
-                    fn_with_partial_boundary_count += 1;
-                    for reason in &audit.reasons {
-                        *fn_trigger_reasons.entry(reason.clone()).or_default() += 1;
-                    }
-                } else {
-                    fn_without_partial_boundary_count += 1;
-                }
-            }
-            // The selector removes exact oracle records before the
-            // supported comparison; a T0 bucket leaves the supported
-            // denominator only when every one of its records is
-            // excluded, so an exclusion can never hide a neighboring
-            // occurrence in the same bucket. An empty selection (the
-            // common case, per case) leaves the band views untouched —
-            // borrow them instead of rebuilding both sets in this hot
-            // loop.
-            let (supported_expected, fully_excluded) = if excluded_indices.is_empty() {
-                (Cow::Borrowed(&expected), BTreeSet::new())
-            } else {
-                let (supported_expected, fully_excluded) = scope::supported_case_view(
-                    &golden_case.oracle,
-                    options.band,
-                    &excluded_indices,
-                );
-                (Cow::Owned(supported_expected), fully_excluded)
-            };
-            let supported_actual = if fully_excluded.is_empty() {
-                Cow::Borrowed(&actual)
-            } else {
-                Cow::Owned(
-                    actual
-                        .iter()
-                        .filter(|key| !fully_excluded.contains(*key))
-                        .cloned()
-                        .collect::<BTreeSet<_>>(),
-                )
-            };
-            if measure_t4 {
-                let oracle_t4_pin = if let Some(fixtures) = planned_t4_pins {
-                    fixtures
-                        .get(&fixture_key)
-                        .and_then(|cases| cases.get(&program.matrix_key))
-                        .map(String::as_str)
-                } else {
-                    (golden.schema >= 3).then_some(golden_case.oracle_cli_hash.as_str())
-                }
-                .ok_or_else(|| {
-                    format!(
-                        "active T4 measurement lacks a genuine oracle pin for \
-                         {fixture_key} [{}]",
-                        program.matrix_key
+#[allow(clippy::too_many_arguments)]
+fn measure_conformance_with(
+    options: &ConformanceOptions,
+    views: &[DiagnosticBand],
+    set_gate: SetGate,
+    families_observe: bool,
+    planned_t4_pins: Option<&ratchet::T4OraclePins>,
+    planned_t4_empty_related_information: Option<&rendered::T4OracleEmptyRelatedInformation>,
+    force_t4_measurement: bool,
+    report_identity_mode: ReportIdentityMode,
+    execute_case: impl FnMut(&str, &tsc_harness::ProgramJson, &Path) -> ConformanceResult<CaseTsrs>
+        + Send,
+) -> ConformanceResult<MeasuredConformance> {
+    measure_conformance_with_schedule(
+        options,
+        views,
+        set_gate,
+        families_observe,
+        planned_t4_pins,
+        planned_t4_empty_related_information,
+        force_t4_measurement,
+        report_identity_mode,
+        MeasurementSchedule::Sequential,
+        execute_case,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn measure_conformance_with_schedule(
+    options: &ConformanceOptions,
+    views: &[DiagnosticBand],
+    set_gate: SetGate,
+    families_observe: bool,
+    planned_t4_pins: Option<&ratchet::T4OraclePins>,
+    planned_t4_empty_related_information: Option<&rendered::T4OracleEmptyRelatedInformation>,
+    force_t4_measurement: bool,
+    report_identity_mode: ReportIdentityMode,
+    schedule: MeasurementSchedule,
+    mut execute_case: impl FnMut(&str, &tsc_harness::ProgramJson, &Path) -> ConformanceResult<CaseTsrs>
+        + Send,
+) -> ConformanceResult<MeasuredConformance> {
+    if views.is_empty() {
+        return Err("conformance measurement requires at least one fixed view".into());
+    }
+    if views
+        .iter()
+        .enumerate()
+        .any(|(index, view)| views[..index].contains(view))
+    {
+        return Err("conformance measurement contains duplicate fixed views".into());
+    }
+    let fixtures = select_fixtures(&RefreshOptions {
+        workspace: options.workspace.clone(),
+        limit: options.limit,
+        files: options.files.clone(),
+    })?;
+    let vendor_lib_dir = options.workspace.join("vendor/typescript-6.0.3/lib");
+    let goldens_root = options.workspace.join("goldens");
+    let ratchet_path = options.workspace.join("ratchet.toml");
+    let full_run = options.limit.is_none() && options.files.is_empty();
+    if families_observe {
+        families::ensure_observation_eligible(options.band, full_run)?;
+        if !views.contains(&DiagnosticBand::All) {
+            return Err("families observation requires the All fixed view".into());
+        }
+    }
+    if planned_t4_pins.is_some() != planned_t4_empty_related_information.is_some() {
+        return Err(
+            "planned T4 pins and empty-related-information metadata must be supplied together"
+                .into(),
+        );
+    }
+    let accepted = match set_gate {
+        SetGate::Enforce => Some(ratchet::load_accepted_for_gating(&options.workspace)?),
+        SetGate::Collect => None,
+    };
+    let measure_t4 = options.band == DiagnosticBand::All
+        && views.contains(&DiagnosticBand::All)
+        && (force_t4_measurement
+            || planned_t4_pins.is_some()
+            || accepted.as_ref().is_some_and(|accepted| accepted.t4_active));
+    // Each fixed view owns its error state. The shared fixture/checker pass
+    // continues after a later-view initialization or grading error so CI can
+    // preserve the historical All -> 2xxx -> syntactic gate/callback order.
+    // Ratchet collection retains full summary vectors only for its selected
+    // view; the other projections need identity sets alone.
+    let mut accumulators = initialize_view_accumulators(
+        views,
+        set_gate,
+        options.band,
+        &ratchet_path,
+        report_identity_mode,
+    );
+    let mut observation = families_observe.then(families::Observation::default);
+    let mut scope = ScopeManifest::load(&options.workspace.join("m8-scope.json"))?;
+    let mut executed_fixtures = BTreeSet::new();
+
+    match schedule {
+        MeasurementSchedule::Sequential => {
+            for fixture in &fixtures {
+                let fixture_key = fixture_key(&options.workspace, fixture)?;
+                let golden = read_golden(&goldens_root, &fixture_key)?;
+                observe_fixture_schema(&mut accumulators, &fixture_key, golden.schema);
+                executed_fixtures.insert(fixture_key.clone());
+                let golden_by_matrix = golden
+                    .cases
+                    .iter()
+                    .map(|case| (case.matrix_key.as_str(), case))
+                    .collect::<BTreeMap<_, _>>();
+                let programs = tsc_harness::expand_fixture_file(fixture, &vendor_lib_dir)?;
+                let expanded_keys = programs
+                    .iter()
+                    .map(|program| program.matrix_key.as_str())
+                    .collect::<BTreeSet<_>>();
+                if let Some(orphan) = orphan_golden_case(&golden.cases, &expanded_keys) {
+                    return Err(format!(
+                        "golden case {fixture_key} [{orphan}] has no expanded program; the goldens \
+                         and the expansion matrix have drifted — refresh the goldens under a \
+                         reviewed transition before gating on them"
                     )
-                })?;
-                let oracle_empty_related_information =
-                    if let Some(fixtures) = planned_t4_empty_related_information {
-                        fixtures
-                            .get(&fixture_key)
-                            .and_then(|cases| cases.get(&program.matrix_key))
-                            .map(Vec::as_slice)
-                    } else {
-                        (golden.schema >= 3)
-                            .then_some(golden_case.oracle_empty_related_information.as_slice())
-                    }
-                    .ok_or_else(|| {
-                        format!(
-                            "active T4 measurement lacks empty-related-information metadata for \
-                             {fixture_key} [{}]",
-                            program.matrix_key
-                        )
-                    })?;
-                if rendered::supported_case_t4_matches(
-                    &program,
-                    &vendor_lib_dir,
-                    (&golden_case.oracle, oracle_empty_related_information),
-                    (&case_tsrs.all, &case_tsrs.all_empty_related_information),
-                    &excluded_indices,
-                    &fully_excluded,
-                    oracle_t4_pin,
-                )? {
-                    run_sets
-                        .get_mut(DiagnosticBand::All.name())
-                        .expect("T4 is measured only with the All fixed view")
-                        .entry(fixture_key.clone())
-                        .or_default()
-                        .entry(program.matrix_key.clone())
-                        .or_default()
-                        .t4 = true;
+                    .into());
                 }
-            }
-            let supported_fn = supported_expected
-                .difference(&supported_actual)
-                .cloned()
-                .collect::<BTreeSet<_>>();
-            if !supported_fn.is_empty() {
-                supported_false_negative_identities.extend(
-                    exact_supported_false_negative_identities(
+
+                for program in programs {
+                    let golden_case = golden_by_matrix
+                        .get(program.matrix_key.as_str())
+                        .ok_or_else(|| {
+                            format!("missing golden case {fixture_key} [{}]", program.matrix_key)
+                        })?;
+                    let case_tsrs = execute_case(&fixture_key, &program, &vendor_lib_dir)?;
+                    let excluded_indices = scope.exclusions_for_case(
                         &fixture_key,
                         &program.matrix_key,
                         &golden_case.oracle,
-                        options.band,
+                    )?;
+                    observe_case_across_views(
+                        views,
+                        &mut accumulators,
+                        &mut observation,
+                        &fixture_key,
+                        &program,
+                        golden.schema,
+                        golden_case,
+                        &case_tsrs,
                         &excluded_indices,
-                        &supported_fn,
-                    )?,
-                );
-            }
-            // Resolution predicate (measurement-integrity.md §3.2),
-            // per excluded occurrence: a resolved-t0 entry's
-            // disposition must be deleted with the required
-            // tombstone, and it can never satisfy readiness.
-            let mut resolved_excluded = 0usize;
-            let mut unresolved_excluded = 0usize;
-            for index in &excluded_records {
-                let bucket = t0_key(&golden_case.oracle[*index]);
-                let oracle_multiplicity = golden_case
-                    .oracle
-                    .iter()
-                    .filter(|diag| options.band.matches_oracle(diag) && t0_key(diag) == bucket)
-                    .count();
-                let tsrs_multiplicity = current
-                    .iter()
-                    .filter(|diag| options.band.contains(diag.code) && t0_key(diag) == bucket)
-                    .count();
-                if scope::occurrence_resolved(
-                    actual.contains(&bucket),
-                    oracle_multiplicity,
-                    tsrs_multiplicity,
-                ) {
-                    resolved_excluded += 1;
-                } else {
-                    unresolved_excluded += 1;
+                        &vendor_lib_dir,
+                        measure_t4,
+                        planned_t4_pins,
+                        planned_t4_empty_related_information,
+                    );
                 }
             }
-            if let Some(observation) = observation.as_mut() {
-                observation.cases.push(families::CaseObservation::collect(
-                    &fixture_key,
-                    &program.matrix_key,
-                    &golden_case.oracle,
-                    &case_tsrs.all,
-                    &excluded_indices,
-                    &actual,
-                    fp.len(),
-                )?);
-            }
-            if fp.is_empty() && fn_.is_empty() {
-                exact_match_cases += 1;
-            } else {
-                mismatches.push(MismatchEntry {
-                    fixture: fixture_key.clone(),
-                    matrix_key: program.matrix_key.clone(),
-                    false_positive: fp.clone(),
-                    false_negative: fn_.clone(),
-                    fn_partial_boundary_audit,
+        }
+        MeasurementSchedule::CiCheckerGradingPipeline => {
+            let workspace = options.workspace.as_path();
+            let fixture_slice = fixtures.as_slice();
+            let vendor_lib_dir = vendor_lib_dir.as_path();
+            let goldens_root = goldens_root.as_path();
+            let pipeline_scope = scope;
+            scope = std::thread::scope(|thread_scope| -> ConformanceResult<ScopeManifest> {
+                // One queued case is enough to overlap the next checker run
+                // with the previous case's grading while bounding retained
+                // checker output independently of corpus size.
+                let (sender, receiver) = sync_channel(1);
+                let producer = thread_scope.spawn(move || {
+                    produce_ci_grading_events(
+                        workspace,
+                        fixture_slice,
+                        vendor_lib_dir,
+                        goldens_root,
+                        pipeline_scope,
+                        sender,
+                        execute_case,
+                    )
                 });
-            }
-            if fp.is_empty() && supported_fn.is_empty() {
-                supported_exact_match_cases += 1;
-            }
 
-            for diag in &fp {
-                *fp_codes.entry(diag.code).or_default() += 1;
-            }
-            for diag in &fn_ {
-                *fn_codes.entry(diag.code).or_default() += 1;
-            }
-
-            matched_t0_diagnostics += expected.intersection(&actual).count();
-            let tier_matches = selected_tier_matches
-                .expect("the selected fixed view is always included in measured_views");
-            shadow_t1_matched += tier_matches.t1.len();
-            shadow_t2_matched += tier_matches.t2.len();
-            shadow_t3_matched += tier_matches.t3.len();
-            extend_shadow_identities(
-                &mut shadow_t1_identities,
-                &fixture_key,
-                &program.matrix_key,
-                tier_matches.t1,
-            );
-            extend_shadow_identities(
-                &mut shadow_t2_identities,
-                &fixture_key,
-                &program.matrix_key,
-                tier_matches.t2,
-            );
-            extend_shadow_identities(
-                &mut shadow_t3_identities,
-                &fixture_key,
-                &program.matrix_key,
-                tier_matches.t3,
-            );
-            supported_matched_t0_diagnostics +=
-                supported_expected.intersection(&supported_actual).count();
-            // Supported tiers remove exact oracle records; the tsrs
-            // side drops only fully-excluded buckets (tsrs records
-            // carry no occurrence identity). A partially excluded
-            // bucket therefore tier-matches only when tsrs emits
-            // exactly the remaining records.
-            let supported_tier_matches = shadow_tier_matches(
-                current.iter().filter(|diagnostic| {
-                    options.band.contains(diagnostic.code)
-                        && !fully_excluded.contains(&t0_key(diagnostic))
-                }),
-                golden_case
-                    .oracle
-                    .iter()
-                    .enumerate()
-                    .filter(|(index, diagnostic)| {
-                        options.band.matches_oracle(diagnostic) && !excluded_indices.contains(index)
-                    })
-                    .map(|(_, diagnostic)| diagnostic),
-            );
-            supported_tier_mismatches.extend(collect_supported_tier_mismatches(
-                &fixture_key,
-                &program.matrix_key,
-                current,
-                &golden_case.oracle,
-                options.band,
-                &excluded_indices,
-                &fully_excluded,
-                &supported_expected,
-                &supported_tier_matches,
-            ));
-            supported_t1_matched += supported_tier_matches.t1.len();
-            supported_t2_matched += supported_tier_matches.t2.len();
-            supported_t3_matched += supported_tier_matches.t3.len();
-            extend_shadow_identities(
-                &mut supported_t1_identities,
-                &fixture_key,
-                &program.matrix_key,
-                supported_tier_matches.t1,
-            );
-            extend_shadow_identities(
-                &mut supported_t2_identities,
-                &fixture_key,
-                &program.matrix_key,
-                supported_tier_matches.t2,
-            );
-            extend_shadow_identities(
-                &mut supported_t3_identities,
-                &fixture_key,
-                &program.matrix_key,
-                supported_tier_matches.t3,
-            );
-            scope_excluded_diagnostics += excluded_records.len();
-            scope_unresolved_diagnostics += unresolved_excluded;
-            scope_resolved_t0_diagnostics += resolved_excluded;
-            supported_oracle_diagnostics += supported_expected.len();
-            supported_tsrs_diagnostics += supported_actual.len();
-            supported_fn_count += supported_fn.len();
-            oracle_diagnostics += expected.len();
-            tsrs_diagnostics += actual.len();
-            fp_count += fp.len();
-            fn_count += fn_.len();
-            case_count += 1;
+                while let Ok(event) = receiver.recv() {
+                    match event {
+                        CiGradingEvent::Fixture {
+                            fixture_key,
+                            golden_schema,
+                        } => {
+                            observe_fixture_schema(&mut accumulators, &fixture_key, golden_schema);
+                            executed_fixtures.insert(fixture_key.to_string());
+                        }
+                        CiGradingEvent::Case {
+                            fixture_key,
+                            golden_schema,
+                            program,
+                            golden_case,
+                            case_tsrs,
+                            excluded_indices,
+                        } => {
+                            observe_case_across_views(
+                                views,
+                                &mut accumulators,
+                                &mut observation,
+                                &fixture_key,
+                                &program,
+                                golden_schema,
+                                &golden_case,
+                                &case_tsrs,
+                                &excluded_indices,
+                                vendor_lib_dir,
+                                measure_t4,
+                                planned_t4_pins,
+                                planned_t4_empty_related_information,
+                            );
+                        }
+                    }
+                }
+                // The channel closes only after the producer has either
+                // completed or retained its exact sequential failure. Join
+                // before returning so no checker work escapes this call.
+                drop(receiver);
+                let producer_result = producer.join();
+                match producer_result {
+                    Ok(Ok(scope)) => Ok(scope),
+                    Ok(Err(error)) => Err(error.into()),
+                    Err(payload) => std::panic::resume_unwind(payload),
+                }
+            })?;
         }
     }
 
-    if full_run && options.band == DiagnosticBand::All {
+    if full_run && options.band == DiagnosticBand::All && views.contains(&DiagnosticBand::All) {
         scope.finish_full_validation()?;
     }
-
-    let t0_rate = if oracle_diagnostics == 0 {
-        1.0
-    } else {
-        matched_t0_diagnostics as f64 / oracle_diagnostics as f64
-    };
-
-    let summary = ConformanceSummary {
-        band: options.band.name().to_owned(),
-        fixtures_total: fixtures.len(),
-        cases_total: case_count,
-        oracle_diagnostics,
-        tsrs_diagnostics,
-        matched_t0_diagnostics,
-        t0_rate,
-        shadow_t1_matched,
-        shadow_t2_matched,
-        shadow_t3_matched,
-        shadow_t1_rate: shadow_rate(shadow_t1_matched, oracle_diagnostics),
-        shadow_t2_rate: shadow_rate(shadow_t2_matched, oracle_diagnostics),
-        shadow_t3_rate: shadow_rate(shadow_t3_matched, oracle_diagnostics),
-        shadow_tier_identities: ShadowTierObservation::new(
-            shadow_oracle_records,
-            shadow_t1_identities,
-            shadow_t2_identities,
-            shadow_t3_identities,
-        ),
-        exact_match_cases,
-        mismatch_cases: case_count - exact_match_cases,
-        false_positive_diagnostics: fp_count,
-        false_negative_diagnostics: fn_count,
-        fn_with_partial_boundary_evidence: fn_with_partial_boundary_count,
-        fn_without_partial_boundary_evidence: fn_without_partial_boundary_count,
-        top_fn_partial_boundary_reasons: top_string_counts(fn_trigger_reasons),
-        top_false_positive_codes: top_codes(fp_codes),
-        top_false_negative_codes: top_codes(fn_codes),
-        scope_status: scope.status().name().to_owned(),
-        scope_manifest_entries: scope.entry_count(),
-        scope_excluded_diagnostics,
-        scope_unresolved_diagnostics,
-        scope_resolved_t0_diagnostics,
-        supported_oracle_diagnostics,
-        supported_tsrs_diagnostics,
-        supported_matched_t0_diagnostics,
-        supported_t0_rate: shadow_rate(
-            supported_matched_t0_diagnostics,
-            supported_oracle_diagnostics,
-        ),
-        supported_t1_matched,
-        supported_t2_matched,
-        supported_t3_matched,
-        supported_t1_rate: shadow_rate(supported_t1_matched, supported_oracle_diagnostics),
-        supported_t2_rate: shadow_rate(supported_t2_matched, supported_oracle_diagnostics),
-        supported_t3_rate: shadow_rate(supported_t3_matched, supported_oracle_diagnostics),
-        supported_shadow_tier_identities: ShadowTierObservation::new(
-            supported_shadow_oracle_records,
-            supported_t1_identities,
-            supported_t2_identities,
-            supported_t3_identities,
-        ),
-        supported_tier_mismatches,
-        supported_exact_match_cases,
-        supported_mismatch_cases: case_count - supported_exact_match_cases,
-        supported_false_negative_diagnostics: supported_fn_count,
-        supported_false_negative_identities: supported_false_negative_identities
-            .into_iter()
-            .collect(),
-        ratchet_rate: ratchet.rate,
-        ratchet_allowed_regression: ratchet.allowed_regression,
-        mismatches,
-    };
-
-    if let Some(parent) = options.out_json.parent() {
-        fs::create_dir_all(parent)?;
-    }
-    fs::write(&options.out_json, serde_json::to_string_pretty(&summary)?)?;
-
     if let Some(observation) = observation.as_mut() {
         observation.fixtures_total = fixtures.len();
     }
-    if set_gate == SetGate::Collect {
-        return Ok(ConformanceRun {
-            summary,
-            sets: run_sets,
-            observation,
-        });
-    }
+    let scope_status = scope.status().name().to_owned();
+    let scope_manifest_entries = scope.entry_count();
+    let views = accumulators
+        .into_iter()
+        .map(|pending| {
+            let band = pending.band;
+            let result = pending.state.and_then(|accumulator| {
+                if accumulator.band() != band {
+                    return Err(format!(
+                        "conformance accumulator order mismatch: expected {}, observed {}",
+                        band.name(),
+                        accumulator.band().name()
+                    )
+                    .into());
+                }
+                accumulator.finish(fixtures.len(), &scope_status, scope_manifest_entries)
+            });
+            MeasuredView { band, result }
+        })
+        .collect();
+    Ok(MeasuredConformance {
+        views,
+        observation,
+        accepted,
+        executed_fixtures,
+        full_run,
+    })
+}
 
-    // The set ratchet first: it names the exact regressed identity,
-    // and it catches the swap the integer gate cannot (one new match
-    // traded for one removal). Partial runs enforce the projection to
-    // the executed fixtures.
-    if let Some(accepted) = &accepted {
+fn write_ci_and_enforce_view(
+    view: &FinishedConformanceView,
+    out_json: &Path,
+    accepted: Option<&ratchet::AcceptedState>,
+    executed_fixtures: &BTreeSet<String>,
+    full_run: bool,
+) -> ConformanceResult<()> {
+    write_ci_summary_artifact(out_json, &view.summary)?;
+    enforce_view(view, accepted, executed_fixtures, full_run)
+}
+
+fn write_ci_summary_artifact(
+    out_json: &Path,
+    summary: &ConformanceSummary,
+) -> ConformanceResult<()> {
+    static TEMP_COUNTER: AtomicU64 = AtomicU64::new(0);
+
+    if let Some(parent) = out_json.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    let parent = out_json
+        .parent()
+        .ok_or_else(|| format!("CI summary path has no parent: {}", out_json.display()))?;
+    let file_name = out_json
+        .file_name()
+        .and_then(|name| name.to_str())
+        .ok_or_else(|| {
+            format!(
+                "CI summary path has no UTF-8 file name: {}",
+                out_json.display()
+            )
+        })?;
+    let counter = TEMP_COUNTER.fetch_add(1, Ordering::Relaxed);
+    let temp = parent.join(format!(
+        ".{file_name}.{}.{}.tmp",
+        std::process::id(),
+        counter
+    ));
+    let result = (|| -> ConformanceResult<()> {
+        let file = fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&temp)?;
+        let mut writer = BufWriter::new(file);
+        serde_json::to_writer(
+            &mut writer,
+            &CiSummaryArtifactRef {
+                schema: CI_SUMMARY_ARTIFACT_SCHEMA,
+                projection: CI_SUMMARY_PROJECTION,
+                summary,
+            },
+        )?;
+        writer.flush()?;
+        writer.get_ref().sync_all()?;
+        drop(writer);
+        fs::rename(&temp, out_json)?;
+        fs::File::open(parent)?.sync_all()?;
+        Ok(())
+    })();
+    if result.is_err() {
+        let _ = fs::remove_file(&temp);
+    }
+    result
+}
+
+fn write_and_enforce_view(
+    view: &FinishedConformanceView,
+    out_json: &Path,
+    accepted: Option<&ratchet::AcceptedState>,
+    executed_fixtures: &BTreeSet<String>,
+    full_run: bool,
+) -> ConformanceResult<()> {
+    if let Some(parent) = out_json.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    fs::write(out_json, serde_json::to_string_pretty(&view.summary)?)?;
+    enforce_view(view, accepted, executed_fixtures, full_run)
+}
+
+fn enforce_view(
+    view: &FinishedConformanceView,
+    accepted: Option<&ratchet::AcceptedState>,
+    executed_fixtures: &BTreeSet<String>,
+    full_run: bool,
+) -> ConformanceResult<()> {
+    if let Some(accepted) = accepted {
         ratchet::enforce_accepted(
             &accepted.artifact,
-            &run_sets,
-            options.band,
-            &executed_fixtures,
+            &view.sets,
+            view.band,
+            executed_fixtures,
             full_run,
         )?;
     }
-
-    // With matched/total recorded the comparison is exact (cross-
-    // multiplied integers): a rounded `rate` float would let up to a
-    // few diagnostics regress silently. Full runs only — a partial
-    // run's denominator is not the recorded corpus.
     let regressed = full_run
-        && match (ratchet.matched, ratchet.total) {
-            (Some(matched), Some(total)) if summary.ratchet_allowed_regression == 0.0 => {
-                (summary.matched_t0_diagnostics as u128) * (total as u128)
-                    < (matched as u128) * (summary.oracle_diagnostics as u128)
+        && match (view.ratchet.matched, view.ratchet.total) {
+            (Some(matched), Some(total)) if view.summary.ratchet_allowed_regression == 0.0 => {
+                (view.summary.matched_t0_diagnostics as u128) * (total as u128)
+                    < (matched as u128) * (view.summary.oracle_diagnostics as u128)
             }
-            _ => summary.t0_rate + summary.ratchet_allowed_regression < summary.ratchet_rate,
+            _ => {
+                view.summary.t0_rate + view.summary.ratchet_allowed_regression
+                    < view.summary.ratchet_rate
+            }
         };
     if regressed {
         return Err(format!(
             "T0 ratchet regression: measured {:.6} ({}/{}), required {:.6} (allowed regression {:.6})",
-            summary.t0_rate,
-            summary.matched_t0_diagnostics,
-            summary.oracle_diagnostics,
-            summary.ratchet_rate,
-            summary.ratchet_allowed_regression
+            view.summary.t0_rate,
+            view.summary.matched_t0_diagnostics,
+            view.summary.oracle_diagnostics,
+            view.summary.ratchet_rate,
+            view.summary.ratchet_allowed_regression
         )
         .into());
     }
-    if let Some(t1_ratchet) = t1_ratchet.filter(|_| full_run) {
+    if let Some(t1_ratchet) = view.t1_ratchet.filter(|_| full_run) {
         let t1_regressed = match (t1_ratchet.matched, t1_ratchet.total) {
             (Some(matched), Some(total)) if t1_ratchet.allowed_regression == 0.0 => {
-                (summary.shadow_t1_matched as u128) * (total as u128)
-                    < (matched as u128) * (summary.oracle_diagnostics as u128)
+                (view.summary.shadow_t1_matched as u128) * (total as u128)
+                    < (matched as u128) * (view.summary.oracle_diagnostics as u128)
             }
-            _ => summary.shadow_t1_rate + t1_ratchet.allowed_regression < t1_ratchet.rate,
+            _ => view.summary.shadow_t1_rate + t1_ratchet.allowed_regression < t1_ratchet.rate,
         };
         if t1_regressed {
             return Err(format!(
                 "T1 ratchet regression: measured {:.6} ({}/{}), required {:.6} (allowed regression {:.6})",
-                summary.shadow_t1_rate,
-                summary.shadow_t1_matched,
-                summary.oracle_diagnostics,
+                view.summary.shadow_t1_rate,
+                view.summary.shadow_t1_matched,
+                view.summary.oracle_diagnostics,
                 t1_ratchet.rate,
                 t1_ratchet.allowed_regression
             )
             .into());
         }
     }
-    if summary.false_positive_diagnostics > 0 {
+    if view.summary.false_positive_diagnostics > 0 {
         return Err(format!(
             "NEW_FP hard gate failed: {} false positive diagnostics",
-            summary.false_positive_diagnostics
+            view.summary.false_positive_diagnostics
         )
         .into());
     }
-    if summary.scope_status == "frozen" && summary.scope_resolved_t0_diagnostics > 0 {
+    if view.summary.scope_status == "frozen" && view.summary.scope_resolved_t0_diagnostics > 0 {
         return Err(format!(
             "stale M8 scope gate failed: {} excluded diagnostic(s) now match at T0; delete their dispositions so higher tiers grade them",
-            summary.scope_resolved_t0_diagnostics
+            view.summary.scope_resolved_t0_diagnostics
         )
         .into());
     }
-
-    Ok(ConformanceRun {
-        summary,
-        sets: run_sets,
-        observation,
-    })
+    Ok(())
 }
 
+fn run_conformance_inner(
+    options: &ConformanceOptions,
+    set_gate: SetGate,
+    families_observe: bool,
+    planned_t4_pins: Option<&ratchet::T4OraclePins>,
+    planned_t4_empty_related_information: Option<&rendered::T4OracleEmptyRelatedInformation>,
+    force_t4_measurement: bool,
+) -> ConformanceResult<ConformanceRun> {
+    // Ratchet updates collect all fixed identity sets in one traversal;
+    // ordinary conformance gates only the explicitly selected view.
+    let measured_views = match set_gate {
+        SetGate::Collect => ratchet::FIXED_VIEWS.as_slice(),
+        SetGate::Enforce => std::slice::from_ref(&options.band),
+    };
+    let mut measured = measure_conformance(
+        options,
+        measured_views,
+        set_gate,
+        families_observe,
+        planned_t4_pins,
+        planned_t4_empty_related_information,
+        force_t4_measurement,
+        ReportIdentityMode::AllViews,
+    )?;
+
+    if set_gate == SetGate::Collect {
+        let mut selected_summary = None;
+        let mut run_sets = ratchet::RunSets::new();
+        for measured_view in measured.views {
+            let view = measured_view.result?;
+            if view.band() != measured_view.band {
+                return Err(format!(
+                    "conformance measured-view order mismatch: expected {}, observed {}",
+                    measured_view.band.name(),
+                    view.band().name()
+                )
+                .into());
+            }
+            match view {
+                FinishedViewMeasurement::Full(view) => {
+                    let view = *view;
+                    run_sets.extend(view.sets);
+                    if view.band == options.band {
+                        selected_summary = Some(view.summary);
+                    }
+                }
+                FinishedViewMeasurement::RunSetsOnly { band, sets } => {
+                    if band == options.band {
+                        return Err(format!(
+                            "selected {} conformance view retained only ratchet sets",
+                            band.name()
+                        )
+                        .into());
+                    }
+                    run_sets.extend(sets);
+                }
+            }
+        }
+        let summary = selected_summary.ok_or_else(|| {
+            format!(
+                "selected {} conformance view was not measured",
+                options.band.name()
+            )
+        })?;
+        if let Some(parent) = options.out_json.parent() {
+            fs::create_dir_all(parent)?;
+        }
+        fs::write(&options.out_json, serde_json::to_string_pretty(&summary)?)?;
+        return Ok(ConformanceRun {
+            summary,
+            sets: run_sets,
+            observation: measured.observation,
+        });
+    }
+
+    let measured_view = measured
+        .views
+        .pop()
+        .ok_or("a gating run did not measure its selected view")?;
+    if !measured.views.is_empty() || measured_view.band != options.band {
+        return Err(format!(
+            "gating conformance view mismatch: expected exactly {}, observed {} view(s) ending in {}",
+            options.band.name(),
+            measured.views.len() + 1,
+            measured_view.band.name()
+        )
+        .into());
+    }
+    let view = measured_view.result?.into_full()?;
+    if view.band != options.band {
+        return Err(format!(
+            "gating conformance result mismatch: expected {}, observed {}",
+            options.band.name(),
+            view.band.name()
+        )
+        .into());
+    }
+    write_and_enforce_view(
+        &view,
+        &options.out_json,
+        measured.accepted.as_ref(),
+        &measured.executed_fixtures,
+        measured.full_run,
+    )?;
+    Ok(ConformanceRun {
+        summary: view.summary,
+        sets: view.sets,
+        observation: measured.observation,
+    })
+}
 fn exact_supported_false_negative_identities(
     fixture: &str,
     matrix_key: &str,
@@ -1568,6 +2585,33 @@ struct ShadowTierMatches {
     t3: BTreeSet<T0Key>,
 }
 
+#[derive(Clone, Copy)]
+struct ShadowTierMatchRefs<'a> {
+    t1: &'a BTreeSet<T0Key>,
+    t2: &'a BTreeSet<T0Key>,
+    t3: &'a BTreeSet<T0Key>,
+}
+
+impl<'a> From<&'a ratchet::CaseSets> for ShadowTierMatchRefs<'a> {
+    fn from(sets: &'a ratchet::CaseSets) -> Self {
+        Self {
+            t1: &sets.t1,
+            t2: &sets.t2,
+            t3: &sets.t3,
+        }
+    }
+}
+
+impl<'a> From<&'a ShadowTierMatches> for ShadowTierMatchRefs<'a> {
+    fn from(matches: &'a ShadowTierMatches) -> Self {
+        Self {
+            t1: &matches.t1,
+            t2: &matches.t2,
+            t3: &matches.t3,
+        }
+    }
+}
+
 fn shadow_tier_matches<'a>(
     actual: impl Iterator<Item = &'a GoldenDiag>,
     expected: impl Iterator<Item = &'a GoldenDiag>,
@@ -1590,7 +2634,7 @@ fn collect_supported_tier_mismatches(
     excluded_indices: &BTreeSet<usize>,
     fully_excluded: &BTreeSet<T0Key>,
     supported_expected: &BTreeSet<T0Key>,
-    matches: &ShadowTierMatches,
+    matches: ShadowTierMatchRefs<'_>,
 ) -> Vec<SupportedTierMismatch> {
     supported_expected
         .iter()
@@ -1639,11 +2683,12 @@ fn extend_shadow_identities(
     identities: &mut BTreeSet<ShadowTierIdentity>,
     fixture: &str,
     matrix_key: &str,
-    diagnostics: BTreeSet<T0Key>,
+    diagnostics: &BTreeSet<T0Key>,
 ) {
     identities.extend(
         diagnostics
-            .into_iter()
+            .iter()
+            .cloned()
             .map(|diagnostic| ShadowTierIdentity {
                 fixture: fixture.to_owned(),
                 matrix_key: matrix_key.to_owned(),
@@ -1683,8 +2728,8 @@ impl GoldenDiag {
         }
     }
 
-    fn from_tsrs(diag: &Diagnostic, file_texts: &BTreeMap<String, String>) -> Self {
-        let (line, col) = line_col_for_tsrs(diag, file_texts);
+    fn from_tsrs(diag: &Diagnostic, line_maps: &mut TsrsLineMapCache<'_>) -> Self {
+        let (line, col) = line_maps.line_col(diag);
         Self {
             file: diag.file_name.clone(),
             start: diag.start,
@@ -1739,12 +2784,47 @@ impl GoldenMessageChain {
 /// corpus reuses a handful of lib sets across thousands of cases and
 /// re-reading ~9MB of vendored libs per case dominated the conformer,
 /// so the loaded set is cached per (lib dir, lib list).
+struct CachedLibInputs {
+    files: Vec<InputFile>,
+    prepared: Mutex<HashMap<HarnessLibBundleOptionsKey, PreparedHarnessLibBundle>>,
+}
+
+impl CachedLibInputs {
+    fn as_slice(&self) -> &[InputFile] {
+        &self.files
+    }
+
+    fn prepared_bundle(&self, options: &CompilerOptions) -> Option<PreparedHarnessLibBundle> {
+        let key = harness_lib_bundle_options_key(options);
+        if let Some(prepared) = self
+            .prepared
+            .lock()
+            .expect("prepared lib bundle cache")
+            .get(&key)
+            .copied()
+        {
+            return Some(prepared);
+        }
+
+        // Preparation performs the content fingerprint only once for this
+        // immutable harness lib set and opaque option projection. The checker
+        // still validates that same parser/binder projection plus
+        // exact ordered names and full texts on every use before accepting the
+        // hint.
+        // In cache-off mode preparation returns None and builds no static
+        // bundle, preserving the existing owned A/B path.
+        let prepared = prepare_harness_lib_bundle(&self.files, options)?;
+        let mut cache = self.prepared.lock().expect("prepared lib bundle cache");
+        Some(*cache.entry(key).or_insert(prepared))
+    }
+}
+
 fn read_lib_inputs(
     libs: &[String],
     vendor_lib_dir: &Path,
-) -> ConformanceResult<Arc<Vec<InputFile>>> {
+) -> ConformanceResult<Arc<CachedLibInputs>> {
     type LibInputKey = (PathBuf, Vec<String>);
-    static CACHE: OnceLock<Mutex<BTreeMap<LibInputKey, Arc<Vec<InputFile>>>>> = OnceLock::new();
+    static CACHE: OnceLock<Mutex<BTreeMap<LibInputKey, Arc<CachedLibInputs>>>> = OnceLock::new();
     let cache = CACHE.get_or_init(|| Mutex::new(BTreeMap::new()));
     let key = (vendor_lib_dir.to_owned(), libs.to_vec());
     if let Some(inputs) = cache.lock().expect("lib input cache").get(&key) {
@@ -1762,7 +2842,10 @@ fn read_lib_inputs(
             })
         })
         .collect::<ConformanceResult<Vec<_>>>()?;
-    let inputs = Arc::new(inputs);
+    let inputs = Arc::new(CachedLibInputs {
+        files: inputs,
+        prepared: Mutex::new(HashMap::new()),
+    });
     cache
         .lock()
         .expect("lib input cache")
@@ -1784,8 +2867,6 @@ struct CaseTsrs {
     partial_checks: Vec<PartialCheck>,
 }
 
-type CaseTsrsCache = BTreeMap<(String, String), Arc<CaseTsrs>>;
-
 fn current_case_tsrs(
     fixture: &str,
     program: &tsc_harness::ProgramJson,
@@ -1806,6 +2887,7 @@ fn current_case_tsrs(
     let libs = read_lib_inputs(&program.libs, vendor_lib_dir)?;
     if h0_memory::supports_fixture(fixture) {
         let result = h0_memory::run(program, libs.as_slice(), &files)?;
+        let mut line_maps = TsrsLineMapCache::new(&file_texts);
         let all_empty_related_information = result
             .all
             .iter()
@@ -1819,23 +2901,37 @@ fn current_case_tsrs(
             all: result
                 .all
                 .iter()
-                .map(|diag| GoldenDiag::from_tsrs(diag, &file_texts))
+                .map(|diag| GoldenDiag::from_tsrs(diag, &mut line_maps))
                 .collect(),
             all_empty_related_information,
             syntactic: result
                 .syntactic
                 .iter()
-                .map(|diag| GoldenDiag::from_tsrs(diag, &file_texts))
+                .map(|diag| GoldenDiag::from_tsrs(diag, &mut line_maps))
                 .collect(),
             partial_checks: Vec::new(),
         });
     }
-    let result = check_program_with_libs_at(
-        &libs,
-        &files,
-        &tsc_harness::compiler_options_from_program(program),
-        &program.cwd,
-    );
+    let options = tsc_harness::compiler_options_from_program(program);
+    // A fixture file with the same name as a requested lib shadows that lib.
+    // Do not prepare the unreduced set only to reject it during the checker's
+    // exact validation; the ordinary path computes the correct effective set.
+    let fixture_shadows_lib = files
+        .iter()
+        .any(|file| libs.as_slice().iter().any(|lib| lib.name == file.name));
+    let prepared = (!fixture_shadows_lib)
+        .then(|| libs.prepared_bundle(&options))
+        .flatten();
+    let result = match prepared {
+        Some(prepared) => check_program_with_prepared_harness_libs_at(
+            libs.as_slice(),
+            &files,
+            &options,
+            &program.cwd,
+            prepared,
+        ),
+        None => check_program_with_libs_at(libs.as_slice(), &files, &options, &program.cwd),
+    };
     let all_empty_related_information = result
         .diagnostics
         .iter()
@@ -1845,17 +2941,18 @@ fn current_case_tsrs(
                 .then_some(index)
         })
         .collect();
+    let mut line_maps = TsrsLineMapCache::new(&file_texts);
     Ok(CaseTsrs {
         all: result
             .diagnostics
             .iter()
-            .map(|diag| GoldenDiag::from_tsrs(diag, &file_texts))
+            .map(|diag| GoldenDiag::from_tsrs(diag, &mut line_maps))
             .collect(),
         all_empty_related_information,
         syntactic: result
             .syntactic_diagnostics
             .iter()
-            .map(|diag| GoldenDiag::from_tsrs(diag, &file_texts))
+            .map(|diag| GoldenDiag::from_tsrs(diag, &mut line_maps))
             .collect(),
         partial_checks: result.partial_checks,
     })
@@ -1866,7 +2963,7 @@ fn file_texts_for_program(
     vendor_lib_dir: &Path,
 ) -> ConformanceResult<BTreeMap<String, String>> {
     let mut file_texts = BTreeMap::new();
-    for lib in read_lib_inputs(&program.libs, vendor_lib_dir)?.iter() {
+    for lib in read_lib_inputs(&program.libs, vendor_lib_dir)?.as_slice() {
         file_texts.insert(lib.name.clone(), lib.text.clone());
     }
     for file in &program.files {
@@ -1893,25 +2990,40 @@ fn line_col_for_oracle(
     (Some(line_col.line), Some(line_col.character))
 }
 
-fn line_col_for_tsrs(
-    diag: &Diagnostic,
-    file_texts: &BTreeMap<String, String>,
-) -> (Option<u32>, Option<u32>) {
-    let Some(file_name) = &diag.file_name else {
-        return (None, None);
-    };
-    // Diagnostic.start is already UTF-16 (the parser converts when pushing);
-    // converting again through byte_to_utf16 shifted columns on files with
-    // non-ASCII text.
-    let Some(start) = diag.start else {
-        return (None, None);
-    };
-    let Some(text) = file_texts.get(file_name) else {
-        return (None, None);
-    };
-    let map = compute_line_map(text);
-    let line_col = get_line_and_character_of_position(&map.line_starts, start);
-    (Some(line_col.line), Some(line_col.character))
+struct TsrsLineMapCache<'a> {
+    file_texts: &'a BTreeMap<String, String>,
+    line_starts: BTreeMap<String, Vec<u32>>,
+}
+
+impl<'a> TsrsLineMapCache<'a> {
+    fn new(file_texts: &'a BTreeMap<String, String>) -> Self {
+        Self {
+            file_texts,
+            line_starts: BTreeMap::new(),
+        }
+    }
+
+    fn line_col(&mut self, diag: &Diagnostic) -> (Option<u32>, Option<u32>) {
+        let Some(file_name) = &diag.file_name else {
+            return (None, None);
+        };
+        // Diagnostic.start is already UTF-16 (the parser converts when
+        // pushing); converting again through byte_to_utf16 shifted columns on
+        // files with non-ASCII text. Build the UTF-16 line starts lazily and
+        // retain them for every later diagnostic in this case/file.
+        let Some(start) = diag.start else {
+            return (None, None);
+        };
+        let Some(text) = self.file_texts.get(file_name) else {
+            return (None, None);
+        };
+        let line_starts = self
+            .line_starts
+            .entry(file_name.clone())
+            .or_insert_with(|| compute_line_map(text).line_starts);
+        let line_col = get_line_and_character_of_position(line_starts, start);
+        (Some(line_col.line), Some(line_col.character))
+    }
 }
 
 pub(crate) fn t0_key(diag: &GoldenDiag) -> T0Key {
@@ -2295,7 +3407,444 @@ pub(crate) mod test_git {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::atomic::{AtomicBool, AtomicUsize};
+
     use super::*;
+
+    fn finish_empty_fixed_views(ratchet_path: &Path) -> Vec<MeasuredView> {
+        initialize_view_accumulators(
+            &ratchet::FIXED_VIEWS,
+            SetGate::Enforce,
+            DiagnosticBand::All,
+            ratchet_path,
+            ReportIdentityMode::AllViews,
+        )
+        .into_iter()
+        .map(|pending| {
+            let result = pending
+                .state
+                .and_then(|accumulator| accumulator.finish(0, "draft", 0));
+            MeasuredView {
+                band: pending.band,
+                result,
+            }
+        })
+        .collect()
+    }
+
+    fn read_summary_band(path: &Path) -> String {
+        decode_ci_conformance_summary(&fs::read(path).unwrap())
+            .unwrap()
+            .as_summary()
+            .band
+            .clone()
+    }
+
+    #[test]
+    fn later_view_initialization_error_preserves_prior_callback_order() {
+        let directory = test_git::temp_dir("deferred-fixed-view-error");
+        let ratchet_path = directory.join("ratchet.toml");
+        fs::write(
+            &ratchet_path,
+            "[t0]\nrate = 0.0\n\
+             [t1]\nrate = 0.0\n\
+             [t0-2xxx]\nrate = 0.0\n\
+             [t0-syntactic]\nrate = \"invalid\"\n",
+        )
+        .unwrap();
+
+        let measured = finish_empty_fixed_views(&ratchet_path);
+        let out_json = directory.join("out.json");
+        let mut callbacks = Vec::new();
+        let mut all_finishes = 0usize;
+        let result = complete_ci_views(
+            measured,
+            [&out_json; 3],
+            None,
+            &BTreeSet::new(),
+            false,
+            |_| {
+                all_finishes += 1;
+                Ok(())
+            },
+            |summary| callbacks.push((summary.band.clone(), read_summary_band(&out_json))),
+        );
+        let error = match result {
+            Ok(_) => panic!("invalid syntactic ratchet must fail at the syntactic gate"),
+            Err(error) => error,
+        };
+
+        assert_eq!(all_finishes, 1);
+        assert_eq!(
+            callbacks,
+            [
+                ("all".to_owned(), "all".to_owned()),
+                ("2xxx".to_owned(), "2xxx".to_owned()),
+            ]
+        );
+        assert_eq!(read_summary_band(&out_json), "2xxx");
+        assert!(
+            error
+                .to_string()
+                .contains("[t0-syntactic].rate must be a number"),
+            "{error}"
+        );
+    }
+
+    #[test]
+    fn later_view_gate_error_writes_its_summary_without_callback() {
+        let directory = test_git::temp_dir("fixed-view-gate-error");
+        let ratchet_path = directory.join("ratchet.toml");
+        fs::write(
+            &ratchet_path,
+            "[t0]\nrate = 0.0\n\
+             [t1]\nrate = 0.0\n\
+             [t0-2xxx]\nrate = 0.0\n\
+             [t0-syntactic]\nrate = 2.0\n",
+        )
+        .unwrap();
+
+        let out_json = directory.join("out.json");
+        let mut callbacks = Vec::new();
+        let result = complete_ci_views(
+            finish_empty_fixed_views(&ratchet_path),
+            [&out_json; 3],
+            None,
+            &BTreeSet::new(),
+            true,
+            |_| Ok(()),
+            |summary| callbacks.push(summary.band.clone()),
+        );
+        let error = match result {
+            Ok(_) => panic!("syntactic ratchet regression must fail at its gate"),
+            Err(error) => error,
+        };
+
+        assert_eq!(callbacks, ["all", "2xxx"]);
+        assert_eq!(read_summary_band(&out_json), "syntactic");
+        assert!(
+            error.to_string().contains("T0 ratchet regression"),
+            "{error}"
+        );
+    }
+
+    #[test]
+    fn fixed_view_processor_rejects_noncanonical_order() {
+        let mut callbacks = Vec::new();
+        let result = process_fixed_views(
+            [
+                (DiagnosticBand::TwoXxx, Ok(())),
+                (DiagnosticBand::All, Ok(())),
+                (DiagnosticBand::Syntactic, Ok(())),
+            ],
+            |band, ()| {
+                callbacks.push(band);
+                Ok(())
+            },
+        );
+        let error = match result {
+            Ok(_) => panic!("reordered fixed views must fail in release builds"),
+            Err(error) => error,
+        };
+
+        assert!(callbacks.is_empty());
+        assert!(
+            error.to_string().contains("expected all, observed 2xxx"),
+            "{error}"
+        );
+    }
+
+    #[test]
+    fn ratchet_collection_retains_full_state_only_for_selected_view() {
+        let workspace = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .and_then(Path::parent)
+            .unwrap();
+        let accumulators = initialize_view_accumulators(
+            &ratchet::FIXED_VIEWS,
+            SetGate::Collect,
+            DiagnosticBand::All,
+            &workspace.join("ratchet.toml"),
+            ReportIdentityMode::AllViews,
+        );
+
+        assert!(matches!(
+            accumulators[0].state,
+            Ok(ViewAccumulatorKind::Full(_))
+        ));
+        assert!(accumulators[1..]
+            .iter()
+            .all(|pending| matches!(pending.state, Ok(ViewAccumulatorKind::RunSetsOnly(_)))));
+    }
+
+    #[test]
+    fn fused_and_pipelined_fixed_views_match_single_view_grading_and_execute_each_case_once() {
+        fn full_view(measured: &MeasuredView) -> &FinishedConformanceView {
+            match measured.result.as_ref() {
+                Ok(FinishedViewMeasurement::Full(view)) => view.as_ref(),
+                Ok(FinishedViewMeasurement::RunSetsOnly { band, .. }) => {
+                    panic!("{} unexpectedly retained only run sets", band.name())
+                }
+                Err(error) => panic!("view measurement failed: {error}"),
+            }
+        }
+
+        let workspace = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .and_then(Path::parent)
+            .unwrap()
+            .to_owned();
+        let options = ConformanceOptions {
+            workspace: workspace.clone(),
+            limit: Some(1),
+            files: Vec::new(),
+            out_json: test_git::temp_dir("fused-conformance-parity").join("unused.json"),
+            band: DiagnosticBand::All,
+        };
+        let executions = AtomicUsize::new(0);
+        let fused = measure_conformance_with(
+            &options,
+            &ratchet::FIXED_VIEWS,
+            SetGate::Enforce,
+            false,
+            None,
+            None,
+            false,
+            ReportIdentityMode::AllViews,
+            |fixture, program, vendor_lib_dir| {
+                executions.fetch_add(1, Ordering::Relaxed);
+                current_case_tsrs(fixture, program, vendor_lib_dir)
+            },
+        )
+        .unwrap();
+        let executions = executions.load(Ordering::Relaxed);
+        assert_eq!(fused.views.len(), ratchet::FIXED_VIEWS.len());
+        assert_eq!(executions, full_view(&fused.views[0]).summary.cases_total);
+        assert!(fused
+            .views
+            .iter()
+            .all(|view| full_view(view).summary.cases_total == executions));
+
+        let pipeline_executions = AtomicUsize::new(0);
+        let pipelined = measure_conformance_with_schedule(
+            &options,
+            &ratchet::FIXED_VIEWS,
+            SetGate::Enforce,
+            false,
+            None,
+            None,
+            false,
+            ReportIdentityMode::AllViews,
+            MeasurementSchedule::CiCheckerGradingPipeline,
+            |fixture, program, vendor_lib_dir| {
+                pipeline_executions.fetch_add(1, Ordering::Relaxed);
+                current_case_tsrs(fixture, program, vendor_lib_dir)
+            },
+        )
+        .unwrap();
+        assert_eq!(pipeline_executions.load(Ordering::Relaxed), executions);
+        for (sequential, pipelined) in fused.views.iter().zip(&pipelined.views) {
+            let sequential = full_view(sequential);
+            let pipelined = full_view(pipelined);
+            assert_eq!(sequential.sets, pipelined.sets);
+            assert_eq!(
+                serde_json::to_vec(&sequential.summary).unwrap(),
+                serde_json::to_vec(&pipelined.summary).unwrap(),
+                "bounded CI pipeline changed the sequential summary"
+            );
+        }
+
+        let projected = measure_conformance(
+            &options,
+            &ratchet::FIXED_VIEWS,
+            SetGate::Enforce,
+            false,
+            None,
+            None,
+            false,
+            ReportIdentityMode::AllViewOnly,
+        )
+        .unwrap();
+        for (band, (full, projected)) in ratchet::FIXED_VIEWS
+            .iter()
+            .copied()
+            .zip(fused.views.iter().zip(&projected.views))
+        {
+            let full = full_view(full);
+            let projected = full_view(projected);
+            assert_eq!(full.sets, projected.sets);
+
+            let mut expected = full.summary.clone();
+            if band != DiagnosticBand::All {
+                expected.shadow_tier_identities.t1_matched.clear();
+                expected.shadow_tier_identities.t2_matched.clear();
+                expected.shadow_tier_identities.t3_matched.clear();
+                expected.supported_shadow_tier_identities.t1_matched.clear();
+                expected.supported_shadow_tier_identities.t2_matched.clear();
+                expected.supported_shadow_tier_identities.t3_matched.clear();
+            }
+            assert_eq!(
+                serde_json::to_vec(&expected).unwrap(),
+                serde_json::to_vec(&projected.summary).unwrap(),
+                "CI {} projection changed non-report summary fields",
+                band.name()
+            );
+
+            let artifact = serde_json::to_vec(&CiSummaryArtifactRef {
+                schema: CI_SUMMARY_ARTIFACT_SCHEMA,
+                projection: CI_SUMMARY_PROJECTION,
+                summary: &projected.summary,
+            })
+            .unwrap();
+            let decoded = decode_ci_conformance_summary(&artifact).unwrap();
+            assert_eq!(
+                serde_json::to_vec(decoded.as_summary()).unwrap(),
+                serde_json::to_vec(&projected.summary).unwrap()
+            );
+            assert!(decode_ci_conformance_summary(
+                &serde_json::to_vec(&projected.summary).unwrap()
+            )
+            .is_err());
+
+            if band != DiagnosticBand::All {
+                let mut invalid = projected.summary.clone();
+                invalid.shadow_tier_identities.schema += 1;
+                let artifact = serde_json::to_vec(&CiSummaryArtifactRef {
+                    schema: CI_SUMMARY_ARTIFACT_SCHEMA,
+                    projection: CI_SUMMARY_PROJECTION,
+                    summary: &invalid,
+                })
+                .unwrap();
+                assert!(decode_ci_conformance_summary(&artifact).is_err());
+
+                let mut invalid = projected.summary.clone();
+                invalid.band = "bogus".to_owned();
+                let artifact = serde_json::to_vec(&CiSummaryArtifactRef {
+                    schema: CI_SUMMARY_ARTIFACT_SCHEMA,
+                    projection: CI_SUMMARY_PROJECTION,
+                    summary: &invalid,
+                })
+                .unwrap();
+                assert!(decode_ci_conformance_summary(&artifact).is_err());
+            }
+        }
+
+        let force_t4_measurement = fused
+            .accepted
+            .as_ref()
+            .is_some_and(|accepted| accepted.t4_active);
+        let collected = run_conformance_inner(
+            &options,
+            SetGate::Collect,
+            false,
+            None,
+            None,
+            force_t4_measurement,
+        )
+        .unwrap();
+        assert_eq!(
+            serde_json::to_vec(&collected.summary).unwrap(),
+            serde_json::to_vec(&full_view(&fused.views[0]).summary).unwrap(),
+            "Collect selected-view summary differs from Full measurement"
+        );
+        let ordinary: ConformanceSummary =
+            serde_json::from_slice(&fs::read(&options.out_json).unwrap()).unwrap();
+        assert_eq!(
+            serde_json::to_vec(&ordinary).unwrap(),
+            serde_json::to_vec(&collected.summary).unwrap(),
+            "ordinary output must remain a naked ConformanceSummary"
+        );
+        assert!(decode_ci_conformance_summary(&fs::read(&options.out_json).unwrap()).is_err());
+        let mut full_sets = ratchet::RunSets::new();
+        for measured in &fused.views {
+            full_sets.extend(full_view(measured).sets.clone());
+        }
+        assert_eq!(
+            collected.sets, full_sets,
+            "RunSets-only projections differ from Full accumulators"
+        );
+
+        for (index, band) in ratchet::FIXED_VIEWS.iter().copied().enumerate() {
+            let mut single_options = options.clone();
+            single_options.band = band;
+            let single = measure_conformance(
+                &single_options,
+                std::slice::from_ref(&band),
+                SetGate::Enforce,
+                false,
+                None,
+                None,
+                false,
+                ReportIdentityMode::AllViews,
+            )
+            .unwrap();
+            assert_eq!(single.views.len(), 1);
+            assert_eq!(fused.views[index].band, band);
+            let fused_view = full_view(&fused.views[index]);
+            let single_view = full_view(&single.views[0]);
+            assert_eq!(
+                serde_json::to_vec(&fused_view.summary).unwrap(),
+                serde_json::to_vec(&single_view.summary).unwrap(),
+                "fused {} summary differs from its single-view grade",
+                band.name()
+            );
+            assert_eq!(fused_view.sets, single_view.sets);
+        }
+    }
+
+    #[test]
+    fn ci_pipeline_joins_checker_producer_before_returning_its_error() {
+        struct DropFlag(Arc<AtomicBool>);
+
+        impl Drop for DropFlag {
+            fn drop(&mut self) {
+                self.0.store(true, Ordering::Release);
+            }
+        }
+
+        let workspace = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .and_then(Path::parent)
+            .unwrap()
+            .to_owned();
+        let out_json = test_git::temp_dir("ci-pipeline-error-join").join("must-not-exist.json");
+        let options = ConformanceOptions {
+            workspace,
+            limit: Some(1),
+            files: Vec::new(),
+            out_json: out_json.clone(),
+            band: DiagnosticBand::All,
+        };
+        let producer_dropped = Arc::new(AtomicBool::new(false));
+        let attempts = Arc::new(AtomicUsize::new(0));
+        let guard = DropFlag(Arc::clone(&producer_dropped));
+        let producer_attempts = Arc::clone(&attempts);
+        let result = measure_conformance_with_schedule(
+            &options,
+            &ratchet::FIXED_VIEWS,
+            SetGate::Enforce,
+            false,
+            None,
+            None,
+            false,
+            ReportIdentityMode::AllViewOnly,
+            MeasurementSchedule::CiCheckerGradingPipeline,
+            move |_, _, _| {
+                let _keep_guard_alive = &guard;
+                producer_attempts.fetch_add(1, Ordering::Relaxed);
+                Err("injected CI checker failure".into())
+            },
+        );
+        let error = match result {
+            Ok(_) => panic!("injected checker failure must fail the pipeline"),
+            Err(error) => error,
+        };
+
+        assert_eq!(attempts.load(Ordering::Relaxed), 1);
+        assert!(producer_dropped.load(Ordering::Acquire));
+        assert!(error.to_string().contains("injected CI checker failure"));
+        assert!(!out_json.exists());
+    }
 
     fn diag(category: &str, start: u32, text: &str) -> GoldenDiag {
         GoldenDiag {
@@ -2318,6 +3867,61 @@ mod tests {
             reports_deprecated: false,
             source: None,
         }
+    }
+
+    fn diag_with_code(code: u32, category: &str, start: u32, text: &str) -> GoldenDiag {
+        let mut diagnostic = diag(category, start, text);
+        diagnostic.code = code;
+        diagnostic.chain.code = code;
+        diagnostic
+    }
+
+    #[test]
+    fn two_xxx_projection_is_exact_for_every_bucket_set_and_t0_universe() {
+        let oracle = [
+            diag_with_code(1999, "error", 1, "outside-low"),
+            diag_with_code(2000, "error", 2, "boundary-low"),
+            diag_with_code(2322, "error", 3, "duplicate-a"),
+            diag_with_code(2322, "warning", 4, "duplicate-b"),
+            diag_with_code(2500, "error", 5, "oracle-text"),
+            diag_with_code(2807, "error", 6, "oracle-only"),
+            diag_with_code(3000, "error", 7, "outside-high"),
+        ];
+        let actual = [
+            diag_with_code(1999, "error", 1, "outside-low"),
+            diag_with_code(2000, "error", 2, "boundary-low"),
+            // The 2322 bucket is present but multiplicity-incomplete.
+            diag_with_code(2322, "error", 3, "duplicate-a"),
+            // The 2500 bucket matches T1 but not T2/T3.
+            diag_with_code(2500, "error", 5, "tsrs-text"),
+            diag_with_code(2999, "error", 8, "tsrs-only"),
+            diag_with_code(3000, "error", 7, "outside-high"),
+        ];
+
+        let all = ratchet::bucket_grading(oracle.iter(), actual.iter());
+        let projected = project_two_xxx_grading(&all);
+        let direct = ratchet::bucket_grading(
+            oracle
+                .iter()
+                .filter(|diagnostic| DiagnosticBand::TwoXxx.contains(diagnostic.code)),
+            actual
+                .iter()
+                .filter(|diagnostic| DiagnosticBand::TwoXxx.contains(diagnostic.code)),
+        );
+
+        assert_eq!(projected, direct);
+        assert!(direct.expected.iter().any(|key| key.code == 2807));
+        assert!(direct.actual.iter().any(|key| key.code == 2999));
+        assert!(direct.sets.matched.iter().any(|key| key.code == 2322));
+        assert!(!direct
+            .sets
+            .multiplicity_complete
+            .iter()
+            .any(|key| key.code == 2322));
+        assert!(direct.sets.t1.iter().any(|key| key.code == 2500));
+        assert!(!direct.sets.t2.iter().any(|key| key.code == 2500));
+        assert!(!direct.expected.iter().any(|key| key.code == 1999));
+        assert!(!direct.expected.iter().any(|key| key.code == 3000));
     }
 
     /// Review round 3: tiers compare independent multisets — a
@@ -2386,7 +3990,7 @@ mod tests {
             &BTreeSet::new(),
             &BTreeSet::new(),
             &BTreeSet::from([key.clone()]),
-            &matches,
+            ShadowTierMatchRefs::from(&matches),
         );
         assert_eq!(residual.len(), 1);
         assert_eq!(residual[0].diagnostic, key);

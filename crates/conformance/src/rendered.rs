@@ -698,7 +698,7 @@ pub(crate) fn supported_case_t4_matches(
         )
         .into());
     }
-    let oracle = oracle
+    let supported_oracle = oracle
         .iter()
         .enumerate()
         .filter(|(index, _)| !excluded_indices.contains(index));
@@ -706,10 +706,22 @@ pub(crate) fn supported_case_t4_matches(
         .iter()
         .enumerate()
         .filter(|(_, diagnostic)| !fully_excluded.contains(&t0_key(diagnostic)));
-    let oracle = format_sorted_diagnostics_with_context(
-        &diagnostics_from_indexed_golden_refs(oracle, &oracle_empty_related_information)?,
-        &host,
-    )?;
+    // With no occurrence exclusions the supported oracle is byte-for-byte the
+    // full oracle that was just rendered and hash-checked above. Reuse those
+    // bytes instead of rebuilding every Diagnostic and formatting the same
+    // case a second time; the sparse exclusion path retains its independent
+    // projection and render.
+    let oracle = if excluded_indices.is_empty() {
+        full_oracle
+    } else {
+        format_sorted_diagnostics_with_context(
+            &diagnostics_from_indexed_golden_refs(
+                supported_oracle,
+                &oracle_empty_related_information,
+            )?,
+            &host,
+        )?
+    };
     let tsrs = format_sorted_diagnostics_with_context(
         &diagnostics_from_indexed_golden_refs(tsrs, &tsrs_empty_related_information)?,
         &host,
