@@ -215,6 +215,24 @@ fn malformed_failure_and_realpath_facts_fail_during_build() {
     assert_eq!(error.operation(), HostOperation::BuildMemoryHost);
 }
 
+#[test]
+fn null_paths_fail_closed() {
+    let nul = PathBuf::from("/Work/nul\0.ts");
+    let error = MemoryCompilerHost::builder("/Work")
+        .file(nul.clone(), Vec::new())
+        .build()
+        .unwrap_err();
+    assert_eq!(error.kind(), HostErrorKind::InvalidInput);
+    assert_eq!(error.operation(), HostOperation::BuildMemoryHost);
+    assert_eq!(error.path(), Some(nul.as_path()));
+
+    let host = host_with_tree(true);
+    let error = host.read_file(&nul).unwrap_err();
+    assert_eq!(error.kind(), HostErrorKind::InvalidInput);
+    assert_eq!(error.operation(), HostOperation::ReadFile);
+    assert_eq!(error.path(), Some(nul.as_path()));
+}
+
 #[cfg(unix)]
 #[test]
 fn non_unicode_paths_fail_closed() {

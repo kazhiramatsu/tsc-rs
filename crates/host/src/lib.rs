@@ -9,11 +9,13 @@
 //! ordinary missing entry.
 
 mod error;
+mod filesystem;
 mod memory;
 
 use std::path::{Path, PathBuf};
 
 pub use error::{HostError, HostErrorKind, HostOperation};
+pub use filesystem::FsCompilerHost;
 pub use memory::{MemoryCompilerHost, MemoryCompilerHostBuilder};
 
 /// TypeScript's locale-independent file-name case fold.

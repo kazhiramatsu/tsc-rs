@@ -11,5 +11,8 @@ role = "host"
 name = "tsc_host"
 path = "src/lib.rs"
 
+[target.'cfg(windows)'.dependencies]
+dunce = "1.0.5"
+
 [lints]
 workspace = true

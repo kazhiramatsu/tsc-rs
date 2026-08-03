@@ -39,6 +39,8 @@ jobs:
     timeout-minutes: 5
     outputs:
       docs_only: ${{ steps.diff.outputs.docs_only }}
+      host_platform: ${{ steps.diff.outputs.host_platform }}
+      program_path: ${{ steps.diff.outputs.program_path }}
     steps:
       - name: Checkout enough history to classify the complete change
         uses: actions/checkout@v7
@@ -54,9 +56,15 @@ jobs:
           HEAD_SHA: ${{ github.sha }}
         run: |
           docs_only=false
+          # An unprovable diff takes the safe platform path. Ordinary PR and
+          # main-push diffs reset these before classifying exact paths below.
+          host_platform=true
+          program_path=true
           if [[ -n "$BASE_SHA" && ! "$BASE_SHA" =~ ^0+$ ]] \
             && git cat-file -e "$BASE_SHA^{commit}" \
             && git cat-file -e "$HEAD_SHA^{commit}"; then
+            host_platform=false
+            program_path=false
             # Whitespace errors fail even the lightweight documentation path.
             git diff --check "$BASE_SHA" "$HEAD_SHA"
 
@@ -74,8 +82,20 @@ jobs:
             for path in "${changed[@]}"; do
               if [[ "$path" != *.md ]]; then
                 docs_only=false
-                break
               fi
+              case "$path" in
+                crates/host/*)
+                  host_platform=true
+                  ;;
+                crates/program/src/path.rs)
+                  host_platform=true
+                  program_path=true
+                  ;;
+                .github/workflows/ci.yml|rust-toolchain.toml)
+                  host_platform=true
+                  program_path=true
+                  ;;
+              esac
             done
 
             # README's generated status is semantic evidence even though the
@@ -108,6 +128,8 @@ jobs:
             fi
           fi
           printf 'docs_only=%s\n' "$docs_only" >> "$GITHUB_OUTPUT"
+          printf 'host_platform=%s\n' "$host_platform" >> "$GITHUB_OUTPUT"
+          printf 'program_path=%s\n' "$program_path" >> "$GITHUB_OUTPUT"
 
   rust:
     name: rust
@@ -159,6 +181,38 @@ jobs:
       # halves run on separate standard hosted runners.
       - name: Run Rust gates
         run: cargo xtask ci --lane rust
+
+  # Host and path changes receive a small real-filesystem smoke on both
+  # supported desktop platform families. This stays independent of the
+  # full-corpus lanes and caps Cargo/test parallelism at two workers.
+  host_platform:
+    name: host-${{ matrix.os }}
+    needs: classify
+    if: ${{ needs.classify.outputs.docs_only != 'true' && needs.classify.outputs.host_platform == 'true' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - macos-latest
+          - windows-latest
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    env:
+      CARGO_BUILD_JOBS: "2"
+      RUST_TEST_THREADS: "2"
+      RUSTC_WRAPPER: ""
+    steps:
+      - name: Checkout filesystem-host sources
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Run focused filesystem-host contracts
+        run: cargo test --manifest-path crates/host/Cargo.toml
+
+      - name: Run focused program-path contracts
+        if: ${{ needs.classify.outputs.program_path == 'true' }}
+        run: cargo test --manifest-path crates/program/Cargo.toml --test path_identity_contract
 
   semantic:
     name: semantic
@@ -267,6 +321,7 @@ jobs:
     needs:
       - classify
       - rust
+      - host_platform
       - semantic
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -274,13 +329,21 @@ jobs:
       - name: Require every lane
         env:
           DOCS_ONLY: ${{ needs.classify.outputs.docs_only }}
+          HOST_PLATFORM: ${{ needs.classify.outputs.host_platform }}
+          HOST_PLATFORM_RESULT: ${{ needs.host_platform.result }}
           RUST_RESULT: ${{ needs.rust.result }}
           SEMANTIC_RESULT: ${{ needs.semantic.result }}
         run: |
           if [ "$DOCS_ONLY" = true ]; then
+            test "$HOST_PLATFORM_RESULT" = skipped
             test "$RUST_RESULT" = skipped
             test "$SEMANTIC_RESULT" = skipped
           else
             test "$RUST_RESULT" = success
             test "$SEMANTIC_RESULT" = success
+            if [ "$HOST_PLATFORM" = true ]; then
+              test "$HOST_PLATFORM_RESULT" = success
+            else
+              test "$HOST_PLATFORM_RESULT" = skipped
+            fi
           fi

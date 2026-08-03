@@ -358,7 +358,7 @@ impl MemoryCompilerHostBuilder {
                 | HostOperation::DirectoryExists
                 | HostOperation::ReadDirectory
                 | HostOperation::Realpath => error.path().is_some(),
-                HostOperation::BuildMemoryHost => false,
+                HostOperation::BuildMemoryHost | HostOperation::DetectCaseSensitivity => false,
             };
             if !path_is_valid {
                 return Err(HostError::new(
@@ -416,6 +416,9 @@ fn path_key(path: &Path, case_sensitive: bool) -> Result<String, &'static str> {
     let path = path
         .to_str()
         .ok_or("path is not representable as Unicode text")?;
+    if path.contains('\0') {
+        return Err("path contains a null character");
+    }
     Ok(if case_sensitive {
         path.to_owned()
     } else {

@@ -375,6 +375,14 @@ No diagnostic-specific shortcut may replace the underlying resolution fact.
 
 Filesystem discovery must use the same resolver closed in H0.2 and H0.3.
 
+Implementation status: H0.4 is active and partial. The production
+`FsCompilerHost` primitive now preserves raw bytes, distinguishes absence
+from typed I/O failure, follows filesystem realpaths, and exposes
+deterministically ordered immediate entries under an explicit or detected
+case profile. Central source decoding, recursive program discovery, library
+and reference loading, `PreparedProgram` equivalence, and filesystem-backed
+diagnostic execution remain in the following H0.4 slices.
+
 ### H0.5 — tsconfig and command-line driver
 
 - port JSONC config parsing and config diagnostics;
