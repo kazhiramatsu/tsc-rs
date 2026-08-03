@@ -106,40 +106,6 @@
       "evidence": "const-enum import/re-export bindings of E resolved via node_modules/pkg (host: node_modules); the sibling F.A row (a.ts 3:0) stays supported — F arrives via declare-global from a rooted in-program file"
     },
     {
-      "fixture": "conformance/jsdoc/importTag17.ts",
-      "matrix_key": "",
-      "pass": "semantic",
-      "file": "/a.js",
-      "start": 209,
-      "length": 6,
-      "code": 2322,
-      "category": "error",
-      "chain_sha256": "cfc75a8fd27ca365a889129259602964ae88a75bf6bc5226210be9d67895d637",
-      "related_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
-      "occurrence": 0,
-      "line": 7,
-      "col": 4,
-      "reason": "host-resolution",
-      "evidence": "'foo' types arrive via node_modules/@types/foo package.json conditional exports selected by JSDoc @import resolution-mode (host: node_modules+@types+exports; also JSDoc-driven — host class primary)"
-    },
-    {
-      "fixture": "conformance/jsdoc/importTag17.ts",
-      "matrix_key": "",
-      "pass": "semantic",
-      "file": "/a.js",
-      "start": 281,
-      "length": 6,
-      "code": 2322,
-      "category": "error",
-      "chain_sha256": "6231833f5abc02ebf6788f7f10b78e65516fa1192e79a8ee6dd06367d61addc8",
-      "related_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
-      "occurrence": 0,
-      "line": 14,
-      "col": 4,
-      "reason": "host-resolution",
-      "evidence": "'foo' types arrive via node_modules/@types/foo package.json conditional exports selected by JSDoc @import resolution-mode (host: node_modules+@types+exports; also JSDoc-driven — host class primary)"
-    },
-    {
       "fixture": "conformance/moduleResolution/node10AlternateResult_noResolution.ts",
       "matrix_key": "",
       "pass": "semantic",
@@ -325,23 +291,6 @@
       "col": 2,
       "reason": "host-resolution",
       "evidence": "member verdicts on 'typeof import(/node_modules/untyped/index)' — require of untyped node_modules package (host: node_modules)"
-    },
-    {
-      "fixture": "conformance/typings/typingsLookup3.ts",
-      "matrix_key": "",
-      "pass": "semantic",
-      "file": "/a.ts",
-      "start": 22,
-      "length": 6,
-      "code": 2688,
-      "category": "error",
-      "chain_sha256": "3ea637da9ac61843171a7428c1b035ed2ed2933d00fd7cded2be36b35f6580df",
-      "related_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
-      "occurrence": 0,
-      "line": 0,
-      "col": 22,
-      "reason": "host-resolution",
-      "evidence": "2688 verdict = case-sensitive typeRoots probing for /// <reference types=\"JqUeRy\"; reference-types redirects are host machinery the checker never processes (host: typeRoots+reference-types)"
     }
   ],
   "band_pins": [
@@ -15791,6 +15740,48 @@
       "related_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
       "occurrence": 0,
       "resolving_commit": "c9f78f1729fcfd80e55615d0e7aeb064611519b4"
+    },
+    {
+      "fixture": "conformance/jsdoc/importTag17.ts",
+      "matrix_key": "",
+      "pass": "semantic",
+      "file": "/a.js",
+      "start": 209,
+      "length": 6,
+      "code": 2322,
+      "category": "error",
+      "chain_sha256": "cfc75a8fd27ca365a889129259602964ae88a75bf6bc5226210be9d67895d637",
+      "related_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "occurrence": 0,
+      "resolving_commit": "fa30fb2a8f0ac244976e18b6e4dc29a545f29430"
+    },
+    {
+      "fixture": "conformance/jsdoc/importTag17.ts",
+      "matrix_key": "",
+      "pass": "semantic",
+      "file": "/a.js",
+      "start": 281,
+      "length": 6,
+      "code": 2322,
+      "category": "error",
+      "chain_sha256": "6231833f5abc02ebf6788f7f10b78e65516fa1192e79a8ee6dd06367d61addc8",
+      "related_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "occurrence": 0,
+      "resolving_commit": "fa30fb2a8f0ac244976e18b6e4dc29a545f29430"
+    },
+    {
+      "fixture": "conformance/typings/typingsLookup3.ts",
+      "matrix_key": "",
+      "pass": "semantic",
+      "file": "/a.ts",
+      "start": 22,
+      "length": 6,
+      "code": 2688,
+      "category": "error",
+      "chain_sha256": "3ea637da9ac61843171a7428c1b035ed2ed2933d00fd7cded2be36b35f6580df",
+      "related_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "occurrence": 0,
+      "resolving_commit": "fa30fb2a8f0ac244976e18b6e4dc29a545f29430"
     }
   ],
   "global": {

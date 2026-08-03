@@ -58,8 +58,8 @@ The current implementation also has these driver-level gaps:
 - no production compiler binary;
 - no filesystem `CompilerHost`;
 - no tsconfig/JSONC parser or root discovery;
-- no general `node_modules`, package-map, `paths`, `typeRoots`, or
-  reference-types program construction;
+- no general filesystem-backed `node_modules`, package-map, `paths`,
+  `typeRoots`, or reference-types program construction;
 - no `getOptionsDiagnostics` batch boundary;
 - no exact command-line diagnostic gate or exit-status API;
 - only the conformance per-file getter aggregate, which includes suggestion
@@ -325,22 +325,24 @@ both with exact T0--T4 artifact evidence and all-corpus FP=0. The reviewed
 legacy package-fields slice additionally covers manifestless `node_modules`,
 `typings`/`types`/`main`, `typesVersions` package-root and back-reference
 handling, Node ESM directory rejection, and source emit eligibility for
-TS2877. It closes 6/6 rows, bringing the registry to 221/241 closed with 20
-rows open. This does not claim general H0.2 resolution, type-reference
-resolution, filesystem hosting, or H0 completion.
+TS2877. It closes 6/6 rows. The reviewed types slice additionally preserves
+exact triple-slash type-reference spelling and mode, probes configured and
+default type roots case-sensitively, follows package metadata and real paths,
+and selects import/require conditional exports for JSDoc `@import`. It closes
+the 3/3 types-type-roots-and-reference-directives rows, bringing the registry
+to 224/241 closed with 17 rows open. This does not claim general H0.2
+resolution beyond the reviewed in-memory routes, filesystem hosting, or H0
+completion.
 
 ### H0.3 — residual host consumers
 
-Close the remaining non-2307 host rows by exact owner:
+Close the remaining host rows by exact owner:
 
-- TS2792 alternate-resolution selection;
-- TS2877 rewrite-relative-import resolution;
+- TS2792 and the remaining TS2307 alternate-resolution/message selection;
 - TS2807 external-helper module shape;
-- TS2339, TS2322, and TS2305 resolved-module member behavior;
+- TS2339 untyped-package member behavior;
 - TS2748 const-enum host resolution;
-- TS2688 type-reference directives;
-- TS2665 untyped-module augmentation; and
-- TS2882 and the remaining package-mode row.
+- TS2665 untyped-module augmentation.
 
 No diagnostic-specific shortcut may replace the underlying resolution fact.
 
