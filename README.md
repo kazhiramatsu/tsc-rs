@@ -284,7 +284,9 @@ construction is not complete. H0.4 is active: its raw `FsCompilerHost`
 primitive preserves bytes, typed host failures, deterministic directory
 observations, native case profiles, and realpaths. A shared program-layer
 decoder now applies the vendored Node host's BOM, UTF-16 endian/odd-byte, and
-invalid-UTF-8 rules to package metadata. Leading path, type, and lib
+invalid-UTF-8 rules to package metadata; resolver and automatic-type consumers
+also share strict-JSON-then-JSONC `readJson` semantics while retaining exact
+manifest text. Leading path, type, and lib
 references are observed once by the parser and retained by the source request
 plan. The bounded loaders now recursively discover TypeScript-family sources
 through relative requests, `paths`, and `baseUrl`, while preserving vendored

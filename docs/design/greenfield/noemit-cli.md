@@ -402,7 +402,14 @@ ordered immediate entries plus a directory-only `CompilerHost::get_directories`
 projection under an explicit or detected case profile. The
 shared program-layer decoder consumes those bytes with the vendored Node
 host's BOM, endian, odd-byte, and invalid-UTF-8 rules, and package metadata
-uses that same decoded text. The syntax parser owns the single leading-pragma
+uses that same decoded text. Package consumers then apply the vendored
+`readJson` boundary: strict JSON first, the shared JSONC AST conversion on a
+syntax failure, duplicate-key last-wins semantics, and an empty field view for
+empty, invalid, or non-object manifests. A present manifest remains the
+nearest package scope and retains its exact decoded text even with that empty
+view; host and text-decoding failures still propagate as typed failures. The
+same semantic converter, but not the resolver's I/O cache, filters automatic
+type packages with `typings: null`. The syntax parser owns the single leading-pragma
 observation for path, type, and lib references, and the source request plan
 projects those references together with module keys and the exact
 resolution-only versus source-loading distinction.
@@ -496,6 +503,10 @@ bytes. The request ceiling applies to final automatic-name occurrences, not
 raw directory candidates filtered during wildcard expansion. These limits do
 not claim to bound a host's single-read/listing allocation or all resolver or
 discovery I/O; wildcard enumeration is opt-in through an explicit `"*"`.
+Before the recursive JSON syntax parser runs, package manifests receive a
+non-recursive token preflight: unsupported expression tokens expose empty
+package fields directly, and object/array nesting above 256 does the same. The
+converter itself uses an explicit task stack.
 
 This is deliberately not general H0.4 program construction. JavaScript source
 membership, `rootDirs` discovery, config-derived root-file selection, the

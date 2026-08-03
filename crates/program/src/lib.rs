@@ -38,6 +38,7 @@
 //! files, or claim the remaining platform and CLI surfaces of H0.4 and H0.5.
 
 mod error;
+mod json;
 mod library;
 mod loader;
 mod module_requests;

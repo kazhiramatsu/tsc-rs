@@ -7,6 +7,7 @@ use serde_json::{Map, Value};
 use tsc_host::{to_file_name_lower_case, CompilerHost};
 use tsc_types::{compiler_version_satisfies, CompilerOptions};
 
+use crate::json::parse_json_object;
 use crate::path::ProgramPath;
 use crate::prepared::{
     PackageJsonType, PackageMetadata, PathContext, PathMapping, ProgramOptions, SourceFileId,
@@ -2553,30 +2554,17 @@ impl<'a> ModuleResolver<'a> {
                 .insert(cache_key, PackageCacheEntry::Missing);
             return Ok(None);
         }
-        let bytes = self.host.read_file(package_json_path)?.ok_or_else(|| {
-            ResolutionError::invalid_data(format!(
-                "host reported {} as a file but returned no contents",
-                package_json_path.display()
-            ))
-        })?;
+        // TypeScript's readJson treats an absent read after a successful
+        // file-existence probe as an empty object. This can occur across a
+        // filesystem race; it remains a present cached package boundary.
+        let bytes = self.host.read_file(package_json_path)?.unwrap_or_default();
         let text = decode_host_text(bytes).map_err(|error| {
             ResolutionError::invalid_data(format!(
                 "cannot decode {}: {error}",
                 Path::new(package_json).display()
             ))
         })?;
-        let value: Value = serde_json::from_str(&text).map_err(|error| {
-            ResolutionError::invalid_data(format!(
-                "cannot parse {}: {error}",
-                Path::new(package_json).display()
-            ))
-        })?;
-        let object = value.as_object().ok_or_else(|| {
-            ResolutionError::invalid_data(format!(
-                "{} must contain a JSON object",
-                Path::new(package_json).display()
-            ))
-        })?;
+        let (text, object) = parse_json_object(package_json_path, text);
 
         let package_path = self.program_path(package_json)?;
         let name = object
@@ -2605,9 +2593,9 @@ impl<'a> ModuleResolver<'a> {
             exports: object.get("exports").cloned(),
             imports: object.get("imports").cloned(),
             types_versions: object.get("typesVersions").cloned(),
-            typings: non_empty_string_field(object, "typings"),
-            types: non_empty_string_field(object, "types"),
-            main: non_empty_string_field(object, "main"),
+            typings: non_empty_string_field(&object, "typings"),
+            types: non_empty_string_field(&object, "types"),
+            main: non_empty_string_field(&object, "main"),
             metadata,
         });
         self.package_cache
