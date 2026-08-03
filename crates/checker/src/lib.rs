@@ -971,7 +971,7 @@ pub fn check_program_with_libs_at(
     check_program_with_libs_at_observed(libs, files, options, current_directory, |_| {})
 }
 
-/// Prepare an opaque, process-lifetime standard-library bundle for the
+/// tsrs-native: prepare an opaque, process-lifetime standard-library bundle for the
 /// differential conformance harness.
 ///
 /// The returned handle is only a lookup hint. Every use revalidates the
@@ -992,7 +992,7 @@ pub fn prepare_harness_lib_bundle(
     })
 }
 
-/// Return the opaque parser/binder option projection used by prepared harness
+/// tsrs-native: return the opaque parser/binder option projection used by prepared harness
 /// bundles. Harnesses may use this as a small cache key without learning or
 /// duplicating the projection's fields.
 #[doc(hidden)]
@@ -1000,7 +1000,7 @@ pub fn harness_lib_bundle_options_key(options: &CompilerOptions) -> HarnessLibBu
     HarnessLibBundleOptionsKey(lib_bundle_options(options))
 }
 
-/// Run one harness case with a previously prepared standard-library lookup
+/// tsrs-native: run one harness case with a previously prepared standard-library lookup
 /// hint. Exact validation and cache-off behavior are identical to
 /// [`check_program_with_libs_at`].
 #[doc(hidden)]

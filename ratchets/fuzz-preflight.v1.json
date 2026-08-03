@@ -40,7 +40,7 @@
     },
     {
       "path": "crates/checker/src/lib.rs",
-      "sha256": "da2c3e2a0470c17b488e8c8ba9f3742166f278410502f8de6b860612f8d7f58f"
+      "sha256": "4503b0b18a540c11980c6b61d8eec69d0b81febd47d3ef11c03f28f71adc153e"
     },
     {
       "path": "crates/diagnostics/src/lib.rs",
@@ -60,7 +60,7 @@
     },
     {
       "path": "crates/conformance/src/rendered.rs",
-      "sha256": "11943c8de83e8be26cad52bf994e7b2889c5fa8338f10bb65d8eff3b89c823ca"
+      "sha256": "f303891317856924daa821fa0fb738e0898474bcf21eff0842a2beb5fec6a3a6"
     },
     {
       "path": "crates/oracle/render-driver.mjs",
