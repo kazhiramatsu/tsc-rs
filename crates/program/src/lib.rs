@@ -8,14 +8,17 @@
 //! order independently from root order, and accepts only authoritative typed
 //! resolution outcomes.
 //!
-//! H0.4 adds the first bounded recursive program loader through
-//! [`load_no_lib_program`]. It accepts explicit TypeScript-family roots under
-//! explicit `noEmit=true` and `noLib=true`, discovers path-, type-, and
-//! source-loading module dependencies through the shared [`tsc_host::CompilerHost`]
-//! seam, and publishes unique sources in dependency postorder while preserving
-//! root order and multiplicity. Resolution within each source deliberately
-//! follows the vendored path/type/skipped-lib/module phases and their observable
-//! failure precedence.
+//! H0.4 exposes a bounded recursive no-lib loader through
+//! [`load_no_lib_program`] and the catalog-enabled [`load_program`]. Both
+//! discover path-, type-, and source-loading module dependencies through the
+//! shared [`tsc_host::CompilerHost`] seam. The catalog-enabled route also owns
+//! triple-slash lib references plus default and explicit library selection,
+//! and publishes the stable default-library prefix before ordinary dependency
+//! postorder while preserving root order and multiplicity. Library-owned path
+//! references fail typed until [`PreparedProgram`] can represent TypeScript's
+//! distinct processing-order and checker-membership sets. Discovery within
+//! each source deliberately follows the vendored path/type/lib/module phases
+//! and their observable failure precedence.
 //!
 //! Every load requires explicit source-count, request-occurrence, depth, and
 //! raw-byte ceilings and reports host, decode, resolution, preparation,
@@ -23,12 +26,15 @@
 //! Non-relative source discovery applies ordered `paths` mappings and
 //! `baseUrl` through the same resolver used by direct resolution. Source-owned
 //! type-reference directives use the shared Classic, Node10, Node16/NodeNext,
-//! or Bundler primary/secondary lookup selected by the compiler options. This
-//! first slice does not load default or explicit libraries, discover automatic
-//! `types`, admit JavaScript sources, apply `rootDirs`, discover config roots,
-//! or claim the remaining platform and CLI surfaces of H0.4 and H0.5.
+//! or Bundler primary/secondary lookup selected by the compiler options. The
+//! library catalog is injected, version-pinned metadata; bytes remain owned by
+//! the same host and no production path parses `_tsc.js`. This slice does not
+//! discover automatic `types`, admit JavaScript sources, apply `rootDirs`,
+//! discover config roots, or claim the remaining platform and CLI surfaces of
+//! H0.4 and H0.5.
 
 mod error;
+mod library;
 mod loader;
 mod module_requests;
 mod module_resolution;
@@ -38,8 +44,9 @@ mod resolution;
 mod text;
 
 pub use error::{PreparationError, PreparationErrorKind, PreparationOperation};
+pub use library::LibraryCatalog;
 pub use loader::{
-    load_no_lib_program, ProgramLoadError, ProgramLoadErrorKind, ProgramLoadLimit,
+    load_no_lib_program, load_program, ProgramLoadError, ProgramLoadErrorKind, ProgramLoadLimit,
     ProgramLoadLimitExceeded, ProgramLoadLimits, ProgramLoadOperation,
 };
 pub use module_requests::{

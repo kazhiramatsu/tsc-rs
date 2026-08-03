@@ -406,23 +406,51 @@ observation for path, type, and lib references, and the source request plan
 projects those references together with module keys and the exact
 resolution-only versus source-loading distinction.
 
-The first bounded recursive loader slice is complete through
-`load_no_lib_program`. It accepts explicit TypeScript-family roots only with
-`noEmit=true`, `noLib=true`, and `allowJs=false`; `types` must be absent or
-empty, and explicit libraries, `rootDirs`, and `noDtsResolution` are outside
-this slice. Ordered `paths` mappings and `baseUrl` participate in recursive
-source discovery through the shared resolver. Roots are normalized and
-visited one at a time, preserving input order, multiplicity, and observable
-failure precedence. Canonical source identities are loaded once, cycles and
-diamonds are staged without duplicate files, and `SourceFileId`s are assigned
-only after dependency-postorder discovery.
+The bounded recursive loader is complete through both `load_no_lib_program`
+and the catalog-enabled `load_program`. Both accept explicit
+TypeScript-family roots only with `noEmit=true` and `allowJs=false`; `types`
+must remain absent or empty, while `rootDirs` and `noDtsResolution` are still
+outside this slice. The no-lib wrapper requires explicit `noLib=true`. The
+catalog-enabled route also admits absent or false `noLib`, retains lowercased
+raw `compilerOptions.lib` keys, treats an explicit empty list as suppressing
+the default library, and fails typed on the `noLib` plus `lib` combination
+until H0.5 owns TS5053. Ordered `paths` mappings and `baseUrl` participate in
+recursive source discovery through the shared resolver. Roots are normalized
+and visited one at a time, preserving input order, multiplicity, and
+observable failure precedence. Canonical source identities are loaded once,
+cycles and diamonds are staged without duplicate files, and `SourceFileId`s
+are assigned only after discovery.
+
+`LibraryCatalog::typescript_6_0_3` injects static metadata for the exact 107
+logical library names and 95 distinct mapped files. It performs no runtime
+`_tsc.js` parse and obtains every byte through the same `CompilerHost` as user
+sources. Absent-target/ES2025 selection starts at `lib.es2025.full.d.ts`, and
+ES2015 preserves the `lib.es6.d.ts` compatibility root. A real-vendor contract
+pins the transitive closure sizes at 82 files for ES2025, 19 for ES2015, and
+15 for explicit `es5` plus `dom`.
 
 For each source the loader follows the vendored construction phases: each
 path reference performs its DFS before the next path reference; every unique
 type-reference key is resolved before any resolved type target is visited;
-lib-reference occurrences are counted but perform no host work under
-`noLib`; and every module key is resolved before any source-loading module
-target is visited. The resulting `PreparedProgram` owns source text, roots,
+each enabled lib reference performs its sequential DFS before the module
+phase; and every module key is resolved before any source-loading module
+target is visited. Under `noLib`, lib-reference occurrences remain counted
+but perform no host work. Default or explicit library roots are selected only
+after all user roots and automatic types would have run. Publication then
+forms a stable catalog-priority default-library prefix followed by ordinary
+dependency postorder without replaying host work. TypeScript keeps distinct
+`processingDefaultLibFiles` ordering and checker-visible `libFiles` sets when
+a default library owns a path reference; the current `PreparedProgram` prefix
+cannot encode that non-contiguous state, so this shape fails typed as
+`default-library-path-references`. The pinned 6.0.3 library graph contains no
+such path references. Unknown lib references produce located TS2726/TS2727,
+known-but-missing reference targets produce located TS6053, and missing
+selected roots produce fileless TS6053 with the default-target or
+explicit-option inclusion chain. An ordinary/default-library canonical
+collision remains a typed unsupported boundary because publication cannot
+silently move an already classified source across the prefix.
+
+The resulting `PreparedProgram` owns source text, roots, library membership,
 package-scope and implied-format facts, program-construction diagnostics, and
 authoritative type/module rows. Supported misses remain normal tsc
 diagnostics or `NotFound` rows, JavaScript resolutions remain unloaded under
@@ -443,11 +471,11 @@ and path context. Source-byte ceilings begin after a host returns its owned
 payload and do not include resolver-owned `package.json` bytes, so they do not
 claim to bound a host's single-read allocation or all resolver I/O.
 
-This is deliberately not general H0.4 program construction. Default and
-explicit library loading, post-root automatic `types`, JavaScript source
-membership, `rootDirs` discovery, config-derived roots, the remaining path and
-physical-alias policies, and the complete cross-platform
-case/separator/symlink/encoding matrix remain in later slices. Discovery stays
+This is deliberately not general H0.4 program construction. Post-root
+automatic `types`, JavaScript source membership, `rootDirs` discovery,
+config-derived roots, the remaining path and physical-alias policies, and the
+complete cross-platform case/separator/symlink/encoding matrix remain in later
+slices. Discovery stays
 sequential where vendored host calls and failure precedence are observable;
 future pipeline parallelism must preserve that contract.
 

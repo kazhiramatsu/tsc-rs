@@ -4,11 +4,13 @@ use std::fmt;
 use std::path::{Path, PathBuf};
 
 use tsc_diagnostics::{gen, Diagnostic, MessageChain};
-use tsc_host::{CompilerHost, HostError};
+use tsc_host::{to_file_name_lower_case, CompilerHost, HostError};
 use tsc_types::CompilerOptions;
 
+use crate::library::LibraryCatalog;
 use crate::module_requests::{
-    plan_source_requests, PlannedPathReference, PlannedTypeReferenceDirective,
+    plan_source_requests, PlannedLibReferenceDirective, PlannedPathReference,
+    PlannedTypeReferenceDirective,
 };
 use crate::module_resolution::{
     directory_name, make_program_path, normalize_absolute_path, HostModuleResolution,
@@ -38,7 +40,8 @@ const PATH_REFERENCE_PROBE_EXTENSIONS: [&str; 3] = [".ts", ".tsx", ".d.ts"];
 const TYPESCRIPT_SOURCE_EXTENSION_LIST: &str =
     "'.ts', '.tsx', '.d.ts', '.cts', '.d.cts', '.mts', '.d.mts'";
 
-/// Explicit resource limits for one [`load_no_lib_program`] call.
+/// Explicit resource limits for one [`load_no_lib_program`] or [`load_program`]
+/// call.
 ///
 /// Byte limits apply to unique source payloads after `CompilerHost::read_file`
 /// returns. The current host contract returns an owned `Vec<u8>`, so these
@@ -93,7 +96,7 @@ impl ProgramLoadLimits {
     }
 }
 
-/// The independently bounded dimensions of no-lib source discovery.
+/// The independently bounded dimensions of program source discovery.
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub enum ProgramLoadLimit {
     SourceFiles,
@@ -163,7 +166,7 @@ pub enum ProgramLoadOperation {
 impl ProgramLoadOperation {
     pub const fn name(self) -> &'static str {
         match self {
-            Self::ValidateOptions => "validate no-lib loader options",
+            Self::ValidateOptions => "validate program loader options",
             Self::InitializeResolver => "initialize program resolver",
             Self::NormalizeRoot => "normalize root path",
             Self::NormalizeReference => "normalize path reference",
@@ -192,7 +195,7 @@ pub enum ProgramLoadErrorKind {
     Preparation,
 }
 
-/// Typed failure from deterministic no-lib source discovery.
+/// Typed failure from deterministic program source discovery.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ProgramLoadError {
     InvalidInput {
@@ -420,7 +423,62 @@ pub fn load_no_lib_program(
     program_options: ProgramOptions,
     limits: ProgramLoadLimits,
 ) -> Result<PreparedProgram, ProgramLoadError> {
-    validate_admitted_options(&compiler_options, &program_options)?;
+    load_program_worker(
+        host,
+        root_names,
+        compiler_options,
+        program_options,
+        None,
+        true,
+        limits,
+    )
+}
+
+/// Load one finite TypeScript root closure with an injected standard-library
+/// catalog.
+///
+/// User roots retain their observable discovery order. Within each source,
+/// path, type, library, and module phases run in the vendored order; selected
+/// default or explicit library roots run only after every user root. The
+/// returned source list is then published as the stable default-library prefix
+/// followed by ordinary dependency postorder, without replaying any host
+/// operation. Library-owned path references fail typed until
+/// [`PreparedProgram`] can represent TypeScript's distinct processing-order
+/// and checker-membership sets.
+pub fn load_program(
+    host: &dyn CompilerHost,
+    root_names: &[PathBuf],
+    compiler_options: CompilerOptions,
+    program_options: ProgramOptions,
+    library_catalog: &LibraryCatalog,
+    limits: ProgramLoadLimits,
+) -> Result<PreparedProgram, ProgramLoadError> {
+    load_program_worker(
+        host,
+        root_names,
+        compiler_options,
+        program_options,
+        Some(library_catalog),
+        false,
+        limits,
+    )
+}
+
+fn load_program_worker(
+    host: &dyn CompilerHost,
+    root_names: &[PathBuf],
+    compiler_options: CompilerOptions,
+    program_options: ProgramOptions,
+    library_catalog: Option<&LibraryCatalog>,
+    require_no_lib: bool,
+    limits: ProgramLoadLimits,
+) -> Result<PreparedProgram, ProgramLoadError> {
+    validate_admitted_options(
+        &compiler_options,
+        &program_options,
+        library_catalog,
+        require_no_lib,
+    )?;
 
     let mut resolver =
         ModuleResolver::new_with_program_options(host, &compiler_options, &program_options)
@@ -434,17 +492,30 @@ pub fn load_no_lib_program(
             })?;
     let path_context = resolver.path_context().clone();
     validate_type_roots(&program_options, &path_context)?;
+    let library_directory = if program_options.no_lib() == Some(true) {
+        None
+    } else {
+        Some(normalize_library_directory(
+            library_catalog.expect("validated library-enabled load has a catalog"),
+            &path_context,
+        )?)
+    };
 
     let mut graph = StagedGraph::new(
         host,
         &compiler_options,
         &program_options,
+        library_catalog,
+        library_directory,
         limits,
         &mut resolver,
     );
     for root_name in root_names {
         let root = normalize_root(root_name, &path_context)?;
         graph.load_root(root)?;
+    }
+    if !root_names.is_empty() && program_options.no_lib() != Some(true) {
+        graph.load_selected_libraries()?;
     }
     let staged = graph.finish();
     let packages = resolver
@@ -465,6 +536,8 @@ pub fn load_no_lib_program(
 fn validate_admitted_options(
     compiler_options: &CompilerOptions,
     program_options: &ProgramOptions,
+    library_catalog: Option<&LibraryCatalog>,
+    require_no_lib: bool,
 ) -> Result<(), ProgramLoadError> {
     let reject_input = |detail| {
         ProgramLoadError::invalid_input(ProgramLoadOperation::ValidateOptions, None, detail)
@@ -478,7 +551,7 @@ fn validate_admitted_options(
             "compilerOptions.noEmit must be explicitly true",
         ));
     }
-    if program_options.no_lib() != Some(true) {
+    if require_no_lib && program_options.no_lib() != Some(true) {
         return Err(reject_input("programOptions.noLib must be explicitly true"));
     }
     if compiler_options.allow_js {
@@ -496,15 +569,28 @@ fn validate_admitted_options(
             "non-empty programOptions.types requires post-root automatic type discovery",
         ));
     }
-    if compiler_options
-        .lib
-        .as_deref()
-        .is_some_and(|libs| !libs.is_empty())
-    {
+    if program_options.no_lib() == Some(true) && compiler_options.lib.is_some() {
         return Err(reject_feature(
             "explicit-libraries",
-            "noLib program loading does not admit explicit compilerOptions.lib entries",
+            "the noLib/lib option diagnostic is owned by the later H0.5 driver",
         ));
+    }
+    if program_options.no_lib() != Some(true) {
+        let Some(catalog) = library_catalog else {
+            return Err(reject_input(
+                "library-enabled program loading requires an injected LibraryCatalog",
+            ));
+        };
+        if let Some(value) = compiler_options.lib.as_deref().and_then(|libs| {
+            libs.iter()
+                .find(|value| catalog.option_file_name(value).is_none())
+        }) {
+            return Err(ProgramLoadError::invalid_input(
+                ProgramLoadOperation::ValidateOptions,
+                None,
+                format!("compilerOptions.lib contains unknown library key {value:?}"),
+            ));
+        }
     }
     if program_options
         .root_dirs()
@@ -522,6 +608,35 @@ fn validate_admitted_options(
         ));
     }
     Ok(())
+}
+
+fn normalize_library_directory(
+    catalog: &LibraryCatalog,
+    path_context: &PathContext,
+) -> Result<ProgramPath, ProgramLoadError> {
+    reject_unowned_windows_path(catalog.directory(), ProgramLoadOperation::ValidateOptions)?;
+    let current_directory = path_context
+        .current_directory()
+        .display()
+        .to_str()
+        .expect("resolver path context is representable");
+    let normalized = normalize_absolute_path(catalog.directory(), Some(current_directory))
+        .map_err(|error| {
+            ProgramLoadError::resolution(
+                ProgramLoadOperation::ValidateOptions,
+                Some(catalog.directory().to_path_buf()),
+                None,
+                error,
+            )
+        })?;
+    make_program_path(&normalized, path_context.use_case_sensitive_file_names()).map_err(|error| {
+        ProgramLoadError::resolution(
+            ProgramLoadOperation::ValidateOptions,
+            Some(catalog.directory().to_path_buf()),
+            None,
+            error,
+        )
+    })
 }
 
 fn normalize_root(
@@ -664,15 +779,27 @@ impl DiscoveryReason {
     };
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum SourceClass {
+    Ordinary,
+    Library,
+}
+
 struct StagedSource {
     prepared: PreparedSourceFile,
     has_non_external_reason: bool,
+    class: SourceClass,
 }
 
 struct StagedRoot {
     path: ProgramPath,
     source: Option<usize>,
     missing_diagnostic: Option<Diagnostic>,
+}
+
+enum LibraryRootReason {
+    Default { target: String },
+    Explicit { file_name: String },
 }
 
 struct StagedModuleResolution {
@@ -689,7 +816,8 @@ struct StagedTypeResolution {
 
 struct CompleteGraph {
     sources: Vec<StagedSource>,
-    postorder: Vec<usize>,
+    library_postorder: Vec<usize>,
+    ordinary_postorder: Vec<usize>,
     roots: Vec<StagedRoot>,
     module_resolutions: Vec<StagedModuleResolution>,
     type_resolutions: Vec<StagedTypeResolution>,
@@ -700,6 +828,8 @@ struct StagedGraph<'host, 'options, 'resolver> {
     host: &'host dyn CompilerHost,
     compiler_options: &'options CompilerOptions,
     program_options: &'options ProgramOptions,
+    library_catalog: Option<&'options LibraryCatalog>,
+    library_directory: Option<ProgramPath>,
     limits: ProgramLoadLimits,
     resolver: &'resolver mut ModuleResolver<'host>,
     states: BTreeMap<CanonicalPath, VisitState>,
@@ -714,6 +844,7 @@ struct StagedGraph<'host, 'options, 'resolver> {
     type_resolutions: Vec<StagedTypeResolution>,
     package_targets: BTreeMap<PackageId, CanonicalPath>,
     diagnosed_missing_roots: BTreeSet<PathBuf>,
+    diagnosed_missing_library_roots: BTreeSet<PathBuf>,
     program_diagnostics: Vec<Diagnostic>,
     request_edges: usize,
     total_source_bytes: usize,
@@ -724,6 +855,8 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
         host: &'host dyn CompilerHost,
         compiler_options: &'options CompilerOptions,
         program_options: &'options ProgramOptions,
+        library_catalog: Option<&'options LibraryCatalog>,
+        library_directory: Option<ProgramPath>,
         limits: ProgramLoadLimits,
         resolver: &'resolver mut ModuleResolver<'host>,
     ) -> Self {
@@ -731,6 +864,8 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
             host,
             compiler_options,
             program_options,
+            library_catalog,
+            library_directory,
             limits,
             resolver,
             states: BTreeMap::new(),
@@ -745,6 +880,7 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
             type_resolutions: Vec::new(),
             package_targets: BTreeMap::new(),
             diagnosed_missing_roots: BTreeSet::new(),
+            diagnosed_missing_library_roots: BTreeSet::new(),
             program_diagnostics: Vec::new(),
             request_edges: 0,
             total_source_bytes: 0,
@@ -752,7 +888,12 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
     }
 
     fn load_root(&mut self, path: ProgramPath) -> Result<(), ProgramLoadError> {
-        let source = self.visit_source(path.clone(), 0, DiscoveryReason::ROOT)?;
+        let source = self.visit_source(
+            path.clone(),
+            0,
+            DiscoveryReason::ROOT,
+            SourceClass::Ordinary,
+        )?;
         let missing_diagnostic = source.is_none().then(|| missing_root_diagnostic(&path));
         if let Some(diagnostic) = missing_diagnostic.clone() {
             if self
@@ -770,11 +911,98 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
         Ok(())
     }
 
+    fn load_selected_libraries(&mut self) -> Result<(), ProgramLoadError> {
+        let catalog = self
+            .library_catalog
+            .expect("library-enabled graph has an injected catalog");
+        let selected = match self.compiler_options.lib.as_deref() {
+            Some(libraries) => libraries
+                .iter()
+                .map(|value| {
+                    let file_name = catalog
+                        .option_file_name(value)
+                        .expect("unknown library keys were rejected during option validation");
+                    (
+                        file_name,
+                        LibraryRootReason::Explicit {
+                            file_name: file_name.to_owned(),
+                        },
+                    )
+                })
+                .collect::<Vec<_>>(),
+            None => {
+                let file_name = catalog.default_file_name(self.compiler_options);
+                vec![(
+                    file_name,
+                    LibraryRootReason::Default {
+                        target: script_target_name(self.compiler_options).to_owned(),
+                    },
+                )]
+            }
+        };
+        for (file_name, reason) in selected {
+            let path = self.library_path(file_name)?;
+            if self
+                .visit_source(
+                    path.clone(),
+                    0,
+                    DiscoveryReason::DEPENDENCY,
+                    SourceClass::Library,
+                )?
+                .is_none()
+                && self
+                    .diagnosed_missing_library_roots
+                    .insert(path.display().to_path_buf())
+            {
+                let diagnostic = missing_library_root_diagnostic(&path, &reason);
+                let replaced_root_diagnostics = self
+                    .roots
+                    .iter_mut()
+                    .filter(|root| root.source.is_none() && root.path.display() == path.display())
+                    .filter_map(|root| root.missing_diagnostic.replace(diagnostic.clone()))
+                    .collect::<Vec<_>>();
+                for replaced in replaced_root_diagnostics {
+                    self.program_diagnostics
+                        .retain(|existing| existing != &replaced);
+                }
+                self.program_diagnostics.push(diagnostic);
+            }
+        }
+        Ok(())
+    }
+
     fn finish(mut self) -> CompleteGraph {
         self.propagate_non_external_reachability();
+        let mut library_postorder = self
+            .postorder
+            .iter()
+            .copied()
+            .filter(|&source| self.sources[source].class == SourceClass::Library)
+            .collect::<Vec<_>>();
+        if !library_postorder.is_empty() {
+            let catalog = self
+                .library_catalog
+                .expect("a library source requires an injected catalog");
+            let directory = self
+                .library_directory
+                .as_ref()
+                .expect("a library source requires a normalized catalog directory")
+                .display();
+            library_postorder.sort_by_key(|&source| {
+                let path = self.sources[source].prepared.path().display();
+                catalog.priority(directory, path)
+            });
+        }
+        let ordinary_postorder = self
+            .postorder
+            .iter()
+            .copied()
+            .filter(|&source| self.sources[source].class == SourceClass::Ordinary)
+            .collect();
         CompleteGraph {
             sources: self.sources,
-            postorder: self.postorder,
+            library_postorder,
+            ordinary_postorder,
             roots: self.roots,
             module_resolutions: self.module_resolutions,
             type_resolutions: self.type_resolutions,
@@ -787,6 +1015,7 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
         path: ProgramPath,
         depth: usize,
         reason: DiscoveryReason,
+        class: SourceClass,
     ) -> Result<Option<usize>, ProgramLoadError> {
         if let Some(state) = self.states.get(path.canonical()).copied() {
             if let Some(source) = state.source() {
@@ -799,6 +1028,17 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                         format!(
                             "the path has the same canonical identity as already discovered source {} but a different display spelling",
                             first_path.display().display()
+                        ),
+                    ));
+                }
+                if self.sources[source].class != class {
+                    return Err(ProgramLoadError::unsupported(
+                        ProgramLoadOperation::ReadSource,
+                        Some(path.display().to_path_buf()),
+                        "library-source-classification-collision",
+                        format!(
+                            "the source was first discovered as {:?} and later requested as {:?}",
+                            self.sources[source].class, class
                         ),
                     ));
                 }
@@ -947,19 +1187,37 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
         self.sources.push(StagedSource {
             prepared,
             has_non_external_reason: reason.seeds_non_external_reachability,
+            class,
         });
         self.source_edges.push(Vec::new());
         self.states
             .insert(path.canonical().clone(), VisitState::Visiting(source));
 
         if let Some(plan) = plan {
+            if self.sources[source].class == SourceClass::Library
+                && !plan.path_references().is_empty()
+            {
+                return Err(ProgramLoadError::unsupported(
+                    ProgramLoadOperation::PlanSourceRequests,
+                    Some(path.display().to_path_buf()),
+                    "default-library-path-references",
+                    "default-library path-reference descendants have processing-prefix order without checker-visible library membership, which the current PreparedProgram prefix cannot represent",
+                ));
+            }
             let path_references = plan.path_references().to_vec();
             for reference in path_references {
                 self.process_path_reference(source, &reference, depth)?;
             }
             self.process_type_references(source, plan.type_reference_directives().to_vec(), depth)?;
-            // `noLib=true` deliberately performs no host operation for the
-            // lib directives. Their occurrences were still counted above.
+            if self.program_options.no_lib() != Some(true) {
+                self.process_lib_references(
+                    source,
+                    plan.lib_reference_directives().to_vec(),
+                    depth,
+                )?;
+            }
+            // `noLib=true` deliberately performs no host operation for lib
+            // directives, although their occurrences were counted above.
             self.process_module_requests(
                 source,
                 plan.module_requests_with_loadability()
@@ -1022,6 +1280,98 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
             )
         })?;
         Ok((real.canonical() != path.canonical()).then_some(real))
+    }
+
+    fn library_path(&self, file_name: &str) -> Result<ProgramPath, ProgramLoadError> {
+        let directory = self
+            .library_directory
+            .as_ref()
+            .expect("library-enabled graph has a normalized catalog directory");
+        let base = directory
+            .display()
+            .to_str()
+            .expect("program paths are representable");
+        let normalized =
+            normalize_absolute_path(Path::new(file_name), Some(base)).map_err(|error| {
+                ProgramLoadError::resolution(
+                    ProgramLoadOperation::NormalizeReference,
+                    Some(directory.display().to_path_buf()),
+                    Some(file_name.to_owned()),
+                    error,
+                )
+            })?;
+        make_program_path(
+            &normalized,
+            self.resolver.path_context().use_case_sensitive_file_names(),
+        )
+        .map_err(|error| {
+            ProgramLoadError::resolution(
+                ProgramLoadOperation::NormalizeReference,
+                Some(directory.display().to_path_buf()),
+                Some(file_name.to_owned()),
+                error,
+            )
+        })
+    }
+
+    fn process_lib_references(
+        &mut self,
+        source: usize,
+        directives: Vec<PlannedLibReferenceDirective>,
+        depth: usize,
+    ) -> Result<(), ProgramLoadError> {
+        let catalog = self
+            .library_catalog
+            .expect("library-enabled graph has an injected catalog");
+        for directive in directives {
+            let lib_name = to_file_name_lower_case(directive.file_name());
+            let Some(file_name) = catalog.reference_file_name(&lib_name) else {
+                let suggestion = catalog.spelling_suggestion(&lib_name);
+                let (message, arguments) = match suggestion {
+                    Some(suggestion) => (
+                        &gen::Cannot_find_lib_definition_for_0_Did_you_mean_1,
+                        vec![lib_name, suggestion.to_owned()],
+                    ),
+                    None => (&gen::Cannot_find_lib_definition_for_0, vec![lib_name]),
+                };
+                self.program_diagnostics.push(located_diagnostic(
+                    &self.sources[source].prepared,
+                    directive.pos(),
+                    directive.length(),
+                    message,
+                    &arguments,
+                )?);
+                continue;
+            };
+            let target = self.library_path(file_name)?;
+            match self.visit_source(
+                target.clone(),
+                depth.saturating_add(1),
+                DiscoveryReason::DEPENDENCY,
+                SourceClass::Library,
+            )? {
+                Some(target_source) if target_source == source => {
+                    self.program_diagnostics.push(located_diagnostic(
+                        &self.sources[source].prepared,
+                        directive.pos(),
+                        directive.length(),
+                        &gen::A_file_cannot_have_a_reference_to_itself,
+                        &[],
+                    )?);
+                }
+                Some(_) => {}
+                None => {
+                    self.program_diagnostics.push(located_diagnostic(
+                        &self.sources[source].prepared,
+                        directive.pos(),
+                        directive.length(),
+                        &gen::File_0_not_found,
+                        &[path_text(target.display())?],
+                    )?);
+                }
+            }
+        }
+        Ok(())
     }
 
     fn process_path_reference(
@@ -1099,8 +1449,12 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                 )?);
                 return Ok(());
             }
-            let target_source =
-                self.visit_source(target.clone(), child_depth, DiscoveryReason::DEPENDENCY)?;
+            let target_source = self.visit_source(
+                target.clone(),
+                child_depth,
+                DiscoveryReason::DEPENDENCY,
+                self.sources[source].class,
+            )?;
             match target_source {
                 Some(target_source) if target_source == source => {
                     self.record_source_edge(source, target_source, false);
@@ -1138,9 +1492,12 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                     error,
                 )
             })?;
-            if let Some(target_source) =
-                self.visit_source(target, child_depth, DiscoveryReason::DEPENDENCY)?
-            {
+            if let Some(target_source) = self.visit_source(
+                target,
+                child_depth,
+                DiscoveryReason::DEPENDENCY,
+                self.sources[source].class,
+            )? {
                 self.record_source_edge(source, target_source, false);
                 if target_source == source {
                     self.program_diagnostics.push(located_diagnostic(
@@ -1251,6 +1608,7 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                 target.clone(),
                 depth.saturating_add(1),
                 DiscoveryReason::DEPENDENCY,
+                SourceClass::Ordinary,
             )?;
             let Some(target_source) = loaded else {
                 return Err(ProgramLoadError::invalid_data(
@@ -1363,6 +1721,7 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                     target.clone(),
                     depth.saturating_add(1),
                     DiscoveryReason::DEPENDENCY,
+                    SourceClass::Ordinary,
                 )?;
                 let Some(target_source) = loaded else {
                     return Err(ProgramLoadError::invalid_data(
@@ -1389,6 +1748,7 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                 target.clone(),
                 depth.saturating_add(1),
                 DiscoveryReason::DEPENDENCY,
+                SourceClass::Ordinary,
             )?;
             let Some(target_source) = loaded else {
                 return Err(ProgramLoadError::invalid_data(
@@ -1509,7 +1869,11 @@ fn publish_program(
 
     let mut published_ids = vec![None; staged.sources.len()];
     let mut source_by_canonical = BTreeMap::<CanonicalPath, (SourceFileId, ProgramPath)>::new();
-    for source_index in staged.postorder {
+    let publish_order = staged
+        .library_postorder
+        .into_iter()
+        .chain(staged.ordinary_postorder);
+    for source_index in publish_order {
         let staged_source = &staged.sources[source_index];
         let may_be_emitted =
             staged_source.prepared.may_be_emitted() && staged_source.has_non_external_reason;
@@ -1520,6 +1884,11 @@ fn publish_program(
         let source_id = builder.add_source_file(prepared.clone()).map_err(|error| {
             ProgramLoadError::preparation(ProgramLoadOperation::BuildPreparedProgram, error)
         })?;
+        if staged_source.class == SourceClass::Library {
+            builder.add_library_file(source_id).map_err(|error| {
+                ProgramLoadError::preparation(ProgramLoadOperation::BuildPreparedProgram, error)
+            })?;
+        }
         published_ids[source_index] = Some(source_id);
         source_by_canonical.insert(
             prepared.path().canonical().clone(),
@@ -1843,6 +2212,56 @@ fn missing_root_diagnostic(path: &ProgramPath) -> Diagnostic {
         )
         .with_next(vec![inclusion]),
     )
+}
+
+fn missing_library_root_diagnostic(path: &ProgramPath, reason: &LibraryRootReason) -> Diagnostic {
+    let reason = match reason {
+        LibraryRootReason::Default { target } => MessageChain::new(
+            &gen::Default_library_for_target_0,
+            std::slice::from_ref(target),
+        ),
+        LibraryRootReason::Explicit { file_name } => MessageChain::new(
+            &gen::Library_0_specified_in_compilerOptions,
+            std::slice::from_ref(file_name),
+        ),
+    };
+    let inclusion =
+        MessageChain::new(&gen::The_file_is_in_the_program_because, &[]).with_next(vec![reason]);
+    Diagnostic::new(
+        None,
+        None,
+        None,
+        MessageChain::new(
+            &gen::File_0_not_found,
+            &[path
+                .display()
+                .to_str()
+                .expect("program paths are representable")
+                .to_owned()],
+        )
+        .with_next(vec![inclusion]),
+    )
+}
+
+fn script_target_name(options: &CompilerOptions) -> &'static str {
+    match options.emit_script_target().bits() {
+        0 => "es3",
+        1 => "es5",
+        2 => "es2015",
+        3 => "es2016",
+        4 => "es2017",
+        5 => "es2018",
+        6 => "es2019",
+        7 => "es2020",
+        8 => "es2021",
+        9 => "es2022",
+        10 => "es2023",
+        11 => "es2024",
+        12 => "es2025",
+        99 => "esnext",
+        100 => "json",
+        _ => "unknown",
+    }
 }
 
 fn unresolved_type_reference_diagnostic(
