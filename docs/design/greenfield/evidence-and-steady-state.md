@@ -457,38 +457,27 @@ check while marking the hosted lane skipped. Local validation is
 boundaries. Any other path or generated-status change uses one bounded hosted
 guardrail:
 
-- `CARGO_BUILD_JOBS=2 RUST_TEST_THREADS=2 TSRS_INVARIANT_WORKERS=2 cargo
-  xtask ci --lane hosted --baseline <trusted-sha>` runs format/clippy,
-  workspace tests, pinned-Node syntax checks, generated inventory/schema
-  freshness, relation pins, one fixed-view All/2XXX/syntactic conformance
-  traversal, recovery census, sampled invariants, ledger, and escapes;
-- a fail-closed path classifier adds `--history-sensitive` when the base/HEAD
-  diff intersects the conservative evidence-authority input closure. That
-  option runs A1/A2/H0/A5 semantic history and M8-plan comparison once against
-  the immutable base SHA. Unprovable diffs take this path. The two workspace
-  tests that otherwise repeat the same real accepted-pair history decode are
-  skipped only in the hosted plan and remain in the local full gate;
+- `CARGO_BUILD_JOBS=2 cargo xtask ci --lane hosted` runs workspace audit,
+  format/clippy over all targets, pinned-Node syntax checks, generated
+  inventory/schema freshness, relation pins, ledger, and escapes;
+- workspace tests, A1/A2/H0/A5 semantic history, M8-plan comparison, corpus
+  binding/conformance, recovery census, and sampled/full invariants remain in
+  the required local gate. `--history-sensitive --baseline <trusted-sha>` is
+  retained as an explicit manual diagnostic and is never selected
+  automatically by Actions;
 - host/path infrastructure changes additionally run focused filesystem-host
-  contracts on macOS and Windows, capped at two workers and one matrix runner
-  at a time;
+  contracts on Windows with at most two Cargo/test workers. The developer's
+  required local gate already covers macOS, while the hosted static lane
+  covers Linux;
 - a final job named `gates` succeeds only when the applicable hosted jobs
   succeed.
 
-The conservative history-sensitive closure includes every ratchet/scope/
-family/owner-plan artifact, corpus/golden/vendor input, conformance harness,
-oracle and xtask implementation, checker/compiler/program/host boundary
-source, Cargo/toolchain/Node pin, and workflow/config path. Rename detection
-uses both old and new paths. Missing or unresolvable base history selects the
-audit rather than silently shrinking this closure.
-
-The hosted lane is intentionally not an evidence authority. Its full
-conformance traversal writes only transient grading outputs; it does not
-publish or consume the B4 move-only receipt. Conditional semantic history is
-read-only. Hosted does not run B2-B4 evidence production/consumption,
-full-corpus invariants/attestation, readiness, README evidence rendering, the
-current M8/M9 smoke producer, or calibrated performance observations. It
-neither restores nor uploads those semantic artifacts and may not authorize a
-ratchet/evidence update.
+The hosted lane is intentionally not an evidence authority. It does not run
+workspace tests, semantic history, corpus traversal, recovery/invariant
+checks, B2-B4 evidence production/consumption, readiness, README evidence
+rendering, the current M8/M9 smoke producer, or calibrated performance
+observations. It neither restores nor uploads semantic artifacts and may not
+authorize a ratchet/evidence update.
 
 Except for the exact documentation-only rule above, the unsplit local
 `cargo xtask ci --baseline <trusted-sha>` is the required pre-PR and pre-merge
@@ -499,11 +488,12 @@ union and never substitutes the smaller hosted plan. B4 production and its
 move-only conformance receipt, all evidence producer/consumer pairs, and the
 A1/A2/H0/A5 ordering therefore remain in one local process/workspace.
 
-Main-branch hosted runs populate the cache scope that later pull requests may
-restore. Lockfile-keyed Cargo caches contain dependency archives only, and a
-pinned content-addressed compiler cache handles build outputs without trusting
-checkout timestamps. Conformance, readiness, B2-B4, fuzz, and other semantic
-evidence artifacts are never restored by ordinary hosted CI.
+Pull-request runs use lockfile-keyed dependency archives and a pinned
+content-addressed compiler cache without trusting checkout timestamps. Cache
+writes may warm another commit in the same pull request, but merge pushes do
+not repeat the hosted lane solely to prime a shared cache. Conformance,
+readiness, B2-B4, fuzz, and other semantic evidence artifacts are never
+restored by ordinary hosted CI.
 
 The full local gate runs the one short, calibrated, fixed-seed M9 domain/
 classifier/replay/reducer smoke described above; the M8 B3 projection is
