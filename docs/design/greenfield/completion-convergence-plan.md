@@ -386,8 +386,8 @@ signed fuzz windows; and reserve an approved runner for performance and
 release. Ordinary GitHub Actions is only the bounded hosted guardrail defined
 by the exact topology in the
 [evidence contract](evidence-and-steady-state.md#5-required-ci-topology).
-Local commands own gate implementations. Workflow YAML owns only the
-fail-closed change classification and scheduling that select those commands.
+Local commands own acceptance-gate implementations. Workflow YAML owns only
+the fail-closed change classification and cheap compile/syntax canaries.
 
 #### E2. Current documentation
 
