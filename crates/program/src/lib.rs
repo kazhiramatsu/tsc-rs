@@ -23,8 +23,10 @@
 //! Every load requires explicit source-count, request-occurrence, depth, and
 //! raw-byte ceilings and reports host, decode, resolution, preparation,
 //! unsupported-scope, and resource failures as typed [`ProgramLoadError`]s.
-//! Non-relative source discovery applies ordered `paths` mappings and
-//! `baseUrl` through the same resolver used by direct resolution. Source-owned
+//! Relative source discovery applies ordered `rootDirs` with the vendored
+//! longest-prefix and candidate ordering, while non-relative discovery applies
+//! ordered `paths` mappings and `baseUrl` through the same resolver used by
+//! direct resolution. Source-owned
 //! type-reference directives use the shared Classic, Node10, Node16/NodeNext,
 //! or Bundler primary/secondary lookup selected by the compiler options. Both
 //! loaders also discover explicit and wildcard automatic type directives
@@ -34,8 +36,8 @@
 //! supplied, anchors both that lookup and the synthetic inferred-types origin.
 //! The library catalog is injected, version-pinned metadata; bytes remain owned
 //! by the same host and no production path parses `_tsc.js`. This slice does
-//! not admit JavaScript sources, apply `rootDirs`, discover config-derived root
-//! files, or claim the remaining platform and CLI surfaces of H0.4 and H0.5.
+//! not admit JavaScript sources, discover config-derived root files, or claim
+//! the remaining platform and CLI surfaces of H0.4 and H0.5.
 
 mod error;
 mod json;

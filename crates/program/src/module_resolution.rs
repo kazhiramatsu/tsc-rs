@@ -384,6 +384,7 @@ pub struct ModuleResolver<'a> {
     type_root_base_directory: String,
     base_url: Option<String>,
     paths: Option<Vec<PathMapping>>,
+    root_dirs: Option<Vec<String>>,
     package_cache: BTreeMap<String, PackageCacheEntry>,
     active_resolutions: Vec<ActiveResolution>,
     active_package_maps: Vec<String>,
@@ -397,14 +398,16 @@ impl<'a> ModuleResolver<'a> {
         host: &'a dyn CompilerHost,
         options: &'a CompilerOptions,
     ) -> Result<Self, ResolutionError> {
-        Self::new_with_owned_paths(host, options, None, None)
+        Self::new_with_owned_paths(host, options, None, None, None)
     }
 
-    /// Construct a resolver with the ordered program-owned `paths` mappings.
+    /// Construct a resolver with the ordered program-owned resolution options.
     ///
-    /// The mappings are cloned into this one-shot resolver so later resolution
-    /// does not borrow the program configuration. [`Self::new`] deliberately
-    /// remains the compatibility entry point with no `paths` mappings.
+    /// `paths` mappings and `rootDirs` are cloned into this one-shot resolver
+    /// so later resolution does not borrow the program configuration. The
+    /// optional config identity also anchors default type roots. [`Self::new`]
+    /// deliberately remains the compatibility entry point without these
+    /// program-owned options.
     pub fn new_with_program_options(
         host: &'a dyn CompilerHost,
         options: &'a CompilerOptions,
@@ -415,6 +418,7 @@ impl<'a> ModuleResolver<'a> {
             options,
             program_options.paths(),
             program_options.config_file_path(),
+            program_options.root_dirs(),
         )
     }
 
@@ -423,6 +427,7 @@ impl<'a> ModuleResolver<'a> {
         options: &'a CompilerOptions,
         paths: Option<&[PathMapping]>,
         config_file_path: Option<&ProgramPath>,
+        root_dirs: Option<&[ProgramPath]>,
     ) -> Result<Self, ResolutionError> {
         let current_directory = host.current_directory()?;
         let normalized = normalize_absolute_path(&current_directory, None)?;
@@ -445,6 +450,7 @@ impl<'a> ModuleResolver<'a> {
         };
         let base_url = normalize_base_url(options.base_url.as_deref(), &normalized)?;
         let paths = validate_and_clone_paths(paths)?;
+        let root_dirs = validate_and_clone_root_dirs(root_dirs, &normalized, case_sensitive)?;
         Ok(Self {
             host,
             options,
@@ -452,6 +458,7 @@ impl<'a> ModuleResolver<'a> {
             type_root_base_directory,
             base_url,
             paths,
+            root_dirs,
             package_cache: BTreeMap::new(),
             active_resolutions: Vec::new(),
             active_package_maps: Vec::new(),
@@ -485,6 +492,7 @@ impl<'a> ModuleResolver<'a> {
             path_context,
             base_url,
             paths: None,
+            root_dirs: None,
             package_cache: BTreeMap::new(),
             active_resolutions: Vec::new(),
             active_package_maps: Vec::new(),
@@ -573,18 +581,42 @@ impl<'a> ModuleResolver<'a> {
     /// tsc-span: _tsc.js:42036-42061
     ///
     /// A matching `paths` key owns the optional-settings attempt even when all
-    /// of its substitutions miss. That suppresses `baseUrl` only; the caller
-    /// must still continue to its ordinary Classic or Node lookup.
+    /// of its substitutions miss. That suppresses `baseUrl`, or `rootDirs`
+    /// for a rooted disk specifier; the caller must still continue to its
+    /// ordinary Classic or Node lookup.
     fn resolve_using_optional_settings(
         &mut self,
+        containing_directory: &str,
         specifier: &str,
         probe_pass: ExtensionProbePass,
         mode: ResolutionMode,
         loader: OptionalResolutionLoader,
     ) -> Result<ResolutionOutcome<HostResolvedModule>, ResolutionError> {
         let has_paths = self.paths.as_ref().is_some_and(|paths| !paths.is_empty());
-        if is_relative_specifier(specifier) || (!has_paths && self.base_url.is_none()) {
-            return Ok(ResolutionOutcome::NotFound);
+        let path_relative = is_path_relative_specifier(specifier);
+        let external_relative = is_relative_specifier(specifier);
+        if path_relative {
+            return self.resolve_using_root_dirs(
+                containing_directory,
+                specifier,
+                probe_pass,
+                mode,
+                loader,
+            );
+        }
+        if !has_paths {
+            if external_relative {
+                return self.resolve_using_root_dirs(
+                    containing_directory,
+                    specifier,
+                    probe_pass,
+                    mode,
+                    loader,
+                );
+            }
+            if self.base_url.is_none() {
+                return Ok(ResolutionOutcome::NotFound);
+            }
         }
         validate_owned_path_text(specifier, "module specifier", /* allow_empty */ false)?;
 
@@ -631,11 +663,102 @@ impl<'a> ModuleResolver<'a> {
             return Ok(ResolutionOutcome::NotFound);
         }
 
+        // Rooted disk paths are external-relative module names, but unlike
+        // dot-relative names they are still eligible for `paths`. A matching
+        // paths key owns a miss above; only a non-match continues here.
+        if external_relative {
+            return self.resolve_using_root_dirs(
+                containing_directory,
+                specifier,
+                probe_pass,
+                mode,
+                loader,
+            );
+        }
+
         let Some(base_url) = self.base_url.clone() else {
             return Ok(ResolutionOutcome::NotFound);
         };
         let candidate = normalize_optional_candidate(specifier, &base_url)?;
         self.probe_optional_candidate(&candidate, specifier, probe_pass, mode, loader)
+    }
+
+    /// tsc-port: tryLoadModuleUsingRootDirs @6.0.3
+    /// tsc-hash: 40c8e65f00c7a16b6bc000a46a7aaadf71c8536799f9d3c50cee2bee4bb244b4
+    /// tsc-span: _tsc.js:40750-40808
+    fn resolve_using_root_dirs(
+        &mut self,
+        containing_directory: &str,
+        specifier: &str,
+        probe_pass: ExtensionProbePass,
+        mode: ResolutionMode,
+        loader: OptionalResolutionLoader,
+    ) -> Result<ResolutionOutcome<HostResolvedModule>, ResolutionError> {
+        let candidate = preserve_trailing_directory_separator(
+            normalize_absolute_path(Path::new(specifier), Some(containing_directory))?,
+            specifier,
+        );
+        let candidates = {
+            let Some(root_dirs) = self.root_dirs.as_deref().filter(|roots| !roots.is_empty())
+            else {
+                return Ok(ResolutionOutcome::NotFound);
+            };
+
+            let mut matched: Option<(usize, String)> = None;
+            for (index, root_dir) in root_dirs.iter().enumerate() {
+                let prefix = if root_dir.ends_with('/') {
+                    root_dir.clone()
+                } else {
+                    format!("{root_dir}/")
+                };
+                if candidate.starts_with(&prefix)
+                    && matched
+                        .as_ref()
+                        .is_none_or(|(_, current)| current.len() < prefix.len())
+                {
+                    matched = Some((index, prefix));
+                }
+            }
+            let Some((matched_index, matched_prefix)) = matched else {
+                return Ok(ResolutionOutcome::NotFound);
+            };
+            let suffix = candidate[matched_prefix.len()..].to_owned();
+            let matched_root = &root_dirs[matched_index];
+            let mut candidates = Vec::with_capacity(root_dirs.len());
+            candidates.push((candidate, containing_directory.to_owned()));
+            for root_dir in root_dirs {
+                // Upstream compares rootDir strings, so equal duplicate roots
+                // are all skipped after the first longest-prefix match.
+                if root_dir == matched_root {
+                    continue;
+                }
+                let candidate = preserve_trailing_directory_separator(
+                    normalize_absolute_path(Path::new(&join_normalized(root_dir, &suffix)), None)?,
+                    &suffix,
+                );
+                let base_directory = directory_name(&candidate);
+                candidates.push((candidate, base_directory));
+            }
+            candidates
+        };
+
+        for (candidate, preflight_directory) in candidates {
+            // Upstream converts a missing preflight directory into
+            // `onlyRecordFailures`, which suppresses every loader host query
+            // for this candidate. Host failures remain observable.
+            if !self
+                .host
+                .directory_exists(Path::new(&preflight_directory))?
+            {
+                continue;
+            }
+            let outcome =
+                self.probe_optional_candidate(&candidate, specifier, probe_pass, mode, loader)?;
+            if matches!(outcome, ResolutionOutcome::Resolved(_)) {
+                return Ok(outcome);
+            }
+        }
+        Ok(ResolutionOutcome::NotFound)
     }
 
     fn matching_paths(&self, specifier: &str) -> Option<(Vec<String>, Option<String>)> {
@@ -703,16 +826,28 @@ impl<'a> ModuleResolver<'a> {
             resolved_using_ts_extension: is_typescript_family_specifier(written_candidate),
             follow_realpath: false,
         };
-        if let ResolutionOutcome::Resolved(mut module) =
-            self.probe_legacy_file(None, candidate, probe_pass, allow_implicit, context)?
-        {
-            self.attach_direct_node_package(&mut module)?;
-            if external {
-                self.follow_module_realpath(&mut module)?;
+        if !candidate.ends_with('/') {
+            // nodeLoadModuleByRelativeName turns a missing parent into
+            // `onlyRecordFailures` before its file loader runs. That also
+            // suppresses the later candidate-directory/package probes.
+            if !self
+                .host
+                .directory_exists(Path::new(&directory_name(candidate)))?
+            {
+                return Ok(ResolutionOutcome::NotFound);
             }
-            return Ok(ResolutionOutcome::Resolved(module));
+            if let ResolutionOutcome::Resolved(mut module) =
+                self.probe_legacy_file(None, candidate, probe_pass, allow_implicit, context)?
+            {
+                self.attach_direct_node_package(&mut module)?;
+                if external {
+                    self.follow_module_realpath(&mut module)?;
+                }
+                return Ok(ResolutionOutcome::Resolved(module));
+            }
         }
-        if !allow_implicit || !self.host.directory_exists(Path::new(candidate))? {
+        let candidate_exists = self.host.directory_exists(Path::new(candidate))?;
+        if !allow_implicit || !candidate_exists {
             return Ok(ResolutionOutcome::NotFound);
         }
 
@@ -856,16 +991,27 @@ impl<'a> ModuleResolver<'a> {
 
         for probe_pass in [ExtensionProbePass::Preferred, ExtensionProbePass::Fallback] {
             if relative {
-                let candidate = normalize_absolute_path(
-                    Path::new(&join_normalized(&containing_directory, specifier)),
-                    None,
+                let optional = self.resolve_using_optional_settings(
+                    &containing_directory,
+                    specifier,
+                    probe_pass,
+                    mode,
+                    OptionalResolutionLoader::Classic,
                 )?;
+                if matches!(optional, ResolutionOutcome::Resolved(_)) {
+                    return Ok(HostModuleResolution::new(optional, None));
+                }
+                let candidate = preserve_trailing_directory_separator(
+                    normalize_absolute_path(Path::new(specifier), Some(&containing_directory))?,
+                    specifier,
+                );
                 let outcome = self.probe_classic_file(&candidate, specifier, probe_pass)?;
                 if matches!(outcome, ResolutionOutcome::Resolved(_)) {
                     return Ok(HostModuleResolution::new(outcome, None));
                 }
             } else {
                 let optional = self.resolve_using_optional_settings(
+                    &containing_directory,
                     specifier,
                     probe_pass,
                     mode,
@@ -973,6 +1119,7 @@ impl<'a> ModuleResolver<'a> {
         let mut request = None;
         for probe_pass in [ExtensionProbePass::Preferred, ExtensionProbePass::Fallback] {
             let optional = self.resolve_using_optional_settings(
+                containing_directory,
                 specifier,
                 probe_pass,
                 mode,
@@ -1122,6 +1269,7 @@ impl<'a> ModuleResolver<'a> {
         mode: ResolutionMode,
     ) -> Result<ResolutionOutcome<HostResolvedModule>, ResolutionError> {
         let optional = self.resolve_using_optional_settings(
+            containing_directory,
             specifier,
             ExtensionProbePass::Preferred,
             mode,
@@ -1352,6 +1500,7 @@ impl<'a> ModuleResolver<'a> {
         mode: ResolutionMode,
     ) -> Result<ResolutionOutcome<HostResolvedModule>, ResolutionError> {
         let optional = self.resolve_using_optional_settings(
+            containing_directory,
             specifier,
             ExtensionProbePass::All,
             mode,
@@ -1987,13 +2136,8 @@ impl<'a> ModuleResolver<'a> {
         specifier: &str,
         mode: ResolutionMode,
     ) -> Result<ResolutionOutcome<HostResolvedModule>, ResolutionError> {
-        let target = normalize_absolute_path(
-            Path::new(&join_normalized(
-                &directory_name(containing_file),
-                specifier,
-            )),
-            None,
-        )?;
+        let target =
+            normalize_absolute_path(Path::new(specifier), Some(&directory_name(containing_file)))?;
         let external = path_contains_node_modules(&target);
         let context = LegacyResolutionContext {
             is_external_library_import: external,
@@ -2051,17 +2195,57 @@ impl<'a> ModuleResolver<'a> {
             )));
         }
         let containing_directory = directory_name(containing_file);
-        let target = normalize_absolute_path(
-            Path::new(&join_normalized(&containing_directory, specifier)),
-            None,
-        )?;
-        let package = self.find_nearest_package_scope(&directory_name(&target))?;
+        let directory_spelling = has_node_directory_spelling(specifier);
+        // Program paths use the loader's normalized host spelling, so the
+        // separator itself is not retained here. Keep its semantic effect in
+        // a separate bit: Node skips the file phase for an explicit trailing
+        // separator or a final `.`/`..` component.
+        let target = normalize_absolute_path(Path::new(specifier), Some(&containing_directory))?;
         let external = path_contains_node_modules(&target);
-        let directory_spelling = specifier.ends_with('/') || matches!(specifier, "." | "..");
         let allow_implicit = !self.is_node_esm_mode(mode);
+        let mut package = None;
+        let mut package_observed = false;
 
-        for probe_pass in [ExtensionProbePass::Preferred, ExtensionProbePass::Fallback] {
+        let resolution_kind = self.options.emit_module_resolution_kind();
+        // nodeModuleNameResolverWorker splits Node10 into priority and
+        // secondary extension passes, but invokes its modern resolvers once
+        // with every admitted extension. Keeping optional and ordinary
+        // candidates inside the same outer pass preserves both rootDirs
+        // ordering and the duplicate original probe after a rootDirs miss.
+        let legacy_passes = [ExtensionProbePass::Preferred, ExtensionProbePass::Fallback];
+        let modern_passes = [ExtensionProbePass::All];
+        let probe_passes = if resolution_kind == 2 {
+            legacy_passes.as_slice()
+        } else {
+            modern_passes.as_slice()
+        };
+
+        for &probe_pass in probe_passes {
+            let optional = self.resolve_using_optional_settings(
+                &containing_directory,
+                specifier,
+                probe_pass,
+                mode,
+                OptionalResolutionLoader::Node,
+            )?;
+            if matches!(optional, ResolutionOutcome::Resolved(_)) {
+                return Ok(optional);
+            }
             if !directory_spelling {
+                // nodeLoadModuleByRelativeName converts a missing candidate
+                // parent into `onlyRecordFailures` before any package or
+                // candidate-directory work. The file loader checks the same
+                // parent again when this preflight succeeds.
+                if !self
+                    .host
+                    .directory_exists(Path::new(&directory_name(&target)))?
+                {
+                    continue;
+                }
+                if !package_observed {
+                    package = self.find_nearest_package_scope(&directory_name(&target))?;
+                    package_observed = true;
+                }
                 let outcome = self.probe_legacy_file(
                     package.as_deref(),
                     &target,
@@ -2079,8 +2263,13 @@ impl<'a> ModuleResolver<'a> {
                 }
             }
 
-            if !allow_implicit || !self.host.directory_exists(Path::new(&target))? {
+            let target_exists = self.host.directory_exists(Path::new(&target))?;
+            if !allow_implicit || !target_exists {
                 continue;
+            }
+            if !package_observed {
+                package = self.find_nearest_package_scope(&directory_name(&target))?;
+                package_observed = true;
             }
             let package_json = join_normalized(&target, "package.json");
             if let Some(directory_package) = self.load_package(&package_json)? {
@@ -3156,6 +3345,37 @@ fn normalize_base_url(
     normalize_absolute_path(Path::new(base_url), Some(current_directory)).map(Some)
 }
 
+fn validate_and_clone_root_dirs(
+    root_dirs: Option<&[ProgramPath]>,
+    current_directory: &str,
+    case_sensitive: bool,
+) -> Result<Option<Vec<String>>, ResolutionError> {
+    let Some(root_dirs) = root_dirs else {
+        return Ok(None);
+    };
+    let mut normalized_roots = Vec::with_capacity(root_dirs.len());
+    for root_dir in root_dirs {
+        let display = root_dir.display();
+        let text = display.to_str().ok_or_else(|| {
+            ResolutionError::canonicalization(
+                Some(display.to_path_buf()),
+                "rootDirs entry is not valid Unicode",
+            )
+        })?;
+        validate_owned_path_text(text, "rootDirs entry", /* allow_empty */ false)?;
+        let normalized = normalize_absolute_path(display, Some(current_directory))?;
+        let expected = make_program_path(&normalized, case_sensitive)?;
+        if &expected != root_dir {
+            return Err(ResolutionError::canonicalization(
+                Some(display.to_path_buf()),
+                "rootDirs entry does not match the resolver's normalized display and canonical path profile",
+            ));
+        }
+        normalized_roots.push(normalized);
+    }
+    Ok(Some(normalized_roots))
+}
+
 fn normalize_optional_candidate(
     candidate: &str,
     base_directory: &str,
@@ -3169,6 +3389,13 @@ fn normalize_optional_candidate(
         /* allow_empty */ true,
     )?;
     normalize_absolute_path(Path::new(candidate), Some(base_directory))
+}
+
+fn preserve_trailing_directory_separator(mut normalized: String, source: &str) -> String {
+    if source.ends_with('/') && !normalized.ends_with('/') {
+        normalized.push('/');
+    }
+    normalized
 }
 
 fn validate_and_clone_paths(
@@ -3417,7 +3644,23 @@ fn parse_package_request(specifier: &str) -> Result<PackageRequest<'_>, Resoluti
 }
 
 fn is_relative_specifier(specifier: &str) -> bool {
+    is_path_relative_specifier(specifier) || is_supported_rooted_specifier(specifier)
+}
+
+fn is_path_relative_specifier(specifier: &str) -> bool {
     matches!(specifier, "." | "..") || specifier.starts_with("./") || specifier.starts_with("../")
+}
+
+fn is_supported_rooted_specifier(specifier: &str) -> bool {
+    (specifier.starts_with('/') && !specifier.starts_with("//"))
+        || (specifier.len() >= 3
+            && specifier.as_bytes()[0].is_ascii_alphabetic()
+            && specifier.as_bytes()[1] == b':'
+            && specifier.as_bytes()[2] == b'/')
+}
+
+fn has_node_directory_spelling(specifier: &str) -> bool {
+    specifier.ends_with('/') || matches!(specifier.rsplit('/').next(), Some("." | ".."))
 }
 
 fn is_typescript_family_specifier(specifier: &str) -> bool {

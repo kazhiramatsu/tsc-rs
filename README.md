@@ -289,14 +289,17 @@ also share strict-JSON-then-JSONC `readJson` semantics while retaining exact
 manifest text. Leading path, type, and lib
 references are observed once by the parser and retained by the source request
 plan. The bounded loaders now recursively discover TypeScript-family sources
-through relative requests, `paths`, and `baseUrl`, while preserving vendored
-discovery and failure order. Default/explicit libraries and post-root explicit
-or wildcard automatic `types` participate in the same owned program graph.
+through relative requests, ordered `rootDirs`, `paths`, and `baseUrl`, while
+preserving vendored discovery and failure order. `rootDirs` uses the longest
+display-path prefix, probes the original location first, and then visits
+alternate roots in declaration order. Default/explicit libraries and
+post-root explicit or wildcard automatic `types` participate in the same
+owned program graph.
 Same-tree Unix canaries prove both `PreparedProgram` and five-bucket
 `ProgramSession` diagnostic equivalence between MemoryHost and FsHost; the
-program-level canaries exercise Classic, Node10, Bundler, and wildcard
-`@types` discovery. JavaScript membership, `rootDirs`, config-derived roots,
-and the remaining platform matrix remain.
+program-level canaries exercise Classic, Node10, Bundler, ordered optional
+settings including `rootDirs`, and wildcard `@types` discovery. JavaScript
+membership, config-derived roots, and the remaining platform matrix remain.
 
 | Phase | State | Focus |
 | --- | --- | --- |

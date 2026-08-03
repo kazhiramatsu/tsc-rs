@@ -12,8 +12,8 @@ use tsc_host::{CompilerHost, HostError, HostErrorKind, HostOperation, MemoryComp
 use tsc_program::{
     load_no_lib_program, plan_source_requests, CompilerOptions, PathMapping, PreparedProgram,
     ProgramLoadError, ProgramLoadErrorKind, ProgramLoadLimit, ProgramLoadLimits,
-    ProgramLoadOperation, ProgramOptions, ResolutionError, ResolutionKey, ResolutionOutcome,
-    ResolvedModuleTarget, TypeReferenceResolutionKey,
+    ProgramLoadOperation, ProgramOptions, ProgramPath, ResolutionError, ResolutionKey,
+    ResolutionOutcome, ResolvedModuleTarget, TypeReferenceResolutionKey,
 };
 
 const GENEROUS_LIMIT: usize = 1_024;
@@ -314,6 +314,70 @@ fn paths_and_base_url_candidates_join_recursive_source_membership() {
         };
         assert_eq!(resolved_file.display(), Path::new(expected));
     }
+}
+
+#[test]
+fn root_dirs_admit_alternate_sources_in_dependency_postorder() {
+    let host = MemoryCompilerHost::builder("/work")
+        .file(
+            "/work/src/main.ts",
+            b"import { shared } from './shared'; export { shared };".to_vec(),
+        )
+        .file(
+            "/work/generated/shared.ts",
+            b"import { leaf } from './leaf'; export const shared = leaf;".to_vec(),
+        )
+        .file(
+            "/work/generated/leaf.ts",
+            b"export const leaf = 1;".to_vec(),
+        )
+        .build()
+        .expect("build rootDirs source graph");
+    let root_dirs = ["/work/src", "/work/generated"]
+        .into_iter()
+        .map(|path| {
+            ProgramPath::from_trusted_parts(path, path)
+                .expect("construct case-sensitive rootDirs path")
+        })
+        .collect();
+    let options = CompilerOptions {
+        module_resolution: Some(100),
+        ..compiler_options()
+    };
+    let program = load_with_options(
+        &host,
+        &["/work/src/main.ts"],
+        options,
+        program_options().with_root_dirs(root_dirs),
+        generous_limits(),
+    )
+    .expect("load alternate rootDirs source graph");
+
+    assert_eq!(
+        source_paths(&program),
+        [
+            Path::new("/work/generated/leaf.ts"),
+            Path::new("/work/generated/shared.ts"),
+            Path::new("/work/src/main.ts"),
+        ]
+    );
+    let key = module_key(&program, "/work/src/main.ts", "./shared");
+    let resolution = program
+        .resolutions()
+        .require_module(&key)
+        .expect("rootDirs request has an authoritative row");
+    let ResolutionOutcome::Resolved(resolved) = resolution.outcome() else {
+        panic!("rootDirs request must resolve");
+    };
+    let ResolvedModuleTarget::Source { resolved_file, .. } = resolved.target() else {
+        panic!("rootDirs TypeScript target must join source membership");
+    };
+    assert_eq!(
+        resolved_file.display(),
+        Path::new("/work/generated/shared.ts")
+    );
+    assert_eq!(resolved.original_path(), None);
+    assert!(!resolved.is_external_library_import());
 }
 
 #[test]

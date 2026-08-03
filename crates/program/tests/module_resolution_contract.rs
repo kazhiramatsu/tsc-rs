@@ -1,3 +1,4 @@
+use std::cell::RefCell;
 use std::path::{Path, PathBuf};
 
 use tsc_host::{CompilerHost, HostError, HostErrorKind, HostOperation, MemoryCompilerHost};
@@ -25,6 +26,54 @@ const INNER_PACKAGE_JSON: &str = r#"{
 struct MissingManifestContentsHost {
     inner: MemoryCompilerHost,
     manifest: PathBuf,
+}
+
+struct NthFileExistsFailureHost {
+    inner: MemoryCompilerHost,
+    watched_path: PathBuf,
+    fail_on: usize,
+    calls: RefCell<Vec<PathBuf>>,
+    failure: HostError,
+}
+
+impl CompilerHost for NthFileExistsFailureHost {
+    fn current_directory(&self) -> Result<PathBuf, HostError> {
+        self.inner.current_directory()
+    }
+
+    fn use_case_sensitive_file_names(&self) -> bool {
+        self.inner.use_case_sensitive_file_names()
+    }
+
+    fn read_file(&self, path: &Path) -> Result<Option<Vec<u8>>, HostError> {
+        self.inner.read_file(path)
+    }
+
+    fn file_exists(&self, path: &Path) -> Result<bool, HostError> {
+        let mut calls = self.calls.borrow_mut();
+        calls.push(path.to_path_buf());
+        let watched_calls = calls
+            .iter()
+            .filter(|candidate| candidate.as_path() == self.watched_path.as_path())
+            .count();
+        if path == self.watched_path && watched_calls == self.fail_on {
+            return Err(self.failure.clone());
+        }
+        drop(calls);
+        self.inner.file_exists(path)
+    }
+
+    fn directory_exists(&self, path: &Path) -> Result<bool, HostError> {
+        self.inner.directory_exists(path)
+    }
+
+    fn read_directory(&self, path: &Path) -> Result<Vec<PathBuf>, HostError> {
+        self.inner.read_directory(path)
+    }
+
+    fn realpath(&self, path: &Path) -> Result<Option<PathBuf>, HostError> {
+        self.inner.realpath(path)
+    }
 }
 
 impl CompilerHost for MissingManifestContentsHost {
@@ -120,6 +169,10 @@ fn options_for_module(module: i32) -> CompilerOptions {
         module: Some(module),
         ..CompilerOptions::default()
     }
+}
+
+fn program_path(value: &str) -> ProgramPath {
+    ProgramPath::from_trusted_parts(value, value).expect("construct case-sensitive program path")
 }
 
 fn resolved(outcome: ResolutionOutcome<HostResolvedModule>) -> HostResolvedModule {
@@ -253,6 +306,281 @@ fn optional_settings_preserve_legacy_passes_and_modern_substitution_order() {
             explicit.resolved_file().canonical().as_path(),
             Path::new("/work/first/explicit.js")
         );
+    }
+}
+
+#[test]
+fn root_dirs_preserve_legacy_passes_modern_candidate_order_and_relative_gate() {
+    let host = MemoryCompilerHost::builder("/work")
+        .file("/work/src/app/main.ts", b"export {};".to_vec())
+        .file("/work/src/app/value.js", b"module.exports = {};".to_vec())
+        .file("/work/gen/app/value.ts", b"export {};".to_vec())
+        .file("/work/gen/app/root-only.ts", b"export {};".to_vec())
+        .file("/work/mapped/priority.ts", b"export {};".to_vec())
+        .file("/work/gen/app/path-priority.ts", b"export {};".to_vec())
+        .file("/work/gen/app/path-miss.ts", b"export {};".to_vec())
+        .build()
+        .expect("build rootDirs extension-order host");
+    let program_options = ProgramOptions::default()
+        .with_root_dirs(vec![program_path("/work/src"), program_path("/work/gen")])
+        .with_paths(vec![
+            PathMapping::new(
+                "/work/src/app/path-priority",
+                vec!["mapped/priority".to_owned()],
+            ),
+            PathMapping::new("/work/src/app/path-miss", vec!["mapped/missing".to_owned()]),
+        ]);
+
+    for (resolution_kind, expected_value) in [
+        (1, "/work/gen/app/value.ts"),
+        (2, "/work/gen/app/value.ts"),
+        (3, "/work/src/app/value.js"),
+        (99, "/work/src/app/value.js"),
+        (100, "/work/src/app/value.js"),
+    ] {
+        let options = CompilerOptions {
+            module_resolution: Some(resolution_kind),
+            ..CompilerOptions::default()
+        };
+        let mut resolver =
+            ModuleResolver::new_with_program_options(&host, &options, &program_options)
+                .expect("create rootDirs resolver");
+
+        let value = resolved(
+            resolver
+                .resolve(
+                    Path::new("/work/src/app/main.ts"),
+                    "./value",
+                    ResolutionMode::CommonJs,
+                )
+                .expect("resolve extension-order rootDirs candidate"),
+        );
+        assert_eq!(
+            value.resolved_file().display(),
+            Path::new(expected_value),
+            "moduleResolution={resolution_kind}"
+        );
+        assert_eq!(value.original_path(), None);
+        assert!(!value.is_external_library_import());
+
+        let root_only = resolved(
+            resolver
+                .resolve(
+                    Path::new("/work/src/app/main.ts"),
+                    "./root-only",
+                    ResolutionMode::CommonJs,
+                )
+                .expect("resolve alternate rootDirs candidate"),
+        );
+        assert_eq!(
+            root_only.resolved_file().display(),
+            Path::new("/work/gen/app/root-only.ts")
+        );
+
+        let rooted = resolved(
+            resolver
+                .resolve(
+                    Path::new("/work/src/app/main.ts"),
+                    "/work/src/app/root-only",
+                    ResolutionMode::CommonJs,
+                )
+                .expect("rooted disk requests participate in rootDirs"),
+        );
+        assert_eq!(
+            rooted.resolved_file().display(),
+            Path::new("/work/gen/app/root-only.ts")
+        );
+
+        let paths_first = resolved(
+            resolver
+                .resolve(
+                    Path::new("/work/src/app/main.ts"),
+                    "/work/src/app/path-priority",
+                    ResolutionMode::CommonJs,
+                )
+                .expect("rooted disk requests remain eligible for paths"),
+        );
+        assert_eq!(
+            paths_first.resolved_file().display(),
+            Path::new("/work/mapped/priority.ts")
+        );
+        assert_eq!(
+            resolver
+                .resolve(
+                    Path::new("/work/src/app/main.ts"),
+                    "/work/src/app/path-miss",
+                    ResolutionMode::CommonJs,
+                )
+                .expect("a matching paths miss owns rooted optional settings"),
+            ResolutionOutcome::NotFound
+        );
+
+        let bare = resolver
+            .resolve(
+                Path::new("/work/src/app/main.ts"),
+                "root-only",
+                ResolutionMode::CommonJs,
+            )
+            .expect("bare requests bypass rootDirs");
+        assert!(matches!(bare, ResolutionOutcome::NotFound));
+
+        assert_unsupported(
+            resolver
+                .resolve(
+                    Path::new("/work/src/app/main.ts"),
+                    "//server/share/value",
+                    ResolutionMode::CommonJs,
+                )
+                .expect_err("unowned UNC forms must not be retargeted as POSIX paths"),
+            "windows-path-form",
+        );
+    }
+
+    let root_dirs_only = ProgramOptions::default()
+        .with_root_dirs(vec![program_path("/work/src"), program_path("/work/gen")]);
+    let options = CompilerOptions {
+        module_resolution: Some(100),
+        ..CompilerOptions::default()
+    };
+    let mut resolver = ModuleResolver::new_with_program_options(&host, &options, &root_dirs_only)
+        .expect("create rootDirs-only UNC guard resolver");
+    assert_unsupported(
+        resolver
+            .resolve(
+                Path::new("/work/src/app/main.ts"),
+                "//server/share/value",
+                ResolutionMode::CommonJs,
+            )
+            .expect_err("rootDirs alone must not retarget an unowned UNC form"),
+        "non-bare-module-specifier",
+    );
+}
+
+#[test]
+fn root_dirs_use_the_longest_prefix_then_declared_alternate_order() {
+    let host = MemoryCompilerHost::builder("/work")
+        .file("/work/src/app/main.ts", b"export {};".to_vec())
+        .file("/mirror/first/app/item.ts", b"export {};".to_vec())
+        .file("/work/app/item.ts", b"export {};".to_vec())
+        .file("/mirror/second/app/item.ts", b"export {};".to_vec())
+        // This would win if the shorter `/work` prefix were selected.
+        .file("/mirror/first/src/app/item.ts", b"export {};".to_vec())
+        .build()
+        .expect("build longest-prefix rootDirs host");
+    let program_options = ProgramOptions::default().with_root_dirs(vec![
+        program_path("/mirror/first"),
+        program_path("/work"),
+        program_path("/work/src"),
+        program_path("/mirror/second"),
+    ]);
+
+    for resolution_kind in [1, 2, 3, 99, 100] {
+        let options = CompilerOptions {
+            module_resolution: Some(resolution_kind),
+            ..CompilerOptions::default()
+        };
+        let mut resolver =
+            ModuleResolver::new_with_program_options(&host, &options, &program_options)
+                .expect("create longest-prefix rootDirs resolver");
+        let module = resolved(
+            resolver
+                .resolve(
+                    Path::new("/work/src/app/main.ts"),
+                    "./item",
+                    ResolutionMode::CommonJs,
+                )
+                .expect("resolve longest-prefix rootDirs candidate"),
+        );
+        assert_eq!(
+            module.resolved_file().display(),
+            Path::new("/mirror/first/app/item.ts"),
+            "moduleResolution={resolution_kind}"
+        );
+    }
+}
+
+#[test]
+fn rooted_final_dot_components_keep_node_directory_spelling() {
+    let host = MemoryCompilerHost::builder("/work")
+        .file("/work/src/app/dir.ts", b"export {};".to_vec())
+        .build()
+        .expect("build rooted dot-component host");
+    let program_options = ProgramOptions::default()
+        .with_root_dirs(vec![program_path("/work/src"), program_path("/work/gen")]);
+
+    for resolution_kind in [1, 2, 3, 99, 100] {
+        let options = CompilerOptions {
+            module_resolution: Some(resolution_kind),
+            ..CompilerOptions::default()
+        };
+        let mut resolver =
+            ModuleResolver::new_with_program_options(&host, &options, &program_options)
+                .expect("create rooted dot-component resolver");
+        let outcome = resolver
+            .resolve(
+                Path::new("/else/main.ts"),
+                "/work/src/app/dir/.",
+                ResolutionMode::CommonJs,
+            )
+            .expect("resolve rooted final dot component");
+        if resolution_kind == 1 {
+            assert_eq!(
+                resolved(outcome).resolved_file().display(),
+                Path::new("/work/src/app/dir.ts")
+            );
+        } else {
+            assert_eq!(
+                outcome,
+                ResolutionOutcome::NotFound,
+                "moduleResolution={resolution_kind}"
+            );
+        }
+    }
+}
+
+#[test]
+fn root_dirs_reuse_each_resolvers_directory_rules() {
+    let host = MemoryCompilerHost::builder("/work")
+        .file("/work/src/app/main.ts", b"export {};".to_vec())
+        .file("/work/src/app/folder.ts", b"export {};".to_vec())
+        // The host boundary preserves the trailing spelling TypeScript sends
+        // to directoryExists for an explicitly slash-terminated candidate.
+        .directory("/work/gen/app/folder/")
+        .file("/work/gen/app/folder/index.ts", b"export {};".to_vec())
+        .build()
+        .expect("build rootDirs directory host");
+    let program_options = ProgramOptions::default()
+        .with_root_dirs(vec![program_path("/work/src"), program_path("/work/gen")]);
+
+    for (resolution_kind, mode, should_resolve) in [
+        (1, ResolutionMode::CommonJs, false),
+        (2, ResolutionMode::CommonJs, true),
+        (3, ResolutionMode::CommonJs, true),
+        (3, ResolutionMode::EsNext, false),
+        (99, ResolutionMode::CommonJs, true),
+        (99, ResolutionMode::EsNext, false),
+        (100, ResolutionMode::EsNext, true),
+    ] {
+        let options = CompilerOptions {
+            module_resolution: Some(resolution_kind),
+            ..CompilerOptions::default()
+        };
+        let mut resolver =
+            ModuleResolver::new_with_program_options(&host, &options, &program_options)
+                .expect("create rootDirs directory resolver");
+        let outcome = resolver
+            .resolve(Path::new("/work/src/app/main.ts"), "./folder/", mode)
+            .expect("probe rootDirs directory candidate");
+        match outcome {
+            ResolutionOutcome::Resolved(module) if should_resolve => assert_eq!(
+                module.resolved_file().display(),
+                Path::new("/work/gen/app/folder/index.ts")
+            ),
+            ResolutionOutcome::NotFound if !should_resolve => {}
+            outcome => panic!(
+                "unexpected rootDirs directory outcome for moduleResolution={resolution_kind}, mode={mode:?}: {outcome:?}"
+            ),
+        }
     }
 }
 
@@ -434,6 +762,198 @@ fn paths_host_failures_stop_before_later_substitutions() {
 }
 
 #[test]
+fn root_dirs_reprobe_the_original_candidate_and_propagate_host_failures() {
+    let watched_path = PathBuf::from("/work/src/app/value.ts");
+    let program_options = ProgramOptions::default().with_root_dirs(vec![
+        program_path("/work/src"),
+        program_path("/work/src"),
+        program_path("/work/gen"),
+    ]);
+
+    for resolution_kind in [1, 2, 3, 99, 100] {
+        let failure = HostError::new(
+            HostErrorKind::PermissionDenied,
+            HostOperation::FileExists,
+            Some(watched_path.clone()),
+            format!("second original rootDirs probe denied for {resolution_kind}"),
+        );
+        let inner = MemoryCompilerHost::builder("/work")
+            .file("/work/src/app/main.ts", b"export {};".to_vec())
+            .file("/work/gen/app/.keep", Vec::new())
+            .build()
+            .expect("build rootDirs reprobe host");
+        let host = NthFileExistsFailureHost {
+            inner,
+            watched_path: watched_path.clone(),
+            fail_on: 2,
+            calls: RefCell::new(Vec::new()),
+            failure: failure.clone(),
+        };
+        let options = CompilerOptions {
+            module_resolution: Some(resolution_kind),
+            ..CompilerOptions::default()
+        };
+        let mut resolver =
+            ModuleResolver::new_with_program_options(&host, &options, &program_options)
+                .expect("create rootDirs reprobe resolver");
+        let error = resolver
+            .resolve(
+                Path::new("/work/src/app/main.ts"),
+                "./value",
+                ResolutionMode::CommonJs,
+            )
+            .expect_err("the repeated original probe must expose its host failure");
+        assert_eq!(error, ResolutionError::Host(failure));
+
+        let ts_calls = host
+            .calls
+            .borrow()
+            .iter()
+            .filter(|path| path.file_name().is_some_and(|name| name == "value.ts"))
+            .cloned()
+            .collect::<Vec<_>>();
+        assert_eq!(
+            ts_calls,
+            [
+                PathBuf::from("/work/src/app/value.ts"),
+                PathBuf::from("/work/gen/app/value.ts"),
+                PathBuf::from("/work/src/app/value.ts"),
+            ],
+            "moduleResolution={resolution_kind}"
+        );
+    }
+
+    let duplicate_alternate = PathBuf::from("/work/gen/app/value.ts");
+    let failure = HostError::new(
+        HostErrorKind::PermissionDenied,
+        HostOperation::FileExists,
+        Some(duplicate_alternate.clone()),
+        "second equal alternate rootDirs probe denied",
+    );
+    let inner = MemoryCompilerHost::builder("/work")
+        .file("/work/src/app/main.ts", b"export {};".to_vec())
+        .file("/work/gen/app/.keep", Vec::new())
+        .build()
+        .expect("build duplicate alternate rootDirs host");
+    let host = NthFileExistsFailureHost {
+        inner,
+        watched_path: duplicate_alternate,
+        fail_on: 2,
+        calls: RefCell::new(Vec::new()),
+        failure: failure.clone(),
+    };
+    let options = CompilerOptions {
+        module_resolution: Some(100),
+        ..CompilerOptions::default()
+    };
+    let duplicate_alternate_options = ProgramOptions::default().with_root_dirs(vec![
+        program_path("/work/src"),
+        program_path("/work/gen"),
+        program_path("/work/gen"),
+    ]);
+    let mut resolver =
+        ModuleResolver::new_with_program_options(&host, &options, &duplicate_alternate_options)
+            .expect("create duplicate alternate rootDirs resolver");
+    assert_eq!(
+        resolver
+            .resolve(
+                Path::new("/work/src/app/main.ts"),
+                "./value",
+                ResolutionMode::CommonJs,
+            )
+            .expect_err("equal non-matched roots retain duplicate observable probes"),
+        ResolutionError::Host(failure)
+    );
+}
+
+#[test]
+fn root_dirs_preflight_containing_directories_before_candidate_probes() {
+    let program_options = ProgramOptions::default()
+        .with_root_dirs(vec![program_path("/work/src"), program_path("/work/gen")]);
+
+    for resolution_kind in [1, 2, 3, 99, 100] {
+        let denied = HostError::new(
+            HostErrorKind::PermissionDenied,
+            HostOperation::DirectoryExists,
+            Some(PathBuf::from("/work/src/app")),
+            format!("rootDirs containing directory denied for {resolution_kind}"),
+        );
+        let host = MemoryCompilerHost::builder("/work")
+            .file("/work/src/app/main.ts", b"export {};".to_vec())
+            .file("/work/gen/app/sub/value.ts", b"export {};".to_vec())
+            .failure(denied.clone())
+            .build()
+            .expect("build rootDirs containing-directory failure host");
+        let options = CompilerOptions {
+            module_resolution: Some(resolution_kind),
+            ..CompilerOptions::default()
+        };
+        let mut resolver =
+            ModuleResolver::new_with_program_options(&host, &options, &program_options)
+                .expect("create rootDirs preflight resolver");
+        assert_eq!(
+            resolver
+                .resolve(
+                    Path::new("/work/src/app/main.ts"),
+                    "./sub/value",
+                    ResolutionMode::CommonJs,
+                )
+                .expect_err("containing-directory preflight failure must propagate"),
+            ResolutionError::Host(denied)
+        );
+
+        let host = MemoryCompilerHost::builder("/work")
+            .file("/work/src/app/value.ts", b"export {};".to_vec())
+            .file("/work/gen/app/value.ts", b"export {};".to_vec())
+            .build()
+            .expect("build rootDirs absent-containing-directory host");
+        let mut resolver =
+            ModuleResolver::new_with_program_options(&host, &options, &program_options)
+                .expect("create rooted preflight resolver");
+        let module = resolved(
+            resolver
+                .resolve(
+                    Path::new("/else/main.ts"),
+                    "/work/src/app/value",
+                    ResolutionMode::CommonJs,
+                )
+                .expect("skip an original candidate whose containing directory is absent"),
+        );
+        assert_eq!(
+            module.resolved_file().display(),
+            Path::new("/work/gen/app/value.ts"),
+            "moduleResolution={resolution_kind}"
+        );
+
+        let hidden_failure = HostError::new(
+            HostErrorKind::PermissionDenied,
+            HostOperation::DirectoryExists,
+            Some(PathBuf::from("/work/src/app/missing/value")),
+            format!("onlyRecordFailures must hide candidate directory for {resolution_kind}"),
+        );
+        let host = MemoryCompilerHost::builder("/work")
+            .file("/work/src/app/main.ts", b"export {};".to_vec())
+            .failure(hidden_failure)
+            .build()
+            .expect("build missing candidate-parent host");
+        let mut resolver =
+            ModuleResolver::new_with_program_options(&host, &options, &program_options)
+                .expect("create onlyRecordFailures rootDirs resolver");
+        assert_eq!(
+            resolver
+                .resolve(
+                    Path::new("/work/src/app/main.ts"),
+                    "./missing/value",
+                    ResolutionMode::CommonJs,
+                )
+                .expect("a missing parent suppresses later candidate-directory host work"),
+            ResolutionOutcome::NotFound,
+            "moduleResolution={resolution_kind}"
+        );
+    }
+}
+
+#[test]
 fn malformed_paths_configuration_fails_before_resolution() {
     let host = MemoryCompilerHost::builder("/work")
         .file("/work/main.ts", b"export {};".to_vec())
@@ -491,6 +1011,60 @@ fn malformed_paths_configuration_fails_before_resolution() {
             ResolutionError::InvalidData(_) | ResolutionError::Unsupported { .. }
         ));
     }
+}
+
+#[test]
+fn root_dirs_require_normalized_paths_and_match_display_case() {
+    let host = MemoryCompilerHost::builder("/work")
+        .file("/work/main.ts", b"export {};".to_vec())
+        .build()
+        .expect("build rootDirs validation host");
+    let options = CompilerOptions {
+        module_resolution: Some(100),
+        ..CompilerOptions::default()
+    };
+    let non_normalized =
+        ProgramPath::from_trusted_parts("/work/generated/../generated", "/work/generated")
+            .expect("construct representable but non-normalized rootDirs path");
+    let program_options = ProgramOptions::default().with_root_dirs(vec![non_normalized]);
+    let error = match ModuleResolver::new_with_program_options(&host, &options, &program_options) {
+        Ok(_) => panic!("non-normalized rootDirs path must fail closed"),
+        Err(error) => error,
+    };
+    let ResolutionError::Canonicalization { path, detail } = error else {
+        panic!("expected rootDirs canonicalization failure, got {error:?}");
+    };
+    assert_eq!(
+        path.as_deref(),
+        Some(Path::new("/work/generated/../generated"))
+    );
+    assert!(detail.contains("rootDirs"));
+
+    let insensitive = MemoryCompilerHost::builder("/work")
+        .case_sensitive(false)
+        .file("/work/src/app/main.ts", b"export {};".to_vec())
+        .file("/work/gen/app/value.ts", b"export {};".to_vec())
+        .build()
+        .expect("build case-insensitive rootDirs host");
+    let program_options = ProgramOptions::default().with_root_dirs(vec![
+        ProgramPath::from_trusted_parts("/Work/Src", "/work/src")
+            .expect("construct normalized case-insensitive rootDir"),
+        ProgramPath::from_trusted_parts("/work/gen", "/work/gen")
+            .expect("construct alternate case-insensitive rootDir"),
+    ]);
+    let mut resolver =
+        ModuleResolver::new_with_program_options(&insensitive, &options, &program_options)
+            .expect("accept normalized case-insensitive rootDirs identities");
+    assert_eq!(
+        resolver
+            .resolve(
+                Path::new("/work/src/app/main.ts"),
+                "./value",
+                ResolutionMode::CommonJs,
+            )
+            .expect("case-distinct display prefix is a supported miss"),
+        ResolutionOutcome::NotFound
+    );
 }
 
 #[test]
