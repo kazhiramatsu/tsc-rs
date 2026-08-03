@@ -45,7 +45,7 @@ use crate::nodes::{
     YieldExpressionData,
 };
 use crate::scanner::{is_js_whitespace, is_whitespace_like, LanguageVariant, Scanner};
-use crate::{SourceFile, SyntaxKind};
+use crate::{SourceFile, SyntaxKind, TypeReferenceDirective, TypeReferenceDirectiveResolutionMode};
 use tsc_diagnostics::{
     compute_line_map, gen, Diagnostic, DiagnosticList, DiagnosticMessage, LineMap,
 };
@@ -254,6 +254,7 @@ struct FinishedParse {
     root: NodeId,
     parse_diagnostics: DiagnosticList,
     js_doc_diagnostics: DiagnosticList,
+    type_reference_directives: Vec<TypeReferenceDirective>,
     comment_directives: Vec<crate::CommentDirective>,
 }
 
@@ -518,13 +519,26 @@ fn named_pragma_attribute<'text>(
     None
 }
 
-/// M8-P01 native projection of tsc's
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct RawTypeReferenceDirective {
+    file_name: String,
+    start: usize,
+    end: usize,
+    resolution_mode: Option<TypeReferenceDirectiveResolutionMode>,
+}
+
+/// Native projection of tsc's
 /// processCommentPragmas/processPragmasIntoFields(reference) and
-/// parseResolutionMode. The diagnostic intentionally covers the `types`
-/// value, not the invalid resolution-mode value: tsc passes
-/// `(types.pos, types.end)` into parseResolutionMode.
-fn leading_reference_resolution_mode_errors(text: &str) -> Vec<(usize, usize)> {
-    fn error_from_comment(comment: &str, comment_start: usize) -> Option<(usize, usize)> {
+/// parseResolutionMode. Invalid-mode diagnostics intentionally cover the
+/// `types` value: tsc passes `(types.pos, types.end)` into
+/// parseResolutionMode.
+fn leading_type_reference_directives(
+    text: &str,
+) -> (Vec<RawTypeReferenceDirective>, Vec<(usize, usize)>) {
+    fn directive_from_comment(
+        comment: &str,
+        comment_start: usize,
+    ) -> Option<(RawTypeReferenceDirective, Option<(usize, usize)>)> {
         let after_slashes = comment.strip_prefix("///")?;
         let after_space = after_slashes.trim_start_matches(is_js_whitespace);
         let after_open = after_space.strip_prefix('<')?;
@@ -540,11 +554,25 @@ fn leading_reference_resolution_mode_errors(text: &str) -> Vec<(usize, usize)> {
             return None;
         }
         let types = named_pragma_attribute(comment, comment_start, "types")?;
-        let mode = named_pragma_attribute(comment, comment_start, "resolution-mode")?;
-        if mode.value.is_empty() || matches!(mode.value, "import" | "require") {
-            return None;
-        }
-        Some((types.start, types.end.saturating_sub(types.start)))
+        let mode = named_pragma_attribute(comment, comment_start, "resolution-mode");
+        let (resolution_mode, error) = match mode.map(|attribute| attribute.value) {
+            None | Some("") => (None, None),
+            Some("import") => (Some(TypeReferenceDirectiveResolutionMode::Import), None),
+            Some("require") => (Some(TypeReferenceDirectiveResolutionMode::Require), None),
+            Some(_) => (
+                None,
+                Some((types.start, types.end.saturating_sub(types.start))),
+            ),
+        };
+        Some((
+            RawTypeReferenceDirective {
+                file_name: types.value.to_owned(),
+                start: types.start,
+                end: types.end,
+                resolution_mode,
+            },
+            error,
+        ))
     }
 
     let mut offset = 0;
@@ -553,6 +581,7 @@ fn leading_reference_resolution_mode_errors(text: &str) -> Vec<(usize, usize)> {
             .find(['\n', '\r', '\u{2028}', '\u{2029}'])
             .unwrap_or(text.len());
     }
+    let mut directives = Vec::new();
     let mut errors = Vec::new();
     loop {
         offset = skip_leading_comment_whitespace(text, offset);
@@ -561,8 +590,11 @@ fn leading_reference_resolution_mode_errors(text: &str) -> Vec<(usize, usize)> {
             let length = rest
                 .find(['\n', '\r', '\u{2028}', '\u{2029}'])
                 .unwrap_or(rest.len());
-            if let Some(error) = error_from_comment(&rest[..length], offset) {
-                errors.push(error);
+            if let Some((directive, error)) = directive_from_comment(&rest[..length], offset) {
+                directives.push(directive);
+                if let Some(error) = error {
+                    errors.push(error);
+                }
             }
             offset += length;
             continue;
@@ -576,7 +608,7 @@ fn leading_reference_resolution_mode_errors(text: &str) -> Vec<(usize, usize)> {
         }
         break;
     }
-    errors
+    (directives, errors)
 }
 
 impl<'text> Parser<'text> {
@@ -9202,7 +9234,7 @@ impl<'text> Parser<'text> {
         // M8-P01: tsc runs processCommentPragmas/processPragmasIntoFields
         // after building the SourceFile and appends pragma diagnostics
         // to the syntactic bucket.
-        self.append_reference_resolution_mode_diagnostics();
+        let type_reference_directives = self.process_leading_type_reference_directives();
 
         // tsc parseSourceFileWorker: sourceFile.commentDirectives =
         // scanner.getCommentDirectives().
@@ -9217,12 +9249,14 @@ impl<'text> Parser<'text> {
             root,
             parse_diagnostics: self.parse_diagnostics,
             js_doc_diagnostics: self.js_doc_diagnostics,
+            type_reference_directives,
             comment_directives,
         }
     }
 
-    fn append_reference_resolution_mode_diagnostics(&mut self) {
-        for (start, length) in leading_reference_resolution_mode_errors(self.source_text) {
+    fn process_leading_type_reference_directives(&mut self) -> Vec<TypeReferenceDirective> {
+        let (directives, errors) = leading_type_reference_directives(self.source_text);
+        for (start, length) in errors {
             self.push_parse_diagnostic(
                 start,
                 length,
@@ -9230,6 +9264,15 @@ impl<'text> Parser<'text> {
                 Vec::new(),
             );
         }
+        directives
+            .into_iter()
+            .map(|directive| TypeReferenceDirective {
+                file_name: directive.file_name,
+                pos: self.to_utf16(directive.start),
+                end: self.to_utf16(directive.end),
+                resolution_mode: directive.resolution_mode,
+            })
+            .collect()
     }
 
     fn finish_node_at(&mut self, id: NodeId, pos: usize, end: usize) -> NodeId {
@@ -9372,6 +9415,7 @@ pub fn parse_source_file(
         external_module_indicator,
         parse_diagnostics: finished.parse_diagnostics,
         js_doc_diagnostics: finished.js_doc_diagnostics,
+        type_reference_directives: finished.type_reference_directives,
         comment_directives: finished.comment_directives,
     }
 }
@@ -9487,6 +9531,7 @@ pub fn parse_json_text_with_bases(
         external_module_indicator: None,
         parse_diagnostics: finished.parse_diagnostics,
         js_doc_diagnostics: finished.js_doc_diagnostics,
+        type_reference_directives: finished.type_reference_directives,
         comment_directives: finished.comment_directives,
     }
 }
@@ -12860,6 +12905,42 @@ mod tests {
         );
         assert_eq!(diagnostic.start, Some(22));
         assert_eq!(diagnostic.length, Some(3));
+        assert_eq!(source.type_reference_directives.len(), 1);
+        let reference = &source.type_reference_directives[0];
+        assert_eq!(reference.file_name, "pkg");
+        assert_eq!(reference.pos, 22);
+        assert_eq!(reference.end, 25);
+        assert_eq!(reference.resolution_mode, None);
+    }
+
+    #[test]
+    fn triple_slash_type_references_retain_exact_spelling_span_mode_and_order() {
+        let source = parse_source_file(
+            "/index.ts".to_owned(),
+            concat!(
+                "/// <reference types=\"JqUeRy\" />\n",
+                "/// <reference types='@scope/pkg' resolution-mode='import'/>\n",
+                "/// <reference types=\"required\" resolution-mode=\"require\"/>\n",
+                "export {};",
+            )
+            .to_owned(),
+            ParseOptions::default(),
+            None,
+        );
+        assert!(source.parse_diagnostics.is_empty());
+        assert_eq!(source.type_reference_directives.len(), 3);
+        assert_eq!(source.type_reference_directives[0].file_name, "JqUeRy");
+        assert_eq!(source.type_reference_directives[0].pos, 22);
+        assert_eq!(source.type_reference_directives[0].end, 28);
+        assert_eq!(source.type_reference_directives[0].resolution_mode, None);
+        assert_eq!(
+            source.type_reference_directives[1].resolution_mode,
+            Some(TypeReferenceDirectiveResolutionMode::Import)
+        );
+        assert_eq!(
+            source.type_reference_directives[2].resolution_mode,
+            Some(TypeReferenceDirectiveResolutionMode::Require)
+        );
     }
 
     #[test]

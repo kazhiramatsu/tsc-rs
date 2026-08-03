@@ -131,8 +131,8 @@
   ],
   "summary": {
     "rows": 241,
-    "open": 20,
-    "closed": 221,
+    "open": 17,
+    "closed": 224,
     "lapsed": 0,
     "fixtures": 30,
     "by_code": {
@@ -7559,7 +7559,7 @@
       ],
       "owner_evidence": "Reviewed TypeScript 6.0.3 declaration owner chain: Primary:loadModuleFromImmediateNodeModulesDirectory -> Dependency:resolveModuleName -> Dependency:getModeForUsageLocationWorker -> Dependency:createModeAwareCacheKey -> Dependency:createModeAwareCache -> Dependency:getModeForUsageLocation -> Dependency:loadModuleFromTargetExportOrImport -> Diagnostic:reportRelationError.",
       "rust_boundary": {
-        "readiness": "seam-only",
+        "readiness": "authoritative",
         "seam_anchors": [
           {
             "role": "producer",
@@ -7572,6 +7572,32 @@
             "crate_name": "tsc-program",
             "path": "crates/program/src/prepared.rs",
             "symbol": "require_module"
+          },
+          {
+            "role": "driver",
+            "crate_name": "tsc-compiler",
+            "path": "crates/compiler/src/lib.rs",
+            "symbol": "pub fn run(self)"
+          },
+          {
+            "role": "diagnostic-consumer",
+            "crate_name": "tsc-checker",
+            "path": "crates/checker/src/engine.rs",
+            "symbol": "fn report_relation_error"
+          }
+        ],
+        "authoritative_anchors": [
+          {
+            "role": "producer",
+            "crate_name": "tsc-program",
+            "path": "crates/program/src/module_resolution.rs",
+            "symbol": "pub fn resolve("
+          },
+          {
+            "role": "table-consumer",
+            "crate_name": "tsc-compiler",
+            "path": "crates/compiler/src/lib.rs",
+            "symbol": "impl AuthoritativeModuleProvider for PreparedModuleProvider"
           },
           {
             "role": "driver",
@@ -7608,8 +7634,21 @@
           "evidence": "Node16 @types conditional-exports resolution control that reaches the same package feature without TS2322."
         }
       },
-      "status": "open",
-      "source_evidence": "'foo' types arrive via node_modules/@types/foo package.json conditional exports selected by JSDoc @import resolution-mode (host: node_modules+@types+exports; also JSDoc-driven — host class primary)"
+      "status": "closed",
+      "source_evidence": "'foo' types arrive via node_modules/@types/foo package.json conditional exports selected by JSDoc @import resolution-mode (host: node_modules+@types+exports; also JSDoc-driven — host class primary)",
+      "closure_evidence": {
+        "tiers": [
+          "t0",
+          "t1",
+          "t2",
+          "t3",
+          "t4"
+        ],
+        "artifact": "ratchets/conformance-matches.v1.json.zst",
+        "artifact_sha256": "bd807627b7ca1bc95ba49eb5b9f56a68373c93b43db19e348b3bf1a54cec008b",
+        "note": "H0 type-reference slice resolves the JSDoc import-mode @types conditional-exports route and retains this exact accepted identity through T0--T4."
+      },
+      "closing_commit": "fa30fb2a8f0ac244976e18b6e4dc29a545f29430"
     },
     {
       "id": "h0:1abf64a23ce33ed1a42dff5e33ec067c6d0f7409f26cdea511451678d35a804e",
@@ -22552,7 +22591,7 @@
       ],
       "owner_evidence": "Reviewed TypeScript 6.0.3 declaration owner chain: Primary:loadModuleFromImmediateNodeModulesDirectory -> Dependency:resolveModuleName -> Dependency:getModeForUsageLocationWorker -> Dependency:createModeAwareCacheKey -> Dependency:createModeAwareCache -> Dependency:getModeForUsageLocation -> Dependency:loadModuleFromTargetExportOrImport -> Diagnostic:reportRelationError.",
       "rust_boundary": {
-        "readiness": "seam-only",
+        "readiness": "authoritative",
         "seam_anchors": [
           {
             "role": "producer",
@@ -22565,6 +22604,32 @@
             "crate_name": "tsc-program",
             "path": "crates/program/src/prepared.rs",
             "symbol": "require_module"
+          },
+          {
+            "role": "driver",
+            "crate_name": "tsc-compiler",
+            "path": "crates/compiler/src/lib.rs",
+            "symbol": "pub fn run(self)"
+          },
+          {
+            "role": "diagnostic-consumer",
+            "crate_name": "tsc-checker",
+            "path": "crates/checker/src/engine.rs",
+            "symbol": "fn report_relation_error"
+          }
+        ],
+        "authoritative_anchors": [
+          {
+            "role": "producer",
+            "crate_name": "tsc-program",
+            "path": "crates/program/src/module_resolution.rs",
+            "symbol": "pub fn resolve("
+          },
+          {
+            "role": "table-consumer",
+            "crate_name": "tsc-compiler",
+            "path": "crates/compiler/src/lib.rs",
+            "symbol": "impl AuthoritativeModuleProvider for PreparedModuleProvider"
           },
           {
             "role": "driver",
@@ -22601,8 +22666,21 @@
           "evidence": "Node16 @types conditional-exports resolution control that reaches the same package feature without TS2322."
         }
       },
-      "status": "open",
-      "source_evidence": "'foo' types arrive via node_modules/@types/foo package.json conditional exports selected by JSDoc @import resolution-mode (host: node_modules+@types+exports; also JSDoc-driven — host class primary)"
+      "status": "closed",
+      "source_evidence": "'foo' types arrive via node_modules/@types/foo package.json conditional exports selected by JSDoc @import resolution-mode (host: node_modules+@types+exports; also JSDoc-driven — host class primary)",
+      "closure_evidence": {
+        "tiers": [
+          "t0",
+          "t1",
+          "t2",
+          "t3",
+          "t4"
+        ],
+        "artifact": "ratchets/conformance-matches.v1.json.zst",
+        "artifact_sha256": "bd807627b7ca1bc95ba49eb5b9f56a68373c93b43db19e348b3bf1a54cec008b",
+        "note": "H0 type-reference slice resolves the JSDoc require-mode @types conditional-exports route and retains this exact accepted identity through T0--T4."
+      },
+      "closing_commit": "fa30fb2a8f0ac244976e18b6e4dc29a545f29430"
     },
     {
       "id": "h0:58e238ab696c3a6360f225a745104644cbf43b186696e523905065b87d1970af",
@@ -28737,7 +28815,7 @@
       ],
       "owner_evidence": "Reviewed TypeScript 6.0.3 declaration owner chain: Primary:resolveTypeReferenceDirective -> Dependency:getModeForFileReference -> Dependency:getModeForTypeReferenceDirectiveInFile -> Dependency:createModeAwareCacheKey -> Dependency:createModeAwareCache -> Diagnostic:processTypeReferenceDirectiveWorker.",
       "rust_boundary": {
-        "readiness": "seam-only",
+        "readiness": "authoritative",
         "seam_anchors": [
           {
             "role": "producer",
@@ -28763,6 +28841,32 @@
             "path": "crates/compiler/src/lib.rs",
             "symbol": "for diagnostic in preparation.program()"
           }
+        ],
+        "authoritative_anchors": [
+          {
+            "role": "producer",
+            "crate_name": "tsc-program",
+            "path": "crates/program/src/module_resolution.rs",
+            "symbol": "pub fn resolve_type_reference("
+          },
+          {
+            "role": "table-consumer",
+            "crate_name": "tsc-compiler",
+            "path": "crates/compiler/src/lib.rs",
+            "symbol": ".type_references()"
+          },
+          {
+            "role": "driver",
+            "crate_name": "tsc-compiler",
+            "path": "crates/compiler/src/lib.rs",
+            "symbol": "pub fn run(self)"
+          },
+          {
+            "role": "diagnostic-consumer",
+            "crate_name": "tsc-compiler",
+            "path": "crates/compiler/src/lib.rs",
+            "symbol": "for diagnostic in &program_diagnostics"
+          }
         ]
       },
       "canaries": {
@@ -28786,8 +28890,21 @@
           "evidence": "Adjacent successful type-reference lookup without TS2688."
         }
       },
-      "status": "open",
-      "source_evidence": "2688 verdict = case-sensitive typeRoots probing for /// <reference types=\"JqUeRy\"; reference-types redirects are host machinery the checker never processes (host: typeRoots+reference-types)"
+      "status": "closed",
+      "source_evidence": "2688 verdict = case-sensitive typeRoots probing for /// <reference types=\"JqUeRy\"; reference-types redirects are host machinery the checker never processes (host: typeRoots+reference-types)",
+      "closure_evidence": {
+        "tiers": [
+          "t0",
+          "t1",
+          "t2",
+          "t3",
+          "t4"
+        ],
+        "artifact": "ratchets/conformance-matches.v1.json.zst",
+        "artifact_sha256": "bd807627b7ca1bc95ba49eb5b9f56a68373c93b43db19e348b3bf1a54cec008b",
+        "note": "H0 type-reference slice resolves exact-spelling type directives through explicit and default type roots, preserving this case-sensitive TS2688 identity through T0--T4."
+      },
+      "closing_commit": "fa30fb2a8f0ac244976e18b6e4dc29a545f29430"
     },
     {
       "id": "h0:6dcf37887d864d8fe94aaf9947227bc2d01160f050bb8b0b0b6529e0f89bc62c",

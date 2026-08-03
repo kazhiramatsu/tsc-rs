@@ -1,14 +1,80 @@
 use std::collections::BTreeSet;
+use std::ops::Range;
 
 use tsc_syntax::{
-    for_each_child, parse_source_file, LanguageVariant, NodeData, ParseOptions, SyntaxKind,
+    for_each_child, parse_source_file, LanguageVariant, NodeData, NodeId, ParseOptions, SourceFile,
+    SyntaxKind, TypeReferenceDirectiveResolutionMode,
 };
 use tsc_types::CompilerOptions;
 
 use crate::prepared::PreparedSourceFile;
-use crate::resolution::{ResolutionError, ResolutionKey, ResolutionMode};
+use crate::resolution::{
+    ResolutionError, ResolutionKey, ResolutionMode, TypeReferenceResolutionKey,
+};
 
 const FEATURE: &str = "static-module-request-plan";
+
+/// A source-owned triple-slash type-reference request and its diagnostic span.
+///
+/// The span is the UTF-16 range covering only the `types` attribute value,
+/// matching TypeScript's `FileReference` and TS2688 contracts.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct PlannedTypeReferenceDirective {
+    key: TypeReferenceResolutionKey,
+    pos: u32,
+    end: u32,
+}
+
+impl PlannedTypeReferenceDirective {
+    pub fn key(&self) -> &TypeReferenceResolutionKey {
+        &self.key
+    }
+
+    pub const fn pos(&self) -> u32 {
+        self.pos
+    }
+
+    pub const fn end(&self) -> u32 {
+        self.end
+    }
+
+    pub const fn length(&self) -> u32 {
+        self.end - self.pos
+    }
+
+    pub fn span(&self) -> Range<u32> {
+        self.pos..self.end
+    }
+}
+
+/// Exact source-owned resolution requests discovered by one syntax parse.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct SourceRequestPlan {
+    module_requests: Vec<ResolutionKey>,
+    type_reference_directives: Vec<PlannedTypeReferenceDirective>,
+}
+
+impl SourceRequestPlan {
+    pub fn module_requests(&self) -> &[ResolutionKey] {
+        &self.module_requests
+    }
+
+    pub fn type_reference_directives(&self) -> &[PlannedTypeReferenceDirective] {
+        &self.type_reference_directives
+    }
+
+    pub fn into_module_requests(self) -> Vec<ResolutionKey> {
+        self.module_requests
+    }
+
+    pub fn into_type_reference_directives(self) -> Vec<PlannedTypeReferenceDirective> {
+        self.type_reference_directives
+    }
+
+    pub fn into_parts(self) -> (Vec<ResolutionKey>, Vec<PlannedTypeReferenceDirective>) {
+        (self.module_requests, self.type_reference_directives)
+    }
+}
 
 /// Plan the exact authoritative resolution keys for the static-import-only
 /// program slice retained by H0.2b.
@@ -20,7 +86,7 @@ pub fn plan_static_module_requests(
     source: &PreparedSourceFile,
     options: &CompilerOptions,
 ) -> Result<Vec<ResolutionKey>, ResolutionError> {
-    plan_module_requests_worker(source, options, false)
+    Ok(plan_module_requests_worker(source, options, false)?.into_module_requests())
 }
 
 /// Plan the exact authoritative module keys for the H0 package-map program
@@ -33,6 +99,19 @@ pub fn plan_module_requests(
     source: &PreparedSourceFile,
     options: &CompilerOptions,
 ) -> Result<Vec<ResolutionKey>, ResolutionError> {
+    Ok(plan_source_requests(source, options)?.into_module_requests())
+}
+
+/// Plan module requests and leading triple-slash type-reference directives
+/// from the same parse of a prepared source file.
+///
+/// Module requests retain their first source occurrence and repeated exact
+/// keys are emitted once. Every type-reference occurrence is retained so a
+/// cached resolution can still produce diagnostics at each directive span.
+pub fn plan_source_requests(
+    source: &PreparedSourceFile,
+    options: &CompilerOptions,
+) -> Result<SourceRequestPlan, ResolutionError> {
     plan_module_requests_worker(source, options, true)
 }
 
@@ -40,10 +119,10 @@ fn plan_module_requests_worker(
     source: &PreparedSourceFile,
     options: &CompilerOptions,
     expanded: bool,
-) -> Result<Vec<ResolutionKey>, ResolutionError> {
+) -> Result<SourceRequestPlan, ResolutionError> {
     let module_kind = options.emit_module_kind();
     if (!expanded && !(100..=199).contains(&module_kind))
-        || (expanded && !matches!(module_kind, 1 | 99 | 100..=200))
+        || (expanded && !matches!(module_kind, 1 | 5..=7 | 99 | 100..=200))
     {
         return Err(unsupported(
             source,
@@ -98,8 +177,29 @@ fn plan_module_requests_worker(
         ));
     }
 
-    let mut requests = Vec::new();
-    let mut seen = BTreeSet::new();
+    let mut type_reference_directives = Vec::new();
+    for directive in &parsed.type_reference_directives {
+        let mode = match directive.resolution_mode {
+            Some(TypeReferenceDirectiveResolutionMode::Import) => ResolutionMode::EsNext,
+            Some(TypeReferenceDirectiveResolutionMode::Require) => ResolutionMode::CommonJs,
+            None if import_syntax_affects_module_resolution(options) => source
+                .implied_node_format_for_emit()
+                .unwrap_or(ResolutionMode::Unspecified),
+            None => ResolutionMode::Unspecified,
+        };
+        let key = TypeReferenceResolutionKey::source(
+            source.path().canonical().clone(),
+            directive.file_name.clone(),
+            mode,
+        );
+        type_reference_directives.push(PlannedTypeReferenceDirective {
+            key,
+            pos: directive.pos,
+            end: directive.end,
+        });
+    }
+
+    let mut occurrences = Vec::new();
     let mut stack = vec![parsed.root];
     while let Some(node_id) = stack.pop() {
         let node = parsed.arena.node(node_id);
@@ -119,22 +219,22 @@ fn plan_module_requests_worker(
                         "an import declaration has no module specifier",
                     )
                 })?;
-                let NodeData::StringLiteral(literal) = &parsed.arena.node(module_specifier).data
-                else {
+                let module_specifier = parsed.arena.node(module_specifier);
+                let NodeData::StringLiteral(literal) = &module_specifier.data else {
                     return Err(unsupported_at(
                         source,
                         node.pos,
                         "an import declaration has a non-string module specifier",
                     ));
                 };
-                let key = ResolutionKey::new(
-                    source.path().canonical().clone(),
-                    literal.text.clone(),
-                    static_mode,
-                );
-                if seen.insert(key.clone()) {
-                    requests.push(key);
-                }
+                occurrences.push(ModuleRequestOccurrence {
+                    pos: module_specifier.pos,
+                    key: ResolutionKey::new(
+                        source.path().canonical().clone(),
+                        literal.text.clone(),
+                        static_mode,
+                    ),
+                });
             }
             NodeData::ExportDeclaration(export) if export.module_specifier.is_some() => {
                 if !expanded {
@@ -154,22 +254,22 @@ fn plan_module_requests_worker(
                 let module_specifier = export
                     .module_specifier
                     .expect("guarded export module specifier");
-                let NodeData::StringLiteral(literal) = &parsed.arena.node(module_specifier).data
-                else {
+                let module_specifier = parsed.arena.node(module_specifier);
+                let NodeData::StringLiteral(literal) = &module_specifier.data else {
                     return Err(unsupported_at(
                         source,
                         node.pos,
                         "an export declaration has a non-string module specifier",
                     ));
                 };
-                let key = ResolutionKey::new(
-                    source.path().canonical().clone(),
-                    literal.text.clone(),
-                    static_mode,
-                );
-                if seen.insert(key.clone()) {
-                    requests.push(key);
-                }
+                occurrences.push(ModuleRequestOccurrence {
+                    pos: module_specifier.pos,
+                    key: ResolutionKey::new(
+                        source.path().canonical().clone(),
+                        literal.text.clone(),
+                        static_mode,
+                    ),
+                });
             }
             NodeData::ImportEqualsDeclaration(import_equals) => {
                 if !expanded {
@@ -196,22 +296,22 @@ fn plan_module_requests_worker(
                             "an external import-equals declaration has no expression",
                         )
                     })?;
-                    let NodeData::StringLiteral(literal) = &parsed.arena.node(expression).data
-                    else {
+                    let expression = parsed.arena.node(expression);
+                    let NodeData::StringLiteral(literal) = &expression.data else {
                         return Err(unsupported_at(
                             source,
                             node.pos,
                             "an external import-equals declaration has a non-string specifier",
                         ));
                     };
-                    let key = ResolutionKey::new(
-                        source.path().canonical().clone(),
-                        literal.text.clone(),
-                        ResolutionMode::CommonJs,
-                    );
-                    if seen.insert(key.clone()) {
-                        requests.push(key);
-                    }
+                    occurrences.push(ModuleRequestOccurrence {
+                        pos: expression.pos,
+                        key: ResolutionKey::new(
+                            source.path().canonical().clone(),
+                            literal.text.clone(),
+                            ResolutionMode::CommonJs,
+                        ),
+                    });
                 }
                 // An internal `import alias = namespace.member` declaration does
                 // not issue a module-resolution request.
@@ -227,12 +327,37 @@ fn plan_module_requests_worker(
                     "an import type is outside the static-import slice",
                 ));
             }
-            NodeData::JSDocImportTag(_) => {
-                return Err(unsupported_at(
-                    source,
-                    node.pos,
-                    "a JSDoc import is outside the static-import slice",
-                ));
+            NodeData::JSDocImportTag(import) => {
+                if !expanded {
+                    return Err(unsupported_at(
+                        source,
+                        node.pos,
+                        "a JSDoc import is outside the static-import slice",
+                    ));
+                }
+                let module_specifier = import.module_specifier.ok_or_else(|| {
+                    unsupported_at(source, node.pos, "a JSDoc import has no module specifier")
+                })?;
+                let module_specifier = parsed.arena.node(module_specifier);
+                let NodeData::StringLiteral(literal) = &module_specifier.data else {
+                    return Err(unsupported_at(
+                        source,
+                        node.pos,
+                        "a JSDoc import has a non-string module specifier",
+                    ));
+                };
+                let mode = import
+                    .attributes
+                    .and_then(|attributes| resolution_mode_override(&parsed, attributes))
+                    .unwrap_or(static_mode);
+                occurrences.push(ModuleRequestOccurrence {
+                    pos: module_specifier.pos,
+                    key: ResolutionKey::new(
+                        source.path().canonical().clone(),
+                        literal.text.clone(),
+                        mode,
+                    ),
+                });
             }
             NodeData::ModuleDeclaration(module)
                 if module.name.is_some_and(|name| {
@@ -266,22 +391,22 @@ fn plan_module_requests_worker(
                             "a dynamic import call does not have exactly one argument",
                         ));
                     }
-                    let NodeData::StringLiteral(literal) = &parsed.arena.node(arguments[0]).data
-                    else {
+                    let argument = parsed.arena.node(arguments[0]);
+                    let NodeData::StringLiteral(literal) = &argument.data else {
                         return Err(unsupported_at(
                             source,
                             node.pos,
                             "a dynamic import call has a non-string argument",
                         ));
                     };
-                    let key = ResolutionKey::new(
-                        source.path().canonical().clone(),
-                        literal.text.clone(),
-                        dynamic_mode,
-                    );
-                    if seen.insert(key.clone()) {
-                        requests.push(key);
-                    }
+                    occurrences.push(ModuleRequestOccurrence {
+                        pos: argument.pos,
+                        key: ResolutionKey::new(
+                            source.path().canonical().clone(),
+                            literal.text.clone(),
+                            dynamic_mode,
+                        ),
+                    });
                 }
                 let is_require = callee.is_some_and(|callee| {
                     matches!(
@@ -325,7 +450,66 @@ fn plan_module_requests_worker(
         stack.extend(children.into_iter().rev());
     }
 
-    Ok(requests)
+    occurrences.sort_by_key(|occurrence| occurrence.pos);
+    let mut module_requests = Vec::new();
+    let mut seen_module_requests = BTreeSet::new();
+    for occurrence in occurrences {
+        if seen_module_requests.insert(occurrence.key.clone()) {
+            module_requests.push(occurrence.key);
+        }
+    }
+
+    Ok(SourceRequestPlan {
+        module_requests,
+        type_reference_directives,
+    })
+}
+
+struct ModuleRequestOccurrence {
+    pos: u32,
+    key: ResolutionKey,
+}
+
+/// tsc `getResolutionModeOverride`: only the exact one-element
+/// `"resolution-mode": "import" | "require"` shape overrides the fallback.
+fn resolution_mode_override(parsed: &SourceFile, attributes: NodeId) -> Option<ResolutionMode> {
+    let NodeData::ImportAttributes(attributes) = &parsed.arena.node(attributes).data else {
+        return None;
+    };
+    let elements = attributes.elements?;
+    let elements = &parsed.arena.node_array(elements).nodes;
+    if elements.len() != 1 {
+        return None;
+    }
+    let NodeData::ImportAttribute(attribute) = &parsed.arena.node(elements[0]).data else {
+        return None;
+    };
+    if string_literal_like_text(parsed, attribute.name?)? != "resolution-mode" {
+        return None;
+    }
+    match string_literal_like_text(parsed, attribute.value?)? {
+        "import" => Some(ResolutionMode::EsNext),
+        "require" => Some(ResolutionMode::CommonJs),
+        _ => None,
+    }
+}
+
+fn string_literal_like_text(parsed: &SourceFile, node: NodeId) -> Option<&str> {
+    match &parsed.arena.node(node).data {
+        NodeData::StringLiteral(literal) => Some(&literal.text),
+        NodeData::NoSubstitutionTemplateLiteral(literal) => Some(&literal.text),
+        _ => None,
+    }
+}
+
+/// tsc `importSyntaxAffectsModuleResolution`, including the computed package
+/// map defaults for Node16, NodeNext, and Bundler resolution.
+fn import_syntax_affects_module_resolution(options: &CompilerOptions) -> bool {
+    let module_resolution = options.emit_module_resolution_kind();
+    (3..=99).contains(&module_resolution)
+        || (matches!(module_resolution, 3 | 99 | 100)
+            && (options.resolve_package_json_exports != Some(false)
+                || options.resolve_package_json_imports != Some(false)))
 }
 
 fn is_javascript_file_name(file_name: &str) -> bool {

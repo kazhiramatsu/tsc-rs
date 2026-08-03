@@ -5,17 +5,20 @@ use std::path::{Path, PathBuf};
 
 use tsc_checker::InputFile;
 use tsc_compiler::ProgramSession;
-use tsc_diagnostics::Diagnostic;
+use tsc_diagnostics::{gen, Diagnostic, MessageChain};
 use tsc_host::MemoryCompilerHost;
 use tsc_program::{
-    plan_module_requests, HostResolvedModule, ModuleExtension, ModuleResolution, ModuleResolver,
-    PackageId, PackageJsonType, PackageMetadata, PreparedProgram, PreparedSourceFile, ProgramPath,
-    ResolutionError, ResolutionMode, ResolutionOutcome, ResolvedModuleTarget, SourceFileId,
+    plan_source_requests, HostResolvedModule, HostResolvedTypeReferenceDirective, ModuleExtension,
+    ModuleResolution, ModuleResolver, PackageId, PackageJsonType, PackageMetadata,
+    PlannedTypeReferenceDirective, PreparedProgram, PreparedSourceFile, ProgramOptions,
+    ProgramPath, ResolutionError, ResolutionMode, ResolutionOutcome, ResolvedModuleTarget,
+    ResolvedTypeReferenceDirective, SourceFileId, TypeReferenceResolution,
+    TypeReferenceResolutionKey,
 };
 
 use crate::ConformanceResult;
 
-const SUPPORTED_FIXTURES: [&str; 34] = [
+const SUPPORTED_FIXTURES: [&str; 37] = [
     "conformance/node/nodeModulesPackagePatternExportsExclude.ts",
     "conformance/node/nodeModulesPackagePatternExports.ts",
     "conformance/node/allowJs/nodeModulesAllowJsPackagePatternExportsExclude.ts",
@@ -50,6 +53,9 @@ const SUPPORTED_FIXTURES: [&str; 34] = [
     "conformance/moduleResolution/packageJsonMain_isNonRecursive.ts",
     "conformance/moduleResolution/packageJsonMain.ts",
     "conformance/node/nodeModulesNoDirectoryModule.ts",
+    "conformance/jsdoc/importTag17.ts",
+    "conformance/typings/typingsLookup1.ts",
+    "conformance/typings/typingsLookup3.ts",
 ];
 
 pub(crate) fn supports_fixture(fixture: &str) -> bool {
@@ -128,6 +134,8 @@ pub(crate) fn run(
     let mut resolver = ModuleResolver::new(&host, &options)?;
     let mut prepared_builder =
         PreparedProgram::builder(resolver.path_context().clone(), options.clone());
+    let program_options = program_options_from_program(program, &current_directory)?;
+    prepared_builder.set_program_options(program_options.clone());
 
     let mut source_by_canonical = BTreeMap::<PathBuf, (SourceFileId, ProgramPath)>::new();
     for source in &decoded_libs {
@@ -164,6 +172,12 @@ pub(crate) fn run(
     }
 
     let mut host_resolutions = Vec::new();
+    let mut type_reference_indices = BTreeMap::<TypeReferenceResolutionKey, usize>::new();
+    let mut host_type_reference_resolutions = Vec::<(
+        TypeReferenceResolutionKey,
+        ResolutionOutcome<HostResolvedTypeReferenceDirective>,
+        Vec<Diagnostic>,
+    )>::new();
     for source in &owned_program_sources {
         if source
             .prepared
@@ -174,14 +188,40 @@ pub(crate) fn run(
         {
             continue;
         }
-        for key in plan_module_requests(&source.prepared, &options)? {
+        let plan = plan_source_requests(&source.prepared, &options)?;
+        for key in plan.module_requests() {
             let specifier = key.specifier().to_owned();
             let host_outcome = resolver.resolve(
                 source.prepared.path().canonical().as_path(),
                 &specifier,
                 key.mode(),
             )?;
-            host_resolutions.push((key, host_outcome));
+            host_resolutions.push((key.clone(), host_outcome));
+        }
+        for directive in plan.type_reference_directives() {
+            let key = directive.key().clone();
+            let index = if let Some(index) = type_reference_indices.get(&key).copied() {
+                index
+            } else {
+                let host_outcome = resolver.resolve_type_reference(
+                    source.prepared.path().canonical().as_path(),
+                    key.specifier(),
+                    key.mode(),
+                    program_options.type_roots(),
+                )?;
+                let index = host_type_reference_resolutions.len();
+                host_type_reference_resolutions.push((key.clone(), host_outcome, Vec::new()));
+                type_reference_indices.insert(key.clone(), index);
+                index
+            };
+            if matches!(
+                &host_type_reference_resolutions[index].1,
+                ResolutionOutcome::NotFound
+            ) {
+                host_type_reference_resolutions[index].2.push(
+                    unresolved_type_reference_diagnostic(&source.prepared, directive)?,
+                );
+            }
         }
     }
 
@@ -198,6 +238,11 @@ pub(crate) fn run(
         let resolution =
             bind_host_outcome(host_outcome, &source_by_canonical, &options, &package_map)?;
         prepared_builder.add_module_resolution(key, Ok(resolution))?;
+    }
+    for (key, host_outcome, diagnostics) in host_type_reference_resolutions {
+        let resolution = bind_type_reference_host_outcome(host_outcome, &source_by_canonical)?
+            .with_diagnostics(diagnostics);
+        prepared_builder.add_type_reference_resolution(key, Ok(resolution))?;
     }
 
     let packages = resolver
@@ -221,6 +266,58 @@ fn public_program_path(source: &DecodedSource) -> Result<ProgramPath, H0MemoryEr
         H0MemoryError::InvalidPath {
             path: source.display.clone(),
             detail: "program path rejected the normalized public/canonical pair",
+        }
+    })
+}
+
+fn program_options_from_program(
+    program: &tsc_harness::ProgramJson,
+    current_directory: &Path,
+) -> Result<ProgramOptions, H0MemoryError> {
+    let mut options = ProgramOptions::default();
+    if let Some(tsc_harness::OptionValue::Bool(no_lib)) = program_option(&program.options, "noLib")
+    {
+        options = options.with_no_lib(*no_lib);
+    }
+    if let Some(type_roots) = string_list_program_option(&program.options, "typeRoots") {
+        let type_roots = type_roots
+            .iter()
+            .map(|root| option_program_path(current_directory, root))
+            .collect::<Result<Vec<_>, _>>()?;
+        options = options.with_type_roots(type_roots);
+    }
+    if let Some(types) = string_list_program_option(&program.options, "types") {
+        options = options.with_types(types.to_vec());
+    }
+    Ok(options)
+}
+
+fn program_option<'a>(
+    options: &'a BTreeMap<String, tsc_harness::OptionValue>,
+    name: &str,
+) -> Option<&'a tsc_harness::OptionValue> {
+    options
+        .iter()
+        .find_map(|(candidate, value)| candidate.eq_ignore_ascii_case(name).then_some(value))
+        .filter(|value| !matches!(value, tsc_harness::OptionValue::Null))
+}
+
+fn string_list_program_option<'a>(
+    options: &'a BTreeMap<String, tsc_harness::OptionValue>,
+    name: &str,
+) -> Option<&'a [String]> {
+    match program_option(options, name)? {
+        tsc_harness::OptionValue::StringList(values) => Some(values),
+        _ => None,
+    }
+}
+
+fn option_program_path(current_directory: &Path, path: &str) -> Result<ProgramPath, H0MemoryError> {
+    let canonical = normalize_source_path(current_directory, path)?;
+    ProgramPath::from_trusted_parts(canonical.clone(), canonical).map_err(|_| {
+        H0MemoryError::InvalidPath {
+            path: path.to_owned(),
+            detail: "program option path rejected the normalized public/canonical pair",
         }
     })
 }
@@ -269,6 +366,57 @@ fn bind_host_outcome(
         resolution = resolution.with_alternate_result(alternate_result);
     }
     Ok(resolution)
+}
+
+fn bind_type_reference_host_outcome(
+    outcome: ResolutionOutcome<HostResolvedTypeReferenceDirective>,
+    source_by_canonical: &BTreeMap<PathBuf, (SourceFileId, ProgramPath)>,
+) -> Result<TypeReferenceResolution, ResolutionError> {
+    let ResolutionOutcome::Resolved(host_directive) = outcome else {
+        return Ok(TypeReferenceResolution::not_found());
+    };
+    if !matches!(
+        host_directive.extension(),
+        ModuleExtension::Dts | ModuleExtension::Dmts | ModuleExtension::Dcts
+    ) {
+        return Err(ResolutionError::invalid_data(format!(
+            "type-reference target {} is not a declaration file",
+            host_directive.resolved_file().display().display()
+        )));
+    }
+    let target_canonical = host_directive.resolved_file().canonical().as_path();
+    let Some((source, target)) = source_by_canonical.get(target_canonical) else {
+        return Err(ResolutionError::invalid_data(format!(
+            "resolved type-reference source {} is not owned by the prepared program",
+            host_directive.resolved_file().display().display()
+        )));
+    };
+    let mut directive = ResolvedTypeReferenceDirective::new(target.clone(), *source)
+        .with_primary(host_directive.primary())
+        .with_external_library_import(host_directive.is_external_library_import());
+    if let Some(original_path) = host_directive.original_path() {
+        directive = directive.with_original_path(original_path.clone());
+    }
+    if let Some(package_id) = host_directive.package_id() {
+        directive = directive.with_package_id(package_id.clone());
+    }
+    Ok(TypeReferenceResolution::resolved(directive))
+}
+
+fn unresolved_type_reference_diagnostic(
+    source: &PreparedSourceFile,
+    directive: &PlannedTypeReferenceDirective,
+) -> Result<Diagnostic, ResolutionError> {
+    let file_name = source.path().display().to_str().ok_or_else(|| {
+        ResolutionError::invalid_data("type-reference diagnostic source is not valid Unicode")
+    })?;
+    let args = [directive.key().specifier().to_owned()];
+    Ok(Diagnostic::new(
+        Some(file_name.to_owned()),
+        Some(directive.pos()),
+        Some(directive.length()),
+        MessageChain::new(&gen::Cannot_find_type_definition_file_for_0, &args),
+    ))
 }
 
 /// tsc-port: getPackagesMap/packageBundlesTypes/typesPackageExists @6.0.3
@@ -433,8 +581,11 @@ fn normalize_absolute_posix(path: &str) -> Result<PathBuf, H0MemoryError> {
 mod tests {
     use super::{
         implied_node_format, implied_node_format_for_emit, package_map_from_facts,
-        supports_fixture, types_package_name, SUPPORTED_FIXTURES,
+        program_options_from_program, supports_fixture, types_package_name, SUPPORTED_FIXTURES,
     };
+    use std::collections::BTreeMap;
+    use std::path::Path;
+    use tsc_harness::{OptionValue, ProgramJson};
     use tsc_program::{
         CompilerOptions, ModuleExtension, PackageId, PackageJsonType, PackageMetadata, ProgramPath,
         ResolutionMode,
@@ -453,6 +604,9 @@ mod tests {
             "conformance/moduleResolution/packageJsonMain.ts",
             "conformance/node/nodeModulesNoDirectoryModule.ts",
             "conformance/node/nodeModulesPackageExports.ts",
+            "conformance/jsdoc/importTag17.ts",
+            "conformance/typings/typingsLookup1.ts",
+            "conformance/typings/typingsLookup3.ts",
         ] {
             assert!(supports_fixture(fixture), "missing H0 route: {fixture}");
         }
@@ -466,6 +620,41 @@ mod tests {
         ] {
             assert!(!supports_fixture(fixture), "unexpected H0 route: {fixture}");
         }
+    }
+
+    #[test]
+    fn program_option_projection_preserves_types_and_normalizes_type_roots() {
+        let program = ProgramJson {
+            schema: 1,
+            cwd: "/work/project".to_owned(),
+            options: BTreeMap::from([
+                ("noLib".to_owned(), OptionValue::Bool(true)),
+                (
+                    "typeRoots".to_owned(),
+                    OptionValue::StringList(vec!["types".to_owned(), "/shared/types".to_owned()]),
+                ),
+                (
+                    "types".to_owned(),
+                    OptionValue::StringList(vec!["*".to_owned(), "explicit".to_owned()]),
+                ),
+            ]),
+            libs: Vec::new(),
+            files: Vec::new(),
+            matrix_key: String::new(),
+        };
+
+        let options = program_options_from_program(&program, Path::new("/work/project"))
+            .expect("project program options");
+        assert_eq!(options.no_lib(), Some(true));
+        let expected_types = vec!["*".to_owned(), "explicit".to_owned()];
+        assert_eq!(options.types(), Some(expected_types.as_slice()));
+        let roots = options.type_roots().expect("explicit type roots");
+        assert_eq!(roots.len(), 2);
+        assert_eq!(
+            roots[0].canonical().as_path(),
+            Path::new("/work/project/types")
+        );
+        assert_eq!(roots[1].canonical().as_path(), Path::new("/shared/types"));
     }
 
     #[test]

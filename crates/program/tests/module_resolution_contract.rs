@@ -1045,12 +1045,34 @@ fn a_manifestless_near_package_miss_continues_to_an_outer_node_modules() {
 }
 
 #[test]
-fn existing_at_types_fallbacks_fail_closed_instead_of_becoming_not_found() {
+fn at_types_fallback_preserves_declaration_only_conditions_and_scoped_names() {
     let host = MemoryCompilerHost::builder("/work")
         .file("/work/index.mts", b"export {};".to_vec())
         .file(
-            "/work/node_modules/@types/inner/index.d.ts",
-            b"export const inner: true;".to_vec(),
+            "/work/node_modules/@types/inner/package.json",
+            br#"{
+                "name":"@types/inner",
+                "version":"1.0.0",
+                "exports":{
+                    ".":{
+                        "import":"./index.d.mts",
+                        "require":"./index.d.cts"
+                    }
+                }
+            }"#
+            .to_vec(),
+        )
+        .file(
+            "/work/node_modules/@types/inner/index.d.mts",
+            b"export const mode: 'import';".to_vec(),
+        )
+        .file(
+            "/work/node_modules/@types/inner/index.d.cts",
+            b"export const mode: 'require';".to_vec(),
+        )
+        .file(
+            "/work/node_modules/@types/scope__pkg/package.json",
+            br#"{"name":"@types/scope__pkg","version":"2.0.0","types":"index.d.ts"}"#.to_vec(),
         )
         .file(
             "/work/node_modules/@types/scope__pkg/index.d.ts",
@@ -1061,15 +1083,410 @@ fn existing_at_types_fallbacks_fail_closed_instead_of_becoming_not_found() {
     let options = options_for_module(199);
     let mut resolver = ModuleResolver::new(&host, &options).expect("create resolver");
 
-    for specifier in ["inner", "@scope/pkg"] {
-        let error = resolver
+    for (mode, expected, extension) in [
+        (
+            ResolutionMode::EsNext,
+            "/work/node_modules/@types/inner/index.d.mts",
+            ModuleExtension::Dmts,
+        ),
+        (
+            ResolutionMode::CommonJs,
+            "/work/node_modules/@types/inner/index.d.cts",
+            ModuleExtension::Dcts,
+        ),
+    ] {
+        let module = resolved(
+            resolver
+                .resolve(Path::new("/work/index.mts"), "inner", mode)
+                .expect("resolve conditional @types fallback"),
+        );
+        assert_eq!(
+            module.resolved_file().canonical().as_path(),
+            Path::new(expected)
+        );
+        assert_eq!(module.extension(), &extension);
+        assert_eq!(
+            module.package_id().map(PackageId::name),
+            Some("@types/inner")
+        );
+    }
+
+    let scoped = resolved(
+        resolver
             .resolve(
                 Path::new("/work/index.mts"),
-                specifier,
+                "@scope/pkg",
                 ResolutionMode::EsNext,
             )
-            .expect_err("unported @types fallback must fail closed");
-        assert_unsupported(error, "node-modules-at-types-fallback");
+            .expect("resolve a mangled scoped @types fallback"),
+    );
+    assert_eq!(
+        scoped.resolved_file().canonical().as_path(),
+        Path::new("/work/node_modules/@types/scope__pkg/index.d.ts")
+    );
+    assert_eq!(
+        scoped.package_id().map(PackageId::name),
+        Some("@types/scope__pkg")
+    );
+    assert!(scoped.is_external_library_import());
+}
+
+#[test]
+fn at_types_fallback_is_declaration_only_for_manifestless_packages() {
+    let host = MemoryCompilerHost::builder("/work")
+        .file("/work/main.ts", b"export {};".to_vec())
+        .file(
+            "/work/node_modules/@types/pkg/index.ts",
+            b"export const wrong: true;".to_vec(),
+        )
+        .file(
+            "/work/node_modules/@types/pkg/index.d.ts",
+            b"export const right: true;".to_vec(),
+        )
+        .build()
+        .expect("build manifestless @types package");
+    let options = options_for_module(1);
+    let mut resolver = ModuleResolver::new(&host, &options).expect("create resolver");
+    let module = resolved(
+        resolver
+            .resolve(Path::new("/work/main.ts"), "pkg", ResolutionMode::CommonJs)
+            .expect("resolve declaration-only @types fallback"),
+    );
+    assert_eq!(
+        module.resolved_file().canonical().as_path(),
+        Path::new("/work/node_modules/@types/pkg/index.d.ts")
+    );
+    assert_eq!(module.extension(), &ModuleExtension::Dts);
+    assert_eq!(module.package_id(), None);
+}
+
+#[test]
+fn type_reference_primary_custom_roots_use_direct_then_directory_precedence() {
+    let host = MemoryCompilerHost::builder("/work")
+        .file("/work/main.ts", b"export {};".to_vec())
+        .file(
+            "/work/types/direct.d.ts",
+            b"declare const direct: true;".to_vec(),
+        )
+        .file(
+            "/work/types/direct/index.d.ts",
+            b"declare const wrongDirectory: true;".to_vec(),
+        )
+        .file(
+            "/work/types/versioned/package.json",
+            br#"{
+                "name":"versioned-types",
+                "version":"1.0.0",
+                "types":"index",
+                "typesVersions":{"*":{"index":["v6/index"]}}
+            }"#
+            .to_vec(),
+        )
+        .file(
+            "/work/types/versioned/index.d.ts",
+            b"declare const wrongVersion: true;".to_vec(),
+        )
+        .file(
+            "/work/types/versioned/v6/index.d.ts",
+            b"declare const versioned: true;".to_vec(),
+        )
+        .file(
+            "/work/types/twinned/package.json",
+            br#"{"name":"twinned-types","version":"1.0.0","types":"index.ts"}"#.to_vec(),
+        )
+        .file(
+            "/work/types/twinned/index.ts",
+            b"declare const wrongImplementation: true;".to_vec(),
+        )
+        .file(
+            "/work/types/twinned/index.d.ts",
+            b"declare const declarationTwin: true;".to_vec(),
+        )
+        .file(
+            "/work/types/esm-index/package.json",
+            br#"{"name":"esm-index-types","version":"1.0.0"}"#.to_vec(),
+        )
+        .file(
+            "/work/types/esm-index/index.d.ts",
+            b"declare const cjsOnlyIndex: true;".to_vec(),
+        )
+        .file(
+            "/work/types/esm-manifestless/index.d.ts",
+            b"declare const cjsOnlyManifestlessIndex: true;".to_vec(),
+        )
+        .build()
+        .expect("build custom typeRoots tree");
+    let options = options_for_module(1);
+    let mut resolver = ModuleResolver::new(&host, &options).expect("create resolver");
+    let type_root = ProgramPath::from_trusted_parts("/work/types", "/work/types")
+        .expect("create custom type root");
+
+    let ResolutionOutcome::Resolved(direct) = resolver
+        .resolve_type_reference(
+            Path::new("/work/main.ts"),
+            "direct",
+            ResolutionMode::CommonJs,
+            Some(std::slice::from_ref(&type_root)),
+        )
+        .expect("resolve direct custom-root declaration")
+    else {
+        panic!("expected direct custom-root type reference");
+    };
+    assert_eq!(
+        direct.resolved_file().canonical().as_path(),
+        Path::new("/work/types/direct.d.ts")
+    );
+    assert!(direct.primary());
+    assert!(!direct.is_external_library_import());
+
+    let ResolutionOutcome::Resolved(versioned) = resolver
+        .resolve_type_reference(
+            Path::new("/work/main.ts"),
+            "versioned",
+            ResolutionMode::CommonJs,
+            Some(std::slice::from_ref(&type_root)),
+        )
+        .expect("resolve directory package through custom type root")
+    else {
+        panic!("expected versioned custom-root type reference");
+    };
+    assert_eq!(
+        versioned.resolved_file().canonical().as_path(),
+        Path::new("/work/types/versioned/v6/index.d.ts")
+    );
+    assert!(versioned.primary());
+    assert_eq!(
+        versioned.package_id().map(PackageId::name),
+        Some("versioned-types")
+    );
+
+    let ResolutionOutcome::Resolved(twinned) = resolver
+        .resolve_type_reference(
+            Path::new("/work/main.ts"),
+            "twinned",
+            ResolutionMode::CommonJs,
+            Some(std::slice::from_ref(&type_root)),
+        )
+        .expect("resolve a package-field declaration twin before its implementation")
+    else {
+        panic!("expected twinned custom-root type reference");
+    };
+    assert_eq!(
+        twinned.resolved_file().canonical().as_path(),
+        Path::new("/work/types/twinned/index.d.ts")
+    );
+
+    let esm_options = options_for_module(199);
+    let mut esm_resolver =
+        ModuleResolver::new(&host, &esm_options).expect("create Node ESM resolver");
+    for specifier in ["esm-index", "esm-manifestless"] {
+        assert_eq!(
+            esm_resolver
+                .resolve_type_reference(
+                    Path::new("/work/main.mts"),
+                    specifier,
+                    ResolutionMode::EsNext,
+                    Some(std::slice::from_ref(&type_root)),
+                )
+                .expect("Node ESM primary directory lookup is an ordinary miss"),
+            ResolutionOutcome::NotFound
+        );
+    }
+}
+
+#[test]
+fn non_external_custom_type_roots_retain_realpath_transitions() {
+    let declaration = b"declare const linked: true;".to_vec();
+    let host = MemoryCompilerHost::builder("/work")
+        .file("/work/main.ts", b"export {};".to_vec())
+        .file("/work/types/linked.d.ts", declaration.clone())
+        .file("/actual/linked.d.ts", declaration)
+        .realpath("/work/types/linked.d.ts", "/actual/linked.d.ts")
+        .build()
+        .expect("build custom typeRoot symlink");
+    let options = options_for_module(1);
+    let mut resolver = ModuleResolver::new(&host, &options).expect("create resolver");
+    let type_root = ProgramPath::from_trusted_parts("/work/types", "/work/types")
+        .expect("create custom type root");
+
+    let ResolutionOutcome::Resolved(reference) = resolver
+        .resolve_type_reference(
+            Path::new("/work/main.ts"),
+            "linked",
+            ResolutionMode::CommonJs,
+            Some(std::slice::from_ref(&type_root)),
+        )
+        .expect("resolve custom-root symlink")
+    else {
+        panic!("expected custom-root symlink type reference");
+    };
+    assert_eq!(
+        reference.resolved_file().canonical().as_path(),
+        Path::new("/actual/linked.d.ts")
+    );
+    assert_eq!(
+        reference
+            .original_path()
+            .expect("lexical path")
+            .canonical()
+            .as_path(),
+        Path::new("/work/types/linked.d.ts")
+    );
+    assert!(reference.primary());
+    assert!(!reference.is_external_library_import());
+}
+
+#[test]
+fn type_reference_default_roots_and_secondary_lookup_preserve_spelling_and_origin() {
+    let host = MemoryCompilerHost::builder("/work/project")
+        .case_sensitive(true)
+        .file("/work/project/src/main.ts", b"export {};".to_vec())
+        .file(
+            "/work/project/node_modules/@types/defaulted/package.json",
+            br#"{"name":"@types/defaulted","version":"1.0.0","types":"index.d.ts"}"#.to_vec(),
+        )
+        .file(
+            "/work/project/node_modules/@types/defaulted/index.d.ts",
+            b"declare const defaulted: true;".to_vec(),
+        )
+        .file(
+            "/work/project/src/node_modules/secondary/package.json",
+            br#"{"name":"secondary","version":"1.0.0","types":"index.d.ts"}"#.to_vec(),
+        )
+        .file(
+            "/work/project/src/node_modules/secondary/index.d.ts",
+            b"declare const secondary: true;".to_vec(),
+        )
+        .build()
+        .expect("build default and secondary type-reference tree");
+    let options = options_for_module(1);
+    let mut resolver = ModuleResolver::new(&host, &options).expect("create resolver");
+
+    let ResolutionOutcome::Resolved(defaulted) = resolver
+        .resolve_type_reference(
+            Path::new("/work/project/src/main.ts"),
+            "defaulted",
+            ResolutionMode::CommonJs,
+            None,
+        )
+        .expect("resolve from current-directory default type root")
+    else {
+        panic!("expected default-root type reference");
+    };
+    assert!(defaulted.primary());
+    assert_eq!(
+        defaulted.resolved_file().canonical().as_path(),
+        Path::new("/work/project/node_modules/@types/defaulted/index.d.ts")
+    );
+
+    let no_primary_roots: Vec<ProgramPath> = Vec::new();
+    let ResolutionOutcome::Resolved(secondary) = resolver
+        .resolve_type_reference(
+            Path::new("/work/project/src/main.ts"),
+            "secondary",
+            ResolutionMode::CommonJs,
+            Some(&no_primary_roots),
+        )
+        .expect("resolve from nearest secondary node_modules")
+    else {
+        panic!("expected secondary type reference");
+    };
+    assert!(!secondary.primary());
+    assert_eq!(
+        secondary.resolved_file().canonical().as_path(),
+        Path::new("/work/project/src/node_modules/secondary/index.d.ts")
+    );
+
+    assert_eq!(
+        resolver
+            .resolve_type_reference(
+                Path::new("/work/project/src/main.ts"),
+                "DEFAULTED",
+                ResolutionMode::CommonJs,
+                None,
+            )
+            .expect("case-sensitive miss remains an ordinary miss"),
+        ResolutionOutcome::NotFound
+    );
+
+    assert_eq!(
+        resolver
+            .resolve_type_reference(
+                Path::new("/work/project/__inferred type names__.ts"),
+                "defaulted",
+                ResolutionMode::Unspecified,
+                Some(&no_primary_roots),
+            )
+            .expect("custom automatic roots suppress secondary lookup"),
+        ResolutionOutcome::NotFound
+    );
+}
+
+#[test]
+fn type_reference_secondary_at_types_exports_preserve_import_and_require_modes() {
+    let host = MemoryCompilerHost::builder("/work")
+        .file("/work/main.ts", b"export {};".to_vec())
+        .file(
+            "/work/node_modules/@types/mode/package.json",
+            br#"{
+                "name":"@types/mode",
+                "version":"1.0.0",
+                "exports":{
+                    ".":{
+                        "import":"./index.d.mts",
+                        "require":"./index.d.cts"
+                    }
+                }
+            }"#
+            .to_vec(),
+        )
+        .file(
+            "/work/node_modules/@types/mode/index.d.mts",
+            b"export const mode: 'import';".to_vec(),
+        )
+        .file(
+            "/work/node_modules/@types/mode/index.d.cts",
+            b"export const mode: 'require';".to_vec(),
+        )
+        .build()
+        .expect("build conditional type-reference package");
+    let options = options_for_module(199);
+    let mut resolver = ModuleResolver::new(&host, &options).expect("create resolver");
+    let no_primary_roots: Vec<ProgramPath> = Vec::new();
+
+    for (mode, expected, extension) in [
+        (
+            ResolutionMode::EsNext,
+            "/work/node_modules/@types/mode/index.d.mts",
+            ModuleExtension::Dmts,
+        ),
+        (
+            ResolutionMode::CommonJs,
+            "/work/node_modules/@types/mode/index.d.cts",
+            ModuleExtension::Dcts,
+        ),
+    ] {
+        let ResolutionOutcome::Resolved(reference) = resolver
+            .resolve_type_reference(
+                Path::new("/work/main.ts"),
+                "mode",
+                mode,
+                Some(&no_primary_roots),
+            )
+            .expect("resolve conditional secondary type reference")
+        else {
+            panic!("expected conditional secondary type reference");
+        };
+        assert_eq!(
+            reference.resolved_file().canonical().as_path(),
+            Path::new(expected)
+        );
+        assert_eq!(reference.extension(), &extension);
+        assert!(!reference.primary());
+        assert_eq!(
+            reference.package_id().map(PackageId::name),
+            Some("@types/mode")
+        );
     }
 }
 
