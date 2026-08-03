@@ -51,9 +51,13 @@ Concurrent updates rebase and regenerate. Missing history, a second
 bootstrap, a pointer to an older-but-not-immediate version, or any
 shrinking edge fails.
 
-Hosted PR CI also compares HEAD directly with the resolved PR-base
-artifact. This prevents a rewritten branch from manufacturing a smaller
-self-consistent chain. The only missing-base exception is the initial
+The full local merge gate always compares HEAD directly with its recorded
+trusted-base artifact. Hosted PR CI repeats that comparison when a fail-closed
+classifier finds any base/HEAD change in the conservative evidence-authority
+input closure; an unprovable diff is history-sensitive. Hosted may omit the
+comparison only when no closure path changed. This prevents a rewritten branch
+from manufacturing a smaller self-consistent chain without paying the history
+decode on unrelated slices. The only missing-base exception is the initial
 bootstrap PR: the base has no artifact and the candidate has exactly one
 oldest bootstrap version. After that, absence is an error.
 
@@ -67,8 +71,9 @@ An adjudicated set freezes in two changes:
 
 The checker reads the artifact at the recorded ancestor commit and
 compares identities, not only a self-hash. A later re-baseline is an
-explicit reviewed event; it cannot ride an implementation slice. Hosted
-PR CI compares a global frozen snapshot with the trusted base so an
+explicit reviewed event; it cannot ride an implementation slice. The full
+local gate compares a global frozen snapshot with the trusted base. Hosted PR
+CI repeats it for every history-sensitive input-closure change, so an
 add-and-reanchor pair of branch commits cannot redefine it.
 
 Every anchor check fails on insufficient clone depth. CI must fetch the
@@ -316,10 +321,11 @@ complete live identity set, then changes status to `frozen`.
 The audit re-verifies every band pin and the global snapshot. After
 freeze, additions, edits, pinned-set changes, reanchoring, and status
 downgrade fail. A deletion requires the same A1 tombstone. The global
-set never changes. PR CI requires the base and HEAD global records to be
-byte-identical after the first valid transition. That first transition
-is allowed only when the trusted base is `draft` and the candidate
-contains exactly one valid global record.
+set never changes. The full local gate, and hosted CI for every
+history-sensitive closure change, require the base and HEAD global records to
+be byte-identical after the first valid transition. That first transition is
+allowed only when the trusted base is `draft` and the candidate contains
+exactly one valid global record.
 
 Acceptance:
 

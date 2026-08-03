@@ -7417,6 +7417,7 @@ enum CiLane {
     All,
     Rust,
     Semantic,
+    Hosted,
 }
 
 impl CiLane {
@@ -7425,23 +7426,54 @@ impl CiLane {
             "all" => Ok(Self::All),
             "rust" => Ok(Self::Rust),
             "semantic" => Ok(Self::Semantic),
+            "hosted" => Ok(Self::Hosted),
             _ => Err(format!("unknown ci lane: {value}").into()),
         }
     }
 
-    fn includes(self, lane: Self) -> bool {
-        self == Self::All || self == lane
+    fn plan(self) -> CiPlan {
+        match self {
+            Self::All => CiPlan {
+                rust: true,
+                semantic: true,
+                hosted: false,
+            },
+            Self::Rust => CiPlan {
+                rust: true,
+                semantic: false,
+                hosted: false,
+            },
+            Self::Semantic => CiPlan {
+                rust: false,
+                semantic: true,
+                hosted: false,
+            },
+            Self::Hosted => CiPlan {
+                rust: false,
+                semantic: false,
+                hosted: true,
+            },
+        }
     }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+struct CiPlan {
+    rust: bool,
+    semantic: bool,
+    hosted: bool,
 }
 
 struct CiArgs {
     baseline: String,
     lane: CiLane,
+    history_sensitive: bool,
 }
 
 fn parse_ci_args(args: impl Iterator<Item = String>) -> Result<CiArgs, Box<dyn Error>> {
     let mut baseline = "origin/main".to_owned();
     let mut lane = CiLane::All;
+    let mut history_sensitive = false;
     let mut args = args.peekable();
     while let Some(arg) = args.next() {
         match arg.as_str() {
@@ -7451,56 +7483,191 @@ fn parse_ci_args(args: impl Iterator<Item = String>) -> Result<CiArgs, Box<dyn E
             "--lane" => {
                 lane = CiLane::parse(&args.next().ok_or("missing value after --lane")?)?;
             }
+            "--history-sensitive" => {
+                if history_sensitive {
+                    return Err("duplicate ci --history-sensitive".into());
+                }
+                history_sensitive = true;
+            }
             _ => return Err(format!("unexpected ci argument: {arg}").into()),
         }
     }
-    Ok(CiArgs { baseline, lane })
+    if history_sensitive && lane != CiLane::Hosted {
+        return Err("ci --history-sensitive requires --lane hosted".into());
+    }
+    Ok(CiArgs {
+        baseline,
+        lane,
+        history_sensitive,
+    })
 }
 
 fn ci(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
     let args = parse_ci_args(args)?;
     workspace_maintenance::audit(&find_workspace_root()?)?;
-    if args.lane.includes(CiLane::Rust) {
+    let plan = args.lane.plan();
+    if plan.rust {
         ci_rust_gates()?;
     }
-    if args.lane.includes(CiLane::Semantic) {
+    if plan.semantic {
         ci_semantic_gates(&args.baseline)?;
+    }
+    if plan.hosted {
+        ci_hosted_gates(&args.baseline, args.history_sensitive)?;
     }
     Ok(())
 }
 
 fn ci_rust_gates() -> Result<(), Box<dyn Error>> {
     let workspace = find_workspace_root()?;
-    run_command(
-        Command::new("cargo")
-            .current_dir(&workspace)
-            .arg("fmt")
-            .arg("--all")
-            .arg("--")
-            .arg("--check"),
-    )?;
-    run_command(
-        Command::new("cargo")
-            .current_dir(&workspace)
-            .arg("clippy")
-            .arg("--workspace")
-            .arg("--all-targets")
-            .arg("--")
-            .arg("-D")
-            .arg("warnings"),
-    )?;
+    ci_format_gate(&workspace)?;
+    ci_clippy_gate(&workspace)?;
     run_command(
         Command::new("cargo")
             .current_dir(&workspace)
             .arg("build")
             .arg("--workspace"),
     )?;
+    ci_workspace_tests(&workspace, &[])?;
+    ci_oracle_syntax_gates(&workspace)?;
+    Ok(())
+}
+
+const HOSTED_WORKSPACE_TEST_SKIPS: [&str; 2] = [
+    "committed_registry_passes_full_owner_and_canary_validation",
+    "full_validator_rejects_owner_canary_closure_and_universe_drift",
+];
+
+fn ci_hosted_gates(baseline: &str, history_sensitive: bool) -> Result<(), Box<dyn Error>> {
+    let workspace = find_workspace_root()?;
+    let hosted_started = std::time::Instant::now();
+
+    // Hosted Actions is a bounded guardrail, not the acceptance authority.
+    // Keep the highest-signal compile/test and cheap repository-contract
+    // checks here. The full local `all` lane remains the only gate that runs
+    // full-corpus invariants, evidence production, readiness, and calibrated
+    // performance observations.
+    ci_format_gate(&workspace)?;
+    ci_clippy_gate(&workspace)?;
+    // These two conformance-crate tests each enter the same real accepted-pair
+    // history validator. The local full lane keeps them. Hosted either proves
+    // the immutable trusted-base history once below or relies on the required
+    // local gate when the classifier proves its authority inputs unchanged.
+    ci_workspace_tests(&workspace, &HOSTED_WORKSPACE_TEST_SKIPS)?;
+    ci_oracle_syntax_gates(&workspace)?;
+    codegen_band_inventory(
+        ["--by-function", "--band", "all", "--check"]
+            .into_iter()
+            .map(str::to_owned),
+    )?;
+    codegen_nodes(true)?;
+    schema_audit(std::iter::empty())?;
+    relpin::run(std::iter::empty())?;
+    if history_sensitive {
+        // Keep decoded history allocator pages out of the later checker-heavy
+        // conformance traversal. The child still performs A1 -> A2 -> H0 -> A5
+        // once and reuses each accepted-history blob within that process.
+        let executable = std::env::current_exe()?;
+        run_command(
+            Command::new(executable)
+                .current_dir(&workspace)
+                .args(["semantic-history", "--baseline"])
+                .arg(baseline),
+        )?;
+        m8_plan::check(
+            [
+                "--plan".to_owned(),
+                "m8-owner-plan.json".to_owned(),
+                "--baseline".to_owned(),
+                baseline.to_owned(),
+            ]
+            .into_iter(),
+        )?;
+    }
+    bind_corpus(std::iter::empty())?;
+    let summaries = ci_hosted_conformance(&workspace)?;
+    recovery_census::check_with_summary(&workspace, summaries.two_xxx.as_summary())?;
+    invariants(
+        ["--suite", "all", "--limit", "200"]
+            .into_iter()
+            .map(str::to_owned),
+    )?;
+    ledger_check()?;
+    let stage = fs::read_to_string(workspace.join("STAGE"))?;
+    escapes(["--stale", stage.trim()].into_iter().map(str::to_owned))?;
+    println!(
+        "hosted CI lane ok: elapsed={:.3}s",
+        hosted_started.elapsed().as_secs_f64()
+    );
+    Ok(())
+}
+
+fn ci_hosted_conformance(
+    workspace: &Path,
+) -> Result<tsc_conformance::CiConformanceSummaries, Box<dyn Error>> {
+    let output_dir = workspace.join("target/hosted-ci");
+    fs::create_dir_all(&output_dir)?;
+    let all = output_dir.join("conformance-all.json");
+    let two_xxx = output_dir.join("conformance-2xxx.json");
+    let syntactic = output_dir.join("conformance-syntactic.json");
+    let families = output_dir.join("families.json");
+    let summaries = tsc_conformance::run_ci_conformance(
+        workspace,
+        [&all, &two_xxx, &syntactic],
+        &families,
+        |summary| {
+            let output = match summary.band.as_str() {
+                "all" => &all,
+                "2xxx" => &two_xxx,
+                "syntactic" => &syntactic,
+                _ => &syntactic,
+            };
+            print_conformance_summary(summary, output);
+        },
+    )?;
+    Ok(summaries)
+}
+
+fn ci_format_gate(workspace: &Path) -> Result<(), Box<dyn Error>> {
     run_command(
         Command::new("cargo")
-            .current_dir(&workspace)
-            .arg("test")
-            .arg("--workspace"),
-    )?;
+            .current_dir(workspace)
+            .arg("fmt")
+            .arg("--all")
+            .arg("--")
+            .arg("--check"),
+    )
+}
+
+fn ci_clippy_gate(workspace: &Path) -> Result<(), Box<dyn Error>> {
+    run_command(
+        Command::new("cargo")
+            .current_dir(workspace)
+            .arg("clippy")
+            .arg("--workspace")
+            .arg("--all-targets")
+            .arg("--")
+            .arg("-D")
+            .arg("warnings"),
+    )
+}
+
+fn ci_workspace_tests(workspace: &Path, skipped_tests: &[&str]) -> Result<(), Box<dyn Error>> {
+    let mut command = Command::new("cargo");
+    command
+        .current_dir(workspace)
+        .arg("test")
+        .arg("--workspace");
+    if !skipped_tests.is_empty() {
+        command.arg("--");
+        for test in skipped_tests {
+            command.arg("--skip").arg(test);
+        }
+    }
+    run_command(&mut command)
+}
+
+fn ci_oracle_syntax_gates(workspace: &Path) -> Result<(), Box<dyn Error>> {
     run_command(
         Command::new("node")
             .arg("--check")
@@ -7635,6 +7802,7 @@ mod ci_lane_tests {
         let args = parse_ci_args(std::iter::empty()).unwrap();
         assert_eq!(args.baseline, "origin/main");
         assert_eq!(args.lane, CiLane::All);
+        assert!(!args.history_sensitive);
     }
 
     #[test]
@@ -7647,6 +7815,75 @@ mod ci_lane_tests {
             assert_eq!(args.baseline, "base-sha");
             assert_eq!(args.lane, CiLane::Semantic);
         }
+    }
+
+    #[test]
+    fn hosted_lane_is_explicit_and_excluded_from_the_full_local_plan() {
+        let hosted = parse_ci_args(["--lane", "hosted"].into_iter().map(str::to_owned)).unwrap();
+        assert_eq!(hosted.lane, CiLane::Hosted);
+        assert!(!hosted.history_sensitive);
+        assert_eq!(
+            hosted.lane.plan(),
+            CiPlan {
+                rust: false,
+                semantic: false,
+                hosted: true,
+            }
+        );
+        assert_eq!(
+            CiLane::All.plan(),
+            CiPlan {
+                rust: true,
+                semantic: true,
+                hosted: false,
+            }
+        );
+    }
+
+    #[test]
+    fn history_sensitive_audit_is_explicit_and_hosted_only() {
+        let args = parse_ci_args(
+            [
+                "--history-sensitive",
+                "--baseline",
+                "base-sha",
+                "--lane",
+                "hosted",
+            ]
+            .into_iter()
+            .map(str::to_owned),
+        )
+        .unwrap();
+        assert!(args.history_sensitive);
+        assert_eq!(args.baseline, "base-sha");
+        assert!(parse_ci_args(
+            ["--lane", "all", "--history-sensitive"]
+                .into_iter()
+                .map(str::to_owned)
+        )
+        .is_err());
+        assert!(parse_ci_args(
+            [
+                "--lane",
+                "hosted",
+                "--history-sensitive",
+                "--history-sensitive",
+            ]
+            .into_iter()
+            .map(str::to_owned)
+        )
+        .is_err());
+    }
+
+    #[test]
+    fn hosted_workspace_tests_skip_only_duplicate_real_history_proofs() {
+        assert_eq!(
+            HOSTED_WORKSPACE_TEST_SKIPS,
+            [
+                "committed_registry_passes_full_owner_and_canary_validation",
+                "full_validator_rejects_owner_canary_closure_and_universe_drift",
+            ]
+        );
     }
 
     #[test]

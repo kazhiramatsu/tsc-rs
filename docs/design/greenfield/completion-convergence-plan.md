@@ -376,13 +376,15 @@ not-applicable emitter or an emitter without a family—fail.
 
 #### E1. CI and toolchains
 
-Pin Rust/clippy and Node; require `cargo xtask ci`; fetch all anchor
-history; run trusted-base ratchet/scope checks; produce and consume
-readiness evidence in one workspace; schedule signed fuzz windows; and
-reserve an approved runner for performance and release. The exact job
-topology is in the
+Pin Rust/clippy and Node; require the full local `cargo xtask ci` before PR
+and merge; fetch all anchor history locally; run trusted-base ratchet/scope
+checks; produce and consume readiness evidence in one workspace; schedule
+signed fuzz windows; and reserve an approved runner for performance and
+release. Ordinary GitHub Actions is only the bounded hosted guardrail defined
+by the exact topology in the
 [evidence contract](evidence-and-steady-state.md#5-required-ci-topology).
-Local commands own gate logic; workflow YAML only invokes them.
+Local commands own gate implementations. Workflow YAML owns only the
+fail-closed change classification and scheduling that select those commands.
 
 #### E2. Current documentation
 

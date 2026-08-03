@@ -310,8 +310,10 @@ Focused probes, crate tests, and the target family report are the iteration
 loop. Generated artifacts and README status are refreshed before the final
 verification. Run the complete local
 `CARGO_BUILD_JOBS=2 cargo xtask ci --baseline origin/main` once on the clean
-candidate branch, then let the required GitHub Actions lanes verify the same
-slice. As soon as every required hosted check passes and the PR is mergeable,
+candidate branch, then let the required GitHub Actions workflow verify the
+same slice with its bounded hosted conformance/test/contract guardrail; it
+does not repeat receipt-bound B2-B4 evidence, full invariants, readiness, or
+performance work. As soon as every required hosted check passes and the PR is mergeable,
 merge it automatically with `gh pr merge --merge --delete-branch`; no fresh
 per-PR approval is required unless the work introduces a substantial design
 or scope change. Do not repeatedly run full conformance, the B2 Node sweep, or

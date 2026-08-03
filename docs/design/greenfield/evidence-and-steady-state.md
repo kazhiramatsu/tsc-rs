@@ -51,9 +51,10 @@ consumes its compatibility projection and M9 consumes its domain/
 classifier/replay/reducer records. The orchestration must not execute a
 second legacy smoke. B4 remains separately produced, and the common
 manifest is always rewritten from the artifacts actually consumed. A fresh
-local clone regenerates B2; hosted CI may restore the exact content-
-addressed B2 artifact populated by a prior successful run. M9 history is
-separately versioned in-repo.
+local clone regenerates B2. Ordinary hosted PR CI neither restores nor
+produces B2; an explicitly approved full/release workflow may restore only
+the exact content-addressed artifact populated by a prior successful full
+run. M9 history is separately versioned in-repo.
 
 ## 2. B2 — runtime emitter coverage
 
@@ -241,14 +242,14 @@ After M9.2 implements the bounded domain producer and before M9.3 changes the
 CI/schema consumer, hosted calibration freezes the PR smoke's exact case
 count, seed list, domain-canary ids, and wall/RSS/scratch ceilings. The list
 is bounded and does not grow implicitly when the nightly domain manifest
-grows. PR CI invokes that smoke exactly once; its single versioned artifact
-supplies both the M8 B3 readiness projection and M9 classifier/replay/
-reducer/domain evidence. Scheduled CI alone runs the full window. A separate
-mutation canary may exercise the one-sided path when the smoke is exact, but
-it is labeled, excluded from generated observations, and cannot substitute
-for real two-case dedupe evidence. The old 32-case/eight-template producer
-is retired at the reviewed schema transition and never runs beside the M9
-smoke.
+grows. At that reviewed transition, the bounded hosted PR guardrail invokes
+the smoke exactly once; its single versioned artifact supplies both the M8 B3
+readiness projection and M9 classifier/replay/reducer/domain evidence.
+Scheduled CI alone runs the full window. A separate mutation canary may
+exercise the one-sided path when the smoke is exact, but it is labeled,
+excluded from generated observations, and cannot substitute for real
+two-case dedupe evidence. The old 32-case/eight-template producer is retired
+at the reviewed schema transition and never runs beside the M9 smoke.
 
 ### 3.1 M9 steady state
 
@@ -451,64 +452,77 @@ and receipt never cross a job, Actions cache, or uploaded artifact boundary.
 A trusted-base diff containing only `.md` paths and leaving README's
 generated `STATUS` block byte-identical runs no Cargo, Node, B2, or full-
 corpus work. A lightweight hosted classifier preserves the required `gates`
-check while marking the Rust and semantic lanes skipped. Local validation is
+check while marking the hosted lane skipped. Local validation is
 `git diff --check` plus review of changed links/anchors and generated-block
-boundaries. Any other path or generated-status change uses the required PR
-CI below:
+boundaries. Any other path or generated-status change uses one bounded hosted
+guardrail:
 
-- fetches enough history for every A1/A2/A5/M9 anchor;
-- runs recursive and trusted-base integrity checks;
-- runs the permanent syntactic and ordinary conformance gates from B4's one
-  fixed-order producer traversal and same-process receipt;
-- builds once, verifies/reuses or produces B2, produces B4 and exactly one
-  M9 PR-smoke artifact whose compatibility projection supplies B3, and
-  invokes M8 readiness in that workspace;
-- uploads mismatch, readiness, and fuzz/evidence artifacts on failure.
+- `CARGO_BUILD_JOBS=2 RUST_TEST_THREADS=2 TSRS_INVARIANT_WORKERS=2 cargo
+  xtask ci --lane hosted --baseline <trusted-sha>` runs format/clippy,
+  workspace tests, pinned-Node syntax checks, generated inventory/schema
+  freshness, relation pins, one fixed-view All/2XXX/syntactic conformance
+  traversal, recovery census, sampled invariants, ledger, and escapes;
+- a fail-closed path classifier adds `--history-sensitive` when the base/HEAD
+  diff intersects the conservative evidence-authority input closure. That
+  option runs A1/A2/H0/A5 semantic history and M8-plan comparison once against
+  the immutable base SHA. Unprovable diffs take this path. The two workspace
+  tests that otherwise repeat the same real accepted-pair history decode are
+  skipped only in the hosted plan and remain in the local full gate;
+- host/path infrastructure changes additionally run focused filesystem-host
+  contracts on macOS and Windows, capped at two workers and one matrix runner
+  at a time;
+- a final job named `gates` succeeds only when the applicable hosted jobs
+  succeed.
 
-The ordinary PR semantic lane does not produce a completion report merely
-for artifact upload. `cargo xtask completion` remains an explicit report-only
-command during M8, and the final release job produces and consumes its strict
-form in the same workspace.
+The conservative history-sensitive closure includes every ratchet/scope/
+family/owner-plan artifact, corpus/golden/vendor input, conformance harness,
+oracle and xtask implementation, checker/compiler/program/host boundary
+source, Cargo/toolchain/Node pin, and workflow/config path. Rename detection
+uses both old and new paths. Missing or unresolvable base history selects the
+audit rather than silently shrinking this closure.
 
-The hosted implementation may place the independent Rust
-format/clippy/build/test gates and the semantic evidence gates on two
-standard runners. The boundary is fixed:
+The hosted lane is intentionally not an evidence authority. Its full
+conformance traversal writes only transient grading outputs; it does not
+publish or consume the B4 move-only receipt. Conditional semantic history is
+read-only. Hosted does not run B2-B4 evidence production/consumption,
+full-corpus invariants/attestation, readiness, README evidence rendering, the
+current M8/M9 smoke producer, or calibrated performance observations. It
+neither restores nor uploads those semantic artifacts and may not authorize a
+ratchet/evidence update.
 
-- `cargo xtask ci --lane rust` owns only format, clippy, build, and
-  workspace tests;
-- `cargo xtask ci --lane semantic --baseline <trusted-sha>` owns every
-  recursive/trusted-base audit, all fixed conformance views, recovery
-  census, invariant/ledger/escape gates, and readiness production and
-  consumption. Its B4 producer and conformance consumer remain in the same
-  process so the move-only receipt authority cannot cross this boundary;
-- a final job named `gates` succeeds only when both lanes succeed.
+Except for the exact documentation-only rule above, the unsplit local
+`cargo xtask ci --baseline <trusted-sha>` is the required pre-PR and pre-merge
+acceptance gate. Its command, trusted baseline, conformance counts/FP=0, and
+escape/test result are recorded in the PR body. The `--lane rust|semantic`
+split remains diagnostic only; the local `all` lane stays their sequential
+union and never substitutes the smaller hosted plan. B4 production and its
+move-only conformance receipt, all evidence producer/consumer pairs, and the
+A1/A2/H0/A5 ordering therefore remain in one local process/workspace.
 
-Thus no evidence producer/consumer or A1/A2/A5 ordering crosses a job
-boundary. Except for the exact documentation-only rule above, the ordinary
-local `cargo xtask ci` remains the sequential union of both lanes and is
-still the required pre-PR/pre-merge gate.
-Main-branch runs populate the cache scope that later pull requests may
-restore. Lockfile-keyed Cargo caches contain dependency archives only;
-a pinned content-addressed compiler cache handles build outputs without
-trusting checkout timestamps. A separate exact-fingerprint cache may
-contain only the B2 raw runtime artifact; the semantic lane revalidates
-it and rewrites the manifest. Conformance, readiness, B3, B4, and other
-semantic evidence artifacts are never restored from that cache.
+Main-branch hosted runs populate the cache scope that later pull requests may
+restore. Lockfile-keyed Cargo caches contain dependency archives only, and a
+pinned content-addressed compiler cache handles build outputs without trusting
+checkout timestamps. Conformance, readiness, B2-B4, fuzz, and other semantic
+evidence artifacts are never restored by ordinary hosted CI.
 
-Normal PR CI runs the one short, calibrated, fixed-seed M9 domain/classifier/
-replay/reducer smoke described above; the M8 B3 projection is derived from
-the same artifact, and neither invocation nor case generation is duplicated.
-It never runs a qualifying window. Protected-main scheduled CI runs exactly
+The full local gate runs the one short, calibrated, fixed-seed M9 domain/
+classifier/replay/reducer smoke described above; the M8 B3 projection is
+derived from the same artifact, and neither invocation nor case generation is
+duplicated. It never runs a qualifying window. After the M9.2 schema
+transition, the separately bounded PR smoke specified by the M9 execution
+contract moves into the hosted guardrail; that does not reintroduce B2,
+readiness, or performance work. Protected-main scheduled CI runs exactly
 100,000 valid cases within the frozen measured ceiling, streams the compact
-raw bundle, and attests it. A reviewed aggregation verifies and appends one
-or more independently attested windows without rerunning the producer or
+raw bundle, and attests it. A reviewed aggregation verifies and appends one or
+more independently attested windows without rerunning the producer or
 rewriting history. B2 AST instrumentation is not part of that scheduled job.
 
 The final release job uses the approved performance runner, regenerates
 B1-B4 evidence, runs full-corpus invariants, verifies M9 history, and
 then runs `cargo xtask completion --require-done` in the same workspace.
 It consumes the existing 14 windows rather than producing a fifteenth. Gate
-logic stays in local commands; YAML only executes it.
+implementations stay in local commands; YAML owns only fail-closed change
+classification and scheduling.
 
 ## 6. Required adversarial tests
 
