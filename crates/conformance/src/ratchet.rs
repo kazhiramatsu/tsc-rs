@@ -2234,6 +2234,16 @@ pub struct AcceptedPairHistoryProof {
     working_inputs_sha256: String,
 }
 
+/// The small, artifact-agnostic header needed to reject an already-decoded
+/// blob when it reappears at a different material history commit. A valid
+/// linear lineage cannot reuse the same blob at two version commits: its
+/// embedded predecessor still names the first occurrence's immediate parent.
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct LineageFacts {
+    bootstrap: bool,
+    previous: Option<Lineage>,
+}
+
 /// The small, validated subset of an accepted-match artifact needed by the
 /// historical pair audit. Keeping facts instead of the decoded artifact is
 /// important: one current accepted artifact expands to tens of megabytes.
@@ -2370,6 +2380,7 @@ struct GitMemo {
     head_commit: String,
     blob_ids: BTreeMap<(String, String), Option<ResolvedBlobRef>>,
     blob_objects: BTreeMap<String, Vec<u8>>,
+    lineage_facts: BTreeMap<(String, String), LineageFacts>,
     matches_pair_facts: BTreeMap<String, MatchesPairFacts>,
     inputs_pair_facts: BTreeMap<String, InputsPairFacts>,
     parents: BTreeMap<String, Vec<String>>,
@@ -2380,6 +2391,10 @@ struct GitMemo {
     pair_matches_decode_misses: usize,
     #[cfg(test)]
     pair_inputs_decode_misses: usize,
+    #[cfg(test)]
+    lineage_decode_misses: usize,
+    #[cfg(test)]
+    lineage_peak_live_versions: usize,
 }
 
 impl GitMemo {
@@ -2390,6 +2405,7 @@ impl GitMemo {
             head_commit,
             blob_ids: BTreeMap::new(),
             blob_objects: BTreeMap::new(),
+            lineage_facts: BTreeMap::new(),
             matches_pair_facts: BTreeMap::new(),
             inputs_pair_facts: BTreeMap::new(),
             parents: BTreeMap::new(),
@@ -2400,6 +2416,10 @@ impl GitMemo {
             pair_matches_decode_misses: 0,
             #[cfg(test)]
             pair_inputs_decode_misses: 0,
+            #[cfg(test)]
+            lineage_decode_misses: 0,
+            #[cfg(test)]
+            lineage_peak_live_versions: 0,
         })
     }
 
@@ -2506,6 +2526,34 @@ impl GitMemo {
             facts,
             "accepted-match",
         )
+    }
+
+    fn remember_lineage_facts(
+        &mut self,
+        artifact_kind: &str,
+        object_id: &str,
+        bytes: &[u8],
+        facts: LineageFacts,
+    ) -> ConformanceResult<()> {
+        self.verify_blob_object_bytes(object_id, bytes, "lineage")?;
+        let key = (artifact_kind.to_owned(), object_id.to_owned());
+        if let Some(existing) = self.lineage_facts.get(&key) {
+            if existing != &facts {
+                return Err(format!(
+                    "internal Git memo derived conflicting {artifact_kind} lineage facts for blob \
+                     {object_id}"
+                )
+                .into());
+            }
+            return Ok(());
+        }
+        self.lineage_facts.insert(key, facts);
+        Ok(())
+    }
+
+    fn lineage_facts(&self, artifact_kind: &str, object_id: &str) -> Option<&LineageFacts> {
+        self.lineage_facts
+            .get(&(artifact_kind.to_owned(), object_id.to_owned()))
     }
 
     fn remember_inputs_pair_facts(
@@ -3102,24 +3150,45 @@ fn verify_version_edge<T: LineageArtifact>(
     older: &T,
     known_commits: impl Iterator<Item = String>,
 ) -> ConformanceResult<()> {
-    if version.bootstrap() {
+    verify_version_pointer(
+        T::WHAT,
+        label,
+        version.bootstrap(),
+        version.previous(),
+        older_label,
+        older_bytes,
+        known_commits,
+    )?;
+    T::verify_edge(version, older)
+        .map_err(|err| format!("edge {label} -> {older_label}: {err}"))?;
+    Ok(())
+}
+
+#[allow(clippy::too_many_arguments)]
+fn verify_version_pointer(
+    what: &str,
+    label: &str,
+    bootstrap: bool,
+    previous: Option<&Lineage>,
+    older_label: &str,
+    older_bytes: &[u8],
+    known_commits: impl Iterator<Item = String>,
+) -> ConformanceResult<()> {
+    if bootstrap {
         return Err(format!(
-            "{}: second bootstrap version at {label} (the bootstrap is unique)",
-            T::WHAT
+            "{what}: second bootstrap version at {label} (the bootstrap is unique)"
         )
         .into());
     }
-    let previous = version
-        .previous()
-        .ok_or_else(|| format!("{}: version at {label} lacks its previous pointer", T::WHAT))?;
+    let previous =
+        previous.ok_or_else(|| format!("{what}: version at {label} lacks its previous pointer"))?;
     if previous.commit != older_label {
         let known = known_commits
             .into_iter()
             .any(|commit| commit == previous.commit);
         return Err(format!(
-            "{}: version at {label} points at previous commit {} but the immediate \
+            "{what}: version at {label} points at previous commit {} but the immediate \
              preceding version of the path is {older_label}{}",
-            T::WHAT,
             previous.commit,
             if known {
                 " (an older-but-not-immediate ancestor cannot hide the versions between)"
@@ -3131,14 +3200,112 @@ fn verify_version_edge<T: LineageArtifact>(
     }
     if previous.sha256 != sha256_hex(older_bytes) {
         return Err(format!(
-            "{}: version at {label} records a stale previous.sha256 for commit {older_label}",
+            "{what}: version at {label} records a stale previous.sha256 for commit {older_label}"
+        )
+        .into());
+    }
+    Ok(())
+}
+
+struct VerifiedLineageShape {
+    /// Material version indices ordered oldest to newest.
+    order: Vec<usize>,
+    maximum: Option<usize>,
+}
+
+fn verify_lineage_shape<T: LineageArtifact>(
+    committed: &[(String, Vec<u8>)],
+    ancestry: &[Vec<bool>],
+) -> ConformanceResult<VerifiedLineageShape> {
+    let predecessors = (0..committed.len())
+        .map(|index| immediate_predecessors(index, ancestry))
+        .collect::<Vec<_>>();
+    let roots = predecessors
+        .iter()
+        .enumerate()
+        .filter_map(|(index, predecessors)| predecessors.is_empty().then_some(index))
+        .collect::<Vec<_>>();
+    if committed.len() > 1 && roots.len() != 1 {
+        return Err(format!(
+            "{}: reachable history has {} bootstrap roots (expected exactly one)",
+            T::WHAT,
+            roots.len()
+        )
+        .into());
+    }
+
+    // Within the shape audit, report the oldest merge which exposes multiple
+    // material predecessors first.
+    for index in (0..committed.len()).rev() {
+        if predecessors[index].len() > 1 {
+            return Err(format!(
+                "{}: version at {} has {} concurrent preceding path versions; \
+                 rebase and regenerate the artifact before merging",
+                T::WHAT,
+                committed[index].0,
+                predecessors[index].len()
+            )
+            .into());
+        }
+    }
+
+    let maxima = maximal_versions(ancestry);
+    if committed.len() > 1 && maxima.len() != 1 {
+        return Err(format!(
+            "{}: reachable history has {} concurrent live path versions; \
+             rebase and regenerate the artifact before merging",
+            T::WHAT,
+            maxima.len()
+        )
+        .into());
+    }
+    if committed.is_empty() {
+        return Ok(VerifiedLineageShape {
+            order: Vec::new(),
+            maximum: None,
+        });
+    }
+
+    let root = *roots
+        .first()
+        .ok_or_else(|| format!("internal {} lineage has no root", T::WHAT))?;
+    let maximum = *maxima
+        .first()
+        .ok_or_else(|| format!("internal {} lineage has no maximum", T::WHAT))?;
+    let mut order = Vec::with_capacity(committed.len());
+    let mut current = root;
+    loop {
+        order.push(current);
+        if current == maximum {
+            break;
+        }
+        let successors = predecessors
+            .iter()
+            .enumerate()
+            .filter_map(|(index, predecessors)| {
+                (predecessors.as_slice() == [current]).then_some(index)
+            })
+            .collect::<Vec<_>>();
+        let [successor] = successors.as_slice() else {
+            return Err(format!(
+                "internal {} lineage is not linear after its DAG shape passed",
+                T::WHAT
+            )
+            .into());
+        };
+        current = *successor;
+    }
+    if order.len() != committed.len() {
+        return Err(format!(
+            "internal {} lineage omitted material versions after its DAG shape passed",
             T::WHAT
         )
         .into());
     }
-    T::verify_edge(version, older)
-        .map_err(|err| format!("edge {label} -> {older_label}: {err}"))?;
-    Ok(())
+    Ok(VerifiedLineageShape {
+        order,
+        maximum: Some(maximum),
+    })
 }
 
 /// Validate every version in the full reachable version DAG back to
@@ -3165,36 +3332,27 @@ fn verify_lineage_with_memo<T: LineageArtifact>(
     working_bytes: &[u8],
 ) -> ConformanceResult<usize> {
     let committed = memo.committed_versions(rel)?;
-    let mut versions = Vec::with_capacity(committed.len());
-    for (label, bytes) in &committed {
-        let version = T::decode_validated(bytes)
-            .map_err(|err| format!("{} version at {label}: {err}", T::WHAT))?;
-        let blob = memo.cached_blob_ref(label, rel)?;
-        version.remember_pair_facts(memo, &blob.object_id, bytes)?;
-        versions.push(version);
-    }
     let ancestry = version_ancestry(&memo.git_root, &committed)?;
-    let roots = (0..committed.len())
-        .filter(|index| immediate_predecessors(*index, &ancestry).is_empty())
-        .collect::<Vec<_>>();
-    if committed.len() > 1 && roots.len() != 1 {
-        return Err(format!(
-            "{}: reachable history has {} bootstrap roots (expected exactly one)",
-            T::WHAT,
-            roots.len()
-        )
-        .into());
-    }
+    let shape = verify_lineage_shape::<T>(&committed, &ancestry)?;
+    let mut previous: Option<(usize, T)> = None;
+    let mut decoded_blob_ids = BTreeSet::new();
 
-    // `rev-list --topo-order` is newest-first. Reversing it reports an
-    // invalid old edge before a later restoration of the same bytes.
-    for index in (0..versions.len()).rev() {
-        let (label, _bytes) = &committed[index];
-        let version = &versions[index];
-        let predecessors = immediate_predecessors(index, &ancestry);
-        match predecessors.as_slice() {
-            [] => {
-                if !version.bootstrap() {
+    for &index in &shape.order {
+        let (label, bytes) = &committed[index];
+        let blob = memo.cached_blob_ref(label, rel)?;
+        if !decoded_blob_ids.insert(blob.object_id.clone()) {
+            let facts = memo
+                .lineage_facts(T::WHAT, &blob.object_id)
+                .cloned()
+                .ok_or_else(|| {
+                    format!(
+                        "internal Git memo lost {} lineage facts for blob {}",
+                        T::WHAT,
+                        blob.object_id
+                    )
+                })?;
+            let Some((older_index, _)) = previous.as_ref() else {
+                if !facts.bootstrap {
                     return Err(format!(
                         "{}: oldest reachable version at {label} is not the bootstrap \
                          (missing history? lineage needs the full clone depth)",
@@ -3202,48 +3360,87 @@ fn verify_lineage_with_memo<T: LineageArtifact>(
                     )
                     .into());
                 }
-            }
-            [older_index] => {
-                let (older_label, older_bytes) = &committed[*older_index];
-                verify_version_edge::<T>(
-                    label,
-                    version,
-                    older_label,
-                    older_bytes,
-                    &versions[*older_index],
-                    committed.iter().map(|(commit, _)| commit.clone()),
-                )?;
-            }
-            _ => {
                 return Err(format!(
-                    "{}: version at {label} has {} concurrent preceding path versions; \
-                     rebase and regenerate the artifact before merging",
-                    T::WHAT,
-                    predecessors.len()
+                    "internal {} lineage reused its root blob at {label}",
+                    T::WHAT
                 )
                 .into());
-            }
+            };
+            let (older_label, older_bytes) = &committed[*older_index];
+            verify_version_pointer(
+                T::WHAT,
+                label,
+                facts.bootstrap,
+                facts.previous.as_ref(),
+                older_label,
+                older_bytes,
+                committed.iter().map(|(commit, _)| commit.clone()),
+            )?;
+            return Err(format!(
+                "internal {} lineage reused blob {} at two material version commits without a \
+                 predecessor conflict",
+                T::WHAT,
+                blob.object_id
+            )
+            .into());
         }
-    }
 
-    let maxima = maximal_versions(&ancestry);
-    if committed.len() > 1 && maxima.len() != 1 {
-        return Err(format!(
-            "{}: reachable history has {} concurrent live path versions; \
-             rebase and regenerate the artifact before merging",
+        #[cfg(test)]
+        {
+            memo.lineage_decode_misses += 1;
+            memo.lineage_peak_live_versions = memo
+                .lineage_peak_live_versions
+                .max(usize::from(previous.is_some()) + 1);
+        }
+        let version = T::decode_validated(bytes)
+            .map_err(|err| format!("{} version at {label}: {err}", T::WHAT))?;
+        memo.remember_lineage_facts(
             T::WHAT,
-            maxima.len()
-        )
-        .into());
+            &blob.object_id,
+            bytes,
+            LineageFacts {
+                bootstrap: version.bootstrap(),
+                previous: version.previous().cloned(),
+            },
+        )?;
+        version.remember_pair_facts(memo, &blob.object_id, bytes)?;
+
+        if let Some((older_index, older)) = previous.as_ref() {
+            let (older_label, older_bytes) = &committed[*older_index];
+            verify_version_edge::<T>(
+                label,
+                &version,
+                older_label,
+                older_bytes,
+                older,
+                committed.iter().map(|(commit, _)| commit.clone()),
+            )?;
+        } else if !version.bootstrap() {
+            return Err(format!(
+                "{}: oldest reachable version at {label} is not the bootstrap \
+                 (missing history? lineage needs the full clone depth)",
+                T::WHAT
+            )
+            .into());
+        }
+        // Assignment drops the prior decoded artifact. At the transient peak
+        // only that predecessor and `version` are live.
+        previous = Some((index, version));
     }
 
     let head_bytes = memo.blob_optional("HEAD", rel)?;
     let working_is_version = head_bytes.as_deref() != Some(working_bytes);
     if working_is_version {
+        #[cfg(test)]
+        {
+            memo.lineage_peak_live_versions = memo
+                .lineage_peak_live_versions
+                .max(usize::from(previous.is_some()) + 1);
+        }
         let working = T::decode_validated(working_bytes)
             .map_err(|err| format!("{} version at <working tree>: {err}", T::WHAT))?;
-        match maxima.as_slice() {
-            [] => {
+        match shape.maximum {
+            None => {
                 if !working.bootstrap() {
                     return Err(format!(
                         "{}: oldest reachable version at <working tree> is not the bootstrap",
@@ -3252,37 +3449,40 @@ fn verify_lineage_with_memo<T: LineageArtifact>(
                     .into());
                 }
             }
-            [older_index] => {
-                let (older_label, older_bytes) = &committed[*older_index];
+            Some(older_index) => {
+                let (held_index, older) = previous.as_ref().ok_or_else(|| {
+                    format!("internal {} lineage lost its maximum version", T::WHAT)
+                })?;
+                if *held_index != older_index {
+                    return Err(format!(
+                        "internal {} lineage retained version {} instead of maximum {}",
+                        T::WHAT,
+                        committed[*held_index].0,
+                        committed[older_index].0
+                    )
+                    .into());
+                }
+                let (older_label, older_bytes) = &committed[older_index];
                 verify_version_edge::<T>(
                     "<working tree>",
                     &working,
                     older_label,
                     older_bytes,
-                    &versions[*older_index],
+                    older,
                     committed.iter().map(|(commit, _)| commit.clone()),
                 )?;
-            }
-            _ => {
-                return Err(format!(
-                    "{}: working version has {} concurrent committed predecessors; \
-                     rebase and regenerate the artifact",
-                    T::WHAT,
-                    maxima.len()
-                )
-                .into());
             }
         }
         Ok(committed.len() + 1)
     } else {
-        let Some(maximum) = maxima.first() else {
+        let Some(maximum) = shape.maximum else {
             return Err(format!("{}: HEAD contains no reachable artifact version", T::WHAT).into());
         };
-        if committed[*maximum].1.as_slice() != working_bytes {
+        if committed[maximum].1.as_slice() != working_bytes {
             return Err(format!(
                 "{}: HEAD bytes do not match the unique maximal path version {}",
                 T::WHAT,
-                committed[*maximum].0
+                committed[maximum].0
             )
             .into());
         }
@@ -6645,6 +6845,15 @@ mod tests {
         );
         assert_eq!(memo.matches_pair_facts.len(), 2);
         assert_eq!(memo.inputs_pair_facts.len(), 1);
+        assert_eq!(memo.lineage_facts.len(), 3);
+        assert_eq!(
+            memo.lineage_decode_misses, 3,
+            "each committed matches/input blob must be decoded once"
+        );
+        assert_eq!(
+            memo.lineage_peak_live_versions, 2,
+            "lineage verification must retain only an edge's two endpoints"
+        );
         assert_eq!(memo.pair_matches_decode_misses, 0);
         assert_eq!(memo.pair_inputs_decode_misses, 0);
 
@@ -6734,6 +6943,43 @@ mod tests {
             .to_string();
         assert!(err.contains("shrank"), "{err}");
         assert!(err.contains("code 2322"), "{err}");
+    }
+
+    #[test]
+    fn lineage_streams_committed_edges_and_keeps_only_the_tip_for_a_working_version() {
+        let repo = init_repo("lineage-streaming-working");
+        let v1 = matches_artifact(views_with(&[2322], &[]), true, None, None);
+        let v1_bytes = encode_artifact(&v1).unwrap();
+        let c1 = commit_bytes(&repo, MATCHES_REL_PATH, &v1_bytes, "v1");
+
+        let v2 = matches_artifact(
+            views_with(&[2322, 2345], &[]),
+            false,
+            Some(lineage_to(&c1, &v1_bytes)),
+            None,
+        );
+        let v2_bytes = encode_artifact(&v2).unwrap();
+        let c2 = commit_bytes(&repo, MATCHES_REL_PATH, &v2_bytes, "v2");
+
+        let v3 = matches_artifact(
+            views_with(&[2322, 2345, 2454], &[]),
+            false,
+            Some(lineage_to(&c2, &v2_bytes)),
+            None,
+        );
+        let v3_bytes = encode_artifact(&v3).unwrap();
+        let mut memo = GitMemo::new(&repo).unwrap();
+        assert_eq!(
+            verify_lineage_with_memo::<MatchesArtifact>(&mut memo, MATCHES_REL_PATH, &v3_bytes,)
+                .unwrap(),
+            3
+        );
+        assert_eq!(memo.lineage_decode_misses, 2);
+        assert_eq!(memo.lineage_facts.len(), 2);
+        assert_eq!(
+            memo.lineage_peak_live_versions, 2,
+            "the working-tree edge must overlap only the committed tip and working version"
+        );
     }
 
     #[test]
@@ -6839,6 +7085,37 @@ mod tests {
             .unwrap_err()
             .to_string();
         assert!(err.contains("second bootstrap"), "{err}");
+    }
+
+    #[test]
+    fn lineage_reused_blob_is_rejected_without_decoding_it_again() {
+        let repo = init_repo("reused-bootstrap-blob");
+        let v1 = matches_artifact(views_with(&[2322], &[]), true, None, None);
+        let v1_bytes = encode_artifact(&v1).unwrap();
+        let c1 = commit_bytes(&repo, MATCHES_REL_PATH, &v1_bytes, "v1");
+
+        let v2 = matches_artifact(
+            views_with(&[2322, 2345], &[]),
+            false,
+            Some(lineage_to(&c1, &v1_bytes)),
+            None,
+        );
+        let v2_bytes = encode_artifact(&v2).unwrap();
+        commit_bytes(&repo, MATCHES_REL_PATH, &v2_bytes, "v2");
+
+        // Restoring v1's exact Git blob is still a material version after v2.
+        // Its cached header must reproduce the ordinary second-bootstrap error
+        // without expanding the same accepted sets a second time.
+        commit_bytes(&repo, MATCHES_REL_PATH, &v1_bytes, "restore v1 blob");
+        let mut memo = GitMemo::new(&repo).unwrap();
+        let err =
+            verify_lineage_with_memo::<MatchesArtifact>(&mut memo, MATCHES_REL_PATH, &v1_bytes)
+                .unwrap_err()
+                .to_string();
+        assert!(err.contains("second bootstrap"), "{err}");
+        assert_eq!(memo.lineage_decode_misses, 2);
+        assert_eq!(memo.lineage_facts.len(), 2);
+        assert_eq!(memo.lineage_peak_live_versions, 2);
     }
 
     #[test]
@@ -6978,10 +7255,17 @@ mod tests {
             ],
         );
 
-        let err = verify_lineage::<MatchesArtifact>(&repo, MATCHES_REL_PATH, &right_bytes)
-            .unwrap_err()
-            .to_string();
+        let mut memo = GitMemo::new(&repo).unwrap();
+        let err =
+            verify_lineage_with_memo::<MatchesArtifact>(&mut memo, MATCHES_REL_PATH, &right_bytes)
+                .unwrap_err()
+                .to_string();
         assert!(err.contains("concurrent live path versions"), "{err}");
+        assert_eq!(
+            memo.lineage_decode_misses, 0,
+            "a non-linear version DAG must fail before retaining decoded artifacts"
+        );
+        assert_eq!(memo.lineage_peak_live_versions, 0);
     }
 
     #[test]

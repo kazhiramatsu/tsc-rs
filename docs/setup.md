@@ -24,6 +24,8 @@ All gates run from the repository root:
 
 ```sh
 cargo xtask ci                      # full merge-gate suite (must be green on main)
+CARGO_BUILD_JOBS=2 RUST_TEST_THREADS=2 TSRS_INVARIANT_WORKERS=2 \
+  cargo xtask ci --lane hosted --baseline origin/main  # hosted guardrail
 cargo xtask conformance             # conformance sweep (optionally --band 2xxx)
 cargo xtask conformance --syntactic-only
 cargo xtask invariants --suite all  # sampled determinism/idempotence developer run
@@ -39,6 +41,18 @@ Cargo/Node/full-corpus commands above. Run `git diff --check` from the
 repository root and review changed links, anchors, and generated-block
 boundaries. Any non-Markdown or generated-status change uses the full merge
 gate.
+
+The hosted lane is deliberately smaller than the merge gate. It runs format/
+clippy, workspace tests, Node syntax, generated-schema/inventory, relation
+pins, fixed All/2XXX/syntactic conformance, recovery census, sampled
+invariants, ledger, and escape contracts with at most two Cargo/test workers.
+Actions adds `--history-sensitive` only when a fail-closed classifier sees an
+evidence-authority input change; that performs one immutable-base semantic
+history and M8-plan audit instead of duplicating the same decode in workspace
+tests. Hosted never runs receipt-bound B2-B4 evidence production, full-corpus
+invariants, readiness/README rendering, or calibrated performance observations. Those
+remain mandatory in the unsplit local command and its result is recorded in
+the PR body; hosted success alone is not acceptance evidence.
 
 `cargo xtask completion` is report-only during M8 and succeeds while naming
 pending rows in `target/completion/report.json`. The post-M9 release gate is

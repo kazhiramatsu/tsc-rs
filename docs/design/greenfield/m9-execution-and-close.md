@@ -570,9 +570,10 @@ verifies the sidecar against the frozen repository/workflow/authority policy,
 recomputes every digest/class/quota and history edge, then appends canonical
 window, class, witness, and incident records. It never reruns the long
 producer or edits an old record. Several independently attested consecutive
-windows may share one aggregation PR so ordinary full PR CI is not repeated
-every night. Temporary hosted artifacts are retained only long enough for
-verified aggregation; durable compact records, attestation sidecars, and
+windows may share one aggregation PR so local full acceptance and the hosted
+PR guardrail are not repeated every night. Temporary hosted artifacts are
+retained only long enough for verified aggregation; durable compact records,
+attestation sidecars, and
 divergence repros live in-repo.
 
 Append-only authority is the decompressed canonical record bytes and their
@@ -584,12 +585,13 @@ incident state, and current policy.
 After M9.2 lands and before M9.3 changes the CI/schema consumer, hosted
 calibration freezes a bounded PR-smoke case count, exact seed/domain-canary
 list, and wall/CPU/RSS/scratch ceilings. The list does not grow implicitly
-with the nightly manifest. Normal PR CI executes it exactly once: one
-versioned artifact supplies both the M8 B3 readiness projection and the M9
-domain/classifier/replay/reducer/registry checks. The legacy M8 smoke is
-retired at that schema transition and is not run beside it. The 100,000-case
-producer is scheduled-only. The final release job verifies the 14 checked-in
-windows; it does not create a fifteenth.
+with the nightly manifest. After that transition, the bounded hosted PR
+guardrail executes it exactly once: one versioned artifact supplies both the
+M8 B3 readiness projection and the M9 domain/classifier/replay/reducer/
+registry checks. The legacy M8 smoke is retired at that schema transition and
+is not run beside it. The 100,000-case producer is scheduled-only. The final
+release job verifies the 14 checked-in windows; it does not create a
+fifteenth.
 
 After a candidate PR is pushed, its branch remains fixed while Actions
 runs. Investigation and read-only preflight for the next owner slice may

@@ -528,7 +528,9 @@ For each semantic H0 candidate:
    changes;
 4. run `CARGO_BUILD_JOBS=2 RUST_TEST_THREADS=2 cargo xtask ci --baseline
    origin/main` exactly once on the committed final candidate;
-5. run required hosted Linux Rust, semantic, and CLI lanes;
+5. run the required bounded hosted lane (workspace tests, fixed-view
+   conformance, sampled invariants, and authority-sensitive history checks;
+   evidence/full-invariant/readiness/performance work remains local);
 6. run macOS and Windows path smoke only when host, path, or config behavior
    changes; and
 7. merge automatically with a merge commit after every required check

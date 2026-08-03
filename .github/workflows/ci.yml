@@ -20,10 +20,15 @@ concurrency:
   cancel-in-progress: true
 
 env:
+  # Keep hosted validation within two compiler/test workers. The local full
+  # gate remains authoritative and may choose the same low-CPU profile.
+  CARGO_BUILD_JOBS: "2"
   CARGO_INCREMENTAL: "0"
   CARGO_TERM_COLOR: always
+  RUST_TEST_THREADS: "2"
   RUSTC_WRAPPER: sccache
   SCCACHE_GHA_ENABLED: "true"
+  TSRS_INVARIANT_WORKERS: "2"
   # PR merge-ref entries cannot warm main or another PR. Read the shared
   # default-branch cache there, and publish new compiler objects only on main.
   SCCACHE_GHA_RW_MODE: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && 'READ_WRITE' || 'READ_ONLY' }}
@@ -39,8 +44,10 @@ jobs:
     timeout-minutes: 5
     outputs:
       docs_only: ${{ steps.diff.outputs.docs_only }}
+      history_sensitive: ${{ steps.diff.outputs.history_sensitive }}
       host_platform: ${{ steps.diff.outputs.host_platform }}
       program_path: ${{ steps.diff.outputs.program_path }}
+      baseline_sha: ${{ steps.diff.outputs.baseline_sha }}
     steps:
       - name: Checkout enough history to classify the complete change
         uses: actions/checkout@v7
@@ -58,6 +65,7 @@ jobs:
           docs_only=false
           # An unprovable diff takes the safe platform path. Ordinary PR and
           # main-push diffs reset these before classifying exact paths below.
+          history_sensitive=true
           host_platform=true
           program_path=true
           if [[ -n "$BASE_SHA" && ! "$BASE_SHA" =~ ^0+$ ]] \
@@ -65,6 +73,7 @@ jobs:
             && git cat-file -e "$HEAD_SHA^{commit}"; then
             host_platform=false
             program_path=false
+            history_sensitive=false
             # Whitespace errors fail even the lightweight documentation path.
             git diff --check "$BASE_SHA" "$HEAD_SHA"
 
@@ -86,8 +95,13 @@ jobs:
               case "$path" in
                 crates/host/*)
                   host_platform=true
+                  program_path=true
                   ;;
-                crates/program/src/path.rs)
+                crates/program/src/loader.rs|crates/program/src/module_resolution.rs|crates/program/src/path.rs|crates/program/src/prepared.rs)
+                  host_platform=true
+                  program_path=true
+                  ;;
+                crates/program/tests/no_lib_program_loader_contract.rs|crates/program/tests/path_identity_contract.rs)
                   host_platform=true
                   program_path=true
                   ;;
@@ -96,11 +110,21 @@ jobs:
                   program_path=true
                   ;;
               esac
+              # These paths own accepted-state identity, history auditors, or
+              # frozen H0/M8 boundaries. Only those changes pay for the
+              # trusted-base history audit; broad ordinary source changes rely
+              # on the required local full gate plus hosted conformance.
+              case "$path" in
+                ratchet.toml|ratchets/*|m8-scope.json|diag-families.json|m8-emitter-inventory.json|m8-emitter-dispositions.json|m8-owner-plan.json|m8-owner-plan-review.json|goldens/*|ts-tests/tests/cases/*|vendor/typescript-6.0.3/*|crates/conformance/*|crates/harness/*|crates/oracle/*|crates/xtask/*|crates/checker/*|crates/compiler/*|crates/program/*|crates/host/*|.node-version|.cargo/*|.github/workflows/*|Cargo.toml|Cargo.lock|rust-toolchain.toml|crates/*/Cargo.toml)
+                  history_sensitive=true
+                  ;;
+              esac
             done
 
             # README's generated status is semantic evidence even though the
             # file is Markdown. A changed, missing, or duplicated block must
-            # run readme-status through the full semantic lane.
+            # take the non-doc path; the required local full gate owns its
+            # readiness-backed readme-status check.
             status_block() {
               git show "$1:README.md" | awk '
                 /<!-- STATUS:BEGIN / {
@@ -128,11 +152,17 @@ jobs:
             fi
           fi
           printf 'docs_only=%s\n' "$docs_only" >> "$GITHUB_OUTPUT"
+          printf 'history_sensitive=%s\n' "$history_sensitive" >> "$GITHUB_OUTPUT"
           printf 'host_platform=%s\n' "$host_platform" >> "$GITHUB_OUTPUT"
           printf 'program_path=%s\n' "$program_path" >> "$GITHUB_OUTPUT"
+          printf 'baseline_sha=%s\n' "$BASE_SHA" >> "$GITHUB_OUTPUT"
 
-  rust:
-    name: rust
+  # GitHub Actions is a bounded guardrail. Receipt-bound B2-B4 evidence, full
+  # invariants, readiness, and performance gates stay in the required local
+  # `cargo xtask ci`; hosted keeps compile/tests, fixed-view conformance,
+  # sampled invariants, cheap contracts, and authority-sensitive history.
+  hosted:
+    name: hosted
     needs: classify
     if: ${{ needs.classify.outputs.docs_only != 'true' }}
     runs-on: ubuntu-latest
@@ -164,9 +194,11 @@ jobs:
             ~/.cargo/registry/index
             ~/.cargo/registry/cache
             ~/.cargo/git/db
-          key: cargo-v2-${{ runner.os }}-rust-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml') }}
+          key: cargo-v3-${{ runner.os }}-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml') }}
           restore-keys: |
+            cargo-v3-${{ runner.os }}-
             cargo-v2-${{ runner.os }}-rust-
+            cargo-v2-${{ runner.os }}-semantic-
 
       # Pin both the action commit (v0.0.10) and compiler-cache binary.
       # sccache keys compiler outputs by their actual inputs, so it can
@@ -176,21 +208,31 @@ jobs:
         with:
           version: v0.16.0
 
-      # Gate composition stays in xtask so local and hosted execution
-      # cannot drift. The lane boundary only lets the two independent
-      # halves run on separate standard hosted runners.
-      - name: Run Rust gates
-        run: cargo xtask ci --lane rust
+      # Gate composition stays in xtask so the omissions are explicit and
+      # unit-tested. Evidence production, full invariants, readiness, and
+      # calibrated performance observations run only in the local full gate.
+      - name: Run bounded hosted gates
+        env:
+          BASELINE_SHA: ${{ needs.classify.outputs.baseline_sha }}
+          HISTORY_SENSITIVE: ${{ needs.classify.outputs.history_sensitive }}
+        shell: bash
+        run: |
+          args=(--lane hosted --baseline "$BASELINE_SHA")
+          if [[ "$HISTORY_SENSITIVE" == true ]]; then
+            args+=(--history-sensitive)
+          fi
+          cargo xtask ci "${args[@]}"
 
   # Host and path changes receive a small real-filesystem smoke on both
   # supported desktop platform families. This stays independent of the
-  # full-corpus lanes and caps Cargo/test parallelism at two workers.
+  # hosted lane and caps Cargo/test parallelism at two workers.
   host_platform:
     name: host-${{ matrix.os }}
     needs: classify
     if: ${{ needs.classify.outputs.docs_only != 'true' && needs.classify.outputs.host_platform == 'true' }}
     strategy:
       fail-fast: false
+      max-parallel: 1
       matrix:
         os:
           - macos-latest
@@ -210,119 +252,23 @@ jobs:
       - name: Run focused filesystem-host contracts
         run: cargo test --manifest-path crates/host/Cargo.toml
 
-      - name: Run focused program-path contracts
+      - name: Run focused program filesystem contracts
         if: ${{ needs.classify.outputs.program_path == 'true' }}
-        run: cargo test --manifest-path crates/program/Cargo.toml --test path_identity_contract
+        run: >-
+          cargo test --manifest-path crates/program/Cargo.toml
+          --test path_identity_contract
+          --test no_lib_program_loader_contract
 
-  semantic:
-    name: semantic
-    needs: classify
-    if: ${{ needs.classify.outputs.docs_only != 'true' }}
-    runs-on: ubuntu-latest
-    # The cold B2 evidence build plus every full-corpus invariant made this
-    # job reach the 30-minute limit on the standard hosted runner at M8 close.
-    # Keep enough headroom for cold-cache variance without changing the
-    # single-worker evidence policy.
-    timeout-minutes: 45
-    steps:
-      - name: Checkout full lineage
-        uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
-          persist-credentials: false
-
-      # Every full-corpus oracle launch must use the producer's pinned
-      # Node version; the runner image's default would skew evidence.
-      - name: Pin the oracle Node runtime
-        uses: actions/setup-node@v7
-        with:
-          node-version-file: .node-version
-          package-manager-cache: false
-
-      - name: Restore Cargo dependencies
-        uses: actions/cache@v5
-        with:
-          path: |
-            ~/.cargo/registry/index
-            ~/.cargo/registry/cache
-            ~/.cargo/git/db
-          key: cargo-v2-${{ runner.os }}-semantic-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml') }}
-          restore-keys: |
-            cargo-v2-${{ runner.os }}-semantic-
-
-      - name: Configure compiler cache
-        uses: mozilla-actions/sccache-action@9e7fa8a12102821edf02ca5dbea1acd0f89a2696
-        with:
-          version: v0.16.0
-
-      # B2 is a full 7,462-program oracle sweep. Compute its narrow
-      # producer-input fingerprint first, then restore only the raw
-      # runtime artifact for that exact content. produce_all revalidates
-      # its schema, fingerprint, inventory hash, counts, and zero-hit
-      # reviews before reuse; a miss or invalid entry regenerates it.
-      - name: Compute B2 runtime evidence fingerprint
-        id: m8-b2-fingerprint
-        run: |
-          fingerprint="$(cargo xtask m8 evidence fingerprint --kind runtime)"
-          printf 'sha256=%s\n' "$fingerprint" >> "$GITHUB_OUTPUT"
-
-      - name: Restore exact B2 runtime evidence
-        uses: actions/cache@v5
-        with:
-          path: target/m8/evidence/runtime-coverage.json
-          key: m8-b2-v2-${{ runner.os }}-${{ steps.m8-b2-fingerprint.outputs.sha256 }}
-
-      # Full-corpus passes once peaked at ~11.5 GB RSS. The underlying
-      # multiplication bug is fixed (~1.7 GB now), but the headroom
-      # remains a cheap guard against runner-agent OOM termination.
-      - name: Provision memory headroom for full-corpus passes
-        run: |
-          sudo systemctl stop systemd-oomd.service systemd-oomd.socket || true
-          sudo fallocate -l 8G /swap-semantic
-          sudo chmod 600 /swap-semantic
-          sudo mkswap /swap-semantic
-          sudo swapon /swap-semantic
-          free -h
-          df -h /
-
-      # A1/A2/H0/A5 checks, conformance's three views, recovery census,
-      # readiness production/consumption, ledger, and escapes remain
-      # in one workspace. B4 feeds all three views and A5 from one checker
-      # traversal, then the same process consumes its bound receipt. Only the
-      # independent Rust compiler/test gates run on the parallel runner.
-      - name: Run semantic gates against trusted baseline
-        env:
-          BASELINE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
-          # The full-corpus invariant schedules use bounded ordered pipelines.
-          # Two workers fit the standard runner without turning the
-          # memory-heavy checker sweeps into an all-core burst.
-          TSRS_INVARIANT_WORKERS: "2"
-          TSRS_M8_RUNNER_PROFILE: github-ubuntu-x64-standard
-        run: cargo xtask ci --lane semantic --baseline "$BASELINE_SHA"
-
-      - name: Upload semantic artifacts on failure
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: semantic-gate-artifacts
-          if-no-files-found: ignore
-          path: |
-            target/conformance/mismatches.json
-            target/families/report.json
-            target/m8/
-            target/recovery-census.json
-
-  # Preserve the historical required-check name. Branch protection
-  # needs only `gates`; this job turns either parallel lane's failure,
-  # cancellation, or timeout into one deterministic final result.
+  # Preserve the stable process-required check name (and the only context a
+  # future branch-protection rule would need). This turns the bounded hosted
+  # lane or focused cross-platform smoke failure into one final result.
   gates:
     name: gates
     if: always()
     needs:
       - classify
-      - rust
+      - hosted
       - host_platform
-      - semantic
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -331,16 +277,13 @@ jobs:
           DOCS_ONLY: ${{ needs.classify.outputs.docs_only }}
           HOST_PLATFORM: ${{ needs.classify.outputs.host_platform }}
           HOST_PLATFORM_RESULT: ${{ needs.host_platform.result }}
-          RUST_RESULT: ${{ needs.rust.result }}
-          SEMANTIC_RESULT: ${{ needs.semantic.result }}
+          HOSTED_RESULT: ${{ needs.hosted.result }}
         run: |
           if [ "$DOCS_ONLY" = true ]; then
             test "$HOST_PLATFORM_RESULT" = skipped
-            test "$RUST_RESULT" = skipped
-            test "$SEMANTIC_RESULT" = skipped
+            test "$HOSTED_RESULT" = skipped
           else
-            test "$RUST_RESULT" = success
-            test "$SEMANTIC_RESULT" = success
+            test "$HOSTED_RESULT" = success
             if [ "$HOST_PLATFORM" = true ]; then
               test "$HOST_PLATFORM_RESULT" = success
             else

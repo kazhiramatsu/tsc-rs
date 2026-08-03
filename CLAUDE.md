@@ -38,10 +38,11 @@ there.
    generated-status change—uses the complete gate above.
 4. **Merge via GitHub PR** (`gh` CLI): when the slice is done and
    the required local gate (or the documentation-only checks above) is
-   green, push the branch and open a PR whose body carries the gate summary
-   (conformance rates + FP=0, escapes, tests). Monitor the PR and fix
-   failures as additional commits on the same branch. As soon as all
-   required GitHub Actions checks are successful and the PR is
+   green, push the branch and open a PR whose body carries the local gate
+   summary (conformance rates + FP=0, escapes, tests). GitHub Actions is a
+   bounded hosted guardrail, not the full-corpus acceptance authority.
+   Monitor the PR and fix failures as additional commits on the same branch.
+   As soon as the required hosted checks are successful and the PR is
    mergeable, merge automatically with
    `gh pr merge --merge --delete-branch` — do not wait for a separate
    user approval. Use a **merge commit ONLY, never squash/rebase**:
@@ -59,22 +60,30 @@ there.
    merging.
 7. Trivial process/docs-only changes may land directly on `main`
    and be pushed. Markdown-only changes intentionally skip the local and
-   hosted Rust/semantic lanes; the hosted workflow runs only its lightweight
+   hosted lane; the hosted workflow runs only its lightweight
    change classifier and required `gates` sentinel.
 8. Pushing to `origin` is allowed and expected: push the slice branch
-   with `-u` while working. PR Actions runs the same full gate as
-   parallel `rust` and `semantic` lanes, with the latter receiving the
-   immutable PR-base SHA; the final `gates` job requires both. Local
-   `cargo xtask ci` remains required before opening and before merging
-   except for the exact Markdown-only rule above.
+   with `-u` while working. PR Actions runs `cargo xtask ci --lane hosted`
+   with Cargo/test parallelism capped at two, plus focused macOS/Windows host
+   contracts only when host/path infrastructure changes. The hosted lane
+   keeps format/clippy, workspace tests, Node syntax, generated-schema/
+   inventory, relation pins, the fixed All/2XXX/syntactic conformance views,
+   recovery census, sampled invariants, ledger, and escapes. A conservative
+   path classifier adds one trusted-base semantic-history/M8-plan audit only
+   when evidence-authority inputs change. It intentionally omits receipt-bound
+   B2-B4 evidence production, full-corpus invariants, readiness/README
+   rendering, and calibrated performance observations. The final `gates` job requires
+   this bounded lane. Local `cargo xtask ci` remains required before opening
+   and before merging except for the exact Markdown-only rule above; its
+   result and trusted baseline are recorded in the PR body.
 
 ## Verification quick reference
 
 - **Markdown-only changes:** if and only if every trusted-base diff path is
   `*.md` and README's generated `STATUS` block is unchanged, run no
   Cargo/Node/full-corpus CI. Use `git diff --check` and review links, anchors,
-  and generated-block boundaries. Hosted `classify` skips the `rust` and
-  `semantic` jobs and lets the lightweight required `gates` sentinel
+  and generated-block boundaries. Hosted `classify` skips the `hosted` job
+  and lets the lightweight required `gates` sentinel
   succeed. Do not label a workflow/config/generated-artifact or generated-
   status change as documentation-only.
 - **NEVER pipe a gate command through `tail`/`head`/`grep` — the
@@ -86,14 +95,20 @@ there.
   `ratchet check`, `scope audit`, `families check`, `escapes`,
   `ledger check`, `invariants`).
 - Full gate suite: `cargo xtask ci [--baseline <trusted-ref-or-sha>]`
-  (from the repository root; PR Actions supplies the immutable base SHA). Its
+  (from the repository root, using the trusted base recorded in the PR). Its
   full-corpus B2 producer reuses an existing exact-fingerprint artifact
   only after raw schema/hash/inventory/count/review validation; otherwise
   it regenerates the artifact with one single-threaded worker.
-- Hosted-lane diagnostic: `cargo xtask ci --lane <rust|semantic>
-  [--baseline <trusted-ref-or-sha>]`. This is for reproducing one
-  Actions lane; except for the exact Markdown-only rule, slice acceptance
-  still requires the unsplit local command above.
+- Hosted guardrail: `CARGO_BUILD_JOBS=2 RUST_TEST_THREADS=2
+  TSRS_INVARIANT_WORKERS=2 cargo xtask ci --lane hosted --baseline
+  <trusted-ref-or-sha>`. Add `--history-sensitive` when reproducing a hosted
+  run whose classifier selected the immutable trusted-base audit. Hosted runs
+  fixed-view conformance and sampled invariants, but not receipt-bound B2-B4
+  evidence, full-corpus invariants, readiness, or performance gates. The legacy `--lane
+  rust|semantic [--baseline <trusted-ref-or-sha>]` split remains available for
+  diagnosing either half of the full local gate. Except for the exact
+  Markdown-only rule, slice acceptance still requires the unsplit local
+  command above; a green hosted lane is never a replacement for it.
 - Conformance single band: `cargo xtask conformance [--band 2xxx]`
   (every gating run also enforces the A1 accepted-set ratchet;
   partial `--files`/`--limit` runs gate the executed-fixture
