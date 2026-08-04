@@ -252,3 +252,49 @@ fn large_invalid_list_orders_conversion_before_notifiers_without_quadratic_repai
     );
     assert!(errors.iter().all(|diagnostic| diagnostic.code() == 5024));
 }
+
+#[test]
+fn large_paths_map_finalizes_templates_in_one_ordered_pass() {
+    const MAPPINGS: usize = 1_024;
+
+    let mut text = String::from("{\"compilerOptions\":{\"paths\":{");
+    for index in 0..MAPPINGS {
+        if index != 0 {
+            text.push(',');
+        }
+        write!(
+            text,
+            "\"@pkg{index}/*\":[\"${{configDir}}/generated/{index}/*\",\"relative/{index}/*\",{index}]"
+        )
+        .expect("writing to String cannot fail");
+    }
+    text.push_str("}},\"files\":[\"root.ts\"]}");
+
+    let plan = parse_config_root_plan(
+        &MemoryConfigHost::default(),
+        ConfigRootPlanRequest {
+            file_name: "/project/tsconfig.json".to_owned(),
+            text,
+            base_path: "/".to_owned(),
+        },
+    )
+    .expect("large paths map remains a bounded config plan");
+
+    assert_eq!(plan.options().stored_paths_base_path(), Some("/project"));
+    let ConfigOptionValueState::Object(paths) = plan.options().typed_value_state("paths") else {
+        panic!("paths is a converted object value")
+    };
+    let projection = paths.json_projection();
+    let paths = projection
+        .as_object()
+        .expect("paths retains its object shape");
+    assert_eq!(paths.len(), MAPPINGS);
+    for index in 0..MAPPINGS {
+        let values = paths[&format!("@pkg{index}/*")]
+            .as_array()
+            .expect("paths substitution is an array");
+        assert_eq!(values[0], json!(format!("/project/generated/{index}/*")));
+        assert_eq!(values[1], json!(format!("relative/{index}/*")));
+        assert_eq!(values[2].as_f64(), Some(index as f64));
+    }
+}

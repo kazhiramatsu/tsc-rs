@@ -38,6 +38,16 @@ const ROOT_BASE_PATH = "/project";
 const MALFORMED_CONFIG =
   '{"note":"😀","compilerOptions":{"strict":true,"ALLOWJS":true},"files":["root.ts"]';
 
+const COMPILER_LIST_OPTION_NAMES = new Set([
+  "lib",
+  "rootDirs",
+  "typeRoots",
+  "types",
+  "moduleSuffixes",
+  "customConditions",
+  "plugins",
+]);
+
 const FIXTURES = [
   {
     id: "unknown-invalid-options",
@@ -133,9 +143,9 @@ const FIXTURES = [
   {
     id: "mixed-invalid-spec-elements",
     rootText: `{
-  "files": ["literal.ts", 1, null, ""],
-  "include": ["src/**", 7, "src/**/*.ts", "**/../escape/*.ts"],
-  "exclude": ["vendor/**", false, "**/../bad", "out"]
+  "files": ["literal.ts", 1, null, "", "\${configDir}/a*/../template.ts"],
+  "include": ["src/**", 7, "src/**/*.ts", "**/../escape/*.ts", "\${configDir}/a*/../src/**/*.ts"],
+  "exclude": ["vendor/**", false, "**/../bad", "out", "\${configDir}/a*/../generated/**"]
 }`,
     readDirectoryResult: ["/project/src/main.ts"],
   },
@@ -417,21 +427,85 @@ const FIXTURES = [
       "plugins",
     ],
   },
+  {
+    id: "compiler-object-paths-valid-nested-recovery",
+    rootText:
+      '{"compilerOptions":{"paths":{"@/*":["./src/*",foo,"./fallback/*"],"drop":foo,"keep":true,"numbers":[1,-0],"negativeZero":-0}},"files":["x.ts"]}',
+    optionProbeKeys: ["paths", "pathsBasePath"],
+  },
+  {
+    id: "compiler-object-paths-extends-config-dir",
+    rootText:
+      '{"extends":"./config/base.json","files":["x.ts"]}',
+    hostFiles: [
+      {
+        path: "/project/config/base.json",
+        text:
+          '{"compilerOptions":{"paths":{"@/*":["./src/*","${configDir}/a*/../generated/*","${confıgDir}/unicode/*"],"plain":true},"rootDirs":["${configDir}/a*/../roots/*","${confıgDir}/unicode-roots"],"outDir":"${configDir}/a*/../dist","declarationDir":"${confıgDir}/unicode-declarations","rootDir":"${conﬁgDir}"}}',
+      },
+    ],
+    optionProbeKeys: [
+      "paths",
+      "pathsBasePath",
+      "rootDirs",
+      "outDir",
+      "declarationDir",
+      "rootDir",
+    ],
+  },
+  {
+    id: "compiler-object-paths-array-unchanged",
+    rootText:
+      '{"compilerOptions":{"paths":[["./src/*"],{"nested":true},"plain",[]]},"files":["x.ts"]}',
+    optionProbeKeys: ["paths", "pathsBasePath"],
+  },
+  {
+    id: "compiler-object-paths-array-template-object",
+    rootText:
+      '{"compilerOptions":{"paths":[["${configDir}/src/*"],["./plain/*"],true]},"files":["x.ts"]}',
+    optionProbeKeys: ["paths", "pathsBasePath"],
+  },
+  {
+    id: "compiler-object-paths-null-own-mask",
+    rootText:
+      '{"extends":"./config/base.json","compilerOptions":{"paths":null},"files":["x.ts"]}',
+    hostFiles: [
+      {
+        path: "/project/config/base.json",
+        text:
+          '{"compilerOptions":{"paths":{"base/*":["./src/*"]}}}',
+      },
+    ],
+    optionProbeKeys: ["paths", "pathsBasePath"],
+  },
+  {
+    id: "compiler-object-paths-invalid-own-mask",
+    rootText:
+      '{"extends":"./config/base.json","compilerOptions":{"paths":true},"files":["x.ts"]}',
+    hostFiles: [
+      {
+        path: "/project/config/base.json",
+        text:
+          '{"compilerOptions":{"paths":{"base/*":["./src/*"]}}}',
+      },
+    ],
+    optionProbeKeys: ["paths", "pathsBasePath"],
+  },
 ];
 
 const EXPECTED_SUMMARY = {
-  fixture_total: 45,
+  fixture_total: 51,
   root_parse_diagnostic_total: 4,
-  parsed_error_total: 83,
-  config_diagnostic_total: 87,
-  located_config_diagnostic_total: 80,
-  file_name_total: 42,
-  extended_source_total: 18,
-  extended_source_text_total: 16,
-  host_call_total: 50,
+  parsed_error_total: 86,
+  config_diagnostic_total: 90,
+  located_config_diagnostic_total: 83,
+  file_name_total: 49,
+  extended_source_total: 21,
+  extended_source_text_total: 19,
+  host_call_total: 56,
   host_calls: {
-    file_exists: 28,
-    read_file: 20,
+    file_exists: 31,
+    read_file: 23,
     read_directory: 2,
   },
 };
@@ -696,7 +770,11 @@ function optionProbeRecord(options, names, preserveListElementState = false) {
     if (!Object.hasOwn(options, name)) return { name, state: "absent" };
     const value = options[name];
     if (value === undefined) return { name, state: "undefined" };
-    if (preserveListElementState && Array.isArray(value)) {
+    if (
+      preserveListElementState &&
+      COMPILER_LIST_OPTION_NAMES.has(name) &&
+      Array.isArray(value)
+    ) {
       return {
         name,
         state: "list",
@@ -856,11 +934,28 @@ function generateArtifact() {
       path: TYPESCRIPT_SOURCE_RELATIVE_PATH,
       sha256: EXPECTED_TYPESCRIPT_SOURCE_SHA256,
       spans: [
+        { symbol: "equateStringsCaseInsensitive", lines: "905-906" },
+        { symbol: "startsWith", lines: "1078-1079" },
+        { symbol: "getPathsBasePath", lines: "16595-16599" },
+        { symbol: "paths option declaration", lines: "37363-37374" },
         { symbol: "convertToJson", lines: "38521-38600" },
+        { symbol: "isCompilerOptionsValue", lines: "38604-38617" },
         { symbol: "parseJsonConfigFileContentWorker", lines: "39004-39171" },
         {
           symbol: "handleOptionConfigDirTemplateSubstitution",
           lines: "39175-39207",
+        },
+        {
+          symbol: "getSubstitutedPathWithConfigDirTemplate",
+          lines: "39217-39219",
+        },
+        {
+          symbol: "getSubstitutedStringArrayWithConfigDirTemplate",
+          lines: "39220-39228",
+        },
+        {
+          symbol: "getSubstitutedMapLikeOfStringArrayWithConfigDirTemplate",
+          lines: "39229-39239",
         },
         { symbol: "parseConfig", lines: "39272-39330" },
         { symbol: "getExtendsConfigPathOrArray", lines: "39342-39378" },
@@ -873,6 +968,7 @@ function generateArtifact() {
         },
         { symbol: "validateSpecs", lines: "39697-39710" },
         { symbol: "specToDiagnostic", lines: "39711-39718" },
+        { symbol: "compilerOptionValueToString", lines: "40327-40341" },
       ],
     },
     summary,

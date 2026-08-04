@@ -12,8 +12,28 @@
     "sha256": "1c59e77a54b186ec43fa7f3e0d3c4bb15ca5eb5ba43e96b1d3a267139eddd3e3",
     "spans": [
       {
+        "symbol": "equateStringsCaseInsensitive",
+        "lines": "905-906"
+      },
+      {
+        "symbol": "startsWith",
+        "lines": "1078-1079"
+      },
+      {
+        "symbol": "getPathsBasePath",
+        "lines": "16595-16599"
+      },
+      {
+        "symbol": "paths option declaration",
+        "lines": "37363-37374"
+      },
+      {
         "symbol": "convertToJson",
         "lines": "38521-38600"
+      },
+      {
+        "symbol": "isCompilerOptionsValue",
+        "lines": "38604-38617"
       },
       {
         "symbol": "parseJsonConfigFileContentWorker",
@@ -22,6 +42,18 @@
       {
         "symbol": "handleOptionConfigDirTemplateSubstitution",
         "lines": "39175-39207"
+      },
+      {
+        "symbol": "getSubstitutedPathWithConfigDirTemplate",
+        "lines": "39217-39219"
+      },
+      {
+        "symbol": "getSubstitutedStringArrayWithConfigDirTemplate",
+        "lines": "39220-39228"
+      },
+      {
+        "symbol": "getSubstitutedMapLikeOfStringArrayWithConfigDirTemplate",
+        "lines": "39229-39239"
       },
       {
         "symbol": "parseConfig",
@@ -54,22 +86,26 @@
       {
         "symbol": "specToDiagnostic",
         "lines": "39711-39718"
+      },
+      {
+        "symbol": "compilerOptionValueToString",
+        "lines": "40327-40341"
       }
     ]
   },
   "summary": {
-    "fixture_total": 45,
+    "fixture_total": 51,
     "root_parse_diagnostic_total": 4,
-    "parsed_error_total": 83,
-    "config_diagnostic_total": 87,
-    "located_config_diagnostic_total": 80,
-    "file_name_total": 42,
-    "extended_source_total": 18,
-    "extended_source_text_total": 16,
-    "host_call_total": 50,
+    "parsed_error_total": 86,
+    "config_diagnostic_total": 90,
+    "located_config_diagnostic_total": 83,
+    "file_name_total": 49,
+    "extended_source_total": 21,
+    "extended_source_text_total": 19,
+    "host_call_total": 56,
     "host_calls": {
-      "file_exists": 28,
-      "read_file": 20,
+      "file_exists": 31,
+      "read_file": 23,
       "read_directory": 2
     }
   },
@@ -991,9 +1027,9 @@
       "input": {
         "root": {
           "file_name": "/project/tsconfig.json",
-          "text": "{\n  \"files\": [\"literal.ts\", 1, null, \"\"],\n  \"include\": [\"src/**\", 7, \"src/**/*.ts\", \"**/../escape/*.ts\"],\n  \"exclude\": [\"vendor/**\", false, \"**/../bad\", \"out\"]\n}",
-          "utf8_bytes": 161,
-          "sha256": "aeebb8fee9c50659bad6012aede5b2a3b46c18c3c08399d7c35c884e743ad249"
+          "text": "{\n  \"files\": [\"literal.ts\", 1, null, \"\", \"${configDir}/a*/../template.ts\"],\n  \"include\": [\"src/**\", 7, \"src/**/*.ts\", \"**/../escape/*.ts\", \"${configDir}/a*/../src/**/*.ts\"],\n  \"exclude\": [\"vendor/**\", false, \"**/../bad\", \"out\", \"${configDir}/a*/../generated/**\"]\n}",
+          "utf8_bytes": 264,
+          "sha256": "90d3e24ee5322d63975ffe7c2c4b63ef94745db139d09b2b26b9d1146f586852"
         },
         "base_path": "/project",
         "use_case_sensitive_file_names": true,
@@ -1018,7 +1054,7 @@
           "code": 5024,
           "category": "error",
           "file": "/project/tsconfig.json",
-          "start": 66,
+          "start": 100,
           "length": 1,
           "message": "Compiler option 'include' requires a value of type string."
         },
@@ -1026,7 +1062,7 @@
           "code": 5024,
           "category": "error",
           "file": "/project/tsconfig.json",
-          "start": 133,
+          "start": 201,
           "length": 5,
           "message": "Compiler option 'exclude' requires a value of type string."
         },
@@ -1034,7 +1070,7 @@
           "code": 5010,
           "category": "error",
           "file": "/project/tsconfig.json",
-          "start": 56,
+          "start": 90,
           "length": 8,
           "message": "File specification cannot end in a recursive directory wildcard ('**'): 'src/**'."
         },
@@ -1042,7 +1078,7 @@
           "code": 5065,
           "category": "error",
           "file": "/project/tsconfig.json",
-          "start": 84,
+          "start": 118,
           "length": 19,
           "message": "File specification cannot contain a parent directory ('..') that appears after a recursive directory wildcard ('**'): '**/../escape/*.ts'."
         },
@@ -1050,7 +1086,7 @@
           "code": 5065,
           "category": "error",
           "file": "/project/tsconfig.json",
-          "start": 140,
+          "start": 208,
           "length": 11,
           "message": "File specification cannot contain a parent directory ('..') that appears after a recursive directory wildcard ('**'): '**/../bad'."
         }
@@ -1068,7 +1104,7 @@
           "code": 5024,
           "category": "error",
           "file": "/project/tsconfig.json",
-          "start": 66,
+          "start": 100,
           "length": 1,
           "message": "Compiler option 'include' requires a value of type string."
         },
@@ -1076,7 +1112,7 @@
           "code": 5024,
           "category": "error",
           "file": "/project/tsconfig.json",
-          "start": 133,
+          "start": 201,
           "length": 5,
           "message": "Compiler option 'exclude' requires a value of type string."
         },
@@ -1084,7 +1120,7 @@
           "code": 5010,
           "category": "error",
           "file": "/project/tsconfig.json",
-          "start": 56,
+          "start": 90,
           "length": 8,
           "message": "File specification cannot end in a recursive directory wildcard ('**'): 'src/**'."
         },
@@ -1092,7 +1128,7 @@
           "code": 5065,
           "category": "error",
           "file": "/project/tsconfig.json",
-          "start": 84,
+          "start": 118,
           "length": 19,
           "message": "File specification cannot contain a parent directory ('..') that appears after a recursive directory wildcard ('**'): '**/../escape/*.ts'."
         },
@@ -1100,7 +1136,7 @@
           "code": 5065,
           "category": "error",
           "file": "/project/tsconfig.json",
-          "start": 140,
+          "start": 208,
           "length": 11,
           "message": "File specification cannot contain a parent directory ('..') that appears after a recursive directory wildcard ('**'): '**/../bad'."
         }
@@ -1111,24 +1147,28 @@
             "literal.ts",
             1,
             null,
-            ""
+            "",
+            "${configDir}/a*/../template.ts"
           ],
           "include": [
             "src/**",
             7,
             "src/**/*.ts",
-            "**/../escape/*.ts"
+            "**/../escape/*.ts",
+            "${configDir}/a*/../src/**/*.ts"
           ],
           "exclude": [
             "vendor/**",
             false,
             "**/../bad",
-            "out"
+            "out",
+            "${configDir}/a*/../generated/**"
           ]
         },
         "file_names": [
           "/project/literal.ts",
           "/project",
+          "/project/template.ts",
           "/project/src/main.ts"
         ],
         "extended_sources": [],
@@ -1152,10 +1192,12 @@
           ],
           "excludes": [
             "vendor/**",
-            "out"
+            "out",
+            "/project/generated/**"
           ],
           "includes": [
-            "src/**/*.ts"
+            "src/**/*.ts",
+            "/project/src/**/*.ts"
           ],
           "depth": null,
           "result": [
@@ -4676,6 +4718,566 @@
         {
           "operation": "read_file",
           "path": "/project/base.json",
+          "result": "text"
+        }
+      ]
+    },
+    {
+      "id": "compiler-object-paths-valid-nested-recovery",
+      "input": {
+        "root": {
+          "file_name": "/project/tsconfig.json",
+          "text": "{\"compilerOptions\":{\"paths\":{\"@/*\":[\"./src/*\",foo,\"./fallback/*\"],\"drop\":foo,\"keep\":true,\"numbers\":[1,-0],\"negativeZero\":-0}},\"files\":[\"x.ts\"]}",
+          "utf8_bytes": 143,
+          "sha256": "16709323e5c3fa36dac0da147f819ad38c7f173ae0ab51fc3f9eafc8124116cb"
+        },
+        "base_path": "/project",
+        "use_case_sensitive_file_names": true,
+        "host_files": [],
+        "read_directory_result": [],
+        "option_probe_keys": [
+          "paths",
+          "pathsBasePath"
+        ],
+        "raw_own_property_probe_keys": []
+      },
+      "root_parse_diagnostics": [],
+      "parsed_errors": [
+        {
+          "code": 1328,
+          "category": "error",
+          "file": "/project/tsconfig.json",
+          "start": 46,
+          "length": 3,
+          "message": "Property value can only be string literal, numeric literal, 'true', 'false', 'null', object literal or array literal."
+        },
+        {
+          "code": 1328,
+          "category": "error",
+          "file": "/project/tsconfig.json",
+          "start": 73,
+          "length": 3,
+          "message": "Property value can only be string literal, numeric literal, 'true', 'false', 'null', object literal or array literal."
+        }
+      ],
+      "config_diagnostics": [
+        {
+          "code": 1328,
+          "category": "error",
+          "file": "/project/tsconfig.json",
+          "start": 46,
+          "length": 3,
+          "message": "Property value can only be string literal, numeric literal, 'true', 'false', 'null', object literal or array literal."
+        },
+        {
+          "code": 1328,
+          "category": "error",
+          "file": "/project/tsconfig.json",
+          "start": 73,
+          "length": 3,
+          "message": "Property value can only be string literal, numeric literal, 'true', 'false', 'null', object literal or array literal."
+        }
+      ],
+      "plan": {
+        "raw": {
+          "compilerOptions": {
+            "paths": {
+              "@/*": [
+                "./src/*",
+                "./fallback/*"
+              ],
+              "keep": true,
+              "numbers": [
+                1,
+                0
+              ],
+              "negativeZero": 0
+            }
+          },
+          "files": [
+            "x.ts"
+          ]
+        },
+        "file_names": [
+          "/project/x.ts"
+        ],
+        "extended_sources": [],
+        "extended_source_files": [],
+        "option_probes": [
+          {
+            "name": "paths",
+            "state": "value",
+            "value": {
+              "@/*": [
+                "./src/*",
+                "./fallback/*"
+              ],
+              "keep": true,
+              "numbers": [
+                1,
+                0
+              ],
+              "negativeZero": 0
+            }
+          },
+          {
+            "name": "pathsBasePath",
+            "state": "value",
+            "value": "/project"
+          }
+        ],
+        "raw_own_property_probes": []
+      },
+      "host_log": []
+    },
+    {
+      "id": "compiler-object-paths-extends-config-dir",
+      "input": {
+        "root": {
+          "file_name": "/project/tsconfig.json",
+          "text": "{\"extends\":\"./config/base.json\",\"files\":[\"x.ts\"]}",
+          "utf8_bytes": 49,
+          "sha256": "9b55fd96393a72938a9390fd3511c9183916f20f64cb3b246a2c079477602399"
+        },
+        "base_path": "/project",
+        "use_case_sensitive_file_names": true,
+        "host_files": [
+          {
+            "path": "/project/config/base.json",
+            "file_exists": true,
+            "read": {
+              "state": "text",
+              "source": {
+                "file_name": "/project/config/base.json",
+                "text": "{\"compilerOptions\":{\"paths\":{\"@/*\":[\"./src/*\",\"${configDir}/a*/../generated/*\",\"${confıgDir}/unicode/*\"],\"plain\":true},\"rootDirs\":[\"${configDir}/a*/../roots/*\",\"${confıgDir}/unicode-roots\"],\"outDir\":\"${configDir}/a*/../dist\",\"declarationDir\":\"${confıgDir}/unicode-declarations\",\"rootDir\":\"${conﬁgDir}\"}}",
+                "utf8_bytes": 308,
+                "sha256": "75fe97bb9281bbb3a8d492c3db5a90e0d945a7da641047279550150d8c13c2c6"
+              }
+            }
+          }
+        ],
+        "read_directory_result": [],
+        "option_probe_keys": [
+          "paths",
+          "pathsBasePath",
+          "rootDirs",
+          "outDir",
+          "declarationDir",
+          "rootDir"
+        ],
+        "raw_own_property_probe_keys": []
+      },
+      "root_parse_diagnostics": [],
+      "parsed_errors": [],
+      "config_diagnostics": [],
+      "plan": {
+        "raw": {
+          "extends": "./config/base.json",
+          "files": [
+            "x.ts"
+          ]
+        },
+        "file_names": [
+          "/project/x.ts"
+        ],
+        "extended_sources": [
+          {
+            "file_name": "/project/config/base.json",
+            "text": "{\"compilerOptions\":{\"paths\":{\"@/*\":[\"./src/*\",\"${configDir}/a*/../generated/*\",\"${confıgDir}/unicode/*\"],\"plain\":true},\"rootDirs\":[\"${configDir}/a*/../roots/*\",\"${confıgDir}/unicode-roots\"],\"outDir\":\"${configDir}/a*/../dist\",\"declarationDir\":\"${confıgDir}/unicode-declarations\",\"rootDir\":\"${conﬁgDir}\"}}",
+            "utf8_bytes": 308,
+            "sha256": "75fe97bb9281bbb3a8d492c3db5a90e0d945a7da641047279550150d8c13c2c6"
+          }
+        ],
+        "extended_source_files": [
+          "/project/config/base.json"
+        ],
+        "option_probes": [
+          {
+            "name": "paths",
+            "state": "value",
+            "value": {
+              "@/*": [
+                "./src/*",
+                "/project/generated/*",
+                "/project/${confıgDir}/unicode/*"
+              ],
+              "plain": true
+            }
+          },
+          {
+            "name": "pathsBasePath",
+            "state": "value",
+            "value": "/project/config"
+          },
+          {
+            "name": "rootDirs",
+            "state": "list",
+            "elements": [
+              {
+                "state": "value",
+                "value": "/project/roots/*"
+              },
+              {
+                "state": "value",
+                "value": "/project/${confıgDir}/unicode-roots"
+              }
+            ]
+          },
+          {
+            "name": "outDir",
+            "state": "value",
+            "value": "/project/dist"
+          },
+          {
+            "name": "declarationDir",
+            "state": "value",
+            "value": "/project/${confıgDir}/unicode-declarations"
+          },
+          {
+            "name": "rootDir",
+            "state": "value",
+            "value": "/project/${conﬁgDir}"
+          }
+        ],
+        "raw_own_property_probes": []
+      },
+      "host_log": [
+        {
+          "operation": "file_exists",
+          "path": "/project/config/base.json",
+          "result": true
+        },
+        {
+          "operation": "read_file",
+          "path": "/project/config/base.json",
+          "result": "text"
+        }
+      ]
+    },
+    {
+      "id": "compiler-object-paths-array-unchanged",
+      "input": {
+        "root": {
+          "file_name": "/project/tsconfig.json",
+          "text": "{\"compilerOptions\":{\"paths\":[[\"./src/*\"],{\"nested\":true},\"plain\",[]]},\"files\":[\"x.ts\"]}",
+          "utf8_bytes": 87,
+          "sha256": "940651aba12da228c08955037d90d51cb05d585d1894ede807c9a395f90dca13"
+        },
+        "base_path": "/project",
+        "use_case_sensitive_file_names": true,
+        "host_files": [],
+        "read_directory_result": [],
+        "option_probe_keys": [
+          "paths",
+          "pathsBasePath"
+        ],
+        "raw_own_property_probe_keys": []
+      },
+      "root_parse_diagnostics": [],
+      "parsed_errors": [],
+      "config_diagnostics": [],
+      "plan": {
+        "raw": {
+          "compilerOptions": {
+            "paths": [
+              [
+                "./src/*"
+              ],
+              {
+                "nested": true
+              },
+              "plain",
+              []
+            ]
+          },
+          "files": [
+            "x.ts"
+          ]
+        },
+        "file_names": [
+          "/project/x.ts"
+        ],
+        "extended_sources": [],
+        "extended_source_files": [],
+        "option_probes": [
+          {
+            "name": "paths",
+            "state": "value",
+            "value": [
+              [
+                "./src/*"
+              ],
+              {
+                "nested": true
+              },
+              "plain",
+              []
+            ]
+          },
+          {
+            "name": "pathsBasePath",
+            "state": "value",
+            "value": "/project"
+          }
+        ],
+        "raw_own_property_probes": []
+      },
+      "host_log": []
+    },
+    {
+      "id": "compiler-object-paths-array-template-object",
+      "input": {
+        "root": {
+          "file_name": "/project/tsconfig.json",
+          "text": "{\"compilerOptions\":{\"paths\":[[\"${configDir}/src/*\"],[\"./plain/*\"],true]},\"files\":[\"x.ts\"]}",
+          "utf8_bytes": 90,
+          "sha256": "e1d78b77744ec6bef8d31bbdad256bb3e797a9f8bccfc494a5293b7112bb30b5"
+        },
+        "base_path": "/project",
+        "use_case_sensitive_file_names": true,
+        "host_files": [],
+        "read_directory_result": [],
+        "option_probe_keys": [
+          "paths",
+          "pathsBasePath"
+        ],
+        "raw_own_property_probe_keys": []
+      },
+      "root_parse_diagnostics": [],
+      "parsed_errors": [],
+      "config_diagnostics": [],
+      "plan": {
+        "raw": {
+          "compilerOptions": {
+            "paths": [
+              [
+                "${configDir}/src/*"
+              ],
+              [
+                "./plain/*"
+              ],
+              true
+            ]
+          },
+          "files": [
+            "x.ts"
+          ]
+        },
+        "file_names": [
+          "/project/x.ts"
+        ],
+        "extended_sources": [],
+        "extended_source_files": [],
+        "option_probes": [
+          {
+            "name": "paths",
+            "state": "value",
+            "value": {
+              "0": [
+                "/project/src/*"
+              ],
+              "1": [
+                "./plain/*"
+              ],
+              "2": true
+            }
+          },
+          {
+            "name": "pathsBasePath",
+            "state": "value",
+            "value": "/project"
+          }
+        ],
+        "raw_own_property_probes": []
+      },
+      "host_log": []
+    },
+    {
+      "id": "compiler-object-paths-null-own-mask",
+      "input": {
+        "root": {
+          "file_name": "/project/tsconfig.json",
+          "text": "{\"extends\":\"./config/base.json\",\"compilerOptions\":{\"paths\":null},\"files\":[\"x.ts\"]}",
+          "utf8_bytes": 82,
+          "sha256": "30717f949474adabf9e38667db5260705e9d327500a202a8cb3985379f188140"
+        },
+        "base_path": "/project",
+        "use_case_sensitive_file_names": true,
+        "host_files": [
+          {
+            "path": "/project/config/base.json",
+            "file_exists": true,
+            "read": {
+              "state": "text",
+              "source": {
+                "file_name": "/project/config/base.json",
+                "text": "{\"compilerOptions\":{\"paths\":{\"base/*\":[\"./src/*\"]}}}",
+                "utf8_bytes": 52,
+                "sha256": "59c4f2751023fb416962cfb9eb002e32fd970e9489248fc61c7645cfda07cdc4"
+              }
+            }
+          }
+        ],
+        "read_directory_result": [],
+        "option_probe_keys": [
+          "paths",
+          "pathsBasePath"
+        ],
+        "raw_own_property_probe_keys": []
+      },
+      "root_parse_diagnostics": [],
+      "parsed_errors": [],
+      "config_diagnostics": [],
+      "plan": {
+        "raw": {
+          "extends": "./config/base.json",
+          "compilerOptions": {
+            "paths": null
+          },
+          "files": [
+            "x.ts"
+          ]
+        },
+        "file_names": [
+          "/project/x.ts"
+        ],
+        "extended_sources": [
+          {
+            "file_name": "/project/config/base.json",
+            "text": "{\"compilerOptions\":{\"paths\":{\"base/*\":[\"./src/*\"]}}}",
+            "utf8_bytes": 52,
+            "sha256": "59c4f2751023fb416962cfb9eb002e32fd970e9489248fc61c7645cfda07cdc4"
+          }
+        ],
+        "extended_source_files": [
+          "/project/config/base.json"
+        ],
+        "option_probes": [
+          {
+            "name": "paths",
+            "state": "undefined"
+          },
+          {
+            "name": "pathsBasePath",
+            "state": "value",
+            "value": "/project/config"
+          }
+        ],
+        "raw_own_property_probes": []
+      },
+      "host_log": [
+        {
+          "operation": "file_exists",
+          "path": "/project/config/base.json",
+          "result": true
+        },
+        {
+          "operation": "read_file",
+          "path": "/project/config/base.json",
+          "result": "text"
+        }
+      ]
+    },
+    {
+      "id": "compiler-object-paths-invalid-own-mask",
+      "input": {
+        "root": {
+          "file_name": "/project/tsconfig.json",
+          "text": "{\"extends\":\"./config/base.json\",\"compilerOptions\":{\"paths\":true},\"files\":[\"x.ts\"]}",
+          "utf8_bytes": 82,
+          "sha256": "920363574e40dcb214ea2273c775ee702c7203334f87eb2e1e7ff70b1ffc5ba6"
+        },
+        "base_path": "/project",
+        "use_case_sensitive_file_names": true,
+        "host_files": [
+          {
+            "path": "/project/config/base.json",
+            "file_exists": true,
+            "read": {
+              "state": "text",
+              "source": {
+                "file_name": "/project/config/base.json",
+                "text": "{\"compilerOptions\":{\"paths\":{\"base/*\":[\"./src/*\"]}}}",
+                "utf8_bytes": 52,
+                "sha256": "59c4f2751023fb416962cfb9eb002e32fd970e9489248fc61c7645cfda07cdc4"
+              }
+            }
+          }
+        ],
+        "read_directory_result": [],
+        "option_probe_keys": [
+          "paths",
+          "pathsBasePath"
+        ],
+        "raw_own_property_probe_keys": []
+      },
+      "root_parse_diagnostics": [],
+      "parsed_errors": [
+        {
+          "code": 5024,
+          "category": "error",
+          "file": "/project/tsconfig.json",
+          "start": 59,
+          "length": 4,
+          "message": "Compiler option 'paths' requires a value of type object."
+        }
+      ],
+      "config_diagnostics": [
+        {
+          "code": 5024,
+          "category": "error",
+          "file": "/project/tsconfig.json",
+          "start": 59,
+          "length": 4,
+          "message": "Compiler option 'paths' requires a value of type object."
+        }
+      ],
+      "plan": {
+        "raw": {
+          "extends": "./config/base.json",
+          "compilerOptions": {
+            "paths": true
+          },
+          "files": [
+            "x.ts"
+          ]
+        },
+        "file_names": [
+          "/project/x.ts"
+        ],
+        "extended_sources": [
+          {
+            "file_name": "/project/config/base.json",
+            "text": "{\"compilerOptions\":{\"paths\":{\"base/*\":[\"./src/*\"]}}}",
+            "utf8_bytes": 52,
+            "sha256": "59c4f2751023fb416962cfb9eb002e32fd970e9489248fc61c7645cfda07cdc4"
+          }
+        ],
+        "extended_source_files": [
+          "/project/config/base.json"
+        ],
+        "option_probes": [
+          {
+            "name": "paths",
+            "state": "undefined"
+          },
+          {
+            "name": "pathsBasePath",
+            "state": "value",
+            "value": "/project/config"
+          }
+        ],
+        "raw_own_property_probes": []
+      },
+      "host_log": [
+        {
+          "operation": "file_exists",
+          "path": "/project/config/base.json",
+          "result": true
+        },
+        {
+          "operation": "read_file",
+          "path": "/project/config/base.json",
           "result": "text"
         }
       ]

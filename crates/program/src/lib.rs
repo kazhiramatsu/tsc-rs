@@ -56,11 +56,12 @@
 //! sources, ordered partial diagnostics, three-state compiler-option values,
 //! four root-discovery option values, and configured root names. The valid
 //! projection matches all 103 config-bearing compiler fixtures covering 106
-//! case expansions; a separate 45-fixture TypeScript oracle fixes malformed
-//! partial-plan behavior and all seven compiler-option list conversions. This
-//! does not execute those cases or cover the full `ParsedCommandLine`, nested
-//! object option schemas, general filesystem `matchFiles`, project-runner
-//! configs, or CLI ownership.
+//! case expansions; a separate 51-fixture TypeScript oracle fixes malformed
+//! partial-plan behavior, all seven compiler-option list conversions, and the
+//! `paths` object conversion/base/template boundary. This does not execute
+//! those cases or cover the full `ParsedCommandLine`, remaining root object
+//! schemas, general filesystem `matchFiles`, project-runner configs, or CLI
+//! ownership.
 
 mod config;
 mod config_matcher;
@@ -79,16 +80,17 @@ mod text;
 pub use config::{
     parse_config_root_plan, ConfigDiscoveryOptions, ConfigHostError, ConfigHostOperation,
     ConfigOption, ConfigOptionBag, ConfigOptionValueState, ConfigParseError, ConfigParseErrorKind,
-    ConfigParseHost, ConfigRootPlan, ConfigRootPlanRequest, ConfigSourceText,
-    ConfigTypedListElement,
+    ConfigParseHost, ConfigRootPlan, ConfigRootPlanRequest, ConfigSourceText, ConfigTypedJsonValue,
+    ConfigTypedListElement, ConfigTypedObjectProperty, ConfigTypedObjectShape,
+    ConfigTypedObjectValue,
 };
 pub use config_matcher::ConfigFilePattern;
 pub use config_options::{
     compiler_option_declaration, compiler_option_declarations, compiler_option_spelling_suggestion,
     is_command_option_without_build, jsconfig_defaults, typescript_6_0_3_libraries,
     CompilerOptionDeclaration, CompilerOptionListDescriptor, CompilerOptionListElementKind,
-    CompilerOptionNamedStringValue, CompilerOptionNamedValue, CompilerOptionValueKind,
-    JsConfigDefaultValue, COMPILER_OPTION_DECLARATIONS, JSCONFIG_DEFAULTS,
+    CompilerOptionNamedStringValue, CompilerOptionNamedValue, CompilerOptionObjectDescriptor,
+    CompilerOptionValueKind, JsConfigDefaultValue, COMPILER_OPTION_DECLARATIONS, JSCONFIG_DEFAULTS,
 };
 pub use error::{PreparationError, PreparationErrorKind, PreparationOperation};
 pub use library::LibraryCatalog;

@@ -12,13 +12,16 @@
 //! compiler-option distinction. Compiler-option values also remain available
 //! as a source-order-preserving raw merge. List options retain their converted
 //! element values, including JavaScript `undefined` slots where TypeScript
-//! deliberately preserves them. Object option schemas and the remaining
-//! `ParsedCommandLine` fields are later slices.
+//! deliberately preserves them. The `paths` object option additionally keeps
+//! recursive JavaScript own-property order and `undefined` identity plus its
+//! outer object/array shape as the canonical typed representation. Remaining
+//! root schemas and `ParsedCommandLine` fields are later slices.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::error::Error;
 use std::fmt;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
 use serde_json::{Map, Value};
 use tsc_diagnostics::{gen, Diagnostic, DiagnosticMessage, MessageChain};
@@ -282,8 +285,260 @@ struct ConfigTypedOption {
 enum ConfigTypedOptionValue {
     Json(Value),
     List(Vec<ConfigTypedListElement>),
+    Object(Arc<ConfigTypedObjectValue>),
     PositiveInfinity,
     NegativeInfinity,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ConfigTypedObjectShape {
+    Object,
+    Array,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct ConfigTypedObjectProperty {
+    name: String,
+    value: Option<ConfigTypedJsonValue>,
+}
+
+impl ConfigTypedObjectProperty {
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
+    /// Converted own-property value. `None` means the property exists with a
+    /// JavaScript `undefined` value; it is not an absent mapping key.
+    pub fn value(&self) -> Option<&ConfigTypedJsonValue> {
+        self.value.as_ref()
+    }
+}
+
+/// Lossless converted JSONC value used below object-like compiler options.
+/// Arrays have already filtered JavaScript `undefined` elements; objects keep
+/// it as an own-property state instead of collapsing it into JSON.
+#[derive(Clone, Debug, PartialEq)]
+pub enum ConfigTypedJsonValue {
+    Json(Value),
+    Array(Vec<ConfigTypedJsonValue>),
+    Object(Box<ConfigTypedObjectValue>),
+}
+
+impl ConfigTypedJsonValue {
+    pub fn json_projection(&self) -> Value {
+        match self {
+            Self::Json(Value::Number(number)) => {
+                let number = json_number_as_f64(number)
+                    .expect("config JSON numbers have a JavaScript numeric projection");
+                if number.is_finite() {
+                    serde_json::from_str(&js_number_to_string(number))
+                        .expect("a finite JavaScript number string is valid JSON")
+                } else {
+                    // JSON.stringify emits null for Infinity and -Infinity.
+                    Value::Null
+                }
+            }
+            Self::Json(value) => value.clone(),
+            Self::Array(values) => Value::Array(values.iter().map(Self::json_projection).collect()),
+            Self::Object(value) => value.json_projection(),
+        }
+    }
+
+    fn inherited_proto_setter(&self) -> Option<bool> {
+        match self {
+            Self::Json(Value::Null) => Some(false),
+            Self::Array(_) => Some(true),
+            Self::Object(value) => Some(value.inherits_proto_setter),
+            Self::Json(Value::Bool(_) | Value::Number(_) | Value::String(_)) => None,
+            Self::Json(Value::Array(_) | Value::Object(_)) => {
+                unreachable!("structured typed JSON values use dedicated variants")
+            }
+        }
+    }
+
+    fn append_compiler_option_cache_identity(&self, result: &mut String) {
+        match self {
+            Self::Json(Value::Null) => result.push_str("null"),
+            Self::Json(Value::Bool(value)) => {
+                result.push_str(if *value { "true" } else { "false" });
+            }
+            Self::Json(Value::Number(value)) => {
+                let value = json_number_as_f64(value)
+                    .expect("config JSON numbers have a JavaScript numeric projection");
+                result.push_str(&js_number_to_string(value));
+            }
+            Self::Json(Value::String(value)) => result.push_str(value),
+            Self::Array(values) => {
+                result.push('[');
+                for (index, value) in values.iter().enumerate() {
+                    if index != 0 {
+                        result.push(',');
+                    }
+                    value.append_compiler_option_cache_identity(result);
+                }
+                result.push(']');
+            }
+            Self::Object(value) => value.append_compiler_option_cache_identity(result),
+            Self::Json(Value::Array(_) | Value::Object(_)) => {
+                unreachable!("structured typed JSON values use dedicated variants")
+            }
+        }
+    }
+}
+
+/// JavaScript object-like compiler option value.
+///
+/// A property assigned an unsupported JSONC expression remains an own key
+/// whose value is JavaScript `undefined`, including in nested objects used by
+/// TypeScript's compiler-option cache identity. Keeping that state outside
+/// serde JSON prevents invalid configurations from aliasing an empty object.
+#[derive(Clone, Debug, PartialEq)]
+pub struct ConfigTypedObjectValue {
+    shape: ConfigTypedObjectShape,
+    properties: Vec<ConfigTypedObjectProperty>,
+    inherits_proto_setter: bool,
+}
+
+impl ConfigTypedObjectValue {
+    fn new(
+        shape: ConfigTypedObjectShape,
+        mut properties: Vec<ConfigTypedObjectProperty>,
+        inherits_proto_setter: bool,
+    ) -> Self {
+        // Object.keys observes array-index properties first in ascending
+        // numeric order, followed by other strings in first-insertion order.
+        properties.sort_by_cached_key(|property| {
+            javascript_array_index(&property.name)
+                .map(|index| (0_u8, index))
+                .unwrap_or((1, 0))
+        });
+        Self {
+            shape,
+            properties,
+            inherits_proto_setter,
+        }
+    }
+
+    pub const fn shape(&self) -> ConfigTypedObjectShape {
+        self.shape
+    }
+
+    pub fn properties(&self) -> &[ConfigTypedObjectProperty] {
+        &self.properties
+    }
+
+    /// Build the ordinary JSON observation of this JavaScript object-like
+    /// value. Own `undefined` properties are omitted. The compiler keeps the
+    /// lossless property representation above and allocates this projection
+    /// only at serialization/oracle boundaries.
+    pub fn json_projection(&self) -> Value {
+        match self.shape {
+            ConfigTypedObjectShape::Object => {
+                let mut object = Map::new();
+                for property in &self.properties {
+                    if let Some(value) = &property.value {
+                        object.insert(property.name.clone(), value.json_projection());
+                    }
+                }
+                Value::Object(object)
+            }
+            ConfigTypedObjectShape::Array => Value::Array(
+                self.properties
+                    .iter()
+                    .map(|property| {
+                        property
+                            .value
+                            .as_ref()
+                            .expect("converted JSON arrays filter undefined elements")
+                            .json_projection()
+                    })
+                    .collect(),
+            ),
+        }
+    }
+
+    /// TypeScript's recursive string identity for module-resolution-affecting
+    /// compiler options. Unlike a JSON projection, this preserves own
+    /// `undefined` and therefore keeps invalid nested maps from aliasing an
+    /// empty object in redirect caches.
+    ///
+    /// tsc-port: compilerOptionValueToString @6.0.3
+    /// tsc-hash: 47e7644c9afbf6ce03d7ce0591d09b74dff44bc1538ef08c02b4eb698a8f58a5
+    /// tsc-span: _tsc.js:40327-40341
+    pub fn compiler_option_cache_identity(&self) -> String {
+        let mut result = String::new();
+        self.append_compiler_option_cache_identity(&mut result);
+        result
+    }
+
+    fn append_compiler_option_cache_identity(&self, result: &mut String) {
+        match self.shape {
+            ConfigTypedObjectShape::Array => {
+                result.push('[');
+                for (index, property) in self.properties.iter().enumerate() {
+                    if index != 0 {
+                        result.push(',');
+                    }
+                    property
+                        .value
+                        .as_ref()
+                        .expect("converted JSON arrays filter undefined elements")
+                        .append_compiler_option_cache_identity(result);
+                }
+                result.push(']');
+            }
+            ConfigTypedObjectShape::Object => {
+                result.push('{');
+                for property in &self.properties {
+                    result.push_str(&property.name);
+                    result.push_str(": ");
+                    if let Some(value) = &property.value {
+                        value.append_compiler_option_cache_identity(result);
+                    } else {
+                        result.push_str("undefined");
+                    }
+                }
+                result.push('}');
+            }
+        }
+    }
+
+    fn finalize_config_dir_templates(
+        &mut self,
+        config_base_path: &str,
+    ) -> Result<(), ConfigParseError> {
+        let mut changed = false;
+        for property in &mut self.properties {
+            let Some(ConfigTypedJsonValue::Array(values)) = &mut property.value else {
+                continue;
+            };
+            changed |= substitute_config_dir_typed_string_array(values, config_base_path)?;
+        }
+        if changed {
+            // TypeScript clones every changed map-like value with assign({},
+            // value). This turns an Array into an object and routes an own
+            // `__proto__` key through the fresh target's legacy setter rather
+            // than creating an own property.
+            if self.shape == ConfigTypedObjectShape::Array {
+                self.shape = ConfigTypedObjectShape::Object;
+            }
+            if let Some(index) = self
+                .properties
+                .iter()
+                .position(|property| property.name == "__proto__")
+            {
+                self.inherits_proto_setter = self.properties[index]
+                    .value
+                    .as_ref()
+                    .and_then(ConfigTypedJsonValue::inherited_proto_setter)
+                    .unwrap_or(true);
+                self.properties.remove(index);
+            } else {
+                self.inherits_proto_setter = true;
+            }
+        }
+        Ok(())
+    }
 }
 
 /// One converted `compilerOptions` list element.
@@ -305,6 +560,7 @@ pub enum ConfigOptionValueState<'a> {
     Undefined,
     Value(&'a Value),
     List(&'a [ConfigTypedListElement]),
+    Object(&'a ConfigTypedObjectValue),
     PositiveInfinity,
     NegativeInfinity,
 }
@@ -318,6 +574,36 @@ impl ConfigOptionBag {
         self.entry_indices
             .get(name)
             .map(|index| &self.entries[*index])
+    }
+
+    /// Stored `pathsBasePath` compiler-option value. It can remain inherited
+    /// when an own null or invalid `paths` masks the effective map, so this is
+    /// deliberately not TypeScript's `getPathsBasePath` result. It is absent
+    /// from the raw [`Self::entries`] and [`Self::get`] views.
+    pub fn stored_paths_base_path(&self) -> Option<&str> {
+        self.typed_value("pathsBasePath").and_then(Value::as_str)
+    }
+
+    pub fn typed_object_value(&self, name: &str) -> Option<&ConfigTypedObjectValue> {
+        let index = self.typed_indices.get(name)?;
+        match &self.typed_entries[*index].value {
+            Some(ConfigTypedOptionValue::Object(value)) => Some(value),
+            Some(
+                ConfigTypedOptionValue::Json(_)
+                | ConfigTypedOptionValue::List(_)
+                | ConfigTypedOptionValue::PositiveInfinity
+                | ConfigTypedOptionValue::NegativeInfinity,
+            )
+            | None => None,
+        }
+    }
+
+    /// Ordered own-property view for an object-like compiler option. Numeric
+    /// array-index keys follow JavaScript's ascending order; other keys retain
+    /// their first insertion slots, including own `undefined` values.
+    pub fn typed_object_properties(&self, name: &str) -> Option<&[ConfigTypedObjectProperty]> {
+        self.typed_object_value(name)
+            .map(ConfigTypedObjectValue::properties)
     }
 
     /// The converted TypeScript option state, distinct from the raw config
@@ -339,6 +625,10 @@ impl ConfigOptionBag {
                 ..
             }) => ConfigOptionValueState::List(elements),
             Some(ConfigTypedOption {
+                value: Some(ConfigTypedOptionValue::Object(value)),
+                ..
+            }) => ConfigOptionValueState::Object(value),
+            Some(ConfigTypedOption {
                 value: Some(ConfigTypedOptionValue::PositiveInfinity),
                 ..
             }) => ConfigOptionValueState::PositiveInfinity,
@@ -352,13 +642,20 @@ impl ConfigOptionBag {
     }
 
     fn typed_value(&self, name: &str) -> Option<&Value> {
-        match self.typed_value_state(name) {
-            ConfigOptionValueState::Value(value) => Some(value),
-            ConfigOptionValueState::Absent
-            | ConfigOptionValueState::Undefined
-            | ConfigOptionValueState::List(_)
-            | ConfigOptionValueState::PositiveInfinity
-            | ConfigOptionValueState::NegativeInfinity => None,
+        match self
+            .typed_indices
+            .get(name)
+            .map(|index| &self.typed_entries[*index].value)
+        {
+            Some(Some(ConfigTypedOptionValue::Json(value))) => Some(value),
+            Some(None)
+            | Some(Some(
+                ConfigTypedOptionValue::List(_)
+                | ConfigTypedOptionValue::Object(_)
+                | ConfigTypedOptionValue::PositiveInfinity
+                | ConfigTypedOptionValue::NegativeInfinity,
+            ))
+            | None => None,
         }
     }
 
@@ -423,37 +720,51 @@ impl ConfigOptionBag {
         }
     }
 
-    /// Apply TypeScript's final `${configDir}` substitution pass to the two
-    /// file-path list options. Ordinary relative entries were already made
-    /// absolute against the config that declared them; template entries alone
-    /// are intentionally delayed until the outermost consuming config is
-    /// known.
+    /// Apply TypeScript's final `${configDir}` substitution pass after every
+    /// extended config has been merged. File-path strings, the two file-path
+    /// lists, and array-valued entries in `paths` all use the outermost
+    /// consuming config directory. Ordinary relative values retain their
+    /// declaration-time conversion and are not revisited here.
     ///
     /// tsc-port: handleOptionConfigDirTemplateSubstitution @6.0.3
     /// tsc-hash: b8be2c1ed12416218b6fb0619c12276cf3d395da3853ae7931ed6caafd1e2ca6
     /// tsc-span: _tsc.js:39175-39207
-    fn finalize_config_dir_list_templates(
+    /// tsc-port: getSubstitutedMapLikeOfStringArrayWithConfigDirTemplate @6.0.3
+    /// tsc-hash: 0d887c86b4808b665c81b73f083409d2818f9bc41612c64254fa1aa817fa3e97
+    /// tsc-span: _tsc.js:39229-39239
+    fn finalize_config_dir_templates(
         &mut self,
         config_base_path: &str,
     ) -> Result<(), ConfigParseError> {
         for option in &mut self.typed_entries {
-            let substitutes_config_dir = compiler_option_declaration(&option.name)
-                .and_then(|declaration| declaration.value_kind().list_descriptor())
-                .is_some_and(|descriptor| descriptor.allow_config_dir_template_substitution());
-            if !substitutes_config_dir {
-                continue;
-            }
-            let Some(ConfigTypedOptionValue::List(elements)) = &mut option.value else {
+            let Some(declaration) = compiler_option_declaration(&option.name) else {
                 continue;
             };
-            for element in elements {
-                let ConfigTypedListElement::Value(Value::String(value)) = element else {
-                    continue;
-                };
-                let Some(substituted) = normalized_config_dir_path(value, config_base_path) else {
-                    continue;
-                };
-                *value = substituted?;
+            match (declaration.value_kind(), &mut option.value) {
+                (
+                    CompilerOptionValueKind::String,
+                    Some(ConfigTypedOptionValue::Json(Value::String(value))),
+                ) if declaration.is_file_path() => {
+                    substitute_config_dir_string(value, config_base_path)?;
+                }
+                (
+                    CompilerOptionValueKind::List(descriptor),
+                    Some(ConfigTypedOptionValue::List(elements)),
+                ) if descriptor.allow_config_dir_template_substitution() => {
+                    for element in elements {
+                        let ConfigTypedListElement::Value(Value::String(value)) = element else {
+                            continue;
+                        };
+                        substitute_config_dir_string(value, config_base_path)?;
+                    }
+                }
+                (
+                    CompilerOptionValueKind::Object(descriptor),
+                    Some(ConfigTypedOptionValue::Object(value)),
+                ) if descriptor.allow_config_dir_template_substitution() => {
+                    Arc::make_mut(value).finalize_config_dir_templates(config_base_path)?;
+                }
+                _ => {}
             }
         }
         Ok(())
@@ -672,8 +983,7 @@ pub fn parse_config_root_plan(
             true,
         )?
         .expect("the primary config cannot be a recursive child of itself");
-    node.options
-        .finalize_config_dir_list_templates(&config_base)?;
+    node.options.finalize_config_dir_templates(&config_base)?;
     let discovery_options = effective_discovery_options(&node.options, &config_base)?;
     let file_names = derive_file_names(
         host,
@@ -826,7 +1136,21 @@ impl ParseContext<'_> {
             .collect::<BTreeSet<_>>();
 
         let mut own_options = default_compiler_options(normalized_file_name, base_path);
-        own_options.extend_from(&compiler_options(base_path, &parsed, &mut own_errors)?);
+        let mut converted_own_options = compiler_options(base_path, &parsed, &mut own_errors)?;
+        // parseConfig records the declaring config directory beside every
+        // truthy own `paths` value before extends are merged. An invalid or
+        // null own value masks inherited paths but deliberately leaves an
+        // inherited pathsBasePath untouched, matching ordinary JavaScript
+        // assignment of the two independent option properties.
+        if converted_own_options.typed_object_value("paths").is_some() {
+            converted_own_options.insert_typed(
+                "pathsBasePath",
+                Some(ConfigTypedOptionValue::Json(Value::String(
+                    base_path.to_owned(),
+                ))),
+            );
+        }
+        own_options.extend_from(&converted_own_options);
         let own_files = specs("files", base_path, &parsed, &mut own_errors);
         let own_include = specs("include", base_path, &parsed, &mut own_errors);
         let own_exclude = specs("exclude", base_path, &parsed, &mut own_errors);
@@ -1411,14 +1735,6 @@ fn config_json_conversion_diagnostics_from_root(
                                     .as_deref()
                                     .and_then(compiler_option_declaration)
                                 {
-                                    Some(declaration)
-                                        if matches!(
-                                            declaration.value_kind(),
-                                            CompilerOptionValueKind::Object
-                                        ) =>
-                                    {
-                                        ConfigJsonConversionContext::Unported
-                                    }
                                     Some(declaration) => match declaration.value_kind() {
                                         CompilerOptionValueKind::List(descriptor) => {
                                             ConfigJsonConversionContext::CompilerOptionList(
@@ -2287,6 +2603,9 @@ struct CompilerOptionConversionContext<'a> {
 /// tsc-port: convertJsonOption/convertJsonOptionOfListType @6.0.3
 /// tsc-hash: 4cff23e5f2618b2d041e50271a495efcd2efc423b7772b1ae526e5d91786f676
 /// tsc-span: _tsc.js:39555-39605
+/// tsc-port: isCompilerOptionsValue @6.0.3
+/// tsc-hash: 219b4850c3b03c080e414da8843c59e2651ba6f9de96d91b3d99bf0b927ed00b
+/// tsc-span: _tsc.js:38604-38617
 fn convert_compiler_option_value(
     declaration: crate::config_options::CompilerOptionDeclaration,
     name: &str,
@@ -2317,7 +2636,7 @@ fn convert_compiler_option_value(
         CompilerOptionValueKind::Boolean => value.is_boolean(),
         CompilerOptionValueKind::Number => value.is_number(),
         CompilerOptionValueKind::String | CompilerOptionValueKind::Named(_) => value.is_string(),
-        CompilerOptionValueKind::Object => value.is_object(),
+        CompilerOptionValueKind::Object(_) => value.is_object() || value.is_array(),
         CompilerOptionValueKind::List(_) => value.is_array(),
     };
     if !kind_matches {
@@ -2341,6 +2660,11 @@ fn convert_compiler_option_value(
             errors,
         )
         .map(|elements| Some(ConfigTypedOptionValue::List(elements)));
+    }
+    if matches!(declaration.value_kind(), CompilerOptionValueKind::Object(_)) {
+        return Ok(Some(ConfigTypedOptionValue::Object(Arc::new(
+            convert_compiler_option_object_value(source, value_node),
+        ))));
     }
     if let CompilerOptionValueKind::Named(values) = declaration.value_kind() {
         let written = value.as_str().expect("named options require a string");
@@ -2389,7 +2713,7 @@ fn compiler_option_expected_type(
         CompilerOptionValueKind::Boolean => "boolean",
         CompilerOptionValueKind::Number => "number",
         CompilerOptionValueKind::String | CompilerOptionValueKind::Named(_) => "string",
-        CompilerOptionValueKind::Object => "object",
+        CompilerOptionValueKind::Object(_) => "object",
         CompilerOptionValueKind::List(_) => "Array",
     }
 }
@@ -2403,6 +2727,138 @@ fn compiler_option_list_element_expected_type(
         | CompilerOptionListElementKind::NamedString(_) => "string",
         CompilerOptionListElementKind::Object => "object",
     }
+}
+
+fn convert_compiler_option_object_value(
+    source: &SourceFile,
+    value_node: NodeId,
+) -> ConfigTypedObjectValue {
+    match convert_config_typed_json_node(source, value_node)
+        .expect("object options have a converted object-like source value")
+    {
+        ConfigTypedJsonValue::Array(values) => ConfigTypedObjectValue::new(
+            ConfigTypedObjectShape::Array,
+            values
+                .into_iter()
+                .enumerate()
+                .map(|(index, value)| ConfigTypedObjectProperty {
+                    name: index.to_string(),
+                    value: Some(value),
+                })
+                .collect(),
+            true,
+        ),
+        ConfigTypedJsonValue::Object(value) => *value,
+        ConfigTypedJsonValue::Json(_) => {
+            unreachable!("object options reject non-object source values")
+        }
+    }
+}
+
+enum ConfigTypedJsonConversionTask {
+    Visit(NodeId),
+    FinishArray(usize),
+    FinishObject(Vec<String>),
+}
+
+/// Preserve convertToJson's complete JavaScript value identity for object
+/// options. This postorder worker stays iterative like the primary JSONC
+/// converter, while arrays filter undefined elements and object assignments
+/// keep undefined own keys and legacy `__proto__` transitions.
+fn convert_config_typed_json_node(
+    source: &SourceFile,
+    root: NodeId,
+) -> Option<ConfigTypedJsonValue> {
+    let mut tasks = vec![ConfigTypedJsonConversionTask::Visit(root)];
+    let mut values = Vec::<Option<ConfigTypedJsonValue>>::new();
+
+    while let Some(task) = tasks.pop() {
+        match task {
+            ConfigTypedJsonConversionTask::Visit(node_id) => {
+                match source.arena.node(node_id).kind {
+                    SyntaxKind::ArrayLiteralExpression => {
+                        let elements = config_array_elements(source, node_id);
+                        tasks.push(ConfigTypedJsonConversionTask::FinishArray(elements.len()));
+                        tasks.extend(
+                            elements
+                                .into_iter()
+                                .rev()
+                                .map(ConfigTypedJsonConversionTask::Visit),
+                        );
+                    }
+                    SyntaxKind::ObjectLiteralExpression => {
+                        let properties = config_object_properties(source, node_id);
+                        let keys = properties
+                            .iter()
+                            .map(|property| property.name.clone())
+                            .collect();
+                        tasks.push(ConfigTypedJsonConversionTask::FinishObject(keys));
+                        tasks.extend(properties.into_iter().rev().map(|property| {
+                            ConfigTypedJsonConversionTask::Visit(property.initializer)
+                        }));
+                    }
+                    _ => values.push(
+                        match convert_recoverable_json_node_to_value(source, node_id) {
+                            Some(RecoverableJsonValue::Defined(value)) => {
+                                debug_assert!(!value.is_array() && !value.is_object());
+                                Some(ConfigTypedJsonValue::Json(config_raw_projection(value)))
+                            }
+                            Some(RecoverableJsonValue::Undefined) | None => None,
+                        },
+                    ),
+                }
+            }
+            ConfigTypedJsonConversionTask::FinishArray(length) => {
+                let start = values.len().checked_sub(length)?;
+                let elements = values.split_off(start).into_iter().flatten().collect();
+                values.push(Some(ConfigTypedJsonValue::Array(elements)));
+            }
+            ConfigTypedJsonConversionTask::FinishObject(keys) => {
+                let start = values.len().checked_sub(keys.len())?;
+                let object_values = values.split_off(start);
+                values.push(Some(ConfigTypedJsonValue::Object(Box::new(
+                    converted_typed_object(keys.into_iter().zip(object_values)),
+                ))));
+            }
+        }
+    }
+
+    let [value] = values.as_mut_slice() else {
+        return None;
+    };
+    value.take()
+}
+
+fn converted_typed_object(
+    assignments: impl IntoIterator<Item = (String, Option<ConfigTypedJsonValue>)>,
+) -> ConfigTypedObjectValue {
+    let mut properties = Vec::<ConfigTypedObjectProperty>::new();
+    let mut indices = BTreeMap::<String, usize>::new();
+    let mut inherits_proto_setter = true;
+    for (name, value) in assignments {
+        if name == "__proto__" && !indices.contains_key(&name) && inherits_proto_setter {
+            if let Some(next_state) = value
+                .as_ref()
+                .and_then(ConfigTypedJsonValue::inherited_proto_setter)
+            {
+                inherits_proto_setter = next_state;
+            }
+            continue;
+        }
+        if let Some(index) = indices.get(&name).copied() {
+            properties[index].value = value;
+        } else {
+            let index = properties.len();
+            indices.insert(name.clone(), index);
+            properties.push(ConfigTypedObjectProperty { name, value });
+        }
+    }
+
+    ConfigTypedObjectValue::new(
+        ConfigTypedObjectShape::Object,
+        properties,
+        inherits_proto_setter,
+    )
 }
 
 fn convert_compiler_option_list_value(
@@ -2941,49 +3397,67 @@ fn normalized_config_dir_path(
     value: &str,
     config_base_path: &str,
 ) -> Option<Result<String, ConfigParseError>> {
-    value
-        .get(..CONFIG_DIR_TEMPLATE.len())
-        .is_some_and(|prefix| prefix.eq_ignore_ascii_case(CONFIG_DIR_TEMPLATE))
-        .then(|| {
-            let substituted = value.replacen(CONFIG_DIR_TEMPLATE, "./", 1);
-            if substituted.contains('*') || substituted.contains('?') {
-                normalize_pattern_path(&substituted, config_base_path)
-            } else {
-                normalized_path(&substituted, config_base_path)
-            }
-        })
+    starts_with_ignore_case(value, CONFIG_DIR_TEMPLATE).then(|| {
+        let substituted = value.replacen(CONFIG_DIR_TEMPLATE, "./", 1);
+        normalized_path(&substituted, config_base_path)
+    })
+}
+
+fn substitute_config_dir_string(
+    value: &mut String,
+    config_base_path: &str,
+) -> Result<bool, ConfigParseError> {
+    let Some(substituted) = normalized_config_dir_path(value, config_base_path) else {
+        return Ok(false);
+    };
+    *value = substituted?;
+    Ok(true)
+}
+
+fn substitute_config_dir_typed_string_array(
+    values: &mut [ConfigTypedJsonValue],
+    config_base_path: &str,
+) -> Result<bool, ConfigParseError> {
+    let mut changed = false;
+    for value in values {
+        let ConfigTypedJsonValue::Json(Value::String(value)) = value else {
+            continue;
+        };
+        changed |= substitute_config_dir_string(value, config_base_path)?;
+    }
+    Ok(changed)
 }
 
 const CONFIG_DIR_TEMPLATE: &str = "${configDir}";
 
 fn starts_with_config_dir_template(value: &str) -> bool {
-    value
-        .get(..CONFIG_DIR_TEMPLATE.len())
-        .is_some_and(|prefix| prefix.eq_ignore_ascii_case(CONFIG_DIR_TEMPLATE))
+    starts_with_ignore_case(value, CONFIG_DIR_TEMPLATE)
 }
 
-fn normalize_pattern_path(path: &str, base: &str) -> Result<String, ConfigParseError> {
-    let slashed = path.replace('\\', "/");
-    let wildcard = slashed.find(['*', '?']).unwrap_or(slashed.len());
-    let directory_end = slashed[..wildcard].rfind('/').map_or(0, |index| index + 1);
-    let (prefix, pattern) = slashed.split_at(directory_end);
-    let normalized_prefix = if prefix.is_empty() {
-        base.trim_end_matches('/').to_owned()
-    } else {
-        let directory = if prefix == "/" || (prefix.len() == 3 && is_drive_rooted(prefix)) {
-            prefix
-        } else {
-            prefix.trim_end_matches('/')
-        };
-        normalized_path(directory, base)?
-    };
-    Ok(if pattern.is_empty() {
-        normalized_prefix
-    } else if normalized_prefix.ends_with('/') {
-        format!("{normalized_prefix}{pattern}")
-    } else {
-        format!("{normalized_prefix}/{pattern}")
-    })
+/// TypeScript's ignore-case startsWith uppercases a UTF-16 slice instead of
+/// applying ASCII-only folding. Keep the allocation-free common ASCII path,
+/// then reproduce that Unicode behavior for spellings such as dotless-i.
+///
+/// tsc-port: equateStringsCaseInsensitive @6.0.3
+/// tsc-hash: ab81c5a8cd044f72148e7e8ecb60f7003c0c3afb2b7ecde10d6bc4f48132975a
+/// tsc-span: _tsc.js:905-906
+/// tsc-port: startsWith @6.0.3
+/// tsc-hash: b0a4b4a17f81742d08ed6267db9860c810ceb118696b1c83bd7655f9fa1b10b4
+/// tsc-span: _tsc.js:1078-1079
+fn starts_with_ignore_case(value: &str, prefix: &str) -> bool {
+    if let Some(candidate) = value.get(..prefix.len()) {
+        if candidate.eq_ignore_ascii_case(prefix) {
+            return true;
+        }
+        if candidate.is_ascii() {
+            return false;
+        }
+    }
+
+    let prefix_length = prefix.encode_utf16().count();
+    let candidate = value.encode_utf16().take(prefix_length).collect::<Vec<_>>();
+    String::from_utf16(&candidate)
+        .is_ok_and(|candidate| candidate.to_uppercase() == prefix.to_uppercase())
 }
 
 fn has_higher_priority(

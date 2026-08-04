@@ -145,7 +145,7 @@ fn catalog_preserves_the_typescript_6_0_3_declaration_order() {
 }
 
 #[test]
-fn list_metadata_and_the_shared_lib_map_match_typescript_6_0_3() {
+fn structured_metadata_and_the_shared_lib_map_match_typescript_6_0_3() {
     let expected = [
         ("lib", "lib", "named", false, false),
         ("rootDirs", "rootDirs", "path", false, true),
@@ -201,6 +201,23 @@ fn list_metadata_and_the_shared_lib_map_match_typescript_6_0_3() {
         .unwrap();
     assert_eq!(lib.named_string_value("DOM"), Some("lib.dom.d.ts"));
     assert_eq!(lib.named_string_value(" es5"), None);
+
+    let object_options = compiler_option_declarations()
+        .iter()
+        .filter_map(|declaration| {
+            declaration
+                .value_kind()
+                .object_descriptor()
+                .map(|descriptor| (declaration, descriptor))
+        })
+        .collect::<Vec<_>>();
+    let [(paths, descriptor)] = object_options.as_slice() else {
+        panic!("paths is TypeScript 6.0.3's only object compiler option")
+    };
+    assert_eq!(paths.name(), "paths");
+    assert!(paths.is_tsconfig_only());
+    assert!(!paths.is_file_path());
+    assert!(descriptor.allow_config_dir_template_substitution());
 }
 
 #[test]
