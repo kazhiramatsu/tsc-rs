@@ -96,6 +96,31 @@ GitHub guardrail performs syntax checking only. These 16 manifest cases remain
 `not-run`: this focused artifact establishes module-suffix resolver semantics,
 not complete compiler-baseline execution or a passing upstream test result.
 
+The three official `NodeModulesSearch` project descriptors have a focused
+config-to-loader oracle at
+`vendor/typescript-6.0.3/project-node-modules-search.v1.json`. Its producer
+verifies the descriptor and backing-project bytes against the expansion
+manifest, reconstructs the pinned `projectsRunner.ts` host and option merge,
+and records the CommonJS and AMD variants for six cases. The artifact freezes
+config roots, effective loader-facing options, the project host's
+`lib.es5.d.ts` default, exact program source order, and upstream pre-emit
+diagnostics. Regeneration and freshness checking use:
+
+```text
+node crates/oracle/project-node-modules-search.mjs > vendor/typescript-6.0.3/project-node-modules-search.v1.json
+node crates/oracle/project-node-modules-search.mjs --check
+```
+
+The Rust harness serves all 233 pinned `projects` files from one verified,
+read-only, case-sensitive mount shared by every project variant. The focused
+executor parses the selected config, applies the project-runner option and
+default-library contract needed by the loader, and compares all six oracle
+cases through bounded program construction. It adds an explicit `noEmit=true`
+adapter because H0 does not own emit. Upstream project emit and baseline
+comparison therefore remain `not-run`, as do the manifest cases themselves.
+The local oracle gate executes the freshness check; GitHub Actions only
+syntax-checks the producer.
+
 `vendor/typescript-6.0.3/compiler-config-diagnostics.v1.json` separately pins
 the 51 focused malformed/config-conversion fixtures and an options-diagnostic
 subcorpus sourced mechanically from the official compiler cases

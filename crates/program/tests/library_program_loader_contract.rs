@@ -265,6 +265,79 @@ fn absent_target_selects_es2025_full_and_explicit_empty_suppresses_default() {
 }
 
 #[test]
+fn host_default_library_override_does_not_fabricate_an_explicit_lib_option() {
+    let host = MemoryCompilerHost::builder("/work")
+        .file("/work/root.ts", b"export {};\n".to_vec())
+        .file(
+            "/typescript/lib/lib.es5.d.ts",
+            b"declare const harnessDefault: true;\n".to_vec(),
+        )
+        .build()
+        .expect("build host-default-library fixture");
+    let options = compiler_options();
+    let roots = [PathBuf::from("/work/root.ts")];
+    let program_options = program_options().with_default_library_file_name("lib.es5.d.ts");
+
+    let program = load_program(
+        &host,
+        &roots,
+        options,
+        program_options,
+        &catalog(),
+        generous_limits(),
+    )
+    .expect("load the host-selected ES5 default library");
+
+    assert_eq!(program.compiler_options().lib, None);
+    assert_eq!(
+        program.program_options().default_library_file_name(),
+        Some("lib.es5.d.ts")
+    );
+    assert_library_prefix(&program, &["/typescript/lib/lib.es5.d.ts"]);
+}
+
+#[test]
+fn host_default_library_override_is_validated_only_when_it_is_selected() {
+    let host = MemoryCompilerHost::builder("/work")
+        .file("/work/root.ts", b"export {};\n".to_vec())
+        .file(
+            "/typescript/lib/lib.es5.d.ts",
+            b"declare const es5: true;\n".to_vec(),
+        )
+        .build()
+        .expect("build host-default-library validation fixture");
+    let roots = [PathBuf::from("/work/root.ts")];
+    let invalid_default = program_options().with_default_library_file_name("lib.unknown.d.ts");
+
+    let error = load_program(
+        &host,
+        &roots,
+        compiler_options(),
+        invalid_default.clone(),
+        &catalog(),
+        generous_limits(),
+    )
+    .expect_err("an unknown selected host default must fail closed");
+    assert_eq!(error.kind(), ProgramLoadErrorKind::InvalidInput);
+    assert_eq!(error.operation(), ProgramLoadOperation::ValidateOptions);
+    assert_eq!(error.path(), None);
+
+    let explicit = load_program(
+        &host,
+        &roots,
+        CompilerOptions {
+            lib: Some(vec!["es5".to_owned()]),
+            ..compiler_options()
+        },
+        invalid_default,
+        &catalog(),
+        generous_limits(),
+    )
+    .expect("an explicit lib selection makes the host default irrelevant");
+    assert_library_prefix(&explicit, &["/typescript/lib/lib.es5.d.ts"]);
+}
+
+#[test]
 fn explicit_lowercase_raw_lib_names_expand_deduplicate_and_sort() {
     let host = MemoryCompilerHost::builder("/work")
         .file("/work/root.ts", b"export {};\n".to_vec())

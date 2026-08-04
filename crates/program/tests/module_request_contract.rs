@@ -953,6 +953,36 @@ fn node10_static_import_uses_the_unspecified_resolution_mode() {
 }
 
 #[test]
+fn node10_amd_projects_plan_static_imports_and_javascript_requires() {
+    let sources = [
+        ("/root.ts", "import * as m1 from \"m1\";\n", "m1"),
+        (
+            "/node_modules/m1/index.js",
+            "var m2 = require(\"m2\");\n",
+            "m2",
+        ),
+    ];
+    for module in [1, 2] {
+        let options = CompilerOptions {
+            allow_js: true,
+            module: Some(module),
+            module_resolution: Some(2),
+            ..CompilerOptions::default()
+        };
+        for (file_name, text, specifier) in sources {
+            let plan = plan_source_requests(&source_at(file_name, text, None), &options)
+                .expect("plan CommonJS/AMD Node10 project requests");
+            assert_eq!(plan.module_requests().len(), 1);
+            assert_eq!(plan.module_requests()[0].specifier(), specifier);
+            assert_eq!(
+                plan.module_requests()[0].mode(),
+                ResolutionMode::Unspecified
+            );
+        }
+    }
+}
+
+#[test]
 fn resolution_mode_attributes_outside_the_owned_type_only_shape_fail_closed() {
     let options = CompilerOptions {
         module: Some(99),

@@ -590,6 +590,22 @@ fn validate_admitted_options(
                 format!("compilerOptions.lib contains unknown library key {value:?}"),
             ));
         }
+        if compiler_options.lib.is_none()
+            && program_options
+                .default_library_file_name()
+                .is_some_and(|value| !catalog.contains_file_name(value))
+        {
+            return Err(ProgramLoadError::invalid_input(
+                ProgramLoadOperation::ValidateOptions,
+                None,
+                format!(
+                    "programOptions.defaultLibraryFileName contains unknown catalog file {:?}",
+                    program_options
+                        .default_library_file_name()
+                        .expect("checked host default library")
+                ),
+            ));
+        }
     }
     if compiler_options.no_dts_resolution == Some(true) {
         return Err(reject_feature(
@@ -1272,7 +1288,10 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                 })
                 .collect::<Vec<_>>(),
             None => {
-                let file_name = catalog.default_file_name(self.compiler_options);
+                let file_name = self
+                    .program_options
+                    .default_library_file_name()
+                    .unwrap_or_else(|| catalog.default_file_name(self.compiler_options));
                 vec![(
                     file_name,
                     LibraryRootReason::Default {

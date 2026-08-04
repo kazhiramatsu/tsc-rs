@@ -56,6 +56,30 @@ impl LibraryCatalog {
         typescript_6_0_3_library_value(&normalized)
     }
 
+    /// Return whether `file_name` is an exact basename owned by the pinned
+    /// catalog. This is used for a host-provided default-library override;
+    /// unlike `compilerOptions.lib`, the input is already a file name.
+    pub fn contains_file_name(&self, file_name: &str) -> bool {
+        matches!(
+            file_name,
+            "lib.d.ts"
+                | "lib.es6.d.ts"
+                | "lib.es2016.full.d.ts"
+                | "lib.es2017.full.d.ts"
+                | "lib.es2018.full.d.ts"
+                | "lib.es2019.full.d.ts"
+                | "lib.es2020.full.d.ts"
+                | "lib.es2021.full.d.ts"
+                | "lib.es2022.full.d.ts"
+                | "lib.es2023.full.d.ts"
+                | "lib.es2024.full.d.ts"
+                | "lib.es2025.full.d.ts"
+                | "lib.esnext.full.d.ts"
+        ) || typescript_6_0_3_libraries()
+            .iter()
+            .any(|entry| entry.value() == file_name)
+    }
+
     /// TypeScript's target-selected default library, including the ES2015
     /// `lib.es6.d.ts` compatibility quirk.
     ///

@@ -587,6 +587,11 @@ pub struct ProgramOptions {
     types: Option<Vec<String>>,
     type_roots: Option<Vec<ProgramPath>>,
     config_file_path: Option<ProgramPath>,
+    /// Host-selected default library basename. TypeScript's test project host
+    /// deliberately returns `lib.es5.d.ts` independently of `target`; keeping
+    /// that host fact here avoids pretending that `compilerOptions.lib` was
+    /// explicitly supplied.
+    default_library_file_name: Option<String>,
     root_dirs: Option<Vec<ProgramPath>>,
     paths: Option<Arc<ProgramPathMappings>>,
 }
@@ -618,6 +623,20 @@ impl ProgramOptions {
     /// effective type roots and the synthetic automatic-types origin.
     pub fn with_config_file_path(mut self, value: ProgramPath) -> Self {
         self.config_file_path = Some(value);
+        self
+    }
+
+    /// Remove a config-file identity when an embedding host parsed a config
+    /// without passing TypeScript's optional `configFileName` argument.
+    pub fn without_config_file_path(mut self) -> Self {
+        self.config_file_path = None;
+        self
+    }
+
+    /// Override the basename selected for an absent `compilerOptions.lib`.
+    /// Explicit `lib` entries continue to win in the loader.
+    pub fn with_default_library_file_name(mut self, value: impl Into<String>) -> Self {
+        self.default_library_file_name = Some(value.into());
         self
     }
 
@@ -672,6 +691,10 @@ impl ProgramOptions {
 
     pub fn config_file_path(&self) -> Option<&ProgramPath> {
         self.config_file_path.as_ref()
+    }
+
+    pub fn default_library_file_name(&self) -> Option<&str> {
+        self.default_library_file_name.as_deref()
     }
 
     pub fn root_dirs(&self) -> Option<&[ProgramPath]> {

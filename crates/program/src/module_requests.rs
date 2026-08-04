@@ -232,12 +232,12 @@ fn plan_module_requests_worker(
 ) -> Result<SourceRequestPlan, ResolutionError> {
     let module_kind = options.emit_module_kind();
     if (!expanded && !(100..=199).contains(&module_kind))
-        || (expanded && !matches!(module_kind, 1 | 5..=7 | 99 | 100..=200))
+        || (expanded && !matches!(module_kind, 1 | 2 | 5..=7 | 99 | 100..=200))
     {
         return Err(unsupported(
             source,
             format!(
-                "module kind {module_kind} is outside the owned CommonJS/ESNext/Node/Preserve range"
+                "module kind {module_kind} is outside the owned CommonJS/AMD/ESNext/Node/Preserve range"
             ),
         ));
     }
