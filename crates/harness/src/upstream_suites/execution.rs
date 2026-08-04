@@ -5,11 +5,13 @@
 //! back to the pinned corpus. Source bytes are verified for every recorded
 //! path, decoded once per Git blob, and shared by every matrix variant.
 //!
-//! Config-file parsing deliberately remains outside this layer. A config-driven
-//! plan therefore exposes candidate units and config provenance, but never
-//! pretends that program roots have already been selected.
+//! Compiler config files are parsed once through the program-owned H0.5 root
+//! planner. The harness supplies the fixed compiler corpus's `harnessIO`
+//! virtual-host observations, then retains TypeScript's original-unit stable
+//! membership partition instead of substituting `ParsedCommandLine.fileNames`
+//! order. This adapter is not the future general filesystem `matchFiles` host.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fmt;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -18,6 +20,11 @@ use std::sync::Arc;
 use serde::de::{MapAccess, Visitor};
 use serde::{Deserialize, Deserializer};
 use serde_json::Value;
+use tsc_host::to_file_name_lower_case;
+use tsc_program::{
+    parse_config_root_plan, ConfigFilePattern, ConfigHostError, ConfigHostOperation,
+    ConfigParseHost, ConfigRootPlan, ConfigRootPlanRequest,
+};
 
 use super::compiler::{
     expand_configurations, extract_compiler_settings, is_config_file_name, make_units_from_test,
@@ -101,6 +108,9 @@ pub struct CompilerFixtureInput {
     /// Original unit occurrence order, including the virtual config file.
     pub units: Arc<[CompilerUnitInput]>,
     pub config_unit: Option<CompilerUnitId>,
+    /// Program-owned config parse/root plan, materialized once per fixture and
+    /// shared by all configuration variants.
+    pub config_root_plan: Option<Arc<ConfigRootPlan>>,
     pub settings: Arc<[OrderedSetting]>,
     pub configurations: Arc<[super::CompilerConfiguration]>,
     /// Lossless `@link` directive order before JavaScript object assignment.
@@ -179,12 +189,17 @@ pub enum CompilerRootSelection {
         /// at the final `createProgram` argument filtering step.
         program_root_units: Arc<[CompilerUnitId]>,
     },
-    ConfigDriven {
+    Config {
         config_unit: CompilerUnitId,
         /// The config parse host sees every original occurrence, including the
         /// config unit itself.
         config_host_units: Arc<[CompilerUnitId]>,
-        candidate_units: Arc<[CompilerUnitId]>,
+        /// Stable membership partition in original unit occurrence order,
+        /// deliberately not `ParsedCommandLine.fileNames` order.
+        root_units: Arc<[CompilerUnitId]>,
+        other_units: Arc<[CompilerUnitId]>,
+        vfs_write_order: Arc<[CompilerUnitId]>,
+        program_root_units: Arc<[CompilerUnitId]>,
     },
 }
 
@@ -536,6 +551,42 @@ fn build_compiler_fixture(
             )
         })
         .collect::<HarnessResult<Vec<_>>>()?;
+    let units: Arc<[CompilerUnitInput]> = Arc::from(units);
+    let config_unit = config_offset.map(|index| CompilerUnitId(index as u32));
+    let config_root_plan = match config_unit {
+        Some(config_unit) => {
+            let unit = units.get(config_unit.0 as usize).ok_or_else(|| {
+                error(format!(
+                    "compiler config unit for {:?} is out of bounds",
+                    source.relative_path
+                ))
+            })?;
+            let text = unit.content.as_deref().ok_or_else(|| {
+                error(format!(
+                    "compiler config unit for {:?} has missing content",
+                    source.relative_path
+                ))
+            })?;
+            let host = CompilerFixtureConfigHost { units: &units };
+            Some(Arc::new(
+                parse_config_root_plan(
+                    &host,
+                    ConfigRootPlanRequest {
+                        file_name: unit.name.to_string(),
+                        text: text.to_owned(),
+                        base_path: VIRTUAL_SOURCE_ROOT.to_owned(),
+                    },
+                )
+                .map_err(|parse_error| {
+                    error(format!(
+                        "failed to plan compiler config for {:?}: {parse_error}",
+                        source.relative_path
+                    ))
+                })?,
+            ))
+        }
+        None => None,
+    };
     let global_symlink_directives = links
         .into_iter()
         .map(|link| {
@@ -560,8 +611,9 @@ fn build_compiler_fixture(
 
     Ok(CompilerFixtureInput {
         source,
-        units: Arc::from(units),
-        config_unit: config_offset.map(|index| CompilerUnitId(index as u32)),
+        units,
+        config_unit,
+        config_root_plan,
         settings: Arc::from(settings),
         configurations: Arc::from(recorded.configurations.clone()),
         global_symlink_directives: Arc::from(global_symlink_directives),
@@ -693,6 +745,381 @@ fn build_compiler_unit(
     })
 }
 
+/// Adapter for `harnessIO.makeUnitsFromTest`'s fixed compiler-fixture units.
+/// Config parsing is always case-insensitive and observes every original unit,
+/// including the selected config occurrence. `fileExists`/`readFile` compare
+/// raw unit spellings, while `readDirectory` normalizes each occurrence under
+/// `/.src` before wildcard matching.
+struct CompilerFixtureConfigHost<'a> {
+    units: &'a [CompilerUnitInput],
+}
+
+impl ConfigParseHost for CompilerFixtureConfigHost<'_> {
+    fn use_case_sensitive_file_names(&self) -> bool {
+        false
+    }
+
+    fn file_exists(&self, path: &str) -> Result<bool, ConfigHostError> {
+        let key = to_file_name_lower_case(path);
+        Ok(self
+            .units
+            .iter()
+            .any(|unit| to_file_name_lower_case(unit.name.as_ref()) == key))
+    }
+
+    fn read_file(&self, path: &str) -> Result<Option<String>, ConfigHostError> {
+        let key = to_file_name_lower_case(path);
+        Ok(self.units.iter().find_map(|unit| {
+            (to_file_name_lower_case(unit.name.as_ref()) == key)
+                .then(|| unit.content.as_deref().map(str::to_owned))
+                .flatten()
+        }))
+    }
+
+    fn read_directory(
+        &self,
+        directory: &str,
+        extensions: &[&str],
+        excludes: Option<&[String]>,
+        includes: Option<&[String]>,
+        depth: Option<usize>,
+    ) -> Result<Vec<String>, ConfigHostError> {
+        let includes = includes.unwrap_or(&[]);
+        let include_patterns = includes
+            .iter()
+            .map(|include| {
+                ConfigFilePattern::new(include, directory, /* case_sensitive */ false).map_err(
+                    |detail| {
+                        ConfigHostError::new(
+                            ConfigHostOperation::ReadDirectory,
+                            directory,
+                            format!("invalid compiler-fixture include {include:?}: {detail}"),
+                        )
+                    },
+                )
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+        let mut buckets = vec![Vec::new(); includes.len().max(1)];
+        let mut visited = HashSet::new();
+        for base_path in config_base_paths(directory, includes) {
+            visit_config_directory(
+                self.units,
+                directory,
+                &base_path,
+                extensions,
+                excludes,
+                includes,
+                &include_patterns,
+                depth,
+                &mut visited,
+                &mut buckets,
+            )?;
+        }
+        Ok(buckets.into_iter().flatten().collect())
+    }
+}
+
+fn config_base_paths(directory: &str, includes: &[String]) -> Vec<String> {
+    let mut include_bases = includes
+        .iter()
+        .map(|include| {
+            let absolute = absolute_config_pattern(directory, include);
+            let wildcard = absolute.find(['*', '?']);
+            match wildcard {
+                Some(wildcard) => absolute[..wildcard].rfind('/').map_or_else(
+                    || directory.to_owned(),
+                    |index| absolute[..index].to_owned(),
+                ),
+                None if path_component_has_extension(&absolute) => absolute.rfind('/').map_or_else(
+                    || directory.to_owned(),
+                    |index| absolute[..index].to_owned(),
+                ),
+                None => absolute,
+            }
+        })
+        .collect::<Vec<_>>();
+    include_bases.sort_by(|left, right| {
+        compare_utf16(
+            &to_file_name_lower_case(left),
+            &to_file_name_lower_case(right),
+        )
+    });
+    let mut bases = vec![directory.to_owned()];
+    for include_base in include_bases {
+        if bases
+            .iter()
+            .all(|base| !config_path_contains(base, &include_base))
+        {
+            bases.push(include_base);
+        }
+    }
+    bases
+}
+
+fn config_path_contains(parent: &str, child: &str) -> bool {
+    let parent = to_file_name_lower_case(parent.trim_end_matches('/'));
+    let child = to_file_name_lower_case(child.trim_end_matches('/'));
+    child == parent
+        || child
+            .strip_prefix(&parent)
+            .is_some_and(|tail| tail.starts_with('/'))
+}
+
+#[allow(clippy::too_many_arguments)]
+fn visit_config_directory(
+    units: &[CompilerUnitInput],
+    base_directory: &str,
+    directory: &str,
+    extensions: &[&str],
+    excludes: Option<&[String]>,
+    includes: &[String],
+    include_patterns: &[Option<ConfigFilePattern>],
+    depth: Option<usize>,
+    visited: &mut HashSet<String>,
+    buckets: &mut [Vec<String>],
+) -> Result<(), ConfigHostError> {
+    let directory_key = to_file_name_lower_case(directory);
+    if !visited.insert(directory_key.clone()) {
+        return Ok(());
+    }
+    let mut files = Vec::new();
+    let mut directories = Vec::new();
+    for unit in units {
+        let normalized = normalize_compiler_unit_path(unit.name.as_ref()).map_err(|error| {
+            ConfigHostError::new(
+                ConfigHostOperation::ReadDirectory,
+                unit.name.as_ref(),
+                error.to_string(),
+            )
+        })?;
+        // harnessIO's virtual ParseConfigHost intentionally uses a raw folded
+        // string prefix here rather than a path-component containment check.
+        // Preserve that observable quirk for compiler-runner compatibility.
+        if !to_file_name_lower_case(&normalized).starts_with(&directory_key) {
+            continue;
+        }
+        let Some(mut tail) = normalized.get(directory.len()..) else {
+            continue;
+        };
+        if let Some(stripped) = tail.strip_prefix('/') {
+            tail = stripped;
+        }
+        if let Some(separator) = tail.find('/') {
+            let child = &tail[..separator];
+            if !child.is_empty() && !directories.iter().any(|entry| entry == child) {
+                directories.push(child.to_owned());
+            }
+        } else if !tail.is_empty() {
+            files.push(tail.to_owned());
+        }
+    }
+    files.sort_by(|left, right| compare_utf16(left, right));
+    for file in files {
+        let path = join_config_path(directory, &file);
+        if !extensions
+            .iter()
+            .any(|extension| file_extension_is_exact(&path, extension))
+            || excludes.is_some_and(|patterns| {
+                patterns
+                    .iter()
+                    .any(|pattern| config_exclude_matches(base_directory, pattern, &path))
+            })
+        {
+            continue;
+        }
+        let include_index = if includes.is_empty() {
+            Some(0)
+        } else {
+            include_patterns.iter().position(|pattern| {
+                pattern
+                    .as_ref()
+                    .is_some_and(|pattern| pattern.matches(&path))
+            })
+        };
+        if let Some(include_index) = include_index {
+            buckets[include_index].push(path);
+        }
+    }
+
+    if depth == Some(1) {
+        return Ok(());
+    }
+    let child_depth = depth.map(|depth| depth.saturating_sub(1));
+    directories.sort_by(|left, right| compare_utf16(left, right));
+    for child in directories {
+        let path = join_config_path(directory, &child);
+        if excludes.is_some_and(|patterns| {
+            patterns
+                .iter()
+                .any(|pattern| config_exclude_matches(base_directory, pattern, &path))
+        }) {
+            continue;
+        }
+        visit_config_directory(
+            units,
+            base_directory,
+            &path,
+            extensions,
+            excludes,
+            includes,
+            include_patterns,
+            child_depth,
+            visited,
+            buckets,
+        )?;
+    }
+    Ok(())
+}
+
+fn join_config_path(directory: &str, name: &str) -> String {
+    if directory.ends_with('/') {
+        format!("{directory}{name}")
+    } else {
+        format!("{directory}/{name}")
+    }
+}
+
+fn normalize_compiler_unit_path(path: &str) -> HarnessResult<String> {
+    let path = path.replace('\\', "/");
+    let combined = if path.starts_with('/') || is_drive_rooted_path(&path) {
+        path
+    } else {
+        format!("{}/{}", VIRTUAL_SOURCE_ROOT.trim_end_matches('/'), path)
+    };
+    normalize_compiler_rooted_path(&combined)
+}
+
+fn normalize_compiler_rooted_path(path: &str) -> HarnessResult<String> {
+    if path.contains('\0') {
+        return Err(error(format!(
+            "compiler virtual path contains NUL: {path:?}"
+        )));
+    }
+    let (root, tail) = if let Some(tail) = path.strip_prefix('/') {
+        ("/".to_owned(), tail)
+    } else if is_drive_rooted_path(path) {
+        (path[..3].to_owned(), &path[3..])
+    } else {
+        return Err(error(format!(
+            "compiler virtual path is not rooted: {path:?}"
+        )));
+    };
+    let mut components = Vec::new();
+    for component in tail.split('/') {
+        match component {
+            "" | "." => {}
+            ".." => {
+                components.pop();
+            }
+            component => components.push(component),
+        }
+    }
+    if components.is_empty() {
+        return Ok(root);
+    }
+    Ok(format!("{root}{}", components.join("/")))
+}
+
+fn is_drive_rooted_path(path: &str) -> bool {
+    path.len() >= 3
+        && path.as_bytes()[0].is_ascii_alphabetic()
+        && path.as_bytes()[1] == b':'
+        && path.as_bytes()[2] == b'/'
+}
+
+fn file_extension_is_exact(path: &str, extension: &str) -> bool {
+    path.len() > extension.len() && path.ends_with(extension)
+}
+
+fn config_exclude_matches(base_directory: &str, pattern: &str, path: &str) -> bool {
+    if pattern.is_empty() {
+        return false;
+    }
+    let pattern = absolute_config_pattern(base_directory, pattern);
+    if pattern.contains(['*', '?']) {
+        return glob_matches(&pattern, path, false);
+    }
+    let pattern = pattern.trim_end_matches('/');
+    let folded_pattern = to_file_name_lower_case(pattern);
+    let folded_path = to_file_name_lower_case(path);
+    folded_path == folded_pattern
+        || folded_path
+            .strip_prefix(&folded_pattern)
+            .is_some_and(|tail| tail.starts_with('/'))
+}
+
+fn absolute_config_pattern(base_directory: &str, pattern: &str) -> String {
+    let pattern = pattern.replace('\\', "/");
+    if pattern.starts_with('/') || is_drive_rooted_path(&pattern) {
+        return normalize_compiler_rooted_path(&pattern).unwrap_or(pattern);
+    }
+    let combined = join_config_path(base_directory, &pattern);
+    normalize_compiler_rooted_path(&combined).unwrap_or(combined)
+}
+
+fn path_component_has_extension(path: &str) -> bool {
+    path.rsplit('/')
+        .next()
+        .is_some_and(|base| base.contains('.'))
+}
+
+fn glob_matches(pattern: &str, text: &str, case_sensitive: bool) -> bool {
+    let (pattern, text) = if case_sensitive {
+        (pattern.to_owned(), text.to_owned())
+    } else {
+        (
+            to_file_name_lower_case(pattern),
+            to_file_name_lower_case(text),
+        )
+    };
+    let pattern = pattern.chars().collect::<Vec<_>>();
+    let text = text.chars().collect::<Vec<_>>();
+    let mut memo = vec![vec![None; text.len() + 1]; pattern.len() + 1];
+
+    fn matches(
+        pattern: &[char],
+        text: &[char],
+        pattern_index: usize,
+        text_index: usize,
+        memo: &mut [Vec<Option<bool>>],
+    ) -> bool {
+        if let Some(result) = memo[pattern_index][text_index] {
+            return result;
+        }
+        let result = if pattern_index == pattern.len() {
+            text_index == text.len()
+        } else if pattern[pattern_index] == '*' {
+            let double = pattern.get(pattern_index + 1) == Some(&'*');
+            let after_star = pattern_index + if double { 2 } else { 1 };
+            if double && pattern.get(after_star) == Some(&'/') {
+                matches(pattern, text, after_star + 1, text_index, memo)
+                    || (text_index < text.len()
+                        && matches(pattern, text, pattern_index, text_index + 1, memo))
+            } else {
+                matches(pattern, text, after_star, text_index, memo)
+                    || (text_index < text.len()
+                        && (double || text[text_index] != '/')
+                        && matches(pattern, text, pattern_index, text_index + 1, memo))
+            }
+        } else if text_index < text.len()
+            && ((pattern[pattern_index] == '?' && text[text_index] != '/')
+                || pattern[pattern_index] == text[text_index])
+        {
+            matches(pattern, text, pattern_index + 1, text_index + 1, memo)
+        } else {
+            false
+        };
+        memo[pattern_index][text_index] = Some(result);
+        result
+    }
+
+    matches(&pattern, &text, 0, 0, &mut memo)
+}
+
+fn compare_utf16(left: &str, right: &str) -> std::cmp::Ordering {
+    left.encode_utf16().cmp(right.encode_utf16())
+}
+
 fn build_compiler_plan(
     fixture: Arc<CompilerFixtureInput>,
     configuration_index: u32,
@@ -746,12 +1173,45 @@ fn compiler_root_selection(
         .map(|unit| unit.id)
         .collect::<Vec<_>>();
     if let Some(config_unit) = fixture.config_unit {
-        return Ok(CompilerRootSelection::ConfigDriven {
+        let config_plan = fixture.config_root_plan.as_ref().ok_or_else(|| {
+            error(format!(
+                "compiler source index {} has a config unit but no config root plan",
+                fixture.source.index
+            ))
+        })?;
+        let mut root_units = Vec::new();
+        let mut other_units = Vec::new();
+        for id in candidates {
+            let unit = fixture
+                .units
+                .get(id.0 as usize)
+                .ok_or_else(|| error("compiler config candidate unit is out of bounds"))?;
+            let normalized = normalize_compiler_unit_path(unit.name.as_ref())?;
+            if config_plan
+                .file_names()
+                .iter()
+                .any(|file_name| file_name == &normalized)
+            {
+                root_units.push(id);
+            } else {
+                other_units.push(id);
+            }
+        }
+        let vfs_write_order = root_units
+            .iter()
+            .chain(&other_units)
+            .copied()
+            .collect::<Vec<_>>();
+        let program_root_units = json_filtered_roots(fixture, &root_units);
+        return Ok(CompilerRootSelection::Config {
             config_unit,
             config_host_units: Arc::from(
                 fixture.units.iter().map(|unit| unit.id).collect::<Vec<_>>(),
             ),
-            candidate_units: Arc::from(candidates),
+            root_units: Arc::from(root_units),
+            other_units: Arc::from(other_units),
+            vfs_write_order: Arc::from(vfs_write_order),
+            program_root_units: Arc::from(program_root_units),
         });
     }
     let last = candidates
@@ -804,15 +1264,7 @@ fn explicit_compiler_roots(
         .chain(&other_units)
         .copied()
         .collect::<Vec<_>>();
-    let program_root_units = root_units
-        .iter()
-        .copied()
-        .filter(|id| {
-            fixture.units.get(id.0 as usize).is_some_and(|unit| {
-                unit.name.len() <= ".json".len() || !unit.name.ends_with(".json")
-            })
-        })
-        .collect::<Vec<_>>();
+    let program_root_units = json_filtered_roots(fixture, &root_units);
     CompilerRootSelection::Explicit {
         reason,
         root_units: Arc::from(root_units),
@@ -820,6 +1272,21 @@ fn explicit_compiler_roots(
         vfs_write_order: Arc::from(vfs_write_order),
         program_root_units: Arc::from(program_root_units),
     }
+}
+
+fn json_filtered_roots(
+    fixture: &CompilerFixtureInput,
+    root_units: &[CompilerUnitId],
+) -> Vec<CompilerUnitId> {
+    root_units
+        .iter()
+        .copied()
+        .filter(|id| {
+            fixture.units.get(id.0 as usize).is_some_and(|unit| {
+                unit.name.len() <= ".json".len() || !unit.name.ends_with(".json")
+            })
+        })
+        .collect()
 }
 
 fn build_project_fixture(

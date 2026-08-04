@@ -37,6 +37,33 @@ inputs from that manifest and the same `ts-tests` trees. It verifies all 7,086
 pinned source paths and bytes, interns raw and decoded data by Git blob ID, and
 shares each parsed fixture across its matrix/module variants. Ordered settings,
 unit occurrences, descriptor properties, and the two symlink phases remain
-observable. Config-driven compiler and project roots stay explicitly unresolved
-until the matching TypeScript config parser is applied, so this planning layer
-does not change any case's `not-run` state or claim a test result.
+observable.
+
+The 103 compiler fixtures containing a virtual `tsconfig.json` are frozen
+separately in
+`vendor/typescript-6.0.3/compiler-config-plans.v1.json`. The artifact records
+the root-planning projection produced by the vendored TypeScript 6.0.3
+`parseJsonSourceFileConfigFileContent` for 106 case expansions: converted raw
+config values, ordered `fileNames`, extended-source identities and contents,
+effective `allowJs`/`resolveJsonModule`/`outDir`/`declarationDir`, parsed errors,
+and the original-unit root/other/program-root partitions. It is not a serialized
+or fully compared `ParsedCommandLine`. Regeneration and freshness checking use
+only the pinned vendor and corpus:
+
+```text
+node crates/oracle/compiler-config-plans.mjs > vendor/typescript-6.0.3/compiler-config-plans.v1.json
+node crates/oracle/compiler-config-plans.mjs --check
+```
+
+The producer requires Node 25.2.1 and verifies, before import, the
+`typescript.js` SHA-256
+`569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39`.
+It also verifies the expansion-manifest SHA-256
+`9c6e991103b571f7a8800dc5e1ef66088017689f3769de8fcdb408b2dc125188`.
+
+The Rust production root planner matches this recorded projection for all 103
+fixtures. The corpus has no nonempty config diagnostics, so this contract does
+not establish general config-diagnostic, compiler-option conversion,
+filesystem `matchFiles`, project/project-runner, or compiler-execution
+compatibility. Every upstream case remains `not-run`; this layer therefore
+claims no upstream test result.

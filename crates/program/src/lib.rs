@@ -49,10 +49,18 @@
 //! modules and type references while retaining their lexical `originalPath`;
 //! true keeps each lexical link as the resolved source identity.
 //! The library catalog is injected, version-pinned metadata; bytes remain owned
-//! by the same host and no production path parses `_tsc.js`. This slice does
-//! not discover config-derived root files or own the remaining path,
-//! package-redirect, platform, and CLI surfaces of H0.4 and H0.5.
+//! by the same host and no production path parses `_tsc.js`.
+//!
+//! H0.5 exposes [`parse_config_root_plan`] for the valid config/root-planning
+//! projection currently owned here: JSONC values, `extends` sources, four
+//! root-discovery option values, and configured root names. The recorded
+//! projection matches all 103 config-bearing compiler fixtures covering 106
+//! case expansions. This does not execute those cases or cover the full
+//! `ParsedCommandLine`, general filesystem `matchFiles`, project-runner configs,
+//! located config diagnostics, the complete option projection, or CLI ownership.
 
+mod config;
+mod config_matcher;
 mod error;
 mod json;
 mod library;
@@ -64,6 +72,12 @@ mod prepared;
 mod resolution;
 mod text;
 
+pub use config::{
+    parse_config_root_plan, ConfigDiscoveryOptions, ConfigHostError, ConfigHostOperation,
+    ConfigOption, ConfigOptionBag, ConfigParseError, ConfigParseErrorKind, ConfigParseHost,
+    ConfigRootPlan, ConfigRootPlanRequest, ConfigSourceText,
+};
+pub use config_matcher::ConfigFilePattern;
 pub use error::{PreparationError, PreparationErrorKind, PreparationOperation};
 pub use library::LibraryCatalog;
 pub use loader::{

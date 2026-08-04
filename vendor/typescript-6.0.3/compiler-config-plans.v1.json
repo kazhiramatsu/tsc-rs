@@ -1,0 +1,6082 @@
+{
+  "schema": 1,
+  "typescript_version": "6.0.3",
+  "source_commit": "050880ce59e30b356b686bd3144efe24f875ebc8",
+  "node_version": "25.2.1",
+  "producer": {
+    "path": "vendor/typescript-6.0.3/lib/typescript.js",
+    "sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39"
+  },
+  "manifest": {
+    "path": "vendor/typescript-6.0.3/test-suite-expansion.v1.json",
+    "sha256": "9c6e991103b571f7a8800dc5e1ef66088017689f3769de8fcdb408b2dc125188"
+  },
+  "summary": {
+    "config_plans": {
+      "fixture_total": 103,
+      "case_total": 106
+    },
+    "candidate_units": {
+      "fixture_total": 300,
+      "case_total": 306
+    },
+    "parsed_file_names": {
+      "fixture_total": 167,
+      "case_total": 170
+    },
+    "extended_sources": {
+      "fixture_total": 5,
+      "case_total": 5
+    },
+    "root_units": {
+      "fixture_total": 167,
+      "case_total": 170
+    },
+    "other_units": {
+      "fixture_total": 133,
+      "case_total": 136
+    },
+    "program_root_units": {
+      "fixture_total": 167,
+      "case_total": 170
+    },
+    "parsed_diagnostics": {
+      "fixture_total": 0,
+      "case_total": 0
+    },
+    "distributions": {
+      "configurations_per_fixture": [
+        {
+          "configurations": 1,
+          "fixtures": 102,
+          "cases": 102
+        },
+        {
+          "configurations": 4,
+          "fixtures": 1,
+          "cases": 4
+        }
+      ],
+      "config_occurrence": [
+        {
+          "occurrence": 0,
+          "fixtures": 66,
+          "cases": 69
+        },
+        {
+          "occurrence": 1,
+          "fixtures": 9,
+          "cases": 9
+        },
+        {
+          "occurrence": 2,
+          "fixtures": 11,
+          "cases": 11
+        },
+        {
+          "occurrence": 3,
+          "fixtures": 10,
+          "cases": 10
+        },
+        {
+          "occurrence": 4,
+          "fixtures": 1,
+          "cases": 1
+        },
+        {
+          "occurrence": 5,
+          "fixtures": 2,
+          "cases": 2
+        },
+        {
+          "occurrence": 8,
+          "fixtures": 2,
+          "cases": 2
+        },
+        {
+          "occurrence": 9,
+          "fixtures": 2,
+          "cases": 2
+        }
+      ],
+      "candidate_units_per_fixture": [
+        {
+          "units": 1,
+          "fixtures": 27,
+          "cases": 27
+        },
+        {
+          "units": 2,
+          "fixtures": 22,
+          "cases": 25
+        },
+        {
+          "units": 3,
+          "fixtures": 28,
+          "cases": 28
+        },
+        {
+          "units": 4,
+          "fixtures": 7,
+          "cases": 7
+        },
+        {
+          "units": 5,
+          "fixtures": 10,
+          "cases": 10
+        },
+        {
+          "units": 6,
+          "fixtures": 4,
+          "cases": 4
+        },
+        {
+          "units": 8,
+          "fixtures": 2,
+          "cases": 2
+        },
+        {
+          "units": 9,
+          "fixtures": 3,
+          "cases": 3
+        }
+      ],
+      "root_units_per_fixture": [
+        {
+          "units": 1,
+          "fixtures": 59,
+          "cases": 62
+        },
+        {
+          "units": 2,
+          "fixtures": 27,
+          "cases": 27
+        },
+        {
+          "units": 3,
+          "fixtures": 14,
+          "cases": 14
+        },
+        {
+          "units": 4,
+          "fixtures": 3,
+          "cases": 3
+        }
+      ],
+      "other_units_per_fixture": [
+        {
+          "units": 0,
+          "fixtures": 50,
+          "cases": 50
+        },
+        {
+          "units": 1,
+          "fixtures": 20,
+          "cases": 23
+        },
+        {
+          "units": 2,
+          "fixtures": 13,
+          "cases": 13
+        },
+        {
+          "units": 3,
+          "fixtures": 7,
+          "cases": 7
+        },
+        {
+          "units": 4,
+          "fixtures": 7,
+          "cases": 7
+        },
+        {
+          "units": 5,
+          "fixtures": 1,
+          "cases": 1
+        },
+        {
+          "units": 6,
+          "fixtures": 3,
+          "cases": 3
+        },
+        {
+          "units": 7,
+          "fixtures": 1,
+          "cases": 1
+        },
+        {
+          "units": 8,
+          "fixtures": 1,
+          "cases": 1
+        }
+      ],
+      "program_root_units_per_fixture": [
+        {
+          "units": 1,
+          "fixtures": 59,
+          "cases": 62
+        },
+        {
+          "units": 2,
+          "fixtures": 27,
+          "cases": 27
+        },
+        {
+          "units": 3,
+          "fixtures": 14,
+          "cases": 14
+        },
+        {
+          "units": 4,
+          "fixtures": 3,
+          "cases": 3
+        }
+      ]
+    }
+  },
+  "fixtures": [
+    {
+      "source": {
+        "index": 101,
+        "path": "allowJsCrossMonorepoPackage.ts"
+      },
+      "configuration_count": 1,
+      "config_unit": {
+        "id": 5,
+        "name": "/packages/main/tsconfig.json"
+      },
+      "candidate_units": [
+        {
+          "id": 0,
+          "name": "/node_modules/pkg/index.d.ts"
+        },
+        {
+          "id": 1,
+          "name": "/packages/shared/package.json"
+        },
+        {
+          "id": 2,
+          "name": "/packages/shared/utils.js"
+        },
+        {
+          "id": 3,
+          "name": "/packages/shared/index.js"
+        },
+        {
+          "id": 4,
+          "name": "/packages/main/package.json"
+        },
+        {
+          "id": 6,
+          "name": "/packages/main/index.ts"
+        }
+      ],
+      "parsed_file_names": [
+        "/packages/main/index.ts"
+      ],
+      "root_unit_ids": [
+        6
+      ],
+      "other_unit_ids": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "program_root_unit_ids": [
+        6
+      ],
+      "raw_config": {
+        "compilerOptions": {
+          "noEmit": true,
+          "checkJs": true,
+          "strict": true,
+          "module": "esnext",
+          "moduleResolution": "bundler",
+          "traceResolution": true
+        }
+      },
+      "extended_sources": [],
+      "discovery_options": {
+        "allow_js": true,
+        "resolve_json_module": true,
+        "out_dir": null,
+        "declaration_dir": null
+      },
+      "diagnostics": []
+    },
+    {
+      "source": {
+        "index": 1007,
+        "path": "commonJsIsolatedModules.ts"
+      },
+      "configuration_count": 1,
+      "config_unit": {
+        "id": 0,
+        "name": "tsconfig.json"
+      },
+      "candidate_units": [
+        {
+          "id": 1,
+          "name": "index.js"
+        }
+      ],
+      "parsed_file_names": [
+        "/.src/index.js"
+      ],
+      "root_unit_ids": [
+        1
+      ],
+      "other_unit_ids": [],
+      "program_root_unit_ids": [
+        1
+      ],
+      "raw_config": {
+        "compilerOptions": {
+          "allowJs": true,
+          "outDir": "foo",
+          "isolatedModules": true
+        }
+      },
+      "extended_sources": [],
+      "discovery_options": {
+        "allow_js": true,
+        "resolve_json_module": true,
+        "out_dir": "/.src/foo",
+        "declaration_dir": null
+      },
+      "diagnostics": []
+    },
+    {
+      "source": {
+        "index": 1016,
+        "path": "commonSourceDirectory.ts"
+      },
+      "configuration_count": 1,
+      "config_unit": {
+        "id": 3,
+        "name": "/app/tsconfig.json"
+      },
+      "candidate_units": [
+        {
+          "id": 0,
+          "name": "/node_modules/foo/index.ts"
+        },
+        {
+          "id": 1,
+          "name": "/types/bar.d.ts"
+        },
+        {
+          "id": 2,
+          "name": "/app/index.ts"
+        }
+      ],
+      "parsed_file_names": [
+        "/app/index.ts"
+      ],
+      "root_unit_ids": [
+        2
+      ],
+      "other_unit_ids": [
+        0,
+        1
+      ],
+      "program_root_unit_ids": [
+        2
+      ],
+      "raw_config": {
+        "compilerOptions": {
+          "outDir": "bin",
+          "typeRoots": [
+            "../types"
+          ],
+          "sourceMap": true,
+          "mapRoot": "myMapRoot",
+          "sourceRoot": "mySourceRoot",
+          "declaration": true
+        }
+      },
+      "extended_sources": [],
+      "discovery_options": {
+        "allow_js": false,
+        "resolve_json_module": true,
+        "out_dir": "/app/bin",
+        "declaration_dir": null
+      },
+      "diagnostics": []
+    },
+    {
+      "source": {
+        "index": 1017,
+        "path": "commonSourceDirectory_dts.ts"
+      },
+      "configuration_count": 1,
+      "config_unit": {
+        "id": 2,
+        "name": "/app/tsconfig.json"
+      },
+      "candidate_units": [
+        {
+          "id": 0,
+          "name": "/app/lib/bar.d.ts"
+        },
+        {
+          "id": 1,
+          "name": "/app/src/index.ts"
+        }
+      ],
+      "parsed_file_names": [
+        "/app/lib/bar.d.ts",
+        "/app/src/index.ts"
+      ],
+      "root_unit_ids": [
+        0,
+        1
+      ],
+      "other_unit_ids": [],
+      "program_root_unit_ids": [
+        0,
+        1
+      ],
+      "raw_config": {
+        "compilerOptions": {
+          "outDir": "bin",
+          "sourceMap": true,
+          "mapRoot": "myMapRoot",
+          "sourceRoot": "mySourceRoot",
+          "declaration": true
+        }
+      },
+      "extended_sources": [],
+      "discovery_options": {
+        "allow_js": false,
+        "resolve_json_module": true,
+        "out_dir": "/app/bin",
+        "declaration_dir": null
+      },
+      "diagnostics": []
+    },
+    {
+      "source": {
+        "index": 1037,
+        "path": "compositeWithNodeModulesSourceFile.ts"
+      },
+      "configuration_count": 1,
+      "config_unit": {
+        "id": 0,
+        "name": "/foo/tsconfig.json"
+      },
+      "candidate_units": [
+        {
+          "id": 1,
+          "name": "/foo/node_modules/myModule/index.ts"
+        },
+        {
+          "id": 2,
+          "name": "/foo/test.ts"
+        }
+      ],
+      "parsed_file_names": [
+        "/foo/test.ts"
+      ],
+      "root_unit_ids": [
+        2
+      ],
+      "other_unit_ids": [
+        1
+      ],
+      "program_root_unit_ids": [
+        2
+      ],
+      "raw_config": {
+        "compilerOptions": {
+          "composite": true,
+          "target": "es2015",
+          "module": "commonjs"
+        }
+      },
+      "extended_sources": [],
+      "discovery_options": {
+        "allow_js": false,
+        "resolve_json_module": true,
+        "out_dir": null,
+        "declaration_dir": null
+      },
+      "diagnostics": []
+    },
+    {
+      "source": {
+        "index": 1089,
+        "path": "configFileExtendsAsList.ts"
+      },
+      "configuration_count": 1,
+      "config_unit": {
+        "id": 2,
+        "name": "/tsconfig.json"
+      },
+      "candidate_units": [
+        {
+          "id": 0,
+          "name": "/tsconfig1.json"
+        },
+        {
+          "id": 1,
+          "name": "/tsconfig2.json"
+        },
+        {
+          "id": 3,
+          "name": "/index.ts"
+        }
+      ],
+      "parsed_file_names": [
+        "/index.ts"
+      ],
+      "root_unit_ids": [
+        3
+      ],
+      "other_unit_ids": [
+        0,
+        1
+      ],
+      "program_root_unit_ids": [
+        3
+      ],
+      "raw_config": {
+        "extends": [
+          "./tsconfig1.json",
+          "./tsconfig2.json"
+        ]
+      },
+      "extended_sources": [
+        {
+          "file_name": "/tsconfig1.json",
+          "unit_id": 0,
+          "content": {
+            "state": "present",
+            "utf8_bytes": 68,
+            "sha256": "385f6fd5f0d8f183a0f56b4ae3f14399d4c982109ca1557152398d8650e43c64"
+          }
+        },
+        {
+          "file_name": "/tsconfig2.json",
+          "unit_id": 1,
+          "content": {
+            "state": "present",
+            "utf8_bytes": 65,
+            "sha256": "35227919724febab0410cf17ed4ad430a8638100981ddf20643746fff0a8e32a"
+          }
+        }
+      ],
+      "discovery_options": {
+        "allow_js": false,
+        "resolve_json_module": true,
+        "out_dir": null,
+        "declaration_dir": null
+      },
+      "diagnostics": []
+    },
+    {
+      "source": {
+        "index": 1636,
+        "path": "declarationEmitJsReExportDefault.ts"
+      },
+      "configuration_count": 1,
+      "config_unit": {
+        "id": 2,
+        "name": "/tsconfig.json"
+      },
+      "candidate_units": [
+        {
+          "id": 0,
+          "name": "/node_modules/a/package.json"
+        },
+        {
+          "id": 1,
+          "name": "/node_modules/a/index.d.ts"
+        },
+        {
+          "id": 3,
+          "name": "/index.mjs"
+        }
+      ],
+      "parsed_file_names": [
+        "/index.mjs"
+      ],
+      "root_unit_ids": [
+        3
+      ],
+      "other_unit_ids": [
+        0,
+        1
+      ],
+      "program_root_unit_ids": [
+        3
+      ],
+      "raw_config": {
+        "compilerOptions": {
+          "module": "node16",
+          "declaration": true,
+          "emitDeclarationOnly": true,
+          "checkJs": true
+        }
+      },
+      "extended_sources": [],
+      "discovery_options": {
+        "allow_js": true,
+        "resolve_json_module": false,
+        "out_dir": null,
+        "declaration_dir": null
+      },
+      "diagnostics": []
+    },
+    {
+      "source": {
+        "index": 1653,
+        "path": "declarationEmitMonorepoBaseUrl.ts"
+      },
+      "configuration_count": 1,
+      "config_unit": {
+        "id": 0,
+        "name": "/tsconfig.json"
+      },
+      "candidate_units": [
+        {
+          "id": 1,
+          "name": "/node_modules/.pnpm/@babel+parser@7.23.6/node_modules/@babel/parser/package.json"
+        },
+        {
+          "id": 2,
+          "name": "/node_modules/.pnpm/@babel+parser@7.23.6/node_modules/@babel/parser/typings/babel-parser.d.ts"
+        },
+        {
+          "id": 3,
+          "name": "/packages/compiler-core/package.json"
+        },
+        {
+          "id": 4,
+          "name": "/packages/compiler-core/src/index.ts"
+        },
+        {
+          "id": 5,
+          "name": "/packages/compiler-sfc/package.json"
+        },
+        {
+          "id": 6,
+          "name": "/packages/compiler-sfc/src/index.ts"
+        }
+      ],
+      "parsed_file_names": [
+        "/packages/compiler-core/src/index.ts",
+        "/packages/compiler-sfc/src/index.ts"
+      ],
+      "root_unit_ids": [
+        4,
+        6
+      ],
+      "other_unit_ids": [
+        1,
+        2,
+        3,
+        5
+      ],
+      "program_root_unit_ids": [
+        4,
+        6
+      ],
+      "raw_config": {
+        "compilerOptions": {
+          "module": "nodenext",
+          "declaration": true,
+          "outDir": "temp",
+          "baseUrl": "."
+        }
+      },
+      "extended_sources": [],
+      "discovery_options": {
+        "allow_js": false,
+        "resolve_json_module": true,
+        "out_dir": "/temp",
+        "declaration_dir": null
+      },
+      "diagnostics": []
+    },
+    {
+      "source": {
+        "index": 1684,
+        "path": "declarationEmitPathMappingMonorepo.ts"
+      },
+      "configuration_count": 1,
+      "config_unit": {
+        "id": 2,
+        "name": "packages/b/tsconfig.json"
+      },
+      "candidate_units": [
+        {
+          "id": 0,
+          "name": "packages/a/index.d.ts"
+        },
+        {
+          "id": 1,
+          "name": "packages/b/src/index.ts"
+        }
+      ],
+      "parsed_file_names": [
+        "/.src/packages/b/src/index.ts"
+      ],
+      "root_unit_ids": [
+        1
+      ],
+      "other_unit_ids": [
+        0
+      ],
+      "program_root_unit_ids": [
+        1
+      ],
+      "raw_config": {
+        "compilerOptions": {
+          "outDir": "dist",
+          "declaration": true,
+          "baseUrl": ".",
+          "paths": {
+            "@ts-bug/a": [
+              "../a"
+            ]
+          }
+        }
+      },
+      "extended_sources": [],
+      "discovery_options": {
+        "allow_js": false,
+        "resolve_json_module": true,
+        "out_dir": "/.src/packages/b/dist",
+        "declaration_dir": null
+      },
+      "diagnostics": []
+    },
+    {
+      "source": {
+        "index": 1685,
+        "path": "declarationEmitPathMappingMonorepo2.ts"
+      },
+      "configuration_count": 1,
+      "config_unit": {
+        "id": 5,
+        "name": "packages/lab/tsconfig.json"
+      },
+      "candidate_units": [
+        {
+          "id": 0,
+          "name": "packages/core/src/index.d.ts"
+        },
+        {
+          "id": 1,
+          "name": "packages/core/src/SvgIcon.d.ts"
+        },
+        {
+          "id": 2,
+          "name": "packages/core/src/utils.d.ts"
+        },
+        {
+          "id": 3,
+          "name": "packages/styles/src/index.d.ts"
+        },
+        {
+          "id": 4,
+          "name": "packages/lab/src/index.ts"
+        }
+      ],
+      "parsed_file_names": [
+        "/.src/packages/lab/src/index.ts"
+      ],
+      "root_unit_ids": [
+        4
+      ],
+      "other_unit_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "program_root_unit_ids": [
+        4
+      ],
+      "raw_config": {
+        "compilerOptions": {
+          "outDir": "dist",
+          "declaration": true,
+          "baseUrl": "../",
+          "paths": {
+            "@ts-bug/core": [
+              "./core/src"
+            ],
+            "@ts-bug/core/*": [
+              "./core/src/*"
+            ],
+            "@ts-bug/lab": [
+              "./lab/src"
+            ],
+            "@ts-bug/lab/*": [
+              "./lab/src/*"
+            ],
+            "@ts-bug/styles": [
+              "./styles/src"
+            ],
+            "@ts-bug/styles/*": [
+              "./styles/src/*"
+            ]
+          }
+        }
+      },
+      "extended_sources": [],
+      "discovery_options": {
+        "allow_js": false,
+        "resolve_json_module": true,
+        "out_dir": "/.src/packages/lab/dist",
+        "declaration_dir": null
+      },
+      "diagnostics": []
+    },
+    {
+      "source": {
+        "index": 1702,
+        "path": "declarationEmitReexportedSymlinkReference.ts"
+      },
+      "configuration_count": 1,
+      "config_unit": {
+        "id": 8,
+        "name": "monorepo/pkg3/tsconfig.json"
+      },
+      "candidate_units": [
+        {
+          "id": 0,
+          "name": "monorepo/pkg1/dist/index.d.ts"
+        },
+        {
+          "id": 1,
+          "name": "monorepo/pkg1/dist/types.d.ts"
+        },
+        {
+          "id": 2,
+          "name": "monorepo/pkg1/package.json"
+        },
+        {
+          "id": 3,
+          "name": "monorepo/pkg2/dist/index.d.ts"
+        },
+        {
+          "id": 4,
+          "name": "monorepo/pkg2/dist/types.d.ts"
+        },
+        {
+          "id": 5,
+          "name": "monorepo/pkg2/package.json"
+        },
+        {
+          "id": 6,
+          "name": "monorepo/pkg3/src/index.ts"
+        },
+        {
+          "id": 7,
+          "name": "monorepo/pkg3/src/keys.ts"
+        }
+      ],
+      "parsed_file_names": [
+        "/.src/monorepo/pkg3/src/index.ts",
+        "/.src/monorepo/pkg3/src/keys.ts"
+      ],
+      "root_unit_ids": [
+        6,
+        7
+      ],
+      "other_unit_ids": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "program_root_unit_ids": [
+        6,
+        7
+      ],
+      "raw_config": {
+        "compilerOptions": {
+          "outDir": "dist",
+          "rootDir": "src",
+          "target": "es5",
+          "module": "commonjs",
+          "strict": true,
+          "esModuleInterop": true,
+          "declaration": true
+        }
+      },
+      "extended_sources": [],
+      "discovery_options": {
+        "allow_js": false,
+        "resolve_json_module": true,
+        "out_dir": "/.src/monorepo/pkg3/dist",
+        "declaration_dir": null
+      },
+      "diagnostics": []
+    },
+    {
+      "source": {
+        "index": 1703,
+        "path": "declarationEmitReexportedSymlinkReference2.ts"
+      },
+      "configuration_count": 1,
+      "config_unit": {
+        "id": 9,
+        "name": "monorepo/pkg3/tsconfig.json"
+      },
+      "candidate_units": [
+        {
+          "id": 0,
+          "name": "monorepo/pkg1/dist/index.d.ts"
+        },
+        {
+          "id": 1,
+          "name": "monorepo/pkg1/dist/types.d.ts"
+        },
+        {
+          "id": 2,
+          "name": "monorepo/pkg1/package.json"
+        },
+        {
+          "id": 3,
+          "name": "monorepo/pkg2/dist/index.d.ts"
+        },
+        {
+          "id": 4,
+          "name": "monorepo/pkg2/dist/types.d.ts"
+        },
+        {
+          "id": 5,
+          "name": "monorepo/pkg2/dist/secondary.d.ts"
+        },
+        {
+          "id": 6,
+          "name": "monorepo/pkg2/package.json"
+        },
+        {
+          "id": 7,
+          "name": "monorepo/pkg3/src/index.ts"
+        },
+        {
+          "id": 8,
+          "name": "monorepo/pkg3/src/keys.ts"
+        }
+      ],
+      "parsed_file_names": [
+        "/.src/monorepo/pkg3/src/index.ts",
+        "/.src/monorepo/pkg3/src/keys.ts"
+      ],
+      "root_unit_ids": [
+        7,
+        8
+      ],
+      "other_unit_ids": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "program_root_unit_ids": [
+        7,
+        8
+      ],
+      "raw_config": {
+        "compilerOptions": {
+          "outDir": "dist",
+          "rootDir": "src",
+          "target": "es5",
+          "module": "commonjs",
+          "strict": true,
+          "esModuleInterop": true,
+          "declaration": true
+        }
+      },
+      "extended_sources": [],
+      "discovery_options": {
+        "allow_js": false,
+        "resolve_json_module": true,
+        "out_dir": "/.src/monorepo/pkg3/dist",
+        "declaration_dir": null
+      },
+      "diagnostics": []
+    },
+    {
+      "source": {
+        "index": 1704,
+        "path": "declarationEmitReexportedSymlinkReference3.ts"
+      },
+      "configuration_count": 1,
+      "config_unit": {
+        "id": 8,
+        "name": "monorepo/pkg3/tsconfig.json"
+      },
+      "candidate_units": [
+        {
+          "id": 0,
+          "name": "monorepo/pkg1/dist/index.d.ts"
+        },
+        {
+          "id": 1,
+          "name": "monorepo/pkg1/dist/types.d.ts"
+        },
+        {
+          "id": 2,
+          "name": "monorepo/pkg1/package.json"
+        },
+        {
+          "id": 3,
+          "name": "monorepo/pkg2/dist/index.d.ts"
+        },
+        {
+          "id": 4,
+          "name": "monorepo/pkg2/dist/types.d.ts"
+        },
+        {
+          "id": 5,
+          "name": "monorepo/pkg2/package.json"
+        },
+        {
+          "id": 6,
+          "name": "monorepo/pkg3/src/index.ts"
+        },
+        {
+          "id": 7,
+          "name": "monorepo/pkg3/src/keys.ts"
+        }
+      ],
+      "parsed_file_names": [
+        "/.src/monorepo/pkg3/src/index.ts",
+        "/.src/monorepo/pkg3/src/keys.ts"
+      ],
+      "root_unit_ids": [
+        6,
+        7
+      ],
+      "other_unit_ids": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "program_root_unit_ids": [
+        6,
+        7
+      ],
+      "raw_config": {
+        "compilerOptions": {
+          "outDir": "dist",
+          "rootDir": "src",
+          "target": "es5",
+          "module": "commonjs",
+          "strict": true,
+          "esModuleInterop": true,
+          "declaration": true
+        }
+      },
+      "extended_sources": [],
+      "discovery_options": {
+        "allow_js": false,
+        "resolve_json_module": true,
+        "out_dir": "/.src/monorepo/pkg3/dist",
+        "declaration_dir": null
+      },
+      "diagnostics": []
+    },
+    {
+      "source": {
+        "index": 1718,
+        "path": "declarationEmitToDeclarationDirWithCompositeOption.ts"
+      },
+      "configuration_count": 1,
+      "config_unit": {
+        "id": 0,
+        "name": "/foo/tsconfig.json"
+      },
+      "candidate_units": [
+        {
+          "id": 1,
+          "name": "/foo/test.ts"
+        }
+      ],
+      "parsed_file_names": [
+        "/foo/test.ts"
+      ],
+      "root_unit_ids": [
+        1
+      ],
+      "other_unit_ids": [],
+      "program_root_unit_ids": [
+        1
+      ],
+      "raw_config": {
+        "compilerOptions": {
+          "composite": true,
+          "declarationDir": "out",
+          "module": "commonjs",
+          "target": "es2015"
+        }
+      },
+      "extended_sources": [],
+      "discovery_options": {
+        "allow_js": false,
+        "resolve_json_module": true,
+        "out_dir": null,
+        "declaration_dir": "/foo/out"
+      },
+      "diagnostics": []
+    },
+    {
+      "source": {
+        "index": 1719,
+        "path": "declarationEmitToDeclarationDirWithDeclarationOption.ts"
+      },
+      "configuration_count": 1,
+      "config_unit": {
+        "id": 0,
+        "name": "/foo/tsconfig.json"
+      },
+      "candidate_units": [
+        {
+          "id": 1,
+          "name": "/foo/test.ts"
+        }
+      ],
+      "parsed_file_names": [
+        "/foo/test.ts"
+      ],
+      "root_unit_ids": [
+        1
+      ],
+      "other_unit_ids": [],
+      "program_root_unit_ids": [
+        1
+      ],
+      "raw_config": {
+        "compilerOptions": {
+          "declaration": true,
+          "declarationDir": "out",
+          "module": "commonjs",
+          "target": "es2015"
+        }
+      },
+      "extended_sources": [],
+      "discovery_options": {
+        "allow_js": false,
+        "resolve_json_module": true,
+        "out_dir": null,
+        "declaration_dir": "/foo/out"
+      },
+      "diagnostics": []
+    },
+    {
+      "source": {
+        "index": 1720,
+        "path": "declarationEmitToDeclarationDirWithoutCompositeAndDeclarationOptions.ts"
+      },
+      "configuration_count": 1,
+      "config_unit": {
+        "id": 0,
+        "name": "/foo/tsconfig.json"
+      },
+      "candidate_units": [
+        {
+          "id": 1,
+          "name": "/foo/test.ts"
+        }
+      ],
+      "parsed_file_names": [
+        "/foo/test.ts"
+      ],
+      "root_unit_ids": [
+        1
+      ],
+      "other_unit_ids": [],
+      "program_root_unit_ids": [
+        1
+      ],
+      "raw_config": {
+        "compilerOptions": {
+          "declarationDir": "out",
+          "module": "commonjs",
+          "target": "es2015"
+        }
+      },
+      "extended_sources": [],
+      "discovery_options": {
+        "allow_js": false,
+        "resolve_json_module": true,
+        "out_dir": null,
+        "declaration_dir": "/foo/out"
+      },
+      "diagnostics": []
+    },
+    {
+      "source": {
+        "index": 1749,
+        "path": "declarationEmitWithComposite.ts"
+      },
+      "configuration_count": 1,
+      "config_unit": {
+        "id": 0,
+        "name": "/foo/tsconfig.json"
+      },
+      "candidate_units": [
+        {
+          "id": 1,
+          "name": "/foo/test.ts"
+        }
+      ],
+      "parsed_file_names": [
+        "/foo/test.ts"
+      ],
+      "root_unit_ids": [
+        1
+      ],
+      "other_unit_ids": [],
+      "program_root_unit_ids": [
+        1
+      ],
+      "raw_config": {
+        "compilerOptions": {
+          "composite": true,
+          "outDir": "out"
+        }
+      },
+      "extended_sources": [],
+      "discovery_options": {
+        "allow_js": false,
+        "resolve_json_module": true,
+        "out_dir": "/foo/out",
+        "declaration_dir": null
+      },
+      "diagnostics": []
+    },
+    {
+      "source": {
+        "index": 1875,
+        "path": "deprecatedCompilerOptions1.ts"
+      },
+      "configuration_count": 1,
+      "config_unit": {
+        "id": 0,
+        "name": "/foo/tsconfig.json"
+      },
+      "candidate_units": [
+        {
+          "id": 1,
+          "name": "/foo/a.ts"
+        }
+      ],
+      "parsed_file_names": [
+        "/foo/a.ts"
+      ],
+      "root_unit_ids": [
+        1
+      ],
+      "other_unit_ids": [],
+      "program_root_unit_ids": [
+        1
+      ],
+      "raw_config": {
+        "compilerOptions": {
+          "target": "ES3",
+          "noImplicitUseStrict": true,
+          "keyofStringsOnly": true,
+          "suppressExcessPropertyErrors": true,
+          "suppressImplicitAnyIndexErrors": true,
+          "noStrictGenericChecks": true,
+          "charset": "utf8",
+          "out": "dist.js"
+        }
+      },
+      "extended_sources": [],
+      "discovery_options": {
+        "allow_js": false,
+        "resolve_json_module": true,
+        "out_dir": null,
+        "declaration_dir": null
+      },
+      "diagnostics": []
+    },
+    {
+      "source": {
+        "index": 1876,
+        "path": "deprecatedCompilerOptions2.ts"
+      },
+      "configuration_count": 1,
+      "config_unit": {
+        "id": 0,
+        "name": "/foo/tsconfig.json"
+      },
+      "candidate_units": [
+        {
+          "id": 1,
+          "name": "/foo/a.ts"
+        }
+      ],
+      "parsed_file_names": [
+        "/foo/a.ts"
+      ],
+      "root_unit_ids": [
+        1
+      ],
+      "other_unit_ids": [],
+      "program_root_unit_ids": [
+        1
+      ],
+      "raw_config": {
+        "compilerOptions": {
+          "module": "amd",
+          "target": "ES3",
+          "noImplicitUseStrict": true,
+          "keyofStringsOnly": true,
+          "suppressExcessPropertyErrors": true,
+          "suppressImplicitAnyIndexErrors": true,
+          "noStrictGenericChecks": true,
+          "charset": "utf8",
+          "out": "dist.js",
+          "ignoreDeprecations": "5.0"
+        }
+      },
+      "extended_sources": [],
+      "discovery_options": {
+        "allow_js": false,
+        "resolve_json_module": false,
+        "out_dir": null,
+        "declaration_dir": null
+      },
+      "diagnostics": []
+    },
+    {
+      "source": {
+        "index": 1877,
+        "path": "deprecatedCompilerOptions3.ts"
+      },
+      "configuration_count": 1,
+      "config_unit": {
+        "id": 0,
+        "name": "/foo/tsconfig.json"
+      },
+      "candidate_units": [
+        {
+          "id": 1,
+          "name": "/foo/a.ts"
+        }
+      ],
+      "parsed_file_names": [
+        "/foo/a.ts"
+      ],
+      "root_unit_ids": [
+        1
+      ],
+      "other_unit_ids": [],
+      "program_root_unit_ids": [
+        1
+      ],
+      "raw_config": {
+        "compilerOptions": {
+          "target": "ES3",
+          "noImplicitUseStrict": true,
+          "keyofStringsOnly": true,
+          "suppressExcessPropertyErrors": true,
+          "suppressImplicitAnyIndexErrors": true,
+          "noStrictGenericChecks": true,
+          "charset": "utf8",
+          "out": "dist.js"
+        }
+      },
+      "extended_sources": [],
+      "discovery_options": {
+        "allow_js": false,
+        "resolve_json_module": true,
+        "out_dir": null,
+        "declaration_dir": null
+      },
+      "diagnostics": []
+    },
+    {
+      "source": {
+        "index": 1878,
+        "path": "deprecatedCompilerOptions4.ts"
+      },
+      "configuration_count": 1,
+      "config_unit": {
+        "id": 0,
+        "name": "/foo/tsconfig.json"
+      },
+      "candidate_units": [
+        {
+          "id": 1,
+          "name": "/foo/a.ts"
+        }
+      ],
+      "parsed_file_names": [
+        "/foo/a.ts"
+      ],
+      "root_unit_ids": [
+        1
+      ],
+      "other_unit_ids": [],
+      "program_root_unit_ids": [
+        1
+      ],
+      "raw_config": {
+        "compilerOptions": {
+          "target": "ES3",
+          "noImplicitUseStrict": true,
+          "keyofStringsOnly": true,
+          "suppressExcessPropertyErrors": true,
+          "suppressImplicitAnyIndexErrors": true,
+          "noStrictGenericChecks": true,
+          "charset": "utf8",
+          "out": "dist.js",
+          "ignoreDeprecations": "5.0"
+        }
+      },
+      "extended_sources": [],
+      "discovery_options": {
+        "allow_js": false,
+        "resolve_json_module": true,
+        "out_dir": null,
+        "declaration_dir": null
+      },
+      "diagnostics": []
+    },
+    {
+      "source": {
+        "index": 1879,
+        "path": "deprecatedCompilerOptions5.ts"
+      },
+      "configuration_count": 1,
+      "config_unit": {
+        "id": 0,
+        "name": "/foo/tsconfig.json"
+      },
+      "candidate_units": [
+        {
+          "id": 1,
+          "name": "/foo/a.ts"
+        }
+      ],
+      "parsed_file_names": [
+        "/foo/a.ts"
+      ],
+      "root_unit_ids": [
+        1
+      ],
+      "other_unit_ids": [],
+      "program_root_unit_ids": [
+        1
+      ],
+      "raw_config": {
+        "compilerOptions": {
+          "target": "ES3",
+          "noImplicitUseStrict": true,
+          "keyofStringsOnly": true,
+          "suppressExcessPropertyErrors": true,
+          "suppressImplicitAnyIndexErrors": true,
+          "noStrictGenericChecks": true,
+          "charset": "utf8",
+          "out": "dist.js",
+          "ignoreDeprecations": "5.0"
+        }
+      },
+      "extended_sources": [],
+      "discovery_options": {
+        "allow_js": false,
+        "resolve_json_module": true,
+        "out_dir": null,
+        "declaration_dir": null
+      },
+      "diagnostics": []
+    },
+    {
+      "source": {
+        "index": 1880,
+        "path": "deprecatedCompilerOptions6.ts"
+      },
+      "configuration_count": 1,
+      "config_unit": {
+        "id": 0,
+        "name": "/foo/tsconfig.json"
+      },
+      "candidate_units": [
+        {
+          "id": 1,
+          "name": "/foo/a.ts"
+        }
+      ],
+      "parsed_file_names": [
+        "/foo/a.ts"
+      ],
+      "root_unit_ids": [
+        1
+      ],
+      "other_unit_ids": [],
+      "program_root_unit_ids": [
+        1
+      ],
+      "raw_config": {
+        "compilerOptions": {
+          "module": "amd",
+          "target": "ES3",
+          "noImplicitUseStrict": true,
+          "keyofStringsOnly": true,
+          "suppressExcessPropertyErrors": true,
+          "suppressImplicitAnyIndexErrors": true,
+          "noStrictGenericChecks": true,
+          "charset": "utf8",
+          "out": "dist.js",
+          "ignoreDeprecations": "5.1"
+        }
+      },
+      "extended_sources": [],
+      "discovery_options": {
+        "allow_js": false,
+        "resolve_json_module": false,
+        "out_dir": null,
+        "declaration_dir": null
+      },
+      "diagnostics": []
+    },
+    {
+      "source": {
+        "index": 2019,
+        "path": "dtsEmitTripleSlashAvoidUnnecessaryResolutionMode.ts"
+      },
+      "configuration_count": 1,
+      "config_unit": {
+        "id": 0,
+        "name": "/tsconfig.json"
+      },
+      "candidate_units": [
+        {
+          "id": 1,
+          "name": "/node_modules/@types/node/package.json"
+        },
+        {
+          "id": 2,
+          "name": "/node_modules/@types/node/globals.d.ts"
+        },
+        {
+          "id": 3,
+          "name": "/node_modules/@types/node/index.d.ts"
+        },
+        {
+          "id": 4,
+          "name": "/app.mts"
+        }
+      ],
+      "parsed_file_names": [
+        "/app.mts"
+      ],
+      "root_unit_ids": [
+        4
+      ],
+      "other_unit_ids": [
+        1,
+        2,
+        3
+      ],
+      "program_root_unit_ids": [
+        4
+      ],
+      "raw_config": {
+        "compilerOptions": {
+          "module": "nodenext",
+          "types": [],
+          "declaration": true,
+          "emitDeclarationOnly": true
+        }
+      },
+      "extended_sources": [],
+      "discovery_options": {
+        "allow_js": false,
+        "resolve_json_module": true,
+        "out_dir": null,
+        "declaration_dir": null
+      },
+      "diagnostics": []
+    },
+    {
+      "source": {
+        "index": 3253,
+        "path": "incrementalConfig.ts"
+      },
+      "configuration_count": 1,
+      "config_unit": {
+        "id": 1,
+        "name": "/tsconfig.json"
+      },
+      "candidate_units": [
+        {
+          "id": 0,
+          "name": "/a.ts"
+        }
+      ],
+      "parsed_file_names": [
+        "/a.ts"
+      ],
+      "root_unit_ids": [
+        0
+      ],
+      "other_unit_ids": [],
+      "program_root_unit_ids": [
+        0
+      ],
+      "raw_config": {},
+      "extended_sources": [],
+      "discovery_options": {
+        "allow_js": false,
+        "resolve_json_module": true,
+        "out_dir": null,
+        "declaration_dir": null
+      },
+      "diagnostics": []
+    },
+    {
+      "source": {
+        "index": 3989,
+        "path": "libTypeScriptOverrideSimpleConfig.ts"
+      },
+      "configuration_count": 1,
+      "config_unit": {
+        "id": 1,
+        "name": "/somepath/tsconfig.json"
+      },
+      "candidate_units": [
+        {
+          "id": 0,
+          "name": "/somepath/node_modules/@typescript/lib-dom/index.d.ts"
+        },
+        {
+          "id": 2,
+          "name": "/somepath/index.ts"
+        }
+      ],
+      "parsed_file_names": [
+        "/somepath/index.ts"
+      ],
+      "root_unit_ids": [
+        2
+      ],
+      "other_unit_ids": [
+        0
+      ],
+      "program_root_unit_ids": [
+        2
+      ],
+      "raw_config": {},
+      "extended_sources": [],
+      "discovery_options": {
+        "allow_js": false,
+        "resolve_json_module": true,
+        "out_dir": null,
+        "declaration_dir": null
+      },
+      "diagnostics": []
+    },
+    {
+      "source": {
+        "index": 3991,
+        "path": "libTypeScriptSubfileResolvingConfig.ts"
+      },
+      "configuration_count": 1,
+      "config_unit": {
+        "id": 2,
+        "name": "/somepath/tsconfig.json"
+      },
+      "candidate_units": [
+        {
+          "id": 0,
+          "name": "/somepath/node_modules/@typescript/lib-dom/index.d.ts"
+        },
+        {
+          "id": 1,
+          "name": "/somepath/node_modules/@typescript/lib-dom/iterable.d.ts"
+        },
+        {
+          "id": 3,
+          "name": "/somepath/index.ts"
+        }
+      ],
+      "parsed_file_names": [
+        "/somepath/index.ts"
+      ],
+      "root_unit_ids": [
+        3
+      ],
+      "other_unit_ids": [
+        0,
+        1
+      ],
+      "program_root_unit_ids": [
+        3
+      ],
+      "raw_config": {},
+      "extended_sources": [],
+      "discovery_options": {
+        "allow_js": false,
+        "resolve_json_module": true,
+        "out_dir": null,
+        "declaration_dir": null
+      },
+      "diagnostics": []
+    },
+    {
+      "source": {
+        "index": 4064,
+        "path": "maxNodeModuleJsDepthDefaultsToZero.ts"
+      },
+      "configuration_count": 1,
+      "config_unit": {
+        "id": 0,
+        "name": "/tsconfig.json"
+      },
+      "candidate_units": [
+        {
+          "id": 1,
+          "name": "/node_modules/shortid/node_modules/z/index.js"
+        },
+        {
+          "id": 2,
+          "name": "/node_modules/shortid/index.js"
+        },
+        {
+          "id": 3,
+          "name": "/typings/index.d.ts"
+        },
+        {
+          "id": 4,
+          "name": "/index.ts"
+        }
+      ],
+      "parsed_file_names": [
+        "/index.ts",
+        "/typings/index.d.ts"
+      ],
+      "root_unit_ids": [
+        3,
+        4
+      ],
+      "other_unit_ids": [
+        1,
+        2
+      ],
+      "program_root_unit_ids": [
+        3,
+        4
+      ],
+      "raw_config": {
+        "compileOnSave": true,
+        "compilerOptions": {
+          "module": "commonjs",
+          "moduleResolution": "node",
+          "outDir": "bin"
+        }
+      },
+      "extended_sources": [],
+      "discovery_options": {
+        "allow_js": false,
+        "resolve_json_module": false,
+        "out_dir": "/bin",
+        "declaration_dir": null
+      },
+      "diagnostics": []
+    },
+    {
+      "source": {
+        "index": 4282,
+        "path": "moduleResolutionPackageIdWithRelativeAndAbsolutePath.ts"
+      },
+      "configuration_count": 1,
+      "config_unit": {
+        "id": 9,
+        "name": "/project/tsconfig.json"
+      },
+      "candidate_units": [
+        {
+          "id": 0,
+          "name": "/shared/node_modules/troublesome-lib/package.json"
+        },
+        {
+          "id": 1,
+          "name": "/shared/node_modules/troublesome-lib/lib/Compactable.d.ts"
+        },
+        {
+          "id": 2,
+          "name": "/shared/node_modules/troublesome-lib/lib/Option.d.ts"
+        },
+        {
+          "id": 3,
+          "name": "/shared/lib/app.d.ts"
+        },
+        {
+          "id": 4,
+          "name": "/project/node_modules/anotherLib/index.d.ts"
+        },
+        {
+          "id": 5,
+          "name": "/project/node_modules/troublesome-lib/package.json"
+        },
+        {
+          "id": 6,
+          "name": "/project/node_modules/troublesome-lib/lib/Compactable.d.ts"
+        },
+        {
+          "id": 7,
+          "name": "/project/node_modules/troublesome-lib/lib/Option.d.ts"
+        },
+        {
+          "id": 8,
+          "name": "/project/src/app.ts"
+        }
+      ],
+      "parsed_file_names": [
+        "/project/src/app.ts"
+      ],
+      "root_unit_ids": [
+        8
+      ],
+      "other_unit_ids": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "program_root_unit_ids": [
+        8
+      ],
+      "raw_config": {
+        "compilerOptions": {
+          "baseUrl": ".",
+          "paths": {
+            "@shared/*": [
+              "../shared/*"
+            ]
+          }
+        }
+      },
+      "extended_sources": [],
+      "discovery_options": {
+        "allow_js": false,
+        "resolve_json_module": true,
+        "out_dir": null,
+        "declaration_dir": null
+      },
+      "diagnostics": []
+    },
+    {
+      "source": {
+        "index": 4289,
+        "path": "moduleResolutionWithExtensions_withPaths.ts"
+      },
+      "configuration_count": 1,
+      "config_unit": {
+        "id": 0,
+        "name": "/tsconfig.json"
+      },
+      "candidate_units": [
+        {
+          "id": 1,
+          "name": "/node_modules/foo/lib/test.js"
+        },
+        {
+          "id": 2,
+          "name": "/node_modules/foo/lib/test.d.ts"
+        },
+        {
+          "id": 3,
+          "name": "/relative.js"
+        },
+        {
+          "id": 4,
+          "name": "/relative.d.ts"
+        },
+        {
+          "id": 5,
+          "name": "/test.ts"
+        }
+      ],
+      "parsed_file_names": [
+        "/relative.d.ts",
+        "/test.ts"
+      ],
+      "root_unit_ids": [
+        4,
+        5
+      ],
+      "other_unit_ids": [
+        1,
+        2,
+        3
+      ],
+      "program_root_unit_ids": [
+        4,
+        5
+      ],
+      "raw_config": {
+        "compilerOptions": {
+          "outDir": "lib",
+          "target": "ES6",
+          "module": "ES6",
+          "baseUrl": "/",
+          "moduleResolution": "Node",
+          "noImplicitAny": true,
+          "traceResolution": true,
+          "paths": {
+            "foo/*": [
+              "node_modules/foo/lib/*"
+            ]
+          }
+        }
+      },
+      "extended_sources": [],
+      "discovery_options": {
+        "allow_js": false,
+        "resolve_json_module": false,
+        "out_dir": "/lib",
+        "declaration_dir": null
+      },
+      "diagnostics": []
+    },
+    {
+      "source": {
+        "index": 4293,
+        "path": "moduleResolutionWithSuffixes_empty.ts"
+      },
+      "configuration_count": 1,
+      "config_unit": {
+        "id": 0,
+        "name": "/tsconfig.json"
+      },
+      "candidate_units": [
+        {
+          "id": 1,
+          "name": "/index.ts"
+        },
+        {
+          "id": 2,
+          "name": "/foo.ts"
+        }
+      ],
+      "parsed_file_names": [
+        "/foo.ts",
+        "/index.ts"
+      ],
+      "root_unit_ids": [
+        1,
+        2
+      ],
+      "other_unit_ids": [],
+      "program_root_unit_ids": [
+        1,
+        2
+      ],
+      "raw_config": {
+        "compilerOptions": {
+          "moduleResolution": "node",
+          "traceResolution": true,
+          "moduleSuffixes": []
+        }
+      },
+      "extended_sources": [],
+      "discovery_options": {
+        "allow_js": false,
+        "resolve_json_module": false,
+        "out_dir": null,
+        "declaration_dir": null
+      },
+      "diagnostics": []
+    },
+    {
+      "source": {
+        "index": 4294,
+        "path": "moduleResolutionWithSuffixes_notSpecified.ts"
+      },
+      "configuration_count": 1,
+      "config_unit": {
+        "id": 0,
+        "name": "/tsconfig.json"
+      },
+      "candidate_units": [
+        {
+          "id": 1,
+          "name": "/index.ts"
+        },
+        {
+          "id": 2,
+          "name": "/foo.ts"
+        }
+      ],
+      "parsed_file_names": [
+        "/foo.ts",
+        "/index.ts"
+      ],
+      "root_unit_ids": [
+        1,
+        2
+      ],
+      "other_unit_ids": [],
+      "program_root_unit_ids": [
+        1,
+        2
+      ],
+      "raw_config": {
+        "compilerOptions": {
+          "moduleResolution": "node",
+          "traceResolution": true
+        }
+      },
+      "extended_sources": [],
+      "discovery_options": {
+        "allow_js": false,
+        "resolve_json_module": false,
+        "out_dir": null,
+        "declaration_dir": null
+      },
+      "diagnostics": []
+    },
+    {
+      "source": {
+        "index": 4295,
+        "path": "moduleResolutionWithSuffixes_one.ts"
+      },
+      "configuration_count": 1,
+      "config_unit": {
+        "id": 0,
+        "name": "/tsconfig.json"
+      },
+      "candidate_units": [
+        {
+          "id": 1,
+          "name": "/index.ts"
+        },
+        {
+          "id": 2,
+          "name": "/foo.ios.ts"
+        },
+        {
+          "id": 3,
+          "name": "/foo.ts"
+        }
+      ],
+      "parsed_file_names": [
+        "/foo.ios.ts",
+        "/foo.ts",
+        "/index.ts"
+      ],
+      "root_unit_ids": [
+        1,
+        2,
+        3
+      ],
+      "other_unit_ids": [],
+      "program_root_unit_ids": [
+        1,
+        2,
+        3
+      ],
+      "raw_config": {
+        "compilerOptions": {
+          "moduleResolution": "node",
+          "traceResolution": true,
+          "moduleSuffixes": [
+            ".ios"
+          ]
+        }
+      },
+      "extended_sources": [],
+      "discovery_options": {
+        "allow_js": false,
+        "resolve_json_module": false,
+        "out_dir": null,
+        "declaration_dir": null
+      },
+      "diagnostics": []
+    },
+    {
+      "source": {
+        "index": 4296,
+        "path": "moduleResolutionWithSuffixes_oneBlank.ts"
+      },
+      "configuration_count": 1,
+      "config_unit": {
+        "id": 0,
+        "name": "/tsconfig.json"
+      },
+      "candidate_units": [
+        {
+          "id": 1,
+          "name": "/index.ts"
+        },
+        {
+          "id": 2,
+          "name": "/foo.ts"
+        }
+      ],
+      "parsed_file_names": [
+        "/foo.ts",
+        "/index.ts"
+      ],
+      "root_unit_ids": [
+        1,
+        2
+      ],
+      "other_unit_ids": [],
+      "program_root_unit_ids": [
+        1,
+        2
+      ],
+      "raw_config": {
+        "compilerOptions": {
+          "moduleResolution": "node",
+          "traceResolution": true,
+          "moduleSuffixes": [
+            ""
+          ]
+        }
+      },
+      "extended_sources": [],
+      "discovery_options": {
+        "allow_js": false,
+        "resolve_json_module": false,
+        "out_dir": null,
+        "declaration_dir": null
+      },
+      "diagnostics": []
+    },
+    {
+      "source": {
+        "index": 4297,
+        "path": "moduleResolutionWithSuffixes_oneNotFound.ts"
+      },
+      "configuration_count": 1,
+      "config_unit": {
+        "id": 0,
+        "name": "/tsconfig.json"
+      },
+      "candidate_units": [
+        {
+          "id": 1,
+          "name": "/index.ts"
+        },
+        {
+          "id": 2,
+          "name": "/foo.ts"
+        }
+      ],
+      "parsed_file_names": [
+        "/foo.ts",
+        "/index.ts"
+      ],
+      "root_unit_ids": [
+        1,
+        2
+      ],
+      "other_unit_ids": [],
+      "program_root_unit_ids": [
+        1,
+        2
+      ],
+      "raw_config": {
+        "compilerOptions": {
+          "moduleResolution": "node",
+          "traceResolution": true,
+          "moduleSuffixes": [
+            ".ios"
+          ]
+        }
+      },
+      "extended_sources": [],
+      "discovery_options": {
+        "allow_js": false,
+        "resolve_json_module": false,
+        "out_dir": null,
+        "declaration_dir": null
+      },
+      "diagnostics": []
+    },
+    {
+      "source": {
+        "index": 4298,
+        "path": "moduleResolutionWithSuffixes_one_dirModuleWithIndex.ts"
+      },
+      "configuration_count": 1,
+      "config_unit": {
+        "id": 0,
+        "name": "/tsconfig.json"
+      },
+      "candidate_units": [
+        {
+          "id": 1,
+          "name": "/index.ts"
+        },
+        {
+          "id": 2,
+          "name": "/foo/index.ios.ts"
+        },
+        {
+          "id": 3,
+          "name": "/foo/index.ts"
+        }
+      ],
+      "parsed_file_names": [
+        "/index.ts",
+        "/foo/index.ios.ts",
+        "/foo/index.ts"
+      ],
+      "root_unit_ids": [
+        1,
+        2,
+        3
+      ],
+      "other_unit_ids": [],
+      "program_root_unit_ids": [
+        1,
+        2,
+        3
+      ],
+      "raw_config": {
+        "compilerOptions": {
+          "moduleResolution": "node",
+          "traceResolution": true,
+          "moduleSuffixes": [
+            ".ios"
+          ]
+        }
+      },
+      "extended_sources": [],
+      "discovery_options": {
+        "allow_js": false,
+        "resolve_json_module": false,
+        "out_dir": null,
+        "declaration_dir": null
+      },
+      "diagnostics": []
+    },
+    {
+      "source": {
+        "index": 4299,
+        "path": "moduleResolutionWithSuffixes_one_externalModule.ts"
+      },
+      "configuration_count": 1,
+      "config_unit": {
+        "id": 0,
+        "name": "/tsconfig.json"
+      },
+      "candidate_units": [
+        {
+          "id": 1,
+          "name": "/node_modules/some-library/index.ios.js"
+        },
+        {
+          "id": 2,
+          "name": "/node_modules/some-library/index.ios.d.ts"
+        },
+        {
+          "id": 3,
+          "name": "/node_modules/some-library/index.js"
+        },
+        {
+          "id": 4,
+          "name": "/node_modules/some-library/index.d.ts"
+        },
+        {
+          "id": 5,
+          "name": "/index.ts"
+        }
+      ],
+      "parsed_file_names": [
+        "/index.ts"
+      ],
+      "root_unit_ids": [
+        5
+      ],
+      "other_unit_ids": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "program_root_unit_ids": [
+        5
+      ],
+      "raw_config": {
+        "compilerOptions": {
+          "allowJs": true,
+          "checkJs": false,
+          "outDir": "bin",
+          "moduleResolution": "node",
+          "traceResolution": true,
+          "moduleSuffixes": [
+            ".ios"
+          ]
+        }
+      },
+      "extended_sources": [],
+      "discovery_options": {
+        "allow_js": true,
+        "resolve_json_module": false,
+        "out_dir": "/bin",
+        "declaration_dir": null
+      },
+      "diagnostics": []
+    },
+    {
+      "source": {
+        "index": 4300,
+        "path": "moduleResolutionWithSuffixes_one_externalModulePath.ts"
+      },
+      "configuration_count": 1,
+      "config_unit": {
+        "id": 0,
+        "name": "/tsconfig.json"
+      },
+      "candidate_units": [
+        {
+          "id": 1,
+          "name": "/node_modules/some-library/foo.ios.js"
+        },
+        {
+          "id": 2,
+          "name": "/node_modules/some-library/foo.ios.d.ts"
+        },
+        {
+          "id": 3,
+          "name": "/node_modules/some-library/foo.js"
+        },
+        {
+          "id": 4,
+          "name": "/node_modules/some-library/foo.d.ts"
+        },
+        {
+          "id": 5,
+          "name": "/index.ts"
+        }
+      ],
+      "parsed_file_names": [
+        "/index.ts"
+      ],
+      "root_unit_ids": [
+        5
+      ],
+      "other_unit_ids": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "program_root_unit_ids": [
+        5
+      ],
+      "raw_config": {
+        "compilerOptions": {
+          "allowJs": true,
+          "checkJs": false,
+          "outDir": "bin",
+          "moduleResolution": "node",
+          "traceResolution": true,
+          "moduleSuffixes": [
+            ".ios"
+          ]
+        }
+      },
+      "extended_sources": [],
+      "discovery_options": {
+        "allow_js": true,
+        "resolve_json_module": false,
+        "out_dir": "/bin",
+        "declaration_dir": null
+      },
+      "diagnostics": []
+    },
+    {
+      "source": {
+        "index": 4301,
+        "path": "moduleResolutionWithSuffixes_one_externalModule_withPaths.ts"
+      },
+      "configuration_count": 1,
+      "config_unit": {
+        "id": 0,
+        "name": "/tsconfig.json"
+      },
+      "candidate_units": [
+        {
+          "id": 1,
+          "name": "/node_modules/some-library/lib/index.ios.js"
+        },
+        {
+          "id": 2,
+          "name": "/node_modules/some-library/lib/index.ios.d.ts"
+        },
+        {
+          "id": 3,
+          "name": "/node_modules/some-library/lib/index.js"
+        },
+        {
+          "id": 4,
+          "name": "/node_modules/some-library/lib/index.d.ts"
+        },
+        {
+          "id": 5,
+          "name": "/test.ts"
+        }
+      ],
+      "parsed_file_names": [
+        "/test.ts"
+      ],
+      "root_unit_ids": [
+        5
+      ],
+      "other_unit_ids": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "program_root_unit_ids": [
+        5
+      ],
+      "raw_config": {
+        "compilerOptions": {
+          "allowJs": true,
+          "checkJs": false,
+          "outDir": "bin",
+          "moduleResolution": "node",
+          "traceResolution": true,
+          "moduleSuffixes": [
+            ".ios"
+          ],
+          "baseUrl": "/",
+          "paths": {
+            "some-library": [
+              "node_modules/some-library/lib"
+            ],
+            "some-library/*": [
+              "node_modules/some-library/lib/*"
+            ]
+          }
+        }
+      },
+      "extended_sources": [],
+      "discovery_options": {
+        "allow_js": true,
+        "resolve_json_module": false,
+        "out_dir": "/bin",
+        "declaration_dir": null
+      },
+      "diagnostics": []
+    },
+    {
+      "source": {
+        "index": 4302,
+        "path": "moduleResolutionWithSuffixes_one_externalTSModule.ts"
+      },
+      "configuration_count": 1,
+      "config_unit": {
+        "id": 0,
+        "name": "/tsconfig.json"
+      },
+      "candidate_units": [
+        {
+          "id": 1,
+          "name": "/node_modules/some-library/index.ios.ts"
+        },
+        {
+          "id": 2,
+          "name": "/node_modules/some-library/index.ts"
+        },
+        {
+          "id": 3,
+          "name": "/test.ts"
+        }
+      ],
+      "parsed_file_names": [
+        "/test.ts"
+      ],
+      "root_unit_ids": [
+        3
+      ],
+      "other_unit_ids": [
+        1,
+        2
+      ],
+      "program_root_unit_ids": [
+        3
+      ],
+      "raw_config": {
+        "compilerOptions": {
+          "outDir": "bin",
+          "moduleResolution": "node",
+          "traceResolution": true,
+          "moduleSuffixes": [
+            ".ios"
+          ]
+        }
+      },
+      "extended_sources": [],
+      "discovery_options": {
+        "allow_js": false,
+        "resolve_json_module": false,
+        "out_dir": "/bin",
+        "declaration_dir": null
+      },
+      "diagnostics": []
+    },
+    {
+      "source": {
+        "index": 4303,
+        "path": "moduleResolutionWithSuffixes_one_jsModule.ts"
+      },
+      "configuration_count": 1,
+      "config_unit": {
+        "id": 0,
+        "name": "/tsconfig.json"
+      },
+      "candidate_units": [
+        {
+          "id": 1,
+          "name": "/index.ts"
+        },
+        {
+          "id": 2,
+          "name": "/foo.ios.js"
+        },
+        {
+          "id": 3,
+          "name": "/foo.js"
+        }
+      ],
+      "parsed_file_names": [
+        "/foo.ios.js",
+        "/foo.js",
+        "/index.ts"
+      ],
+      "root_unit_ids": [
+        1,
+        2,
+        3
+      ],
+      "other_unit_ids": [],
+      "program_root_unit_ids": [
+        1,
+        2,
+        3
+      ],
+      "raw_config": {
+        "compilerOptions": {
+          "allowJs": true,
+          "checkJs": false,
+          "outDir": "bin",
+          "moduleResolution": "node",
+          "traceResolution": true,
+          "moduleSuffixes": [
+            ".ios"
+          ]
+        }
+      },
+      "extended_sources": [],
+      "discovery_options": {
+        "allow_js": true,
+        "resolve_json_module": false,
+        "out_dir": "/bin",
+        "declaration_dir": null
+      },
+      "diagnostics": []
+    },
+    {
+      "source": {
+        "index": 4304,
+        "path": "moduleResolutionWithSuffixes_one_jsonModule.ts"
+      },
+      "configuration_count": 1,
+      "config_unit": {
+        "id": 0,
+        "name": "/tsconfig.json"
+      },
+      "candidate_units": [
+        {
+          "id": 1,
+          "name": "/index.ts"
+        },
+        {
+          "id": 2,
+          "name": "/foo.ios.json"
+        },
+        {
+          "id": 3,
+          "name": "/foo.json"
+        }
+      ],
+      "parsed_file_names": [
+        "/index.ts"
+      ],
+      "root_unit_ids": [
+        1
+      ],
+      "other_unit_ids": [
+        2,
+        3
+      ],
+      "program_root_unit_ids": [
+        1
+      ],
+      "raw_config": {
+        "compilerOptions": {
+          "esModuleInterop": true,
+          "resolveJsonModule": true,
+          "outDir": "bin",
+          "moduleResolution": "node",
+          "traceResolution": true,
+          "moduleSuffixes": [
+            ".ios"
+          ]
+        }
+      },
+      "extended_sources": [],
+      "discovery_options": {
+        "allow_js": false,
+        "resolve_json_module": true,
+        "out_dir": "/bin",
+        "declaration_dir": null
+      },
+      "diagnostics": []
+    },
+    {
+      "source": {
+        "index": 4305,
+        "path": "moduleResolutionWithSuffixes_threeLastIsBlank1.ts"
+      },
+      "configuration_count": 1,
+      "config_unit": {
+        "id": 0,
+        "name": "/tsconfig.json"
+      },
+      "candidate_units": [
+        {
+          "id": 1,
+          "name": "/index.ts"
+        },
+        {
+          "id": 2,
+          "name": "/foo-ios.ts"
+        },
+        {
+          "id": 3,
+          "name": "/foo__native.ts"
+        },
+        {
+          "id": 4,
+          "name": "/foo.ts"
+        }
+      ],
+      "parsed_file_names": [
+        "/foo-ios.ts",
+        "/foo.ts",
+        "/foo__native.ts",
+        "/index.ts"
+      ],
+      "root_unit_ids": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "other_unit_ids": [],
+      "program_root_unit_ids": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "raw_config": {
+        "compilerOptions": {
+          "moduleResolution": "node",
+          "traceResolution": true,
+          "moduleSuffixes": [
+            "-ios",
+            "__native",
+            ""
+          ]
+        }
+      },
+      "extended_sources": [],
+      "discovery_options": {
+        "allow_js": false,
+        "resolve_json_module": false,
+        "out_dir": null,
+        "declaration_dir": null
+      },
+      "diagnostics": []
+    },
+    {
+      "source": {
+        "index": 4306,
+        "path": "moduleResolutionWithSuffixes_threeLastIsBlank2.ts"
+      },
+      "configuration_count": 1,
+      "config_unit": {
+        "id": 0,
+        "name": "/tsconfig.json"
+      },
+      "candidate_units": [
+        {
+          "id": 1,
+          "name": "/index.ts"
+        },
+        {
+          "id": 2,
+          "name": "/foo__native.ts"
+        },
+        {
+          "id": 3,
+          "name": "/foo.ts"
+        }
+      ],
+      "parsed_file_names": [
+        "/foo.ts",
+        "/foo__native.ts",
+        "/index.ts"
+      ],
+      "root_unit_ids": [
+        1,
+        2,
+        3
+      ],
+      "other_unit_ids": [],
+      "program_root_unit_ids": [
+        1,
+        2,
+        3
+      ],
+      "raw_config": {
+        "compilerOptions": {
+          "moduleResolution": "node",
+          "traceResolution": true,
+          "moduleSuffixes": [
+            "-ios",
+            "__native",
+            ""
+          ]
+        }
+      },
+      "extended_sources": [],
+      "discovery_options": {
+        "allow_js": false,
+        "resolve_json_module": false,
+        "out_dir": null,
+        "declaration_dir": null
+      },
+      "diagnostics": []
+    },
+    {
+      "source": {
+        "index": 4307,
+        "path": "moduleResolutionWithSuffixes_threeLastIsBlank3.ts"
+      },
+      "configuration_count": 1,
+      "config_unit": {
+        "id": 0,
+        "name": "/tsconfig.json"
+      },
+      "candidate_units": [
+        {
+          "id": 1,
+          "name": "/index.ts"
+        },
+        {
+          "id": 2,
+          "name": "/foo.ts"
+        }
+      ],
+      "parsed_file_names": [
+        "/foo.ts",
+        "/index.ts"
+      ],
+      "root_unit_ids": [
+        1,
+        2
+      ],
+      "other_unit_ids": [],
+      "program_root_unit_ids": [
+        1,
+        2
+      ],
+      "raw_config": {
+        "compilerOptions": {
+          "moduleResolution": "node",
+          "traceResolution": true,
+          "moduleSuffixes": [
+            "-ios",
+            "__native",
+            ""
+          ]
+        }
+      },
+      "extended_sources": [],
+      "discovery_options": {
+        "allow_js": false,
+        "resolve_json_module": false,
+        "out_dir": null,
+        "declaration_dir": null
+      },
+      "diagnostics": []
+    },
+    {
+      "source": {
+        "index": 4308,
+        "path": "moduleResolutionWithSuffixes_threeLastIsBlank4.ts"
+      },
+      "configuration_count": 1,
+      "config_unit": {
+        "id": 0,
+        "name": "/tsconfig.json"
+      },
+      "candidate_units": [
+        {
+          "id": 1,
+          "name": "/index.ts"
+        }
+      ],
+      "parsed_file_names": [
+        "/index.ts"
+      ],
+      "root_unit_ids": [
+        1
+      ],
+      "other_unit_ids": [],
+      "program_root_unit_ids": [
+        1
+      ],
+      "raw_config": {
+        "compilerOptions": {
+          "moduleResolution": "node",
+          "traceResolution": true,
+          "moduleSuffixes": [
+            "-ios",
+            "__native",
+            ""
+          ]
+        }
+      },
+      "extended_sources": [],
+      "discovery_options": {
+        "allow_js": false,
+        "resolve_json_module": false,
+        "out_dir": null,
+        "declaration_dir": null
+      },
+      "diagnostics": []
+    },
+    {
+      "source": {
+        "index": 4310,
+        "path": "moduleResolutionWithSymlinks_notInNodeModules.ts"
+      },
+      "configuration_count": 1,
+      "config_unit": {
+        "id": 2,
+        "name": "/src/tsconfig.json"
+      },
+      "candidate_units": [
+        {
+          "id": 0,
+          "name": "/shared/abc.ts"
+        },
+        {
+          "id": 1,
+          "name": "/src/app.ts"
+        }
+      ],
+      "parsed_file_names": [
+        "/src/app.ts"
+      ],
+      "root_unit_ids": [
+        1
+      ],
+      "other_unit_ids": [
+        0
+      ],
+      "program_root_unit_ids": [
+        1
+      ],
+      "raw_config": {
+        "compilerOptions": {
+          "outDir": "bin"
+        }
+      },
+      "extended_sources": [],
+      "discovery_options": {
+        "allow_js": false,
+        "resolve_json_module": true,
+        "out_dir": "/src/bin",
+        "declaration_dir": null
+      },
+      "diagnostics": []
+    },
+    {
+      "source": {
+        "index": 4312,
+        "path": "moduleResolutionWithSymlinks_referenceTypes.ts"
+      },
+      "configuration_count": 1,
+      "config_unit": {
+        "id": 3,
+        "name": "/tsconfig.json"
+      },
+      "candidate_units": [
+        {
+          "id": 0,
+          "name": "/node_modules/@types/library-a/index.d.ts"
+        },
+        {
+          "id": 1,
+          "name": "/node_modules/@types/library-b/index.d.ts"
+        },
+        {
+          "id": 2,
+          "name": "/app.ts"
+        }
+      ],
+      "parsed_file_names": [
+        "/app.ts"
+      ],
+      "root_unit_ids": [
+        2
+      ],
+      "other_unit_ids": [
+        0,
+        1
+      ],
+      "program_root_unit_ids": [
+        2
+      ],
+      "raw_config": {
+        "compilerOptions": {
+          "typeRoots": []
+        }
+      },
+      "extended_sources": [],
+      "discovery_options": {
+        "allow_js": false,
+        "resolve_json_module": true,
+        "out_dir": null,
+        "declaration_dir": null
+      },
+      "diagnostics": []
+    },
+    {
+      "source": {
+        "index": 4537,
+        "path": "noEmitAndComposite.ts"
+      },
+      "configuration_count": 1,
+      "config_unit": {
+        "id": 1,
+        "name": "/tsconfig.json"
+      },
+      "candidate_units": [
+        {
+          "id": 0,
+          "name": "/a.ts"
+        }
+      ],
+      "parsed_file_names": [
+        "/a.ts"
+      ],
+      "root_unit_ids": [
+        0
+      ],
+      "other_unit_ids": [],
+      "program_root_unit_ids": [
+        0
+      ],
+      "raw_config": {
+        "compilerOptions": {
+          "noEmit": true,
+          "composite": true
+        }
+      },
+      "extended_sources": [],
+      "discovery_options": {
+        "allow_js": false,
+        "resolve_json_module": true,
+        "out_dir": null,
+        "declaration_dir": null
+      },
+      "diagnostics": []
+    },
+    {
+      "source": {
+        "index": 4538,
+        "path": "noEmitAndCompositeListFilesOnly.ts"
+      },
+      "configuration_count": 1,
+      "config_unit": {
+        "id": 1,
+        "name": "/tsconfig.json"
+      },
+      "candidate_units": [
+        {
+          "id": 0,
+          "name": "/a.ts"
+        }
+      ],
+      "parsed_file_names": [
+        "/a.ts"
+      ],
+      "root_unit_ids": [
+        0
+      ],
+      "other_unit_ids": [],
+      "program_root_unit_ids": [
+        0
+      ],
+      "raw_config": {
+        "compilerOptions": {
+          "noEmit": true,
+          "composite": true
+        }
+      },
+      "extended_sources": [],
+      "discovery_options": {
+        "allow_js": false,
+        "resolve_json_module": true,
+        "out_dir": null,
+        "declaration_dir": null
+      },
+      "diagnostics": []
+    },
+    {
+      "source": {
+        "index": 4539,
+        "path": "noEmitAndIncremental.ts"
+      },
+      "configuration_count": 1,
+      "config_unit": {
+        "id": 1,
+        "name": "/tsconfig.json"
+      },
+      "candidate_units": [
+        {
+          "id": 0,
+          "name": "/a.ts"
+        }
+      ],
+      "parsed_file_names": [
+        "/a.ts"
+      ],
+      "root_unit_ids": [
+        0
+      ],
+      "other_unit_ids": [],
+      "program_root_unit_ids": [
+        0
+      ],
+      "raw_config": {
+        "compilerOptions": {
+          "noEmit": true,
+          "incremental": true
+        }
+      },
+      "extended_sources": [],
+      "discovery_options": {
+        "allow_js": false,
+        "resolve_json_module": true,
+        "out_dir": null,
+        "declaration_dir": null
+      },
+      "diagnostics": []
+    },
+    {
+      "source": {
+        "index": 4540,
+        "path": "noEmitAndIncrementalListFilesOnly.ts"
+      },
+      "configuration_count": 1,
+      "config_unit": {
+        "id": 1,
+        "name": "/tsconfig.json"
+      },
+      "candidate_units": [
+        {
+          "id": 0,
+          "name": "/a.ts"
+        }
+      ],
+      "parsed_file_names": [
+        "/a.ts"
+      ],
+      "root_unit_ids": [
+        0
+      ],
+      "other_unit_ids": [],
+      "program_root_unit_ids": [
+        0
+      ],
+      "raw_config": {
+        "compilerOptions": {
+          "noEmit": true,
+          "incremental": true
+        }
+      },
+      "extended_sources": [],
+      "discovery_options": {
+        "allow_js": false,
+        "resolve_json_module": true,
+        "out_dir": null,
+        "declaration_dir": null
+      },
+      "diagnostics": []
+    },
+    {
+      "source": {
+        "index": 4625,
+        "path": "nodeColonModuleResolution2.ts"
+      },
+      "configuration_count": 1,
+      "config_unit": {
+        "id": 0,
+        "name": "/a/b/tsconfig.json"
+      },
+      "candidate_units": [
+        {
+          "id": 1,
+          "name": "/a/b/node_modules/fake/thing/index.d.ts"
+        },
+        {
+          "id": 2,
+          "name": "/a/b/main.ts"
+        }
+      ],
+      "parsed_file_names": [
+        "/a/b/main.ts"
+      ],
+      "root_unit_ids": [
+        2
+      ],
+      "other_unit_ids": [
+        1
+      ],
+      "program_root_unit_ids": [
+        2
+      ],
+      "raw_config": {
+        "compilerOptions": {
+          "paths": {
+            "fake:thing": [
+              "./node_modules/fake/thing"
+            ]
+          }
+        }
+      },
+      "extended_sources": [],
+      "discovery_options": {
+        "allow_js": false,
+        "resolve_json_module": true,
+        "out_dir": null,
+        "declaration_dir": null
+      },
+      "diagnostics": []
+    },
+    {
+      "source": {
+        "index": 4637,
+        "path": "nodeNextPackageSelfNameWithOutDirDeclDirComposite.ts"
+      },
+      "configuration_count": 1,
+      "config_unit": {
+        "id": 0,
+        "name": "tsconfig.json"
+      },
+      "candidate_units": [
+        {
+          "id": 1,
+          "name": "package.json"
+        },
+        {
+          "id": 2,
+          "name": "index.ts"
+        }
+      ],
+      "parsed_file_names": [
+        "/.src/index.ts"
+      ],
+      "root_unit_ids": [
+        2
+      ],
+      "other_unit_ids": [
+        1
+      ],
+      "program_root_unit_ids": [
+        2
+      ],
+      "raw_config": {
+        "compilerOptions": {
+          "module": "nodenext",
+          "outDir": "./dist",
+          "declarationDir": "./types",
+          "composite": true
+        }
+      },
+      "extended_sources": [],
+      "discovery_options": {
+        "allow_js": false,
+        "resolve_json_module": true,
+        "out_dir": "/.src/dist",
+        "declaration_dir": "/.src/types"
+      },
+      "diagnostics": []
+    },
+    {
+      "source": {
+        "index": 4638,
+        "path": "nodeNextPackageSelfNameWithOutDirDeclDirCompositeNestedDirs.ts"
+      },
+      "configuration_count": 1,
+      "config_unit": {
+        "id": 0,
+        "name": "tsconfig.json"
+      },
+      "candidate_units": [
+        {
+          "id": 1,
+          "name": "package.json"
+        },
+        {
+          "id": 2,
+          "name": "index.ts"
+        },
+        {
+          "id": 3,
+          "name": "src/thing.ts"
+        }
+      ],
+      "parsed_file_names": [
+        "/.src/index.ts",
+        "/.src/src/thing.ts"
+      ],
+      "root_unit_ids": [
+        2,
+        3
+      ],
+      "other_unit_ids": [
+        1
+      ],
+      "program_root_unit_ids": [
+        2,
+        3
+      ],
+      "raw_config": {
+        "compilerOptions": {
+          "module": "nodenext",
+          "outDir": "./dist",
+          "declarationDir": "./types",
+          "composite": true
+        }
+      },
+      "extended_sources": [],
+      "discovery_options": {
+        "allow_js": false,
+        "resolve_json_module": true,
+        "out_dir": "/.src/dist",
+        "declaration_dir": "/.src/types"
+      },
+      "diagnostics": []
+    },
+    {
+      "source": {
+        "index": 4639,
+        "path": "nodeNextPackageSelfNameWithOutDirDeclDirNestedDirs.ts"
+      },
+      "configuration_count": 1,
+      "config_unit": {
+        "id": 0,
+        "name": "tsconfig.json"
+      },
+      "candidate_units": [
+        {
+          "id": 1,
+          "name": "package.json"
+        },
+        {
+          "id": 2,
+          "name": "index.ts"
+        },
+        {
+          "id": 3,
+          "name": "src/thing.ts"
+        }
+      ],
+      "parsed_file_names": [
+        "/.src/index.ts",
+        "/.src/src/thing.ts"
+      ],
+      "root_unit_ids": [
+        2,
+        3
+      ],
+      "other_unit_ids": [
+        1
+      ],
+      "program_root_unit_ids": [
+        2,
+        3
+      ],
+      "raw_config": {
+        "compilerOptions": {
+          "module": "nodenext",
+          "outDir": "./dist",
+          "declarationDir": "./types",
+          "declaration": true
+        }
+      },
+      "extended_sources": [],
+      "discovery_options": {
+        "allow_js": false,
+        "resolve_json_module": true,
+        "out_dir": "/.src/dist",
+        "declaration_dir": "/.src/types"
+      },
+      "diagnostics": []
+    },
+    {
+      "source": {
+        "index": 4805,
+        "path": "outFileIsDeprecated.ts"
+      },
+      "configuration_count": 1,
+      "config_unit": {
+        "id": 0,
+        "name": "/foo/tsconfig.json"
+      },
+      "candidate_units": [
+        {
+          "id": 1,
+          "name": "/foo/a.ts"
+        },
+        {
+          "id": 2,
+          "name": "/foo/b.ts"
+        }
+      ],
+      "parsed_file_names": [
+        "/foo/a.ts",
+        "/foo/b.ts"
+      ],
+      "root_unit_ids": [
+        1,
+        2
+      ],
+      "other_unit_ids": [],
+      "program_root_unit_ids": [
+        1,
+        2
+      ],
+      "raw_config": {
+        "compilerOptions": {
+          "moduleDetection": "auto",
+          "outFile": "dist.js",
+          "ignoreDeprecations": "6.0"
+        }
+      },
+      "extended_sources": [],
+      "discovery_options": {
+        "allow_js": false,
+        "resolve_json_module": true,
+        "out_dir": null,
+        "declaration_dir": null
+      },
+      "diagnostics": []
+    },
+    {
+      "source": {
+        "index": 4949,
+        "path": "pathMappingBasedModuleResolution1_amd.ts"
+      },
+      "configuration_count": 1,
+      "config_unit": {
+        "id": 0,
+        "name": "c:/root/tsconfig.json"
+      },
+      "candidate_units": [
+        {
+          "id": 1,
+          "name": "c:/root/f1.ts"
+        }
+      ],
+      "parsed_file_names": [
+        "c:/root/f1.ts"
+      ],
+      "root_unit_ids": [
+        1
+      ],
+      "other_unit_ids": [],
+      "program_root_unit_ids": [
+        1
+      ],
+      "raw_config": {
+        "compilerOptions": {
+          "paths": {
+            "*": [
+              "*",
+              "generated/*"
+            ]
+          }
+        }
+      },
+      "extended_sources": [],
+      "discovery_options": {
+        "allow_js": false,
+        "resolve_json_module": true,
+        "out_dir": null,
+        "declaration_dir": null
+      },
+      "diagnostics": []
+    },
+    {
+      "source": {
+        "index": 4950,
+        "path": "pathMappingBasedModuleResolution1_node.ts"
+      },
+      "configuration_count": 1,
+      "config_unit": {
+        "id": 0,
+        "name": "c:/root/tsconfig.json"
+      },
+      "candidate_units": [
+        {
+          "id": 1,
+          "name": "c:/root/f1.ts"
+        }
+      ],
+      "parsed_file_names": [
+        "c:/root/f1.ts"
+      ],
+      "root_unit_ids": [
+        1
+      ],
+      "other_unit_ids": [],
+      "program_root_unit_ids": [
+        1
+      ],
+      "raw_config": {
+        "compilerOptions": {
+          "paths": {
+            "*": [
+              "*",
+              "generated/*"
+            ]
+          }
+        }
+      },
+      "extended_sources": [],
+      "discovery_options": {
+        "allow_js": false,
+        "resolve_json_module": true,
+        "out_dir": null,
+        "declaration_dir": null
+      },
+      "diagnostics": []
+    },
+    {
+      "source": {
+        "index": 4951,
+        "path": "pathMappingBasedModuleResolution2_classic.ts"
+      },
+      "configuration_count": 1,
+      "config_unit": {
+        "id": 0,
+        "name": "root/tsconfig.json"
+      },
+      "candidate_units": [
+        {
+          "id": 1,
+          "name": "root/src/folder1/file1.ts"
+        }
+      ],
+      "parsed_file_names": [
+        "/.src/root/src/folder1/file1.ts"
+      ],
+      "root_unit_ids": [
+        1
+      ],
+      "other_unit_ids": [],
+      "program_root_unit_ids": [
+        1
+      ],
+      "raw_config": {
+        "compilerOptions": {
+          "baseUrl": "./src",
+          "paths": {
+            "*1*": [
+              "*2*"
+            ]
+          }
+        }
+      },
+      "extended_sources": [],
+      "discovery_options": {
+        "allow_js": false,
+        "resolve_json_module": true,
+        "out_dir": null,
+        "declaration_dir": null
+      },
+      "diagnostics": []
+    },
+    {
+      "source": {
+        "index": 4952,
+        "path": "pathMappingBasedModuleResolution2_node.ts"
+      },
+      "configuration_count": 1,
+      "config_unit": {
+        "id": 0,
+        "name": "root/tsconfig.json"
+      },
+      "candidate_units": [
+        {
+          "id": 1,
+          "name": "root/src/folder1/file1.ts"
+        }
+      ],
+      "parsed_file_names": [
+        "/.src/root/src/folder1/file1.ts"
+      ],
+      "root_unit_ids": [
+        1
+      ],
+      "other_unit_ids": [],
+      "program_root_unit_ids": [
+        1
+      ],
+      "raw_config": {
+        "compilerOptions": {
+          "baseUrl": "./src",
+          "paths": {
+            "*1*": [
+              "*2*"
+            ]
+          }
+        }
+      },
+      "extended_sources": [],
+      "discovery_options": {
+        "allow_js": false,
+        "resolve_json_module": true,
+        "out_dir": null,
+        "declaration_dir": null
+      },
+      "diagnostics": []
+    },
+    {
+      "source": {
+        "index": 4955,
+        "path": "pathMappingBasedModuleResolution4_classic.ts"
+      },
+      "configuration_count": 1,
+      "config_unit": {
+        "id": 0,
+        "name": "c:/root/tsconfig.json"
+      },
+      "candidate_units": [
+        {
+          "id": 1,
+          "name": "c:/root/folder1/file1.ts"
+        },
+        {
+          "id": 2,
+          "name": "c:/root/folder2/file2.ts"
+        },
+        {
+          "id": 3,
+          "name": "c:/root/folder2/file3.ts"
+        },
+        {
+          "id": 4,
+          "name": "c:/file4.ts"
+        }
+      ],
+      "parsed_file_names": [
+        "c:/root/folder1/file1.ts",
+        "c:/root/folder2/file2.ts",
+        "c:/root/folder2/file3.ts"
+      ],
+      "root_unit_ids": [
+        1,
+        2,
+        3
+      ],
+      "other_unit_ids": [
+        4
+      ],
+      "program_root_unit_ids": [
+        1,
+        2,
+        3
+      ],
+      "raw_config": {
+        "compilerOptions": {
+          "baseUrl": "."
+        }
+      },
+      "extended_sources": [],
+      "discovery_options": {
+        "allow_js": false,
+        "resolve_json_module": true,
+        "out_dir": null,
+        "declaration_dir": null
+      },
+      "diagnostics": []
+    },
+    {
+      "source": {
+        "index": 4956,
+        "path": "pathMappingBasedModuleResolution4_node.ts"
+      },
+      "configuration_count": 1,
+      "config_unit": {
+        "id": 0,
+        "name": "c:/root/tsconfig.json"
+      },
+      "candidate_units": [
+        {
+          "id": 1,
+          "name": "c:/root/folder1/file1.ts"
+        },
+        {
+          "id": 2,
+          "name": "c:/root/folder2/file2.ts"
+        },
+        {
+          "id": 3,
+          "name": "c:/root/folder2/file3.ts"
+        },
+        {
+          "id": 4,
+          "name": "c:/node_modules/file4/index.d.ts"
+        }
+      ],
+      "parsed_file_names": [
+        "c:/root/folder1/file1.ts",
+        "c:/root/folder2/file2.ts",
+        "c:/root/folder2/file3.ts"
+      ],
+      "root_unit_ids": [
+        1,
+        2,
+        3
+      ],
+      "other_unit_ids": [
+        4
+      ],
+      "program_root_unit_ids": [
+        1,
+        2,
+        3
+      ],
+      "raw_config": {
+        "compilerOptions": {
+          "baseUrl": "."
+        }
+      },
+      "extended_sources": [],
+      "discovery_options": {
+        "allow_js": false,
+        "resolve_json_module": true,
+        "out_dir": null,
+        "declaration_dir": null
+      },
+      "diagnostics": []
+    },
+    {
+      "source": {
+        "index": 4957,
+        "path": "pathMappingBasedModuleResolution5_classic.ts"
+      },
+      "configuration_count": 1,
+      "config_unit": {
+        "id": 0,
+        "name": "c:/root/tsconfig.json"
+      },
+      "candidate_units": [
+        {
+          "id": 1,
+          "name": "c:/root/folder1/file1.ts"
+        },
+        {
+          "id": 2,
+          "name": "c:/root/folder2/file1.ts"
+        },
+        {
+          "id": 3,
+          "name": "c:/root/generated/folder3/file2.ts"
+        },
+        {
+          "id": 4,
+          "name": "c:/root/shared/components/file3.ts"
+        },
+        {
+          "id": 5,
+          "name": "c:/file4.ts"
+        }
+      ],
+      "parsed_file_names": [
+        "c:/root/folder1/file1.ts",
+        "c:/root/folder2/file1.ts",
+        "c:/root/generated/folder3/file2.ts",
+        "c:/root/shared/components/file3.ts"
+      ],
+      "root_unit_ids": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "other_unit_ids": [
+        5
+      ],
+      "program_root_unit_ids": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "raw_config": {
+        "compilerOptions": {
+          "baseUrl": ".",
+          "paths": {
+            "*": [
+              "*",
+              "generated/*"
+            ],
+            "components/*": [
+              "shared/components/*"
+            ]
+          }
+        }
+      },
+      "extended_sources": [],
+      "discovery_options": {
+        "allow_js": false,
+        "resolve_json_module": true,
+        "out_dir": null,
+        "declaration_dir": null
+      },
+      "diagnostics": []
+    },
+    {
+      "source": {
+        "index": 4958,
+        "path": "pathMappingBasedModuleResolution5_node.ts"
+      },
+      "configuration_count": 1,
+      "config_unit": {
+        "id": 0,
+        "name": "c:/root/tsconfig.json"
+      },
+      "candidate_units": [
+        {
+          "id": 1,
+          "name": "c:/root/folder1/file1.ts"
+        },
+        {
+          "id": 2,
+          "name": "c:/root/folder2/file1.ts"
+        },
+        {
+          "id": 3,
+          "name": "c:/root/generated/folder3/file2.ts"
+        },
+        {
+          "id": 4,
+          "name": "c:/root/shared/components/file3/index.d.ts"
+        },
+        {
+          "id": 5,
+          "name": "c:/node_modules/file4.ts"
+        }
+      ],
+      "parsed_file_names": [
+        "c:/root/folder1/file1.ts",
+        "c:/root/folder2/file1.ts",
+        "c:/root/generated/folder3/file2.ts",
+        "c:/root/shared/components/file3/index.d.ts"
+      ],
+      "root_unit_ids": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "other_unit_ids": [
+        5
+      ],
+      "program_root_unit_ids": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "raw_config": {
+        "compilerOptions": {
+          "baseUrl": ".",
+          "paths": {
+            "*": [
+              "*",
+              "generated/*"
+            ],
+            "components/*": [
+              "shared/components/*"
+            ]
+          }
+        }
+      },
+      "extended_sources": [],
+      "discovery_options": {
+        "allow_js": false,
+        "resolve_json_module": true,
+        "out_dir": null,
+        "declaration_dir": null
+      },
+      "diagnostics": []
+    },
+    {
+      "source": {
+        "index": 4959,
+        "path": "pathMappingBasedModuleResolution6_classic.ts"
+      },
+      "configuration_count": 1,
+      "config_unit": {
+        "id": 0,
+        "name": "c:/root/src/tsconfig.json"
+      },
+      "candidate_units": [
+        {
+          "id": 1,
+          "name": "c:/root/src/file1.ts"
+        },
+        {
+          "id": 2,
+          "name": "c:/root/src/file2.d.ts"
+        },
+        {
+          "id": 3,
+          "name": "c:/root/generated/src/project/file3.ts"
+        }
+      ],
+      "parsed_file_names": [
+        "c:/root/src/file1.ts",
+        "c:/root/src/file2.d.ts"
+      ],
+      "root_unit_ids": [
+        1,
+        2
+      ],
+      "other_unit_ids": [
+        3
+      ],
+      "program_root_unit_ids": [
+        1,
+        2
+      ],
+      "raw_config": {
+        "compilerOptions": {
+          "rootDirs": [
+            ".",
+            "../generated/src"
+          ]
+        }
+      },
+      "extended_sources": [],
+      "discovery_options": {
+        "allow_js": false,
+        "resolve_json_module": true,
+        "out_dir": null,
+        "declaration_dir": null
+      },
+      "diagnostics": []
+    },
+    {
+      "source": {
+        "index": 4960,
+        "path": "pathMappingBasedModuleResolution6_node.ts"
+      },
+      "configuration_count": 1,
+      "config_unit": {
+        "id": 0,
+        "name": "c:/root/src/tsconfig.json"
+      },
+      "candidate_units": [
+        {
+          "id": 1,
+          "name": "c:/root/src/file1.ts"
+        },
+        {
+          "id": 2,
+          "name": "c:/root/src/file2/index.d.ts"
+        },
+        {
+          "id": 3,
+          "name": "c:/root/generated/src/project/file3.ts"
+        }
+      ],
+      "parsed_file_names": [
+        "c:/root/src/file1.ts",
+        "c:/root/src/file2/index.d.ts"
+      ],
+      "root_unit_ids": [
+        1,
+        2
+      ],
+      "other_unit_ids": [
+        3
+      ],
+      "program_root_unit_ids": [
+        1,
+        2
+      ],
+      "raw_config": {
+        "compilerOptions": {
+          "rootDirs": [
+            ".",
+            "../generated/src"
+          ]
+        }
+      },
+      "extended_sources": [],
+      "discovery_options": {
+        "allow_js": false,
+        "resolve_json_module": true,
+        "out_dir": null,
+        "declaration_dir": null
+      },
+      "diagnostics": []
+    },
+    {
+      "source": {
+        "index": 4961,
+        "path": "pathMappingBasedModuleResolution7_classic.ts"
+      },
+      "configuration_count": 1,
+      "config_unit": {
+        "id": 0,
+        "name": "c:/root/src/tsconfig.json"
+      },
+      "candidate_units": [
+        {
+          "id": 1,
+          "name": "c:/root/src/file1.ts"
+        },
+        {
+          "id": 2,
+          "name": "c:/root/generated/src/project/file2.ts"
+        },
+        {
+          "id": 3,
+          "name": "c:/shared/module1.d.ts"
+        },
+        {
+          "id": 4,
+          "name": "c:/root/generated/src/templates/module2.ts"
+        },
+        {
+          "id": 5,
+          "name": "c:/root/src/file3.d.ts"
+        },
+        {
+          "id": 6,
+          "name": "c:/module3.d.ts"
+        }
+      ],
+      "parsed_file_names": [
+        "c:/root/src/file1.ts",
+        "c:/root/src/file3.d.ts"
+      ],
+      "root_unit_ids": [
+        1,
+        5
+      ],
+      "other_unit_ids": [
+        2,
+        3,
+        4,
+        6
+      ],
+      "program_root_unit_ids": [
+        1,
+        5
+      ],
+      "raw_config": {
+        "compilerOptions": {
+          "baseUrl": "../",
+          "paths": {
+            "*": [
+              "*",
+              "c:/shared/*"
+            ],
+            "templates/*": [
+              "generated/src/templates/*"
+            ]
+          },
+          "rootDirs": [
+            ".",
+            "../generated/src"
+          ]
+        }
+      },
+      "extended_sources": [],
+      "discovery_options": {
+        "allow_js": false,
+        "resolve_json_module": true,
+        "out_dir": null,
+        "declaration_dir": null
+      },
+      "diagnostics": []
+    },
+    {
+      "source": {
+        "index": 4962,
+        "path": "pathMappingBasedModuleResolution7_node.ts"
+      },
+      "configuration_count": 1,
+      "config_unit": {
+        "id": 0,
+        "name": "c:/root/src/tsconfig.json"
+      },
+      "candidate_units": [
+        {
+          "id": 1,
+          "name": "c:/root/src/file1.ts"
+        },
+        {
+          "id": 2,
+          "name": "c:/root/generated/src/project/file2.ts"
+        },
+        {
+          "id": 3,
+          "name": "c:/shared/module1/index.d.ts"
+        },
+        {
+          "id": 4,
+          "name": "c:/root/generated/src/templates/module2.ts"
+        },
+        {
+          "id": 5,
+          "name": "c:/root/src/file3/index.d.ts"
+        },
+        {
+          "id": 6,
+          "name": "c:/node_modules/module3.d.ts"
+        }
+      ],
+      "parsed_file_names": [
+        "c:/root/src/file1.ts",
+        "c:/root/src/file3/index.d.ts"
+      ],
+      "root_unit_ids": [
+        1,
+        5
+      ],
+      "other_unit_ids": [
+        2,
+        3,
+        4,
+        6
+      ],
+      "program_root_unit_ids": [
+        1,
+        5
+      ],
+      "raw_config": {
+        "compilerOptions": {
+          "baseUrl": "../",
+          "paths": {
+            "*": [
+              "*",
+              "c:/shared/*"
+            ],
+            "templates/*": [
+              "generated/src/templates/*"
+            ]
+          },
+          "rootDirs": [
+            ".",
+            "../generated/src"
+          ]
+        }
+      },
+      "extended_sources": [],
+      "discovery_options": {
+        "allow_js": false,
+        "resolve_json_module": true,
+        "out_dir": null,
+        "declaration_dir": null
+      },
+      "diagnostics": []
+    },
+    {
+      "source": {
+        "index": 4963,
+        "path": "pathMappingBasedModuleResolution8_classic.ts"
+      },
+      "configuration_count": 1,
+      "config_unit": {
+        "id": 0,
+        "name": "c:/root/tsconfig.json"
+      },
+      "candidate_units": [
+        {
+          "id": 1,
+          "name": "c:/root/index.ts"
+        },
+        {
+          "id": 2,
+          "name": "c:/root/folder1/dist/index.ts"
+        }
+      ],
+      "parsed_file_names": [
+        "c:/root/index.ts",
+        "c:/root/folder1/dist/index.ts"
+      ],
+      "root_unit_ids": [
+        1,
+        2
+      ],
+      "other_unit_ids": [],
+      "program_root_unit_ids": [
+        1,
+        2
+      ],
+      "raw_config": {
+        "compilerOptions": {
+          "baseUrl": ".",
+          "paths": {
+            "@speedy/*/testing": [
+              "*/dist/index.ts"
+            ]
+          }
+        }
+      },
+      "extended_sources": [],
+      "discovery_options": {
+        "allow_js": false,
+        "resolve_json_module": true,
+        "out_dir": null,
+        "declaration_dir": null
+      },
+      "diagnostics": []
+    },
+    {
+      "source": {
+        "index": 4964,
+        "path": "pathMappingBasedModuleResolution8_node.ts"
+      },
+      "configuration_count": 1,
+      "config_unit": {
+        "id": 0,
+        "name": "c:/root/tsconfig.json"
+      },
+      "candidate_units": [
+        {
+          "id": 1,
+          "name": "c:/root/index.ts"
+        },
+        {
+          "id": 2,
+          "name": "c:/root/folder1/dist/index.ts"
+        }
+      ],
+      "parsed_file_names": [
+        "c:/root/index.ts",
+        "c:/root/folder1/dist/index.ts"
+      ],
+      "root_unit_ids": [
+        1,
+        2
+      ],
+      "other_unit_ids": [],
+      "program_root_unit_ids": [
+        1,
+        2
+      ],
+      "raw_config": {
+        "compilerOptions": {
+          "baseUrl": ".",
+          "paths": {
+            "@speedy/*/testing": [
+              "*/dist/index.ts"
+            ]
+          }
+        }
+      },
+      "extended_sources": [],
+      "discovery_options": {
+        "allow_js": false,
+        "resolve_json_module": true,
+        "out_dir": null,
+        "declaration_dir": null
+      },
+      "diagnostics": []
+    },
+    {
+      "source": {
+        "index": 4965,
+        "path": "pathMappingBasedModuleResolution_rootImport_aliasWithRoot.ts"
+      },
+      "configuration_count": 1,
+      "config_unit": {
+        "id": 3,
+        "name": "/root/tsconfig.json"
+      },
+      "candidate_units": [
+        {
+          "id": 0,
+          "name": "/root/src/foo.ts"
+        },
+        {
+          "id": 1,
+          "name": "/root/src/bar.js"
+        },
+        {
+          "id": 2,
+          "name": "/root/a.ts"
+        }
+      ],
+      "parsed_file_names": [
+        "/root/a.ts",
+        "/root/src/bar.js",
+        "/root/src/foo.ts"
+      ],
+      "root_unit_ids": [
+        0,
+        1,
+        2
+      ],
+      "other_unit_ids": [],
+      "program_root_unit_ids": [
+        0,
+        1,
+        2
+      ],
+      "raw_config": {
+        "compilerOptions": {
+          "baseUrl": ".",
+          "paths": {
+            "/*": [
+              "./src/*"
+            ]
+          },
+          "allowJs": true,
+          "outDir": "bin"
+        }
+      },
+      "extended_sources": [],
+      "discovery_options": {
+        "allow_js": true,
+        "resolve_json_module": true,
+        "out_dir": "/root/bin",
+        "declaration_dir": null
+      },
+      "diagnostics": []
+    },
+    {
+      "source": {
+        "index": 4966,
+        "path": "pathMappingBasedModuleResolution_rootImport_aliasWithRoot_differentRootTypes.ts"
+      },
+      "configuration_count": 1,
+      "config_unit": {
+        "id": 3,
+        "name": "/root/tsconfig.json"
+      },
+      "candidate_units": [
+        {
+          "id": 0,
+          "name": "/root/src/foo.ts"
+        },
+        {
+          "id": 1,
+          "name": "/root/src/bar.js"
+        },
+        {
+          "id": 2,
+          "name": "/root/a.ts"
+        }
+      ],
+      "parsed_file_names": [
+        "/root/a.ts",
+        "/root/src/bar.js",
+        "/root/src/foo.ts"
+      ],
+      "root_unit_ids": [
+        0,
+        1,
+        2
+      ],
+      "other_unit_ids": [],
+      "program_root_unit_ids": [
+        0,
+        1,
+        2
+      ],
+      "raw_config": {
+        "compilerOptions": {
+          "baseUrl": ".",
+          "paths": {
+            "/*": [
+              "./src/*"
+            ],
+            "c:/*": [
+              "./src/*"
+            ],
+            "c:\\*": [
+              "./src/*"
+            ],
+            "//server/*": [
+              "./src/*"
+            ],
+            "\\\\server\\*": [
+              "./src/*"
+            ],
+            "file:///*": [
+              "./src/*"
+            ],
+            "file://c:/*": [
+              "./src/*"
+            ],
+            "file://server/*": [
+              "./src/*"
+            ],
+            "http://server/*": [
+              "./src/*"
+            ]
+          },
+          "allowJs": true,
+          "outDir": "bin"
+        }
+      },
+      "extended_sources": [],
+      "discovery_options": {
+        "allow_js": true,
+        "resolve_json_module": true,
+        "out_dir": "/root/bin",
+        "declaration_dir": null
+      },
+      "diagnostics": []
+    },
+    {
+      "source": {
+        "index": 4967,
+        "path": "pathMappingBasedModuleResolution_rootImport_aliasWithRoot_multipleAliases.ts"
+      },
+      "configuration_count": 1,
+      "config_unit": {
+        "id": 3,
+        "name": "/root/tsconfig.json"
+      },
+      "candidate_units": [
+        {
+          "id": 0,
+          "name": "/root/import/foo.ts"
+        },
+        {
+          "id": 1,
+          "name": "/root/client/bar.js"
+        },
+        {
+          "id": 2,
+          "name": "/root/src/a.ts"
+        }
+      ],
+      "parsed_file_names": [
+        "/root/client/bar.js",
+        "/root/import/foo.ts",
+        "/root/src/a.ts"
+      ],
+      "root_unit_ids": [
+        0,
+        1,
+        2
+      ],
+      "other_unit_ids": [],
+      "program_root_unit_ids": [
+        0,
+        1,
+        2
+      ],
+      "raw_config": {
+        "compilerOptions": {
+          "baseUrl": ".",
+          "paths": {
+            "/client/*": [
+              "./client/*"
+            ],
+            "/import/*": [
+              "./import/*"
+            ]
+          },
+          "allowJs": true,
+          "outDir": "bin"
+        }
+      },
+      "extended_sources": [],
+      "discovery_options": {
+        "allow_js": true,
+        "resolve_json_module": true,
+        "out_dir": "/root/bin",
+        "declaration_dir": null
+      },
+      "diagnostics": []
+    },
+    {
+      "source": {
+        "index": 4968,
+        "path": "pathMappingBasedModuleResolution_rootImport_aliasWithRoot_realRootFile.ts"
+      },
+      "configuration_count": 1,
+      "config_unit": {
+        "id": 3,
+        "name": "/root/tsconfig.json"
+      },
+      "candidate_units": [
+        {
+          "id": 0,
+          "name": "/foo.ts"
+        },
+        {
+          "id": 1,
+          "name": "/bar.js"
+        },
+        {
+          "id": 2,
+          "name": "/root/a.ts"
+        }
+      ],
+      "parsed_file_names": [
+        "/root/a.ts"
+      ],
+      "root_unit_ids": [
+        2
+      ],
+      "other_unit_ids": [
+        0,
+        1
+      ],
+      "program_root_unit_ids": [
+        2
+      ],
+      "raw_config": {
+        "compilerOptions": {
+          "baseUrl": ".",
+          "paths": {
+            "/*": [
+              "./src/*"
+            ]
+          },
+          "allowJs": true,
+          "outDir": "bin"
+        }
+      },
+      "extended_sources": [],
+      "discovery_options": {
+        "allow_js": true,
+        "resolve_json_module": true,
+        "out_dir": "/root/bin",
+        "declaration_dir": null
+      },
+      "diagnostics": []
+    },
+    {
+      "source": {
+        "index": 4969,
+        "path": "pathMappingBasedModuleResolution_rootImport_noAliasWithRoot.ts"
+      },
+      "configuration_count": 1,
+      "config_unit": {
+        "id": 3,
+        "name": "/root/tsconfig.json"
+      },
+      "candidate_units": [
+        {
+          "id": 0,
+          "name": "/root/src/foo.ts"
+        },
+        {
+          "id": 1,
+          "name": "/root/src/bar.js"
+        },
+        {
+          "id": 2,
+          "name": "/root/a.ts"
+        }
+      ],
+      "parsed_file_names": [
+        "/root/a.ts",
+        "/root/src/bar.js",
+        "/root/src/foo.ts"
+      ],
+      "root_unit_ids": [
+        0,
+        1,
+        2
+      ],
+      "other_unit_ids": [],
+      "program_root_unit_ids": [
+        0,
+        1,
+        2
+      ],
+      "raw_config": {
+        "compilerOptions": {
+          "baseUrl": ".",
+          "paths": {
+            "*": [
+              "./src/*"
+            ]
+          },
+          "allowJs": true,
+          "outDir": "bin"
+        }
+      },
+      "extended_sources": [],
+      "discovery_options": {
+        "allow_js": true,
+        "resolve_json_module": true,
+        "out_dir": "/root/bin",
+        "declaration_dir": null
+      },
+      "diagnostics": []
+    },
+    {
+      "source": {
+        "index": 4970,
+        "path": "pathMappingBasedModuleResolution_rootImport_noAliasWithRoot_realRootFile.ts"
+      },
+      "configuration_count": 1,
+      "config_unit": {
+        "id": 3,
+        "name": "/root/tsconfig.json"
+      },
+      "candidate_units": [
+        {
+          "id": 0,
+          "name": "/foo.ts"
+        },
+        {
+          "id": 1,
+          "name": "/bar.js"
+        },
+        {
+          "id": 2,
+          "name": "/root/a.ts"
+        }
+      ],
+      "parsed_file_names": [
+        "/root/a.ts"
+      ],
+      "root_unit_ids": [
+        2
+      ],
+      "other_unit_ids": [
+        0,
+        1
+      ],
+      "program_root_unit_ids": [
+        2
+      ],
+      "raw_config": {
+        "compilerOptions": {
+          "baseUrl": ".",
+          "paths": {
+            "*": [
+              "./src/*"
+            ]
+          },
+          "allowJs": true,
+          "outDir": "bin"
+        }
+      },
+      "extended_sources": [],
+      "discovery_options": {
+        "allow_js": true,
+        "resolve_json_module": true,
+        "out_dir": "/root/bin",
+        "declaration_dir": null
+      },
+      "diagnostics": []
+    },
+    {
+      "source": {
+        "index": 4971,
+        "path": "pathMappingBasedModuleResolution_withExtension.ts"
+      },
+      "configuration_count": 1,
+      "config_unit": {
+        "id": 3,
+        "name": "/tsconfig.json"
+      },
+      "candidate_units": [
+        {
+          "id": 0,
+          "name": "/foo/foo.ts"
+        },
+        {
+          "id": 1,
+          "name": "/bar/bar.js"
+        },
+        {
+          "id": 2,
+          "name": "/a.ts"
+        }
+      ],
+      "parsed_file_names": [
+        "/a.ts",
+        "/bar/bar.js",
+        "/foo/foo.ts"
+      ],
+      "root_unit_ids": [
+        0,
+        1,
+        2
+      ],
+      "other_unit_ids": [],
+      "program_root_unit_ids": [
+        0,
+        1,
+        2
+      ],
+      "raw_config": {
+        "compilerOptions": {
+          "baseUrl": ".",
+          "paths": {
+            "foo": [
+              "foo/foo.ts"
+            ],
+            "bar": [
+              "bar/bar.js"
+            ]
+          },
+          "allowJs": true,
+          "outDir": "bin"
+        }
+      },
+      "extended_sources": [],
+      "discovery_options": {
+        "allow_js": true,
+        "resolve_json_module": true,
+        "out_dir": "/bin",
+        "declaration_dir": null
+      },
+      "diagnostics": []
+    },
+    {
+      "source": {
+        "index": 4972,
+        "path": "pathMappingBasedModuleResolution_withExtensionInName.ts"
+      },
+      "configuration_count": 1,
+      "config_unit": {
+        "id": 0,
+        "name": "/tsconfig.json"
+      },
+      "candidate_units": [
+        {
+          "id": 1,
+          "name": "/foo/zone.js/index.d.ts"
+        },
+        {
+          "id": 2,
+          "name": "/foo/zone.tsx/index.d.ts"
+        },
+        {
+          "id": 3,
+          "name": "/a.ts"
+        }
+      ],
+      "parsed_file_names": [
+        "/a.ts",
+        "/foo/zone.js/index.d.ts",
+        "/foo/zone.tsx/index.d.ts"
+      ],
+      "root_unit_ids": [
+        1,
+        2,
+        3
+      ],
+      "other_unit_ids": [],
+      "program_root_unit_ids": [
+        1,
+        2,
+        3
+      ],
+      "raw_config": {
+        "compilerOptions": {
+          "baseUrl": ".",
+          "paths": {
+            "*": [
+              "foo/*"
+            ]
+          }
+        }
+      },
+      "extended_sources": [],
+      "discovery_options": {
+        "allow_js": false,
+        "resolve_json_module": true,
+        "out_dir": null,
+        "declaration_dir": null
+      },
+      "diagnostics": []
+    },
+    {
+      "source": {
+        "index": 4973,
+        "path": "pathMappingBasedModuleResolution_withExtension_MapedToNodeModules.ts"
+      },
+      "configuration_count": 1,
+      "config_unit": {
+        "id": 2,
+        "name": "/tsconfig.json"
+      },
+      "candidate_units": [
+        {
+          "id": 0,
+          "name": "/node_modules/foo/bar/foobar.js"
+        },
+        {
+          "id": 1,
+          "name": "/a.ts"
+        }
+      ],
+      "parsed_file_names": [
+        "/a.ts"
+      ],
+      "root_unit_ids": [
+        1
+      ],
+      "other_unit_ids": [
+        0
+      ],
+      "program_root_unit_ids": [
+        1
+      ],
+      "raw_config": {
+        "compilerOptions": {
+          "baseUrl": ".",
+          "paths": {
+            "*": [
+              "node_modules/*",
+              "src/types"
+            ]
+          },
+          "allowJs": true,
+          "outDir": "bin"
+        }
+      },
+      "extended_sources": [],
+      "discovery_options": {
+        "allow_js": true,
+        "resolve_json_module": true,
+        "out_dir": "/bin",
+        "declaration_dir": null
+      },
+      "diagnostics": []
+    },
+    {
+      "source": {
+        "index": 4974,
+        "path": "pathMappingBasedModuleResolution_withExtension_failedLookup.ts"
+      },
+      "configuration_count": 1,
+      "config_unit": {
+        "id": 1,
+        "name": "/tsconfig.json"
+      },
+      "candidate_units": [
+        {
+          "id": 0,
+          "name": "/a.ts"
+        }
+      ],
+      "parsed_file_names": [
+        "/a.ts"
+      ],
+      "root_unit_ids": [
+        0
+      ],
+      "other_unit_ids": [],
+      "program_root_unit_ids": [
+        0
+      ],
+      "raw_config": {
+        "compilerOptions": {
+          "baseUrl": ".",
+          "paths": {
+            "foo": [
+              "foo/foo.ts"
+            ]
+          }
+        }
+      },
+      "extended_sources": [],
+      "discovery_options": {
+        "allow_js": false,
+        "resolve_json_module": true,
+        "out_dir": null,
+        "declaration_dir": null
+      },
+      "diagnostics": []
+    },
+    {
+      "source": {
+        "index": 4975,
+        "path": "pathMappingInheritedBaseUrl.ts"
+      },
+      "configuration_count": 1,
+      "config_unit": {
+        "id": 1,
+        "name": "/project/tsconfig.json"
+      },
+      "candidate_units": [
+        {
+          "id": 0,
+          "name": "/other/tsconfig.base.json"
+        },
+        {
+          "id": 2,
+          "name": "/other/lib/p1/index.ts"
+        },
+        {
+          "id": 3,
+          "name": "/project/index.ts"
+        }
+      ],
+      "parsed_file_names": [
+        "/project/index.ts"
+      ],
+      "root_unit_ids": [
+        3
+      ],
+      "other_unit_ids": [
+        0,
+        2
+      ],
+      "program_root_unit_ids": [
+        3
+      ],
+      "raw_config": {
+        "extends": "../other/tsconfig.base.json",
+        "compilerOptions": {
+          "module": "commonjs",
+          "paths": {
+            "p1": [
+              "./lib/p1"
+            ]
+          }
+        }
+      },
+      "extended_sources": [
+        {
+          "file_name": "/other/tsconfig.base.json",
+          "unit_id": 0,
+          "content": {
+            "state": "present",
+            "utf8_bytes": 50,
+            "sha256": "7eb28227fa55d265da58d76972d83f5cbe8eee98e7154d1400a320977b629e5c"
+          }
+        }
+      ],
+      "discovery_options": {
+        "allow_js": false,
+        "resolve_json_module": true,
+        "out_dir": null,
+        "declaration_dir": null
+      },
+      "diagnostics": []
+    },
+    {
+      "source": {
+        "index": 4976,
+        "path": "pathMappingWithoutBaseUrl1.ts"
+      },
+      "configuration_count": 1,
+      "config_unit": {
+        "id": 0,
+        "name": "/project/tsconfig.json"
+      },
+      "candidate_units": [
+        {
+          "id": 1,
+          "name": "/project/lib/p1/index.ts"
+        },
+        {
+          "id": 2,
+          "name": "/project/index.ts"
+        }
+      ],
+      "parsed_file_names": [
+        "/project/index.ts",
+        "/project/lib/p1/index.ts"
+      ],
+      "root_unit_ids": [
+        1,
+        2
+      ],
+      "other_unit_ids": [],
+      "program_root_unit_ids": [
+        1,
+        2
+      ],
+      "raw_config": {
+        "compilerOptions": {
+          "module": "commonjs",
+          "paths": {
+            "p1": [
+              "./lib/p1"
+            ]
+          }
+        }
+      },
+      "extended_sources": [],
+      "discovery_options": {
+        "allow_js": false,
+        "resolve_json_module": true,
+        "out_dir": null,
+        "declaration_dir": null
+      },
+      "diagnostics": []
+    },
+    {
+      "source": {
+        "index": 4977,
+        "path": "pathMappingWithoutBaseUrl2.ts"
+      },
+      "configuration_count": 1,
+      "config_unit": {
+        "id": 1,
+        "name": "/project/tsconfig.json"
+      },
+      "candidate_units": [
+        {
+          "id": 0,
+          "name": "/other/tsconfig.base.json"
+        },
+        {
+          "id": 2,
+          "name": "/other/lib/p1/index.ts"
+        },
+        {
+          "id": 3,
+          "name": "/project/index.ts"
+        }
+      ],
+      "parsed_file_names": [
+        "/project/index.ts"
+      ],
+      "root_unit_ids": [
+        3
+      ],
+      "other_unit_ids": [
+        0,
+        2
+      ],
+      "program_root_unit_ids": [
+        3
+      ],
+      "raw_config": {
+        "extends": "../other/tsconfig.base.json",
+        "compilerOptions": {
+          "module": "commonjs"
+        }
+      },
+      "extended_sources": [
+        {
+          "file_name": "/other/tsconfig.base.json",
+          "unit_id": 0,
+          "content": {
+            "state": "present",
+            "utf8_bytes": 77,
+            "sha256": "5867ec0a23dfbd9e480042b6090b0e4e81ec2cddf3608b452b7a69f5d7213dbb"
+          }
+        }
+      ],
+      "discovery_options": {
+        "allow_js": false,
+        "resolve_json_module": true,
+        "out_dir": null,
+        "declaration_dir": null
+      },
+      "diagnostics": []
+    },
+    {
+      "source": {
+        "index": 4978,
+        "path": "pathsValidation1.ts"
+      },
+      "configuration_count": 1,
+      "config_unit": {
+        "id": 0,
+        "name": "tsconfig.json"
+      },
+      "candidate_units": [
+        {
+          "id": 1,
+          "name": "a.ts"
+        }
+      ],
+      "parsed_file_names": [
+        "/.src/a.ts"
+      ],
+      "root_unit_ids": [
+        1
+      ],
+      "other_unit_ids": [],
+      "program_root_unit_ids": [
+        1
+      ],
+      "raw_config": {
+        "compilerOptions": {
+          "baseUrl": ".",
+          "paths": {
+            "*": "*"
+          }
+        }
+      },
+      "extended_sources": [],
+      "discovery_options": {
+        "allow_js": false,
+        "resolve_json_module": true,
+        "out_dir": null,
+        "declaration_dir": null
+      },
+      "diagnostics": []
+    },
+    {
+      "source": {
+        "index": 4979,
+        "path": "pathsValidation2.ts"
+      },
+      "configuration_count": 1,
+      "config_unit": {
+        "id": 0,
+        "name": "tsconfig.json"
+      },
+      "candidate_units": [
+        {
+          "id": 1,
+          "name": "a.ts"
+        }
+      ],
+      "parsed_file_names": [
+        "/.src/a.ts"
+      ],
+      "root_unit_ids": [
+        1
+      ],
+      "other_unit_ids": [],
+      "program_root_unit_ids": [
+        1
+      ],
+      "raw_config": {
+        "compilerOptions": {
+          "baseUrl": ".",
+          "paths": {
+            "*": [
+              1
+            ]
+          }
+        }
+      },
+      "extended_sources": [],
+      "discovery_options": {
+        "allow_js": false,
+        "resolve_json_module": true,
+        "out_dir": null,
+        "declaration_dir": null
+      },
+      "diagnostics": []
+    },
+    {
+      "source": {
+        "index": 4980,
+        "path": "pathsValidation3.ts"
+      },
+      "configuration_count": 1,
+      "config_unit": {
+        "id": 0,
+        "name": "tsconfig.json"
+      },
+      "candidate_units": [
+        {
+          "id": 1,
+          "name": "a.ts"
+        }
+      ],
+      "parsed_file_names": [
+        "/.src/a.ts"
+      ],
+      "root_unit_ids": [
+        1
+      ],
+      "other_unit_ids": [],
+      "program_root_unit_ids": [
+        1
+      ],
+      "raw_config": {
+        "compilerOptions": {
+          "baseUrl": ".",
+          "paths": {
+            "foo": []
+          }
+        }
+      },
+      "extended_sources": [],
+      "discovery_options": {
+        "allow_js": false,
+        "resolve_json_module": true,
+        "out_dir": null,
+        "declaration_dir": null
+      },
+      "diagnostics": []
+    },
+    {
+      "source": {
+        "index": 4981,
+        "path": "pathsValidation4.ts"
+      },
+      "configuration_count": 1,
+      "config_unit": {
+        "id": 0,
+        "name": "tsconfig.json"
+      },
+      "candidate_units": [
+        {
+          "id": 1,
+          "name": "src/main.ts"
+        }
+      ],
+      "parsed_file_names": [
+        "/.src/src/main.ts"
+      ],
+      "root_unit_ids": [
+        1
+      ],
+      "other_unit_ids": [],
+      "program_root_unit_ids": [
+        1
+      ],
+      "raw_config": {
+        "compilerOptions": {
+          "traceResolution": true,
+          "baseUrl": "./src",
+          "paths": {
+            "@interface/**/*": [
+              "./src/interface/*"
+            ],
+            "@service/**/*": [
+              "./src/service/**/*"
+            ],
+            "@controller/*": [
+              "controller/*"
+            ]
+          }
+        }
+      },
+      "extended_sources": [],
+      "discovery_options": {
+        "allow_js": false,
+        "resolve_json_module": true,
+        "out_dir": null,
+        "declaration_dir": null
+      },
+      "diagnostics": []
+    },
+    {
+      "source": {
+        "index": 4982,
+        "path": "pathsValidation5.ts"
+      },
+      "configuration_count": 1,
+      "config_unit": {
+        "id": 0,
+        "name": "tsconfig.json"
+      },
+      "candidate_units": [
+        {
+          "id": 1,
+          "name": "src/main.ts"
+        }
+      ],
+      "parsed_file_names": [
+        "/.src/src/main.ts"
+      ],
+      "root_unit_ids": [
+        1
+      ],
+      "other_unit_ids": [],
+      "program_root_unit_ids": [
+        1
+      ],
+      "raw_config": {
+        "compilerOptions": {
+          "traceResolution": true,
+          "paths": {
+            "@interface/*": [
+              "src/interface/*"
+            ],
+            "@blah": [
+              "blah"
+            ],
+            "@humbug/*": [
+              "*/generated"
+            ]
+          }
+        }
+      },
+      "extended_sources": [],
+      "discovery_options": {
+        "allow_js": false,
+        "resolve_json_module": true,
+        "out_dir": null,
+        "declaration_dir": null
+      },
+      "diagnostics": []
+    },
+    {
+      "source": {
+        "index": 5344,
+        "path": "requireOfJsonFileWithoutResolveJsonModuleAndPathMapping.ts"
+      },
+      "configuration_count": 1,
+      "config_unit": {
+        "id": 2,
+        "name": "/tsconfig.json"
+      },
+      "candidate_units": [
+        {
+          "id": 0,
+          "name": "/node_modules/foo/bar/foobar.json"
+        },
+        {
+          "id": 1,
+          "name": "/a.ts"
+        }
+      ],
+      "parsed_file_names": [
+        "/a.ts"
+      ],
+      "root_unit_ids": [
+        1
+      ],
+      "other_unit_ids": [
+        0
+      ],
+      "program_root_unit_ids": [
+        1
+      ],
+      "raw_config": {
+        "compilerOptions": {
+          "baseUrl": ".",
+          "paths": {
+            "*": [
+              "node_modules/*",
+              "src/types"
+            ]
+          },
+          "allowJs": true,
+          "outDir": "bin"
+        }
+      },
+      "extended_sources": [],
+      "discovery_options": {
+        "allow_js": true,
+        "resolve_json_module": true,
+        "out_dir": "/bin",
+        "declaration_dir": null
+      },
+      "diagnostics": []
+    },
+    {
+      "source": {
+        "index": 5345,
+        "path": "requireOfJsonFile_PathMapping.ts"
+      },
+      "configuration_count": 1,
+      "config_unit": {
+        "id": 2,
+        "name": "/tsconfig.json"
+      },
+      "candidate_units": [
+        {
+          "id": 0,
+          "name": "/node_modules/foo/bar/foobar.json"
+        },
+        {
+          "id": 1,
+          "name": "/a.ts"
+        }
+      ],
+      "parsed_file_names": [
+        "/a.ts"
+      ],
+      "root_unit_ids": [
+        1
+      ],
+      "other_unit_ids": [
+        0
+      ],
+      "program_root_unit_ids": [
+        1
+      ],
+      "raw_config": {
+        "compilerOptions": {
+          "baseUrl": ".",
+          "paths": {
+            "*": [
+              "node_modules/*",
+              "src/types"
+            ]
+          },
+          "allowJs": true,
+          "outDir": "bin"
+        }
+      },
+      "extended_sources": [],
+      "discovery_options": {
+        "allow_js": true,
+        "resolve_json_module": true,
+        "out_dir": "/bin",
+        "declaration_dir": null
+      },
+      "diagnostics": []
+    },
+    {
+      "source": {
+        "index": 5357,
+        "path": "resolutionCandidateFromPackageJsonField1.ts"
+      },
+      "configuration_count": 1,
+      "config_unit": {
+        "id": 0,
+        "name": "tsconfig.json"
+      },
+      "candidate_units": [
+        {
+          "id": 1,
+          "name": "@angular/core/package.json"
+        },
+        {
+          "id": 2,
+          "name": "@angular/core/index.ts"
+        },
+        {
+          "id": 3,
+          "name": "@angular/core/testing/test.ts"
+        }
+      ],
+      "parsed_file_names": [
+        "/.src/@angular/core/index.ts",
+        "/.src/@angular/core/testing/test.ts"
+      ],
+      "root_unit_ids": [
+        2,
+        3
+      ],
+      "other_unit_ids": [
+        1
+      ],
+      "program_root_unit_ids": [
+        2,
+        3
+      ],
+      "raw_config": {
+        "compilerOptions": {
+          "paths": {
+            "@angular/*": [
+              "./@angular/*"
+            ]
+          }
+        }
+      },
+      "extended_sources": [],
+      "discovery_options": {
+        "allow_js": false,
+        "resolve_json_module": true,
+        "out_dir": null,
+        "declaration_dir": null
+      },
+      "diagnostics": []
+    },
+    {
+      "source": {
+        "index": 5358,
+        "path": "resolutionCandidateFromPackageJsonField2.ts"
+      },
+      "configuration_count": 1,
+      "config_unit": {
+        "id": 0,
+        "name": "tsconfig.json"
+      },
+      "candidate_units": [
+        {
+          "id": 1,
+          "name": "dist/bar.ts"
+        },
+        {
+          "id": 2,
+          "name": "types/main.d.ts"
+        },
+        {
+          "id": 3,
+          "name": "test.ts"
+        }
+      ],
+      "parsed_file_names": [
+        "/.src/test.ts",
+        "/.src/dist/bar.ts",
+        "/.src/types/main.d.ts"
+      ],
+      "root_unit_ids": [
+        1,
+        2,
+        3
+      ],
+      "other_unit_ids": [],
+      "program_root_unit_ids": [
+        1,
+        2,
+        3
+      ],
+      "raw_config": {
+        "compilerOptions": {
+          "paths": {
+            "foo/*": [
+              "./dist/*"
+            ],
+            "baz/*.ts": [
+              "./types/*.d.ts"
+            ]
+          }
+        }
+      },
+      "extended_sources": [],
+      "discovery_options": {
+        "allow_js": false,
+        "resolve_json_module": true,
+        "out_dir": null,
+        "declaration_dir": null
+      },
+      "diagnostics": []
+    },
+    {
+      "source": {
+        "index": 5433,
+        "path": "selfNameAndImportsEmitInclusion.ts"
+      },
+      "configuration_count": 1,
+      "config_unit": {
+        "id": 0,
+        "name": "/tsconfig.json"
+      },
+      "candidate_units": [
+        {
+          "id": 1,
+          "name": "/package.json"
+        },
+        {
+          "id": 2,
+          "name": "/src/indirect1.ts"
+        },
+        {
+          "id": 3,
+          "name": "/src/indirect2.ts"
+        },
+        {
+          "id": 4,
+          "name": "/src/main.ts"
+        }
+      ],
+      "parsed_file_names": [
+        "/src/main.ts"
+      ],
+      "root_unit_ids": [
+        4
+      ],
+      "other_unit_ids": [
+        1,
+        2,
+        3
+      ],
+      "program_root_unit_ids": [
+        4
+      ],
+      "raw_config": {
+        "compilerOptions": {
+          "module": "nodenext",
+          "outDir": "dist",
+          "rootDir": "src"
+        },
+        "files": [
+          "src/main.ts"
+        ]
+      },
+      "extended_sources": [],
+      "discovery_options": {
+        "allow_js": false,
+        "resolve_json_module": true,
+        "out_dir": "/dist",
+        "declaration_dir": null
+      },
+      "diagnostics": []
+    },
+    {
+      "source": {
+        "index": 5469,
+        "path": "sideEffectImports2.ts"
+      },
+      "configuration_count": 4,
+      "config_unit": {
+        "id": 0,
+        "name": "tsconfig.json"
+      },
+      "candidate_units": [
+        {
+          "id": 1,
+          "name": "index.ts"
+        },
+        {
+          "id": 2,
+          "name": "node_modules/source-map-support/register.js"
+        }
+      ],
+      "parsed_file_names": [
+        "/.src/index.ts"
+      ],
+      "root_unit_ids": [
+        1
+      ],
+      "other_unit_ids": [
+        2
+      ],
+      "program_root_unit_ids": [
+        1
+      ],
+      "raw_config": {
+        "include": [
+          "index.ts"
+        ]
+      },
+      "extended_sources": [],
+      "discovery_options": {
+        "allow_js": false,
+        "resolve_json_module": true,
+        "out_dir": null,
+        "declaration_dir": null
+      },
+      "diagnostics": []
+    },
+    {
+      "source": {
+        "index": 5796,
+        "path": "symbolLinkDeclarationEmitModuleNamesRootDir.ts"
+      },
+      "configuration_count": 1,
+      "config_unit": {
+        "id": 3,
+        "name": "/monorepo/core/tsconfig.json"
+      },
+      "candidate_units": [
+        {
+          "id": 0,
+          "name": "/monorepo/context/src/value-promise.d.ts"
+        },
+        {
+          "id": 1,
+          "name": "/monorepo/context/src/bindingkey.d.ts"
+        },
+        {
+          "id": 2,
+          "name": "/monorepo/context/index.d.ts"
+        },
+        {
+          "id": 4,
+          "name": "/monorepo/core/src/application.ts"
+        },
+        {
+          "id": 5,
+          "name": "/monorepo/core/src/usage.ts"
+        }
+      ],
+      "parsed_file_names": [
+        "/monorepo/core/src/application.ts",
+        "/monorepo/core/src/usage.ts"
+      ],
+      "root_unit_ids": [
+        4,
+        5
+      ],
+      "other_unit_ids": [
+        0,
+        1,
+        2
+      ],
+      "program_root_unit_ids": [
+        4,
+        5
+      ],
+      "raw_config": {
+        "compilerOptions": {
+          "rootDir": ".",
+          "declaration": true,
+          "outDir": "./dist"
+        }
+      },
+      "extended_sources": [],
+      "discovery_options": {
+        "allow_js": false,
+        "resolve_json_module": true,
+        "out_dir": "/monorepo/core/dist",
+        "declaration_dir": null
+      },
+      "diagnostics": []
+    },
+    {
+      "source": {
+        "index": 5971,
+        "path": "tsconfigExtendsPackageJsonExportsWildcard.ts"
+      },
+      "configuration_count": 1,
+      "config_unit": {
+        "id": 2,
+        "name": "/tsconfig.json"
+      },
+      "candidate_units": [
+        {
+          "id": 0,
+          "name": "/node_modules/foo/package.json"
+        },
+        {
+          "id": 1,
+          "name": "/node_modules/foo/configs/strict.json"
+        },
+        {
+          "id": 3,
+          "name": "/index.ts"
+        }
+      ],
+      "parsed_file_names": [
+        "/index.ts"
+      ],
+      "root_unit_ids": [
+        3
+      ],
+      "other_unit_ids": [
+        0,
+        1
+      ],
+      "program_root_unit_ids": [
+        3
+      ],
+      "raw_config": {
+        "extends": "foo/strict.json"
+      },
+      "extended_sources": [
+        {
+          "file_name": "/node_modules/foo/configs/strict.json",
+          "unit_id": 1,
+          "content": {
+            "state": "present",
+            "utf8_bytes": 58,
+            "sha256": "52a7f0848d8367fc05696e7bb0061c93beb0c78a9fcc44a2fcb7a6f4c2916a8a"
+          }
+        }
+      ],
+      "discovery_options": {
+        "allow_js": false,
+        "resolve_json_module": true,
+        "out_dir": null,
+        "declaration_dir": null
+      },
+      "diagnostics": []
+    },
+    {
+      "source": {
+        "index": 5972,
+        "path": "tsconfigMapOptionsAreCaseInsensitive.ts"
+      },
+      "configuration_count": 1,
+      "config_unit": {
+        "id": 0,
+        "name": "tsconfig.json"
+      },
+      "candidate_units": [
+        {
+          "id": 1,
+          "name": "other.ts"
+        },
+        {
+          "id": 2,
+          "name": "index.ts"
+        }
+      ],
+      "parsed_file_names": [
+        "/.src/index.ts",
+        "/.src/other.ts"
+      ],
+      "root_unit_ids": [
+        1,
+        2
+      ],
+      "other_unit_ids": [],
+      "program_root_unit_ids": [
+        1,
+        2
+      ],
+      "raw_config": {
+        "compilerOptions": {
+          "module": "AmD"
+        }
+      },
+      "extended_sources": [],
+      "discovery_options": {
+        "allow_js": false,
+        "resolve_json_module": false,
+        "out_dir": null,
+        "declaration_dir": null
+      },
+      "diagnostics": []
+    },
+    {
+      "source": {
+        "index": 5974,
+        "path": "tslibMissingHelper.ts"
+      },
+      "configuration_count": 1,
+      "config_unit": {
+        "id": 0,
+        "name": "/tsconfig.json"
+      },
+      "candidate_units": [
+        {
+          "id": 1,
+          "name": "/package1/index.ts"
+        },
+        {
+          "id": 2,
+          "name": "/package2/index.ts"
+        },
+        {
+          "id": 3,
+          "name": "/node_modules/tslib/package.json"
+        },
+        {
+          "id": 4,
+          "name": "/node_modules/tslib/tslib.d.ts"
+        },
+        {
+          "id": 5,
+          "name": "/node_modules/tslib/tslib.js"
+        }
+      ],
+      "parsed_file_names": [
+        "/package1/index.ts",
+        "/package2/index.ts"
+      ],
+      "root_unit_ids": [
+        1,
+        2
+      ],
+      "other_unit_ids": [
+        3,
+        4,
+        5
+      ],
+      "program_root_unit_ids": [
+        1,
+        2
+      ],
+      "raw_config": {
+        "compilerOptions": {
+          "strict": true,
+          "target": "ES2016",
+          "importHelpers": true,
+          "module": "commonjs"
+        }
+      },
+      "extended_sources": [],
+      "discovery_options": {
+        "allow_js": false,
+        "resolve_json_module": true,
+        "out_dir": null,
+        "declaration_dir": null
+      },
+      "diagnostics": []
+    },
+    {
+      "source": {
+        "index": 5975,
+        "path": "tslibMultipleMissingHelper.ts"
+      },
+      "configuration_count": 1,
+      "config_unit": {
+        "id": 0,
+        "name": "/tsconfig.json"
+      },
+      "candidate_units": [
+        {
+          "id": 1,
+          "name": "/package1/index.ts"
+        },
+        {
+          "id": 2,
+          "name": "/package1/other.ts"
+        },
+        {
+          "id": 3,
+          "name": "/package1/node_modules/tslib/package.json"
+        },
+        {
+          "id": 4,
+          "name": "/package1/node_modules/tslib/tslib.d.ts"
+        },
+        {
+          "id": 5,
+          "name": "/package1/node_modules/tslib/tslib.js"
+        },
+        {
+          "id": 6,
+          "name": "/package2/index.ts"
+        },
+        {
+          "id": 7,
+          "name": "/package2/node_modules/tslib/package.json"
+        },
+        {
+          "id": 8,
+          "name": "/package2/node_modules/tslib/tslib.d.ts"
+        },
+        {
+          "id": 9,
+          "name": "/package2/node_modules/tslib/tslib.js"
+        }
+      ],
+      "parsed_file_names": [
+        "/package1/index.ts",
+        "/package1/other.ts",
+        "/package2/index.ts"
+      ],
+      "root_unit_ids": [
+        1,
+        2,
+        6
+      ],
+      "other_unit_ids": [
+        3,
+        4,
+        5,
+        7,
+        8,
+        9
+      ],
+      "program_root_unit_ids": [
+        1,
+        2,
+        6
+      ],
+      "raw_config": {
+        "compilerOptions": {
+          "strict": true,
+          "target": "ES2016",
+          "importHelpers": true,
+          "module": "commonjs"
+        }
+      },
+      "extended_sources": [],
+      "discovery_options": {
+        "allow_js": false,
+        "resolve_json_module": true,
+        "out_dir": null,
+        "declaration_dir": null
+      },
+      "diagnostics": []
+    },
+    {
+      "source": {
+        "index": 5976,
+        "path": "tslibNotFoundDifferentModules.ts"
+      },
+      "configuration_count": 1,
+      "config_unit": {
+        "id": 0,
+        "name": "/tsconfig.json"
+      },
+      "candidate_units": [
+        {
+          "id": 1,
+          "name": "/package1/index.ts"
+        },
+        {
+          "id": 2,
+          "name": "/package1/node_modules/tslib/package.json"
+        },
+        {
+          "id": 3,
+          "name": "/package1/node_modules/tslib/tslib.d.ts"
+        },
+        {
+          "id": 4,
+          "name": "/package1/node_modules/tslib/tslib.js"
+        },
+        {
+          "id": 5,
+          "name": "/package2/index.ts"
+        }
+      ],
+      "parsed_file_names": [
+        "/package1/index.ts",
+        "/package2/index.ts"
+      ],
+      "root_unit_ids": [
+        1,
+        5
+      ],
+      "other_unit_ids": [
+        2,
+        3,
+        4
+      ],
+      "program_root_unit_ids": [
+        1,
+        5
+      ],
+      "raw_config": {
+        "compilerOptions": {
+          "strict": true,
+          "target": "ES2016",
+          "importHelpers": true,
+          "module": "commonjs"
+        }
+      },
+      "extended_sources": [],
+      "discovery_options": {
+        "allow_js": false,
+        "resolve_json_module": true,
+        "out_dir": null,
+        "declaration_dir": null
+      },
+      "diagnostics": []
+    },
+    {
+      "source": {
+        "index": 6160,
+        "path": "typeRootsFromMultipleNodeModulesDirectories.ts"
+      },
+      "configuration_count": 1,
+      "config_unit": {
+        "id": 4,
+        "name": "/foo/bar/tsconfig.json"
+      },
+      "candidate_units": [
+        {
+          "id": 0,
+          "name": "/node_modules/@types/dopey/index.d.ts"
+        },
+        {
+          "id": 1,
+          "name": "/foo/node_modules/@types/grumpy/index.d.ts"
+        },
+        {
+          "id": 2,
+          "name": "/foo/node_modules/@types/sneezy/index.d.ts"
+        },
+        {
+          "id": 3,
+          "name": "/foo/bar/a.ts"
+        }
+      ],
+      "parsed_file_names": [
+        "/foo/bar/a.ts"
+      ],
+      "root_unit_ids": [
+        3
+      ],
+      "other_unit_ids": [
+        0,
+        1,
+        2
+      ],
+      "program_root_unit_ids": [
+        3
+      ],
+      "raw_config": {},
+      "extended_sources": [],
+      "discovery_options": {
+        "allow_js": false,
+        "resolve_json_module": true,
+        "out_dir": null,
+        "declaration_dir": null
+      },
+      "diagnostics": []
+    },
+    {
+      "source": {
+        "index": 6161,
+        "path": "typeRootsFromNodeModulesInParentDirectory.ts"
+      },
+      "configuration_count": 1,
+      "config_unit": {
+        "id": 2,
+        "name": "/src/tsconfig.json"
+      },
+      "candidate_units": [
+        {
+          "id": 0,
+          "name": "/node_modules/@types/foo/index.d.ts"
+        },
+        {
+          "id": 1,
+          "name": "/src/a.ts"
+        }
+      ],
+      "parsed_file_names": [
+        "/src/a.ts"
+      ],
+      "root_unit_ids": [
+        1
+      ],
+      "other_unit_ids": [
+        0
+      ],
+      "program_root_unit_ids": [
+        1
+      ],
+      "raw_config": {},
+      "extended_sources": [],
+      "discovery_options": {
+        "allow_js": false,
+        "resolve_json_module": true,
+        "out_dir": null,
+        "declaration_dir": null
+      },
+      "diagnostics": []
+    }
+  ]
+}

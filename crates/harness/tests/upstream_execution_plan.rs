@@ -1,7 +1,9 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
+use std::fs;
 use std::path::PathBuf;
 use std::sync::{Arc, OnceLock};
 
+use sha2::{Digest, Sha256};
 use tsc_harness::upstream_suites::execution::{
     load_recorded_execution_plans, CompilerExecutionPlan, CompilerExplicitRootReason,
     CompilerRootSelection, CompilerSymlinkPhase, CompilerUnitId, ProjectExecutionPlan,
@@ -35,6 +37,52 @@ fn compiler(plan: &UpstreamExecutionPlan) -> &CompilerExecutionPlan {
         UpstreamExecutionInput::Compiler(plan) => plan,
         UpstreamExecutionInput::Project(_) => panic!("expected a compiler plan"),
     }
+}
+
+fn json_u32s(value: &serde_json::Value, field: &str) -> Vec<CompilerUnitId> {
+    value[field]
+        .as_array()
+        .unwrap_or_else(|| panic!("oracle field {field} is not an array"))
+        .iter()
+        .map(|value| {
+            CompilerUnitId(
+                u32::try_from(
+                    value
+                        .as_u64()
+                        .unwrap_or_else(|| panic!("oracle field {field} contains a non-u64")),
+                )
+                .expect("oracle unit id fits u32"),
+            )
+        })
+        .collect()
+}
+
+fn json_values_equivalent(left: &serde_json::Value, right: &serde_json::Value) -> bool {
+    match (left, right) {
+        (serde_json::Value::Number(left), serde_json::Value::Number(right)) => {
+            left.as_f64() == right.as_f64()
+        }
+        (serde_json::Value::Array(left), serde_json::Value::Array(right)) => {
+            left.len() == right.len()
+                && left
+                    .iter()
+                    .zip(right)
+                    .all(|(left, right)| json_values_equivalent(left, right))
+        }
+        (serde_json::Value::Object(left), serde_json::Value::Object(right)) => {
+            left.len() == right.len()
+                && left.iter().all(|(key, left)| {
+                    right
+                        .get(key)
+                        .is_some_and(|right| json_values_equivalent(left, right))
+                })
+        }
+        _ => left == right,
+    }
+}
+
+fn sha256(bytes: &[u8]) -> String {
+    format!("{:x}", Sha256::digest(bytes))
 }
 
 fn project(plan: &UpstreamExecutionPlan) -> &ProjectExecutionPlan {
@@ -102,13 +150,15 @@ fn plans_cover_the_recorded_order_and_decode_each_blob_only_once() {
 }
 
 #[test]
-fn compiler_root_policies_preserve_occurrences_and_fail_closed_for_configs() {
+fn compiler_root_policies_preserve_occurrences_and_resolve_all_configs() {
     let mut all_units = 0_usize;
     let mut last_unit = 0_usize;
     let mut config_driven = 0_usize;
     let mut all_roots = 0_usize;
     let mut last_others = 0_usize;
     let mut config_candidates = 0_usize;
+    let mut config_roots = 0_usize;
+    let mut config_others = 0_usize;
 
     for plan in corpus().plans.iter() {
         let UpstreamExecutionInput::Compiler(plan) = &plan.input else {
@@ -141,18 +191,25 @@ fn compiler_root_policies_preserve_occurrences_and_fail_closed_for_configs() {
                 assert_eq!(vfs_write_order.len(), root_units.len() + other_units.len());
                 assert_eq!(program_root_units.len(), root_units.len());
             }
-            CompilerRootSelection::ConfigDriven {
+            CompilerRootSelection::Config {
                 config_host_units,
-                candidate_units,
+                root_units,
+                other_units,
+                vfs_write_order,
+                program_root_units,
                 ..
             } => {
                 config_driven += 1;
-                config_candidates += candidate_units.len();
+                config_candidates += root_units.len() + other_units.len();
+                config_roots += root_units.len();
+                config_others += other_units.len();
                 assert_eq!(
                     config_host_units.len(),
-                    candidate_units.len() + 1,
+                    root_units.len() + other_units.len() + 1,
                     "the config parse host must retain the config occurrence"
                 );
+                assert_eq!(vfs_write_order.len(), root_units.len() + other_units.len());
+                assert!(program_root_units.len() <= root_units.len());
             }
         }
     }
@@ -160,6 +217,8 @@ fn compiler_root_policies_preserve_occurrences_and_fail_closed_for_configs() {
     assert_eq!(all_roots, 8_576);
     assert_eq!(last_others, 506);
     assert_eq!(config_candidates, 306);
+    assert_eq!(config_roots, 170);
+    assert_eq!(config_others, 136);
 
     let duplicate = compiler(plan(
         "typescript-6.0.3/compiler/augmentExportEquals2.ts#default",
@@ -213,7 +272,7 @@ fn compiler_root_policies_preserve_occurrences_and_fail_closed_for_configs() {
     ));
     assert_eq!(
         config.root_selection,
-        CompilerRootSelection::ConfigDriven {
+        CompilerRootSelection::Config {
             config_unit: CompilerUnitId(5),
             config_host_units: Arc::from([
                 CompilerUnitId(0),
@@ -224,15 +283,337 @@ fn compiler_root_policies_preserve_occurrences_and_fail_closed_for_configs() {
                 CompilerUnitId(5),
                 CompilerUnitId(6),
             ]),
-            candidate_units: Arc::from([
+            root_units: Arc::from([CompilerUnitId(6)]),
+            other_units: Arc::from([
                 CompilerUnitId(0),
                 CompilerUnitId(1),
                 CompilerUnitId(2),
                 CompilerUnitId(3),
                 CompilerUnitId(4),
-                CompilerUnitId(6),
             ]),
+            vfs_write_order: Arc::from([
+                CompilerUnitId(6),
+                CompilerUnitId(0),
+                CompilerUnitId(1),
+                CompilerUnitId(2),
+                CompilerUnitId(3),
+                CompilerUnitId(4),
+            ]),
+            program_root_units: Arc::from([CompilerUnitId(6)]),
         }
+    );
+    let config_plan = config
+        .fixture
+        .config_root_plan
+        .as_ref()
+        .expect("config fixture owns a parsed root plan");
+    assert_eq!(config_plan.file_names(), ["/packages/main/index.ts"]);
+}
+
+#[test]
+fn compiler_config_root_plans_match_the_frozen_typescript_oracle() {
+    let workspace = workspace_root();
+    let bytes = fs::read(workspace.join("vendor/typescript-6.0.3/compiler-config-plans.v1.json"))
+        .expect("read compiler config oracle");
+    let oracle: serde_json::Value =
+        serde_json::from_slice(&bytes).expect("compiler config oracle is JSON");
+    assert_eq!(oracle["schema"], 1);
+    assert_eq!(oracle["typescript_version"], "6.0.3");
+    assert_eq!(
+        oracle["source_commit"],
+        "050880ce59e30b356b686bd3144efe24f875ebc8"
+    );
+    assert_eq!(oracle["node_version"], "25.2.1");
+    assert_eq!(
+        oracle["producer"]["path"],
+        "vendor/typescript-6.0.3/lib/typescript.js"
+    );
+    assert_eq!(
+        oracle["producer"]["sha256"],
+        "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39"
+    );
+    assert_eq!(
+        oracle["manifest"]["path"],
+        "vendor/typescript-6.0.3/test-suite-expansion.v1.json"
+    );
+    assert_eq!(
+        oracle["manifest"]["sha256"],
+        "9c6e991103b571f7a8800dc5e1ef66088017689f3769de8fcdb408b2dc125188"
+    );
+    for metadata in ["producer", "manifest"] {
+        let relative_path = oracle[metadata]["path"]
+            .as_str()
+            .unwrap_or_else(|| panic!("oracle {metadata} path is a string"));
+        let recorded_hash = oracle[metadata]["sha256"]
+            .as_str()
+            .unwrap_or_else(|| panic!("oracle {metadata} hash is a string"));
+        assert_eq!(
+            sha256(
+                &fs::read(workspace.join(relative_path))
+                    .unwrap_or_else(|error| panic!("read oracle {metadata} input: {error}"))
+            ),
+            recorded_hash,
+            "oracle {metadata} input drifted"
+        );
+    }
+    assert_eq!(oracle["summary"]["config_plans"]["fixture_total"], 103);
+    assert_eq!(oracle["summary"]["config_plans"]["case_total"], 106);
+    assert_eq!(oracle["summary"]["extended_sources"]["fixture_total"], 5);
+    assert_eq!(oracle["summary"]["extended_sources"]["case_total"], 5);
+
+    let mut by_source = BTreeMap::new();
+    let mut configuration_counts = BTreeMap::<u32, usize>::new();
+    for plan in corpus().plans.iter() {
+        let UpstreamExecutionInput::Compiler(plan) = &plan.input else {
+            continue;
+        };
+        if plan.fixture.config_unit.is_some() {
+            by_source.entry(plan.fixture.source.index).or_insert(plan);
+            *configuration_counts
+                .entry(plan.fixture.source.index)
+                .or_default() += 1;
+        }
+    }
+    assert_eq!(by_source.len(), 103);
+
+    let fixtures = oracle["fixtures"]
+        .as_array()
+        .expect("oracle fixtures is an array");
+    assert_eq!(fixtures.len(), 103);
+    let mut roots = 0;
+    let mut others = 0;
+    let mut candidates = 0;
+    let mut parsed_file_names = 0;
+    let mut extended_sources = 0;
+    let mut weighted_candidates = 0;
+    let mut weighted_file_names = 0;
+    let mut weighted_extended_sources = 0;
+    let mut weighted_roots = 0;
+    let mut weighted_others = 0;
+    let mut seen_sources = BTreeSet::new();
+    let mut previous_source = None;
+    for expected in fixtures {
+        let source = u32::try_from(
+            expected["source"]["index"]
+                .as_u64()
+                .expect("oracle source index is u64"),
+        )
+        .expect("oracle source index fits u32");
+        assert!(
+            seen_sources.insert(source),
+            "duplicate oracle source {source}"
+        );
+        assert!(
+            previous_source.is_none_or(|previous| previous < source),
+            "oracle fixtures are not in canonical source order"
+        );
+        previous_source = Some(source);
+        let plan = by_source
+            .get(&source)
+            .unwrap_or_else(|| panic!("missing config fixture source {source}"));
+        assert_eq!(
+            plan.fixture.source.relative_path.as_ref(),
+            expected["source"]["path"]
+                .as_str()
+                .expect("oracle source path is a string")
+        );
+        assert_eq!(
+            configuration_counts[&source],
+            expected["configuration_count"]
+                .as_u64()
+                .expect("configuration count is u64") as usize
+        );
+        let config_unit = CompilerUnitId(
+            u32::try_from(
+                expected["config_unit"]["id"]
+                    .as_u64()
+                    .expect("config id is u64"),
+            )
+            .expect("config id fits u32"),
+        );
+        assert_eq!(plan.fixture.config_unit, Some(config_unit));
+        assert_eq!(
+            plan.fixture.units[config_unit.0 as usize].name.as_ref(),
+            expected["config_unit"]["name"]
+                .as_str()
+                .expect("config name is string")
+        );
+        let config_plan = plan
+            .fixture
+            .config_root_plan
+            .as_ref()
+            .expect("config fixture owns a root plan");
+        assert!(
+            json_values_equivalent(config_plan.raw(), &expected["raw_config"]),
+            "raw config drifted for source {source}: Rust={:?} oracle={:?}",
+            config_plan.raw(),
+            expected["raw_config"]
+        );
+        assert_eq!(
+            config_plan.file_names(),
+            expected["parsed_file_names"]
+                .as_array()
+                .expect("parsed file names is an array")
+                .iter()
+                .map(|value| value.as_str().expect("parsed file name is a string"))
+                .collect::<Vec<_>>(),
+            "parsed file-name order drifted for source {source}"
+        );
+        let expected_extended_sources = expected["extended_sources"]
+            .as_array()
+            .expect("extended sources is an array");
+        assert_eq!(
+            config_plan.extended_sources().len(),
+            expected_extended_sources.len(),
+            "extended source count drifted for source {source}"
+        );
+        for (actual, expected_extended) in config_plan
+            .extended_sources()
+            .iter()
+            .zip(expected_extended_sources)
+        {
+            let unit_id = usize::try_from(
+                expected_extended["unit_id"]
+                    .as_u64()
+                    .expect("extended source unit id is u64"),
+            )
+            .expect("extended source unit id fits usize");
+            let unit = &plan.fixture.units[unit_id];
+            assert_eq!(
+                actual.file_name,
+                expected_extended["file_name"]
+                    .as_str()
+                    .expect("extended source file name is a string")
+            );
+            assert_eq!(actual.file_name, unit.name.as_ref());
+            assert_eq!(actual.text.as_str(), unit.content.as_deref().unwrap_or(""));
+            assert_eq!(
+                actual.text.len() as u64,
+                expected_extended["content"]["utf8_bytes"]
+                    .as_u64()
+                    .expect("extended source byte count is u64")
+            );
+            assert_eq!(
+                sha256(actual.text.as_bytes()),
+                expected_extended["content"]["sha256"]
+                    .as_str()
+                    .expect("extended source hash is a string")
+            );
+        }
+        let discovery = config_plan.discovery_options();
+        let expected_discovery = &expected["discovery_options"];
+        assert_eq!(
+            discovery.allow_js(),
+            expected_discovery["allow_js"]
+                .as_bool()
+                .expect("allow_js is boolean")
+        );
+        assert_eq!(
+            discovery.resolve_json_module(),
+            expected_discovery["resolve_json_module"]
+                .as_bool()
+                .expect("resolve_json_module is boolean")
+        );
+        assert_eq!(discovery.out_dir(), expected_discovery["out_dir"].as_str());
+        assert_eq!(
+            discovery.declaration_dir(),
+            expected_discovery["declaration_dir"].as_str()
+        );
+        assert!(
+            expected["diagnostics"]
+                .as_array()
+                .expect("diagnostics is an array")
+                .is_empty(),
+            "the fixed compiler config corpus has no parse diagnostics"
+        );
+
+        let CompilerRootSelection::Config {
+            config_host_units,
+            root_units,
+            other_units,
+            vfs_write_order,
+            program_root_units,
+            ..
+        } = &plan.root_selection
+        else {
+            panic!("source {source} did not resolve through config roots");
+        };
+        assert_eq!(
+            config_host_units.as_ref(),
+            plan.fixture
+                .units
+                .iter()
+                .map(|unit| unit.id)
+                .collect::<Vec<_>>()
+        );
+        assert_eq!(root_units.as_ref(), json_u32s(expected, "root_unit_ids"));
+        assert_eq!(other_units.as_ref(), json_u32s(expected, "other_unit_ids"));
+        assert_eq!(
+            program_root_units.as_ref(),
+            json_u32s(expected, "program_root_unit_ids")
+        );
+        assert_eq!(
+            vfs_write_order.as_ref(),
+            root_units
+                .iter()
+                .chain(other_units.iter())
+                .copied()
+                .collect::<Vec<_>>()
+        );
+        let expected_candidates = expected["candidate_units"]
+            .as_array()
+            .expect("candidate units is an array")
+            .iter()
+            .map(|unit| {
+                (
+                    CompilerUnitId(
+                        u32::try_from(unit["id"].as_u64().expect("candidate id is u64"))
+                            .expect("candidate id fits u32"),
+                    ),
+                    unit["name"].as_str().expect("candidate name is string"),
+                )
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(
+            plan.fixture
+                .units
+                .iter()
+                .filter(|unit| unit.id != config_unit)
+                .map(|unit| (unit.id, unit.name.as_ref()))
+                .collect::<Vec<_>>(),
+            expected_candidates
+        );
+        roots += root_units.len();
+        others += other_units.len();
+        let case_count = configuration_counts[&source];
+        candidates += expected_candidates.len();
+        parsed_file_names += config_plan.file_names().len();
+        extended_sources += config_plan.extended_sources().len();
+        weighted_candidates += expected_candidates.len() * case_count;
+        weighted_file_names += config_plan.file_names().len() * case_count;
+        weighted_extended_sources += config_plan.extended_sources().len() * case_count;
+        weighted_roots += root_units.len() * case_count;
+        weighted_others += other_units.len() * case_count;
+    }
+    assert_eq!((roots, others), (167, 133));
+    assert_eq!(
+        (candidates, parsed_file_names, extended_sources),
+        (300, 167, 5)
+    );
+    assert_eq!(
+        (
+            weighted_candidates,
+            weighted_file_names,
+            weighted_extended_sources,
+            weighted_roots,
+            weighted_others,
+        ),
+        (306, 170, 5, 170, 136)
+    );
+    assert_eq!(
+        seen_sources,
+        by_source.keys().copied().collect::<BTreeSet<_>>(),
+        "oracle config fixture membership drifted"
     );
 }
 

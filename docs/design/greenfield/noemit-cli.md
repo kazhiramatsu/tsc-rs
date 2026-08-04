@@ -563,12 +563,19 @@ type-reference results on their lexical link identities without publishing
 lexical `originalPath`. The policy is program-owned, and source publication
 therefore deduplicates only the physical-policy result.
 
-This is deliberately not general H0.4 program construction. Config-derived
-root-file selection, package redirects, case-only alias diagnostics, and the
+This is deliberately not general H0.4 program construction. The first H0.5
+root-planning slice now parses the recorded projection for all 103 virtual
+compiler configs (106 case expansions). The frozen TypeScript 6.0.3 oracle has
+167 fixture-level roots (170 case-weighted) and the compiler runner's
+original-unit stable partition is preserved. This fixed corpus has four
+fixtures with `extends`, one with `files`, one with `include`, none with
+`exclude`, no `jsconfig.json`, and no nonempty config diagnostics; it is not a
+general proof of those semantics. General filesystem config discovery, package
+redirects during program construction, case-only alias diagnostics, and the
 complete cross-platform case/separator/symlink/encoding matrix remain in later
-slices. Discovery stays
-sequential where vendored host calls and failure precedence are observable;
-future pipeline parallelism must preserve that contract.
+slices. Discovery stays sequential where vendored host calls and failure
+precedence are observable; future pipeline parallelism must preserve that
+contract.
 
 ### H0.5 — tsconfig and command-line driver
 
@@ -584,6 +591,23 @@ future pipeline parallelism must preserve that contract.
 
 Unknown options and valid-but-out-of-scope options are distinct failures and
 are never ignored.
+
+Implementation status: H0.5 is active and partial. `tsc_program` owns an
+immutable, shareable `ConfigRootPlan` for the recorded valid root-planning
+projection. JSONC values use the iterative syntax-AST converter; malformed
+syntax and the currently checked unsupported spec shapes fail typed rather than
+becoming an empty config. The harness uses a case-insensitive virtual adapter
+specialized for the fixed compiler fixture units, parses each fixture once
+before matrix variants, and compares raw config values, ordered `fileNames`,
+extended-source identities and contents, four discovery-option values, and
+original-unit partitions with the official oracle. Include patterns are
+compiled once and reused through an iterative, linear-scratch UTF-16 matcher;
+candidate matching does not recurse, build a quadratic memo table, or require
+a regex dependency. This is not yet a general `ParseConfigHost`/`matchFiles`
+qualification. Complete located config diagnostics, full `ParsedCommandLine`
+fields and compiler-option conversion, filesystem discovery,
+project/project-runner config handling, command-line selection, rendering,
+exit status, and production execution remain open.
 
 ### H0.6 — qualification and release
 
