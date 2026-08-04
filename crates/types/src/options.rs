@@ -8,6 +8,10 @@ use crate::flags::ScriptTarget;
 pub struct CompilerOptions {
     /// tsc getAllowJSCompilerOption: allowJs ?? !!checkJs.
     pub allow_js: bool,
+    /// Maximum JavaScript import depth admitted while searching
+    /// `node_modules`. The raw numeric option defaults to zero and is only
+    /// effective for source admission when `allowJs` is enabled.
+    pub max_node_module_js_depth: Option<i32>,
     pub experimental_decorators: bool,
     /// tsc ScriptTarget value; None when the option is absent.
     pub target: Option<i32>,
@@ -199,6 +203,11 @@ pub struct CompilerOptions {
 }
 
 impl CompilerOptions {
+    /// tsc createProgram defaults the raw option to zero.
+    pub fn max_node_module_js_depth_effective(&self) -> i32 {
+        self.max_node_module_js_depth.unwrap_or(0)
+    }
+
     /// tsc _computedOptions.target.computeValue (18245): ES3 counts as
     /// unset; the default is ScriptTarget.ES2025 (LatestStandard).
     pub fn emit_script_target(&self) -> ScriptTarget {

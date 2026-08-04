@@ -11,7 +11,7 @@ sha256 = "ce06aea821607d53f367f7bb892969cbc0d78c19f4d4be620a459e49026d38ae"
 
 [[source_references]]
 path = "crates/harness/src/lib.rs"
-sha256 = "85bde9cf1731906a37f746f758260e102f5553f366b38e1cd09f620297eebe64"
+sha256 = "b2f3f33626550d860440da3a3a3e5dbccef6e73bdaa018beb5dae86498f82742"
 
 [[source_references]]
 path = "ratchets/oracle-inputs.v1.json.zst"

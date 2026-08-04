@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::error::Error;
 use std::fmt;
 use std::path::{Path, PathBuf};
@@ -794,6 +794,27 @@ struct StagedSource {
     prepared: PreparedSourceFile,
     has_non_external_reason: bool,
     class: SourceClass,
+    path_references: Vec<PlannedPathReference>,
+    type_reference_directives: Vec<PlannedTypeReferenceDirective>,
+    lib_reference_directives: Vec<PlannedLibReferenceDirective>,
+    module_requests: Vec<(ResolutionKey, bool)>,
+    found_searching_node_modules: bool,
+    modules_with_elided_imports: bool,
+    processing_references: bool,
+    pending_reprocesses: VecDeque<SourceReprocess>,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum SourceReprocessKind {
+    AllReferences,
+    ImportedModules,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+struct SourceReprocess {
+    kind: SourceReprocessKind,
+    source_depth: usize,
+    node_modules_depth: usize,
 }
 
 struct StagedRoot {
@@ -811,6 +832,7 @@ struct StagedModuleResolution {
     key: ResolutionKey,
     host: HostModuleResolution,
     loads_source: bool,
+    unloaded_reason: Option<UnloadedModuleReason>,
 }
 
 struct StagedTypeResolution {
@@ -915,6 +937,7 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
         let source = self.visit_source(
             path.clone(),
             0,
+            0,
             DiscoveryReason::ROOT,
             SourceClass::Ordinary,
         )?;
@@ -954,9 +977,13 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                     error,
                 )
             })?;
-            if let Some(source) =
-                self.visit_source(candidate, 0, DiscoveryReason::ROOT, SourceClass::Ordinary)?
-            {
+            if let Some(source) = self.visit_source(
+                candidate,
+                0,
+                0,
+                DiscoveryReason::ROOT,
+                SourceClass::Ordinary,
+            )? {
                 self.roots.push(StagedRoot {
                     path,
                     source: Some(source),
@@ -1070,6 +1097,7 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                 .visit_source(
                     target.clone(),
                     0,
+                    usize::from(external),
                     DiscoveryReason::automatic_type(external),
                     SourceClass::Ordinary,
                 )?
@@ -1263,6 +1291,7 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                 .visit_source(
                     path.clone(),
                     0,
+                    0,
                     DiscoveryReason::DEPENDENCY,
                     SourceClass::Library,
                 )?
@@ -1331,6 +1360,7 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
         &mut self,
         path: ProgramPath,
         depth: usize,
+        node_modules_depth: usize,
         reason: DiscoveryReason,
         class: SourceClass,
     ) -> Result<Option<usize>, ProgramLoadError> {
@@ -1359,8 +1389,39 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                         ),
                     ));
                 }
-                self.sources[source].has_non_external_reason |=
-                    reason.seeds_non_external_reachability;
+                let reprocess = {
+                    let staged = &mut self.sources[source];
+                    staged.has_non_external_reason |= reason.seeds_non_external_reachability;
+                    if staged.found_searching_node_modules && node_modules_depth == 0 {
+                        // tsc clears both latches before recursively processing
+                        // the source again. A cycle can therefore observe the
+                        // promoted state without scheduling duplicate work.
+                        staged.found_searching_node_modules = false;
+                        staged.modules_with_elided_imports = false;
+                        Some(SourceReprocess {
+                            kind: SourceReprocessKind::AllReferences,
+                            source_depth: depth,
+                            node_modules_depth,
+                        })
+                    } else if staged.modules_with_elided_imports
+                        && node_modules_depth_below_limit(
+                            node_modules_depth,
+                            self.compiler_options.max_node_module_js_depth_effective(),
+                        )
+                    {
+                        staged.modules_with_elided_imports = false;
+                        Some(SourceReprocess {
+                            kind: SourceReprocessKind::ImportedModules,
+                            source_depth: depth,
+                            node_modules_depth,
+                        })
+                    } else {
+                        None
+                    }
+                };
+                if let Some(reprocess) = reprocess {
+                    self.schedule_source_reprocess(source, reprocess)?;
+                }
             }
             return Ok(state.source());
         }
@@ -1486,6 +1547,20 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
             plan.as_ref()
                 .map_or(0, |plan| plan.observed_request_occurrence_count()),
         );
+        let path_references = plan
+            .as_ref()
+            .map_or_else(Vec::new, |plan| plan.path_references().to_vec());
+        let type_reference_directives = plan
+            .as_ref()
+            .map_or_else(Vec::new, |plan| plan.type_reference_directives().to_vec());
+        let lib_reference_directives = plan
+            .as_ref()
+            .map_or_else(Vec::new, |plan| plan.lib_reference_directives().to_vec());
+        let module_requests = plan.as_ref().map_or_else(Vec::new, |plan| {
+            plan.module_requests_with_loadability()
+                .map(|(key, loads_source)| (key.clone(), loads_source))
+                .collect::<Vec<_>>()
+        });
         self.enforce_limit(
             ProgramLoadOperation::PlanSourceRequests,
             ProgramLoadLimit::RequestEdges,
@@ -1505,49 +1580,119 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
             prepared,
             has_non_external_reason: reason.seeds_non_external_reachability,
             class,
+            path_references,
+            type_reference_directives,
+            lib_reference_directives,
+            module_requests,
+            found_searching_node_modules: node_modules_depth > 0,
+            modules_with_elided_imports: false,
+            processing_references: false,
+            pending_reprocesses: VecDeque::new(),
         });
         self.source_edges.push(Vec::new());
         self.states
             .insert(path.canonical().clone(), VisitState::Visiting(source));
 
-        if let Some(plan) = plan {
-            if self.sources[source].class == SourceClass::Library
-                && !plan.path_references().is_empty()
-            {
-                return Err(ProgramLoadError::unsupported(
-                    ProgramLoadOperation::PlanSourceRequests,
-                    Some(path.display().to_path_buf()),
-                    "default-library-path-references",
-                    "default-library path-reference descendants have processing-prefix order without checker-visible library membership, which the current PreparedProgram prefix cannot represent",
-                ));
-            }
-            let path_references = plan.path_references().to_vec();
-            for reference in path_references {
-                self.process_path_reference(source, &reference, depth)?;
-            }
-            self.process_type_references(source, plan.type_reference_directives().to_vec(), depth)?;
-            if self.program_options.no_lib() != Some(true) {
-                self.process_lib_references(
-                    source,
-                    plan.lib_reference_directives().to_vec(),
-                    depth,
-                )?;
-            }
-            // `noLib=true` deliberately performs no host operation for lib
-            // directives, although their occurrences were counted above.
-            self.process_module_requests(
-                source,
-                plan.module_requests_with_loadability()
-                    .map(|(key, loads_source)| (key.clone(), loads_source))
-                    .collect(),
-                depth,
-            )?;
+        if self.sources[source].class == SourceClass::Library
+            && !self.sources[source].path_references.is_empty()
+        {
+            return Err(ProgramLoadError::unsupported(
+                ProgramLoadOperation::PlanSourceRequests,
+                Some(path.display().to_path_buf()),
+                "default-library-path-references",
+                "default-library path-reference descendants have processing-prefix order without checker-visible library membership, which the current PreparedProgram prefix cannot represent",
+            ));
         }
+        self.schedule_source_reprocess(
+            source,
+            SourceReprocess {
+                kind: SourceReprocessKind::AllReferences,
+                source_depth: depth,
+                node_modules_depth,
+            },
+        )?;
 
         self.states
             .insert(path.canonical().clone(), VisitState::Complete(source));
         self.postorder.push(source);
         Ok(Some(source))
+    }
+
+    fn schedule_source_reprocess(
+        &mut self,
+        source: usize,
+        reprocess: SourceReprocess,
+    ) -> Result<(), ProgramLoadError> {
+        self.sources[source]
+            .pending_reprocesses
+            .push_back(reprocess);
+        self.drain_source_reprocesses(source)
+    }
+
+    fn drain_source_reprocesses(&mut self, source: usize) -> Result<(), ProgramLoadError> {
+        if self.sources[source].processing_references {
+            return Ok(());
+        }
+        self.sources[source].processing_references = true;
+        let result = (|| {
+            while let Some(reprocess) = self.sources[source].pending_reprocesses.pop_front() {
+                match reprocess.kind {
+                    SourceReprocessKind::AllReferences => self.process_all_source_references(
+                        source,
+                        reprocess.source_depth,
+                        reprocess.node_modules_depth,
+                    )?,
+                    SourceReprocessKind::ImportedModules => self.process_source_module_requests(
+                        source,
+                        reprocess.source_depth,
+                        reprocess.node_modules_depth,
+                    )?,
+                }
+            }
+            Ok(())
+        })();
+        self.sources[source].processing_references = false;
+        result
+    }
+
+    fn process_all_source_references(
+        &mut self,
+        source: usize,
+        depth: usize,
+        node_modules_depth: usize,
+    ) -> Result<(), ProgramLoadError> {
+        let path_references = self.sources[source].path_references.clone();
+        let type_reference_directives = self.sources[source].type_reference_directives.clone();
+        let lib_reference_directives = self.sources[source].lib_reference_directives.clone();
+
+        for reference in path_references {
+            self.process_path_reference(source, &reference, depth, node_modules_depth)?;
+        }
+        self.process_type_references(source, type_reference_directives, depth, node_modules_depth)?;
+        if self.program_options.no_lib() != Some(true) {
+            self.process_lib_references(
+                source,
+                lib_reference_directives,
+                depth,
+                node_modules_depth,
+            )?;
+        }
+        // `noLib=true` deliberately performs no host operation for lib
+        // directives, although their occurrences were counted above.
+        self.process_source_module_requests(source, depth, node_modules_depth)
+    }
+
+    fn process_source_module_requests(
+        &mut self,
+        source: usize,
+        depth: usize,
+        node_modules_depth: usize,
+    ) -> Result<(), ProgramLoadError> {
+        // tsc clears this latch before every explicit reprocessing attempt;
+        // an over-depth request encountered below sets it again.
+        self.sources[source].modules_with_elided_imports = false;
+        let requests = self.sources[source].module_requests.clone();
+        self.process_module_requests(source, requests, depth, node_modules_depth)
     }
 
     fn observe_real_path(
@@ -1636,6 +1781,7 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
         source: usize,
         directives: Vec<PlannedLibReferenceDirective>,
         depth: usize,
+        node_modules_depth: usize,
     ) -> Result<(), ProgramLoadError> {
         let catalog = self
             .library_catalog
@@ -1664,6 +1810,7 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
             match self.visit_source(
                 target.clone(),
                 depth.saturating_add(1),
+                node_modules_depth,
                 DiscoveryReason::DEPENDENCY,
                 SourceClass::Library,
             )? {
@@ -1696,6 +1843,7 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
         source: usize,
         reference: &PlannedPathReference,
         depth: usize,
+        node_modules_depth: usize,
     ) -> Result<(), ProgramLoadError> {
         if reference.file_name().is_empty() {
             return Err(ProgramLoadError::unsupported(
@@ -1771,6 +1919,7 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
             let target_source = self.visit_source(
                 target.clone(),
                 child_depth,
+                node_modules_depth,
                 DiscoveryReason::DEPENDENCY,
                 self.sources[source].class,
             )?;
@@ -1814,6 +1963,7 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
             if let Some(target_source) = self.visit_source(
                 target,
                 child_depth,
+                node_modules_depth,
                 DiscoveryReason::DEPENDENCY,
                 self.sources[source].class,
             )? {
@@ -1848,6 +1998,7 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
         source: usize,
         directives: Vec<PlannedTypeReferenceDirective>,
         depth: usize,
+        node_modules_depth: usize,
     ) -> Result<(), ProgramLoadError> {
         let mut phase_indices = Vec::new();
         let mut phase_seen = BTreeSet::new();
@@ -1926,6 +2077,7 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
             let loaded = self.visit_source(
                 target.clone(),
                 depth.saturating_add(1),
+                node_modules_depth.saturating_add(usize::from(external)),
                 DiscoveryReason::DEPENDENCY,
                 SourceClass::Ordinary,
             )?;
@@ -1949,6 +2101,7 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
         source: usize,
         requests: Vec<(ResolutionKey, bool)>,
         depth: usize,
+        node_modules_depth: usize,
     ) -> Result<(), ProgramLoadError> {
         let mut phase_indices = Vec::with_capacity(requests.len());
         let containing_file = self.sources[source].prepared.path().display().to_path_buf();
@@ -1977,6 +2130,7 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                     key: key.clone(),
                     host,
                     loads_source,
+                    unloaded_reason: None,
                 });
                 self.module_resolution_by_key.insert(key, index);
                 index
@@ -1988,9 +2142,6 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
         // before the first successful target starts its DFS.
         for index in phase_indices {
             let loads_source = self.module_resolutions[index].loads_source;
-            if !loads_source {
-                continue;
-            }
             let target = match self.module_resolutions[index].host.outcome() {
                 ResolutionOutcome::Resolved(target) => Some((
                     target.resolved_file().clone(),
@@ -2003,19 +2154,33 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
             let Some((target, extension, external, has_original_path)) = target else {
                 continue;
             };
+            let child_node_modules_depth = node_modules_depth.saturating_add(usize::from(external));
             if extension.is_javascript() {
-                // tsc's default maxNodeModuleJsDepth is zero. Local JS joins
-                // the program under allowJs, while a JS target found through
-                // node_modules retains its resolution row without becoming a
-                // source. Non-zero depth ownership is a later H0.4 slice.
-                if let Some(reason) = unloaded_javascript_reason(
+                // tsc records the reprocessing latch from depth elision before
+                // checking whether this occurrence can add a source. That is
+                // observable for JSX errors, augmentation-only resolutions,
+                // and allowJs=false as well as ordinary imports.
+                let elided_by_node_modules_depth = external
+                    && (!has_original_path
+                        || path_contains_node_modules(target.canonical().as_path()))
+                    && node_modules_depth_exceeds_limit(
+                        child_node_modules_depth,
+                        self.compiler_options.max_node_module_js_depth_effective(),
+                    );
+                if elided_by_node_modules_depth {
+                    self.sources[source].modules_with_elided_imports = true;
+                }
+                let reason = unloaded_javascript_reason(
                     &extension,
                     self.compiler_options,
                     external,
                     has_original_path,
                     target.canonical(),
                     loads_source,
-                ) {
+                    child_node_modules_depth,
+                );
+                self.module_resolutions[index].unloaded_reason = reason;
+                if let Some(reason) = reason {
                     if has_original_path
                         && !matches!(reason, UnloadedModuleReason::JsxWithoutJsxOption)
                     {
@@ -2028,6 +2193,9 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                     }
                     continue;
                 }
+            }
+            if !loads_source {
+                continue;
             }
             if is_arbitrary_declaration_extension(&extension)
                 && self.compiler_options.allow_arbitrary_extensions != Some(true)
@@ -2058,6 +2226,7 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                 let loaded = self.visit_source(
                     target.clone(),
                     depth.saturating_add(1),
+                    child_node_modules_depth,
                     DiscoveryReason::DEPENDENCY,
                     SourceClass::Ordinary,
                 )?;
@@ -2085,6 +2254,7 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
             let loaded = self.visit_source(
                 target.clone(),
                 depth.saturating_add(1),
+                child_node_modules_depth,
                 DiscoveryReason::DEPENDENCY,
                 SourceClass::Ordinary,
             )?;
@@ -2270,9 +2440,9 @@ fn publish_program(
         let bound = bind_module_resolution(
             resolution.host,
             &source_by_canonical,
-            &compiler_options,
             &package_map,
             resolution.loads_source,
+            resolution.unloaded_reason,
         )
         .map_err(|error| {
             ProgramLoadError::resolution(
@@ -2327,9 +2497,9 @@ fn publish_program(
 fn bind_module_resolution(
     host: HostModuleResolution,
     source_by_canonical: &BTreeMap<CanonicalPath, (SourceFileId, ProgramPath)>,
-    options: &CompilerOptions,
     package_map: &BTreeMap<String, bool>,
     loads_source: bool,
+    unloaded_reason: Option<UnloadedModuleReason>,
 ) -> Result<ModuleResolution, ResolutionError> {
     let alternate_result = host.alternate_result().cloned();
     let ResolutionOutcome::Resolved(module) = host.into_outcome() else {
@@ -2348,15 +2518,7 @@ fn bind_module_resolution(
         });
     let owned_source = source_by_canonical.get(module.resolved_file().canonical());
     let target = if module.extension().is_javascript() && owned_source.is_none() {
-        let reason = unloaded_javascript_reason(
-            module.extension(),
-            options,
-            module.is_external_library_import(),
-            module.original_path().is_some(),
-            module.resolved_file().canonical(),
-            loads_source,
-        )
-        .ok_or_else(|| {
+        let reason = unloaded_reason.ok_or_else(|| {
             ResolutionError::unsupported(
                 "unexplained-unloaded-javascript",
                 format!(
@@ -2558,6 +2720,14 @@ fn path_contains_node_modules(path: &Path) -> bool {
         .is_some_and(|path| path.split('/').any(|component| component == "node_modules"))
 }
 
+fn node_modules_depth_exceeds_limit(depth: usize, maximum: i32) -> bool {
+    usize::try_from(maximum).map_or(true, |maximum| depth > maximum)
+}
+
+fn node_modules_depth_below_limit(depth: usize, maximum: i32) -> bool {
+    usize::try_from(maximum).is_ok_and(|maximum| depth < maximum)
+}
+
 fn unloaded_javascript_reason(
     extension: &ModuleExtension,
     options: &CompilerOptions,
@@ -2565,6 +2735,7 @@ fn unloaded_javascript_reason(
     has_original_path: bool,
     resolved_file: &CanonicalPath,
     loads_source: bool,
+    node_modules_depth: usize,
 ) -> Option<UnloadedModuleReason> {
     if !extension.is_javascript() {
         return None;
@@ -2575,7 +2746,13 @@ fn unloaded_javascript_reason(
     if !loads_source {
         return Some(UnloadedModuleReason::ResolutionOnly);
     }
-    if external && (!has_original_path || path_contains_node_modules(resolved_file.as_path())) {
+    if external
+        && (!has_original_path || path_contains_node_modules(resolved_file.as_path()))
+        && node_modules_depth_exceeds_limit(
+            node_modules_depth,
+            options.max_node_module_js_depth_effective(),
+        )
+    {
         return Some(UnloadedModuleReason::NodeModulesDepth);
     }
     (!options.allow_js).then_some(UnloadedModuleReason::JavaScriptNotAdmitted)

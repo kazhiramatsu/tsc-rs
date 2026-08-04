@@ -442,6 +442,274 @@ fn allow_js_local_closure_produces_identical_filesystem_backed_diagnostics() {
 }
 
 #[test]
+fn positive_node_module_js_depth_admits_package_and_gates_its_nested_javascript() {
+    let tree = TempTree::new();
+    fs::create_dir_all(tree.path("node_modules/pkg"))
+        .expect("create nested JavaScript package directory");
+    let root = concat!(
+        "/// <reference path=\"./globals.d.ts\" />\n",
+        "import { value } from 'pkg';\n",
+        "const numeric: number = value;\n",
+        "export { numeric };\n",
+    );
+    let package = concat!(
+        "import { leaf } from './leaf.js';\n",
+        "export const value = 1;\n",
+        "leaf;\n",
+    );
+    let files = [
+        ("root.ts", root.as_bytes()),
+        ("globals.d.ts", MINIMAL_GLOBALS.as_bytes()),
+        (
+            "node_modules/pkg/package.json",
+            br#"{"name":"pkg","version":"1.0.0","main":"index.js"}"#.as_slice(),
+        ),
+        ("node_modules/pkg/index.js", package.as_bytes()),
+        (
+            "node_modules/pkg/leaf.js",
+            b"export const leaf = 2;".as_slice(),
+        ),
+    ];
+    for (relative, bytes) in files {
+        fs::write(tree.path(relative), bytes).expect("write nested JavaScript package tree");
+    }
+
+    let filesystem = FsCompilerHost::new(tree.root(), true).expect("construct filesystem host");
+    let mut memory = MemoryCompilerHost::builder(tree.root()).case_sensitive(true);
+    for (relative, bytes) in files {
+        memory = memory.file(tree.path(relative), bytes.to_vec());
+    }
+    let memory = memory.build().expect("construct memory host");
+    let compiler_options = CompilerOptions {
+        allow_js: true,
+        max_node_module_js_depth: Some(1),
+        no_emit: Some(true),
+        ..CompilerOptions::default()
+    };
+    let program_options = ProgramOptions::default()
+        .with_no_lib(true)
+        .with_types(Vec::new());
+    let roots = [tree.path("root.ts")];
+
+    let from_memory = load_no_lib_program(
+        &memory,
+        &roots,
+        compiler_options.clone(),
+        program_options.clone(),
+        limits(),
+    )
+    .expect("load depth-bounded JavaScript package from MemoryHost");
+    let from_filesystem = load_no_lib_program(
+        &filesystem,
+        &roots,
+        compiler_options,
+        program_options,
+        limits(),
+    )
+    .expect("load depth-bounded JavaScript package from FsHost");
+    assert_eq!(from_memory, from_filesystem);
+    assert_eq!(
+        from_memory
+            .source_files()
+            .iter()
+            .map(|source| source.path().display().to_path_buf())
+            .collect::<Vec<_>>(),
+        [
+            tree.path("globals.d.ts"),
+            tree.path("node_modules/pkg/index.js"),
+            tree.path("root.ts"),
+        ]
+    );
+
+    let root_source = from_memory
+        .source_files()
+        .iter()
+        .find(|source| source.path().display() == tree.path("root.ts"))
+        .expect("root source is owned");
+    let package_key = plan_source_requests(root_source, from_memory.compiler_options())
+        .expect("plan package request")
+        .module_requests()[0]
+        .clone();
+    let package_resolution = from_memory
+        .resolutions()
+        .require_module(&package_key)
+        .expect("package request has an authoritative row");
+    let ResolutionOutcome::Resolved(package_resolution) = package_resolution.outcome() else {
+        panic!("package JavaScript resolves");
+    };
+    let ResolvedModuleTarget::Source {
+        source: package_source,
+        resolved_file: package_file,
+    } = package_resolution.target()
+    else {
+        panic!("depth one admits the package entry point");
+    };
+    assert_eq!(
+        package_file.display(),
+        tree.path("node_modules/pkg/index.js")
+    );
+
+    let package_source = from_memory
+        .source_file(*package_source)
+        .expect("package source id is owned");
+    let leaf_key = plan_source_requests(package_source, from_memory.compiler_options())
+        .expect("plan nested package request")
+        .module_requests()[0]
+        .clone();
+    let leaf_resolution = from_memory
+        .resolutions()
+        .require_module(&leaf_key)
+        .expect("nested request has an authoritative row");
+    let ResolutionOutcome::Resolved(leaf_resolution) = leaf_resolution.outcome() else {
+        panic!("nested package JavaScript resolves");
+    };
+    let ResolvedModuleTarget::Unloaded {
+        resolved_file,
+        reason,
+    } = leaf_resolution.target()
+    else {
+        panic!("depth two remains outside the configured depth one boundary");
+    };
+    assert_eq!(
+        resolved_file.display(),
+        tree.path("node_modules/pkg/leaf.js")
+    );
+    assert_eq!(*reason, UnloadedModuleReason::NodeModulesDepth);
+
+    let memory_outcome = ProgramSession::new(from_memory)
+        .run()
+        .expect("run MemoryHost depth-bounded JavaScript program");
+    let filesystem_outcome = ProgramSession::new(from_filesystem)
+        .run()
+        .expect("run FsHost depth-bounded JavaScript program");
+    assert_eq!(memory_outcome, filesystem_outcome);
+    assert!(memory_outcome.syntactic_diagnostics().is_empty());
+    assert!(memory_outcome.options_diagnostics().is_empty());
+    assert!(memory_outcome.global_diagnostics().is_empty());
+    assert!(memory_outcome.semantic_diagnostics().is_empty());
+}
+
+#[test]
+fn allow_js_false_precedes_positive_node_module_depth_in_both_authoritative_loaders() {
+    let tree = TempTree::new();
+    fs::create_dir_all(tree.path("node_modules/pkg"))
+        .expect("create non-admitted JavaScript package directory");
+    let root = concat!(
+        "/// <reference path=\"./globals.d.ts\" />\n",
+        "import packageValue from 'pkg';\n",
+        "packageValue;\n",
+        "export {};\n",
+    );
+    let files = [
+        ("root.ts", root.as_bytes()),
+        ("globals.d.ts", MINIMAL_GLOBALS.as_bytes()),
+        (
+            "node_modules/pkg/package.json",
+            br#"{"name":"pkg","version":"1.0.0","main":"index.js"}"#.as_slice(),
+        ),
+        (
+            "node_modules/pkg/index.js",
+            b"module.exports = 1;".as_slice(),
+        ),
+    ];
+    for (relative, bytes) in files {
+        fs::write(tree.path(relative), bytes).expect("write non-admitted JavaScript package tree");
+    }
+
+    let filesystem = FsCompilerHost::new(tree.root(), true).expect("construct filesystem host");
+    let mut memory = MemoryCompilerHost::builder(tree.root()).case_sensitive(true);
+    for (relative, bytes) in files {
+        memory = memory.file(tree.path(relative), bytes.to_vec());
+    }
+    let memory = memory.build().expect("construct memory host");
+    let compiler_options = CompilerOptions {
+        allow_js: false,
+        max_node_module_js_depth: Some(1),
+        no_emit: Some(true),
+        no_implicit_any: Some(true),
+        ..CompilerOptions::default()
+    };
+    let program_options = ProgramOptions::default()
+        .with_no_lib(true)
+        .with_types(Vec::new());
+    let roots = [tree.path("root.ts")];
+
+    let from_memory = load_no_lib_program(
+        &memory,
+        &roots,
+        compiler_options.clone(),
+        program_options.clone(),
+        limits(),
+    )
+    .expect("load non-admitted JavaScript row from MemoryHost");
+    let from_filesystem = load_no_lib_program(
+        &filesystem,
+        &roots,
+        compiler_options,
+        program_options,
+        limits(),
+    )
+    .expect("load non-admitted JavaScript row from FsHost");
+    assert_eq!(from_memory, from_filesystem);
+    assert_eq!(
+        from_memory
+            .source_files()
+            .iter()
+            .map(|source| source.path().display().to_path_buf())
+            .collect::<Vec<_>>(),
+        [tree.path("globals.d.ts"), tree.path("root.ts")]
+    );
+
+    let root_source = from_memory
+        .source_files()
+        .iter()
+        .find(|source| source.path().display() == tree.path("root.ts"))
+        .expect("root source is owned");
+    let package_key = plan_source_requests(root_source, from_memory.compiler_options())
+        .expect("plan non-admitted package request")
+        .module_requests()[0]
+        .clone();
+    let package_resolution = from_memory
+        .resolutions()
+        .require_module(&package_key)
+        .expect("non-admitted package request has an authoritative row");
+    let ResolutionOutcome::Resolved(package_resolution) = package_resolution.outcome() else {
+        panic!("non-admitted package JavaScript still resolves");
+    };
+    let ResolvedModuleTarget::Unloaded {
+        resolved_file,
+        reason,
+    } = package_resolution.target()
+    else {
+        panic!("allowJs=false keeps package JavaScript outside source membership");
+    };
+    assert_eq!(
+        resolved_file.display(),
+        tree.path("node_modules/pkg/index.js")
+    );
+    assert_eq!(*reason, UnloadedModuleReason::JavaScriptNotAdmitted);
+
+    let memory_outcome = ProgramSession::new(from_memory)
+        .run()
+        .expect("run MemoryHost non-admitted JavaScript program");
+    let filesystem_outcome = ProgramSession::new(from_filesystem)
+        .run()
+        .expect("run FsHost non-admitted JavaScript program");
+    assert_eq!(memory_outcome, filesystem_outcome);
+    assert!(memory_outcome.syntactic_diagnostics().is_empty());
+    assert!(memory_outcome.options_diagnostics().is_empty());
+    assert!(memory_outcome.global_diagnostics().is_empty());
+    assert_eq!(
+        memory_outcome
+            .semantic_diagnostics()
+            .iter()
+            .map(|diagnostic| diagnostic.code())
+            .collect::<Vec<_>>(),
+        [7016]
+    );
+}
+
+#[test]
 fn jsx_without_mode_flows_from_both_loaders_to_exact_ts6142_diagnostics() {
     let tree = TempTree::new();
     fs::create_dir_all(tree.path("node_modules/pkg")).expect("create JSX package directory");

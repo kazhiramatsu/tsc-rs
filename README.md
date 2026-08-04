@@ -302,10 +302,12 @@ preserving vendored discovery and failure order. An explicit extensionless
 root retains its requested spelling while probing `.ts`, `.tsx`, and `.d.ts`;
 `allowJs` appends only `.js` and `.jsx`, and a complete miss reports TS6231.
 With `allowJs`, explicit JavaScript roots, local JavaScript module dependencies,
-and supported JavaScript path references join that same owned source graph. JavaScript
-targets found through `node_modules` remain authoritative unloaded rows,
-matching the default `maxNodeModuleJsDepth=0`; unloaded rows retain their
-admission reason. A `.jsx` module target without an active JSX mode is not
+and supported JavaScript path references join that same owned source graph.
+JavaScript targets found while searching `node_modules` are admitted through
+the inclusive `maxNodeModuleJsDepth` boundary; deeper rows remain unloaded and
+retain their admission reason. Later shallower and root discoveries reprocess
+exactly the imports or full reference phases required by TypeScript. A `.jsx`
+module target without an active JSX mode is not
 read and produces TS6142, while an explicit `.jsx` root or path reference can
 still join membership. Effective `resolveJsonModule` also admits explicit JSON
 roots. `rootDirs` uses the longest display-path prefix, probes the original
@@ -316,9 +318,9 @@ owned program graph.
 Same-tree Unix canaries prove both `PreparedProgram` and five-bucket
 `ProgramSession` diagnostic equivalence between MemoryHost and FsHost; the
 program-level canaries exercise Classic, Node10, Bundler, ordered optional
-settings including `rootDirs`, and wildcard `@types` discovery. Nonzero
-`maxNodeModuleJsDepth`, config-derived roots, the remaining path and
-physical-alias policies, and the platform matrix remain.
+settings including `rootDirs`, and wildcard `@types` discovery. Config-derived
+roots, the remaining path and physical-alias policies, and the platform matrix
+remain.
 
 | Phase | State | Focus |
 | --- | --- | --- |
