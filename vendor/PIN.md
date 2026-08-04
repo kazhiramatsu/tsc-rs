@@ -22,3 +22,12 @@ in `vendor/typescript-6.0.3/test-suites-pin.v1.json`. The harness integration
 contract recursively verifies every entry; the three trees are not sampled or
 filtered. This is an inventory-integrity contract: it does not execute those
 upstream suites or claim that the compiler passes them.
+
+Their deterministic case expansion is pinned at
+`vendor/typescript-6.0.3/test-suite-expansion.v1.json`: 7,276 `compiler`
+cases plus 632 `project` runner cases backed by the shared `projects` tree, for
+7,908 total. Every case starts as `not-run`; inclusion in the manifest records
+neither execution nor a passing result. The only command shape is
+`cargo xtask upstream-suites manifest --check|--write`, with no subset,
+filter, limit, or output-path option (`--suite`, `--filter`, `--limit`, or
+`--out`).

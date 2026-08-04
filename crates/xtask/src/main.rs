@@ -27,6 +27,7 @@ mod recovery_census;
 mod relpin;
 mod slice_evidence;
 mod symbol_audit;
+mod upstream_suites;
 mod workspace_catalog;
 mod workspace_maintenance;
 
@@ -141,6 +142,7 @@ fn main() {
                 std::process::exit(2);
             }
         },
+        Some("upstream-suites") => run_or_exit(upstream_suites::run(args)),
         Some("ratchet") => match args.next().as_deref() {
             Some("check") => run_or_exit(ratchet_check(args)),
             Some("update") => run_or_exit(ratchet_update(args)),
