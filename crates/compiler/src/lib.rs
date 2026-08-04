@@ -170,6 +170,14 @@ impl AuthoritativeModuleProvider for PreparedModuleProvider<'_> {
             let node_modules_depth_applies = module.is_external_library_import()
                 && (module.original_path().is_none()
                     || path_contains_node_modules(resolved_file.canonical().as_path()));
+            // At the first external layer, TypeScript tests `1 > maximum`
+            // before allowJs. Negating that exact comparison, rather than
+            // testing maximum's sign, also preserves NaN and fractional
+            // precedence for authoritative unloaded rows.
+            let first_node_modules_javascript_layer_is_admitted = !self
+                .prepared
+                .compiler_options()
+                .node_modules_depth_exceeds_limit(1);
             let resolution_diagnostic = match reason {
                 UnloadedModuleReason::JsxWithoutJsxOption
                     if matches!(module.extension(), ModuleExtension::Jsx)
@@ -204,11 +212,7 @@ impl AuthoritativeModuleProvider for PreparedModuleProvider<'_> {
                         && loads_source
                         && !self.prepared.compiler_options().allow_js
                         && (!node_modules_depth_applies
-                            || self
-                                .prepared
-                                .compiler_options()
-                                .max_node_module_js_depth_effective()
-                                > 0) =>
+                            || first_node_modules_javascript_layer_is_admitted) =>
                 {
                     None
                 }

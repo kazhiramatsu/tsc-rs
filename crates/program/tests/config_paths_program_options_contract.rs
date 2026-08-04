@@ -3,9 +3,9 @@ use std::path::Path;
 
 use tsc_host::MemoryCompilerHost;
 use tsc_program::{
-    parse_config_root_plan, ConfigHostError, ConfigModuleResolutionOptions, ConfigParseHost,
-    ConfigRootPlanRequest, ModuleResolver, ModuleSuffix, ProgramOptions, ResolutionMode,
-    ResolutionOutcome,
+    load_no_lib_program, parse_config_root_plan, ConfigHostError, ConfigModuleResolutionOptions,
+    ConfigParseHost, ConfigRootPlanRequest, ModuleResolver, ModuleSuffix, ProgramLoadLimits,
+    ProgramOptions, ResolutionMode, ResolutionOutcome,
 };
 
 #[derive(Default)]
@@ -89,6 +89,7 @@ fn config_projection_carries_the_currently_modeled_resolver_options() {
     let text = r#"{
         "compilerOptions": {
             "checkJs": true,
+            "maxNodeModuleJsDepth": 1.5,
             "module": "preserve",
             "moduleResolution": "bundler",
             "moduleSuffixes": [".native", ""],
@@ -116,6 +117,13 @@ fn config_projection_carries_the_currently_modeled_resolver_options() {
     let projected = plan.module_resolution_options();
     let compiler = projected.compiler_options();
     assert!(compiler.allow_js);
+    assert_eq!(
+        compiler
+            .max_node_module_js_depth
+            .expect("numeric depth option is projected")
+            .value(),
+        1.5
+    );
     assert_eq!(compiler.module, Some(200));
     assert_eq!(compiler.module_resolution, Some(100));
     assert_eq!(
@@ -158,6 +166,71 @@ fn config_projection_carries_the_currently_modeled_resolver_options() {
     assert_eq!(
         program.config_file_path().unwrap().display(),
         Path::new("/project/tsconfig.json")
+    );
+}
+
+#[test]
+fn config_number_projection_drives_javascript_depth_admission_without_narrowing() {
+    let plan = parse_config_root_plan(
+        &MemoryConfigHost::default(),
+        request(
+            "/project/tsconfig.json",
+            r#"{
+                "compilerOptions": {
+                    "allowJs": true,
+                    "maxNodeModuleJsDepth": 1.5,
+                    "module": "commonjs",
+                    "moduleResolution": "node",
+                    "noLib": true,
+                    "types": []
+                },
+                "files": ["root.ts"]
+            }"#,
+        ),
+    )
+    .expect("depth config projection");
+    assert!(plan.diagnostics().next().is_none());
+
+    let host = MemoryCompilerHost::builder("/project")
+        .file("/project/root.ts", b"import 'pkg';\nexport {};\n".to_vec())
+        .file(
+            "/project/node_modules/pkg/package.json",
+            br#"{"name":"pkg","version":"1.0.0","main":"index.js"}"#.to_vec(),
+        )
+        .file(
+            "/project/node_modules/pkg/index.js",
+            b"import './leaf.js';\nexport {};\n".to_vec(),
+        )
+        .file(
+            "/project/node_modules/pkg/leaf.js",
+            b"export const leaf = true;\n".to_vec(),
+        )
+        .build()
+        .expect("build depth-admission host");
+    let projected = plan.module_resolution_options();
+    let mut compiler_options = projected.compiler_options().clone();
+    // The current loader boundary is no-emit-only, while this config snapshot
+    // deliberately projects only resolver/loader options.
+    compiler_options.no_emit = Some(true);
+    let program = load_no_lib_program(
+        &host,
+        &[Path::new("/project/root.ts").to_path_buf()],
+        compiler_options,
+        projected.program_options().clone(),
+        ProgramLoadLimits::new(16, 32, 16, 1_024, 8_192),
+    )
+    .expect("load config-derived fractional depth");
+
+    assert_eq!(
+        program
+            .source_files()
+            .iter()
+            .map(|source| source.path().display())
+            .collect::<Vec<_>>(),
+        [
+            Path::new("/project/node_modules/pkg/index.js"),
+            Path::new("/project/root.ts"),
+        ]
     );
 }
 
