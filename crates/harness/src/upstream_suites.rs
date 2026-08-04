@@ -15,6 +15,7 @@ use sha2::{Digest, Sha256};
 use crate::{HarnessError, HarnessResult};
 
 mod compiler;
+pub mod execution;
 
 pub const SCHEMA: u32 = 1;
 pub const TYPESCRIPT_VERSION: &str = "6.0.3";
@@ -1100,6 +1101,20 @@ fn expected_summary() -> ExpansionSummary {
 }
 
 pub fn check_recorded_manifest(workspace: &Path) -> HarnessResult<ExpansionSummary> {
+    let (parsed, recorded) = read_recorded_manifest(workspace)?;
+    let summary = parsed.summary.clone();
+    let generated = generate_manifest(workspace)?;
+    let canonical_generated = render_manifest(&generated)?;
+    if recorded != canonical_generated {
+        return Err(error(format!(
+            "recorded upstream suite manifest {} is stale; regenerate it with cargo xtask upstream-suites manifest --write",
+            workspace.join(MANIFEST_RELATIVE_PATH).display()
+        )));
+    }
+    Ok(summary)
+}
+
+fn read_recorded_manifest(workspace: &Path) -> HarnessResult<(ExpansionManifest, Vec<u8>)> {
     let path = workspace.join(MANIFEST_RELATIVE_PATH);
     let recorded = fs::read(&path).map_err(|source| {
         error(format!(
@@ -1121,15 +1136,8 @@ pub fn check_recorded_manifest(workspace: &Path) -> HarnessResult<ExpansionSumma
             path.display()
         )));
     }
-    let generated = generate_manifest(workspace)?;
-    let canonical_generated = render_manifest(&generated)?;
-    if recorded != canonical_generated {
-        return Err(error(format!(
-            "recorded upstream suite manifest {} is stale; regenerate it with cargo xtask upstream-suites manifest --write",
-            path.display()
-        )));
-    }
-    Ok(summary)
+    debug_assert_eq!(summary, parsed.summary);
+    Ok((parsed, recorded))
 }
 
 fn read_and_validate_pin(workspace: &Path) -> HarnessResult<(TestSuitesPin, CorpusPinIdentity)> {
