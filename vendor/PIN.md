@@ -13,3 +13,12 @@ The vendored implementation lives under
 
 The conformance corpus is vendored under
 `ts-tests/tests/cases/conformance/`.
+
+The upstream `compiler`, `project`, and `projects` test trees are vendored
+byte-for-byte under `ts-tests/tests/cases/` from TypeScript commit
+`050880ce59e30b356b686bd3144efe24f875ebc8`. Their exact Git tree IDs, blob
+inventory digests, file counts, byte counts, and executable modes are pinned
+in `vendor/typescript-6.0.3/test-suites-pin.v1.json`. The harness integration
+contract recursively verifies every entry; the three trees are not sampled or
+filtered. This is an inventory-integrity contract: it does not execute those
+upstream suites or claim that the compiler passes them.

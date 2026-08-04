@@ -1,0 +1,4 @@
+# Exact upstream fixtures intentionally contain whitespace and marker canaries.
+ts-tests/tests/cases/compiler/** -whitespace conflict-marker-size=64
+ts-tests/tests/cases/project/** -whitespace conflict-marker-size=64
+ts-tests/tests/cases/projects/** -whitespace conflict-marker-size=64

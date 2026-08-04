@@ -1,0 +1,44 @@
+{
+  "schema": 1,
+  "typescript_version": "6.0.3",
+  "source_repository": "https://github.com/microsoft/TypeScript.git",
+  "source_commit": "050880ce59e30b356b686bd3144efe24f875ebc8",
+  "suites": [
+    {
+      "name": "compiler",
+      "source_path": "tests/cases/compiler",
+      "vendored_path": "ts-tests/tests/cases/compiler",
+      "git_tree_sha1": "9982425f8fc156678687afd21aa6f7ac681a7c01",
+      "blob_inventory_sha256": "7d21dca57fe92942f818333b9b12b51139b740bc334179d4e89cd73e2251c434",
+      "files": 6537,
+      "bytes": 4588680,
+      "unique_blobs": 6523,
+      "executable_paths": [
+        "parserPrivateIdentifierInArrayAssignment.ts",
+        "taggedTemplateWithoutDeclaredHelper.ts"
+      ]
+    },
+    {
+      "name": "project",
+      "source_path": "tests/cases/project",
+      "vendored_path": "ts-tests/tests/cases/project",
+      "git_tree_sha1": "c13353cca2c55fb831ba40ca022b29839fdfab26",
+      "blob_inventory_sha256": "04fe8a0e3777b9a51bf150377e15363dd930d13de2608cd25de306dedb45cde5",
+      "files": 316,
+      "bytes": 100994,
+      "unique_blobs": 316,
+      "executable_paths": []
+    },
+    {
+      "name": "projects",
+      "source_path": "tests/cases/projects",
+      "vendored_path": "ts-tests/tests/cases/projects",
+      "git_tree_sha1": "85282d8f70ef48a26a7b9f9c4e0bee88a1cf16e7",
+      "blob_inventory_sha256": "a881ee1ae51c01e8455bdedf040900b6bfa403aa745a2c809420469b9d1b4926",
+      "files": 233,
+      "bytes": 28468,
+      "unique_blobs": 154,
+      "executable_paths": []
+    }
+  ]
+}
