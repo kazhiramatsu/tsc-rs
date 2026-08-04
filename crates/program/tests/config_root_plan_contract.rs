@@ -131,6 +131,12 @@ fn jsconfig_defaults_are_effective_before_root_discovery() {
         json!(2)
     );
     assert_eq!(plan.options().get("noEmit").unwrap().value, json!(true));
+    assert_eq!(
+        plan.module_resolution_options()
+            .compiler_options()
+            .max_node_module_js_depth_effective(),
+        2.0
+    );
     assert!(host.requested_extensions.borrow()[0]
         .iter()
         .any(|extension| extension == ".js"));
@@ -145,13 +151,20 @@ fn explicit_jsconfig_options_override_defaults() {
         &host,
         request(
             "/project/jsconfig.json",
-            r#"{"compilerOptions":{"allowJs":false}}"#,
+            r#"{"compilerOptions":{"allowJs":false,"maxNodeModuleJsDepth":null}}"#,
         ),
     )
     .expect("overridden jsconfig root plan");
 
     assert_eq!(plan.file_names(), ["/project/main.ts"]);
     assert_eq!(plan.options().get("allowJs").unwrap().value, json!(false));
+    assert_eq!(
+        plan.module_resolution_options()
+            .compiler_options()
+            .max_node_module_js_depth_effective(),
+        0.0,
+        "an own null masks the jsconfig default with JavaScript undefined"
+    );
     assert!(!host.requested_extensions.borrow()[0]
         .iter()
         .any(|extension| extension == ".js"));
@@ -313,6 +326,12 @@ fn non_finite_numeric_options_keep_javascript_number_identity() {
         plan.options().typed_value_state("maxNodeModuleJsDepth"),
         tsc_program::ConfigOptionValueState::PositiveInfinity
     );
+    assert_eq!(
+        plan.module_resolution_options()
+            .compiler_options()
+            .max_node_module_js_depth_effective(),
+        f64::INFINITY
+    );
 
     let negative = parse_config_root_plan(
         &MemoryConfigHost::default(),
@@ -326,6 +345,13 @@ fn non_finite_numeric_options_keep_javascript_number_identity() {
     assert_eq!(
         negative.options().typed_value_state("maxNodeModuleJsDepth"),
         tsc_program::ConfigOptionValueState::NegativeInfinity
+    );
+    assert_eq!(
+        negative
+            .module_resolution_options()
+            .compiler_options()
+            .max_node_module_js_depth_effective(),
+        f64::NEG_INFINITY
     );
 }
 

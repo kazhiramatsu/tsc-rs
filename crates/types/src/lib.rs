@@ -7,7 +7,7 @@ pub mod ty;
 mod version;
 
 pub use flags::*;
-pub use options::{CompilerOptions, ModuleSuffix};
+pub use options::{CompilerOptionNumber, CompilerOptions, ModuleSuffix};
 pub use tables::{
     js_number_to_string, IntersectionFlags, Intrinsics, TupleTargetFlags, TypeTables,
     UnionReduction,

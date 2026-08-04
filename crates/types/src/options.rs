@@ -2,7 +2,57 @@
 //! tsc-rs-types so both the binder and the checker can read it (the
 //! checker re-exports it for downstream callers).
 
+use std::fmt;
+
 use crate::flags::ScriptTarget;
+
+/// Hashable storage for a JavaScript `number` compiler-option value.
+///
+/// TypeScript accepts the full binary64 domain for numeric options, including
+/// fractions, infinities, and (through the programmatic API) NaN. Rust's
+/// `f64` cannot implement `Eq` or `Hash`, so signed zero and NaN payloads are
+/// canonicalized before storing their bits. Those canonicalizations preserve
+/// every JavaScript numeric comparison used by compiler-option consumers.
+#[derive(Clone, Copy, Default, Eq, Hash, PartialEq)]
+pub struct CompilerOptionNumber(u64);
+
+impl CompilerOptionNumber {
+    pub fn new(value: f64) -> Self {
+        let canonical = if value == 0.0 {
+            0.0
+        } else if value.is_nan() {
+            f64::NAN
+        } else {
+            value
+        };
+        Self(canonical.to_bits())
+    }
+
+    pub fn value(self) -> f64 {
+        f64::from_bits(self.0)
+    }
+}
+
+impl fmt::Debug for CompilerOptionNumber {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_tuple("CompilerOptionNumber")
+            .field(&self.value())
+            .finish()
+    }
+}
+
+impl From<f64> for CompilerOptionNumber {
+    fn from(value: f64) -> Self {
+        Self::new(value)
+    }
+}
+
+impl From<i32> for CompilerOptionNumber {
+    fn from(value: i32) -> Self {
+        Self::new(f64::from(value))
+    }
+}
 
 /// One runtime entry in TypeScript's `moduleSuffixes` option.
 ///
@@ -38,9 +88,10 @@ pub struct CompilerOptions {
     /// tsc getAllowJSCompilerOption: allowJs ?? !!checkJs.
     pub allow_js: bool,
     /// Maximum JavaScript import depth admitted while searching
-    /// `node_modules`. The raw numeric option defaults to zero and is only
-    /// effective for source admission when `allowJs` is enabled.
-    pub max_node_module_js_depth: Option<i32>,
+    /// `node_modules`. The raw JavaScript number defaults to zero and is only
+    /// effective for source admission when `allowJs` is enabled. Fractions,
+    /// infinities, and programmatic NaN retain TypeScript comparison semantics.
+    pub max_node_module_js_depth: Option<CompilerOptionNumber>,
     pub experimental_decorators: bool,
     /// tsc ScriptTarget value; None when the option is absent.
     pub target: Option<i32>,
@@ -240,8 +291,33 @@ pub struct CompilerOptions {
 
 impl CompilerOptions {
     /// tsc createProgram defaults the raw option to zero.
-    pub fn max_node_module_js_depth_effective(&self) -> i32 {
-        self.max_node_module_js_depth.unwrap_or(0)
+    pub fn max_node_module_js_depth_effective(&self) -> f64 {
+        self.max_node_module_js_depth
+            .map_or(0.0, CompilerOptionNumber::value)
+    }
+
+    /// Compare an integer traversal depth with the raw JavaScript-number
+    /// option exactly as TypeScript's import-elision branch does. The loader's
+    /// structural depth cap keeps every accepted integer exactly representable
+    /// as binary64.
+    ///
+    /// tsc-port: processImportedModulesDepthElision @6.0.3
+    /// tsc-hash: d0958af8e0496c92330ef87edc7ffb3842ad5fececbb5f76cf687738729ec6e4
+    /// tsc-span: _tsc.js:124604-124635
+    pub fn node_modules_depth_exceeds_limit(&self, depth: usize) -> bool {
+        (depth as f64) > self.max_node_module_js_depth_effective()
+    }
+
+    /// Compare an integer traversal depth with the raw JavaScript-number
+    /// option exactly as TypeScript's shallower-reprocessing branch does. The
+    /// loader's structural depth cap keeps every accepted integer exactly
+    /// representable as binary64.
+    ///
+    /// tsc-port: findSourceFileShallowerReprocessing @6.0.3
+    /// tsc-hash: 0d02f35fa341b2d7526de88a99625022e7aba1bdf8fcccc21d23ea4941f7ba3f
+    /// tsc-span: _tsc.js:124316-124330
+    pub fn node_modules_depth_below_limit(&self, depth: usize) -> bool {
+        (depth as f64) < self.max_node_module_js_depth_effective()
     }
 
     /// tsc _computedOptions.target.computeValue (18245): ES3 counts as

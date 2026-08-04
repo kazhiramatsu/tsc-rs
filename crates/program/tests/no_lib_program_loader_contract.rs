@@ -10,11 +10,11 @@ use std::{fs, io};
 use tsc_host::FsCompilerHost;
 use tsc_host::{CompilerHost, HostError, HostErrorKind, HostOperation, MemoryCompilerHost};
 use tsc_program::{
-    load_no_lib_program, plan_source_requests, CompilerOptions, ModuleExtension, PathMapping,
-    PreparedProgram, ProgramLoadError, ProgramLoadErrorKind, ProgramLoadLimit, ProgramLoadLimits,
-    ProgramLoadOperation, ProgramOptions, ProgramPath, ResolutionError, ResolutionKey,
-    ResolutionMode, ResolutionOutcome, ResolvedModuleTarget, TypeReferenceResolutionKey,
-    UnloadedModuleReason,
+    load_no_lib_program, plan_source_requests, CompilerOptionNumber, CompilerOptions,
+    ModuleExtension, PathMapping, PreparedProgram, ProgramLoadError, ProgramLoadErrorKind,
+    ProgramLoadLimit, ProgramLoadLimits, ProgramLoadOperation, ProgramOptions, ProgramPath,
+    ResolutionError, ResolutionKey, ResolutionMode, ResolutionOutcome, ResolvedModuleTarget,
+    TypeReferenceResolutionKey, UnloadedModuleReason,
 };
 
 const GENEROUS_LIMIT: usize = 1_024;
@@ -2202,7 +2202,7 @@ fn max_node_module_js_depth_admits_each_external_javascript_layer_in_tsc_postord
             &["/work/root.ts"],
             CompilerOptions {
                 allow_js: true,
-                max_node_module_js_depth: Some(max_depth),
+                max_node_module_js_depth: Some(max_depth.into()),
                 module: Some(1),
                 module_resolution: Some(2),
                 ..compiler_options()
@@ -2341,7 +2341,7 @@ fn external_type_reference_source_owns_the_next_node_module_js_depth_layer() {
             &["/work/root.ts"],
             CompilerOptions {
                 allow_js: true,
-                max_node_module_js_depth: Some(max_depth),
+                max_node_module_js_depth: Some(max_depth.into()),
                 module: Some(1),
                 module_resolution: Some(2),
                 ..compiler_options()
@@ -2442,7 +2442,7 @@ fn shallower_nonzero_revisit_reprocesses_only_imports() {
         &["/work/root.ts"],
         CompilerOptions {
             allow_js: true,
-            max_node_module_js_depth: Some(2),
+            max_node_module_js_depth: Some(2.into()),
             module: Some(1),
             module_resolution: Some(2),
             ..compiler_options()
@@ -2504,7 +2504,7 @@ fn depth_zero_root_promotion_reprocesses_path_reference_descendants() {
         &["/work/root.ts", "/work/node_modules/a/index.js"],
         CompilerOptions {
             allow_js: true,
-            max_node_module_js_depth: Some(1),
+            max_node_module_js_depth: Some(1.into()),
             module: Some(1),
             module_resolution: Some(2),
             ..compiler_options()
@@ -2579,7 +2579,7 @@ fn negative_max_node_module_js_depth_elides_every_external_javascript_target() {
         &["/work/root.ts"],
         CompilerOptions {
             allow_js: true,
-            max_node_module_js_depth: Some(-1),
+            max_node_module_js_depth: Some((-1).into()),
             module: Some(1),
             module_resolution: Some(2),
             ..compiler_options()
@@ -2597,6 +2597,81 @@ fn negative_max_node_module_js_depth_elides_every_external_javascript_target() {
         target_path,
         UnloadedModuleReason::NodeModulesDepth,
     );
+}
+
+#[test]
+fn javascript_number_depth_limits_preserve_fraction_infinity_and_nan_comparisons() {
+    for (label, maximum, expected_paths) in [
+        ("fraction below first layer", 0.5, &["/work/root.ts"][..]),
+        (
+            "fraction between layers",
+            1.5,
+            &["/work/node_modules/pkg/index.js", "/work/root.ts"][..],
+        ),
+        (
+            "positive infinity",
+            f64::INFINITY,
+            &[
+                "/work/node_modules/pkg/leaf.js",
+                "/work/node_modules/pkg/index.js",
+                "/work/root.ts",
+            ][..],
+        ),
+        (
+            "negative infinity",
+            f64::NEG_INFINITY,
+            &["/work/root.ts"][..],
+        ),
+        (
+            "programmatic NaN",
+            f64::NAN,
+            &[
+                "/work/node_modules/pkg/leaf.js",
+                "/work/node_modules/pkg/index.js",
+                "/work/root.ts",
+            ][..],
+        ),
+    ] {
+        let host = MemoryCompilerHost::builder("/work")
+            .file("/work/root.ts", b"import 'pkg';\nexport {};\n".to_vec())
+            .file(
+                "/work/node_modules/pkg/package.json",
+                br#"{"name":"pkg","version":"1.0.0","main":"index.js"}"#.to_vec(),
+            )
+            .file(
+                "/work/node_modules/pkg/index.js",
+                b"import './leaf.js';\nexport {};\n".to_vec(),
+            )
+            .file(
+                "/work/node_modules/pkg/leaf.js",
+                b"export const leaf = true;\n".to_vec(),
+            )
+            .build()
+            .expect("build JavaScript-number depth host");
+        let program = load_with_options(
+            &host,
+            &["/work/root.ts"],
+            CompilerOptions {
+                allow_js: true,
+                max_node_module_js_depth: Some(CompilerOptionNumber::new(maximum)),
+                module: Some(1),
+                module_resolution: Some(2),
+                ..compiler_options()
+            },
+            program_options(),
+            generous_limits(),
+        )
+        .unwrap_or_else(|error| panic!("load {label} maxNodeModuleJsDepth: {error}"));
+
+        assert_eq!(
+            source_paths(&program),
+            expected_paths
+                .iter()
+                .map(|path| Path::new(*path))
+                .collect::<Vec<_>>(),
+            "{label}"
+        );
+    }
 }
 
 #[test]
@@ -2622,7 +2697,7 @@ fn max_node_module_js_depth_does_not_override_allow_js_false() {
         &["/work/root.ts"],
         CompilerOptions {
             allow_js: false,
-            max_node_module_js_depth: Some(1),
+            max_node_module_js_depth: Some(1.into()),
             module: Some(1),
             module_resolution: Some(2),
             ..compiler_options()

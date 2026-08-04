@@ -32,7 +32,7 @@ use tsc_diagnostics::{
 };
 use tsc_host::{to_file_name_lower_case, CompilerHost, HostError, HostErrorKind, HostOperation};
 use tsc_syntax::{NodeId, SourceFile, SyntaxKind};
-use tsc_types::{js_number_to_string, CompilerOptions, ModuleSuffix};
+use tsc_types::{js_number_to_string, CompilerOptionNumber, CompilerOptions, ModuleSuffix};
 
 use crate::config_options::{
     compiler_option_declaration, compiler_option_spelling_suggestion,
@@ -2910,6 +2910,7 @@ fn config_module_resolution_options(
 ) -> Result<ConfigModuleResolutionOptions, ConfigParseError> {
     let compiler_options = CompilerOptions {
         allow_js: discovery.allow_js,
+        max_node_module_js_depth: config_option_number(options, "maxNodeModuleJsDepth"),
         module: config_option_i32(options, "module"),
         module_resolution: config_option_i32(options, "moduleResolution"),
         base_url: config_option_string(options, "baseUrl"),
@@ -2993,6 +2994,26 @@ fn config_option_i32(options: &ConfigOptionBag, name: &str) -> Option<i32> {
         .typed_value(name)
         .and_then(Value::as_i64)
         .and_then(|value| i32::try_from(value).ok())
+}
+
+/// Preserve the JavaScript `number` domain used by createProgram instead of
+/// narrowing numeric config options to Rust integers.
+///
+/// tsc-port: maxNodeModuleJsDepthInitialization @6.0.3
+/// tsc-hash: d5a1d11457ee19a7c4d840633cd4bf52ba239d3a97ee4bac72fb62a85165dc62
+/// tsc-span: _tsc.js:122659-122659
+fn config_option_number(options: &ConfigOptionBag, name: &str) -> Option<CompilerOptionNumber> {
+    let value = match options.typed_value_state(name) {
+        ConfigOptionValueState::Value(Value::Number(value)) => json_number_as_f64(value)?,
+        ConfigOptionValueState::PositiveInfinity => f64::INFINITY,
+        ConfigOptionValueState::NegativeInfinity => f64::NEG_INFINITY,
+        ConfigOptionValueState::Absent
+        | ConfigOptionValueState::Undefined
+        | ConfigOptionValueState::Value(_)
+        | ConfigOptionValueState::List(_)
+        | ConfigOptionValueState::Object(_) => return None,
+    };
+    Some(CompilerOptionNumber::new(value))
 }
 
 fn config_option_string(options: &ConfigOptionBag, name: &str) -> Option<String> {

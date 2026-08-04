@@ -1402,10 +1402,9 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                             node_modules_depth,
                         })
                     } else if staged.modules_with_elided_imports
-                        && node_modules_depth_below_limit(
-                            node_modules_depth,
-                            self.compiler_options.max_node_module_js_depth_effective(),
-                        )
+                        && self
+                            .compiler_options
+                            .node_modules_depth_below_limit(node_modules_depth)
                     {
                         staged.modules_with_elided_imports = false;
                         Some(SourceReprocess {
@@ -2113,10 +2112,9 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                 let elided_by_node_modules_depth = external
                     && (!has_original_path
                         || path_contains_node_modules(target.canonical().as_path()))
-                    && node_modules_depth_exceeds_limit(
-                        child_node_modules_depth,
-                        self.compiler_options.max_node_module_js_depth_effective(),
-                    );
+                    && self
+                        .compiler_options
+                        .node_modules_depth_exceeds_limit(child_node_modules_depth);
                 if elided_by_node_modules_depth {
                     self.sources[source].modules_with_elided_imports = true;
                 }
@@ -2623,14 +2621,6 @@ fn path_contains_node_modules(path: &Path) -> bool {
         .is_some_and(|path| path.split('/').any(|component| component == "node_modules"))
 }
 
-fn node_modules_depth_exceeds_limit(depth: usize, maximum: i32) -> bool {
-    usize::try_from(maximum).map_or(true, |maximum| depth > maximum)
-}
-
-fn node_modules_depth_below_limit(depth: usize, maximum: i32) -> bool {
-    usize::try_from(maximum).is_ok_and(|maximum| depth < maximum)
-}
-
 fn unloaded_javascript_reason(
     extension: &ModuleExtension,
     options: &CompilerOptions,
@@ -2651,10 +2641,7 @@ fn unloaded_javascript_reason(
     }
     if external
         && (!has_original_path || path_contains_node_modules(resolved_file.as_path()))
-        && node_modules_depth_exceeds_limit(
-            node_modules_depth,
-            options.max_node_module_js_depth_effective(),
-        )
+        && options.node_modules_depth_exceeds_limit(node_modules_depth)
     {
         return Some(UnloadedModuleReason::NodeModulesDepth);
     }

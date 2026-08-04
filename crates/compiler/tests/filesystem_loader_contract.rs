@@ -10,8 +10,9 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use tsc_compiler::ProgramSession;
 use tsc_host::{FsCompilerHost, MemoryCompilerHost};
 use tsc_program::{
-    load_no_lib_program, plan_source_requests, CompilerOptions, PathMapping, ProgramLoadLimits,
-    ProgramOptions, ProgramPath, ResolutionOutcome, ResolvedModuleTarget, UnloadedModuleReason,
+    load_no_lib_program, plan_source_requests, CompilerOptionNumber, CompilerOptions, PathMapping,
+    ProgramLoadLimits, ProgramOptions, ProgramPath, ResolutionOutcome, ResolvedModuleTarget,
+    UnloadedModuleReason,
 };
 
 const GENEROUS_LIMIT: usize = 1_024 * 1_024;
@@ -608,7 +609,7 @@ fn positive_node_module_js_depth_admits_package_and_gates_its_nested_javascript(
     let memory = memory.build().expect("construct memory host");
     let compiler_options = CompilerOptions {
         allow_js: true,
-        max_node_module_js_depth: Some(1),
+        max_node_module_js_depth: Some(1.into()),
         no_emit: Some(true),
         ..CompilerOptions::default()
     };
@@ -750,7 +751,7 @@ fn allow_js_false_precedes_positive_node_module_depth_in_both_authoritative_load
     let memory = memory.build().expect("construct memory host");
     let compiler_options = CompilerOptions {
         allow_js: false,
-        max_node_module_js_depth: Some(1),
+        max_node_module_js_depth: Some(1.into()),
         no_emit: Some(true),
         no_implicit_any: Some(true),
         ..CompilerOptions::default()
@@ -833,6 +834,96 @@ fn allow_js_false_precedes_positive_node_module_depth_in_both_authoritative_load
             .collect::<Vec<_>>(),
         [7016]
     );
+}
+
+#[test]
+fn fractional_and_nan_depths_preserve_elision_precedence_through_program_session() {
+    let host = MemoryCompilerHost::builder("/work")
+        .file(
+            "/work/root.ts",
+            concat!(
+                "/// <reference path=\"./globals.d.ts\" />\n",
+                "import packageValue from 'pkg';\n",
+                "packageValue;\n",
+                "export {};\n",
+            )
+            .as_bytes()
+            .to_vec(),
+        )
+        .file("/work/globals.d.ts", MINIMAL_GLOBALS.as_bytes().to_vec())
+        .file(
+            "/work/node_modules/pkg/package.json",
+            br#"{"name":"pkg","version":"1.0.0","main":"index.js"}"#.to_vec(),
+        )
+        .file(
+            "/work/node_modules/pkg/index.js",
+            b"module.exports = 1;".to_vec(),
+        )
+        .build()
+        .expect("construct fractional/NaN precedence host");
+
+    for (label, maximum, expected_reason) in [
+        (
+            "fractional first-layer elision",
+            0.5,
+            UnloadedModuleReason::NodeModulesDepth,
+        ),
+        (
+            "NaN disables ordered depth elision",
+            f64::NAN,
+            UnloadedModuleReason::JavaScriptNotAdmitted,
+        ),
+    ] {
+        let program = load_no_lib_program(
+            &host,
+            &[PathBuf::from("/work/root.ts")],
+            CompilerOptions {
+                allow_js: false,
+                max_node_module_js_depth: Some(CompilerOptionNumber::new(maximum)),
+                no_emit: Some(true),
+                no_implicit_any: Some(true),
+                ..CompilerOptions::default()
+            },
+            ProgramOptions::default()
+                .with_no_lib(true)
+                .with_types(Vec::new()),
+            limits(),
+        )
+        .unwrap_or_else(|error| panic!("load {label}: {error}"));
+        let root = program
+            .source_files()
+            .iter()
+            .find(|source| source.path().display() == Path::new("/work/root.ts"))
+            .expect("root source is owned");
+        let key = plan_source_requests(root, program.compiler_options())
+            .expect("plan package request")
+            .module_requests()[0]
+            .clone();
+        let resolution = program
+            .resolutions()
+            .require_module(&key)
+            .expect("package request has an authoritative row");
+        let ResolutionOutcome::Resolved(resolution) = resolution.outcome() else {
+            panic!("{label} package request must resolve");
+        };
+        let ResolvedModuleTarget::Unloaded { reason, .. } = resolution.target() else {
+            panic!("allowJs=false must keep the {label} target unloaded");
+        };
+        assert_eq!(*reason, expected_reason, "{label}");
+
+        let outcome = ProgramSession::new(program)
+            .run()
+            .unwrap_or_else(|error| panic!("run {label}: {error}"));
+        assert_eq!(
+            outcome
+                .semantic_diagnostics()
+                .iter()
+                .map(|diagnostic| diagnostic.code())
+                .collect::<Vec<_>>(),
+            [7016],
+            "{label}"
+        );
+    }
 }
 
 #[test]

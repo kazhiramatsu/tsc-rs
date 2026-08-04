@@ -297,7 +297,7 @@ fn project_compiler_options(options: &BTreeMap<String, OptionValue>) -> Compiler
     };
     let number_option = |name: &str| {
         option_value(options, name).and_then(|value| match value {
-            OptionValue::Number(value) => Some(*value),
+            OptionValue::Number(value) => Some((*value).into()),
             _ => None,
         })
     };
@@ -1722,7 +1722,12 @@ mod tests {
         assert_eq!(closed.module, Some(5));
         assert_eq!(closed.module_resolution, Some(2));
         assert_eq!(closed.module_detection, Some(2));
-        assert_eq!(closed.max_node_module_js_depth, Some(3));
+        assert_eq!(
+            closed
+                .max_node_module_js_depth
+                .map(tsc_program::CompilerOptionNumber::value),
+            Some(3.0)
+        );
         assert_eq!(closed.jsx, Some(4));
         assert_eq!(
             closed.module_suffixes.as_deref(),

@@ -436,7 +436,11 @@ JavaScript path references join ordinary source membership. JavaScript targets
 found while searching `node_modules` advance a separate external-library depth
 on every external resolution edge and join membership through the inclusive
 `maxNodeModuleJsDepth` boundary. Deeper targets retain authoritative unloaded
-resolution rows. Every unloaded row carries its reason across the compiler
+resolution rows. Config projection retains fractional and infinite JavaScript
+numbers, applies the `jsconfig.json` default of two, and lets an own null/invalid
+value mask that default back to createProgram's zero. The canonical compiler
+option value additionally preserves programmatic NaN. Every unloaded row
+carries its reason across the compiler
 seam, so an `allowJs` program cannot silently accept an unexplained local
 unloaded target. A `.jsx` module target without an active JSX mode is retained
 without reading its bytes and produces TS6142; an already-owned `.jsx` source still
@@ -654,7 +658,7 @@ official oracle. Include patterns are compiled once and reused through an
 iterative, linear-scratch UTF-16 matcher; candidate matching does not recurse,
 build a quadratic memo table, or require a regex dependency. This is not yet a
 general `ParseConfigHost`/`matchFiles` qualification. Remaining root fields,
-remaining resolver/loader options such as `maxNodeModuleJsDepth`, full
+remaining resolver/loader options such as `noDtsResolution`, full
 `ParsedCommandLine`, filesystem discovery,
 project/project-runner config handling, wiring the config projection into
 general program construction, command-line selection, rendering, exit status,

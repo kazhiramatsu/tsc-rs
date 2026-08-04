@@ -306,7 +306,10 @@ With `allowJs`, explicit JavaScript roots, local JavaScript module dependencies,
 and supported JavaScript path references join that same owned source graph.
 JavaScript targets found while searching `node_modules` are admitted through
 the inclusive `maxNodeModuleJsDepth` boundary; deeper rows remain unloaded and
-retain their admission reason. Later shallower and root discoveries reprocess
+retain their admission reason. Config-derived depth values preserve TypeScript's
+fractional and infinite JavaScript-number comparisons, including the
+`jsconfig.json` default; programmatic NaN keeps its unordered comparisons.
+Later shallower and root discoveries reprocess
 exactly the imports or full reference phases required by TypeScript. A `.jsx`
 module target without an active JSX mode is not
 read and produces TS6142, while an explicit `.jsx` root or path reference can
