@@ -1362,12 +1362,19 @@ impl PreparedProgramBuilder {
             return Ok(());
         };
         let resolved_file = module.target().resolved_file();
+        // Resolver extensions retain the host/display spelling. In a
+        // case-insensitive profile an arbitrary twin such as `.d.CSS.ts`
+        // therefore cannot be checked against the lower-cased canonical key.
         let resolved_file_name = resolved_file
-            .canonical()
-            .as_path()
+            .display()
             .to_str()
-            .expect("canonical program paths are Unicode");
-        if !module.extension().is_valid() || !module.extension().matches_path(resolved_file_name) {
+            .expect("display program paths are Unicode");
+        if !module.extension().is_valid()
+            || !module.extension().matches_path_with_case(
+                resolved_file_name,
+                self.path_context.use_case_sensitive_file_names(),
+            )
+        {
             return Err(PreparationError::new(
                 PreparationErrorKind::InvalidData,
                 PreparationOperation::AddModuleResolution,

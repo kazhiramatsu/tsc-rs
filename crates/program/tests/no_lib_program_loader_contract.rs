@@ -10,8 +10,8 @@ use std::{fs, io};
 use tsc_host::FsCompilerHost;
 use tsc_host::{CompilerHost, HostError, HostErrorKind, HostOperation, MemoryCompilerHost};
 use tsc_program::{
-    load_no_lib_program, plan_source_requests, CompilerOptions, PathMapping, PreparedProgram,
-    ProgramLoadError, ProgramLoadErrorKind, ProgramLoadLimit, ProgramLoadLimits,
+    load_no_lib_program, plan_source_requests, CompilerOptions, ModuleExtension, PathMapping,
+    PreparedProgram, ProgramLoadError, ProgramLoadErrorKind, ProgramLoadLimit, ProgramLoadLimits,
     ProgramLoadOperation, ProgramOptions, ProgramPath, ResolutionError, ResolutionKey,
     ResolutionOutcome, ResolvedModuleTarget, TypeReferenceResolutionKey, UnloadedModuleReason,
 };
@@ -519,6 +519,81 @@ fn classic_and_node10_load_triple_slash_types_into_the_authoritative_table() {
         );
         assert!(resolution.diagnostics().is_empty());
     }
+}
+
+#[test]
+fn type_reference_targets_admit_implementation_and_arbitrary_typescript_sources() {
+    let host = MemoryCompilerHost::builder("/work")
+        .file(
+            "/work/root.ts",
+            concat!(
+                "/// <reference types=\"implementation\" />\n",
+                "/// <reference types=\"styles\" />\n",
+                "export {};\n",
+            )
+            .as_bytes()
+            .to_vec(),
+        )
+        .file("/work/automatic.ts", b"export {};\n".to_vec())
+        .file(
+            "/work/node_modules/@types/implementation/package.json",
+            br#"{"name":"@types/implementation","version":"1.0.0","types":"index.ts"}"#.to_vec(),
+        )
+        .file(
+            "/work/node_modules/@types/implementation/index.ts",
+            b"declare const implementation: true;".to_vec(),
+        )
+        .file(
+            "/work/node_modules/@types/styles/package.json",
+            br#"{"name":"@types/styles","version":"1.0.0","types":"index.css"}"#.to_vec(),
+        )
+        .file(
+            "/work/node_modules/@types/styles/index.d.css.ts",
+            b"declare const styles: true;".to_vec(),
+        )
+        .build()
+        .expect("build TypeScript type-reference targets");
+    let options = CompilerOptions {
+        module: Some(199),
+        module_resolution: Some(99),
+        ..compiler_options()
+    };
+
+    let explicit = load_with_options(
+        &host,
+        &["/work/root.ts"],
+        options.clone(),
+        program_options(),
+        generous_limits(),
+    )
+    .expect("load explicit TypeScript type-reference targets");
+    assert_eq!(
+        source_paths(&explicit),
+        [
+            Path::new("/work/node_modules/@types/implementation/index.ts"),
+            Path::new("/work/node_modules/@types/styles/index.d.css.ts"),
+            Path::new("/work/root.ts"),
+        ]
+    );
+
+    let automatic = load_with_options(
+        &host,
+        &["/work/automatic.ts"],
+        options,
+        ProgramOptions::default()
+            .with_no_lib(true)
+            .with_types(vec!["implementation".to_owned(), "styles".to_owned()]),
+        generous_limits(),
+    )
+    .expect("load automatic TypeScript type-reference targets");
+    assert_eq!(
+        source_paths(&automatic),
+        [
+            Path::new("/work/automatic.ts"),
+            Path::new("/work/node_modules/@types/implementation/index.ts"),
+            Path::new("/work/node_modules/@types/styles/index.d.css.ts"),
+        ]
+    );
 }
 
 #[test]
@@ -1070,6 +1145,32 @@ fn path_reference_case_alias_fails_typed_outside_the_root_boundary() {
 }
 
 #[test]
+fn arbitrary_declaration_roots_and_explicit_paths_are_regular_typescript_sources() {
+    let host = MemoryCompilerHost::builder("/work")
+        .file(
+            "/work/root.d.css.ts",
+            b"/// <reference path=\"./dependency.d.json.ts\" />\nexport {};\n".to_vec(),
+        )
+        .file(
+            "/work/dependency.d.json.ts",
+            b"declare const dependency: true;\n".to_vec(),
+        )
+        .build()
+        .expect("build arbitrary declaration root host");
+
+    let program = load(&host, &["/work/root.d.css.ts"], generous_limits())
+        .expect("arbitrary declaration roots and paths use their final .ts extension");
+    assert_eq!(
+        source_paths(&program),
+        [
+            Path::new("/work/dependency.d.json.ts"),
+            Path::new("/work/root.d.css.ts"),
+        ]
+    );
+    assert!(program.diagnostics().program().is_empty());
+}
+
+#[test]
 fn missing_explicit_path_reference_produces_located_ts6053() {
     let root_text = "/// <reference path=\"./missing.ts\" />\nexport {};\n";
     let host = MemoryCompilerHost::builder("/work")
@@ -1485,6 +1586,189 @@ fn allow_js_loads_local_javascript_dependencies_in_postorder_and_binds_source_ro
             Path::new(expected_path)
         );
     }
+}
+
+#[test]
+fn allow_js_loader_consumes_the_complete_written_jsx_replacement_group() {
+    let host = MemoryCompilerHost::builder("/work")
+        .file(
+            "/work/root.ts",
+            b"import './target.jsx';\nexport {};\n".to_vec(),
+        )
+        .file("/work/target.js", b"export const target = true;\n".to_vec())
+        .build()
+        .expect("build written-JSX loader host");
+    let program = load_with_options(
+        &host,
+        &["/work/root.ts"],
+        CompilerOptions {
+            allow_js: true,
+            module: Some(99),
+            module_resolution: Some(100),
+            ..compiler_options()
+        },
+        program_options(),
+        generous_limits(),
+    )
+    .expect("the written JSX request loads its JavaScript replacement");
+
+    assert_eq!(
+        source_paths(&program),
+        [Path::new("/work/target.js"), Path::new("/work/root.ts")]
+    );
+    let resolution = program
+        .resolutions()
+        .require_module(&module_key(&program, "/work/root.ts", "./target.jsx"))
+        .expect("written JSX request has an authoritative row");
+    let ResolutionOutcome::Resolved(resolved) = resolution.outcome() else {
+        panic!("written JSX request must resolve");
+    };
+    let ResolvedModuleTarget::Source {
+        source,
+        resolved_file,
+    } = resolved.target()
+    else {
+        panic!("allowJs admits the replacement JavaScript source");
+    };
+    assert_eq!(resolved_file.display(), Path::new("/work/target.js"));
+    assert_eq!(
+        program.source_file(*source).unwrap().path().display(),
+        Path::new("/work/target.js")
+    );
+    assert!(!resolved.is_external_library_import());
+    assert!(!resolved.resolved_using_ts_extension());
+}
+
+#[test]
+fn arbitrary_declaration_twins_follow_the_resolution_diagnostic_admission_boundary() {
+    let host = MemoryCompilerHost::builder("/work")
+        .file(
+            "/work/root.ts",
+            b"import './data.json';\nexport {};\n".to_vec(),
+        )
+        .file(
+            "/work/root.d.ts",
+            b"import './data.json';\nexport {};\n".to_vec(),
+        )
+        .file(
+            "/work/augmentation.ts",
+            b"export {};\ndeclare module './data.json' { export const value: true; }\n".to_vec(),
+        )
+        .file(
+            "/work/data.d.json.ts",
+            b"import './leaf.json';\nexport {};\n".to_vec(),
+        )
+        .file("/work/leaf.d.json.ts", b"export {};\n".to_vec())
+        .build()
+        .expect("build arbitrary declaration-twin loader host");
+    let base_options = CompilerOptions {
+        module: Some(1),
+        module_resolution: Some(2),
+        resolve_json_module: Some(false),
+        ..compiler_options()
+    };
+
+    let disabled = load_with_options(
+        &host,
+        &["/work/root.ts"],
+        base_options.clone(),
+        program_options(),
+        generous_limits(),
+    )
+    .expect("retain a disabled arbitrary-extension resolution without loading its source");
+    assert_eq!(source_paths(&disabled), [Path::new("/work/root.ts")]);
+    let resolution = disabled
+        .resolutions()
+        .require_module(&module_key(&disabled, "/work/root.ts", "./data.json"))
+        .expect("disabled arbitrary-extension request has an authoritative row");
+    let ResolutionOutcome::Resolved(resolved) = resolution.outcome() else {
+        panic!("the declaration twin must resolve");
+    };
+    assert_eq!(
+        resolved.extension(),
+        &ModuleExtension::Arbitrary(".d.json.ts".to_owned())
+    );
+    let ResolvedModuleTarget::Unloaded { reason, .. } = resolved.target() else {
+        panic!("TS6263 prevents source membership when the option is disabled");
+    };
+    assert_eq!(
+        *reason,
+        UnloadedModuleReason::ArbitraryExtensionWithoutOption
+    );
+
+    let augmentation = load_with_options(
+        &host,
+        &["/work/augmentation.ts"],
+        base_options.clone(),
+        program_options(),
+        generous_limits(),
+    )
+    .expect("an augmentation retains a resolution-only arbitrary row");
+    assert_eq!(
+        source_paths(&augmentation),
+        [Path::new("/work/augmentation.ts")]
+    );
+    let resolution = augmentation
+        .resolutions()
+        .require_module(&module_key(
+            &augmentation,
+            "/work/augmentation.ts",
+            "./data.json",
+        ))
+        .expect("augmentation-only arbitrary request has an authoritative row");
+    let ResolutionOutcome::Resolved(resolved) = resolution.outcome() else {
+        panic!("the augmentation declaration twin must resolve");
+    };
+    let ResolvedModuleTarget::Unloaded { reason, .. } = resolved.target() else {
+        panic!("an augmentation-only target does not join source membership");
+    };
+    assert_eq!(*reason, UnloadedModuleReason::ResolutionOnly);
+
+    let enabled = load_with_options(
+        &host,
+        &["/work/root.ts"],
+        CompilerOptions {
+            allow_arbitrary_extensions: Some(true),
+            ..base_options.clone()
+        },
+        program_options(),
+        generous_limits(),
+    )
+    .expect("allowArbitraryExtensions loads declaration twins recursively");
+    assert_eq!(
+        source_paths(&enabled),
+        [
+            Path::new("/work/leaf.d.json.ts"),
+            Path::new("/work/data.d.json.ts"),
+            Path::new("/work/root.ts"),
+        ]
+    );
+    let resolution = enabled
+        .resolutions()
+        .require_module(&module_key(&enabled, "/work/root.ts", "./data.json"))
+        .expect("enabled arbitrary-extension request has an authoritative row");
+    assert!(matches!(
+        resolution.outcome(),
+        ResolutionOutcome::Resolved(resolved)
+            if matches!(resolved.target(), ResolvedModuleTarget::Source { .. })
+    ));
+
+    let declaration = load_with_options(
+        &host,
+        &["/work/root.d.ts"],
+        base_options,
+        program_options(),
+        generous_limits(),
+    )
+    .expect("a declaration source admits arbitrary declaration twins without the option");
+    assert_eq!(
+        source_paths(&declaration),
+        [
+            Path::new("/work/leaf.d.json.ts"),
+            Path::new("/work/data.d.json.ts"),
+            Path::new("/work/root.d.ts"),
+        ]
+    );
 }
 
 #[test]

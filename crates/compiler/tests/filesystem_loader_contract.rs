@@ -430,3 +430,195 @@ fn jsx_without_mode_flows_from_both_loaders_to_exact_ts6142_diagnostics() {
         [6142, 6142]
     );
 }
+
+#[test]
+fn arbitrary_declaration_membership_keeps_importer_specific_ts6263() {
+    let tree = TempTree::new();
+    let root = concat!(
+        "/// <reference path=\"./globals.d.ts\" />\n",
+        "import './data.json';\n",
+        "export {};\n",
+    );
+    let files = [
+        ("root.ts", root.as_bytes()),
+        (
+            "ambient.d.ts",
+            b"import './data.json';\nexport {};\n".as_slice(),
+        ),
+        (
+            "data.d.json.ts",
+            b"declare const data: true;\nexport default data;\n".as_slice(),
+        ),
+        ("globals.d.ts", MINIMAL_GLOBALS.as_bytes()),
+    ];
+    for (relative, bytes) in files {
+        fs::write(tree.path(relative), bytes).expect("write arbitrary declaration source tree");
+    }
+
+    let filesystem = FsCompilerHost::new(tree.root(), true).expect("construct filesystem host");
+    let mut memory = MemoryCompilerHost::builder(tree.root()).case_sensitive(true);
+    for (relative, bytes) in files {
+        memory = memory.file(tree.path(relative), bytes.to_vec());
+    }
+    let memory = memory.build().expect("construct memory host");
+    let compiler_options = CompilerOptions {
+        no_emit: Some(true),
+        module: Some(1),
+        module_resolution: Some(2),
+        resolve_json_module: Some(false),
+        ..CompilerOptions::default()
+    };
+    let program_options = ProgramOptions::default()
+        .with_no_lib(true)
+        .with_types(Vec::new());
+    let roots = [tree.path("root.ts"), tree.path("ambient.d.ts")];
+
+    let from_memory = load_no_lib_program(
+        &memory,
+        &roots,
+        compiler_options.clone(),
+        program_options.clone(),
+        limits(),
+    )
+    .expect("load arbitrary rows from MemoryHost");
+    let from_filesystem = load_no_lib_program(
+        &filesystem,
+        &roots,
+        compiler_options,
+        program_options,
+        limits(),
+    )
+    .expect("load arbitrary rows from FsHost");
+    assert_eq!(from_memory, from_filesystem);
+    assert!(from_memory
+        .source_files()
+        .iter()
+        .any(|source| { source.path().display() == tree.path("data.d.json.ts") }));
+    let root_source = from_memory
+        .source_files()
+        .iter()
+        .find(|source| source.path().display() == tree.path("root.ts"))
+        .expect("root source is owned");
+    let root_key = plan_source_requests(root_source, from_memory.compiler_options())
+        .expect("plan arbitrary root request")
+        .module_requests()[0]
+        .clone();
+    let root_resolution = from_memory
+        .resolutions()
+        .require_module(&root_key)
+        .expect("root arbitrary request has an authoritative row");
+    assert!(matches!(
+        root_resolution.outcome(),
+        ResolutionOutcome::Resolved(module)
+            if matches!(module.target(), ResolvedModuleTarget::Source { .. })
+    ));
+
+    let memory_outcome = ProgramSession::new(from_memory)
+        .run()
+        .expect("run MemoryHost arbitrary program");
+    let filesystem_outcome = ProgramSession::new(from_filesystem)
+        .run()
+        .expect("run FsHost arbitrary program");
+    assert_eq!(memory_outcome, filesystem_outcome);
+    assert_eq!(
+        memory_outcome
+            .semantic_diagnostics()
+            .iter()
+            .map(|diagnostic| diagnostic.code())
+            .collect::<Vec<_>>(),
+        [6263]
+    );
+}
+
+#[test]
+fn declaration_augmentation_allows_a_resolution_only_arbitrary_target() {
+    let tree = TempTree::new();
+    let root = concat!(
+        "/// <reference path=\"./globals.d.ts\" />\n",
+        "export {};\n",
+        "declare module './data.json' { export const value: true; }\n",
+    );
+    let files = [
+        ("root.d.ts", root.as_bytes()),
+        (
+            "data.d.json.ts",
+            b"declare const data: true;\nexport default data;\n".as_slice(),
+        ),
+        ("globals.d.ts", MINIMAL_GLOBALS.as_bytes()),
+    ];
+    for (relative, bytes) in files {
+        fs::write(tree.path(relative), bytes).expect("write declaration augmentation source tree");
+    }
+
+    let filesystem = FsCompilerHost::new(tree.root(), true).expect("construct filesystem host");
+    let mut memory = MemoryCompilerHost::builder(tree.root()).case_sensitive(true);
+    for (relative, bytes) in files {
+        memory = memory.file(tree.path(relative), bytes.to_vec());
+    }
+    let memory = memory.build().expect("construct memory host");
+    let compiler_options = CompilerOptions {
+        no_emit: Some(true),
+        module: Some(1),
+        module_resolution: Some(2),
+        ..CompilerOptions::default()
+    };
+    let program_options = ProgramOptions::default()
+        .with_no_lib(true)
+        .with_types(Vec::new());
+    let roots = [tree.path("root.d.ts")];
+
+    let from_memory = load_no_lib_program(
+        &memory,
+        &roots,
+        compiler_options.clone(),
+        program_options.clone(),
+        limits(),
+    )
+    .expect("load declaration augmentation from MemoryHost");
+    let from_filesystem = load_no_lib_program(
+        &filesystem,
+        &roots,
+        compiler_options,
+        program_options,
+        limits(),
+    )
+    .expect("load declaration augmentation from FsHost");
+    assert_eq!(from_memory, from_filesystem);
+    assert!(from_memory
+        .source_files()
+        .iter()
+        .all(|source| source.path().display() != tree.path("data.d.json.ts")));
+    let root_source = from_memory
+        .source_files()
+        .iter()
+        .find(|source| source.path().display() == tree.path("root.d.ts"))
+        .expect("declaration root is owned");
+    let key = plan_source_requests(root_source, from_memory.compiler_options())
+        .expect("plan declaration augmentation")
+        .module_requests()[0]
+        .clone();
+    let resolution = from_memory
+        .resolutions()
+        .require_module(&key)
+        .expect("augmentation has an authoritative row");
+    assert!(matches!(
+        resolution.outcome(),
+        ResolutionOutcome::Resolved(module)
+            if matches!(
+                module.target(),
+                ResolvedModuleTarget::Unloaded {
+                    reason: UnloadedModuleReason::ResolutionOnly,
+                    ..
+                }
+            )
+    ));
+
+    let memory_outcome = ProgramSession::new(from_memory)
+        .run()
+        .expect("run MemoryHost declaration augmentation");
+    let filesystem_outcome = ProgramSession::new(from_filesystem)
+        .run()
+        .expect("run FsHost declaration augmentation");
+    assert_eq!(memory_outcome, filesystem_outcome);
+    assert!(memory_outcome.semantic_diagnostics().is_empty());
+}

@@ -7,11 +7,11 @@ use tsc_diagnostics::{gen, Diagnostic, MessageChain};
 use tsc_host::{to_file_name_lower_case, CompilerHost, HostError};
 use tsc_types::CompilerOptions;
 
-use crate::json::parse_json_object;
+use crate::json::{json_object_get, parse_json_object};
 use crate::library::LibraryCatalog;
 use crate::module_requests::{
-    plan_source_requests, PlannedLibReferenceDirective, PlannedPathReference,
-    PlannedTypeReferenceDirective,
+    is_declaration_file_name, plan_source_requests, PlannedLibReferenceDirective,
+    PlannedPathReference, PlannedTypeReferenceDirective,
 };
 use crate::module_resolution::{
     directory_name, make_program_path, normalize_absolute_path, HostModuleResolution,
@@ -1007,14 +1007,11 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
             if !processed.insert(index) {
                 continue;
             }
-            if !matches!(
-                extension,
-                ModuleExtension::Dts | ModuleExtension::Dmts | ModuleExtension::Dcts
-            ) {
+            if !is_loadable_typescript_extension(&extension) {
                 return Err(ProgramLoadError::invalid_data(
                     ProgramLoadOperation::ResolveTypeReference,
                     Some(target.display().to_path_buf()),
-                    "a resolved automatic type-reference target is not a declaration file",
+                    "a resolved automatic type-reference target is not a TypeScript source file",
                 ));
             }
             if self
@@ -1149,9 +1146,7 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
             source,
         })?;
         let (_, object) = parse_json_object(package_json, text);
-        Ok(object
-            .get("typings")
-            .is_some_and(serde_json::Value::is_null))
+        Ok(json_object_get(&object, "typings").is_some_and(serde_json::Value::is_null))
     }
 
     fn automatic_types_containing_file(&self) -> Result<ProgramPath, ProgramLoadError> {
@@ -1877,14 +1872,11 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
             let Some((target, extension, external)) = target else {
                 continue;
             };
-            if !matches!(
-                extension,
-                ModuleExtension::Dts | ModuleExtension::Dmts | ModuleExtension::Dcts
-            ) {
+            if !is_loadable_typescript_extension(&extension) {
                 return Err(ProgramLoadError::invalid_data(
                     ProgramLoadOperation::ResolveTypeReference,
                     Some(target.display().to_path_buf()),
-                    "a resolved type-reference target is not a declaration file",
+                    "a resolved type-reference target is not a TypeScript source file",
                 ));
             }
             let loaded = self.visit_source(
@@ -1916,6 +1908,9 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
     ) -> Result<(), ProgramLoadError> {
         let mut phase_indices = Vec::with_capacity(requests.len());
         let containing_file = self.sources[source].prepared.path().display().to_path_buf();
+        let containing_file_is_declaration = containing_file
+            .to_str()
+            .is_some_and(is_declaration_file_name);
         for (key, loads_source) in requests {
             let index = if let Some(index) = self.module_resolution_by_key.get(&key).copied() {
                 self.module_resolutions[index].loads_source |= loads_source;
@@ -1989,6 +1984,15 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                     }
                     continue;
                 }
+            }
+            if is_arbitrary_declaration_extension(&extension)
+                && self.compiler_options.allow_arbitrary_extensions != Some(true)
+                && !containing_file_is_declaration
+            {
+                // The resolution row remains authoritative so the diagnostic
+                // layer can report TS6263, but createProgram does not add the
+                // declaration twin to source membership in this case.
+                continue;
             }
             if has_original_path {
                 return Err(ProgramLoadError::unsupported(
@@ -2332,6 +2336,15 @@ fn bind_module_resolution(
             resolved_file: module.resolved_file().clone(),
             reason,
         }
+    } else if is_arbitrary_declaration_extension(module.extension()) && owned_source.is_none() {
+        ResolvedModuleTarget::Unloaded {
+            resolved_file: module.resolved_file().clone(),
+            reason: if loads_source {
+                UnloadedModuleReason::ArbitraryExtensionWithoutOption
+            } else {
+                UnloadedModuleReason::ResolutionOnly
+            },
+        }
     } else if module.original_path().is_some() {
         return Err(ResolutionError::unsupported(
             "loaded-original-path",
@@ -2459,13 +2472,6 @@ fn implied_node_format_for_emit(
 
 fn is_typescript_source(path: &CanonicalPath) -> bool {
     path.as_path().to_str().is_some_and(|path| {
-        let base_name = path.rsplit('/').next().unwrap_or(path);
-        let arbitrary_declaration = base_name.ends_with(".ts")
-            && base_name.contains(".d.")
-            && !base_name.ends_with(".d.ts");
-        if arbitrary_declaration {
-            return false;
-        }
         TYPESCRIPT_SOURCE_EXTENSIONS
             .iter()
             .any(|extension| path.ends_with(extension))
@@ -2531,17 +2537,26 @@ fn unloaded_javascript_reason(
     (!options.allow_js).then_some(UnloadedModuleReason::JavaScriptNotAdmitted)
 }
 
+fn is_arbitrary_declaration_extension(extension: &ModuleExtension) -> bool {
+    matches!(
+        extension,
+        ModuleExtension::Arbitrary(extension)
+            if extension.starts_with(".d.") && extension.ends_with(".ts")
+    )
+}
+
+fn is_loadable_declaration_extension(extension: &ModuleExtension) -> bool {
+    matches!(
+        extension,
+        ModuleExtension::Dts | ModuleExtension::Dmts | ModuleExtension::Dcts
+    ) || is_arbitrary_declaration_extension(extension)
+}
+
 fn is_loadable_typescript_extension(extension: &ModuleExtension) -> bool {
     matches!(
         extension,
-        ModuleExtension::Ts
-            | ModuleExtension::Tsx
-            | ModuleExtension::Dts
-            | ModuleExtension::Mts
-            | ModuleExtension::Dmts
-            | ModuleExtension::Cts
-            | ModuleExtension::Dcts
-    )
+        ModuleExtension::Ts | ModuleExtension::Tsx | ModuleExtension::Mts | ModuleExtension::Cts
+    ) || is_loadable_declaration_extension(extension)
 }
 
 /// tsc-port: getSourceFileFromReferenceWorker @6.0.3

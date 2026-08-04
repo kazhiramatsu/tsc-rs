@@ -286,9 +286,7 @@ fn plan_module_requests_worker(
     } else {
         LanguageVariant::Standard
     };
-    let is_declaration_file = file_name.ends_with(".d.ts")
-        || file_name.ends_with(".d.cts")
-        || file_name.ends_with(".d.mts");
+    let is_declaration_file = is_declaration_file_name(file_name);
     let module_detection = options.emit_module_detection_kind();
     let force_external_module = !is_declaration_file
         && match module_detection {
@@ -841,6 +839,19 @@ fn plan_module_requests_worker(
         lib_reference_directives,
         observed_request_occurrence_count,
     })
+}
+
+/// `isDeclarationFileName` includes arbitrary-extension declaration twins
+/// such as `style.d.css.ts`, in addition to the three standard spellings.
+pub(crate) fn is_declaration_file_name(file_name: &str) -> bool {
+    if file_name.ends_with(".d.ts")
+        || file_name.ends_with(".d.cts")
+        || file_name.ends_with(".d.mts")
+    {
+        return true;
+    }
+    let base_name = file_name.rsplit(['/', '\\']).next().unwrap_or(file_name);
+    base_name.ends_with(".ts") && base_name.contains(".d.")
 }
 
 struct ModuleRequestOccurrence {
