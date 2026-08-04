@@ -277,9 +277,17 @@ fn assert_artifact_metadata(artifact: &Value) {
     assert_eq!(
         artifact["source_reference"]["spans"],
         json!([
+            {"symbol": "equateStringsCaseInsensitive", "lines": "905-906"},
+            {"symbol": "startsWith", "lines": "1078-1079"},
+            {"symbol": "getPathsBasePath", "lines": "16595-16599"},
+            {"symbol": "paths option declaration", "lines": "37363-37374"},
             {"symbol": "convertToJson", "lines": "38521-38600"},
+            {"symbol": "isCompilerOptionsValue", "lines": "38604-38617"},
             {"symbol": "parseJsonConfigFileContentWorker", "lines": "39004-39171"},
             {"symbol": "handleOptionConfigDirTemplateSubstitution", "lines": "39175-39207"},
+            {"symbol": "getSubstitutedPathWithConfigDirTemplate", "lines": "39217-39219"},
+            {"symbol": "getSubstitutedStringArrayWithConfigDirTemplate", "lines": "39220-39228"},
+            {"symbol": "getSubstitutedMapLikeOfStringArrayWithConfigDirTemplate", "lines": "39229-39239"},
             {"symbol": "parseConfig", "lines": "39272-39330"},
             {"symbol": "getExtendsConfigPathOrArray", "lines": "39342-39378"},
             {"symbol": "getExtendsConfigPath", "lines": "39436-39459"},
@@ -288,19 +296,20 @@ fn assert_artifact_metadata(artifact: &Value) {
             {"symbol": "convertJsonOptionOfListType", "lines": "39603-39605"},
             {"symbol": "validateSpecs", "lines": "39697-39710"},
             {"symbol": "specToDiagnostic", "lines": "39711-39718"},
+            {"symbol": "compilerOptionValueToString", "lines": "40327-40341"},
         ])
     );
-    assert_eq!(artifact["summary"]["fixture_total"], 45);
+    assert_eq!(artifact["summary"]["fixture_total"], 51);
     assert_eq!(artifact["summary"]["root_parse_diagnostic_total"], 4);
-    assert_eq!(artifact["summary"]["parsed_error_total"], 83);
-    assert_eq!(artifact["summary"]["config_diagnostic_total"], 87);
-    assert_eq!(artifact["summary"]["located_config_diagnostic_total"], 80);
-    assert_eq!(artifact["summary"]["file_name_total"], 42);
-    assert_eq!(artifact["summary"]["extended_source_total"], 18);
-    assert_eq!(artifact["summary"]["extended_source_text_total"], 16);
-    assert_eq!(artifact["summary"]["host_call_total"], 50);
-    assert_eq!(artifact["summary"]["host_calls"]["file_exists"], 28);
-    assert_eq!(artifact["summary"]["host_calls"]["read_file"], 20);
+    assert_eq!(artifact["summary"]["parsed_error_total"], 86);
+    assert_eq!(artifact["summary"]["config_diagnostic_total"], 90);
+    assert_eq!(artifact["summary"]["located_config_diagnostic_total"], 83);
+    assert_eq!(artifact["summary"]["file_name_total"], 49);
+    assert_eq!(artifact["summary"]["extended_source_total"], 21);
+    assert_eq!(artifact["summary"]["extended_source_text_total"], 19);
+    assert_eq!(artifact["summary"]["host_call_total"], 56);
+    assert_eq!(artifact["summary"]["host_calls"]["file_exists"], 31);
+    assert_eq!(artifact["summary"]["host_calls"]["read_file"], 23);
     assert_eq!(artifact["summary"]["host_calls"]["read_directory"], 2);
 }
 
@@ -361,6 +370,12 @@ fn config_diagnostic_plans_match_the_frozen_typescript_oracle() {
         "compiler-list-mixed-invalid-elements",
         "compiler-list-extends-path-bases",
         "compiler-list-extends-replace-and-null-mask",
+        "compiler-object-paths-valid-nested-recovery",
+        "compiler-object-paths-extends-config-dir",
+        "compiler-object-paths-array-unchanged",
+        "compiler-object-paths-array-template-object",
+        "compiler-object-paths-null-own-mask",
+        "compiler-object-paths-invalid-own-mask",
     ];
     assert_eq!(fixtures.len(), expected_ids.len());
     let mut seen_ids = BTreeSet::new();
@@ -533,6 +548,11 @@ fn config_diagnostic_plans_match_the_frozen_typescript_oracle() {
                 ("value", ConfigOptionValueState::Value(actual)) => assert_eq!(
                     actual, &probe["value"],
                     "{fixture_id}: option {name:?} value drifted"
+                ),
+                ("value", ConfigOptionValueState::Object(actual)) => assert_eq!(
+                    actual.json_projection(),
+                    probe["value"],
+                    "{fixture_id}: object option {name:?} value drifted"
                 ),
                 ("list", ConfigOptionValueState::List(actual)) => {
                     let expected = array(

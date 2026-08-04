@@ -3,8 +3,8 @@ use std::collections::BTreeMap;
 
 use serde_json::json;
 use tsc_program::{
-    parse_config_root_plan, ConfigHostError, ConfigHostOperation, ConfigParseErrorKind,
-    ConfigParseHost, ConfigRootPlanRequest,
+    parse_config_root_plan, ConfigHostError, ConfigHostOperation, ConfigOptionValueState,
+    ConfigParseErrorKind, ConfigParseHost, ConfigRootPlanRequest,
 };
 
 #[derive(Default)]
@@ -1795,7 +1795,7 @@ fn config_dir_templates_use_the_root_config_directory() {
             "/base/base.json",
             r#"{
                 "compilerOptions":{"outDir":"${configDir}/dist"},
-                "include":["${configDir}/src/**/*.ts"]
+                "include":["${configDir}/a*/../src/**/*.ts"]
             }"#,
         )
         .with_directory_files(&["/project/src/main.ts"]);
@@ -1817,6 +1817,265 @@ fn config_dir_templates_use_the_root_config_directory() {
     assert_eq!(
         host.requested_excludes.borrow()[0],
         Some(vec!["/project/dist".to_owned()])
+    );
+}
+
+#[test]
+fn inherited_paths_keep_their_defining_base_while_templates_use_the_root_base() {
+    let host = MemoryConfigHost::default().with_file(
+        "/base/base.json",
+        r#"{
+            "compilerOptions": {
+                "rootDir": "${configDir}/src",
+                "paths": {
+                    "@plain/*": ["relative/*"],
+                    "@generated/*": ["${configDir}/generated/*"]
+                }
+            }
+        }"#,
+    );
+
+    let plan = parse_config_root_plan(
+        &host,
+        request(
+            "/project/tsconfig.json",
+            r#"{"extends":"../base/base.json","files":["root.ts"]}"#,
+        ),
+    )
+    .expect("inherited paths plan");
+
+    assert_eq!(plan.options().stored_paths_base_path(), Some("/base"));
+    assert_eq!(
+        plan.options().typed_value_state("pathsBasePath"),
+        ConfigOptionValueState::Value(&json!("/base"))
+    );
+    assert_eq!(
+        plan.options().typed_value_state("rootDir"),
+        ConfigOptionValueState::Value(&json!("/project/src"))
+    );
+    let ConfigOptionValueState::Object(paths) = plan.options().typed_value_state("paths") else {
+        panic!("paths is a converted object value")
+    };
+    assert_eq!(
+        paths.json_projection(),
+        json!({
+            "@plain/*": ["relative/*"],
+            "@generated/*": ["/project/generated/*"],
+        })
+    );
+
+    let raw_paths = plan.options().get("paths").expect("effective raw paths");
+    assert_eq!(raw_paths.base_path, "/base");
+    assert_eq!(
+        raw_paths.value,
+        json!({
+            "@plain/*": ["relative/*"],
+            "@generated/*": ["${configDir}/generated/*"],
+        })
+    );
+}
+
+#[test]
+fn paths_own_property_view_keeps_javascript_order_and_undefined_values() {
+    let plan = parse_config_root_plan(
+        &MemoryConfigHost::default(),
+        request(
+            "/project/tsconfig.json",
+            r#"{
+                "compilerOptions": {
+                    "paths": {
+                        "z": [foo, "ok"],
+                        10: [],
+                        "drop": foo,
+                        2: [],
+                        1e2: [],
+                        0x10: [],
+                        1: [],
+                        "a": true
+                    }
+                },
+                "files": ["root.ts"]
+            }"#,
+        ),
+    )
+    .expect("paths own-property plan");
+
+    let error_codes = plan
+        .errors()
+        .iter()
+        .map(|diagnostic| diagnostic.code())
+        .collect::<Vec<_>>();
+    assert_eq!(error_codes.iter().filter(|code| **code == 1327).count(), 5);
+    assert_eq!(error_codes.iter().filter(|code| **code == 1328).count(), 2);
+    let properties = plan
+        .options()
+        .typed_object_properties("paths")
+        .expect("typed paths own properties");
+    assert_eq!(
+        properties
+            .iter()
+            .map(|property| property.name())
+            .collect::<Vec<_>>(),
+        ["1", "2", "10", "16", "100", "z", "drop", "a"]
+    );
+    assert_eq!(
+        properties[5]
+            .value()
+            .map(tsc_program::ConfigTypedJsonValue::json_projection),
+        Some(json!(["ok"]))
+    );
+    assert_eq!(properties[6].value(), None);
+    assert_eq!(
+        properties[7]
+            .value()
+            .map(tsc_program::ConfigTypedJsonValue::json_projection),
+        Some(json!(true))
+    );
+    assert_eq!(
+        plan.options()
+            .typed_object_value("paths")
+            .expect("typed paths object")
+            .json_projection(),
+        json!({
+            "1": [],
+            "2": [],
+            "10": [],
+            "16": [],
+            "100": [],
+            "z": ["ok"],
+            "a": true,
+        })
+    );
+}
+
+#[test]
+fn nested_paths_objects_keep_undefined_identity_for_compiler_option_cache_keys() {
+    let plan = parse_config_root_plan(
+        &MemoryConfigHost::default(),
+        request(
+            "/project/tsconfig.json",
+            r#"{
+                "compilerOptions": {
+                    "paths": {
+                        "ordered": {"2": foo, "1": true, "drop": bar},
+                        "undefinedOnly": {"drop": foo},
+                        "empty": {}
+                    }
+                },
+                "files": ["root.ts"]
+            }"#,
+        ),
+    )
+    .expect("nested paths object plan");
+
+    let paths = plan
+        .options()
+        .typed_object_value("paths")
+        .expect("typed paths object");
+    let properties = paths.properties();
+    let Some(tsc_program::ConfigTypedJsonValue::Object(ordered)) = properties[0].value() else {
+        panic!("ordered path value is a typed nested object")
+    };
+    assert_eq!(
+        ordered
+            .properties()
+            .iter()
+            .map(|property| property.name())
+            .collect::<Vec<_>>(),
+        ["1", "2", "drop"]
+    );
+    assert_eq!(
+        ordered.properties()[0]
+            .value()
+            .map(tsc_program::ConfigTypedJsonValue::json_projection),
+        Some(json!(true))
+    );
+    assert_eq!(ordered.properties()[1].value(), None);
+    assert_eq!(ordered.properties()[2].value(), None);
+
+    let undefined_only = properties[1].value().expect("undefined-only nested object");
+    let empty = properties[2].value().expect("empty nested object");
+    assert_eq!(undefined_only.json_projection(), empty.json_projection());
+    assert_ne!(undefined_only, empty);
+    assert_eq!(
+        paths.compiler_option_cache_identity(),
+        "{ordered: {1: true2: undefineddrop: undefined}undefinedOnly: {drop: undefined}empty: {}}"
+    );
+}
+
+#[test]
+fn paths_json_projection_uses_javascript_number_stringification() {
+    let plan = parse_config_root_plan(
+        &MemoryConfigHost::default(),
+        request(
+            "/project/tsconfig.json",
+            r#"{
+                "compilerOptions": {
+                    "paths": {
+                        "array": [1, -0, 1e999],
+                        "positive": 1e999,
+                        "negative": -1e999
+                    }
+                },
+                "files": ["root.ts"]
+            }"#,
+        ),
+    )
+    .expect("non-finite paths values retain JavaScript identity");
+
+    assert!(plan.errors().is_empty());
+    let paths = plan
+        .options()
+        .typed_object_value("paths")
+        .expect("typed paths object");
+    assert_eq!(
+        paths.json_projection(),
+        json!({"array": [1, 0, null], "positive": null, "negative": null})
+    );
+    assert_eq!(
+        paths.compiler_option_cache_identity(),
+        "{array: [1,0,Infinity]positive: Infinitynegative: -Infinity}"
+    );
+}
+
+#[test]
+fn changed_paths_clone_routes_proto_through_the_fresh_object_setter() {
+    let plan = parse_config_root_plan(
+        &MemoryConfigHost::default(),
+        request(
+            "/project/tsconfig.json",
+            r#"{
+                "compilerOptions": {
+                    "paths": {
+                        "__proto__": null,
+                        "__proto__": ["${configDir}/prototype/*"],
+                        "x": []
+                    }
+                },
+                "files": ["root.ts"]
+            }"#,
+        ),
+    )
+    .expect("changed paths proto plan");
+
+    assert!(plan.errors().is_empty());
+    let properties = plan
+        .options()
+        .typed_object_properties("paths")
+        .expect("typed paths own properties");
+    assert_eq!(
+        properties
+            .iter()
+            .map(|property| property.name())
+            .collect::<Vec<_>>(),
+        ["x"]
+    );
+    assert_eq!(
+        plan.options()
+            .typed_object_value("paths")
+            .expect("typed paths object")
+            .json_projection(),
+        json!({"x": []})
     );
 }
 

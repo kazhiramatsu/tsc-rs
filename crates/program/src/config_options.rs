@@ -103,11 +103,22 @@ impl CompilerOptionListDescriptor {
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct CompilerOptionObjectDescriptor {
+    allow_config_dir_template_substitution: bool,
+}
+
+impl CompilerOptionObjectDescriptor {
+    pub const fn allow_config_dir_template_substitution(self) -> bool {
+        self.allow_config_dir_template_substitution
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum CompilerOptionValueKind {
     Boolean,
     Number,
     String,
-    Object,
+    Object(CompilerOptionObjectDescriptor),
     List(CompilerOptionListDescriptor),
     Named(&'static [CompilerOptionNamedValue]),
 }
@@ -128,6 +139,13 @@ impl CompilerOptionValueKind {
 
     pub const fn list_descriptor(self) -> Option<CompilerOptionListDescriptor> {
         let Self::List(descriptor) = self else {
+            return None;
+        };
+        Some(descriptor)
+    }
+
+    pub const fn object_descriptor(self) -> Option<CompilerOptionObjectDescriptor> {
+        let Self::Object(descriptor) = self else {
             return None;
         };
         Some(descriptor)
@@ -624,6 +642,14 @@ pub const PLUGINS_LIST_DESCRIPTOR: CompilerOptionListDescriptor = CompilerOption
     allow_config_dir_template_substitution: false,
 };
 
+/// tsc-port: paths option declaration @6.0.3
+/// tsc-hash: 45b11e8144176a93da60d3ace7c618f3d9d1dffebbd0bc610df8e04ebc45ffcf
+/// tsc-span: _tsc.js:37363-37374
+pub const PATHS_OBJECT_DESCRIPTOR: CompilerOptionObjectDescriptor =
+    CompilerOptionObjectDescriptor {
+        allow_config_dir_template_substitution: true,
+    };
+
 pub const fn typescript_6_0_3_libraries() -> &'static [CompilerOptionNamedStringValue] {
     TYPESCRIPT_6_0_3_LIBRARIES
 }
@@ -950,6 +976,7 @@ const MODULE_DETECTION_VALUES: &[CompilerOptionNamedValue] = &[
 ///
 /// The full JSON kind is recorded for every declaration. `List` carries the
 /// element schema, falsy filtering mode, and `${configDir}` substitution bit;
+/// `Object` retains the corresponding substitution metadata for `paths`;
 /// `Named` preserves each custom map's spelling order and numeric compiler
 /// value.
 ///
@@ -1063,7 +1090,10 @@ pub static COMPILER_OPTION_DECLARATIONS: &[CompilerOptionDeclaration] = &[
         CompilerOptionValueKind::Named(MODULE_RESOLUTION_VALUES),
     ),
     file_option("baseUrl", CompilerOptionValueKind::String),
-    tsconfig_option("paths", CompilerOptionValueKind::Object),
+    tsconfig_option(
+        "paths",
+        CompilerOptionValueKind::Object(PATHS_OBJECT_DESCRIPTOR),
+    ),
     tsconfig_option(
         "rootDirs",
         CompilerOptionValueKind::List(ROOT_DIRS_LIST_DESCRIPTOR),
