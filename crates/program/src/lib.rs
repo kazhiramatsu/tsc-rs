@@ -68,9 +68,11 @@
 //! metadata across resolver instances. This does not execute the remaining
 //! compiler/project cases or cover the full `ParsedCommandLine`, remaining
 //! root object schemas, general filesystem `matchFiles`, general
-//! project-runner configs, or CLI ownership. The harness separately uses this
-//! boundary for six focused official `NodeModulesSearch` variants without
-//! claiming their emit baselines.
+//! project-runner configs, or CLI ownership. `load_config_program` now connects
+//! this immutable plan to the catalog-backed loader while preserving the
+//! config/option diagnostic gate and mandatory `noEmit=true` boundary. The
+//! harness separately uses this boundary for six focused official
+//! `NodeModulesSearch` variants without claiming their emit baselines.
 
 mod config;
 mod config_matcher;
@@ -87,10 +89,11 @@ mod resolution;
 mod text;
 
 pub use config::{
-    parse_config_root_plan, ConfigDiscoveryOptions, ConfigHostError, ConfigHostOperation,
-    ConfigModuleResolutionOptions, ConfigOption, ConfigOptionBag, ConfigOptionValueState,
-    ConfigParseError, ConfigParseErrorKind, ConfigParseHost, ConfigRootPlan, ConfigRootPlanRequest,
-    ConfigSourceText, ConfigTypedJsonValue, ConfigTypedListElement, ConfigTypedObjectProperty,
+    load_config_program, parse_config_root_plan, ConfigDiscoveryOptions, ConfigHostError,
+    ConfigHostOperation, ConfigModuleResolutionOptions, ConfigOption, ConfigOptionBag,
+    ConfigOptionValueState, ConfigParseError, ConfigParseErrorKind, ConfigParseHost,
+    ConfigProgramLoadError, ConfigRootPlan, ConfigRootPlanRequest, ConfigSourceText,
+    ConfigTypedJsonValue, ConfigTypedListElement, ConfigTypedObjectProperty,
     ConfigTypedObjectShape, ConfigTypedObjectValue,
 };
 pub use config_matcher::ConfigFilePattern;

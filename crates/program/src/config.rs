@@ -45,11 +45,13 @@ use crate::json::{
     json_object_own_get, json_parser_preflight, json_source_file_is_empty, JsonParserPreflight,
     RecoverableJsonValue,
 };
+use crate::library::LibraryCatalog;
+use crate::loader::{load_program, ProgramLoadError, ProgramLoadLimits};
 use crate::module_resolution::{
     directory_name, normalize_absolute_path_lexical, normalized_root_parts, ModuleResolver,
 };
 use crate::path::ProgramPath;
-use crate::prepared::{PathMapping, ProgramOptions};
+use crate::prepared::{PathMapping, PreparedProgram, ProgramOptions};
 use crate::resolution::{ResolutionError, ResolutionOutcome};
 use crate::ConfigFilePattern;
 
@@ -901,6 +903,21 @@ impl ConfigRootPlan {
         &self.module_resolution_options
     }
 
+    /// The checker-facing compiler options projected from the merged config.
+    ///
+    /// This is intentionally a borrowed view of the immutable plan. Callers
+    /// that need a filesystem program should use [`load_config_program`],
+    /// which preserves the config diagnostic gate and the mandatory H0
+    /// `noEmit` boundary before invoking the recursive loader.
+    pub const fn compiler_options(&self) -> &CompilerOptions {
+        self.module_resolution_options.compiler_options()
+    }
+
+    /// The host/program options projected from the merged config.
+    pub const fn program_options(&self) -> &ProgramOptions {
+        self.module_resolution_options.program_options()
+    }
+
     pub fn file_names(&self) -> &[String] {
         &self.file_names
     }
@@ -937,6 +954,116 @@ impl ConfigRootPlan {
     pub fn extended_source_files(&self) -> &[String] {
         &self.extended_source_files
     }
+}
+
+/// A config plan cannot be turned into a prepared no-emit program when the
+/// config itself has diagnostics, when `noEmit` is absent/false, or when the
+/// filesystem loader rejects a typed host/resolution boundary. Keeping these
+/// cases distinct lets a future CLI render config diagnostics while treating
+/// the latter two as fail-closed driver outcomes.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum ConfigProgramLoadError {
+    Diagnostics {
+        config: Vec<Diagnostic>,
+        options: Vec<Diagnostic>,
+    },
+    NoEmitRequired {
+        value: Option<bool>,
+    },
+    Program(ProgramLoadError),
+}
+
+impl ConfigProgramLoadError {
+    pub fn config_diagnostics(&self) -> &[Diagnostic] {
+        match self {
+            Self::Diagnostics { config, .. } => config,
+            Self::NoEmitRequired { .. } | Self::Program(_) => &[],
+        }
+    }
+
+    pub fn options_diagnostics(&self) -> &[Diagnostic] {
+        match self {
+            Self::Diagnostics { options, .. } => options,
+            Self::NoEmitRequired { .. } | Self::Program(_) => &[],
+        }
+    }
+
+    pub const fn program_error(&self) -> Option<&ProgramLoadError> {
+        match self {
+            Self::Program(error) => Some(error),
+            Self::Diagnostics { .. } | Self::NoEmitRequired { .. } => None,
+        }
+    }
+}
+
+impl fmt::Display for ConfigProgramLoadError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Diagnostics { config, options } => write!(
+                formatter,
+                "config plan has {} config and {} option diagnostic(s)",
+                config.len(),
+                options.len()
+            ),
+            Self::NoEmitRequired { value } => write!(
+                formatter,
+                "compilerOptions.noEmit must be explicitly true (observed {value:?})"
+            ),
+            Self::Program(error) => error.fmt(formatter),
+        }
+    }
+}
+
+impl Error for ConfigProgramLoadError {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        match self {
+            Self::Program(error) => Some(error),
+            Self::Diagnostics { .. } | Self::NoEmitRequired { .. } => None,
+        }
+    }
+}
+
+/// Turn a parsed config/root plan into the owned no-emit program consumed by
+/// [`tsc_compiler::ProgramSession`].
+///
+/// Config and option diagnostics are a gate: no source host work is started
+/// while either collection is non-empty. A config without an explicit
+/// `noEmit: true` is rejected before `load_program`; this prevents an omitted
+/// or false value from accidentally entering an emitter-capable path. The
+/// input plan remains immutable and can be reused by a caller for rendering or
+/// for an independent MemoryHost/FsHost comparison.
+pub fn load_config_program(
+    host: &dyn CompilerHost,
+    plan: &ConfigRootPlan,
+    library_catalog: &LibraryCatalog,
+    limits: ProgramLoadLimits,
+) -> Result<PreparedProgram, ConfigProgramLoadError> {
+    let config = plan.diagnostics().cloned().collect::<Vec<_>>();
+    let options = plan.option_diagnostics().to_vec();
+    if !config.is_empty() || !options.is_empty() {
+        return Err(ConfigProgramLoadError::Diagnostics { config, options });
+    }
+
+    if plan.compiler_options().no_emit != Some(true) {
+        return Err(ConfigProgramLoadError::NoEmitRequired {
+            value: plan.compiler_options().no_emit,
+        });
+    }
+
+    let roots = plan
+        .file_names()
+        .iter()
+        .map(PathBuf::from)
+        .collect::<Vec<_>>();
+    load_program(
+        host,
+        &roots,
+        plan.compiler_options().clone(),
+        plan.program_options().clone(),
+        library_catalog,
+        limits,
+    )
+    .map_err(ConfigProgramLoadError::Program)
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -2911,13 +3038,62 @@ fn config_module_resolution_options(
     let compiler_options = CompilerOptions {
         allow_js: discovery.allow_js,
         max_node_module_js_depth: config_option_number(options, "maxNodeModuleJsDepth"),
+        experimental_decorators: config_option_bool(options, "experimentalDecorators")
+            .unwrap_or(false),
+        target: config_option_i32(options, "target"),
         module: config_option_i32(options, "module"),
+        module_detection: config_option_i32(options, "moduleDetection"),
+        always_strict: config_option_bool(options, "alwaysStrict"),
+        strict: config_option_bool(options, "strict"),
+        strict_null_checks: config_option_bool(options, "strictNullChecks"),
+        strict_function_types: config_option_bool(options, "strictFunctionTypes"),
+        no_implicit_any: config_option_bool(options, "noImplicitAny"),
+        no_error_truncation: config_option_bool(options, "noErrorTruncation"),
+        no_implicit_this: config_option_bool(options, "noImplicitThis"),
+        no_implicit_override: config_option_bool(options, "noImplicitOverride"),
+        strict_bind_call_apply: config_option_bool(options, "strictBindCallApply"),
+        exact_optional_property_types: config_option_bool(options, "exactOptionalPropertyTypes"),
+        no_fallthrough_cases_in_switch: config_option_bool(options, "noFallthroughCasesInSwitch"),
+        no_implicit_returns: config_option_bool(options, "noImplicitReturns"),
+        no_unused_locals: config_option_bool(options, "noUnusedLocals"),
+        no_unused_parameters: config_option_bool(options, "noUnusedParameters"),
+        allow_unreachable_code: config_option_bool(options, "allowUnreachableCode"),
+        allow_unused_labels: config_option_bool(options, "allowUnusedLabels"),
+        check_js: config_option_bool(options, "checkJs"),
+        no_unchecked_indexed_access: config_option_bool(options, "noUncheckedIndexedAccess"),
+        no_property_access_from_index_signature: config_option_bool(
+            options,
+            "noPropertyAccessFromIndexSignature",
+        ),
+        no_unchecked_side_effect_imports: config_option_bool(
+            options,
+            "noUncheckedSideEffectImports",
+        ),
+        strict_property_initialization: config_option_bool(options, "strictPropertyInitialization"),
+        use_define_for_class_fields: config_option_bool(options, "useDefineForClassFields"),
+        use_unknown_in_catch_variables: config_option_bool(options, "useUnknownInCatchVariables"),
+        lib: config_option_string_list(options, "lib"),
+        jsx: config_option_i32(options, "jsx"),
+        no_emit: config_option_bool(options, "noEmit"),
+        import_helpers: config_option_bool(options, "importHelpers"),
+        downlevel_iteration: config_option_bool(options, "downlevelIteration"),
+        strict_builtin_iterator_return: config_option_bool(options, "strictBuiltinIteratorReturn"),
         module_resolution: config_option_i32(options, "moduleResolution"),
+        es_module_interop: config_option_bool(options, "esModuleInterop"),
+        allow_synthetic_default_imports: config_option_bool(
+            options,
+            "allowSyntheticDefaultImports",
+        ),
+        preserve_const_enums: config_option_bool(options, "preserveConstEnums"),
+        isolated_modules: config_option_bool(options, "isolatedModules"),
+        verbatim_module_syntax: config_option_bool(options, "verbatimModuleSyntax"),
+        allow_umd_global_access: config_option_bool(options, "allowUmdGlobalAccess"),
         base_url: config_option_string(options, "baseUrl"),
         module_suffixes: config_option_module_suffixes(options),
         resolve_package_json_exports: config_option_bool(options, "resolvePackageJsonExports"),
         resolve_package_json_imports: config_option_bool(options, "resolvePackageJsonImports"),
         custom_conditions: config_option_string_list(options, "customConditions"),
+        no_dts_resolution: config_option_bool(options, "noDtsResolution"),
         allow_arbitrary_extensions: config_option_bool(options, "allowArbitraryExtensions"),
         allow_importing_ts_extensions: config_option_bool(options, "allowImportingTsExtensions"),
         rewrite_relative_import_extensions: config_option_bool(
@@ -2925,7 +3101,11 @@ fn config_module_resolution_options(
             "rewriteRelativeImportExtensions",
         ),
         resolve_json_module: Some(discovery.resolve_json_module),
-        ..CompilerOptions::default()
+        skip_lib_check: config_option_bool(options, "skipLibCheck"),
+        jsx_factory: config_option_string(options, "jsxFactory"),
+        jsx_fragment_factory: config_option_string(options, "jsxFragmentFactory"),
+        jsx_import_source: config_option_string(options, "jsxImportSource"),
+        react_namespace: config_option_string(options, "reactNamespace"),
     };
 
     let mut program_options = ProgramOptions::default()
