@@ -2,6 +2,7 @@
 
 use std::fs;
 use std::io;
+use std::os::unix::fs::symlink;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -215,6 +216,131 @@ fn extensionless_roots_preserve_memory_filesystem_and_session_equivalence() {
         [2318; 10]
     );
     assert!(missing_memory.semantic_diagnostics().is_empty());
+}
+
+#[test]
+fn external_symlink_preserves_memory_filesystem_and_session_equivalence() {
+    let tree = TempTree::new();
+    fs::create_dir_all(tree.path("node_modules/pkg")).expect("create lexical package directory");
+    fs::create_dir_all(tree.path("store/pkg")).expect("create physical package directory");
+
+    let root = concat!(
+        "/// <reference path=\"./globals.d.ts\" />\n",
+        "import { value } from 'pkg';\n",
+        "const checked: number = value;\n",
+        "export { checked };\n",
+    );
+    let package = b"export const value = 1;\n";
+    let lexical_package = tree.path("node_modules/pkg/index.ts");
+    let physical_package = tree.path("store/pkg/index.ts");
+    let regular_files = [
+        (tree.path("root.ts"), root.as_bytes()),
+        (tree.path("globals.d.ts"), MINIMAL_GLOBALS.as_bytes()),
+        (
+            tree.path("node_modules/pkg/package.json"),
+            br#"{"name":"pkg","version":"1.0.0","exports":"./index.ts"}"#.as_slice(),
+        ),
+        (physical_package.clone(), package.as_slice()),
+    ];
+    for (path, bytes) in &regular_files {
+        fs::write(path, bytes).expect("write external-symlink source tree");
+    }
+    symlink(&physical_package, &lexical_package).expect("create package entry symlink");
+
+    let filesystem = FsCompilerHost::new(tree.root(), true).expect("construct filesystem host");
+    let mut memory = MemoryCompilerHost::builder(tree.root()).case_sensitive(true);
+    for (path, bytes) in &regular_files {
+        memory = memory.file(path, bytes.to_vec());
+    }
+    let memory = memory
+        .file(&lexical_package, package.to_vec())
+        .realpath(&lexical_package, &physical_package)
+        .build()
+        .expect("construct mirrored memory symlink host");
+    let compiler_options = CompilerOptions {
+        no_emit: Some(true),
+        module: Some(199),
+        module_resolution: Some(99),
+        ..CompilerOptions::default()
+    };
+    let program_options = ProgramOptions::default()
+        .with_no_lib(true)
+        .with_types(Vec::new());
+    let roots = [tree.path("root.ts")];
+
+    let from_memory = load_no_lib_program(
+        &memory,
+        &roots,
+        compiler_options.clone(),
+        program_options.clone(),
+        limits(),
+    )
+    .expect("load external symlink from MemoryHost");
+    let from_filesystem = load_no_lib_program(
+        &filesystem,
+        &roots,
+        compiler_options,
+        program_options,
+        limits(),
+    )
+    .expect("load external symlink from FsHost");
+    assert_eq!(from_memory, from_filesystem);
+    assert_eq!(
+        from_memory
+            .source_files()
+            .iter()
+            .map(|source| source.path().display().to_path_buf())
+            .collect::<Vec<_>>(),
+        [
+            tree.path("globals.d.ts"),
+            physical_package.clone(),
+            tree.path("root.ts"),
+        ]
+    );
+
+    let root_source = from_memory
+        .source_files()
+        .iter()
+        .find(|source| source.path().display() == tree.path("root.ts"))
+        .expect("root source is owned");
+    let key = plan_source_requests(root_source, from_memory.compiler_options())
+        .expect("plan package request")
+        .module_requests()[0]
+        .clone();
+    let resolution = from_memory
+        .resolutions()
+        .require_module(&key)
+        .expect("package request has an authoritative row");
+    let ResolutionOutcome::Resolved(module) = resolution.outcome() else {
+        panic!("package request must resolve");
+    };
+    let ResolvedModuleTarget::Source {
+        source,
+        resolved_file,
+    } = module.target()
+    else {
+        panic!("physical package target must be loaded");
+    };
+    assert_eq!(resolved_file.display(), physical_package);
+    assert_eq!(
+        from_memory.source_file(*source).unwrap().path().display(),
+        physical_package
+    );
+    assert_eq!(
+        module.original_path().map(ProgramPath::display),
+        Some(lexical_package.as_path())
+    );
+
+    let memory_outcome = ProgramSession::new(from_memory)
+        .run()
+        .expect("run MemoryHost symlink program");
+    let filesystem_outcome = ProgramSession::new(from_filesystem)
+        .run()
+        .expect("run FsHost symlink program");
+    assert_eq!(memory_outcome, filesystem_outcome);
+    assert!(memory_outcome.options_diagnostics().is_empty());
+    assert!(memory_outcome.global_diagnostics().is_empty());
+    assert!(memory_outcome.semantic_diagnostics().is_empty());
 }
 
 #[test]

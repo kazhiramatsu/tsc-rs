@@ -2339,7 +2339,7 @@ fn malformed_unloaded_reasons_fail_closed() {
 }
 
 #[test]
-fn lossy_resolved_source_metadata_is_rejected_until_it_is_consumed() {
+fn loaded_original_path_projects_the_validated_source_token() {
     let prepared = authoritative_program(
         &[("/main.ts", "import { value } from \"pkg\";\nvalue;\n")],
         &[0],
@@ -2356,6 +2356,7 @@ fn lossy_resolved_source_metadata_is_rejected_until_it_is_consumed() {
                 },
                 ModuleExtension::Ts,
             )
+            .with_external_library_import(true)
             .with_original_path(path("/alias/main.ts"));
             builder
                 .add_module_resolution(
@@ -2365,17 +2366,9 @@ fn lossy_resolved_source_metadata_is_rejected_until_it_is_consumed() {
                 .expect("add metadata-bearing source row");
         },
     );
-    let error = ProgramSession::new(prepared)
+    ProgramSession::new(prepared)
         .run()
-        .expect_err("unconsumed resolution facts must fail closed");
-    let DriverError::AuthoritativeResolution(AuthoritativeModuleFailure::Lookup {
-        failure: AuthoritativeModuleLookupFailure::Unsupported(actual),
-        ..
-    }) = error
-    else {
-        panic!("unexpected driver error: {error:?}");
-    };
-    assert_eq!(actual, UnsupportedAuthoritativeResolution::OriginalPath);
+        .expect("originalPath is already validated against the target SourceFileId");
 }
 
 #[test]
@@ -2658,7 +2651,7 @@ fn memory_host_exports_resolution_feeds_the_authoritative_session_table() {
 }
 
 #[test]
-fn physical_resolved_file_identity_is_not_silently_replaced_by_source_name() {
+fn physical_resolved_file_identity_projects_its_validated_source_id() {
     let mut builder = PreparedProgram::builder(
         PathContext::new(current_directory(), true),
         CompilerOptions {
@@ -2696,21 +2689,14 @@ fn physical_resolved_file_identity_is_not_silently_replaced_by_source_name() {
                     },
                     ModuleExtension::Ts,
                 )
+                .with_external_library_import(true)
                 .with_original_path(path("/lexical/pkg.ts")),
             )),
         )
         .expect("add physical source row");
 
-    let error = ProgramSession::new(builder.build().expect("build prepared program"))
+    let outcome = ProgramSession::new(builder.build().expect("build prepared program"))
         .run()
-        .expect_err("physical resolution identity must not be discarded");
-    assert!(matches!(
-        error,
-        DriverError::AuthoritativeResolution(AuthoritativeModuleFailure::Lookup {
-            failure: AuthoritativeModuleLookupFailure::Unsupported(
-                UnsupportedAuthoritativeResolution::ResolvedFileIdentity
-            ),
-            ..
-        })
-    ));
+        .expect("physical resolution identity is validated before the checker projection");
+    assert!(outcome.semantic_diagnostics().is_empty());
 }

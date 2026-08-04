@@ -6,6 +6,7 @@ use tsc_host::to_file_name_lower_case;
 use tsc_types::CompilerOptions;
 
 use crate::error::{PreparationError, PreparationErrorKind, PreparationOperation};
+use crate::module_resolution::is_external_module_name_relative;
 use crate::path::{CanonicalPath, ProgramPath};
 use crate::resolution::{
     MissingResolutionError, ModuleResolution, ResolutionError, ResolutionKey, ResolutionMode,
@@ -75,8 +76,10 @@ impl PathContext {
 /// `path` is the exact final program/`SourceFile` identity. For a resolved
 /// dependency this may already be the physical `resolvedFileName`; its
 /// distinct lexical spelling then remains on the resolution's
-/// `original_path`. `real_path` records a separately observed physical alias
-/// when the final program identity is still lexical (for example, a root).
+/// `original_path`. `real_path` is an explicit compatibility fact for a
+/// producer that owns a lexical source plus a separately observed physical
+/// alias. The recursive loader does not blanket-realpath roots or local
+/// sources; resolver-owned external transitions use the first representation.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct PreparedSourceFile {
     path: ProgramPath,
@@ -1476,23 +1479,55 @@ impl PreparedProgramBuilder {
             return Ok(());
         };
         let resolved_file = module.target().resolved_file();
-        // Resolver extensions retain the host/display spelling. In a
+        let extension_path = if let Some(original_path) = module.original_path() {
+            if !module.is_external_library_import() {
+                return Err(PreparationError::new(
+                    PreparationErrorKind::InvalidData,
+                    PreparationOperation::AddModuleResolution,
+                    Some(original_path.display().to_path_buf()),
+                    "a module original path requires an external-library import",
+                ));
+            }
+            if is_external_module_name_relative(key.specifier()) {
+                return Err(PreparationError::new(
+                    PreparationErrorKind::InvalidData,
+                    PreparationOperation::AddModuleResolution,
+                    Some(original_path.display().to_path_buf()),
+                    "a module original path requires a non-relative, non-rooted module specifier",
+                ));
+            }
+            if original_path.canonical() == resolved_file.canonical() {
+                return Err(PreparationError::new(
+                    PreparationErrorKind::InvalidData,
+                    PreparationOperation::AddModuleResolution,
+                    Some(original_path.display().to_path_buf()),
+                    "a module original path must differ from its resolved file",
+                ));
+            }
+            original_path
+        } else {
+            resolved_file
+        };
+        // createResolvedModuleWithFailedLookupLocationsHandlingSymlink
+        // classifies the lexical path before following realpath. In a
         // case-insensitive profile an arbitrary twin such as `.d.CSS.ts`
-        // therefore cannot be checked against the lower-cased canonical key.
-        let resolved_file_name = resolved_file
+        // must likewise be checked against the retained display spelling,
+        // not a lower-cased canonical key or a differently named physical
+        // target.
+        let extension_file_name = extension_path
             .display()
             .to_str()
             .expect("display program paths are Unicode");
         if !module.extension().is_valid()
             || !module.extension().matches_path_with_case(
-                resolved_file_name,
+                extension_file_name,
                 self.path_context.use_case_sensitive_file_names(),
             )
         {
             return Err(PreparationError::new(
                 PreparationErrorKind::InvalidData,
                 PreparationOperation::AddModuleResolution,
-                Some(resolved_file.display().to_path_buf()),
+                Some(extension_path.display().to_path_buf()),
                 format!(
                     "resolved module path does not match extension {}",
                     module.extension().as_str()

@@ -218,11 +218,6 @@ impl AuthoritativeModuleProvider for PreparedModuleProvider<'_> {
                     ));
                 }
             };
-            if module.original_path().is_some() && resolution_diagnostic.is_none() {
-                return Err(AuthoritativeModuleLookupFailure::Unsupported(
-                    UnsupportedAuthoritativeResolution::OriginalPath,
-                ));
-            }
             let resolved_file_name = resolved_file
                 .display()
                 .to_str()
@@ -253,25 +248,15 @@ impl AuthoritativeModuleProvider for PreparedModuleProvider<'_> {
                 },
             ));
         }
-        let ResolvedModuleTarget::Source {
-            source,
-            resolved_file,
-        } = module.target()
-        else {
+        // PreparedProgramBuilder already validated the target/originalPath
+        // transition against this SourceFileId. The checker consumes the
+        // selected source through its stable token; originalPath is resolver
+        // provenance and does not replace that source identity.
+        let ResolvedModuleTarget::Source { source, .. } = module.target() else {
             unreachable!("unloaded target returned above")
         };
-        let Some(target_source) = self.prepared.source_file(*source) else {
+        if self.prepared.source_file(*source).is_none() {
             return Err(AuthoritativeModuleLookupFailure::InvalidSourceToken);
-        };
-        if resolved_file != target_source.path() {
-            return Err(AuthoritativeModuleLookupFailure::Unsupported(
-                UnsupportedAuthoritativeResolution::ResolvedFileIdentity,
-            ));
-        }
-        if module.original_path().is_some() {
-            return Err(AuthoritativeModuleLookupFailure::Unsupported(
-                UnsupportedAuthoritativeResolution::OriginalPath,
-            ));
         }
         Ok(AuthoritativeModuleResolution::Resolved(
             AuthoritativeResolvedModule {

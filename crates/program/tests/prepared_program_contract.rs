@@ -966,6 +966,7 @@ fn resolved_targets_retain_realpaths_and_original_lexical_paths() {
                     },
                     ModuleExtension::Dts,
                 )
+                .with_external_library_import(true)
                 .with_original_path(lexical.clone()),
             )),
         )
@@ -1034,6 +1035,7 @@ fn resolved_targets_retain_realpaths_and_original_lexical_paths() {
                     },
                     ModuleExtension::Dts,
                 )
+                .with_external_library_import(true)
                 .with_original_path(lexical.clone()),
             )),
         )
@@ -1051,6 +1053,284 @@ fn resolved_targets_retain_realpaths_and_original_lexical_paths() {
         )
         .unwrap();
     assert!(resolved_identity_builder.build().is_ok());
+}
+
+#[test]
+fn symlink_module_extensions_are_validated_against_the_lexical_original_path() {
+    let mut builder = builder();
+    let main = builder
+        .add_source_file(PreparedSourceFile::new(
+            path("/Work/main.ts", "/work/main.ts"),
+            "import 'typed'; import 'javascript';",
+        ))
+        .unwrap();
+    let physical = path("/Work/store/typed-blob", "/work/store/typed-blob");
+    let typed = builder
+        .add_source_file(PreparedSourceFile::new(
+            physical.clone(),
+            "export const value = 1;",
+        ))
+        .unwrap();
+    builder.add_root_file(main).unwrap();
+
+    let typed_key = ResolutionKey::new(
+        builder_path("/work/main.ts"),
+        "typed",
+        ResolutionMode::Unspecified,
+    );
+    builder
+        .add_module_resolution(
+            typed_key.clone(),
+            Ok(ModuleResolution::resolved(
+                ResolvedModule::new(
+                    ResolvedModuleTarget::Source {
+                        source: typed,
+                        resolved_file: physical.clone(),
+                    },
+                    ModuleExtension::Ts,
+                )
+                .with_external_library_import(true)
+                .with_original_path(path(
+                    "/Work/node_modules/typed/index.ts",
+                    "/work/node_modules/typed/index.ts",
+                )),
+            )),
+        )
+        .unwrap();
+
+    let javascript_key = ResolutionKey::new(
+        builder_path("/work/main.ts"),
+        "javascript",
+        ResolutionMode::Unspecified,
+    );
+    let javascript_physical = path(
+        "/Work/store/javascript-blob.data",
+        "/work/store/javascript-blob.data",
+    );
+    builder
+        .add_module_resolution(
+            javascript_key.clone(),
+            Ok(ModuleResolution::resolved(
+                ResolvedModule::new(
+                    ResolvedModuleTarget::unloaded(
+                        javascript_physical.clone(),
+                        UnloadedModuleReason::JavaScriptNotAdmitted,
+                    ),
+                    ModuleExtension::Js,
+                )
+                .with_external_library_import(true)
+                .with_original_path(path(
+                    "/Work/node_modules/javascript/index.js",
+                    "/work/node_modules/javascript/index.js",
+                )),
+            )),
+        )
+        .unwrap();
+
+    let program = builder.build().unwrap();
+    let ResolutionOutcome::Resolved(typed_resolution) = program
+        .resolutions()
+        .require_module(&typed_key)
+        .unwrap()
+        .outcome()
+    else {
+        panic!("typed symlink target must resolve");
+    };
+    assert_eq!(typed_resolution.extension(), &ModuleExtension::Ts);
+    assert_eq!(typed_resolution.target().source(), Some(typed));
+    assert_eq!(typed_resolution.target().resolved_file(), &physical);
+    assert_eq!(
+        typed_resolution.original_path().map(ProgramPath::canonical),
+        Some(&builder_path("/work/node_modules/typed/index.ts"))
+    );
+
+    let ResolutionOutcome::Resolved(javascript_resolution) = program
+        .resolutions()
+        .require_module(&javascript_key)
+        .unwrap()
+        .outcome()
+    else {
+        panic!("JavaScript symlink target must resolve");
+    };
+    assert_eq!(javascript_resolution.extension(), &ModuleExtension::Js);
+    assert_eq!(javascript_resolution.target().source(), None);
+    assert_eq!(
+        javascript_resolution.target().resolved_file(),
+        &javascript_physical
+    );
+    assert_eq!(
+        javascript_resolution
+            .original_path()
+            .map(ProgramPath::canonical),
+        Some(&builder_path("/work/node_modules/javascript/index.js"))
+    );
+}
+
+#[test]
+fn module_original_paths_require_distinct_external_library_transitions() {
+    fn add_main(builder: &mut PreparedProgramBuilder) {
+        let source = builder
+            .add_source_file(PreparedSourceFile::new(
+                path("/Work/main.ts", "/work/main.ts"),
+                "import 'dep';",
+            ))
+            .unwrap();
+        builder.add_root_file(source).unwrap();
+    }
+
+    fn key() -> ResolutionKey {
+        ResolutionKey::new(
+            builder_path("/work/main.ts"),
+            "dep",
+            ResolutionMode::Unspecified,
+        )
+    }
+
+    let physical = path("/Work/actual/dep.d.ts", "/work/actual/dep.d.ts");
+    let lexical = path("/Work/link/dep.d.ts", "/work/link/dep.d.ts");
+
+    let mut non_external_loaded = builder();
+    add_main(&mut non_external_loaded);
+    let target = non_external_loaded
+        .add_source_file(PreparedSourceFile::new(physical.clone(), "export {};"))
+        .unwrap();
+    let error = non_external_loaded
+        .add_module_resolution(
+            key(),
+            Ok(ModuleResolution::resolved(
+                ResolvedModule::new(
+                    ResolvedModuleTarget::Source {
+                        source: target,
+                        resolved_file: physical.clone(),
+                    },
+                    ModuleExtension::Dts,
+                )
+                .with_original_path(lexical.clone()),
+            )),
+        )
+        .unwrap_err();
+    assert_eq!(error.kind(), PreparationErrorKind::InvalidData);
+    assert_eq!(error.operation(), PreparationOperation::AddModuleResolution);
+    assert!(error
+        .detail()
+        .contains("requires an external-library import"));
+
+    let mut non_external_unloaded = builder();
+    add_main(&mut non_external_unloaded);
+    let unloaded = path(
+        "/Work/node_modules/dep/index.js",
+        "/work/node_modules/dep/index.js",
+    );
+    let error = non_external_unloaded
+        .add_module_resolution(
+            key(),
+            Ok(ModuleResolution::resolved(
+                ResolvedModule::new(
+                    ResolvedModuleTarget::unloaded(
+                        unloaded,
+                        UnloadedModuleReason::JavaScriptNotAdmitted,
+                    ),
+                    ModuleExtension::Js,
+                )
+                .with_original_path(path(
+                    "/Work/node_modules/dep/link.js",
+                    "/work/node_modules/dep/link.js",
+                )),
+            )),
+        )
+        .unwrap_err();
+    assert_eq!(error.kind(), PreparationErrorKind::InvalidData);
+    assert_eq!(error.operation(), PreparationOperation::AddModuleResolution);
+    assert!(error
+        .detail()
+        .contains("requires an external-library import"));
+
+    let mut same_path_unloaded = builder();
+    add_main(&mut same_path_unloaded);
+    let resolved = path(
+        "/Work/node_modules/dep/index.js",
+        "/work/node_modules/dep/index.js",
+    );
+    let error = same_path_unloaded
+        .add_module_resolution(
+            key(),
+            Ok(ModuleResolution::resolved(
+                ResolvedModule::new(
+                    ResolvedModuleTarget::unloaded(
+                        resolved.clone(),
+                        UnloadedModuleReason::NodeModulesDepth,
+                    ),
+                    ModuleExtension::Js,
+                )
+                .with_external_library_import(true)
+                .with_original_path(resolved),
+            )),
+        )
+        .unwrap_err();
+    assert_eq!(error.kind(), PreparationErrorKind::InvalidData);
+    assert_eq!(error.operation(), PreparationOperation::AddModuleResolution);
+    assert!(error
+        .detail()
+        .contains("must differ from its resolved file"));
+
+    let mut relative_loaded = builder();
+    add_main(&mut relative_loaded);
+    let relative_physical = path("/Work/actual/relative.d.ts", "/work/actual/relative.d.ts");
+    let target = relative_loaded
+        .add_source_file(PreparedSourceFile::new(
+            relative_physical.clone(),
+            "export {};",
+        ))
+        .unwrap();
+    let error = relative_loaded
+        .add_module_resolution(
+            ResolutionKey::new(
+                builder_path("/work/main.ts"),
+                "./relative",
+                ResolutionMode::Unspecified,
+            ),
+            Ok(ModuleResolution::resolved(
+                ResolvedModule::new(
+                    ResolvedModuleTarget::Source {
+                        source: target,
+                        resolved_file: relative_physical,
+                    },
+                    ModuleExtension::Dts,
+                )
+                .with_external_library_import(true)
+                .with_original_path(path("/Work/link/relative.d.ts", "/work/link/relative.d.ts")),
+            )),
+        )
+        .unwrap_err();
+    assert_eq!(error.kind(), PreparationErrorKind::InvalidData);
+    assert_eq!(error.operation(), PreparationOperation::AddModuleResolution);
+    assert!(error.detail().contains("non-relative, non-rooted"));
+
+    let mut relative_unloaded = builder();
+    add_main(&mut relative_unloaded);
+    let error = relative_unloaded
+        .add_module_resolution(
+            ResolutionKey::new(
+                builder_path("/work/main.ts"),
+                "..\\relative",
+                ResolutionMode::Unspecified,
+            ),
+            Ok(ModuleResolution::resolved(
+                ResolvedModule::new(
+                    ResolvedModuleTarget::unloaded(
+                        path("/Work/actual/relative.js", "/work/actual/relative.js"),
+                        UnloadedModuleReason::NodeModulesDepth,
+                    ),
+                    ModuleExtension::Js,
+                )
+                .with_external_library_import(true)
+                .with_original_path(path("/Work/link/relative.js", "/work/link/relative.js")),
+            )),
+        )
+        .unwrap_err();
+    assert_eq!(error.kind(), PreparationErrorKind::InvalidData);
+    assert_eq!(error.operation(), PreparationOperation::AddModuleResolution);
+    assert!(error.detail().contains("non-relative, non-rooted"));
 }
 
 #[test]
@@ -1092,7 +1372,8 @@ fn original_paths_must_describe_the_lexical_to_physical_transition() {
                 resolved_file: target_path,
             },
             ModuleExtension::Dts,
-        );
+        )
+        .with_external_library_import(true);
         if let Some(original_path) = original_path {
             module = module.with_original_path(original_path);
         }

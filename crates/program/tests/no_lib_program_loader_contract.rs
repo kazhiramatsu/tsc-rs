@@ -2881,43 +2881,604 @@ fn augmentation_target_binds_to_source_when_a_later_root_loads_the_same_file() {
 }
 
 #[test]
-fn loaded_package_target_with_original_path_fails_at_the_typed_consumer_boundary() {
+fn loaded_package_uses_lexical_extension_for_an_extensionless_physical_source() {
+    let lexical = "/work/node_modules/pkg/index.ts";
+    let physical = "/store/pkg/typed-blob";
+    let package_source = b"import { leaf } from './leaf';\nexport const lexical = leaf;".to_vec();
+    let forbidden_root_realpath = HostError::new(
+        HostErrorKind::Other,
+        HostOperation::Realpath,
+        Some(PathBuf::from("/work/root.ts")),
+        "root source discovery must preserve lexical identity",
+    );
     let host = MemoryCompilerHost::builder("/work")
         .file("/work/root.ts", b"import 'pkg';\nexport {};".to_vec())
         .file(
             "/work/node_modules/pkg/package.json",
-            br#"{"name":"pkg","version":"1.0.0","exports":"./index.ts"}"#.to_vec(),
+            br#"{"name":"pkg","version":"1.0.0","main":"index.ts"}"#.to_vec(),
         )
-        .file(
-            "/work/node_modules/pkg/index.ts",
-            b"export const lexical = 1;".to_vec(),
-        )
-        .file("/store/pkg/index.ts", b"export const lexical = 1;".to_vec())
-        .realpath("/work/node_modules/pkg/index.ts", "/store/pkg/index.ts")
+        .file(lexical, package_source.clone())
+        .file(physical, package_source)
+        .file("/store/pkg/leaf.ts", b"export const leaf = 1;".to_vec())
+        .realpath(lexical, physical)
+        .failure(forbidden_root_realpath)
+        .failure(HostError::new(
+            HostErrorKind::Other,
+            HostOperation::Realpath,
+            Some(PathBuf::from(physical)),
+            "the physical source must not be realpathed a second time",
+        ))
+        .failure(HostError::new(
+            HostErrorKind::Other,
+            HostOperation::Realpath,
+            Some(PathBuf::from("/store/pkg/leaf.ts")),
+            "a local relative dependency must preserve lexical identity",
+        ))
         .build()
         .expect("build package realpath host");
     let options = CompilerOptions {
         no_emit: Some(true),
-        module: Some(199),
-        module_resolution: Some(99),
+        module: Some(1),
+        module_resolution: Some(2),
         ..CompilerOptions::default()
     };
 
-    let error = load_no_lib_program(
+    let program = load_no_lib_program(
         &host,
         &[PathBuf::from("/work/root.ts")],
         options,
         program_options(),
         generous_limits(),
     )
-    .expect_err("loaded originalPath cannot yet enter the checker contract");
-    assert_eq!(error.kind(), ProgramLoadErrorKind::Unsupported);
-    assert_eq!(error.operation(), ProgramLoadOperation::ResolveModule);
-    assert_eq!(error.path(), Some(Path::new("/store/pkg/index.ts")));
-    let ProgramLoadError::Unsupported { feature, .. } = error else {
-        unreachable!("kind identifies the unsupported variant");
+    .expect("loaded originalPath enters the prepared-program contract");
+    assert_eq!(
+        source_paths(&program),
+        [
+            Path::new("/store/pkg/leaf.ts"),
+            Path::new(physical),
+            Path::new("/work/root.ts")
+        ]
+    );
+    assert!(program
+        .source_files()
+        .iter()
+        .all(|source| source.real_path().is_none()));
+
+    let resolution = program
+        .resolutions()
+        .require_module(&module_key(&program, "/work/root.ts", "pkg"))
+        .expect("package request has an authoritative row");
+    let ResolutionOutcome::Resolved(module) = resolution.outcome() else {
+        panic!("package request must resolve");
     };
-    assert_eq!(feature, "loaded-original-path");
+    let ResolvedModuleTarget::Source {
+        source,
+        resolved_file,
+    } = module.target()
+    else {
+        panic!("physical package target must be loaded");
+    };
+    assert_eq!(module.extension(), &ModuleExtension::Ts);
+    assert_eq!(resolved_file.display(), Path::new(physical));
+    assert_eq!(
+        program.source_file(*source).unwrap().path().display(),
+        Path::new(physical)
+    );
+    assert_eq!(
+        module.original_path().map(ProgramPath::display),
+        Some(Path::new(lexical))
+    );
+
+    let physical_source = program.source_file(*source).unwrap();
+    let leaf_key = plan_source_requests(physical_source, program.compiler_options())
+        .expect("plan requests from the extensionless physical source")
+        .module_requests()[0]
+        .clone();
+    let leaf_resolution = program
+        .resolutions()
+        .require_module(&leaf_key)
+        .expect("the physical source's relative request has an authoritative row");
+    assert!(matches!(
+        leaf_resolution.outcome(),
+        ResolutionOutcome::Resolved(leaf)
+            if matches!(
+                leaf.target(),
+                ResolvedModuleTarget::Source { resolved_file, .. }
+                    if resolved_file.display() == Path::new("/store/pkg/leaf.ts")
+            )
+    ));
+}
+
+#[test]
+fn lexical_symlink_root_and_physical_dependency_remain_distinct_sources() {
+    let package_source = b"export const value = 1;\n".to_vec();
+    let lexical_root = "/work/link.ts";
+    let lexical_package = "/work/node_modules/pkg/index.ts";
+    let physical = "/store/pkg/index.ts";
+    let host = MemoryCompilerHost::builder("/work")
+        .file(lexical_root, package_source.clone())
+        .file(
+            "/work/root.ts",
+            b"import { value } from 'pkg';\nvalue;\n".to_vec(),
+        )
+        .file(
+            "/work/node_modules/pkg/package.json",
+            br#"{"name":"pkg","version":"1.0.0","exports":"./index.ts"}"#.to_vec(),
+        )
+        .file(lexical_package, package_source.clone())
+        .file(physical, package_source)
+        .realpath(lexical_root, physical)
+        .realpath(lexical_package, physical)
+        .failure(HostError::new(
+            HostErrorKind::Other,
+            HostOperation::Realpath,
+            Some(PathBuf::from(lexical_root)),
+            "root discovery must not query realpath",
+        ))
+        .build()
+        .expect("build root and package symlink host");
+
+    let program = load_with_options(
+        &host,
+        &[lexical_root, "/work/root.ts"],
+        CompilerOptions {
+            module: Some(199),
+            module_resolution: Some(99),
+            ..compiler_options()
+        },
+        program_options(),
+        generous_limits(),
+    )
+    .expect("lexical root and physical dependency retain independent SourceFile identities");
+    assert_eq!(
+        source_paths(&program),
+        [
+            Path::new(lexical_root),
+            Path::new(physical),
+            Path::new("/work/root.ts")
+        ]
+    );
+    assert!(program
+        .source_files()
+        .iter()
+        .all(|source| source.real_path().is_none()));
+
+    let resolution = program
+        .resolutions()
+        .require_module(&module_key(&program, "/work/root.ts", "pkg"))
+        .expect("package request has an authoritative row");
+    let ResolutionOutcome::Resolved(module) = resolution.outcome() else {
+        panic!("package request must resolve");
+    };
+    let ResolvedModuleTarget::Source {
+        source,
+        resolved_file,
+    } = module.target()
+    else {
+        panic!("physical package target must be loaded");
+    };
+    assert_eq!(resolved_file.display(), Path::new(physical));
+    assert_eq!(
+        program.source_file(*source).unwrap().path().display(),
+        Path::new(physical)
+    );
+    assert_eq!(
+        module.original_path().map(ProgramPath::display),
+        Some(Path::new(lexical_package))
+    );
+}
+
+#[test]
+fn local_actual_then_bare_symlink_share_one_physical_source_id() {
+    let actual = "/src/library-a/index.ts";
+    let bare_lexical = "/node_modules/library-a/index.ts";
+    let library = b"export const value = 1;\n".to_vec();
+    let host = MemoryCompilerHost::builder("/")
+        .file(
+            "/src/local-consumer.ts",
+            b"import { value } from './library-a';\nvalue;\n".to_vec(),
+        )
+        .file(
+            "/src/bare-consumer.ts",
+            b"import { value } from 'library-a';\nvalue;\n".to_vec(),
+        )
+        .file(actual, library.clone())
+        .file(
+            "/node_modules/library-a/package.json",
+            br#"{"name":"library-a","version":"1.0.0","main":"index.ts"}"#.to_vec(),
+        )
+        .file(bare_lexical, library)
+        .realpath(bare_lexical, actual)
+        .failure(HostError::new(
+            HostErrorKind::Other,
+            HostOperation::Realpath,
+            Some(PathBuf::from(actual)),
+            "the local actual source must not be realpathed",
+        ))
+        .failure(HostError::new(
+            HostErrorKind::Other,
+            HostOperation::Realpath,
+            Some(PathBuf::from("/src/local-consumer.ts")),
+            "root source discovery must preserve lexical identity",
+        ))
+        .failure(HostError::new(
+            HostErrorKind::Other,
+            HostOperation::Realpath,
+            Some(PathBuf::from("/src/bare-consumer.ts")),
+            "root source discovery must preserve lexical identity",
+        ))
+        .build()
+        .expect("build local and bare symlink host");
+    let program = load_with_options(
+        &host,
+        &["/src/local-consumer.ts", "/src/bare-consumer.ts"],
+        CompilerOptions {
+            module: Some(1),
+            module_resolution: Some(2),
+            ..compiler_options()
+        },
+        program_options(),
+        generous_limits(),
+    )
+    .expect("local and bare requests share one physical source");
+    assert_eq!(
+        source_paths(&program),
+        [
+            Path::new(actual),
+            Path::new("/src/local-consumer.ts"),
+            Path::new("/src/bare-consumer.ts")
+        ]
+    );
+
+    let local_resolution = program
+        .resolutions()
+        .require_module(&module_key(
+            &program,
+            "/src/local-consumer.ts",
+            "./library-a",
+        ))
+        .expect("local request has an authoritative row");
+    let ResolutionOutcome::Resolved(local) = local_resolution.outcome() else {
+        panic!("local request must resolve");
+    };
+    let ResolvedModuleTarget::Source {
+        source: local_source,
+        resolved_file: local_file,
+    } = local.target()
+    else {
+        panic!("local actual must be loaded");
+    };
+    assert_eq!(local_file.display(), Path::new(actual));
+    assert_eq!(local.original_path(), None);
+
+    let bare_resolution = program
+        .resolutions()
+        .require_module(&module_key(&program, "/src/bare-consumer.ts", "library-a"))
+        .expect("bare request has an authoritative row");
+    let ResolutionOutcome::Resolved(bare) = bare_resolution.outcome() else {
+        panic!("bare request must resolve");
+    };
+    let ResolvedModuleTarget::Source {
+        source: bare_source,
+        resolved_file: bare_file,
+    } = bare.target()
+    else {
+        panic!("bare symlink target must join the owned actual source");
+    };
+    assert_eq!(local_source, bare_source);
+    assert_eq!(bare_file.display(), Path::new(actual));
+    assert_eq!(
+        bare.original_path().map(ProgramPath::display),
+        Some(Path::new(bare_lexical))
+    );
+    assert_eq!(
+        program.source_file(*bare_source).unwrap().path().display(),
+        Path::new(actual)
+    );
+}
+
+#[test]
+fn two_local_symlink_spellings_remain_two_lexical_sources() {
+    let first = "/src/first.ts";
+    let second = "/src/second.ts";
+    let physical = "/store/shared.ts";
+    let shared = b"export const value = 1;\n".to_vec();
+    let host = MemoryCompilerHost::builder("/")
+        .file(
+            "/src/root.ts",
+            b"import './first';\nimport './second';\nexport {};\n".to_vec(),
+        )
+        .file(first, shared.clone())
+        .file(second, shared.clone())
+        .file(physical, shared)
+        .realpath(first, physical)
+        .realpath(second, physical)
+        .failure(HostError::new(
+            HostErrorKind::Other,
+            HostOperation::Realpath,
+            Some(PathBuf::from(first)),
+            "a local relative target must not be realpathed",
+        ))
+        .failure(HostError::new(
+            HostErrorKind::Other,
+            HostOperation::Realpath,
+            Some(PathBuf::from(second)),
+            "a local relative target must not be realpathed",
+        ))
+        .build()
+        .expect("build two-local-symlink host");
+    let program = load_with_options(
+        &host,
+        &["/src/root.ts"],
+        CompilerOptions {
+            module: Some(1),
+            module_resolution: Some(2),
+            ..compiler_options()
+        },
+        program_options(),
+        generous_limits(),
+    )
+    .expect("local symlink spellings retain lexical source identities");
+    assert_eq!(
+        source_paths(&program),
+        [
+            Path::new(first),
+            Path::new(second),
+            Path::new("/src/root.ts")
+        ]
+    );
+
+    let first_resolution = program
+        .resolutions()
+        .require_module(&module_key(&program, "/src/root.ts", "./first"))
+        .expect("first local request has a row");
+    let second_resolution = program
+        .resolutions()
+        .require_module(&module_key(&program, "/src/root.ts", "./second"))
+        .expect("second local request has a row");
+    let (ResolutionOutcome::Resolved(first_module), ResolutionOutcome::Resolved(second_module)) =
+        (first_resolution.outcome(), second_resolution.outcome())
+    else {
+        panic!("both local symlink spellings must resolve");
+    };
+    let (Some(first_source), Some(second_source)) = (
+        first_module.target().source(),
+        second_module.target().source(),
+    ) else {
+        panic!("both local symlink spellings must be loaded");
+    };
+    assert_ne!(first_source, second_source);
+    assert_eq!(first_module.original_path(), None);
+    assert_eq!(second_module.original_path(), None);
+    assert!(program
+        .source_files()
+        .iter()
+        .all(|source| source.path().display() != Path::new(physical)));
+}
+
+#[test]
+fn direct_and_nested_symlink_type_references_share_one_source_id() {
+    let actual = "/node_modules/@types/shared/index.d.ts";
+    let nested = "/node_modules/pkg/node_modules/@types/shared/index.d.ts";
+    let declaration = b"declare const sharedValue: number;\n".to_vec();
+    let host = MemoryCompilerHost::builder("/")
+        .file(
+            "/src/direct.ts",
+            b"/// <reference types='shared' />\nexport {};\n".to_vec(),
+        )
+        .file(
+            "/node_modules/pkg/index.d.ts",
+            b"/// <reference types='shared' />\nexport {};\n".to_vec(),
+        )
+        .file(
+            "/node_modules/@types/shared/package.json",
+            br#"{"name":"@types/shared","version":"1.0.0","types":"index.d.ts"}"#.to_vec(),
+        )
+        .file(actual, declaration.clone())
+        .file(
+            "/node_modules/pkg/node_modules/@types/shared/package.json",
+            br#"{"name":"@types/shared","version":"1.0.0","types":"index.d.ts"}"#.to_vec(),
+        )
+        .file(nested, declaration)
+        .realpath(nested, actual)
+        .failure(HostError::new(
+            HostErrorKind::Other,
+            HostOperation::Realpath,
+            Some(PathBuf::from("/src/direct.ts")),
+            "root source discovery must preserve lexical identity",
+        ))
+        .failure(HostError::new(
+            HostErrorKind::Other,
+            HostOperation::Realpath,
+            Some(PathBuf::from("/node_modules/pkg/index.d.ts")),
+            "root source discovery must preserve lexical identity",
+        ))
+        .build()
+        .expect("build direct and nested type-reference symlink host");
+    let program = load_with_options(
+        &host,
+        &["/src/direct.ts", "/node_modules/pkg/index.d.ts"],
+        compiler_options(),
+        program_options().with_type_roots(Vec::new()),
+        generous_limits(),
+    )
+    .expect("direct and nested type references share one physical source");
+    assert_eq!(
+        source_paths(&program),
+        [
+            Path::new(actual),
+            Path::new("/src/direct.ts"),
+            Path::new("/node_modules/pkg/index.d.ts")
+        ]
+    );
+
+    let direct_resolution = program
+        .resolutions()
+        .require_type_reference(&type_reference_key(&program, "/src/direct.ts", "shared"))
+        .expect("direct type reference has an authoritative row");
+    let nested_resolution = program
+        .resolutions()
+        .require_type_reference(&type_reference_key(
+            &program,
+            "/node_modules/pkg/index.d.ts",
+            "shared",
+        ))
+        .expect("nested type reference has an authoritative row");
+    let (ResolutionOutcome::Resolved(direct), ResolutionOutcome::Resolved(nested_directive)) =
+        (direct_resolution.outcome(), nested_resolution.outcome())
+    else {
+        panic!("both type references must resolve");
+    };
+    assert_eq!(direct.source(), nested_directive.source());
+    assert_eq!(direct.target().display(), Path::new(actual));
+    assert_eq!(nested_directive.target().display(), Path::new(actual));
+    assert!(!direct.primary());
+    assert!(!nested_directive.primary());
+    assert_eq!(direct.original_path(), None);
+    assert_eq!(
+        nested_directive.original_path().map(ProgramPath::display),
+        Some(Path::new(nested))
+    );
+    assert_eq!(
+        program
+            .source_file(nested_directive.source())
+            .unwrap()
+            .path()
+            .display(),
+        Path::new(actual)
+    );
+}
+
+#[test]
+fn loaded_custom_type_root_reference_uses_physical_source_and_original_path() {
+    let lexical = "/custom/types/pkg/index.d.ts";
+    let physical = "/store/types/pkg/index.d.ts";
+    let host = MemoryCompilerHost::builder("/work")
+        .file(
+            "/work/root.ts",
+            b"/// <reference types='pkg' />\nexport {};\n".to_vec(),
+        )
+        .file(
+            "/custom/types/pkg/package.json",
+            br#"{"name":"pkg","version":"1.0.0","types":"index.d.ts"}"#.to_vec(),
+        )
+        .file(lexical, b"declare const packageValue: number;\n".to_vec())
+        .file(physical, b"declare const packageValue: number;\n".to_vec())
+        .realpath(lexical, physical)
+        .failure(HostError::new(
+            HostErrorKind::Other,
+            HostOperation::Realpath,
+            Some(PathBuf::from(physical)),
+            "the physical custom type-root target must not be realpathed again",
+        ))
+        .build()
+        .expect("build custom type-root realpath host");
+    let type_root = ProgramPath::from_trusted_parts("/custom/types", "/custom/types")
+        .expect("construct custom type root");
+    let program = load_with_options(
+        &host,
+        &["/work/root.ts"],
+        compiler_options(),
+        program_options().with_type_roots(vec![type_root]),
+        generous_limits(),
+    )
+    .expect("loaded custom type-root originalPath enters the prepared-program contract");
+
+    assert_eq!(
+        source_paths(&program),
+        [Path::new(physical), Path::new("/work/root.ts")]
+    );
+    let resolution = program
+        .resolutions()
+        .require_type_reference(&type_reference_key(&program, "/work/root.ts", "pkg"))
+        .expect("type-reference request has an authoritative row");
+    let ResolutionOutcome::Resolved(directive) = resolution.outcome() else {
+        panic!("type-reference request must resolve");
+    };
+    assert_eq!(directive.target().display(), Path::new(physical));
+    assert_eq!(
+        program
+            .source_file(directive.source())
+            .unwrap()
+            .path()
+            .display(),
+        Path::new(physical)
+    );
+    assert_eq!(
+        directive.original_path().map(ProgramPath::display),
+        Some(Path::new(lexical))
+    );
+}
+
+#[test]
+fn unloaded_package_javascript_retains_each_physical_resolution_and_original_path() {
+    for (physical, allow_js, expected_reason) in [
+        (
+            "/store/pkg/javascript-blob",
+            false,
+            UnloadedModuleReason::JavaScriptNotAdmitted,
+        ),
+        (
+            "/store/node_modules/pkg/javascript-blob.data",
+            true,
+            UnloadedModuleReason::NodeModulesDepth,
+        ),
+    ] {
+        let lexical = "/work/node_modules/pkg/index.js";
+        let host = MemoryCompilerHost::builder("/work")
+            .file("/work/root.ts", b"import 'pkg';\nexport {};".to_vec())
+            .file(
+                "/work/node_modules/pkg/package.json",
+                br#"{"name":"pkg","version":"1.0.0","exports":"./index.js"}"#.to_vec(),
+            )
+            .file(lexical, b"module.exports = 1;".to_vec())
+            .file(physical, b"module.exports = 1;".to_vec())
+            .realpath(lexical, physical)
+            .failure(HostError::new(
+                HostErrorKind::Other,
+                HostOperation::ReadFile,
+                Some(PathBuf::from(physical)),
+                "an unloaded JavaScript resolution must not read the physical target",
+            ))
+            .build()
+            .expect("build unloaded package realpath host");
+        let program = load_no_lib_program(
+            &host,
+            &[PathBuf::from("/work/root.ts")],
+            CompilerOptions {
+                no_emit: Some(true),
+                allow_js,
+                module: Some(199),
+                module_resolution: Some(99),
+                ..CompilerOptions::default()
+            },
+            program_options(),
+            generous_limits(),
+        )
+        .expect("unloaded originalPath enters the prepared-program contract");
+
+        let resolution = program
+            .resolutions()
+            .require_module(&module_key(&program, "/work/root.ts", "pkg"))
+            .expect("package request has an authoritative row");
+        let ResolutionOutcome::Resolved(module) = resolution.outcome() else {
+            panic!("package request must resolve");
+        };
+        let ResolvedModuleTarget::Unloaded {
+            resolved_file,
+            reason,
+        } = module.target()
+        else {
+            panic!("JavaScript package must remain unloaded");
+        };
+        assert_eq!(module.extension(), &ModuleExtension::Js);
+        assert_eq!(resolved_file.display(), Path::new(physical));
+        assert_eq!(*reason, expected_reason);
+        assert_eq!(
+            module.original_path().map(ProgramPath::display),
+            Some(Path::new(lexical))
+        );
+    }
 }
 
 #[test]

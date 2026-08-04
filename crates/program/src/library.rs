@@ -13,7 +13,7 @@ struct LibraryEntry {
 ///
 /// The catalog owns metadata only. Library bytes still come from the caller's
 /// [`tsc_host::CompilerHost`], so memory and filesystem hosts observe the same
-/// read, decode, realpath, and failure contracts.
+/// read, decode, lexical-identity, and failure contracts.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct LibraryCatalog {
     directory: PathBuf,

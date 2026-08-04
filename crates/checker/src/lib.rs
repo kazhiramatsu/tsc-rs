@@ -176,7 +176,6 @@ pub enum AuthoritativeModuleResolution {
 pub enum UnsupportedAuthoritativeResolution {
     ResolutionDiagnostics,
     ResolvedFileIdentity,
-    OriginalPath,
     UnloadedTargetExtension,
     UnloadedTargetAdmission,
     UnloadedJsxWithoutJsxOption,
