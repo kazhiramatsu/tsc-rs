@@ -20,8 +20,24 @@
         "lines": "1078-1079"
       },
       {
+        "symbol": "pathIsAbsolute",
+        "lines": "5311-5313"
+      },
+      {
+        "symbol": "pathIsRelative",
+        "lines": "5314-5316"
+      },
+      {
+        "symbol": "sortAndDeduplicateDiagnostics",
+        "lines": "11237-11239"
+      },
+      {
         "symbol": "getPathsBasePath",
         "lines": "16595-16599"
+      },
+      {
+        "symbol": "hasZeroOrOneAsteriskCharacter",
+        "lines": "18318-18330"
       },
       {
         "symbol": "paths option declaration",
@@ -90,6 +106,42 @@
       {
         "symbol": "compilerOptionValueToString",
         "lines": "40327-40341"
+      },
+      {
+        "symbol": "getOptionsDiagnostics",
+        "lines": "124024-124029"
+      },
+      {
+        "symbol": "verifyCompilerOptions paths validation",
+        "lines": "124805-124854"
+      },
+      {
+        "symbol": "createDiagnosticForOptionPathKeyValue",
+        "lines": "125298-125314"
+      },
+      {
+        "symbol": "createDiagnosticForOptionPaths",
+        "lines": "125315-125333"
+      },
+      {
+        "symbol": "forEachOptionPathsSyntax",
+        "lines": "125334-125336"
+      },
+      {
+        "symbol": "createCompilerOptionsDiagnostic",
+        "lines": "125375-125388"
+      },
+      {
+        "symbol": "getCompilerOptionsObjectLiteralSyntax",
+        "lines": "125389-125395"
+      },
+      {
+        "symbol": "getCompilerOptionsPropertySyntax",
+        "lines": "125396-125405"
+      },
+      {
+        "symbol": "createOptionDiagnosticInObjectLiteralSyntax",
+        "lines": "125406-125417"
       }
     ]
   },
@@ -5282,5 +5334,429 @@
         }
       ]
     }
-  ]
+  ],
+  "options_diagnostics": {
+    "scope": "paths_validation",
+    "diagnostic_codes": [
+      5061,
+      5062,
+      5063,
+      5064,
+      5066,
+      5090
+    ],
+    "corpus": {
+      "suite_path": "ts-tests/tests/cases/compiler",
+      "manifest": {
+        "path": "vendor/typescript-6.0.3/test-suite-expansion.v1.json",
+        "sha256": "9c6e991103b571f7a8800dc5e1ef66088017689f3769de8fcdb408b2dc125188"
+      },
+      "virtual_source_root": "/.src"
+    },
+    "summary": {
+      "fixture_total": 5,
+      "options_diagnostic_total": 9,
+      "located_options_diagnostic_total": 9,
+      "diagnostics_by_code": [
+        {
+          "code": 5061,
+          "count": 2
+        },
+        {
+          "code": 5062,
+          "count": 1
+        },
+        {
+          "code": 5063,
+          "count": 1
+        },
+        {
+          "code": 5064,
+          "count": 1
+        },
+        {
+          "code": 5066,
+          "count": 1
+        },
+        {
+          "code": 5090,
+          "count": 3
+        }
+      ]
+    },
+    "fixtures": [
+      {
+        "id": "pathsValidation1.ts",
+        "source": {
+          "index": 4978,
+          "path": "ts-tests/tests/cases/compiler/pathsValidation1.ts",
+          "mode": "100644",
+          "bytes": 196,
+          "sha256": "c5262b1ee716c7333ba98ee2e909269ddd2ae2212ee6269ecd78e0d3560b28b7",
+          "git_blob_sha1": "5e1943d1a999e88d5ad2fc833a341a26e99365b5",
+          "decoded_utf8_bytes": 196,
+          "decoded_sha256": "c5262b1ee716c7333ba98ee2e909269ddd2ae2212ee6269ecd78e0d3560b28b7"
+        },
+        "input": {
+          "virtual_source_root": "/.src",
+          "use_case_sensitive_file_names": false,
+          "config_unit_id": 0,
+          "units": [
+            {
+              "id": 0,
+              "name": "tsconfig.json",
+              "file_options": [
+                {
+                  "name": "target",
+                  "value": "es2015"
+                },
+                {
+                  "name": "filename",
+                  "value": "a.ts"
+                }
+              ],
+              "source": {
+                "file_name": "/.src/tsconfig.json",
+                "text": "{\n    \"compilerOptions\": {\n        \"baseUrl\": \".\",\n        \"paths\": {\n            \"*\": \"*\"\n        }\n    }\n}",
+                "utf8_bytes": 108,
+                "sha256": "9793202343d7bea963117d39d58422751879f3eeee626bfedeeb19f7d50e3d7e"
+              }
+            },
+            {
+              "id": 1,
+              "name": "a.ts",
+              "file_options": [],
+              "source": {
+                "file_name": "/.src/a.ts",
+                "text": "let x = 1;",
+                "utf8_bytes": 10,
+                "sha256": "aad7378dfeb851703927a534da47d0d02be7f54cf8c1751a37734d515811dafe"
+              }
+            }
+          ],
+          "parsed_file_names": [
+            "/.src/a.ts"
+          ]
+        },
+        "options_diagnostics": [
+          {
+            "code": 5063,
+            "category": "error",
+            "file": "/.src/tsconfig.json",
+            "start": 87,
+            "length": 3,
+            "message": "Substitutions for pattern '*' should be an array."
+          }
+        ]
+      },
+      {
+        "id": "pathsValidation2.ts",
+        "source": {
+          "index": 4979,
+          "path": "ts-tests/tests/cases/compiler/pathsValidation2.ts",
+          "mode": "100644",
+          "bytes": 196,
+          "sha256": "79c03cdfcf5953cea36bd99642408574eb0637e74c59dc430eeeb5edb301bff0",
+          "git_blob_sha1": "4beabd8b6f49f10c64566636e313a3694f9d3fbb",
+          "decoded_utf8_bytes": 196,
+          "decoded_sha256": "79c03cdfcf5953cea36bd99642408574eb0637e74c59dc430eeeb5edb301bff0"
+        },
+        "input": {
+          "virtual_source_root": "/.src",
+          "use_case_sensitive_file_names": false,
+          "config_unit_id": 0,
+          "units": [
+            {
+              "id": 0,
+              "name": "tsconfig.json",
+              "file_options": [
+                {
+                  "name": "target",
+                  "value": "es2015"
+                },
+                {
+                  "name": "filename",
+                  "value": "a.ts"
+                }
+              ],
+              "source": {
+                "file_name": "/.src/tsconfig.json",
+                "text": "{\n    \"compilerOptions\": {\n        \"baseUrl\": \".\",\n        \"paths\": {\n            \"*\": [1]\n        }\n    }\n}",
+                "utf8_bytes": 108,
+                "sha256": "bcdf4070e6f97c61aa41150a36fefb9ab34417012758188433da3bb1d50049ff"
+              }
+            },
+            {
+              "id": 1,
+              "name": "a.ts",
+              "file_options": [],
+              "source": {
+                "file_name": "/.src/a.ts",
+                "text": "let x = 1;",
+                "utf8_bytes": 10,
+                "sha256": "aad7378dfeb851703927a534da47d0d02be7f54cf8c1751a37734d515811dafe"
+              }
+            }
+          ],
+          "parsed_file_names": [
+            "/.src/a.ts"
+          ]
+        },
+        "options_diagnostics": [
+          {
+            "code": 5064,
+            "category": "error",
+            "file": "/.src/tsconfig.json",
+            "start": 88,
+            "length": 1,
+            "message": "Substitution '1' for pattern '*' has incorrect type, expected 'string', got 'number'."
+          }
+        ]
+      },
+      {
+        "id": "pathsValidation3.ts",
+        "source": {
+          "index": 4980,
+          "path": "ts-tests/tests/cases/compiler/pathsValidation3.ts",
+          "mode": "100644",
+          "bytes": 199,
+          "sha256": "ea33dbd7563b0b79a40aeb2f88a0c86832c6acf7b670d5152accc169912851ad",
+          "git_blob_sha1": "4e4ef9ff09172ef36f44ac33072fb05b96b47726",
+          "decoded_utf8_bytes": 199,
+          "decoded_sha256": "ea33dbd7563b0b79a40aeb2f88a0c86832c6acf7b670d5152accc169912851ad"
+        },
+        "input": {
+          "virtual_source_root": "/.src",
+          "use_case_sensitive_file_names": false,
+          "config_unit_id": 0,
+          "units": [
+            {
+              "id": 0,
+              "name": "tsconfig.json",
+              "file_options": [
+                {
+                  "name": "target",
+                  "value": "es2015"
+                },
+                {
+                  "name": "filename",
+                  "value": "a.ts"
+                }
+              ],
+              "source": {
+                "file_name": "/.src/tsconfig.json",
+                "text": "{\n    \"compilerOptions\": {\n        \"baseUrl\": \".\",\n        \"paths\": {\n            \"foo\": []\n        }\n    }\n}\n",
+                "utf8_bytes": 110,
+                "sha256": "400778bec979e4b3823be159b7655a9e8b7cb5bbf848ec09f8b38df631fb7712"
+              }
+            },
+            {
+              "id": 1,
+              "name": "a.ts",
+              "file_options": [],
+              "source": {
+                "file_name": "/.src/a.ts",
+                "text": "let x = 1;",
+                "utf8_bytes": 10,
+                "sha256": "aad7378dfeb851703927a534da47d0d02be7f54cf8c1751a37734d515811dafe"
+              }
+            }
+          ],
+          "parsed_file_names": [
+            "/.src/a.ts"
+          ]
+        },
+        "options_diagnostics": [
+          {
+            "code": 5066,
+            "category": "error",
+            "file": "/.src/tsconfig.json",
+            "start": 89,
+            "length": 2,
+            "message": "Substitutions for pattern 'foo' shouldn't be an empty array."
+          }
+        ]
+      },
+      {
+        "id": "pathsValidation4.ts",
+        "source": {
+          "index": 4981,
+          "path": "ts-tests/tests/cases/compiler/pathsValidation4.ts",
+          "mode": "100644",
+          "bytes": 433,
+          "sha256": "331ecaa940480ed702fd4b6654ea1218e2be98daee834c52609fcd9101029581",
+          "git_blob_sha1": "fdc4105ecba62a7c1848c76ca0ff178fee6f135b",
+          "decoded_utf8_bytes": 433,
+          "decoded_sha256": "331ecaa940480ed702fd4b6654ea1218e2be98daee834c52609fcd9101029581"
+        },
+        "input": {
+          "virtual_source_root": "/.src",
+          "use_case_sensitive_file_names": false,
+          "config_unit_id": 0,
+          "units": [
+            {
+              "id": 0,
+              "name": "tsconfig.json",
+              "file_options": [
+                {
+                  "name": "module",
+                  "value": "commonjs"
+                },
+                {
+                  "name": "target",
+                  "value": "es2015"
+                },
+                {
+                  "name": "noTypesAndSymbols",
+                  "value": "true"
+                },
+                {
+                  "name": "filename",
+                  "value": "src/main.ts"
+                }
+              ],
+              "source": {
+                "file_name": "/.src/tsconfig.json",
+                "text": "{\n    \"compilerOptions\": {\n        \"traceResolution\": true,\n        \"baseUrl\": \"./src\",\n        \"paths\": {\n          \"@interface/**/*\" : [\"./src/interface/*\"],\n          \"@service/**/*\": [\"./src/service/**/*\"],\n          \"@controller/*\": [\"controller/*\"],\n        }\n    }\n}\n",
+                "utf8_bytes": 274,
+                "sha256": "28a5d6a2dbf072d95f5c37fe3ca3d6228f5a44da888be9ac98dc8d9fdda1be11"
+              }
+            },
+            {
+              "id": 1,
+              "name": "src/main.ts",
+              "file_options": [],
+              "source": {
+                "file_name": "/.src/src/main.ts",
+                "text": "import 'someModule';",
+                "utf8_bytes": 20,
+                "sha256": "fb3c398d9aee34b6c4dd0badfa6abcfe05b1d51d991b27f0251f41bfff159733"
+              }
+            }
+          ],
+          "parsed_file_names": [
+            "/.src/src/main.ts"
+          ]
+        },
+        "options_diagnostics": [
+          {
+            "code": 5061,
+            "category": "error",
+            "file": "/.src/tsconfig.json",
+            "start": 117,
+            "length": 17,
+            "message": "Pattern '@interface/**/*' can have at most one '*' character."
+          },
+          {
+            "code": 5061,
+            "category": "error",
+            "file": "/.src/tsconfig.json",
+            "start": 170,
+            "length": 15,
+            "message": "Pattern '@service/**/*' can have at most one '*' character."
+          },
+          {
+            "code": 5062,
+            "category": "error",
+            "file": "/.src/tsconfig.json",
+            "start": 188,
+            "length": 20,
+            "message": "Substitution './src/service/**/*' in pattern '@service/**/*' can have at most one '*' character."
+          }
+        ]
+      },
+      {
+        "id": "pathsValidation5.ts",
+        "source": {
+          "index": 4982,
+          "path": "ts-tests/tests/cases/compiler/pathsValidation5.ts",
+          "mode": "100644",
+          "bytes": 339,
+          "sha256": "583094876be6dc31e7de0dc91062715c9fb95186bd39c04568ac1a26c3965019",
+          "git_blob_sha1": "3c81bc579f0d5398847c801258f72ee8ace3e84b",
+          "decoded_utf8_bytes": 339,
+          "decoded_sha256": "583094876be6dc31e7de0dc91062715c9fb95186bd39c04568ac1a26c3965019"
+        },
+        "input": {
+          "virtual_source_root": "/.src",
+          "use_case_sensitive_file_names": false,
+          "config_unit_id": 0,
+          "units": [
+            {
+              "id": 0,
+              "name": "tsconfig.json",
+              "file_options": [
+                {
+                  "name": "module",
+                  "value": "commonjs"
+                },
+                {
+                  "name": "target",
+                  "value": "es2015"
+                },
+                {
+                  "name": "noTypesAndSymbols",
+                  "value": "true"
+                },
+                {
+                  "name": "Filename",
+                  "value": "tsconfig.json"
+                },
+                {
+                  "name": "filename",
+                  "value": "src/main.ts"
+                }
+              ],
+              "source": {
+                "file_name": "/.src/tsconfig.json",
+                "text": "{\n  \"compilerOptions\": {\n      \"traceResolution\": true,\n      \"paths\": {\n        \"@interface/*\": [\"src/interface/*\"],\n        \"@blah\": [\"blah\"],\n        \"@humbug/*\": [\"*/generated\"]\n      }\n  }\n}\n",
+                "utf8_bytes": 196,
+                "sha256": "bf8749c62c5150a70e993b984c475a0eed71f388a81d77b737bacaaed072436c"
+              }
+            },
+            {
+              "id": 1,
+              "name": "src/main.ts",
+              "file_options": [],
+              "source": {
+                "file_name": "/.src/src/main.ts",
+                "text": "import 'someModule';",
+                "utf8_bytes": 20,
+                "sha256": "fb3c398d9aee34b6c4dd0badfa6abcfe05b1d51d991b27f0251f41bfff159733"
+              }
+            }
+          ],
+          "parsed_file_names": [
+            "/.src/src/main.ts"
+          ]
+        },
+        "options_diagnostics": [
+          {
+            "code": 5090,
+            "category": "error",
+            "file": "/.src/tsconfig.json",
+            "start": 98,
+            "length": 17,
+            "message": "Non-relative paths are not allowed when 'baseUrl' is not set. Did you forget a leading './'?"
+          },
+          {
+            "code": 5090,
+            "category": "error",
+            "file": "/.src/tsconfig.json",
+            "start": 136,
+            "length": 6,
+            "message": "Non-relative paths are not allowed when 'baseUrl' is not set. Did you forget a leading './'?"
+          },
+          {
+            "code": 5090,
+            "category": "error",
+            "file": "/.src/tsconfig.json",
+            "start": 167,
+            "length": 13,
+            "message": "Non-relative paths are not allowed when 'baseUrl' is not set. Did you forget a leading './'?"
+          }
+        ]
+      }
+    ]
+  }
 }

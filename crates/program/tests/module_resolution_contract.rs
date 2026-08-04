@@ -2376,6 +2376,115 @@ fn paths_without_base_url_use_cwd_and_path_matching_remains_case_sensitive() {
 }
 
 #[test]
+fn config_paths_use_their_declaring_base_while_base_url_fallback_stays_separate() {
+    let host = MemoryCompilerHost::builder("/project")
+        .file("/project/main.ts", b"export {};".to_vec())
+        .file("/project/lib/cwd.ts", b"export {};".to_vec())
+        .file("/declared/lib/config.ts", b"export {};".to_vec())
+        .file("/declared/unmatched.ts", b"export {};".to_vec())
+        .file("/base/lib/override.ts", b"export {};".to_vec())
+        .file("/base/unmatched.ts", b"export {};".to_vec())
+        .build()
+        .expect("build config paths base host");
+    let config_paths = ProgramOptions::default().with_config_paths(
+        vec![PathMapping::new("@config/*", vec!["./lib/*".to_owned()])],
+        "/declared",
+    );
+    assert_eq!(config_paths.paths_base_path(), Some("/declared"));
+
+    let without_base_url = CompilerOptions {
+        module_resolution: Some(100),
+        ..CompilerOptions::default()
+    };
+    let mut resolver =
+        ModuleResolver::new_with_program_options(&host, &without_base_url, &config_paths)
+            .expect("create config paths resolver");
+    let config = resolved(
+        resolver
+            .resolve(
+                Path::new("/project/main.ts"),
+                "@config/config",
+                ResolutionMode::CommonJs,
+            )
+            .expect("resolve relative to the paths-declaring config"),
+    );
+    assert_eq!(
+        config.resolved_file().display(),
+        Path::new("/declared/lib/config.ts")
+    );
+    assert_eq!(
+        resolver
+            .resolve(
+                Path::new("/project/main.ts"),
+                "unmatched",
+                ResolutionMode::CommonJs,
+            )
+            .expect("a paths base is not a baseUrl fallback"),
+        ResolutionOutcome::NotFound
+    );
+
+    let with_base_url = CompilerOptions {
+        module_resolution: Some(100),
+        base_url: Some("/base".to_owned()),
+        ..CompilerOptions::default()
+    };
+    let mut resolver =
+        ModuleResolver::new_with_program_options(&host, &with_base_url, &config_paths)
+            .expect("create baseUrl-overridden paths resolver");
+    let overridden = resolved(
+        resolver
+            .resolve(
+                Path::new("/project/main.ts"),
+                "@config/override",
+                ResolutionMode::CommonJs,
+            )
+            .expect("baseUrl overrides pathsBasePath"),
+    );
+    assert_eq!(
+        overridden.resolved_file().display(),
+        Path::new("/base/lib/override.ts")
+    );
+    let fallback = resolved(
+        resolver
+            .resolve(
+                Path::new("/project/main.ts"),
+                "unmatched",
+                ResolutionMode::CommonJs,
+            )
+            .expect("baseUrl remains the non-matching paths fallback"),
+    );
+    assert_eq!(
+        fallback.resolved_file().display(),
+        Path::new("/base/unmatched.ts")
+    );
+
+    let programmatic = config_paths
+        .clone()
+        .with_paths(vec![PathMapping::new("@cwd/*", vec!["./lib/*".to_owned()])]);
+    assert_eq!(
+        programmatic.paths_base_path(),
+        None,
+        "replacing the paths map also removes its config base atomically"
+    );
+    let mut resolver =
+        ModuleResolver::new_with_program_options(&host, &without_base_url, &programmatic)
+            .expect("create cwd paths resolver after replacement");
+    let cwd = resolved(
+        resolver
+            .resolve(
+                Path::new("/project/main.ts"),
+                "@cwd/cwd",
+                ResolutionMode::CommonJs,
+            )
+            .expect("programmatic paths retain cwd fallback"),
+    );
+    assert_eq!(
+        cwd.resolved_file().display(),
+        Path::new("/project/lib/cwd.ts")
+    );
+}
+
+#[test]
 fn paths_host_failures_stop_before_later_substitutions() {
     let denied = HostError::new(
         HostErrorKind::PermissionDenied,
@@ -2604,23 +2713,99 @@ fn root_dirs_preflight_containing_directories_before_candidate_probes() {
 }
 
 #[test]
-fn malformed_paths_configuration_fails_before_resolution() {
+fn diagnostic_class_paths_errors_remain_recoverable_during_resolution() {
+    let host = MemoryCompilerHost::builder("/work")
+        .file("/work/main.ts", b"export {};".to_vec())
+        .file("/base.ts", b"export {};".to_vec())
+        .file("/base/wildcard.ts", b"export {};".to_vec())
+        .file("/base/two**.ts", b"export {};".to_vec())
+        .file("/base/value**.ts", b"export {};".to_vec())
+        .file("/base/empty.ts", b"export {};".to_vec())
+        .build()
+        .expect("build recoverable paths validation host");
+    let options = CompilerOptions {
+        module_resolution: Some(100),
+        base_url: Some("/base".to_owned()),
+        ..CompilerOptions::default()
+    };
+    let empty_key_options = ProgramOptions::default().with_paths(vec![
+        PathMapping::new("", vec!["empty-key".to_owned()]),
+        PathMapping::new("*", vec!["wildcard".to_owned()]),
+    ]);
+    let mut empty_key_resolver =
+        ModuleResolver::new_with_program_options(&host, &options, &empty_key_options)
+            .expect("create empty-key shadow resolver");
+    let empty_key_falls_through = resolved(
+        empty_key_resolver
+            .resolve(Path::new("/work/main.ts"), "", ResolutionMode::CommonJs)
+            .expect("an empty exact key is falsey and shadows wildcard selection"),
+    );
+    assert_eq!(
+        empty_key_falls_through.resolved_file().display(),
+        Path::new("/base.ts"),
+        "the wildcard candidate /base/wildcard.ts must not be selected"
+    );
+
+    let program_options = ProgramOptions::default().with_paths(vec![
+        PathMapping::new("", vec!["empty-key".to_owned()]),
+        PathMapping::new("two**", vec!["mapped".to_owned()]),
+        PathMapping::new("empty", Vec::new()),
+        PathMapping::new("multi", vec!["value**".to_owned()]),
+    ]);
+    let mut resolver = ModuleResolver::new_with_program_options(&host, &options, &program_options)
+        .expect("option-diagnostic paths rows must not abort resolver construction");
+
+    let skipped_pattern = resolved(
+        resolver
+            .resolve(
+                Path::new("/work/main.ts"),
+                "two**",
+                ResolutionMode::CommonJs,
+            )
+            .expect("a multi-star pattern is skipped before baseUrl fallback"),
+    );
+    assert_eq!(
+        skipped_pattern.resolved_file().display(),
+        Path::new("/base/two**.ts")
+    );
+    assert_eq!(
+        resolver
+            .resolve(
+                Path::new("/work/main.ts"),
+                "empty",
+                ResolutionMode::CommonJs,
+            )
+            .expect("an empty substitution list remains a supported miss"),
+        ResolutionOutcome::NotFound,
+        "a matched empty list owns the miss instead of falling back to baseUrl"
+    );
+    let multi_star_substitution = resolved(
+        resolver
+            .resolve(
+                Path::new("/work/main.ts"),
+                "multi",
+                ResolutionMode::CommonJs,
+            )
+            .expect("a diagnostic-class substitution remains resolver input"),
+    );
+    assert_eq!(
+        multi_star_substitution.resolved_file().display(),
+        Path::new("/base/value**.ts")
+    );
+}
+
+#[test]
+fn structurally_malformed_paths_configuration_fails_before_resolution() {
     let host = MemoryCompilerHost::builder("/work")
         .file("/work/main.ts", b"export {};".to_vec())
         .build()
         .expect("build paths validation host");
     let options = CompilerOptions::default();
     let cases = [
-        ProgramOptions::default().with_paths(vec![PathMapping::new("", vec!["value".to_owned()])]),
         ProgramOptions::default().with_paths(vec![
             PathMapping::new("dup", vec!["first".to_owned()]),
             PathMapping::new("dup", vec!["second".to_owned()]),
         ]),
-        ProgramOptions::default()
-            .with_paths(vec![PathMapping::new("two**", vec!["value".to_owned()])]),
-        ProgramOptions::default().with_paths(vec![PathMapping::new("empty", Vec::new())]),
-        ProgramOptions::default()
-            .with_paths(vec![PathMapping::new("two", vec!["value**".to_owned()])]),
         ProgramOptions::default().with_paths(vec![PathMapping::new(
             "nul",
             vec!["value\0path".to_owned()],

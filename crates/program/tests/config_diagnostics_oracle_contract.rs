@@ -18,6 +18,8 @@ const TYPESCRIPT_BUNDLE_SHA256: &str =
     "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39";
 const TYPESCRIPT_SOURCE_SHA256: &str =
     "1c59e77a54b186ec43fa7f3e0d3c4bb15ca5eb5ba43e96b1d3a267139eddd3e3";
+const TEST_SUITE_MANIFEST_SHA256: &str =
+    "9c6e991103b571f7a8800dc5e1ef66088017689f3769de8fcdb408b2dc125188";
 
 #[derive(Clone, Debug)]
 enum ReadOutcome {
@@ -168,6 +170,64 @@ impl ConfigParseHost for OracleConfigHost {
     }
 }
 
+struct PathsValidationConfigHost {
+    case_sensitive: bool,
+    files: BTreeMap<String, String>,
+    parsed_file_names: Vec<String>,
+}
+
+impl PathsValidationConfigHost {
+    fn from_input(input: &Value, fixture_id: &str) -> Self {
+        let case_sensitive = input["use_case_sensitive_file_names"]
+            .as_bool()
+            .unwrap_or_else(|| panic!("{fixture_id}: case-sensitivity input is a boolean"));
+        let files = array(&input["units"], fixture_id, "expanded units")
+            .iter()
+            .map(|unit| {
+                let source = &unit["source"];
+                (
+                    string(&source["file_name"], fixture_id, "unit source").to_owned(),
+                    string(&source["text"], fixture_id, "unit text").to_owned(),
+                )
+            })
+            .collect();
+        Self {
+            case_sensitive,
+            files,
+            parsed_file_names: string_array(
+                &input["parsed_file_names"],
+                fixture_id,
+                "parsed file names",
+            ),
+        }
+    }
+}
+
+impl ConfigParseHost for PathsValidationConfigHost {
+    fn use_case_sensitive_file_names(&self) -> bool {
+        self.case_sensitive
+    }
+
+    fn file_exists(&self, path: &str) -> Result<bool, ConfigHostError> {
+        Ok(self.files.contains_key(path))
+    }
+
+    fn read_file(&self, path: &str) -> Result<Option<String>, ConfigHostError> {
+        Ok(self.files.get(path).cloned())
+    }
+
+    fn read_directory(
+        &self,
+        _directory: &str,
+        _extensions: &[&str],
+        _excludes: Option<&[String]>,
+        _includes: Option<&[String]>,
+        _depth: Option<usize>,
+    ) -> Result<Vec<String>, ConfigHostError> {
+        Ok(self.parsed_file_names.clone())
+    }
+}
+
 fn workspace_root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
 }
@@ -279,7 +339,11 @@ fn assert_artifact_metadata(artifact: &Value) {
         json!([
             {"symbol": "equateStringsCaseInsensitive", "lines": "905-906"},
             {"symbol": "startsWith", "lines": "1078-1079"},
+            {"symbol": "pathIsAbsolute", "lines": "5311-5313"},
+            {"symbol": "pathIsRelative", "lines": "5314-5316"},
+            {"symbol": "sortAndDeduplicateDiagnostics", "lines": "11237-11239"},
             {"symbol": "getPathsBasePath", "lines": "16595-16599"},
+            {"symbol": "hasZeroOrOneAsteriskCharacter", "lines": "18318-18330"},
             {"symbol": "paths option declaration", "lines": "37363-37374"},
             {"symbol": "convertToJson", "lines": "38521-38600"},
             {"symbol": "isCompilerOptionsValue", "lines": "38604-38617"},
@@ -297,6 +361,15 @@ fn assert_artifact_metadata(artifact: &Value) {
             {"symbol": "validateSpecs", "lines": "39697-39710"},
             {"symbol": "specToDiagnostic", "lines": "39711-39718"},
             {"symbol": "compilerOptionValueToString", "lines": "40327-40341"},
+            {"symbol": "getOptionsDiagnostics", "lines": "124024-124029"},
+            {"symbol": "verifyCompilerOptions paths validation", "lines": "124805-124854"},
+            {"symbol": "createDiagnosticForOptionPathKeyValue", "lines": "125298-125314"},
+            {"symbol": "createDiagnosticForOptionPaths", "lines": "125315-125333"},
+            {"symbol": "forEachOptionPathsSyntax", "lines": "125334-125336"},
+            {"symbol": "createCompilerOptionsDiagnostic", "lines": "125375-125388"},
+            {"symbol": "getCompilerOptionsObjectLiteralSyntax", "lines": "125389-125395"},
+            {"symbol": "getCompilerOptionsPropertySyntax", "lines": "125396-125405"},
+            {"symbol": "createOptionDiagnosticInObjectLiteralSyntax", "lines": "125406-125417"},
         ])
     );
     assert_eq!(artifact["summary"]["fixture_total"], 51);
@@ -602,6 +675,116 @@ fn config_diagnostic_plans_match_the_frozen_typescript_oracle() {
             Value::Array(host.log.into_inner()),
             fixture["host_log"],
             "{fixture_id}: host observation order drifted"
+        );
+    }
+}
+
+#[test]
+fn compiler_paths_options_diagnostics_match_the_frozen_typescript_oracle() {
+    let bytes = fs::read(workspace_root().join(ARTIFACT_PATH))
+        .expect("read compiler config diagnostic oracle");
+    let artifact: Value =
+        serde_json::from_slice(&bytes).expect("compiler config diagnostic oracle is valid JSON");
+    assert_artifact_metadata(&artifact);
+
+    let options = &artifact["options_diagnostics"];
+    assert_eq!(options["scope"], "paths_validation");
+    assert_eq!(
+        options["diagnostic_codes"],
+        json!([5061, 5062, 5063, 5064, 5066, 5090])
+    );
+    assert_eq!(
+        options["corpus"]["suite_path"],
+        "ts-tests/tests/cases/compiler"
+    );
+    assert_eq!(
+        options["corpus"]["manifest"]["path"],
+        "vendor/typescript-6.0.3/test-suite-expansion.v1.json"
+    );
+    assert_eq!(
+        options["corpus"]["manifest"]["sha256"],
+        TEST_SUITE_MANIFEST_SHA256
+    );
+    assert_eq!(options["summary"]["fixture_total"], 5);
+    assert_eq!(options["summary"]["options_diagnostic_total"], 9);
+    assert_eq!(options["summary"]["located_options_diagnostic_total"], 9);
+    assert_eq!(
+        options["summary"]["diagnostics_by_code"],
+        json!([
+            {"code": 5061, "count": 2},
+            {"code": 5062, "count": 1},
+            {"code": 5063, "count": 1},
+            {"code": 5064, "count": 1},
+            {"code": 5066, "count": 1},
+            {"code": 5090, "count": 3},
+        ])
+    );
+
+    let fixtures = array(&options["fixtures"], "paths options", "fixtures");
+    let expected_ids = [
+        "pathsValidation1.ts",
+        "pathsValidation2.ts",
+        "pathsValidation3.ts",
+        "pathsValidation4.ts",
+        "pathsValidation5.ts",
+    ];
+    assert_eq!(fixtures.len(), expected_ids.len());
+    for (fixture, expected_id) in fixtures.iter().zip(expected_ids) {
+        let fixture_id = string(&fixture["id"], "paths options", "fixture id");
+        assert_eq!(fixture_id, expected_id);
+        let source = &fixture["source"];
+        assert_eq!(
+            source["path"],
+            format!("ts-tests/tests/cases/compiler/{fixture_id}")
+        );
+        for field in ["sha256", "decoded_sha256"] {
+            let hash = string(&source[field], fixture_id, field);
+            assert_eq!(hash.len(), 64, "{fixture_id}: {field} width");
+        }
+        assert_eq!(source["sha256"], source["decoded_sha256"]);
+        assert_eq!(source["bytes"], source["decoded_utf8_bytes"]);
+
+        let input = &fixture["input"];
+        let units = array(&input["units"], fixture_id, "expanded units");
+        for unit in units {
+            assert_source_record(&unit["source"], fixture_id, "expanded source");
+        }
+        let config_index = input["config_unit_id"]
+            .as_u64()
+            .and_then(|index| usize::try_from(index).ok())
+            .unwrap_or_else(|| panic!("{fixture_id}: config unit id is an index"));
+        let root = &units
+            .get(config_index)
+            .unwrap_or_else(|| panic!("{fixture_id}: config unit exists"))["source"];
+        let host = PathsValidationConfigHost::from_input(input, fixture_id);
+        let plan = parse_config_root_plan(
+            &host,
+            ConfigRootPlanRequest {
+                file_name: string(&root["file_name"], fixture_id, "config file name").to_owned(),
+                text: string(&root["text"], fixture_id, "config source text").to_owned(),
+                base_path: string(
+                    &input["virtual_source_root"],
+                    fixture_id,
+                    "virtual source root",
+                )
+                .to_owned(),
+            },
+        )
+        .unwrap_or_else(|error| panic!("{fixture_id}: config planning failed: {error}"));
+        assert!(
+            plan.errors().is_empty(),
+            "{fixture_id}: official validation config has parse/config errors: {:?}",
+            plan.errors()
+        );
+        assert_eq!(
+            json!(plan.file_names()),
+            input["parsed_file_names"],
+            "{fixture_id}: root discovery drifted"
+        );
+        assert_eq!(
+            diagnostic_records(plan.option_diagnostics()),
+            fixture["options_diagnostics"],
+            "{fixture_id}: paths option diagnostics drifted"
         );
     }
 }

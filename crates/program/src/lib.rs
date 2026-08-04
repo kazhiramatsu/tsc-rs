@@ -58,10 +58,14 @@
 //! projection matches all 103 config-bearing compiler fixtures covering 106
 //! case expansions; a separate 51-fixture TypeScript oracle fixes malformed
 //! partial-plan behavior, all seven compiler-option list conversions, and the
-//! `paths` object conversion/base/template boundary. This does not execute
-//! those cases or cover the full `ParsedCommandLine`, remaining root object
-//! schemas, general filesystem `matchFiles`, project-runner configs, or CLI
-//! ownership.
+//! `paths` object conversion/base/template boundary. Five official compiler
+//! `pathsValidation` cases additionally fix the six paths option diagnostics,
+//! their UTF-16 locations, and ordering. Config-derived resolver options carry
+//! `paths` atomically with its declaring base and share precompiled matching
+//! metadata across resolver instances. This does not execute the remaining
+//! compiler/project cases or cover the full `ParsedCommandLine`, remaining
+//! root object schemas, general filesystem `matchFiles`, project-runner
+//! configs, or CLI ownership.
 
 mod config;
 mod config_matcher;
@@ -79,10 +83,10 @@ mod text;
 
 pub use config::{
     parse_config_root_plan, ConfigDiscoveryOptions, ConfigHostError, ConfigHostOperation,
-    ConfigOption, ConfigOptionBag, ConfigOptionValueState, ConfigParseError, ConfigParseErrorKind,
-    ConfigParseHost, ConfigRootPlan, ConfigRootPlanRequest, ConfigSourceText, ConfigTypedJsonValue,
-    ConfigTypedListElement, ConfigTypedObjectProperty, ConfigTypedObjectShape,
-    ConfigTypedObjectValue,
+    ConfigModuleResolutionOptions, ConfigOption, ConfigOptionBag, ConfigOptionValueState,
+    ConfigParseError, ConfigParseErrorKind, ConfigParseHost, ConfigRootPlan, ConfigRootPlanRequest,
+    ConfigSourceText, ConfigTypedJsonValue, ConfigTypedListElement, ConfigTypedObjectProperty,
+    ConfigTypedObjectShape, ConfigTypedObjectValue,
 };
 pub use config_matcher::ConfigFilePattern;
 pub use config_options::{

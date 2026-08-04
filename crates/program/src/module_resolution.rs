@@ -3,6 +3,7 @@ use std::cmp::Ordering;
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
+use std::sync::Arc;
 
 use serde_json::{Map, Value};
 use tsc_host::{to_file_name_lower_case, CompilerHost};
@@ -14,7 +15,8 @@ use crate::json::{
 };
 use crate::path::ProgramPath;
 use crate::prepared::{
-    PackageJsonType, PackageMetadata, PathContext, PathMapping, ProgramOptions, SourceFileId,
+    PackageJsonType, PackageMetadata, PathContext, ProgramOptions, ProgramPathMappings,
+    SourceFileId,
 };
 use crate::resolution::{
     ModuleExtension, PackageId, ResolutionError, ResolutionMode, ResolutionOutcome, ResolvedModule,
@@ -477,8 +479,9 @@ pub struct ModuleResolver<'a> {
     path_context: PathContext,
     type_root_base_directory: String,
     type_roots: Option<Vec<ProgramPath>>,
-    base_url: Option<String>,
-    paths: Option<Vec<PathMapping>>,
+    base_url: Option<Arc<str>>,
+    paths: Option<Arc<ProgramPathMappings>>,
+    paths_base_directory: Option<Arc<str>>,
     root_dirs: Option<Vec<String>>,
     package_cache: BTreeMap<String, PackageCacheEntry>,
     package_cache_enabled: bool,
@@ -499,9 +502,9 @@ impl<'a> ModuleResolver<'a> {
 
     /// Construct a resolver with the ordered program-owned resolution options.
     ///
-    /// `paths` mappings and `rootDirs` are cloned into this one-shot resolver
-    /// so later resolution does not borrow the program configuration. The
-    /// optional config identity also anchors default type roots. [`Self::new`]
+    /// `paths` mappings are shared immutably with this one-shot resolver while
+    /// `rootDirs` are normalized into resolver-owned strings. The optional
+    /// config identity also anchors default type roots. [`Self::new`]
     /// deliberately remains the compatibility entry point without these
     /// program-owned options.
     pub fn new_with_program_options(
@@ -513,7 +516,7 @@ impl<'a> ModuleResolver<'a> {
             host,
             options,
             program_options.preserve_symlinks_effective(),
-            program_options.paths(),
+            program_options.shared_paths(),
             program_options.config_file_path(),
             program_options.root_dirs(),
             program_options.type_roots(),
@@ -524,7 +527,7 @@ impl<'a> ModuleResolver<'a> {
         host: &'a dyn CompilerHost,
         options: &'a CompilerOptions,
         preserve_symlinks: bool,
-        paths: Option<&[PathMapping]>,
+        paths: Option<Arc<ProgramPathMappings>>,
         config_file_path: Option<&ProgramPath>,
         root_dirs: Option<&[ProgramPath]>,
         type_roots: Option<&[ProgramPath]>,
@@ -548,8 +551,17 @@ impl<'a> ModuleResolver<'a> {
             }
             None => normalized.clone(),
         };
-        let base_url = normalize_base_url(options.base_url.as_deref(), &normalized)?;
-        let paths = validate_and_clone_paths(paths)?;
+        let base_url =
+            normalize_base_url(options.base_url.as_deref(), &normalized)?.map(Arc::<str>::from);
+        let paths = validate_paths(paths)?;
+        let paths_base_directory = match paths.as_deref() {
+            None => None,
+            Some(_) if base_url.is_some() => base_url.clone(),
+            Some(paths) => Some(match paths.config_base_path() {
+                Some(base_path) => Arc::from(normalize_paths_base_path(base_path, &normalized)?),
+                None => Arc::from(normalized.clone()),
+            }),
+        };
         let root_dirs = validate_and_clone_root_dirs(root_dirs, &normalized, case_sensitive)?;
         Ok(Self {
             host,
@@ -560,6 +572,7 @@ impl<'a> ModuleResolver<'a> {
             type_roots: type_roots.map(<[_]>::to_vec),
             base_url,
             paths,
+            paths_base_directory,
             root_dirs,
             package_cache: BTreeMap::new(),
             package_cache_enabled: true,
@@ -587,7 +600,8 @@ impl<'a> ModuleResolver<'a> {
                     "current directory is not valid Unicode",
                 )
             })?;
-        let base_url = normalize_base_url(options.base_url.as_deref(), current_directory)?;
+        let base_url = normalize_base_url(options.base_url.as_deref(), current_directory)?
+            .map(Arc::<str>::from);
         Ok(Self {
             host,
             options,
@@ -597,6 +611,7 @@ impl<'a> ModuleResolver<'a> {
             path_context,
             base_url,
             paths: None,
+            paths_base_directory: None,
             root_dirs: None,
             package_cache: BTreeMap::new(),
             package_cache_enabled: true,
@@ -794,7 +809,10 @@ impl<'a> ModuleResolver<'a> {
         loader: OptionalResolutionLoader,
         follow_realpath: bool,
     ) -> Result<ResolutionOutcome<HostResolvedModule>, ResolutionError> {
-        let has_paths = self.paths.as_ref().is_some_and(|paths| !paths.is_empty());
+        let has_paths = self
+            .paths
+            .as_deref()
+            .is_some_and(|paths| !paths.entries().is_empty());
         let path_relative = is_path_relative_specifier(specifier);
         let external_relative = is_relative_specifier(specifier);
         if path_relative {
@@ -824,27 +842,49 @@ impl<'a> ModuleResolver<'a> {
         }
         validate_owned_path_text(specifier, "module specifier", /* allow_empty */ true)?;
 
-        if let Some((substitutions, capture)) = self.matching_paths(specifier) {
-            let base_directory = self
-                .base_url
-                .clone()
-                .unwrap_or(self.current_directory_text()?.to_owned());
-            for substitution in substitutions {
-                let expanded = match capture.as_deref() {
-                    Some(capture) if !capture.is_empty() => {
-                        js_replace_first_star(&substitution, capture)?
-                    }
-                    None => substitution.clone(),
-                    Some(_) => substitution.clone(),
+        if let Some((mapping_index, capture)) = self.matching_paths(specifier) {
+            let substitution_count = self
+                .paths
+                .as_deref()
+                .expect("a matching paths index has a shared mapping owner")
+                .entries()[mapping_index]
+                .substitutions()
+                .len();
+            for substitution_index in 0..substitution_count {
+                // Build the owned candidate before any mutable resolver work.
+                // The mapping table and its raw substitution stay borrowed
+                // only for this scope, so the common exact/empty-capture path
+                // performs no intermediate String/Vec clone.
+                let (candidate, extension) = {
+                    let paths = self
+                        .paths
+                        .as_deref()
+                        .expect("a matching paths index has a shared mapping owner");
+                    let substitution =
+                        &paths.entries()[mapping_index].substitutions()[substitution_index];
+                    let expanded = match capture.as_ref() {
+                        Some(capture) if !capture.is_empty() => Cow::Owned(js_replace_first_star(
+                            substitution,
+                            &specifier[capture.clone()],
+                        )?),
+                        None | Some(_) => Cow::Borrowed(substitution.as_str()),
+                    };
+                    let base_directory = self
+                        .paths_base_directory
+                        .as_deref()
+                        .expect("paths mappings have an effective base directory");
+                    (
+                        normalize_optional_candidate(&expanded, base_directory)?,
+                        recognized_module_extension(substitution),
+                    )
                 };
-                let candidate = normalize_optional_candidate(&expanded, &base_directory)?;
 
                 // tryLoadModuleUsingPaths probes a substitution whose raw text
                 // has a recognized extension exactly before invoking the
                 // extension-family loader. The raw text is intentional: a
                 // wildcard capture which happens to end in `.ts` does not
                 // enable this shortcut.
-                if let Some(extension) = recognized_module_extension(&substitution) {
+                if let Some(extension) = extension {
                     if self.host.file_exists(Path::new(&candidate))? {
                         let external = path_contains_node_modules(&candidate);
                         return self.finish_legacy_resolution(
@@ -901,10 +941,10 @@ impl<'a> ModuleResolver<'a> {
             );
         }
 
-        let Some(base_url) = self.base_url.clone() else {
+        let Some(base_url) = self.base_url.as_deref() else {
             return Ok(ResolutionOutcome::NotFound);
         };
-        let candidate = normalize_optional_candidate(specifier, &base_url)?;
+        let candidate = normalize_optional_candidate(specifier, base_url)?;
         // tryLoadModuleUsingBaseUrl owns the same caller-side parent latch as
         // paths substitutions before handing the candidate to its loader.
         if !self
@@ -1008,18 +1048,23 @@ impl<'a> ModuleResolver<'a> {
         Ok(ResolutionOutcome::NotFound)
     }
 
-    fn matching_paths(&self, specifier: &str) -> Option<(Vec<String>, Option<String>)> {
+    fn matching_paths(&self, specifier: &str) -> Option<(usize, Option<std::ops::Range<usize>>)> {
         let paths = self.paths.as_deref()?;
-        if let Some(mapping) = paths.iter().find(|mapping| mapping.pattern() == specifier) {
-            return Some((mapping.substitutions().to_vec(), None));
+        if let Some(index) = paths.exact_mapping_index(specifier) {
+            // The exact empty key wins inside `matchPatternOrExact`, but the
+            // returned empty string is falsey at `tryLoadModuleUsingPaths`.
+            // It therefore suppresses wildcard selection without owning the
+            // optional-settings attempt itself.
+            if specifier.is_empty() {
+                return None;
+            }
+            return Some((index, None));
         }
 
-        let mut best: Option<(&PathMapping, usize, String)> = None;
-        for mapping in paths {
+        let mut best: Option<(usize, usize, std::ops::Range<usize>)> = None;
+        for (index, star) in paths.wildcard_patterns() {
+            let mapping = &paths.entries()[index];
             let pattern = mapping.pattern();
-            let Some(star) = pattern.find('*') else {
-                continue;
-            };
             let prefix = &pattern[..star];
             let suffix = &pattern[star + 1..];
             if !specifier.starts_with(prefix)
@@ -1034,10 +1079,10 @@ impl<'a> ModuleResolver<'a> {
             {
                 continue;
             }
-            let capture = specifier[prefix.len()..specifier.len() - suffix.len()].to_owned();
-            best = Some((mapping, prefix.len(), capture));
+            let capture = prefix.len()..specifier.len() - suffix.len();
+            best = Some((index, prefix.len(), capture));
         }
-        best.map(|(mapping, _, capture)| (mapping.substitutions().to_vec(), Some(capture)))
+        best.map(|(index, _, capture)| (index, Some(capture)))
     }
 
     fn probe_optional_candidate(
@@ -4929,6 +4974,18 @@ fn normalize_base_url(
     normalize_absolute_path(Path::new(base_url), Some(current_directory)).map(Some)
 }
 
+fn normalize_paths_base_path(
+    paths_base_path: &str,
+    current_directory: &str,
+) -> Result<String, ResolutionError> {
+    validate_owned_path_text(
+        paths_base_path,
+        "pathsBasePath",
+        /* allow_empty */ false,
+    )?;
+    normalize_absolute_path(Path::new(paths_base_path), Some(current_directory))
+}
+
 fn validate_and_clone_root_dirs(
     root_dirs: Option<&[ProgramPath]>,
     current_directory: &str,
@@ -5010,48 +5067,19 @@ fn combine_paths_spelling(parent: &str, child: &str) -> Result<String, Resolutio
     }
 }
 
-fn validate_and_clone_paths(
-    paths: Option<&[PathMapping]>,
-) -> Result<Option<Vec<PathMapping>>, ResolutionError> {
+fn validate_paths(
+    paths: Option<Arc<ProgramPathMappings>>,
+) -> Result<Option<Arc<ProgramPathMappings>>, ResolutionError> {
     let Some(paths) = paths else {
         return Ok(None);
     };
-    let mut patterns = BTreeSet::new();
-    for mapping in paths {
-        let pattern = mapping.pattern();
-        validate_owned_path_text(pattern, "paths pattern", /* allow_empty */ false)?;
-        if pattern.matches('*').count() > 1 {
-            return Err(ResolutionError::invalid_data(format!(
-                "paths pattern {pattern:?} contains more than one '*'"
-            )));
-        }
-        if !patterns.insert(pattern.to_owned()) {
-            return Err(ResolutionError::invalid_data(format!(
-                "duplicate paths pattern {pattern:?} has no object-equivalent ordering semantics"
-            )));
-        }
-        if mapping.substitutions().is_empty() {
-            return Err(ResolutionError::invalid_data(format!(
-                "paths pattern {pattern:?} has no substitutions"
-            )));
-        }
-        for substitution in mapping.substitutions() {
-            validate_owned_path_text(
-                substitution,
-                "paths substitution",
-                /* allow_empty */ true,
-            )?;
-            if substitution.matches('*').count() > 1 {
-                return Err(ResolutionError::invalid_data(format!(
-                    "paths substitution {substitution:?} for pattern {pattern:?} contains more than one '*'"
-                )));
-            }
-        }
+    if let Some(error) = paths.validation_error() {
+        return Err(error.clone());
     }
-    Ok(Some(paths.to_vec()))
+    Ok(Some(paths))
 }
 
-fn validate_owned_path_text(
+pub(crate) fn validate_owned_path_text(
     value: &str,
     role: &str,
     allow_empty: bool,

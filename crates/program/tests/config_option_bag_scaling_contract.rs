@@ -289,6 +289,21 @@ fn large_paths_map_finalizes_templates_in_one_ordered_pass() {
         .as_object()
         .expect("paths retains its object shape");
     assert_eq!(paths.len(), MAPPINGS);
+    assert_eq!(plan.option_diagnostics().len(), MAPPINGS * 2);
+    assert_eq!(
+        plan.option_diagnostics()
+            .iter()
+            .filter(|diagnostic| diagnostic.code() == 5064)
+            .count(),
+        MAPPINGS
+    );
+    assert_eq!(
+        plan.option_diagnostics()
+            .iter()
+            .filter(|diagnostic| diagnostic.code() == 5090)
+            .count(),
+        MAPPINGS
+    );
     for index in 0..MAPPINGS {
         let values = paths[&format!("@pkg{index}/*")]
             .as_array()

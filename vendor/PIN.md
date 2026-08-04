@@ -67,3 +67,22 @@ not establish general config-diagnostic, compiler-option conversion,
 filesystem `matchFiles`, project/project-runner, or compiler-execution
 compatibility. Every upstream case remains `not-run`; this layer therefore
 claims no upstream test result.
+
+`vendor/typescript-6.0.3/compiler-config-diagnostics.v1.json` separately pins
+the 51 focused malformed/config-conversion fixtures and an options-diagnostic
+subcorpus sourced mechanically from the official compiler cases
+`pathsValidation1.ts` through `pathsValidation5.ts`. The latter verifies each
+source against the expansion manifest plus byte, SHA-256, and Git-blob pins,
+then records the nine filtered TS5061/5062/5063/5064/5066/5090 diagnostics from
+`createProgram(...).getOptionsDiagnostics()`, including their config-file
+locations. Regeneration and freshness checking use:
+
+```text
+node crates/oracle/compiler-config-diagnostics.mjs --write
+node crates/oracle/compiler-config-diagnostics.mjs --check
+```
+
+This is diagnostic-oracle evidence only for those five named compiler
+fixtures. Those five and every other compiler/project/project-runner case
+remain `not-run` in the expansion manifest; this artifact claims no upstream
+test pass.
