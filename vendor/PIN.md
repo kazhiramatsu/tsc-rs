@@ -31,3 +31,12 @@ neither execution nor a passing result. The only command shape is
 `cargo xtask upstream-suites manifest --check|--write`, with no subset,
 filter, limit, or output-path option (`--suite`, `--filter`, `--limit`, or
 `--out`).
+
+`tsc_harness::upstream_suites::execution` reconstructs immutable execution
+inputs from that manifest and the same `ts-tests` trees. It verifies all 7,086
+pinned source paths and bytes, interns raw and decoded data by Git blob ID, and
+shares each parsed fixture across its matrix/module variants. Ordered settings,
+unit occurrences, descriptor properties, and the two symlink phases remain
+observable. Config-driven compiler and project roots stay explicitly unresolved
+until the matching TypeScript config parser is applied, so this planning layer
+does not change any case's `not-run` state or claim a test result.

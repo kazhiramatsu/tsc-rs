@@ -142,11 +142,11 @@ const MODULE_RESOLUTION_VALUES: [(&str, i32); 6] = [
 const NEW_LINE_VALUES: [(&str, i32); 2] = [("crlf", 0), ("lf", 1)];
 const MODULE_DETECTION_VALUES: [(&str, i32); 3] = [("auto", 2), ("legacy", 1), ("force", 3)];
 
-#[derive(Debug)]
-struct ParsedUnit {
-    name: String,
-    file_options: Vec<OrderedSetting>,
-    content: Option<String>,
+#[derive(Clone, Debug)]
+pub(super) struct ParsedUnit {
+    pub(super) name: String,
+    pub(super) file_options: Vec<OrderedSetting>,
+    pub(super) content: Option<String>,
 }
 
 #[derive(Clone, Debug)]
@@ -186,7 +186,7 @@ pub(super) fn expand_compiler_fixture(
     })
 }
 
-fn extract_compiler_settings(content: &str) -> Vec<OrderedSetting> {
+pub(super) fn extract_compiler_settings(content: &str) -> Vec<OrderedSetting> {
     let mut settings = Vec::new();
     for start in multiline_starts(content) {
         if let Some((name, value)) = parse_option_at(&content[start..]) {
@@ -266,7 +266,7 @@ fn find_cr_or_lf(text: &str) -> Option<usize> {
         .find_map(|(index, ch)| matches!(ch, '\r' | '\n').then_some(index))
 }
 
-fn make_units_from_test(
+pub(super) fn make_units_from_test(
     code: &str,
     fixture_path: &str,
 ) -> HarnessResult<(Vec<ParsedUnit>, Vec<CompilerLink>)> {
@@ -376,14 +376,14 @@ fn compiler_unit(unit: ParsedUnit) -> CompilerUnit {
     }
 }
 
-fn is_config_file_name(path: &str) -> bool {
+pub(super) fn is_config_file_name(path: &str) -> bool {
     matches!(
         base_file_name(path).to_ascii_lowercase().as_str(),
         "tsconfig.json" | "jsconfig.json"
     )
 }
 
-fn expand_configurations(
+pub(super) fn expand_configurations(
     fixture_path: &str,
     settings: &[OrderedSetting],
 ) -> HarnessResult<Vec<CompilerConfiguration>> {
