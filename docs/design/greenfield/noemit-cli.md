@@ -557,10 +557,16 @@ non-recursive token preflight: unsupported expression tokens expose empty
 package fields directly, and object/array nesting above 256 does the same. The
 converter itself uses an explicit task stack.
 
+An explicit `preserveSymlinks=true` now keeps external non-relative module and
+type-reference results on their lexical link identities without publishing
+`originalPath`; absent or false retains the physical-target identity and its
+lexical `originalPath`. The policy is program-owned, and source publication
+therefore deduplicates only the physical-policy result.
+
 This is deliberately not general H0.4 program construction. Config-derived
-root-file selection, preserve-symlinks/package redirects, case-only alias
-diagnostics, and the complete cross-platform case/separator/symlink/encoding
-matrix remain in later slices. Discovery stays
+root-file selection, package redirects, case-only alias diagnostics, and the
+complete cross-platform case/separator/symlink/encoding matrix remain in later
+slices. Discovery stays
 sequential where vendored host calls and failure precedence are observable;
 future pipeline parallelism must preserve that contract.
 

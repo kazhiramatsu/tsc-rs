@@ -475,6 +475,7 @@ impl PathMapping {
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct ProgramOptions {
     no_lib: Option<bool>,
+    preserve_symlinks: Option<bool>,
     types: Option<Vec<String>>,
     type_roots: Option<Vec<ProgramPath>>,
     config_file_path: Option<ProgramPath>,
@@ -485,6 +486,13 @@ pub struct ProgramOptions {
 impl ProgramOptions {
     pub fn with_no_lib(mut self, value: bool) -> Self {
         self.no_lib = Some(value);
+        self
+    }
+
+    /// Retain the raw `preserveSymlinks` option. Only an explicit true value
+    /// preserves lexical resolver results instead of following real paths.
+    pub fn with_preserve_symlinks(mut self, value: bool) -> Self {
+        self.preserve_symlinks = Some(value);
         self
     }
 
@@ -517,6 +525,14 @@ impl ProgramOptions {
 
     pub const fn no_lib(&self) -> Option<bool> {
         self.no_lib
+    }
+
+    pub const fn preserve_symlinks(&self) -> Option<bool> {
+        self.preserve_symlinks
+    }
+
+    pub const fn preserve_symlinks_effective(&self) -> bool {
+        matches!(self.preserve_symlinks, Some(true))
     }
 
     pub fn types(&self) -> Option<&[String]> {
