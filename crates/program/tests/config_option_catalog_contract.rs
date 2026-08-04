@@ -1,7 +1,7 @@
 use tsc_program::{
     compiler_option_declaration, compiler_option_declarations, compiler_option_spelling_suggestion,
-    is_command_option_without_build, jsconfig_defaults, CompilerOptionValueKind,
-    JsConfigDefaultValue,
+    is_command_option_without_build, jsconfig_defaults, typescript_6_0_3_libraries,
+    CompilerOptionListElementKind, CompilerOptionValueKind, JsConfigDefaultValue,
 };
 
 #[test]
@@ -142,6 +142,65 @@ fn catalog_preserves_the_typescript_6_0_3_declaration_order() {
         .map(|declaration| declaration.name())
         .collect::<Vec<_>>();
     assert_eq!(actual, expected);
+}
+
+#[test]
+fn list_metadata_and_the_shared_lib_map_match_typescript_6_0_3() {
+    let expected = [
+        ("lib", "lib", "named", false, false),
+        ("rootDirs", "rootDirs", "path", false, true),
+        ("typeRoots", "typeRoots", "path", false, true),
+        ("types", "types", "string", false, false),
+        ("moduleSuffixes", "suffix", "string", true, false),
+        ("customConditions", "condition", "string", false, false),
+        ("plugins", "plugin", "object", false, false),
+    ];
+    for (name, element_name, element_kind, preserve_falsy, substitute_config_dir) in expected {
+        let descriptor = compiler_option_declaration(name)
+            .unwrap_or_else(|| panic!("missing list declaration {name}"))
+            .value_kind()
+            .list_descriptor()
+            .unwrap_or_else(|| panic!("{name} is not a list declaration"));
+        assert_eq!(descriptor.element_name(), element_name, "{name}");
+        assert_eq!(
+            match descriptor.element_kind() {
+                CompilerOptionListElementKind::String => "string",
+                CompilerOptionListElementKind::FilePath => "path",
+                CompilerOptionListElementKind::NamedString(_) => "named",
+                CompilerOptionListElementKind::Object => "object",
+            },
+            element_kind,
+            "{name}"
+        );
+        assert_eq!(descriptor.preserve_falsy_values(), preserve_falsy, "{name}");
+        assert_eq!(
+            descriptor.allow_config_dir_template_substitution(),
+            substitute_config_dir,
+            "{name}"
+        );
+    }
+
+    let libraries = typescript_6_0_3_libraries();
+    assert_eq!(libraries.len(), 107);
+    assert_eq!(
+        (libraries[0].name(), libraries[0].value()),
+        ("es5", "lib.es5.d.ts")
+    );
+    assert_eq!(
+        (libraries[1].name(), libraries[1].value()),
+        ("es6", "lib.es2015.d.ts")
+    );
+    assert_eq!(
+        (libraries[106].name(), libraries[106].value()),
+        ("decorators.legacy", "lib.decorators.legacy.d.ts")
+    );
+    let lib = compiler_option_declaration("lib")
+        .unwrap()
+        .value_kind()
+        .list_descriptor()
+        .unwrap();
+    assert_eq!(lib.named_string_value("DOM"), Some("lib.dom.d.ts"));
+    assert_eq!(lib.named_string_value(" es5"), None);
 }
 
 #[test]

@@ -336,21 +336,102 @@ const FIXTURES = [
     id: "file-spec-diagnostic-owner-order",
     rootText: '{"files":[foo,{"x":\'y\'}]}',
   },
+  {
+    id: "compiler-list-valid-conversions",
+    rootText:
+      '{"compilerOptions":{"lib":["ES5","DOM"],"rootDirs":["src",""],"typeRoots":["types","../shared"],"types":["node","jest"],"moduleSuffixes":[".ios",""],"customConditions":["development","browser"],"plugins":[{"name":"example"},[]]},"files":["x.ts"]}',
+    optionProbeKeys: [
+      "lib",
+      "rootDirs",
+      "typeRoots",
+      "types",
+      "moduleSuffixes",
+      "customConditions",
+      "plugins",
+    ],
+  },
+  {
+    id: "compiler-list-outer-wrong-kinds",
+    rootText:
+      '{"compilerOptions":{"lib":true,"rootDirs":{},"typeRoots":"types","types":false,"moduleSuffixes":0,"customConditions":true,"plugins":"plugin"},"files":["x.ts"]}',
+    optionProbeKeys: [
+      "lib",
+      "rootDirs",
+      "typeRoots",
+      "types",
+      "moduleSuffixes",
+      "customConditions",
+      "plugins",
+    ],
+  },
+  {
+    id: "compiler-list-top-level-null",
+    rootText:
+      '{"compilerOptions":{"lib":null,"rootDirs":null,"typeRoots":null,"types":null,"moduleSuffixes":null,"customConditions":null,"plugins":null},"files":["x.ts"]}',
+    optionProbeKeys: [
+      "lib",
+      "rootDirs",
+      "typeRoots",
+      "types",
+      "moduleSuffixes",
+      "customConditions",
+      "plugins",
+    ],
+  },
+  {
+    id: "compiler-list-mixed-invalid-elements",
+    rootText:
+      '{"compilerOptions":{"lib":["ES5",foo,"wat",false,"DOM"],"types":["node",foo,false,"jest"],"moduleSuffixes":[".ios",null,false,foo,""],"plugins":[{},[],null,false,foo,{"name":bar}]},"files":["x.ts"]}',
+    optionProbeKeys: ["lib", "types", "moduleSuffixes", "plugins"],
+  },
+  {
+    id: "compiler-list-extends-path-bases",
+    rootText: '{"extends":"./config/base.json","files":["x.ts"]}',
+    hostFiles: [
+      {
+        path: "/project/config/base.json",
+        text:
+          '{"compilerOptions":{"rootDirs":["src","${configDir}/generated"],"typeRoots":["types","${configDir}/ambient"]}}',
+      },
+    ],
+    optionProbeKeys: ["rootDirs", "typeRoots"],
+  },
+  {
+    id: "compiler-list-extends-replace-and-null-mask",
+    rootText:
+      '{"extends":"./base.json","compilerOptions":{"lib":["DOM"],"rootDirs":["own"],"typeRoots":null,"types":["own"],"moduleSuffixes":[".own"],"customConditions":null,"plugins":[[]]},"files":["x.ts"]}',
+    hostFiles: [
+      {
+        path: "/project/base.json",
+        text:
+          '{"compilerOptions":{"lib":["ES5"],"rootDirs":["base"],"typeRoots":["base-types"],"types":["base"],"moduleSuffixes":[".base"],"customConditions":["base"],"plugins":[{}]}}',
+      },
+    ],
+    optionProbeKeys: [
+      "lib",
+      "rootDirs",
+      "typeRoots",
+      "types",
+      "moduleSuffixes",
+      "customConditions",
+      "plugins",
+    ],
+  },
 ];
 
 const EXPECTED_SUMMARY = {
-  fixture_total: 39,
+  fixture_total: 45,
   root_parse_diagnostic_total: 4,
-  parsed_error_total: 66,
-  config_diagnostic_total: 70,
-  located_config_diagnostic_total: 63,
-  file_name_total: 36,
-  extended_source_total: 16,
-  extended_source_text_total: 14,
-  host_call_total: 46,
+  parsed_error_total: 83,
+  config_diagnostic_total: 87,
+  located_config_diagnostic_total: 80,
+  file_name_total: 42,
+  extended_source_total: 18,
+  extended_source_text_total: 16,
+  host_call_total: 50,
   host_calls: {
-    file_exists: 26,
-    read_file: 18,
+    file_exists: 28,
+    read_file: 20,
     read_directory: 2,
   },
 };
@@ -610,11 +691,28 @@ function createParseConfigHost(fixture) {
   };
 }
 
-function optionProbeRecord(options, names) {
+function optionProbeRecord(options, names, preserveListElementState = false) {
   return names.map((name) => {
     if (!Object.hasOwn(options, name)) return { name, state: "absent" };
     const value = options[name];
     if (value === undefined) return { name, state: "undefined" };
+    if (preserveListElementState && Array.isArray(value)) {
+      return {
+        name,
+        state: "list",
+        elements: value.map((element, index) =>
+          element === undefined
+            ? { state: "undefined" }
+            : {
+                state: "value",
+                value: jsonValue(
+                  element,
+                  `compiler option ${name} element ${index}`,
+                ),
+              },
+        ),
+      };
+    }
     return {
       name,
       state: "value",
@@ -692,6 +790,7 @@ function buildFixture(fixture) {
       option_probes: optionProbeRecord(
         parsed.options,
         fixture.optionProbeKeys ?? [],
+        true,
       ),
       raw_own_property_probes: optionProbeRecord(
         parsed.raw,
@@ -757,11 +856,21 @@ function generateArtifact() {
       path: TYPESCRIPT_SOURCE_RELATIVE_PATH,
       sha256: EXPECTED_TYPESCRIPT_SOURCE_SHA256,
       spans: [
+        { symbol: "convertToJson", lines: "38521-38600" },
         { symbol: "parseJsonConfigFileContentWorker", lines: "39004-39171" },
+        {
+          symbol: "handleOptionConfigDirTemplateSubstitution",
+          lines: "39175-39207",
+        },
         { symbol: "parseConfig", lines: "39272-39330" },
         { symbol: "getExtendsConfigPathOrArray", lines: "39342-39378" },
         { symbol: "getExtendsConfigPath", lines: "39436-39459" },
         { symbol: "getExtendedConfig", lines: "39460-39499" },
+        { symbol: "convertJsonOption", lines: "39555-39574" },
+        {
+          symbol: "convertJsonOptionOfListType",
+          lines: "39603-39605",
+        },
         { symbol: "validateSpecs", lines: "39697-39710" },
         { symbol: "specToDiagnostic", lines: "39711-39718" },
       ],

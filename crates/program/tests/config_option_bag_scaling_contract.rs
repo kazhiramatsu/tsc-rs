@@ -205,3 +205,50 @@ fn large_raw_option_merge_preserves_slots_tombstones_and_typed_shadowing() {
         assert_eq!(option.base_path, "/project");
     }
 }
+
+#[test]
+fn large_invalid_list_orders_conversion_before_notifiers_without_quadratic_repair() {
+    const INVALID_ELEMENTS: usize = 1_024;
+
+    let mut text = String::from("{\"compilerOptions\":{\"types\":[");
+    let mut conversion_starts = Vec::with_capacity(INVALID_ELEMENTS);
+    let mut element_starts = Vec::with_capacity(INVALID_ELEMENTS * 2);
+    for index in 0..INVALID_ELEMENTS {
+        if index != 0 {
+            text.push(',');
+        }
+        element_starts.push(text.len() as u32);
+        conversion_starts.push(text.len() as u32);
+        text.push_str("foo,false");
+        element_starts.push((text.len() - "false".len()) as u32);
+    }
+    text.push_str("],\"strict\":true},\"files\":[\"root.ts\"]}");
+
+    let plan = parse_config_root_plan(
+        &MemoryConfigHost::default(),
+        ConfigRootPlanRequest {
+            file_name: "/project/tsconfig.json".to_owned(),
+            text,
+            base_path: "/".to_owned(),
+        },
+    )
+    .expect("large invalid list remains a bounded partial plan");
+
+    let errors = plan.errors();
+    assert_eq!(errors.len(), INVALID_ELEMENTS * 2);
+    assert_eq!(
+        errors[..INVALID_ELEMENTS]
+            .iter()
+            .map(|diagnostic| diagnostic.start.unwrap())
+            .collect::<Vec<_>>(),
+        conversion_starts
+    );
+    assert_eq!(
+        errors[INVALID_ELEMENTS..]
+            .iter()
+            .map(|diagnostic| diagnostic.start.unwrap())
+            .collect::<Vec<_>>(),
+        element_starts[..INVALID_ELEMENTS]
+    );
+    assert!(errors.iter().all(|diagnostic| diagnostic.code() == 5024));
+}

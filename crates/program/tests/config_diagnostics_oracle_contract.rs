@@ -7,7 +7,7 @@ use serde_json::{json, Value};
 use tsc_diagnostics::{Diagnostic, DiagnosticCategory};
 use tsc_program::{
     parse_config_root_plan, ConfigHostError, ConfigHostOperation, ConfigOptionValueState,
-    ConfigParseHost, ConfigRootPlanRequest,
+    ConfigParseHost, ConfigRootPlanRequest, ConfigTypedListElement,
 };
 
 const ARTIFACT_PATH: &str = "vendor/typescript-6.0.3/compiler-config-diagnostics.v1.json";
@@ -277,26 +277,30 @@ fn assert_artifact_metadata(artifact: &Value) {
     assert_eq!(
         artifact["source_reference"]["spans"],
         json!([
+            {"symbol": "convertToJson", "lines": "38521-38600"},
             {"symbol": "parseJsonConfigFileContentWorker", "lines": "39004-39171"},
+            {"symbol": "handleOptionConfigDirTemplateSubstitution", "lines": "39175-39207"},
             {"symbol": "parseConfig", "lines": "39272-39330"},
             {"symbol": "getExtendsConfigPathOrArray", "lines": "39342-39378"},
             {"symbol": "getExtendsConfigPath", "lines": "39436-39459"},
             {"symbol": "getExtendedConfig", "lines": "39460-39499"},
+            {"symbol": "convertJsonOption", "lines": "39555-39574"},
+            {"symbol": "convertJsonOptionOfListType", "lines": "39603-39605"},
             {"symbol": "validateSpecs", "lines": "39697-39710"},
             {"symbol": "specToDiagnostic", "lines": "39711-39718"},
         ])
     );
-    assert_eq!(artifact["summary"]["fixture_total"], 39);
+    assert_eq!(artifact["summary"]["fixture_total"], 45);
     assert_eq!(artifact["summary"]["root_parse_diagnostic_total"], 4);
-    assert_eq!(artifact["summary"]["parsed_error_total"], 66);
-    assert_eq!(artifact["summary"]["config_diagnostic_total"], 70);
-    assert_eq!(artifact["summary"]["located_config_diagnostic_total"], 63);
-    assert_eq!(artifact["summary"]["file_name_total"], 36);
-    assert_eq!(artifact["summary"]["extended_source_total"], 16);
-    assert_eq!(artifact["summary"]["extended_source_text_total"], 14);
-    assert_eq!(artifact["summary"]["host_call_total"], 46);
-    assert_eq!(artifact["summary"]["host_calls"]["file_exists"], 26);
-    assert_eq!(artifact["summary"]["host_calls"]["read_file"], 18);
+    assert_eq!(artifact["summary"]["parsed_error_total"], 83);
+    assert_eq!(artifact["summary"]["config_diagnostic_total"], 87);
+    assert_eq!(artifact["summary"]["located_config_diagnostic_total"], 80);
+    assert_eq!(artifact["summary"]["file_name_total"], 42);
+    assert_eq!(artifact["summary"]["extended_source_total"], 18);
+    assert_eq!(artifact["summary"]["extended_source_text_total"], 16);
+    assert_eq!(artifact["summary"]["host_call_total"], 50);
+    assert_eq!(artifact["summary"]["host_calls"]["file_exists"], 28);
+    assert_eq!(artifact["summary"]["host_calls"]["read_file"], 20);
     assert_eq!(artifact["summary"]["host_calls"]["read_directory"], 2);
 }
 
@@ -351,6 +355,12 @@ fn config_diagnostic_plans_match_the_frozen_typescript_oracle() {
         "command-line-only-string-value",
         "object-compiler-option-value",
         "file-spec-diagnostic-owner-order",
+        "compiler-list-valid-conversions",
+        "compiler-list-outer-wrong-kinds",
+        "compiler-list-top-level-null",
+        "compiler-list-mixed-invalid-elements",
+        "compiler-list-extends-path-bases",
+        "compiler-list-extends-replace-and-null-mask",
     ];
     assert_eq!(fixtures.len(), expected_ids.len());
     let mut seen_ids = BTreeSet::new();
@@ -524,7 +534,42 @@ fn config_diagnostic_plans_match_the_frozen_typescript_oracle() {
                     actual, &probe["value"],
                     "{fixture_id}: option {name:?} value drifted"
                 ),
-                ("absent" | "undefined" | "value", actual) => panic!(
+                ("list", ConfigOptionValueState::List(actual)) => {
+                    let expected = array(
+                        &probe["elements"],
+                        fixture_id,
+                        "typed list option elements",
+                    );
+                    assert_eq!(
+                        actual.len(),
+                        expected.len(),
+                        "{fixture_id}: option {name:?} list length drifted"
+                    );
+                    for (index, (actual, expected)) in
+                        actual.iter().zip(expected).enumerate()
+                    {
+                        let element_state = string(
+                            &expected["state"],
+                            fixture_id,
+                            "typed list element state",
+                        );
+                        match (element_state, actual) {
+                            ("undefined", ConfigTypedListElement::Undefined) => {}
+                            ("value", ConfigTypedListElement::Value(actual)) => assert!(
+                                json_values_equivalent(actual, &expected["value"]),
+                                "{fixture_id}: option {name:?} element {index} value drifted: Rust={actual:?}, TypeScript={:?}",
+                                expected["value"]
+                            ),
+                            ("undefined" | "value", actual) => panic!(
+                                "{fixture_id}: option {name:?} element {index} state drifted: expected {element_state:?}, got {actual:?}"
+                            ),
+                            (state, _) => panic!(
+                                "{fixture_id}: unsupported option {name:?} element state {state:?}"
+                            ),
+                        }
+                    }
+                }
+                ("absent" | "undefined" | "value" | "list", actual) => panic!(
                     "{fixture_id}: option {name:?} state drifted: expected {expected_state:?}, got {actual:?}"
                 ),
                 (state, _) => {
