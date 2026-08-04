@@ -595,7 +595,7 @@ are never ignored.
 Implementation status: H0.5 is active and partial. `tsc_program` owns an
 immutable, shareable `ConfigRootPlan` for the recorded valid root-planning
 projection. JSONC values use the iterative syntax-AST converter. A separate
-51-fixture TypeScript 6.0.3 oracle now fixes recoverable primary/extended
+51-fixture TypeScript 6.0.3 oracle fixes recoverable primary/extended
 syntax, unknown/type/enum option errors, missing/read-error/circular `extends`,
 invalid specs, empty/no-input diagnostics, UTF-16 locations, host-call order,
 readable extended source text, identity-only `extendedSourceFiles`, and the
@@ -609,22 +609,43 @@ retains recursive own-key order and `undefined` identity, carries its stored
 array-valued mappings at the final consuming root (including TypeScript's
 changed-array-to-object copy shape). Typed maps are shared across the extends
 graph and allocate an ordinary JSON projection only at observation boundaries.
-File-path scalars share that final substitution pass. Large invalid lists and
-maps use explicit phase/order structures rather than inversion-based or
-repeated-search repair. Fatal errors are reserved for host, path, resource, and
-explicitly unsupported conversion boundaries. The harness uses a
-case-insensitive virtual adapter specialized for the fixed compiler fixture
-units, parses each fixture once before matrix variants, and compares raw config
-values, ordered `fileNames`, extended-source identities and contents, four
-discovery-option values, and original-unit partitions with the official
-oracle. Include patterns are compiled once and reused through an iterative,
-linear-scratch UTF-16 matcher; candidate matching does not recurse, build a
-quadratic memo table, or require a regex dependency. This is not yet a general
-`ParseConfigHost`/`matchFiles` qualification. Remaining root fields,
-full `ParsedCommandLine`, `paths` validation and projection into
-`ProgramOptions`/`ModuleResolver`, filesystem discovery, project/project-runner
-config handling, command-line selection, rendering, exit status, and
-production execution remain open.
+File-path scalars share that final substitution pass. The official compiler
+`pathsValidation1` through `pathsValidation5` sources are mechanically
+reconstructed from the pinned expansion manifest and byte/blob identities.
+Their TS5061/5062/5063/5064/5066/5090 option diagnostics match code, message,
+final sorted order, and UTF-16 root-config location after `${configDir}`
+substitution, including duplicate syntax, compacted-array indices, and
+inherited fallback locations. They remain separate from parsed-config errors
+as in `getOptionsDiagnostics`. `ConfigModuleResolutionOptions` projects the
+currently modeled resolver-facing option surface. Effective `paths` and its
+declaring `pathsBasePath` share one immutable allocation; `ModuleResolver` selects
+`baseUrl` then `pathsBasePath` then cwd for substitutions without treating the
+latter as a baseUrl fallback. Exact keys and valid single-star offsets are
+compiled once, mappings are shared between resolver instances, and per-request
+substitution-vector clones are eliminated; structural validation is cached
+with that immutable table instead of rescanned by every resolver.
+Diagnostic-class invalid mappings recover without turning option errors into
+infrastructure failures. After TS5063/TS5064 are retained, non-array mappings
+own an empty miss and non-string array elements are omitted instead of
+replaying JavaScript's context-dependent coercions or runtime `TypeError`.
+Root syntax locations are indexed lazily only when an option diagnostic needs
+them, so valid large maps do not retain a second per-element location table.
+Large invalid lists and maps use explicit phase/order indices rather than
+inversion-based or repeated-search repair. Fatal errors are reserved for host,
+path, resource, and explicitly unsupported conversion boundaries. The harness
+uses a case-insensitive virtual adapter specialized for the fixed compiler
+fixture units, parses each fixture once before matrix variants, and compares
+raw config values, ordered `fileNames`, extended-source identities and
+contents, four discovery-option values, and original-unit partitions with the
+official oracle. Include patterns are compiled once and reused through an
+iterative, linear-scratch UTF-16 matcher; candidate matching does not recurse,
+build a quadratic memo table, or require a regex dependency. This is not yet a
+general `ParseConfigHost`/`matchFiles` qualification. Remaining root fields,
+remaining resolver/loader options such as `moduleSuffixes` and
+`maxNodeModuleJsDepth`, full `ParsedCommandLine`, filesystem discovery,
+project/project-runner config handling, wiring the config projection into
+general program construction, command-line selection, rendering, exit status,
+and production execution remain open.
 
 ### H0.6 — qualification and release
 

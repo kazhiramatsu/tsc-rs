@@ -1,12 +1,13 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
 use tsc_diagnostics::{Diagnostic, DiagnosticList};
 use tsc_host::to_file_name_lower_case;
 use tsc_types::CompilerOptions;
 
 use crate::error::{PreparationError, PreparationErrorKind, PreparationOperation};
-use crate::module_resolution::is_external_module_name_relative;
+use crate::module_resolution::{is_external_module_name_relative, validate_owned_path_text};
 use crate::path::{CanonicalPath, ProgramPath};
 use crate::resolution::{
     MissingResolutionError, ModuleResolution, ResolutionError, ResolutionKey, ResolutionMode,
@@ -469,8 +470,115 @@ impl PathMapping {
     }
 }
 
+/// Immutable `paths` entries and the config directory that declared them.
+///
+/// Keeping these values behind one shared owner prevents an inherited mapping
+/// from being paired with the consuming config's directory. It also lets
+/// one-shot resolver workers reuse a prepared mapping table without cloning
+/// every pattern and substitution. Exact-key lookup indices and valid
+/// single-star pattern offsets are compiled once here rather than reparsed for
+/// every resolution request.
+#[derive(Debug, Eq, PartialEq)]
+pub(crate) struct ProgramPathMappings {
+    entries: Vec<PathMapping>,
+    exact_mapping_indices: Box<[usize]>,
+    wildcard_patterns: Box<[(usize, usize)]>,
+    config_base_path: Option<String>,
+    validation_error: Option<ResolutionError>,
+}
+
+impl ProgramPathMappings {
+    /// tsc-port: tryParsePattern @6.0.3
+    /// tsc-hash: 23d0684a13d57da52a90e622a841b0d031ddf89df349671683899401ebe9b83a
+    /// tsc-span: _tsc.js:18773-18782
+    /// tsc-port: tryParsePatterns @6.0.3
+    /// tsc-hash: acf73d9f935712f2442e047a8b74f826af12a66bc1fc9880d2e064861b9f0bb6
+    /// tsc-span: _tsc.js:18784-18809
+    fn new(entries: Vec<PathMapping>, config_base_path: Option<String>) -> Self {
+        let mut exact_mapping_indices = Vec::new();
+        let mut wildcard_patterns = Vec::new();
+        for (index, mapping) in entries.iter().enumerate() {
+            match mapping.pattern().find('*') {
+                Some(star) if !mapping.pattern()[star + 1..].contains('*') => {
+                    wildcard_patterns.push((index, star));
+                }
+                Some(_) => {}
+                None => exact_mapping_indices.push(index),
+            }
+        }
+        exact_mapping_indices.sort_unstable_by(|left, right| {
+            entries[*left]
+                .pattern()
+                .cmp(entries[*right].pattern())
+                .then_with(|| left.cmp(right))
+        });
+        let validation_error = validate_path_mappings(&entries).err();
+        Self {
+            entries,
+            exact_mapping_indices: exact_mapping_indices.into_boxed_slice(),
+            wildcard_patterns: wildcard_patterns.into_boxed_slice(),
+            config_base_path,
+            validation_error,
+        }
+    }
+
+    pub(crate) fn entries(&self) -> &[PathMapping] {
+        &self.entries
+    }
+
+    pub(crate) fn config_base_path(&self) -> Option<&str> {
+        self.config_base_path.as_deref()
+    }
+
+    /// tsc-port: matchPatternOrExact @6.0.3
+    /// tsc-hash: 7d7159d6541c0491d2bb993c52a825b08c9950255ecbe198f9505b7b6b95a37c
+    /// tsc-span: _tsc.js:18834-18843
+    pub(crate) fn exact_mapping_index(&self, specifier: &str) -> Option<usize> {
+        self.exact_mapping_indices
+            .binary_search_by(|index| self.entries[*index].pattern().cmp(specifier))
+            .ok()
+            .map(|position| self.exact_mapping_indices[position])
+    }
+
+    pub(crate) fn wildcard_patterns(&self) -> impl Iterator<Item = (usize, usize)> + '_ {
+        self.wildcard_patterns.iter().copied()
+    }
+
+    pub(crate) fn validation_error(&self) -> Option<&ResolutionError> {
+        self.validation_error.as_ref()
+    }
+}
+
+fn validate_path_mappings(entries: &[PathMapping]) -> Result<(), ResolutionError> {
+    let mut patterns = BTreeSet::new();
+    for mapping in entries {
+        let pattern = mapping.pattern();
+        // Empty and multi-star patterns are getOptionsDiagnostics rows
+        // (TS5061 for the latter), not resolver-construction failures. The
+        // matcher skips them with TypeScript's own truthiness/parse rules.
+        validate_owned_path_text(pattern, "paths pattern", /* allow_empty */ true)?;
+        if !patterns.insert(pattern) {
+            return Err(ResolutionError::invalid_data(format!(
+                "duplicate paths pattern {pattern:?} has no object-equivalent ordering semantics"
+            )));
+        }
+        for substitution in mapping.substitutions() {
+            validate_owned_path_text(
+                substitution,
+                "paths substitution",
+                /* allow_empty */ true,
+            )?;
+            // Empty arrays and multi-star substitutions are diagnosed as
+            // TS5066/TS5062 by the option-diagnostic layer. They remain in
+            // the resolver input so program construction can recover without
+            // converting an option diagnostic into an infrastructure error.
+        }
+    }
+    Ok(())
+}
+
 /// Program/host options that do not belong in the checker's
-/// [`CompilerOptions`]. `Option<Vec<_>>` preserves absent versus explicitly
+/// [`CompilerOptions`]. Optional collections preserve absent versus explicitly
 /// empty config values where the distinction affects discovery.
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct ProgramOptions {
@@ -480,7 +588,7 @@ pub struct ProgramOptions {
     type_roots: Option<Vec<ProgramPath>>,
     config_file_path: Option<ProgramPath>,
     root_dirs: Option<Vec<ProgramPath>>,
-    paths: Option<Vec<PathMapping>>,
+    paths: Option<Arc<ProgramPathMappings>>,
 }
 
 impl ProgramOptions {
@@ -519,7 +627,26 @@ impl ProgramOptions {
     }
 
     pub fn with_paths(mut self, value: Vec<PathMapping>) -> Self {
-        self.paths = Some(value);
+        self.paths = Some(Arc::new(ProgramPathMappings::new(value, None)));
+        self
+    }
+
+    /// Retain config-derived `paths` together with the directory of the config
+    /// which declared the effective map.
+    ///
+    /// TypeScript uses this base only when `baseUrl` is absent. Keeping it in
+    /// the same immutable allocation as the mappings prevents a stale
+    /// `pathsBasePath` from surviving after the mappings themselves are
+    /// replaced or removed.
+    pub fn with_config_paths(
+        mut self,
+        value: Vec<PathMapping>,
+        paths_base_path: impl Into<String>,
+    ) -> Self {
+        self.paths = Some(Arc::new(ProgramPathMappings::new(
+            value,
+            Some(paths_base_path.into()),
+        )));
         self
     }
 
@@ -552,7 +679,20 @@ impl ProgramOptions {
     }
 
     pub fn paths(&self) -> Option<&[PathMapping]> {
-        self.paths.as_deref()
+        self.paths.as_deref().map(ProgramPathMappings::entries)
+    }
+
+    /// The declaring config directory paired with the effective `paths` map.
+    /// Programmatic mappings created by [`Self::with_paths`] return `None` and
+    /// therefore retain the host-current-directory fallback.
+    pub fn paths_base_path(&self) -> Option<&str> {
+        self.paths
+            .as_deref()
+            .and_then(ProgramPathMappings::config_base_path)
+    }
+
+    pub(crate) fn shared_paths(&self) -> Option<Arc<ProgramPathMappings>> {
+        self.paths.clone()
     }
 }
 

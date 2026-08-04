@@ -14,8 +14,11 @@
 //! element values, including JavaScript `undefined` slots where TypeScript
 //! deliberately preserves them. The `paths` object option additionally keeps
 //! recursive JavaScript own-property order and `undefined` identity plus its
-//! outer object/array shape as the canonical typed representation. Remaining
-//! root schemas and `ParsedCommandLine` fields are later slices.
+//! outer object/array shape as the canonical typed representation. Its six
+//! option diagnostics are produced after final substitution with root-syntax
+//! locations, and the effective map plus declaring base is projected into an
+//! immutable resolver snapshot. Remaining root schemas and `ParsedCommandLine`
+//! fields are later slices.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::error::Error;
@@ -24,7 +27,9 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use serde_json::{Map, Value};
-use tsc_diagnostics::{gen, Diagnostic, DiagnosticMessage, MessageChain};
+use tsc_diagnostics::{
+    gen, sort_and_dedupe_diagnostics, Diagnostic, DiagnosticMessage, MessageChain,
+};
 use tsc_host::{to_file_name_lower_case, CompilerHost, HostError, HostErrorKind, HostOperation};
 use tsc_syntax::{NodeId, SourceFile, SyntaxKind};
 use tsc_types::{js_number_to_string, CompilerOptions};
@@ -43,6 +48,8 @@ use crate::json::{
 use crate::module_resolution::{
     directory_name, normalize_absolute_path_lexical, normalized_root_parts, ModuleResolver,
 };
+use crate::path::ProgramPath;
+use crate::prepared::{PathMapping, ProgramOptions};
 use crate::resolution::{ResolutionError, ResolutionOutcome};
 use crate::ConfigFilePattern;
 
@@ -800,6 +807,29 @@ pub struct ConfigDiscoveryOptions {
     declaration_dir: Option<String>,
 }
 
+/// Immutable config projection consumed by [`ModuleResolver`].
+///
+/// This is deliberately narrower than a complete `ParsedCommandLine`: it
+/// carries the resolver-facing compiler/program subset modeled by this slice,
+/// including an atomic `paths`/`pathsBasePath` pair suitable for sharing across
+/// independent resolver workers. Other converted options are not implicitly
+/// claimed by this boundary.
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub struct ConfigModuleResolutionOptions {
+    compiler_options: CompilerOptions,
+    program_options: ProgramOptions,
+}
+
+impl ConfigModuleResolutionOptions {
+    pub const fn compiler_options(&self) -> &CompilerOptions {
+        &self.compiler_options
+    }
+
+    pub const fn program_options(&self) -> &ProgramOptions {
+        &self.program_options
+    }
+}
+
 impl ConfigDiscoveryOptions {
     pub const fn allow_js(&self) -> bool {
         self.allow_js
@@ -834,9 +864,11 @@ pub struct ConfigRootPlan {
     raw: Value,
     options: ConfigOptionBag,
     discovery_options: ConfigDiscoveryOptions,
+    module_resolution_options: ConfigModuleResolutionOptions,
     file_names: Vec<String>,
     root_parse_diagnostics: Vec<Diagnostic>,
     errors: Vec<Diagnostic>,
+    option_diagnostics: Vec<Diagnostic>,
     extended_source_files: Vec<String>,
 }
 
@@ -865,6 +897,10 @@ impl ConfigRootPlan {
         &self.discovery_options
     }
 
+    pub const fn module_resolution_options(&self) -> &ConfigModuleResolutionOptions {
+        &self.module_resolution_options
+    }
+
     pub fn file_names(&self) -> &[String] {
         &self.file_names
     }
@@ -879,6 +915,14 @@ impl ConfigRootPlan {
     /// Ordered config-content diagnostics (`ParsedCommandLine.errors`).
     pub fn errors(&self) -> &[Diagnostic] {
         &self.errors
+    }
+
+    /// Program option diagnostics produced after config conversion and the
+    /// final `${configDir}` substitution pass. TypeScript keeps these out of
+    /// `ParsedCommandLine.errors` and exposes them through
+    /// `Program.getOptionsDiagnostics()`.
+    pub fn option_diagnostics(&self) -> &[Diagnostic] {
+        &self.option_diagnostics
     }
 
     /// Compiler-visible config diagnostics: primary parse diagnostics first,
@@ -900,6 +944,34 @@ struct ConfigLocation {
     file_name: String,
     start: u32,
     length: u32,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+struct ConfigSpan {
+    start: u32,
+    length: u32,
+}
+
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+struct ConfigPathsSyntaxIndex {
+    // All indexed nodes belong to the root config. Store its identity once;
+    // large maps retain compact UTF-16 spans instead of cloning the file name
+    // into every key and element location.
+    file_name: Option<String>,
+    compiler_options_name: Option<ConfigSpan>,
+    mapping_locations: BTreeMap<String, ConfigPathsKeySyntax>,
+}
+
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+struct ConfigPathsKeySyntax {
+    mapping_locations: Vec<ConfigPathMappingLocation>,
+    element_locations: BTreeMap<usize, Vec<ConfigSpan>>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct ConfigPathMappingLocation {
+    key_location: ConfigSpan,
+    value_location: ConfigSpan,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -984,7 +1056,14 @@ pub fn parse_config_root_plan(
         )?
         .expect("the primary config cannot be a recursive child of itself");
     node.options.finalize_config_dir_templates(&config_base)?;
+    let option_diagnostics = paths_option_diagnostics(&node.options, &node.source);
     let discovery_options = effective_discovery_options(&node.options, &config_base)?;
+    let module_resolution_options = config_module_resolution_options(
+        &node.options,
+        &discovery_options,
+        &config_file_name,
+        host.use_case_sensitive_file_names(),
+    )?;
     let file_names = derive_file_names(
         host,
         &node,
@@ -1002,9 +1081,11 @@ pub fn parse_config_root_plan(
         raw: node.raw,
         options: node.options,
         discovery_options,
+        module_resolution_options,
         file_names,
         root_parse_diagnostics: context.root_parse_diagnostics,
         errors: context.errors,
+        option_diagnostics,
     })
 }
 
@@ -1536,14 +1617,400 @@ fn config_diagnostic(
     }
 }
 
+/// tsc-port: forEachOptionsSyntaxByName @6.0.3
+/// tsc-hash: ed0d42bfbaa8ddec3118b39c50eb3f8265a9c5c84d6919f9e17eab11ec9cfe87
+/// tsc-span: _tsc.js:20114-20116
+/// tsc-port: forEachOptionPathsSyntax @6.0.3
+/// tsc-hash: a2286273dd795f88a63a473304f050689ca82b479837b5589edc6e675674f7b6
+/// tsc-span: _tsc.js:125334-125336
+/// tsc-port: getCompilerOptionsObjectLiteralSyntax @6.0.3
+/// tsc-hash: 678b62e231c7b528be19bf93d113fccf8e6dcad5035300f5d4b5b6b6c97876e8
+/// tsc-span: _tsc.js:125389-125395
+/// tsc-port: getCompilerOptionsPropertySyntax @6.0.3
+/// tsc-hash: 4c61a15e16a789ede2365cd0244cf8457f4de81567509ffc83aac12c00ae5206
+/// tsc-span: _tsc.js:125396-125405
+fn config_paths_syntax_index(source: &SourceFile) -> ConfigPathsSyntaxIndex {
+    let mut result = ConfigPathsSyntaxIndex::default();
+    let Some(root) = config_root_expression(source) else {
+        return result;
+    };
+    if source.arena.node(root).kind != SyntaxKind::ObjectLiteralExpression {
+        return result;
+    }
+    let Some(compiler_options) = config_object_properties(source, root)
+        .into_iter()
+        .find(|property| property.name == "compilerOptions")
+    else {
+        return result;
+    };
+    result.compiler_options_name = config_span(source, compiler_options.name_node);
+    if result.compiler_options_name.is_some() {
+        result.file_name = Some(source.file_name.clone());
+    }
+    if source.arena.node(compiler_options.initializer).kind != SyntaxKind::ObjectLiteralExpression {
+        return result;
+    }
+
+    for paths in config_object_properties(source, compiler_options.initializer)
+        .into_iter()
+        .filter(|property| property.name == "paths")
+    {
+        if source.arena.node(paths.initializer).kind != SyntaxKind::ObjectLiteralExpression {
+            continue;
+        }
+        let mut object_locations = BTreeMap::<String, ConfigPathsKeySyntax>::new();
+        for mapping in config_object_properties(source, paths.initializer) {
+            let Some(key_location) = config_span(source, mapping.name_node) else {
+                continue;
+            };
+            let Some(value_location) = config_span(source, mapping.initializer) else {
+                continue;
+            };
+            let key_locations = object_locations.entry(mapping.name).or_default();
+            if source.arena.node(mapping.initializer).kind == SyntaxKind::ArrayLiteralExpression {
+                for (index, element) in config_array_elements(source, mapping.initializer)
+                    .into_iter()
+                    .enumerate()
+                {
+                    if let Some(location) = config_span(source, element) {
+                        key_locations
+                            .element_locations
+                            .entry(index)
+                            .or_default()
+                            .push(location);
+                    }
+                }
+            }
+            key_locations
+                .mapping_locations
+                .push(ConfigPathMappingLocation {
+                    key_location,
+                    value_location,
+                });
+        }
+        for (key, locations) in object_locations {
+            // `forEachOptionPathsSyntax` visits every duplicate `paths`
+            // property because the diagnostic callback returns `undefined`.
+            // Each object then reports every duplicate occurrence of the
+            // effective mapping key.
+            let indexed = result.mapping_locations.entry(key).or_default();
+            indexed
+                .mapping_locations
+                .extend(locations.mapping_locations);
+            for (index, spans) in locations.element_locations {
+                indexed
+                    .element_locations
+                    .entry(index)
+                    .or_default()
+                    .extend(spans);
+            }
+        }
+    }
+    result
+}
+
+#[derive(Clone, Copy)]
+enum ConfigPathsDiagnosticLocation {
+    Key,
+    Value,
+    Element(usize),
+}
+
+struct PendingConfigPathsDiagnostic<'a> {
+    key: &'a str,
+    target: ConfigPathsDiagnosticLocation,
+    message: &'static DiagnosticMessage,
+    arguments: Vec<String>,
+}
+
+/// Validate the converted paths map at the same post-substitution boundary as
+/// `verifyCompilerOptions`. The syntax index deliberately retains only the
+/// first direct root `compilerOptions` object: inherited options and recovered
+/// objects from a non-object root use TypeScript's compiler-options fallback.
+///
+/// tsc-port: verifyCompilerOptions @6.0.3 (paths block)
+/// tsc-hash: e18b8511def0edd57da25ed1bbcbd52b5d675efdeba80d8f8e924b5cb2a9b391
+/// tsc-span: _tsc.js:124805-124854
+/// tsc-port: createDiagnosticForOptionPathKeyValue @6.0.3
+/// tsc-hash: beca42abce599ae7f74d7261ade13fbf4927951d2809838f8132108602cd1784
+/// tsc-span: _tsc.js:125298-125314
+/// tsc-port: createDiagnosticForOptionPaths @6.0.3
+/// tsc-hash: ac32dabd364ccbd1f794ab7c115dbfe7eb1485ecb209dea03b68f997e20bb787
+/// tsc-span: _tsc.js:125315-125333
+fn paths_option_diagnostics(
+    options: &ConfigOptionBag,
+    source: &ConfigSourceText,
+) -> Vec<Diagnostic> {
+    let pending = pending_paths_option_diagnostics(options);
+    if pending.is_empty() {
+        return Vec::new();
+    }
+
+    // Location indexing is used only by invalid `paths` configurations.
+    // Valid large maps stay on the single-parse path and do not retain or sort
+    // one syntax entry per substitution.
+    let parsed = tsc_syntax::parse_json_text(&source.file_name, &source.text);
+    let syntax = config_paths_syntax_index(&parsed);
+    let mut diagnostics = Vec::with_capacity(pending.len());
+    for pending in pending {
+        push_paths_diagnostics(
+            &mut diagnostics,
+            &syntax,
+            pending.key,
+            pending.target,
+            pending.message,
+            &pending.arguments,
+        );
+    }
+    sort_and_dedupe_diagnostics(&mut diagnostics);
+    diagnostics
+}
+
+fn pending_paths_option_diagnostics(
+    options: &ConfigOptionBag,
+) -> Vec<PendingConfigPathsDiagnostic<'_>> {
+    let Some(paths) = options.typed_object_value("paths") else {
+        return Vec::new();
+    };
+    let has_base_url = options
+        .typed_value("baseUrl")
+        .is_some_and(|value| value.as_str().is_some());
+    let mut diagnostics = Vec::new();
+    for mapping in paths.properties() {
+        let key = mapping.name();
+        if !has_zero_or_one_asterisk(key) {
+            diagnostics.push(PendingConfigPathsDiagnostic {
+                key,
+                target: ConfigPathsDiagnosticLocation::Key,
+                message: &gen::Pattern_0_can_have_at_most_one_character,
+                arguments: vec![key.to_owned()],
+            });
+        }
+        let Some(ConfigTypedJsonValue::Array(substitutions)) = mapping.value() else {
+            diagnostics.push(PendingConfigPathsDiagnostic {
+                key,
+                target: ConfigPathsDiagnosticLocation::Value,
+                message: &gen::Substitutions_for_pattern_0_should_be_an_array,
+                arguments: vec![key.to_owned()],
+            });
+            continue;
+        };
+        if substitutions.is_empty() {
+            diagnostics.push(PendingConfigPathsDiagnostic {
+                key,
+                target: ConfigPathsDiagnosticLocation::Value,
+                message: &gen::Substitutions_for_pattern_0_shouldn_t_be_an_empty_array,
+                arguments: vec![key.to_owned()],
+            });
+        }
+        for (index, substitution) in substitutions.iter().enumerate() {
+            if let ConfigTypedJsonValue::Json(Value::String(substitution)) = substitution {
+                if !has_zero_or_one_asterisk(substitution) {
+                    diagnostics.push(PendingConfigPathsDiagnostic {
+                        key,
+                        target: ConfigPathsDiagnosticLocation::Element(index),
+                        message: &gen::Substitution_0_in_pattern_1_can_have_at_most_one_character,
+                        arguments: vec![substitution.clone(), key.to_owned()],
+                    });
+                }
+                if !has_base_url
+                    && !config_path_is_relative(substitution)
+                    && !config_path_is_absolute(substitution)
+                {
+                    diagnostics.push(PendingConfigPathsDiagnostic {
+                        key,
+                        target: ConfigPathsDiagnosticLocation::Element(index),
+                        message: &gen::Non_relative_paths_are_not_allowed_when_baseUrl_is_not_set_Did_you_forget_a_leading,
+                        arguments: Vec::new(),
+                    });
+                }
+            } else {
+                diagnostics.push(PendingConfigPathsDiagnostic {
+                    key,
+                    target: ConfigPathsDiagnosticLocation::Element(index),
+                    message:
+                        &gen::Substitution_0_for_pattern_1_has_incorrect_type_expected_string_got_2,
+                    arguments: vec![
+                        config_typed_json_to_js_string(substitution),
+                        key.to_owned(),
+                        config_typed_json_typeof(substitution).to_owned(),
+                    ],
+                });
+            }
+        }
+    }
+    diagnostics
+}
+
+fn push_paths_diagnostics(
+    diagnostics: &mut Vec<Diagnostic>,
+    syntax: &ConfigPathsSyntaxIndex,
+    key: &str,
+    target: ConfigPathsDiagnosticLocation,
+    message: &'static DiagnosticMessage,
+    args: &[String],
+) {
+    let key_syntax = syntax.mapping_locations.get(key);
+    match target {
+        ConfigPathsDiagnosticLocation::Key | ConfigPathsDiagnosticLocation::Value => {
+            if let Some(key_syntax) = key_syntax {
+                for mapping in &key_syntax.mapping_locations {
+                    let span = match target {
+                        ConfigPathsDiagnosticLocation::Key => mapping.key_location,
+                        ConfigPathsDiagnosticLocation::Value => mapping.value_location,
+                        ConfigPathsDiagnosticLocation::Element(_) => unreachable!(),
+                    };
+                    diagnostics.push(config_diagnostic(
+                        message,
+                        args,
+                        config_paths_location(syntax, span),
+                    ));
+                }
+                return;
+            }
+        }
+        ConfigPathsDiagnosticLocation::Element(index) => {
+            if let Some(locations) =
+                key_syntax.and_then(|locations| locations.element_locations.get(&index))
+            {
+                for &span in locations {
+                    diagnostics.push(config_diagnostic(
+                        message,
+                        args,
+                        config_paths_location(syntax, span),
+                    ));
+                }
+                return;
+            }
+        }
+    }
+    diagnostics.push(config_diagnostic(
+        message,
+        args,
+        syntax
+            .compiler_options_name
+            .and_then(|span| config_paths_location(syntax, span)),
+    ));
+}
+
+fn config_paths_location(
+    syntax: &ConfigPathsSyntaxIndex,
+    span: ConfigSpan,
+) -> Option<ConfigLocation> {
+    Some(ConfigLocation {
+        file_name: syntax.file_name.clone()?,
+        start: span.start,
+        length: span.length,
+    })
+}
+
+/// tsc-port: hasZeroOrOneAsteriskCharacter @6.0.3
+/// tsc-hash: 28a64969081ad59009ed6f3fcb192a4ccef94471b01213a5de12c284cdd6eb45
+/// tsc-span: _tsc.js:18318-18330
+fn has_zero_or_one_asterisk(value: &str) -> bool {
+    value.bytes().filter(|byte| *byte == b'*').take(2).count() <= 1
+}
+
+/// tsc-port: pathIsRelative @6.0.3
+/// tsc-hash: f202555c891d7a914e21c5fe1199667a8d221940ce66c814b4898adfb228aac9
+/// tsc-span: _tsc.js:5314-5316
+fn config_path_is_relative(path: &str) -> bool {
+    matches!(path, "." | "..")
+        || path.starts_with("./")
+        || path.starts_with(".\\")
+        || path.starts_with("../")
+        || path.starts_with("..\\")
+}
+
+/// tsc-port: pathIsAbsolute @6.0.3
+/// tsc-hash: 0e64b150a899a6eb39ac2a3b370896f59ec02bdefdf07106a8740624318eb3f3
+/// tsc-span: _tsc.js:5311-5313
+/// tsc-port: getEncodedRootLength @6.0.3 (absolute/nonzero projection)
+/// tsc-hash: ad42b701dd98c53ad89476947bccf551e3ab3db9ce0c9fc5009e16a41b49b1f9
+/// tsc-span: _tsc.js:5349-5386
+fn config_path_is_absolute(path: &str) -> bool {
+    let bytes = path.as_bytes();
+    if matches!(bytes.first(), Some(b'/' | b'\\')) {
+        return true;
+    }
+    if bytes.first().is_some_and(u8::is_ascii_alphabetic)
+        && bytes.get(1) == Some(&b':')
+        && (bytes.len() == 2 || matches!(bytes.get(2), Some(b'/' | b'\\')))
+    {
+        return true;
+    }
+    // TypeScript recognizes URL roots only with the literal forward-slash
+    // separator. Normalizing backslashes first would incorrectly treat
+    // `scheme:\\host` as absolute and suppress TS5090.
+    path.contains("://")
+}
+
+fn config_typed_json_typeof(value: &ConfigTypedJsonValue) -> &'static str {
+    match value {
+        ConfigTypedJsonValue::Json(Value::Null | Value::Array(_) | Value::Object(_))
+        | ConfigTypedJsonValue::Array(_)
+        | ConfigTypedJsonValue::Object(_) => "object",
+        ConfigTypedJsonValue::Json(Value::Bool(_)) => "boolean",
+        ConfigTypedJsonValue::Json(Value::Number(_)) => "number",
+        ConfigTypedJsonValue::Json(Value::String(_)) => "string",
+    }
+}
+
+fn config_typed_json_to_js_string(value: &ConfigTypedJsonValue) -> String {
+    // TypeScript 6.0.3 can reach a Debug Failure while formatting a null
+    // programmatic substitution. Config parsing should remain fail-safe after
+    // publishing TS5064, so Rust applies JavaScript ToString to every retained
+    // non-string shape instead of panicking at this diagnostic boundary.
+    match value {
+        ConfigTypedJsonValue::Json(value) => json_value_to_js_string(value),
+        ConfigTypedJsonValue::Array(values) => values
+            .iter()
+            .map(|value| match value {
+                ConfigTypedJsonValue::Json(Value::Null) => String::new(),
+                value => config_typed_json_to_js_string(value),
+            })
+            .collect::<Vec<_>>()
+            .join(","),
+        ConfigTypedJsonValue::Object(_) => "[object Object]".to_owned(),
+    }
+}
+
+fn json_value_to_js_string(value: &Value) -> String {
+    match value {
+        Value::Null => "null".to_owned(),
+        Value::Bool(value) => value.to_string(),
+        Value::Number(value) => js_number_to_string(
+            json_number_as_f64(value).expect("config JSON numbers have a JavaScript projection"),
+        ),
+        Value::String(value) => value.clone(),
+        Value::Array(values) => values
+            .iter()
+            .map(|value| match value {
+                Value::Null => String::new(),
+                value => json_value_to_js_string(value),
+            })
+            .collect::<Vec<_>>()
+            .join(","),
+        Value::Object(_) => "[object Object]".to_owned(),
+    }
+}
+
 fn config_location(source: &SourceFile, node: NodeId) -> Option<ConfigLocation> {
+    let span = config_span(source, node)?;
+    Some(ConfigLocation {
+        file_name: source.file_name.clone(),
+        start: span.start,
+        length: span.length,
+    })
+}
+
+fn config_span(source: &SourceFile, node: NodeId) -> Option<ConfigSpan> {
     let node = source.arena.node(node);
     let end_byte = usize::try_from(node.end).ok()?.min(source.text.len());
     let start_byte = tsc_syntax::skip_trivia(&source.text, node.pos as usize).min(end_byte);
     let start = *source.line_map.byte_to_utf16.get(start_byte)?;
     let end = *source.line_map.byte_to_utf16.get(end_byte)?;
-    Some(ConfigLocation {
-        file_name: source.file_name.clone(),
+    Some(ConfigSpan {
         start,
         length: end.saturating_sub(start),
     })
@@ -2424,6 +2891,138 @@ fn effective_discovery_options(
         resolve_json_module,
         out_dir: normalized_option_path(options, "outDir", config_base_path)?,
         declaration_dir: normalized_option_path(options, "declarationDir", config_base_path)?,
+    })
+}
+
+/// Project the converted config values needed by the production resolver.
+/// Paths retain their declaring directory independently from `baseUrl`: the
+/// latter also enables bare-specifier fallback and suppresses TS5090, while
+/// `pathsBasePath` only anchors mapping substitutions.
+///
+/// tsc-port: getPathsBasePath @6.0.3
+/// tsc-hash: c569002f6d6a8e7d3b4e2718964fae18fd77125393b0193997bf4cc1f38c494a
+/// tsc-span: _tsc.js:16595-16599
+fn config_module_resolution_options(
+    options: &ConfigOptionBag,
+    discovery: &ConfigDiscoveryOptions,
+    config_file_name: &str,
+    case_sensitive: bool,
+) -> Result<ConfigModuleResolutionOptions, ConfigParseError> {
+    let compiler_options = CompilerOptions {
+        allow_js: discovery.allow_js,
+        module: config_option_i32(options, "module"),
+        module_resolution: config_option_i32(options, "moduleResolution"),
+        base_url: config_option_string(options, "baseUrl"),
+        resolve_package_json_exports: config_option_bool(options, "resolvePackageJsonExports"),
+        resolve_package_json_imports: config_option_bool(options, "resolvePackageJsonImports"),
+        custom_conditions: config_option_string_list(options, "customConditions"),
+        allow_arbitrary_extensions: config_option_bool(options, "allowArbitraryExtensions"),
+        allow_importing_ts_extensions: config_option_bool(options, "allowImportingTsExtensions"),
+        rewrite_relative_import_extensions: config_option_bool(
+            options,
+            "rewriteRelativeImportExtensions",
+        ),
+        resolve_json_module: Some(discovery.resolve_json_module),
+        ..CompilerOptions::default()
+    };
+
+    let mut program_options = ProgramOptions::default()
+        .with_config_file_path(config_program_path(config_file_name, case_sensitive)?);
+    if let Some(value) = config_option_bool(options, "noLib") {
+        program_options = program_options.with_no_lib(value);
+    }
+    if let Some(value) = config_option_bool(options, "preserveSymlinks") {
+        program_options = program_options.with_preserve_symlinks(value);
+    }
+    if let Some(value) = config_option_string_list(options, "types") {
+        program_options = program_options.with_types(value);
+    }
+    if let Some(values) = config_option_string_list(options, "typeRoots") {
+        program_options = program_options.with_type_roots(
+            values
+                .into_iter()
+                .map(|value| config_program_path(&value, case_sensitive))
+                .collect::<Result<Vec<_>, _>>()?,
+        );
+    }
+    if let Some(values) = config_option_string_list(options, "rootDirs") {
+        program_options = program_options.with_root_dirs(
+            values
+                .into_iter()
+                .map(|value| config_program_path(&value, case_sensitive))
+                .collect::<Result<Vec<_>, _>>()?,
+        );
+    }
+    if let Some(paths) = options.typed_object_value("paths") {
+        let mappings = paths
+            .properties()
+            .iter()
+            .map(|mapping| {
+                let substitutions = match mapping.value() {
+                    Some(ConfigTypedJsonValue::Array(values)) => values
+                        .iter()
+                        .filter_map(|value| match value {
+                            ConfigTypedJsonValue::Json(Value::String(value)) => Some(value.clone()),
+                            _ => None,
+                        })
+                        .collect(),
+                    _ => Vec::new(),
+                };
+                PathMapping::new(mapping.name(), substitutions)
+            })
+            .collect();
+        program_options = match options.stored_paths_base_path() {
+            Some(base_path) => program_options.with_config_paths(mappings, base_path),
+            None => program_options.with_paths(mappings),
+        };
+    }
+
+    Ok(ConfigModuleResolutionOptions {
+        compiler_options,
+        program_options,
+    })
+}
+
+fn config_option_bool(options: &ConfigOptionBag, name: &str) -> Option<bool> {
+    options.typed_value(name).and_then(Value::as_bool)
+}
+
+fn config_option_i32(options: &ConfigOptionBag, name: &str) -> Option<i32> {
+    options
+        .typed_value(name)
+        .and_then(Value::as_i64)
+        .and_then(|value| i32::try_from(value).ok())
+}
+
+fn config_option_string(options: &ConfigOptionBag, name: &str) -> Option<String> {
+    options
+        .typed_value(name)
+        .and_then(Value::as_str)
+        .map(str::to_owned)
+}
+
+fn config_option_string_list(options: &ConfigOptionBag, name: &str) -> Option<Vec<String>> {
+    let ConfigOptionValueState::List(values) = options.typed_value_state(name) else {
+        return None;
+    };
+    Some(
+        values
+            .iter()
+            .filter_map(|value| match value {
+                ConfigTypedListElement::Value(Value::String(value)) => Some(value.clone()),
+                ConfigTypedListElement::Value(_) | ConfigTypedListElement::Undefined => None,
+            })
+            .collect(),
+    )
+}
+
+fn config_program_path(path: &str, case_sensitive: bool) -> Result<ProgramPath, ConfigParseError> {
+    ProgramPath::from_trusted_parts(path, canonical_key(path, case_sensitive)).map_err(|error| {
+        ConfigParseError::new(
+            ConfigParseErrorKind::InvalidPath,
+            Some(path.to_owned()),
+            error.to_string(),
+        )
     })
 }
 

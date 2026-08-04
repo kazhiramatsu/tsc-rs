@@ -161,8 +161,10 @@ pub struct CompilerOptions {
     pub allow_umd_global_access: Option<bool>,
     /// M4 5.8d: carried for the module resolver's suppression gate
     /// (baseUrl-relative candidates probe the program set; a miss
-    /// under baseUrl is tsc-undecidable → no 2307). Full baseUrl
-    /// semantics (paths mapping) stay unmodeled — ledger.
+    /// under baseUrl is tsc-undecidable → no 2307). Config-derived `paths`
+    /// mappings and their independent declaring-directory base are carried by
+    /// `tsc_program::ProgramOptions`; this field remains the separate baseUrl
+    /// fallback and TS5090-suppression input.
     pub base_url: Option<String>,
     /// Explicit package-map feature overrides read by
     /// getNodeResolutionFeatures. Their computed default is enabled
