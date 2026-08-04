@@ -7531,7 +7531,7 @@ fn ci_rust_gates() -> Result<(), Box<dyn Error>> {
             .arg("--workspace"),
     )?;
     ci_workspace_tests(&workspace)?;
-    ci_oracle_syntax_gates(&workspace)?;
+    ci_oracle_gates(&workspace)?;
     Ok(())
 }
 
@@ -7544,10 +7544,12 @@ fn ci_hosted_gates(baseline: &str, history_sensitive: bool) -> Result<(), Box<dy
     // it does not build this monolithic binary merely to select work. The
     // workspace audit ran at CI entry; this lane still verifies formatting,
     // lint, generated inventories, pinned inputs, the port ledger, and escape
-    // ownership without executing workspace tests or corpus traversals.
+    // ownership without executing workspace tests or broad semantic/conformance
+    // corpus traversals. Oracle gates do traverse the frozen 103-fixture
+    // compiler-config projection to verify its checked-in artifact is current.
     ci_format_gate(&workspace)?;
     ci_clippy_gate(&workspace)?;
-    ci_oracle_syntax_gates(&workspace)?;
+    ci_oracle_gates(&workspace)?;
     codegen_band_inventory(
         ["--by-function", "--band", "all", "--check"]
             .into_iter()
@@ -7619,7 +7621,7 @@ fn ci_workspace_tests(workspace: &Path) -> Result<(), Box<dyn Error>> {
     )
 }
 
-fn ci_oracle_syntax_gates(workspace: &Path) -> Result<(), Box<dyn Error>> {
+fn ci_oracle_gates(workspace: &Path) -> Result<(), Box<dyn Error>> {
     run_command(
         Command::new("node")
             .arg("--check")
@@ -7629,6 +7631,14 @@ fn ci_oracle_syntax_gates(workspace: &Path) -> Result<(), Box<dyn Error>> {
         Command::new("node")
             .arg("--check")
             .arg(workspace.join("crates/oracle/trace-driver.mjs")),
+    )?;
+    let config_driver = workspace.join("crates/oracle/compiler-config-plans.mjs");
+    run_command(Command::new("node").arg("--check").arg(&config_driver))?;
+    run_command(
+        Command::new("node")
+            .current_dir(workspace)
+            .arg(config_driver)
+            .arg("--check"),
     )?;
     Ok(())
 }

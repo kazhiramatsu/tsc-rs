@@ -378,6 +378,8 @@ dependencies = [
  "serde_json",
  "sha2",
  "tsc-rs-checker",
+ "tsc-rs-host",
+ "tsc-rs-program",
 ]
 
 [[package]]

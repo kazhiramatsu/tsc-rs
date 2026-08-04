@@ -254,6 +254,7 @@ struct CachedPackage {
     typings: Option<String>,
     types: Option<String>,
     main: Option<String>,
+    tsconfig: Option<String>,
     metadata: Rc<PackageMetadata>,
 }
 
@@ -328,6 +329,8 @@ enum ExtensionProbePass {
     Preferred,
     Declaration,
     Fallback,
+    JsonConfig,
+    JsonModule,
 }
 
 const fn probe_pass_has_declaration(pass: ExtensionProbePass) -> bool {
@@ -341,6 +344,8 @@ const fn preferred_diagnostic_pass(pass: ExtensionProbePass) -> ExtensionProbePa
     match pass {
         ExtensionProbePass::All | ExtensionProbePass::Preferred => ExtensionProbePass::Preferred,
         ExtensionProbePass::Declaration => ExtensionProbePass::Declaration,
+        ExtensionProbePass::JsonConfig => ExtensionProbePass::JsonConfig,
+        ExtensionProbePass::JsonModule => ExtensionProbePass::JsonModule,
         ExtensionProbePass::Empty | ExtensionProbePass::Fallback => ExtensionProbePass::Empty,
     }
 }
@@ -386,6 +391,7 @@ const JSON_PROBES: &[ExtensionProbe] = &[
     (ModuleExtension::Dts, ".d.json.ts"),
     (ModuleExtension::Json, ".json"),
 ];
+const JSON_CONFIG_PROBES: &[ExtensionProbe] = &[(ModuleExtension::Json, ".json")];
 const JSON_DISABLED_PROBES: &[ExtensionProbe] = &[(ModuleExtension::Dts, ".d.json.ts")];
 const DJSON_PROBES: &[ExtensionProbe] = &[(ModuleExtension::Dts, ".d.json.ts")];
 
@@ -475,6 +481,7 @@ pub struct ModuleResolver<'a> {
     paths: Option<Vec<PathMapping>>,
     root_dirs: Option<Vec<String>>,
     package_cache: BTreeMap<String, PackageCacheEntry>,
+    package_cache_enabled: bool,
     active_resolutions: Vec<ActiveResolution>,
     active_package_maps: Vec<String>,
 }
@@ -555,6 +562,7 @@ impl<'a> ModuleResolver<'a> {
             paths,
             root_dirs,
             package_cache: BTreeMap::new(),
+            package_cache_enabled: true,
             active_resolutions: Vec::new(),
             active_package_maps: Vec::new(),
         })
@@ -591,6 +599,7 @@ impl<'a> ModuleResolver<'a> {
             paths: None,
             root_dirs: None,
             package_cache: BTreeMap::new(),
+            package_cache_enabled: true,
             active_resolutions: Vec::new(),
             active_package_maps: Vec::new(),
         })
@@ -637,6 +646,101 @@ impl<'a> ModuleResolver<'a> {
         Ok(self
             .resolve_with_facts(containing_file, specifier, mode)?
             .into_outcome())
+    }
+
+    /// Resolve a bare `extends` specifier with TypeScript's NodeNext JSON
+    /// config lookup surface. This shares the package-scope, exports-map,
+    /// package-field, path-containment, and ancestor-search machinery used by
+    /// ordinary production resolution while restricting probes to JSON config
+    /// files.
+    ///
+    /// tsc-port: nodeNextJsonConfigResolver @6.0.3
+    /// tsc-hash: 04dc60dd54f17108edbfd7553495d135e945fc0a19efd3ff149b8e8aa9b31cc2
+    /// tsc-span: _tsc.js:40925-40942
+    pub(crate) fn resolve_json_config(
+        &mut self,
+        containing_file: &Path,
+        specifier: &str,
+    ) -> Result<ResolutionOutcome<HostResolvedModule>, ResolutionError> {
+        // nodeNextJsonConfigResolver is invoked without a package-json cache.
+        // Preserve repeated host observations within one imports/self/fallback
+        // walk instead of reusing the ordinary production resolver cache.
+        let previous_cache_state = self.package_cache_enabled;
+        self.package_cache_enabled = false;
+        let result = self.resolve_json_config_uncached(containing_file, specifier);
+        self.package_cache_enabled = previous_cache_state;
+        result
+    }
+
+    fn resolve_json_config_uncached(
+        &mut self,
+        containing_file: &Path,
+        specifier: &str,
+    ) -> Result<ResolutionOutcome<HostResolvedModule>, ResolutionError> {
+        self.validate_common_configuration()?;
+        let current_directory = self.current_directory_text()?;
+        let containing_file = normalize_absolute_path(containing_file, Some(current_directory))?;
+        let containing_directory = directory_name(&containing_file);
+        if is_relative_specifier(specifier) {
+            return self.resolve_relative_with_passes(
+                &containing_directory,
+                specifier,
+                ResolutionMode::Unspecified,
+                &[ExtensionProbePass::JsonConfig],
+                /* optional_follow_realpath */ false,
+            );
+        }
+        if specifier.starts_with('#') {
+            if let Search::Terminal(outcome) = self.resolve_package_imports(
+                &containing_directory,
+                specifier,
+                ResolutionMode::Unspecified,
+                ExtensionProbePass::JsonConfig,
+                /* force_enabled */ true,
+                /* use_package_exports */ true,
+                Some(99),
+            )? {
+                return Ok(outcome);
+            }
+        }
+        let request = parse_package_request(specifier)?;
+
+        if let Search::Terminal(outcome) = self.try_self_reference(
+            &containing_directory,
+            &request,
+            ResolutionMode::Unspecified,
+            ExtensionProbePass::JsonConfig,
+            Some(99),
+        )? {
+            return Ok(outcome);
+        }
+        if specifier.contains(':') {
+            return Ok(ResolutionOutcome::NotFound);
+        }
+
+        for ancestor in ancestor_directories(&containing_directory) {
+            if base_name(&ancestor) == "node_modules" {
+                continue;
+            }
+            let node_modules = join_normalized(&ancestor, "node_modules");
+            if !self.host.directory_exists(Path::new(&node_modules))? {
+                continue;
+            }
+            let package_root = package_root_for_request(&node_modules, &request);
+            let specific = self.resolve_specific_package(
+                &package_root,
+                &request.exports_subpath,
+                ExtensionProbePass::JsonConfig,
+                ResolutionMode::Unspecified,
+                /* use_package_exports */ true,
+                Some(99),
+                /* follow_realpath */ false,
+            )?;
+            if matches!(specific.outcome, ResolutionOutcome::Resolved(_)) {
+                return Ok(specific.outcome);
+            }
+        }
+        Ok(ResolutionOutcome::NotFound)
     }
 
     /// Resolve a module while retaining diagnostic-only facts which remain
@@ -1759,8 +1863,16 @@ impl<'a> ModuleResolver<'a> {
         &mut self,
         owner_package: &CachedPackage,
         specifier: &str,
-        context: ExportProbeContext,
+        mut context: ExportProbeContext,
     ) -> Result<Search<HostResolvedModule>, ResolutionError> {
+        // A bare target from a config `imports` map re-enters the NodeNext
+        // resolver with the JSON extension mask, but `isConfigLookup=false`.
+        // It may therefore use JSON exports and written JSON subpaths, while
+        // package `tsconfig`, default `tsconfig.json`, and extensionless JSON
+        // probing stay disabled.
+        if matches!(context.pass, ExtensionProbePass::JsonConfig) {
+            context.pass = ExtensionProbePass::JsonModule;
+        }
         let resolution_depth = self.active_resolutions.len();
         let package_map_depth = self.active_package_maps.len();
         let result = self.resolve_bare_import_target_worker(owner_package, specifier, context);
@@ -2529,6 +2641,12 @@ impl<'a> ModuleResolver<'a> {
             ExtensionProbePass::Fallback => {
                 [ExtensionProbePass::Empty, ExtensionProbePass::Fallback]
             }
+            ExtensionProbePass::JsonConfig => {
+                [ExtensionProbePass::JsonConfig, ExtensionProbePass::Empty]
+            }
+            ExtensionProbePass::JsonModule => {
+                [ExtensionProbePass::JsonModule, ExtensionProbePass::Empty]
+            }
             ExtensionProbePass::Empty => [ExtensionProbePass::Empty, ExtensionProbePass::Empty],
         };
         let one_pass = [probe_pass];
@@ -3014,8 +3132,8 @@ impl<'a> ModuleResolver<'a> {
             })
         } else {
             let outcome = self.resolve_manifestless_package(
-                package_root,
-                exports_subpath,
+                &candidate,
+                rest.is_some(),
                 probe_pass,
                 mode,
                 follow_realpath,
@@ -3438,7 +3556,12 @@ impl<'a> ModuleResolver<'a> {
                     return Ok(outcome);
                 }
             } else {
-                let index = join_normalized(&target, "index");
+                let index_name = if matches!(probe_pass, ExtensionProbePass::JsonConfig) {
+                    "tsconfig"
+                } else {
+                    "index"
+                };
+                let index = join_normalized(&target, index_name);
                 let outcome = self.probe_legacy_file(
                     None,
                     &index,
@@ -3461,28 +3584,23 @@ impl<'a> ModuleResolver<'a> {
 
     fn resolve_manifestless_package(
         &self,
-        package_root: &str,
-        exports_subpath: &str,
+        candidate: &str,
+        has_subpath: bool,
         probe_pass: ExtensionProbePass,
         mode: ResolutionMode,
         follow_realpath: bool,
     ) -> Result<ResolutionOutcome<HostResolvedModule>, ResolutionError> {
-        let rest = package_subpath(exports_subpath)?;
-        let candidate = rest.map_or_else(
-            || package_root.to_owned(),
-            |rest| join_normalized(package_root, rest),
-        );
         let allow_implicit = !self.is_node_esm_mode(mode);
-        if rest.is_some() || allow_implicit {
+        if has_subpath || allow_implicit {
             let outcome = self.probe_legacy_file(
                 None,
-                &candidate,
+                candidate,
                 probe_pass,
                 allow_implicit,
                 LegacyResolutionContext {
                     is_external_library_import: true,
                     attach_package_id: false,
-                    resolved_using_ts_extension: is_typescript_family_specifier(&candidate),
+                    resolved_using_ts_extension: is_typescript_family_specifier(candidate),
                     follow_realpath,
                 },
             )?;
@@ -3490,13 +3608,18 @@ impl<'a> ModuleResolver<'a> {
                 return Ok(outcome);
             }
         }
-        let candidate_exists = self.host.directory_exists(Path::new(&candidate))?;
+        let candidate_exists = self.host.directory_exists(Path::new(candidate))?;
         if !allow_implicit || !candidate_exists {
             return Ok(ResolutionOutcome::NotFound);
         }
+        let index_name = if matches!(probe_pass, ExtensionProbePass::JsonConfig) {
+            "tsconfig"
+        } else {
+            "index"
+        };
         self.probe_legacy_file(
             None,
-            &join_normalized(&candidate, "index"),
+            &join_normalized(candidate, index_name),
             probe_pass,
             /* allow_implicit */ true,
             LegacyResolutionContext {
@@ -3570,7 +3693,10 @@ impl<'a> ModuleResolver<'a> {
                 Search::Terminal(outcome) => return Ok(outcome),
                 Search::Continue => {}
             }
-            let candidate = normalize_package_subpath(package, rest)?;
+            let candidate = match root_directory_spelling {
+                Some(candidate) => candidate.to_owned(),
+                None => normalize_package_subpath(package, rest)?,
+            };
             return self.probe_package_subpath_path(package, &candidate, probe_pass, mode, context);
         }
 
@@ -3661,6 +3787,11 @@ impl<'a> ModuleResolver<'a> {
         let types_versions_eligible = package_field_candidate
             .as_deref()
             .is_none_or(|candidate| path_is_within(candidate, candidate_directory));
+        let default_entry = if matches!(probe_pass, ExtensionProbePass::JsonConfig) {
+            "tsconfig"
+        } else {
+            "index"
+        };
         let logical_name = if let Some(candidate) = package_field_candidate.as_deref() {
             if types_versions_eligible {
                 path_relative_to_directory(candidate, candidate_directory)
@@ -3672,10 +3803,10 @@ impl<'a> ModuleResolver<'a> {
                     .trim_end_matches('/')
                     .to_owned()
             } else {
-                "index".to_owned()
+                default_entry.to_owned()
             }
         } else {
-            "index".to_owned()
+            default_entry.to_owned()
         };
 
         if types_versions_eligible {
@@ -3721,7 +3852,7 @@ impl<'a> ModuleResolver<'a> {
         }
         self.probe_legacy_file(
             Some(package),
-            &join_normalized(candidate_directory, "index"),
+            &join_normalized(candidate_directory, default_entry),
             probe_pass,
             /* allow_implicit */ true,
             LegacyResolutionContext {
@@ -4007,7 +4138,12 @@ impl<'a> ModuleResolver<'a> {
         let replacement = match plan {
             Ok((base, probes, preferred_len)) => Some((
                 base,
-                select_extension_probes(probes, preferred_len, probe_pass),
+                select_extension_probes(
+                    probes,
+                    preferred_len,
+                    probe_pass,
+                    recognized_module_extension(candidate),
+                ),
             )),
             Err(ResolutionError::Unsupported { feature, .. })
                 if feature == "module-target-extension" =>
@@ -4094,7 +4230,12 @@ impl<'a> ModuleResolver<'a> {
             match plan {
                 Ok((base, probes, preferred_len)) => Some((
                     base,
-                    select_extension_probes(probes, preferred_len, probe_pass),
+                    select_extension_probes(
+                        probes,
+                        preferred_len,
+                        probe_pass,
+                        recognized_module_extension(candidate),
+                    ),
                 )),
                 Err(ResolutionError::Unsupported { feature, .. })
                     if feature == "module-target-extension" =>
@@ -4209,11 +4350,13 @@ impl<'a> ModuleResolver<'a> {
             package_json,
             self.path_context.use_case_sensitive_file_names(),
         );
-        if let Some(entry) = self.package_cache.get(&cache_key) {
-            return Ok(match entry {
-                PackageCacheEntry::Missing => None,
-                PackageCacheEntry::Found(package) => Some(Rc::clone(package)),
-            });
+        if self.package_cache_enabled {
+            if let Some(entry) = self.package_cache.get(&cache_key) {
+                return Ok(match entry {
+                    PackageCacheEntry::Missing => None,
+                    PackageCacheEntry::Found(package) => Some(Rc::clone(package)),
+                });
+            }
         }
 
         let package_json_path = Path::new(package_json);
@@ -4221,8 +4364,10 @@ impl<'a> ModuleResolver<'a> {
         if !self.host.directory_exists(Path::new(&package_directory))?
             || !self.host.file_exists(package_json_path)?
         {
-            self.package_cache
-                .insert(cache_key, PackageCacheEntry::Missing);
+            if self.package_cache_enabled {
+                self.package_cache
+                    .insert(cache_key, PackageCacheEntry::Missing);
+            }
             return Ok(None);
         }
         // TypeScript's readJson treats an absent read after a successful
@@ -4272,10 +4417,13 @@ impl<'a> ModuleResolver<'a> {
             typings: non_empty_string_field(&object, "typings"),
             types: non_empty_string_field(&object, "types"),
             main: non_empty_string_field(&object, "main"),
+            tsconfig: non_empty_string_field(&object, "tsconfig"),
             metadata,
         });
-        self.package_cache
-            .insert(cache_key, PackageCacheEntry::Found(Rc::clone(&package)));
+        if self.package_cache_enabled {
+            self.package_cache
+                .insert(cache_key, PackageCacheEntry::Found(Rc::clone(&package)));
+        }
         Ok(Some(package))
     }
 
@@ -4602,7 +4750,12 @@ impl<'a> ModuleResolver<'a> {
         let replacement = match plan {
             Ok((base, probes, preferred_len)) => Some((
                 base,
-                select_extension_probes(probes, preferred_len, context.pass),
+                select_extension_probes(
+                    probes,
+                    preferred_len,
+                    context.pass,
+                    recognized_module_extension(target),
+                ),
             )),
             Err(ResolutionError::Unsupported { feature, .. })
                 if feature == "module-target-extension" =>
@@ -5039,6 +5192,8 @@ fn selected_package_entry_field(
 ) -> Option<&str> {
     match probe_pass {
         ExtensionProbePass::Empty => None,
+        ExtensionProbePass::JsonConfig => package.tsconfig.as_deref(),
+        ExtensionProbePass::JsonModule => None,
         ExtensionProbePass::All
         | ExtensionProbePass::Preferred
         | ExtensionProbePass::Declaration => package
@@ -5215,12 +5370,38 @@ fn select_extension_probes(
     probes: &'static [ExtensionProbe],
     preferred_len: usize,
     pass: ExtensionProbePass,
+    written_extension: Option<ModuleExtension>,
 ) -> &'static [ExtensionProbe] {
     match pass {
         ExtensionProbePass::All | ExtensionProbePass::Declaration => probes,
         ExtensionProbePass::Preferred => &probes[..preferred_len],
         ExtensionProbePass::Fallback => &probes[preferred_len..],
         ExtensionProbePass::Empty => &probes[..0],
+        // With the JSON-only mask, tryAddingExtensions reaches its config
+        // fallback only for the .ts/.d.ts/.js family (and exact .json). Other
+        // written families miss this replacement phase and may only reach the
+        // later whole-candidate implicit append.
+        ExtensionProbePass::JsonConfig
+            if matches!(
+                written_extension,
+                Some(
+                    ModuleExtension::Ts
+                        | ModuleExtension::Dts
+                        | ModuleExtension::Js
+                        | ModuleExtension::Json
+                )
+            ) =>
+        {
+            JSON_CONFIG_PROBES
+        }
+        // A bare imports target re-enters with isConfigLookup=false. Its JSON
+        // mask therefore admits only an already-written .json extension.
+        ExtensionProbePass::JsonModule
+            if matches!(written_extension, Some(ModuleExtension::Json)) =>
+        {
+            JSON_CONFIG_PROBES
+        }
+        ExtensionProbePass::JsonConfig | ExtensionProbePass::JsonModule => &JSON_CONFIG_PROBES[..0],
     }
 }
 
@@ -5231,6 +5412,8 @@ fn implicit_extension_probes(pass: ExtensionProbePass) -> &'static [ExtensionPro
         ExtensionProbePass::Preferred => &JS_PROBES[..3],
         ExtensionProbePass::Declaration => DECLARATION_DTS_PROBES,
         ExtensionProbePass::Fallback => &JS_PROBES[3..],
+        ExtensionProbePass::JsonConfig => JSON_CONFIG_PROBES,
+        ExtensionProbePass::JsonModule => &JSON_CONFIG_PROBES[..0],
     }
 }
 
@@ -5269,6 +5452,10 @@ fn package_json_target_exact_extension(
         ModuleExtension::Dts | ModuleExtension::Dmts | ModuleExtension::Dcts => {
             extension_pass_includes_typescript(pass) || extension_pass_includes_declaration(pass)
         }
+        ModuleExtension::Json => matches!(
+            pass,
+            ExtensionProbePass::JsonConfig | ExtensionProbePass::JsonModule
+        ),
         _ => false,
     };
     supported.then_some(extension)

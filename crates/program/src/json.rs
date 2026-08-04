@@ -9,6 +9,13 @@ use tsc_syntax::{scan_tokens, LanguageVariant, NodeId, SourceFile, SyntaxKind};
 const MAX_PACKAGE_JSON_DEPTH: usize = 256;
 pub(crate) const JSONC_PROTOTYPE_MARKER: &str = "\0tsc-rs:jsonc-prototype\0";
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum JsonParserPreflight {
+    Safe,
+    UnsafeSyntax,
+    ResourceLimit,
+}
+
 /// Parse the object view returned by TypeScript's `readJson` helper while
 /// retaining the exact decoded text owned by the caller.
 ///
@@ -22,7 +29,7 @@ pub(crate) const JSONC_PROTOTYPE_MARKER: &str = "\0tsc-rs:jsonc-prototype\0";
 /// tsc-span: _tsc.js:17261-17275
 /// JSONC conversion also follows `_tsc.js:38331-38344,38475-38553`.
 pub(crate) fn parse_json_object(file_name: &Path, text: String) -> (String, Map<String, Value>) {
-    if package_json_tokens_are_unsafe(&text) {
+    if json_parser_preflight(&text) != JsonParserPreflight::Safe {
         return (text, Map::new());
     }
 
@@ -305,7 +312,10 @@ impl<'a> StrictJsonParser<'a> {
 }
 
 enum ConversionTask {
-    Visit(NodeId),
+    Visit {
+        value: NodeId,
+        structural_depth: usize,
+    },
     FinishArray(usize),
     FinishObject(Vec<String>),
 }
@@ -314,6 +324,51 @@ fn parse_jsonc_object(
     source: &SourceFile,
     use_strict_object_assignment: bool,
 ) -> Option<Map<String, Value>> {
+    let value = if use_strict_object_assignment {
+        convert_json_source_file_to_value_with_assignment(source, true)
+    } else {
+        convert_json_source_file_to_value(source)
+    }?;
+    let Value::Object(object) = value else {
+        return None;
+    };
+    Some(object)
+}
+
+/// Convert one parsed JSON source value using TypeScript's `convertToJson`
+/// object-assignment semantics.
+///
+/// This entry deliberately never selects the package reader's strict
+/// `JSON.parse` path: in particular, assigning `__proto__` may update the
+/// converted object's prototype. Parse diagnostics, an empty source, or a
+/// recovered source containing anything other than one expression fail closed.
+/// Conversion remains iterative and independently enforces the same structural
+/// depth ceiling as the package-JSON boundary.
+///
+/// tsc-port: convertToJson @6.0.3 (value and object-assignment semantics)
+/// tsc-hash: 372b1d27b4881e537f81282d2515fa1868cabd14eda1b75f0533b1b386dec971
+/// tsc-span: _tsc.js:38521-38600
+pub(crate) fn convert_json_source_file_to_value(source: &SourceFile) -> Option<Value> {
+    convert_json_source_file_to_value_with_assignment(
+        source, /* use_strict_object_assignment */ false,
+    )
+}
+
+pub(crate) fn json_source_file_is_empty(source: &SourceFile) -> bool {
+    source
+        .arena
+        .node(source.root)
+        .data
+        .as_source_file()
+        .and_then(|source_file| source_file.statements)
+        .map(|statements| source.arena.node_array(statements).nodes.is_empty())
+        .unwrap_or(false)
+}
+
+fn convert_json_source_file_to_value_with_assignment(
+    source: &SourceFile,
+    use_strict_object_assignment: bool,
+) -> Option<Value> {
     if !source.parse_diagnostics.is_empty() {
         return None;
     }
@@ -332,12 +387,7 @@ fn parse_jsonc_object(
         .data
         .as_expression_statement()?
         .expression?;
-    let Value::Object(object) =
-        convert_jsonc_value(source, expression, use_strict_object_assignment)?
-    else {
-        return None;
-    };
-    Some(object)
+    convert_jsonc_value(source, expression, use_strict_object_assignment)
 }
 
 fn convert_jsonc_value(
@@ -345,12 +395,18 @@ fn convert_jsonc_value(
     root: NodeId,
     use_strict_object_assignment: bool,
 ) -> Option<Value> {
-    let mut tasks = vec![ConversionTask::Visit(root)];
+    let mut tasks = vec![ConversionTask::Visit {
+        value: root,
+        structural_depth: 0,
+    }];
     let mut values = Vec::new();
 
     while let Some(task) = tasks.pop() {
         match task {
-            ConversionTask::Visit(value) => {
+            ConversionTask::Visit {
+                value,
+                structural_depth,
+            } => {
                 let node = source.arena.node(value);
                 match node.kind {
                     SyntaxKind::StringLiteral => {
@@ -382,15 +438,28 @@ fn convert_jsonc_value(
                         values.push(Value::Number(negate_json_number(&number)?));
                     }
                     SyntaxKind::ArrayLiteralExpression => {
+                        let child_depth = structural_depth.checked_add(1)?;
+                        if child_depth > MAX_PACKAGE_JSON_DEPTH {
+                            return None;
+                        }
                         let elements = source
                             .arena
                             .node_array(node.data.as_array_literal_expression()?.elements?)
                             .nodes
                             .clone();
                         tasks.push(ConversionTask::FinishArray(elements.len()));
-                        tasks.extend(elements.into_iter().rev().map(ConversionTask::Visit));
+                        tasks.extend(elements.into_iter().rev().map(|value| {
+                            ConversionTask::Visit {
+                                value,
+                                structural_depth: child_depth,
+                            }
+                        }));
                     }
                     SyntaxKind::ObjectLiteralExpression => {
+                        let child_depth = structural_depth.checked_add(1)?;
+                        if child_depth > MAX_PACKAGE_JSON_DEPTH {
+                            return None;
+                        }
                         let properties = source
                             .arena
                             .node_array(node.data.as_object_literal_expression()?.properties?)
@@ -423,7 +492,12 @@ fn convert_jsonc_value(
                             initializers.push(property.initializer?);
                         }
                         tasks.push(ConversionTask::FinishObject(keys));
-                        tasks.extend(initializers.into_iter().rev().map(ConversionTask::Visit));
+                        tasks.extend(initializers.into_iter().rev().map(|value| {
+                            ConversionTask::Visit {
+                                value,
+                                structural_depth: child_depth,
+                            }
+                        }));
                     }
                     _ => return None,
                 }
@@ -536,7 +610,11 @@ fn negate_json_number(number: &Number) -> Option<Number> {
     }
 }
 
-fn package_json_tokens_are_unsafe(text: &str) -> bool {
+/// Bound the recursive syntax parser to the JSON/JSONC token surface before
+/// constructing its arena. The scanner is iterative; unsupported expression
+/// syntax and excessive structural nesting therefore fail before they can
+/// create an unbounded parser call chain.
+pub(crate) fn json_parser_preflight(text: &str) -> JsonParserPreflight {
     let tokens = scan_tokens(text, LanguageVariant::Standard);
     let mut delimiters = Vec::new();
     for (index, token) in tokens.iter().enumerate() {
@@ -544,17 +622,17 @@ fn package_json_tokens_are_unsafe(text: &str) -> bool {
             SyntaxKind::OpenBraceToken | SyntaxKind::OpenBracketToken => {
                 delimiters.push(token.kind);
                 if delimiters.len() > MAX_PACKAGE_JSON_DEPTH {
-                    return true;
+                    return JsonParserPreflight::ResourceLimit;
                 }
             }
             SyntaxKind::CloseBraceToken => {
                 if delimiters.pop() != Some(SyntaxKind::OpenBraceToken) {
-                    return true;
+                    return JsonParserPreflight::UnsafeSyntax;
                 }
             }
             SyntaxKind::CloseBracketToken => {
                 if delimiters.pop() != Some(SyntaxKind::OpenBracketToken) {
-                    return true;
+                    return JsonParserPreflight::UnsafeSyntax;
                 }
             }
             SyntaxKind::StringLiteral
@@ -576,10 +654,14 @@ fn package_json_tokens_are_unsafe(text: &str) -> bool {
             // Anything else cannot survive convertToJson. Reject it before
             // the general expression parser can recurse through parentheses,
             // prefix operators, conditionals, functions, or templates.
-            _ => return true,
+            _ => return JsonParserPreflight::UnsafeSyntax,
         }
     }
-    !delimiters.is_empty()
+    if delimiters.is_empty() {
+        JsonParserPreflight::Safe
+    } else {
+        JsonParserPreflight::UnsafeSyntax
+    }
 }
 
 fn is_jsonc_property_modifier(kind: SyntaxKind) -> bool {
