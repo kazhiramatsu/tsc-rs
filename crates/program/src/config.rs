@@ -32,7 +32,7 @@ use tsc_diagnostics::{
 };
 use tsc_host::{to_file_name_lower_case, CompilerHost, HostError, HostErrorKind, HostOperation};
 use tsc_syntax::{NodeId, SourceFile, SyntaxKind};
-use tsc_types::{js_number_to_string, CompilerOptions};
+use tsc_types::{js_number_to_string, CompilerOptions, ModuleSuffix};
 
 use crate::config_options::{
     compiler_option_declaration, compiler_option_spelling_suggestion,
@@ -2913,6 +2913,7 @@ fn config_module_resolution_options(
         module: config_option_i32(options, "module"),
         module_resolution: config_option_i32(options, "moduleResolution"),
         base_url: config_option_string(options, "baseUrl"),
+        module_suffixes: config_option_module_suffixes(options),
         resolve_package_json_exports: config_option_bool(options, "resolvePackageJsonExports"),
         resolve_package_json_imports: config_option_bool(options, "resolvePackageJsonImports"),
         custom_conditions: config_option_string_list(options, "customConditions"),
@@ -3011,6 +3012,35 @@ fn config_option_string_list(options: &ConfigOptionBag, name: &str) -> Option<Ve
             .filter_map(|value| match value {
                 ConfigTypedListElement::Value(Value::String(value)) => Some(value.clone()),
                 ConfigTypedListElement::Value(_) | ConfigTypedListElement::Undefined => None,
+            })
+            .collect(),
+    )
+}
+
+/// Project the converted `moduleSuffixes` list without losing JavaScript
+/// `undefined` slots: those slots remain observable during string coercion in
+/// module resolution.
+///
+/// tsc-port: moduleSuffixesOptionDeclaration @6.0.3
+/// tsc-hash: 67b4fc29e5cda537bb8b4b46f9fe6c9893f37adcdd1b288031e96cad4f40a5c5
+/// tsc-span: _tsc.js:37455-37466
+/// tsc-port: convertJsonOption/convertJsonOptionOfListType @6.0.3
+/// tsc-hash: 4cff23e5f2618b2d041e50271a495efcd2efc423b7772b1ae526e5d91786f676
+/// tsc-span: _tsc.js:39555-39605
+fn config_option_module_suffixes(options: &ConfigOptionBag) -> Option<Vec<ModuleSuffix>> {
+    let ConfigOptionValueState::List(values) = options.typed_value_state("moduleSuffixes") else {
+        return None;
+    };
+    Some(
+        values
+            .iter()
+            .map(|value| match value {
+                ConfigTypedListElement::Value(Value::String(value)) => {
+                    ModuleSuffix::value(value.clone())
+                }
+                ConfigTypedListElement::Value(_) | ConfigTypedListElement::Undefined => {
+                    ModuleSuffix::Undefined
+                }
             })
             .collect(),
     )

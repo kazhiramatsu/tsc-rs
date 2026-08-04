@@ -1363,7 +1363,9 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
         if let Some(state) = self.states.get(path.canonical()).copied() {
             if let Some(source) = state.source() {
                 let first_path = self.sources[source].prepared.path();
-                if first_path.display() != path.display() {
+                if first_path.display() != path.display()
+                    && !self.normalized_display_paths_are_equal(first_path, &path)?
+                {
                     return Err(ProgramLoadError::unsupported(
                         ProgramLoadOperation::ReadSource,
                         Some(path.display().to_path_buf()),
@@ -1751,6 +1753,39 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
             }
         }
         Ok(())
+    }
+
+    /// `findSourceFileWorker` keys every selected display spelling through
+    /// `toPath`. This admits separator/dot-segment aliases created by an
+    /// unvalidated `moduleSuffixes` entry while retaining the existing typed
+    /// boundary for unresolved case-only aliases.
+    ///
+    /// tsc-port: findSourceFileWorker @6.0.3
+    /// tsc-hash: faea3c8c14640ae05ef40c40bd6f0126bf9d59ed7af080a38d14019b93912e1e
+    /// tsc-span: _tsc.js:124274-124277
+    fn normalized_display_paths_are_equal(
+        &self,
+        left: &ProgramPath,
+        right: &ProgramPath,
+    ) -> Result<bool, ProgramLoadError> {
+        let current_directory = self
+            .resolver
+            .path_context()
+            .current_directory()
+            .display()
+            .to_str()
+            .expect("program current directory is Unicode");
+        let normalize = |path: &ProgramPath| {
+            normalize_absolute_path(path.display(), Some(current_directory)).map_err(|error| {
+                ProgramLoadError::resolution(
+                    ProgramLoadOperation::ReadSource,
+                    Some(path.display().to_path_buf()),
+                    None,
+                    error,
+                )
+            })
+        };
+        Ok(normalize(left)? == normalize(right)?)
     }
 
     fn process_path_reference(

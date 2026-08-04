@@ -10,6 +10,7 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, OnceLock};
 
 pub use tsc_checker::{check_program, CheckResult, CompilerOptions, InputFile};
+use tsc_program::ModuleSuffix;
 
 pub fn check_empty_program() -> CheckResult {
     check_program(&[], &CompilerOptions::default())
@@ -201,7 +202,7 @@ fn compiler_option_kind(name: &str) -> Option<CompilerOptionKind> {
         "baseurl" | "jsxfactory" | "jsxfragmentfactory" | "jsximportsource" | "reactnamespace" => {
             String
         }
-        "customconditions" | "lib" => StringList,
+        "customconditions" | "lib" | "modulesuffixes" => StringList,
         "target" => Target,
         "module" => Module,
         "moduleresolution" => ModuleResolution,
@@ -346,6 +347,7 @@ fn project_compiler_options(options: &BTreeMap<String, OptionValue>) -> Compiler
         verbatim_module_syntax: bool_option("verbatimModuleSyntax"),
         allow_umd_global_access: bool_option("allowUmdGlobalAccess"),
         base_url: projected_string_option(options, "baseUrl"),
+        module_suffixes: projected_module_suffixes(options),
         resolve_package_json_exports: bool_option("resolvePackageJsonExports"),
         resolve_package_json_imports: bool_option("resolvePackageJsonImports"),
         custom_conditions: projected_string_list_option(options, "customConditions", false),
@@ -409,6 +411,31 @@ fn projected_string_list_option(
         } else {
             values
         })
+    })
+}
+
+/// Preserve the case, whitespace, empty entries, and order of the closed
+/// harness projection. A raw command-line-shaped string is trimmed once as a
+/// whole before comma splitting; individual entries are not normalized.
+///
+/// tsc-port: parseListTypeOption @6.0.3
+/// tsc-hash: 83c7c549ad1c32a438e22ba7103fc742b48ee8143e2729e722542a27a37143e7
+/// tsc-span: _tsc.js:38063-38086
+fn projected_module_suffixes(options: &BTreeMap<String, OptionValue>) -> Option<Vec<ModuleSuffix>> {
+    option_value(options, "moduleSuffixes").and_then(|value| {
+        let values = match value {
+            OptionValue::StringList(values) => values.clone(),
+            OptionValue::String(value) => {
+                let value = value.trim();
+                if value.is_empty() {
+                    Vec::new()
+                } else {
+                    value.split(',').map(str::to_owned).collect()
+                }
+            }
+            _ => return None,
+        };
+        Some(values.into_iter().map(ModuleSuffix::value).collect())
     })
 }
 
@@ -1677,6 +1704,10 @@ mod tests {
                 OptionValue::StringList(vec!["browser".to_owned(), "development".to_owned()]),
             ),
             (
+                "moduleSuffixes".to_owned(),
+                OptionValue::String(" .Native , ".to_owned()),
+            ),
+            (
                 "lib".to_owned(),
                 OptionValue::String(" ES5, DOM ".to_owned()),
             ),
@@ -1693,6 +1724,10 @@ mod tests {
         assert_eq!(closed.module_detection, Some(2));
         assert_eq!(closed.max_node_module_js_depth, Some(3));
         assert_eq!(closed.jsx, Some(4));
+        assert_eq!(
+            closed.module_suffixes.as_deref(),
+            Some([ModuleSuffix::value(".Native "), ModuleSuffix::value("")].as_slice())
+        );
         assert_eq!(
             closed.custom_conditions,
             Some(vec!["browser".to_owned(), "development".to_owned()])
