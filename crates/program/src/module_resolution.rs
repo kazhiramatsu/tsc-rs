@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::cmp::Ordering;
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
@@ -5,9 +6,12 @@ use std::rc::Rc;
 
 use serde_json::{Map, Value};
 use tsc_host::{to_file_name_lower_case, CompilerHost};
-use tsc_types::{compiler_version_satisfies, CompilerOptions};
+use tsc_types::{compiler_version_satisfies, js_number_to_string, CompilerOptions};
 
-use crate::json::parse_json_object;
+use crate::json::{
+    decode_user_object_key, json_number_as_f64, json_object_get, json_object_own_get,
+    jsonc_prototype, parse_json_object,
+};
 use crate::path::ProgramPath;
 use crate::prepared::{
     PackageJsonType, PackageMetadata, PathContext, PathMapping, ProgramOptions, SourceFileId,
@@ -17,6 +21,17 @@ use crate::resolution::{
     ResolvedModuleTarget, ResolvedTypeReferenceDirective,
 };
 use crate::text::decode_host_text;
+
+// Package-import rewrites use an explicit continuation stack below. The work
+// budget is derived from owned package.json input, so finite maps are not
+// constrained by an arbitrary nesting depth while expanding wildcard cycles
+// fail as a typed resource error before exhausting memory.
+const MIN_PACKAGE_MAP_REWRITE_WORK_BUDGET: usize = 4_096;
+const PACKAGE_MAP_REWRITE_INPUT_MULTIPLIER: usize = 8;
+const MIN_JS_REPLACEMENT_OUTPUT_BUDGET: usize = 1 << 20;
+const MAX_JS_REPLACEMENT_OUTPUT_BUDGET: usize = 64 << 20;
+const JS_REPLACEMENT_INPUT_MULTIPLIER: usize = 16;
+const MAX_JS_JSON_COERCION_OUTPUT_BUDGET: usize = 64 << 20;
 
 /// Filesystem-derived module facts that have not yet been bound to a program
 /// source id.
@@ -233,6 +248,7 @@ impl HostResolvedTypeReferenceDirective {
 struct CachedPackage {
     root: String,
     exports: Option<Value>,
+    has_own_exports: bool,
     imports: Option<Value>,
     types_versions: Option<Value>,
     typings: Option<String>,
@@ -251,6 +267,7 @@ enum PackageCacheEntry {
 struct PackageRequest<'a> {
     package_name: &'a str,
     exports_subpath: String,
+    trailing_separator: bool,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -270,13 +287,62 @@ enum Search<T> {
     Terminal(ResolutionOutcome<T>),
 }
 
+struct SelectedPackageMapTarget<'a> {
+    target: &'a Value,
+    subpath: String,
+    pattern: bool,
+}
+
+enum ImportsTargetState {
+    Target {
+        package: Rc<CachedPackage>,
+        target: Value,
+        subpath: String,
+        pattern: bool,
+    },
+    Bare {
+        containing_directory: String,
+        specifier: String,
+    },
+    Result(Search<HostResolvedModule>),
+}
+
+enum ImportsTargetFrame {
+    Sequence {
+        package: Rc<CachedPackage>,
+        remaining: std::vec::IntoIter<Value>,
+        subpath: String,
+        pattern: bool,
+    },
+    BareAfterPackageMap {
+        containing_directory: String,
+        specifier: String,
+        features: BareResolutionFeatures,
+    },
+}
+
 #[derive(Clone, Copy)]
 enum ExtensionProbePass {
+    Empty,
     All,
     Preferred,
     Declaration,
-    DeclarationPackageField,
     Fallback,
+}
+
+const fn probe_pass_has_declaration(pass: ExtensionProbePass) -> bool {
+    matches!(
+        pass,
+        ExtensionProbePass::All | ExtensionProbePass::Preferred | ExtensionProbePass::Declaration
+    )
+}
+
+const fn preferred_diagnostic_pass(pass: ExtensionProbePass) -> ExtensionProbePass {
+    match pass {
+        ExtensionProbePass::All | ExtensionProbePass::Preferred => ExtensionProbePass::Preferred,
+        ExtensionProbePass::Declaration => ExtensionProbePass::Declaration,
+        ExtensionProbePass::Empty | ExtensionProbePass::Fallback => ExtensionProbePass::Empty,
+    }
 }
 
 type ExtensionProbe = (ModuleExtension, &'static str);
@@ -301,55 +367,56 @@ const JS_PROBES: &[ExtensionProbe] = &[
 ];
 const JSX_PROBES: &[ExtensionProbe] = &[
     (ModuleExtension::Tsx, ".tsx"),
+    (ModuleExtension::Ts, ".ts"),
     (ModuleExtension::Dts, ".d.ts"),
     (ModuleExtension::Jsx, ".jsx"),
+    (ModuleExtension::Js, ".js"),
 ];
-const TS_PROBES: &[ExtensionProbe] = &[(ModuleExtension::Ts, ".ts")];
-const TSX_PROBES: &[ExtensionProbe] = &[(ModuleExtension::Tsx, ".tsx")];
-const DTS_PROBES: &[ExtensionProbe] = &[(ModuleExtension::Dts, ".d.ts")];
-const MTS_PROBES: &[ExtensionProbe] = &[(ModuleExtension::Mts, ".mts")];
-const DMTS_PROBES: &[ExtensionProbe] = &[(ModuleExtension::Dmts, ".d.mts")];
-const CTS_PROBES: &[ExtensionProbe] = &[(ModuleExtension::Cts, ".cts")];
-const DCTS_PROBES: &[ExtensionProbe] = &[(ModuleExtension::Dcts, ".d.cts")];
+const TS_PROBES: &[ExtensionProbe] = JS_PROBES;
+const TSX_PROBES: &[ExtensionProbe] = JSX_PROBES;
+const DTS_PROBES: &[ExtensionProbe] = JS_PROBES;
+const MTS_PROBES: &[ExtensionProbe] = MJS_PROBES;
+const DMTS_PROBES: &[ExtensionProbe] = MJS_PROBES;
+const CTS_PROBES: &[ExtensionProbe] = CJS_PROBES;
+const DCTS_PROBES: &[ExtensionProbe] = CJS_PROBES;
+const DECLARATION_DTS_PROBES: &[ExtensionProbe] = &[(ModuleExtension::Dts, ".d.ts")];
+const DECLARATION_DMTS_PROBES: &[ExtensionProbe] = &[(ModuleExtension::Dmts, ".d.mts")];
+const DECLARATION_DCTS_PROBES: &[ExtensionProbe] = &[(ModuleExtension::Dcts, ".d.cts")];
 const JSON_PROBES: &[ExtensionProbe] = &[
     (ModuleExtension::Dts, ".d.json.ts"),
     (ModuleExtension::Json, ".json"),
 ];
-const JSON_DISABLED_PROBES: &[ExtensionProbe] = &[
-    (ModuleExtension::Dts, ".d.json.ts"),
-    (ModuleExtension::Ts, ".json.ts"),
-    (ModuleExtension::Tsx, ".json.tsx"),
-    (ModuleExtension::Dts, ".json.d.ts"),
-    (ModuleExtension::Js, ".json.js"),
-    (ModuleExtension::Jsx, ".json.jsx"),
-];
-const DECLARATION_PACKAGE_CJS_PROBES: &[ExtensionProbe] = &[
-    (ModuleExtension::Dcts, ".d.cts"),
-    (ModuleExtension::Cts, ".cts"),
-];
-const DECLARATION_PACKAGE_MJS_PROBES: &[ExtensionProbe] = &[
-    (ModuleExtension::Dmts, ".d.mts"),
-    (ModuleExtension::Mts, ".mts"),
-];
-const DECLARATION_PACKAGE_JS_PROBES: &[ExtensionProbe] = &[
-    (ModuleExtension::Dts, ".d.ts"),
-    (ModuleExtension::Ts, ".ts"),
-    (ModuleExtension::Tsx, ".tsx"),
-];
-const DECLARATION_PACKAGE_JSX_PROBES: &[ExtensionProbe] = &[
-    (ModuleExtension::Dts, ".d.ts"),
-    (ModuleExtension::Tsx, ".tsx"),
-    (ModuleExtension::Ts, ".ts"),
-];
+const JSON_DISABLED_PROBES: &[ExtensionProbe] = &[(ModuleExtension::Dts, ".d.json.ts")];
 const DJSON_PROBES: &[ExtensionProbe] = &[(ModuleExtension::Dts, ".d.json.ts")];
 
 #[derive(Clone, Copy)]
 struct ExportProbeContext {
     is_external_library_import: bool,
+    follow_realpath: bool,
     pass: ExtensionProbePass,
     mode: ResolutionMode,
     resolution_kind: i32,
+    exports_pattern_trailers: bool,
     kind: PackageMapKind,
+    bare_features: Option<BareResolutionFeatures>,
+}
+
+/// The `NodeResolutionFeatures.ExportsPatternTrailers` bit from TypeScript.
+///
+/// Node16, NodeNext, and Bundler carry the bit in their default feature masks.
+/// An explicit per-request resolution mode ORs in `AllFeatures`, including for
+/// legacy Classic and Node10 type-reference resolution; an unspecified legacy
+/// request can therefore enable exports without enabling pattern trailers.
+fn exports_pattern_trailers_enabled(mode: ResolutionMode, resolution_kind: i32) -> bool {
+    mode != ResolutionMode::Unspecified || matches!(resolution_kind, 3 | 99 | 100)
+}
+
+#[derive(Clone, Copy)]
+struct BareResolutionFeatures {
+    use_package_exports: bool,
+    enable_imports: bool,
+    enable_self_name: bool,
+    resolution_kind: i32,
 }
 
 #[derive(Clone, Copy)]
@@ -358,6 +425,26 @@ struct LegacyResolutionContext {
     attach_package_id: bool,
     resolved_using_ts_extension: bool,
     follow_realpath: bool,
+}
+
+#[derive(Clone, Copy)]
+struct TypesVersionsResolutionContext<'a> {
+    legacy: LegacyResolutionContext,
+    base_directory: &'a str,
+    loader: TypesVersionsLoader,
+    attach_exact_package_id: bool,
+    only_record_failures: bool,
+}
+
+#[derive(Clone, Copy)]
+enum TypesVersionsLoader {
+    PackageDirectory,
+    PackageSubpath,
+}
+
+struct SpecificPackageResolution {
+    outcome: ResolutionOutcome<HostResolvedModule>,
+    root_package_observed: bool,
 }
 
 #[derive(Clone, Copy, Eq, PartialEq)]
@@ -382,6 +469,7 @@ pub struct ModuleResolver<'a> {
     options: &'a CompilerOptions,
     path_context: PathContext,
     type_root_base_directory: String,
+    type_roots: Option<Vec<ProgramPath>>,
     base_url: Option<String>,
     paths: Option<Vec<PathMapping>>,
     root_dirs: Option<Vec<String>>,
@@ -398,7 +486,7 @@ impl<'a> ModuleResolver<'a> {
         host: &'a dyn CompilerHost,
         options: &'a CompilerOptions,
     ) -> Result<Self, ResolutionError> {
-        Self::new_with_owned_paths(host, options, None, None, None)
+        Self::new_with_owned_paths(host, options, None, None, None, None)
     }
 
     /// Construct a resolver with the ordered program-owned resolution options.
@@ -419,6 +507,7 @@ impl<'a> ModuleResolver<'a> {
             program_options.paths(),
             program_options.config_file_path(),
             program_options.root_dirs(),
+            program_options.type_roots(),
         )
     }
 
@@ -428,6 +517,7 @@ impl<'a> ModuleResolver<'a> {
         paths: Option<&[PathMapping]>,
         config_file_path: Option<&ProgramPath>,
         root_dirs: Option<&[ProgramPath]>,
+        type_roots: Option<&[ProgramPath]>,
     ) -> Result<Self, ResolutionError> {
         let current_directory = host.current_directory()?;
         let normalized = normalize_absolute_path(&current_directory, None)?;
@@ -456,6 +546,7 @@ impl<'a> ModuleResolver<'a> {
             options,
             path_context: PathContext::new(current_directory, case_sensitive),
             type_root_base_directory,
+            type_roots: type_roots.map(<[_]>::to_vec),
             base_url,
             paths,
             root_dirs,
@@ -489,6 +580,7 @@ impl<'a> ModuleResolver<'a> {
             host,
             options,
             type_root_base_directory: current_directory.to_owned(),
+            type_roots: None,
             path_context,
             base_url,
             paths: None,
@@ -591,6 +683,7 @@ impl<'a> ModuleResolver<'a> {
         probe_pass: ExtensionProbePass,
         mode: ResolutionMode,
         loader: OptionalResolutionLoader,
+        follow_realpath: bool,
     ) -> Result<ResolutionOutcome<HostResolvedModule>, ResolutionError> {
         let has_paths = self.paths.as_ref().is_some_and(|paths| !paths.is_empty());
         let path_relative = is_path_relative_specifier(specifier);
@@ -602,6 +695,7 @@ impl<'a> ModuleResolver<'a> {
                 probe_pass,
                 mode,
                 loader,
+                follow_realpath,
             );
         }
         if !has_paths {
@@ -612,13 +706,14 @@ impl<'a> ModuleResolver<'a> {
                     probe_pass,
                     mode,
                     loader,
+                    follow_realpath,
                 );
             }
             if self.base_url.is_none() {
                 return Ok(ResolutionOutcome::NotFound);
             }
         }
-        validate_owned_path_text(specifier, "module specifier", /* allow_empty */ false)?;
+        validate_owned_path_text(specifier, "module specifier", /* allow_empty */ true)?;
 
         if let Some((substitutions, capture)) = self.matching_paths(specifier) {
             let base_directory = self
@@ -627,7 +722,9 @@ impl<'a> ModuleResolver<'a> {
                 .unwrap_or(self.current_directory_text()?.to_owned());
             for substitution in substitutions {
                 let expanded = match capture.as_deref() {
-                    Some(capture) if !capture.is_empty() => substitution.replacen('*', capture, 1),
+                    Some(capture) if !capture.is_empty() => {
+                        js_replace_first_star(&substitution, capture)?
+                    }
                     None => substitution.clone(),
                     Some(_) => substitution.clone(),
                 };
@@ -640,22 +737,40 @@ impl<'a> ModuleResolver<'a> {
                 // enable this shortcut.
                 if let Some(extension) = recognized_module_extension(&substitution) {
                     if self.host.file_exists(Path::new(&candidate))? {
+                        let external = path_contains_node_modules(&candidate);
                         return self.finish_legacy_resolution(
                             None,
                             &candidate,
                             extension,
                             LegacyResolutionContext {
-                                is_external_library_import: path_contains_node_modules(&candidate),
+                                is_external_library_import: external,
                                 attach_package_id: false,
                                 resolved_using_ts_extension: false,
-                                follow_realpath: path_contains_node_modules(&candidate),
+                                follow_realpath: external && !external_relative && follow_realpath,
                             },
                         );
                     }
                 }
 
-                let outcome =
-                    self.probe_optional_candidate(&candidate, &expanded, probe_pass, mode, loader)?;
+                // tryLoadModuleUsingPaths performs this caller-side latch
+                // before invoking either loader. Node's loader and the
+                // extension-adder then observe the same parent again; those
+                // repeated host calls are intentionally observable.
+                if !self
+                    .host
+                    .directory_exists(Path::new(&directory_name(&candidate)))?
+                {
+                    continue;
+                }
+
+                let outcome = self.probe_optional_candidate(
+                    &candidate,
+                    probe_pass,
+                    mode,
+                    loader,
+                    external_relative,
+                    follow_realpath,
+                )?;
                 if matches!(outcome, ResolutionOutcome::Resolved(_)) {
                     return Ok(outcome);
                 }
@@ -673,6 +788,7 @@ impl<'a> ModuleResolver<'a> {
                 probe_pass,
                 mode,
                 loader,
+                follow_realpath,
             );
         }
 
@@ -680,7 +796,22 @@ impl<'a> ModuleResolver<'a> {
             return Ok(ResolutionOutcome::NotFound);
         };
         let candidate = normalize_optional_candidate(specifier, &base_url)?;
-        self.probe_optional_candidate(&candidate, specifier, probe_pass, mode, loader)
+        // tryLoadModuleUsingBaseUrl owns the same caller-side parent latch as
+        // paths substitutions before handing the candidate to its loader.
+        if !self
+            .host
+            .directory_exists(Path::new(&directory_name(&candidate)))?
+        {
+            return Ok(ResolutionOutcome::NotFound);
+        }
+        self.probe_optional_candidate(
+            &candidate,
+            probe_pass,
+            mode,
+            loader,
+            /* external_relative */ false,
+            follow_realpath,
+        )
     }
 
     /// tsc-port: tryLoadModuleUsingRootDirs @6.0.3
@@ -693,6 +824,7 @@ impl<'a> ModuleResolver<'a> {
         probe_pass: ExtensionProbePass,
         mode: ResolutionMode,
         loader: OptionalResolutionLoader,
+        follow_realpath: bool,
     ) -> Result<ResolutionOutcome<HostResolvedModule>, ResolutionError> {
         let candidate = preserve_trailing_directory_separator(
             normalize_absolute_path(Path::new(specifier), Some(containing_directory))?,
@@ -752,8 +884,14 @@ impl<'a> ModuleResolver<'a> {
             {
                 continue;
             }
-            let outcome =
-                self.probe_optional_candidate(&candidate, specifier, probe_pass, mode, loader)?;
+            let outcome = self.probe_optional_candidate(
+                &candidate,
+                probe_pass,
+                mode,
+                loader,
+                /* external_relative */ true,
+                follow_realpath,
+            )?;
             if matches!(outcome, ResolutionOutcome::Resolved(_)) {
                 return Ok(outcome);
             }
@@ -796,34 +934,41 @@ impl<'a> ModuleResolver<'a> {
     fn probe_optional_candidate(
         &mut self,
         candidate: &str,
-        written_candidate: &str,
         probe_pass: ExtensionProbePass,
         mode: ResolutionMode,
         loader: OptionalResolutionLoader,
+        external_relative: bool,
+        follow_realpath: bool,
     ) -> Result<ResolutionOutcome<HostResolvedModule>, ResolutionError> {
         match loader {
-            OptionalResolutionLoader::Classic => {
-                self.probe_classic_file(candidate, written_candidate, probe_pass)
-            }
-            OptionalResolutionLoader::Node => {
-                self.probe_optional_node_candidate(candidate, written_candidate, probe_pass, mode)
-            }
+            OptionalResolutionLoader::Classic => self.probe_classic_file(
+                candidate,
+                probe_pass,
+                !external_relative && follow_realpath,
+            ),
+            OptionalResolutionLoader::Node => self.probe_optional_node_candidate(
+                candidate,
+                probe_pass,
+                mode,
+                external_relative,
+                follow_realpath,
+            ),
         }
     }
 
     fn probe_optional_node_candidate(
         &mut self,
         candidate: &str,
-        written_candidate: &str,
         probe_pass: ExtensionProbePass,
         mode: ResolutionMode,
+        external_relative: bool,
+        follow_realpath: bool,
     ) -> Result<ResolutionOutcome<HostResolvedModule>, ResolutionError> {
-        let external = path_contains_node_modules(candidate);
         let allow_implicit = !self.is_node_esm_mode(mode);
         let context = LegacyResolutionContext {
-            is_external_library_import: external,
+            is_external_library_import: false,
             attach_package_id: false,
-            resolved_using_ts_extension: is_typescript_family_specifier(written_candidate),
+            resolved_using_ts_extension: is_typescript_family_specifier(candidate),
             follow_realpath: false,
         };
         if !candidate.ends_with('/') {
@@ -836,14 +981,15 @@ impl<'a> ModuleResolver<'a> {
             {
                 return Ok(ResolutionOutcome::NotFound);
             }
-            if let ResolutionOutcome::Resolved(mut module) =
-                self.probe_legacy_file(None, candidate, probe_pass, allow_implicit, context)?
-            {
-                self.attach_direct_node_package(&mut module)?;
-                if external {
-                    self.follow_module_realpath(&mut module)?;
-                }
-                return Ok(ResolutionOutcome::Resolved(module));
+            let outcome =
+                self.probe_legacy_file(None, candidate, probe_pass, allow_implicit, context)?;
+            if matches!(outcome, ResolutionOutcome::Resolved(_)) {
+                return self.finalize_optional_node_resolution(
+                    outcome,
+                    external_relative,
+                    /* attach_direct_package */ true,
+                    follow_realpath,
+                );
             }
         }
         let candidate_exists = self.host.directory_exists(Path::new(candidate))?;
@@ -853,7 +999,7 @@ impl<'a> ModuleResolver<'a> {
 
         let package_json = join_normalized(candidate, "package.json");
         if let Some(directory_package) = self.load_package(&package_json)? {
-            return self.resolve_legacy_package(
+            let outcome = self.resolve_legacy_package(
                 &directory_package,
                 ".",
                 probe_pass,
@@ -861,13 +1007,20 @@ impl<'a> ModuleResolver<'a> {
                 LegacyResolutionContext {
                     attach_package_id: true,
                     resolved_using_ts_extension: false,
-                    follow_realpath: external,
+                    follow_realpath: false,
                     ..context
                 },
+                Some(candidate),
                 /* allow_node_esm_index_fallback */ true,
+            )?;
+            return self.finalize_optional_node_resolution(
+                outcome,
+                external_relative,
+                /* attach_direct_package */ false,
+                follow_realpath,
             );
         }
-        self.probe_legacy_file(
+        let outcome = self.probe_legacy_file(
             None,
             &join_normalized(candidate, "index"),
             probe_pass,
@@ -875,10 +1028,47 @@ impl<'a> ModuleResolver<'a> {
             LegacyResolutionContext {
                 attach_package_id: false,
                 resolved_using_ts_extension: false,
-                follow_realpath: external,
+                follow_realpath: false,
                 ..context
             },
+        )?;
+        self.finalize_optional_node_resolution(
+            outcome,
+            external_relative,
+            /* attach_direct_package */ false,
+            follow_realpath,
         )
+    }
+
+    fn finalize_optional_node_resolution(
+        &mut self,
+        outcome: ResolutionOutcome<HostResolvedModule>,
+        external_relative: bool,
+        attach_direct_package: bool,
+        follow_realpath: bool,
+    ) -> Result<ResolutionOutcome<HostResolvedModule>, ResolutionError> {
+        let ResolutionOutcome::Resolved(mut module) = outcome else {
+            return Ok(ResolutionOutcome::NotFound);
+        };
+        let lexical_path = module
+            .resolved_file
+            .display()
+            .to_str()
+            .ok_or_else(|| {
+                ResolutionError::canonicalization(
+                    Some(module.resolved_file.display().to_path_buf()),
+                    "resolved module path is not valid Unicode",
+                )
+            })?
+            .to_owned();
+        module.is_external_library_import = path_contains_node_modules(&lexical_path);
+        if attach_direct_package {
+            self.attach_direct_node_package(&mut module)?;
+        }
+        if module.is_external_library_import && !external_relative && follow_realpath {
+            self.follow_module_realpath(&mut module)?;
+        }
+        Ok(ResolutionOutcome::Resolved(module))
     }
 
     /// Attach the package facts used by `nodeLoadModuleByRelativeName` after
@@ -910,7 +1100,12 @@ impl<'a> ModuleResolver<'a> {
         else {
             return Ok(());
         };
-        module.package_id = package_id_for_legacy_path(&package, &lexical_path, true)?;
+        module.package_id = package_id_for_legacy_path_from_directory(
+            &package,
+            &package_root,
+            &lexical_path,
+            true,
+        )?;
         module.package_metadata = Some(Rc::clone(&package.metadata));
         Ok(())
     }
@@ -944,6 +1139,7 @@ impl<'a> ModuleResolver<'a> {
         &mut self,
         candidate: &str,
         mode: ResolutionMode,
+        follow_realpath: bool,
     ) -> Result<ResolutionOutcome<HostResolvedModule>, ResolutionError> {
         let external = path_contains_node_modules(candidate);
         let context = LegacyResolutionContext {
@@ -963,7 +1159,9 @@ impl<'a> ModuleResolver<'a> {
             return Ok(ResolutionOutcome::NotFound);
         };
         self.attach_direct_node_package(&mut module)?;
-        self.follow_module_realpath(&mut module)?;
+        if follow_realpath {
+            self.follow_module_realpath(&mut module)?;
+        }
         Ok(ResolutionOutcome::Resolved(module))
     }
 
@@ -980,7 +1178,7 @@ impl<'a> ModuleResolver<'a> {
         specifier: &str,
         mode: ResolutionMode,
     ) -> Result<HostModuleResolution, ResolutionError> {
-        if specifier.contains(['\\', '\0']) {
+        if specifier.contains('\0') {
             return Err(ResolutionError::invalid_data(format!(
                 "invalid Classic module specifier {specifier:?}"
             )));
@@ -997,6 +1195,7 @@ impl<'a> ModuleResolver<'a> {
                     probe_pass,
                     mode,
                     OptionalResolutionLoader::Classic,
+                    /* follow_realpath */ true,
                 )?;
                 if matches!(optional, ResolutionOutcome::Resolved(_)) {
                     return Ok(HostModuleResolution::new(optional, None));
@@ -1005,7 +1204,9 @@ impl<'a> ModuleResolver<'a> {
                     normalize_absolute_path(Path::new(specifier), Some(&containing_directory))?,
                     specifier,
                 );
-                let outcome = self.probe_classic_file(&candidate, specifier, probe_pass)?;
+                let outcome = self.probe_classic_file(
+                    &candidate, probe_pass, /* follow_external_realpath */ false,
+                )?;
                 if matches!(outcome, ResolutionOutcome::Resolved(_)) {
                     return Ok(HostModuleResolution::new(outcome, None));
                 }
@@ -1016,6 +1217,7 @@ impl<'a> ModuleResolver<'a> {
                     probe_pass,
                     mode,
                     OptionalResolutionLoader::Classic,
+                    /* follow_realpath */ true,
                 )?;
                 if matches!(optional, ResolutionOutcome::Resolved(_)) {
                     return Ok(HostModuleResolution::new(optional, None));
@@ -1028,7 +1230,9 @@ impl<'a> ModuleResolver<'a> {
                         Path::new(&join_normalized(&ancestor, specifier)),
                         None,
                     )?;
-                    let outcome = self.probe_classic_file(&candidate, specifier, probe_pass)?;
+                    let outcome = self.probe_classic_file(
+                        &candidate, probe_pass, /* follow_external_realpath */ true,
+                    )?;
                     if matches!(outcome, ResolutionOutcome::Resolved(_)) {
                         return Ok(HostModuleResolution::new(outcome, None));
                     }
@@ -1051,19 +1255,20 @@ impl<'a> ModuleResolver<'a> {
     fn probe_classic_file(
         &self,
         candidate: &str,
-        written_specifier: &str,
         probe_pass: ExtensionProbePass,
+        follow_external_realpath: bool,
     ) -> Result<ResolutionOutcome<HostResolvedModule>, ResolutionError> {
+        let external = path_contains_node_modules(candidate);
         self.probe_legacy_file(
             None,
             candidate,
             probe_pass,
             /* allow_implicit */ true,
             LegacyResolutionContext {
-                is_external_library_import: path_contains_node_modules(candidate),
+                is_external_library_import: external,
                 attach_package_id: false,
-                resolved_using_ts_extension: is_typescript_family_specifier(written_specifier),
-                follow_realpath: path_contains_node_modules(candidate),
+                resolved_using_ts_extension: is_typescript_family_specifier(candidate),
+                follow_realpath: external && follow_external_realpath,
             },
         )
     }
@@ -1083,21 +1288,50 @@ impl<'a> ModuleResolver<'a> {
             return Ok(HostModuleResolution::new(outcome, None));
         }
         let containing_directory = directory_name(containing_file);
-        let (outcome, resolved_package_directory) =
+        let (mut outcome, resolved_package_directory) =
             self.resolve_node10_non_relative(&containing_directory, specifier, mode)?;
-        let retry_for_types = resolved_package_directory
+        let wanted_types_but_got_other = match &outcome {
+            ResolutionOutcome::NotFound => false,
+            ResolutionOutcome::Resolved(module) => {
+                !is_typescript_module_extension(module.extension())
+            }
+        };
+        let retry_with_exports_disabled = resolved_package_directory
+            && mode == ResolutionMode::EsNext
+            && match &outcome {
+                ResolutionOutcome::Resolved(module) => {
+                    module.is_external_library_import() && wanted_types_but_got_other
+                }
+                ResolutionOutcome::NotFound => false,
+            };
+        let retry_with_bundler = resolved_package_directory
+            && !retry_with_exports_disabled
             && match &outcome {
                 ResolutionOutcome::NotFound => true,
-                ResolutionOutcome::Resolved(module) => module.extension().is_javascript(),
+                ResolutionOutcome::Resolved(_) => wanted_types_but_got_other,
             };
-        let alternate_result = if retry_for_types {
+        let alternate_result = if retry_with_exports_disabled || retry_with_bundler {
             let request = parse_package_request(specifier)?;
-            match self.resolve_bundler_preferred_non_relative(
-                &containing_directory,
-                specifier,
-                &request,
-                mode,
-            )? {
+            let alternate = if retry_with_exports_disabled {
+                self.resolve_modern_preferred_without_exports(
+                    &containing_directory,
+                    specifier,
+                    &request,
+                    mode,
+                    ExtensionProbePass::Preferred,
+                    /* force_package_maps */ true,
+                    /* resolution_kind */ 2,
+                )?
+            } else {
+                self.resolve_bundler_preferred_non_relative(
+                    &containing_directory,
+                    specifier,
+                    &request,
+                    ExtensionProbePass::Preferred,
+                    /* enable_package_maps */ mode != ResolutionMode::Unspecified,
+                )?
+            };
+            match alternate {
                 ResolutionOutcome::Resolved(module) if module.is_external_library_import() => {
                     Some(module.resolved_file().clone())
                 }
@@ -1106,6 +1340,11 @@ impl<'a> ModuleResolver<'a> {
         } else {
             None
         };
+        if let ResolutionOutcome::Resolved(module) = &mut outcome {
+            if module.is_external_library_import() {
+                self.follow_module_realpath(module)?;
+            }
+        }
         Ok(HostModuleResolution::new(outcome, alternate_result))
     }
 
@@ -1117,6 +1356,7 @@ impl<'a> ModuleResolver<'a> {
     ) -> Result<(ResolutionOutcome<HostResolvedModule>, bool), ResolutionError> {
         let mut resolved_package_directory = false;
         let mut request = None;
+        let all_features = mode != ResolutionMode::Unspecified;
         for probe_pass in [ExtensionProbePass::Preferred, ExtensionProbePass::Fallback] {
             let optional = self.resolve_using_optional_settings(
                 containing_directory,
@@ -1124,6 +1364,7 @@ impl<'a> ModuleResolver<'a> {
                 probe_pass,
                 mode,
                 OptionalResolutionLoader::Node,
+                /* follow_realpath */ false,
             )?;
             if matches!(optional, ResolutionOutcome::Resolved(_)) {
                 // Upstream sets `resolvedPackageDirectory` only while walking
@@ -1131,10 +1372,41 @@ impl<'a> ModuleResolver<'a> {
                 // optional paths/baseUrl candidate happens to carry metadata.
                 return Ok((optional, resolved_package_directory));
             }
+
+            if all_features && specifier.starts_with('#') {
+                if let Search::Terminal(outcome) = self.resolve_package_imports(
+                    containing_directory,
+                    specifier,
+                    mode,
+                    probe_pass,
+                    /* force_enabled */ true,
+                    /* use_package_exports */ true,
+                    /* resolution_kind */ None,
+                )? {
+                    return Ok((outcome, resolved_package_directory));
+                }
+            }
             if request.is_none() {
                 request = Some(parse_package_request(specifier)?);
             }
             let request = request.as_ref().expect("non-relative request was parsed");
+            if all_features {
+                if let Search::Terminal(outcome) = self.try_self_reference(
+                    containing_directory,
+                    request,
+                    mode,
+                    probe_pass,
+                    /* resolution_kind */ None,
+                )? {
+                    return Ok((outcome, resolved_package_directory));
+                }
+            }
+            // nodeModuleNameResolverWorker gives optional settings, package
+            // imports, and SelfName an opportunity to own URI-looking names
+            // before suppressing the ordinary node_modules walk.
+            if specifier.contains(':') {
+                continue;
+            }
             for ancestor in ancestor_directories(containing_directory) {
                 if base_name(&ancestor) == "node_modules" {
                     continue;
@@ -1143,52 +1415,63 @@ impl<'a> ModuleResolver<'a> {
                 if !self.host.directory_exists(Path::new(&node_modules))? {
                     continue;
                 }
-                let package_root = join_normalized(&node_modules, request.package_name);
-                let package_directory_exists =
-                    self.host.directory_exists(Path::new(&package_root))?;
-                let package = if package_directory_exists {
-                    self.load_package(&join_normalized(&package_root, "package.json"))?
-                } else {
-                    None
-                };
-                // Upstream records a resolved package directory only after
-                // successfully reading package.json. A manifestless folder is
-                // still eligible for Node10's legacy index probing, but must
-                // not enable the diagnostic-only Bundler retry.
-                resolved_package_directory |= package.is_some();
-                let outcome = if let Some(package) = package {
-                    self.resolve_legacy_package(
-                        &package,
-                        &request.exports_subpath,
-                        probe_pass,
-                        mode,
-                        LegacyResolutionContext {
-                            is_external_library_import: true,
-                            attach_package_id: true,
-                            resolved_using_ts_extension: false,
-                            follow_realpath: true,
-                        },
-                        /* allow_node_esm_index_fallback */ true,
-                    )?
-                } else {
-                    self.resolve_manifestless_package(
-                        &package_root,
-                        &request.exports_subpath,
-                        probe_pass,
-                        mode,
-                    )?
-                };
+                let package_root = package_root_for_request(&node_modules, request);
+                let specific = self.resolve_specific_package(
+                    &package_root,
+                    &request.exports_subpath,
+                    probe_pass,
+                    mode,
+                    /* use_package_exports */ all_features,
+                    None,
+                    /* follow_realpath */ false,
+                )?;
+                // A nested-package early branch returns before tsc stamps
+                // resolvedPackageDirectory; only the normal root path enables
+                // the diagnostic-only Bundler retry.
+                resolved_package_directory |= specific.root_package_observed;
+                let outcome = specific.outcome;
                 if matches!(outcome, ResolutionOutcome::Resolved(_)) {
                     return Ok((outcome, resolved_package_directory));
                 }
 
                 if matches!(probe_pass, ExtensionProbePass::Preferred) {
-                    let (outcome, at_types_package_observed) = self
-                        .resolve_legacy_at_types_from_node_modules(&node_modules, request, mode)?;
-                    resolved_package_directory |= at_types_package_observed;
-                    if matches!(outcome, ResolutionOutcome::Resolved(_)) {
-                        return Ok((outcome, resolved_package_directory));
+                    if all_features {
+                        let at_types = join_normalized(&node_modules, "@types");
+                        if self.host.directory_exists(Path::new(&at_types))? {
+                            let package_root = types_package_root_for_request(&at_types, request);
+                            let specific = self.resolve_specific_package(
+                                &package_root,
+                                &request.exports_subpath,
+                                ExtensionProbePass::Declaration,
+                                mode,
+                                /* use_package_exports */ true,
+                                None,
+                                /* follow_realpath */ false,
+                            )?;
+                            resolved_package_directory |= specific.root_package_observed;
+                            if matches!(specific.outcome, ResolutionOutcome::Resolved(_)) {
+                                return Ok((specific.outcome, resolved_package_directory));
+                            }
+                        }
+                    } else {
+                        let (outcome, at_types_package_observed) = self
+                            .resolve_legacy_at_types_from_node_modules(
+                                &node_modules,
+                                request,
+                                mode,
+                                /* follow_realpath */ false,
+                            )?;
+                        resolved_package_directory |= at_types_package_observed;
+                        if matches!(outcome, ResolutionOutcome::Resolved(_)) {
+                            return Ok((outcome, resolved_package_directory));
+                        }
                     }
+                }
+            }
+            if matches!(probe_pass, ExtensionProbePass::Preferred) {
+                let outcome = self.resolve_module_from_type_roots(specifier, mode)?;
+                if matches!(outcome, ResolutionOutcome::Resolved(_)) {
+                    return Ok((outcome, resolved_package_directory));
                 }
             }
         }
@@ -1209,8 +1492,12 @@ impl<'a> ModuleResolver<'a> {
             if !self.host.directory_exists(Path::new(&node_modules))? {
                 continue;
             }
-            let (outcome, _) =
-                self.resolve_legacy_at_types_from_node_modules(&node_modules, request, mode)?;
+            let (outcome, _) = self.resolve_legacy_at_types_from_node_modules(
+                &node_modules,
+                request,
+                mode,
+                /* follow_realpath */ true,
+            )?;
             if matches!(outcome, ResolutionOutcome::Resolved(_)) {
                 return Ok(outcome);
             }
@@ -1223,42 +1510,23 @@ impl<'a> ModuleResolver<'a> {
         node_modules: &str,
         request: &PackageRequest<'_>,
         mode: ResolutionMode,
+        follow_realpath: bool,
     ) -> Result<(ResolutionOutcome<HostResolvedModule>, bool), ResolutionError> {
         let at_types = join_normalized(node_modules, "@types");
         if !self.host.directory_exists(Path::new(&at_types))? {
             return Ok((ResolutionOutcome::NotFound, false));
         }
-        let package_root =
-            join_normalized(&at_types, &mangle_scoped_package_name(request.package_name));
-        let package = if self.host.directory_exists(Path::new(&package_root))? {
-            self.load_package(&join_normalized(&package_root, "package.json"))?
-        } else {
-            None
-        };
-        let package_info_observed = package.is_some();
-        let outcome = if let Some(package) = package {
-            self.resolve_legacy_package(
-                &package,
-                &request.exports_subpath,
-                ExtensionProbePass::Declaration,
-                mode,
-                LegacyResolutionContext {
-                    is_external_library_import: true,
-                    attach_package_id: true,
-                    resolved_using_ts_extension: false,
-                    follow_realpath: true,
-                },
-                /* allow_node_esm_index_fallback */ true,
-            )
-        } else {
-            self.resolve_manifestless_package(
-                &package_root,
-                &request.exports_subpath,
-                ExtensionProbePass::Declaration,
-                mode,
-            )
-        }?;
-        Ok((outcome, package_info_observed))
+        let package_root = types_package_root_for_request(&at_types, request);
+        let specific = self.resolve_specific_package(
+            &package_root,
+            &request.exports_subpath,
+            ExtensionProbePass::Declaration,
+            mode,
+            /* use_package_exports */ false,
+            None,
+            follow_realpath,
+        )?;
+        Ok((specific.outcome, specific.root_package_observed))
     }
 
     fn resolve_bundler_preferred_non_relative(
@@ -1266,17 +1534,50 @@ impl<'a> ModuleResolver<'a> {
         containing_directory: &str,
         specifier: &str,
         request: &PackageRequest<'_>,
-        mode: ResolutionMode,
+        probe_pass: ExtensionProbePass,
+        enable_package_maps: bool,
     ) -> Result<ResolutionOutcome<HostResolvedModule>, ResolutionError> {
+        let diagnostic_mode = ResolutionMode::EsNext;
         let optional = self.resolve_using_optional_settings(
             containing_directory,
             specifier,
-            ExtensionProbePass::Preferred,
-            mode,
+            probe_pass,
+            diagnostic_mode,
             OptionalResolutionLoader::Node,
+            /* follow_realpath */ false,
         )?;
         if matches!(optional, ResolutionOutcome::Resolved(_)) {
             return Ok(optional);
+        }
+        if enable_package_maps && specifier.starts_with('#') {
+            if let Search::Terminal(outcome) = self.resolve_package_imports(
+                containing_directory,
+                specifier,
+                diagnostic_mode,
+                probe_pass,
+                /* force_enabled */ true,
+                /* use_package_exports */ true,
+                /* resolution_kind */ Some(100),
+            )? {
+                return Ok(outcome);
+            }
+        }
+        if enable_package_maps {
+            if let Search::Terminal(outcome) = self.try_self_reference(
+                containing_directory,
+                request,
+                diagnostic_mode,
+                probe_pass,
+                /* resolution_kind */ Some(100),
+            )? {
+                return Ok(outcome);
+            }
+        }
+        if specifier.contains(':') {
+            return Ok(ResolutionOutcome::NotFound);
+        }
+        if matches!(probe_pass, ExtensionProbePass::Empty) {
+            return Ok(ResolutionOutcome::NotFound);
         }
         for ancestor in ancestor_directories(containing_directory) {
             if base_name(&ancestor) == "node_modules" {
@@ -1286,62 +1587,43 @@ impl<'a> ModuleResolver<'a> {
             if !self.host.directory_exists(Path::new(&node_modules))? {
                 continue;
             }
-            let package_root = join_normalized(&node_modules, request.package_name);
-            let package = if self.host.directory_exists(Path::new(&package_root))? {
-                self.load_package(&join_normalized(&package_root, "package.json"))?
-            } else {
-                None
-            };
-            let outcome = if let Some(package) = package {
-                let uses_exports = self.options.resolve_package_json_exports != Some(false)
-                    && !matches!(package.exports.as_ref(), None | Some(Value::Null));
-                if uses_exports {
-                    self.resolve_package_exports_with_resolution_kind(
-                        &package,
-                        &request.exports_subpath,
-                        /* is_external_library_import */ true,
-                        ExtensionProbePass::Preferred,
-                        mode,
-                        100,
-                    )?
-                } else {
-                    self.resolve_legacy_package(
-                        &package,
-                        &request.exports_subpath,
-                        ExtensionProbePass::Preferred,
-                        mode,
-                        LegacyResolutionContext {
-                            is_external_library_import: true,
-                            attach_package_id: true,
-                            resolved_using_ts_extension: false,
-                            follow_realpath: true,
-                        },
-                        /* allow_node_esm_index_fallback */ true,
-                    )?
-                }
-            } else {
-                self.resolve_manifestless_package(
+            let package_root = package_root_for_request(&node_modules, request);
+            let outcome = self
+                .resolve_specific_package(
                     &package_root,
                     &request.exports_subpath,
-                    ExtensionProbePass::Preferred,
-                    mode,
+                    probe_pass,
+                    diagnostic_mode,
+                    /* use_package_exports */ true,
+                    Some(100),
+                    /* follow_realpath */ false,
                 )?
-            };
+                .outcome;
             if matches!(outcome, ResolutionOutcome::Resolved(_)) {
                 return Ok(outcome);
             }
 
-            let types_package = PackageRequest {
-                package_name: request.package_name,
-                exports_subpath: request.exports_subpath.clone(),
-            };
-            let outcome =
-                self.resolve_bundler_preferred_at_types(&node_modules, &types_package, mode)?;
-            if matches!(outcome, ResolutionOutcome::Resolved(_)) {
-                return Ok(outcome);
+            if probe_pass_has_declaration(probe_pass) {
+                let types_package = PackageRequest {
+                    package_name: request.package_name,
+                    exports_subpath: request.exports_subpath.clone(),
+                    trailing_separator: request.trailing_separator,
+                };
+                let outcome = self.resolve_bundler_preferred_at_types(
+                    &node_modules,
+                    &types_package,
+                    diagnostic_mode,
+                )?;
+                if matches!(outcome, ResolutionOutcome::Resolved(_)) {
+                    return Ok(outcome);
+                }
             }
         }
-        Ok(ResolutionOutcome::NotFound)
+        if probe_pass_has_declaration(probe_pass) {
+            self.resolve_module_from_type_roots(specifier, diagnostic_mode)
+        } else {
+            Ok(ResolutionOutcome::NotFound)
+        }
     }
 
     fn resolve_bundler_preferred_at_types(
@@ -1350,50 +1632,21 @@ impl<'a> ModuleResolver<'a> {
         request: &PackageRequest<'_>,
         mode: ResolutionMode,
     ) -> Result<ResolutionOutcome<HostResolvedModule>, ResolutionError> {
-        let package_root = join_normalized(
-            &join_normalized(node_modules, "@types"),
-            &mangle_scoped_package_name(request.package_name),
-        );
-        let package = if self.host.directory_exists(Path::new(&package_root))? {
-            self.load_package(&join_normalized(&package_root, "package.json"))?
-        } else {
-            None
-        };
-        if let Some(package) = package {
-            let uses_exports = self.options.resolve_package_json_exports != Some(false)
-                && !matches!(package.exports.as_ref(), None | Some(Value::Null));
-            if uses_exports {
-                self.resolve_package_exports_with_resolution_kind(
-                    &package,
-                    &request.exports_subpath,
-                    /* is_external_library_import */ true,
-                    ExtensionProbePass::Preferred,
-                    mode,
-                    100,
-                )
-            } else {
-                self.resolve_legacy_package(
-                    &package,
-                    &request.exports_subpath,
-                    ExtensionProbePass::Preferred,
-                    mode,
-                    LegacyResolutionContext {
-                        is_external_library_import: true,
-                        attach_package_id: true,
-                        resolved_using_ts_extension: false,
-                        follow_realpath: true,
-                    },
-                    /* allow_node_esm_index_fallback */ true,
-                )
-            }
-        } else {
-            self.resolve_manifestless_package(
-                &package_root,
-                &request.exports_subpath,
-                ExtensionProbePass::Preferred,
-                mode,
-            )
+        let at_types = join_normalized(node_modules, "@types");
+        if !self.host.directory_exists(Path::new(&at_types))? {
+            return Ok(ResolutionOutcome::NotFound);
         }
+        let package_root = types_package_root_for_request(&at_types, request);
+        self.resolve_specific_package(
+            &package_root,
+            &request.exports_subpath,
+            ExtensionProbePass::Declaration,
+            mode,
+            /* use_package_exports */ true,
+            Some(100),
+            /* follow_realpath */ false,
+        )
+        .map(|result| result.outcome)
     }
 
     /// Resolve one source-owned or automatic type-reference directive.
@@ -1427,6 +1680,7 @@ impl<'a> ModuleResolver<'a> {
                 specifier,
                 mode,
                 custom_type_roots,
+                /* follow_realpath */ true,
             )?;
             if let ResolutionOutcome::Resolved(module) = outcome {
                 return Ok(ResolutionOutcome::Resolved(
@@ -1469,7 +1723,6 @@ impl<'a> ModuleResolver<'a> {
         specifier: &str,
         mode: ResolutionMode,
     ) -> Result<ResolutionOutcome<HostResolvedModule>, ResolutionError> {
-        const MAX_PACKAGE_MAP_REWRITES: usize = 64;
         let containing_directory = normalize_absolute_path(
             Path::new(containing_directory),
             Some(self.current_directory_text()?),
@@ -1482,15 +1735,597 @@ impl<'a> ModuleResolver<'a> {
             specifier: specifier.to_owned(),
             mode,
         };
-        if self.active_resolutions.len() >= MAX_PACKAGE_MAP_REWRITES
-            || self.active_resolutions.contains(&active)
-        {
+        if self.active_resolutions.contains(&active) {
             return Ok(ResolutionOutcome::NotFound);
         }
         self.active_resolutions.push(active);
         let result = self.resolve_non_relative_inner(&containing_directory, specifier, mode);
         self.active_resolutions.pop();
+        let mut outcome = result?;
+        if let ResolutionOutcome::Resolved(module) = &mut outcome {
+            if module.is_external_library_import() {
+                self.follow_module_realpath(module)?;
+            }
+        }
+        Ok(outcome)
+    }
+
+    fn resolve_bare_import_target(
+        &mut self,
+        owner_package: &CachedPackage,
+        specifier: &str,
+        context: ExportProbeContext,
+    ) -> Result<Search<HostResolvedModule>, ResolutionError> {
+        let resolution_depth = self.active_resolutions.len();
+        let package_map_depth = self.active_package_maps.len();
+        let result = self.resolve_bare_import_target_worker(owner_package, specifier, context);
+        // Host/probe failures remain observable errors, but a failed iterative
+        // walk must not poison a resolver which the caller reuses afterwards.
+        self.active_resolutions.truncate(resolution_depth);
+        self.active_package_maps.truncate(package_map_depth);
         result
+    }
+
+    /// Evaluate package-import rewrites as an explicit continuation stack.
+    ///
+    /// `nodeModuleNameResolverWorker` recursively re-enters package imports
+    /// for every bare target. A valid package.json can contain thousands of
+    /// such redirects, which should not be limited by the Rust thread stack.
+    /// Conditions and arrays are continuations here, so misses retain their
+    /// exact fallback order while `paths`/`baseUrl` are still probed before
+    /// each rewritten specifier.
+    fn resolve_bare_import_target_worker(
+        &mut self,
+        owner_package: &CachedPackage,
+        specifier: &str,
+        context: ExportProbeContext,
+    ) -> Result<Search<HostResolvedModule>, ResolutionError> {
+        let features = context.bare_features.ok_or_else(|| {
+            ResolutionError::invalid_data("bare imports target is missing resolver features")
+        })?;
+        let owner_key = owner_package
+            .metadata
+            .package_json()
+            .canonical()
+            .as_path()
+            .to_string_lossy()
+            .into_owned();
+        let mut budget_sources = BTreeSet::from([owner_key]);
+        let mut work_budget = owner_package
+            .metadata
+            .text()
+            .len()
+            .saturating_mul(PACKAGE_MAP_REWRITE_INPUT_MULTIPLIER)
+            .saturating_add(specifier.len())
+            .max(MIN_PACKAGE_MAP_REWRITE_WORK_BUDGET);
+        let mut work = 0usize;
+        let mut previous_specifier_len = None;
+        let mut frames = Vec::new();
+        let mut state = ImportsTargetState::Bare {
+            containing_directory: owner_package.root.clone(),
+            specifier: specifier.to_owned(),
+        };
+
+        loop {
+            state = match state {
+                ImportsTargetState::Bare {
+                    containing_directory,
+                    specifier,
+                } => {
+                    let containing_directory = normalize_absolute_path(
+                        Path::new(&containing_directory),
+                        Some(self.current_directory_text()?),
+                    )?;
+                    // Count redirects plus only newly-created specifier bytes.
+                    // A long caller-owned name is valid input, and a finite
+                    // pattern chain may preserve all of it. Growing wildcard
+                    // cycles, however, consume their cumulative positive
+                    // expansion against the package-derived budget.
+                    work = work.saturating_add(1).saturating_add(
+                        previous_specifier_len
+                            .map_or(0, |previous| specifier.len().saturating_sub(previous)),
+                    );
+                    previous_specifier_len = Some(specifier.len());
+                    if work > work_budget {
+                        return Err(ResolutionError::resource_limit(format!(
+                            "package-import rewrite work exceeded the {work_budget}-unit budget derived from observed package.json input"
+                        )));
+                    }
+
+                    let active = ActiveResolution {
+                        containing_directory: canonical_text(
+                            &containing_directory,
+                            self.path_context.use_case_sensitive_file_names(),
+                        ),
+                        specifier: specifier.clone(),
+                        mode: context.mode,
+                    };
+                    if self.active_resolutions.contains(&active) {
+                        ImportsTargetState::Result(Search::Continue)
+                    } else {
+                        self.active_resolutions.push(active);
+                        let relative = is_relative_specifier(&specifier);
+                        let preliminary = if relative {
+                            self.resolve_relative_with_passes(
+                                &containing_directory,
+                                &specifier,
+                                context.mode,
+                                &[context.pass],
+                                /* optional_follow_realpath */ false,
+                            )?
+                        } else {
+                            self.resolve_using_optional_settings(
+                                &containing_directory,
+                                &specifier,
+                                context.pass,
+                                context.mode,
+                                OptionalResolutionLoader::Node,
+                                /* follow_realpath */ false,
+                            )?
+                        };
+                        if matches!(preliminary, ResolutionOutcome::Resolved(_)) || relative {
+                            self.active_resolutions.pop();
+                            ImportsTargetState::Result(self.finish_bare_import_target(
+                                &containing_directory,
+                                &specifier,
+                                context,
+                                features,
+                                preliminary,
+                                /* resolved_package_directory */ false,
+                            )?)
+                        } else {
+                            let selected = if features.enable_imports
+                                && specifier.starts_with('#')
+                                && specifier != "#"
+                                && !(features.resolution_kind == 3 && specifier.starts_with("#/"))
+                            {
+                                if let Some(package) =
+                                    self.find_nearest_package_scope(&containing_directory)?
+                                {
+                                    let package_source = package
+                                        .metadata
+                                        .package_json()
+                                        .canonical()
+                                        .as_path()
+                                        .to_string_lossy()
+                                        .into_owned();
+                                    if budget_sources.insert(package_source) {
+                                        work_budget = work_budget.saturating_add(
+                                            package.metadata.text().len().saturating_mul(
+                                                PACKAGE_MAP_REWRITE_INPUT_MULTIPLIER,
+                                            ),
+                                        );
+                                    }
+                                    if let Some(table) =
+                                        package.imports.as_ref().and_then(Value::as_object)
+                                    {
+                                        let selected = select_package_map_target(
+                                            table,
+                                            &specifier,
+                                            context.exports_pattern_trailers,
+                                        )
+                                        .map(|selected| {
+                                            (
+                                                selected.target.clone(),
+                                                selected.subpath,
+                                                selected.pattern,
+                                            )
+                                        });
+                                        selected.map(|(target, subpath, pattern)| {
+                                            (package, target, subpath, pattern)
+                                        })
+                                    } else {
+                                        None
+                                    }
+                                } else {
+                                    None
+                                }
+                            } else {
+                                None
+                            };
+
+                            if let Some((package, target, subpath, pattern)) = selected {
+                                let package_key = canonical_text(
+                                    &package.root,
+                                    self.path_context.use_case_sensitive_file_names(),
+                                );
+                                self.active_package_maps.push(package_key);
+                                frames.push(ImportsTargetFrame::BareAfterPackageMap {
+                                    containing_directory,
+                                    specifier,
+                                    features,
+                                });
+                                ImportsTargetState::Target {
+                                    package,
+                                    target,
+                                    subpath,
+                                    pattern,
+                                }
+                            } else {
+                                let (outcome, resolved_package_directory) = self
+                                    .resolve_bare_import_target_tail(
+                                        &containing_directory,
+                                        &specifier,
+                                        context.pass,
+                                        context.mode,
+                                        features,
+                                    )?;
+                                self.active_resolutions.pop();
+                                ImportsTargetState::Result(self.finish_bare_import_target(
+                                    &containing_directory,
+                                    &specifier,
+                                    context,
+                                    features,
+                                    outcome,
+                                    resolved_package_directory,
+                                )?)
+                            }
+                        }
+                    }
+                }
+                ImportsTargetState::Target {
+                    package,
+                    target,
+                    subpath,
+                    pattern,
+                } => match target {
+                    Value::Null => {
+                        ImportsTargetState::Result(Search::Terminal(ResolutionOutcome::NotFound))
+                    }
+                    Value::String(raw_target) => {
+                        if !pattern && !subpath.is_empty() && !raw_target.ends_with('/') {
+                            ImportsTargetState::Result(Search::Continue)
+                        } else if !raw_target.starts_with("./") {
+                            match expand_imports_bare_target(&raw_target, &subpath, pattern)? {
+                                Some(specifier) => ImportsTargetState::Bare {
+                                    containing_directory: package.root.clone(),
+                                    specifier,
+                                },
+                                None => ImportsTargetState::Result(Search::Continue),
+                            }
+                        } else {
+                            let Some(target) = expand_export_target(
+                                &package.root,
+                                &raw_target,
+                                &subpath,
+                                pattern,
+                            )?
+                            else {
+                                state = ImportsTargetState::Result(Search::Continue);
+                                continue;
+                            };
+                            let candidate = normalize_absolute_path(Path::new(&target), None)?;
+                            if !path_is_within(&candidate, &package.root) {
+                                ImportsTargetState::Result(Search::Continue)
+                            } else {
+                                let resolved = self.probe_export_target(
+                                    &package,
+                                    &candidate,
+                                    context,
+                                    /* attach_package_id */ true,
+                                    /* raw_package_target */ Some(&raw_target),
+                                )?;
+                                if matches!(resolved, ResolutionOutcome::Resolved(_)) {
+                                    ImportsTargetState::Result(Search::Terminal(resolved))
+                                } else {
+                                    ImportsTargetState::Result(Search::Continue)
+                                }
+                            }
+                        }
+                    }
+                    Value::Object(conditions) => {
+                        let mut remaining = js_own_property_entries(&conditions)
+                            .into_iter()
+                            .filter(|(condition, _)| {
+                                self.package_condition_matches(
+                                    condition,
+                                    context.mode,
+                                    context.resolution_kind,
+                                )
+                            })
+                            .map(|(_, target)| target.clone())
+                            .collect::<Vec<_>>()
+                            .into_iter();
+                        if let Some(target) = remaining.next() {
+                            frames.push(ImportsTargetFrame::Sequence {
+                                package: Rc::clone(&package),
+                                remaining,
+                                subpath: subpath.clone(),
+                                pattern,
+                            });
+                            ImportsTargetState::Target {
+                                package,
+                                target,
+                                subpath,
+                                pattern,
+                            }
+                        } else {
+                            ImportsTargetState::Result(Search::Continue)
+                        }
+                    }
+                    Value::Array(targets) => {
+                        let mut remaining = targets.into_iter();
+                        if let Some(target) = remaining.next() {
+                            frames.push(ImportsTargetFrame::Sequence {
+                                package: Rc::clone(&package),
+                                remaining,
+                                subpath: subpath.clone(),
+                                pattern,
+                            });
+                            ImportsTargetState::Target {
+                                package,
+                                target,
+                                subpath,
+                                pattern,
+                            }
+                        } else {
+                            ImportsTargetState::Result(Search::Continue)
+                        }
+                    }
+                    Value::Bool(_) | Value::Number(_) => {
+                        ImportsTargetState::Result(Search::Continue)
+                    }
+                },
+                ImportsTargetState::Result(result) => {
+                    let Some(frame) = frames.pop() else {
+                        return Ok(result);
+                    };
+                    match frame {
+                        ImportsTargetFrame::Sequence {
+                            package,
+                            mut remaining,
+                            subpath,
+                            pattern,
+                        } => match result {
+                            Search::Terminal(outcome) => {
+                                ImportsTargetState::Result(Search::Terminal(outcome))
+                            }
+                            Search::Continue => {
+                                if let Some(target) = remaining.next() {
+                                    frames.push(ImportsTargetFrame::Sequence {
+                                        package: Rc::clone(&package),
+                                        remaining,
+                                        subpath: subpath.clone(),
+                                        pattern,
+                                    });
+                                    ImportsTargetState::Target {
+                                        package,
+                                        target,
+                                        subpath,
+                                        pattern,
+                                    }
+                                } else {
+                                    ImportsTargetState::Result(Search::Continue)
+                                }
+                            }
+                        },
+                        ImportsTargetFrame::BareAfterPackageMap {
+                            containing_directory,
+                            specifier,
+                            features,
+                        } => {
+                            self.active_package_maps.pop();
+                            let (outcome, resolved_package_directory) = match result {
+                                Search::Terminal(outcome) => (outcome, false),
+                                Search::Continue => self.resolve_bare_import_target_tail(
+                                    &containing_directory,
+                                    &specifier,
+                                    context.pass,
+                                    context.mode,
+                                    features,
+                                )?,
+                            };
+                            self.active_resolutions.pop();
+                            ImportsTargetState::Result(self.finish_bare_import_target(
+                                &containing_directory,
+                                &specifier,
+                                context,
+                                features,
+                                outcome,
+                                resolved_package_directory,
+                            )?)
+                        }
+                    }
+                }
+            };
+        }
+    }
+
+    #[allow(clippy::too_many_arguments)] // Mirrors the nested worker's observable result state.
+    fn finish_bare_import_target(
+        &mut self,
+        containing_directory: &str,
+        specifier: &str,
+        context: ExportProbeContext,
+        features: BareResolutionFeatures,
+        mut outcome: ResolutionOutcome<HostResolvedModule>,
+        resolved_package_directory: bool,
+    ) -> Result<Search<HostResolvedModule>, ResolutionError> {
+        self.run_nested_diagnostic_retry(
+            containing_directory,
+            specifier,
+            context.pass,
+            context.mode,
+            features,
+            resolved_package_directory,
+            &outcome,
+        )?;
+        if let ResolutionOutcome::Resolved(module) = &mut outcome {
+            if module.is_external_library_import() {
+                self.follow_module_realpath(module)?;
+            }
+            module.is_external_library_import = false;
+            module.alternate_result = None;
+            return Ok(Search::Terminal(outcome));
+        }
+        Ok(Search::Continue)
+    }
+
+    #[allow(clippy::too_many_arguments)] // Mirrors the nested worker's observable retry state.
+    fn run_nested_diagnostic_retry(
+        &mut self,
+        containing_directory: &str,
+        specifier: &str,
+        probe_pass: ExtensionProbePass,
+        mode: ResolutionMode,
+        features: BareResolutionFeatures,
+        resolved_package_directory: bool,
+        outcome: &ResolutionOutcome<HostResolvedModule>,
+    ) -> Result<(), ResolutionError> {
+        if !resolved_package_directory {
+            return Ok(());
+        }
+        let wanted_types_but_got_other = matches!(
+            outcome,
+            ResolutionOutcome::Resolved(module)
+                if probe_pass_has_declaration(probe_pass)
+                    && !is_typescript_module_extension(module.extension())
+        );
+        let retry_without_exports = features.use_package_exports
+            && self.package_condition_matches("import", mode, features.resolution_kind)
+            && matches!(
+                outcome,
+                ResolutionOutcome::Resolved(module)
+                    if module.is_external_library_import() && wanted_types_but_got_other
+            );
+        let retry_with_bundler = !retry_without_exports
+            && features.resolution_kind == 2
+            && (matches!(outcome, ResolutionOutcome::NotFound) || wanted_types_but_got_other);
+        if !retry_without_exports && !retry_with_bundler {
+            return Ok(());
+        }
+        let request = parse_package_request(specifier)?;
+        let diagnostic_pass = preferred_diagnostic_pass(probe_pass);
+        if retry_without_exports {
+            let _ = self.resolve_modern_preferred_without_exports(
+                containing_directory,
+                specifier,
+                &request,
+                mode,
+                diagnostic_pass,
+                features.enable_imports,
+                features.resolution_kind,
+            )?;
+        } else {
+            let _ = self.resolve_bundler_preferred_non_relative(
+                containing_directory,
+                specifier,
+                &request,
+                diagnostic_pass,
+                features.enable_imports || features.enable_self_name,
+            )?;
+        }
+        Ok(())
+    }
+
+    fn resolve_bare_import_target_tail(
+        &mut self,
+        containing_directory: &str,
+        specifier: &str,
+        probe_pass: ExtensionProbePass,
+        mode: ResolutionMode,
+        features: BareResolutionFeatures,
+    ) -> Result<(ResolutionOutcome<HostResolvedModule>, bool), ResolutionError> {
+        let request = parse_package_request(specifier)?;
+        if features.enable_self_name {
+            if let Search::Terminal(outcome) = self.try_self_reference(
+                containing_directory,
+                &request,
+                mode,
+                probe_pass,
+                Some(features.resolution_kind),
+            )? {
+                return Ok((outcome, false));
+            }
+        }
+        if specifier.contains(':') {
+            return Ok((ResolutionOutcome::NotFound, false));
+        }
+        if matches!(probe_pass, ExtensionProbePass::Empty) {
+            return Ok((ResolutionOutcome::NotFound, false));
+        }
+        let all_passes = [ExtensionProbePass::Preferred, ExtensionProbePass::Fallback];
+        let one_pass = [probe_pass];
+        let passes = if matches!(probe_pass, ExtensionProbePass::All) {
+            all_passes.as_slice()
+        } else {
+            one_pass.as_slice()
+        };
+        let mut resolved_package_directory = false;
+        for &node_modules_pass in passes {
+            let (outcome, observed_package_directory) = self.resolve_from_node_modules_pass(
+                containing_directory,
+                &request,
+                node_modules_pass,
+                mode,
+                features,
+            )?;
+            resolved_package_directory |= observed_package_directory;
+            if matches!(outcome, ResolutionOutcome::Resolved(_)) {
+                return Ok((outcome, resolved_package_directory));
+            }
+        }
+        if probe_pass_has_declaration(probe_pass) {
+            let outcome = self.resolve_module_from_type_roots(specifier, mode)?;
+            Ok((outcome, resolved_package_directory))
+        } else {
+            Ok((ResolutionOutcome::NotFound, resolved_package_directory))
+        }
+    }
+
+    fn resolve_from_node_modules_pass(
+        &mut self,
+        containing_directory: &str,
+        request: &PackageRequest<'_>,
+        probe_pass: ExtensionProbePass,
+        mode: ResolutionMode,
+        features: BareResolutionFeatures,
+    ) -> Result<(ResolutionOutcome<HostResolvedModule>, bool), ResolutionError> {
+        let mut resolved_package_directory = false;
+        for ancestor in ancestor_directories(containing_directory) {
+            if base_name(&ancestor) == "node_modules" {
+                continue;
+            }
+            let node_modules = join_normalized(&ancestor, "node_modules");
+            if !self.host.directory_exists(Path::new(&node_modules))? {
+                continue;
+            }
+            let package_root = package_root_for_request(&node_modules, request);
+            let specific = self.resolve_specific_package(
+                &package_root,
+                &request.exports_subpath,
+                probe_pass,
+                mode,
+                features.use_package_exports,
+                Some(features.resolution_kind),
+                /* follow_realpath */ false,
+            )?;
+            resolved_package_directory |= specific.root_package_observed;
+            if matches!(specific.outcome, ResolutionOutcome::Resolved(_)) {
+                return Ok((specific.outcome, resolved_package_directory));
+            }
+
+            if probe_pass_has_declaration(probe_pass) {
+                let at_types = join_normalized(&node_modules, "@types");
+                if self.host.directory_exists(Path::new(&at_types))? {
+                    let package_root = types_package_root_for_request(&at_types, request);
+                    let specific = self.resolve_specific_package(
+                        &package_root,
+                        &request.exports_subpath,
+                        ExtensionProbePass::Declaration,
+                        mode,
+                        features.use_package_exports,
+                        Some(features.resolution_kind),
+                        /* follow_realpath */ false,
+                    )?;
+                    resolved_package_directory |= specific.root_package_observed;
+                    if matches!(specific.outcome, ResolutionOutcome::Resolved(_)) {
+                        return Ok((specific.outcome, resolved_package_directory));
+                    }
+                }
+            }
+        }
+        Ok((ResolutionOutcome::NotFound, resolved_package_directory))
     }
 
     fn resolve_non_relative_inner(
@@ -1505,26 +2340,41 @@ impl<'a> ModuleResolver<'a> {
             ExtensionProbePass::All,
             mode,
             OptionalResolutionLoader::Node,
+            /* follow_realpath */ false,
         )?;
         if matches!(optional, ResolutionOutcome::Resolved(_)) {
             return Ok(optional);
         }
         if specifier.starts_with('#') {
-            if let Search::Terminal(outcome) =
-                self.resolve_package_imports(containing_directory, specifier, mode)?
-            {
+            if let Search::Terminal(outcome) = self.resolve_package_imports(
+                containing_directory,
+                specifier,
+                mode,
+                ExtensionProbePass::All,
+                /* force_enabled */ self.module_imports_feature_is_hardcoded(),
+                /* use_package_exports */ self.module_exports_feature_enabled(),
+                /* resolution_kind */ None,
+            )? {
                 return Ok(outcome);
             }
         }
         let request = parse_package_request(specifier)?;
 
-        if let Search::Terminal(outcome) =
-            self.try_self_reference(containing_directory, &request, mode)?
-        {
+        if let Search::Terminal(outcome) = self.try_self_reference(
+            containing_directory,
+            &request,
+            mode,
+            ExtensionProbePass::All,
+            /* resolution_kind */ None,
+        )? {
             return Ok(outcome);
         }
 
-        self.resolve_from_node_modules(containing_directory, &request, mode)
+        if specifier.contains(':') {
+            return Ok(ResolutionOutcome::NotFound);
+        }
+
+        self.resolve_from_node_modules(containing_directory, specifier, &request, mode)
     }
 
     fn validate_supported_type_reference_configuration(
@@ -1541,6 +2391,20 @@ impl<'a> ModuleResolver<'a> {
             ));
         }
         self.validate_common_configuration()
+    }
+
+    fn module_exports_feature_enabled(&self) -> bool {
+        match self.options.emit_module_resolution_kind() {
+            // Node16 and NodeNext wrappers pass their fixed feature masks;
+            // only Bundler computes feature overrides from compiler options.
+            3 | 99 => true,
+            100 => self.options.resolve_package_json_exports != Some(false),
+            _ => self.options.resolve_package_json_exports == Some(true),
+        }
+    }
+
+    fn module_imports_feature_is_hardcoded(&self) -> bool {
+        matches!(self.options.emit_module_resolution_kind(), 3 | 99)
     }
 
     /// tsc-port: getNodeResolutionFeatures @6.0.3
@@ -1613,10 +2477,9 @@ impl<'a> ModuleResolver<'a> {
         containing_directory: &str,
         request: &PackageRequest<'_>,
         mode: ResolutionMode,
+        probe_pass: ExtensionProbePass,
+        resolution_kind: Option<i32>,
     ) -> Result<Search<HostResolvedModule>, ResolutionError> {
-        if self.options.resolve_package_json_exports == Some(false) {
-            return Ok(Search::Continue);
-        }
         let Some(package) = self.find_nearest_package_scope(containing_directory)? else {
             return Ok(Search::Continue);
         };
@@ -1635,36 +2498,78 @@ impl<'a> ModuleResolver<'a> {
             return Ok(Search::Continue);
         }
         if package.metadata.name() != Some(request.package_name)
-            || matches!(package.exports.as_ref(), None | Some(Value::Null))
+            || !package
+                .exports
+                .as_ref()
+                .is_some_and(js_json_value_is_truthy)
         {
             return Ok(Search::Continue);
         }
 
-        self.search_package_exports(
-            &package,
-            &request.exports_subpath,
-            /* is_external_library_import */ false,
-            ExtensionProbePass::All,
-            mode,
-            self.options.emit_module_resolution_kind(),
-        )
+        // This one fast-path uses pathContainsNodeModules' literal
+        // `/node_modules/` substring test upstream. A containing directory
+        // ending exactly in `node_modules` therefore remains local here.
+        let preserve_combined_pass =
+            self.options.allow_js && !containing_directory.contains("/node_modules/");
+        let split_passes = match probe_pass {
+            ExtensionProbePass::All => {
+                [ExtensionProbePass::Preferred, ExtensionProbePass::Fallback]
+            }
+            ExtensionProbePass::Preferred => {
+                [ExtensionProbePass::Preferred, ExtensionProbePass::Empty]
+            }
+            ExtensionProbePass::Declaration => {
+                [ExtensionProbePass::Declaration, ExtensionProbePass::Empty]
+            }
+            ExtensionProbePass::Fallback => {
+                [ExtensionProbePass::Empty, ExtensionProbePass::Fallback]
+            }
+            ExtensionProbePass::Empty => [ExtensionProbePass::Empty, ExtensionProbePass::Empty],
+        };
+        let one_pass = [probe_pass];
+        let passes = if preserve_combined_pass {
+            one_pass.as_slice()
+        } else {
+            split_passes.as_slice()
+        };
+        for &self_name_pass in passes {
+            let result = self.search_package_exports(
+                &package,
+                &request.exports_subpath,
+                /* is_external_library_import */ false,
+                self_name_pass,
+                mode,
+                resolution_kind.unwrap_or_else(|| self.options.emit_module_resolution_kind()),
+                /* follow_realpath */ false,
+            )?;
+            if !matches!(result, Search::Continue) {
+                return Ok(result);
+            }
+        }
+        Ok(Search::Continue)
     }
 
     /// tsc-port: loadModuleFromImports @6.0.3
     /// tsc-hash: 4f4510daf578be52814574369949af61fa39b610fef58eadc272282bfd77f6d5
     /// tsc-span: _tsc.js:41534-41586
+    #[allow(clippy::too_many_arguments)] // Keeps the upstream package-map feature mask explicit.
     fn resolve_package_imports(
         &mut self,
         containing_directory: &str,
         specifier: &str,
         mode: ResolutionMode,
+        probe_pass: ExtensionProbePass,
+        force_enabled: bool,
+        use_package_exports: bool,
+        resolution_kind: Option<i32>,
     ) -> Result<Search<HostResolvedModule>, ResolutionError> {
-        if self.options.resolve_package_json_imports == Some(false) {
+        if !force_enabled && self.options.resolve_package_json_imports == Some(false) {
             return Ok(Search::Continue);
         }
-        let resolution_kind = self.options.emit_module_resolution_kind();
+        let resolution_kind =
+            resolution_kind.unwrap_or_else(|| self.options.emit_module_resolution_kind());
         if specifier == "#" || (specifier.starts_with("#/") && resolution_kind == 3) {
-            return Ok(Search::Terminal(ResolutionOutcome::NotFound));
+            return Ok(Search::Continue);
         }
         let Some(package) = self.find_nearest_package_scope(containing_directory)? else {
             return Ok(Search::Continue);
@@ -1687,10 +2592,18 @@ impl<'a> ModuleResolver<'a> {
             specifier,
             ExportProbeContext {
                 is_external_library_import: false,
-                pass: ExtensionProbePass::All,
+                follow_realpath: false,
+                pass: probe_pass,
                 mode,
                 resolution_kind,
+                exports_pattern_trailers: exports_pattern_trailers_enabled(mode, resolution_kind),
                 kind: PackageMapKind::Imports,
+                bare_features: Some(BareResolutionFeatures {
+                    use_package_exports,
+                    enable_imports: true,
+                    enable_self_name: true,
+                    resolution_kind,
+                }),
             },
         );
         self.active_package_maps.pop();
@@ -1700,9 +2613,11 @@ impl<'a> ModuleResolver<'a> {
     fn resolve_from_node_modules(
         &mut self,
         containing_directory: &str,
+        specifier: &str,
         request: &PackageRequest<'_>,
         mode: ResolutionMode,
     ) -> Result<ResolutionOutcome<HostResolvedModule>, ResolutionError> {
+        let mut resolved_package_directory = false;
         for probe_pass in [ExtensionProbePass::Preferred, ExtensionProbePass::Fallback] {
             for ancestor in ancestor_directories(containing_directory) {
                 if base_name(&ancestor) == "node_modules" {
@@ -1712,119 +2627,223 @@ impl<'a> ModuleResolver<'a> {
                 if !self.host.directory_exists(Path::new(&node_modules))? {
                     continue;
                 }
-                let package_root = join_normalized(&node_modules, request.package_name);
-                let package = if self.host.directory_exists(Path::new(&package_root))? {
-                    let package_json = join_normalized(&package_root, "package.json");
-                    self.load_package(&package_json)?
-                } else {
-                    None
-                };
-                if let Some(package) = package {
-                    let uses_exports = self.options.resolve_package_json_exports != Some(false)
-                        && !matches!(package.exports.as_ref(), None | Some(Value::Null));
-                    if !uses_exports
-                        && request.exports_subpath == "."
-                        && !self.is_node_esm_mode(mode)
-                    {
-                        let direct = self.probe_legacy_file(
-                            Some(&package),
-                            &package_root,
-                            probe_pass,
-                            /* allow_implicit */ true,
-                            LegacyResolutionContext {
-                                is_external_library_import: true,
-                                attach_package_id: true,
-                                resolved_using_ts_extension: false,
-                                follow_realpath: true,
-                            },
-                        )?;
-                        if matches!(direct, ResolutionOutcome::Resolved(_)) {
-                            return Ok(direct);
-                        }
-                    }
-                    let mut outcome = if uses_exports {
-                        self.resolve_package_exports(
-                            &package,
-                            &request.exports_subpath,
-                            /* is_external_library_import */ true,
-                            probe_pass,
-                            mode,
-                        )?
-                    } else {
-                        self.resolve_legacy_package(
-                            &package,
-                            &request.exports_subpath,
-                            probe_pass,
-                            mode,
-                            LegacyResolutionContext {
-                                is_external_library_import: true,
-                                attach_package_id: true,
-                                resolved_using_ts_extension: false,
-                                follow_realpath: true,
-                            },
-                            /* allow_node_esm_index_fallback */ true,
-                        )?
-                    };
-                    if let ResolutionOutcome::Resolved(module) = &mut outcome {
-                        if uses_exports
-                            && mode == ResolutionMode::EsNext
-                            && module.extension().is_javascript()
-                        {
-                            if let ResolutionOutcome::Resolved(alternate) = self
-                                .resolve_legacy_package(
-                                    &package,
-                                    &request.exports_subpath,
-                                    ExtensionProbePass::Preferred,
-                                    mode,
-                                    LegacyResolutionContext {
-                                        is_external_library_import: true,
-                                        attach_package_id: true,
-                                        resolved_using_ts_extension: false,
-                                        follow_realpath: true,
-                                    },
-                                    /* allow_node_esm_index_fallback */ true,
-                                )?
-                            {
-                                module.alternate_result = Some(alternate.resolved_file().clone());
-                            }
-                        }
-                        return Ok(outcome);
-                    }
-                } else {
-                    let outcome = self.resolve_manifestless_package(
-                        &package_root,
-                        &request.exports_subpath,
-                        probe_pass,
+                let package_root = package_root_for_request(&node_modules, request);
+                let specific = self.resolve_specific_package(
+                    &package_root,
+                    &request.exports_subpath,
+                    probe_pass,
+                    mode,
+                    self.module_exports_feature_enabled(),
+                    None,
+                    /* follow_realpath */ false,
+                )?;
+                resolved_package_directory |= specific.root_package_observed;
+                if matches!(specific.outcome, ResolutionOutcome::Resolved(_)) {
+                    return self.attach_modern_alternate(
+                        containing_directory,
+                        specifier,
+                        request,
                         mode,
-                    )?;
-                    if matches!(outcome, ResolutionOutcome::Resolved(_)) {
-                        return Ok(outcome);
-                    }
+                        resolved_package_directory,
+                        specific.outcome,
+                    );
                 }
 
                 if matches!(probe_pass, ExtensionProbePass::Preferred) {
                     let at_types = join_normalized(&node_modules, "@types");
                     if self.host.directory_exists(Path::new(&at_types))? {
-                        let types_package = join_normalized(
-                            &at_types,
-                            &mangle_scoped_package_name(request.package_name),
-                        );
-                        let use_package_exports =
-                            self.options.resolve_package_json_exports != Some(false);
-                        let outcome = self.resolve_declaration_package(
+                        let types_package = types_package_root_for_request(&at_types, request);
+                        let specific = self.resolve_specific_package(
                             &types_package,
                             &request.exports_subpath,
+                            ExtensionProbePass::Declaration,
                             mode,
-                            use_package_exports,
+                            self.module_exports_feature_enabled(),
+                            None,
+                            /* follow_realpath */ false,
                         )?;
-                        if matches!(outcome, ResolutionOutcome::Resolved(_)) {
-                            return Ok(outcome);
+                        resolved_package_directory |= specific.root_package_observed;
+                        if matches!(specific.outcome, ResolutionOutcome::Resolved(_)) {
+                            return self.attach_modern_alternate(
+                                containing_directory,
+                                specifier,
+                                request,
+                                mode,
+                                resolved_package_directory,
+                                specific.outcome,
+                            );
                         }
                     }
                 }
             }
         }
-        Ok(ResolutionOutcome::NotFound)
+        let outcome = self.resolve_module_from_type_roots(specifier, mode)?;
+        self.attach_modern_alternate(
+            containing_directory,
+            specifier,
+            request,
+            mode,
+            resolved_package_directory,
+            outcome,
+        )
+    }
+
+    fn attach_modern_alternate(
+        &mut self,
+        containing_directory: &str,
+        specifier: &str,
+        request: &PackageRequest<'_>,
+        mode: ResolutionMode,
+        resolved_package_directory: bool,
+        mut outcome: ResolutionOutcome<HostResolvedModule>,
+    ) -> Result<ResolutionOutcome<HostResolvedModule>, ResolutionError> {
+        let should_retry = resolved_package_directory
+            && self.module_exports_feature_enabled()
+            && self.package_condition_matches(
+                "import",
+                mode,
+                self.options.emit_module_resolution_kind(),
+            )
+            && matches!(
+                &outcome,
+                ResolutionOutcome::Resolved(module)
+                    if module.is_external_library_import()
+                        && !is_typescript_module_extension(module.extension())
+            );
+        if !should_retry {
+            return Ok(outcome);
+        }
+        let alternate = self.resolve_modern_preferred_without_exports(
+            containing_directory,
+            specifier,
+            request,
+            mode,
+            ExtensionProbePass::Preferred,
+            /* force_package_maps */ self.module_imports_feature_is_hardcoded(),
+            self.options.emit_module_resolution_kind(),
+        )?;
+        if let (ResolutionOutcome::Resolved(primary), ResolutionOutcome::Resolved(alternate)) =
+            (&mut outcome, alternate)
+        {
+            if alternate.is_external_library_import() {
+                primary.alternate_result = Some(alternate.resolved_file().clone());
+            }
+        }
+        Ok(outcome)
+    }
+
+    /// Re-run the complete preferred-extension non-relative search with only
+    /// the package-exports feature disabled. This is diagnostic-only: its
+    /// lexical result becomes `alternateResult`, while the primary result is
+    /// realpathed only after this attempt has completed.
+    #[allow(clippy::too_many_arguments)] // Diagnostic re-entry owns an independent resolver profile.
+    fn resolve_modern_preferred_without_exports(
+        &mut self,
+        containing_directory: &str,
+        specifier: &str,
+        request: &PackageRequest<'_>,
+        mode: ResolutionMode,
+        probe_pass: ExtensionProbePass,
+        force_package_maps: bool,
+        resolution_kind: i32,
+    ) -> Result<ResolutionOutcome<HostResolvedModule>, ResolutionError> {
+        let optional = self.resolve_using_optional_settings(
+            containing_directory,
+            specifier,
+            probe_pass,
+            mode,
+            OptionalResolutionLoader::Node,
+            /* follow_realpath */ false,
+        )?;
+        if matches!(optional, ResolutionOutcome::Resolved(_)) {
+            return Ok(optional);
+        }
+
+        if specifier.starts_with('#') {
+            if let Search::Terminal(outcome) = self.resolve_package_imports(
+                containing_directory,
+                specifier,
+                mode,
+                probe_pass,
+                force_package_maps,
+                /* use_package_exports */ false,
+                /* resolution_kind */ Some(resolution_kind),
+            )? {
+                return Ok(outcome);
+            }
+        }
+
+        // Clearing Exports does not clear SelfName. A successful self-name
+        // result is local and therefore will not be published as an alternate,
+        // but it still owns this diagnostic attempt just as it does upstream.
+        if let Search::Terminal(outcome) = self.try_self_reference(
+            containing_directory,
+            request,
+            mode,
+            probe_pass,
+            /* resolution_kind */ Some(resolution_kind),
+        )? {
+            return Ok(outcome);
+        }
+
+        if specifier.contains(':') {
+            return Ok(ResolutionOutcome::NotFound);
+        }
+        if matches!(probe_pass, ExtensionProbePass::Empty) {
+            return Ok(ResolutionOutcome::NotFound);
+        }
+
+        for ancestor in ancestor_directories(containing_directory) {
+            if base_name(&ancestor) == "node_modules" {
+                continue;
+            }
+            let node_modules = join_normalized(&ancestor, "node_modules");
+            if !self.host.directory_exists(Path::new(&node_modules))? {
+                continue;
+            }
+            let package_root = package_root_for_request(&node_modules, request);
+            let outcome = self
+                .resolve_specific_package(
+                    &package_root,
+                    &request.exports_subpath,
+                    probe_pass,
+                    mode,
+                    /* use_package_exports */ false,
+                    Some(resolution_kind),
+                    /* follow_realpath */ false,
+                )?
+                .outcome;
+            if matches!(outcome, ResolutionOutcome::Resolved(_)) {
+                return Ok(outcome);
+            }
+
+            if probe_pass_has_declaration(probe_pass) {
+                let at_types = join_normalized(&node_modules, "@types");
+                if !self.host.directory_exists(Path::new(&at_types))? {
+                    continue;
+                }
+                let package_root = types_package_root_for_request(&at_types, request);
+                let outcome = self
+                    .resolve_specific_package(
+                        &package_root,
+                        &request.exports_subpath,
+                        ExtensionProbePass::Declaration,
+                        mode,
+                        /* use_package_exports */ false,
+                        Some(resolution_kind),
+                        /* follow_realpath */ false,
+                    )?
+                    .outcome;
+                if matches!(outcome, ResolutionOutcome::Resolved(_)) {
+                    return Ok(outcome);
+                }
+            }
+        }
+        if probe_pass_has_declaration(probe_pass) {
+            self.resolve_module_from_type_roots(specifier, mode)
+        } else {
+            Ok(ResolutionOutcome::NotFound)
+        }
     }
 
     /// Resolve one package candidate with declaration extensions only. This is
@@ -1841,123 +2860,186 @@ impl<'a> ModuleResolver<'a> {
         mode: ResolutionMode,
         use_package_exports: bool,
     ) -> Result<ResolutionOutcome<HostResolvedModule>, ResolutionError> {
+        self.resolve_specific_package(
+            package_root,
+            exports_subpath,
+            ExtensionProbePass::Declaration,
+            mode,
+            use_package_exports,
+            None,
+            /* follow_realpath */ true,
+        )
+        .map(|result| result.outcome)
+    }
+
+    /// tsc-port: loadModuleFromSpecificNodeModulesDirectory @6.0.3
+    /// tsc-hash: cea26d829ab986a3959897a336dc743f1787f9b7880bb1c5d6f6849c6ea69153
+    /// tsc-span: _tsc.js:41979-42035
+    ///
+    /// The candidate package.json (a nested subpath boundary) is observed
+    /// before the root manifest. Every ordinary, @types, diagnostic Bundler,
+    /// and type-reference node_modules path must pass through this worker so
+    /// those observations and the root direct-file phase stay identical.
+    #[allow(clippy::too_many_arguments)] // The specific-package worker preserves each tsc latch.
+    fn resolve_specific_package(
+        &mut self,
+        package_root: &str,
+        exports_subpath: &str,
+        probe_pass: ExtensionProbePass,
+        mode: ResolutionMode,
+        use_package_exports: bool,
+        exports_resolution_kind: Option<i32>,
+        follow_realpath: bool,
+    ) -> Result<SpecificPackageResolution, ResolutionError> {
         let rest = package_subpath(exports_subpath)?;
         let mut root_package = None;
         let mut root_package_loaded = false;
+        let candidate = rest
+            .map(|rest| {
+                normalize_absolute_path(Path::new(&join_normalized(package_root, rest)), None)
+            })
+            .transpose()?
+            .unwrap_or_else(|| package_root.to_owned());
+        let candidate_package = self.load_package(&join_normalized(&candidate, "package.json"))?;
 
         // A package subpath is itself allowed to be a package boundary. The
         // candidate manifest is observed before the root manifest, even when
         // the root exports map will ultimately own the request.
-        if let Some(rest) = rest {
-            let candidate =
-                normalize_absolute_path(Path::new(&join_normalized(package_root, rest)), None)?;
-            let nested_package = self.load_package(&join_normalized(&candidate, "package.json"))?;
-            if let Some(nested_package) = nested_package {
+        if rest.is_some() {
+            if let Some(nested_package) = candidate_package.as_ref() {
                 let root_exports_govern = if use_package_exports {
-                    root_package = self.load_declaration_package_manifest(package_root)?;
+                    root_package =
+                        self.load_package(&join_normalized(package_root, "package.json"))?;
                     root_package_loaded = true;
                     root_package
                         .as_ref()
-                        .is_some_and(|package| package.exports.is_some())
+                        .is_some_and(|package| package.has_own_exports)
                 } else {
                     false
                 };
                 if !root_exports_govern {
-                    return self.resolve_nested_declaration_package(
+                    let outcome = self.resolve_nested_legacy_package(
                         &candidate,
-                        rest,
-                        &nested_package,
+                        nested_package,
+                        probe_pass,
                         mode,
-                    );
+                        follow_realpath,
+                    )?;
+                    return Ok(SpecificPackageResolution {
+                        outcome,
+                        root_package_observed: false,
+                    });
                 }
             }
         }
 
         let package = if root_package_loaded {
             root_package
+        } else if rest.is_none() {
+            candidate_package
         } else {
-            self.load_declaration_package_manifest(package_root)?
+            self.load_package(&join_normalized(package_root, "package.json"))?
         };
         if let Some(package) = package {
             let uses_exports = use_package_exports
-                && !matches!(package.exports.as_ref(), None | Some(Value::Null));
+                && package
+                    .exports
+                    .as_ref()
+                    .is_some_and(js_json_value_is_truthy);
             if !uses_exports && exports_subpath == "." && !self.is_node_esm_mode(mode) {
                 let direct = self.probe_legacy_file(
                     Some(&package),
                     package_root,
-                    ExtensionProbePass::Declaration,
+                    probe_pass,
                     /* allow_implicit */ true,
                     LegacyResolutionContext {
                         is_external_library_import: true,
                         attach_package_id: true,
                         resolved_using_ts_extension: false,
-                        follow_realpath: true,
+                        follow_realpath,
                     },
                 )?;
                 if matches!(direct, ResolutionOutcome::Resolved(_)) {
-                    return Ok(direct);
+                    return Ok(SpecificPackageResolution {
+                        outcome: direct,
+                        root_package_observed: true,
+                    });
                 }
             }
-            if uses_exports {
-                self.resolve_package_exports(
-                    &package,
-                    exports_subpath,
-                    /* is_external_library_import */ true,
-                    ExtensionProbePass::Declaration,
-                    mode,
-                )
+            let outcome = if uses_exports {
+                if let Some(resolution_kind) = exports_resolution_kind {
+                    self.resolve_package_exports_with_resolution_kind(
+                        &package,
+                        exports_subpath,
+                        /* is_external_library_import */ true,
+                        probe_pass,
+                        mode,
+                        resolution_kind,
+                        follow_realpath,
+                    )?
+                } else {
+                    self.resolve_package_exports(
+                        &package,
+                        exports_subpath,
+                        /* is_external_library_import */ true,
+                        probe_pass,
+                        mode,
+                        follow_realpath,
+                    )?
+                }
             } else {
                 self.resolve_legacy_package(
                     &package,
                     exports_subpath,
-                    ExtensionProbePass::Declaration,
+                    probe_pass,
                     mode,
                     LegacyResolutionContext {
                         is_external_library_import: true,
                         attach_package_id: true,
                         resolved_using_ts_extension: false,
-                        follow_realpath: true,
+                        follow_realpath,
                     },
+                    Some(&candidate),
                     /* allow_node_esm_index_fallback */ true,
-                )
-            }
+                )?
+            };
+            Ok(SpecificPackageResolution {
+                outcome,
+                root_package_observed: true,
+            })
         } else {
-            self.resolve_manifestless_package(
+            let outcome = self.resolve_manifestless_package(
                 package_root,
                 exports_subpath,
-                ExtensionProbePass::Declaration,
+                probe_pass,
                 mode,
-            )
+                follow_realpath,
+            )?;
+            Ok(SpecificPackageResolution {
+                outcome,
+                root_package_observed: false,
+            })
         }
     }
 
-    fn load_declaration_package_manifest(
-        &mut self,
-        package_root: &str,
-    ) -> Result<Option<Rc<CachedPackage>>, ResolutionError> {
-        if !self.host.directory_exists(Path::new(package_root))? {
-            return Ok(None);
-        }
-        self.load_package(&join_normalized(package_root, "package.json"))
-    }
-
-    fn resolve_nested_declaration_package(
+    fn resolve_nested_legacy_package(
         &self,
         candidate: &str,
-        written_subpath: &str,
         package: &CachedPackage,
+        probe_pass: ExtensionProbePass,
         mode: ResolutionMode,
+        follow_realpath: bool,
     ) -> Result<ResolutionOutcome<HostResolvedModule>, ResolutionError> {
         let direct = self.probe_legacy_file(
             None,
             candidate,
-            ExtensionProbePass::Declaration,
+            probe_pass,
             /* allow_implicit */ !self.is_node_esm_mode(mode),
             LegacyResolutionContext {
                 is_external_library_import: true,
                 attach_package_id: false,
-                resolved_using_ts_extension: is_typescript_family_specifier(written_subpath),
-                follow_realpath: true,
+                resolved_using_ts_extension: is_typescript_family_specifier(candidate),
+                follow_realpath,
             },
         )?;
         if matches!(direct, ResolutionOutcome::Resolved(_)) {
@@ -1966,14 +3048,15 @@ impl<'a> ModuleResolver<'a> {
         self.resolve_legacy_package(
             package,
             ".",
-            ExtensionProbePass::Declaration,
+            probe_pass,
             mode,
             LegacyResolutionContext {
                 is_external_library_import: true,
                 attach_package_id: true,
                 resolved_using_ts_extension: false,
-                follow_realpath: true,
+                follow_realpath,
             },
+            Some(candidate),
             /* allow_node_esm_index_fallback */ false,
         )
     }
@@ -2016,12 +3099,38 @@ impl<'a> ModuleResolver<'a> {
         &self.type_root_base_directory
     }
 
+    fn resolve_module_from_type_roots(
+        &mut self,
+        specifier: &str,
+        mode: ResolutionMode,
+    ) -> Result<ResolutionOutcome<HostResolvedModule>, ResolutionError> {
+        let Some(configured_type_roots) = self.type_roots.clone() else {
+            return Ok(ResolutionOutcome::NotFound);
+        };
+        let effective_type_roots = self.effective_type_roots(Some(&configured_type_roots))?;
+        for type_root in effective_type_roots {
+            let outcome = self.resolve_type_reference_from_root(
+                &type_root, specifier, mode, /* custom_type_roots */ true,
+                /* follow_realpath */ false,
+            )?;
+            if let ResolutionOutcome::Resolved(mut module) = outcome {
+                // resolveFromTypeRoot is entered from the non-relative node
+                // resolver and wraps even a custom local root as an external
+                // library import. Primary realpath is deferred to the caller.
+                module.is_external_library_import = true;
+                return Ok(ResolutionOutcome::Resolved(module));
+            }
+        }
+        Ok(ResolutionOutcome::NotFound)
+    }
+
     fn resolve_type_reference_from_root(
         &mut self,
         type_root: &str,
         specifier: &str,
         mode: ResolutionMode,
         custom_type_roots: bool,
+        follow_realpath: bool,
     ) -> Result<ResolutionOutcome<HostResolvedModule>, ResolutionError> {
         if !self.host.directory_exists(Path::new(type_root))? {
             return Ok(ResolutionOutcome::NotFound);
@@ -2031,22 +3140,23 @@ impl<'a> ModuleResolver<'a> {
         } else {
             specifier.to_owned()
         };
-        let candidate = normalize_absolute_path(
-            Path::new(&join_normalized(type_root, &name_for_lookup)),
-            None,
-        )?;
+        // getCandidateFromTypeRoot uses combinePaths rather than
+        // normalizePath. Preserve dot components, duplicate separators, and
+        // rooted child replacement for the host probes in this primary pass.
+        let candidate = combine_paths_spelling(type_root, &name_for_lookup)?;
         let external = path_contains_node_modules(&candidate);
         let context = LegacyResolutionContext {
             is_external_library_import: external,
             attach_package_id: external,
             resolved_using_ts_extension: false,
-            follow_realpath: true,
+            follow_realpath,
         };
 
         // An explicitly configured type root first receives the declaration
         // file probe that default node_modules/@types roots deliberately omit.
         if custom_type_roots {
-            let direct = self.probe_direct_type_reference_file(&candidate, mode)?;
+            let direct =
+                self.probe_direct_type_reference_file(&candidate, mode, follow_realpath)?;
             if matches!(direct, ResolutionOutcome::Resolved(_)) {
                 return Ok(direct);
             }
@@ -2066,6 +3176,7 @@ impl<'a> ModuleResolver<'a> {
                     attach_package_id: true,
                     ..context
                 },
+                Some(&candidate),
                 /* allow_node_esm_index_fallback */ false,
             );
         }
@@ -2100,7 +3211,7 @@ impl<'a> ModuleResolver<'a> {
                 continue;
             }
 
-            let package_root = join_normalized(&node_modules, request.package_name);
+            let package_root = package_root_for_request(&node_modules, request);
             let outcome = self.resolve_declaration_package(
                 &package_root,
                 &request.exports_subpath,
@@ -2115,8 +3226,7 @@ impl<'a> ModuleResolver<'a> {
             if !self.host.directory_exists(Path::new(&at_types))? {
                 continue;
             }
-            let types_package =
-                join_normalized(&at_types, &mangle_scoped_package_name(request.package_name));
+            let types_package = types_package_root_for_request(&at_types, request);
             let outcome = self.resolve_declaration_package(
                 &types_package,
                 &request.exports_subpath,
@@ -2136,8 +3246,11 @@ impl<'a> ModuleResolver<'a> {
         specifier: &str,
         mode: ResolutionMode,
     ) -> Result<ResolutionOutcome<HostResolvedModule>, ResolutionError> {
-        let target =
-            normalize_absolute_path(Path::new(specifier), Some(&directory_name(containing_file)))?;
+        let directory_spelling = has_node_directory_spelling(specifier);
+        let target = preserve_node_directory_spelling(
+            normalize_absolute_path(Path::new(specifier), Some(&directory_name(containing_file)))?,
+            directory_spelling,
+        );
         let external = path_contains_node_modules(&target);
         let context = LegacyResolutionContext {
             is_external_library_import: external,
@@ -2146,11 +3259,26 @@ impl<'a> ModuleResolver<'a> {
             follow_realpath: true,
         };
         let allow_implicit = !self.is_node_esm_mode(mode);
-        let direct = self.probe_direct_type_reference_file(&target, mode)?;
-        if matches!(direct, ResolutionOutcome::Resolved(_)) {
-            return Ok(direct);
+        if !directory_spelling {
+            // nodeLoadModuleByRelativeName latches its outer parent
+            // observation before the file loader performs stage-specific
+            // observations of the same directory.
+            if !self
+                .host
+                .directory_exists(Path::new(&directory_name(&target)))?
+            {
+                return Ok(ResolutionOutcome::NotFound);
+            }
+            let direct = self
+                .probe_direct_type_reference_file(&target, mode, /* follow_realpath */ true)?;
+            if matches!(direct, ResolutionOutcome::Resolved(_)) {
+                return Ok(direct);
+            }
         }
-        if !allow_implicit || !self.host.directory_exists(Path::new(&target))? {
+        // ESM mode disables the directory loader only after observing the
+        // candidate directory.
+        let target_exists = self.host.directory_exists(Path::new(&target))?;
+        if !allow_implicit || !target_exists {
             return Ok(ResolutionOutcome::NotFound);
         }
         if let Some(directory_package) =
@@ -2165,6 +3293,7 @@ impl<'a> ModuleResolver<'a> {
                     attach_package_id: true,
                     ..context
                 },
+                Some(&target),
                 /* allow_node_esm_index_fallback */ true,
             );
         }
@@ -2189,23 +3318,12 @@ impl<'a> ModuleResolver<'a> {
         specifier: &str,
         mode: ResolutionMode,
     ) -> Result<ResolutionOutcome<HostResolvedModule>, ResolutionError> {
-        if specifier.contains(['\\', '\0']) {
+        if specifier.contains('\0') {
             return Err(ResolutionError::invalid_data(format!(
                 "invalid relative module specifier {specifier:?}"
             )));
         }
         let containing_directory = directory_name(containing_file);
-        let directory_spelling = has_node_directory_spelling(specifier);
-        // Program paths use the loader's normalized host spelling, so the
-        // separator itself is not retained here. Keep its semantic effect in
-        // a separate bit: Node skips the file phase for an explicit trailing
-        // separator or a final `.`/`..` component.
-        let target = normalize_absolute_path(Path::new(specifier), Some(&containing_directory))?;
-        let external = path_contains_node_modules(&target);
-        let allow_implicit = !self.is_node_esm_mode(mode);
-        let mut package = None;
-        let mut package_observed = false;
-
         let resolution_kind = self.options.emit_module_resolution_kind();
         // nodeModuleNameResolverWorker splits Node10 into priority and
         // secondary extension passes, but invokes its modern resolvers once
@@ -2219,14 +3337,45 @@ impl<'a> ModuleResolver<'a> {
         } else {
             modern_passes.as_slice()
         };
+        self.resolve_relative_with_passes(
+            &containing_directory,
+            specifier,
+            mode,
+            probe_passes,
+            /* optional_follow_realpath */ true,
+        )
+    }
+
+    fn resolve_relative_with_passes(
+        &mut self,
+        containing_directory: &str,
+        specifier: &str,
+        mode: ResolutionMode,
+        probe_passes: &[ExtensionProbePass],
+        optional_follow_realpath: bool,
+    ) -> Result<ResolutionOutcome<HostResolvedModule>, ResolutionError> {
+        let directory_spelling = has_node_directory_spelling(specifier);
+        // nodeModuleNameResolverWorker classifies the unnormalized path
+        // components produced by combinePaths. In particular,
+        // `./node_modules/../x` remains an external-library request even
+        // though normalization later produces a lexical path outside
+        // node_modules.
+        let raw_target = combine_paths_spelling(containing_directory, specifier)?;
+        let target = preserve_node_directory_spelling(
+            normalize_absolute_path(Path::new(specifier), Some(containing_directory))?,
+            directory_spelling,
+        );
+        let external = path_contains_node_modules(&raw_target);
+        let allow_implicit = !self.is_node_esm_mode(mode);
 
         for &probe_pass in probe_passes {
             let optional = self.resolve_using_optional_settings(
-                &containing_directory,
+                containing_directory,
                 specifier,
                 probe_pass,
                 mode,
                 OptionalResolutionLoader::Node,
+                optional_follow_realpath,
             )?;
             if matches!(optional, ResolutionOutcome::Resolved(_)) {
                 return Ok(optional);
@@ -2242,34 +3391,27 @@ impl<'a> ModuleResolver<'a> {
                 {
                     continue;
                 }
-                if !package_observed {
-                    package = self.find_nearest_package_scope(&directory_name(&target))?;
-                    package_observed = true;
-                }
                 let outcome = self.probe_legacy_file(
-                    package.as_deref(),
+                    None,
                     &target,
                     probe_pass,
                     allow_implicit,
                     LegacyResolutionContext {
                         is_external_library_import: external,
-                        attach_package_id: external,
-                        resolved_using_ts_extension: is_typescript_family_specifier(specifier),
+                        attach_package_id: false,
+                        resolved_using_ts_extension: is_typescript_family_specifier(&target),
                         follow_realpath: false,
                     },
                 )?;
-                if matches!(outcome, ResolutionOutcome::Resolved(_)) {
-                    return Ok(outcome);
+                if let ResolutionOutcome::Resolved(mut module) = outcome {
+                    self.attach_direct_node_package(&mut module)?;
+                    return Ok(ResolutionOutcome::Resolved(module));
                 }
             }
 
             let target_exists = self.host.directory_exists(Path::new(&target))?;
             if !allow_implicit || !target_exists {
                 continue;
-            }
-            if !package_observed {
-                package = self.find_nearest_package_scope(&directory_name(&target))?;
-                package_observed = true;
             }
             let package_json = join_normalized(&target, "package.json");
             if let Some(directory_package) = self.load_package(&package_json)? {
@@ -2284,6 +3426,7 @@ impl<'a> ModuleResolver<'a> {
                         resolved_using_ts_extension: false,
                         follow_realpath: false,
                     },
+                    Some(&target),
                     /* allow_node_esm_index_fallback */ true,
                 )?;
                 if matches!(outcome, ResolutionOutcome::Resolved(_)) {
@@ -2292,7 +3435,7 @@ impl<'a> ModuleResolver<'a> {
             } else {
                 let index = join_normalized(&target, "index");
                 let outcome = self.probe_legacy_file(
-                    package.as_deref(),
+                    None,
                     &index,
                     probe_pass,
                     /* allow_implicit */ true,
@@ -2317,6 +3460,7 @@ impl<'a> ModuleResolver<'a> {
         exports_subpath: &str,
         probe_pass: ExtensionProbePass,
         mode: ResolutionMode,
+        follow_realpath: bool,
     ) -> Result<ResolutionOutcome<HostResolvedModule>, ResolutionError> {
         let rest = package_subpath(exports_subpath)?;
         let candidate = rest.map_or_else(
@@ -2333,34 +3477,63 @@ impl<'a> ModuleResolver<'a> {
                 LegacyResolutionContext {
                     is_external_library_import: true,
                     attach_package_id: false,
-                    resolved_using_ts_extension: rest.is_some_and(is_typescript_family_specifier),
-                    follow_realpath: true,
+                    resolved_using_ts_extension: is_typescript_family_specifier(&candidate),
+                    follow_realpath,
                 },
             )?;
             if matches!(outcome, ResolutionOutcome::Resolved(_)) {
                 return Ok(outcome);
             }
         }
-        if allow_implicit && self.host.directory_exists(Path::new(&candidate))? {
-            return self.probe_legacy_file(
-                None,
-                &join_normalized(&candidate, "index"),
-                probe_pass,
-                /* allow_implicit */ true,
-                LegacyResolutionContext {
-                    is_external_library_import: true,
-                    attach_package_id: false,
-                    resolved_using_ts_extension: false,
-                    follow_realpath: true,
-                },
-            );
+        let candidate_exists = self.host.directory_exists(Path::new(&candidate))?;
+        if !allow_implicit || !candidate_exists {
+            return Ok(ResolutionOutcome::NotFound);
         }
-        Ok(ResolutionOutcome::NotFound)
+        self.probe_legacy_file(
+            None,
+            &join_normalized(&candidate, "index"),
+            probe_pass,
+            /* allow_implicit */ true,
+            LegacyResolutionContext {
+                is_external_library_import: true,
+                attach_package_id: false,
+                resolved_using_ts_extension: false,
+                follow_realpath,
+            },
+        )
     }
 
-    /// Resolve package `typings`, `types`, `main`, `typesVersions`, and the
-    /// legacy index fallback without consulting a package.json below the
-    /// package root.
+    /// Resolve the root package directory or one root-owned subpath after the
+    /// specific-node_modules worker has selected the root package metadata.
+    fn rewrite_package_id_for_directory_spelling(
+        &self,
+        package: &CachedPackage,
+        package_directory: &str,
+        context: LegacyResolutionContext,
+        outcome: &mut ResolutionOutcome<HostResolvedModule>,
+    ) -> Result<(), ResolutionError> {
+        if !context.attach_package_id || package_directory == package.root {
+            return Ok(());
+        }
+        let ResolutionOutcome::Resolved(module) = outcome else {
+            return Ok(());
+        };
+        let lexical_path = module.resolved_file.display().to_str().ok_or_else(|| {
+            ResolutionError::canonicalization(
+                Some(module.resolved_file.display().to_path_buf()),
+                "resolved module path is not valid Unicode",
+            )
+        })?;
+        module.package_id = package_id_for_legacy_path_from_directory(
+            package,
+            package_directory,
+            lexical_path,
+            true,
+        )?;
+        Ok(())
+    }
+
+    #[allow(clippy::too_many_arguments)] // Package-directory state is intentionally non-implicit.
     fn resolve_legacy_package(
         &self,
         package: &CachedPackage,
@@ -2368,90 +3541,213 @@ impl<'a> ModuleResolver<'a> {
         probe_pass: ExtensionProbePass,
         mode: ResolutionMode,
         context: LegacyResolutionContext,
+        root_directory_spelling: Option<&str>,
         allow_node_esm_index_fallback: bool,
     ) -> Result<ResolutionOutcome<HostResolvedModule>, ResolutionError> {
         let rest = package_subpath(exports_subpath)?;
-        let logical_name = rest.map(str::to_owned).unwrap_or_else(|| {
-            package_version_logical_name(package, probe_pass).unwrap_or_else(|| "index".to_owned())
-        });
-        match self.search_package_types_versions(
-            package,
-            &logical_name,
-            probe_pass,
-            mode,
-            context,
-            /* is_package_root */ rest.is_none(),
-        )? {
-            Search::Terminal(outcome) => return Ok(outcome),
-            Search::Continue => {}
-        }
-
         if let Some(rest) = rest {
-            let candidate = normalize_package_target(package, rest)?;
-            return self.probe_legacy_path(
-                Some(package),
-                &candidate,
+            // The outer package loader applies a root-relative mapping to the
+            // package subpath before invoking its file/directory loader. A
+            // matched all-target miss owns this package candidate.
+            match self.search_package_types_versions(
+                package,
+                rest,
                 probe_pass,
-                !self.is_node_esm_mode(mode),
-                LegacyResolutionContext {
-                    resolved_using_ts_extension: is_typescript_family_specifier(rest),
-                    ..context
+                mode,
+                TypesVersionsResolutionContext {
+                    legacy: context,
+                    base_directory: &package.root,
+                    loader: TypesVersionsLoader::PackageSubpath,
+                    attach_exact_package_id: false,
+                    only_record_failures: false,
                 },
-            );
-        }
-
-        let allow_package_field_directory = !self.is_node_esm_mode(mode)
-            || package.metadata.module_type() != PackageJsonType::Module;
-        if let Some(field) = selected_package_entry_field(package, probe_pass) {
-            let candidate = normalize_package_target(package, field)?;
-            // loadNodeModuleFromDirectoryWorker first probes a declaration
-            // twin for a written package-json extension, then expands to
-            // TypeScript + declaration files.
-            let field_probe_pass = if matches!(probe_pass, ExtensionProbePass::Declaration) {
-                ExtensionProbePass::DeclarationPackageField
-            } else {
-                probe_pass
-            };
-            let outcome = self.probe_legacy_path(
-                Some(package),
-                &candidate,
-                field_probe_pass,
-                allow_package_field_directory,
-                LegacyResolutionContext {
-                    resolved_using_ts_extension: false,
-                    ..context
-                },
-            )?;
-            if matches!(outcome, ResolutionOutcome::Resolved(_)) {
-                return Ok(outcome);
+            )? {
+                Search::Terminal(outcome) => return Ok(outcome),
+                Search::Continue => {}
             }
+            let candidate = normalize_package_subpath(package, rest)?;
+            return self.probe_package_subpath_path(package, &candidate, probe_pass, mode, context);
         }
 
-        // Node ESM still assumes a package-root index.js only when the
-        // manifest has no effective exports value. Subpath and relative
-        // directory requests do not receive this exception.
-        let node_esm = self.is_node_esm_mode(mode);
-        if node_esm
-            && (!allow_node_esm_index_fallback
-                || !matches!(package.exports.as_ref(), None | Some(Value::Null)))
+        let root_directory = root_directory_spelling.unwrap_or(&package.root);
+        let mut outcome =
+            self.probe_legacy_directory_worker(package, root_directory, probe_pass, mode, context)?;
+        self.rewrite_package_id_for_directory_spelling(
+            package,
+            root_directory,
+            context,
+            &mut outcome,
+        )?;
+        if matches!(outcome, ResolutionOutcome::Resolved(_)) {
+            return Ok(outcome);
+        }
+
+        // Node ESM's assumed root index.js lives outside the directory worker
+        // and therefore survives an owned typesVersions miss.
+        if !self.is_node_esm_mode(mode)
+            || !allow_node_esm_index_fallback
+            || !matches!(package.exports.as_ref(), None | Some(Value::Null))
         {
             return Ok(ResolutionOutcome::NotFound);
         }
-        let index = if node_esm {
-            join_normalized(&package.root, "index.js")
-        } else {
-            join_normalized(&package.root, "index")
-        };
-        self.probe_legacy_file(
+        let index = join_normalized(root_directory, "index.js");
+        let mut outcome = self.probe_legacy_file(
             Some(package),
             &index,
             probe_pass,
-            /* allow_implicit */ !node_esm,
+            /* allow_implicit */ false,
+            LegacyResolutionContext {
+                resolved_using_ts_extension: false,
+                ..context
+            },
+        )?;
+        self.rewrite_package_id_for_directory_spelling(
+            package,
+            root_directory,
+            context,
+            &mut outcome,
+        )?;
+        Ok(outcome)
+    }
+
+    /// The non-recursive package-directory worker. A subpath directory keeps
+    /// the root package's typesVersions table, but does not re-read a nested
+    /// package.json or re-enter the outer subpath loader.
+    fn probe_legacy_directory_worker(
+        &self,
+        package: &CachedPackage,
+        candidate_directory: &str,
+        probe_pass: ExtensionProbePass,
+        mode: ResolutionMode,
+        context: LegacyResolutionContext,
+    ) -> Result<ResolutionOutcome<HostResolvedModule>, ResolutionError> {
+        let candidate_key = canonical_text(
+            candidate_directory,
+            self.path_context.use_case_sensitive_file_names(),
+        );
+        let package_root_key = canonical_text(
+            &package.root,
+            self.path_context.use_case_sensitive_file_names(),
+        );
+        // `combinePaths` preserves a caller's directory spelling, so `.`,
+        // `..`, and an explicit trailing slash can reach the same package
+        // root as either `/pkg` or `/pkg/`. TypeScript's contains-path check
+        // treats those spellings as the same directory before consulting the
+        // package entry field and its typesVersions logical name.
+        let is_package_root =
+            path_relative_to_directory(&candidate_key, &package_root_key) == Some("");
+        let package_field = is_package_root
+            .then(|| selected_package_entry_field(package, probe_pass))
+            .flatten();
+        let package_field_candidate = package_field
+            .map(|field| normalize_legacy_package_target(package, field))
+            .transpose()?;
+        let package_field_parent_exists = package_field_candidate
+            .as_ref()
+            .map(|candidate| {
+                self.host
+                    .directory_exists(Path::new(&directory_name(candidate)))
+            })
+            .transpose()?;
+        let only_record_failures_for_index =
+            !self.host.directory_exists(Path::new(candidate_directory))?;
+        let only_record_failures_for_types_versions =
+            package_field_parent_exists == Some(false) || only_record_failures_for_index;
+        let types_versions_eligible = package_field_candidate
+            .as_deref()
+            .is_none_or(|candidate| path_is_within(candidate, candidate_directory));
+        let logical_name = if let Some(candidate) = package_field_candidate.as_deref() {
+            if types_versions_eligible {
+                path_relative_to_directory(candidate, candidate_directory)
+                    .ok_or_else(|| {
+                        ResolutionError::invalid_data(format!(
+                            "package target {candidate} is outside directory {candidate_directory}"
+                        ))
+                    })?
+                    .trim_end_matches('/')
+                    .to_owned()
+            } else {
+                "index".to_owned()
+            }
+        } else {
+            "index".to_owned()
+        };
+
+        if types_versions_eligible {
+            match self.search_package_types_versions(
+                package,
+                &logical_name,
+                probe_pass,
+                mode,
+                TypesVersionsResolutionContext {
+                    legacy: context,
+                    base_directory: candidate_directory,
+                    loader: TypesVersionsLoader::PackageDirectory,
+                    attach_exact_package_id: context.attach_package_id,
+                    only_record_failures: only_record_failures_for_types_versions,
+                },
+            )? {
+                Search::Terminal(outcome) => return Ok(outcome),
+                Search::Continue => {}
+            }
+        }
+
+        if let Some(candidate) = package_field_candidate {
+            if package_field_parent_exists == Some(true) {
+                let outcome = self.probe_package_field_path(
+                    Some(package),
+                    &candidate,
+                    probe_pass,
+                    !self.is_node_esm_mode(mode)
+                        || package.metadata.module_type() != PackageJsonType::Module,
+                    LegacyResolutionContext {
+                        resolved_using_ts_extension: false,
+                        ..context
+                    },
+                )?;
+                if matches!(outcome, ResolutionOutcome::Resolved(_)) {
+                    return Ok(outcome);
+                }
+            }
+        }
+
+        if self.is_node_esm_mode(mode) || only_record_failures_for_index {
+            return Ok(ResolutionOutcome::NotFound);
+        }
+        self.probe_legacy_file(
+            Some(package),
+            &join_normalized(candidate_directory, "index"),
+            probe_pass,
+            /* allow_implicit */ true,
             LegacyResolutionContext {
                 resolved_using_ts_extension: false,
                 ..context
             },
         )
+    }
+
+    fn probe_package_subpath_path(
+        &self,
+        package: &CachedPackage,
+        candidate: &str,
+        probe_pass: ExtensionProbePass,
+        mode: ResolutionMode,
+        context: LegacyResolutionContext,
+    ) -> Result<ResolutionOutcome<HostResolvedModule>, ResolutionError> {
+        let outcome = self.probe_legacy_file(
+            Some(package),
+            candidate,
+            probe_pass,
+            /* allow_implicit */ !self.is_node_esm_mode(mode),
+            LegacyResolutionContext {
+                resolved_using_ts_extension: is_typescript_family_specifier(candidate),
+                ..context
+            },
+        )?;
+        if matches!(outcome, ResolutionOutcome::Resolved(_)) {
+            return Ok(outcome);
+        }
+        self.probe_legacy_directory_worker(package, candidate, probe_pass, mode, context)
     }
 
     /// A matching `typesVersions` key owns the result even when every target
@@ -2463,65 +3759,79 @@ impl<'a> ModuleResolver<'a> {
         logical_name: &str,
         probe_pass: ExtensionProbePass,
         mode: ResolutionMode,
-        context: LegacyResolutionContext,
-        is_package_root: bool,
+        context: TypesVersionsResolutionContext<'_>,
     ) -> Result<Search<HostResolvedModule>, ResolutionError> {
+        let TypesVersionsResolutionContext {
+            legacy: context,
+            base_directory,
+            loader,
+            attach_exact_package_id,
+            only_record_failures,
+        } = context;
         let Some(types_versions) = package.types_versions.as_ref() else {
             return Ok(Search::Continue);
         };
-        let table = types_versions.as_object().ok_or_else(|| {
-            ResolutionError::invalid_data(format!(
-                "{} typesVersions must be an object",
-                package.metadata.package_json().display().display()
-            ))
-        })?;
-        let matching = table
-            .iter()
+        let matching = js_json_object_entries(types_versions)
+            .expect("CachedPackage retains only object-like typesVersions fields")
+            .into_iter()
             .find(|(range, _)| compiler_version_satisfies(range) == Some(true));
-        let Some((range, mappings)) = matching else {
+        let Some((_, mappings)) = matching else {
             return Ok(Search::Continue);
         };
-        let mappings = mappings.as_object().ok_or_else(|| {
-            ResolutionError::invalid_data(format!(
-                "typesVersions[{range:?}] in {} must be an object",
-                package.metadata.package_json().display().display()
-            ))
-        })?;
+        match mappings {
+            Value::Object(_) | Value::Array(_) => {}
+            // TypeScript 6.0.3 reaches tryParsePatterns(null), whose WeakMap
+            // access throws. Preserve that malformed-input failure as a typed
+            // resolver error rather than silently falling back.
+            Value::Null => {
+                return Err(ResolutionError::invalid_data(format!(
+                    "selected typesVersions paths in {} are null",
+                    package.metadata.package_json().display().display()
+                )));
+            }
+            // Other non-object values are rejected by
+            // readPackageJsonTypesVersionPaths and legacy loading continues.
+            Value::Bool(_) | Value::Number(_) | Value::String(_) => {
+                return Ok(Search::Continue);
+            }
+        }
+        // The outer subpath paths phase re-observes the root package
+        // directory only after an applicable version range was selected.
+        // Directory-worker callers already supply their combined latch.
+        let only_record_failures = if matches!(loader, TypesVersionsLoader::PackageSubpath) {
+            only_record_failures || !self.host.directory_exists(Path::new(base_directory))?
+        } else {
+            only_record_failures
+        };
         let Some((pattern, capture, targets)) =
             select_types_versions_mapping(mappings, logical_name)
         else {
             return Ok(Search::Continue);
         };
-        let targets = targets.as_array().ok_or_else(|| {
-            ResolutionError::invalid_data(format!(
-                "typesVersions mapping {pattern:?} must be an array"
-            ))
-        })?;
-        for target in targets {
-            let target = target.as_str().ok_or_else(|| {
-                ResolutionError::invalid_data(format!(
-                    "typesVersions mapping {pattern:?} contains a non-string target"
-                ))
-            })?;
-            let expanded = target.replace('*', capture);
-            let target = expanded.strip_prefix("./").unwrap_or(&expanded);
-            if target.is_empty()
-                || target.starts_with(['/', '\\'])
-                || target.contains(['\\', '\0', ':'])
-            {
-                return Err(ResolutionError::invalid_data(format!(
-                    "typesVersions target {expanded:?} is not package-relative"
-                )));
-            }
-            let candidate = normalize_package_target(package, target)?;
-            // tsc's paths loader first probes a substitution that already has
-            // a recognized extension exactly, irrespective of the preferred
-            // TypeScript/declaration pass. The paths loader itself returns an
-            // exact hit without a package id; the outer package-root loader
-            // may attach the root package id again. An exact miss falls
-            // through to the ordinary package loader.
-            if !matches!(probe_pass, ExtensionProbePass::Fallback) {
-                if let Some(extension) = recognized_module_extension(&candidate) {
+        // tsc calls its generic JavaScript `forEach` helper here rather than
+        // validating an array. Preserve the observable array-like behavior:
+        // strings iterate UTF-16 code units, objects iterate numeric keys up
+        // to their JavaScript-coerced `length`, and primitive values without
+        // a length perform no work. Callback values retain JavaScript's lazy
+        // path coercion, so a successful early substitution never evaluates a
+        // malformed later element.
+        let outcome =
+            try_for_each_types_versions_substitution(targets, &pattern, |substitution| {
+                // tryLoadModuleUsingPaths treats an empty wildcard capture like
+                // an exact mapping and retains a literal `*` in the target.
+                let (expanded, written_extension) =
+                    project_types_versions_substitution(substitution, capture, &pattern)?;
+                let candidate = normalize_legacy_target_from_directory(base_directory, &expanded)?;
+                if only_record_failures {
+                    return Ok(None);
+                }
+                // tsc's paths loader first probes a substitution that already has
+                // a recognized extension exactly, irrespective of the preferred
+                // TypeScript/declaration pass. The paths loader itself returns an
+                // exact hit without a package id; the outer package-root loader
+                // may attach the root package id again. An exact miss falls
+                // through to the ordinary package loader.
+                if let Some(extension) = written_extension {
                     if self.host.file_exists(Path::new(&candidate))? {
                         return self
                             .finish_legacy_resolution(
@@ -2529,43 +3839,55 @@ impl<'a> ModuleResolver<'a> {
                                 &candidate,
                                 extension,
                                 LegacyResolutionContext {
-                                    attach_package_id: context.attach_package_id && is_package_root,
+                                    attach_package_id: attach_exact_package_id,
                                     resolved_using_ts_extension: false,
                                     ..context
                                 },
                             )
-                            .map(Search::Terminal);
+                            .map(Some);
                     }
                 }
-            }
-            let mapping_probe_pass =
-                if matches!(probe_pass, ExtensionProbePass::Declaration) && is_package_root {
-                    // The directory package loader applies package-field
-                    // declaration-twin precedence to root substitutions.
-                    ExtensionProbePass::DeclarationPackageField
-                } else {
-                    probe_pass
+                // tryLoadModuleUsingPaths latches onlyRecordFailures from the
+                // expanded candidate's parent after its raw-substitution exact
+                // shortcut. A later parent appearance must not revive the loader.
+                if !self
+                    .host
+                    .directory_exists(Path::new(&directory_name(&candidate)))?
+                {
+                    return Ok(None);
+                }
+                let outcome = match loader {
+                    TypesVersionsLoader::PackageDirectory => self.probe_package_field_path(
+                        Some(package),
+                        &candidate,
+                        probe_pass,
+                        !self.is_node_esm_mode(mode)
+                            || package.metadata.module_type() != PackageJsonType::Module,
+                        LegacyResolutionContext {
+                            resolved_using_ts_extension: false,
+                            ..context
+                        },
+                    )?,
+                    TypesVersionsLoader::PackageSubpath => self.probe_package_subpath_path(
+                        package, &candidate, probe_pass, mode, context,
+                    )?,
                 };
-            let outcome = self.probe_legacy_path(
-                Some(package),
-                &candidate,
-                mapping_probe_pass,
-                !self.is_node_esm_mode(mode)
-                    || (is_package_root
-                        && package.metadata.module_type() != PackageJsonType::Module),
-                LegacyResolutionContext {
-                    resolved_using_ts_extension: false,
-                    ..context
-                },
-            )?;
-            if matches!(outcome, ResolutionOutcome::Resolved(_)) {
-                return Ok(Search::Terminal(outcome));
-            }
-        }
-        Ok(Search::Terminal(ResolutionOutcome::NotFound))
+                if matches!(outcome, ResolutionOutcome::Resolved(_)) {
+                    return Ok(Some(outcome));
+                }
+                Ok(None)
+            })?;
+        Ok(Search::Terminal(
+            outcome.unwrap_or(ResolutionOutcome::NotFound),
+        ))
     }
 
-    fn probe_legacy_path(
+    /// `loadNodeModuleFromDirectoryWorker` gives `types`, `typings`, `main`,
+    /// and each root typesVersions substitution a package-json target phase
+    /// before re-entering the ordinary relative-file loader. The phases
+    /// intentionally retain duplicate probes: a transient host failure on the
+    /// second exact lookup is observable upstream.
+    fn probe_package_field_path(
         &self,
         package: Option<&CachedPackage>,
         candidate: &str,
@@ -2573,24 +3895,174 @@ impl<'a> ModuleResolver<'a> {
         allow_implicit: bool,
         context: LegacyResolutionContext,
     ) -> Result<ResolutionOutcome<HostResolvedModule>, ResolutionError> {
-        let outcome =
-            self.probe_legacy_file(package, candidate, probe_pass, allow_implicit, context)?;
-        if matches!(outcome, ResolutionOutcome::Resolved(_)) || !allow_implicit {
+        // loadFileNameFromPackageJsonField always runs. A plain trailing
+        // directory has no extension and performs no host work, while a
+        // dotted trailing spelling has a path-bearing arbitrary declaration
+        // twin (`dir.ext/` -> `dir.d.ext/.ts`).
+        let outcome = self.probe_package_field_file_phase(
+            package,
+            candidate,
+            probe_pass,
+            LegacyResolutionContext {
+                resolved_using_ts_extension: false,
+                ..context
+            },
+        )?;
+        if matches!(outcome, ResolutionOutcome::Resolved(_)) {
             return Ok(outcome);
         }
-        if !self.host.directory_exists(Path::new(candidate))? {
+
+        // A Declaration-only directory lookup expands to TypeScript plus
+        // Declaration before invoking nodeLoadModuleByRelativeName. Other
+        // extension masks pass through unchanged.
+        let expanded_pass = if matches!(probe_pass, ExtensionProbePass::Declaration) {
+            ExtensionProbePass::Preferred
+        } else {
+            probe_pass
+        };
+        if !candidate.ends_with('/') {
+            // nodeLoadModuleByRelativeName preflights the candidate parent
+            // before entering loadModuleFromFile, which then performs its own
+            // per-stage directory observations. A trailing directory spelling
+            // skips this complete file phase upstream.
+            if !self
+                .host
+                .directory_exists(Path::new(&directory_name(candidate)))?
+            {
+                return Ok(ResolutionOutcome::NotFound);
+            }
+            let outcome = self.probe_legacy_file(
+                package,
+                candidate,
+                expanded_pass,
+                allow_implicit,
+                LegacyResolutionContext {
+                    // candidateIsFromPackageJsonField suppresses provenance
+                    // in the expanded ordinary loader.
+                    resolved_using_ts_extension: false,
+                    ..context
+                },
+            )?;
+            if matches!(outcome, ResolutionOutcome::Resolved(_)) {
+                return Ok(outcome);
+            }
+        }
+
+        // Even in ESM mode, nodeLoadModuleByRelativeName observes the
+        // candidate directory after a file miss before deciding that the
+        // directory loader is disabled.
+        let candidate_exists = self.host.directory_exists(Path::new(candidate))?;
+        if !allow_implicit || !candidate_exists {
             return Ok(ResolutionOutcome::NotFound);
         }
         self.probe_legacy_file(
             package,
             &join_normalized(candidate, "index"),
-            probe_pass,
+            expanded_pass,
             /* allow_implicit */ true,
             LegacyResolutionContext {
                 resolved_using_ts_extension: false,
                 ..context
             },
         )
+    }
+
+    /// `loadFileNameFromPackageJsonField` without a raw package-map target.
+    /// Exact TypeScript/declaration hits publish false provenance because no
+    /// raw package-json value reaches this helper. Replacement hits preserve
+    /// the ordinary written-extension provenance until the expanded loader
+    /// explicitly suppresses it.
+    fn probe_package_field_file_phase(
+        &self,
+        package: Option<&CachedPackage>,
+        candidate: &str,
+        probe_pass: ExtensionProbePass,
+        context: LegacyResolutionContext,
+    ) -> Result<ResolutionOutcome<HostResolvedModule>, ResolutionError> {
+        if let Some(extension) = package_json_target_exact_extension(candidate, probe_pass) {
+            if !self.host.file_exists(Path::new(candidate))? {
+                return Ok(ResolutionOutcome::NotFound);
+            }
+            return self.finish_legacy_resolution(
+                package,
+                candidate,
+                extension,
+                LegacyResolutionContext {
+                    resolved_using_ts_extension: false,
+                    ..context
+                },
+            );
+        }
+
+        let plan = match probe_pass {
+            ExtensionProbePass::Declaration => declaration_extension_probe_plan(candidate),
+            _ => extension_probe_plan(candidate, self.options.resolve_json_module_effective()),
+        };
+        let mut arbitrary_probe = None;
+        let replacement = match plan {
+            Ok((base, probes, preferred_len)) => Some((
+                base,
+                select_extension_probes(probes, preferred_len, probe_pass),
+            )),
+            Err(ResolutionError::Unsupported { feature, .. })
+                if feature == "module-target-extension" =>
+            {
+                if extension_pass_includes_declaration(probe_pass) {
+                    arbitrary_probe = arbitrary_declaration_twin(candidate);
+                }
+                None
+            }
+            Err(error) => return Err(error),
+        };
+        if replacement
+            .as_ref()
+            .is_none_or(|(_, probes)| probes.is_empty())
+            && arbitrary_probe.is_none()
+        {
+            if base_name(candidate).contains('.') {
+                self.host
+                    .directory_exists(Path::new(&directory_name(candidate)))?;
+            }
+            return Ok(ResolutionOutcome::NotFound);
+        }
+        if !self
+            .host
+            .directory_exists(Path::new(&directory_name(candidate)))?
+        {
+            return Ok(ResolutionOutcome::NotFound);
+        }
+        if let Some((base, probes)) = replacement {
+            for (extension, suffix) in probes {
+                let path = format!("{base}{suffix}");
+                if self.host.file_exists(Path::new(&path))? {
+                    let extension = materialize_module_extension(extension, suffix);
+                    return self.finish_legacy_resolution(
+                        package,
+                        &path,
+                        extension.clone(),
+                        LegacyResolutionContext {
+                            resolved_using_ts_extension: is_typescript_family_specifier(candidate)
+                                && is_typescript_module_extension(&extension),
+                            ..context
+                        },
+                    );
+                }
+            }
+        }
+        if let Some((path, extension)) = arbitrary_probe {
+            if self.host.file_exists(Path::new(&path))? {
+                return self.finish_legacy_resolution(
+                    package,
+                    &path,
+                    ModuleExtension::Arbitrary(extension),
+                    LegacyResolutionContext {
+                        resolved_using_ts_extension: false,
+                        ..context
+                    },
+                );
+            }
+        }
+        Ok(ResolutionOutcome::NotFound)
     }
 
     fn probe_legacy_file(
@@ -2601,104 +4073,109 @@ impl<'a> ModuleResolver<'a> {
         allow_implicit: bool,
         context: LegacyResolutionContext,
     ) -> Result<ResolutionOutcome<HostResolvedModule>, ResolutionError> {
-        // loadNodeModuleFromDirectoryWorker retains EsmMode for a package
-        // whose `type` is `module`. Its expanded package-field loader may
-        // replace a written extension, but must not add one to an
-        // extensionless `types` or `typesVersions` target.
-        if matches!(probe_pass, ExtensionProbePass::DeclarationPackageField)
-            && !allow_implicit
-            && !base_name(candidate).contains('.')
-        {
+        // loadModuleFromFile has two distinct stages. A candidate with a
+        // written extension first replaces that extension according to its
+        // family. Outside Node ESM, a complete miss then appends the ordinary
+        // extensionless family to the *whole* written candidate (`x.js.ts`,
+        // for example). Package-map string targets call only the first stage
+        // and are handled by probe_export_target.
+        let has_written_extension = base_name(candidate).contains('.');
+        let mut arbitrary_probe = None;
+        let replacement = if has_written_extension {
+            let plan = match probe_pass {
+                ExtensionProbePass::Declaration => declaration_extension_probe_plan(candidate),
+                _ => extension_probe_plan(candidate, self.options.resolve_json_module_effective()),
+            };
+            match plan {
+                Ok((base, probes, preferred_len)) => Some((
+                    base,
+                    select_extension_probes(probes, preferred_len, probe_pass),
+                )),
+                Err(ResolutionError::Unsupported { feature, .. })
+                    if feature == "module-target-extension" =>
+                {
+                    if extension_pass_includes_declaration(probe_pass) {
+                        arbitrary_probe = arbitrary_declaration_twin(candidate);
+                    }
+                    None
+                }
+                Err(error) => return Err(error),
+            }
+        } else {
+            None
+        };
+        let implicit = allow_implicit.then(|| implicit_extension_probes(probe_pass));
+        if !has_written_extension && implicit.is_none() {
             return Ok(ResolutionOutcome::NotFound);
         }
-        let plan = match probe_pass {
-            ExtensionProbePass::Declaration => declaration_extension_probe_plan(candidate),
-            ExtensionProbePass::DeclarationPackageField => {
-                declaration_package_field_probe_plan(candidate)
-            }
-            _ => extension_probe_plan(candidate, self.options.resolve_json_module_effective()),
-        };
-        let (base, probes, preferred_len) = match plan {
-            Ok(plan) => plan,
-            Err(ResolutionError::Unsupported { feature, .. })
-                if feature == "module-target-extension"
-                    && allow_implicit
-                    && !base_name(candidate).contains('.') =>
-            {
-                if matches!(probe_pass, ExtensionProbePass::Declaration) {
-                    (candidate, DTS_PROBES, 1)
-                } else {
-                    (candidate, JS_PROBES, 3)
+
+        // Each tryAddingExtensions call re-observes the parent. Do not merge
+        // these preflights: disappearance, appearance, and host failures at
+        // the second stage are part of the sequential resolver contract.
+        if has_written_extension
+            && self
+                .host
+                .directory_exists(Path::new(&directory_name(candidate)))?
+        {
+            if let Some((base, probes)) = replacement {
+                for (extension, suffix) in probes {
+                    let path = format!("{base}{suffix}");
+                    if self.host.file_exists(Path::new(&path))? {
+                        let extension = materialize_module_extension(extension, suffix);
+                        return self.finish_legacy_resolution(
+                            package,
+                            &path,
+                            extension.clone(),
+                            LegacyResolutionContext {
+                                resolved_using_ts_extension: context.resolved_using_ts_extension
+                                    && is_typescript_family_specifier(candidate)
+                                    && is_typescript_module_extension(&extension),
+                                ..context
+                            },
+                        );
+                    }
                 }
             }
-            Err(ResolutionError::Unsupported { feature, .. })
-                if feature == "module-target-extension" =>
-            {
-                return self
-                    .probe_arbitrary_declaration_twin(package, candidate, probe_pass, context);
+            if let Some((path, extension)) = arbitrary_probe {
+                if self.host.file_exists(Path::new(&path))? {
+                    return self.finish_legacy_resolution(
+                        package,
+                        &path,
+                        ModuleExtension::Arbitrary(extension),
+                        LegacyResolutionContext {
+                            resolved_using_ts_extension: false,
+                            ..context
+                        },
+                    );
+                }
             }
-            Err(error) => return Err(error),
-        };
-        let probes = match probe_pass {
-            ExtensionProbePass::All => probes,
-            ExtensionProbePass::Preferred => &probes[..preferred_len],
-            ExtensionProbePass::Declaration => probes,
-            ExtensionProbePass::DeclarationPackageField => &probes[..preferred_len],
-            ExtensionProbePass::Fallback => &probes[preferred_len..],
-        };
-        if !self
-            .host
-            .directory_exists(Path::new(&directory_name(candidate)))?
-        {
-            return Ok(ResolutionOutcome::NotFound);
         }
-        for (extension, suffix) in probes {
-            let path = format!("{base}{suffix}");
-            if self.host.file_exists(Path::new(&path))? {
-                return self.finish_legacy_resolution(
-                    package,
-                    &path,
-                    extension.clone(),
-                    LegacyResolutionContext {
-                        resolved_using_ts_extension: context.resolved_using_ts_extension
-                            && is_typescript_module_extension(extension),
-                        ..context
-                    },
-                );
+        if let Some(probes) = implicit {
+            if !self
+                .host
+                .directory_exists(Path::new(&directory_name(candidate)))?
+            {
+                return Ok(ResolutionOutcome::NotFound);
+            }
+            for (extension, suffix) in probes {
+                let path = format!("{candidate}{suffix}");
+                if self.host.file_exists(Path::new(&path))? {
+                    return self.finish_legacy_resolution(
+                        package,
+                        &path,
+                        materialize_module_extension(extension, suffix),
+                        LegacyResolutionContext {
+                            // tryAddingExtensions receives an empty original
+                            // extension for this second stage, so even a TS
+                            // result does not carry TS-extension provenance.
+                            resolved_using_ts_extension: false,
+                            ..context
+                        },
+                    );
+                }
             }
         }
         Ok(ResolutionOutcome::NotFound)
-    }
-
-    fn probe_arbitrary_declaration_twin(
-        &self,
-        package: Option<&CachedPackage>,
-        candidate: &str,
-        probe_pass: ExtensionProbePass,
-        context: LegacyResolutionContext,
-    ) -> Result<ResolutionOutcome<HostResolvedModule>, ResolutionError> {
-        if matches!(probe_pass, ExtensionProbePass::Fallback) {
-            return Ok(ResolutionOutcome::NotFound);
-        }
-        let Some((path, extension)) = arbitrary_declaration_twin(candidate) else {
-            return Ok(ResolutionOutcome::NotFound);
-        };
-        if !self
-            .host
-            .directory_exists(Path::new(&directory_name(candidate)))?
-            || !self.host.file_exists(Path::new(&path))?
-        {
-            return Ok(ResolutionOutcome::NotFound);
-        }
-        self.finish_legacy_resolution(
-            package,
-            &path,
-            ModuleExtension::Arbitrary(extension),
-            LegacyResolutionContext {
-                resolved_using_ts_extension: false,
-                ..context
-            },
-        )
     }
 
     fn is_node_esm_mode(&self, mode: ResolutionMode) -> bool {
@@ -2756,15 +4233,13 @@ impl<'a> ModuleResolver<'a> {
         let (text, object) = parse_json_object(package_json_path, text);
 
         let package_path = self.program_path(package_json)?;
-        let name = object
-            .get("name")
+        let name = json_object_get(&object, "name")
             .and_then(Value::as_str)
             .map(str::to_owned);
-        let version = object
-            .get("version")
+        let version = json_object_get(&object, "version")
             .and_then(Value::as_str)
             .map(str::to_owned);
-        let module_type = match object.get("type").and_then(Value::as_str) {
+        let module_type = match json_object_get(&object, "type").and_then(Value::as_str) {
             Some("module") => PackageJsonType::Module,
             Some("commonjs") => PackageJsonType::CommonJs,
             Some(_) => PackageJsonType::Other,
@@ -2779,9 +4254,16 @@ impl<'a> ModuleResolver<'a> {
         ));
         let package = Rc::new(CachedPackage {
             root: directory_name(package_json),
-            exports: object.get("exports").cloned(),
-            imports: object.get("imports").cloned(),
-            types_versions: object.get("typesVersions").cloned(),
+            exports: json_object_get(&object, "exports").cloned(),
+            has_own_exports: json_object_own_get(&object, "exports").is_some(),
+            imports: json_object_get(&object, "imports").cloned(),
+            // readPackageJsonField(..., "object") reports a malformed field
+            // only through tracing and exposes it to resolution as absent.
+            types_versions: json_object_own_get(&object, "typesVersions")
+                // JavaScript's object-type test admits arrays; their numeric
+                // own keys participate in version selection.
+                .filter(|value| value.is_object() || value.is_array())
+                .cloned(),
             typings: non_empty_string_field(&object, "typings"),
             types: non_empty_string_field(&object, "types"),
             main: non_empty_string_field(&object, "main"),
@@ -2802,6 +4284,7 @@ impl<'a> ModuleResolver<'a> {
         is_external_library_import: bool,
         probe_pass: ExtensionProbePass,
         mode: ResolutionMode,
+        follow_realpath: bool,
     ) -> Result<ResolutionOutcome<HostResolvedModule>, ResolutionError> {
         let search = self.search_package_exports(
             package,
@@ -2810,6 +4293,7 @@ impl<'a> ModuleResolver<'a> {
             probe_pass,
             mode,
             self.options.emit_module_resolution_kind(),
+            follow_realpath,
         )?;
         Ok(match search {
             // A present exports map suppresses every legacy package fallback.
@@ -2818,6 +4302,7 @@ impl<'a> ModuleResolver<'a> {
         })
     }
 
+    #[allow(clippy::too_many_arguments)] // Conditions and extension masks vary independently.
     fn resolve_package_exports_with_resolution_kind(
         &mut self,
         package: &CachedPackage,
@@ -2826,6 +4311,7 @@ impl<'a> ModuleResolver<'a> {
         probe_pass: ExtensionProbePass,
         mode: ResolutionMode,
         resolution_kind: i32,
+        follow_realpath: bool,
     ) -> Result<ResolutionOutcome<HostResolvedModule>, ResolutionError> {
         let search = self.search_package_exports(
             package,
@@ -2834,6 +4320,7 @@ impl<'a> ModuleResolver<'a> {
             probe_pass,
             mode,
             resolution_kind,
+            follow_realpath,
         )?;
         Ok(match search {
             Search::Continue => ResolutionOutcome::NotFound,
@@ -2844,6 +4331,7 @@ impl<'a> ModuleResolver<'a> {
     /// Preserve the upstream SearchResult distinction for self references:
     /// an ordinary target miss continues to node_modules, while an explicit
     /// null target is terminal.
+    #[allow(clippy::too_many_arguments)] // Mirrors loadModuleFromExports' explicit state tuple.
     fn search_package_exports(
         &mut self,
         package: &CachedPackage,
@@ -2852,6 +4340,7 @@ impl<'a> ModuleResolver<'a> {
         probe_pass: ExtensionProbePass,
         mode: ResolutionMode,
         resolution_kind: i32,
+        follow_realpath: bool,
     ) -> Result<Search<HostResolvedModule>, ResolutionError> {
         let exports = package.exports.as_ref().ok_or_else(|| {
             ResolutionError::unsupported(
@@ -2863,110 +4352,53 @@ impl<'a> ModuleResolver<'a> {
             )
         })?;
 
+        let context = ExportProbeContext {
+            is_external_library_import,
+            follow_realpath,
+            pass: probe_pass,
+            mode,
+            resolution_kind,
+            exports_pattern_trailers: exports_pattern_trailers_enabled(mode, resolution_kind),
+            kind: PackageMapKind::Exports,
+            bare_features: None,
+        };
+
         let search = match exports {
-            Value::String(target) if target.is_empty() => {
-                return Err(ResolutionError::unsupported(
-                    "legacy-node-package-entry-from-falsy-exports",
-                    format!(
-                        "{} has a falsy exports value and requires legacy package fallback",
-                        package.metadata.package_json().display().display()
-                    ),
-                ));
+            Value::String(_) if subpath == "." => {
+                self.resolve_selected_export(package, exports, "", false, context)?
             }
-            Value::String(_) if subpath == "." => self.resolve_selected_export(
-                package,
-                exports,
-                "",
-                false,
-                ExportProbeContext {
-                    is_external_library_import,
-                    pass: probe_pass,
-                    mode,
-                    resolution_kind,
-                    kind: PackageMapKind::Exports,
-                },
-            )?,
             Value::String(_) => Search::Continue,
             Value::Object(table) => {
-                let has_dotted_key = table.keys().any(|key| key.starts_with('.'));
-                let has_condition_key = table.keys().any(|key| !key.starts_with('.'));
-                if has_dotted_key && has_condition_key {
-                    return Err(ResolutionError::invalid_data(format!(
-                        "{} exports mixes subpath and condition keys",
-                        package.metadata.package_json().display().display()
-                    )));
-                }
-                if has_condition_key {
-                    if subpath == "." {
-                        self.resolve_selected_export(
-                            package,
-                            exports,
-                            "",
-                            false,
-                            ExportProbeContext {
-                                is_external_library_import,
-                                pass: probe_pass,
-                                mode,
-                                resolution_kind,
-                                kind: PackageMapKind::Exports,
-                            },
-                        )?
+                let mut own_keys = table.keys().filter_map(|key| decode_user_object_key(key));
+                let no_key_starts_with_dot = own_keys.clone().all(|key| !key.starts_with('.'));
+                let all_keys_start_with_dot = own_keys.all(|key| key.starts_with('.'));
+
+                if subpath == "." {
+                    if no_key_starts_with_dot {
+                        self.resolve_selected_export(package, exports, "", false, context)?
+                    } else if let Some(main_export) = json_object_own_get(table, ".") {
+                        if js_json_value_is_truthy(main_export) {
+                            self.resolve_selected_export(package, main_export, "", false, context)?
+                        } else {
+                            Search::Continue
+                        }
                     } else {
                         Search::Continue
                     }
+                } else if all_keys_start_with_dot {
+                    self.search_exports_table(package, table, subpath, context)?
                 } else {
-                    self.search_exports_table(
-                        package,
-                        table,
-                        subpath,
-                        ExportProbeContext {
-                            is_external_library_import,
-                            pass: probe_pass,
-                            mode,
-                            resolution_kind,
-                            kind: PackageMapKind::Exports,
-                        },
-                    )?
+                    Search::Continue
                 }
             }
-            Value::Array(_) if subpath == "." => self.resolve_selected_export(
-                package,
-                exports,
-                "",
-                false,
-                ExportProbeContext {
-                    is_external_library_import,
-                    pass: probe_pass,
-                    mode,
-                    resolution_kind,
-                    kind: PackageMapKind::Exports,
-                },
-            )?,
+            Value::Array(_) if subpath == "." => {
+                self.resolve_selected_export(package, exports, "", false, context)?
+            }
             Value::Array(_) => Search::Continue,
-            Value::Null | Value::Bool(false) => {
-                return Err(ResolutionError::unsupported(
-                    "legacy-node-package-entry-from-falsy-exports",
-                    format!(
-                        "{} has a falsy exports value and requires legacy package fallback",
-                        package.metadata.package_json().display().display()
-                    ),
-                ));
-            }
-            Value::Number(number) if number.as_f64() == Some(0.0) => {
-                return Err(ResolutionError::unsupported(
-                    "legacy-node-package-entry-from-falsy-exports",
-                    format!(
-                        "{} has a falsy exports value and requires legacy package fallback",
-                        package.metadata.package_json().display().display()
-                    ),
-                ));
-            }
-            Value::Bool(_) | Value::Number(_) => {
-                return Err(ResolutionError::invalid_data(format!(
-                    "{} has an invalid exports value",
-                    package.metadata.package_json().display().display()
-                )));
-            }
+            Value::Bool(_) | Value::Number(_) => Search::Continue,
+            // Falsy exports never enter this worker, but retaining Continue
+            // here keeps the helper fail-safe if an internal caller changes.
+            Value::Null => Search::Continue,
         };
 
         Ok(search)
@@ -2982,55 +4414,18 @@ impl<'a> ModuleResolver<'a> {
         subpath: &str,
         context: ExportProbeContext,
     ) -> Result<Search<HostResolvedModule>, ResolutionError> {
-        if !subpath.ends_with('/') && !subpath.contains('*') {
-            if let Some(target) = table.get(subpath) {
-                return self.resolve_selected_export(package, target, "", false, context);
-            }
-        }
-
-        let mut expanding_keys = table
-            .keys()
-            .filter(|key| has_one_asterisk(key) || key.ends_with('/'))
-            .map(String::as_str)
-            .collect::<Vec<_>>();
-        expanding_keys.sort_by(|left, right| compare_pattern_keys(left, right));
-
-        for key in expanding_keys {
-            if key.ends_with('/') && !key.contains('*') && subpath.starts_with(key) {
-                let target = table
-                    .get(key)
-                    .expect("expanding key was collected from this table");
-                return self.resolve_selected_export(
-                    package,
-                    target,
-                    &subpath[key.len()..],
-                    false,
-                    context,
-                );
-            }
-            let Some(star) = key.find('*') else {
-                continue;
-            };
-            let prefix = &key[..star];
-            let suffix = &key[star + 1..];
-            if !subpath.starts_with(prefix) || !subpath.ends_with(suffix) {
-                continue;
-            }
-            if subpath.len() < prefix.len() + suffix.len() {
-                return Err(ResolutionError::unsupported(
-                    "overlapping-package-exports-pattern",
-                    format!(
-                        "specifier {subpath} overlaps the prefix and suffix of exports key {key}"
-                    ),
-                ));
-            }
-            let capture = &subpath[prefix.len()..subpath.len() - suffix.len()];
-            let target = table
-                .get(key)
-                .expect("expanding key was collected from this table");
-            return self.resolve_selected_export(package, target, capture, true, context);
-        }
-        Ok(Search::Continue)
+        let Some(selected) =
+            select_package_map_target(table, subpath, context.exports_pattern_trailers)
+        else {
+            return Ok(Search::Continue);
+        };
+        self.resolve_selected_export(
+            package,
+            selected.target,
+            &selected.subpath,
+            selected.pattern,
+            context,
+        )
     }
 
     /// tsc-port: getLoadModuleFromTargetExportOrImport @6.0.3
@@ -3051,32 +4446,18 @@ impl<'a> ModuleResolver<'a> {
                     return Ok(Search::Continue);
                 }
                 if context.kind == PackageMapKind::Imports && !raw_target.starts_with("./") {
-                    let Some(target) = expand_imports_bare_target(raw_target, subpath, pattern)
+                    let Some(target) = expand_imports_bare_target(raw_target, subpath, pattern)?
                     else {
                         return Ok(Search::Continue);
                     };
-                    let outcome =
-                        self.resolve_non_relative(&package.root, &target, context.mode)?;
-                    return Ok(match outcome {
-                        ResolutionOutcome::Resolved(mut module) => {
-                            // A package-imports rewrite is owned by the source
-                            // package even when its target traverses
-                            // node_modules. Upstream retains the nested path,
-                            // package id, and original path but clears external
-                            // provenance at the outer imports boundary.
-                            module.is_external_library_import = false;
-                            Search::Terminal(ResolutionOutcome::Resolved(module))
-                        }
-                        ResolutionOutcome::NotFound => Search::Continue,
-                    });
+                    return self.resolve_bare_import_target(package, &target, context);
                 }
-                let Some(target) = expand_export_target(raw_target, subpath, pattern) else {
+                let Some(target) =
+                    expand_export_target(&package.root, raw_target, subpath, pattern)?
+                else {
                     return Ok(Search::Continue);
                 };
-                let candidate = normalize_absolute_path(
-                    Path::new(&join_normalized(&package.root, &target)),
-                    None,
-                )?;
+                let candidate = normalize_absolute_path(Path::new(&target), None)?;
                 if !path_is_within(&candidate, &package.root) {
                     return Ok(Search::Continue);
                 }
@@ -3094,7 +4475,7 @@ impl<'a> ModuleResolver<'a> {
                 })
             }
             Value::Object(conditions) => {
-                for (condition, target) in conditions {
+                for (condition, target) in js_own_property_entries(conditions) {
                     if !self.package_condition_matches(
                         condition,
                         context.mode,
@@ -3112,7 +4493,7 @@ impl<'a> ModuleResolver<'a> {
             }
             Value::Array(targets) => {
                 if targets.is_empty() {
-                    return Ok(Search::Terminal(ResolutionOutcome::NotFound));
+                    return Ok(Search::Continue);
                 }
                 for target in targets {
                     let result =
@@ -3187,57 +4568,92 @@ impl<'a> ModuleResolver<'a> {
         attach_package_id: bool,
         raw_package_target: Option<&str>,
     ) -> Result<ResolutionOutcome<HostResolvedModule>, ResolutionError> {
+        // loadFileNameFromPackageJsonField performs an exact-only fast path
+        // for an admitted TS implementation or declaration extension. An
+        // exact miss must not fall through to sibling TS/declaration probes
+        // in the same pass.
+        if let Some(extension) = package_json_target_exact_extension(target, context.pass) {
+            if !self.host.file_exists(Path::new(target))? {
+                return Ok(ResolutionOutcome::NotFound);
+            }
+            let resolved_using_ts_extension =
+                raw_package_target.is_some_and(|raw| !raw.ends_with(extension.as_str()));
+            return self.finish_resolution(
+                package,
+                target,
+                extension,
+                context.is_external_library_import,
+                attach_package_id,
+                resolved_using_ts_extension,
+                context.follow_realpath,
+            );
+        }
+
         let plan = match context.pass {
             ExtensionProbePass::Declaration => declaration_extension_probe_plan(target),
-            ExtensionProbePass::DeclarationPackageField => {
-                declaration_package_field_probe_plan(target)
-            }
             _ => extension_probe_plan(target, self.options.resolve_json_module_effective()),
         };
-        let (base, probes, preferred_len) = match plan {
-            Ok(plan) => plan,
+        let mut arbitrary_probe = None;
+        let replacement = match plan {
+            Ok((base, probes, preferred_len)) => Some((
+                base,
+                select_extension_probes(probes, preferred_len, context.pass),
+            )),
             Err(ResolutionError::Unsupported { feature, .. })
-                if feature == "module-target-extension"
-                    && matches!(context.pass, ExtensionProbePass::Declaration)
-                    && !self.is_node_esm_mode(context.mode)
-                    && !base_name(target).contains('.') =>
+                if feature == "module-target-extension" =>
             {
-                (target, DTS_PROBES, 1)
-            }
-            Err(ResolutionError::Unsupported { feature, .. })
-                if feature == "module-target-extension"
-                    && context.mode == ResolutionMode::EsNext
-                    && !base_name(target).contains('.') =>
-            {
-                return Ok(ResolutionOutcome::NotFound);
+                if extension_pass_includes_declaration(context.pass) {
+                    arbitrary_probe = arbitrary_declaration_twin(target);
+                }
+                None
             }
             Err(error) => return Err(error),
         };
-
-        let probes = match context.pass {
-            ExtensionProbePass::All => probes,
-            ExtensionProbePass::Preferred => &probes[..preferred_len],
-            ExtensionProbePass::Declaration => probes,
-            ExtensionProbePass::DeclarationPackageField => &probes[..preferred_len],
-            ExtensionProbePass::Fallback => &probes[preferred_len..],
-        };
+        if replacement
+            .as_ref()
+            .is_none_or(|(_, probes)| probes.is_empty())
+            && arbitrary_probe.is_none()
+        {
+            if base_name(target).contains('.') {
+                self.host
+                    .directory_exists(Path::new(&directory_name(target)))?;
+            }
+            return Ok(ResolutionOutcome::NotFound);
+        }
         let target_directory = directory_name(target);
         if !self.host.directory_exists(Path::new(&target_directory))? {
             return Ok(ResolutionOutcome::NotFound);
         }
-        for (extension, suffix) in probes {
-            let candidate = format!("{base}{suffix}");
+        if let Some((base, probes)) = replacement {
+            for (extension, suffix) in probes {
+                let candidate = format!("{base}{suffix}");
+                if self.host.file_exists(Path::new(&candidate))? {
+                    let extension = materialize_module_extension(extension, suffix);
+                    let resolved_using_ts_extension = candidate != target
+                        && is_typescript_family_specifier(target)
+                        && is_typescript_module_extension(&extension);
+                    return self.finish_resolution(
+                        package,
+                        &candidate,
+                        extension,
+                        context.is_external_library_import,
+                        attach_package_id,
+                        resolved_using_ts_extension,
+                        context.follow_realpath,
+                    );
+                }
+            }
+        }
+        if let Some((candidate, extension)) = arbitrary_probe {
             if self.host.file_exists(Path::new(&candidate))? {
-                let resolved_using_ts_extension = target.ends_with(suffix)
-                    && is_typescript_module_extension(extension)
-                    && raw_package_target.is_some_and(|raw| !raw.ends_with(suffix));
                 return self.finish_resolution(
                     package,
                     &candidate,
-                    extension.clone(),
+                    ModuleExtension::Arbitrary(extension),
                     context.is_external_library_import,
                     attach_package_id,
-                    resolved_using_ts_extension,
+                    false,
+                    context.follow_realpath,
                 );
             }
         }
@@ -3247,6 +4663,7 @@ impl<'a> ModuleResolver<'a> {
     /// tsc-port: withPackageId @6.0.3
     /// tsc-hash: 714c67b6e906e185d5b4f85b128147b60ec24d8a1bd1c82b386103fc5ddf3eb0
     /// tsc-span: _tsc.js:39824-39838
+    #[allow(clippy::too_many_arguments)] // Resolution provenance fields are independently observable.
     fn finish_resolution(
         &self,
         package: &CachedPackage,
@@ -3255,6 +4672,7 @@ impl<'a> ModuleResolver<'a> {
         is_external_library_import: bool,
         attach_package_id: bool,
         resolved_using_ts_extension: bool,
+        follow_realpath: bool,
     ) -> Result<ResolutionOutcome<HostResolvedModule>, ResolutionError> {
         self.finish_legacy_resolution(
             Some(package),
@@ -3264,8 +4682,7 @@ impl<'a> ModuleResolver<'a> {
                 is_external_library_import,
                 attach_package_id,
                 resolved_using_ts_extension,
-                /* package-map external results follow realpath */
-                follow_realpath: is_external_library_import,
+                follow_realpath: is_external_library_import && follow_realpath,
             },
         )
     }
@@ -3389,13 +4806,41 @@ fn normalize_optional_candidate(
         /* allow_empty */ true,
     )?;
     normalize_absolute_path(Path::new(candidate), Some(base_directory))
+        .map(|normalized| preserve_trailing_directory_separator(normalized, candidate))
 }
 
 fn preserve_trailing_directory_separator(mut normalized: String, source: &str) -> String {
-    if source.ends_with('/') && !normalized.ends_with('/') {
+    if source.ends_with(['/', '\\']) && !normalized.ends_with('/') {
         normalized.push('/');
     }
     normalized
+}
+
+fn preserve_node_directory_spelling(mut normalized: String, directory_spelling: bool) -> String {
+    if directory_spelling && !normalized.ends_with('/') {
+        normalized.push('/');
+    }
+    normalized
+}
+
+fn combine_paths_spelling(parent: &str, child: &str) -> Result<String, ResolutionError> {
+    if child.contains('\0') {
+        return Err(ResolutionError::invalid_data(
+            "type-reference directive contains a NUL byte",
+        ));
+    }
+    let child = child.replace('\\', "/");
+    if child.is_empty() {
+        return Ok(parent.to_owned());
+    }
+    if is_normalized_rooted_text(&child) || child.starts_with("//") {
+        return Ok(child);
+    }
+    if parent.ends_with('/') {
+        Ok(format!("{parent}{child}"))
+    } else {
+        Ok(format!("{parent}/{child}"))
+    }
 }
 
 fn validate_and_clone_paths(
@@ -3514,8 +4959,7 @@ fn validate_path_context(
 }
 
 fn non_empty_string_field(object: &Map<String, Value>, field: &str) -> Option<String> {
-    object
-        .get(field)
+    json_object_own_get(object, field)
         .and_then(Value::as_str)
         .filter(|value| !value.is_empty())
         .map(str::to_owned)
@@ -3536,7 +4980,25 @@ fn package_subpath(exports_subpath: &str) -> Result<Option<&str>, ResolutionErro
         })
 }
 
-fn normalize_package_target(
+fn normalize_legacy_package_target(
+    package: &CachedPackage,
+    target: &str,
+) -> Result<String, ResolutionError> {
+    normalize_legacy_target_from_directory(&package.root, target)
+}
+
+fn normalize_legacy_target_from_directory(
+    base_directory: &str,
+    target: &str,
+) -> Result<String, ResolutionError> {
+    if target.is_empty() {
+        return Ok(base_directory.to_owned());
+    }
+    normalize_absolute_path(Path::new(target), Some(base_directory))
+        .map(|candidate| preserve_trailing_directory_separator(candidate, target))
+}
+
+fn normalize_package_subpath(
     package: &CachedPackage,
     target: &str,
 ) -> Result<String, ResolutionError> {
@@ -3562,10 +5024,10 @@ fn selected_package_entry_field(
     probe_pass: ExtensionProbePass,
 ) -> Option<&str> {
     match probe_pass {
+        ExtensionProbePass::Empty => None,
         ExtensionProbePass::All
         | ExtensionProbePass::Preferred
-        | ExtensionProbePass::Declaration
-        | ExtensionProbePass::DeclarationPackageField => package
+        | ExtensionProbePass::Declaration => package
             .typings
             .as_deref()
             .or(package.types.as_deref())
@@ -3574,19 +5036,10 @@ fn selected_package_entry_field(
     }
 }
 
-fn package_version_logical_name(
-    package: &CachedPackage,
-    probe_pass: ExtensionProbePass,
-) -> Option<String> {
-    selected_package_entry_field(package, probe_pass)
-        .map(|field| field.strip_prefix("./").unwrap_or(field).to_owned())
-}
-
 fn parse_package_request(specifier: &str) -> Result<PackageRequest<'_>, ResolutionError> {
-    if specifier.is_empty()
-        || is_relative_specifier(specifier)
+    if is_relative_specifier(specifier)
         || specifier.starts_with(['/', '\\'])
-        || specifier.contains(['\\', '\0', ':'])
+        || specifier.contains('\0')
     {
         return Err(ResolutionError::unsupported(
             "non-bare-module-specifier",
@@ -3595,23 +5048,17 @@ fn parse_package_request(specifier: &str) -> Result<PackageRequest<'_>, Resoluti
     }
 
     let package_end = if specifier.starts_with('@') {
-        let scope_end = specifier.find('/').ok_or_else(|| {
-            ResolutionError::invalid_data(format!("invalid scoped package specifier {specifier:?}"))
-        })?;
-        if scope_end == 1 {
-            return Err(ResolutionError::invalid_data(format!(
-                "invalid scoped package specifier {specifier:?}"
-            )));
-        }
-        let package_start = scope_end + 1;
-        let package_tail = &specifier[package_start..];
-        let relative_end = package_tail.find('/').unwrap_or(package_tail.len());
-        if relative_end == 0 {
-            return Err(ResolutionError::invalid_data(format!(
-                "invalid scoped package specifier {specifier:?}"
-            )));
-        }
-        package_start + relative_end
+        // parsePackageName treats the second separator as the scoped package
+        // boundary. With no second separator, even malformed spellings such
+        // as `@scope` remain one observable package name.
+        specifier
+            .find('/')
+            .and_then(|scope_end| {
+                specifier[scope_end + 1..]
+                    .find('/')
+                    .map(|relative| scope_end + 1 + relative)
+            })
+            .unwrap_or(specifier.len())
     } else {
         specifier.find('/').unwrap_or(specifier.len())
     };
@@ -3621,18 +5068,6 @@ fn parse_package_request(specifier: &str) -> Result<PackageRequest<'_>, Resoluti
     let rest = specifier
         .get(package_end + usize::from(has_subpath_separator)..)
         .unwrap_or("");
-    if package_name.is_empty()
-        || (has_subpath_separator && rest.is_empty())
-        || (!rest.is_empty()
-            && rest
-                .split('/')
-                .any(|part| matches!(part, "." | "..") || part.is_empty()))
-    {
-        return Err(ResolutionError::invalid_data(format!(
-            "invalid package specifier {specifier:?}"
-        )));
-    }
-
     Ok(PackageRequest {
         package_name,
         exports_subpath: if rest.is_empty() {
@@ -3640,6 +5075,7 @@ fn parse_package_request(specifier: &str) -> Result<PackageRequest<'_>, Resoluti
         } else {
             format!("./{rest}")
         },
+        trailing_separator: has_subpath_separator && rest.is_empty(),
     })
 }
 
@@ -3648,7 +5084,11 @@ fn is_relative_specifier(specifier: &str) -> bool {
 }
 
 fn is_path_relative_specifier(specifier: &str) -> bool {
-    matches!(specifier, "." | "..") || specifier.starts_with("./") || specifier.starts_with("../")
+    matches!(specifier, "." | "..")
+        || specifier.starts_with("./")
+        || specifier.starts_with(".\\")
+        || specifier.starts_with("../")
+        || specifier.starts_with("..\\")
 }
 
 fn is_supported_rooted_specifier(specifier: &str) -> bool {
@@ -3656,11 +5096,12 @@ fn is_supported_rooted_specifier(specifier: &str) -> bool {
         || (specifier.len() >= 3
             && specifier.as_bytes()[0].is_ascii_alphabetic()
             && specifier.as_bytes()[1] == b':'
-            && specifier.as_bytes()[2] == b'/')
+            && matches!(specifier.as_bytes()[2], b'/' | b'\\'))
 }
 
 fn has_node_directory_spelling(specifier: &str) -> bool {
-    specifier.ends_with('/') || matches!(specifier.rsplit('/').next(), Some("." | ".."))
+    specifier.ends_with(['/', '\\'])
+        || matches!(specifier.rsplit(['/', '\\']).next(), Some("." | ".."))
 }
 
 fn is_typescript_family_specifier(specifier: &str) -> bool {
@@ -3690,26 +5131,34 @@ fn node_modules_package_root(path: &str) -> Option<String> {
     const MARKER: &str = "/node_modules/";
     let marker = path.rfind(MARKER)?;
     let package_start = marker + MARKER.len();
-    let remainder = &path[package_start..];
-    let first_separator = remainder.find('/')?;
-    if first_separator == 0 {
-        return None;
-    }
-    let package_end = if remainder.starts_with('@') {
-        let scoped_remainder = &remainder[first_separator + 1..];
-        let second_separator = scoped_remainder.find('/')?;
-        if second_separator == 0 {
-            return None;
-        }
-        package_start + first_separator + 1 + second_separator
-    } else {
-        package_start + first_separator
+    let move_to_separator = |previous: usize| {
+        path.get(previous + 1..)
+            .and_then(|suffix| suffix.find('/'))
+            .map_or(previous, |relative| previous + 1 + relative)
     };
+    let mut package_end = move_to_separator(package_start);
+    if path.as_bytes().get(package_start) == Some(&b'@') {
+        package_end = move_to_separator(package_end);
+    }
     Some(path[..package_end].to_owned())
 }
 
 fn package_id_for_legacy_path(
     package: &CachedPackage,
+    lexical_path: &str,
+    attach_package_id: bool,
+) -> Result<Option<PackageId>, ResolutionError> {
+    package_id_for_legacy_path_from_directory(
+        package,
+        &package.root,
+        lexical_path,
+        attach_package_id,
+    )
+}
+
+fn package_id_for_legacy_path_from_directory(
+    package: &CachedPackage,
+    package_directory: &str,
     lexical_path: &str,
     attach_package_id: bool,
 ) -> Result<Option<PackageId>, ResolutionError> {
@@ -3719,27 +5168,89 @@ fn package_id_for_legacy_path(
     if !attach_package_id {
         return Ok(None);
     }
-    let submodule_name = lexical_path
-        .strip_prefix(&package.root)
-        // withPackageId slices one character after the package directory even
-        // for the sibling-file shape `pkg.ts`.
-        .map(|path| path.get(1..).unwrap_or(""))
-        .ok_or_else(|| {
-            ResolutionError::invalid_data(format!(
-                "resolved path {lexical_path} is outside package {}",
-                package.root
-            ))
-        })?;
+    // withPackageId slices one UTF-16 code unit after the package directory
+    // length without a containment check. Legacy package fields and
+    // typesVersions substitutions may intentionally escape the package root,
+    // so even their odd sliced spelling is observable.
+    let start = package_directory.encode_utf16().count().saturating_add(1);
+    let units = lexical_path.encode_utf16().skip(start).collect::<Vec<_>>();
+    let submodule_name = String::from_utf16_lossy(&units);
     Ok(Some(PackageId::new(name, submodule_name, version)))
 }
 
 fn arbitrary_declaration_twin(candidate: &str) -> Option<(String, String)> {
     let file_name = base_name(candidate);
     let dot = file_name.rfind('.')?;
-    let original_extension = &file_name[dot..];
-    let base = candidate.get(..candidate.len() - original_extension.len())?;
+    let mut original_extension = file_name[dot..].to_owned();
+    if candidate.ends_with('/') {
+        original_extension.push('/');
+    }
+    let base = candidate.get(..candidate.len().checked_sub(original_extension.len())?)?;
     let extension = format!(".d{original_extension}.ts");
     Some((format!("{base}{extension}"), extension))
+}
+
+fn select_extension_probes(
+    probes: &'static [ExtensionProbe],
+    preferred_len: usize,
+    pass: ExtensionProbePass,
+) -> &'static [ExtensionProbe] {
+    match pass {
+        ExtensionProbePass::All | ExtensionProbePass::Declaration => probes,
+        ExtensionProbePass::Preferred => &probes[..preferred_len],
+        ExtensionProbePass::Fallback => &probes[preferred_len..],
+        ExtensionProbePass::Empty => &probes[..0],
+    }
+}
+
+fn implicit_extension_probes(pass: ExtensionProbePass) -> &'static [ExtensionProbe] {
+    match pass {
+        ExtensionProbePass::Empty => &JS_PROBES[..0],
+        ExtensionProbePass::All => JS_PROBES,
+        ExtensionProbePass::Preferred => &JS_PROBES[..3],
+        ExtensionProbePass::Declaration => DECLARATION_DTS_PROBES,
+        ExtensionProbePass::Fallback => &JS_PROBES[3..],
+    }
+}
+
+fn extension_pass_includes_declaration(pass: ExtensionProbePass) -> bool {
+    matches!(
+        pass,
+        ExtensionProbePass::All | ExtensionProbePass::Preferred | ExtensionProbePass::Declaration
+    )
+}
+
+fn extension_pass_includes_typescript(pass: ExtensionProbePass) -> bool {
+    matches!(
+        pass,
+        ExtensionProbePass::All | ExtensionProbePass::Preferred
+    )
+}
+
+fn materialize_module_extension(extension: &ModuleExtension, suffix: &str) -> ModuleExtension {
+    if suffix == ".d.json.ts" {
+        ModuleExtension::Arbitrary(suffix.to_owned())
+    } else {
+        extension.clone()
+    }
+}
+
+fn package_json_target_exact_extension(
+    target: &str,
+    pass: ExtensionProbePass,
+) -> Option<ModuleExtension> {
+    let extension = recognized_module_extension(target)?;
+    let supported = match extension {
+        ModuleExtension::Ts
+        | ModuleExtension::Tsx
+        | ModuleExtension::Mts
+        | ModuleExtension::Cts => extension_pass_includes_typescript(pass),
+        ModuleExtension::Dts | ModuleExtension::Dmts | ModuleExtension::Dcts => {
+            extension_pass_includes_typescript(pass) || extension_pass_includes_declaration(pass)
+        }
+        _ => false,
+    };
+    supported.then_some(extension)
 }
 
 fn extension_probe_plan(
@@ -3747,32 +5258,32 @@ fn extension_probe_plan(
     resolve_json_module: bool,
 ) -> Result<ExtensionProbePlan<'_>, ResolutionError> {
     let plan = if let Some(base) = target.strip_suffix(".d.cts") {
-        (base, DCTS_PROBES, 1)
+        (base, DCTS_PROBES, 2)
     } else if let Some(base) = target.strip_suffix(".d.mts") {
-        (base, DMTS_PROBES, 1)
+        (base, DMTS_PROBES, 2)
     } else if let Some(base) = target.strip_suffix(".d.ts") {
-        (base, DTS_PROBES, 1)
+        (base, DTS_PROBES, 3)
     } else if let Some(base) = target.strip_suffix(".cjs") {
         (base, CJS_PROBES, 2)
     } else if let Some(base) = target.strip_suffix(".mjs") {
         (base, MJS_PROBES, 2)
     } else if let Some(base) = target.strip_suffix(".jsx") {
-        (base, JSX_PROBES, 2)
+        (base, JSX_PROBES, 3)
     } else if let Some(base) = target.strip_suffix(".js") {
         (base, JS_PROBES, 3)
     } else if let Some(base) = target.strip_suffix(".tsx") {
-        (base, TSX_PROBES, 1)
+        (base, TSX_PROBES, 3)
     } else if let Some(base) = target.strip_suffix(".ts") {
-        (base, TS_PROBES, 1)
+        (base, TS_PROBES, 3)
     } else if let Some(base) = target.strip_suffix(".mts") {
-        (base, MTS_PROBES, 1)
+        (base, MTS_PROBES, 2)
     } else if let Some(base) = target.strip_suffix(".cts") {
-        (base, CTS_PROBES, 1)
+        (base, CTS_PROBES, 2)
     } else if let Some(base) = target.strip_suffix(".json") {
         if resolve_json_module {
             (base, JSON_PROBES, 1)
         } else {
-            (base, JSON_DISABLED_PROBES, 4)
+            (base, JSON_DISABLED_PROBES, 1)
         }
     } else {
         return Err(ResolutionError::unsupported(
@@ -3790,27 +5301,29 @@ fn declaration_extension_probe_plan(
     target: &str,
 ) -> Result<ExtensionProbePlan<'_>, ResolutionError> {
     let plan = if let Some(base) = target.strip_suffix(".d.cts") {
-        (base, DCTS_PROBES, 1)
+        (base, DECLARATION_DCTS_PROBES, 1)
     } else if let Some(base) = target.strip_suffix(".d.mts") {
-        (base, DMTS_PROBES, 1)
+        (base, DECLARATION_DMTS_PROBES, 1)
     } else if let Some(base) = target.strip_suffix(".d.ts") {
-        (base, DTS_PROBES, 1)
+        (base, DECLARATION_DTS_PROBES, 1)
     } else if let Some(base) = target.strip_suffix(".cjs") {
-        (base, DCTS_PROBES, 1)
+        (base, DECLARATION_DCTS_PROBES, 1)
     } else if let Some(base) = target.strip_suffix(".cts") {
-        (base, DCTS_PROBES, 1)
+        (base, DECLARATION_DCTS_PROBES, 1)
     } else if let Some(base) = target.strip_suffix(".mjs") {
-        (base, DMTS_PROBES, 1)
+        (base, DECLARATION_DMTS_PROBES, 1)
     } else if let Some(base) = target.strip_suffix(".mts") {
-        (base, DMTS_PROBES, 1)
+        (base, DECLARATION_DMTS_PROBES, 1)
     } else if let Some(base) = target.strip_suffix(".jsx") {
-        (base, DTS_PROBES, 1)
+        (base, DECLARATION_DTS_PROBES, 1)
     } else if let Some(base) = target.strip_suffix(".tsx") {
-        (base, DTS_PROBES, 1)
+        (base, DECLARATION_DTS_PROBES, 1)
     } else if let Some(base) = target.strip_suffix(".js") {
-        (base, DTS_PROBES, 1)
+        (base, DECLARATION_DTS_PROBES, 1)
     } else if let Some(base) = target.strip_suffix(".ts") {
-        (base, DTS_PROBES, 1)
+        (base, DECLARATION_DTS_PROBES, 1)
+    } else if let Some(base) = target.strip_suffix(".json") {
+        (base, DJSON_PROBES, 1)
     } else {
         return Err(ResolutionError::unsupported(
             "module-target-extension",
@@ -3820,93 +5333,958 @@ fn declaration_extension_probe_plan(
     Ok(plan)
 }
 
-/// The declaration directory loader treats a package-json entry differently
-/// from an ordinary declaration probe: a written extension first receives its
-/// declaration twin, followed by the TypeScript + declaration expansion.
-fn declaration_package_field_probe_plan(
-    target: &str,
-) -> Result<ExtensionProbePlan<'_>, ResolutionError> {
-    let plan = if let Some(base) = target.strip_suffix(".d.cts") {
-        (base, DECLARATION_PACKAGE_CJS_PROBES, 2)
-    } else if let Some(base) = target.strip_suffix(".d.mts") {
-        (base, DECLARATION_PACKAGE_MJS_PROBES, 2)
-    } else if let Some(base) = target.strip_suffix(".d.ts") {
-        (base, DECLARATION_PACKAGE_JS_PROBES, 3)
-    } else if let Some(base) = target.strip_suffix(".cjs") {
-        (base, DECLARATION_PACKAGE_CJS_PROBES, 2)
-    } else if let Some(base) = target.strip_suffix(".cts") {
-        (base, DECLARATION_PACKAGE_CJS_PROBES, 2)
-    } else if let Some(base) = target.strip_suffix(".mjs") {
-        (base, DECLARATION_PACKAGE_MJS_PROBES, 2)
-    } else if let Some(base) = target.strip_suffix(".mts") {
-        (base, DECLARATION_PACKAGE_MJS_PROBES, 2)
-    } else if let Some(base) = target.strip_suffix(".jsx") {
-        (base, DECLARATION_PACKAGE_JSX_PROBES, 3)
-    } else if let Some(base) = target.strip_suffix(".tsx") {
-        (base, DECLARATION_PACKAGE_JSX_PROBES, 3)
-    } else if let Some(base) = target.strip_suffix(".js") {
-        (base, DECLARATION_PACKAGE_JS_PROBES, 3)
-    } else if let Some(base) = target.strip_suffix(".ts") {
-        (base, DECLARATION_PACKAGE_JS_PROBES, 3)
-    } else if let Some(base) = target.strip_suffix(".json") {
-        (base, DJSON_PROBES, 1)
-    } else if !base_name(target).contains('.') {
-        (target, JS_PROBES, 3)
-    } else {
-        return Err(ResolutionError::unsupported(
-            "module-target-extension",
-            format!("package field has no supported written extension: {target}"),
-        ));
-    };
-    Ok(plan)
-}
-
 /// tsrs-native: the recognized-extension projection consumed by the
 /// typesVersions exact-substitution probe.
 fn recognized_module_extension(path: &str) -> Option<ModuleExtension> {
-    if path.ends_with(".d.ts") {
+    let has_extension = |extension: &str| path.len() > extension.len() && path.ends_with(extension);
+    if has_extension(".d.ts") {
         Some(ModuleExtension::Dts)
-    } else if path.ends_with(".d.mts") {
+    } else if has_extension(".d.mts") {
         Some(ModuleExtension::Dmts)
-    } else if path.ends_with(".d.cts") {
+    } else if has_extension(".d.cts") {
         Some(ModuleExtension::Dcts)
-    } else if path.ends_with(".mjs") {
+    } else if has_extension(".mjs") {
         Some(ModuleExtension::Mjs)
-    } else if path.ends_with(".mts") {
+    } else if has_extension(".mts") {
         Some(ModuleExtension::Mts)
-    } else if path.ends_with(".cjs") {
+    } else if has_extension(".cjs") {
         Some(ModuleExtension::Cjs)
-    } else if path.ends_with(".cts") {
+    } else if has_extension(".cts") {
         Some(ModuleExtension::Cts)
-    } else if path.ends_with(".ts") {
+    } else if has_extension(".ts") {
         Some(ModuleExtension::Ts)
-    } else if path.ends_with(".js") {
+    } else if has_extension(".js") {
         Some(ModuleExtension::Js)
-    } else if path.ends_with(".tsx") {
+    } else if has_extension(".tsx") {
         Some(ModuleExtension::Tsx)
-    } else if path.ends_with(".jsx") {
+    } else if has_extension(".jsx") {
         Some(ModuleExtension::Jsx)
-    } else if path.ends_with(".json") {
+    } else if has_extension(".json") {
         Some(ModuleExtension::Json)
     } else {
         None
     }
 }
 
-fn select_types_versions_mapping<'a, 'b>(
-    table: &'a Map<String, Value>,
-    request: &'b str,
-) -> Option<(&'a str, &'b str, &'a Value)> {
-    if let Some((key, targets)) = table.get_key_value(request) {
-        return Some((key.as_str(), "", targets));
+/// ECMAScript own-property ordering used by JSON.parse results: canonical
+/// array-index keys first in ascending order, then other strings in source
+/// insertion order. serde_json's `preserve_order` covers only the second
+/// group, so version/condition objects need this projection explicitly.
+fn js_own_property_entries(object: &Map<String, Value>) -> Vec<(&str, &Value)> {
+    let mut indices = Vec::new();
+    let mut strings = Vec::new();
+    for (key, value) in object {
+        let Some(key) = decode_user_object_key(key) else {
+            continue;
+        };
+        if let Some(index) = js_array_index(key) {
+            indices.push((index, key, value));
+        } else {
+            strings.push((key, value));
+        }
     }
-    let mut patterns = table
-        .keys()
-        .filter(|key| has_one_asterisk(key))
-        .map(String::as_str)
-        .collect::<Vec<_>>();
-    patterns.sort_by(|left, right| compare_pattern_keys(left, right));
-    for pattern in patterns {
+    indices.sort_by_key(|(index, _, _)| *index);
+    indices
+        .into_iter()
+        .map(|(_, key, value)| (key, value))
+        .chain(strings)
+        .collect()
+}
+
+fn js_json_object_entries(value: &Value) -> Option<Vec<(String, &Value)>> {
+    match value {
+        Value::Object(object) => Some(
+            js_own_property_entries(object)
+                .into_iter()
+                .map(|(key, value)| (key.to_owned(), value))
+                .collect(),
+        ),
+        Value::Array(array) => Some(
+            array
+                .iter()
+                .enumerate()
+                .map(|(index, value)| (index.to_string(), value))
+                .collect(),
+        ),
+        _ => None,
+    }
+}
+
+fn js_array_index(key: &str) -> Option<u32> {
+    if key.is_empty() || (key.len() > 1 && key.starts_with('0')) {
+        return None;
+    }
+    let index = key.parse::<u32>().ok()?;
+    (index != u32::MAX && index.to_string() == key).then_some(index)
+}
+
+/// Project the value passed to TypeScript's generic `forEach` helper in
+/// `tryLoadModuleUsingPaths`.
+///
+/// tsc-port: forEach @6.0.3
+/// tsc-hash: 8efa7fabfe639253b0004be7e4cf536dd28e0425554f481edec429d0a7508ca7
+/// tsc-span: _tsc.js:29-39
+fn try_for_each_types_versions_substitution<T>(
+    targets: &Value,
+    pattern: &str,
+    mut callback: impl FnMut(&Value) -> Result<Option<T>, ResolutionError>,
+) -> Result<Option<T>, ResolutionError> {
+    match targets {
+        // JavaScript string indexing observes UTF-16 code units. Rust strings
+        // cannot retain an unpaired surrogate, while Node's filesystem path
+        // conversion replaces one as well, so use the same lossy scalar here.
+        Value::String(target) => {
+            for unit in target.encode_utf16() {
+                let substitution = Value::String(String::from_utf16_lossy(&[unit]));
+                if let Some(result) = callback(&substitution)? {
+                    return Ok(Some(result));
+                }
+            }
+            Ok(None)
+        }
+        Value::Array(targets) => {
+            for target in targets {
+                if let Some(result) = callback(target)? {
+                    return Ok(Some(result));
+                }
+            }
+            Ok(None)
+        }
+        Value::Object(targets) => {
+            let length = js_json_object_array_like_length(targets)?;
+            let mut index = 0_usize;
+            while (index as f64) < length {
+                let substitution =
+                    json_object_get(targets, &index.to_string()).ok_or_else(|| {
+                        ResolutionError::invalid_data(format!(
+                            "typesVersions mapping {pattern:?} is missing array-like index {index}"
+                        ))
+                    })?;
+                if let Some(result) = callback(substitution)? {
+                    return Ok(Some(result));
+                }
+                index = index.checked_add(1).ok_or_else(|| {
+                    ResolutionError::resource_limit(format!(
+                        "typesVersions mapping {pattern:?} has an unbounded array-like length"
+                    ))
+                })?;
+            }
+            Ok(None)
+        }
+        // `forEach(null, ...)` reads `null.length` and throws. Other JSON
+        // primitives expose no `length`, so the JavaScript loop executes zero
+        // times and the selected mapping owns a miss.
+        Value::Null => Err(ResolutionError::invalid_data(format!(
+            "typesVersions mapping {pattern:?} is null"
+        ))),
+        Value::Bool(_) | Value::Number(_) => Ok(None),
+    }
+}
+
+/// Apply the callback-local JavaScript coercions from
+/// `tryLoadModuleUsingPaths`. A nonempty wildcard capture goes through
+/// `String.prototype.replace.call`, while an exact match passes its raw value
+/// to `combinePaths`: false, zero, and an empty string are skipped there, but
+/// other truthy non-string JSON values fail during slash normalization.
+fn project_types_versions_substitution(
+    substitution: &Value,
+    capture: &str,
+    pattern: &str,
+) -> Result<(String, Option<ModuleExtension>), ResolutionError> {
+    let invalid_target = || {
+        ResolutionError::invalid_data(format!(
+            "typesVersions mapping {pattern:?} contains a target that cannot be used as a path"
+        ))
+    };
+    if !capture.is_empty() {
+        let target = js_json_to_string(substitution)?;
+        let expanded = js_replace_first_star(target.as_ref(), capture)?;
+        let extension = recognized_types_versions_raw_extension(substitution, pattern)?;
+        return Ok((expanded, extension));
+    }
+
+    match substitution {
+        Value::String(target) => Ok((target.clone(), recognized_module_extension(target))),
+        Value::Bool(false) => Ok((String::new(), None)),
+        Value::Number(target) if json_number_as_f64(target).is_some_and(|target| target == 0.0) => {
+            Ok((String::new(), None))
+        }
+        Value::Null | Value::Bool(true) | Value::Number(_) | Value::Array(_) | Value::Object(_) => {
+            Err(invalid_target())
+        }
+    }
+}
+
+fn recognized_types_versions_raw_extension(
+    substitution: &Value,
+    pattern: &str,
+) -> Result<Option<ModuleExtension>, ResolutionError> {
+    let invalid_target = || {
+        ResolutionError::invalid_data(format!(
+            "typesVersions mapping {pattern:?} contains a target with invalid path operations"
+        ))
+    };
+    match substitution {
+        Value::String(substitution) => Ok(recognized_module_extension(substitution)),
+        Value::Null => Err(invalid_target()),
+        Value::Bool(_) | Value::Number(_) => Ok(None),
+        Value::Object(substitution) => {
+            let length = js_json_object_array_like_length(substitution)?;
+            for (text, extension) in [
+                (".d.ts", ModuleExtension::Dts),
+                (".d.mts", ModuleExtension::Dmts),
+                (".d.cts", ModuleExtension::Dcts),
+                (".mjs", ModuleExtension::Mjs),
+                (".mts", ModuleExtension::Mts),
+                (".cjs", ModuleExtension::Cjs),
+                (".cts", ModuleExtension::Cts),
+                (".ts", ModuleExtension::Ts),
+                (".js", ModuleExtension::Js),
+                (".tsx", ModuleExtension::Tsx),
+                (".jsx", ModuleExtension::Jsx),
+                (".json", ModuleExtension::Json),
+            ] {
+                if length.is_nan() || length <= text.len() as f64 {
+                    continue;
+                }
+                if !js_json_object_inherits_array_method(substitution, "indexOf") {
+                    return Err(invalid_target());
+                }
+                let expected = length - text.len() as f64;
+                if js_json_object_array_index_of_starts_with_match(substitution, text, expected)? {
+                    return Ok(Some(extension));
+                }
+            }
+            Ok(None)
+        }
+        Value::Array(substitution) => {
+            for (text, extension) in [
+                (".d.ts", ModuleExtension::Dts),
+                (".d.mts", ModuleExtension::Dmts),
+                (".d.cts", ModuleExtension::Dcts),
+                (".mjs", ModuleExtension::Mjs),
+                (".mts", ModuleExtension::Mts),
+                (".cjs", ModuleExtension::Cjs),
+                (".cts", ModuleExtension::Cts),
+                (".ts", ModuleExtension::Ts),
+                (".js", ModuleExtension::Js),
+                (".tsx", ModuleExtension::Tsx),
+                (".jsx", ModuleExtension::Jsx),
+                (".json", ModuleExtension::Json),
+            ] {
+                if substitution.len() <= text.len() {
+                    continue;
+                }
+                let expected = substitution.len() - text.len();
+                if substitution
+                    .iter()
+                    .skip(expected)
+                    .position(|value| value.as_str() == Some(text))
+                    == Some(0)
+                {
+                    return Ok(Some(extension));
+                }
+            }
+            Ok(None)
+        }
+    }
+}
+
+#[derive(Clone, Copy)]
+enum JsJsonObjectToStringMethod {
+    Object,
+    ArrayJoin,
+}
+
+fn js_json_object_to_string_method(
+    object: &Map<String, Value>,
+) -> Result<JsJsonObjectToStringMethod, ResolutionError> {
+    js_json_object_to_string_method_worker(object, false)
+}
+
+fn js_json_object_to_string_method_worker(
+    object: &Map<String, Value>,
+    inherited_join_is_shadowed: bool,
+) -> Result<JsJsonObjectToStringMethod, ResolutionError> {
+    // JSON cannot carry a function. Any own `toString` therefore shadows the
+    // inherited callable with a non-callable value and JavaScript throws.
+    if json_object_own_get(object, "toString").is_some() {
+        return Err(ResolutionError::invalid_data(
+            "JSON object shadows its inherited JavaScript toString method",
+        ));
+    }
+    let inherited_join_is_shadowed =
+        inherited_join_is_shadowed || json_object_own_get(object, "join").is_some();
+    match jsonc_prototype(object) {
+        Some(Value::Object(prototype)) => {
+            js_json_object_to_string_method_worker(prototype, inherited_join_is_shadowed)
+        }
+        // `convertToJson` assigns through `result["__proto__"]`. An array
+        // value consequently lends Array.prototype.toString to the result;
+        // that method invokes a callable `this.join`, or falls back to
+        // Object.prototype.toString when a JSON value shadows `join`.
+        Some(Value::Array(_)) if inherited_join_is_shadowed => {
+            Ok(JsJsonObjectToStringMethod::Object)
+        }
+        Some(Value::Array(_)) => Ok(JsJsonObjectToStringMethod::ArrayJoin),
+        Some(Value::Null) => Err(ResolutionError::invalid_data(
+            "JSON object has no inherited JavaScript toString method",
+        )),
+        None => Ok(JsJsonObjectToStringMethod::Object),
+        Some(_) => {
+            unreachable!("the JSONC converter stores only object, array, or null prototypes")
+        }
+    }
+}
+
+fn js_json_object_inherits_array_method(object: &Map<String, Value>, method: &str) -> bool {
+    if json_object_own_get(object, method).is_some() {
+        return false;
+    }
+    match jsonc_prototype(object) {
+        Some(Value::Object(prototype)) => js_json_object_inherits_array_method(prototype, method),
+        Some(Value::Array(_)) => true,
+        Some(Value::Null) | None => false,
+        Some(_) => {
+            unreachable!("the JSONC converter stores only object, array, or null prototypes")
+        }
+    }
+}
+
+fn js_json_object_array_index_of_starts_with_match(
+    object: &Map<String, Value>,
+    needle: &str,
+    expected: f64,
+) -> Result<bool, ResolutionError> {
+    // `tryGetExtensionFromPath2` compares Array#indexOf's integer return
+    // value with the raw subtraction result. A fractional or infinite value
+    // can therefore never match, though the inherited method lookup above is
+    // still observable and must already have succeeded.
+    if !expected.is_finite() || expected < 0.0 || expected.fract() != 0.0 {
+        return Ok(false);
+    }
+    let element_count = js_array_like_to_length(js_json_object_array_like_length(object)?);
+    if expected >= element_count as f64 {
+        return Ok(false);
+    }
+    let index = format!("{expected:.0}");
+    Ok(json_object_get(object, &index).and_then(Value::as_str) == Some(needle))
+}
+
+fn js_array_like_to_length(length: f64) -> u64 {
+    if length.is_nan() || length <= 0.0 {
+        0
+    } else if !length.is_finite() {
+        9_007_199_254_740_991
+    } else {
+        length.floor().min(9_007_199_254_740_991.0) as u64
+    }
+}
+
+fn js_json_object_array_like_length(object: &Map<String, Value>) -> Result<f64, ResolutionError> {
+    if let Some(length) = json_object_own_get(object, "length") {
+        return js_json_to_number(length);
+    }
+    match jsonc_prototype(object) {
+        Some(Value::Object(prototype)) => js_json_object_array_like_length(prototype),
+        Some(Value::Array(prototype)) => Ok(prototype.len() as f64),
+        Some(Value::Null) | None => Ok(f64::NAN),
+        Some(_) => {
+            unreachable!("the JSONC converter stores only object, array, or null prototypes")
+        }
+    }
+}
+
+fn js_json_to_string(value: &Value) -> Result<Cow<'_, str>, ResolutionError> {
+    match value {
+        Value::Null => Err(ResolutionError::invalid_data(
+            "null cannot be used as a JavaScript string receiver",
+        )),
+        Value::Bool(value) => Ok(Cow::Borrowed(if *value { "true" } else { "false" })),
+        Value::Number(value) => json_number_as_f64(value)
+            .map(js_number_to_string)
+            .map(Cow::Owned)
+            .ok_or_else(|| {
+                ResolutionError::invalid_data(
+                    "JSON number cannot be represented as a JavaScript number",
+                )
+            }),
+        Value::String(value) => Ok(Cow::Borrowed(value)),
+        Value::Array(values) => js_json_array_to_string(values).map(Cow::Owned),
+        Value::Object(value) => match js_json_object_to_string_method(value)? {
+            JsJsonObjectToStringMethod::Object => Ok(Cow::Borrowed("[object Object]")),
+            JsJsonObjectToStringMethod::ArrayJoin => {
+                js_json_object_array_join_to_string(value).map(Cow::Owned)
+            }
+        },
+    }
+}
+
+fn js_json_value_is_truthy(value: &Value) -> bool {
+    match value {
+        Value::Null | Value::Bool(false) => false,
+        Value::Number(value) => {
+            json_number_as_f64(value).is_some_and(|value| value != 0.0 && !value.is_nan())
+        }
+        Value::String(value) => !value.is_empty(),
+        Value::Bool(true) | Value::Array(_) | Value::Object(_) => true,
+    }
+}
+
+/// JavaScript Number coercion for JSON values used as an array-like `length`.
+fn js_json_to_number(value: &Value) -> Result<f64, ResolutionError> {
+    match value {
+        Value::Null => Ok(0.0),
+        Value::Bool(value) => Ok(f64::from(u8::from(*value))),
+        Value::Number(value) => json_number_as_f64(value).ok_or_else(|| {
+            ResolutionError::invalid_data(
+                "JSON number cannot be represented as a JavaScript number",
+            )
+        }),
+        Value::String(value) => Ok(js_number_from_text(value)),
+        Value::Array(values) => Ok(js_number_from_text(&js_json_array_to_string(values)?)),
+        Value::Object(value) => match js_json_object_to_string_method(value)? {
+            JsJsonObjectToStringMethod::Object => Ok(f64::NAN),
+            JsJsonObjectToStringMethod::ArrayJoin => Ok(js_number_from_text(
+                &js_json_object_array_join_to_string(value)?,
+            )),
+        },
+    }
+}
+
+fn js_number_from_text(value: &str) -> f64 {
+    let value = value.trim_matches(is_ecmascript_string_numeric_whitespace);
+    if value.is_empty() {
+        return 0.0;
+    }
+    match value {
+        "Infinity" | "+Infinity" => return f64::INFINITY,
+        "-Infinity" => return f64::NEG_INFINITY,
+        _ => {}
+    }
+    for (prefixes, radix) in [(["0x", "0X"], 16_u32), (["0o", "0O"], 8), (["0b", "0B"], 2)] {
+        if let Some(digits) = prefixes
+            .iter()
+            .find_map(|prefix| value.strip_prefix(prefix))
+        {
+            if digits.is_empty() {
+                return f64::NAN;
+            }
+            let mut number = 0.0_f64;
+            for digit in digits.chars() {
+                let Some(digit) = digit.to_digit(radix) else {
+                    return f64::NAN;
+                };
+                number = number.mul_add(f64::from(radix), f64::from(digit));
+            }
+            return number;
+        }
+    }
+    if !is_ecmascript_decimal_number(value) {
+        return f64::NAN;
+    }
+    value
+        .strip_prefix('+')
+        .unwrap_or(value)
+        .parse()
+        .unwrap_or(f64::NAN)
+}
+
+fn is_ecmascript_string_numeric_whitespace(character: char) -> bool {
+    matches!(
+        character,
+        '\u{0009}'
+            | '\u{000a}'
+            | '\u{000b}'
+            | '\u{000c}'
+            | '\u{000d}'
+            | '\u{0020}'
+            | '\u{00a0}'
+            | '\u{1680}'
+            | '\u{2000}'
+            ..='\u{200a}'
+                | '\u{2028}'
+                | '\u{2029}'
+                | '\u{202f}'
+                | '\u{205f}'
+                | '\u{3000}'
+                | '\u{feff}'
+    )
+}
+
+fn is_ecmascript_decimal_number(value: &str) -> bool {
+    let unsigned = value.strip_prefix(['+', '-']).unwrap_or(value);
+    if unsigned.is_empty() {
+        return false;
+    }
+    let mut exponent_parts = unsigned.split(['e', 'E']);
+    let mantissa = exponent_parts
+        .next()
+        .expect("split always yields a mantissa");
+    if let Some(exponent) = exponent_parts.next() {
+        if exponent_parts.next().is_some() {
+            return false;
+        }
+        let exponent = exponent.strip_prefix(['+', '-']).unwrap_or(exponent);
+        if exponent.is_empty() || !exponent.bytes().all(|byte| byte.is_ascii_digit()) {
+            return false;
+        }
+    }
+    let mut decimal_parts = mantissa.split('.');
+    let whole = decimal_parts
+        .next()
+        .expect("split always yields a whole part");
+    let fraction = decimal_parts.next();
+    if decimal_parts.next().is_some() {
+        return false;
+    }
+    let whole_is_digits = whole.bytes().all(|byte| byte.is_ascii_digit());
+    let fraction_is_digits =
+        fraction.is_none_or(|fraction| fraction.bytes().all(|byte| byte.is_ascii_digit()));
+    whole_is_digits
+        && fraction_is_digits
+        && (!whole.is_empty() || fraction.is_some_and(|fraction| !fraction.is_empty()))
+}
+
+fn js_json_array_to_string(values: &[Value]) -> Result<String, ResolutionError> {
+    let output_length = js_json_array_string_length(values)?;
+    if output_length > MAX_JS_JSON_COERCION_OUTPUT_BUDGET {
+        return Err(ResolutionError::resource_limit(format!(
+            "JavaScript array string coercion would produce {output_length} bytes (budget {MAX_JS_JSON_COERCION_OUTPUT_BUDGET})"
+        )));
+    }
+    let mut result = String::new();
+    result.try_reserve_exact(output_length).map_err(|error| {
+        ResolutionError::resource_limit(format!(
+            "could not reserve {output_length} bytes for JavaScript array string coercion: {error}"
+        ))
+    })?;
+    append_js_json_array_string(values, &mut result)?;
+    debug_assert_eq!(result.len(), output_length);
+    Ok(result)
+}
+
+fn js_json_array_string_length(values: &[Value]) -> Result<usize, ResolutionError> {
+    let mut length = values.len().saturating_sub(1);
+    for value in values {
+        let value_length = js_json_join_element_string_length(value)?;
+        length = length.checked_add(value_length).ok_or_else(|| {
+            ResolutionError::resource_limit(
+                "JavaScript array string coercion output length overflowed usize",
+            )
+        })?;
+    }
+    Ok(length)
+}
+
+fn append_js_json_array_string(
+    values: &[Value],
+    result: &mut String,
+) -> Result<(), ResolutionError> {
+    for (index, value) in values.iter().enumerate() {
+        if index != 0 {
+            result.push(',');
+        }
+        append_js_json_join_element(value, result)?;
+    }
+    Ok(())
+}
+
+fn append_js_json_join_element(value: &Value, result: &mut String) -> Result<(), ResolutionError> {
+    match value {
+        Value::Null => {}
+        Value::Bool(value) => result.push_str(if *value { "true" } else { "false" }),
+        Value::Number(value) => {
+            let value = json_number_as_f64(value).ok_or_else(|| {
+                ResolutionError::invalid_data(
+                    "JSON number cannot be represented as a JavaScript number",
+                )
+            })?;
+            result.push_str(&js_number_to_string(value));
+        }
+        Value::String(value) => result.push_str(value),
+        Value::Array(values) => append_js_json_array_string(values, result)?,
+        Value::Object(value) => append_js_json_object_string(value, result)?,
+    }
+    Ok(())
+}
+
+fn js_json_join_element_string_length(value: &Value) -> Result<usize, ResolutionError> {
+    match value {
+        // Array#join renders null and an absent/undefined element as empty.
+        Value::Null => Ok(0),
+        Value::Bool(true) => Ok(4),
+        Value::Bool(false) => Ok(5),
+        Value::Number(value) => json_number_as_f64(value)
+            .map(js_number_to_string)
+            .map(|value| value.len())
+            .ok_or_else(|| {
+                ResolutionError::invalid_data(
+                    "JSON number cannot be represented as a JavaScript number",
+                )
+            }),
+        Value::String(value) => Ok(value.len()),
+        Value::Array(values) => js_json_array_string_length(values),
+        Value::Object(value) => match js_json_object_to_string_method(value)? {
+            JsJsonObjectToStringMethod::Object => Ok("[object Object]".len()),
+            JsJsonObjectToStringMethod::ArrayJoin => js_json_object_array_join_string_length(value),
+        },
+    }
+}
+
+fn append_js_json_object_string(
+    object: &Map<String, Value>,
+    result: &mut String,
+) -> Result<(), ResolutionError> {
+    match js_json_object_to_string_method(object)? {
+        JsJsonObjectToStringMethod::Object => result.push_str("[object Object]"),
+        JsJsonObjectToStringMethod::ArrayJoin => {
+            append_js_json_object_array_join_string(object, result)?;
+        }
+    }
+    Ok(())
+}
+
+fn js_json_object_array_join_to_string(
+    object: &Map<String, Value>,
+) -> Result<String, ResolutionError> {
+    let (element_count, elements) = js_json_object_array_join_projection(object)?;
+    let output_length = js_json_object_array_join_projection_length(element_count, &elements)?;
+    if output_length > MAX_JS_JSON_COERCION_OUTPUT_BUDGET {
+        return Err(ResolutionError::resource_limit(format!(
+            "JavaScript generic array string coercion would produce {output_length} bytes (budget {MAX_JS_JSON_COERCION_OUTPUT_BUDGET})"
+        )));
+    }
+    let mut result = String::new();
+    result.try_reserve_exact(output_length).map_err(|error| {
+        ResolutionError::resource_limit(format!(
+            "could not reserve {output_length} bytes for JavaScript generic array string coercion: {error}"
+        ))
+    })?;
+    append_js_json_object_array_join_projection(element_count, &elements, &mut result)?;
+    debug_assert_eq!(result.len(), output_length);
+    Ok(result)
+}
+
+fn js_json_object_array_join_string_length(
+    object: &Map<String, Value>,
+) -> Result<usize, ResolutionError> {
+    let (element_count, elements) = js_json_object_array_join_projection(object)?;
+    js_json_object_array_join_projection_length(element_count, &elements)
+}
+
+fn js_json_object_array_join_projection_length(
+    element_count: usize,
+    elements: &BTreeMap<usize, &Value>,
+) -> Result<usize, ResolutionError> {
+    let mut length = element_count.saturating_sub(1);
+    if length > MAX_JS_JSON_COERCION_OUTPUT_BUDGET {
+        return Err(ResolutionError::resource_limit(format!(
+            "JavaScript generic array string coercion requires {length} separator bytes (budget {MAX_JS_JSON_COERCION_OUTPUT_BUDGET})"
+        )));
+    }
+    for value in elements.values() {
+        length = length
+            .checked_add(js_json_join_element_string_length(value)?)
+            .ok_or_else(|| {
+                ResolutionError::resource_limit(
+                    "JavaScript generic array string coercion output length overflowed usize",
+                )
+            })?;
+        if length > MAX_JS_JSON_COERCION_OUTPUT_BUDGET {
+            return Err(ResolutionError::resource_limit(format!(
+                "JavaScript generic array string coercion would exceed the {MAX_JS_JSON_COERCION_OUTPUT_BUDGET}-byte budget"
+            )));
+        }
+    }
+    Ok(length)
+}
+
+fn append_js_json_object_array_join_string(
+    object: &Map<String, Value>,
+    result: &mut String,
+) -> Result<(), ResolutionError> {
+    let (element_count, elements) = js_json_object_array_join_projection(object)?;
+    append_js_json_object_array_join_projection(element_count, &elements, result)
+}
+
+fn js_json_object_array_join_projection(
+    object: &Map<String, Value>,
+) -> Result<(usize, BTreeMap<usize, &Value>), ResolutionError> {
+    let element_count = js_array_join_element_count(js_json_object_array_like_length(object)?)?;
+    let mut elements = BTreeMap::new();
+    let mut current = object;
+    loop {
+        for (key, value) in current {
+            let Some(index) = js_generic_array_property_index(key) else {
+                continue;
+            };
+            if index < element_count {
+                elements.entry(index).or_insert(value);
+            }
+        }
+        match jsonc_prototype(current) {
+            Some(Value::Object(prototype)) => current = prototype,
+            Some(Value::Array(prototype)) => {
+                for (index, value) in prototype.iter().take(element_count).enumerate() {
+                    elements.entry(index).or_insert(value);
+                }
+                break;
+            }
+            Some(Value::Null) | None => break,
+            Some(_) => {
+                unreachable!("the JSONC converter stores only object, array, or null prototypes")
+            }
+        }
+    }
+    Ok((element_count, elements))
+}
+
+fn js_generic_array_property_index(key: &str) -> Option<usize> {
+    if key.is_empty() || (key.len() > 1 && key.starts_with('0')) {
+        return None;
+    }
+    let index = key.parse::<usize>().ok()?;
+    (index.to_string() == key).then_some(index)
+}
+
+fn append_js_json_object_array_join_projection(
+    element_count: usize,
+    elements: &BTreeMap<usize, &Value>,
+    result: &mut String,
+) -> Result<(), ResolutionError> {
+    let mut rendered_elements = 0usize;
+    for (&index, value) in elements {
+        let commas = if rendered_elements == 0 {
+            index
+        } else {
+            index - rendered_elements + 1
+        };
+        append_commas(result, commas);
+        append_js_json_join_element(value, result)?;
+        rendered_elements = index + 1;
+    }
+    let trailing_commas = if rendered_elements == 0 {
+        element_count.saturating_sub(1)
+    } else {
+        element_count - rendered_elements
+    };
+    append_commas(result, trailing_commas);
+    Ok(())
+}
+
+fn append_commas(result: &mut String, mut count: usize) {
+    const COMMA_BLOCK: &str = ",,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,";
+    while count >= COMMA_BLOCK.len() {
+        result.push_str(COMMA_BLOCK);
+        count -= COMMA_BLOCK.len();
+    }
+    result.push_str(&COMMA_BLOCK[..count]);
+}
+
+fn js_array_join_element_count(length: f64) -> Result<usize, ResolutionError> {
+    if length.is_nan() || length <= 0.0 {
+        return Ok(0);
+    }
+    if !length.is_finite() {
+        return Err(ResolutionError::resource_limit(
+            "JavaScript generic array string coercion has an infinite length",
+        ));
+    }
+    let length = length.floor().min(9_007_199_254_740_991.0);
+    if length > (MAX_JS_JSON_COERCION_OUTPUT_BUDGET + 1) as f64 {
+        return Err(ResolutionError::resource_limit(format!(
+            "JavaScript generic array string coercion length {length} exceeds the output budget"
+        )));
+    }
+    Ok(length as usize)
+}
+
+/// JavaScript replacement-string semantics for `replaceFirstStar` and the
+/// package-map `/\*/g` replacement. There are no capture groups, so only the
+/// four context-independent/context tokens and `$$` are active; `$1` and
+/// `$<name>` remain literal.
+fn js_replace_first_star(target: &str, replacement: &str) -> Result<String, ResolutionError> {
+    js_replace_stars(target, replacement, false)
+}
+
+fn js_replace_all_stars(target: &str, replacement: &str) -> Result<String, ResolutionError> {
+    js_replace_stars(target, replacement, true)
+}
+
+fn js_replace_stars(
+    target: &str,
+    replacement: &str,
+    replace_all: bool,
+) -> Result<String, ResolutionError> {
+    let output_length = js_star_replacement_output_length(target, replacement, replace_all)
+        .ok_or_else(|| {
+            ResolutionError::resource_limit(
+                "JavaScript star replacement output length overflowed usize",
+            )
+        })?;
+    let input_length = target.len().checked_add(replacement.len()).ok_or_else(|| {
+        ResolutionError::resource_limit("JavaScript star replacement input length overflowed usize")
+    })?;
+    let output_budget = input_length
+        .saturating_mul(JS_REPLACEMENT_INPUT_MULTIPLIER)
+        .clamp(
+            MIN_JS_REPLACEMENT_OUTPUT_BUDGET,
+            MAX_JS_REPLACEMENT_OUTPUT_BUDGET,
+        )
+        .max(target.len());
+    if output_length > output_budget {
+        return Err(ResolutionError::resource_limit(format!(
+            "JavaScript star replacement would expand {input_length} input bytes to {output_length} bytes (budget {output_budget})"
+        )));
+    }
+    let mut result = String::new();
+    result.try_reserve_exact(output_length).map_err(|error| {
+        ResolutionError::resource_limit(format!(
+            "could not reserve {output_length} bytes for JavaScript star replacement: {error}"
+        ))
+    })?;
+    let mut search_start = 0;
+    let mut replaced = false;
+    while let Some(relative_star) = target[search_start..].find('*') {
+        let star = search_start + relative_star;
+        result.push_str(&target[search_start..star]);
+        append_js_star_replacement(
+            &mut result,
+            replacement,
+            &target[..star],
+            &target[star + 1..],
+        );
+        search_start = star + 1;
+        replaced = true;
+        if !replace_all {
+            break;
+        }
+    }
+    if !replaced {
+        result.push_str(target);
+        return Ok(result);
+    }
+    result.push_str(&target[search_start..]);
+    debug_assert_eq!(result.len(), output_length);
+    Ok(result)
+}
+
+fn js_star_replacement_output_length(
+    target: &str,
+    replacement: &str,
+    replace_all: bool,
+) -> Option<usize> {
+    let replacement = js_star_replacement_length_summary(replacement)?;
+    let mut output_length = 0_usize;
+    let mut search_start = 0;
+    let mut replaced = false;
+    while let Some(relative_star) = target[search_start..].find('*') {
+        let star = search_start + relative_star;
+        output_length = output_length.checked_add(star - search_start)?;
+        output_length = output_length
+            .checked_add(replacement.expanded_length(star, target.len() - star - 1)?)?;
+        search_start = star + 1;
+        replaced = true;
+        if !replace_all {
+            break;
+        }
+    }
+    if !replaced {
+        return Some(target.len());
+    }
+    output_length.checked_add(target.len() - search_start)
+}
+
+#[derive(Clone, Copy)]
+struct JsStarReplacementLengthSummary {
+    fixed_length: usize,
+    prefix_tokens: usize,
+    suffix_tokens: usize,
+}
+
+impl JsStarReplacementLengthSummary {
+    fn expanded_length(self, prefix_length: usize, suffix_length: usize) -> Option<usize> {
+        self.fixed_length
+            .checked_add(self.prefix_tokens.checked_mul(prefix_length)?)?
+            .checked_add(self.suffix_tokens.checked_mul(suffix_length)?)
+    }
+}
+
+fn js_star_replacement_length_summary(replacement: &str) -> Option<JsStarReplacementLengthSummary> {
+    let mut summary = JsStarReplacementLengthSummary {
+        fixed_length: 0,
+        prefix_tokens: 0,
+        suffix_tokens: 0,
+    };
+    let mut cursor = 0;
+    while let Some(relative_dollar) = replacement[cursor..].find('$') {
+        let dollar = cursor + relative_dollar;
+        summary.fixed_length = summary.fixed_length.checked_add(dollar - cursor)?;
+        let Some(token) = replacement.as_bytes().get(dollar + 1).copied() else {
+            summary.fixed_length = summary.fixed_length.checked_add(1)?;
+            cursor = dollar + 1;
+            break;
+        };
+        match token {
+            b'$' | b'&' => {
+                summary.fixed_length = summary.fixed_length.checked_add(1)?;
+            }
+            b'`' => summary.prefix_tokens = summary.prefix_tokens.checked_add(1)?,
+            b'\'' => summary.suffix_tokens = summary.suffix_tokens.checked_add(1)?,
+            _ => {
+                summary.fixed_length = summary.fixed_length.checked_add(1)?;
+                cursor = dollar + 1;
+                continue;
+            }
+        }
+        cursor = dollar + 2;
+    }
+    summary.fixed_length = summary
+        .fixed_length
+        .checked_add(replacement.len() - cursor)?;
+    Some(summary)
+}
+
+fn append_js_star_replacement(result: &mut String, replacement: &str, prefix: &str, suffix: &str) {
+    let mut cursor = 0;
+    while let Some(relative_dollar) = replacement[cursor..].find('$') {
+        let dollar = cursor + relative_dollar;
+        result.push_str(&replacement[cursor..dollar]);
+        let Some(token) = replacement.as_bytes().get(dollar + 1).copied() else {
+            result.push('$');
+            cursor = dollar + 1;
+            break;
+        };
+        match token {
+            b'$' => result.push('$'),
+            b'&' => result.push('*'),
+            b'`' => result.push_str(prefix),
+            b'\'' => result.push_str(suffix),
+            _ => {
+                result.push('$');
+                cursor = dollar + 1;
+                continue;
+            }
+        }
+        cursor = dollar + 2;
+    }
+    result.push_str(&replacement[cursor..]);
+}
+
+fn select_types_versions_mapping<'a, 'b>(
+    table: &'a Value,
+    request: &'b str,
+) -> Option<(String, &'b str, &'a Value)> {
+    let entries = js_json_object_entries(table)?;
+    if let Some((key, targets)) = entries.iter().find(|(key, _)| key == request) {
+        return Some((key.clone(), "", *targets));
+    }
+    let mut best = None;
+    for (pattern, targets) in entries {
+        if !has_one_asterisk(&pattern) {
+            continue;
+        }
         let star = pattern
             .find('*')
             .expect("typesVersions pattern was filtered to one asterisk");
@@ -3916,24 +6294,55 @@ fn select_types_versions_mapping<'a, 'b>(
             && request.ends_with(suffix)
             && request.len() >= prefix.len() + suffix.len()
         {
+            // findBestPatternMatch updates only for a strictly longer prefix;
+            // equal-prefix matches retain package.json insertion order.
+            if best
+                .as_ref()
+                .is_some_and(|(_, _, _, longest_prefix)| *longest_prefix >= prefix.len())
+            {
+                continue;
+            }
             let capture = &request[prefix.len()..request.len() - suffix.len()];
-            return Some((
-                pattern,
-                capture,
-                table
-                    .get(pattern)
-                    .expect("typesVersions pattern belongs to this table"),
-            ));
+            let prefix_len = prefix.len();
+            best = Some((pattern, capture, targets, prefix_len));
         }
     }
-    None
+    best.map(|(pattern, capture, targets, _)| (pattern, capture, targets))
 }
 
 fn mangle_scoped_package_name(package_name: &str) -> String {
     match package_name.strip_prefix('@') {
-        Some(scoped) => scoped.replacen('/', "__", 1),
+        Some(scoped) if scoped.contains('/') => scoped.replacen('/', "__", 1),
         None => package_name.to_owned(),
+        Some(_) => package_name.to_owned(),
     }
+}
+
+fn package_root_for_request(node_modules: &str, request: &PackageRequest<'_>) -> String {
+    retain_request_trailing_separator(
+        join_normalized(node_modules, &request.package_name.replace('\\', "/")),
+        request.trailing_separator,
+    )
+}
+
+fn types_package_root_for_request(
+    node_modules_at_types: &str,
+    request: &PackageRequest<'_>,
+) -> String {
+    retain_request_trailing_separator(
+        join_normalized(
+            node_modules_at_types,
+            &mangle_scoped_package_name(request.package_name).replace('\\', "/"),
+        ),
+        request.trailing_separator,
+    )
+}
+
+fn retain_request_trailing_separator(mut path: String, trailing_separator: bool) -> String {
+    if trailing_separator && !path.ends_with('/') {
+        path.push('/');
+    }
+    path
 }
 
 /// tsc-port: comparePatternKeys @6.0.3
@@ -3961,50 +6370,174 @@ fn has_one_asterisk(key: &str) -> bool {
         .is_some_and(|first| key.rfind('*') == Some(first))
 }
 
-fn expand_export_target(target: &str, subpath: &str, pattern: bool) -> Option<String> {
-    let target = target.strip_prefix("./")?;
-    if target.contains(['\\', '\0'])
-        || subpath.contains(['\\', '\0'])
-        || contains_forbidden_package_segment(target)
-        || contains_forbidden_package_segment(subpath)
-        || (!pattern && target.contains('*'))
-    {
-        return None;
+fn select_package_map_target<'a>(
+    table: &'a Map<String, Value>,
+    specifier: &str,
+    exports_pattern_trailers: bool,
+) -> Option<SelectedPackageMapTarget<'a>> {
+    if !specifier.ends_with('/') && !specifier.contains('*') {
+        if let Some(target) = json_object_own_get(table, specifier) {
+            return Some(SelectedPackageMapTarget {
+                target,
+                subpath: String::new(),
+                pattern: false,
+            });
+        }
     }
-    Some(if pattern {
-        target.replace('*', subpath)
-    } else {
-        format!("{target}{subpath}")
-    })
+
+    let mut expanding_keys = table
+        .keys()
+        .filter_map(|key| decode_user_object_key(key))
+        .filter(|key| has_one_asterisk(key) || key.ends_with('/'))
+        .collect::<Vec<_>>();
+    expanding_keys.sort_by(|left, right| compare_pattern_keys(left, right));
+    for key in expanding_keys {
+        let target =
+            json_object_own_get(table, key).expect("expanding key was collected from this table");
+        if let Some(star) = key.find('*') {
+            let prefix = &key[..star];
+            let suffix = &key[star + 1..];
+            if exports_pattern_trailers
+                && !suffix.is_empty()
+                && specifier.starts_with(prefix)
+                && specifier.ends_with(suffix)
+            {
+                // JavaScript String#substring swaps its bounds when the
+                // suffix overlaps the prefix. TypeScript relies on that exact
+                // behavior instead of rejecting the key.
+                let start = prefix.len();
+                let end = specifier.len().saturating_sub(suffix.len());
+                let (start, end) = if start <= end {
+                    (start, end)
+                } else {
+                    (end, start)
+                };
+                return Some(SelectedPackageMapTarget {
+                    target,
+                    subpath: specifier[start..end].to_owned(),
+                    pattern: true,
+                });
+            }
+            if suffix.is_empty() && specifier.starts_with(prefix) {
+                return Some(SelectedPackageMapTarget {
+                    target,
+                    subpath: specifier[prefix.len()..].to_owned(),
+                    pattern: true,
+                });
+            }
+        }
+        // The third upstream branch treats the complete key, including any
+        // literal `*`, as a directory prefix when neither pattern won.
+        if let Some(subpath) = specifier.strip_prefix(key) {
+            return Some(SelectedPackageMapTarget {
+                target,
+                subpath: subpath.to_owned(),
+                pattern: false,
+            });
+        }
+    }
+    None
 }
 
-fn expand_imports_bare_target(target: &str, subpath: &str, pattern: bool) -> Option<String> {
-    if target.is_empty()
-        || target.starts_with("../")
-        || target.starts_with(['/', '\\'])
-        || target.contains(['\\', '\0', ':'])
-        || subpath.contains(['\\', '\0'])
-        || (!pattern && target.contains('*'))
+fn expand_export_target(
+    package_root: &str,
+    target: &str,
+    subpath: &str,
+    pattern: bool,
+) -> Result<Option<String>, ResolutionError> {
+    let Some(target) = target.strip_prefix("./") else {
+        return Ok(None);
+    };
+    if target.contains('\0')
+        || subpath.contains('\0')
+        || contains_forbidden_package_segment(target)
+        || contains_forbidden_package_segment(subpath)
     {
-        return None;
+        return Ok(None);
     }
-    Some(if pattern {
-        target.replace('*', subpath)
+    let resolved_target = join_normalized(package_root, target);
+    Ok(Some(if pattern {
+        js_replace_all_stars(&resolved_target, subpath)?
+    } else {
+        format!("{resolved_target}{subpath}")
+    }))
+}
+
+fn expand_imports_bare_target(
+    target: &str,
+    subpath: &str,
+    pattern: bool,
+) -> Result<Option<String>, ResolutionError> {
+    if target.starts_with("../")
+        || is_rooted_disk_path(target)
+        || target.contains('\0')
+        || subpath.contains('\0')
+    {
+        return Ok(None);
+    }
+    Ok(Some(if pattern {
+        js_replace_all_stars(target, subpath)?
     } else {
         format!("{target}{subpath}")
-    })
+    }))
+}
+
+/// tsc-port: isRootedDiskPath @6.0.3
+/// tsc-hash: 8b2dd2a22675acbfa2df9f0725c62de7f4d94457736242b226b4785ab69834a9
+/// tsc-span: _tsc.js:5304-5306
+///
+/// tsc-port: getEncodedRootLength @6.0.3
+/// tsc-hash: 538f15da938ce9f7bcd6aa26f945cffe1cadbc12095e8666dab9ca62320a13e2
+/// tsc-span: _tsc.js:5349-5378
+fn is_rooted_disk_path(path: &str) -> bool {
+    let bytes = path.as_bytes();
+    matches!(bytes.first(), Some(b'/' | b'\\'))
+        || (bytes.first().is_some_and(u8::is_ascii_alphabetic)
+            && bytes.get(1) == Some(&b':')
+            && (bytes.len() == 2 || matches!(bytes.get(2), Some(b'/' | b'\\'))))
 }
 
 fn contains_forbidden_package_segment(path: &str) -> bool {
-    path.split('/')
+    path.split(['/', '\\'])
         .any(|part| matches!(part, "." | ".." | "node_modules"))
 }
 
 fn path_is_within(path: &str, directory: &str) -> bool {
-    path == directory
-        || (path.starts_with(directory)
-            && path.as_bytes().get(directory.len()).copied() == Some(b'/'))
-        || directory == "/"
+    path_relative_to_directory(path, directory).is_some()
+}
+
+fn path_relative_to_directory<'a>(path: &'a str, directory: &str) -> Option<&'a str> {
+    let remainder = if path == directory {
+        return Some("");
+    } else if directory == "/" {
+        path.strip_prefix('/')?
+    } else if is_drive_root(directory) {
+        let path_bytes = path.as_bytes();
+        let directory_bytes = directory.as_bytes();
+        if path_bytes.len() < 3
+            || !path_bytes[0].eq_ignore_ascii_case(&directory_bytes[0])
+            || path_bytes.get(1..3) != directory_bytes.get(1..3)
+        {
+            return None;
+        }
+        path.get(3..)?
+    } else {
+        let same_drive_ignoring_case = path.len() >= 3
+            && directory.len() >= 3
+            && path.as_bytes()[1] == b':'
+            && directory.as_bytes()[1] == b':'
+            && path.as_bytes()[0].eq_ignore_ascii_case(&directory.as_bytes()[0]);
+        if same_drive_ignoring_case {
+            path.get(1..)?.strip_prefix(directory.get(1..)?)?
+        } else {
+            path.strip_prefix(directory)?
+        }
+    };
+    if remainder.is_empty() || directory.ends_with('/') {
+        Some(remainder)
+    } else {
+        remainder.strip_prefix('/')
+    }
 }
 
 fn canonical_text(path: &str, case_sensitive: bool) -> String {

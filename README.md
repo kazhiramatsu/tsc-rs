@@ -264,7 +264,15 @@ The general legacy type-reference slice now admits Classic and Node10 on the
 same node-style primary/secondary spine: custom and default roots, nearest
 `node_modules`/`@types`, package identity, lexical-to-realpath transitions,
 and explicit-mode secondary exports retain the vendored lookup order and
-failure boundary.
+failure boundary. General file resolution now also applies the complete
+TypeScript 6.0.3 written-extension replacement groups for TS, JS, MTS, and CTS
+families. Non-Node-ESM misses continue through the separate implicit-addition
+stage, while package-map targets retain their exact-only TS boundary and never
+receive that second stage. The two stages preserve their distinct
+`resolvedUsingTsExtension` provenance, and `.d.json.ts` twins retain their
+arbitrary-extension identity. Such `.d.*.ts` twins join source membership
+when `allowArbitraryExtensions` is enabled or the importer is a declaration
+file; otherwise the authoritative row remains unloaded and drives TS6263.
 The reviewed H0.3 consumer slices close both ambient const-enum module binding
 rows and all 4 external-helper consumer rows. Import and re-export aliases
 consume the authoritative resolved target without double-reporting imported

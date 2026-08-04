@@ -196,6 +196,14 @@ fn wildcard_expansion_preserves_root_and_host_order_filters_and_stably_deduplica
             b"declare const skipped: true;\n".to_vec(),
         )
         .file(
+            "/types/z-root/proto-skip/package.json",
+            br#"{/* force convertToJson */"__proto__":{"typings":null},}"#.to_vec(),
+        )
+        .file(
+            "/types/z-root/proto-skip/index.d.ts",
+            b"declare const inheritedSkipped: true;\n".to_vec(),
+        )
+        .file(
             "/types/z-root/types-null/package.json",
             br#"{"name":"types-null","version":"1.0.0","types":null}"#.to_vec(),
         )
@@ -259,6 +267,9 @@ fn wildcard_expansion_preserves_root_and_host_order_filters_and_stably_deduplica
     assert!(source_paths(&program)
         .iter()
         .all(|source| !source.to_string_lossy().contains("/skip/")));
+    assert!(source_paths(&program)
+        .iter()
+        .all(|source| !source.to_string_lossy().contains("/proto-skip/")));
     assert!(source_paths(&program)
         .iter()
         .all(|source| *source != Path::new("/types/a-root/dup/index.d.ts")));

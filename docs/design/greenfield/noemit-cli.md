@@ -364,8 +364,19 @@ and Node10 on the same node-style primary/secondary lookup used by the modern
 profiles. It preserves custom/default root order, nearest
 `node_modules`/`@types` fallback, package identity, lexical-to-realpath
 transitions, local direct-hit manifest isolation, and the explicit-mode
-secondary exports boundary. It does not claim the remaining general H0.2
-resolution surface or H0 completion.
+secondary exports boundary. The general file-probe slice also ports the full
+vendored written-extension replacement groups for the TS/JS, MTS/MJS, and
+CTS/CJS families. Outside Node ESM, a replacement miss proceeds to the
+separate implicit-addition stage over the full written candidate; that stage
+never claims `resolvedUsingTsExtension`. Package `exports` and `imports`
+targets remain replacement-only, including the exact-only fast path for
+targets which already carry an admitted TypeScript implementation or
+declaration extension. JSON declaration twins retain the upstream
+`.d.json.ts` arbitrary-extension identity. The recursive loader admits
+`.d.*.ts` twins when `allowArbitraryExtensions` is enabled or the containing
+source is itself a declaration file; otherwise it preserves an unloaded
+authoritative row and the checker reports TS6263. These slices do not claim
+the remaining general H0.2 resolution surface or H0 completion.
 
 ### H0.3 — residual host consumers
 
@@ -526,9 +537,8 @@ package fields directly, and object/array nesting above 256 does the same. The
 converter itself uses an explicit task stack.
 
 This is deliberately not general H0.4 program construction. Nonzero
-`maxNodeModuleJsDepth`, config-derived root-file selection, extensionless and
-arbitrary-declaration root admission, the remaining path and physical-alias
-policies, and the complete cross-platform
+`maxNodeModuleJsDepth`, config-derived root-file selection, extensionless root
+admission, the remaining path and physical-alias policies, and the complete cross-platform
 case/separator/symlink/encoding matrix remain in later slices. Discovery stays
 sequential where vendored host calls and failure precedence are observable;
 future pipeline parallelism must preserve that contract.

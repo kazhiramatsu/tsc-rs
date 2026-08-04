@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::error::Error;
 use std::fmt;
 use std::path::{Path, PathBuf};
@@ -138,8 +138,30 @@ pub(crate) fn run(
         .collect::<Result<Vec<_>, H0MemoryError>>()?;
 
     let mut host_builder = MemoryCompilerHost::builder(&current_directory).case_sensitive(true);
+    let mut trailing_directory_aliases = BTreeSet::new();
     for source in decoded_libs.iter().chain(&decoded_files) {
         host_builder = host_builder.file(&source.canonical, source.text.as_bytes().to_vec());
+        // The official harness VFS treats a directory spelling with or
+        // without its trailing separator as the same directory. The exact
+        // MemoryCompilerHost deliberately does not normalize host queries,
+        // so publish both spellings while mounting the harness tree. This is
+        // observable for `../` package-root back-references: tsc preserves
+        // the trailing separator before asking `directoryExists`.
+        for directory in source.canonical.ancestors().skip(1) {
+            if directory == Path::new("/") {
+                continue;
+            }
+            let directory = directory
+                .to_str()
+                .ok_or_else(|| H0MemoryError::InvalidPath {
+                    path: source.display.clone(),
+                    detail: "normalized source parent is not Unicode",
+                })?;
+            trailing_directory_aliases.insert(PathBuf::from(format!("{directory}/")));
+        }
+    }
+    for directory in trailing_directory_aliases {
+        host_builder = host_builder.directory(directory);
     }
     let host = host_builder.build()?;
 
@@ -436,12 +458,9 @@ fn bind_type_reference_host_outcome(
     let ResolutionOutcome::Resolved(host_directive) = outcome else {
         return Ok(TypeReferenceResolution::not_found());
     };
-    if !matches!(
-        host_directive.extension(),
-        ModuleExtension::Dts | ModuleExtension::Dmts | ModuleExtension::Dcts
-    ) {
+    if !is_loadable_type_reference_extension(host_directive.extension()) {
         return Err(ResolutionError::invalid_data(format!(
-            "type-reference target {} is not a declaration file",
+            "type-reference target {} is not a TypeScript source file",
             host_directive.resolved_file().display().display()
         )));
     }
@@ -462,6 +481,23 @@ fn bind_type_reference_host_outcome(
         directive = directive.with_package_id(package_id.clone());
     }
     Ok(TypeReferenceResolution::resolved(directive))
+}
+
+fn is_loadable_type_reference_extension(extension: &ModuleExtension) -> bool {
+    matches!(
+        extension,
+        ModuleExtension::Ts
+            | ModuleExtension::Tsx
+            | ModuleExtension::Dts
+            | ModuleExtension::Mts
+            | ModuleExtension::Dmts
+            | ModuleExtension::Cts
+            | ModuleExtension::Dcts
+    ) || matches!(
+        extension,
+        ModuleExtension::Arbitrary(arbitrary)
+            if arbitrary.starts_with(".d.") && arbitrary.ends_with(".ts")
+    )
 }
 
 fn unresolved_type_reference_diagnostic(
@@ -641,15 +677,17 @@ fn normalize_absolute_posix(path: &str) -> Result<PathBuf, H0MemoryError> {
 #[cfg(test)]
 mod tests {
     use super::{
-        implied_node_format, implied_node_format_for_emit, package_map_from_facts,
-        program_options_from_program, supports_fixture, types_package_name, SUPPORTED_FIXTURES,
+        bind_type_reference_host_outcome, implied_node_format, implied_node_format_for_emit,
+        package_map_from_facts, program_options_from_program, supports_fixture, types_package_name,
+        SUPPORTED_FIXTURES,
     };
     use std::collections::BTreeMap;
     use std::path::Path;
     use tsc_harness::{OptionValue, ProgramJson};
+    use tsc_host::MemoryCompilerHost;
     use tsc_program::{
-        CompilerOptions, ModuleExtension, PackageId, PackageJsonType, PackageMetadata, ProgramPath,
-        ResolutionMode,
+        CompilerOptions, ModuleExtension, ModuleResolver, PackageId, PackageJsonType,
+        PackageMetadata, ProgramPath, ResolutionMode, ResolutionOutcome, SourceFileId,
     };
 
     #[test]
@@ -696,6 +734,115 @@ mod tests {
         ] {
             assert!(!supports_fixture(fixture), "unexpected H0 route: {fixture}");
         }
+    }
+
+    #[test]
+    fn h0_type_reference_binding_accepts_all_typescript_source_extensions() {
+        let host = MemoryCompilerHost::builder("/work")
+            .file("/work/root.ts", b"export {};".to_vec())
+            .file(
+                "/work/node_modules/@types/implementation/package.json",
+                br#"{"name":"@types/implementation","version":"1.0.0","types":"index.ts"}"#
+                    .to_vec(),
+            )
+            .file(
+                "/work/node_modules/@types/implementation/index.ts",
+                b"declare const implementation: true;".to_vec(),
+            )
+            .file(
+                "/work/node_modules/@types/styles/package.json",
+                br#"{"name":"@types/styles","version":"1.0.0","types":"index.css"}"#.to_vec(),
+            )
+            .file(
+                "/work/node_modules/@types/styles/index.d.css.ts",
+                b"declare const styles: true;".to_vec(),
+            )
+            .build()
+            .expect("build H0 type-reference host");
+        let options = CompilerOptions {
+            module: Some(199),
+            module_resolution: Some(99),
+            ..CompilerOptions::default()
+        };
+        let mut resolver = ModuleResolver::new(&host, &options).expect("create H0 resolver");
+
+        for (index, (name, expected_path, expected_extension)) in [
+            (
+                "implementation",
+                "/work/node_modules/@types/implementation/index.ts",
+                ModuleExtension::Ts,
+            ),
+            (
+                "styles",
+                "/work/node_modules/@types/styles/index.d.css.ts",
+                ModuleExtension::Arbitrary(".d.css.ts".to_owned()),
+            ),
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            let outcome = resolver
+                .resolve_type_reference(
+                    Path::new("/work/root.ts"),
+                    name,
+                    ResolutionMode::EsNext,
+                    None,
+                )
+                .expect("resolve H0 type-reference target");
+            let ResolutionOutcome::Resolved(host_directive) = &outcome else {
+                panic!("expected resolved type-reference target: {name}");
+            };
+            assert_eq!(host_directive.extension(), &expected_extension);
+            let target = ProgramPath::from_trusted_parts(expected_path, expected_path)
+                .expect("construct target identity");
+            let source = SourceFileId::from_raw(
+                u32::try_from(index + 1).expect("the focused source id fits u32"),
+            );
+            let source_by_canonical =
+                BTreeMap::from([(target.canonical().as_path().to_path_buf(), (source, target))]);
+            assert!(matches!(
+                bind_type_reference_host_outcome(outcome, &source_by_canonical)
+                    .expect("bind H0 type-reference target")
+                    .outcome(),
+                ResolutionOutcome::Resolved(_)
+            ));
+        }
+    }
+
+    #[test]
+    fn types_versions_package_root_back_reference_uses_the_harness_directory_identity() {
+        let workspace = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .and_then(Path::parent)
+            .expect("workspace root");
+        let vendor_lib_dir = workspace.join("vendor/typescript-6.0.3/lib");
+        let fixture =
+            "conformance/declarationEmit/typesVersionsDeclarationEmit.multiFileBackReferenceToSelf.ts";
+        let programs = tsc_harness::expand_fixture_file(
+            &workspace.join("ts-tests/tests/cases").join(fixture),
+            &vendor_lib_dir,
+        )
+        .expect("expand the typesVersions back-reference fixture");
+        assert_eq!(programs.len(), 1, "unexpected matrix expansion");
+
+        let observed = crate::current_case_tsrs(fixture, &programs[0], &vendor_lib_dir)
+            .expect("run the typesVersions back-reference fixture");
+        assert_eq!(
+            observed
+                .all
+                .iter()
+                .map(|diagnostic| (
+                    diagnostic.file.as_deref(),
+                    diagnostic.code,
+                    diagnostic.start,
+                    diagnostic.length,
+                    diagnostic.line,
+                    diagnostic.col,
+                ))
+                .collect::<Vec<_>>(),
+            [(Some("main.ts"), 2305, Some(9), Some(2), Some(0), Some(9))]
+        );
+        assert!(observed.syntactic.is_empty());
     }
 
     #[test]

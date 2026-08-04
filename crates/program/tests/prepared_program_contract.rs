@@ -721,6 +721,58 @@ fn resolved_module_target_and_extension_metadata_are_validated_exactly() {
     };
     assert_eq!(module.extension().as_str(), ".d.css.ts");
 
+    let (mut case_preserved_arbitrary, target) =
+        owned_target_builder(path("/Work/theme.d.CSS.ts", "/work/theme.d.css.ts"));
+    let case_preserved_key = key();
+    case_preserved_arbitrary
+        .add_module_resolution(
+            case_preserved_key.clone(),
+            Ok(ModuleResolution::resolved(ResolvedModule::new(
+                ResolvedModuleTarget::Source {
+                    source: target,
+                    resolved_file: path("/Work/theme.d.CSS.ts", "/work/theme.d.css.ts"),
+                },
+                ModuleExtension::Arbitrary(".d.CSS.ts".to_owned()),
+            ))),
+        )
+        .unwrap();
+    let program = case_preserved_arbitrary.build().unwrap();
+    let ResolutionOutcome::Resolved(module) = program
+        .resolutions()
+        .require_module(&case_preserved_key)
+        .unwrap()
+        .outcome()
+    else {
+        panic!("expected a case-preserved arbitrary extension");
+    };
+    assert_eq!(module.extension().as_str(), ".d.CSS.ts");
+
+    let (mut path_bearing_arbitrary, target) =
+        owned_target_builder(path("/Work/dir.d.ext/.ts", "/work/dir.d.ext/.ts"));
+    let path_bearing_key = key();
+    path_bearing_arbitrary
+        .add_module_resolution(
+            path_bearing_key.clone(),
+            Ok(ModuleResolution::resolved(ResolvedModule::new(
+                ResolvedModuleTarget::Source {
+                    source: target,
+                    resolved_file: path("/Work/dir.d.ext/.ts", "/work/dir.d.ext/.ts"),
+                },
+                ModuleExtension::Arbitrary(".d.ext/.ts".to_owned()),
+            ))),
+        )
+        .unwrap();
+    let program = path_bearing_arbitrary.build().unwrap();
+    let ResolutionOutcome::Resolved(module) = program
+        .resolutions()
+        .require_module(&path_bearing_key)
+        .unwrap()
+        .outcome()
+    else {
+        panic!("expected path-bearing arbitrary-extension module");
+    };
+    assert_eq!(module.extension().as_str(), ".d.ext/.ts");
+
     let (mut contradictory_arbitrary, target) =
         owned_target_builder(path("/Work/dep.d.css.ts", "/work/dep.d.css.ts"));
     let error = contradictory_arbitrary

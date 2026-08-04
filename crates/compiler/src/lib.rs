@@ -122,7 +122,12 @@ impl AuthoritativeModuleProvider for PreparedModuleProvider<'_> {
             reason,
         } = module.target()
         {
-            if !module.extension().is_javascript() {
+            let arbitrary_declaration = matches!(
+                module.extension(),
+                ModuleExtension::Arbitrary(extension)
+                    if extension.starts_with(".d.") && extension.ends_with(".ts")
+            );
+            if !module.extension().is_javascript() && !arbitrary_declaration {
                 return Err(AuthoritativeModuleLookupFailure::Unsupported(
                     UnsupportedAuthoritativeResolution::UnloadedTargetExtension,
                 ));
@@ -136,6 +141,32 @@ impl AuthoritativeModuleProvider for PreparedModuleProvider<'_> {
                 ));
             }
             let loads_source = self.module_request_loads_source(source_file, source, &key)?;
+            if arbitrary_declaration
+                && matches!(reason, UnloadedModuleReason::ResolutionOnly)
+                && !loads_source
+                && (is_declaration_file_name(source.path().display())
+                    || self.prepared.compiler_options().allow_arbitrary_extensions == Some(true))
+            {
+                // A declaration-file module declaration may introduce an
+                // otherwise unowned augmentation target, while an ordinary
+                // source with allowArbitraryExtensions reaches TS2664 rather
+                // than the TS6263 resolution-diagnostic face. Resolution
+                // still records the arbitrary twin, but resolveExternalModule
+                // must receive the missed face used by both branches.
+                let alternate_result = resolution
+                    .alternate_result()
+                    .map(|path| {
+                        path.display().to_str().map(str::to_owned).ok_or(
+                            AuthoritativeModuleLookupFailure::Unsupported(
+                                UnsupportedAuthoritativeResolution::ResolvedFileIdentity,
+                            ),
+                        )
+                    })
+                    .transpose()?;
+                return Ok(AuthoritativeModuleResolution::NotFound(
+                    AuthoritativeNotFoundModule { alternate_result },
+                ));
+            }
             let node_modules_depth_applies = module.is_external_library_import()
                 && (module.original_path().is_none()
                     || path_contains_node_modules(resolved_file.canonical().as_path()));
@@ -146,14 +177,31 @@ impl AuthoritativeModuleProvider for PreparedModuleProvider<'_> {
                 {
                     Some(AuthoritativeModuleResolutionDiagnostic::JsxWithoutJsxOption)
                 }
-                UnloadedModuleReason::ResolutionOnly if !loads_source => None,
+                UnloadedModuleReason::ArbitraryExtensionWithoutOption
+                    if arbitrary_declaration
+                        && loads_source
+                        && self.prepared.compiler_options().allow_arbitrary_extensions
+                            != Some(true)
+                        && !is_declaration_file_name(source.path().display()) =>
+                {
+                    Some(AuthoritativeModuleResolutionDiagnostic::ArbitraryExtensionWithoutOption)
+                }
+                UnloadedModuleReason::ResolutionOnly if !loads_source => (arbitrary_declaration
+                    && self.prepared.compiler_options().allow_arbitrary_extensions != Some(true)
+                    && !is_declaration_file_name(source.path().display()))
+                .then_some(
+                    AuthoritativeModuleResolutionDiagnostic::ArbitraryExtensionWithoutOption,
+                ),
                 UnloadedModuleReason::NodeModulesDepth
-                    if loads_source && node_modules_depth_applies =>
+                    if module.extension().is_javascript()
+                        && loads_source
+                        && node_modules_depth_applies =>
                 {
                     None
                 }
                 UnloadedModuleReason::JavaScriptNotAdmitted
-                    if loads_source
+                    if module.extension().is_javascript()
+                        && loads_source
                         && !node_modules_depth_applies
                         && !self.prepared.compiler_options().allow_js =>
                 {
@@ -258,6 +306,19 @@ impl AuthoritativeModuleProvider for PreparedModuleProvider<'_> {
 fn path_contains_node_modules(path: &Path) -> bool {
     path.to_str()
         .is_some_and(|path| path.split('/').any(|component| component == "node_modules"))
+}
+
+fn is_declaration_file_name(path: &Path) -> bool {
+    path.to_str().is_some_and(|file_name| {
+        if file_name.ends_with(".d.ts")
+            || file_name.ends_with(".d.cts")
+            || file_name.ends_with(".d.mts")
+        {
+            return true;
+        }
+        let base_name = file_name.rsplit(['/', '\\']).next().unwrap_or(file_name);
+        base_name.ends_with(".ts") && base_name.contains(".d.")
+    })
 }
 
 const fn program_resolution_mode(mode: AuthoritativeResolutionMode) -> ResolutionMode {

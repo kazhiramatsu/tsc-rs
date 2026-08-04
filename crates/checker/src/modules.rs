@@ -101,7 +101,8 @@ enum HostModuleTarget {
 /// package_name is the resolved packageId.name face (and therefore
 /// remains absent for packages without name metadata); alternate_result
 /// is the declaration path found by the other resolver regime. The closed
-/// resolution-diagnostic field also carries the unloaded-JSX TS6142 face.
+/// resolution-diagnostic field also carries unloaded JSX/arbitrary-extension
+/// diagnostics.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct UntypedModuleResolution {
     resolved_file_name: String,
@@ -3022,18 +3023,32 @@ impl<'a> CheckerState<'a> {
             }
         }
         if let ProgramModuleResolution::Untyped(untyped) = &resolution {
-            if matches!(
-                untyped.resolution_diagnostic,
-                Some(crate::AuthoritativeModuleResolutionDiagnostic::JsxWithoutJsxOption)
-            ) {
-                if let (Some(error_node), Some(_)) = (error_node, module_not_found_error) {
-                    self.error_at(
-                        Some(error_node),
-                        &diagnostics::Module_0_was_resolved_to_1_but_jsx_is_not_set,
-                        &[module_reference, &untyped.resolved_file_name],
-                    );
+            match untyped.resolution_diagnostic {
+                Some(crate::AuthoritativeModuleResolutionDiagnostic::JsxWithoutJsxOption) => {
+                    if let (Some(error_node), Some(_)) = (error_node, module_not_found_error) {
+                        self.error_at(
+                            Some(error_node),
+                            &diagnostics::Module_0_was_resolved_to_1_but_jsx_is_not_set,
+                            &[module_reference, &untyped.resolved_file_name],
+                        );
+                    }
+                    return Ok(None);
                 }
-                return Ok(None);
+                Some(
+                    crate::AuthoritativeModuleResolutionDiagnostic::ArbitraryExtensionWithoutOption,
+                ) => {
+                    if let Some(error_node) = error_node {
+                        let resolved_file_name =
+                            Self::normalize_program_path(&untyped.resolved_file_name, "");
+                        self.error_at(
+                            Some(error_node),
+                            &diagnostics::Module_0_was_resolved_to_1_but_allowArbitraryExtensions_is_not_set,
+                            &[module_reference, &resolved_file_name],
+                        );
+                    }
+                    return Ok(None);
+                }
+                None => {}
             }
             if let Some(error_node) = error_node {
                 if is_for_augmentation {

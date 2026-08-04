@@ -2071,6 +2071,143 @@ fn unloaded_jsx_without_mode_reports_6142() {
 }
 
 #[test]
+fn unloaded_arbitrary_declaration_reports_6263() {
+    let prepared = authoritative_program(
+        &[("/main.ts", "import './data.json';\n")],
+        &[0],
+        CompilerOptions {
+            module: Some(1),
+            module_resolution: Some(2),
+            ..CompilerOptions::default()
+        },
+        |builder, _| {
+            let module = ResolvedModule::new(
+                ResolvedModuleTarget::unloaded(
+                    path("/data.d.json.ts"),
+                    UnloadedModuleReason::ArbitraryExtensionWithoutOption,
+                ),
+                ModuleExtension::Arbitrary(".d.json.ts".to_owned()),
+            );
+            builder
+                .add_module_resolution(
+                    module_key("/main.ts", "./data.json", ResolutionMode::Unspecified),
+                    Ok(ModuleResolution::resolved(module)),
+                )
+                .expect("add arbitrary-extension resolution-diagnostic row");
+        },
+    );
+
+    let outcome = consume(ProgramSession::new(prepared));
+    assert_eq!(codes(outcome.semantic_diagnostics()), [6263]);
+    assert!(outcome.semantic_diagnostics()[0]
+        .message_text()
+        .contains("/data.d.json.ts"));
+}
+
+#[test]
+fn augmentation_only_arbitrary_declaration_still_reports_6263_first() {
+    let prepared = authoritative_program(
+        &[(
+            "/main.ts",
+            "export {};\ndeclare module './data.json' { export const value: true; }\n",
+        )],
+        &[0],
+        CompilerOptions {
+            module: Some(1),
+            module_resolution: Some(2),
+            ..CompilerOptions::default()
+        },
+        |builder, _| {
+            let module = ResolvedModule::new(
+                ResolvedModuleTarget::unloaded(
+                    path("/data.d.json.ts"),
+                    UnloadedModuleReason::ResolutionOnly,
+                ),
+                ModuleExtension::Arbitrary(".d.json.ts".to_owned()),
+            );
+            builder
+                .add_module_resolution(
+                    module_key("/main.ts", "./data.json", ResolutionMode::Unspecified),
+                    Ok(ModuleResolution::resolved(module)),
+                )
+                .expect("add augmentation-only arbitrary-extension row");
+        },
+    );
+
+    let outcome = consume(ProgramSession::new(prepared));
+    assert_eq!(codes(outcome.semantic_diagnostics()), [6263]);
+}
+
+#[test]
+fn declaration_augmentation_may_introduce_a_resolution_only_arbitrary_target() {
+    let prepared = authoritative_program(
+        &[(
+            "/main.d.ts",
+            "export {};\ndeclare module './data.json' { export const value: true; }\n",
+        )],
+        &[0],
+        CompilerOptions {
+            module: Some(1),
+            module_resolution: Some(2),
+            ..CompilerOptions::default()
+        },
+        |builder, _| {
+            let module = ResolvedModule::new(
+                ResolvedModuleTarget::unloaded(
+                    path("/data.d.json.ts"),
+                    UnloadedModuleReason::ResolutionOnly,
+                ),
+                ModuleExtension::Arbitrary(".d.json.ts".to_owned()),
+            );
+            builder
+                .add_module_resolution(
+                    module_key("/main.d.ts", "./data.json", ResolutionMode::Unspecified),
+                    Ok(ModuleResolution::resolved(module)),
+                )
+                .expect("add declaration augmentation arbitrary-extension row");
+        },
+    );
+
+    let outcome = consume(ProgramSession::new(prepared));
+    assert!(outcome.semantic_diagnostics().is_empty());
+}
+
+#[test]
+fn enabled_arbitrary_augmentation_uses_the_ordinary_missing_module_diagnostic() {
+    let prepared = authoritative_program(
+        &[(
+            "/main.ts",
+            "export {};\ndeclare module './data.css' { export const value: true; }\n",
+        )],
+        &[0],
+        CompilerOptions {
+            module: Some(1),
+            module_resolution: Some(2),
+            allow_arbitrary_extensions: Some(true),
+            ..CompilerOptions::default()
+        },
+        |builder, _| {
+            let module = ResolvedModule::new(
+                ResolvedModuleTarget::unloaded(
+                    path("/data.d.css.ts"),
+                    UnloadedModuleReason::ResolutionOnly,
+                ),
+                ModuleExtension::Arbitrary(".d.css.ts".to_owned()),
+            );
+            builder
+                .add_module_resolution(
+                    module_key("/main.ts", "./data.css", ResolutionMode::Unspecified),
+                    Ok(ModuleResolution::resolved(module)),
+                )
+                .expect("add enabled arbitrary augmentation row");
+        },
+    );
+
+    let outcome = consume(ProgramSession::new(prepared));
+    assert_eq!(codes(outcome.semantic_diagnostics()), [2664]);
+}
+
+#[test]
 fn owned_jsx_without_mode_reports_6142_and_keeps_the_resolved_symbol() {
     let prepared = authoritative_program(
         &[

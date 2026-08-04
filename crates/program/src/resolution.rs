@@ -3,7 +3,7 @@ use std::fmt;
 use std::path::{Path, PathBuf};
 
 use tsc_diagnostics::{Diagnostic, DiagnosticList};
-use tsc_host::HostError;
+use tsc_host::{to_file_name_lower_case, HostError};
 
 use crate::path::{CanonicalPath, ProgramPath};
 use crate::prepared::SourceFileId;
@@ -147,7 +147,9 @@ pub enum ModuleExtension {
     Cts,
     Dcts,
     /// An exact extension string returned by the default resolver arm, such
-    /// as `.d.css.ts` for an arbitrary-extension declaration twin.
+    /// as `.d.css.ts` for an arbitrary-extension declaration twin. Upstream
+    /// can also retain a directory separator in this discriminant for dotted
+    /// trailing package fields (`.d.css/.ts`).
     Arbitrary(String),
 }
 
@@ -180,7 +182,9 @@ impl ModuleExtension {
         };
         extension.starts_with('.')
             && extension.len() > 1
-            && !extension.contains(['/', '\\', '\0'])
+            && !extension.contains(['\\', '\0'])
+            && extension.starts_with(".d.")
+            && extension.ends_with(".ts")
             && !matches!(
                 extension.as_str(),
                 ".ts"
@@ -204,6 +208,19 @@ impl ModuleExtension {
             Self::Mts => path.ends_with(Self::Mts.as_str()) && !path.ends_with(Self::Dmts.as_str()),
             Self::Cts => path.ends_with(Self::Cts.as_str()) && !path.ends_with(Self::Dcts.as_str()),
             extension => path.ends_with(extension.as_str()),
+        }
+    }
+
+    pub(crate) fn matches_path_with_case(&self, path: &str, case_sensitive: bool) -> bool {
+        if case_sensitive {
+            return self.matches_path(path);
+        }
+        let path = to_file_name_lower_case(path);
+        match self {
+            Self::Ts => path.ends_with(Self::Ts.as_str()) && !path.ends_with(Self::Dts.as_str()),
+            Self::Mts => path.ends_with(Self::Mts.as_str()) && !path.ends_with(Self::Dmts.as_str()),
+            Self::Cts => path.ends_with(Self::Cts.as_str()) && !path.ends_with(Self::Dcts.as_str()),
+            extension => path.ends_with(&to_file_name_lower_case(extension.as_str())),
         }
     }
 }
