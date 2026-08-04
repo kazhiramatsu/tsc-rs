@@ -624,6 +624,19 @@ latter as a baseUrl fallback. Exact keys and valid single-star offsets are
 compiled once, mappings are shared between resolver instances, and per-request
 substitution-vector clones are eliminated; structural validation is cached
 with that immutable table instead of rescanned by every resolver.
+`moduleSuffixes` is projected without normalizing case, whitespace, empty
+entries, or recoverable JavaScript `undefined` slots. Every resolver file
+candidate uses TypeScript's extension-major/suffix-minor probe order, including
+arbitrary and declaration-like extensions, while package manifests remain
+unsuffixed and package-field exact targets retain TypeScript's predicate-only
+publication quirk. Selected spellings stay observable to the host while their
+program/cache identities use normalized paths, so separator and dot aliases
+deduplicate without weakening case-only collision checks. A focused frozen
+oracle covers the 16 TypeScript 6.0.3 compiler fixtures, their 18 resolution
+requests, and all 78 ordered `fileExists` probes. Failed-lookup and the other
+host-probe streams are retained as oracle evidence but remain outside the
+current Rust result contract; trace publication and the full compiler
+baselines therefore remain `not-run`.
 Diagnostic-class invalid mappings recover without turning option errors into
 infrastructure failures. After TS5063/TS5064 are retained, non-array mappings
 own an empty miss and non-string array elements are omitted instead of
@@ -641,8 +654,8 @@ official oracle. Include patterns are compiled once and reused through an
 iterative, linear-scratch UTF-16 matcher; candidate matching does not recurse,
 build a quadratic memo table, or require a regex dependency. This is not yet a
 general `ParseConfigHost`/`matchFiles` qualification. Remaining root fields,
-remaining resolver/loader options such as `moduleSuffixes` and
-`maxNodeModuleJsDepth`, full `ParsedCommandLine`, filesystem discovery,
+remaining resolver/loader options such as `maxNodeModuleJsDepth`, full
+`ParsedCommandLine`, filesystem discovery,
 project/project-runner config handling, wiring the config projection into
 general program construction, command-line selection, rendering, exit status,
 and production execution remain open.

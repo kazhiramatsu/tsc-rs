@@ -123,4 +123,4 @@ pub use resolution::{
     TypeReferenceResolutionKey, TypeReferenceResolutionOrigin, UnloadedModuleReason,
 };
 pub use text::{decode_host_text, HostTextDecodeError, HostTextEncoding};
-pub use tsc_types::CompilerOptions;
+pub use tsc_types::{CompilerOptions, ModuleSuffix};

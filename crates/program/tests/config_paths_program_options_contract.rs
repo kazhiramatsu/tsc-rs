@@ -4,7 +4,8 @@ use std::path::Path;
 use tsc_host::MemoryCompilerHost;
 use tsc_program::{
     parse_config_root_plan, ConfigHostError, ConfigModuleResolutionOptions, ConfigParseHost,
-    ConfigRootPlanRequest, ModuleResolver, ProgramOptions, ResolutionMode, ResolutionOutcome,
+    ConfigRootPlanRequest, ModuleResolver, ModuleSuffix, ProgramOptions, ResolutionMode,
+    ResolutionOutcome,
 };
 
 #[derive(Default)]
@@ -90,6 +91,7 @@ fn config_projection_carries_the_currently_modeled_resolver_options() {
             "checkJs": true,
             "module": "preserve",
             "moduleResolution": "bundler",
+            "moduleSuffixes": [".native", ""],
             "resolvePackageJsonExports": false,
             "resolvePackageJsonImports": true,
             "customConditions": ["development", "browser"],
@@ -116,6 +118,10 @@ fn config_projection_carries_the_currently_modeled_resolver_options() {
     assert!(compiler.allow_js);
     assert_eq!(compiler.module, Some(200));
     assert_eq!(compiler.module_resolution, Some(100));
+    assert_eq!(
+        compiler.module_suffixes.as_deref(),
+        Some([ModuleSuffix::value(".native"), ModuleSuffix::value("")].as_slice())
+    );
     assert_eq!(compiler.resolve_package_json_exports, Some(false));
     assert_eq!(compiler.resolve_package_json_imports, Some(true));
     assert_eq!(
@@ -153,6 +159,102 @@ fn config_projection_carries_the_currently_modeled_resolver_options() {
         program.config_file_path().unwrap().display(),
         Path::new("/project/tsconfig.json")
     );
+}
+
+#[test]
+fn module_suffix_projection_preserves_empty_and_undefined_runtime_slots() {
+    let text = r#"{
+        "compilerOptions": {
+            "moduleSuffixes": [".ios", "", "  .raw ", null, 1]
+        },
+        "files": ["a.ts"]
+    }"#;
+    let plan = parse_config_root_plan(
+        &MemoryConfigHost::default(),
+        request("/project/tsconfig.json", text),
+    )
+    .expect("recoverable moduleSuffixes projection");
+    assert_eq!(
+        plan.module_resolution_options()
+            .compiler_options()
+            .module_suffixes
+            .as_deref(),
+        Some(
+            [
+                ModuleSuffix::value(".ios"),
+                ModuleSuffix::value(""),
+                ModuleSuffix::value("  .raw "),
+                ModuleSuffix::Undefined,
+                ModuleSuffix::Undefined,
+            ]
+            .as_slice()
+        )
+    );
+    assert_eq!(
+        plan.errors()
+            .iter()
+            .map(|diagnostic| diagnostic.code())
+            .collect::<Vec<_>>(),
+        [5024]
+    );
+
+    let inherited = r#"{"compilerOptions":{"moduleSuffixes":[".base",""]}}"#;
+    let root = r#"{"extends":"../base.json","compilerOptions":{},"files":["a.ts"]}"#;
+    let inherited_plan = parse_config_root_plan(
+        &MemoryConfigHost::default().with_file("/base.json", inherited),
+        request("/project/tsconfig.json", root),
+    )
+    .expect("inherited moduleSuffixes projection");
+    assert_eq!(
+        inherited_plan
+            .module_resolution_options()
+            .compiler_options()
+            .module_suffixes
+            .as_deref(),
+        Some([ModuleSuffix::value(".base"), ModuleSuffix::value("")].as_slice())
+    );
+
+    let masked =
+        r#"{"extends":"../base.json","compilerOptions":{"moduleSuffixes":null},"files":["a.ts"]}"#;
+    let masked_plan = parse_config_root_plan(
+        &MemoryConfigHost::default().with_file("/base.json", inherited),
+        request("/project/tsconfig.json", masked),
+    )
+    .expect("masked moduleSuffixes projection");
+    assert!(masked_plan
+        .module_resolution_options()
+        .compiler_options()
+        .module_suffixes
+        .is_none());
+}
+
+#[test]
+fn module_suffix_projection_distinguishes_absent_empty_and_blank_lists() {
+    for (text, expected) in [
+        (r#"{"compilerOptions":{},"files":["a.ts"]}"#, None),
+        (
+            r#"{"compilerOptions":{"moduleSuffixes":[]},"files":["a.ts"]}"#,
+            Some(Vec::new()),
+        ),
+        (
+            r#"{"compilerOptions":{"moduleSuffixes":[""]},"files":["a.ts"]}"#,
+            Some(vec![ModuleSuffix::value("")]),
+        ),
+    ] {
+        let plan = parse_config_root_plan(
+            &MemoryConfigHost::default(),
+            request("/project/tsconfig.json", text),
+        )
+        .expect("moduleSuffixes boundary projection");
+        assert_eq!(
+            plan.module_resolution_options()
+                .compiler_options()
+                .module_suffixes
+                .as_ref(),
+            expected.as_ref(),
+            "{text}"
+        );
+    }
 }
 
 #[test]

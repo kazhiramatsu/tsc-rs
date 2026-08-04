@@ -1,0 +1,1742 @@
+{
+  "schema": 1,
+  "typescript_version": "6.0.3",
+  "source_commit": "050880ce59e30b356b686bd3144efe24f875ebc8",
+  "node_version": "25.2.1",
+  "producer": {
+    "path": "vendor/typescript-6.0.3/lib/typescript.js",
+    "sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39"
+  },
+  "manifest": {
+    "path": "vendor/typescript-6.0.3/test-suite-expansion.v1.json",
+    "sha256": "9c6e991103b571f7a8800dc5e1ef66088017689f3769de8fcdb408b2dc125188"
+  },
+  "fixture_range": {
+    "first": 4293,
+    "last": 4308
+  },
+  "summary": {
+    "fixture_total": 16,
+    "request_total": 18,
+    "resolved_total": 16,
+    "unresolved_total": 2,
+    "file_probe_total": 78,
+    "failed_lookup_total": 95
+  },
+  "fixtures": [
+    {
+      "fixture_index": 4293,
+      "case_id": "typescript-6.0.3/compiler/moduleResolutionWithSuffixes_empty.ts#default",
+      "source": {
+        "index": 4293,
+        "path": "moduleResolutionWithSuffixes_empty.ts",
+        "bytes": 363,
+        "sha256": "120707b2af4bc189b27fdc2c255006d29a1b711beb0a46bd6d3a917fd43387a7",
+        "git_blob_sha1": "2111d3ea7155b2b0b59f45a9e00876403ea0d9d5",
+        "decoded_sha256": "120707b2af4bc189b27fdc2c255006d29a1b711beb0a46bd6d3a917fd43387a7"
+      },
+      "config_unit": {
+        "name": "/tsconfig.json",
+        "text": "{\n\t\"compilerOptions\": {\n\t\t\"moduleResolution\": \"node\",\n\t\t\"traceResolution\": true,\n\t\t\"moduleSuffixes\": []\n\t}\n}",
+        "utf8_bytes": 108,
+        "sha256": "3633f929719d460702d2497508ce3ad9da62e6cb0eb07f3cd13e6aa63d44e86b"
+      },
+      "units": [
+        {
+          "name": "/index.ts",
+          "text": "import { base } from \"./foo\";",
+          "utf8_bytes": 29,
+          "sha256": "f6ae7bd2eb20d982c62cdda33237449c598d6f68c92bb322fc5f4b961a834f58"
+        },
+        {
+          "name": "/foo.ts",
+          "text": "export function base() {}\n",
+          "utf8_bytes": 26,
+          "sha256": "c9793f72bca3e9bce6b345912cd826c922315bd7c854f5116bd4f2175157a4d9"
+        }
+      ],
+      "requests": [
+        {
+          "containing_file": "/index.ts",
+          "specifier": "./foo",
+          "resolution": {
+            "state": "resolved",
+            "resolved_file_name": "/foo.ts",
+            "original_path": null,
+            "extension": ".ts",
+            "is_external_library_import": false,
+            "package_id": null
+          },
+          "failed_lookup_locations": [],
+          "file_probes": [
+            {
+              "path": "/foo.ts",
+              "result": true
+            }
+          ],
+          "directory_probes": [
+            {
+              "path": "/",
+              "result": true
+            },
+            {
+              "path": "/",
+              "result": true
+            }
+          ],
+          "read_probes": [],
+          "realpath_probes": []
+        }
+      ]
+    },
+    {
+      "fixture_index": 4294,
+      "case_id": "typescript-6.0.3/compiler/moduleResolutionWithSuffixes_notSpecified.ts#default",
+      "source": {
+        "index": 4294,
+        "path": "moduleResolutionWithSuffixes_notSpecified.ts",
+        "bytes": 345,
+        "sha256": "c04de986ad3a26a90753218673b853c7b11eb8f75d0b590acd482b60f3b6be7d",
+        "git_blob_sha1": "0c91e6bf488a29fd2d6fc04ab04978d530e15fed",
+        "decoded_sha256": "c04de986ad3a26a90753218673b853c7b11eb8f75d0b590acd482b60f3b6be7d"
+      },
+      "config_unit": {
+        "name": "/tsconfig.json",
+        "text": "{\n\t\"compilerOptions\": {\n\t\t\"moduleResolution\": \"node\",\n\t\t\"traceResolution\": true,\n\t}\n}",
+        "utf8_bytes": 85,
+        "sha256": "33c71153b1ba9c9133a093b3ceb97825588d32672e7f7a74b95c2be17a55e1f0"
+      },
+      "units": [
+        {
+          "name": "/index.ts",
+          "text": "import { base } from \"./foo\";",
+          "utf8_bytes": 29,
+          "sha256": "f6ae7bd2eb20d982c62cdda33237449c598d6f68c92bb322fc5f4b961a834f58"
+        },
+        {
+          "name": "/foo.ts",
+          "text": "export function base() {}\n",
+          "utf8_bytes": 26,
+          "sha256": "c9793f72bca3e9bce6b345912cd826c922315bd7c854f5116bd4f2175157a4d9"
+        }
+      ],
+      "requests": [
+        {
+          "containing_file": "/index.ts",
+          "specifier": "./foo",
+          "resolution": {
+            "state": "resolved",
+            "resolved_file_name": "/foo.ts",
+            "original_path": null,
+            "extension": ".ts",
+            "is_external_library_import": false,
+            "package_id": null
+          },
+          "failed_lookup_locations": [],
+          "file_probes": [
+            {
+              "path": "/foo.ts",
+              "result": true
+            }
+          ],
+          "directory_probes": [
+            {
+              "path": "/",
+              "result": true
+            },
+            {
+              "path": "/",
+              "result": true
+            }
+          ],
+          "read_probes": [],
+          "realpath_probes": []
+        }
+      ]
+    },
+    {
+      "fixture_index": 4295,
+      "case_id": "typescript-6.0.3/compiler/moduleResolutionWithSuffixes_one.ts#default",
+      "source": {
+        "index": 4295,
+        "path": "moduleResolutionWithSuffixes_one.ts",
+        "bytes": 417,
+        "sha256": "40471a4d9bcda4e8bfae078307ee022a088e8321bdef30ee76230d99d134cd5a",
+        "git_blob_sha1": "7f88103f84df9b15cc5aed16cf5b4d38cd84bab6",
+        "decoded_sha256": "40471a4d9bcda4e8bfae078307ee022a088e8321bdef30ee76230d99d134cd5a"
+      },
+      "config_unit": {
+        "name": "/tsconfig.json",
+        "text": "{\n\t\"compilerOptions\": {\n\t\t\"moduleResolution\": \"node\",\n\t\t\"traceResolution\": true,\n\t\t\"moduleSuffixes\": [\".ios\"]\n\t}\n}\n",
+        "utf8_bytes": 115,
+        "sha256": "6b71ca037389e2ca36401a16dd7e5da5da32e48f8ee898a923ba5a0fed33bc73"
+      },
+      "units": [
+        {
+          "name": "/index.ts",
+          "text": "import { ios } from \"./foo\";",
+          "utf8_bytes": 28,
+          "sha256": "71c8ee8c4e2d797c651bbace0f5c61b4c289214b79ec7efc493f7dda3cfe99ce"
+        },
+        {
+          "name": "/foo.ios.ts",
+          "text": "export function ios() {}",
+          "utf8_bytes": 24,
+          "sha256": "a24872fa2425272b26eb37366889c04c302e84eade8dbaf54a73488292cc1632"
+        },
+        {
+          "name": "/foo.ts",
+          "text": "export function base() {}\n",
+          "utf8_bytes": 26,
+          "sha256": "c9793f72bca3e9bce6b345912cd826c922315bd7c854f5116bd4f2175157a4d9"
+        }
+      ],
+      "requests": [
+        {
+          "containing_file": "/index.ts",
+          "specifier": "./foo",
+          "resolution": {
+            "state": "resolved",
+            "resolved_file_name": "/foo.ios.ts",
+            "original_path": null,
+            "extension": ".ts",
+            "is_external_library_import": false,
+            "package_id": null
+          },
+          "failed_lookup_locations": [],
+          "file_probes": [
+            {
+              "path": "/foo.ios.ts",
+              "result": true
+            }
+          ],
+          "directory_probes": [
+            {
+              "path": "/",
+              "result": true
+            },
+            {
+              "path": "/",
+              "result": true
+            }
+          ],
+          "read_probes": [],
+          "realpath_probes": []
+        }
+      ]
+    },
+    {
+      "fixture_index": 4296,
+      "case_id": "typescript-6.0.3/compiler/moduleResolutionWithSuffixes_oneBlank.ts#default",
+      "source": {
+        "index": 4296,
+        "path": "moduleResolutionWithSuffixes_oneBlank.ts",
+        "bytes": 378,
+        "sha256": "8f3faf0816ad6f14dc1832cd82d10804c049de81cf6c0cffdcbce8be915174a1",
+        "git_blob_sha1": "b1a631c66c3bce6ef7afc6c05398e0bafa633804",
+        "decoded_sha256": "8f3faf0816ad6f14dc1832cd82d10804c049de81cf6c0cffdcbce8be915174a1"
+      },
+      "config_unit": {
+        "name": "/tsconfig.json",
+        "text": "{\n\t\"compilerOptions\": {\n\t\t\"moduleResolution\": \"node\",\n\t\t\"traceResolution\": true,\n\t\t\"moduleSuffixes\": [\"\"]\n\t}\n}\n",
+        "utf8_bytes": 111,
+        "sha256": "d49c4ee17d039fda0fd0b1c4a2bca5998afc4410507887f0ff588bc279561fa0"
+      },
+      "units": [
+        {
+          "name": "/index.ts",
+          "text": "import { base } from \"./foo\";",
+          "utf8_bytes": 29,
+          "sha256": "f6ae7bd2eb20d982c62cdda33237449c598d6f68c92bb322fc5f4b961a834f58"
+        },
+        {
+          "name": "/foo.ts",
+          "text": "export function base() {}\n",
+          "utf8_bytes": 26,
+          "sha256": "c9793f72bca3e9bce6b345912cd826c922315bd7c854f5116bd4f2175157a4d9"
+        }
+      ],
+      "requests": [
+        {
+          "containing_file": "/index.ts",
+          "specifier": "./foo",
+          "resolution": {
+            "state": "resolved",
+            "resolved_file_name": "/foo.ts",
+            "original_path": null,
+            "extension": ".ts",
+            "is_external_library_import": false,
+            "package_id": null
+          },
+          "failed_lookup_locations": [],
+          "file_probes": [
+            {
+              "path": "/foo.ts",
+              "result": true
+            }
+          ],
+          "directory_probes": [
+            {
+              "path": "/",
+              "result": true
+            },
+            {
+              "path": "/",
+              "result": true
+            }
+          ],
+          "read_probes": [],
+          "realpath_probes": []
+        }
+      ]
+    },
+    {
+      "fixture_index": 4297,
+      "case_id": "typescript-6.0.3/compiler/moduleResolutionWithSuffixes_oneNotFound.ts#default",
+      "source": {
+        "index": 4297,
+        "path": "moduleResolutionWithSuffixes_oneNotFound.ts",
+        "bytes": 399,
+        "sha256": "cad77ca41c71d8924075d98cfa4e38dbf080ce0335a7856424fd22656baeb4da",
+        "git_blob_sha1": "d35d52f5f110744c63c3e23a8f15bdb3b196882c",
+        "decoded_sha256": "cad77ca41c71d8924075d98cfa4e38dbf080ce0335a7856424fd22656baeb4da"
+      },
+      "config_unit": {
+        "name": "/tsconfig.json",
+        "text": "{\n\t\"compilerOptions\": {\n\t\t\"moduleResolution\": \"node\",\n\t\t\"traceResolution\": true,\n\t\t\"moduleSuffixes\": [\".ios\"]\n\t}\n}\n",
+        "utf8_bytes": 115,
+        "sha256": "6b71ca037389e2ca36401a16dd7e5da5da32e48f8ee898a923ba5a0fed33bc73"
+      },
+      "units": [
+        {
+          "name": "/index.ts",
+          "text": "import { ios } from \"./foo\";",
+          "utf8_bytes": 28,
+          "sha256": "71c8ee8c4e2d797c651bbace0f5c61b4c289214b79ec7efc493f7dda3cfe99ce"
+        },
+        {
+          "name": "/foo.ts",
+          "text": "export function base() {}\n",
+          "utf8_bytes": 26,
+          "sha256": "c9793f72bca3e9bce6b345912cd826c922315bd7c854f5116bd4f2175157a4d9"
+        }
+      ],
+      "requests": [
+        {
+          "containing_file": "/index.ts",
+          "specifier": "./foo",
+          "resolution": {
+            "state": "not_found"
+          },
+          "failed_lookup_locations": [
+            "/foo.ios.ts",
+            "/foo.ios.tsx",
+            "/foo.ios.d.ts",
+            "/foo/package.json",
+            "/foo/index.ios.ts",
+            "/foo/index.ios.tsx",
+            "/foo/index.ios.d.ts",
+            "/foo.ios.js",
+            "/foo.ios.jsx",
+            "/foo/package.json",
+            "/foo/index.ios.js",
+            "/foo/index.ios.jsx"
+          ],
+          "file_probes": [
+            {
+              "path": "/foo.ios.ts",
+              "result": false
+            },
+            {
+              "path": "/foo.ios.tsx",
+              "result": false
+            },
+            {
+              "path": "/foo.ios.d.ts",
+              "result": false
+            },
+            {
+              "path": "/foo.ios.js",
+              "result": false
+            },
+            {
+              "path": "/foo.ios.jsx",
+              "result": false
+            }
+          ],
+          "directory_probes": [
+            {
+              "path": "/",
+              "result": true
+            },
+            {
+              "path": "/",
+              "result": true
+            },
+            {
+              "path": "/foo",
+              "result": false
+            },
+            {
+              "path": "/",
+              "result": true
+            },
+            {
+              "path": "/",
+              "result": true
+            },
+            {
+              "path": "/foo",
+              "result": false
+            }
+          ],
+          "read_probes": [],
+          "realpath_probes": []
+        }
+      ]
+    },
+    {
+      "fixture_index": 4298,
+      "case_id": "typescript-6.0.3/compiler/moduleResolutionWithSuffixes_one_dirModuleWithIndex.ts#default",
+      "source": {
+        "index": 4298,
+        "path": "moduleResolutionWithSuffixes_one_dirModuleWithIndex.ts",
+        "bytes": 445,
+        "sha256": "ae9e4d882ec0e70bf80c4269cda0c6e0bcebd5a358d32a2b517a84c62aff4bcb",
+        "git_blob_sha1": "a520e3ddfd54e92cf196f8c80c5d1b82e9d75253",
+        "decoded_sha256": "ae9e4d882ec0e70bf80c4269cda0c6e0bcebd5a358d32a2b517a84c62aff4bcb"
+      },
+      "config_unit": {
+        "name": "/tsconfig.json",
+        "text": "{\n\t\"compilerOptions\": {\n\t\t\"moduleResolution\": \"node\",\n\t\t\"traceResolution\": true,\n\t\t\"moduleSuffixes\": [\".ios\"]\n\t}\n}\n",
+        "utf8_bytes": 115,
+        "sha256": "6b71ca037389e2ca36401a16dd7e5da5da32e48f8ee898a923ba5a0fed33bc73"
+      },
+      "units": [
+        {
+          "name": "/index.ts",
+          "text": "import { ios } from \"./foo\";",
+          "utf8_bytes": 28,
+          "sha256": "71c8ee8c4e2d797c651bbace0f5c61b4c289214b79ec7efc493f7dda3cfe99ce"
+        },
+        {
+          "name": "/foo/index.ios.ts",
+          "text": "export function ios() {}",
+          "utf8_bytes": 24,
+          "sha256": "a24872fa2425272b26eb37366889c04c302e84eade8dbaf54a73488292cc1632"
+        },
+        {
+          "name": "/foo/index.ts",
+          "text": "export function base() {}",
+          "utf8_bytes": 25,
+          "sha256": "e9b9a301988462904aa30a3db599a6cefd846ee2f167a90da6ee3da528c1c2d1"
+        }
+      ],
+      "requests": [
+        {
+          "containing_file": "/index.ts",
+          "specifier": "./foo",
+          "resolution": {
+            "state": "resolved",
+            "resolved_file_name": "/foo/index.ios.ts",
+            "original_path": null,
+            "extension": ".ts",
+            "is_external_library_import": false,
+            "package_id": null
+          },
+          "failed_lookup_locations": [
+            "/foo.ios.ts",
+            "/foo.ios.tsx",
+            "/foo.ios.d.ts",
+            "/foo/package.json"
+          ],
+          "file_probes": [
+            {
+              "path": "/foo.ios.ts",
+              "result": false
+            },
+            {
+              "path": "/foo.ios.tsx",
+              "result": false
+            },
+            {
+              "path": "/foo.ios.d.ts",
+              "result": false
+            },
+            {
+              "path": "/foo/package.json",
+              "result": false
+            },
+            {
+              "path": "/foo/index.ios.ts",
+              "result": true
+            }
+          ],
+          "directory_probes": [
+            {
+              "path": "/",
+              "result": true
+            },
+            {
+              "path": "/",
+              "result": true
+            },
+            {
+              "path": "/foo",
+              "result": true
+            },
+            {
+              "path": "/foo",
+              "result": true
+            },
+            {
+              "path": "/foo",
+              "result": true
+            },
+            {
+              "path": "/foo",
+              "result": true
+            }
+          ],
+          "read_probes": [],
+          "realpath_probes": []
+        }
+      ]
+    },
+    {
+      "fixture_index": 4299,
+      "case_id": "typescript-6.0.3/compiler/moduleResolutionWithSuffixes_one_externalModule.ts#default",
+      "source": {
+        "index": 4299,
+        "path": "moduleResolutionWithSuffixes_one_externalModule.ts",
+        "bytes": 870,
+        "sha256": "ac17b23e0d44de58317c5dce5bfd1c78ba864567da1995f641a7ca74baff88ae",
+        "git_blob_sha1": "5c98cff13dbf4cdcf7c77d3b9b7ed2d8a28a25fd",
+        "decoded_sha256": "ac17b23e0d44de58317c5dce5bfd1c78ba864567da1995f641a7ca74baff88ae"
+      },
+      "config_unit": {
+        "name": "/tsconfig.json",
+        "text": "{\n\t\"compilerOptions\": {\n\t\t\"allowJs\": true,\n\t\t\"checkJs\": false,\n\t\t\"outDir\": \"bin\",\n\t\t\"moduleResolution\": \"node\",\n\t\t\"traceResolution\": true,\n\t\t\"moduleSuffixes\": [\".ios\"]\n\t}\n}\n",
+        "utf8_bytes": 173,
+        "sha256": "ce73a89e1510808ca60e5a99f8604f500f24eafd1efb6545566408af313854b9"
+      },
+      "units": [
+        {
+          "name": "/node_modules/some-library/index.ios.js",
+          "text": "\"use strict\";\nexports.__esModule = true;\nfunction ios() {}\nexports.ios = ios;",
+          "utf8_bytes": 77,
+          "sha256": "c93aa29b7f5b2e0ea1d3ca4565a1dd51d3649a6d5357ee45776f3aba07be7c66"
+        },
+        {
+          "name": "/node_modules/some-library/index.ios.d.ts",
+          "text": "export declare function ios(): void;",
+          "utf8_bytes": 36,
+          "sha256": "0eb607962fd4fcbd4b996a1b2b02d2b279b490f5171f10544f5c0d721b63805e"
+        },
+        {
+          "name": "/node_modules/some-library/index.js",
+          "text": "\"use strict\";\nexports.__esModule = true;\nfunction base() {}\nexports.base = base;",
+          "utf8_bytes": 80,
+          "sha256": "89d2b09b3a983a196780eec7340bb3e845e7b0d8b91009aef19c2ac9cd17aeab"
+        },
+        {
+          "name": "/node_modules/some-library/index.d.ts",
+          "text": "export declare function base(): void;\n",
+          "utf8_bytes": 38,
+          "sha256": "9be8c83754c9d46431fa8767412620ae8673437335c5962b94af4cdd965225df"
+        },
+        {
+          "name": "/index.ts",
+          "text": "import { ios } from \"some-library\";\n",
+          "utf8_bytes": 36,
+          "sha256": "75b8b1d0117ce14faf02c1f5cfd380b4a444df4d0c18f19f216c56ff6597afbc"
+        }
+      ],
+      "requests": [
+        {
+          "containing_file": "/index.ts",
+          "specifier": "some-library",
+          "resolution": {
+            "state": "resolved",
+            "resolved_file_name": "/node_modules/some-library/index.ios.d.ts",
+            "original_path": null,
+            "extension": ".d.ts",
+            "is_external_library_import": true,
+            "package_id": null
+          },
+          "failed_lookup_locations": [
+            "/node_modules/some-library/package.json",
+            "/node_modules/some-library.ios.ts",
+            "/node_modules/some-library.ios.tsx",
+            "/node_modules/some-library.ios.d.ts",
+            "/node_modules/some-library/index.ios.ts",
+            "/node_modules/some-library/index.ios.tsx"
+          ],
+          "file_probes": [
+            {
+              "path": "/node_modules/some-library/package.json",
+              "result": false
+            },
+            {
+              "path": "/node_modules/some-library.ios.ts",
+              "result": false
+            },
+            {
+              "path": "/node_modules/some-library.ios.tsx",
+              "result": false
+            },
+            {
+              "path": "/node_modules/some-library.ios.d.ts",
+              "result": false
+            },
+            {
+              "path": "/node_modules/some-library/index.ios.ts",
+              "result": false
+            },
+            {
+              "path": "/node_modules/some-library/index.ios.tsx",
+              "result": false
+            },
+            {
+              "path": "/node_modules/some-library/index.ios.d.ts",
+              "result": true
+            }
+          ],
+          "directory_probes": [
+            {
+              "path": "/node_modules",
+              "result": true
+            },
+            {
+              "path": "/node_modules/some-library",
+              "result": true
+            },
+            {
+              "path": "/node_modules",
+              "result": true
+            },
+            {
+              "path": "/node_modules/some-library",
+              "result": true
+            },
+            {
+              "path": "/node_modules/some-library",
+              "result": true
+            }
+          ],
+          "read_probes": [],
+          "realpath_probes": [
+            {
+              "path": "/node_modules/some-library/index.ios.d.ts",
+              "result": "/node_modules/some-library/index.ios.d.ts"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "fixture_index": 4300,
+      "case_id": "typescript-6.0.3/compiler/moduleResolutionWithSuffixes_one_externalModulePath.ts#default",
+      "source": {
+        "index": 4300,
+        "path": "moduleResolutionWithSuffixes_one_externalModulePath.ts",
+        "bytes": 914,
+        "sha256": "213c0620d70b58e87fe3a725cdaac5e6885fb545df1621d179280da17271b24d",
+        "git_blob_sha1": "875acf4c792a1a70e4d668d95812a3fe75233c02",
+        "decoded_sha256": "213c0620d70b58e87fe3a725cdaac5e6885fb545df1621d179280da17271b24d"
+      },
+      "config_unit": {
+        "name": "/tsconfig.json",
+        "text": "{\n\t\"compilerOptions\": {\n\t\t\"allowJs\": true,\n\t\t\"checkJs\": false,\n\t\t\"outDir\": \"bin\",\n\t\t\"moduleResolution\": \"node\",\n\t\t\"traceResolution\": true,\n\t\t\"moduleSuffixes\": [\".ios\"]\n\t}\n}\n",
+        "utf8_bytes": 173,
+        "sha256": "ce73a89e1510808ca60e5a99f8604f500f24eafd1efb6545566408af313854b9"
+      },
+      "units": [
+        {
+          "name": "/node_modules/some-library/foo.ios.js",
+          "text": "\"use strict\";\nexports.__esModule = true;\nfunction iosfoo() {}\nexports.iosfoo = iosfoo;",
+          "utf8_bytes": 86,
+          "sha256": "76531c567de0220e17a8b6dc3f87136ebcff1266ffc2c44218193eb9a763e27e"
+        },
+        {
+          "name": "/node_modules/some-library/foo.ios.d.ts",
+          "text": "export declare function iosfoo(): void;",
+          "utf8_bytes": 39,
+          "sha256": "dce5492faa61c48bdba481fa1d66700563b92e51cf2da01f9e883f38bcfd10dd"
+        },
+        {
+          "name": "/node_modules/some-library/foo.js",
+          "text": "\"use strict\";\nexports.__esModule = true;\nfunction basefoo() {}\nexports.basefoo = basefoo;",
+          "utf8_bytes": 89,
+          "sha256": "05493b429337527250fc0a1b5144fd90c6a463384af4bed11a1bf9328b8841cb"
+        },
+        {
+          "name": "/node_modules/some-library/foo.d.ts",
+          "text": "export declare function basefoo(): void;\n",
+          "utf8_bytes": 41,
+          "sha256": "7335b70e01ff4a4418eb541669189d4d88d5c7758f49b1268808da01d759b751"
+        },
+        {
+          "name": "/index.ts",
+          "text": "import { iosfoo } from \"some-library/foo\";\n",
+          "utf8_bytes": 43,
+          "sha256": "2ddb314f30308482d53787da904fcafd087f517f31850ade873b939e69a96006"
+        }
+      ],
+      "requests": [
+        {
+          "containing_file": "/index.ts",
+          "specifier": "some-library/foo",
+          "resolution": {
+            "state": "resolved",
+            "resolved_file_name": "/node_modules/some-library/foo.ios.d.ts",
+            "original_path": null,
+            "extension": ".d.ts",
+            "is_external_library_import": true,
+            "package_id": null
+          },
+          "failed_lookup_locations": [
+            "/node_modules/some-library/foo/package.json",
+            "/node_modules/some-library/package.json",
+            "/node_modules/some-library/foo.ios.ts",
+            "/node_modules/some-library/foo.ios.tsx"
+          ],
+          "file_probes": [
+            {
+              "path": "/node_modules/some-library/package.json",
+              "result": false
+            },
+            {
+              "path": "/node_modules/some-library/foo.ios.ts",
+              "result": false
+            },
+            {
+              "path": "/node_modules/some-library/foo.ios.tsx",
+              "result": false
+            },
+            {
+              "path": "/node_modules/some-library/foo.ios.d.ts",
+              "result": true
+            }
+          ],
+          "directory_probes": [
+            {
+              "path": "/node_modules",
+              "result": true
+            },
+            {
+              "path": "/node_modules/some-library/foo",
+              "result": false
+            },
+            {
+              "path": "/node_modules/some-library",
+              "result": true
+            },
+            {
+              "path": "/node_modules/some-library",
+              "result": true
+            }
+          ],
+          "read_probes": [],
+          "realpath_probes": [
+            {
+              "path": "/node_modules/some-library/foo.ios.d.ts",
+              "result": "/node_modules/some-library/foo.ios.d.ts"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "fixture_index": 4301,
+      "case_id": "typescript-6.0.3/compiler/moduleResolutionWithSuffixes_one_externalModule_withPaths.ts#default",
+      "source": {
+        "index": 4301,
+        "path": "moduleResolutionWithSuffixes_one_externalModule_withPaths.ts",
+        "bytes": 1185,
+        "sha256": "87b216a7027311bf5bf689baade75507a61abe27aee17c57efba6aace76532aa",
+        "git_blob_sha1": "f1a52f11cef814a4cef54cfa96a67e6ee720f6c7",
+        "decoded_sha256": "87b216a7027311bf5bf689baade75507a61abe27aee17c57efba6aace76532aa"
+      },
+      "config_unit": {
+        "name": "/tsconfig.json",
+        "text": "{\n\t\"compilerOptions\": {\n\t\t\"allowJs\": true,\n\t\t\"checkJs\": false,\n\t\t\"outDir\": \"bin\",\n\t\t\"moduleResolution\": \"node\",\n\t\t\"traceResolution\": true,\n\t\t\"moduleSuffixes\": [\".ios\"],\n\t\t\"baseUrl\": \"/\",\n\t\t\"paths\": {\n\t\t\t\"some-library\": [\"node_modules/some-library/lib\"],\n\t\t\t\"some-library/*\": [\"node_modules/some-library/lib/*\"]\n\t\t}\n\t}\n}\n",
+        "utf8_bytes": 320,
+        "sha256": "12eadd5efd4e5720c1be6cab18ece7c9d0c1a6a29050cb610abc7c512895c2fb"
+      },
+      "units": [
+        {
+          "name": "/node_modules/some-library/lib/index.ios.js",
+          "text": "\"use strict\";\nexports.__esModule = true;\nfunction ios() {}\nexports.ios = ios;",
+          "utf8_bytes": 77,
+          "sha256": "c93aa29b7f5b2e0ea1d3ca4565a1dd51d3649a6d5357ee45776f3aba07be7c66"
+        },
+        {
+          "name": "/node_modules/some-library/lib/index.ios.d.ts",
+          "text": "export declare function ios(): void;",
+          "utf8_bytes": 36,
+          "sha256": "0eb607962fd4fcbd4b996a1b2b02d2b279b490f5171f10544f5c0d721b63805e"
+        },
+        {
+          "name": "/node_modules/some-library/lib/index.js",
+          "text": "\"use strict\";\nexports.__esModule = true;\nfunction base() {}\nexports.base = base;",
+          "utf8_bytes": 80,
+          "sha256": "89d2b09b3a983a196780eec7340bb3e845e7b0d8b91009aef19c2ac9cd17aeab"
+        },
+        {
+          "name": "/node_modules/some-library/lib/index.d.ts",
+          "text": "export declare function base(): void;\n",
+          "utf8_bytes": 38,
+          "sha256": "9be8c83754c9d46431fa8767412620ae8673437335c5962b94af4cdd965225df"
+        },
+        {
+          "name": "/test.ts",
+          "text": "import { ios } from \"some-library\";\nimport { ios as ios2 } from \"some-library/index\";\nimport { ios as ios3 } from \"some-library/index.js\";\n",
+          "utf8_bytes": 139,
+          "sha256": "68dde3a0186384c3d7a637dfd29edc561f6ea1720d2c742b40cc235e40fee225"
+        }
+      ],
+      "requests": [
+        {
+          "containing_file": "/test.ts",
+          "specifier": "some-library",
+          "resolution": {
+            "state": "resolved",
+            "resolved_file_name": "/node_modules/some-library/lib/index.ios.d.ts",
+            "original_path": null,
+            "extension": ".d.ts",
+            "is_external_library_import": true,
+            "package_id": null
+          },
+          "failed_lookup_locations": [
+            "/node_modules/some-library/lib.ios.ts",
+            "/node_modules/some-library/lib.ios.tsx",
+            "/node_modules/some-library/lib.ios.d.ts",
+            "/node_modules/some-library/lib/package.json",
+            "/node_modules/some-library/lib/index.ios.ts",
+            "/node_modules/some-library/lib/index.ios.tsx"
+          ],
+          "file_probes": [
+            {
+              "path": "/node_modules/some-library/lib.ios.ts",
+              "result": false
+            },
+            {
+              "path": "/node_modules/some-library/lib.ios.tsx",
+              "result": false
+            },
+            {
+              "path": "/node_modules/some-library/lib.ios.d.ts",
+              "result": false
+            },
+            {
+              "path": "/node_modules/some-library/lib/package.json",
+              "result": false
+            },
+            {
+              "path": "/node_modules/some-library/lib/index.ios.ts",
+              "result": false
+            },
+            {
+              "path": "/node_modules/some-library/lib/index.ios.tsx",
+              "result": false
+            },
+            {
+              "path": "/node_modules/some-library/lib/index.ios.d.ts",
+              "result": true
+            }
+          ],
+          "directory_probes": [
+            {
+              "path": "/node_modules/some-library",
+              "result": true
+            },
+            {
+              "path": "/node_modules/some-library",
+              "result": true
+            },
+            {
+              "path": "/node_modules/some-library",
+              "result": true
+            },
+            {
+              "path": "/node_modules/some-library/lib",
+              "result": true
+            },
+            {
+              "path": "/node_modules/some-library/lib",
+              "result": true
+            },
+            {
+              "path": "/node_modules/some-library/lib",
+              "result": true
+            },
+            {
+              "path": "/node_modules/some-library/lib",
+              "result": true
+            }
+          ],
+          "read_probes": [],
+          "realpath_probes": [
+            {
+              "path": "/node_modules/some-library/lib/index.ios.d.ts",
+              "result": "/node_modules/some-library/lib/index.ios.d.ts"
+            }
+          ]
+        },
+        {
+          "containing_file": "/test.ts",
+          "specifier": "some-library/index",
+          "resolution": {
+            "state": "resolved",
+            "resolved_file_name": "/node_modules/some-library/lib/index.ios.d.ts",
+            "original_path": null,
+            "extension": ".d.ts",
+            "is_external_library_import": true,
+            "package_id": null
+          },
+          "failed_lookup_locations": [
+            "/node_modules/some-library/lib/index.ios.ts",
+            "/node_modules/some-library/lib/index.ios.tsx",
+            "/node_modules/some-library/package.json"
+          ],
+          "file_probes": [
+            {
+              "path": "/node_modules/some-library/lib/index.ios.ts",
+              "result": false
+            },
+            {
+              "path": "/node_modules/some-library/lib/index.ios.tsx",
+              "result": false
+            },
+            {
+              "path": "/node_modules/some-library/lib/index.ios.d.ts",
+              "result": true
+            },
+            {
+              "path": "/node_modules/some-library/package.json",
+              "result": false
+            }
+          ],
+          "directory_probes": [
+            {
+              "path": "/node_modules/some-library/lib",
+              "result": true
+            },
+            {
+              "path": "/node_modules/some-library/lib",
+              "result": true
+            },
+            {
+              "path": "/node_modules/some-library/lib",
+              "result": true
+            },
+            {
+              "path": "/node_modules/some-library",
+              "result": true
+            }
+          ],
+          "read_probes": [],
+          "realpath_probes": [
+            {
+              "path": "/node_modules/some-library/lib/index.ios.d.ts",
+              "result": "/node_modules/some-library/lib/index.ios.d.ts"
+            }
+          ]
+        },
+        {
+          "containing_file": "/test.ts",
+          "specifier": "some-library/index.js",
+          "resolution": {
+            "state": "resolved",
+            "resolved_file_name": "/node_modules/some-library/lib/index.ios.d.ts",
+            "original_path": null,
+            "extension": ".d.ts",
+            "is_external_library_import": true,
+            "package_id": null
+          },
+          "failed_lookup_locations": [
+            "/node_modules/some-library/lib/index.ios.ts",
+            "/node_modules/some-library/lib/index.ios.tsx",
+            "/node_modules/some-library/package.json"
+          ],
+          "file_probes": [
+            {
+              "path": "/node_modules/some-library/lib/index.ios.ts",
+              "result": false
+            },
+            {
+              "path": "/node_modules/some-library/lib/index.ios.tsx",
+              "result": false
+            },
+            {
+              "path": "/node_modules/some-library/lib/index.ios.d.ts",
+              "result": true
+            },
+            {
+              "path": "/node_modules/some-library/package.json",
+              "result": false
+            }
+          ],
+          "directory_probes": [
+            {
+              "path": "/node_modules/some-library/lib",
+              "result": true
+            },
+            {
+              "path": "/node_modules/some-library/lib",
+              "result": true
+            },
+            {
+              "path": "/node_modules/some-library/lib",
+              "result": true
+            },
+            {
+              "path": "/node_modules/some-library",
+              "result": true
+            }
+          ],
+          "read_probes": [],
+          "realpath_probes": [
+            {
+              "path": "/node_modules/some-library/lib/index.ios.d.ts",
+              "result": "/node_modules/some-library/lib/index.ios.d.ts"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "fixture_index": 4302,
+      "case_id": "typescript-6.0.3/compiler/moduleResolutionWithSuffixes_one_externalTSModule.ts#default",
+      "source": {
+        "index": 4302,
+        "path": "moduleResolutionWithSuffixes_one_externalTSModule.ts",
+        "bytes": 539,
+        "sha256": "cfc14ecac51d4548eb0284ee578540af7c4dde87fff37f251cd28770a80d0783",
+        "git_blob_sha1": "22adc371fb30c8e5cbb32f2467836824d7a547e9",
+        "decoded_sha256": "cfc14ecac51d4548eb0284ee578540af7c4dde87fff37f251cd28770a80d0783"
+      },
+      "config_unit": {
+        "name": "/tsconfig.json",
+        "text": "{\n\t\"compilerOptions\": {\n\t\t\"outDir\": \"bin\",\n\t\t\"moduleResolution\": \"node\",\n\t\t\"traceResolution\": true,\n\t\t\"moduleSuffixes\": [\".ios\"]\n\t}\n}\n",
+        "utf8_bytes": 134,
+        "sha256": "9bd8008678b2c3316e58d3ad996af8bc3cb5e43b3459d6a57b603122aa48bb9c"
+      },
+      "units": [
+        {
+          "name": "/node_modules/some-library/index.ios.ts",
+          "text": "export function ios() {}",
+          "utf8_bytes": 24,
+          "sha256": "a24872fa2425272b26eb37366889c04c302e84eade8dbaf54a73488292cc1632"
+        },
+        {
+          "name": "/node_modules/some-library/index.ts",
+          "text": "export function base() {}",
+          "utf8_bytes": 25,
+          "sha256": "e9b9a301988462904aa30a3db599a6cefd846ee2f167a90da6ee3da528c1c2d1"
+        },
+        {
+          "name": "/test.ts",
+          "text": "import { ios } from \"some-library\";\n",
+          "utf8_bytes": 36,
+          "sha256": "75b8b1d0117ce14faf02c1f5cfd380b4a444df4d0c18f19f216c56ff6597afbc"
+        }
+      ],
+      "requests": [
+        {
+          "containing_file": "/test.ts",
+          "specifier": "some-library",
+          "resolution": {
+            "state": "resolved",
+            "resolved_file_name": "/node_modules/some-library/index.ios.ts",
+            "original_path": null,
+            "extension": ".ts",
+            "is_external_library_import": true,
+            "package_id": null
+          },
+          "failed_lookup_locations": [
+            "/node_modules/some-library/package.json",
+            "/node_modules/some-library.ios.ts",
+            "/node_modules/some-library.ios.tsx",
+            "/node_modules/some-library.ios.d.ts"
+          ],
+          "file_probes": [
+            {
+              "path": "/node_modules/some-library/package.json",
+              "result": false
+            },
+            {
+              "path": "/node_modules/some-library.ios.ts",
+              "result": false
+            },
+            {
+              "path": "/node_modules/some-library.ios.tsx",
+              "result": false
+            },
+            {
+              "path": "/node_modules/some-library.ios.d.ts",
+              "result": false
+            },
+            {
+              "path": "/node_modules/some-library/index.ios.ts",
+              "result": true
+            }
+          ],
+          "directory_probes": [
+            {
+              "path": "/node_modules",
+              "result": true
+            },
+            {
+              "path": "/node_modules/some-library",
+              "result": true
+            },
+            {
+              "path": "/node_modules",
+              "result": true
+            },
+            {
+              "path": "/node_modules/some-library",
+              "result": true
+            },
+            {
+              "path": "/node_modules/some-library",
+              "result": true
+            }
+          ],
+          "read_probes": [],
+          "realpath_probes": [
+            {
+              "path": "/node_modules/some-library/index.ios.ts",
+              "result": "/node_modules/some-library/index.ios.ts"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "fixture_index": 4303,
+      "case_id": "typescript-6.0.3/compiler/moduleResolutionWithSuffixes_one_jsModule.ts#default",
+      "source": {
+        "index": 4303,
+        "path": "moduleResolutionWithSuffixes_one_jsModule.ts",
+        "bytes": 669,
+        "sha256": "1d544ab3fe0299abafe429f21f4013560bd9468c73d59679a93ab1146a94884c",
+        "git_blob_sha1": "6256efd5085047a792407825c6a0cd9bc63f5071",
+        "decoded_sha256": "1d544ab3fe0299abafe429f21f4013560bd9468c73d59679a93ab1146a94884c"
+      },
+      "config_unit": {
+        "name": "/tsconfig.json",
+        "text": "{\n\t\"compilerOptions\": {\n\t\t\"allowJs\": true,\n\t\t\"checkJs\": false,\n\t\t\"outDir\": \"bin\",\n\t\t\"moduleResolution\": \"node\",\n\t\t\"traceResolution\": true,\n\t\t\"moduleSuffixes\": [\".ios\"]\n\t}\n}\n",
+        "utf8_bytes": 173,
+        "sha256": "ce73a89e1510808ca60e5a99f8604f500f24eafd1efb6545566408af313854b9"
+      },
+      "units": [
+        {
+          "name": "/index.ts",
+          "text": "import { ios } from \"./foo.js\";",
+          "utf8_bytes": 31,
+          "sha256": "24bb68638932be81424534c898ef5c35733a4b498feefe92289dcd83eb5058b5"
+        },
+        {
+          "name": "/foo.ios.js",
+          "text": "\"use strict\";\nexports.__esModule = true;\nfunction ios() {}\nexports.ios = ios;",
+          "utf8_bytes": 77,
+          "sha256": "c93aa29b7f5b2e0ea1d3ca4565a1dd51d3649a6d5357ee45776f3aba07be7c66"
+        },
+        {
+          "name": "/foo.js",
+          "text": "\"use strict\";\nexports.__esModule = true;\nfunction base() {}\nexports.base = base;\n",
+          "utf8_bytes": 81,
+          "sha256": "5759ae4fe104768b018e6bcfabbe5c712072d36a042315e9852f1cc3fadf4a05"
+        }
+      ],
+      "requests": [
+        {
+          "containing_file": "/index.ts",
+          "specifier": "./foo.js",
+          "resolution": {
+            "state": "resolved",
+            "resolved_file_name": "/foo.ios.js",
+            "original_path": null,
+            "extension": ".js",
+            "is_external_library_import": false,
+            "package_id": null
+          },
+          "failed_lookup_locations": [
+            "/foo.ios.ts",
+            "/foo.ios.tsx",
+            "/foo.ios.d.ts",
+            "/foo.js.ios.ts",
+            "/foo.js.ios.tsx",
+            "/foo.js.ios.d.ts",
+            "/foo.js/package.json",
+            "/foo.js/index.ios.ts",
+            "/foo.js/index.ios.tsx",
+            "/foo.js/index.ios.d.ts"
+          ],
+          "file_probes": [
+            {
+              "path": "/foo.ios.ts",
+              "result": false
+            },
+            {
+              "path": "/foo.ios.tsx",
+              "result": false
+            },
+            {
+              "path": "/foo.ios.d.ts",
+              "result": false
+            },
+            {
+              "path": "/foo.js.ios.ts",
+              "result": false
+            },
+            {
+              "path": "/foo.js.ios.tsx",
+              "result": false
+            },
+            {
+              "path": "/foo.js.ios.d.ts",
+              "result": false
+            },
+            {
+              "path": "/foo.ios.js",
+              "result": true
+            }
+          ],
+          "directory_probes": [
+            {
+              "path": "/",
+              "result": true
+            },
+            {
+              "path": "/",
+              "result": true
+            },
+            {
+              "path": "/",
+              "result": true
+            },
+            {
+              "path": "/foo.js",
+              "result": false
+            },
+            {
+              "path": "/",
+              "result": true
+            },
+            {
+              "path": "/",
+              "result": true
+            }
+          ],
+          "read_probes": [],
+          "realpath_probes": []
+        }
+      ]
+    },
+    {
+      "fixture_index": 4304,
+      "case_id": "typescript-6.0.3/compiler/moduleResolutionWithSuffixes_one_jsonModule.ts#default",
+      "source": {
+        "index": 4304,
+        "path": "moduleResolutionWithSuffixes_one_jsonModule.ts",
+        "bytes": 608,
+        "sha256": "f217a2f1308e82c97fb53e9dc0bba05cdc30eada7f7dcb87ec31b3516bb39d22",
+        "git_blob_sha1": "d46b4b632c6430171f5d4dd04ee551f7a5298be8",
+        "decoded_sha256": "f217a2f1308e82c97fb53e9dc0bba05cdc30eada7f7dcb87ec31b3516bb39d22"
+      },
+      "config_unit": {
+        "name": "/tsconfig.json",
+        "text": "{\n\t\"compilerOptions\": {\n\t\t\"esModuleInterop\": true,\n\t\t\"resolveJsonModule\": true,\n\t\t\"outDir\": \"bin\",\n\t\t\"moduleResolution\": \"node\",\n\t\t\"traceResolution\": true,\n\t\t\"moduleSuffixes\": [\".ios\"]\n\t}\n}\n",
+        "utf8_bytes": 190,
+        "sha256": "5ba6889cde9daef5c256e605cc25ac4479ba268b2baa451cbf4b92183be50704"
+      },
+      "units": [
+        {
+          "name": "/index.ts",
+          "text": "import foo from \"./foo.json\";\nconsole.log(foo.ios);",
+          "utf8_bytes": 51,
+          "sha256": "ccfac4391cd503b9b54f8ee7bc77eed92679e38a96ad67e0c5f4ba0077ff5de6"
+        },
+        {
+          "name": "/foo.ios.json",
+          "text": "{\n\t\"ios\": \"platform ios\"\n}",
+          "utf8_bytes": 26,
+          "sha256": "8187a874f70245996c837bfc645e2821f9c23a517e7289c711ed25501df92a9b"
+        },
+        {
+          "name": "/foo.json",
+          "text": "{\n\t\"base\": \"platform base\"\n}\n",
+          "utf8_bytes": 29,
+          "sha256": "bb7d49fc5b22a81df399c0a13f3fa0159a710f58360d46696c1c2128c32062e3"
+        }
+      ],
+      "requests": [
+        {
+          "containing_file": "/index.ts",
+          "specifier": "./foo.json",
+          "resolution": {
+            "state": "resolved",
+            "resolved_file_name": "/foo.ios.json",
+            "original_path": null,
+            "extension": ".json",
+            "is_external_library_import": false,
+            "package_id": null
+          },
+          "failed_lookup_locations": [
+            "/foo.d.json.ios.ts",
+            "/foo.json.ios.ts",
+            "/foo.json.ios.tsx",
+            "/foo.json.ios.d.ts",
+            "/foo.json/package.json",
+            "/foo.json/index.ios.ts",
+            "/foo.json/index.ios.tsx",
+            "/foo.json/index.ios.d.ts"
+          ],
+          "file_probes": [
+            {
+              "path": "/foo.d.json.ios.ts",
+              "result": false
+            },
+            {
+              "path": "/foo.json.ios.ts",
+              "result": false
+            },
+            {
+              "path": "/foo.json.ios.tsx",
+              "result": false
+            },
+            {
+              "path": "/foo.json.ios.d.ts",
+              "result": false
+            },
+            {
+              "path": "/foo.ios.json",
+              "result": true
+            }
+          ],
+          "directory_probes": [
+            {
+              "path": "/",
+              "result": true
+            },
+            {
+              "path": "/",
+              "result": true
+            },
+            {
+              "path": "/",
+              "result": true
+            },
+            {
+              "path": "/foo.json",
+              "result": false
+            },
+            {
+              "path": "/",
+              "result": true
+            },
+            {
+              "path": "/",
+              "result": true
+            }
+          ],
+          "read_probes": [],
+          "realpath_probes": []
+        }
+      ]
+    },
+    {
+      "fixture_index": 4305,
+      "case_id": "typescript-6.0.3/compiler/moduleResolutionWithSuffixes_threeLastIsBlank1.ts#default",
+      "source": {
+        "index": 4305,
+        "path": "moduleResolutionWithSuffixes_threeLastIsBlank1.ts",
+        "bytes": 548,
+        "sha256": "66b3a8469c7170addb0a504b363497abc077c9b58ee0c956742a778edaa25b92",
+        "git_blob_sha1": "2f5081c4aae7773c07b4bab0b10af6164903f591",
+        "decoded_sha256": "66b3a8469c7170addb0a504b363497abc077c9b58ee0c956742a778edaa25b92"
+      },
+      "config_unit": {
+        "name": "/tsconfig.json",
+        "text": "{\n\t\"compilerOptions\": {\n\t\t\"moduleResolution\": \"node\",\n\t\t\"traceResolution\": true,\n\t\t\"moduleSuffixes\": [\"-ios\", \"__native\", \"\"]\n\t}\n}\n",
+        "utf8_bytes": 131,
+        "sha256": "bc059dd5f73aaa43a6f902b1351fc70b05608e86bc0007201fe6d665c5759eb1"
+      },
+      "units": [
+        {
+          "name": "/index.ts",
+          "text": "import { ios } from \"./foo\";",
+          "utf8_bytes": 28,
+          "sha256": "71c8ee8c4e2d797c651bbace0f5c61b4c289214b79ec7efc493f7dda3cfe99ce"
+        },
+        {
+          "name": "/foo-ios.ts",
+          "text": "export function ios() {}",
+          "utf8_bytes": 24,
+          "sha256": "a24872fa2425272b26eb37366889c04c302e84eade8dbaf54a73488292cc1632"
+        },
+        {
+          "name": "/foo__native.ts",
+          "text": "export function native() {}",
+          "utf8_bytes": 27,
+          "sha256": "a58295cf8d167c70960870a71f234f5d454fef96911799ccc6d1e5cdd86328da"
+        },
+        {
+          "name": "/foo.ts",
+          "text": "export function base() {}\n",
+          "utf8_bytes": 26,
+          "sha256": "c9793f72bca3e9bce6b345912cd826c922315bd7c854f5116bd4f2175157a4d9"
+        }
+      ],
+      "requests": [
+        {
+          "containing_file": "/index.ts",
+          "specifier": "./foo",
+          "resolution": {
+            "state": "resolved",
+            "resolved_file_name": "/foo-ios.ts",
+            "original_path": null,
+            "extension": ".ts",
+            "is_external_library_import": false,
+            "package_id": null
+          },
+          "failed_lookup_locations": [],
+          "file_probes": [
+            {
+              "path": "/foo-ios.ts",
+              "result": true
+            }
+          ],
+          "directory_probes": [
+            {
+              "path": "/",
+              "result": true
+            },
+            {
+              "path": "/",
+              "result": true
+            }
+          ],
+          "read_probes": [],
+          "realpath_probes": []
+        }
+      ]
+    },
+    {
+      "fixture_index": 4306,
+      "case_id": "typescript-6.0.3/compiler/moduleResolutionWithSuffixes_threeLastIsBlank2.ts#default",
+      "source": {
+        "index": 4306,
+        "path": "moduleResolutionWithSuffixes_threeLastIsBlank2.ts",
+        "bytes": 499,
+        "sha256": "36a83411a412fe3390b69296afb594e8fd157145c86b490dfd72cbdda143fdd9",
+        "git_blob_sha1": "9bf1556487b86c764d1a6eead010657e0ae67c00",
+        "decoded_sha256": "36a83411a412fe3390b69296afb594e8fd157145c86b490dfd72cbdda143fdd9"
+      },
+      "config_unit": {
+        "name": "/tsconfig.json",
+        "text": "{\n\t\"compilerOptions\": {\n\t\t\"moduleResolution\": \"node\",\n\t\t\"traceResolution\": true,\n\t\t\"moduleSuffixes\": [\"-ios\", \"__native\", \"\"]\n\t}\n}\n",
+        "utf8_bytes": 131,
+        "sha256": "bc059dd5f73aaa43a6f902b1351fc70b05608e86bc0007201fe6d665c5759eb1"
+      },
+      "units": [
+        {
+          "name": "/index.ts",
+          "text": "import { native } from \"./foo\";",
+          "utf8_bytes": 31,
+          "sha256": "4a52be289450a5673fc7df4fc01c0275c267d355b07944f4beeeace9f0b7f79d"
+        },
+        {
+          "name": "/foo__native.ts",
+          "text": "export function native() {}",
+          "utf8_bytes": 27,
+          "sha256": "a58295cf8d167c70960870a71f234f5d454fef96911799ccc6d1e5cdd86328da"
+        },
+        {
+          "name": "/foo.ts",
+          "text": "export function base() {}\n",
+          "utf8_bytes": 26,
+          "sha256": "c9793f72bca3e9bce6b345912cd826c922315bd7c854f5116bd4f2175157a4d9"
+        }
+      ],
+      "requests": [
+        {
+          "containing_file": "/index.ts",
+          "specifier": "./foo",
+          "resolution": {
+            "state": "resolved",
+            "resolved_file_name": "/foo__native.ts",
+            "original_path": null,
+            "extension": ".ts",
+            "is_external_library_import": false,
+            "package_id": null
+          },
+          "failed_lookup_locations": [
+            "/foo-ios.ts"
+          ],
+          "file_probes": [
+            {
+              "path": "/foo-ios.ts",
+              "result": false
+            },
+            {
+              "path": "/foo__native.ts",
+              "result": true
+            }
+          ],
+          "directory_probes": [
+            {
+              "path": "/",
+              "result": true
+            },
+            {
+              "path": "/",
+              "result": true
+            }
+          ],
+          "read_probes": [],
+          "realpath_probes": []
+        }
+      ]
+    },
+    {
+      "fixture_index": 4307,
+      "case_id": "typescript-6.0.3/compiler/moduleResolutionWithSuffixes_threeLastIsBlank3.ts#default",
+      "source": {
+        "index": 4307,
+        "path": "moduleResolutionWithSuffixes_threeLastIsBlank3.ts",
+        "bytes": 436,
+        "sha256": "632919885c7168d882c9b93693267a1bef8876fb431683f7323bf21ea2b9af46",
+        "git_blob_sha1": "ca6c508712267dbfefeab77c68eec16b535bc19f",
+        "decoded_sha256": "632919885c7168d882c9b93693267a1bef8876fb431683f7323bf21ea2b9af46"
+      },
+      "config_unit": {
+        "name": "/tsconfig.json",
+        "text": "{\n\t\"compilerOptions\": {\n\t\t\"moduleResolution\": \"node\",\n\t\t\"traceResolution\": true,\n\t\t\"moduleSuffixes\": [\"-ios\", \"__native\", \"\"]\n\t}\n}\n",
+        "utf8_bytes": 131,
+        "sha256": "bc059dd5f73aaa43a6f902b1351fc70b05608e86bc0007201fe6d665c5759eb1"
+      },
+      "units": [
+        {
+          "name": "/index.ts",
+          "text": "import { base } from \"./foo\";",
+          "utf8_bytes": 29,
+          "sha256": "f6ae7bd2eb20d982c62cdda33237449c598d6f68c92bb322fc5f4b961a834f58"
+        },
+        {
+          "name": "/foo.ts",
+          "text": "export function base() {}\n",
+          "utf8_bytes": 26,
+          "sha256": "c9793f72bca3e9bce6b345912cd826c922315bd7c854f5116bd4f2175157a4d9"
+        }
+      ],
+      "requests": [
+        {
+          "containing_file": "/index.ts",
+          "specifier": "./foo",
+          "resolution": {
+            "state": "resolved",
+            "resolved_file_name": "/foo.ts",
+            "original_path": null,
+            "extension": ".ts",
+            "is_external_library_import": false,
+            "package_id": null
+          },
+          "failed_lookup_locations": [
+            "/foo-ios.ts",
+            "/foo__native.ts"
+          ],
+          "file_probes": [
+            {
+              "path": "/foo-ios.ts",
+              "result": false
+            },
+            {
+              "path": "/foo__native.ts",
+              "result": false
+            },
+            {
+              "path": "/foo.ts",
+              "result": true
+            }
+          ],
+          "directory_probes": [
+            {
+              "path": "/",
+              "result": true
+            },
+            {
+              "path": "/",
+              "result": true
+            }
+          ],
+          "read_probes": [],
+          "realpath_probes": []
+        }
+      ]
+    },
+    {
+      "fixture_index": 4308,
+      "case_id": "typescript-6.0.3/compiler/moduleResolutionWithSuffixes_threeLastIsBlank4.ts#default",
+      "source": {
+        "index": 4308,
+        "path": "moduleResolutionWithSuffixes_threeLastIsBlank4.ts",
+        "bytes": 365,
+        "sha256": "eb901629ddadde9be88f07cfb3aba028617f5ac022bb46d6094646c32dd94386",
+        "git_blob_sha1": "94320eb915e32abd141ca4d4e401c7553e0843fc",
+        "decoded_sha256": "eb901629ddadde9be88f07cfb3aba028617f5ac022bb46d6094646c32dd94386"
+      },
+      "config_unit": {
+        "name": "/tsconfig.json",
+        "text": "{\n\t\"compilerOptions\": {\n\t\t\"moduleResolution\": \"node\",\n\t\t\"traceResolution\": true,\n\t\t\"moduleSuffixes\": [\"-ios\", \"__native\", \"\"]\n\t}\n}\n",
+        "utf8_bytes": 131,
+        "sha256": "bc059dd5f73aaa43a6f902b1351fc70b05608e86bc0007201fe6d665c5759eb1"
+      },
+      "units": [
+        {
+          "name": "/index.ts",
+          "text": "import { base } from \"./foo\";\n",
+          "utf8_bytes": 30,
+          "sha256": "cb4ea26b1e2d80d9b3ae6a584a9eee26f51650bb47fd2fd84d765dae5fb3ceb7"
+        }
+      ],
+      "requests": [
+        {
+          "containing_file": "/index.ts",
+          "specifier": "./foo",
+          "resolution": {
+            "state": "not_found"
+          },
+          "failed_lookup_locations": [
+            "/foo-ios.ts",
+            "/foo__native.ts",
+            "/foo.ts",
+            "/foo-ios.tsx",
+            "/foo__native.tsx",
+            "/foo.tsx",
+            "/foo-ios.d.ts",
+            "/foo__native.d.ts",
+            "/foo.d.ts",
+            "/foo/package.json",
+            "/foo/index-ios.ts",
+            "/foo/index__native.ts",
+            "/foo/index.ts",
+            "/foo/index-ios.tsx",
+            "/foo/index__native.tsx",
+            "/foo/index.tsx",
+            "/foo/index-ios.d.ts",
+            "/foo/index__native.d.ts",
+            "/foo/index.d.ts",
+            "/foo-ios.js",
+            "/foo__native.js",
+            "/foo.js",
+            "/foo-ios.jsx",
+            "/foo__native.jsx",
+            "/foo.jsx",
+            "/foo/package.json",
+            "/foo/index-ios.js",
+            "/foo/index__native.js",
+            "/foo/index.js",
+            "/foo/index-ios.jsx",
+            "/foo/index__native.jsx",
+            "/foo/index.jsx"
+          ],
+          "file_probes": [
+            {
+              "path": "/foo-ios.ts",
+              "result": false
+            },
+            {
+              "path": "/foo__native.ts",
+              "result": false
+            },
+            {
+              "path": "/foo.ts",
+              "result": false
+            },
+            {
+              "path": "/foo-ios.tsx",
+              "result": false
+            },
+            {
+              "path": "/foo__native.tsx",
+              "result": false
+            },
+            {
+              "path": "/foo.tsx",
+              "result": false
+            },
+            {
+              "path": "/foo-ios.d.ts",
+              "result": false
+            },
+            {
+              "path": "/foo__native.d.ts",
+              "result": false
+            },
+            {
+              "path": "/foo.d.ts",
+              "result": false
+            },
+            {
+              "path": "/foo-ios.js",
+              "result": false
+            },
+            {
+              "path": "/foo__native.js",
+              "result": false
+            },
+            {
+              "path": "/foo.js",
+              "result": false
+            },
+            {
+              "path": "/foo-ios.jsx",
+              "result": false
+            },
+            {
+              "path": "/foo__native.jsx",
+              "result": false
+            },
+            {
+              "path": "/foo.jsx",
+              "result": false
+            }
+          ],
+          "directory_probes": [
+            {
+              "path": "/",
+              "result": true
+            },
+            {
+              "path": "/",
+              "result": true
+            },
+            {
+              "path": "/foo",
+              "result": false
+            },
+            {
+              "path": "/",
+              "result": true
+            },
+            {
+              "path": "/",
+              "result": true
+            },
+            {
+              "path": "/foo",
+              "result": false
+            }
+          ],
+          "read_probes": [],
+          "realpath_probes": []
+        }
+      ]
+    }
+  ]
+}

@@ -1675,10 +1675,13 @@ impl PreparedProgramBuilder {
             .to_str()
             .expect("display program paths are Unicode");
         if !module.extension().is_valid()
-            || !module.extension().matches_path_with_case(
-                extension_file_name,
-                self.path_context.use_case_sensitive_file_names(),
-            )
+            || !module
+                .extension()
+                .matches_path_with_case_and_module_suffixes(
+                    extension_file_name,
+                    self.path_context.use_case_sensitive_file_names(),
+                    self.compiler_options.module_suffixes.as_deref(),
+                )
         {
             return Err(PreparationError::new(
                 PreparationErrorKind::InvalidData,

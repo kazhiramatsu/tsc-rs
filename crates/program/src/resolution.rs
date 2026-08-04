@@ -4,6 +4,7 @@ use std::path::{Path, PathBuf};
 
 use tsc_diagnostics::{Diagnostic, DiagnosticList};
 use tsc_host::{to_file_name_lower_case, HostError};
+use tsc_types::ModuleSuffix;
 
 use crate::path::{CanonicalPath, ProgramPath};
 use crate::prepared::SourceFileId;
@@ -223,6 +224,83 @@ impl ModuleExtension {
             extension => path.ends_with(&to_file_name_lower_case(extension.as_str())),
         }
     }
+
+    /// Match the resolver's logical extension against the selected physical
+    /// path after `moduleSuffixes` probing.
+    ///
+    /// Most ordinary extension variants still match their discriminant after
+    /// a suffix is inserted (`foo.ios.ts` ends in `.ts`). The `.ts`, `.mts`,
+    /// and `.cts` variants deliberately reject declaration endings, though,
+    /// so a suffix such as `.d` needs the exact insertion check as well.
+    /// Arbitrary declaration twins also retain their logical extension:
+    /// resolving `foo.css` through `foo.d.css.ios.ts` publishes `.d.css.ts`.
+    /// Reconstruct the suffix insertion before rejecting the resolver-owned
+    /// row.
+    pub(crate) fn matches_path_with_case_and_module_suffixes(
+        &self,
+        path: &str,
+        case_sensitive: bool,
+        module_suffixes: Option<&[ModuleSuffix]>,
+    ) -> bool {
+        if self.matches_path_with_case(path, case_sensitive) {
+            return true;
+        }
+        let Some(module_suffixes) = module_suffixes.filter(|suffixes| !suffixes.is_empty()) else {
+            return false;
+        };
+        let logical_extension = self.as_str();
+        let recognized_extension = match self {
+            Self::Arbitrary(_) => {
+                let Some(extension) = module_suffix_recognized_extension(logical_extension) else {
+                    return false;
+                };
+                extension
+            }
+            _ => logical_extension,
+        };
+        let extension_without_recognized =
+            &logical_extension[..logical_extension.len() - recognized_extension.len()];
+        let comparable_path = (!case_sensitive).then(|| to_file_name_lower_case(path));
+        let mut candidate = String::new();
+
+        module_suffixes.iter().any(|suffix| {
+            let suffix = suffix.runtime_text();
+            let Some(candidate_length) = extension_without_recognized
+                .len()
+                .checked_add(suffix.len())
+                .and_then(|length| length.checked_add(recognized_extension.len()))
+            else {
+                return false;
+            };
+            candidate.clear();
+            if candidate.try_reserve_exact(candidate_length).is_err() {
+                return false;
+            }
+            candidate.push_str(extension_without_recognized);
+            candidate.push_str(suffix);
+            candidate.push_str(recognized_extension);
+            if case_sensitive {
+                path.ends_with(&candidate)
+            } else {
+                comparable_path
+                    .as_deref()
+                    .expect("case-insensitive path was folded")
+                    .ends_with(&to_file_name_lower_case(&candidate))
+            }
+        })
+    }
+}
+
+/// The same closed extension projection used by TypeScript's `tryFile` when
+/// inserting a module suffix. Long declaration extensions must precede their
+/// shorter TypeScript-family tails.
+fn module_suffix_recognized_extension(path: &str) -> Option<&'static str> {
+    [
+        ".d.ts", ".d.mts", ".d.cts", ".mjs", ".mts", ".cjs", ".cts", ".ts", ".js", ".tsx", ".jsx",
+        ".json",
+    ]
+    .into_iter()
+    .find(|extension| path.len() > extension.len() && path.ends_with(extension))
 }
 
 /// Vendored `PackageId`, retained losslessly for diagnostic consumers.

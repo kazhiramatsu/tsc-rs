@@ -4,7 +4,7 @@
   "source_references": [
     {
       "path": "ratchets/fuzz-domain.v1.toml",
-      "sha256": "06faa4d8f693cf839d3f310c90746edb93c87e5011eb36c5d1f8adbd591f0463"
+      "sha256": "d5a351c0b790f5d9d4e14ed833218d840c4a7efd6598fc824147cc154f9f2a2c"
     },
     {
       "path": "ratchets/fuzz-oracle-deviations.v1.json",
@@ -52,7 +52,7 @@
     },
     {
       "path": "crates/harness/src/lib.rs",
-      "sha256": "8b6fafbf6c024d464e0ab85c29360ab5592492440dc18acd4574cafc5a9d7f73"
+      "sha256": "e55a322fb47833bb35a9cd12e6157e05eebe9f95738ffc47f53ac6d10ca5b1ca"
     },
     {
       "path": "crates/conformance/src/lib.rs",
@@ -224,8 +224,8 @@
         "qualifying-window"
       ],
       "evidence": [
-        "crates/harness/src/lib.rs:39-47",
-        "crates/harness/src/lib.rs:228-264",
+        "crates/harness/src/lib.rs:40-48",
+        "crates/harness/src/lib.rs:229-265",
         "crates/xtask/src/m8_evidence.rs:1074-1082",
         "crates/fuzz/src/schema.rs",
         "crates/fuzz/tests/foundation_contract.rs"

@@ -52,6 +52,7 @@ pub struct HostResolvedModule {
     package_id: Option<PackageId>,
     alternate_result: Option<ProgramPath>,
     package_metadata: Option<Rc<PackageMetadata>>,
+    realpath_may_be_missing_after_suffix_predicate: bool,
 }
 
 impl HostResolvedModule {
@@ -624,6 +625,73 @@ impl<'a> ModuleResolver<'a> {
         &self.path_context
     }
 
+    /// Probe one fully materialized extension candidate through the ordered
+    /// `moduleSuffixes` runtime list.
+    ///
+    /// The extension-family caller remains the outer loop, matching
+    /// TypeScript's extension-major/suffix-minor order. `None` and an empty
+    /// list keep the allocation-free ordinary probe; a nonempty list probes
+    /// only its entries and coerces a preserved JavaScript `undefined` slot to
+    /// the literal text `"undefined"`.
+    ///
+    /// tsc-port: tryFile @6.0.3
+    /// tsc-hash: f63a8d0332580ba937377a668f6c66050d6fc485b33526cd09c08e07b96d1f9f
+    /// tsc-span: _tsc.js:41230-41238
+    fn try_file<'candidate>(
+        &self,
+        file_name: &'candidate str,
+    ) -> Result<Option<Cow<'candidate, str>>, ResolutionError> {
+        let Some(suffixes) = self
+            .options
+            .module_suffixes
+            .as_deref()
+            .filter(|suffixes| !suffixes.is_empty())
+        else {
+            return self
+                .host
+                .file_exists(Path::new(file_name))
+                .map(|exists| exists.then_some(Cow::Borrowed(file_name)))
+                .map_err(Into::into);
+        };
+
+        let extension = module_suffix_extension(file_name);
+        let file_name_without_extension = &file_name[..file_name.len() - extension.len()];
+        let mut candidate = String::new();
+        for suffix in suffixes {
+            let suffix = suffix.runtime_text();
+            if suffix.is_empty() {
+                if self.host.file_exists(Path::new(file_name))? {
+                    return Ok(Some(Cow::Borrowed(file_name)));
+                }
+                continue;
+            }
+            let candidate_length = file_name_without_extension
+                .len()
+                .checked_add(suffix.len())
+                .and_then(|length| length.checked_add(extension.len()))
+                .ok_or_else(|| {
+                    ResolutionError::resource_limit(
+                        "moduleSuffixes candidate length exceeds the addressable string range",
+                    )
+                })?;
+            candidate.clear();
+            candidate
+                .try_reserve_exact(candidate_length)
+                .map_err(|error| {
+                    ResolutionError::resource_limit(format!(
+                        "cannot reserve {candidate_length} bytes for a moduleSuffixes candidate: {error}"
+                    ))
+                })?;
+            candidate.push_str(file_name_without_extension);
+            candidate.push_str(suffix);
+            candidate.push_str(extension);
+            if self.host.file_exists(Path::new(&candidate))? {
+                return Ok(Some(Cow::Owned(candidate)));
+            }
+        }
+        Ok(None)
+    }
+
     /// Every successfully decoded package manifest observed by this resolver,
     /// in canonical-path order and without duplicates.
     pub fn observed_package_metadata(&self) -> impl Iterator<Item = &PackageMetadata> {
@@ -885,11 +953,11 @@ impl<'a> ModuleResolver<'a> {
                 // wildcard capture which happens to end in `.ts` does not
                 // enable this shortcut.
                 if let Some(extension) = extension {
-                    if self.host.file_exists(Path::new(&candidate))? {
-                        let external = path_contains_node_modules(&candidate);
+                    if let Some(resolved_path) = self.try_file(&candidate)? {
+                        let external = path_contains_node_modules(resolved_path.as_ref());
                         return self.finish_legacy_resolution(
                             None,
-                            &candidate,
+                            resolved_path.as_ref(),
                             extension,
                             LegacyResolutionContext {
                                 is_external_library_import: external,
@@ -1233,11 +1301,10 @@ impl<'a> ModuleResolver<'a> {
         &mut self,
         module: &mut HostResolvedModule,
     ) -> Result<(), ResolutionError> {
-        if !module.is_external_library_import {
-            return Ok(());
-        }
         let lexical_path = module
-            .resolved_file
+            .original_path
+            .as_ref()
+            .unwrap_or(&module.resolved_file)
             .display()
             .to_str()
             .ok_or_else(|| {
@@ -1247,7 +1314,14 @@ impl<'a> ModuleResolver<'a> {
                 )
             })?
             .to_owned();
-        let Some(package_root) = node_modules_package_root(&lexical_path) else {
+        // parseNodeModuleFromPath normalizes the selected file before locating
+        // its last node_modules package, while withPackageId still slices the
+        // resolver's raw selected spelling for submoduleName.
+        let normalized_lexical_path = normalize_absolute_path(
+            Path::new(&lexical_path),
+            Some(self.current_directory_text()?),
+        )?;
+        let Some(package_root) = node_modules_package_root(&normalized_lexical_path) else {
             return Ok(());
         };
         let Some(package) = self.load_package(&join_normalized(&package_root, "package.json"))?
@@ -1261,6 +1335,26 @@ impl<'a> ModuleResolver<'a> {
             true,
         )?;
         module.package_metadata = Some(Rc::clone(&package.metadata));
+        Ok(())
+    }
+
+    fn classify_selected_path_external(
+        &self,
+        module: &mut HostResolvedModule,
+    ) -> Result<(), ResolutionError> {
+        let selected_path = module
+            .original_path
+            .as_ref()
+            .unwrap_or(&module.resolved_file)
+            .display()
+            .to_str()
+            .ok_or_else(|| {
+                ResolutionError::canonicalization(
+                    Some(module.resolved_file.display().to_path_buf()),
+                    "selected module path is not valid Unicode",
+                )
+            })?;
+        module.is_external_library_import = path_contains_node_modules(selected_path);
         Ok(())
     }
 
@@ -1279,9 +1373,13 @@ impl<'a> ModuleResolver<'a> {
                 )
             })?
             .to_owned();
-        let (resolved_file, original_path) = self.realpath_program_path(&lexical_path)?;
+        let (resolved_file, original_path) = self.realpath_program_path(
+            &lexical_path,
+            module.realpath_may_be_missing_after_suffix_predicate,
+        )?;
         module.resolved_file = resolved_file;
         module.original_path = original_path;
+        module.realpath_may_be_missing_after_suffix_predicate = false;
         Ok(())
     }
 
@@ -1295,9 +1393,8 @@ impl<'a> ModuleResolver<'a> {
         mode: ResolutionMode,
         follow_realpath: bool,
     ) -> Result<ResolutionOutcome<HostResolvedModule>, ResolutionError> {
-        let external = path_contains_node_modules(candidate);
         let context = LegacyResolutionContext {
-            is_external_library_import: external,
+            is_external_library_import: false,
             attach_package_id: false,
             resolved_using_ts_extension: false,
             follow_realpath: false,
@@ -1312,6 +1409,7 @@ impl<'a> ModuleResolver<'a> {
         let ResolutionOutcome::Resolved(mut module) = outcome else {
             return Ok(ResolutionOutcome::NotFound);
         };
+        self.classify_selected_path_external(&mut module)?;
         self.attach_direct_node_package(&mut module)?;
         if follow_realpath {
             self.follow_module_realpath(&mut module)?;
@@ -1407,24 +1505,31 @@ impl<'a> ModuleResolver<'a> {
     }
 
     fn probe_classic_file(
-        &self,
+        &mut self,
         candidate: &str,
         probe_pass: ExtensionProbePass,
         follow_external_realpath: bool,
     ) -> Result<ResolutionOutcome<HostResolvedModule>, ResolutionError> {
-        let external = path_contains_node_modules(candidate);
-        self.probe_legacy_file(
+        let outcome = self.probe_legacy_file(
             None,
             candidate,
             probe_pass,
             /* allow_implicit */ true,
             LegacyResolutionContext {
-                is_external_library_import: external,
+                is_external_library_import: false,
                 attach_package_id: false,
                 resolved_using_ts_extension: is_typescript_family_specifier(candidate),
-                follow_realpath: external && follow_external_realpath,
+                follow_realpath: false,
             },
-        )
+        )?;
+        let ResolutionOutcome::Resolved(mut module) = outcome else {
+            return Ok(ResolutionOutcome::NotFound);
+        };
+        self.classify_selected_path_external(&mut module)?;
+        if module.is_external_library_import && follow_external_realpath {
+            self.follow_module_realpath(&mut module)?;
+        }
+        Ok(ResolutionOutcome::Resolved(module))
     }
 
     /// tsc-port: nodeModuleNameResolverWorker @6.0.3 (Node10 branch and
@@ -1836,7 +1941,8 @@ impl<'a> ModuleResolver<'a> {
                 custom_type_roots,
                 /* follow_realpath */ true,
             )?;
-            if let ResolutionOutcome::Resolved(module) = outcome {
+            if let ResolutionOutcome::Resolved(mut module) = outcome {
+                self.classify_selected_path_external(&mut module)?;
                 return Ok(ResolutionOutcome::Resolved(
                     HostResolvedTypeReferenceDirective::from_module(module, true),
                 ));
@@ -1864,9 +1970,12 @@ impl<'a> ModuleResolver<'a> {
             )?
         };
         Ok(match outcome {
-            ResolutionOutcome::Resolved(module) => ResolutionOutcome::Resolved(
-                HostResolvedTypeReferenceDirective::from_module(module, false),
-            ),
+            ResolutionOutcome::Resolved(mut module) => {
+                self.classify_selected_path_external(&mut module)?;
+                ResolutionOutcome::Resolved(HostResolvedTypeReferenceDirective::from_module(
+                    module, false,
+                ))
+            }
             ResolutionOutcome::NotFound => ResolutionOutcome::NotFound,
         })
     }
@@ -4013,11 +4122,11 @@ impl<'a> ModuleResolver<'a> {
                 // may attach the root package id again. An exact miss falls
                 // through to the ordinary package loader.
                 if let Some(extension) = written_extension {
-                    if self.host.file_exists(Path::new(&candidate))? {
+                    if let Some(resolved_path) = self.try_file(&candidate)? {
                         return self
                             .finish_legacy_resolution(
                                 Some(package),
-                                &candidate,
+                                resolved_path.as_ref(),
                                 extension,
                                 LegacyResolutionContext {
                                     attach_package_id: attach_exact_package_id,
@@ -4153,6 +4262,10 @@ impl<'a> ModuleResolver<'a> {
     /// raw package-json value reaches this helper. Replacement hits preserve
     /// the ordinary written-extension provenance until the expanded loader
     /// explicitly suppresses it.
+    ///
+    /// tsc-port: loadFileNameFromPackageJsonField @6.0.3
+    /// tsc-hash: 6ea552326abfc6171a6f748eff464c16f5f9de70fe1090df8251e7f3e41108fd
+    /// tsc-span: _tsc.js:41184-41194
     fn probe_package_field_file_phase(
         &self,
         package: Option<&CachedPackage>,
@@ -4161,12 +4274,13 @@ impl<'a> ModuleResolver<'a> {
         context: LegacyResolutionContext,
     ) -> Result<ResolutionOutcome<HostResolvedModule>, ResolutionError> {
         if let Some(extension) = package_json_target_exact_extension(candidate, probe_pass) {
-            if !self.host.file_exists(Path::new(candidate))? {
+            let Some(observed_path) = self.try_file(candidate)? else {
                 return Ok(ResolutionOutcome::NotFound);
-            }
-            return self.finish_legacy_resolution(
+            };
+            return self.finish_legacy_resolution_from_predicate(
                 package,
                 candidate,
+                observed_path.as_ref(),
                 extension,
                 LegacyResolutionContext {
                     resolved_using_ts_extension: false,
@@ -4220,11 +4334,11 @@ impl<'a> ModuleResolver<'a> {
         if let Some((base, probes)) = replacement {
             for (extension, suffix) in probes {
                 let path = format!("{base}{suffix}");
-                if self.host.file_exists(Path::new(&path))? {
+                if let Some(resolved_path) = self.try_file(&path)? {
                     let extension = materialize_module_extension(extension, suffix);
                     return self.finish_legacy_resolution(
                         package,
-                        &path,
+                        resolved_path.as_ref(),
                         extension.clone(),
                         LegacyResolutionContext {
                             resolved_using_ts_extension: is_typescript_family_specifier(candidate)
@@ -4236,10 +4350,10 @@ impl<'a> ModuleResolver<'a> {
             }
         }
         if let Some((path, extension)) = arbitrary_probe {
-            if self.host.file_exists(Path::new(&path))? {
+            if let Some(resolved_path) = self.try_file(&path)? {
                 return self.finish_legacy_resolution(
                     package,
-                    &path,
+                    resolved_path.as_ref(),
                     ModuleExtension::Arbitrary(extension),
                     LegacyResolutionContext {
                         resolved_using_ts_extension: false,
@@ -4311,11 +4425,11 @@ impl<'a> ModuleResolver<'a> {
             if let Some((base, probes)) = replacement {
                 for (extension, suffix) in probes {
                     let path = format!("{base}{suffix}");
-                    if self.host.file_exists(Path::new(&path))? {
+                    if let Some(resolved_path) = self.try_file(&path)? {
                         let extension = materialize_module_extension(extension, suffix);
                         return self.finish_legacy_resolution(
                             package,
-                            &path,
+                            resolved_path.as_ref(),
                             extension.clone(),
                             LegacyResolutionContext {
                                 resolved_using_ts_extension: context.resolved_using_ts_extension
@@ -4328,10 +4442,10 @@ impl<'a> ModuleResolver<'a> {
                 }
             }
             if let Some((path, extension)) = arbitrary_probe {
-                if self.host.file_exists(Path::new(&path))? {
+                if let Some(resolved_path) = self.try_file(&path)? {
                     return self.finish_legacy_resolution(
                         package,
-                        &path,
+                        resolved_path.as_ref(),
                         ModuleExtension::Arbitrary(extension),
                         LegacyResolutionContext {
                             resolved_using_ts_extension: false,
@@ -4350,10 +4464,10 @@ impl<'a> ModuleResolver<'a> {
             }
             for (extension, suffix) in probes {
                 let path = format!("{candidate}{suffix}");
-                if self.host.file_exists(Path::new(&path))? {
+                if let Some(resolved_path) = self.try_file(&path)? {
                     return self.finish_legacy_resolution(
                         package,
-                        &path,
+                        resolved_path.as_ref(),
                         materialize_module_extension(extension, suffix),
                         LegacyResolutionContext {
                             // tryAddingExtensions receives an empty original
@@ -4771,19 +4885,22 @@ impl<'a> ModuleResolver<'a> {
         // exact miss must not fall through to sibling TS/declaration probes
         // in the same pass.
         if let Some(extension) = package_json_target_exact_extension(target, context.pass) {
-            if !self.host.file_exists(Path::new(target))? {
+            let Some(observed_path) = self.try_file(target)? else {
                 return Ok(ResolutionOutcome::NotFound);
-            }
+            };
             let resolved_using_ts_extension =
                 raw_package_target.is_some_and(|raw| !raw.ends_with(extension.as_str()));
-            return self.finish_resolution(
-                package,
+            return self.finish_legacy_resolution_from_predicate(
+                Some(package),
                 target,
+                observed_path.as_ref(),
                 extension,
-                context.is_external_library_import,
-                attach_package_id,
-                resolved_using_ts_extension,
-                context.follow_realpath,
+                LegacyResolutionContext {
+                    is_external_library_import: context.is_external_library_import,
+                    attach_package_id,
+                    resolved_using_ts_extension,
+                    follow_realpath: context.is_external_library_import && context.follow_realpath,
+                },
             );
         }
 
@@ -4830,14 +4947,14 @@ impl<'a> ModuleResolver<'a> {
         if let Some((base, probes)) = replacement {
             for (extension, suffix) in probes {
                 let candidate = format!("{base}{suffix}");
-                if self.host.file_exists(Path::new(&candidate))? {
+                if let Some(resolved_path) = self.try_file(&candidate)? {
                     let extension = materialize_module_extension(extension, suffix);
                     let resolved_using_ts_extension = candidate != target
                         && is_typescript_family_specifier(target)
                         && is_typescript_module_extension(&extension);
                     return self.finish_resolution(
                         package,
-                        &candidate,
+                        resolved_path.as_ref(),
                         extension,
                         context.is_external_library_import,
                         attach_package_id,
@@ -4848,10 +4965,10 @@ impl<'a> ModuleResolver<'a> {
             }
         }
         if let Some((candidate, extension)) = arbitrary_probe {
-            if self.host.file_exists(Path::new(&candidate))? {
+            if let Some(resolved_path) = self.try_file(&candidate)? {
                 return self.finish_resolution(
                     package,
-                    &candidate,
+                    resolved_path.as_ref(),
                     ModuleExtension::Arbitrary(extension),
                     context.is_external_library_import,
                     attach_package_id,
@@ -4897,10 +5014,48 @@ impl<'a> ModuleResolver<'a> {
         extension: ModuleExtension,
         context: LegacyResolutionContext,
     ) -> Result<ResolutionOutcome<HostResolvedModule>, ResolutionError> {
+        self.finish_legacy_resolution_worker(
+            package,
+            lexical_path,
+            extension,
+            context,
+            /* allow_missing_realpath */ false,
+        )
+    }
+
+    /// `loadFileNameFromPackageJsonField` uses `tryFile` only as a predicate:
+    /// a suffix hit still publishes the unsuffixed input path. Its later
+    /// realpath observation therefore may legitimately return no entry even
+    /// though the different suffixed path passed `fileExists`.
+    fn finish_legacy_resolution_from_predicate(
+        &self,
+        package: Option<&CachedPackage>,
+        lexical_path: &str,
+        observed_path: &str,
+        extension: ModuleExtension,
+        context: LegacyResolutionContext,
+    ) -> Result<ResolutionOutcome<HostResolvedModule>, ResolutionError> {
+        self.finish_legacy_resolution_worker(
+            package,
+            lexical_path,
+            extension,
+            context,
+            observed_path != lexical_path,
+        )
+    }
+
+    fn finish_legacy_resolution_worker(
+        &self,
+        package: Option<&CachedPackage>,
+        lexical_path: &str,
+        extension: ModuleExtension,
+        context: LegacyResolutionContext,
+        allow_missing_realpath: bool,
+    ) -> Result<ResolutionOutcome<HostResolvedModule>, ResolutionError> {
         let (resolved_file, original_path) = if context.follow_realpath {
-            self.realpath_program_path(lexical_path)?
+            self.realpath_program_path(lexical_path, allow_missing_realpath)?
         } else {
-            (self.program_path(lexical_path)?, None)
+            (self.selected_program_path(lexical_path)?, None)
         };
 
         let package_id = package
@@ -4919,6 +5074,8 @@ impl<'a> ModuleResolver<'a> {
             package_id,
             alternate_result: None,
             package_metadata: package.map(|package| Rc::clone(&package.metadata)),
+            realpath_may_be_missing_after_suffix_predicate: allow_missing_realpath
+                && !context.follow_realpath,
         }))
     }
 
@@ -4931,20 +5088,21 @@ impl<'a> ModuleResolver<'a> {
     fn realpath_program_path(
         &self,
         lexical_path: &str,
+        allow_missing: bool,
     ) -> Result<(ProgramPath, Option<ProgramPath>), ResolutionError> {
-        let lexical = self.program_path(lexical_path)?;
+        let lexical = self.selected_program_path(lexical_path)?;
         if self.preserve_symlinks {
             return Ok((lexical, None));
         }
-        let real_path = self
-            .host
-            .realpath(Path::new(lexical_path))?
-            .ok_or_else(|| {
-                ResolutionError::invalid_data(format!(
-                    "host reported {} as a file but returned no realpath",
-                    Path::new(lexical_path).display()
-                ))
-            })?;
+        let Some(real_path) = self.host.realpath(Path::new(lexical_path))? else {
+            if allow_missing {
+                return Ok((lexical, None));
+            }
+            return Err(ResolutionError::invalid_data(format!(
+                "host reported {} as a file but returned no realpath",
+                Path::new(lexical_path).display()
+            )));
+        };
         let normalized_real_path =
             normalize_absolute_path(&real_path, Some(self.current_directory_text()?))?;
         let real = self.program_path(&normalized_real_path)?;
@@ -4960,6 +5118,26 @@ impl<'a> ModuleResolver<'a> {
             normalized_path,
             self.path_context.use_case_sensitive_file_names(),
         )
+    }
+
+    /// Preserve the resolver/host-facing selected spelling while deriving the
+    /// program/cache identity through TypeScript's normalized `toPath` shape.
+    ///
+    /// tsc-port: toPath @6.0.3
+    /// tsc-hash: 5cdd1b7580ac2e90008c10ad0aa3e12c568dc15f993d8a8eb61c5f00c93a1456
+    /// tsc-span: _tsc.js:5600-5602
+    fn selected_program_path(&self, selected_path: &str) -> Result<ProgramPath, ResolutionError> {
+        let normalized = normalize_absolute_path(
+            Path::new(selected_path),
+            Some(self.current_directory_text()?),
+        )?;
+        let canonical = canonical_text(
+            &normalized,
+            self.path_context.use_case_sensitive_file_names(),
+        );
+        ProgramPath::from_trusted_parts(selected_path, canonical).map_err(|error| {
+            ResolutionError::canonicalization(Some(PathBuf::from(selected_path)), error.to_string())
+        })
     }
 }
 
@@ -5480,10 +5658,7 @@ fn package_json_target_exact_extension(
         ModuleExtension::Dts | ModuleExtension::Dmts | ModuleExtension::Dcts => {
             extension_pass_includes_typescript(pass) || extension_pass_includes_declaration(pass)
         }
-        ModuleExtension::Json => matches!(
-            pass,
-            ExtensionProbePass::JsonConfig | ExtensionProbePass::JsonModule
-        ),
+        ModuleExtension::Json => matches!(pass, ExtensionProbePass::JsonConfig),
         _ => false,
     };
     supported.then_some(extension)
@@ -5569,37 +5744,41 @@ fn declaration_extension_probe_plan(
     Ok(plan)
 }
 
+/// tsc-port: extensionsToRemove @6.0.3
+/// tsc-hash: c6e27d3d5107b27a56e63c94807691f97f41bcefd4ec2ca937cac9061099c118
+/// tsc-span: _tsc.js:18748-18762
+/// tsc-port: tryGetExtensionFromPath2 @6.0.3
+/// tsc-hash: e55cb27a72b2c3a1c1166eea4a6e580868ebebc996c692e2a07ae6a82aa17da2
+/// tsc-span: _tsc.js:18824-18826
+fn module_suffix_extension(path: &str) -> &'static str {
+    [
+        ".d.ts", ".d.mts", ".d.cts", ".mjs", ".mts", ".cjs", ".cts", ".ts", ".js", ".tsx", ".jsx",
+        ".json",
+    ]
+    .into_iter()
+    .find(|extension| path.len() > extension.len() && path.ends_with(extension))
+    .unwrap_or("")
+}
+
 /// tsrs-native: the recognized-extension projection consumed by the
 /// typesVersions exact-substitution probe.
 fn recognized_module_extension(path: &str) -> Option<ModuleExtension> {
-    let has_extension = |extension: &str| path.len() > extension.len() && path.ends_with(extension);
-    if has_extension(".d.ts") {
-        Some(ModuleExtension::Dts)
-    } else if has_extension(".d.mts") {
-        Some(ModuleExtension::Dmts)
-    } else if has_extension(".d.cts") {
-        Some(ModuleExtension::Dcts)
-    } else if has_extension(".mjs") {
-        Some(ModuleExtension::Mjs)
-    } else if has_extension(".mts") {
-        Some(ModuleExtension::Mts)
-    } else if has_extension(".cjs") {
-        Some(ModuleExtension::Cjs)
-    } else if has_extension(".cts") {
-        Some(ModuleExtension::Cts)
-    } else if has_extension(".ts") {
-        Some(ModuleExtension::Ts)
-    } else if has_extension(".js") {
-        Some(ModuleExtension::Js)
-    } else if has_extension(".tsx") {
-        Some(ModuleExtension::Tsx)
-    } else if has_extension(".jsx") {
-        Some(ModuleExtension::Jsx)
-    } else if has_extension(".json") {
-        Some(ModuleExtension::Json)
-    } else {
-        None
-    }
+    Some(match module_suffix_extension(path) {
+        ".d.ts" => ModuleExtension::Dts,
+        ".d.mts" => ModuleExtension::Dmts,
+        ".d.cts" => ModuleExtension::Dcts,
+        ".mjs" => ModuleExtension::Mjs,
+        ".mts" => ModuleExtension::Mts,
+        ".cjs" => ModuleExtension::Cjs,
+        ".cts" => ModuleExtension::Cts,
+        ".ts" => ModuleExtension::Ts,
+        ".js" => ModuleExtension::Js,
+        ".tsx" => ModuleExtension::Tsx,
+        ".jsx" => ModuleExtension::Jsx,
+        ".json" => ModuleExtension::Json,
+        "" => return None,
+        _ => unreachable!("module suffix extension table is closed"),
+    })
 }
 
 /// ECMAScript own-property ordering used by JSON.parse results: canonical

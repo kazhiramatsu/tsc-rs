@@ -4,6 +4,35 @@
 
 use crate::flags::ScriptTarget;
 
+/// One runtime entry in TypeScript's `moduleSuffixes` option.
+///
+/// Valid command-line/API inputs contain strings, including the empty string.
+/// Recoverable config conversion additionally preserves JavaScript
+/// `undefined` entries for null or ill-typed list elements; resolution coerces
+/// those entries to the literal string `"undefined"` just as `_tsc.js` does.
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+pub enum ModuleSuffix {
+    Value(String),
+    Undefined,
+}
+
+impl ModuleSuffix {
+    pub fn value(value: impl Into<String>) -> Self {
+        Self::Value(value.into())
+    }
+
+    pub fn value_str(&self) -> Option<&str> {
+        match self {
+            Self::Value(value) => Some(value),
+            Self::Undefined => None,
+        }
+    }
+
+    pub fn runtime_text(&self) -> &str {
+        self.value_str().unwrap_or("undefined")
+    }
+}
+
 #[derive(Clone, Debug, Default, Eq, Hash, PartialEq)]
 pub struct CompilerOptions {
     /// tsc getAllowJSCompilerOption: allowJs ?? !!checkJs.
@@ -166,6 +195,11 @@ pub struct CompilerOptions {
     /// `tsc_program::ProgramOptions`; this field remains the separate baseUrl
     /// fallback and TS5090-suppression input.
     pub base_url: Option<String>,
+    /// Ordered file-name suffixes applied by every module-resolution file
+    /// probe. `None` and an explicitly empty vector both retain the ordinary
+    /// unsuffixed lookup; a nonempty vector probes only its entries, so callers
+    /// must include an empty string when they want a final ordinary fallback.
+    pub module_suffixes: Option<Vec<ModuleSuffix>>,
     /// Explicit package-map feature overrides read by
     /// getNodeResolutionFeatures. Their computed default is enabled
     /// for Node16/NodeNext/Bundler and disabled for older resolvers.

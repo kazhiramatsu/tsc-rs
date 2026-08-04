@@ -68,6 +68,34 @@ filesystem `matchFiles`, project/project-runner, or compiler-execution
 compatibility. Every upstream case remains `not-run`; this layer therefore
 claims no upstream test result.
 
+The 16 contiguous official compiler fixtures
+`moduleResolutionWithSuffixes_empty.ts` through
+`moduleResolutionWithSuffixes_threeLastIsBlank4.ts` (compiler-fixture/source
+indices 4293 through 4308) have a focused resolver oracle at
+`vendor/typescript-6.0.3/compiler-module-suffixes.v1.json`. Its producer
+reconstructs every virtual unit from the verified fixture bytes, checks the
+expansion-manifest unit hashes, parses the embedded config with TypeScript
+6.0.3, and resolves all 18 imported-module requests against a fresh in-memory
+host. The artifact freezes the resolved/not-found result and ordered
+`fileExists` observations, as well as upstream failed-lookup locations and
+directory/read/realpath observations for review. Regeneration and freshness
+checking use:
+
+```text
+node crates/oracle/compiler-module-suffixes.mjs > vendor/typescript-6.0.3/compiler-module-suffixes.v1.json
+node crates/oracle/compiler-module-suffixes.mjs --check
+```
+
+The Rust harness contract compares each artifact source directly with its
+manifest source and compiler-fixture rows, parses the same config through the
+production root planner, then exactly compares the Rust resolver's resolution
+record and ordered `fileExists` probes. The other upstream probe streams stay
+frozen evidence rather than being treated as a cross-host API-equivalence
+claim. The local oracle gate executes the pinned producer freshness check; the
+GitHub guardrail performs syntax checking only. These 16 manifest cases remain
+`not-run`: this focused artifact establishes module-suffix resolver semantics,
+not complete compiler-baseline execution or a passing upstream test result.
+
 `vendor/typescript-6.0.3/compiler-config-diagnostics.v1.json` separately pins
 the 51 focused malformed/config-conversion fixtures and an options-diagnostic
 subcorpus sourced mechanically from the official compiler cases
