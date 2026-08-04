@@ -12,11 +12,51 @@
 //! emptyGenericType (arity > 0) / emptyObjectType.
 
 use tsc_binder::SymbolId;
-use tsc_diagnostics::{gen as diagnostics, DiagnosticMessage};
+use tsc_diagnostics::{
+    gen as diagnostics, Diagnostic, DiagnosticList, DiagnosticMessage, MessageChain,
+};
 use tsc_syntax::{NodeId, SyntaxKind};
-use tsc_types::{SymbolFlags, TypeId};
+use tsc_types::{CompilerOptions, SymbolFlags, TypeId};
 
 use crate::state::{CheckResult, CheckerState};
+
+fn init_global_type_probe_names(options: &CompilerOptions) -> [(&'static str, bool); 10] {
+    let strict_bind_call_apply = options.strict_option_value(options.strict_bind_call_apply);
+    [
+        ("IArguments", true),
+        ("Array", true),
+        ("Object", true),
+        ("Function", true),
+        ("CallableFunction", strict_bind_call_apply),
+        ("NewableFunction", strict_bind_call_apply),
+        ("String", true),
+        ("Number", true),
+        ("Boolean", true),
+        ("RegExp", true),
+    ]
+}
+
+/// tsrs-native: materialize initializeTypeChecker's all-missing result without a binder.
+///
+/// The no-source equivalent of initializeTypeChecker's eager global probes.
+/// There is no binder from which to construct a `CheckerState`, and therefore
+/// every live probe is necessarily a miss.
+pub(crate) fn missing_init_global_type_diagnostics(options: &CompilerOptions) -> DiagnosticList {
+    let mut diagnostics = init_global_type_probe_names(options)
+        .into_iter()
+        .filter(|(_, live)| *live)
+        .map(|(name, _)| {
+            Diagnostic::new(
+                None,
+                None,
+                None,
+                MessageChain::new(&diagnostics::Cannot_find_global_type_0, &[name.to_owned()]),
+            )
+        })
+        .collect::<Vec<_>>();
+    tsc_diagnostics::sort_and_dedupe_diagnostics(&mut diagnostics);
+    diagnostics
+}
 
 /// The deferredGlobal* memo slots (pattern at 60679) + the init-block
 /// globals the M4 plan defers to lazy resolution. `Some` = resolved
@@ -103,21 +143,7 @@ pub(crate) struct GlobalTypeMemos {
 
 impl<'a> CheckerState<'a> {
     fn init_global_type_probe_names(&self) -> [(&'static str, bool); 10] {
-        let strict_bind_call_apply = self
-            .options
-            .strict_option_value(self.options.strict_bind_call_apply);
-        [
-            ("IArguments", true),
-            ("Array", true),
-            ("Object", true),
-            ("Function", true),
-            ("CallableFunction", strict_bind_call_apply),
-            ("NewableFunction", strict_bind_call_apply),
-            ("String", true),
-            ("Number", true),
-            ("Boolean", true),
-            ("RegExp", true),
-        ]
+        init_global_type_probe_names(self.options)
     }
 
     /// tsrs-native: publish file-less rows from one

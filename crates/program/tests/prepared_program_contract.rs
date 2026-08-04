@@ -241,6 +241,147 @@ fn root_requests_preserve_order_multiplicity_and_missing_entries() {
 }
 
 #[test]
+fn extensionless_root_requests_bind_only_to_the_first_supported_probe_group() {
+    let mut exact_extensionless = builder();
+    let exact = exact_extensionless
+        .add_source_file(PreparedSourceFile::new(
+            path("/Work/root", "/work/root"),
+            "export {};",
+        ))
+        .unwrap();
+    let error = exact_extensionless
+        .add_root(PreparedRoot::loaded(
+            path("/Work/root", "/work/root"),
+            exact,
+        ))
+        .expect_err("without allowNonTsExtensions an extensionless request never reads itself");
+    assert_eq!(error.kind(), PreparationErrorKind::InvalidData);
+    assert_eq!(error.operation(), PreparationOperation::AddRootFile);
+
+    let mut typescript = builder();
+    let ts = typescript
+        .add_source_file(PreparedSourceFile::new(
+            path("/Work/root.ts", "/work/root.ts"),
+            "export {};",
+        ))
+        .unwrap();
+    typescript
+        .add_root(PreparedRoot::loaded(path("/Work/root", "/work/root"), ts))
+        .expect("an extensionless request may retain its selected .ts source");
+    let program = typescript.build().unwrap();
+    assert_eq!(program.roots()[0].path().display(), Path::new("/Work/root"));
+    assert_eq!(
+        program
+            .source_file(program.roots()[0].source().unwrap())
+            .unwrap()
+            .path()
+            .display(),
+        Path::new("/Work/root.ts")
+    );
+
+    let mut non_first_group = builder();
+    let cts = non_first_group
+        .add_source_file(PreparedSourceFile::new(
+            path("/Work/root.cts", "/work/root.cts"),
+            "export {};",
+        ))
+        .unwrap();
+    let error = non_first_group
+        .add_root(PreparedRoot::loaded(path("/Work/root", "/work/root"), cts))
+        .expect_err(".cts is displayed but not probed for an extensionless root");
+    assert_eq!(error.kind(), PreparationErrorKind::InvalidData);
+    assert_eq!(error.operation(), PreparationOperation::AddRootFile);
+
+    let mut shadowed = builder();
+    shadowed
+        .add_source_file(PreparedSourceFile::new(
+            path("/Work/root.ts", "/work/root.ts"),
+            "export const first = true;",
+        ))
+        .unwrap();
+    let tsx = shadowed
+        .add_source_file(PreparedSourceFile::new(
+            path("/Work/root.tsx", "/work/root.tsx"),
+            "export const second = true;",
+        ))
+        .unwrap();
+    let error = shadowed
+        .add_root(PreparedRoot::loaded(path("/Work/root", "/work/root"), tsx))
+        .expect_err("an owned earlier probe candidate must win over the selected source");
+    assert_eq!(error.kind(), PreparationErrorKind::InvalidData);
+    assert_eq!(error.operation(), PreparationOperation::AddRootFile);
+
+    let mut late_shadow = builder();
+    let tsx = late_shadow
+        .add_source_file(PreparedSourceFile::new(
+            path("/Work/root.tsx", "/work/root.tsx"),
+            "export const second = true;",
+        ))
+        .unwrap();
+    late_shadow
+        .add_root(PreparedRoot::loaded(path("/Work/root", "/work/root"), tsx))
+        .unwrap();
+    late_shadow
+        .add_source_file(PreparedSourceFile::new(
+            path("/Work/root.ts", "/work/root.ts"),
+            "export const first = true;",
+        ))
+        .unwrap();
+    let error = late_shadow
+        .build()
+        .expect_err("final validation must reject a later-owned earlier probe candidate");
+    assert_eq!(error.kind(), PreparationErrorKind::InvalidData);
+    assert_eq!(
+        error.operation(),
+        PreparationOperation::BuildPreparedProgram
+    );
+
+    let mut javascript_disabled = builder();
+    let js = javascript_disabled
+        .add_source_file(PreparedSourceFile::new(
+            path("/Work/root.js", "/work/root.js"),
+            "exports.value = 1;",
+        ))
+        .unwrap();
+    assert!(javascript_disabled
+        .add_root(PreparedRoot::loaded(path("/Work/root", "/work/root"), js,))
+        .is_err());
+
+    let mut javascript_enabled = PreparedProgram::builder(
+        PathContext::new(path("/Work", "/work"), false),
+        CompilerOptions {
+            allow_js: true,
+            ..no_emit_options()
+        },
+    );
+    let js = javascript_enabled
+        .add_source_file(PreparedSourceFile::new(
+            path("/Work/root.js", "/work/root.js"),
+            "exports.value = 1;",
+        ))
+        .unwrap();
+    javascript_enabled
+        .add_root(PreparedRoot::loaded(path("/Work/root", "/work/root"), js))
+        .expect("allowJs admits .js in the first extensionless probe group");
+    javascript_enabled.build().unwrap();
+
+    let mut hidden_candidate = builder();
+    hidden_candidate
+        .add_source_file(PreparedSourceFile::new(
+            path("/Work/root.ts", "/work/root.ts"),
+            "export {};",
+        ))
+        .unwrap();
+    let error = hidden_candidate
+        .add_root(PreparedRoot::missing(
+            path("/Work/root", "/work/root"),
+            diagnostic(6231),
+        ))
+        .expect_err("a missing extensionless request cannot hide its owned candidate");
+    assert_eq!(error.kind(), PreparationErrorKind::InvalidData);
+}
+
+#[test]
 fn canonical_source_duplicates_collapse_only_when_facts_are_compatible() {
     let mut builder = builder();
     let first = builder

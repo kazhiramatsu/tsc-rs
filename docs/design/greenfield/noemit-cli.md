@@ -451,9 +451,14 @@ the default library, and fails typed on the `noLib` plus `lib` combination
 until H0.5 owns TS5053. Ordered `paths` mappings and `baseUrl` participate in
 recursive source discovery through the shared resolver. Roots are normalized
 and visited one at a time, preserving input order, multiplicity, and
-observable failure precedence. Canonical source identities are loaded once,
-cycles and diamonds are staged without duplicate files, and `SourceFileId`s
-are assigned only after discovery.
+observable failure precedence. An extensionless root retains that requested
+path in `PreparedRoot` while its source identity records the first existing
+candidate from `.ts`, `.tsx`, and `.d.ts`; `allowJs` appends only `.js` and
+`.jsx`. The modern and JSON extensions remain outside this first probe group,
+and a complete miss produces fileless TS6231 with the full supported-extension
+display list. Canonical source identities are loaded once, cycles and diamonds
+are staged without duplicate files, and `SourceFileId`s are assigned only
+after discovery.
 
 `LibraryCatalog::typescript_6_0_3` injects static metadata for the exact 107
 logical library names and 95 distinct mapped files. It performs no runtime
@@ -537,8 +542,8 @@ package fields directly, and object/array nesting above 256 does the same. The
 converter itself uses an explicit task stack.
 
 This is deliberately not general H0.4 program construction. Nonzero
-`maxNodeModuleJsDepth`, config-derived root-file selection, extensionless root
-admission, the remaining path and physical-alias policies, and the complete cross-platform
+`maxNodeModuleJsDepth`, config-derived root-file selection, the remaining path
+and physical-alias policies, and the complete cross-platform
 case/separator/symlink/encoding matrix remain in later slices. Discovery stays
 sequential where vendored host calls and failure precedence are observable;
 future pipeline parallelism must preserve that contract.

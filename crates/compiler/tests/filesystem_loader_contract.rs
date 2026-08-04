@@ -95,6 +95,129 @@ fn limits() -> ProgramLoadLimits {
 }
 
 #[test]
+fn extensionless_roots_preserve_memory_filesystem_and_session_equivalence() {
+    let tree = TempTree::new();
+    let entry = concat!(
+        "/// <reference path=\"./globals.d.ts\" />\n",
+        "const value: number = 'not a number';\n",
+        "export { value };\n",
+    );
+    let files = [
+        ("entry.tsx", entry.as_bytes()),
+        ("globals.d.ts", MINIMAL_GLOBALS.as_bytes()),
+    ];
+    for (relative, bytes) in files {
+        fs::write(tree.path(relative), bytes).expect("write extensionless source tree");
+    }
+
+    let filesystem = FsCompilerHost::new(tree.root(), true).expect("construct filesystem host");
+    let mut memory = MemoryCompilerHost::builder(tree.root()).case_sensitive(true);
+    for (relative, bytes) in files {
+        memory = memory.file(tree.path(relative), bytes.to_vec());
+    }
+    let memory = memory.build().expect("construct memory host");
+    let compiler_options = CompilerOptions {
+        no_emit: Some(true),
+        ..CompilerOptions::default()
+    };
+    let program_options = ProgramOptions::default()
+        .with_no_lib(true)
+        .with_types(Vec::new());
+
+    let roots = [tree.path("entry")];
+    let from_memory = load_no_lib_program(
+        &memory,
+        &roots,
+        compiler_options.clone(),
+        program_options.clone(),
+        limits(),
+    )
+    .expect("load extensionless root from MemoryHost");
+    let from_filesystem = load_no_lib_program(
+        &filesystem,
+        &roots,
+        compiler_options.clone(),
+        program_options.clone(),
+        limits(),
+    )
+    .expect("load extensionless root from FsHost");
+    assert_eq!(from_memory, from_filesystem);
+    assert_eq!(from_memory.roots()[0].path().display(), tree.path("entry"));
+    let root_source = from_memory.roots()[0]
+        .source()
+        .expect("extensionless root has a selected source");
+    assert_eq!(
+        from_memory
+            .source_file(root_source)
+            .unwrap()
+            .path()
+            .display(),
+        tree.path("entry.tsx")
+    );
+
+    let memory_outcome = ProgramSession::new(from_memory)
+        .run()
+        .expect("run MemoryHost extensionless program");
+    let filesystem_outcome = ProgramSession::new(from_filesystem)
+        .run()
+        .expect("run FsHost extensionless program");
+    assert_eq!(memory_outcome, filesystem_outcome);
+    assert!(memory_outcome.options_diagnostics().is_empty());
+    assert!(memory_outcome.global_diagnostics().is_empty());
+    assert_eq!(
+        memory_outcome
+            .semantic_diagnostics()
+            .iter()
+            .map(|diagnostic| diagnostic.code())
+            .collect::<Vec<_>>(),
+        [2322]
+    );
+
+    let missing_roots = [tree.path("missing")];
+    let missing_memory = load_no_lib_program(
+        &memory,
+        &missing_roots,
+        compiler_options.clone(),
+        program_options.clone(),
+        limits(),
+    )
+    .expect("retain a MemoryHost extensionless miss as TS6231");
+    let missing_filesystem = load_no_lib_program(
+        &filesystem,
+        &missing_roots,
+        compiler_options,
+        program_options,
+        limits(),
+    )
+    .expect("retain an FsHost extensionless miss as TS6231");
+    assert_eq!(missing_memory, missing_filesystem);
+    let missing_memory = ProgramSession::new(missing_memory)
+        .run()
+        .expect("run MemoryHost extensionless miss");
+    let missing_filesystem = ProgramSession::new(missing_filesystem)
+        .run()
+        .expect("run FsHost extensionless miss");
+    assert_eq!(missing_memory, missing_filesystem);
+    assert_eq!(
+        missing_memory
+            .options_diagnostics()
+            .iter()
+            .map(|diagnostic| diagnostic.code())
+            .collect::<Vec<_>>(),
+        [6231]
+    );
+    assert_eq!(
+        missing_memory
+            .global_diagnostics()
+            .iter()
+            .map(|diagnostic| diagnostic.code())
+            .collect::<Vec<_>>(),
+        [2318; 10]
+    );
+    assert!(missing_memory.semantic_diagnostics().is_empty());
+}
+
+#[test]
 fn paths_base_url_and_root_dirs_produce_identical_filesystem_backed_diagnostics() {
     let tree = TempTree::new();
     fs::create_dir(tree.path("src")).expect("create paths directory");
