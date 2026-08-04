@@ -1,5 +1,7 @@
 #![forbid(unsafe_code)]
 
+pub mod upstream_suites;
+
 use std::collections::{BTreeMap, BTreeSet};
 use std::error::Error;
 use std::fmt;
@@ -19,7 +21,7 @@ pub struct HarnessError {
 }
 
 impl HarnessError {
-    fn new(message: impl Into<String>) -> Self {
+    pub(crate) fn new(message: impl Into<String>) -> Self {
         Self {
             message: message.into(),
         }
