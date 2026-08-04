@@ -7632,14 +7632,19 @@ fn ci_oracle_gates(workspace: &Path) -> Result<(), Box<dyn Error>> {
             .arg("--check")
             .arg(workspace.join("crates/oracle/trace-driver.mjs")),
     )?;
-    let config_driver = workspace.join("crates/oracle/compiler-config-plans.mjs");
-    run_command(Command::new("node").arg("--check").arg(&config_driver))?;
-    run_command(
-        Command::new("node")
-            .current_dir(workspace)
-            .arg(config_driver)
-            .arg("--check"),
-    )?;
+    for driver in [
+        "compiler-config-plans.mjs",
+        "compiler-config-diagnostics.mjs",
+    ] {
+        let config_driver = workspace.join("crates/oracle").join(driver);
+        run_command(Command::new("node").arg("--check").arg(&config_driver))?;
+        run_command(
+            Command::new("node")
+                .current_dir(workspace)
+                .arg(config_driver)
+                .arg("--check"),
+        )?;
+    }
     Ok(())
 }
 

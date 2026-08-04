@@ -6770,10 +6770,25 @@ pub(crate) fn normalize_absolute_path(
     path: &Path,
     base: Option<&str>,
 ) -> Result<String, ResolutionError> {
+    normalize_absolute_path_worker(path, base, true)
+}
+
+pub(crate) fn normalize_absolute_path_lexical(
+    path: &Path,
+    base: Option<&str>,
+) -> Result<String, ResolutionError> {
+    normalize_absolute_path_worker(path, base, false)
+}
+
+fn normalize_absolute_path_worker(
+    path: &Path,
+    base: Option<&str>,
+    reject_nul: bool,
+) -> Result<String, ResolutionError> {
     let text = path.to_str().ok_or_else(|| {
         ResolutionError::canonicalization(Some(path.to_path_buf()), "path is not valid Unicode")
     })?;
-    if text.is_empty() || text.contains('\0') {
+    if text.is_empty() || (reject_nul && text.contains('\0')) {
         return Err(ResolutionError::canonicalization(
             Some(path.to_path_buf()),
             "path is empty or contains a NUL byte",
@@ -6789,48 +6804,187 @@ pub(crate) fn normalize_absolute_path(
                 "an absolute path is required",
             )
         })?;
-        join_normalized(base, &slashed)
+        if reject_nul && base.contains('\0') {
+            return Err(ResolutionError::canonicalization(
+                Some(path.to_path_buf()),
+                "path base contains a NUL byte",
+            ));
+        }
+        join_normalized(&base.replace('\\', "/"), &slashed)
     };
     normalize_rooted_text(&absolute)
         .map_err(|detail| ResolutionError::canonicalization(Some(path.to_path_buf()), detail))
 }
 
 fn is_normalized_rooted_text(path: &str) -> bool {
-    path.starts_with('/')
-        || (path.len() >= 3
-            && path.as_bytes()[0].is_ascii_alphabetic()
-            && path.as_bytes()[1] == b':'
-            && path.as_bytes()[2] == b'/')
+    normalized_root_parts(path).is_some()
 }
 
 fn normalize_rooted_text(path: &str) -> Result<String, &'static str> {
-    let (root, tail) = if let Some(tail) = path.strip_prefix('/') {
-        ("/".to_owned(), tail)
-    } else if path.len() >= 3
-        && path.as_bytes()[0].is_ascii_alphabetic()
-        && path.as_bytes()[1] == b':'
-        && path.as_bytes()[2] == b'/'
-    {
-        (path[..3].to_owned(), &path[3..])
-    } else {
+    let Some((root, _tail)) = normalized_root_parts(path) else {
         return Err("path has no supported absolute root");
     };
+    let root_length = root.len();
 
-    let mut components = Vec::new();
-    for component in tail.split('/') {
-        match component {
-            "" | "." => {}
-            ".." => {
-                components.pop();
+    // Mirrors TypeScript 6.0.3 getNormalizedAbsolutePath/simpleNormalizePath.
+    // Preserve TypeScript's observable trailing-separator behavior. In
+    // particular, it removes only one trailing slash from an otherwise
+    // simple path and retains the exact spelling produced by its slower
+    // dot-segment worker.
+    if let Some(simple) = simple_normalize_path(path) {
+        return Ok(remove_trailing_separator_once(&simple, root_length));
+    }
+
+    let bytes = path.as_bytes();
+    let mut normalized = None::<String>;
+    let mut index = root_length;
+    let mut normalized_up_to = index;
+    let mut seen_non_dot_dot_segment = root_length != 0;
+    while index < bytes.len() {
+        let mut segment_start = index;
+        while bytes[index] == b'/' && index + 1 < bytes.len() {
+            index += 1;
+        }
+        if index > segment_start {
+            normalized.get_or_insert_with(|| path[..segment_start.saturating_sub(1)].to_owned());
+            segment_start = index;
+        }
+
+        let mut segment_end = index + 1;
+        while segment_end < bytes.len() && bytes[segment_end] != b'/' {
+            segment_end += 1;
+        }
+        let segment = &path[segment_start..segment_end];
+        if segment == "." {
+            normalized.get_or_insert_with(|| path[..normalized_up_to].to_owned());
+        } else if segment == ".." {
+            if !seen_non_dot_dot_segment {
+                if let Some(normalized) = &mut normalized {
+                    if normalized.len() == root_length {
+                        normalized.push_str("..");
+                    } else {
+                        normalized.push_str("/..");
+                    }
+                } else {
+                    normalized_up_to = index + 2;
+                }
+            } else if normalized.is_none() {
+                let end = if normalized_up_to >= 2 {
+                    path.as_bytes()[..=normalized_up_to - 2]
+                        .iter()
+                        .rposition(|byte| *byte == b'/')
+                        .unwrap_or(root_length)
+                        .max(root_length)
+                } else {
+                    normalized_up_to
+                };
+                normalized = Some(path[..end].to_owned());
+            } else if let Some(normalized) = &mut normalized {
+                if let Some(last_slash) = normalized.rfind('/') {
+                    normalized.truncate(last_slash.max(root_length));
+                } else {
+                    normalized.replace_range(.., root);
+                }
+                if normalized.len() == root_length {
+                    seen_non_dot_dot_segment = root_length != 0;
+                }
             }
-            component => components.push(component),
+        } else if let Some(normalized) = &mut normalized {
+            if normalized.len() != root_length {
+                normalized.push('/');
+            }
+            seen_non_dot_dot_segment = true;
+            normalized.push_str(segment);
+        } else {
+            seen_non_dot_dot_segment = true;
+            normalized_up_to = segment_end;
+        }
+        index = segment_end + 1;
+    }
+
+    Ok(normalized.unwrap_or_else(|| remove_trailing_separator_once(path, root_length)))
+}
+
+fn simple_normalize_path(path: &str) -> Option<String> {
+    if !has_relative_path_segment(path) {
+        return Some(path.to_owned());
+    }
+    let mut simplified = path.replace("/./", "/");
+    if simplified.starts_with("./") {
+        simplified.drain(..2);
+    }
+    (simplified != path && !has_relative_path_segment(&simplified)).then_some(simplified)
+}
+
+fn has_relative_path_segment(path: &str) -> bool {
+    path.contains("//")
+        || path
+            .split('/')
+            .any(|component| matches!(component, "." | ".."))
+}
+
+fn remove_trailing_separator_once(path: &str, root_length: usize) -> String {
+    if path.len() > root_length && path.ends_with('/') {
+        path[..path.len() - 1].to_owned()
+    } else {
+        path.to_owned()
+    }
+}
+
+pub(crate) fn normalized_root_parts(path: &str) -> Option<(&str, &str)> {
+    if let Some(server_and_tail) = path.strip_prefix("//") {
+        return match server_and_tail.find('/') {
+            Some(separator) => {
+                let root_end = 2 + separator + 1;
+                Some((&path[..root_end], &path[root_end..]))
+            }
+            None => Some((path, "")),
+        };
+    }
+    if let Some(tail) = path.strip_prefix('/') {
+        return Some(("/", tail));
+    }
+    let bytes = path.as_bytes();
+    if bytes.first().is_some_and(u8::is_ascii_alphabetic) && bytes.get(1) == Some(&b':') {
+        if bytes.get(2) == Some(&b'/') {
+            return Some((&path[..3], &path[3..]));
+        }
+        if bytes.len() == 2 {
+            return Some((path, ""));
         }
     }
-    if components.is_empty() {
-        return Ok(root);
+    let scheme_end = path.find("://")?;
+    let authority_start = scheme_end + 3;
+    match path[authority_start..].find('/') {
+        Some(separator) => {
+            let authority_end = authority_start + separator;
+            if &path[..scheme_end] == "file"
+                && matches!(&path[authority_start..authority_end], "" | "localhost")
+                && bytes
+                    .get(authority_end + 1)
+                    .is_some_and(u8::is_ascii_alphabetic)
+            {
+                let volume_separator_start = authority_end + 2;
+                let volume_separator_end = match bytes.get(volume_separator_start..) {
+                    Some([b':', ..]) => Some(volume_separator_start + 1),
+                    Some([b'%', b'3', b'a' | b'A', ..]) => Some(volume_separator_start + 3),
+                    _ => None,
+                };
+                if let Some(volume_separator_end) = volume_separator_end {
+                    if bytes.get(volume_separator_end) == Some(&b'/') {
+                        let root_end = volume_separator_end + 1;
+                        return Some((&path[..root_end], &path[root_end..]));
+                    }
+                    if volume_separator_end == bytes.len() {
+                        return Some((path, ""));
+                    }
+                }
+            }
+            let root_end = authority_end + 1;
+            Some((&path[..root_end], &path[root_end..]))
+        }
+        None => Some((path, "")),
     }
-    let separator = if root.ends_with('/') { "" } else { "/" };
-    Ok(format!("{root}{separator}{}", components.join("/")))
 }
 
 fn join_normalized(parent: &str, child: &str) -> String {
@@ -6842,24 +6996,23 @@ fn join_normalized(parent: &str, child: &str) -> String {
 }
 
 pub(crate) fn directory_name(path: &str) -> String {
-    if path == "/" || is_drive_root(path) {
-        return path.to_owned();
+    let slashed = path.replace('\\', "/");
+    let root_length = normalized_root_parts(&slashed)
+        .map(|(root, _)| root.len())
+        .unwrap_or(0);
+    if root_length == slashed.len() {
+        return slashed;
     }
-    let trimmed = path.trim_end_matches('/');
-    match trimmed.rfind('/') {
-        Some(0) => "/".to_owned(),
-        Some(2) if trimmed.as_bytes().get(1) == Some(&b':') => trimmed[..=2].to_owned(),
-        Some(index) => trimmed[..index].to_owned(),
-        None => trimmed.to_owned(),
-    }
+    let trimmed = slashed.strip_suffix('/').unwrap_or(slashed.as_str());
+    let last_separator = trimmed.rfind('/').unwrap_or(0);
+    trimmed[..root_length.max(last_separator)].to_owned()
 }
 
 fn base_name(path: &str) -> &str {
-    if path == "/" || is_drive_root(path) {
-        ""
-    } else {
-        path.trim_end_matches('/').rsplit('/').next().unwrap_or("")
+    if let Some((_root, tail)) = normalized_root_parts(path) {
+        return tail.trim_end_matches('/').rsplit('/').next().unwrap_or("");
     }
+    path.trim_end_matches('/').rsplit('/').next().unwrap_or("")
 }
 
 fn is_drive_root(path: &str) -> bool {

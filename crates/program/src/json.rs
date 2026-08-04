@@ -1,7 +1,7 @@
 use std::path::Path;
 
 use serde_json::{Map, Number, Value};
-use tsc_syntax::{scan_tokens, LanguageVariant, NodeId, SourceFile, SyntaxKind};
+use tsc_syntax::{scan_token_kinds, LanguageVariant, NodeId, SourceFile, SyntaxKind};
 
 /// Keep malformed or adversarial manifests from reaching the recursive JSON
 /// parser with unbounded structural nesting. Package consumers expose empty
@@ -320,12 +320,20 @@ enum ConversionTask {
     FinishObject(Vec<String>),
 }
 
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) enum RecoverableJsonValue {
+    Defined(Value),
+    Undefined,
+}
+
 fn parse_jsonc_object(
     source: &SourceFile,
     use_strict_object_assignment: bool,
 ) -> Option<Map<String, Value>> {
     let value = if use_strict_object_assignment {
-        convert_json_source_file_to_value_with_assignment(source, true)
+        convert_json_source_file_to_value_with_assignment(
+            source, true, /* allow_parse_recovery */ false,
+        )
     } else {
         convert_json_source_file_to_value(source)
     }?;
@@ -351,6 +359,38 @@ fn parse_jsonc_object(
 pub(crate) fn convert_json_source_file_to_value(source: &SourceFile) -> Option<Value> {
     convert_json_source_file_to_value_with_assignment(
         source, /* use_strict_object_assignment */ false,
+        /* allow_parse_recovery */ false,
+    )
+}
+
+/// Convert the recoverable JSON syntax tree even when the parser also
+/// reported diagnostics.
+///
+/// TypeScript's config-file path keeps the root source's parse diagnostics
+/// separate from `ParsedCommandLine.errors`, then still runs
+/// `convertConfigFileToObject` over the recovered tree. Package metadata does
+/// not use that recovery contract, so the ordinary converter above remains
+/// fail-closed.
+pub(crate) fn convert_recoverable_json_source_file_to_value(source: &SourceFile) -> Option<Value> {
+    convert_json_source_file_to_value_with_assignment(
+        source, /* use_strict_object_assignment */ false, /* allow_parse_recovery */ true,
+    )
+}
+
+/// Convert one recovered config-syntax node with the same ordinary object
+/// assignment semantics as [`convert_recoverable_json_source_file_to_value`].
+///
+/// Config parsing observes every property assignment before duplicate keys
+/// are collapsed into the returned raw object. Keeping this node-level entry
+/// point lets the config notifier validate those assignments in source order
+/// without weakening the fail-closed package-JSON boundary above.
+pub(crate) fn convert_recoverable_json_node_to_value(
+    source: &SourceFile,
+    node: NodeId,
+) -> Option<RecoverableJsonValue> {
+    convert_jsonc_value_worker(
+        source, node, /* use_strict_object_assignment */ false,
+        /* recover_undefined */ true,
     )
 }
 
@@ -368,8 +408,9 @@ pub(crate) fn json_source_file_is_empty(source: &SourceFile) -> bool {
 fn convert_json_source_file_to_value_with_assignment(
     source: &SourceFile,
     use_strict_object_assignment: bool,
+    allow_parse_recovery: bool,
 ) -> Option<Value> {
-    if !source.parse_diagnostics.is_empty() {
+    if !allow_parse_recovery && !source.parse_diagnostics.is_empty() {
         return None;
     }
     let source_file = source.arena.node(source.root).data.as_source_file()?;
@@ -387,7 +428,21 @@ fn convert_json_source_file_to_value_with_assignment(
         .data
         .as_expression_statement()?
         .expression?;
-    convert_jsonc_value(source, expression, use_strict_object_assignment)
+    if allow_parse_recovery {
+        match convert_jsonc_value_worker(
+            source,
+            expression,
+            use_strict_object_assignment,
+            /* recover_undefined */ true,
+        )? {
+            RecoverableJsonValue::Defined(value) => Some(value),
+            // A root-level invalid expression is replaced by the caller's
+            // ordinary non-object recovery path.
+            RecoverableJsonValue::Undefined => Some(Value::Null),
+        }
+    } else {
+        convert_jsonc_value(source, expression, use_strict_object_assignment)
+    }
 }
 
 fn convert_jsonc_value(
@@ -395,6 +450,23 @@ fn convert_jsonc_value(
     root: NodeId,
     use_strict_object_assignment: bool,
 ) -> Option<Value> {
+    match convert_jsonc_value_worker(
+        source,
+        root,
+        use_strict_object_assignment,
+        /* recover_undefined */ false,
+    )? {
+        RecoverableJsonValue::Defined(value) => Some(value),
+        RecoverableJsonValue::Undefined => None,
+    }
+}
+
+fn convert_jsonc_value_worker(
+    source: &SourceFile,
+    root: NodeId,
+    use_strict_object_assignment: bool,
+    recover_undefined: bool,
+) -> Option<RecoverableJsonValue> {
     let mut tasks = vec![ConversionTask::Visit {
         value: root,
         structural_depth: 0,
@@ -410,21 +482,27 @@ fn convert_jsonc_value(
                 let node = source.arena.node(value);
                 match node.kind {
                     SyntaxKind::StringLiteral => {
-                        if !is_double_quoted_json_string(source, value) {
+                        if !recover_undefined && !is_double_quoted_json_string(source, value) {
                             return None;
                         }
-                        values.push(Value::String(
+                        values.push(RecoverableJsonValue::Defined(Value::String(
                             node.data.as_string_literal()?.text.to_owned(),
-                        ));
+                        )));
                     }
                     SyntaxKind::NumericLiteral => {
-                        values.push(Value::Number(json_number(
+                        values.push(RecoverableJsonValue::Defined(Value::Number(json_number(
                             &node.data.as_numeric_literal()?.text,
-                        )?));
+                        )?)));
                     }
-                    SyntaxKind::TrueKeyword => values.push(Value::Bool(true)),
-                    SyntaxKind::FalseKeyword => values.push(Value::Bool(false)),
-                    SyntaxKind::NullKeyword => values.push(Value::Null),
+                    SyntaxKind::TrueKeyword => {
+                        values.push(RecoverableJsonValue::Defined(Value::Bool(true)));
+                    }
+                    SyntaxKind::FalseKeyword => {
+                        values.push(RecoverableJsonValue::Defined(Value::Bool(false)));
+                    }
+                    SyntaxKind::NullKeyword => {
+                        values.push(RecoverableJsonValue::Defined(Value::Null));
+                    }
                     SyntaxKind::PrefixUnaryExpression => {
                         let unary = node.data.as_prefix_unary_expression()?;
                         if unary.operator != SyntaxKind::MinusToken {
@@ -435,7 +513,9 @@ fn convert_jsonc_value(
                             return None;
                         }
                         let number = json_number(&operand.data.as_numeric_literal()?.text)?;
-                        values.push(Value::Number(negate_json_number(&number)?));
+                        values.push(RecoverableJsonValue::Defined(Value::Number(
+                            negate_json_number(&number)?,
+                        )));
                     }
                     SyntaxKind::ArrayLiteralExpression => {
                         let child_depth = structural_depth.checked_add(1)?;
@@ -477,18 +557,7 @@ fn convert_jsonc_value(
                                 return None;
                             }
                             let name = property.name?;
-                            if !is_double_quoted_json_string(source, name) {
-                                return None;
-                            }
-                            keys.push(
-                                source
-                                    .arena
-                                    .node(name)
-                                    .data
-                                    .as_string_literal()?
-                                    .text
-                                    .to_owned(),
-                            );
+                            keys.push(jsonc_property_name(source, name, recover_undefined)?);
                             initializers.push(property.initializer?);
                         }
                         tasks.push(ConversionTask::FinishObject(keys));
@@ -499,26 +568,52 @@ fn convert_jsonc_value(
                             }
                         }));
                     }
+                    _ if recover_undefined => values.push(RecoverableJsonValue::Undefined),
                     _ => return None,
                 }
             }
             ConversionTask::FinishArray(length) => {
                 let start = values.len().checked_sub(length)?;
-                let elements = values.split_off(start);
-                values.push(Value::Array(elements));
+                let elements = values
+                    .split_off(start)
+                    .into_iter()
+                    .filter_map(|value| match value {
+                        RecoverableJsonValue::Defined(value) => Some(value),
+                        RecoverableJsonValue::Undefined => None,
+                    })
+                    .collect();
+                values.push(RecoverableJsonValue::Defined(Value::Array(elements)));
             }
             ConversionTask::FinishObject(keys) => {
                 let start = values.len().checked_sub(keys.len())?;
                 let object_values = values.split_off(start);
                 let mut object = Map::new();
                 for (key, value) in keys.into_iter().zip(object_values) {
+                    let RecoverableJsonValue::Defined(value) = value else {
+                        // Ordinary JavaScript assignment overwrites a prior
+                        // duplicate with `undefined`. serde_json cannot retain
+                        // that value, so remove the stale projection. A
+                        // reachable legacy `__proto__` setter instead ignores
+                        // primitive right-hand sides and leaves the prototype
+                        // transition intact.
+                        if key == "__proto__" {
+                            if json_object_own_get(&object, "__proto__").is_some()
+                                || !jsonc_object_inherits_proto_setter(&object)
+                            {
+                                object.remove("__proto__");
+                            }
+                        } else {
+                            object.remove(&encode_user_object_key(key));
+                        }
+                        continue;
+                    };
                     if use_strict_object_assignment {
                         object.insert(encode_user_object_key(key), value);
                     } else {
                         assign_jsonc_object_property(&mut object, key, value);
                     }
                 }
-                values.push(Value::Object(object));
+                values.push(RecoverableJsonValue::Defined(Value::Object(object)));
             }
         }
     }
@@ -526,7 +621,7 @@ fn convert_jsonc_value(
     let [value] = values.as_mut_slice() else {
         return None;
     };
-    Some(std::mem::take(value))
+    Some(std::mem::replace(value, RecoverableJsonValue::Undefined))
 }
 
 fn assign_jsonc_object_property(object: &mut Map<String, Value>, key: String, value: Value) {
@@ -615,73 +710,116 @@ fn negate_json_number(number: &Number) -> Option<Number> {
 /// syntax and excessive structural nesting therefore fail before they can
 /// create an unbounded parser call chain.
 pub(crate) fn json_parser_preflight(text: &str) -> JsonParserPreflight {
-    let tokens = scan_tokens(text, LanguageVariant::Standard);
+    let mut tokens = scan_token_kinds(text, LanguageVariant::Standard).peekable();
     let mut delimiters = Vec::new();
-    for (index, token) in tokens.iter().enumerate() {
-        match token.kind {
-            SyntaxKind::OpenBraceToken | SyntaxKind::OpenBracketToken => {
-                delimiters.push(token.kind);
-                if delimiters.len() > MAX_PACKAGE_JSON_DEPTH {
-                    return JsonParserPreflight::ResourceLimit;
-                }
+    let mut recursive_value_depth = 0;
+    let mut previous = None;
+    while let Some(kind) = tokens.next() {
+        if matches!(
+            kind,
+            SyntaxKind::OpenBraceToken | SyntaxKind::OpenBracketToken
+        ) {
+            delimiters.push((kind, recursive_value_depth));
+            if delimiters.len() > MAX_PACKAGE_JSON_DEPTH {
+                return JsonParserPreflight::ResourceLimit;
             }
+            previous = Some(kind);
+            continue;
+        }
+
+        let next = tokens.peek().copied();
+        let is_property_name = next == Some(SyntaxKind::ColonToken);
+        if is_recursive_value_token(kind) && !is_property_name {
+            recursive_value_depth += 1;
+            if recursive_value_depth > MAX_PACKAGE_JSON_DEPTH {
+                return JsonParserPreflight::ResourceLimit;
+            }
+        }
+
+        match kind {
             SyntaxKind::CloseBraceToken => {
-                if delimiters.pop() != Some(SyntaxKind::OpenBraceToken) {
+                let Some((open, parent_depth)) = delimiters.pop() else {
+                    return JsonParserPreflight::UnsafeSyntax;
+                };
+                if open != SyntaxKind::OpenBraceToken {
                     return JsonParserPreflight::UnsafeSyntax;
                 }
+                recursive_value_depth = parent_depth;
             }
             SyntaxKind::CloseBracketToken => {
-                if delimiters.pop() != Some(SyntaxKind::OpenBracketToken) {
+                let Some((open, parent_depth)) = delimiters.pop() else {
+                    return JsonParserPreflight::UnsafeSyntax;
+                };
+                if open != SyntaxKind::OpenBracketToken {
                     return JsonParserPreflight::UnsafeSyntax;
                 }
+                recursive_value_depth = parent_depth;
             }
             SyntaxKind::StringLiteral
+            | SyntaxKind::Identifier
             | SyntaxKind::NumericLiteral
             | SyntaxKind::TrueKeyword
             | SyntaxKind::FalseKeyword
             | SyntaxKind::NullKeyword
             | SyntaxKind::CommaToken
-            | SyntaxKind::ColonToken => {}
-            SyntaxKind::MinusToken
-                if tokens.get(index + 1).map(|next| next.kind)
-                    == Some(SyntaxKind::NumericLiteral) => {}
+            | SyntaxKind::ColonToken => {
+                if matches!(kind, SyntaxKind::CommaToken | SyntaxKind::ColonToken) {
+                    recursive_value_depth = delimiters
+                        .last()
+                        .map(|(_, parent_depth)| *parent_depth)
+                        .unwrap_or(0);
+                }
+            }
+            SyntaxKind::MinusToken if next == Some(SyntaxKind::NumericLiteral) => {}
             SyntaxKind::ExclamationToken
-                if index > 0
-                    && tokens[index - 1].kind == SyntaxKind::StringLiteral
-                    && tokens.get(index + 1).map(|next| next.kind)
-                        == Some(SyntaxKind::ColonToken) => {}
-            kind if is_jsonc_property_modifier(kind) => {}
+                if previous == Some(SyntaxKind::StringLiteral)
+                    && next == Some(SyntaxKind::ColonToken) => {}
+            kind if is_jsonc_keyword(kind) => {}
             // Anything else cannot survive convertToJson. Reject it before
             // the general expression parser can recurse through parentheses,
             // prefix operators, conditionals, functions, or templates.
             _ => return JsonParserPreflight::UnsafeSyntax,
         }
+        previous = Some(kind);
     }
-    if delimiters.is_empty() {
-        JsonParserPreflight::Safe
-    } else {
-        JsonParserPreflight::UnsafeSyntax
-    }
+    // Missing closing delimiters are ordinary parser-recovery input. The
+    // iterative stack above has already established the depth bound, so it is
+    // safe to let parseJsonText produce its located EOF diagnostic and the
+    // config path can still consume the recovered prefix object. Package JSON
+    // remains fail-closed because its converter rejects parse diagnostics.
+    JsonParserPreflight::Safe
 }
 
-fn is_jsonc_property_modifier(kind: SyntaxKind) -> bool {
+fn is_jsonc_keyword(kind: SyntaxKind) -> bool {
+    (kind as u16) >= (SyntaxKind::FirstKeyword as u16)
+        && (kind as u16) <= (SyntaxKind::LastKeyword as u16)
+}
+
+fn is_recursive_value_token(kind: SyntaxKind) -> bool {
+    // These tokens enter or extend recursive expression/type productions
+    // before JSON conversion gets a chance to reject the value. Count them
+    // cumulatively within each comma/colon-delimited value, rather than only
+    // when consecutive: identifiers commonly separate infer constraints and
+    // class heritage clauses. Property names are excluded by the caller.
     matches!(
         kind,
-        SyntaxKind::AbstractKeyword
-            | SyntaxKind::AccessorKeyword
-            | SyntaxKind::AsyncKeyword
-            | SyntaxKind::ConstKeyword
-            | SyntaxKind::DeclareKeyword
-            | SyntaxKind::DefaultKeyword
-            | SyntaxKind::ExportKeyword
-            | SyntaxKind::InKeyword
-            | SyntaxKind::PrivateKeyword
-            | SyntaxKind::ProtectedKeyword
-            | SyntaxKind::PublicKeyword
+        SyntaxKind::ClassKeyword
+            | SyntaxKind::DeleteKeyword
+            | SyntaxKind::ExtendsKeyword
+            | SyntaxKind::ImplementsKeyword
+            | SyntaxKind::TypeOfKeyword
+            | SyntaxKind::VoidKeyword
+            | SyntaxKind::AwaitKeyword
+            | SyntaxKind::YieldKeyword
+            | SyntaxKind::NewKeyword
+            | SyntaxKind::AsKeyword
+            | SyntaxKind::AssertsKeyword
+            | SyntaxKind::SatisfiesKeyword
+            | SyntaxKind::InferKeyword
+            | SyntaxKind::IsKeyword
+            | SyntaxKind::KeyOfKeyword
             | SyntaxKind::ReadonlyKeyword
-            | SyntaxKind::StaticKeyword
-            | SyntaxKind::OutKeyword
-            | SyntaxKind::OverrideKeyword
+            | SyntaxKind::UniqueKeyword
     )
 }
 
@@ -752,7 +890,29 @@ pub(crate) fn decode_user_object_key(key: &str) -> Option<&str> {
     }
 }
 
-fn is_double_quoted_json_string(source: &SourceFile, value: NodeId) -> bool {
+fn jsonc_property_name(source: &SourceFile, name: NodeId, allow_recovery: bool) -> Option<String> {
+    let node = source.arena.node(name);
+    match node.kind {
+        SyntaxKind::StringLiteral
+            if allow_recovery || is_double_quoted_json_string(source, name) =>
+        {
+            node.data
+                .as_string_literal()
+                .map(|literal| literal.text.clone())
+        }
+        SyntaxKind::Identifier if allow_recovery => node
+            .data
+            .as_identifier()
+            .map(|identifier| identifier.text.clone()),
+        SyntaxKind::NumericLiteral if allow_recovery => node
+            .data
+            .as_numeric_literal()
+            .map(|literal| literal.text.clone()),
+        _ => None,
+    }
+}
+
+pub(crate) fn is_double_quoted_json_string(source: &SourceFile, value: NodeId) -> bool {
     let node = source.arena.node(value);
     if node.kind != SyntaxKind::StringLiteral {
         return false;

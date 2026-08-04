@@ -594,20 +594,24 @@ are never ignored.
 
 Implementation status: H0.5 is active and partial. `tsc_program` owns an
 immutable, shareable `ConfigRootPlan` for the recorded valid root-planning
-projection. JSONC values use the iterative syntax-AST converter; malformed
-syntax and the currently checked unsupported spec shapes fail typed rather than
-becoming an empty config. The harness uses a case-insensitive virtual adapter
-specialized for the fixed compiler fixture units, parses each fixture once
-before matrix variants, and compares raw config values, ordered `fileNames`,
-extended-source identities and contents, four discovery-option values, and
-original-unit partitions with the official oracle. Include patterns are
-compiled once and reused through an iterative, linear-scratch UTF-16 matcher;
-candidate matching does not recurse, build a quadratic memo table, or require
-a regex dependency. This is not yet a general `ParseConfigHost`/`matchFiles`
-qualification. Complete located config diagnostics, full `ParsedCommandLine`
-fields and compiler-option conversion, filesystem discovery,
-project/project-runner config handling, command-line selection, rendering,
-exit status, and production execution remain open.
+projection. JSONC values use the iterative syntax-AST converter. A separate
+39-fixture TypeScript 6.0.3 oracle now fixes recoverable primary/extended
+syntax, unknown/type/enum option errors, missing/read-error/circular `extends`,
+invalid specs, empty/no-input diagnostics, UTF-16 locations, host-call order,
+readable extended source text, identity-only `extendedSourceFiles`, and the
+`absent`/`undefined`/value option states. Fatal errors are reserved for host,
+path, resource, and explicitly unsupported conversion boundaries. The harness
+uses a case-insensitive virtual adapter specialized for the fixed compiler
+fixture units, parses each fixture once before matrix variants, and compares
+raw config values, ordered `fileNames`, extended-source identities and
+contents, four discovery-option values, and original-unit partitions with the
+official oracle. Include patterns are compiled once and reused through an
+iterative, linear-scratch UTF-16 matcher; candidate matching does not recurse,
+build a quadratic memo table, or require a regex dependency. This is not yet a
+general `ParseConfigHost`/`matchFiles` qualification. Nested list/object option
+conversion, remaining root fields, full `ParsedCommandLine`, filesystem
+discovery, project/project-runner config handling, command-line selection,
+rendering, exit status, and production execution remain open.
 
 ### H0.6 — qualification and release
 

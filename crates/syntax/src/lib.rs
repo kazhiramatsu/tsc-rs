@@ -28,8 +28,8 @@ pub use parser::{
 };
 pub use scanner::{
     is_js_whitespace, is_line_break, is_whitespace_like, js_trim_start, scan_big_int_string,
-    scan_tokens, skip_trivia, template_text_utf16, BigIntStringScan, CommentDirective,
-    CommentDirectiveKind, LanguageVariant, TokenRecord,
+    scan_token_kinds, scan_tokens, skip_trivia, template_text_utf16, BigIntStringScan,
+    CommentDirective, CommentDirectiveKind, LanguageVariant, TokenRecord,
 };
 
 /// Resolution-mode override retained from a leading
