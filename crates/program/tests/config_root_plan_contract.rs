@@ -177,6 +177,472 @@ fn compiler_option_names_are_case_sensitive() {
 }
 
 #[test]
+fn command_line_only_compiler_option_is_present_undefined() {
+    let plan = parse_config_root_plan(
+        &MemoryConfigHost::default(),
+        request(
+            "/project/tsconfig.json",
+            r#"{"compilerOptions":{"help":true},"files":["main.ts"]}"#,
+        ),
+    )
+    .expect("command-line-only option returns a partial plan");
+
+    assert_eq!(plan.errors()[0].code(), 6266);
+    assert_eq!(
+        plan.options().typed_value_state("help"),
+        tsc_program::ConfigOptionValueState::Undefined
+    );
+
+    let missing = parse_config_root_plan(
+        &MemoryConfigHost::default(),
+        request(
+            "/project/tsconfig.json",
+            r#"{"compilerOptions":{"help":},"files":["main.ts"]}"#,
+        ),
+    )
+    .expect("a missing command-line-only option keeps both notifier diagnostics");
+    assert_eq!(
+        missing
+            .errors()
+            .iter()
+            .map(|error| error.code())
+            .collect::<Vec<_>>(),
+        [5024, 6266]
+    );
+    assert_eq!(
+        missing.options().typed_value_state("help"),
+        tsc_program::ConfigOptionValueState::Undefined
+    );
+    assert_eq!(missing.raw()["compilerOptions"], json!({}));
+
+    let distinct_properties = parse_config_root_plan(
+        &MemoryConfigHost::default(),
+        request(
+            "/project/tsconfig.json",
+            r#"{"compilerOptions":{"help":true,"strict":},"files":["main.ts"]}"#,
+        ),
+    )
+    .expect("notifier order correction stays within one property assignment");
+    assert_eq!(
+        distinct_properties
+            .errors()
+            .iter()
+            .map(|error| error.code())
+            .collect::<Vec<_>>(),
+        [6266, 5024]
+    );
+}
+
+#[test]
+fn duplicate_compiler_options_notify_in_source_order_before_raw_collapse() {
+    let plan = parse_config_root_plan(
+        &MemoryConfigHost::default(),
+        request(
+            "/project/tsconfig.json",
+            r#"{"compilerOptions":{"strict":true,"allowJs":"bad"},"compilerOptions":{"allowJs":true},"files":["x.ts"]}"#,
+        ),
+    )
+    .expect("duplicate compilerOptions return a partial plan");
+
+    assert_eq!(
+        plan.errors()
+            .iter()
+            .map(|error| error.code())
+            .collect::<Vec<_>>(),
+        [5024]
+    );
+    assert!(plan.errors()[0].start.is_some());
+    assert_eq!(plan.raw()["compilerOptions"], json!({"allowJs": true}));
+    assert_eq!(
+        plan.options().typed_value_state("strict"),
+        tsc_program::ConfigOptionValueState::Value(&json!(true))
+    );
+    assert_eq!(
+        plan.options().typed_value_state("allowJs"),
+        tsc_program::ConfigOptionValueState::Value(&json!(true))
+    );
+}
+
+#[test]
+fn compiler_options_arrays_follow_javascripts_empty_object_compatibility() {
+    for text in [
+        r#"{"compilerOptions":[],"files":["x.ts"]}"#,
+        r#"{"compilerOptions":[true,{"strict":true},"strict"],"files":["x.ts"]}"#,
+    ] {
+        let plan = parse_config_root_plan(
+            &MemoryConfigHost::default(),
+            request("/project/tsconfig.json", text),
+        )
+        .expect("compilerOptions arrays are accepted as empty option objects");
+        assert!(plan.errors().is_empty());
+        assert!(plan.options().entries().is_empty());
+        assert_eq!(plan.file_names(), ["/project/x.ts"]);
+    }
+}
+
+#[test]
+fn invalid_module_diagnostic_omits_typescripts_deprecated_named_values() {
+    let plan = parse_config_root_plan(
+        &MemoryConfigHost::default(),
+        request(
+            "/project/tsconfig.json",
+            r#"{"compilerOptions":{"module":"wat"},"files":["x.ts"]}"#,
+        ),
+    )
+    .expect("an invalid module value returns a partial plan");
+    assert_eq!(plan.errors().len(), 1);
+    assert_eq!(plan.errors()[0].code(), 6046);
+    assert_eq!(
+        plan.errors()[0].message_text(),
+        "Argument for '--module' option must be: 'commonjs', 'es6', 'es2015', 'es2020', 'es2022', 'esnext', 'node16', 'node18', 'node20', 'nodenext', 'preserve'."
+    );
+}
+
+#[test]
+fn non_finite_numeric_options_keep_javascript_number_identity() {
+    let plan = parse_config_root_plan(
+        &MemoryConfigHost::default(),
+        request(
+            "/project/tsconfig.json",
+            r#"{"compilerOptions":{"maxNodeModuleJsDepth":1e309},"files":["x.ts"]}"#,
+        ),
+    )
+    .expect("positive infinity is a valid JavaScript numeric option");
+    assert!(plan.errors().is_empty());
+    assert_eq!(
+        plan.options().typed_value_state("maxNodeModuleJsDepth"),
+        tsc_program::ConfigOptionValueState::PositiveInfinity
+    );
+
+    let negative = parse_config_root_plan(
+        &MemoryConfigHost::default(),
+        request(
+            "/project/tsconfig.json",
+            r#"{"compilerOptions":{"maxNodeModuleJsDepth":-1e309},"files":["x.ts"]}"#,
+        ),
+    )
+    .expect("negative infinity is a valid JavaScript numeric option");
+    assert!(negative.errors().is_empty());
+    assert_eq!(
+        negative.options().typed_value_state("maxNodeModuleJsDepth"),
+        tsc_program::ConfigOptionValueState::NegativeInfinity
+    );
+}
+
+#[test]
+fn missing_compiler_option_value_remains_a_partial_plan() {
+    let plan = parse_config_root_plan(
+        &MemoryConfigHost::default(),
+        request(
+            "/project/tsconfig.json",
+            r#"{"compilerOptions":{"allowJs":},"files":["x.ts"]}"#,
+        ),
+    )
+    .expect("a missing option value is recoverable config syntax");
+
+    assert_eq!(
+        plan.root_parse_diagnostics()
+            .iter()
+            .map(|error| error.code())
+            .collect::<Vec<_>>(),
+        [1109]
+    );
+    assert_eq!(
+        plan.errors()
+            .iter()
+            .map(|error| error.code())
+            .collect::<Vec<_>>(),
+        [5024]
+    );
+    assert_eq!(
+        plan.options().typed_value_state("allowJs"),
+        tsc_program::ConfigOptionValueState::Undefined
+    );
+    assert_eq!(plan.file_names(), ["/project/x.ts"]);
+}
+
+#[test]
+fn undefined_duplicate_overwrites_the_previous_object_projection() {
+    let plan = parse_config_root_plan(
+        &MemoryConfigHost::default(),
+        request(
+            "/project/tsconfig.json",
+            r#"{"compilerOptions":{"allowJs":true,"allowJs":},"files":["x.ts"]}"#,
+        ),
+    )
+    .expect("a later undefined value overwrites the previous assignment");
+
+    assert_eq!(plan.raw()["compilerOptions"], json!({}));
+    assert_eq!(
+        plan.options().typed_value_state("allowJs"),
+        tsc_program::ConfigOptionValueState::Undefined
+    );
+    assert_eq!(plan.errors().last().unwrap().code(), 5024);
+
+    let restored = parse_config_root_plan(
+        &MemoryConfigHost::default(),
+        request(
+            "/project/tsconfig.json",
+            r#"{"compilerOptions":{"allowJs":,"strict":true,"allowJs":true},"files":["x.ts"]}"#,
+        ),
+    )
+    .expect("a later value reuses the insertion slot created by undefined");
+    assert_eq!(
+        restored
+            .options()
+            .entries()
+            .iter()
+            .map(|option| option.name.as_str())
+            .collect::<Vec<_>>(),
+        ["allowJs", "strict"]
+    );
+}
+
+#[test]
+fn missing_unknown_compiler_option_value_reports_conversion_then_unknown() {
+    let plan = parse_config_root_plan(
+        &MemoryConfigHost::default(),
+        request(
+            "/project/tsconfig.json",
+            r#"{"compilerOptions":{"mystery":},"files":["x.ts"]}"#,
+        ),
+    )
+    .expect("an unknown missing option value remains recoverable");
+
+    assert_eq!(
+        plan.errors()
+            .iter()
+            .map(|error| error.code())
+            .collect::<Vec<_>>(),
+        [1328, 5023]
+    );
+}
+
+#[test]
+fn undefined_option_in_a_later_compiler_options_object_removes_the_raw_entry() {
+    let plan = parse_config_root_plan(
+        &MemoryConfigHost::default(),
+        request(
+            "/project/tsconfig.json",
+            r#"{"compilerOptions":{"allowJs":true},"compilerOptions":{"allowJs":},"files":["x.ts"]}"#,
+        ),
+    )
+    .expect("a later compilerOptions notifier overwrites the raw entry");
+
+    assert_eq!(plan.raw()["compilerOptions"], json!({}));
+    assert!(plan.options().get("allowJs").is_none());
+    assert_eq!(
+        plan.options().typed_value_state("allowJs"),
+        tsc_program::ConfigOptionValueState::Undefined
+    );
+}
+
+#[test]
+fn missing_unknown_root_value_reports_the_conversion_diagnostic() {
+    let plan = parse_config_root_plan(
+        &MemoryConfigHost::default(),
+        request("/project/tsconfig.json", r#"{"mystery":}"#),
+    )
+    .expect("an unknown missing root value remains recoverable");
+
+    assert_eq!(
+        plan.errors()
+            .iter()
+            .map(|error| error.code())
+            .collect::<Vec<_>>(),
+        [1328, 18003]
+    );
+}
+
+#[test]
+fn missing_excludes_value_preserves_conversion_then_notifier_order() {
+    let plan = parse_config_root_plan(
+        &MemoryConfigHost::default(),
+        request("/project/tsconfig.json", r#"{"excludes":}"#),
+    )
+    .expect("the misspelled missing root value remains recoverable");
+
+    assert_eq!(
+        plan.errors()
+            .iter()
+            .map(|error| error.code())
+            .collect::<Vec<_>>(),
+        [1328, 6114, 18003]
+    );
+}
+
+#[test]
+fn typed_file_options_are_normalized_without_changing_raw_values() {
+    let plan = parse_config_root_plan(
+        &MemoryConfigHost::default(),
+        request(
+            "/project/tsconfig.json",
+            r#"{"compilerOptions":{"outDir":"./out","rootDir":"src"},"files":["x.ts"]}"#,
+        ),
+    )
+    .expect("file-path options normalize in the typed projection");
+
+    assert_eq!(plan.options().get("outDir").unwrap().value, json!("./out"));
+    assert_eq!(
+        plan.options().typed_value_state("outDir"),
+        tsc_program::ConfigOptionValueState::Value(&json!("/project/out"))
+    );
+    assert_eq!(
+        plan.options().typed_value_state("rootDir"),
+        tsc_program::ConfigOptionValueState::Value(&json!("/project/src"))
+    );
+
+    let rooted = parse_config_root_plan(
+        &MemoryConfigHost::default(),
+        request(
+            "/project/tsconfig.json",
+            r#"{"compilerOptions":{"outDir":"//server/share/out","rootDir":"file:///tmp/src"},"files":["x.ts"]}"#,
+        ),
+    )
+    .expect("UNC and URL file-option roots preserve their volumes");
+    assert_eq!(
+        rooted.options().typed_value_state("outDir"),
+        tsc_program::ConfigOptionValueState::Value(&json!("//server/share/out"))
+    );
+    assert_eq!(
+        rooted.options().typed_value_state("rootDir"),
+        tsc_program::ConfigOptionValueState::Value(&json!("file:///tmp/src"))
+    );
+    assert_eq!(
+        rooted.discovery_options().out_dir(),
+        Some("//server/share/out")
+    );
+
+    let edge = parse_config_root_plan(
+        &MemoryConfigHost::default(),
+        request(
+            "/project/tsconfig.json",
+            r#"{"compilerOptions":{"outDir":"/a//","rootDir":"/a/.//","declarationDir":"c:","mapRoot":"foo_bar://h/a"},"files":["x.ts"]}"#,
+        ),
+    )
+    .expect("TypeScript path roots and trailing separators remain observable");
+    assert!(edge.errors().is_empty());
+    assert_eq!(
+        edge.options().typed_value_state("outDir"),
+        tsc_program::ConfigOptionValueState::Value(&json!("/a/"))
+    );
+    assert_eq!(
+        edge.options().typed_value_state("rootDir"),
+        tsc_program::ConfigOptionValueState::Value(&json!("/a//"))
+    );
+    assert_eq!(
+        edge.options().typed_value_state("declarationDir"),
+        tsc_program::ConfigOptionValueState::Value(&json!("c:"))
+    );
+    assert_eq!(
+        edge.options().typed_value_state("mapRoot"),
+        tsc_program::ConfigOptionValueState::Value(&json!("foo_bar://h/a"))
+    );
+}
+
+#[test]
+fn config_paths_normalize_the_base_spelling_and_preserve_lexical_nul() {
+    let windows = parse_config_root_plan(
+        &MemoryConfigHost::default(),
+        ConfigRootPlanRequest {
+            file_name: "tsconfig.json".to_owned(),
+            text: r#"{"compilerOptions":{"outDir":"out"},"files":["x.ts"]}"#.to_owned(),
+            base_path: r"C:\Project".to_owned(),
+        },
+    )
+    .expect("a backslash base path is normalized before config parsing");
+    assert_eq!(windows.config_file_name(), "C:/Project/tsconfig.json");
+    assert_eq!(windows.file_names(), ["C:/Project/x.ts"]);
+    assert_eq!(
+        windows.options().typed_value_state("outDir"),
+        tsc_program::ConfigOptionValueState::Value(&json!("C:/Project/out"))
+    );
+
+    let nul = parse_config_root_plan(
+        &MemoryConfigHost::default(),
+        request(
+            "/project/tsconfig.json",
+            r#"{"files":["a\u0000.ts"],"compilerOptions":{"outDir":"a\u0000b"}}"#,
+        ),
+    )
+    .expect("config paths remain lexical until a filesystem host boundary");
+    assert!(nul.errors().is_empty());
+    assert_eq!(nul.file_names(), ["/project/a\0.ts"]);
+    assert_eq!(
+        nul.options().typed_value_state("outDir"),
+        tsc_program::ConfigOptionValueState::Value(&json!("/project/a\0b"))
+    );
+}
+
+#[test]
+fn first_misplaced_root_compiler_option_is_reported_after_conversion() {
+    let plan = parse_config_root_plan(
+        &MemoryConfigHost::default(),
+        request(
+            "/project/tsconfig.json",
+            r#"{"strict":true,"target":"es2020","files":["x.ts"]}"#,
+        ),
+    )
+    .expect("misplaced options return a partial plan");
+
+    assert_eq!(
+        plan.errors()
+            .iter()
+            .map(|error| error.code())
+            .collect::<Vec<_>>(),
+        [6258]
+    );
+    assert!(plan.errors()[0]
+        .message_text()
+        .starts_with("'strict' should"));
+
+    let suppressed = parse_config_root_plan(
+        &MemoryConfigHost::default(),
+        request(
+            "/project/tsconfig.json",
+            r#"{"strict":true,"compilerOptions":null,"files":["x.ts"]}"#,
+        ),
+    )
+    .expect("an explicit compilerOptions property suppresses the placement hint");
+    assert!(suppressed.errors().is_empty());
+
+    let own_undefined = parse_config_root_plan(
+        &MemoryConfigHost::default(),
+        request(
+            "/project/tsconfig.json",
+            r#"{"__proto__":{"compilerOptions":{}},"strict":true,"compilerOptions":,"files":["x.ts"]}"#,
+        ),
+    )
+    .expect("an own undefined compilerOptions property shadows its JSONC prototype");
+    assert_eq!(
+        own_undefined
+            .root_parse_diagnostics()
+            .iter()
+            .map(|error| error.code())
+            .collect::<Vec<_>>(),
+        [1109]
+    );
+    assert_eq!(
+        own_undefined
+            .errors()
+            .iter()
+            .map(|error| error.code())
+            .collect::<Vec<_>>(),
+        [5024, 6258]
+    );
+
+    let common_build_option = parse_config_root_plan(
+        &MemoryConfigHost::default(),
+        request(
+            "/project/tsconfig.json",
+            r#"{"help":true,"incremental":true,"files":["x.ts"]}"#,
+        ),
+    )
+    .expect("common build options are outside the placement hint catalog");
+    assert!(common_build_option.errors().is_empty());
+}
+
+#[test]
 fn resolve_json_module_uses_typescript_six_computed_defaults() {
     let default_host = MemoryConfigHost::default().with_directory_files(&["/project/data.json"]);
     let default_plan = parse_config_root_plan(
@@ -286,17 +752,147 @@ fn json_only_patterns_apply_files_matcher_implicit_exclusions() {
 }
 
 #[test]
-fn invalid_recursive_specs_fail_before_directory_observation() {
+fn invalid_recursive_specs_report_diagnostics_before_directory_observation() {
     for include in ["src/**", "**/../src/*.ts"] {
         let host = MemoryConfigHost::default().with_directory_files(&["/project/src/main.ts"]);
         let text = format!(r#"{{"include":["{include}"]}}"#);
 
-        let error = parse_config_root_plan(&host, request("/project/tsconfig.json", &text))
-            .expect_err("invalid recursive spec must fail closed");
+        let plan = parse_config_root_plan(&host, request("/project/tsconfig.json", &text))
+            .expect("invalid recursive spec still returns a partial plan");
 
-        assert_eq!(error.kind(), ConfigParseErrorKind::InvalidConfig);
+        assert!(matches!(plan.errors()[0].code(), 5010 | 5065));
         assert!(host.requested_extensions.borrow().is_empty());
     }
+}
+
+#[test]
+fn recursive_spec_diagnostics_use_the_written_separator_spelling() {
+    let host = MemoryConfigHost::default();
+    let plan = parse_config_root_plan(
+        &host,
+        request(
+            "/project/tsconfig.json",
+            r#"{"include":["src\\**","src/**//","src\\**\\..\\x"]}"#,
+        ),
+    )
+    .expect("backslashes and repeated trailing separators are validated verbatim");
+
+    assert_eq!(
+        plan.errors()
+            .iter()
+            .map(|diagnostic| diagnostic.code())
+            .collect::<Vec<_>>(),
+        [18003]
+    );
+    assert_eq!(
+        host.requested_includes.borrow()[0],
+        Some(vec![
+            r"src\**".to_owned(),
+            "src/**//".to_owned(),
+            r"src\**\..\x".to_owned(),
+        ])
+    );
+}
+
+#[test]
+fn repeated_spec_values_reuse_typescripts_first_source_location() {
+    let plan = parse_config_root_plan(
+        &MemoryConfigHost::default(),
+        request("/project/tsconfig.json", r#"{"include":["**","**"]}"#),
+    )
+    .expect("invalid duplicate include patterns return a partial plan");
+
+    assert_eq!(
+        plan.errors()
+            .iter()
+            .map(|error| error.code())
+            .collect::<Vec<_>>(),
+        [5010, 5010, 18003]
+    );
+    assert_eq!(plan.errors()[0].start, Some(12));
+    assert_eq!(plan.errors()[0].length, Some(4));
+    assert_eq!(plan.errors()[1].start, Some(12));
+    assert_eq!(plan.errors()[1].length, Some(4));
+}
+
+#[test]
+fn duplicate_files_validate_every_assignment_but_use_the_first_array_location() {
+    let plan = parse_config_root_plan(
+        &MemoryConfigHost::default(),
+        request("/project/tsconfig.json", r#"{"files":[1],"files":[]}"#),
+    )
+    .expect("duplicate files return a partial plan");
+
+    assert_eq!(
+        plan.errors()
+            .iter()
+            .map(|error| error.code())
+            .collect::<Vec<_>>(),
+        [5024, 18002]
+    );
+    assert_eq!(
+        (plan.errors()[0].start, plan.errors()[0].length),
+        (Some(10), Some(1))
+    );
+    assert_eq!(
+        (plan.errors()[1].start, plan.errors()[1].length),
+        (Some(9), Some(3))
+    );
+}
+
+#[test]
+fn omitted_spec_element_is_diagnosed_then_filtered() {
+    let plan = parse_config_root_plan(
+        &MemoryConfigHost::default(),
+        request("/project/tsconfig.json", r#"{"files":[,"x.ts"]}"#),
+    )
+    .expect("an array hole is recoverable config syntax");
+
+    assert!(plan.root_parse_diagnostics().is_empty());
+    assert_eq!(
+        plan.errors()
+            .iter()
+            .map(|error| error.code())
+            .collect::<Vec<_>>(),
+        [5024]
+    );
+    assert_eq!(plan.file_names(), ["/project/x.ts"]);
+}
+
+#[test]
+fn undefined_files_presence_suppresses_no_input_diagnostics() {
+    let plan = parse_config_root_plan(
+        &MemoryConfigHost::default(),
+        request("/project/tsconfig.json", r#"{"files":}"#),
+    )
+    .expect("an undefined files property remains an own property");
+
+    assert_eq!(
+        plan.errors()
+            .iter()
+            .map(|error| error.code())
+            .collect::<Vec<_>>(),
+        [5024]
+    );
+    assert!(plan.file_names().is_empty());
+}
+
+#[test]
+fn undefined_duplicate_include_does_not_block_inheritance() {
+    let host = MemoryConfigHost::default()
+        .with_file("/project/base.json", r#"{"include":["base/**/*.ts"]}"#)
+        .with_directory_files(&["/project/base/main.ts"]);
+    let plan = parse_config_root_plan(
+        &host,
+        request(
+            "/project/tsconfig.json",
+            r#"{"extends":"./base.json","include":["own/**/*.ts"],"include":}"#,
+        ),
+    )
+    .expect("undefined include allows the inherited spec through");
+
+    assert_eq!(plan.raw()["include"], json!(["base/**/*.ts"]));
+    assert_eq!(plan.errors().last().unwrap().code(), 5024);
 }
 
 #[test]
@@ -327,18 +923,246 @@ fn array_extends_uses_later_option_precedence() {
 }
 
 #[test]
-fn circular_extends_fails_with_a_typed_error() {
+fn invalid_own_option_masks_an_inherited_typed_value() {
+    let host = MemoryConfigHost::default()
+        .with_file(
+            "/project/base.json",
+            r#"{"compilerOptions":{"allowJs":true}}"#,
+        )
+        .with_directory_files(&["/project/main.ts", "/project/helper.js"]);
+    let plan = parse_config_root_plan(
+        &host,
+        request(
+            "/project/tsconfig.json",
+            r#"{"extends":"./base.json","compilerOptions":{"allowJs":"yes"}}"#,
+        ),
+    )
+    .expect("invalid own value still returns a partial plan");
+
+    assert_eq!(plan.errors()[0].code(), 5024);
+    assert_eq!(
+        plan.options().typed_value_state("allowJs"),
+        tsc_program::ConfigOptionValueState::Undefined
+    );
+    assert_eq!(plan.file_names(), ["/project/main.ts"]);
+
+    let missing_host = MemoryConfigHost::default().with_file(
+        "/project/base.json",
+        r#"{"compilerOptions":{"allowJs":true,"mystery":true}}"#,
+    );
+    let missing = parse_config_root_plan(
+        &missing_host,
+        request(
+            "/project/tsconfig.json",
+            r#"{"extends":"./base.json","compilerOptions":{"allowJs":,"mystery":},"files":["x.ts"]}"#,
+        ),
+    )
+    .expect("own undefined values delete inherited raw option projections");
+    assert_eq!(
+        missing
+            .errors()
+            .iter()
+            .map(|error| error.code())
+            .collect::<Vec<_>>(),
+        [5024, 1328, 5023, 5023]
+    );
+    assert_eq!(
+        missing.options().typed_value_state("allowJs"),
+        tsc_program::ConfigOptionValueState::Undefined
+    );
+    assert!(missing.options().get("allowJs").is_none());
+    assert!(missing.options().get("mystery").is_none());
+
+    let jsconfig = parse_config_root_plan(
+        &MemoryConfigHost::default(),
+        request(
+            "/project/jsconfig.json",
+            r#"{"compilerOptions":{"allowJs":},"files":["x.js"]}"#,
+        ),
+    )
+    .expect("own undefined values delete filename defaults from the raw bag");
+    assert!(jsconfig.options().get("allowJs").is_none());
+    assert_eq!(
+        jsconfig.options().typed_value_state("allowJs"),
+        tsc_program::ConfigOptionValueState::Undefined
+    );
+}
+
+#[test]
+fn circular_extends_reports_a_partial_plan_diagnostic() {
     let host = MemoryConfigHost::default()
         .with_file("/project/tsconfig.json", r#"{"extends":"./base.json"}"#)
         .with_file("/project/base.json", r#"{"extends":"./tsconfig.json"}"#);
 
-    let error = parse_config_root_plan(
+    let plan = parse_config_root_plan(
         &host,
         request("/project/tsconfig.json", r#"{"extends":"./base.json"}"#),
     )
-    .expect_err("cycle must fail closed");
+    .expect("cycle returns a partial config plan");
 
-    assert_eq!(error.kind(), ConfigParseErrorKind::CircularExtends);
+    assert_eq!(plan.errors()[0].code(), 18000);
+    assert_eq!(
+        plan.extended_source_files(),
+        ["/project/base.json", "/project/tsconfig.json"]
+    );
+
+    let quoted_cycle =
+        MemoryConfigHost::default().with_file("/project/a.json", r#"{'extends':'./a.json'}"#);
+    let plan = parse_config_root_plan(
+        &quoted_cycle,
+        request(
+            "/project/tsconfig.json",
+            r#"{"extends":"./a.json","files":["x.ts"]}"#,
+        ),
+    )
+    .expect("cycle conversion diagnostics remain observable after TS18000");
+    assert_eq!(
+        plan.errors()
+            .iter()
+            .map(|error| error.code())
+            .collect::<Vec<_>>(),
+        [1327, 1327, 18000, 1327, 1327]
+    );
+
+    let array_cycle = MemoryConfigHost::default().with_file(
+        "/project/a.json",
+        r#"[{'extends':'./a.json'},{'note':'x'}]"#,
+    );
+    let plan = parse_config_root_plan(
+        &array_cycle,
+        request(
+            "/project/tsconfig.json",
+            r#"{"extends":"./a.json","files":["x.ts"]}"#,
+        ),
+    )
+    .expect("cycle conversion walks the complete root expression after TS18000");
+    assert_eq!(
+        plan.errors()
+            .iter()
+            .map(|error| error.code())
+            .collect::<Vec<_>>(),
+        [5092, 1327, 1327, 18000, 1327, 1327, 1327, 1327]
+    );
+
+    let invalid_cycle = MemoryConfigHost::default()
+        .with_file("/project/a.json", r#"{"extends":"./a.json","note":foo}"#);
+    let plan = parse_config_root_plan(
+        &invalid_cycle,
+        request(
+            "/project/tsconfig.json",
+            r#"{"extends":"./a.json","files":["x.ts"]}"#,
+        ),
+    )
+    .expect("cycle conversion replays invalid-value diagnostics after TS18000");
+    assert_eq!(
+        plan.errors()
+            .iter()
+            .map(|error| error.code())
+            .collect::<Vec<_>>(),
+        [1328, 18000, 1328]
+    );
+}
+
+#[test]
+fn extended_parse_diagnostic_precedes_cycle_detection() {
+    let host = MemoryConfigHost::default()
+        .with_file("/project/tsconfig.json", r#"{"extends":"./base.json""#)
+        .with_file("/project/base.json", r#"{"extends":"./tsconfig.json"}"#);
+
+    let plan = parse_config_root_plan(
+        &host,
+        request("/project/tsconfig.json", r#"{"extends":"./base.json"}"#),
+    )
+    .expect("a malformed cyclic target skips only that branch");
+
+    assert_eq!(plan.errors()[0].code(), 1005);
+    assert!(!plan
+        .errors()
+        .iter()
+        .any(|diagnostic| diagnostic.code() == 18000));
+}
+
+#[test]
+fn empty_source_is_still_a_valid_cycle_target() {
+    let host = MemoryConfigHost::default()
+        .with_file("/project/base.json", r#"{"extends":"./tsconfig.json"}"#)
+        .with_file("/project/tsconfig.json", "");
+
+    let plan = parse_config_root_plan(
+        &host,
+        request(
+            "/project/tsconfig.json",
+            r#"{"extends":"./base.json","files":["x.ts"]}"#,
+        ),
+    )
+    .expect("an empty re-read cycle target reports circularity");
+
+    assert_eq!(plan.errors()[0].code(), 18000);
+}
+
+#[test]
+fn duplicate_extends_probe_every_assignment_but_read_only_the_last() {
+    let host = MemoryConfigHost::default()
+        .with_file("/project/ok.json", r#"{"compilerOptions":{"strict":true}}"#);
+    let plan = parse_config_root_plan(
+        &host,
+        request(
+            "/project/tsconfig.json",
+            r#"{"extends":"./first-missing","extends":"./ok.json","files":["x.ts"]}"#,
+        ),
+    )
+    .expect("the final extends assignment supplies the effective branch");
+
+    assert_eq!(
+        plan.errors()
+            .iter()
+            .map(|error| error.code())
+            .collect::<Vec<_>>(),
+        [6053]
+    );
+    assert_eq!(
+        host.requested_file_exists.borrow().as_slice(),
+        [
+            "/project/first-missing",
+            "/project/first-missing.json",
+            "/project/ok.json"
+        ]
+    );
+    assert_eq!(
+        host.requested_reads.borrow().as_slice(),
+        ["/project/ok.json"]
+    );
+    assert_eq!(plan.extended_source_files(), ["/project/ok.json"]);
+    assert_eq!(
+        plan.options().typed_value_state("strict"),
+        tsc_program::ConfigOptionValueState::Value(&json!(true))
+    );
+}
+
+#[test]
+fn missing_extends_value_keeps_both_conversion_diagnostics() {
+    let plan = parse_config_root_plan(
+        &MemoryConfigHost::default(),
+        request("/project/tsconfig.json", r#"{"extends":,"files":[]}"#),
+    )
+    .expect("a missing extends value remains recoverable");
+
+    assert_eq!(
+        plan.root_parse_diagnostics()
+            .iter()
+            .map(|error| error.code())
+            .collect::<Vec<_>>(),
+        [1109]
+    );
+    assert_eq!(
+        plan.errors()
+            .iter()
+            .map(|error| error.code())
+            .collect::<Vec<_>>(),
+        [5024, 5024]
+    );
+    assert_eq!(plan.errors()[0].start, plan.errors()[1].start);
+    assert_eq!(plan.errors()[0].length, plan.errors()[1].length);
 }
 
 #[test]
@@ -378,6 +1202,92 @@ fn empty_config_is_the_default_config_object() {
 }
 
 #[test]
+fn no_input_diagnostic_reports_default_output_exclusions() {
+    let host = MemoryConfigHost::default();
+    let plan = parse_config_root_plan(
+        &host,
+        request(
+            "/project/tsconfig.json",
+            r#"{"compilerOptions":{"outDir":"dist","declarationDir":"types"}}"#,
+        ),
+    )
+    .expect("empty output-only config plan");
+
+    assert_eq!(plan.errors().last().unwrap().code(), 18003);
+    assert!(plan
+        .errors()
+        .last()
+        .unwrap()
+        .message_text()
+        .contains("exclude' paths were '[\"/project/dist\",\"/project/types\"]'"));
+}
+
+#[test]
+fn no_input_diagnostic_uses_javascript_json_number_rendering() {
+    let plan = parse_config_root_plan(
+        &MemoryConfigHost::default(),
+        request(
+            "/project/tsconfig.json",
+            r#"{"include":[1e309,-0,1.0,1e2,{"2":"x","1":"y"}]}"#,
+        ),
+    )
+    .expect("invalid numeric specs still return a no-input diagnostic");
+
+    assert_eq!(
+        plan.errors()
+            .iter()
+            .map(|diagnostic| diagnostic.code())
+            .collect::<Vec<_>>(),
+        [5024, 5024, 5024, 5024, 5024, 18003]
+    );
+    assert!(plan
+        .errors()
+        .last()
+        .unwrap()
+        .message_text()
+        .contains("include' paths were '[null,0,1,100,{\"1\":\"y\",\"2\":\"x\"}]'"));
+}
+
+#[test]
+fn non_object_root_reports_ts5092_and_recovers_the_first_object() {
+    let host = MemoryConfigHost::default();
+    let plan = parse_config_root_plan(
+        &host,
+        request(
+            "/project/custom.json",
+            r#"[1,{"compilerOptions":{"strict":true},"files":["a.ts"]},{"files":["b.ts"]}]"#,
+        ),
+    )
+    .expect("array root returns a recoverable partial plan");
+
+    assert_eq!(plan.errors()[0].code(), 5092);
+    assert_eq!(
+        plan.errors()[0].message_text(),
+        "The root value of a 'tsconfig.json' file must be an object."
+    );
+    assert_eq!(plan.file_names(), ["/project/a.ts"]);
+    assert_eq!(plan.options().get("strict").unwrap().value, json!(true));
+
+    let ignored_tail = parse_config_root_plan(
+        &MemoryConfigHost::default(),
+        request(
+            "/project/tsconfig.json",
+            r#"[{"files":["x.ts"]},{'ignored':'value'}]"#,
+        ),
+    )
+    .expect("root-array recovery does not convert later object elements");
+    assert_eq!(
+        ignored_tail
+            .errors()
+            .iter()
+            .map(|error| error.code())
+            .collect::<Vec<_>>(),
+        [5092]
+    );
+    assert_eq!(ignored_tail.file_names(), ["/project/x.ts"]);
+}
+
+#[test]
 fn jsonc_conversion_is_exercised_through_the_public_config_planner() {
     let host = MemoryConfigHost::default();
     let plan = parse_config_root_plan(
@@ -398,6 +1308,150 @@ fn jsonc_conversion_is_exercised_through_the_public_config_planner() {
         &json!({"compilerOptions": {"strict": true}, "include": []})
     );
     assert_eq!(plan.options().get("strict").unwrap().value, json!(true));
+}
+
+#[test]
+fn non_json_string_spellings_recover_with_typescripts_conversion_diagnostics() {
+    let unquoted = parse_config_root_plan(
+        &MemoryConfigHost::default(),
+        request(
+            "/project/tsconfig.json",
+            r#"{compilerOptions:{strict:true},files:["x.ts"]}"#,
+        ),
+    )
+    .expect("unquoted JSONC names remain a recoverable config");
+    assert_eq!(
+        unquoted
+            .errors()
+            .iter()
+            .map(|error| error.code())
+            .collect::<Vec<_>>(),
+        [1327, 1327, 1327]
+    );
+    assert_eq!(
+        unquoted.options().typed_value_state("strict"),
+        tsc_program::ConfigOptionValueState::Value(&json!(true))
+    );
+    assert_eq!(unquoted.file_names(), ["/project/x.ts"]);
+
+    let keyword_name = parse_config_root_plan(
+        &MemoryConfigHost::default(),
+        request(
+            "/project/tsconfig.json",
+            r#"{compilerOptions:{module:"esnext"},files:["x.ts"]}"#,
+        ),
+    )
+    .expect("keyword property names remain bounded recoverable JSONC");
+    assert_eq!(
+        keyword_name
+            .errors()
+            .iter()
+            .map(|error| error.code())
+            .collect::<Vec<_>>(),
+        [1327, 1327, 1327]
+    );
+    assert_eq!(
+        keyword_name.options().typed_value_state("module"),
+        tsc_program::ConfigOptionValueState::Value(&json!(99))
+    );
+
+    let single_quoted = parse_config_root_plan(
+        &MemoryConfigHost::default(),
+        request(
+            "/project/tsconfig.json",
+            r#"{'compilerOptions':{'strict':true},'files':['x.ts']}"#,
+        ),
+    )
+    .expect("single-quoted JSONC names and values remain recoverable");
+    assert_eq!(
+        single_quoted
+            .errors()
+            .iter()
+            .map(|error| error.code())
+            .collect::<Vec<_>>(),
+        [1327, 1327, 1327, 1327]
+    );
+    assert_eq!(
+        single_quoted.options().typed_value_state("strict"),
+        tsc_program::ConfigOptionValueState::Value(&json!(true))
+    );
+    assert_eq!(single_quoted.file_names(), ["/project/x.ts"]);
+
+    let identifier_value = parse_config_root_plan(
+        &MemoryConfigHost::default(),
+        request(
+            "/project/tsconfig.json",
+            r#"{"compilerOptions":{"strict":foo},"files":["x.ts"]}"#,
+        ),
+    )
+    .expect("identifier option values recover as own undefined");
+    assert_eq!(
+        identifier_value
+            .errors()
+            .iter()
+            .map(|error| error.code())
+            .collect::<Vec<_>>(),
+        [5024]
+    );
+    assert_eq!(
+        identifier_value.options().typed_value_state("strict"),
+        tsc_program::ConfigOptionValueState::Undefined
+    );
+}
+
+#[test]
+fn nested_conversion_diagnostics_precede_parent_option_notifiers() {
+    for (text, expected) in [
+        (
+            r#"{"compilerOptions":{"strict":[foo]},"files":["x.ts"]}"#,
+            [(1328, Some(30)), (5024, Some(29))],
+        ),
+        (
+            r#"{"compilerOptions":{"wat":'x'},"files":["x.ts"]}"#,
+            [(1327, Some(26)), (5023, Some(20))],
+        ),
+        (
+            r#"{"compilerOptions":{"help":'x'},"files":["x.ts"]}"#,
+            [(1327, Some(27)), (6266, Some(20))],
+        ),
+        (
+            r#"{"compilerOptions":{"strict":{"x":'y'}},"files":["x.ts"]}"#,
+            [(1327, Some(34)), (5024, Some(29))],
+        ),
+    ] {
+        let plan = parse_config_root_plan(
+            &MemoryConfigHost::default(),
+            request("/project/tsconfig.json", text),
+        )
+        .expect("nested JSON conversion diagnostics remain recoverable");
+        assert_eq!(
+            plan.errors()
+                .iter()
+                .map(|diagnostic| (diagnostic.code(), diagnostic.start))
+                .collect::<Vec<_>>(),
+            expected,
+            "diagnostics for {text}"
+        );
+    }
+
+    let filtered = parse_config_root_plan(
+        &MemoryConfigHost::default(),
+        request("/project/tsconfig.json", r#"{"files":[foo,bar,{"x":'y'}]}"#),
+    )
+    .expect("filtered list values retain conversion-before-notifier ordering");
+    assert_eq!(
+        filtered
+            .errors()
+            .iter()
+            .map(|diagnostic| (diagnostic.code(), diagnostic.start))
+            .collect::<Vec<_>>(),
+        [
+            (5024, Some(10)),
+            (5024, Some(14)),
+            (1327, Some(23)),
+            (5024, Some(10)),
+        ]
+    );
 }
 
 #[test]
@@ -504,18 +1558,77 @@ fn jsonc_prototype_specs_follow_apply_extended_config_without_becoming_public() 
     .expect("prototype files block inherited files without becoming own raw");
     assert_eq!(plan.file_names(), ["/project/default.ts"]);
     assert_eq!(plan.raw(), &json!({"extends": "./base.json"}));
+
+    let own_undefined_files =
+        MemoryConfigHost::default().with_file("/project/base.json", r#"{"files":["base.ts"]}"#);
+    let plan = parse_config_root_plan(
+        &own_undefined_files,
+        request(
+            "/project/tsconfig.json",
+            r#"{"extends":"./base.json","__proto__":{"files":["proto.ts"]},"files":}"#,
+        ),
+    )
+    .expect("own undefined files shadow the prototype without blocking the base config");
+    assert_eq!(
+        plan.root_parse_diagnostics()
+            .iter()
+            .map(|error| error.code())
+            .collect::<Vec<_>>(),
+        [1109]
+    );
+    assert_eq!(
+        plan.errors()
+            .iter()
+            .map(|error| error.code())
+            .collect::<Vec<_>>(),
+        [5024]
+    );
+    assert_eq!(plan.raw()["files"], json!(["base.ts"]));
+    assert_eq!(plan.file_names(), ["/project/base.ts"]);
+
+    let own_undefined = MemoryConfigHost::default()
+        .with_file("/project/base.json", r#"{"exclude":["base"]}"#)
+        .with_directory_files(&["/project/default.ts"]);
+    let plan = parse_config_root_plan(
+        &own_undefined,
+        request(
+            "/project/tsconfig.json",
+            r#"{"extends":"./base.json","__proto__":{"exclude":["proto"]},"exclude":,"include":["**/*"]}"#,
+        ),
+    )
+    .expect("own undefined excludes shadow the prototype without blocking the base config");
+    assert_eq!(
+        plan.root_parse_diagnostics()
+            .iter()
+            .map(|error| error.code())
+            .collect::<Vec<_>>(),
+        [1109]
+    );
+    assert_eq!(
+        plan.errors()
+            .iter()
+            .map(|error| error.code())
+            .collect::<Vec<_>>(),
+        [5024]
+    );
+    assert_eq!(plan.raw()["exclude"], json!(["base"]));
+    assert_eq!(
+        own_undefined.requested_excludes.borrow().as_slice(),
+        [Some(vec!["base".to_owned()])]
+    );
 }
 
 #[test]
 fn explicit_missing_json_extends_observes_the_read_boundary() {
     let host = MemoryConfigHost::default();
-    let error = parse_config_root_plan(
+    let plan = parse_config_root_plan(
         &host,
         request("/project/tsconfig.json", r#"{"extends":"./missing.json"}"#),
     )
-    .expect_err("missing explicit JSON config");
+    .expect("missing explicit JSON config returns a partial plan");
 
-    assert_eq!(error.kind(), ConfigParseErrorKind::MissingExtends);
+    assert_eq!(plan.errors()[0].code(), 5083);
+    assert_eq!(plan.extended_source_files(), ["/project/missing.json"]);
     assert_eq!(
         host.requested_file_exists.borrow().as_slice(),
         ["/project/missing.json"]
@@ -578,9 +1691,9 @@ fn json_config_resolution_preserves_written_extension_families() {
             r#"{"compilerOptions":{"strict":true}}"#,
         );
         let config = format!(r#"{{"extends":"pkg/{written}"}}"#);
-        let error = parse_config_root_plan(&host, request("/project/tsconfig.json", &config))
-            .expect_err("JSON config lookup must not replace unrelated written families");
-        assert_eq!(error.kind(), ConfigParseErrorKind::MissingExtends);
+        let plan = parse_config_root_plan(&host, request("/project/tsconfig.json", &config))
+            .expect("failed JSON config lookup returns a partial plan");
+        assert_eq!(plan.errors()[0].code(), 6053);
         assert!(!host
             .requested_file_exists
             .borrow()
@@ -597,12 +1710,12 @@ fn json_config_resolution_preserves_written_extension_families() {
             "/project/node_modules/pkg/base.json",
             r#"{"compilerOptions":{"strict":true}}"#,
         );
-    let error = parse_config_root_plan(
+    let plan = parse_config_root_plan(
         &imports,
         request("/project/tsconfig.json", r##"{"extends":"#base"}"##),
     )
-    .expect_err("bare imports re-entry is not a config lookup");
-    assert_eq!(error.kind(), ConfigParseErrorKind::MissingExtends);
+    .expect("bare imports re-entry failure returns a partial plan");
+    assert_eq!(plan.errors()[0].code(), 6053);
     assert!(!imports
         .requested_file_exists
         .borrow()
@@ -641,12 +1754,12 @@ fn package_extends_normalizes_lexical_parent_components_before_legacy_loading() 
             "/project/node_modules/bar.json",
             r#"{"compilerOptions":{"strict":true}}"#,
         );
-    let error = parse_config_root_plan(
+    let plan = parse_config_root_plan(
         &exports,
         request("/project/tsconfig.json", r#"{"extends":"foo/../bar"}"#),
     )
-    .expect_err("an exports map still owns and blocks the lexical package request");
-    assert_eq!(error.kind(), ConfigParseErrorKind::MissingExtends);
+    .expect("an exports block returns a partial plan");
+    assert_eq!(plan.errors()[0].code(), 6053);
 }
 
 #[test]
@@ -670,9 +1783,9 @@ fn exact_parent_extends_uses_the_json_config_relative_loader() {
 
     let cycle_text = r#"{"extends":"."}"#;
     let cycle_host = MemoryConfigHost::default().with_file("/project/tsconfig.json", cycle_text);
-    let error = parse_config_root_plan(&cycle_host, request("/project/tsconfig.json", cycle_text))
-        .expect_err("exact current-directory config is a self cycle");
-    assert_eq!(error.kind(), ConfigParseErrorKind::CircularExtends);
+    let plan = parse_config_root_plan(&cycle_host, request("/project/tsconfig.json", cycle_text))
+        .expect("exact current-directory cycle returns a partial plan");
+    assert_eq!(plan.errors()[0].code(), 18000);
 }
 
 #[test]
@@ -726,6 +1839,132 @@ fn inherited_specs_are_rebased_into_raw_with_root_path_casing() {
     assert_eq!(plan.file_names(), ["C:/Project/sub/Foo.ts"]);
     assert_eq!(plan.raw()["files"], json!(["sub/Foo.ts"]));
     assert_eq!(plan.raw()["include"], json!(["sub/generated/**/*.ts"]));
+
+    let drive_host =
+        MemoryConfigHost::default().with_file("c:/B/base.json", r#"{"files":["x.ts"]}"#);
+    let drive = parse_config_root_plan(
+        &drive_host,
+        request("C:/A/tsconfig.json", r#"{"extends":"c:/B/base.json"}"#),
+    )
+    .expect("drive roots compare without case on a case-sensitive host");
+    assert_eq!(drive.raw()["files"], json!(["../B/x.ts"]));
+    assert_eq!(drive.file_names(), ["C:/B/x.ts"]);
+
+    let unc_host =
+        MemoryConfigHost::default().with_file("//two/B/base.json", r#"{"files":["x.ts"]}"#);
+    let unc = parse_config_root_plan(
+        &unc_host,
+        request(
+            "//one/A/tsconfig.json",
+            r#"{"extends":"//two/B/base.json"}"#,
+        ),
+    )
+    .expect("different UNC server roots preserve the extended absolute path");
+    assert_eq!(unc.raw()["files"], json!(["//two/B/x.ts"]));
+    assert_eq!(unc.file_names(), ["//two/B/x.ts"]);
+
+    let unicode_root_host =
+        MemoryConfigHost::default().with_file("//ß/B/base.json", r#"{"files":["x.ts"]}"#);
+    let unicode_root = parse_config_root_plan(
+        &unicode_root_host,
+        request("//ss/A/tsconfig.json", r#"{"extends":"//ß/B/base.json"}"#),
+    )
+    .expect("config roots use TypeScript's uppercase case-insensitive comparison");
+    assert_eq!(unicode_root.raw()["files"], json!(["../B/x.ts"]));
+    assert_eq!(unicode_root.file_names(), ["//ss/B/x.ts"]);
+}
+
+#[test]
+fn inherited_url_specs_preserve_the_extended_directory_in_raw() {
+    let host = MemoryConfigHost::default()
+        .with_file("file:///root/sub/base.json", r#"{"files":["src.ts"]}"#);
+
+    let plan = parse_config_root_plan(
+        &host,
+        request(
+            "file:///root/tsconfig.json",
+            r#"{"extends":"./sub/base.json"}"#,
+        ),
+    )
+    .expect("a file-URL config inherits file specs without disk-path relativization");
+
+    assert!(plan.errors().is_empty());
+    assert_eq!(plan.raw()["files"], json!(["file:///root/sub/src.ts"]));
+    assert_eq!(plan.file_names(), ["file:///root/sub/src.ts"]);
+}
+
+#[test]
+fn exact_drive_root_extends_is_resolved_as_a_disk_path() {
+    let host = MemoryConfigHost::default().with_file("c:", r#"{"files":["x.ts"]}"#);
+    let plan = parse_config_root_plan(
+        &host,
+        request("/project/tsconfig.json", r#"{"extends":"c:"}"#),
+    )
+    .expect("an exact drive root is not a package specifier");
+
+    assert!(plan.errors().is_empty());
+    assert_eq!(host.requested_file_exists.borrow().as_slice(), ["c:"]);
+    assert_eq!(host.requested_reads.borrow().as_slice(), ["c:"]);
+    assert_eq!(plan.raw()["files"], json!(["c:/x.ts"]));
+    assert_eq!(plan.file_names(), ["c:/x.ts"]);
+}
+
+#[test]
+fn inherited_invalid_specs_follow_typescripts_raw_array_like_recovery() {
+    let scalar = MemoryConfigHost::default().with_file("/project/base.json", r#"{"files":true}"#);
+    let plan = parse_config_root_plan(
+        &scalar,
+        request("/project/tsconfig.json", r#"{"extends":"./base.json"}"#),
+    )
+    .expect("a truthy scalar extended files value maps to an empty raw array");
+    assert_eq!(
+        plan.errors()
+            .iter()
+            .map(|error| error.code())
+            .collect::<Vec<_>>(),
+        [5024]
+    );
+    assert_eq!(plan.raw()["files"], json!([]));
+    assert!(plan.file_names().is_empty());
+    assert!(scalar.requested_includes.borrow().is_empty());
+
+    let string =
+        MemoryConfigHost::default().with_file("/project/base.json", r#"{"files":"foo.ts"}"#);
+    let plan = parse_config_root_plan(
+        &string,
+        request("/project/tsconfig.json", r#"{"extends":"./base.json"}"#),
+    )
+    .expect("a string extended files value maps through its array-like characters");
+    assert_eq!(
+        plan.errors()
+            .iter()
+            .map(|error| error.code())
+            .collect::<Vec<_>>(),
+        [5024]
+    );
+    assert_eq!(plan.raw()["files"], json!(["f", "o", "o", ".", "t", "s"]));
+    assert_eq!(
+        plan.file_names(),
+        [
+            "/project/f",
+            "/project/o",
+            "/project",
+            "/project/t",
+            "/project/s"
+        ]
+    );
+
+    let null_element =
+        MemoryConfigHost::default().with_file("/project/base.json", r#"{"files":[null]}"#);
+    let plan = parse_config_root_plan(
+        &null_element,
+        request("/project/tsconfig.json", r#"{"extends":"./base.json"}"#),
+    )
+    .expect("a falsey raw array element maps through combinePaths as an empty path");
+    assert!(plan.errors().is_empty());
+    assert_eq!(plan.raw()["files"], json!([""]));
+    assert_eq!(plan.file_names(), ["/project"]);
+    assert!(null_element.requested_includes.borrow().is_empty());
 }
 
 #[test]
@@ -858,15 +2097,15 @@ fn package_exports_use_source_condition_order_and_block_legacy_fallback() {
         "/project/node_modules/foo/default.json"
     );
 
-    let error = parse_config_root_plan(
+    let blocked = parse_config_root_plan(
         &host,
         request(
             "/project/tsconfig.json",
             r#"{"extends":"foo/private.json"}"#,
         ),
     )
-    .expect_err("null export blocks the physical subpath");
-    assert_eq!(error.kind(), ConfigParseErrorKind::MissingExtends);
+    .expect("null export block returns a partial plan");
+    assert_eq!(blocked.errors()[0].code(), 6053);
 }
 
 #[test]
@@ -945,12 +2184,12 @@ fn package_imports_resolve_config_targets() {
             "/project/node_modules/#base.json",
             r#"{"compilerOptions":{"allowJs":true}}"#,
         );
-    let error = parse_config_root_plan(
+    let plan = parse_config_root_plan(
         &blocked_import,
         request("/project/tsconfig.json", r##"{"extends":"#base"}"##),
     )
-    .expect_err("a null imports target blocks node_modules fallback");
-    assert_eq!(error.kind(), ConfigParseErrorKind::MissingExtends);
+    .expect("a null imports target block returns a partial plan");
+    assert_eq!(plan.errors()[0].code(), 6053);
 
     let bare_target = MemoryConfigHost::default()
         .with_file("/project/package.json", r##"{"imports":{"#base":"cfg"}}"##)
@@ -962,12 +2201,12 @@ fn package_imports_resolve_config_targets() {
             "/project/node_modules/cfg/base.json",
             r#"{"compilerOptions":{"strict":true}}"#,
         );
-    let error = parse_config_root_plan(
+    let plan = parse_config_root_plan(
         &bare_target,
         request("/project/tsconfig.json", r##"{"extends":"#base"}"##),
     )
-    .expect_err("bare imports re-entry does not use config package fields");
-    assert_eq!(error.kind(), ConfigParseErrorKind::MissingExtends);
+    .expect("bare imports package-field refusal returns a partial plan");
+    assert_eq!(plan.errors()[0].code(), 6053);
 
     let bare_export = MemoryConfigHost::default()
         .with_file("/project/package.json", r##"{"imports":{"#base":"cfg"}}"##)
@@ -1015,11 +2254,11 @@ fn package_imports_resolve_config_targets() {
                 },
                 r#"{"compilerOptions":{"strict":true}}"#,
             );
-        let error = parse_config_root_plan(
+        let plan = parse_config_root_plan(
             &host,
             request("/project/tsconfig.json", r##"{"extends":"#base"}"##),
         )
-        .expect_err("imports targets do not gain an implicit JSON extension");
-        assert_eq!(error.kind(), ConfigParseErrorKind::MissingExtends);
+        .expect("implicit-extension refusal returns a partial plan");
+        assert_eq!(plan.errors()[0].code(), 6053);
     }
 }

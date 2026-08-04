@@ -2363,6 +2363,23 @@ pub fn scan_tokens(text: &str, variant: LanguageVariant) -> Vec<TokenRecord> {
     tokens
 }
 
+/// Scan token kinds lazily, without materializing [`TokenRecord`] values or
+/// the UTF-16 offset map used to populate their ranges.
+///
+/// Consumers which only need token classification can stop iteration at a
+/// bounded prefix, avoiding work and memory proportional to the complete
+/// source text.
+pub fn scan_token_kinds(
+    text: &str,
+    variant: LanguageVariant,
+) -> impl Iterator<Item = SyntaxKind> + '_ {
+    let mut scanner = Scanner::new(text, variant);
+    std::iter::from_fn(move || {
+        let kind = scanner.scan();
+        (kind != SyntaxKind::EndOfFileToken).then_some(kind)
+    })
+}
+
 /// The scan half of tsc isValidBigIntString (18973-18989), which
 /// probes `s + "n"` with a fresh scanner. The tsc probe scans with
 /// skipTrivia:false so any trivia surfaces as a non-BigIntLiteral

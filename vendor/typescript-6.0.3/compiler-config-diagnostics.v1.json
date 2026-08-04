@@ -1,0 +1,3663 @@
+{
+  "schema": 1,
+  "typescript_version": "6.0.3",
+  "source_commit": "050880ce59e30b356b686bd3144efe24f875ebc8",
+  "node_version": "25.2.1",
+  "producer": {
+    "path": "vendor/typescript-6.0.3/lib/typescript.js",
+    "sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39"
+  },
+  "source_reference": {
+    "path": "vendor/typescript-6.0.3/lib/_tsc.js",
+    "sha256": "1c59e77a54b186ec43fa7f3e0d3c4bb15ca5eb5ba43e96b1d3a267139eddd3e3",
+    "spans": [
+      {
+        "symbol": "parseJsonConfigFileContentWorker",
+        "lines": "39004-39171"
+      },
+      {
+        "symbol": "parseConfig",
+        "lines": "39272-39330"
+      },
+      {
+        "symbol": "getExtendsConfigPathOrArray",
+        "lines": "39342-39378"
+      },
+      {
+        "symbol": "getExtendsConfigPath",
+        "lines": "39436-39459"
+      },
+      {
+        "symbol": "getExtendedConfig",
+        "lines": "39460-39499"
+      },
+      {
+        "symbol": "validateSpecs",
+        "lines": "39697-39710"
+      },
+      {
+        "symbol": "specToDiagnostic",
+        "lines": "39711-39718"
+      }
+    ]
+  },
+  "summary": {
+    "fixture_total": 39,
+    "root_parse_diagnostic_total": 4,
+    "parsed_error_total": 66,
+    "config_diagnostic_total": 70,
+    "located_config_diagnostic_total": 63,
+    "file_name_total": 36,
+    "extended_source_total": 16,
+    "extended_source_text_total": 14,
+    "host_call_total": 46,
+    "host_calls": {
+      "file_exists": 26,
+      "read_file": 18,
+      "read_directory": 2
+    }
+  },
+  "fixtures": [
+    {
+      "id": "unknown-invalid-options",
+      "input": {
+        "root": {
+          "file_name": "/project/tsconfig.json",
+          "text": "{\n  \"compilerOptions\": {\n    \"ALLOWJS\": true,\n    \"allowJs\": \"yes\",\n    \"target\": \"not-a-target\",\n    \"strict\": true\n  },\n  \"excludes\": [\"tmp\"],\n  \"files\": [\"root.ts\"]\n}",
+          "utf8_bytes": 169,
+          "sha256": "1597c1e0ad93b7b65d7a0c4ef35921ccaa762ad8cc02dd542b67d8d44eb584df"
+        },
+        "base_path": "/project",
+        "use_case_sensitive_file_names": true,
+        "host_files": [],
+        "read_directory_result": [],
+        "option_probe_keys": [
+          "ALLOWJS",
+          "allowJs",
+          "target",
+          "strict"
+        ],
+        "raw_own_property_probe_keys": []
+      },
+      "root_parse_diagnostics": [],
+      "parsed_errors": [
+        {
+          "code": 5025,
+          "category": "error",
+          "file": "/project/tsconfig.json",
+          "start": 29,
+          "length": 9,
+          "message": "Unknown compiler option 'ALLOWJS'. Did you mean 'allowJs'?"
+        },
+        {
+          "code": 5024,
+          "category": "error",
+          "file": "/project/tsconfig.json",
+          "start": 61,
+          "length": 5,
+          "message": "Compiler option 'allowJs' requires a value of type boolean."
+        },
+        {
+          "code": 6046,
+          "category": "error",
+          "file": "/project/tsconfig.json",
+          "start": 82,
+          "length": 14,
+          "message": "Argument for '--target' option must be: 'es6', 'es2015', 'es2016', 'es2017', 'es2018', 'es2019', 'es2020', 'es2021', 'es2022', 'es2023', 'es2024', 'es2025', 'esnext'."
+        },
+        {
+          "code": 6114,
+          "category": "error",
+          "file": "/project/tsconfig.json",
+          "start": 124,
+          "length": 10,
+          "message": "Unknown option 'excludes'. Did you mean 'exclude'?"
+        }
+      ],
+      "config_diagnostics": [
+        {
+          "code": 5025,
+          "category": "error",
+          "file": "/project/tsconfig.json",
+          "start": 29,
+          "length": 9,
+          "message": "Unknown compiler option 'ALLOWJS'. Did you mean 'allowJs'?"
+        },
+        {
+          "code": 5024,
+          "category": "error",
+          "file": "/project/tsconfig.json",
+          "start": 61,
+          "length": 5,
+          "message": "Compiler option 'allowJs' requires a value of type boolean."
+        },
+        {
+          "code": 6046,
+          "category": "error",
+          "file": "/project/tsconfig.json",
+          "start": 82,
+          "length": 14,
+          "message": "Argument for '--target' option must be: 'es6', 'es2015', 'es2016', 'es2017', 'es2018', 'es2019', 'es2020', 'es2021', 'es2022', 'es2023', 'es2024', 'es2025', 'esnext'."
+        },
+        {
+          "code": 6114,
+          "category": "error",
+          "file": "/project/tsconfig.json",
+          "start": 124,
+          "length": 10,
+          "message": "Unknown option 'excludes'. Did you mean 'exclude'?"
+        }
+      ],
+      "plan": {
+        "raw": {
+          "compilerOptions": {
+            "ALLOWJS": true,
+            "allowJs": "yes",
+            "target": "not-a-target",
+            "strict": true
+          },
+          "excludes": [
+            "tmp"
+          ],
+          "files": [
+            "root.ts"
+          ]
+        },
+        "file_names": [
+          "/project/root.ts"
+        ],
+        "extended_sources": [],
+        "extended_source_files": [],
+        "option_probes": [
+          {
+            "name": "ALLOWJS",
+            "state": "absent"
+          },
+          {
+            "name": "allowJs",
+            "state": "undefined"
+          },
+          {
+            "name": "target",
+            "state": "undefined"
+          },
+          {
+            "name": "strict",
+            "state": "value",
+            "value": true
+          }
+        ],
+        "raw_own_property_probes": []
+      },
+      "host_log": []
+    },
+    {
+      "id": "mixed-extends-two-phase",
+      "input": {
+        "root": {
+          "file_name": "/project/tsconfig.json",
+          "text": "{\"extends\":[\"./a\",7,\"./missing\",\"./b\"],\"files\":[\"root.ts\"]}",
+          "utf8_bytes": 59,
+          "sha256": "c6ee6b310098bbcef3e473e08aed2321935bea658cf7b94955c113ec28e4b032"
+        },
+        "base_path": "/project",
+        "use_case_sensitive_file_names": true,
+        "host_files": [
+          {
+            "path": "/project/a.json",
+            "file_exists": true,
+            "read": {
+              "state": "text",
+              "source": {
+                "file_name": "/project/a.json",
+                "text": "{\"compilerOptions\":{\"strict\":true}}",
+                "utf8_bytes": 35,
+                "sha256": "e38958736510b3962d8f023832253729dd918fdd4ececbc38e18ffe5f1bbe9d7"
+              }
+            }
+          },
+          {
+            "path": "/project/b.json",
+            "file_exists": true,
+            "read": {
+              "state": "text",
+              "source": {
+                "file_name": "/project/b.json",
+                "text": "{\"compilerOptions\":{\"allowJs\":true}}",
+                "utf8_bytes": 36,
+                "sha256": "59936a9dd25d35c3deb347094bb5bb4563f716136de25756cd19281c7ad43584"
+              }
+            }
+          }
+        ],
+        "read_directory_result": [],
+        "option_probe_keys": [
+          "strict",
+          "allowJs"
+        ],
+        "raw_own_property_probe_keys": []
+      },
+      "root_parse_diagnostics": [],
+      "parsed_errors": [
+        {
+          "code": 5024,
+          "category": "error",
+          "file": "/project/tsconfig.json",
+          "start": 18,
+          "length": 1,
+          "message": "Compiler option 'extends' requires a value of type string."
+        },
+        {
+          "code": 6053,
+          "category": "error",
+          "file": "/project/tsconfig.json",
+          "start": 20,
+          "length": 11,
+          "message": "File './missing' not found."
+        }
+      ],
+      "config_diagnostics": [
+        {
+          "code": 5024,
+          "category": "error",
+          "file": "/project/tsconfig.json",
+          "start": 18,
+          "length": 1,
+          "message": "Compiler option 'extends' requires a value of type string."
+        },
+        {
+          "code": 6053,
+          "category": "error",
+          "file": "/project/tsconfig.json",
+          "start": 20,
+          "length": 11,
+          "message": "File './missing' not found."
+        }
+      ],
+      "plan": {
+        "raw": {
+          "extends": [
+            "./a",
+            7,
+            "./missing",
+            "./b"
+          ],
+          "files": [
+            "root.ts"
+          ]
+        },
+        "file_names": [
+          "/project/root.ts"
+        ],
+        "extended_sources": [
+          {
+            "file_name": "/project/a.json",
+            "text": "{\"compilerOptions\":{\"strict\":true}}",
+            "utf8_bytes": 35,
+            "sha256": "e38958736510b3962d8f023832253729dd918fdd4ececbc38e18ffe5f1bbe9d7"
+          },
+          {
+            "file_name": "/project/b.json",
+            "text": "{\"compilerOptions\":{\"allowJs\":true}}",
+            "utf8_bytes": 36,
+            "sha256": "59936a9dd25d35c3deb347094bb5bb4563f716136de25756cd19281c7ad43584"
+          }
+        ],
+        "extended_source_files": [
+          "/project/a.json",
+          "/project/b.json"
+        ],
+        "option_probes": [
+          {
+            "name": "strict",
+            "state": "value",
+            "value": true
+          },
+          {
+            "name": "allowJs",
+            "state": "value",
+            "value": true
+          }
+        ],
+        "raw_own_property_probes": []
+      },
+      "host_log": [
+        {
+          "operation": "file_exists",
+          "path": "/project/a",
+          "result": false
+        },
+        {
+          "operation": "file_exists",
+          "path": "/project/a.json",
+          "result": true
+        },
+        {
+          "operation": "file_exists",
+          "path": "/project/missing",
+          "result": false
+        },
+        {
+          "operation": "file_exists",
+          "path": "/project/missing.json",
+          "result": false
+        },
+        {
+          "operation": "file_exists",
+          "path": "/project/b",
+          "result": false
+        },
+        {
+          "operation": "file_exists",
+          "path": "/project/b.json",
+          "result": true
+        },
+        {
+          "operation": "read_file",
+          "path": "/project/a.json",
+          "result": "text"
+        },
+        {
+          "operation": "read_file",
+          "path": "/project/b.json",
+          "result": "text"
+        }
+      ]
+    },
+    {
+      "id": "missing-explicit-and-implicit",
+      "input": {
+        "root": {
+          "file_name": "/project/tsconfig.json",
+          "text": "{\"extends\":[\"./explicit.json\",\"./implicit\"],\"files\":[\"root.ts\"]}",
+          "utf8_bytes": 64,
+          "sha256": "0439fe308c7e01bc3f04550b3a0f89abe5837854d651969407644594d507e7a5"
+        },
+        "base_path": "/project",
+        "use_case_sensitive_file_names": true,
+        "host_files": [],
+        "read_directory_result": [],
+        "option_probe_keys": [],
+        "raw_own_property_probe_keys": []
+      },
+      "root_parse_diagnostics": [],
+      "parsed_errors": [
+        {
+          "code": 6053,
+          "category": "error",
+          "file": "/project/tsconfig.json",
+          "start": 30,
+          "length": 12,
+          "message": "File './implicit' not found."
+        },
+        {
+          "code": 5083,
+          "category": "error",
+          "file": null,
+          "start": null,
+          "length": null,
+          "message": "Cannot read file '/project/explicit.json'."
+        }
+      ],
+      "config_diagnostics": [
+        {
+          "code": 6053,
+          "category": "error",
+          "file": "/project/tsconfig.json",
+          "start": 30,
+          "length": 12,
+          "message": "File './implicit' not found."
+        },
+        {
+          "code": 5083,
+          "category": "error",
+          "file": null,
+          "start": null,
+          "length": null,
+          "message": "Cannot read file '/project/explicit.json'."
+        }
+      ],
+      "plan": {
+        "raw": {
+          "extends": [
+            "./explicit.json",
+            "./implicit"
+          ],
+          "files": [
+            "root.ts"
+          ]
+        },
+        "file_names": [
+          "/project/root.ts"
+        ],
+        "extended_sources": [],
+        "extended_source_files": [
+          "/project/explicit.json"
+        ],
+        "option_probes": [],
+        "raw_own_property_probes": []
+      },
+      "host_log": [
+        {
+          "operation": "file_exists",
+          "path": "/project/explicit.json",
+          "result": false
+        },
+        {
+          "operation": "file_exists",
+          "path": "/project/implicit",
+          "result": false
+        },
+        {
+          "operation": "file_exists",
+          "path": "/project/implicit.json",
+          "result": false
+        },
+        {
+          "operation": "read_file",
+          "path": "/project/explicit.json",
+          "result": "missing"
+        }
+      ]
+    },
+    {
+      "id": "read-file-error-continues-sibling",
+      "input": {
+        "root": {
+          "file_name": "/project/tsconfig.json",
+          "text": "{\"extends\":[\"./throws.json\",\"./ok.json\"],\"files\":[\"root.ts\"]}",
+          "utf8_bytes": 61,
+          "sha256": "fb5da0df712ac1f70a760d0b704767ceb2c3d71fa3363e0a17ee5489599b4814"
+        },
+        "base_path": "/project",
+        "use_case_sensitive_file_names": true,
+        "host_files": [
+          {
+            "path": "/project/throws.json",
+            "file_exists": true,
+            "read": {
+              "state": "error",
+              "detail": "synthetic read failure"
+            }
+          },
+          {
+            "path": "/project/ok.json",
+            "file_exists": true,
+            "read": {
+              "state": "text",
+              "source": {
+                "file_name": "/project/ok.json",
+                "text": "{\"compilerOptions\":{\"allowJs\":true}}",
+                "utf8_bytes": 36,
+                "sha256": "59936a9dd25d35c3deb347094bb5bb4563f716136de25756cd19281c7ad43584"
+              }
+            }
+          }
+        ],
+        "read_directory_result": [],
+        "option_probe_keys": [
+          "strict",
+          "allowJs"
+        ],
+        "raw_own_property_probe_keys": []
+      },
+      "root_parse_diagnostics": [],
+      "parsed_errors": [
+        {
+          "code": 5012,
+          "category": "error",
+          "file": null,
+          "start": null,
+          "length": null,
+          "message": "Cannot read file '/project/throws.json': synthetic read failure."
+        }
+      ],
+      "config_diagnostics": [
+        {
+          "code": 5012,
+          "category": "error",
+          "file": null,
+          "start": null,
+          "length": null,
+          "message": "Cannot read file '/project/throws.json': synthetic read failure."
+        }
+      ],
+      "plan": {
+        "raw": {
+          "extends": [
+            "./throws.json",
+            "./ok.json"
+          ],
+          "files": [
+            "root.ts"
+          ]
+        },
+        "file_names": [
+          "/project/root.ts"
+        ],
+        "extended_sources": [
+          {
+            "file_name": "/project/ok.json",
+            "text": "{\"compilerOptions\":{\"allowJs\":true}}",
+            "utf8_bytes": 36,
+            "sha256": "59936a9dd25d35c3deb347094bb5bb4563f716136de25756cd19281c7ad43584"
+          }
+        ],
+        "extended_source_files": [
+          "/project/throws.json",
+          "/project/ok.json"
+        ],
+        "option_probes": [
+          {
+            "name": "strict",
+            "state": "absent"
+          },
+          {
+            "name": "allowJs",
+            "state": "value",
+            "value": true
+          }
+        ],
+        "raw_own_property_probes": []
+      },
+      "host_log": [
+        {
+          "operation": "file_exists",
+          "path": "/project/throws.json",
+          "result": true
+        },
+        {
+          "operation": "file_exists",
+          "path": "/project/ok.json",
+          "result": true
+        },
+        {
+          "operation": "read_file",
+          "path": "/project/throws.json",
+          "result": "error"
+        },
+        {
+          "operation": "read_file",
+          "path": "/project/ok.json",
+          "result": "text"
+        }
+      ]
+    },
+    {
+      "id": "cycle-continues-sibling",
+      "input": {
+        "root": {
+          "file_name": "/project/tsconfig.json",
+          "text": "{\"extends\":[\"./a.json\",\"./ok.json\"],\"files\":[\"root.ts\"]}",
+          "utf8_bytes": 56,
+          "sha256": "e9f43b7605f76b40bc44570b42ab8bc25dacf809bda5bb96c8c47a9e5ffd70a2"
+        },
+        "base_path": "/project",
+        "use_case_sensitive_file_names": true,
+        "host_files": [
+          {
+            "path": "/project/tsconfig.json",
+            "file_exists": true,
+            "read": {
+              "state": "text",
+              "source": {
+                "file_name": "/project/tsconfig.json",
+                "text": "{\"extends\":[\"./a.json\",\"./ok.json\"],\"files\":[\"root.ts\"]}",
+                "utf8_bytes": 56,
+                "sha256": "e9f43b7605f76b40bc44570b42ab8bc25dacf809bda5bb96c8c47a9e5ffd70a2"
+              }
+            }
+          },
+          {
+            "path": "/project/a.json",
+            "file_exists": true,
+            "read": {
+              "state": "text",
+              "source": {
+                "file_name": "/project/a.json",
+                "text": "{\"extends\":\"./tsconfig.json\",\"compilerOptions\":{\"strict\":true}}",
+                "utf8_bytes": 63,
+                "sha256": "b503299ea23af5a5b17de04fc54f7fbe615f9c3139585c82e5ed52a165320113"
+              }
+            }
+          },
+          {
+            "path": "/project/ok.json",
+            "file_exists": true,
+            "read": {
+              "state": "text",
+              "source": {
+                "file_name": "/project/ok.json",
+                "text": "{\"compilerOptions\":{\"strict\":false,\"allowJs\":true}}",
+                "utf8_bytes": 51,
+                "sha256": "f3ae773e93481f4ca62c5118968f57a571dbf8deffe75d86ebf60994f0446ad2"
+              }
+            }
+          }
+        ],
+        "read_directory_result": [],
+        "option_probe_keys": [
+          "strict",
+          "allowJs"
+        ],
+        "raw_own_property_probe_keys": []
+      },
+      "root_parse_diagnostics": [],
+      "parsed_errors": [
+        {
+          "code": 18000,
+          "category": "error",
+          "file": null,
+          "start": null,
+          "length": null,
+          "message": "Circularity detected while resolving configuration: /project/tsconfig.json -> /project/a.json -> /project/tsconfig.json"
+        }
+      ],
+      "config_diagnostics": [
+        {
+          "code": 18000,
+          "category": "error",
+          "file": null,
+          "start": null,
+          "length": null,
+          "message": "Circularity detected while resolving configuration: /project/tsconfig.json -> /project/a.json -> /project/tsconfig.json"
+        }
+      ],
+      "plan": {
+        "raw": {
+          "extends": [
+            "./a.json",
+            "./ok.json"
+          ],
+          "files": [
+            "root.ts"
+          ]
+        },
+        "file_names": [
+          "/project/root.ts"
+        ],
+        "extended_sources": [
+          {
+            "file_name": "/project/a.json",
+            "text": "{\"extends\":\"./tsconfig.json\",\"compilerOptions\":{\"strict\":true}}",
+            "utf8_bytes": 63,
+            "sha256": "b503299ea23af5a5b17de04fc54f7fbe615f9c3139585c82e5ed52a165320113"
+          },
+          {
+            "file_name": "/project/tsconfig.json",
+            "text": "{\"extends\":[\"./a.json\",\"./ok.json\"],\"files\":[\"root.ts\"]}",
+            "utf8_bytes": 56,
+            "sha256": "e9f43b7605f76b40bc44570b42ab8bc25dacf809bda5bb96c8c47a9e5ffd70a2"
+          },
+          {
+            "file_name": "/project/ok.json",
+            "text": "{\"compilerOptions\":{\"strict\":false,\"allowJs\":true}}",
+            "utf8_bytes": 51,
+            "sha256": "f3ae773e93481f4ca62c5118968f57a571dbf8deffe75d86ebf60994f0446ad2"
+          }
+        ],
+        "extended_source_files": [
+          "/project/a.json",
+          "/project/tsconfig.json",
+          "/project/ok.json"
+        ],
+        "option_probes": [
+          {
+            "name": "strict",
+            "state": "value",
+            "value": false
+          },
+          {
+            "name": "allowJs",
+            "state": "value",
+            "value": true
+          }
+        ],
+        "raw_own_property_probes": []
+      },
+      "host_log": [
+        {
+          "operation": "file_exists",
+          "path": "/project/a.json",
+          "result": true
+        },
+        {
+          "operation": "file_exists",
+          "path": "/project/ok.json",
+          "result": true
+        },
+        {
+          "operation": "read_file",
+          "path": "/project/a.json",
+          "result": "text"
+        },
+        {
+          "operation": "file_exists",
+          "path": "/project/tsconfig.json",
+          "result": true
+        },
+        {
+          "operation": "read_file",
+          "path": "/project/tsconfig.json",
+          "result": "text"
+        },
+        {
+          "operation": "read_file",
+          "path": "/project/ok.json",
+          "result": "text"
+        }
+      ]
+    },
+    {
+      "id": "root-syntax-partial",
+      "input": {
+        "root": {
+          "file_name": "/project/tsconfig.json",
+          "text": "{\"note\":\"😀\",\"compilerOptions\":{\"strict\":true,\"ALLOWJS\":true},\"files\":[\"root.ts\"]",
+          "utf8_bytes": 83,
+          "sha256": "033819a4c4c8504f628bc2cb5963f819761d6788e7e30945e83ec7f9e3928069"
+        },
+        "base_path": "/project",
+        "use_case_sensitive_file_names": true,
+        "host_files": [],
+        "read_directory_result": [],
+        "option_probe_keys": [
+          "strict",
+          "allowJs"
+        ],
+        "raw_own_property_probe_keys": []
+      },
+      "root_parse_diagnostics": [
+        {
+          "code": 1005,
+          "category": "error",
+          "file": "/project/tsconfig.json",
+          "start": 81,
+          "length": 0,
+          "message": "'}' expected."
+        }
+      ],
+      "parsed_errors": [
+        {
+          "code": 5025,
+          "category": "error",
+          "file": "/project/tsconfig.json",
+          "start": 46,
+          "length": 9,
+          "message": "Unknown compiler option 'ALLOWJS'. Did you mean 'allowJs'?"
+        }
+      ],
+      "config_diagnostics": [
+        {
+          "code": 1005,
+          "category": "error",
+          "file": "/project/tsconfig.json",
+          "start": 81,
+          "length": 0,
+          "message": "'}' expected."
+        },
+        {
+          "code": 5025,
+          "category": "error",
+          "file": "/project/tsconfig.json",
+          "start": 46,
+          "length": 9,
+          "message": "Unknown compiler option 'ALLOWJS'. Did you mean 'allowJs'?"
+        }
+      ],
+      "plan": {
+        "raw": {
+          "note": "😀",
+          "compilerOptions": {
+            "strict": true,
+            "ALLOWJS": true
+          },
+          "files": [
+            "root.ts"
+          ]
+        },
+        "file_names": [
+          "/project/root.ts"
+        ],
+        "extended_sources": [],
+        "extended_source_files": [],
+        "option_probes": [
+          {
+            "name": "strict",
+            "state": "value",
+            "value": true
+          },
+          {
+            "name": "allowJs",
+            "state": "absent"
+          }
+        ],
+        "raw_own_property_probes": []
+      },
+      "host_log": []
+    },
+    {
+      "id": "extended-syntax-atomic-sibling",
+      "input": {
+        "root": {
+          "file_name": "/project/tsconfig.json",
+          "text": "{\"extends\":[\"./bad.json\",\"./ok.json\"],\"files\":[\"root.ts\"]}",
+          "utf8_bytes": 58,
+          "sha256": "3fba77f36e2cf5305940e6a3207ccd10ee1401792f531084c161577048a78b71"
+        },
+        "base_path": "/project",
+        "use_case_sensitive_file_names": true,
+        "host_files": [
+          {
+            "path": "/project/bad.json",
+            "file_exists": true,
+            "read": {
+              "state": "text",
+              "source": {
+                "file_name": "/project/bad.json",
+                "text": "{\"note\":\"😀\",\"compilerOptions\":{\"strict\":true,\"ALLOWJS\":true},\"files\":[\"root.ts\"]",
+                "utf8_bytes": 83,
+                "sha256": "033819a4c4c8504f628bc2cb5963f819761d6788e7e30945e83ec7f9e3928069"
+              }
+            }
+          },
+          {
+            "path": "/project/ok.json",
+            "file_exists": true,
+            "read": {
+              "state": "text",
+              "source": {
+                "file_name": "/project/ok.json",
+                "text": "{\"compilerOptions\":{\"allowJs\":true}}",
+                "utf8_bytes": 36,
+                "sha256": "59936a9dd25d35c3deb347094bb5bb4563f716136de25756cd19281c7ad43584"
+              }
+            }
+          }
+        ],
+        "read_directory_result": [],
+        "option_probe_keys": [
+          "strict",
+          "allowJs"
+        ],
+        "raw_own_property_probe_keys": []
+      },
+      "root_parse_diagnostics": [],
+      "parsed_errors": [
+        {
+          "code": 1005,
+          "category": "error",
+          "file": "/project/bad.json",
+          "start": 81,
+          "length": 0,
+          "message": "'}' expected."
+        }
+      ],
+      "config_diagnostics": [
+        {
+          "code": 1005,
+          "category": "error",
+          "file": "/project/bad.json",
+          "start": 81,
+          "length": 0,
+          "message": "'}' expected."
+        }
+      ],
+      "plan": {
+        "raw": {
+          "extends": [
+            "./bad.json",
+            "./ok.json"
+          ],
+          "files": [
+            "root.ts"
+          ]
+        },
+        "file_names": [
+          "/project/root.ts"
+        ],
+        "extended_sources": [
+          {
+            "file_name": "/project/bad.json",
+            "text": "{\"note\":\"😀\",\"compilerOptions\":{\"strict\":true,\"ALLOWJS\":true},\"files\":[\"root.ts\"]",
+            "utf8_bytes": 83,
+            "sha256": "033819a4c4c8504f628bc2cb5963f819761d6788e7e30945e83ec7f9e3928069"
+          },
+          {
+            "file_name": "/project/ok.json",
+            "text": "{\"compilerOptions\":{\"allowJs\":true}}",
+            "utf8_bytes": 36,
+            "sha256": "59936a9dd25d35c3deb347094bb5bb4563f716136de25756cd19281c7ad43584"
+          }
+        ],
+        "extended_source_files": [
+          "/project/bad.json",
+          "/project/ok.json"
+        ],
+        "option_probes": [
+          {
+            "name": "strict",
+            "state": "absent"
+          },
+          {
+            "name": "allowJs",
+            "state": "value",
+            "value": true
+          }
+        ],
+        "raw_own_property_probes": []
+      },
+      "host_log": [
+        {
+          "operation": "file_exists",
+          "path": "/project/bad.json",
+          "result": true
+        },
+        {
+          "operation": "file_exists",
+          "path": "/project/ok.json",
+          "result": true
+        },
+        {
+          "operation": "read_file",
+          "path": "/project/bad.json",
+          "result": "text"
+        },
+        {
+          "operation": "read_file",
+          "path": "/project/ok.json",
+          "result": "text"
+        }
+      ]
+    },
+    {
+      "id": "mixed-invalid-spec-elements",
+      "input": {
+        "root": {
+          "file_name": "/project/tsconfig.json",
+          "text": "{\n  \"files\": [\"literal.ts\", 1, null, \"\"],\n  \"include\": [\"src/**\", 7, \"src/**/*.ts\", \"**/../escape/*.ts\"],\n  \"exclude\": [\"vendor/**\", false, \"**/../bad\", \"out\"]\n}",
+          "utf8_bytes": 161,
+          "sha256": "aeebb8fee9c50659bad6012aede5b2a3b46c18c3c08399d7c35c884e743ad249"
+        },
+        "base_path": "/project",
+        "use_case_sensitive_file_names": true,
+        "host_files": [],
+        "read_directory_result": [
+          "/project/src/main.ts"
+        ],
+        "option_probe_keys": [],
+        "raw_own_property_probe_keys": []
+      },
+      "root_parse_diagnostics": [],
+      "parsed_errors": [
+        {
+          "code": 5024,
+          "category": "error",
+          "file": "/project/tsconfig.json",
+          "start": 28,
+          "length": 1,
+          "message": "Compiler option 'files' requires a value of type string."
+        },
+        {
+          "code": 5024,
+          "category": "error",
+          "file": "/project/tsconfig.json",
+          "start": 66,
+          "length": 1,
+          "message": "Compiler option 'include' requires a value of type string."
+        },
+        {
+          "code": 5024,
+          "category": "error",
+          "file": "/project/tsconfig.json",
+          "start": 133,
+          "length": 5,
+          "message": "Compiler option 'exclude' requires a value of type string."
+        },
+        {
+          "code": 5010,
+          "category": "error",
+          "file": "/project/tsconfig.json",
+          "start": 56,
+          "length": 8,
+          "message": "File specification cannot end in a recursive directory wildcard ('**'): 'src/**'."
+        },
+        {
+          "code": 5065,
+          "category": "error",
+          "file": "/project/tsconfig.json",
+          "start": 84,
+          "length": 19,
+          "message": "File specification cannot contain a parent directory ('..') that appears after a recursive directory wildcard ('**'): '**/../escape/*.ts'."
+        },
+        {
+          "code": 5065,
+          "category": "error",
+          "file": "/project/tsconfig.json",
+          "start": 140,
+          "length": 11,
+          "message": "File specification cannot contain a parent directory ('..') that appears after a recursive directory wildcard ('**'): '**/../bad'."
+        }
+      ],
+      "config_diagnostics": [
+        {
+          "code": 5024,
+          "category": "error",
+          "file": "/project/tsconfig.json",
+          "start": 28,
+          "length": 1,
+          "message": "Compiler option 'files' requires a value of type string."
+        },
+        {
+          "code": 5024,
+          "category": "error",
+          "file": "/project/tsconfig.json",
+          "start": 66,
+          "length": 1,
+          "message": "Compiler option 'include' requires a value of type string."
+        },
+        {
+          "code": 5024,
+          "category": "error",
+          "file": "/project/tsconfig.json",
+          "start": 133,
+          "length": 5,
+          "message": "Compiler option 'exclude' requires a value of type string."
+        },
+        {
+          "code": 5010,
+          "category": "error",
+          "file": "/project/tsconfig.json",
+          "start": 56,
+          "length": 8,
+          "message": "File specification cannot end in a recursive directory wildcard ('**'): 'src/**'."
+        },
+        {
+          "code": 5065,
+          "category": "error",
+          "file": "/project/tsconfig.json",
+          "start": 84,
+          "length": 19,
+          "message": "File specification cannot contain a parent directory ('..') that appears after a recursive directory wildcard ('**'): '**/../escape/*.ts'."
+        },
+        {
+          "code": 5065,
+          "category": "error",
+          "file": "/project/tsconfig.json",
+          "start": 140,
+          "length": 11,
+          "message": "File specification cannot contain a parent directory ('..') that appears after a recursive directory wildcard ('**'): '**/../bad'."
+        }
+      ],
+      "plan": {
+        "raw": {
+          "files": [
+            "literal.ts",
+            1,
+            null,
+            ""
+          ],
+          "include": [
+            "src/**",
+            7,
+            "src/**/*.ts",
+            "**/../escape/*.ts"
+          ],
+          "exclude": [
+            "vendor/**",
+            false,
+            "**/../bad",
+            "out"
+          ]
+        },
+        "file_names": [
+          "/project/literal.ts",
+          "/project",
+          "/project/src/main.ts"
+        ],
+        "extended_sources": [],
+        "extended_source_files": [],
+        "option_probes": [],
+        "raw_own_property_probes": []
+      },
+      "host_log": [
+        {
+          "operation": "read_directory",
+          "directory": "/project",
+          "extensions": [
+            ".ts",
+            ".tsx",
+            ".d.ts",
+            ".cts",
+            ".d.cts",
+            ".mts",
+            ".d.mts",
+            ".json"
+          ],
+          "excludes": [
+            "vendor/**",
+            "out"
+          ],
+          "includes": [
+            "src/**/*.ts"
+          ],
+          "depth": null,
+          "result": [
+            "/project/src/main.ts"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "empty-source-no-input",
+      "input": {
+        "root": {
+          "file_name": "/project/tsconfig.json",
+          "text": "",
+          "utf8_bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "base_path": "/project",
+        "use_case_sensitive_file_names": true,
+        "host_files": [],
+        "read_directory_result": [],
+        "option_probe_keys": [],
+        "raw_own_property_probe_keys": []
+      },
+      "root_parse_diagnostics": [],
+      "parsed_errors": [
+        {
+          "code": 18003,
+          "category": "error",
+          "file": null,
+          "start": null,
+          "length": null,
+          "message": "No inputs were found in config file '/project/tsconfig.json'. Specified 'include' paths were '[\"**/*\"]' and 'exclude' paths were '[]'."
+        }
+      ],
+      "config_diagnostics": [
+        {
+          "code": 18003,
+          "category": "error",
+          "file": null,
+          "start": null,
+          "length": null,
+          "message": "No inputs were found in config file '/project/tsconfig.json'. Specified 'include' paths were '[\"**/*\"]' and 'exclude' paths were '[]'."
+        }
+      ],
+      "plan": {
+        "raw": {},
+        "file_names": [],
+        "extended_sources": [],
+        "extended_source_files": [],
+        "option_probes": [],
+        "raw_own_property_probes": []
+      },
+      "host_log": [
+        {
+          "operation": "read_directory",
+          "directory": "/project",
+          "extensions": [
+            ".ts",
+            ".tsx",
+            ".d.ts",
+            ".cts",
+            ".d.cts",
+            ".mts",
+            ".d.mts",
+            ".json"
+          ],
+          "excludes": null,
+          "includes": [
+            "**/*"
+          ],
+          "depth": null,
+          "result": []
+        }
+      ]
+    },
+    {
+      "id": "empty-files",
+      "input": {
+        "root": {
+          "file_name": "/project/tsconfig.json",
+          "text": "{\"files\":[]}",
+          "utf8_bytes": 12,
+          "sha256": "602e35a92eec4bc0a2ec6ae113f07bfc6933322fb69fe8dee416e5a67217e2a2"
+        },
+        "base_path": "/project",
+        "use_case_sensitive_file_names": true,
+        "host_files": [],
+        "read_directory_result": [],
+        "option_probe_keys": [],
+        "raw_own_property_probe_keys": []
+      },
+      "root_parse_diagnostics": [],
+      "parsed_errors": [
+        {
+          "code": 18002,
+          "category": "error",
+          "file": "/project/tsconfig.json",
+          "start": 9,
+          "length": 2,
+          "message": "The 'files' list in config file '/project/tsconfig.json' is empty."
+        }
+      ],
+      "config_diagnostics": [
+        {
+          "code": 18002,
+          "category": "error",
+          "file": "/project/tsconfig.json",
+          "start": 9,
+          "length": 2,
+          "message": "The 'files' list in config file '/project/tsconfig.json' is empty."
+        }
+      ],
+      "plan": {
+        "raw": {
+          "files": []
+        },
+        "file_names": [],
+        "extended_sources": [],
+        "extended_source_files": [],
+        "option_probes": [],
+        "raw_own_property_probes": []
+      },
+      "host_log": []
+    },
+    {
+      "id": "empty-include-no-input",
+      "input": {
+        "root": {
+          "file_name": "/project/tsconfig.json",
+          "text": "{\"include\":[]}",
+          "utf8_bytes": 14,
+          "sha256": "dd585799c0436257b2e6261a9325d6c463e7df3f7c0f60c7f6d23e8523675a1c"
+        },
+        "base_path": "/project",
+        "use_case_sensitive_file_names": true,
+        "host_files": [],
+        "read_directory_result": [],
+        "option_probe_keys": [],
+        "raw_own_property_probe_keys": []
+      },
+      "root_parse_diagnostics": [],
+      "parsed_errors": [
+        {
+          "code": 18003,
+          "category": "error",
+          "file": null,
+          "start": null,
+          "length": null,
+          "message": "No inputs were found in config file '/project/tsconfig.json'. Specified 'include' paths were '[]' and 'exclude' paths were '[]'."
+        }
+      ],
+      "config_diagnostics": [
+        {
+          "code": 18003,
+          "category": "error",
+          "file": null,
+          "start": null,
+          "length": null,
+          "message": "No inputs were found in config file '/project/tsconfig.json'. Specified 'include' paths were '[]' and 'exclude' paths were '[]'."
+        }
+      ],
+      "plan": {
+        "raw": {
+          "include": []
+        },
+        "file_names": [],
+        "extended_sources": [],
+        "extended_source_files": [],
+        "option_probes": [],
+        "raw_own_property_probes": []
+      },
+      "host_log": []
+    },
+    {
+      "id": "duplicate-compiler-options",
+      "input": {
+        "root": {
+          "file_name": "/project/tsconfig.json",
+          "text": "{\"compilerOptions\":{\"strict\":true,\"allowJs\":\"bad\"},\"compilerOptions\":{\"allowJs\":true},\"files\":[\"x.ts\"]}",
+          "utf8_bytes": 103,
+          "sha256": "eed182fc881e81dbf7dd4857e19ec80180c3c777ea13e19d880273261f9fd3bd"
+        },
+        "base_path": "/project",
+        "use_case_sensitive_file_names": true,
+        "host_files": [],
+        "read_directory_result": [],
+        "option_probe_keys": [
+          "strict",
+          "allowJs"
+        ],
+        "raw_own_property_probe_keys": []
+      },
+      "root_parse_diagnostics": [],
+      "parsed_errors": [
+        {
+          "code": 5024,
+          "category": "error",
+          "file": "/project/tsconfig.json",
+          "start": 44,
+          "length": 5,
+          "message": "Compiler option 'allowJs' requires a value of type boolean."
+        }
+      ],
+      "config_diagnostics": [
+        {
+          "code": 5024,
+          "category": "error",
+          "file": "/project/tsconfig.json",
+          "start": 44,
+          "length": 5,
+          "message": "Compiler option 'allowJs' requires a value of type boolean."
+        }
+      ],
+      "plan": {
+        "raw": {
+          "compilerOptions": {
+            "allowJs": true
+          },
+          "files": [
+            "x.ts"
+          ]
+        },
+        "file_names": [
+          "/project/x.ts"
+        ],
+        "extended_sources": [],
+        "extended_source_files": [],
+        "option_probes": [
+          {
+            "name": "strict",
+            "state": "value",
+            "value": true
+          },
+          {
+            "name": "allowJs",
+            "state": "value",
+            "value": true
+          }
+        ],
+        "raw_own_property_probes": []
+      },
+      "host_log": []
+    },
+    {
+      "id": "duplicate-extends-last-effective",
+      "input": {
+        "root": {
+          "file_name": "/project/tsconfig.json",
+          "text": "{\"extends\":\"./first-missing\",\"extends\":\"./ok.json\",\"files\":[\"x.ts\"]}",
+          "utf8_bytes": 68,
+          "sha256": "cf0af29e4cf14578ca8264f686bb8fd1b6b8de3c02b3fd929569ccc7102fc9bc"
+        },
+        "base_path": "/project",
+        "use_case_sensitive_file_names": true,
+        "host_files": [
+          {
+            "path": "/project/ok.json",
+            "file_exists": true,
+            "read": {
+              "state": "text",
+              "source": {
+                "file_name": "/project/ok.json",
+                "text": "{\"compilerOptions\":{\"strict\":true}}",
+                "utf8_bytes": 35,
+                "sha256": "e38958736510b3962d8f023832253729dd918fdd4ececbc38e18ffe5f1bbe9d7"
+              }
+            }
+          }
+        ],
+        "read_directory_result": [],
+        "option_probe_keys": [
+          "strict"
+        ],
+        "raw_own_property_probe_keys": []
+      },
+      "root_parse_diagnostics": [],
+      "parsed_errors": [
+        {
+          "code": 6053,
+          "category": "error",
+          "file": "/project/tsconfig.json",
+          "start": 11,
+          "length": 17,
+          "message": "File './first-missing' not found."
+        }
+      ],
+      "config_diagnostics": [
+        {
+          "code": 6053,
+          "category": "error",
+          "file": "/project/tsconfig.json",
+          "start": 11,
+          "length": 17,
+          "message": "File './first-missing' not found."
+        }
+      ],
+      "plan": {
+        "raw": {
+          "extends": "./ok.json",
+          "files": [
+            "x.ts"
+          ]
+        },
+        "file_names": [
+          "/project/x.ts"
+        ],
+        "extended_sources": [
+          {
+            "file_name": "/project/ok.json",
+            "text": "{\"compilerOptions\":{\"strict\":true}}",
+            "utf8_bytes": 35,
+            "sha256": "e38958736510b3962d8f023832253729dd918fdd4ececbc38e18ffe5f1bbe9d7"
+          }
+        ],
+        "extended_source_files": [
+          "/project/ok.json"
+        ],
+        "option_probes": [
+          {
+            "name": "strict",
+            "state": "value",
+            "value": true
+          }
+        ],
+        "raw_own_property_probes": []
+      },
+      "host_log": [
+        {
+          "operation": "file_exists",
+          "path": "/project/first-missing",
+          "result": false
+        },
+        {
+          "operation": "file_exists",
+          "path": "/project/first-missing.json",
+          "result": false
+        },
+        {
+          "operation": "file_exists",
+          "path": "/project/ok.json",
+          "result": true
+        },
+        {
+          "operation": "read_file",
+          "path": "/project/ok.json",
+          "result": "text"
+        }
+      ]
+    },
+    {
+      "id": "omitted-files-element",
+      "input": {
+        "root": {
+          "file_name": "/project/tsconfig.json",
+          "text": "{\"files\":[,\"x.ts\"]}",
+          "utf8_bytes": 19,
+          "sha256": "7d164a65cd6b850fa50898398f4c17bcb749c7638ff47072a0ff84e5026c899b"
+        },
+        "base_path": "/project",
+        "use_case_sensitive_file_names": true,
+        "host_files": [],
+        "read_directory_result": [],
+        "option_probe_keys": [],
+        "raw_own_property_probe_keys": []
+      },
+      "root_parse_diagnostics": [],
+      "parsed_errors": [
+        {
+          "code": 5024,
+          "category": "error",
+          "file": "/project/tsconfig.json",
+          "start": 10,
+          "length": 0,
+          "message": "Compiler option 'files' requires a value of type string."
+        }
+      ],
+      "config_diagnostics": [
+        {
+          "code": 5024,
+          "category": "error",
+          "file": "/project/tsconfig.json",
+          "start": 10,
+          "length": 0,
+          "message": "Compiler option 'files' requires a value of type string."
+        }
+      ],
+      "plan": {
+        "raw": {
+          "files": [
+            "x.ts"
+          ]
+        },
+        "file_names": [
+          "/project/x.ts"
+        ],
+        "extended_sources": [],
+        "extended_source_files": [],
+        "option_probes": [],
+        "raw_own_property_probes": []
+      },
+      "host_log": []
+    },
+    {
+      "id": "misplaced-root-compiler-option",
+      "input": {
+        "root": {
+          "file_name": "/project/tsconfig.json",
+          "text": "{\"strict\":true,\"target\":\"es2020\",\"files\":[\"x.ts\"]}",
+          "utf8_bytes": 50,
+          "sha256": "7b48f05f3c2ea6c478937dfb8d333e0b594973841ff7c606b86c39f6a1e0f019"
+        },
+        "base_path": "/project",
+        "use_case_sensitive_file_names": true,
+        "host_files": [],
+        "read_directory_result": [],
+        "option_probe_keys": [
+          "strict",
+          "target"
+        ],
+        "raw_own_property_probe_keys": []
+      },
+      "root_parse_diagnostics": [],
+      "parsed_errors": [
+        {
+          "code": 6258,
+          "category": "error",
+          "file": "/project/tsconfig.json",
+          "start": 1,
+          "length": 8,
+          "message": "'strict' should be set inside the 'compilerOptions' object of the config json file"
+        }
+      ],
+      "config_diagnostics": [
+        {
+          "code": 6258,
+          "category": "error",
+          "file": "/project/tsconfig.json",
+          "start": 1,
+          "length": 8,
+          "message": "'strict' should be set inside the 'compilerOptions' object of the config json file"
+        }
+      ],
+      "plan": {
+        "raw": {
+          "strict": true,
+          "target": "es2020",
+          "files": [
+            "x.ts"
+          ]
+        },
+        "file_names": [
+          "/project/x.ts"
+        ],
+        "extended_sources": [],
+        "extended_source_files": [],
+        "option_probes": [
+          {
+            "name": "strict",
+            "state": "absent"
+          },
+          {
+            "name": "target",
+            "state": "absent"
+          }
+        ],
+        "raw_own_property_probes": []
+      },
+      "host_log": []
+    },
+    {
+      "id": "typed-file-option-normalization",
+      "input": {
+        "root": {
+          "file_name": "/project/tsconfig.json",
+          "text": "{\"compilerOptions\":{\"outDir\":\"./out\",\"rootDir\":\"src\"},\"files\":[\"x.ts\"]}",
+          "utf8_bytes": 71,
+          "sha256": "a95ca9a51070914af4916032845d83a90cbaf3ea7e4a519e1e2451c337a2d371"
+        },
+        "base_path": "/project",
+        "use_case_sensitive_file_names": true,
+        "host_files": [],
+        "read_directory_result": [],
+        "option_probe_keys": [
+          "outDir",
+          "rootDir"
+        ],
+        "raw_own_property_probe_keys": []
+      },
+      "root_parse_diagnostics": [],
+      "parsed_errors": [],
+      "config_diagnostics": [],
+      "plan": {
+        "raw": {
+          "compilerOptions": {
+            "outDir": "./out",
+            "rootDir": "src"
+          },
+          "files": [
+            "x.ts"
+          ]
+        },
+        "file_names": [
+          "/project/x.ts"
+        ],
+        "extended_sources": [],
+        "extended_source_files": [],
+        "option_probes": [
+          {
+            "name": "outDir",
+            "state": "value",
+            "value": "/project/out"
+          },
+          {
+            "name": "rootDir",
+            "state": "value",
+            "value": "/project/src"
+          }
+        ],
+        "raw_own_property_probes": []
+      },
+      "host_log": []
+    },
+    {
+      "id": "prototype-compiler-options-own-undefined-placement",
+      "input": {
+        "root": {
+          "file_name": "/project/tsconfig.json",
+          "text": "{\"__proto__\":{\"compilerOptions\":{}},\"strict\":true,\"compilerOptions\":,\"files\":[\"x.ts\"]}",
+          "utf8_bytes": 86,
+          "sha256": "653353ebcad6fba10478bc4feec00fd5a958f4e012c17fad14260d0436ec4c36"
+        },
+        "base_path": "/project",
+        "use_case_sensitive_file_names": true,
+        "host_files": [],
+        "read_directory_result": [],
+        "option_probe_keys": [
+          "strict"
+        ],
+        "raw_own_property_probe_keys": [
+          "compilerOptions",
+          "strict",
+          "files"
+        ]
+      },
+      "root_parse_diagnostics": [
+        {
+          "code": 1109,
+          "category": "error",
+          "file": "/project/tsconfig.json",
+          "start": 68,
+          "length": 1,
+          "message": "Expression expected."
+        }
+      ],
+      "parsed_errors": [
+        {
+          "code": 5024,
+          "category": "error",
+          "file": "/project/tsconfig.json",
+          "start": 68,
+          "length": 0,
+          "message": "Compiler option 'compilerOptions' requires a value of type object."
+        },
+        {
+          "code": 6258,
+          "category": "error",
+          "file": "/project/tsconfig.json",
+          "start": 36,
+          "length": 8,
+          "message": "'strict' should be set inside the 'compilerOptions' object of the config json file"
+        }
+      ],
+      "config_diagnostics": [
+        {
+          "code": 1109,
+          "category": "error",
+          "file": "/project/tsconfig.json",
+          "start": 68,
+          "length": 1,
+          "message": "Expression expected."
+        },
+        {
+          "code": 5024,
+          "category": "error",
+          "file": "/project/tsconfig.json",
+          "start": 68,
+          "length": 0,
+          "message": "Compiler option 'compilerOptions' requires a value of type object."
+        },
+        {
+          "code": 6258,
+          "category": "error",
+          "file": "/project/tsconfig.json",
+          "start": 36,
+          "length": 8,
+          "message": "'strict' should be set inside the 'compilerOptions' object of the config json file"
+        }
+      ],
+      "plan": {
+        "raw": {
+          "strict": true,
+          "files": [
+            "x.ts"
+          ]
+        },
+        "file_names": [
+          "/project/x.ts"
+        ],
+        "extended_sources": [],
+        "extended_source_files": [],
+        "option_probes": [
+          {
+            "name": "strict",
+            "state": "absent"
+          }
+        ],
+        "raw_own_property_probes": [
+          {
+            "name": "compilerOptions",
+            "state": "undefined"
+          },
+          {
+            "name": "strict",
+            "state": "value",
+            "value": true
+          },
+          {
+            "name": "files",
+            "state": "value",
+            "value": [
+              "x.ts"
+            ]
+          }
+        ]
+      },
+      "host_log": []
+    },
+    {
+      "id": "prototype-files-own-undefined-inheritance",
+      "input": {
+        "root": {
+          "file_name": "/project/tsconfig.json",
+          "text": "{\"extends\":\"./base.json\",\"__proto__\":{\"files\":[\"proto.ts\"]},\"files\":}",
+          "utf8_bytes": 69,
+          "sha256": "f5111e7876c3e7a1e57d33f3c78793b16c0c6e6196f66cbc58f2a850c26ca0da"
+        },
+        "base_path": "/project",
+        "use_case_sensitive_file_names": true,
+        "host_files": [
+          {
+            "path": "/project/base.json",
+            "file_exists": true,
+            "read": {
+              "state": "text",
+              "source": {
+                "file_name": "/project/base.json",
+                "text": "{\"files\":[\"base.ts\"]}",
+                "utf8_bytes": 21,
+                "sha256": "9ab77a90c4726719814822c138160b1d038ad32b934255c707d1af913db945b6"
+              }
+            }
+          }
+        ],
+        "read_directory_result": [],
+        "option_probe_keys": [],
+        "raw_own_property_probe_keys": [
+          "files"
+        ]
+      },
+      "root_parse_diagnostics": [
+        {
+          "code": 1109,
+          "category": "error",
+          "file": "/project/tsconfig.json",
+          "start": 68,
+          "length": 1,
+          "message": "Expression expected."
+        }
+      ],
+      "parsed_errors": [
+        {
+          "code": 5024,
+          "category": "error",
+          "file": "/project/tsconfig.json",
+          "start": 68,
+          "length": 0,
+          "message": "Compiler option 'files' requires a value of type Array."
+        }
+      ],
+      "config_diagnostics": [
+        {
+          "code": 1109,
+          "category": "error",
+          "file": "/project/tsconfig.json",
+          "start": 68,
+          "length": 1,
+          "message": "Expression expected."
+        },
+        {
+          "code": 5024,
+          "category": "error",
+          "file": "/project/tsconfig.json",
+          "start": 68,
+          "length": 0,
+          "message": "Compiler option 'files' requires a value of type Array."
+        }
+      ],
+      "plan": {
+        "raw": {
+          "extends": "./base.json",
+          "files": [
+            "base.ts"
+          ]
+        },
+        "file_names": [
+          "/project/base.ts"
+        ],
+        "extended_sources": [
+          {
+            "file_name": "/project/base.json",
+            "text": "{\"files\":[\"base.ts\"]}",
+            "utf8_bytes": 21,
+            "sha256": "9ab77a90c4726719814822c138160b1d038ad32b934255c707d1af913db945b6"
+          }
+        ],
+        "extended_source_files": [
+          "/project/base.json"
+        ],
+        "option_probes": [],
+        "raw_own_property_probes": [
+          {
+            "name": "files",
+            "state": "value",
+            "value": [
+              "base.ts"
+            ]
+          }
+        ]
+      },
+      "host_log": [
+        {
+          "operation": "file_exists",
+          "path": "/project/base.json",
+          "result": true
+        },
+        {
+          "operation": "read_file",
+          "path": "/project/base.json",
+          "result": "text"
+        }
+      ]
+    },
+    {
+      "id": "missing-command-line-option-value",
+      "input": {
+        "root": {
+          "file_name": "/project/tsconfig.json",
+          "text": "{\"compilerOptions\":{\"help\":},\"files\":[\"x.ts\"]}",
+          "utf8_bytes": 46,
+          "sha256": "b88b3126d52ed8b60076486795fea59c1376f51a94172053d676c563845bc3da"
+        },
+        "base_path": "/project",
+        "use_case_sensitive_file_names": true,
+        "host_files": [],
+        "read_directory_result": [],
+        "option_probe_keys": [
+          "help"
+        ],
+        "raw_own_property_probe_keys": [
+          "compilerOptions"
+        ]
+      },
+      "root_parse_diagnostics": [
+        {
+          "code": 1109,
+          "category": "error",
+          "file": "/project/tsconfig.json",
+          "start": 27,
+          "length": 1,
+          "message": "Expression expected."
+        }
+      ],
+      "parsed_errors": [
+        {
+          "code": 5024,
+          "category": "error",
+          "file": "/project/tsconfig.json",
+          "start": 27,
+          "length": 0,
+          "message": "Compiler option 'help' requires a value of type boolean."
+        },
+        {
+          "code": 6266,
+          "category": "error",
+          "file": "/project/tsconfig.json",
+          "start": 20,
+          "length": 6,
+          "message": "Option 'help' can only be specified on command line."
+        }
+      ],
+      "config_diagnostics": [
+        {
+          "code": 1109,
+          "category": "error",
+          "file": "/project/tsconfig.json",
+          "start": 27,
+          "length": 1,
+          "message": "Expression expected."
+        },
+        {
+          "code": 5024,
+          "category": "error",
+          "file": "/project/tsconfig.json",
+          "start": 27,
+          "length": 0,
+          "message": "Compiler option 'help' requires a value of type boolean."
+        },
+        {
+          "code": 6266,
+          "category": "error",
+          "file": "/project/tsconfig.json",
+          "start": 20,
+          "length": 6,
+          "message": "Option 'help' can only be specified on command line."
+        }
+      ],
+      "plan": {
+        "raw": {
+          "compilerOptions": {},
+          "files": [
+            "x.ts"
+          ]
+        },
+        "file_names": [
+          "/project/x.ts"
+        ],
+        "extended_sources": [],
+        "extended_source_files": [],
+        "option_probes": [
+          {
+            "name": "help",
+            "state": "undefined"
+          }
+        ],
+        "raw_own_property_probes": [
+          {
+            "name": "compilerOptions",
+            "state": "value",
+            "value": {}
+          }
+        ]
+      },
+      "host_log": []
+    },
+    {
+      "id": "extended-truthy-scalar-files",
+      "input": {
+        "root": {
+          "file_name": "/project/tsconfig.json",
+          "text": "{\"extends\":\"./base.json\"}",
+          "utf8_bytes": 25,
+          "sha256": "11a59b944b7cfdc5f8b0273466c3e68c030566c75195f4d218b99914fd24ba35"
+        },
+        "base_path": "/project",
+        "use_case_sensitive_file_names": true,
+        "host_files": [
+          {
+            "path": "/project/base.json",
+            "file_exists": true,
+            "read": {
+              "state": "text",
+              "source": {
+                "file_name": "/project/base.json",
+                "text": "{\"files\":true}",
+                "utf8_bytes": 14,
+                "sha256": "3044aa1bf6a0f3f8da1ecb1ec6184dce50fac5dc7382e0658f9faaf43a3935ec"
+              }
+            }
+          }
+        ],
+        "read_directory_result": [],
+        "option_probe_keys": [],
+        "raw_own_property_probe_keys": [
+          "files"
+        ]
+      },
+      "root_parse_diagnostics": [],
+      "parsed_errors": [
+        {
+          "code": 5024,
+          "category": "error",
+          "file": "/project/base.json",
+          "start": 9,
+          "length": 4,
+          "message": "Compiler option 'files' requires a value of type Array."
+        }
+      ],
+      "config_diagnostics": [
+        {
+          "code": 5024,
+          "category": "error",
+          "file": "/project/base.json",
+          "start": 9,
+          "length": 4,
+          "message": "Compiler option 'files' requires a value of type Array."
+        }
+      ],
+      "plan": {
+        "raw": {
+          "extends": "./base.json",
+          "files": []
+        },
+        "file_names": [],
+        "extended_sources": [
+          {
+            "file_name": "/project/base.json",
+            "text": "{\"files\":true}",
+            "utf8_bytes": 14,
+            "sha256": "3044aa1bf6a0f3f8da1ecb1ec6184dce50fac5dc7382e0658f9faaf43a3935ec"
+          }
+        ],
+        "extended_source_files": [
+          "/project/base.json"
+        ],
+        "option_probes": [],
+        "raw_own_property_probes": [
+          {
+            "name": "files",
+            "state": "value",
+            "value": []
+          }
+        ]
+      },
+      "host_log": [
+        {
+          "operation": "file_exists",
+          "path": "/project/base.json",
+          "result": true
+        },
+        {
+          "operation": "read_file",
+          "path": "/project/base.json",
+          "result": "text"
+        }
+      ]
+    },
+    {
+      "id": "extended-null-file-element",
+      "input": {
+        "root": {
+          "file_name": "/project/tsconfig.json",
+          "text": "{\"extends\":\"./base.json\"}",
+          "utf8_bytes": 25,
+          "sha256": "11a59b944b7cfdc5f8b0273466c3e68c030566c75195f4d218b99914fd24ba35"
+        },
+        "base_path": "/project",
+        "use_case_sensitive_file_names": true,
+        "host_files": [
+          {
+            "path": "/project/base.json",
+            "file_exists": true,
+            "read": {
+              "state": "text",
+              "source": {
+                "file_name": "/project/base.json",
+                "text": "{\"files\":[null]}",
+                "utf8_bytes": 16,
+                "sha256": "3efbbff98dd52ea85a7da3ac9c98f1de3cde788f115064424ae7896b8e38b771"
+              }
+            }
+          }
+        ],
+        "read_directory_result": [],
+        "option_probe_keys": [],
+        "raw_own_property_probe_keys": [
+          "files"
+        ]
+      },
+      "root_parse_diagnostics": [],
+      "parsed_errors": [],
+      "config_diagnostics": [],
+      "plan": {
+        "raw": {
+          "extends": "./base.json",
+          "files": [
+            ""
+          ]
+        },
+        "file_names": [
+          "/project"
+        ],
+        "extended_sources": [
+          {
+            "file_name": "/project/base.json",
+            "text": "{\"files\":[null]}",
+            "utf8_bytes": 16,
+            "sha256": "3efbbff98dd52ea85a7da3ac9c98f1de3cde788f115064424ae7896b8e38b771"
+          }
+        ],
+        "extended_source_files": [
+          "/project/base.json"
+        ],
+        "option_probes": [],
+        "raw_own_property_probes": [
+          {
+            "name": "files",
+            "state": "value",
+            "value": [
+              ""
+            ]
+          }
+        ]
+      },
+      "host_log": [
+        {
+          "operation": "file_exists",
+          "path": "/project/base.json",
+          "result": true
+        },
+        {
+          "operation": "read_file",
+          "path": "/project/base.json",
+          "result": "text"
+        }
+      ]
+    },
+    {
+      "id": "unquoted-config-properties",
+      "input": {
+        "root": {
+          "file_name": "/project/tsconfig.json",
+          "text": "{compilerOptions:{strict:true},files:[\"x.ts\"]}",
+          "utf8_bytes": 46,
+          "sha256": "fb19eb8fd57123ef0c249c955d15965ef2f48e792b71d8a75badf946abc31033"
+        },
+        "base_path": "/project",
+        "use_case_sensitive_file_names": true,
+        "host_files": [],
+        "read_directory_result": [],
+        "option_probe_keys": [
+          "strict"
+        ],
+        "raw_own_property_probe_keys": []
+      },
+      "root_parse_diagnostics": [],
+      "parsed_errors": [
+        {
+          "code": 1327,
+          "category": "error",
+          "file": "/project/tsconfig.json",
+          "start": 1,
+          "length": 15,
+          "message": "String literal with double quotes expected."
+        },
+        {
+          "code": 1327,
+          "category": "error",
+          "file": "/project/tsconfig.json",
+          "start": 18,
+          "length": 6,
+          "message": "String literal with double quotes expected."
+        },
+        {
+          "code": 1327,
+          "category": "error",
+          "file": "/project/tsconfig.json",
+          "start": 31,
+          "length": 5,
+          "message": "String literal with double quotes expected."
+        }
+      ],
+      "config_diagnostics": [
+        {
+          "code": 1327,
+          "category": "error",
+          "file": "/project/tsconfig.json",
+          "start": 1,
+          "length": 15,
+          "message": "String literal with double quotes expected."
+        },
+        {
+          "code": 1327,
+          "category": "error",
+          "file": "/project/tsconfig.json",
+          "start": 18,
+          "length": 6,
+          "message": "String literal with double quotes expected."
+        },
+        {
+          "code": 1327,
+          "category": "error",
+          "file": "/project/tsconfig.json",
+          "start": 31,
+          "length": 5,
+          "message": "String literal with double quotes expected."
+        }
+      ],
+      "plan": {
+        "raw": {
+          "compilerOptions": {
+            "strict": true
+          },
+          "files": [
+            "x.ts"
+          ]
+        },
+        "file_names": [
+          "/project/x.ts"
+        ],
+        "extended_sources": [],
+        "extended_source_files": [],
+        "option_probes": [
+          {
+            "name": "strict",
+            "state": "value",
+            "value": true
+          }
+        ],
+        "raw_own_property_probes": []
+      },
+      "host_log": []
+    },
+    {
+      "id": "single-quoted-config-properties",
+      "input": {
+        "root": {
+          "file_name": "/project/tsconfig.json",
+          "text": "{'compilerOptions':{'strict':true},'files':['x.ts']}",
+          "utf8_bytes": 52,
+          "sha256": "d1d3edcfd7100af7d796438bb4d2606f8b183445c2ac2fc23de74d4150244d94"
+        },
+        "base_path": "/project",
+        "use_case_sensitive_file_names": true,
+        "host_files": [],
+        "read_directory_result": [],
+        "option_probe_keys": [
+          "strict"
+        ],
+        "raw_own_property_probe_keys": []
+      },
+      "root_parse_diagnostics": [],
+      "parsed_errors": [
+        {
+          "code": 1327,
+          "category": "error",
+          "file": "/project/tsconfig.json",
+          "start": 1,
+          "length": 17,
+          "message": "String literal with double quotes expected."
+        },
+        {
+          "code": 1327,
+          "category": "error",
+          "file": "/project/tsconfig.json",
+          "start": 20,
+          "length": 8,
+          "message": "String literal with double quotes expected."
+        },
+        {
+          "code": 1327,
+          "category": "error",
+          "file": "/project/tsconfig.json",
+          "start": 35,
+          "length": 7,
+          "message": "String literal with double quotes expected."
+        },
+        {
+          "code": 1327,
+          "category": "error",
+          "file": "/project/tsconfig.json",
+          "start": 44,
+          "length": 6,
+          "message": "String literal with double quotes expected."
+        }
+      ],
+      "config_diagnostics": [
+        {
+          "code": 1327,
+          "category": "error",
+          "file": "/project/tsconfig.json",
+          "start": 1,
+          "length": 17,
+          "message": "String literal with double quotes expected."
+        },
+        {
+          "code": 1327,
+          "category": "error",
+          "file": "/project/tsconfig.json",
+          "start": 20,
+          "length": 8,
+          "message": "String literal with double quotes expected."
+        },
+        {
+          "code": 1327,
+          "category": "error",
+          "file": "/project/tsconfig.json",
+          "start": 35,
+          "length": 7,
+          "message": "String literal with double quotes expected."
+        },
+        {
+          "code": 1327,
+          "category": "error",
+          "file": "/project/tsconfig.json",
+          "start": 44,
+          "length": 6,
+          "message": "String literal with double quotes expected."
+        }
+      ],
+      "plan": {
+        "raw": {
+          "compilerOptions": {
+            "strict": true
+          },
+          "files": [
+            "x.ts"
+          ]
+        },
+        "file_names": [
+          "/project/x.ts"
+        ],
+        "extended_sources": [],
+        "extended_source_files": [],
+        "option_probes": [
+          {
+            "name": "strict",
+            "state": "value",
+            "value": true
+          }
+        ],
+        "raw_own_property_probes": []
+      },
+      "host_log": []
+    },
+    {
+      "id": "identifier-compiler-option-value",
+      "input": {
+        "root": {
+          "file_name": "/project/tsconfig.json",
+          "text": "{\"compilerOptions\":{\"strict\":foo},\"files\":[\"x.ts\"]}",
+          "utf8_bytes": 51,
+          "sha256": "f6a69ac1bf19e4a9c7cc1f79d6b2cea55c369c961d35473d92dac2823bdad694"
+        },
+        "base_path": "/project",
+        "use_case_sensitive_file_names": true,
+        "host_files": [],
+        "read_directory_result": [],
+        "option_probe_keys": [
+          "strict"
+        ],
+        "raw_own_property_probe_keys": []
+      },
+      "root_parse_diagnostics": [],
+      "parsed_errors": [
+        {
+          "code": 5024,
+          "category": "error",
+          "file": "/project/tsconfig.json",
+          "start": 29,
+          "length": 3,
+          "message": "Compiler option 'strict' requires a value of type boolean."
+        }
+      ],
+      "config_diagnostics": [
+        {
+          "code": 5024,
+          "category": "error",
+          "file": "/project/tsconfig.json",
+          "start": 29,
+          "length": 3,
+          "message": "Compiler option 'strict' requires a value of type boolean."
+        }
+      ],
+      "plan": {
+        "raw": {
+          "compilerOptions": {},
+          "files": [
+            "x.ts"
+          ]
+        },
+        "file_names": [
+          "/project/x.ts"
+        ],
+        "extended_sources": [],
+        "extended_source_files": [],
+        "option_probes": [
+          {
+            "name": "strict",
+            "state": "undefined"
+          }
+        ],
+        "raw_own_property_probes": []
+      },
+      "host_log": []
+    },
+    {
+      "id": "array-compiler-options",
+      "input": {
+        "root": {
+          "file_name": "/project/tsconfig.json",
+          "text": "{\"compilerOptions\":[true,{\"strict\":true}],\"files\":[\"x.ts\"]}",
+          "utf8_bytes": 59,
+          "sha256": "fa5f173bbf8e316a361cf758d9758e2a4f0fe100c93cf5581ebeb15b7dcf575e"
+        },
+        "base_path": "/project",
+        "use_case_sensitive_file_names": true,
+        "host_files": [],
+        "read_directory_result": [],
+        "option_probe_keys": [
+          "strict"
+        ],
+        "raw_own_property_probe_keys": []
+      },
+      "root_parse_diagnostics": [],
+      "parsed_errors": [],
+      "config_diagnostics": [],
+      "plan": {
+        "raw": {
+          "compilerOptions": [
+            true,
+            {
+              "strict": true
+            }
+          ],
+          "files": [
+            "x.ts"
+          ]
+        },
+        "file_names": [
+          "/project/x.ts"
+        ],
+        "extended_sources": [],
+        "extended_source_files": [],
+        "option_probes": [
+          {
+            "name": "strict",
+            "state": "absent"
+          }
+        ],
+        "raw_own_property_probes": []
+      },
+      "host_log": []
+    },
+    {
+      "id": "invalid-module-option",
+      "input": {
+        "root": {
+          "file_name": "/project/tsconfig.json",
+          "text": "{\"compilerOptions\":{\"module\":\"wat\"},\"files\":[\"x.ts\"]}",
+          "utf8_bytes": 53,
+          "sha256": "bbd04c91a813faac8ee0cbae4ab2a5a9e377bf35c47b5ab8ef52e9e74eafeadd"
+        },
+        "base_path": "/project",
+        "use_case_sensitive_file_names": true,
+        "host_files": [],
+        "read_directory_result": [],
+        "option_probe_keys": [
+          "module"
+        ],
+        "raw_own_property_probe_keys": []
+      },
+      "root_parse_diagnostics": [],
+      "parsed_errors": [
+        {
+          "code": 6046,
+          "category": "error",
+          "file": "/project/tsconfig.json",
+          "start": 29,
+          "length": 5,
+          "message": "Argument for '--module' option must be: 'commonjs', 'es6', 'es2015', 'es2020', 'es2022', 'esnext', 'node16', 'node18', 'node20', 'nodenext', 'preserve'."
+        }
+      ],
+      "config_diagnostics": [
+        {
+          "code": 6046,
+          "category": "error",
+          "file": "/project/tsconfig.json",
+          "start": 29,
+          "length": 5,
+          "message": "Argument for '--module' option must be: 'commonjs', 'es6', 'es2015', 'es2020', 'es2022', 'esnext', 'node16', 'node18', 'node20', 'nodenext', 'preserve'."
+        }
+      ],
+      "plan": {
+        "raw": {
+          "compilerOptions": {
+            "module": "wat"
+          },
+          "files": [
+            "x.ts"
+          ]
+        },
+        "file_names": [
+          "/project/x.ts"
+        ],
+        "extended_sources": [],
+        "extended_source_files": [],
+        "option_probes": [
+          {
+            "name": "module",
+            "state": "undefined"
+          }
+        ],
+        "raw_own_property_probes": []
+      },
+      "host_log": []
+    },
+    {
+      "id": "unquoted-keyword-option-name",
+      "input": {
+        "root": {
+          "file_name": "/project/tsconfig.json",
+          "text": "{compilerOptions:{module:\"esnext\"},files:[\"x.ts\"]}",
+          "utf8_bytes": 50,
+          "sha256": "825adb030d098fd49b4af6c4aa748cac00a66292ecaeb19d34343e01ad7a378a"
+        },
+        "base_path": "/project",
+        "use_case_sensitive_file_names": true,
+        "host_files": [],
+        "read_directory_result": [],
+        "option_probe_keys": [
+          "module"
+        ],
+        "raw_own_property_probe_keys": []
+      },
+      "root_parse_diagnostics": [],
+      "parsed_errors": [
+        {
+          "code": 1327,
+          "category": "error",
+          "file": "/project/tsconfig.json",
+          "start": 1,
+          "length": 15,
+          "message": "String literal with double quotes expected."
+        },
+        {
+          "code": 1327,
+          "category": "error",
+          "file": "/project/tsconfig.json",
+          "start": 18,
+          "length": 6,
+          "message": "String literal with double quotes expected."
+        },
+        {
+          "code": 1327,
+          "category": "error",
+          "file": "/project/tsconfig.json",
+          "start": 35,
+          "length": 5,
+          "message": "String literal with double quotes expected."
+        }
+      ],
+      "config_diagnostics": [
+        {
+          "code": 1327,
+          "category": "error",
+          "file": "/project/tsconfig.json",
+          "start": 1,
+          "length": 15,
+          "message": "String literal with double quotes expected."
+        },
+        {
+          "code": 1327,
+          "category": "error",
+          "file": "/project/tsconfig.json",
+          "start": 18,
+          "length": 6,
+          "message": "String literal with double quotes expected."
+        },
+        {
+          "code": 1327,
+          "category": "error",
+          "file": "/project/tsconfig.json",
+          "start": 35,
+          "length": 5,
+          "message": "String literal with double quotes expected."
+        }
+      ],
+      "plan": {
+        "raw": {
+          "compilerOptions": {
+            "module": "esnext"
+          },
+          "files": [
+            "x.ts"
+          ]
+        },
+        "file_names": [
+          "/project/x.ts"
+        ],
+        "extended_sources": [],
+        "extended_source_files": [],
+        "option_probes": [
+          {
+            "name": "module",
+            "state": "value",
+            "value": 99
+          }
+        ],
+        "raw_own_property_probes": []
+      },
+      "host_log": []
+    },
+    {
+      "id": "typed-rooted-path-options",
+      "input": {
+        "root": {
+          "file_name": "/project/tsconfig.json",
+          "text": "{\"compilerOptions\":{\"outDir\":\"//server/share/out\",\"rootDir\":\"file:///tmp/src\"},\"files\":[\"x.ts\"]}",
+          "utf8_bytes": 96,
+          "sha256": "99cbf10f4b229d13c1cecb68fc8de34cdefa68d1d3d25d73eeef8ea503d8db94"
+        },
+        "base_path": "/project",
+        "use_case_sensitive_file_names": true,
+        "host_files": [],
+        "read_directory_result": [],
+        "option_probe_keys": [
+          "outDir",
+          "rootDir"
+        ],
+        "raw_own_property_probe_keys": []
+      },
+      "root_parse_diagnostics": [],
+      "parsed_errors": [],
+      "config_diagnostics": [],
+      "plan": {
+        "raw": {
+          "compilerOptions": {
+            "outDir": "//server/share/out",
+            "rootDir": "file:///tmp/src"
+          },
+          "files": [
+            "x.ts"
+          ]
+        },
+        "file_names": [
+          "/project/x.ts"
+        ],
+        "extended_sources": [],
+        "extended_source_files": [],
+        "option_probes": [
+          {
+            "name": "outDir",
+            "state": "value",
+            "value": "//server/share/out"
+          },
+          {
+            "name": "rootDir",
+            "state": "value",
+            "value": "file:///tmp/src"
+          }
+        ],
+        "raw_own_property_probes": []
+      },
+      "host_log": []
+    },
+    {
+      "id": "quoted-array-root-cycle-suffix-order",
+      "input": {
+        "root": {
+          "file_name": "/project/tsconfig.json",
+          "text": "{\"extends\":\"./a.json\",\"files\":[\"x.ts\"]}",
+          "utf8_bytes": 39,
+          "sha256": "52cc8d5972002f458940385af520f5620daebb3047eebe588667f2f598cffada"
+        },
+        "base_path": "/project",
+        "use_case_sensitive_file_names": true,
+        "host_files": [
+          {
+            "path": "/project/a.json",
+            "file_exists": true,
+            "read": {
+              "state": "text",
+              "source": {
+                "file_name": "/project/a.json",
+                "text": "[{'extends':'./a.json'},{'note':'x'}]",
+                "utf8_bytes": 37,
+                "sha256": "ba5822d053b2c221138b22648506831e712fd62a5099eac452555d522f1b24cc"
+              }
+            }
+          }
+        ],
+        "read_directory_result": [],
+        "option_probe_keys": [],
+        "raw_own_property_probe_keys": []
+      },
+      "root_parse_diagnostics": [],
+      "parsed_errors": [
+        {
+          "code": 5092,
+          "category": "error",
+          "file": "/project/a.json",
+          "start": 0,
+          "length": 37,
+          "message": "The root value of a 'tsconfig.json' file must be an object."
+        },
+        {
+          "code": 1327,
+          "category": "error",
+          "file": "/project/a.json",
+          "start": 2,
+          "length": 9,
+          "message": "String literal with double quotes expected."
+        },
+        {
+          "code": 1327,
+          "category": "error",
+          "file": "/project/a.json",
+          "start": 12,
+          "length": 10,
+          "message": "String literal with double quotes expected."
+        },
+        {
+          "code": 18000,
+          "category": "error",
+          "file": null,
+          "start": null,
+          "length": null,
+          "message": "Circularity detected while resolving configuration: /project/tsconfig.json -> /project/a.json -> /project/a.json"
+        },
+        {
+          "code": 1327,
+          "category": "error",
+          "file": "/project/a.json",
+          "start": 2,
+          "length": 9,
+          "message": "String literal with double quotes expected."
+        },
+        {
+          "code": 1327,
+          "category": "error",
+          "file": "/project/a.json",
+          "start": 12,
+          "length": 10,
+          "message": "String literal with double quotes expected."
+        },
+        {
+          "code": 1327,
+          "category": "error",
+          "file": "/project/a.json",
+          "start": 25,
+          "length": 6,
+          "message": "String literal with double quotes expected."
+        },
+        {
+          "code": 1327,
+          "category": "error",
+          "file": "/project/a.json",
+          "start": 32,
+          "length": 3,
+          "message": "String literal with double quotes expected."
+        }
+      ],
+      "config_diagnostics": [
+        {
+          "code": 5092,
+          "category": "error",
+          "file": "/project/a.json",
+          "start": 0,
+          "length": 37,
+          "message": "The root value of a 'tsconfig.json' file must be an object."
+        },
+        {
+          "code": 1327,
+          "category": "error",
+          "file": "/project/a.json",
+          "start": 2,
+          "length": 9,
+          "message": "String literal with double quotes expected."
+        },
+        {
+          "code": 1327,
+          "category": "error",
+          "file": "/project/a.json",
+          "start": 12,
+          "length": 10,
+          "message": "String literal with double quotes expected."
+        },
+        {
+          "code": 18000,
+          "category": "error",
+          "file": null,
+          "start": null,
+          "length": null,
+          "message": "Circularity detected while resolving configuration: /project/tsconfig.json -> /project/a.json -> /project/a.json"
+        },
+        {
+          "code": 1327,
+          "category": "error",
+          "file": "/project/a.json",
+          "start": 2,
+          "length": 9,
+          "message": "String literal with double quotes expected."
+        },
+        {
+          "code": 1327,
+          "category": "error",
+          "file": "/project/a.json",
+          "start": 12,
+          "length": 10,
+          "message": "String literal with double quotes expected."
+        },
+        {
+          "code": 1327,
+          "category": "error",
+          "file": "/project/a.json",
+          "start": 25,
+          "length": 6,
+          "message": "String literal with double quotes expected."
+        },
+        {
+          "code": 1327,
+          "category": "error",
+          "file": "/project/a.json",
+          "start": 32,
+          "length": 3,
+          "message": "String literal with double quotes expected."
+        }
+      ],
+      "plan": {
+        "raw": {
+          "extends": "./a.json",
+          "files": [
+            "x.ts"
+          ]
+        },
+        "file_names": [
+          "/project/x.ts"
+        ],
+        "extended_sources": [
+          {
+            "file_name": "/project/a.json",
+            "text": "[{'extends':'./a.json'},{'note':'x'}]",
+            "utf8_bytes": 37,
+            "sha256": "ba5822d053b2c221138b22648506831e712fd62a5099eac452555d522f1b24cc"
+          }
+        ],
+        "extended_source_files": [
+          "/project/a.json"
+        ],
+        "option_probes": [],
+        "raw_own_property_probes": []
+      },
+      "host_log": [
+        {
+          "operation": "file_exists",
+          "path": "/project/a.json",
+          "result": true
+        },
+        {
+          "operation": "read_file",
+          "path": "/project/a.json",
+          "result": "text"
+        },
+        {
+          "operation": "file_exists",
+          "path": "/project/a.json",
+          "result": true
+        },
+        {
+          "operation": "read_file",
+          "path": "/project/a.json",
+          "result": "text"
+        }
+      ]
+    },
+    {
+      "id": "file-url-parent-normalization",
+      "input": {
+        "root": {
+          "file_name": "/project/tsconfig.json",
+          "text": "{\"compilerOptions\":{\"rootDir\":\"file:///c:/../x\"},\"files\":[\"x.ts\"]}",
+          "utf8_bytes": 66,
+          "sha256": "863db7a2721cde19697630ad96dc00eb744d34fb7b9c7cb6ba28052b76a30f2c"
+        },
+        "base_path": "/project",
+        "use_case_sensitive_file_names": true,
+        "host_files": [],
+        "read_directory_result": [],
+        "option_probe_keys": [
+          "rootDir"
+        ],
+        "raw_own_property_probe_keys": []
+      },
+      "root_parse_diagnostics": [],
+      "parsed_errors": [],
+      "config_diagnostics": [],
+      "plan": {
+        "raw": {
+          "compilerOptions": {
+            "rootDir": "file:///c:/../x"
+          },
+          "files": [
+            "x.ts"
+          ]
+        },
+        "file_names": [
+          "/project/x.ts"
+        ],
+        "extended_sources": [],
+        "extended_source_files": [],
+        "option_probes": [
+          {
+            "name": "rootDir",
+            "state": "value",
+            "value": "file:///c:/x"
+          }
+        ],
+        "raw_own_property_probes": []
+      },
+      "host_log": []
+    },
+    {
+      "id": "file-url-parent-boundary",
+      "input": {
+        "root": {
+          "file_name": "/project/tsconfig.json",
+          "text": "{\"compilerOptions\":{\"rootDir\":\"file:///c:/..\"},\"files\":[\"x.ts\"]}",
+          "utf8_bytes": 64,
+          "sha256": "9be336a0944e551f54864cbf1236c496ec03d4a340a9593385b3d236f9152c5e"
+        },
+        "base_path": "/project",
+        "use_case_sensitive_file_names": true,
+        "host_files": [],
+        "read_directory_result": [],
+        "option_probe_keys": [
+          "rootDir"
+        ],
+        "raw_own_property_probe_keys": []
+      },
+      "root_parse_diagnostics": [],
+      "parsed_errors": [],
+      "config_diagnostics": [],
+      "plan": {
+        "raw": {
+          "compilerOptions": {
+            "rootDir": "file:///c:/.."
+          },
+          "files": [
+            "x.ts"
+          ]
+        },
+        "file_names": [
+          "/project/x.ts"
+        ],
+        "extended_sources": [],
+        "extended_source_files": [],
+        "option_probes": [
+          {
+            "name": "rootDir",
+            "state": "value",
+            "value": "file:///c:/"
+          }
+        ],
+        "raw_own_property_probes": []
+      },
+      "host_log": []
+    },
+    {
+      "id": "keyword-compiler-option-value",
+      "input": {
+        "root": {
+          "file_name": "/project/tsconfig.json",
+          "text": "{\"compilerOptions\":{\"strict\":module},\"files\":[\"x.ts\"]}",
+          "utf8_bytes": 54,
+          "sha256": "8c0ed26f59a26b25b2ff260bb66af20ca1b16f1482868ced95ff485eca9718b9"
+        },
+        "base_path": "/project",
+        "use_case_sensitive_file_names": true,
+        "host_files": [],
+        "read_directory_result": [],
+        "option_probe_keys": [
+          "strict"
+        ],
+        "raw_own_property_probe_keys": []
+      },
+      "root_parse_diagnostics": [],
+      "parsed_errors": [
+        {
+          "code": 5024,
+          "category": "error",
+          "file": "/project/tsconfig.json",
+          "start": 29,
+          "length": 6,
+          "message": "Compiler option 'strict' requires a value of type boolean."
+        }
+      ],
+      "config_diagnostics": [
+        {
+          "code": 5024,
+          "category": "error",
+          "file": "/project/tsconfig.json",
+          "start": 29,
+          "length": 6,
+          "message": "Compiler option 'strict' requires a value of type boolean."
+        }
+      ],
+      "plan": {
+        "raw": {
+          "compilerOptions": {},
+          "files": [
+            "x.ts"
+          ]
+        },
+        "file_names": [
+          "/project/x.ts"
+        ],
+        "extended_sources": [],
+        "extended_source_files": [],
+        "option_probes": [
+          {
+            "name": "strict",
+            "state": "undefined"
+          }
+        ],
+        "raw_own_property_probes": []
+      },
+      "host_log": []
+    },
+    {
+      "id": "path-option-normalization-boundaries",
+      "input": {
+        "root": {
+          "file_name": "/project/tsconfig.json",
+          "text": "{\"compilerOptions\":{\"outDir\":\"/a//\",\"rootDir\":\"/a/.//\",\"declarationDir\":\"c:\",\"mapRoot\":\"foo_bar://h/a\"},\"files\":[\"x.ts\"]}",
+          "utf8_bytes": 121,
+          "sha256": "8b93155594a562ffc48e7a3d54b54c1411f739ffde8b61eadcbb177ec72cd75c"
+        },
+        "base_path": "/project",
+        "use_case_sensitive_file_names": true,
+        "host_files": [],
+        "read_directory_result": [],
+        "option_probe_keys": [
+          "outDir",
+          "rootDir",
+          "declarationDir",
+          "mapRoot"
+        ],
+        "raw_own_property_probe_keys": []
+      },
+      "root_parse_diagnostics": [],
+      "parsed_errors": [],
+      "config_diagnostics": [],
+      "plan": {
+        "raw": {
+          "compilerOptions": {
+            "outDir": "/a//",
+            "rootDir": "/a/.//",
+            "declarationDir": "c:",
+            "mapRoot": "foo_bar://h/a"
+          },
+          "files": [
+            "x.ts"
+          ]
+        },
+        "file_names": [
+          "/project/x.ts"
+        ],
+        "extended_sources": [],
+        "extended_source_files": [],
+        "option_probes": [
+          {
+            "name": "outDir",
+            "state": "value",
+            "value": "/a/"
+          },
+          {
+            "name": "rootDir",
+            "state": "value",
+            "value": "/a//"
+          },
+          {
+            "name": "declarationDir",
+            "state": "value",
+            "value": "c:"
+          },
+          {
+            "name": "mapRoot",
+            "state": "value",
+            "value": "foo_bar://h/a"
+          }
+        ],
+        "raw_own_property_probes": []
+      },
+      "host_log": []
+    },
+    {
+      "id": "array-compiler-option-value",
+      "input": {
+        "root": {
+          "file_name": "/project/tsconfig.json",
+          "text": "{\"compilerOptions\":{\"strict\":[foo]},\"files\":[\"x.ts\"]}",
+          "utf8_bytes": 53,
+          "sha256": "059ddc40aa08229348a6c5647aeba7bac9aebc34086bab9a9601a6a0c43c0787"
+        },
+        "base_path": "/project",
+        "use_case_sensitive_file_names": true,
+        "host_files": [],
+        "read_directory_result": [],
+        "option_probe_keys": [
+          "strict"
+        ],
+        "raw_own_property_probe_keys": []
+      },
+      "root_parse_diagnostics": [],
+      "parsed_errors": [
+        {
+          "code": 1328,
+          "category": "error",
+          "file": "/project/tsconfig.json",
+          "start": 30,
+          "length": 3,
+          "message": "Property value can only be string literal, numeric literal, 'true', 'false', 'null', object literal or array literal."
+        },
+        {
+          "code": 5024,
+          "category": "error",
+          "file": "/project/tsconfig.json",
+          "start": 29,
+          "length": 5,
+          "message": "Compiler option 'strict' requires a value of type boolean."
+        }
+      ],
+      "config_diagnostics": [
+        {
+          "code": 1328,
+          "category": "error",
+          "file": "/project/tsconfig.json",
+          "start": 30,
+          "length": 3,
+          "message": "Property value can only be string literal, numeric literal, 'true', 'false', 'null', object literal or array literal."
+        },
+        {
+          "code": 5024,
+          "category": "error",
+          "file": "/project/tsconfig.json",
+          "start": 29,
+          "length": 5,
+          "message": "Compiler option 'strict' requires a value of type boolean."
+        }
+      ],
+      "plan": {
+        "raw": {
+          "compilerOptions": {
+            "strict": []
+          },
+          "files": [
+            "x.ts"
+          ]
+        },
+        "file_names": [
+          "/project/x.ts"
+        ],
+        "extended_sources": [],
+        "extended_source_files": [],
+        "option_probes": [
+          {
+            "name": "strict",
+            "state": "undefined"
+          }
+        ],
+        "raw_own_property_probes": []
+      },
+      "host_log": []
+    },
+    {
+      "id": "extended-self-cycle-conversion-replay",
+      "input": {
+        "root": {
+          "file_name": "/project/tsconfig.json",
+          "text": "{\"extends\":\"./a.json\",\"files\":[\"x.ts\"]}",
+          "utf8_bytes": 39,
+          "sha256": "52cc8d5972002f458940385af520f5620daebb3047eebe588667f2f598cffada"
+        },
+        "base_path": "/project",
+        "use_case_sensitive_file_names": true,
+        "host_files": [
+          {
+            "path": "/project/a.json",
+            "file_exists": true,
+            "read": {
+              "state": "text",
+              "source": {
+                "file_name": "/project/a.json",
+                "text": "{\"extends\":\"./a.json\",\"note\":foo}",
+                "utf8_bytes": 33,
+                "sha256": "22f1d8f2612b91100ea1ad93a0697c03135886426ed91345919dd5dd7a8b415d"
+              }
+            }
+          }
+        ],
+        "read_directory_result": [],
+        "option_probe_keys": [],
+        "raw_own_property_probe_keys": []
+      },
+      "root_parse_diagnostics": [],
+      "parsed_errors": [
+        {
+          "code": 1328,
+          "category": "error",
+          "file": "/project/a.json",
+          "start": 29,
+          "length": 3,
+          "message": "Property value can only be string literal, numeric literal, 'true', 'false', 'null', object literal or array literal."
+        },
+        {
+          "code": 18000,
+          "category": "error",
+          "file": null,
+          "start": null,
+          "length": null,
+          "message": "Circularity detected while resolving configuration: /project/tsconfig.json -> /project/a.json -> /project/a.json"
+        },
+        {
+          "code": 1328,
+          "category": "error",
+          "file": "/project/a.json",
+          "start": 29,
+          "length": 3,
+          "message": "Property value can only be string literal, numeric literal, 'true', 'false', 'null', object literal or array literal."
+        }
+      ],
+      "config_diagnostics": [
+        {
+          "code": 1328,
+          "category": "error",
+          "file": "/project/a.json",
+          "start": 29,
+          "length": 3,
+          "message": "Property value can only be string literal, numeric literal, 'true', 'false', 'null', object literal or array literal."
+        },
+        {
+          "code": 18000,
+          "category": "error",
+          "file": null,
+          "start": null,
+          "length": null,
+          "message": "Circularity detected while resolving configuration: /project/tsconfig.json -> /project/a.json -> /project/a.json"
+        },
+        {
+          "code": 1328,
+          "category": "error",
+          "file": "/project/a.json",
+          "start": 29,
+          "length": 3,
+          "message": "Property value can only be string literal, numeric literal, 'true', 'false', 'null', object literal or array literal."
+        }
+      ],
+      "plan": {
+        "raw": {
+          "extends": "./a.json",
+          "files": [
+            "x.ts"
+          ]
+        },
+        "file_names": [
+          "/project/x.ts"
+        ],
+        "extended_sources": [
+          {
+            "file_name": "/project/a.json",
+            "text": "{\"extends\":\"./a.json\",\"note\":foo}",
+            "utf8_bytes": 33,
+            "sha256": "22f1d8f2612b91100ea1ad93a0697c03135886426ed91345919dd5dd7a8b415d"
+          }
+        ],
+        "extended_source_files": [
+          "/project/a.json"
+        ],
+        "option_probes": [],
+        "raw_own_property_probes": []
+      },
+      "host_log": [
+        {
+          "operation": "file_exists",
+          "path": "/project/a.json",
+          "result": true
+        },
+        {
+          "operation": "read_file",
+          "path": "/project/a.json",
+          "result": "text"
+        },
+        {
+          "operation": "file_exists",
+          "path": "/project/a.json",
+          "result": true
+        },
+        {
+          "operation": "read_file",
+          "path": "/project/a.json",
+          "result": "text"
+        }
+      ]
+    },
+    {
+      "id": "unknown-option-single-quoted-value",
+      "input": {
+        "root": {
+          "file_name": "/project/tsconfig.json",
+          "text": "{\"compilerOptions\":{\"wat\":'x'},\"files\":[\"x.ts\"]}",
+          "utf8_bytes": 48,
+          "sha256": "9473d07eca6e12fdeca9434bb4352800459dba539ba21d6096a8be8a55cea388"
+        },
+        "base_path": "/project",
+        "use_case_sensitive_file_names": true,
+        "host_files": [],
+        "read_directory_result": [],
+        "option_probe_keys": [
+          "wat"
+        ],
+        "raw_own_property_probe_keys": []
+      },
+      "root_parse_diagnostics": [],
+      "parsed_errors": [
+        {
+          "code": 1327,
+          "category": "error",
+          "file": "/project/tsconfig.json",
+          "start": 26,
+          "length": 3,
+          "message": "String literal with double quotes expected."
+        },
+        {
+          "code": 5023,
+          "category": "error",
+          "file": "/project/tsconfig.json",
+          "start": 20,
+          "length": 5,
+          "message": "Unknown compiler option 'wat'."
+        }
+      ],
+      "config_diagnostics": [
+        {
+          "code": 1327,
+          "category": "error",
+          "file": "/project/tsconfig.json",
+          "start": 26,
+          "length": 3,
+          "message": "String literal with double quotes expected."
+        },
+        {
+          "code": 5023,
+          "category": "error",
+          "file": "/project/tsconfig.json",
+          "start": 20,
+          "length": 5,
+          "message": "Unknown compiler option 'wat'."
+        }
+      ],
+      "plan": {
+        "raw": {
+          "compilerOptions": {
+            "wat": "x"
+          },
+          "files": [
+            "x.ts"
+          ]
+        },
+        "file_names": [
+          "/project/x.ts"
+        ],
+        "extended_sources": [],
+        "extended_source_files": [],
+        "option_probes": [
+          {
+            "name": "wat",
+            "state": "absent"
+          }
+        ],
+        "raw_own_property_probes": []
+      },
+      "host_log": []
+    },
+    {
+      "id": "command-line-only-string-value",
+      "input": {
+        "root": {
+          "file_name": "/project/tsconfig.json",
+          "text": "{\"compilerOptions\":{\"help\":'x'},\"files\":[\"x.ts\"]}",
+          "utf8_bytes": 49,
+          "sha256": "cbabf68f3fad371178c3a31b3c08757fd318b52070ab68fabf0077272efa7cad"
+        },
+        "base_path": "/project",
+        "use_case_sensitive_file_names": true,
+        "host_files": [],
+        "read_directory_result": [],
+        "option_probe_keys": [
+          "help"
+        ],
+        "raw_own_property_probe_keys": []
+      },
+      "root_parse_diagnostics": [],
+      "parsed_errors": [
+        {
+          "code": 1327,
+          "category": "error",
+          "file": "/project/tsconfig.json",
+          "start": 27,
+          "length": 3,
+          "message": "String literal with double quotes expected."
+        },
+        {
+          "code": 6266,
+          "category": "error",
+          "file": "/project/tsconfig.json",
+          "start": 20,
+          "length": 6,
+          "message": "Option 'help' can only be specified on command line."
+        }
+      ],
+      "config_diagnostics": [
+        {
+          "code": 1327,
+          "category": "error",
+          "file": "/project/tsconfig.json",
+          "start": 27,
+          "length": 3,
+          "message": "String literal with double quotes expected."
+        },
+        {
+          "code": 6266,
+          "category": "error",
+          "file": "/project/tsconfig.json",
+          "start": 20,
+          "length": 6,
+          "message": "Option 'help' can only be specified on command line."
+        }
+      ],
+      "plan": {
+        "raw": {
+          "compilerOptions": {
+            "help": "x"
+          },
+          "files": [
+            "x.ts"
+          ]
+        },
+        "file_names": [
+          "/project/x.ts"
+        ],
+        "extended_sources": [],
+        "extended_source_files": [],
+        "option_probes": [
+          {
+            "name": "help",
+            "state": "undefined"
+          }
+        ],
+        "raw_own_property_probes": []
+      },
+      "host_log": []
+    },
+    {
+      "id": "object-compiler-option-value",
+      "input": {
+        "root": {
+          "file_name": "/project/tsconfig.json",
+          "text": "{\"compilerOptions\":{\"strict\":{\"x\":'y'}},\"files\":[\"x.ts\"]}",
+          "utf8_bytes": 57,
+          "sha256": "1d487f055e96138be1921d25eb50cb962669e9e961c38a17800aacc4c9c7bf96"
+        },
+        "base_path": "/project",
+        "use_case_sensitive_file_names": true,
+        "host_files": [],
+        "read_directory_result": [],
+        "option_probe_keys": [
+          "strict"
+        ],
+        "raw_own_property_probe_keys": []
+      },
+      "root_parse_diagnostics": [],
+      "parsed_errors": [
+        {
+          "code": 1327,
+          "category": "error",
+          "file": "/project/tsconfig.json",
+          "start": 34,
+          "length": 3,
+          "message": "String literal with double quotes expected."
+        },
+        {
+          "code": 5024,
+          "category": "error",
+          "file": "/project/tsconfig.json",
+          "start": 29,
+          "length": 9,
+          "message": "Compiler option 'strict' requires a value of type boolean."
+        }
+      ],
+      "config_diagnostics": [
+        {
+          "code": 1327,
+          "category": "error",
+          "file": "/project/tsconfig.json",
+          "start": 34,
+          "length": 3,
+          "message": "String literal with double quotes expected."
+        },
+        {
+          "code": 5024,
+          "category": "error",
+          "file": "/project/tsconfig.json",
+          "start": 29,
+          "length": 9,
+          "message": "Compiler option 'strict' requires a value of type boolean."
+        }
+      ],
+      "plan": {
+        "raw": {
+          "compilerOptions": {
+            "strict": {
+              "x": "y"
+            }
+          },
+          "files": [
+            "x.ts"
+          ]
+        },
+        "file_names": [
+          "/project/x.ts"
+        ],
+        "extended_sources": [],
+        "extended_source_files": [],
+        "option_probes": [
+          {
+            "name": "strict",
+            "state": "undefined"
+          }
+        ],
+        "raw_own_property_probes": []
+      },
+      "host_log": []
+    },
+    {
+      "id": "file-spec-diagnostic-owner-order",
+      "input": {
+        "root": {
+          "file_name": "/project/tsconfig.json",
+          "text": "{\"files\":[foo,{\"x\":'y'}]}",
+          "utf8_bytes": 25,
+          "sha256": "96728c5259136b73653fd5fefd2204ff8f690f01af4fda1b5ad1d6dd4507f56e"
+        },
+        "base_path": "/project",
+        "use_case_sensitive_file_names": true,
+        "host_files": [],
+        "read_directory_result": [],
+        "option_probe_keys": [],
+        "raw_own_property_probe_keys": []
+      },
+      "root_parse_diagnostics": [],
+      "parsed_errors": [
+        {
+          "code": 5024,
+          "category": "error",
+          "file": "/project/tsconfig.json",
+          "start": 10,
+          "length": 3,
+          "message": "Compiler option 'files' requires a value of type string."
+        },
+        {
+          "code": 1327,
+          "category": "error",
+          "file": "/project/tsconfig.json",
+          "start": 19,
+          "length": 3,
+          "message": "String literal with double quotes expected."
+        },
+        {
+          "code": 5024,
+          "category": "error",
+          "file": "/project/tsconfig.json",
+          "start": 10,
+          "length": 3,
+          "message": "Compiler option 'files' requires a value of type string."
+        }
+      ],
+      "config_diagnostics": [
+        {
+          "code": 5024,
+          "category": "error",
+          "file": "/project/tsconfig.json",
+          "start": 10,
+          "length": 3,
+          "message": "Compiler option 'files' requires a value of type string."
+        },
+        {
+          "code": 1327,
+          "category": "error",
+          "file": "/project/tsconfig.json",
+          "start": 19,
+          "length": 3,
+          "message": "String literal with double quotes expected."
+        },
+        {
+          "code": 5024,
+          "category": "error",
+          "file": "/project/tsconfig.json",
+          "start": 10,
+          "length": 3,
+          "message": "Compiler option 'files' requires a value of type string."
+        }
+      ],
+      "plan": {
+        "raw": {
+          "files": [
+            {
+              "x": "y"
+            }
+          ]
+        },
+        "file_names": [],
+        "extended_sources": [],
+        "extended_source_files": [],
+        "option_probes": [],
+        "raw_own_property_probes": []
+      },
+      "host_log": []
+    }
+  ]
+}
