@@ -430,12 +430,13 @@ and the catalog-enabled `load_program`. Both require `noEmit=true` and accept
 explicit TypeScript-family roots. With `allowJs`, explicit `.js`, `.jsx`,
 `.mjs`, and `.cjs` roots, local JavaScript module dependencies, and supported
 JavaScript path references join ordinary source membership. JavaScript targets
-found through `node_modules` retain authoritative unloaded resolution rows,
-matching the default `maxNodeModuleJsDepth=0`; nonzero depths remain outside
-this slice. Every unloaded row carries its reason across the compiler seam, so
-an `allowJs` program cannot silently accept an unexplained local unloaded
-target. A `.jsx` module target without an active JSX mode is retained without
-reading its bytes and produces TS6142; an already-owned `.jsx` source still
+found while searching `node_modules` advance a separate external-library depth
+on every external resolution edge and join membership through the inclusive
+`maxNodeModuleJsDepth` boundary. Deeper targets retain authoritative unloaded
+resolution rows. Every unloaded row carries its reason across the compiler
+seam, so an `allowJs` program cannot silently accept an unexplained local
+unloaded target. A `.jsx` module target without an active JSX mode is retained
+without reading its bytes and produces TS6142; an already-owned `.jsx` source still
 produces TS6142 without losing its module symbol. Effective
 `resolveJsonModule` admits explicit JSON roots as well as explicit JSON
 requests. `noDtsResolution` is also still outside this slice. The no-lib
@@ -516,7 +517,10 @@ package-scope and implied-format facts, program-construction diagnostics, and
 authoritative type/module rows. Supported misses remain normal tsc
 diagnostics or `NotFound` rows. JavaScript resolutions remain unloaded under
 `allowJs=false`; with `allowJs`, local JavaScript joins source membership while
-`node_modules` JavaScript remains unloaded at the default depth zero. An
+external JavaScript is admitted through `maxNodeModuleJsDepth` (default zero).
+If an existing source is later reached outside `node_modules`, its path, type,
+lib, and module references are reprocessed; a merely shallower revisit retries
+only imports previously elided by the depth boundary. An
 explicit `.json` request loads JSON only when `resolveJsonModule` is effective.
 External-library reachability remains part of source emit eligibility.
 Same-tree Unix canaries, including `rootDirs`,
@@ -541,10 +545,10 @@ non-recursive token preflight: unsupported expression tokens expose empty
 package fields directly, and object/array nesting above 256 does the same. The
 converter itself uses an explicit task stack.
 
-This is deliberately not general H0.4 program construction. Nonzero
-`maxNodeModuleJsDepth`, config-derived root-file selection, the remaining path
-and physical-alias policies, and the complete cross-platform
-case/separator/symlink/encoding matrix remain in later slices. Discovery stays
+This is deliberately not general H0.4 program construction. Config-derived
+root-file selection, the remaining path and physical-alias policies, and the
+complete cross-platform case/separator/symlink/encoding matrix remain in later
+slices. Discovery stays
 sequential where vendored host calls and failure precedence are observable;
 future pipeline parallelism must preserve that contract.
 

@@ -155,6 +155,58 @@ fn module_key(program: &PreparedProgram, source_path: &str, specifier: &str) -> 
         .clone()
 }
 
+fn assert_source_module_target(
+    program: &PreparedProgram,
+    source_path: &str,
+    specifier: &str,
+    expected_path: &str,
+) {
+    let resolution = program
+        .resolutions()
+        .require_module(&module_key(program, source_path, specifier))
+        .expect("module request has an authoritative row");
+    let ResolutionOutcome::Resolved(resolved) = resolution.outcome() else {
+        panic!("module request must resolve: {source_path} -> {specifier}");
+    };
+    let ResolvedModuleTarget::Source {
+        source,
+        resolved_file,
+    } = resolved.target()
+    else {
+        panic!("module target must join source membership: {source_path} -> {specifier}");
+    };
+    assert_eq!(resolved_file.display(), Path::new(expected_path));
+    assert_eq!(
+        program.source_file(*source).unwrap().path().display(),
+        Path::new(expected_path)
+    );
+}
+
+fn assert_unloaded_module_target(
+    program: &PreparedProgram,
+    source_path: &str,
+    specifier: &str,
+    expected_path: &str,
+    expected_reason: UnloadedModuleReason,
+) {
+    let resolution = program
+        .resolutions()
+        .require_module(&module_key(program, source_path, specifier))
+        .expect("module request has an authoritative row");
+    let ResolutionOutcome::Resolved(resolved) = resolution.outcome() else {
+        panic!("module request must resolve: {source_path} -> {specifier}");
+    };
+    let ResolvedModuleTarget::Unloaded {
+        resolved_file,
+        reason,
+    } = resolved.target()
+    else {
+        panic!("module target must remain unloaded: {source_path} -> {specifier}");
+    };
+    assert_eq!(resolved_file.display(), Path::new(expected_path));
+    assert_eq!(*reason, expected_reason);
+}
+
 fn type_reference_key(
     program: &PreparedProgram,
     source_path: &str,
@@ -2094,6 +2146,499 @@ fn allow_js_keeps_default_depth_external_package_javascript_unloaded() {
     assert_eq!(*reason, UnloadedModuleReason::NodeModulesDepth);
     assert!(resolved.is_external_library_import());
     assert_eq!(path.display(), Path::new("/work/node_modules/pkg/index.js"));
+}
+
+#[test]
+fn max_node_module_js_depth_admits_each_external_javascript_layer_in_tsc_postorder() {
+    for max_depth in 0..=3 {
+        let mut builder = MemoryCompilerHost::builder("/work")
+            .file("/work/root.ts", b"import 'a';\nexport {};\n".to_vec())
+            .file(
+                "/work/node_modules/a/package.json",
+                br#"{"name":"a","version":"1.0.0","main":"index.js"}"#.to_vec(),
+            )
+            .file(
+                "/work/node_modules/a/index.js",
+                b"import './leaf.js';\nimport 'b';\nexport {};\n".to_vec(),
+            )
+            .file(
+                "/work/node_modules/a/leaf.js",
+                b"export const aLeaf = true;\n".to_vec(),
+            )
+            .file(
+                "/work/node_modules/b/package.json",
+                br#"{"name":"b","version":"1.0.0","main":"index.js"}"#.to_vec(),
+            )
+            .file(
+                "/work/node_modules/b/index.js",
+                b"import './leaf.js';\nexport {};\n".to_vec(),
+            )
+            .file(
+                "/work/node_modules/b/leaf.js",
+                b"export const bLeaf = true;\n".to_vec(),
+            );
+        let unread_paths: &[&str] = match max_depth {
+            0 => &["/work/node_modules/a/index.js"],
+            1 => &[
+                "/work/node_modules/a/leaf.js",
+                "/work/node_modules/b/index.js",
+            ],
+            2 => &["/work/node_modules/b/leaf.js"],
+            3 => &[],
+            _ => unreachable!(),
+        };
+        for path in unread_paths {
+            builder = builder.failure(HostError::new(
+                HostErrorKind::Other,
+                HostOperation::ReadFile,
+                Some(PathBuf::from(path)),
+                format!("maxNodeModuleJsDepth={max_depth} must gate {path}"),
+            ));
+        }
+        let host = builder.build().expect("build nested package host");
+        let program = load_with_options(
+            &host,
+            &["/work/root.ts"],
+            CompilerOptions {
+                allow_js: true,
+                max_node_module_js_depth: Some(max_depth),
+                module: Some(1),
+                module_resolution: Some(2),
+                ..compiler_options()
+            },
+            program_options(),
+            generous_limits(),
+        )
+        .unwrap_or_else(|error| panic!("load maxNodeModuleJsDepth={max_depth}: {error}"));
+
+        let expected_paths: &[&str] = match max_depth {
+            0 => &["/work/root.ts"],
+            1 => &["/work/node_modules/a/index.js", "/work/root.ts"],
+            2 => &[
+                "/work/node_modules/a/leaf.js",
+                "/work/node_modules/b/index.js",
+                "/work/node_modules/a/index.js",
+                "/work/root.ts",
+            ],
+            3 => &[
+                "/work/node_modules/a/leaf.js",
+                "/work/node_modules/b/leaf.js",
+                "/work/node_modules/b/index.js",
+                "/work/node_modules/a/index.js",
+                "/work/root.ts",
+            ],
+            _ => unreachable!(),
+        };
+        assert_eq!(
+            source_paths(&program),
+            expected_paths
+                .iter()
+                .map(|path| Path::new(*path))
+                .collect::<Vec<_>>()
+        );
+        assert_eq!(
+            program.resolutions().module_len(),
+            match max_depth {
+                0 => 1,
+                1 => 3,
+                2 | 3 => 4,
+                _ => unreachable!(),
+            }
+        );
+
+        if max_depth == 0 {
+            assert_unloaded_module_target(
+                &program,
+                "/work/root.ts",
+                "a",
+                "/work/node_modules/a/index.js",
+                UnloadedModuleReason::NodeModulesDepth,
+            );
+            continue;
+        }
+        assert_source_module_target(
+            &program,
+            "/work/root.ts",
+            "a",
+            "/work/node_modules/a/index.js",
+        );
+        if max_depth == 1 {
+            for (specifier, expected_path) in [
+                ("./leaf.js", "/work/node_modules/a/leaf.js"),
+                ("b", "/work/node_modules/b/index.js"),
+            ] {
+                assert_unloaded_module_target(
+                    &program,
+                    "/work/node_modules/a/index.js",
+                    specifier,
+                    expected_path,
+                    UnloadedModuleReason::NodeModulesDepth,
+                );
+            }
+            continue;
+        }
+        assert_source_module_target(
+            &program,
+            "/work/node_modules/a/index.js",
+            "./leaf.js",
+            "/work/node_modules/a/leaf.js",
+        );
+        assert_source_module_target(
+            &program,
+            "/work/node_modules/a/index.js",
+            "b",
+            "/work/node_modules/b/index.js",
+        );
+        if max_depth == 2 {
+            assert_unloaded_module_target(
+                &program,
+                "/work/node_modules/b/index.js",
+                "./leaf.js",
+                "/work/node_modules/b/leaf.js",
+                UnloadedModuleReason::NodeModulesDepth,
+            );
+        } else {
+            assert_source_module_target(
+                &program,
+                "/work/node_modules/b/index.js",
+                "./leaf.js",
+                "/work/node_modules/b/leaf.js",
+            );
+        }
+    }
+}
+
+#[test]
+fn external_type_reference_source_owns_the_next_node_module_js_depth_layer() {
+    let type_source = "/work/node_modules/@types/a/index.d.ts";
+    let javascript_target = "/work/node_modules/@types/a/b.js";
+    for max_depth in [1, 2] {
+        let mut builder = MemoryCompilerHost::builder("/work")
+            .file(
+                "/work/root.ts",
+                b"/// <reference types=\"a\" />\nexport {};\n".to_vec(),
+            )
+            .file(
+                "/work/node_modules/@types/a/package.json",
+                br#"{"name":"@types/a","version":"1.0.0","types":"index.d.ts"}"#.to_vec(),
+            )
+            .file(type_source, b"import './b.js';\nexport {};\n".to_vec())
+            .file(javascript_target, b"export const b = true;\n".to_vec());
+        if max_depth == 1 {
+            builder = builder.failure(HostError::new(
+                HostErrorKind::Other,
+                HostOperation::ReadFile,
+                Some(PathBuf::from(javascript_target)),
+                "the JavaScript child of an external type source is one depth layer deeper",
+            ));
+        }
+        let host = builder
+            .build()
+            .expect("build external type-reference depth host");
+        let program = load_with_options(
+            &host,
+            &["/work/root.ts"],
+            CompilerOptions {
+                allow_js: true,
+                max_node_module_js_depth: Some(max_depth),
+                module: Some(1),
+                module_resolution: Some(2),
+                ..compiler_options()
+            },
+            program_options(),
+            generous_limits(),
+        )
+        .unwrap_or_else(|error| {
+            panic!("load external type-reference source at max depth {max_depth}: {error}")
+        });
+
+        let expected_paths: &[&str] = if max_depth == 1 {
+            &[type_source, "/work/root.ts"]
+        } else {
+            &[javascript_target, type_source, "/work/root.ts"]
+        };
+        assert_eq!(
+            source_paths(&program),
+            expected_paths
+                .iter()
+                .map(|path| Path::new(*path))
+                .collect::<Vec<_>>()
+        );
+        if max_depth == 1 {
+            assert_unloaded_module_target(
+                &program,
+                type_source,
+                "./b.js",
+                javascript_target,
+                UnloadedModuleReason::NodeModulesDepth,
+            );
+        } else {
+            assert_source_module_target(&program, type_source, "./b.js", javascript_target);
+        }
+        let resolution = program
+            .resolutions()
+            .require_module(&module_key(&program, type_source, "./b.js"))
+            .expect("relative JavaScript request has an authoritative row");
+        let ResolutionOutcome::Resolved(resolved) = resolution.outcome() else {
+            panic!("the relative JavaScript request must resolve");
+        };
+        assert!(resolved.is_external_library_import());
+    }
+}
+
+#[test]
+fn shallower_nonzero_revisit_reprocesses_only_imports() {
+    let skipped_reference_leaf = "/work/node_modules/shared/reference-leaf.js";
+    let host = MemoryCompilerHost::builder("/work")
+        .file(
+            "/work/root.ts",
+            b"import 'a';\nimport 'shared';\nexport {};\n".to_vec(),
+        )
+        .file(
+            "/work/node_modules/a/package.json",
+            br#"{"name":"a","version":"1.0.0","main":"index.js"}"#.to_vec(),
+        )
+        .file(
+            "/work/node_modules/a/index.js",
+            b"import 'shared';\nexport {};\n".to_vec(),
+        )
+        .file(
+            "/work/node_modules/shared/package.json",
+            br#"{"name":"shared","version":"1.0.0","main":"index.js"}"#.to_vec(),
+        )
+        .file(
+            "/work/node_modules/shared/index.js",
+            concat!(
+                "/// <reference path=\"./reference.js\" />\n",
+                "import './leaf.js';\n",
+                "export {};\n",
+            )
+            .as_bytes()
+            .to_vec(),
+        )
+        .file(
+            "/work/node_modules/shared/reference.js",
+            b"import './reference-leaf.js';\nexport {};\n".to_vec(),
+        )
+        .file(
+            skipped_reference_leaf,
+            b"export const referenceLeaf = true;\n".to_vec(),
+        )
+        .file(
+            "/work/node_modules/shared/leaf.js",
+            b"export const leaf = true;\n".to_vec(),
+        )
+        .failure(HostError::new(
+            HostErrorKind::Other,
+            HostOperation::ReadFile,
+            Some(PathBuf::from(skipped_reference_leaf)),
+            "an imports-only revisit must not revisit path references",
+        ))
+        .build()
+        .expect("build shallower-revisit host");
+    let program = load_with_options(
+        &host,
+        &["/work/root.ts"],
+        CompilerOptions {
+            allow_js: true,
+            max_node_module_js_depth: Some(2),
+            module: Some(1),
+            module_resolution: Some(2),
+            ..compiler_options()
+        },
+        program_options(),
+        generous_limits(),
+    )
+    .expect("a shallower nonzero revisit processes only imported modules");
+
+    assert_eq!(
+        source_paths(&program),
+        [
+            Path::new("/work/node_modules/shared/reference.js"),
+            Path::new("/work/node_modules/shared/index.js"),
+            Path::new("/work/node_modules/a/index.js"),
+            Path::new("/work/node_modules/shared/leaf.js"),
+            Path::new("/work/root.ts"),
+        ]
+    );
+    assert_source_module_target(
+        &program,
+        "/work/node_modules/shared/index.js",
+        "./leaf.js",
+        "/work/node_modules/shared/leaf.js",
+    );
+    assert_unloaded_module_target(
+        &program,
+        "/work/node_modules/shared/reference.js",
+        "./reference-leaf.js",
+        skipped_reference_leaf,
+        UnloadedModuleReason::NodeModulesDepth,
+    );
+}
+
+#[test]
+fn depth_zero_root_promotion_reprocesses_path_reference_descendants() {
+    let host = MemoryCompilerHost::builder("/work")
+        .file("/work/root.ts", b"import 'a';\nexport {};\n".to_vec())
+        .file(
+            "/work/node_modules/a/package.json",
+            br#"{"name":"a","version":"1.0.0","main":"index.js"}"#.to_vec(),
+        )
+        .file(
+            "/work/node_modules/a/index.js",
+            b"/// <reference path=\"./reference.js\" />\nexport {};\n".to_vec(),
+        )
+        .file(
+            "/work/node_modules/a/reference.js",
+            b"import './leaf.js';\nexport {};\n".to_vec(),
+        )
+        .file(
+            "/work/node_modules/a/leaf.js",
+            b"export const leaf = true;\n".to_vec(),
+        )
+        .build()
+        .expect("build root-promotion host");
+    let program = load_with_options(
+        &host,
+        &["/work/root.ts", "/work/node_modules/a/index.js"],
+        CompilerOptions {
+            allow_js: true,
+            max_node_module_js_depth: Some(1),
+            module: Some(1),
+            module_resolution: Some(2),
+            ..compiler_options()
+        },
+        program_options(),
+        generous_limits(),
+    )
+    .expect("a depth-zero root promotion reprocesses every reference phase");
+
+    assert_eq!(
+        source_paths(&program),
+        [
+            Path::new("/work/node_modules/a/reference.js"),
+            Path::new("/work/node_modules/a/index.js"),
+            Path::new("/work/root.ts"),
+            Path::new("/work/node_modules/a/leaf.js"),
+        ]
+    );
+    assert_eq!(
+        root_paths(&program),
+        [
+            Path::new("/work/root.ts"),
+            Path::new("/work/node_modules/a/index.js"),
+        ]
+    );
+    assert_source_module_target(
+        &program,
+        "/work/node_modules/a/reference.js",
+        "./leaf.js",
+        "/work/node_modules/a/leaf.js",
+    );
+    for path in [
+        "/work/node_modules/a/reference.js",
+        "/work/node_modules/a/index.js",
+        "/work/root.ts",
+    ] {
+        let source = program
+            .source_files()
+            .iter()
+            .find(|source| source.path().display() == Path::new(path))
+            .expect("promoted source is owned");
+        assert!(source.may_be_emitted(), "{path}");
+    }
+    let leaf = program
+        .source_files()
+        .iter()
+        .find(|source| source.path().display() == Path::new("/work/node_modules/a/leaf.js"))
+        .expect("external leaf is owned");
+    assert!(!leaf.may_be_emitted());
+}
+
+#[test]
+fn negative_max_node_module_js_depth_elides_every_external_javascript_target() {
+    let target_path = "/work/node_modules/pkg/index.js";
+    let host = MemoryCompilerHost::builder("/work")
+        .file("/work/root.ts", b"import 'pkg';\nexport {};\n".to_vec())
+        .file(
+            "/work/node_modules/pkg/package.json",
+            br#"{"name":"pkg","version":"1.0.0","main":"index.js"}"#.to_vec(),
+        )
+        .file(target_path, b"module.exports = {};\n".to_vec())
+        .failure(HostError::new(
+            HostErrorKind::Other,
+            HostOperation::ReadFile,
+            Some(PathBuf::from(target_path)),
+            "a negative maxNodeModuleJsDepth must gate every external JavaScript read",
+        ))
+        .build()
+        .expect("build negative-depth host");
+    let program = load_with_options(
+        &host,
+        &["/work/root.ts"],
+        CompilerOptions {
+            allow_js: true,
+            max_node_module_js_depth: Some(-1),
+            module: Some(1),
+            module_resolution: Some(2),
+            ..compiler_options()
+        },
+        program_options(),
+        generous_limits(),
+    )
+    .expect("a negative maxNodeModuleJsDepth retains an unloaded row");
+
+    assert_eq!(source_paths(&program), [Path::new("/work/root.ts")]);
+    assert_unloaded_module_target(
+        &program,
+        "/work/root.ts",
+        "pkg",
+        target_path,
+        UnloadedModuleReason::NodeModulesDepth,
+    );
+}
+
+#[test]
+fn max_node_module_js_depth_does_not_override_allow_js_false() {
+    let target_path = "/work/node_modules/pkg/index.js";
+    let host = MemoryCompilerHost::builder("/work")
+        .file("/work/root.ts", b"import 'pkg';\nexport {};\n".to_vec())
+        .file(
+            "/work/node_modules/pkg/package.json",
+            br#"{"name":"pkg","version":"1.0.0","main":"index.js"}"#.to_vec(),
+        )
+        .file(target_path, b"module.exports = {};\n".to_vec())
+        .failure(HostError::new(
+            HostErrorKind::Other,
+            HostOperation::ReadFile,
+            Some(PathBuf::from(target_path)),
+            "allowJs=false must gate an otherwise in-depth JavaScript read",
+        ))
+        .build()
+        .expect("build allowJs=false depth host");
+    let program = load_with_options(
+        &host,
+        &["/work/root.ts"],
+        CompilerOptions {
+            allow_js: false,
+            max_node_module_js_depth: Some(1),
+            module: Some(1),
+            module_resolution: Some(2),
+            ..compiler_options()
+        },
+        program_options(),
+        generous_limits(),
+    )
+    .expect("allowJs=false keeps an in-depth JavaScript resolution unloaded");
+
+    assert_eq!(source_paths(&program), [Path::new("/work/root.ts")]);
+    assert_unloaded_module_target(
+        &program,
+        "/work/root.ts",
+        "pkg",
+        target_path,
+        UnloadedModuleReason::JavaScriptNotAdmitted,
+    );
 }
 
 #[test]

@@ -202,8 +202,13 @@ impl AuthoritativeModuleProvider for PreparedModuleProvider<'_> {
                 UnloadedModuleReason::JavaScriptNotAdmitted
                     if module.extension().is_javascript()
                         && loads_source
-                        && !node_modules_depth_applies
-                        && !self.prepared.compiler_options().allow_js =>
+                        && !self.prepared.compiler_options().allow_js
+                        && (!node_modules_depth_applies
+                            || self
+                                .prepared
+                                .compiler_options()
+                                .max_node_module_js_depth_effective()
+                                > 0) =>
                 {
                     None
                 }

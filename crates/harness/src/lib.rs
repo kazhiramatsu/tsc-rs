@@ -136,6 +136,7 @@ pub fn try_compiler_options_from_options(
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum CompilerOptionKind {
     Bool,
+    Number,
     String,
     StringList,
     Target,
@@ -147,7 +148,7 @@ enum CompilerOptionKind {
 
 fn compiler_option_kind(name: &str) -> Option<CompilerOptionKind> {
     use CompilerOptionKind::{
-        Bool, Jsx, Module, ModuleDetection, ModuleResolution, String, StringList, Target,
+        Bool, Jsx, Module, ModuleDetection, ModuleResolution, Number, String, StringList, Target,
     };
 
     Some(match name.to_ascii_lowercase().as_str() {
@@ -194,6 +195,7 @@ fn compiler_option_kind(name: &str) -> Option<CompilerOptionKind> {
         | "rewriterelativeimportextensions"
         | "resolvejsonmodule"
         | "skiplibcheck" => Bool,
+        "maxnodemodulejsdepth" => Number,
         "baseurl" | "jsxfactory" | "jsxfragmentfactory" | "jsximportsource" | "reactnamespace" => {
             String
         }
@@ -226,6 +228,7 @@ fn validate_compiler_options(options: &BTreeMap<String, OptionValue>) -> Harness
         }
         let valid = match (kind, value) {
             (CompilerOptionKind::Bool, OptionValue::Bool(_))
+            | (CompilerOptionKind::Number, OptionValue::Number(_))
             | (CompilerOptionKind::String, OptionValue::String(_))
             | (
                 CompilerOptionKind::StringList,
@@ -289,12 +292,19 @@ fn project_compiler_options(options: &BTreeMap<String, OptionValue>) -> Compiler
             _ => None,
         })
     };
+    let number_option = |name: &str| {
+        option_value(options, name).and_then(|value| match value {
+            OptionValue::Number(value) => Some(*value),
+            _ => None,
+        })
+    };
     let target = enum_option("target", target_option_value);
     let module = enum_option("module", module_option_value);
     let module_resolution = enum_option("moduleResolution", module_resolution_option_value);
     let module_detection = enum_option("moduleDetection", module_detection_option_value);
     CompilerOptions {
         allow_js: bool_option("allowJs").unwrap_or_else(|| bool_option("checkJs").unwrap_or(false)),
+        max_node_module_js_depth: number_option("maxNodeModuleJsDepth"),
         experimental_decorators: bool_option("experimentalDecorators").unwrap_or(false),
         target,
         module,
@@ -1655,6 +1665,7 @@ mod tests {
                 OptionValue::String("node".to_owned()),
             ),
             ("moduleDetection".to_owned(), OptionValue::Number(2)),
+            ("maxNodeModuleJsDepth".to_owned(), OptionValue::Number(3)),
             (
                 "jsx".to_owned(),
                 OptionValue::String("react-jsx".to_owned()),
@@ -1678,6 +1689,7 @@ mod tests {
         assert_eq!(closed.module, Some(5));
         assert_eq!(closed.module_resolution, Some(2));
         assert_eq!(closed.module_detection, Some(2));
+        assert_eq!(closed.max_node_module_js_depth, Some(3));
         assert_eq!(closed.jsx, Some(4));
         assert_eq!(
             closed.custom_conditions,
