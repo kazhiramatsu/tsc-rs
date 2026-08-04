@@ -290,7 +290,8 @@ diagnostic. All 241 host-resolution rows are now closed at T0--T4 with typed
 Bundler controls and full-corpus FP=0. General filesystem-backed program
 construction is not complete. H0.4 is active: its raw `FsCompilerHost`
 primitive preserves bytes, typed host failures, deterministic directory
-observations, native case profiles, and realpaths. A shared program-layer
+observations in JavaScript UTF-16 display-name order, native case profiles,
+and realpaths. A shared program-layer
 decoder now applies the vendored Node host's BOM, UTF-16 endian/odd-byte, and
 invalid-UTF-8 rules to package metadata; resolver and automatic-type consumers
 also share strict-JSON-then-JSONC `readJson` semantics while retaining exact
@@ -314,7 +315,8 @@ roots. `rootDirs` uses the longest display-path prefix, probes the original
 location first, and then visits alternate roots in declaration order.
 Default/explicit libraries and
 post-root explicit or wildcard automatic `types` participate in the same
-owned program graph.
+owned program graph; wildcard discovery is stable across case profiles because
+it consumes that JavaScript-compatible host order.
 Same-tree Unix canaries prove both `PreparedProgram` and five-bucket
 `ProgramSession` diagnostic equivalence between MemoryHost and FsHost; the
 program-level canaries exercise Classic, Node10, Bundler, ordered optional
