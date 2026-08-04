@@ -1034,22 +1034,217 @@ fn root_extension_preflight_handles_json_unknown_and_extensionless_boundaries() 
 
     let extensionless_host = MemoryCompilerHost::builder("/work")
         .file("/work/root.ts", b"export {};".to_vec())
-        .failure(HostError::new(
-            HostErrorKind::Other,
-            HostOperation::ReadFile,
-            Some(PathBuf::from("/work/root.ts")),
-            "the explicit extensionless-root boundary must precede host reads",
-        ))
         .build()
         .expect("build extensionless-root host");
-    let error = load(&extensionless_host, &["/work/root"], generous_limits())
-        .expect_err("extensionless root probing remains an explicit typed boundary");
-    assert_eq!(error.kind(), ProgramLoadErrorKind::Unsupported);
-    assert_eq!(error.operation(), ProgramLoadOperation::NormalizeRoot);
-    let ProgramLoadError::Unsupported { feature, .. } = error else {
-        unreachable!("kind identifies the unsupported variant");
+    let extensionless = load(&extensionless_host, &["/work/root"], generous_limits())
+        .expect("extensionless roots probe the first TypeScript extension group");
+    assert_eq!(source_paths(&extensionless), [Path::new("/work/root.ts")]);
+    assert_eq!(root_paths(&extensionless), [Path::new("/work/root")]);
+    let root_source = extensionless.roots()[0]
+        .source()
+        .expect("extensionless root retains its resolved source identity");
+    assert_eq!(
+        extensionless
+            .source_file(root_source)
+            .expect("root source belongs to the prepared program")
+            .path()
+            .display(),
+        Path::new("/work/root.ts")
+    );
+    assert!(extensionless.diagnostics().program().is_empty());
+}
+
+#[test]
+fn extensionless_roots_preserve_requests_probe_first_group_and_report_ts6231() {
+    let host = MemoryCompilerHost::builder("/work")
+        .file("/work/ts.ts", b"export const winner = 'ts';".to_vec())
+        .file("/work/ts.tsx", b"export const mustNotWin = 'tsx';".to_vec())
+        .file(
+            "/work/ts.d.ts",
+            b"export declare const mustNotWin: 'dts';".to_vec(),
+        )
+        .file("/work/tsx.tsx", b"export const winner = 'tsx';".to_vec())
+        .file(
+            "/work/tsx.d.ts",
+            b"export declare const mustNotWin: 'dts';".to_vec(),
+        )
+        .file(
+            "/work/dts.d.ts",
+            b"export declare const winner: 'dts';".to_vec(),
+        )
+        .file(
+            "/work/missing.cts",
+            b"export const mustNotBeProbed = 'cts';".to_vec(),
+        )
+        .file(
+            "/work/missing.mts",
+            b"export const mustNotBeProbed = 'mts';".to_vec(),
+        )
+        .build()
+        .expect("build extensionless TypeScript-root host");
+
+    let program = load(
+        &host,
+        &[
+            "/work/ts",
+            "/work/ts.ts",
+            "/work/tsx",
+            "/work/dts",
+            "/work/missing",
+        ],
+        generous_limits(),
+    )
+    .expect("extensionless TypeScript roots follow getSourceFileFromReferenceWorker");
+
+    assert_eq!(
+        source_paths(&program),
+        [
+            Path::new("/work/ts.ts"),
+            Path::new("/work/tsx.tsx"),
+            Path::new("/work/dts.d.ts"),
+        ]
+    );
+    assert_eq!(
+        root_paths(&program),
+        [
+            Path::new("/work/ts"),
+            Path::new("/work/ts.ts"),
+            Path::new("/work/tsx"),
+            Path::new("/work/dts"),
+            Path::new("/work/missing"),
+        ]
+    );
+    assert_eq!(program.roots()[0].source(), program.roots()[1].source());
+    assert!(program.roots()[2].source().is_some());
+    assert!(program.roots()[3].source().is_some());
+    assert!(program.roots()[4].source().is_none());
+    let diagnostics = program.diagnostics().program();
+    assert_eq!(diagnostics.len(), 1);
+    assert_eq!(diagnostics[0].code(), 6231);
+    assert!(diagnostics[0]
+        .message_text()
+        .contains("Could not resolve the path '/work/missing'"));
+    assert!(diagnostics[0]
+        .message_text()
+        .contains(TYPESCRIPT_ROOT_EXTENSION_LIST));
+    assert!(diagnostics[0].message.next_present);
+    assert_eq!(diagnostics[0].message.next.len(), 1);
+    assert_eq!(diagnostics[0].message.next[0].code, 1430);
+    assert!(diagnostics[0].message.next[0].next_present);
+    assert_eq!(diagnostics[0].message.next[0].next.len(), 1);
+    assert_eq!(diagnostics[0].message.next[0].next[0].code, 1427);
+
+    let allow_js_host = MemoryCompilerHost::builder("/work")
+        .file("/work/js.js", b"exports.winner = 'js';".to_vec())
+        .file("/work/js.jsx", b"exports.mustNotWin = 'jsx';".to_vec())
+        .file("/work/jsx.jsx", b"exports.winner = 'jsx';".to_vec())
+        .file(
+            "/work/cjs.cjs",
+            b"exports.mustNotBeProbed = 'cjs';".to_vec(),
+        )
+        .file("/work/json.json", br#"{"mustNotBeProbed":true}"#.to_vec())
+        .build()
+        .expect("build extensionless JavaScript-root host");
+    let allow_js = load_with_options(
+        &allow_js_host,
+        &["/work/js", "/work/jsx", "/work/cjs", "/work/json"],
+        CompilerOptions {
+            allow_js: true,
+            resolve_json_module: Some(true),
+            ..compiler_options()
+        },
+        program_options(),
+        generous_limits(),
+    )
+    .expect("allowJs extends only the first extensionless probe group");
+    assert_eq!(
+        source_paths(&allow_js),
+        [Path::new("/work/js.js"), Path::new("/work/jsx.jsx")]
+    );
+    assert_eq!(
+        allow_js
+            .diagnostics()
+            .program()
+            .iter()
+            .map(|diagnostic| diagnostic.code())
+            .collect::<Vec<_>>(),
+        [6231, 6231]
+    );
+    assert!(allow_js
+        .diagnostics()
+        .program()
+        .iter()
+        .all(|diagnostic| { diagnostic.message_text().contains(ALL_ROOT_EXTENSION_LIST) }));
+
+    let read_failure = HostError::new(
+        HostErrorKind::Other,
+        HostOperation::ReadFile,
+        Some(PathBuf::from("/work/stop.ts")),
+        "first extensionless candidate failed",
+    );
+    let failing_host = MemoryCompilerHost::builder("/work")
+        .file(
+            "/work/stop.tsx",
+            b"export const mustNotBeRead = true;".to_vec(),
+        )
+        .failure(read_failure.clone())
+        .build()
+        .expect("build extensionless failure-order host");
+    let error = load(&failing_host, &["/work/stop"], generous_limits())
+        .expect_err("the first host failure stops later extensionless probes");
+    let ProgramLoadError::Host { source, .. } = error else {
+        panic!("extensionless root reads retain typed host failures");
     };
-    assert_eq!(feature, "root-extensionless");
+    assert_eq!(source, read_failure);
+}
+
+#[test]
+fn extensionless_root_trailing_separator_is_part_of_the_probe_spelling() {
+    let host = MemoryCompilerHost::builder("/work")
+        .file(
+            "/work/directory/.ts",
+            b"export const winner = 'directory';".to_vec(),
+        )
+        .file(
+            "/work/directory.ts",
+            b"export const mustNotWin = 'sibling';".to_vec(),
+        )
+        .build()
+        .expect("build trailing-separator root host");
+
+    let program = load(&host, &["/work/directory/"], generous_limits())
+        .expect("a root trailing separator is retained before adding .ts");
+    assert_eq!(source_paths(&program), [Path::new("/work/directory/.ts")]);
+    assert_eq!(
+        program.roots()[0].path().display().to_str(),
+        Some("/work/directory/")
+    );
+}
+
+#[test]
+fn extensionless_missing_roots_deduplicate_by_display_text_not_path_components() {
+    let host = MemoryCompilerHost::builder("/work")
+        .build()
+        .expect("build empty extensionless root host");
+    let program = load(
+        &host,
+        &["/work/missing", "/work/missing/"],
+        generous_limits(),
+    )
+    .expect("trailing separator variants retain distinct TS6231 diagnostics");
+
+    assert_eq!(program.roots().len(), 2);
+    assert_eq!(program.diagnostics().program().len(), 2);
+    assert!(program.diagnostics().program().iter().any(|diagnostic| {
+        diagnostic
+            .message_text()
+            .contains("Could not resolve the path '/work/missing' with")
+    }));
+    assert!(program.diagnostics().program().iter().any(|diagnostic| {
+        diagnostic
+            .message_text()
+            .contains("Could not resolve the path '/work/missing/' with")
+    }));
 }
 
 #[test]

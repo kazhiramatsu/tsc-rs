@@ -1492,6 +1492,9 @@ fn check_program_with_prebound_libs_at_observed(
 
     let binder_refs: Vec<&tsc_binder::Binder<'_>> =
         lib_binders.iter().chain(binders.iter()).collect();
+    if binder_refs.is_empty() && collect_global_diagnostics {
+        global_diagnostics = globals::missing_init_global_type_diagnostics(options);
+    }
     if !binder_refs.is_empty() {
         let lib_count = lib_binders.len();
         let mut state = state::CheckerState::from_program(binder_refs, options);
@@ -2038,6 +2041,56 @@ mod tests {
             ]
         );
         assert!(result.semantic_diagnostics.is_empty());
+    }
+
+    #[test]
+    fn owned_no_emit_entry_materializes_globals_without_a_source_binder() {
+        let result = check_program_with_owned_libs_at(
+            &[],
+            &[],
+            &CompilerOptions {
+                no_emit: Some(true),
+                ..CompilerOptions::default()
+            },
+            "/",
+        );
+
+        assert_eq!(
+            result
+                .global_diagnostics
+                .iter()
+                .map(Diagnostic::message_text)
+                .collect::<Vec<_>>(),
+            [
+                "Cannot find global type 'Array'.",
+                "Cannot find global type 'Boolean'.",
+                "Cannot find global type 'CallableFunction'.",
+                "Cannot find global type 'Function'.",
+                "Cannot find global type 'IArguments'.",
+                "Cannot find global type 'NewableFunction'.",
+                "Cannot find global type 'Number'.",
+                "Cannot find global type 'Object'.",
+                "Cannot find global type 'RegExp'.",
+                "Cannot find global type 'String'.",
+            ]
+        );
+        assert!(result.semantic_diagnostics.is_empty());
+
+        let relaxed = check_program_with_owned_libs_at(
+            &[],
+            &[],
+            &CompilerOptions {
+                no_emit: Some(true),
+                strict: Some(false),
+                ..CompilerOptions::default()
+            },
+            "/",
+        );
+        assert_eq!(relaxed.global_diagnostics.len(), 8);
+        assert!(relaxed.global_diagnostics.iter().all(|diagnostic| {
+            !diagnostic.message_text().contains("CallableFunction")
+                && !diagnostic.message_text().contains("NewableFunction")
+        }));
     }
 
     #[test]

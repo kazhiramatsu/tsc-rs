@@ -19,8 +19,9 @@ use crate::module_resolution::{
 };
 use crate::path::{CanonicalPath, ProgramPath};
 use crate::prepared::{
-    PackageJsonType, PackageMetadata, PathContext, PreparationDiagnostics, PreparedProgram,
-    PreparedRoot, PreparedSourceFile, ProgramOptions, SourceFileId,
+    extensionless_source_probe_extensions, PackageJsonType, PackageMetadata, PathContext,
+    PreparationDiagnostics, PreparedProgram, PreparedRoot, PreparedSourceFile, ProgramOptions,
+    SourceFileId,
 };
 use crate::resolution::{
     ModuleExtension, ModuleResolution, PackageId, ResolutionError, ResolutionKey, ResolutionMode,
@@ -39,8 +40,6 @@ const MAX_RECURSIVE_SOURCE_DEPTH: usize = 256;
 const TYPESCRIPT_SOURCE_EXTENSIONS: [&str; 7] =
     [".ts", ".tsx", ".d.ts", ".cts", ".d.cts", ".mts", ".d.mts"];
 const JAVASCRIPT_SOURCE_EXTENSIONS: [&str; 4] = [".js", ".jsx", ".mjs", ".cjs"];
-const TYPESCRIPT_PATH_REFERENCE_PROBE_EXTENSIONS: [&str; 3] = [".ts", ".tsx", ".d.ts"];
-const JAVASCRIPT_PATH_REFERENCE_PROBE_EXTENSIONS: [&str; 2] = [".js", ".jsx"];
 const TYPESCRIPT_SOURCE_EXTENSION_LIST: &str =
     "'.ts', '.tsx', '.d.ts', '.cts', '.d.cts', '.mts', '.d.mts'";
 const ALL_SOURCE_EXTENSION_LIST: &str =
@@ -642,25 +641,20 @@ fn normalize_root(
         .to_str()
         .expect("resolver path context is representable");
     reject_unowned_windows_path(root, ProgramLoadOperation::NormalizeRoot)?;
-    let normalized = normalize_absolute_path(root, Some(current_directory)).map_err(|error| {
-        ProgramLoadError::resolution(
-            ProgramLoadOperation::NormalizeRoot,
-            Some(root.to_path_buf()),
-            None,
-            error,
-        )
-    })?;
-    if !normalized
-        .rsplit('/')
-        .next()
-        .is_some_and(|base_name| base_name.contains('.'))
-    {
-        return Err(ProgramLoadError::unsupported(
-            ProgramLoadOperation::NormalizeRoot,
-            Some(PathBuf::from(&normalized)),
-            "root-extensionless",
-            "extensionless roots require the upstream .ts/.tsx/.d.ts/.js/.jsx probe and TS6231 diagnostic boundary",
-        ));
+    let trailing_separator = root
+        .to_str()
+        .is_some_and(|text| text.ends_with(['/', '\\']));
+    let mut normalized =
+        normalize_absolute_path(root, Some(current_directory)).map_err(|error| {
+            ProgramLoadError::resolution(
+                ProgramLoadOperation::NormalizeRoot,
+                Some(root.to_path_buf()),
+                None,
+                error,
+            )
+        })?;
+    if trailing_separator && !normalized.ends_with('/') {
+        normalized.push('/');
     }
     let path = make_program_path(&normalized, path_context.use_case_sensitive_file_names())
         .map_err(|error| {
@@ -672,6 +666,14 @@ fn normalize_root(
             )
         })?;
     Ok(path)
+}
+
+fn path_has_extension(path: &Path) -> bool {
+    path.to_str()
+        .expect("program paths are representable")
+        .rsplit(['/', '\\'])
+        .next()
+        .is_some_and(|base_name| base_name.contains('.'))
 }
 
 fn validate_type_roots(
@@ -846,7 +848,7 @@ struct StagedGraph<'host, 'options, 'resolver> {
     type_resolution_by_key: BTreeMap<TypeReferenceResolutionKey, usize>,
     type_resolutions: Vec<StagedTypeResolution>,
     package_targets: BTreeMap<PackageId, CanonicalPath>,
-    diagnosed_missing_roots: BTreeSet<PathBuf>,
+    diagnosed_missing_roots: BTreeSet<String>,
     diagnosed_missing_library_roots: BTreeSet<PathBuf>,
     program_diagnostics: Vec<Diagnostic>,
     request_edges: usize,
@@ -891,12 +893,15 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
     }
 
     fn load_root(&mut self, path: ProgramPath) -> Result<(), ProgramLoadError> {
+        if !path_has_extension(path.display()) {
+            return self.load_extensionless_root(path);
+        }
         if !is_admitted_source(path.canonical(), self.compiler_options) {
             let diagnostic =
                 unsupported_root_extension_diagnostic(&path, self.compiler_options.allow_js)?;
             if self
                 .diagnosed_missing_roots
-                .insert(path.display().to_path_buf())
+                .insert(path_text(path.display())?)
             {
                 self.program_diagnostics.push(diagnostic.clone());
             }
@@ -917,7 +922,7 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
         if let Some(diagnostic) = missing_diagnostic.clone() {
             if self
                 .diagnosed_missing_roots
-                .insert(path.display().to_path_buf())
+                .insert(path_text(path.display())?)
             {
                 self.program_diagnostics.push(diagnostic);
             }
@@ -926,6 +931,53 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
             path,
             source,
             missing_diagnostic,
+        });
+        Ok(())
+    }
+
+    fn load_extensionless_root(&mut self, path: ProgramPath) -> Result<(), ProgramLoadError> {
+        let requested_text = path
+            .display()
+            .to_str()
+            .expect("program paths are representable");
+        for &extension in extensionless_source_probe_extensions(self.compiler_options.allow_js) {
+            let candidate_text = format!("{requested_text}{extension}");
+            let candidate = make_program_path(
+                &candidate_text,
+                self.resolver.path_context().use_case_sensitive_file_names(),
+            )
+            .map_err(|error| {
+                ProgramLoadError::resolution(
+                    ProgramLoadOperation::NormalizeRoot,
+                    Some(path.display().to_path_buf()),
+                    None,
+                    error,
+                )
+            })?;
+            if let Some(source) =
+                self.visit_source(candidate, 0, DiscoveryReason::ROOT, SourceClass::Ordinary)?
+            {
+                self.roots.push(StagedRoot {
+                    path,
+                    source: Some(source),
+                    missing_diagnostic: None,
+                });
+                return Ok(());
+            }
+        }
+
+        let diagnostic =
+            unresolved_extensionless_root_diagnostic(&path, self.compiler_options.allow_js)?;
+        if self
+            .diagnosed_missing_roots
+            .insert(path_text(path.display())?)
+        {
+            self.program_diagnostics.push(diagnostic.clone());
+        }
+        self.roots.push(StagedRoot {
+            path,
+            source: None,
+            missing_diagnostic: Some(diagnostic),
         });
         Ok(())
     }
@@ -1745,15 +1797,7 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
             return Ok(());
         }
 
-        let javascript_extensions: &[&str] = if self.compiler_options.allow_js {
-            &JAVASCRIPT_PATH_REFERENCE_PROBE_EXTENSIONS
-        } else {
-            &[]
-        };
-        for &extension in TYPESCRIPT_PATH_REFERENCE_PROBE_EXTENSIONS
-            .iter()
-            .chain(javascript_extensions)
-        {
+        for &extension in extensionless_source_probe_extensions(self.compiler_options.allow_js) {
             let target_text = format!("{normalized}{extension}");
             let target = make_program_path(
                 &target_text,
@@ -2608,6 +2652,28 @@ fn missing_root_diagnostic(path: &ProgramPath) -> Diagnostic {
         )
         .with_next(vec![inclusion]),
     )
+}
+
+fn unresolved_extensionless_root_diagnostic(
+    path: &ProgramPath,
+    allow_js: bool,
+) -> Result<Diagnostic, ProgramLoadError> {
+    let root_reason = MessageChain::new(&gen::Root_file_specified_for_compilation, &[]);
+    let inclusion = MessageChain::new(&gen::The_file_is_in_the_program_because, &[])
+        .with_next(vec![root_reason]);
+    Ok(Diagnostic::new(
+        None,
+        None,
+        None,
+        MessageChain::new(
+            &gen::Could_not_resolve_the_path_0_with_the_extensions_1,
+            &[
+                path_text(path.display())?,
+                supported_source_extension_list(allow_js).to_owned(),
+            ],
+        )
+        .with_next(vec![inclusion]),
+    ))
 }
 
 fn missing_library_root_diagnostic(path: &ProgramPath, reason: &LibraryRootReason) -> Diagnostic {

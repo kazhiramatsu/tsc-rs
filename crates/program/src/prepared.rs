@@ -13,6 +13,20 @@ use crate::resolution::{
     TypeReferenceResolutionOrigin,
 };
 
+const TYPESCRIPT_EXTENSIONLESS_SOURCE_PROBE_EXTENSIONS: [&str; 3] = [".ts", ".tsx", ".d.ts"];
+const ALL_EXTENSIONLESS_SOURCE_PROBE_EXTENSIONS: [&str; 5] =
+    [".ts", ".tsx", ".d.ts", ".js", ".jsx"];
+
+pub(crate) const fn extensionless_source_probe_extensions(
+    allow_js: bool,
+) -> &'static [&'static str] {
+    if allow_js {
+        &ALL_EXTENSIONLESS_SOURCE_PROBE_EXTENSIONS
+    } else {
+        &TYPESCRIPT_EXTENSIONLESS_SOURCE_PROBE_EXTENSIONS
+    }
+}
+
 /// Stable index into [`PreparedProgram::source_files`] in final
 /// `createProgram` order.
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
@@ -216,6 +230,10 @@ fn diagnostic_file_names_equal(left: &str, right: &str) -> bool {
 
 /// One configured or command-line root name in its original order.
 ///
+/// A loaded extensionless root keeps the requested path here while `source`
+/// identifies the selected first-group `.ts`/`.tsx`/`.d.ts` (and, under
+/// `allowJs`, `.js`/`.jsx`) candidate.
+///
 /// A missing root is retained together with the exact tsc
 /// program-construction diagnostic that also appears in
 /// [`PreparationDiagnostics::program`].
@@ -296,6 +314,32 @@ impl PreparedRoot {
     pub fn missing_diagnostic(&self) -> Option<&Diagnostic> {
         self.missing_diagnostic.as_ref()
     }
+}
+
+fn extensionless_root_text(path: &CanonicalPath) -> Option<&str> {
+    let text = path
+        .as_path()
+        .to_str()
+        .expect("canonical program paths are representable");
+    (!text
+        .rsplit(['/', '\\'])
+        .next()
+        .is_some_and(|base_name| base_name.contains('.')))
+    .then_some(text)
+}
+
+fn extensionless_root_source_index<'root>(
+    root: &'root CanonicalPath,
+    source: &CanonicalPath,
+    allow_js: bool,
+) -> Option<(&'root str, usize)> {
+    let root_text = extensionless_root_text(root)?;
+    let source_text = source.as_path().to_str()?;
+    let extension = source_text.strip_prefix(root_text)?;
+    extensionless_source_probe_extensions(allow_js)
+        .iter()
+        .position(|candidate| *candidate == extension)
+        .map(|index| (root_text, index))
 }
 
 /// Parsed `package.json` module-type fact retained with its source metadata.
@@ -803,7 +847,9 @@ impl PreparedProgramBuilder {
     fn try_add_root(&mut self, root: PreparedRoot) -> Result<(), PreparationError> {
         if let Some(source) = root.source() {
             let prepared = self.require_source(source, PreparationOperation::AddRootFile)?;
-            if prepared.path().canonical() != root.path().canonical() {
+            if !self
+                .root_request_selects_source(root.path().canonical(), prepared.path().canonical())?
+            {
                 return Err(PreparationError::new(
                     PreparationErrorKind::InvalidData,
                     PreparationOperation::AddRootFile,
@@ -816,10 +862,7 @@ impl PreparedProgramBuilder {
                     ),
                 ));
             }
-        } else if self
-            .source_by_canonical
-            .contains_key(root.path().canonical())
-        {
+        } else if self.root_request_has_source(root.path().canonical())? {
             return Err(PreparationError::new(
                 PreparationErrorKind::InvalidData,
                 PreparationOperation::AddRootFile,
@@ -829,6 +872,51 @@ impl PreparedProgramBuilder {
         }
         self.roots.push(root);
         Ok(())
+    }
+
+    fn root_request_selects_source(
+        &self,
+        root: &CanonicalPath,
+        source: &CanonicalPath,
+    ) -> Result<bool, PreparationError> {
+        if extensionless_root_text(root).is_none() {
+            return Ok(root == source);
+        }
+        if root == source {
+            return Ok(false);
+        }
+        let Some((root_text, selected_index)) =
+            extensionless_root_source_index(root, source, self.compiler_options.allow_js)
+        else {
+            return Ok(false);
+        };
+        for extension in
+            &extensionless_source_probe_extensions(self.compiler_options.allow_js)[..selected_index]
+        {
+            let candidate =
+                CanonicalPath::from_trusted_normalized(format!("{root_text}{extension}"))?;
+            if self.source_by_canonical.contains_key(&candidate) {
+                return Ok(false);
+            }
+        }
+        Ok(true)
+    }
+
+    fn root_request_has_source(&self, root: &CanonicalPath) -> Result<bool, PreparationError> {
+        if self.source_by_canonical.contains_key(root) {
+            return Ok(true);
+        }
+        let Some(root_text) = extensionless_root_text(root) else {
+            return Ok(false);
+        };
+        for extension in extensionless_source_probe_extensions(self.compiler_options.allow_js) {
+            let candidate =
+                CanonicalPath::from_trusted_normalized(format!("{root_text}{extension}"))?;
+            if self.source_by_canonical.contains_key(&candidate) {
+                return Ok(true);
+            }
+        }
+        Ok(false)
     }
 
     pub fn add_root_file(&mut self, source: SourceFileId) -> Result<(), PreparationError> {
@@ -1011,6 +1099,7 @@ impl PreparedProgramBuilder {
         }
 
         self.validate_case_profile()?;
+        self.validate_roots()?;
 
         for (expected, actual) in self.library_files.iter().copied().enumerate() {
             if actual.index() != expected {
@@ -1153,6 +1242,31 @@ impl PreparedProgramBuilder {
                     PreparationOperation::BuildPreparedProgram,
                     Some(root.path().display().to_path_buf()),
                     "missing root has no matching program-diagnostic occurrence",
+                ));
+            }
+        }
+        Ok(())
+    }
+
+    fn validate_roots(&self) -> Result<(), PreparationError> {
+        for root in &self.roots {
+            let valid = match root.source() {
+                Some(source) => {
+                    let source =
+                        self.require_source(source, PreparationOperation::BuildPreparedProgram)?;
+                    self.root_request_selects_source(
+                        root.path().canonical(),
+                        source.path().canonical(),
+                    )?
+                }
+                None => !self.root_request_has_source(root.path().canonical())?,
+            };
+            if !valid {
+                return Err(PreparationError::new(
+                    PreparationErrorKind::InvalidData,
+                    PreparationOperation::BuildPreparedProgram,
+                    Some(root.path().display().to_path_buf()),
+                    "root selection no longer matches the final prepared source inventory",
                 ));
             }
         }

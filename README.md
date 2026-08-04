@@ -298,9 +298,11 @@ manifest text. Leading path, type, and lib
 references are observed once by the parser and retained by the source request
 plan. The bounded loaders now recursively discover TypeScript-family sources
 through relative requests, ordered `rootDirs`, `paths`, and `baseUrl`, while
-preserving vendored discovery and failure order. With `allowJs`, explicit
-JavaScript roots, local JavaScript module dependencies, and supported
-JavaScript path references join that same owned source graph. JavaScript
+preserving vendored discovery and failure order. An explicit extensionless
+root retains its requested spelling while probing `.ts`, `.tsx`, and `.d.ts`;
+`allowJs` appends only `.js` and `.jsx`, and a complete miss reports TS6231.
+With `allowJs`, explicit JavaScript roots, local JavaScript module dependencies,
+and supported JavaScript path references join that same owned source graph. JavaScript
 targets found through `node_modules` remain authoritative unloaded rows,
 matching the default `maxNodeModuleJsDepth=0`; unloaded rows retain their
 admission reason. A `.jsx` module target without an active JSX mode is not
@@ -315,9 +317,8 @@ Same-tree Unix canaries prove both `PreparedProgram` and five-bucket
 `ProgramSession` diagnostic equivalence between MemoryHost and FsHost; the
 program-level canaries exercise Classic, Node10, Bundler, ordered optional
 settings including `rootDirs`, and wildcard `@types` discovery. Nonzero
-`maxNodeModuleJsDepth`, config-derived roots, extensionless and arbitrary
-declaration root admission, the remaining path and physical-alias policies,
-and the platform matrix remain.
+`maxNodeModuleJsDepth`, config-derived roots, the remaining path and
+physical-alias policies, and the platform matrix remain.
 
 | Phase | State | Focus |
 | --- | --- | --- |
