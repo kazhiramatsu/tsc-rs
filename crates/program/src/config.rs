@@ -10,8 +10,10 @@
 //! contract: primary parse diagnostics, ordered config errors, recoverable
 //! `extends` branches, validated root specs, and the absent/undefined/value
 //! compiler-option distinction. Compiler-option values also remain available
-//! as a source-order-preserving raw merge. Nested list/object option schemas
-//! and the remaining `ParsedCommandLine` fields are later slices.
+//! as a source-order-preserving raw merge. List options retain their converted
+//! element values, including JavaScript `undefined` slots where TypeScript
+//! deliberately preserves them. Object option schemas and the remaining
+//! `ParsedCommandLine` fields are later slices.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::error::Error;
@@ -26,8 +28,8 @@ use tsc_types::{js_number_to_string, CompilerOptions};
 
 use crate::config_options::{
     compiler_option_declaration, compiler_option_spelling_suggestion,
-    is_command_option_without_build, jsconfig_defaults, CompilerOptionValueKind,
-    JsConfigDefaultValue,
+    is_command_option_without_build, jsconfig_defaults, CompilerOptionListDescriptor,
+    CompilerOptionListElementKind, CompilerOptionValueKind, JsConfigDefaultValue,
 };
 use crate::json::{
     convert_recoverable_json_node_to_value, convert_recoverable_json_source_file_to_value,
@@ -279,8 +281,22 @@ struct ConfigTypedOption {
 #[derive(Clone, Debug, PartialEq)]
 enum ConfigTypedOptionValue {
     Json(Value),
+    List(Vec<ConfigTypedListElement>),
     PositiveInfinity,
     NegativeInfinity,
+}
+
+/// One converted `compilerOptions` list element.
+///
+/// TypeScript normally filters falsy converted list elements, but
+/// `moduleSuffixes` opts into `listPreserveFalsyValues` and therefore retains
+/// JavaScript `undefined` entries produced by null or invalid source values.
+/// Keeping that state distinct from JSON `null` is required by module
+/// resolution and by the public config-plan observation boundary.
+#[derive(Clone, Debug, PartialEq)]
+pub enum ConfigTypedListElement {
+    Value(Value),
+    Undefined,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -288,6 +304,7 @@ pub enum ConfigOptionValueState<'a> {
     Absent,
     Undefined,
     Value(&'a Value),
+    List(&'a [ConfigTypedListElement]),
     PositiveInfinity,
     NegativeInfinity,
 }
@@ -318,6 +335,10 @@ impl ConfigOptionBag {
                 ..
             }) => ConfigOptionValueState::Value(value),
             Some(ConfigTypedOption {
+                value: Some(ConfigTypedOptionValue::List(elements)),
+                ..
+            }) => ConfigOptionValueState::List(elements),
+            Some(ConfigTypedOption {
                 value: Some(ConfigTypedOptionValue::PositiveInfinity),
                 ..
             }) => ConfigOptionValueState::PositiveInfinity,
@@ -335,6 +356,7 @@ impl ConfigOptionBag {
             ConfigOptionValueState::Value(value) => Some(value),
             ConfigOptionValueState::Absent
             | ConfigOptionValueState::Undefined
+            | ConfigOptionValueState::List(_)
             | ConfigOptionValueState::PositiveInfinity
             | ConfigOptionValueState::NegativeInfinity => None,
         }
@@ -399,6 +421,42 @@ impl ConfigOptionBag {
         for option in &other.typed_entries {
             self.insert_typed(option.name.clone(), option.value.clone());
         }
+    }
+
+    /// Apply TypeScript's final `${configDir}` substitution pass to the two
+    /// file-path list options. Ordinary relative entries were already made
+    /// absolute against the config that declared them; template entries alone
+    /// are intentionally delayed until the outermost consuming config is
+    /// known.
+    ///
+    /// tsc-port: handleOptionConfigDirTemplateSubstitution @6.0.3
+    /// tsc-hash: b8be2c1ed12416218b6fb0619c12276cf3d395da3853ae7931ed6caafd1e2ca6
+    /// tsc-span: _tsc.js:39175-39207
+    fn finalize_config_dir_list_templates(
+        &mut self,
+        config_base_path: &str,
+    ) -> Result<(), ConfigParseError> {
+        for option in &mut self.typed_entries {
+            let substitutes_config_dir = compiler_option_declaration(&option.name)
+                .and_then(|declaration| declaration.value_kind().list_descriptor())
+                .is_some_and(|descriptor| descriptor.allow_config_dir_template_substitution());
+            if !substitutes_config_dir {
+                continue;
+            }
+            let Some(ConfigTypedOptionValue::List(elements)) = &mut option.value else {
+                continue;
+            };
+            for element in elements {
+                let ConfigTypedListElement::Value(Value::String(value)) = element else {
+                    continue;
+                };
+                let Some(substituted) = normalized_config_dir_path(value, config_base_path) else {
+                    continue;
+                };
+                *value = substituted?;
+            }
+        }
+        Ok(())
     }
 
     /// Mutation keeps active entries densely packed so removals do not shift
@@ -614,6 +672,8 @@ pub fn parse_config_root_plan(
             true,
         )?
         .expect("the primary config cannot be a recursive child of itself");
+    node.options
+        .finalize_config_dir_list_templates(&config_base)?;
     let discovery_options = effective_discovery_options(&node.options, &config_base)?;
     let file_names = derive_file_names(
         host,
@@ -722,6 +782,7 @@ impl ParseContext<'_> {
         base_path: &str,
     ) -> Result<Option<ParsedConfigNode>, ConfigParseError> {
         let mut own_errors = config_json_conversion_diagnostics(&parsed);
+        let json_conversion_error_count = own_errors.len();
         let mut raw = if json_source_file_is_empty(&parsed) {
             Value::Object(Map::new())
         } else {
@@ -819,8 +880,11 @@ impl ParseContext<'_> {
                         .find(|property| is_command_option_without_build(&property.name))
                 })
                 .flatten();
-        own_errors.sort_by_key(|diagnostic| diagnostic.start.unwrap_or(u32::MAX));
-        restore_json_conversion_notifier_order(&parsed, &mut own_errors);
+        order_config_conversion_and_notifier_diagnostics(
+            &parsed,
+            &mut own_errors,
+            json_conversion_error_count,
+        );
         if let Some(property) = misplaced_root_option {
             own_errors.push(config_diagnostic(
                 &gen::_0_should_be_set_inside_the_compilerOptions_object_of_the_config_json_file,
@@ -1056,233 +1120,80 @@ struct ConfigPropertyNode {
     initializer: NodeId,
 }
 
-fn restore_json_conversion_notifier_order(source: &SourceFile, errors: &mut [Diagnostic]) {
-    // convertToJson finishes an initializer before invoking onPropertySet.
-    // A notifier diagnostic can therefore follow conversion diagnostics that
-    // are textually nested inside its value even though the notifier's name or
-    // whole-initializer span starts first. Restore that postorder relationship
-    // after the general source-span ordering without disturbing diagnostics
-    // from sibling properties.
-    let property_index = config_property_diagnostic_index(source);
-    let mut index = 0;
-    while index + 1 < errors.len() {
-        let notifier_before_conversion = is_config_property_notifier(errors[index].code())
-            && matches!(errors[index + 1].code(), 1327 | 1328)
-            && json_conversion_precedes_notifier(
-                &property_index,
-                &errors[index + 1],
-                &errors[index],
-            );
-        let command_line_notifier_before_missing_value = errors[index].code() == 6266
-            && errors[index + 1].code() == 5024
-            && errors[index].file_name == errors[index + 1].file_name
-            && diagnostics_share_config_property(
-                &property_index,
-                &errors[index],
-                &errors[index + 1],
-            );
-        if notifier_before_conversion || command_line_notifier_before_missing_value {
-            errors.swap(index, index + 1);
-            index = index.saturating_sub(1);
-        } else {
-            index += 1;
-        }
-    }
-    remap_filtered_list_notifier_locations(&property_index, errors);
+fn order_config_conversion_and_notifier_diagnostics(
+    source: &SourceFile,
+    errors: &mut Vec<Diagnostic>,
+    json_conversion_error_count: usize,
+) {
+    // convertToJson completes each property initializer before onPropertySet
+    // runs its option notifier. A compacted list can therefore publish a
+    // notifier diagnostic at an earlier AST element than a conversion-time
+    // diagnostic which must still precede it. Group diagnostics by the direct
+    // root/compiler-option property and order the two phases explicitly.
+    // This replaces the former adjacent-swap repair, whose inversion count
+    // could make a large invalid list quadratic.
+    let diagnostic_owners = config_diagnostic_owners(source);
+    let mut indexed = std::mem::take(errors)
+        .into_iter()
+        .enumerate()
+        .collect::<Vec<_>>();
+    indexed.sort_by_cached_key(|(original_index, diagnostic)| {
+        let owner_start = config_diagnostic_owner(&diagnostic_owners, diagnostic)
+            .map_or_else(|| diagnostic.start.unwrap_or(u32::MAX), |owner| owner.start);
+        let phase = u8::from(*original_index >= json_conversion_error_count);
+        (owner_start, phase, *original_index)
+    });
+    errors.extend(indexed.into_iter().map(|(_, diagnostic)| diagnostic));
 }
 
-fn is_config_property_notifier(code: u32) -> bool {
-    matches!(code, 5023 | 5024 | 5025 | 6046 | 6053 | 6114 | 6266 | 18051)
-}
-
-fn json_conversion_precedes_notifier(
-    property_index: &ConfigPropertyDiagnosticIndex,
-    conversion: &Diagnostic,
-    notifier: &Diagnostic,
-) -> bool {
-    if conversion.file_name != notifier.file_name {
-        return false;
-    }
-    if diagnostic_span_contains(notifier, conversion) {
-        return true;
-    }
-    property_index
-        .initializer_for_name_diagnostic(notifier)
-        .or_else(|| {
-            property_index
-                .list_notifier_for_diagnostic(notifier)
-                .map(|entry| &entry.owner)
+fn config_diagnostic_owner<'a>(
+    owners: &'a [ConfigLocation],
+    diagnostic: &Diagnostic,
+) -> Option<&'a ConfigLocation> {
+    let diagnostic_start = diagnostic.start?;
+    let diagnostic_end = diagnostic_start.saturating_add(diagnostic.length?);
+    owners
+        .iter()
+        .filter(|owner| {
+            owner.file_name == diagnostic.file_name.as_deref().unwrap_or_default()
+                && owner.start <= diagnostic_start
+                && diagnostic_end <= owner.start.saturating_add(owner.length)
         })
-        .is_some_and(|initializer| location_contains_diagnostic(initializer, conversion))
+        .min_by_key(|owner| owner.length)
 }
 
-fn diagnostic_span_contains(container: &Diagnostic, nested: &Diagnostic) -> bool {
-    let (Some(container_start), Some(container_length), Some(nested_start), Some(nested_length)) = (
-        container.start,
-        container.length,
-        nested.start,
-        nested.length,
-    ) else {
-        return false;
-    };
-    container_start <= nested_start
-        && nested_start.saturating_add(nested_length)
-            <= container_start.saturating_add(container_length)
-}
-
-fn location_contains_diagnostic(location: &ConfigLocation, diagnostic: &Diagnostic) -> bool {
-    let (Some(start), Some(length)) = (diagnostic.start, diagnostic.length) else {
-        return false;
-    };
-    location.start <= start
-        && start.saturating_add(length) <= location.start.saturating_add(location.length)
-}
-
-fn diagnostics_share_config_property(
-    property_index: &ConfigPropertyDiagnosticIndex,
-    name_diagnostic: &Diagnostic,
-    value_diagnostic: &Diagnostic,
-) -> bool {
-    property_index
-        .initializer_for_name_diagnostic(name_diagnostic)
-        .is_some_and(|value| {
-            value.start == value_diagnostic.start.unwrap_or(u32::MAX)
-                && value.length == value_diagnostic.length.unwrap_or(u32::MAX)
-        })
-}
-
-#[derive(Default)]
-struct ConfigPropertyDiagnosticIndex {
-    initializer_by_name: BTreeMap<(u32, u32), ConfigLocation>,
-    list_notifier_by_value: BTreeMap<(u32, u32), ConfigListNotifierLocation>,
-}
-
-struct ConfigListNotifierLocation {
-    owner: ConfigLocation,
-    published: ConfigLocation,
-}
-
-impl ConfigPropertyDiagnosticIndex {
-    fn initializer_for_name_diagnostic(&self, diagnostic: &Diagnostic) -> Option<&ConfigLocation> {
-        self.initializer_by_name
-            .get(&diagnostic_span_key(diagnostic)?)
-    }
-
-    fn list_notifier_for_diagnostic(
-        &self,
-        diagnostic: &Diagnostic,
-    ) -> Option<&ConfigListNotifierLocation> {
-        (diagnostic.code() == 5024)
-            .then(|| diagnostic_span_key(diagnostic))
-            .flatten()
-            .and_then(|key| self.list_notifier_by_value.get(&key))
-    }
-}
-
-fn diagnostic_span_key(diagnostic: &Diagnostic) -> Option<(u32, u32)> {
-    diagnostic.start.zip(diagnostic.length)
-}
-
-fn location_span_key(location: &ConfigLocation) -> (u32, u32) {
-    (location.start, location.length)
-}
-
-fn config_property_diagnostic_index(source: &SourceFile) -> ConfigPropertyDiagnosticIndex {
+fn config_diagnostic_owners(source: &SourceFile) -> Vec<ConfigLocation> {
+    let mut owners = Vec::new();
     let Some(root) = config_root_object(source) else {
-        return ConfigPropertyDiagnosticIndex::default();
+        return owners;
     };
-    let mut index = ConfigPropertyDiagnosticIndex::default();
-    let mut stack = vec![root];
-    while let Some(node) = stack.pop() {
-        match source.arena.node(node).kind {
-            SyntaxKind::ArrayLiteralExpression => {
-                stack.extend(config_array_elements(source, node).into_iter().rev());
-            }
-            SyntaxKind::ObjectLiteralExpression => {
-                for property in config_object_properties(source, node).into_iter().rev() {
-                    if let (Some(name), Some(initializer)) = (
-                        config_location(source, property.name_node),
-                        config_location(source, property.initializer),
-                    ) {
-                        index
-                            .initializer_by_name
-                            .insert(location_span_key(&name), initializer);
-                    }
-                    if node == root
-                        && matches!(
-                            property.name.as_str(),
-                            "files" | "include" | "exclude" | "extends"
-                        )
-                    {
-                        index_config_list_notifiers(source, &property, &mut index);
-                    }
-                    stack.push(property.initializer);
-                }
-            }
-            _ => {}
+    for property in config_object_properties(source, root) {
+        if let Some(owner) = config_property_owner_location(source, &property) {
+            owners.push(owner);
+        }
+        if property.name == "compilerOptions" {
+            owners.extend(
+                config_object_properties(source, property.initializer)
+                    .into_iter()
+                    .filter_map(|property| config_property_owner_location(source, &property)),
+            );
         }
     }
-    index
+    owners
 }
 
-fn index_config_list_notifiers(
+fn config_property_owner_location(
     source: &SourceFile,
     property: &ConfigPropertyNode,
-    index: &mut ConfigPropertyDiagnosticIndex,
-) {
-    let elements = config_array_elements(source, property.initializer);
-    let Some(owner) = config_location(source, property.initializer) else {
-        return;
-    };
-    let mut converted_index = 0;
-    for element in &elements {
-        let Some(RecoverableJsonValue::Defined(value)) =
-            convert_recoverable_json_node_to_value(source, *element)
-        else {
-            continue;
-        };
-        let invalid_notifier_value = if property.name == "extends" {
-            !value.is_string()
-        } else {
-            !value.is_string() && !value.is_null()
-        };
-        if invalid_notifier_value {
-            if let (Some(actual), Some(published)) = (
-                config_location(source, *element),
-                elements
-                    .get(converted_index)
-                    .and_then(|node| config_location(source, *node)),
-            ) {
-                index.list_notifier_by_value.insert(
-                    location_span_key(&actual),
-                    ConfigListNotifierLocation {
-                        owner: owner.clone(),
-                        published,
-                    },
-                );
-            }
-        }
-        converted_index += 1;
-    }
-}
-
-fn remap_filtered_list_notifier_locations(
-    property_index: &ConfigPropertyDiagnosticIndex,
-    errors: &mut [Diagnostic],
-) {
-    let remaps = errors
-        .iter()
-        .enumerate()
-        .filter_map(|(index, diagnostic)| {
-            property_index
-                .list_notifier_for_diagnostic(diagnostic)
-                .map(|location| (index, location.published.clone()))
-        })
-        .collect::<Vec<_>>();
-    for (index, location) in remaps {
-        errors[index].start = Some(location.start);
-        errors[index].length = Some(location.length);
-    }
+) -> Option<ConfigLocation> {
+    let name = config_location(source, property.name_node)?;
+    let initializer = config_location(source, property.initializer)?;
+    let end = initializer.start.saturating_add(initializer.length);
+    Some(ConfigLocation {
+        file_name: name.file_name,
+        start: name.start,
+        length: end.saturating_sub(name.start),
+    })
 }
 
 fn config_diagnostic(
@@ -1346,10 +1257,21 @@ enum ConfigJsonConversionContext {
     /// by the existing notifier conversion, while nested structures lose that
     /// scalar schema and use ordinary JSON conversion diagnostics.
     KnownValue,
-    /// A root string-list whose direct elements retain the string schema.
-    StringList,
+    /// A root string-list whose direct elements retain the named string
+    /// schema.
+    StringList(&'static str),
     /// `extends` accepts either a string or an array of strings.
-    StringOrList,
+    StringOrList(&'static str),
+    /// One direct element of a root string-list. Unsupported syntax is a
+    /// conversion-time TS5024 and is filtered before the later notifier.
+    StringListElement(&'static str),
+    /// The outer array of a known compiler list option. A direct invalid value
+    /// is owned by the later option notifier, while a real array passes the
+    /// element schema into `convertToJson`.
+    CompilerOptionList(CompilerOptionListDescriptor),
+    /// One direct compiler-list element. Unsupported syntax is diagnosed by
+    /// `convertToJson` before its filtered array reaches the option notifier.
+    CompilerOptionListElement(CompilerOptionListDescriptor),
     /// A nested list/object schema or remaining root field belongs to a later
     /// slice. Preserve TS1327 traversal without claiming its TS1328/TS5024
     /// option conversion yet.
@@ -1411,9 +1333,12 @@ fn config_json_conversion_diagnostics_from_root(
                     .and_then(|array| array.elements)
                 {
                     let element_context = match context {
-                        ConfigJsonConversionContext::StringList
-                        | ConfigJsonConversionContext::StringOrList => {
-                            ConfigJsonConversionContext::KnownValue
+                        ConfigJsonConversionContext::StringList(name)
+                        | ConfigJsonConversionContext::StringOrList(name) => {
+                            ConfigJsonConversionContext::StringListElement(name)
+                        }
+                        ConfigJsonConversionContext::CompilerOptionList(descriptor) => {
+                            ConfigJsonConversionContext::CompilerOptionListElement(descriptor)
                         }
                         ConfigJsonConversionContext::Unported => {
                             ConfigJsonConversionContext::Unported
@@ -1421,7 +1346,9 @@ fn config_json_conversion_diagnostics_from_root(
                         ConfigJsonConversionContext::Generic
                         | ConfigJsonConversionContext::Root
                         | ConfigJsonConversionContext::CompilerOptions
-                        | ConfigJsonConversionContext::KnownValue => {
+                        | ConfigJsonConversionContext::KnownValue
+                        | ConfigJsonConversionContext::StringListElement(_)
+                        | ConfigJsonConversionContext::CompilerOptionListElement(_) => {
                             ConfigJsonConversionContext::Generic
                         }
                     };
@@ -1462,10 +1389,18 @@ fn config_json_conversion_diagnostics_from_root(
                                     Some("compilerOptions") => {
                                         ConfigJsonConversionContext::CompilerOptions
                                     }
-                                    Some("files" | "include" | "exclude") => {
-                                        ConfigJsonConversionContext::StringList
+                                    Some("files") => {
+                                        ConfigJsonConversionContext::StringList("files")
                                     }
-                                    Some("extends") => ConfigJsonConversionContext::StringOrList,
+                                    Some("include") => {
+                                        ConfigJsonConversionContext::StringList("include")
+                                    }
+                                    Some("exclude") => {
+                                        ConfigJsonConversionContext::StringList("exclude")
+                                    }
+                                    Some("extends") => {
+                                        ConfigJsonConversionContext::StringOrList("extends")
+                                    }
                                     Some(
                                         "watchOptions" | "typeAcquisition" | "references"
                                         | "compileOnSave",
@@ -1479,13 +1414,19 @@ fn config_json_conversion_diagnostics_from_root(
                                     Some(declaration)
                                         if matches!(
                                             declaration.value_kind(),
-                                            CompilerOptionValueKind::List
-                                                | CompilerOptionValueKind::Object
+                                            CompilerOptionValueKind::Object
                                         ) =>
                                     {
                                         ConfigJsonConversionContext::Unported
                                     }
-                                    Some(_) => ConfigJsonConversionContext::KnownValue,
+                                    Some(declaration) => match declaration.value_kind() {
+                                        CompilerOptionValueKind::List(descriptor) => {
+                                            ConfigJsonConversionContext::CompilerOptionList(
+                                                descriptor,
+                                            )
+                                        }
+                                        _ => ConfigJsonConversionContext::KnownValue,
+                                    },
                                     None => ConfigJsonConversionContext::Generic,
                                 },
                                 ConfigJsonConversionContext::Unported => {
@@ -1493,8 +1434,11 @@ fn config_json_conversion_diagnostics_from_root(
                                 }
                                 ConfigJsonConversionContext::Generic
                                 | ConfigJsonConversionContext::KnownValue
-                                | ConfigJsonConversionContext::StringList
-                                | ConfigJsonConversionContext::StringOrList => {
+                                | ConfigJsonConversionContext::StringList(_)
+                                | ConfigJsonConversionContext::StringOrList(_)
+                                | ConfigJsonConversionContext::StringListElement(_)
+                                | ConfigJsonConversionContext::CompilerOptionList(_)
+                                | ConfigJsonConversionContext::CompilerOptionListElement(_) => {
                                     ConfigJsonConversionContext::Generic
                                 }
                             };
@@ -1518,6 +1462,34 @@ fn config_json_conversion_diagnostics_from_root(
                 diagnostics.push(config_diagnostic(
                     &gen::Property_value_can_only_be_string_literal_numeric_literal_true_false_null_object_literal_or_array_literal,
                     &[],
+                    config_location(source, node_id),
+                ));
+            }
+            _ if matches!(context, ConfigJsonConversionContext::StringListElement(_)) => {
+                let ConfigJsonConversionContext::StringListElement(name) = context else {
+                    unreachable!("string-list-element context was matched above")
+                };
+                diagnostics.push(config_diagnostic(
+                    &gen::Compiler_option_0_requires_a_value_of_type_1,
+                    &[name.to_owned(), "string".to_owned()],
+                    config_location(source, node_id),
+                ));
+            }
+            _ if matches!(
+                context,
+                ConfigJsonConversionContext::CompilerOptionListElement(_)
+            ) =>
+            {
+                let ConfigJsonConversionContext::CompilerOptionListElement(descriptor) = context
+                else {
+                    unreachable!("list-element context was matched above")
+                };
+                diagnostics.push(config_diagnostic(
+                    &gen::Compiler_option_0_requires_a_value_of_type_1,
+                    &[
+                        descriptor.element_name().to_owned(),
+                        compiler_option_list_element_expected_type(descriptor).to_owned(),
+                    ],
                     config_location(source, node_id),
                 ));
             }
@@ -2241,9 +2213,13 @@ fn compiler_options(
                         *declaration,
                         name,
                         &value,
-                        base_path,
-                        value_location,
-                        name_location,
+                        CompilerOptionConversionContext {
+                            source,
+                            value_node: property.initializer,
+                            base_path,
+                            value_location,
+                            name_location,
+                        },
                         errors,
                     )?,
                     Some(RecoverableJsonValue::Undefined) => {
@@ -2298,15 +2274,33 @@ fn compiler_options(
     Ok(bag)
 }
 
+struct CompilerOptionConversionContext<'a> {
+    source: &'a SourceFile,
+    value_node: NodeId,
+    base_path: &'a str,
+    value_location: Option<ConfigLocation>,
+    name_location: Option<ConfigLocation>,
+}
+
+/// Convert one compiler option using the pinned JSON option declaration.
+///
+/// tsc-port: convertJsonOption/convertJsonOptionOfListType @6.0.3
+/// tsc-hash: 4cff23e5f2618b2d041e50271a495efcd2efc423b7772b1ae526e5d91786f676
+/// tsc-span: _tsc.js:39555-39605
 fn convert_compiler_option_value(
     declaration: crate::config_options::CompilerOptionDeclaration,
     name: &str,
     value: &Value,
-    base_path: &str,
-    value_location: Option<ConfigLocation>,
-    name_location: Option<ConfigLocation>,
+    context: CompilerOptionConversionContext<'_>,
     errors: &mut Vec<Diagnostic>,
 ) -> Result<Option<ConfigTypedOptionValue>, ConfigParseError> {
+    let CompilerOptionConversionContext {
+        source,
+        value_node,
+        base_path,
+        value_location,
+        name_location,
+    } = context;
     if declaration.is_command_line_only() {
         errors.push(config_diagnostic(
             &gen::Option_0_can_only_be_specified_on_command_line,
@@ -2324,7 +2318,7 @@ fn convert_compiler_option_value(
         CompilerOptionValueKind::Number => value.is_number(),
         CompilerOptionValueKind::String | CompilerOptionValueKind::Named(_) => value.is_string(),
         CompilerOptionValueKind::Object => value.is_object(),
-        CompilerOptionValueKind::List => value.is_array(),
+        CompilerOptionValueKind::List(_) => value.is_array(),
     };
     if !kind_matches {
         errors.push(config_diagnostic(
@@ -2333,6 +2327,20 @@ fn convert_compiler_option_value(
             value_location,
         ));
         return Ok(None);
+    }
+    if let CompilerOptionValueKind::List(descriptor) = declaration.value_kind() {
+        return convert_compiler_option_list_value(
+            descriptor,
+            value
+                .as_array()
+                .expect("list options have already passed array validation"),
+            source,
+            value_node,
+            base_path,
+            value_location,
+            errors,
+        )
+        .map(|elements| Some(ConfigTypedOptionValue::List(elements)));
     }
     if let CompilerOptionValueKind::Named(values) = declaration.value_kind() {
         let written = value.as_str().expect("named options require a string");
@@ -2382,8 +2390,148 @@ fn compiler_option_expected_type(
         CompilerOptionValueKind::Number => "number",
         CompilerOptionValueKind::String | CompilerOptionValueKind::Named(_) => "string",
         CompilerOptionValueKind::Object => "object",
-        CompilerOptionValueKind::List => "Array",
+        CompilerOptionValueKind::List(_) => "Array",
     }
+}
+
+fn compiler_option_list_element_expected_type(
+    descriptor: CompilerOptionListDescriptor,
+) -> &'static str {
+    match descriptor.element_kind() {
+        CompilerOptionListElementKind::String
+        | CompilerOptionListElementKind::FilePath
+        | CompilerOptionListElementKind::NamedString(_) => "string",
+        CompilerOptionListElementKind::Object => "object",
+    }
+}
+
+fn convert_compiler_option_list_value(
+    descriptor: CompilerOptionListDescriptor,
+    values: &[Value],
+    source: &SourceFile,
+    value_node: NodeId,
+    base_path: &str,
+    value_location: Option<ConfigLocation>,
+    errors: &mut Vec<Diagnostic>,
+) -> Result<Vec<ConfigTypedListElement>, ConfigParseError> {
+    // convertToJson filters unsupported syntax out of the JSON array before
+    // onPropertySet invokes convertJsonOption. TypeScript nevertheless indexes
+    // the original AST array with the compacted value index. Preserve that
+    // observable (and somewhat surprising) shifted diagnostic location.
+    let source_elements = config_array_elements(source, value_node);
+    let mut converted = Vec::with_capacity(values.len());
+    for (index, value) in values.iter().enumerate() {
+        let element_location = source_elements
+            .get(index)
+            .and_then(|node| config_location(source, *node))
+            .or_else(|| value_location.clone());
+        let element = convert_compiler_option_list_element(
+            descriptor,
+            value,
+            base_path,
+            element_location,
+            errors,
+        )?;
+        if descriptor.preserve_falsy_values() || config_typed_list_element_is_truthy(&element) {
+            converted.push(element);
+        }
+    }
+    Ok(converted)
+}
+
+fn convert_compiler_option_list_element(
+    descriptor: CompilerOptionListDescriptor,
+    value: &Value,
+    base_path: &str,
+    location: Option<ConfigLocation>,
+    errors: &mut Vec<Diagnostic>,
+) -> Result<ConfigTypedListElement, ConfigParseError> {
+    if value.is_null() {
+        return Ok(ConfigTypedListElement::Undefined);
+    }
+
+    let converted = match descriptor.element_kind() {
+        CompilerOptionListElementKind::String | CompilerOptionListElementKind::FilePath => {
+            let Some(written) = value.as_str() else {
+                errors.push(config_diagnostic(
+                    &gen::Compiler_option_0_requires_a_value_of_type_1,
+                    &[descriptor.element_name().to_owned(), "string".to_owned()],
+                    location,
+                ));
+                return Ok(ConfigTypedListElement::Undefined);
+            };
+            if matches!(
+                descriptor.element_kind(),
+                CompilerOptionListElementKind::FilePath
+            ) {
+                let written = written.replace('\\', "/");
+                Value::String(if starts_with_config_dir_template(&written) {
+                    written
+                } else {
+                    normalized_config_path(&written, base_path)?
+                })
+            } else {
+                Value::String(written.to_owned())
+            }
+        }
+        CompilerOptionListElementKind::NamedString(_) => {
+            let Some(written) = value.as_str() else {
+                errors.push(config_diagnostic(
+                    &gen::Compiler_option_0_requires_a_value_of_type_1,
+                    &[descriptor.element_name().to_owned(), "string".to_owned()],
+                    location,
+                ));
+                return Ok(ConfigTypedListElement::Undefined);
+            };
+            let Some(mapped) = descriptor.named_string_value(written) else {
+                errors.push(config_diagnostic(
+                    &gen::Argument_for_0_option_must_be_1,
+                    &[
+                        format!("--{}", descriptor.element_name()),
+                        config_named_string_option_choices(descriptor),
+                    ],
+                    location,
+                ));
+                return Ok(ConfigTypedListElement::Undefined);
+            };
+            Value::String(mapped.to_owned())
+        }
+        CompilerOptionListElementKind::Object => {
+            if !matches!(value, Value::Object(_) | Value::Array(_)) {
+                errors.push(config_diagnostic(
+                    &gen::Compiler_option_0_requires_a_value_of_type_1,
+                    &[descriptor.element_name().to_owned(), "object".to_owned()],
+                    location,
+                ));
+                return Ok(ConfigTypedListElement::Undefined);
+            }
+            config_raw_projection(value.clone())
+        }
+    };
+    Ok(ConfigTypedListElement::Value(converted))
+}
+
+fn config_typed_list_element_is_truthy(element: &ConfigTypedListElement) -> bool {
+    match element {
+        ConfigTypedListElement::Undefined => false,
+        ConfigTypedListElement::Value(Value::Null) => false,
+        ConfigTypedListElement::Value(Value::Bool(value)) => *value,
+        ConfigTypedListElement::Value(Value::Number(value)) => {
+            json_number_as_f64(value).is_some_and(|value| value != 0.0 && !value.is_nan())
+        }
+        ConfigTypedListElement::Value(Value::String(value)) => !value.is_empty(),
+        ConfigTypedListElement::Value(Value::Array(_) | Value::Object(_)) => true,
+    }
+}
+
+fn config_named_string_option_choices(descriptor: CompilerOptionListDescriptor) -> String {
+    descriptor
+        .named_string_choices()
+        .expect("named-string list descriptors carry their choices")
+        .iter()
+        .map(|value| format!("'{}'", value.name()))
+        .collect::<Vec<_>>()
+        .join(", ")
 }
 
 fn config_named_option_choices(
@@ -2442,7 +2590,6 @@ fn specs(
                 base_path,
                 source,
                 Some(property.initializer),
-                /* observe_undefined_elements */ true,
                 errors,
             ),
             Some(RecoverableJsonValue::Undefined) => {
@@ -2521,7 +2668,6 @@ fn specs_from_value(
     base_path: &str,
     source: &SourceFile,
     initializer: Option<NodeId>,
-    observe_undefined_elements: bool,
     errors: &mut Vec<Diagnostic>,
 ) -> Option<Vec<ConfigSpec>> {
     if value.is_null() {
@@ -2539,42 +2685,28 @@ fn specs_from_value(
         config_array_elements(source, initializer)
     });
     let mut specs = Vec::with_capacity(values.len());
-    if observe_undefined_elements && !element_nodes.is_empty() {
-        for element in element_nodes {
-            let location = config_location(source, element);
-            match convert_recoverable_json_node_to_value(source, element) {
-                Some(RecoverableJsonValue::Defined(Value::String(text))) => {
-                    specs.push(ConfigSpec {
-                        location: config_spec_location(source, name, &text),
-                        text,
-                        base_path: base_path.to_owned(),
-                    });
-                }
-                Some(RecoverableJsonValue::Defined(Value::Null)) => {}
-                Some(RecoverableJsonValue::Defined(_))
-                | Some(RecoverableJsonValue::Undefined)
-                | None => errors.push(config_diagnostic(
-                    &gen::Compiler_option_0_requires_a_value_of_type_1,
-                    &[name.to_owned(), "string".to_owned()],
-                    location,
-                )),
-            }
-        }
-    } else {
-        for value in values {
-            if let Some(text) = value.as_str() {
-                specs.push(ConfigSpec {
-                    text: text.to_owned(),
-                    base_path: base_path.to_owned(),
-                    location: config_spec_location(source, name, text),
-                });
-            } else if !value.is_null() {
-                errors.push(config_diagnostic(
-                    &gen::Compiler_option_0_requires_a_value_of_type_1,
-                    &[name.to_owned(), "string".to_owned()],
-                    None,
-                ));
-            }
+    for (index, value) in values.iter().enumerate() {
+        // convertToJson has already removed unsupported syntax, but the
+        // notifier indexes the original array with this compacted index.
+        let location = element_nodes
+            .get(index)
+            .and_then(|element| config_location(source, *element));
+        if let Some(text) = value.as_str() {
+            specs.push(ConfigSpec {
+                text: text.to_owned(),
+                base_path: base_path.to_owned(),
+                // validateSpecs later recovers a node by written value and
+                // therefore reuses the first matching source location for
+                // duplicate strings, independently of the shifted notifier
+                // location above.
+                location: config_spec_location(source, name, text),
+            });
+        } else if !value.is_null() {
+            errors.push(config_diagnostic(
+                &gen::Compiler_option_0_requires_a_value_of_type_1,
+                &[name.to_owned(), "string".to_owned()],
+                location,
+            ));
         }
     }
     Some(specs)
@@ -2661,7 +2793,7 @@ fn extends_values_from_value(
             location: config_location(source, initializer),
         }];
     }
-    let Some(_values) = value.as_array() else {
+    let Some(values) = value.as_array() else {
         errors.push(config_diagnostic(
             &gen::Compiler_option_0_requires_a_value_of_type_1,
             &["extends".to_owned(), "string or Array".to_owned()],
@@ -2671,19 +2803,21 @@ fn extends_values_from_value(
     };
     let element_nodes = config_array_elements(source, initializer);
     let mut result = Vec::new();
-    for element in element_nodes {
-        let location = config_location(source, element);
-        match convert_recoverable_json_node_to_value(source, element) {
-            Some(RecoverableJsonValue::Defined(Value::String(text))) => {
-                result.push(ConfigExtendsSpec { text, location });
-            }
-            Some(RecoverableJsonValue::Defined(_))
-            | Some(RecoverableJsonValue::Undefined)
-            | None => errors.push(config_diagnostic(
+    for (index, value) in values.iter().enumerate() {
+        let location = element_nodes
+            .get(index)
+            .and_then(|element| config_location(source, *element));
+        if let Some(text) = value.as_str() {
+            result.push(ConfigExtendsSpec {
+                text: text.to_owned(),
+                location,
+            });
+        } else if !value.is_null() {
+            errors.push(config_diagnostic(
                 &gen::Compiler_option_0_requires_a_value_of_type_1,
                 &["extends".to_owned(), "string".to_owned()],
                 location,
-            )),
+            ));
         }
     }
     result
