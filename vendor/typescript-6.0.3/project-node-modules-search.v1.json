@@ -1,0 +1,498 @@
+{
+  "schema": 1,
+  "typescript_version": "6.0.3",
+  "source_commit": "050880ce59e30b356b686bd3144efe24f875ebc8",
+  "node_version": "25.2.1",
+  "producer": {
+    "path": "vendor/typescript-6.0.3/lib/typescript.js",
+    "sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39"
+  },
+  "project_runner": {
+    "path": "src/testRunner/projectsRunner.ts",
+    "git_blob_sha1": "5befdf497dff2accd67e08c3c51100b66f1b14b5"
+  },
+  "manifest": {
+    "path": "vendor/typescript-6.0.3/test-suite-expansion.v1.json",
+    "sha256": "9c6e991103b571f7a8800dc5e1ef66088017689f3769de8fcdb408b2dc125188"
+  },
+  "scope": {
+    "no_emit_adapter": true,
+    "emit_and_baselines": "not-run"
+  },
+  "summary": {
+    "fixture_total": 3,
+    "case_total": 6,
+    "config_root_total": 10,
+    "source_file_total": 44,
+    "library_file_total": 18,
+    "pre_emit_diagnostic_total": 17
+  },
+  "cases": [
+    {
+      "case_id": "typescript-6.0.3/project/nodeModulesImportHigher.json#module%3Dcommonjs",
+      "initial_execution_state": "not-run",
+      "descriptor": {
+        "path": "nodeModulesImportHigher.json",
+        "sha256": "0fcc226a9355ee18997dc25441e3279fceb05dee7335ce0fb92b5e1085433469",
+        "git_blob_sha1": "2cca8c03f001f32875e16dd9848e02ce620aff85"
+      },
+      "module": {
+        "name": "commonjs",
+        "value": 1,
+        "baseline_folder": "node"
+      },
+      "current_directory": "/.src/tests/cases/projects/NodeModulesSearch",
+      "config": {
+        "path": "importHigher/tsconfig.json",
+        "sha256": "8f707cde19108c4576759a245abd5f96e673de20860b2caf307b9eb27f25519d",
+        "git_blob_sha1": "301db9c870a0f76ac6b83825563957c044db187c",
+        "root_names": [
+          "importHigher/root.ts"
+        ],
+        "diagnostics": []
+      },
+      "effective_options": {
+        "allow_js": true,
+        "max_node_module_js_depth": 2,
+        "module": 1,
+        "module_resolution": 2,
+        "declaration": false,
+        "no_error_truncation": false,
+        "skip_default_lib_check": false,
+        "out_dir": null,
+        "config_file_path": null,
+        "raw_no_emit": null,
+        "execution_no_emit_adapter": true,
+        "host_default_library": "lib.es5.d.ts"
+      },
+      "source_files": [
+        "lib.es5.d.ts",
+        "lib.decorators.d.ts",
+        "lib.decorators.legacy.d.ts",
+        "importHigher/node_modules/m2/entry.js",
+        "importHigher/node_modules/m1/index.js",
+        "importHigher/node_modules/m2/node_modules/m3/index.js",
+        "importHigher/root.ts"
+      ],
+      "library_files": [
+        "lib.es5.d.ts",
+        "lib.decorators.d.ts",
+        "lib.decorators.legacy.d.ts"
+      ],
+      "pre_emit_diagnostics": [
+        {
+          "code": 5107,
+          "category": 1,
+          "file": "importHigher/tsconfig.json",
+          "start": 101,
+          "length": 6,
+          "message": "Option 'moduleResolution=node10' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.\n  Visit https://aka.ms/ts6 for migration information."
+        },
+        {
+          "code": 2322,
+          "category": 1,
+          "file": "importHigher/root.ts",
+          "start": 87,
+          "length": 16,
+          "message": "Type 'string' is not assignable to type 'number'."
+        }
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/project/nodeModulesImportHigher.json#module%3Damd",
+      "initial_execution_state": "not-run",
+      "descriptor": {
+        "path": "nodeModulesImportHigher.json",
+        "sha256": "0fcc226a9355ee18997dc25441e3279fceb05dee7335ce0fb92b5e1085433469",
+        "git_blob_sha1": "2cca8c03f001f32875e16dd9848e02ce620aff85"
+      },
+      "module": {
+        "name": "amd",
+        "value": 2,
+        "baseline_folder": "amd"
+      },
+      "current_directory": "/.src/tests/cases/projects/NodeModulesSearch",
+      "config": {
+        "path": "importHigher/tsconfig.json",
+        "sha256": "8f707cde19108c4576759a245abd5f96e673de20860b2caf307b9eb27f25519d",
+        "git_blob_sha1": "301db9c870a0f76ac6b83825563957c044db187c",
+        "root_names": [
+          "importHigher/root.ts"
+        ],
+        "diagnostics": []
+      },
+      "effective_options": {
+        "allow_js": true,
+        "max_node_module_js_depth": 2,
+        "module": 2,
+        "module_resolution": 2,
+        "declaration": false,
+        "no_error_truncation": false,
+        "skip_default_lib_check": false,
+        "out_dir": null,
+        "config_file_path": null,
+        "raw_no_emit": null,
+        "execution_no_emit_adapter": true,
+        "host_default_library": "lib.es5.d.ts"
+      },
+      "source_files": [
+        "lib.es5.d.ts",
+        "lib.decorators.d.ts",
+        "lib.decorators.legacy.d.ts",
+        "importHigher/node_modules/m2/entry.js",
+        "importHigher/node_modules/m1/index.js",
+        "importHigher/node_modules/m2/node_modules/m3/index.js",
+        "importHigher/root.ts"
+      ],
+      "library_files": [
+        "lib.es5.d.ts",
+        "lib.decorators.d.ts",
+        "lib.decorators.legacy.d.ts"
+      ],
+      "pre_emit_diagnostics": [
+        {
+          "code": 5107,
+          "category": 1,
+          "file": "importHigher/tsconfig.json",
+          "start": 5,
+          "length": 17,
+          "message": "Option 'module=AMD' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error."
+        },
+        {
+          "code": 5107,
+          "category": 1,
+          "file": "importHigher/tsconfig.json",
+          "start": 101,
+          "length": 6,
+          "message": "Option 'moduleResolution=node10' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.\n  Visit https://aka.ms/ts6 for migration information."
+        },
+        {
+          "code": 2322,
+          "category": 1,
+          "file": "importHigher/root.ts",
+          "start": 87,
+          "length": 16,
+          "message": "Type 'string' is not assignable to type 'number'."
+        }
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/project/nodeModulesMaxDepthExceeded.json#module%3Dcommonjs",
+      "initial_execution_state": "not-run",
+      "descriptor": {
+        "path": "nodeModulesMaxDepthExceeded.json",
+        "sha256": "8210e7112e3784245ba2b435efc9514b3844dc39240df5f2c9f254f5baa15626",
+        "git_blob_sha1": "45e1210aa8cb77a94f09a74be1b3b29ee36b2e6f"
+      },
+      "module": {
+        "name": "commonjs",
+        "value": 1,
+        "baseline_folder": "node"
+      },
+      "current_directory": "/.src/tests/cases/projects/NodeModulesSearch",
+      "config": {
+        "path": "maxDepthExceeded/tsconfig.json",
+        "sha256": "110c8dcb2c5883d30578eeef92bded80013a465121c6db5a49b0b39b5638d3f7",
+        "git_blob_sha1": "b2ee28482bab77e917817d22d35eecd3c6ba730d",
+        "root_names": [
+          "maxDepthExceeded/root.ts",
+          "maxDepthExceeded/node_modules/m1/index.js",
+          "maxDepthExceeded/node_modules/m1/relative.js"
+        ],
+        "diagnostics": []
+      },
+      "effective_options": {
+        "allow_js": true,
+        "max_node_module_js_depth": 1,
+        "module": 1,
+        "module_resolution": 2,
+        "declaration": false,
+        "no_error_truncation": false,
+        "skip_default_lib_check": false,
+        "out_dir": "maxDepthExceeded/built",
+        "config_file_path": null,
+        "raw_no_emit": null,
+        "execution_no_emit_adapter": true,
+        "host_default_library": "lib.es5.d.ts"
+      },
+      "source_files": [
+        "lib.es5.d.ts",
+        "lib.decorators.d.ts",
+        "lib.decorators.legacy.d.ts",
+        "maxDepthExceeded/node_modules/m1/index.js",
+        "maxDepthExceeded/root.ts",
+        "maxDepthExceeded/node_modules/m2/entry.js",
+        "maxDepthExceeded/node_modules/m1/relative.js"
+      ],
+      "library_files": [
+        "lib.es5.d.ts",
+        "lib.decorators.d.ts",
+        "lib.decorators.legacy.d.ts"
+      ],
+      "pre_emit_diagnostics": [
+        {
+          "code": 5107,
+          "category": 1,
+          "file": "maxDepthExceeded/tsconfig.json",
+          "start": 5,
+          "length": 17,
+          "message": "Option 'moduleResolution=node10' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.\n  Visit https://aka.ms/ts6 for migration information."
+        },
+        {
+          "code": 2322,
+          "category": 1,
+          "file": "maxDepthExceeded/root.ts",
+          "start": 43,
+          "length": 7,
+          "message": "Type 'string' is not assignable to type 'number'."
+        },
+        {
+          "code": 2540,
+          "category": 1,
+          "file": "maxDepthExceeded/root.ts",
+          "start": 90,
+          "length": 3,
+          "message": "Cannot assign to 'rel' because it is a read-only property."
+        }
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/project/nodeModulesMaxDepthExceeded.json#module%3Damd",
+      "initial_execution_state": "not-run",
+      "descriptor": {
+        "path": "nodeModulesMaxDepthExceeded.json",
+        "sha256": "8210e7112e3784245ba2b435efc9514b3844dc39240df5f2c9f254f5baa15626",
+        "git_blob_sha1": "45e1210aa8cb77a94f09a74be1b3b29ee36b2e6f"
+      },
+      "module": {
+        "name": "amd",
+        "value": 2,
+        "baseline_folder": "amd"
+      },
+      "current_directory": "/.src/tests/cases/projects/NodeModulesSearch",
+      "config": {
+        "path": "maxDepthExceeded/tsconfig.json",
+        "sha256": "110c8dcb2c5883d30578eeef92bded80013a465121c6db5a49b0b39b5638d3f7",
+        "git_blob_sha1": "b2ee28482bab77e917817d22d35eecd3c6ba730d",
+        "root_names": [
+          "maxDepthExceeded/root.ts",
+          "maxDepthExceeded/node_modules/m1/index.js",
+          "maxDepthExceeded/node_modules/m1/relative.js"
+        ],
+        "diagnostics": []
+      },
+      "effective_options": {
+        "allow_js": true,
+        "max_node_module_js_depth": 1,
+        "module": 2,
+        "module_resolution": 2,
+        "declaration": false,
+        "no_error_truncation": false,
+        "skip_default_lib_check": false,
+        "out_dir": "maxDepthExceeded/built",
+        "config_file_path": null,
+        "raw_no_emit": null,
+        "execution_no_emit_adapter": true,
+        "host_default_library": "lib.es5.d.ts"
+      },
+      "source_files": [
+        "lib.es5.d.ts",
+        "lib.decorators.d.ts",
+        "lib.decorators.legacy.d.ts",
+        "maxDepthExceeded/node_modules/m1/index.js",
+        "maxDepthExceeded/root.ts",
+        "maxDepthExceeded/node_modules/m2/entry.js",
+        "maxDepthExceeded/node_modules/m1/relative.js"
+      ],
+      "library_files": [
+        "lib.es5.d.ts",
+        "lib.decorators.d.ts",
+        "lib.decorators.legacy.d.ts"
+      ],
+      "pre_emit_diagnostics": [
+        {
+          "code": 5107,
+          "category": 1,
+          "file": "maxDepthExceeded/tsconfig.json",
+          "start": 5,
+          "length": 17,
+          "message": "Option 'module=AMD' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error."
+        },
+        {
+          "code": 5107,
+          "category": 1,
+          "file": "maxDepthExceeded/tsconfig.json",
+          "start": 5,
+          "length": 17,
+          "message": "Option 'moduleResolution=node10' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.\n  Visit https://aka.ms/ts6 for migration information."
+        },
+        {
+          "code": 2322,
+          "category": 1,
+          "file": "maxDepthExceeded/root.ts",
+          "start": 43,
+          "length": 7,
+          "message": "Type 'string' is not assignable to type 'number'."
+        },
+        {
+          "code": 2540,
+          "category": 1,
+          "file": "maxDepthExceeded/root.ts",
+          "start": 90,
+          "length": 3,
+          "message": "Cannot assign to 'rel' because it is a read-only property."
+        }
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/project/nodeModulesMaxDepthIncreased.json#module%3Dcommonjs",
+      "initial_execution_state": "not-run",
+      "descriptor": {
+        "path": "nodeModulesMaxDepthIncreased.json",
+        "sha256": "69b34b851ede5265307b48c49d6a7b9a653b2803ac82397b09a2a91572116198",
+        "git_blob_sha1": "0973ae4bd5b15b38f67e2071e2c0e80e39164687"
+      },
+      "module": {
+        "name": "commonjs",
+        "value": 1,
+        "baseline_folder": "node"
+      },
+      "current_directory": "/.src/tests/cases/projects/NodeModulesSearch",
+      "config": {
+        "path": "maxDepthIncreased/tsconfig.json",
+        "sha256": "bc021e074954d2a2c1bbc2ca108b4549274dd26e556a0b2b03bbf10ad84f80db",
+        "git_blob_sha1": "5388cc5d39fddbfba5fccd004b41d60a72984021",
+        "root_names": [
+          "maxDepthIncreased/root.ts"
+        ],
+        "diagnostics": []
+      },
+      "effective_options": {
+        "allow_js": true,
+        "max_node_module_js_depth": 3,
+        "module": 1,
+        "module_resolution": 2,
+        "declaration": false,
+        "no_error_truncation": false,
+        "skip_default_lib_check": false,
+        "out_dir": null,
+        "config_file_path": null,
+        "raw_no_emit": null,
+        "execution_no_emit_adapter": true,
+        "host_default_library": "lib.es5.d.ts"
+      },
+      "source_files": [
+        "lib.es5.d.ts",
+        "lib.decorators.d.ts",
+        "lib.decorators.legacy.d.ts",
+        "maxDepthIncreased/node_modules/m2/node_modules/m3/index.js",
+        "maxDepthIncreased/node_modules/m2/entry.js",
+        "maxDepthIncreased/node_modules/m1/index.js",
+        "maxDepthIncreased/node_modules/@types/m4/entry.d.ts",
+        "maxDepthIncreased/root.ts"
+      ],
+      "library_files": [
+        "lib.es5.d.ts",
+        "lib.decorators.d.ts",
+        "lib.decorators.legacy.d.ts"
+      ],
+      "pre_emit_diagnostics": [
+        {
+          "code": 5107,
+          "category": 1,
+          "file": "maxDepthIncreased/tsconfig.json",
+          "start": 5,
+          "length": 17,
+          "message": "Option 'moduleResolution=node10' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.\n  Visit https://aka.ms/ts6 for migration information."
+        },
+        {
+          "code": 2322,
+          "category": 1,
+          "file": "maxDepthIncreased/root.ts",
+          "start": 89,
+          "length": 16,
+          "message": "Type 'string' is not assignable to type 'number'."
+        }
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/project/nodeModulesMaxDepthIncreased.json#module%3Damd",
+      "initial_execution_state": "not-run",
+      "descriptor": {
+        "path": "nodeModulesMaxDepthIncreased.json",
+        "sha256": "69b34b851ede5265307b48c49d6a7b9a653b2803ac82397b09a2a91572116198",
+        "git_blob_sha1": "0973ae4bd5b15b38f67e2071e2c0e80e39164687"
+      },
+      "module": {
+        "name": "amd",
+        "value": 2,
+        "baseline_folder": "amd"
+      },
+      "current_directory": "/.src/tests/cases/projects/NodeModulesSearch",
+      "config": {
+        "path": "maxDepthIncreased/tsconfig.json",
+        "sha256": "bc021e074954d2a2c1bbc2ca108b4549274dd26e556a0b2b03bbf10ad84f80db",
+        "git_blob_sha1": "5388cc5d39fddbfba5fccd004b41d60a72984021",
+        "root_names": [
+          "maxDepthIncreased/root.ts"
+        ],
+        "diagnostics": []
+      },
+      "effective_options": {
+        "allow_js": true,
+        "max_node_module_js_depth": 3,
+        "module": 2,
+        "module_resolution": 2,
+        "declaration": false,
+        "no_error_truncation": false,
+        "skip_default_lib_check": false,
+        "out_dir": null,
+        "config_file_path": null,
+        "raw_no_emit": null,
+        "execution_no_emit_adapter": true,
+        "host_default_library": "lib.es5.d.ts"
+      },
+      "source_files": [
+        "lib.es5.d.ts",
+        "lib.decorators.d.ts",
+        "lib.decorators.legacy.d.ts",
+        "maxDepthIncreased/node_modules/m2/node_modules/m3/index.js",
+        "maxDepthIncreased/node_modules/m2/entry.js",
+        "maxDepthIncreased/node_modules/m1/index.js",
+        "maxDepthIncreased/node_modules/@types/m4/entry.d.ts",
+        "maxDepthIncreased/root.ts"
+      ],
+      "library_files": [
+        "lib.es5.d.ts",
+        "lib.decorators.d.ts",
+        "lib.decorators.legacy.d.ts"
+      ],
+      "pre_emit_diagnostics": [
+        {
+          "code": 5107,
+          "category": 1,
+          "file": "maxDepthIncreased/tsconfig.json",
+          "start": 5,
+          "length": 17,
+          "message": "Option 'module=AMD' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error."
+        },
+        {
+          "code": 5107,
+          "category": 1,
+          "file": "maxDepthIncreased/tsconfig.json",
+          "start": 5,
+          "length": 17,
+          "message": "Option 'moduleResolution=node10' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.\n  Visit https://aka.ms/ts6 for migration information."
+        },
+        {
+          "code": 2322,
+          "category": 1,
+          "file": "maxDepthIncreased/root.ts",
+          "start": 89,
+          "length": 16,
+          "message": "Type 'string' is not assignable to type 'number'."
+        }
+      ]
+    }
+  ]
+}

@@ -581,6 +581,24 @@ slices. Discovery stays sequential where vendored host calls and failure
 precedence are observable; future pipeline parallelism must preserve that
 contract.
 
+A focused project-runner bridge now owns the official `NodeModulesSearch`
+config-to-loader path for its three descriptors under CommonJS and AMD. All
+233 files in the pinned `projects` tree are verified once and exposed through
+one immutable, case-sensitive, read-only mount shared by the 632 project case
+plans. For the six focused variants the bridge reproduces project config
+selection, the loader-facing existing-option projection, relative root
+discovery, AMD request planning, the host-selected `lib.es5.d.ts`, exact root
+and source publication order, inclusive external-JavaScript depth,
+shallower/root reprocessing, and automatic `@types` membership. An official
+frozen oracle records those facts and the 17 upstream pre-emit diagnostics.
+The Rust boundary deliberately adds `noEmit=true`; it neither emits nor
+compares project baselines, and all six manifest cases remain `not-run`. This
+is not general `ProjectConfig` or `DiscoverConfig` execution.
+The mount removes repeated corpus-artifact decoding by Git blob identity; each
+independent program still owns its source-text decode and parse. Reusing that
+prepared text/parse work across project variants is a later performance slice
+and must preserve option-sensitive source identity and publication order.
+
 ### H0.5 — tsconfig and command-line driver
 
 - port JSONC config parsing and config diagnostics;
@@ -660,9 +678,10 @@ build a quadratic memo table, or require a regex dependency. This is not yet a
 general `ParseConfigHost`/`matchFiles` qualification. Remaining root fields,
 remaining resolver/loader options such as `noDtsResolution`, full
 `ParsedCommandLine`, filesystem discovery,
-project/project-runner config handling, wiring the config projection into
-general program construction, command-line selection, rendering, exit status,
-and production execution remain open.
+general project/project-runner config handling beyond the focused
+`NodeModulesSearch` bridge, wiring the config projection into general program
+construction, command-line selection, rendering, exit status, and production
+execution remain open.
 
 ### H0.6 — qualification and release
 

@@ -19,6 +19,9 @@
 //! distinct processing-order and checker-membership sets. Discovery within
 //! each source deliberately follows the vendored path/type/lib/module phases
 //! and their observable failure precedence.
+//! An embedding host may override the absent-`lib` default by exact pinned
+//! library basename without fabricating a raw `compilerOptions.lib` value;
+//! explicit `lib` selections still win.
 //!
 //! Every load requires explicit source-count, request-occurrence, depth, and
 //! raw-byte ceilings and reports host, decode, resolution, preparation,
@@ -64,8 +67,10 @@
 //! `paths` atomically with its declaring base and share precompiled matching
 //! metadata across resolver instances. This does not execute the remaining
 //! compiler/project cases or cover the full `ParsedCommandLine`, remaining
-//! root object schemas, general filesystem `matchFiles`, project-runner
-//! configs, or CLI ownership.
+//! root object schemas, general filesystem `matchFiles`, general
+//! project-runner configs, or CLI ownership. The harness separately uses this
+//! boundary for six focused official `NodeModulesSearch` variants without
+//! claiming their emit baselines.
 
 mod config;
 mod config_matcher;

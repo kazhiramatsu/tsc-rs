@@ -38,6 +38,10 @@ use super::{
 };
 use crate::HarnessResult;
 
+mod project;
+
+pub use project::{load_node_modules_search_project, ProjectConfigProgram};
+
 /// A fully verified, canonically ordered set of execution plans.
 #[derive(Clone, Debug)]
 pub struct UpstreamExecutionCorpus {
@@ -74,7 +78,7 @@ pub struct CaseProvenance {
 }
 
 /// Content and identity for one source path in the pinned corpus.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct VerifiedSource {
     pub index: u32,
     pub suite: SuiteName,
@@ -231,6 +235,16 @@ pub struct ProjectMount {
     pub virtual_path: Arc<str>,
     pub case_sensitive: bool,
     pub read_only: bool,
+    /// Every file below the pinned `tests/cases/projects` tree. The source
+    /// cache verifies each path and decodes each distinct Git blob once before
+    /// the mount is published; all project matrix variants share these owners.
+    pub files: Arc<[ProjectMountFile]>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ProjectMountFile {
+    pub source: Arc<VerifiedSource>,
+    pub virtual_path: Arc<str>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -276,11 +290,30 @@ pub fn load_recorded_execution_plans(workspace: &Path) -> HarnessResult<Upstream
         }
     }
 
+    let project_mount_files = manifest
+        .sources
+        .iter()
+        .enumerate()
+        .filter(|(_, source)| source.suite == SuiteName::Projects)
+        .map(|(index, _)| {
+            let source = cache.decoded_source(
+                &manifest,
+                u32::try_from(index).map_err(|_| error("project mount source index overflow"))?,
+            )?;
+            let virtual_path =
+                join_posix("/.src/tests/cases/projects", source.relative_path.as_ref());
+            Ok(ProjectMountFile {
+                source,
+                virtual_path: Arc::from(virtual_path),
+            })
+        })
+        .collect::<HarnessResult<Vec<_>>>()?;
     let tests_mount = Arc::new(ProjectMount {
         workspace_path: Arc::new(workspace.join("ts-tests/tests")),
         virtual_path: Arc::from("/.src/tests"),
         case_sensitive: true,
         read_only: true,
+        files: Arc::from(project_mount_files),
     });
     let mut project_fixtures = HashMap::with_capacity(manifest.project_fixtures.len());
     for fixture in &manifest.project_fixtures {

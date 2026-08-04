@@ -5,11 +5,15 @@ use std::sync::{Arc, OnceLock};
 
 use sha2::{Digest, Sha256};
 use tsc_harness::upstream_suites::execution::{
-    load_recorded_execution_plans, CompilerExecutionPlan, CompilerExplicitRootReason,
-    CompilerRootSelection, CompilerSymlinkPhase, CompilerUnitId, ProjectExecutionPlan,
-    ProjectRootSelection, UpstreamExecutionCorpus, UpstreamExecutionInput, UpstreamExecutionPlan,
+    load_node_modules_search_project, load_recorded_execution_plans, CompilerExecutionPlan,
+    CompilerExplicitRootReason, CompilerRootSelection, CompilerSymlinkPhase, CompilerUnitId,
+    ProjectExecutionPlan, ProjectRootSelection, UpstreamExecutionCorpus, UpstreamExecutionInput,
+    UpstreamExecutionPlan,
 };
 use tsc_harness::upstream_suites::{ExecutionState, ProjectModule};
+use tsc_program::{
+    plan_source_requests, ProgramLoadLimits, ResolutionOutcome, UnloadedModuleReason,
+};
 
 static CORPUS: OnceLock<UpstreamExecutionCorpus> = OnceLock::new();
 
@@ -81,6 +85,19 @@ fn json_values_equivalent(left: &serde_json::Value, right: &serde_json::Value) -
     }
 }
 
+fn json_strings<'a>(value: &'a serde_json::Value, label: &str) -> Vec<&'a str> {
+    value
+        .as_array()
+        .unwrap_or_else(|| panic!("oracle {label} is not an array"))
+        .iter()
+        .map(|value| {
+            value
+                .as_str()
+                .unwrap_or_else(|| panic!("oracle {label} contains a non-string"))
+        })
+        .collect()
+}
+
 fn sha256(bytes: &[u8]) -> String {
     format!("{:x}", Sha256::digest(bytes))
 }
@@ -138,9 +155,9 @@ fn plans_cover_the_recorded_order_and_decode_each_blob_only_once() {
     assert_eq!(stats.verified_source_bytes, 4_718_142);
     assert_eq!(stats.unique_raw_blobs, 6_993);
     assert_eq!(stats.reused_raw_blobs, 93);
-    assert_eq!(stats.decode_requests, 6_853);
-    assert_eq!(stats.unique_decoded_blobs, 6_839);
-    assert_eq!(stats.reused_decoded_blobs, 14);
+    assert_eq!(stats.decode_requests, 7_086);
+    assert_eq!(stats.unique_decoded_blobs, 6_993);
+    assert_eq!(stats.reused_decoded_blobs, 93);
 
     let default = compiler(plan("typescript-6.0.3/compiler/2dArrays.ts#default"));
     assert!(Arc::ptr_eq(
@@ -816,6 +833,7 @@ fn project_plans_preserve_descriptor_order_mount_and_pending_config_modes() {
     );
     assert!(commonjs.fixture.mount.case_sensitive);
     assert!(commonjs.fixture.mount.read_only);
+    assert_eq!(commonjs.fixture.mount.files.len(), 233);
 
     let configured = project(plan(
         "typescript-6.0.3/project/jsFileCompilationDifferentNamesNotSpecified.json#module%3Dcommonjs",
@@ -837,5 +855,386 @@ fn project_plans_preserve_descriptor_order_mount_and_pending_config_modes() {
     assert_eq!(
         discovered.fixture.root_selection,
         ProjectRootSelection::DiscoverConfig
+    );
+}
+
+fn focused_project_limits() -> ProgramLoadLimits {
+    ProgramLoadLimits::new(128, 1_024, 32, 8 * 1_024 * 1_024, 64 * 1_024 * 1_024)
+}
+
+fn focused_project_source_names(
+    workspace: &std::path::Path,
+    current_directory: &str,
+    execution: &tsc_harness::upstream_suites::execution::ProjectConfigProgram,
+) -> Vec<String> {
+    let library_directory = workspace
+        .join("vendor/typescript-6.0.3/lib")
+        .canonicalize()
+        .expect("canonicalize focused project library directory");
+    execution
+        .prepared_program
+        .source_files()
+        .iter()
+        .map(|source| {
+            let path = source.path().display();
+            if let Ok(relative) = path.strip_prefix(&library_directory) {
+                return relative.to_string_lossy().replace('\\', "/");
+            }
+            let path = path.to_string_lossy().replace('\\', "/");
+            path.strip_prefix(current_directory)
+                .and_then(|tail| tail.strip_prefix('/'))
+                .unwrap_or(&path)
+                .to_owned()
+        })
+        .collect()
+}
+
+#[test]
+fn node_modules_search_project_configs_load_all_six_variants_without_claiming_emit() {
+    let workspace = workspace_root();
+    let oracle_bytes =
+        fs::read(workspace.join("vendor/typescript-6.0.3/project-node-modules-search.v1.json"))
+            .expect("read NodeModulesSearch project oracle");
+    let oracle: serde_json::Value =
+        serde_json::from_slice(&oracle_bytes).expect("NodeModulesSearch oracle is JSON");
+    assert_eq!(oracle["schema"], 1);
+    assert_eq!(oracle["typescript_version"], "6.0.3");
+    assert_eq!(
+        oracle["source_commit"],
+        "050880ce59e30b356b686bd3144efe24f875ebc8"
+    );
+    assert_eq!(oracle["node_version"], "25.2.1");
+    assert!(
+        matches!(oracle["scope"]["no_emit_adapter"].as_bool(), Some(true)),
+        "the focused executor must retain its explicit no-emit adapter"
+    );
+    assert_eq!(
+        oracle["scope"]["emit_and_baselines"], "not-run",
+        "this oracle must not claim upstream project emit or baselines"
+    );
+    for metadata in ["producer", "manifest"] {
+        let relative_path = oracle[metadata]["path"]
+            .as_str()
+            .unwrap_or_else(|| panic!("oracle {metadata} path is a string"));
+        let recorded_hash = oracle[metadata]["sha256"]
+            .as_str()
+            .unwrap_or_else(|| panic!("oracle {metadata} hash is a string"));
+        assert_eq!(
+            sha256(
+                &fs::read(workspace.join(relative_path))
+                    .unwrap_or_else(|error| panic!("read oracle {metadata} input: {error}"))
+            ),
+            recorded_hash,
+            "oracle {metadata} input drifted"
+        );
+    }
+    let project_runner = corpus()
+        .manifest
+        .implementation_sources
+        .iter()
+        .find(|source| source.source_path == oracle["project_runner"]["path"])
+        .expect("project runner implementation source is pinned");
+    assert_eq!(
+        project_runner.git_blob_sha1,
+        oracle["project_runner"]["git_blob_sha1"]
+    );
+
+    let expected_cases = oracle["cases"]
+        .as_array()
+        .expect("NodeModulesSearch oracle cases is an array");
+    assert_eq!(
+        expected_cases.len() as u64,
+        oracle["summary"]["case_total"]
+            .as_u64()
+            .expect("oracle case total is u64")
+    );
+    let mut descriptors = BTreeSet::new();
+    let mut seen_cases = BTreeSet::new();
+    let mut root_total = 0_u64;
+    let mut source_total = 0_u64;
+    let mut library_total = 0_u64;
+    let mut diagnostic_total = 0_u64;
+
+    for expected in expected_cases {
+        let case_id = expected["case_id"]
+            .as_str()
+            .expect("oracle case id is a string");
+        assert!(
+            seen_cases.insert(case_id),
+            "duplicate oracle case {case_id}"
+        );
+        assert_eq!(expected["initial_execution_state"], "not-run");
+        let upstream = plan(case_id);
+        assert_eq!(
+            upstream.provenance.initial_execution_state,
+            ExecutionState::NotRun,
+            "focused no-emit execution must not claim the emit baseline"
+        );
+        let project = project(upstream);
+        let descriptor = expected["descriptor"]["path"]
+            .as_str()
+            .expect("oracle descriptor path is a string");
+        descriptors.insert(descriptor);
+        assert_eq!(project.fixture.source.relative_path.as_ref(), descriptor);
+        assert_eq!(
+            sha256(project.fixture.descriptor_raw.as_ref()),
+            expected["descriptor"]["sha256"]
+                .as_str()
+                .expect("oracle descriptor hash is a string")
+        );
+        assert_eq!(
+            project.fixture.source.git_blob_sha1.as_ref(),
+            expected["descriptor"]["git_blob_sha1"]
+                .as_str()
+                .expect("oracle descriptor blob is a string")
+        );
+        assert_eq!(
+            project.fixture.current_directory.as_ref(),
+            expected["current_directory"]
+                .as_str()
+                .expect("oracle current directory is a string")
+        );
+        let actual_module_name = match project.module_variant {
+            ProjectModule::Commonjs => "commonjs",
+            ProjectModule::Amd => "amd",
+        };
+        assert_eq!(actual_module_name, expected["module"]["name"]);
+        assert_eq!(
+            project.baseline_folder.as_ref(),
+            expected["module"]["baseline_folder"]
+        );
+
+        let ProjectRootSelection::ProjectConfig {
+            config_file_name,
+            resolved_config_path,
+            ..
+        } = &project.fixture.root_selection
+        else {
+            panic!("oracle case {case_id} must select an explicit project config");
+        };
+        assert_eq!(config_file_name.as_ref(), expected["config"]["path"]);
+        let config_source = project
+            .fixture
+            .mount
+            .files
+            .iter()
+            .find(|file| file.virtual_path == *resolved_config_path)
+            .unwrap_or_else(|| panic!("verified mount is missing config {resolved_config_path}"));
+        assert_eq!(
+            sha256(config_source.source.raw.as_ref()),
+            expected["config"]["sha256"]
+                .as_str()
+                .expect("oracle config hash is a string")
+        );
+        assert_eq!(
+            config_source.source.git_blob_sha1.as_ref(),
+            expected["config"]["git_blob_sha1"]
+                .as_str()
+                .expect("oracle config blob is a string")
+        );
+
+        let execution =
+            load_node_modules_search_project(&workspace, project, focused_project_limits())
+                .unwrap_or_else(|execution_error| {
+                    panic!("failed to execute {case_id}: {execution_error}")
+                });
+        let expected_roots = json_strings(&expected["config"]["root_names"], "config roots");
+        assert_eq!(
+            execution
+                .root_names
+                .iter()
+                .map(|path| path.to_string_lossy().replace('\\', "/"))
+                .collect::<Vec<_>>(),
+            expected_roots,
+            "config roots drifted for {case_id}"
+        );
+        assert_eq!(
+            execution.config_root_plan.diagnostics().count(),
+            expected["config"]["diagnostics"]
+                .as_array()
+                .expect("oracle config diagnostics is an array")
+                .len(),
+            "config diagnostics drifted for {case_id}"
+        );
+        assert!(execution.config_root_plan.option_diagnostics().is_empty());
+
+        let expected_options = &expected["effective_options"];
+        assert_eq!(
+            execution.effective_compiler_options.allow_js,
+            expected_options["allow_js"]
+                .as_bool()
+                .expect("oracle allow_js is boolean")
+        );
+        assert_eq!(
+            execution
+                .effective_compiler_options
+                .max_node_module_js_depth_effective(),
+            expected_options["max_node_module_js_depth"]
+                .as_f64()
+                .expect("oracle max depth is numeric")
+        );
+        assert_eq!(
+            execution.effective_compiler_options.module,
+            Some(
+                i32::try_from(
+                    expected_options["module"]
+                        .as_i64()
+                        .expect("oracle module is i64")
+                )
+                .expect("oracle module fits i32")
+            )
+        );
+        assert_eq!(
+            execution.effective_compiler_options.module_resolution,
+            Some(
+                i32::try_from(
+                    expected_options["module_resolution"]
+                        .as_i64()
+                        .expect("oracle module resolution is i64")
+                )
+                .expect("oracle module resolution fits i32")
+            )
+        );
+        assert_eq!(
+            execution.effective_compiler_options.no_error_truncation,
+            Some(
+                expected_options["no_error_truncation"]
+                    .as_bool()
+                    .expect("oracle no_error_truncation is boolean")
+            )
+        );
+        assert!(
+            matches!(expected_options["declaration"].as_bool(), Some(false)),
+            "oracle declaration must retain the descriptor's false value"
+        );
+        assert!(
+            matches!(
+                expected_options["skip_default_lib_check"].as_bool(),
+                Some(false)
+            ),
+            "oracle skipDefaultLibCheck must retain the runner default"
+        );
+        assert_eq!(
+            project
+                .fixture
+                .properties
+                .iter()
+                .find(|property| property.name.as_ref() == "declaration")
+                .and_then(|property| property.value.as_bool()),
+            expected_options["declaration"].as_bool()
+        );
+        assert_eq!(
+            execution.effective_compiler_options.no_emit,
+            Some(
+                expected_options["execution_no_emit_adapter"]
+                    .as_bool()
+                    .expect("oracle execution adapter is boolean")
+            )
+        );
+        assert_eq!(execution.effective_compiler_options.lib, None);
+        assert_eq!(
+            execution
+                .effective_program_options
+                .default_library_file_name(),
+            expected_options["host_default_library"].as_str()
+        );
+        let actual_config_file_path = execution
+            .effective_program_options
+            .config_file_path()
+            .map(|path| path.display().to_string_lossy().replace('\\', "/"));
+        assert_eq!(
+            actual_config_file_path.as_deref(),
+            expected_options["config_file_path"].as_str()
+        );
+        let raw_no_emit = execution.config_root_plan.raw()["compilerOptions"]
+            .get("noEmit")
+            .unwrap_or(&serde_json::Value::Null);
+        assert_eq!(raw_no_emit, &expected_options["raw_no_emit"]);
+        let current_directory = project.fixture.current_directory.trim_end_matches('/');
+        let actual_out_dir = execution
+            .config_root_plan
+            .discovery_options()
+            .out_dir()
+            .map(|value| {
+                value
+                    .strip_prefix(current_directory)
+                    .and_then(|tail| tail.strip_prefix('/'))
+                    .unwrap_or(value)
+            });
+        assert_eq!(actual_out_dir, expected_options["out_dir"].as_str());
+
+        let actual_sources = focused_project_source_names(
+            &workspace,
+            project.fixture.current_directory.as_ref(),
+            &execution,
+        );
+        let expected_sources = json_strings(&expected["source_files"], "source files");
+        assert_eq!(
+            actual_sources, expected_sources,
+            "program source order drifted for {case_id}"
+        );
+        let expected_libraries = json_strings(&expected["library_files"], "library files");
+        assert_eq!(
+            &actual_sources[..expected_libraries.len()],
+            expected_libraries,
+            "default-library order drifted for {case_id}"
+        );
+
+        root_total += expected_roots.len() as u64;
+        source_total += expected_sources.len() as u64;
+        library_total += expected_libraries.len() as u64;
+        diagnostic_total += expected["pre_emit_diagnostics"]
+            .as_array()
+            .expect("oracle pre-emit diagnostics is an array")
+            .len() as u64;
+
+        if descriptor == "nodeModulesMaxDepthExceeded.json" {
+            let m2 = execution
+                .prepared_program
+                .source_files()
+                .iter()
+                .find(|source| {
+                    source
+                        .path()
+                        .display()
+                        .to_string_lossy()
+                        .replace('\\', "/")
+                        .ends_with("/maxDepthExceeded/node_modules/m2/entry.js")
+                })
+                .expect("m2 is loaded at the admitted depth");
+            let requests = plan_source_requests(m2, execution.prepared_program.compiler_options())
+                .expect("plan m2 require request");
+            let request = requests
+                .module_requests()
+                .iter()
+                .find(|request| request.specifier() == "m3")
+                .expect("m2 requires m3");
+            let resolution = execution
+                .prepared_program
+                .resolutions()
+                .require_module(request)
+                .expect("m3 has an authoritative resolution row");
+            let ResolutionOutcome::Resolved(module) = resolution.outcome() else {
+                panic!("m3 resolves before the depth admission decision");
+            };
+            assert_eq!(
+                module.target().unloaded_reason(),
+                Some(UnloadedModuleReason::NodeModulesDepth)
+            );
+        }
+    }
+
+    assert_eq!(
+        descriptors.len() as u64,
+        oracle["summary"]["fixture_total"]
+            .as_u64()
+            .expect("oracle fixture total is u64")
+    );
+    assert_eq!(root_total, oracle["summary"]["config_root_total"]);
+    assert_eq!(source_total, oracle["summary"]["source_file_total"]);
+    assert_eq!(library_total, oracle["summary"]["library_file_total"]);
+    assert_eq!(
+        diagnostic_total,
+        oracle["summary"]["pre_emit_diagnostic_total"]
     );
 }
