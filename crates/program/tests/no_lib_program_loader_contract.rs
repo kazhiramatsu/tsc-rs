@@ -13,7 +13,8 @@ use tsc_program::{
     load_no_lib_program, plan_source_requests, CompilerOptions, ModuleExtension, PathMapping,
     PreparedProgram, ProgramLoadError, ProgramLoadErrorKind, ProgramLoadLimit, ProgramLoadLimits,
     ProgramLoadOperation, ProgramOptions, ProgramPath, ResolutionError, ResolutionKey,
-    ResolutionOutcome, ResolvedModuleTarget, TypeReferenceResolutionKey, UnloadedModuleReason,
+    ResolutionMode, ResolutionOutcome, ResolvedModuleTarget, TypeReferenceResolutionKey,
+    UnloadedModuleReason,
 };
 
 const GENEROUS_LIMIT: usize = 1_024;
@@ -2878,6 +2879,169 @@ fn augmentation_target_binds_to_source_when_a_later_root_loads_the_same_file() {
         program.source_file(*source).unwrap().path().display(),
         Path::new("/work/target.ts")
     );
+}
+
+#[test]
+fn preserve_symlinks_memory_canary_keeps_lexical_program_membership() {
+    const APP: &str = "/app/app.ts";
+    const PHYSICAL: &str = "/linked/index.d.ts";
+    const LINKED: &str = "/app/node_modules/linked/index.d.ts";
+    const LINKED2: &str = "/app/node_modules/linked2/index.d.ts";
+    const REAL: &str = "/app/node_modules/real/index.d.ts";
+
+    let linked_source = b"export { real } from \"real\";\nexport class C { private x; }\n".to_vec();
+    let host = MemoryCompilerHost::builder("/app")
+        .file(
+            APP,
+            concat!(
+                "/// <reference types=\"linked\" />\n",
+                "import { C as C1 } from \"linked\";\n",
+                "import { C as C2 } from \"linked2\";\n",
+            )
+            .as_bytes()
+            .to_vec(),
+        )
+        .file(PHYSICAL, linked_source.clone())
+        .file(LINKED, linked_source.clone())
+        .file(LINKED2, linked_source)
+        .file(REAL, b"export const real: string;\n".to_vec())
+        .realpath(LINKED, PHYSICAL)
+        .realpath(LINKED2, PHYSICAL)
+        .build()
+        .expect("build the cross-platform preserveSymlinks topology");
+    let options = CompilerOptions {
+        target: Some(2),
+        module: Some(5),
+        module_resolution: Some(100),
+        ..compiler_options()
+    };
+
+    let assert_module = |program: &PreparedProgram,
+                         containing_file: &str,
+                         specifier: &str,
+                         expected_target: &str,
+                         expected_original_path: Option<&str>| {
+        let key = module_key(program, containing_file, specifier);
+        assert_eq!(key.mode(), ResolutionMode::EsNext);
+        let resolution = program
+            .resolutions()
+            .require_module(&key)
+            .expect("module request has an authoritative row");
+        let ResolutionOutcome::Resolved(module) = resolution.outcome() else {
+            panic!("module request must resolve: {specifier}");
+        };
+        let ResolvedModuleTarget::Source {
+            source,
+            resolved_file,
+        } = module.target()
+        else {
+            panic!("module target must join source membership: {specifier}");
+        };
+        assert_eq!(resolved_file.display(), Path::new(expected_target));
+        assert_eq!(
+            program.source_file(*source).unwrap().path().display(),
+            Path::new(expected_target)
+        );
+        assert_eq!(
+            module.original_path().map(ProgramPath::display),
+            expected_original_path.map(Path::new)
+        );
+        *source
+    };
+    let assert_type_reference =
+        |program: &PreparedProgram, expected_target: &str, expected_original_path: Option<&str>| {
+            let key = type_reference_key(program, APP, "linked");
+            assert_eq!(key.mode(), ResolutionMode::Unspecified);
+            let resolution = program
+                .resolutions()
+                .require_type_reference(&key)
+                .expect("type-reference request has an authoritative row");
+            let ResolutionOutcome::Resolved(directive) = resolution.outcome() else {
+                panic!("type-reference request must resolve");
+            };
+            assert_eq!(directive.target().display(), Path::new(expected_target));
+            assert_eq!(
+                program
+                    .source_file(directive.source())
+                    .unwrap()
+                    .path()
+                    .display(),
+                Path::new(expected_target)
+            );
+            assert_eq!(
+                directive.original_path().map(ProgramPath::display),
+                expected_original_path.map(Path::new)
+            );
+            directive.source()
+        };
+
+    let preserved = load_with_options(
+        &host,
+        &[APP],
+        options.clone(),
+        program_options().with_preserve_symlinks(true),
+        generous_limits(),
+    )
+    .expect("load lexical preserveSymlinks identities");
+    assert_eq!(preserved.program_options().preserve_symlinks(), Some(true));
+    assert_eq!(
+        source_paths(&preserved),
+        [
+            Path::new(REAL),
+            Path::new(LINKED),
+            Path::new(LINKED2),
+            Path::new(APP),
+        ]
+    );
+    let linked = assert_module(&preserved, APP, "linked", LINKED, None);
+    let linked2 = assert_module(&preserved, APP, "linked2", LINKED2, None);
+    assert_ne!(linked, linked2);
+    assert_eq!(assert_type_reference(&preserved, LINKED, None), linked);
+    assert_eq!(
+        assert_module(&preserved, LINKED, "real", REAL, None),
+        assert_module(&preserved, LINKED2, "real", REAL, None)
+    );
+
+    let explicit_false = load_with_options(
+        &host,
+        &[APP],
+        options.clone(),
+        program_options().with_preserve_symlinks(false),
+        generous_limits(),
+    )
+    .expect("load explicit-false physical identities");
+    let omitted = load_with_options(&host, &[APP], options, program_options(), generous_limits())
+        .expect("load omitted preserveSymlinks identities");
+    assert_eq!(
+        explicit_false.program_options().preserve_symlinks(),
+        Some(false)
+    );
+    assert_eq!(omitted.program_options().preserve_symlinks(), None);
+    assert_eq!(explicit_false.source_files(), omitted.source_files());
+    assert_eq!(explicit_false.roots(), omitted.roots());
+    assert_eq!(explicit_false.resolutions(), omitted.resolutions());
+    assert_eq!(explicit_false.diagnostics(), omitted.diagnostics());
+
+    for program in [&explicit_false, &omitted] {
+        assert_eq!(source_paths(program), [Path::new(PHYSICAL), Path::new(APP)]);
+        let linked = assert_module(program, APP, "linked", PHYSICAL, Some(LINKED));
+        let linked2 = assert_module(program, APP, "linked2", PHYSICAL, Some(LINKED2));
+        assert_eq!(linked, linked2);
+        assert_eq!(
+            assert_type_reference(program, PHYSICAL, Some(LINKED)),
+            linked
+        );
+        let unresolved_real = module_key(program, PHYSICAL, "real");
+        assert_eq!(unresolved_real.mode(), ResolutionMode::EsNext);
+        assert!(matches!(
+            program
+                .resolutions()
+                .require_module(&unresolved_real)
+                .expect("physical declaration import has an authoritative row")
+                .outcome(),
+            ResolutionOutcome::NotFound
+        ));
+    }
 }
 
 #[test]

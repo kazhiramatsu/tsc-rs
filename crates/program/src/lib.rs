@@ -44,10 +44,14 @@
 //! discovered later. A `.jsx` module target without an active JSX mode remains
 //! unloaded for TS6142, while explicit `.jsx` roots and path references are
 //! admitted. Effective `resolveJsonModule` also admits explicit JSON roots.
+//! The raw `preserveSymlinks` program option controls resolver identity:
+//! absent or false follows the physical target of external non-relative
+//! modules and type references while retaining their lexical `originalPath`;
+//! true keeps each lexical link as the resolved source identity.
 //! The library catalog is injected, version-pinned metadata; bytes remain owned
 //! by the same host and no production path parses `_tsc.js`. This slice does
 //! not discover config-derived root files or own the remaining path,
-//! physical-alias, platform, and CLI surfaces of H0.4 and H0.5.
+//! package-redirect, platform, and CLI surfaces of H0.4 and H0.5.
 
 mod error;
 mod json;

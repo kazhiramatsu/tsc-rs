@@ -467,6 +467,7 @@ enum OptionalResolutionLoader {
 pub struct ModuleResolver<'a> {
     host: &'a dyn CompilerHost,
     options: &'a CompilerOptions,
+    preserve_symlinks: bool,
     path_context: PathContext,
     type_root_base_directory: String,
     type_roots: Option<Vec<ProgramPath>>,
@@ -486,7 +487,7 @@ impl<'a> ModuleResolver<'a> {
         host: &'a dyn CompilerHost,
         options: &'a CompilerOptions,
     ) -> Result<Self, ResolutionError> {
-        Self::new_with_owned_paths(host, options, None, None, None, None)
+        Self::new_with_owned_paths(host, options, false, None, None, None, None)
     }
 
     /// Construct a resolver with the ordered program-owned resolution options.
@@ -504,6 +505,7 @@ impl<'a> ModuleResolver<'a> {
         Self::new_with_owned_paths(
             host,
             options,
+            program_options.preserve_symlinks_effective(),
             program_options.paths(),
             program_options.config_file_path(),
             program_options.root_dirs(),
@@ -514,6 +516,7 @@ impl<'a> ModuleResolver<'a> {
     fn new_with_owned_paths(
         host: &'a dyn CompilerHost,
         options: &'a CompilerOptions,
+        preserve_symlinks: bool,
         paths: Option<&[PathMapping]>,
         config_file_path: Option<&ProgramPath>,
         root_dirs: Option<&[ProgramPath]>,
@@ -544,6 +547,7 @@ impl<'a> ModuleResolver<'a> {
         Ok(Self {
             host,
             options,
+            preserve_symlinks,
             path_context: PathContext::new(current_directory, case_sensitive),
             type_root_base_directory,
             type_roots: type_roots.map(<[_]>::to_vec),
@@ -579,6 +583,7 @@ impl<'a> ModuleResolver<'a> {
         Ok(Self {
             host,
             options,
+            preserve_symlinks: false,
             type_root_base_directory: current_directory.to_owned(),
             type_roots: None,
             path_context,
@@ -4719,11 +4724,20 @@ impl<'a> ModuleResolver<'a> {
         }))
     }
 
+    /// tsc-port: createResolvedModuleWithFailedLookupLocationsHandlingSymlink @6.0.3
+    /// tsc-hash: cab205c9a3d51deba209d25ffd81c71f1b1f11303380d04b0d2554fd89f5096a
+    /// tsc-span: _tsc.js:39869-39885
+    /// tsc-port: resolveTypeReferenceDirective @6.0.3
+    /// tsc-hash: 3af6ebb2bcaac43b8fd32ed3ae31fb8840d2db68a2facd74f6ab560ed8f1fb22
+    /// tsc-span: _tsc.js:40130-40144
     fn realpath_program_path(
         &self,
         lexical_path: &str,
     ) -> Result<(ProgramPath, Option<ProgramPath>), ResolutionError> {
         let lexical = self.program_path(lexical_path)?;
+        if self.preserve_symlinks {
+            return Ok((lexical, None));
+        }
         let real_path = self
             .host
             .realpath(Path::new(lexical_path))?

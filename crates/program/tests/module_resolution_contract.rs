@@ -49,6 +49,11 @@ struct RecordingFileExistsHost {
     calls: RefCell<Vec<PathBuf>>,
 }
 
+struct RecordingRealpathHost {
+    inner: MemoryCompilerHost,
+    calls: RefCell<Vec<PathBuf>>,
+}
+
 struct SequencedDirectoryExistsHost {
     inner: MemoryCompilerHost,
     watched_path: PathBuf,
@@ -181,6 +186,37 @@ impl CompilerHost for RecordingFileExistsHost {
     }
 
     fn realpath(&self, path: &Path) -> Result<Option<PathBuf>, HostError> {
+        self.inner.realpath(path)
+    }
+}
+
+impl CompilerHost for RecordingRealpathHost {
+    fn current_directory(&self) -> Result<PathBuf, HostError> {
+        self.inner.current_directory()
+    }
+
+    fn use_case_sensitive_file_names(&self) -> bool {
+        self.inner.use_case_sensitive_file_names()
+    }
+
+    fn read_file(&self, path: &Path) -> Result<Option<Vec<u8>>, HostError> {
+        self.inner.read_file(path)
+    }
+
+    fn file_exists(&self, path: &Path) -> Result<bool, HostError> {
+        self.inner.file_exists(path)
+    }
+
+    fn directory_exists(&self, path: &Path) -> Result<bool, HostError> {
+        self.inner.directory_exists(path)
+    }
+
+    fn read_directory(&self, path: &Path) -> Result<Vec<PathBuf>, HostError> {
+        self.inner.read_directory(path)
+    }
+
+    fn realpath(&self, path: &Path) -> Result<Option<PathBuf>, HostError> {
+        self.calls.borrow_mut().push(path.to_path_buf());
         self.inner.realpath(path)
     }
 }
@@ -2805,6 +2841,169 @@ fn optional_external_files_use_the_package_root_and_follow_realpath() {
     );
     assert!(exact.original_path().is_some());
     assert_eq!(exact.package_id(), None);
+}
+
+#[test]
+fn preserve_symlinks_keeps_upstream_module_and_type_reference_results_lexical() {
+    // tests/cases/compiler/moduleResolutionWithSymlinks_preserveSymlinks.ts
+    // gives two node_modules links the same physical declaration target and
+    // requires both imports plus the triple-slash type reference to retain
+    // their caller-visible spellings when preserveSymlinks is true.
+    let linked_source = b"export { real } from \"real\";\nexport class C { private x; }\n".to_vec();
+    let host = RecordingRealpathHost {
+        inner: MemoryCompilerHost::builder("/app")
+            .file(
+                "/app/app.ts",
+                concat!(
+                    "/// <reference types=\"linked\" />\n",
+                    "import { C as C1 } from \"linked\";\n",
+                    "import { C as C2 } from \"linked2\";\n",
+                )
+                .as_bytes()
+                .to_vec(),
+            )
+            .file("/linked/index.d.ts", linked_source.clone())
+            .file("/app/node_modules/linked/index.d.ts", linked_source.clone())
+            .file("/app/node_modules/linked2/index.d.ts", linked_source)
+            .file(
+                "/app/node_modules/real/index.d.ts",
+                b"export const real: string;\n".to_vec(),
+            )
+            .realpath("/app/node_modules/linked/index.d.ts", "/linked/index.d.ts")
+            .realpath("/app/node_modules/linked2/index.d.ts", "/linked/index.d.ts")
+            .build()
+            .expect("build the upstream preserveSymlinks topology"),
+        calls: RefCell::new(Vec::new()),
+    };
+    let options = CompilerOptions {
+        target: Some(2),
+        module: Some(5),
+        module_resolution: Some(100),
+        ..CompilerOptions::default()
+    };
+    let omitted = ProgramOptions::default();
+    let explicit_false = ProgramOptions::default().with_preserve_symlinks(false);
+    let preserve = ProgramOptions::default().with_preserve_symlinks(true);
+    assert_eq!(omitted.preserve_symlinks(), None);
+    assert!(!omitted.preserve_symlinks_effective());
+    assert_eq!(explicit_false.preserve_symlinks(), Some(false));
+    assert!(!explicit_false.preserve_symlinks_effective());
+    assert_eq!(preserve.preserve_symlinks(), Some(true));
+    assert!(preserve.preserve_symlinks_effective());
+
+    let resolve_fixture = |program_options: Option<&ProgramOptions>| {
+        let mut resolver = match program_options {
+            Some(program_options) => {
+                ModuleResolver::new_with_program_options(&host, &options, program_options)
+                    .expect("create an option-aware resolver")
+            }
+            None => ModuleResolver::new(&host, &options).expect("create the default resolver"),
+        };
+        let ResolutionOutcome::Resolved(type_reference) = resolver
+            .resolve_type_reference(
+                Path::new("/app/app.ts"),
+                "linked",
+                ResolutionMode::Unspecified,
+                None,
+            )
+            .expect("resolve the upstream type reference")
+        else {
+            panic!("expected the upstream type reference to resolve");
+        };
+        let linked = resolved(
+            resolver
+                .resolve(Path::new("/app/app.ts"), "linked", ResolutionMode::EsNext)
+                .expect("resolve the first upstream import"),
+        );
+        let linked2 = resolved(
+            resolver
+                .resolve(Path::new("/app/app.ts"), "linked2", ResolutionMode::EsNext)
+                .expect("resolve the second upstream import"),
+        );
+        (type_reference, linked, linked2)
+    };
+
+    host.calls.borrow_mut().clear();
+    let preserved = resolve_fixture(Some(&preserve));
+    // This recording host observes only the direct resolver's final
+    // result-conversion seam; it is not a promise that no compiler subsystem
+    // may ever ask the host for a real path under preserveSymlinks.
+    assert!(host.calls.borrow().is_empty());
+    let (preserved_reference, preserved_linked, preserved_linked2) = &preserved;
+    assert_eq!(
+        preserved_reference.resolved_file().canonical().as_path(),
+        Path::new("/app/node_modules/linked/index.d.ts")
+    );
+    assert_eq!(preserved_reference.original_path(), None);
+    assert!(!preserved_reference.primary());
+    assert!(preserved_reference.is_external_library_import());
+    assert_eq!(preserved_reference.extension(), &ModuleExtension::Dts);
+    for (module, expected) in [
+        (
+            preserved_linked,
+            Path::new("/app/node_modules/linked/index.d.ts"),
+        ),
+        (
+            preserved_linked2,
+            Path::new("/app/node_modules/linked2/index.d.ts"),
+        ),
+    ] {
+        assert_eq!(module.resolved_file().canonical().as_path(), expected);
+        assert_eq!(module.original_path(), None);
+        assert!(module.is_external_library_import());
+        assert_eq!(module.extension(), &ModuleExtension::Dts);
+    }
+
+    let expected_realpath_calls = vec![
+        PathBuf::from("/app/node_modules/linked/index.d.ts"),
+        PathBuf::from("/app/node_modules/linked/index.d.ts"),
+        PathBuf::from("/app/node_modules/linked2/index.d.ts"),
+    ];
+    host.calls.borrow_mut().clear();
+    let omitted_results = resolve_fixture(None);
+    assert_eq!(*host.calls.borrow(), expected_realpath_calls);
+
+    host.calls.borrow_mut().clear();
+    let explicit_false_results = resolve_fixture(Some(&explicit_false));
+    assert_eq!(*host.calls.borrow(), expected_realpath_calls);
+    assert_eq!(explicit_false_results, omitted_results);
+
+    let (followed_reference, followed_linked, followed_linked2) = &omitted_results;
+    assert_eq!(
+        followed_reference.resolved_file().canonical().as_path(),
+        Path::new("/linked/index.d.ts")
+    );
+    assert_eq!(
+        followed_reference
+            .original_path()
+            .expect("retain the type reference's lexical link")
+            .canonical()
+            .as_path(),
+        Path::new("/app/node_modules/linked/index.d.ts")
+    );
+    for (module, expected_original) in [
+        (
+            followed_linked,
+            Path::new("/app/node_modules/linked/index.d.ts"),
+        ),
+        (
+            followed_linked2,
+            Path::new("/app/node_modules/linked2/index.d.ts"),
+        ),
+    ] {
+        assert_eq!(
+            module.resolved_file().canonical().as_path(),
+            Path::new("/linked/index.d.ts")
+        );
+        assert_eq!(
+            module
+                .original_path()
+                .expect("retain the module's lexical link")
+                .canonical()
+                .as_path(),
+            expected_original
+        );
+    }
 }
 
 #[test]
