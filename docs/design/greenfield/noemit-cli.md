@@ -679,9 +679,14 @@ general `ParseConfigHost`/`matchFiles` qualification. Remaining root fields,
 remaining resolver/loader options such as `noDtsResolution`, full
 `ParsedCommandLine`, filesystem discovery,
 general project/project-runner config handling beyond the focused
-`NodeModulesSearch` bridge, wiring the config projection into general program
-construction, command-line selection, rendering, exit status, and production
-execution remain open.
+`NodeModulesSearch` bridge, command-line selection, rendering, exit status, and
+production execution remain open. The validated projection now exposes the
+merged checker/program options and has a fail-closed `load_config_program`
+bridge into the general catalog-backed loader: config and option diagnostics
+stop source loading first, and an omitted or false `noEmit` is rejected before
+any source host work. This bridge is intentionally independent of CLI
+selection so the same immutable plan can feed MemoryHost and FsHost
+differentials.
 
 ### H0.6 — qualification and release
 
