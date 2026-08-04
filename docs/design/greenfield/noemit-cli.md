@@ -192,7 +192,9 @@ are not part of `tsc --noEmit` output.
 
 Display file names and canonical lookup paths are distinct values. Case
 folding follows the host profile; realpath and lexical normalization may not
-be substituted for one another.
+be substituted for one another. Immediate filesystem entries use the display
+basename and JavaScript's lexicographic UTF-16 code-unit order, independently
+of the host's case-sensitivity profile; canonical keys remain identity-only.
 
 Program file order follows vendored `createProgram` discovery, not parse
 request order. For example, a root `a.ts` importing `b.ts` is observed as
@@ -409,7 +411,8 @@ Filesystem discovery must use the same resolver closed in H0.2 and H0.3.
 Implementation status: H0.4 is active and partial. The production
 `FsCompilerHost` primitive preserves raw bytes, distinguishes absence from
 typed I/O failure, follows filesystem realpaths, and exposes deterministically
-ordered immediate entries plus a directory-only `CompilerHost::get_directories`
+ordered immediate entries in JavaScript UTF-16 display-name order plus a
+directory-only `CompilerHost::get_directories`
 projection under an explicit or detected case profile. The
 shared program-layer decoder consumes those bytes with the vendored Node
 host's BOM, endian, odd-byte, and invalid-UTF-8 rules, and package metadata
@@ -480,10 +483,10 @@ but perform no host work. After all requested roots finish, non-wildcard
 performs no automatic discovery. A list containing `"*"` expands effective
 `typeRoots` in declared order, or nearest-to-farthest ancestor
 `node_modules/@types` directories from the config-file directory/current
-directory. Expansion retains host directory order, probes manifests before
-filtering dot directories, excludes exactly packages whose decoded JSON or
-JSONC has `typings: null`, and performs case-sensitive stable first-wins
-deduplication after flattening.
+directory. Expansion retains that JavaScript UTF-16 display-name order, probes
+manifests before filtering dot directories, excludes exactly packages whose
+decoded JSON or JSONC has `typings: null`, and performs case-sensitive stable
+first-wins deduplication after flattening.
 
 All automatic names are resolved under the normalized
 `__inferred type names__.ts` synthetic origin and unspecified mode before the

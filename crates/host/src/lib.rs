@@ -11,6 +11,7 @@
 mod error;
 mod filesystem;
 mod memory;
+mod ordering;
 
 use std::path::{Path, PathBuf};
 
@@ -75,13 +76,14 @@ pub trait CompilerHost {
 
     fn directory_exists(&self, path: &Path) -> Result<bool, HostError>;
 
-    /// Return the immediate file and directory entries below `path` in a
-    /// deterministic order. An absent directory has no entries; a host
-    /// failure is returned as `Err`.
+    /// Return the immediate file and directory entries below `path`, ordered
+    /// by display name in JavaScript's lexicographic UTF-16 code-unit order.
+    /// The order is independent of the host's case-sensitivity profile. An
+    /// absent directory has no entries; a host failure is returned as `Err`.
     fn read_directory(&self, path: &Path) -> Result<Vec<PathBuf>, HostError>;
 
     /// Return only the immediate directory entries below `path` in the same
-    /// deterministic order used by [`Self::read_directory`].
+    /// display-name order used by [`Self::read_directory`].
     ///
     /// This is the exact host shape consumed by TypeScript's automatic type
     /// directive discovery. Built-in hosts override it to preserve a single

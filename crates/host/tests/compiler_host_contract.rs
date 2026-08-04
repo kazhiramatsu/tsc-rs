@@ -57,6 +57,47 @@ fn lists_immediate_files_and_directories_deterministically() {
 }
 
 #[test]
+fn directory_listing_uses_javascript_utf16_display_name_order() {
+    for case_sensitive in [true, false] {
+        let host = MemoryCompilerHost::builder("/Work")
+            .case_sensitive(case_sensitive)
+            .file("/Work/B.ts", Vec::new())
+            .file("/Work/a.ts", Vec::new())
+            .file("/Work/\u{10000}.ts", Vec::new())
+            .file("/Work/\u{e000}.ts", Vec::new())
+            .directory("/Work/B-dir")
+            .directory("/Work/a-dir")
+            .directory("/Work/\u{10000}-dir")
+            .directory("/Work/\u{e000}-dir")
+            .build()
+            .unwrap();
+
+        assert_eq!(
+            host.read_directory(Path::new("/Work")).unwrap(),
+            [
+                PathBuf::from("/Work/B-dir"),
+                PathBuf::from("/Work/B.ts"),
+                PathBuf::from("/Work/a-dir"),
+                PathBuf::from("/Work/a.ts"),
+                PathBuf::from("/Work/\u{10000}-dir"),
+                PathBuf::from("/Work/\u{10000}.ts"),
+                PathBuf::from("/Work/\u{e000}-dir"),
+                PathBuf::from("/Work/\u{e000}.ts"),
+            ]
+        );
+        assert_eq!(
+            host.get_directories(Path::new("/Work")).unwrap(),
+            [
+                PathBuf::from("/Work/B-dir"),
+                PathBuf::from("/Work/a-dir"),
+                PathBuf::from("/Work/\u{10000}-dir"),
+                PathBuf::from("/Work/\u{e000}-dir"),
+            ]
+        );
+    }
+}
+
+#[test]
 fn case_profile_controls_identity_without_normalizing_paths() {
     let insensitive = MemoryCompilerHost::builder("/Work")
         .case_sensitive(false)

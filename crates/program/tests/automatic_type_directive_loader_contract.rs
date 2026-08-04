@@ -276,6 +276,51 @@ fn wildcard_expansion_preserves_root_and_host_order_filters_and_stably_deduplica
 }
 
 #[test]
+fn wildcard_automatic_types_follow_javascript_utf16_directory_order() {
+    let host = MemoryCompilerHost::builder("/work")
+        .case_sensitive(false)
+        .file("/work/root.ts", b"export {};\n".to_vec())
+        .file(
+            "/types/B/index.d.ts",
+            b"declare const upper: true;\n".to_vec(),
+        )
+        .file(
+            "/types/a/index.d.ts",
+            b"declare const lower: true;\n".to_vec(),
+        )
+        .file(
+            "/types/\u{10000}/index.d.ts",
+            b"declare const astral: true;\n".to_vec(),
+        )
+        .file(
+            "/types/\u{e000}/index.d.ts",
+            b"declare const bmp: true;\n".to_vec(),
+        )
+        .build()
+        .expect("build UTF-16 ordered automatic-types host");
+    let options = ProgramOptions::default()
+        .with_no_lib(true)
+        .with_types(vec!["*".to_owned()])
+        .with_type_roots(vec![
+            ProgramPath::from_trusted_parts("/types", "/types").unwrap()
+        ]);
+
+    let program = load_no_lib(&host, &["/work/root.ts"], options, generous_limits())
+        .expect("load automatic types in JavaScript string order");
+
+    assert_eq!(
+        source_paths(&program),
+        [
+            Path::new("/work/root.ts"),
+            Path::new("/types/B/index.d.ts"),
+            Path::new("/types/a/index.d.ts"),
+            Path::new("/types/\u{10000}/index.d.ts"),
+            Path::new("/types/\u{e000}/index.d.ts"),
+        ]
+    );
+}
+
+#[test]
 fn config_anchor_and_type_roots_preserve_absent_empty_and_nonempty_states() {
     let config = path("/cfg/project/tsconfig.json");
     let host = MemoryCompilerHost::builder("/cwd")

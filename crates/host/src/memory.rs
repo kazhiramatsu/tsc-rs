@@ -1,6 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 
+use crate::ordering::compare_utf16;
 use crate::{to_file_name_lower_case, CompilerHost, HostError, HostErrorKind, HostOperation};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -13,6 +14,8 @@ struct FileEntry {
 struct DirectoryEntry {
     display_path: PathBuf,
 }
+
+type DirectoryEntryMap = BTreeMap<(String, String), (String, PathBuf)>;
 
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 struct FailureKey {
@@ -282,8 +285,7 @@ impl MemoryCompilerHostBuilder {
             ));
         }
 
-        let mut directory_entry_maps: BTreeMap<String, BTreeMap<(String, String), PathBuf>> =
-            BTreeMap::new();
+        let mut directory_entry_maps: BTreeMap<String, DirectoryEntryMap> = BTreeMap::new();
         for display_path in files
             .values()
             .map(|entry| entry.display_path.as_path())
@@ -305,14 +307,27 @@ impl MemoryCompilerHostBuilder {
                 .to_str()
                 .expect("stored memory-host paths are representable")
                 .to_owned();
-            directory_entry_maps
-                .entry(parent_key)
-                .or_default()
-                .insert((canonical, display), display_path.to_path_buf());
+            let display_name = display_path
+                .strip_prefix(parent)
+                .expect("stored memory-host entry is below its parent")
+                .to_str()
+                .expect("stored memory-host entry name is representable")
+                .to_owned();
+            directory_entry_maps.entry(parent_key).or_default().insert(
+                (canonical, display),
+                (display_name, display_path.to_path_buf()),
+            );
         }
         let directory_entries = directory_entry_maps
             .into_iter()
-            .map(|(directory, entries)| (directory, entries.into_values().collect()))
+            .map(|(directory, entries)| {
+                let mut entries = entries.into_values().collect::<Vec<_>>();
+                entries.sort_by(|left, right| compare_utf16(&left.0, &right.0));
+                (
+                    directory,
+                    entries.into_iter().map(|(_, path)| path).collect(),
+                )
+            })
             .collect();
 
         let existing_keys: BTreeSet<&str> = files

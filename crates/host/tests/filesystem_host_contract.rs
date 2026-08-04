@@ -108,6 +108,64 @@ fn filesystem_and_memory_hosts_observe_the_same_logical_tree() {
 }
 
 #[test]
+fn filesystem_and_memory_directory_order_matches_javascript_utf16_order() {
+    let tree = TempTree::new();
+    let file_names = ["B.ts", "a.ts", "\u{10000}.ts", "\u{e000}.ts"];
+    let directory_names = ["B-dir", "a-dir", "\u{10000}-dir", "\u{e000}-dir"];
+    for name in file_names {
+        fs::write(tree.path(name), []).unwrap();
+    }
+    for name in directory_names {
+        fs::create_dir(tree.path(name)).unwrap();
+    }
+
+    let case_sensitive = native_case_profile();
+    let filesystem = FsCompilerHost::new(tree.root(), case_sensitive).unwrap();
+    let mut memory = MemoryCompilerHost::builder(tree.root()).case_sensitive(case_sensitive);
+    for name in file_names {
+        memory = memory.file(tree.path(name), Vec::new());
+    }
+    for name in directory_names {
+        memory = memory.directory(tree.path(name));
+    }
+    let memory = memory.build().unwrap();
+
+    let expected_entries = [
+        tree.path("B-dir"),
+        tree.path("B.ts"),
+        tree.path("a-dir"),
+        tree.path("a.ts"),
+        tree.path("\u{10000}-dir"),
+        tree.path("\u{10000}.ts"),
+        tree.path("\u{e000}-dir"),
+        tree.path("\u{e000}.ts"),
+    ];
+    assert_eq!(
+        filesystem.read_directory(tree.root()).unwrap(),
+        expected_entries
+    );
+    assert_eq!(
+        memory.read_directory(tree.root()).unwrap(),
+        expected_entries
+    );
+
+    let expected_directories = [
+        tree.path("B-dir"),
+        tree.path("a-dir"),
+        tree.path("\u{10000}-dir"),
+        tree.path("\u{e000}-dir"),
+    ];
+    assert_eq!(
+        filesystem.get_directories(tree.root()).unwrap(),
+        expected_directories
+    );
+    assert_eq!(
+        memory.get_directories(tree.root()).unwrap(),
+        expected_directories
+    );
+}
+
+#[test]
 fn filesystem_host_preserves_source_bytes_without_decoding() {
     let tree = TempTree::new();
     let utf8_bom = [0xef, 0xbb, 0xbf, b'l', b'e', b't'];

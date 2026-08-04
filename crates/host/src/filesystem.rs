@@ -3,7 +3,8 @@ use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
 
-use crate::{to_file_name_lower_case, CompilerHost, HostError, HostErrorKind, HostOperation};
+use crate::ordering::compare_utf16;
+use crate::{CompilerHost, HostError, HostErrorKind, HostOperation};
 
 /// Read-only [`CompilerHost`] backed by the process filesystem.
 ///
@@ -101,7 +102,7 @@ impl FsCompilerHost {
                 )
             })?;
             let entry_path = entry.path();
-            let display = validate_observed_path(&entry_path, HostOperation::ReadDirectory)?;
+            validate_observed_path(&entry_path, HostOperation::ReadDirectory)?;
             let entry_metadata = match fs::metadata(&entry_path) {
                 Ok(metadata) => metadata,
                 Err(error) if is_absence(&error) => continue,
@@ -121,16 +122,14 @@ impl FsCompilerHost {
                 continue;
             }
 
-            let display = display.to_owned();
-            let canonical = if self.case_sensitive {
-                display.clone()
-            } else {
-                to_file_name_lower_case(&display)
-            };
-            entries.push((canonical, display, entry_path));
+            let display_name = entry
+                .file_name()
+                .into_string()
+                .expect("validated filesystem-host entry name is Unicode");
+            entries.push((display_name, entry_path));
         }
-        entries.sort_by(|left, right| left.0.cmp(&right.0).then_with(|| left.1.cmp(&right.1)));
-        Ok(entries.into_iter().map(|(_, _, path)| path).collect())
+        entries.sort_by(|left, right| compare_utf16(&left.0, &right.0));
+        Ok(entries.into_iter().map(|(_, path)| path).collect())
     }
 }
 
