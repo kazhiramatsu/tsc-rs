@@ -526,6 +526,15 @@ lib, and module references are reprocessed; a merely shallower revisit retries
 only imports previously elided by the depth boundary. An
 explicit `.json` request loads JSON only when `resolveJsonModule` is effective.
 External-library reachability remains part of source emit eligibility.
+Roots, path references, and local source discovery retain lexical identities
+without a blanket `realpath` host call. An external resolver transition visits
+its physical `resolvedFileName` directly and retains the lexical
+`originalPath` on the authoritative row, whether the target is loaded or
+unloaded. Module-extension classification remains attached to that lexical
+spelling even when the physical target has a different suffix or none.
+Publication preserves the resolver's display spelling while binding
+loaded rows to a validated `SourceFileId`; the compiler projects that id to the
+checker and keeps the physical path for unloaded-JavaScript diagnostics.
 Same-tree Unix canaries, including `rootDirs`,
 `paths`, `baseUrl`, and Classic/Node10 type-reference candidates, prove that
 `MemoryCompilerHost` and `FsCompilerHost` produce the same prepared program;
@@ -549,9 +558,9 @@ package fields directly, and object/array nesting above 256 does the same. The
 converter itself uses an explicit task stack.
 
 This is deliberately not general H0.4 program construction. Config-derived
-root-file selection, the remaining path and physical-alias policies, and the
-complete cross-platform case/separator/symlink/encoding matrix remain in later
-slices. Discovery stays
+root-file selection, preserve-symlinks/package redirects, case-only alias
+diagnostics, and the complete cross-platform case/separator/symlink/encoding
+matrix remain in later slices. Discovery stays
 sequential where vendored host calls and failure precedence are observable;
 future pipeline parallelism must preserve that contract.
 

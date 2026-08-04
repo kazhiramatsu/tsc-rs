@@ -161,7 +161,6 @@ pub enum ProgramLoadOperation {
     NormalizeRoot,
     NormalizeReference,
     ReadSource,
-    ObserveRealPath,
     DecodeSource,
     ObservePackageScope,
     PlanSourceRequests,
@@ -180,7 +179,6 @@ impl ProgramLoadOperation {
             Self::NormalizeRoot => "normalize root path",
             Self::NormalizeReference => "normalize path reference",
             Self::ReadSource => "read program source",
-            Self::ObserveRealPath => "observe source real path",
             Self::DecodeSource => "decode program source",
             Self::ObservePackageScope => "observe source package scope",
             Self::PlanSourceRequests => "plan source requests",
@@ -860,7 +858,6 @@ struct StagedGraph<'host, 'options, 'resolver> {
     limits: ProgramLoadLimits,
     resolver: &'resolver mut ModuleResolver<'host>,
     states: BTreeMap<CanonicalPath, VisitState>,
-    physical_owners: BTreeMap<CanonicalPath, usize>,
     sources: Vec<StagedSource>,
     source_edges: Vec<Vec<(usize, bool)>>,
     postorder: Vec<usize>,
@@ -896,7 +893,6 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
             limits,
             resolver,
             states: BTreeMap::new(),
-            physical_owners: BTreeMap::new(),
             sources: Vec::new(),
             source_edges: Vec::new(),
             postorder: Vec::new(),
@@ -1425,18 +1421,6 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
             }
             return Ok(state.source());
         }
-        if let Some(&owner) = self.physical_owners.get(path.canonical()) {
-            return Err(ProgramLoadError::unsupported(
-                ProgramLoadOperation::ReadSource,
-                Some(path.display().to_path_buf()),
-                "physical-source-alias",
-                format!(
-                    "the path aliases already discovered source {} whose lexical identity differs",
-                    self.sources[owner].prepared.path().display().display()
-                ),
-            ));
-        }
-
         let bytes = self.host.read_file(path.display()).map_err(|error| {
             ProgramLoadError::host(
                 ProgramLoadOperation::ReadSource,
@@ -1486,19 +1470,6 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
             path: path.display().to_path_buf(),
             source,
         })?;
-        let real_path = self.observe_real_path(&path)?;
-        if let Some(real_path) = &real_path {
-            if let Some(existing) = self
-                .states
-                .get(real_path.canonical())
-                .and_then(|state| state.source())
-            {
-                return Err(self.physical_alias_error(&path, existing));
-            }
-            if let Some(&existing) = self.physical_owners.get(real_path.canonical()) {
-                return Err(self.physical_alias_error(&path, existing));
-            }
-        }
         let package_scope = self
             .resolver
             .package_scope_for_file(path.display())
@@ -1521,9 +1492,6 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
             .with_implied_node_formats(implied, implied_for_emit);
         if is_json_source(path.canonical()) {
             prepared = prepared.with_may_be_emitted(false);
-        }
-        if let Some(real_path) = real_path {
-            prepared = prepared.with_real_path(real_path);
         }
         if let Some(package_scope) = package_scope {
             prepared =
@@ -1572,10 +1540,6 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
         self.total_source_bytes = total_source_bytes;
         self.request_edges = request_edges;
         let source = self.sources.len();
-        if let Some(real_path) = prepared.real_path() {
-            self.physical_owners
-                .insert(real_path.canonical().clone(), source);
-        }
         self.sources.push(StagedSource {
             prepared,
             has_non_external_reason: reason.seeds_non_external_reachability,
@@ -1693,55 +1657,6 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
         self.sources[source].modules_with_elided_imports = false;
         let requests = self.sources[source].module_requests.clone();
         self.process_module_requests(source, requests, depth, node_modules_depth)
-    }
-
-    fn observe_real_path(
-        &self,
-        path: &ProgramPath,
-    ) -> Result<Option<ProgramPath>, ProgramLoadError> {
-        let observed = self.host.realpath(path.display()).map_err(|error| {
-            ProgramLoadError::host(
-                ProgramLoadOperation::ObserveRealPath,
-                Some(path.display().to_path_buf()),
-                error,
-            )
-        })?;
-        let Some(observed) = observed else {
-            return Err(ProgramLoadError::invalid_data(
-                ProgramLoadOperation::ObserveRealPath,
-                Some(path.display().to_path_buf()),
-                "host returned source bytes but no real path for the same entry",
-            ));
-        };
-        let current_directory = self
-            .resolver
-            .path_context()
-            .current_directory()
-            .display()
-            .to_str()
-            .expect("resolver path context is representable");
-        let normalized =
-            normalize_absolute_path(&observed, Some(current_directory)).map_err(|error| {
-                ProgramLoadError::resolution(
-                    ProgramLoadOperation::ObserveRealPath,
-                    Some(observed.clone()),
-                    None,
-                    error,
-                )
-            })?;
-        let real = make_program_path(
-            &normalized,
-            self.resolver.path_context().use_case_sensitive_file_names(),
-        )
-        .map_err(|error| {
-            ProgramLoadError::resolution(
-                ProgramLoadOperation::ObserveRealPath,
-                Some(observed),
-                None,
-                error,
-            )
-        })?;
-        Ok((real.canonical() != path.canonical()).then_some(real))
     }
 
     fn library_path(&self, file_name: &str) -> Result<ProgramPath, ProgramLoadError> {
@@ -2180,17 +2095,7 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                     child_node_modules_depth,
                 );
                 self.module_resolutions[index].unloaded_reason = reason;
-                if let Some(reason) = reason {
-                    if has_original_path
-                        && !matches!(reason, UnloadedModuleReason::JsxWithoutJsxOption)
-                    {
-                        return Err(ProgramLoadError::unsupported(
-                            ProgramLoadOperation::ResolveModule,
-                            Some(target.display().to_path_buf()),
-                            "unloaded-original-path",
-                            "an unloaded JavaScript target cannot retain a lexical-to-physical transition",
-                        ));
-                    }
+                if reason.is_some() {
                     continue;
                 }
             }
@@ -2206,14 +2111,10 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                 // declaration twin to source membership in this case.
                 continue;
             }
-            if has_original_path {
-                return Err(ProgramLoadError::unsupported(
-                    ProgramLoadOperation::ResolveModule,
-                    Some(target.display().to_path_buf()),
-                    "loaded-original-path",
-                    "a loaded source target cannot retain a lexical-to-physical transition at the authoritative checker boundary",
-                ));
-            }
+            // Resolver-owned external symlink handling has already replaced
+            // this target with its physical resolvedFileName. Visit that
+            // identity directly; the lexical spelling remains on the host
+            // resolution and is published as originalPath below.
             if matches!(extension, ModuleExtension::Json) {
                 if !self.compiler_options.resolve_json_module_effective() {
                     return Err(ProgramLoadError::unsupported(
@@ -2351,18 +2252,6 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
             }
         }
     }
-
-    fn physical_alias_error(&self, path: &ProgramPath, existing: usize) -> ProgramLoadError {
-        ProgramLoadError::unsupported(
-            ProgramLoadOperation::ObserveRealPath,
-            Some(path.display().to_path_buf()),
-            "physical-source-alias",
-            format!(
-                "physical identity is already owned by lexical source {}",
-                self.sources[existing].prepared.path().display().display()
-            ),
-        )
-    }
 }
 
 fn publish_program(
@@ -2376,7 +2265,7 @@ fn publish_program(
     builder.set_program_options(program_options);
 
     let mut published_ids = vec![None; staged.sources.len()];
-    let mut source_by_canonical = BTreeMap::<CanonicalPath, (SourceFileId, ProgramPath)>::new();
+    let mut source_by_canonical = BTreeMap::<CanonicalPath, SourceFileId>::new();
     let publish_order = staged
         .library_postorder
         .into_iter()
@@ -2398,10 +2287,7 @@ fn publish_program(
             })?;
         }
         published_ids[source_index] = Some(source_id);
-        source_by_canonical.insert(
-            prepared.path().canonical().clone(),
-            (source_id, prepared.path().clone()),
-        );
+        source_by_canonical.insert(prepared.path().canonical().clone(), source_id);
     }
 
     for root in staged.roots {
@@ -2496,7 +2382,7 @@ fn publish_program(
 
 fn bind_module_resolution(
     host: HostModuleResolution,
-    source_by_canonical: &BTreeMap<CanonicalPath, (SourceFileId, ProgramPath)>,
+    source_by_canonical: &BTreeMap<CanonicalPath, SourceFileId>,
     package_map: &BTreeMap<String, bool>,
     loads_source: bool,
     unloaded_reason: Option<UnloadedModuleReason>,
@@ -2527,17 +2413,6 @@ fn bind_module_resolution(
                 ),
             )
         })?;
-        if module.original_path().is_some()
-            && !matches!(reason, UnloadedModuleReason::JsxWithoutJsxOption)
-        {
-            return Err(ResolutionError::unsupported(
-                "unloaded-original-path",
-                format!(
-                    "unloaded JavaScript target {} has a lexical-to-physical transition",
-                    module.resolved_file().display().display()
-                ),
-            ));
-        }
         ResolvedModuleTarget::Unloaded {
             resolved_file: module.resolved_file().clone(),
             reason,
@@ -2551,18 +2426,10 @@ fn bind_module_resolution(
                 UnloadedModuleReason::ResolutionOnly
             },
         }
-    } else if module.original_path().is_some() {
-        return Err(ResolutionError::unsupported(
-            "loaded-original-path",
-            format!(
-                "loaded source target {} has a lexical-to-physical transition",
-                module.resolved_file().display().display()
-            ),
-        ));
-    } else if let Some((source, path)) = owned_source {
+    } else if let Some(source) = owned_source {
         ResolvedModuleTarget::Source {
             source: *source,
-            resolved_file: path.clone(),
+            resolved_file: module.resolved_file().clone(),
         }
     } else {
         return Err(ResolutionError::unsupported(
@@ -2584,19 +2451,20 @@ fn bind_module_resolution(
 
 fn bind_type_resolution(
     host: ResolutionOutcome<HostResolvedTypeReferenceDirective>,
-    source_by_canonical: &BTreeMap<CanonicalPath, (SourceFileId, ProgramPath)>,
+    source_by_canonical: &BTreeMap<CanonicalPath, SourceFileId>,
 ) -> Result<TypeReferenceResolution, ResolutionError> {
     let ResolutionOutcome::Resolved(host) = host else {
         return Ok(TypeReferenceResolution::not_found());
     };
-    let Some((source, path)) = source_by_canonical.get(host.resolved_file().canonical()) else {
+    let Some(source) = source_by_canonical.get(host.resolved_file().canonical()) else {
         return Err(ResolutionError::invalid_data(format!(
             "resolved type-reference target {} is not owned by the prepared program",
             host.resolved_file().display().display()
         )));
     };
+    let target = host.resolved_file().clone();
     Ok(TypeReferenceResolution::resolved(
-        host.into_resolved_type_reference_directive(path.clone(), *source)?,
+        host.into_resolved_type_reference_directive(target, *source)?,
     ))
 }
 

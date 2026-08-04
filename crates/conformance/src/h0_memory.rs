@@ -173,13 +173,13 @@ pub(crate) fn run(
         PreparedProgram::builder(resolver.path_context().clone(), options.clone());
     prepared_builder.set_program_options(program_options.clone());
 
-    let mut source_by_canonical = BTreeMap::<PathBuf, (SourceFileId, ProgramPath)>::new();
+    let mut source_by_canonical = BTreeMap::<PathBuf, SourceFileId>::new();
     for source in &decoded_libs {
         let path = public_program_path(source)?;
         let source_id = prepared_builder
             .add_source_file(PreparedSourceFile::new(path.clone(), source.text.clone()))?;
         prepared_builder.add_library_file(source_id)?;
-        source_by_canonical.insert(source.canonical.clone(), (source_id, path));
+        source_by_canonical.insert(source.canonical.clone(), source_id);
     }
 
     let mut owned_program_sources = Vec::with_capacity(decoded_files.len());
@@ -203,7 +203,7 @@ pub(crate) fn run(
         }
         let source_id = prepared_builder.add_source_file(prepared.clone())?;
         prepared_builder.add_root_file(source_id)?;
-        source_by_canonical.insert(source.canonical.clone(), (source_id, path.clone()));
+        source_by_canonical.insert(source.canonical.clone(), source_id);
         owned_program_sources.push(OwnedProgramSource { prepared });
     }
 
@@ -366,7 +366,7 @@ fn option_program_path(current_directory: &Path, path: &str) -> Result<ProgramPa
 
 fn bind_host_outcome(
     outcome: HostModuleResolution,
-    source_by_canonical: &BTreeMap<PathBuf, (SourceFileId, ProgramPath)>,
+    source_by_canonical: &BTreeMap<PathBuf, SourceFileId>,
     options: &tsc_program::CompilerOptions,
     package_map: &BTreeMap<String, bool>,
     loads_source: bool,
@@ -412,28 +412,14 @@ fn bind_host_outcome(
                 host_module.resolved_file().display().display()
             )));
         };
-        if host_module.original_path().is_some()
-            && !matches!(reason, UnloadedModuleReason::JsxWithoutJsxOption)
-        {
-            return Err(ResolutionError::unsupported(
-                "unloaded-original-path",
-                format!(
-                    "unloaded JavaScript target {} retains an unsupported lexical-to-physical transition",
-                    host_module.resolved_file().display().display()
-                ),
-            ));
-        }
         ResolvedModuleTarget::Unloaded {
             resolved_file: host_module.resolved_file().clone(),
             reason,
         }
-    } else if let Some((target_source, target_path)) = owned_source {
+    } else if let Some(target_source) = owned_source {
         ResolvedModuleTarget::Source {
             source: *target_source,
-            // ProgramSession requires the resolved-file spelling to be exactly
-            // the owned SourceFile spelling, while HostResolvedModule validates
-            // that its canonical identity still matches the probed host path.
-            resolved_file: target_path.clone(),
+            resolved_file: host_module.resolved_file().clone(),
         }
     } else {
         return Err(ResolutionError::invalid_data(format!(
@@ -453,7 +439,7 @@ fn bind_host_outcome(
 
 fn bind_type_reference_host_outcome(
     outcome: ResolutionOutcome<HostResolvedTypeReferenceDirective>,
-    source_by_canonical: &BTreeMap<PathBuf, (SourceFileId, ProgramPath)>,
+    source_by_canonical: &BTreeMap<PathBuf, SourceFileId>,
 ) -> Result<TypeReferenceResolution, ResolutionError> {
     let ResolutionOutcome::Resolved(host_directive) = outcome else {
         return Ok(TypeReferenceResolution::not_found());
@@ -465,15 +451,16 @@ fn bind_type_reference_host_outcome(
         )));
     }
     let target_canonical = host_directive.resolved_file().canonical().as_path();
-    let Some((source, target)) = source_by_canonical.get(target_canonical) else {
+    let Some(source) = source_by_canonical.get(target_canonical) else {
         return Err(ResolutionError::invalid_data(format!(
             "resolved type-reference source {} is not owned by the prepared program",
             host_directive.resolved_file().display().display()
         )));
     };
-    let mut directive = ResolvedTypeReferenceDirective::new(target.clone(), *source)
-        .with_primary(host_directive.primary())
-        .with_external_library_import(host_directive.is_external_library_import());
+    let mut directive =
+        ResolvedTypeReferenceDirective::new(host_directive.resolved_file().clone(), *source)
+            .with_primary(host_directive.primary())
+            .with_external_library_import(host_directive.is_external_library_import());
     if let Some(original_path) = host_directive.original_path() {
         directive = directive.with_original_path(original_path.clone());
     }
@@ -799,7 +786,7 @@ mod tests {
                 u32::try_from(index + 1).expect("the focused source id fits u32"),
             );
             let source_by_canonical =
-                BTreeMap::from([(target.canonical().as_path().to_path_buf(), (source, target))]);
+                BTreeMap::from([(target.canonical().as_path().to_path_buf(), source)]);
             assert!(matches!(
                 bind_type_reference_host_outcome(outcome, &source_by_canonical)
                     .expect("bind H0 type-reference target")

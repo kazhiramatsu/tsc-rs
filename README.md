@@ -320,9 +320,14 @@ it consumes that JavaScript-compatible host order.
 Same-tree Unix canaries prove both `PreparedProgram` and five-bucket
 `ProgramSession` diagnostic equivalence between MemoryHost and FsHost; the
 program-level canaries exercise Classic, Node10, Bundler, ordered optional
-settings including `rootDirs`, and wildcard `@types` discovery. Config-derived
-roots, the remaining path and physical-alias policies, and the platform matrix
-remain.
+settings including `rootDirs`, and wildcard `@types` discovery. Loaded roots
+preserve their lexical identity without a blanket realpath observation.
+External resolver transitions instead load the physical `resolvedFileName`
+and retain the lexical `originalPath` on each loaded or unloaded resolution;
+extension classification remains tied to that lexical spelling;
+the checker consumes the validated source id for loaded rows and the physical
+path for TS7016. Config-derived root selection, preserve-symlinks/package
+redirects, case-only aliases, and the remaining platform matrix remain.
 
 | Phase | State | Focus |
 | --- | --- | --- |

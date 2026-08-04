@@ -5091,6 +5091,13 @@ fn is_path_relative_specifier(specifier: &str) -> bool {
         || specifier.starts_with("..\\")
 }
 
+/// tsc-port: isExternalModuleNameRelative @6.0.3
+/// tsc-hash: e5546324dce58e277ab9df485e26bb2c9cafa5a7e7b154366be6fc45784ad14d
+/// tsc-span: _tsc.js:11234-11236
+pub(crate) fn is_external_module_name_relative(module_name: &str) -> bool {
+    is_path_relative_specifier(module_name) || is_rooted_disk_path(module_name)
+}
+
 fn is_supported_rooted_specifier(specifier: &str) -> bool {
     (specifier.starts_with('/') && !specifier.starts_with("//"))
         || (specifier.len() >= 3
