@@ -5,10 +5,10 @@ use std::sync::{Arc, OnceLock};
 
 use sha2::{Digest, Sha256};
 use tsc_harness::upstream_suites::execution::{
-    load_node_modules_search_project, load_recorded_execution_plans, CompilerExecutionPlan,
-    CompilerExplicitRootReason, CompilerRootSelection, CompilerSymlinkPhase, CompilerUnitId,
-    ProjectExecutionPlan, ProjectRootSelection, UpstreamExecutionCorpus, UpstreamExecutionInput,
-    UpstreamExecutionPlan,
+    load_node_modules_search_project, load_project_no_emit, load_recorded_execution_plans,
+    CompilerExecutionPlan, CompilerExplicitRootReason, CompilerRootSelection, CompilerSymlinkPhase,
+    CompilerUnitId, ProjectExecutionPlan, ProjectRootSelection, UpstreamExecutionCorpus,
+    UpstreamExecutionInput, UpstreamExecutionPlan,
 };
 use tsc_harness::upstream_suites::{ExecutionState, ProjectModule};
 use tsc_program::{
@@ -856,6 +856,62 @@ fn project_plans_preserve_descriptor_order_mount_and_pending_config_modes() {
         discovered.fixture.root_selection,
         ProjectRootSelection::DiscoverConfig
     );
+}
+
+#[test]
+fn general_project_no_emit_loader_handles_root_modes_and_rejects_emit_requests() {
+    let workspace = workspace_root();
+
+    let explicit = project(plan(
+        "typescript-6.0.3/project/baseline.json#module%3Dcommonjs",
+    ));
+    let explicit_program = load_project_no_emit(&workspace, explicit, focused_project_limits())
+        .expect("explicit project roots should enter the no-emit loader");
+    assert!(explicit_program.config_root_plan.is_none());
+    assert_eq!(explicit_program.root_names.len(), 1);
+    assert_eq!(
+        explicit_program.effective_compiler_options.no_emit,
+        Some(true)
+    );
+    assert_eq!(
+        explicit_program
+            .effective_program_options
+            .default_library_file_name(),
+        Some("lib.es5.d.ts")
+    );
+    assert!(explicit_program
+        .prepared_program
+        .source_files()
+        .iter()
+        .any(|source| source
+            .path()
+            .display()
+            .display()
+            .to_string()
+            .ends_with("/emit.ts")));
+
+    let discovered = project(plan(
+        "typescript-6.0.3/project/defaultExcludeNodeModulesAndOutDirWithAllowJS.json#module%3Dcommonjs",
+    ));
+    let discovered_program = load_project_no_emit(&workspace, discovered, focused_project_limits())
+        .expect("discovered project config should enter the no-emit loader");
+    let config = discovered_program
+        .config_root_plan
+        .as_ref()
+        .expect("discovered project retains its parsed config plan");
+    assert!(!config.file_names().is_empty());
+    assert!(discovered_program.effective_compiler_options.allow_js);
+    assert_eq!(
+        discovered_program.effective_compiler_options.no_emit,
+        Some(true)
+    );
+
+    let emit_request = project(plan(
+        "typescript-6.0.3/project/projectOptionTest.json#module%3Dcommonjs",
+    ));
+    let error = load_project_no_emit(&workspace, emit_request, focused_project_limits())
+        .expect_err("declaration=true must fail closed in the no-emit project loader");
+    assert!(error.to_string().contains("declaration"));
 }
 
 fn focused_project_limits() -> ProgramLoadLimits {

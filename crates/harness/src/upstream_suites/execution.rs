@@ -40,7 +40,10 @@ use crate::HarnessResult;
 
 mod project;
 
-pub use project::{load_node_modules_search_project, ProjectConfigProgram};
+pub use project::{
+    load_node_modules_search_project, load_project_no_emit, ProjectConfigProgram,
+    ProjectNoEmitProgram,
+};
 
 /// A fully verified, canonically ordered set of execution plans.
 #[derive(Clone, Debug)]

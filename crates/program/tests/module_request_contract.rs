@@ -754,6 +754,38 @@ fn top_level_script_ambient_module_has_no_resolution_request() {
 }
 
 #[test]
+fn script_ambient_module_collects_external_import_equals_requests() {
+    let source = source_at(
+        "/ambient.ts",
+        concat!(
+            "declare module \"math\" {\n",
+            "  import blah = require(\"blah\");\n",
+            "  export function baz(): void;\n",
+            "}\n",
+            "declare module \"blah\" {}\n",
+        ),
+        None,
+    );
+    let options = CompilerOptions {
+        module: Some(1),
+        module_resolution: Some(100),
+        ..CompilerOptions::default()
+    };
+    let requests = plan_source_requests(&source, &options)
+        .expect("ambient import-equals requests should be planned");
+    assert_eq!(requests.module_requests().len(), 1);
+    assert_eq!(requests.module_requests()[0].specifier(), "blah");
+    assert_eq!(
+        requests.module_requests()[0].mode(),
+        ResolutionMode::CommonJs
+    );
+    assert_eq!(
+        requests.module_request_loads_source(&requests.module_requests()[0]),
+        Some(true)
+    );
+}
+
+#[test]
 fn bare_string_named_module_in_external_source_is_not_an_augmentation_request() {
     let source = source_at(
         "/bare.ts",

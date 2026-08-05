@@ -1120,13 +1120,14 @@ pub fn load_config_program_with_no_emit_override(
     load_config_program_inner(host, plan, library_catalog, limits, true)
 }
 
-fn load_config_program_inner(
-    host: &dyn CompilerHost,
-    plan: &ConfigRootPlan,
-    library_catalog: &LibraryCatalog,
-    limits: ProgramLoadLimits,
-    force_no_emit: bool,
-) -> Result<PreparedProgram, ConfigProgramLoadError> {
+/// Validate the config-facing gates without starting source discovery.
+///
+/// Embedding runners such as the upstream project harness may need to apply
+/// their own `existingOptions` projection before calling `load_program`.  The
+/// validation must nevertheless remain owned by this crate so those runners
+/// cannot accidentally bypass config diagnostics or the H0 fail-closed
+/// option/root-scope boundary.
+pub fn validate_config_plan(plan: &ConfigRootPlan) -> Result<(), ConfigProgramLoadError> {
     let config = plan.diagnostics().cloned().collect::<Vec<_>>();
     let options = plan.option_diagnostics().to_vec();
     if !config.is_empty() || !options.is_empty() {
@@ -1145,6 +1146,17 @@ fn load_config_program_inner(
             ),
         ));
     }
+    Ok(())
+}
+
+fn load_config_program_inner(
+    host: &dyn CompilerHost,
+    plan: &ConfigRootPlan,
+    library_catalog: &LibraryCatalog,
+    limits: ProgramLoadLimits,
+    force_no_emit: bool,
+) -> Result<PreparedProgram, ConfigProgramLoadError> {
+    validate_config_plan(plan)?;
 
     if !force_no_emit && plan.compiler_options().no_emit != Some(true) {
         return Err(ConfigProgramLoadError::NoEmitRequired {

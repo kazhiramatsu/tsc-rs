@@ -613,6 +613,17 @@ independent program still owns its source-text decode and parse. Reusing that
 prepared text/parse work across project variants is a later performance slice
 and must preserve option-sensitive source identity and publication order.
 
+The project harness now also exposes a shared no-emit adapter for all three
+descriptor root modes: explicit `inputFiles`, an explicit `project` config,
+and `tsconfig.json` discovery at the project root. It applies the runner's
+existing `module`, `moduleResolution`, `strict`, and no-error-truncation
+defaults before forcing `noEmit=true`, and it delegates config validation to
+the program-owned fail-closed gate. The adapter is qualified on representative
+explicit and discovered projects, including the `NestedDeclare` ambient
+import-equals boundary. Descriptor/config requests for declaration, source
+maps, output paths, `noResolve`, and other emit-only controls remain typed
+unsupported outcomes; they are not counted as executed no-emit cases.
+
 ### H0.5 — tsconfig and command-line driver
 
 - port JSONC config parsing and config diagnostics;
@@ -698,10 +709,8 @@ official oracle. Include patterns are compiled once and reused through an
 iterative, linear-scratch UTF-16 matcher; candidate matching does not recurse,
 build a quadratic memo table, or require a regex dependency. This is not yet a
 general `ParseConfigHost`/`matchFiles` qualification. Remaining root fields,
-remaining resolver/loader options, full
-`ParsedCommandLine`, filesystem discovery,
-general project/project-runner config handling beyond the focused
-`NodeModulesSearch` bridge remain open. The validated projection now exposes
+remaining resolver/loader options, full `ParsedCommandLine`, and the complete
+project baseline/emit runner remain open. The validated projection now exposes
 the merged checker/program options and has a fail-closed `load_config_program`
 bridge into the general catalog-backed loader: config and option diagnostics
 stop source loading first, and an omitted or false `noEmit` is rejected before

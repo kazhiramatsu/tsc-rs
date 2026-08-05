@@ -646,9 +646,24 @@ fn plan_module_requests_worker(
                         })
                 });
                 let ambient_syntax = has_declare_modifier || parsed.is_declaration_file;
-                if let Some((position, detail)) =
-                    module_body_request_syntax(&parsed, node_id, module.body, javascript_file)
-                {
+                let allow_ambient_import_equals =
+                    ambient_syntax && top_level && parsed.external_module_indicator.is_none();
+                if allow_ambient_import_equals {
+                    collect_ambient_import_equals_requests(
+                        &parsed,
+                        module.body,
+                        source,
+                        import_syntax_affects_resolution,
+                        &mut static_occurrences,
+                    )?;
+                }
+                if let Some((position, detail)) = module_body_request_syntax(
+                    &parsed,
+                    node_id,
+                    module.body,
+                    javascript_file,
+                    allow_ambient_import_equals,
+                ) {
                     return Err(unsupported_at(source, position, detail));
                 }
                 if ambient_syntax && parsed.external_module_indicator.is_some() {
@@ -861,14 +876,16 @@ struct ModuleRequestOccurrence {
 }
 
 /// A string-named module declaration is a collectModuleReferences boundary.
-/// This slice does not model the upstream `inAmbientModule` traversal rules,
-/// so request-bearing syntax under that boundary must fail closed rather than
-/// leaking into the source-level request list or being silently omitted.
+/// Most request-bearing syntax under that boundary still fails closed until
+/// its ambient-context semantics are owned. Script-ambient external
+/// import-equals declarations are the narrow exception: TypeScript resolves
+/// those requests and the dedicated traversal below preserves that fact.
 fn module_body_request_syntax(
     parsed: &SourceFile,
     declaration: NodeId,
     body: Option<NodeId>,
     javascript_file: bool,
+    allow_ambient_import_equals: bool,
 ) -> Option<(u32, &'static str)> {
     let mut stack = body.into_iter().collect::<Vec<_>>();
     if javascript_file {
@@ -885,7 +902,7 @@ fn module_body_request_syntax(
             NodeData::ExportDeclaration(export) if export.module_specifier.is_some() => {
                 Some("an export-from declaration appears inside a string-named module")
             }
-            NodeData::ImportEqualsDeclaration(_) => {
+            NodeData::ImportEqualsDeclaration(_) if !allow_ambient_import_equals => {
                 Some("an import-equals declaration appears inside a string-named module")
             }
             NodeData::ImportType(_) => Some("an import type appears inside a string-named module"),
@@ -942,6 +959,89 @@ fn module_body_request_syntax(
         stack.extend(children.into_iter().rev());
     }
     None
+}
+
+/// Collect external import-equals requests in a script ambient module.
+///
+/// TypeScript still resolves these requests (and can therefore report TS2307),
+/// but the ambient module declaration is a `collectModuleReferences` boundary
+/// for all other source-level request forms.  Keep this narrow traversal
+/// separate from the ordinary source walker so imports under a bare or
+/// external augmentation continue to fail closed until their ambient context
+/// is owned.
+fn collect_ambient_import_equals_requests(
+    parsed: &SourceFile,
+    body: Option<NodeId>,
+    source: &PreparedSourceFile,
+    import_syntax_affects_resolution: bool,
+    occurrences: &mut Vec<ModuleRequestOccurrence>,
+) -> Result<(), ResolutionError> {
+    let mut stack = body.into_iter().collect::<Vec<_>>();
+    while let Some(node_id) = stack.pop() {
+        let node = parsed.arena.node(node_id);
+        match &node.data {
+            NodeData::ImportEqualsDeclaration(import_equals) => {
+                let Some(module_reference) = import_equals.module_reference else {
+                    return Err(unsupported_at(
+                        source,
+                        node.pos,
+                        "an ambient import-equals declaration has no module reference",
+                    ));
+                };
+                if let NodeData::ExternalModuleReference(reference) =
+                    &parsed.arena.node(module_reference).data
+                {
+                    let expression = reference.expression.ok_or_else(|| {
+                        unsupported_at(
+                            source,
+                            node.pos,
+                            "an ambient external import-equals declaration has no expression",
+                        )
+                    })?;
+                    let expression = parsed.arena.node(expression);
+                    let NodeData::StringLiteral(literal) = &expression.data else {
+                        return Err(unsupported_at(
+                            source,
+                            node.pos,
+                            "an ambient import-equals declaration has a non-string specifier",
+                        ));
+                    };
+                    if !literal.text.is_empty() {
+                        occurrences.push(ModuleRequestOccurrence {
+                            pos: expression.pos,
+                            loads_source: true,
+                            key: ResolutionKey::new(
+                                source.path().canonical().clone(),
+                                literal.text.clone(),
+                                if import_syntax_affects_resolution {
+                                    ResolutionMode::CommonJs
+                                } else {
+                                    ResolutionMode::Unspecified
+                                },
+                            ),
+                        });
+                    }
+                }
+                continue;
+            }
+            NodeData::ModuleDeclaration(module)
+                if module.name.is_some_and(|name| {
+                    parsed.arena.node(name).kind == SyntaxKind::StringLiteral
+                }) =>
+            {
+                stack.extend(module.body);
+                continue;
+            }
+            _ => {}
+        }
+        let mut children = Vec::new();
+        for_each_child(&parsed.arena, node, |child| {
+            children.push(child);
+            false
+        });
+        stack.extend(children.into_iter().rev());
+    }
+    Ok(())
 }
 
 /// tsc `getResolutionModeOverride`: only the exact one-element
