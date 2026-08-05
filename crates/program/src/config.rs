@@ -1331,7 +1331,7 @@ fn unsupported_config_scope(
         }
     }
 
-    for scope in unsupported_root_scopes {
+    if let Some(scope) = unsupported_root_scopes.into_iter().next() {
         let scope = scope.as_ref();
         let detail = match scope {
             "watchOptions" => "watchOptions are outside the H0 single-project no-emit driver",
