@@ -868,6 +868,12 @@ pub struct ConfigRootPlan {
     options: ConfigOptionBag,
     discovery_options: ConfigDiscoveryOptions,
     module_resolution_options: ConfigModuleResolutionOptions,
+    /// Effective root specs after the extends merge. These remain separate
+    /// from `file_names`: TypeScript exposes both the declarative
+    /// `ParsedCommandLine` lists and the discovered file-name projection.
+    files: Option<Vec<String>>,
+    include: Option<Vec<String>>,
+    exclude: Option<Vec<String>>,
     file_names: Vec<String>,
     root_parse_diagnostics: Vec<Diagnostic>,
     errors: Vec<Diagnostic>,
@@ -902,6 +908,22 @@ impl ConfigRootPlan {
 
     pub const fn module_resolution_options(&self) -> &ConfigModuleResolutionOptions {
         &self.module_resolution_options
+    }
+
+    /// Effective `files` entries after extends rebasing. `None` preserves an
+    /// absent/undefined property, while `Some([])` is an explicit empty list.
+    pub fn files(&self) -> Option<&[String]> {
+        self.files.as_deref()
+    }
+
+    /// Effective `include` entries after extends rebasing.
+    pub fn include(&self) -> Option<&[String]> {
+        self.include.as_deref()
+    }
+
+    /// Effective `exclude` entries after extends rebasing.
+    pub fn exclude(&self) -> Option<&[String]> {
+        self.exclude.as_deref()
     }
 
     /// The checker-facing compiler options projected from the merged config.
@@ -1242,6 +1264,18 @@ pub fn parse_config_root_plan(
         &mut context.errors,
     )?;
     node.options.restore_public_entry_order();
+    let files = node
+        .files
+        .as_ref()
+        .map(|specs| specs.iter().map(|spec| spec.text.clone()).collect());
+    let include = node
+        .include
+        .as_ref()
+        .map(|specs| specs.iter().map(|spec| spec.text.clone()).collect());
+    let exclude = node
+        .exclude
+        .as_ref()
+        .map(|specs| specs.iter().map(|spec| spec.text.clone()).collect());
     Ok(ConfigRootPlan {
         config_file_name,
         source: node.source,
@@ -1251,6 +1285,9 @@ pub fn parse_config_root_plan(
         options: node.options,
         discovery_options,
         module_resolution_options,
+        files,
+        include,
+        exclude,
         file_names,
         root_parse_diagnostics: context.root_parse_diagnostics,
         errors: context.errors,

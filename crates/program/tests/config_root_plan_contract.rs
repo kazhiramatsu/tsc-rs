@@ -2313,6 +2313,26 @@ fn explicit_empty_exclude_remains_distinct_from_an_absent_exclude() {
 }
 
 #[test]
+fn root_plan_exposes_effective_file_include_and_exclude_specs() {
+    let host = MemoryConfigHost::default().with_directory_files(&["/project/src/main.ts"]);
+    let plan = parse_config_root_plan(
+        &host,
+        request(
+            "/project/tsconfig.json",
+            r#"{"files":["src/main.ts"],"include":["src/**/*.ts"],"exclude":["src/generated"]}"#,
+        ),
+    )
+    .expect("root spec projection");
+
+    assert_eq!(plan.files(), Some(["src/main.ts".to_owned()].as_slice()));
+    assert_eq!(plan.include(), Some(["src/**/*.ts".to_owned()].as_slice()));
+    assert_eq!(
+        plan.exclude(),
+        Some(["src/generated".to_owned()].as_slice())
+    );
+}
+
+#[test]
 fn case_only_extended_source_spellings_remain_observable_without_a_cache() {
     let host = MemoryConfigHost::default().case_insensitive().with_file(
         "/project/base.json",

@@ -657,6 +657,9 @@ latter as a baseUrl fallback. Exact keys and valid single-star offsets are
 compiled once, mappings are shared between resolver instances, and per-request
 substitution-vector clones are eliminated; structural validation is cached
 with that immutable table instead of rescanned by every resolver.
+The public `ConfigRootPlan` also retains the effective `files`, `include`,
+and `exclude` spec lists after extends rebasing, preserving absent versus
+explicit-empty states alongside the discovered `fileNames` projection.
 `moduleSuffixes` is projected without normalizing case, whitespace, empty
 entries, or recoverable JavaScript `undefined` slots. Every resolver file
 candidate uses TypeScript's extension-major/suffix-minor probe order, including
