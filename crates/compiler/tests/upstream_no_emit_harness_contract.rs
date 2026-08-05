@@ -1,9 +1,10 @@
+use std::fs;
 use std::path::PathBuf;
 
 use tsc_compiler::ProgramSession;
 use tsc_harness::upstream_suites::execution::{
-    load_compiler_no_emit, load_recorded_execution_plans, CompilerExecutionPlan,
-    UpstreamExecutionInput, UpstreamExecutionPlan,
+    load_compiler_no_emit, load_node_modules_search_project, load_recorded_execution_plans,
+    CompilerExecutionPlan, UpstreamExecutionInput, UpstreamExecutionPlan,
 };
 use tsc_program::ProgramLoadLimits;
 
@@ -61,6 +62,80 @@ fn compiler_session_runs_recorded_no_emit_programs() {
             .run()
             .unwrap_or_else(|error| panic!("failed to execute {case_id}: {error:?}"));
         assert!(outcome.config_diagnostics().is_empty(), "{case_id}");
+    }
+}
+
+#[test]
+fn project_session_runs_focused_node_modules_search_programs() {
+    let workspace = workspace_root();
+    let corpus = load_recorded_execution_plans(&workspace)
+        .unwrap_or_else(|error| panic!("failed to load upstream plans: {error}"));
+    let oracle: serde_json::Value = serde_json::from_slice(
+        &fs::read(workspace.join("vendor/typescript-6.0.3/project-node-modules-search.v1.json"))
+            .expect("read NodeModulesSearch project oracle"),
+    )
+    .expect("NodeModulesSearch project oracle is JSON");
+    for upstream in corpus.plans.iter().filter(|plan| {
+        plan.provenance
+            .case_id
+            .as_ref()
+            .contains("project/nodeModules")
+    }) {
+        let UpstreamExecutionInput::Project(project) = &upstream.input else {
+            panic!("focused project case is not a project plan");
+        };
+        let execution = load_node_modules_search_project(&workspace, project, limits())
+            .unwrap_or_else(|error| {
+                panic!("failed to load {}: {error}", upstream.provenance.case_id)
+            });
+        let expected = oracle["cases"]
+            .as_array()
+            .expect("project oracle cases is an array")
+            .iter()
+            .find(|expected| expected["case_id"] == upstream.provenance.case_id.as_ref())
+            .unwrap_or_else(|| panic!("oracle is missing {}", upstream.provenance.case_id));
+        let outcome = ProgramSession::new(execution.prepared_program)
+            .run()
+            .unwrap_or_else(|error| {
+                panic!(
+                    "failed to execute {}: {error:?}",
+                    upstream.provenance.case_id
+                )
+            });
+        let expected_diagnostics = expected["pre_emit_diagnostics"]
+            .as_array()
+            .expect("project oracle diagnostics is an array")
+            .iter()
+            // Project option deprecations are retained on ConfigRootPlan;
+            // ProgramSession owns source/global diagnostics only.
+            .filter(|diagnostic| diagnostic["code"] != 5107)
+            .collect::<Vec<_>>();
+        let actual_diagnostics = outcome.diagnostics().collect::<Vec<_>>();
+        assert_eq!(
+            actual_diagnostics.len(),
+            expected_diagnostics.len(),
+            "semantic diagnostic count drifted for {}",
+            upstream.provenance.case_id
+        );
+        let current_directory = project.fixture.current_directory.as_ref();
+        for (actual, expected) in actual_diagnostics.iter().zip(expected_diagnostics) {
+            assert_eq!(actual.code(), expected["code"].as_u64().unwrap() as u32);
+            assert_eq!(actual.message_text(), expected["message"].as_str().unwrap());
+            assert_eq!(
+                actual.start,
+                expected["start"].as_u64().map(|value| value as u32)
+            );
+            assert_eq!(
+                actual.length,
+                expected["length"].as_u64().map(|value| value as u32)
+            );
+            let actual_file = actual
+                .file_name
+                .as_deref()
+                .and_then(|name| name.strip_prefix(current_directory))
+                .and_then(|name| name.strip_prefix('/'));
+            assert_eq!(actual_file, expected["file"].as_str());
+        }
     }
 }
 

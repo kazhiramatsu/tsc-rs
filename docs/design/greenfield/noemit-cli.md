@@ -633,8 +633,11 @@ and source publication order, inclusive external-JavaScript depth,
 shallower/root reprocessing, and automatic `@types` membership. An official
 frozen oracle records those facts and the 17 upstream pre-emit diagnostics.
 The Rust boundary deliberately adds `noEmit=true`; it neither emits nor
-compares project baselines, and all six manifest cases remain `not-run`. This
-is not general `ProjectConfig` or `DiscoverConfig` execution.
+compares project baselines, and all six manifest cases remain `not-run`. The
+local compiler contract nevertheless runs the six prepared programs through
+`ProgramSession` and compares their source/global diagnostic rows with the
+frozen oracle (option-deprecation rows remain on `ConfigRootPlan`). This is
+not general `ProjectConfig` or `DiscoverConfig` execution.
 The mount removes repeated corpus-artifact decoding by Git blob identity; each
 independent program still owns its source-text decode and parse. Reusing that
 prepared text/parse work across project variants is a later performance slice
