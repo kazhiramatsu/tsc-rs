@@ -452,35 +452,18 @@ and receipt never cross a job, Actions cache, or uploaded artifact boundary.
 A trusted-base diff containing only `.md` paths and leaving README's
 generated `STATUS` block byte-identical runs no Cargo, Node, B2, or full-
 corpus work. A lightweight hosted classifier preserves the required `gates`
-check while marking the GitHub guardrail skipped. Local validation is
+check while marking the Windows lane skipped. Local validation is
 `git diff --check` plus review of changed links/anchors and generated-block
-boundaries. Any other path or generated-status change uses one bounded hosted
-guardrail:
+boundaries. Any other path or generated-status change keeps all Rust, Node,
+semantic, corpus, evidence, readiness, and performance work in the required
+local gate.
 
-- changed Rust/build inputs run `cargo fmt --all -- --check` and exactly one
-  `CARGO_BUILD_JOBS=2 cargo check --workspace --locked`; the
-  check performs no code generation/link and Actions never builds xtask merely
-  to select work;
-- changed oracle-driver inputs run syntax checks under the pinned Node runtime;
-- clippy, workspace/static/generated contracts, tests, A1/A2/H0/A5 semantic
-  history, M8-plan comparison, corpus binding/conformance, recovery census,
-  and sampled/full invariants remain in the required local gate. The optional
-  `cargo xtask ci --lane hosted --history-sensitive --baseline <trusted-sha>`
-  diagnostic is never selected automatically by Actions;
-- host/path infrastructure changes additionally run focused filesystem-host
-  contracts on Windows with at most two Cargo/test workers. The developer's
-  required local gate already covers macOS, while the GitHub compile lane
-  covers Linux;
-- a final job named `gates` validates classifier success, the complete boolean
-  output domain, and every applicable hosted job result before it succeeds.
-
-The GitHub guardrail is intentionally not an evidence authority. It does not
-run clippy, workspace/static/generated contracts, workspace tests, semantic
-history, corpus traversal, recovery/invariant checks, B2-B4 evidence
-production/consumption, readiness, README evidence rendering, the current
-M8/M9 smoke producer, or calibrated performance observations. It neither
-restores nor uploads semantic artifacts and may not authorize a
-ratchet/evidence update.
+Host/path/toolchain changes additionally run focused filesystem-host contracts
+on Windows with at most two Cargo/test workers. The developer's required local
+gate covers ordinary Rust and macOS paths; the Windows lane is only a platform
+canary and is not an evidence authority. A final job named `gates` validates
+classifier success, the complete boolean output domain, and the applicable
+Windows result before it succeeds.
 
 Except for the exact documentation-only rule above, the unsplit local
 `cargo xtask ci --baseline <trusted-sha>` is the required pre-PR and pre-merge
@@ -491,20 +474,17 @@ union and never substitutes the smaller hosted plan. B4 production and its
 move-only conformance receipt, all evidence producer/consumer pairs, and the
 A1/A2/H0/A5 ordering therefore remain in one local process/workspace.
 
-Pull-request runs use lockfile-keyed dependency archives and a pinned
-content-addressed compiler cache without trusting checkout timestamps. Cache
-writes may warm another commit in the same pull request, but merge pushes do
-not repeat the GitHub lane solely to prime a shared cache. Conformance,
-readiness, B2-B4, fuzz, and other semantic evidence artifacts are never
-restored by ordinary GitHub CI.
+Pull-request runs do not restore or write Cargo/compiler caches for local-only
+validation. Conformance, readiness, B2-B4, fuzz, and other semantic evidence
+artifacts never cross the local/Actions boundary.
 
 The full local gate runs the one short, calibrated, fixed-seed M9 domain/
 classifier/replay/reducer smoke described above; the M8 B3 projection is
 derived from the same artifact, and neither invocation nor case generation is
 duplicated. It never runs a qualifying window. After the M9.2 schema
 transition, the separately bounded PR smoke specified by the M9 execution
-contract moves into the GitHub guardrail; that does not reintroduce B2,
-readiness, or performance work. Protected-main scheduled CI runs exactly
+contract remains local; Actions does not reintroduce B2, readiness, or
+performance work. Protected-main scheduled CI runs exactly
 100,000 valid cases within the frozen measured ceiling, streams the compact
 raw bundle, and attests it. A reviewed aggregation verifies and appends one or
 more independently attested windows without rerunning the producer or
@@ -515,7 +495,7 @@ B1-B4 evidence, runs full-corpus invariants, verifies M9 history, and
 then runs `cargo xtask completion --require-done` in the same workspace.
 It consumes the existing 14 windows rather than producing a fifteenth. Gate
 acceptance implementations stay in local commands; YAML owns only fail-closed
-change classification and the cheap compile/syntax canaries.
+change classification and the bounded Windows platform smoke.
 
 ## 6. Required adversarial tests
 

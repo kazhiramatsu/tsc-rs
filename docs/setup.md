@@ -24,7 +24,6 @@ All gates run from the repository root:
 
 ```sh
 cargo xtask ci                      # full merge-gate suite (must be green on main)
-CARGO_BUILD_JOBS=2 cargo check --workspace --locked  # reproduce the GitHub Rust check
 cargo xtask conformance             # conformance sweep (optionally --band 2xxx)
 cargo xtask conformance --syntactic-only
 cargo xtask invariants --suite all  # sampled determinism/idempotence developer run
@@ -41,20 +40,15 @@ repository root and review changed links, anchors, and generated-block
 boundaries. Any non-Markdown or generated-status change uses the full merge
 gate.
 
-The GitHub lane is deliberately a compile/syntax canary, not a second merge
-gate. Its classifier runs formatting and one non-linking workspace `cargo
-check` only when Rust/build inputs changed, and pinned-Node syntax checks only
-when oracle-driver inputs changed. It never compiles the monolithic xtask.
-Host/path changes additionally receive a focused Windows filesystem smoke;
-all Cargo/test parallelism is capped at two. Clippy, workspace tests,
-workspace/static/generated contracts, semantic history, corpus
-binding/conformance, recovery census, invariants, receipt-bound B2-B4
-evidence, readiness/README rendering, and calibrated performance observations
-remain mandatory in the unsplit local command, whose result is recorded in
-the PR body. GitHub success alone is not acceptance evidence. The optional
-`cargo xtask ci --lane hosted --history-sensitive --baseline <trusted-sha>`
-diagnostic remains available locally for immutable-history investigation and
-is never selected automatically by Actions.
+GitHub Actions intentionally does not repeat the local merge gate. It only
+classifies the changed paths and runs the focused Windows filesystem smoke
+when host, path, or toolchain inputs change; ordinary Rust, Node, semantic,
+corpus, evidence, readiness, and performance checks remain local-only. The
+Windows lane is capped at two Cargo/test workers and is a platform canary,
+not acceptance evidence. The optional `cargo xtask ci --lane hosted
+--history-sensitive --baseline <trusted-sha>` diagnostic remains available
+locally for immutable-history investigation and is never selected
+automatically by Actions.
 
 `cargo xtask completion` is report-only during M8 and succeeds while naming
 pending rows in `target/completion/report.json`. The post-M9 release gate is

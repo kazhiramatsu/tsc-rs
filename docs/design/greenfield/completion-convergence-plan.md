@@ -383,11 +383,10 @@ Pin Rust/clippy and Node; require the full local `cargo xtask ci` before PR
 and merge; fetch all anchor history locally; run trusted-base ratchet/scope
 checks; produce and consume readiness evidence in one workspace; schedule
 signed fuzz windows; and reserve an approved runner for performance and
-release. Ordinary GitHub Actions is only the bounded hosted guardrail defined
-by the exact topology in the
-[evidence contract](evidence-and-steady-state.md#5-required-ci-topology).
-Local commands own acceptance-gate implementations. Workflow YAML owns only
-the fail-closed change classification and cheap compile/syntax canaries.
+release. Ordinary GitHub Actions only performs the fail-closed change
+classification and a bounded Windows filesystem smoke for platform-sensitive
+changes. Local commands own all acceptance-gate implementations; workflow YAML
+does not repeat Rust, Node, semantic, corpus, evidence, or performance work.
 
 #### E2. Current documentation
 

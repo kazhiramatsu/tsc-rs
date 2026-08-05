@@ -777,13 +777,9 @@ For each semantic H0 candidate:
    changes;
 4. run `CARGO_BUILD_JOBS=2 RUST_TEST_THREADS=2 cargo xtask ci --baseline
    origin/main` exactly once on the committed final candidate;
-5. run the required GitHub compile/syntax guardrail (changed Rust/build inputs
-   get formatting plus one non-linking workspace check; clippy, tests,
-   generated/static contracts, history, conformance, invariants, evidence,
-   readiness, and performance remain local);
-6. run the Windows path smoke only when host, path, or config behavior changes
-   (the required local gate already covers macOS); and
-7. merge automatically with a merge commit after every required check
+5. run the Windows path smoke only when host, path, config, or toolchain
+   behavior changes (the required local gate already covers macOS); and
+6. merge automatically with a merge commit after every required check
    passes.
 
 The 241-row MemoryHost oracle artifact is content-addressed and regenerated

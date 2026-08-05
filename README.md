@@ -228,13 +228,13 @@ machine-checked registry. Each row pins its owner family, vendored TypeScript
 primary/dependency/diagnostic declarations and hashes, effective
 module-resolution kind, exact vendored source/specifier/request-mode and
 anchor chain, Rust seam, and a positive canary plus reviewed typed feature
-control. The semantic CI lane checks the registry against the same trusted A2
+control. The local semantic gate checks the registry against the same trusted A2
 baseline. A closed row must match its non-lapsed A2 tombstone, name an
 authoritative Rust route, and retain historical accepted-set proof at T0--T4;
 oracle-correction tombstones remain explicit `lapsed` rows. Initial bounded
-pre-H0 local and GitHub-hosted CPU, wall-time, and RSS observations are
-recorded with the registry; H0.6 still owns the final resolver/CLI resource
-profiles and budgets.
+pre-H0 local CPU, wall-time, and RSS observations are recorded with the
+registry; H0.6 still owns the final resolver/CLI resource profiles and
+budgets.
 
 H0.1 has landed five prerequisite slices without changing accepted
 diagnostics:

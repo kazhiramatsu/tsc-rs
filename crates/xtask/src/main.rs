@@ -7540,8 +7540,8 @@ fn ci_hosted_gates(baseline: &str, history_sensitive: bool) -> Result<(), Box<dy
     let hosted_started = std::time::Instant::now();
 
     // Keep the former hosted static suite as an explicit local diagnostic.
-    // Ordinary Actions now uses the direct compile/syntax canary in ci.yml so
-    // it does not build this monolithic binary merely to select work. The
+    // Ordinary Actions no longer runs this lane (or a compile/syntax canary),
+    // so it does not build this monolithic binary merely to select work. The
     // workspace audit ran at CI entry; this lane still verifies formatting,
     // lint, generated inventories, pinned inputs, the port ledger, and escape
     // ownership without executing workspace tests or broad semantic/conformance
