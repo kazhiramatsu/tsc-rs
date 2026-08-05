@@ -87,6 +87,10 @@ impl ModuleSuffix {
 pub struct CompilerOptions {
     /// tsc getAllowJSCompilerOption: allowJs ?? !!checkJs.
     pub allow_js: bool,
+    /// tsc `forceConsistentCasingInFileNames`: absent/true reports a
+    /// file-name diagnostic when two spellings collapse to one host identity;
+    /// an explicit false retains the collapsed source without that report.
+    pub force_consistent_casing_in_file_names: Option<bool>,
     /// Maximum JavaScript import depth admitted while searching
     /// `node_modules`. The raw JavaScript number defaults to zero and is only
     /// effective for source admission when `allowJs` is enabled. Fractions,
@@ -290,6 +294,11 @@ pub struct CompilerOptions {
 }
 
 impl CompilerOptions {
+    /// tsc's module-resolution option defaults to true when absent.
+    pub fn force_consistent_casing_in_file_names_effective(&self) -> bool {
+        self.force_consistent_casing_in_file_names != Some(false)
+    }
+
     /// tsc createProgram defaults the raw option to zero.
     pub fn max_node_module_js_depth_effective(&self) -> f64 {
         self.max_node_module_js_depth

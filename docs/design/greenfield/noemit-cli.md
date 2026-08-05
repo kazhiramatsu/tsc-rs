@@ -470,6 +470,13 @@ display list. Canonical source identities are loaded once, cycles and diamonds
 are staged without duplicate files, and `SourceFileId`s are assigned only
 after discovery.
 
+Case-insensitive host aliases retain every alternate display spelling on the
+owning `PreparedSourceFile`. The default/absent
+`forceConsistentCasingInFileNames` value publishes TS1149 at the program
+preprocessing boundary; an explicit `false` keeps the collapsed source
+without that diagnostic. Config projection and the harness option allowlist
+carry the same tri-state value.
+
 `LibraryCatalog::typescript_6_0_3` injects static metadata for the exact 107
 logical library names and 95 distinct mapped files. It performs no runtime
 `_tsc.js` parse and obtains every byte through the same `CompilerHost` as user
@@ -641,7 +648,8 @@ final sorted order, and UTF-16 root-config location after `${configDir}`
 substitution, including duplicate syntax, compacted-array indices, and
 inherited fallback locations. They remain separate from parsed-config errors
 as in `getOptionsDiagnostics`. `ConfigModuleResolutionOptions` projects the
-currently modeled resolver-facing option surface. Effective `paths` and its
+currently modeled resolver-facing option surface, including the
+`forceConsistentCasingInFileNames` casing-diagnostic switch. Effective `paths` and its
 declaring `pathsBasePath` share one immutable allocation; `ModuleResolver` selects
 `baseUrl` then `pathsBasePath` then cwd for substitutions without treating the
 latter as a baseUrl fallback. Exact keys and valid single-star offsets are

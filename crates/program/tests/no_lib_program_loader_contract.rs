@@ -1343,29 +1343,33 @@ fn case_insensitive_missing_spellings_keep_distinct_ts6053_messages() {
 }
 
 #[test]
-fn loaded_case_alias_fails_typed_instead_of_silently_collapsing_display_spelling() {
+fn loaded_case_alias_reports_ts1149_and_retains_the_alternate_spelling() {
     let host = MemoryCompilerHost::builder("/Work")
         .case_sensitive(false)
         .file("/Work/Root.ts", b"export {};".to_vec())
         .build()
         .expect("build case-insensitive source host");
 
-    let error = load(
+    let program = load(
         &host,
         &["/Work/Root.ts", "/work/root.ts"],
         generous_limits(),
     )
-    .expect_err("loaded aliases require an owned casing-diagnostic policy");
-    assert_eq!(error.kind(), ProgramLoadErrorKind::Unsupported);
-    assert_eq!(error.operation(), ProgramLoadOperation::ReadSource);
-    let ProgramLoadError::Unsupported { feature, .. } = error else {
-        unreachable!("kind identifies the unsupported variant");
-    };
-    assert_eq!(feature, "canonical-source-display-alias");
+    .expect("case aliases remain one source with a tsc diagnostic");
+    assert_eq!(program.source_files().len(), 1);
+    assert_eq!(
+        program.source_files()[0].alternate_display_paths(),
+        [Path::new("/work/root.ts")]
+    );
+    assert_eq!(program.diagnostics().program().len(), 1);
+    let diagnostic = &program.diagnostics().program()[0];
+    assert_eq!(diagnostic.code(), 1149);
+    assert_eq!(diagnostic.file_name, None);
+    assert!(diagnostic.message_text().contains("/work/root.ts"));
 }
 
 #[test]
-fn path_reference_case_alias_fails_typed_outside_the_root_boundary() {
+fn path_reference_case_alias_reports_ts1149_outside_the_root_boundary() {
     let host = MemoryCompilerHost::builder("/Work")
         .case_sensitive(false)
         .file(
@@ -1381,15 +1385,41 @@ fn path_reference_case_alias_fails_typed_outside_the_root_boundary() {
         .build()
         .expect("build case-insensitive path-reference host");
 
-    let error = load(&host, &["/Work/Root.ts"], generous_limits())
-        .expect_err("path-reference aliases require an owned casing-diagnostic policy");
-    assert_eq!(error.kind(), ProgramLoadErrorKind::Unsupported);
-    assert_eq!(error.operation(), ProgramLoadOperation::ReadSource);
-    assert_eq!(error.path(), Some(Path::new("/Work/child.ts")));
-    let ProgramLoadError::Unsupported { feature, .. } = error else {
-        unreachable!("kind identifies the unsupported variant");
-    };
-    assert_eq!(feature, "canonical-source-display-alias");
+    let program = load(&host, &["/Work/Root.ts"], generous_limits())
+        .expect("path-reference aliases remain one source with a tsc diagnostic");
+    assert_eq!(program.source_files().len(), 2);
+    assert_eq!(
+        program.source_files()[0].alternate_display_paths(),
+        [Path::new("/Work/child.ts")]
+    );
+    assert_eq!(program.diagnostics().program().len(), 1);
+    let diagnostic = &program.diagnostics().program()[0];
+    assert_eq!(diagnostic.code(), 1149);
+    assert_eq!(diagnostic.file_name, None);
+}
+
+#[test]
+fn explicit_false_force_consistent_casing_suppresses_alias_diagnostic() {
+    let host = MemoryCompilerHost::builder("/Work")
+        .case_sensitive(false)
+        .file("/Work/Root.ts", b"export {};".to_vec())
+        .build()
+        .expect("build case-insensitive source host");
+    let mut options = compiler_options();
+    options.force_consistent_casing_in_file_names = Some(false);
+    let program = load_with_options(
+        &host,
+        &["/Work/Root.ts", "/work/root.ts"],
+        options,
+        program_options(),
+        generous_limits(),
+    )
+    .expect("explicit false keeps the collapsed source valid");
+    assert!(program.diagnostics().program().is_empty());
+    assert_eq!(
+        program.source_files()[0].alternate_display_paths(),
+        [Path::new("/work/root.ts")]
+    );
 }
 
 #[test]

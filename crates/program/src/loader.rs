@@ -1379,15 +1379,18 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                 if first_path.display() != path.display()
                     && !self.normalized_display_paths_are_equal(first_path, &path)?
                 {
-                    return Err(ProgramLoadError::unsupported(
-                        ProgramLoadOperation::ReadSource,
-                        Some(path.display().to_path_buf()),
-                        "canonical-source-display-alias",
-                        format!(
-                            "the path has the same canonical identity as already discovered source {} but a different display spelling",
-                            first_path.display().display()
-                        ),
-                    ));
+                    self.sources[source]
+                        .prepared
+                        .remember_display_alias(path.display());
+                    if self
+                        .compiler_options
+                        .force_consistent_casing_in_file_names_effective()
+                    {
+                        self.program_diagnostics.push(casing_alias_diagnostic(
+                            &self.sources[source].prepared,
+                            &path,
+                        )?);
+                    }
                 }
                 if self.sources[source].class != class {
                     return Err(ProgramLoadError::unsupported(
@@ -2840,6 +2843,28 @@ fn unresolved_type_reference_diagnostic(
         &gen::Cannot_find_type_definition_file_for_0,
         &[directive.key().specifier().to_owned()],
     )
+}
+
+/// Reproduce tsc's file-preprocessing casing diagnostic while retaining the
+/// first discovered source as the canonical program identity. The diagnostic
+/// is file-owned by that first source and intentionally has no source span:
+/// TypeScript reports this at the program-preprocessing layer rather than at
+/// the spelling site in the importing file.
+fn casing_alias_diagnostic(
+    existing: &PreparedSourceFile,
+    incoming: &ProgramPath,
+) -> Result<Diagnostic, ProgramLoadError> {
+    let existing_name = path_text(existing.path().display())?;
+    let incoming_name = path_text(incoming.display())?;
+    Ok(Diagnostic::new(
+        None,
+        None,
+        None,
+        MessageChain::new(
+            &gen::File_name_0_differs_from_already_included_file_name_1_only_in_casing,
+            &[incoming_name, existing_name],
+        ),
+    ))
 }
 
 fn located_diagnostic(

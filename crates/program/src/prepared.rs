@@ -209,7 +209,7 @@ impl PreparedSourceFile {
             && canonical_of(self.real_path.as_ref()) == canonical_of(other.real_path.as_ref())
     }
 
-    fn remember_display_alias(&mut self, display: &Path) {
+    pub(crate) fn remember_display_alias(&mut self, display: &Path) {
         if display != self.path.display()
             && !self
                 .alternate_display_paths

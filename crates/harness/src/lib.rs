@@ -156,6 +156,7 @@ fn compiler_option_kind(name: &str) -> Option<CompilerOptionKind> {
 
     Some(match name.to_ascii_lowercase().as_str() {
         "allowjs"
+        | "forceconsistentcasinginfilenames"
         | "experimentaldecorators"
         | "alwaysstrict"
         | "strict"
@@ -307,6 +308,7 @@ fn project_compiler_options(options: &BTreeMap<String, OptionValue>) -> Compiler
     let module_detection = enum_option("moduleDetection", module_detection_option_value);
     CompilerOptions {
         allow_js: bool_option("allowJs").unwrap_or_else(|| bool_option("checkJs").unwrap_or(false)),
+        force_consistent_casing_in_file_names: bool_option("forceConsistentCasingInFileNames"),
         max_node_module_js_depth: number_option("maxNodeModuleJsDepth"),
         experimental_decorators: bool_option("experimentalDecorators").unwrap_or(false),
         target,

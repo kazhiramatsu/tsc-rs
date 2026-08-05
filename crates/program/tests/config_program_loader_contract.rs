@@ -258,7 +258,7 @@ fn config_plan_projects_checker_options_into_the_prepared_program() {
     let plan = parse_config_root_plan(
         &adapter,
         request(
-            r#"{"compilerOptions":{"noEmit":true,"noLib":true,"target":"es2015","module":"commonjs","strict":true,"noImplicitReturns":true,"jsx":"preserve"},"files":["main.ts"]}"#,
+            r#"{"compilerOptions":{"noEmit":true,"noLib":true,"target":"es2015","module":"commonjs","strict":true,"noImplicitReturns":true,"jsx":"preserve","forceConsistentCasingInFileNames":false},"files":["main.ts"]}"#,
         ),
     )
     .expect("parse option projection plan");
@@ -275,6 +275,12 @@ fn config_plan_projects_checker_options_into_the_prepared_program() {
     assert_eq!(prepared.compiler_options().strict, Some(true));
     assert_eq!(prepared.compiler_options().no_implicit_returns, Some(true));
     assert_eq!(prepared.compiler_options().jsx, Some(1));
+    assert_eq!(
+        prepared
+            .compiler_options()
+            .force_consistent_casing_in_file_names,
+        Some(false)
+    );
 }
 
 #[test]

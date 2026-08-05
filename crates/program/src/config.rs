@@ -3207,6 +3207,10 @@ fn config_module_resolution_options(
 ) -> Result<ConfigModuleResolutionOptions, ConfigParseError> {
     let compiler_options = CompilerOptions {
         allow_js: discovery.allow_js,
+        force_consistent_casing_in_file_names: config_option_bool(
+            options,
+            "forceConsistentCasingInFileNames",
+        ),
         max_node_module_js_depth: config_option_number(options, "maxNodeModuleJsDepth"),
         experimental_decorators: config_option_bool(options, "experimentalDecorators")
             .unwrap_or(false),
