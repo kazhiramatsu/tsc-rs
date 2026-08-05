@@ -448,14 +448,6 @@ fn resolved(outcome: ResolutionOutcome<HostResolvedModule>) -> HostResolvedModul
     resolved
 }
 
-fn assert_unsupported(error: ResolutionError, expected_feature: &str) {
-    let ResolutionError::Unsupported { feature, detail } = error else {
-        panic!("expected unsupported resolution, got {error:?}");
-    };
-    assert_eq!(feature, expected_feature);
-    assert!(!detail.is_empty());
-}
-
 fn recorded_file_probes(host: &RecordingFileExistsHost, prefix: &str) -> Vec<String> {
     host.calls
         .borrow()
@@ -464,6 +456,72 @@ fn recorded_file_probes(host: &RecordingFileExistsHost, prefix: &str) -> Vec<Str
         .filter(|path| path.starts_with(prefix))
         .map(str::to_owned)
         .collect()
+}
+
+fn rooted_disk_resolution_matrix() -> Vec<(String, Option<String>, Vec<String>)> {
+    let inner = MemoryCompilerHost::builder("C:/work")
+        // `std::path::Path` does not infer a Windows drive root on a POSIX
+        // test runner, so make the lexical host fact explicit.
+        .directory("C:/")
+        .file("C:/work/main.ts", b"export {};".to_vec())
+        .file("//server/share/value.ts", b"export {};".to_vec())
+        .file("//?/C:/sdk/item.ts", b"export {};".to_vec())
+        .file("/rooted.ts", b"export {};".to_vec())
+        .file("C:/drive.ts", b"export {};".to_vec())
+        .build()
+        .expect("build rooted-disk path host");
+    let host = RecordingFileExistsHost {
+        inner,
+        calls: RefCell::new(Vec::new()),
+    };
+    let options = CompilerOptions {
+        module_resolution: Some(2),
+        ..CompilerOptions::default()
+    };
+    let mut resolver = ModuleResolver::new(&host, &options).expect("create rooted-disk resolver");
+
+    [
+        "//server/share/value",
+        r"\\server\share\value",
+        "//?/C:/sdk/item",
+        r"\rooted",
+        "C:/drive",
+        "C:relative",
+    ]
+    .into_iter()
+    .map(|specifier| {
+        host.calls.borrow_mut().clear();
+        let outcome = resolver
+            .resolve(
+                Path::new("C:/work/main.ts"),
+                specifier,
+                ResolutionMode::Unspecified,
+            )
+            .expect("rooted disk spellings are supported resolver inputs");
+        let resolved = match outcome {
+            ResolutionOutcome::Resolved(resolved) => Some(
+                resolved
+                    .resolved_file()
+                    .display()
+                    .to_str()
+                    .expect("resolved path is Unicode")
+                    .to_owned(),
+            ),
+            ResolutionOutcome::NotFound => None,
+        };
+        let calls = host
+            .calls
+            .borrow()
+            .iter()
+            .map(|path| {
+                path.to_str()
+                    .expect("host probe path is Unicode")
+                    .to_owned()
+            })
+            .collect();
+        (specifier.to_owned(), resolved, calls)
+    })
+    .collect()
 }
 
 #[test]
@@ -2051,15 +2109,15 @@ fn root_dirs_preserve_legacy_passes_modern_candidate_order_and_relative_gate() {
             .expect("bare requests bypass rootDirs");
         assert!(matches!(bare, ResolutionOutcome::NotFound));
 
-        assert_unsupported(
+        assert_eq!(
             resolver
                 .resolve(
                     Path::new("/work/src/app/main.ts"),
                     "//server/share/value",
                     ResolutionMode::CommonJs,
                 )
-                .expect_err("unowned UNC forms must not be retargeted as POSIX paths"),
-            "windows-path-form",
+                .expect("a missing UNC request remains an ordinary miss"),
+            ResolutionOutcome::NotFound,
         );
     }
 
@@ -2070,17 +2128,113 @@ fn root_dirs_preserve_legacy_passes_modern_candidate_order_and_relative_gate() {
         ..CompilerOptions::default()
     };
     let mut resolver = ModuleResolver::new_with_program_options(&host, &options, &root_dirs_only)
-        .expect("create rootDirs-only UNC guard resolver");
-    assert_unsupported(
+        .expect("create rootDirs-only UNC resolver");
+    assert_eq!(
         resolver
             .resolve(
                 Path::new("/work/src/app/main.ts"),
                 "//server/share/value",
                 ResolutionMode::CommonJs,
             )
-            .expect_err("rootDirs alone must not retarget an unowned UNC form"),
-        "non-bare-module-specifier",
+            .expect("rootDirs do not turn a missing UNC request into an error"),
+        ResolutionOutcome::NotFound,
     );
+}
+
+#[test]
+fn rooted_disk_module_names_follow_typescript_windows_and_unc_lexical_semantics() {
+    // tsc-port: isExternalModuleNameRelative/isRootedDiskPath @6.0.3
+    // tsc-hash: e5546324dce58e277ab9df485e26bb2c9cafa5a7e7b154366be6fc45784ad14d
+    // tsc-span: _tsc.js:11234-11236,5304-5306
+    assert_eq!(
+        rooted_disk_resolution_matrix(),
+        vec![
+            (
+                "//server/share/value".to_owned(),
+                Some("//server/share/value.ts".to_owned()),
+                vec!["//server/share/value.ts".to_owned()],
+            ),
+            (
+                r"\\server\share\value".to_owned(),
+                Some("//server/share/value.ts".to_owned()),
+                vec!["//server/share/value.ts".to_owned()],
+            ),
+            (
+                "//?/C:/sdk/item".to_owned(),
+                Some("//?/C:/sdk/item.ts".to_owned()),
+                vec!["//?/C:/sdk/item.ts".to_owned()],
+            ),
+            (
+                r"\rooted".to_owned(),
+                Some("/rooted.ts".to_owned()),
+                vec!["/rooted.ts".to_owned()],
+            ),
+            (
+                "C:/drive".to_owned(),
+                Some("C:/drive.ts".to_owned()),
+                vec!["C:/drive.ts".to_owned()],
+            ),
+            ("C:relative".to_owned(), None, Vec::new()),
+        ]
+    );
+}
+
+#[test]
+#[ignore = "local H0 resolver oracle audit; requires the pinned Node runtime"]
+fn rooted_disk_module_name_matrix_matches_vendored_typescript() {
+    const PROBE: &str = r#"
+const ts = require(process.argv[1]);
+const files = new Set([
+  '//server/share/value.ts',
+  '//?/C:/sdk/item.ts',
+  '/rooted.ts',
+  'C:/drive.ts',
+]);
+const specifiers = [
+  '//server/share/value',
+  '\\\\server\\share\\value',
+  '//?/C:/sdk/item',
+  '\\rooted',
+  'C:/drive',
+  'C:relative',
+];
+const rows = specifiers.map(specifier => {
+  const calls = [];
+  const host = {
+    fileExists(path) { calls.push(path); return files.has(path); },
+    readFile() { return undefined; },
+    directoryExists() { return true; },
+    realpath(path) { return path; },
+    getCurrentDirectory() { return 'C:/work'; },
+  };
+  const result = ts.resolveModuleName(
+    specifier,
+    'C:/work/main.ts',
+    { moduleResolution: ts.ModuleResolutionKind.Node10 },
+    host,
+  );
+  return [specifier, result.resolvedModule?.resolvedFileName ?? null, calls];
+});
+process.stdout.write(JSON.stringify(rows));
+"#;
+
+    let bundle = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../..")
+        .join("vendor/typescript-6.0.3/lib/typescript.js");
+    let output = std::process::Command::new("node")
+        .arg("-e")
+        .arg(PROBE)
+        .arg(bundle)
+        .output()
+        .expect("run vendored TypeScript rooted-disk module probe");
+    assert!(
+        output.status.success(),
+        "TypeScript probe failed: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let oracle: serde_json::Value =
+        serde_json::from_slice(&output.stdout).expect("probe output is JSON");
+    assert_eq!(serde_json::json!(rooted_disk_resolution_matrix()), oracle);
 }
 
 #[test]
@@ -2890,7 +3044,7 @@ fn structurally_malformed_paths_configuration_fails_before_resolution() {
         .build()
         .expect("build paths validation host");
     let options = CompilerOptions::default();
-    let cases = [
+    let malformed = [
         ProgramOptions::default().with_paths(vec![
             PathMapping::new("dup", vec!["first".to_owned()]),
             PathMapping::new("dup", vec!["second".to_owned()]),
@@ -2899,17 +3053,9 @@ fn structurally_malformed_paths_configuration_fails_before_resolution() {
             "nul",
             vec!["value\0path".to_owned()],
         )]),
-        ProgramOptions::default().with_paths(vec![PathMapping::new(
-            "unc",
-            vec![r"\\server\share\*".to_owned()],
-        )]),
-        ProgramOptions::default().with_paths(vec![PathMapping::new(
-            "drive",
-            vec!["C:relative/*".to_owned()],
-        )]),
     ];
 
-    for program_options in cases {
+    for program_options in malformed {
         let error =
             match ModuleResolver::new_with_program_options(&host, &options, &program_options) {
                 Ok(_) => panic!("malformed paths configuration must fail closed"),
@@ -2921,7 +3067,22 @@ fn structurally_malformed_paths_configuration_fails_before_resolution() {
         ));
     }
 
-    for base_url in ["\0", r"\\server\share", "C:relative"] {
+    for program_options in [
+        ProgramOptions::default().with_paths(vec![PathMapping::new(
+            "unc",
+            vec![r"\\server\share\*".to_owned()],
+        )]),
+        ProgramOptions::default().with_paths(vec![PathMapping::new(
+            "drive",
+            vec!["C:relative/*".to_owned()],
+        )]),
+    ] {
+        ModuleResolver::new_with_program_options(&host, &options, &program_options)
+            .expect("TypeScript permits UNC and drive-relative paths substitutions");
+    }
+
+    {
+        let base_url = "\0";
         let options = CompilerOptions {
             base_url: Some(base_url.to_owned()),
             ..CompilerOptions::default()
@@ -2934,6 +3095,15 @@ fn structurally_malformed_paths_configuration_fails_before_resolution() {
             error,
             ResolutionError::InvalidData(_) | ResolutionError::Unsupported { .. }
         ));
+    }
+
+    for base_url in [r"\\server\share", "C:relative"] {
+        let options = CompilerOptions {
+            base_url: Some(base_url.to_owned()),
+            ..CompilerOptions::default()
+        };
+        ModuleResolver::new(&host, &options)
+            .expect("TypeScript normalizes UNC and drive-relative baseUrl spellings");
     }
 }
 

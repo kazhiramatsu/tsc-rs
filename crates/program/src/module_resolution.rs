@@ -939,11 +939,10 @@ impl<'a> ModuleResolver<'a> {
                 return Ok(ResolutionOutcome::NotFound);
             }
         }
-        // A rooted/UNC/URI-looking module specifier is only a supported
-        // resolver input when an explicit `paths` pattern owns it. This
-        // preserves the fail-closed boundary for ordinary resolution while
-        // allowing TypeScript's path-mapping keys such as `//server/*`,
-        // `c:\\*`, and `file:///*` to be matched before filesystem probing.
+        // `paths` matching precedes validation and ordinary probing. Rooted
+        // disk requests (including UNC and root-relative Windows spellings)
+        // remain relative resolver inputs when no mapping owns them; URI-like
+        // text continues to the existing non-bare module-name gate.
         let matching_paths = self.matching_paths(specifier);
         if matching_paths.is_none() {
             validate_owned_path_text(specifier, "module specifier", /* allow_empty */ true)?;
@@ -5380,20 +5379,6 @@ pub(crate) fn validate_owned_path_text(
     if value.is_empty() {
         return Ok(());
     }
-    let slashed = value.replace('\\', "/");
-    let drive_relative = slashed.len() >= 2
-        && slashed.as_bytes()[0].is_ascii_alphabetic()
-        && slashed.as_bytes()[1] == b':'
-        && slashed.as_bytes().get(2) != Some(&b'/');
-    let windows_root_relative = value.starts_with('\\') && !value.starts_with("\\\\");
-    if slashed.starts_with("//") || drive_relative || windows_root_relative {
-        return Err(ResolutionError::unsupported(
-            "windows-path-form",
-            format!(
-                "{role} {value:?} uses an unowned UNC, extended-length, root-relative, or drive-relative path form"
-            ),
-        ));
-    }
     Ok(())
 }
 
@@ -5587,11 +5572,7 @@ pub(crate) fn is_external_module_name_relative(module_name: &str) -> bool {
 }
 
 fn is_supported_rooted_specifier(specifier: &str) -> bool {
-    (specifier.starts_with('/') && !specifier.starts_with("//"))
-        || (specifier.len() >= 3
-            && specifier.as_bytes()[0].is_ascii_alphabetic()
-            && specifier.as_bytes()[1] == b':'
-            && matches!(specifier.as_bytes()[2], b'/' | b'\\'))
+    is_rooted_disk_path(specifier)
 }
 
 fn has_node_directory_spelling(specifier: &str) -> bool {

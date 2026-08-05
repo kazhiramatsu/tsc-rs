@@ -630,8 +630,11 @@ the implicit `**/*` root reason retains TS1457 without fabricated related
 syntax. Pretty rendering no longer mistakes digits inside inclusion-chain
 paths for source gutters. The complete cross-platform
 case/separator/symlink/encoding matrix remains open; its case-sensitive
-distinct-file collision cell is now closed in addition to the existing
-case-insensitive alias cell. Discovery stays
+distinct-file collision cell and the MemoryHost lexical cells for UNC,
+extended-length, root-relative, and absolute drive paths are now closed in
+addition to the existing case-insensitive alias cell. Raw drive-relative root
+spellings and native Windows filesystem qualification remain open. Discovery
+stays
 sequential where vendored host calls and failure precedence are observable;
 future pipeline parallelism must preserve that contract.
 
@@ -645,9 +648,9 @@ boundary. The local audit now loads and executes all 7,276 recorded compiler
 plans through `ProgramSession` with zero failures; that proves the Rust
 no-emit session boundary, not upstream baseline equivalence. The adapter and
 audit intentionally stop before emit, baseline comparison, and the remaining
-explicitly unsupported resolver families (duplicate package identities,
-conflicting `noLib`/`lib`, and unowned Windows/UNC path forms); those oracle
-tiers remain `not-run` until their owners are ported. A
+explicitly unsupported program-construction families (duplicate package
+identities, conflicting `noLib`/`lib`, and raw drive-relative root spellings);
+those oracle tiers remain `not-run` until their owners are ported. A
 compiler-crate integration contract feeds representative prepared programs
 through `ProgramSession::run`, so this source/config/loader seam is exercised
 by the actual Rust no-emit session without adding the expensive corpus sweep

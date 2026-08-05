@@ -4482,6 +4482,136 @@ fn earlier_root_read_failure_precedes_later_root_normalization_failure() {
 }
 
 #[test]
+fn windows_and_unc_root_spellings_use_typescript_lexical_normalization() {
+    // tsc-port: getNormalizedAbsolutePath/simpleNormalizePath @6.0.3
+    // tsc-hash: 538f15da938ce9f7bcd6aa26f945cffe1cadbc12095e8666dab9ca62320a13e2
+    // tsc-span: _tsc.js:5349-5378,5653-5655
+    let host = MemoryCompilerHost::builder("C:/work")
+        .case_sensitive(true)
+        .file("//server/share/unc.ts", b"export {};".to_vec())
+        .file("//?/C:/sdk/extended.ts", b"export {};".to_vec())
+        .file("/root/root-relative.ts", b"export {};".to_vec())
+        .file("C:/work/drive.ts", b"export {};".to_vec())
+        .build()
+        .expect("build rooted Windows path host");
+    let roots = [
+        r"\\server\share\unc.ts",
+        "//?/C:/sdk/extended.ts",
+        r"\root\root-relative.ts",
+        r"C:\work\drive.ts",
+    ];
+    let program = load(&host, &roots, generous_limits())
+        .expect("rooted Windows spellings are valid TypeScript source roots");
+
+    let expected = [
+        Path::new("//server/share/unc.ts"),
+        Path::new("//?/C:/sdk/extended.ts"),
+        Path::new("/root/root-relative.ts"),
+        Path::new("C:/work/drive.ts"),
+    ];
+    assert_eq!(source_paths(&program), expected);
+    assert_eq!(
+        program
+            .roots()
+            .iter()
+            .map(|root| root.path().display())
+            .collect::<Vec<_>>(),
+        expected
+    );
+    assert!(program.diagnostics().program().is_empty());
+
+    let error = load(&host, &["C:relative.ts"], generous_limits())
+        .expect_err("raw drive-relative root display semantics remain fail-closed");
+    assert_eq!(error.kind(), ProgramLoadErrorKind::Unsupported);
+    assert_eq!(error.operation(), ProgramLoadOperation::NormalizeRoot);
+    assert_eq!(error.path(), Some(Path::new("C:relative.ts")));
+    let ProgramLoadError::Unsupported { feature, .. } = error else {
+        unreachable!("kind identifies the unsupported variant");
+    };
+    assert_eq!(feature, "windows-path-form");
+}
+
+#[test]
+#[ignore = "local H0 program oracle audit; requires the pinned Node runtime"]
+fn windows_and_unc_root_normalization_matches_vendored_typescript() {
+    const PROBE: &str = r#"
+const ts = require(process.argv[1]);
+const roots = [
+  '\\\\server\\share\\unc.ts',
+  '//?/C:/sdk/extended.ts',
+  '\\root\\root-relative.ts',
+  'C:\\work\\drive.ts',
+];
+const files = new Map([
+  ['//server/share/unc.ts', 'export {};'],
+  ['//?/C:/sdk/extended.ts', 'export {};'],
+  ['/root/root-relative.ts', 'export {};'],
+  ['C:/work/drive.ts', 'export {};'],
+]);
+const options = { noEmit: true, noLib: true, types: [] };
+const host = ts.createCompilerHost(options);
+host.useCaseSensitiveFileNames = () => true;
+host.getCanonicalFileName = path => path;
+host.getCurrentDirectory = () => 'C:/work';
+host.directoryExists = () => true;
+host.getDirectories = () => [];
+host.fileExists = path => files.has(path);
+host.readFile = path => files.get(path);
+host.getSourceFile = (path, target) => files.has(path)
+  ? ts.createSourceFile(path, files.get(path), target, true)
+  : undefined;
+const program = ts.createProgram({ rootNames: roots, options, host });
+process.stdout.write(JSON.stringify(program.getSourceFiles().map(source => source.fileName)));
+"#;
+
+    let bundle = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../..")
+        .join("vendor/typescript-6.0.3/lib/typescript.js");
+    let output = Command::new("node")
+        .arg("-e")
+        .arg(PROBE)
+        .arg(bundle)
+        .output()
+        .expect("run vendored TypeScript rooted Windows source probe");
+    assert!(
+        output.status.success(),
+        "TypeScript probe failed: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let oracle: Value = serde_json::from_slice(&output.stdout).expect("probe output is JSON");
+
+    let host = MemoryCompilerHost::builder("C:/work")
+        .case_sensitive(true)
+        .file("//server/share/unc.ts", b"export {};".to_vec())
+        .file("//?/C:/sdk/extended.ts", b"export {};".to_vec())
+        .file("/root/root-relative.ts", b"export {};".to_vec())
+        .file("C:/work/drive.ts", b"export {};".to_vec())
+        .build()
+        .expect("build Rust rooted Windows oracle host");
+    let program = load(
+        &host,
+        &[
+            r"\\server\share\unc.ts",
+            "//?/C:/sdk/extended.ts",
+            r"\root\root-relative.ts",
+            r"C:\work\drive.ts",
+        ],
+        generous_limits(),
+    )
+    .expect("load Rust rooted Windows oracle program");
+    let rust = json!(program
+        .source_files()
+        .iter()
+        .map(|source| source
+            .path()
+            .display()
+            .to_str()
+            .expect("source path is Unicode"))
+        .collect::<Vec<_>>());
+    assert_eq!(rust, oracle);
+}
+
+#[test]
 fn later_root_promotes_its_own_emit_eligibility_but_not_external_relative_children() {
     let host = MemoryCompilerHost::builder("/work")
         .file("/work/root.ts", b"import 'pkg';\nexport {};".to_vec())

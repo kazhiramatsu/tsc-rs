@@ -665,7 +665,7 @@ fn normalize_library_directory(
     catalog: &LibraryCatalog,
     path_context: &PathContext,
 ) -> Result<ProgramPath, ProgramLoadError> {
-    reject_unowned_windows_path(catalog.directory(), ProgramLoadOperation::ValidateOptions)?;
+    reject_unowned_drive_relative_path(catalog.directory(), ProgramLoadOperation::ValidateOptions)?;
     let current_directory = path_context
         .current_directory()
         .display()
@@ -699,7 +699,7 @@ fn normalize_root(
         .display()
         .to_str()
         .expect("resolver path context is representable");
-    reject_unowned_windows_path(root, ProgramLoadOperation::NormalizeRoot)?;
+    reject_unowned_drive_relative_path(root, ProgramLoadOperation::NormalizeRoot)?;
     let trailing_separator = root
         .to_str()
         .is_some_and(|text| text.ends_with(['/', '\\']));
@@ -748,7 +748,10 @@ fn validate_type_roots(
         .to_str()
         .expect("resolver path context is representable");
     for type_root in type_roots {
-        reject_unowned_windows_path(type_root.display(), ProgramLoadOperation::ValidateOptions)?;
+        reject_unowned_drive_relative_path(
+            type_root.display(),
+            ProgramLoadOperation::ValidateOptions,
+        )?;
         let normalized = normalize_absolute_path(type_root.display(), Some(current_directory))
             .map_err(|error| {
                 ProgramLoadError::resolution(
@@ -780,7 +783,7 @@ fn validate_type_roots(
     Ok(())
 }
 
-fn reject_unowned_windows_path(
+fn reject_unowned_drive_relative_path(
     path: &Path,
     operation: ProgramLoadOperation,
 ) -> Result<(), ProgramLoadError> {
@@ -792,16 +795,16 @@ fn reject_unowned_windows_path(
         ));
     };
     let slashed = text.replace('\\', "/");
-    let drive_relative = slashed.len() >= 2
+    let drive_relative = slashed.len() > 2
         && slashed.as_bytes()[0].is_ascii_alphabetic()
         && slashed.as_bytes()[1] == b':'
-        && slashed.as_bytes().get(2) != Some(&b'/');
-    if slashed.starts_with("//") || slashed.starts_with("//?/") || drive_relative {
+        && slashed.as_bytes()[2] != b'/';
+    if drive_relative {
         return Err(ProgramLoadError::unsupported(
             operation,
             Some(path.to_path_buf()),
             "windows-path-form",
-            "UNC, extended-length, and drive-relative paths are not yet owned",
+            "drive-relative root spellings are not yet owned",
         ));
     }
     Ok(())
