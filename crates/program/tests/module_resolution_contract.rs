@@ -765,6 +765,95 @@ fn written_extension_replacement_groups_match_typescript_603_order() {
 }
 
 #[test]
+fn no_dts_resolution_uses_implementation_files_and_skips_declaration_fallbacks() {
+    let host = MemoryCompilerHost::builder("/work")
+        .file("/work/main.ts", b"export {};".to_vec())
+        .file("/work/value.ts", b"export const value = 1;".to_vec())
+        .file("/work/only.d.ts", b"export const value: number;".to_vec())
+        .build()
+        .expect("build noDtsResolution host");
+    let options = CompilerOptions {
+        no_dts_resolution: Some(true),
+        ..CompilerOptions::default()
+    };
+    let mut resolver = ModuleResolver::new(&host, &options).expect("create noDts resolver");
+
+    let implementation = resolved(
+        resolver
+            .resolve(
+                Path::new("/work/main.ts"),
+                "./value",
+                ResolutionMode::CommonJs,
+            )
+            .expect("resolve implementation source"),
+    );
+    assert_eq!(
+        implementation.resolved_file().display(),
+        Path::new("/work/value.ts")
+    );
+
+    assert!(matches!(
+        resolver
+            .resolve(
+                Path::new("/work/main.ts"),
+                "./only",
+                ResolutionMode::CommonJs,
+            )
+            .expect("resolve declaration-only source"),
+        ResolutionOutcome::NotFound
+    ));
+}
+
+#[test]
+fn no_dts_resolution_removes_types_conditions_from_package_exports() {
+    let host = MemoryCompilerHost::builder("/work")
+        .file("/work/main.ts", b"export {};".to_vec())
+        .file(
+            "/work/node_modules/pkg/package.json",
+            br#"{"name":"pkg","exports":{"types":"./types.d.ts","default":"./impl.ts"}}"#.to_vec(),
+        )
+        .file("/work/node_modules/pkg/types.d.ts", b"export {};".to_vec())
+        .file("/work/node_modules/pkg/impl.ts", b"export {};".to_vec())
+        .build()
+        .expect("build noDts package export host");
+
+    let ordinary_options = CompilerOptions {
+        module: Some(99),
+        module_resolution: Some(99),
+        ..CompilerOptions::default()
+    };
+    let mut ordinary =
+        ModuleResolver::new(&host, &ordinary_options).expect("create ordinary package resolver");
+    let ordinary = resolved(
+        ordinary
+            .resolve(Path::new("/work/main.ts"), "pkg", ResolutionMode::EsNext)
+            .expect("resolve package types condition"),
+    );
+    assert_eq!(
+        ordinary.resolved_file().display(),
+        Path::new("/work/node_modules/pkg/types.d.ts")
+    );
+
+    let implementation_options = CompilerOptions {
+        module: Some(99),
+        module_resolution: Some(99),
+        no_dts_resolution: Some(true),
+        ..CompilerOptions::default()
+    };
+    let mut implementation_only = ModuleResolver::new(&host, &implementation_options)
+        .expect("create implementation-only package resolver");
+    let implementation_only = resolved(
+        implementation_only
+            .resolve(Path::new("/work/main.ts"), "pkg", ResolutionMode::EsNext)
+            .expect("resolve package default condition"),
+    );
+    assert_eq!(
+        implementation_only.resolved_file().display(),
+        Path::new("/work/node_modules/pkg/impl.ts")
+    );
+}
+
+#[test]
 fn commonjs_implicit_addition_follows_replacement_and_clears_ts_provenance() {
     for (module, module_resolution, mode, expected_path, expected_probes) in [
         (

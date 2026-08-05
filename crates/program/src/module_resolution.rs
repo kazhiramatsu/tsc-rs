@@ -330,6 +330,12 @@ enum ExtensionProbePass {
     Empty,
     All,
     Preferred,
+    /// TypeScript's `noDtsResolution` implementation-file mask for an
+    /// all-extension request. This retains `.ts`/`.tsx`/`.js`/`.jsx` (and
+    /// their Node module counterparts) while excluding declaration twins.
+    Implementation,
+    ImplementationPreferred,
+    ImplementationFallback,
     Declaration,
     Fallback,
     JsonConfig,
@@ -346,10 +352,14 @@ const fn probe_pass_has_declaration(pass: ExtensionProbePass) -> bool {
 const fn preferred_diagnostic_pass(pass: ExtensionProbePass) -> ExtensionProbePass {
     match pass {
         ExtensionProbePass::All | ExtensionProbePass::Preferred => ExtensionProbePass::Preferred,
+        ExtensionProbePass::Implementation | ExtensionProbePass::ImplementationPreferred => {
+            ExtensionProbePass::ImplementationPreferred
+        }
         ExtensionProbePass::Declaration => ExtensionProbePass::Declaration,
         ExtensionProbePass::JsonConfig => ExtensionProbePass::JsonConfig,
         ExtensionProbePass::JsonModule => ExtensionProbePass::JsonModule,
         ExtensionProbePass::Empty | ExtensionProbePass::Fallback => ExtensionProbePass::Empty,
+        ExtensionProbePass::ImplementationFallback => ExtensionProbePass::Empty,
     }
 }
 
@@ -361,9 +371,17 @@ const CJS_PROBES: &[ExtensionProbe] = &[
     (ModuleExtension::Dcts, ".d.cts"),
     (ModuleExtension::Cjs, ".cjs"),
 ];
+const CJS_IMPLEMENTATION_PROBES: &[ExtensionProbe] = &[
+    (ModuleExtension::Cts, ".cts"),
+    (ModuleExtension::Cjs, ".cjs"),
+];
 const MJS_PROBES: &[ExtensionProbe] = &[
     (ModuleExtension::Mts, ".mts"),
     (ModuleExtension::Dmts, ".d.mts"),
+    (ModuleExtension::Mjs, ".mjs"),
+];
+const MJS_IMPLEMENTATION_PROBES: &[ExtensionProbe] = &[
+    (ModuleExtension::Mts, ".mts"),
     (ModuleExtension::Mjs, ".mjs"),
 ];
 const JS_PROBES: &[ExtensionProbe] = &[
@@ -373,10 +391,22 @@ const JS_PROBES: &[ExtensionProbe] = &[
     (ModuleExtension::Js, ".js"),
     (ModuleExtension::Jsx, ".jsx"),
 ];
+const JS_IMPLEMENTATION_PROBES: &[ExtensionProbe] = &[
+    (ModuleExtension::Ts, ".ts"),
+    (ModuleExtension::Tsx, ".tsx"),
+    (ModuleExtension::Js, ".js"),
+    (ModuleExtension::Jsx, ".jsx"),
+];
 const JSX_PROBES: &[ExtensionProbe] = &[
     (ModuleExtension::Tsx, ".tsx"),
     (ModuleExtension::Ts, ".ts"),
     (ModuleExtension::Dts, ".d.ts"),
+    (ModuleExtension::Jsx, ".jsx"),
+    (ModuleExtension::Js, ".js"),
+];
+const JSX_IMPLEMENTATION_PROBES: &[ExtensionProbe] = &[
+    (ModuleExtension::Tsx, ".tsx"),
+    (ModuleExtension::Ts, ".ts"),
     (ModuleExtension::Jsx, ".jsx"),
     (ModuleExtension::Js, ".js"),
 ];
@@ -877,6 +907,7 @@ impl<'a> ModuleResolver<'a> {
         loader: OptionalResolutionLoader,
         follow_realpath: bool,
     ) -> Result<ResolutionOutcome<HostResolvedModule>, ResolutionError> {
+        let probe_pass = self.effective_module_probe_pass(probe_pass);
         let has_paths = self
             .paths
             .as_deref()
@@ -1162,6 +1193,7 @@ impl<'a> ModuleResolver<'a> {
         external_relative: bool,
         follow_realpath: bool,
     ) -> Result<ResolutionOutcome<HostResolvedModule>, ResolutionError> {
+        let probe_pass = self.effective_module_probe_pass(probe_pass);
         match loader {
             OptionalResolutionLoader::Classic => self.probe_classic_file(
                 candidate,
@@ -1440,6 +1472,7 @@ impl<'a> ModuleResolver<'a> {
         let mut request = None;
 
         for probe_pass in [ExtensionProbePass::Preferred, ExtensionProbePass::Fallback] {
+            let probe_pass = self.effective_module_probe_pass(probe_pass);
             if relative {
                 let optional = self.resolve_using_optional_settings(
                     &containing_directory,
@@ -1617,6 +1650,7 @@ impl<'a> ModuleResolver<'a> {
         let mut request = None;
         let all_features = mode != ResolutionMode::Unspecified;
         for probe_pass in [ExtensionProbePass::Preferred, ExtensionProbePass::Fallback] {
+            let probe_pass = self.effective_module_probe_pass(probe_pass);
             let optional = self.resolve_using_optional_settings(
                 containing_directory,
                 specifier,
@@ -1743,6 +1777,9 @@ impl<'a> ModuleResolver<'a> {
         request: &PackageRequest<'_>,
         mode: ResolutionMode,
     ) -> Result<ResolutionOutcome<HostResolvedModule>, ResolutionError> {
+        if self.options.no_dts_resolution == Some(true) {
+            return Ok(ResolutionOutcome::NotFound);
+        }
         for ancestor in ancestor_directories(containing_directory) {
             if base_name(&ancestor) == "node_modules" {
                 continue;
@@ -1771,6 +1808,9 @@ impl<'a> ModuleResolver<'a> {
         mode: ResolutionMode,
         follow_realpath: bool,
     ) -> Result<(ResolutionOutcome<HostResolvedModule>, bool), ResolutionError> {
+        if self.options.no_dts_resolution == Some(true) {
+            return Ok((ResolutionOutcome::NotFound, false));
+        }
         let at_types = join_normalized(node_modules, "@types");
         if !self.host.directory_exists(Path::new(&at_types))? {
             return Ok((ResolutionOutcome::NotFound, false));
@@ -1796,6 +1836,7 @@ impl<'a> ModuleResolver<'a> {
         probe_pass: ExtensionProbePass,
         enable_package_maps: bool,
     ) -> Result<ResolutionOutcome<HostResolvedModule>, ResolutionError> {
+        let probe_pass = self.effective_module_probe_pass(probe_pass);
         let diagnostic_mode = ResolutionMode::EsNext;
         let optional = self.resolve_using_optional_settings(
             containing_directory,
@@ -1891,6 +1932,9 @@ impl<'a> ModuleResolver<'a> {
         request: &PackageRequest<'_>,
         mode: ResolutionMode,
     ) -> Result<ResolutionOutcome<HostResolvedModule>, ResolutionError> {
+        if self.options.no_dts_resolution == Some(true) {
+            return Ok(ResolutionOutcome::NotFound);
+        }
         let at_types = join_normalized(node_modules, "@types");
         if !self.host.directory_exists(Path::new(&at_types))? {
             return Ok(ResolutionOutcome::NotFound);
@@ -2497,6 +2541,7 @@ impl<'a> ModuleResolver<'a> {
         mode: ResolutionMode,
         features: BareResolutionFeatures,
     ) -> Result<(ResolutionOutcome<HostResolvedModule>, bool), ResolutionError> {
+        let probe_pass = self.effective_module_probe_pass(probe_pass);
         let request = parse_package_request(specifier)?;
         if features.enable_self_name {
             if let Search::Terminal(outcome) = self.try_self_reference(
@@ -2552,6 +2597,7 @@ impl<'a> ModuleResolver<'a> {
         mode: ResolutionMode,
         features: BareResolutionFeatures,
     ) -> Result<(ResolutionOutcome<HostResolvedModule>, bool), ResolutionError> {
+        let probe_pass = self.effective_module_probe_pass(probe_pass);
         let mut resolved_package_directory = false;
         for ancestor in ancestor_directories(containing_directory) {
             if base_name(&ancestor) == "node_modules" {
@@ -2716,13 +2762,30 @@ impl<'a> ModuleResolver<'a> {
     }
 
     fn validate_common_configuration(&self) -> Result<(), ResolutionError> {
-        if self.options.no_dts_resolution == Some(true) {
-            return Err(ResolutionError::unsupported(
-                "no-dts-resolution",
-                "implementation-only exports probing is outside the H0.2b slice",
-            ));
-        }
         Ok(())
+    }
+
+    /// Apply TypeScript's `noDtsResolution` implementation-file extension
+    /// mask to module-resolution passes. Declaration-only passes belong to
+    /// explicit type-reference resolution and remain unchanged; ordinary
+    /// module passes are narrowed before any package-field or `@types`
+    /// fallback decision is made.
+    fn effective_module_probe_pass(&self, pass: ExtensionProbePass) -> ExtensionProbePass {
+        if self.options.no_dts_resolution != Some(true) {
+            return pass;
+        }
+        match pass {
+            ExtensionProbePass::All => ExtensionProbePass::Implementation,
+            ExtensionProbePass::Preferred => ExtensionProbePass::ImplementationPreferred,
+            ExtensionProbePass::Fallback => ExtensionProbePass::ImplementationFallback,
+            ExtensionProbePass::Empty
+            | ExtensionProbePass::Implementation
+            | ExtensionProbePass::ImplementationPreferred
+            | ExtensionProbePass::ImplementationFallback
+            | ExtensionProbePass::Declaration
+            | ExtensionProbePass::JsonConfig
+            | ExtensionProbePass::JsonModule => pass,
+        }
     }
 
     fn current_directory_text(&self) -> Result<&str, ResolutionError> {
@@ -2789,6 +2852,18 @@ impl<'a> ModuleResolver<'a> {
             ExtensionProbePass::Preferred => {
                 [ExtensionProbePass::Preferred, ExtensionProbePass::Empty]
             }
+            ExtensionProbePass::Implementation => [
+                ExtensionProbePass::ImplementationPreferred,
+                ExtensionProbePass::ImplementationFallback,
+            ],
+            ExtensionProbePass::ImplementationPreferred => [
+                ExtensionProbePass::ImplementationPreferred,
+                ExtensionProbePass::Empty,
+            ],
+            ExtensionProbePass::ImplementationFallback => [
+                ExtensionProbePass::Empty,
+                ExtensionProbePass::ImplementationFallback,
+            ],
             ExtensionProbePass::Declaration => {
                 [ExtensionProbePass::Declaration, ExtensionProbePass::Empty]
             }
@@ -2896,6 +2971,7 @@ impl<'a> ModuleResolver<'a> {
     ) -> Result<ResolutionOutcome<HostResolvedModule>, ResolutionError> {
         let mut resolved_package_directory = false;
         for probe_pass in [ExtensionProbePass::Preferred, ExtensionProbePass::Fallback] {
+            let probe_pass = self.effective_module_probe_pass(probe_pass);
             for ancestor in ancestor_directories(containing_directory) {
                 if base_name(&ancestor) == "node_modules" {
                     continue;
@@ -3024,6 +3100,7 @@ impl<'a> ModuleResolver<'a> {
         force_package_maps: bool,
         resolution_kind: i32,
     ) -> Result<ResolutionOutcome<HostResolvedModule>, ResolutionError> {
+        let probe_pass = self.effective_module_probe_pass(probe_pass);
         let optional = self.resolve_using_optional_settings(
             containing_directory,
             specifier,
@@ -3381,6 +3458,9 @@ impl<'a> ModuleResolver<'a> {
         specifier: &str,
         mode: ResolutionMode,
     ) -> Result<ResolutionOutcome<HostResolvedModule>, ResolutionError> {
+        if self.options.no_dts_resolution == Some(true) {
+            return Ok(ResolutionOutcome::NotFound);
+        }
         let Some(configured_type_roots) = self.type_roots.clone() else {
             return Ok(ResolutionOutcome::NotFound);
         };
@@ -3744,6 +3824,7 @@ impl<'a> ModuleResolver<'a> {
         mode: ResolutionMode,
         follow_realpath: bool,
     ) -> Result<ResolutionOutcome<HostResolvedModule>, ResolutionError> {
+        let probe_pass = self.effective_module_probe_pass(probe_pass);
         let allow_implicit = !self.is_node_esm_mode(mode);
         if has_subpath || allow_implicit {
             let outcome = self.probe_legacy_file(
@@ -3826,6 +3907,7 @@ impl<'a> ModuleResolver<'a> {
         root_directory_spelling: Option<&str>,
         allow_node_esm_index_fallback: bool,
     ) -> Result<ResolutionOutcome<HostResolvedModule>, ResolutionError> {
+        let probe_pass = self.effective_module_probe_pass(probe_pass);
         let rest = package_subpath(exports_subpath)?;
         if let Some(rest) = rest {
             // The outer package loader applies a root-relative mapping to the
@@ -3906,6 +3988,7 @@ impl<'a> ModuleResolver<'a> {
         mode: ResolutionMode,
         context: LegacyResolutionContext,
     ) -> Result<ResolutionOutcome<HostResolvedModule>, ResolutionError> {
+        let probe_pass = self.effective_module_probe_pass(probe_pass);
         let candidate_key = canonical_text(
             candidate_directory,
             self.path_context.use_case_sensitive_file_names(),
@@ -4273,6 +4356,7 @@ impl<'a> ModuleResolver<'a> {
         probe_pass: ExtensionProbePass,
         context: LegacyResolutionContext,
     ) -> Result<ResolutionOutcome<HostResolvedModule>, ResolutionError> {
+        let probe_pass = self.effective_module_probe_pass(probe_pass);
         if let Some(extension) = package_json_target_exact_extension(candidate, probe_pass) {
             let Some(observed_path) = self.try_file(candidate)? else {
                 return Ok(ResolutionOutcome::NotFound);
@@ -4291,7 +4375,11 @@ impl<'a> ModuleResolver<'a> {
 
         let plan = match probe_pass {
             ExtensionProbePass::Declaration => declaration_extension_probe_plan(candidate),
-            _ => extension_probe_plan(candidate, self.options.resolve_json_module_effective()),
+            _ => extension_probe_plan_for_pass(
+                candidate,
+                probe_pass,
+                self.options.resolve_json_module_effective(),
+            ),
         };
         let mut arbitrary_probe = None;
         let replacement = match plan {
@@ -4373,6 +4461,7 @@ impl<'a> ModuleResolver<'a> {
         allow_implicit: bool,
         context: LegacyResolutionContext,
     ) -> Result<ResolutionOutcome<HostResolvedModule>, ResolutionError> {
+        let probe_pass = self.effective_module_probe_pass(probe_pass);
         // loadModuleFromFile has two distinct stages. A candidate with a
         // written extension first replaces that extension according to its
         // family. Outside Node ESM, a complete miss then appends the ordinary
@@ -4384,7 +4473,11 @@ impl<'a> ModuleResolver<'a> {
         let replacement = if has_written_extension {
             let plan = match probe_pass {
                 ExtensionProbePass::Declaration => declaration_extension_probe_plan(candidate),
-                _ => extension_probe_plan(candidate, self.options.resolve_json_module_effective()),
+                _ => extension_probe_plan_for_pass(
+                    candidate,
+                    probe_pass,
+                    self.options.resolve_json_module_effective(),
+                ),
             };
             match plan {
                 Ok((base, probes, preferred_len)) => Some((
@@ -4852,7 +4945,10 @@ impl<'a> ModuleResolver<'a> {
             return true;
         }
         if condition == "types" {
-            return true;
+            return self.options.no_dts_resolution != Some(true);
+        }
+        if self.options.no_dts_resolution == Some(true) && condition.starts_with("types@") {
+            return false;
         }
         if condition == "node" {
             return resolution_kind != 100;
@@ -4880,6 +4976,8 @@ impl<'a> ModuleResolver<'a> {
         attach_package_id: bool,
         raw_package_target: Option<&str>,
     ) -> Result<ResolutionOutcome<HostResolvedModule>, ResolutionError> {
+        let pass = self.effective_module_probe_pass(context.pass);
+        let context = ExportProbeContext { pass, ..context };
         // loadFileNameFromPackageJsonField performs an exact-only fast path
         // for an admitted TS implementation or declaration extension. An
         // exact miss must not fall through to sibling TS/declaration probes
@@ -4906,7 +5004,11 @@ impl<'a> ModuleResolver<'a> {
 
         let plan = match context.pass {
             ExtensionProbePass::Declaration => declaration_extension_probe_plan(target),
-            _ => extension_probe_plan(target, self.options.resolve_json_module_effective()),
+            _ => extension_probe_plan_for_pass(
+                target,
+                context.pass,
+                self.options.resolve_json_module_effective(),
+            ),
         };
         let mut arbitrary_probe = None;
         let replacement = match plan {
@@ -5407,7 +5509,10 @@ fn selected_package_entry_field(
             .as_deref()
             .or(package.types.as_deref())
             .or(package.main.as_deref()),
-        ExtensionProbePass::Fallback => package.main.as_deref(),
+        ExtensionProbePass::Implementation
+        | ExtensionProbePass::ImplementationPreferred
+        | ExtensionProbePass::ImplementationFallback
+        | ExtensionProbePass::Fallback => package.main.as_deref(),
     }
 }
 
@@ -5579,9 +5684,13 @@ fn select_extension_probes(
     written_extension: Option<ModuleExtension>,
 ) -> &'static [ExtensionProbe] {
     match pass {
-        ExtensionProbePass::All | ExtensionProbePass::Declaration => probes,
+        ExtensionProbePass::All
+        | ExtensionProbePass::Implementation
+        | ExtensionProbePass::Declaration => probes,
         ExtensionProbePass::Preferred => &probes[..preferred_len],
+        ExtensionProbePass::ImplementationPreferred => &probes[..preferred_len],
         ExtensionProbePass::Fallback => &probes[preferred_len..],
+        ExtensionProbePass::ImplementationFallback => &probes[preferred_len..],
         ExtensionProbePass::Empty => &probes[..0],
         // With the JSON-only mask, tryAddingExtensions reaches its config
         // fallback only for the .ts/.d.ts/.js family (and exact .json). Other
@@ -5611,11 +5720,74 @@ fn select_extension_probes(
     }
 }
 
+fn extension_probe_plan_for_pass(
+    target: &str,
+    pass: ExtensionProbePass,
+    resolve_json_module: bool,
+) -> Result<ExtensionProbePlan<'_>, ResolutionError> {
+    if matches!(
+        pass,
+        ExtensionProbePass::Implementation
+            | ExtensionProbePass::ImplementationPreferred
+            | ExtensionProbePass::ImplementationFallback
+    ) {
+        return implementation_extension_probe_plan(target, resolve_json_module);
+    }
+    extension_probe_plan(target, resolve_json_module)
+}
+
+/// `tryAddingExtensions` for TypeScript's `ImplementationFiles` mask
+/// (3). Declaration twins are deliberately absent, while the ordinary
+/// extension-major order remains unchanged.
+fn implementation_extension_probe_plan(
+    target: &str,
+    resolve_json_module: bool,
+) -> Result<ExtensionProbePlan<'_>, ResolutionError> {
+    let plan = if let Some(base) = target.strip_suffix(".d.cts") {
+        (base, CJS_IMPLEMENTATION_PROBES, 1)
+    } else if let Some(base) = target.strip_suffix(".d.mts") {
+        (base, MJS_IMPLEMENTATION_PROBES, 1)
+    } else if let Some(base) = target.strip_suffix(".d.ts") {
+        (base, JS_IMPLEMENTATION_PROBES, 2)
+    } else if let Some(base) = target.strip_suffix(".cjs") {
+        (base, CJS_IMPLEMENTATION_PROBES, 1)
+    } else if let Some(base) = target.strip_suffix(".mjs") {
+        (base, MJS_IMPLEMENTATION_PROBES, 1)
+    } else if let Some(base) = target.strip_suffix(".jsx") {
+        (base, JSX_IMPLEMENTATION_PROBES, 2)
+    } else if let Some(base) = target.strip_suffix(".js") {
+        (base, JS_IMPLEMENTATION_PROBES, 2)
+    } else if let Some(base) = target.strip_suffix(".tsx") {
+        (base, JSX_IMPLEMENTATION_PROBES, 2)
+    } else if let Some(base) = target.strip_suffix(".ts") {
+        (base, JS_IMPLEMENTATION_PROBES, 2)
+    } else if let Some(base) = target.strip_suffix(".mts") {
+        (base, MJS_IMPLEMENTATION_PROBES, 1)
+    } else if let Some(base) = target.strip_suffix(".cts") {
+        (base, CJS_IMPLEMENTATION_PROBES, 1)
+    } else if let Some(base) = target.strip_suffix(".json") {
+        if resolve_json_module {
+            (base, JSON_CONFIG_PROBES, 1)
+        } else {
+            (&target[..0], &[] as &'static [ExtensionProbe], 0)
+        }
+    } else {
+        return Err(ResolutionError::unsupported(
+            "module-target-extension",
+            format!("target has no supported written extension: {target}"),
+        ));
+    };
+    Ok(plan)
+}
+
 fn implicit_extension_probes(pass: ExtensionProbePass) -> &'static [ExtensionProbe] {
     match pass {
         ExtensionProbePass::Empty => &JS_PROBES[..0],
         ExtensionProbePass::All => JS_PROBES,
         ExtensionProbePass::Preferred => &JS_PROBES[..3],
+        ExtensionProbePass::Implementation => JS_IMPLEMENTATION_PROBES,
+        ExtensionProbePass::ImplementationPreferred => &JS_IMPLEMENTATION_PROBES[..2],
+        ExtensionProbePass::ImplementationFallback => &JS_IMPLEMENTATION_PROBES[2..],
         ExtensionProbePass::Declaration => DECLARATION_DTS_PROBES,
         ExtensionProbePass::Fallback => &JS_PROBES[3..],
         ExtensionProbePass::JsonConfig => JSON_CONFIG_PROBES,
@@ -5633,7 +5805,11 @@ fn extension_pass_includes_declaration(pass: ExtensionProbePass) -> bool {
 fn extension_pass_includes_typescript(pass: ExtensionProbePass) -> bool {
     matches!(
         pass,
-        ExtensionProbePass::All | ExtensionProbePass::Preferred
+        ExtensionProbePass::All
+            | ExtensionProbePass::Preferred
+            | ExtensionProbePass::Implementation
+            | ExtensionProbePass::ImplementationPreferred
+            | ExtensionProbePass::ImplementationFallback
     )
 }
 

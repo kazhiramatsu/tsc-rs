@@ -607,12 +607,6 @@ fn validate_admitted_options(
             ));
         }
     }
-    if compiler_options.no_dts_resolution == Some(true) {
-        return Err(reject_feature(
-            "noDtsResolution",
-            "the first recursive loader requires ordinary declaration resolution",
-        ));
-    }
     Ok(())
 }
 

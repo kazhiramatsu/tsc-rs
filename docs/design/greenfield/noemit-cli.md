@@ -446,7 +446,9 @@ unloaded target. A `.jsx` module target without an active JSX mode is retained
 without reading its bytes and produces TS6142; an already-owned `.jsx` source still
 produces TS6142 without losing its module symbol. Effective
 `resolveJsonModule` admits explicit JSON roots as well as explicit JSON
-requests. `noDtsResolution` is also still outside this slice. The no-lib
+requests. `noDtsResolution` applies TypeScript's implementation-file mask,
+removes `types`/`types@...` package conditions, and suppresses declaration
+fallbacks. The no-lib
 wrapper requires explicit `noLib=true`. Ordered `rootDirs` participate in
 relative module resolution and recursive source membership. Their normalized
 display paths select the strict longest prefix, probe the original candidate
@@ -676,7 +678,7 @@ official oracle. Include patterns are compiled once and reused through an
 iterative, linear-scratch UTF-16 matcher; candidate matching does not recurse,
 build a quadratic memo table, or require a regex dependency. This is not yet a
 general `ParseConfigHost`/`matchFiles` qualification. Remaining root fields,
-remaining resolver/loader options such as `noDtsResolution`, full
+remaining resolver/loader options, full
 `ParsedCommandLine`, filesystem discovery,
 general project/project-runner config handling beyond the focused
 `NodeModulesSearch` bridge remain open. The validated projection now exposes
@@ -687,11 +689,11 @@ any source host work. A command-line override applies `noEmit=true` without
 mutating the remaining config options. The compiler crate now ships a bounded
 `tsc-rs` binary that discovers a config from the current directory or `-p`,
 accepts explicit files only with `--noEmit`, adapts `FsCompilerHost` to the
-config parser's filtered directory contract, and renders contextual
+config parser's filtered directory contract, and renders contextual or plain
 diagnostics to stdout with exit 1; usage, host, config, loader, and unsupported
 option failures are stderr/exit 2. The initial CLI surface intentionally
-rejects `--pretty=false`, watch/build/emit options, project-plus-file mixes,
-and other unimplemented flags instead of silently ignoring them. Focused
+rejects watch/build/emit options, project-plus-file mixes, and other
+unimplemented flags instead of silently ignoring them. Focused
 filesystem binary contracts cover include discovery, command-line no-emit
 precedence, diagnostic output, and version/unsupported-option behavior. This
 bridge remains independent of CLI selection so the same immutable plan can
