@@ -44,7 +44,7 @@ struct JsGrammarWalker<'a> {
     diagnostics: Vec<Diagnostic>,
 }
 
-#[derive(Default)]
+#[derive(Clone, Copy, Default)]
 struct Roles {
     question_token: Option<NodeId>,
     r#type: Option<NodeId>,
@@ -223,52 +223,87 @@ impl<'a> JsGrammarWalker<'a> {
     }
 
     fn recurse(&mut self, id: NodeId) {
-        let kind = self.kind(id);
-        let roles = self.roles_for(id, kind);
-        let mut skipped: Vec<NodeId> = Vec::new();
-
-        if let Some(modifiers) = roles.modifiers {
-            if self.walk_modifiers_array(kind, modifiers) == Visit::Skip {
-                skipped.extend(self.array_elements(modifiers));
-            }
-        }
-        if let Some(type_parameters) = roles.type_parameters {
-            self.push_for_array(
-                type_parameters,
-                &gen::Type_parameter_declarations_can_only_be_used_in_TypeScript_files,
-            );
-            skipped.extend(self.array_elements(type_parameters));
-        }
-        if let Some(type_arguments) = roles.type_arguments {
-            self.push_for_array(
-                type_arguments,
-                &gen::Type_arguments_can_only_be_used_in_TypeScript_files,
-            );
-            skipped.extend(self.array_elements(type_arguments));
+        // The TypeScript walker is recursive, but JavaScript stress fixtures
+        // intentionally contain thousands of left-associated binary nodes.
+        // Keep the same depth-first child/diagnostic order with an explicit
+        // work stack so a normal Rust test/CLI stack is sufficient.
+        enum Work {
+            Visit(NodeId),
+            Child {
+                parent: NodeId,
+                child: NodeId,
+                roles: Roles,
+                skipped: bool,
+            },
         }
 
-        for child in self.children_of(id) {
-            if skipped.contains(&child) {
-                continue;
-            }
-            if roles.question_token == Some(child) {
-                self.push_for_node(
+        let mut work = vec![Work::Visit(id)];
+        while let Some(item) = work.pop() {
+            match item {
+                Work::Visit(id) => {
+                    let kind = self.kind(id);
+                    let roles = self.roles_for(id, kind);
+                    let mut skipped = Vec::new();
+
+                    if let Some(modifiers) = roles.modifiers {
+                        if self.walk_modifiers_array(kind, modifiers) == Visit::Skip {
+                            skipped.extend(self.array_elements(modifiers));
+                        }
+                    }
+                    if let Some(type_parameters) = roles.type_parameters {
+                        self.push_for_array(
+                            type_parameters,
+                            &gen::Type_parameter_declarations_can_only_be_used_in_TypeScript_files,
+                        );
+                        skipped.extend(self.array_elements(type_parameters));
+                    }
+                    if let Some(type_arguments) = roles.type_arguments {
+                        self.push_for_array(
+                            type_arguments,
+                            &gen::Type_arguments_can_only_be_used_in_TypeScript_files,
+                        );
+                        skipped.extend(self.array_elements(type_arguments));
+                    }
+
+                    let children = self.children_of(id);
+                    for child in children.into_iter().rev() {
+                        work.push(Work::Child {
+                            parent: id,
+                            child,
+                            roles,
+                            skipped: skipped.contains(&child),
+                        });
+                    }
+                }
+                Work::Child {
+                    parent,
                     child,
-                    &gen::The_0_modifier_can_only_be_used_in_TypeScript_files,
-                    &["?"],
-                );
-                continue;
-            }
-            if roles.r#type == Some(child) {
-                self.push_for_node(
-                    child,
-                    &gen::Type_annotations_can_only_be_used_in_TypeScript_files,
-                    &[],
-                );
-                continue;
-            }
-            if self.check_node(child, id) == Visit::Descend {
-                self.recurse(child);
+                    roles,
+                    skipped,
+                } => {
+                    if skipped {
+                        continue;
+                    }
+                    if roles.question_token == Some(child) {
+                        self.push_for_node(
+                            child,
+                            &gen::The_0_modifier_can_only_be_used_in_TypeScript_files,
+                            &["?"],
+                        );
+                        continue;
+                    }
+                    if roles.r#type == Some(child) {
+                        self.push_for_node(
+                            child,
+                            &gen::Type_annotations_can_only_be_used_in_TypeScript_files,
+                            &[],
+                        );
+                        continue;
+                    }
+                    if self.check_node(child, parent) == Visit::Descend {
+                        work.push(Work::Visit(child));
+                    }
+                }
             }
         }
     }

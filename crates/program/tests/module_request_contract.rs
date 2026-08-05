@@ -840,7 +840,9 @@ fn module_body_requests_follow_collect_module_references_boundaries() {
             "external augmentation",
             "/augmentation.ts",
             "export {}; declare module \"foo\" { import \"bar\"; }\n",
-            &["foo"][..],
+            // The augmentation target is kept as a resolution-only row, and
+            // its body still contributes real imports to the checker table.
+            &["bar", "foo"][..],
         ),
         (
             "script ambient non-relative import",

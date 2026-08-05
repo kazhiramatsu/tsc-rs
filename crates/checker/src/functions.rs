@@ -484,13 +484,20 @@ impl<'a> CheckerState<'a> {
         parameter: SymbolId,
         contextual_type: Option<TypeId>,
     ) -> CheckResult<()> {
-        if let Some(existing) = self.links.symbol(parameter).type_of_symbol.resolved() {
-            if let Some(contextual_type) = contextual_type {
-                assert_eq!(
-                    existing, contextual_type,
-                    "Parameter symbol already has a cached type which differs from newly assigned type"
-                );
-            }
+        if self
+            .links
+            .symbol(parameter)
+            .type_of_symbol
+            .resolved()
+            .is_some()
+        {
+            // `assignParameterType` in tsc is guarded by the presence of
+            // `links.type`, not by equality with the incoming contextual
+            // candidate.  A parameter can be visited first by the
+            // non-contextual path (for example while inferring a binding
+            // pattern), leaving `any` cached before a later contextual pass.
+            // That first result is authoritative; asserting equality here
+            // turns a valid tsc ordering into a checker panic.
             return Ok(());
         }
         let declaration = self.binder.symbol(parameter).value_declaration;

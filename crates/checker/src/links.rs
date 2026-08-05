@@ -1075,6 +1075,14 @@ impl LinksTables {
         id: NodeId,
         value: bool,
     ) {
+        // The value is derived from checking the initializer and therefore
+        // belongs to the candidate transaction when overload resolution is
+        // speculative.  Do not publish it from that path; the caller keeps
+        // the computed result for the current check and the committed path
+        // will populate the cache if it is still needed.
+        if speculation_depth != 0 {
+            return;
+        }
         Self::assert_writable(speculation_depth);
         self.node
             .entry(id)
@@ -2915,6 +2923,14 @@ impl LinksTables {
         id: TypeId,
         value: Option<TypeId>,
     ) {
+        if self
+            .ty
+            .get(&id)
+            .and_then(|links| links.conditional_constraint_of_distributive.resolved())
+            .is_some_and(|existing| existing == value)
+        {
+            return;
+        }
         self.journal_conditional_cache(speculation_depth, id);
         Self::write_slot(
             &mut self

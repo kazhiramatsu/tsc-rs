@@ -2926,11 +2926,23 @@ impl<'a> CheckerState<'a> {
             root, /*mapper*/ None, /*for_constraint*/ false, /*alias_symbol*/ None,
             /*alias_type_arguments*/ None,
         )?;
-        self.links.set_node_resolved_type(
-            self.speculation_depth,
-            node,
-            LinkSlot::Resolved(resolved),
-        );
+        // Conditional type evaluation can re-enter the same type node while
+        // checking its `extends` relation. The nested evaluation publishes
+        // the result first; tsc's plain assignment is effectively idempotent
+        // when the outer result is the same type. Keep the links-table
+        // write-once invariant by accepting that identical publication.
+        if let Some(existing) = self.links.node(node).resolved_type.resolved() {
+            assert_eq!(
+                existing, resolved,
+                "re-entrant conditional type node resolved to a different type"
+            );
+        } else {
+            self.links.set_node_resolved_type(
+                self.speculation_depth,
+                node,
+                LinkSlot::Resolved(resolved),
+            );
+        }
         if let Some(parameters) = outer_type_parameters {
             let key = self.tables.get_type_list_id(&parameters);
             self.links
@@ -4327,6 +4339,13 @@ impl<'a> CheckerState<'a> {
                 properties,
                 ..ResolvedMembers::default()
             });
+            // Resolving a tuple target can re-enter this routine while
+            // synthesizing one of its member types.  The nested call owns
+            // the first published table; use it rather than attempting a
+            // second declared-members slot transition.
+            if let Some(existing) = self.links.ty(target).declared_members.resolved() {
+                return Ok(existing);
+            }
             self.links
                 .set_type_declared_members(self.speculation_depth, target, id);
             return Ok(id);
@@ -4352,6 +4371,14 @@ impl<'a> CheckerState<'a> {
             properties,
             ..ResolvedMembers::default()
         });
+        // `getMembersOfSymbol`/`getNamedMembers` may force the same target
+        // through a self-referential member.  That nested evaluation can
+        // publish the declared-members table before this frame reaches its
+        // setter; preserve the first table and let its owner finish filling
+        // it in place.
+        if let Some(existing) = self.links.ty(target).declared_members.resolved() {
+            return Ok(existing);
+        }
         self.links
             .set_type_declared_members(self.speculation_depth, target, id);
         let filled = (|state: &mut Self| -> CheckResult<()> {

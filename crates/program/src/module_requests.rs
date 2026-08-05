@@ -355,9 +355,17 @@ fn plan_module_requests_worker(
     let mut static_occurrences = Vec::new();
     let mut dynamic_occurrences = Vec::new();
     let mut augmentation_occurrences = Vec::new();
+    let mut contains_jsx = false;
     let mut stack = vec![parsed.root];
     while let Some(node_id) = stack.pop() {
         let node = parsed.arena.node(node_id);
+        contains_jsx |= matches!(
+            &node.data,
+            NodeData::JsxElement(_)
+                | NodeData::JsxFragment(_)
+                | NodeData::JsxOpeningElement(_)
+                | NodeData::JsxSelfClosingElement(_)
+        );
         match &node.data {
             NodeData::ImportDeclaration(import) => {
                 let mode = match import.attributes {
@@ -479,12 +487,10 @@ fn plan_module_requests_worker(
                         if let Some(literal) = argument.literal {
                             let literal = parsed.arena.node(literal);
                             if let NodeData::StringLiteral(literal_data) = &literal.data {
-                                let mode = import_type
-                                    .attributes
-                                    .and_then(|attributes| {
-                                        resolution_mode_override(&parsed, attributes)
-                                    })
-                                    .unwrap_or(static_mode);
+                                let mode_override = import_type.attributes.and_then(|attributes| {
+                                    resolution_mode_override(&parsed, attributes)
+                                });
+                                let mode = mode_override.unwrap_or(static_mode);
                                 dynamic_occurrences.push(ModuleRequestOccurrence {
                                     pos: literal.pos,
                                     loads_source: javascript_file
@@ -496,6 +502,36 @@ fn plan_module_requests_worker(
                                         mode,
                                     ),
                                 });
+                                // Invalid type-import attributes still reach
+                                // checker resolution during recovery. The
+                                // checker may probe either Node16/NodeNext
+                                // branch while reporting the grammar error,
+                                // so retain both mode rows when the explicit
+                                // override was not valid. This keeps the
+                                // authoritative table complete without
+                                // changing valid overrides or legacy modes.
+                                if import_type.attributes.is_some()
+                                    && mode_override.is_none()
+                                    && import_syntax_affects_resolution
+                                {
+                                    for alternate in
+                                        [ResolutionMode::CommonJs, ResolutionMode::EsNext]
+                                    {
+                                        if alternate != mode {
+                                            dynamic_occurrences.push(ModuleRequestOccurrence {
+                                                pos: literal.pos,
+                                                loads_source: javascript_file
+                                                    || !NodeFlags::from_bits(node.flags)
+                                                        .contains(NodeFlags::JS_DOC),
+                                                key: ResolutionKey::new(
+                                                    source.path().canonical().clone(),
+                                                    literal_data.text.clone(),
+                                                    alternate,
+                                                ),
+                                            });
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
@@ -582,6 +618,14 @@ fn plan_module_requests_worker(
                             static_mode,
                         ),
                     });
+                    // Imports and exports nested in an external module
+                    // augmentation are real checker module requests. The
+                    // augmentation target itself remains resolution-only,
+                    // but its body is traversed in source order so those
+                    // relative dependencies receive authoritative rows.
+                    if let Some(body) = module.body {
+                        stack.push(body);
+                    }
                 }
                 // A script ambient declaration introduces an external module,
                 // while a bare `module "name"` is not ambient syntax. Neither
@@ -714,9 +758,11 @@ fn plan_module_requests_worker(
     // resolution table even though no source-text literal exists.
     let jsx_runtime_import = jsx_runtime_import_specifier(&parsed, options);
     let has_synthetic_jsx_runtime = jsx_runtime_import.is_some()
+        && !parsed.is_declaration_file
         && (javascript_file
-            || (!parsed.is_declaration_file
-                && (computed_isolated_modules || parsed.external_module_indicator.is_some())));
+            || contains_jsx
+            || computed_isolated_modules
+            || parsed.external_module_indicator.is_some());
     let observed_request_occurrence_count = path_references
         .len()
         .saturating_add(type_reference_directives.len())

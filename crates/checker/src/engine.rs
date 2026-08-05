@@ -476,9 +476,18 @@ impl<'a> CheckerState<'a> {
                 },
             );
         }
-        let with_calculated = self.tables.object_flags_of(ty).bits()
-            | ObjectFlags::IDENTICAL_BASE_TYPE_CALCULATED.bits();
-        self.tables.type_mut(ty).object_flags = ObjectFlags::from_bits(with_calculated);
+        // The flag and equivalent-base slot are both monotone links.  A
+        // relation candidate may reach this helper speculatively; publishing
+        // either value there would escape the candidate transaction (the
+        // links table deliberately rejects such writes).  Compute the value
+        // for that candidate, but publish the cache only on the ordinary
+        // non-speculative path.
+        let speculative = self.speculation_depth != 0;
+        if !speculative {
+            let with_calculated = self.tables.object_flags_of(ty).bits()
+                | ObjectFlags::IDENTICAL_BASE_TYPE_CALCULATED.bits();
+            self.tables.type_mut(ty).object_flags = ObjectFlags::from_bits(with_calculated);
+        }
         if self
             .tables
             .type_of(target)
@@ -547,14 +556,16 @@ impl<'a> CheckerState<'a> {
                 /*need_apparent_type*/ false,
             )?;
         }
-        let with_exists =
-            self.tables.object_flags_of(ty).bits() | ObjectFlags::IDENTICAL_BASE_TYPE_EXISTS.bits();
-        self.tables.type_mut(ty).object_flags = ObjectFlags::from_bits(with_exists);
-        self.links.ty_mut_cached_equivalent_base_type(
-            self.speculation_depth,
-            ty,
-            instantiated_base,
-        );
+        if !speculative {
+            let with_exists = self.tables.object_flags_of(ty).bits()
+                | ObjectFlags::IDENTICAL_BASE_TYPE_EXISTS.bits();
+            self.tables.type_mut(ty).object_flags = ObjectFlags::from_bits(with_exists);
+            self.links.ty_mut_cached_equivalent_base_type(
+                self.speculation_depth,
+                ty,
+                instantiated_base,
+            );
+        }
         Ok(Some(instantiated_base))
     }
 

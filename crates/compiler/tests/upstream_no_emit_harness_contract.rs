@@ -47,8 +47,13 @@ fn compiler_session_runs_recorded_no_emit_programs() {
         "typescript-6.0.3/compiler/duplicatePackage_relativeImportWithinPackage_scoped.ts#default",
         "typescript-6.0.3/compiler/duplicatePackage_subModule.ts#default",
         "typescript-6.0.3/compiler/duplicatePackage_withErrors.ts#default",
+        "typescript-6.0.3/compiler/binderBinaryExpressionStress.ts#default",
+        "typescript-6.0.3/compiler/binderBinaryExpressionStressJs.ts#default",
         "typescript-6.0.3/compiler/moduleResolutionPackageIdWithRelativeAndAbsolutePath.ts#default",
         "typescript-6.0.3/compiler/pathMappingBasedModuleResolution_rootImport_aliasWithRoot_differentRootTypes.ts#default",
+        "typescript-6.0.3/compiler/bindingPatternCannotBeOnlyInferenceSource.ts#default",
+        "typescript-6.0.3/compiler/parseAssertEntriesError.ts#default",
+        "typescript-6.0.3/compiler/parseImportAttributesError.ts#default",
     ] {
         let prepared = load_compiler_no_emit(&workspace, plan(&corpus.plans, case_id), limits())
             .unwrap_or_else(|error| panic!("failed to load {case_id}: {error}"));
@@ -57,4 +62,52 @@ fn compiler_session_runs_recorded_no_emit_programs() {
             .unwrap_or_else(|error| panic!("failed to execute {case_id}: {error:?}"));
         assert!(outcome.config_diagnostics().is_empty(), "{case_id}");
     }
+}
+
+#[test]
+#[ignore = "local H0 compiler session coverage audit; not a checked-in gate"]
+fn audit_all_recorded_compiler_no_emit_sessions_locally() {
+    let workspace = workspace_root();
+    let corpus = load_recorded_execution_plans(&workspace)
+        .unwrap_or_else(|error| panic!("failed to load upstream plans: {error}"));
+    let mut attempted = 0_usize;
+    let mut loaded = 0_usize;
+    let mut executed = 0_usize;
+    let mut failures = Vec::new();
+    for upstream in corpus.plans.iter() {
+        let UpstreamExecutionInput::Compiler(compiler) = &upstream.input else {
+            continue;
+        };
+        attempted += 1;
+        let prepared = match load_compiler_no_emit(&workspace, compiler, limits()) {
+            Ok(prepared) => {
+                loaded += 1;
+                prepared
+            }
+            Err(error) => {
+                failures.push((
+                    upstream.provenance.case_id.to_string(),
+                    format!("load: {error}"),
+                ));
+                continue;
+            }
+        };
+        match ProgramSession::new(prepared).run() {
+            Ok(_) => executed += 1,
+            Err(error) => failures.push((
+                upstream.provenance.case_id.to_string(),
+                format!("session: {error:?}"),
+            )),
+        }
+    }
+    eprintln!("compiler session audit: attempted={attempted} loaded={loaded} executed={executed} failures={}", failures.len());
+    for (case_id, error) in failures.iter().take(200) {
+        eprintln!("FAIL {case_id}: {error}");
+    }
+    assert_eq!(loaded, attempted, "every compiler fixture must load");
+    assert_eq!(
+        executed, attempted,
+        "every loaded compiler fixture must run"
+    );
+    assert!(failures.is_empty(), "compiler session audit found failures");
 }

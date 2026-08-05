@@ -4,11 +4,11 @@
   "source_references": [
     {
       "path": "ratchets/fuzz-domain.v1.toml",
-      "sha256": "6ab41ff6963d7f4a0171599cc0cdfccde357596a49d0887657a1723b4da3e56b"
+      "sha256": "69b1a4210b0555abd00d620a926e9fc127c7fcfb622cdac3c53c128fe3daf27f"
     },
     {
       "path": "ratchets/fuzz-oracle-deviations.v1.json",
-      "sha256": "c9bf3922b16f5f3ec9b8be7555b0018b0e44e650665928cd3e25f9bd6e9cda0c"
+      "sha256": "e93d1e54a2a665ec7e5dff0cad8a5e631accaf5db16d31820471142820b3041d"
     },
     {
       "path": "m8-evidence.json",
@@ -52,7 +52,7 @@
     },
     {
       "path": "crates/harness/src/lib.rs",
-      "sha256": "045a49c6443f9f32ff1aa8ce4f3a44ca35fc4215dcbeddf2036749296c8636dd"
+      "sha256": "8dd01a471adc3e2e7e945a335cb465ac346f7930adeae71b3f4523d7a4667bd4"
     },
     {
       "path": "crates/conformance/src/lib.rs",
