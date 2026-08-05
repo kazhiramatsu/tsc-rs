@@ -532,4 +532,33 @@ fn no_emit_cli_extended_config_matrix_matches_vendored_typescript() {
         &["--ignoreConfig", "--noEmit", "missing.ts"],
         &["--ignoreConfig", "--noEmit", "missing.ts"],
     );
+
+    let missing_extends_tree = TempTree::new();
+    fs::write(
+        missing_extends_tree.path("tsconfig.json"),
+        r#"{"extends":"./missing-base.json","compilerOptions":{"noEmit":true,"lib":["es5"]},"files":[]}"#,
+    )
+    .expect("write missing-extends config");
+    assert_typescript_parity(
+        &missing_extends_tree,
+        &["-p", "tsconfig.json"],
+        &["-p", "tsconfig.json"],
+    );
+
+    let circular_extends_tree = TempTree::new();
+    fs::write(
+        circular_extends_tree.path("tsconfig.json"),
+        r#"{"extends":"./base.json","compilerOptions":{"noEmit":true,"lib":["es5"]},"files":[]}"#,
+    )
+    .expect("write circular primary config");
+    fs::write(
+        circular_extends_tree.path("base.json"),
+        r#"{"extends":"./tsconfig.json"}"#,
+    )
+    .expect("write circular base config");
+    assert_typescript_parity(
+        &circular_extends_tree,
+        &["-p", "tsconfig.json"],
+        &["-p", "tsconfig.json"],
+    );
 }
