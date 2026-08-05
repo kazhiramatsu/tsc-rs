@@ -242,7 +242,7 @@ fn unsupported_options_are_exit_two_and_version_is_lightweight() {
 
     let version = run(&tree, &["--version"]);
     assert_eq!(version.status.code(), Some(0));
-    assert!(!version.stdout.is_empty());
+    assert_eq!(version.stdout, b"Version 6.0.3\n");
     assert!(version.stderr.is_empty());
 }
 

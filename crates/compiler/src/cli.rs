@@ -37,6 +37,7 @@ const EXIT_COMMAND_LINE: i32 = 1;
 const EXIT_DIAGNOSTIC: i32 = 2;
 const EXIT_FAILURE: i32 = 2;
 const CONFIG_FILE_NAME: &str = "tsconfig.json";
+const TYPESCRIPT_VERSION: &str = "6.0.3";
 const DEFAULT_LIMITS: ProgramLoadLimits = ProgramLoadLimits::new(
     1_000_000,
     2_000_000,
@@ -119,7 +120,7 @@ fn execute(args: &[String]) -> Result<CliOutput, CliError> {
     let command_line = parse_arguments(args)?;
     if args.iter().any(|arg| arg == "--version") {
         return Ok(CliOutput {
-            stdout: format!("{}\n", env!("CARGO_PKG_VERSION")),
+            stdout: format!("Version {TYPESCRIPT_VERSION}\n"),
             stderr: String::new(),
             exit_code: EXIT_SUCCESS,
         });
