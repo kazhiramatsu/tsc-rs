@@ -11,9 +11,15 @@ use std::collections::BTreeMap;
 use std::env;
 use std::error::Error;
 use std::fmt;
+use std::io::IsTerminal;
 use std::path::{Path, PathBuf};
 
-use tsc_diagnostics::{format_diagnostics_with_context, Diagnostic, FormatDiagnosticsHost};
+use tsc_diagnostics::gen;
+use tsc_diagnostics::{
+    compute_line_starts, format_diagnostics_with_context, get_line_and_character_of_position,
+    sort_and_dedupe_diagnostic_indices_with_context, Diagnostic, FormatDiagnosticsHost,
+    MessageChain,
+};
 use tsc_host::{CompilerHost, FsCompilerHost, HostError};
 use tsc_program::{
     decode_host_text, load_config_program, load_config_program_with_no_emit_override, load_program,
@@ -91,7 +97,8 @@ struct CommandLine {
     project: Option<PathBuf>,
     files: Vec<PathBuf>,
     no_emit: bool,
-    pretty: bool,
+    ignore_config: bool,
+    pretty: Option<bool>,
 }
 
 /// Execute the bounded H0 command-line surface.
@@ -117,7 +124,7 @@ fn execute(args: &[String]) -> Result<CliOutput, CliError> {
     }
 
     let host = FsCompilerHost::from_process().map_err(host_error)?;
-    let _pretty = command_line.pretty;
+    let pretty = command_line.pretty.unwrap_or_else(default_pretty);
     let current_directory = host.current_directory().map_err(host_error)?;
     let catalog = LibraryCatalog::typescript_6_0_3(library_directory(&current_directory));
 
@@ -131,10 +138,28 @@ fn execute(args: &[String]) -> Result<CliOutput, CliError> {
             &plan,
             source_texts,
             command_line.no_emit,
+            pretty,
         );
     }
 
     if !command_line.files.is_empty() {
+        if !command_line.ignore_config && find_config_file(&host, &current_directory)?.is_some() {
+            let diagnostic = Diagnostic::new(
+                    None,
+                    None,
+                    None,
+                    MessageChain::new(
+                        &gen::tsconfig_json_is_present_but_will_not_be_loaded_if_files_are_specified_on_commandline_Use_ignoreConfig_to_skip_this_error,
+                        &[],
+                    ),
+                );
+            // TS5112 is fileless: the config is discovered with
+            // `fileExists`, but TypeScript does not read or parse it
+            // before rejecting explicit roots. Keep this branch free of
+            // a second host read and of source-text ownership.
+            let source_texts = BTreeMap::new();
+            return rendered_diagnostics(&current_directory, &source_texts, &[diagnostic], pretty);
+        }
         if !command_line.no_emit {
             return Err(CliError::Usage(
                 "explicit source files require --noEmit; H0 never invokes an emitter".to_owned(),
@@ -145,7 +170,13 @@ fn execute(args: &[String]) -> Result<CliOutput, CliError> {
             .into_iter()
             .map(|file| absolutize(&current_directory, &file))
             .collect::<Vec<_>>();
-        return execute_explicit_files(&host, &current_directory, &catalog, &roots);
+        return execute_explicit_files(&host, &current_directory, &catalog, &roots, pretty);
+    }
+
+    if command_line.ignore_config {
+        return Err(CliError::Usage(
+            "--ignoreConfig requires explicit source files or -p".to_owned(),
+        ));
     }
 
     let config_file = find_config_file(&host, &current_directory)?.ok_or_else(|| {
@@ -162,15 +193,13 @@ fn execute(args: &[String]) -> Result<CliOutput, CliError> {
         &plan,
         source_texts,
         command_line.no_emit,
+        pretty,
     )
 }
 
 fn parse_arguments(args: &[String]) -> Result<CommandLine, CliError> {
     let mut command_line = CommandLine {
-        // The H0 formatter is the context formatter. Keep the switch in the
-        // parsed state so adding the plain formatter does not change argument
-        // selection or program construction.
-        pretty: true,
+        pretty: None,
         ..CommandLine::default()
     };
     let mut index = 0usize;
@@ -199,14 +228,21 @@ fn parse_arguments(args: &[String]) -> Result<CommandLine, CliError> {
                     "--noEmit=false is outside the mandatory no-emit driver".to_owned(),
                 ));
             }
+            "--ignoreConfig" | "--ignoreConfig=true" => {
+                command_line.ignore_config = true;
+                index += 1;
+            }
+            "--ignoreConfig=false" => {
+                command_line.ignore_config = false;
+                index += 1;
+            }
             "--pretty" | "--pretty=true" => {
-                command_line.pretty = true;
+                command_line.pretty = Some(true);
                 index += 1;
             }
             "--pretty=false" => {
-                return Err(CliError::Usage(
-                    "plain diagnostic rendering is not enabled in this H0 slice".to_owned(),
-                ));
+                command_line.pretty = Some(false);
+                index += 1;
             }
             "-p" | "--project" => {
                 let value = args.get(index + 1).ok_or_else(|| {
@@ -262,6 +298,7 @@ fn execute_config(
     plan: &ConfigRootPlan,
     mut source_texts: BTreeMap<String, String>,
     no_emit_override: bool,
+    pretty: bool,
 ) -> Result<CliOutput, CliError> {
     for source in plan.extended_sources() {
         source_texts.insert(source.file_name.clone(), source.text.clone());
@@ -277,7 +314,7 @@ fn execute_config(
         Err(ConfigProgramLoadError::Diagnostics { config, options }) => {
             let mut diagnostics = config;
             diagnostics.extend(options);
-            return rendered_diagnostics(current_directory, &source_texts, &diagnostics);
+            return rendered_diagnostics(current_directory, &source_texts, &diagnostics, pretty);
         }
         Err(ConfigProgramLoadError::NoEmitRequired { value }) => {
             return Err(CliError::Load(format!(
@@ -300,7 +337,7 @@ fn execute_config(
             source.text().to_owned(),
         );
     }
-    execute_prepared(current_directory, source_texts, prepared)
+    execute_prepared(current_directory, source_texts, prepared, pretty)
 }
 
 fn execute_explicit_files(
@@ -308,6 +345,7 @@ fn execute_explicit_files(
     current_directory: &Path,
     catalog: &LibraryCatalog,
     roots: &[PathBuf],
+    pretty: bool,
 ) -> Result<CliOutput, CliError> {
     let options = CompilerOptions {
         no_emit: Some(true),
@@ -329,25 +367,27 @@ fn execute_explicit_files(
             source.text().to_owned(),
         );
     }
-    execute_prepared(current_directory, source_texts, prepared)
+    execute_prepared(current_directory, source_texts, prepared, pretty)
 }
 
 fn execute_prepared(
     current_directory: &Path,
     source_texts: BTreeMap<String, String>,
     prepared: tsc_program::PreparedProgram,
+    pretty: bool,
 ) -> Result<CliOutput, CliError> {
     let outcome = ProgramSession::new(prepared)
         .run()
         .map_err(|error| CliError::Driver(error.to_string()))?;
     let diagnostics = outcome.into_diagnostics();
-    rendered_diagnostics(current_directory, &source_texts, &diagnostics)
+    rendered_diagnostics(current_directory, &source_texts, &diagnostics, pretty)
 }
 
 fn rendered_diagnostics(
     current_directory: &Path,
     source_texts: &BTreeMap<String, String>,
     diagnostics: &[Diagnostic],
+    pretty: bool,
 ) -> Result<CliOutput, CliError> {
     if diagnostics.is_empty() {
         return Ok(CliOutput {
@@ -360,13 +400,107 @@ fn rendered_diagnostics(
         .to_str()
         .ok_or_else(|| CliError::Render("current directory is not Unicode".to_owned()))?;
     let host = FormatDiagnosticsHost::new(current_directory, source_texts);
-    let text = format_diagnostics_with_context(diagnostics, &host)
-        .map_err(|error| CliError::Render(error.to_string()))?;
+    let text = if pretty {
+        format_diagnostics_with_context(diagnostics, &host)
+            .map_err(|error| CliError::Render(error.to_string()))?
+    } else {
+        format_plain_diagnostics(diagnostics, &host, source_texts, current_directory)
+            .map_err(|error| CliError::Render(error.to_string()))?
+    };
     Ok(CliOutput {
         stdout: text,
         stderr: String::new(),
         exit_code: EXIT_DIAGNOSTIC,
     })
+}
+
+fn default_pretty() -> bool {
+    std::io::stdout().is_terminal()
+}
+
+/// Format the command-line's non-contextual reporter.
+///
+/// TypeScript's plain reporter deliberately omits source excerpts and related
+/// information. It still owns the same stable sort/dedup boundary as the
+/// contextual reporter, so switching `--pretty` never changes which
+/// diagnostic occurrence is retained.
+fn format_plain_diagnostics(
+    diagnostics: &[Diagnostic],
+    host: &FormatDiagnosticsHost<'_>,
+    source_texts: &BTreeMap<String, String>,
+    current_directory: &str,
+) -> Result<String, String> {
+    let indices = sort_and_dedupe_diagnostic_indices_with_context(diagnostics, host);
+    let mut output = String::new();
+    for index in indices {
+        let diagnostic = &diagnostics[index];
+        if let Some(file_name) = diagnostic.file_name.as_deref() {
+            let text = source_texts
+                .get(file_name)
+                .or_else(|| {
+                    let normalized = normalize_slashes(file_name);
+                    source_texts
+                        .iter()
+                        .find(|(candidate, _)| normalize_slashes(candidate) == normalized)
+                        .map(|(_, text)| text)
+                })
+                .ok_or_else(|| {
+                    format!("diagnostic source text is unavailable for {file_name:?}")
+                })?;
+            let line_starts = compute_line_starts(text);
+            let position = diagnostic
+                .start
+                .ok_or_else(|| format!("diagnostic start is unavailable for {file_name:?}"))?;
+            let position = position.min(*line_starts.last().unwrap_or(&0));
+            let location = get_line_and_character_of_position(&line_starts, position);
+            output.push_str(&format!(
+                "{}({},{}): ",
+                relative_file_name(file_name, current_directory),
+                location.line + 1,
+                location.character + 1
+            ));
+        }
+        output.push_str(diagnostic.category().name());
+        output.push_str(" TS");
+        output.push_str(&diagnostic.code().to_string());
+        output.push_str(": ");
+        append_plain_message(&diagnostic.message, 0, &mut output);
+        output.push('\n');
+    }
+    Ok(output)
+}
+
+fn append_plain_message(message: &MessageChain, indent: usize, output: &mut String) {
+    if indent != 0 {
+        output.push('\n');
+        output.push_str(&"  ".repeat(indent));
+    }
+    output.push_str(&message.text);
+    for child in &message.next {
+        append_plain_message(child, indent + 1, output);
+    }
+}
+
+fn relative_file_name(file_name: &str, current_directory: &str) -> String {
+    let file_name = normalize_slashes(file_name);
+    let normalized_current_directory = normalize_slashes(current_directory);
+    let current_directory = normalized_current_directory.trim_end_matches('/');
+    if current_directory.is_empty() {
+        return file_name;
+    }
+    if file_name == current_directory {
+        return ".".to_owned();
+    }
+    if let Some(suffix) = file_name.strip_prefix(current_directory) {
+        if let Some(suffix) = suffix.strip_prefix('/') {
+            return suffix.to_owned();
+        }
+    }
+    file_name
+}
+
+fn normalize_slashes(path: &str) -> String {
+    path.replace('\\', "/")
 }
 
 fn parse_config_file(

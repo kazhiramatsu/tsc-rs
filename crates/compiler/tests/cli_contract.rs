@@ -89,6 +89,26 @@ fn command_line_no_emit_overrides_the_config_and_missing_override_fails_closed()
 }
 
 #[test]
+fn explicit_files_require_ignore_config_when_a_project_is_present() {
+    let tree = TempTree::new();
+    fs::write(tree.path("main.ts"), "const value: number = 1;\n").expect("write source");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"noEmit":true,"lib":["es5"]},"files":["main.ts"]}"#,
+    )
+    .expect("write config");
+
+    let without_ignore = run(&tree, &["--noEmit", "main.ts"]);
+    assert_eq!(without_ignore.status.code(), Some(1));
+    assert!(String::from_utf8_lossy(&without_ignore.stdout).contains("TS5112"));
+
+    let with_ignore = run(&tree, &["--noEmit", "--ignoreConfig", "main.ts"]);
+    assert_eq!(with_ignore.status.code(), Some(0));
+    assert!(with_ignore.stdout.is_empty());
+    assert!(with_ignore.stderr.is_empty());
+}
+
+#[test]
 fn semantic_diagnostics_are_stdout_and_exit_one() {
     let tree = TempTree::new();
     fs::write(tree.path("main.ts"), "const value: number = 'wrong';\n").expect("write source");
@@ -102,7 +122,35 @@ fn semantic_diagnostics_are_stdout_and_exit_one() {
     assert_eq!(output.status.code(), Some(1));
     let stdout = String::from_utf8_lossy(&output.stdout);
     assert!(stdout.contains("TS2322"), "{stdout}");
+    assert!(stdout.contains("main.ts(1,7):"), "{stdout}");
+    assert!(
+        !stdout.contains('~'),
+        "plain output unexpectedly had context: {stdout}"
+    );
     assert!(output.stderr.is_empty());
+}
+
+#[test]
+fn pretty_false_uses_plain_output_and_pretty_true_uses_context() {
+    let tree = TempTree::new();
+    fs::write(tree.path("main.ts"), "const value: number = 'wrong';\n").expect("write source");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"noEmit":true,"lib":["es5"]},"files":["main.ts"]}"#,
+    )
+    .expect("write config");
+
+    let plain = run(&tree, &["--pretty=false"]);
+    assert_eq!(plain.status.code(), Some(1));
+    let plain_stdout = String::from_utf8_lossy(&plain.stdout);
+    assert!(plain_stdout.starts_with("main.ts(1,7): error TS2322:"));
+    assert!(!plain_stdout.contains('~'));
+
+    let pretty = run(&tree, &["--pretty=true"]);
+    assert_eq!(pretty.status.code(), Some(1));
+    let pretty_stdout = String::from_utf8_lossy(&pretty.stdout);
+    assert!(pretty_stdout.contains("main.ts:1:7 - error TS2322:"));
+    assert!(pretty_stdout.contains('~'));
 }
 
 #[test]
