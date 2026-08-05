@@ -414,6 +414,10 @@ typed I/O failure, follows filesystem realpaths, and exposes deterministically
 ordered immediate entries in JavaScript UTF-16 display-name order plus a
 directory-only `CompilerHost::get_directories`
 projection under an explicit or detected case profile. The
+`tsc_program::CompilerConfigHost` adapter now owns the shared config-side
+recursive enumeration, include/exclude filtering, UTF-16 ordering, and host
+text decoding for both `FsCompilerHost` and `MemoryCompilerHost`; the CLI no
+longer carries a second copy of those rules. The
 shared program-layer decoder consumes those bytes with the vendored Node
 host's BOM, endian, odd-byte, and invalid-UTF-8 rules, and package metadata
 uses that same decoded text. Package consumers then apply the vendored
