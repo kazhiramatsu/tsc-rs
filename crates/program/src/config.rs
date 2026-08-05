@@ -1215,6 +1215,7 @@ pub fn parse_config_root_plan(
     let mut option_diagnostics = paths_option_diagnostics(&node.options, &node.source);
     option_diagnostics.extend(no_lib_lib_option_diagnostics(&node.options, &node.source));
     sort_and_dedupe_diagnostics(&mut option_diagnostics);
+    reject_unsupported_config_scope(&node, &config_file_name)?;
     let discovery_options = effective_discovery_options(&node.options, &config_base)?;
     let module_resolution_options = config_module_resolution_options(
         &node.options,
@@ -1245,6 +1246,77 @@ pub fn parse_config_root_plan(
         errors: context.errors,
         option_diagnostics,
     })
+}
+
+/// H0 is a single-project, no-emit driver. Recognized options which would
+/// select an emitter, build graph, watch/incremental state, or a plugin are
+/// therefore an unsupported *scope* failure, not an option we may silently
+/// carry through the narrower `CompilerOptions` projection. Project
+/// references are checked at the root as they are not compiler options.
+fn reject_unsupported_config_scope(
+    config: &ParsedConfigNode,
+    config_file_name: &str,
+) -> Result<(), ConfigParseError> {
+    if let Some(references) = config.raw.as_object().and_then(|raw| raw.get("references")) {
+        if config_value_requests_feature(references) {
+            return Err(ConfigParseError::new(
+                ConfigParseErrorKind::Unsupported,
+                Some(config_file_name.to_owned()),
+                "project references are outside the H0 single-project driver",
+            ));
+        }
+    }
+
+    const UNSUPPORTED_OPTIONS: &[&str] = &[
+        "project",
+        "incremental",
+        "composite",
+        "declaration",
+        "declarationMap",
+        "emitDeclarationOnly",
+        "sourceMap",
+        "inlineSourceMap",
+        "generateCpuProfile",
+        "generateTrace",
+        "tsBuildInfoFile",
+        "plugins",
+        "out",
+        "outFile",
+        "listEmittedFiles",
+        "emitBOM",
+        "noEmitOnError",
+        "noEmitHelpers",
+        "removeComments",
+        "sourceRoot",
+        "mapRoot",
+        "inlineSources",
+        "emitDecoratorMetadata",
+    ];
+    for option in config.options.entries() {
+        if UNSUPPORTED_OPTIONS.contains(&option.name.as_str())
+            && config_value_requests_feature(&option.value)
+        {
+            return Err(ConfigParseError::new(
+                ConfigParseErrorKind::Unsupported,
+                Some(config_file_name.to_owned()),
+                format!(
+                    "compiler option {:?} is outside the H0 single-project no-emit driver",
+                    option.name
+                ),
+            ));
+        }
+    }
+    Ok(())
+}
+
+fn config_value_requests_feature(value: &Value) -> bool {
+    match value {
+        Value::Null => false,
+        Value::Bool(value) => *value,
+        Value::Number(_) | Value::String(_) => true,
+        Value::Array(values) => !values.is_empty(),
+        Value::Object(values) => !values.is_empty(),
+    }
 }
 
 impl ParseContext<'_> {
@@ -1930,8 +2002,8 @@ fn paths_option_diagnostics(
 /// every effective root-syntax occurrence, matching
 /// `createOptionDiagnosticInObjectLiteralSyntax`.
 ///
-/// tsc-port: verifyCompilerOptions (lib/noLib block) @6.0.3
-/// tsc-hash: 569177652966bd528c319171c7dd22860dbf72bde116cb4f644f1d02bb12e39
+/// tsc-port: verifyCompilerOptions @6.0.3 (lib/noLib block)
+/// tsc-hash: 6cc5d6e4258b1645ed0788fb31322db101b9e6b9ae34f203e749610f23e48fb3
 /// tsc-span: _tsc.js:124888-124890
 fn no_lib_lib_option_diagnostics(
     options: &ConfigOptionBag,

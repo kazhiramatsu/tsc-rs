@@ -7,13 +7,47 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use tsc_host::{CompilerHost, FsCompilerHost, MemoryCompilerHost};
 use tsc_program::{
     decode_host_text, load_config_program, load_config_program_with_no_emit_override,
-    parse_config_root_plan, ConfigHostError, ConfigHostOperation, ConfigParseHost,
-    ConfigProgramLoadError, ConfigRootPlanRequest, LibraryCatalog, ProgramLoadLimits,
+    parse_config_root_plan, ConfigHostError, ConfigHostOperation, ConfigParseErrorKind,
+    ConfigParseHost, ConfigProgramLoadError, ConfigRootPlanRequest, LibraryCatalog,
+    ProgramLoadLimits,
 };
 
 const LIMITS: ProgramLoadLimits = ProgramLoadLimits::new(128, 512, 32, 1 << 20, 1 << 22);
 
 static NEXT_TEMP_TREE: AtomicU64 = AtomicU64::new(0);
+
+#[test]
+fn unsupported_h0_config_scope_fails_before_filesystem_discovery() {
+    let host = MemoryCompilerHost::builder("/work")
+        .file("/work/main.ts", b"export {};".to_vec())
+        .build()
+        .expect("build unsupported-scope host");
+    let adapter = ConfigHostAdapter::new(&host);
+
+    let references = parse_config_root_plan(
+        &adapter,
+        ConfigRootPlanRequest {
+            file_name: "/work/tsconfig.json".to_owned(),
+            text: r#"{"files":["main.ts"],"references":[{"path":"other"}]}"#.to_owned(),
+            base_path: "/work".to_owned(),
+        },
+    )
+    .expect_err("project references must not enter the single-project loader");
+    assert_eq!(references.kind(), ConfigParseErrorKind::Unsupported);
+    assert!(references.detail().contains("project references"));
+
+    let emit = parse_config_root_plan(
+        &adapter,
+        ConfigRootPlanRequest {
+            file_name: "/work/tsconfig.json".to_owned(),
+            text: r#"{"files":["main.ts"],"compilerOptions":{"declaration":true}}"#.to_owned(),
+            base_path: "/work".to_owned(),
+        },
+    )
+    .expect_err("declaration output must not enter the no-emit loader");
+    assert_eq!(emit.kind(), ConfigParseErrorKind::Unsupported);
+    assert!(emit.detail().contains("declaration"));
+}
 
 struct TempTree {
     root: PathBuf,
