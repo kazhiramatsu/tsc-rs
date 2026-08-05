@@ -1052,6 +1052,9 @@ mod tests {
         let output = run(&["--version"]);
         assert_eq!(output.exit_code(), EXIT_SUCCESS);
         assert!(output.stderr().is_empty());
-        assert_eq!(output.stdout().trim(), env!("CARGO_PKG_VERSION"));
+        assert_eq!(
+            output.stdout().trim(),
+            format!("Version {TYPESCRIPT_VERSION}")
+        );
     }
 }
