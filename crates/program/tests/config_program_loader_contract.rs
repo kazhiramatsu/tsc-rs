@@ -7,9 +7,8 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use tsc_host::{CompilerHost, FsCompilerHost, MemoryCompilerHost};
 use tsc_program::{
     decode_host_text, load_config_program, load_config_program_with_no_emit_override,
-    parse_config_root_plan, ConfigHostError, ConfigHostOperation, ConfigParseErrorKind,
-    ConfigParseHost, ConfigProgramLoadError, ConfigRootPlanRequest, LibraryCatalog,
-    ProgramLoadLimits,
+    parse_config_root_plan, ConfigHostError, ConfigHostOperation, ConfigParseHost,
+    ConfigProgramLoadError, ConfigRootPlanRequest, LibraryCatalog, ProgramLoadLimits,
 };
 
 const LIMITS: ProgramLoadLimits = ProgramLoadLimits::new(128, 512, 32, 1 << 20, 1 << 22);
@@ -17,7 +16,7 @@ const LIMITS: ProgramLoadLimits = ProgramLoadLimits::new(128, 512, 32, 1 << 20, 
 static NEXT_TEMP_TREE: AtomicU64 = AtomicU64::new(0);
 
 #[test]
-fn unsupported_h0_config_scope_fails_before_filesystem_discovery() {
+fn unsupported_h0_config_scope_fails_at_the_program_gate() {
     let host = MemoryCompilerHost::builder("/work")
         .file("/work/main.ts", b"export {};".to_vec())
         .build()
@@ -32,9 +31,22 @@ fn unsupported_h0_config_scope_fails_before_filesystem_discovery() {
             base_path: "/work".to_owned(),
         },
     )
+    .expect("project-reference config remains observable as a partial plan");
+    let references_error = load_config_program_with_no_emit_override(
+        &host,
+        &references,
+        &LibraryCatalog::typescript_6_0_3(PathBuf::from("/work/lib")),
+        LIMITS,
+    )
     .expect_err("project references must not enter the single-project loader");
-    assert_eq!(references.kind(), ConfigParseErrorKind::Unsupported);
-    assert!(references.detail().contains("project references"));
+    let ConfigProgramLoadError::Program(references_error) = references_error else {
+        panic!("project references should be a typed program-scope failure");
+    };
+    assert_eq!(
+        references_error.kind(),
+        tsc_program::ProgramLoadErrorKind::Unsupported
+    );
+    assert!(references_error.to_string().contains("project references"));
 
     let emit = parse_config_root_plan(
         &adapter,
@@ -44,9 +56,22 @@ fn unsupported_h0_config_scope_fails_before_filesystem_discovery() {
             base_path: "/work".to_owned(),
         },
     )
+    .expect("declaration config remains observable as a partial plan");
+    let emit_error = load_config_program_with_no_emit_override(
+        &host,
+        &emit,
+        &LibraryCatalog::typescript_6_0_3(PathBuf::from("/work/lib")),
+        LIMITS,
+    )
     .expect_err("declaration output must not enter the no-emit loader");
-    assert_eq!(emit.kind(), ConfigParseErrorKind::Unsupported);
-    assert!(emit.detail().contains("declaration"));
+    let ConfigProgramLoadError::Program(emit_error) = emit_error else {
+        panic!("declaration output should be a typed program-scope failure");
+    };
+    assert_eq!(
+        emit_error.kind(),
+        tsc_program::ProgramLoadErrorKind::Unsupported
+    );
+    assert!(emit_error.to_string().contains("declaration"));
 }
 
 struct TempTree {

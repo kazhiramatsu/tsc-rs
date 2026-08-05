@@ -307,7 +307,7 @@ impl ProgramLoadError {
         }
     }
 
-    fn unsupported(
+    pub(crate) fn unsupported(
         operation: ProgramLoadOperation,
         path: Option<PathBuf>,
         feature: impl Into<String>,

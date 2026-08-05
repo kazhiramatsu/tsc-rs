@@ -1069,6 +1069,17 @@ fn load_config_program_inner(
         return Err(ConfigProgramLoadError::Diagnostics { config, options });
     }
 
+    if let Some((feature, detail)) = unsupported_config_scope(&plan.options, &plan.raw) {
+        return Err(ConfigProgramLoadError::Program(
+            ProgramLoadError::unsupported(
+                crate::loader::ProgramLoadOperation::ValidateOptions,
+                Some(PathBuf::from(plan.config_file_name())),
+                feature,
+                detail,
+            ),
+        ));
+    }
+
     if !force_no_emit && plan.compiler_options().no_emit != Some(true) {
         return Err(ConfigProgramLoadError::NoEmitRequired {
             value: plan.compiler_options().no_emit,
@@ -1215,7 +1226,6 @@ pub fn parse_config_root_plan(
     let mut option_diagnostics = paths_option_diagnostics(&node.options, &node.source);
     option_diagnostics.extend(no_lib_lib_option_diagnostics(&node.options, &node.source));
     sort_and_dedupe_diagnostics(&mut option_diagnostics);
-    reject_unsupported_config_scope(&node, &config_file_name)?;
     let discovery_options = effective_discovery_options(&node.options, &config_base)?;
     let module_resolution_options = config_module_resolution_options(
         &node.options,
@@ -1251,18 +1261,18 @@ pub fn parse_config_root_plan(
 /// H0 is a single-project, no-emit driver. Recognized options which would
 /// select an emitter, build graph, watch/incremental state, or a plugin are
 /// therefore an unsupported *scope* failure, not an option we may silently
-/// carry through the narrower `CompilerOptions` projection. Project
-/// references are checked at the root as they are not compiler options.
-fn reject_unsupported_config_scope(
-    config: &ParsedConfigNode,
-    config_file_name: &str,
-) -> Result<(), ConfigParseError> {
-    if let Some(references) = config.raw.as_object().and_then(|raw| raw.get("references")) {
+/// carry through the narrower `CompilerOptions` projection. This check runs
+/// at the program-load gate rather than during parsing so the config oracle
+/// can still observe TypeScript's complete partial `ParsedCommandLine` shape.
+fn unsupported_config_scope(
+    options: &ConfigOptionBag,
+    raw: &Value,
+) -> Option<(&'static str, String)> {
+    if let Some(references) = raw.as_object().and_then(|raw| raw.get("references")) {
         if config_value_requests_feature(references) {
-            return Err(ConfigParseError::new(
-                ConfigParseErrorKind::Unsupported,
-                Some(config_file_name.to_owned()),
-                "project references are outside the H0 single-project driver",
+            return Some((
+                "project-references",
+                "project references are outside the H0 single-project driver".to_owned(),
             ));
         }
     }
@@ -1292,13 +1302,12 @@ fn reject_unsupported_config_scope(
         "inlineSources",
         "emitDecoratorMetadata",
     ];
-    for option in config.options.entries() {
+    for option in options.entries() {
         if UNSUPPORTED_OPTIONS.contains(&option.name.as_str())
             && config_value_requests_feature(&option.value)
         {
-            return Err(ConfigParseError::new(
-                ConfigParseErrorKind::Unsupported,
-                Some(config_file_name.to_owned()),
+            return Some((
+                "unsupported-config-option",
                 format!(
                     "compiler option {:?} is outside the H0 single-project no-emit driver",
                     option.name
@@ -1306,7 +1315,7 @@ fn reject_unsupported_config_scope(
             ));
         }
     }
-    Ok(())
+    None
 }
 
 fn config_value_requests_feature(value: &Value) -> bool {
