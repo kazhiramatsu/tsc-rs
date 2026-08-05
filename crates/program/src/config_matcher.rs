@@ -137,6 +137,84 @@ impl ConfigFilePattern {
 
         previous[input_count]
     }
+
+    /// Return whether a directory can contain a path selected by this
+    /// pattern.
+    ///
+    /// `matchFiles` uses a separate directory regexp to avoid descending into
+    /// directories which cannot contribute a matching file.  Keeping the
+    /// equivalent as a small NFA over compiled components means the host can
+    /// retain that pruning without making the file matcher recursive or
+    /// allocating a regex for every directory.  A recursive component may
+    /// consume a directory only when the same implicit-directory rules used by
+    /// [`Self::matches`] allow it; an explicit `node_modules` component thus
+    /// remains selectable while `**/*` still skips it.
+    pub(crate) fn could_match_descendant(&self, absolute_directory: &str) -> bool {
+        let Ok(path) = normalize_absolute(absolute_directory) else {
+            return false;
+        };
+        let root = path.root.strip_suffix('/').unwrap_or(&path.root);
+        if !self.root.matches(
+            &InputComponent::new(root, self.case_sensitive),
+            self.components.is_empty(),
+            self.case_sensitive,
+        ) {
+            return false;
+        }
+
+        let mut states = vec![0usize];
+        for component in &path.components {
+            states = self.advance_directory_states(&states, component);
+            if states.is_empty() {
+                return false;
+            }
+        }
+
+        // A state before the end has at least one remaining pattern component
+        // which can be supplied by a descendant path.  The constructor never
+        // leaves a bare trailing `**`, so an end state is only a directory
+        // match and does not itself prove a descendant file match.
+        states
+            .into_iter()
+            .any(|state| state < self.components.len())
+    }
+
+    fn advance_directory_states(&self, states: &[usize], input: &str) -> Vec<usize> {
+        let mut closure = states.to_vec();
+        let mut index = 0;
+        while index < closure.len() {
+            let state = closure[index];
+            if matches!(
+                self.components.get(state),
+                Some(PatternComponent::Recursive)
+            ) && !closure.contains(&(state + 1))
+            {
+                closure.push(state + 1);
+            }
+            index += 1;
+        }
+
+        let input = InputComponent::new(input, self.case_sensitive);
+        let mut next = Vec::new();
+        for state in closure {
+            match self.components.get(state) {
+                Some(PatternComponent::Recursive) => {
+                    if input.recursive_wildcard_allowed() {
+                        next.push(state);
+                    }
+                }
+                Some(PatternComponent::Glob(glob)) => {
+                    if glob.matches(&input, false, self.case_sensitive) {
+                        next.push(state + 1);
+                    }
+                }
+                None => {}
+            }
+        }
+        next.sort_unstable();
+        next.dedup();
+        next
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -416,6 +494,19 @@ mod tests {
 
         let explicit = pattern("src/node_modules/**/*.ts");
         assert!(explicit.matches("/work/src/node_modules/pkg/index.ts"));
+    }
+
+    #[test]
+    fn directory_pruning_preserves_explicit_package_includes() {
+        let implicit = pattern("**/*.ts");
+        assert!(!implicit.could_match_descendant("/work/node_modules"));
+        assert!(!implicit.could_match_descendant("/work/.cache"));
+        assert!(implicit.could_match_descendant("/work/src"));
+
+        let explicit = pattern("node_modules/**/*.ts");
+        assert!(explicit.could_match_descendant("/work/node_modules"));
+        assert!(explicit.could_match_descendant("/work/node_modules/pkg"));
+        assert!(!explicit.could_match_descendant("/work/src"));
     }
 
     #[test]

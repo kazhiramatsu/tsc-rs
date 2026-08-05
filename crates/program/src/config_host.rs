@@ -5,9 +5,10 @@
 //! in-memory hosts use the same recursive enumeration, exclusion, decoding,
 //! and TypeScript UTF-16 ordering rules instead of duplicating them in the CLI.
 
+use std::collections::BTreeSet;
 use std::path::Path;
 
-use tsc_host::{CompilerHost, HostError};
+use tsc_host::{to_file_name_lower_case, CompilerHost, HostError};
 
 use crate::config::{ConfigHostError, ConfigHostOperation, ConfigParseHost};
 use crate::config_matcher::ConfigFilePattern;
@@ -36,6 +37,7 @@ impl<'a> CompilerConfigHost<'a> {
         ConfigHostError::new(operation, path, error.to_string())
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn walk_directory(
         &self,
         directory: &Path,
@@ -43,9 +45,14 @@ impl<'a> CompilerConfigHost<'a> {
         includes: &[ConfigFilePattern],
         excludes: &[ConfigFilePattern],
         depth: usize,
-        files: &mut Vec<String>,
+        files: &mut [Vec<String>],
+        visited: &mut BTreeSet<String>,
     ) -> Result<(), ConfigHostError> {
         if depth == 0 {
+            return Ok(());
+        }
+        let canonical_directory = self.canonical_directory(directory)?;
+        if !visited.insert(canonical_directory) {
             return Ok(());
         }
         let entries = self.host.read_directory(directory).map_err(|error| {
@@ -65,11 +72,32 @@ impl<'a> CompilerConfigHost<'a> {
                 .directory_exists(&entry)
                 .map_err(|error| self.host_error(ConfigHostOperation::ReadDirectory, text, error))?
             {
-                if is_implicit_excluded_directory(&entry) {
-                    continue;
+                if !includes.is_empty() && is_implicit_excluded_directory(&entry) {
+                    // A package directory is excluded by the implicit
+                    // recursive wildcard, but an explicit include such as
+                    // `node_modules/**/*.ts` must still be able to enter it.
+                    if !includes
+                        .iter()
+                        .any(|pattern| pattern.could_match_descendant(text))
+                    {
+                        continue;
+                    }
                 }
-                if !excludes.iter().any(|pattern| pattern.matches(text)) {
-                    self.walk_directory(&entry, extensions, includes, excludes, depth - 1, files)?;
+                if !excludes.iter().any(|pattern| pattern.matches(text))
+                    && (includes.is_empty()
+                        || includes
+                            .iter()
+                            .any(|pattern| pattern.could_match_descendant(text)))
+                {
+                    self.walk_directory(
+                        &entry,
+                        extensions,
+                        includes,
+                        excludes,
+                        depth - 1,
+                        files,
+                        visited,
+                    )?;
                 }
                 continue;
             }
@@ -79,11 +107,39 @@ impl<'a> CompilerConfigHost<'a> {
             if excludes.iter().any(|pattern| pattern.matches(text)) {
                 continue;
             }
-            if includes.is_empty() || includes.iter().any(|pattern| pattern.matches(text)) {
-                files.push(text.to_owned());
+            if includes.is_empty() {
+                files[0].push(text.to_owned());
+            } else if let Some(include_index) =
+                includes.iter().position(|pattern| pattern.matches(text))
+            {
+                files[include_index].push(text.to_owned());
             }
         }
         Ok(())
+    }
+
+    fn canonical_directory(&self, directory: &Path) -> Result<String, ConfigHostError> {
+        let observed = self
+            .host
+            .realpath(directory)
+            .map_err(|error| {
+                let path = directory.display().to_string();
+                self.host_error(ConfigHostOperation::ReadDirectory, &path, error)
+            })?
+            .unwrap_or_else(|| directory.to_path_buf());
+        let text = observed.to_str().ok_or_else(|| {
+            ConfigHostError::new(
+                ConfigHostOperation::ReadDirectory,
+                observed.display().to_string(),
+                "filesystem path is not Unicode",
+            )
+        })?;
+        let normalized = text.replace('\\', "/");
+        Ok(if self.host.use_case_sensitive_file_names() {
+            normalized
+        } else {
+            to_file_name_lower_case(&normalized)
+        })
     }
 }
 
@@ -122,17 +178,20 @@ impl ConfigParseHost for CompilerConfigHost<'_> {
         let case_sensitive = self.host.use_case_sensitive_file_names();
         let include_patterns = compile_patterns(includes, directory, case_sensitive)?;
         let exclude_patterns = compile_patterns(excludes, directory, case_sensitive)?;
-        let mut files = Vec::new();
+        let mut file_buckets = (0..include_patterns.len().max(1))
+            .map(|_| Vec::new())
+            .collect::<Vec<Vec<String>>>();
+        let mut visited = BTreeSet::new();
         self.walk_directory(
             Path::new(directory),
             extensions,
             &include_patterns,
             &exclude_patterns,
             depth.unwrap_or(MAX_DIRECTORY_DEPTH),
-            &mut files,
+            &mut file_buckets,
+            &mut visited,
         )?;
-        files.sort_by(|left, right| left.encode_utf16().cmp(right.encode_utf16()));
-        Ok(files)
+        Ok(file_buckets.into_iter().flatten().collect())
     }
 }
 

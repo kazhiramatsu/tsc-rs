@@ -141,9 +141,9 @@ impl Error for ConfigHostError {}
 ///
 /// `read_directory` has the shape of TypeScript's filtered recursive callback,
 /// not a raw operating-system listing. Implementors own its filtering and
-/// `matchFiles` semantics. The current compiler-fixture adapter is qualified
-/// only against the frozen config-bearing corpus; a general filesystem adapter
-/// remains a later slice.
+/// `matchFiles` semantics. The production [`crate::CompilerConfigHost`]
+/// supplies that contract for both filesystem and memory hosts; specialized
+/// fixture hosts may intentionally expose a narrower files-only surface.
 pub trait ConfigParseHost {
     fn use_case_sensitive_file_names(&self) -> bool;
 

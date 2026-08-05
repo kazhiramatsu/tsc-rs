@@ -425,6 +425,90 @@ fn shared_compiler_host_config_adapter_keeps_include_exclude_equivalent() {
 }
 
 #[test]
+fn compiler_config_host_prunes_implicit_packages_but_honors_explicit_package_includes() {
+    let host = MemoryCompilerHost::builder("/project")
+        .file("/project/main.ts", b"const main = 1;\n".to_vec())
+        .file(
+            "/project/node_modules/pkg/index.ts",
+            b"export const packageValue = 1;\n".to_vec(),
+        )
+        .build()
+        .expect("package include memory host");
+
+    let all_files = CompilerConfigHost::new(&host)
+        .read_directory("/project", &[".ts"], None, None, None)
+        .expect("unfiltered recursive directory listing");
+    assert_eq!(
+        all_files,
+        vec![
+            "/project/main.ts".to_owned(),
+            "/project/node_modules/pkg/index.ts".to_owned()
+        ]
+    );
+
+    let implicit = parse_config_root_plan(
+        &CompilerConfigHost::new(&host),
+        request(r#"{"compilerOptions":{"noEmit":true,"noLib":true},"include":["**/*.ts"]}"#),
+    )
+    .expect("implicit package exclusion plan");
+    assert_eq!(implicit.file_names(), &["/project/main.ts".to_owned()]);
+
+    let explicit = parse_config_root_plan(
+        &CompilerConfigHost::new(&host),
+        request(
+            r#"{"compilerOptions":{"noEmit":true,"noLib":true},"include":["node_modules/**/*.ts"]}"#,
+        ),
+    )
+    .expect("explicit package include plan");
+    assert_eq!(
+        explicit.file_names(),
+        &["/project/node_modules/pkg/index.ts".to_owned()]
+    );
+}
+
+#[test]
+fn compiler_config_host_flattens_multiple_includes_in_written_order() {
+    let host = MemoryCompilerHost::builder("/project")
+        .file("/project/a/z.ts", b"export const a = 1;\n".to_vec())
+        .file("/project/b/a.ts", b"export const b = 1;\n".to_vec())
+        .build()
+        .expect("multiple include memory host");
+    let files = CompilerConfigHost::new(&host)
+        .read_directory(
+            "/project",
+            &[".ts"],
+            None,
+            Some(&["b/**/*.ts".to_owned(), "a/**/*.ts".to_owned()]),
+            None,
+        )
+        .expect("multiple include directory listing");
+    assert_eq!(
+        files,
+        vec!["/project/b/a.ts".to_owned(), "/project/a/z.ts".to_owned()]
+    );
+}
+
+#[test]
+fn compiler_config_host_deduplicates_realpath_directory_cycles() {
+    let host = MemoryCompilerHost::builder("/project")
+        .file("/project/main.ts", b"const main = 1;\n".to_vec())
+        .file("/project/link/nested.ts", b"const nested = 1;\n".to_vec())
+        .realpath("/project/link", "/project")
+        .build()
+        .expect("realpath-cycle memory host");
+    let files = CompilerConfigHost::new(&host)
+        .read_directory(
+            "/project",
+            &[".ts"],
+            None,
+            Some(&["**/*.ts".to_owned()]),
+            None,
+        )
+        .expect("realpath-cycle directory listing");
+    assert_eq!(files, vec!["/project/main.ts".to_owned()]);
+}
+
+#[test]
 fn config_loader_rejects_omitted_or_false_no_emit_before_host_loading() {
     for value in ["false", "null"] {
         let host = host();

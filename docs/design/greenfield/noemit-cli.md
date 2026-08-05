@@ -710,8 +710,12 @@ raw config values, ordered `fileNames`, extended-source identities and
 contents, four discovery-option values, and original-unit partitions with the
 official oracle. Include patterns are compiled once and reused through an
 iterative, linear-scratch UTF-16 matcher; candidate matching does not recurse,
-build a quadratic memo table, or require a regex dependency. This is not yet a
-general `ParseConfigHost`/`matchFiles` qualification. Remaining root fields,
+build a quadratic memo table, or require a regex dependency. The production
+`CompilerConfigHost` now applies the same matcher to real and in-memory
+recursive trees, prunes impossible directories, honors explicit package-folder
+includes, and suppresses symlink cycles through host realpaths. The complete
+upstream `ParseConfigHost`/`matchFiles` trace qualification is still not-run.
+Remaining root fields,
 remaining resolver/loader options, full `ParsedCommandLine`, and the complete
 project baseline/emit runner remain open. The validated projection now exposes
 the merged checker/program options and has a fail-closed `load_config_program`
