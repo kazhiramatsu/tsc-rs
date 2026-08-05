@@ -777,9 +777,12 @@ option failures are stderr/exit 2. The initial CLI surface intentionally
 rejects watch/build/emit options, project-plus-file mixes, and other
 unimplemented flags instead of silently ignoring them. Focused
 filesystem binary contracts cover include discovery, command-line no-emit
-precedence, diagnostic output, and version/unsupported-option behavior. This
-bridge remains independent of CLI selection so the same immutable plan can
-feed MemoryHost and FsHost differentials.
+precedence, diagnostic output, and version/unsupported-option behavior. A
+local ignored oracle contract also compares the plain `-p`/`--noEmit` result
+byte-for-byte with vendored `_tsc.js`, including its status-2 no-emit
+diagnostic result; explicit pretty/color output remains a separate renderer
+qualification. This bridge remains independent of CLI selection so the same
+immutable plan can feed MemoryHost and FsHost differentials.
 
 ### H0.6 — qualification and release
 
@@ -812,9 +815,12 @@ unsupported resolver branch becomes a typed H0 failure; it must not be
 converted into `Missed`, `Suppressed`, an empty diagnostic list, or exit
 zero.
 
-TypeScript and config diagnostics are reported through the normal diagnostic
-stream and exit one. H0 infrastructure or unsupported-scope failures are
-reported separately and exit two. Success is exit zero.
+TypeScript no-emit program and config diagnostics are reported through the
+normal diagnostic stream and exit two, matching the vendored driver's
+`DiagnosticsPresent_OutputsGenerated` result at its no-emit emit boundary.
+Command-line selection diagnostics such as TS5112 retain exit one. H0
+infrastructure or unsupported-scope failures are reported separately and
+also exit two. Success is exit zero.
 
 ## 10. Definition of done
 

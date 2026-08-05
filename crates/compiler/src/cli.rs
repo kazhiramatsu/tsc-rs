@@ -3,8 +3,11 @@
 //! The driver intentionally owns process concerns (argument selection,
 //! current-directory discovery, diagnostic rendering, and exit status) while
 //! [`tsc_program`] owns config conversion and program construction. Unsupported
-//! flags and infrastructure failures return exit status 2; ordinary TypeScript
-//! diagnostics return status 1.
+//! flags and infrastructure failures return exit status 2. TypeScript's
+//! no-emit program diagnostics return status 2 as well (the vendored driver
+//! reports `DiagnosticsPresent_OutputsGenerated` because its no-emit emit
+//! boundary is not marked skipped); command-line selection diagnostics such as
+//! TS5112 retain status 1.
 
 use std::collections::BTreeMap;
 use std::env;
@@ -30,7 +33,8 @@ use tsc_program::{
 use crate::ProgramSession;
 
 const EXIT_SUCCESS: i32 = 0;
-const EXIT_DIAGNOSTIC: i32 = 1;
+const EXIT_COMMAND_LINE: i32 = 1;
+const EXIT_DIAGNOSTIC: i32 = 2;
 const EXIT_FAILURE: i32 = 2;
 const CONFIG_FILE_NAME: &str = "tsconfig.json";
 const DEFAULT_LIMITS: ProgramLoadLimits = ProgramLoadLimits::new(
@@ -156,7 +160,13 @@ fn execute(args: &[String]) -> Result<CliOutput, CliError> {
             // before rejecting explicit roots. Keep this branch free of
             // a second host read and of source-text ownership.
             let source_texts = BTreeMap::new();
-            return rendered_diagnostics(&current_directory, &source_texts, &[diagnostic], pretty);
+            return rendered_diagnostics_with_exit(
+                &current_directory,
+                &source_texts,
+                &[diagnostic],
+                pretty,
+                EXIT_COMMAND_LINE,
+            );
         }
         if !command_line.no_emit {
             return Err(CliError::Usage(
@@ -444,6 +454,22 @@ fn rendered_diagnostics(
     diagnostics: &[Diagnostic],
     pretty: bool,
 ) -> Result<CliOutput, CliError> {
+    rendered_diagnostics_with_exit(
+        current_directory,
+        source_texts,
+        diagnostics,
+        pretty,
+        EXIT_DIAGNOSTIC,
+    )
+}
+
+fn rendered_diagnostics_with_exit(
+    current_directory: &Path,
+    source_texts: &BTreeMap<String, String>,
+    diagnostics: &[Diagnostic],
+    pretty: bool,
+    exit_code: i32,
+) -> Result<CliOutput, CliError> {
     if diagnostics.is_empty() {
         return Ok(CliOutput {
             stdout: String::new(),
@@ -473,7 +499,7 @@ fn rendered_diagnostics(
     Ok(CliOutput {
         stdout: text,
         stderr: String::new(),
-        exit_code: EXIT_DIAGNOSTIC,
+        exit_code,
     })
 }
 

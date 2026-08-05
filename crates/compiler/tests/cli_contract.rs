@@ -53,6 +53,18 @@ fn run(tree: &TempTree, arguments: &[&str]) -> std::process::Output {
         .expect("run tsc-rs binary")
 }
 
+fn run_typescript(tree: &TempTree, arguments: &[&str]) -> std::process::Output {
+    let bundle = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../..")
+        .join("vendor/typescript-6.0.3/lib/_tsc.js");
+    Command::new("node")
+        .current_dir(&tree.root)
+        .arg(bundle)
+        .args(arguments)
+        .output()
+        .expect("run vendored TypeScript compiler")
+}
+
 #[test]
 fn config_and_include_discovery_run_through_the_production_binary() {
     let tree = TempTree::new();
@@ -109,7 +121,7 @@ fn explicit_files_require_ignore_config_when_a_project_is_present() {
 }
 
 #[test]
-fn semantic_diagnostics_are_stdout_and_exit_one() {
+fn semantic_diagnostics_are_stdout_and_exit_two() {
     let tree = TempTree::new();
     fs::write(tree.path("main.ts"), "const value: number = 'wrong';\n").expect("write source");
     fs::write(
@@ -119,7 +131,7 @@ fn semantic_diagnostics_are_stdout_and_exit_one() {
     .expect("write config");
 
     let output = run(&tree, &[]);
-    assert_eq!(output.status.code(), Some(1));
+    assert_eq!(output.status.code(), Some(2));
     let stdout = String::from_utf8_lossy(&output.stdout);
     assert!(stdout.contains("TS2322"), "{stdout}");
     assert!(stdout.contains("main.ts(1,7):"), "{stdout}");
@@ -141,7 +153,7 @@ fn config_option_diagnostics_are_rendered_alongside_semantic_diagnostics() {
     .expect("write config");
 
     let output = run(&tree, &["--pretty=false"]);
-    assert_eq!(output.status.code(), Some(1));
+    assert_eq!(output.status.code(), Some(2));
     let stdout = String::from_utf8_lossy(&output.stdout);
     let option = stdout
         .find("tsconfig.json(1,1): error TS5107:")
@@ -169,13 +181,13 @@ fn pretty_false_uses_plain_output_and_pretty_true_uses_context() {
     .expect("write config");
 
     let plain = run(&tree, &["--pretty=false"]);
-    assert_eq!(plain.status.code(), Some(1));
+    assert_eq!(plain.status.code(), Some(2));
     let plain_stdout = String::from_utf8_lossy(&plain.stdout);
     assert!(plain_stdout.starts_with("main.ts(1,7): error TS2322:"));
     assert!(!plain_stdout.contains('~'));
 
     let pretty = run(&tree, &["--pretty=true"]);
-    assert_eq!(pretty.status.code(), Some(1));
+    assert_eq!(pretty.status.code(), Some(2));
     let pretty_stdout = String::from_utf8_lossy(&pretty.stdout);
     assert!(pretty_stdout.contains("main.ts:1:7 - error TS2322:"));
     assert!(pretty_stdout.contains('~'));
@@ -193,4 +205,22 @@ fn unsupported_options_are_exit_two_and_version_is_lightweight() {
     assert_eq!(version.status.code(), Some(0));
     assert!(!version.stdout.is_empty());
     assert!(version.stderr.is_empty());
+}
+
+#[test]
+#[ignore = "local H0 CLI oracle audit; requires the pinned Node runtime"]
+fn no_emit_cli_matches_vendored_typescript_plain_output() {
+    let tree = TempTree::new();
+    fs::write(tree.path("main.ts"), "const value: number = 'wrong';\n").expect("write source");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"noEmit":true,"lib":["es5"]},"files":["main.ts"]}"#,
+    )
+    .expect("write config");
+
+    let rust = run(&tree, &["-p", "tsconfig.json"]);
+    let typescript = run_typescript(&tree, &["--noEmit", "-p", "tsconfig.json"]);
+    assert_eq!(rust.status.code(), typescript.status.code());
+    assert_eq!(rust.stdout, typescript.stdout);
+    assert_eq!(rust.stderr, typescript.stderr);
 }
