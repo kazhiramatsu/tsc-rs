@@ -559,10 +559,10 @@ fn append_pretty_error_summary(
         if diagnostic.category().name() != "error" {
             continue;
         }
-        total += 1;
         let Some(file_name) = diagnostic.file_name.as_deref() else {
             continue;
         };
+        total += 1;
         let display_name = relative_file_name(file_name, current_directory);
         let line = diagnostic
             .start

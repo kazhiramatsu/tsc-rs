@@ -356,4 +356,9 @@ fn no_emit_cli_config_and_selection_matrix_matches_vendored_typescript() {
     fs::create_dir(missing.path("empty")).expect("create missing project directory");
     assert_typescript_parity(&missing, &["-p", "missing.json"], &["-p", "missing.json"]);
     assert_typescript_parity(&missing, &["-p", "empty"], &["-p", "empty"]);
+    assert_typescript_parity(
+        &missing,
+        &["--pretty", "-p", "missing.json"],
+        &["--pretty", "-p", "missing.json"],
+    );
 }
