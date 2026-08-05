@@ -78,6 +78,14 @@ fn run_typescript_no_color(tree: &TempTree, arguments: &[&str]) -> std::process:
         .expect("run vendored TypeScript compiler without color")
 }
 
+fn assert_typescript_parity(tree: &TempTree, rust_arguments: &[&str], ts_arguments: &[&str]) {
+    let rust = run(tree, rust_arguments);
+    let typescript = run_typescript(tree, ts_arguments);
+    assert_eq!(rust.status.code(), typescript.status.code());
+    assert_eq!(rust.stdout, typescript.stdout);
+    assert_eq!(rust.stderr, typescript.stderr);
+}
+
 fn strip_ansi_sgr(text: &str) -> String {
     let mut output = String::with_capacity(text.len());
     let mut in_escape = false;
@@ -273,4 +281,52 @@ fn no_emit_cli_matches_vendored_typescript_pretty_output_without_color() {
     assert_eq!(rust.status.code(), typescript.status.code());
     assert_eq!(rust.stdout, typescript.stdout);
     assert_eq!(rust.stderr, typescript.stderr);
+}
+
+#[test]
+#[ignore = "local H0 CLI oracle audit; requires the pinned Node runtime"]
+fn no_emit_cli_config_and_selection_matrix_matches_vendored_typescript() {
+    let tree = TempTree::new();
+    fs::create_dir_all(tree.path("src/generated")).expect("create source directories");
+    fs::write(tree.path("src/main.ts"), "const value: number = 'wrong';\n")
+        .expect("write included source");
+    fs::write(
+        tree.path("src/generated/ignored.ts"),
+        "const ignored: number = 'wrong';\n",
+    )
+    .expect("write excluded source");
+    fs::write(
+        tree.path("base.json"),
+        r#"{"compilerOptions":{"noEmit":true,"lib":["es5"]},"include":["src/**/*.ts"],"exclude":["src/generated"]}"#,
+    )
+    .expect("write base config");
+    fs::write(tree.path("tsconfig.json"), r#"{"extends":"./base.json"}"#)
+        .expect("write extending config");
+    assert_typescript_parity(
+        &tree,
+        &["-p", "tsconfig.json"],
+        &["--noEmit", "-p", "tsconfig.json"],
+    );
+
+    let override_tree = TempTree::new();
+    fs::write(
+        override_tree.path("main.ts"),
+        "const value: number = 'wrong';\n",
+    )
+    .expect("write override source");
+    fs::write(
+        override_tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"noEmit":false,"lib":["es5"]},"files":["main.ts"]}"#,
+    )
+    .expect("write override config");
+    assert_typescript_parity(
+        &override_tree,
+        &["--noEmit", "-p", "tsconfig.json"],
+        &["--noEmit", "-p", "tsconfig.json"],
+    );
+    assert_typescript_parity(
+        &override_tree,
+        &["--ignoreConfig", "--noEmit", "main.ts"],
+        &["--ignoreConfig", "--noEmit", "main.ts"],
+    );
 }
