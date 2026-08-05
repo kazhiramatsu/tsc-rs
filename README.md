@@ -343,8 +343,9 @@ the checker consumes the validated source id for loaded rows and the physical
 path for TS7016. An explicit `preserveSymlinks=true` instead keeps external
 non-relative modules and type references on their distinct lexical link
 identities, while absent or false retains physical-source deduplication.
-Config-derived root selection, package redirects, case-only aliases, and the
-remaining platform matrix remain.
+General config-derived root selection and package redirects remain; the
+focused case-only alias diagnostics now match the pinned TypeScript oracle.
+The remaining cross-platform matrix also remains open.
 
 | Phase | State | Focus |
 | --- | --- | --- |

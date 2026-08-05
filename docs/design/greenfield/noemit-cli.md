@@ -599,10 +599,11 @@ compiler configs (106 case expansions). The frozen TypeScript 6.0.3 oracle has
 original-unit stable partition is preserved. This fixed corpus has four
 fixtures with `extends`, one with `files`, one with `include`, none with
 `exclude`, no `jsconfig.json`, and no nonempty config diagnostics; it is not a
-general proof of those semantics. General filesystem config discovery, package
-redirects during program construction, case-only alias diagnostics, and the
-complete cross-platform case/separator/symlink/encoding matrix remain in later
-slices. Discovery stays sequential where vendored host calls and failure
+general proof of those semantics. General filesystem config discovery and
+package redirects during program construction remain in later slices. The
+focused case-only alias diagnostics now match the pinned TypeScript oracle;
+the complete cross-platform case/separator/symlink/encoding matrix remains
+open. Discovery stays sequential where vendored host calls and failure
 precedence are observable; future pipeline parallelism must preserve that
 contract.
 
