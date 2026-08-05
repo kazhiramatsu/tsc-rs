@@ -2,6 +2,7 @@ use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::error::Error;
 use std::fmt;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
 use tsc_diagnostics::{gen, Diagnostic, MessageChain, RelatedInfo};
 use tsc_host::{to_file_name_lower_case, CompilerHost, HostError};
@@ -484,7 +485,14 @@ pub fn load_program(
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) enum RootFileReason {
     Explicit,
-    FilesList { spec: String },
+    FilesList {
+        spec: Arc<str>,
+    },
+    IncludePattern {
+        spec: Arc<str>,
+        config_file: Arc<str>,
+    },
+    DefaultInclude,
 }
 
 /// Load a config-derived root closure while retaining the source of each root
@@ -2966,14 +2974,25 @@ fn unresolved_extensionless_root_diagnostic(
     ))
 }
 
+/// tsc-port: fileIncludeReasonToDiagnostics @6.0.3 (RootFile)
+/// tsc-hash: 30e07b28f72a81d3eb29d0ab7e49d8d2a65a20dedc61205c00e488973787233a
+/// tsc-span: _tsc.js:129341-129369
 fn root_file_reason_message(reason: &RootFileReason) -> MessageChain {
-    MessageChain::new(
-        match reason {
-            RootFileReason::Explicit => &gen::Root_file_specified_for_compilation,
-            RootFileReason::FilesList { .. } => &gen::Part_of_files_list_in_tsconfig_json,
-        },
-        &[],
-    )
+    match reason {
+        RootFileReason::Explicit => {
+            MessageChain::new(&gen::Root_file_specified_for_compilation, &[])
+        }
+        RootFileReason::FilesList { .. } => {
+            MessageChain::new(&gen::Part_of_files_list_in_tsconfig_json, &[])
+        }
+        RootFileReason::IncludePattern { spec, config_file } => MessageChain::new(
+            &gen::Matched_by_include_pattern_0_in_1,
+            &[spec.to_string(), config_file.to_string()],
+        ),
+        RootFileReason::DefaultInclude => {
+            MessageChain::new(&gen::Matched_by_default_include_pattern, &[])
+        }
+    }
 }
 
 fn missing_library_root_diagnostic(
@@ -3129,12 +3148,9 @@ fn unresolved_type_reference_diagnostic(
 /// remain compiler diagnostics with no source span. Config-backed `files`
 /// roots retain TS1410 related information at the matching root literal.
 ///
-/// tsc-port: fileIncludeReasonToRelatedInformation @6.0.3 (RootFile/files)
-/// tsc-hash: 8fab1537c53e3033f84dcd5a52301c9c8d0ca5c09554faf7317204e288e9900d
-/// tsc-span: _tsc.js:125965-125980
-/// tsc-port: getMatchedFileSpec @6.0.3
-/// tsc-hash: e2dca297bc277048704a713d9d169ddd59813bce20d200095738473671da5915
-/// tsc-span: _tsc.js:129276-129284
+/// tsc-port: fileIncludeReasonToRelatedInformation @6.0.3 (RootFile)
+/// tsc-hash: 2a9e2f89989b2c92cc283fc2abc093c67973e2ddfd81145bab64b9c98004eab7
+/// tsc-span: _tsc.js:125971-125985
 fn casing_alias_diagnostic(
     existing: &PreparedSourceFile,
     incoming: &Path,
@@ -3199,12 +3215,25 @@ fn casing_alias_diagnostic(
         });
     let mut diagnostic = Diagnostic::new(file_name, start, length, message);
     for reason in existing_reasons {
-        let SourceInclusionReason::Root(RootFileReason::FilesList { spec }) = reason else {
+        let SourceInclusionReason::Root(reason) = reason else {
             continue;
+        };
+        let (option_name, spec, related_message) = match reason {
+            RootFileReason::FilesList { spec } => (
+                "files",
+                spec,
+                &gen::File_is_matched_by_files_list_specified_here,
+            ),
+            RootFileReason::IncludePattern { spec, .. } => (
+                "include",
+                spec,
+                &gen::File_is_matched_by_include_pattern_specified_here,
+            ),
+            RootFileReason::Explicit | RootFileReason::DefaultInclude => continue,
         };
         let Some((config_file, location)) = config_file.and_then(|config_file| {
             config_file
-                .root_option_array_location("files", spec)
+                .root_option_array_location(option_name, spec)
                 .map(|location| (config_file, location))
         }) else {
             continue;
@@ -3220,7 +3249,7 @@ fn casing_alias_diagnostic(
             ),
             start: Some(location.start()),
             length: Some(location.length()),
-            message: MessageChain::new(&gen::File_is_matched_by_files_list_specified_here, &[]),
+            message: MessageChain::new(related_message, &[]),
         });
     }
     diagnostic.related_information_present = !diagnostic.related.is_empty();

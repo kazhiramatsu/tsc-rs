@@ -168,7 +168,18 @@ fn execute(args: &[String]) -> Result<CliOutput, CliError> {
                 );
             }
         };
-        let (plan, source_texts) = parse_config_file(&host, &config_file)?;
+        let requested = absolutize(&current_directory, &project);
+        let config_display = if requested == config_file {
+            project
+        } else {
+            project.join(CONFIG_FILE_NAME)
+        };
+        let (plan, source_texts) = parse_config_file(
+            &host,
+            &current_directory,
+            &config_file,
+            Some(&config_display),
+        )?;
         return execute_config(
             &host,
             &current_directory,
@@ -230,7 +241,7 @@ fn execute(args: &[String]) -> Result<CliOutput, CliError> {
             current_directory.display()
         ))
     })?;
-    let (plan, source_texts) = parse_config_file(&host, &config_file)?;
+    let (plan, source_texts) = parse_config_file(&host, &current_directory, &config_file, None)?;
     execute_config(
         &host,
         &current_directory,
@@ -921,7 +932,9 @@ fn normalize_slashes(path: &str) -> String {
 
 fn parse_config_file(
     host: &FsCompilerHost,
+    current_directory: &Path,
     config_file: &Path,
+    display_file_name: Option<&Path>,
 ) -> Result<(ConfigRootPlan, BTreeMap<String, String>), CliError> {
     let bytes = host
         .read_file(config_file)
@@ -933,25 +946,25 @@ fn parse_config_file(
             ))
         })?;
     let text = decode_host_text(bytes).map_err(|error| CliError::Config(error.to_string()))?;
-    let file_name = config_file
+    let display_file_name = display_file_name
+        .unwrap_or(config_file)
         .to_str()
-        .ok_or_else(|| CliError::Config("config path is not Unicode".to_owned()))?;
-    let base_path = config_file
-        .parent()
-        .and_then(Path::to_str)
-        .ok_or_else(|| CliError::Config("config parent path is not Unicode".to_owned()))?;
+        .ok_or_else(|| CliError::Config("config display path is not Unicode".to_owned()))?;
+    let base_path = current_directory
+        .to_str()
+        .ok_or_else(|| CliError::Config("current directory is not Unicode".to_owned()))?;
     let adapter = CompilerConfigHost::new(host);
     let plan = parse_config_root_plan(
         &adapter,
         ConfigRootPlanRequest {
-            file_name: file_name.to_owned(),
+            file_name: display_file_name.to_owned(),
             text: text.clone(),
             base_path: base_path.to_owned(),
         },
     )
     .map_err(config_error)?;
     let mut source_texts = BTreeMap::new();
-    source_texts.insert(file_name.to_owned(), text);
+    source_texts.insert(display_file_name.to_owned(), text);
     Ok((plan, source_texts))
 }
 

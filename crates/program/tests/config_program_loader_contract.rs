@@ -463,6 +463,90 @@ fn case_only_alias_retains_ts1410_files_list_related_information() {
 }
 
 #[test]
+fn case_only_alias_retains_ts1408_include_pattern_related_information() {
+    let host = MemoryCompilerHost::builder("/project")
+        .case_sensitive(false)
+        .file(
+            "/project/main.ts",
+            b"import { value } from './Value';\n".to_vec(),
+        )
+        .file("/project/value.ts", b"export const value = 1;\n".to_vec())
+        .build()
+        .expect("build case-insensitive include host");
+    let text = r#"{"note":"😀","compilerOptions":{"noEmit":true,"noLib":true,"types":[]},"include":["**/*.ts"]}"#;
+    let plan = parse_config_root_plan(&CompilerConfigHost::new(&host), request(text))
+        .expect("parse include-pattern alias config");
+    let prepared = load_config_program(
+        &host,
+        &plan,
+        &LibraryCatalog::typescript_6_0_3("/vendor/typescript/lib"),
+        LIMITS,
+    )
+    .expect("load include-pattern alias config");
+
+    let diagnostic = prepared
+        .diagnostics()
+        .program()
+        .iter()
+        .find(|diagnostic| diagnostic.code() == 1261)
+        .expect("case-only include alias publishes TS1261");
+    let inclusion_reasons = &diagnostic.message.next[0].next;
+    assert_eq!(inclusion_reasons[1].code, 1407);
+    assert_eq!(
+        inclusion_reasons[1].text,
+        "Matched by include pattern '**/*.ts' in '/project/tsconfig.json'"
+    );
+    assert!(diagnostic.related_information_present);
+    let [related] = diagnostic.related.as_slice() else {
+        panic!("TS1261 must point back to the matching include entry");
+    };
+    assert_eq!(related.message.code, 1408);
+    assert_eq!(related.file_name.as_deref(), Some("/project/tsconfig.json"));
+    let literal_byte = text.rfind("\"**/*.ts\"").expect("include literal span");
+    let literal_utf16 = text[..literal_byte].encode_utf16().count() as u32;
+    assert_eq!(related.start, Some(literal_utf16));
+    assert_eq!(related.length, Some("\"**/*.ts\"".len() as u32));
+}
+
+#[test]
+fn case_only_alias_retains_default_include_reason_without_related_information() {
+    let host = MemoryCompilerHost::builder("/project")
+        .case_sensitive(false)
+        .file(
+            "/project/main.ts",
+            b"import { value } from './Value';\n".to_vec(),
+        )
+        .file("/project/value.ts", b"export const value = 1;\n".to_vec())
+        .build()
+        .expect("build case-insensitive default-include host");
+    let text = r#"{"compilerOptions":{"noEmit":true,"noLib":true,"types":[]}}"#;
+    let plan = parse_config_root_plan(&CompilerConfigHost::new(&host), request(text))
+        .expect("parse default-include alias config");
+    let prepared = load_config_program(
+        &host,
+        &plan,
+        &LibraryCatalog::typescript_6_0_3("/vendor/typescript/lib"),
+        LIMITS,
+    )
+    .expect("load default-include alias config");
+
+    let diagnostic = prepared
+        .diagnostics()
+        .program()
+        .iter()
+        .find(|diagnostic| diagnostic.code() == 1261)
+        .expect("case-only default-include alias publishes TS1261");
+    let inclusion_reasons = &diagnostic.message.next[0].next;
+    assert_eq!(inclusion_reasons[1].code, 1457);
+    assert_eq!(
+        inclusion_reasons[1].text,
+        "Matched by default include pattern '**/*'"
+    );
+    assert!(!diagnostic.related_information_present);
+    assert!(diagnostic.related.is_empty());
+}
+
+#[test]
 #[ignore = "local H0 program oracle audit; requires the pinned Node runtime"]
 fn missing_library_config_related_information_matches_vendored_typescript() {
     const PROBE: &str = r#"

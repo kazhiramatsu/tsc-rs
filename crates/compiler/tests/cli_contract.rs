@@ -406,24 +406,31 @@ fn no_emit_cli_case_only_alias_matrix_matches_vendored_typescript() {
     fs::write(tree.path("value.ts"), "export const value: number = 1;\n")
         .expect("write case-alias target");
 
-    for casing in [None, Some(false), Some(true)] {
-        let casing_option = casing.map_or_else(String::new, |value| {
-            format!(",\"forceConsistentCasingInFileNames\":{value}")
-        });
-        fs::write(
-            tree.path("tsconfig.json"),
-            format!(
-                r#"{{"compilerOptions":{{"noEmit":true,"lib":["es5"]{casing_option}}},"files":["main.ts","value.ts"]}}"#
-            ),
-        )
-        .expect("write case-alias config");
-        assert_typescript_parity(&tree, &["-p", "tsconfig.json"], &["-p", "tsconfig.json"]);
-        let rust = run(&tree, &["--pretty", "-p", "tsconfig.json"]);
-        let typescript =
-            run_typescript_no_color(&tree, &["--noEmit", "--pretty", "-p", "tsconfig.json"]);
-        assert_eq!(rust.status.code(), typescript.status.code());
-        assert_eq!(rust.stdout, typescript.stdout);
-        assert_eq!(rust.stderr, typescript.stderr);
+    for root_field in [
+        r#", "files":["main.ts","value.ts"]"#,
+        r#", "include":["**/*.ts"]"#,
+        r#", "files":["main.ts"],"include":["**/*.ts"]"#,
+        "",
+    ] {
+        for casing in [None, Some(false), Some(true)] {
+            let casing_option = casing.map_or_else(String::new, |value| {
+                format!(",\"forceConsistentCasingInFileNames\":{value}")
+            });
+            fs::write(
+                tree.path("tsconfig.json"),
+                format!(
+                    r#"{{"compilerOptions":{{"noEmit":true,"lib":["es5"]{casing_option}}}{root_field}}}"#
+                ),
+            )
+            .expect("write case-alias config");
+            assert_typescript_parity(&tree, &["-p", "tsconfig.json"], &["-p", "tsconfig.json"]);
+            let rust = run(&tree, &["--pretty", "-p", "tsconfig.json"]);
+            let typescript =
+                run_typescript_no_color(&tree, &["--noEmit", "--pretty", "-p", "tsconfig.json"]);
+            assert_eq!(rust.status.code(), typescript.status.code());
+            assert_eq!(rust.stdout, typescript.stdout);
+            assert_eq!(rust.stderr, typescript.stderr);
+        }
     }
 }
 

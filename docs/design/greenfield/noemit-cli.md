@@ -613,12 +613,14 @@ general proof of those semantics. General filesystem config discovery and
 package redirects during program construction remain in later slices. The
 focused case-only alias diagnostics now match the pinned TypeScript oracle in
 plain and pretty output. Config-backed aliases retain the first matching root
-`files` literal and publish TypeScript's TS1410 related context; pretty
-rendering no longer mistakes digits inside inclusion-chain paths for source
-gutters. Include-pattern TS1408 provenance and the complete cross-platform
-case/separator/symlink/encoding matrix remain open. Discovery stays sequential
-where vendored host calls and failure precedence are observable; future
-pipeline parallelism must preserve that contract.
+`files` or `include` literal and publish TypeScript's TS1410 or TS1408 related
+context. Explicit include roots retain TS1407 with the config spelling, while
+the implicit `**/*` root reason retains TS1457 without fabricated related
+syntax. Pretty rendering no longer mistakes digits inside inclusion-chain
+paths for source gutters. The complete cross-platform
+case/separator/symlink/encoding matrix remains open. Discovery stays
+sequential where vendored host calls and failure precedence are observable;
+future pipeline parallelism must preserve that contract.
 
 The compiler-suite harness now exposes a bounded `load_compiler_no_emit`
 adapter. It reconstructs the recorded compiler fixture VFS (including

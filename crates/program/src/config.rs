@@ -1402,7 +1402,9 @@ pub fn parse_config_root_plan(
     let root_reasons = config_root_reasons(
         &file_names,
         node.files.as_deref(),
+        node.include.as_deref(),
         &config_base,
+        &node.source.file_name,
         host.use_case_sensitive_file_names(),
     )?;
     let project_references = config_project_references(node.references.as_ref(), &config_base);
@@ -4418,35 +4420,78 @@ fn config_option_module_suffixes(options: &ConfigOptionBag) -> Option<Vec<Module
     )
 }
 
+/// tsc-port: getMatchedFileSpec @6.0.3
+/// tsc-hash: e2dca297bc277048704a713d9d169ddd59813bce20d200095738473671da5915
+/// tsc-span: _tsc.js:129276-129284
+/// tsc-port: getMatchedIncludeSpec @6.0.3
+/// tsc-hash: c19a07b2779a4153a04034ed25d80da875bb9796ce33f327899e55168d145ca2
+/// tsc-span: _tsc.js:129285-129299
 fn config_root_reasons(
     file_names: &[String],
     files: Option<&[ConfigSpec]>,
+    include: Option<&[ConfigSpec]>,
     config_base_path: &str,
+    config_file_name: &str,
     case_sensitive: bool,
 ) -> Result<Vec<RootFileReason>, ConfigParseError> {
-    let Some(files) = files else {
-        return Ok(vec![RootFileReason::Explicit; file_names.len()]);
-    };
-    let mut normalized = Vec::with_capacity(files.len());
-    for spec in files {
-        normalized.push((
+    let mut normalized_files = Vec::with_capacity(files.map_or(0, <[ConfigSpec]>::len));
+    for spec in files.unwrap_or(&[]) {
+        normalized_files.push((
             canonical_key(
                 &normalized_spec_path(spec, config_base_path)?,
                 case_sensitive,
             ),
-            spec.text.clone(),
+            Arc::<str>::from(spec.text.as_str()),
         ));
     }
+
+    let mut include_patterns = Vec::with_capacity(include.map_or(0, <[ConfigSpec]>::len));
+    for spec in include.unwrap_or(&[]) {
+        if invalid_trailing_recursion_pattern(&spec.text)
+            || invalid_dot_dot_after_recursive_wildcard(&spec.text)
+        {
+            continue;
+        }
+        let host_spec = config_host_spec(spec, config_base_path)?;
+        let pattern = ConfigFilePattern::new(&host_spec, config_base_path, case_sensitive)
+            .map_err(|detail| {
+                ConfigParseError::new(
+                    ConfigParseErrorKind::InvalidPath,
+                    Some(host_spec.clone()),
+                    detail,
+                )
+            })?;
+        if let Some(pattern) = pattern {
+            include_patterns.push((pattern, host_spec, Arc::<str>::from(spec.text.as_str())));
+        }
+    }
+    let config_file = Arc::<str>::from(config_file_name);
+    let default_include = files.is_none() && include.is_none();
+
     Ok(file_names
         .iter()
         .map(|file_name| {
             let key = canonical_key(file_name, case_sensitive);
-            let spec = normalized
+            if let Some((_, spec)) = normalized_files
                 .iter()
                 .find(|(candidate, _)| candidate == &key)
-                .map(|(_, spec)| spec.clone())
-                .unwrap_or_else(|| file_name.clone());
-            RootFileReason::FilesList { spec }
+            {
+                return RootFileReason::FilesList { spec: spec.clone() };
+            }
+            if let Some((_, _, spec)) = include_patterns.iter().find(|(pattern, host_spec, _)| {
+                (!file_extension_is(file_name, ".json") || host_spec.ends_with(".json"))
+                    && pattern.matches(file_name)
+            }) {
+                return RootFileReason::IncludePattern {
+                    spec: spec.clone(),
+                    config_file: config_file.clone(),
+                };
+            }
+            if default_include {
+                RootFileReason::DefaultInclude
+            } else {
+                RootFileReason::Explicit
+            }
         })
         .collect())
 }
