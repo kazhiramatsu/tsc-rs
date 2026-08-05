@@ -1725,6 +1725,7 @@ fn config_option_is_supported_by_h0(name: &str) -> bool {
             | "lib"
             | "jsx"
             | "noEmit"
+            | "noResolve"
             | "importHelpers"
             | "downlevelIteration"
             | "strictBuiltinIteratorReturn"
@@ -4212,6 +4213,7 @@ fn config_module_resolution_options(
         lib: config_option_lib(options),
         jsx: config_option_i32(options, "jsx"),
         no_emit: config_option_bool(options, "noEmit"),
+        no_resolve: config_option_bool(options, "noResolve"),
         import_helpers: config_option_bool(options, "importHelpers"),
         downlevel_iteration: config_option_bool(options, "downlevelIteration"),
         strict_builtin_iterator_return: config_option_bool(options, "strictBuiltinIteratorReturn"),

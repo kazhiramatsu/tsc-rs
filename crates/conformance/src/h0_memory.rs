@@ -234,29 +234,31 @@ pub(crate) fn run(
             )?;
             host_resolutions.push((key.clone(), host_outcome, loads_source));
         }
-        for directive in plan.type_reference_directives() {
-            let key = directive.key().clone();
-            let index = if let Some(index) = type_reference_indices.get(&key).copied() {
-                index
-            } else {
-                let host_outcome = resolver.resolve_type_reference(
-                    source.prepared.path().canonical().as_path(),
-                    key.specifier(),
-                    key.mode(),
-                    program_options.type_roots(),
-                )?;
-                let index = host_type_reference_resolutions.len();
-                host_type_reference_resolutions.push((key.clone(), host_outcome, Vec::new()));
-                type_reference_indices.insert(key.clone(), index);
-                index
-            };
-            if matches!(
-                &host_type_reference_resolutions[index].1,
-                ResolutionOutcome::NotFound
-            ) {
-                host_type_reference_resolutions[index].2.push(
-                    unresolved_type_reference_diagnostic(&source.prepared, directive)?,
-                );
+        if options.no_resolve != Some(true) {
+            for directive in plan.type_reference_directives() {
+                let key = directive.key().clone();
+                let index = if let Some(index) = type_reference_indices.get(&key).copied() {
+                    index
+                } else {
+                    let host_outcome = resolver.resolve_type_reference(
+                        source.prepared.path().canonical().as_path(),
+                        key.specifier(),
+                        key.mode(),
+                        program_options.type_roots(),
+                    )?;
+                    let index = host_type_reference_resolutions.len();
+                    host_type_reference_resolutions.push((key.clone(), host_outcome, Vec::new()));
+                    type_reference_indices.insert(key.clone(), index);
+                    index
+                };
+                if matches!(
+                    &host_type_reference_resolutions[index].1,
+                    ResolutionOutcome::NotFound
+                ) {
+                    host_type_reference_resolutions[index].2.push(
+                        unresolved_type_reference_diagnostic(&source.prepared, directive)?,
+                    );
+                }
             }
         }
     }
@@ -390,7 +392,12 @@ fn bind_host_outcome(
             });
     let target_canonical = host_module.resolved_file().canonical().as_path();
     let owned_source = source_by_canonical.get(target_canonical);
-    let target = if host_module.extension().is_javascript() && owned_source.is_none() {
+    let target = if options.no_resolve == Some(true) && owned_source.is_none() {
+        ResolvedModuleTarget::Unloaded {
+            resolved_file: host_module.resolved_file().clone(),
+            reason: UnloadedModuleReason::NoResolve,
+        }
+    } else if host_module.extension().is_javascript() && owned_source.is_none() {
         let reason = if matches!(host_module.extension(), ModuleExtension::Jsx)
             && options.jsx.unwrap_or(0) == 0
         {

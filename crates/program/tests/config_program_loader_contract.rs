@@ -345,6 +345,49 @@ fn config_plan_projects_checker_options_into_the_prepared_program() {
 }
 
 #[test]
+fn config_plan_projects_no_resolve_and_keeps_dependencies_out_of_the_program() {
+    let host = MemoryCompilerHost::builder("/project")
+        .file(
+            "/project/main.ts",
+            concat!(
+                "/// <reference path=\"./path.ts\" />\n",
+                "/// <reference types=\"pkg\" />\n",
+                "import './dependency';\n",
+            )
+            .as_bytes()
+            .to_vec(),
+        )
+        .file("/project/path.ts", b"export {};".to_vec())
+        .file("/project/dependency.ts", b"export {};".to_vec())
+        .file(
+            "/project/node_modules/@types/pkg/index.d.ts",
+            b"export {};".to_vec(),
+        )
+        .build()
+        .expect("build noResolve config host");
+    let adapter = ConfigHostAdapter::new(&host);
+    let plan = parse_config_root_plan(
+        &adapter,
+        request(
+            r#"{"compilerOptions":{"noEmit":true,"noLib":true,"noResolve":true,"module":"commonjs","moduleResolution":"node"},"files":["main.ts"]}"#,
+        ),
+    )
+    .expect("parse noResolve config plan");
+
+    let prepared = load_config_program(
+        &host,
+        &plan,
+        &LibraryCatalog::typescript_6_0_3("/vendor/typescript/lib"),
+        LIMITS,
+    )
+    .expect("load noResolve config program");
+    assert_eq!(prepared.compiler_options().no_resolve, Some(true));
+    assert_eq!(prepared.source_files().len(), 1);
+    assert_eq!(prepared.resolutions().module_len(), 1);
+    assert_eq!(prepared.resolutions().type_reference_len(), 0);
+}
+
+#[test]
 fn filesystem_and_memory_config_programs_are_identical() {
     let tree = TempTree::new();
     let source = b"const value: number = 1;\n";

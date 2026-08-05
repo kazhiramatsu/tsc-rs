@@ -195,6 +195,11 @@ pub struct CompilerOptions {
     /// when noEmit is set (filterSemanticDiagnostics 125664). 727
     /// conformance fixtures carry the directive (469 true-valued).
     pub no_emit: Option<bool>,
+    /// Prevents program source discovery from following path, type, and
+    /// module references. TypeScript still resolves module requests so their
+    /// diagnostics remain authoritative; it only suppresses adding resolved
+    /// targets to the source graph.
+    pub no_resolve: Option<bool>,
     /// Imports downlevel emit helpers from `tslib`. Unlike the
     /// transformer-side use of this option, checkExternalEmitHelpers
     /// is semantic: it verifies that an in-program helper module

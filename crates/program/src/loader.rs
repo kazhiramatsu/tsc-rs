@@ -1674,10 +1674,20 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
         let type_reference_directives = self.sources[source].type_reference_directives.clone();
         let lib_reference_directives = self.sources[source].lib_reference_directives.clone();
 
-        for reference in path_references {
-            self.process_path_reference(source, &reference, depth, node_modules_depth)?;
+        // `noResolve` only suppresses path/type-reference source discovery.
+        // Module requests still go through the resolver below so their
+        // authoritative resolution facts and diagnostics remain available.
+        if self.compiler_options.no_resolve != Some(true) {
+            for reference in path_references {
+                self.process_path_reference(source, &reference, depth, node_modules_depth)?;
+            }
+            self.process_type_references(
+                source,
+                type_reference_directives,
+                depth,
+                node_modules_depth,
+            )?;
         }
-        self.process_type_references(source, type_reference_directives, depth, node_modules_depth)?;
         if self.program_options.no_lib() != Some(true) {
             self.process_lib_references(
                 source,
@@ -2176,6 +2186,11 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                     continue;
                 }
             }
+            if self.compiler_options.no_resolve == Some(true) {
+                self.module_resolutions[index].unloaded_reason =
+                    Some(UnloadedModuleReason::NoResolve);
+                continue;
+            }
             if !loads_source {
                 continue;
             }
@@ -2406,6 +2421,7 @@ fn publish_program(
             &package_map,
             resolution.loads_source,
             resolution.unloaded_reason,
+            compiler_options.no_resolve == Some(true),
         )
         .map_err(|error| {
             ProgramLoadError::resolution(
@@ -2463,6 +2479,7 @@ fn bind_module_resolution(
     package_map: &BTreeMap<String, bool>,
     loads_source: bool,
     unloaded_reason: Option<UnloadedModuleReason>,
+    no_resolve: bool,
 ) -> Result<ModuleResolution, ResolutionError> {
     let alternate_result = host.alternate_result().cloned();
     let ResolutionOutcome::Resolved(module) = host.into_outcome() else {
@@ -2480,7 +2497,12 @@ fn bind_module_resolution(
             )
         });
     let owned_source = source_by_canonical.get(module.resolved_file().canonical());
-    let target = if module.extension().is_javascript() && owned_source.is_none() {
+    let target = if no_resolve && owned_source.is_none() {
+        ResolvedModuleTarget::Unloaded {
+            resolved_file: module.resolved_file().clone(),
+            reason: unloaded_reason.unwrap_or(UnloadedModuleReason::NoResolve),
+        }
+    } else if module.extension().is_javascript() && owned_source.is_none() {
         let reason = unloaded_reason.ok_or_else(|| {
             ResolutionError::unsupported(
                 "unexplained-unloaded-javascript",

@@ -1770,6 +1770,64 @@ fn duplicate_missing_type_references_share_one_row_but_keep_each_ts2688_span() {
 }
 
 #[test]
+fn no_resolve_keeps_module_resolution_but_skips_reference_source_discovery() {
+    let host = MemoryCompilerHost::builder("/work")
+        .file(
+            "/work/root.ts",
+            concat!(
+                "/// <reference path=\"./path.ts\" />\n",
+                "/// <reference types=\"pkg\" />\n",
+                "import { value } from './dependency';\n",
+                "export { value };\n",
+            )
+            .as_bytes()
+            .to_vec(),
+        )
+        .file("/work/path.ts", b"export const path = true;".to_vec())
+        .file("/work/dependency.ts", b"export const value = 1;".to_vec())
+        .file(
+            "/work/node_modules/@types/pkg/index.d.ts",
+            b"export {};".to_vec(),
+        )
+        .build()
+        .expect("build noResolve host");
+
+    let program = load_with_options(
+        &host,
+        &["/work/root.ts"],
+        CompilerOptions {
+            module: Some(1),
+            module_resolution: Some(2),
+            no_resolve: Some(true),
+            ..compiler_options()
+        },
+        program_options(),
+        generous_limits(),
+    )
+    .expect("noResolve still resolves module requests");
+
+    assert_eq!(source_paths(&program), [Path::new("/work/root.ts")]);
+    assert_eq!(program.resolutions().type_reference_len(), 0);
+    let key = module_key(&program, "/work/root.ts", "./dependency");
+    let resolution = program
+        .resolutions()
+        .require_module(&key)
+        .expect("noResolve module request has an authoritative row");
+    let ResolutionOutcome::Resolved(resolved) = resolution.outcome() else {
+        panic!("noResolve module request must resolve");
+    };
+    let ResolvedModuleTarget::Unloaded {
+        resolved_file,
+        reason,
+    } = resolved.target()
+    else {
+        panic!("noResolve must keep the target out of source membership");
+    };
+    assert_eq!(resolved_file.display(), Path::new("/work/dependency.ts"));
+    assert_eq!(*reason, UnloadedModuleReason::NoResolve);
+}
+
+#[test]
 fn module_not_found_and_unloaded_javascript_are_both_authoritative_rows() {
     let root_text = "import './missing';\nimport './dependency.js';\nexport {};\n";
     let host = MemoryCompilerHost::builder("/work")

@@ -346,11 +346,7 @@ fn apply_project_runner_existing_options(
                 options.strict = Some(property_bool(&property.value, "strict")?);
             }
             "noResolve" => {
-                if property_bool(&property.value, "noResolve")? {
-                    return Err(error(
-                        "project no-emit executor does not support noResolve=true",
-                    ));
-                }
+                options.no_resolve = Some(property_bool(&property.value, "noResolve")?);
             }
             "scenario" | "projectRoot" | "inputFiles" | "baselineCheck" | "runTest" | "project" => {
             }

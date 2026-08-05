@@ -506,6 +506,12 @@ manifests before filtering dot directories, excludes exactly packages whose
 decoded JSON or JSONC has `typings: null`, and performs case-sensitive stable
 first-wins deduplication after flattening.
 
+The `noResolve` branch follows the same boundary as
+`findSourceFileWorker`: path and type-reference discovery is skipped, while
+module requests are still resolved and retained as authoritative unloaded
+rows without adding their targets to source membership. An explicitly rooted
+target remains owned and is still published normally.
+
 All automatic names are resolved under the normalized
 `__inferred type names__.ts` synthetic origin and unspecified mode before the
 first target is visited. Resolved declaration targets then run sequential DFS
@@ -621,8 +627,9 @@ defaults before forcing `noEmit=true`, and it delegates config validation to
 the program-owned fail-closed gate. The adapter is qualified on representative
 explicit and discovered projects, including the `NestedDeclare` ambient
 import-equals boundary. Descriptor/config requests for declaration, source
-maps, output paths, `noResolve`, and other emit-only controls remain typed
-unsupported outcomes; they are not counted as executed no-emit cases.
+maps, output paths, and other emit-only controls remain typed unsupported
+outcomes; `noResolve` is projected into the same source-discovery boundary as
+the production loader and is no longer rejected by the adapter.
 
 ### H0.5 — tsconfig and command-line driver
 

@@ -182,6 +182,7 @@ fn compiler_option_kind(name: &str) -> Option<CompilerOptionKind> {
         | "usedefineforclassfields"
         | "useunknownincatchvariables"
         | "noemit"
+        | "noresolve"
         | "importhelpers"
         | "downleveliteration"
         | "strictbuiltiniteratorreturn"
@@ -338,6 +339,7 @@ fn project_compiler_options(options: &BTreeMap<String, OptionValue>) -> Compiler
         use_define_for_class_fields: bool_option("useDefineForClassFields"),
         use_unknown_in_catch_variables: bool_option("useUnknownInCatchVariables"),
         no_emit: bool_option("noEmit"),
+        no_resolve: bool_option("noResolve"),
         import_helpers: bool_option("importHelpers"),
         downlevel_iteration: bool_option("downlevelIteration"),
         strict_builtin_iterator_return: bool_option("strictBuiltinIteratorReturn"),
