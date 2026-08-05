@@ -421,8 +421,20 @@ fn execute_prepared(
     let outcome = ProgramSession::new(prepared)
         .run()
         .map_err(|error| CliError::Driver(error.to_string()))?;
-    let mut diagnostics = outcome.into_diagnostics();
-    diagnostics.extend(additional_diagnostics.iter().cloned());
+    // Config-owned non-fatal option rows are supplied separately from the
+    // prepared program. Insert them at the same bucket boundary as
+    // `getOptionsDiagnostics`, before global and semantic rows; appending
+    // them after `into_diagnostics` would make TS5107 appear after semantic
+    // diagnostics and would violate the command-line ordering contract.
+    let mut diagnostics = Vec::new();
+    diagnostics.extend(outcome.config_diagnostics().iter().cloned());
+    diagnostics.extend(outcome.syntactic_diagnostics().iter().cloned());
+    if outcome.syntactic_diagnostics().is_empty() {
+        diagnostics.extend(outcome.options_diagnostics().iter().cloned());
+        diagnostics.extend(additional_diagnostics.iter().cloned());
+        diagnostics.extend(outcome.global_diagnostics().iter().cloned());
+        diagnostics.extend(outcome.semantic_diagnostics().iter().cloned());
+    }
     rendered_diagnostics(current_directory, &source_texts, &diagnostics, pretty)
 }
 

@@ -131,6 +131,34 @@ fn semantic_diagnostics_are_stdout_and_exit_one() {
 }
 
 #[test]
+fn config_option_diagnostics_are_rendered_alongside_semantic_diagnostics() {
+    let tree = TempTree::new();
+    fs::write(tree.path("main.ts"), "const value: number = 'wrong';\n").expect("write source");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"noEmit":true,"lib":["es5"],"moduleResolution":"node"},"files":["main.ts"]}"#,
+    )
+    .expect("write config");
+
+    let output = run(&tree, &["--pretty=false"]);
+    assert_eq!(output.status.code(), Some(1));
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let option = stdout
+        .find("tsconfig.json(1,1): error TS5107:")
+        .unwrap_or_else(|| panic!("missing TS5107 in output: {stdout}"));
+    let semantic = stdout
+        .find("main.ts(1,7): error TS2322:")
+        .unwrap_or_else(|| panic!("missing TS2322 in output: {stdout}"));
+    // The formatter applies TypeScript's global diagnostic sort by file name
+    // after the bucket driver has assembled its options-before-semantic view.
+    assert!(
+        semantic < option,
+        "diagnostic rendering order drifted: {stdout}"
+    );
+    assert!(output.stderr.is_empty());
+}
+
+#[test]
 fn pretty_false_uses_plain_output_and_pretty_true_uses_context() {
     let tree = TempTree::new();
     fs::write(tree.path("main.ts"), "const value: number = 'wrong';\n").expect("write source");
