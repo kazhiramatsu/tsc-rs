@@ -481,6 +481,20 @@ fn no_emit_cli_root_dirs_and_node_next_matrix_matches_vendored_typescript() {
         &["-p", "tsconfig.json"],
         &["-p", "tsconfig.json"],
     );
+    for module in ["node18", "node20"] {
+        fs::write(
+            node_next_tree.path("tsconfig.json"),
+            format!(
+                r#"{{"compilerOptions":{{"noEmit":true,"target":"es2022","module":"{module}"}},"files":["main.ts"]}}"#
+            ),
+        )
+        .expect("write Node module-mode config");
+        assert_typescript_parity(
+            &node_next_tree,
+            &["-p", "tsconfig.json"],
+            &["-p", "tsconfig.json"],
+        );
+    }
 }
 
 #[test]
