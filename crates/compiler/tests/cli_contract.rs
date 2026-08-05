@@ -369,6 +369,73 @@ fn no_emit_cli_current_directory_discovery_matches_vendored_typescript() {
 }
 
 #[test]
+#[ignore = "local H0 CLI oracle audit; requires the pinned Node runtime"]
+fn no_emit_cli_root_dirs_and_node_next_matrix_matches_vendored_typescript() {
+    let root_dirs_tree = TempTree::new();
+    fs::create_dir_all(root_dirs_tree.path("src/project")).expect("create source root");
+    fs::create_dir_all(root_dirs_tree.path("generated/src/project"))
+        .expect("create generated root");
+    fs::write(
+        root_dirs_tree.path("src/file1.ts"),
+        "import { x } from './project/file3';\nconst value: string = x;\n",
+    )
+    .expect("write rootDirs importer");
+    fs::write(
+        root_dirs_tree.path("src/project/file2.d.ts"),
+        "export declare const x: number;\n",
+    )
+    .expect("write source declaration");
+    fs::write(
+        root_dirs_tree.path("generated/src/project/file3.ts"),
+        "export { x } from '../file2';\n",
+    )
+    .expect("write generated implementation");
+    fs::write(
+        root_dirs_tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"noEmit":true,"lib":["es5"],"rootDirs":["src","generated/src"]},"files":["src/file1.ts"]}"#,
+    )
+    .expect("write rootDirs config");
+    assert_typescript_parity(
+        &root_dirs_tree,
+        &["-p", "tsconfig.json"],
+        &["-p", "tsconfig.json"],
+    );
+
+    let node_next_tree = TempTree::new();
+    fs::create_dir_all(node_next_tree.path("node_modules/pkg")).expect("create NodeNext package");
+    fs::write(
+        node_next_tree.path("main.ts"),
+        "import { value } from 'pkg';\nconst checked: number = value;\n",
+    )
+    .expect("write NodeNext importer");
+    fs::write(
+        node_next_tree.path("node_modules/pkg/package.json"),
+        r#"{"name":"pkg","type":"module","exports":{".":{"types":"./index.d.ts","default":"./index.js"}}}"#,
+    )
+    .expect("write NodeNext package manifest");
+    fs::write(
+        node_next_tree.path("node_modules/pkg/index.d.ts"),
+        "export declare const value: number;\n",
+    )
+    .expect("write NodeNext declaration");
+    fs::write(
+        node_next_tree.path("node_modules/pkg/index.js"),
+        "export const value = 1;\n",
+    )
+    .expect("write NodeNext implementation");
+    fs::write(
+        node_next_tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"noEmit":true,"target":"es2022","module":"nodenext","moduleResolution":"nodenext"},"files":["main.ts"]}"#,
+    )
+    .expect("write NodeNext config");
+    assert_typescript_parity(
+        &node_next_tree,
+        &["-p", "tsconfig.json"],
+        &["-p", "tsconfig.json"],
+    );
+}
+
+#[test]
 fn config_option_diagnostics_are_rendered_alongside_semantic_diagnostics() {
     let tree = TempTree::new();
     fs::write(tree.path("main.ts"), "const value: number = 'wrong';\n").expect("write source");
