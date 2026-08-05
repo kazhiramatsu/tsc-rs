@@ -53,10 +53,9 @@ closure, attested burn-in, fingerprint freeze, 14-window qualification, and
 final close. It is paused after the landed M9.1b true-replay foundation.
 
 **H0 filesystem-hosted no-emit contract:**
-[noemit-cli.md](noemit-cli.md) — the active follow-on plan for the missing
-host boundary: owned program/session seams, exact module and package
-resolution, filesystem/config loading, no-emit diagnostics, rendering, and
-exit behavior.
+[noemit-cli.md](noemit-cli.md) — the completed frozen profile for the host
+boundary: owned program/session seams, exact module and package resolution,
+filesystem/config loading, no-emit diagnostics, rendering, and exit behavior.
 
 **Complete JSDoc subsystem:**
 [m8-jsdoc-ast-materialization.md](m8-jsdoc-ast-materialization.md) — the
@@ -175,7 +174,7 @@ is one commit.
 | M7 unused/grammar/suggestion | [m7-tail-steps.md](m7-tail-steps.md) | T0 ≥ 63%; T1 measured and ratcheted |
 | M8 diagnostics close | [m8-readiness.md](m8-readiness.md) + [M8 execution](m8-execution-and-close.md) | supported-scope T0-T3 and T4 complete; escapes zero; all-corpus FP=0 |
 | M9 differential-fuzzer steady state — paused after M9.1b | [M9 execution](m9-execution-and-close.md) + [evidence contract](evidence-and-steady-state.md#31-m9-steady-state) | preflight/domain/owner burn-in green, then `fuzz steady-state --require-ready`: 14 frozen-fingerprint 100,000-case windows, rate < 1 new class/window, no untriaged incident or unresolved owner task |
-| H0 filesystem-hosted `--noEmit` — active | [H0 execution](noemit-cli.md) | exact closure of the 241 host-resolution identities, MemoryHost/FsHost equivalence, config/CLI/output parity, no emitted files |
+| H0 filesystem-hosted `--noEmit` — complete | [H0 execution](noemit-cli.md) | exact closure of the 241 host-resolution identities, MemoryHost/FsHost equivalence, config/CLI/output parity, embedded libraries, no emitted files |
 
 The T0 percentages are calibration points from the first
 implementation's history, not promises; the gate is "meets or beats,
@@ -252,8 +251,9 @@ band. It first freezes those identities in
 declarations, positive canaries, and reviewed typed controls. The shared
 host/session and resolution-table seam follows, then package/module owners
 close under `MemoryCompilerHost` before the same implementation connects to
-the filesystem, tsconfig, and CLI. The recorded resource observations are
-pre-H0 references; H0.6 owns the final resolver/CLI profiles and budgets.
+the filesystem, tsconfig, and CLI. The recorded resource observations remain
+pre-H0 references; `ratchets/h0-qualification.v1.json` freezes H0.6's final
+CLI/local-gate profiles and budgets.
 
 ## Conventions
 

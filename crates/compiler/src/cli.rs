@@ -118,10 +118,13 @@ struct CliCompilerHost {
 }
 
 impl CliCompilerHost {
-    fn new(filesystem: FsCompilerHost) -> Self {
+    fn new(filesystem: FsCompilerHost, current_directory: &Path) -> Self {
         Self {
             filesystem,
-            library_directory: embedded_library_directory(),
+            library_directory: current_directory
+                .join(".tsc-rs-embedded-569177652966bd52")
+                .join(TYPESCRIPT_VERSION)
+                .join("lib"),
         }
     }
 
@@ -141,17 +144,6 @@ impl CliCompilerHost {
             .binary_search_by_key(&name, |(candidate, _)| *candidate)
             .ok()
             .map(|index| embedded_libraries::TYPESCRIPT_6_0_3_LIBRARIES[index].1)
-    }
-}
-
-fn embedded_library_directory() -> PathBuf {
-    #[cfg(windows)]
-    {
-        PathBuf::from("C:/__tsc_rs_embedded__/6.0.3/lib")
-    }
-    #[cfg(not(windows))]
-    {
-        PathBuf::from("/__tsc_rs_embedded__/6.0.3/lib")
     }
 }
 
@@ -238,7 +230,7 @@ fn execute(args: &[String]) -> Result<CliOutput, CliError> {
     let filesystem = FsCompilerHost::from_process().map_err(host_error)?;
     let pretty = command_line.pretty.unwrap_or_else(default_pretty);
     let current_directory = filesystem.current_directory().map_err(host_error)?;
-    let host = CliCompilerHost::new(filesystem);
+    let host = CliCompilerHost::new(filesystem, &current_directory);
     let catalog = LibraryCatalog::typescript_6_0_3(host.library_directory());
 
     if let Some(project) = command_line.project {
@@ -1201,7 +1193,10 @@ mod tests {
     #[test]
     fn embedded_library_overlay_owns_the_pinned_catalog_bytes() {
         let filesystem = FsCompilerHost::from_process().expect("construct filesystem host");
-        let host = CliCompilerHost::new(filesystem);
+        let current_directory = filesystem
+            .current_directory()
+            .expect("read current directory");
+        let host = CliCompilerHost::new(filesystem, &current_directory);
         assert_eq!(embedded_libraries::TYPESCRIPT_6_0_3_LIBRARIES.len(), 108);
 
         let embedded_path = host.library_directory().join("lib.es5.d.ts");

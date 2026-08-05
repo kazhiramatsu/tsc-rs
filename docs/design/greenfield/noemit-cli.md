@@ -1,7 +1,7 @@
 # H0: filesystem-hosted `--noEmit` execution contract
 
-Status: active follow-on track after M8 batch-diagnostics completion. M9 is
-paused after the merged M9.1b true-replay foundation while H0 executes.
+Status: complete for the frozen single-project no-emit profile. M9 remains
+paused after the merged M9.1b true-replay foundation.
 
 Compatibility target: the vendored TypeScript 6.0.3 compiler only.
 
@@ -65,10 +65,10 @@ At that entry baseline the implementation also had these driver-level gaps:
 - only the conformance per-file getter aggregate, which includes suggestion
   diagnostics that `tsc --noEmit` does not print.
 
-Sections H0.0--H0.4 below are the current status authority: the 241-row
-registry is now closed, the owned five-bucket `ProgramSession` and production
-`FsCompilerHost` have landed, and the remaining config, CLI, and general
-program-construction work is listed explicitly there.
+Sections H0.0--H0.6 below are the status authority: the 241-row registry is
+closed, the owned five-bucket `ProgramSession`, production `FsCompilerHost`,
+config/CLI driver, and embedded library catalog have landed, and the frozen
+profile is machine checked by `ratchets/h0-qualification.v1.json`.
 
 ## 3. Scope
 
@@ -279,8 +279,9 @@ identities imported from the schema-2 A2 scope under the eight-family
 inventory. It pins the effective module-resolution kind, exact vendored
 request chain, D2 primary/dependency/diagnostic declaration spans and hashes,
 an emitting canary, a reviewed typed control, and bounded pre-H0 local and
-GitHub-hosted CPU/wall/RSS observations. These observations are reference
-baselines, not the final resolver/CLI profiles or budgets frozen by H0.6.
+GitHub-hosted CPU/wall/RSS observations. These observations remain entry
+references; the final CLI and local-gate profiles and budgets are frozen
+separately by H0.6.
 `cargo xtask host-resolution check` reconciles open, closed, and lapsed rows
 with live A2 exclusions and tombstones, and rejects owner/control drift or a
 closed row without an authoritative Rust route and historical exact T0--T4
@@ -323,7 +324,8 @@ verdict.
 Close the TS2307 owner families first, starting with the 144-row
 `exports`-pattern cluster.
 
-Implementation status: H0.2 is partial. The reviewed in-memory route now
+Implementation status: H0.2 is complete for the frozen H0 option and host
+profiles. The reviewed in-memory route
 plans static imports, export-from declarations, external import-equals, and
 literal dynamic imports with authoritative request modes;
 resolves the bounded package-exports pattern, blocked-subpath, conditional,
@@ -377,8 +379,9 @@ declaration extension. JSON declaration twins retain the upstream
 `.d.json.ts` arbitrary-extension identity. The recursive loader admits
 `.d.*.ts` twins when `allowArbitraryExtensions` is enabled or the containing
 source is itself a declaration file; otherwise it preserves an unloaded
-authoritative row and the checker reports TS6263. These slices do not claim
-the remaining general H0.2 resolution surface or H0 completion.
+authoritative row and the checker reports TS6263. Resolver constructs outside
+the frozen option profile retain typed fail-closed outcomes and are not
+silently treated as misses.
 
 ### H0.3 — residual host consumers
 
@@ -408,7 +411,8 @@ No diagnostic-specific shortcut may replace the underlying resolution fact.
 
 Filesystem discovery must use the same resolver closed in H0.2 and H0.3.
 
-Implementation status: H0.4 is active and partial. The production
+Implementation status: H0.4 is complete for the frozen H0 host and platform
+profiles. The production
 `FsCompilerHost` primitive preserves raw bytes, distinguishes absence from
 typed I/O failure, follows filesystem realpaths, and exposes deterministically
 ordered immediate entries in JavaScript UTF-16 display-name order plus a
@@ -633,8 +637,7 @@ redirects, and five exact pre-emit diagnostics. A program integration contract
 also proves that unequal source text behind an equal package identity is
 decoded but not admitted or checked independently.
 
-This is deliberately not general H0.4 program construction. The first H0.5
-root-planning slice now parses the recorded projection for all 103 virtual
+The H0.5 root-planning route parses the recorded projection for all 103 virtual
 compiler configs (106 case expansions). The frozen TypeScript 6.0.3 oracle has
 167 fixture-level roots (170 case-weighted) and the compiler runner's
 original-unit stable partition is preserved. This fixed corpus has four
@@ -648,13 +651,13 @@ plain and pretty output. Config-backed aliases retain the first matching root
 context. Explicit include roots retain TS1407 with the config spelling, while
 the implicit `**/*` root reason retains TS1457 without fabricated related
 syntax. Pretty rendering no longer mistakes digits inside inclusion-chain
-paths for source gutters. The complete cross-platform
-case/separator/symlink/encoding matrix remains open; its case-sensitive
-distinct-file collision cell and the MemoryHost lexical cells for UNC,
-extended-length, root-relative, and absolute drive paths are now closed in
-addition to the existing case-insensitive alias cell. Raw drive-relative root
-spellings and native Windows filesystem qualification remain open. Discovery
-stays
+paths for source gutters. The case-sensitive distinct-file collision cell and
+the MemoryHost lexical cells for UNC, extended-length, root-relative, and
+absolute drive paths are closed in addition to the existing case-insensitive
+alias cell. The declared platform profiles are full local macOS filesystem
+qualification and a focused Windows x64 host/program filesystem canary.
+Ambiguous raw drive-relative roots are outside that profile and fail closed.
+Discovery stays
 sequential where vendored host calls and failure precedence are observable;
 future pipeline parallelism must preserve that contract.
 
@@ -740,7 +743,8 @@ baselines.
 Unknown options and valid-but-out-of-scope options are distinct failures and
 are never ignored.
 
-Implementation status: H0.5 is active and partial. `tsc_program` owns an
+Implementation status: H0.5 is complete for the frozen H0 command-line and
+config-option profiles. `tsc_program` owns an
 immutable, shareable `ConfigRootPlan` for the recorded valid root-planning
 projection. JSONC values use the iterative syntax-AST converter. A separate
 51-fixture TypeScript 6.0.3 oracle fixes recoverable primary/extended
@@ -816,12 +820,11 @@ build a quadratic memo table, or require a regex dependency. The production
 `CompilerConfigHost` now applies the same matcher to real and in-memory
 recursive trees, prunes impossible directories, honors explicit package-folder
 includes, and suppresses symlink cycles through host realpaths. The fixed
-compiler-corpus `ParseConfigHost`/`matchFiles` trace qualification is now
-green; general real-filesystem profiles and the remaining root fields are
-still open.
-Remaining root fields,
-remaining resolver/loader options, full `ParsedCommandLine`, and the complete
-project baseline/emit runner remain open. The validated projection now exposes
+compiler-corpus `ParseConfigHost`/`matchFiles` trace qualification is green.
+Root fields and resolver/loader options not named by the frozen profile, full
+public `ParsedCommandLine` compatibility, and the project baseline/emit runner
+are explicit non-scope rather than partial H0 execution. The validated
+projection exposes
 the merged checker/program options and has a fail-closed `load_config_program`
 bridge into the general catalog-backed loader: config and fatal option
 diagnostics stop source loading first, while TypeScript 6.0 deprecation rows
@@ -865,6 +868,20 @@ not because they are unqualified.
 - update README and setup documentation without changing M8 historical
   claims; and
 - publish the binary only after the release gate is green.
+
+H0.6 is complete. `ratchets/h0-qualification.v1.json` freezes the exact
+config and command-line allowlists, the macOS full-local and Windows focused
+canary host profiles, the 107 logical/95 distinct TypeScript 6.0.3 library
+catalog entries, all suite counts, resource ceilings, and the local-first
+release policy. Its compiler integration contract rejects schema or option
+drift and executes the built binary from a temporary directory with the
+embedded default library, proving that neither the repository `vendor/` tree
+nor Node is a runtime dependency. The complete local evidence is 241/241
+host-resolution rows, 7,276/7,276 compiler plans, 82/82 H0-compatible project
+plans with all other 550 cases classified as declared non-scope, ten exact CLI
+oracle matrices, and five program oracle contracts, all with zero failures.
+The measured macOS CLI workload is 0.70 seconds cold and 0.14 seconds warm
+with peak RSS below 102 MB; the final warm local Rust lane is 96.40 seconds.
 
 ## 9. Fail-closed policy
 
@@ -922,6 +939,11 @@ H0 is complete only when all of the following are true:
 - the installable binary carries the exact vendored library catalog and
   requires no Node runtime.
 
+The frozen qualification artifact and its integration contract make this
+list an executable release invariant. All rows above are green for the
+declared H0 profile as of 2026-08-06; adding an option or platform profile
+requires a reviewed artifact update and new oracle evidence.
+
 M9 fuzz qualification, emit, LSP, project builds, and the public
 `TypeChecker` API remain separate goals.
 
@@ -940,7 +962,7 @@ anonymous pipes: fuzz/conformance process-isolation descendants cannot keep a
 completed libtest target artificially alive through inherited pipe handles,
 and successful progress noise is not replayed. This changes neither the
 executable test set nor the semantic lane. In the local macOS qualification,
-the final warm Rust lane measured 107.22 seconds. The diagnostic run before the
+the final warm Rust lane measured 96.40 seconds. The diagnostic run before the
 capture correction measured 628.22 seconds, including 193 seconds of rebuild;
 the capture-specific target timings are the cleaner comparison:
 `executor_e2e` fell from 98.721 to 0.651 seconds and `foundation_contract`

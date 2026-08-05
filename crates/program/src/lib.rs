@@ -107,6 +107,7 @@ pub use config::{
     ConfigProgramLoadError, ConfigProjectReference, ConfigRootPlan, ConfigRootPlanRequest,
     ConfigSourceText, ConfigTypedJsonValue, ConfigTypedListElement, ConfigTypedObjectProperty,
     ConfigTypedObjectShape, ConfigTypedObjectValue, ConfigWildcardDirectory,
+    H0_SUPPORTED_CONFIG_OPTIONS,
 };
 pub use config_host::CompilerConfigHost;
 pub use config_matcher::ConfigFilePattern;

@@ -29,6 +29,7 @@ cargo xtask conformance --syntactic-only
 cargo xtask invariants --suite all  # sampled determinism/idempotence developer run
 cargo xtask invariants --suite all --full-corpus  # completion/CI row 10
 cargo xtask completion              # report all 11 final completion rows
+cargo test -p tsc-rs-compiler --test h0_qualification_contract
 cargo xtask m8 trace --program-json target/probe/program.json --code 8020 \
   --out target/m8-trace.json        # targeted D2 trace; report-only
 ```
@@ -127,6 +128,10 @@ The `tsc-rs` executable embeds the pinned TypeScript 6.0.3 standard-library
 bytes at build time. After it has been built or installed, running a no-emit
 project does not require this repository's `vendor/` directory or a Node
 runtime; Node is needed only for the optional oracle comparisons above.
+The strict `h0_qualification_contract` test validates the frozen option,
+host, library, suite, and resource profile in
+`ratchets/h0-qualification.v1.json`, then launches the built binary from a
+temporary directory to exercise that standalone packaging boundary.
 
 The full gate list, the trusted-base variants, and the per-artifact
 audit commands (`ratchet check`, `scope audit`, `families check`,
