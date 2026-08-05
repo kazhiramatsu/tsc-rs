@@ -73,8 +73,12 @@
 //! config/option diagnostic gate and mandatory `noEmit=true` boundary. The
 //! harness separately uses this boundary for six focused official
 //! `NodeModulesSearch` variants without claiming their emit baselines.
+//! [`CompilerConfigHost`] provides the shared `CompilerHost` to
+//! [`ConfigParseHost`] adapter used by both filesystem and memory-backed
+//! config discovery.
 
 mod config;
+mod config_host;
 mod config_matcher;
 mod config_options;
 mod error;
@@ -96,6 +100,7 @@ pub use config::{
     ConfigSourceText, ConfigTypedJsonValue, ConfigTypedListElement, ConfigTypedObjectProperty,
     ConfigTypedObjectShape, ConfigTypedObjectValue,
 };
+pub use config_host::CompilerConfigHost;
 pub use config_matcher::ConfigFilePattern;
 pub use config_options::{
     compiler_option_declaration, compiler_option_declarations, compiler_option_spelling_suggestion,

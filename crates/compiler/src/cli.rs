@@ -6,7 +6,6 @@
 //! flags and infrastructure failures return exit status 2; ordinary TypeScript
 //! diagnostics return status 1.
 
-use std::cmp::Ordering;
 use std::collections::BTreeMap;
 use std::env;
 use std::error::Error;
@@ -23,9 +22,9 @@ use tsc_diagnostics::{
 use tsc_host::{CompilerHost, FsCompilerHost, HostError};
 use tsc_program::{
     decode_host_text, load_config_program, load_config_program_with_no_emit_override, load_program,
-    parse_config_root_plan, CompilerOptions, ConfigFilePattern, ConfigHostError,
-    ConfigHostOperation, ConfigParseError, ConfigParseHost, ConfigProgramLoadError, ConfigRootPlan,
-    ConfigRootPlanRequest, LibraryCatalog, ProgramLoadLimits, ProgramOptions,
+    parse_config_root_plan, CompilerConfigHost, CompilerOptions, ConfigParseError,
+    ConfigProgramLoadError, ConfigRootPlan, ConfigRootPlanRequest, LibraryCatalog,
+    ProgramLoadLimits, ProgramOptions,
 };
 
 use crate::ProgramSession;
@@ -34,7 +33,6 @@ const EXIT_SUCCESS: i32 = 0;
 const EXIT_DIAGNOSTIC: i32 = 1;
 const EXIT_FAILURE: i32 = 2;
 const CONFIG_FILE_NAME: &str = "tsconfig.json";
-const MAX_DIRECTORY_DEPTH: usize = 256;
 const DEFAULT_LIMITS: ProgramLoadLimits = ProgramLoadLimits::new(
     1_000_000,
     2_000_000,
@@ -636,7 +634,7 @@ fn parse_config_file(
         .parent()
         .and_then(Path::to_str)
         .ok_or_else(|| CliError::Config("config parent path is not Unicode".to_owned()))?;
-    let adapter = FsConfigHost { host };
+    let adapter = CompilerConfigHost::new(host);
     let plan = parse_config_root_plan(
         &adapter,
         ConfigRootPlanRequest {
@@ -701,153 +699,6 @@ fn host_error(error: HostError) -> CliError {
 
 fn config_error(error: ConfigParseError) -> CliError {
     CliError::Config(error.to_string())
-}
-
-fn config_host_error(
-    operation: ConfigHostOperation,
-    path: &str,
-    error: HostError,
-) -> ConfigHostError {
-    ConfigHostError::new(operation, path, error.to_string())
-}
-
-struct FsConfigHost<'a> {
-    host: &'a dyn CompilerHost,
-}
-
-impl ConfigParseHost for FsConfigHost<'_> {
-    fn use_case_sensitive_file_names(&self) -> bool {
-        self.host.use_case_sensitive_file_names()
-    }
-
-    fn file_exists(&self, path: &str) -> Result<bool, ConfigHostError> {
-        self.host
-            .file_exists(Path::new(path))
-            .map_err(|error| config_host_error(ConfigHostOperation::FileExists, path, error))
-    }
-
-    fn read_file(&self, path: &str) -> Result<Option<String>, ConfigHostError> {
-        let Some(bytes) = self
-            .host
-            .read_file(Path::new(path))
-            .map_err(|error| config_host_error(ConfigHostOperation::ReadFile, path, error))?
-        else {
-            return Ok(None);
-        };
-        decode_host_text(bytes).map(Some).map_err(|error| {
-            ConfigHostError::new(ConfigHostOperation::ReadFile, path, error.to_string())
-        })
-    }
-
-    fn read_directory(
-        &self,
-        directory: &str,
-        extensions: &[&str],
-        excludes: Option<&[String]>,
-        includes: Option<&[String]>,
-        depth: Option<usize>,
-    ) -> Result<Vec<String>, ConfigHostError> {
-        let case_sensitive = self.host.use_case_sensitive_file_names();
-        let include_patterns = compile_patterns(includes, directory, case_sensitive)?;
-        let exclude_patterns = compile_patterns(excludes, directory, case_sensitive)?;
-        let mut files = Vec::new();
-        self.walk_directory(
-            Path::new(directory),
-            extensions,
-            &include_patterns,
-            &exclude_patterns,
-            depth.unwrap_or(MAX_DIRECTORY_DEPTH),
-            &mut files,
-        )?;
-        files.sort_by(|left, right| compare_utf16(left, right));
-        Ok(files)
-    }
-}
-
-impl FsConfigHost<'_> {
-    fn walk_directory(
-        &self,
-        directory: &Path,
-        extensions: &[&str],
-        includes: &[ConfigFilePattern],
-        excludes: &[ConfigFilePattern],
-        depth: usize,
-        files: &mut Vec<String>,
-    ) -> Result<(), ConfigHostError> {
-        if depth == 0 {
-            return Ok(());
-        }
-        let entries = self.host.read_directory(directory).map_err(|error| {
-            config_host_error(
-                ConfigHostOperation::ReadDirectory,
-                &directory.display().to_string(),
-                error,
-            )
-        })?;
-        for entry in entries {
-            let text = entry.to_str().ok_or_else(|| {
-                ConfigHostError::new(
-                    ConfigHostOperation::ReadDirectory,
-                    entry.display().to_string(),
-                    "filesystem entry is not Unicode",
-                )
-            })?;
-            if self.host.directory_exists(&entry).map_err(|error| {
-                config_host_error(ConfigHostOperation::ReadDirectory, text, error)
-            })? {
-                if is_implicit_excluded_directory(&entry) {
-                    continue;
-                }
-                if !excludes.iter().any(|pattern| pattern.matches(text)) {
-                    self.walk_directory(&entry, extensions, includes, excludes, depth - 1, files)?;
-                }
-                continue;
-            }
-            if !extensions.iter().any(|extension| text.ends_with(extension)) {
-                continue;
-            }
-            if excludes.iter().any(|pattern| pattern.matches(text)) {
-                continue;
-            }
-            if includes.is_empty() || includes.iter().any(|pattern| pattern.matches(text)) {
-                files.push(text.to_owned());
-            }
-        }
-        Ok(())
-    }
-}
-
-fn compile_patterns(
-    patterns: Option<&[String]>,
-    directory: &str,
-    case_sensitive: bool,
-) -> Result<Vec<ConfigFilePattern>, ConfigHostError> {
-    let mut compiled = Vec::new();
-    for pattern in patterns.unwrap_or(&[]) {
-        let pattern =
-            ConfigFilePattern::new(pattern, directory, case_sensitive).map_err(|detail| {
-                ConfigHostError::new(ConfigHostOperation::ReadDirectory, directory, detail)
-            })?;
-        if let Some(pattern) = pattern {
-            compiled.push(pattern);
-        }
-    }
-    Ok(compiled)
-}
-
-fn is_implicit_excluded_directory(path: &Path) -> bool {
-    path.file_name()
-        .and_then(|name| name.to_str())
-        .is_some_and(|name| {
-            matches!(
-                name.to_ascii_lowercase().as_str(),
-                "node_modules" | "bower_components" | "jspm_packages"
-            )
-        })
-}
-
-fn compare_utf16(left: &str, right: &str) -> Ordering {
-    left.encode_utf16().cmp(right.encode_utf16())
 }
 
 #[cfg(test)]

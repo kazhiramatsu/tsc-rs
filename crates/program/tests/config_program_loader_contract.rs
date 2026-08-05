@@ -7,8 +7,9 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use tsc_host::{CompilerHost, FsCompilerHost, MemoryCompilerHost};
 use tsc_program::{
     decode_host_text, load_config_program, load_config_program_with_no_emit_override,
-    parse_config_root_plan, ConfigHostError, ConfigHostOperation, ConfigParseHost,
-    ConfigProgramLoadError, ConfigRootPlanRequest, LibraryCatalog, ProgramLoadLimits,
+    parse_config_root_plan, CompilerConfigHost, ConfigHostError, ConfigHostOperation,
+    ConfigParseHost, ConfigProgramLoadError, ConfigRootPlanRequest, LibraryCatalog,
+    ProgramLoadLimits,
 };
 
 const LIMITS: ProgramLoadLimits = ProgramLoadLimits::new(128, 512, 32, 1 << 20, 1 << 22);
@@ -370,6 +371,56 @@ fn filesystem_and_memory_config_programs_are_identical() {
         .expect("filesystem config program");
     let memory_program = load_config_program(&memory, &memory_plan, &catalog, LIMITS)
         .expect("memory config program");
+    assert_eq!(filesystem_program, memory_program);
+}
+
+#[test]
+fn shared_compiler_host_config_adapter_keeps_include_exclude_equivalent() {
+    let tree = TempTree::new();
+    fs::create_dir_all(tree.path("src/generated")).expect("create config directories");
+    fs::write(tree.path("src/main.ts"), "const main = 1;\n").expect("write main source");
+    fs::write(
+        tree.path("src/generated/ignored.ts"),
+        "const ignored = 1;\n",
+    )
+    .expect("write generated source");
+    fs::write(tree.path("src/readme.txt"), "ignored\n").expect("write text source");
+
+    let filesystem = FsCompilerHost::new(&tree.root, true).expect("filesystem compiler host");
+    let memory = MemoryCompilerHost::builder(&tree.root)
+        .case_sensitive(true)
+        .file(tree.path("src/main.ts"), b"const main = 1;\n".to_vec())
+        .file(
+            tree.path("src/generated/ignored.ts"),
+            b"const ignored = 1;\n".to_vec(),
+        )
+        .file(tree.path("src/readme.txt"), b"ignored\n".to_vec())
+        .build()
+        .expect("memory compiler host");
+    let config_text = r#"{"compilerOptions":{"noEmit":true,"noLib":true},"include":["src/**/*.ts"],"exclude":["src/generated"]}"#;
+
+    let filesystem_plan = parse_config_root_plan(
+        &CompilerConfigHost::new(&filesystem),
+        request_at(&tree.root, config_text),
+    )
+    .expect("filesystem include/exclude plan");
+    let memory_plan = parse_config_root_plan(
+        &CompilerConfigHost::new(&memory),
+        request_at(&tree.root, config_text),
+    )
+    .expect("memory include/exclude plan");
+    assert_eq!(filesystem_plan, memory_plan);
+    let main_name = tree.path("src/main.ts").to_string_lossy().into_owned();
+    assert_eq!(
+        filesystem_plan.file_names(),
+        std::slice::from_ref(&main_name)
+    );
+
+    let catalog = LibraryCatalog::typescript_6_0_3("/vendor/typescript/lib");
+    let filesystem_program = load_config_program(&filesystem, &filesystem_plan, &catalog, LIMITS)
+        .expect("filesystem include/exclude program");
+    let memory_program = load_config_program(&memory, &memory_plan, &catalog, LIMITS)
+        .expect("memory include/exclude program");
     assert_eq!(filesystem_program, memory_program);
 }
 
