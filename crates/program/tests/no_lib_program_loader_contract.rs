@@ -1377,17 +1377,13 @@ fn loaded_case_alias_reports_ts1149_and_retains_the_alternate_spelling() {
 
 #[test]
 fn path_reference_case_alias_reports_ts1149_outside_the_root_boundary() {
+    let root_text = concat!(
+        "/// <reference path=\"./Child.ts\" />\n",
+        "/// <reference path=\"./child.ts\" />\n",
+    );
     let host = MemoryCompilerHost::builder("/Work")
         .case_sensitive(false)
-        .file(
-            "/Work/Root.ts",
-            concat!(
-                "/// <reference path=\"./Child.ts\" />\n",
-                "/// <reference path=\"./child.ts\" />\n",
-            )
-            .as_bytes()
-            .to_vec(),
-        )
+        .file("/Work/Root.ts", root_text.as_bytes().to_vec())
         .file("/Work/Child.ts", b"export {};".to_vec())
         .build()
         .expect("build case-insensitive path-reference host");
@@ -1402,7 +1398,10 @@ fn path_reference_case_alias_reports_ts1149_outside_the_root_boundary() {
     assert_eq!(program.diagnostics().program().len(), 1);
     let diagnostic = &program.diagnostics().program()[0];
     assert_eq!(diagnostic.code(), 1149);
-    assert_eq!(diagnostic.file_name, None);
+    let start = root_text.find("./child.ts").expect("reference span") as u32;
+    assert_eq!(diagnostic.file_name.as_deref(), Some("/Work/Root.ts"));
+    assert_eq!(diagnostic.start, Some(start));
+    assert_eq!(diagnostic.length, Some("./child.ts".len() as u32));
 }
 
 #[test]

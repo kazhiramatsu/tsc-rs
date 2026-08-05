@@ -3073,12 +3073,21 @@ fn casing_alias_diagnostic(
             vec![incoming_name.to_owned(), existing_name.to_owned()],
         )
     };
+    // `visit_source` records the incoming occurrence before `finish` builds
+    // this diagnostic, so `existing_reasons` already contains the alias
+    // reason.  Appending it again would duplicate root/file-list entries.
     let mut reasons = existing_reasons
         .iter()
-        .chain(std::iter::once(incoming_reason))
         .filter_map(source_inclusion_reason_message)
         .collect::<Vec<_>>();
-    reasons.dedup();
+    // Root aliases retain one reason per explicit root occurrence (the
+    // program-preprocessing contract exposes that multiplicity).  A root
+    // spelling arriving after an import/reference is different: tsc reports
+    // the dependency chain once and does not repeat the same files-list
+    // reason for the alias occurrence.
+    if root_arrived_after_reference {
+        reasons.dedup();
+    }
     let message = MessageChain::new(message, &arguments).with_next(vec![MessageChain::new(
         &gen::The_file_is_in_the_program_because,
         &[],
