@@ -554,14 +554,32 @@ fn append_pretty_error_summary(
     let indices = sort_and_dedupe_diagnostic_indices_with_context(diagnostics, host);
     let mut file_counts = BTreeMap::<String, (usize, u32)>::new();
     let mut total = 0usize;
+    let mut has_fileless_error = false;
+    let config_file = source_texts.keys().find(|file_name| {
+        matches!(
+            Path::new(file_name.as_str())
+                .file_name()
+                .and_then(|name| name.to_str()),
+            Some("tsconfig.json" | "jsconfig.json")
+        )
+    });
     for index in indices {
         let diagnostic = &diagnostics[index];
-        if diagnostic.category().name() != "error" {
+        if diagnostic.category().name() != "error"
+            || is_command_line_selection_diagnostic(diagnostic.code())
+        {
             continue;
         }
-        let Some(file_name) = diagnostic.file_name.as_deref() else {
+        let file_name = diagnostic
+            .file_name
+            .as_deref()
+            .or(config_file.map(String::as_str));
+        let Some(file_name) = file_name else {
+            has_fileless_error = true;
+            total += 1;
             continue;
         };
+        has_fileless_error |= diagnostic.file_name.is_none();
         total += 1;
         let display_name = relative_file_name(file_name, current_directory);
         let line = diagnostic
@@ -598,6 +616,12 @@ fn append_pretty_error_summary(
     let noun = if total == 1 { "error" } else { "errors" };
     match file_counts.len() {
         0 => output.push_str(&format!("Found {total} {noun}.\n")),
+        1 if has_fileless_error => {
+            let (file, (_, line)) = file_counts.iter().next().expect("one file exists");
+            output.push_str(&format!(
+                "Found {total} {noun} in the same file, starting at: {file}:{line}\n"
+            ));
+        }
         1 => {
             let (file, (_, line)) = file_counts.iter().next().expect("one file exists");
             output.push_str(&format!("Found {total} {noun} in {file}:{line}\n"));
@@ -630,27 +654,75 @@ const ANSI_REVERSE: &str = "\u{1b}[7m";
 fn colorize_pretty_output(input: &str) -> String {
     let mut output = String::with_capacity(input.len() + input.len() / 2);
     let mut in_context = false;
+    let mut previous_fileless_diagnostic = false;
+    let mut previous_context_line = false;
     for line in input.split_inclusive('\n') {
         let (line, newline) = line
             .strip_suffix('\n')
             .map_or((line, ""), |line| (line, "\n"));
         if let Some(colored) = colorize_header(line) {
+            if previous_fileless_diagnostic || previous_context_line {
+                output.push('\n');
+            }
             output.push_str(&colored);
             output.push_str(newline);
             in_context = true;
+            previous_fileless_diagnostic = false;
+            previous_context_line = false;
+        } else if let Some(colored) = colorize_fileless_diagnostic(line) {
+            output.push_str(&colored);
+            output.push_str(newline);
+            in_context = false;
+            previous_fileless_diagnostic = true;
+            previous_context_line = false;
         } else if line.starts_with("Found ") {
             output.push_str(&colorize_summary(line));
             output.push_str(newline);
             in_context = false;
+            previous_fileless_diagnostic = false;
+            previous_context_line = false;
         } else if in_context {
             output.push_str(&colorize_context_line(line));
             output.push_str(newline);
+            previous_fileless_diagnostic = false;
+            previous_context_line = true;
         } else {
             output.push_str(line);
             output.push_str(newline);
+            previous_fileless_diagnostic = false;
+            previous_context_line = false;
         }
     }
     output
+}
+
+fn colorize_fileless_diagnostic(line: &str) -> Option<String> {
+    let (category, detail) = line.split_once(" TS")?;
+    let color = match category {
+        "error" if !is_command_line_selection_line(line) => ANSI_RED,
+        "warning" if !is_command_line_selection_line(line) => ANSI_YELLOW,
+        "suggestion" if !is_command_line_selection_line(line) => "\u{1b}[92m",
+        "message" if !is_command_line_selection_line(line) => ANSI_CYAN,
+        _ => return None,
+    };
+    let (code, message) = detail.split_once(": ")?;
+    if code.is_empty() || !code.bytes().all(|byte| byte.is_ascii_digit()) {
+        return None;
+    }
+    Some(format!(
+        "{color}{category}{ANSI_RESET}{ANSI_GRAY} TS{code}: {ANSI_RESET}{message}"
+    ))
+}
+
+fn is_command_line_selection_line(line: &str) -> bool {
+    line.split_once(" TS")
+        .and_then(|(_, detail)| detail.split_once(": "))
+        .and_then(|(code, _)| code.parse::<u32>().ok())
+        .is_some_and(is_command_line_selection_diagnostic)
+}
+
+fn is_command_line_selection_diagnostic(code: u32) -> bool {
+    matches!(code, 5057 | 5058 | 5112)
 }
 
 fn colorize_header(line: &str) -> Option<String> {
@@ -684,6 +756,15 @@ fn colorize_header(line: &str) -> Option<String> {
 fn colorize_context_line(line: &str) -> String {
     if line.is_empty() {
         return String::new();
+    }
+    if line.bytes().all(|byte| byte == b' ') {
+        if let Some((first, rest)) = line.split_at_checked(1) {
+            if let Some((plain, red_rest)) = rest.split_at_checked(1) {
+                return format!(
+                    "{ANSI_REVERSE}{first}{ANSI_RESET}{plain}{ANSI_RED}{red_rest}{ANSI_RESET}"
+                );
+            }
+        }
     }
     if let Some(first_tilde) = line.find('~') {
         if line[first_tilde..].bytes().all(|byte| byte == b'~') {

@@ -361,4 +361,13 @@ fn no_emit_cli_config_and_selection_matrix_matches_vendored_typescript() {
         &["--pretty", "-p", "missing.json"],
         &["--pretty", "-p", "missing.json"],
     );
+
+    let malformed = TempTree::new();
+    fs::write(malformed.path("tsconfig.json"), "{\"compilerOptions\":}\n")
+        .expect("write malformed config");
+    assert_typescript_parity(
+        &malformed,
+        &["--pretty", "-p", "tsconfig.json"],
+        &["--pretty", "-p", "tsconfig.json"],
+    );
 }
