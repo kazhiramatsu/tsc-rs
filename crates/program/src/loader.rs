@@ -1980,6 +1980,16 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
         Ok(normalize(left)? == normalize(right)?)
     }
 
+    /// Empty reference text is intentional: `combinePaths(basePath, "")`
+    /// selects the containing directory, after which the ordinary
+    /// extensionless source probe and TS6231 diagnostic apply.
+    ///
+    /// tsc-port: resolveTripleslashReference @6.0.3
+    /// tsc-hash: c265a32a7d63be44dc5f33017bd2a5e51263f267c3222e20a37afdd59f649bfc
+    /// tsc-span: _tsc.js:121904-121908
+    /// tsc-port: processReferencedFiles @6.0.3
+    /// tsc-hash: 921ee36a44bea86b4495ac4d7f7046aa22d889a2f712097a273a8fc77cecf386
+    /// tsc-span: _tsc.js:124459-124468
     fn process_path_reference(
         &mut self,
         source: usize,
@@ -1987,29 +1997,26 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
         depth: usize,
         node_modules_depth: usize,
     ) -> Result<(), ProgramLoadError> {
-        if reference.file_name().is_empty() {
-            return Err(ProgramLoadError::unsupported(
-                ProgramLoadOperation::NormalizeReference,
-                Some(self.sources[source].prepared.path().display().to_path_buf()),
-                "empty-path-reference",
-                "empty triple-slash path references are not yet admitted",
-            ));
-        }
         let source_path = self.sources[source].prepared.path().clone();
         let source_text = source_path
             .display()
             .to_str()
             .expect("program paths are representable");
         let base = directory_name(source_text);
-        let normalized = normalize_absolute_path(Path::new(reference.file_name()), Some(&base))
-            .map_err(|error| {
-                ProgramLoadError::resolution(
-                    ProgramLoadOperation::NormalizeReference,
-                    Some(source_path.display().to_path_buf()),
-                    Some(reference.file_name().to_owned()),
-                    error,
-                )
-            })?;
+        let normalized = if reference.file_name().is_empty() {
+            base.clone()
+        } else {
+            normalize_absolute_path(Path::new(reference.file_name()), Some(&base)).map_err(
+                |error| {
+                    ProgramLoadError::resolution(
+                        ProgramLoadOperation::NormalizeReference,
+                        Some(source_path.display().to_path_buf()),
+                        Some(reference.file_name().to_owned()),
+                        error,
+                    )
+                },
+            )?
+        };
         let has_extension = reference
             .file_name()
             .rsplit(['/', '\\'])

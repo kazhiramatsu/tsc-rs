@@ -1,4 +1,5 @@
 use std::path::{Path, PathBuf};
+use std::process::Command;
 #[cfg(unix)]
 use std::sync::atomic::{AtomicU64, Ordering};
 #[cfg(unix)]
@@ -6,6 +7,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 #[cfg(unix)]
 use std::{fs, io};
 
+use serde_json::{json, Value};
 #[cfg(unix)]
 use tsc_host::FsCompilerHost;
 use tsc_host::{CompilerHost, HostError, HostErrorKind, HostOperation, MemoryCompilerHost};
@@ -1640,6 +1642,112 @@ fn extensionless_path_references_probe_ts_then_tsx_then_dts_and_report_ts6231() 
         Some(root_missing.find("./pick-missing").unwrap() as u32)
     );
     assert_eq!(diagnostic.length, Some("./pick-missing".len() as u32));
+}
+
+#[test]
+fn empty_path_references_probe_the_containing_directory_and_report_located_ts6231() {
+    let root_text = "/// <reference path=\"\" />\nexport {};\n";
+    let missing_host = MemoryCompilerHost::builder("/work")
+        .file("/work/main.ts", root_text.as_bytes().to_vec())
+        .build()
+        .expect("build empty-path-reference host");
+    let missing = load(&missing_host, &["/work/main.ts"], generous_limits())
+        .expect("an empty path reference is a normal extensionless miss");
+
+    assert_eq!(source_paths(&missing), [Path::new("/work/main.ts")]);
+    let [diagnostic] = missing.diagnostics().program() else {
+        panic!("empty path reference must publish one TS6231 diagnostic");
+    };
+    assert_eq!(diagnostic.code(), 6231);
+    assert_eq!(diagnostic.file_name.as_deref(), Some("/work/main.ts"));
+    let empty_value = root_text.find("\"\"").expect("empty reference literal") as u32 + 1;
+    assert_eq!(diagnostic.start, Some(empty_value));
+    assert_eq!(diagnostic.length, Some(0));
+    assert_eq!(
+        diagnostic.message_text(),
+        "Could not resolve the path '/work' with the extensions: '.ts', '.tsx', '.d.ts', '.cts', '.d.cts', '.mts', '.d.mts'."
+    );
+
+    let resolved_host = MemoryCompilerHost::builder("/work")
+        .file("/work/main.ts", root_text.as_bytes().to_vec())
+        .file("/work.ts", b"export {};".to_vec())
+        .build()
+        .expect("build resolved empty-path-reference host");
+    let resolved = load(&resolved_host, &["/work/main.ts"], generous_limits())
+        .expect("the containing directory participates in extensionless probing");
+    assert_eq!(
+        source_paths(&resolved),
+        [Path::new("/work.ts"), Path::new("/work/main.ts")]
+    );
+    assert!(resolved.diagnostics().program().is_empty());
+}
+
+#[test]
+#[ignore = "local H0 program oracle audit; requires the pinned Node runtime"]
+fn empty_path_reference_diagnostic_matches_vendored_typescript() {
+    const PROBE: &str = r#"
+const ts = require(process.argv[1]);
+const text = '/// <reference path="" />\nexport {};\n';
+const options = { noEmit: true, noLib: true, types: [] };
+const host = ts.createCompilerHost(options);
+host.getCurrentDirectory = () => '/work';
+host.fileExists = path => path === '/work/main.ts';
+host.readFile = path => path === '/work/main.ts' ? text : undefined;
+host.directoryExists = path => path === '/work';
+host.getDirectories = () => [];
+host.getSourceFile = (path, target) => path === '/work/main.ts'
+  ? ts.createSourceFile(path, text, target, true)
+  : undefined;
+const program = ts.createProgram({ rootNames: ['/work/main.ts'], options, host });
+const diagnostic = ts.getPreEmitDiagnostics(program).find(row => row.code === 6231);
+if (!diagnostic) throw new Error('missing TS6231');
+process.stdout.write(JSON.stringify({
+  code: diagnostic.code,
+  file: diagnostic.file && diagnostic.file.fileName,
+  start: diagnostic.start,
+  length: diagnostic.length,
+  message: ts.flattenDiagnosticMessageText(diagnostic.messageText, '\n'),
+}));
+"#;
+    let bundle = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../..")
+        .join("vendor/typescript-6.0.3/lib/typescript.js");
+    let output = Command::new("node")
+        .arg("-e")
+        .arg(PROBE)
+        .arg(bundle)
+        .output()
+        .expect("run vendored TypeScript empty-path probe");
+    assert!(
+        output.status.success(),
+        "TypeScript probe failed: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let oracle: Value = serde_json::from_slice(&output.stdout).expect("probe output is JSON");
+
+    let text = "/// <reference path=\"\" />\nexport {};\n";
+    let host = MemoryCompilerHost::builder("/work")
+        .file("/work/main.ts", text.as_bytes().to_vec())
+        .build()
+        .expect("build Rust empty-path oracle host");
+    let program = load(&host, &["/work/main.ts"], generous_limits())
+        .expect("load Rust empty-path oracle program");
+    let diagnostic = program
+        .diagnostics()
+        .program()
+        .iter()
+        .find(|row| row.code() == 6231)
+        .expect("Rust publishes TS6231");
+    assert_eq!(
+        json!({
+            "code": diagnostic.code(),
+            "file": diagnostic.file_name,
+            "start": diagnostic.start,
+            "length": diagnostic.length,
+            "message": diagnostic.message_text(),
+        }),
+        oracle
+    );
 }
 
 #[test]

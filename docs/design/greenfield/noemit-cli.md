@@ -430,7 +430,10 @@ same semantic converter, but not the resolver's I/O cache, filters automatic
 type packages with `typings: null`. The syntax parser owns the single leading-pragma
 observation for path, type, and lib references, and the source request plan
 projects those references together with module keys and the exact
-resolution-only versus source-loading distinction.
+resolution-only versus source-loading distinction. An empty triple-slash path
+literal selects the containing directory, participates in the ordinary
+extensionless source probe, and publishes a located zero-length TS6231 miss
+instead of becoming an infrastructure failure.
 
 The bounded recursive loader is complete through both `load_no_lib_program`
 and the catalog-enabled `load_program`. Both require `noEmit=true` and accept
