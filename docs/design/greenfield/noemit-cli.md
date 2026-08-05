@@ -664,6 +664,10 @@ with that immutable table instead of rescanned by every resolver.
 The public `ConfigRootPlan` also retains the effective `files`, `include`,
 and `exclude` spec lists after extends rebasing, preserving absent versus
 explicit-empty states alongside the discovered `fileNames` projection.
+The public plan also retains the primary-only raw `references` value and the
+effective inherited `watchOptions`, `typeAcquisition`, and `compileOnSave`
+values. These fields are observable for ParsedCommandLine parity, while the
+no-emit program gate rejects truthy unsupported scopes before loading sources.
 `moduleSuffixes` is projected without normalizing case, whitespace, empty
 entries, or recoverable JavaScript `undefined` slots. Every resolver file
 candidate uses TypeScript's extension-major/suffix-minor probe order, including

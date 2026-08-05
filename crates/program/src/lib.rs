@@ -73,6 +73,9 @@
 //! config/option diagnostic gate and mandatory `noEmit=true` boundary. The
 //! harness separately uses this boundary for six focused official
 //! `NodeModulesSearch` variants without claiming their emit baselines.
+//! The plan also exposes the primary-only project-reference value and the
+//! effective inherited watch/type-acquisition/compile-on-save root fields;
+//! unsupported truthy values remain fail-closed at the loader boundary.
 //! [`CompilerConfigHost`] provides the shared `CompilerHost` to
 //! [`ConfigParseHost`] adapter used by both filesystem and memory-backed
 //! config discovery.

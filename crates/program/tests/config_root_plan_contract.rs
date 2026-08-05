@@ -2333,6 +2333,54 @@ fn root_plan_exposes_effective_file_include_and_exclude_specs() {
 }
 
 #[test]
+fn root_plan_retains_noninherited_references_and_inherited_root_settings() {
+    let host = MemoryConfigHost::default()
+        .with_file(
+            "/project/base.json",
+            r#"{"references":[{"path":"base"}],"watchOptions":{"watchFile":"useFsEvents"},"typeAcquisition":{"include":["jest"]},"compileOnSave":true}"#,
+        )
+        .with_file("/project/main.ts", "const value = 1;");
+    let plan = parse_config_root_plan(
+        &host,
+        request(
+            "/project/tsconfig.json",
+            r#"{"extends":"./base.json","files":["main.ts"]}"#,
+        ),
+    )
+    .expect("root metadata projection");
+
+    assert!(plan.references().is_none());
+    assert_eq!(
+        plan.watch_options(),
+        Some(&json!({"watchFile": "useFsEvents"}))
+    );
+    assert_eq!(plan.type_acquisition(), Some(&json!({"include": ["jest"]})));
+    assert_eq!(plan.compile_on_save(), Some(&json!(true)));
+    assert_eq!(plan.raw()["compileOnSave"], json!(true));
+}
+
+#[test]
+fn own_falsey_root_settings_mask_inherited_unsupported_scopes() {
+    let host = MemoryConfigHost::default().with_file(
+        "/project/base.json",
+        r#"{"watchOptions":{"watchFile":"useFsEvents"},"typeAcquisition":{"include":["jest"]},"compileOnSave":true}"#,
+    );
+    let plan = parse_config_root_plan(
+        &host,
+        request(
+            "/project/tsconfig.json",
+            r#"{"extends":"./base.json","watchOptions":false,"typeAcquisition":null,"compileOnSave":false,"files":["main.ts"]}"#,
+        ),
+    )
+    .expect("falsey own root settings remain observable");
+
+    assert_eq!(plan.watch_options(), Some(&json!(false)));
+    assert_eq!(plan.type_acquisition(), Some(&json!(null)));
+    assert_eq!(plan.compile_on_save(), Some(&json!(false)));
+    assert_eq!(plan.unsupported_root_scopes().next(), None);
+}
+
+#[test]
 fn case_only_extended_source_spellings_remain_observable_without_a_cache() {
     let host = MemoryConfigHost::default().case_insensitive().with_file(
         "/project/base.json",

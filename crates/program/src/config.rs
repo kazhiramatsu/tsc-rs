@@ -874,6 +874,15 @@ pub struct ConfigRootPlan {
     files: Option<Vec<String>>,
     include: Option<Vec<String>>,
     exclude: Option<Vec<String>>,
+    /// Root-level `references` are observable on the primary config only;
+    /// TypeScript does not inherit them through `extends`.
+    references: Option<Value>,
+    /// These root schemas are inherited by `extends` and retained as raw
+    /// recovered values for the ParsedCommandLine-facing boundary. The
+    /// no-emit loader still rejects truthy values before source loading.
+    watch_options: Option<Value>,
+    type_acquisition: Option<Value>,
+    compile_on_save: Option<Value>,
     /// Truthy root-level schemas which the single-project no-emit loader does
     /// not consume. Keep this separate from `raw`: `raw` is intentionally a
     /// projection of the primary config and therefore cannot, by itself,
@@ -929,6 +938,27 @@ impl ConfigRootPlan {
     /// Effective `exclude` entries after extends rebasing.
     pub fn exclude(&self) -> Option<&[String]> {
         self.exclude.as_deref()
+    }
+
+    /// The primary config's raw `references` value. Project references are
+    /// deliberately not inherited by TypeScript's config merge.
+    pub fn references(&self) -> Option<&Value> {
+        self.references.as_ref()
+    }
+
+    /// Effective raw `watchOptions` after `extends` merging.
+    pub fn watch_options(&self) -> Option<&Value> {
+        self.watch_options.as_ref()
+    }
+
+    /// Effective raw `typeAcquisition` after `extends` merging.
+    pub fn type_acquisition(&self) -> Option<&Value> {
+        self.type_acquisition.as_ref()
+    }
+
+    /// Effective raw `compileOnSave` after `extends` merging.
+    pub fn compile_on_save(&self) -> Option<&Value> {
+        self.compile_on_save.as_ref()
     }
 
     /// Root-level config scopes retained for the fail-closed program gate.
@@ -1203,6 +1233,10 @@ struct ParsedConfigNode {
     inheritable_files: Option<Vec<ConfigSpec>>,
     inheritable_include: Option<Vec<ConfigSpec>>,
     inheritable_exclude: Option<Vec<ConfigSpec>>,
+    references: Option<Value>,
+    watch_options: Option<Value>,
+    type_acquisition: Option<Value>,
+    compile_on_save: Option<Value>,
     unsupported_root_scopes: BTreeSet<String>,
     extended_sources: Vec<ConfigSourceText>,
     extended_source_files: Vec<String>,
@@ -1303,6 +1337,10 @@ pub fn parse_config_root_plan(
         files,
         include,
         exclude,
+        references: node.references,
+        watch_options: node.watch_options,
+        type_acquisition: node.type_acquisition,
+        compile_on_save: node.compile_on_save,
         unsupported_root_scopes: node.unsupported_root_scopes,
         file_names,
         root_parse_diagnostics: context.root_parse_diagnostics,
@@ -1575,14 +1613,18 @@ impl ParseContext<'_> {
             .flat_map(|root| config_object_properties(&parsed, root))
             .map(|property| property.name)
             .collect::<BTreeSet<_>>();
-        let mut unsupported_root_scopes = ["watchOptions", "typeAcquisition", "compileOnSave"]
-            .into_iter()
-            .filter(|name| {
-                config_property_get(object, &raw_property_names, name)
-                    .is_some_and(json_value_is_truthy)
-            })
-            .map(str::to_owned)
-            .collect::<BTreeSet<_>>();
+        let mut unsupported_root_scopes = BTreeSet::new();
+        let own_references =
+            config_property_get(object, &raw_property_names, "references").cloned();
+        let own_watch_options_present = raw_property_names.contains("watchOptions");
+        let own_watch_options =
+            config_property_get(object, &raw_property_names, "watchOptions").cloned();
+        let own_type_acquisition_present = raw_property_names.contains("typeAcquisition");
+        let own_type_acquisition =
+            config_property_get(object, &raw_property_names, "typeAcquisition").cloned();
+        let own_compile_on_save_present = raw_property_names.contains("compileOnSave");
+        let own_compile_on_save =
+            config_property_get(object, &raw_property_names, "compileOnSave").cloned();
 
         let mut own_options = default_compiler_options(normalized_file_name, base_path);
         let mut converted_own_options = compiler_options(base_path, &parsed, &mut own_errors)?;
@@ -1628,6 +1670,9 @@ impl ParseContext<'_> {
         let mut inherited_files = None;
         let mut inherited_include = None;
         let mut inherited_exclude = None;
+        let mut inherited_watch_options = None;
+        let mut inherited_type_acquisition = None;
+        let mut inherited_compile_on_save = None;
         let mut extended_sources = Vec::new();
         let mut seen_sources = BTreeSet::new();
         let mut extended_source_files = Vec::new();
@@ -1734,7 +1779,15 @@ impl ParseContext<'_> {
                     extended_source_files.push(extended_source_file.clone());
                 }
             }
-            unsupported_root_scopes.extend(extended.unsupported_root_scopes.iter().cloned());
+            if extended.watch_options.is_some() {
+                inherited_watch_options = extended.watch_options.clone();
+            }
+            if extended.type_acquisition.is_some() {
+                inherited_type_acquisition = extended.type_acquisition.clone();
+            }
+            if extended.compile_on_save.is_some() {
+                inherited_compile_on_save = extended.compile_on_save.clone();
+            }
         }
         inherited_options.extend_from(&own_options);
         own_options = inherited_options;
@@ -1746,6 +1799,30 @@ impl ParseContext<'_> {
             .and_then(|node| config_location(&parsed, node));
         let include = own_include.or(inherited_include);
         let exclude = own_exclude.or(inherited_exclude);
+        let watch_options = if own_watch_options_present {
+            own_watch_options
+        } else {
+            inherited_watch_options
+        };
+        let type_acquisition = if own_type_acquisition_present {
+            own_type_acquisition
+        } else {
+            inherited_type_acquisition
+        };
+        let compile_on_save = if own_compile_on_save_present {
+            own_compile_on_save
+        } else {
+            inherited_compile_on_save
+        };
+        for (name, value) in [
+            ("watchOptions", watch_options.as_ref()),
+            ("typeAcquisition", type_acquisition.as_ref()),
+            ("compileOnSave", compile_on_save.as_ref()),
+        ] {
+            if value.is_some_and(json_value_is_truthy) {
+                unsupported_root_scopes.insert(name.to_owned());
+            }
+        }
         let raw_object = raw
             .as_object_mut()
             .expect("config raw was validated as an object");
@@ -1765,6 +1842,18 @@ impl ParseContext<'_> {
                                 .collect(),
                         ),
                     );
+                    raw_property_names.insert(name.to_owned());
+                }
+            }
+        }
+        for (name, value) in [
+            ("watchOptions", watch_options.as_ref()),
+            ("typeAcquisition", type_acquisition.as_ref()),
+            ("compileOnSave", compile_on_save.as_ref()),
+        ] {
+            if !raw_property_names.contains(name) {
+                if let Some(value) = value {
+                    raw_object.insert(name.to_owned(), value.clone());
                     raw_property_names.insert(name.to_owned());
                 }
             }
@@ -1798,6 +1887,10 @@ impl ParseContext<'_> {
             inheritable_files,
             inheritable_include,
             inheritable_exclude,
+            references: own_references,
+            watch_options,
+            type_acquisition,
+            compile_on_save,
             unsupported_root_scopes,
             extended_sources,
             extended_source_files,
