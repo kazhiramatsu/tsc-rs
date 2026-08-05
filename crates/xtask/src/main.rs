@@ -7783,6 +7783,7 @@ fn ci_oracle_gates(workspace: &Path) -> Result<(), Box<dyn Error>> {
         "compiler-config-plans.mjs",
         "compiler-config-diagnostics.mjs",
         "compiler-module-suffixes.mjs",
+        "compiler-package-redirects.mjs",
         "project-node-modules-search.mjs",
     ] {
         let config_driver = workspace.join("crates/oracle").join(driver);

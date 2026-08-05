@@ -4045,6 +4045,105 @@ fn direct_and_nested_symlink_type_references_share_one_source_id() {
 }
 
 #[test]
+fn equal_package_ids_retain_resolution_path_but_share_one_source_id() {
+    const FIRST: &str = "/node_modules/a/node_modules/x/index.d.ts";
+    const REDIRECT: &str = "/node_modules/b/node_modules/x/index.d.ts";
+    let host = MemoryCompilerHost::builder("/")
+        .file(
+            "/src/root.ts",
+            b"import { a } from 'a';\nimport { b } from 'b';\nexport { a, b };\n".to_vec(),
+        )
+        .file(
+            "/node_modules/a/package.json",
+            br#"{"name":"a","version":"1.0.0","types":"index.d.ts"}"#.to_vec(),
+        )
+        .file(
+            "/node_modules/a/index.d.ts",
+            b"import X from 'x';\nexport declare const a: X;\n".to_vec(),
+        )
+        .file(
+            "/node_modules/a/node_modules/x/package.json",
+            br#"{"name":"x","version":"1.2.3","types":"index.d.ts"}"#.to_vec(),
+        )
+        .file(
+            FIRST,
+            b"export default class X { private x: 1; }\n".to_vec(),
+        )
+        .file(
+            "/node_modules/b/package.json",
+            br#"{"name":"b","version":"1.0.0","types":"index.d.ts"}"#.to_vec(),
+        )
+        .file(
+            "/node_modules/b/index.d.ts",
+            b"import X from 'x';\nexport declare const b: X;\n".to_vec(),
+        )
+        .file(
+            "/node_modules/b/node_modules/x/package.json",
+            br#"{"name":"x","version":"1.2.3","types":"index.d.ts"}"#.to_vec(),
+        )
+        // TypeScript still asks the host to decode this source, but binds and
+        // checks only the first source for the exact package identity.
+        .file(
+            REDIRECT,
+            b"export default class RedirectedX { private different: 2; }\n".to_vec(),
+        )
+        .build()
+        .expect("build duplicate package-id host");
+    let program = load_with_options(
+        &host,
+        &["/src/root.ts"],
+        CompilerOptions {
+            module: Some(1),
+            module_resolution: Some(2),
+            ..compiler_options()
+        },
+        program_options(),
+        generous_limits(),
+    )
+    .expect("load exact package-id redirect");
+
+    assert!(!source_paths(&program).contains(&Path::new(REDIRECT)));
+    let first = program
+        .source_files()
+        .iter()
+        .find(|source| source.path().display() == Path::new(FIRST))
+        .expect("first package source is owned");
+    assert_eq!(
+        first
+            .package_redirect_paths()
+            .iter()
+            .map(ProgramPath::display)
+            .collect::<Vec<_>>(),
+        [Path::new(REDIRECT)],
+    );
+    let first_id = program
+        .source_id(first.path().canonical())
+        .expect("first package source has an ID");
+    let redirect_id = program
+        .source_id(first.package_redirect_paths()[0].canonical())
+        .expect("redirect spelling is indexed");
+    assert_eq!(redirect_id, first_id);
+
+    let resolution = program
+        .resolutions()
+        .require_module(&module_key(&program, "/node_modules/b/index.d.ts", "x"))
+        .expect("nested duplicate package request has a row");
+    let ResolutionOutcome::Resolved(module) = resolution.outcome() else {
+        panic!("nested duplicate package must resolve");
+    };
+    let ResolvedModuleTarget::Source {
+        source,
+        resolved_file,
+    } = module.target()
+    else {
+        panic!("redirect must remain a loaded source target");
+    };
+    assert_eq!(*source, first_id);
+    assert_eq!(resolved_file.display(), Path::new(REDIRECT));
+    assert_eq!(module.original_path(), None);
+}
+
+#[test]
 fn loaded_custom_type_root_reference_uses_physical_source_and_original_path() {
     let lexical = "/custom/types/pkg/index.d.ts";
     let physical = "/store/types/pkg/index.d.ts";

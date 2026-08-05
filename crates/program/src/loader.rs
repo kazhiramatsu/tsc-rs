@@ -814,13 +814,18 @@ fn reject_unowned_drive_relative_path(
 enum VisitState {
     Visiting(usize),
     Complete(usize),
+    /// A distinct resolved path whose exact package identity redirects to the
+    /// first source admitted for that `PackageId`.
+    PackageRedirect(usize),
     Missing,
 }
 
 impl VisitState {
     const fn source(self) -> Option<usize> {
         match self {
-            Self::Visiting(source) | Self::Complete(source) => Some(source),
+            Self::Visiting(source) | Self::Complete(source) | Self::PackageRedirect(source) => {
+                Some(source)
+            }
             Self::Missing => None,
         }
     }
@@ -864,6 +869,7 @@ impl SourceInclusionReason {
 struct DiscoveryReason {
     seeds_non_external_reachability: bool,
     inclusion: SourceInclusionReason,
+    package_id: Option<PackageId>,
 }
 
 impl DiscoveryReason {
@@ -871,6 +877,7 @@ impl DiscoveryReason {
         Self {
             seeds_non_external_reachability: true,
             inclusion: SourceInclusionReason::Root(reason),
+            package_id: None,
         }
     }
 
@@ -878,6 +885,7 @@ impl DiscoveryReason {
         Self {
             seeds_non_external_reachability: false,
             inclusion,
+            package_id: None,
         }
     }
 
@@ -885,7 +893,13 @@ impl DiscoveryReason {
         Self {
             seeds_non_external_reachability: !is_external_library_import,
             inclusion: SourceInclusionReason::AutomaticType { name },
+            package_id: None,
         }
+    }
+
+    fn with_package_id(mut self, package_id: Option<PackageId>) -> Self {
+        self.package_id = package_id;
+        self
     }
 }
 
@@ -982,6 +996,7 @@ struct StagedGraph<'host, 'options, 'resolver> {
     limits: ProgramLoadLimits,
     resolver: &'resolver mut ModuleResolver<'host>,
     states: BTreeMap<CanonicalPath, VisitState>,
+    package_id_to_source: BTreeMap<PackageId, usize>,
     files_by_name_ignore_case: BTreeMap<String, usize>,
     case_sensitive_casing_conflicts: Vec<CaseSensitiveCasingConflict>,
     sources: Vec<StagedSource>,
@@ -1018,6 +1033,7 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
             limits,
             resolver,
             states: BTreeMap::new(),
+            package_id_to_source: BTreeMap::new(),
             files_by_name_ignore_case: BTreeMap::new(),
             case_sensitive_casing_conflicts: Vec::new(),
             sources: Vec::new(),
@@ -1223,10 +1239,11 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                     target.resolved_file().clone(),
                     target.extension().clone(),
                     target.is_external_library_import(),
+                    target.package_id().cloned(),
                 )),
                 ResolutionOutcome::NotFound => None,
             };
-            let Some((target, extension, external)) = target else {
+            let Some((target, extension, external, package_id)) = target else {
                 self.type_resolutions[index]
                     .diagnostics
                     .push(automatic_type_reference_diagnostic(
@@ -1251,7 +1268,8 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                     target.clone(),
                     0,
                     usize::from(external),
-                    DiscoveryReason::automatic_type(external, name.clone()),
+                    DiscoveryReason::automatic_type(external, name.clone())
+                        .with_package_id(package_id),
                     SourceClass::Ordinary,
                 )?
                 .is_none()
@@ -1571,61 +1589,15 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
     ) -> Result<Option<usize>, ProgramLoadError> {
         if let Some(state) = self.states.get(path.canonical()).copied() {
             if let Some(source) = state.source() {
-                let first_path = self.sources[source].prepared.path();
-                if first_path.display() != path.display()
-                    && !self.normalized_display_paths_are_equal(first_path, &path)?
-                {
-                    self.sources[source]
-                        .prepared
-                        .remember_display_alias(path.display());
-                    self.sources[source]
-                        .alternate_inclusion_reasons
-                        .push((path.display().to_path_buf(), reason.inclusion.clone()));
-                }
-                if self.sources[source].class != class {
-                    return Err(ProgramLoadError::unsupported(
-                        ProgramLoadOperation::ReadSource,
-                        Some(path.display().to_path_buf()),
-                        "library-source-classification-collision",
-                        format!(
-                            "the source was first discovered as {:?} and later requested as {:?}",
-                            self.sources[source].class, class
-                        ),
-                    ));
-                }
-                let reprocess = {
-                    let staged = &mut self.sources[source];
-                    staged.inclusion_reasons.push(reason.inclusion.clone());
-                    staged.has_non_external_reason |= reason.seeds_non_external_reachability;
-                    if staged.found_searching_node_modules && node_modules_depth == 0 {
-                        // tsc clears both latches before recursively processing
-                        // the source again. A cycle can therefore observe the
-                        // promoted state without scheduling duplicate work.
-                        staged.found_searching_node_modules = false;
-                        staged.modules_with_elided_imports = false;
-                        Some(SourceReprocess {
-                            kind: SourceReprocessKind::AllReferences,
-                            source_depth: depth,
-                            node_modules_depth,
-                        })
-                    } else if staged.modules_with_elided_imports
-                        && self
-                            .compiler_options
-                            .node_modules_depth_below_limit(node_modules_depth)
-                    {
-                        staged.modules_with_elided_imports = false;
-                        Some(SourceReprocess {
-                            kind: SourceReprocessKind::ImportedModules,
-                            source_depth: depth,
-                            node_modules_depth,
-                        })
-                    } else {
-                        None
-                    }
-                };
-                if let Some(reprocess) = reprocess {
-                    self.schedule_source_reprocess(source, reprocess)?;
-                }
+                self.observe_existing_source(
+                    source,
+                    &path,
+                    depth,
+                    node_modules_depth,
+                    &reason,
+                    class,
+                    matches!(state, VisitState::PackageRedirect(_)),
+                )?;
             }
             return Ok(state.source());
         }
@@ -1678,6 +1650,32 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
             path: path.display().to_path_buf(),
             source,
         })?;
+        if let Some(package_id) = reason.package_id.as_ref() {
+            if let Some(source) = self.package_id_to_source.get(package_id).copied() {
+                // TypeScript calls host.getSourceFile before consulting the
+                // package-id map, so retain read/decode failure precedence and
+                // byte accounting even though this second AST is not admitted
+                // to the Rust parser/binder program.
+                self.total_source_bytes = total_source_bytes;
+                self.sources[source]
+                    .prepared
+                    .remember_package_redirect(path.clone());
+                self.states.insert(
+                    path.canonical().clone(),
+                    VisitState::PackageRedirect(source),
+                );
+                self.observe_existing_source(
+                    source,
+                    &path,
+                    depth,
+                    node_modules_depth,
+                    &reason,
+                    class,
+                    true,
+                )?;
+                return Ok(Some(source));
+            }
+        }
         let package_scope = self
             .resolver
             .package_scope_for_file(path.display())
@@ -1774,6 +1772,9 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
             processing_references: false,
             pending_reprocesses: VecDeque::new(),
         });
+        if let Some(package_id) = reason.package_id.clone() {
+            self.package_id_to_source.insert(package_id, source);
+        }
         if self.resolver.path_context().use_case_sensitive_file_names() {
             let canonical_text = path
                 .canonical()
@@ -1820,6 +1821,76 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
             .insert(path.canonical().clone(), VisitState::Complete(source));
         self.postorder.push(source);
         Ok(Some(source))
+    }
+
+    #[allow(clippy::too_many_arguments)] // Mirrors findSourceFileWorker's existing-source branch.
+    fn observe_existing_source(
+        &mut self,
+        source: usize,
+        path: &ProgramPath,
+        depth: usize,
+        node_modules_depth: usize,
+        reason: &DiscoveryReason,
+        class: SourceClass,
+        package_redirect: bool,
+    ) -> Result<(), ProgramLoadError> {
+        let first_path = self.sources[source].prepared.path();
+        if !package_redirect
+            && first_path.display() != path.display()
+            && !self.normalized_display_paths_are_equal(first_path, path)?
+        {
+            self.sources[source]
+                .prepared
+                .remember_display_alias(path.display());
+            self.sources[source]
+                .alternate_inclusion_reasons
+                .push((path.display().to_path_buf(), reason.inclusion.clone()));
+        }
+        if self.sources[source].class != class {
+            return Err(ProgramLoadError::unsupported(
+                ProgramLoadOperation::ReadSource,
+                Some(path.display().to_path_buf()),
+                "library-source-classification-collision",
+                format!(
+                    "the source was first discovered as {:?} and later requested as {:?}",
+                    self.sources[source].class, class
+                ),
+            ));
+        }
+        let reprocess = {
+            let staged = &mut self.sources[source];
+            staged.inclusion_reasons.push(reason.inclusion.clone());
+            staged.has_non_external_reason |= reason.seeds_non_external_reachability;
+            if staged.found_searching_node_modules && node_modules_depth == 0 {
+                // tsc clears both latches before recursively processing the
+                // source again. A cycle can therefore observe the promoted
+                // state without scheduling duplicate work.
+                staged.found_searching_node_modules = false;
+                staged.modules_with_elided_imports = false;
+                Some(SourceReprocess {
+                    kind: SourceReprocessKind::AllReferences,
+                    source_depth: depth,
+                    node_modules_depth,
+                })
+            } else if staged.modules_with_elided_imports
+                && self
+                    .compiler_options
+                    .node_modules_depth_below_limit(node_modules_depth)
+            {
+                staged.modules_with_elided_imports = false;
+                Some(SourceReprocess {
+                    kind: SourceReprocessKind::ImportedModules,
+                    source_depth: depth,
+                    node_modules_depth,
+                })
+            } else {
+                None
+            }
+        };
+        if let Some(reprocess) = reprocess {
+            self.schedule_source_reprocess(source, reprocess)?;
+        }
+        Ok(())
     }
 
     fn schedule_source_reprocess(
@@ -2276,10 +2347,11 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                     target.resolved_file().clone(),
                     target.extension().clone(),
                     target.is_external_library_import(),
+                    target.package_id().cloned(),
                 )),
                 ResolutionOutcome::NotFound => None,
             };
-            let Some((target, extension, external)) = target else {
+            let Some((target, extension, external, package_id)) = target else {
                 continue;
             };
             if !is_loadable_typescript_extension(&extension) {
@@ -2303,7 +2375,7 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                 target.clone(),
                 depth.saturating_add(1),
                 node_modules_depth.saturating_add(usize::from(external)),
-                DiscoveryReason::dependency(type_inclusion),
+                DiscoveryReason::dependency(type_inclusion).with_package_id(package_id),
                 SourceClass::Ordinary,
             )?;
             let Some(target_source) = loaded else {
@@ -2382,10 +2454,11 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                     target.extension().clone(),
                     target.is_external_library_import(),
                     target.original_path().is_some(),
+                    target.package_id().cloned(),
                 )),
                 ResolutionOutcome::NotFound => None,
             };
-            let Some((target, extension, external, has_original_path)) = target else {
+            let Some((target, extension, external, has_original_path, package_id)) = target else {
                 continue;
             };
             let child_node_modules_depth = node_modules_depth.saturating_add(usize::from(external));
@@ -2451,7 +2524,8 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                     target.clone(),
                     depth.saturating_add(1),
                     child_node_modules_depth,
-                    DiscoveryReason::dependency(inclusion.clone()),
+                    DiscoveryReason::dependency(inclusion.clone())
+                        .with_package_id(package_id.clone()),
                     SourceClass::Ordinary,
                 )?;
                 let Some(target_source) = loaded else {
@@ -2479,7 +2553,7 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                 target.clone(),
                 depth.saturating_add(1),
                 child_node_modules_depth,
-                DiscoveryReason::dependency(inclusion),
+                DiscoveryReason::dependency(inclusion).with_package_id(package_id),
                 SourceClass::Ordinary,
             )?;
             let Some(target_source) = loaded else {
@@ -2591,6 +2665,19 @@ fn publish_program(
         }
         published_ids[source_index] = Some(source_id);
         source_by_canonical.insert(prepared.path().canonical().clone(), source_id);
+        for redirect in prepared.package_redirect_paths() {
+            if let Some(previous) =
+                source_by_canonical.insert(redirect.canonical().clone(), source_id)
+            {
+                if previous != source_id {
+                    return Err(ProgramLoadError::invalid_data(
+                        ProgramLoadOperation::BuildPreparedProgram,
+                        Some(redirect.display().to_path_buf()),
+                        "package redirect identity belongs to more than one staged source",
+                    ));
+                }
+            }
+        }
     }
 
     for root in staged.roots {

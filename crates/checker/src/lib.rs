@@ -119,6 +119,9 @@ pub struct AuthoritativePackageId {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct AuthoritativeResolvedModule {
     pub target_token: AuthoritativeSourceToken,
+    /// The exact resolver-selected identity. This can differ from the target
+    /// source's file name when createProgram redirects an equal package ID.
+    pub resolved_file_name: String,
     /// Exact `resolvedUsingTsExtension` host fact. Package-map providers must
     /// derive this from the selected raw target before pattern substitution;
     /// the final resolved file extension alone is insufficient for TS2877.

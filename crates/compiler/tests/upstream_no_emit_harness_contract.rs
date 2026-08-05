@@ -1,7 +1,10 @@
+use std::collections::BTreeSet;
 use std::fs;
 use std::path::PathBuf;
 
+use serde_json::{json, Value};
 use tsc_compiler::ProgramSession;
+use tsc_diagnostics::{Diagnostic, MessageChain};
 use tsc_harness::upstream_suites::execution::{
     load_compiler_no_emit, load_node_modules_search_project, load_recorded_execution_plans,
     CompilerExecutionPlan, UpstreamExecutionInput, UpstreamExecutionPlan,
@@ -40,14 +43,6 @@ fn compiler_session_runs_recorded_no_emit_programs() {
         "typescript-6.0.3/compiler/moduleResolutionWithSymlinks_preserveSymlinks.ts#default",
         "typescript-6.0.3/compiler/arrayIterationLibES5TargetDifferent.ts#nolib%3Dtrue%2Ctarget%3Des5",
         "typescript-6.0.3/compiler/declarationEmitForGlobalishSpecifierSymlink.ts#default",
-        "typescript-6.0.3/compiler/duplicatePackage.ts#default",
-        "typescript-6.0.3/compiler/duplicatePackage_globalMerge.ts#default",
-        "typescript-6.0.3/compiler/duplicatePackage_packageIdIncludesSubModule.ts#default",
-        "typescript-6.0.3/compiler/duplicatePackage_referenceTypes.ts#default",
-        "typescript-6.0.3/compiler/duplicatePackage_relativeImportWithinPackage.ts#default",
-        "typescript-6.0.3/compiler/duplicatePackage_relativeImportWithinPackage_scoped.ts#default",
-        "typescript-6.0.3/compiler/duplicatePackage_subModule.ts#default",
-        "typescript-6.0.3/compiler/duplicatePackage_withErrors.ts#default",
         "typescript-6.0.3/compiler/binderBinaryExpressionStress.ts#default",
         "typescript-6.0.3/compiler/binderBinaryExpressionStressJs.ts#default",
         "typescript-6.0.3/compiler/moduleResolutionPackageIdWithRelativeAndAbsolutePath.ts#default",
@@ -62,6 +57,135 @@ fn compiler_session_runs_recorded_no_emit_programs() {
             .run()
             .unwrap_or_else(|error| panic!("failed to execute {case_id}: {error:?}"));
         assert!(outcome.config_diagnostics().is_empty(), "{case_id}");
+    }
+}
+
+fn message_record(message: &MessageChain) -> Value {
+    json!({
+        "code": message.code,
+        "category": message.category.name(),
+        "text": message.text,
+        "next": message.next_present.then(|| {
+            message.next.iter().map(message_record).collect::<Vec<_>>()
+        }),
+    })
+}
+
+fn diagnostic_record(diagnostic: &Diagnostic) -> Value {
+    json!({
+        "file": diagnostic.file_name,
+        "start": diagnostic.start,
+        "length": diagnostic.length,
+        "code": diagnostic.code(),
+        "category": diagnostic.category().name(),
+        "message": message_record(&diagnostic.message),
+    })
+}
+
+fn string_field<'a>(value: &'a Value, field: &str, case_id: &str) -> &'a str {
+    value[field]
+        .as_str()
+        .unwrap_or_else(|| panic!("{case_id}: oracle {field} is a string"))
+}
+
+#[test]
+fn compiler_package_redirects_match_typescript_oracle() {
+    let workspace = workspace_root();
+    let corpus = load_recorded_execution_plans(&workspace)
+        .unwrap_or_else(|error| panic!("failed to load upstream plans: {error}"));
+    let oracle: Value = serde_json::from_slice(
+        &fs::read(workspace.join("vendor/typescript-6.0.3/compiler-package-redirects.v1.json"))
+            .expect("read compiler package-redirect oracle"),
+    )
+    .expect("compiler package-redirect oracle is JSON");
+    let fixtures = oracle["fixtures"]
+        .as_array()
+        .expect("compiler package-redirect fixtures are an array");
+    assert_eq!(fixtures.len(), 8, "focused fixture inventory drifted");
+
+    for expected in fixtures {
+        let case_id = string_field(expected, "case_id", "package-redirect oracle");
+        let prepared = load_compiler_no_emit(&workspace, plan(&corpus.plans, case_id), limits())
+            .unwrap_or_else(|error| panic!("failed to load {case_id}: {error}"));
+
+        let library_paths = prepared
+            .library_files()
+            .iter()
+            .map(|source| {
+                prepared
+                    .source_file(*source)
+                    .expect("library source is owned")
+                    .path()
+                    .display()
+                    .display()
+                    .to_string()
+            })
+            .collect::<BTreeSet<_>>();
+        let mut actual_primary_sources = Vec::new();
+        let mut actual_redirects = Vec::new();
+        for source in prepared.source_files() {
+            let target = source.path().display().display().to_string();
+            if !library_paths.contains(&target) {
+                actual_primary_sources.push(target.clone());
+            }
+            for redirect in source.package_redirect_paths() {
+                let redirected = redirect.display().display().to_string();
+                assert_eq!(
+                    prepared.source_id(redirect.canonical()),
+                    prepared.source_id(source.path().canonical()),
+                    "{case_id}: redirect must join the target SourceFileId",
+                );
+                actual_redirects.push((redirected, target.clone()));
+            }
+        }
+        actual_primary_sources.sort();
+        actual_redirects.sort();
+
+        let source_rows = expected["sources"]
+            .as_array()
+            .unwrap_or_else(|| panic!("{case_id}: oracle sources are an array"));
+        let mut expected_primary_sources = source_rows
+            .iter()
+            .filter(|source| source["redirect_target"].is_null())
+            .map(|source| string_field(source, "file", case_id).to_owned())
+            .collect::<Vec<_>>();
+        let mut expected_redirects = source_rows
+            .iter()
+            .filter_map(|source| {
+                source["redirect_target"].as_str().map(|target| {
+                    (
+                        string_field(source, "file", case_id).to_owned(),
+                        target.to_owned(),
+                    )
+                })
+            })
+            .collect::<Vec<_>>();
+        expected_primary_sources.sort();
+        expected_redirects.sort();
+        assert_eq!(
+            actual_primary_sources, expected_primary_sources,
+            "{case_id}: primary source identities drifted",
+        );
+        assert_eq!(
+            actual_redirects, expected_redirects,
+            "{case_id}: package redirects drifted",
+        );
+
+        let outcome = ProgramSession::new(prepared)
+            .run()
+            .unwrap_or_else(|error| panic!("failed to execute {case_id}: {error:?}"));
+        let actual_diagnostics = outcome
+            .diagnostics()
+            .map(diagnostic_record)
+            .collect::<Vec<_>>();
+        assert_eq!(
+            actual_diagnostics,
+            expected["diagnostics"]
+                .as_array()
+                .unwrap_or_else(|| panic!("{case_id}: oracle diagnostics are an array"))
+                .clone(),
+            "{case_id}: TypeScript diagnostics drifted",
+        );
     }
 }
 

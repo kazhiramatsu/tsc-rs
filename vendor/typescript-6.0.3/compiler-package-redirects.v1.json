@@ -1,0 +1,365 @@
+{
+  "schema": 1,
+  "typescript_version": "6.0.3",
+  "source_commit": "050880ce59e30b356b686bd3144efe24f875ebc8",
+  "node_version": "25.2.1",
+  "producer": {
+    "path": "vendor/typescript-6.0.3/lib/typescript.js",
+    "sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39"
+  },
+  "manifest": {
+    "path": "vendor/typescript-6.0.3/test-suite-expansion.v1.json",
+    "sha256": "9c6e991103b571f7a8800dc5e1ef66088017689f3769de8fcdb408b2dc125188"
+  },
+  "fixture_range": {
+    "first": 2064,
+    "last": 2071
+  },
+  "summary": {
+    "fixture_total": 8,
+    "source_total": 38,
+    "redirect_total": 7,
+    "diagnostic_total": 5
+  },
+  "fixtures": [
+    {
+      "fixture_index": 2064,
+      "case_id": "typescript-6.0.3/compiler/duplicatePackage.ts#default",
+      "source": {
+        "path": "duplicatePackage.ts",
+        "sha256": "7c62aa0111d6d9bc82c5cb23fd03e186b90fb08bad194d428b89b94dc035ec93",
+        "git_blob_sha1": "d77b6cf3d64a6a77b0a7baf6a83a560b8ad2508d",
+        "decoded_sha256": "7c62aa0111d6d9bc82c5cb23fd03e186b90fb08bad194d428b89b94dc035ec93"
+      },
+      "root": "/src/a.ts",
+      "sources": [
+        {
+          "file": "/node_modules/a/node_modules/x/index.d.ts",
+          "redirect_target": null
+        },
+        {
+          "file": "/node_modules/a/index.d.ts",
+          "redirect_target": null
+        },
+        {
+          "file": "/node_modules/b/node_modules/x/index.d.ts",
+          "redirect_target": "/node_modules/a/node_modules/x/index.d.ts"
+        },
+        {
+          "file": "/node_modules/b/index.d.ts",
+          "redirect_target": null
+        },
+        {
+          "file": "/node_modules/c/node_modules/x/index.d.ts",
+          "redirect_target": null
+        },
+        {
+          "file": "/node_modules/c/index.d.ts",
+          "redirect_target": null
+        },
+        {
+          "file": "/src/a.ts",
+          "redirect_target": null
+        }
+      ],
+      "diagnostics": [
+        {
+          "file": "/src/a.ts",
+          "start": 86,
+          "length": 1,
+          "code": 2345,
+          "category": "error",
+          "message": {
+            "code": 2345,
+            "category": "error",
+            "text": "Argument of type 'import(\"/node_modules/c/node_modules/x/index\").default' is not assignable to parameter of type 'import(\"/node_modules/a/node_modules/x/index\").default'.",
+            "next": [
+              {
+                "code": 2442,
+                "category": "error",
+                "text": "Types have separate declarations of a private property 'x'.",
+                "next": null
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "fixture_index": 2065,
+      "case_id": "typescript-6.0.3/compiler/duplicatePackage_globalMerge.ts#default",
+      "source": {
+        "path": "duplicatePackage_globalMerge.ts",
+        "sha256": "0ad5f09c2308267ed8aa5178fae42e4d5748582664ee7f44fb3aa9112198babb",
+        "git_blob_sha1": "17b3b0da1aeb0edacd46c7883d8bf13cc0b08448",
+        "decoded_sha256": "0ad5f09c2308267ed8aa5178fae42e4d5748582664ee7f44fb3aa9112198babb"
+      },
+      "root": "/src/bug25410.ts",
+      "sources": [
+        {
+          "file": "/node_modules/@types/react/index.d.ts",
+          "redirect_target": null
+        },
+        {
+          "file": "/src/index.ts",
+          "redirect_target": null
+        },
+        {
+          "file": "/tests/node_modules/@types/react/index.d.ts",
+          "redirect_target": "/node_modules/@types/react/index.d.ts"
+        },
+        {
+          "file": "/tests/index.ts",
+          "redirect_target": null
+        },
+        {
+          "file": "/src/bug25410.ts",
+          "redirect_target": null
+        }
+      ],
+      "diagnostics": [
+        {
+          "file": "/node_modules/@types/react/index.d.ts",
+          "start": 8,
+          "length": 6,
+          "code": 2669,
+          "category": "error",
+          "message": {
+            "code": 2669,
+            "category": "error",
+            "text": "Augmentations for the global scope can only be directly nested in external modules or ambient module declarations.",
+            "next": null
+          }
+        },
+        {
+          "file": "/src/index.ts",
+          "start": 23,
+          "length": 7,
+          "code": 2306,
+          "category": "error",
+          "message": {
+            "code": 2306,
+            "category": "error",
+            "text": "File '/node_modules/@types/react/index.d.ts' is not a module.",
+            "next": null
+          }
+        },
+        {
+          "file": "/tests/index.ts",
+          "start": 23,
+          "length": 7,
+          "code": 2306,
+          "category": "error",
+          "message": {
+            "code": 2306,
+            "category": "error",
+            "text": "File '/tests/node_modules/@types/react/index.d.ts' is not a module.",
+            "next": null
+          }
+        }
+      ]
+    },
+    {
+      "fixture_index": 2066,
+      "case_id": "typescript-6.0.3/compiler/duplicatePackage_packageIdIncludesSubModule.ts#default",
+      "source": {
+        "path": "duplicatePackage_packageIdIncludesSubModule.ts",
+        "sha256": "118da0aa5572ba1419296b774e299eaf9ba07364cb25f1cba154be479538dd0d",
+        "git_blob_sha1": "247cf80773437570e6c56ccf3187197de7a78953",
+        "decoded_sha256": "118da0aa5572ba1419296b774e299eaf9ba07364cb25f1cba154be479538dd0d"
+      },
+      "root": "/index.ts",
+      "sources": [
+        {
+          "file": "/node_modules/foo/Foo.d.ts",
+          "redirect_target": null
+        },
+        {
+          "file": "/node_modules/foo/Bar.d.ts",
+          "redirect_target": null
+        },
+        {
+          "file": "/index.ts",
+          "redirect_target": null
+        }
+      ],
+      "diagnostics": []
+    },
+    {
+      "fixture_index": 2067,
+      "case_id": "typescript-6.0.3/compiler/duplicatePackage_referenceTypes.ts#default",
+      "source": {
+        "path": "duplicatePackage_referenceTypes.ts",
+        "sha256": "abcaf741b2d0b89e3bea7f971c1cc98dda724bac2b0d00b9702411576ea6e361",
+        "git_blob_sha1": "37d917dcb80acd0f5657abe34fc1a84768234e3b",
+        "decoded_sha256": "abcaf741b2d0b89e3bea7f971c1cc98dda724bac2b0d00b9702411576ea6e361"
+      },
+      "root": "/index.ts",
+      "sources": [
+        {
+          "file": "/node_modules/@types/foo/index.d.ts",
+          "redirect_target": null
+        },
+        {
+          "file": "/node_modules/a/node_modules/foo/index.d.ts",
+          "redirect_target": "/node_modules/@types/foo/index.d.ts"
+        },
+        {
+          "file": "/node_modules/a/index.d.ts",
+          "redirect_target": null
+        },
+        {
+          "file": "/index.ts",
+          "redirect_target": null
+        }
+      ],
+      "diagnostics": []
+    },
+    {
+      "fixture_index": 2068,
+      "case_id": "typescript-6.0.3/compiler/duplicatePackage_relativeImportWithinPackage.ts#default",
+      "source": {
+        "path": "duplicatePackage_relativeImportWithinPackage.ts",
+        "sha256": "948a8f943368287ec94f9537924e228ecc808c11f1de10ae52cf084ef8fc6b70",
+        "git_blob_sha1": "c92346cdff6dbfae2e38b41b74540578c0bf521b",
+        "decoded_sha256": "948a8f943368287ec94f9537924e228ecc808c11f1de10ae52cf084ef8fc6b70"
+      },
+      "root": "/index.ts",
+      "sources": [
+        {
+          "file": "/node_modules/foo/index.d.ts",
+          "redirect_target": null
+        },
+        {
+          "file": "/node_modules/foo/use.d.ts",
+          "redirect_target": null
+        },
+        {
+          "file": "/node_modules/a/node_modules/foo/index.d.ts",
+          "redirect_target": "/node_modules/foo/index.d.ts"
+        },
+        {
+          "file": "/node_modules/a/index.d.ts",
+          "redirect_target": null
+        },
+        {
+          "file": "/index.ts",
+          "redirect_target": null
+        }
+      ],
+      "diagnostics": []
+    },
+    {
+      "fixture_index": 2069,
+      "case_id": "typescript-6.0.3/compiler/duplicatePackage_relativeImportWithinPackage_scoped.ts#default",
+      "source": {
+        "path": "duplicatePackage_relativeImportWithinPackage_scoped.ts",
+        "sha256": "3c57df61756bfa4d792effd4547652ee30eda6e862e092f5b596257dee34943a",
+        "git_blob_sha1": "a7349cb3a20ce6e360fcdf6a827b75371fcc3152",
+        "decoded_sha256": "3c57df61756bfa4d792effd4547652ee30eda6e862e092f5b596257dee34943a"
+      },
+      "root": "/index.ts",
+      "sources": [
+        {
+          "file": "/node_modules/@foo/bar/index.d.ts",
+          "redirect_target": null
+        },
+        {
+          "file": "/node_modules/@foo/bar/use.d.ts",
+          "redirect_target": null
+        },
+        {
+          "file": "/node_modules/a/node_modules/@foo/bar/index.d.ts",
+          "redirect_target": "/node_modules/@foo/bar/index.d.ts"
+        },
+        {
+          "file": "/node_modules/a/index.d.ts",
+          "redirect_target": null
+        },
+        {
+          "file": "/index.ts",
+          "redirect_target": null
+        }
+      ],
+      "diagnostics": []
+    },
+    {
+      "fixture_index": 2070,
+      "case_id": "typescript-6.0.3/compiler/duplicatePackage_subModule.ts#default",
+      "source": {
+        "path": "duplicatePackage_subModule.ts",
+        "sha256": "3a731feeb0beed6c40694a24033611611d70ca4b7eab70d7e22466da6cdb89ef",
+        "git_blob_sha1": "67730ed9200103fc9109fcbc88e98211412441e3",
+        "decoded_sha256": "3a731feeb0beed6c40694a24033611611d70ca4b7eab70d7e22466da6cdb89ef"
+      },
+      "root": "/index.ts",
+      "sources": [
+        {
+          "file": "/node_modules/foo/Foo.d.ts",
+          "redirect_target": null
+        },
+        {
+          "file": "/node_modules/a/node_modules/foo/Foo.d.ts",
+          "redirect_target": "/node_modules/foo/Foo.d.ts"
+        },
+        {
+          "file": "/node_modules/a/index.d.ts",
+          "redirect_target": null
+        },
+        {
+          "file": "/index.ts",
+          "redirect_target": null
+        }
+      ],
+      "diagnostics": []
+    },
+    {
+      "fixture_index": 2071,
+      "case_id": "typescript-6.0.3/compiler/duplicatePackage_withErrors.ts#default",
+      "source": {
+        "path": "duplicatePackage_withErrors.ts",
+        "sha256": "8ca61ef9e3fa39e1e46ee624850fec069c0b73a22096ab78f2a738e78f86f144",
+        "git_blob_sha1": "a1d7206e6cd6f13857e29bfabf35eebd300c1a9a",
+        "decoded_sha256": "8ca61ef9e3fa39e1e46ee624850fec069c0b73a22096ab78f2a738e78f86f144"
+      },
+      "root": "/src/a.ts",
+      "sources": [
+        {
+          "file": "/node_modules/a/node_modules/x/index.d.ts",
+          "redirect_target": null
+        },
+        {
+          "file": "/node_modules/a/index.d.ts",
+          "redirect_target": null
+        },
+        {
+          "file": "/node_modules/b/node_modules/x/index.d.ts",
+          "redirect_target": "/node_modules/a/node_modules/x/index.d.ts"
+        },
+        {
+          "file": "/node_modules/b/index.d.ts",
+          "redirect_target": null
+        },
+        {
+          "file": "/src/a.ts",
+          "redirect_target": null
+        }
+      ],
+      "diagnostics": [
+        {
+          "file": "/node_modules/a/node_modules/x/index.d.ts",
+          "start": 17,
+          "length": 5,
+          "code": 1254,
+          "category": "error",
+          "message": {
+            "code": 1254,
+            "category": "error",
+            "text": "A 'const' initializer in an ambient context must be a string or numeric literal or literal enum reference.",
+            "next": null
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -21,7 +21,9 @@ use std::sync::Arc;
 use serde::de::{MapAccess, Visitor};
 use serde::{Deserialize, Deserializer};
 use serde_json::{json, Value};
-use tsc_host::{to_file_name_lower_case, MemoryCompilerHost};
+use tsc_host::{
+    to_file_name_lower_case, CompilerHost, FsCompilerHost, HostError, MemoryCompilerHost,
+};
 use tsc_program::{
     load_program, parse_config_root_plan, CompilerOptionNumber, CompilerOptions, ConfigFilePattern,
     ConfigHostError, ConfigHostOperation, ConfigParseHost, ConfigRootPlan, ConfigRootPlanRequest,
@@ -124,17 +126,24 @@ pub fn load_compiler_no_emit(
     for (link, target) in realpath_overrides {
         host_builder = host_builder.realpath(link, target);
     }
-    let host = host_builder.build().map_err(|host_error| {
+    let fixture_host = host_builder.build().map_err(|host_error| {
         error(format!(
             "failed to build compiler fixture host for {:?}: {host_error}",
             plan.fixture.source.relative_path
         ))
     })?;
+    let library_directory = workspace.join("vendor/typescript-6.0.3/lib");
+    let host = CompilerSuiteHost::new(
+        workspace,
+        fixture_host,
+        library_directory.clone(),
+        plan.use_case_sensitive_file_names,
+    )?;
 
     let (mut compiler_options, program_options) = plan_compiler_options(plan)?;
     compiler_options.no_emit = Some(true);
     let roots = compiler_root_paths(plan)?;
-    let catalog = LibraryCatalog::typescript_6_0_3(workspace.join("vendor/typescript-6.0.3/lib"));
+    let catalog = LibraryCatalog::typescript_6_0_3(library_directory);
     load_program(
         &host,
         &roots,
@@ -149,6 +158,110 @@ pub fn load_compiler_no_emit(
             plan.fixture.source.relative_path, plan.variant.key
         ))
     })
+}
+
+/// Compiler-runner VFS with the exact vendored library directory mounted
+/// read-only from the workspace. Fixture paths remain entirely in memory;
+/// only catalog-owned absolute paths can reach the filesystem host.
+#[derive(Debug)]
+struct CompilerSuiteHost {
+    fixture: MemoryCompilerHost,
+    libraries: FsCompilerHost,
+    library_directory: PathBuf,
+}
+
+impl CompilerSuiteHost {
+    fn new(
+        workspace: &Path,
+        fixture: MemoryCompilerHost,
+        library_directory: PathBuf,
+        case_sensitive: bool,
+    ) -> HarnessResult<Self> {
+        let library_directory = fs::canonicalize(&library_directory).map_err(|source| {
+            error(format!(
+                "failed to canonicalize compiler library mount {library_directory:?}: {source}"
+            ))
+        })?;
+        let libraries = FsCompilerHost::new(workspace, case_sensitive).map_err(|source| {
+            error(format!(
+                "failed to construct compiler library filesystem host: {source}"
+            ))
+        })?;
+        Ok(Self {
+            fixture,
+            libraries,
+            library_directory,
+        })
+    }
+
+    fn is_library_path(&self, path: &Path) -> bool {
+        path.is_absolute()
+            && path.starts_with(&self.library_directory)
+            && !path.components().any(|component| {
+                matches!(
+                    component,
+                    std::path::Component::CurDir | std::path::Component::ParentDir
+                )
+            })
+    }
+}
+
+impl CompilerHost for CompilerSuiteHost {
+    fn current_directory(&self) -> Result<PathBuf, HostError> {
+        self.fixture.current_directory()
+    }
+
+    fn use_case_sensitive_file_names(&self) -> bool {
+        self.fixture.use_case_sensitive_file_names()
+    }
+
+    fn read_file(&self, path: &Path) -> Result<Option<Vec<u8>>, HostError> {
+        if self.is_library_path(path) {
+            self.libraries.read_file(path)
+        } else {
+            self.fixture.read_file(path)
+        }
+    }
+
+    fn file_exists(&self, path: &Path) -> Result<bool, HostError> {
+        if self.is_library_path(path) {
+            self.libraries.file_exists(path)
+        } else {
+            self.fixture.file_exists(path)
+        }
+    }
+
+    fn directory_exists(&self, path: &Path) -> Result<bool, HostError> {
+        if self.is_library_path(path) {
+            self.libraries.directory_exists(path)
+        } else {
+            self.fixture.directory_exists(path)
+        }
+    }
+
+    fn read_directory(&self, path: &Path) -> Result<Vec<PathBuf>, HostError> {
+        if self.is_library_path(path) {
+            self.libraries.read_directory(path)
+        } else {
+            self.fixture.read_directory(path)
+        }
+    }
+
+    fn get_directories(&self, path: &Path) -> Result<Vec<PathBuf>, HostError> {
+        if self.is_library_path(path) {
+            self.libraries.get_directories(path)
+        } else {
+            self.fixture.get_directories(path)
+        }
+    }
+
+    fn realpath(&self, path: &Path) -> Result<Option<PathBuf>, HostError> {
+        if self.is_library_path(path) {
+            self.libraries.realpath(path)
+        } else {
+            self.fixture.realpath(path)
+        }
+    }
 }
 
 fn compiler_root_paths(plan: &CompilerExecutionPlan) -> HarnessResult<Vec<PathBuf>> {

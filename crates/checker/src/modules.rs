@@ -36,6 +36,9 @@ type ExportLookupTable = indexmap::IndexMap<String, (String, Vec<NodeId>)>;
 #[derive(Clone, Debug)]
 pub(crate) struct ResolvedProgramModule {
     pub file_index: usize,
+    /// Exact resolver-selected spelling, retained independently from the
+    /// source token because package-ID redirects join a different source.
+    pub resolved_file_name: String,
     /// tsc resolvedUsingTsExtension. For ordinary path resolution this says
     /// the specifier carried a TS-family extension and resolved as written;
     /// package-map resolution instead derives it from the selected raw target
@@ -2850,7 +2853,7 @@ impl<'a> CheckerState<'a> {
             } else {
                 None
             };
-            let resolved_file_name = source.file_name.clone();
+            let resolved_file_name = resolved.resolved_file_name.clone();
             if let Some(resolution_diagnostic) = resolution_diagnostic {
                 let diagnostic_file_name = if arbitrary_extension_diagnostic {
                     Self::normalize_program_path(&resolved_file_name, "")
@@ -3762,6 +3765,7 @@ impl<'a> CheckerState<'a> {
                 };
                 ProgramModuleResolution::Resolved(ResolvedProgramModule {
                     file_index: target_index,
+                    resolved_file_name: resolved.resolved_file_name,
                     resolved_using_ts_extension: resolved.resolved_using_ts_extension,
                     is_tsx: resolved.is_tsx,
                     is_arbitrary_extension: resolved.is_arbitrary_extension,
@@ -3890,6 +3894,7 @@ impl<'a> CheckerState<'a> {
                         if let Some(&index) = self.program_path_index.get(&probed) {
                             return ProgramModuleResolution::Resolved(ResolvedProgramModule {
                                 file_index: index,
+                                resolved_file_name: probed.clone(),
                                 resolved_using_ts_extension: false,
                                 is_tsx: probed.ends_with(".tsx"),
                                 is_arbitrary_extension: false,
@@ -3908,6 +3913,7 @@ impl<'a> CheckerState<'a> {
                             if let Some(&index) = self.program_path_index.get(&probed) {
                                 return ProgramModuleResolution::Resolved(ResolvedProgramModule {
                                     file_index: index,
+                                    resolved_file_name: probed.clone(),
                                     resolved_using_ts_extension: false,
                                     is_tsx: probed.ends_with(".jsx"),
                                     is_arbitrary_extension: false,
@@ -5208,6 +5214,7 @@ impl<'a> CheckerState<'a> {
         let make = |file_index: usize, resolved_using_ts_extension: bool, path: &str| {
             ResolvedProgramModule {
                 file_index,
+                resolved_file_name: path.to_owned(),
                 resolved_using_ts_extension,
                 is_tsx: (path.ends_with(".tsx") && !path.ends_with(".d.tsx"))
                     || path.ends_with(".jsx"),
@@ -5236,6 +5243,7 @@ impl<'a> CheckerState<'a> {
                     if let Some(index) = lookup(&twin) {
                         return Some(ResolvedProgramModule {
                             file_index: index,
+                            resolved_file_name: twin,
                             resolved_using_ts_extension: false,
                             is_tsx: false,
                             is_arbitrary_extension: true,

@@ -268,7 +268,11 @@ impl AuthoritativeModuleProvider for PreparedModuleProvider<'_> {
         // transition against this SourceFileId. The checker consumes the
         // selected source through its stable token; originalPath is resolver
         // provenance and does not replace that source identity.
-        let ResolvedModuleTarget::Source { source, .. } = module.target() else {
+        let ResolvedModuleTarget::Source {
+            source,
+            resolved_file,
+        } = module.target()
+        else {
             unreachable!("unloaded target returned above")
         };
         if self.prepared.source_file(*source).is_none() {
@@ -277,6 +281,13 @@ impl AuthoritativeModuleProvider for PreparedModuleProvider<'_> {
         Ok(AuthoritativeModuleResolution::Resolved(
             AuthoritativeResolvedModule {
                 target_token: AuthoritativeSourceToken(source.raw()),
+                resolved_file_name: resolved_file
+                    .display()
+                    .to_str()
+                    .ok_or(AuthoritativeModuleLookupFailure::Unsupported(
+                        UnsupportedAuthoritativeResolution::ResolvedFileIdentity,
+                    ))?
+                    .to_owned(),
                 resolved_using_ts_extension: module.resolved_using_ts_extension(),
                 is_tsx: matches!(
                     module.extension(),

@@ -1342,8 +1342,11 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             self.error_state.skip_parent_counter -= 1;
             return;
         }
-        let next = self.error_state.error_info.take().into_iter().collect();
-        self.error_state.error_info = Some(MessageChain::new(message, &args).with_next(next));
+        let head = MessageChain::new(message, &args);
+        self.error_state.error_info = Some(match self.error_state.error_info.take() {
+            Some(next) => head.with_next(vec![next]),
+            None => head,
+        });
         self.error_state.error_info_revision = self.error_state.error_info_revision.wrapping_add(1);
     }
 

@@ -613,6 +613,21 @@ type-reference results on their lexical link identities without publishing
 lexical `originalPath`. The policy is program-owned, and source publication
 therefore deduplicates only the physical-policy result.
 
+Program construction now also owns TypeScript's exact package-ID redirect
+boundary. After the host has supplied and decoded a resolved source, the full
+`name`/`subModuleName`/`version`/`peerDependencies` identity selects the first
+admitted source. A later equal identity retains its resolver-selected path as
+a redirect spelling but does not enter the Rust parser/binder/checker source
+set a second time. `PreparedProgram::source_id` joins that spelling to the
+first `SourceFileId`, while each authoritative resolution retains its own
+`resolvedFileName`; diagnostics such as TS2306 therefore display the redirect
+path selected for that import rather than the reused source's path. The eight
+contiguous official `duplicatePackage*.ts` compiler fixtures are pinned by a
+Node 25.2.1 / TypeScript 6.0.3 oracle: 38 non-library source wrappers, seven
+redirects, and five exact pre-emit diagnostics. A program integration contract
+also proves that unequal source text behind an equal package identity is
+decoded but not admitted or checked independently.
+
 This is deliberately not general H0.4 program construction. The first H0.5
 root-planning slice now parses the recorded projection for all 103 virtual
 compiler configs (106 case expansions). The frozen TypeScript 6.0.3 oracle has
@@ -620,8 +635,8 @@ compiler configs (106 case expansions). The frozen TypeScript 6.0.3 oracle has
 original-unit stable partition is preserved. This fixed corpus has four
 fixtures with `extends`, one with `files`, one with `include`, none with
 `exclude`, no `jsconfig.json`, and no nonempty config diagnostics; it is not a
-general proof of those semantics. General filesystem config discovery and
-package redirects during program construction remain in later slices. The
+general proof of those semantics. General filesystem config discovery remains
+in later slices. The
 focused case-only alias diagnostics now match the pinned TypeScript oracle in
 plain and pretty output. Config-backed aliases retain the first matching root
 `files` or `include` literal and publish TypeScript's TS1410 or TS1408 related
@@ -642,15 +657,18 @@ The compiler-suite harness now exposes a bounded `load_compiler_no_emit`
 adapter. It reconstructs the recorded compiler fixture VFS (including
 document/global symlink identities), projects loader-relevant options and
 root selection, and returns the same catalog-backed `PreparedProgram` used by
-the Rust no-emit session. Representative default, type-reference,
-case-sensitive, virtual-config, and preserve-symlink fixtures exercise this
-boundary. The local audit now loads and executes all 7,276 recorded compiler
-plans through `ProgramSession` with zero failures; that proves the Rust
-no-emit session boundary, not upstream baseline equivalence. The adapter and
-audit intentionally stop before emit, baseline comparison, and the remaining
-explicitly unsupported program-construction families (duplicate package
-identities, conflicting `noLib`/`lib`, and raw drive-relative root spellings);
-those oracle tiers remain `not-run` until their owners are ported. A
+the Rust no-emit session. Fixture paths remain on the immutable memory host;
+only the exact vendored TypeScript library directory is mounted through the
+filesystem host, so default-library tests now consume the real 6.0.3 bytes.
+Representative default, type-reference, case-sensitive, virtual-config,
+preserve-symlink, and duplicate-package fixtures exercise this boundary. The
+earlier all-7,276 load/run audit predated that library mount and was partly
+short-circuited by missing-library/global diagnostics; it remains useful as a
+structural count but is not semantic qualification. A fresh full compiler
+baseline audit is still `not-run`. The adapter intentionally stops before
+emit and general baseline comparison; conflicting `noLib`/`lib`, raw
+drive-relative root spellings, and other unported construction faces retain
+their typed boundaries. A
 compiler-crate integration contract feeds representative prepared programs
 through `ProgramSession::run`, so this source/config/loader seam is exercised
 by the actual Rust no-emit session without adding the expensive corpus sweep

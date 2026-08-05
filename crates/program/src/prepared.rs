@@ -85,6 +85,11 @@ impl PathContext {
 pub struct PreparedSourceFile {
     path: ProgramPath,
     alternate_display_paths: Vec<PathBuf>,
+    /// Distinct resolved package paths redirected to this source by
+    /// `createProgram`'s exact `PackageId` identity map. These are not case
+    /// aliases or symlink spellings: the resolver must retain the selected
+    /// path while the parser/binder/checker consume this source only once.
+    package_redirect_paths: Vec<ProgramPath>,
     real_path: Option<ProgramPath>,
     text: String,
     may_be_emitted: bool,
@@ -109,6 +114,7 @@ impl PreparedSourceFile {
         Self {
             path,
             alternate_display_paths: Vec::new(),
+            package_redirect_paths: Vec::new(),
             real_path: None,
             text: text.into(),
             // A prepared source is normally a direct program input. Loaders
@@ -175,6 +181,13 @@ impl PreparedSourceFile {
         &self.alternate_display_paths
     }
 
+    /// Resolved package source identities redirected to this source by an
+    /// exact vendored [`PackageId`](crate::PackageId) match, in discovery
+    /// order.
+    pub fn package_redirect_paths(&self) -> &[ProgramPath] {
+        &self.package_redirect_paths
+    }
+
     pub fn real_path(&self) -> Option<&ProgramPath> {
         self.real_path.as_ref()
     }
@@ -217,6 +230,17 @@ impl PreparedSourceFile {
                 .any(|existing| existing == display)
         {
             self.alternate_display_paths.push(display.to_path_buf());
+        }
+    }
+
+    pub(crate) fn remember_package_redirect(&mut self, path: ProgramPath) {
+        if path.canonical() != self.path.canonical()
+            && !self
+                .package_redirect_paths
+                .iter()
+                .any(|existing| existing.canonical() == path.canonical())
+        {
+            self.package_redirect_paths.push(path);
         }
     }
 }
@@ -1091,6 +1115,7 @@ impl PreparedProgramBuilder {
         source: PreparedSourceFile,
     ) -> Result<SourceFileId, PreparationError> {
         let canonical = source.path().canonical().clone();
+        let package_redirect_paths = source.package_redirect_paths().to_vec();
         self.register_text_owner(
             &canonical,
             source.text(),
@@ -1109,6 +1134,9 @@ impl PreparedProgramBuilder {
             let existing = &mut self.source_files[existing_id.index()];
             if existing.compatible_with(&source) {
                 existing.remember_display_alias(source.path().display());
+                for redirect in package_redirect_paths {
+                    self.try_add_package_redirect(existing_id, redirect)?;
+                }
                 return Ok(existing_id);
             }
             return Err(PreparationError::new(
@@ -1155,7 +1183,70 @@ impl PreparedProgramBuilder {
             self.source_by_realpath.entry(realpath).or_insert(id);
         }
         self.source_files.push(source);
+        for redirect in package_redirect_paths {
+            self.try_add_package_redirect(id, redirect)?;
+        }
         Ok(id)
+    }
+
+    fn try_add_package_redirect(
+        &mut self,
+        source: SourceFileId,
+        redirect: ProgramPath,
+    ) -> Result<(), PreparationError> {
+        let prepared = self.source_files.get(source.index()).ok_or_else(|| {
+            PreparationError::new(
+                PreparationErrorKind::InvalidReference,
+                PreparationOperation::AddSourceFile,
+                Some(redirect.display().to_path_buf()),
+                format!(
+                    "package redirect names unknown SourceFileId {}",
+                    source.raw()
+                ),
+            )
+        })?;
+        if redirect.canonical() == prepared.path().canonical() {
+            return Ok(());
+        }
+        if let Some(real_path) = prepared.real_path() {
+            if redirect.canonical() == real_path.canonical() {
+                return Ok(());
+            }
+        }
+        if let Some(existing) = self.source_by_canonical.get(redirect.canonical()).copied() {
+            if existing == source {
+                return Ok(());
+            }
+            return Err(PreparationError::new(
+                PreparationErrorKind::IdentityConflict,
+                PreparationOperation::AddSourceFile,
+                Some(redirect.display().to_path_buf()),
+                format!(
+                    "package redirect {} already belongs to SourceFileId {}",
+                    redirect.canonical(),
+                    existing.raw()
+                ),
+            ));
+        }
+        if let Some(existing) = self.source_by_realpath.get(redirect.canonical()).copied() {
+            if existing != source {
+                return Err(PreparationError::new(
+                    PreparationErrorKind::IdentityConflict,
+                    PreparationOperation::AddSourceFile,
+                    Some(redirect.display().to_path_buf()),
+                    format!(
+                        "package redirect {} is the physical identity of SourceFileId {}",
+                        redirect.canonical(),
+                        existing.raw()
+                    ),
+                ));
+            }
+            return Ok(());
+        }
+        self.source_by_canonical
+            .insert(redirect.canonical().clone(), source);
+        self.source_files[source.index()].remember_package_redirect(redirect);
+        Ok(())
     }
 
     pub fn add_root(&mut self, root: PreparedRoot) -> Result<(), PreparationError> {
@@ -1601,6 +1692,9 @@ impl PreparedProgramBuilder {
         self.validate_canonical_case(self.path_context.current_directory().canonical())?;
         for source in &self.source_files {
             self.validate_canonical_case(source.path().canonical())?;
+            for redirect in source.package_redirect_paths() {
+                self.validate_canonical_case(redirect.canonical())?;
+            }
             if let Some(real_path) = source.real_path() {
                 self.validate_canonical_case(real_path.canonical())?;
             }
@@ -1688,6 +1782,10 @@ impl PreparedProgramBuilder {
         };
         let has_source = self.source_files.iter().any(|source| {
             matches_path(source.path(), source.alternate_display_paths())
+                || source
+                    .package_redirect_paths()
+                    .iter()
+                    .any(|path| matches_path(path, &[]))
                 || source
                     .real_path()
                     .is_some_and(|path| matches_path(path, &[]))
@@ -1950,7 +2048,11 @@ impl PreparedProgramBuilder {
         let distinct_real = real.filter(|path| *path != program_path);
         let matches_program_path = program_path == target.canonical();
         let matches_real = real.is_some_and(|path| path == target.canonical());
-        if !matches_program_path && !matches_real {
+        let matches_package_redirect = prepared
+            .package_redirect_paths()
+            .iter()
+            .any(|path| path.canonical() == target.canonical());
+        if !matches_program_path && !matches_real && !matches_package_redirect {
             return Err(PreparationError::new(
                 PreparationErrorKind::InvalidData,
                 operation,
@@ -1965,6 +2067,15 @@ impl PreparedProgramBuilder {
         }
 
         match original_path {
+            None if matches_package_redirect => Ok(()),
+            Some(original) if matches_package_redirect => Err(PreparationError::new(
+                PreparationErrorKind::InvalidData,
+                operation,
+                Some(original.display().to_path_buf()),
+                format!(
+                    "{label} combines package redirection with an unowned lexical symlink path"
+                ),
+            )),
             Some(original)
                 if original.canonical() == program_path
                     && distinct_real == Some(target.canonical())
