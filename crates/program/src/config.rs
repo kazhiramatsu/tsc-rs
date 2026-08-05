@@ -1212,7 +1212,9 @@ pub fn parse_config_root_plan(
         )?
         .expect("the primary config cannot be a recursive child of itself");
     node.options.finalize_config_dir_templates(&config_base)?;
-    let option_diagnostics = paths_option_diagnostics(&node.options, &node.source);
+    let mut option_diagnostics = paths_option_diagnostics(&node.options, &node.source);
+    option_diagnostics.extend(no_lib_lib_option_diagnostics(&node.options, &node.source));
+    sort_and_dedupe_diagnostics(&mut option_diagnostics);
     let discovery_options = effective_discovery_options(&node.options, &config_base)?;
     let module_resolution_options = config_module_resolution_options(
         &node.options,
@@ -1920,6 +1922,64 @@ fn paths_option_diagnostics(
     }
     sort_and_dedupe_diagnostics(&mut diagnostics);
     diagnostics
+}
+
+/// Validate the `lib`/`noLib` option pair at the same post-conversion
+/// boundary as TypeScript's `verifyCompilerOptions`. The two properties are
+/// both diagnosed (rather than only the second one) and locations are tied to
+/// every effective root-syntax occurrence, matching
+/// `createOptionDiagnosticInObjectLiteralSyntax`.
+///
+/// tsc-port: verifyCompilerOptions (lib/noLib block) @6.0.3
+/// tsc-hash: 569177652966bd528c319171c7dd22860dbf72bde116cb4f644f1d02bb12e39
+/// tsc-span: _tsc.js:124888-124890
+fn no_lib_lib_option_diagnostics(
+    options: &ConfigOptionBag,
+    source: &ConfigSourceText,
+) -> Vec<Diagnostic> {
+    let has_lib = matches!(
+        options.typed_value_state("lib"),
+        ConfigOptionValueState::List(_)
+    );
+    let no_lib_enabled = matches!(
+        options.typed_value_state("noLib"),
+        ConfigOptionValueState::Value(Value::Bool(true))
+    );
+    if !has_lib || !no_lib_enabled {
+        return Vec::new();
+    }
+
+    let parsed = tsc_syntax::parse_json_text(&source.file_name, &source.text);
+    let mut locations = Vec::new();
+    if let Some(root) = config_root_object(&parsed) {
+        for compiler_options in config_object_properties(&parsed, root)
+            .into_iter()
+            .filter(|property| property.name == "compilerOptions")
+        {
+            for property in config_object_properties(&parsed, compiler_options.initializer) {
+                if matches!(property.name.as_str(), "lib" | "noLib") {
+                    locations.push(config_location(&parsed, property.name_node));
+                }
+            }
+        }
+    }
+    if locations.iter().all(Option::is_none) {
+        locations.push(
+            config_property(&parsed, "compilerOptions")
+                .and_then(|property| config_location(&parsed, property.name_node)),
+        );
+    }
+
+    locations
+        .into_iter()
+        .map(|location| {
+            config_diagnostic(
+                &gen::Option_0_cannot_be_specified_with_option_1,
+                &["lib".to_owned(), "noLib".to_owned()],
+                location,
+            )
+        })
+        .collect()
 }
 
 fn pending_paths_option_diagnostics(

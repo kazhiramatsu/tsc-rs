@@ -168,6 +168,31 @@ fn config_plan_loads_no_emit_program_without_reparsing_options() {
 }
 
 #[test]
+fn conflicting_lib_and_no_lib_are_option_diagnostics_at_both_names() {
+    let host = host();
+    let adapter = ConfigHostAdapter::new(&host);
+    let plan = parse_config_root_plan(
+        &adapter,
+        request(
+            r#"{"compilerOptions":{"noEmit":true,"noLib":true,"lib":["es5"]},"files":["main.ts"]}"#,
+        ),
+    )
+    .expect("parse conflicting-library plan");
+
+    assert_eq!(
+        plan.option_diagnostics()
+            .iter()
+            .map(|diagnostic| (diagnostic.code(), diagnostic.start, diagnostic.length))
+            .collect::<Vec<_>>(),
+        vec![(5053, Some(34), Some(7)), (5053, Some(47), Some(5))]
+    );
+    assert_eq!(
+        plan.option_diagnostics()[0].message_text(),
+        "Option 'lib' cannot be specified with option 'noLib'."
+    );
+}
+
+#[test]
 fn config_plan_projects_checker_options_into_the_prepared_program() {
     let host = host();
     let adapter = ConfigHostAdapter::new(&host);
