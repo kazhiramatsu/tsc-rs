@@ -3881,19 +3881,12 @@ fn invalid_loader_options_fail_before_host_discovery_with_typed_context() {
         program_options(),
         generous_limits(),
     )
-    .expect_err("the H0.5 noLib/lib option diagnostic is not yet owned");
+    .expect("noLib suppresses explicit library loading; TS5053 is owned by config diagnostics");
+    assert!(no_lib_with_explicit_empty_lib.library_files().is_empty());
     assert_eq!(
-        no_lib_with_explicit_empty_lib.kind(),
-        ProgramLoadErrorKind::Unsupported
+        no_lib_with_explicit_empty_lib.compiler_options().lib,
+        Some(Vec::new())
     );
-    assert_eq!(
-        no_lib_with_explicit_empty_lib.operation(),
-        ProgramLoadOperation::ValidateOptions
-    );
-    let ProgramLoadError::Unsupported { feature, .. } = no_lib_with_explicit_empty_lib else {
-        unreachable!("kind identifies the unsupported variant");
-    };
-    assert_eq!(feature, "explicit-libraries");
 }
 
 #[test]

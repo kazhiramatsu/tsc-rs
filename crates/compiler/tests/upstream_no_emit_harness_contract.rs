@@ -37,6 +37,18 @@ fn compiler_session_runs_recorded_no_emit_programs() {
         "typescript-6.0.3/compiler/typeReferenceDirectives3.ts#default",
         "typescript-6.0.3/compiler/configFileExtendsAsList.ts#default",
         "typescript-6.0.3/compiler/moduleResolutionWithSymlinks_preserveSymlinks.ts#default",
+        "typescript-6.0.3/compiler/arrayIterationLibES5TargetDifferent.ts#nolib%3Dtrue%2Ctarget%3Des5",
+        "typescript-6.0.3/compiler/declarationEmitForGlobalishSpecifierSymlink.ts#default",
+        "typescript-6.0.3/compiler/duplicatePackage.ts#default",
+        "typescript-6.0.3/compiler/duplicatePackage_globalMerge.ts#default",
+        "typescript-6.0.3/compiler/duplicatePackage_packageIdIncludesSubModule.ts#default",
+        "typescript-6.0.3/compiler/duplicatePackage_referenceTypes.ts#default",
+        "typescript-6.0.3/compiler/duplicatePackage_relativeImportWithinPackage.ts#default",
+        "typescript-6.0.3/compiler/duplicatePackage_relativeImportWithinPackage_scoped.ts#default",
+        "typescript-6.0.3/compiler/duplicatePackage_subModule.ts#default",
+        "typescript-6.0.3/compiler/duplicatePackage_withErrors.ts#default",
+        "typescript-6.0.3/compiler/moduleResolutionPackageIdWithRelativeAndAbsolutePath.ts#default",
+        "typescript-6.0.3/compiler/pathMappingBasedModuleResolution_rootImport_aliasWithRoot_differentRootTypes.ts#default",
     ] {
         let prepared = load_compiler_no_emit(&workspace, plan(&corpus.plans, case_id), limits())
             .unwrap_or_else(|error| panic!("failed to load {case_id}: {error}"));

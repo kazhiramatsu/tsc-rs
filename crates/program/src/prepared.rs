@@ -553,10 +553,18 @@ fn validate_path_mappings(entries: &[PathMapping]) -> Result<(), ResolutionError
     let mut patterns = BTreeSet::new();
     for mapping in entries {
         let pattern = mapping.pattern();
-        // Empty and multi-star patterns are getOptionsDiagnostics rows
-        // (TS5061 for the latter), not resolver-construction failures. The
-        // matcher skips them with TypeScript's own truthiness/parse rules.
-        validate_owned_path_text(pattern, "paths pattern", /* allow_empty */ true)?;
+        // A paths key is a module-specifier pattern, not a filesystem path.
+        // TypeScript therefore accepts rooted/UNC/URI spellings here (for
+        // example `//server/*` and `file:///*`) and only applies filesystem
+        // path validation to the substitutions below. Empty and multi-star
+        // patterns are getOptionsDiagnostics rows (TS5061 for the latter),
+        // not resolver-construction failures; the matcher skips them with
+        // TypeScript's own truthiness/parse rules.
+        if pattern.contains('\0') {
+            return Err(ResolutionError::invalid_data(
+                "paths pattern is empty or contains a NUL byte",
+            ));
+        }
         if !patterns.insert(pattern) {
             return Err(ResolutionError::invalid_data(format!(
                 "duplicate paths pattern {pattern:?} has no object-equivalent ordering semantics"

@@ -939,9 +939,17 @@ impl<'a> ModuleResolver<'a> {
                 return Ok(ResolutionOutcome::NotFound);
             }
         }
-        validate_owned_path_text(specifier, "module specifier", /* allow_empty */ true)?;
+        // A rooted/UNC/URI-looking module specifier is only a supported
+        // resolver input when an explicit `paths` pattern owns it. This
+        // preserves the fail-closed boundary for ordinary resolution while
+        // allowing TypeScript's path-mapping keys such as `//server/*`,
+        // `c:\\*`, and `file:///*` to be matched before filesystem probing.
+        let matching_paths = self.matching_paths(specifier);
+        if matching_paths.is_none() {
+            validate_owned_path_text(specifier, "module specifier", /* allow_empty */ true)?;
+        }
 
-        if let Some((mapping_index, capture)) = self.matching_paths(specifier) {
+        if let Some((mapping_index, capture)) = matching_paths {
             let substitution_count = self
                 .paths
                 .as_deref()

@@ -556,10 +556,6 @@ fn validate_admitted_options(
     let reject_input = |detail| {
         ProgramLoadError::invalid_input(ProgramLoadOperation::ValidateOptions, None, detail)
     };
-    let reject_feature = |feature, detail| {
-        ProgramLoadError::unsupported(ProgramLoadOperation::ValidateOptions, None, feature, detail)
-    };
-
     if compiler_options.no_emit != Some(true) {
         return Err(reject_input(
             "compilerOptions.noEmit must be explicitly true",
@@ -568,12 +564,11 @@ fn validate_admitted_options(
     if require_no_lib && program_options.no_lib() != Some(true) {
         return Err(reject_input("programOptions.noLib must be explicitly true"));
     }
-    if program_options.no_lib() == Some(true) && compiler_options.lib.is_some() {
-        return Err(reject_feature(
-            "explicit-libraries",
-            "the noLib/lib option diagnostic is owned by the later H0.5 driver",
-        ));
-    }
+    // `noLib` suppresses library loading even when an explicit `lib` list is
+    // present.  TypeScript reports TS5053 for that combination from
+    // `getOptionsDiagnostics`; the config/CLI driver owns that diagnostic
+    // gate, while the lower-level program loader must still mirror
+    // createProgram's source graph (which simply skips the library phase).
     if program_options.no_lib() != Some(true) {
         let Some(catalog) = library_catalog else {
             return Err(reject_input(
@@ -881,7 +876,6 @@ struct StagedGraph<'host, 'options, 'resolver> {
     module_resolutions: Vec<StagedModuleResolution>,
     type_resolution_by_key: BTreeMap<TypeReferenceResolutionKey, usize>,
     type_resolutions: Vec<StagedTypeResolution>,
-    package_targets: BTreeMap<PackageId, CanonicalPath>,
     diagnosed_missing_roots: BTreeSet<String>,
     diagnosed_missing_library_roots: BTreeSet<PathBuf>,
     program_diagnostics: Vec<Diagnostic>,
@@ -916,7 +910,6 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
             module_resolutions: Vec::new(),
             type_resolution_by_key: BTreeMap::new(),
             type_resolutions: Vec::new(),
-            package_targets: BTreeMap::new(),
             diagnosed_missing_roots: BTreeSet::new(),
             diagnosed_missing_library_roots: BTreeSet::new(),
             program_diagnostics: Vec::new(),
@@ -2127,7 +2120,6 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                             error,
                         )
                     })?;
-                self.observe_package_target(&host)?;
                 let index = self.module_resolutions.len();
                 self.module_resolutions.push(StagedModuleResolution {
                     key: key.clone(),
@@ -2261,38 +2253,6 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
             self.record_source_edge(source, target_source, external);
         }
         Ok(())
-    }
-
-    fn observe_package_target(
-        &mut self,
-        resolution: &HostModuleResolution,
-    ) -> Result<(), ProgramLoadError> {
-        let ResolutionOutcome::Resolved(module) = resolution.outcome() else {
-            return Ok(());
-        };
-        let Some(package_id) = module.package_id() else {
-            return Ok(());
-        };
-        let target = module.resolved_file().canonical();
-        match self.package_targets.get(package_id) {
-            Some(existing) if existing != target => Err(ProgramLoadError::unsupported(
-                ProgramLoadOperation::ResolveModule,
-                Some(module.resolved_file().display().to_path_buf()),
-                "package-source-redirect",
-                format!(
-                    "package identity {:?} resolves to both {} and {}",
-                    package_id.name(),
-                    existing,
-                    target
-                ),
-            )),
-            Some(_) => Ok(()),
-            None => {
-                self.package_targets
-                    .insert(package_id.clone(), target.clone());
-                Ok(())
-            }
-        }
     }
 
     fn enforce_limit(
