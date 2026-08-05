@@ -777,12 +777,13 @@ option failures are stderr/exit 2. The initial CLI surface intentionally
 rejects watch/build/emit options, project-plus-file mixes, and other
 unimplemented flags instead of silently ignoring them. Focused
 filesystem binary contracts cover include discovery, command-line no-emit
-precedence, diagnostic output, and version/unsupported-option behavior. A
-local ignored oracle contract compares both plain and explicit `--pretty`
+precedence, diagnostic output, no-output writes, and version/unsupported-option
+behavior. Local ignored oracle contracts compare plain and explicit `--pretty`
 `-p`/`--noEmit` results byte-for-byte with vendored `_tsc.js`, including the
-status-2 no-emit diagnostic result and the ANSI contextual renderer. This
-bridge remains independent of CLI selection so the same immutable plan can
-feed MemoryHost and FsHost differentials.
+status-2 no-emit diagnostic result, the ANSI contextual renderer, current-
+directory config discovery, encodings, symlinks, `rootDirs`, and Node16/18/20/
+NodeNext package modes. This bridge remains independent of CLI selection so
+the same immutable plan can feed MemoryHost and FsHost differentials.
 
 ### H0.6 — qualification and release
 
