@@ -481,10 +481,10 @@ pub fn load_program(
 /// TypeScript exposes this in the TS6053/unsupported-root diagnostic chain;
 /// preserving it here keeps the loader independent of the config parser while
 /// allowing `files` roots to differ from explicit command-line roots.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) enum RootFileReason {
     Explicit,
-    FilesList,
+    FilesList { spec: String },
 }
 
 /// Load a config-derived root closure while retaining the source of each root
@@ -501,7 +501,10 @@ pub(crate) fn load_program_with_root_reasons(
         .iter()
         .map(|(path, _)| path.clone())
         .collect::<Vec<_>>();
-    let root_reasons = roots.iter().map(|(_, reason)| *reason).collect::<Vec<_>>();
+    let root_reasons = roots
+        .iter()
+        .map(|(_, reason)| reason.clone())
+        .collect::<Vec<_>>();
     load_program_worker(
         host,
         &root_names,
@@ -566,7 +569,7 @@ fn load_program_worker(
         let root_spelling = root_name.clone();
         let root = normalize_root(root_name, &path_context)?;
         let reason = root_reasons
-            .and_then(|reasons| reasons.get(index).copied())
+            .and_then(|reasons| reasons.get(index).cloned())
             .unwrap_or(RootFileReason::Explicit);
         graph.load_root(root, &root_spelling, reason)?;
     }
@@ -1042,7 +1045,7 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
             path.clone(),
             0,
             0,
-            DiscoveryReason::root(root_reason),
+            DiscoveryReason::root(root_reason.clone()),
             SourceClass::Ordinary,
         )?;
         if let Some(source) = source {
@@ -1097,7 +1100,7 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                 candidate,
                 0,
                 0,
-                DiscoveryReason::root(root_reason),
+                DiscoveryReason::root(root_reason.clone()),
                 SourceClass::Ordinary,
             )? {
                 self.sources[source]
@@ -1468,6 +1471,7 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                                 alias,
                                 &source.inclusion_reasons,
                                 reason,
+                                self.program_options.config_file(),
                             )
                         })
                 })
@@ -2901,7 +2905,7 @@ fn unsupported_root_extension_diagnostic(
             vec![path, supported_source_extension_list(allow_js).to_owned()],
         )
     };
-    let root_reason = root_file_reason_message(root_reason);
+    let root_reason = root_file_reason_message(&root_reason);
     let inclusion = MessageChain::new(&gen::The_file_is_in_the_program_because, &[])
         .with_next(vec![root_reason]);
     Ok(Diagnostic::new(
@@ -2913,7 +2917,7 @@ fn unsupported_root_extension_diagnostic(
 }
 
 fn missing_root_diagnostic(path: &Path, root_file_reason: RootFileReason) -> Diagnostic {
-    let root_reason = root_file_reason_message(root_file_reason);
+    let root_reason = root_file_reason_message(&root_file_reason);
     let inclusion = MessageChain::new(&gen::The_file_is_in_the_program_because, &[])
         .with_next(vec![root_reason]);
     Diagnostic::new(
@@ -2936,7 +2940,7 @@ fn unresolved_extensionless_root_diagnostic(
     allow_js: bool,
     root_reason: RootFileReason,
 ) -> Result<Diagnostic, ProgramLoadError> {
-    let root_reason = root_file_reason_message(root_reason);
+    let root_reason = root_file_reason_message(&root_reason);
     let inclusion = MessageChain::new(&gen::The_file_is_in_the_program_because, &[])
         .with_next(vec![root_reason]);
     Ok(Diagnostic::new(
@@ -2962,11 +2966,11 @@ fn unresolved_extensionless_root_diagnostic(
     ))
 }
 
-fn root_file_reason_message(reason: RootFileReason) -> MessageChain {
+fn root_file_reason_message(reason: &RootFileReason) -> MessageChain {
     MessageChain::new(
         match reason {
             RootFileReason::Explicit => &gen::Root_file_specified_for_compilation,
-            RootFileReason::FilesList => &gen::Part_of_files_list_in_tsconfig_json,
+            RootFileReason::FilesList { .. } => &gen::Part_of_files_list_in_tsconfig_json,
         },
         &[],
     )
@@ -3122,12 +3126,21 @@ fn unresolved_type_reference_diagnostic(
 /// chooses TS1261 when a root spelling arrives after a referenced spelling;
 /// otherwise it uses TS1149. Referenced reasons also own the source span used
 /// by the renderer (the import/reference literal), while root-only collisions
-/// remain compiler diagnostics with no source span.
+/// remain compiler diagnostics with no source span. Config-backed `files`
+/// roots retain TS1410 related information at the matching root literal.
+///
+/// tsc-port: fileIncludeReasonToRelatedInformation @6.0.3 (RootFile/files)
+/// tsc-hash: 8fab1537c53e3033f84dcd5a52301c9c8d0ca5c09554faf7317204e288e9900d
+/// tsc-span: _tsc.js:125965-125980
+/// tsc-port: getMatchedFileSpec @6.0.3
+/// tsc-hash: e2dca297bc277048704a713d9d169ddd59813bce20d200095738473671da5915
+/// tsc-span: _tsc.js:129276-129284
 fn casing_alias_diagnostic(
     existing: &PreparedSourceFile,
     incoming: &Path,
     existing_reasons: &[SourceInclusionReason],
     incoming_reason: &SourceInclusionReason,
+    config_file: Option<&ProgramConfigFile>,
 ) -> Diagnostic {
     let existing_name = existing
         .path()
@@ -3184,13 +3197,40 @@ fn casing_alias_diagnostic(
         .map_or((None, None, None), |(path, start, end)| {
             (Some(path), Some(start), Some(end.saturating_sub(start)))
         });
-    Diagnostic::new(file_name, start, length, message)
+    let mut diagnostic = Diagnostic::new(file_name, start, length, message);
+    for reason in existing_reasons {
+        let SourceInclusionReason::Root(RootFileReason::FilesList { spec }) = reason else {
+            continue;
+        };
+        let Some((config_file, location)) = config_file.and_then(|config_file| {
+            config_file
+                .root_option_array_location("files", spec)
+                .map(|location| (config_file, location))
+        }) else {
+            continue;
+        };
+        diagnostic.related.push(RelatedInfo {
+            file_name: Some(
+                config_file
+                    .path()
+                    .display()
+                    .to_str()
+                    .expect("validated config paths are Unicode")
+                    .to_owned(),
+            ),
+            start: Some(location.start()),
+            length: Some(location.length()),
+            message: MessageChain::new(&gen::File_is_matched_by_files_list_specified_here, &[]),
+        });
+    }
+    diagnostic.related_information_present = !diagnostic.related.is_empty();
+    diagnostic
 }
 
 fn source_inclusion_reason_message(reason: &SourceInclusionReason) -> Option<MessageChain> {
     let path_text = |path: &Path| path.to_str().map(str::to_owned);
     match reason {
-        SourceInclusionReason::Root(root) => Some(root_file_reason_message(*root)),
+        SourceInclusionReason::Root(root) => Some(root_file_reason_message(root)),
         SourceInclusionReason::Import {
             parent, specifier, ..
         } => Some(MessageChain::new(

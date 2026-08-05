@@ -418,6 +418,12 @@ fn no_emit_cli_case_only_alias_matrix_matches_vendored_typescript() {
         )
         .expect("write case-alias config");
         assert_typescript_parity(&tree, &["-p", "tsconfig.json"], &["-p", "tsconfig.json"]);
+        let rust = run(&tree, &["--pretty", "-p", "tsconfig.json"]);
+        let typescript =
+            run_typescript_no_color(&tree, &["--noEmit", "--pretty", "-p", "tsconfig.json"]);
+        assert_eq!(rust.status.code(), typescript.status.code());
+        assert_eq!(rust.stdout, typescript.stdout);
+        assert_eq!(rust.stderr, typescript.stderr);
     }
 }
 

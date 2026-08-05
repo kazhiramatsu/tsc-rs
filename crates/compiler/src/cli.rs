@@ -790,17 +790,21 @@ fn colorize_context_line(line: &str, squiggle_color: &str, indent: usize) -> Str
             }
         }
     }
-    let digit_start = line.find(|character: char| character.is_ascii_digit());
-    let Some(digit_start) = digit_start else {
+    let gutter_start = context_line
+        .bytes()
+        .take_while(|byte| *byte == b' ')
+        .count();
+    let digit_start = indent + gutter_start;
+    let Some(first) = line.as_bytes().get(digit_start) else {
         return line.to_owned();
     };
+    if !first.is_ascii_digit() {
+        return line.to_owned();
+    }
     let digit_end = line[digit_start..]
         .find(|character: char| !character.is_ascii_digit())
         .map_or(line.len(), |offset| digit_start + offset);
     if digit_end == digit_start || line[digit_end..].is_empty() {
-        return line.to_owned();
-    }
-    if digit_start < indent {
         return line.to_owned();
     }
     format!(
@@ -1077,5 +1081,14 @@ mod tests {
             output.stdout().trim(),
             format!("Version {TYPESCRIPT_VERSION}")
         );
+    }
+
+    #[test]
+    fn pretty_context_does_not_treat_digits_in_inclusion_paths_as_source_gutters() {
+        let inclusion = "    Imported via './value' from file '/tmp/tsc-rs-tree-1585/main.ts'";
+        assert_eq!(colorize_context_line(inclusion, ANSI_RED, 0), inclusion);
+
+        let source = colorize_context_line("1 const value = 1;", ANSI_RED, 0);
+        assert!(source.contains(ANSI_REVERSE));
     }
 }

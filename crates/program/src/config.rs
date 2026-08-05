@@ -915,6 +915,7 @@ pub struct ConfigRootPlan {
     /// distinguish a value inherited from an `extends` source.
     unsupported_root_scopes: BTreeSet<String>,
     file_names: Vec<String>,
+    root_reasons: Vec<RootFileReason>,
     wildcard_directories: Vec<ConfigWildcardDirectory>,
     root_parse_diagnostics: Vec<Diagnostic>,
     errors: Vec<Diagnostic>,
@@ -1237,16 +1238,8 @@ fn load_config_program_inner(
     let roots = plan
         .file_names()
         .iter()
-        .map(|file_name| {
-            (
-                PathBuf::from(file_name),
-                if plan.files().is_some() {
-                    RootFileReason::FilesList
-                } else {
-                    RootFileReason::Explicit
-                },
-            )
-        })
+        .zip(&plan.root_reasons)
+        .map(|(file_name, reason)| (PathBuf::from(file_name), reason.clone()))
         .collect::<Vec<_>>();
     let mut compiler_options = plan.compiler_options().clone();
     if force_no_emit {
@@ -1406,6 +1399,12 @@ pub fn parse_config_root_plan(
         &discovery_options,
         &mut context.errors,
     )?;
+    let root_reasons = config_root_reasons(
+        &file_names,
+        node.files.as_deref(),
+        &config_base,
+        host.use_case_sensitive_file_names(),
+    )?;
     let project_references = config_project_references(node.references.as_ref(), &config_base);
     let wildcard_directories = derive_wildcard_directories(
         &node,
@@ -1445,6 +1444,7 @@ pub fn parse_config_root_plan(
         compile_on_save: node.compile_on_save,
         unsupported_root_scopes: node.unsupported_root_scopes,
         file_names,
+        root_reasons,
         wildcard_directories,
         root_parse_diagnostics: context.root_parse_diagnostics,
         errors: context.errors,
@@ -4418,6 +4418,39 @@ fn config_option_module_suffixes(options: &ConfigOptionBag) -> Option<Vec<Module
     )
 }
 
+fn config_root_reasons(
+    file_names: &[String],
+    files: Option<&[ConfigSpec]>,
+    config_base_path: &str,
+    case_sensitive: bool,
+) -> Result<Vec<RootFileReason>, ConfigParseError> {
+    let Some(files) = files else {
+        return Ok(vec![RootFileReason::Explicit; file_names.len()]);
+    };
+    let mut normalized = Vec::with_capacity(files.len());
+    for spec in files {
+        normalized.push((
+            canonical_key(
+                &normalized_spec_path(spec, config_base_path)?,
+                case_sensitive,
+            ),
+            spec.text.clone(),
+        ));
+    }
+    Ok(file_names
+        .iter()
+        .map(|file_name| {
+            let key = canonical_key(file_name, case_sensitive);
+            let spec = normalized
+                .iter()
+                .find(|(candidate, _)| candidate == &key)
+                .map(|(_, spec)| spec.clone())
+                .unwrap_or_else(|| file_name.clone());
+            RootFileReason::FilesList { spec }
+        })
+        .collect())
+}
+
 fn config_program_path(path: &str, case_sensitive: bool) -> Result<ProgramPath, ConfigParseError> {
     ProgramPath::from_trusted_parts(path, canonical_key(path, case_sensitive)).map_err(|error| {
         ConfigParseError::new(
@@ -4430,9 +4463,12 @@ fn config_program_path(path: &str, case_sensitive: bool) -> Result<ProgramPath, 
 
 /// Retain the root config text plus the exact string syntax consumed by
 /// `fileIncludeReasonToRelatedInformation`. TypeScript selects the first root
-/// `compilerOptions` object and the first matching property/value occurrence;
-/// inherited option syntax therefore intentionally has no root location.
+/// property/value occurrence; inherited option and file-spec syntax therefore
+/// intentionally has no root location.
 ///
+/// tsc-port: getTsConfigPropArrayElementValue @6.0.3
+/// tsc-hash: 891d5e562eb7429a579f16799d64da319620a7f23f6603171af1aacfdb167dcb
+/// tsc-span: _tsc.js:14432-14434
 /// tsc-port: getOptionsSyntaxByArrayElementValue @6.0.3
 /// tsc-hash: b553000947caf2234186ed0101506333c7de4d13ce5df020b91939d173bd14c7
 /// tsc-span: _tsc.js:20105-20111
@@ -4445,7 +4481,26 @@ fn program_config_file(path: ProgramPath, source: &ConfigSourceText) -> ProgramC
     let Some(root) = config_root_object(&parsed) else {
         return config_file;
     };
-    let Some(compiler_options) = config_object_properties(&parsed, root)
+    let root_properties = config_object_properties(&parsed, root);
+    for property in root_properties
+        .iter()
+        .filter(|property| matches!(property.name.as_str(), "files" | "include"))
+    {
+        for element in config_array_elements(&parsed, property.initializer) {
+            let Some(literal) = parsed.arena.node(element).data.as_string_literal() else {
+                continue;
+            };
+            let Some(span) = config_span(&parsed, element) else {
+                continue;
+            };
+            config_file = config_file.with_root_option_array_location(
+                property.name.clone(),
+                literal.text.clone(),
+                ProgramConfigSpan::new(span.start, span.length),
+            );
+        }
+    }
+    let Some(compiler_options) = root_properties
         .into_iter()
         .find(|property| property.name == "compilerOptions")
     else {

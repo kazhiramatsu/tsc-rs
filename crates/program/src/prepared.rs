@@ -607,8 +607,8 @@ impl ProgramConfigSpan {
 }
 
 /// Root config source retained by program construction for diagnostics whose
-/// primary message is fileless but whose inclusion reason points back into
-/// `compilerOptions`. The config parser precomputes only the syntax facts the
+/// inclusion reason points back into `compilerOptions` or a root `files` /
+/// `include` array. The config parser precomputes only the syntax facts the
 /// loader consumes; no parser arena crosses the one-shot program boundary.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ProgramConfigFile {
@@ -616,6 +616,7 @@ pub struct ProgramConfigFile {
     text: String,
     automatic_type_directive_locations: BTreeMap<String, ProgramConfigSpan>,
     compiler_option_string_locations: BTreeMap<String, BTreeMap<String, ProgramConfigSpan>>,
+    root_option_array_locations: BTreeMap<String, BTreeMap<String, ProgramConfigSpan>>,
 }
 
 impl ProgramConfigFile {
@@ -625,6 +626,7 @@ impl ProgramConfigFile {
             text: text.into(),
             automatic_type_directive_locations: BTreeMap::new(),
             compiler_option_string_locations: BTreeMap::new(),
+            root_option_array_locations: BTreeMap::new(),
         }
     }
 
@@ -653,6 +655,20 @@ impl ProgramConfigFile {
         self
     }
 
+    pub fn with_root_option_array_location(
+        mut self,
+        name: impl Into<String>,
+        value: impl Into<String>,
+        location: ProgramConfigSpan,
+    ) -> Self {
+        self.root_option_array_locations
+            .entry(name.into())
+            .or_default()
+            .entry(value.into())
+            .or_insert(location);
+        self
+    }
+
     pub fn path(&self) -> &ProgramPath {
         &self.path
     }
@@ -671,6 +687,13 @@ impl ProgramConfigFile {
         value: &str,
     ) -> Option<ProgramConfigSpan> {
         self.compiler_option_string_locations
+            .get(name)
+            .and_then(|values| values.get(value))
+            .copied()
+    }
+
+    pub fn root_option_array_location(&self, name: &str, value: &str) -> Option<ProgramConfigSpan> {
+        self.root_option_array_locations
             .get(name)
             .and_then(|values| values.get(value))
             .copied()
