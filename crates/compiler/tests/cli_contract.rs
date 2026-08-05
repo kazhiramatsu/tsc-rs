@@ -351,4 +351,9 @@ fn no_emit_cli_config_and_selection_matrix_matches_vendored_typescript() {
         &["--ignoreConfig", "--noEmit", "main.ts"],
         &["--ignoreConfig", "--noEmit", "main.ts"],
     );
+
+    let missing = TempTree::new();
+    fs::create_dir(missing.path("empty")).expect("create missing project directory");
+    assert_typescript_parity(&missing, &["-p", "missing.json"], &["-p", "missing.json"]);
+    assert_typescript_parity(&missing, &["-p", "empty"], &["-p", "empty"]);
 }
