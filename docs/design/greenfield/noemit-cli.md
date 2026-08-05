@@ -609,7 +609,11 @@ the Rust no-emit session. Representative default, type-reference,
 case-sensitive, virtual-config, and preserve-symlink fixtures exercise this
 boundary. The adapter intentionally stops before checker diagnostics, emit,
 baseline comparison, and unsupported static-request families; the full
-compiler case matrix remains `not-run` until those owners are ported.
+compiler case matrix remains `not-run` until those owners are ported. A
+compiler-crate integration contract feeds representative prepared programs
+through `ProgramSession::run`, so this source/config/loader seam is exercised
+by the actual Rust no-emit session without adding the expensive corpus sweep
+to GitHub Actions.
 
 A focused project-runner bridge now owns the official `NodeModulesSearch`
 config-to-loader path for its three descriptors under CommonJS and AMD. All

@@ -22,5 +22,8 @@ tsc-diagnostics.workspace = true
 tsc-host.workspace = true
 tsc-program.workspace = true
 
+[dev-dependencies]
+tsc-harness.workspace = true
+
 [lints]
 workspace = true
