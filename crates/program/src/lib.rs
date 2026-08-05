@@ -89,11 +89,11 @@ mod resolution;
 mod text;
 
 pub use config::{
-    load_config_program, parse_config_root_plan, ConfigDiscoveryOptions, ConfigHostError,
-    ConfigHostOperation, ConfigModuleResolutionOptions, ConfigOption, ConfigOptionBag,
-    ConfigOptionValueState, ConfigParseError, ConfigParseErrorKind, ConfigParseHost,
-    ConfigProgramLoadError, ConfigRootPlan, ConfigRootPlanRequest, ConfigSourceText,
-    ConfigTypedJsonValue, ConfigTypedListElement, ConfigTypedObjectProperty,
+    load_config_program, load_config_program_with_no_emit_override, parse_config_root_plan,
+    ConfigDiscoveryOptions, ConfigHostError, ConfigHostOperation, ConfigModuleResolutionOptions,
+    ConfigOption, ConfigOptionBag, ConfigOptionValueState, ConfigParseError, ConfigParseErrorKind,
+    ConfigParseHost, ConfigProgramLoadError, ConfigRootPlan, ConfigRootPlanRequest,
+    ConfigSourceText, ConfigTypedJsonValue, ConfigTypedListElement, ConfigTypedObjectProperty,
     ConfigTypedObjectShape, ConfigTypedObjectValue,
 };
 pub use config_matcher::ConfigFilePattern;

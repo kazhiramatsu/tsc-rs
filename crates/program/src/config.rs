@@ -36,8 +36,9 @@ use tsc_types::{js_number_to_string, CompilerOptionNumber, CompilerOptions, Modu
 
 use crate::config_options::{
     compiler_option_declaration, compiler_option_spelling_suggestion,
-    is_command_option_without_build, jsconfig_defaults, CompilerOptionListDescriptor,
-    CompilerOptionListElementKind, CompilerOptionValueKind, JsConfigDefaultValue,
+    is_command_option_without_build, jsconfig_defaults, typescript_6_0_3_libraries,
+    CompilerOptionListDescriptor, CompilerOptionListElementKind, CompilerOptionValueKind,
+    JsConfigDefaultValue,
 };
 use crate::json::{
     convert_recoverable_json_node_to_value, convert_recoverable_json_source_file_to_value,
@@ -1038,13 +1039,37 @@ pub fn load_config_program(
     library_catalog: &LibraryCatalog,
     limits: ProgramLoadLimits,
 ) -> Result<PreparedProgram, ConfigProgramLoadError> {
+    load_config_program_inner(host, plan, library_catalog, limits, false)
+}
+
+/// Load a config plan while applying the command-line `--noEmit` override.
+///
+/// TypeScript gives an explicit command-line value precedence over the config
+/// file. The override is deliberately limited to `noEmit`; all config and
+/// option diagnostics remain a gate and no other option is silently mutated.
+pub fn load_config_program_with_no_emit_override(
+    host: &dyn CompilerHost,
+    plan: &ConfigRootPlan,
+    library_catalog: &LibraryCatalog,
+    limits: ProgramLoadLimits,
+) -> Result<PreparedProgram, ConfigProgramLoadError> {
+    load_config_program_inner(host, plan, library_catalog, limits, true)
+}
+
+fn load_config_program_inner(
+    host: &dyn CompilerHost,
+    plan: &ConfigRootPlan,
+    library_catalog: &LibraryCatalog,
+    limits: ProgramLoadLimits,
+    force_no_emit: bool,
+) -> Result<PreparedProgram, ConfigProgramLoadError> {
     let config = plan.diagnostics().cloned().collect::<Vec<_>>();
     let options = plan.option_diagnostics().to_vec();
     if !config.is_empty() || !options.is_empty() {
         return Err(ConfigProgramLoadError::Diagnostics { config, options });
     }
 
-    if plan.compiler_options().no_emit != Some(true) {
+    if !force_no_emit && plan.compiler_options().no_emit != Some(true) {
         return Err(ConfigProgramLoadError::NoEmitRequired {
             value: plan.compiler_options().no_emit,
         });
@@ -1055,10 +1080,14 @@ pub fn load_config_program(
         .iter()
         .map(PathBuf::from)
         .collect::<Vec<_>>();
+    let mut compiler_options = plan.compiler_options().clone();
+    if force_no_emit {
+        compiler_options.no_emit = Some(true);
+    }
     load_program(
         host,
         &roots,
-        plan.compiler_options().clone(),
+        compiler_options,
         plan.program_options().clone(),
         library_catalog,
         limits,
@@ -3072,7 +3101,13 @@ fn config_module_resolution_options(
         strict_property_initialization: config_option_bool(options, "strictPropertyInitialization"),
         use_define_for_class_fields: config_option_bool(options, "useDefineForClassFields"),
         use_unknown_in_catch_variables: config_option_bool(options, "useUnknownInCatchVariables"),
-        lib: config_option_string_list(options, "lib"),
+        // Config conversion stores TypeScript's canonical file names
+        // (`lib.es5.d.ts`), while the recursive loader's public
+        // `CompilerOptions` contract deliberately consumes the lower-cased
+        // logical keys (`es5`). Bridge that representation at the config
+        // boundary so direct programmatic callers retain their fail-closed
+        // raw-key contract without making config programs unusable.
+        lib: config_option_lib(options),
         jsx: config_option_i32(options, "jsx"),
         no_emit: config_option_bool(options, "noEmit"),
         import_helpers: config_option_bool(options, "importHelpers"),
@@ -3213,6 +3248,21 @@ fn config_option_string_list(options: &ConfigOptionBag, name: &str) -> Option<Ve
             .filter_map(|value| match value {
                 ConfigTypedListElement::Value(Value::String(value)) => Some(value.clone()),
                 ConfigTypedListElement::Value(_) | ConfigTypedListElement::Undefined => None,
+            })
+            .collect(),
+    )
+}
+
+fn config_option_lib(options: &ConfigOptionBag) -> Option<Vec<String>> {
+    let values = config_option_string_list(options, "lib")?;
+    Some(
+        values
+            .into_iter()
+            .map(|file_name| {
+                typescript_6_0_3_libraries()
+                    .iter()
+                    .find(|entry| entry.value() == file_name)
+                    .map_or(file_name.clone(), |entry| entry.name().to_owned())
             })
             .collect(),
     )

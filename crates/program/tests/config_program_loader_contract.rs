@@ -6,9 +6,9 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use tsc_host::{CompilerHost, FsCompilerHost, MemoryCompilerHost};
 use tsc_program::{
-    decode_host_text, load_config_program, parse_config_root_plan, ConfigHostError,
-    ConfigHostOperation, ConfigParseHost, ConfigProgramLoadError, ConfigRootPlanRequest,
-    LibraryCatalog, ProgramLoadLimits,
+    decode_host_text, load_config_program, load_config_program_with_no_emit_override,
+    parse_config_root_plan, ConfigHostError, ConfigHostOperation, ConfigParseHost,
+    ConfigProgramLoadError, ConfigRootPlanRequest, LibraryCatalog, ProgramLoadLimits,
 };
 
 const LIMITS: ProgramLoadLimits = ProgramLoadLimits::new(128, 512, 32, 1 << 20, 1 << 22);
@@ -247,6 +247,25 @@ fn config_loader_rejects_omitted_or_false_no_emit_before_host_loading() {
             ConfigProgramLoadError::NoEmitRequired { .. }
         ));
     }
+}
+
+#[test]
+fn command_line_no_emit_override_wins_over_a_false_config_value() {
+    let host = host();
+    let adapter = ConfigHostAdapter::new(&host);
+    let plan = parse_config_root_plan(
+        &adapter,
+        request(r#"{"compilerOptions":{"noEmit":false,"noLib":true},"files":["main.ts"]}"#),
+    )
+    .expect("parse false noEmit plan");
+    let prepared = load_config_program_with_no_emit_override(
+        &host,
+        &plan,
+        &LibraryCatalog::typescript_6_0_3("/vendor/typescript/lib"),
+        LIMITS,
+    )
+    .expect("command-line noEmit override");
+    assert_eq!(prepared.compiler_options().no_emit, Some(true));
 }
 
 #[test]
