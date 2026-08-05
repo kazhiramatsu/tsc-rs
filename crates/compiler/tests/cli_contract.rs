@@ -78,6 +78,12 @@ fn run_typescript_no_color(tree: &TempTree, arguments: &[&str]) -> std::process:
         .expect("run vendored TypeScript compiler without color")
 }
 
+fn utf16le_with_bom(text: &str) -> Vec<u8> {
+    let mut bytes = vec![0xff, 0xfe];
+    bytes.extend(text.encode_utf16().flat_map(u16::to_le_bytes));
+    bytes
+}
+
 fn assert_typescript_parity(tree: &TempTree, rust_arguments: &[&str], ts_arguments: &[&str]) {
     let rust = run(tree, rust_arguments);
     let typescript = run_typescript(tree, ts_arguments);
@@ -193,6 +199,129 @@ fn missing_explicit_root_preserves_command_line_spelling() {
 }
 
 #[test]
+#[ignore = "local H0 CLI oracle audit; requires the pinned Node runtime"]
+fn no_emit_cli_encoding_matrix_matches_vendored_typescript() {
+    let utf8_bom_tree = TempTree::new();
+    let source = "const value: number = 'wrong';\n";
+    let config = r#"{"compilerOptions":{"noEmit":true,"lib":["es5"]},"files":["main.ts"]}"#;
+    let mut source_bytes = vec![0xef, 0xbb, 0xbf];
+    source_bytes.extend_from_slice(source.as_bytes());
+    fs::write(utf8_bom_tree.path("main.ts"), source_bytes).expect("write UTF-8 BOM source");
+    let mut config_bytes = vec![0xef, 0xbb, 0xbf];
+    config_bytes.extend_from_slice(config.as_bytes());
+    fs::write(utf8_bom_tree.path("tsconfig.json"), config_bytes).expect("write UTF-8 BOM config");
+    assert_typescript_parity(
+        &utf8_bom_tree,
+        &["--noEmit", "-p", "tsconfig.json"],
+        &["--noEmit", "-p", "tsconfig.json"],
+    );
+
+    let utf16le_tree = TempTree::new();
+    fs::write(utf16le_tree.path("main.ts"), utf16le_with_bom(source))
+        .expect("write UTF-16LE source");
+    fs::write(utf16le_tree.path("tsconfig.json"), utf16le_with_bom(config))
+        .expect("write UTF-16LE config");
+    assert_typescript_parity(
+        &utf16le_tree,
+        &["--pretty", "false", "--noEmit", "-p", "tsconfig.json"],
+        &["--pretty", "false", "--noEmit", "-p", "tsconfig.json"],
+    );
+}
+
+#[cfg(unix)]
+#[test]
+#[ignore = "local H0 CLI oracle audit; requires the pinned Node runtime"]
+fn no_emit_cli_symlink_and_package_mode_matrix_matches_vendored_typescript() {
+    use std::os::unix::fs::symlink;
+
+    let symlink_tree = TempTree::new();
+    fs::create_dir_all(symlink_tree.path("src")).expect("create symlink source directory");
+    fs::write(
+        symlink_tree.path("src/real.ts"),
+        "export const value: number = 1;\n",
+    )
+    .expect("write symlink target");
+    symlink(
+        symlink_tree.path("src/real.ts"),
+        symlink_tree.path("src/link.ts"),
+    )
+    .expect("create symlink source");
+    fs::write(
+        symlink_tree.path("main.ts"),
+        "import { value } from './src/link';\nconst checked: number = value;\n",
+    )
+    .expect("write symlink importer");
+    for preserve_symlinks in [false, true] {
+        let config = format!(
+            r#"{{"compilerOptions":{{"noEmit":true,"lib":["es5"],"preserveSymlinks":{preserve_symlinks}}},"files":["main.ts"]}}"#
+        );
+        fs::write(symlink_tree.path("tsconfig.json"), config).expect("write symlink config");
+        assert_typescript_parity(
+            &symlink_tree,
+            &["-p", "tsconfig.json"],
+            &["-p", "tsconfig.json"],
+        );
+    }
+
+    let package_tree = TempTree::new();
+    fs::create_dir_all(package_tree.path("node_modules/pkg")).expect("create package directory");
+    fs::write(
+        package_tree.path("main.ts"),
+        "import { value } from 'pkg';\nconst checked: number = value;\n",
+    )
+    .expect("write package importer");
+    fs::write(
+        package_tree.path("node_modules/pkg/package.json"),
+        r#"{"name":"pkg","exports":{".":{"types":"./index.d.ts","default":"./index.js"}}}"#,
+    )
+    .expect("write package manifest");
+    fs::write(
+        package_tree.path("node_modules/pkg/index.d.ts"),
+        "export declare const value: number;\n",
+    )
+    .expect("write package declaration");
+    fs::write(
+        package_tree.path("node_modules/pkg/index.js"),
+        "exports.value = 1;\n",
+    )
+    .expect("write package implementation");
+    fs::write(
+        package_tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"noEmit":true,"target":"es2022","module":"node16","moduleResolution":"node16"},"files":["main.ts"]}"#,
+    )
+    .expect("write package mode config");
+    assert_typescript_parity(
+        &package_tree,
+        &["-p", "tsconfig.json"],
+        &["-p", "tsconfig.json"],
+    );
+
+    let types_tree = TempTree::new();
+    fs::create_dir_all(types_tree.path("node_modules/@types/globals"))
+        .expect("create automatic type package");
+    fs::write(
+        types_tree.path("node_modules/@types/globals/index.d.ts"),
+        "declare const fromTypes: number;\n",
+    )
+    .expect("write automatic type declaration");
+    fs::write(
+        types_tree.path("main.ts"),
+        "const checked: number = fromTypes;\n",
+    )
+    .expect("write automatic type importer");
+    fs::write(
+        types_tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"noEmit":true,"lib":["es5"],"types":["globals"]},"files":["main.ts"]}"#,
+    )
+    .expect("write automatic type config");
+    assert_typescript_parity(
+        &types_tree,
+        &["-p", "tsconfig.json"],
+        &["-p", "tsconfig.json"],
+    );
+}
+
+#[test]
 fn config_option_diagnostics_are_rendered_alongside_semantic_diagnostics() {
     let tree = TempTree::new();
     fs::write(tree.path("main.ts"), "const value: number = 'wrong';\n").expect("write source");
@@ -202,7 +331,7 @@ fn config_option_diagnostics_are_rendered_alongside_semantic_diagnostics() {
     )
     .expect("write config");
 
-    let output = run(&tree, &["--pretty=false"]);
+    let output = run(&tree, &["--pretty", "false"]);
     assert_eq!(output.status.code(), Some(2));
     let stdout = String::from_utf8_lossy(&output.stdout);
     let option = stdout
@@ -230,13 +359,13 @@ fn pretty_false_uses_plain_output_and_pretty_true_uses_context() {
     )
     .expect("write config");
 
-    let plain = run(&tree, &["--pretty=false"]);
+    let plain = run(&tree, &["--pretty", "false"]);
     assert_eq!(plain.status.code(), Some(2));
     let plain_stdout = String::from_utf8_lossy(&plain.stdout);
     assert!(plain_stdout.starts_with("main.ts(1,7): error TS2322:"));
     assert!(!plain_stdout.contains('~'));
 
-    let pretty = run(&tree, &["--pretty=true"]);
+    let pretty = run(&tree, &["--pretty", "true"]);
     assert_eq!(pretty.status.code(), Some(2));
     let pretty_stdout = String::from_utf8_lossy(&pretty.stdout);
     let pretty_text = strip_ansi_sgr(&pretty_stdout);

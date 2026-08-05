@@ -274,10 +274,6 @@ fn parse_arguments(args: &[String]) -> Result<CommandLine, CliError> {
                 command_line.no_emit = true;
                 index = next_index;
             }
-            "--noEmit=true" => {
-                command_line.no_emit = true;
-                index += 1;
-            }
             "--noEmit=false" => {
                 return Err(CliError::Usage(
                     "--noEmit=false is outside the mandatory no-emit driver".to_owned(),
@@ -288,26 +284,10 @@ fn parse_arguments(args: &[String]) -> Result<CommandLine, CliError> {
                 command_line.ignore_config = value;
                 index = next_index;
             }
-            "--ignoreConfig=true" => {
-                command_line.ignore_config = true;
-                index += 1;
-            }
-            "--ignoreConfig=false" => {
-                command_line.ignore_config = false;
-                index += 1;
-            }
             "--pretty" => {
                 let (value, next_index) = consume_boolean_value(args, index, true);
                 command_line.pretty = Some(value);
                 index = next_index;
-            }
-            "--pretty=true" => {
-                command_line.pretty = Some(true);
-                index += 1;
-            }
-            "--pretty=false" => {
-                command_line.pretty = Some(false);
-                index += 1;
             }
             "-p" | "--project" => {
                 let value = args.get(index + 1).ok_or_else(|| {
