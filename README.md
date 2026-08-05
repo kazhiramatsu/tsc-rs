@@ -320,6 +320,9 @@ project runner's config roots, loader-facing option projection, ES5 host
 default library, and exact source order through bounded no-emit program
 construction. The upstream project runner still owns emit and baseline
 comparison, so all six manifest cases deliberately remain `not-run`.
+The general project no-emit adapter also classifies all 632 recorded project
+cases: all 82 H0-compatible plans load and execute successfully, while the
+remaining 550 request only the declared emit/watch non-scope and fail closed.
 Later shallower and root discoveries reprocess
 exactly the imports or full reference phases required by TypeScript. A `.jsx`
 module target without an active JSX mode is not
@@ -343,8 +346,10 @@ the checker consumes the validated source id for loaded rows and the physical
 path for TS7016. An explicit `preserveSymlinks=true` instead keeps external
 non-relative modules and type references on their distinct lexical link
 identities, while absent or false retains physical-source deduplication.
-General config-derived root selection and package redirects remain; the
-focused case-only alias diagnostics now match the pinned TypeScript oracle.
+General config-derived root selection and exact package-ID redirects have also
+landed; the focused case-only alias diagnostics match the pinned TypeScript
+oracle, and all 7,276 recorded compiler plans load and execute through the Rust
+no-emit session in the local structural audit.
 The remaining cross-platform matrix also remains open.
 
 | Phase | State | Focus |

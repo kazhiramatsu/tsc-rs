@@ -8,8 +8,9 @@ use serde_json::{json, Value};
 use tsc_compiler::ProgramSession;
 use tsc_diagnostics::{Diagnostic, MessageChain};
 use tsc_harness::upstream_suites::execution::{
-    load_compiler_no_emit, load_node_modules_search_project, load_recorded_execution_plans,
-    CompilerExecutionPlan, UpstreamExecutionInput, UpstreamExecutionPlan,
+    load_compiler_no_emit, load_node_modules_search_project, load_project_no_emit,
+    load_recorded_execution_plans, CompilerExecutionPlan, UpstreamExecutionInput,
+    UpstreamExecutionPlan,
 };
 use tsc_program::ProgramLoadLimits;
 
@@ -30,6 +31,21 @@ fn plan<'a>(plans: &'a [UpstreamExecutionPlan], case_id: &str) -> &'a CompilerEx
 
 fn limits() -> ProgramLoadLimits {
     ProgramLoadLimits::new(128, 1_024, 32, 8 * 1_024 * 1_024, 64 * 1_024 * 1_024)
+}
+
+fn is_expected_project_no_emit_exclusion(detail: &str) -> bool {
+    detail == "project no-emit executor requires declaration=false"
+        || detail.starts_with("project descriptor requests unsupported emit option ")
+        || detail == "project descriptor contains unsupported property \"rootDir\""
+        || detail.contains(
+            "unsupported feature unsupported-config-scope: compileOnSave is outside the H0 single-project no-emit driver",
+        )
+        || detail.contains(
+            "unsupported feature unsupported-config-option: compiler option \"outFile\" is outside the H0 single-project no-emit driver",
+        )
+        || detail.contains(
+            "unsupported feature unsupported-config-option: compiler option \"declaration\" is outside the H0 single-project no-emit driver",
+        )
 }
 
 #[test]
@@ -276,6 +292,111 @@ fn project_session_runs_focused_node_modules_search_programs() {
             assert_eq!(actual_file, expected["file"].as_str());
         }
     }
+}
+
+#[test]
+#[ignore = "local H0 project session coverage audit; not a checked-in gate"]
+fn audit_all_recorded_project_no_emit_sessions_locally() {
+    const PROGRESS_INTERVAL: usize = 25;
+
+    let workspace = workspace_root();
+    let started = Instant::now();
+    let start = std::env::var("TSRS_PROJECT_AUDIT_START")
+        .ok()
+        .map(|value| {
+            value
+                .parse::<usize>()
+                .unwrap_or_else(|_| panic!("invalid TSRS_PROJECT_AUDIT_START {value:?}"))
+        })
+        .unwrap_or(0);
+    let corpus = load_recorded_execution_plans(&workspace)
+        .unwrap_or_else(|error| panic!("failed to load upstream plans: {error}"));
+    let project_plan_count = corpus
+        .plans
+        .iter()
+        .filter(|upstream| matches!(upstream.input, UpstreamExecutionInput::Project(_)))
+        .count();
+    assert!(
+        start < project_plan_count,
+        "TSRS_PROJECT_AUDIT_START {start} is outside {project_plan_count} project plans"
+    );
+    let mut attempted = 0_usize;
+    let mut loaded = 0_usize;
+    let mut executed = 0_usize;
+    let mut excluded = 0_usize;
+    let mut failures = Vec::new();
+    for upstream in corpus
+        .plans
+        .iter()
+        .filter(|upstream| matches!(upstream.input, UpstreamExecutionInput::Project(_)))
+        .skip(start)
+    {
+        let UpstreamExecutionInput::Project(project) = &upstream.input else {
+            unreachable!("filtered to project plans")
+        };
+        attempted += 1;
+        let execution = match load_project_no_emit(&workspace, project, limits()) {
+            Ok(execution) => {
+                loaded += 1;
+                execution
+            }
+            Err(error) => {
+                let detail = error.to_string();
+                if is_expected_project_no_emit_exclusion(&detail) {
+                    excluded += 1;
+                } else {
+                    failures.push((
+                        upstream.provenance.case_id.to_string(),
+                        format!("load: {detail}"),
+                    ));
+                }
+                continue;
+            }
+        };
+        match catch_unwind(AssertUnwindSafe(|| {
+            ProgramSession::new(execution.prepared_program).run_for_harness_with_lib_cache()
+        })) {
+            Ok(Ok(_)) => executed += 1,
+            Ok(Err(error)) => failures.push((
+                upstream.provenance.case_id.to_string(),
+                format!("session: {error:?}"),
+            )),
+            Err(payload) => {
+                let detail = payload
+                    .downcast_ref::<&str>()
+                    .copied()
+                    .or_else(|| payload.downcast_ref::<String>().map(String::as_str))
+                    .unwrap_or("non-string panic payload");
+                failures.push((
+                    upstream.provenance.case_id.to_string(),
+                    format!("panic: {detail}"),
+                ));
+            }
+        }
+        if attempted.is_multiple_of(PROGRESS_INTERVAL) {
+            eprintln!(
+                "project session audit: start={start} attempted={attempted} loaded={loaded} executed={executed} excluded={excluded} failures={} elapsed={:.1?}",
+                failures.len(),
+                started.elapsed(),
+            );
+        }
+    }
+    eprintln!(
+        "project session audit: start={start} attempted={attempted} loaded={loaded} executed={executed} excluded={excluded} failures={} elapsed={:.1?}",
+        failures.len(),
+        started.elapsed(),
+    );
+    for (case_id, error) in failures.iter() {
+        eprintln!("FAIL {case_id}: {error}");
+    }
+    if start == 0 {
+        assert_eq!(project_plan_count, 632, "pinned project plan count drifted");
+        assert_eq!(loaded, 82, "H0-compatible project plan count drifted");
+        assert_eq!(excluded, 550, "H0 project non-scope count drifted");
+    }
+    assert_eq!(loaded + excluded, attempted, "unclassified project plans");
+    assert_eq!(executed, loaded, "project session coverage failures");
+    assert!(failures.is_empty(), "project session audit failures");
 }
 
 #[test]

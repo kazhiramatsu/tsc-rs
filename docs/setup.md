@@ -67,6 +67,19 @@ After investigating a failure, resume at a compiler-plan offset with
 variable so all 7,276 plans execute. This audit qualifies bounded load and
 no-emit execution; it does not compare TypeScript diagnostic baselines.
 
+The corresponding project audit classifies all 632 project-runner cases,
+executes the 82 plans inside H0's single-project no-emit scope, and verifies
+that the remaining 550 request only declared emit/build/watch non-scope:
+
+```sh
+CARGO_BUILD_JOBS=2 RUST_TEST_THREADS=1 cargo test -p tsc-rs-compiler \
+  --test upstream_no_emit_harness_contract \
+  audit_all_recorded_project_no_emit_sessions_locally -- --ignored --nocapture
+```
+
+`TSRS_PROJECT_AUDIT_START=<offset>` is available for investigation; omit it
+for the pinned full classification.
+
 If every path changed from the trusted base ends in `.md` and README's
 generated `STATUS` block is byte-identical to the base, do not run the
 Cargo/Node/full-corpus commands above. Run `git diff --check` from the

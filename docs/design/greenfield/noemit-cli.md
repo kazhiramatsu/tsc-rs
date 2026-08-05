@@ -710,7 +710,15 @@ explicit and discovered projects, including the `NestedDeclare` ambient
 import-equals boundary. Descriptor/config requests for declaration, source
 maps, output paths, and other emit-only controls remain typed unsupported
 outcomes; `noResolve` is projected into the same source-discovery boundary as
-the production loader and is no longer rejected by the adapter.
+the production loader and is no longer rejected by the adapter. A complete
+local classification of the 632 recorded project cases now qualifies every
+one of the 82 H0-compatible plans through both program loading and
+`ProgramSession`. The other 550 cases are exhaustively accounted for by the
+declared H0 non-scope: 452 descriptor emit controls, 70 descriptor declaration
+requests, 10 `compileOnSave` configs, 16 config declaration/`outFile`
+requests, and two descriptor `rootDir` emit controls. No compatible plan is
+unclassified or fails execution; this does not claim the upstream emit
+baselines.
 
 ### H0.5 — tsconfig and command-line driver
 
