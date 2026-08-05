@@ -247,6 +247,28 @@ fn unsupported_options_are_exit_two_and_version_is_lightweight() {
 }
 
 #[test]
+fn missing_project_selection_uses_typescript_command_line_diagnostics() {
+    let tree = TempTree::new();
+    fs::create_dir(tree.path("empty")).expect("create empty project directory");
+
+    let missing_file = run(&tree, &["-p", "missing.json"]);
+    assert_eq!(missing_file.status.code(), Some(1));
+    assert_eq!(
+        missing_file.stdout,
+        b"error TS5058: The specified path does not exist: 'missing.json'.\n"
+    );
+    assert!(missing_file.stderr.is_empty());
+
+    let missing_config = run(&tree, &["-p", "empty"]);
+    assert_eq!(missing_config.status.code(), Some(1));
+    assert_eq!(
+        missing_config.stdout,
+        b"error TS5057: Cannot find a tsconfig.json file at the specified directory: 'empty'.\n"
+    );
+    assert!(missing_config.stderr.is_empty());
+}
+
+#[test]
 #[ignore = "local H0 CLI oracle audit; requires the pinned Node runtime"]
 fn no_emit_cli_matches_vendored_typescript_plain_output() {
     let tree = TempTree::new();

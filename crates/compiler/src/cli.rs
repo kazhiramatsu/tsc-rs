@@ -132,7 +132,42 @@ fn execute(args: &[String]) -> Result<CliOutput, CliError> {
     let catalog = LibraryCatalog::typescript_6_0_3(library_directory(&current_directory));
 
     if let Some(project) = command_line.project {
-        let config_file = resolve_project_file(&host, &current_directory, &project)?;
+        let config_file = match resolve_project_file(&host, &current_directory, &project)? {
+            Ok(config_file) => config_file,
+            Err(ProjectFileError::MissingPath(path)) => {
+                let diagnostic = Diagnostic::new(
+                    None,
+                    None,
+                    None,
+                    MessageChain::new(&gen::The_specified_path_does_not_exist_0, &[path]),
+                );
+                return rendered_diagnostics_with_exit(
+                    &current_directory,
+                    &BTreeMap::new(),
+                    &[diagnostic],
+                    pretty,
+                    EXIT_COMMAND_LINE,
+                );
+            }
+            Err(ProjectFileError::MissingConfig(directory)) => {
+                let diagnostic = Diagnostic::new(
+                    None,
+                    None,
+                    None,
+                    MessageChain::new(
+                        &gen::Cannot_find_a_tsconfig_json_file_at_the_specified_directory_0,
+                        &[directory],
+                    ),
+                );
+                return rendered_diagnostics_with_exit(
+                    &current_directory,
+                    &BTreeMap::new(),
+                    &[diagnostic],
+                    pretty,
+                    EXIT_COMMAND_LINE,
+                );
+            }
+        };
         let (plan, source_texts) = parse_config_file(&host, &config_file)?;
         return execute_config(
             &host,
@@ -814,16 +849,29 @@ fn parse_config_file(
     Ok((plan, source_texts))
 }
 
+enum ProjectFileError {
+    MissingPath(String),
+    MissingConfig(String),
+}
+
 fn resolve_project_file(
     host: &FsCompilerHost,
     current_directory: &Path,
     project: &Path,
-) -> Result<PathBuf, CliError> {
+) -> Result<Result<PathBuf, ProjectFileError>, CliError> {
+    let requested = project.to_string_lossy().replace('\\', "/");
     let project = absolutize(current_directory, project);
     if host.directory_exists(&project).map_err(host_error)? {
-        return Ok(project.join(CONFIG_FILE_NAME));
+        let config_file = project.join(CONFIG_FILE_NAME);
+        if host.file_exists(&config_file).map_err(host_error)? {
+            return Ok(Ok(config_file));
+        }
+        return Ok(Err(ProjectFileError::MissingConfig(requested)));
     }
-    Ok(project)
+    if !host.file_exists(&project).map_err(host_error)? {
+        return Ok(Err(ProjectFileError::MissingPath(requested)));
+    }
+    Ok(Ok(project))
 }
 
 fn find_config_file(
