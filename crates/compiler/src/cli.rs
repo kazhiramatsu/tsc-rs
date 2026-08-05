@@ -209,11 +209,12 @@ fn execute(args: &[String]) -> Result<CliOutput, CliError> {
                 "explicit source files require --noEmit; H0 never invokes an emitter".to_owned(),
             ));
         }
-        let roots = command_line
-            .files
-            .into_iter()
-            .map(|file| absolutize(&current_directory, &file))
-            .collect::<Vec<_>>();
+        // Keep the caller's spelling for root-file diagnostics. The program
+        // loader normalizes these against the host cwd for identity and I/O,
+        // while TypeScript reports a missing explicit root as it was written
+        // on the command line (for example `missing.ts`, not its absolute
+        // cwd-expanded path).
+        let roots = command_line.files;
         return execute_explicit_files(&host, &current_directory, &catalog, &roots, pretty);
     }
 

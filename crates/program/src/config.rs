@@ -47,7 +47,9 @@ use crate::json::{
     RecoverableJsonValue,
 };
 use crate::library::LibraryCatalog;
-use crate::loader::{load_program, ProgramLoadError, ProgramLoadLimits};
+use crate::loader::{
+    load_program_with_root_reasons, ProgramLoadError, ProgramLoadLimits, RootFileReason,
+};
 use crate::module_resolution::{
     directory_name, normalize_absolute_path_lexical, normalized_root_parts, ModuleResolver,
 };
@@ -1233,13 +1235,22 @@ fn load_config_program_inner(
     let roots = plan
         .file_names()
         .iter()
-        .map(PathBuf::from)
+        .map(|file_name| {
+            (
+                PathBuf::from(file_name),
+                if plan.files().is_some() {
+                    RootFileReason::FilesList
+                } else {
+                    RootFileReason::Explicit
+                },
+            )
+        })
         .collect::<Vec<_>>();
     let mut compiler_options = plan.compiler_options().clone();
     if force_no_emit {
         compiler_options.no_emit = Some(true);
     }
-    load_program(
+    load_program_with_root_reasons(
         host,
         &roots,
         compiler_options,

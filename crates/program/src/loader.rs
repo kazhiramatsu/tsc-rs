@@ -441,6 +441,7 @@ pub fn load_no_lib_program(
         None,
         true,
         limits,
+        None,
     )
 }
 
@@ -472,9 +473,48 @@ pub fn load_program(
         Some(library_catalog),
         false,
         limits,
+        None,
     )
 }
 
+/// Root inclusion provenance used by config-backed program construction.
+/// TypeScript exposes this in the TS6053/unsupported-root diagnostic chain;
+/// preserving it here keeps the loader independent of the config parser while
+/// allowing `files` roots to differ from explicit command-line roots.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum RootFileReason {
+    Explicit,
+    FilesList,
+}
+
+/// Load a config-derived root closure while retaining the source of each root
+/// spelling for TypeScript's inclusion-chain diagnostics.
+pub(crate) fn load_program_with_root_reasons(
+    host: &dyn CompilerHost,
+    roots: &[(PathBuf, RootFileReason)],
+    compiler_options: CompilerOptions,
+    program_options: ProgramOptions,
+    library_catalog: &LibraryCatalog,
+    limits: ProgramLoadLimits,
+) -> Result<PreparedProgram, ProgramLoadError> {
+    let root_names = roots
+        .iter()
+        .map(|(path, _)| path.clone())
+        .collect::<Vec<_>>();
+    let root_reasons = roots.iter().map(|(_, reason)| *reason).collect::<Vec<_>>();
+    load_program_worker(
+        host,
+        &root_names,
+        compiler_options,
+        program_options,
+        Some(library_catalog),
+        false,
+        limits,
+        Some(&root_reasons),
+    )
+}
+
+#[allow(clippy::too_many_arguments)] // Root provenance is an orthogonal config-only input.
 fn load_program_worker(
     host: &dyn CompilerHost,
     root_names: &[PathBuf],
@@ -483,6 +523,7 @@ fn load_program_worker(
     library_catalog: Option<&LibraryCatalog>,
     require_no_lib: bool,
     limits: ProgramLoadLimits,
+    root_reasons: Option<&[RootFileReason]>,
 ) -> Result<PreparedProgram, ProgramLoadError> {
     validate_admitted_options(
         &compiler_options,
@@ -521,9 +562,13 @@ fn load_program_worker(
         limits,
         &mut resolver,
     );
-    for root_name in root_names {
+    for (index, root_name) in root_names.iter().enumerate() {
+        let root_spelling = root_name.clone();
         let root = normalize_root(root_name, &path_context)?;
-        graph.load_root(root)?;
+        let reason = root_reasons
+            .and_then(|reasons| reasons.get(index).copied())
+            .unwrap_or(RootFileReason::Explicit);
+        graph.load_root(root, &root_spelling, reason)?;
     }
     if !root_names.is_empty() {
         graph.load_automatic_type_directives()?;
@@ -918,13 +963,22 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
         }
     }
 
-    fn load_root(&mut self, path: ProgramPath) -> Result<(), ProgramLoadError> {
+    fn load_root(
+        &mut self,
+        path: ProgramPath,
+        root_spelling: &Path,
+        root_reason: RootFileReason,
+    ) -> Result<(), ProgramLoadError> {
         if !path_has_extension(path.display()) {
-            return self.load_extensionless_root(path);
+            return self.load_extensionless_root(path, root_spelling, root_reason);
         }
         if !is_admitted_source(path.canonical(), self.compiler_options) {
-            let diagnostic =
-                unsupported_root_extension_diagnostic(&path, self.compiler_options.allow_js)?;
+            let diagnostic = unsupported_root_extension_diagnostic(
+                &path,
+                root_spelling,
+                self.compiler_options.allow_js,
+                root_reason,
+            )?;
             if self
                 .diagnosed_missing_roots
                 .insert(path_text(path.display())?)
@@ -950,7 +1004,9 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                 .root_inclusions
                 .push(path.display().to_path_buf());
         }
-        let missing_diagnostic = source.is_none().then(|| missing_root_diagnostic(&path));
+        let missing_diagnostic = source
+            .is_none()
+            .then(|| missing_root_diagnostic(root_spelling, root_reason));
         if let Some(diagnostic) = missing_diagnostic.clone() {
             if self
                 .diagnosed_missing_roots
@@ -967,7 +1023,12 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
         Ok(())
     }
 
-    fn load_extensionless_root(&mut self, path: ProgramPath) -> Result<(), ProgramLoadError> {
+    fn load_extensionless_root(
+        &mut self,
+        path: ProgramPath,
+        root_spelling: &Path,
+        root_reason: RootFileReason,
+    ) -> Result<(), ProgramLoadError> {
         let requested_text = path
             .display()
             .to_str()
@@ -1005,8 +1066,11 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
             }
         }
 
-        let diagnostic =
-            unresolved_extensionless_root_diagnostic(&path, self.compiler_options.allow_js)?;
+        let diagnostic = unresolved_extensionless_root_diagnostic(
+            root_spelling,
+            self.compiler_options.allow_js,
+            root_reason,
+        )?;
         if self
             .diagnosed_missing_roots
             .insert(path_text(path.display())?)
@@ -2701,10 +2765,19 @@ fn is_loadable_typescript_extension(extension: &ModuleExtension) -> bool {
 /// tsc-span: _tsc.js:124173-124209
 fn unsupported_root_extension_diagnostic(
     path: &ProgramPath,
+    root_spelling: &Path,
     allow_js: bool,
+    root_reason: RootFileReason,
 ) -> Result<Diagnostic, ProgramLoadError> {
     let javascript = is_javascript_source(path.canonical());
-    let path = path_text(path.display())?;
+    let path = root_spelling.to_str().ok_or_else(|| {
+        ProgramLoadError::invalid_input(
+            ProgramLoadOperation::NormalizeRoot,
+            Some(root_spelling.to_path_buf()),
+            "root spelling is not valid Unicode",
+        )
+    })?;
+    let path = path.to_owned();
     let (message, arguments) = if javascript {
         (
             &gen::File_0_is_a_JavaScript_file_Did_you_mean_to_enable_the_allowJs_option,
@@ -2716,7 +2789,7 @@ fn unsupported_root_extension_diagnostic(
             vec![path, supported_source_extension_list(allow_js).to_owned()],
         )
     };
-    let root_reason = MessageChain::new(&gen::Root_file_specified_for_compilation, &[]);
+    let root_reason = root_file_reason_message(root_reason);
     let inclusion = MessageChain::new(&gen::The_file_is_in_the_program_because, &[])
         .with_next(vec![root_reason]);
     Ok(Diagnostic::new(
@@ -2727,8 +2800,8 @@ fn unsupported_root_extension_diagnostic(
     ))
 }
 
-fn missing_root_diagnostic(path: &ProgramPath) -> Diagnostic {
-    let root_reason = MessageChain::new(&gen::Root_file_specified_for_compilation, &[]);
+fn missing_root_diagnostic(path: &Path, root_file_reason: RootFileReason) -> Diagnostic {
+    let root_reason = root_file_reason_message(root_file_reason);
     let inclusion = MessageChain::new(&gen::The_file_is_in_the_program_because, &[])
         .with_next(vec![root_reason]);
     Diagnostic::new(
@@ -2738,9 +2811,8 @@ fn missing_root_diagnostic(path: &ProgramPath) -> Diagnostic {
         MessageChain::new(
             &gen::File_0_not_found,
             &[path
-                .display()
                 .to_str()
-                .expect("program paths are representable")
+                .expect("root paths are representable")
                 .to_owned()],
         )
         .with_next(vec![inclusion]),
@@ -2748,10 +2820,11 @@ fn missing_root_diagnostic(path: &ProgramPath) -> Diagnostic {
 }
 
 fn unresolved_extensionless_root_diagnostic(
-    path: &ProgramPath,
+    path: &Path,
     allow_js: bool,
+    root_reason: RootFileReason,
 ) -> Result<Diagnostic, ProgramLoadError> {
-    let root_reason = MessageChain::new(&gen::Root_file_specified_for_compilation, &[]);
+    let root_reason = root_file_reason_message(root_reason);
     let inclusion = MessageChain::new(&gen::The_file_is_in_the_program_because, &[])
         .with_next(vec![root_reason]);
     Ok(Diagnostic::new(
@@ -2761,12 +2834,30 @@ fn unresolved_extensionless_root_diagnostic(
         MessageChain::new(
             &gen::Could_not_resolve_the_path_0_with_the_extensions_1,
             &[
-                path_text(path.display())?,
+                path.to_str()
+                    .ok_or_else(|| {
+                        ProgramLoadError::invalid_input(
+                            ProgramLoadOperation::NormalizeRoot,
+                            Some(path.to_path_buf()),
+                            "root spelling is not valid Unicode",
+                        )
+                    })?
+                    .to_owned(),
                 supported_source_extension_list(allow_js).to_owned(),
             ],
         )
         .with_next(vec![inclusion]),
     ))
+}
+
+fn root_file_reason_message(reason: RootFileReason) -> MessageChain {
+    MessageChain::new(
+        match reason {
+            RootFileReason::Explicit => &gen::Root_file_specified_for_compilation,
+            RootFileReason::FilesList => &gen::Part_of_files_list_in_tsconfig_json,
+        },
+        &[],
+    )
 }
 
 fn missing_library_root_diagnostic(path: &ProgramPath, reason: &LibraryRootReason) -> Diagnostic {

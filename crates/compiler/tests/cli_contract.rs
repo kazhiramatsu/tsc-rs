@@ -181,6 +181,18 @@ fn semantic_diagnostics_are_stdout_and_exit_two() {
 }
 
 #[test]
+fn missing_explicit_root_preserves_command_line_spelling() {
+    let tree = TempTree::new();
+    let output = run(&tree, &["--ignoreConfig", "--noEmit", "missing.ts"]);
+    assert_eq!(output.status.code(), Some(2));
+    assert_eq!(
+        output.stdout,
+        b"error TS6053: File 'missing.ts' not found.\n  The file is in the program because:\n    Root file specified for compilation\n"
+    );
+    assert!(output.stderr.is_empty());
+}
+
+#[test]
 fn config_option_diagnostics_are_rendered_alongside_semantic_diagnostics() {
     let tree = TempTree::new();
     fs::write(tree.path("main.ts"), "const value: number = 'wrong';\n").expect("write source");
@@ -489,5 +501,35 @@ fn no_emit_cli_extended_config_matrix_matches_vendored_typescript() {
         &mapping_tree,
         &["-p", "tsconfig.json"],
         &["-p", "tsconfig.json"],
+    );
+
+    let missing_roots_tree = TempTree::new();
+    fs::write(
+        missing_roots_tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"noEmit":true,"lib":["es5"]},"files":["missing.ts"]}"#,
+    )
+    .expect("write missing-roots config");
+    assert_typescript_parity(
+        &missing_roots_tree,
+        &["-p", "tsconfig.json"],
+        &["-p", "tsconfig.json"],
+    );
+
+    let empty_roots_tree = TempTree::new();
+    fs::write(
+        empty_roots_tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"noEmit":true,"lib":["es5"]},"files":[]}"#,
+    )
+    .expect("write empty-roots config");
+    assert_typescript_parity(
+        &empty_roots_tree,
+        &["-p", "tsconfig.json"],
+        &["-p", "tsconfig.json"],
+    );
+
+    assert_typescript_parity(
+        &empty_roots_tree,
+        &["--ignoreConfig", "--noEmit", "missing.ts"],
+        &["--ignoreConfig", "--noEmit", "missing.ts"],
     );
 }
