@@ -1,9 +1,11 @@
 use std::collections::BTreeMap;
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::process::Command;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 
+use serde_json::{json, Value};
 use tsc_host::{CompilerHost, FsCompilerHost, MemoryCompilerHost};
 use tsc_program::{
     decode_host_text, load_config_program, load_config_program_with_no_emit_override,
@@ -349,6 +351,178 @@ fn missing_configured_type_retains_ts1419_config_related_information() {
     assert_eq!(auxiliary.len(), 1);
     assert_eq!(auxiliary[0].path().display(), "/project/tsconfig.json");
     assert_eq!(auxiliary[0].text(), text);
+}
+
+#[test]
+fn missing_default_library_retains_ts1426_target_related_information() {
+    let host = host();
+    let adapter = ConfigHostAdapter::new(&host);
+    let text = r#"{"note":"😀","compilerOptions":{"noEmit":true,"target":"es5","types":[]},"files":["main.ts"]}"#;
+    let plan = parse_config_root_plan(&adapter, request(text)).expect("parse target config");
+    let prepared = load_config_program(
+        &host,
+        &plan,
+        &LibraryCatalog::typescript_6_0_3("/vendor/typescript/lib"),
+        LIMITS,
+    )
+    .expect("load missing default library as a diagnostic");
+
+    let diagnostic = prepared
+        .diagnostics()
+        .program()
+        .iter()
+        .find(|diagnostic| diagnostic.code() == 6053)
+        .expect("missing default library publishes TS6053");
+    assert_eq!(
+        diagnostic.message.next[0].next[0].text,
+        "Default library for target 'es5'"
+    );
+    assert!(diagnostic.related_information_present);
+    let [related] = diagnostic.related.as_slice() else {
+        panic!("missing default library must point back to compilerOptions.target");
+    };
+    assert_eq!(related.message.code, 1426);
+    assert_eq!(related.file_name.as_deref(), Some("/project/tsconfig.json"));
+    let literal_byte = text.find("\"es5\"").expect("target literal span");
+    let literal_utf16 = text[..literal_byte].encode_utf16().count() as u32;
+    assert_eq!(related.start, Some(literal_utf16));
+    assert_eq!(related.length, Some("\"es5\"".len() as u32));
+}
+
+#[test]
+fn missing_explicit_library_matches_typescript_without_ts1423_related_information() {
+    let host = host();
+    let adapter = ConfigHostAdapter::new(&host);
+    let plan = parse_config_root_plan(
+        &adapter,
+        request(
+            r#"{"compilerOptions":{"noEmit":true,"lib":["es5"],"types":[]},"files":["main.ts"]}"#,
+        ),
+    )
+    .expect("parse explicit library config");
+    let prepared = load_config_program(
+        &host,
+        &plan,
+        &LibraryCatalog::typescript_6_0_3("/vendor/typescript/lib"),
+        LIMITS,
+    )
+    .expect("load missing explicit library as a diagnostic");
+
+    let diagnostic = prepared
+        .diagnostics()
+        .program()
+        .iter()
+        .find(|diagnostic| diagnostic.code() == 6053)
+        .expect("missing explicit library publishes TS6053");
+    assert_eq!(
+        diagnostic.message.next[0].next[0].text,
+        "Library 'lib.es5.d.ts' specified in compilerOptions"
+    );
+    assert!(!diagnostic.related_information_present);
+    assert!(diagnostic.related.is_empty());
+}
+
+#[test]
+#[ignore = "local H0 program oracle audit; requires the pinned Node runtime"]
+fn missing_library_config_related_information_matches_vendored_typescript() {
+    const PROBE: &str = r#"
+const ts = require(process.argv[1]);
+const configs = JSON.parse(process.argv[2]);
+function probe(configText) {
+  const configFile = ts.parseJsonText('/project/tsconfig.json', configText);
+  const parseHost = {
+    useCaseSensitiveFileNames: true,
+    readDirectory: () => [],
+    fileExists: path => path === '/project/main.ts',
+    readFile: path => path === '/project/main.ts' ? 'export {};\n' : undefined,
+  };
+  const parsed = ts.parseJsonSourceFileConfigFileContent(configFile, parseHost, '/project');
+  const host = ts.createCompilerHost(parsed.options);
+  host.getCurrentDirectory = () => '/project';
+  host.getDefaultLibLocation = () => '/vendor/typescript/lib';
+  host.getDefaultLibFileName = () => '/vendor/typescript/lib/lib.d.ts';
+  host.fileExists = path => path === '/project/main.ts';
+  host.readFile = path => path === '/project/main.ts' ? 'export {};\n' : undefined;
+  host.getSourceFile = (path, target) => path === '/project/main.ts'
+    ? ts.createSourceFile(path, 'export {};\n', target, true)
+    : undefined;
+  const program = ts.createProgram({
+    rootNames: parsed.fileNames,
+    options: parsed.options,
+    host,
+  });
+  const diagnostic = ts.getPreEmitDiagnostics(program).find(row => row.code === 6053);
+  if (!diagnostic) throw new Error('missing TS6053');
+  return {
+    relatedInformationPresent: diagnostic.relatedInformation !== undefined,
+    related: (diagnostic.relatedInformation || []).map(related => ({
+      code: related.code,
+      file: related.file && related.file.fileName,
+      start: related.start,
+      length: related.length,
+      message: ts.flattenDiagnosticMessageText(related.messageText, '\n'),
+    })),
+  };
+}
+process.stdout.write(JSON.stringify(configs.map(probe)));
+"#;
+    let configs = [
+        r#"{"note":"😀","compilerOptions":{"noEmit":true,"target":"es5","types":[]},"files":["main.ts"]}"#,
+        r#"{"compilerOptions":{"noEmit":true,"lib":["es5"],"types":[]},"files":["main.ts"]}"#,
+        r#"{"compilerOptions":{"noEmit":true,"target":"ES5","types":[]},"files":["main.ts"]}"#,
+        r#"{"compilerOptions":{"noEmit":true,"target":"es2015","target":"es5","types":[]},"files":["main.ts"]}"#,
+        r#"{"compilerOptions":{"noEmit":true,"target":"es5","target":"es5","types":[]},"files":["main.ts"]}"#,
+        r#"{"compilerOptions":{"noEmit":true,"types":[]},"files":["main.ts"]}"#,
+    ];
+    let bundle = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../..")
+        .join("vendor/typescript-6.0.3/lib/typescript.js");
+    let output = Command::new("node")
+        .arg("-e")
+        .arg(PROBE)
+        .arg(bundle)
+        .arg(json!(configs).to_string())
+        .output()
+        .expect("run vendored TypeScript program provenance probe");
+    assert!(
+        output.status.success(),
+        "TypeScript probe failed: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let oracle: Value = serde_json::from_slice(&output.stdout).expect("probe output is JSON");
+
+    let rust = configs
+        .iter()
+        .map(|text| {
+            let host = host();
+            let plan = parse_config_root_plan(&ConfigHostAdapter::new(&host), request(text))
+                .expect("parse oracle config");
+            let prepared = load_config_program(
+                &host,
+                &plan,
+                &LibraryCatalog::typescript_6_0_3("/vendor/typescript/lib"),
+                LIMITS,
+            )
+            .expect("load oracle config");
+            let diagnostic = prepared
+                .diagnostics()
+                .program()
+                .iter()
+                .find(|diagnostic| diagnostic.code() == 6053)
+                .expect("Rust program publishes TS6053");
+            json!({
+                "relatedInformationPresent": diagnostic.related_information_present,
+                "related": diagnostic.related.iter().map(|related| json!({
+                    "code": related.message.code,
+                    "file": related.file_name,
+                    "start": related.start,
+                    "length": related.length,
+                    "message": related.message.text,
+                })).collect::<Vec<_>>(),
+            })
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(json!(rust), oracle);
 }
 
 #[test]

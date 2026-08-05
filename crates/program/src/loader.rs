@@ -1429,7 +1429,11 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                     .diagnosed_missing_library_roots
                     .insert(path.display().to_path_buf())
             {
-                let diagnostic = missing_library_root_diagnostic(&path, &reason);
+                let diagnostic = missing_library_root_diagnostic(
+                    &path,
+                    &reason,
+                    self.program_options.config_file(),
+                );
                 let replaced_root_diagnostics = self
                     .roots
                     .iter_mut()
@@ -2968,8 +2972,12 @@ fn root_file_reason_message(reason: RootFileReason) -> MessageChain {
     )
 }
 
-fn missing_library_root_diagnostic(path: &ProgramPath, reason: &LibraryRootReason) -> Diagnostic {
-    let reason = match reason {
+fn missing_library_root_diagnostic(
+    path: &ProgramPath,
+    reason: &LibraryRootReason,
+    config_file: Option<&ProgramConfigFile>,
+) -> Diagnostic {
+    let inclusion_reason = match reason {
         LibraryRootReason::Default { target } => MessageChain::new(
             &gen::Default_library_for_target_0,
             std::slice::from_ref(target),
@@ -2979,9 +2987,9 @@ fn missing_library_root_diagnostic(path: &ProgramPath, reason: &LibraryRootReaso
             std::slice::from_ref(file_name),
         ),
     };
-    let inclusion =
-        MessageChain::new(&gen::The_file_is_in_the_program_because, &[]).with_next(vec![reason]);
-    Diagnostic::new(
+    let inclusion = MessageChain::new(&gen::The_file_is_in_the_program_because, &[])
+        .with_next(vec![inclusion_reason]);
+    let mut diagnostic = Diagnostic::new(
         None,
         None,
         None,
@@ -2994,7 +3002,33 @@ fn missing_library_root_diagnostic(path: &ProgramPath, reason: &LibraryRootReaso
                 .to_owned()],
         )
         .with_next(vec![inclusion]),
-    )
+    );
+    if let LibraryRootReason::Default { target } = reason {
+        if let Some((config_file, location)) = config_file.and_then(|config_file| {
+            config_file
+                .compiler_option_string_location("target", target)
+                .map(|location| (config_file, location))
+        }) {
+            diagnostic.related_information_present = true;
+            diagnostic.related.push(RelatedInfo {
+                file_name: Some(
+                    config_file
+                        .path()
+                        .display()
+                        .to_str()
+                        .expect("validated config paths are Unicode")
+                        .to_owned(),
+                ),
+                start: Some(location.start()),
+                length: Some(location.length()),
+                message: MessageChain::new(
+                    &gen::File_is_default_library_for_target_specified_here,
+                    &[],
+                ),
+            });
+        }
+    }
+    diagnostic
 }
 
 fn automatic_type_reference_diagnostic(

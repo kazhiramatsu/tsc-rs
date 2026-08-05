@@ -528,11 +528,16 @@ occurrences while final diagnostic consumption sorts and deduplicates them.
 An empty requested-root list suppresses this phase, whereas a requested but
 missing root does not. A normalized `ProgramOptions::config_file_path` anchors
 both automatic and source-owned default type-root lookup. H0.5 additionally
-retains the root config source and the first matching UTF-16 string-literal
-span from root `compilerOptions.types`, without carrying a parser arena across
-the program boundary. A missing explicit automatic type therefore publishes
-TS1419 at its config entry; wildcard discovery selects the `"*"` entry, and
-inherited-only syntax intentionally has no root-config location.
+retains the root config source and the first matching UTF-16 string syntax by
+option/value from the first root `compilerOptions` object, without carrying a
+parser arena across the program boundary. A missing explicit automatic type
+therefore publishes TS1419 at its `types` entry; wildcard discovery selects
+the `"*"` entry. A missing target-selected default library publishes TS1426
+at the exact `target` literal. Case-only values, inherited-only syntax, and an
+absent target intentionally have no root-config location. The pinned API
+oracle also preserves TypeScript 6.0.3's asymmetric explicit-`lib` behavior:
+the mapped `lib.es5.d.ts` option value does not match the raw `"es5"` config
+literal, so that missing-root TS6053 has no TS1423 related information.
 
 Default or explicit library roots are selected only after the automatic type
 phase. Publication then forms a stable catalog-priority default-library prefix

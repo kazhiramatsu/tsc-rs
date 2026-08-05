@@ -615,6 +615,7 @@ pub struct ProgramConfigFile {
     path: ProgramPath,
     text: String,
     automatic_type_directive_locations: BTreeMap<String, ProgramConfigSpan>,
+    compiler_option_string_locations: BTreeMap<String, BTreeMap<String, ProgramConfigSpan>>,
 }
 
 impl ProgramConfigFile {
@@ -623,6 +624,7 @@ impl ProgramConfigFile {
             path,
             text: text.into(),
             automatic_type_directive_locations: BTreeMap::new(),
+            compiler_option_string_locations: BTreeMap::new(),
         }
     }
 
@@ -637,6 +639,20 @@ impl ProgramConfigFile {
         self
     }
 
+    pub fn with_compiler_option_string_location(
+        mut self,
+        name: impl Into<String>,
+        value: impl Into<String>,
+        location: ProgramConfigSpan,
+    ) -> Self {
+        self.compiler_option_string_locations
+            .entry(name.into())
+            .or_default()
+            .entry(value.into())
+            .or_insert(location);
+        self
+    }
+
     pub fn path(&self) -> &ProgramPath {
         &self.path
     }
@@ -647,6 +663,17 @@ impl ProgramConfigFile {
 
     pub fn automatic_type_directive_location(&self, name: &str) -> Option<ProgramConfigSpan> {
         self.automatic_type_directive_locations.get(name).copied()
+    }
+
+    pub fn compiler_option_string_location(
+        &self,
+        name: &str,
+        value: &str,
+    ) -> Option<ProgramConfigSpan> {
+        self.compiler_option_string_locations
+            .get(name)
+            .and_then(|values| values.get(value))
+            .copied()
     }
 }
 

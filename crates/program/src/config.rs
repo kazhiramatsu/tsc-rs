@@ -4428,15 +4428,17 @@ fn config_program_path(path: &str, case_sensitive: bool) -> Result<ProgramPath, 
     })
 }
 
-/// Retain the root config text plus the exact `compilerOptions.types` string
-/// literal spans used by `fileIncludeReasonToRelatedInformation`. TypeScript
-/// selects the first root `compilerOptions` object and the first matching
-/// array element; inherited option syntax therefore intentionally has no root
-/// related location.
+/// Retain the root config text plus the exact string syntax consumed by
+/// `fileIncludeReasonToRelatedInformation`. TypeScript selects the first root
+/// `compilerOptions` object and the first matching property/value occurrence;
+/// inherited option syntax therefore intentionally has no root location.
 ///
 /// tsc-port: getOptionsSyntaxByArrayElementValue @6.0.3
 /// tsc-hash: b553000947caf2234186ed0101506333c7de4d13ce5df020b91939d173bd14c7
 /// tsc-span: _tsc.js:20105-20111
+/// tsc-port: getOptionsSyntaxByValue @6.0.3
+/// tsc-hash: 17ba3301b0e0b235cd27fe80671cceec3dc0473af4f1aee5dcf1cacbbbe6fe66
+/// tsc-span: _tsc.js:20111-20116
 fn program_config_file(path: ProgramPath, source: &ConfigSourceText) -> ProgramConfigFile {
     let mut config_file = ProgramConfigFile::new(path, source.text.clone());
     let parsed = tsc_syntax::parse_json_text(&source.file_name, &source.text);
@@ -4449,21 +4451,34 @@ fn program_config_file(path: ProgramPath, source: &ConfigSourceText) -> ProgramC
     else {
         return config_file;
     };
-    for types in config_object_properties(&parsed, compiler_options.initializer)
-        .into_iter()
-        .filter(|property| property.name == "types")
-    {
-        for element in config_array_elements(&parsed, types.initializer) {
-            let Some(literal) = parsed.arena.node(element).data.as_string_literal() else {
-                continue;
-            };
-            let Some(span) = config_span(&parsed, element) else {
-                continue;
-            };
-            config_file = config_file.with_automatic_type_directive_location(
+    for property in config_object_properties(&parsed, compiler_options.initializer) {
+        if let (Some(literal), Some(span)) = (
+            parsed
+                .arena
+                .node(property.initializer)
+                .data
+                .as_string_literal(),
+            config_span(&parsed, property.initializer),
+        ) {
+            config_file = config_file.with_compiler_option_string_location(
+                property.name.clone(),
                 literal.text.clone(),
                 ProgramConfigSpan::new(span.start, span.length),
             );
+        }
+        if property.name == "types" {
+            for element in config_array_elements(&parsed, property.initializer) {
+                let Some(literal) = parsed.arena.node(element).data.as_string_literal() else {
+                    continue;
+                };
+                let Some(span) = config_span(&parsed, element) else {
+                    continue;
+                };
+                config_file = config_file.with_automatic_type_directive_location(
+                    literal.text.clone(),
+                    ProgramConfigSpan::new(span.start, span.length),
+                );
+            }
         }
     }
     config_file
