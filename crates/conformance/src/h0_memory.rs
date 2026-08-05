@@ -299,7 +299,7 @@ pub(crate) fn run(
     }
 
     let prepared = prepared_builder.build()?;
-    let outcome = ProgramSession::new(prepared).run_for_conformance_with_harness_lib_cache()?;
+    let outcome = ProgramSession::new(prepared).run_for_harness_with_lib_cache()?;
     let syntactic = outcome.syntactic_diagnostics().to_vec();
     let all = outcome.conformance_diagnostics().to_vec();
     Ok(H0MemoryCase { all, syntactic })

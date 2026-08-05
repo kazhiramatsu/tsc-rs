@@ -51,6 +51,22 @@ all-target Clippy type-checks every target and the test compile performs
 codegen. Test binaries omit debug information to reduce link and startup I/O;
 ordinary dev-profile binaries retain their debugging profile.
 
+The complete recorded TypeScript compiler-suite execution audit is deliberately
+local-only and ignored by the ordinary test gate. It reuses an exact immutable
+standard-library bundle within the process, keeps case order deterministic, and
+reports progress every 250 cases:
+
+```sh
+CARGO_BUILD_JOBS=2 RUST_TEST_THREADS=1 cargo test -p tsc-rs-compiler \
+  --test upstream_no_emit_harness_contract \
+  audit_all_recorded_compiler_no_emit_sessions_locally -- --ignored --nocapture
+```
+
+After investigating a failure, resume at a compiler-plan offset with
+`TSRS_COMPILER_AUDIT_START=<offset>`. A final acceptance run must omit that
+variable so all 7,276 plans execute. This audit qualifies bounded load and
+no-emit execution; it does not compare TypeScript diagnostic baselines.
+
 If every path changed from the trusted base ends in `.md` and README's
 generated `STATUS` block is byte-identical to the base, do not run the
 Cargo/Node/full-corpus commands above. Run `git diff --check` from the

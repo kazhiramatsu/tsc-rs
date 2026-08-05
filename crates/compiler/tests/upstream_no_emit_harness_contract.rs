@@ -1,6 +1,8 @@
 use std::collections::BTreeSet;
 use std::fs;
+use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::path::PathBuf;
+use std::time::Instant;
 
 use serde_json::{json, Value};
 use tsc_compiler::ProgramSession;
@@ -48,6 +50,12 @@ fn compiler_session_runs_recorded_no_emit_programs() {
         "typescript-6.0.3/compiler/moduleResolutionPackageIdWithRelativeAndAbsolutePath.ts#default",
         "typescript-6.0.3/compiler/pathMappingBasedModuleResolution_rootImport_aliasWithRoot_differentRootTypes.ts#default",
         "typescript-6.0.3/compiler/bindingPatternCannotBeOnlyInferenceSource.ts#default",
+        "typescript-6.0.3/compiler/contextuallyTypedSymbolNamedProperties.ts#default",
+        "typescript-6.0.3/compiler/largeTupleTypes.ts#default",
+        "typescript-6.0.3/compiler/mismatchedExplicitTypeParameterAndArgumentType.ts#default",
+        "typescript-6.0.3/compiler/overloadresolutionWithConstraintCheckingDeferred.ts#default",
+        "typescript-6.0.3/compiler/unspecializedConstraints.ts#default",
+        "typescript-6.0.3/compiler/unterminatedRegexAtEndOfSource1.ts#default",
         "typescript-6.0.3/compiler/parseAssertEntriesError.ts#default",
         "typescript-6.0.3/compiler/parseImportAttributesError.ts#default",
     ] {
@@ -57,6 +65,13 @@ fn compiler_session_runs_recorded_no_emit_programs() {
             .run()
             .unwrap_or_else(|error| panic!("failed to execute {case_id}: {error:?}"));
         assert!(outcome.config_diagnostics().is_empty(), "{case_id}");
+        if case_id.ends_with("/largeTupleTypes.ts#default") {
+            assert_eq!(
+                outcome.diagnostics().count(),
+                0,
+                "{case_id}: the official regression is diagnostic-free"
+            );
+        }
     }
 }
 
@@ -266,16 +281,41 @@ fn project_session_runs_focused_node_modules_search_programs() {
 #[test]
 #[ignore = "local H0 compiler session coverage audit; not a checked-in gate"]
 fn audit_all_recorded_compiler_no_emit_sessions_locally() {
+    const PROGRESS_INTERVAL: usize = 250;
+
     let workspace = workspace_root();
+    let started = Instant::now();
+    let start = std::env::var("TSRS_COMPILER_AUDIT_START")
+        .ok()
+        .map(|value| {
+            value
+                .parse::<usize>()
+                .unwrap_or_else(|_| panic!("invalid TSRS_COMPILER_AUDIT_START {value:?}"))
+        })
+        .unwrap_or(0);
     let corpus = load_recorded_execution_plans(&workspace)
         .unwrap_or_else(|error| panic!("failed to load upstream plans: {error}"));
+    let compiler_plan_count = corpus
+        .plans
+        .iter()
+        .filter(|upstream| matches!(upstream.input, UpstreamExecutionInput::Compiler(_)))
+        .count();
+    assert!(
+        start < compiler_plan_count,
+        "TSRS_COMPILER_AUDIT_START {start} is outside {compiler_plan_count} compiler plans"
+    );
     let mut attempted = 0_usize;
     let mut loaded = 0_usize;
     let mut executed = 0_usize;
     let mut failures = Vec::new();
-    for upstream in corpus.plans.iter() {
+    for upstream in corpus
+        .plans
+        .iter()
+        .filter(|upstream| matches!(upstream.input, UpstreamExecutionInput::Compiler(_)))
+        .skip(start)
+    {
         let UpstreamExecutionInput::Compiler(compiler) = &upstream.input else {
-            continue;
+            unreachable!("filtered to compiler plans")
         };
         attempted += 1;
         let prepared = match load_compiler_no_emit(&workspace, compiler, limits()) {
@@ -291,15 +331,41 @@ fn audit_all_recorded_compiler_no_emit_sessions_locally() {
                 continue;
             }
         };
-        match ProgramSession::new(prepared).run() {
-            Ok(_) => executed += 1,
-            Err(error) => failures.push((
+        match catch_unwind(AssertUnwindSafe(|| {
+            ProgramSession::new(prepared).run_for_harness_with_lib_cache()
+        })) {
+            Ok(Ok(_)) => executed += 1,
+            Ok(Err(error)) => failures.push((
                 upstream.provenance.case_id.to_string(),
                 format!("session: {error:?}"),
             )),
+            Err(payload) => {
+                let detail = payload
+                    .downcast_ref::<&str>()
+                    .copied()
+                    .or_else(|| payload.downcast_ref::<String>().map(String::as_str))
+                    .unwrap_or("non-string panic payload");
+                let failure = (
+                    upstream.provenance.case_id.to_string(),
+                    format!("panic: {detail}"),
+                );
+                eprintln!("FAIL {}: {}", failure.0, failure.1);
+                failures.push(failure);
+            }
+        }
+        if attempted.is_multiple_of(PROGRESS_INTERVAL) {
+            eprintln!(
+                "compiler session audit: start={start} attempted={attempted} loaded={loaded} executed={executed} failures={} elapsed={:.1?}",
+                failures.len(),
+                started.elapsed(),
+            );
         }
     }
-    eprintln!("compiler session audit: attempted={attempted} loaded={loaded} executed={executed} failures={}", failures.len());
+    eprintln!(
+        "compiler session audit: start={start} attempted={attempted} loaded={loaded} executed={executed} failures={} elapsed={:.1?}",
+        failures.len(),
+        started.elapsed(),
+    );
     for (case_id, error) in failures.iter().take(200) {
         eprintln!("FAIL {case_id}: {error}");
     }

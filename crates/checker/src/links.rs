@@ -507,6 +507,7 @@ pub(crate) struct SpeculativeLinksMarks {
     declaration_signatures: usize,
     resolved_types: usize,
     decorator_signatures: usize,
+    enum_values_computed: usize,
     context_checked: usize,
     symbol_declared_types: usize,
     symbol_types: usize,
@@ -550,6 +551,10 @@ pub struct LinksTables {
     /// `any_signature` sentinel must remain visible to re-entrant
     /// decorator checks inside the same candidate.
     speculative_decorator_signature_writes: Vec<(u32, NodeId, Option<crate::state::SignatureId>)>,
+    /// Trial-local enum-value completion once-flags. Candidate checking
+    /// may force an enum for the first time; the flag must be visible to
+    /// re-entrant reads in that trial and restored at either boundary.
+    speculative_enum_values_computed_writes: Vec<(u32, NodeId, bool)>,
     /// Trial-local ContextChecked once-flags. Contextual parameter
     /// types use the symbol-type journal; restoring both lets a later
     /// candidate perform its own first contextual check.
@@ -1348,6 +1353,11 @@ impl LinksTables {
         self.speculative_decorator_signature_writes.len()
     }
 
+    /// tsrs-native: capture the enum-values-computed journal position.
+    pub fn speculative_enum_values_computed_mark(&self) -> usize {
+        self.speculative_enum_values_computed_writes.len()
+    }
+
     /// tsrs-native: capture the contextual-check flag journal position.
     pub fn speculative_context_checked_mark(&self) -> usize {
         self.speculative_context_checked_writes.len()
@@ -1441,6 +1451,7 @@ impl LinksTables {
             declaration_signatures: self.speculative_declaration_signature_mark(),
             resolved_types: self.speculative_resolved_type_mark(),
             decorator_signatures: self.speculative_decorator_signature_mark(),
+            enum_values_computed: self.speculative_enum_values_computed_mark(),
             context_checked: self.speculative_context_checked_mark(),
             symbol_declared_types: self.speculative_symbol_declared_type_mark(),
             symbol_types: self.speculative_symbol_type_mark(),
@@ -1477,6 +1488,7 @@ impl LinksTables {
         self.commit_speculative_declaration_signatures(marks.declaration_signatures, parent_depth);
         self.restore_speculative_resolved_types(marks.resolved_types);
         self.restore_speculative_decorator_signatures(marks.decorator_signatures);
+        self.restore_speculative_enum_values_computed(marks.enum_values_computed);
         self.restore_speculative_context_checked(marks.context_checked);
         self.restore_speculative_symbol_declared_types(marks.symbol_declared_types);
         self.restore_speculative_symbol_types(marks.symbol_types);
@@ -1501,6 +1513,7 @@ impl LinksTables {
         self.restore_speculative_declaration_signatures(marks.declaration_signatures);
         self.restore_speculative_resolved_types(marks.resolved_types);
         self.restore_speculative_decorator_signatures(marks.decorator_signatures);
+        self.restore_speculative_enum_values_computed(marks.enum_values_computed);
         self.restore_speculative_context_checked(marks.context_checked);
         self.restore_speculative_symbol_declared_types(marks.symbol_declared_types);
         self.restore_speculative_symbol_types(marks.symbol_types);
@@ -1604,6 +1617,18 @@ impl LinksTables {
                 .pop()
                 .expect("length checked");
             self.node.entry(node).or_default().decorator_signature = previous;
+        }
+    }
+
+    /// tsrs-native: speculation-transaction unwind for the enum value
+    /// completion once-flag.
+    pub fn restore_speculative_enum_values_computed(&mut self, mark: usize) {
+        while self.speculative_enum_values_computed_writes.len() > mark {
+            let (_, node, previous) = self
+                .speculative_enum_values_computed_writes
+                .pop()
+                .expect("length checked");
+            self.node.entry(node).or_default().enum_values_computed = previous;
         }
     }
 
@@ -2051,11 +2076,14 @@ impl LinksTables {
     /// links-field access; no standalone tsc function.
     pub fn set_node_enum_member_value(
         &mut self,
-        speculation_depth: u32,
+        _speculation_depth: u32,
         id: NodeId,
         value: crate::evaluate::EvaluatorResult,
     ) {
-        Self::assert_writable(speculation_depth);
+        // A completed member evaluation is a context-independent semantic
+        // fact. Keep it across candidate commit/rollback just as the
+        // CheckAbort unwind twin below keeps already-filled member slots;
+        // only the enclosing enum-values-computed once-flag is provisional.
         let slot = &mut self.node.entry(id).or_default().enum_member_value;
         assert!(slot.is_none(), "enum member value rewritten");
         *slot = Some(value);
@@ -2064,7 +2092,21 @@ impl LinksTables {
     /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
     /// links-field access; no standalone tsc function.
     pub fn set_node_enum_values_computed(&mut self, speculation_depth: u32, id: NodeId) {
-        Self::assert_writable(speculation_depth);
+        if speculation_depth != 0
+            && !self
+                .speculative_enum_values_computed_writes
+                .iter()
+                .any(|(depth, node, _)| *depth == speculation_depth && *node == id)
+        {
+            let previous = self
+                .node
+                .get(&id)
+                .is_some_and(|links| links.enum_values_computed);
+            self.speculative_enum_values_computed_writes
+                .push((speculation_depth, id, previous));
+        } else if speculation_depth == 0 {
+            Self::assert_writable(speculation_depth);
+        }
         self.node.entry(id).or_default().enum_values_computed = true;
     }
 

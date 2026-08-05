@@ -663,10 +663,15 @@ filesystem host, so default-library tests now consume the real 6.0.3 bytes.
 Representative default, type-reference, case-sensitive, virtual-config,
 preserve-symlink, and duplicate-package fixtures exercise this boundary. The
 earlier all-7,276 load/run audit predated that library mount and was partly
-short-circuited by missing-library/global diagnostics; it remains useful as a
-structural count but is not semantic qualification. A fresh full compiler
-baseline audit is still `not-run`. The adapter intentionally stops before
-emit and general baseline comparison; conflicting `noLib`/`lib`, raw
+short-circuited by missing-library/global diagnostics. The post-mount local
+audit now loads and executes all 7,276 recorded compiler plans through the
+Rust no-emit session with zero harness or session failures (453.9 seconds,
+2026-08-06). Its immutable-lib harness path reuses only an exact ordered
+library bundle whose names, full source text, and parser/binder option
+projection match; production sessions retain one-shot ownership. This is
+structural execution qualification, not a diagnostic-baseline comparison.
+The adapter intentionally stops before emit and general baseline comparison;
+conflicting `noLib`/`lib`, raw
 drive-relative root spellings, and other unported construction faces retain
 their typed boundaries. A
 compiler-crate integration contract feeds representative prepared programs

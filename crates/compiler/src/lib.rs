@@ -386,15 +386,18 @@ impl ProgramSession {
         self.run_inner(false)
     }
 
-    /// Conformance-harness execution with exact-match vendored-lib reuse.
+    /// Upstream-harness execution with exact-match vendored-lib reuse.
     ///
     /// This is deliberately not the production H0 entry: [`run`](Self::run)
     /// keeps every parsed and bound source owned by its one-shot session.
-    /// Only the differential conformance harness may opt into the checker's
+    /// Only pinned, immutable upstream harnesses may opt into the checker's
     /// process-lifetime lib bundle to avoid rebuilding an identical standard
-    /// library prefix for every fixture case.
+    /// library prefix for every fixture case. The cache validates the ordered
+    /// library names, full source text, and parser/binder option projection
+    /// before reuse, so compiler/project suite audits can share the same safe
+    /// path as the conformance runner.
     #[doc(hidden)]
-    pub fn run_for_conformance_with_harness_lib_cache(self) -> Result<NoEmitOutcome, DriverError> {
+    pub fn run_for_harness_with_lib_cache(self) -> Result<NoEmitOutcome, DriverError> {
         self.run_inner(true)
     }
 

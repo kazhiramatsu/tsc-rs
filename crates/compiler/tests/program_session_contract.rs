@@ -586,7 +586,7 @@ fn conformance_harness_lib_cache_preserves_authoritative_diagnostics() {
         .run()
         .expect("owned authoritative session");
     let cached = ProgramSession::new(make_program())
-        .run_for_conformance_with_harness_lib_cache()
+        .run_for_harness_with_lib_cache()
         .expect("cached conformance authoritative session");
 
     assert_eq!(owned, cached);
@@ -612,7 +612,7 @@ fn conformance_harness_lib_cache_preserves_authoritative_failure() {
         .run()
         .expect_err("owned session must reject the missing exact row");
     let cached = ProgramSession::new(make_program())
-        .run_for_conformance_with_harness_lib_cache()
+        .run_for_harness_with_lib_cache()
         .expect_err("cached session must reject the missing exact row");
 
     assert_eq!(owned, cached);
@@ -933,7 +933,7 @@ fn authoritative_ts_extension_fact_controls_non_relative_rewrite_diagnostic() {
 
         let owned = consume(ProgramSession::new(prepared.clone()));
         let cached = ProgramSession::new(prepared)
-            .run_for_conformance_with_harness_lib_cache()
+            .run_for_harness_with_lib_cache()
             .expect("cached authoritative rewrite session");
         assert_eq!(owned, cached, "{} cache mode", case.name);
         let outcome = owned;

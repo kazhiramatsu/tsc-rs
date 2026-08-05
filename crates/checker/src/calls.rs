@@ -3700,6 +3700,19 @@ impl<'a> CheckerState<'a> {
         }
 
         let args = self.get_effective_call_arguments(node)?;
+        let has_computed_object_argument = args.iter().any(|arg| {
+            let EffectiveArg::Node(argument) = *arg else {
+                return false;
+            };
+            let argument = self.get_effective_check_node(argument);
+            let NodeData::ObjectLiteralExpression(data) = self.data_of(argument) else {
+                return false;
+            };
+            self.nodes_of(data.properties).into_iter().any(|property| {
+                self.name_of_node(property)
+                    .is_some_and(|name| self.kind_of(name) == SyntaxKind::ComputedPropertyName)
+            })
+        });
         let is_single_non_generic_candidate =
             candidates.len() == 1 && self.signature_of(candidates[0]).type_parameters.is_none();
         let mut arg_check_mode = CheckMode::NORMAL;
@@ -3757,6 +3770,37 @@ impl<'a> CheckerState<'a> {
         // deferred re-checks and contextual reads see its parameters
         // (76629-76630, load-bearing ordering).
         let result = self.get_candidate_for_overload_failure(node, &mut ctx, check_mode)?;
+
+        // tsrs-native: candidate trials are rollback-capable because this
+        // port has a typed CheckAbort exit that tsc does not. That boundary
+        // also suppresses cold permanent-cache publication. For a lone
+        // generic call, tsc's failure-candidate inference runs outside the
+        // trial and may materialize the exact instantiation that its shared
+        // candidate state would already have selected. Retry that one
+        // materialized signature inside the same rollback boundary before
+        // publishing the failure face. This preserves abort containment and
+        // restores tsc's computed-symbol/contextual-object success path.
+        if ctx.candidates.len() == 1
+            && !is_single_non_generic_candidate
+            && ctx.type_argument_nodes.is_empty()
+            && has_computed_object_argument
+            && ctx.candidates_for_argument_error.is_some()
+            && ctx.candidate_for_argument_arity_error.is_none()
+            && ctx.candidate_for_type_argument_error.is_none()
+        {
+            let retry = self.choose_overload(
+                &mut ctx,
+                RelationKind::Assignable,
+                /*is_single_non_generic_candidate*/ false,
+                true,
+            )?;
+            if let LinkSlot::Resolved(resolved) = self.links.node(node).resolved_signature {
+                return Ok(resolved);
+            }
+            if let Some(retry) = retry {
+                return Ok(retry);
+            }
+        }
         self.links.set_node_resolved_signature_call_protocol(
             self.speculation_depth,
             node,

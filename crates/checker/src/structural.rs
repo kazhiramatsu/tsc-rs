@@ -2381,7 +2381,17 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                     let source_position_from_end = source_arity - 1 - source_position;
                     let target_position =
                         if target_has_rest_element && source_position >= target_start_count {
-                            target_arity - 1 - source_position_from_end.min(target_end_count)
+                            let offset = source_position_from_end.min(target_end_count);
+                            let Some(position) = target_arity.checked_sub(offset + 1) else {
+                                // A target made entirely of adjacent generic
+                                // variadics has no concrete element at this
+                                // source position. JavaScript's negative array
+                                // lookup yields `undefined`, which cannot form
+                                // a successful relation; express that verdict
+                                // without usize underflow.
+                                return Ok(Ternary::FALSE);
+                            };
+                            position
                         } else {
                             source_position
                         };
