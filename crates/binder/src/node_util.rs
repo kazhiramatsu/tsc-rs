@@ -2504,39 +2504,5 @@ fn get_end_line_position(text: &str, starts: &[usize], line: usize) -> usize {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use tsc_syntax::{parse_source_file, ParseOptions};
-
-    #[test]
-    fn assigned_expression_names_include_static_property_and_element_accesses() {
-        let source = parse_source_file(
-            "a.js",
-            "ns.member = function() {};\nns['key'] = class {};\n",
-            ParseOptions {
-                javascript_file: true,
-                ..ParseOptions::default()
-            },
-            None,
-        );
-        let function = (0..source.arena.len() as u32)
-            .map(NodeId)
-            .find(|&node| kind_of(&source, node) == SyntaxKind::FunctionExpression)
-            .expect("function expression");
-        let class = (0..source.arena.len() as u32)
-            .map(NodeId)
-            .find(|&node| kind_of(&source, node) == SyntaxKind::ClassExpression)
-            .expect("class expression");
-
-        let function_name = get_name_of_declaration(&source, function).expect("property name");
-        let class_name = get_name_of_declaration(&source, class).expect("element name");
-        assert!(matches!(
-            &source.arena.node(function_name).data,
-            NodeData::Identifier(data) if data.escaped_text == "member"
-        ));
-        assert!(matches!(
-            &source.arena.node(class_name).data,
-            NodeData::StringLiteral(data) if data.text == "key"
-        ));
-    }
-}
+#[path = "../tests/unit/node_util/tests.rs"]
+mod tests;

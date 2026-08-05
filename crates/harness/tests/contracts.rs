@@ -1,0 +1,8 @@
+#[path = "integration/module_suffixes_oracle_contract.rs"]
+mod module_suffixes_oracle_contract;
+#[path = "integration/upstream_execution_plan.rs"]
+mod upstream_execution_plan;
+#[path = "integration/upstream_suite_corpus.rs"]
+mod upstream_suite_corpus;
+#[path = "integration/upstream_suite_expansion.rs"]
+mod upstream_suite_expansion;

@@ -29,17 +29,21 @@ cargo xtask conformance --syntactic-only
 cargo xtask invariants --suite all  # sampled determinism/idempotence developer run
 cargo xtask invariants --suite all --full-corpus  # completion/CI row 10
 cargo xtask completion              # report all 11 final completion rows
-cargo test -p tsc-rs-compiler --test h0_qualification_contract
+cargo test -p tsc-rs-compiler --test contracts h0_qualification_contract
 cargo xtask m8 trace --program-json target/probe/program.json --code 8020 \
   --out target/m8-trace.json        # targeted D2 trace; report-only
 ```
 
 The local Rust phase of `cargo xtask ci` compiles
 `cargo test --workspace --all-targets --no-run`
-once, then launches the discovered test executables through an ordered
-two-process pipeline with one harness thread per process. Every unit, binary,
-integration, example, and benchmark test target remains covered, while the
-workspace's documentation contains no executable Rust doctests. Set
+once, then launches 24 discovered test executables through an ordered
+two-process pipeline. Broad integration contracts are grouped into one target
+per crate; the two focused Windows canaries remain independent targets. The
+conformance library uses two harness threads while sharing the pipeline with
+one ordinary single-threaded target, so peak harness parallelism is three and
+average CPU use stays bounded. Every unit, binary, integration, example, and
+benchmark test remains covered, while the workspace's documentation contains
+no executable Rust doctests. Set
 `TSRS_CI_TEST_WORKERS=1` to diagnose order-sensitive resource issues. The
 pipeline captures each target into short-lived regular files below
 `target/ci-test-output` and prints ordinary output only on failure. This is a
@@ -52,6 +56,14 @@ all-target Clippy type-checks every target and the test compile performs
 codegen. Test binaries omit debug information to reduce link and startup I/O;
 ordinary dev-profile binaries retain their debugging profile.
 
+Private unit-test bodies live under each crate's `tests/unit/` tree and are
+included from `src` through `#[path]` modules, so they retain private-item
+access without keeping test implementations beside production code. Broad
+integration files live under `tests/integration/` behind a single
+`tests/contracts.rs` target per crate. `cargo xtask workspace audit` rejects a
+new inline test module, a missing crate `tests/` directory, or renewed
+integration-target fragmentation.
+
 The complete recorded TypeScript compiler-suite execution audit is deliberately
 local-only and ignored by the ordinary test gate. It reuses an exact immutable
 standard-library bundle within the process, keeps case order deterministic, and
@@ -59,8 +71,9 @@ reports progress every 250 cases:
 
 ```sh
 CARGO_BUILD_JOBS=2 RUST_TEST_THREADS=1 cargo test -p tsc-rs-compiler \
-  --test upstream_no_emit_harness_contract \
-  audit_all_recorded_compiler_no_emit_sessions_locally -- --ignored --nocapture
+  --test contracts \
+  upstream_no_emit_harness_contract::audit_all_recorded_compiler_no_emit_sessions_locally \
+  -- --ignored --nocapture
 ```
 
 After investigating a failure, resume at a compiler-plan offset with
@@ -74,8 +87,9 @@ that the remaining 550 request only declared emit/build/watch non-scope:
 
 ```sh
 CARGO_BUILD_JOBS=2 RUST_TEST_THREADS=1 cargo test -p tsc-rs-compiler \
-  --test upstream_no_emit_harness_contract \
-  audit_all_recorded_project_no_emit_sessions_locally -- --ignored --nocapture
+  --test contracts \
+  upstream_no_emit_harness_contract::audit_all_recorded_project_no_emit_sessions_locally \
+  -- --ignored --nocapture
 ```
 
 `TSRS_PROJECT_AUDIT_START=<offset>` is available for investigation; omit it

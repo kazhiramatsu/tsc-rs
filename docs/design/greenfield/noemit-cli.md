@@ -881,7 +881,7 @@ host-resolution rows, 7,276/7,276 compiler plans, 82/82 H0-compatible project
 plans with all other 550 cases classified as declared non-scope, ten exact CLI
 oracle matrices, and five program oracle contracts, all with zero failures.
 The measured macOS CLI workload is 0.70 seconds cold and 0.14 seconds warm
-with peak RSS below 102 MB; the final warm local Rust lane is 96.40 seconds.
+with peak RSS below 102 MB; the final warm local Rust lane is 64.32 seconds.
 
 ## 9. Fail-closed policy
 
@@ -954,20 +954,24 @@ differentials. Do not run full corpus or multi-platform probes in the edit
 loop.
 
 The local Rust phase of the gate uses stripped test binaries, compiles all
-Cargo test targets once, and launches the discovered executables through an ordered
-two-process/one-harness-thread pipeline after all-target Clippy. It does not
+Cargo test targets once, and launches 24 discovered executables through an
+ordered two-process pipeline after all-target Clippy. Broad integration
+contracts share one executable per crate. The conformance library uses two
+harness threads alongside at most one ordinary single-threaded target, keeping
+peak harness parallelism at three. It does not
 repeat a standalone workspace build or launch the workspace's empty doctest
 crates. Per-target stdout/stderr uses ephemeral regular files instead of
 anonymous pipes: fuzz/conformance process-isolation descendants cannot keep a
 completed libtest target artificially alive through inherited pipe handles,
 and successful progress noise is not replayed. This changes neither the
 executable test set nor the semantic lane. In the local macOS qualification,
-the final warm Rust lane measured 96.40 seconds. The diagnostic run before the
+the final warm Rust lane measured 64.32 seconds. The diagnostic run before the
 capture correction measured 628.22 seconds, including 193 seconds of rebuild;
 the capture-specific target timings are the cleaner comparison:
 `executor_e2e` fell from 98.721 to 0.651 seconds and `foundation_contract`
-from 156.071 to 0.067 seconds. Both runs used the same
-two-process/one-thread ceiling.
+from 156.071 to 0.067 seconds. The later contract bundling reduced the warm
+lane from 96.40 to 64.32 seconds while retaining every test and using at most
+three harness threads.
 `TSRS_CI_TEST_WORKERS=1` retains a serial diagnostic mode.
 
 For each semantic H0 candidate:

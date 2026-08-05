@@ -250,33 +250,8 @@ fn parse_host_resolution_command(command: Option<&str>) -> Result<HostResolution
 }
 
 #[cfg(test)]
-mod host_resolution_command_tests {
-    use super::*;
-
-    #[test]
-    fn parses_supported_host_resolution_commands() {
-        assert_eq!(
-            parse_host_resolution_command(Some("draft")),
-            Ok(HostResolutionCommand::Draft)
-        );
-        assert_eq!(
-            parse_host_resolution_command(Some("check")),
-            Ok(HostResolutionCommand::Check)
-        );
-    }
-
-    #[test]
-    fn rejects_unknown_or_missing_host_resolution_commands() {
-        assert_eq!(
-            parse_host_resolution_command(Some("update")),
-            Err("unknown host-resolution command: update".to_owned())
-        );
-        assert_eq!(
-            parse_host_resolution_command(None),
-            Err("missing host-resolution command (draft|check)".to_owned())
-        );
-    }
-}
+#[path = "../tests/unit/main/host_resolution_command_tests.rs"]
+mod host_resolution_command_tests;
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 struct FuzzPreflightArgs {
@@ -309,35 +284,8 @@ fn fuzz_preflight(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Erro
 }
 
 #[cfg(test)]
-mod fuzz_preflight_cli_tests {
-    use super::*;
-
-    #[test]
-    fn defaults_to_report_only() {
-        assert_eq!(
-            parse_fuzz_preflight_args(std::iter::empty()).unwrap(),
-            FuzzPreflightArgs {
-                require_ready: false,
-            }
-        );
-    }
-
-    #[test]
-    fn accepts_require_ready() {
-        assert_eq!(
-            parse_fuzz_preflight_args(["--require-ready"].into_iter().map(str::to_owned)).unwrap(),
-            FuzzPreflightArgs {
-                require_ready: true,
-            }
-        );
-    }
-
-    #[test]
-    fn rejects_every_other_argument() {
-        assert!(parse_fuzz_preflight_args(["--ready"].into_iter().map(str::to_owned)).is_err());
-        assert!(parse_fuzz_preflight_args(["extra"].into_iter().map(str::to_owned)).is_err());
-    }
-}
+#[path = "../tests/unit/main/fuzz_preflight_cli_tests.rs"]
+mod fuzz_preflight_cli_tests;
 
 fn codegen_band_inventory(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
     let workspace = find_workspace_root()?;
@@ -4595,32 +4543,8 @@ fn parse_semantic_history_args(
 }
 
 #[cfg(test)]
-mod semantic_history_args_tests {
-    use super::parse_semantic_history_args;
-
-    fn parse(values: &[&str]) -> Result<String, String> {
-        parse_semantic_history_args(values.iter().map(|value| (*value).to_owned()))
-            .map_err(|error| error.to_string())
-    }
-
-    #[test]
-    fn requires_one_explicit_baseline() {
-        assert_eq!(parse(&["--baseline", "base-sha"]).unwrap(), "base-sha");
-        assert!(parse(&[]).unwrap_err().contains("requires --baseline"));
-        assert!(parse(&["--baseline"])
-            .unwrap_err()
-            .contains("missing value"));
-        assert!(parse(&["--baseline", "--unknown"])
-            .unwrap_err()
-            .contains("missing value"));
-        assert!(parse(&["--baseline", "a", "--baseline", "b"])
-            .unwrap_err()
-            .contains("duplicate"));
-        assert!(parse(&["base-sha"])
-            .unwrap_err()
-            .contains("unexpected semantic-history argument"));
-    }
-}
+#[path = "../tests/unit/main/semantic_history_args_tests.rs"]
+mod semantic_history_args_tests;
 
 /// `cargo xtask families report [--out-json <path>] [--verify]`: the
 /// A5 supported rollup from one current full band=all gating run
@@ -5344,72 +5268,8 @@ fn select_invariant_pipeline_workers(
 }
 
 #[cfg(test)]
-mod invariant_pipeline_config_tests {
-    use super::{select_invariant_pipeline_workers, PostJobsInvariant, POST_JOBS_INVARIANTS};
-
-    #[test]
-    fn defaults_to_two_workers_without_oversubscribing_one_core() {
-        assert_eq!(select_invariant_pipeline_workers(None, 8, true).unwrap(), 2);
-        assert_eq!(select_invariant_pipeline_workers(None, 1, true).unwrap(), 1);
-        assert_eq!(
-            select_invariant_pipeline_workers(Some("2"), 1, true).unwrap(),
-            1
-        );
-    }
-
-    #[test]
-    fn accepts_only_the_bounded_worker_policy() {
-        assert_eq!(
-            select_invariant_pipeline_workers(Some("1"), 8, true).unwrap(),
-            1
-        );
-        assert_eq!(
-            select_invariant_pipeline_workers(Some("2"), 8, true).unwrap(),
-            2
-        );
-        for invalid in ["0", "3", "many"] {
-            assert!(select_invariant_pipeline_workers(Some(invalid), 8, true).is_err());
-        }
-        assert!(select_invariant_pipeline_workers(None, 0, true).is_err());
-    }
-
-    #[test]
-    fn cache_off_forces_the_serial_caller_thread_policy() {
-        assert_eq!(
-            select_invariant_pipeline_workers(Some("2"), 8, false).unwrap(),
-            1
-        );
-    }
-
-    #[test]
-    fn independent_suites_are_paired_into_the_reviewed_two_lanes() {
-        let lane_zero = POST_JOBS_INVARIANTS
-            .iter()
-            .copied()
-            .step_by(2)
-            .collect::<Vec<_>>();
-        let lane_one = POST_JOBS_INVARIANTS
-            .iter()
-            .copied()
-            .skip(1)
-            .step_by(2)
-            .collect::<Vec<_>>();
-        assert_eq!(
-            lane_zero,
-            [
-                PostJobsInvariant::Encodings,
-                PostJobsInvariant::MatrixIndependence,
-            ]
-        );
-        assert_eq!(
-            lane_one,
-            [
-                PostJobsInvariant::Idempotence,
-                PostJobsInvariant::UnsupportedUnwind,
-            ]
-        );
-    }
-}
+#[path = "../tests/unit/main/invariant_pipeline_config_tests.rs"]
+mod invariant_pipeline_config_tests;
 
 fn run_encodings(programs: &[SampleProgram]) -> Result<(), Box<dyn Error>> {
     for program in programs {
@@ -5465,97 +5325,8 @@ fn distinct_encoding_variants(original: &str) -> Vec<(&'static str, String)> {
 }
 
 #[cfg(test)]
-mod encoding_variant_tests {
-    use std::collections::BTreeSet;
-
-    use super::distinct_encoding_variants;
-
-    fn texts(original: &str) -> Vec<String> {
-        distinct_encoding_variants(original)
-            .into_iter()
-            .map(|(_, text)| text)
-            .collect()
-    }
-
-    #[test]
-    fn skips_lf_and_no_bom_transforms_that_equal_the_baseline() {
-        let original = "let value = 1;\n";
-        assert_eq!(
-            distinct_encoding_variants(original),
-            vec![
-                ("with-bom", "\u{feff}let value = 1;\n".to_owned()),
-                ("crlf", "let value = 1;\r\n".to_owned()),
-            ]
-        );
-    }
-
-    #[test]
-    fn skips_bom_and_crlf_transforms_that_equal_the_baseline() {
-        let original = "\u{feff}let value = 1;\r\n";
-        assert_eq!(
-            distinct_encoding_variants(original),
-            vec![
-                ("without-bom", "let value = 1;\r\n".to_owned()),
-                ("lf", "\u{feff}let value = 1;\n".to_owned()),
-            ]
-        );
-    }
-
-    #[test]
-    fn deduplicates_all_equivalent_no_newline_transforms() {
-        let original = "value";
-        assert_eq!(
-            distinct_encoding_variants(original),
-            vec![("with-bom", "\u{feff}value".to_owned())]
-        );
-    }
-
-    #[test]
-    fn preserves_every_distinct_mixed_eol_transform() {
-        let original = "a\r\nb\n";
-        assert_eq!(
-            texts(original),
-            vec![
-                "\u{feff}a\r\nb\n".to_owned(),
-                "a\nb\n".to_owned(),
-                "a\r\nb\r\n".to_owned(),
-            ]
-        );
-    }
-
-    #[test]
-    fn keeps_exactly_the_distinct_transformed_text_set() {
-        for original in [
-            "",
-            "value",
-            "a\nb\n",
-            "a\r\nb\r\n",
-            "a\r\nb\n",
-            "\u{feff}a\r\nb\r\n",
-            "\u{feff}\u{feff}value",
-        ] {
-            let lf = original.replace("\r\n", "\n");
-            let mut expected = [
-                original.trim_start_matches('\u{feff}').to_owned(),
-                format!("\u{feff}{}", original.trim_start_matches('\u{feff}')),
-                lf.clone(),
-                lf.replace('\n', "\r\n"),
-            ]
-            .into_iter()
-            .collect::<BTreeSet<_>>();
-            expected.remove(original);
-
-            let observed = texts(original);
-            let observed_set = observed.iter().cloned().collect::<BTreeSet<_>>();
-            assert_eq!(
-                observed.len(),
-                observed_set.len(),
-                "duplicate output for {original:?}"
-            );
-            assert_eq!(observed_set, expected, "lost transform for {original:?}");
-        }
-    }
-}
+#[path = "../tests/unit/main/encoding_variant_tests.rs"]
+mod encoding_variant_tests;
 
 fn run_matrix_independence(programs: &[SampleProgram]) -> Result<(), Box<dyn Error>> {
     let mut by_fixture = BTreeMap::<&str, Vec<&SampleProgram>>::new();
@@ -5604,35 +5375,8 @@ fn program_indices_in_job_order(program_count: usize, jobs: usize) -> impl Itera
 }
 
 #[cfg(test)]
-mod jobs_independence_schedule_tests {
-    use super::program_indices_in_job_order;
-
-    #[test]
-    fn every_schedule_preserves_the_original_modulo_traversal() {
-        assert_eq!(
-            program_indices_in_job_order(8, 3).collect::<Vec<_>>(),
-            [0, 3, 6, 1, 4, 7, 2, 5]
-        );
-        for program_count in [0, 1, 2, 7, 19, 32] {
-            for jobs in 1..=16 {
-                let expected = (0..jobs)
-                    .flat_map(|job| (0..program_count).filter(move |index| index % jobs == job))
-                    .collect::<Vec<_>>();
-                assert_eq!(
-                    program_indices_in_job_order(program_count, jobs).collect::<Vec<_>>(),
-                    expected,
-                    "program_count={program_count} jobs={jobs}"
-                );
-            }
-        }
-    }
-
-    #[test]
-    #[should_panic(expected = "jobs-independence requires at least one job")]
-    fn zero_jobs_is_rejected() {
-        let _ = program_indices_in_job_order(1, 0).count();
-    }
-}
+#[path = "../tests/unit/main/jobs_independence_schedule_tests.rs"]
+mod jobs_independence_schedule_tests;
 
 fn program_key(program: &SampleProgram) -> String {
     if program.matrix_key.is_empty() {
@@ -7631,13 +7375,15 @@ fn ci_workspace_tests(workspace: &Path) -> Result<(), Box<dyn Error>> {
 
     let worker_count = ci_test_worker_count()?.min(tests.len());
     println!(
-        "workspace test pipeline: executables={} workers={worker_count} harness_threads=1",
-        tests.len()
+        "workspace test pipeline: executables={} workers={worker_count} peak_harness_threads={} ordinary_harness_threads=1",
+        tests.len(),
+        worker_count + usize::from(worker_count > 1)
     );
     let captures = CiTestCaptureDirectory::new(workspace)?;
     let results = bounded_pipeline::ordered_map(&tests, worker_count, |index, test| {
         let started = std::time::Instant::now();
-        let output = run_ci_test_target(test, index, captures.path());
+        let harness_threads = ci_test_target_harness_threads(test, worker_count);
+        let output = run_ci_test_target(test, index, harness_threads, captures.path());
         (started.elapsed(), output)
     })?;
 
@@ -7728,6 +7474,7 @@ struct CiTestOutput {
 fn run_ci_test_target(
     test: &CiTestExecutable,
     index: usize,
+    harness_threads: usize,
     capture_directory: &Path,
 ) -> Result<CiTestOutput, String> {
     let stdout_path = capture_directory.join(format!("{index}.stdout"));
@@ -7741,7 +7488,7 @@ fn run_ci_test_target(
         // Bound total harness parallelism at the same two-worker ceiling as
         // the outer process pipeline. Individual tests may still own
         // explicitly bounded worker pools of their own.
-        .env("RUST_TEST_THREADS", "1")
+        .env("RUST_TEST_THREADS", harness_threads.to_string())
         .stdout(Stdio::from(stdout))
         .stderr(Stdio::from(stderr))
         .status()
@@ -7757,6 +7504,14 @@ fn run_ci_test_target(
         stdout,
         stderr,
     })
+}
+
+fn ci_test_target_harness_threads(test: &CiTestExecutable, worker_count: usize) -> usize {
+    if worker_count > 1 && test.label == "tsc_conformance [lib]" {
+        2
+    } else {
+        1
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -7999,156 +7754,8 @@ fn run_command(command: &mut Command) -> Result<(), Box<dyn Error>> {
 }
 
 #[cfg(test)]
-mod ci_lane_tests {
-    use super::*;
-
-    #[test]
-    fn defaults_to_the_full_local_gate() {
-        let args = parse_ci_args(std::iter::empty()).unwrap();
-        assert_eq!(args.baseline, "origin/main");
-        assert_eq!(args.lane, CiLane::All);
-        assert!(!args.history_sensitive);
-    }
-
-    #[test]
-    fn parses_hosted_semantic_lane_and_baseline_in_either_order() {
-        for arguments in [
-            ["--lane", "semantic", "--baseline", "base-sha"],
-            ["--baseline", "base-sha", "--lane", "semantic"],
-        ] {
-            let args = parse_ci_args(arguments.into_iter().map(str::to_owned)).unwrap();
-            assert_eq!(args.baseline, "base-sha");
-            assert_eq!(args.lane, CiLane::Semantic);
-        }
-    }
-
-    #[test]
-    fn hosted_lane_is_explicit_and_excluded_from_the_full_local_plan() {
-        let hosted = parse_ci_args(["--lane", "hosted"].into_iter().map(str::to_owned)).unwrap();
-        assert_eq!(hosted.lane, CiLane::Hosted);
-        assert!(!hosted.history_sensitive);
-        assert_eq!(
-            hosted.lane.plan(),
-            CiPlan {
-                rust: false,
-                semantic: false,
-                hosted: true,
-            }
-        );
-        assert_eq!(
-            CiLane::All.plan(),
-            CiPlan {
-                rust: true,
-                semantic: true,
-                hosted: false,
-            }
-        );
-    }
-
-    #[test]
-    fn history_sensitive_diagnostics_are_manual_and_hosted_only() {
-        let args = parse_ci_args(
-            [
-                "--history-sensitive",
-                "--baseline",
-                "base-sha",
-                "--lane",
-                "hosted",
-            ]
-            .into_iter()
-            .map(str::to_owned),
-        )
-        .unwrap();
-        assert!(args.history_sensitive);
-        assert_eq!(args.baseline, "base-sha");
-        assert!(parse_ci_args(
-            ["--lane", "all", "--history-sensitive"]
-                .into_iter()
-                .map(str::to_owned)
-        )
-        .is_err());
-        assert!(parse_ci_args(
-            [
-                "--lane",
-                "hosted",
-                "--history-sensitive",
-                "--history-sensitive",
-            ]
-            .into_iter()
-            .map(str::to_owned)
-        )
-        .is_err());
-    }
-
-    #[test]
-    fn rejects_unknown_or_incomplete_lane_arguments() {
-        assert!(parse_ci_args(["--lane", "fast"].into_iter().map(str::to_owned)).is_err());
-        assert!(parse_ci_args(["--lane"].into_iter().map(str::to_owned)).is_err());
-    }
-
-    #[test]
-    fn local_test_pipeline_is_bounded_to_two_processes() {
-        assert_eq!(select_ci_test_workers(None, 1).unwrap(), 1);
-        assert_eq!(select_ci_test_workers(None, 8).unwrap(), 2);
-        assert_eq!(select_ci_test_workers(Some("1"), 8).unwrap(), 1);
-        assert_eq!(select_ci_test_workers(Some("2"), 1).unwrap(), 1);
-        assert!(select_ci_test_workers(Some("0"), 8).is_err());
-        assert!(select_ci_test_workers(Some("3"), 8).is_err());
-        assert!(select_ci_test_workers(Some("two"), 8).is_err());
-        assert!(select_ci_test_workers(None, 0).is_err());
-    }
-
-    #[test]
-    fn cargo_test_artifacts_are_deduplicated_and_keep_package_roots() {
-        let artifact = |name: &str, executable: &str, test: bool| {
-            serde_json::json!({
-                "reason": "compiler-artifact",
-                "manifest_path": "workspace/crate/Cargo.toml",
-                "target": { "name": name, "kind": ["test"] },
-                "profile": { "test": test },
-                "executable": executable,
-            })
-            .to_string()
-        };
-        let stdout = [
-            artifact("one", "target/one", true),
-            artifact("dependency", "target/dependency", false),
-            artifact("duplicate", "target/one", true),
-            serde_json::json!({ "reason": "build-finished", "success": true }).to_string(),
-        ]
-        .join("\n");
-        let tests = cargo_test_executables(stdout.as_bytes()).unwrap();
-
-        assert_eq!(
-            tests,
-            [CiTestExecutable {
-                label: "one [test]".to_owned(),
-                executable: PathBuf::from("target/one"),
-                package_directory: PathBuf::from("workspace/crate"),
-            }]
-        );
-    }
-
-    #[test]
-    fn test_capture_directory_is_unique_scoped_and_removed_on_drop() {
-        let workspace = std::env::temp_dir().join(format!(
-            "tsc-rs-ci-capture-test-{}-{}",
-            std::process::id(),
-            SystemTime::now()
-                .duration_since(UNIX_EPOCH)
-                .unwrap()
-                .as_nanos()
-        ));
-        fs::create_dir(&workspace).unwrap();
-        let capture = CiTestCaptureDirectory::new(&workspace).unwrap();
-        let path = capture.path().to_path_buf();
-        assert!(path.starts_with(workspace.join("target/ci-test-output")));
-        fs::write(path.join("probe.stdout"), b"captured").unwrap();
-        drop(capture);
-        assert!(!path.exists());
-        fs::remove_dir_all(workspace).unwrap();
-    }
-}
+#[path = "../tests/unit/main/ci_lane_tests.rs"]
+mod ci_lane_tests;
 
 const README_STATUS_BEGIN: &str =
     "<!-- STATUS:BEGIN — generated by `cargo xtask readme-status`; do not edit by hand -->";
@@ -9581,21 +9188,8 @@ fn render_syntax_kind(table: &EnumTable) -> Result<String, Box<dyn Error>> {
     writeln!(out, "}}")?;
     writeln!(out)?;
     writeln!(out, "#[cfg(test)]")?;
-    writeln!(out, "mod tests {{")?;
-    writeln!(out, "    use super::SyntaxKind;")?;
-    writeln!(out)?;
-    writeln!(out, "    #[test]")?;
-    writeln!(out, "    fn generated_values_match_tsc_pins() {{")?;
-    writeln!(
-        out,
-        "        assert_eq!(SyntaxKind::Identifier as u16, 80);"
-    )?;
-    writeln!(
-        out,
-        "        assert_eq!(SyntaxKind::FirstAssignment.value(), SyntaxKind::EqualsToken as u16);"
-    )?;
-    writeln!(out, "    }}")?;
-    writeln!(out, "}}")?;
+    writeln!(out, "#[path = \"../tests/unit/kind/tests.rs\"]")?;
+    writeln!(out, "mod tests;")?;
 
     Ok(out)
 }
@@ -9622,21 +9216,8 @@ fn render_flags(tables: &[EnumTable]) -> Result<String, Box<dyn Error>> {
     }
 
     writeln!(out, "#[cfg(test)]")?;
-    writeln!(out, "mod tests {{")?;
-    writeln!(out, "    use super::*;")?;
-    writeln!(out)?;
-    writeln!(out, "    #[test]")?;
-    writeln!(out, "    fn generated_values_match_tsc_pins() {{")?;
-    writeln!(
-        out,
-        "        assert_eq!(TypeFlags::STRING_LITERAL.bits(), 1024);"
-    )?;
-    writeln!(
-        out,
-        "        assert_eq!(FlowFlags::TRUE_CONDITION.bits(), 32);"
-    )?;
-    writeln!(out, "    }}")?;
-    writeln!(out, "}}")?;
+    writeln!(out, "#[path = \"../tests/unit/flags/tests.rs\"]")?;
+    writeln!(out, "mod tests;")?;
 
     Ok(out)
 }
@@ -11113,26 +10694,8 @@ fn render_nodes_rs(schemas: &[NodeSchema]) -> Result<String, Box<dyn Error>> {
     writeln!(out, "}}")?;
     writeln!(out)?;
     writeln!(out, "#[cfg(test)]")?;
-    writeln!(out, "mod tests {{")?;
-    writeln!(out, "    use super::*;")?;
-    writeln!(out)?;
-    writeln!(out, "    #[test]")?;
-    writeln!(out, "    fn generated_node_schema_has_core_nodes() {{")?;
-    writeln!(out, "        assert_eq!(NodeData::Token.kind(), None);")?;
-    writeln!(
-        out,
-        "        let _ = IdentifierData {{ escaped_text: String::new(), text: String::new() }};"
-    )?;
-    writeln!(
-        out,
-        "        assert_eq!(NodeData::missing(SyntaxKind::Identifier).kind(), Some(SyntaxKind::Identifier));"
-    )?;
-    writeln!(
-        out,
-        "        assert_eq!(NodeData::missing(SyntaxKind::SemicolonToken).kind(), None);"
-    )?;
-    writeln!(out, "    }}")?;
-    writeln!(out, "}}")?;
+    writeln!(out, "#[path = \"../tests/unit/nodes/tests.rs\"]")?;
+    writeln!(out, "mod tests;")?;
 
     Ok(out)
 }
@@ -11832,23 +11395,8 @@ fn render_diagnostics_gen(entries: &[DiagnosticEntry]) -> Result<String, Box<dyn
     writeln!(out, "];")?;
     writeln!(out)?;
     writeln!(out, "#[cfg(test)]")?;
-    writeln!(out, "mod tests {{")?;
-    writeln!(out, "    use super::*;")?;
-    writeln!(out)?;
-    writeln!(out, "    #[test]")?;
-    writeln!(out, "    fn generated_diagnostic_pins_match_tsc() {{")?;
-    writeln!(
-        out,
-        "        assert_eq!(Unterminated_string_literal.code, 1002);"
-    )?;
-    writeln!(out, "        assert_eq!(_0_expected.code, 1005);")?;
-    writeln!(
-        out,
-        "        assert_eq!(ALL_BY_CODE.len(), {});",
-        entries.len()
-    )?;
-    writeln!(out, "    }}")?;
-    writeln!(out, "}}")?;
+    writeln!(out, "#[path = \"../tests/unit/gen/tests.rs\"]")?;
+    writeln!(out, "mod tests;")?;
 
     Ok(out)
 }
@@ -12259,949 +11807,33 @@ fn lib_gate(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
 }
 
 #[cfg(test)]
-mod prefix_determinism_tests {
-    use super::*;
-
-    #[test]
-    fn invariant_args_default_to_a_sample_and_full_corpus_has_no_limit() {
-        let sampled = parse_invariant_args(std::iter::empty()).unwrap();
-        assert_eq!(sampled.suite, InvariantSuite::All);
-        assert_eq!(sampled.limit, Some(200));
-        assert!(!sampled.full_corpus);
-
-        let full = parse_invariant_args(
-            ["--suite", "all", "--full-corpus"]
-                .into_iter()
-                .map(str::to_owned),
-        )
-        .unwrap();
-        assert_eq!(full.suite, InvariantSuite::All);
-        assert_eq!(full.limit, None);
-        assert!(full.full_corpus);
-    }
-
-    #[test]
-    fn invariant_args_reject_partial_full_corpus_spelling() {
-        for arguments in [
-            vec!["--limit", "10", "--full-corpus"],
-            vec!["--full-corpus", "--limit", "10"],
-        ] {
-            assert!(parse_invariant_args(arguments.into_iter().map(str::to_owned)).is_err());
-        }
-        assert!(
-            parse_invariant_args(["--full"].into_iter().map(str::to_owned)).is_err(),
-            "an approximate alias must not accidentally create completion evidence"
-        );
-    }
-
-    #[test]
-    fn non_ascii_prefix_compares_in_utf16() {
-        // Six 3-byte U+2028 chars make UTF-16 offsets lag UTF-8 byte
-        // offsets by 12 in the ASCII tail, so every token in the 12
-        // bytes past the midpoint has a UTF-16 end below the byte cut —
-        // a mixed-coordinate filter admits those tokens on the full
-        // scan only and fails spuriously (the corpus shape:
-        // es2019/allowUnescapedParagraphAndLineSeparatorsInStringLiteral.ts,
-        // cut 400).
-        let text = format!("/*{}*/{}", "\u{2028}".repeat(6), "aa=1;".repeat(12));
-        assert!(prefix_determinism_holds(
-            &text,
-            tsc_syntax::LanguageVariant::Standard
-        ));
-    }
-
-    #[test]
-    fn ascii_prefix_still_holds() {
-        let text = "const value = 1;\nconst other = value + 2;\n".to_string();
-        assert!(prefix_determinism_holds(
-            &text,
-            tsc_syntax::LanguageVariant::Standard
-        ));
-    }
-
-    #[test]
-    fn invalid_numeric_prefix_excludes_the_fragmented_boundary_token() {
-        let text = "// Error\r\nvar binary = 0b21010;\r\n\
-                    var binary1 = 0B21010;\r\n\
-                    var octal = 0o81010;\r\n\
-                    var octal = 0O91010;";
-        assert_eq!(midpoint_char_boundary(text), 49);
-        assert!(prefix_determinism_holds(
-            text,
-            tsc_syntax::LanguageVariant::Standard
-        ));
-    }
-
-    #[test]
-    fn possible_comment_opener_at_the_cut_is_a_boundary_token() {
-        let text = "let x = 1;// comment!!";
-        let cut = midpoint_char_boundary(text);
-        assert_eq!(cut, 11);
-        assert_eq!(&text[cut - 1..cut + 1], "//");
-        assert!(prefix_determinism_holds(
-            text,
-            tsc_syntax::LanguageVariant::Standard
-        ));
-    }
-}
+#[path = "../tests/unit/main/prefix_determinism_tests.rs"]
+mod prefix_determinism_tests;
 
 #[cfg(test)]
-mod escape_scanner_tests {
-    use super::*;
-
-    fn scan(text: &str) -> Vec<EscapeSite> {
-        scan_escape_text(Path::new("test.rs"), text).expect("escape scan")
-    }
-
-    #[test]
-    fn plain_reason_parses_its_owner() {
-        let sites = scan(r#"return Err(Unsupported::new("mapped types (M4-end sweep 5.8)"));"#);
-        assert_eq!(sites.len(), 1);
-        assert_eq!(sites[0].owner, Some(StageKey(4, 8, u8::MAX)));
-    }
-
-    #[test]
-    fn wrapper_call_sites_are_scanned() {
-        let sites = scan(
-            r#"self.expression_stub("checkFoo ([ITER])", "5.8 iteration protocol")
-               self.source_element_stub("checkBar", "M5")"#,
-        );
-        assert_eq!(sites.len(), 2);
-        assert_eq!(sites[0].owner, Some(StageKey(4, 8, u8::MAX)));
-        assert_eq!(sites[1].owner, Some(StageKey(5, 0, 0)));
-    }
-
-    #[test]
-    fn wrapper_definitions_are_excluded() {
-        let sites = scan(
-            r#"fn expression_stub(&self, worker: &str, owner: &str) -> CheckResult<TypeId> {
-                   Err(Unsupported::new(format!(
-                       "{worker} (expression band, lands at {owner})"
-                   )))
-               }"#,
-        );
-        assert!(sites.is_empty(), "{:?}", sites[0].reason);
-    }
-
-    #[test]
-    fn format_reasons_are_scanned_not_dropped() {
-        // A real escape whose reason is built with format! — the
-        // static text carries the owner; the blanket `{` skip that
-        // hid these was a false negative.
-        let sites = scan(
-            r#"Err(Unsupported::new(format!(
-                   "anonymous members for symbol flags {flags:?} (M4 5.3e/5.8)"
-               )))"#,
-        );
-        assert_eq!(sites.len(), 1);
-        assert_eq!(sites[0].owner, Some(StageKey(4, 8, u8::MAX)));
-    }
-
-    #[test]
-    fn dormant_annotation_reclassifies_an_escape_and_roundtrips_canary() {
-        let sites = scan(
-            r#"fn mapped() {
-                // tsc-dormant: canary=mapped_type_model_constructibility; owner=9.5a
-                return Err(Unsupported::new("mapped types (unported family, M8-stub)"));
-            }"#,
-        );
-        assert_eq!(sites.len(), 1);
-        let metadata = sites[0].dormant.as_ref().expect("dormant metadata");
-        assert_eq!(metadata.canary, "mapped_type_model_constructibility");
-        assert_eq!(metadata.review_owner.as_deref(), Some("9.5a"));
-        let entries = escape_manifest_from_sites(Path::new(""), &sites).unwrap();
-        assert_eq!(entries[0].class, "dormant-assumption");
-        assert_eq!(
-            entries[0].canary.as_deref(),
-            Some("mapped_type_model_constructibility")
-        );
-        assert_eq!(
-            parse_escape_manifest(&render_escape_manifest(&entries)).unwrap(),
-            entries
-        );
-    }
-
-    #[test]
-    fn standalone_dormant_annotation_requires_an_exact_reason() {
-        let sites = scan(
-            r#"fn fold() {
-                // tsc-dormant: canary=utf16_fold_constructibility; owner=9.5a; reason=lossy UTF-16 fold
-                let value = 1;
-            }"#,
-        );
-        assert_eq!(sites.len(), 1);
-        assert_eq!(sites[0].reason, "lossy UTF-16 fold");
-        assert!(sites[0].dormant.is_some());
-    }
-
-    #[test]
-    fn manifest_rejects_mixed_metadata_for_one_identity() {
-        let sites = scan(
-            r#"fn mapped() {
-                // tsc-dormant: canary=mapped_type_model_constructibility; owner=9.5a
-                if first {
-                    return Err(Unsupported::new("mapped types (M8)"));
-                }
-                return Err(Unsupported::new("mapped types (M8)"));
-            }"#,
-        );
-        assert_eq!(sites.len(), 2);
-        let error = escape_manifest_from_sites(Path::new(""), &sites).unwrap_err();
-        assert!(
-            error.to_string().contains("mixes metadata"),
-            "unexpected error: {error}"
-        );
-    }
-
-    #[test]
-    fn manifest_roundtrips_and_keys_on_file_reason() {
-        let sites = scan(
-            r#"Err(Unsupported::new("alias value types (getTypeOfAlias, 5.8)"));
-               Err(Unsupported::new("alias value types (getTypeOfAlias, 5.8)"));
-               Err(Unsupported::new("entityNameToString on recovery node"));
-               Err(Unsupported::new("a reason with \"quotes\" and back\\slash"));"#,
-        );
-        let entries = escape_manifest_from_sites(Path::new(""), &sites).unwrap();
-        // Duplicate reasons fold into one entry with count 2; classes
-        // derive from the reason text.
-        assert_eq!(entries.len(), 3);
-        let dup = entries
-            .iter()
-            .find(|entry| entry.reason.starts_with("alias value types"))
-            .expect("folded entry");
-        assert_eq!(
-            (dup.count, dup.class.as_str(), dup.owner.as_deref()),
-            (2, "stage", Some("5.8"))
-        );
-        let recovery = entries
-            .iter()
-            .find(|entry| entry.reason.contains("recovery node"))
-            .expect("recovery entry");
-        assert_eq!(
-            (recovery.class.as_str(), recovery.owner.as_deref()),
-            ("recovery", None)
-        );
-        let parsed = parse_escape_manifest(&render_escape_manifest(&entries)).expect("roundtrip");
-        assert_eq!(parsed, entries);
-    }
-
-    #[test]
-    fn disposition_census_reads_the_doc_block() {
-        let ported = ["/// tsc-port: checkFoo @6.0.3", "pub fn check_foo() {}"];
-        let native = [
-            "/// tsrs-native: arena accessor",
-            "#[inline]",
-            "pub(crate) fn arena_get() {}",
-        ];
-        let deferred = [
-            "/// tsc-deferred: M6 inferTypeArguments",
-            "pub fn infer() {}",
-        ];
-        let bare = ["/// plain prose only", "pub fn mystery() {}"];
-        assert!(doc_block_has_disposition(&ported, 1));
-        assert!(doc_block_has_disposition(&native, 2));
-        assert!(doc_block_has_disposition(&deferred, 1));
-        assert!(!doc_block_has_disposition(&bare, 1));
-        // Review round 2: prose MENTIONS and invalid payloads do not
-        // count — the marker must start the line and validate.
-        let prose = ["/// this helper is tsrs-native: in spirit", "pub fn x() {}"];
-        let empty_native = ["/// tsrs-native:", "pub fn y() {}"];
-        let bad_stage = ["/// tsc-deferred: someday", "pub fn z() {}"];
-        assert!(!doc_block_has_disposition(&prose, 1));
-        assert!(!doc_block_has_disposition(&empty_native, 1));
-        assert!(!doc_block_has_disposition(&bad_stage, 1));
-        // Review round 3: bare hash/span lines are NOT dispositions
-        // (the ledger parser keys on the port header — a bare hash
-        // would evade both checks), and stage names are whole words.
-        let hash_only = ["/// tsc-hash: abc123", "pub fn h() {}"];
-        let span_only = ["/// tsc-span: _tsc.js:1-2", "pub fn s() {}"];
-        let stage_prefix = ["/// tsc-deferred: M50 someday", "pub fn w() {}"];
-        let stage_word = ["/// tsc-deferred: M5, with reason", "pub fn v() {}"];
-        assert!(!doc_block_has_disposition(&hash_only, 1));
-        assert!(!doc_block_has_disposition(&span_only, 1));
-        assert!(!doc_block_has_disposition(&stage_prefix, 1));
-        assert!(doc_block_has_disposition(&stage_word, 1));
-        // Review round 4: PLAIN `//` comments (and //// banners) are
-        // not dispositions — the ledger collector reads /// blocks
-        // alone, so a plain-comment tsc-port would evade hash/span
-        // validation.
-        let plain_port = ["// tsc-port: fake @6.0.3", "pub(crate) fn sneaky() {}"];
-        let plain_native = ["// tsrs-native: also fake", "pub fn sly() {}"];
-        let banner = ["//// tsc-port: banner", "pub fn b() {}"];
-        assert!(!doc_block_has_disposition(&plain_port, 1));
-        assert!(!doc_block_has_disposition(&plain_native, 1));
-        assert!(!doc_block_has_disposition(&banner, 1));
-        // Review round 5: a plain `//` line TERMINATES the block
-        // (the ledger parser clears its doc block there — a doc
-        // comment detached by a separator must not count), while a
-        // BLANK line is transparent on both sides.
-        let separated = [
-            "/// tsc-port: dummy @6.0.3",
-            "// ordinary separator",
-            "pub(crate) fn newly_added() {}",
-        ];
-        let blank_gap = ["/// tsc-port: real @6.0.3", "", "pub fn f() {}"];
-        assert!(!doc_block_has_disposition(&separated, 2));
-        assert!(doc_block_has_disposition(&blank_gap, 2));
-        // The block scan stops at the first non-comment/attr line.
-        let detached = [
-            "/// tsrs-native: someone else's fn",
-            "pub fn other() {}",
-            "pub fn unrelated() {}",
-        ];
-        assert!(!doc_block_has_disposition(&detached, 2));
-    }
-
-    #[test]
-    fn fn_backlog_roundtrips() {
-        let mut map = BTreeMap::new();
-        map.insert(("crates/checker/src/a.rs".to_owned(), "foo".to_owned()), 1);
-        map.insert(("crates/checker/src/b.rs".to_owned(), "bar".to_owned()), 2);
-        let parsed = parse_fn_backlog(&render_fn_backlog(&map)).expect("roundtrip");
-        assert_eq!(parsed, map);
-    }
-
-    #[test]
-    fn stage_key_displays_match_reason_conventions() {
-        assert_eq!(stage_key_display(StageKey(4, 8, u8::MAX)), "5.8");
-        assert_eq!(stage_key_display(StageKey(4, 7, b'b')), "5.7b");
-        assert_eq!(stage_key_display(StageKey(5, 0, 0)), "M5");
-        assert_eq!(stage_key_display(StageKey(8, 0, 0)), "M8");
-    }
-
-    #[test]
-    fn latest_stage_in_a_reason_wins() {
-        let sites =
-            scan(r#"Err(Unsupported::new("expired 5.5f dep; folded into the 5.7b close"))"#);
-        assert_eq!(sites.len(), 1);
-        assert_eq!(sites[0].owner, Some(StageKey(4, 7, b'b')));
-    }
-
-    #[test]
-    fn letterless_stage_owns_the_whole_stage() {
-        let sites = scan(r#"Err(Unsupported::new("resolveFoo (5.7)"))"#);
-        assert_eq!(sites[0].owner, Some(StageKey(4, 7, u8::MAX)));
-        // 5.7 letterless does NOT expire mid-stage (threshold 5.7a).
-        assert!(sites[0].owner.unwrap() > parse_stage_key("5.7a").unwrap());
-    }
-
-    #[test]
-    fn recovery_markers_classify_owner_less_guards() {
-        let sites = scan(
-            r#"Err(Unsupported::new("tagged template without a tag (parse recovery)"))
-               Err(Unsupported::new("conditional with missing branch (parse-recovery tree)"))
-               Err(Unsupported::new("entityNameToString on recovery node"))
-               Err(Unsupported::new("template span with missing literal"))"#,
-        );
-        assert_eq!(sites.len(), 4);
-        assert!(sites[0].recovery && sites[1].recovery && sites[2].recovery);
-        // No marker → stays a plain untagged debt.
-        assert!(!sites[3].recovery);
-    }
-
-    #[test]
-    fn owned_reasons_never_classify_as_recovery() {
-        // The owner tag wins even when recovery words appear.
-        let sites = scan(r#"Err(Unsupported::new("checkFoo recovery node handling (5.8)"))"#);
-        assert_eq!(sites.len(), 1);
-        assert!(sites[0].owner.is_some());
-        assert!(!sites[0].recovery);
-    }
-}
+#[path = "../tests/unit/main/escape_scanner_tests.rs"]
+mod escape_scanner_tests;
 
 #[cfg(test)]
-mod d2_inventory_tests {
-    use super::*;
-
-    #[test]
-    fn ledger_reads_every_port_block_on_one_rust_function() {
-        // Keep complete ledger markers out of this Rust source's own
-        // line-oriented ledger scan.
-        let source = [
-            concat!("/// tsc-", "port: firstOwner @6.0.3\n"),
-            concat!("/// tsc-", "hash: aaa\n"),
-            concat!("/// tsc-", "span: _tsc.js:10-12\n"),
-            "///\n",
-            concat!("/// tsc-", "port: secondOwner @6.0.3\n"),
-            concat!("/// tsc-", "hash: bbb\n"),
-            concat!("/// tsc-", "span: _tsc.js:20-24\n"),
-            "pub(crate) fn combined_owner() {}\n",
-        ]
-        .concat();
-        let entries =
-            parse_ledger_entries_in_file(Path::new("combined.rs"), &source).expect("ledger");
-        assert_eq!(entries.len(), 2);
-        assert_eq!(entries[0].rust_fn, "combined_owner");
-        assert_eq!(entries[0].port_name, "firstOwner");
-        assert_eq!((entries[0].span_start, entries[0].span_end), (10, 12));
-        assert_eq!(entries[0].hash, "aaa");
-        assert_eq!(entries[1].rust_fn, "combined_owner");
-        assert_eq!(entries[1].port_name, "secondOwner");
-        assert_eq!((entries[1].span_start, entries[1].span_end), (20, 24));
-        assert_eq!(entries[1].hash, "bbb");
-    }
-
-    #[test]
-    fn committed_schema_two_inventory_has_exact_graph_and_ledger_join() {
-        let workspace = find_workspace_root().expect("workspace");
-        let inventory: M8EmitterInventory =
-            read_json(&workspace.join("m8-emitter-inventory.json")).expect("inventory");
-        validate_d2_inventory(&inventory).expect("schema-2 graph");
-        let declaration = inventory
-            .functions
-            .iter()
-            .find(|function| {
-                function.source_range.start.line == 64103 && function.source_range.end.line == 64114
-            })
-            .expect("getBestMatchIndexedAccessTypeOrUndefined declaration");
-        assert_eq!(declaration.name, "getBestMatchIndexedAccessTypeOrUndefined");
-        let ledger = collect_ledger_entries(&workspace).expect("ledger");
-        let joins = exact_ledger_matches(declaration, &ledger);
-        assert_eq!(joins.len(), 1);
-        assert_eq!(joins[0].rust_fn, "member_elaboration_target_type");
-    }
-}
+#[path = "../tests/unit/main/d2_inventory_tests.rs"]
+mod d2_inventory_tests;
 
 #[cfg(test)]
-mod m8_emitter_disposition_tests {
-    use std::sync::atomic::{AtomicU64, Ordering};
-
-    use super::*;
-
-    static TEMP_REPO_SEQUENCE: AtomicU64 = AtomicU64::new(0);
-
-    struct TempRepo(PathBuf);
-
-    impl TempRepo {
-        fn new() -> Self {
-            let sequence = TEMP_REPO_SEQUENCE.fetch_add(1, Ordering::Relaxed);
-            let path = std::env::temp_dir().join(format!(
-                "tsc-rs-emitter-history-{}-{sequence}",
-                std::process::id()
-            ));
-            fs::create_dir_all(&path).unwrap();
-            git_test(&path, &["init", "-q"]);
-            git_test(&path, &["config", "user.email", "tests@example.invalid"]);
-            git_test(&path, &["config", "user.name", "tsc-rs tests"]);
-            Self(path)
-        }
-    }
-
-    impl Drop for TempRepo {
-        fn drop(&mut self) {
-            let _ = fs::remove_dir_all(&self.0);
-        }
-    }
-
-    fn git_test(root: &Path, args: &[&str]) -> Vec<u8> {
-        let output = Command::new("git")
-            .arg("-C")
-            .arg(root)
-            .args(args)
-            .output()
-            .unwrap();
-        assert!(
-            output.status.success(),
-            "git {} failed: {}",
-            args.join(" "),
-            String::from_utf8_lossy(&output.stderr)
-        );
-        output.stdout
-    }
-
-    fn function(id_byte: char, line: usize, hash_byte: char) -> M8EmitterFunction {
-        M8EmitterFunction {
-            id: format!("d2:{}", id_byte.to_string().repeat(64)),
-            name: format!("function{line}"),
-            kind: "FunctionDeclaration".to_owned(),
-            lexical_owner: None,
-            lexical_path: format!("<top>/function{line}@{line}:1"),
-            source_range: M8SourceRange {
-                start: M8SourcePosition {
-                    offset: line * 10,
-                    line,
-                    character: 1,
-                },
-                end: M8SourcePosition {
-                    offset: line * 10 + 9,
-                    line: line + 1,
-                    character: 2,
-                },
-            },
-            source_slice_sha256: hash_byte.to_string().repeat(64),
-            direct_emitter: false,
-            sites: Vec::new(),
-            scc: format!("scc-{line}"),
-            shortest_emitter_path: vec![format!("d2:{}", id_byte.to_string().repeat(64))],
-        }
-    }
-
-    fn inventory() -> M8EmitterInventory {
-        M8EmitterInventory {
-            schema: 2,
-            status: "draft/report-only".to_owned(),
-            source: "vendor/typescript-6.0.3/lib/_tsc.js".to_owned(),
-            source_sha256: "f".repeat(64),
-            band: "all".to_owned(),
-            summary: M8EmitterInventorySummary {
-                source_declarations: 2,
-                emitter_declarations: 0,
-                diagnostic_references: 0,
-                closure_declarations: 2,
-                sccs: 2,
-                nontrivial_sccs: 0,
-                static_edges: 0,
-                property_dispatch_edges: 0,
-                unresolved_calls: 0,
-            },
-            functions: vec![function('a', 10, '1'), function('b', 20, '2')],
-            graph: M8EmitterGraph {
-                edges: Vec::new(),
-                sccs: Vec::new(),
-                unresolved_calls: Vec::new(),
-            },
-        }
-    }
-
-    fn dispositions() -> M8EmitterDispositions {
-        M8EmitterDispositions {
-            schema: 2,
-            status: "draft".to_owned(),
-            adjudication_commit: None,
-            inventory_sha256: "inventory".to_owned(),
-            entries: vec![
-                M8EmitterDisposition {
-                    declaration: format!("d2:{}", "a".repeat(64)),
-                    disposition: "ported".to_owned(),
-                    owner: "Rust exact port ledger".to_owned(),
-                    evidence: "exact join".to_owned(),
-                },
-                M8EmitterDisposition {
-                    declaration: format!("d2:{}", "b".repeat(64)),
-                    disposition: "deferred".to_owned(),
-                    owner: "D2 static dependency closure".to_owned(),
-                    evidence: "exact path".to_owned(),
-                },
-            ],
-        }
-    }
-
-    #[test]
-    fn historical_emitter_dispositions_follow_the_workspace_promotion() {
-        let repo = TempRepo::new();
-        let legacy = repo.0.join("tsrs2");
-        fs::create_dir_all(&legacy).unwrap();
-        let expected = dispositions();
-        fs::write(
-            legacy.join("m8-emitter-dispositions.json"),
-            serde_json::to_vec_pretty(&expected).unwrap(),
-        )
-        .unwrap();
-        git_test(&repo.0, &["add", "tsrs2/m8-emitter-dispositions.json"]);
-        git_test(
-            &repo.0,
-            &["commit", "-q", "-m", "legacy emitter dispositions"],
-        );
-        let commit = String::from_utf8(git_test(&repo.0, &["rev-parse", "HEAD"]))
-            .unwrap()
-            .trim()
-            .to_owned();
-
-        assert_eq!(
-            m8_emitter_dispositions_at(&repo.0, &commit).unwrap(),
-            expected
-        );
-    }
-
-    fn ledger() -> Vec<LedgerEntry> {
-        vec![LedgerEntry {
-            rust_path: PathBuf::from("crates/checker/src/example.rs"),
-            rust_line: 7,
-            rust_fn: "ported".to_owned(),
-            port_name: "function10".to_owned(),
-            version: "6.0.3".to_owned(),
-            span_file: "_tsc.js".to_owned(),
-            span_start: 10,
-            span_end: 11,
-            hash: "1".repeat(64),
-        }]
-    }
-
-    #[test]
-    fn exact_identity_coverage_and_ledger_disposition_are_required() {
-        let inventory = inventory();
-        let ledger = ledger();
-        let valid = dispositions();
-        let stats = validate_m8_emitter_dispositions(
-            Path::new("."),
-            &inventory,
-            "inventory",
-            &ledger,
-            &valid,
-        )
-        .expect("complete exact dispositions");
-        assert_eq!(
-            stats,
-            M8EmitterDispositionStats {
-                ported: 1,
-                deferred: 1,
-                not_applicable: 0,
-            }
-        );
-
-        let mut missing = valid.clone();
-        missing.entries.pop();
-        assert!(validate_m8_emitter_dispositions(
-            Path::new("."),
-            &inventory,
-            "inventory",
-            &ledger,
-            &missing,
-        )
-        .is_err());
-
-        let mut false_deferred = valid;
-        false_deferred.entries[0].disposition = "deferred".to_owned();
-        assert!(validate_m8_emitter_dispositions(
-            Path::new("."),
-            &inventory,
-            "inventory",
-            &ledger,
-            &false_deferred,
-        )
-        .is_err());
-    }
-
-    #[test]
-    fn frozen_deferred_disposition_accepts_a_later_exact_port() {
-        let inventory = inventory();
-        let ledger = ledger();
-        let mut frozen = dispositions();
-        frozen.status = "frozen".to_owned();
-        frozen.adjudication_commit = Some("a".repeat(40));
-        frozen.entries[0].disposition = "deferred".to_owned();
-        frozen.entries[0].owner = "D2 static dependency closure".to_owned();
-        frozen.entries[0].evidence = "exact frozen path".to_owned();
-
-        validate_m8_emitter_dispositions(Path::new("."), &inventory, "inventory", &ledger, &frozen)
-            .expect("a post-freeze exact port is monotone implementation evidence");
-
-        frozen.entries[0].disposition = "not-applicable".to_owned();
-        assert!(validate_m8_emitter_dispositions(
-            Path::new("."),
-            &inventory,
-            "inventory",
-            &ledger,
-            &frozen,
-        )
-        .is_err());
-    }
-
-    #[test]
-    fn frozen_anchor_requires_a_full_lowercase_commit() {
-        assert!(is_full_lower_hex_commit(&"a".repeat(40)));
-        assert!(!is_full_lower_hex_commit(&"A".repeat(40)));
-        assert!(!is_full_lower_hex_commit(&"a".repeat(39)));
-        assert!(!is_full_lower_hex_commit(&format!("{}g", "a".repeat(39))));
-    }
-}
+#[path = "../tests/unit/main/m8_emitter_disposition_tests.rs"]
+mod m8_emitter_disposition_tests;
 
 #[cfg(test)]
-mod escapes_ceiling_tests {
-    use super::*;
-
-    #[test]
-    fn parses_the_escapes_section() {
-        let dir = std::env::temp_dir().join(format!("tsc-rs-ceiling-{}", std::process::id()));
-        fs::create_dir_all(&dir).unwrap();
-        fs::write(
-            dir.join("ratchet.toml"),
-            "[t0]\nrate = 0.1\n\n[escapes]\n# comment\nmax_untagged = 178\nmax_recovery = 71\n",
-        )
-        .unwrap();
-        assert_eq!(
-            read_ratchet_ceiling(&dir, "escapes", "max_untagged").unwrap(),
-            Some(178)
-        );
-        assert_eq!(
-            read_ratchet_ceiling(&dir, "escapes", "max_recovery").unwrap(),
-            Some(71)
-        );
-        fs::write(dir.join("ratchet.toml"), "[t0]\nrate = 0.1\n").unwrap();
-        assert_eq!(
-            read_ratchet_ceiling(&dir, "escapes", "max_untagged").unwrap(),
-            None
-        );
-        assert_eq!(
-            read_ratchet_ceiling(&dir, "escapes", "max_recovery").unwrap(),
-            None
-        );
-        fs::remove_dir_all(&dir).ok();
-    }
-}
+#[path = "../tests/unit/main/escapes_ceiling_tests.rs"]
+mod escapes_ceiling_tests;
 
 #[cfg(test)]
-mod m8_readiness_tests {
-    use super::*;
-
-    fn family(
-        name: &str,
-        owner: &str,
-        supported_false_negative: usize,
-        canaries_passed: usize,
-        canaries_total: usize,
-    ) -> M8FamilyReadiness {
-        M8FamilyReadiness {
-            name: name.to_owned(),
-            owner: owner.to_owned(),
-            supported_false_negative,
-            canaries_passed,
-            canaries_total,
-        }
-    }
-
-    #[test]
-    fn aggregate_m7_gate_cannot_hide_a_red_owned_family() {
-        let mut gates = vec![M8ReadinessGate {
-            name: "m7-gate".to_owned(),
-            ready: true,
-            detail: "T0=99% FP=0 T1-ratchet-active=true".to_owned(),
-        }];
-        let report = M8FamiliesReport {
-            schema: 1,
-            map_status: "frozen".to_owned(),
-            families: vec![
-                family("checker-grammar", "M7 8.1", 1, 3, 4),
-                family("m8-tail", "M8", 9, 0, 1),
-            ],
-        };
-
-        gates.push(m7_family_readiness_gate(&report));
-
-        assert!(gates[0].ready);
-        assert!(!gates[1].ready);
-        assert_eq!(gates[1].name, "m7-family-rollup");
-        assert!(gates[1]
-            .detail
-            .contains("checker-grammar(FN=1,canaries=3/4)"));
-        assert!(!gates[1].detail.contains("m8-tail"));
-    }
-
-    #[test]
-    fn m7_family_gate_requires_a_frozen_nonempty_complete_rollup() {
-        let complete = vec![
-            family("checker-grammar", "M7 8.1", 0, 4, 4),
-            family("unused", "M7 8.3+8.4", 0, 3, 3),
-        ];
-        let ready = m7_family_readiness_gate(&M8FamiliesReport {
-            schema: 1,
-            map_status: "frozen".to_owned(),
-            families: complete,
-        });
-        assert!(ready.ready);
-        assert_eq!(ready.detail, "map-status=frozen complete=2/2");
-
-        let draft = m7_family_readiness_gate(&M8FamiliesReport {
-            schema: 1,
-            map_status: "draft".to_owned(),
-            families: vec![family("checker-grammar", "M7 8.1", 0, 4, 4)],
-        });
-        assert!(!draft.ready);
-
-        let empty = m7_family_readiness_gate(&M8FamiliesReport {
-            schema: 1,
-            map_status: "frozen".to_owned(),
-            families: vec![family("m8-tail", "M8", 0, 1, 1)],
-        });
-        assert!(!empty.ready);
-    }
-}
+#[path = "../tests/unit/main/m8_readiness_tests.rs"]
+mod m8_readiness_tests;
 
 #[cfg(test)]
-mod completion_tier_activation_tests {
-    use super::*;
-
-    #[test]
-    fn inactive_or_incoherent_artifacts_keep_the_completion_row_red() {
-        let probe = tier_1_through_3_activation_probe(Err(
-            "oracle-input comparators remain explicit \"absent\" markers".to_owned(),
-        ));
-
-        assert!(!probe.ready);
-        assert!(probe.detail.contains("activation proof failed"));
-        assert!(probe.detail.contains("comparators remain explicit"));
-    }
-
-    #[test]
-    fn exact_artifact_activation_is_reported_with_derived_counts() {
-        let probe = tier_1_through_3_activation_probe(Ok(
-            tsc_conformance::ratchet::Tier1Through3Activation {
-                t1_matched: 11,
-                t2_matched: 10,
-                t3_matched: 9,
-                total: 12,
-            },
-        ));
-
-        assert!(probe.ready);
-        assert!(probe.detail.contains("oracle-input comparators active"));
-        assert!(probe.detail.contains("T1=11/12 T2=10/12 T3=9/12"));
-    }
-
-    #[test]
-    fn active_but_empty_accepted_tiers_keep_the_completion_row_red() {
-        let probe = tier_1_through_3_activation_probe(Ok(
-            tsc_conformance::ratchet::Tier1Through3Activation {
-                t1_matched: 1,
-                t2_matched: 0,
-                t3_matched: 0,
-                total: 12,
-            },
-        ));
-
-        assert!(!probe.ready);
-        assert!(probe.detail.contains("T2=0/12 T3=0/12"));
-        assert!(probe.detail.contains("must be nonzero"));
-    }
-
-    #[test]
-    fn t4_activation_failure_keeps_the_completion_row_red() {
-        let probe = t4_activation_probe(Err(
-            "render_driver_sha256 drift against the current producer".to_owned(),
-        ));
-
-        assert!(!probe.ready);
-        assert!(probe.detail.contains("T4 activation proof failed"));
-        assert!(probe.detail.contains("render_driver_sha256 drift"));
-    }
-
-    #[test]
-    fn t4_activation_requires_every_nonempty_case() {
-        let complete = t4_activation_probe(Ok(tsc_conformance::ratchet::T4Activation {
-            matched_cases: 12,
-            total_cases: 12,
-        }));
-        assert!(complete.ready);
-        assert!(complete.detail.contains("accepted cases=12/12"));
-
-        for activation in [
-            tsc_conformance::ratchet::T4Activation {
-                matched_cases: 11,
-                total_cases: 12,
-            },
-            tsc_conformance::ratchet::T4Activation {
-                matched_cases: 0,
-                total_cases: 0,
-            },
-        ] {
-            let probe = t4_activation_probe(Ok(activation));
-            assert!(!probe.ready);
-            assert!(probe
-                .detail
-                .contains("accepted count must equal a nonzero total"));
-        }
-    }
-}
+#[path = "../tests/unit/main/completion_tier_activation_tests.rs"]
+mod completion_tier_activation_tests;
 
 #[cfg(test)]
-mod readme_status_tests {
-    use std::sync::atomic::{AtomicU64, Ordering};
-
-    use super::*;
-
-    static TEMP_REPO_SEQUENCE: AtomicU64 = AtomicU64::new(0);
-
-    struct TempRepo(PathBuf);
-
-    impl TempRepo {
-        fn new() -> Self {
-            let sequence = TEMP_REPO_SEQUENCE.fetch_add(1, Ordering::Relaxed);
-            let path = std::env::temp_dir().join(format!(
-                "tsc-rs-readme-status-{}-{sequence}",
-                std::process::id()
-            ));
-            fs::create_dir_all(path.join("tsrs2")).unwrap();
-            let output = Command::new("git")
-                .arg("-C")
-                .arg(&path)
-                .args(["init", "-q"])
-                .output()
-                .unwrap();
-            assert!(
-                output.status.success(),
-                "{}",
-                String::from_utf8_lossy(&output.stderr)
-            );
-            fs::write(path.join("README.md"), "# test\n").unwrap();
-            Self(path)
-        }
-    }
-
-    impl Drop for TempRepo {
-        fn drop(&mut self) {
-            let _ = fs::remove_dir_all(&self.0);
-        }
-    }
-
-    #[test]
-    fn groups_thousands() {
-        assert_eq!(group_thousands(0), "0");
-        assert_eq!(group_thousands(999), "999");
-        assert_eq!(group_thousands(1000), "1,000");
-        assert_eq!(group_thousands(49024), "49,024");
-        assert_eq!(group_thousands(1234567), "1,234,567");
-    }
-
-    #[test]
-    fn splices_between_markers() {
-        let readme = format!(
-            "# Title\n\nprose\n\n{README_STATUS_BEGIN}\nold body\n{README_STATUS_END}\n\ntail\n"
-        );
-        let spliced = splice_readme_status(&readme, "new body\n").unwrap();
-        assert_eq!(
-            spliced,
-            format!(
-                "# Title\n\nprose\n\n{README_STATUS_BEGIN}\nnew body\n{README_STATUS_END}\n\ntail\n"
-            )
-        );
-        // Idempotent: splicing the same block changes nothing.
-        assert_eq!(
-            splice_readme_status(&spliced, "new body\n").unwrap(),
-            spliced
-        );
-    }
-
-    #[test]
-    fn rejects_missing_duplicate_or_reversed_markers() {
-        assert!(splice_readme_status("no markers", "x").is_err());
-        assert!(splice_readme_status(README_STATUS_BEGIN, "x").is_err());
-        assert!(splice_readme_status(
-            &format!("{README_STATUS_BEGIN}\n{README_STATUS_BEGIN}\n{README_STATUS_END}"),
-            "x"
-        )
-        .is_err());
-        assert!(
-            splice_readme_status(&format!("{README_STATUS_END}\n{README_STATUS_BEGIN}"), "x")
-                .is_err()
-        );
-    }
-
-    #[test]
-    fn readme_and_status_paths_follow_the_git_root() {
-        let repo = TempRepo::new();
-        let nested = repo.0.join("tsrs2");
-        let canonical_root = fs::canonicalize(&repo.0).unwrap();
-        let readme = canonical_root.join("README.md");
-
-        assert_eq!(readme_path_for_workspace(&nested).unwrap(), readme);
-        assert_eq!(readme_path_for_workspace(&repo.0).unwrap(), readme);
-        assert_eq!(
-            repository_relative_display_path(&nested, &nested.join("ratchet.toml")).unwrap(),
-            "tsrs2/ratchet.toml"
-        );
-        assert_eq!(
-            repository_relative_display_path(&repo.0, &repo.0.join("ratchet.toml")).unwrap(),
-            "ratchet.toml"
-        );
-    }
-}
+#[path = "../tests/unit/main/readme_status_tests.rs"]
+mod readme_status_tests;

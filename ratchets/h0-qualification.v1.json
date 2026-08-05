@@ -151,11 +151,11 @@
     },
     {
       "id": "local-rust-ci-warm-macos-arm64",
-      "workload": "all 56 workspace test executables, two-process pipeline",
+      "workload": "all 24 workspace test executables, bounded three-harness-thread pipeline",
       "measurement_backend": "bsd-time-p",
       "cargo_build_jobs": 2,
       "cold_wall_seconds": null,
-      "warm_wall_seconds": 96.40,
+      "warm_wall_seconds": 64.32,
       "cold_max_rss_bytes": null,
       "warm_max_rss_bytes": null,
       "ceilings": {

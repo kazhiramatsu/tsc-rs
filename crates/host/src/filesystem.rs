@@ -326,51 +326,5 @@ fn normalize_windows_realpath(path: PathBuf) -> PathBuf {
 }
 
 #[cfg(test)]
-mod tests {
-    use std::io;
-
-    use super::map_io_error;
-    use crate::{HostErrorKind, HostOperation};
-
-    #[test]
-    fn maps_stable_io_error_classes() {
-        for (source, expected) in [
-            (
-                io::ErrorKind::PermissionDenied,
-                HostErrorKind::PermissionDenied,
-            ),
-            (io::ErrorKind::InvalidInput, HostErrorKind::InvalidInput),
-            (io::ErrorKind::InvalidData, HostErrorKind::InvalidData),
-            (io::ErrorKind::OutOfMemory, HostErrorKind::ResourceLimit),
-            (io::ErrorKind::StorageFull, HostErrorKind::ResourceLimit),
-            (io::ErrorKind::FileTooLarge, HostErrorKind::ResourceLimit),
-            (io::ErrorKind::QuotaExceeded, HostErrorKind::ResourceLimit),
-            (io::ErrorKind::Other, HostErrorKind::Other),
-        ] {
-            let error = map_io_error(io::Error::from(source), HostOperation::ReadFile, None);
-            assert_eq!(error.kind(), expected);
-            assert_eq!(error.operation(), HostOperation::ReadFile);
-        }
-    }
-
-    #[cfg(windows)]
-    #[test]
-    fn removes_only_verbatim_disk_realpath_prefixes() {
-        use std::path::PathBuf;
-
-        use super::normalize_windows_realpath;
-
-        assert_eq!(
-            normalize_windows_realpath(PathBuf::from(r"\\?\C:\work\a.ts")),
-            PathBuf::from(r"C:\work\a.ts")
-        );
-        assert_eq!(
-            normalize_windows_realpath(PathBuf::from(r"\\?\UNC\server\share\a.ts")),
-            PathBuf::from(r"\\?\UNC\server\share\a.ts")
-        );
-        assert_eq!(
-            normalize_windows_realpath(PathBuf::from(r"\\?\Volume{1234}\a.ts")),
-            PathBuf::from(r"\\?\Volume{1234}\a.ts")
-        );
-    }
-}
+#[path = "../tests/unit/filesystem/tests.rs"]
+mod tests;

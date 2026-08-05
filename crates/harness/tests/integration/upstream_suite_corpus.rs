@@ -7,7 +7,10 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use serde::Deserialize;
 use sha2::{Digest, Sha256};
 
-const PIN: &str = include_str!("../../../vendor/typescript-6.0.3/test-suites-pin.v1.json");
+const PIN: &str = include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../../vendor/typescript-6.0.3/test-suites-pin.v1.json"
+));
 const TYPESCRIPT_VERSION: &str = "6.0.3";
 const SOURCE_REPOSITORY: &str = "https://github.com/microsoft/TypeScript.git";
 const SOURCE_COMMIT: &str = "050880ce59e30b356b686bd3144efe24f875ebc8";

@@ -8,19 +8,19 @@
     },
     {
       "path": "crates/checker/src/evaluate.rs",
-      "sha256": "a93631613c3720354293e58e7b780abac26e36466bff2296f1ae3e520f4b90e5"
+      "sha256": "8ccd67cc82ead5ce4d275d6bc79663b1147795397fd74e15f6424cfa2b2f9612"
     },
     {
       "path": "crates/checker/src/inference.rs",
-      "sha256": "06bcb1fb443c9c4e9fc2365f53b738d06b41db509d377d2f26304bef1b1b73b5"
+      "sha256": "3aec30ea01421abd51e8bc5d2e7076b9f1751630026b513ce7910fbce1bbf4e4"
     },
     {
       "path": "crates/checker/src/check.rs",
-      "sha256": "253775e9166604ee22bb25755004e337543a8c263d3c76d325e6b1e037ca36b7"
+      "sha256": "878b3ea2ac5ac6f4160c69f77ee63899769a231cc697ae2dc276149a5451cc6c"
     },
     {
       "path": "crates/checker/src/state.rs",
-      "sha256": "021c5ed5dd55533b757fc645858b3ec13aec46f4b2fe8de92bb343d9195e5cee"
+      "sha256": "30eb099051c791f5f10f751f6804b3990cdecb0b902429fb71bb04e4b8b7a2f2"
     }
   ],
   "checks": [
