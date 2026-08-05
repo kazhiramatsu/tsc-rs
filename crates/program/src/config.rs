@@ -1277,33 +1277,8 @@ fn unsupported_config_scope(
         }
     }
 
-    const UNSUPPORTED_OPTIONS: &[&str] = &[
-        "project",
-        "incremental",
-        "composite",
-        "declaration",
-        "declarationMap",
-        "emitDeclarationOnly",
-        "sourceMap",
-        "inlineSourceMap",
-        "generateCpuProfile",
-        "generateTrace",
-        "tsBuildInfoFile",
-        "plugins",
-        "out",
-        "outFile",
-        "listEmittedFiles",
-        "emitBOM",
-        "noEmitOnError",
-        "noEmitHelpers",
-        "removeComments",
-        "sourceRoot",
-        "mapRoot",
-        "inlineSources",
-        "emitDecoratorMetadata",
-    ];
     for option in options.entries() {
-        if UNSUPPORTED_OPTIONS.contains(&option.name.as_str())
+        if !config_option_is_supported_by_h0(&option.name)
             && config_value_requests_feature(&option.value)
         {
             return Some((
@@ -1316,6 +1291,87 @@ fn unsupported_config_scope(
         }
     }
     None
+}
+
+/// The config parser deliberately knows the complete TypeScript option
+/// declaration table so it can reproduce `ParsedCommandLine` diagnostics.
+/// That does not mean the no-emit loader can consume every recognized option:
+/// an option which never reaches either `CompilerOptions`, `ProgramOptions`,
+/// or root discovery would otherwise be silently ignored. Keep this allowlist
+/// next to the fail-closed gate so adding a new projection requires an
+/// explicit review of its execution semantics.
+fn config_option_is_supported_by_h0(name: &str) -> bool {
+    matches!(
+        name,
+        // Discovery and checker-facing compiler options.
+        "allowJs"
+            | "checkJs"
+            | "forceConsistentCasingInFileNames"
+            | "maxNodeModuleJsDepth"
+            | "experimentalDecorators"
+            | "target"
+            | "module"
+            | "moduleDetection"
+            | "alwaysStrict"
+            | "strict"
+            | "strictNullChecks"
+            | "strictFunctionTypes"
+            | "noImplicitAny"
+            | "noErrorTruncation"
+            | "noImplicitThis"
+            | "noImplicitOverride"
+            | "strictBindCallApply"
+            | "exactOptionalPropertyTypes"
+            | "noFallthroughCasesInSwitch"
+            | "noImplicitReturns"
+            | "noUnusedLocals"
+            | "noUnusedParameters"
+            | "allowUnreachableCode"
+            | "allowUnusedLabels"
+            | "noUncheckedIndexedAccess"
+            | "noPropertyAccessFromIndexSignature"
+            | "noUncheckedSideEffectImports"
+            | "strictPropertyInitialization"
+            | "useDefineForClassFields"
+            | "useUnknownInCatchVariables"
+            | "lib"
+            | "jsx"
+            | "noEmit"
+            | "importHelpers"
+            | "downlevelIteration"
+            | "strictBuiltinIteratorReturn"
+            | "moduleResolution"
+            | "esModuleInterop"
+            | "allowSyntheticDefaultImports"
+            | "preserveConstEnums"
+            | "isolatedModules"
+            | "verbatimModuleSyntax"
+            | "allowUmdGlobalAccess"
+            | "baseUrl"
+            | "moduleSuffixes"
+            | "resolvePackageJsonExports"
+            | "resolvePackageJsonImports"
+            | "customConditions"
+            | "noDtsResolution"
+            | "allowArbitraryExtensions"
+            | "allowImportingTsExtensions"
+            | "rewriteRelativeImportExtensions"
+            | "resolveJsonModule"
+            | "skipLibCheck"
+            | "jsxFactory"
+            | "jsxFragmentFactory"
+            | "jsxImportSource"
+            | "reactNamespace"
+            // Program-facing roots/resolution and default-exclude inputs.
+            | "noLib"
+            | "preserveSymlinks"
+            | "types"
+            | "typeRoots"
+            | "rootDirs"
+            | "paths"
+            | "outDir"
+            | "declarationDir"
+    )
 }
 
 fn config_value_requests_feature(value: &Value) -> bool {

@@ -74,6 +74,32 @@ fn unsupported_h0_config_scope_fails_at_the_program_gate() {
     assert!(emit_error.to_string().contains("declaration"));
 }
 
+#[test]
+fn recognized_but_unprojected_config_options_fail_closed() {
+    let host = host();
+    let adapter = ConfigHostAdapter::new(&host);
+    let plan = parse_config_root_plan(
+        &adapter,
+        request(
+            r#"{"compilerOptions":{"noEmit":true,"noLib":true,"rootDir":"src"},"files":["main.ts"]}"#,
+        ),
+    )
+    .expect("rootDir is a recognized partial-plan option");
+
+    let error = load_config_program_with_no_emit_override(
+        &host,
+        &plan,
+        &LibraryCatalog::typescript_6_0_3("/vendor/typescript/lib"),
+        LIMITS,
+    )
+    .expect_err("rootDir must not be silently ignored by the no-emit loader");
+    let ConfigProgramLoadError::Program(error) = error else {
+        panic!("recognized out-of-scope options must fail at the program gate");
+    };
+    assert_eq!(error.kind(), tsc_program::ProgramLoadErrorKind::Unsupported);
+    assert!(error.to_string().contains("rootDir"));
+}
+
 struct TempTree {
     root: PathBuf,
 }

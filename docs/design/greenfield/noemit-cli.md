@@ -694,7 +694,11 @@ the merged checker/program options and has a fail-closed `load_config_program`
 bridge into the general catalog-backed loader: config and option diagnostics
 stop source loading first, and an omitted or false `noEmit` is rejected before
 any source host work. A command-line override applies `noEmit=true` without
-mutating the remaining config options. The compiler crate now ships a bounded
+mutating the remaining config options. The program gate also maintains an
+explicit allowlist for options projected into `CompilerOptions`,
+`ProgramOptions`, or root discovery; a recognized option outside that set
+fails as a typed unsupported scope instead of being silently ignored. The
+compiler crate now ships a bounded
 `tsc-rs` binary that discovers a config from the current directory or `-p`,
 accepts explicit files only with `--noEmit`, adapts `FsCompilerHost` to the
 config parser's filtered directory contract, and renders contextual or plain
