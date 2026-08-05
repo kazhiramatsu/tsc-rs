@@ -76,6 +76,61 @@ fn option_codes(text: &str) -> Vec<u32> {
     .collect()
 }
 
+#[test]
+fn base_url_deprecation_uses_the_option_key_location() {
+    let text = r#"{"compilerOptions":{"noEmit":true,"lib":["es5"],"baseUrl":".","paths":{"@app/*":["src/*"]},"ignoreDeprecations":"6.0"},"include":["src/**/*.ts"]}"#;
+    let plan = parse_config_root_plan(
+        &MemoryConfigHost::default().with_directory_files(&["/project/a.ts"]),
+        request("/project/tsconfig.json", text),
+    )
+    .expect("baseUrl config parses");
+    assert!(plan
+        .option_diagnostics()
+        .iter()
+        .all(|diagnostic| diagnostic.code() != 5101));
+
+    let text = text.replace(",\"ignoreDeprecations\":\"6.0\"", "");
+    let plan = parse_config_root_plan(
+        &MemoryConfigHost::default().with_directory_files(&["/project/a.ts"]),
+        request("/project/tsconfig.json", &text),
+    )
+    .expect("baseUrl deprecation remains a reportable option diagnostic");
+    let [diagnostic] = plan
+        .option_diagnostics()
+        .iter()
+        .filter(|diagnostic| diagnostic.code() == 5101)
+        .collect::<Vec<_>>()[..]
+    else {
+        panic!(
+            "exactly one baseUrl deprecation expected: {:?}",
+            plan.option_diagnostics()
+        );
+    };
+    assert_eq!(
+        diagnostic.start,
+        Some(text.find("\"baseUrl\"").unwrap() as u32)
+    );
+}
+
+#[test]
+fn base_url_deprecation_with_exact_cli_shape_uses_the_option_key_location() {
+    let text = r#"{"compilerOptions":{"noEmit":true,"lib":["es5"],"baseUrl":".","paths":{"@app/*":["src/*"]}},"include":["src/**/*.ts"]}"#;
+    let plan = parse_config_root_plan(
+        &MemoryConfigHost::default().with_directory_files(&["/project/src/main.ts"]),
+        request("/project/tsconfig.json", text),
+    )
+    .expect("exact CLI-shaped config parses");
+    let diagnostic = plan
+        .option_diagnostics()
+        .iter()
+        .find(|diagnostic| diagnostic.code() == 5101)
+        .expect("baseUrl deprecation");
+    assert_eq!(
+        diagnostic.start,
+        Some(text.find("\"baseUrl\"").unwrap() as u32)
+    );
+}
+
 fn assert_send_sync<T: Send + Sync>() {}
 
 #[test]

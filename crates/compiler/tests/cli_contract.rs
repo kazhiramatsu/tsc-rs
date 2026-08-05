@@ -371,3 +371,123 @@ fn no_emit_cli_config_and_selection_matrix_matches_vendored_typescript() {
         &["--pretty", "-p", "tsconfig.json"],
     );
 }
+
+#[test]
+#[ignore = "local H0 CLI oracle audit; requires the pinned Node runtime"]
+fn no_emit_cli_extended_config_matrix_matches_vendored_typescript() {
+    let extends_tree = TempTree::new();
+    fs::create_dir_all(extends_tree.path("src/nested")).expect("create source directories");
+    fs::create_dir_all(extends_tree.path("configs")).expect("create config directory");
+    fs::write(
+        extends_tree.path("src/main.ts"),
+        "const value: number = 'wrong';\n",
+    )
+    .expect("write source");
+    fs::write(
+        extends_tree.path("src/nested/ignored.ts"),
+        "const ignored: number = 'wrong';\n",
+    )
+    .expect("write nested source");
+    fs::write(
+        extends_tree.path("configs/base.json"),
+        r#"{"compilerOptions":{"noEmit":true,"lib":["es5"]},"include":["../src/**/*.ts"],"exclude":["../src/nested"]}"#,
+    )
+    .expect("write base config");
+    fs::write(
+        extends_tree.path("tsconfig.json"),
+        r#"{"extends":"./configs/base.json"}"#,
+    )
+    .expect("write extending config");
+    assert_typescript_parity(
+        &extends_tree,
+        &["-p", "tsconfig.json"],
+        &["-p", "tsconfig.json"],
+    );
+    assert_typescript_parity(
+        &extends_tree,
+        &["--noEmit", "-p", "tsconfig.json"],
+        &["--noEmit", "-p", "tsconfig.json"],
+    );
+
+    let nested_tree = TempTree::new();
+    fs::create_dir_all(nested_tree.path("src/deep")).expect("create nested tree");
+    fs::write(
+        nested_tree.path("src/main.ts"),
+        "const value: number = 'wrong';\n",
+    )
+    .expect("write nested root");
+    fs::write(
+        nested_tree.path("src/deep/other.ts"),
+        "const other: number = 'wrong';\n",
+    )
+    .expect("write nested file");
+    fs::write(
+        nested_tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"noEmit":true,"lib":["es5"]},"include":["src/**/*.ts"],"exclude":["src/deep"]}"#,
+    )
+    .expect("write discovered config");
+    assert_typescript_parity(&nested_tree, &[], &[]);
+    assert_typescript_parity(&nested_tree, &["--noEmit"], &["--noEmit"]);
+
+    let files_tree = TempTree::new();
+    fs::write(
+        files_tree.path("main.ts"),
+        "const value: number = 'wrong';\n",
+    )
+    .expect("write files root");
+    fs::write(
+        files_tree.path("missing.ts"),
+        "const missing: number = 'wrong';\n",
+    )
+    .expect("write second files root");
+    fs::write(
+        files_tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"noEmit":true,"lib":["es5"]},"files":["main.ts","missing.ts"]}"#,
+    )
+    .expect("write files config");
+    assert_typescript_parity(
+        &files_tree,
+        &["-p", "tsconfig.json"],
+        &["-p", "tsconfig.json"],
+    );
+
+    let jsconfig_tree = TempTree::new();
+    fs::write(
+        jsconfig_tree.path("main.js"),
+        "/** @type {number} */\nconst value = 'wrong';\n",
+    )
+    .expect("write JavaScript source");
+    fs::write(
+        jsconfig_tree.path("jsconfig.json"),
+        r#"{"compilerOptions":{"checkJs":true,"noEmit":true,"lib":["es5"]},"include":["**/*.js"]}"#,
+    )
+    .expect("write jsconfig");
+    assert_typescript_parity(
+        &jsconfig_tree,
+        &["--noEmit", "-p", "jsconfig.json"],
+        &["--noEmit", "-p", "jsconfig.json"],
+    );
+
+    let mapping_tree = TempTree::new();
+    fs::create_dir_all(mapping_tree.path("src")).expect("create mapping source directory");
+    fs::write(
+        mapping_tree.path("src/main.ts"),
+        "import { value } from '@app/value';\nconst checked: number = value;\n",
+    )
+    .expect("write mapping entry");
+    fs::write(
+        mapping_tree.path("src/value.ts"),
+        "export const value = 1;\n",
+    )
+    .expect("write mapped module");
+    fs::write(
+        mapping_tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"noEmit":true,"lib":["es5"],"baseUrl":".","paths":{"@app/*":["src/*"]}},"include":["src/**/*.ts"]}"#,
+    )
+    .expect("write paths config");
+    assert_typescript_parity(
+        &mapping_tree,
+        &["-p", "tsconfig.json"],
+        &["-p", "tsconfig.json"],
+    );
+}

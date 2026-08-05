@@ -842,7 +842,12 @@ fn format_plain_diagnostics(
             let position = diagnostic
                 .start
                 .ok_or_else(|| format!("diagnostic start is unavailable for {file_name:?}"))?;
-            let position = position.min(*line_starts.last().unwrap_or(&0));
+            // A one-line source has a final line start of zero; clamp to the
+            // UTF-16 text length rather than to that line-start sentinel so
+            // located config diagnostics near the end of the line retain
+            // their column.
+            let text_length = text.encode_utf16().count() as u32;
+            let position = position.min(text_length);
             let location = get_line_and_character_of_position(&line_starts, position);
             output.push_str(&format!(
                 "{}({},{}): ",
