@@ -194,7 +194,7 @@ fn config_option_diagnostics_are_rendered_alongside_semantic_diagnostics() {
     assert_eq!(output.status.code(), Some(2));
     let stdout = String::from_utf8_lossy(&output.stdout);
     let option = stdout
-        .find("tsconfig.json(1,1): error TS5107:")
+        .find("tsconfig.json(1,68): error TS5107:")
         .unwrap_or_else(|| panic!("missing TS5107 in output: {stdout}"));
     let semantic = stdout
         .find("main.ts(1,7): error TS2322:")
