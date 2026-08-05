@@ -679,6 +679,9 @@ The public plan also retains the primary-only raw `references` value and the
 effective inherited `watchOptions`, `typeAcquisition`, and `compileOnSave`
 values. These fields are observable for ParsedCommandLine parity, while the
 no-emit program gate rejects truthy unsupported scopes before loading sources.
+It additionally projects normalized `projectReferences` entries and the
+stable `wildcardDirectories` watcher roots (including recursive flags) without
+enabling project-reference orchestration or watch mode.
 `moduleSuffixes` is projected without normalizing case, whitespace, empty
 entries, or recoverable JavaScript `undefined` slots. Every resolver file
 candidate uses TypeScript's extension-major/suffix-minor probe order, including

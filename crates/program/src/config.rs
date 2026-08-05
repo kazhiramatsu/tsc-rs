@@ -858,6 +858,27 @@ pub struct ConfigRootPlanRequest {
     pub base_path: String,
 }
 
+/// One normalized `ParsedCommandLine.projectReferences` entry.  The H0
+/// loader still rejects non-empty project references at execution time, but
+/// parsing must retain the same primary-config observation for embeddings and
+/// diagnostics that inspect a partial command line.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ConfigProjectReference {
+    pub path: String,
+    pub original_path: String,
+    pub prepend: Option<bool>,
+    pub circular: Option<bool>,
+}
+
+/// One `ParsedCommandLine.wildcardDirectories` entry.  TypeScript encodes the
+/// flag as `Recursive=1` or `None=0`; a bool keeps that boundary explicit and
+/// avoids exposing the internal watcher enum to the no-emit loader.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ConfigWildcardDirectory {
+    pub path: String,
+    pub recursive: bool,
+}
+
 /// Program-owned root-planning projection, not a complete `ParsedCommandLine`.
 #[derive(Clone, Debug, PartialEq)]
 pub struct ConfigRootPlan {
@@ -877,6 +898,7 @@ pub struct ConfigRootPlan {
     /// Root-level `references` are observable on the primary config only;
     /// TypeScript does not inherit them through `extends`.
     references: Option<Value>,
+    project_references: Option<Vec<ConfigProjectReference>>,
     /// These root schemas are inherited by `extends` and retained as raw
     /// recovered values for the ParsedCommandLine-facing boundary. The
     /// no-emit loader still rejects truthy values before source loading.
@@ -889,6 +911,7 @@ pub struct ConfigRootPlan {
     /// distinguish a value inherited from an `extends` source.
     unsupported_root_scopes: BTreeSet<String>,
     file_names: Vec<String>,
+    wildcard_directories: Vec<ConfigWildcardDirectory>,
     root_parse_diagnostics: Vec<Diagnostic>,
     errors: Vec<Diagnostic>,
     option_diagnostics: Vec<Diagnostic>,
@@ -946,6 +969,13 @@ impl ConfigRootPlan {
         self.references.as_ref()
     }
 
+    /// Normalized project-reference entries for the primary config.  This is
+    /// observation-only; the H0 single-project loader rejects non-empty
+    /// references before source loading.
+    pub fn project_references(&self) -> Option<&[ConfigProjectReference]> {
+        self.project_references.as_deref()
+    }
+
     /// Effective raw `watchOptions` after `extends` merging.
     pub fn watch_options(&self) -> Option<&Value> {
         self.watch_options.as_ref()
@@ -985,6 +1015,12 @@ impl ConfigRootPlan {
 
     pub fn file_names(&self) -> &[String] {
         &self.file_names
+    }
+
+    /// Directory watcher roots derived from the effective include/exclude
+    /// specs, in TypeScript's stable insertion order.
+    pub fn wildcard_directories(&self) -> &[ConfigWildcardDirectory] {
+        &self.wildcard_directories
     }
 
     /// Parse diagnostics owned by the primary config source. TypeScript keeps
@@ -1324,6 +1360,9 @@ pub fn parse_config_root_plan(
         &discovery_options,
         &mut context.errors,
     )?;
+    let project_references = config_project_references(node.references.as_ref(), &config_base);
+    let wildcard_directories =
+        derive_wildcard_directories(&node, &config_base, host.use_case_sensitive_file_names())?;
     node.options.restore_public_entry_order();
     let files = node
         .files
@@ -1350,11 +1389,13 @@ pub fn parse_config_root_plan(
         include,
         exclude,
         references: node.references,
+        project_references,
         watch_options: node.watch_options,
         type_acquisition: node.type_acquisition,
         compile_on_save: node.compile_on_save,
         unsupported_root_scopes: node.unsupported_root_scopes,
         file_names,
+        wildcard_directories,
         root_parse_diagnostics: context.root_parse_diagnostics,
         errors: context.errors,
         option_diagnostics,
@@ -1406,6 +1447,156 @@ fn unsupported_config_scope(
         }
     }
     None
+}
+
+fn config_project_references(
+    references: Option<&Value>,
+    config_base_path: &str,
+) -> Option<Vec<ConfigProjectReference>> {
+    let values = references?.as_array()?;
+    let mut result = Vec::new();
+    for reference in values {
+        let Some(object) = reference.as_object() else {
+            continue;
+        };
+        let Some(original_path) = object.get("path").and_then(Value::as_str) else {
+            continue;
+        };
+        let Ok(path) = normalized_path(original_path, config_base_path) else {
+            continue;
+        };
+        result.push(ConfigProjectReference {
+            path,
+            original_path: original_path.to_owned(),
+            prepend: object.get("prepend").and_then(Value::as_bool),
+            circular: object.get("circular").and_then(Value::as_bool),
+        });
+    }
+    (!result.is_empty()).then_some(result)
+}
+
+fn derive_wildcard_directories(
+    config: &ParsedConfigNode,
+    config_base_path: &str,
+    case_sensitive: bool,
+) -> Result<Vec<ConfigWildcardDirectory>, ConfigParseError> {
+    // A `files` property disables wildcard discovery.  Otherwise TypeScript
+    // supplies the implicit `**/*` include when `include` is absent.
+    let includes = if config.files.is_some() {
+        Vec::new()
+    } else if let Some(includes) = &config.include {
+        includes.clone()
+    } else {
+        vec![ConfigSpec {
+            text: "**/*".to_owned(),
+            base_path: config_base_path.to_owned(),
+            location: None,
+        }]
+    };
+    let mut directories = Vec::new();
+    for include in includes {
+        let spec = normalized_spec_path(&include, config_base_path)?;
+        let Some((path, recursive)) = wildcard_directory_from_spec(&spec) else {
+            continue;
+        };
+        let key = if case_sensitive {
+            path.clone()
+        } else {
+            to_file_name_lower_case(&path)
+        };
+        if let Some(existing) =
+            directories
+                .iter_mut()
+                .find(|entry: &&mut ConfigWildcardDirectory| {
+                    let existing_key = if case_sensitive {
+                        entry.path.clone()
+                    } else {
+                        to_file_name_lower_case(&entry.path)
+                    };
+                    existing_key == key
+                })
+        {
+            existing.recursive |= recursive;
+        } else {
+            directories.push(ConfigWildcardDirectory { path, recursive });
+        }
+    }
+
+    // Watcher roots nested below an already-recursive root are removed by
+    // TypeScript's canonical-key cleanup.  Keep insertion order for the
+    // remaining entries; it is observable through ParsedCommandLine.
+    let recursive_paths = directories
+        .iter()
+        .filter(|entry| entry.recursive)
+        .map(|entry| entry.path.clone())
+        .collect::<Vec<_>>();
+    directories.retain(|entry| {
+        !recursive_paths.iter().any(|parent| {
+            if same_path(parent, &entry.path, case_sensitive) {
+                return false;
+            }
+            path_is_descendant(parent, &entry.path, case_sensitive)
+        })
+    });
+    Ok(directories)
+}
+
+fn wildcard_directory_from_spec(spec: &str) -> Option<(String, bool)> {
+    let spec = spec.trim_end_matches('/');
+    if spec.is_empty() {
+        return None;
+    }
+    let last_separator = spec.rfind('/');
+    let wildcard = spec.find(['*', '?']);
+    if let Some(wildcard) = wildcard {
+        let recursive = wildcard < last_separator.unwrap_or(spec.len());
+        let path = if recursive {
+            let component_separator = spec[..wildcard].rfind('/').unwrap_or(0);
+            if component_separator == 0 {
+                "/"
+            } else {
+                &spec[..component_separator]
+            }
+        } else {
+            last_separator
+                .map(|index| if index == 0 { "/" } else { &spec[..index] })
+                .unwrap_or(".")
+        };
+        return Some((path.to_owned(), recursive));
+    }
+
+    // `include: ["src"]` is TypeScript's implicit recursive glob.
+    let file_name = last_separator
+        .map(|index| &spec[index + 1..])
+        .unwrap_or(spec);
+    if !file_name.contains('.') {
+        return Some((spec.to_owned(), true));
+    }
+    None
+}
+
+fn same_path(left: &str, right: &str, case_sensitive: bool) -> bool {
+    if case_sensitive {
+        left == right
+    } else {
+        to_file_name_lower_case(left) == to_file_name_lower_case(right)
+    }
+}
+
+fn path_is_descendant(parent: &str, child: &str, case_sensitive: bool) -> bool {
+    let parent = if case_sensitive {
+        parent.to_owned()
+    } else {
+        to_file_name_lower_case(parent)
+    };
+    let child = if case_sensitive {
+        child.to_owned()
+    } else {
+        to_file_name_lower_case(child)
+    };
+    child
+        .strip_prefix(parent.trim_end_matches('/'))
+        .is_some_and(|tail| tail.starts_with('/'))
 }
 
 /// The config parser deliberately knows the complete TypeScript option

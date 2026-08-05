@@ -171,6 +171,42 @@ fn explicit_jsconfig_options_override_defaults() {
 }
 
 #[test]
+fn parsed_commandline_project_references_and_wildcard_directories_are_retained() {
+    let host = MemoryConfigHost::default()
+        .with_directory_files(&["/project/src/main.ts", "/project/src/nested/helper.ts"]);
+    let plan = parse_config_root_plan(
+        &host,
+        request(
+            "/project/tsconfig.json",
+            r#"{
+                "references":[{"path":"../other","prepend":true,"circular":false}],
+                "include":["src/**/*.ts"]
+            }"#,
+        ),
+    )
+    .expect("partial parsed command line keeps project metadata");
+
+    assert_eq!(
+        plan.project_references(),
+        Some(
+            &[tsc_program::ConfigProjectReference {
+                path: "/other".to_owned(),
+                original_path: "../other".to_owned(),
+                prepend: Some(true),
+                circular: Some(false),
+            }][..]
+        )
+    );
+    assert_eq!(
+        plan.wildcard_directories(),
+        &[tsc_program::ConfigWildcardDirectory {
+            path: "/project/src".to_owned(),
+            recursive: true,
+        }]
+    );
+}
+
+#[test]
 fn compiler_option_names_are_case_sensitive() {
     let host = MemoryConfigHost::default()
         .with_directory_files(&["/project/main.ts", "/project/helper.js"]);

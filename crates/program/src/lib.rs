@@ -100,9 +100,9 @@ pub use config::{
     validate_config_plan, ConfigDiscoveryOptions, ConfigHostError, ConfigHostOperation,
     ConfigModuleResolutionOptions, ConfigOption, ConfigOptionBag, ConfigOptionValueState,
     ConfigParseError, ConfigParseErrorKind, ConfigParseHost, ConfigProgramLoadError,
-    ConfigRootPlan, ConfigRootPlanRequest, ConfigSourceText, ConfigTypedJsonValue,
-    ConfigTypedListElement, ConfigTypedObjectProperty, ConfigTypedObjectShape,
-    ConfigTypedObjectValue,
+    ConfigProjectReference, ConfigRootPlan, ConfigRootPlanRequest, ConfigSourceText,
+    ConfigTypedJsonValue, ConfigTypedListElement, ConfigTypedObjectProperty,
+    ConfigTypedObjectShape, ConfigTypedObjectValue, ConfigWildcardDirectory,
 };
 pub use config_host::CompilerConfigHost;
 pub use config_matcher::ConfigFilePattern;
