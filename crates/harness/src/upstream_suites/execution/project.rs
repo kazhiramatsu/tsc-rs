@@ -5,9 +5,9 @@ use std::sync::Arc;
 use serde_json::Value;
 use tsc_host::{CompilerHost, FsCompilerHost, HostError, HostErrorKind, HostOperation};
 use tsc_program::{
-    load_program, CompilerOptions, ConfigFilePattern, ConfigHostError, ConfigHostOperation,
-    ConfigParseHost, ConfigRootPlan, ConfigRootPlanRequest, LibraryCatalog, PreparedProgram,
-    ProgramLoadLimits, ProgramOptions,
+    load_program, CompilerConfigHost, CompilerOptions, ConfigFilePattern, ConfigHostError,
+    ConfigHostOperation, ConfigParseHost, ConfigRootPlan, ConfigRootPlanRequest, LibraryCatalog,
+    PreparedProgram, ProgramLoadLimits, ProgramOptions,
 };
 
 use super::{
@@ -540,30 +540,11 @@ impl ConfigParseHost for MountedProjectHost {
     }
 
     fn read_file(&self, path: &str) -> Result<Option<String>, ConfigHostError> {
-        let normalized = self
-            .normalized_query(path, HostOperation::ReadFile)
-            .map_err(|source| Self::host_error(ConfigHostOperation::ReadFile, path, source))?;
-        if self.path_is_in_mount(&normalized) {
-            return Ok(self
-                .mount
-                .files
-                .iter()
-                .find(|file| file.virtual_path.as_ref() == normalized)
-                .map(|file| file.source.decoded.to_string()));
-        }
-        let bytes = CompilerHost::read_file(self, Path::new(path))
-            .map_err(|source| Self::host_error(ConfigHostOperation::ReadFile, path, source))?;
-        bytes
-            .map(|bytes| {
-                String::from_utf8(bytes).map_err(|decode_error| {
-                    ConfigHostError::new(
-                        ConfigHostOperation::ReadFile,
-                        path,
-                        format!("config file is not UTF-8: {decode_error}"),
-                    )
-                })
-            })
-            .transpose()
+        // Keep project config reads on the same BOM/UTF-16/invalid-UTF-8
+        // boundary as the production CLI and ordinary filesystem programs.
+        // The virtual mount still owns the raw bytes; this adapter only
+        // centralizes their TypeScript-compatible text projection.
+        ConfigParseHost::read_file(&CompilerConfigHost::new(self), path)
     }
 
     fn read_directory(
