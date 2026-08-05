@@ -6,8 +6,9 @@ use std::fmt::Write as _;
 use std::fs;
 use std::io::{BufRead, BufReader, Write};
 use std::path::{Path, PathBuf};
-use std::process::{Child, ChildStdin, ChildStdout, Command, Stdio};
+use std::process::{Child, ChildStdin, ChildStdout, Command, ExitStatus, Stdio};
 use std::sync::Arc;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
 use serde::{Deserialize, Serialize};
@@ -7633,16 +7634,10 @@ fn ci_workspace_tests(workspace: &Path) -> Result<(), Box<dyn Error>> {
         "workspace test pipeline: executables={} workers={worker_count} harness_threads=1",
         tests.len()
     );
-    let results = bounded_pipeline::ordered_map(&tests, worker_count, |_, test| {
+    let captures = CiTestCaptureDirectory::new(workspace)?;
+    let results = bounded_pipeline::ordered_map(&tests, worker_count, |index, test| {
         let started = std::time::Instant::now();
-        let output = Command::new(&test.executable)
-            .current_dir(&test.package_directory)
-            // Bound total harness parallelism at the same two-worker ceiling
-            // as the outer process pipeline. Individual tests may still own
-            // explicitly bounded worker pools of their own.
-            .env("RUST_TEST_THREADS", "1")
-            .output()
-            .map_err(|error| error.to_string());
+        let output = run_ci_test_target(test, index, captures.path());
         (started.elapsed(), output)
     })?;
 
@@ -7655,10 +7650,14 @@ fn ci_workspace_tests(workspace: &Path) -> Result<(), Box<dyn Error>> {
         );
         match result {
             Ok(output) => {
-                std::io::stdout().write_all(&output.stdout)?;
-                std::io::stderr().write_all(&output.stderr)?;
                 if !output.status.success() {
+                    std::io::stdout().write_all(&output.stdout)?;
+                    std::io::stderr().write_all(&output.stderr)?;
                     failed.push(format!("{} ({})", test.label, output.status));
+                } else if !output.stderr.is_empty() {
+                    // Preserve successful warnings without replaying libtest's
+                    // thousands of ordinary per-target progress lines.
+                    std::io::stderr().write_all(&output.stderr)?;
                 }
             }
             Err(error) => failed.push(format!("{} ({error})", test.label)),
@@ -7669,6 +7668,95 @@ fn ci_workspace_tests(workspace: &Path) -> Result<(), Box<dyn Error>> {
     } else {
         Err(format!("workspace test targets failed: {}", failed.join(", ")).into())
     }
+}
+
+/// A regular-file capture keeps descendant processes from holding the
+/// controller's anonymous stdout/stderr pipes open after a test harness has
+/// exited. Several process-isolation contracts intentionally launch Node and
+/// Rust grandchildren; `Command::output` made the local CI worker wait for
+/// those inherited pipe descriptors even though the test result was already
+/// final. Regular files preserve ordered failure output without that false
+/// dependency or any extra CPU workers.
+#[derive(Debug)]
+struct CiTestCaptureDirectory {
+    path: PathBuf,
+}
+
+impl CiTestCaptureDirectory {
+    fn new(workspace: &Path) -> Result<Self, Box<dyn Error>> {
+        let parent = workspace.join("target/ci-test-output");
+        fs::create_dir_all(&parent)?;
+        let timestamp = SystemTime::now().duration_since(UNIX_EPOCH)?.as_nanos();
+        for sequence in 0_u32..100 {
+            let path = parent.join(format!("run-{}-{timestamp}-{sequence}", std::process::id()));
+            match fs::create_dir(&path) {
+                Ok(()) => return Ok(Self { path }),
+                Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => continue,
+                Err(error) => return Err(error.into()),
+            }
+        }
+        Err("could not allocate a unique CI test-output directory".into())
+    }
+
+    fn path(&self) -> &Path {
+        &self.path
+    }
+}
+
+impl Drop for CiTestCaptureDirectory {
+    fn drop(&mut self) {
+        let Some(name) = self.path.file_name().and_then(|name| name.to_str()) else {
+            return;
+        };
+        if name.starts_with("run-")
+            && self
+                .path
+                .parent()
+                .is_some_and(|parent| parent.ends_with("target/ci-test-output"))
+        {
+            let _ = fs::remove_dir_all(&self.path);
+        }
+    }
+}
+
+struct CiTestOutput {
+    status: ExitStatus,
+    stdout: Vec<u8>,
+    stderr: Vec<u8>,
+}
+
+fn run_ci_test_target(
+    test: &CiTestExecutable,
+    index: usize,
+    capture_directory: &Path,
+) -> Result<CiTestOutput, String> {
+    let stdout_path = capture_directory.join(format!("{index}.stdout"));
+    let stderr_path = capture_directory.join(format!("{index}.stderr"));
+    let stdout = fs::File::create(&stdout_path)
+        .map_err(|error| format!("cannot create {}: {error}", stdout_path.display()))?;
+    let stderr = fs::File::create(&stderr_path)
+        .map_err(|error| format!("cannot create {}: {error}", stderr_path.display()))?;
+    let status = Command::new(&test.executable)
+        .current_dir(&test.package_directory)
+        // Bound total harness parallelism at the same two-worker ceiling as
+        // the outer process pipeline. Individual tests may still own
+        // explicitly bounded worker pools of their own.
+        .env("RUST_TEST_THREADS", "1")
+        .stdout(Stdio::from(stdout))
+        .stderr(Stdio::from(stderr))
+        .status()
+        .map_err(|error| format!("cannot run {}: {error}", test.label))?;
+    let stdout = fs::read(&stdout_path)
+        .map_err(|error| format!("cannot read {}: {error}", stdout_path.display()))?;
+    let stderr = fs::read(&stderr_path)
+        .map_err(|error| format!("cannot read {}: {error}", stderr_path.display()))?;
+    let _ = fs::remove_file(stdout_path);
+    let _ = fs::remove_file(stderr_path);
+    Ok(CiTestOutput {
+        status,
+        stdout,
+        stderr,
+    })
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -8039,6 +8127,26 @@ mod ci_lane_tests {
                 package_directory: PathBuf::from("workspace/crate"),
             }]
         );
+    }
+
+    #[test]
+    fn test_capture_directory_is_unique_scoped_and_removed_on_drop() {
+        let workspace = std::env::temp_dir().join(format!(
+            "tsc-rs-ci-capture-test-{}-{}",
+            std::process::id(),
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        fs::create_dir(&workspace).unwrap();
+        let capture = CiTestCaptureDirectory::new(&workspace).unwrap();
+        let path = capture.path().to_path_buf();
+        assert!(path.starts_with(workspace.join("target/ci-test-output")));
+        fs::write(path.join("probe.stdout"), b"captured").unwrap();
+        drop(capture);
+        assert!(!path.exists());
+        fs::remove_dir_all(workspace).unwrap();
     }
 }
 

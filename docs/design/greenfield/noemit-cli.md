@@ -914,7 +914,17 @@ The local Rust phase of the gate uses stripped test binaries, compiles all
 Cargo test targets once, and launches the discovered executables through an ordered
 two-process/one-harness-thread pipeline after all-target Clippy. It does not
 repeat a standalone workspace build or launch the workspace's empty doctest
-crates; this changes neither the executable test set nor the semantic lane.
+crates. Per-target stdout/stderr uses ephemeral regular files instead of
+anonymous pipes: fuzz/conformance process-isolation descendants cannot keep a
+completed libtest target artificially alive through inherited pipe handles,
+and successful progress noise is not replayed. This changes neither the
+executable test set nor the semantic lane. In the local macOS qualification,
+the final warm Rust lane measured 107.22 seconds. The diagnostic run before the
+capture correction measured 628.22 seconds, including 193 seconds of rebuild;
+the capture-specific target timings are the cleaner comparison:
+`executor_e2e` fell from 98.721 to 0.651 seconds and `foundation_contract`
+from 156.071 to 0.067 seconds. Both runs used the same
+two-process/one-thread ceiling.
 `TSRS_CI_TEST_WORKERS=1` retains a serial diagnostic mode.
 
 For each semantic H0 candidate:

@@ -40,6 +40,12 @@ two-process pipeline with one harness thread per process. Every unit, binary,
 integration, example, and benchmark test target remains covered, while the
 workspace's documentation contains no executable Rust doctests. Set
 `TSRS_CI_TEST_WORKERS=1` to diagnose order-sensitive resource issues. The
+pipeline captures each target into short-lived regular files below
+`target/ci-test-output` and prints ordinary output only on failure. This is a
+correctness-relevant performance detail: process-isolation tests launch Node
+and Rust grandchildren, and anonymous `Command::output` pipes otherwise stay
+open after libtest has already exited. Regular-file capture preserves ordered
+failure output without waiting on unrelated inherited pipe descriptors. The
 separate `cargo build --workspace` pass is intentionally omitted because
 all-target Clippy type-checks every target and the test compile performs
 codegen. Test binaries omit debug information to reduce link and startup I/O;
