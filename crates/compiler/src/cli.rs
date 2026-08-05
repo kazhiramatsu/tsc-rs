@@ -535,15 +535,6 @@ fn append_pretty_error_summary(
     let indices = sort_and_dedupe_diagnostic_indices_with_context(diagnostics, host);
     let mut file_counts = BTreeMap::<String, (usize, u32)>::new();
     let mut total = 0usize;
-    let mut has_fileless_error = false;
-    let config_file = source_texts.keys().find(|file_name| {
-        matches!(
-            Path::new(file_name.as_str())
-                .file_name()
-                .and_then(|name| name.to_str()),
-            Some("tsconfig.json" | "jsconfig.json")
-        )
-    });
     for index in indices {
         let diagnostic = &diagnostics[index];
         if diagnostic.category().name() != "error"
@@ -551,16 +542,11 @@ fn append_pretty_error_summary(
         {
             continue;
         }
-        let file_name = diagnostic
-            .file_name
-            .as_deref()
-            .or(config_file.map(String::as_str));
+        let file_name = diagnostic.file_name.as_deref();
         let Some(file_name) = file_name else {
-            has_fileless_error = true;
             total += 1;
             continue;
         };
-        has_fileless_error |= diagnostic.file_name.is_none();
         total += 1;
         let display_name = relative_file_name(file_name, current_directory);
         let line = diagnostic
@@ -595,19 +581,20 @@ fn append_pretty_error_summary(
 
     output.push_str("\n\n");
     let noun = if total == 1 { "error" } else { "errors" };
-    match file_counts.len() {
-        0 => output.push_str(&format!("Found {total} {noun}.\n")),
-        1 if has_fileless_error => {
+    match (total, file_counts.len()) {
+        (1, 0) => output.push_str("Found 1 error.\n"),
+        (1, 1) => {
+            let (file, (_, line)) = file_counts.iter().next().expect("one file exists");
+            output.push_str(&format!("Found 1 error in {file}:{line}\n"));
+        }
+        (_, 0) => output.push_str(&format!("Found {total} {noun}.\n")),
+        (_, 1) => {
             let (file, (_, line)) = file_counts.iter().next().expect("one file exists");
             output.push_str(&format!(
                 "Found {total} {noun} in the same file, starting at: {file}:{line}\n"
             ));
         }
-        1 => {
-            let (file, (_, line)) = file_counts.iter().next().expect("one file exists");
-            output.push_str(&format!("Found {total} {noun} in {file}:{line}\n"));
-        }
-        file_count => {
+        (_, file_count) => {
             output.push_str(&format!("Found {total} {noun} in {file_count} files.\n\n"));
             output.push_str("Errors  Files\n");
             for (file, (count, line)) in file_counts {
@@ -634,7 +621,7 @@ const ANSI_REVERSE: &str = "\u{1b}[7m";
 /// byte-identical apart from styling.
 fn colorize_pretty_output(input: &str) -> String {
     let mut output = String::with_capacity(input.len() + input.len() / 2);
-    let mut in_context = false;
+    let mut context = None;
     let mut previous_fileless_diagnostic = false;
     let mut previous_context_line = false;
     for line in input.split_inclusive('\n') {
@@ -647,23 +634,29 @@ fn colorize_pretty_output(input: &str) -> String {
             }
             output.push_str(&colored);
             output.push_str(newline);
-            in_context = true;
+            context = category_context_color(line).map(|color| (color, 0));
+            previous_fileless_diagnostic = false;
+            previous_context_line = false;
+        } else if let Some(colored) = colorize_related_location(line) {
+            output.push_str(&colored);
+            output.push_str(newline);
+            context = Some((ANSI_CYAN, 4));
             previous_fileless_diagnostic = false;
             previous_context_line = false;
         } else if let Some(colored) = colorize_fileless_diagnostic(line) {
             output.push_str(&colored);
             output.push_str(newline);
-            in_context = false;
+            context = None;
             previous_fileless_diagnostic = true;
             previous_context_line = false;
         } else if line.starts_with("Found ") {
             output.push_str(&colorize_summary(line));
             output.push_str(newline);
-            in_context = false;
+            context = None;
             previous_fileless_diagnostic = false;
             previous_context_line = false;
-        } else if in_context {
-            output.push_str(&colorize_context_line(line));
+        } else if let Some((squiggle_color, indent)) = context {
+            output.push_str(&colorize_context_line(line, squiggle_color, indent));
             output.push_str(newline);
             previous_fileless_diagnostic = false;
             previous_context_line = true;
@@ -675,6 +668,37 @@ fn colorize_pretty_output(input: &str) -> String {
         }
     }
     output
+}
+
+fn category_context_color(line: &str) -> Option<&'static str> {
+    let (_, detail) = line.split_once(" - ")?;
+    let (category, _) = detail.split_once(" TS")?;
+    match category {
+        "error" => Some(ANSI_RED),
+        "warning" => Some(ANSI_YELLOW),
+        "suggestion" => Some("\u{1b}[92m"),
+        "message" => Some(ANSI_CYAN),
+        _ => None,
+    }
+}
+
+fn colorize_related_location(line: &str) -> Option<String> {
+    let location = line.strip_prefix("  ")?;
+    let mut location_parts = location.rsplitn(3, ':');
+    let character = location_parts.next()?;
+    let line_number = location_parts.next()?;
+    let file_name = location_parts.next()?;
+    if file_name.is_empty()
+        || line_number.is_empty()
+        || character.is_empty()
+        || !line_number.bytes().all(|byte| byte.is_ascii_digit())
+        || !character.bytes().all(|byte| byte.is_ascii_digit())
+    {
+        return None;
+    }
+    Some(format!(
+        "  {ANSI_CYAN}{file_name}{ANSI_RESET}:{ANSI_YELLOW}{line_number}{ANSI_RESET}:{ANSI_YELLOW}{character}{ANSI_RESET}"
+    ))
 }
 
 fn colorize_fileless_diagnostic(line: &str) -> Option<String> {
@@ -734,15 +758,19 @@ fn colorize_header(line: &str) -> Option<String> {
     ))
 }
 
-fn colorize_context_line(line: &str) -> String {
+fn colorize_context_line(line: &str, squiggle_color: &str, indent: usize) -> String {
     if line.is_empty() {
         return String::new();
     }
+    if line.len() < indent || !line[..indent].bytes().all(|byte| byte == b' ') {
+        return line.to_owned();
+    }
+    let (indent_text, context_line) = line.split_at(indent);
     if line.bytes().all(|byte| byte == b' ') {
-        if let Some((first, rest)) = line.split_at_checked(1) {
+        if let Some((first, rest)) = context_line.split_at_checked(1) {
             if let Some((plain, red_rest)) = rest.split_at_checked(1) {
                 return format!(
-                    "{ANSI_REVERSE}{first}{ANSI_RESET}{plain}{ANSI_RED}{red_rest}{ANSI_RESET}"
+                    "{indent_text}{ANSI_REVERSE}{first}{ANSI_RESET}{plain}{squiggle_color}{red_rest}{ANSI_RESET}"
                 );
             }
         }
@@ -750,10 +778,13 @@ fn colorize_context_line(line: &str) -> String {
     if let Some(first_tilde) = line.find('~') {
         if line[first_tilde..].bytes().all(|byte| byte == b'~') {
             let (prefix, marks) = line.split_at(first_tilde);
+            let Some(prefix) = prefix.strip_prefix(indent_text) else {
+                return line.to_owned();
+            };
             if let Some((first, rest)) = prefix.split_at_checked(1) {
                 if let Some((plain, red_rest)) = rest.split_at_checked(1) {
                     return format!(
-                        "{ANSI_REVERSE}{first}{ANSI_RESET}{plain}{ANSI_RED}{red_rest}{marks}{ANSI_RESET}"
+                        "{indent_text}{ANSI_REVERSE}{first}{ANSI_RESET}{plain}{squiggle_color}{red_rest}{marks}{ANSI_RESET}"
                     );
                 }
             }
@@ -769,9 +800,13 @@ fn colorize_context_line(line: &str) -> String {
     if digit_end == digit_start || line[digit_end..].is_empty() {
         return line.to_owned();
     }
+    if digit_start < indent {
+        return line.to_owned();
+    }
     format!(
-        "{ANSI_REVERSE}{}{ANSI_RESET}{}",
-        &line[..digit_end],
+        "{}{ANSI_REVERSE}{}{ANSI_RESET}{}",
+        indent_text,
+        &line[indent..digit_end],
         &line[digit_end..]
     )
 }

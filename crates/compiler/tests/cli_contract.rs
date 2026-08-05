@@ -578,6 +578,29 @@ fn pretty_false_uses_plain_output_and_pretty_true_uses_context() {
 }
 
 #[test]
+fn pretty_configured_type_diagnostic_renders_ts1419_related_context() {
+    let tree = TempTree::new();
+    fs::write(tree.path("main.ts"), "export {};\n").expect("write source");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"noEmit":true,"lib":["es5"],"types":["missing"]},"files":["main.ts"]}"#,
+    )
+    .expect("write configured types");
+
+    let output = run(&tree, &["--pretty", "true", "-p", "tsconfig.json"]);
+    assert_eq!(output.status.code(), Some(2));
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains("\u{1b}[96mtsconfig.json\u{1b}[0m"));
+    assert!(stdout.matches("\u{1b}[96m").count() >= 2);
+    let rendered = strip_ansi_sgr(&stdout);
+    assert!(rendered.contains("error TS2688:"));
+    assert!(rendered.contains("tsconfig.json:1:"));
+    assert!(rendered.contains("File is entry point of type library specified here."));
+    assert!(rendered.contains("Found 1 error.\n\n"));
+    assert!(!rendered.contains("in the same file"));
+}
+
+#[test]
 fn unsupported_options_are_exit_two_and_version_is_lightweight() {
     let tree = TempTree::new();
     let output = run(&tree, &["--watch"]);
@@ -641,6 +664,30 @@ fn no_emit_cli_matches_vendored_typescript_pretty_output_without_color() {
     )
     .expect("write config");
 
+    let rust = run(&tree, &["--pretty", "-p", "tsconfig.json"]);
+    let typescript =
+        run_typescript_no_color(&tree, &["--noEmit", "--pretty", "-p", "tsconfig.json"]);
+    assert_eq!(rust.status.code(), typescript.status.code());
+    assert_eq!(rust.stdout, typescript.stdout);
+    assert_eq!(rust.stderr, typescript.stderr);
+}
+
+#[test]
+#[ignore = "local H0 CLI oracle audit; requires the pinned Node runtime"]
+fn no_emit_cli_configured_type_related_information_matches_vendored_typescript() {
+    let tree = TempTree::new();
+    fs::write(tree.path("main.ts"), "export {};\n").expect("write source");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"noEmit":true,"lib":["es5"],"types":["missing"]},"files":["main.ts"]}"#,
+    )
+    .expect("write configured types");
+
+    assert_typescript_parity(
+        &tree,
+        &["--pretty", "false", "-p", "tsconfig.json"],
+        &["--pretty", "false", "-p", "tsconfig.json"],
+    );
     let rust = run(&tree, &["--pretty", "-p", "tsconfig.json"]);
     let typescript =
         run_typescript_no_color(&tree, &["--noEmit", "--pretty", "-p", "tsconfig.json"]);

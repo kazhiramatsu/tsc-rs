@@ -466,11 +466,12 @@ preserve their outer TypeScript/declaration then JavaScript/JSON passes, while
 Node16/NodeNext/Bundler finish all admitted extensions per root candidate. The
 catalog-enabled route also admits absent or false `noLib`, retains lowercased
 raw `compilerOptions.lib` keys, treats an explicit empty list as suppressing
-the default library, and fails typed on the `noLib` plus `lib` combination
-until H0.5 owns TS5053. Ordered `paths` mappings and `baseUrl` participate in
-recursive source discovery through the shared resolver. Roots are normalized
-and visited one at a time, preserving input order, multiplicity, and
-observable failure precedence. An extensionless root retains that requested
+the default library, and lets H0.5 publish TS5053 at both option names for the
+`noLib` plus `lib` combination while the lower loader suppresses all library
+host work as `createProgram` does. Ordered `paths` mappings and `baseUrl`
+participate in recursive source discovery through the shared resolver. Roots
+are normalized and visited one at a time, preserving input order,
+multiplicity, and observable failure precedence. An extensionless root retains that requested
 path in `PreparedRoot` while its source identity records the first existing
 candidate from `.ts`, `.tsx`, and `.d.ts`; `allowJs` appends only `.js` and
 `.jsx`. The modern and JSON extensions remain outside this first probe group,
@@ -526,8 +527,12 @@ implicit inclusion chain. Repeated explicit names retain raw diagnostic
 occurrences while final diagnostic consumption sorts and deduplicates them.
 An empty requested-root list suppresses this phase, whereas a requested but
 missing root does not. A normalized `ProgramOptions::config_file_path` anchors
-both automatic and source-owned default type-root lookup; ownership of the
-config AST and TS1419 related location remains H0.5.
+both automatic and source-owned default type-root lookup. H0.5 additionally
+retains the root config source and the first matching UTF-16 string-literal
+span from root `compilerOptions.types`, without carrying a parser arena across
+the program boundary. A missing explicit automatic type therefore publishes
+TS1419 at its config entry; wildcard discovery selects the `"*"` entry, and
+inherited-only syntax intentionally has no root-config location.
 
 Default or explicit library roots are selected only after the automatic type
 phase. Publication then forms a stable catalog-priority default-library prefix

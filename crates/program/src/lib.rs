@@ -135,7 +135,8 @@ pub use path::{CanonicalPath, ProgramPath};
 pub use prepared::{
     PackageJsonType, PackageMetadata, PathContext, PathMapping, PreparationDiagnostics,
     PreparedAuxiliaryFile, PreparedProgram, PreparedProgramBuilder, PreparedRoot,
-    PreparedSourceFile, ProgramOptions, ResolutionTable, SourceFileId,
+    PreparedSourceFile, ProgramConfigFile, ProgramConfigSpan, ProgramOptions, ResolutionTable,
+    SourceFileId,
 };
 pub use resolution::{
     MissingResolutionError, ModuleExtension, ModuleResolution, PackageId, ResolutionError,

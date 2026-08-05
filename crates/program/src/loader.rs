@@ -3,7 +3,7 @@ use std::error::Error;
 use std::fmt;
 use std::path::{Path, PathBuf};
 
-use tsc_diagnostics::{gen, Diagnostic, MessageChain};
+use tsc_diagnostics::{gen, Diagnostic, MessageChain, RelatedInfo};
 use tsc_host::{to_file_name_lower_case, CompilerHost, HostError};
 use tsc_types::CompilerOptions;
 
@@ -20,8 +20,8 @@ use crate::module_resolution::{
 use crate::path::{CanonicalPath, ProgramPath};
 use crate::prepared::{
     extensionless_source_probe_extensions, PackageJsonType, PackageMetadata, PathContext,
-    PreparationDiagnostics, PreparedProgram, PreparedRoot, PreparedSourceFile, ProgramOptions,
-    SourceFileId,
+    PreparationDiagnostics, PreparedAuxiliaryFile, PreparedProgram, PreparedRoot,
+    PreparedSourceFile, ProgramConfigFile, ProgramOptions, SourceFileId,
 };
 use crate::resolution::{
     ModuleExtension, ModuleResolution, PackageId, ResolutionError, ResolutionKey, ResolutionMode,
@@ -1202,7 +1202,11 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
             let Some((target, extension, external)) = target else {
                 self.type_resolutions[index]
                     .diagnostics
-                    .push(automatic_type_reference_diagnostic(&name, uses_wildcard));
+                    .push(automatic_type_reference_diagnostic(
+                        &name,
+                        uses_wildcard,
+                        self.program_options.config_file(),
+                    ));
                 continue;
             };
             if !processed.insert(index) {
@@ -2470,7 +2474,19 @@ fn publish_program(
     program_options: ProgramOptions,
 ) -> Result<PreparedProgram, ProgramLoadError> {
     let mut builder = PreparedProgram::builder(path_context, compiler_options.clone());
+    let config_file = program_options.config_file().cloned();
     builder.set_program_options(program_options);
+
+    if let Some(config_file) = config_file {
+        builder
+            .add_auxiliary_file(PreparedAuxiliaryFile::new(
+                config_file.path().clone(),
+                config_file.text().to_owned(),
+            ))
+            .map_err(|error| {
+                ProgramLoadError::preparation(ProgramLoadOperation::BuildPreparedProgram, error)
+            })?;
+    }
 
     let mut published_ids = vec![None; staged.sources.len()];
     let mut source_by_canonical = BTreeMap::<CanonicalPath, SourceFileId>::new();
@@ -2981,7 +2997,11 @@ fn missing_library_root_diagnostic(path: &ProgramPath, reason: &LibraryRootReaso
     )
 }
 
-fn automatic_type_reference_diagnostic(name: &str, uses_wildcard: bool) -> Diagnostic {
+fn automatic_type_reference_diagnostic(
+    name: &str,
+    uses_wildcard: bool,
+    config_file: Option<&ProgramConfigFile>,
+) -> Diagnostic {
     let reason = MessageChain::new(
         if uses_wildcard {
             &gen::Entry_point_for_implicit_type_library_0
@@ -2992,7 +3012,7 @@ fn automatic_type_reference_diagnostic(name: &str, uses_wildcard: bool) -> Diagn
     );
     let inclusion =
         MessageChain::new(&gen::The_file_is_in_the_program_because, &[]).with_next(vec![reason]);
-    Diagnostic::new(
+    let mut diagnostic = Diagnostic::new(
         None,
         None,
         None,
@@ -3001,7 +3021,32 @@ fn automatic_type_reference_diagnostic(name: &str, uses_wildcard: bool) -> Diagn
             &[name.to_owned()],
         )
         .with_next(vec![inclusion]),
-    )
+    );
+    let syntax_name = if uses_wildcard { "*" } else { name };
+    if let Some((config_file, location)) = config_file.and_then(|config_file| {
+        config_file
+            .automatic_type_directive_location(syntax_name)
+            .map(|location| (config_file, location))
+    }) {
+        diagnostic.related_information_present = true;
+        diagnostic.related.push(RelatedInfo {
+            file_name: Some(
+                config_file
+                    .path()
+                    .display()
+                    .to_str()
+                    .expect("validated config paths are Unicode")
+                    .to_owned(),
+            ),
+            start: Some(location.start()),
+            length: Some(location.length()),
+            message: MessageChain::new(
+                &gen::File_is_entry_point_of_type_library_specified_here,
+                &[],
+            ),
+        });
+    }
+    diagnostic
 }
 
 fn script_target_name(options: &CompilerOptions) -> &'static str {

@@ -54,7 +54,9 @@ use crate::module_resolution::{
     directory_name, normalize_absolute_path_lexical, normalized_root_parts, ModuleResolver,
 };
 use crate::path::ProgramPath;
-use crate::prepared::{PathMapping, PreparedProgram, ProgramOptions};
+use crate::prepared::{
+    PathMapping, PreparedProgram, ProgramConfigFile, ProgramConfigSpan, ProgramOptions,
+};
 use crate::resolution::{ResolutionError, ResolutionOutcome};
 use crate::ConfigFilePattern;
 
@@ -1393,6 +1395,7 @@ pub fn parse_config_root_plan(
         &node.options,
         &discovery_options,
         &config_file_name,
+        &node.source,
         host.use_case_sensitive_file_names(),
     )?;
     let file_names = derive_file_names(
@@ -4172,6 +4175,7 @@ fn config_module_resolution_options(
     options: &ConfigOptionBag,
     discovery: &ConfigDiscoveryOptions,
     config_file_name: &str,
+    config_source: &ConfigSourceText,
     case_sensitive: bool,
 ) -> Result<ConfigModuleResolutionOptions, ConfigParseError> {
     let compiler_options = CompilerOptions {
@@ -4259,8 +4263,9 @@ fn config_module_resolution_options(
         ignore_deprecations: config_option_string(options, "ignoreDeprecations"),
     };
 
-    let mut program_options = ProgramOptions::default()
-        .with_config_file_path(config_program_path(config_file_name, case_sensitive)?);
+    let config_path = config_program_path(config_file_name, case_sensitive)?;
+    let config_file = program_config_file(config_path, config_source);
+    let mut program_options = ProgramOptions::default().with_config_file(config_file);
     if let Some(value) = config_option_bool(options, "noLib") {
         program_options = program_options.with_no_lib(value);
     }
@@ -4421,6 +4426,47 @@ fn config_program_path(path: &str, case_sensitive: bool) -> Result<ProgramPath, 
             error.to_string(),
         )
     })
+}
+
+/// Retain the root config text plus the exact `compilerOptions.types` string
+/// literal spans used by `fileIncludeReasonToRelatedInformation`. TypeScript
+/// selects the first root `compilerOptions` object and the first matching
+/// array element; inherited option syntax therefore intentionally has no root
+/// related location.
+///
+/// tsc-port: getOptionsSyntaxByArrayElementValue @6.0.3
+/// tsc-hash: b553000947caf2234186ed0101506333c7de4d13ce5df020b91939d173bd14c7
+/// tsc-span: _tsc.js:20105-20111
+fn program_config_file(path: ProgramPath, source: &ConfigSourceText) -> ProgramConfigFile {
+    let mut config_file = ProgramConfigFile::new(path, source.text.clone());
+    let parsed = tsc_syntax::parse_json_text(&source.file_name, &source.text);
+    let Some(root) = config_root_object(&parsed) else {
+        return config_file;
+    };
+    let Some(compiler_options) = config_object_properties(&parsed, root)
+        .into_iter()
+        .find(|property| property.name == "compilerOptions")
+    else {
+        return config_file;
+    };
+    for types in config_object_properties(&parsed, compiler_options.initializer)
+        .into_iter()
+        .filter(|property| property.name == "types")
+    {
+        for element in config_array_elements(&parsed, types.initializer) {
+            let Some(literal) = parsed.arena.node(element).data.as_string_literal() else {
+                continue;
+            };
+            let Some(span) = config_span(&parsed, element) else {
+                continue;
+            };
+            config_file = config_file.with_automatic_type_directive_location(
+                literal.text.clone(),
+                ProgramConfigSpan::new(span.start, span.length),
+            );
+        }
+    }
+    config_file
 }
 
 fn normalized_option_path(

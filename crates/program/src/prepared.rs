@@ -585,6 +585,71 @@ fn validate_path_mappings(entries: &[PathMapping]) -> Result<(), ResolutionError
     Ok(())
 }
 
+/// UTF-16 source span in the retained root config.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct ProgramConfigSpan {
+    start: u32,
+    length: u32,
+}
+
+impl ProgramConfigSpan {
+    pub const fn new(start: u32, length: u32) -> Self {
+        Self { start, length }
+    }
+
+    pub const fn start(self) -> u32 {
+        self.start
+    }
+
+    pub const fn length(self) -> u32 {
+        self.length
+    }
+}
+
+/// Root config source retained by program construction for diagnostics whose
+/// primary message is fileless but whose inclusion reason points back into
+/// `compilerOptions`. The config parser precomputes only the syntax facts the
+/// loader consumes; no parser arena crosses the one-shot program boundary.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ProgramConfigFile {
+    path: ProgramPath,
+    text: String,
+    automatic_type_directive_locations: BTreeMap<String, ProgramConfigSpan>,
+}
+
+impl ProgramConfigFile {
+    pub fn new(path: ProgramPath, text: impl Into<String>) -> Self {
+        Self {
+            path,
+            text: text.into(),
+            automatic_type_directive_locations: BTreeMap::new(),
+        }
+    }
+
+    pub fn with_automatic_type_directive_location(
+        mut self,
+        name: impl Into<String>,
+        location: ProgramConfigSpan,
+    ) -> Self {
+        self.automatic_type_directive_locations
+            .entry(name.into())
+            .or_insert(location);
+        self
+    }
+
+    pub fn path(&self) -> &ProgramPath {
+        &self.path
+    }
+
+    pub fn text(&self) -> &str {
+        &self.text
+    }
+
+    pub fn automatic_type_directive_location(&self, name: &str) -> Option<ProgramConfigSpan> {
+        self.automatic_type_directive_locations.get(name).copied()
+    }
+}
+
 /// Program/host options that do not belong in the checker's
 /// [`CompilerOptions`]. Optional collections preserve absent versus explicitly
 /// empty config values where the distinction affects discovery.
@@ -595,6 +660,7 @@ pub struct ProgramOptions {
     types: Option<Vec<String>>,
     type_roots: Option<Vec<ProgramPath>>,
     config_file_path: Option<ProgramPath>,
+    config_file: Option<ProgramConfigFile>,
     /// Host-selected default library basename. TypeScript's test project host
     /// deliberately returns `lib.es5.d.ts` independently of `target`; keeping
     /// that host fact here avoids pretending that `compilerOptions.lib` was
@@ -631,6 +697,15 @@ impl ProgramOptions {
     /// effective type roots and the synthetic automatic-types origin.
     pub fn with_config_file_path(mut self, value: ProgramPath) -> Self {
         self.config_file_path = Some(value);
+        self.config_file = None;
+        self
+    }
+
+    /// Retain the normalized root config source and its precomputed syntax
+    /// provenance for program-construction related information.
+    pub fn with_config_file(mut self, value: ProgramConfigFile) -> Self {
+        self.config_file_path = Some(value.path().clone());
+        self.config_file = Some(value);
         self
     }
 
@@ -638,6 +713,7 @@ impl ProgramOptions {
     /// without passing TypeScript's optional `configFileName` argument.
     pub fn without_config_file_path(mut self) -> Self {
         self.config_file_path = None;
+        self.config_file = None;
         self
     }
 
@@ -699,6 +775,10 @@ impl ProgramOptions {
 
     pub fn config_file_path(&self) -> Option<&ProgramPath> {
         self.config_file_path.as_ref()
+    }
+
+    pub fn config_file(&self) -> Option<&ProgramConfigFile> {
+        self.config_file.as_ref()
     }
 
     pub fn default_library_file_name(&self) -> Option<&str> {

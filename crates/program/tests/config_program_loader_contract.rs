@@ -313,6 +313,45 @@ fn conflicting_lib_and_no_lib_are_option_diagnostics_at_both_names() {
 }
 
 #[test]
+fn missing_configured_type_retains_ts1419_config_related_information() {
+    let host = host();
+    let adapter = ConfigHostAdapter::new(&host);
+    let text = r#"{"note":"😀","compilerOptions":{"noEmit":true,"noLib":true,"types":["missing"]},"files":["main.ts"]}"#;
+    let plan = parse_config_root_plan(&adapter, request(text)).expect("parse configured types");
+    let prepared = load_config_program(
+        &host,
+        &plan,
+        &LibraryCatalog::typescript_6_0_3("/vendor/typescript/lib"),
+        LIMITS,
+    )
+    .expect("load missing configured type as a diagnostic");
+
+    let (_, resolution) = prepared
+        .resolutions()
+        .type_references()
+        .next()
+        .expect("configured type owns an authoritative row");
+    let [diagnostic] = resolution.diagnostics() else {
+        panic!("missing configured type must publish one TS2688 diagnostic");
+    };
+    assert_eq!(diagnostic.code(), 2688);
+    assert!(diagnostic.related_information_present);
+    let [related] = diagnostic.related.as_slice() else {
+        panic!("TS2688 must point back to compilerOptions.types");
+    };
+    assert_eq!(related.message.code, 1419);
+    assert_eq!(related.file_name.as_deref(), Some("/project/tsconfig.json"));
+    let literal_byte = text.find("\"missing\"").expect("types literal span");
+    let literal_utf16 = text[..literal_byte].encode_utf16().count() as u32;
+    assert_eq!(related.start, Some(literal_utf16));
+    assert_eq!(related.length, Some("\"missing\"".len() as u32));
+    let auxiliary = prepared.auxiliary_files().collect::<Vec<_>>();
+    assert_eq!(auxiliary.len(), 1);
+    assert_eq!(auxiliary[0].path().display(), "/project/tsconfig.json");
+    assert_eq!(auxiliary[0].text(), text);
+}
+
+#[test]
 fn config_plan_projects_checker_options_into_the_prepared_program() {
     let host = host();
     let adapter = ConfigHostAdapter::new(&host);
