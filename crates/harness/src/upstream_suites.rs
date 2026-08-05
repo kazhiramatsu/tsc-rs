@@ -1,9 +1,12 @@
 //! Deterministic inventory and expansion of the TypeScript 6.0.3 compiler and
 //! project test suites.
 //!
-//! This module deliberately stops before compiler execution. Every expanded
-//! case is recorded as [`ExecutionState::NotRun`], so a later executor can
-//! shard work without weakening the completeness contract captured here.
+//! The inventory itself deliberately stops before checker, emit, and baseline
+//! execution. Every expanded case is recorded as [`ExecutionState::NotRun`],
+//! so later executors can shard work without weakening the completeness
+//! contract captured here. [`execution::load_compiler_no_emit`] and the
+//! focused project adapters expose the bounded source/config/loader seams
+//! without claiming that the full upstream runners have executed.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs;

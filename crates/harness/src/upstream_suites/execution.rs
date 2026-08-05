@@ -20,10 +20,11 @@ use std::sync::Arc;
 use serde::de::{MapAccess, Visitor};
 use serde::{Deserialize, Deserializer};
 use serde_json::Value;
-use tsc_host::to_file_name_lower_case;
+use tsc_host::{to_file_name_lower_case, MemoryCompilerHost};
 use tsc_program::{
-    parse_config_root_plan, ConfigFilePattern, ConfigHostError, ConfigHostOperation,
-    ConfigParseHost, ConfigRootPlan, ConfigRootPlanRequest,
+    load_program, parse_config_root_plan, CompilerOptionNumber, CompilerOptions, ConfigFilePattern,
+    ConfigHostError, ConfigHostOperation, ConfigParseHost, ConfigRootPlan, ConfigRootPlanRequest,
+    LibraryCatalog, ModuleSuffix, PreparedProgram, ProgramLoadLimits, ProgramOptions, ProgramPath,
 };
 
 use super::compiler::{
@@ -44,6 +45,488 @@ pub use project::{
     load_node_modules_search_project, load_project_no_emit, ProjectConfigProgram,
     ProjectNoEmitProgram,
 };
+
+/// Build the same bounded no-emit [`PreparedProgram`] that the compiler
+/// runner would hand to `createProgram` for one recorded compiler case.
+///
+/// The upstream compiler runner normally continues into emit and baseline
+/// comparison. H0 owns the source/config/loader boundary only, so this
+/// adapter deliberately stops at the owned program and keeps that distinction
+/// explicit in its name and return type.
+pub fn load_compiler_no_emit(
+    workspace: &Path,
+    plan: &CompilerExecutionPlan,
+    limits: ProgramLoadLimits,
+) -> HarnessResult<PreparedProgram> {
+    let current_directory = plan.current_directory.as_ref();
+    let mut host_builder = MemoryCompilerHost::builder(current_directory)
+        .case_sensitive(plan.use_case_sensitive_file_names);
+    let mut source_paths = HashMap::<String, Arc<str>>::new();
+
+    let vfs_write_order = match &plan.root_selection {
+        CompilerRootSelection::Explicit {
+            vfs_write_order, ..
+        }
+        | CompilerRootSelection::Config {
+            vfs_write_order, ..
+        } => vfs_write_order,
+    };
+    for unit_id in vfs_write_order.iter() {
+        let unit = plan
+            .fixture
+            .units
+            .get(unit_id.0 as usize)
+            .ok_or_else(|| error("compiler VFS unit is out of bounds"))?;
+        let path = normalize_virtual_path(current_directory, unit.name.as_ref())?;
+        let Some(content) = unit.content.as_ref() else {
+            continue;
+        };
+        host_builder = host_builder.file(&path, content.as_bytes().to_vec());
+        source_paths.insert(path, Arc::clone(content));
+    }
+
+    // The compiler runner's VFS presents document/global symlinks through
+    // `realpath`. MemoryCompilerHost requires both spellings to exist before
+    // accepting that identity override, so publish a byte-identical alias
+    // only for a link whose target has content.
+    let symlink_operations = plan
+        .fixture
+        .global_symlinks
+        .iter()
+        .chain(
+            plan.fixture
+                .units
+                .iter()
+                .flat_map(|unit| unit.document_symlinks.iter()),
+        )
+        .collect::<Vec<_>>();
+    let mut realpath_overrides = Vec::new();
+    for operation in symlink_operations {
+        let Some(target_content) = source_paths.get(operation.normalized_target.as_ref()) else {
+            continue;
+        };
+        if !source_paths.contains_key(operation.normalized_link_path.as_ref()) {
+            host_builder = host_builder.file(
+                operation.normalized_link_path.as_ref(),
+                target_content.as_bytes().to_vec(),
+            );
+            source_paths.insert(
+                operation.normalized_link_path.to_string(),
+                Arc::clone(target_content),
+            );
+        }
+        realpath_overrides.push((
+            PathBuf::from(operation.normalized_link_path.as_ref()),
+            PathBuf::from(operation.normalized_target.as_ref()),
+        ));
+    }
+    for (link, target) in realpath_overrides {
+        host_builder = host_builder.realpath(link, target);
+    }
+    let host = host_builder.build().map_err(|host_error| {
+        error(format!(
+            "failed to build compiler fixture host for {:?}: {host_error}",
+            plan.fixture.source.relative_path
+        ))
+    })?;
+
+    let (mut compiler_options, program_options) = plan_compiler_options(plan)?;
+    compiler_options.no_emit = Some(true);
+    let roots = compiler_root_paths(plan)?;
+    let catalog = LibraryCatalog::typescript_6_0_3(workspace.join("vendor/typescript-6.0.3/lib"));
+    load_program(
+        &host,
+        &roots,
+        compiler_options,
+        program_options,
+        &catalog,
+        limits,
+    )
+    .map_err(|load_error| {
+        error(format!(
+            "failed to load compiler fixture {:?} ({:?}): {load_error}",
+            plan.fixture.source.relative_path, plan.variant.key
+        ))
+    })
+}
+
+fn compiler_root_paths(plan: &CompilerExecutionPlan) -> HarnessResult<Vec<PathBuf>> {
+    let units = match &plan.root_selection {
+        CompilerRootSelection::Explicit {
+            program_root_units, ..
+        }
+        | CompilerRootSelection::Config {
+            program_root_units, ..
+        } => program_root_units,
+    };
+    units
+        .iter()
+        .map(|id| {
+            let unit = plan
+                .fixture
+                .units
+                .get(id.0 as usize)
+                .ok_or_else(|| error("compiler root unit is out of bounds"))?;
+            normalize_virtual_path(plan.current_directory.as_ref(), unit.name.as_ref())
+                .map(PathBuf::from)
+        })
+        .collect()
+}
+
+fn plan_compiler_options(
+    plan: &CompilerExecutionPlan,
+) -> HarnessResult<(CompilerOptions, ProgramOptions)> {
+    let (mut compiler_options, mut program_options) = plan
+        .fixture
+        .config_root_plan
+        .as_ref()
+        .map(|config| {
+            (
+                config.compiler_options().clone(),
+                config.program_options().clone(),
+            )
+        })
+        .unwrap_or_else(|| (CompilerOptions::default(), ProgramOptions::default()));
+
+    for setting in plan.effective_settings.iter() {
+        apply_compiler_setting(
+            &mut compiler_options,
+            &mut program_options,
+            plan.current_directory.as_ref(),
+            &setting.name,
+            &setting.value,
+        )?;
+    }
+    Ok((compiler_options, program_options))
+}
+
+fn apply_compiler_setting(
+    compiler_options: &mut CompilerOptions,
+    program_options: &mut ProgramOptions,
+    current_directory: &str,
+    name: &str,
+    value: &str,
+) -> HarnessResult<()> {
+    let boolean = || parse_compiler_bool(name, value);
+    match name {
+        "allowJs" | "allowJS" | "allowjs" => compiler_options.allow_js = boolean()?,
+        "checkJs" | "checkjs" => compiler_options.check_js = Some(boolean()?),
+        "forceConsistentCasingInFileNames" => {
+            compiler_options.force_consistent_casing_in_file_names = Some(boolean()?)
+        }
+        "maxNodeModuleJsDepth" => {
+            compiler_options.max_node_module_js_depth = Some(CompilerOptionNumber::new(
+                value.parse::<f64>().map_err(|_| {
+                    error(format!(
+                        "compiler option {name:?} is not a number: {value:?}"
+                    ))
+                })?,
+            ))
+        }
+        "experimentalDecorators" | "experimentaldecorators" => {
+            compiler_options.experimental_decorators = boolean()?
+        }
+        "target" => compiler_options.target = Some(parse_target(value)?),
+        "module" => compiler_options.module = Some(parse_module(value)?),
+        "moduleResolution" => {
+            compiler_options.module_resolution = Some(parse_module_resolution(value)?)
+        }
+        "moduleDetection" => {
+            compiler_options.module_detection = Some(parse_module_detection(value)?)
+        }
+        "jsx" => compiler_options.jsx = Some(parse_jsx(value)?),
+        "noEmit" | "noemit" => compiler_options.no_emit = Some(boolean()?),
+        "noResolve" | "noresolve" => compiler_options.no_resolve = Some(boolean()?),
+        "noLib" => *program_options = program_options.clone().with_no_lib(boolean()?),
+        "preserveSymlinks" => {
+            *program_options = program_options.clone().with_preserve_symlinks(boolean()?)
+        }
+        "lib" => {
+            compiler_options.lib = Some(
+                value
+                    .split(',')
+                    .map(str::trim)
+                    .filter(|entry| !entry.is_empty())
+                    .map(str::to_ascii_lowercase)
+                    .collect(),
+            )
+        }
+        "types" => {
+            *program_options = program_options.clone().with_types(
+                value
+                    .split(',')
+                    .map(str::trim)
+                    .filter(|entry| !entry.is_empty())
+                    .map(str::to_owned)
+                    .collect(),
+            )
+        }
+        "typeRoots" => {
+            *program_options = program_options
+                .clone()
+                .with_type_roots(parse_virtual_program_paths(current_directory, value, name)?)
+        }
+        "strict" => compiler_options.strict = Some(boolean()?),
+        "strictNullChecks" => compiler_options.strict_null_checks = Some(boolean()?),
+        "strictFunctionTypes" => compiler_options.strict_function_types = Some(boolean()?),
+        "noImplicitAny" | "noimplicitany" => compiler_options.no_implicit_any = Some(boolean()?),
+        "noImplicitThis" => compiler_options.no_implicit_this = Some(boolean()?),
+        "noImplicitOverride" => compiler_options.no_implicit_override = Some(boolean()?),
+        "strictBindCallApply" => compiler_options.strict_bind_call_apply = Some(boolean()?),
+        "exactOptionalPropertyTypes" => {
+            compiler_options.exact_optional_property_types = Some(boolean()?)
+        }
+        "noFallthroughCasesInSwitch" => {
+            compiler_options.no_fallthrough_cases_in_switch = Some(boolean()?)
+        }
+        "noImplicitReturns" => compiler_options.no_implicit_returns = Some(boolean()?),
+        "noUnusedLocals" => compiler_options.no_unused_locals = Some(boolean()?),
+        "noUnusedParameters" => compiler_options.no_unused_parameters = Some(boolean()?),
+        "allowUnreachableCode" => compiler_options.allow_unreachable_code = Some(boolean()?),
+        "allowUnusedLabels" => compiler_options.allow_unused_labels = Some(boolean()?),
+        "noUncheckedIndexedAccess" => {
+            compiler_options.no_unchecked_indexed_access = Some(boolean()?)
+        }
+        "noPropertyAccessFromIndexSignature" => {
+            compiler_options.no_property_access_from_index_signature = Some(boolean()?)
+        }
+        "noUncheckedSideEffectImports" => {
+            compiler_options.no_unchecked_side_effect_imports = Some(boolean()?)
+        }
+        "strictPropertyInitialization" => {
+            compiler_options.strict_property_initialization = Some(boolean()?)
+        }
+        "useDefineForClassFields" => {
+            compiler_options.use_define_for_class_fields = Some(boolean()?)
+        }
+        "useUnknownInCatchVariables" => {
+            compiler_options.use_unknown_in_catch_variables = Some(boolean()?)
+        }
+        "alwaysStrict" => compiler_options.always_strict = Some(boolean()?),
+        "noErrorTruncation" => compiler_options.no_error_truncation = Some(boolean()?),
+        "importHelpers" => compiler_options.import_helpers = Some(boolean()?),
+        "downlevelIteration" => compiler_options.downlevel_iteration = Some(boolean()?),
+        "strictBuiltinIteratorReturn" => {
+            compiler_options.strict_builtin_iterator_return = Some(boolean()?)
+        }
+        "moduleSuffixes" => {
+            compiler_options.module_suffixes = Some(
+                value
+                    .split(',')
+                    .map(|entry| ModuleSuffix::Value(entry.to_owned()))
+                    .collect(),
+            )
+        }
+        "resolvePackageJsonExports" => {
+            compiler_options.resolve_package_json_exports = Some(boolean()?)
+        }
+        "resolvePackageJsonImports" => {
+            compiler_options.resolve_package_json_imports = Some(boolean()?)
+        }
+        "noDtsResolution" => compiler_options.no_dts_resolution = Some(boolean()?),
+        "allowArbitraryExtensions" => {
+            compiler_options.allow_arbitrary_extensions = Some(boolean()?)
+        }
+        "allowImportingTsExtensions" => {
+            compiler_options.allow_importing_ts_extensions = Some(boolean()?)
+        }
+        "rewriteRelativeImportExtensions" => {
+            compiler_options.rewrite_relative_import_extensions = Some(boolean()?)
+        }
+        "resolveJsonModule" => compiler_options.resolve_json_module = Some(boolean()?),
+        "skipLibCheck" => compiler_options.skip_lib_check = Some(boolean()?),
+        "esModuleInterop" => compiler_options.es_module_interop = Some(boolean()?),
+        "allowSyntheticDefaultImports" => {
+            compiler_options.allow_synthetic_default_imports = Some(boolean()?)
+        }
+        "preserveConstEnums" => compiler_options.preserve_const_enums = Some(boolean()?),
+        "isolatedModules" => compiler_options.isolated_modules = Some(boolean()?),
+        "verbatimModuleSyntax" => compiler_options.verbatim_module_syntax = Some(boolean()?),
+        "allowUmdGlobalAccess" => compiler_options.allow_umd_global_access = Some(boolean()?),
+        "baseUrl" => compiler_options.base_url = Some(value.to_owned()),
+        "jsxFactory" | "jsxfactory" => compiler_options.jsx_factory = Some(value.to_owned()),
+        "jsxFragmentFactory" => compiler_options.jsx_fragment_factory = Some(value.to_owned()),
+        "jsxImportSource" => compiler_options.jsx_import_source = Some(value.to_owned()),
+        "reactNamespace" => compiler_options.react_namespace = Some(value.to_owned()),
+        "ignoreDeprecations" => compiler_options.ignore_deprecations = Some(value.to_owned()),
+        "noEmitHelpers"
+        | "noEmitOnError"
+        | "declaration"
+        | "declarationMap"
+        | "emitDeclarationOnly"
+        | "sourceMap"
+        | "inlineSourceMap"
+        | "inlineSources"
+        | "emitBOM"
+        | "newLine"
+        | "outDir"
+        | "declarationDir"
+        | "sourceRoot"
+        | "mapRoot"
+        | "removeComments"
+        | "composite"
+        | "incremental"
+        | "assumeChangesOnlyAffectDirectDependencies"
+        | "importsNotUsedAsValues"
+        | "isolatedDeclarations"
+        | "erasableSyntaxOnly"
+        | "libReplacement"
+        | "emitDecoratorMetadata"
+        | "emitdecoratormetadata"
+        | "skipDefaultLibCheck"
+        | "stripInternal"
+        | "disableSizeLimit"
+        | "noImplicitUseStrict"
+        | "noStrictGenericChecks"
+        | "suppressExcessPropertyErrors"
+        | "suppressImplicitAnyIndexErrors"
+        | "preserveValueImports"
+        | "out"
+        | "outFile"
+        | "outdir"
+        | "outfile"
+        | "rootDir"
+        | "tsBuildInfoFile"
+        | "pretty"
+        | "traceResolution"
+        | "listFilesOnly"
+        | "captureSuggestions"
+        | "fullEmitPaths"
+        | "typeScriptVersion"
+        | "stableTypeOrdering"
+        | "noTypesAndSymbols"
+        | "noImplicitReferences"
+        | "noCheck"
+        | "keyofStringsOnly"
+        | "currentDirectory"
+        | "useCaseSensitiveFileNames"
+        | "useCaseSensitiveFilenames"
+        | "FileName"
+        | "Filename"
+        | "fileName"
+        | "filename"
+        | "link"
+        | "symlink"
+        | "newline"
+        | "sourcemap"
+        | "inlinesourcemap"
+        | "inlinesources"
+        | "sourceroot"
+        | "noemithelpers"
+        | "noemitonerror" => {}
+        _ => {
+            return Err(error(format!(
+                "unsupported compiler fixture option {name:?}"
+            )))
+        }
+    }
+    Ok(())
+}
+
+fn parse_virtual_program_paths(
+    current_directory: &str,
+    value: &str,
+    option_name: &str,
+) -> HarnessResult<Vec<ProgramPath>> {
+    value
+        .split(',')
+        .map(str::trim)
+        .filter(|entry| !entry.is_empty())
+        .map(|entry| {
+            let normalized = normalize_virtual_path(current_directory, entry)?;
+            ProgramPath::from_trusted_parts(&normalized, &normalized).map_err(|path_error| {
+                error(format!(
+                    "compiler option {option_name:?} contains invalid path {entry:?}: {path_error}"
+                ))
+            })
+        })
+        .collect()
+}
+
+fn parse_compiler_bool(name: &str, value: &str) -> HarnessResult<bool> {
+    match value.to_ascii_lowercase().as_str() {
+        "true" => Ok(true),
+        "false" => Ok(false),
+        _ => Err(error(format!(
+            "compiler option {name:?} expects true or false, got {value:?}"
+        ))),
+    }
+}
+
+fn parse_target(value: &str) -> HarnessResult<i32> {
+    match value.to_ascii_lowercase().as_str() {
+        "es3" => Ok(0),
+        "es5" => Ok(1),
+        "es6" | "es2015" => Ok(2),
+        "es2016" => Ok(3),
+        "es2017" => Ok(4),
+        "es2018" => Ok(5),
+        "es2019" => Ok(6),
+        "es2020" => Ok(7),
+        "es2021" => Ok(8),
+        "es2022" => Ok(9),
+        "es2023" => Ok(10),
+        "es2024" => Ok(11),
+        "es2025" => Ok(12),
+        "esnext" => Ok(99),
+        _ => Err(error(format!("unsupported compiler target {value:?}"))),
+    }
+}
+
+fn parse_module(value: &str) -> HarnessResult<i32> {
+    match value.to_ascii_lowercase().as_str() {
+        "none" => Ok(0),
+        "commonjs" => Ok(1),
+        "amd" => Ok(2),
+        "umd" => Ok(3),
+        "system" => Ok(4),
+        "es6" | "es2015" => Ok(5),
+        "es2020" => Ok(6),
+        "es2022" => Ok(7),
+        "esnext" => Ok(99),
+        "node16" => Ok(100),
+        "node18" => Ok(101),
+        "node20" => Ok(102),
+        "nodenext" => Ok(199),
+        "preserve" => Ok(200),
+        _ => Err(error(format!("unsupported compiler module {value:?}"))),
+    }
+}
+
+fn parse_module_resolution(value: &str) -> HarnessResult<i32> {
+    match value.to_ascii_lowercase().as_str() {
+        "classic" => Ok(1),
+        "node" | "node10" => Ok(2),
+        "node16" => Ok(3),
+        "nodenext" => Ok(99),
+        "bundler" => Ok(100),
+        _ => Err(error(format!(
+            "unsupported compiler moduleResolution {value:?}"
+        ))),
+    }
+}
+
+fn parse_module_detection(value: &str) -> HarnessResult<i32> {
+    match value.to_ascii_lowercase().as_str() {
+        "legacy" => Ok(1),
+        "auto" => Ok(2),
+        "force" => Ok(3),
+        _ => Err(error(format!(
+            "unsupported compiler moduleDetection {value:?}"
+        ))),
+    }
+}
+
+fn parse_jsx(value: &str) -> HarnessResult<i32> {
+    match value.to_ascii_lowercase().as_str() {
+        "preserve" => Ok(1),
+        "react" => Ok(2),
+        "react-native" => Ok(3),
+        "react-jsx" => Ok(4),
+        "react-jsxdev" => Ok(5),
+        _ => Err(error(format!("unsupported compiler jsx {value:?}"))),
+    }
+}
 
 /// A fully verified, canonically ordered set of execution plans.
 #[derive(Clone, Debug)]

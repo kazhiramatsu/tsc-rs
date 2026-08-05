@@ -5,10 +5,10 @@ use std::sync::{Arc, OnceLock};
 
 use sha2::{Digest, Sha256};
 use tsc_harness::upstream_suites::execution::{
-    load_node_modules_search_project, load_project_no_emit, load_recorded_execution_plans,
-    CompilerExecutionPlan, CompilerExplicitRootReason, CompilerRootSelection, CompilerSymlinkPhase,
-    CompilerUnitId, ProjectExecutionPlan, ProjectRootSelection, UpstreamExecutionCorpus,
-    UpstreamExecutionInput, UpstreamExecutionPlan,
+    load_compiler_no_emit, load_node_modules_search_project, load_project_no_emit,
+    load_recorded_execution_plans, CompilerExecutionPlan, CompilerExplicitRootReason,
+    CompilerRootSelection, CompilerSymlinkPhase, CompilerUnitId, ProjectExecutionPlan,
+    ProjectRootSelection, UpstreamExecutionCorpus, UpstreamExecutionInput, UpstreamExecutionPlan,
 };
 use tsc_harness::upstream_suites::{ExecutionState, ProjectModule};
 use tsc_program::{
@@ -912,6 +912,33 @@ fn general_project_no_emit_loader_handles_root_modes_and_rejects_emit_requests()
     let error = load_project_no_emit(&workspace, emit_request, focused_project_limits())
         .expect_err("declaration=true must fail closed in the no-emit project loader");
     assert!(error.to_string().contains("declaration"));
+}
+
+#[test]
+fn compiler_no_emit_loader_handles_recorded_roots() {
+    let workspace = workspace_root();
+    for case_id in [
+        "typescript-6.0.3/compiler/2dArrays.ts#default",
+        "typescript-6.0.3/compiler/augmentExportEquals2.ts#default",
+        "typescript-6.0.3/compiler/APILibCheck.ts#default",
+        "typescript-6.0.3/compiler/aliasAssignments.ts#default",
+        "typescript-6.0.3/compiler/accessorDeclarationEmitJs.ts#default",
+        "typescript-6.0.3/compiler/typeReferenceDirectives3.ts#default",
+        "typescript-6.0.3/compiler/typeReferenceDirectiveWithTypeAsFile.ts#default",
+        "typescript-6.0.3/compiler/moduleResolutionAsTypeReferenceDirectiveScoped.ts#default",
+        "typescript-6.0.3/compiler/typeRootsFromMultipleNodeModulesDirectories.ts#default",
+        "typescript-6.0.3/compiler/configFileExtendsAsList.ts#default",
+        "typescript-6.0.3/compiler/commonSourceDirectory.ts#default",
+        "typescript-6.0.3/compiler/moduleResolutionWithSymlinks_preserveSymlinks.ts#default",
+    ] {
+        let execution = compiler(plan(case_id));
+        let prepared = load_compiler_no_emit(&workspace, execution, focused_project_limits())
+            .unwrap_or_else(|error| {
+                panic!("compiler no-emit loader failed for {case_id}: {error}")
+            });
+        assert!(!prepared.source_files().is_empty(), "{case_id}");
+        assert_eq!(prepared.compiler_options().no_emit, Some(true), "{case_id}");
+    }
 }
 
 fn focused_project_limits() -> ProgramLoadLimits {

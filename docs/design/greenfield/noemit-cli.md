@@ -601,6 +601,16 @@ slices. Discovery stays sequential where vendored host calls and failure
 precedence are observable; future pipeline parallelism must preserve that
 contract.
 
+The compiler-suite harness now exposes a bounded `load_compiler_no_emit`
+adapter. It reconstructs the recorded compiler fixture VFS (including
+document/global symlink identities), projects loader-relevant options and
+root selection, and returns the same catalog-backed `PreparedProgram` used by
+the Rust no-emit session. Representative default, type-reference,
+case-sensitive, virtual-config, and preserve-symlink fixtures exercise this
+boundary. The adapter intentionally stops before checker diagnostics, emit,
+baseline comparison, and unsupported static-request families; the full
+compiler case matrix remains `not-run` until those owners are ported.
+
 A focused project-runner bridge now owns the official `NodeModulesSearch`
 config-to-loader path for its three descriptors under CommonJS and AMD. All
 233 files in the pinned `projects` tree are verified once and exposed through
