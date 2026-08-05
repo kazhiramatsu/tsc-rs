@@ -103,6 +103,9 @@ For example, from a project containing a compatible `tsconfig.json`:
 cargo run --manifest-path crates/compiler/Cargo.toml -- --noEmit -p .
 ```
 
+The built `tsc-rs` binary contains the exact TypeScript 6.0.3 standard-library
+catalog and does not look up `vendor/` or launch Node at runtime.
+
 See [setup and verification](docs/setup.md) for focused commands and
 environment details.
 

@@ -123,6 +123,11 @@ cached by the source, inventory, tool, selected-code, and pinned-Node
 fingerprint under
 `target/m8/trace/cache/`.
 
+The `tsc-rs` executable embeds the pinned TypeScript 6.0.3 standard-library
+bytes at build time. After it has been built or installed, running a no-emit
+project does not require this repository's `vendor/` directory or a Node
+runtime; Node is needed only for the optional oracle comparisons above.
+
 The full gate list, the trusted-base variants, and the per-artifact
 audit commands (`ratchet check`, `scope audit`, `families check`,
 `escapes`) are documented in the repository `CLAUDE.md` ("Verification

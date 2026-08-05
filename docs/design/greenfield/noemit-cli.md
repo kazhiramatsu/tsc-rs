@@ -505,7 +505,12 @@ logical library names and 95 distinct mapped files. It performs no runtime
 sources. Absent-target/ES2025 selection starts at `lib.es2025.full.d.ts`, and
 ES2015 preserves the `lib.es6.d.ts` compatibility root. A real-vendor contract
 pins the transitive closure sizes at 82 files for ES2025, 19 for ES2015, and
-15 for explicit `es5` plus `dom`.
+15 for explicit `es5` plus `dom`. The production CLI now supplies that same
+host boundary through a read-only embedded overlay: all 107 catalog files plus
+the compatibility `lib.d.ts` are compiled into the binary, exact immediate
+library paths are served from those bytes, and every user/config/package path
+still delegates to `FsCompilerHost`. Runtime execution therefore neither
+searches the repository's `vendor` tree nor requires Node.
 
 For each source the loader follows the vendored construction phases: each
 path reference performs its DFS before the next path reference; every unique
@@ -847,6 +852,9 @@ status-2 no-emit diagnostic result, the ANSI contextual renderer, current-
 directory config discovery, encodings, symlinks, `rootDirs`, and Node16/18/20/
 NodeNext package modes. This bridge remains independent of CLI selection so
 the same immutable plan can feed MemoryHost and FsHost differentials.
+All ten local CLI oracle matrices pass against vendored `_tsc.js`; they remain
+ignored in the ordinary Rust gate because they require the pinned Node runtime,
+not because they are unqualified.
 
 ### H0.6 — qualification and release
 

@@ -10,7 +10,6 @@
 //! TS5112 retain status 1.
 
 use std::collections::BTreeMap;
-use std::env;
 use std::error::Error;
 use std::fmt;
 use std::io::IsTerminal;
@@ -31,6 +30,10 @@ use tsc_program::{
 };
 
 use crate::ProgramSession;
+
+mod embedded_libraries {
+    include!(concat!(env!("OUT_DIR"), "/typescript_6_0_3_libraries.rs"));
+}
 
 const EXIT_SUCCESS: i32 = 0;
 const EXIT_COMMAND_LINE: i32 = 1;
@@ -104,6 +107,112 @@ struct CommandLine {
     pretty: Option<bool>,
 }
 
+/// Production CLI host with an immutable, binary-owned TypeScript 6.0.3
+/// standard-library directory. User/config/package paths retain ordinary
+/// filesystem semantics; only exact immediate children of this private
+/// directory are intercepted.
+#[derive(Clone, Debug)]
+struct CliCompilerHost {
+    filesystem: FsCompilerHost,
+    library_directory: PathBuf,
+}
+
+impl CliCompilerHost {
+    fn new(filesystem: FsCompilerHost) -> Self {
+        Self {
+            filesystem,
+            library_directory: embedded_library_directory(),
+        }
+    }
+
+    fn library_directory(&self) -> &Path {
+        &self.library_directory
+    }
+
+    fn embedded_file_name<'a>(&self, path: &'a Path) -> Option<&'a str> {
+        (path.parent() == Some(self.library_directory.as_path()))
+            .then(|| path.file_name().and_then(|name| name.to_str()))
+            .flatten()
+    }
+
+    fn embedded_bytes(&self, path: &Path) -> Option<&'static [u8]> {
+        let name = self.embedded_file_name(path)?;
+        embedded_libraries::TYPESCRIPT_6_0_3_LIBRARIES
+            .binary_search_by_key(&name, |(candidate, _)| *candidate)
+            .ok()
+            .map(|index| embedded_libraries::TYPESCRIPT_6_0_3_LIBRARIES[index].1)
+    }
+}
+
+fn embedded_library_directory() -> PathBuf {
+    #[cfg(windows)]
+    {
+        PathBuf::from("C:/__tsc_rs_embedded__/6.0.3/lib")
+    }
+    #[cfg(not(windows))]
+    {
+        PathBuf::from("/__tsc_rs_embedded__/6.0.3/lib")
+    }
+}
+
+impl CompilerHost for CliCompilerHost {
+    fn current_directory(&self) -> Result<PathBuf, HostError> {
+        self.filesystem.current_directory()
+    }
+
+    fn use_case_sensitive_file_names(&self) -> bool {
+        self.filesystem.use_case_sensitive_file_names()
+    }
+
+    fn read_file(&self, path: &Path) -> Result<Option<Vec<u8>>, HostError> {
+        if self.embedded_file_name(path).is_some() {
+            return Ok(self.embedded_bytes(path).map(<[u8]>::to_vec));
+        }
+        self.filesystem.read_file(path)
+    }
+
+    fn file_exists(&self, path: &Path) -> Result<bool, HostError> {
+        if self.embedded_file_name(path).is_some() {
+            return Ok(self.embedded_bytes(path).is_some());
+        }
+        self.filesystem.file_exists(path)
+    }
+
+    fn directory_exists(&self, path: &Path) -> Result<bool, HostError> {
+        if path == self.library_directory {
+            return Ok(true);
+        }
+        self.filesystem.directory_exists(path)
+    }
+
+    fn read_directory(&self, path: &Path) -> Result<Vec<PathBuf>, HostError> {
+        if path == self.library_directory {
+            return Ok(embedded_libraries::TYPESCRIPT_6_0_3_LIBRARIES
+                .iter()
+                .map(|(name, _)| path.join(name))
+                .collect());
+        }
+        self.filesystem.read_directory(path)
+    }
+
+    fn get_directories(&self, path: &Path) -> Result<Vec<PathBuf>, HostError> {
+        if path == self.library_directory {
+            return Ok(Vec::new());
+        }
+        self.filesystem.get_directories(path)
+    }
+
+    fn realpath(&self, path: &Path) -> Result<Option<PathBuf>, HostError> {
+        if path == self.library_directory || self.embedded_bytes(path).is_some() {
+            return Ok(Some(path.to_path_buf()));
+        }
+        if self.embedded_file_name(path).is_some() {
+            return Ok(None);
+        }
+        self.filesystem.realpath(path)
+    }
+}
+
 /// Execute the bounded H0 command-line surface.
 pub fn run_cli(args: &[String]) -> CliOutput {
     match execute(args) {
@@ -126,10 +235,11 @@ fn execute(args: &[String]) -> Result<CliOutput, CliError> {
         });
     }
 
-    let host = FsCompilerHost::from_process().map_err(host_error)?;
+    let filesystem = FsCompilerHost::from_process().map_err(host_error)?;
     let pretty = command_line.pretty.unwrap_or_else(default_pretty);
-    let current_directory = host.current_directory().map_err(host_error)?;
-    let catalog = LibraryCatalog::typescript_6_0_3(library_directory(&current_directory));
+    let current_directory = filesystem.current_directory().map_err(host_error)?;
+    let host = CliCompilerHost::new(filesystem);
+    let catalog = LibraryCatalog::typescript_6_0_3(host.library_directory());
 
     if let Some(project) = command_line.project {
         let config_file = match resolve_project_file(&host, &current_directory, &project)? {
@@ -359,7 +469,7 @@ fn consume_boolean_value(args: &[String], index: usize, default: bool) -> (bool,
 }
 
 fn execute_config(
-    host: &FsCompilerHost,
+    host: &dyn CompilerHost,
     current_directory: &Path,
     catalog: &LibraryCatalog,
     plan: &ConfigRootPlan,
@@ -420,7 +530,7 @@ fn execute_config(
 }
 
 fn execute_explicit_files(
-    host: &FsCompilerHost,
+    host: &dyn CompilerHost,
     current_directory: &Path,
     catalog: &LibraryCatalog,
     roots: &[PathBuf],
@@ -931,7 +1041,7 @@ fn normalize_slashes(path: &str) -> String {
 }
 
 fn parse_config_file(
-    host: &FsCompilerHost,
+    host: &dyn CompilerHost,
     current_directory: &Path,
     config_file: &Path,
     display_file_name: Option<&Path>,
@@ -974,7 +1084,7 @@ enum ProjectFileError {
 }
 
 fn resolve_project_file(
-    host: &FsCompilerHost,
+    host: &dyn CompilerHost,
     current_directory: &Path,
     project: &Path,
 ) -> Result<Result<PathBuf, ProjectFileError>, CliError> {
@@ -994,7 +1104,7 @@ fn resolve_project_file(
 }
 
 fn find_config_file(
-    host: &FsCompilerHost,
+    host: &dyn CompilerHost,
     current_directory: &Path,
 ) -> Result<Option<PathBuf>, CliError> {
     let mut directory = current_directory.to_path_buf();
@@ -1015,14 +1125,6 @@ fn absolutize(current_directory: &Path, path: &Path) -> PathBuf {
     } else {
         current_directory.join(path)
     }
-}
-
-fn library_directory(current_directory: &Path) -> PathBuf {
-    let local = current_directory.join("vendor/typescript-6.0.3/lib");
-    if local.is_dir() {
-        return local;
-    }
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../vendor/typescript-6.0.3/lib")
 }
 
 fn host_error(error: HostError) -> CliError {
@@ -1093,6 +1195,37 @@ mod tests {
         assert_eq!(
             output.stdout().trim(),
             format!("Version {TYPESCRIPT_VERSION}")
+        );
+    }
+
+    #[test]
+    fn embedded_library_overlay_owns_the_pinned_catalog_bytes() {
+        let filesystem = FsCompilerHost::from_process().expect("construct filesystem host");
+        let host = CliCompilerHost::new(filesystem);
+        assert_eq!(embedded_libraries::TYPESCRIPT_6_0_3_LIBRARIES.len(), 108);
+
+        let embedded_path = host.library_directory().join("lib.es5.d.ts");
+        let embedded = host
+            .read_file(&embedded_path)
+            .expect("read embedded library")
+            .expect("embedded ES5 library exists");
+        let vendored = std::fs::read(
+            PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                .join("../../vendor/typescript-6.0.3/lib/lib.es5.d.ts"),
+        )
+        .expect("read pinned ES5 library");
+        assert_eq!(embedded, vendored);
+        assert!(host
+            .file_exists(&embedded_path)
+            .expect("query embedded library"));
+        assert!(!host
+            .file_exists(&host.library_directory().join("lib.unknown.d.ts"))
+            .expect("query absent embedded library"));
+        assert_eq!(
+            host.read_directory(host.library_directory())
+                .expect("list embedded library directory")
+                .len(),
+            108
         );
     }
 
