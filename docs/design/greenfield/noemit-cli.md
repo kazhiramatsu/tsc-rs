@@ -740,14 +740,17 @@ path, resource, and explicitly unsupported conversion boundaries. The harness
 uses a case-insensitive virtual adapter specialized for the fixed compiler
 fixture units, parses each fixture once before matrix variants, and compares
 raw config values, ordered `fileNames`, extended-source identities and
-contents, four discovery-option values, and original-unit partitions with the
-official oracle. Include patterns are compiled once and reused through an
+contents, four discovery-option values, the exact `ParseConfigHost` operation
+trace for all 103 config-bearing fixtures (106 matrix cases), and original-unit
+partitions with the official oracle. Include patterns are compiled once and reused through an
 iterative, linear-scratch UTF-16 matcher; candidate matching does not recurse,
 build a quadratic memo table, or require a regex dependency. The production
 `CompilerConfigHost` now applies the same matcher to real and in-memory
 recursive trees, prunes impossible directories, honors explicit package-folder
-includes, and suppresses symlink cycles through host realpaths. The complete
-upstream `ParseConfigHost`/`matchFiles` trace qualification is still not-run.
+includes, and suppresses symlink cycles through host realpaths. The fixed
+compiler-corpus `ParseConfigHost`/`matchFiles` trace qualification is now
+green; general real-filesystem profiles and the remaining root fields are
+still open.
 Remaining root fields,
 remaining resolver/loader options, full `ParsedCommandLine`, and the complete
 project baseline/emit runner remain open. The validated projection now exposes

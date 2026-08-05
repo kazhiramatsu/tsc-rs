@@ -65,10 +65,14 @@
 //! `pathsValidation` cases additionally fix the six paths option diagnostics,
 //! their UTF-16 locations, and ordering. Config-derived resolver options carry
 //! `paths` atomically with its declaring base and share precompiled matching
-//! metadata across resolver instances. This does not execute the remaining
-//! compiler/project cases or cover the full `ParsedCommandLine`, remaining
-//! root object schemas, general filesystem `matchFiles`, general
-//! project-runner configs, or CLI ownership. `load_config_program` now connects
+//! metadata across resolver instances. The compiler harness also freezes and
+//! compares the exact `ParseConfigHost` operation trace for all 103
+//! config-bearing fixtures (106 matrix cases); this qualifies the pinned
+//! virtual compiler host, not every real-filesystem `matchFiles` profile.
+//! This does not execute the remaining compiler/project cases or cover the
+//! full `ParsedCommandLine`, remaining root object schemas, general filesystem
+//! `matchFiles`, general project-runner configs, or CLI ownership.
+//! `load_config_program` now connects
 //! this immutable plan to the catalog-backed loader while preserving the
 //! config/option diagnostic gate and mandatory `noEmit=true` boundary. The
 //! harness separately uses this boundary for six focused official

@@ -377,6 +377,15 @@ fn compiler_config_root_plans_match_the_frozen_typescript_oracle() {
     assert_eq!(oracle["summary"]["config_plans"]["case_total"], 106);
     assert_eq!(oracle["summary"]["extended_sources"]["fixture_total"], 5);
     assert_eq!(oracle["summary"]["extended_sources"]["case_total"], 5);
+    assert_eq!(
+        oracle["summary"]["host_calls"],
+        serde_json::json!({
+            "total": 116,
+            "file_exists": 8,
+            "read_file": 6,
+            "read_directory": 102,
+        })
+    );
 
     let mut by_source = BTreeMap::new();
     let mut configuration_counts = BTreeMap::<u32, usize>::new();
@@ -407,6 +416,7 @@ fn compiler_config_root_plans_match_the_frozen_typescript_oracle() {
     let mut weighted_extended_sources = 0;
     let mut weighted_roots = 0;
     let mut weighted_others = 0;
+    let mut host_call_total = 0;
     let mut seen_sources = BTreeSet::new();
     let mut previous_source = None;
     for expected in fixtures {
@@ -536,6 +546,14 @@ fn compiler_config_root_plans_match_the_frozen_typescript_oracle() {
             discovery.declaration_dir(),
             expected_discovery["declaration_dir"].as_str()
         );
+        let expected_host_log = expected["host_log"]
+            .as_array()
+            .expect("config host log is an array");
+        assert_eq!(
+            plan.fixture.config_host_log.as_ref(),
+            expected_host_log.as_slice(),
+            "ParseConfigHost observation order drifted for source {source}"
+        );
         assert!(
             expected["diagnostics"]
                 .as_array()
@@ -606,6 +624,7 @@ fn compiler_config_root_plans_match_the_frozen_typescript_oracle() {
         candidates += expected_candidates.len();
         parsed_file_names += config_plan.file_names().len();
         extended_sources += config_plan.extended_sources().len();
+        host_call_total += plan.fixture.config_host_log.len();
         weighted_candidates += expected_candidates.len() * case_count;
         weighted_file_names += config_plan.file_names().len() * case_count;
         weighted_extended_sources += config_plan.extended_sources().len() * case_count;
@@ -627,6 +646,7 @@ fn compiler_config_root_plans_match_the_frozen_typescript_oracle() {
         ),
         (306, 170, 5, 170, 136)
     );
+    assert_eq!(host_call_total, 116);
     assert_eq!(
         seen_sources,
         by_source.keys().copied().collect::<BTreeSet<_>>(),

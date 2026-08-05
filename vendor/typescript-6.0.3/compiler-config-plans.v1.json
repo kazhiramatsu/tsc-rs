@@ -44,6 +44,12 @@
       "fixture_total": 0,
       "case_total": 0
     },
+    "host_calls": {
+      "total": 116,
+      "file_exists": 8,
+      "read_file": 6,
+      "read_directory": 102
+    },
     "distributions": {
       "configurations_per_fixture": [
         {
@@ -304,7 +310,37 @@
         "out_dir": null,
         "declaration_dir": null
       },
-      "diagnostics": []
+      "diagnostics": [],
+      "host_log": [
+        {
+          "operation": "read_directory",
+          "directory": "/packages/main",
+          "extensions": [
+            ".ts",
+            ".tsx",
+            ".d.ts",
+            ".js",
+            ".jsx",
+            ".cts",
+            ".d.cts",
+            ".cjs",
+            ".mts",
+            ".d.mts",
+            ".mjs",
+            ".json"
+          ],
+          "excludes": null,
+          "includes": [
+            "**/*"
+          ],
+          "depth": null,
+          "result": [
+            "/packages/main/index.ts",
+            "/packages/main/package.json",
+            "/packages/main/tsconfig.json"
+          ]
+        }
+      ]
     },
     {
       "source": {
@@ -346,7 +382,38 @@
         "out_dir": "/.src/foo",
         "declaration_dir": null
       },
-      "diagnostics": []
+      "diagnostics": [],
+      "host_log": [
+        {
+          "operation": "read_directory",
+          "directory": "/.src",
+          "extensions": [
+            ".ts",
+            ".tsx",
+            ".d.ts",
+            ".js",
+            ".jsx",
+            ".cts",
+            ".d.cts",
+            ".cjs",
+            ".mts",
+            ".d.mts",
+            ".mjs",
+            ".json"
+          ],
+          "excludes": [
+            "/.src/foo"
+          ],
+          "includes": [
+            "**/*"
+          ],
+          "depth": null,
+          "result": [
+            "/.src/index.js",
+            "/.src/tsconfig.json"
+          ]
+        }
+      ]
     },
     {
       "source": {
@@ -404,7 +471,34 @@
         "out_dir": "/app/bin",
         "declaration_dir": null
       },
-      "diagnostics": []
+      "diagnostics": [],
+      "host_log": [
+        {
+          "operation": "read_directory",
+          "directory": "/app",
+          "extensions": [
+            ".ts",
+            ".tsx",
+            ".d.ts",
+            ".cts",
+            ".d.cts",
+            ".mts",
+            ".d.mts",
+            ".json"
+          ],
+          "excludes": [
+            "/app/bin"
+          ],
+          "includes": [
+            "**/*"
+          ],
+          "depth": null,
+          "result": [
+            "/app/index.ts",
+            "/app/tsconfig.json"
+          ]
+        }
+      ]
     },
     {
       "source": {
@@ -455,7 +549,35 @@
         "out_dir": "/app/bin",
         "declaration_dir": null
       },
-      "diagnostics": []
+      "diagnostics": [],
+      "host_log": [
+        {
+          "operation": "read_directory",
+          "directory": "/app",
+          "extensions": [
+            ".ts",
+            ".tsx",
+            ".d.ts",
+            ".cts",
+            ".d.cts",
+            ".mts",
+            ".d.mts",
+            ".json"
+          ],
+          "excludes": [
+            "/app/bin"
+          ],
+          "includes": [
+            "**/*"
+          ],
+          "depth": null,
+          "result": [
+            "/app/tsconfig.json",
+            "/app/lib/bar.d.ts",
+            "/app/src/index.ts"
+          ]
+        }
+      ]
     },
     {
       "source": {
@@ -503,7 +625,32 @@
         "out_dir": null,
         "declaration_dir": null
       },
-      "diagnostics": []
+      "diagnostics": [],
+      "host_log": [
+        {
+          "operation": "read_directory",
+          "directory": "/foo",
+          "extensions": [
+            ".ts",
+            ".tsx",
+            ".d.ts",
+            ".cts",
+            ".d.cts",
+            ".mts",
+            ".d.mts",
+            ".json"
+          ],
+          "excludes": null,
+          "includes": [
+            "**/*"
+          ],
+          "depth": null,
+          "result": [
+            "/foo/test.ts",
+            "/foo/tsconfig.json"
+          ]
+        }
+      ]
     },
     {
       "source": {
@@ -574,7 +721,54 @@
         "out_dir": null,
         "declaration_dir": null
       },
-      "diagnostics": []
+      "diagnostics": [],
+      "host_log": [
+        {
+          "operation": "file_exists",
+          "path": "/tsconfig1.json",
+          "result": true
+        },
+        {
+          "operation": "file_exists",
+          "path": "/tsconfig2.json",
+          "result": true
+        },
+        {
+          "operation": "read_file",
+          "path": "/tsconfig1.json",
+          "result": "text"
+        },
+        {
+          "operation": "read_file",
+          "path": "/tsconfig2.json",
+          "result": "text"
+        },
+        {
+          "operation": "read_directory",
+          "directory": "/",
+          "extensions": [
+            ".ts",
+            ".tsx",
+            ".d.ts",
+            ".cts",
+            ".d.cts",
+            ".mts",
+            ".d.mts",
+            ".json"
+          ],
+          "excludes": null,
+          "includes": [
+            "**/*"
+          ],
+          "depth": null,
+          "result": [
+            "/index.ts",
+            "/tsconfig.json",
+            "/tsconfig1.json",
+            "/tsconfig2.json"
+          ]
+        }
+      ]
     },
     {
       "source": {
@@ -628,7 +822,34 @@
         "out_dir": null,
         "declaration_dir": null
       },
-      "diagnostics": []
+      "diagnostics": [],
+      "host_log": [
+        {
+          "operation": "read_directory",
+          "directory": "/",
+          "extensions": [
+            ".ts",
+            ".tsx",
+            ".d.ts",
+            ".js",
+            ".jsx",
+            ".cts",
+            ".d.cts",
+            ".cjs",
+            ".mts",
+            ".d.mts",
+            ".mjs"
+          ],
+          "excludes": null,
+          "includes": [
+            "**/*"
+          ],
+          "depth": null,
+          "result": [
+            "/index.mjs"
+          ]
+        }
+      ]
     },
     {
       "source": {
@@ -699,7 +920,37 @@
         "out_dir": "/temp",
         "declaration_dir": null
       },
-      "diagnostics": []
+      "diagnostics": [],
+      "host_log": [
+        {
+          "operation": "read_directory",
+          "directory": "/",
+          "extensions": [
+            ".ts",
+            ".tsx",
+            ".d.ts",
+            ".cts",
+            ".d.cts",
+            ".mts",
+            ".d.mts",
+            ".json"
+          ],
+          "excludes": [
+            "/temp"
+          ],
+          "includes": [
+            "**/*"
+          ],
+          "depth": null,
+          "result": [
+            "/tsconfig.json",
+            "/packages/compiler-core/package.json",
+            "/packages/compiler-core/src/index.ts",
+            "/packages/compiler-sfc/package.json",
+            "/packages/compiler-sfc/src/index.ts"
+          ]
+        }
+      ]
     },
     {
       "source": {
@@ -752,7 +1003,34 @@
         "out_dir": "/.src/packages/b/dist",
         "declaration_dir": null
       },
-      "diagnostics": []
+      "diagnostics": [],
+      "host_log": [
+        {
+          "operation": "read_directory",
+          "directory": "/.src/packages/b",
+          "extensions": [
+            ".ts",
+            ".tsx",
+            ".d.ts",
+            ".cts",
+            ".d.cts",
+            ".mts",
+            ".d.mts",
+            ".json"
+          ],
+          "excludes": [
+            "/.src/packages/b/dist"
+          ],
+          "includes": [
+            "**/*"
+          ],
+          "depth": null,
+          "result": [
+            "/.src/packages/b/tsconfig.json",
+            "/.src/packages/b/src/index.ts"
+          ]
+        }
+      ]
     },
     {
       "source": {
@@ -835,7 +1113,34 @@
         "out_dir": "/.src/packages/lab/dist",
         "declaration_dir": null
       },
-      "diagnostics": []
+      "diagnostics": [],
+      "host_log": [
+        {
+          "operation": "read_directory",
+          "directory": "/.src/packages/lab",
+          "extensions": [
+            ".ts",
+            ".tsx",
+            ".d.ts",
+            ".cts",
+            ".d.cts",
+            ".mts",
+            ".d.mts",
+            ".json"
+          ],
+          "excludes": [
+            "/.src/packages/lab/dist"
+          ],
+          "includes": [
+            "**/*"
+          ],
+          "depth": null,
+          "result": [
+            "/.src/packages/lab/tsconfig.json",
+            "/.src/packages/lab/src/index.ts"
+          ]
+        }
+      ]
     },
     {
       "source": {
@@ -919,7 +1224,35 @@
         "out_dir": "/.src/monorepo/pkg3/dist",
         "declaration_dir": null
       },
-      "diagnostics": []
+      "diagnostics": [],
+      "host_log": [
+        {
+          "operation": "read_directory",
+          "directory": "/.src/monorepo/pkg3",
+          "extensions": [
+            ".ts",
+            ".tsx",
+            ".d.ts",
+            ".cts",
+            ".d.cts",
+            ".mts",
+            ".d.mts",
+            ".json"
+          ],
+          "excludes": [
+            "/.src/monorepo/pkg3/dist"
+          ],
+          "includes": [
+            "**/*"
+          ],
+          "depth": null,
+          "result": [
+            "/.src/monorepo/pkg3/tsconfig.json",
+            "/.src/monorepo/pkg3/src/index.ts",
+            "/.src/monorepo/pkg3/src/keys.ts"
+          ]
+        }
+      ]
     },
     {
       "source": {
@@ -1008,7 +1341,35 @@
         "out_dir": "/.src/monorepo/pkg3/dist",
         "declaration_dir": null
       },
-      "diagnostics": []
+      "diagnostics": [],
+      "host_log": [
+        {
+          "operation": "read_directory",
+          "directory": "/.src/monorepo/pkg3",
+          "extensions": [
+            ".ts",
+            ".tsx",
+            ".d.ts",
+            ".cts",
+            ".d.cts",
+            ".mts",
+            ".d.mts",
+            ".json"
+          ],
+          "excludes": [
+            "/.src/monorepo/pkg3/dist"
+          ],
+          "includes": [
+            "**/*"
+          ],
+          "depth": null,
+          "result": [
+            "/.src/monorepo/pkg3/tsconfig.json",
+            "/.src/monorepo/pkg3/src/index.ts",
+            "/.src/monorepo/pkg3/src/keys.ts"
+          ]
+        }
+      ]
     },
     {
       "source": {
@@ -1092,7 +1453,35 @@
         "out_dir": "/.src/monorepo/pkg3/dist",
         "declaration_dir": null
       },
-      "diagnostics": []
+      "diagnostics": [],
+      "host_log": [
+        {
+          "operation": "read_directory",
+          "directory": "/.src/monorepo/pkg3",
+          "extensions": [
+            ".ts",
+            ".tsx",
+            ".d.ts",
+            ".cts",
+            ".d.cts",
+            ".mts",
+            ".d.mts",
+            ".json"
+          ],
+          "excludes": [
+            "/.src/monorepo/pkg3/dist"
+          ],
+          "includes": [
+            "**/*"
+          ],
+          "depth": null,
+          "result": [
+            "/.src/monorepo/pkg3/tsconfig.json",
+            "/.src/monorepo/pkg3/src/index.ts",
+            "/.src/monorepo/pkg3/src/keys.ts"
+          ]
+        }
+      ]
     },
     {
       "source": {
@@ -1135,7 +1524,34 @@
         "out_dir": null,
         "declaration_dir": "/foo/out"
       },
-      "diagnostics": []
+      "diagnostics": [],
+      "host_log": [
+        {
+          "operation": "read_directory",
+          "directory": "/foo",
+          "extensions": [
+            ".ts",
+            ".tsx",
+            ".d.ts",
+            ".cts",
+            ".d.cts",
+            ".mts",
+            ".d.mts",
+            ".json"
+          ],
+          "excludes": [
+            "/foo/out"
+          ],
+          "includes": [
+            "**/*"
+          ],
+          "depth": null,
+          "result": [
+            "/foo/test.ts",
+            "/foo/tsconfig.json"
+          ]
+        }
+      ]
     },
     {
       "source": {
@@ -1178,7 +1594,34 @@
         "out_dir": null,
         "declaration_dir": "/foo/out"
       },
-      "diagnostics": []
+      "diagnostics": [],
+      "host_log": [
+        {
+          "operation": "read_directory",
+          "directory": "/foo",
+          "extensions": [
+            ".ts",
+            ".tsx",
+            ".d.ts",
+            ".cts",
+            ".d.cts",
+            ".mts",
+            ".d.mts",
+            ".json"
+          ],
+          "excludes": [
+            "/foo/out"
+          ],
+          "includes": [
+            "**/*"
+          ],
+          "depth": null,
+          "result": [
+            "/foo/test.ts",
+            "/foo/tsconfig.json"
+          ]
+        }
+      ]
     },
     {
       "source": {
@@ -1220,7 +1663,34 @@
         "out_dir": null,
         "declaration_dir": "/foo/out"
       },
-      "diagnostics": []
+      "diagnostics": [],
+      "host_log": [
+        {
+          "operation": "read_directory",
+          "directory": "/foo",
+          "extensions": [
+            ".ts",
+            ".tsx",
+            ".d.ts",
+            ".cts",
+            ".d.cts",
+            ".mts",
+            ".d.mts",
+            ".json"
+          ],
+          "excludes": [
+            "/foo/out"
+          ],
+          "includes": [
+            "**/*"
+          ],
+          "depth": null,
+          "result": [
+            "/foo/test.ts",
+            "/foo/tsconfig.json"
+          ]
+        }
+      ]
     },
     {
       "source": {
@@ -1261,7 +1731,34 @@
         "out_dir": "/foo/out",
         "declaration_dir": null
       },
-      "diagnostics": []
+      "diagnostics": [],
+      "host_log": [
+        {
+          "operation": "read_directory",
+          "directory": "/foo",
+          "extensions": [
+            ".ts",
+            ".tsx",
+            ".d.ts",
+            ".cts",
+            ".d.cts",
+            ".mts",
+            ".d.mts",
+            ".json"
+          ],
+          "excludes": [
+            "/foo/out"
+          ],
+          "includes": [
+            "**/*"
+          ],
+          "depth": null,
+          "result": [
+            "/foo/test.ts",
+            "/foo/tsconfig.json"
+          ]
+        }
+      ]
     },
     {
       "source": {
@@ -1308,7 +1805,32 @@
         "out_dir": null,
         "declaration_dir": null
       },
-      "diagnostics": []
+      "diagnostics": [],
+      "host_log": [
+        {
+          "operation": "read_directory",
+          "directory": "/foo",
+          "extensions": [
+            ".ts",
+            ".tsx",
+            ".d.ts",
+            ".cts",
+            ".d.cts",
+            ".mts",
+            ".d.mts",
+            ".json"
+          ],
+          "excludes": null,
+          "includes": [
+            "**/*"
+          ],
+          "depth": null,
+          "result": [
+            "/foo/a.ts",
+            "/foo/tsconfig.json"
+          ]
+        }
+      ]
     },
     {
       "source": {
@@ -1357,7 +1879,30 @@
         "out_dir": null,
         "declaration_dir": null
       },
-      "diagnostics": []
+      "diagnostics": [],
+      "host_log": [
+        {
+          "operation": "read_directory",
+          "directory": "/foo",
+          "extensions": [
+            ".ts",
+            ".tsx",
+            ".d.ts",
+            ".cts",
+            ".d.cts",
+            ".mts",
+            ".d.mts"
+          ],
+          "excludes": null,
+          "includes": [
+            "**/*"
+          ],
+          "depth": null,
+          "result": [
+            "/foo/a.ts"
+          ]
+        }
+      ]
     },
     {
       "source": {
@@ -1404,7 +1949,32 @@
         "out_dir": null,
         "declaration_dir": null
       },
-      "diagnostics": []
+      "diagnostics": [],
+      "host_log": [
+        {
+          "operation": "read_directory",
+          "directory": "/foo",
+          "extensions": [
+            ".ts",
+            ".tsx",
+            ".d.ts",
+            ".cts",
+            ".d.cts",
+            ".mts",
+            ".d.mts",
+            ".json"
+          ],
+          "excludes": null,
+          "includes": [
+            "**/*"
+          ],
+          "depth": null,
+          "result": [
+            "/foo/a.ts",
+            "/foo/tsconfig.json"
+          ]
+        }
+      ]
     },
     {
       "source": {
@@ -1452,7 +2022,32 @@
         "out_dir": null,
         "declaration_dir": null
       },
-      "diagnostics": []
+      "diagnostics": [],
+      "host_log": [
+        {
+          "operation": "read_directory",
+          "directory": "/foo",
+          "extensions": [
+            ".ts",
+            ".tsx",
+            ".d.ts",
+            ".cts",
+            ".d.cts",
+            ".mts",
+            ".d.mts",
+            ".json"
+          ],
+          "excludes": null,
+          "includes": [
+            "**/*"
+          ],
+          "depth": null,
+          "result": [
+            "/foo/a.ts",
+            "/foo/tsconfig.json"
+          ]
+        }
+      ]
     },
     {
       "source": {
@@ -1500,7 +2095,32 @@
         "out_dir": null,
         "declaration_dir": null
       },
-      "diagnostics": []
+      "diagnostics": [],
+      "host_log": [
+        {
+          "operation": "read_directory",
+          "directory": "/foo",
+          "extensions": [
+            ".ts",
+            ".tsx",
+            ".d.ts",
+            ".cts",
+            ".d.cts",
+            ".mts",
+            ".d.mts",
+            ".json"
+          ],
+          "excludes": null,
+          "includes": [
+            "**/*"
+          ],
+          "depth": null,
+          "result": [
+            "/foo/a.ts",
+            "/foo/tsconfig.json"
+          ]
+        }
+      ]
     },
     {
       "source": {
@@ -1549,7 +2169,30 @@
         "out_dir": null,
         "declaration_dir": null
       },
-      "diagnostics": []
+      "diagnostics": [],
+      "host_log": [
+        {
+          "operation": "read_directory",
+          "directory": "/foo",
+          "extensions": [
+            ".ts",
+            ".tsx",
+            ".d.ts",
+            ".cts",
+            ".d.cts",
+            ".mts",
+            ".d.mts"
+          ],
+          "excludes": null,
+          "includes": [
+            "**/*"
+          ],
+          "depth": null,
+          "result": [
+            "/foo/a.ts"
+          ]
+        }
+      ]
     },
     {
       "source": {
@@ -1608,7 +2251,32 @@
         "out_dir": null,
         "declaration_dir": null
       },
-      "diagnostics": []
+      "diagnostics": [],
+      "host_log": [
+        {
+          "operation": "read_directory",
+          "directory": "/",
+          "extensions": [
+            ".ts",
+            ".tsx",
+            ".d.ts",
+            ".cts",
+            ".d.cts",
+            ".mts",
+            ".d.mts",
+            ".json"
+          ],
+          "excludes": null,
+          "includes": [
+            "**/*"
+          ],
+          "depth": null,
+          "result": [
+            "/app.mts",
+            "/tsconfig.json"
+          ]
+        }
+      ]
     },
     {
       "source": {
@@ -1644,7 +2312,32 @@
         "out_dir": null,
         "declaration_dir": null
       },
-      "diagnostics": []
+      "diagnostics": [],
+      "host_log": [
+        {
+          "operation": "read_directory",
+          "directory": "/",
+          "extensions": [
+            ".ts",
+            ".tsx",
+            ".d.ts",
+            ".cts",
+            ".d.cts",
+            ".mts",
+            ".d.mts",
+            ".json"
+          ],
+          "excludes": null,
+          "includes": [
+            "**/*"
+          ],
+          "depth": null,
+          "result": [
+            "/a.ts",
+            "/tsconfig.json"
+          ]
+        }
+      ]
     },
     {
       "source": {
@@ -1686,7 +2379,32 @@
         "out_dir": null,
         "declaration_dir": null
       },
-      "diagnostics": []
+      "diagnostics": [],
+      "host_log": [
+        {
+          "operation": "read_directory",
+          "directory": "/somepath",
+          "extensions": [
+            ".ts",
+            ".tsx",
+            ".d.ts",
+            ".cts",
+            ".d.cts",
+            ".mts",
+            ".d.mts",
+            ".json"
+          ],
+          "excludes": null,
+          "includes": [
+            "**/*"
+          ],
+          "depth": null,
+          "result": [
+            "/somepath/index.ts",
+            "/somepath/tsconfig.json"
+          ]
+        }
+      ]
     },
     {
       "source": {
@@ -1733,7 +2451,32 @@
         "out_dir": null,
         "declaration_dir": null
       },
-      "diagnostics": []
+      "diagnostics": [],
+      "host_log": [
+        {
+          "operation": "read_directory",
+          "directory": "/somepath",
+          "extensions": [
+            ".ts",
+            ".tsx",
+            ".d.ts",
+            ".cts",
+            ".d.cts",
+            ".mts",
+            ".d.mts",
+            ".json"
+          ],
+          "excludes": null,
+          "includes": [
+            "**/*"
+          ],
+          "depth": null,
+          "result": [
+            "/somepath/index.ts",
+            "/somepath/tsconfig.json"
+          ]
+        }
+      ]
     },
     {
       "source": {
@@ -1794,7 +2537,33 @@
         "out_dir": "/bin",
         "declaration_dir": null
       },
-      "diagnostics": []
+      "diagnostics": [],
+      "host_log": [
+        {
+          "operation": "read_directory",
+          "directory": "/",
+          "extensions": [
+            ".ts",
+            ".tsx",
+            ".d.ts",
+            ".cts",
+            ".d.cts",
+            ".mts",
+            ".d.mts"
+          ],
+          "excludes": [
+            "/bin"
+          ],
+          "includes": [
+            "**/*"
+          ],
+          "depth": null,
+          "result": [
+            "/index.ts",
+            "/typings/index.d.ts"
+          ]
+        }
+      ]
     },
     {
       "source": {
@@ -1880,7 +2649,32 @@
         "out_dir": null,
         "declaration_dir": null
       },
-      "diagnostics": []
+      "diagnostics": [],
+      "host_log": [
+        {
+          "operation": "read_directory",
+          "directory": "/project",
+          "extensions": [
+            ".ts",
+            ".tsx",
+            ".d.ts",
+            ".cts",
+            ".d.cts",
+            ".mts",
+            ".d.mts",
+            ".json"
+          ],
+          "excludes": null,
+          "includes": [
+            "**/*"
+          ],
+          "depth": null,
+          "result": [
+            "/project/tsconfig.json",
+            "/project/src/app.ts"
+          ]
+        }
+      ]
     },
     {
       "source": {
@@ -1954,7 +2748,33 @@
         "out_dir": "/lib",
         "declaration_dir": null
       },
-      "diagnostics": []
+      "diagnostics": [],
+      "host_log": [
+        {
+          "operation": "read_directory",
+          "directory": "/",
+          "extensions": [
+            ".ts",
+            ".tsx",
+            ".d.ts",
+            ".cts",
+            ".d.cts",
+            ".mts",
+            ".d.mts"
+          ],
+          "excludes": [
+            "/lib"
+          ],
+          "includes": [
+            "**/*"
+          ],
+          "depth": null,
+          "result": [
+            "/relative.d.ts",
+            "/test.ts"
+          ]
+        }
+      ]
     },
     {
       "source": {
@@ -2003,7 +2823,31 @@
         "out_dir": null,
         "declaration_dir": null
       },
-      "diagnostics": []
+      "diagnostics": [],
+      "host_log": [
+        {
+          "operation": "read_directory",
+          "directory": "/",
+          "extensions": [
+            ".ts",
+            ".tsx",
+            ".d.ts",
+            ".cts",
+            ".d.cts",
+            ".mts",
+            ".d.mts"
+          ],
+          "excludes": null,
+          "includes": [
+            "**/*"
+          ],
+          "depth": null,
+          "result": [
+            "/foo.ts",
+            "/index.ts"
+          ]
+        }
+      ]
     },
     {
       "source": {
@@ -2051,7 +2895,31 @@
         "out_dir": null,
         "declaration_dir": null
       },
-      "diagnostics": []
+      "diagnostics": [],
+      "host_log": [
+        {
+          "operation": "read_directory",
+          "directory": "/",
+          "extensions": [
+            ".ts",
+            ".tsx",
+            ".d.ts",
+            ".cts",
+            ".d.cts",
+            ".mts",
+            ".d.mts"
+          ],
+          "excludes": null,
+          "includes": [
+            "**/*"
+          ],
+          "depth": null,
+          "result": [
+            "/foo.ts",
+            "/index.ts"
+          ]
+        }
+      ]
     },
     {
       "source": {
@@ -2109,7 +2977,32 @@
         "out_dir": null,
         "declaration_dir": null
       },
-      "diagnostics": []
+      "diagnostics": [],
+      "host_log": [
+        {
+          "operation": "read_directory",
+          "directory": "/",
+          "extensions": [
+            ".ts",
+            ".tsx",
+            ".d.ts",
+            ".cts",
+            ".d.cts",
+            ".mts",
+            ".d.mts"
+          ],
+          "excludes": null,
+          "includes": [
+            "**/*"
+          ],
+          "depth": null,
+          "result": [
+            "/foo.ios.ts",
+            "/foo.ts",
+            "/index.ts"
+          ]
+        }
+      ]
     },
     {
       "source": {
@@ -2160,7 +3053,31 @@
         "out_dir": null,
         "declaration_dir": null
       },
-      "diagnostics": []
+      "diagnostics": [],
+      "host_log": [
+        {
+          "operation": "read_directory",
+          "directory": "/",
+          "extensions": [
+            ".ts",
+            ".tsx",
+            ".d.ts",
+            ".cts",
+            ".d.cts",
+            ".mts",
+            ".d.mts"
+          ],
+          "excludes": null,
+          "includes": [
+            "**/*"
+          ],
+          "depth": null,
+          "result": [
+            "/foo.ts",
+            "/index.ts"
+          ]
+        }
+      ]
     },
     {
       "source": {
@@ -2211,7 +3128,31 @@
         "out_dir": null,
         "declaration_dir": null
       },
-      "diagnostics": []
+      "diagnostics": [],
+      "host_log": [
+        {
+          "operation": "read_directory",
+          "directory": "/",
+          "extensions": [
+            ".ts",
+            ".tsx",
+            ".d.ts",
+            ".cts",
+            ".d.cts",
+            ".mts",
+            ".d.mts"
+          ],
+          "excludes": null,
+          "includes": [
+            "**/*"
+          ],
+          "depth": null,
+          "result": [
+            "/foo.ts",
+            "/index.ts"
+          ]
+        }
+      ]
     },
     {
       "source": {
@@ -2269,7 +3210,32 @@
         "out_dir": null,
         "declaration_dir": null
       },
-      "diagnostics": []
+      "diagnostics": [],
+      "host_log": [
+        {
+          "operation": "read_directory",
+          "directory": "/",
+          "extensions": [
+            ".ts",
+            ".tsx",
+            ".d.ts",
+            ".cts",
+            ".d.cts",
+            ".mts",
+            ".d.mts"
+          ],
+          "excludes": null,
+          "includes": [
+            "**/*"
+          ],
+          "depth": null,
+          "result": [
+            "/index.ts",
+            "/foo/index.ios.ts",
+            "/foo/index.ts"
+          ]
+        }
+      ]
     },
     {
       "source": {
@@ -2337,7 +3303,36 @@
         "out_dir": "/bin",
         "declaration_dir": null
       },
-      "diagnostics": []
+      "diagnostics": [],
+      "host_log": [
+        {
+          "operation": "read_directory",
+          "directory": "/",
+          "extensions": [
+            ".ts",
+            ".tsx",
+            ".d.ts",
+            ".js",
+            ".jsx",
+            ".cts",
+            ".d.cts",
+            ".cjs",
+            ".mts",
+            ".d.mts",
+            ".mjs"
+          ],
+          "excludes": [
+            "/bin"
+          ],
+          "includes": [
+            "**/*"
+          ],
+          "depth": null,
+          "result": [
+            "/index.ts"
+          ]
+        }
+      ]
     },
     {
       "source": {
@@ -2405,7 +3400,36 @@
         "out_dir": "/bin",
         "declaration_dir": null
       },
-      "diagnostics": []
+      "diagnostics": [],
+      "host_log": [
+        {
+          "operation": "read_directory",
+          "directory": "/",
+          "extensions": [
+            ".ts",
+            ".tsx",
+            ".d.ts",
+            ".js",
+            ".jsx",
+            ".cts",
+            ".d.cts",
+            ".cjs",
+            ".mts",
+            ".d.mts",
+            ".mjs"
+          ],
+          "excludes": [
+            "/bin"
+          ],
+          "includes": [
+            "**/*"
+          ],
+          "depth": null,
+          "result": [
+            "/index.ts"
+          ]
+        }
+      ]
     },
     {
       "source": {
@@ -2482,7 +3506,36 @@
         "out_dir": "/bin",
         "declaration_dir": null
       },
-      "diagnostics": []
+      "diagnostics": [],
+      "host_log": [
+        {
+          "operation": "read_directory",
+          "directory": "/",
+          "extensions": [
+            ".ts",
+            ".tsx",
+            ".d.ts",
+            ".js",
+            ".jsx",
+            ".cts",
+            ".d.cts",
+            ".cjs",
+            ".mts",
+            ".d.mts",
+            ".mjs"
+          ],
+          "excludes": [
+            "/bin"
+          ],
+          "includes": [
+            "**/*"
+          ],
+          "depth": null,
+          "result": [
+            "/test.ts"
+          ]
+        }
+      ]
     },
     {
       "source": {
@@ -2538,7 +3591,32 @@
         "out_dir": "/bin",
         "declaration_dir": null
       },
-      "diagnostics": []
+      "diagnostics": [],
+      "host_log": [
+        {
+          "operation": "read_directory",
+          "directory": "/",
+          "extensions": [
+            ".ts",
+            ".tsx",
+            ".d.ts",
+            ".cts",
+            ".d.cts",
+            ".mts",
+            ".d.mts"
+          ],
+          "excludes": [
+            "/bin"
+          ],
+          "includes": [
+            "**/*"
+          ],
+          "depth": null,
+          "result": [
+            "/test.ts"
+          ]
+        }
+      ]
     },
     {
       "source": {
@@ -2599,7 +3677,38 @@
         "out_dir": "/bin",
         "declaration_dir": null
       },
-      "diagnostics": []
+      "diagnostics": [],
+      "host_log": [
+        {
+          "operation": "read_directory",
+          "directory": "/",
+          "extensions": [
+            ".ts",
+            ".tsx",
+            ".d.ts",
+            ".js",
+            ".jsx",
+            ".cts",
+            ".d.cts",
+            ".cjs",
+            ".mts",
+            ".d.mts",
+            ".mjs"
+          ],
+          "excludes": [
+            "/bin"
+          ],
+          "includes": [
+            "**/*"
+          ],
+          "depth": null,
+          "result": [
+            "/foo.ios.js",
+            "/foo.js",
+            "/index.ts"
+          ]
+        }
+      ]
     },
     {
       "source": {
@@ -2657,7 +3766,36 @@
         "out_dir": "/bin",
         "declaration_dir": null
       },
-      "diagnostics": []
+      "diagnostics": [],
+      "host_log": [
+        {
+          "operation": "read_directory",
+          "directory": "/",
+          "extensions": [
+            ".ts",
+            ".tsx",
+            ".d.ts",
+            ".cts",
+            ".d.cts",
+            ".mts",
+            ".d.mts",
+            ".json"
+          ],
+          "excludes": [
+            "/bin"
+          ],
+          "includes": [
+            "**/*"
+          ],
+          "depth": null,
+          "result": [
+            "/foo.ios.json",
+            "/foo.json",
+            "/index.ts",
+            "/tsconfig.json"
+          ]
+        }
+      ]
     },
     {
       "source": {
@@ -2724,7 +3862,33 @@
         "out_dir": null,
         "declaration_dir": null
       },
-      "diagnostics": []
+      "diagnostics": [],
+      "host_log": [
+        {
+          "operation": "read_directory",
+          "directory": "/",
+          "extensions": [
+            ".ts",
+            ".tsx",
+            ".d.ts",
+            ".cts",
+            ".d.cts",
+            ".mts",
+            ".d.mts"
+          ],
+          "excludes": null,
+          "includes": [
+            "**/*"
+          ],
+          "depth": null,
+          "result": [
+            "/foo-ios.ts",
+            "/foo.ts",
+            "/foo__native.ts",
+            "/index.ts"
+          ]
+        }
+      ]
     },
     {
       "source": {
@@ -2784,7 +3948,32 @@
         "out_dir": null,
         "declaration_dir": null
       },
-      "diagnostics": []
+      "diagnostics": [],
+      "host_log": [
+        {
+          "operation": "read_directory",
+          "directory": "/",
+          "extensions": [
+            ".ts",
+            ".tsx",
+            ".d.ts",
+            ".cts",
+            ".d.cts",
+            ".mts",
+            ".d.mts"
+          ],
+          "excludes": null,
+          "includes": [
+            "**/*"
+          ],
+          "depth": null,
+          "result": [
+            "/foo.ts",
+            "/foo__native.ts",
+            "/index.ts"
+          ]
+        }
+      ]
     },
     {
       "source": {
@@ -2837,7 +4026,31 @@
         "out_dir": null,
         "declaration_dir": null
       },
-      "diagnostics": []
+      "diagnostics": [],
+      "host_log": [
+        {
+          "operation": "read_directory",
+          "directory": "/",
+          "extensions": [
+            ".ts",
+            ".tsx",
+            ".d.ts",
+            ".cts",
+            ".d.cts",
+            ".mts",
+            ".d.mts"
+          ],
+          "excludes": null,
+          "includes": [
+            "**/*"
+          ],
+          "depth": null,
+          "result": [
+            "/foo.ts",
+            "/index.ts"
+          ]
+        }
+      ]
     },
     {
       "source": {
@@ -2883,7 +4096,30 @@
         "out_dir": null,
         "declaration_dir": null
       },
-      "diagnostics": []
+      "diagnostics": [],
+      "host_log": [
+        {
+          "operation": "read_directory",
+          "directory": "/",
+          "extensions": [
+            ".ts",
+            ".tsx",
+            ".d.ts",
+            ".cts",
+            ".d.cts",
+            ".mts",
+            ".d.mts"
+          ],
+          "excludes": null,
+          "includes": [
+            "**/*"
+          ],
+          "depth": null,
+          "result": [
+            "/index.ts"
+          ]
+        }
+      ]
     },
     {
       "source": {
@@ -2929,7 +4165,34 @@
         "out_dir": "/src/bin",
         "declaration_dir": null
       },
-      "diagnostics": []
+      "diagnostics": [],
+      "host_log": [
+        {
+          "operation": "read_directory",
+          "directory": "/src",
+          "extensions": [
+            ".ts",
+            ".tsx",
+            ".d.ts",
+            ".cts",
+            ".d.cts",
+            ".mts",
+            ".d.mts",
+            ".json"
+          ],
+          "excludes": [
+            "/src/bin"
+          ],
+          "includes": [
+            "**/*"
+          ],
+          "depth": null,
+          "result": [
+            "/src/app.ts",
+            "/src/tsconfig.json"
+          ]
+        }
+      ]
     },
     {
       "source": {
@@ -2980,7 +4243,32 @@
         "out_dir": null,
         "declaration_dir": null
       },
-      "diagnostics": []
+      "diagnostics": [],
+      "host_log": [
+        {
+          "operation": "read_directory",
+          "directory": "/",
+          "extensions": [
+            ".ts",
+            ".tsx",
+            ".d.ts",
+            ".cts",
+            ".d.cts",
+            ".mts",
+            ".d.mts",
+            ".json"
+          ],
+          "excludes": null,
+          "includes": [
+            "**/*"
+          ],
+          "depth": null,
+          "result": [
+            "/app.ts",
+            "/tsconfig.json"
+          ]
+        }
+      ]
     },
     {
       "source": {
@@ -3021,7 +4309,32 @@
         "out_dir": null,
         "declaration_dir": null
       },
-      "diagnostics": []
+      "diagnostics": [],
+      "host_log": [
+        {
+          "operation": "read_directory",
+          "directory": "/",
+          "extensions": [
+            ".ts",
+            ".tsx",
+            ".d.ts",
+            ".cts",
+            ".d.cts",
+            ".mts",
+            ".d.mts",
+            ".json"
+          ],
+          "excludes": null,
+          "includes": [
+            "**/*"
+          ],
+          "depth": null,
+          "result": [
+            "/a.ts",
+            "/tsconfig.json"
+          ]
+        }
+      ]
     },
     {
       "source": {
@@ -3062,7 +4375,32 @@
         "out_dir": null,
         "declaration_dir": null
       },
-      "diagnostics": []
+      "diagnostics": [],
+      "host_log": [
+        {
+          "operation": "read_directory",
+          "directory": "/",
+          "extensions": [
+            ".ts",
+            ".tsx",
+            ".d.ts",
+            ".cts",
+            ".d.cts",
+            ".mts",
+            ".d.mts",
+            ".json"
+          ],
+          "excludes": null,
+          "includes": [
+            "**/*"
+          ],
+          "depth": null,
+          "result": [
+            "/a.ts",
+            "/tsconfig.json"
+          ]
+        }
+      ]
     },
     {
       "source": {
@@ -3103,7 +4441,32 @@
         "out_dir": null,
         "declaration_dir": null
       },
-      "diagnostics": []
+      "diagnostics": [],
+      "host_log": [
+        {
+          "operation": "read_directory",
+          "directory": "/",
+          "extensions": [
+            ".ts",
+            ".tsx",
+            ".d.ts",
+            ".cts",
+            ".d.cts",
+            ".mts",
+            ".d.mts",
+            ".json"
+          ],
+          "excludes": null,
+          "includes": [
+            "**/*"
+          ],
+          "depth": null,
+          "result": [
+            "/a.ts",
+            "/tsconfig.json"
+          ]
+        }
+      ]
     },
     {
       "source": {
@@ -3144,7 +4507,32 @@
         "out_dir": null,
         "declaration_dir": null
       },
-      "diagnostics": []
+      "diagnostics": [],
+      "host_log": [
+        {
+          "operation": "read_directory",
+          "directory": "/",
+          "extensions": [
+            ".ts",
+            ".tsx",
+            ".d.ts",
+            ".cts",
+            ".d.cts",
+            ".mts",
+            ".d.mts",
+            ".json"
+          ],
+          "excludes": null,
+          "includes": [
+            "**/*"
+          ],
+          "depth": null,
+          "result": [
+            "/a.ts",
+            "/tsconfig.json"
+          ]
+        }
+      ]
     },
     {
       "source": {
@@ -3194,7 +4582,32 @@
         "out_dir": null,
         "declaration_dir": null
       },
-      "diagnostics": []
+      "diagnostics": [],
+      "host_log": [
+        {
+          "operation": "read_directory",
+          "directory": "/a/b",
+          "extensions": [
+            ".ts",
+            ".tsx",
+            ".d.ts",
+            ".cts",
+            ".d.cts",
+            ".mts",
+            ".d.mts",
+            ".json"
+          ],
+          "excludes": null,
+          "includes": [
+            "**/*"
+          ],
+          "depth": null,
+          "result": [
+            "/a/b/main.ts",
+            "/a/b/tsconfig.json"
+          ]
+        }
+      ]
     },
     {
       "source": {
@@ -3243,7 +4656,36 @@
         "out_dir": "/.src/dist",
         "declaration_dir": "/.src/types"
       },
-      "diagnostics": []
+      "diagnostics": [],
+      "host_log": [
+        {
+          "operation": "read_directory",
+          "directory": "/.src",
+          "extensions": [
+            ".ts",
+            ".tsx",
+            ".d.ts",
+            ".cts",
+            ".d.cts",
+            ".mts",
+            ".d.mts",
+            ".json"
+          ],
+          "excludes": [
+            "/.src/dist",
+            "/.src/types"
+          ],
+          "includes": [
+            "**/*"
+          ],
+          "depth": null,
+          "result": [
+            "/.src/index.ts",
+            "/.src/package.json",
+            "/.src/tsconfig.json"
+          ]
+        }
+      ]
     },
     {
       "source": {
@@ -3299,7 +4741,37 @@
         "out_dir": "/.src/dist",
         "declaration_dir": "/.src/types"
       },
-      "diagnostics": []
+      "diagnostics": [],
+      "host_log": [
+        {
+          "operation": "read_directory",
+          "directory": "/.src",
+          "extensions": [
+            ".ts",
+            ".tsx",
+            ".d.ts",
+            ".cts",
+            ".d.cts",
+            ".mts",
+            ".d.mts",
+            ".json"
+          ],
+          "excludes": [
+            "/.src/dist",
+            "/.src/types"
+          ],
+          "includes": [
+            "**/*"
+          ],
+          "depth": null,
+          "result": [
+            "/.src/index.ts",
+            "/.src/package.json",
+            "/.src/tsconfig.json",
+            "/.src/src/thing.ts"
+          ]
+        }
+      ]
     },
     {
       "source": {
@@ -3355,7 +4827,37 @@
         "out_dir": "/.src/dist",
         "declaration_dir": "/.src/types"
       },
-      "diagnostics": []
+      "diagnostics": [],
+      "host_log": [
+        {
+          "operation": "read_directory",
+          "directory": "/.src",
+          "extensions": [
+            ".ts",
+            ".tsx",
+            ".d.ts",
+            ".cts",
+            ".d.cts",
+            ".mts",
+            ".d.mts",
+            ".json"
+          ],
+          "excludes": [
+            "/.src/dist",
+            "/.src/types"
+          ],
+          "includes": [
+            "**/*"
+          ],
+          "depth": null,
+          "result": [
+            "/.src/index.ts",
+            "/.src/package.json",
+            "/.src/tsconfig.json",
+            "/.src/src/thing.ts"
+          ]
+        }
+      ]
     },
     {
       "source": {
@@ -3404,7 +4906,33 @@
         "out_dir": null,
         "declaration_dir": null
       },
-      "diagnostics": []
+      "diagnostics": [],
+      "host_log": [
+        {
+          "operation": "read_directory",
+          "directory": "/foo",
+          "extensions": [
+            ".ts",
+            ".tsx",
+            ".d.ts",
+            ".cts",
+            ".d.cts",
+            ".mts",
+            ".d.mts",
+            ".json"
+          ],
+          "excludes": null,
+          "includes": [
+            "**/*"
+          ],
+          "depth": null,
+          "result": [
+            "/foo/a.ts",
+            "/foo/b.ts",
+            "/foo/tsconfig.json"
+          ]
+        }
+      ]
     },
     {
       "source": {
@@ -3449,7 +4977,32 @@
         "out_dir": null,
         "declaration_dir": null
       },
-      "diagnostics": []
+      "diagnostics": [],
+      "host_log": [
+        {
+          "operation": "read_directory",
+          "directory": "c:/root",
+          "extensions": [
+            ".ts",
+            ".tsx",
+            ".d.ts",
+            ".cts",
+            ".d.cts",
+            ".mts",
+            ".d.mts",
+            ".json"
+          ],
+          "excludes": null,
+          "includes": [
+            "**/*"
+          ],
+          "depth": null,
+          "result": [
+            "c:/root/f1.ts",
+            "c:/root/tsconfig.json"
+          ]
+        }
+      ]
     },
     {
       "source": {
@@ -3494,7 +5047,32 @@
         "out_dir": null,
         "declaration_dir": null
       },
-      "diagnostics": []
+      "diagnostics": [],
+      "host_log": [
+        {
+          "operation": "read_directory",
+          "directory": "c:/root",
+          "extensions": [
+            ".ts",
+            ".tsx",
+            ".d.ts",
+            ".cts",
+            ".d.cts",
+            ".mts",
+            ".d.mts",
+            ".json"
+          ],
+          "excludes": null,
+          "includes": [
+            "**/*"
+          ],
+          "depth": null,
+          "result": [
+            "c:/root/f1.ts",
+            "c:/root/tsconfig.json"
+          ]
+        }
+      ]
     },
     {
       "source": {
@@ -3539,7 +5117,32 @@
         "out_dir": null,
         "declaration_dir": null
       },
-      "diagnostics": []
+      "diagnostics": [],
+      "host_log": [
+        {
+          "operation": "read_directory",
+          "directory": "/.src/root",
+          "extensions": [
+            ".ts",
+            ".tsx",
+            ".d.ts",
+            ".cts",
+            ".d.cts",
+            ".mts",
+            ".d.mts",
+            ".json"
+          ],
+          "excludes": null,
+          "includes": [
+            "**/*"
+          ],
+          "depth": null,
+          "result": [
+            "/.src/root/tsconfig.json",
+            "/.src/root/src/folder1/file1.ts"
+          ]
+        }
+      ]
     },
     {
       "source": {
@@ -3584,7 +5187,32 @@
         "out_dir": null,
         "declaration_dir": null
       },
-      "diagnostics": []
+      "diagnostics": [],
+      "host_log": [
+        {
+          "operation": "read_directory",
+          "directory": "/.src/root",
+          "extensions": [
+            ".ts",
+            ".tsx",
+            ".d.ts",
+            ".cts",
+            ".d.cts",
+            ".mts",
+            ".d.mts",
+            ".json"
+          ],
+          "excludes": null,
+          "includes": [
+            "**/*"
+          ],
+          "depth": null,
+          "result": [
+            "/.src/root/tsconfig.json",
+            "/.src/root/src/folder1/file1.ts"
+          ]
+        }
+      ]
     },
     {
       "source": {
@@ -3644,7 +5272,34 @@
         "out_dir": null,
         "declaration_dir": null
       },
-      "diagnostics": []
+      "diagnostics": [],
+      "host_log": [
+        {
+          "operation": "read_directory",
+          "directory": "c:/root",
+          "extensions": [
+            ".ts",
+            ".tsx",
+            ".d.ts",
+            ".cts",
+            ".d.cts",
+            ".mts",
+            ".d.mts",
+            ".json"
+          ],
+          "excludes": null,
+          "includes": [
+            "**/*"
+          ],
+          "depth": null,
+          "result": [
+            "c:/root/tsconfig.json",
+            "c:/root/folder1/file1.ts",
+            "c:/root/folder2/file2.ts",
+            "c:/root/folder2/file3.ts"
+          ]
+        }
+      ]
     },
     {
       "source": {
@@ -3704,7 +5359,34 @@
         "out_dir": null,
         "declaration_dir": null
       },
-      "diagnostics": []
+      "diagnostics": [],
+      "host_log": [
+        {
+          "operation": "read_directory",
+          "directory": "c:/root",
+          "extensions": [
+            ".ts",
+            ".tsx",
+            ".d.ts",
+            ".cts",
+            ".d.cts",
+            ".mts",
+            ".d.mts",
+            ".json"
+          ],
+          "excludes": null,
+          "includes": [
+            "**/*"
+          ],
+          "depth": null,
+          "result": [
+            "c:/root/tsconfig.json",
+            "c:/root/folder1/file1.ts",
+            "c:/root/folder2/file2.ts",
+            "c:/root/folder2/file3.ts"
+          ]
+        }
+      ]
     },
     {
       "source": {
@@ -3780,7 +5462,35 @@
         "out_dir": null,
         "declaration_dir": null
       },
-      "diagnostics": []
+      "diagnostics": [],
+      "host_log": [
+        {
+          "operation": "read_directory",
+          "directory": "c:/root",
+          "extensions": [
+            ".ts",
+            ".tsx",
+            ".d.ts",
+            ".cts",
+            ".d.cts",
+            ".mts",
+            ".d.mts",
+            ".json"
+          ],
+          "excludes": null,
+          "includes": [
+            "**/*"
+          ],
+          "depth": null,
+          "result": [
+            "c:/root/tsconfig.json",
+            "c:/root/folder1/file1.ts",
+            "c:/root/folder2/file1.ts",
+            "c:/root/generated/folder3/file2.ts",
+            "c:/root/shared/components/file3.ts"
+          ]
+        }
+      ]
     },
     {
       "source": {
@@ -3856,7 +5566,35 @@
         "out_dir": null,
         "declaration_dir": null
       },
-      "diagnostics": []
+      "diagnostics": [],
+      "host_log": [
+        {
+          "operation": "read_directory",
+          "directory": "c:/root",
+          "extensions": [
+            ".ts",
+            ".tsx",
+            ".d.ts",
+            ".cts",
+            ".d.cts",
+            ".mts",
+            ".d.mts",
+            ".json"
+          ],
+          "excludes": null,
+          "includes": [
+            "**/*"
+          ],
+          "depth": null,
+          "result": [
+            "c:/root/tsconfig.json",
+            "c:/root/folder1/file1.ts",
+            "c:/root/folder2/file1.ts",
+            "c:/root/generated/folder3/file2.ts",
+            "c:/root/shared/components/file3/index.d.ts"
+          ]
+        }
+      ]
     },
     {
       "source": {
@@ -3912,7 +5650,33 @@
         "out_dir": null,
         "declaration_dir": null
       },
-      "diagnostics": []
+      "diagnostics": [],
+      "host_log": [
+        {
+          "operation": "read_directory",
+          "directory": "c:/root/src",
+          "extensions": [
+            ".ts",
+            ".tsx",
+            ".d.ts",
+            ".cts",
+            ".d.cts",
+            ".mts",
+            ".d.mts",
+            ".json"
+          ],
+          "excludes": null,
+          "includes": [
+            "**/*"
+          ],
+          "depth": null,
+          "result": [
+            "c:/root/src/file1.ts",
+            "c:/root/src/file2.d.ts",
+            "c:/root/src/tsconfig.json"
+          ]
+        }
+      ]
     },
     {
       "source": {
@@ -3968,7 +5732,33 @@
         "out_dir": null,
         "declaration_dir": null
       },
-      "diagnostics": []
+      "diagnostics": [],
+      "host_log": [
+        {
+          "operation": "read_directory",
+          "directory": "c:/root/src",
+          "extensions": [
+            ".ts",
+            ".tsx",
+            ".d.ts",
+            ".cts",
+            ".d.cts",
+            ".mts",
+            ".d.mts",
+            ".json"
+          ],
+          "excludes": null,
+          "includes": [
+            "**/*"
+          ],
+          "depth": null,
+          "result": [
+            "c:/root/src/file1.ts",
+            "c:/root/src/tsconfig.json",
+            "c:/root/src/file2/index.d.ts"
+          ]
+        }
+      ]
     },
     {
       "source": {
@@ -4049,7 +5839,33 @@
         "out_dir": null,
         "declaration_dir": null
       },
-      "diagnostics": []
+      "diagnostics": [],
+      "host_log": [
+        {
+          "operation": "read_directory",
+          "directory": "c:/root/src",
+          "extensions": [
+            ".ts",
+            ".tsx",
+            ".d.ts",
+            ".cts",
+            ".d.cts",
+            ".mts",
+            ".d.mts",
+            ".json"
+          ],
+          "excludes": null,
+          "includes": [
+            "**/*"
+          ],
+          "depth": null,
+          "result": [
+            "c:/root/src/file1.ts",
+            "c:/root/src/file3.d.ts",
+            "c:/root/src/tsconfig.json"
+          ]
+        }
+      ]
     },
     {
       "source": {
@@ -4130,7 +5946,33 @@
         "out_dir": null,
         "declaration_dir": null
       },
-      "diagnostics": []
+      "diagnostics": [],
+      "host_log": [
+        {
+          "operation": "read_directory",
+          "directory": "c:/root/src",
+          "extensions": [
+            ".ts",
+            ".tsx",
+            ".d.ts",
+            ".cts",
+            ".d.cts",
+            ".mts",
+            ".d.mts",
+            ".json"
+          ],
+          "excludes": null,
+          "includes": [
+            "**/*"
+          ],
+          "depth": null,
+          "result": [
+            "c:/root/src/file1.ts",
+            "c:/root/src/tsconfig.json",
+            "c:/root/src/file3/index.d.ts"
+          ]
+        }
+      ]
     },
     {
       "source": {
@@ -4182,7 +6024,33 @@
         "out_dir": null,
         "declaration_dir": null
       },
-      "diagnostics": []
+      "diagnostics": [],
+      "host_log": [
+        {
+          "operation": "read_directory",
+          "directory": "c:/root",
+          "extensions": [
+            ".ts",
+            ".tsx",
+            ".d.ts",
+            ".cts",
+            ".d.cts",
+            ".mts",
+            ".d.mts",
+            ".json"
+          ],
+          "excludes": null,
+          "includes": [
+            "**/*"
+          ],
+          "depth": null,
+          "result": [
+            "c:/root/index.ts",
+            "c:/root/tsconfig.json",
+            "c:/root/folder1/dist/index.ts"
+          ]
+        }
+      ]
     },
     {
       "source": {
@@ -4234,7 +6102,33 @@
         "out_dir": null,
         "declaration_dir": null
       },
-      "diagnostics": []
+      "diagnostics": [],
+      "host_log": [
+        {
+          "operation": "read_directory",
+          "directory": "c:/root",
+          "extensions": [
+            ".ts",
+            ".tsx",
+            ".d.ts",
+            ".cts",
+            ".d.cts",
+            ".mts",
+            ".d.mts",
+            ".json"
+          ],
+          "excludes": null,
+          "includes": [
+            "**/*"
+          ],
+          "depth": null,
+          "result": [
+            "c:/root/index.ts",
+            "c:/root/tsconfig.json",
+            "c:/root/folder1/dist/index.ts"
+          ]
+        }
+      ]
     },
     {
       "source": {
@@ -4295,7 +6189,40 @@
         "out_dir": "/root/bin",
         "declaration_dir": null
       },
-      "diagnostics": []
+      "diagnostics": [],
+      "host_log": [
+        {
+          "operation": "read_directory",
+          "directory": "/root",
+          "extensions": [
+            ".ts",
+            ".tsx",
+            ".d.ts",
+            ".js",
+            ".jsx",
+            ".cts",
+            ".d.cts",
+            ".cjs",
+            ".mts",
+            ".d.mts",
+            ".mjs",
+            ".json"
+          ],
+          "excludes": [
+            "/root/bin"
+          ],
+          "includes": [
+            "**/*"
+          ],
+          "depth": null,
+          "result": [
+            "/root/a.ts",
+            "/root/tsconfig.json",
+            "/root/src/bar.js",
+            "/root/src/foo.ts"
+          ]
+        }
+      ]
     },
     {
       "source": {
@@ -4380,7 +6307,40 @@
         "out_dir": "/root/bin",
         "declaration_dir": null
       },
-      "diagnostics": []
+      "diagnostics": [],
+      "host_log": [
+        {
+          "operation": "read_directory",
+          "directory": "/root",
+          "extensions": [
+            ".ts",
+            ".tsx",
+            ".d.ts",
+            ".js",
+            ".jsx",
+            ".cts",
+            ".d.cts",
+            ".cjs",
+            ".mts",
+            ".d.mts",
+            ".mjs",
+            ".json"
+          ],
+          "excludes": [
+            "/root/bin"
+          ],
+          "includes": [
+            "**/*"
+          ],
+          "depth": null,
+          "result": [
+            "/root/a.ts",
+            "/root/tsconfig.json",
+            "/root/src/bar.js",
+            "/root/src/foo.ts"
+          ]
+        }
+      ]
     },
     {
       "source": {
@@ -4444,7 +6404,40 @@
         "out_dir": "/root/bin",
         "declaration_dir": null
       },
-      "diagnostics": []
+      "diagnostics": [],
+      "host_log": [
+        {
+          "operation": "read_directory",
+          "directory": "/root",
+          "extensions": [
+            ".ts",
+            ".tsx",
+            ".d.ts",
+            ".js",
+            ".jsx",
+            ".cts",
+            ".d.cts",
+            ".cjs",
+            ".mts",
+            ".d.mts",
+            ".mjs",
+            ".json"
+          ],
+          "excludes": [
+            "/root/bin"
+          ],
+          "includes": [
+            "**/*"
+          ],
+          "depth": null,
+          "result": [
+            "/root/tsconfig.json",
+            "/root/client/bar.js",
+            "/root/import/foo.ts",
+            "/root/src/a.ts"
+          ]
+        }
+      ]
     },
     {
       "source": {
@@ -4502,7 +6495,38 @@
         "out_dir": "/root/bin",
         "declaration_dir": null
       },
-      "diagnostics": []
+      "diagnostics": [],
+      "host_log": [
+        {
+          "operation": "read_directory",
+          "directory": "/root",
+          "extensions": [
+            ".ts",
+            ".tsx",
+            ".d.ts",
+            ".js",
+            ".jsx",
+            ".cts",
+            ".d.cts",
+            ".cjs",
+            ".mts",
+            ".d.mts",
+            ".mjs",
+            ".json"
+          ],
+          "excludes": [
+            "/root/bin"
+          ],
+          "includes": [
+            "**/*"
+          ],
+          "depth": null,
+          "result": [
+            "/root/a.ts",
+            "/root/tsconfig.json"
+          ]
+        }
+      ]
     },
     {
       "source": {
@@ -4563,7 +6587,40 @@
         "out_dir": "/root/bin",
         "declaration_dir": null
       },
-      "diagnostics": []
+      "diagnostics": [],
+      "host_log": [
+        {
+          "operation": "read_directory",
+          "directory": "/root",
+          "extensions": [
+            ".ts",
+            ".tsx",
+            ".d.ts",
+            ".js",
+            ".jsx",
+            ".cts",
+            ".d.cts",
+            ".cjs",
+            ".mts",
+            ".d.mts",
+            ".mjs",
+            ".json"
+          ],
+          "excludes": [
+            "/root/bin"
+          ],
+          "includes": [
+            "**/*"
+          ],
+          "depth": null,
+          "result": [
+            "/root/a.ts",
+            "/root/tsconfig.json",
+            "/root/src/bar.js",
+            "/root/src/foo.ts"
+          ]
+        }
+      ]
     },
     {
       "source": {
@@ -4621,7 +6678,38 @@
         "out_dir": "/root/bin",
         "declaration_dir": null
       },
-      "diagnostics": []
+      "diagnostics": [],
+      "host_log": [
+        {
+          "operation": "read_directory",
+          "directory": "/root",
+          "extensions": [
+            ".ts",
+            ".tsx",
+            ".d.ts",
+            ".js",
+            ".jsx",
+            ".cts",
+            ".d.cts",
+            ".cjs",
+            ".mts",
+            ".d.mts",
+            ".mjs",
+            ".json"
+          ],
+          "excludes": [
+            "/root/bin"
+          ],
+          "includes": [
+            "**/*"
+          ],
+          "depth": null,
+          "result": [
+            "/root/a.ts",
+            "/root/tsconfig.json"
+          ]
+        }
+      ]
     },
     {
       "source": {
@@ -4685,7 +6773,40 @@
         "out_dir": "/bin",
         "declaration_dir": null
       },
-      "diagnostics": []
+      "diagnostics": [],
+      "host_log": [
+        {
+          "operation": "read_directory",
+          "directory": "/",
+          "extensions": [
+            ".ts",
+            ".tsx",
+            ".d.ts",
+            ".js",
+            ".jsx",
+            ".cts",
+            ".d.cts",
+            ".cjs",
+            ".mts",
+            ".d.mts",
+            ".mjs",
+            ".json"
+          ],
+          "excludes": [
+            "/bin"
+          ],
+          "includes": [
+            "**/*"
+          ],
+          "depth": null,
+          "result": [
+            "/a.ts",
+            "/tsconfig.json",
+            "/bar/bar.js",
+            "/foo/foo.ts"
+          ]
+        }
+      ]
     },
     {
       "source": {
@@ -4744,7 +6865,34 @@
         "out_dir": null,
         "declaration_dir": null
       },
-      "diagnostics": []
+      "diagnostics": [],
+      "host_log": [
+        {
+          "operation": "read_directory",
+          "directory": "/",
+          "extensions": [
+            ".ts",
+            ".tsx",
+            ".d.ts",
+            ".cts",
+            ".d.cts",
+            ".mts",
+            ".d.mts",
+            ".json"
+          ],
+          "excludes": null,
+          "includes": [
+            "**/*"
+          ],
+          "depth": null,
+          "result": [
+            "/a.ts",
+            "/tsconfig.json",
+            "/foo/zone.js/index.d.ts",
+            "/foo/zone.tsx/index.d.ts"
+          ]
+        }
+      ]
     },
     {
       "source": {
@@ -4798,7 +6946,38 @@
         "out_dir": "/bin",
         "declaration_dir": null
       },
-      "diagnostics": []
+      "diagnostics": [],
+      "host_log": [
+        {
+          "operation": "read_directory",
+          "directory": "/",
+          "extensions": [
+            ".ts",
+            ".tsx",
+            ".d.ts",
+            ".js",
+            ".jsx",
+            ".cts",
+            ".d.cts",
+            ".cjs",
+            ".mts",
+            ".d.mts",
+            ".mjs",
+            ".json"
+          ],
+          "excludes": [
+            "/bin"
+          ],
+          "includes": [
+            "**/*"
+          ],
+          "depth": null,
+          "result": [
+            "/a.ts",
+            "/tsconfig.json"
+          ]
+        }
+      ]
     },
     {
       "source": {
@@ -4843,7 +7022,32 @@
         "out_dir": null,
         "declaration_dir": null
       },
-      "diagnostics": []
+      "diagnostics": [],
+      "host_log": [
+        {
+          "operation": "read_directory",
+          "directory": "/",
+          "extensions": [
+            ".ts",
+            ".tsx",
+            ".d.ts",
+            ".cts",
+            ".d.cts",
+            ".mts",
+            ".d.mts",
+            ".json"
+          ],
+          "excludes": null,
+          "includes": [
+            "**/*"
+          ],
+          "depth": null,
+          "result": [
+            "/a.ts",
+            "/tsconfig.json"
+          ]
+        }
+      ]
     },
     {
       "source": {
@@ -4910,7 +7114,42 @@
         "out_dir": null,
         "declaration_dir": null
       },
-      "diagnostics": []
+      "diagnostics": [],
+      "host_log": [
+        {
+          "operation": "file_exists",
+          "path": "/other/tsconfig.base.json",
+          "result": true
+        },
+        {
+          "operation": "read_file",
+          "path": "/other/tsconfig.base.json",
+          "result": "text"
+        },
+        {
+          "operation": "read_directory",
+          "directory": "/project",
+          "extensions": [
+            ".ts",
+            ".tsx",
+            ".d.ts",
+            ".cts",
+            ".d.cts",
+            ".mts",
+            ".d.mts",
+            ".json"
+          ],
+          "excludes": null,
+          "includes": [
+            "**/*"
+          ],
+          "depth": null,
+          "result": [
+            "/project/index.ts",
+            "/project/tsconfig.json"
+          ]
+        }
+      ]
     },
     {
       "source": {
@@ -4962,7 +7201,33 @@
         "out_dir": null,
         "declaration_dir": null
       },
-      "diagnostics": []
+      "diagnostics": [],
+      "host_log": [
+        {
+          "operation": "read_directory",
+          "directory": "/project",
+          "extensions": [
+            ".ts",
+            ".tsx",
+            ".d.ts",
+            ".cts",
+            ".d.cts",
+            ".mts",
+            ".d.mts",
+            ".json"
+          ],
+          "excludes": null,
+          "includes": [
+            "**/*"
+          ],
+          "depth": null,
+          "result": [
+            "/project/index.ts",
+            "/project/tsconfig.json",
+            "/project/lib/p1/index.ts"
+          ]
+        }
+      ]
     },
     {
       "source": {
@@ -5024,7 +7289,42 @@
         "out_dir": null,
         "declaration_dir": null
       },
-      "diagnostics": []
+      "diagnostics": [],
+      "host_log": [
+        {
+          "operation": "file_exists",
+          "path": "/other/tsconfig.base.json",
+          "result": true
+        },
+        {
+          "operation": "read_file",
+          "path": "/other/tsconfig.base.json",
+          "result": "text"
+        },
+        {
+          "operation": "read_directory",
+          "directory": "/project",
+          "extensions": [
+            ".ts",
+            ".tsx",
+            ".d.ts",
+            ".cts",
+            ".d.cts",
+            ".mts",
+            ".d.mts",
+            ".json"
+          ],
+          "excludes": null,
+          "includes": [
+            "**/*"
+          ],
+          "depth": null,
+          "result": [
+            "/project/index.ts",
+            "/project/tsconfig.json"
+          ]
+        }
+      ]
     },
     {
       "source": {
@@ -5067,7 +7367,32 @@
         "out_dir": null,
         "declaration_dir": null
       },
-      "diagnostics": []
+      "diagnostics": [],
+      "host_log": [
+        {
+          "operation": "read_directory",
+          "directory": "/.src",
+          "extensions": [
+            ".ts",
+            ".tsx",
+            ".d.ts",
+            ".cts",
+            ".d.cts",
+            ".mts",
+            ".d.mts",
+            ".json"
+          ],
+          "excludes": null,
+          "includes": [
+            "**/*"
+          ],
+          "depth": null,
+          "result": [
+            "/.src/a.ts",
+            "/.src/tsconfig.json"
+          ]
+        }
+      ]
     },
     {
       "source": {
@@ -5112,7 +7437,32 @@
         "out_dir": null,
         "declaration_dir": null
       },
-      "diagnostics": []
+      "diagnostics": [],
+      "host_log": [
+        {
+          "operation": "read_directory",
+          "directory": "/.src",
+          "extensions": [
+            ".ts",
+            ".tsx",
+            ".d.ts",
+            ".cts",
+            ".d.cts",
+            ".mts",
+            ".d.mts",
+            ".json"
+          ],
+          "excludes": null,
+          "includes": [
+            "**/*"
+          ],
+          "depth": null,
+          "result": [
+            "/.src/a.ts",
+            "/.src/tsconfig.json"
+          ]
+        }
+      ]
     },
     {
       "source": {
@@ -5155,7 +7505,32 @@
         "out_dir": null,
         "declaration_dir": null
       },
-      "diagnostics": []
+      "diagnostics": [],
+      "host_log": [
+        {
+          "operation": "read_directory",
+          "directory": "/.src",
+          "extensions": [
+            ".ts",
+            ".tsx",
+            ".d.ts",
+            ".cts",
+            ".d.cts",
+            ".mts",
+            ".d.mts",
+            ".json"
+          ],
+          "excludes": null,
+          "includes": [
+            "**/*"
+          ],
+          "depth": null,
+          "result": [
+            "/.src/a.ts",
+            "/.src/tsconfig.json"
+          ]
+        }
+      ]
     },
     {
       "source": {
@@ -5207,7 +7582,32 @@
         "out_dir": null,
         "declaration_dir": null
       },
-      "diagnostics": []
+      "diagnostics": [],
+      "host_log": [
+        {
+          "operation": "read_directory",
+          "directory": "/.src",
+          "extensions": [
+            ".ts",
+            ".tsx",
+            ".d.ts",
+            ".cts",
+            ".d.cts",
+            ".mts",
+            ".d.mts",
+            ".json"
+          ],
+          "excludes": null,
+          "includes": [
+            "**/*"
+          ],
+          "depth": null,
+          "result": [
+            "/.src/tsconfig.json",
+            "/.src/src/main.ts"
+          ]
+        }
+      ]
     },
     {
       "source": {
@@ -5258,7 +7658,32 @@
         "out_dir": null,
         "declaration_dir": null
       },
-      "diagnostics": []
+      "diagnostics": [],
+      "host_log": [
+        {
+          "operation": "read_directory",
+          "directory": "/.src",
+          "extensions": [
+            ".ts",
+            ".tsx",
+            ".d.ts",
+            ".cts",
+            ".d.cts",
+            ".mts",
+            ".d.mts",
+            ".json"
+          ],
+          "excludes": null,
+          "includes": [
+            "**/*"
+          ],
+          "depth": null,
+          "result": [
+            "/.src/tsconfig.json",
+            "/.src/src/main.ts"
+          ]
+        }
+      ]
     },
     {
       "source": {
@@ -5312,7 +7737,38 @@
         "out_dir": "/bin",
         "declaration_dir": null
       },
-      "diagnostics": []
+      "diagnostics": [],
+      "host_log": [
+        {
+          "operation": "read_directory",
+          "directory": "/",
+          "extensions": [
+            ".ts",
+            ".tsx",
+            ".d.ts",
+            ".js",
+            ".jsx",
+            ".cts",
+            ".d.cts",
+            ".cjs",
+            ".mts",
+            ".d.mts",
+            ".mjs",
+            ".json"
+          ],
+          "excludes": [
+            "/bin"
+          ],
+          "includes": [
+            "**/*"
+          ],
+          "depth": null,
+          "result": [
+            "/a.ts",
+            "/tsconfig.json"
+          ]
+        }
+      ]
     },
     {
       "source": {
@@ -5366,7 +7822,38 @@
         "out_dir": "/bin",
         "declaration_dir": null
       },
-      "diagnostics": []
+      "diagnostics": [],
+      "host_log": [
+        {
+          "operation": "read_directory",
+          "directory": "/",
+          "extensions": [
+            ".ts",
+            ".tsx",
+            ".d.ts",
+            ".js",
+            ".jsx",
+            ".cts",
+            ".d.cts",
+            ".cjs",
+            ".mts",
+            ".d.mts",
+            ".mjs",
+            ".json"
+          ],
+          "excludes": [
+            "/bin"
+          ],
+          "includes": [
+            "**/*"
+          ],
+          "depth": null,
+          "result": [
+            "/a.ts",
+            "/tsconfig.json"
+          ]
+        }
+      ]
     },
     {
       "source": {
@@ -5423,7 +7910,34 @@
         "out_dir": null,
         "declaration_dir": null
       },
-      "diagnostics": []
+      "diagnostics": [],
+      "host_log": [
+        {
+          "operation": "read_directory",
+          "directory": "/.src",
+          "extensions": [
+            ".ts",
+            ".tsx",
+            ".d.ts",
+            ".cts",
+            ".d.cts",
+            ".mts",
+            ".d.mts",
+            ".json"
+          ],
+          "excludes": null,
+          "includes": [
+            "**/*"
+          ],
+          "depth": null,
+          "result": [
+            "/.src/tsconfig.json",
+            "/.src/@angular/core/index.ts",
+            "/.src/@angular/core/package.json",
+            "/.src/@angular/core/testing/test.ts"
+          ]
+        }
+      ]
     },
     {
       "source": {
@@ -5484,7 +7998,34 @@
         "out_dir": null,
         "declaration_dir": null
       },
-      "diagnostics": []
+      "diagnostics": [],
+      "host_log": [
+        {
+          "operation": "read_directory",
+          "directory": "/.src",
+          "extensions": [
+            ".ts",
+            ".tsx",
+            ".d.ts",
+            ".cts",
+            ".d.cts",
+            ".mts",
+            ".d.mts",
+            ".json"
+          ],
+          "excludes": null,
+          "includes": [
+            "**/*"
+          ],
+          "depth": null,
+          "result": [
+            "/.src/test.ts",
+            "/.src/tsconfig.json",
+            "/.src/dist/bar.ts",
+            "/.src/types/main.d.ts"
+          ]
+        }
+      ]
     },
     {
       "source": {
@@ -5545,7 +8086,8 @@
         "out_dir": "/dist",
         "declaration_dir": null
       },
-      "diagnostics": []
+      "diagnostics": [],
+      "host_log": []
     },
     {
       "source": {
@@ -5591,7 +8133,31 @@
         "out_dir": null,
         "declaration_dir": null
       },
-      "diagnostics": []
+      "diagnostics": [],
+      "host_log": [
+        {
+          "operation": "read_directory",
+          "directory": "/.src",
+          "extensions": [
+            ".ts",
+            ".tsx",
+            ".d.ts",
+            ".cts",
+            ".d.cts",
+            ".mts",
+            ".d.mts",
+            ".json"
+          ],
+          "excludes": null,
+          "includes": [
+            "index.ts"
+          ],
+          "depth": null,
+          "result": [
+            "/.src/index.ts"
+          ]
+        }
+      ]
     },
     {
       "source": {
@@ -5656,7 +8222,35 @@
         "out_dir": "/monorepo/core/dist",
         "declaration_dir": null
       },
-      "diagnostics": []
+      "diagnostics": [],
+      "host_log": [
+        {
+          "operation": "read_directory",
+          "directory": "/monorepo/core",
+          "extensions": [
+            ".ts",
+            ".tsx",
+            ".d.ts",
+            ".cts",
+            ".d.cts",
+            ".mts",
+            ".d.mts",
+            ".json"
+          ],
+          "excludes": [
+            "/monorepo/core/dist"
+          ],
+          "includes": [
+            "**/*"
+          ],
+          "depth": null,
+          "result": [
+            "/monorepo/core/tsconfig.json",
+            "/monorepo/core/src/application.ts",
+            "/monorepo/core/src/usage.ts"
+          ]
+        }
+      ]
     },
     {
       "source": {
@@ -5715,7 +8309,62 @@
         "out_dir": null,
         "declaration_dir": null
       },
-      "diagnostics": []
+      "diagnostics": [],
+      "host_log": [
+        {
+          "operation": "file_exists",
+          "path": "/package.json",
+          "result": false
+        },
+        {
+          "operation": "file_exists",
+          "path": "/node_modules/foo/strict.json/package.json",
+          "result": false
+        },
+        {
+          "operation": "file_exists",
+          "path": "/node_modules/foo/package.json",
+          "result": true
+        },
+        {
+          "operation": "read_file",
+          "path": "/node_modules/foo/package.json",
+          "result": "text"
+        },
+        {
+          "operation": "file_exists",
+          "path": "/node_modules/foo/configs/strict.json",
+          "result": true
+        },
+        {
+          "operation": "read_file",
+          "path": "/node_modules/foo/configs/strict.json",
+          "result": "text"
+        },
+        {
+          "operation": "read_directory",
+          "directory": "/",
+          "extensions": [
+            ".ts",
+            ".tsx",
+            ".d.ts",
+            ".cts",
+            ".d.cts",
+            ".mts",
+            ".d.mts",
+            ".json"
+          ],
+          "excludes": null,
+          "includes": [
+            "**/*"
+          ],
+          "depth": null,
+          "result": [
+            "/index.ts",
+            "/tsconfig.json"
+          ]
+        }
+      ]
     },
     {
       "source": {
@@ -5762,7 +8411,31 @@
         "out_dir": null,
         "declaration_dir": null
       },
-      "diagnostics": []
+      "diagnostics": [],
+      "host_log": [
+        {
+          "operation": "read_directory",
+          "directory": "/.src",
+          "extensions": [
+            ".ts",
+            ".tsx",
+            ".d.ts",
+            ".cts",
+            ".d.cts",
+            ".mts",
+            ".d.mts"
+          ],
+          "excludes": null,
+          "includes": [
+            "**/*"
+          ],
+          "depth": null,
+          "result": [
+            "/.src/index.ts",
+            "/.src/other.ts"
+          ]
+        }
+      ]
     },
     {
       "source": {
@@ -5828,7 +8501,33 @@
         "out_dir": null,
         "declaration_dir": null
       },
-      "diagnostics": []
+      "diagnostics": [],
+      "host_log": [
+        {
+          "operation": "read_directory",
+          "directory": "/",
+          "extensions": [
+            ".ts",
+            ".tsx",
+            ".d.ts",
+            ".cts",
+            ".d.cts",
+            ".mts",
+            ".d.mts",
+            ".json"
+          ],
+          "excludes": null,
+          "includes": [
+            "**/*"
+          ],
+          "depth": null,
+          "result": [
+            "/tsconfig.json",
+            "/package1/index.ts",
+            "/package2/index.ts"
+          ]
+        }
+      ]
     },
     {
       "source": {
@@ -5916,7 +8615,34 @@
         "out_dir": null,
         "declaration_dir": null
       },
-      "diagnostics": []
+      "diagnostics": [],
+      "host_log": [
+        {
+          "operation": "read_directory",
+          "directory": "/",
+          "extensions": [
+            ".ts",
+            ".tsx",
+            ".d.ts",
+            ".cts",
+            ".d.cts",
+            ".mts",
+            ".d.mts",
+            ".json"
+          ],
+          "excludes": null,
+          "includes": [
+            "**/*"
+          ],
+          "depth": null,
+          "result": [
+            "/tsconfig.json",
+            "/package1/index.ts",
+            "/package1/other.ts",
+            "/package2/index.ts"
+          ]
+        }
+      ]
     },
     {
       "source": {
@@ -5982,7 +8708,33 @@
         "out_dir": null,
         "declaration_dir": null
       },
-      "diagnostics": []
+      "diagnostics": [],
+      "host_log": [
+        {
+          "operation": "read_directory",
+          "directory": "/",
+          "extensions": [
+            ".ts",
+            ".tsx",
+            ".d.ts",
+            ".cts",
+            ".d.cts",
+            ".mts",
+            ".d.mts",
+            ".json"
+          ],
+          "excludes": null,
+          "includes": [
+            "**/*"
+          ],
+          "depth": null,
+          "result": [
+            "/tsconfig.json",
+            "/package1/index.ts",
+            "/package2/index.ts"
+          ]
+        }
+      ]
     },
     {
       "source": {
@@ -6034,7 +8786,32 @@
         "out_dir": null,
         "declaration_dir": null
       },
-      "diagnostics": []
+      "diagnostics": [],
+      "host_log": [
+        {
+          "operation": "read_directory",
+          "directory": "/foo/bar",
+          "extensions": [
+            ".ts",
+            ".tsx",
+            ".d.ts",
+            ".cts",
+            ".d.cts",
+            ".mts",
+            ".d.mts",
+            ".json"
+          ],
+          "excludes": null,
+          "includes": [
+            "**/*"
+          ],
+          "depth": null,
+          "result": [
+            "/foo/bar/a.ts",
+            "/foo/bar/tsconfig.json"
+          ]
+        }
+      ]
     },
     {
       "source": {
@@ -6076,7 +8853,32 @@
         "out_dir": null,
         "declaration_dir": null
       },
-      "diagnostics": []
+      "diagnostics": [],
+      "host_log": [
+        {
+          "operation": "read_directory",
+          "directory": "/src",
+          "extensions": [
+            ".ts",
+            ".tsx",
+            ".d.ts",
+            ".cts",
+            ".d.cts",
+            ".mts",
+            ".d.mts",
+            ".json"
+          ],
+          "excludes": null,
+          "includes": [
+            "**/*"
+          ],
+          "depth": null,
+          "result": [
+            "/src/a.ts",
+            "/src/tsconfig.json"
+          ]
+        }
+      ]
     }
   ]
 }

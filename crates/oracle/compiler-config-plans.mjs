@@ -41,6 +41,12 @@ const EXPECTED_SUMMARY = {
   other_units: { fixture_total: 133, case_total: 136 },
   program_root_units: { fixture_total: 167, case_total: 170 },
   parsed_diagnostics: { fixture_total: 0, case_total: 0 },
+  host_calls: {
+    total: 116,
+    file_exists: 8,
+    read_file: 6,
+    read_directory: 102,
+  },
   distributions: {
     configurations_per_fixture: [
       { configurations: 1, fixtures: 102, cases: 102 },
@@ -385,10 +391,11 @@ function verifyFixtureExpansion(recorded, source, units, links, configIndex) {
 }
 
 function createParseConfigHost(units) {
+  const log = [];
   return {
     useCaseSensitiveFileNames: false,
     readDirectory(directory, extensions, excludes, includes, depth) {
-      return ts.matchFiles(
+      const result = ts.matchFiles(
         directory,
         extensions,
         excludes,
@@ -416,19 +423,38 @@ function createParseConfigHost(units) {
         },
         ts.identity,
       );
+      log.push({
+        operation: "read_directory",
+        directory,
+        extensions: [...extensions],
+        excludes: excludes === undefined ? null : [...excludes],
+        includes: includes === undefined ? null : [...includes],
+        depth: depth ?? null,
+        result: [...result],
+      });
+      return result;
     },
     fileExists(fileName) {
-      return units.some(
+      const result = units.some(
         (unit) => unit.name.toLowerCase() === fileName.toLowerCase(),
       );
+      log.push({ operation: "file_exists", path: fileName, result });
+      return result;
     },
     readFile(fileName) {
-      return ts.forEach(units, (unit) =>
+      const result = ts.forEach(units, (unit) =>
         unit.name.toLowerCase() === fileName.toLowerCase()
           ? unit.content
           : undefined,
       );
+      log.push({
+        operation: "read_file",
+        path: fileName,
+        result: result === undefined ? "missing" : "text",
+      });
+      return result;
     },
+    log,
   };
 }
 
@@ -517,9 +543,10 @@ function buildFixturePlan(manifest, compilerRoot, recorded) {
     config.name,
     VIRTUAL_SOURCE_ROOT,
   );
+  const parseHost = createParseConfigHost(units);
   const parsed = ts.parseJsonSourceFileConfigFileContent(
     configSource,
-    createParseConfigHost(units),
+    parseHost,
     ts.getDirectoryPath(configFileName),
     undefined,
     configFileName,
@@ -582,6 +609,7 @@ function buildFixturePlan(manifest, compilerRoot, recorded) {
         declaration_dir: parsed.options.declarationDir ?? null,
       },
       diagnostics: parsed.errors.map(diagnosticRecord),
+      host_log: parseHost.log,
     },
     configurationCount: recorded.configurations.length,
     configOccurrence: configUnit.id,
@@ -619,6 +647,12 @@ function summarize(rows) {
     diagnostics: 0,
     weightedDiagnostics: 0,
   };
+  const hostCalls = {
+    total: 0,
+    file_exists: 0,
+    read_file: 0,
+    read_directory: 0,
+  };
   const configurations = new Map();
   const configOccurrences = new Map();
   const candidates = new Map();
@@ -644,6 +678,10 @@ function summarize(rows) {
     totals.weightedProgramRoots += plan.program_root_unit_ids.length * cases;
     totals.diagnostics += plan.diagnostics.length;
     totals.weightedDiagnostics += plan.diagnostics.length * cases;
+    for (const call of plan.host_log) {
+      hostCalls.total += 1;
+      hostCalls[call.operation] += 1;
+    }
     addDistributionEntry(configurations, cases, cases);
     addDistributionEntry(configOccurrences, row.configOccurrence, cases);
     addDistributionEntry(candidates, plan.candidate_units.length, cases);
@@ -682,6 +720,7 @@ function summarize(rows) {
       fixture_total: totals.diagnostics,
       case_total: totals.weightedDiagnostics,
     },
+    host_calls: hostCalls,
     distributions: {
       configurations_per_fixture: renderDistribution(
         configurations,
@@ -750,8 +789,9 @@ function checkRecordedArtifact(rendered) {
 const arguments_ = process.argv.slice(2);
 requireCondition(
   arguments_.length === 0 ||
-    (arguments_.length === 1 && arguments_[0] === "--check"),
-  "usage: node crates/oracle/compiler-config-plans.mjs [--check]",
+    (arguments_.length === 1 &&
+      (arguments_[0] === "--check" || arguments_[0] === "--write")),
+  "usage: node crates/oracle/compiler-config-plans.mjs [--check|--write]",
 );
 validateRuntime();
 const typescriptModule = await import(pathToFileURL(TYPESCRIPT_BUNDLE_PATH).href);
@@ -761,6 +801,9 @@ const rendered = renderArtifact();
 if (arguments_[0] === "--check") {
   checkRecordedArtifact(rendered);
   process.stdout.write(`${ARTIFACT_RELATIVE_PATH} is current\n`);
+} else if (arguments_[0] === "--write") {
+  fs.writeFileSync(ARTIFACT_PATH, rendered);
+  process.stdout.write(`${ARTIFACT_RELATIVE_PATH} refreshed\n`);
 } else {
   process.stdout.write(rendered);
 }

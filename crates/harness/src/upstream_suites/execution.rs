@@ -11,6 +11,7 @@
 //! membership partition instead of substituting `ParsedCommandLine.fileNames`
 //! order. This adapter is not the future general filesystem `matchFiles` host.
 
+use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
 use std::fmt;
 use std::fs;
@@ -19,7 +20,7 @@ use std::sync::Arc;
 
 use serde::de::{MapAccess, Visitor};
 use serde::{Deserialize, Deserializer};
-use serde_json::Value;
+use serde_json::{json, Value};
 use tsc_host::{to_file_name_lower_case, MemoryCompilerHost};
 use tsc_program::{
     load_program, parse_config_root_plan, CompilerOptionNumber, CompilerOptions, ConfigFilePattern,
@@ -602,6 +603,11 @@ pub struct CompilerFixtureInput {
     /// Program-owned config parse/root plan, materialized once per fixture and
     /// shared by all configuration variants.
     pub config_root_plan: Option<Arc<ConfigRootPlan>>,
+    /// Exact ParseConfigHost call order observed while materializing the
+    /// shared config plan. The frozen compiler oracle carries the same trace;
+    /// retaining it here makes the full 103-fixture qualification independent
+    /// of the later program-loader host.
+    pub config_host_log: Arc<[Value]>,
     pub settings: Arc<[OrderedSetting]>,
     pub configurations: Arc<[super::CompilerConfiguration]>,
     /// Lossless `@link` directive order before JavaScript object assignment.
@@ -1073,7 +1079,7 @@ fn build_compiler_fixture(
         .collect::<HarnessResult<Vec<_>>>()?;
     let units: Arc<[CompilerUnitInput]> = Arc::from(units);
     let config_unit = config_offset.map(|index| CompilerUnitId(index as u32));
-    let config_root_plan = match config_unit {
+    let (config_root_plan, config_host_log) = match config_unit {
         Some(config_unit) => {
             let unit = units.get(config_unit.0 as usize).ok_or_else(|| {
                 error(format!(
@@ -1087,25 +1093,27 @@ fn build_compiler_fixture(
                     source.relative_path
                 ))
             })?;
-            let host = CompilerFixtureConfigHost { units: &units };
-            Some(Arc::new(
-                parse_config_root_plan(
-                    &host,
-                    ConfigRootPlanRequest {
-                        file_name: unit.name.to_string(),
-                        text: text.to_owned(),
-                        base_path: VIRTUAL_SOURCE_ROOT.to_owned(),
-                    },
-                )
+            let host = CompilerFixtureConfigHost::new(&units);
+            let parsed = parse_config_root_plan(
+                &host,
+                ConfigRootPlanRequest {
+                    file_name: unit.name.to_string(),
+                    text: text.to_owned(),
+                    base_path: VIRTUAL_SOURCE_ROOT.to_owned(),
+                },
+            );
+            let config_host_log = Arc::from(host.into_log());
+            let config_root_plan = parsed
                 .map_err(|parse_error| {
                     error(format!(
                         "failed to plan compiler config for {:?}: {parse_error}",
                         source.relative_path
                     ))
-                })?,
-            ))
+                })?
+                .into();
+            (Some(config_root_plan), config_host_log)
         }
-        None => None,
+        None => (None, Arc::from([])),
     };
     let global_symlink_directives = links
         .into_iter()
@@ -1134,6 +1142,7 @@ fn build_compiler_fixture(
         units,
         config_unit,
         config_root_plan,
+        config_host_log,
         settings: Arc::from(settings),
         configurations: Arc::from(recorded.configurations.clone()),
         global_symlink_directives: Arc::from(global_symlink_directives),
@@ -1272,6 +1281,20 @@ fn build_compiler_unit(
 /// `/.src` before wildcard matching.
 struct CompilerFixtureConfigHost<'a> {
     units: &'a [CompilerUnitInput],
+    log: RefCell<Vec<Value>>,
+}
+
+impl<'a> CompilerFixtureConfigHost<'a> {
+    fn new(units: &'a [CompilerUnitInput]) -> Self {
+        Self {
+            units,
+            log: RefCell::new(Vec::new()),
+        }
+    }
+
+    fn into_log(self) -> Vec<Value> {
+        self.log.into_inner()
+    }
 }
 
 impl ConfigParseHost for CompilerFixtureConfigHost<'_> {
@@ -1281,19 +1304,31 @@ impl ConfigParseHost for CompilerFixtureConfigHost<'_> {
 
     fn file_exists(&self, path: &str) -> Result<bool, ConfigHostError> {
         let key = to_file_name_lower_case(path);
-        Ok(self
+        let result = self
             .units
             .iter()
-            .any(|unit| to_file_name_lower_case(unit.name.as_ref()) == key))
+            .any(|unit| to_file_name_lower_case(unit.name.as_ref()) == key);
+        self.log.borrow_mut().push(json!({
+            "operation": "file_exists",
+            "path": path,
+            "result": result,
+        }));
+        Ok(result)
     }
 
     fn read_file(&self, path: &str) -> Result<Option<String>, ConfigHostError> {
         let key = to_file_name_lower_case(path);
-        Ok(self.units.iter().find_map(|unit| {
+        let result = self.units.iter().find_map(|unit| {
             (to_file_name_lower_case(unit.name.as_ref()) == key)
                 .then(|| unit.content.as_deref().map(str::to_owned))
                 .flatten()
-        }))
+        });
+        self.log.borrow_mut().push(json!({
+            "operation": "read_file",
+            "path": path,
+            "result": if result.is_some() { "text" } else { "missing" },
+        }));
+        Ok(result)
     }
 
     fn read_directory(
@@ -1335,7 +1370,17 @@ impl ConfigParseHost for CompilerFixtureConfigHost<'_> {
                 &mut buckets,
             )?;
         }
-        Ok(buckets.into_iter().flatten().collect())
+        let result = buckets.into_iter().flatten().collect::<Vec<_>>();
+        self.log.borrow_mut().push(json!({
+            "operation": "read_directory",
+            "directory": directory,
+            "extensions": extensions,
+            "excludes": excludes,
+            "includes": includes,
+            "depth": depth,
+            "result": result,
+        }));
+        Ok(result)
     }
 }
 
