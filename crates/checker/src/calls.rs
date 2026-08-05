@@ -6120,26 +6120,29 @@ impl<'a> CheckerState<'a> {
                     &diagnostics::Type_0_is_not_assignable_to_type_1,
                 )?;
             }
-            // ignoreDeprecations is unmodeled (never "6.0") — the
-            // assert→with deprecation row is unconditional.
-            if let NodeData::ObjectLiteralExpression(literal) = self.data_of(args[1]) {
-                let properties = literal.properties;
-                for property in self.nodes_of(properties) {
-                    let NodeData::PropertyAssignment(assignment) = self.data_of(property) else {
-                        continue;
-                    };
-                    let Some(name) = assignment.name else {
-                        continue;
-                    };
-                    if self.kind_of(name) == SyntaxKind::Identifier
-                        && self.identifier_text_of(name) == Some("assert")
-                    {
-                        self.grammar_error_on_node(
-                            name,
-                            &diagnostics::Import_assertions_have_been_replaced_by_import_attributes_Use_with_instead_of_assert,
-                            &[],
-                        );
-                        break;
+            // TypeScript 6.0 silences this deprecated `assert` property only
+            // for the exact `ignoreDeprecations: "6.0"` value.
+            if self.options.ignore_deprecations.as_deref() != Some("6.0") {
+                if let NodeData::ObjectLiteralExpression(literal) = self.data_of(args[1]) {
+                    let properties = literal.properties;
+                    for property in self.nodes_of(properties) {
+                        let NodeData::PropertyAssignment(assignment) = self.data_of(property)
+                        else {
+                            continue;
+                        };
+                        let Some(name) = assignment.name else {
+                            continue;
+                        };
+                        if self.kind_of(name) == SyntaxKind::Identifier
+                            && self.identifier_text_of(name) == Some("assert")
+                        {
+                            self.grammar_error_on_node(
+                                name,
+                                &diagnostics::Import_assertions_have_been_replaced_by_import_attributes_Use_with_instead_of_assert,
+                                &[],
+                            );
+                            break;
+                        }
                     }
                 }
             }
@@ -8522,6 +8525,15 @@ value();
         assert_eq!(
             checked_rows_with("import(\"./m\", { assert: {} });\n", &options),
             [(2880, 16, 6), (2307, 7, 5), (2711, 0, 29)]
+        );
+
+        let silenced = CompilerOptions {
+            ignore_deprecations: Some("6.0".to_owned()),
+            ..options
+        };
+        assert_eq!(
+            checked_rows_with("import(\"./m\", { assert: {} });\n", &silenced),
+            [(2307, 7, 5), (2711, 0, 29)]
         );
     }
 

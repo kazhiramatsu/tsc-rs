@@ -364,6 +364,7 @@ fn project_compiler_options(options: &BTreeMap<String, OptionValue>) -> Compiler
         jsx_fragment_factory: projected_string_option(options, "jsxFragmentFactory"),
         jsx_import_source: projected_string_option(options, "jsxImportSource"),
         react_namespace: projected_string_option(options, "reactNamespace"),
+        ignore_deprecations: projected_string_option(options, "ignoreDeprecations"),
         lib: projected_string_list_option(options, "lib", true),
     }
 }

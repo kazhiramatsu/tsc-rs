@@ -3619,8 +3619,8 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: e300b9504ef6915d0ee8b66eee8c536bf348750ed9a5a320144d96aac474ff56
     /// tsc-span: _tsc.js:81987-81996
     ///
-    /// The `assert`-deprecation row is LIVE (ignoreDeprecations is
-    /// absent, §13); the with/assert discriminator is read from
+    /// The `assert`-deprecation row is live unless
+    /// `ignoreDeprecations` is exactly `"6.0"`; the with/assert discriminator is read from
     /// ImportAttributes.token — the parser threads the consumed
     /// keyword into the node data (codegen seed). The
     /// getResolutionModeOverride grammar validation is a named escape
@@ -3640,7 +3640,9 @@ impl<'a> CheckerState<'a> {
                 NodeData::ImportAttributes(data) => data.token,
                 _ => SyntaxKind::WithKeyword,
             };
-            if token != SyntaxKind::WithKeyword {
+            if token != SyntaxKind::WithKeyword
+                && self.options.ignore_deprecations.as_deref() != Some("6.0")
+            {
                 self.grammar_error_on_first_token(
                     attributes,
                     &diagnostics::Import_assertions_have_been_replaced_by_import_attributes_Use_with_instead_of_assert,

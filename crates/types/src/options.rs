@@ -291,6 +291,14 @@ pub struct CompilerOptions {
     pub jsx_fragment_factory: Option<String>,
     pub jsx_import_source: Option<String>,
     pub react_namespace: Option<String>,
+    /// TypeScript 6.0's option-diagnostic suppression version. This is a
+    /// config/driver concern rather than a checker option, but carrying the
+    /// converted value through the owned option snapshot keeps
+    /// `getOptionsDiagnostics` and config-backed program execution on the
+    /// same effective option set. Only the exact supported `"6.0"` value
+    /// suppresses options deprecated in 6.0; invalid values are diagnosed at
+    /// the config boundary.
+    pub ignore_deprecations: Option<String>,
 }
 
 impl CompilerOptions {

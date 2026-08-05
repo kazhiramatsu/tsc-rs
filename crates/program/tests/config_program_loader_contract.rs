@@ -495,3 +495,96 @@ fn config_diagnostics_are_a_gate_and_remain_separate_from_option_diagnostics() {
     assert!(options.is_empty());
     assert_eq!(config[0].code(), 5023);
 }
+
+#[test]
+fn ts6_option_deprecations_are_reported_without_blocking_no_emit_loading() {
+    let host = host();
+    let adapter = ConfigHostAdapter::new(&host);
+    let plan = parse_config_root_plan(
+        &adapter,
+        request(
+            r#"{"compilerOptions":{"noEmit":true,"noLib":true,"moduleResolution":"node"},"files":["main.ts"]}"#,
+        ),
+    )
+    .expect("parse deprecated-option plan");
+    assert_eq!(
+        plan.option_diagnostics()
+            .iter()
+            .map(|diagnostic| diagnostic.code())
+            .collect::<Vec<_>>(),
+        [5107]
+    );
+    let prepared = load_config_program(
+        &host,
+        &plan,
+        &LibraryCatalog::typescript_6_0_3("/vendor/typescript/lib"),
+        LIMITS,
+    )
+    .expect("a deprecation diagnostic must not prevent source loading");
+    assert_eq!(prepared.compiler_options().ignore_deprecations, None);
+
+    let silenced = parse_config_root_plan(
+        &adapter,
+        request(
+            r#"{"compilerOptions":{"noEmit":true,"noLib":true,"moduleResolution":"node","ignoreDeprecations":"6.0"},"files":["main.ts"]}"#,
+        ),
+    )
+    .expect("parse silenced deprecated-option plan");
+    assert!(silenced.option_diagnostics().is_empty());
+    assert_eq!(
+        silenced.compiler_options().ignore_deprecations.as_deref(),
+        Some("6.0")
+    );
+
+    let invalid = parse_config_root_plan(
+        &adapter,
+        request(
+            r#"{"compilerOptions":{"noEmit":true,"noLib":true,"ignoreDeprecations":"5.1"},"files":["main.ts"]}"#,
+        ),
+    )
+    .expect("parse invalid ignoreDeprecations plan");
+    assert!(invalid
+        .option_diagnostics()
+        .iter()
+        .any(|diagnostic| diagnostic.code() == 5103));
+
+    let removed = parse_config_root_plan(
+        &adapter,
+        request(
+            r#"{"compilerOptions":{"noEmit":true,"noLib":true,"target":"ES3","ignoreDeprecations":"5.0"},"files":["main.ts"]}"#,
+        ),
+    )
+    .expect("parse removed-target plan");
+    assert_eq!(
+        removed
+            .option_diagnostics()
+            .iter()
+            .map(|diagnostic| diagnostic.code())
+            .collect::<Vec<_>>(),
+        [5108]
+    );
+    let error = load_config_program(
+        &host,
+        &removed,
+        &LibraryCatalog::typescript_6_0_3("/vendor/typescript/lib"),
+        LIMITS,
+    )
+    .expect_err("removed compiler options remain a fatal getOptionsDiagnostics row");
+    assert_eq!(error.options_diagnostics()[0].code(), 5108);
+
+    let removed_with_current_suppression = parse_config_root_plan(
+        &adapter,
+        request(
+            r#"{"compilerOptions":{"noEmit":true,"noLib":true,"target":"ES3","ignoreDeprecations":"6.0"},"files":["main.ts"]}"#,
+        ),
+    )
+    .expect("parse removed-target plan with current suppression");
+    assert_eq!(
+        removed_with_current_suppression
+            .option_diagnostics()
+            .iter()
+            .map(|diagnostic| diagnostic.code())
+            .collect::<Vec<_>>(),
+        [5108]
+    );
+}

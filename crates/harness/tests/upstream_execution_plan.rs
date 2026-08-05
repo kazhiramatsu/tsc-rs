@@ -1112,7 +1112,26 @@ fn node_modules_search_project_configs_load_all_six_variants_without_claiming_em
                 .len(),
             "config diagnostics drifted for {case_id}"
         );
-        assert!(execution.config_root_plan.option_diagnostics().is_empty());
+        // The descriptor's `moduleResolution=node` is supplied through the
+        // project runner's existingOptions object.  Only an option written in
+        // this config source belongs to ConfigRootPlan; the runner override
+        // remains a later project-option diagnostic boundary.
+        let expected_option_codes = config_source
+            .source
+            .decoded
+            .contains("\"moduleResolution\"")
+            .then_some(vec![5107])
+            .unwrap_or_default();
+        assert_eq!(
+            execution
+                .config_root_plan
+                .option_diagnostics()
+                .iter()
+                .map(|diagnostic| diagnostic.code())
+                .collect::<Vec<_>>(),
+            expected_option_codes,
+            "option diagnostics drifted for {case_id}"
+        );
 
         let expected_options = &expected["effective_options"];
         assert_eq!(

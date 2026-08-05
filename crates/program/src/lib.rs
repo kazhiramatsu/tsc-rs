@@ -96,12 +96,12 @@ mod resolution;
 mod text;
 
 pub use config::{
-    load_config_program, load_config_program_with_no_emit_override, parse_config_root_plan,
-    validate_config_plan, ConfigDiscoveryOptions, ConfigHostError, ConfigHostOperation,
-    ConfigModuleResolutionOptions, ConfigOption, ConfigOptionBag, ConfigOptionValueState,
-    ConfigParseError, ConfigParseErrorKind, ConfigParseHost, ConfigProgramLoadError,
-    ConfigProjectReference, ConfigRootPlan, ConfigRootPlanRequest, ConfigSourceText,
-    ConfigTypedJsonValue, ConfigTypedListElement, ConfigTypedObjectProperty,
+    is_non_fatal_option_diagnostic, load_config_program, load_config_program_with_no_emit_override,
+    parse_config_root_plan, validate_config_plan, ConfigDiscoveryOptions, ConfigHostError,
+    ConfigHostOperation, ConfigModuleResolutionOptions, ConfigOption, ConfigOptionBag,
+    ConfigOptionValueState, ConfigParseError, ConfigParseErrorKind, ConfigParseHost,
+    ConfigProgramLoadError, ConfigProjectReference, ConfigRootPlan, ConfigRootPlanRequest,
+    ConfigSourceText, ConfigTypedJsonValue, ConfigTypedListElement, ConfigTypedObjectProperty,
     ConfigTypedObjectShape, ConfigTypedObjectValue, ConfigWildcardDirectory,
 };
 pub use config_host::CompilerConfigHost;

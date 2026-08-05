@@ -1058,10 +1058,12 @@ impl ConfigRootPlan {
 }
 
 /// A config plan cannot be turned into a prepared no-emit program when the
-/// config itself has diagnostics, when `noEmit` is absent/false, or when the
-/// filesystem loader rejects a typed host/resolution boundary. Keeping these
-/// cases distinct lets a future CLI render config diagnostics while treating
-/// the latter two as fail-closed driver outcomes.
+/// config itself has diagnostics, when a fatal option diagnostic is present,
+/// when `noEmit` is absent/false, or when the filesystem loader rejects a
+/// typed host/resolution boundary. TypeScript 6.0 deprecation rows (5101 and
+/// 5107) are reportable but do not stop program construction. Keeping these
+/// cases distinct lets a CLI render those rows while treating the latter
+/// failures as fail-closed driver outcomes.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ConfigProgramLoadError {
     Diagnostics {
@@ -1127,8 +1129,10 @@ impl Error for ConfigProgramLoadError {
 /// Turn a parsed config/root plan into the owned no-emit program consumed by
 /// [`tsc_compiler::ProgramSession`].
 ///
-/// Config and option diagnostics are a gate: no source host work is started
-/// while either collection is non-empty. A config without an explicit
+/// Config diagnostics and fatal option diagnostics are a gate: no source host
+/// work is started while either collection is non-empty. TypeScript 6.0
+/// deprecation diagnostics are retained on the plan but do not block loading.
+/// A config without an explicit
 /// `noEmit: true` is rejected before `load_program`; this prevents an omitted
 /// or false value from accidentally entering an emitter-capable path. The
 /// input plan remains immutable and can be reused by a caller for rendering or
@@ -1145,7 +1149,7 @@ pub fn load_config_program(
 /// Load a config plan while applying the command-line `--noEmit` override.
 ///
 /// TypeScript gives an explicit command-line value precedence over the config
-/// file. The override is deliberately limited to `noEmit`; all config and
+/// file. The override is deliberately limited to `noEmit`; config and fatal
 /// option diagnostics remain a gate and no other option is silently mutated.
 pub fn load_config_program_with_no_emit_override(
     host: &dyn CompilerHost,
@@ -1165,7 +1169,16 @@ pub fn load_config_program_with_no_emit_override(
 /// option/root-scope boundary.
 pub fn validate_config_plan(plan: &ConfigRootPlan) -> Result<(), ConfigProgramLoadError> {
     let config = plan.diagnostics().cloned().collect::<Vec<_>>();
-    let options = plan.option_diagnostics().to_vec();
+    // TypeScript reports deprecation diagnostics from getOptionsDiagnostics
+    // but still constructs and checks the program. Keep those non-fatal rows
+    // out of the source-loading gate; malformed option values and structural
+    // validation diagnostics remain fatal and fail closed before host work.
+    let options = plan
+        .option_diagnostics()
+        .iter()
+        .filter(|diagnostic| !is_non_fatal_option_diagnostic(diagnostic))
+        .cloned()
+        .collect::<Vec<_>>();
     if !config.is_empty() || !options.is_empty() {
         return Err(ConfigProgramLoadError::Diagnostics { config, options });
     }
@@ -1183,6 +1196,13 @@ pub fn validate_config_plan(plan: &ConfigRootPlan) -> Result<(), ConfigProgramLo
         ));
     }
     Ok(())
+}
+
+/// Whether an option diagnostic is reportable while the program still enters
+/// the checker. TypeScript 6.0 deprecation rows are non-fatal; malformed
+/// values and structural option errors remain a source-loading gate.
+pub fn is_non_fatal_option_diagnostic(diagnostic: &Diagnostic) -> bool {
+    matches!(diagnostic.code(), 5101 | 5107)
 }
 
 fn load_config_program_inner(
@@ -1344,6 +1364,7 @@ pub fn parse_config_root_plan(
     node.options.finalize_config_dir_templates(&config_base)?;
     let mut option_diagnostics = paths_option_diagnostics(&node.options, &node.source);
     option_diagnostics.extend(no_lib_lib_option_diagnostics(&node.options, &node.source));
+    option_diagnostics.extend(deprecation_option_diagnostics(&node.options, &node.source));
     sort_and_dedupe_diagnostics(&mut option_diagnostics);
     let discovery_options = effective_discovery_options(&node.options, &config_base)?;
     let module_resolution_options = config_module_resolution_options(
@@ -1718,6 +1739,7 @@ fn config_option_is_supported_by_h0(name: &str) -> bool {
             | "jsxFragmentFactory"
             | "jsxImportSource"
             | "reactNamespace"
+            | "ignoreDeprecations"
             // Program-facing roots/resolution and default-exclude inputs.
             | "noLib"
             | "preserveSymlinks"
@@ -2538,6 +2560,301 @@ fn no_lib_lib_option_diagnostics(
             )
         })
         .collect()
+}
+
+/// Produce the non-fatal TypeScript 6.0 option-deprecation diagnostics owned
+/// by `getOptionsDiagnostics`.  These diagnostics must remain attached to the
+/// immutable config plan even though they do not prevent a no-emit program
+/// from being constructed.
+///
+/// tsc-port: verifyDeprecatedCompilerOptions @6.0.3
+/// tsc-hash: 7f7b9dd6d9d2f6d4f4b507eb9ab4ef59b25e8bcd0c57b6b8f9d5b6f3c3bc2b38
+/// tsc-span: _tsc.js:129942-130078
+fn deprecation_option_diagnostics(
+    options: &ConfigOptionBag,
+    source: &ConfigSourceText,
+) -> Vec<Diagnostic> {
+    let parsed = tsc_syntax::parse_json_text(&source.file_name, &source.text);
+    let compiler_properties = config_compiler_option_properties(&parsed);
+    let fallback = config_property(&parsed, "compilerOptions")
+        .and_then(|property| config_location(&parsed, property.name_node));
+    let ignore_state = options.typed_value_state("ignoreDeprecations");
+    let ignore = match ignore_state {
+        ConfigOptionValueState::Value(Value::String(value)) => Some(value.as_str()),
+        _ => None,
+    };
+    let ignore_invalid = match ignore_state {
+        ConfigOptionValueState::Absent => false,
+        ConfigOptionValueState::Value(Value::String(value)) => {
+            !matches!(value.as_str(), "5.0" | "6.0")
+        }
+        ConfigOptionValueState::Value(_)
+        | ConfigOptionValueState::Undefined
+        | ConfigOptionValueState::List(_)
+        | ConfigOptionValueState::Object(_)
+        | ConfigOptionValueState::PositiveInfinity
+        | ConfigOptionValueState::NegativeInfinity => true,
+    };
+    let mut diagnostics = Vec::new();
+
+    if ignore_invalid {
+        emit_option_diagnostic_for_properties(
+            &mut diagnostics,
+            &parsed,
+            &compiler_properties,
+            &fallback,
+            "ignoreDeprecations",
+            false,
+            &gen::Invalid_value_for_ignoreDeprecations,
+            &[],
+        );
+    }
+
+    // A deprecation can be silenced only by the matching 6.0 suppression
+    // version. `"5.0"` remains a valid value, but intentionally does not
+    // silence options deprecated in 6.0.
+    let silences_ts6 = ignore == Some("6.0");
+
+    let target = config_option_i32(options, "target");
+    if target == Some(0) {
+        // ES3 was removed in 5.5, so ignoreDeprecations cannot silence this
+        // row even when it is set to the current 6.0 version.
+        emit_option_diagnostic_for_properties(
+            &mut diagnostics,
+            &parsed,
+            &compiler_properties,
+            &fallback,
+            "target",
+            false,
+            &gen::Option_0_1_has_been_removed_Please_remove_it_from_your_configuration,
+            &["target".to_owned(), "ES3".to_owned()],
+        );
+    }
+    if !silences_ts6 {
+        if target == Some(1) {
+            emit_option_deprecation_5107(
+                &mut diagnostics,
+                &parsed,
+                &compiler_properties,
+                &fallback,
+                "target",
+                "ES5",
+                false,
+            );
+        }
+        if config_option_bool(options, "alwaysStrict") == Some(false) {
+            emit_option_deprecation_5107(
+                &mut diagnostics,
+                &parsed,
+                &compiler_properties,
+                &fallback,
+                "alwaysStrict",
+                "false",
+                false,
+            );
+        }
+        if config_option_i32(options, "moduleResolution") == Some(1) {
+            emit_option_deprecation_5107(
+                &mut diagnostics,
+                &parsed,
+                &compiler_properties,
+                &fallback,
+                "moduleResolution",
+                "classic",
+                false,
+            );
+        } else if config_option_i32(options, "moduleResolution") == Some(2) {
+            emit_option_deprecation_5107(
+                &mut diagnostics,
+                &parsed,
+                &compiler_properties,
+                &fallback,
+                "moduleResolution",
+                "node10",
+                true,
+            );
+        }
+        if options.typed_value("baseUrl").is_some() {
+            emit_option_deprecation_name(
+                &mut diagnostics,
+                &parsed,
+                &compiler_properties,
+                &fallback,
+                "baseUrl",
+                true,
+            );
+        }
+        if config_option_bool(options, "esModuleInterop") == Some(false) {
+            emit_option_deprecation_5107(
+                &mut diagnostics,
+                &parsed,
+                &compiler_properties,
+                &fallback,
+                "esModuleInterop",
+                "false",
+                false,
+            );
+        }
+        if config_option_bool(options, "allowSyntheticDefaultImports") == Some(false) {
+            emit_option_deprecation_5107(
+                &mut diagnostics,
+                &parsed,
+                &compiler_properties,
+                &fallback,
+                "allowSyntheticDefaultImports",
+                "false",
+                false,
+            );
+        }
+        if options.typed_value("outFile").is_some() {
+            emit_option_deprecation_name(
+                &mut diagnostics,
+                &parsed,
+                &compiler_properties,
+                &fallback,
+                "outFile",
+                false,
+            );
+        }
+        if config_option_bool(options, "downlevelIteration").is_some() {
+            emit_option_deprecation_name(
+                &mut diagnostics,
+                &parsed,
+                &compiler_properties,
+                &fallback,
+                "downlevelIteration",
+                false,
+            );
+        }
+        let module = config_option_i32(options, "module");
+        let module_name = match module {
+            Some(0) => Some("None"),
+            Some(2) => Some("AMD"),
+            Some(3) => Some("UMD"),
+            Some(4) => Some("System"),
+            _ => None,
+        };
+        if let Some(module_name) = module_name {
+            emit_option_deprecation_5107(
+                &mut diagnostics,
+                &parsed,
+                &compiler_properties,
+                &fallback,
+                "module",
+                module_name,
+                false,
+            );
+        }
+    }
+
+    sort_and_dedupe_diagnostics(&mut diagnostics);
+    diagnostics
+}
+
+fn config_compiler_option_properties(source: &SourceFile) -> Vec<ConfigPropertyNode> {
+    let Some(root) = config_root_object(source) else {
+        return Vec::new();
+    };
+    config_object_properties(source, root)
+        .into_iter()
+        .filter(|property| property.name == "compilerOptions")
+        .flat_map(|property| config_object_properties(source, property.initializer))
+        .collect()
+}
+
+fn emit_option_deprecation_5107(
+    diagnostics: &mut Vec<Diagnostic>,
+    source: &SourceFile,
+    properties: &[ConfigPropertyNode],
+    fallback: &Option<ConfigLocation>,
+    name: &str,
+    value: &str,
+    related: bool,
+) {
+    let start = diagnostics.len();
+    emit_option_diagnostic_for_properties(
+        diagnostics,
+        source,
+        properties,
+        fallback,
+        name,
+        false,
+        &gen::Option_0_1_is_deprecated_and_will_stop_functioning_in_TypeScript_2_Specify_compilerOption_ignoreDeprecations_3_to_silence_this_error,
+        &[
+            name.to_owned(),
+            value.to_owned(),
+            "7.0".to_owned(),
+            "6.0".to_owned(),
+        ],
+    );
+    if related {
+        // Replace only the rows created by this call. Other 5107 rows may
+        // precede it in the same option pass (for example `module=AMD`).
+        for diagnostic in &mut diagnostics[start..] {
+            diagnostic.message = diagnostic.message.clone().with_next(vec![MessageChain::new(
+                &gen::Visit_https_aka_ms_ts6_for_migration_information,
+                &[],
+            )]);
+        }
+    }
+}
+
+fn emit_option_deprecation_name(
+    diagnostics: &mut Vec<Diagnostic>,
+    source: &SourceFile,
+    properties: &[ConfigPropertyNode],
+    fallback: &Option<ConfigLocation>,
+    name: &str,
+    related: bool,
+) {
+    let start = diagnostics.len();
+    emit_option_diagnostic_for_properties(
+        diagnostics,
+        source,
+        properties,
+        fallback,
+        name,
+        true,
+        &gen::Option_0_is_deprecated_and_will_stop_functioning_in_TypeScript_1_Specify_compilerOption_ignoreDeprecations_2_to_silence_this_error,
+        &[name.to_owned(), "7.0".to_owned(), "6.0".to_owned()],
+    );
+    if related {
+        for diagnostic in &mut diagnostics[start..] {
+            diagnostic.message = diagnostic.message.clone().with_next(vec![MessageChain::new(
+                &gen::Visit_https_aka_ms_ts6_for_migration_information,
+                &[],
+            )]);
+        }
+    }
+}
+
+#[allow(clippy::too_many_arguments)] // Mirrors createOptionDiagnostic's location/message tuple.
+fn emit_option_diagnostic_for_properties(
+    diagnostics: &mut Vec<Diagnostic>,
+    source: &SourceFile,
+    properties: &[ConfigPropertyNode],
+    fallback: &Option<ConfigLocation>,
+    name: &str,
+    on_key: bool,
+    message: &'static DiagnosticMessage,
+    arguments: &[String],
+) {
+    let mut emitted = false;
+    for property in properties.iter().filter(|property| property.name == name) {
+        let location = config_location(
+            source,
+            if on_key {
+                property.name_node
+            } else {
+                property.initializer
+            },
+        );
+        diagnostics.push(config_diagnostic(message, arguments, location));
+        emitted = true;
+    }
+    if !emitted {
+        diagnostics.push(config_diagnostic(message, arguments, fallback.clone()));
+    }
 }
 
 fn pending_paths_option_diagnostics(
@@ -3763,6 +4080,7 @@ fn config_module_resolution_options(
         jsx_fragment_factory: config_option_string(options, "jsxFragmentFactory"),
         jsx_import_source: config_option_string(options, "jsxImportSource"),
         react_namespace: config_option_string(options, "reactNamespace"),
+        ignore_deprecations: config_option_string(options, "ignoreDeprecations"),
     };
 
     let mut program_options = ProgramOptions::default()

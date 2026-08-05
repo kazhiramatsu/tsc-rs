@@ -715,10 +715,12 @@ general `ParseConfigHost`/`matchFiles` qualification. Remaining root fields,
 remaining resolver/loader options, full `ParsedCommandLine`, and the complete
 project baseline/emit runner remain open. The validated projection now exposes
 the merged checker/program options and has a fail-closed `load_config_program`
-bridge into the general catalog-backed loader: config and option diagnostics
-stop source loading first, and an omitted or false `noEmit` is rejected before
-any source host work. A command-line override applies `noEmit=true` without
-mutating the remaining config options. The program gate also maintains an
+bridge into the general catalog-backed loader: config and fatal option
+diagnostics stop source loading first, while TypeScript 6.0 deprecation rows
+(5101/5107) remain reportable without blocking a no-emit program. An omitted
+or false `noEmit` is rejected before any source host work. A command-line
+override applies `noEmit=true` without mutating the remaining config options.
+The program gate also maintains an
 explicit allowlist for options projected into `CompilerOptions`,
 `ProgramOptions`, or root discovery; a recognized option outside that set
 fails as a typed unsupported scope instead of being silently ignored. The

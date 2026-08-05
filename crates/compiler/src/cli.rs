@@ -21,10 +21,10 @@ use tsc_diagnostics::{
 };
 use tsc_host::{CompilerHost, FsCompilerHost, HostError};
 use tsc_program::{
-    decode_host_text, load_config_program, load_config_program_with_no_emit_override, load_program,
-    parse_config_root_plan, CompilerConfigHost, CompilerOptions, ConfigParseError,
-    ConfigProgramLoadError, ConfigRootPlan, ConfigRootPlanRequest, LibraryCatalog,
-    ProgramLoadLimits, ProgramOptions,
+    decode_host_text, is_non_fatal_option_diagnostic, load_config_program,
+    load_config_program_with_no_emit_override, load_program, parse_config_root_plan,
+    CompilerConfigHost, CompilerOptions, ConfigParseError, ConfigProgramLoadError, ConfigRootPlan,
+    ConfigRootPlanRequest, LibraryCatalog, ProgramLoadLimits, ProgramOptions,
 };
 
 use crate::ProgramSession;
@@ -366,7 +366,19 @@ fn execute_config(
             source.text().to_owned(),
         );
     }
-    execute_prepared(current_directory, source_texts, prepared, pretty)
+    let option_diagnostics = plan
+        .option_diagnostics()
+        .iter()
+        .filter(|diagnostic| is_non_fatal_option_diagnostic(diagnostic))
+        .cloned()
+        .collect::<Vec<_>>();
+    execute_prepared(
+        current_directory,
+        source_texts,
+        prepared,
+        &option_diagnostics,
+        pretty,
+    )
 }
 
 fn execute_explicit_files(
@@ -396,19 +408,21 @@ fn execute_explicit_files(
             source.text().to_owned(),
         );
     }
-    execute_prepared(current_directory, source_texts, prepared, pretty)
+    execute_prepared(current_directory, source_texts, prepared, &[], pretty)
 }
 
 fn execute_prepared(
     current_directory: &Path,
     source_texts: BTreeMap<String, String>,
     prepared: tsc_program::PreparedProgram,
+    additional_diagnostics: &[Diagnostic],
     pretty: bool,
 ) -> Result<CliOutput, CliError> {
     let outcome = ProgramSession::new(prepared)
         .run()
         .map_err(|error| CliError::Driver(error.to_string()))?;
-    let diagnostics = outcome.into_diagnostics();
+    let mut diagnostics = outcome.into_diagnostics();
+    diagnostics.extend(additional_diagnostics.iter().cloned());
     rendered_diagnostics(current_directory, &source_texts, &diagnostics, pretty)
 }
 

@@ -6,8 +6,8 @@ use std::path::PathBuf;
 use serde_json::{json, Value};
 use tsc_diagnostics::{Diagnostic, DiagnosticCategory};
 use tsc_program::{
-    parse_config_root_plan, ConfigHostError, ConfigHostOperation, ConfigOptionValueState,
-    ConfigParseHost, ConfigRootPlanRequest, ConfigTypedListElement,
+    is_non_fatal_option_diagnostic, parse_config_root_plan, ConfigHostError, ConfigHostOperation,
+    ConfigOptionValueState, ConfigParseHost, ConfigRootPlanRequest, ConfigTypedListElement,
 };
 
 const ARTIFACT_PATH: &str = "vendor/typescript-6.0.3/compiler-config-diagnostics.v1.json";
@@ -782,7 +782,14 @@ fn compiler_paths_options_diagnostics_match_the_frozen_typescript_oracle() {
             "{fixture_id}: root discovery drifted"
         );
         assert_eq!(
-            diagnostic_records(plan.option_diagnostics()),
+            diagnostic_records(
+                &plan
+                    .option_diagnostics()
+                    .iter()
+                    .filter(|diagnostic| !is_non_fatal_option_diagnostic(diagnostic))
+                    .cloned()
+                    .collect::<Vec<_>>(),
+            ),
             fixture["options_diagnostics"],
             "{fixture_id}: paths option diagnostics drifted"
         );
