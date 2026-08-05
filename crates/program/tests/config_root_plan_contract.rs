@@ -207,6 +207,36 @@ fn parsed_commandline_project_references_and_wildcard_directories_are_retained()
 }
 
 #[test]
+fn wildcard_directories_apply_explicit_and_default_output_excludes() {
+    let host = MemoryConfigHost::default();
+    let excluded = parse_config_root_plan(
+        &host,
+        request(
+            "/project/tsconfig.json",
+            r#"{"include":["src/**/*.ts"],"exclude":["src"]}"#,
+        ),
+    )
+    .expect("explicit exclude plan");
+    assert!(excluded.wildcard_directories().is_empty());
+
+    let output_excluded = parse_config_root_plan(
+        &host,
+        request(
+            "/project/tsconfig.json",
+            r#"{"compilerOptions":{"outDir":"out"},"include":["**/*"]}"#,
+        ),
+    )
+    .expect("default output exclude plan");
+    assert_eq!(
+        output_excluded.wildcard_directories(),
+        &[tsc_program::ConfigWildcardDirectory {
+            path: "/project".to_owned(),
+            recursive: true,
+        }]
+    );
+}
+
+#[test]
 fn compiler_option_names_are_case_sensitive() {
     let host = MemoryConfigHost::default()
         .with_directory_files(&["/project/main.ts", "/project/helper.js"]);

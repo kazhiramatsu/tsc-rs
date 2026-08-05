@@ -1361,8 +1361,12 @@ pub fn parse_config_root_plan(
         &mut context.errors,
     )?;
     let project_references = config_project_references(node.references.as_ref(), &config_base);
-    let wildcard_directories =
-        derive_wildcard_directories(&node, &config_base, host.use_case_sensitive_file_names())?;
+    let wildcard_directories = derive_wildcard_directories(
+        &node,
+        &config_base,
+        &discovery_options,
+        host.use_case_sensitive_file_names(),
+    )?;
     node.options.restore_public_entry_order();
     let files = node
         .files
@@ -1478,6 +1482,7 @@ fn config_project_references(
 fn derive_wildcard_directories(
     config: &ParsedConfigNode,
     config_base_path: &str,
+    discovery: &ConfigDiscoveryOptions,
     case_sensitive: bool,
 ) -> Result<Vec<ConfigWildcardDirectory>, ConfigParseError> {
     // A `files` property disables wildcard discovery.  Otherwise TypeScript
@@ -1493,9 +1498,32 @@ fn derive_wildcard_directories(
             location: None,
         }]
     };
+    let excludes = if let Some(excludes) = &config.exclude {
+        excludes.clone()
+    } else {
+        [discovery.out_dir.clone(), discovery.declaration_dir.clone()]
+            .into_iter()
+            .flatten()
+            .map(|path| ConfigSpec {
+                text: path,
+                base_path: config_base_path.to_owned(),
+                location: None,
+            })
+            .collect()
+    };
+    let excludes = excludes
+        .iter()
+        .map(|exclude| normalized_spec_path(exclude, config_base_path))
+        .collect::<Result<Vec<_>, _>>()?;
     let mut directories = Vec::new();
     for include in includes {
         let spec = normalized_spec_path(&include, config_base_path)?;
+        if excludes
+            .iter()
+            .any(|exclude| wildcard_spec_is_excluded(&spec, exclude, case_sensitive))
+        {
+            continue;
+        }
         let Some((path, recursive)) = wildcard_directory_from_spec(&spec) else {
             continue;
         };
@@ -1539,6 +1567,28 @@ fn derive_wildcard_directories(
         })
     });
     Ok(directories)
+}
+
+fn wildcard_spec_is_excluded(spec: &str, exclude: &str, case_sensitive: bool) -> bool {
+    let normalize = |value: &str| {
+        if case_sensitive {
+            value.to_owned()
+        } else {
+            to_file_name_lower_case(value)
+        }
+    };
+    let spec = normalize(spec);
+    let exclude = normalize(exclude).trim_end_matches('/').to_owned();
+    if !exclude.contains(['*', '?']) {
+        return spec == exclude
+            || spec
+                .strip_prefix(&exclude)
+                .is_some_and(|tail| tail.starts_with('/'));
+    }
+    ConfigFilePattern::new(&exclude, "/", case_sensitive)
+        .ok()
+        .flatten()
+        .is_some_and(|pattern| pattern.matches(&spec))
 }
 
 fn wildcard_directory_from_spec(spec: &str) -> Option<(String, bool)> {
