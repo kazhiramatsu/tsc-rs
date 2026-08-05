@@ -46,19 +46,31 @@ impl Drop for TempTree {
 }
 
 fn run(tree: &TempTree, arguments: &[&str]) -> std::process::Output {
+    run_from(tree, ".", arguments)
+}
+
+fn run_from(tree: &TempTree, relative_directory: &str, arguments: &[&str]) -> std::process::Output {
     Command::new(env!("CARGO_BIN_EXE_tsc-rs"))
-        .current_dir(&tree.root)
+        .current_dir(tree.path(relative_directory))
         .args(arguments)
         .output()
         .expect("run tsc-rs binary")
 }
 
 fn run_typescript(tree: &TempTree, arguments: &[&str]) -> std::process::Output {
+    run_typescript_from(tree, ".", arguments)
+}
+
+fn run_typescript_from(
+    tree: &TempTree,
+    relative_directory: &str,
+    arguments: &[&str],
+) -> std::process::Output {
     let bundle = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("../..")
         .join("vendor/typescript-6.0.3/lib/_tsc.js");
     Command::new("node")
-        .current_dir(&tree.root)
+        .current_dir(tree.path(relative_directory))
         .arg(bundle)
         .args(arguments)
         .output()
@@ -87,6 +99,19 @@ fn utf16le_with_bom(text: &str) -> Vec<u8> {
 fn assert_typescript_parity(tree: &TempTree, rust_arguments: &[&str], ts_arguments: &[&str]) {
     let rust = run(tree, rust_arguments);
     let typescript = run_typescript(tree, ts_arguments);
+    assert_eq!(rust.status.code(), typescript.status.code());
+    assert_eq!(rust.stdout, typescript.stdout);
+    assert_eq!(rust.stderr, typescript.stderr);
+}
+
+fn assert_typescript_parity_from(
+    tree: &TempTree,
+    relative_directory: &str,
+    rust_arguments: &[&str],
+    ts_arguments: &[&str],
+) {
+    let rust = run_from(tree, relative_directory, rust_arguments);
+    let typescript = run_typescript_from(tree, relative_directory, ts_arguments);
     assert_eq!(rust.status.code(), typescript.status.code());
     assert_eq!(rust.stdout, typescript.stdout);
     assert_eq!(rust.stderr, typescript.stderr);
@@ -319,6 +344,28 @@ fn no_emit_cli_symlink_and_package_mode_matrix_matches_vendored_typescript() {
         &["-p", "tsconfig.json"],
         &["-p", "tsconfig.json"],
     );
+}
+
+#[test]
+#[ignore = "local H0 CLI oracle audit; requires the pinned Node runtime"]
+fn no_emit_cli_current_directory_discovery_matches_vendored_typescript() {
+    let tree = TempTree::new();
+    fs::create_dir_all(tree.path("src/nested")).expect("create current-directory fixture");
+    fs::write(tree.path("src/main.ts"), "const value: number = 'wrong';\n")
+        .expect("write current-directory source");
+    fs::write(
+        tree.path("src/nested/ignored.ts"),
+        "const ignored: number = 'wrong';\n",
+    )
+    .expect("write excluded current-directory source");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"noEmit":true,"lib":["es5"]},"include":["src/**/*.ts"],"exclude":["src/nested"]}"#,
+    )
+    .expect("write current-directory config");
+    assert_typescript_parity_from(&tree, "src", &[], &[]);
+    assert_typescript_parity_from(&tree, "src", &["--pretty", "false"], &["--pretty", "false"]);
+    assert_typescript_parity_from(&tree, "src", &["-p", ".."], &["-p", ".."]);
 }
 
 #[test]
