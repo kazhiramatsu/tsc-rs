@@ -612,11 +612,13 @@ document/global symlink identities), projects loader-relevant options and
 root selection, and returns the same catalog-backed `PreparedProgram` used by
 the Rust no-emit session. Representative default, type-reference,
 case-sensitive, virtual-config, and preserve-symlink fixtures exercise this
-boundary. The adapter intentionally stops before checker diagnostics, emit,
-baseline comparison, and the remaining explicitly unsupported resolver
-families (duplicate package identities, conflicting `noLib`/`lib`, and
-unowned Windows/UNC path forms); the full compiler execution matrix remains
-`not-run` until those owners are ported. A
+boundary. The local audit now loads and executes all 7,276 recorded compiler
+plans through `ProgramSession` with zero failures; that proves the Rust
+no-emit session boundary, not upstream baseline equivalence. The adapter and
+audit intentionally stop before emit, baseline comparison, and the remaining
+explicitly unsupported resolver families (duplicate package identities,
+conflicting `noLib`/`lib`, and unowned Windows/UNC path forms); those oracle
+tiers remain `not-run` until their owners are ported. A
 compiler-crate integration contract feeds representative prepared programs
 through `ProgramSession::run`, so this source/config/loader seam is exercised
 by the actual Rust no-emit session without adding the expensive corpus sweep
