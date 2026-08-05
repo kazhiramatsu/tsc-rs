@@ -33,6 +33,18 @@ cargo xtask m8 trace --program-json target/probe/program.json --code 8020 \
   --out target/m8-trace.json        # targeted D2 trace; report-only
 ```
 
+The local Rust phase of `cargo xtask ci` compiles
+`cargo test --workspace --all-targets --no-run`
+once, then launches the discovered test executables through an ordered
+two-process pipeline with one harness thread per process. Every unit, binary,
+integration, example, and benchmark test target remains covered, while the
+workspace's documentation contains no executable Rust doctests. Set
+`TSRS_CI_TEST_WORKERS=1` to diagnose order-sensitive resource issues. The
+separate `cargo build --workspace` pass is intentionally omitted because
+all-target Clippy type-checks every target and the test compile performs
+codegen. Test binaries omit debug information to reduce link and startup I/O;
+ordinary dev-profile binaries retain their debugging profile.
+
 If every path changed from the trusted base ends in `.md` and README's
 generated `STATUS` block is byte-identical to the base, do not run the
 Cargo/Node/full-corpus commands above. Run `git diff --check` from the
@@ -41,11 +53,13 @@ boundaries. Any non-Markdown or generated-status change uses the full merge
 gate.
 
 GitHub Actions intentionally does not repeat the local merge gate. It only
-classifies the changed paths and runs the focused Windows filesystem smoke
-when host, path, or toolchain inputs change; ordinary Rust, Node, semantic,
+classifies the changed paths and runs the focused Windows host contracts plus
+one compact filesystem-to-program parity smoke when host, path, or toolchain
+inputs change; ordinary Rust, Node, semantic,
 corpus, evidence, readiness, and performance checks remain local-only. The
-Windows lane is capped at two Cargo/test workers and is a platform canary,
-not acceptance evidence. The optional `cargo xtask ci --lane hosted
+Windows lane is capped at two Cargo/test workers and disables incremental
+state and test debuginfo on its clean runner. It is a platform canary, not
+acceptance evidence. The optional `cargo xtask ci --lane hosted
 --history-sensitive --baseline <trusted-sha>` diagnostic remains available
 locally for immutable-history investigation and is never selected
 automatically by Actions.

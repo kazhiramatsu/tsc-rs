@@ -892,6 +892,13 @@ During implementation, use focused owner tests and targeted MemoryHost
 differentials. Do not run full corpus or multi-platform probes in the edit
 loop.
 
+The local Rust phase of the gate uses stripped test binaries, compiles all
+Cargo test targets once, and launches the discovered executables through an ordered
+two-process/one-harness-thread pipeline after all-target Clippy. It does not
+repeat a standalone workspace build or launch the workspace's empty doctest
+crates; this changes neither the executable test set nor the semantic lane.
+`TSRS_CI_TEST_WORKERS=1` retains a serial diagnostic mode.
+
 For each semantic H0 candidate:
 
 1. run focused Rust and Node oracle tests;
@@ -900,8 +907,10 @@ For each semantic H0 candidate:
    changes;
 4. run `CARGO_BUILD_JOBS=2 RUST_TEST_THREADS=2 cargo xtask ci --baseline
    origin/main` exactly once on the committed final candidate;
-5. run the Windows path smoke only when host, path, config, or toolchain
-   behavior changes (the required local gate already covers macOS); and
+5. run the compact Windows host/program filesystem smoke only when host, path,
+   config, or toolchain behavior changes (the broad program contracts remain
+   local-only, the clean runner omits incremental state/test debuginfo, and the
+   required local gate already covers macOS); and
 6. merge automatically with a merge commit after every required check
    passes.
 

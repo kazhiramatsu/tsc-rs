@@ -123,6 +123,11 @@ jobs:
     timeout-minutes: 10
     env:
       CARGO_BUILD_JOBS: "2"
+      # The runner is clean and no target directory is restored. Avoid
+      # producing incremental state or test debuginfo that this smoke never
+      # consumes; this reduces compile/link I/O without adding CPU workers.
+      CARGO_INCREMENTAL: "0"
+      CARGO_PROFILE_TEST_DEBUG: "0"
       RUST_TEST_THREADS: "2"
       RUSTC_WRAPPER: ""
     steps:
@@ -132,14 +137,15 @@ jobs:
           persist-credentials: false
 
       - name: Run focused filesystem-host contracts
-        run: cargo test --manifest-path crates/host/Cargo.toml
+        run: >-
+          cargo test --manifest-path crates/host/Cargo.toml
+          --test filesystem_host_contract
 
       - name: Run focused program filesystem contracts
         if: ${{ needs.classify.outputs.program_path == 'true' }}
         run: >-
           cargo test --manifest-path crates/program/Cargo.toml
-          --test path_identity_contract
-          --test no_lib_program_loader_contract
+          --test host_platform_smoke_contract
 
   # Preserve the stable process-required check name (and the only context a
   # future branch-protection rule would need). This turns the classifier or

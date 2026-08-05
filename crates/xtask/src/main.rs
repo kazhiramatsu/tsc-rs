@@ -7524,12 +7524,6 @@ fn ci_rust_gates() -> Result<(), Box<dyn Error>> {
     let workspace = find_workspace_root()?;
     ci_format_gate(&workspace)?;
     ci_clippy_gate(&workspace)?;
-    run_command(
-        Command::new("cargo")
-            .current_dir(&workspace)
-            .arg("build")
-            .arg("--workspace"),
-    )?;
     ci_workspace_tests(&workspace)?;
     ci_oracle_gates(&workspace)?;
     Ok(())
@@ -7613,12 +7607,165 @@ fn ci_clippy_gate(workspace: &Path) -> Result<(), Box<dyn Error>> {
 }
 
 fn ci_workspace_tests(workspace: &Path) -> Result<(), Box<dyn Error>> {
-    run_command(
-        Command::new("cargo")
-            .current_dir(workspace)
-            .arg("test")
-            .arg("--workspace"),
-    )
+    let mut compile = Command::new("cargo");
+    compile
+        .current_dir(workspace)
+        .args([
+            "test",
+            "--workspace",
+            "--all-targets",
+            "--no-run",
+            "--message-format=json-render-diagnostics",
+        ])
+        .stdout(Stdio::piped())
+        .stderr(Stdio::inherit());
+    let output = compile.output()?;
+    if !output.status.success() {
+        return Err(format!("workspace test compilation failed with {}", output.status).into());
+    }
+    let tests = cargo_test_executables(&output.stdout)?;
+    if tests.is_empty() {
+        return Err("workspace test compilation produced no executable test targets".into());
+    }
+
+    let worker_count = ci_test_worker_count()?.min(tests.len());
+    println!(
+        "workspace test pipeline: executables={} workers={worker_count} harness_threads=1",
+        tests.len()
+    );
+    let results = bounded_pipeline::ordered_map(&tests, worker_count, |_, test| {
+        let started = std::time::Instant::now();
+        let output = Command::new(&test.executable)
+            .current_dir(&test.package_directory)
+            // Bound total harness parallelism at the same two-worker ceiling
+            // as the outer process pipeline. Individual tests may still own
+            // explicitly bounded worker pools of their own.
+            .env("RUST_TEST_THREADS", "1")
+            .output()
+            .map_err(|error| error.to_string());
+        (started.elapsed(), output)
+    })?;
+
+    let mut failed = Vec::new();
+    for (test, (elapsed, result)) in tests.iter().zip(results) {
+        println!(
+            "workspace test target {}: elapsed={:.3}s",
+            test.label,
+            elapsed.as_secs_f64()
+        );
+        match result {
+            Ok(output) => {
+                std::io::stdout().write_all(&output.stdout)?;
+                std::io::stderr().write_all(&output.stderr)?;
+                if !output.status.success() {
+                    failed.push(format!("{} ({})", test.label, output.status));
+                }
+            }
+            Err(error) => failed.push(format!("{} ({error})", test.label)),
+        }
+    }
+    if failed.is_empty() {
+        Ok(())
+    } else {
+        Err(format!("workspace test targets failed: {}", failed.join(", ")).into())
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct CiTestExecutable {
+    label: String,
+    executable: PathBuf,
+    package_directory: PathBuf,
+}
+
+fn cargo_test_executables(stdout: &[u8]) -> Result<Vec<CiTestExecutable>, Box<dyn Error>> {
+    let stdout = std::str::from_utf8(stdout)?;
+    let mut seen = BTreeSet::new();
+    let mut tests = Vec::new();
+    for (line_index, line) in stdout.lines().enumerate() {
+        let message: serde_json::Value = serde_json::from_str(line).map_err(|error| {
+            format!(
+                "invalid Cargo JSON message at line {}: {error}",
+                line_index + 1
+            )
+        })?;
+        if message.get("reason").and_then(serde_json::Value::as_str) != Some("compiler-artifact")
+            || message
+                .pointer("/profile/test")
+                .and_then(serde_json::Value::as_bool)
+                != Some(true)
+        {
+            continue;
+        }
+        let Some(executable) = message
+            .get("executable")
+            .and_then(serde_json::Value::as_str)
+        else {
+            continue;
+        };
+        let executable = PathBuf::from(executable);
+        if !seen.insert(executable.clone()) {
+            continue;
+        }
+        let manifest = message
+            .get("manifest_path")
+            .and_then(serde_json::Value::as_str)
+            .ok_or_else(|| format!("test artifact {executable:?} has no manifest_path"))?;
+        let package_directory = Path::new(manifest)
+            .parent()
+            .ok_or_else(|| format!("test manifest {manifest:?} has no parent directory"))?
+            .to_path_buf();
+        let name = message
+            .pointer("/target/name")
+            .and_then(serde_json::Value::as_str)
+            .ok_or_else(|| format!("test artifact {executable:?} has no target name"))?;
+        let kinds = message
+            .pointer("/target/kind")
+            .and_then(serde_json::Value::as_array)
+            .ok_or_else(|| format!("test artifact {executable:?} has no target kind"))?
+            .iter()
+            .map(|kind| {
+                kind.as_str()
+                    .ok_or_else(|| format!("test artifact {executable:?} has a non-string kind"))
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+        tests.push(CiTestExecutable {
+            label: format!("{name} [{}]", kinds.join(",")),
+            executable,
+            package_directory,
+        });
+    }
+    Ok(tests)
+}
+
+const MAX_CI_TEST_WORKERS: usize = 2;
+const CI_TEST_WORKERS_ENV: &str = "TSRS_CI_TEST_WORKERS";
+
+fn ci_test_worker_count() -> Result<usize, Box<dyn Error>> {
+    let available = std::thread::available_parallelism()
+        .map(std::num::NonZeroUsize::get)
+        .unwrap_or(1);
+    let configured = std::env::var(CI_TEST_WORKERS_ENV).ok();
+    select_ci_test_workers(configured.as_deref(), available).map_err(|error| error.into())
+}
+
+fn select_ci_test_workers(configured: Option<&str>, available: usize) -> Result<usize, String> {
+    if available == 0 {
+        return Err("available CI test parallelism must be positive".to_owned());
+    }
+    let ceiling = available.min(MAX_CI_TEST_WORKERS);
+    let Some(configured) = configured else {
+        return Ok(ceiling);
+    };
+    let workers = configured.parse::<usize>().map_err(|_| {
+        format!("{CI_TEST_WORKERS_ENV} must be an integer from 1 to {MAX_CI_TEST_WORKERS}")
+    })?;
+    if workers == 0 || workers > MAX_CI_TEST_WORKERS {
+        return Err(format!(
+            "{CI_TEST_WORKERS_ENV} must be an integer from 1 to {MAX_CI_TEST_WORKERS}"
+        ));
+    }
+    Ok(workers.min(available))
 }
 
 fn ci_oracle_gates(workspace: &Path) -> Result<(), Box<dyn Error>> {
@@ -7848,6 +7995,49 @@ mod ci_lane_tests {
     fn rejects_unknown_or_incomplete_lane_arguments() {
         assert!(parse_ci_args(["--lane", "fast"].into_iter().map(str::to_owned)).is_err());
         assert!(parse_ci_args(["--lane"].into_iter().map(str::to_owned)).is_err());
+    }
+
+    #[test]
+    fn local_test_pipeline_is_bounded_to_two_processes() {
+        assert_eq!(select_ci_test_workers(None, 1).unwrap(), 1);
+        assert_eq!(select_ci_test_workers(None, 8).unwrap(), 2);
+        assert_eq!(select_ci_test_workers(Some("1"), 8).unwrap(), 1);
+        assert_eq!(select_ci_test_workers(Some("2"), 1).unwrap(), 1);
+        assert!(select_ci_test_workers(Some("0"), 8).is_err());
+        assert!(select_ci_test_workers(Some("3"), 8).is_err());
+        assert!(select_ci_test_workers(Some("two"), 8).is_err());
+        assert!(select_ci_test_workers(None, 0).is_err());
+    }
+
+    #[test]
+    fn cargo_test_artifacts_are_deduplicated_and_keep_package_roots() {
+        let artifact = |name: &str, executable: &str, test: bool| {
+            serde_json::json!({
+                "reason": "compiler-artifact",
+                "manifest_path": "workspace/crate/Cargo.toml",
+                "target": { "name": name, "kind": ["test"] },
+                "profile": { "test": test },
+                "executable": executable,
+            })
+            .to_string()
+        };
+        let stdout = [
+            artifact("one", "target/one", true),
+            artifact("dependency", "target/dependency", false),
+            artifact("duplicate", "target/one", true),
+            serde_json::json!({ "reason": "build-finished", "success": true }).to_string(),
+        ]
+        .join("\n");
+        let tests = cargo_test_executables(stdout.as_bytes()).unwrap();
+
+        assert_eq!(
+            tests,
+            [CiTestExecutable {
+                label: "one [test]".to_owned(),
+                executable: PathBuf::from("target/one"),
+                package_directory: PathBuf::from("workspace/crate"),
+            }]
+        );
     }
 }
 
