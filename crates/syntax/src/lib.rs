@@ -96,9 +96,17 @@ pub struct SourceFile {
     /// Whether leading multiline comments contain a recognized
     /// `@jsxImportSource` pragma.
     pub has_jsx_import_source_pragma: bool,
+    /// The final argument of the last recognized `@jsxImportSource` pragma,
+    /// when it has a usable argument. TypeScript's pragma map is last-write
+    /// wins; the boolean above is retained for malformed/argument-less
+    /// pragma observations.
+    pub jsx_import_source_pragma: Option<String>,
     /// Whether leading multiline comments contain a recognized `@jsxRuntime`
     /// pragma.
     pub has_jsx_runtime_pragma: bool,
+    /// The final argument of the last recognized `@jsxRuntime` pragma, when
+    /// it has a usable argument (for example `automatic` or `classic`).
+    pub jsx_runtime_pragma: Option<String>,
     /// tsc SourceFile.commentDirectives: scanner-collected
     /// `@ts-expect-error`/`@ts-ignore` markers, in scan order (byte
     /// offsets; see CommentDirective).

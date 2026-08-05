@@ -412,6 +412,7 @@ fn apply_compiler_setting(
         | "inlinesourcemap"
         | "inlinesources"
         | "sourceroot"
+        | "maproot"
         | "noemithelpers"
         | "noemitonerror" => {}
         _ => {

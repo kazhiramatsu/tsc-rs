@@ -355,7 +355,7 @@ fn import_helpers_prepends_the_exact_synthetic_tslib_request() {
 }
 
 #[test]
-fn synthetic_tslib_request_obeys_the_upstream_source_boundary() {
+fn synthetic_helpers_and_jsx_runtime_obey_the_upstream_source_boundary() {
     let options = CompilerOptions {
         module: Some(99),
         module_resolution: Some(100),
@@ -410,34 +410,54 @@ fn synthetic_tslib_request_obeys_the_upstream_source_boundary() {
         jsx: Some(4),
         ..options.clone()
     };
-    assert!(matches!(
-        plan_source_requests(&source_at("/automatic.tsx", "<div />;\n", None), &jsx),
-        Err(ResolutionError::Unsupported { .. })
-    ));
+    let plan = plan_source_requests(&source_at("/automatic.tsx", "<div />;\n", None), &jsx)
+        .expect("plan automatic JSX runtime request");
+    assert_eq!(
+        plan.module_requests()
+            .iter()
+            .map(|request| request.specifier())
+            .collect::<Vec<_>>(),
+        ["tslib", "react/jsx-runtime"]
+    );
 
     let jsx_import_source = CompilerOptions {
         jsx_import_source: Some("preact".to_owned()),
+        isolated_modules: Some(true),
         ..options.clone()
     };
-    assert!(matches!(
-        plan_source_requests(
-            &source_at("/option.tsx", "const value = 1;\n", None),
-            &jsx_import_source,
-        ),
-        Err(ResolutionError::Unsupported { .. })
-    ));
+    let plan = plan_source_requests(
+        &source_at("/option.tsx", "const value = 1;\n", None),
+        &jsx_import_source,
+    )
+    .expect("plan configured JSX runtime request");
+    assert_eq!(
+        plan.module_requests()
+            .iter()
+            .map(|request| request.specifier())
+            .collect::<Vec<_>>(),
+        ["tslib", "preact/jsx-runtime"]
+    );
 
-    assert!(matches!(
-        plan_source_requests(
-            &source_at(
-                "/pragma.tsx",
-                "/** @jsxRuntime automatic */\nconst value = 1;\n",
-                None,
-            ),
-            &options,
+    let pragma_options = CompilerOptions {
+        isolated_modules: Some(true),
+        ..options
+    };
+    let plan = plan_source_requests(
+        &source_at(
+            "/pragma.tsx",
+            "/** @jsxRuntime automatic */\nconst value = 1;\n",
+            None,
         ),
-        Err(ResolutionError::Unsupported { .. })
-    ));
+        &pragma_options,
+    )
+    .expect("plan pragma-selected JSX runtime request");
+    assert_eq!(
+        plan.module_requests()
+            .iter()
+            .map(|request| request.specifier())
+            .collect::<Vec<_>>(),
+        ["tslib", "react/jsx-runtime"]
+    );
 }
 
 #[test]
@@ -803,44 +823,53 @@ fn bare_string_named_module_in_external_source_is_not_an_augmentation_request() 
 }
 
 #[test]
-fn module_body_requests_fail_closed_instead_of_leaking_into_the_source_plan() {
+fn module_body_requests_follow_collect_module_references_boundaries() {
     let options = CompilerOptions {
         module: Some(1),
         module_resolution: Some(100),
         ..CompilerOptions::default()
     };
-    for (label, file_name, text) in [
+    for (label, file_name, text, expected) in [
         (
             "external bare module",
             "/bare.ts",
             "export {}; module \"foo\" { import \"bar\"; }\n",
+            &[][..],
         ),
         (
             "external augmentation",
             "/augmentation.ts",
             "export {}; declare module \"foo\" { import \"bar\"; }\n",
+            &["foo"][..],
         ),
         (
             "script ambient non-relative import",
             "/ambient.d.ts",
             "declare module \"foo\" { import \"bar\"; }\n",
+            &["bar"][..],
         ),
         (
             "script ambient relative import",
             "/ambient-relative.d.ts",
             "declare module \"foo\" { import \"./bar\"; }\n",
+            &[][..],
         ),
     ] {
-        let result = plan_module_requests(&source_at(file_name, text, None), &options);
-        assert!(
-            matches!(result, Err(ResolutionError::Unsupported { .. })),
-            "{label}: {result:?}"
+        let result = plan_module_requests(&source_at(file_name, text, None), &options)
+            .unwrap_or_else(|error| panic!("{label}: {error}"));
+        assert_eq!(
+            result
+                .iter()
+                .map(|request| request.specifier())
+                .collect::<Vec<_>>(),
+            expected,
+            "{label}"
         );
     }
 }
 
 #[test]
-fn nested_string_named_module_fails_closed_without_ambient_context_tracking() {
+fn nested_string_named_module_is_a_collection_boundary() {
     let source = source_at(
         "/nested.ts",
         concat!(
@@ -855,10 +884,9 @@ fn nested_string_named_module_fails_closed_without_ambient_context_tracking() {
         ..CompilerOptions::default()
     };
 
-    assert!(matches!(
-        plan_module_requests(&source, &options),
-        Err(ResolutionError::Unsupported { .. })
-    ));
+    let requests =
+        plan_module_requests(&source, &options).expect("nested ambient module is skipped");
+    assert!(requests.is_empty());
 }
 
 #[test]
@@ -1015,7 +1043,42 @@ fn node10_amd_projects_plan_static_imports_and_javascript_requires() {
 }
 
 #[test]
-fn resolution_mode_attributes_outside_the_owned_type_only_shape_fail_closed() {
+fn legacy_emit_module_kinds_keep_static_requests_unspecified() {
+    for module in [0, 2, 3, 4] {
+        let options = CompilerOptions {
+            module: Some(module),
+            // Use a modern resolution kind to exercise the emit-syntax mode
+            // selector directly. The config relationship diagnostic belongs
+            // to the config boundary; request planning itself must preserve
+            // TypeScript's undefined mode for these legacy emit formats.
+            module_resolution: Some(3),
+            ..CompilerOptions::default()
+        };
+        let plan = plan_source_requests(
+            &source_at(
+                "/index.ts",
+                "import \"dependency\";\nimport(\"dynamic\");\n",
+                None,
+            ),
+            &options,
+        )
+        .unwrap_or_else(|error| panic!("plan legacy module kind {module}: {error}"));
+        assert_eq!(
+            plan.module_requests()
+                .iter()
+                .map(|request| (request.specifier(), request.mode()))
+                .collect::<Vec<_>>(),
+            [
+                ("dependency", ResolutionMode::Unspecified),
+                ("dynamic", ResolutionMode::CommonJs),
+            ],
+            "legacy module kind {module}"
+        );
+    }
+}
+
+#[test]
+fn resolution_mode_attributes_do_not_block_static_source_discovery() {
     let options = CompilerOptions {
         module: Some(99),
         module_resolution: Some(1),
@@ -1026,10 +1089,11 @@ fn resolution_mode_attributes_outside_the_owned_type_only_shape_fail_closed() {
         "import type { x } from \"foo\" with { \"type\": \"json\" };\n",
         "type Imported = import(\"foo\", { with: { \"type\": \"json\" } });\n",
     ] {
-        assert!(matches!(
-            plan_module_requests(&source_at("/index.ts", text, None), &options),
-            Err(ResolutionError::Unsupported { .. })
-        ));
+        let plan = plan_module_requests(&source_at("/index.ts", text, None), &options)
+            .expect("attribute diagnostics must not suppress source discovery");
+        assert_eq!(plan.len(), 1);
+        assert_eq!(plan[0].specifier(), "foo");
+        assert_eq!(plan[0].mode(), ResolutionMode::Unspecified);
     }
 }
 
@@ -1064,16 +1128,15 @@ fn internal_import_equals_does_not_publish_a_resolution_request() {
 }
 
 #[test]
-fn expanded_plan_still_fails_closed_for_unowned_request_syntax() {
+fn malformed_request_syntax_does_not_publish_partial_resolution_keys() {
     for text in [
         "type Imported = import(123).Value;\n",
         "const required = require(\"inner/call\");\n",
         "import(getName());\n",
     ] {
-        assert!(matches!(
-            plan_module_requests(&source(text, ResolutionMode::EsNext), &node_options()),
-            Err(ResolutionError::Unsupported { .. })
-        ));
+        let plan = plan_module_requests(&source(text, ResolutionMode::EsNext), &node_options())
+            .expect("malformed request syntax is owned by parser/checker diagnostics");
+        assert!(plan.is_empty());
     }
 }
 

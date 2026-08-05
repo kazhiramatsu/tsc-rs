@@ -258,8 +258,20 @@ struct FinishedParse {
     type_reference_directives: Vec<TypeReferenceDirective>,
     lib_reference_directives: Vec<crate::FileReference>,
     has_jsx_import_source_pragma: bool,
+    jsx_import_source_pragma: Option<String>,
     has_jsx_runtime_pragma: bool,
+    jsx_runtime_pragma: Option<String>,
     comment_directives: Vec<crate::CommentDirective>,
+}
+
+struct ProcessedReferenceDirectives {
+    paths: Vec<crate::FileReference>,
+    types: Vec<TypeReferenceDirective>,
+    libs: Vec<crate::FileReference>,
+    has_jsx_import_source_pragma: bool,
+    jsx_import_source_pragma: Option<String>,
+    has_jsx_runtime_pragma: bool,
+    jsx_runtime_pragma: Option<String>,
 }
 
 fn can_have_jsdoc(kind: SyntaxKind) -> bool {
@@ -551,7 +563,9 @@ struct RawReferenceDirectives {
     libs: Vec<RawFileReference>,
     errors: Vec<(usize, usize, &'static tsc_diagnostics::DiagnosticMessage)>,
     has_jsx_import_source_pragma: bool,
+    jsx_import_source_pragma: Option<String>,
     has_jsx_runtime_pragma: bool,
+    jsx_runtime_pragma: Option<String>,
 }
 
 /// tsc-port: extractPragmas(multiLinePragmaRegEx) @6.0.3
@@ -604,10 +618,25 @@ fn observe_multiline_jsx_pragmas(comment: &str, directives: &mut RawReferenceDir
                 .any(|ch| !is_js_whitespace(ch));
         if arguments_are_valid {
             let name = &comment[name_start..name_end];
+            // `getNamedPragmaArguments` in TypeScript takes the first
+            // whitespace-delimited argument. A closing `*/` is comment
+            // syntax rather than a pragma value, so argument-less pragmas
+            // remain represented by the compatibility booleans only.
+            let argument = comment[arguments_start..cursor]
+                .split_whitespace()
+                .next()
+                .filter(|value| *value != "*/")
+                .map(str::to_owned);
             if name.eq_ignore_ascii_case("jsximportsource") {
                 directives.has_jsx_import_source_pragma = true;
+                if argument.is_some() {
+                    directives.jsx_import_source_pragma = argument;
+                }
             } else if name.eq_ignore_ascii_case("jsxruntime") {
                 directives.has_jsx_runtime_pragma = true;
+                if argument.is_some() {
+                    directives.jsx_runtime_pragma = argument;
+                }
             }
         }
         search = cursor;
@@ -9376,16 +9405,18 @@ impl<'text> Parser<'text> {
         // M8-P01: parseSourceFile runs pragma processing after building the
         // SourceFile and appends its diagnostics to the syntactic bucket;
         // parseJsonText deliberately skips that step.
-        let (
-            referenced_files,
-            type_reference_directives,
-            lib_reference_directives,
-            has_jsx_import_source_pragma,
-            has_jsx_runtime_pragma,
-        ) = if process_pragmas {
+        let directives = if process_pragmas {
             self.process_leading_reference_directives()
         } else {
-            (Vec::new(), Vec::new(), Vec::new(), false, false)
+            ProcessedReferenceDirectives {
+                paths: Vec::new(),
+                types: Vec::new(),
+                libs: Vec::new(),
+                has_jsx_import_source_pragma: false,
+                jsx_import_source_pragma: None,
+                has_jsx_runtime_pragma: false,
+                jsx_runtime_pragma: None,
+            }
         };
 
         // tsc parseSourceFileWorker: sourceFile.commentDirectives =
@@ -9405,24 +9436,18 @@ impl<'text> Parser<'text> {
             root,
             parse_diagnostics: self.parse_diagnostics,
             js_doc_diagnostics: self.js_doc_diagnostics,
-            referenced_files,
-            type_reference_directives,
-            lib_reference_directives,
-            has_jsx_import_source_pragma,
-            has_jsx_runtime_pragma,
+            referenced_files: directives.paths,
+            type_reference_directives: directives.types,
+            lib_reference_directives: directives.libs,
+            has_jsx_import_source_pragma: directives.has_jsx_import_source_pragma,
+            jsx_import_source_pragma: directives.jsx_import_source_pragma,
+            has_jsx_runtime_pragma: directives.has_jsx_runtime_pragma,
+            jsx_runtime_pragma: directives.jsx_runtime_pragma,
             comment_directives,
         }
     }
 
-    fn process_leading_reference_directives(
-        &mut self,
-    ) -> (
-        Vec<crate::FileReference>,
-        Vec<TypeReferenceDirective>,
-        Vec<crate::FileReference>,
-        bool,
-        bool,
-    ) {
+    fn process_leading_reference_directives(&mut self) -> ProcessedReferenceDirectives {
         let directives = leading_reference_directives(self.source_text);
         for (start, length, message) in directives.errors {
             self.push_parse_diagnostic(start, length, message, Vec::new());
@@ -9458,13 +9483,15 @@ impl<'text> Parser<'text> {
                 preserve: reference.preserve,
             })
             .collect();
-        (
+        ProcessedReferenceDirectives {
             paths,
             types,
             libs,
-            directives.has_jsx_import_source_pragma,
-            directives.has_jsx_runtime_pragma,
-        )
+            has_jsx_import_source_pragma: directives.has_jsx_import_source_pragma,
+            jsx_import_source_pragma: directives.jsx_import_source_pragma,
+            has_jsx_runtime_pragma: directives.has_jsx_runtime_pragma,
+            jsx_runtime_pragma: directives.jsx_runtime_pragma,
+        }
     }
 
     fn finish_node_at(&mut self, id: NodeId, pos: usize, end: usize) -> NodeId {
@@ -9611,7 +9638,9 @@ pub fn parse_source_file(
         type_reference_directives: finished.type_reference_directives,
         lib_reference_directives: finished.lib_reference_directives,
         has_jsx_import_source_pragma: finished.has_jsx_import_source_pragma,
+        jsx_import_source_pragma: finished.jsx_import_source_pragma,
         has_jsx_runtime_pragma: finished.has_jsx_runtime_pragma,
+        jsx_runtime_pragma: finished.jsx_runtime_pragma,
         comment_directives: finished.comment_directives,
     }
 }
@@ -9733,7 +9762,9 @@ pub fn parse_json_text_with_bases(
         type_reference_directives: finished.type_reference_directives,
         lib_reference_directives: finished.lib_reference_directives,
         has_jsx_import_source_pragma: finished.has_jsx_import_source_pragma,
+        jsx_import_source_pragma: finished.jsx_import_source_pragma,
         has_jsx_runtime_pragma: finished.has_jsx_runtime_pragma,
+        jsx_runtime_pragma: finished.jsx_runtime_pragma,
         comment_directives: finished.comment_directives,
     }
 }
@@ -13298,7 +13329,31 @@ mod tests {
             None,
         );
         assert!(source.has_jsx_import_source_pragma);
+        assert_eq!(source.jsx_import_source_pragma.as_deref(), Some("preact"));
         assert!(source.has_jsx_runtime_pragma);
+        assert_eq!(source.jsx_runtime_pragma.as_deref(), Some("automatic"));
+
+        let final_pragma = parse_source_file(
+            "/final.tsx".to_owned(),
+            concat!(
+                "/** @jsxRuntime classic */\n",
+                "/** @jsxImportSource @emotion/react */\n",
+                "/** @jsxRuntime automatic */\n",
+                "/** @jsxRuntime */\n",
+                "const value = 1;",
+            )
+            .to_owned(),
+            ParseOptions::default(),
+            None,
+        );
+        assert_eq!(
+            final_pragma.jsx_import_source_pragma.as_deref(),
+            Some("@emotion/react")
+        );
+        assert_eq!(
+            final_pragma.jsx_runtime_pragma.as_deref(),
+            Some("automatic")
+        );
 
         for text in [
             "// @jsxRuntime automatic\nconst value = 1;",

@@ -448,7 +448,12 @@ carries its reason across the compiler
 seam, so an `allowJs` program cannot silently accept an unexplained local
 unloaded target. A `.jsx` module target without an active JSX mode is retained
 without reading its bytes and produces TS6142; an already-owned `.jsx` source still
-produces TS6142 without losing its module symbol. Effective
+produces TS6142 without losing its module symbol. ReactJSX/ReactJSXDev,
+`jsxImportSource`, and leading `@jsxImportSource`/`@jsxRuntime` pragmas now
+publish TypeScript's synthetic runtime request (`react/jsx-runtime`,
+`react/jsx-dev-runtime`, or the configured package) immediately after the
+synthetic `tslib` request, preserving the checker-visible source order.
+`@jsxRuntime classic` suppresses that synthetic request. Effective
 `resolveJsonModule` admits explicit JSON roots as well as explicit JSON
 requests. `noDtsResolution` applies TypeScript's implementation-file mask,
 removes `types`/`types@...` package conditions, and suppresses declaration
@@ -608,8 +613,10 @@ root selection, and returns the same catalog-backed `PreparedProgram` used by
 the Rust no-emit session. Representative default, type-reference,
 case-sensitive, virtual-config, and preserve-symlink fixtures exercise this
 boundary. The adapter intentionally stops before checker diagnostics, emit,
-baseline comparison, and unsupported static-request families; the full
-compiler case matrix remains `not-run` until those owners are ported. A
+baseline comparison, and the remaining explicitly unsupported resolver
+families (duplicate package identities, conflicting `noLib`/`lib`, and
+unowned Windows/UNC path forms); the full compiler execution matrix remains
+`not-run` until those owners are ported. A
 compiler-crate integration contract feeds representative prepared programs
 through `ProgramSession::run`, so this source/config/loader seam is exercised
 by the actual Rust no-emit session without adding the expensive corpus sweep
