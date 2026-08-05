@@ -331,6 +331,7 @@ version = "0.1.0"
 dependencies = [
  "tsc-rs-checker",
  "tsc-rs-diagnostics",
+ "tsc-rs-harness",
  "tsc-rs-host",
  "tsc-rs-program",
 ]
