@@ -1,0 +1,648 @@
+//! Small, fail-closed H0 command-line driver.
+//!
+//! The driver intentionally owns process concerns (argument selection,
+//! current-directory discovery, diagnostic rendering, and exit status) while
+//! [`tsc_program`] owns config conversion and program construction. Unsupported
+//! flags and infrastructure failures return exit status 2; ordinary TypeScript
+//! diagnostics return status 1.
+
+use std::cmp::Ordering;
+use std::collections::BTreeMap;
+use std::env;
+use std::error::Error;
+use std::fmt;
+use std::path::{Path, PathBuf};
+
+use tsc_diagnostics::{format_diagnostics_with_context, Diagnostic, FormatDiagnosticsHost};
+use tsc_host::{CompilerHost, FsCompilerHost, HostError};
+use tsc_program::{
+    decode_host_text, load_config_program, load_config_program_with_no_emit_override, load_program,
+    parse_config_root_plan, CompilerOptions, ConfigFilePattern, ConfigHostError,
+    ConfigHostOperation, ConfigParseError, ConfigParseHost, ConfigProgramLoadError, ConfigRootPlan,
+    ConfigRootPlanRequest, LibraryCatalog, ProgramLoadLimits, ProgramOptions,
+};
+
+use crate::ProgramSession;
+
+const EXIT_SUCCESS: i32 = 0;
+const EXIT_DIAGNOSTIC: i32 = 1;
+const EXIT_FAILURE: i32 = 2;
+const CONFIG_FILE_NAME: &str = "tsconfig.json";
+const MAX_DIRECTORY_DEPTH: usize = 256;
+const DEFAULT_LIMITS: ProgramLoadLimits = ProgramLoadLimits::new(
+    1_000_000,
+    2_000_000,
+    256,
+    64 * 1024 * 1024,
+    512 * 1024 * 1024,
+);
+
+/// Result of one CLI invocation. The binary writes the two streams and exits
+/// with [`exit_code`](Self::exit_code); tests and embeddings can inspect the
+/// result without spawning a child process.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct CliOutput {
+    stdout: String,
+    stderr: String,
+    exit_code: i32,
+}
+
+impl CliOutput {
+    pub fn stdout(&self) -> &str {
+        &self.stdout
+    }
+
+    pub fn stderr(&self) -> &str {
+        &self.stderr
+    }
+
+    pub const fn exit_code(&self) -> i32 {
+        self.exit_code
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+enum CliError {
+    Usage(String),
+    Host(String),
+    Config(String),
+    Load(String),
+    Driver(String),
+    Render(String),
+}
+
+impl fmt::Display for CliError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Usage(detail) => write!(formatter, "{detail}"),
+            Self::Host(detail) => write!(formatter, "filesystem host failure: {detail}"),
+            Self::Config(detail) => write!(formatter, "config failure: {detail}"),
+            Self::Load(detail) => write!(formatter, "program construction failure: {detail}"),
+            Self::Driver(detail) => write!(formatter, "compiler failure: {detail}"),
+            Self::Render(detail) => write!(formatter, "diagnostic rendering failure: {detail}"),
+        }
+    }
+}
+
+impl Error for CliError {}
+
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+struct CommandLine {
+    project: Option<PathBuf>,
+    files: Vec<PathBuf>,
+    no_emit: bool,
+    pretty: bool,
+}
+
+/// Execute the bounded H0 command-line surface.
+pub fn run_cli(args: &[String]) -> CliOutput {
+    match execute(args) {
+        Ok(output) => output,
+        Err(error) => CliOutput {
+            stdout: String::new(),
+            stderr: format!("tsc-rs: {error}\n"),
+            exit_code: EXIT_FAILURE,
+        },
+    }
+}
+
+fn execute(args: &[String]) -> Result<CliOutput, CliError> {
+    let command_line = parse_arguments(args)?;
+    if args.iter().any(|arg| arg == "--version") {
+        return Ok(CliOutput {
+            stdout: format!("{}\n", env!("CARGO_PKG_VERSION")),
+            stderr: String::new(),
+            exit_code: EXIT_SUCCESS,
+        });
+    }
+
+    let host = FsCompilerHost::from_process().map_err(host_error)?;
+    let _pretty = command_line.pretty;
+    let current_directory = host.current_directory().map_err(host_error)?;
+    let catalog = LibraryCatalog::typescript_6_0_3(library_directory(&current_directory));
+
+    if let Some(project) = command_line.project {
+        let config_file = resolve_project_file(&host, &current_directory, &project)?;
+        let (plan, source_texts) = parse_config_file(&host, &config_file)?;
+        return execute_config(
+            &host,
+            &current_directory,
+            &catalog,
+            &plan,
+            source_texts,
+            command_line.no_emit,
+        );
+    }
+
+    if !command_line.files.is_empty() {
+        if !command_line.no_emit {
+            return Err(CliError::Usage(
+                "explicit source files require --noEmit; H0 never invokes an emitter".to_owned(),
+            ));
+        }
+        let roots = command_line
+            .files
+            .into_iter()
+            .map(|file| absolutize(&current_directory, &file))
+            .collect::<Vec<_>>();
+        return execute_explicit_files(&host, &current_directory, &catalog, &roots);
+    }
+
+    let config_file = find_config_file(&host, &current_directory)?.ok_or_else(|| {
+        CliError::Usage(format!(
+            "cannot find {CONFIG_FILE_NAME} from {}",
+            current_directory.display()
+        ))
+    })?;
+    let (plan, source_texts) = parse_config_file(&host, &config_file)?;
+    execute_config(
+        &host,
+        &current_directory,
+        &catalog,
+        &plan,
+        source_texts,
+        command_line.no_emit,
+    )
+}
+
+fn parse_arguments(args: &[String]) -> Result<CommandLine, CliError> {
+    let mut command_line = CommandLine {
+        // The H0 formatter is the context formatter. Keep the switch in the
+        // parsed state so adding the plain formatter does not change argument
+        // selection or program construction.
+        pretty: true,
+        ..CommandLine::default()
+    };
+    let mut index = 0usize;
+    let mut end_options = false;
+    while index < args.len() {
+        let argument = &args[index];
+        if end_options {
+            command_line.files.push(PathBuf::from(argument));
+            index += 1;
+            continue;
+        }
+        match argument.as_str() {
+            "--" => {
+                end_options = true;
+                index += 1;
+            }
+            "--version" | "-v" => {
+                index += 1;
+            }
+            "--noEmit" | "--noEmit=true" => {
+                command_line.no_emit = true;
+                index += 1;
+            }
+            "--noEmit=false" => {
+                return Err(CliError::Usage(
+                    "--noEmit=false is outside the mandatory no-emit driver".to_owned(),
+                ));
+            }
+            "--pretty" | "--pretty=true" => {
+                command_line.pretty = true;
+                index += 1;
+            }
+            "--pretty=false" => {
+                return Err(CliError::Usage(
+                    "plain diagnostic rendering is not enabled in this H0 slice".to_owned(),
+                ));
+            }
+            "-p" | "--project" => {
+                let value = args.get(index + 1).ok_or_else(|| {
+                    CliError::Usage(format!("{argument} expects a config file or directory"))
+                })?;
+                if value.starts_with('-') {
+                    return Err(CliError::Usage(format!(
+                        "{argument} expects a config file or directory, got {value:?}"
+                    )));
+                }
+                if command_line.project.replace(PathBuf::from(value)).is_some() {
+                    return Err(CliError::Usage(
+                        "the project option may be specified only once".to_owned(),
+                    ));
+                }
+                index += 2;
+            }
+            value if value.starts_with("-p=") || value.starts_with("--project=") => {
+                let (_, value) = value.split_once('=').expect("project option has an equals");
+                if value.is_empty() {
+                    return Err(CliError::Usage(
+                        "the project option requires a config file or directory".to_owned(),
+                    ));
+                }
+                if command_line.project.replace(PathBuf::from(value)).is_some() {
+                    return Err(CliError::Usage(
+                        "the project option may be specified only once".to_owned(),
+                    ));
+                }
+                index += 1;
+            }
+            value if value.starts_with('-') => {
+                return Err(CliError::Usage(format!("unsupported option {value:?}")));
+            }
+            value => {
+                command_line.files.push(PathBuf::from(value));
+                index += 1;
+            }
+        }
+    }
+    if command_line.project.is_some() && !command_line.files.is_empty() {
+        return Err(CliError::Usage(
+            "project selection cannot be combined with explicit source files".to_owned(),
+        ));
+    }
+    Ok(command_line)
+}
+
+fn execute_config(
+    host: &FsCompilerHost,
+    current_directory: &Path,
+    catalog: &LibraryCatalog,
+    plan: &ConfigRootPlan,
+    mut source_texts: BTreeMap<String, String>,
+    no_emit_override: bool,
+) -> Result<CliOutput, CliError> {
+    for source in plan.extended_sources() {
+        source_texts.insert(source.file_name.clone(), source.text.clone());
+    }
+    source_texts.insert(plan.source().file_name.clone(), plan.source().text.clone());
+    let prepared = if no_emit_override {
+        load_config_program_with_no_emit_override(host, plan, catalog, DEFAULT_LIMITS)
+    } else {
+        load_config_program(host, plan, catalog, DEFAULT_LIMITS)
+    };
+    let prepared = match prepared {
+        Ok(prepared) => prepared,
+        Err(ConfigProgramLoadError::Diagnostics { config, options }) => {
+            let mut diagnostics = config;
+            diagnostics.extend(options);
+            return rendered_diagnostics(current_directory, &source_texts, &diagnostics);
+        }
+        Err(ConfigProgramLoadError::NoEmitRequired { value }) => {
+            return Err(CliError::Load(format!(
+                "compilerOptions.noEmit must be true (observed {value:?}); pass --noEmit to override"
+            )));
+        }
+        Err(ConfigProgramLoadError::Program(error)) => {
+            return Err(CliError::Load(error.to_string()))
+        }
+    };
+    for source in prepared.source_files() {
+        source_texts.insert(
+            source.path().display().display().to_string(),
+            source.text().to_owned(),
+        );
+    }
+    for source in prepared.auxiliary_files() {
+        source_texts.insert(
+            source.path().display().display().to_string(),
+            source.text().to_owned(),
+        );
+    }
+    execute_prepared(current_directory, source_texts, prepared)
+}
+
+fn execute_explicit_files(
+    host: &FsCompilerHost,
+    current_directory: &Path,
+    catalog: &LibraryCatalog,
+    roots: &[PathBuf],
+) -> Result<CliOutput, CliError> {
+    let options = CompilerOptions {
+        no_emit: Some(true),
+        ..CompilerOptions::default()
+    };
+    let prepared = load_program(
+        host,
+        roots,
+        options,
+        ProgramOptions::default(),
+        catalog,
+        DEFAULT_LIMITS,
+    )
+    .map_err(|error| CliError::Load(error.to_string()))?;
+    let mut source_texts = BTreeMap::new();
+    for source in prepared.source_files() {
+        source_texts.insert(
+            source.path().display().display().to_string(),
+            source.text().to_owned(),
+        );
+    }
+    execute_prepared(current_directory, source_texts, prepared)
+}
+
+fn execute_prepared(
+    current_directory: &Path,
+    source_texts: BTreeMap<String, String>,
+    prepared: tsc_program::PreparedProgram,
+) -> Result<CliOutput, CliError> {
+    let outcome = ProgramSession::new(prepared)
+        .run()
+        .map_err(|error| CliError::Driver(error.to_string()))?;
+    let diagnostics = outcome.into_diagnostics();
+    rendered_diagnostics(current_directory, &source_texts, &diagnostics)
+}
+
+fn rendered_diagnostics(
+    current_directory: &Path,
+    source_texts: &BTreeMap<String, String>,
+    diagnostics: &[Diagnostic],
+) -> Result<CliOutput, CliError> {
+    if diagnostics.is_empty() {
+        return Ok(CliOutput {
+            stdout: String::new(),
+            stderr: String::new(),
+            exit_code: EXIT_SUCCESS,
+        });
+    }
+    let current_directory = current_directory
+        .to_str()
+        .ok_or_else(|| CliError::Render("current directory is not Unicode".to_owned()))?;
+    let host = FormatDiagnosticsHost::new(current_directory, source_texts);
+    let text = format_diagnostics_with_context(diagnostics, &host)
+        .map_err(|error| CliError::Render(error.to_string()))?;
+    Ok(CliOutput {
+        stdout: text,
+        stderr: String::new(),
+        exit_code: EXIT_DIAGNOSTIC,
+    })
+}
+
+fn parse_config_file(
+    host: &FsCompilerHost,
+    config_file: &Path,
+) -> Result<(ConfigRootPlan, BTreeMap<String, String>), CliError> {
+    let bytes = host
+        .read_file(config_file)
+        .map_err(host_error)?
+        .ok_or_else(|| {
+            CliError::Config(format!(
+                "config file does not exist: {}",
+                config_file.display()
+            ))
+        })?;
+    let text = decode_host_text(bytes).map_err(|error| CliError::Config(error.to_string()))?;
+    let file_name = config_file
+        .to_str()
+        .ok_or_else(|| CliError::Config("config path is not Unicode".to_owned()))?;
+    let base_path = config_file
+        .parent()
+        .and_then(Path::to_str)
+        .ok_or_else(|| CliError::Config("config parent path is not Unicode".to_owned()))?;
+    let adapter = FsConfigHost { host };
+    let plan = parse_config_root_plan(
+        &adapter,
+        ConfigRootPlanRequest {
+            file_name: file_name.to_owned(),
+            text: text.clone(),
+            base_path: base_path.to_owned(),
+        },
+    )
+    .map_err(config_error)?;
+    let mut source_texts = BTreeMap::new();
+    source_texts.insert(file_name.to_owned(), text);
+    Ok((plan, source_texts))
+}
+
+fn resolve_project_file(
+    host: &FsCompilerHost,
+    current_directory: &Path,
+    project: &Path,
+) -> Result<PathBuf, CliError> {
+    let project = absolutize(current_directory, project);
+    if host.directory_exists(&project).map_err(host_error)? {
+        return Ok(project.join(CONFIG_FILE_NAME));
+    }
+    Ok(project)
+}
+
+fn find_config_file(
+    host: &FsCompilerHost,
+    current_directory: &Path,
+) -> Result<Option<PathBuf>, CliError> {
+    let mut directory = current_directory.to_path_buf();
+    loop {
+        let candidate = directory.join(CONFIG_FILE_NAME);
+        if host.file_exists(&candidate).map_err(host_error)? {
+            return Ok(Some(candidate));
+        }
+        if !directory.pop() {
+            return Ok(None);
+        }
+    }
+}
+
+fn absolutize(current_directory: &Path, path: &Path) -> PathBuf {
+    if path.is_absolute() {
+        path.to_path_buf()
+    } else {
+        current_directory.join(path)
+    }
+}
+
+fn library_directory(current_directory: &Path) -> PathBuf {
+    let local = current_directory.join("vendor/typescript-6.0.3/lib");
+    if local.is_dir() {
+        return local;
+    }
+    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../vendor/typescript-6.0.3/lib")
+}
+
+fn host_error(error: HostError) -> CliError {
+    CliError::Host(error.to_string())
+}
+
+fn config_error(error: ConfigParseError) -> CliError {
+    CliError::Config(error.to_string())
+}
+
+fn config_host_error(
+    operation: ConfigHostOperation,
+    path: &str,
+    error: HostError,
+) -> ConfigHostError {
+    ConfigHostError::new(operation, path, error.to_string())
+}
+
+struct FsConfigHost<'a> {
+    host: &'a dyn CompilerHost,
+}
+
+impl ConfigParseHost for FsConfigHost<'_> {
+    fn use_case_sensitive_file_names(&self) -> bool {
+        self.host.use_case_sensitive_file_names()
+    }
+
+    fn file_exists(&self, path: &str) -> Result<bool, ConfigHostError> {
+        self.host
+            .file_exists(Path::new(path))
+            .map_err(|error| config_host_error(ConfigHostOperation::FileExists, path, error))
+    }
+
+    fn read_file(&self, path: &str) -> Result<Option<String>, ConfigHostError> {
+        let Some(bytes) = self
+            .host
+            .read_file(Path::new(path))
+            .map_err(|error| config_host_error(ConfigHostOperation::ReadFile, path, error))?
+        else {
+            return Ok(None);
+        };
+        decode_host_text(bytes).map(Some).map_err(|error| {
+            ConfigHostError::new(ConfigHostOperation::ReadFile, path, error.to_string())
+        })
+    }
+
+    fn read_directory(
+        &self,
+        directory: &str,
+        extensions: &[&str],
+        excludes: Option<&[String]>,
+        includes: Option<&[String]>,
+        depth: Option<usize>,
+    ) -> Result<Vec<String>, ConfigHostError> {
+        let case_sensitive = self.host.use_case_sensitive_file_names();
+        let include_patterns = compile_patterns(includes, directory, case_sensitive)?;
+        let exclude_patterns = compile_patterns(excludes, directory, case_sensitive)?;
+        let mut files = Vec::new();
+        self.walk_directory(
+            Path::new(directory),
+            extensions,
+            &include_patterns,
+            &exclude_patterns,
+            depth.unwrap_or(MAX_DIRECTORY_DEPTH),
+            &mut files,
+        )?;
+        files.sort_by(|left, right| compare_utf16(left, right));
+        Ok(files)
+    }
+}
+
+impl FsConfigHost<'_> {
+    fn walk_directory(
+        &self,
+        directory: &Path,
+        extensions: &[&str],
+        includes: &[ConfigFilePattern],
+        excludes: &[ConfigFilePattern],
+        depth: usize,
+        files: &mut Vec<String>,
+    ) -> Result<(), ConfigHostError> {
+        if depth == 0 {
+            return Ok(());
+        }
+        let entries = self.host.read_directory(directory).map_err(|error| {
+            config_host_error(
+                ConfigHostOperation::ReadDirectory,
+                &directory.display().to_string(),
+                error,
+            )
+        })?;
+        for entry in entries {
+            let text = entry.to_str().ok_or_else(|| {
+                ConfigHostError::new(
+                    ConfigHostOperation::ReadDirectory,
+                    entry.display().to_string(),
+                    "filesystem entry is not Unicode",
+                )
+            })?;
+            if self.host.directory_exists(&entry).map_err(|error| {
+                config_host_error(ConfigHostOperation::ReadDirectory, text, error)
+            })? {
+                if is_implicit_excluded_directory(&entry) {
+                    continue;
+                }
+                if !excludes.iter().any(|pattern| pattern.matches(text)) {
+                    self.walk_directory(&entry, extensions, includes, excludes, depth - 1, files)?;
+                }
+                continue;
+            }
+            if !extensions.iter().any(|extension| text.ends_with(extension)) {
+                continue;
+            }
+            if excludes.iter().any(|pattern| pattern.matches(text)) {
+                continue;
+            }
+            if includes.is_empty() || includes.iter().any(|pattern| pattern.matches(text)) {
+                files.push(text.to_owned());
+            }
+        }
+        Ok(())
+    }
+}
+
+fn compile_patterns(
+    patterns: Option<&[String]>,
+    directory: &str,
+    case_sensitive: bool,
+) -> Result<Vec<ConfigFilePattern>, ConfigHostError> {
+    let mut compiled = Vec::new();
+    for pattern in patterns.unwrap_or(&[]) {
+        let pattern =
+            ConfigFilePattern::new(pattern, directory, case_sensitive).map_err(|detail| {
+                ConfigHostError::new(ConfigHostOperation::ReadDirectory, directory, detail)
+            })?;
+        if let Some(pattern) = pattern {
+            compiled.push(pattern);
+        }
+    }
+    Ok(compiled)
+}
+
+fn is_implicit_excluded_directory(path: &Path) -> bool {
+    path.file_name()
+        .and_then(|name| name.to_str())
+        .is_some_and(|name| {
+            matches!(
+                name.to_ascii_lowercase().as_str(),
+                "node_modules" | "bower_components" | "jspm_packages"
+            )
+        })
+}
+
+fn compare_utf16(left: &str, right: &str) -> Ordering {
+    left.encode_utf16().cmp(right.encode_utf16())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn run(arguments: &[&str]) -> CliOutput {
+        run_cli(
+            &arguments
+                .iter()
+                .map(|argument| (*argument).to_owned())
+                .collect::<Vec<_>>(),
+        )
+    }
+
+    #[test]
+    fn argument_parser_rejects_emit_and_unknown_options() {
+        assert_eq!(
+            parse_arguments(&["--noEmit=false".to_owned()]),
+            Err(CliError::Usage(
+                "--noEmit=false is outside the mandatory no-emit driver".to_owned()
+            ))
+        );
+        assert!(matches!(
+            parse_arguments(&["--watch".to_owned()]),
+            Err(CliError::Usage(_))
+        ));
+    }
+
+    #[test]
+    fn explicit_files_require_no_emit() {
+        let output = run(&["missing.ts"]);
+        assert_eq!(output.exit_code(), EXIT_FAILURE);
+        assert!(output.stderr().contains("require --noEmit"));
+    }
+
+    #[test]
+    fn version_is_available_without_a_filesystem_host() {
+        let output = run(&["--version"]);
+        assert_eq!(output.exit_code(), EXIT_SUCCESS);
+        assert!(output.stderr().is_empty());
+        assert_eq!(output.stdout().trim(), env!("CARGO_PKG_VERSION"));
+    }
+}

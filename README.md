@@ -8,13 +8,12 @@ checked-in TypeScript compiler and conformance corpus.
 > **Current availability:** `tsc-rs` is not yet a drop-in replacement for
 > the `tsc` command. The parser, binder, checker, and contextual diagnostic
 > formatter are exercised through the repository's existing in-memory test
-> and conformance harness. An internal one-shot `ProgramSession` now connects
-> the owned `PreparedProgram` contract and its exact authoritative resolution
-> table to a no-emit diagnostic pass for reviewed `MemoryCompilerHost` package
-> exports slices. It is not an end-user command. A production filesystem-hosted
-> `--noEmit` command, tsconfig loading, and general package resolution are under
-> active development. Emission, watch mode, and a stable public checker API are
-> not currently provided.
+> and conformance harness. A bounded filesystem-hosted `--noEmit` command is
+> now available through the `tsc-rs` compiler binary: it discovers
+> `tsconfig.json`, accepts `-p` and explicit files, renders contextual
+> diagnostics, and fails closed on options outside the supported surface.
+> General package/project behavior, emission, watch mode, and a stable public
+> checker API are still under development or outside the current scope.
 
 ## What Works Today
 
@@ -39,10 +38,10 @@ Roadmap](#development-status-and-roadmap). The `PreparedProgram` type in
 `crates/compiler`; the session owns the program, keeps parser/binder/checker
 borrows within one run, and separates the five no-emit diagnostic buckets.
 Existing conformance tests still assemble files, libraries, options, and
-resolution facts through the harness and checker APIs. General filesystem
-discovery, `tsconfig.json` handling, broad `node_modules` traversal and package
-maps, filesystem-backed type-reference discovery, and CLI exit behavior are
-not wired into a production executable yet.
+  resolution facts through the harness and checker APIs. The bounded
+  filesystem/config/CLI path is available through the production binary;
+  general package/project discovery and the remaining broad config surface
+  are still being closed.
 
 ## Build and Explore
 
@@ -89,14 +88,19 @@ workflow and document to be rewritten. `cargo xtask workspace audit` verifies
 the role metadata and rejects direct package or binary selectors in repository
 automation.
 
-These commands run internal libraries and tests; there is no end-user command
-that accepts a project or source file yet, and no production
-`cargo run -- ...` workflow. The complete local acceptance gate is intended
+These commands run internal libraries and tests; the bounded no-emit binary can
+also accept a project or source file. The complete local acceptance gate is intended
 for contributors and is substantially more expensive than the commands
 above:
 
 ```sh
 CARGO_BUILD_JOBS=2 RUST_TEST_THREADS=2 cargo xtask ci --baseline origin/main
+```
+
+For example, from a project containing a compatible `tsconfig.json`:
+
+```sh
+cargo run --manifest-path crates/compiler/Cargo.toml -- --noEmit -p .
 ```
 
 See [setup and verification](docs/setup.md) for focused commands and
@@ -114,8 +118,8 @@ does not imply compatibility with newer TypeScript releases.
 | Existing harness-assembled, in-memory batch diagnostics | Available and conformance-gated |
 | Owned `PreparedProgram` execution path | Internal one-shot no-emit path available; exact table consumption is active for reviewed H0.2 package-map slices |
 | Color-free contextual diagnostic formatting | Available in the conformance harness |
-| Filesystem-hosted `--noEmit` command | In development |
-| tsconfig discovery and JSONC configuration | In development |
+| Filesystem-hosted `--noEmit` command | Bounded production binary; broader surface in development |
+| tsconfig discovery and JSONC configuration | Bounded `files`/`include`/option bridge; broader surface in development |
 | `node_modules`, package `exports`/`imports`, `paths`, and `typeRoots` resolution | Bounded in-memory package maps, legacy package fields/`typesVersions`, ordered optional settings, and Classic-through-Bundler `@types`/type-reference slices are available internally; general resolution remains in development |
 | Output emission (`.js`, `.d.ts`, source maps, or build info) | Not implemented |
 | Watch, incremental, project-reference, or solution builds | Outside the current scope |
@@ -349,7 +353,7 @@ remaining platform matrix remain.
 | M7 | Complete | Non-2XXX diagnostic families closed on the supported scope |
 | M8 | Complete | Supported-scope T0–T4 closure, full-corpus FP=0, and recovery/escapes zero |
 | M9 | Paused after 1b | Typed outcomes and true replay landed; production generator, burn-in, freeze, and qualification deferred |
-| H0 | Active (H0.0–H0.1 complete; reviewed H0.2/H0.3 rows closed 241/241; H0.4 bounded loader and focused project-config execution partial; H0.5 config-plan loader bridge landed) | Filesystem-hosted `--noEmit`: program construction, config/CLI, rendering, and exit behavior |
+| H0 | Active (H0.0–H0.1 complete; reviewed H0.2/H0.3 rows closed 241/241; H0.4 bounded loader and focused project-config execution partial; H0.5 config-plan loader and bounded CLI binary landed) | Filesystem-hosted `--noEmit`: program construction, config/CLI, rendering, and exit behavior |
 
 The exact accepted-state summary below is generated by
 `cargo xtask readme-status` and must not be edited by hand.

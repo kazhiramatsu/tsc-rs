@@ -29,6 +29,10 @@ use tsc_program::{
     SourceFileId, SourceRequestPlan, UnloadedModuleReason,
 };
 
+mod cli;
+
+pub use cli::{run_cli, CliOutput};
+
 /// A one-shot owner for one prepared no-emit program.
 ///
 /// The consuming [`run`](Self::run) method keeps every parser, binder, and

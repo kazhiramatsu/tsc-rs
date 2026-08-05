@@ -3,6 +3,7 @@ name = "tsc-rs-compiler"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
+default-run = "tsc-rs"
 
 [package.metadata.tsc-rs]
 role = "compiler"
@@ -11,13 +12,15 @@ role = "compiler"
 name = "tsc_compiler"
 path = "src/lib.rs"
 
+[[bin]]
+name = "tsc-rs"
+path = "src/bin/tsc-rs.rs"
+
 [dependencies]
 tsc-checker.workspace = true
 tsc-diagnostics.workspace = true
-tsc-program.workspace = true
-
-[dev-dependencies]
 tsc-host.workspace = true
+tsc-program.workspace = true
 
 [lints]
 workspace = true
