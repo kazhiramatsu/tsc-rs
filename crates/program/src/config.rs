@@ -1168,6 +1168,13 @@ pub fn load_config_program_with_no_emit_override(
 /// cannot accidentally bypass config diagnostics or the H0 fail-closed
 /// option/root-scope boundary.
 pub fn validate_config_plan(plan: &ConfigRootPlan) -> Result<(), ConfigProgramLoadError> {
+    validate_config_plan_with_no_emit_override(plan, false)
+}
+
+fn validate_config_plan_with_no_emit_override(
+    plan: &ConfigRootPlan,
+    force_no_emit: bool,
+) -> Result<(), ConfigProgramLoadError> {
     let config = plan.diagnostics().cloned().collect::<Vec<_>>();
     // TypeScript reports deprecation diagnostics from getOptionsDiagnostics
     // but still constructs and checks the program. Keep those non-fatal rows
@@ -1176,7 +1183,10 @@ pub fn validate_config_plan(plan: &ConfigRootPlan) -> Result<(), ConfigProgramLo
     let options = plan
         .option_diagnostics()
         .iter()
-        .filter(|diagnostic| !is_non_fatal_option_diagnostic(diagnostic))
+        .filter(|diagnostic| {
+            !(is_non_fatal_option_diagnostic(diagnostic)
+                || force_no_emit && diagnostic.code() == 5096)
+        })
         .cloned()
         .collect::<Vec<_>>();
     if !config.is_empty() || !options.is_empty() {
@@ -1212,7 +1222,7 @@ fn load_config_program_inner(
     limits: ProgramLoadLimits,
     force_no_emit: bool,
 ) -> Result<PreparedProgram, ConfigProgramLoadError> {
-    validate_config_plan(plan)?;
+    validate_config_plan_with_no_emit_override(plan, force_no_emit)?;
 
     if !force_no_emit && plan.compiler_options().no_emit != Some(true) {
         return Err(ConfigProgramLoadError::NoEmitRequired {
@@ -2881,6 +2891,22 @@ fn option_relationship_diagnostics(
             "verbatimModuleSyntax",
             true,
             &gen::Option_verbatimModuleSyntax_cannot_be_used_when_module_is_set_to_UMD_AMD_or_System,
+            &[],
+        );
+    }
+
+    if config_option_bool(options, "allowImportingTsExtensions") == Some(true)
+        && config_option_bool(options, "noEmit") != Some(true)
+        && config_option_bool(options, "rewriteRelativeImportExtensions") != Some(true)
+    {
+        emit_option_diagnostic_for_properties(
+            &mut diagnostics,
+            &parsed,
+            &compiler_properties,
+            &no_fallback,
+            "allowImportingTsExtensions",
+            true,
+            &gen::Option_allowImportingTsExtensions_can_only_be_used_when_one_of_noEmit_emitDeclarationOnly_or_rewriteRelativeImportExtensions_is_set,
             &[],
         );
     }

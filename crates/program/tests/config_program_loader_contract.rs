@@ -630,3 +630,40 @@ fn ts6_module_option_relationship_diagnostics_match_the_effective_kinds() {
         [5105, 5107]
     );
 }
+
+#[test]
+fn allow_importing_ts_extensions_requires_no_emit_unless_overridden() {
+    let host = host();
+    let adapter = ConfigHostAdapter::new(&host);
+    let plan = parse_config_root_plan(
+        &adapter,
+        request(
+            r#"{"compilerOptions":{"noLib":true,"allowImportingTsExtensions":true},"files":["main.ts"]}"#,
+        ),
+    )
+    .expect("parse allowImportingTsExtensions plan");
+    assert_eq!(
+        plan.option_diagnostics()
+            .iter()
+            .map(|diagnostic| diagnostic.code())
+            .collect::<Vec<_>>(),
+        [5096]
+    );
+    let error = load_config_program(
+        &host,
+        &plan,
+        &LibraryCatalog::typescript_6_0_3("/vendor/typescript/lib"),
+        LIMITS,
+    )
+    .expect_err("allowImportingTsExtensions needs a noEmit setting");
+    assert_eq!(error.options_diagnostics()[0].code(), 5096);
+
+    let prepared = load_config_program_with_no_emit_override(
+        &host,
+        &plan,
+        &LibraryCatalog::typescript_6_0_3("/vendor/typescript/lib"),
+        LIMITS,
+    )
+    .expect("the command-line noEmit override satisfies TS5096");
+    assert_eq!(prepared.compiler_options().no_emit, Some(true));
+}
