@@ -100,6 +100,40 @@ fn recognized_but_unprojected_config_options_fail_closed() {
     assert!(error.to_string().contains("rootDir"));
 }
 
+#[test]
+fn unsupported_root_config_scopes_fail_closed_even_when_inherited() {
+    let host = host();
+    for (scope, value) in [
+        ("watchOptions", r#"{"watchFile":"useFsEvents"}"#),
+        ("typeAcquisition", r#"{"include":["jest"]}"#),
+        ("compileOnSave", "true"),
+    ] {
+        let plan = parse_config_root_plan(
+            &ConfigHostAdapter {
+                host: &host,
+                files: BTreeMap::from([(
+                    "/project/base.json".to_owned(),
+                    format!(r#"{{"{scope}":{value}}}"#),
+                )]),
+            },
+            request(r#"{"extends":"./base.json","compilerOptions":{"noEmit":true,"noLib":true},"files":["main.ts"]}"#),
+        )
+        .expect("inherited root scope remains a partial plan");
+        let error = load_config_program_with_no_emit_override(
+            &host,
+            &plan,
+            &LibraryCatalog::typescript_6_0_3("/vendor/typescript/lib"),
+            LIMITS,
+        )
+        .expect_err("unported root scope must not be silently ignored");
+        let ConfigProgramLoadError::Program(error) = error else {
+            panic!("unported root scope should be a typed program-scope failure");
+        };
+        assert_eq!(error.kind(), tsc_program::ProgramLoadErrorKind::Unsupported);
+        assert!(error.to_string().contains(scope));
+    }
+}
+
 struct TempTree {
     root: PathBuf,
 }

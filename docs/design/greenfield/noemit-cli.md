@@ -702,6 +702,9 @@ mutating the remaining config options. The program gate also maintains an
 explicit allowlist for options projected into `CompilerOptions`,
 `ProgramOptions`, or root discovery; a recognized option outside that set
 fails as a typed unsupported scope instead of being silently ignored. The
+same gate retains truthy `watchOptions`, `typeAcquisition`, and
+`compileOnSave` root scopes across the `extends` graph and rejects them before
+source loading, rather than dropping an inherited root setting. The
 compiler crate now ships a bounded
 `tsc-rs` binary that discovers a config from the current directory or `-p`,
 accepts explicit files only with `--noEmit`, adapts `FsCompilerHost` to the

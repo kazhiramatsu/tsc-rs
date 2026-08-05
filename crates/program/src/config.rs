@@ -874,6 +874,11 @@ pub struct ConfigRootPlan {
     files: Option<Vec<String>>,
     include: Option<Vec<String>>,
     exclude: Option<Vec<String>>,
+    /// Truthy root-level schemas which the single-project no-emit loader does
+    /// not consume. Keep this separate from `raw`: `raw` is intentionally a
+    /// projection of the primary config and therefore cannot, by itself,
+    /// distinguish a value inherited from an `extends` source.
+    unsupported_root_scopes: BTreeSet<String>,
     file_names: Vec<String>,
     root_parse_diagnostics: Vec<Diagnostic>,
     errors: Vec<Diagnostic>,
@@ -924,6 +929,13 @@ impl ConfigRootPlan {
     /// Effective `exclude` entries after extends rebasing.
     pub fn exclude(&self) -> Option<&[String]> {
         self.exclude.as_deref()
+    }
+
+    /// Root-level config scopes retained for the fail-closed program gate.
+    /// These may originate in an `extends` source and therefore are not
+    /// recoverable from the primary `raw` projection alone.
+    pub fn unsupported_root_scopes(&self) -> impl Iterator<Item = &str> {
+        self.unsupported_root_scopes.iter().map(String::as_str)
     }
 
     /// The checker-facing compiler options projected from the merged config.
@@ -1091,7 +1103,9 @@ fn load_config_program_inner(
         return Err(ConfigProgramLoadError::Diagnostics { config, options });
     }
 
-    if let Some((feature, detail)) = unsupported_config_scope(&plan.options, &plan.raw) {
+    if let Some((feature, detail)) =
+        unsupported_config_scope(&plan.options, &plan.raw, plan.unsupported_root_scopes())
+    {
         return Err(ConfigProgramLoadError::Program(
             ProgramLoadError::unsupported(
                 crate::loader::ProgramLoadOperation::ValidateOptions,
@@ -1189,6 +1203,7 @@ struct ParsedConfigNode {
     inheritable_files: Option<Vec<ConfigSpec>>,
     inheritable_include: Option<Vec<ConfigSpec>>,
     inheritable_exclude: Option<Vec<ConfigSpec>>,
+    unsupported_root_scopes: BTreeSet<String>,
     extended_sources: Vec<ConfigSourceText>,
     extended_source_files: Vec<String>,
 }
@@ -1288,6 +1303,7 @@ pub fn parse_config_root_plan(
         files,
         include,
         exclude,
+        unsupported_root_scopes: node.unsupported_root_scopes,
         file_names,
         root_parse_diagnostics: context.root_parse_diagnostics,
         errors: context.errors,
@@ -1304,6 +1320,7 @@ pub fn parse_config_root_plan(
 fn unsupported_config_scope(
     options: &ConfigOptionBag,
     raw: &Value,
+    unsupported_root_scopes: impl IntoIterator<Item = impl AsRef<str>>,
 ) -> Option<(&'static str, String)> {
     if let Some(references) = raw.as_object().and_then(|raw| raw.get("references")) {
         if config_value_requests_feature(references) {
@@ -1312,6 +1329,17 @@ fn unsupported_config_scope(
                 "project references are outside the H0 single-project driver".to_owned(),
             ));
         }
+    }
+
+    for scope in unsupported_root_scopes {
+        let scope = scope.as_ref();
+        let detail = match scope {
+            "watchOptions" => "watchOptions are outside the H0 single-project no-emit driver",
+            "typeAcquisition" => "typeAcquisition is outside the H0 single-project no-emit driver",
+            "compileOnSave" => "compileOnSave is outside the H0 single-project no-emit driver",
+            _ => "root config scope is outside the H0 single-project no-emit driver",
+        };
+        return Some(("unsupported-config-scope", detail.to_owned()));
     }
 
     for option in options.entries() {
@@ -1547,6 +1575,14 @@ impl ParseContext<'_> {
             .flat_map(|root| config_object_properties(&parsed, root))
             .map(|property| property.name)
             .collect::<BTreeSet<_>>();
+        let mut unsupported_root_scopes = ["watchOptions", "typeAcquisition", "compileOnSave"]
+            .into_iter()
+            .filter(|name| {
+                config_property_get(object, &raw_property_names, name)
+                    .is_some_and(json_value_is_truthy)
+            })
+            .map(str::to_owned)
+            .collect::<BTreeSet<_>>();
 
         let mut own_options = default_compiler_options(normalized_file_name, base_path);
         let mut converted_own_options = compiler_options(base_path, &parsed, &mut own_errors)?;
@@ -1698,6 +1734,7 @@ impl ParseContext<'_> {
                     extended_source_files.push(extended_source_file.clone());
                 }
             }
+            unsupported_root_scopes.extend(extended.unsupported_root_scopes.iter().cloned());
         }
         inherited_options.extend_from(&own_options);
         own_options = inherited_options;
@@ -1761,6 +1798,7 @@ impl ParseContext<'_> {
             inheritable_files,
             inheritable_include,
             inheritable_exclude,
+            unsupported_root_scopes,
             extended_sources,
             extended_source_files,
         }))
