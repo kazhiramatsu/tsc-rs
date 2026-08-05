@@ -473,9 +473,10 @@ after discovery.
 Case-insensitive host aliases retain every alternate display spelling on the
 owning `PreparedSourceFile`. The default/absent
 `forceConsistentCasingInFileNames` value publishes TS1149 at the program
-preprocessing boundary; an explicit `false` keeps the collapsed source
-without that diagnostic. Config projection and the harness option allowlist
-carry the same tri-state value.
+preprocessing boundary, including the `The file is in the program because:`
+message chain with one root-file reason per root occurrence; an explicit
+`false` keeps the collapsed source without that diagnostic. Config projection
+and the harness option allowlist carry the same tri-state value.
 
 `LibraryCatalog::typescript_6_0_3` injects static metadata for the exact 107
 logical library names and 95 distinct mapped files. It performs no runtime

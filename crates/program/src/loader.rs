@@ -800,6 +800,11 @@ enum SourceClass {
 
 struct StagedSource {
     prepared: PreparedSourceFile,
+    /// Root-file inclusion occurrences are retained separately from the
+    /// canonical source identity.  They are observable in the TS1149
+    /// program-preprocessing message chain when two root spellings collapse
+    /// on a case-insensitive host.
+    root_inclusions: Vec<PathBuf>,
     has_non_external_reason: bool,
     class: SourceClass,
     path_references: Vec<PlannedPathReference>,
@@ -947,6 +952,11 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
             DiscoveryReason::ROOT,
             SourceClass::Ordinary,
         )?;
+        if let Some(source) = source {
+            self.sources[source]
+                .root_inclusions
+                .push(path.display().to_path_buf());
+        }
         let missing_diagnostic = source.is_none().then(|| missing_root_diagnostic(&path));
         if let Some(diagnostic) = missing_diagnostic.clone() {
             if self
@@ -990,6 +1000,9 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                 DiscoveryReason::ROOT,
                 SourceClass::Ordinary,
             )? {
+                self.sources[source]
+                    .root_inclusions
+                    .push(path.display().to_path_buf());
                 self.roots.push(StagedRoot {
                     path,
                     source: Some(source),
@@ -1327,6 +1340,29 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
     }
 
     fn finish(mut self) -> CompleteGraph {
+        if self
+            .compiler_options
+            .force_consistent_casing_in_file_names_effective()
+        {
+            let casing_diagnostics = self
+                .sources
+                .iter()
+                .flat_map(|source| {
+                    source
+                        .prepared
+                        .alternate_display_paths()
+                        .iter()
+                        .map(move |alias| {
+                            casing_alias_diagnostic(
+                                &source.prepared,
+                                alias,
+                                source.root_inclusions.len(),
+                            )
+                        })
+                })
+                .collect::<Vec<_>>();
+            self.program_diagnostics.extend(casing_diagnostics);
+        }
         self.propagate_non_external_reachability();
         let mut library_postorder = self
             .postorder
@@ -1382,15 +1418,6 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                     self.sources[source]
                         .prepared
                         .remember_display_alias(path.display());
-                    if self
-                        .compiler_options
-                        .force_consistent_casing_in_file_names_effective()
-                    {
-                        self.program_diagnostics.push(casing_alias_diagnostic(
-                            &self.sources[source].prepared,
-                            &path,
-                        )?);
-                    }
                 }
                 if self.sources[source].class != class {
                     return Err(ProgramLoadError::unsupported(
@@ -1559,6 +1586,7 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
         let source = self.sources.len();
         self.sources.push(StagedSource {
             prepared,
+            root_inclusions: Vec::new(),
             has_non_external_reason: reason.seeds_non_external_reachability,
             class,
             path_references,
@@ -2849,22 +2877,40 @@ fn unresolved_type_reference_diagnostic(
 /// first discovered source as the canonical program identity. The diagnostic
 /// is file-owned by that first source and intentionally has no source span:
 /// TypeScript reports this at the program-preprocessing layer rather than at
-/// the spelling site in the importing file.
+/// the spelling site in the importing file. Root inclusions additionally carry
+/// the observable 1430/1427 message chain.
 fn casing_alias_diagnostic(
     existing: &PreparedSourceFile,
-    incoming: &ProgramPath,
-) -> Result<Diagnostic, ProgramLoadError> {
-    let existing_name = path_text(existing.path().display())?;
-    let incoming_name = path_text(incoming.display())?;
-    Ok(Diagnostic::new(
-        None,
-        None,
-        None,
-        MessageChain::new(
-            &gen::File_name_0_differs_from_already_included_file_name_1_only_in_casing,
-            &[incoming_name, existing_name],
-        ),
-    ))
+    incoming: &Path,
+    root_inclusion_count: usize,
+) -> Diagnostic {
+    let existing_name = existing
+        .path()
+        .display()
+        .to_str()
+        .expect("validated program paths are Unicode");
+    let incoming_name = incoming
+        .to_str()
+        .expect("alternate display aliases come from validated program paths");
+    let message = MessageChain::new(
+        &gen::File_name_0_differs_from_already_included_file_name_1_only_in_casing,
+        &[incoming_name.to_owned(), existing_name.to_owned()],
+    );
+    let message = if root_inclusion_count == 0 {
+        message
+    } else {
+        let reasons = std::iter::repeat_with(|| {
+            MessageChain::new(&gen::Root_file_specified_for_compilation, &[])
+        })
+        .take(root_inclusion_count)
+        .collect();
+        message.with_next(vec![MessageChain::new(
+            &gen::The_file_is_in_the_program_because,
+            &[],
+        )
+        .with_next(reasons)])
+    };
+    Diagnostic::new(None, None, None, message)
 }
 
 fn located_diagnostic(

@@ -1365,6 +1365,13 @@ fn loaded_case_alias_reports_ts1149_and_retains_the_alternate_spelling() {
     let diagnostic = &program.diagnostics().program()[0];
     assert_eq!(diagnostic.code(), 1149);
     assert_eq!(diagnostic.file_name, None);
+    assert_eq!(diagnostic.message.next.len(), 1);
+    assert_eq!(diagnostic.message.next[0].code, 1430);
+    assert_eq!(diagnostic.message.next[0].next.len(), 2);
+    assert!(diagnostic.message.next[0]
+        .next
+        .iter()
+        .all(|reason| reason.code == 1427));
     assert!(diagnostic.message_text().contains("/work/root.ts"));
 }
 
