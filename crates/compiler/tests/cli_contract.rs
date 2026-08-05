@@ -96,6 +96,36 @@ fn utf16le_with_bom(text: &str) -> Vec<u8> {
     bytes
 }
 
+fn snapshot_files(root: &std::path::Path) -> Vec<(String, Vec<u8>)> {
+    fn visit(
+        root: &std::path::Path,
+        current: &std::path::Path,
+        files: &mut Vec<(String, Vec<u8>)>,
+    ) {
+        let mut entries = fs::read_dir(current)
+            .expect("read snapshot directory")
+            .map(|entry| entry.expect("read snapshot entry").path())
+            .collect::<Vec<_>>();
+        entries.sort();
+        for path in entries {
+            let relative = path
+                .strip_prefix(root)
+                .expect("snapshot entry is under root")
+                .to_string_lossy()
+                .into_owned();
+            if path.is_dir() {
+                visit(root, &path, files);
+            } else {
+                files.push((relative, fs::read(&path).expect("read snapshot file")));
+            }
+        }
+    }
+
+    let mut files = Vec::new();
+    visit(root, root, &mut files);
+    files
+}
+
 fn assert_typescript_parity(tree: &TempTree, rust_arguments: &[&str], ts_arguments: &[&str]) {
     let rust = run(tree, rust_arguments);
     let typescript = run_typescript(tree, ts_arguments);
@@ -209,6 +239,24 @@ fn semantic_diagnostics_are_stdout_and_exit_two() {
         "plain output unexpectedly had context: {stdout}"
     );
     assert!(output.stderr.is_empty());
+}
+
+#[test]
+fn no_emit_cli_does_not_write_project_outputs() {
+    let tree = TempTree::new();
+    fs::write(tree.path("main.ts"), "const value: number = 1;\n").expect("write source");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"noEmit":true,"lib":["es5"]},"files":["main.ts"]}"#,
+    )
+    .expect("write config");
+    let before = snapshot_files(&tree.root);
+
+    let output = run(&tree, &["-p", "tsconfig.json"]);
+    assert_eq!(output.status.code(), Some(0));
+    assert!(output.stdout.is_empty());
+    assert!(output.stderr.is_empty());
+    assert_eq!(snapshot_files(&tree.root), before);
 }
 
 #[test]
