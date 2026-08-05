@@ -491,7 +491,7 @@ fn rendered_diagnostics_with_exit(
             source_texts,
             current_directory,
         );
-        text
+        colorize_pretty_output(&text)
     } else {
         format_plain_diagnostics(diagnostics, &host, source_texts, current_directory)
             .map_err(|error| CliError::Render(error.to_string()))?
@@ -558,7 +558,7 @@ fn append_pretty_error_summary(
         return;
     }
 
-    output.push('\n');
+    output.push_str("\n\n");
     let noun = if total == 1 { "error" } else { "errors" };
     match file_counts.len() {
         0 => output.push_str(&format!("Found {total} {noun}.\n")),
@@ -574,6 +574,118 @@ fn append_pretty_error_summary(
             }
         }
     }
+    output.push('\n');
+}
+
+const ANSI_RESET: &str = "\u{1b}[0m";
+const ANSI_GRAY: &str = "\u{1b}[90m";
+const ANSI_CYAN: &str = "\u{1b}[96m";
+const ANSI_YELLOW: &str = "\u{1b}[93m";
+const ANSI_RED: &str = "\u{1b}[91m";
+const ANSI_REVERSE: &str = "\u{1b}[7m";
+
+/// Add the ANSI layer owned by TypeScript's pretty command-line reporter.
+///
+/// The shared diagnostics renderer intentionally remains color-free because
+/// its output is also consumed by conformance and JSONL adapters. CLI pretty
+/// output applies the small, stable ANSI vocabulary after the common text and
+/// context layout has been selected, which keeps plain and pretty sorting
+/// byte-identical apart from styling.
+fn colorize_pretty_output(input: &str) -> String {
+    let mut output = String::with_capacity(input.len() + input.len() / 2);
+    let mut in_context = false;
+    for line in input.split_inclusive('\n') {
+        let (line, newline) = line
+            .strip_suffix('\n')
+            .map_or((line, ""), |line| (line, "\n"));
+        if let Some(colored) = colorize_header(line) {
+            output.push_str(&colored);
+            output.push_str(newline);
+            in_context = true;
+        } else if line.starts_with("Found ") {
+            output.push_str(&colorize_summary(line));
+            output.push_str(newline);
+            in_context = false;
+        } else if in_context {
+            output.push_str(&colorize_context_line(line));
+            output.push_str(newline);
+        } else {
+            output.push_str(line);
+            output.push_str(newline);
+        }
+    }
+    output
+}
+
+fn colorize_header(line: &str) -> Option<String> {
+    let (location, detail) = line.split_once(" - ")?;
+    let mut location_parts = location.rsplitn(3, ':');
+    let character = location_parts.next()?;
+    let line_number = location_parts.next()?;
+    let file_name = location_parts.next()?;
+    if file_name.is_empty()
+        || line_number.is_empty()
+        || character.is_empty()
+        || !line_number.bytes().all(|byte| byte.is_ascii_digit())
+        || !character.bytes().all(|byte| byte.is_ascii_digit())
+    {
+        return None;
+    }
+    let (category, message) = detail.split_once(" TS")?;
+    let category_color = match category {
+        "error" => ANSI_RED,
+        "warning" => ANSI_YELLOW,
+        "suggestion" => "\u{1b}[92m",
+        "message" => ANSI_CYAN,
+        _ => return None,
+    };
+    let (code, message) = message.split_once(": ")?;
+    Some(format!(
+        "{ANSI_CYAN}{file_name}{ANSI_RESET}:{ANSI_YELLOW}{line_number}{ANSI_RESET}:{ANSI_YELLOW}{character}{ANSI_RESET} - {category_color}{category}{ANSI_RESET}{ANSI_GRAY} TS{code}: {ANSI_RESET}{message}"
+    ))
+}
+
+fn colorize_context_line(line: &str) -> String {
+    if line.is_empty() {
+        return String::new();
+    }
+    if let Some(first_tilde) = line.find('~') {
+        if line[first_tilde..].bytes().all(|byte| byte == b'~') {
+            let (prefix, marks) = line.split_at(first_tilde);
+            if let Some((first, rest)) = prefix.split_at_checked(1) {
+                if let Some((plain, red_rest)) = rest.split_at_checked(1) {
+                    return format!(
+                        "{ANSI_REVERSE}{first}{ANSI_RESET}{plain}{ANSI_RED}{red_rest}{marks}{ANSI_RESET}"
+                    );
+                }
+            }
+        }
+    }
+    let digit_start = line.find(|character: char| character.is_ascii_digit());
+    let Some(digit_start) = digit_start else {
+        return line.to_owned();
+    };
+    let digit_end = line[digit_start..]
+        .find(|character: char| !character.is_ascii_digit())
+        .map_or(line.len(), |offset| digit_start + offset);
+    if digit_end == digit_start || line[digit_end..].is_empty() {
+        return line.to_owned();
+    }
+    format!(
+        "{ANSI_REVERSE}{}{ANSI_RESET}{}",
+        &line[..digit_end],
+        &line[digit_end..]
+    )
+}
+
+fn colorize_summary(line: &str) -> String {
+    let Some((prefix, line_number)) = line.rsplit_once(':') else {
+        return line.to_owned();
+    };
+    if line_number.is_empty() || !line_number.bytes().all(|byte| byte.is_ascii_digit()) {
+        return line.to_owned();
+    }
+    format!("{prefix}{ANSI_GRAY}:{line_number}{ANSI_RESET}")
 }
 
 fn default_pretty() -> bool {

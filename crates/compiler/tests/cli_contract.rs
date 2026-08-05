@@ -65,6 +65,36 @@ fn run_typescript(tree: &TempTree, arguments: &[&str]) -> std::process::Output {
         .expect("run vendored TypeScript compiler")
 }
 
+fn run_typescript_no_color(tree: &TempTree, arguments: &[&str]) -> std::process::Output {
+    let bundle = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../..")
+        .join("vendor/typescript-6.0.3/lib/_tsc.js");
+    Command::new("node")
+        .current_dir(&tree.root)
+        .env("NO_COLOR", "1")
+        .arg(bundle)
+        .args(arguments)
+        .output()
+        .expect("run vendored TypeScript compiler without color")
+}
+
+fn strip_ansi_sgr(text: &str) -> String {
+    let mut output = String::with_capacity(text.len());
+    let mut in_escape = false;
+    for character in text.chars() {
+        if in_escape {
+            if character.is_ascii_alphabetic() {
+                in_escape = false;
+            }
+        } else if character == '\u{1b}' {
+            in_escape = true;
+        } else {
+            output.push(character);
+        }
+    }
+    output
+}
+
 #[test]
 fn config_and_include_discovery_run_through_the_production_binary() {
     let tree = TempTree::new();
@@ -189,9 +219,10 @@ fn pretty_false_uses_plain_output_and_pretty_true_uses_context() {
     let pretty = run(&tree, &["--pretty=true"]);
     assert_eq!(pretty.status.code(), Some(2));
     let pretty_stdout = String::from_utf8_lossy(&pretty.stdout);
-    assert!(pretty_stdout.contains("main.ts:1:7 - error TS2322:"));
-    assert!(pretty_stdout.contains('~'));
-    assert!(pretty_stdout.contains("Found 1 error in main.ts:1"));
+    let pretty_text = strip_ansi_sgr(&pretty_stdout);
+    assert!(pretty_text.contains("main.ts:1:7 - error TS2322:"));
+    assert!(pretty_text.contains('~'));
+    assert!(pretty_text.contains("Found 1 error in main.ts:1"));
 }
 
 #[test]
@@ -220,6 +251,25 @@ fn no_emit_cli_matches_vendored_typescript_plain_output() {
 
     let rust = run(&tree, &["-p", "tsconfig.json"]);
     let typescript = run_typescript(&tree, &["--noEmit", "-p", "tsconfig.json"]);
+    assert_eq!(rust.status.code(), typescript.status.code());
+    assert_eq!(rust.stdout, typescript.stdout);
+    assert_eq!(rust.stderr, typescript.stderr);
+}
+
+#[test]
+#[ignore = "local H0 CLI oracle audit; requires the pinned Node runtime"]
+fn no_emit_cli_matches_vendored_typescript_pretty_output_without_color() {
+    let tree = TempTree::new();
+    fs::write(tree.path("main.ts"), "const value: number = 'wrong';\n").expect("write source");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"noEmit":true,"lib":["es5"]},"files":["main.ts"]}"#,
+    )
+    .expect("write config");
+
+    let rust = run(&tree, &["--pretty", "-p", "tsconfig.json"]);
+    let typescript =
+        run_typescript_no_color(&tree, &["--noEmit", "--pretty", "-p", "tsconfig.json"]);
     assert_eq!(rust.status.code(), typescript.status.code());
     assert_eq!(rust.stdout, typescript.stdout);
     assert_eq!(rust.stderr, typescript.stderr);

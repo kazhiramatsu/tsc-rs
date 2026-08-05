@@ -778,11 +778,11 @@ rejects watch/build/emit options, project-plus-file mixes, and other
 unimplemented flags instead of silently ignoring them. Focused
 filesystem binary contracts cover include discovery, command-line no-emit
 precedence, diagnostic output, and version/unsupported-option behavior. A
-local ignored oracle contract also compares the plain `-p`/`--noEmit` result
-byte-for-byte with vendored `_tsc.js`, including its status-2 no-emit
-diagnostic result; explicit pretty/color output remains a separate renderer
-qualification. This bridge remains independent of CLI selection so the same
-immutable plan can feed MemoryHost and FsHost differentials.
+local ignored oracle contract compares both plain and explicit `--pretty`
+`-p`/`--noEmit` results byte-for-byte with vendored `_tsc.js`, including the
+status-2 no-emit diagnostic result and the ANSI contextual renderer. This
+bridge remains independent of CLI selection so the same immutable plan can
+feed MemoryHost and FsHost differentials.
 
 ### H0.6 — qualification and release
 
