@@ -1,9 +1,9 @@
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::ops::Range;
 
 use tsc_syntax::{
-    for_each_child, parse_source_file, LanguageVariant, NodeData, NodeId, ParseOptions, SourceFile,
-    SyntaxKind, TypeReferenceDirectiveResolutionMode,
+    for_each_child, parse_source_file, skip_trivia, LanguageVariant, NodeData, NodeId,
+    ParseOptions, SourceFile, SyntaxKind, TypeReferenceDirectiveResolutionMode,
 };
 use tsc_types::{CompilerOptions, NodeFlags};
 
@@ -129,6 +129,7 @@ pub struct SourceRequestPlan {
     path_references: Vec<PlannedPathReference>,
     module_requests: Vec<ResolutionKey>,
     loadable_module_requests: BTreeSet<ResolutionKey>,
+    module_request_spans: BTreeMap<ResolutionKey, (u32, u32)>,
     type_reference_directives: Vec<PlannedTypeReferenceDirective>,
     lib_reference_directives: Vec<PlannedLibReferenceDirective>,
     observed_request_occurrence_count: usize,
@@ -160,6 +161,14 @@ impl SourceRequestPlan {
         self.module_requests
             .contains(key)
             .then(|| self.loadable_module_requests.contains(key))
+    }
+
+    /// The first source span for a module request, including its string
+    /// literal delimiters.  Program construction uses this only for
+    /// file-preprocessing inclusion diagnostics; synthetic requests have no
+    /// source span.
+    pub fn module_request_span(&self, key: &ResolutionKey) -> Option<(u32, u32)> {
+        self.module_request_spans.get(key).copied()
     }
 
     pub fn type_reference_directives(&self) -> &[PlannedTypeReferenceDirective] {
@@ -396,6 +405,7 @@ fn plan_module_requests_worker(
                         if !literal.text.is_empty() {
                             static_occurrences.push(ModuleRequestOccurrence {
                                 pos: module_specifier.pos,
+                                end: module_specifier.end,
                                 loads_source: true,
                                 key: ResolutionKey::new(
                                     source.path().canonical().clone(),
@@ -423,6 +433,7 @@ fn plan_module_requests_worker(
                     if !literal.text.is_empty() {
                         static_occurrences.push(ModuleRequestOccurrence {
                             pos: module_specifier.pos,
+                            end: module_specifier.end,
                             loads_source: true,
                             key: ResolutionKey::new(
                                 source.path().canonical().clone(),
@@ -451,6 +462,7 @@ fn plan_module_requests_worker(
                                 if !literal.text.is_empty() {
                                     static_occurrences.push(ModuleRequestOccurrence {
                                         pos: expression.pos,
+                                        end: expression.end,
                                         loads_source: true,
                                         key: ResolutionKey::new(
                                             source.path().canonical().clone(),
@@ -493,6 +505,7 @@ fn plan_module_requests_worker(
                                 let mode = mode_override.unwrap_or(static_mode);
                                 dynamic_occurrences.push(ModuleRequestOccurrence {
                                     pos: literal.pos,
+                                    end: literal.end,
                                     loads_source: javascript_file
                                         || !NodeFlags::from_bits(node.flags)
                                             .contains(NodeFlags::JS_DOC),
@@ -520,6 +533,7 @@ fn plan_module_requests_worker(
                                         if alternate != mode {
                                             dynamic_occurrences.push(ModuleRequestOccurrence {
                                                 pos: literal.pos,
+                                                end: literal.end,
                                                 loads_source: javascript_file
                                                     || !NodeFlags::from_bits(node.flags)
                                                         .contains(NodeFlags::JS_DOC),
@@ -555,6 +569,7 @@ fn plan_module_requests_worker(
                         if !literal.text.is_empty() {
                             dynamic_occurrences.push(ModuleRequestOccurrence {
                                 pos: module_specifier.pos,
+                                end: module_specifier.end,
                                 loads_source: javascript_file,
                                 key: ResolutionKey::new(
                                     source.path().canonical().clone(),
@@ -611,6 +626,7 @@ fn plan_module_requests_worker(
                     }
                     augmentation_occurrences.push(ModuleRequestOccurrence {
                         pos: parsed.arena.node(name).pos,
+                        end: parsed.arena.node(name).end,
                         loads_source: false,
                         key: ResolutionKey::new(
                             source.path().canonical().clone(),
@@ -657,6 +673,7 @@ fn plan_module_requests_worker(
                         if let NodeData::StringLiteral(literal) = &argument.data {
                             dynamic_occurrences.push(ModuleRequestOccurrence {
                                 pos: argument.pos,
+                                end: argument.end,
                                 loads_source: true,
                                 key: ResolutionKey::new(
                                     source.path().canonical().clone(),
@@ -702,6 +719,7 @@ fn plan_module_requests_worker(
                             .expect("guarded string-literal-like require argument");
                         dynamic_occurrences.push(ModuleRequestOccurrence {
                             pos: parsed.arena.node(argument).pos,
+                            end: parsed.arena.node(argument).end,
                             loads_source: true,
                             key: ResolutionKey::new(
                                 source.path().canonical().clone(),
@@ -739,6 +757,7 @@ fn plan_module_requests_worker(
     dynamic_occurrences.sort_by_key(|occurrence| occurrence.pos);
     augmentation_occurrences.sort_by_key(|occurrence| occurrence.pos);
     let mut module_requests = Vec::new();
+    let mut module_request_spans = BTreeMap::new();
     let mut loadable_module_requests = BTreeSet::new();
     let mut seen_module_requests = BTreeSet::new();
     // tsc collectExternalModuleReferences prepends a synthesized `tslib`
@@ -796,6 +815,16 @@ fn plan_module_requests_worker(
         if occurrence.loads_source {
             loadable_module_requests.insert(occurrence.key.clone());
         }
+        let source_text = source.text();
+        let span_start =
+            skip_trivia(source_text, occurrence.pos as usize).min(occurrence.end as usize);
+        let span = (
+            byte_to_utf16_offset(source_text, span_start),
+            byte_to_utf16_offset(source_text, occurrence.end as usize),
+        );
+        module_request_spans
+            .entry(occurrence.key.clone())
+            .or_insert(span);
         if seen_module_requests.insert(occurrence.key.clone()) {
             module_requests.push(occurrence.key);
         }
@@ -805,10 +834,18 @@ fn plan_module_requests_worker(
         path_references,
         module_requests,
         loadable_module_requests,
+        module_request_spans,
         type_reference_directives,
         lib_reference_directives,
         observed_request_occurrence_count,
     })
+}
+
+fn byte_to_utf16_offset(text: &str, byte_offset: usize) -> u32 {
+    text.get(..byte_offset.min(text.len()))
+        .unwrap_or(text)
+        .encode_utf16()
+        .count() as u32
 }
 
 /// `isDeclarationFileName` includes arbitrary-extension declaration twins
@@ -826,6 +863,7 @@ pub(crate) fn is_declaration_file_name(file_name: &str) -> bool {
 
 struct ModuleRequestOccurrence {
     pos: u32,
+    end: u32,
     loads_source: bool,
     key: ResolutionKey,
 }
@@ -856,6 +894,7 @@ fn collect_ambient_module_requests(
                         {
                             occurrences.push(ModuleRequestOccurrence {
                                 pos: module_specifier.pos,
+                                end: module_specifier.end,
                                 loads_source: true,
                                 key: ResolutionKey::new(
                                     source.path().canonical().clone(),
@@ -878,6 +917,7 @@ fn collect_ambient_module_requests(
                     {
                         occurrences.push(ModuleRequestOccurrence {
                             pos: module_specifier.pos,
+                            end: module_specifier.end,
                             loads_source: true,
                             key: ResolutionKey::new(
                                 source.path().canonical().clone(),
@@ -900,6 +940,7 @@ fn collect_ambient_module_requests(
                                 if !literal.text.is_empty() {
                                     occurrences.push(ModuleRequestOccurrence {
                                         pos: expression.pos,
+                                        end: expression.end,
                                         loads_source: true,
                                         key: ResolutionKey::new(
                                             source.path().canonical().clone(),

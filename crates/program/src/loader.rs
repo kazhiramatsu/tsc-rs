@@ -812,22 +812,65 @@ impl VisitState {
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Debug, Eq, PartialEq)]
+enum SourceInclusionReason {
+    Root(RootFileReason),
+    Import {
+        parent: PathBuf,
+        specifier: String,
+        pos: u32,
+        end: u32,
+    },
+    PathReference {
+        parent: PathBuf,
+        specifier: String,
+        pos: u32,
+        end: u32,
+    },
+    TypeReference {
+        parent: PathBuf,
+        specifier: String,
+        pos: u32,
+        end: u32,
+    },
+    AutomaticType {
+        name: String,
+    },
+    Synthetic,
+    Library,
+}
+
+impl SourceInclusionReason {
+    const fn is_referenced(&self) -> bool {
+        !matches!(self, Self::Root(_))
+    }
+}
+
+#[derive(Clone, Debug)]
 struct DiscoveryReason {
     seeds_non_external_reachability: bool,
+    inclusion: SourceInclusionReason,
 }
 
 impl DiscoveryReason {
-    const ROOT: Self = Self {
-        seeds_non_external_reachability: true,
-    };
-    const DEPENDENCY: Self = Self {
-        seeds_non_external_reachability: false,
-    };
+    fn root(reason: RootFileReason) -> Self {
+        Self {
+            seeds_non_external_reachability: true,
+            inclusion: SourceInclusionReason::Root(reason),
+        }
+    }
 
-    const fn automatic_type(is_external_library_import: bool) -> Self {
+    fn dependency(inclusion: SourceInclusionReason) -> Self {
+        Self {
+            seeds_non_external_reachability: false,
+            inclusion,
+        }
+    }
+
+    fn automatic_type(is_external_library_import: bool, name: String) -> Self {
         Self {
             seeds_non_external_reachability: !is_external_library_import,
+            inclusion: SourceInclusionReason::AutomaticType { name },
         }
     }
 }
@@ -845,12 +888,15 @@ struct StagedSource {
     /// program-preprocessing message chain when two root spellings collapse
     /// on a case-insensitive host.
     root_inclusions: Vec<PathBuf>,
+    inclusion_reasons: Vec<SourceInclusionReason>,
+    alternate_inclusion_reasons: Vec<(PathBuf, SourceInclusionReason)>,
     has_non_external_reason: bool,
     class: SourceClass,
     path_references: Vec<PlannedPathReference>,
     type_reference_directives: Vec<PlannedTypeReferenceDirective>,
     lib_reference_directives: Vec<PlannedLibReferenceDirective>,
     module_requests: Vec<(ResolutionKey, bool)>,
+    module_request_spans: BTreeMap<ResolutionKey, (u32, u32)>,
     found_searching_node_modules: bool,
     modules_with_elided_imports: bool,
     processing_references: bool,
@@ -996,7 +1042,7 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
             path.clone(),
             0,
             0,
-            DiscoveryReason::ROOT,
+            DiscoveryReason::root(root_reason),
             SourceClass::Ordinary,
         )?;
         if let Some(source) = source {
@@ -1051,7 +1097,7 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                 candidate,
                 0,
                 0,
-                DiscoveryReason::ROOT,
+                DiscoveryReason::root(root_reason),
                 SourceClass::Ordinary,
             )? {
                 self.sources[source]
@@ -1174,7 +1220,7 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                     target.clone(),
                     0,
                     usize::from(external),
-                    DiscoveryReason::automatic_type(external),
+                    DiscoveryReason::automatic_type(external, name.clone()),
                     SourceClass::Ordinary,
                 )?
                 .is_none()
@@ -1371,7 +1417,7 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                     path.clone(),
                     0,
                     0,
-                    DiscoveryReason::DEPENDENCY,
+                    DiscoveryReason::dependency(SourceInclusionReason::Library),
                     SourceClass::Library,
                 )?
                 .is_none()
@@ -1406,14 +1452,14 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                 .iter()
                 .flat_map(|source| {
                     source
-                        .prepared
-                        .alternate_display_paths()
+                        .alternate_inclusion_reasons
                         .iter()
-                        .map(move |alias| {
+                        .map(|(alias, reason)| {
                             casing_alias_diagnostic(
                                 &source.prepared,
                                 alias,
-                                source.root_inclusions.len(),
+                                &source.inclusion_reasons,
+                                reason,
                             )
                         })
                 })
@@ -1475,6 +1521,9 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                     self.sources[source]
                         .prepared
                         .remember_display_alias(path.display());
+                    self.sources[source]
+                        .alternate_inclusion_reasons
+                        .push((path.display().to_path_buf(), reason.inclusion.clone()));
                 }
                 if self.sources[source].class != class {
                     return Err(ProgramLoadError::unsupported(
@@ -1489,6 +1538,7 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                 }
                 let reprocess = {
                     let staged = &mut self.sources[source];
+                    staged.inclusion_reasons.push(reason.inclusion.clone());
                     staged.has_non_external_reason |= reason.seeds_non_external_reachability;
                     if staged.found_searching_node_modules && node_modules_depth == 0 {
                         // tsc clears both latches before recursively processing
@@ -1630,6 +1680,15 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                 .map(|(key, loads_source)| (key.clone(), loads_source))
                 .collect::<Vec<_>>()
         });
+        let module_request_spans = plan.as_ref().map_or_else(BTreeMap::new, |plan| {
+            plan.module_requests()
+                .iter()
+                .filter_map(|key| {
+                    plan.module_request_span(key)
+                        .map(|span| (key.clone(), span))
+                })
+                .collect::<BTreeMap<_, _>>()
+        });
         self.enforce_limit(
             ProgramLoadOperation::PlanSourceRequests,
             ProgramLoadLimit::RequestEdges,
@@ -1644,12 +1703,15 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
         self.sources.push(StagedSource {
             prepared,
             root_inclusions: Vec::new(),
+            inclusion_reasons: vec![reason.inclusion.clone()],
+            alternate_inclusion_reasons: Vec::new(),
             has_non_external_reason: reason.seeds_non_external_reachability,
             class,
             path_references,
             type_reference_directives,
             lib_reference_directives,
             module_requests,
+            module_request_spans,
             found_searching_node_modules: node_modules_depth > 0,
             modules_with_elided_imports: false,
             processing_references: false,
@@ -1838,7 +1900,7 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                 target.clone(),
                 depth.saturating_add(1),
                 node_modules_depth,
-                DiscoveryReason::DEPENDENCY,
+                DiscoveryReason::dependency(SourceInclusionReason::Library),
                 SourceClass::Library,
             )? {
                 Some(target_source) if target_source == source => {
@@ -1980,7 +2042,12 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                 target.clone(),
                 child_depth,
                 node_modules_depth,
-                DiscoveryReason::DEPENDENCY,
+                DiscoveryReason::dependency(SourceInclusionReason::PathReference {
+                    parent: source_path.display().to_path_buf(),
+                    specifier: reference.file_name().to_owned(),
+                    pos: reference.pos(),
+                    end: reference.end(),
+                }),
                 self.sources[source].class,
             )?;
             match target_source {
@@ -2024,7 +2091,12 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                 target,
                 child_depth,
                 node_modules_depth,
-                DiscoveryReason::DEPENDENCY,
+                DiscoveryReason::dependency(SourceInclusionReason::PathReference {
+                    parent: source_path.display().to_path_buf(),
+                    specifier: reference.file_name().to_owned(),
+                    pos: reference.pos(),
+                    end: reference.end(),
+                }),
                 self.sources[source].class,
             )? {
                 self.record_source_edge(source, target_source, false);
@@ -2134,11 +2206,21 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                     "a resolved type-reference target is not a TypeScript source file",
                 ));
             }
+            let type_key = self.type_resolutions[index].key.clone();
+            let directive = directives
+                .iter()
+                .find(|directive| directive.key() == &type_key);
+            let type_inclusion = SourceInclusionReason::TypeReference {
+                parent: containing_source.display().to_path_buf(),
+                specifier: type_key.specifier().to_owned(),
+                pos: directive.map_or(0, PlannedTypeReferenceDirective::pos),
+                end: directive.map_or(0, PlannedTypeReferenceDirective::end),
+            };
             let loaded = self.visit_source(
                 target.clone(),
                 depth.saturating_add(1),
                 node_modules_depth.saturating_add(usize::from(external)),
-                DiscoveryReason::DEPENDENCY,
+                DiscoveryReason::dependency(type_inclusion),
                 SourceClass::Ordinary,
             )?;
             let Some(target_source) = loaded else {
@@ -2169,6 +2251,16 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
             .to_str()
             .is_some_and(is_declaration_file_name);
         for (key, loads_source) in requests {
+            let inclusion = self.sources[source]
+                .module_request_spans
+                .get(&key)
+                .map(|(pos, end)| SourceInclusionReason::Import {
+                    parent: containing_file.clone(),
+                    specifier: key.specifier().to_owned(),
+                    pos: *pos,
+                    end: *end,
+                })
+                .unwrap_or(SourceInclusionReason::Synthetic);
             let index = if let Some(index) = self.module_resolution_by_key.get(&key).copied() {
                 self.module_resolutions[index].loads_source |= loads_source;
                 index
@@ -2194,12 +2286,12 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                 self.module_resolution_by_key.insert(key, index);
                 index
             };
-            phase_indices.push(index);
+            phase_indices.push((index, inclusion));
         }
 
         // As with type directives, all requests in this source are resolved
         // before the first successful target starts its DFS.
-        for index in phase_indices {
+        for (index, inclusion) in phase_indices {
             let loads_source = self.module_resolutions[index].loads_source;
             let target = match self.module_resolutions[index].host.outcome() {
                 ResolutionOutcome::Resolved(target) => Some((
@@ -2276,7 +2368,7 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                     target.clone(),
                     depth.saturating_add(1),
                     child_node_modules_depth,
-                    DiscoveryReason::DEPENDENCY,
+                    DiscoveryReason::dependency(inclusion.clone()),
                     SourceClass::Ordinary,
                 )?;
                 let Some(target_source) = loaded else {
@@ -2304,7 +2396,7 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                 target.clone(),
                 depth.saturating_add(1),
                 child_node_modules_depth,
-                DiscoveryReason::DEPENDENCY,
+                DiscoveryReason::dependency(inclusion),
                 SourceClass::Ordinary,
             )?;
             let Some(target_source) = loaded else {
@@ -2947,15 +3039,16 @@ fn unresolved_type_reference_diagnostic(
 }
 
 /// Reproduce tsc's file-preprocessing casing diagnostic while retaining the
-/// first discovered source as the canonical program identity. The diagnostic
-/// is file-owned by that first source and intentionally has no source span:
-/// TypeScript reports this at the program-preprocessing layer rather than at
-/// the spelling site in the importing file. Root inclusions additionally carry
-/// the observable 1430/1427 message chain.
+/// first discovered source as the canonical program identity. TypeScript
+/// chooses TS1261 when a root spelling arrives after a referenced spelling;
+/// otherwise it uses TS1149. Referenced reasons also own the source span used
+/// by the renderer (the import/reference literal), while root-only collisions
+/// remain compiler diagnostics with no source span.
 fn casing_alias_diagnostic(
     existing: &PreparedSourceFile,
     incoming: &Path,
-    root_inclusion_count: usize,
+    existing_reasons: &[SourceInclusionReason],
+    incoming_reason: &SourceInclusionReason,
 ) -> Diagnostic {
     let existing_name = existing
         .path()
@@ -2965,25 +3058,94 @@ fn casing_alias_diagnostic(
     let incoming_name = incoming
         .to_str()
         .expect("alternate display aliases come from validated program paths");
-    let message = MessageChain::new(
-        &gen::File_name_0_differs_from_already_included_file_name_1_only_in_casing,
-        &[incoming_name.to_owned(), existing_name.to_owned()],
-    );
-    let message = if root_inclusion_count == 0 {
-        message
-    } else {
-        let reasons = std::iter::repeat_with(|| {
-            MessageChain::new(&gen::Root_file_specified_for_compilation, &[])
-        })
-        .take(root_inclusion_count)
-        .collect();
-        message.with_next(vec![MessageChain::new(
-            &gen::The_file_is_in_the_program_because,
-            &[],
+    let existing_has_reference = existing_reasons
+        .iter()
+        .any(SourceInclusionReason::is_referenced);
+    let root_arrived_after_reference = !incoming_reason.is_referenced() && existing_has_reference;
+    let (message, arguments) = if root_arrived_after_reference {
+        (
+            &gen::Already_included_file_name_0_differs_from_file_name_1_only_in_casing,
+            vec![existing_name.to_owned(), incoming_name.to_owned()],
         )
-        .with_next(reasons)])
+    } else {
+        (
+            &gen::File_name_0_differs_from_already_included_file_name_1_only_in_casing,
+            vec![incoming_name.to_owned(), existing_name.to_owned()],
+        )
     };
-    Diagnostic::new(None, None, None, message)
+    let mut reasons = existing_reasons
+        .iter()
+        .chain(std::iter::once(incoming_reason))
+        .filter_map(source_inclusion_reason_message)
+        .collect::<Vec<_>>();
+    reasons.dedup();
+    let message = MessageChain::new(message, &arguments).with_next(vec![MessageChain::new(
+        &gen::The_file_is_in_the_program_because,
+        &[],
+    )
+    .with_next(reasons)]);
+    let location_reason = if incoming_reason.is_referenced() {
+        Some(incoming_reason)
+    } else {
+        existing_reasons
+            .iter()
+            .find(|reason| reason.is_referenced())
+    };
+    let (file_name, start, length) = location_reason
+        .and_then(source_inclusion_location)
+        .map_or((None, None, None), |(path, start, end)| {
+            (Some(path), Some(start), Some(end.saturating_sub(start)))
+        });
+    Diagnostic::new(file_name, start, length, message)
+}
+
+fn source_inclusion_reason_message(reason: &SourceInclusionReason) -> Option<MessageChain> {
+    let path_text = |path: &Path| path.to_str().map(str::to_owned);
+    match reason {
+        SourceInclusionReason::Root(root) => Some(root_file_reason_message(*root)),
+        SourceInclusionReason::Import {
+            parent, specifier, ..
+        } => Some(MessageChain::new(
+            &gen::Imported_via_0_from_file_1,
+            &[format!("'{specifier}'"), path_text(parent)?],
+        )),
+        SourceInclusionReason::PathReference {
+            parent, specifier, ..
+        } => Some(MessageChain::new(
+            &gen::Referenced_via_0_from_file_1,
+            &[format!("'{specifier}'"), path_text(parent)?],
+        )),
+        SourceInclusionReason::TypeReference {
+            parent, specifier, ..
+        } => Some(MessageChain::new(
+            &gen::Type_library_referenced_via_0_from_file_1,
+            &[format!("'{specifier}'"), path_text(parent)?],
+        )),
+        SourceInclusionReason::AutomaticType { name } => Some(MessageChain::new(
+            &gen::Entry_point_of_type_library_0_specified_in_compilerOptions,
+            std::slice::from_ref(name),
+        )),
+        SourceInclusionReason::Library => {
+            Some(MessageChain::new(&gen::File_is_library_specified_here, &[]))
+        }
+        SourceInclusionReason::Synthetic => None,
+    }
+}
+
+fn source_inclusion_location(reason: &SourceInclusionReason) -> Option<(String, u32, u32)> {
+    let (parent, pos, end) = match reason {
+        SourceInclusionReason::Import {
+            parent, pos, end, ..
+        }
+        | SourceInclusionReason::PathReference {
+            parent, pos, end, ..
+        }
+        | SourceInclusionReason::TypeReference {
+            parent, pos, end, ..
+        } => (parent, *pos, *end),
+        _ => return None,
+    };
+    Some((parent.to_str()?.to_owned(), pos, end))
 }
 
 fn located_diagnostic(

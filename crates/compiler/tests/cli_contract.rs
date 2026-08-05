@@ -396,6 +396,33 @@ fn no_emit_cli_symlink_and_package_mode_matrix_matches_vendored_typescript() {
 
 #[test]
 #[ignore = "local H0 CLI oracle audit; requires the pinned Node runtime"]
+fn no_emit_cli_case_only_alias_matrix_matches_vendored_typescript() {
+    let tree = TempTree::new();
+    fs::write(
+        tree.path("main.ts"),
+        "import { value } from './Value';\nconst checked: number = value;\n",
+    )
+    .expect("write case-alias importer");
+    fs::write(tree.path("value.ts"), "export const value: number = 1;\n")
+        .expect("write case-alias target");
+
+    for casing in [None, Some(false), Some(true)] {
+        let casing_option = casing.map_or_else(String::new, |value| {
+            format!(",\"forceConsistentCasingInFileNames\":{value}")
+        });
+        fs::write(
+            tree.path("tsconfig.json"),
+            format!(
+                r#"{{"compilerOptions":{{"noEmit":true,"lib":["es5"]{casing_option}}},"files":["main.ts","value.ts"]}}"#
+            ),
+        )
+        .expect("write case-alias config");
+        assert_typescript_parity(&tree, &["-p", "tsconfig.json"], &["-p", "tsconfig.json"]);
+    }
+}
+
+#[test]
+#[ignore = "local H0 CLI oracle audit; requires the pinned Node runtime"]
 fn no_emit_cli_current_directory_discovery_matches_vendored_typescript() {
     let tree = TempTree::new();
     fs::create_dir_all(tree.path("src/nested")).expect("create current-directory fixture");
