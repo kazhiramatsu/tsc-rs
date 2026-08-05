@@ -1,19 +1,17 @@
-use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use serde_json::Value;
 use tsc_host::{CompilerHost, FsCompilerHost, HostError, HostErrorKind, HostOperation};
 use tsc_program::{
-    load_program, validate_config_plan, CompilerConfigHost, CompilerOptions, ConfigFilePattern,
-    ConfigHostError, ConfigHostOperation, ConfigParseHost, ConfigRootPlan, ConfigRootPlanRequest,
-    LibraryCatalog, PreparedProgram, ProgramLoadLimits, ProgramOptions,
+    load_program, validate_config_plan, CompilerConfigHost, CompilerOptions, ConfigHostError,
+    ConfigHostOperation, ConfigParseHost, ConfigRootPlan, ConfigRootPlanRequest, LibraryCatalog,
+    PreparedProgram, ProgramLoadLimits, ProgramOptions,
 };
 
 use super::{
-    absolute_config_pattern, compare_utf16, config_base_paths, error, file_extension_is_exact,
-    glob_matches, join_config_path, normalize_virtual_path, ProjectExecutionPlan, ProjectModule,
-    ProjectMount, ProjectRootSelection,
+    compare_utf16, error, join_config_path, normalize_virtual_path, ProjectExecutionPlan,
+    ProjectModule, ProjectMount, ProjectRootSelection,
 };
 use crate::HarnessResult;
 
@@ -706,149 +704,19 @@ impl ConfigParseHost for MountedProjectHost {
         includes: Option<&[String]>,
         depth: Option<usize>,
     ) -> Result<Vec<String>, ConfigHostError> {
-        let includes = includes.unwrap_or(&[]);
-        let include_patterns = includes
-            .iter()
-            .map(|include| {
-                ConfigFilePattern::new(include, directory, true).map_err(|detail| {
-                    ConfigHostError::new(
-                        ConfigHostOperation::ReadDirectory,
-                        directory,
-                        format!("invalid project include {include:?}: {detail}"),
-                    )
-                })
-            })
-            .collect::<Result<Vec<_>, _>>()?;
-        let mut buckets = vec![Vec::new(); includes.len().max(1)];
-        let mut visited = HashSet::new();
-        for base_path in config_base_paths(directory, includes) {
-            visit_project_config_directory(
-                self,
-                directory,
-                &base_path,
-                extensions,
-                excludes,
-                includes,
-                &include_patterns,
-                depth,
-                &mut visited,
-                &mut buckets,
-            )?;
-        }
-        buckets
-            .into_iter()
-            .flatten()
-            .map(|path| relative_posix_path(self.current_directory.as_ref(), &path))
-            .collect()
-    }
-}
-
-#[allow(clippy::too_many_arguments)]
-fn visit_project_config_directory(
-    host: &MountedProjectHost,
-    base_directory: &str,
-    directory: &str,
-    extensions: &[&str],
-    excludes: Option<&[String]>,
-    includes: &[String],
-    include_patterns: &[Option<ConfigFilePattern>],
-    depth: Option<usize>,
-    visited: &mut HashSet<String>,
-    buckets: &mut [Vec<String>],
-) -> Result<(), ConfigHostError> {
-    if !visited.insert(directory.to_owned()) {
-        return Ok(());
-    }
-    let entries = CompilerHost::read_directory(host, Path::new(directory)).map_err(|source| {
-        MountedProjectHost::host_error(ConfigHostOperation::ReadDirectory, directory, source)
-    })?;
-    let mut files = Vec::new();
-    let mut directories = Vec::new();
-    for entry in entries {
-        let text = entry.to_str().ok_or_else(|| {
-            ConfigHostError::new(
-                ConfigHostOperation::ReadDirectory,
-                directory,
-                "project directory entry is not Unicode",
-            )
-        })?;
-        if CompilerHost::directory_exists(host, &entry).map_err(|source| {
-            MountedProjectHost::host_error(ConfigHostOperation::ReadDirectory, text, source)
-        })? {
-            directories.push(text.to_owned());
-        } else {
-            files.push(text.to_owned());
-        }
-    }
-    files.sort_by(|left, right| compare_utf16(left, right));
-    for path in files {
-        if !extensions
-            .iter()
-            .any(|extension| file_extension_is_exact(&path, extension))
-            || excludes.is_some_and(|patterns| {
-                patterns
-                    .iter()
-                    .any(|pattern| project_exclude_matches(base_directory, pattern, &path))
-            })
-        {
-            continue;
-        }
-        let include_index = if includes.is_empty() {
-            Some(0)
-        } else {
-            include_patterns.iter().position(|pattern| {
-                pattern
-                    .as_ref()
-                    .is_some_and(|pattern| pattern.matches(&path))
-            })
-        };
-        if let Some(include_index) = include_index {
-            buckets[include_index].push(path);
-        }
-    }
-
-    if depth == Some(1) {
-        return Ok(());
-    }
-    let child_depth = depth.map(|value| value.saturating_sub(1));
-    directories.sort_by(|left, right| compare_utf16(left, right));
-    for path in directories {
-        if excludes.is_some_and(|patterns| {
-            patterns
-                .iter()
-                .any(|pattern| project_exclude_matches(base_directory, pattern, &path))
-        }) {
-            continue;
-        }
-        visit_project_config_directory(
-            host,
-            base_directory,
-            &path,
+        let absolute = ConfigParseHost::read_directory(
+            &CompilerConfigHost::new(self),
+            directory,
             extensions,
             excludes,
             includes,
-            include_patterns,
-            child_depth,
-            visited,
-            buckets,
+            depth,
         )?;
+        absolute
+            .into_iter()
+            .map(|path| relative_posix_path(self.current_directory.as_ref(), &path))
+            .collect()
     }
-    Ok(())
-}
-
-fn project_exclude_matches(base_directory: &str, pattern: &str, path: &str) -> bool {
-    if pattern.is_empty() {
-        return false;
-    }
-    let pattern = absolute_config_pattern(base_directory, pattern);
-    if pattern.contains(['*', '?']) {
-        return glob_matches(&pattern, path, true);
-    }
-    let pattern = pattern.trim_end_matches('/');
-    path == pattern
-        || path
-            .strip_prefix(pattern)
-            .is_some_and(|tail| tail.starts_with('/'))
 }
 
 fn relative_posix_path(base: &str, target: &str) -> Result<String, ConfigHostError> {

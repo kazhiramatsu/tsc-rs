@@ -2579,7 +2579,7 @@ fn no_lib_lib_option_diagnostics(
 /// from being constructed.
 ///
 /// tsc-port: verifyDeprecatedCompilerOptions @6.0.3
-/// tsc-hash: 7f7b9dd6d9d2f6d4f4b507eb9ab4ef59b25e8bcd0c57b6b8f9d5b6f3c3bc2b38
+/// tsc-hash: b6d09b278ef2bfb9854fcd27e61627d116411742e757e3113a5338df88bcb08d
 /// tsc-span: _tsc.js:129942-130078
 fn deprecation_option_diagnostics(
     options: &ConfigOptionBag,
@@ -2769,7 +2769,7 @@ fn deprecation_option_diagnostics(
 /// exact option diagnostics before the no-emit gate fails closed.
 ///
 /// tsc-port: verifyCompilerOptions @6.0.3
-/// tsc-hash: 5ccf8fc6a1e3b5d267b6c6e40fbded8fbfce3df4e77834358d4c0da8b1e8cb49
+/// tsc-hash: 379bc580139f96f948f7e041ea76b960282efe6c7924b06a4de1f11bffb9b558
 /// tsc-span: _tsc.js:124936-125020
 fn option_relationship_diagnostics(
     options: &ConfigOptionBag,
