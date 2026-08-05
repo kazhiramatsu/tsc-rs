@@ -588,3 +588,45 @@ fn ts6_option_deprecations_are_reported_without_blocking_no_emit_loading() {
         [5108]
     );
 }
+
+#[test]
+fn ts6_module_option_relationship_diagnostics_match_the_effective_kinds() {
+    let host = host();
+    let adapter = ConfigHostAdapter::new(&host);
+    let codes = |compiler_options: &str| {
+        let text = format!(
+            r#"{{"compilerOptions":{{"noEmit":true,"noLib":true,{compiler_options}}},"files":["main.ts"]}}"#
+        );
+        let plan = parse_config_root_plan(&adapter, request(&text))
+            .expect("parse module option relationship plan");
+        let mut codes = plan
+            .option_diagnostics()
+            .iter()
+            .map(|diagnostic| diagnostic.code())
+            .collect::<Vec<_>>();
+        codes.sort_unstable();
+        codes
+    };
+
+    assert_eq!(
+        codes(r#""module":"node16","moduleResolution":"node10""#),
+        [5107, 5109]
+    );
+    assert_eq!(codes(r#""moduleResolution":"node16""#), [5110]);
+    assert_eq!(
+        codes(r#""module":"amd","moduleResolution":"bundler""#),
+        [5095, 5107]
+    );
+    assert_eq!(
+        codes(r#""resolvePackageJsonExports":true,"moduleResolution":"classic""#),
+        [5098, 5107]
+    );
+    assert_eq!(
+        codes(r#""customConditions":[],"moduleResolution":"classic""#),
+        [5098, 5107]
+    );
+    assert_eq!(
+        codes(r#""verbatimModuleSyntax":true,"module":"amd""#),
+        [5105, 5107]
+    );
+}

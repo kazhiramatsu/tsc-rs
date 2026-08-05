@@ -1365,6 +1365,7 @@ pub fn parse_config_root_plan(
     let mut option_diagnostics = paths_option_diagnostics(&node.options, &node.source);
     option_diagnostics.extend(no_lib_lib_option_diagnostics(&node.options, &node.source));
     option_diagnostics.extend(deprecation_option_diagnostics(&node.options, &node.source));
+    option_diagnostics.extend(option_relationship_diagnostics(&node.options, &node.source));
     sort_and_dedupe_diagnostics(&mut option_diagnostics);
     let discovery_options = effective_discovery_options(&node.options, &config_base)?;
     let module_resolution_options = config_module_resolution_options(
@@ -2748,6 +2749,142 @@ fn deprecation_option_diagnostics(
     }
 
     sort_and_dedupe_diagnostics(&mut diagnostics);
+    diagnostics
+}
+
+/// Produce option-combination diagnostics which TypeScript evaluates after
+/// computing the effective module and module-resolution kinds. Keeping these
+/// rows on the immutable config plan prevents an incompatible resolver mode
+/// from reaching source discovery, while still allowing the CLI to render the
+/// exact option diagnostics before the no-emit gate fails closed.
+///
+/// tsc-port: verifyCompilerOptions @6.0.3
+/// tsc-hash: 5ccf8fc6a1e3b5d267b6c6e40fbded8fbfce3df4e77834358d4c0da8b1e8cb49
+/// tsc-span: _tsc.js:124936-125020
+fn option_relationship_diagnostics(
+    options: &ConfigOptionBag,
+    source: &ConfigSourceText,
+) -> Vec<Diagnostic> {
+    let parsed = tsc_syntax::parse_json_text(&source.file_name, &source.text);
+    let compiler_properties = config_compiler_option_properties(&parsed);
+    // Relationship diagnostics whose option is absent are compiler-level
+    // rows in TypeScript, not diagnostics attached to the compilerOptions
+    // object. Property-backed rows still use their exact value/key span.
+    let no_fallback = None;
+    let projected = CompilerOptions {
+        target: config_option_i32(options, "target"),
+        module: config_option_i32(options, "module"),
+        module_resolution: config_option_i32(options, "moduleResolution"),
+        ..CompilerOptions::default()
+    };
+    let module_kind = projected.emit_module_kind();
+    let module_resolution = projected.emit_module_resolution_kind();
+    let mut diagnostics = Vec::new();
+
+    if module_resolution == 100 && !matches!(module_kind, 1 | 5..=99 | 200) {
+        emit_option_diagnostic_for_properties(
+            &mut diagnostics,
+            &parsed,
+            &compiler_properties,
+            &no_fallback,
+            "moduleResolution",
+            false,
+            &gen::Option_0_can_only_be_used_when_module_is_set_to_preserve_commonjs_or_es2015_or_later,
+            &["bundler".to_owned()],
+        );
+    }
+
+    if (3..=99).contains(&module_resolution) && !(100..=199).contains(&module_kind) {
+        let module_resolution_name = if module_resolution == 99 {
+            "NodeNext"
+        } else {
+            "Node16"
+        };
+        emit_option_diagnostic_for_properties(
+            &mut diagnostics,
+            &parsed,
+            &compiler_properties,
+            &no_fallback,
+            "module",
+            false,
+            &gen::Option_module_must_be_set_to_0_when_option_moduleResolution_is_set_to_1,
+            &[
+                module_resolution_name.to_owned(),
+                module_resolution_name.to_owned(),
+            ],
+        );
+    } else if (100..=199).contains(&module_kind)
+        && options.typed_value("moduleResolution").is_some()
+        && !(3..=99).contains(&module_resolution)
+    {
+        let module_kind_name = if module_kind == 199 {
+            "NodeNext"
+        } else {
+            "Node16"
+        };
+        emit_option_diagnostic_for_properties(
+            &mut diagnostics,
+            &parsed,
+            &compiler_properties,
+            &no_fallback,
+            "moduleResolution",
+            false,
+            &gen::Option_moduleResolution_must_be_set_to_0_or_left_unspecified_when_option_module_is_set_to_1,
+            &[
+                module_kind_name.to_owned(),
+                module_kind_name.to_owned(),
+            ],
+        );
+    }
+
+    let package_maps_supported = (3..=99).contains(&module_resolution) || module_resolution == 100;
+    if !package_maps_supported {
+        for name in ["resolvePackageJsonExports", "resolvePackageJsonImports"] {
+            if config_option_bool(options, name) == Some(true) {
+                emit_option_diagnostic_for_properties(
+                    &mut diagnostics,
+                    &parsed,
+                    &compiler_properties,
+                    &no_fallback,
+                    name,
+                    true,
+                    &gen::Option_0_can_only_be_used_when_moduleResolution_is_set_to_node16_nodenext_or_bundler,
+                    &[name.to_owned()],
+                );
+            }
+        }
+        if matches!(
+            options.typed_value_state("customConditions"),
+            ConfigOptionValueState::List(_)
+        ) {
+            emit_option_diagnostic_for_properties(
+                &mut diagnostics,
+                &parsed,
+                &compiler_properties,
+                &no_fallback,
+                "customConditions",
+                true,
+                &gen::Option_0_can_only_be_used_when_moduleResolution_is_set_to_node16_nodenext_or_bundler,
+                &["customConditions".to_owned()],
+            );
+        }
+    }
+
+    if config_option_bool(options, "verbatimModuleSyntax") == Some(true)
+        && matches!(module_kind, 0 | 2..=4)
+    {
+        emit_option_diagnostic_for_properties(
+            &mut diagnostics,
+            &parsed,
+            &compiler_properties,
+            &no_fallback,
+            "verbatimModuleSyntax",
+            true,
+            &gen::Option_verbatimModuleSyntax_cannot_be_used_when_module_is_set_to_UMD_AMD_or_System,
+            &[],
+        );
+    }
+
     diagnostics
 }
 

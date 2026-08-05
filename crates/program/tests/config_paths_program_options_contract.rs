@@ -3,9 +3,9 @@ use std::path::Path;
 
 use tsc_host::MemoryCompilerHost;
 use tsc_program::{
-    load_no_lib_program, parse_config_root_plan, ConfigHostError, ConfigModuleResolutionOptions,
-    ConfigParseHost, ConfigRootPlanRequest, ModuleResolver, ModuleSuffix, ProgramLoadLimits,
-    ProgramOptions, ResolutionMode, ResolutionOutcome,
+    is_non_fatal_option_diagnostic, load_no_lib_program, parse_config_root_plan, ConfigHostError,
+    ConfigModuleResolutionOptions, ConfigParseHost, ConfigRootPlanRequest, ModuleResolver,
+    ModuleSuffix, ProgramLoadLimits, ProgramOptions, ResolutionMode, ResolutionOutcome,
 };
 
 #[derive(Default)]
@@ -365,6 +365,7 @@ fn official_paths_validation_shapes_are_options_diagnostics_not_parse_errors() {
         let mut actual = plan
             .option_diagnostics()
             .iter()
+            .filter(|diagnostic| !is_non_fatal_option_diagnostic(diagnostic))
             .map(|diagnostic| diagnostic.code())
             .collect::<Vec<_>>();
         actual.sort_unstable();
