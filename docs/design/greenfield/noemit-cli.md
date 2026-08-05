@@ -489,7 +489,15 @@ owning `PreparedSourceFile`. The default/absent
 preprocessing boundary, including the `The file is in the program because:`
 message chain with one root-file reason per root occurrence; an explicit
 `false` keeps the collapsed source without that diagnostic. Config projection
-and the harness option allowlist carry the same tri-state value.
+and the harness option allowlist carry the same tri-state value. On a
+case-sensitive host, distinct physical files whose normalized names differ
+only under TypeScript's locale-independent file-name fold remain separate
+program sources and are tracked by an independent `filesByNameIgnoreCase`
+index. Their TS1149/TS1261 diagnostic is unconditional even when the option is
+explicitly false, preserves first-discovery/source order and import/reference
+location ownership, and retains both `files` provenance entries with TS1410
+related information. A pinned four-order API oracle covers root/root,
+import-then-root, and root-then-import cases.
 
 `LibraryCatalog::typescript_6_0_3` injects static metadata for the exact 107
 logical library names and 95 distinct mapped files. It performs no runtime
@@ -621,7 +629,9 @@ context. Explicit include roots retain TS1407 with the config spelling, while
 the implicit `**/*` root reason retains TS1457 without fabricated related
 syntax. Pretty rendering no longer mistakes digits inside inclusion-chain
 paths for source gutters. The complete cross-platform
-case/separator/symlink/encoding matrix remains open. Discovery stays
+case/separator/symlink/encoding matrix remains open; its case-sensitive
+distinct-file collision cell is now closed in addition to the existing
+case-insensitive alias cell. Discovery stays
 sequential where vendored host calls and failure precedence are observable;
 future pipeline parallelism must preserve that contract.
 

@@ -914,6 +914,15 @@ struct StagedSource {
     pending_reprocesses: VecDeque<SourceReprocess>,
 }
 
+/// A pair of distinct source identities that collide only under tsc's
+/// locale-independent file-name fold on a case-sensitive host. Both sources
+/// remain in the program; this record exists only to publish TS1149/TS1261.
+struct CaseSensitiveCasingConflict {
+    existing_source: usize,
+    incoming_path: PathBuf,
+    incoming_reason: SourceInclusionReason,
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum SourceReprocessKind {
     AllReferences,
@@ -970,6 +979,8 @@ struct StagedGraph<'host, 'options, 'resolver> {
     limits: ProgramLoadLimits,
     resolver: &'resolver mut ModuleResolver<'host>,
     states: BTreeMap<CanonicalPath, VisitState>,
+    files_by_name_ignore_case: BTreeMap<String, usize>,
+    case_sensitive_casing_conflicts: Vec<CaseSensitiveCasingConflict>,
     sources: Vec<StagedSource>,
     source_edges: Vec<Vec<(usize, bool)>>,
     postorder: Vec<usize>,
@@ -1004,6 +1015,8 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
             limits,
             resolver,
             states: BTreeMap::new(),
+            files_by_name_ignore_case: BTreeMap::new(),
+            case_sensitive_casing_conflicts: Vec::new(),
             sources: Vec::new(),
             source_edges: Vec::new(),
             postorder: Vec::new(),
@@ -1486,6 +1499,27 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                 .collect::<Vec<_>>();
             self.program_diagnostics.extend(casing_diagnostics);
         }
+        // On a case-sensitive host tsc keeps distinct physical spellings in
+        // `filesByName` and independently checks them through
+        // `filesByNameIgnoreCase`. Unlike aliases collapsed by the host's
+        // canonical key, these diagnostics are unconditional even when
+        // `forceConsistentCasingInFileNames` is explicitly false.
+        let case_sensitive_casing_diagnostics = self
+            .case_sensitive_casing_conflicts
+            .iter()
+            .map(|conflict| {
+                let existing = &self.sources[conflict.existing_source];
+                casing_distinct_file_diagnostic(
+                    &existing.prepared,
+                    &conflict.incoming_path,
+                    &existing.inclusion_reasons,
+                    &conflict.incoming_reason,
+                    self.program_options.config_file(),
+                )
+            })
+            .collect::<Vec<_>>();
+        self.program_diagnostics
+            .extend(case_sensitive_casing_diagnostics);
         self.propagate_non_external_reachability();
         let mut library_postorder = self
             .postorder
@@ -1737,6 +1771,25 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
             processing_references: false,
             pending_reprocesses: VecDeque::new(),
         });
+        if self.resolver.path_context().use_case_sensitive_file_names() {
+            let canonical_text = path
+                .canonical()
+                .as_path()
+                .to_str()
+                .expect("validated program paths are Unicode");
+            let path_lower_case = to_file_name_lower_case(canonical_text);
+            if let Some(&existing_source) = self.files_by_name_ignore_case.get(&path_lower_case) {
+                self.case_sensitive_casing_conflicts
+                    .push(CaseSensitiveCasingConflict {
+                        existing_source,
+                        incoming_path: path.display().to_path_buf(),
+                        incoming_reason: reason.inclusion.clone(),
+                    });
+            } else {
+                self.files_by_name_ignore_case
+                    .insert(path_lower_case, source);
+            }
+        }
         self.source_edges.push(Vec::new());
         self.states
             .insert(path.canonical().clone(), VisitState::Visiting(source));
@@ -3165,6 +3218,49 @@ fn casing_alias_diagnostic(
     incoming_reason: &SourceInclusionReason,
     config_file: Option<&ProgramConfigFile>,
 ) -> Diagnostic {
+    casing_diagnostic(
+        existing,
+        incoming,
+        existing_reasons,
+        incoming_reason,
+        config_file,
+        true,
+    )
+}
+
+/// Publish the same explaining diagnostic for two independently loaded files
+/// on a case-sensitive host. The incoming reason belongs to the second source
+/// rather than `existing_reasons`, matching tsc's `filesByNameIgnoreCase`
+/// branch.
+///
+/// tsc-port: findSourceFileWorker @6.0.3 (`filesByNameIgnoreCase`)
+/// tsc-hash: 3fe29e4e1cb6c2e1b58594265c7e7140e0719cb08bedf239bebd99046cc3795b
+/// tsc-span: _tsc.js:124396-124402
+fn casing_distinct_file_diagnostic(
+    existing: &PreparedSourceFile,
+    incoming: &Path,
+    existing_reasons: &[SourceInclusionReason],
+    incoming_reason: &SourceInclusionReason,
+    config_file: Option<&ProgramConfigFile>,
+) -> Diagnostic {
+    casing_diagnostic(
+        existing,
+        incoming,
+        existing_reasons,
+        incoming_reason,
+        config_file,
+        false,
+    )
+}
+
+fn casing_diagnostic(
+    existing: &PreparedSourceFile,
+    incoming: &Path,
+    existing_reasons: &[SourceInclusionReason],
+    incoming_reason: &SourceInclusionReason,
+    config_file: Option<&ProgramConfigFile>,
+    incoming_reason_is_recorded_on_existing: bool,
+) -> Diagnostic {
     let existing_name = existing
         .path()
         .display()
@@ -3188,19 +3284,22 @@ fn casing_alias_diagnostic(
             vec![incoming_name.to_owned(), existing_name.to_owned()],
         )
     };
-    // `visit_source` records the incoming occurrence before `finish` builds
-    // this diagnostic, so `existing_reasons` already contains the alias
-    // reason.  Appending it again would duplicate root/file-list entries.
-    let mut reasons = existing_reasons
+    let mut all_reasons = existing_reasons.iter().collect::<Vec<_>>();
+    // A host-collapsed alias is recorded on the existing source before
+    // `finish`; an independently loaded case-sensitive source is not.
+    if !incoming_reason_is_recorded_on_existing {
+        all_reasons.push(incoming_reason);
+    }
+    let mut reasons = all_reasons
         .iter()
-        .filter_map(source_inclusion_reason_message)
+        .filter_map(|reason| source_inclusion_reason_message(reason))
         .collect::<Vec<_>>();
     // Root aliases retain one reason per explicit root occurrence (the
     // program-preprocessing contract exposes that multiplicity).  A root
     // spelling arriving after an import/reference is different: tsc reports
     // the dependency chain once and does not repeat the same files-list
     // reason for the alias occurrence.
-    if root_arrived_after_reference {
+    if incoming_reason_is_recorded_on_existing && root_arrived_after_reference {
         reasons.dedup();
     }
     let message = MessageChain::new(message, &arguments).with_next(vec![MessageChain::new(
@@ -3221,7 +3320,7 @@ fn casing_alias_diagnostic(
             (Some(path), Some(start), Some(end.saturating_sub(start)))
         });
     let mut diagnostic = Diagnostic::new(file_name, start, length, message);
-    for reason in existing_reasons {
+    for reason in all_reasons {
         let SourceInclusionReason::Root(reason) = reason else {
             continue;
         };

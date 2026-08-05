@@ -8,6 +8,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use std::{fs, io};
 
 use serde_json::{json, Value};
+use tsc_diagnostics::MessageChain;
 #[cfg(unix)]
 use tsc_host::FsCompilerHost;
 use tsc_host::{CompilerHost, HostError, HostErrorKind, HostOperation, MemoryCompilerHost};
@@ -1428,6 +1429,259 @@ fn explicit_false_force_consistent_casing_suppresses_alias_diagnostic() {
         program.source_files()[0].alternate_display_paths(),
         [Path::new("/work/root.ts")]
     );
+}
+
+#[test]
+fn case_sensitive_files_differing_only_in_case_remain_distinct_and_report_tsc_casing_errors() {
+    const IMPORTER: &str = "import { value } from './Value';\nvoid value;\n";
+    let cases = [
+        (
+            ["/project/Value.ts", "/project/value.ts"],
+            ["/project/Value.ts", "/project/value.ts"].as_slice(),
+            1149,
+            None,
+            "/project/value.ts",
+            "/project/Value.ts",
+            [1427, 1427].as_slice(),
+        ),
+        (
+            ["/project/value.ts", "/project/Value.ts"],
+            ["/project/value.ts", "/project/Value.ts"].as_slice(),
+            1149,
+            None,
+            "/project/Value.ts",
+            "/project/value.ts",
+            [1427, 1427].as_slice(),
+        ),
+        (
+            ["/project/main.ts", "/project/value.ts"],
+            ["/project/Value.ts", "/project/main.ts", "/project/value.ts"].as_slice(),
+            1261,
+            Some(("/project/main.ts", 22, 9)),
+            "/project/Value.ts",
+            "/project/value.ts",
+            [1393, 1427].as_slice(),
+        ),
+        (
+            ["/project/value.ts", "/project/main.ts"],
+            ["/project/value.ts", "/project/Value.ts", "/project/main.ts"].as_slice(),
+            1149,
+            Some(("/project/main.ts", 22, 9)),
+            "/project/Value.ts",
+            "/project/value.ts",
+            [1427, 1393].as_slice(),
+        ),
+    ];
+
+    for (roots, expected_sources, code, location, first_name, second_name, reason_codes) in cases {
+        let host = MemoryCompilerHost::builder("/project")
+            .case_sensitive(true)
+            .file("/project/main.ts", IMPORTER.as_bytes().to_vec())
+            .file("/project/Value.ts", b"export const value = 1;\n".to_vec())
+            .file("/project/value.ts", b"export const value = 2;\n".to_vec())
+            .build()
+            .expect("build case-sensitive source host");
+        let mut options = compiler_options();
+        // tsc's case-sensitive `filesByNameIgnoreCase` check is independent
+        // of this option; false only suppresses host-collapsed aliases.
+        options.force_consistent_casing_in_file_names = Some(false);
+        let program =
+            load_with_options(&host, &roots, options, program_options(), generous_limits())
+                .expect("distinct case-sensitive files remain a valid program");
+
+        assert_eq!(
+            source_paths(&program),
+            expected_sources
+                .iter()
+                .map(|path| Path::new(*path))
+                .collect::<Vec<_>>()
+        );
+        let [diagnostic] = program.diagnostics().program() else {
+            panic!("case-only physical collision must publish one diagnostic");
+        };
+        assert_eq!(diagnostic.code(), code);
+        assert!(diagnostic.message_text().contains(first_name));
+        assert!(diagnostic.message_text().contains(second_name));
+        match location {
+            Some((file, start, length)) => {
+                assert_eq!(diagnostic.file_name.as_deref(), Some(file));
+                assert_eq!(diagnostic.start, Some(start));
+                assert_eq!(diagnostic.length, Some(length));
+            }
+            None => {
+                assert_eq!(diagnostic.file_name, None);
+                assert_eq!(diagnostic.start, None);
+                assert_eq!(diagnostic.length, None);
+            }
+        }
+        assert_eq!(diagnostic.message.next.len(), 1);
+        assert_eq!(diagnostic.message.next[0].code, 1430);
+        assert_eq!(
+            diagnostic.message.next[0]
+                .next
+                .iter()
+                .map(|reason| reason.code)
+                .collect::<Vec<_>>(),
+            reason_codes
+        );
+        assert!(!diagnostic.related_information_present);
+        assert!(diagnostic.related.is_empty());
+    }
+}
+
+#[test]
+#[ignore = "local H0 program oracle audit; requires the pinned Node runtime"]
+fn case_sensitive_casing_collision_matrix_matches_vendored_typescript() {
+    const PROBE: &str = r#"
+const ts = require(process.argv[1]);
+const files = new Map([
+  ['/project/main.ts', "import { value } from './Value';\nvoid value;\n"],
+  ['/project/Value.ts', 'export const value = 1;\n'],
+  ['/project/value.ts', 'export const value = 2;\n'],
+]);
+const cases = [
+  ['/project/Value.ts', '/project/value.ts'],
+  ['/project/value.ts', '/project/Value.ts'],
+  ['/project/main.ts', '/project/value.ts'],
+  ['/project/value.ts', '/project/main.ts'],
+];
+function chain(message) {
+  if (typeof message === 'string') return { code: null, text: message, next: null };
+  return {
+    code: message.code,
+    text: message.messageText,
+    next: message.next === undefined ? null : message.next.map(chain),
+  };
+}
+function probe(rootNames) {
+  const options = {
+    noEmit: true,
+    noLib: true,
+    types: [],
+    forceConsistentCasingInFileNames: false,
+    module: ts.ModuleKind.CommonJS,
+    moduleResolution: ts.ModuleResolutionKind.Node10,
+  };
+  const host = ts.createCompilerHost(options);
+  host.useCaseSensitiveFileNames = () => true;
+  host.getCanonicalFileName = path => path;
+  host.realpath = path => path;
+  host.getCurrentDirectory = () => '/project';
+  host.directoryExists = path => path === '/project';
+  host.getDirectories = () => [];
+  host.fileExists = path => files.has(path);
+  host.readFile = path => files.get(path);
+  host.getSourceFile = (path, target) => files.has(path)
+    ? ts.createSourceFile(path, files.get(path), target, true)
+    : undefined;
+  const program = ts.createProgram({ rootNames, options, host });
+  return {
+    sources: program.getSourceFiles().map(source => source.fileName),
+    diagnostics: ts.getPreEmitDiagnostics(program)
+      .filter(diagnostic => diagnostic.code === 1149 || diagnostic.code === 1261)
+      .map(diagnostic => ({
+        code: diagnostic.code,
+        file: diagnostic.file ? diagnostic.file.fileName : null,
+        start: diagnostic.start === undefined ? null : diagnostic.start,
+        length: diagnostic.length === undefined ? null : diagnostic.length,
+        message: chain(diagnostic.messageText),
+        relatedPresent: diagnostic.relatedInformation !== undefined,
+        related: (diagnostic.relatedInformation || []).map(related => ({
+          code: related.code,
+          file: related.file ? related.file.fileName : null,
+          start: related.start === undefined ? null : related.start,
+          length: related.length === undefined ? null : related.length,
+          message: chain(related.messageText),
+        })),
+      })),
+  };
+}
+process.stdout.write(JSON.stringify(cases.map(probe)));
+"#;
+
+    fn chain_json(message: &MessageChain) -> Value {
+        json!({
+            "code": message.code,
+            "text": message.text,
+            "next": message.next_present.then(|| {
+                message.next.iter().map(chain_json).collect::<Vec<_>>()
+            }),
+        })
+    }
+
+    let bundle = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../..")
+        .join("vendor/typescript-6.0.3/lib/typescript.js");
+    let output = Command::new("node")
+        .arg("-e")
+        .arg(PROBE)
+        .arg(bundle)
+        .output()
+        .expect("run vendored TypeScript case-sensitive casing probe");
+    assert!(
+        output.status.success(),
+        "TypeScript probe failed: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let oracle: Value = serde_json::from_slice(&output.stdout).expect("probe output is JSON");
+
+    let roots = [
+        ["/project/Value.ts", "/project/value.ts"],
+        ["/project/value.ts", "/project/Value.ts"],
+        ["/project/main.ts", "/project/value.ts"],
+        ["/project/value.ts", "/project/main.ts"],
+    ];
+    let rust = roots
+        .iter()
+        .map(|roots| {
+            let host = MemoryCompilerHost::builder("/project")
+                .case_sensitive(true)
+                .file(
+                    "/project/main.ts",
+                    b"import { value } from './Value';\nvoid value;\n".to_vec(),
+                )
+                .file("/project/Value.ts", b"export const value = 1;\n".to_vec())
+                .file("/project/value.ts", b"export const value = 2;\n".to_vec())
+                .build()
+                .expect("build Rust case-sensitive oracle host");
+            let program = load_with_options(
+                &host,
+                roots,
+                CompilerOptions {
+                    force_consistent_casing_in_file_names: Some(false),
+                    module: Some(1),
+                    module_resolution: Some(2),
+                    ..compiler_options()
+                },
+                program_options(),
+                generous_limits(),
+            )
+            .expect("load Rust case-sensitive oracle program");
+            json!({
+                "sources": program.source_files().iter().map(|source| {
+                    source.path().display().to_str().expect("source path is Unicode")
+                }).collect::<Vec<_>>(),
+                "diagnostics": program.diagnostics().program().iter()
+                    .filter(|diagnostic| matches!(diagnostic.code(), 1149 | 1261))
+                    .map(|diagnostic| json!({
+                        "code": diagnostic.code(),
+                        "file": diagnostic.file_name,
+                        "start": diagnostic.start,
+                        "length": diagnostic.length,
+                        "message": chain_json(&diagnostic.message),
+                        "relatedPresent": diagnostic.related_information_present,
+                        "related": diagnostic.related.iter().map(|related| json!({
+                            "code": related.message.code,
+                            "file": related.file_name,
+                            "start": related.start,
+                            "length": related.length,
+                            "message": chain_json(&related.message),
+                        })).collect::<Vec<_>>(),
+                    })).collect::<Vec<_>>(),
+            })
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(json!(rust), oracle);
 }
 
 #[test]

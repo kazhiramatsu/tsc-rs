@@ -547,6 +547,60 @@ fn case_only_alias_retains_default_include_reason_without_related_information() 
 }
 
 #[test]
+fn case_sensitive_distinct_files_retain_both_files_list_provenance_entries() {
+    let host = MemoryCompilerHost::builder("/project")
+        .case_sensitive(true)
+        .file("/project/Value.ts", b"export {};\n".to_vec())
+        .file("/project/value.ts", b"export {};\n".to_vec())
+        .build()
+        .expect("build case-sensitive config host");
+    let text = r#"{"compilerOptions":{"noEmit":true,"noLib":true,"types":[],"forceConsistentCasingInFileNames":false},"files":["Value.ts","value.ts"]}"#;
+    let plan = parse_config_root_plan(&ConfigHostAdapter::new(&host), request(text))
+        .expect("parse case-sensitive casing config");
+    let prepared = load_config_program(
+        &host,
+        &plan,
+        &LibraryCatalog::typescript_6_0_3("/vendor/typescript/lib"),
+        LIMITS,
+    )
+    .expect("load both case-sensitive files");
+
+    assert_eq!(
+        prepared
+            .source_files()
+            .iter()
+            .map(|source| source.path().display())
+            .collect::<Vec<_>>(),
+        [
+            Path::new("/project/Value.ts"),
+            Path::new("/project/value.ts")
+        ]
+    );
+    let [diagnostic] = prepared.diagnostics().program() else {
+        panic!("case-sensitive file-name fold collision publishes TS1149");
+    };
+    assert_eq!(diagnostic.code(), 1149);
+    assert_eq!(diagnostic.message.next[0].next.len(), 2);
+    assert!(diagnostic.message.next[0]
+        .next
+        .iter()
+        .all(|reason| reason.code == 1409));
+    assert!(diagnostic.related_information_present);
+    assert_eq!(diagnostic.related.len(), 2);
+    for (related, spec) in diagnostic
+        .related
+        .iter()
+        .zip(["\"Value.ts\"", "\"value.ts\""])
+    {
+        assert_eq!(related.message.code, 1410);
+        assert_eq!(related.file_name.as_deref(), Some("/project/tsconfig.json"));
+        let byte = text.find(spec).expect("files entry span");
+        assert_eq!(related.start, Some(byte as u32));
+        assert_eq!(related.length, Some(spec.len() as u32));
+    }
+}
+
+#[test]
 #[ignore = "local H0 program oracle audit; requires the pinned Node runtime"]
 fn missing_library_config_related_information_matches_vendored_typescript() {
     const PROBE: &str = r#"
