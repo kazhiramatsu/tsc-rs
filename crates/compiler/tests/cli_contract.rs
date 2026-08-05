@@ -151,6 +151,7 @@ fn pretty_false_uses_plain_output_and_pretty_true_uses_context() {
     let pretty_stdout = String::from_utf8_lossy(&pretty.stdout);
     assert!(pretty_stdout.contains("main.ts:1:7 - error TS2322:"));
     assert!(pretty_stdout.contains('~'));
+    assert!(pretty_stdout.contains("Found 1 error in main.ts:1"));
 }
 
 #[test]

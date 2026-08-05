@@ -219,7 +219,17 @@ fn parse_arguments(args: &[String]) -> Result<CommandLine, CliError> {
             "--version" | "-v" => {
                 index += 1;
             }
-            "--noEmit" | "--noEmit=true" => {
+            "--noEmit" => {
+                let (value, next_index) = consume_boolean_value(args, index, true);
+                if !value {
+                    return Err(CliError::Usage(
+                        "--noEmit=false is outside the mandatory no-emit driver".to_owned(),
+                    ));
+                }
+                command_line.no_emit = true;
+                index = next_index;
+            }
+            "--noEmit=true" => {
                 command_line.no_emit = true;
                 index += 1;
             }
@@ -228,7 +238,12 @@ fn parse_arguments(args: &[String]) -> Result<CommandLine, CliError> {
                     "--noEmit=false is outside the mandatory no-emit driver".to_owned(),
                 ));
             }
-            "--ignoreConfig" | "--ignoreConfig=true" => {
+            "--ignoreConfig" => {
+                let (value, next_index) = consume_boolean_value(args, index, true);
+                command_line.ignore_config = value;
+                index = next_index;
+            }
+            "--ignoreConfig=true" => {
                 command_line.ignore_config = true;
                 index += 1;
             }
@@ -236,7 +251,12 @@ fn parse_arguments(args: &[String]) -> Result<CommandLine, CliError> {
                 command_line.ignore_config = false;
                 index += 1;
             }
-            "--pretty" | "--pretty=true" => {
+            "--pretty" => {
+                let (value, next_index) = consume_boolean_value(args, index, true);
+                command_line.pretty = Some(value);
+                index = next_index;
+            }
+            "--pretty=true" => {
                 command_line.pretty = Some(true);
                 index += 1;
             }
@@ -289,6 +309,17 @@ fn parse_arguments(args: &[String]) -> Result<CommandLine, CliError> {
         ));
     }
     Ok(command_line)
+}
+
+/// TypeScript's command-line parser consumes a separate `true`/`false` token
+/// for boolean switches. Keep the no-emit surface compatible while leaving
+/// arbitrary following paths available as explicit roots.
+fn consume_boolean_value(args: &[String], index: usize, default: bool) -> (bool, usize) {
+    match args.get(index + 1).map(String::as_str) {
+        Some("true") => (true, index + 2),
+        Some("false") => (false, index + 2),
+        _ => (default, index + 1),
+    }
 }
 
 fn execute_config(
@@ -401,8 +432,16 @@ fn rendered_diagnostics(
         .ok_or_else(|| CliError::Render("current directory is not Unicode".to_owned()))?;
     let host = FormatDiagnosticsHost::new(current_directory, source_texts);
     let text = if pretty {
-        format_diagnostics_with_context(diagnostics, &host)
-            .map_err(|error| CliError::Render(error.to_string()))?
+        let mut text = format_diagnostics_with_context(diagnostics, &host)
+            .map_err(|error| CliError::Render(error.to_string()))?;
+        append_pretty_error_summary(
+            &mut text,
+            diagnostics,
+            &host,
+            source_texts,
+            current_directory,
+        );
+        text
     } else {
         format_plain_diagnostics(diagnostics, &host, source_texts, current_directory)
             .map_err(|error| CliError::Render(error.to_string()))?
@@ -412,6 +451,79 @@ fn rendered_diagnostics(
         stderr: String::new(),
         exit_code: EXIT_DIAGNOSTIC,
     })
+}
+
+/// Append the command-line reporter's contextual error summary. Plain output
+/// intentionally omits this block, matching TypeScript's non-pretty reporter.
+/// The per-file counts are derived from the same sorted/deduplicated view used
+/// by the formatter, so the summary cannot count an occurrence which was not
+/// printed above.
+fn append_pretty_error_summary(
+    output: &mut String,
+    diagnostics: &[Diagnostic],
+    host: &FormatDiagnosticsHost<'_>,
+    source_texts: &BTreeMap<String, String>,
+    current_directory: &str,
+) {
+    let indices = sort_and_dedupe_diagnostic_indices_with_context(diagnostics, host);
+    let mut file_counts = BTreeMap::<String, (usize, u32)>::new();
+    let mut total = 0usize;
+    for index in indices {
+        let diagnostic = &diagnostics[index];
+        if diagnostic.category().name() != "error" {
+            continue;
+        }
+        total += 1;
+        let Some(file_name) = diagnostic.file_name.as_deref() else {
+            continue;
+        };
+        let display_name = relative_file_name(file_name, current_directory);
+        let line = diagnostic
+            .start
+            .and_then(|start| {
+                source_texts
+                    .get(file_name)
+                    .or_else(|| {
+                        let normalized = normalize_slashes(file_name);
+                        source_texts
+                            .iter()
+                            .find(|(candidate, _)| normalize_slashes(candidate) == normalized)
+                            .map(|(_, text)| text)
+                    })
+                    .map(|text| {
+                        get_line_and_character_of_position(&compute_line_starts(text), start).line
+                            + 1
+                    })
+            })
+            .unwrap_or(1);
+        file_counts
+            .entry(display_name)
+            .and_modify(|entry| {
+                entry.0 += 1;
+                entry.1 = entry.1.min(line);
+            })
+            .or_insert((1, line));
+    }
+    if total == 0 {
+        return;
+    }
+
+    output.push('\n');
+    let noun = if total == 1 { "error" } else { "errors" };
+    match file_counts.len() {
+        0 => output.push_str(&format!("Found {total} {noun}.\n")),
+        1 => {
+            let (file, (_, line)) = file_counts.iter().next().expect("one file exists");
+            output.push_str(&format!("Found {total} {noun} in {file}:{line}\n"));
+        }
+        file_count => {
+            output.push_str(&format!("Found {total} {noun} in {file_count} files.\n\n"));
+            output.push_str("Errors  Files\n");
+            for (file, (count, line)) in file_counts {
+                output.push_str(&format!("{count:>6}  {file}:{line}\n"));
+            }
+        }
+    }
 }
 
 fn default_pretty() -> bool {
@@ -763,6 +875,24 @@ mod tests {
             parse_arguments(&["--watch".to_owned()]),
             Err(CliError::Usage(_))
         ));
+    }
+
+    #[test]
+    fn boolean_switches_consume_separate_values_without_turning_them_into_roots() {
+        let parsed = parse_arguments(&[
+            "--noEmit".to_owned(),
+            "true".to_owned(),
+            "--ignoreConfig".to_owned(),
+            "true".to_owned(),
+            "--pretty".to_owned(),
+            "false".to_owned(),
+            "main.ts".to_owned(),
+        ])
+        .expect("separate boolean values are accepted");
+        assert!(parsed.no_emit);
+        assert!(parsed.ignore_config);
+        assert_eq!(parsed.pretty, Some(false));
+        assert_eq!(parsed.files, [PathBuf::from("main.ts")]);
     }
 
     #[test]

@@ -703,7 +703,8 @@ compiler crate now ships a bounded
 `tsc-rs` binary that discovers a config from the current directory or `-p`,
 accepts explicit files only with `--noEmit`, adapts `FsCompilerHost` to the
 config parser's filtered directory contract, and renders contextual or plain
-diagnostics to stdout with exit 1; usage, host, config, loader, and unsupported
+diagnostics to stdout with the contextual error summary; usage, host, config,
+loader, and unsupported
 option failures are stderr/exit 2. The initial CLI surface intentionally
 rejects watch/build/emit options, project-plus-file mixes, and other
 unimplemented flags instead of silently ignoring them. Focused
