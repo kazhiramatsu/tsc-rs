@@ -94,6 +94,9 @@ fn static_index_validates_boundaries_and_tsc_line_breaks() {
     assert_eq!(index.byte_to_utf16(5), Some(3));
     assert_eq!(index.utf16_to_byte(2), None);
     assert_eq!(index.utf16_to_byte(3), Some(5));
+    assert_eq!(index.byte_offset_from_utf16_delta(1, 2), Some(5));
+    assert_eq!(index.byte_offset_from_utf16_delta(1, 1), None);
+    assert_eq!(index.byte_offset_from_utf16_delta(2, 0), None);
     let starts = (0..index.line_count())
         .map(|line| index.line_start_utf16(line).unwrap())
         .collect::<Vec<_>>();

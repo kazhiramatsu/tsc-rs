@@ -1029,7 +1029,16 @@ pub fn declaration_name_to_string(source: &SourceFile, name: Option<NodeId>) -> 
 pub fn get_span_of_token_at_position(source: &SourceFile, pos: usize) -> (usize, usize) {
     let tokens = tsc_syntax::scan_tokens(&source.text()[pos..], source.language_variant);
     match tokens.first() {
-        Some(token) => (pos + token.start as usize, pos + token.end as usize),
+        Some(token) => {
+            let positions = source.positions();
+            let to_byte = |relative_utf16| {
+                positions
+                    .byte_offset_from_utf16_delta(pos as u32, relative_utf16)
+                    .expect("scanner UTF-16 token offsets are scalar boundaries")
+                    as usize
+            };
+            (to_byte(token.start), to_byte(token.end))
+        }
         None => (pos, pos),
     }
 }
@@ -1086,7 +1095,12 @@ pub fn get_error_span_for_node(source: &SourceFile, id: NodeId) -> (usize, usize
             let tokens = tsc_syntax::scan_tokens(&source.text()[start..], source.language_variant);
             for token in &tokens {
                 if token.kind == SyntaxKind::ConstructorKeyword {
-                    return (start, start + token.end as usize);
+                    let end = source
+                        .positions()
+                        .byte_offset_from_utf16_delta(start as u32, token.end)
+                        .expect("scanner UTF-16 token end is a scalar boundary")
+                        as usize;
+                    return (start, end);
                 }
             }
             return (start, node.end as usize);

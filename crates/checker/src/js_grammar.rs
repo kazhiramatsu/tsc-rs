@@ -193,7 +193,16 @@ impl<'a> JsGrammarWalker<'a> {
     fn token_span_at(&self, pos: usize) -> (usize, usize) {
         let tokens = tsc_syntax::scan_tokens(&self.source.text()[pos..], LanguageVariant::Standard);
         match tokens.first() {
-            Some(token) => (pos + token.start as usize, pos + token.end as usize),
+            Some(token) => {
+                let positions = self.source.positions();
+                let to_byte = |relative_utf16| {
+                    positions
+                        .byte_offset_from_utf16_delta(pos as u32, relative_utf16)
+                        .expect("scanner UTF-16 token offsets are scalar boundaries")
+                        as usize
+                };
+                (to_byte(token.start), to_byte(token.end))
+            }
             None => (pos, pos),
         }
     }

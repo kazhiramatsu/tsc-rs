@@ -536,6 +536,14 @@ impl PositionIndex {
         }
     }
 
+    /// Converts a UTF-16 offset relative to a byte-domain scalar boundary
+    /// back into an absolute byte offset. Both the base and the target must
+    /// be exact Unicode scalar boundaries.
+    pub fn byte_offset_from_utf16_delta(&self, base_byte: u32, delta_utf16: u32) -> Option<u32> {
+        let base_utf16 = self.byte_to_utf16(base_byte)?;
+        self.utf16_to_byte(base_utf16.checked_add(delta_utf16)?)
+    }
+
     pub fn line_start_byte(&self, line: u32) -> Option<u32> {
         match &self.data {
             PositionIndexData::StaticDense(index) => {

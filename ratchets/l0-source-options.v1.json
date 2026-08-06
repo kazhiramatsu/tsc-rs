@@ -360,26 +360,26 @@
         "representation": "private dense byte/UTF-16 tables",
         "path": "crates/diagnostics/src/text.rs",
         "line": 55,
-        "source_sha256": "cdfb32a09432e02f277574b63818b57c5af83ee7d81d943b8a7fa15e61727cba",
+        "source_sha256": "de756d89e34612086881572f5a5d3fa9c7e58eadfdc1002e060e7816a2c45881",
         "evidence": "struct DensePositionIndex {"
       },
       "edited": {
         "representation": "persistent line tree with subtree byte/UTF-16/line counts",
         "path": "crates/diagnostics/src/text.rs",
         "line": 237,
-        "source_sha256": "cdfb32a09432e02f277574b63818b57c5af83ee7d81d943b8a7fa15e61727cba",
+        "source_sha256": "de756d89e34612086881572f5a5d3fa9c7e58eadfdc1002e060e7816a2c45881",
         "evidence": "struct PersistentLineTree {"
       },
       "accessor_contract": {
         "path": "crates/diagnostics/src/text.rs",
         "line": 517,
-        "source_sha256": "cdfb32a09432e02f277574b63818b57c5af83ee7d81d943b8a7fa15e61727cba",
+        "source_sha256": "de756d89e34612086881572f5a5d3fa9c7e58eadfdc1002e060e7816a2c45881",
         "evidence": "    pub fn byte_to_utf16(&self, position: u32) -> Option<u32> {"
       },
       "versioned_store": {
         "path": "crates/diagnostics/src/text.rs",
-        "line": 804,
-        "source_sha256": "cdfb32a09432e02f277574b63818b57c5af83ee7d81d943b8a7fa15e61727cba",
+        "line": 812,
+        "source_sha256": "de756d89e34612086881572f5a5d3fa9c7e58eadfdc1002e060e7816a2c45881",
         "evidence": "pub struct VersionedTextStore {"
       }
     },

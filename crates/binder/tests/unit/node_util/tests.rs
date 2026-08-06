@@ -32,3 +32,18 @@ fn assigned_expression_names_include_static_property_and_element_accesses() {
         NodeData::StringLiteral(data) if data.text == "key"
     ));
 }
+
+#[test]
+fn token_spans_convert_scanner_utf16_offsets_back_to_exact_bytes() {
+    let source = parse_source_file(
+        "unicode.ts",
+        "\u{feff}/* 😀 */return;",
+        ParseOptions::default(),
+        None,
+    );
+    let (start, end) = get_span_of_token_at_position(&source, 0);
+
+    assert!(source.text().is_char_boundary(start));
+    assert!(source.text().is_char_boundary(end));
+    assert_eq!(&source.text()[start..end], "return");
+}

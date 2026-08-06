@@ -6264,7 +6264,13 @@ impl<'a> CheckerState<'a> {
                 ) {
                     tsc_syntax::scan_tokens(&source.text()[start..], source.language_variant)
                         .first()
-                        .map_or(raw.end as usize, |token| start + token.end as usize)
+                        .map_or(raw.end as usize, |token| {
+                            source
+                                .positions()
+                                .byte_offset_from_utf16_delta(start as u32, token.end)
+                                .expect("scanner UTF-16 token end is a scalar boundary")
+                                as usize
+                        })
                 } else {
                     raw.end as usize
                 };
@@ -6298,7 +6304,11 @@ impl<'a> CheckerState<'a> {
             if let Some(token) =
                 tsc_syntax::scan_tokens(&source.text()[start..], source.language_variant).first()
             {
-                let end = start + token.end as usize;
+                let end = source
+                    .positions()
+                    .byte_offset_from_utf16_delta(start as u32, token.end)
+                    .expect("scanner UTF-16 token end is a scalar boundary")
+                    as usize;
                 let to_utf16 = |byte: usize| {
                     source
                         .positions()
