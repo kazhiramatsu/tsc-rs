@@ -29,6 +29,10 @@ test("policy and every qualification schema boundary are valid", () => {
   assert.equal(policy.status, "active");
   assert.equal(policy.aggregate_check, "gates");
   assert.equal(policy.exact_merge_qualification.authority_job, "exact_qualification");
+  assert.equal(
+    policy.exact_merge_qualification.node_setup_action,
+    "actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38",
+  );
   assert.equal(policy.scheduled_stress.authority_job, "scheduled_stress");
   assert.equal(policy.approved_performance.authority_job, "qualify");
 

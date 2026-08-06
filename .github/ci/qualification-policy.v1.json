@@ -86,6 +86,7 @@
     "result_contract": ".github/ci/contracts/qualification-result.schema.json",
     "receipt_contract": ".github/ci/contracts/merge-receipt.schema.json",
     "attestation_action": "actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6",
+    "node_setup_action": "actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38",
     "authoritative_command": ["cargo", "xtask", "ci", "--baseline", "<exact-base-sha>"],
     "required_input_roles": [
       "rust_toolchain",
