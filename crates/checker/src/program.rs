@@ -99,7 +99,7 @@ struct LegacyProgramEntry<'a> {
 }
 
 enum ProgramEntry<'a> {
-    Legacy(LegacyProgramEntry<'a>),
+    Legacy(Box<LegacyProgramEntry<'a>>),
     Owned(&'a Arc<BoundDocument>),
 }
 
@@ -313,10 +313,10 @@ impl<'a> ProgramBinder<'a> {
         let entries = file_binders
             .iter()
             .map(|binder| {
-                ProgramEntry::Legacy(LegacyProgramEntry {
+                ProgramEntry::Legacy(Box::new(LegacyProgramEntry {
                     binder,
                     data: BindData::from_binder(binder),
-                })
+                }))
             })
             .collect::<Vec<_>>();
         Self::try_new_entries(entries)
@@ -337,7 +337,7 @@ impl<'a> ProgramBinder<'a> {
         let entries = snapshot
             .documents
             .iter()
-            .map(|document| ProgramEntry::Owned(document))
+            .map(ProgramEntry::Owned)
             .collect::<Vec<_>>();
         Self::try_new_entries_with_lib_count(entries, snapshot.lib_count)
     }
