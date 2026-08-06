@@ -450,6 +450,7 @@ dependencies = [
  "tsc-rs-harness",
  "tsc-rs-oracle",
  "tsc-rs-syntax",
+ "tsc-rs-types",
  "yaml-rust2",
 ]
 

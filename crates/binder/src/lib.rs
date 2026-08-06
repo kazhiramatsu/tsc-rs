@@ -18,7 +18,7 @@ pub use assignment::{
 pub use declare::{Binder, TableRef};
 pub use symbols::{
     escape_leading_underscores, unescape_leading_underscores, InternalSymbolName, Symbol,
-    SymbolArena, SymbolId, SymbolTable,
+    SymbolArena, SymbolArenaExhausted, SymbolId, SymbolTable,
 };
 
 /// tsc bindSourceFile (42408): runs the binder over one parsed file and

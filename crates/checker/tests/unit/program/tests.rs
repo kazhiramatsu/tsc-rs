@@ -16,25 +16,25 @@ fn routes_parse_order_arenas_without_changing_program_order() {
         "/b.ts",
         "export const b = 1;",
         ParseOptions {
-            node_id_base: root.arena.node_end(),
-            node_array_id_base: root.arena.array_end(),
+            node_id_base: root.arena.node_end() + 5,
+            node_array_id_base: root.arena.array_end() + 3,
             ..ParseOptions::default()
         },
         None,
     );
     let options = CompilerOptions::default();
 
-    let mut dependency_binder = Binder::with_bases(&dependency, &options, 1, 0);
+    let mut dependency_binder = Binder::with_bases(&dependency, &options, 1, 9);
     dependency_binder.bind_source_file();
     let mut root_binder = Binder::with_bases(
         &root,
         &options,
         dependency_binder.next_symbol_id(),
-        dependency_binder.symbols.next_id().0,
+        dependency_binder.symbols.next_id().0 + 7,
     );
     root_binder.bind_source_file();
 
-    let program = ProgramBinder::new(vec![&dependency_binder, &root_binder]);
+    let mut program = ProgramBinder::new(vec![&dependency_binder, &root_binder]);
     assert_eq!(
         program
             .files()
@@ -83,6 +83,13 @@ fn routes_parse_order_arenas_without_changing_program_order() {
             root_binder.symbols.symbol(id)
         ));
     }
+
+    let transient = program.create_symbol(SymbolFlags::PROPERTY, "temporary".to_owned());
+    assert_ne!(transient.0 & tsc_types::TRANSIENT_SYMBOL_BIT, 0);
+    assert!(program
+        .symbol(transient)
+        .flags
+        .contains(SymbolFlags::TRANSIENT));
 }
 
 #[test]
@@ -108,4 +115,37 @@ fn owner_lookup_rejects_ids_outside_every_interval() {
             "id {id} must fail closed"
         );
     }
+}
+
+#[test]
+fn try_new_rejects_overlap_and_cross_domain_programs() {
+    let first = parse_source_file("/first.ts", "let a = 1;", Default::default(), None);
+    let second = parse_source_file("/second.ts", "let b = 2;", Default::default(), None);
+    let options = CompilerOptions::default();
+    let mut first_binder = Binder::with_bases(&first, &options, 1, 0);
+    first_binder.bind_source_file();
+    let mut second_binder = Binder::with_bases(&second, &options, 1, 0);
+    second_binder.bind_source_file();
+    assert!(matches!(
+        ProgramBinder::try_new(vec![&first_binder, &second_binder]),
+        Err(ProgramIdentityError::Overlap {
+            space: ProgramIdentitySpace::Node,
+            ..
+        })
+    ));
+
+    let first_domain = tsc_types::IdentityDomain::reclaiming();
+    let second_domain = tsc_types::IdentityDomain::reclaiming();
+    let mut first = parse_source_file("/first.ts", "let a = 1;", Default::default(), None);
+    first.relocate_into_identity_domain(&first_domain).unwrap();
+    let mut second = parse_source_file("/second.ts", "let b = 2;", Default::default(), None);
+    second
+        .relocate_into_identity_domain(&second_domain)
+        .unwrap();
+    let first_binder = Binder::bind_in_identity_domain(&first, &options, &first_domain).unwrap();
+    let second_binder = Binder::bind_in_identity_domain(&second, &options, &second_domain).unwrap();
+    assert!(matches!(
+        ProgramBinder::try_new(vec![&first_binder, &second_binder]),
+        Err(ProgramIdentityError::IdentityDomainMismatch { file: 1 })
+    ));
 }

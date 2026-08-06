@@ -1,6 +1,6 @@
 {
-  "schema": 2,
-  "status": "text-ownership-complete",
+  "schema": 3,
+  "status": "identity-leases-complete",
   "typescript": {
     "version": "6.0.3",
     "source_commit": "050880ce59e30b356b686bd3144efe24f875ebc8",
@@ -242,8 +242,8 @@
         "owner": "InputFile.snapshot",
         "storage": "Arc<TextSnapshot>",
         "path": "crates/checker/src/lib.rs",
-        "line": 61,
-        "source_sha256": "e54d53a5e2e593a89c0c624cc9c9b43c80ebb9d26daab8aa53841b95e36c9d94",
+        "line": 62,
+        "source_sha256": "71fd7fdb5d91c59948e14b200879b2898f025860973fb3bcda078e28e4265576",
         "evidence": "pub struct InputFile {"
       },
       {
@@ -251,8 +251,8 @@
         "storage": "Arc<TextSnapshot>",
         "authority": "parsed-document-single-snapshot-authority",
         "path": "crates/syntax/src/lib.rs",
-        "line": 73,
-        "source_sha256": "8dbd4a22d94e6782bb02d8dccdce21ff66a94d3ae0a42b52f8dee2761ed155db",
+        "line": 77,
+        "source_sha256": "6f943d4a6c599e20a14f4a674603e92cefaa58094517e368c926937c8f64ab3c",
         "evidence": "pub struct SourceFile {"
       },
       {
@@ -302,18 +302,18 @@
         "to": "SourceFile.snapshot",
         "branch": "json",
         "path": "crates/checker/src/lib.rs",
-        "line": 1420,
-        "source_sha256": "e54d53a5e2e593a89c0c624cc9c9b43c80ebb9d26daab8aa53841b95e36c9d94",
-        "evidence": "            let source_file = tsc_syntax::parse_json_text_from_snapshot_with_bases("
+        "line": 1428,
+        "source_sha256": "71fd7fdb5d91c59948e14b200879b2898f025860973fb3bcda078e28e4265576",
+        "evidence": "            let source_file = tsc_syntax::parse_json_text_from_snapshot_in_identity_domain("
       },
       {
         "from": "InputFile.snapshot",
         "to": "SourceFile.snapshot",
         "branch": "ordinary",
         "path": "crates/checker/src/lib.rs",
-        "line": 1519,
-        "source_sha256": "e54d53a5e2e593a89c0c624cc9c9b43c80ebb9d26daab8aa53841b95e36c9d94",
-        "evidence": "        let source_file = tsc_syntax::parse_source_file_from_snapshot("
+        "line": 1520,
+        "source_sha256": "71fd7fdb5d91c59948e14b200879b2898f025860973fb3bcda078e28e4265576",
+        "evidence": "        let source_file = tsc_syntax::parse_source_file_from_snapshot_in_identity_domain("
       },
       {
         "from": "PreparedSourceFile.snapshot",
@@ -381,6 +381,66 @@
         "line": 812,
         "source_sha256": "de756d89e34612086881572f5a5d3fa9c7e58eadfdc1002e060e7816a2c45881",
         "evidence": "pub struct VersionedTextStore {"
+      }
+    },
+    "identity_ownership": {
+      "domain_allocator": {
+        "policies": [
+          "ephemeral-bump",
+          "reclaiming-interval"
+        ],
+        "spaces": [
+          "node",
+          "node-array",
+          "persistent-symbol",
+          "private-name-serial"
+        ],
+        "path": "crates/types/src/identity.rs",
+        "line": 400,
+        "source_sha256": "6e23f045a9edb128e71e894c8b8d8669702a6be5048972e3ec4c8a163d2d5584",
+        "evidence": "pub struct IdentityDomain {"
+      },
+      "lease_lifetime": {
+        "storage": "Arc lease; last-owner Drop releases the exact interval",
+        "path": "crates/types/src/identity.rs",
+        "line": 629,
+        "source_sha256": "6e23f045a9edb128e71e894c8b8d8669702a6be5048972e3ec4c8a163d2d5584",
+        "evidence": "pub struct IdentityLease {"
+      },
+      "syntax_owner": {
+        "storage": "NodeArena node/array leases",
+        "path": "crates/syntax/src/arena.rs",
+        "line": 18,
+        "source_sha256": "55f482b5cd7b5cf03db1a2eff7112be8a31087096aac8ef5d7d84485738c2978",
+        "evidence": "    node_lease: Option<IdentityLease>,"
+      },
+      "generated_syntax_relocation": {
+        "source": "nodes.schema.json field model",
+        "path": "crates/xtask/src/main.rs",
+        "line": 11005,
+        "source_sha256": "074771837d92357de026fbbc043adb2318ea1f8e66d23d31efa3b038bff33fe2",
+        "evidence": "fn render_relocate_rs(schemas: &[NodeSchema])"
+      },
+      "bind_owner": {
+        "storage": "SymbolArena symbol lease plus Binder private-name serial lease",
+        "path": "crates/binder/src/declare.rs",
+        "line": 69,
+        "source_sha256": "e4b929efdc7620d87d01fc90f980f65432665b55a1cca9e0fa4cce3e3d3d0678",
+        "evidence": "    private_name_serial_lease: Option<IdentityLease>,"
+      },
+      "program_owner_intervals": {
+        "contract": "base-sorted non-contiguous and non-overlapping",
+        "path": "crates/checker/src/program.rs",
+        "line": 109,
+        "source_sha256": "8b049751d0fbaaa271df2308fd7c0ee3949787771602db3727b43cf5beda99d0",
+        "evidence": "    symbol_owners: Vec<ArenaOwner>,"
+      },
+      "checker_transient_partition": {
+        "high_bit": 2147483648,
+        "path": "crates/types/src/identity.rs",
+        "line": 15,
+        "source_sha256": "6e23f045a9edb128e71e894c8b8d8669702a6be5048972e3ec4c8a163d2d5584",
+        "evidence": "pub const TRANSIENT_SYMBOL_BIT: u32 = 1 << 31;"
       }
     },
     "compiler_options_owner": {

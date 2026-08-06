@@ -6,21 +6,93 @@
 //! greenfield equivalent: each file parses with a NodeId/NodeArrayId
 //! base and binds with a SymbolId base, so ids are program-unique by
 //! construction and this struct only routes an id to its owning
-//! per-file arena. Parse allocation order may differ from tsc's final
-//! program order; node/array owner indexes are therefore independently
-//! base-sorted while symbols retain bind/program order. Checker transient
-//! symbols (tsc createSymbol 47652) allocate above all files.
+//! per-file arena. Owner indexes are independently base-sorted and may contain
+//! holes; cached documents retain their leases when Program order changes.
+//! Checker transient symbols use the tagged high half of `SymbolId`.
 
 use tsc_binder::{Binder, Symbol, SymbolArena, SymbolId, SymbolTable};
 use tsc_syntax::{NodeArray, NodeArrayId, NodeId, SourceFile};
-use tsc_types::SymbolFlags;
+use tsc_types::{SymbolFlags, TRANSIENT_SYMBOL_BIT};
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 struct ArenaOwner {
     start: u32,
     end: u32,
     file: usize,
 }
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ProgramIdentitySpace {
+    Node,
+    NodeArray,
+    PersistentSymbol,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum ProgramIdentityError {
+    EmptyProgram,
+    EmptyOwner {
+        space: ProgramIdentitySpace,
+        file: usize,
+    },
+    Overlap {
+        space: ProgramIdentitySpace,
+        first_file: usize,
+        second_file: usize,
+        first_end: u32,
+        second_start: u32,
+    },
+    PersistentSymbolUsesTransientPartition {
+        file: usize,
+        start: u32,
+        end: u32,
+    },
+    PartialIdentityOwnership {
+        file: usize,
+    },
+    MixedIdentityOwnership,
+    IdentityDomainMismatch {
+        file: usize,
+    },
+}
+
+impl std::fmt::Display for ProgramIdentityError {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::EmptyProgram => formatter.write_str("a program has no source files"),
+            Self::EmptyOwner { space, file } => {
+                write!(formatter, "program file {file} has an empty {space:?} arena")
+            }
+            Self::Overlap {
+                space,
+                first_file,
+                second_file,
+                first_end,
+                second_start,
+            } => write!(
+                formatter,
+                "program {space:?} owners overlap: file {first_file} ends at {first_end}, file {second_file} starts at {second_start}"
+            ),
+            Self::PersistentSymbolUsesTransientPartition { file, start, end } => write!(
+                formatter,
+                "program file {file} persistent symbols use tagged range {start}..{end}"
+            ),
+            Self::PartialIdentityOwnership { file } => write!(
+                formatter,
+                "program file {file} has only a subset of the required identity leases"
+            ),
+            Self::MixedIdentityOwnership => formatter.write_str(
+                "a Program cannot mix identity-owned and unmanaged source/bind records",
+            ),
+            Self::IdentityDomainMismatch { file } => write!(
+                formatter,
+                "program file {file} belongs to a different identity domain",
+            ),
+        }
+    }
+}
+
+impl std::error::Error for ProgramIdentityError {}
 
 pub struct ProgramBinder<'a> {
     /// Per-file binder runs in program order — BORROWED so cached lib
@@ -33,20 +105,97 @@ pub struct ProgramBinder<'a> {
     node_owners: Vec<ArenaOwner>,
     /// Node-array-id intervals in parse allocation order.
     array_owners: Vec<ArenaOwner>,
-    /// Cached per-file symbol-id bases (ascending) for owner lookup.
-    symbol_bases: Vec<u32>,
+    /// Persistent symbol intervals in identity allocation order.
+    symbol_owners: Vec<ArenaOwner>,
     /// Checker-side symbols (tsc createSymbol 47652 adds Transient).
     transient: SymbolArena,
+}
+
+fn validate_owner_intervals(
+    space: ProgramIdentitySpace,
+    owners: &[ArenaOwner],
+    require_every_owner_nonempty: bool,
+) -> Result<(), ProgramIdentityError> {
+    if require_every_owner_nonempty {
+        for owner in owners {
+            if owner.start >= owner.end {
+                return Err(ProgramIdentityError::EmptyOwner {
+                    space,
+                    file: owner.file,
+                });
+            }
+        }
+    }
+    for pair in owners.windows(2) {
+        if pair[1].start < pair[0].end {
+            return Err(ProgramIdentityError::Overlap {
+                space,
+                first_file: pair[0].file,
+                second_file: pair[1].file,
+                first_end: pair[0].end,
+                second_start: pair[1].start,
+            });
+        }
+    }
+    Ok(())
+}
+
+fn validate_identity_domains(file_binders: &[&Binder<'_>]) -> Result<(), ProgramIdentityError> {
+    let mut program_anchor: Option<&tsc_types::IdentityLease> = None;
+    let mut managed_program = None;
+    for (file, binder) in file_binders.iter().enumerate() {
+        let leases = [
+            binder.source.node_identity_lease(),
+            binder.source.array_identity_lease(),
+            binder.symbol_identity_lease(),
+            binder.private_name_serial_lease(),
+        ];
+        let present = leases.iter().filter(|lease| lease.is_some()).count();
+        let managed = match present {
+            0 => false,
+            4 => true,
+            _ => return Err(ProgramIdentityError::PartialIdentityOwnership { file }),
+        };
+        if let Some(expected) = managed_program {
+            if expected != managed {
+                return Err(ProgramIdentityError::MixedIdentityOwnership);
+            }
+        } else {
+            managed_program = Some(managed);
+        }
+        if managed {
+            let anchor = leases[0].expect("managed source has its node lease");
+            if leases
+                .iter()
+                .flatten()
+                .any(|lease| !anchor.same_domain(lease))
+            {
+                return Err(ProgramIdentityError::IdentityDomainMismatch { file });
+            }
+            if let Some(program_anchor) = program_anchor {
+                if !program_anchor.same_domain(anchor) {
+                    return Err(ProgramIdentityError::IdentityDomainMismatch { file });
+                }
+            } else {
+                program_anchor = Some(anchor);
+            }
+        }
+    }
+    Ok(())
 }
 
 impl<'a> ProgramBinder<'a> {
     /// tsrs-native: constructs the multi-file arena routing tables; tsc
     /// nodes and symbols are direct JavaScript references.
     pub fn new(file_binders: Vec<&'a Binder<'a>>) -> Self {
-        assert!(
-            !file_binders.is_empty(),
-            "a program has at least one source file"
-        );
+        Self::try_new(file_binders).expect("invalid Program identity ownership")
+    }
+
+    pub fn try_new(file_binders: Vec<&'a Binder<'a>>) -> Result<Self, ProgramIdentityError> {
+        if file_binders.is_empty() {
+            return Err(ProgramIdentityError::EmptyProgram);
+        }
+        validate_identity_domains(&file_binders)?;
 
         let mut node_owners: Vec<ArenaOwner> = file_binders
             .iter()
@@ -70,55 +219,43 @@ impl<'a> ProgramBinder<'a> {
             .collect();
         array_owners.sort_unstable_by_key(|owner| (owner.start, owner.end, owner.file));
 
-        let symbol_bases: Vec<u32> = file_binders
+        let mut symbol_owners: Vec<ArenaOwner> = file_binders
             .iter()
-            .map(|binder| binder.symbols.base())
+            .enumerate()
+            .filter_map(|(file, binder)| {
+                let start = binder.symbols.base();
+                let end = binder.symbols.next_id().0;
+                (start != end).then_some(ArenaOwner { start, end, file })
+            })
             .collect();
+        symbol_owners.sort_unstable_by_key(|owner| (owner.start, owner.end, owner.file));
 
-        // Node and node-array arenas remain one contiguous allocation
-        // space, but their allocation order is independent of final
-        // program order.
-        for owner in &node_owners {
-            assert!(
-                owner.start < owner.end,
-                "program source files must own at least one node"
-            );
-        }
-        for pair in node_owners.windows(2) {
-            assert_eq!(
-                pair[1].start, pair[0].end,
-                "program files must parse with contiguous node bases"
-            );
-        }
-        for owner in &array_owners {
-            assert!(
-                owner.start < owner.end,
-                "program source files must own at least one node array"
-            );
-        }
-        for pair in array_owners.windows(2) {
-            assert_eq!(
-                pair[1].start, pair[0].end,
-                "program files must parse with contiguous node-array bases"
-            );
+        validate_owner_intervals(ProgramIdentitySpace::Node, &node_owners, true)?;
+        validate_owner_intervals(ProgramIdentitySpace::NodeArray, &array_owners, true)?;
+        validate_owner_intervals(
+            ProgramIdentitySpace::PersistentSymbol,
+            &symbol_owners,
+            false,
+        )?;
+        for owner in &symbol_owners {
+            if owner.start >= TRANSIENT_SYMBOL_BIT || owner.end > TRANSIENT_SYMBOL_BIT {
+                return Err(
+                    ProgramIdentityError::PersistentSymbolUsesTransientPartition {
+                        file: owner.file,
+                        start: owner.start,
+                        end: owner.end,
+                    },
+                );
+            }
         }
 
-        // Symbols allocate in final bind/program order.
-        for pair in file_binders.windows(2) {
-            assert_eq!(
-                pair[1].symbols.base(),
-                pair[0].symbols.next_id().0,
-                "program files must bind with contiguous symbol bases"
-            );
-        }
-        let transient_base = file_binders.last().expect("non-empty").symbols.next_id().0;
-        Self {
+        Ok(Self {
             file_binders,
             node_owners,
             array_owners,
-            symbol_bases,
-            transient: SymbolArena::with_base(transient_base),
-        }
+            symbol_owners,
+            transient: SymbolArena::with_base(TRANSIENT_SYMBOL_BIT),
+        })
     }
 
     /// tsrs-native: Rust ProgramBinder collection accessor.
@@ -179,13 +316,14 @@ impl<'a> ProgramBinder<'a> {
     }
 
     fn owner_of_symbol(&self, id: SymbolId) -> Result<usize, ()> {
-        if self.transient.contains(id) {
+        if id.0 & TRANSIENT_SYMBOL_BIT != 0 {
             return Err(());
         }
-        match self.symbol_bases.binary_search(&id.0) {
-            Ok(index) => Ok(index),
-            Err(insert) => Ok(insert - 1),
-        }
+        Ok(Self::owner_file(
+            &self.symbol_owners,
+            id.0,
+            "persistent SymbolId",
+        ))
     }
 
     /// tsrs-native: routes a numeric SymbolId to its binder or

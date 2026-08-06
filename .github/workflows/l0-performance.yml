@@ -89,7 +89,7 @@ jobs:
         id: attest
         uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4
         with:
-          subject-path: ratchets/l0-text-ownership-performance.v1.json
+          subject-path: ratchets/l0-identity-leases-performance.v1.json
 
       - name: Verify signer and exact comparison commits
         shell: bash
@@ -97,7 +97,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           ATTESTATION_BUNDLE: ${{ steps.attest.outputs.bundle-path }}
         run: |
-          gh attestation verify ratchets/l0-text-ownership-performance.v1.json \
+          gh attestation verify ratchets/l0-identity-leases-performance.v1.json \
             --repo "$GITHUB_REPOSITORY" \
             --bundle "$ATTESTATION_BUNDLE" \
             --signer-workflow "$GITHUB_REPOSITORY/.github/workflows/l0-performance.yml" \
@@ -106,14 +106,14 @@ jobs:
             const fs = require("fs");
             const evidence = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
             if (evidence.status !== "qualified" || evidence.candidate.commit !== process.argv[2] || evidence.base.commit !== process.argv[3]) process.exit(1);
-          ' ratchets/l0-text-ownership-performance.v1.json "$CANDIDATE_SHA" "$BASELINE_SHA"
+          ' ratchets/l0-identity-leases-performance.v1.json "$CANDIDATE_SHA" "$BASELINE_SHA"
 
       - name: Publish approved performance evidence
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: l0-performance-${{ inputs.candidate_sha }}
           path: |
-            ratchets/l0-text-ownership-performance.v1.json
+            ratchets/l0-identity-leases-performance.v1.json
             ${{ steps.attest.outputs.bundle-path }}
           if-no-files-found: error
           retention-days: 30

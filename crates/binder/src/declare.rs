@@ -14,15 +14,18 @@ use crate::node_util::{
     node_is_missing, parent_of,
 };
 use crate::symbols::{
-    escape_leading_underscores, unescape_leading_underscores, InternalSymbolName, SymbolArena,
-    SymbolId, SymbolTable,
+    escape_leading_underscores, relocate_symbol_table_values, unescape_leading_underscores,
+    InternalSymbolName, SymbolArena, SymbolId, SymbolIdentityRelocation, SymbolTable,
 };
 use indexmap::IndexSet;
 use tsc_diagnostics::{
     gen as diagnostics, Diagnostic, DiagnosticList, DiagnosticMessage, MessageChain, RelatedInfo,
 };
 use tsc_syntax::{NodeData, NodeId, SourceFile, SyntaxKind};
-use tsc_types::{ModifierFlags, SymbolFlags};
+use tsc_types::{
+    IdentityAllocationPolicy, IdentityDomain, IdentityError, IdentityLease, IdentityRange,
+    IdentitySpace, ModifierFlags, SymbolFlags, TRANSIENT_SYMBOL_BIT,
+};
 
 /// Which symbol table a declaration lands in. tsc passes the table
 /// object; the arena design passes its owner.
@@ -61,7 +64,9 @@ pub struct Binder<'a> {
     /// tsc getSymbolId's lazily-assigned global symbol ids; the counter
     /// is program-wide in tsc, so it is seedable for multi-file binds.
     assigned_symbol_ids: HashMap<SymbolId, u32>,
+    private_name_serial_base: u32,
     next_symbol_id: u32,
+    private_name_serial_lease: Option<IdentityLease>,
 
     // ---- container state (stage 3.3, bindContainer 42734) ----
     pub container: Option<NodeId>,
@@ -164,7 +169,9 @@ impl<'a> Binder<'a> {
             bind_diagnostics: Vec::new(),
             classifiable_names: IndexSet::new(),
             assigned_symbol_ids: HashMap::new(),
+            private_name_serial_base: next_symbol_id,
             next_symbol_id,
+            private_name_serial_lease: None,
             container: None,
             this_parent_container: None,
             block_scope_container: None,
@@ -219,6 +226,164 @@ impl<'a> Binder<'a> {
         self.next_symbol_id
     }
 
+    pub fn symbol_identity_lease(&self) -> Option<&IdentityLease> {
+        self.symbols.identity_lease()
+    }
+
+    pub fn private_name_serial_lease(&self) -> Option<&IdentityLease> {
+        self.private_name_serial_lease.as_ref()
+    }
+
+    pub fn identity_owned_by(&self, domain: &IdentityDomain) -> bool {
+        self.source.identity_owned_by(domain)
+            && self
+                .symbol_identity_lease()
+                .is_some_and(|lease| lease.belongs_to(domain))
+            && self
+                .private_name_serial_lease()
+                .is_some_and(|lease| lease.belongs_to(domain))
+    }
+
+    /// Bind one source and publish completed symbol/private-name identities.
+    /// Ephemeral domains construct directly at a sealed tail; reclaiming
+    /// domains bind locally and relocate only after exact counts are known.
+    pub fn bind_in_identity_domain(
+        source: &'a SourceFile,
+        options: &'a tsc_types::CompilerOptions,
+        domain: &IdentityDomain,
+    ) -> Result<Self, IdentityError> {
+        if !source.identity_owned_by(domain) {
+            return Err(IdentityError::InvalidLease {
+                space: IdentitySpace::Node,
+                detail: "bound source does not belong to the requested identity domain",
+            });
+        }
+        match domain.policy() {
+            IdentityAllocationPolicy::EphemeralBump => {
+                let reservation = domain.reserve_provisional(&[
+                    IdentitySpace::Symbol,
+                    IdentitySpace::PrivateNameSerial,
+                ])?;
+                let mut binder = Self::with_bases(
+                    source,
+                    options,
+                    reservation.base(IdentitySpace::PrivateNameSerial)?,
+                    reservation.base(IdentitySpace::Symbol)?,
+                );
+                binder.bind_source_file();
+                let (symbol_count, serial_count) = binder.identity_counts()?;
+                let leases = reservation.seal(&[
+                    (IdentitySpace::Symbol, symbol_count),
+                    (IdentitySpace::PrivateNameSerial, serial_count),
+                ])?;
+                binder.attach_identity_leases(domain, leases)?;
+                Ok(binder)
+            }
+            IdentityAllocationPolicy::Reclaiming => {
+                let mut binder = Self::with_bases(source, options, 1, 0);
+                binder.bind_source_file();
+                binder.relocate_into_identity_domain(domain)?;
+                Ok(binder)
+            }
+        }
+    }
+
+    pub fn relocate_into_identity_domain(
+        &mut self,
+        domain: &IdentityDomain,
+    ) -> Result<(), IdentityError> {
+        if !self.source.identity_owned_by(domain) {
+            return Err(IdentityError::InvalidLease {
+                space: IdentitySpace::Node,
+                detail: "bound source and bind identities would use different domains",
+            });
+        }
+        let (symbol_count, serial_count) = self.identity_counts()?;
+        let leases = domain.lease_batch(&[
+            (IdentitySpace::Symbol, symbol_count),
+            (IdentitySpace::PrivateNameSerial, serial_count),
+        ])?;
+        let (symbol_lease, serial_lease) = bind_leases(leases)?;
+        self.apply_identity_relocation(domain, symbol_lease, serial_lease)
+    }
+
+    fn identity_counts(&self) -> Result<(u32, u32), IdentityError> {
+        let symbol_count =
+            u32::try_from(self.symbols.len()).map_err(|_| IdentityError::Exhausted {
+                space: IdentitySpace::Symbol,
+                requested: u32::MAX,
+                limit: TRANSIENT_SYMBOL_BIT,
+            })?;
+        let serial_count = self
+            .next_symbol_id
+            .checked_sub(self.private_name_serial_base)
+            .ok_or(IdentityError::InvalidLease {
+                space: IdentitySpace::PrivateNameSerial,
+                detail: "private-name serial counter precedes its base",
+            })?;
+        Ok((symbol_count, serial_count))
+    }
+
+    fn attach_identity_leases(
+        &mut self,
+        domain: &IdentityDomain,
+        leases: Vec<IdentityLease>,
+    ) -> Result<(), IdentityError> {
+        let (symbol_lease, serial_lease) = bind_leases(leases)?;
+        if !domain.owns(&symbol_lease)
+            || !domain.owns(&serial_lease)
+            || !symbol_lease.same_domain(&serial_lease)
+        {
+            return Err(IdentityError::InvalidLease {
+                space: IdentitySpace::Symbol,
+                detail: "bind leases do not share the requested domain",
+            });
+        }
+        self.symbols.attach_identity_lease(symbol_lease)?;
+        validate_serial_lease(
+            &serial_lease,
+            self.private_name_serial_base,
+            self.next_symbol_id,
+            true,
+        )?;
+        self.private_name_serial_lease = Some(serial_lease);
+        Ok(())
+    }
+
+    fn apply_identity_relocation(
+        &mut self,
+        domain: &IdentityDomain,
+        symbol_lease: IdentityLease,
+        serial_lease: IdentityLease,
+    ) -> Result<(), IdentityError> {
+        if !domain.owns(&symbol_lease)
+            || !domain.owns(&serial_lease)
+            || !symbol_lease.same_domain(&serial_lease)
+        {
+            return Err(IdentityError::InvalidLease {
+                space: IdentitySpace::Symbol,
+                detail: "bind relocation leases do not share the requested domain",
+            });
+        }
+        let symbol_relocation = self.symbols.identity_relocation(&symbol_lease)?;
+        validate_serial_lease(
+            &serial_lease,
+            self.private_name_serial_base,
+            self.next_symbol_id,
+            false,
+        )?;
+        let serial_relocation = PrivateNameSerialRelocation {
+            old: IdentityRange::new(self.private_name_serial_base, self.next_symbol_id),
+            new: serial_lease.range(),
+        };
+        self.apply_declared_identity_relocation(
+            symbol_relocation,
+            serial_relocation,
+            symbol_lease,
+            serial_lease,
+        )
+    }
+
     fn table(&mut self, table: TableRef) -> &SymbolTable {
         match table {
             TableRef::Locals(node) => self.locals.entry(node).or_default(),
@@ -249,7 +414,10 @@ impl<'a> Binder<'a> {
             return id;
         }
         let id = self.next_symbol_id;
-        self.next_symbol_id += 1;
+        self.next_symbol_id = self
+            .next_symbol_id
+            .checked_add(1)
+            .expect("private-name serial identity space exhausted");
         self.assigned_symbol_ids.insert(symbol, id);
         id
     }
@@ -701,6 +869,279 @@ impl<'a> Binder<'a> {
             message: diag.message,
         }
     }
+}
+
+#[derive(Clone, Copy, Debug)]
+struct PrivateNameSerialRelocation {
+    old: IdentityRange,
+    new: IdentityRange,
+}
+
+impl PrivateNameSerialRelocation {
+    fn serial(&self, value: &mut u32) -> Result<(), IdentityError> {
+        if self.old.len() != self.new.len() {
+            return Err(IdentityError::InvalidLease {
+                space: IdentitySpace::PrivateNameSerial,
+                detail: "private-name relocation ranges have different lengths",
+            });
+        }
+        let offset = value
+            .checked_sub(self.old.start())
+            .filter(|offset| *offset < self.old.len())
+            .ok_or(IdentityError::InvalidLease {
+                space: IdentitySpace::PrivateNameSerial,
+                detail: "private-name serial is outside its source lease",
+            })?;
+        *value = self
+            .new
+            .start()
+            .checked_add(offset)
+            .ok_or(IdentityError::InvalidLease {
+                space: IdentitySpace::PrivateNameSerial,
+                detail: "private-name serial relocation overflowed",
+            })?;
+        Ok(())
+    }
+
+    fn name(&self, value: &mut String) -> Result<bool, IdentityError> {
+        let Some(rest) = value.strip_prefix("__#") else {
+            return Ok(false);
+        };
+        let Some(at) = rest.find('@') else {
+            return Err(IdentityError::InvalidLease {
+                space: IdentitySpace::PrivateNameSerial,
+                detail: "mangled private name has no @ delimiter",
+            });
+        };
+        let digits = &rest[..at];
+        if digits.is_empty() || !digits.bytes().all(|byte| byte.is_ascii_digit()) {
+            return Err(IdentityError::InvalidLease {
+                space: IdentitySpace::PrivateNameSerial,
+                detail: "mangled private name has an invalid serial",
+            });
+        }
+        let mut serial = digits
+            .parse::<u32>()
+            .map_err(|_| IdentityError::InvalidLease {
+                space: IdentitySpace::PrivateNameSerial,
+                detail: "mangled private-name serial exceeds u32",
+            })?;
+        self.serial(&mut serial)?;
+        value.replace_range(3..3 + digits.len(), &serial.to_string());
+        Ok(true)
+    }
+}
+
+impl Binder<'_> {
+    /// Declared completeness boundary for published bind identity. The
+    /// exhaustive destructure makes every new Binder field a compile-time
+    /// relocation review item until L0.3 splits `BinderWorker`/`BindData`.
+    fn apply_declared_identity_relocation(
+        &mut self,
+        symbol_relocation: SymbolIdentityRelocation,
+        serial_relocation: PrivateNameSerialRelocation,
+        symbol_lease: IdentityLease,
+        serial_lease: IdentityLease,
+    ) -> Result<(), IdentityError> {
+        let Self {
+            source: _,
+            options: _,
+            language_version: _,
+            common_js_module_indicator: _,
+            symbols,
+            node_symbol,
+            node_local_symbol,
+            locals,
+            js_global_augmentations,
+            bind_diagnostics: _,
+            classifiable_names,
+            assigned_symbol_ids,
+            private_name_serial_base,
+            next_symbol_id,
+            private_name_serial_lease,
+            container: _,
+            this_parent_container: _,
+            block_scope_container: _,
+            last_container: _,
+            next_container: _,
+            node_flags_mut: _,
+            pattern_ambient_modules,
+            flow: _,
+            unreachable_flow: _,
+            current_flow: _,
+            current_break_target: _,
+            current_continue_target: _,
+            current_return_target: _,
+            current_true_target: _,
+            current_false_target: _,
+            current_exception_target: _,
+            pre_switch_case_flow: _,
+            node_flow: _,
+            node_end_flow: _,
+            node_return_flow: _,
+            node_flow_when_true: _,
+            node_flow_when_false: _,
+            possibly_exhaustive: _,
+            node_fallthrough_flow: _,
+            active_label_list: _,
+            in_strict_mode: _,
+            seen_this_keyword: _,
+            in_assignment_pattern: _,
+            has_explicit_return: _,
+            in_return_position: _,
+            has_flow_effects: _,
+            emit_flags: _,
+            delayed_type_aliases: _,
+            js_doc_imports: _,
+        } = self;
+
+        if private_name_serial_lease.is_some() {
+            return Err(IdentityError::InvalidLease {
+                space: IdentitySpace::PrivateNameSerial,
+                detail: "binder is already identity-owned",
+            });
+        }
+
+        symbols.apply_identity_relocation(symbol_relocation, symbol_lease)?;
+        for symbol in symbols.symbols_mut() {
+            serial_relocation.name(&mut symbol.escaped_name)?;
+            relocate_private_table_keys(&mut symbol.members, &serial_relocation)?;
+            relocate_private_table_keys(&mut symbol.exports, &serial_relocation)?;
+            relocate_private_table_keys(&mut symbol.global_exports, &serial_relocation)?;
+        }
+        for symbol in node_symbol.values_mut() {
+            symbol_relocation.symbol(symbol)?;
+        }
+        for symbol in node_local_symbol.values_mut() {
+            symbol_relocation.symbol(symbol)?;
+        }
+        for table in locals.values_mut() {
+            relocate_symbol_table(table, &symbol_relocation, &serial_relocation)?;
+        }
+        relocate_symbol_table(
+            js_global_augmentations,
+            &symbol_relocation,
+            &serial_relocation,
+        )?;
+
+        let old_assigned = std::mem::take(assigned_symbol_ids);
+        assigned_symbol_ids.reserve(old_assigned.len());
+        for (mut symbol, mut serial) in old_assigned {
+            symbol_relocation.symbol(&mut symbol)?;
+            serial_relocation.serial(&mut serial)?;
+            if assigned_symbol_ids.insert(symbol, serial).is_some() {
+                return Err(IdentityError::InvalidLease {
+                    space: IdentitySpace::Symbol,
+                    detail: "symbol relocation duplicated an assigned-serial key",
+                });
+            }
+        }
+
+        if classifiable_names
+            .iter()
+            .any(|name| name.starts_with("__#"))
+        {
+            let old_names = std::mem::take(classifiable_names);
+            classifiable_names.reserve(old_names.len());
+            for mut name in old_names {
+                serial_relocation.name(&mut name)?;
+                if !classifiable_names.insert(name) {
+                    return Err(IdentityError::InvalidLease {
+                        space: IdentitySpace::PrivateNameSerial,
+                        detail: "private-name relocation duplicated a classifiable name",
+                    });
+                }
+            }
+        }
+        for (_, _, symbol) in pattern_ambient_modules {
+            symbol_relocation.symbol(symbol)?;
+        }
+
+        *private_name_serial_base = serial_relocation.new.start();
+        *next_symbol_id = serial_relocation.new.end();
+        *private_name_serial_lease = Some(serial_lease);
+        Ok(())
+    }
+}
+
+fn bind_leases(
+    leases: Vec<IdentityLease>,
+) -> Result<(IdentityLease, IdentityLease), IdentityError> {
+    let mut symbol = None;
+    let mut serial = None;
+    for lease in leases {
+        match lease.space() {
+            IdentitySpace::Symbol => symbol = Some(lease),
+            IdentitySpace::PrivateNameSerial => serial = Some(lease),
+            space => {
+                return Err(IdentityError::InvalidLease {
+                    space,
+                    detail: "bind publication received a non-bind lease",
+                });
+            }
+        }
+    }
+    Ok((
+        symbol.ok_or(IdentityError::ReservationMismatch)?,
+        serial.ok_or(IdentityError::ReservationMismatch)?,
+    ))
+}
+
+fn validate_serial_lease(
+    lease: &IdentityLease,
+    old_start: u32,
+    old_end: u32,
+    require_same_base: bool,
+) -> Result<(), IdentityError> {
+    if lease.space() != IdentitySpace::PrivateNameSerial {
+        return Err(IdentityError::InvalidLease {
+            space: IdentitySpace::PrivateNameSerial,
+            detail: "binder received a non-private-name lease",
+        });
+    }
+    if lease.range().len() != old_end - old_start {
+        return Err(IdentityError::InvalidLease {
+            space: IdentitySpace::PrivateNameSerial,
+            detail: "private-name lease length differs from the assigned serial count",
+        });
+    }
+    if require_same_base && lease.range().start() != old_start {
+        return Err(IdentityError::InvalidLease {
+            space: IdentitySpace::PrivateNameSerial,
+            detail: "direct-construction serial lease base differs from the binder seed",
+        });
+    }
+    Ok(())
+}
+
+fn relocate_symbol_table(
+    table: &mut SymbolTable,
+    symbol_relocation: &SymbolIdentityRelocation,
+    serial_relocation: &PrivateNameSerialRelocation,
+) -> Result<(), IdentityError> {
+    relocate_symbol_table_values(table, symbol_relocation)?;
+    relocate_private_table_keys(table, serial_relocation)
+}
+
+fn relocate_private_table_keys(
+    table: &mut SymbolTable,
+    serial_relocation: &PrivateNameSerialRelocation,
+) -> Result<(), IdentityError> {
+    if !table.keys().any(|name| name.starts_with("__#")) {
+        return Ok(());
+    }
+    let old_table = std::mem::take(table);
+    table.reserve(old_table.len());
+    for (mut name, symbol) in old_table {
+        serial_relocation.name(&mut name)?;
+        if table.insert(name, symbol).is_some() {
+            return Err(IdentityError::InvalidLease {
+                space: IdentitySpace::PrivateNameSerial,
+                detail: "private-name relocation duplicated a symbol-table key",
+            });
+        }
+    }
+    Ok(())
 }
 
 /// tsc isAssignmentDeclaration (_tsc.js 14964).

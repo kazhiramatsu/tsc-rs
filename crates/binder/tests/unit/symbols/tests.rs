@@ -51,3 +51,32 @@ fn arena_allocates_sequential_ids() {
     assert_eq!(arena.symbol(second).escaped_name, "b");
     assert_eq!(arena.len(), 2);
 }
+
+#[test]
+fn persistent_and_transient_partitions_fail_with_typed_exhaustion() {
+    let mut persistent = SymbolArena::with_base(tsc_types::TRANSIENT_SYMBOL_BIT - 1);
+    assert_eq!(
+        persistent
+            .try_alloc(SymbolFlags::NONE, "last".to_owned())
+            .unwrap(),
+        SymbolId(tsc_types::TRANSIENT_SYMBOL_BIT - 1)
+    );
+    let error = persistent
+        .try_alloc(SymbolFlags::NONE, "overflow".to_owned())
+        .unwrap_err();
+    assert!(!error.transient);
+    assert_eq!(error.limit, tsc_types::TRANSIENT_SYMBOL_BIT);
+
+    let mut transient = SymbolArena::with_base(u32::MAX - 1);
+    assert_eq!(
+        transient
+            .try_alloc(SymbolFlags::TRANSIENT, "last".to_owned())
+            .unwrap(),
+        SymbolId(u32::MAX - 1)
+    );
+    let error = transient
+        .try_alloc(SymbolFlags::TRANSIENT, "overflow".to_owned())
+        .unwrap_err();
+    assert!(error.transient);
+    assert_eq!(error.limit, u32::MAX);
+}

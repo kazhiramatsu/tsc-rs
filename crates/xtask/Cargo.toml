@@ -25,4 +25,5 @@ tsc-fuzz.workspace = true
 tsc-harness.workspace = true
 tsc-oracle.workspace = true
 tsc-syntax.workspace = true
+tsc-types.workspace = true
 yaml-rust2 = { version = "0.11", default-features = false }

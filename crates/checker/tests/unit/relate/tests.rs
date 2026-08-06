@@ -132,7 +132,10 @@ fn enum_relation_short_circuits_on_symbol_identity() {
     // 64676-64678: identical symbols relate before any flag or
     // name test — even a symbol that is not an enum at all.
     with_state(|state| {
-        let symbol = tsc_binder::SymbolId(0);
+        let symbol = state
+            .binder
+            .create_symbol(tsc_types::SymbolFlags::NONE, "identity".to_owned());
+        assert_ne!(symbol.0 & tsc_types::TRANSIENT_SYMBOL_BIT, 0);
         assert!(state
             .is_enum_type_related_to(symbol, symbol)
             .expect("identity path never escapes"));

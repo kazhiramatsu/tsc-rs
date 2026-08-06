@@ -1,9 +1,10 @@
 use crate::for_each_child::{for_each_child, NodeLookup};
 use crate::nodes::{Node, NodeArray, NodeArrayId, NodeData, NodeId};
+use crate::relocate::relocate_node_data;
 use crate::SyntaxKind;
-use tsc_types::NodeFlags;
+use tsc_types::{IdentityError, IdentityLease, IdentityRange, IdentitySpace, NodeFlags};
 
-#[derive(Clone, Debug, Default, PartialEq)]
+#[derive(Clone, Debug, Default)]
 pub struct NodeArena {
     nodes: Vec<Node>,
     arrays: Vec<NodeArray>,
@@ -14,6 +15,75 @@ pub struct NodeArena {
     /// paths (relpin, ast-diff, tests) keep base 0 and are unchanged.
     node_base: u32,
     array_base: u32,
+    node_lease: Option<IdentityLease>,
+    array_lease: Option<IdentityLease>,
+}
+
+impl PartialEq for NodeArena {
+    fn eq(&self, other: &Self) -> bool {
+        // A lease is an ownership capability, not observable AST content.
+        self.nodes == other.nodes
+            && self.arrays == other.arrays
+            && self.node_base == other.node_base
+            && self.array_base == other.array_base
+    }
+}
+
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct SyntaxIdentityRelocation {
+    old_nodes: IdentityRange,
+    new_nodes: IdentityRange,
+    old_arrays: IdentityRange,
+    new_arrays: IdentityRange,
+}
+
+impl SyntaxIdentityRelocation {
+    pub(crate) fn node(&self, id: &mut NodeId) -> Result<(), IdentityError> {
+        relocate_raw(
+            &mut id.0,
+            IdentitySpace::Node,
+            self.old_nodes,
+            self.new_nodes,
+        )
+    }
+
+    pub(crate) fn node_array(&self, id: &mut NodeArrayId) -> Result<(), IdentityError> {
+        relocate_raw(
+            &mut id.0,
+            IdentitySpace::NodeArray,
+            self.old_arrays,
+            self.new_arrays,
+        )
+    }
+}
+
+fn relocate_raw(
+    value: &mut u32,
+    space: IdentitySpace,
+    old: IdentityRange,
+    new: IdentityRange,
+) -> Result<(), IdentityError> {
+    if old.len() != new.len() {
+        return Err(IdentityError::InvalidLease {
+            space,
+            detail: "relocation ranges have different lengths",
+        });
+    }
+    let offset = value
+        .checked_sub(old.start())
+        .filter(|offset| *offset < old.len())
+        .ok_or(IdentityError::InvalidLease {
+            space,
+            detail: "relocated id is outside its source arena",
+        })?;
+    *value = new
+        .start()
+        .checked_add(offset)
+        .ok_or(IdentityError::InvalidLease {
+            space,
+            detail: "relocated id overflowed",
+        })?;
+    Ok(())
 }
 
 impl NodeArena {
@@ -37,14 +107,32 @@ impl NodeArena {
         self.array_base
     }
 
+    pub fn node_identity_lease(&self) -> Option<&IdentityLease> {
+        self.node_lease.as_ref()
+    }
+
+    pub fn array_identity_lease(&self) -> Option<&IdentityLease> {
+        self.array_lease.as_ref()
+    }
+
+    pub fn has_identity_leases(&self) -> bool {
+        self.node_lease.is_some() && self.array_lease.is_some()
+    }
+
     /// One past the last allocated NodeId — the next file's node base.
     pub fn node_end(&self) -> u32 {
-        self.node_base + self.nodes.len() as u32
+        self.node_base
+            .checked_add(u32::try_from(self.nodes.len()).expect("node arena length exceeds u32"))
+            .expect("node arena id space exhausted")
     }
 
     /// One past the last allocated NodeArrayId.
     pub fn array_end(&self) -> u32 {
-        self.array_base + self.arrays.len() as u32
+        self.array_base
+            .checked_add(
+                u32::try_from(self.arrays.len()).expect("node-array arena length exceeds u32"),
+            )
+            .expect("node-array arena id space exhausted")
     }
 
     pub fn contains_node(&self, id: NodeId) -> bool {
@@ -90,7 +178,12 @@ impl NodeArena {
         end: usize,
         has_trailing_comma: bool,
     ) -> NodeArrayId {
-        let id = NodeArrayId(self.array_base + self.arrays.len() as u32);
+        let offset = u32::try_from(self.arrays.len()).expect("node-array arena length exceeds u32");
+        let id = NodeArrayId(
+            self.array_base
+                .checked_add(offset)
+                .expect("node-array identity space exhausted"),
+        );
         self.arrays.push(NodeArray {
             nodes,
             pos: pos as u32,
@@ -154,6 +247,108 @@ impl NodeArena {
         self.nodes.is_empty()
     }
 
+    pub(crate) fn identity_relocation(
+        &self,
+        node_lease: &IdentityLease,
+        array_lease: &IdentityLease,
+    ) -> Result<SyntaxIdentityRelocation, IdentityError> {
+        if self.node_lease.is_some() || self.array_lease.is_some() {
+            return Err(IdentityError::InvalidLease {
+                space: IdentitySpace::Node,
+                detail: "syntax arena is already identity-owned",
+            });
+        }
+        validate_lease(
+            node_lease,
+            IdentitySpace::Node,
+            self.node_base,
+            self.node_end(),
+            false,
+        )?;
+        validate_lease(
+            array_lease,
+            IdentitySpace::NodeArray,
+            self.array_base,
+            self.array_end(),
+            false,
+        )?;
+        if !node_lease.same_domain(array_lease) {
+            return Err(IdentityError::InvalidLease {
+                space: IdentitySpace::Node,
+                detail: "node and node-array leases belong to different domains",
+            });
+        }
+        Ok(SyntaxIdentityRelocation {
+            old_nodes: IdentityRange::new(self.node_base, self.node_end()),
+            new_nodes: node_lease.range(),
+            old_arrays: IdentityRange::new(self.array_base, self.array_end()),
+            new_arrays: array_lease.range(),
+        })
+    }
+
+    pub(crate) fn apply_identity_relocation(
+        &mut self,
+        relocation: SyntaxIdentityRelocation,
+        node_lease: IdentityLease,
+        array_lease: IdentityLease,
+    ) -> Result<(), IdentityError> {
+        for node in &mut self.nodes {
+            if let Some(parent) = &mut node.parent {
+                relocation.node(parent)?;
+            }
+            if let Some(js_doc) = &mut node.js_doc {
+                relocation.node_array(js_doc)?;
+            }
+            relocate_node_data(&mut node.data, &relocation)?;
+        }
+        for array in &mut self.arrays {
+            for node in &mut array.nodes {
+                relocation.node(node)?;
+            }
+        }
+        self.node_base = relocation.new_nodes.start();
+        self.array_base = relocation.new_arrays.start();
+        self.node_lease = Some(node_lease);
+        self.array_lease = Some(array_lease);
+        Ok(())
+    }
+
+    pub(crate) fn attach_identity_leases(
+        &mut self,
+        node_lease: IdentityLease,
+        array_lease: IdentityLease,
+    ) -> Result<(), IdentityError> {
+        if self.node_lease.is_some() || self.array_lease.is_some() {
+            return Err(IdentityError::InvalidLease {
+                space: IdentitySpace::Node,
+                detail: "syntax arena is already identity-owned",
+            });
+        }
+        validate_lease(
+            &node_lease,
+            IdentitySpace::Node,
+            self.node_base,
+            self.node_end(),
+            true,
+        )?;
+        validate_lease(
+            &array_lease,
+            IdentitySpace::NodeArray,
+            self.array_base,
+            self.array_end(),
+            true,
+        )?;
+        if !node_lease.same_domain(&array_lease) {
+            return Err(IdentityError::InvalidLease {
+                space: IdentitySpace::Node,
+                detail: "node and node-array leases belong to different domains",
+            });
+        }
+        self.node_lease = Some(node_lease);
+        self.array_lease = Some(array_lease);
+        Ok(())
+    }
+
     pub fn finalize_tree(&mut self, root: NodeId) {
         let mut seen = vec![false; self.nodes.len()];
         self.finalize_node(root, None, &mut seen);
@@ -167,7 +362,12 @@ impl NodeArena {
         end: usize,
         flags: NodeFlags,
     ) -> NodeId {
-        let id = NodeId(self.node_base + self.nodes.len() as u32);
+        let offset = u32::try_from(self.nodes.len()).expect("node arena length exceeds u32");
+        let id = NodeId(
+            self.node_base
+                .checked_add(offset)
+                .expect("node identity space exhausted"),
+        );
         self.nodes.push(Node {
             kind,
             flags: flags.bits(),
@@ -274,6 +474,34 @@ impl NodeArena {
         assert!(index < self.arrays.len(), "invalid NodeArrayId: {id:?}");
         index
     }
+}
+
+fn validate_lease(
+    lease: &IdentityLease,
+    space: IdentitySpace,
+    old_start: u32,
+    old_end: u32,
+    require_same_base: bool,
+) -> Result<(), IdentityError> {
+    if lease.space() != space {
+        return Err(IdentityError::InvalidLease {
+            space,
+            detail: "lease has the wrong identity space",
+        });
+    }
+    if lease.range().len() != old_end - old_start {
+        return Err(IdentityError::InvalidLease {
+            space,
+            detail: "lease length differs from the arena allocation count",
+        });
+    }
+    if require_same_base && lease.range().start() != old_start {
+        return Err(IdentityError::InvalidLease {
+            space,
+            detail: "direct-construction lease base differs from the arena base",
+        });
+    }
+    Ok(())
 }
 
 impl NodeLookup for NodeArena {

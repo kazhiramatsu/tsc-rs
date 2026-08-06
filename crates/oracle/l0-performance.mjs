@@ -7,7 +7,8 @@ import { fileURLToPath } from "node:url";
 
 const workspace = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const evidencePath = path.join(workspace, "ratchets/l0-evidence.v1.json");
-const comparisonPath = path.join(workspace, "ratchets/l0-text-ownership-performance.v1.json");
+const textComparisonPath = path.join(workspace, "ratchets/l0-text-ownership-performance.v1.json");
+const identityComparisonPath = path.join(workspace, "ratchets/l0-identity-leases-performance.v1.json");
 const fixtureManifestPath = path.join(workspace, "ratchets/l0-fixtures.v1.json");
 const fixtureRoot = path.join(workspace, "target/l0/qualification-fixtures");
 const binaryPath = path.join(workspace, "target/release/examples/h0_qualification");
@@ -300,7 +301,7 @@ function compare(baseRef, pairCount) {
     );
     return {
       schema: 1,
-      kind: "l0-text-ownership-performance",
+      kind: "l0-identity-leases-performance",
       status: compared.every((workload) => workload.qualified) ? "qualified" : "failed",
       typescript_version: "6.0.3",
       candidate: {
@@ -382,29 +383,29 @@ function validateBaseline(evidence) {
   return evidence;
 }
 
-function validateComparison(evidence) {
+function validateComparison(evidence, expectedKind, label, requireCurrent) {
   if (
     evidence.schema !== 1 ||
-    evidence.kind !== "l0-text-ownership-performance" ||
+    evidence.kind !== expectedKind ||
     evidence.status !== "qualified" ||
     evidence.typescript_version !== "6.0.3"
   ) {
-    throw new Error("invalid L0.1 performance evidence header");
+    throw new Error(`invalid ${label} performance evidence header`);
   }
   for (const side of ["candidate", "base"]) {
     if (!/^[0-9a-f]{40}$/u.test(evidence[side].commit)) throw new Error(`invalid ${side} commit`);
     command("git", ["cat-file", "-e", `${evidence[side].commit}^{commit}`]);
     if (!sameJson(evidence[side].runtime_tree, trackedRuntimeFingerprintAt(evidence[side].commit))) {
-      throw new Error(`L0.1 ${side} runtime fingerprint does not match its commit`);
+      throw new Error(`${label} ${side} runtime fingerprint does not match its commit`);
     }
     if (!/^[0-9a-f]{64}$/u.test(evidence[side].binary_sha256)) throw new Error(`invalid ${side} binary hash`);
   }
   command("git", ["merge-base", "--is-ancestor", evidence.base.commit, evidence.candidate.commit]);
-  if (!sameJson(evidence.candidate.runtime_tree, trackedRuntimeFingerprint())) {
-    throw new Error("current runtime sources differ from the qualified L0.1 candidate");
+  if (requireCurrent && !sameJson(evidence.candidate.runtime_tree, trackedRuntimeFingerprint())) {
+    throw new Error(`current runtime sources differ from the qualified ${label} candidate`);
   }
   if (evidence.fixture_manifest_sha256 !== sha256(fs.readFileSync(fixtureManifestPath))) {
-    throw new Error("L0.1 performance fixture binding changed");
+    throw new Error(`${label} performance fixture binding changed`);
   }
   if (
     evidence.runner.id !== "macos-arm64-local-approved" ||
@@ -414,10 +415,10 @@ function validateComparison(evidence) {
     evidence.toolchain.cargo_build_jobs !== 2 ||
     evidence.toolchain.profile !== "release"
   ) {
-    throw new Error("L0.1 comparison used an unapproved runner/toolchain profile");
+    throw new Error(`${label} comparison used an unapproved runner/toolchain profile`);
   }
   if (!sameJson(evidence.relative_regression_policy, policy())) {
-    throw new Error("L0.1 relative regression policy drifted");
+    throw new Error(`${label} relative regression policy drifted`);
   }
   if (
     !Number.isInteger(evidence.pair_count) ||
@@ -425,12 +426,12 @@ function validateComparison(evidence) {
     evidence.warm_pair_count !== evidence.pair_count - 1 ||
     evidence.order !== "alternating-ab-ba"
   ) {
-    throw new Error("L0.1 comparison has too few or incorrectly ordered pairs");
+    throw new Error(`${label} comparison has too few or incorrectly ordered pairs`);
   }
   const fixtures = JSON.parse(fs.readFileSync(fixtureManifestPath, "utf8"));
   const expected = fixtures.workloads.filter((workload) => workload.args !== null);
   if (!Array.isArray(evidence.workloads) || evidence.workloads.length !== expected.length) {
-    throw new Error("L0.1 comparison workload set is incomplete");
+    throw new Error(`${label} comparison workload set is incomplete`);
   }
   for (const [index, workload] of evidence.workloads.entries()) {
     const fixture = expected[index];
@@ -442,22 +443,22 @@ function validateComparison(evidence) {
       !Array.isArray(workload.pairs) ||
       workload.pairs.length !== evidence.pair_count
     ) {
-      throw new Error(`L0.1 workload ${workload.id} does not match its frozen fixture/pair shape`);
+      throw new Error(`${label} workload ${workload.id} does not match its frozen fixture/pair shape`);
     }
     let baseWork;
     let candidateWork;
     for (const [ordinal, pair] of workload.pairs.entries()) {
       if (pair.ordinal !== ordinal || pair.order !== (ordinal % 2 === 0 ? "ab" : "ba")) {
-        throw new Error(`L0.1 workload ${workload.id} has invalid alternating order`);
+        throw new Error(`${label} workload ${workload.id} has invalid alternating order`);
       }
       for (const side of ["base", "candidate"]) {
         const sample = pair[side];
         for (const field of ["wall_seconds", "max_rss_bytes", "allocations", "bytes_allocated"]) {
-          if (!(sample[field] > 0)) throw new Error(`L0.1 workload ${workload.id} has invalid ${side} ${field}`);
+          if (!(sample[field] > 0)) throw new Error(`${label} workload ${workload.id} has invalid ${side} ${field}`);
         }
         const expectedWork = side === "base" ? baseWork : candidateWork;
         if (expectedWork && !sameJson(sample.work, expectedWork)) {
-          throw new Error(`L0.1 workload ${workload.id} ${side} work changed across pairs`);
+          throw new Error(`${label} workload ${workload.id} ${side} work changed across pairs`);
         }
         if (side === "base") baseWork ??= sample.work;
         else candidateWork ??= sample.work;
@@ -474,7 +475,7 @@ function validateComparison(evidence) {
       workload.qualified !== ratiosQualify(ratios) ||
       !workload.qualified
     ) {
-      throw new Error(`L0.1 workload ${workload.id} exceeds or misstates its relative budget`);
+      throw new Error(`${label} workload ${workload.id} exceeds or misstates its relative budget`);
     }
     if (
       !(candidateWork.parsed_documents > 0) ||
@@ -484,7 +485,7 @@ function validateComparison(evidence) {
       candidateWork.full_text_copies !== 0 ||
       candidateWork.full_text_bytes_copied !== 0
     ) {
-      throw new Error(`L0.1 workload ${workload.id} does not prove zero-copy H0 ownership`);
+      throw new Error(`${label} workload ${workload.id} does not prove zero-copy H0 ownership`);
     }
   }
   return evidence;
@@ -498,17 +499,26 @@ if (commandName === "--compare") {
   const pairCount = pairsArgument >= 0 ? Number(process.argv[pairsArgument + 1]) : 8;
   if (!baseline) throw new Error("--compare requires --baseline <exact-commit>");
   const evidence = compare(baseline, pairCount);
-  validateComparison(evidence);
-  fs.writeFileSync(comparisonPath, `${JSON.stringify(evidence, null, 2)}\n`);
-  process.stdout.write(`wrote ${path.relative(workspace, comparisonPath)}\n`);
+  validateComparison(evidence, "l0-identity-leases-performance", "L0.2", true);
+  fs.writeFileSync(identityComparisonPath, `${JSON.stringify(evidence, null, 2)}\n`);
+  process.stdout.write(`wrote ${path.relative(workspace, identityComparisonPath)}\n`);
 } else if (commandName === "--check") {
   if (!fs.existsSync(evidencePath)) throw new Error("missing frozen ratchets/l0-evidence.v1.json");
   validateBaseline(JSON.parse(fs.readFileSync(evidencePath, "utf8")));
-  if (!fs.existsSync(comparisonPath)) {
+  if (!fs.existsSync(textComparisonPath)) {
     throw new Error("missing ratchets/l0-text-ownership-performance.v1.json; run --compare on the approved runner");
   }
-  validateComparison(JSON.parse(fs.readFileSync(comparisonPath, "utf8")));
-  process.stdout.write("L0.0 baseline and L0.1 relative performance evidence are valid and current\n");
+  const textComparison = JSON.parse(fs.readFileSync(textComparisonPath, "utf8"));
+  validateComparison(textComparison, "l0-text-ownership-performance", "L0.1", false);
+  if (!fs.existsSync(identityComparisonPath)) {
+    throw new Error("missing ratchets/l0-identity-leases-performance.v1.json; run --compare on the approved runner");
+  }
+  const identityComparison = JSON.parse(fs.readFileSync(identityComparisonPath, "utf8"));
+  validateComparison(identityComparison, "l0-identity-leases-performance", "L0.2", true);
+  if (!sameJson(textComparison.candidate.runtime_tree, identityComparison.base.runtime_tree)) {
+    throw new Error("L0.2 performance base is not the exact L0.1 qualified runtime tree");
+  }
+  process.stdout.write("L0.0 baseline plus L0.1 and L0.2 relative performance evidence are valid and current\n");
 } else {
   throw new Error("usage: l0-performance.mjs --compare --baseline <exact-commit> [--pairs N]|--check");
 }
