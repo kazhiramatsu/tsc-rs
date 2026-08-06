@@ -545,7 +545,7 @@ The recommended order is now:
 ### 8.1 L0.0 frozen record
 
 L0.0 completed on 2026-08-06. The runtime observation is bound to commit
-`4bf11b69db090a1260c15bef5621236b5b2c13a4`; later documentation, policy, and
+`330827c5808d8fe2ebff9d893b176910d5de9605`; later documentation, policy, and
 evidence-file commits do not change that observed runtime tree. Its checked-in
 authorities are:
 
@@ -577,9 +577,9 @@ authorities are:
 
 | Workload | First process | Warm median / p95 | Peak RSS | Allocations / allocated bytes | Parse / bind / text copies |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| explicit root | 539.509 ms | 101.860 / 104.728 ms | 99,188,736 B | 1,574,997 / 159,081,958 B | 83 / 83 / 249 |
-| project | 96.624 ms | 96.361 / 97.992 ms | 92,454,912 B | 1,503,874 / 151,160,917 B | 67 / 67 / 203 |
-| scale | 212.916 ms | 212.750 / 214.774 ms | 177,782,784 B | 5,140,959 / 455,897,892 B | 95 / 95 / 287 |
+| explicit root | 526.137 ms | 100.784 / 101.771 ms | 99,024,896 B | 1,574,997 / 159,081,958 B | 83 / 83 / 249 |
+| project | 96.435 ms | 96.701 / 98.010 ms | 92,323,840 B | 1,503,874 / 151,160,917 B | 67 / 67 / 203 |
+| scale | 211.198 ms | 212.066 / 213.623 ms | 177,405,952 B | 5,140,959 / 455,897,892 B | 95 / 95 / 287 |
 
 Future comparisons use at least seven paired samples on the same approved
 runner in alternating AB/BA order. Candidate/base ceilings are 1.10 for warm
