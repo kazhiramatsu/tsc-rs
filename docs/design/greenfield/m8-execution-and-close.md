@@ -392,5 +392,5 @@ Each track requires a separate design, goal, compatibility surface, oracle or
 reference contract, performance bounds, and definition of done. Its design
 may reuse the batch engine, but it may not change M8 scope identities,
 denominators, evidence, or completion criteria. The existing
-[LSP and incremental notes](lsp-and-incremental.md) are preliminary design
-input for the future L-track, not an active M8 execution plan.
+[LSP and incremental design](lsp-and-incremental.md) is now an audited
+follow-on architecture plan, not an active M8 execution plan or M8 credit.

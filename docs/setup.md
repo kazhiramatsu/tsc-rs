@@ -114,6 +114,19 @@ acceptance evidence. The optional `cargo xtask ci --lane hosted
 locally for immutable-history investigation and is never selected
 automatically by Actions.
 
+That topology is the current H0/M8/M9 operating state, not the finished
+topology for new persistent-program or emit runtime work. Before the first
+L0.1 or H1 runtime slice, the repository must add the required non-doc static
+and focused track lanes, authenticated machine-verifiable HEAD/base-bound
+full-gate summary, scheduled stress lane, and approved-runner performance lane
+specified in the
+[incremental architecture](design/greenfield/lsp-and-incremental.md#91-ci-and-qualification-topology),
+[H1 emit contract](design/greenfield/h1-emit.md#64-ci-and-qualification-topology),
+and [compatibility roadmap](design/greenfield/compiler-compatibility-residual.md#114-cross-track-ci-and-qualification-topology).
+Until that prerequisite lands, the hosted `gates` sentinel proves only its
+classifier/platform-canary contract; it does not qualify an L0/L1/H1 runtime
+change.
+
 `cargo xtask completion` is report-only during M8 and succeeds while naming
 pending rows in `target/completion/report.json`. The post-M9 release gate is
 `cargo xtask completion --require-done`, which fails unless all 11 rows are

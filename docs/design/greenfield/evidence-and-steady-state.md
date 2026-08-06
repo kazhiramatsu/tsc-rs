@@ -497,6 +497,37 @@ It consumes the existing 14 windows rather than producing a fifteenth. Gate
 acceptance implementations stay in local commands; YAML owns only fail-closed
 change classification and the bounded Windows platform smoke.
 
+### 5.1 Follow-on L0/L1/H1 amendment
+
+The topology above describes the closed H0/M8/M9 operating boundary. L0/L1
+persistent-program work and H1 emit add stateful and output-producing runtime
+surfaces that the current classifier/platform canary does not compile or
+exercise. Therefore, before the first L0.1 or H1 runtime PR, the repository
+must add the common topology specified by
+[lsp-and-incremental.md](lsp-and-incremental.md#91-ci-and-qualification-topology),
+[h1-emit.md](h1-emit.md#64-ci-and-qualification-topology), and
+[compiler-compatibility-residual.md](compiler-compatibility-residual.md#114-cross-track-ci-and-qualification-topology).
+
+That follow-on consists of a required non-documentation static/focused PR
+lane, an authenticated exact HEAD/base-bound full-gate summary,
+protected-main scheduled stress work, and approved-runner performance/release
+qualification. Its stable aggregate check fails closed for missing, skipped,
+or unknown selected lanes.
+A new commit, changed base, merge-queue composition, lockfile/toolchain/pin/
+profile change, or mismatched result hash invalidates the merge summary. Until
+the prerequisite lands, a green hosted `gates` sentinel is only classifier and
+platform-canary evidence and cannot accept an L0/L1/H1 runtime change.
+
+The new serializable summary must not turn the M8/M9 move-only conformance
+receipt into a cross-job artifact. The unsplit command still creates and
+consumes B4 and all producer evidence in one process/workspace; the summary
+attests only that the exact authoritative command and selected track gates
+finished successfully for the bound immutable inputs. Workflow YAML neither
+reopens the evidence nor recreates a producer/consumer sequence. Detailed
+failures may upload bounded content-addressed reproducers, logs, diffs, seeds,
+and counters, but never a token that another job can treat as acceptance
+authority.
+
 ## 6. Required adversarial tests
 
 - changing checker/producer source, lockfile, toolchain, scope, inventory,

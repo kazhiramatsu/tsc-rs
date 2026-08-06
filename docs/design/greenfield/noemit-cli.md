@@ -205,6 +205,14 @@ file order equals allocation-base order. `ProgramBinder` maintains a
 separately sorted interval index for node and array ownership. `SymbolId`s
 remain contiguous in final bind order.
 
+Those are the completed H0 one-shot rules. The pre-H1
+[persistent Program foundation](lsp-and-incremental.md#42-stable-identity-without-enlarging-every-ast-edge)
+replaces Program-order bases with leased non-overlapping node, array, and
+symbol intervals so unchanged parsed/bound documents can survive across
+Program snapshots. H0 reaches that representation only through an ephemeral
+store, must retain no entry after the invocation, and must re-pass this
+contract's original behavior and resource gates.
+
 No H0 production path may rely on `Box::leak`. A one-shot session owns and
 drops its sources and bound state. Any reusable lib cache is injected,
 bounded, and evictable.
@@ -944,8 +952,13 @@ list an executable release invariant. All rows above are green for the
 declared H0 profile as of 2026-08-06; adding an option or platform profile
 requires a reviewed artifact update and new oracle evidence.
 
-M9 fuzz qualification, emit, LSP, project builds, and the public
-`TypeChecker` API remain separate goals.
+M9 fuzz qualification, [H1 JavaScript emit](h1-emit.md), LSP, project builds,
+and the public `TypeChecker` API remain separate goals. H1 treats this frozen
+H0 route, including its resource profile, as a hard non-regression boundary.
+H1 may reserve dormant declaration/map/build-info artifact kinds internally,
+but none is constructed on this profile. A future incremental/build profile
+must separately qualify tsc's possible `.tsbuildinfo` write under `noEmit`;
+that does not amend H0's zero-output guarantee.
 
 ## 11. CI and merge policy
 

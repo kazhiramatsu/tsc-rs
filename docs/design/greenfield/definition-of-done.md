@@ -161,9 +161,12 @@ permitted.
   [H0 no-emit track](noemit-cli.md) closes them without rewriting the M8
   denominator.
 - **LSP / watch / incremental**
-  ([lsp-and-incremental.md](lsp-and-incremental.md) is design-only).
-  Preconditions if ever
-  started: owned lib cache (no `Box::leak`), collision-safe keys.
+  ([lsp-and-incremental.md](lsp-and-incremental.md) is an audited design, not
+  an M8 implementation claim). Its L0 persistent-source and L1 incremental-
+  parser proof are prerequisites for H1 runtime implementation; full Program
+  reuse, watch, Language Service, tsserver, and LSP remain later tracks. The
+  cache contract forbids `Box::leak` and requires collision-safe keys,
+  reference-counted release, and bounded memory.
 - **Public TypeChecker API** surface.
 - **Upstream tracking** (>6.0.3): a separate project with its own
   re-vendor + goldens-regeneration + ledger-refresh loop; nothing
@@ -176,6 +179,10 @@ contract, performance bounds, and definition of done. Work in those tracks
 may reuse the batch checker but may not alter this scope denominator or
 claim M8 acceptance credit. See
 [M8 execution and close](m8-execution-and-close.md#separate-follow-on-design-tracks).
+The non-normative
+[compiler compatibility residual](compiler-compatibility-residual.md) maps
+those broader finish lines and their current dependency order without
+changing this page's definition of project completion.
 
 ## Performance / memory bounds
 

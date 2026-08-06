@@ -3,10 +3,10 @@
 Status: paused after M9.1b. M9.0's draft preflight inventory, M9.1a's typed
 outcome/class model, and M9.1b's canonical true replay plus bounded one-case
 Node/Rust adapters have landed. M9.1c through M9.7 remain pending; no
-burn-in, frozen fingerprint, or qualifying window is running. The active
-follow-on work is the separate
-[H0 filesystem-hosted `--noEmit` track](noemit-cli.md). This contract remains
-the authority when M9 resumes.
+burn-in, frozen fingerprint, or qualifying window is running. The separate
+[H0 filesystem-hosted `--noEmit` track](noemit-cli.md) is complete, and
+[H1 JavaScript emit](h1-emit.md) is now in design without earning M9 evidence
+or qualification credit. This contract remains the authority when M9 resumes.
 
 This page owns how M9 is investigated, implemented, qualified, and closed.
 The [definition of done](definition-of-done.md) still owns WHAT project
