@@ -1,0 +1,335 @@
+{
+  "schema": 1,
+  "status": "frozen",
+  "generator": "crates/oracle/l0-fixtures.mjs",
+  "node_version": "25.2.1",
+  "workloads": [
+    {
+      "id": "explicit-root",
+      "purpose": "embedded-library startup and binary-layout control",
+      "args": [
+        "--noEmit",
+        "--ignoreConfig",
+        "main.ts"
+      ],
+      "generator": null,
+      "files": [
+        {
+          "path": "main.ts",
+          "bytes": 124,
+          "utf16": 124,
+          "sha256": "fed75eec294242c57b5f9bcbe2b858007f56e39c120f567cc9b3ff9b0f7697cd"
+        }
+      ],
+      "total_bytes": 124,
+      "workload_sha256": "4bbfbae8b077fd516ca66c0902794634d4cfb7845fce5c1e7a13cfe30163e1a2",
+      "edit": null
+    },
+    {
+      "id": "project",
+      "purpose": "config discovery plus local, package, and type resolution",
+      "args": [
+        "--noEmit",
+        "--project",
+        "tsconfig.json"
+      ],
+      "generator": null,
+      "files": [
+        {
+          "path": "tsconfig.json",
+          "bytes": 288,
+          "utf16": 288,
+          "sha256": "46798dda632ccc5992824c6c0aa09a25305d10a7b2295c8bb66ecbd3e187bc13"
+        },
+        {
+          "path": "src/main.ts",
+          "bytes": 133,
+          "utf16": 133,
+          "sha256": "0341625f966c86bf82e97d62f7d602a4b742fd81b33859cf3a4095184fcbab3b"
+        },
+        {
+          "path": "src/util.ts",
+          "bytes": 67,
+          "utf16": 67,
+          "sha256": "eea017aec608b265389c53451d6a73ae96e0a44051869f3d09917220310feb9c"
+        },
+        {
+          "path": "node_modules/fixture-package/package.json",
+          "bytes": 66,
+          "utf16": 66,
+          "sha256": "570f0dbb5be8c7af121e6ff0c012265568451412f1f629b2d4812e2786c4ff17"
+        },
+        {
+          "path": "node_modules/fixture-package/index.d.ts",
+          "bytes": 37,
+          "utf16": 37,
+          "sha256": "63bb4a03eb743ad765c803c040b0bed44ec984abb91764f9dc89d4db4a884b5b"
+        },
+        {
+          "path": "node_modules/@types/fixture-globals/package.json",
+          "bytes": 73,
+          "utf16": 73,
+          "sha256": "c13fbfe926dece22c6aadd6cd99761f6f47ec168014bcaa4043d913dc1c41ac0"
+        },
+        {
+          "path": "node_modules/@types/fixture-globals/index.d.ts",
+          "bytes": 35,
+          "utf16": 35,
+          "sha256": "c38c57146ec398b4edba14cef0858362c7bd00f89b2b7067863f43b4721dd452"
+        }
+      ],
+      "total_bytes": 699,
+      "workload_sha256": "61093c2d546dc0b46061a678ac0f8cb00397686aec3812aae6d0608fa344e68f",
+      "edit": null
+    },
+    {
+      "id": "scale",
+      "purpose": "multi-file per-node allocation and hot-loop tax control",
+      "args": [
+        "--noEmit",
+        "--project",
+        "tsconfig.json"
+      ],
+      "generator": {
+        "source_count": 32,
+        "declarations_per_source": 96
+      },
+      "files": [
+        {
+          "path": "tsconfig.json",
+          "bytes": 898,
+          "utf16": 898,
+          "sha256": "2d99c3041251c0f47ddec09f41fc9be5656934fc368cb74e9aed900b84a78029"
+        },
+        {
+          "path": "src/file-0.ts",
+          "bytes": 13860,
+          "utf16": 13860,
+          "sha256": "56a5e27437307fffaed97cee8a6cdd73d2ad8dde251a19932c89fabfac6b6234"
+        },
+        {
+          "path": "src/file-1.ts",
+          "bytes": 13860,
+          "utf16": 13860,
+          "sha256": "a9692d9f9e0e8c340faee198c56df5237eebe0c2f7e72cead93f28a80e7de1d4"
+        },
+        {
+          "path": "src/file-2.ts",
+          "bytes": 13860,
+          "utf16": 13860,
+          "sha256": "dae6bf40eeca5373a46f89d22c049e503b19f8b92e99252ceb0911b0c83a2ee9"
+        },
+        {
+          "path": "src/file-3.ts",
+          "bytes": 13860,
+          "utf16": 13860,
+          "sha256": "b49aa54bd89284789c13032a0aaffc64033e071e9a375a30dbc1d5c206f209dd"
+        },
+        {
+          "path": "src/file-4.ts",
+          "bytes": 13860,
+          "utf16": 13860,
+          "sha256": "ce138ffdc9170cd34ea6b8f3aba2b8e55b13708e59b11df2d9038faa20d8daf5"
+        },
+        {
+          "path": "src/file-5.ts",
+          "bytes": 13860,
+          "utf16": 13860,
+          "sha256": "b68ee51d2e10d3d7593bc5f1ef8fc46933b2dee7946aca36c302e592c0db02b9"
+        },
+        {
+          "path": "src/file-6.ts",
+          "bytes": 13860,
+          "utf16": 13860,
+          "sha256": "51ffe17161a5908ffa5dfb86d1d3eadbac8d2b96277e4c200b70955846374231"
+        },
+        {
+          "path": "src/file-7.ts",
+          "bytes": 13860,
+          "utf16": 13860,
+          "sha256": "f30497c66bc6fea4bc0c3aabdb6ce78f5da182e82f3be5512b7418bc487f00ed"
+        },
+        {
+          "path": "src/file-8.ts",
+          "bytes": 13860,
+          "utf16": 13860,
+          "sha256": "4e0a1c5ad6a6753b519ba2ba87d4dcbd06b5294ae4ea81658148b76d9d2e4f0c"
+        },
+        {
+          "path": "src/file-9.ts",
+          "bytes": 13860,
+          "utf16": 13860,
+          "sha256": "d196e374e4f215fb6ae7523986d4b698653664f7226d8c7f6231de27f52e554c"
+        },
+        {
+          "path": "src/file-10.ts",
+          "bytes": 14340,
+          "utf16": 14340,
+          "sha256": "943231eb8133fe719972fc6b043c6911a182e2dda3d1d4ea8a761f7d51f66012"
+        },
+        {
+          "path": "src/file-11.ts",
+          "bytes": 14340,
+          "utf16": 14340,
+          "sha256": "d0b659885c8f397f21f8e0482ac80eb6021fff2a6e816c8d05a65d046958ef79"
+        },
+        {
+          "path": "src/file-12.ts",
+          "bytes": 14340,
+          "utf16": 14340,
+          "sha256": "c40b7f67e682ec8c9a640b8c8d373670a0ad8c55332dd6ed9184c2db3f7a7e64"
+        },
+        {
+          "path": "src/file-13.ts",
+          "bytes": 14340,
+          "utf16": 14340,
+          "sha256": "bd77c7542084293d7e1c36075cd6d96b61a27b514bc4929e2abc62f52f3fa74e"
+        },
+        {
+          "path": "src/file-14.ts",
+          "bytes": 14340,
+          "utf16": 14340,
+          "sha256": "c59edf5cd8bb8f534d891bb63243e767563a5c8691c29afac57e01f98f1443d6"
+        },
+        {
+          "path": "src/file-15.ts",
+          "bytes": 14340,
+          "utf16": 14340,
+          "sha256": "bd7328d8ce94743d411aa0b9484732f5722965cddf897a39d4ce9ea487ba9080"
+        },
+        {
+          "path": "src/file-16.ts",
+          "bytes": 14340,
+          "utf16": 14340,
+          "sha256": "8fcbed5dd6a745534edabbbfe86572ad8a31219663bc61dc70edf6ef8ea80880"
+        },
+        {
+          "path": "src/file-17.ts",
+          "bytes": 14340,
+          "utf16": 14340,
+          "sha256": "a02a24673d52744b076134221dc9b9e164aeae9ef66e6bc32161b065757d9fdc"
+        },
+        {
+          "path": "src/file-18.ts",
+          "bytes": 14340,
+          "utf16": 14340,
+          "sha256": "6ad56cbb677c90e9d58fb235cc35912d1e78ac68db2fb3ff31ef0592fba1a8c2"
+        },
+        {
+          "path": "src/file-19.ts",
+          "bytes": 14340,
+          "utf16": 14340,
+          "sha256": "53bf35595f30f9e7614e322b9934ad4040f8e158d5dfe3c782c276af23eea283"
+        },
+        {
+          "path": "src/file-20.ts",
+          "bytes": 14340,
+          "utf16": 14340,
+          "sha256": "1c2330b77a1daf3852f3bbbabfef758754fa05241da410e82bf789bdeb32bcb4"
+        },
+        {
+          "path": "src/file-21.ts",
+          "bytes": 14340,
+          "utf16": 14340,
+          "sha256": "259f706d8758b2b916be52f77d5686848f7e0f9f8a989faa5b0a33757ec9107b"
+        },
+        {
+          "path": "src/file-22.ts",
+          "bytes": 14340,
+          "utf16": 14340,
+          "sha256": "09ea177d85520a4f8bdaff7f07196765b5d4201331042d130c64137e9b3ea4d5"
+        },
+        {
+          "path": "src/file-23.ts",
+          "bytes": 14340,
+          "utf16": 14340,
+          "sha256": "8fcde42fc84c61de667909e60ee7841b29e4bf69e40aaf5a87b6346459f946c7"
+        },
+        {
+          "path": "src/file-24.ts",
+          "bytes": 14340,
+          "utf16": 14340,
+          "sha256": "5859ca6e18cc6bd1021ab55c14a4b4cadb24d6ffaebdc1a0f0818aaf616e1f61"
+        },
+        {
+          "path": "src/file-25.ts",
+          "bytes": 14340,
+          "utf16": 14340,
+          "sha256": "ff422f3f57036be6738f1795493813113fc1b2bee54e0b20e8ab64ae9e20f305"
+        },
+        {
+          "path": "src/file-26.ts",
+          "bytes": 14340,
+          "utf16": 14340,
+          "sha256": "d8d93043a8d7d6a856c06e2421527b112b9ff1e89e0a2ae478fcecc8bc0e99f2"
+        },
+        {
+          "path": "src/file-27.ts",
+          "bytes": 14340,
+          "utf16": 14340,
+          "sha256": "d26e5797b0fd48dc9f869c3d95aca1fde9f28d52fdf04e9489ab3b68620607c9"
+        },
+        {
+          "path": "src/file-28.ts",
+          "bytes": 14340,
+          "utf16": 14340,
+          "sha256": "d3101a1e69fda4e6ec679b4085d73b127fca695a37ef88e7062f0c0dc6c32eb1"
+        },
+        {
+          "path": "src/file-29.ts",
+          "bytes": 14340,
+          "utf16": 14340,
+          "sha256": "fc08e3726ee9a09163426ea25f8c7c5fb5ad82321d2fc0d93d7dbe869316d1a2"
+        },
+        {
+          "path": "src/file-30.ts",
+          "bytes": 14340,
+          "utf16": 14340,
+          "sha256": "1cf706110a7a54c7437125b40164db03cf6a21d2cb22cd8c5dbba4d5e6730f8a"
+        },
+        {
+          "path": "src/file-31.ts",
+          "bytes": 14340,
+          "utf16": 14340,
+          "sha256": "bf0f4559c1497c4d72affc88fc448048d1e09610d83a6bb1a4dccd458c6632f8"
+        }
+      ],
+      "total_bytes": 454978,
+      "workload_sha256": "2df9761c2432b2ca06b22b919d4f743d6dcc9bfdbbe8a3295bb13786dfc3650f",
+      "edit": null
+    },
+    {
+      "id": "large-edit",
+      "purpose": "L1 ordinary-parser copy-on-reuse latency and Unicode coordinate proof",
+      "args": null,
+      "generator": {
+        "declarations": 13000,
+        "edit_declaration": 6137
+      },
+      "files": [
+        {
+          "path": "large-edit.ts",
+          "bytes": 1073676,
+          "utf16": 1073664,
+          "sha256": "fb5fe41d8f82a71d7c350192e1db2292f1df3b67d720e0181ddc2e409bac2500"
+        }
+      ],
+      "total_bytes": 1073676,
+      "workload_sha256": "a4ebe89955c39ddd588cbc7116b3ecab2fb25d44509872d1f81ad7fb7d8b683e",
+      "edit": {
+        "file": "large-edit.ts",
+        "start_byte": 498911,
+        "delete_bytes": 17,
+        "insert_bytes": 25,
+        "start_utf16": 498905,
+        "delete_utf16": 17,
+        "insert_utf16": 19,
+        "old_text": "label: \"row-6137\"",
+        "new_text": "label: \"編集-6137-😀\"",
+        "after_sha256": "f74be9b7a09832b9f247faf4e5f158fbca6914656e68641e9f67b8cc360c29a5",
+        "after_bytes": 1073684,
+        "after_utf16": 1073666
+      }
+    }
+  ]
+}

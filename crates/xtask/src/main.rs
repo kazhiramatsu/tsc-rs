@@ -7612,6 +7612,50 @@ fn select_ci_test_workers(configured: Option<&str>, available: usize) -> Result<
 }
 
 fn ci_oracle_gates(workspace: &Path) -> Result<(), Box<dyn Error>> {
+    let qualification = workspace.join(".github/ci/qualification.mjs");
+    run_command(Command::new("node").arg("--check").arg(&qualification))?;
+    run_command(
+        Command::new("node")
+            .current_dir(workspace)
+            .arg("--test")
+            .arg(".github/ci/qualification.test.mjs"),
+    )?;
+    run_command(
+        Command::new("node")
+            .current_dir(workspace)
+            .arg(&qualification)
+            .arg("check"),
+    )?;
+    let l0_fixtures = workspace.join("crates/oracle/l0-fixtures.mjs");
+    run_command(Command::new("node").arg("--check").arg(&l0_fixtures))?;
+    run_command(
+        Command::new("node")
+            .current_dir(workspace)
+            .arg(&l0_fixtures)
+            .arg("--check"),
+    )?;
+    run_command(
+        Command::new("node")
+            .current_dir(workspace)
+            .arg(&l0_fixtures)
+            .arg("--smoke"),
+    )?;
+    let l0_performance = workspace.join("crates/oracle/l0-performance.mjs");
+    run_command(Command::new("node").arg("--check").arg(&l0_performance))?;
+    run_command(
+        Command::new("node")
+            .current_dir(workspace)
+            .arg(&l0_performance)
+            .arg("--check"),
+    )?;
+    let l0_inventory = workspace.join("crates/oracle/l0-option-inventory.mjs");
+    run_command(Command::new("node").arg("--check").arg(&l0_inventory))?;
+    run_command(
+        Command::new("node")
+            .current_dir(workspace)
+            .arg(&l0_inventory)
+            .arg("--check"),
+    )?;
     run_command(
         Command::new("node")
             .arg("--check")

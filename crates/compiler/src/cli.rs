@@ -29,7 +29,7 @@ use tsc_program::{
     ConfigRootPlanRequest, LibraryCatalog, ProgramLoadLimits, ProgramOptions,
 };
 
-use crate::ProgramSession;
+use crate::{NoEmitWorkCounters, ProgramSession};
 
 mod embedded_libraries {
     include!(concat!(env!("OUT_DIR"), "/typescript_6_0_3_libraries.rs"));
@@ -57,6 +57,7 @@ pub struct CliOutput {
     stdout: String,
     stderr: String,
     exit_code: i32,
+    work_counters: NoEmitWorkCounters,
 }
 
 impl CliOutput {
@@ -70,6 +71,13 @@ impl CliOutput {
 
     pub const fn exit_code(&self) -> i32 {
         self.exit_code
+    }
+
+    /// Program-session work is zero for version/usage/host failures that do
+    /// not reach parsing. Qualification consumers use this accessor without
+    /// changing the binary's stdout/stderr contract.
+    pub const fn work_counters(&self) -> NoEmitWorkCounters {
+        self.work_counters
     }
 }
 
@@ -213,6 +221,7 @@ pub fn run_cli(args: &[String]) -> CliOutput {
             stdout: String::new(),
             stderr: format!("tsc-rs: {error}\n"),
             exit_code: EXIT_FAILURE,
+            work_counters: NoEmitWorkCounters::default(),
         },
     }
 }
@@ -224,6 +233,7 @@ fn execute(args: &[String]) -> Result<CliOutput, CliError> {
             stdout: format!("Version {TYPESCRIPT_VERSION}\n"),
             stderr: String::new(),
             exit_code: EXIT_SUCCESS,
+            work_counters: NoEmitWorkCounters::default(),
         });
     }
 
@@ -575,7 +585,20 @@ fn execute_prepared(
         diagnostics.extend(outcome.global_diagnostics().iter().cloned());
         diagnostics.extend(outcome.semantic_diagnostics().iter().cloned());
     }
-    rendered_diagnostics(current_directory, &source_texts, &diagnostics, pretty)
+    let renderer_text_bytes = source_texts
+        .values()
+        .map(|text| text.len() as u64)
+        .sum::<u64>();
+    let work_counters = outcome
+        .work_counters()
+        .with_additional_full_text_projection(source_texts.len() as u64, renderer_text_bytes);
+    rendered_diagnostics_with_work(
+        current_directory,
+        &source_texts,
+        &diagnostics,
+        pretty,
+        work_counters,
+    )
 }
 
 fn rendered_diagnostics(
@@ -584,12 +607,29 @@ fn rendered_diagnostics(
     diagnostics: &[Diagnostic],
     pretty: bool,
 ) -> Result<CliOutput, CliError> {
-    rendered_diagnostics_with_exit(
+    rendered_diagnostics_with_work(
+        current_directory,
+        source_texts,
+        diagnostics,
+        pretty,
+        NoEmitWorkCounters::default(),
+    )
+}
+
+fn rendered_diagnostics_with_work(
+    current_directory: &Path,
+    source_texts: &BTreeMap<String, String>,
+    diagnostics: &[Diagnostic],
+    pretty: bool,
+    work_counters: NoEmitWorkCounters,
+) -> Result<CliOutput, CliError> {
+    rendered_diagnostics_with_exit_and_work(
         current_directory,
         source_texts,
         diagnostics,
         pretty,
         EXIT_DIAGNOSTIC,
+        work_counters,
     )
 }
 
@@ -600,11 +640,30 @@ fn rendered_diagnostics_with_exit(
     pretty: bool,
     exit_code: i32,
 ) -> Result<CliOutput, CliError> {
+    rendered_diagnostics_with_exit_and_work(
+        current_directory,
+        source_texts,
+        diagnostics,
+        pretty,
+        exit_code,
+        NoEmitWorkCounters::default(),
+    )
+}
+
+fn rendered_diagnostics_with_exit_and_work(
+    current_directory: &Path,
+    source_texts: &BTreeMap<String, String>,
+    diagnostics: &[Diagnostic],
+    pretty: bool,
+    exit_code: i32,
+    work_counters: NoEmitWorkCounters,
+) -> Result<CliOutput, CliError> {
     if diagnostics.is_empty() {
         return Ok(CliOutput {
             stdout: String::new(),
             stderr: String::new(),
             exit_code: EXIT_SUCCESS,
+            work_counters,
         });
     }
     let current_directory = current_directory
@@ -630,6 +689,7 @@ fn rendered_diagnostics_with_exit(
         stdout: text,
         stderr: String::new(),
         exit_code,
+        work_counters,
     })
 }
 

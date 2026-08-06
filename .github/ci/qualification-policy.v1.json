@@ -1,0 +1,100 @@
+{
+  "schema": 1,
+  "status": "frozen",
+  "aggregate_check": "gates",
+  "limits": {
+    "changed_paths": 4096,
+    "failure_artifact_bytes": 10485760
+  },
+  "classification": {
+    "unknown_non_documentation": "select-all",
+    "host_platform_prefixes": [
+      "crates/host/",
+      "crates/program/",
+      "rust-toolchain.toml"
+    ],
+    "program_path_prefixes": [
+      "crates/program/"
+    ],
+    "track_prefixes": {
+      "l0-l1": [
+        "crates/diagnostics/",
+        "crates/syntax/",
+        "crates/binder/",
+        "crates/checker/",
+        "crates/host/",
+        "crates/program/",
+        "crates/compiler/",
+        "crates/oracle/l0-",
+        "ratchets/l0-"
+      ],
+      "h1": [
+        "crates/checker/",
+        "crates/compiler/",
+        "crates/emitter/",
+        "crates/oracle/h1-",
+        "ratchets/h1-"
+      ]
+    },
+    "common_exact": [
+      ".github/workflows/ci.yml",
+      ".github/ci/qualification-policy.v1.json",
+      "Cargo.lock",
+      "Cargo.toml",
+      "rust-toolchain.toml",
+      ".node-version"
+    ],
+    "common_prefixes": [
+      ".github/ci/contracts/",
+      ".github/ci/qualification."
+    ]
+  },
+  "required_pr_guardrail": {
+    "static_commands": [
+      ["cargo", "fmt", "--all", "--", "--check"],
+      ["cargo", "check", "--workspace", "--all-targets", "--locked"]
+    ],
+    "focused_commands": {
+      "common": [
+        ["node", "--test", ".github/ci/qualification.test.mjs"],
+        ["node", ".github/ci/qualification.mjs", "check"]
+      ],
+      "l0-l1": [
+        ["cargo", "test", "--locked", "--manifest-path", "crates/compiler/Cargo.toml", "--test", "contracts", "l0_work_counters"]
+      ],
+      "h1": [
+        ["cargo", "test", "--locked", "--manifest-path", "crates/compiler/Cargo.toml", "--test", "contracts", "frozen_h0_profile_matches_the_executable_boundaries"]
+      ]
+    }
+  },
+  "exact_merge_qualification": {
+    "authoritative_command": ["cargo", "xtask", "ci", "--baseline", "<exact-base-sha>"],
+    "required_input_roles": [
+      "rust_toolchain",
+      "node_version",
+      "cargo_lock",
+      "vendor_inventory",
+      "suite_inventory",
+      "qualification_profile",
+      "lane_selection"
+    ],
+    "authentication_kinds": ["trusted-runner-oidc", "registered-signer"],
+    "unsigned_receipts_qualify": false
+  },
+  "scheduled_stress": {
+    "event": "schedule",
+    "initial_scope": ["fixture-regeneration", "large-edit-materialization"],
+    "future_l0_l1_scope": [
+      "randomized-edits",
+      "open-edit-close",
+      "registry-reclamation",
+      "fresh-incremental-exactness",
+      "bounded-rss"
+    ]
+  },
+  "approved_performance": {
+    "runner_profile": "macos-arm64-local-approved",
+    "moving_hosted_images_may_mint_ratchets": false,
+    "alternating_baseline_candidate": true
+  }
+}

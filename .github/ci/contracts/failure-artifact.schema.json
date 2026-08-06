@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/kazhiramatsu/tsc-rs/.github/ci/contracts/failure-artifact.schema.json",
+  "title": "tsc-rs bounded content-addressed CI failure artifact",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "kind",
+    "head_sha",
+    "base_sha",
+    "track",
+    "payload_path",
+    "content_type",
+    "bytes",
+    "payload_sha256",
+    "truncated"
+  ],
+  "properties": {
+    "schema": { "const": 1 },
+    "kind": { "const": "failure-artifact" },
+    "head_sha": { "$ref": "#/$defs/sha1" },
+    "base_sha": { "$ref": "#/$defs/sha1" },
+    "track": { "enum": ["common", "l0-l1", "h1", "host-platform", "stress", "performance"] },
+    "payload_path": { "$ref": "#/$defs/relativePath" },
+    "content_type": { "type": "string", "minLength": 1, "maxLength": 128 },
+    "bytes": { "type": "integer", "minimum": 0, "maximum": 10485760 },
+    "payload_sha256": { "$ref": "#/$defs/sha256" },
+    "truncated": { "type": "boolean" },
+    "reproducer": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "seed": { "type": "string", "maxLength": 256 },
+        "fixture": { "$ref": "#/$defs/relativePath" },
+        "initial_text_sha256": { "$ref": "#/$defs/sha256" },
+        "options_key_sha256": { "$ref": "#/$defs/sha256" }
+      }
+    }
+  },
+  "$defs": {
+    "sha1": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "relativePath": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 4096,
+      "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$)).+$"
+    }
+  }
+}

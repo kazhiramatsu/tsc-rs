@@ -210,17 +210,13 @@ fn consume(session: ProgramSession) -> NoEmitOutcome {
 }
 
 #[test]
-fn session_consumes_owned_program_and_sorts_batch_syntax_diagnostics() {
-    let prepared = prepared_program(
-        &[
-            ("lib.d.ts", MINIMAL_GLOBALS),
-            ("second.ts", "const second = ;"),
-            ("first.ts", "const first = ;"),
-        ],
-        1,
-        PreparationDiagnostics::default(),
-        |_| {},
-    );
+fn l0_work_counters_and_sorted_batch_syntax_diagnostics() {
+    let files = [
+        ("lib.d.ts", MINIMAL_GLOBALS),
+        ("second.ts", "const second = ;"),
+        ("first.ts", "const first = ;"),
+    ];
+    let prepared = prepared_program(&files, 1, PreparationDiagnostics::default(), |_| {});
 
     let outcome = consume(ProgramSession::new(prepared));
     let file_names = outcome
@@ -233,6 +229,13 @@ fn session_consumes_owned_program_and_sorts_batch_syntax_diagnostics() {
     assert!(outcome.options_diagnostics().is_empty());
     assert!(outcome.global_diagnostics().is_empty());
     assert!(outcome.semantic_diagnostics().is_empty());
+
+    let work = outcome.work_counters();
+    let source_bytes = files.iter().map(|(_, text)| text.len() as u64).sum::<u64>();
+    assert_eq!(work.parsed_documents(), 3);
+    assert_eq!(work.bound_documents(), 3);
+    assert_eq!(work.full_text_copies(), 6);
+    assert_eq!(work.full_text_bytes_copied(), source_bytes * 2);
 }
 
 #[test]
