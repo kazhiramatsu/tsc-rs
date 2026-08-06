@@ -41,7 +41,7 @@ pub enum TableRef {
 
 /// The binder for one source file. Grows container/flow state in
 /// stages 3.3–3.5; stage 3.2 carries the symbol side only.
-pub struct Binder<'a> {
+pub struct BinderWorker<'a> {
     pub source: &'a SourceFile,
     pub options: &'a tsc_types::CompilerOptions,
     /// tsc languageVersion = getEmitScriptTarget(options).
@@ -127,7 +127,101 @@ pub struct Binder<'a> {
     pub js_doc_imports: Vec<NodeId>,
 }
 
-impl<'a> Binder<'a> {
+/// The completed, checker-consumed half of one bind operation.
+///
+/// `BinderWorker` is the temporary worker: it borrows the parsed source and
+/// compiler options while it walks containers and builds this record. Once
+/// publication succeeds, callers retain only `BindData`; no walk cursor,
+/// borrowed input, or in-flight target is carried into a Program snapshot.
+#[derive(Clone, Debug)]
+pub struct BindData {
+    pub language_version: i32,
+    pub common_js_module_indicator: Option<NodeId>,
+    pub symbols: SymbolArena,
+    pub node_symbol: HashMap<NodeId, SymbolId>,
+    pub node_local_symbol: HashMap<NodeId, SymbolId>,
+    pub locals: HashMap<NodeId, SymbolTable>,
+    pub js_global_augmentations: SymbolTable,
+    pub bind_diagnostics: DiagnosticList,
+    pub classifiable_names: IndexSet<String>,
+    pub assigned_symbol_ids: HashMap<SymbolId, u32>,
+    pub private_name_serial_base: u32,
+    pub next_symbol_id: u32,
+    pub private_name_serial_lease: Option<IdentityLease>,
+    pub next_container: HashMap<NodeId, NodeId>,
+    pub node_flags_mut: Vec<i32>,
+    pub pattern_ambient_modules: Vec<(String, String, SymbolId)>,
+    pub flow: crate::flow::FlowArena,
+    pub unreachable_flow: crate::flow::FlowId,
+    pub node_flow: HashMap<NodeId, crate::flow::FlowId>,
+    pub node_end_flow: HashMap<NodeId, crate::flow::FlowId>,
+    pub node_return_flow: HashMap<NodeId, crate::flow::FlowId>,
+    pub node_flow_when_true: HashMap<NodeId, crate::flow::FlowId>,
+    pub node_flow_when_false: HashMap<NodeId, crate::flow::FlowId>,
+    pub possibly_exhaustive: HashMap<NodeId, bool>,
+    pub node_fallthrough_flow: HashMap<NodeId, crate::flow::FlowId>,
+    pub emit_flags: i32,
+}
+
+/// Compatibility name retained for existing binder/checker callers. New
+/// publication code should name the worker explicitly as `BinderWorker` and
+/// retain only `BindData` in an owned document.
+pub type Binder<'a> = BinderWorker<'a>;
+
+impl BindData {
+    /// Clone only the completed result for a compatibility adapter. The
+    /// production snapshot path uses `Binder::into_bind_data` to move these
+    /// fields without retaining the worker or borrowing its source.
+    pub fn from_binder(binder: &BinderWorker<'_>) -> Self {
+        Self {
+            language_version: binder.language_version,
+            common_js_module_indicator: binder.common_js_module_indicator,
+            symbols: binder.symbols.clone(),
+            node_symbol: binder.node_symbol.clone(),
+            node_local_symbol: binder.node_local_symbol.clone(),
+            locals: binder.locals.clone(),
+            js_global_augmentations: binder.js_global_augmentations.clone(),
+            bind_diagnostics: binder.bind_diagnostics.clone(),
+            classifiable_names: binder.classifiable_names.clone(),
+            assigned_symbol_ids: binder.assigned_symbol_ids.clone(),
+            private_name_serial_base: binder.private_name_serial_base,
+            next_symbol_id: binder.next_symbol_id,
+            private_name_serial_lease: binder.private_name_serial_lease.clone(),
+            next_container: binder.next_container.clone(),
+            node_flags_mut: binder.node_flags_mut.clone(),
+            pattern_ambient_modules: binder.pattern_ambient_modules.clone(),
+            flow: binder.flow.clone(),
+            unreachable_flow: binder.unreachable_flow,
+            node_flow: binder.node_flow.clone(),
+            node_end_flow: binder.node_end_flow.clone(),
+            node_return_flow: binder.node_return_flow.clone(),
+            node_flow_when_true: binder.node_flow_when_true.clone(),
+            node_flow_when_false: binder.node_flow_when_false.clone(),
+            possibly_exhaustive: binder.possibly_exhaustive.clone(),
+            node_fallthrough_flow: binder.node_fallthrough_flow.clone(),
+            emit_flags: binder.emit_flags,
+        }
+    }
+
+    pub fn symbol_identity_lease(&self) -> Option<&IdentityLease> {
+        self.symbols.identity_lease()
+    }
+
+    pub fn private_name_serial_lease(&self) -> Option<&IdentityLease> {
+        self.private_name_serial_lease.as_ref()
+    }
+
+    pub fn next_symbol_id(&self) -> u32 {
+        self.next_symbol_id
+    }
+
+    pub fn flags_of(&self, node: NodeId, node_base: u32) -> tsc_types::NodeFlags {
+        let index = (node.0 - node_base) as usize;
+        tsc_types::NodeFlags::from_bits(self.node_flags_mut[index])
+    }
+}
+
+impl<'a> BinderWorker<'a> {
     pub fn new(source: &'a SourceFile, options: &'a tsc_types::CompilerOptions) -> Self {
         Self::with_symbol_id_seed(source, options, 1)
     }
@@ -932,10 +1026,10 @@ impl PrivateNameSerialRelocation {
     }
 }
 
-impl Binder<'_> {
+impl BinderWorker<'_> {
     /// Declared completeness boundary for published bind identity. The
-    /// exhaustive destructure makes every new Binder field a compile-time
-    /// relocation review item until L0.3 splits `BinderWorker`/`BindData`.
+    /// exhaustive destructure makes every new BinderWorker field a compile-time
+    /// relocation review item.
     fn apply_declared_identity_relocation(
         &mut self,
         symbol_relocation: SymbolIdentityRelocation,
@@ -1185,6 +1279,94 @@ pub fn is_effective_module_declaration(source: &SourceFile, id: NodeId) -> bool 
         kind_of(source, id),
         SyntaxKind::ModuleDeclaration | SyntaxKind::Identifier
     )
+}
+
+impl BinderWorker<'_> {
+    /// Publish the completed result and discard all temporary worker state.
+    /// The exhaustive move is deliberate: adding a field to `BinderWorker` forces
+    /// an explicit decision about whether it belongs in `BindData` or remains
+    /// worker-local.
+    pub fn into_bind_data(self) -> BindData {
+        let Self {
+            source: _,
+            options: _,
+            language_version,
+            common_js_module_indicator,
+            symbols,
+            node_symbol,
+            node_local_symbol,
+            locals,
+            js_global_augmentations,
+            bind_diagnostics,
+            classifiable_names,
+            assigned_symbol_ids,
+            private_name_serial_base,
+            next_symbol_id,
+            private_name_serial_lease,
+            container: _,
+            this_parent_container: _,
+            block_scope_container: _,
+            last_container: _,
+            next_container,
+            node_flags_mut,
+            pattern_ambient_modules,
+            flow,
+            unreachable_flow,
+            current_flow: _,
+            current_break_target: _,
+            current_continue_target: _,
+            current_return_target: _,
+            current_true_target: _,
+            current_false_target: _,
+            current_exception_target: _,
+            pre_switch_case_flow: _,
+            node_flow,
+            node_end_flow,
+            node_return_flow,
+            node_flow_when_true,
+            node_flow_when_false,
+            possibly_exhaustive,
+            node_fallthrough_flow,
+            active_label_list: _,
+            in_strict_mode: _,
+            seen_this_keyword: _,
+            in_assignment_pattern: _,
+            has_explicit_return: _,
+            in_return_position: _,
+            has_flow_effects: _,
+            emit_flags,
+            delayed_type_aliases: _,
+            js_doc_imports: _,
+        } = self;
+        BindData {
+            language_version,
+            common_js_module_indicator,
+            symbols,
+            node_symbol,
+            node_local_symbol,
+            locals,
+            js_global_augmentations,
+            bind_diagnostics,
+            classifiable_names,
+            assigned_symbol_ids,
+            private_name_serial_base,
+            next_symbol_id,
+            private_name_serial_lease,
+            next_container,
+            node_flags_mut,
+            pattern_ambient_modules,
+            flow,
+            unreachable_flow,
+            node_flow,
+            node_end_flow,
+            node_return_flow,
+            node_flow_when_true,
+            node_flow_when_false,
+            possibly_exhaustive,
+            node_fallthrough_flow,
+            emit_flags,
+        }
+    }
 }
 
 #[cfg(test)]

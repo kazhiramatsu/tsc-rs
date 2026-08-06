@@ -1,6 +1,6 @@
 {
   "schema": 3,
-  "status": "identity-leases-complete",
+  "status": "owned-bind-state-complete",
   "typescript": {
     "version": "6.0.3",
     "source_commit": "050880ce59e30b356b686bd3144efe24f875ebc8",
@@ -242,8 +242,8 @@
         "owner": "InputFile.snapshot",
         "storage": "Arc<TextSnapshot>",
         "path": "crates/checker/src/lib.rs",
-        "line": 62,
-        "source_sha256": "71fd7fdb5d91c59948e14b200879b2898f025860973fb3bcda078e28e4265576",
+        "line": 65,
+        "source_sha256": "66d8e949d6c05e3eb09f6589f5c8a274ad66dd95991320d9eb77e4c84fee131e",
         "evidence": "pub struct InputFile {"
       },
       {
@@ -302,8 +302,8 @@
         "to": "SourceFile.snapshot",
         "branch": "json",
         "path": "crates/checker/src/lib.rs",
-        "line": 1428,
-        "source_sha256": "71fd7fdb5d91c59948e14b200879b2898f025860973fb3bcda078e28e4265576",
+        "line": 1429,
+        "source_sha256": "66d8e949d6c05e3eb09f6589f5c8a274ad66dd95991320d9eb77e4c84fee131e",
         "evidence": "            let source_file = tsc_syntax::parse_json_text_from_snapshot_in_identity_domain("
       },
       {
@@ -311,8 +311,8 @@
         "to": "SourceFile.snapshot",
         "branch": "ordinary",
         "path": "crates/checker/src/lib.rs",
-        "line": 1520,
-        "source_sha256": "71fd7fdb5d91c59948e14b200879b2898f025860973fb3bcda078e28e4265576",
+        "line": 1521,
+        "source_sha256": "66d8e949d6c05e3eb09f6589f5c8a274ad66dd95991320d9eb77e4c84fee131e",
         "evidence": "        let source_file = tsc_syntax::parse_source_file_from_snapshot_in_identity_domain("
       },
       {
@@ -422,17 +422,24 @@
         "evidence": "fn render_relocate_rs(schemas: &[NodeSchema])"
       },
       "bind_owner": {
-        "storage": "SymbolArena symbol lease plus Binder private-name serial lease",
+        "storage": "BinderWorker publication moves symbol/private-name leases into owned BindData",
         "path": "crates/binder/src/declare.rs",
         "line": 69,
-        "source_sha256": "6c15daec1a963e3b21133e1619af2ed93bcae7f3c3c8bad48e042ac69851d259",
+        "source_sha256": "134feb4393e1ec3960e1033925b29dc1b71d2c07cc23d9aa2d6dbf06c255a8ef",
         "evidence": "    private_name_serial_lease: Option<IdentityLease>,"
+      },
+      "program_snapshot_owner": {
+        "storage": "Arc-owned ParsedDocument/BoundDocument handles ordered by ProgramSnapshot",
+        "path": "crates/checker/src/program.rs",
+        "line": 54,
+        "source_sha256": "3e3a118c7325a953a47b0cf9d30fc53267d7d19568d6f2cf52f8833a64e9f445",
+        "evidence": "pub struct ProgramSnapshot {"
       },
       "program_owner_intervals": {
         "contract": "base-sorted non-contiguous and non-overlapping",
         "path": "crates/checker/src/program.rs",
-        "line": 109,
-        "source_sha256": "bd37321d61469465e7627bb3d7dd4819708ee3cf808e37aed9c5b27124af6739",
+        "line": 220,
+        "source_sha256": "3e3a118c7325a953a47b0cf9d30fc53267d7d19568d6f2cf52f8833a64e9f445",
         "evidence": "    symbol_owners: Vec<ArenaOwner>,"
       },
       "checker_transient_partition": {

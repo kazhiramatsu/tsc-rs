@@ -9,6 +9,7 @@ const workspace = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..
 const evidencePath = path.join(workspace, "ratchets/l0-evidence.v1.json");
 const textComparisonPath = path.join(workspace, "ratchets/l0-text-ownership-performance.v1.json");
 const identityComparisonPath = path.join(workspace, "ratchets/l0-identity-leases-performance.v1.json");
+const ownedBindComparisonPath = path.join(workspace, "ratchets/l0-owned-bind-state-performance.v1.json");
 const fixtureManifestPath = path.join(workspace, "ratchets/l0-fixtures.v1.json");
 const fixtureRoot = path.join(workspace, "target/l0/qualification-fixtures");
 const binaryPath = path.join(workspace, "target/release/examples/h0_qualification");
@@ -261,7 +262,7 @@ function compareWorkload(workload, pairCount, binaries) {
   };
 }
 
-function compare(baseRef, pairCount) {
+function compare(baseRef, pairCount, kind) {
   if (!Number.isInteger(pairCount) || pairCount < policy().minimum_paired_samples + 1) {
     throw new Error("comparison requires one cold pair plus at least seven warm paired samples");
   }
@@ -301,7 +302,7 @@ function compare(baseRef, pairCount) {
     );
     return {
       schema: 1,
-      kind: "l0-identity-leases-performance",
+      kind,
       status: compared.every((workload) => workload.qualified) ? "qualified" : "failed",
       typescript_version: "6.0.3",
       candidate: {
@@ -498,10 +499,14 @@ if (commandName === "--compare") {
   const baseline = baselineArgument >= 0 ? process.argv[baselineArgument + 1] : undefined;
   const pairCount = pairsArgument >= 0 ? Number(process.argv[pairsArgument + 1]) : 8;
   if (!baseline) throw new Error("--compare requires --baseline <exact-commit>");
-  const evidence = compare(baseline, pairCount);
-  validateComparison(evidence, "l0-identity-leases-performance", "L0.2", true);
-  fs.writeFileSync(identityComparisonPath, `${JSON.stringify(evidence, null, 2)}\n`);
-  process.stdout.write(`wrote ${path.relative(workspace, identityComparisonPath)}\n`);
+  const ownedBind = process.argv.includes("--owned-bind");
+  const kind = ownedBind ? "l0-owned-bind-state-performance" : "l0-identity-leases-performance";
+  const label = ownedBind ? "L0.3" : "L0.2";
+  const outputPath = ownedBind ? ownedBindComparisonPath : identityComparisonPath;
+  const evidence = compare(baseline, pairCount, kind);
+  validateComparison(evidence, kind, label, true);
+  fs.writeFileSync(outputPath, `${JSON.stringify(evidence, null, 2)}\n`);
+  process.stdout.write(`wrote ${path.relative(workspace, outputPath)}\n`);
 } else if (commandName === "--check") {
   if (!fs.existsSync(evidencePath)) throw new Error("missing frozen ratchets/l0-evidence.v1.json");
   validateBaseline(JSON.parse(fs.readFileSync(evidencePath, "utf8")));
@@ -514,11 +519,19 @@ if (commandName === "--compare") {
     throw new Error("missing ratchets/l0-identity-leases-performance.v1.json; run --compare on the approved runner");
   }
   const identityComparison = JSON.parse(fs.readFileSync(identityComparisonPath, "utf8"));
-  validateComparison(identityComparison, "l0-identity-leases-performance", "L0.2", true);
+  validateComparison(identityComparison, "l0-identity-leases-performance", "L0.2", false);
   if (!sameJson(textComparison.candidate.runtime_tree, identityComparison.base.runtime_tree)) {
     throw new Error("L0.2 performance base is not the exact L0.1 qualified runtime tree");
   }
-  process.stdout.write("L0.0 baseline plus L0.1 and L0.2 relative performance evidence are valid and current\n");
+  if (!fs.existsSync(ownedBindComparisonPath)) {
+    throw new Error("missing ratchets/l0-owned-bind-state-performance.v1.json; run --compare --owned-bind on the approved runner");
+  }
+  const ownedBindComparison = JSON.parse(fs.readFileSync(ownedBindComparisonPath, "utf8"));
+  validateComparison(ownedBindComparison, "l0-owned-bind-state-performance", "L0.3", true);
+  if (!sameJson(ownedBindComparison.base.runtime_tree, identityComparison.candidate.runtime_tree)) {
+    throw new Error("L0.3 performance base is not the exact L0.2 qualified runtime tree");
+  }
+  process.stdout.write("L0.0 baseline plus L0.1, L0.2, and L0.3 relative performance evidence are valid and current\n");
 } else {
-  throw new Error("usage: l0-performance.mjs --compare --baseline <exact-commit> [--pairs N]|--check");
+  throw new Error("usage: l0-performance.mjs --compare --baseline <exact-commit> [--pairs N] [--owned-bind]|--check");
 }

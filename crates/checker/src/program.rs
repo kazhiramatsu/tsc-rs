@@ -10,9 +10,121 @@
 //! holes; cached documents retain their leases when Program order changes.
 //! Checker transient symbols use the tagged high half of `SymbolId`.
 
-use tsc_binder::{Binder, Symbol, SymbolArena, SymbolId, SymbolTable};
+use std::sync::Arc;
+
+use tsc_binder::{BindData, Binder, Symbol, SymbolArena, SymbolId, SymbolTable};
 use tsc_syntax::{NodeArray, NodeArrayId, NodeId, SourceFile};
 use tsc_types::{SymbolFlags, TRANSIENT_SYMBOL_BIT};
+
+/// Immutable parsed source handle retained by a Program snapshot.
+#[derive(Clone, Debug)]
+pub struct ParsedDocument {
+    pub source: Arc<SourceFile>,
+}
+
+impl ParsedDocument {
+    pub fn new(source: Arc<SourceFile>) -> Self {
+        Self { source }
+    }
+}
+
+/// Immutable result of one completed bind. The worker that produced `data`
+/// is gone before this record is published.
+#[derive(Clone, Debug)]
+pub struct BoundDocument {
+    pub parsed: Arc<ParsedDocument>,
+    pub data: BindData,
+}
+
+impl BoundDocument {
+    pub fn new(parsed: Arc<ParsedDocument>, data: BindData) -> Self {
+        Self { parsed, data }
+    }
+
+    pub fn source(&self) -> &SourceFile {
+        &self.parsed.source
+    }
+}
+
+/// Ordered immutable document handles and the per-Program library boundary.
+/// The checker borrows this snapshot by cloning only its `Arc` handles; it
+/// never reparses or rebinds an unchanged document while constructing a fresh
+/// checker session.
+#[derive(Clone, Debug)]
+pub struct ProgramSnapshot {
+    documents: Vec<Arc<BoundDocument>>,
+    lib_count: usize,
+}
+
+impl ProgramSnapshot {
+    pub fn new(
+        documents: Vec<Arc<BoundDocument>>,
+        lib_count: usize,
+    ) -> Result<Self, ProgramIdentityError> {
+        if documents.is_empty() {
+            return Err(ProgramIdentityError::EmptyProgram);
+        }
+        if lib_count > documents.len() {
+            return Err(ProgramIdentityError::EmptyOwner {
+                space: ProgramIdentitySpace::Node,
+                file: lib_count,
+            });
+        }
+        Ok(Self {
+            documents,
+            lib_count,
+        })
+    }
+
+    pub fn documents(&self) -> &[Arc<BoundDocument>] {
+        &self.documents
+    }
+
+    pub fn document(&self, index: usize) -> &Arc<BoundDocument> {
+        &self.documents[index]
+    }
+
+    pub fn file_count(&self) -> usize {
+        self.documents.len()
+    }
+
+    pub fn lib_count(&self) -> usize {
+        self.lib_count
+    }
+}
+
+struct LegacyProgramEntry<'a> {
+    binder: &'a Binder<'a>,
+    data: BindData,
+}
+
+enum ProgramEntry<'a> {
+    Legacy(LegacyProgramEntry<'a>),
+    Owned(&'a Arc<BoundDocument>),
+}
+
+impl<'a> ProgramEntry<'a> {
+    fn source(&self) -> &'a SourceFile {
+        match self {
+            Self::Legacy(entry) => entry.binder.source,
+            Self::Owned(document) => document.source(),
+        }
+    }
+
+    fn data(&self) -> &BindData {
+        match self {
+            Self::Legacy(entry) => &entry.data,
+            Self::Owned(document) => &document.data,
+        }
+    }
+}
+
+/// Source projection used by compatibility callers that previously iterated
+/// over `Binder` values. Checker internals access the immutable `BindData`
+/// through `ProgramBinder::file`.
+pub struct ProgramFile<'a> {
+    pub source: &'a SourceFile,
+}
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 struct ArenaOwner {
@@ -95,12 +207,11 @@ impl std::fmt::Display for ProgramIdentityError {
 impl std::error::Error for ProgramIdentityError {}
 
 pub struct ProgramBinder<'a> {
-    /// Per-file binder runs in program order — BORROWED so cached lib
-    /// binders (leaked, 'static) and per-program fixture binders can
-    /// share one program view; binders are read-only after
-    /// bind_source_file (M2 design), which the shared reference now
-    /// enforces structurally.
-    file_binders: Vec<&'a Binder<'a>>,
+    /// Ordered document entries. Legacy unit-test callers retain a borrowed
+    /// Binder worker, while production snapshots retain only an Arc-owned
+    /// BoundDocument. In both cases checker code sees the same immutable
+    /// BindData projection.
+    file_entries: Vec<ProgramEntry<'a>>,
     /// Node-id intervals in parse allocation order (ascending by start).
     node_owners: Vec<ArenaOwner>,
     /// Node-array-id intervals in parse allocation order.
@@ -140,15 +251,17 @@ fn validate_owner_intervals(
     Ok(())
 }
 
-fn validate_identity_domains(file_binders: &[&Binder<'_>]) -> Result<(), ProgramIdentityError> {
+fn validate_identity_domains(entries: &[ProgramEntry<'_>]) -> Result<(), ProgramIdentityError> {
     let mut program_anchor: Option<&tsc_types::IdentityLease> = None;
     let mut managed_program = None;
-    for (file, binder) in file_binders.iter().enumerate() {
+    for (file, entry) in entries.iter().enumerate() {
+        let source = entry.source();
+        let data = entry.data();
         let leases = [
-            binder.source.node_identity_lease(),
-            binder.source.array_identity_lease(),
-            binder.symbol_identity_lease(),
-            binder.private_name_serial_lease(),
+            source.node_identity_lease(),
+            source.array_identity_lease(),
+            data.symbol_identity_lease(),
+            data.private_name_serial_lease(),
         ];
         let present = leases.iter().filter(|lease| lease.is_some()).count();
         let managed = match present {
@@ -197,36 +310,80 @@ impl<'a> ProgramBinder<'a> {
         if file_binders.is_empty() {
             return Err(ProgramIdentityError::EmptyProgram);
         }
-        validate_identity_domains(&file_binders)?;
+        let entries = file_binders
+            .iter()
+            .map(|binder| {
+                ProgramEntry::Legacy(LegacyProgramEntry {
+                    binder,
+                    data: BindData::from_binder(binder),
+                })
+            })
+            .collect::<Vec<_>>();
+        Self::try_new_entries(entries)
+    }
 
-        let mut node_owners: Vec<ArenaOwner> = file_binders
+    /// Construct a checker view over an owned immutable ProgramSnapshot.
+    /// Only the snapshot's Arc handles are cloned; parsed trees and bind
+    /// results remain shared and no worker is retained.
+    pub fn from_snapshot(snapshot: &'a ProgramSnapshot) -> Self {
+        Self::try_from_snapshot(snapshot).expect("invalid Program snapshot identity ownership")
+    }
+
+    /// Fallible snapshot adapter used by fresh checker sessions.
+    pub fn try_from_snapshot(snapshot: &'a ProgramSnapshot) -> Result<Self, ProgramIdentityError> {
+        if snapshot.documents.is_empty() {
+            return Err(ProgramIdentityError::EmptyProgram);
+        }
+        let entries = snapshot
+            .documents
+            .iter()
+            .map(|document| ProgramEntry::Owned(document))
+            .collect::<Vec<_>>();
+        Self::try_new_entries_with_lib_count(entries, snapshot.lib_count)
+    }
+
+    fn try_new_entries(entries: Vec<ProgramEntry<'a>>) -> Result<Self, ProgramIdentityError> {
+        Self::try_new_entries_with_lib_count(entries, 0)
+    }
+
+    fn try_new_entries_with_lib_count(
+        file_entries: Vec<ProgramEntry<'a>>,
+        _lib_count: usize,
+    ) -> Result<Self, ProgramIdentityError> {
+        if file_entries.is_empty() {
+            return Err(ProgramIdentityError::EmptyProgram);
+        }
+        validate_identity_domains(&file_entries)?;
+
+        let mut node_owners: Vec<ArenaOwner> = file_entries
             .iter()
             .enumerate()
-            .map(|(file, binder)| ArenaOwner {
-                start: binder.source.arena.node_base(),
-                end: binder.source.arena.node_end(),
+            .map(|(file, entry)| ArenaOwner {
+                start: entry.source().arena.node_base(),
+                end: entry.source().arena.node_end(),
                 file,
             })
             .collect();
         node_owners.sort_unstable_by_key(|owner| (owner.start, owner.end, owner.file));
 
-        let mut array_owners: Vec<ArenaOwner> = file_binders
+        let mut array_owners: Vec<ArenaOwner> = file_entries
             .iter()
             .enumerate()
-            .map(|(file, binder)| ArenaOwner {
-                start: binder.source.arena.array_base(),
-                end: binder.source.arena.array_end(),
+            .map(|(file, entry)| ArenaOwner {
+                start: entry.source().arena.array_base(),
+                end: entry.source().arena.array_end(),
                 file,
             })
             .collect();
         array_owners.sort_unstable_by_key(|owner| (owner.start, owner.end, owner.file));
 
-        let mut symbol_owners: Vec<ArenaOwner> = file_binders
+        let mut symbol_owners: Vec<ArenaOwner> = file_entries
             .iter()
             .enumerate()
-            .filter_map(|(file, binder)| {
-                let start = binder.symbols.base();
-                let end = binder.symbols.next_id().0;
+            .filter_map(|(file, entry)| {
+                let data = entry.data();
+                let start = data.symbols.base();
+                let end = data.symbols.next_id().0;
                 (start != end).then_some(ArenaOwner { start, end, file })
             })
             .collect();
@@ -252,7 +409,7 @@ impl<'a> ProgramBinder<'a> {
         }
 
         Ok(Self {
-            file_binders,
+            file_entries,
             node_owners,
             array_owners,
             symbol_owners,
@@ -262,23 +419,25 @@ impl<'a> ProgramBinder<'a> {
 
     /// tsrs-native: Rust ProgramBinder collection accessor.
     pub fn file_count(&self) -> usize {
-        self.file_binders.len()
+        self.file_entries.len()
     }
 
     /// tsrs-native: Rust ProgramBinder iterator over borrowed file
     /// binders.
-    pub fn files(&self) -> impl Iterator<Item = &'a Binder<'a>> + '_ {
-        self.file_binders.iter().copied()
+    pub fn files(&self) -> impl Iterator<Item = ProgramFile<'_>> + '_ {
+        self.file_entries.iter().map(|entry| ProgramFile {
+            source: entry.source(),
+        })
     }
 
     /// tsrs-native: Rust ProgramBinder indexed file accessor.
-    pub fn file(&self, index: usize) -> &'a Binder<'a> {
-        self.file_binders[index]
+    pub fn file(&self, index: usize) -> &BindData {
+        self.file_entries[index].data()
     }
 
     /// tsrs-native: Rust ProgramBinder SourceFile projection.
     pub fn source(&self, index: usize) -> &'a SourceFile {
-        self.file_binders[index].source
+        self.file_entries[index].source()
     }
 
     /// Owning file of a node id (nodes allocate contiguously per file).
@@ -291,11 +450,11 @@ impl<'a> ProgramBinder<'a> {
     /// tsrs-native: multi-file arena routing for a numeric NodeId; tsc
     /// carries the SourceFile/object relationship directly.
     pub fn source_of_node(&self, node: NodeId) -> &'a SourceFile {
-        self.file_binders[self.file_index_of_node(node)].source
+        self.file_entries[self.file_index_of_node(node)].source()
     }
 
-    fn binder_of_node(&self, node: NodeId) -> &'a Binder<'a> {
-        self.file_binders[self.file_index_of_node(node)]
+    fn binder_of_node(&self, node: NodeId) -> &BindData {
+        self.file_entries[self.file_index_of_node(node)].data()
     }
 
     /// Owning file's arena lookup for a node-array id (arrays allocate
@@ -304,7 +463,7 @@ impl<'a> ProgramBinder<'a> {
     /// NodeArrayId.
     pub fn node_array(&self, id: NodeArrayId) -> &'a NodeArray {
         let index = Self::owner_file(&self.array_owners, id.0, "NodeArrayId");
-        self.file_binders[index].source.arena.node_array(id)
+        self.file_entries[index].source().arena.node_array(id)
     }
 
     fn owner_file(owners: &[ArenaOwner], id: u32, kind: &str) -> usize {
@@ -332,7 +491,10 @@ impl<'a> ProgramBinder<'a> {
     /// checker-owned transient arena; tsc carries object references.
     pub fn symbol(&self, id: SymbolId) -> &Symbol {
         match self.owner_of_symbol(id) {
-            Ok(file) => self.file_binders[file].symbols.symbol(id),
+            Ok(file) => match &self.file_entries[file] {
+                ProgramEntry::Legacy(entry) => entry.binder.symbols.symbol(id),
+                ProgramEntry::Owned(document) => document.data.symbols.symbol(id),
+            },
             Err(()) => self.transient.symbol(id),
         }
     }
@@ -382,7 +544,9 @@ impl<'a> ProgramBinder<'a> {
     /// tsrs-native: binder-table projection for tsc's direct
     /// `node.flags` property access.
     pub fn flags_of(&self, node: NodeId) -> tsc_types::NodeFlags {
-        self.binder_of_node(node).flags_of(node)
+        let source = self.source_of_node(node);
+        self.binder_of_node(node)
+            .flags_of(node, source.arena.node_base())
     }
 
     /// tsc isExternalOrCommonJsModule for the file owning `node`.
@@ -390,9 +554,12 @@ impl<'a> ProgramBinder<'a> {
     /// tsc-hash: e395fd4c4d5df1373eb3cc17bc653dfcd8f2e41b9e32d949b3063633dc02c07d
     /// tsc-span: _tsc.js:14119-14121
     pub fn is_external_or_common_js_module_of_node(&self, node: NodeId) -> bool {
-        let binder = self.binder_of_node(node);
-        binder.source.external_module_indicator.is_some()
-            || binder.common_js_module_indicator.is_some()
+        let file = self.file_index_of_node(node);
+        self.source(file).external_module_indicator.is_some()
+            || self.file_entries[file]
+                .data()
+                .common_js_module_indicator
+                .is_some()
     }
 
     /// tsc-port: isExternalModule @6.0.3
@@ -404,8 +571,7 @@ impl<'a> ProgramBinder<'a> {
     /// variant above also admits would over-filter trySymbolTable's
     /// UMD leg (50341).
     pub fn is_external_module_of_node(&self, node: NodeId) -> bool {
-        self.binder_of_node(node)
-            .source
+        self.source(self.file_index_of_node(node))
             .external_module_indicator
             .is_some()
     }

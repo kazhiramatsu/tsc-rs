@@ -17,7 +17,7 @@ use tsc_types::{
 
 use crate::instantiate::MapperId;
 use crate::links::{LinkSlot, LinksTables};
-use crate::program::ProgramBinder;
+use crate::program::{ProgramBinder, ProgramSnapshot};
 use crate::relate::RelationCaches;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -995,11 +995,22 @@ impl<'a> CheckerState<'a> {
     /// tsrs-native: Rust checker arena/cache construction around the
     /// separately ledgered initializeTypeChecker slices.
     pub fn from_program(binders: Vec<&'a Binder<'a>>, options: &'a CompilerOptions) -> Self {
+        Self::from_program_binder(ProgramBinder::new(binders), options)
+    }
+
+    /// Fresh checker-session construction over an already parsed and bound
+    /// immutable ProgramSnapshot. The snapshot is borrowed for the session;
+    /// no parser or binder work is performed here, and all checker caches
+    /// remain session-local.
+    pub fn from_snapshot(snapshot: &'a ProgramSnapshot, options: &'a CompilerOptions) -> Self {
+        Self::from_program_binder(ProgramBinder::from_snapshot(snapshot), options)
+    }
+
+    fn from_program_binder(mut binder: ProgramBinder<'a>, options: &'a CompilerOptions) -> Self {
         let strict_null_checks = options.strict_option_value(options.strict_null_checks);
         let strict_function_types = options.strict_option_value(options.strict_function_types);
         let exact_optional = options.exact_optional_property_types.unwrap_or(false);
         let tables = TypeTables::new(strict_null_checks, exact_optional);
-        let mut binder = ProgramBinder::new(binders);
 
         // The checker init block's symbols (46488-46496, 47006), in
         // tsc allocation order.

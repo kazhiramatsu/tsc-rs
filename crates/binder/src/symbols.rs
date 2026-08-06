@@ -74,7 +74,7 @@ impl Symbol {
 /// allocating SymbolId from a per-file base (the checker binds file N
 /// with the base continuing where file N-1 ended, then allocates its
 /// own transient symbols above all files). Single-file paths keep 0.
-#[derive(Debug, Default)]
+#[derive(Clone, Debug, Default)]
 pub struct SymbolArena {
     symbols: Vec<Symbol>,
     base: u32,

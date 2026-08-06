@@ -1,6 +1,9 @@
 use super::*;
+use crate::state::CheckerState;
+use std::sync::Arc;
+use tsc_binder::BinderWorker;
 use tsc_syntax::{parse_source_file, ParseOptions};
-use tsc_types::CompilerOptions;
+use tsc_types::{CompilerOptions, IdentityDomain};
 
 #[test]
 fn routes_parse_order_arenas_without_changing_program_order() {
@@ -148,4 +151,50 @@ fn try_new_rejects_overlap_and_cross_domain_programs() {
         ProgramBinder::try_new(vec![&first_binder, &second_binder]),
         Err(ProgramIdentityError::IdentityDomainMismatch { file: 1 })
     ));
+}
+
+#[test]
+fn snapshot_reuses_owned_handles_across_fresh_checker_sessions() {
+    let identity_domain = IdentityDomain::reclaiming();
+    let mut source = parse_source_file(
+        "/snapshot.ts",
+        "export const answer: number = 42;",
+        ParseOptions::default(),
+        None,
+    );
+    source
+        .relocate_into_identity_domain(&identity_domain)
+        .expect("source identity allocation");
+    let source = Arc::new(source);
+    let options = CompilerOptions::default();
+    let worker: BinderWorker<'_> =
+        BinderWorker::bind_in_identity_domain(&source, &options, &identity_domain)
+            .expect("bind identity allocation");
+    let data = worker.into_bind_data();
+    let parsed = Arc::new(ParsedDocument::new(Arc::clone(&source)));
+    let document = Arc::new(BoundDocument::new(parsed, data));
+    let snapshot =
+        ProgramSnapshot::new(vec![Arc::clone(&document)], 1).expect("snapshot identity allocation");
+
+    let mut first = CheckerState::from_snapshot(&snapshot, &options);
+    let mut second = CheckerState::from_snapshot(&snapshot, &options);
+
+    assert!(Arc::ptr_eq(snapshot.document(0), &document));
+    assert!(std::ptr::eq(first.binder.source(0), source.as_ref()));
+    assert!(std::ptr::eq(second.binder.source(0), source.as_ref()));
+    let first_transient = first
+        .binder
+        .create_symbol(SymbolFlags::PROPERTY, "first".to_owned());
+    let second_transient = second
+        .binder
+        .create_symbol(SymbolFlags::PROPERTY, "second".to_owned());
+    assert_eq!(first_transient, second_transient);
+    assert!(!std::ptr::eq(
+        first.binder.symbol(first_transient),
+        second.binder.symbol(second_transient)
+    ));
+    assert_eq!(
+        snapshot.document(0).data.next_symbol_id(),
+        document.data.next_symbol_id()
+    );
 }

@@ -105,7 +105,7 @@ function optionNames(options) {
 
 const inventory = {
   schema: 3,
-  status: "identity-leases-complete",
+  status: "owned-bind-state-complete",
   typescript: {
     version: ts.version,
     source_commit: "050880ce59e30b356b686bd3144efe24f875ebc8",
@@ -268,8 +268,12 @@ const inventory = {
         ...owner("crates/xtask/src/main.rs", "fn render_relocate_rs(schemas: &[NodeSchema])"),
       },
       bind_owner: {
-        storage: "SymbolArena symbol lease plus Binder private-name serial lease",
+        storage: "BinderWorker publication moves symbol/private-name leases into owned BindData",
         ...owner("crates/binder/src/declare.rs", "    private_name_serial_lease: Option<IdentityLease>,"),
+      },
+      program_snapshot_owner: {
+        storage: "Arc-owned ParsedDocument/BoundDocument handles ordered by ProgramSnapshot",
+        ...owner("crates/checker/src/program.rs", "pub struct ProgramSnapshot {")
       },
       program_owner_intervals: {
         contract: "base-sorted non-contiguous and non-overlapping",
