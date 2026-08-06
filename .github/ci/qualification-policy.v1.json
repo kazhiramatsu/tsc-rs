@@ -60,6 +60,13 @@
         ["node", ".github/ci/qualification.mjs", "check"]
       ],
       "l0-l1": [
+        ["node", "--check", "crates/oracle/l0-fixtures.mjs"],
+        ["node", "crates/oracle/l0-fixtures.mjs", "--check"],
+        ["node", "crates/oracle/l0-fixtures.mjs", "--smoke"],
+        ["node", "--check", "crates/oracle/l0-option-inventory.mjs"],
+        ["node", "crates/oracle/l0-option-inventory.mjs", "--check"],
+        ["node", "--check", "crates/oracle/l0-performance.mjs"],
+        ["node", "crates/oracle/l0-performance.mjs", "--check"],
         ["cargo", "test", "--locked", "--manifest-path", "crates/compiler/Cargo.toml", "--test", "contracts", "l0_work_counters"]
       ],
       "h1": [

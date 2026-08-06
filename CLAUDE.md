@@ -64,24 +64,28 @@ there.
    change classifier and required `gates` sentinel.
 8. Pushing to `origin` is allowed and expected: push the slice branch
    with `-u` while working. The current PR Actions workflow is a GitHub-only
-   guardrail: it classifies the trusted-base diff and runs focused Windows host
-   contracts only when host/path/toolchain infrastructure changes, with Cargo
-   parallelism capped at two. It does not run formatting, workspace check,
-   Node, Clippy, workspace tests, static/generated contracts, semantic history,
-   corpus conformance/recovery, invariants, evidence, readiness, or performance.
-   The workflow runs for pull requests and manual dispatch, not again after
-   every merge to `main`; the final `gates` job validates classification and
-   the applicable Windows result. Local `cargo xtask ci` remains required
-   before opening and before merging except for the exact Markdown-only rule
-   above; its result and trusted baseline are recorded in the PR body.
+   guardrail: it validates a schema-bound, fail-closed trusted-base
+   classification. Every non-documentation change runs formatting, a locked
+   all-target workspace check, common CI-contract tests, and selected bounded
+   L0/L1 or H1 controls; host/path/toolchain changes additionally run focused
+   Windows host contracts, with Cargo parallelism capped at two. It does not
+   run Clippy, workspace tests, semantic history, corpus conformance/recovery,
+   invariants, readiness, or performance qualification. The workflow runs for
+   pull requests, merge groups, pushes to `main`, manual dispatch, and the
+   declared scheduled-input check; the final `gates` job validates
+   classification and every selected PR lane. Local `cargo xtask ci` remains
+   required before opening and before merging except for the exact Markdown-
+   only rule above; its result and trusted baseline are recorded in the PR
+   body.
 
-   Before the first L0.1 or H1 runtime slice, land the expanded CI topology
-   defined by the L0/L1 and H1 design contracts: a required non-doc hosted
-   static lane, focused track tests, an authenticated exact HEAD/base-bound
-   full-gate receipt, scheduled stress coverage, and approved-runner
-   performance qualification.
-   Until then, a green hosted `gates` result alone is never acceptance evidence
-   for those runtime changes.
+   L0.0 froze the lane-selection, exact HEAD/base-bound receipt, and bounded
+   failure-artifact contracts and landed the common non-documentation hosted
+   guardrail plus deterministic scheduled inputs. Before the first L0.1 or H1
+   runtime slice is accepted, activate the remaining authority defined by the
+   L0/L1 and H1 designs: authenticated receipt status, the implementation-
+   specific focused tests, runtime stress coverage, and approved-runner
+   performance qualification. Until then, a green hosted `gates` result alone
+   is never acceptance evidence for those runtime changes.
 
 ## Verification quick reference
 
@@ -106,17 +110,19 @@ there.
   only after raw schema/hash/inventory/count/review validation; otherwise
   it regenerates the artifact with one single-threaded worker.
 - GitHub guardrail: `.github/workflows/ci.yml` currently performs fail-closed
-  change classification and the focused Windows host/program smoke only. It
-  does not run formatting, workspace check, or Node syntax checks. The
-  optional `cargo xtask ci --lane hosted` static diagnostic and its
+  change classification, formatting, a locked all-target workspace check,
+  CI-contract tests, selected bounded L0/L1 or H1 controls, and the applicable
+  focused Windows host/program smoke. The optional
+  `cargo xtask ci --lane hosted` static diagnostic and its
   `--history-sensitive --baseline <trusted-ref-or-sha>` mode remain available
   locally but are never selected automatically by Actions. The legacy
   `--lane rust|semantic [--baseline <trusted-ref-or-sha>]` split remains
   available for diagnosing either half of the full local gate. Except for the
   exact Markdown-only rule, slice acceptance still requires the unsplit local
   command above; a green GitHub guardrail is never a replacement for it. The
-  L0/L1 and H1 contracts make expanding this guardrail a prerequisite to their
-  first runtime slices.
+  L0/L1 and H1 contracts additionally require an authenticated exact-candidate
+  qualification status, runtime stress coverage, and approved-runner
+  performance evidence before their first runtime slices are accepted.
 - Conformance single band: `cargo xtask conformance [--band 2xxx]`
   (every gating run also enforces the A1 accepted-set ratchet;
   partial `--files`/`--limit` runs gate the executed-fixture

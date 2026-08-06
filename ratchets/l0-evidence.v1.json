@@ -1,0 +1,605 @@
+{
+  "schema": 1,
+  "status": "frozen",
+  "typescript_version": "6.0.3",
+  "observed_runtime_commit": "ea7f20bd2f771b9ae426399f006183c28bf5fd76",
+  "runtime_tree": {
+    "files": 354,
+    "sha256": "88bfd2c5492d3440ae36413d982f334428aa930bb90a9698297f51616c608dbe"
+  },
+  "fixture_manifest_sha256": "365bb5c697a16713926345936ce553cb9a8d93b65aa34bcfa6398334c26e5d47",
+  "measured_at_utc": "2026-08-06T05:04:41.256Z",
+  "runner": {
+    "id": "macos-arm64-local-approved",
+    "os": "darwin",
+    "architecture": "arm64",
+    "os_release": "25.5.0",
+    "product_version": "26.5.1",
+    "cpu": "Apple M5",
+    "logical_cpus": 10
+  },
+  "toolchain": {
+    "rustc": "rustc 1.93.0 (254b59607 2026-01-19)",
+    "node": "v25.2.1",
+    "cargo_build_jobs": 2,
+    "profile": "release",
+    "allocator_observer": "stats_alloc-0.1.10-example-only"
+  },
+  "binary": {
+    "path": "target/release/examples/h0_qualification",
+    "bytes": 11964768,
+    "sha256": "ae19b3abf0c5e9cba5c908b59a01b1a845eb3ce6cca72e1e0bd6f348d59cad70"
+  },
+  "workloads": [
+    {
+      "id": "explicit-root",
+      "args": [
+        "--noEmit",
+        "--ignoreConfig",
+        "main.ts"
+      ],
+      "workload_sha256": "4bbfbae8b077fd516ca66c0902794634d4cfb7845fce5c1e7a13cfe30163e1a2",
+      "samples": [
+        {
+          "ordinal": 0,
+          "temperature": "cold",
+          "wall_seconds": 0.493875,
+          "max_rss_bytes": 99172352,
+          "allocations": 1574997,
+          "deallocations": 1574996,
+          "reallocations": 191870,
+          "bytes_allocated": 159081958,
+          "bytes_deallocated": 159080934,
+          "bytes_reallocated": 69076427,
+          "work": {
+            "parsed_documents": 83,
+            "bound_documents": 83,
+            "full_text_copies": 249,
+            "full_text_bytes_copied": 8810205
+          }
+        },
+        {
+          "ordinal": 1,
+          "temperature": "warm",
+          "wall_seconds": 0.099586,
+          "max_rss_bytes": 95780864,
+          "allocations": 1574997,
+          "deallocations": 1574996,
+          "reallocations": 191870,
+          "bytes_allocated": 159081958,
+          "bytes_deallocated": 159080934,
+          "bytes_reallocated": 69076427,
+          "work": {
+            "parsed_documents": 83,
+            "bound_documents": 83,
+            "full_text_copies": 249,
+            "full_text_bytes_copied": 8810205
+          }
+        },
+        {
+          "ordinal": 2,
+          "temperature": "warm",
+          "wall_seconds": 0.099479,
+          "max_rss_bytes": 95862784,
+          "allocations": 1574997,
+          "deallocations": 1574996,
+          "reallocations": 191870,
+          "bytes_allocated": 159081958,
+          "bytes_deallocated": 159080934,
+          "bytes_reallocated": 69076427,
+          "work": {
+            "parsed_documents": 83,
+            "bound_documents": 83,
+            "full_text_copies": 249,
+            "full_text_bytes_copied": 8810205
+          }
+        },
+        {
+          "ordinal": 3,
+          "temperature": "warm",
+          "wall_seconds": 0.099235,
+          "max_rss_bytes": 95862784,
+          "allocations": 1574997,
+          "deallocations": 1574996,
+          "reallocations": 191870,
+          "bytes_allocated": 159081958,
+          "bytes_deallocated": 159080934,
+          "bytes_reallocated": 69076427,
+          "work": {
+            "parsed_documents": 83,
+            "bound_documents": 83,
+            "full_text_copies": 249,
+            "full_text_bytes_copied": 8810205
+          }
+        },
+        {
+          "ordinal": 4,
+          "temperature": "warm",
+          "wall_seconds": 0.099274,
+          "max_rss_bytes": 95846400,
+          "allocations": 1574997,
+          "deallocations": 1574996,
+          "reallocations": 191870,
+          "bytes_allocated": 159081958,
+          "bytes_deallocated": 159080934,
+          "bytes_reallocated": 69076427,
+          "work": {
+            "parsed_documents": 83,
+            "bound_documents": 83,
+            "full_text_copies": 249,
+            "full_text_bytes_copied": 8810205
+          }
+        },
+        {
+          "ordinal": 5,
+          "temperature": "warm",
+          "wall_seconds": 0.101066,
+          "max_rss_bytes": 95862784,
+          "allocations": 1574997,
+          "deallocations": 1574996,
+          "reallocations": 191870,
+          "bytes_allocated": 159081958,
+          "bytes_deallocated": 159080934,
+          "bytes_reallocated": 69076427,
+          "work": {
+            "parsed_documents": 83,
+            "bound_documents": 83,
+            "full_text_copies": 249,
+            "full_text_bytes_copied": 8810205
+          }
+        },
+        {
+          "ordinal": 6,
+          "temperature": "warm",
+          "wall_seconds": 0.101281,
+          "max_rss_bytes": 95797248,
+          "allocations": 1574997,
+          "deallocations": 1574996,
+          "reallocations": 191870,
+          "bytes_allocated": 159081958,
+          "bytes_deallocated": 159080934,
+          "bytes_reallocated": 69076427,
+          "work": {
+            "parsed_documents": 83,
+            "bound_documents": 83,
+            "full_text_copies": 249,
+            "full_text_bytes_copied": 8810205
+          }
+        },
+        {
+          "ordinal": 7,
+          "temperature": "warm",
+          "wall_seconds": 0.100718,
+          "max_rss_bytes": 95911936,
+          "allocations": 1574997,
+          "deallocations": 1574996,
+          "reallocations": 191870,
+          "bytes_allocated": 159081958,
+          "bytes_deallocated": 159080934,
+          "bytes_reallocated": 69076427,
+          "work": {
+            "parsed_documents": 83,
+            "bound_documents": 83,
+            "full_text_copies": 249,
+            "full_text_bytes_copied": 8810205
+          }
+        },
+        {
+          "ordinal": 8,
+          "temperature": "warm",
+          "wall_seconds": 0.100694,
+          "max_rss_bytes": 95911936,
+          "allocations": 1574997,
+          "deallocations": 1574996,
+          "reallocations": 191870,
+          "bytes_allocated": 159081958,
+          "bytes_deallocated": 159080934,
+          "bytes_reallocated": 69076427,
+          "work": {
+            "parsed_documents": 83,
+            "bound_documents": 83,
+            "full_text_copies": 249,
+            "full_text_bytes_copied": 8810205
+          }
+        }
+      ],
+      "summary": {
+        "cold_wall_seconds": 0.493875,
+        "cold_max_rss_bytes": 99172352,
+        "warm_median_wall_seconds": 0.10014,
+        "warm_p95_wall_seconds": 0.101281,
+        "warm_max_rss_bytes": 95911936,
+        "warm_median_allocations": 1574997,
+        "warm_p95_allocations": 1574997,
+        "warm_median_bytes_allocated": 159081958,
+        "warm_p95_bytes_allocated": 159081958
+      }
+    },
+    {
+      "id": "project",
+      "args": [
+        "--noEmit",
+        "--project",
+        "tsconfig.json"
+      ],
+      "workload_sha256": "61093c2d546dc0b46061a678ac0f8cb00397686aec3812aae6d0608fa344e68f",
+      "samples": [
+        {
+          "ordinal": 0,
+          "temperature": "cold",
+          "wall_seconds": 0.095825,
+          "max_rss_bytes": 92291072,
+          "allocations": 1503874,
+          "deallocations": 1503873,
+          "reallocations": 185952,
+          "bytes_allocated": 151160917,
+          "bytes_deallocated": 151159893,
+          "bytes_reallocated": 65971460,
+          "work": {
+            "parsed_documents": 67,
+            "bound_documents": 67,
+            "full_text_copies": 203,
+            "full_text_bytes_copied": 8499564
+          }
+        },
+        {
+          "ordinal": 1,
+          "temperature": "warm",
+          "wall_seconds": 0.095908,
+          "max_rss_bytes": 92307456,
+          "allocations": 1503874,
+          "deallocations": 1503873,
+          "reallocations": 185952,
+          "bytes_allocated": 151160917,
+          "bytes_deallocated": 151159893,
+          "bytes_reallocated": 65971460,
+          "work": {
+            "parsed_documents": 67,
+            "bound_documents": 67,
+            "full_text_copies": 203,
+            "full_text_bytes_copied": 8499564
+          }
+        },
+        {
+          "ordinal": 2,
+          "temperature": "warm",
+          "wall_seconds": 0.097011,
+          "max_rss_bytes": 92274688,
+          "allocations": 1503874,
+          "deallocations": 1503873,
+          "reallocations": 185952,
+          "bytes_allocated": 151160917,
+          "bytes_deallocated": 151159893,
+          "bytes_reallocated": 65971460,
+          "work": {
+            "parsed_documents": 67,
+            "bound_documents": 67,
+            "full_text_copies": 203,
+            "full_text_bytes_copied": 8499564
+          }
+        },
+        {
+          "ordinal": 3,
+          "temperature": "warm",
+          "wall_seconds": 0.096715,
+          "max_rss_bytes": 92405760,
+          "allocations": 1503874,
+          "deallocations": 1503873,
+          "reallocations": 185952,
+          "bytes_allocated": 151160917,
+          "bytes_deallocated": 151159893,
+          "bytes_reallocated": 65971460,
+          "work": {
+            "parsed_documents": 67,
+            "bound_documents": 67,
+            "full_text_copies": 203,
+            "full_text_bytes_copied": 8499564
+          }
+        },
+        {
+          "ordinal": 4,
+          "temperature": "warm",
+          "wall_seconds": 0.096932,
+          "max_rss_bytes": 92356608,
+          "allocations": 1503874,
+          "deallocations": 1503873,
+          "reallocations": 185952,
+          "bytes_allocated": 151160917,
+          "bytes_deallocated": 151159893,
+          "bytes_reallocated": 65971460,
+          "work": {
+            "parsed_documents": 67,
+            "bound_documents": 67,
+            "full_text_copies": 203,
+            "full_text_bytes_copied": 8499564
+          }
+        },
+        {
+          "ordinal": 5,
+          "temperature": "warm",
+          "wall_seconds": 0.097157,
+          "max_rss_bytes": 92422144,
+          "allocations": 1503874,
+          "deallocations": 1503873,
+          "reallocations": 185952,
+          "bytes_allocated": 151160917,
+          "bytes_deallocated": 151159893,
+          "bytes_reallocated": 65971460,
+          "work": {
+            "parsed_documents": 67,
+            "bound_documents": 67,
+            "full_text_copies": 203,
+            "full_text_bytes_copied": 8499564
+          }
+        },
+        {
+          "ordinal": 6,
+          "temperature": "warm",
+          "wall_seconds": 0.095772,
+          "max_rss_bytes": 92356608,
+          "allocations": 1503874,
+          "deallocations": 1503873,
+          "reallocations": 185952,
+          "bytes_allocated": 151160917,
+          "bytes_deallocated": 151159893,
+          "bytes_reallocated": 65971460,
+          "work": {
+            "parsed_documents": 67,
+            "bound_documents": 67,
+            "full_text_copies": 203,
+            "full_text_bytes_copied": 8499564
+          }
+        },
+        {
+          "ordinal": 7,
+          "temperature": "warm",
+          "wall_seconds": 0.09594,
+          "max_rss_bytes": 92438528,
+          "allocations": 1503874,
+          "deallocations": 1503873,
+          "reallocations": 185952,
+          "bytes_allocated": 151160917,
+          "bytes_deallocated": 151159893,
+          "bytes_reallocated": 65971460,
+          "work": {
+            "parsed_documents": 67,
+            "bound_documents": 67,
+            "full_text_copies": 203,
+            "full_text_bytes_copied": 8499564
+          }
+        },
+        {
+          "ordinal": 8,
+          "temperature": "warm",
+          "wall_seconds": 0.09535,
+          "max_rss_bytes": 92422144,
+          "allocations": 1503874,
+          "deallocations": 1503873,
+          "reallocations": 185952,
+          "bytes_allocated": 151160917,
+          "bytes_deallocated": 151159893,
+          "bytes_reallocated": 65971460,
+          "work": {
+            "parsed_documents": 67,
+            "bound_documents": 67,
+            "full_text_copies": 203,
+            "full_text_bytes_copied": 8499564
+          }
+        }
+      ],
+      "summary": {
+        "cold_wall_seconds": 0.095825,
+        "cold_max_rss_bytes": 92291072,
+        "warm_median_wall_seconds": 0.096327,
+        "warm_p95_wall_seconds": 0.097157,
+        "warm_max_rss_bytes": 92438528,
+        "warm_median_allocations": 1503874,
+        "warm_p95_allocations": 1503874,
+        "warm_median_bytes_allocated": 151160917,
+        "warm_p95_bytes_allocated": 151160917
+      }
+    },
+    {
+      "id": "scale",
+      "args": [
+        "--noEmit",
+        "--project",
+        "tsconfig.json"
+      ],
+      "workload_sha256": "2df9761c2432b2ca06b22b919d4f743d6dcc9bfdbbe8a3295bb13786dfc3650f",
+      "samples": [
+        {
+          "ordinal": 0,
+          "temperature": "cold",
+          "wall_seconds": 0.208421,
+          "max_rss_bytes": 176914432,
+          "allocations": 5140959,
+          "deallocations": 5140958,
+          "reallocations": 335486,
+          "bytes_allocated": 455897892,
+          "bytes_deallocated": 455896868,
+          "bytes_reallocated": 121215612,
+          "work": {
+            "parsed_documents": 95,
+            "bound_documents": 95,
+            "full_text_copies": 287,
+            "full_text_bytes_copied": 9862208
+          }
+        },
+        {
+          "ordinal": 1,
+          "temperature": "warm",
+          "wall_seconds": 0.208141,
+          "max_rss_bytes": 177455104,
+          "allocations": 5140959,
+          "deallocations": 5140958,
+          "reallocations": 335486,
+          "bytes_allocated": 455897892,
+          "bytes_deallocated": 455896868,
+          "bytes_reallocated": 121215612,
+          "work": {
+            "parsed_documents": 95,
+            "bound_documents": 95,
+            "full_text_copies": 287,
+            "full_text_bytes_copied": 9862208
+          }
+        },
+        {
+          "ordinal": 2,
+          "temperature": "warm",
+          "wall_seconds": 0.209042,
+          "max_rss_bytes": 177045504,
+          "allocations": 5140959,
+          "deallocations": 5140958,
+          "reallocations": 335486,
+          "bytes_allocated": 455897892,
+          "bytes_deallocated": 455896868,
+          "bytes_reallocated": 121215612,
+          "work": {
+            "parsed_documents": 95,
+            "bound_documents": 95,
+            "full_text_copies": 287,
+            "full_text_bytes_copied": 9862208
+          }
+        },
+        {
+          "ordinal": 3,
+          "temperature": "warm",
+          "wall_seconds": 0.208879,
+          "max_rss_bytes": 176898048,
+          "allocations": 5140959,
+          "deallocations": 5140958,
+          "reallocations": 335486,
+          "bytes_allocated": 455897892,
+          "bytes_deallocated": 455896868,
+          "bytes_reallocated": 121215612,
+          "work": {
+            "parsed_documents": 95,
+            "bound_documents": 95,
+            "full_text_copies": 287,
+            "full_text_bytes_copied": 9862208
+          }
+        },
+        {
+          "ordinal": 4,
+          "temperature": "warm",
+          "wall_seconds": 0.212354,
+          "max_rss_bytes": 177029120,
+          "allocations": 5140959,
+          "deallocations": 5140958,
+          "reallocations": 335486,
+          "bytes_allocated": 455897892,
+          "bytes_deallocated": 455896868,
+          "bytes_reallocated": 121215612,
+          "work": {
+            "parsed_documents": 95,
+            "bound_documents": 95,
+            "full_text_copies": 287,
+            "full_text_bytes_copied": 9862208
+          }
+        },
+        {
+          "ordinal": 5,
+          "temperature": "warm",
+          "wall_seconds": 0.21059,
+          "max_rss_bytes": 176898048,
+          "allocations": 5140959,
+          "deallocations": 5140958,
+          "reallocations": 335486,
+          "bytes_allocated": 455897892,
+          "bytes_deallocated": 455896868,
+          "bytes_reallocated": 121215612,
+          "work": {
+            "parsed_documents": 95,
+            "bound_documents": 95,
+            "full_text_copies": 287,
+            "full_text_bytes_copied": 9862208
+          }
+        },
+        {
+          "ordinal": 6,
+          "temperature": "warm",
+          "wall_seconds": 0.211614,
+          "max_rss_bytes": 177045504,
+          "allocations": 5140959,
+          "deallocations": 5140958,
+          "reallocations": 335486,
+          "bytes_allocated": 455897892,
+          "bytes_deallocated": 455896868,
+          "bytes_reallocated": 121215612,
+          "work": {
+            "parsed_documents": 95,
+            "bound_documents": 95,
+            "full_text_copies": 287,
+            "full_text_bytes_copied": 9862208
+          }
+        },
+        {
+          "ordinal": 7,
+          "temperature": "warm",
+          "wall_seconds": 0.209998,
+          "max_rss_bytes": 176848896,
+          "allocations": 5140959,
+          "deallocations": 5140958,
+          "reallocations": 335486,
+          "bytes_allocated": 455897892,
+          "bytes_deallocated": 455896868,
+          "bytes_reallocated": 121215612,
+          "work": {
+            "parsed_documents": 95,
+            "bound_documents": 95,
+            "full_text_copies": 287,
+            "full_text_bytes_copied": 9862208
+          }
+        },
+        {
+          "ordinal": 8,
+          "temperature": "warm",
+          "wall_seconds": 0.211975,
+          "max_rss_bytes": 176898048,
+          "allocations": 5140959,
+          "deallocations": 5140958,
+          "reallocations": 335486,
+          "bytes_allocated": 455897892,
+          "bytes_deallocated": 455896868,
+          "bytes_reallocated": 121215612,
+          "work": {
+            "parsed_documents": 95,
+            "bound_documents": 95,
+            "full_text_copies": 287,
+            "full_text_bytes_copied": 9862208
+          }
+        }
+      ],
+      "summary": {
+        "cold_wall_seconds": 0.208421,
+        "cold_max_rss_bytes": 176914432,
+        "warm_median_wall_seconds": 0.210294,
+        "warm_p95_wall_seconds": 0.212354,
+        "warm_max_rss_bytes": 177455104,
+        "warm_median_allocations": 5140959,
+        "warm_p95_allocations": 5140959,
+        "warm_median_bytes_allocated": 455897892,
+        "warm_p95_bytes_allocated": 455897892
+      }
+    }
+  ],
+  "relative_regression_policy": {
+    "comparison": "same-approved-runner-alternating-baseline-candidate",
+    "minimum_paired_samples": 7,
+    "order": "alternating-ab-ba",
+    "absolute_h0_ratchet": "ratchets/h0-qualification.v1.json",
+    "ceilings": {
+      "warm_median_wall_ratio": 1.1,
+      "warm_p95_wall_ratio": 1.15,
+      "peak_rss_ratio": 1.1,
+      "allocation_count_ratio": 1.02,
+      "allocated_bytes_ratio": 1.03,
+      "parsed_documents_ratio": 1,
+      "bound_documents_ratio": 1,
+      "full_text_copies_ratio": 1,
+      "full_text_bytes_copied_ratio": 1
+    },
+    "moving_hosted_runner_can_mint_or_relax": false
+  }
+}

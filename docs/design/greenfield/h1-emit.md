@@ -1,9 +1,10 @@
 # H1: filesystem-hosted JavaScript emit execution contract
 
-Status: design started. No H1 implementation or compatibility claim exists
-until the H1.0 inventory, oracle, and no-emit performance baseline described
-below are frozen. H0 remains the released, frozen single-project `--noEmit`
-profile. M9 remains a separate paused batch-diagnostics qualification track.
+Status: design started; the shared L0.0 evidence/CI-contract freeze is
+complete. No H1 implementation or compatibility claim exists until the H1.0
+inventory, oracle, and post-L0/L1 no-emit performance baseline described below
+are frozen. H0 remains the released, frozen single-project `--noEmit` profile.
+M9 remains a separate paused batch-diagnostics qualification track.
 
 The persistent-source `L0` foundation and incremental-parser `L1` proof in
 [the LSP/incremental design](lsp-and-incremental.md) are workspace
@@ -501,7 +502,10 @@ parsing cannot hide a regression outside the original small canary.
 
 H1 must not rely on one undifferentiated hosted job. Before H1.1 changes
 runtime behavior, the repository needs four explicit lanes with distinct
-authority:
+authority. L0.0 has landed the common static/focused guardrail and strict
+receipt/failure schemas, but it has not activated the trusted receipt producer,
+H1 runtime selections, scheduled emit stress, or approved-runner H1
+qualification:
 
 1. **Required PR guardrail.** Every non-documentation change runs
    `cargo fmt --check`, the non-linking locked all-target command
