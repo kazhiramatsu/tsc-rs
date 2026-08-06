@@ -336,18 +336,26 @@ pub struct CheckWorkCounters {
 }
 
 impl CheckWorkCounters {
+    /// tsrs-native: expose the L0 parse-work observation without changing the
+    /// pinned checker algorithm.
     pub const fn parsed_documents(self) -> u64 {
         self.parsed_documents
     }
 
+    /// tsrs-native: expose the L0 bind-work observation without changing the
+    /// pinned binder algorithm.
     pub const fn bound_documents(self) -> u64 {
         self.bound_documents
     }
 
+    /// tsrs-native: expose the Rust ownership projection count used by the L0
+    /// resource contract.
     pub const fn full_text_copies(self) -> u64 {
         self.full_text_copies
     }
 
+    /// tsrs-native: expose the Rust ownership projection bytes used by the L0
+    /// resource contract.
     pub const fn full_text_bytes_copied(self) -> u64 {
         self.full_text_bytes_copied
     }
