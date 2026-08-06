@@ -64,6 +64,8 @@ pub struct InputFile {
 }
 
 impl InputFile {
+    /// tsrs-native: construct a one-shot L0 snapshot at the checker
+    /// compatibility edge.
     pub fn new(name: impl Into<String>, text: impl Into<String>) -> Self {
         Self {
             name: name.into(),
@@ -71,6 +73,8 @@ impl InputFile {
         }
     }
 
+    /// tsrs-native: retain the exact producer-owned L0 snapshot Arc at the
+    /// checker compatibility edge.
     pub fn from_snapshot(name: impl Into<String>, snapshot: Arc<TextSnapshot>) -> Self {
         Self {
             name: name.into(),
@@ -78,10 +82,13 @@ impl InputFile {
         }
     }
 
+    /// tsrs-native: expose the shared L0 snapshot owner without its private
+    /// store lineage.
     pub fn snapshot(&self) -> &Arc<TextSnapshot> {
         &self.snapshot
     }
 
+    /// tsrs-native: borrow contiguous parser text from the shared L0 snapshot.
     pub fn text(&self) -> &str {
         self.snapshot.text()
     }
