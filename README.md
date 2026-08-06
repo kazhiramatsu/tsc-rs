@@ -56,11 +56,54 @@ Requirements:
 - Node.js for oracle probes, conformance comparisons, and golden refreshes.
   The accepted version is pinned in [`.node-version`](.node-version).
 
-Clone the repository and run the workspace checks:
+Clone the repository first:
 
 ```sh
 git clone https://github.com/kazhiramatsu/tsc-rs.git
 cd tsc-rs
+```
+
+### Build the tagged H0 no-emit snapshot
+
+`h0-noemit-v1` is the frozen TypeScript 6.0.3-compatible, single-project
+`--noEmit` snapshot. Build that exact tag as follows:
+
+```sh
+git fetch --tags
+git switch --detach h0-noemit-v1
+
+cargo build \
+  --release \
+  --locked \
+  --manifest-path crates/compiler/Cargo.toml
+```
+
+The executable is `target/release/tsc-rs`:
+
+```sh
+./target/release/tsc-rs --version
+./target/release/tsc-rs --noEmit -p /path/to/project
+```
+
+To install the same tagged binary into Cargo's executable directory instead:
+
+```sh
+cargo install --locked --path crates/compiler
+tsc-rs --noEmit -p /path/to/project
+```
+
+The build reads the checked-in `vendor/typescript-6.0.3/lib` catalog and
+embeds it in the binary; it performs no package/bootstrap download and does
+not require Node.js. After the binary is built or installed, execution does
+not require either Node.js or the repository's `vendor/` directory.
+
+### Contributor checkout
+
+To return to current development and run the workspace checks:
+
+```sh
+git switch main
+git pull --ff-only
 
 CARGO_BUILD_JOBS=2 cargo build --workspace
 CARGO_BUILD_JOBS=2 cargo test --workspace -- --test-threads=2
