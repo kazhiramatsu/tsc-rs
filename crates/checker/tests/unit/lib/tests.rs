@@ -1,5 +1,19 @@
 use super::*;
 
+fn assert_one_cached_library_saved_work(
+    owned: CheckWorkCounters,
+    cached: CheckWorkCounters,
+    library_bytes: usize,
+) {
+    assert_eq!(owned.parsed_documents(), cached.parsed_documents() + 1);
+    assert_eq!(owned.bound_documents(), cached.bound_documents() + 1);
+    assert_eq!(owned.full_text_copies(), cached.full_text_copies() + 1);
+    assert_eq!(
+        owned.full_text_bytes_copied(),
+        cached.full_text_bytes_copied() + library_bytes as u64
+    );
+}
+
 #[test]
 fn empty_engine_returns_no_diagnostics() {
     let result = check_program(&[], &CompilerOptions::default());
@@ -734,6 +748,11 @@ fn cache_off_owned_prefix_matches_cached_harness_result() {
     );
 
     assert_eq!(owned, cached);
+    assert_one_cached_library_saved_work(
+        owned.work_counters,
+        cached.work_counters,
+        libs[0].text.len(),
+    );
     assert_eq!(owned_phases, cached_phases);
     assert_eq!(
         owned_phases,
@@ -810,6 +829,11 @@ fn authoritative_owned_and_harness_cached_modes_are_exactly_equivalent() {
     let owned = run(false, &Provider { fail: false }).expect("owned authoritative result");
     let cached = run(true, &Provider { fail: false }).expect("cached authoritative result");
     assert_eq!(owned, cached);
+    assert_one_cached_library_saved_work(
+        owned.work_counters,
+        cached.work_counters,
+        libs[0].text.len(),
+    );
     assert_eq!(
         cached
             .semantic_diagnostics

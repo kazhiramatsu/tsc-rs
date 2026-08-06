@@ -243,7 +243,7 @@
         "storage": "String",
         "path": "crates/checker/src/lib.rs",
         "line": 57,
-        "source_sha256": "9011581abdda6761d992270acc9a6af9d1f0362638dd941698f1ca9ade41caf0",
+        "source_sha256": "f58d3f680ee39fd6a639ede06cccdc6e4e14eaf0c93c144ebf54376d08eaf4f0",
         "evidence": "pub struct InputFile {"
       },
       {
@@ -260,8 +260,8 @@
         "from": "PreparedSourceFile.text",
         "to": "InputFile.text",
         "path": "crates/compiler/src/lib.rs",
-        "line": 852,
-        "source_sha256": "9249e3c0627a767bd1b223ca5630c6bfd7ec0db57027e03ff6be7862bb7c2b03",
+        "line": 867,
+        "source_sha256": "2b6851a11ed3f281381daf5e6638aea384cb57faaab31a361b4438938009f1fb",
         "evidence": "            text: source.text().to_owned(),"
       },
       {
@@ -269,8 +269,8 @@
         "to": "SourceFile.text",
         "branch": "json",
         "path": "crates/checker/src/lib.rs",
-        "line": 1374,
-        "source_sha256": "9011581abdda6761d992270acc9a6af9d1f0362638dd941698f1ca9ade41caf0",
+        "line": 1390,
+        "source_sha256": "f58d3f680ee39fd6a639ede06cccdc6e4e14eaf0c93c144ebf54376d08eaf4f0",
         "evidence": "            let source_file = tsc_syntax::parse_json_text_with_bases("
       },
       {
@@ -278,8 +278,8 @@
         "to": "SourceFile.text",
         "branch": "ordinary",
         "path": "crates/checker/src/lib.rs",
-        "line": 1473,
-        "source_sha256": "9011581abdda6761d992270acc9a6af9d1f0362638dd941698f1ca9ade41caf0",
+        "line": 1489,
+        "source_sha256": "f58d3f680ee39fd6a639ede06cccdc6e4e14eaf0c93c144ebf54376d08eaf4f0",
         "evidence": "        let source_file = tsc_syntax::parse_source_file("
       },
       {

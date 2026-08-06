@@ -271,7 +271,7 @@ impl std::fmt::Display for AuthoritativeModuleFailure {
 
 impl std::error::Error for AuthoritativeModuleFailure {}
 
-#[derive(Clone, Debug, Default, Eq, PartialEq)]
+#[derive(Clone, Debug, Default)]
 pub struct CheckResult {
     pub diagnostics: DiagnosticList,
     /// `program.getSyntacticDiagnostics(sourceFile)`, flattened in
@@ -301,9 +301,25 @@ pub struct CheckResult {
     pub partial_checks: Vec<PartialCheck>,
     /// Coarse document work performed by this invocation. The counters are
     /// updated only at parse/bind entry boundaries; they never add a branch
-    /// to node, symbol, or type hot loops.
+    /// to node, symbol, or type hot loops. Operational work is intentionally
+    /// excluded from result equality; callers compare it explicitly through
+    /// this field or its accessors.
     pub work_counters: CheckWorkCounters,
 }
+
+impl PartialEq for CheckResult {
+    fn eq(&self, other: &Self) -> bool {
+        self.diagnostics == other.diagnostics
+            && self.syntactic_diagnostics == other.syntactic_diagnostics
+            && self.semantic_diagnostics == other.semantic_diagnostics
+            && self.global_diagnostics == other.global_diagnostics
+            && self.suggestion_diagnostics == other.suggestion_diagnostics
+            && self.file_diagnostics == other.file_diagnostics
+            && self.partial_checks == other.partial_checks
+    }
+}
+
+impl Eq for CheckResult {}
 
 /// Parse/bind and full-text-copy observations for one checker invocation.
 ///

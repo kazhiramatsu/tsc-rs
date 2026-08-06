@@ -558,7 +558,7 @@ impl ProgramSession {
 /// Buckets retain their getter-local ordering. [`diagnostics`](Self::diagnostics)
 /// and [`into_diagnostics`](Self::into_diagnostics) expose the command driver
 /// order without re-sorting across bucket boundaries.
-#[derive(Clone, Debug, Default, Eq, PartialEq)]
+#[derive(Clone, Debug, Default)]
 pub struct NoEmitOutcome {
     config_diagnostics: DiagnosticList,
     syntactic_diagnostics: DiagnosticList,
@@ -569,8 +569,23 @@ pub struct NoEmitOutcome {
     // per-file getters, including suggestions. This stream is retained only
     // as evidence; diagnostics()/into_diagnostics intentionally exclude it.
     conformance_diagnostics: DiagnosticList,
+    // Operational evidence is not part of diagnostic-result equality. Tests
+    // and qualification compare it explicitly through work_counters().
     work_counters: NoEmitWorkCounters,
 }
+
+impl PartialEq for NoEmitOutcome {
+    fn eq(&self, other: &Self) -> bool {
+        self.config_diagnostics == other.config_diagnostics
+            && self.syntactic_diagnostics == other.syntactic_diagnostics
+            && self.options_diagnostics == other.options_diagnostics
+            && self.global_diagnostics == other.global_diagnostics
+            && self.semantic_diagnostics == other.semantic_diagnostics
+            && self.conformance_diagnostics == other.conformance_diagnostics
+    }
+}
+
+impl Eq for NoEmitOutcome {}
 
 /// Coarse H0/L0 work observations for one no-emit session.
 ///
