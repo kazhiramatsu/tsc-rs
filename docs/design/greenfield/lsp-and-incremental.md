@@ -1,7 +1,7 @@
 # LSP and incremental parsing — persistent Program foundation
 
-Status: L0.0 evidence freeze complete, 2026-08-06; L0.1 text ownership is
-next. The architecture audit found that the current one-shot data model is
+Status: L0.1 text ownership complete, 2026-08-06; L0.2 identity leases are
+next. The architecture audit found that the L0.0 one-shot data model was
 **not sufficient** for efficient Language Service, tsserver, or LSP operation.
 A bounded persistent-source foundation (`L0`) and the incremental-parser proof
 (`L1`) must land before H1 emit implementation starts. This does not put
@@ -67,10 +67,10 @@ not an immutable/persistent-tree algorithm. A Rust implementation may use an
 immutable copy-on-reuse adaptation, but it must not describe that adaptation
 as tsc's literal mutation behavior or claim JavaScript object-identity parity.
 
-## 2. Current Rust audit
+## 2. L0.0 Rust audit
 
-Several existing choices are good foundations, but the complete ownership
-chain is currently one-shot.
+Several entry-state choices were good foundations, but the complete ownership
+chain was one-shot before L0.1. Section 8.2 records the accepted replacement.
 
 | Layer | Useful current property | Blocking gap |
 | --- | --- | --- |
@@ -519,14 +519,14 @@ document/program snapshots.
 
 The recommended order is now:
 
-1. **L0.0 — evidence freeze:** add parse/bind/text-copy counters, current H0
+1. **L0.0 — evidence freeze (complete):** add parse/bind/text-copy counters, current H0
    latency/RSS/allocation measurements and a same-runner relative regression
    policy, large-file edit fixtures, source/options key inventories, and the
    CI lane/receipt/failure-artifact schemas required below;
-2. **L0.1 — text ownership:** introduce shared text and accessor-only static
+2. **L0.1 — text ownership (complete):** introduce shared text and accessor-only static
    position indexes, remove full-text projection copies, then port the
    versioned line/snapshot store;
-3. **L0.2 — identity leases:** generate node/array/symbol relocation, admit
+3. **L0.2 — identity leases (next):** generate node/array/symbol relocation, admit
    non-contiguous owner ranges, and prove release/no-overlap/exhaustion
    behavior;
 4. **L0.3 — owned bind state:** split `BinderWorker` from `BindData`, construct
@@ -594,10 +594,69 @@ fixture input, and strict receipt/failure-artifact schemas live under
 `.github/ci` and `.github/workflows/ci.yml`. Receipt validation requires the
 exact candidate/base and immutable inputs plus trusted-runner OIDC or a
 registered signer; unsigned files, artifacts, and PR comments are rejected.
-L0.0 freezes and tests that contract but does not yet install a trusted status
-producer, run the future edit/registry stress workload, or mint performance
-ratchets on hosted Actions. Those authorities must be activated before an
-L0.1 runtime change can be accepted.
+L0.0 froze and tested that contract without treating an unsigned summary as
+acceptance. L0.1 activates the exact status producer, text-store stress, and
+approved-runner comparison described in section 8.2. Registry/Program churn,
+incremental-parser exactness, and their resource gates remain L0.2-L1 work.
+
+### 8.2 L0.1 accepted text-ownership record
+
+L0.1 completed on 2026-08-06. Its qualified runtime is commit
+`846e4d8cf44cc475e74bc93c8c17835cb158783a`, compared with exact base
+`298705ef79525dd50c888af013202b4505520435`. Later evidence and documentation
+commits qualify only when their runtime-tree fingerprint remains identical to
+that candidate. The accepted ownership boundary is:
+
+- `TextSnapshot` owns one `Arc<str>` and one `Arc<PositionIndex>` together
+  with an opaque host `DocumentVersion` and private same-store lineage.
+  Prepared/config/auxiliary/package inputs, checker `InputFile`, and syntax
+  `SourceFile` retain that exact snapshot Arc; production projection no
+  longer clones complete source text.
+- Batch H0 snapshots use the accessor-only dense position index and do not
+  instantiate the edited tree. The edited representation is an immutable
+  persistent line tree with subtree byte, UTF-16, and line counts; local edits
+  rebuild the bounded neighboring-line path needed to preserve CRLF while
+  sharing untouched subtrees.
+- Byte and UTF-16 edit ranges are distinct types. Conversion rejects UTF-8 or
+  surrogate midpoints rather than rounding, and line accounting recognizes
+  LF, CR, CRLF, LS, and PS while intentionally excluding NEL.
+- `VersionedTextStore` separates host versions from internal ancestry,
+  materializes at the TypeScript-compatible ninth-pending-edit or greater-
+  than-256-UTF-16 threshold, retains at most eight published ancestors, and
+  returns a collapsed change range only for a retained same-store ancestor.
+- The parser still borrows a contiguous `&str`; an edited store materializes
+  exactly once when it publishes a snapshot. The H0 adapter therefore keeps
+  its one-shot parse/bind behavior and dense lookup cost without entering the
+  future registry or incremental-parser path.
+
+The checked-in
+[source/options inventory](../../../ratchets/l0-source-options.v1.json)
+enumerates every snapshot owner, Arc-sharing edge, position representation,
+and now-empty production full-text-copy edge. Diagnostics owns deterministic
+Unicode/property tests, syntax/checker/compiler own exact Arc identity tests,
+and the scheduled `text-stress` authority runs 20,000 byte/UTF-16 edits over
+the frozen 1 MiB input with a flat-string/dense-index oracle, bounded history,
+and a 512 MiB RSS ceiling. The acceptance run published 1,564 snapshots and
+observed 44,580,864 bytes maximum RSS.
+
+The approved macOS arm64 comparison is checked in as
+[L0.1 performance evidence](../../../ratchets/l0-text-ownership-performance.v1.json).
+It contains one cold plus seven warm pairs per workload in alternating AB/BA
+order. Every ratio is candidate/base and remains below its frozen ceiling:
+
+| Workload | Warm median | Warm p95 | Peak RSS | Allocations | Allocated bytes | Candidate text copies / bytes |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| explicit root | 0.977492 | 0.985751 | 1.059255 | 0.999846 | 0.907713 | 0 / 0 |
+| project | 0.995548 | 0.994191 | 1.064928 | 0.999873 | 0.906290 | 0 / 0 |
+| scale | 0.985875 | 0.975245 | 1.010251 | 0.999944 | 0.963931 | 0 / 0 |
+
+The active policy binds selected L0/L1 and H1 runtime candidates to the exact
+unsplit full-gate result, immutable inputs, GitHub OIDC attestation, verified
+signer workflow, and final receipt. Protected-main scheduled stress and the
+manual approved-runner performance workflow publish only bounded,
+content-addressed evidence. L0.2 may build identity leases on this boundary;
+it must not expose snapshot lineage as a public revision or replace these
+authorities with the aggregate hosted sentinel.
 
 Thus full Language Service work should not precede H1, but L0 and L1 should.
 Completing them first is cheaper than retrofitting persistent identities,
@@ -661,31 +720,30 @@ edit-specific evidence:
    or registered-signer authentication defined by the
    [cross-track CI contract](compiler-compatibility-residual.md#114-cross-track-ci-and-qualification-topology)
    may post the required status; a hash or PR comment alone is insufficient.
-3. **Scheduled stress.** Protected-main runs long deterministic randomized
-   edit scripts, repeated open/edit/close and multi-project churn, option and
-   script-kind changes, registry/identity-range reclamation, cancellation,
-   bounded RSS, and fresh-versus-incremental exactness. A failure publishes a
-   bounded reproducer containing the initial text hash, ordered edits in both
-   coordinate domains, seed, option/version keys, reuse counters, owner ranges,
-   diagnostics, and resource observations.
+3. **Scheduled stress.** At L0.1, protected-main runs long deterministic
+   randomized byte/UTF-16 edit scripts, dense-oracle conversion checks,
+   bounded snapshot history, and bounded RSS. L0.2-L1 extend that authority
+   with repeated open/edit/close and multi-project churn, option and script-
+   kind changes, registry/identity-range reclamation, cancellation, and fresh-
+   versus-incremental exactness. A failure publishes a bounded reproducer
+   containing the available initial-text hash, ordered edits, seed, option/
+   version keys, reuse counters, owner ranges, diagnostics, and resource
+   observations.
 4. **Approved-runner performance.** The H0 relative guard and L1 large-file
    edit latency/allocation/RSS qualification run with alternating baseline and
    candidate samples on the frozen runner/profile. A moving hosted image may
    smoke the behavior but cannot mint or relax a performance ratchet.
 
-L0.0 has landed the schema-bound fail-closed classifier, common non-document
-format/locked-all-target lane, initial L0 focused evidence checks, applicable
-Windows host smoke, stable aggregate, frozen scheduled input, and strict
-receipt/failure schemas. The scheduled job currently validates and
-materializes the deterministic large-edit fixture; it does not claim the
-runtime stress in item 3. Likewise, no trusted status producer currently mints
-the exact authenticated receipt in item 2. A green `gates` sentinel or an
-unsigned summary is therefore not acceptance evidence for an L0/L1 runtime
-change. The remaining authorities and owner-focused runtime tests land no
-later than the first L0.1 runtime acceptance. Windows selection then expands
-with the persistent text, program, registry, path, toolchain, and compiler
-adapters that exercise platform-specific paths or file identity. Third-party
-Actions use reviewed full commit SHAs and Cargo resolution is locked.
+L0.1 has activated the schema-bound fail-closed classifier, common non-
+document format/locked-all-target lane, exact Arc/text-store tests, applicable
+Windows host smoke, stable aggregate, OIDC-attested exact full-gate producer,
+scheduled text-store stress, approved-runner H0 comparison, and strict bounded
+failure evidence. A green `gates` sentinel or unsigned summary remains
+insufficient: a selected runtime candidate requires the exact qualification.
+Windows selection expands in later slices with program, registry, path,
+toolchain, and compiler adapters that exercise platform-specific paths or file
+identity. Third-party Actions use reviewed full commit SHAs and Cargo
+resolution is locked.
 
 Language Service, tsserver, and LSP later add their query, protocol,
 cancellation, event-ordering, and platform matrices to this topology; their

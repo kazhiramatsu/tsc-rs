@@ -513,17 +513,16 @@ the common topology specified by
 [h1-emit.md](h1-emit.md#64-ci-and-qualification-topology), and
 [compiler-compatibility-residual.md](compiler-compatibility-residual.md#114-cross-track-ci-and-qualification-topology).
 
-Before the first L0.1 or H1 runtime change is accepted, the repository must
-activate an authenticated exact HEAD/base-bound full-gate status, add the
-runtime owner tests selected by that implementation, extend protected-main
-scheduled work from fixture validation to the required stress, and run
-performance/release qualification on an approved runner. The stable aggregate
-already fails closed for missing, skipped, or unknown selected hosted lanes,
-but it does not currently consume an authenticated full-gate receipt. A new
-commit, changed base, merge-queue composition, lockfile/toolchain/pin/profile
-change, or mismatched result hash invalidates any future merge summary. Until
-that authority is active, a green hosted `gates` sentinel is bounded feedback
-and cannot accept an L0/L1/H1 runtime change by itself.
+L0.1 activates an authenticated exact HEAD/base-bound full-gate result,
+text-owner tests, protected-main Unicode edit stress, and approved-runner H0
+comparison. The stable aggregate now requires the selected exact
+qualification and still fails closed for missing, skipped, or unknown lanes.
+A new commit, changed base, merge-queue composition, lockfile/toolchain/pin/
+profile change, or mismatched result hash invalidates the receipt. Later
+L0/L1 owners extend the same stress/performance scopes; H1 still must add emit-
+specific focused tests, scheduled stress, and approved-runner qualification
+before its first runtime change. A `gates` sentinel without the selected exact
+receipt remains bounded feedback, not acceptance authority.
 
 The new serializable summary must not turn the M8/M9 move-only conformance
 receipt into a cross-job artifact. The unsplit command still creates and
