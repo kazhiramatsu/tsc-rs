@@ -513,15 +513,15 @@ fn compiler_config_root_plans_match_the_frozen_typescript_oracle() {
                     .expect("extended source file name is a string")
             );
             assert_eq!(actual.file_name, unit.name.as_ref());
-            assert_eq!(actual.text.as_str(), unit.content.as_deref().unwrap_or(""));
+            assert_eq!(actual.text(), unit.content.as_deref().unwrap_or(""));
             assert_eq!(
-                actual.text.len() as u64,
+                actual.text().len() as u64,
                 expected_extended["content"]["utf8_bytes"]
                     .as_u64()
                     .expect("extended source byte count is u64")
             );
             assert_eq!(
-                sha256(actual.text.as_bytes()),
+                sha256(actual.text().as_bytes()),
                 expected_extended["content"]["sha256"]
                     .as_str()
                     .expect("extended source hash is a string")

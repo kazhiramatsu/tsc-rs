@@ -171,10 +171,7 @@ fn prepare_validated_case(context: &ValidatedCaseContext<'_>) -> FoundationResul
         let text = context.source(&encoded.name)?.text().to_owned();
         sources.insert(encoded.name.clone(), SourceIndex::new(&text)?);
         file_texts.insert(encoded.name.clone(), text.clone());
-        Ok(InputFile {
-            name: encoded.name.clone(),
-            text,
-        })
+        Ok(InputFile::new(encoded.name.clone(), text))
     };
     let libs = case
         .libs
@@ -319,10 +316,7 @@ fn decode_wire_files(
         let source = SourceIndex::new(&text)?;
         file_texts.insert(file.name.clone(), text.clone());
         sources.insert(file.name.clone(), source);
-        decoded.push(InputFile {
-            name: file.name.clone(),
-            text,
-        });
+        decoded.push(InputFile::new(file.name.clone(), text));
     }
     Ok(decoded)
 }

@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/kazhiramatsu/tsc-rs/.github/ci/contracts/qualification-result.schema.json",
+  "title": "tsc-rs attested exact merge qualification result",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "kind",
+    "head_sha",
+    "base_sha",
+    "inputs",
+    "lanes",
+    "commands",
+    "result_sha256"
+  ],
+  "properties": {
+    "schema": { "const": 1 },
+    "kind": { "const": "exact-merge-qualification-result" },
+    "head_sha": { "$ref": "merge-receipt.schema.json#/$defs/sha1" },
+    "base_sha": { "$ref": "merge-receipt.schema.json#/$defs/sha1" },
+    "inputs": { "$ref": "merge-receipt.schema.json#/properties/inputs" },
+    "lanes": { "$ref": "merge-receipt.schema.json#/properties/lanes" },
+    "commands": { "$ref": "merge-receipt.schema.json#/properties/commands" },
+    "result_sha256": { "$ref": "merge-receipt.schema.json#/$defs/sha256" }
+  }
+}

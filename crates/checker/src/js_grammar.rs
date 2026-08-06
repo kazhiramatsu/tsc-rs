@@ -6,9 +6,7 @@
 //! isExportEquals (8003) below — the old "fields the schema does not
 //! carry yet" note lapsed when nodes.rs gained them (m4-review CL-F7).
 
-use tsc_diagnostics::{
-    compute_line_map, gen, Diagnostic, DiagnosticMessage, LineMap, MessageChain, RelatedInfo,
-};
+use tsc_diagnostics::{gen, Diagnostic, DiagnosticMessage, MessageChain, RelatedInfo};
 use tsc_syntax::{
     for_each_child, LanguageVariant, NodeArrayId, NodeData, NodeId, SourceFile, SyntaxKind,
 };
@@ -30,7 +28,6 @@ pub(crate) fn get_js_syntactic_diagnostics(
     let mut walker = JsGrammarWalker {
         source,
         experimental_decorators,
-        line_map: compute_line_map(&source.text),
         diagnostics: Vec::new(),
     };
     walker.recurse(source.root);
@@ -40,7 +37,6 @@ pub(crate) fn get_js_syntactic_diagnostics(
 struct JsGrammarWalker<'a> {
     source: &'a SourceFile,
     experimental_decorators: bool,
-    line_map: LineMap,
     diagnostics: Vec<Diagnostic>,
 }
 
@@ -59,10 +55,9 @@ impl<'a> JsGrammarWalker<'a> {
     }
 
     fn to_utf16(&self, byte: usize) -> u32 {
-        self.line_map
-            .byte_to_utf16
-            .get(byte)
-            .copied()
+        self.source
+            .positions()
+            .byte_to_utf16(byte as u32)
             .unwrap_or(byte as u32)
     }
 
@@ -164,7 +159,7 @@ impl<'a> JsGrammarWalker<'a> {
                 let pos = if node.pos == node.end {
                     node.pos as usize
                 } else {
-                    tsc_syntax::skip_trivia(&self.source.text, node.pos as usize)
+                    tsc_syntax::skip_trivia(&self.source.text(), node.pos as usize)
                 };
                 (pos, node.end as usize)
             }
@@ -196,7 +191,7 @@ impl<'a> JsGrammarWalker<'a> {
 
     /// tsc getSpanOfTokenAtPosition: one token scanned fresh at `pos`.
     fn token_span_at(&self, pos: usize) -> (usize, usize) {
-        let tokens = tsc_syntax::scan_tokens(&self.source.text[pos..], LanguageVariant::Standard);
+        let tokens = tsc_syntax::scan_tokens(&self.source.text()[pos..], LanguageVariant::Standard);
         match tokens.first() {
             Some(token) => (pos + token.start as usize, pos + token.end as usize),
             None => (pos, pos),
@@ -204,7 +199,7 @@ impl<'a> JsGrammarWalker<'a> {
     }
 
     fn token_kind_at(&self, pos: usize) -> Option<SyntaxKind> {
-        tsc_syntax::scan_tokens(&self.source.text[pos..], LanguageVariant::Standard)
+        tsc_syntax::scan_tokens(&self.source.text()[pos..], LanguageVariant::Standard)
             .first()
             .map(|token| token.kind)
     }
@@ -628,7 +623,7 @@ impl<'a> JsGrammarWalker<'a> {
             }
             SyntaxKind::HeritageClause => {
                 let pos = tsc_syntax::skip_trivia(
-                    &self.source.text,
+                    &self.source.text(),
                     self.source.arena.node(id).pos as usize,
                 );
                 if self.token_kind_at(pos) == Some(SyntaxKind::ImplementsKeyword) {

@@ -88,10 +88,7 @@ fn accessor_implicit_any_is_an_error_or_suggestion_with_the_same_identity() {
                 class T { set typed(value: number) {} }\n";
     let rows = |options: CompilerOptions| {
         check_program(
-            &[InputFile {
-                name: "a.ts".to_owned(),
-                text: text.to_owned(),
-            }],
+            &[InputFile::new("a.ts".to_owned(), text.to_owned())],
             &options,
         )
         .diagnostics

@@ -356,7 +356,7 @@ impl<'a> CheckerState<'a> {
                     let source = self.binder.source_of_node(parent);
                     let parent_node = source.arena.node(parent);
                     (
-                        tsc_syntax::skip_trivia(&source.text, parent_node.pos as usize),
+                        tsc_syntax::skip_trivia(&source.text(), parent_node.pos as usize),
                         parent_node.end.max(parent_node.pos) as usize,
                     )
                 } else {
@@ -414,9 +414,9 @@ impl<'a> CheckerState<'a> {
         let source = self.binder.source_of_node(node);
         let array = source.arena.node_array(list);
         let start = (array.pos as usize).saturating_sub(1);
-        let end = tsc_syntax::skip_trivia(&source.text, array.end as usize)
+        let end = tsc_syntax::skip_trivia(&source.text(), array.end as usize)
             .saturating_add(1)
-            .min(source.text.len());
+            .min(source.text().len());
         (start, end)
     }
 

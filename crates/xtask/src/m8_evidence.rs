@@ -1259,10 +1259,7 @@ fn compare_program_with_mutation_canary(
         .map(|name| {
             let text = fs::read_to_string(vendor_lib_dir.join(name))?;
             file_texts.insert(name.clone(), text.clone());
-            Ok(InputFile {
-                name: name.clone(),
-                text,
-            })
+            Ok(InputFile::new(name.clone(), text))
         })
         .collect::<Result<Vec<_>, Box<dyn Error>>>()?;
     let files = program
@@ -1271,10 +1268,7 @@ fn compare_program_with_mutation_canary(
         .map(|file| {
             let text = String::from_utf8(BASE64.decode(&file.text_b64)?)?;
             file_texts.insert(file.name.clone(), text.clone());
-            Ok(InputFile {
-                name: file.name.clone(),
-                text,
-            })
+            Ok(InputFile::new(file.name.clone(), text))
         })
         .collect::<Result<Vec<_>, Box<dyn Error>>>()?;
     let result = check_program_with_libs_at(

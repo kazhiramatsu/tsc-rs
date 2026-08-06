@@ -169,6 +169,36 @@ export function receiptResultHash(receipt) {
   return sha256(canonical(semantic));
 }
 
+export function qualificationResultHash(result) {
+  const semantic = { ...result };
+  delete semantic.result_sha256;
+  return sha256(canonical(semantic));
+}
+
+export function validateQualificationResult(result) {
+  const required = ["schema", "kind", "head_sha", "base_sha", "inputs", "lanes", "commands", "result_sha256"];
+  if (!exactKeys(result, required)) throw new Error("qualification result has missing or unknown fields");
+  const receiptShape = {
+    ...result,
+    kind: "exact-merge-qualification",
+    authentication: {
+      kind: "trusted-runner-oidc",
+      issuer: "pending",
+      subject: "pending",
+      attestation_sha256: "0".repeat(64),
+    },
+  };
+  receiptShape.result_sha256 = receiptResultHash(receiptShape);
+  validateMergeReceipt(receiptShape);
+  if (result.schema !== 1 || result.kind !== "exact-merge-qualification-result") {
+    throw new Error("invalid qualification result discriminator");
+  }
+  if (result.result_sha256 !== qualificationResultHash(result)) {
+    throw new Error("qualification result digest mismatch");
+  }
+  return result;
+}
+
 export function validateMergeReceipt(receipt) {
   const required = ["schema", "kind", "head_sha", "base_sha", "inputs", "lanes", "commands", "result_sha256", "authentication"];
   if (!exactKeys(receipt, required)) throw new Error("merge receipt has missing or unknown fields");
@@ -239,18 +269,185 @@ export function loadPolicy() {
 }
 
 export function validatePolicy(policy) {
-  if (policy.schema !== 1 || policy.status !== "frozen" || policy.aggregate_check !== "gates") throw new Error("invalid qualification policy header");
+  if (policy.schema !== 1 || policy.status !== "active" || policy.aggregate_check !== "gates") throw new Error("invalid qualification policy header");
   if (policy.limits.changed_paths !== 4096 || policy.limits.failure_artifact_bytes !== 10_485_760) throw new Error("qualification bounds drifted");
   if (policy.classification.unknown_non_documentation !== "select-all") throw new Error("classification must fail closed");
+  const exact = policy.exact_merge_qualification;
+  if (exact.authority_workflow !== ".github/workflows/ci.yml" || exact.authority_job !== "exact_qualification" || exact.result_producer !== ".github/ci/qualification.mjs produce-result" || exact.result_contract !== ".github/ci/contracts/qualification-result.schema.json" || exact.receipt_contract !== ".github/ci/contracts/merge-receipt.schema.json" || exact.attestation_action !== "actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6") throw new Error("invalid exact qualification authority policy");
   if (policy.exact_merge_qualification.unsigned_receipts_qualify !== false) throw new Error("unsigned merge receipts must not qualify");
+  if (policy.scheduled_stress.authority_workflow !== ".github/workflows/ci.yml" || policy.scheduled_stress.authority_job !== "scheduled_stress" || policy.scheduled_stress.event !== "schedule" || !policy.scheduled_stress.active_scope.includes("randomized-edits")) throw new Error("invalid scheduled stress authority policy");
+  if (policy.approved_performance.authority_workflow !== ".github/workflows/l0-performance.yml" || policy.approved_performance.authority_job !== "qualify" || policy.approved_performance.environment !== "approved-performance" || policy.approved_performance.evidence !== "ratchets/l0-text-ownership-performance.v1.json") throw new Error("invalid performance authority binding");
   if (!policy.approved_performance.alternating_baseline_candidate || policy.approved_performance.moving_hosted_images_may_mint_ratchets) throw new Error("invalid performance authority policy");
-  for (const contract of ["lane-selection", "merge-receipt", "failure-artifact"]) {
+  for (const contract of ["lane-selection", "qualification-result", "merge-receipt", "failure-artifact"]) {
     const schema = JSON.parse(fs.readFileSync(path.join(contractDirectory, `${contract}.schema.json`), "utf8"));
     if (schema.$schema !== "https://json-schema.org/draft/2020-12/schema" || schema.additionalProperties !== false || !schema.$id.endsWith(`/${contract}.schema.json`)) {
       throw new Error(`invalid ${contract} JSON schema boundary`);
     }
   }
   return policy;
+}
+
+function fileSha256(filePath) {
+  return sha256(fs.readFileSync(path.join(workspace, filePath)));
+}
+
+function trackedTreeDigest(prefixes, exact = []) {
+  const exactSet = new Set(exact);
+  const paths = execFileSync("git", ["ls-files", "-z"], {
+    cwd: workspace,
+    maxBuffer: 64 * 1024 * 1024,
+  })
+    .toString("utf8")
+    .split("\0")
+    .filter(Boolean)
+    .filter((entry) => exactSet.has(entry) || prefixes.some((prefix) => entry.startsWith(prefix)))
+    .sort((left, right) => left.localeCompare(right));
+  const hash = crypto.createHash("sha256");
+  for (const entry of paths) {
+    hash.update(entry);
+    hash.update("\0");
+    hash.update(fileSha256(entry));
+    hash.update("\0");
+  }
+  return hash.digest("hex");
+}
+
+function qualificationInputs(selection) {
+  return {
+    rust_toolchain_sha256: fileSha256("rust-toolchain.toml"),
+    node_version_sha256: fileSha256(".node-version"),
+    cargo_lock_sha256: fileSha256("Cargo.lock"),
+    vendor_inventory_sha256: trackedTreeDigest(["vendor/"]),
+    suite_inventory_sha256: trackedTreeDigest([
+      "baselines/",
+      "tests/",
+      "ratchets/",
+      "crates/oracle/",
+      "crates/conformance/tests/",
+      "crates/harness/tests/",
+    ]),
+    qualification_profile_sha256: trackedTreeDigest(
+      [".github/ci/"],
+      [".github/workflows/ci.yml", ".github/workflows/l0-performance.yml"],
+    ),
+    lane_selection_sha256: sha256(canonical(selection)),
+  };
+}
+
+function produceQualificationResult({ baseSha, headSha, selectionPath, stdoutPath, stderrPath }) {
+  const exactBase = git("rev-parse", "--verify", `${baseSha}^{commit}`);
+  const exactHead = git("rev-parse", "--verify", `${headSha}^{commit}`);
+  if (git("rev-parse", "HEAD") !== exactHead || exactBase === exactHead) {
+    throw new Error("qualification result is not running at the declared distinct HEAD/base");
+  }
+  if (git("status", "--porcelain").length !== 0) {
+    throw new Error("qualification result refuses a dirty candidate worktree");
+  }
+  const selection = validateLaneSelection(JSON.parse(fs.readFileSync(selectionPath, "utf8")), loadPolicy().limits.changed_paths);
+  if (selection.head_sha !== exactHead || selection.base_sha !== exactBase || selection.docs_only) {
+    throw new Error("qualification selection does not bind this executable HEAD/base");
+  }
+  const command = {
+    argv: ["cargo", "xtask", "ci", "--baseline", exactBase],
+    exit_code: 0,
+    stdout_sha256: sha256(fs.readFileSync(stdoutPath)),
+    stderr_sha256: sha256(fs.readFileSync(stderrPath)),
+  };
+  const result = {
+    schema: 1,
+    kind: "exact-merge-qualification-result",
+    head_sha: exactHead,
+    base_sha: exactBase,
+    inputs: qualificationInputs(selection),
+    lanes: [{ name: "full", status: "success", result_sha256: sha256(canonical(command)) }],
+    commands: [command],
+    result_sha256: "0".repeat(64),
+  };
+  result.result_sha256 = qualificationResultHash(result);
+  return validateQualificationResult(result);
+}
+
+function finalizeReceipt(result, bundle, issuer, subject) {
+  validateQualificationResult(result);
+  if (!issuer || !subject) throw new Error("receipt finalization requires an OIDC issuer and subject");
+  JSON.parse(bundle.toString("utf8"));
+  const receipt = {
+    ...result,
+    kind: "exact-merge-qualification",
+    authentication: {
+      kind: "trusted-runner-oidc",
+      issuer,
+      subject,
+      attestation_sha256: sha256(bundle),
+    },
+  };
+  receipt.result_sha256 = receiptResultHash(receipt);
+  return validateMergeReceipt(receipt);
+}
+
+export function validateBoundReceipt(receipt, result, bundle, headSha, baseSha) {
+  validateMergeReceipt(receipt);
+  validateQualificationResult(result);
+  if (receipt.head_sha !== headSha || receipt.base_sha !== baseSha || result.head_sha !== headSha || result.base_sha !== baseSha) {
+    throw new Error("authenticated receipt does not bind the expected HEAD/base");
+  }
+  for (const key of ["inputs", "lanes", "commands"]) {
+    if (canonical(receipt[key]) !== canonical(result[key])) {
+      throw new Error(`authenticated receipt ${key} differ from the attested result`);
+    }
+  }
+  if (receipt.authentication.attestation_sha256 !== sha256(bundle)) {
+    throw new Error("authenticated receipt does not bind the verified attestation bundle");
+  }
+  return receipt;
+}
+
+function writeJson(target, value) {
+  fs.mkdirSync(path.dirname(target), { recursive: true });
+  fs.writeFileSync(target, `${JSON.stringify(value, null, 2)}\n`);
+}
+
+function produceFailureArtifact({ headSha, baseSha, track, sourcePath, payloadPath, contentType, seed, fixture, initialTextSha256 }) {
+  const policy = validatePolicy(loadPolicy());
+  const exactHead = git("rev-parse", "--verify", `${headSha}^{commit}`);
+  const exactBase = git("rev-parse", "--verify", `${baseSha}^{commit}`);
+  if (exactHead === exactBase || !isRelativeRepositoryPath(payloadPath)) {
+    throw new Error("failure artifact requires distinct commits and a repository-relative payload path");
+  }
+  const source = fs.readFileSync(sourcePath);
+  const limit = policy.limits.failure_artifact_bytes;
+  let payload = source;
+  let truncated = false;
+  if (source.length > limit) {
+    const marker = Buffer.from("\n...[failure payload truncated to policy bound]...\n", "utf8");
+    const side = Math.floor((limit - marker.length) / 2);
+    payload = Buffer.concat([source.subarray(0, side), marker, source.subarray(source.length - side)]);
+    truncated = true;
+  }
+  const absolutePayload = path.resolve(workspace, payloadPath);
+  if (absolutePayload !== workspace && !absolutePayload.startsWith(`${workspace}${path.sep}`)) {
+    throw new Error("failure payload escapes the repository workspace");
+  }
+  fs.mkdirSync(path.dirname(absolutePayload), { recursive: true });
+  fs.writeFileSync(absolutePayload, payload);
+  const reproducer = {};
+  if (seed) reproducer.seed = seed;
+  if (fixture) reproducer.fixture = fixture;
+  if (initialTextSha256) reproducer.initial_text_sha256 = initialTextSha256;
+  const artifact = {
+    schema: 1,
+    kind: "failure-artifact",
+    head_sha: exactHead,
+    base_sha: exactBase,
+    track,
+    payload_path: payloadPath,
+    content_type: contentType,
+    bytes: payload.length,
+    payload_sha256: sha256(payload),
+    truncated,
+    ...(Object.keys(reproducer).length > 0 ? { reproducer } : {}),
+  };
+  return validateFailureArtifact(artifact, payload, limit);
 }
 
 function git(...args) {
@@ -281,6 +478,8 @@ function argument(name) {
 function writeGithubOutput(selection, target) {
   const tracks = new Set(selection.selected.tracks);
   const lines = [
+    `head_sha=${selection.head_sha}`,
+    `base_sha=${selection.base_sha}`,
     `docs_only=${selection.docs_only}`,
     `static=${selection.selected.static}`,
     `host_platform=${selection.selected.host_platform}`,
@@ -313,6 +512,59 @@ function main() {
     process.stdout.write("authenticated exact merge receipt is valid\n");
     return;
   }
+  if (command === "produce-result") {
+    const baseSha = argument("--base");
+    const headSha = argument("--head");
+    const selectionPath = argument("--selection");
+    const stdoutPath = argument("--stdout");
+    const stderrPath = argument("--stderr");
+    const output = argument("--out");
+    if (!baseSha || !headSha || !selectionPath || !stdoutPath || !stderrPath || !output) {
+      throw new Error("produce-result requires --base, --head, --selection, --stdout, --stderr, and --out");
+    }
+    const result = produceQualificationResult({ baseSha, headSha, selectionPath, stdoutPath, stderrPath });
+    writeJson(path.resolve(output), result);
+    process.stdout.write(`wrote exact qualification result ${output}\n`);
+    return;
+  }
+  if (command === "finalize-receipt") {
+    const resultPath = argument("--result");
+    const bundlePath = argument("--bundle");
+    const issuer = argument("--issuer");
+    const subject = argument("--subject");
+    const output = argument("--out");
+    if (!resultPath || !bundlePath || !issuer || !subject || !output) {
+      throw new Error("finalize-receipt requires --result, --bundle, --issuer, --subject, and --out");
+    }
+    const receipt = finalizeReceipt(
+      JSON.parse(fs.readFileSync(resultPath, "utf8")),
+      fs.readFileSync(bundlePath),
+      issuer,
+      subject,
+    );
+    writeJson(path.resolve(output), receipt);
+    process.stdout.write(`wrote authenticated exact merge receipt ${output}\n`);
+    return;
+  }
+  if (command === "verify-bound-receipt") {
+    const receiptPath = argument("--receipt");
+    const resultPath = argument("--result");
+    const bundlePath = argument("--bundle");
+    const headSha = argument("--head");
+    const baseSha = argument("--base");
+    if (!receiptPath || !resultPath || !bundlePath || !headSha || !baseSha) {
+      throw new Error("verify-bound-receipt requires --receipt, --result, --bundle, --head, and --base");
+    }
+    validateBoundReceipt(
+      JSON.parse(fs.readFileSync(receiptPath, "utf8")),
+      JSON.parse(fs.readFileSync(resultPath, "utf8")),
+      fs.readFileSync(bundlePath),
+      headSha,
+      baseSha,
+    );
+    process.stdout.write("authenticated receipt is bound to the verified result and exact HEAD/base\n");
+    return;
+  }
   if (command === "verify-failure") {
     const input = argument("--path");
     const payloadPath = argument("--payload");
@@ -323,6 +575,32 @@ function main() {
       loadPolicy().limits.failure_artifact_bytes,
     );
     process.stdout.write("bounded failure artifact is valid\n");
+    return;
+  }
+  if (command === "write-failure") {
+    const headSha = argument("--head");
+    const baseSha = argument("--base");
+    const track = argument("--track");
+    const sourcePath = argument("--source");
+    const payloadPath = argument("--payload-path");
+    const contentType = argument("--content-type") ?? "text/plain";
+    const output = argument("--out");
+    if (!headSha || !baseSha || !track || !sourcePath || !payloadPath || !output) {
+      throw new Error("write-failure requires --head, --base, --track, --source, --payload-path, and --out");
+    }
+    const artifact = produceFailureArtifact({
+      headSha,
+      baseSha,
+      track,
+      sourcePath,
+      payloadPath,
+      contentType,
+      seed: argument("--seed"),
+      fixture: argument("--fixture"),
+      initialTextSha256: argument("--initial-text-sha256"),
+    });
+    writeJson(path.resolve(output), artifact);
+    process.stdout.write(`wrote bounded failure artifact ${output}\n`);
     return;
   }
   if (command === "classify") {
@@ -353,7 +631,7 @@ function main() {
     process.stdout.write(rendered);
     return;
   }
-  throw new Error("usage: qualification.mjs check|classify|verify-selection|verify-receipt|verify-failure ...");
+  throw new Error("usage: qualification.mjs check|classify|produce-result|finalize-receipt|verify-bound-receipt|write-failure|verify-selection|verify-receipt|verify-failure ...");
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href) {

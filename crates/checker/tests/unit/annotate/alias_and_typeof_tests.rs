@@ -43,10 +43,7 @@ fn circular_type_alias_reports_2456_and_yields_error_type() {
 fn jsdoc_enum_circular_alias_reports_2456_on_the_enum_type() {
     let source = "\n/** @enum {E} */\nconst E = { x: 0 };\n";
     let result = check_program(
-        &[InputFile {
-            name: "a.js".to_owned(),
-            text: source.to_owned(),
-        }],
+        &[InputFile::new("a.js".to_owned(), source.to_owned())],
         &CompilerOptions {
             allow_js: true,
             check_js: Some(true),

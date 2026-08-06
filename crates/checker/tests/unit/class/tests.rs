@@ -164,10 +164,10 @@ fn index_constraint_uses_the_written_property_name() {
 #[test]
 fn checked_js_typed_property_initialization_row_is_published() {
     let result = check_program(
-        &[InputFile {
-            name: "a.js".to_owned(),
-            text: "export class C { field: string; }\n".to_owned(),
-        }],
+        &[InputFile::new(
+            "a.js".to_owned(),
+            "export class C { field: string; }\n".to_owned(),
+        )],
         &CompilerOptions {
             allow_js: true,
             check_js: Some(true),

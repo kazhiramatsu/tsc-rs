@@ -14,12 +14,12 @@ use std::error::Error;
 use std::fmt;
 use std::io::IsTerminal;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
 use tsc_diagnostics::gen;
 use tsc_diagnostics::{
-    compute_line_starts, format_diagnostics_with_context, get_line_and_character_of_position,
-    sort_and_dedupe_diagnostic_indices_with_context, Diagnostic, FormatDiagnosticsHost,
-    MessageChain,
+    format_diagnostics_with_context, sort_and_dedupe_diagnostic_indices_with_context, Diagnostic,
+    FormatDiagnosticsHost, MessageChain, TextSnapshot,
 };
 use tsc_host::{CompilerHost, FsCompilerHost, HostError};
 use tsc_program::{
@@ -41,6 +41,7 @@ const EXIT_DIAGNOSTIC: i32 = 2;
 const EXIT_FAILURE: i32 = 2;
 const CONFIG_FILE_NAME: &str = "tsconfig.json";
 const TYPESCRIPT_VERSION: &str = "6.0.3";
+type DiagnosticSourceMap = BTreeMap<String, Arc<TextSnapshot>>;
 const DEFAULT_LIMITS: ProgramLoadLimits = ProgramLoadLimits::new(
     1_000_000,
     2_000_000,
@@ -475,14 +476,17 @@ fn execute_config(
     current_directory: &Path,
     catalog: &LibraryCatalog,
     plan: &ConfigRootPlan,
-    mut source_texts: BTreeMap<String, String>,
+    mut source_texts: DiagnosticSourceMap,
     no_emit_override: bool,
     pretty: bool,
 ) -> Result<CliOutput, CliError> {
     for source in plan.extended_sources() {
-        source_texts.insert(source.file_name.clone(), source.text.clone());
+        source_texts.insert(source.file_name.clone(), Arc::clone(source.snapshot()));
     }
-    source_texts.insert(plan.source().file_name.clone(), plan.source().text.clone());
+    source_texts.insert(
+        plan.source().file_name.clone(),
+        Arc::clone(plan.source().snapshot()),
+    );
     let prepared = if no_emit_override {
         load_config_program_with_no_emit_override(host, plan, catalog, DEFAULT_LIMITS)
     } else {
@@ -507,13 +511,13 @@ fn execute_config(
     for source in prepared.source_files() {
         source_texts.insert(
             source.path().display().display().to_string(),
-            source.text().to_owned(),
+            Arc::clone(source.snapshot()),
         );
     }
     for source in prepared.auxiliary_files() {
         source_texts.insert(
             source.path().display().display().to_string(),
-            source.text().to_owned(),
+            Arc::clone(source.snapshot()),
         );
     }
     let option_diagnostics = plan
@@ -555,7 +559,7 @@ fn execute_explicit_files(
     for source in prepared.source_files() {
         source_texts.insert(
             source.path().display().display().to_string(),
-            source.text().to_owned(),
+            Arc::clone(source.snapshot()),
         );
     }
     execute_prepared(current_directory, source_texts, prepared, &[], pretty)
@@ -563,7 +567,7 @@ fn execute_explicit_files(
 
 fn execute_prepared(
     current_directory: &Path,
-    source_texts: BTreeMap<String, String>,
+    source_texts: DiagnosticSourceMap,
     prepared: tsc_program::PreparedProgram,
     additional_diagnostics: &[Diagnostic],
     pretty: bool,
@@ -585,13 +589,7 @@ fn execute_prepared(
         diagnostics.extend(outcome.global_diagnostics().iter().cloned());
         diagnostics.extend(outcome.semantic_diagnostics().iter().cloned());
     }
-    let renderer_text_bytes = source_texts
-        .values()
-        .map(|text| text.len() as u64)
-        .sum::<u64>();
-    let work_counters = outcome
-        .work_counters()
-        .with_additional_full_text_projection(source_texts.len() as u64, renderer_text_bytes);
+    let work_counters = outcome.work_counters();
     rendered_diagnostics_with_work(
         current_directory,
         &source_texts,
@@ -603,7 +601,7 @@ fn execute_prepared(
 
 fn rendered_diagnostics(
     current_directory: &Path,
-    source_texts: &BTreeMap<String, String>,
+    source_texts: &DiagnosticSourceMap,
     diagnostics: &[Diagnostic],
     pretty: bool,
 ) -> Result<CliOutput, CliError> {
@@ -618,7 +616,7 @@ fn rendered_diagnostics(
 
 fn rendered_diagnostics_with_work(
     current_directory: &Path,
-    source_texts: &BTreeMap<String, String>,
+    source_texts: &DiagnosticSourceMap,
     diagnostics: &[Diagnostic],
     pretty: bool,
     work_counters: NoEmitWorkCounters,
@@ -635,7 +633,7 @@ fn rendered_diagnostics_with_work(
 
 fn rendered_diagnostics_with_exit(
     current_directory: &Path,
-    source_texts: &BTreeMap<String, String>,
+    source_texts: &DiagnosticSourceMap,
     diagnostics: &[Diagnostic],
     pretty: bool,
     exit_code: i32,
@@ -652,7 +650,7 @@ fn rendered_diagnostics_with_exit(
 
 fn rendered_diagnostics_with_exit_and_work(
     current_directory: &Path,
-    source_texts: &BTreeMap<String, String>,
+    source_texts: &DiagnosticSourceMap,
     diagnostics: &[Diagnostic],
     pretty: bool,
     exit_code: i32,
@@ -669,7 +667,7 @@ fn rendered_diagnostics_with_exit_and_work(
     let current_directory = current_directory
         .to_str()
         .ok_or_else(|| CliError::Render("current directory is not Unicode".to_owned()))?;
-    let host = FormatDiagnosticsHost::new(current_directory, source_texts);
+    let host = FormatDiagnosticsHost::from_snapshots(current_directory, source_texts);
     let text = if pretty {
         let mut text = format_diagnostics_with_context(diagnostics, &host)
             .map_err(|error| CliError::Render(error.to_string()))?;
@@ -702,7 +700,7 @@ fn append_pretty_error_summary(
     output: &mut String,
     diagnostics: &[Diagnostic],
     host: &FormatDiagnosticsHost<'_>,
-    source_texts: &BTreeMap<String, String>,
+    source_texts: &DiagnosticSourceMap,
     current_directory: &str,
 ) {
     let indices = sort_and_dedupe_diagnostic_indices_with_context(diagnostics, host);
@@ -734,9 +732,11 @@ fn append_pretty_error_summary(
                             .find(|(candidate, _)| normalize_slashes(candidate) == normalized)
                             .map(|(_, text)| text)
                     })
-                    .map(|text| {
-                        get_line_and_character_of_position(&compute_line_starts(text), start).line
-                            + 1
+                    .and_then(|snapshot| {
+                        snapshot
+                            .positions()
+                            .line_and_character_utf16(start)
+                            .map(|location| location.line + 1)
                     })
             })
             .unwrap_or(1);
@@ -1011,7 +1011,7 @@ fn default_pretty() -> bool {
 fn format_plain_diagnostics(
     diagnostics: &[Diagnostic],
     host: &FormatDiagnosticsHost<'_>,
-    source_texts: &BTreeMap<String, String>,
+    source_texts: &DiagnosticSourceMap,
     current_directory: &str,
 ) -> Result<String, String> {
     let indices = sort_and_dedupe_diagnostic_indices_with_context(diagnostics, host);
@@ -1019,19 +1019,19 @@ fn format_plain_diagnostics(
     for index in indices {
         let diagnostic = &diagnostics[index];
         if let Some(file_name) = diagnostic.file_name.as_deref() {
-            let text = source_texts
+            let snapshot = source_texts
                 .get(file_name)
                 .or_else(|| {
                     let normalized = normalize_slashes(file_name);
                     source_texts
                         .iter()
                         .find(|(candidate, _)| normalize_slashes(candidate) == normalized)
-                        .map(|(_, text)| text)
+                        .map(|(_, snapshot)| snapshot)
                 })
                 .ok_or_else(|| {
                     format!("diagnostic source text is unavailable for {file_name:?}")
                 })?;
-            let line_starts = compute_line_starts(text);
+            let text = snapshot.text();
             let position = diagnostic
                 .start
                 .ok_or_else(|| format!("diagnostic start is unavailable for {file_name:?}"))?;
@@ -1041,7 +1041,10 @@ fn format_plain_diagnostics(
             // their column.
             let text_length = text.encode_utf16().count() as u32;
             let position = position.min(text_length);
-            let location = get_line_and_character_of_position(&line_starts, position);
+            let location = snapshot
+                .positions()
+                .line_and_character_utf16(position)
+                .expect("clamped diagnostic position has a source line");
             output.push_str(&format!(
                 "{}({},{}): ",
                 relative_file_name(file_name, current_directory),
@@ -1097,7 +1100,7 @@ fn parse_config_file(
     current_directory: &Path,
     config_file: &Path,
     display_file_name: Option<&Path>,
-) -> Result<(ConfigRootPlan, BTreeMap<String, String>), CliError> {
+) -> Result<(ConfigRootPlan, DiagnosticSourceMap), CliError> {
     let bytes = host
         .read_file(config_file)
         .map_err(host_error)?
@@ -1120,13 +1123,16 @@ fn parse_config_file(
         &adapter,
         ConfigRootPlanRequest {
             file_name: display_file_name.to_owned(),
-            text: text.clone(),
+            text,
             base_path: base_path.to_owned(),
         },
     )
     .map_err(config_error)?;
     let mut source_texts = BTreeMap::new();
-    source_texts.insert(display_file_name.to_owned(), text);
+    source_texts.insert(
+        display_file_name.to_owned(),
+        Arc::clone(plan.source().snapshot()),
+    );
     Ok((plan, source_texts))
 }
 

@@ -568,7 +568,7 @@ fn config_diagnostic_plans_match_the_frozen_typescript_oracle() {
                 .iter()
                 .map(|source| json!({
                     "file_name": source.file_name,
-                    "text": source.text,
+                    "text": source.text(),
                 }))
                 .collect::<Vec<_>>(),
             expected_extended_sources

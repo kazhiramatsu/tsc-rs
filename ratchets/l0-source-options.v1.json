@@ -1,6 +1,6 @@
 {
-  "schema": 1,
-  "status": "frozen",
+  "schema": 2,
+  "status": "text-ownership-complete",
   "typescript": {
     "version": "6.0.3",
     "source_commit": "050880ce59e30b356b686bd3144efe24f875ebc8",
@@ -228,79 +228,161 @@
       "disableSizeLimit"
     ]
   },
-  "current_rust_source_ownership": {
+  "rust_source_ownership": {
     "representations": [
       {
-        "owner": "PreparedSourceFile.text",
-        "storage": "String",
+        "owner": "PreparedSourceFile.snapshot",
+        "storage": "Arc<TextSnapshot>",
         "path": "crates/program/src/prepared.rs",
         "line": 85,
-        "source_sha256": "9df05a9035000c21fac979b16cefa2a4b0b79f9b8d4ec5bcb09d395f6dc36db7",
+        "source_sha256": "65e9c407c215339f68c36f4434550907da54a29e90b401e9cca2b191130b218f",
         "evidence": "pub struct PreparedSourceFile {"
       },
       {
-        "owner": "InputFile.text",
-        "storage": "String",
+        "owner": "InputFile.snapshot",
+        "storage": "Arc<TextSnapshot>",
         "path": "crates/checker/src/lib.rs",
-        "line": 57,
-        "source_sha256": "a1e2ce979f9d441ed592104cf887ba848c1f55abd8b515a8b1e3fa8321b6a116",
+        "line": 61,
+        "source_sha256": "420698901e36085e72908a457c3ee117293889f6570fd97dc1eb2deaf870e40a",
         "evidence": "pub struct InputFile {"
       },
       {
-        "owner": "SourceFile.text",
-        "storage": "String",
+        "owner": "SourceFile.snapshot",
+        "storage": "Arc<TextSnapshot>",
+        "authority": "parsed-document-single-snapshot-authority",
         "path": "crates/syntax/src/lib.rs",
-        "line": 71,
-        "source_sha256": "1495bab3ffdf14e9c6502ab3d99b9f8e43d21feb25381542a7dee1f6bb92c405",
+        "line": 73,
+        "source_sha256": "8dbd4a22d94e6782bb02d8dccdce21ff66a94d3ae0a42b52f8dee2761ed155db",
         "evidence": "pub struct SourceFile {"
-      }
-    ],
-    "full_text_copy_edges": [
-      {
-        "from": "PreparedSourceFile.text",
-        "to": "InputFile.text",
-        "path": "crates/compiler/src/lib.rs",
-        "line": 867,
-        "source_sha256": "2b6851a11ed3f281381daf5e6638aea384cb57faaab31a361b4438938009f1fb",
-        "evidence": "            text: source.text().to_owned(),"
       },
       {
-        "from": "InputFile.text",
-        "to": "SourceFile.text",
+        "owner": "ConfigSourceText.snapshot",
+        "storage": "Arc<TextSnapshot>",
+        "path": "crates/program/src/config.rs",
+        "line": 261,
+        "source_sha256": "df5c86b1264402f67d898f030166cab4a19798e1f8fdd687753c6b4e6b99318c",
+        "evidence": "pub struct ConfigSourceText {"
+      },
+      {
+        "owner": "ProgramConfigFile.snapshot",
+        "storage": "Arc<TextSnapshot>",
+        "path": "crates/program/src/prepared.rs",
+        "line": 680,
+        "source_sha256": "65e9c407c215339f68c36f4434550907da54a29e90b401e9cca2b191130b218f",
+        "evidence": "pub struct ProgramConfigFile {"
+      },
+      {
+        "owner": "PreparedAuxiliaryFile.snapshot",
+        "storage": "Arc<TextSnapshot>",
+        "path": "crates/program/src/prepared.rs",
+        "line": 289,
+        "source_sha256": "65e9c407c215339f68c36f4434550907da54a29e90b401e9cca2b191130b218f",
+        "evidence": "pub struct PreparedAuxiliaryFile {"
+      },
+      {
+        "owner": "PackageMetadata.snapshot",
+        "storage": "Arc<TextSnapshot>",
+        "path": "crates/program/src/prepared.rs",
+        "line": 411,
+        "source_sha256": "65e9c407c215339f68c36f4434550907da54a29e90b401e9cca2b191130b218f",
+        "evidence": "pub struct PackageMetadata {"
+      }
+    ],
+    "shared_snapshot_edges": [
+      {
+        "from": "PreparedSourceFile.snapshot",
+        "to": "InputFile.snapshot",
+        "path": "crates/compiler/src/lib.rs",
+        "line": 849,
+        "source_sha256": "754e465f65e60381d81494ed717aa8af6a5c973e5a7191791b1989063ccaf089",
+        "evidence": "        InputFile::from_snapshot(name, Arc::clone(source.snapshot())),"
+      },
+      {
+        "from": "InputFile.snapshot",
+        "to": "SourceFile.snapshot",
         "branch": "json",
         "path": "crates/checker/src/lib.rs",
-        "line": 1398,
-        "source_sha256": "a1e2ce979f9d441ed592104cf887ba848c1f55abd8b515a8b1e3fa8321b6a116",
-        "evidence": "            let source_file = tsc_syntax::parse_json_text_with_bases("
+        "line": 1413,
+        "source_sha256": "420698901e36085e72908a457c3ee117293889f6570fd97dc1eb2deaf870e40a",
+        "evidence": "            let source_file = tsc_syntax::parse_json_text_from_snapshot_with_bases("
       },
       {
-        "from": "InputFile.text",
-        "to": "SourceFile.text",
+        "from": "InputFile.snapshot",
+        "to": "SourceFile.snapshot",
         "branch": "ordinary",
         "path": "crates/checker/src/lib.rs",
-        "line": 1497,
-        "source_sha256": "a1e2ce979f9d441ed592104cf887ba848c1f55abd8b515a8b1e3fa8321b6a116",
-        "evidence": "        let source_file = tsc_syntax::parse_source_file("
+        "line": 1512,
+        "source_sha256": "420698901e36085e72908a457c3ee117293889f6570fd97dc1eb2deaf870e40a",
+        "evidence": "        let source_file = tsc_syntax::parse_source_file_from_snapshot("
       },
       {
-        "from": "PreparedProgram source and auxiliary text",
-        "to": "CLI diagnostic source_texts",
-        "branch": "config-project",
-        "path": "crates/compiler/src/cli.rs",
-        "line": 513,
-        "source_sha256": "bf5a0aaeac86ee25a1f015accdb1ff60e73fc215530ddc57d07377a409ae1ebe",
-        "evidence": "    for source in prepared.auxiliary_files() {"
+        "from": "PreparedSourceFile.snapshot",
+        "to": "module-request SourceFile.snapshot",
+        "path": "crates/program/src/module_requests.rs",
+        "line": 304,
+        "source_sha256": "d09de400d3353e46048fd3703547ff69ec2c5481f8088dfadd62a305065d8a86",
+        "evidence": "    let parsed = parse_source_file_from_snapshot("
       },
       {
-        "from": "PreparedProgram source text",
-        "to": "CLI diagnostic source_texts",
-        "branch": "explicit-roots",
+        "from": "ConfigSourceText.snapshot",
+        "to": "ProgramConfigFile.snapshot",
+        "path": "crates/program/src/config.rs",
+        "line": 4544,
+        "source_sha256": "df5c86b1264402f67d898f030166cab4a19798e1f8fdd687753c6b4e6b99318c",
+        "evidence": "    let mut config_file = ProgramConfigFile::from_snapshot(path, Arc::clone(source.snapshot()));"
+      },
+      {
+        "from": "package-json ingress snapshot",
+        "to": "JSON SourceFile.snapshot and PackageMetadata.snapshot",
+        "path": "crates/program/src/json.rs",
+        "line": 57,
+        "source_sha256": "276fdb51d175d61fbabb1e84e9aa655158ed73d0fe06b8de314873213422a47f",
+        "evidence": "    let source = parse_json_text_from_snapshot("
+      },
+      {
+        "from": "prepared/config/auxiliary snapshots",
+        "to": "CLI diagnostic snapshot map",
         "path": "crates/compiler/src/cli.rs",
-        "line": 561,
-        "source_sha256": "bf5a0aaeac86ee25a1f015accdb1ff60e73fc215530ddc57d07377a409ae1ebe",
-        "evidence": "    execute_prepared(current_directory, source_texts, prepared, &[], pretty)"
+        "line": 670,
+        "source_sha256": "27eec2a5fa1886d482d5aa05813b80c0996cc0a60f820f005c5aac2bfa42b933",
+        "evidence": "    let host = FormatDiagnosticsHost::from_snapshots(current_directory, source_texts);"
       }
     ],
+    "full_text_copy_edges": [],
+    "zero_copy_counter_contract": {
+      "path": "crates/compiler/tests/integration/program_session_contract.rs",
+      "line": 228,
+      "source_sha256": "dcb17b58552e08778caadfd3e73060bbfd3a2e8eb04617159c5253b29a04a0cc",
+      "evidence": "fn l0_work_counters_and_sorted_batch_syntax_diagnostics() {"
+    },
+    "position_index": {
+      "static_h0": {
+        "representation": "private dense byte/UTF-16 tables",
+        "path": "crates/diagnostics/src/text.rs",
+        "line": 55,
+        "source_sha256": "ce60dc0aade474fa9b57d7e206058e2ea653c3cf02bcd704a26cfbea6d4d747b",
+        "evidence": "struct DensePositionIndex {"
+      },
+      "edited": {
+        "representation": "persistent line tree with subtree byte/UTF-16/line counts",
+        "path": "crates/diagnostics/src/text.rs",
+        "line": 237,
+        "source_sha256": "ce60dc0aade474fa9b57d7e206058e2ea653c3cf02bcd704a26cfbea6d4d747b",
+        "evidence": "struct PersistentLineTree {"
+      },
+      "accessor_contract": {
+        "path": "crates/diagnostics/src/text.rs",
+        "line": 517,
+        "source_sha256": "ce60dc0aade474fa9b57d7e206058e2ea653c3cf02bcd704a26cfbea6d4d747b",
+        "evidence": "    pub fn byte_to_utf16(&self, position: u32) -> Option<u32> {"
+      },
+      "versioned_store": {
+        "path": "crates/diagnostics/src/text.rs",
+        "line": 804,
+        "source_sha256": "ce60dc0aade474fa9b57d7e206058e2ea653c3cf02bcd704a26cfbea6d4d747b",
+        "evidence": "pub struct VersionedTextStore {"
+      }
+    },
     "compiler_options_owner": {
       "path": "crates/types/src/options.rs",
       "source_sha256": "002620757c9844eacd85a5f490cd83df9e6719d437ba9ba6ae203270bf918da0",

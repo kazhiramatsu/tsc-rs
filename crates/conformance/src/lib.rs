@@ -17,9 +17,7 @@ use tsc_checker::{
     harness_lib_bundle_options_key, prepare_harness_lib_bundle, CompilerOptions,
     HarnessLibBundleOptionsKey, InputFile, PartialCheck, PreparedHarnessLibBundle,
 };
-use tsc_diagnostics::{
-    compute_line_map, get_line_and_character_of_position, Diagnostic, MessageChain,
-};
+use tsc_diagnostics::{compute_line_map, Diagnostic, MessageChain};
 use tsc_oracle::{OracleDiag, OracleMessageChain, OraclePool};
 
 pub mod families;
@@ -508,10 +506,10 @@ pub fn run_prefix_conformance(
                     .files
                     .iter()
                     .map(|file| {
-                        Ok(InputFile {
-                            name: file.name.clone(),
-                            text: base64_decode_to_string(&file.text_b64)?,
-                        })
+                        Ok(InputFile::new(
+                            file.name.clone(),
+                            base64_decode_to_string(&file.text_b64)?,
+                        ))
                     })
                     .collect::<ConformanceResult<Vec<_>>>()?;
                 let libs = read_lib_inputs(&truncated.libs, &vendor_lib_dir)?;
@@ -2836,10 +2834,7 @@ fn read_lib_inputs(
         .map(|name| {
             let text = fs::read_to_string(vendor_lib_dir.join(name))
                 .map_err(|err| format!("failed to read lib {name}: {err}"))?;
-            Ok(InputFile {
-                name: name.clone(),
-                text,
-            })
+            Ok(InputFile::new(name.clone(), text))
         })
         .collect::<ConformanceResult<Vec<_>>>()?;
     let inputs = Arc::new(CachedLibInputs {
@@ -2878,10 +2873,7 @@ fn current_case_tsrs(
     for file in &program.files {
         let text = base64_decode_to_string(&file.text_b64)?;
         file_texts.insert(file.name.clone(), text.clone());
-        files.push(InputFile {
-            name: file.name.clone(),
-            text,
-        });
+        files.push(InputFile::new(file.name.clone(), text));
     }
 
     let libs = read_lib_inputs(&program.libs, vendor_lib_dir)?;
@@ -2964,7 +2956,7 @@ fn file_texts_for_program(
 ) -> ConformanceResult<BTreeMap<String, String>> {
     let mut file_texts = BTreeMap::new();
     for lib in read_lib_inputs(&program.libs, vendor_lib_dir)?.as_slice() {
-        file_texts.insert(lib.name.clone(), lib.text.clone());
+        file_texts.insert(lib.name.clone(), lib.text().to_owned());
     }
     for file in &program.files {
         file_texts.insert(file.name.clone(), base64_decode_to_string(&file.text_b64)?);
@@ -2986,20 +2978,22 @@ fn line_col_for_oracle(
         return (None, None);
     };
     let map = compute_line_map(text);
-    let line_col = get_line_and_character_of_position(&map.line_starts, start);
+    let line_col = map
+        .line_and_character_utf16(start)
+        .expect("oracle diagnostic starts inside its source text");
     (Some(line_col.line), Some(line_col.character))
 }
 
 struct TsrsLineMapCache<'a> {
     file_texts: &'a BTreeMap<String, String>,
-    line_starts: BTreeMap<String, Vec<u32>>,
+    indexes: BTreeMap<String, tsc_diagnostics::PositionIndex>,
 }
 
 impl<'a> TsrsLineMapCache<'a> {
     fn new(file_texts: &'a BTreeMap<String, String>) -> Self {
         Self {
             file_texts,
-            line_starts: BTreeMap::new(),
+            indexes: BTreeMap::new(),
         }
     }
 
@@ -3017,11 +3011,13 @@ impl<'a> TsrsLineMapCache<'a> {
         let Some(text) = self.file_texts.get(file_name) else {
             return (None, None);
         };
-        let line_starts = self
-            .line_starts
+        let index = self
+            .indexes
             .entry(file_name.clone())
-            .or_insert_with(|| compute_line_map(text).line_starts);
-        let line_col = get_line_and_character_of_position(line_starts, start);
+            .or_insert_with(|| compute_line_map(text));
+        let line_col = index
+            .line_and_character_utf16(start)
+            .expect("tsrs diagnostic starts inside its source text");
         (Some(line_col.line), Some(line_col.character))
     }
 }

@@ -46,8 +46,9 @@ use crate::nodes::{
 };
 use crate::scanner::{is_js_whitespace, is_whitespace_like, LanguageVariant, Scanner};
 use crate::{SourceFile, SyntaxKind, TypeReferenceDirective, TypeReferenceDirectiveResolutionMode};
+use std::sync::Arc;
 use tsc_diagnostics::{
-    compute_line_map, gen, Diagnostic, DiagnosticList, DiagnosticMessage, LineMap,
+    gen, Diagnostic, DiagnosticList, DiagnosticMessage, PositionIndex, TextSnapshot,
 };
 use tsc_diagnostics::{MessageChain, RelatedInfo};
 use tsc_types::{NodeFlags, ScriptTarget};
@@ -212,7 +213,7 @@ struct Parser<'text> {
     language_variant: LanguageVariant,
     javascript_file: bool,
     is_declaration_file: bool,
-    line_map: LineMap,
+    positions: Arc<PositionIndex>,
     context_flags: NodeFlags,
     /// tsc parseSourceFileWorker sourceFlags (29208): the initial
     /// context flags (Ambient for declaration files, JavaScriptFile
@@ -249,7 +250,6 @@ struct FinishedParse {
     language_version: ScriptTarget,
     language_variant: LanguageVariant,
     is_declaration_file: bool,
-    line_map: LineMap,
     arena: NodeArena,
     root: NodeId,
     parse_diagnostics: DiagnosticList,
@@ -791,6 +791,7 @@ impl<'text> Parser<'text> {
         Self::new_with_target(
             file_name,
             text,
+            Arc::new(PositionIndex::new_static(text)),
             ScriptTarget::ES2025,
             language_variant,
             javascript_file,
@@ -800,6 +801,7 @@ impl<'text> Parser<'text> {
     fn new_with_target(
         file_name: String,
         text: &'text str,
+        positions: Arc<PositionIndex>,
         language_version: ScriptTarget,
         language_variant: LanguageVariant,
         javascript_file: bool,
@@ -838,7 +840,7 @@ impl<'text> Parser<'text> {
             language_variant,
             javascript_file,
             is_declaration_file,
-            line_map: compute_line_map(text),
+            positions,
             context_flags: source_flags,
             source_flags,
             parse_diagnostics: Vec::new(),
@@ -9431,7 +9433,6 @@ impl<'text> Parser<'text> {
             language_version: self.language_version,
             language_variant: self.language_variant,
             is_declaration_file: self.is_declaration_file,
-            line_map: self.line_map,
             arena: self.arena,
             root,
             parse_diagnostics: self.parse_diagnostics,
@@ -9553,29 +9554,39 @@ impl<'text> Parser<'text> {
     }
 
     fn to_utf16(&self, byte_offset: usize) -> u32 {
-        self.line_map
-            .byte_to_utf16
-            .get(byte_offset)
-            .copied()
-            .unwrap_or_else(|| {
-                self.line_map
-                    .byte_to_utf16
-                    .last()
-                    .copied()
-                    .expect("line map always contains EOF")
-            })
+        let byte_offset = byte_offset.min(self.positions.byte_len() as usize) as u32;
+        self.positions
+            .byte_to_utf16(byte_offset)
+            .expect("parser offsets are UTF-8 scalar boundaries")
     }
 }
 
-pub fn parse_source_file(
+#[allow(dead_code)]
+fn parse_source_file(
     file_name: String,
     text: String,
     options: ParseOptions,
+    cursor: Option<&SyntaxCursor>,
+) -> SourceFile {
+    parse_source_file_from_snapshot(
+        file_name,
+        TextSnapshot::new(text, tsc_diagnostics::DocumentVersion::default()),
+        options,
+        cursor,
+    )
+}
+
+pub fn parse_source_file_from_snapshot(
+    file_name: String,
+    snapshot: Arc<TextSnapshot>,
+    options: ParseOptions,
     _cursor: Option<&SyntaxCursor>,
 ) -> SourceFile {
+    let text = snapshot.text();
     let mut parser = Parser::new_with_target(
         file_name,
-        &text,
+        text,
+        snapshot.shared_positions(),
         options.script_target,
         options.language_variant,
         options.javascript_file,
@@ -9623,12 +9634,11 @@ pub fn parse_source_file(
         .or_else(|| force_external_module.then_some(finished.root));
     SourceFile {
         file_name: finished.file_name,
-        text,
+        snapshot,
         language_version: finished.language_version,
         language_variant: finished.language_variant,
         is_declaration_file: finished.is_declaration_file,
         js_doc_parsing_mode: options.js_doc_parsing_mode,
-        line_map: finished.line_map,
         arena: finished.arena,
         root: finished.root,
         external_module_indicator,
@@ -9647,19 +9657,29 @@ pub fn parse_source_file(
 
 /// tsc Parser.parseJsonText. The JavaScriptFile/JsonFile context flags are
 /// not stamped (nothing consumes them yet).
-pub fn parse_json_text(file_name: String, text: String) -> SourceFile {
-    parse_json_text_with_bases(file_name, text, 0, 0)
+#[allow(dead_code)]
+fn parse_json_text(file_name: String, text: String) -> SourceFile {
+    parse_json_text_from_snapshot(
+        file_name,
+        TextSnapshot::new(text, tsc_diagnostics::DocumentVersion::default()),
+    )
 }
 
-pub fn parse_json_text_with_bases(
+pub fn parse_json_text_from_snapshot(file_name: String, snapshot: Arc<TextSnapshot>) -> SourceFile {
+    parse_json_text_from_snapshot_with_bases(file_name, snapshot, 0, 0)
+}
+
+pub fn parse_json_text_from_snapshot_with_bases(
     file_name: String,
-    text: String,
+    snapshot: Arc<TextSnapshot>,
     node_id_base: u32,
     node_array_id_base: u32,
 ) -> SourceFile {
+    let text = snapshot.text();
     let mut parser = Parser::new_with_target(
         file_name,
-        &text,
+        text,
+        snapshot.shared_positions(),
         ScriptTarget::ES2015,
         LanguageVariant::Standard,
         false,
@@ -9747,12 +9767,11 @@ pub fn parse_json_text_with_bases(
     let finished = parser.finish(statements, end_of_file_token, false);
     SourceFile {
         file_name: finished.file_name,
-        text,
+        snapshot,
         language_version: finished.language_version,
         language_variant: finished.language_variant,
         is_declaration_file: finished.is_declaration_file,
         js_doc_parsing_mode: JSDocParsingMode::ParseAll,
-        line_map: finished.line_map,
         arena: finished.arena,
         root: finished.root,
         external_module_indicator: None,

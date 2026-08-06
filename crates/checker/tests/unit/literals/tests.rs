@@ -361,10 +361,10 @@ fn private_object_literal_names_report_18016_in_ts_and_checked_js() {
     assert_eq!(checked_rows("({ #name: 1 });\n"), [(18016, 3, 5)]);
 
     let result = check_program(
-        &[InputFile {
-            name: "a.js".to_owned(),
-            text: "({ #name: 1 });\n".to_owned(),
-        }],
+        &[InputFile::new(
+            "a.js".to_owned(),
+            "({ #name: 1 });\n".to_owned(),
+        )],
         &CompilerOptions {
             allow_js: true,
             check_js: Some(true),

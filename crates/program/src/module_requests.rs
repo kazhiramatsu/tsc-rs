@@ -1,9 +1,10 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::ops::Range;
+use std::sync::Arc;
 
 use tsc_syntax::{
-    for_each_child, parse_source_file, skip_trivia, LanguageVariant, NodeData, NodeId,
-    ParseOptions, SourceFile, SyntaxKind, TypeReferenceDirectiveResolutionMode,
+    for_each_child, parse_source_file_from_snapshot, skip_trivia, LanguageVariant, NodeData,
+    NodeId, ParseOptions, SourceFile, SyntaxKind, TypeReferenceDirectiveResolutionMode,
 };
 use tsc_types::{CompilerOptions, NodeFlags};
 
@@ -300,9 +301,9 @@ fn plan_module_requests_worker(
         };
     let detect_external_module_from_jsx =
         !is_declaration_file && module_detection == 2 && matches!(options.jsx, Some(4 | 5));
-    let parsed = parse_source_file(
+    let parsed = parse_source_file_from_snapshot(
         file_name.to_owned(),
-        source.text().to_owned(),
+        Arc::clone(source.snapshot()),
         ParseOptions {
             script_target: options.emit_script_target(),
             language_variant,

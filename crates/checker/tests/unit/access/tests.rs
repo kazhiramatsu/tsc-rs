@@ -98,10 +98,7 @@ fn checked_js_rows(text: &str, check_js: Option<bool>) -> Vec<(u32, u32, u32)> {
 
 fn published_js_rows(text: &str, check_js: Option<bool>) -> Vec<(u32, u32, u32)> {
     check_program(
-        &[InputFile {
-            name: "a.js".to_owned(),
-            text: text.to_owned(),
-        }],
+        &[InputFile::new("a.js".to_owned(), text.to_owned())],
         &CompilerOptions {
             allow_js: true,
             check_js,
@@ -186,10 +183,7 @@ function sum({ a, b }) { return a + b; }\n";
     let required = destructuring.replace("[opts.b]", "opts.b");
     assert_eq!(published_js_rows(&required, Some(true)), []);
     assert!(check_program(
-        &[InputFile {
-            name: "a.js".to_owned(),
-            text: destructuring.to_owned(),
-        }],
+        &[InputFile::new("a.js".to_owned(), destructuring.to_owned())],
         &CompilerOptions {
             allow_js: true,
             check_js: Some(true),
@@ -210,14 +204,8 @@ module.exports = { Quack: 2 };\n";
     let use_text = "var mod = require('./mod1.js');\nnew mod.Baz();\n";
     let result = check_program(
         &[
-            InputFile {
-                name: "mod1.js".to_owned(),
-                text: mod_text.to_owned(),
-            },
-            InputFile {
-                name: "use.js".to_owned(),
-                text: use_text.to_owned(),
-            },
+            InputFile::new("mod1.js".to_owned(), mod_text.to_owned()),
+            InputFile::new("use.js".to_owned(), use_text.to_owned()),
         ],
         &CompilerOptions {
             allow_js: true,
@@ -268,10 +256,7 @@ try {} catch (/** @type {Unknown} */ other) { other.foo; }\n\
 try {} catch (/** @type {any} */ anyErr) { anyErr.foo; }\n\
 try {} catch (plain) { plain.foo; }\n";
     let result = check_program(
-        &[InputFile {
-            name: "a.js".to_owned(),
-            text: text.to_owned(),
-        }],
+        &[InputFile::new("a.js".to_owned(), text.to_owned())],
         &CompilerOptions {
             allow_js: true,
             check_js: Some(true),

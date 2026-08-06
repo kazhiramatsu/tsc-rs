@@ -364,14 +364,14 @@ fn keyof_typeof_enum_rejects_number() {
 #[test]
 fn checked_js_publishes_implicit_any_index_diagnostic() {
     let result = check_program(
-        &[InputFile {
-            name: "a.js".to_owned(),
-            text: "/** @type {string} */\n\
+        &[InputFile::new(
+            "a.js".to_owned(),
+            "/** @type {string} */\n\
                    const key = \"missing\";\n\
                    const object = { known: 1 };\n\
                    object[key];\n"
                 .to_owned(),
-        }],
+        )],
         &CompilerOptions {
             allow_js: true,
             check_js: Some(true),
@@ -392,12 +392,12 @@ fn checked_js_publishes_implicit_any_index_diagnostic() {
 #[test]
 fn checked_js_empty_this_assignment_uses_widened_index_error_face() {
     let result = check_program(
-        &[InputFile {
-            name: "a.js".to_owned(),
-            text: "this[\"known\"] = {};\n\
+        &[InputFile::new(
+            "a.js".to_owned(),
+            "this[\"known\"] = {};\n\
                    this[\"known\"][\"missing\"] = {};\n"
                 .to_owned(),
-        }],
+        )],
         &CompilerOptions {
             allow_js: true,
             check_js: Some(true),
@@ -431,13 +431,13 @@ fn checked_js_empty_this_assignment_uses_widened_index_error_face() {
 #[test]
 fn checked_js_jsdoc_index_carrier_stays_private() {
     let result = check_program(
-        &[InputFile {
-            name: "a.js".to_owned(),
-            text: "/** @type {Object.<string, string>} */\n\
+        &[InputFile::new(
+            "a.js".to_owned(),
+            "/** @type {Object.<string, string>} */\n\
                    const object = { known: \"value\" };\n\
                    object[\"missing\"] = \"value\";\n"
                 .to_owned(),
-        }],
+        )],
         &CompilerOptions {
             allow_js: true,
             check_js: Some(true),
@@ -470,10 +470,7 @@ fn jsdoc_template_prototype_index_carriers_keep_their_annotations() {
         ),
     ] {
         let result = check_program(
-            &[InputFile {
-                name: "a.js".to_owned(),
-                text: text.to_owned(),
-            }],
+            &[InputFile::new("a.js".to_owned(), text.to_owned())],
             &CompilerOptions {
                 allow_js: true,
                 check_js: Some(true),
@@ -495,15 +492,15 @@ fn jsdoc_template_prototype_index_carriers_keep_their_annotations() {
 #[test]
 fn checked_js_late_bound_class_member_stays_private() {
     let result = check_program(
-        &[InputFile {
-            name: "a.js".to_owned(),
-            text: "const key = \"member\";\n\
+        &[InputFile::new(
+            "a.js".to_owned(),
+            "const key = \"member\";\n\
                    class C {\n\
                      constructor() { this[key] = 1; }\n\
                      read() { return this[key]; }\n\
                    }\n"
             .to_owned(),
-        }],
+        )],
         &CompilerOptions {
             allow_js: true,
             check_js: Some(true),
@@ -520,14 +517,14 @@ fn checked_js_late_bound_class_member_stays_private() {
 #[test]
 fn unchecked_js_does_not_publish_implicit_any_index_diagnostic() {
     let result = check_program(
-        &[InputFile {
-            name: "a.js".to_owned(),
-            text: "/** @type {string} */\n\
+        &[InputFile::new(
+            "a.js".to_owned(),
+            "/** @type {string} */\n\
                    const key = \"missing\";\n\
                    const object = { known: 1 };\n\
                    object[key];\n"
                 .to_owned(),
-        }],
+        )],
         &CompilerOptions {
             allow_js: true,
             check_js: Some(false),

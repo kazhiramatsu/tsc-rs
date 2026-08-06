@@ -664,9 +664,7 @@ fn rust_dump(program: &tsc_harness::ProgramJson) -> Result<RecoveryDump, Box<dyn
 }
 
 fn rust_file_dump(source: &SourceFile, binder: &tsc_binder::Binder<'_>) -> FileDump {
-    let map = tsc_diagnostics::compute_line_map(&source.text);
-    let to_utf16 =
-        |pos: u32| -> u32 { map.byte_to_utf16.get(pos as usize).copied().unwrap_or(pos) };
+    let to_utf16 = |pos: u32| -> u32 { source.positions().byte_to_utf16(pos).unwrap_or(pos) };
     let mut entries = Vec::new();
     let mut tree = Vec::new();
     let mut stack = vec![(source.root, 0usize)];

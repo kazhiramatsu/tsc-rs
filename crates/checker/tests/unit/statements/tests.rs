@@ -119,10 +119,7 @@ fn unreachable_rows(
 
 fn checked_js_unreachable_rows(text: &str) -> Vec<(tsc_diagnostics::DiagnosticCategory, u32, u32)> {
     check_program(
-        &[InputFile {
-            name: "a.js".to_owned(),
-            text: text.to_owned(),
-        }],
+        &[InputFile::new("a.js".to_owned(), text.to_owned())],
         &CompilerOptions {
             allow_js: true,
             check_js: Some(true),
@@ -257,14 +254,8 @@ fn body_predicate_narrows_merged_declaration_initializer() {
 fn checked_js_empty_container_includes_later_expando_exports() {
     let result = check_program(
         &[
-            InputFile {
-                name: "a.d.ts".to_owned(),
-                text: "declare class A {}\n".to_owned(),
-            },
-            InputFile {
-                name: "b.js".to_owned(),
-                text: "const A = { };\nA.d = { };\n".to_owned(),
-            },
+            InputFile::new("a.d.ts".to_owned(), "declare class A {}\n".to_owned()),
+            InputFile::new("b.js".to_owned(), "const A = { };\nA.d = { };\n".to_owned()),
         ],
         &CompilerOptions {
             allow_js: true,
@@ -305,24 +296,15 @@ Object.defineProperty(x, \"getter\", { get() { return 1; } });\n\
 Object.defineProperty(x, \"accessor\", { get() { return 1; }, set(_v) {} });\n";
     let result = check_program(
             &[
-                InputFile {
-                    name: "globals.d.ts".to_owned(),
-                    text: "declare var Object: { defineProperty(target: any, name: string, descriptor: any): any };\n"
-                        .to_owned(),
-                },
-                InputFile {
-                    name: "a.js".to_owned(),
-                    text: js.to_owned(),
-                },
-                InputFile {
-                    name: "b.ts".to_owned(),
-                    text: "x.writable = \"\";\n\
+                InputFile::new("globals.d.ts".to_owned(), "declare var Object: { defineProperty(target: any, name: string, descriptor: any): any };\n"
+                        .to_owned()),
+                InputFile::new("a.js".to_owned(), js.to_owned()),
+                InputFile::new("b.ts".to_owned(), "x.writable = \"\";\n\
 x.implicit = \"\";\n\
 x.explicit = \"\";\n\
 x.getter = 1;\n\
 x.accessor = 1;\n"
-                        .to_owned(),
-                },
+                        .to_owned()),
             ],
             &CompilerOptions {
                 allow_js: true,
@@ -498,10 +480,10 @@ fn unreachable_code_preserves_allow_unreachable_code_tri_state() {
 #[test]
 fn plain_js_publishes_unreachable_code_suggestion() {
     let result = check_program(
-        &[InputFile {
-            name: "a.js".to_owned(),
-            text: "function f() { return; let x = 1; }\n".to_owned(),
-        }],
+        &[InputFile::new(
+            "a.js".to_owned(),
+            "function f() { return; let x = 1; }\n".to_owned(),
+        )],
         &CompilerOptions {
             allow_js: true,
             ..CompilerOptions::default()
@@ -595,10 +577,10 @@ fn unused_label_preserves_allow_unused_labels_tri_state() {
 #[test]
 fn plain_js_publishes_unused_label_suggestion() {
     let result = check_program(
-        &[InputFile {
-            name: "a.js".to_owned(),
-            text: "unused: { let x = 1; }\n".to_owned(),
-        }],
+        &[InputFile::new(
+            "a.js".to_owned(),
+            "unused: { let x = 1; }\n".to_owned(),
+        )],
         &CompilerOptions {
             allow_js: true,
             ..CompilerOptions::default()
@@ -1062,10 +1044,10 @@ fn commonjs_rows(no_emit: Option<bool>) -> Vec<(u32, u32, u32)> {
         ..CompilerOptions::default()
     };
     let result = check_program(
-        &[InputFile {
-            name: "a.ts".to_owned(),
-            text: "export {};\nvar require: number;\n".to_owned(),
-        }],
+        &[InputFile::new(
+            "a.ts".to_owned(),
+            "export {};\nvar require: number;\n".to_owned(),
+        )],
         &options,
     );
     result
@@ -1094,14 +1076,11 @@ fn node_commonjs_format_reports_generated_name_collisions() {
     for (extension, allow_js, check_js) in [("ts", false, None), ("js", true, Some(true))] {
         let result = check_program(
             &[
-                InputFile {
-                    name: format!("subfolder/index.{extension}"),
-                    text: text.to_owned(),
-                },
-                InputFile {
-                    name: "subfolder/package.json".to_owned(),
-                    text: "{\"type\":\"commonjs\"}".to_owned(),
-                },
+                InputFile::new(format!("subfolder/index.{extension}"), text.to_owned()),
+                InputFile::new(
+                    "subfolder/package.json".to_owned(),
+                    "{\"type\":\"commonjs\"}".to_owned(),
+                ),
             ],
             &CompilerOptions {
                 module: Some(100),
@@ -1126,14 +1105,11 @@ fn node_commonjs_format_reports_generated_name_collisions() {
 
         let esm_result = check_program(
             &[
-                InputFile {
-                    name: format!("index.{extension}"),
-                    text: text.to_owned(),
-                },
-                InputFile {
-                    name: "package.json".to_owned(),
-                    text: "{\"type\":\"module\"}".to_owned(),
-                },
+                InputFile::new(format!("index.{extension}"), text.to_owned()),
+                InputFile::new(
+                    "package.json".to_owned(),
+                    "{\"type\":\"module\"}".to_owned(),
+                ),
             ],
             &CompilerOptions {
                 module: Some(100),
@@ -1205,10 +1181,7 @@ fn checked_js_catch_type_tags_require_any_or_unknown() {
                       try {} catch (/** @type {Error} */ { x }) {}\n\
                       try {} catch (/** @type {object} */ { x }) {}\n";
     let result = check_program(
-        &[InputFile {
-            name: "a.js".to_owned(),
-            text: source.to_owned(),
-        }],
+        &[InputFile::new("a.js".to_owned(), source.to_owned())],
         &CompilerOptions {
             allow_js: true,
             check_js: Some(true),
@@ -1295,13 +1268,7 @@ fn program_rows_with_file(
     text: &str,
     options: &CompilerOptions,
 ) -> Vec<(u32, u32, u32)> {
-    let result = check_program(
-        &[InputFile {
-            name: name.to_owned(),
-            text: text.to_owned(),
-        }],
-        options,
-    );
+    let result = check_program(&[InputFile::new(name.to_owned(), text.to_owned())], options);
     result
         .diagnostics
         .iter()

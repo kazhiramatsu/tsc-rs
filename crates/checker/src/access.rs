@@ -46,8 +46,8 @@ impl<'a> CheckerState<'a> {
                         .unwrap_or_default()
                         .to_owned());
                 }
-                let start = tsc_syntax::skip_trivia(&source.text, raw.pos as usize);
-                Ok(source.text[start..raw.end as usize].to_owned())
+                let start = tsc_syntax::skip_trivia(&source.text(), raw.pos as usize);
+                Ok(source.text()[start..raw.end as usize].to_owned())
             }
             SyntaxKind::QualifiedName => {
                 let NodeData::QualifiedName(data) = self.data_of(node) else {
@@ -1490,10 +1490,8 @@ impl<'a> CheckerState<'a> {
         let (start, end) = tsc_binder::node_util::get_error_span_for_node(source, node);
         let to_utf16 = |byte: usize| -> u32 {
             source
-                .line_map
-                .byte_to_utf16
-                .get(byte)
-                .copied()
+                .positions()
+                .byte_to_utf16((byte) as u32)
                 .unwrap_or(byte as u32)
         };
         let (start_utf16, end_utf16) = (to_utf16(start), to_utf16(end));
@@ -2068,7 +2066,7 @@ impl<'a> CheckerState<'a> {
                         let source = self.binder.source_of_node(class);
                         crate::is_plain_js_file(
                             crate::is_js_file_name(&source.file_name),
-                            crate::check_directive(&source.text),
+                            crate::check_directive(&source.text()),
                             self.options,
                         )
                     });

@@ -2632,9 +2632,9 @@ fn publish_program(
 
     if let Some(config_file) = config_file {
         builder
-            .add_auxiliary_file(PreparedAuxiliaryFile::new(
+            .add_auxiliary_file(PreparedAuxiliaryFile::from_snapshot(
                 config_file.path().clone(),
-                config_file.text().to_owned(),
+                std::sync::Arc::clone(config_file.snapshot()),
             ))
             .map_err(|error| {
                 ProgramLoadError::preparation(ProgramLoadOperation::BuildPreparedProgram, error)

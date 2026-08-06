@@ -87,10 +87,7 @@ fn exported_import_equals_marks_alias_accessibility_without_a_use() {
 fn program_rows(files: &[(&str, &str)], options: &CompilerOptions) -> Vec<(String, u32, u32, u32)> {
     let inputs: Vec<InputFile> = files
         .iter()
-        .map(|(name, text)| InputFile {
-            name: (*name).to_owned(),
-            text: (*text).to_owned(),
-        })
+        .map(|(name, text)| InputFile::new((*name).to_owned(), (*text).to_owned()))
         .collect();
     let result = check_program(&inputs, options);
     result
@@ -186,23 +183,17 @@ fn import_specifiers_report_direct_and_intermediate_deprecated_aliases() {
                     import { old as direct } from \"./direct\";\n";
     let result = check_program(
         &[
-            InputFile {
-                name: "/a.js".to_owned(),
-                text: "export const current = 1;\n".to_owned(),
-            },
-            InputFile {
-                name: "/b.js".to_owned(),
-                text: "export { /** @deprecated use current */ current as old } from \"./a\";\n"
+            InputFile::new("/a.js".to_owned(), "export const current = 1;\n".to_owned()),
+            InputFile::new(
+                "/b.js".to_owned(),
+                "export { /** @deprecated use current */ current as old } from \"./a\";\n"
                     .to_owned(),
-            },
-            InputFile {
-                name: "/direct.js".to_owned(),
-                text: "/** @deprecated use current */\nexport const old = 1;\n".to_owned(),
-            },
-            InputFile {
-                name: "/main.js".to_owned(),
-                text: main.to_owned(),
-            },
+            ),
+            InputFile::new(
+                "/direct.js".to_owned(),
+                "/** @deprecated use current */\nexport const old = 1;\n".to_owned(),
+            ),
+            InputFile::new("/main.js".to_owned(), main.to_owned()),
         ],
         &CompilerOptions {
             allow_js: true,
@@ -440,10 +431,7 @@ fn checked_cjs_default_import_reports_non_default_export_in_node_modes() {
     for module in [101, 102, 199] {
         let inputs: Vec<InputFile> = files
             .iter()
-            .map(|(name, text)| InputFile {
-                name: (*name).to_owned(),
-                text: (*text).to_owned(),
-            })
+            .map(|(name, text)| InputFile::new((*name).to_owned(), (*text).to_owned()))
             .collect();
         let result = check_program(
             &inputs,
@@ -497,14 +485,14 @@ fn not_a_module_and_missing_member_report_2306_and_2305() {
 fn missing_module_member_diagnostics_use_written_specifiers_and_names() {
     let missing = check_program(
         &[
-            InputFile {
-                name: "/mod.ts".to_owned(),
-                text: "export const present = 1;\n".to_owned(),
-            },
-            InputFile {
-                name: "/main.ts".to_owned(),
-                text: "import { \"missing\" as x, absent } from \"./mod.js\";\n".to_owned(),
-            },
+            InputFile::new(
+                "/mod.ts".to_owned(),
+                "export const present = 1;\n".to_owned(),
+            ),
+            InputFile::new(
+                "/main.ts".to_owned(),
+                "import { \"missing\" as x, absent } from \"./mod.js\";\n".to_owned(),
+            ),
         ],
         &CompilerOptions::default(),
     );
@@ -522,14 +510,11 @@ fn missing_module_member_diagnostics_use_written_specifiers_and_names() {
 
     let default_only = check_program(
         &[
-            InputFile {
-                name: "/default.ts".to_owned(),
-                text: "export default 1;\n".to_owned(),
-            },
-            InputFile {
-                name: "/main.ts".to_owned(),
-                text: "import { Oops } from \"./default.js\";\n".to_owned(),
-            },
+            InputFile::new("/default.ts".to_owned(), "export default 1;\n".to_owned()),
+            InputFile::new(
+                "/main.ts".to_owned(),
+                "import { Oops } from \"./default.js\";\n".to_owned(),
+            ),
         ],
         &CompilerOptions::default(),
     );
@@ -545,14 +530,14 @@ fn missing_module_member_diagnostics_use_written_specifiers_and_names() {
 
     let pattern_ambient = check_program(
         &[
-            InputFile {
-                name: "/ambient.d.ts".to_owned(),
-                text: "declare module \"*.foo\" { export const present: number; }\n".to_owned(),
-            },
-            InputFile {
-                name: "/main.ts".to_owned(),
-                text: "import { absent } from \"b.foo\";\n".to_owned(),
-            },
+            InputFile::new(
+                "/ambient.d.ts".to_owned(),
+                "declare module \"*.foo\" { export const present: number; }\n".to_owned(),
+            ),
+            InputFile::new(
+                "/main.ts".to_owned(),
+                "import { absent } from \"b.foo\";\n".to_owned(),
+            ),
         ],
         &CompilerOptions::default(),
     );
@@ -569,26 +554,23 @@ fn missing_module_member_diagnostics_use_written_specifiers_and_names() {
 fn source_file_module_symbols_use_normalized_host_names() {
     let result = check_program(
         &[
-            InputFile {
-                name: "t4.ts".to_owned(),
-                text: "export const value = 1;\n".to_owned(),
-            },
-            InputFile {
-                name: "foo.ts".to_owned(),
-                text: "export interface Present {}\n".to_owned(),
-            },
-            InputFile {
-                name: "export-equals.ts".to_owned(),
-                text: "declare const value: number;\nexport = value;\n".to_owned(),
-            },
-            InputFile {
-                name: "main.ts".to_owned(),
-                text: "import missingDefault from \"./t4\";\n\
+            InputFile::new("t4.ts".to_owned(), "export const value = 1;\n".to_owned()),
+            InputFile::new(
+                "foo.ts".to_owned(),
+                "export interface Present {}\n".to_owned(),
+            ),
+            InputFile::new(
+                "export-equals.ts".to_owned(),
+                "declare const value: number;\nexport = value;\n".to_owned(),
+            ),
+            InputFile::new(
+                "main.ts".to_owned(),
+                "import missingDefault from \"./t4\";\n\
                            import foo = require(\"./foo\");\n\
                            export * from \"./export-equals\";\n\
                            let value: foo.Missing;\n"
                     .to_owned(),
-            },
+            ),
         ],
         &CompilerOptions::default(),
     );
@@ -636,19 +618,16 @@ fn js_binding_pattern_checks_require_after_optional_container_symbol_probe() {
 #[test]
 fn checked_js_publishes_not_a_module_from_default_lib_collision() {
     let source = "const { SomeClass } = require('./lib');\n";
-    let libs = [InputFile {
-        name: "lib.d.ts".to_owned(),
-        text: "interface DefaultLibraryFace {}\n".to_owned(),
-    }];
+    let libs = [InputFile::new(
+        "lib.d.ts".to_owned(),
+        "interface DefaultLibraryFace {}\n".to_owned(),
+    )];
     let files = [
-        InputFile {
-            name: "lib.js".to_owned(),
-            text: "class SomeClass {}\nmodule.exports = { SomeClass };\n".to_owned(),
-        },
-        InputFile {
-            name: "main.js".to_owned(),
-            text: source.to_owned(),
-        },
+        InputFile::new(
+            "lib.js".to_owned(),
+            "class SomeClass {}\nmodule.exports = { SomeClass };\n".to_owned(),
+        ),
+        InputFile::new("main.js".to_owned(), source.to_owned()),
     ];
     let result = check_program_with_libs_at(
         &libs,
@@ -714,10 +693,7 @@ let unrelated = \"\";\n",
     let result = check_program(
         &files
             .into_iter()
-            .map(|(name, text)| InputFile {
-                name: name.to_owned(),
-                text: text.to_owned(),
-            })
+            .map(|(name, text)| InputFile::new(name.to_owned(), text.to_owned()))
             .collect::<Vec<_>>(),
         &CompilerOptions {
             allow_js: true,
@@ -769,14 +745,11 @@ fn checked_js_commonjs_require_property_alias_publishes_nested_object_miss() {
                         x.x.grey;\n";
     let result = check_program(
         &[
-            InputFile {
-                name: "/ch.js".to_owned(),
-                text: "const x = { grey: {} };\nexport { x };\n".to_owned(),
-            },
-            InputFile {
-                name: "/main.js".to_owned(),
-                text: importer.to_owned(),
-            },
+            InputFile::new(
+                "/ch.js".to_owned(),
+                "const x = { grey: {} };\nexport { x };\n".to_owned(),
+            ),
+            InputFile::new("/main.js".to_owned(), importer.to_owned()),
         ],
         &CompilerOptions {
             allow_js: true,
@@ -814,14 +787,11 @@ fn plain_js_nested_object_is_closed_for_typescript_consumers() {
     let consumer = "obj.property.a = 1;\n";
     let result = check_program(
         &[
-            InputFile {
-                name: "/a.js".to_owned(),
-                text: "var obj = { property: {} };\nobj.property.a = 0;\n".to_owned(),
-            },
-            InputFile {
-                name: "/b.ts".to_owned(),
-                text: consumer.to_owned(),
-            },
+            InputFile::new(
+                "/a.js".to_owned(),
+                "var obj = { property: {} };\nobj.property.a = 0;\n".to_owned(),
+            ),
+            InputFile::new("/b.ts".to_owned(), consumer.to_owned()),
         ],
         &CompilerOptions {
             allow_js: true,
@@ -1044,10 +1014,7 @@ fn verbatim_export_assignments_distinguish_type_and_type_only_values() {
 fn verbatim_commonjs_export_default_reports_the_whole_assignment() {
     let source = "interface I {}\nexport default I;\n";
     let result = check_program(
-        &[InputFile {
-            name: "/main.ts".to_owned(),
-            text: source.to_owned(),
-        }],
+        &[InputFile::new("/main.ts".to_owned(), source.to_owned())],
         &CompilerOptions {
             module: Some(1),
             target: Some(99),
@@ -1080,10 +1047,7 @@ fn verbatim_commonjs_only_reports_instantiated_namespace_export() {
         ..CompilerOptions::default()
     };
     let result = check_program(
-        &[InputFile {
-            name: "/main.ts".to_owned(),
-            text: source.to_owned(),
-        }],
+        &[InputFile::new("/main.ts".to_owned(), source.to_owned())],
         &commonjs,
     );
     assert_eq!(
@@ -1102,10 +1066,7 @@ fn verbatim_commonjs_only_reports_instantiated_namespace_export() {
         ..commonjs
     };
     let esm_result = check_program(
-        &[InputFile {
-            name: "/main.ts".to_owned(),
-            text: source.to_owned(),
-        }],
+        &[InputFile::new("/main.ts".to_owned(), source.to_owned())],
         &esm,
     );
     assert!(targeted_rows(&esm_result, &[1287]).is_empty());
@@ -1114,14 +1075,14 @@ fn verbatim_commonjs_only_reports_instantiated_namespace_export() {
 #[test]
 fn isolated_export_assignment_reports_external_type_only_origin() {
     let inputs = [
-        InputFile {
-            name: "/a.ts".to_owned(),
-            text: "class A {}\nexport type { A };\n".to_owned(),
-        },
-        InputFile {
-            name: "/d.ts".to_owned(),
-            text: "import { A } from \"./a\";\nexport = A;\n".to_owned(),
-        },
+        InputFile::new(
+            "/a.ts".to_owned(),
+            "class A {}\nexport type { A };\n".to_owned(),
+        ),
+        InputFile::new(
+            "/d.ts".to_owned(),
+            "import { A } from \"./a\";\nexport = A;\n".to_owned(),
+        ),
     ];
     let result = check_program(
         &inputs,
@@ -1169,18 +1130,9 @@ fn isolated_alias_exports_distinguish_types_from_type_only_values() {
     let b = "class B {}\nexport type { B };\n";
     let d = "export { A as AA } from \"./a\";\nexport { B as BB } from \"./b\";\n";
     let inputs = [
-        InputFile {
-            name: "/a.ts".to_owned(),
-            text: a.to_owned(),
-        },
-        InputFile {
-            name: "/b.ts".to_owned(),
-            text: b.to_owned(),
-        },
-        InputFile {
-            name: "/d.ts".to_owned(),
-            text: d.to_owned(),
-        },
+        InputFile::new("/a.ts".to_owned(), a.to_owned()),
+        InputFile::new("/b.ts".to_owned(), b.to_owned()),
+        InputFile::new("/d.ts".to_owned(), d.to_owned()),
     ];
     let result = check_program(
         &inputs,
@@ -1243,14 +1195,8 @@ fn checked_js_type_alias_imports_report_18042_on_the_imported_name() {
     let source = "import { TypeOnly, TypeOnly as Alias, value } from \"./types\";\n";
     let result = check_program(
         &[
-            InputFile {
-                name: "/types.d.ts".to_owned(),
-                text: declaration.to_owned(),
-            },
-            InputFile {
-                name: "/main.js".to_owned(),
-                text: source.to_owned(),
-            },
+            InputFile::new("/types.d.ts".to_owned(), declaration.to_owned()),
+            InputFile::new("/main.js".to_owned(), source.to_owned()),
         ],
         &CompilerOptions {
             allow_js: true,
@@ -1304,14 +1250,8 @@ fn jsdoc_import_aliases_resolve_named_namespace_and_default_targets() {
                       function namedReturn() { return 4; }\n";
     let result = check_program(
         &[
-            InputFile {
-                name: "/types.d.ts".to_owned(),
-                text: declaration.to_owned(),
-            },
-            InputFile {
-                name: "/a.js".to_owned(),
-                text: source.to_owned(),
-            },
+            InputFile::new("/types.d.ts".to_owned(), declaration.to_owned()),
+            InputFile::new("/a.js".to_owned(), source.to_owned()),
         ],
         &CompilerOptions {
             allow_js: true,
@@ -1418,14 +1358,8 @@ fn checked_js_imported_jsdoc_namespace_resolves_to_its_type_only_face() {
     );
     let result = check_program(
         &[
-            InputFile {
-                name: "/types.js".to_owned(),
-                text: declaration.to_owned(),
-            },
-            InputFile {
-                name: "/main.js".to_owned(),
-                text: source.to_owned(),
-            },
+            InputFile::new("/types.js".to_owned(), declaration.to_owned()),
+            InputFile::new("/main.js".to_owned(), source.to_owned()),
         ],
         &options,
     );
@@ -1447,10 +1381,7 @@ fn checked_js_type_exports_report_18043_with_automatic_export_context() {
                       export { JSDocType };\n\
                       export { JSDocType as Alias };\n";
     let result = check_program(
-        &[InputFile {
-            name: "/main.js".to_owned(),
-            text: source.to_owned(),
-        }],
+        &[InputFile::new("/main.js".to_owned(), source.to_owned())],
         &CompilerOptions {
             allow_js: true,
             check_js: Some(true),
@@ -1511,18 +1442,12 @@ fn checked_js_alias_guard_does_not_fire_for_values_or_typescript() {
     let import = "import { TypeOnly, value } from \"./types\";\n";
     let result = check_program(
         &[
-            InputFile {
-                name: "/types.ts".to_owned(),
-                text: declaration.to_owned(),
-            },
-            InputFile {
-                name: "/main.ts".to_owned(),
-                text: import.to_owned(),
-            },
-            InputFile {
-                name: "/value.js".to_owned(),
-                text: "import { value } from \"./types\";\nvalue;\n".to_owned(),
-            },
+            InputFile::new("/types.ts".to_owned(), declaration.to_owned()),
+            InputFile::new("/main.ts".to_owned(), import.to_owned()),
+            InputFile::new(
+                "/value.js".to_owned(),
+                "import { value } from \"./types\";\nvalue;\n".to_owned(),
+            ),
         ],
         &CompilerOptions {
             allow_js: true,
@@ -1546,22 +1471,10 @@ fn verbatim_alias_imports_distinguish_type_only_origins() {
     let c = "import { C } from \"./b\";\n";
     let internal = "export {};\nnamespace Foo { export type T = any; }\nimport f = Foo.T;\n";
     let inputs = [
-        InputFile {
-            name: "/a.ts".to_owned(),
-            text: a.to_owned(),
-        },
-        InputFile {
-            name: "/b.ts".to_owned(),
-            text: b.to_owned(),
-        },
-        InputFile {
-            name: "/c.ts".to_owned(),
-            text: c.to_owned(),
-        },
-        InputFile {
-            name: "/internal.ts".to_owned(),
-            text: internal.to_owned(),
-        },
+        InputFile::new("/a.ts".to_owned(), a.to_owned()),
+        InputFile::new("/b.ts".to_owned(), b.to_owned()),
+        InputFile::new("/c.ts".to_owned(), c.to_owned()),
+        InputFile::new("/internal.ts".to_owned(), internal.to_owned()),
     ];
     let result = check_program(
         &inputs,
@@ -1636,18 +1549,9 @@ fn verbatim_ambient_const_enum_aliases_report_binding_and_keep_global_access() {
                          export type { E as _E } from \"./pkg\";\n";
     let result = check_program(
         &[
-            InputFile {
-                name: "/pkg.d.ts".to_owned(),
-                text: declaration.to_owned(),
-            },
-            InputFile {
-                name: "/a.ts".to_owned(),
-                text: importing.to_owned(),
-            },
-            InputFile {
-                name: "/b.ts".to_owned(),
-                text: exporting.to_owned(),
-            },
+            InputFile::new("/pkg.d.ts".to_owned(), declaration.to_owned()),
+            InputFile::new("/a.ts".to_owned(), importing.to_owned()),
+            InputFile::new("/b.ts".to_owned(), exporting.to_owned()),
         ],
         &CompilerOptions {
             module: Some(200),
@@ -1689,18 +1593,18 @@ fn verbatim_ambient_const_enum_aliases_report_binding_and_keep_global_access() {
 fn verbatim_regular_const_enum_aliases_do_not_report_2748() {
     let result = check_program(
         &[
-            InputFile {
-                name: "/enum.ts".to_owned(),
-                text: "export const enum E { A }\n".to_owned(),
-            },
-            InputFile {
-                name: "/import.ts".to_owned(),
-                text: "import { E } from \"./enum\";\nE.A;\n".to_owned(),
-            },
-            InputFile {
-                name: "/export.ts".to_owned(),
-                text: "export { E } from \"./enum\";\n".to_owned(),
-            },
+            InputFile::new(
+                "/enum.ts".to_owned(),
+                "export const enum E { A }\n".to_owned(),
+            ),
+            InputFile::new(
+                "/import.ts".to_owned(),
+                "import { E } from \"./enum\";\nE.A;\n".to_owned(),
+            ),
+            InputFile::new(
+                "/export.ts".to_owned(),
+                "export { E } from \"./enum\";\n".to_owned(),
+            ),
         ],
         &CompilerOptions {
             module: Some(200),
@@ -1725,14 +1629,8 @@ fn verbatim_commonjs_aliases_select_the_extension_specific_message() {
     };
     let result = check_program(
         &[
-            InputFile {
-                name: "/decl.ts".to_owned(),
-                text: declaration.to_owned(),
-            },
-            InputFile {
-                name: "/main.ts".to_owned(),
-                text: main.to_owned(),
-            },
+            InputFile::new("/decl.ts".to_owned(), declaration.to_owned()),
+            InputFile::new("/main.ts".to_owned(), main.to_owned()),
         ],
         &options,
     );
@@ -1766,14 +1664,11 @@ fn verbatim_commonjs_aliases_select_the_extension_specific_message() {
 
     let cts_result = check_program(
         &[
-            InputFile {
-                name: "/decl.ts".to_owned(),
-                text: declaration.to_owned(),
-            },
-            InputFile {
-                name: "/main.cts".to_owned(),
-                text: "import f from \"./decl\";\n".to_owned(),
-            },
+            InputFile::new("/decl.ts".to_owned(), declaration.to_owned()),
+            InputFile::new(
+                "/main.cts".to_owned(),
+                "import f from \"./decl\";\n".to_owned(),
+            ),
         ],
         &options,
     );
@@ -1975,10 +1870,7 @@ fn recovered_bare_import_type_and_dynamic_import_use_package_meaning() {
 
     let inputs = files
         .into_iter()
-        .map(|(name, text)| InputFile {
-            name: name.to_owned(),
-            text: text.to_owned(),
-        })
+        .map(|(name, text)| InputFile::new(name.to_owned(), text.to_owned()))
         .collect::<Vec<_>>();
     let messages = check_program(&inputs, &node16_options())
         .diagnostics
@@ -2011,28 +1903,25 @@ fn implicit_any_module_uses_node10_alternate_result_chain() {
     let source = "import { pkg } from \"pkg\";\n";
     let result = check_program(
         &[
-            InputFile {
-                name: "/node_modules/pkg/package.json".to_owned(),
-                text: r#"{
+            InputFile::new(
+                "/node_modules/pkg/package.json".to_owned(),
+                r#"{
                         "name": "pkg",
                         "version": "1.0.0",
                         "main": "./untyped.js",
                         "exports": { ".": "./definitely-not-index.js" }
                     }"#
                 .to_owned(),
-            },
-            InputFile {
-                name: "/node_modules/pkg/untyped.js".to_owned(),
-                text: "export {};\n".to_owned(),
-            },
-            InputFile {
-                name: "/node_modules/pkg/definitely-not-index.d.ts".to_owned(),
-                text: "export {};\n".to_owned(),
-            },
-            InputFile {
-                name: "/index.ts".to_owned(),
-                text: source.to_owned(),
-            },
+            ),
+            InputFile::new(
+                "/node_modules/pkg/untyped.js".to_owned(),
+                "export {};\n".to_owned(),
+            ),
+            InputFile::new(
+                "/node_modules/pkg/definitely-not-index.d.ts".to_owned(),
+                "export {};\n".to_owned(),
+            ),
+            InputFile::new("/index.ts".to_owned(), source.to_owned()),
         ],
         &CompilerOptions {
             module_resolution: Some(2),
@@ -2074,14 +1963,11 @@ fn implicit_any_module_suggestion_is_published_from_checked_js() {
     let source = "const u = require('untyped');\nu.assignment.nested = true;\n";
     let result = check_program(
         &[
-            InputFile {
-                name: "/node_modules/untyped/index.js".to_owned(),
-                text: "module.exports = {};\n".to_owned(),
-            },
-            InputFile {
-                name: "/main.js".to_owned(),
-                text: source.to_owned(),
-            },
+            InputFile::new(
+                "/node_modules/untyped/index.js".to_owned(),
+                "module.exports = {};\n".to_owned(),
+            ),
+            InputFile::new("/main.js".to_owned(), source.to_owned()),
         ],
         &CompilerOptions {
             allow_js: true,
@@ -2113,9 +1999,9 @@ fn implicit_any_module_suggestion_is_published_from_checked_js() {
 fn implicit_any_module_prefers_later_typed_exports_condition() {
     let result = check_program(
         &[
-            InputFile {
-                name: "/node_modules/dep/package.json".to_owned(),
-                text: r#"{
+            InputFile::new(
+                "/node_modules/dep/package.json".to_owned(),
+                r#"{
                         "name": "dep",
                         "version": "1.0.0",
                         "exports": {
@@ -2127,19 +2013,19 @@ fn implicit_any_module_prefers_later_typed_exports_condition() {
                         }
                     }"#
                 .to_owned(),
-            },
-            InputFile {
-                name: "/node_modules/dep/dist/index.d.ts".to_owned(),
-                text: "export {};\n".to_owned(),
-            },
-            InputFile {
-                name: "/node_modules/dep/dist/index.mjs".to_owned(),
-                text: "export {};\n".to_owned(),
-            },
-            InputFile {
-                name: "/index.mts".to_owned(),
-                text: "import {} from \"dep\";\n".to_owned(),
-            },
+            ),
+            InputFile::new(
+                "/node_modules/dep/dist/index.d.ts".to_owned(),
+                "export {};\n".to_owned(),
+            ),
+            InputFile::new(
+                "/node_modules/dep/dist/index.mjs".to_owned(),
+                "export {};\n".to_owned(),
+            ),
+            InputFile::new(
+                "/index.mts".to_owned(),
+                "import {} from \"dep\";\n".to_owned(),
+            ),
         ],
         &CompilerOptions {
             module: Some(100),
@@ -2162,18 +2048,18 @@ fn implicit_any_module_prefers_later_typed_exports_condition() {
 fn implicit_any_module_prefers_visible_at_types_package() {
     let result = check_program(
         &[
-            InputFile {
-                name: "/node_modules/@types/react/index.d.ts".to_owned(),
-                text: "declare const React: any;\nexport = React;\n".to_owned(),
-            },
-            InputFile {
-                name: "/packages/a/node_modules/react/index.js".to_owned(),
-                text: "module.exports = {};\n".to_owned(),
-            },
-            InputFile {
-                name: "/packages/a/index.ts".to_owned(),
-                text: "import React from \"react\";\nReact;\n".to_owned(),
-            },
+            InputFile::new(
+                "/node_modules/@types/react/index.d.ts".to_owned(),
+                "declare const React: any;\nexport = React;\n".to_owned(),
+            ),
+            InputFile::new(
+                "/packages/a/node_modules/react/index.js".to_owned(),
+                "module.exports = {};\n".to_owned(),
+            ),
+            InputFile::new(
+                "/packages/a/index.ts".to_owned(),
+                "import React from \"react\";\nReact;\n".to_owned(),
+            ),
         ],
         &CompilerOptions {
             module: Some(100),
@@ -2352,10 +2238,7 @@ fn arbitrary_extension_declaration_twin_reports_exact_6263() {
     ];
     let inputs: Vec<InputFile> = files
         .iter()
-        .map(|(name, text)| InputFile {
-            name: (*name).to_owned(),
-            text: (*text).to_owned(),
-        })
+        .map(|(name, text)| InputFile::new((*name).to_owned(), (*text).to_owned()))
         .collect();
     let result = check_program(
         &inputs,
@@ -2417,10 +2300,7 @@ fn arbitrary_extension_twin_option_gate_uses_the_importing_file() {
     ];
     let inputs: Vec<InputFile> = files
         .iter()
-        .map(|(name, text)| InputFile {
-            name: (*name).to_owned(),
-            text: (*text).to_owned(),
-        })
+        .map(|(name, text)| InputFile::new((*name).to_owned(), (*text).to_owned()))
         .collect();
     let result = check_program(
         &inputs,
@@ -2497,19 +2377,19 @@ fn commonjs_property_immediate_target_skips_deprecated_reexport_alias() {
     // immediate target of the require variable is `original`, not the
     // deprecated `foo` re-export alias, and the use has no 6385.
     let files = [
-        InputFile {
-            name: "/base.ts".to_owned(),
-            text: "export function original() {}".to_owned(),
-        },
-        InputFile {
-            name: "/dep.ts".to_owned(),
-            text: "export { /** @deprecated use original */ original as foo } from \"./base\";"
+        InputFile::new(
+            "/base.ts".to_owned(),
+            "export function original() {}".to_owned(),
+        ),
+        InputFile::new(
+            "/dep.ts".to_owned(),
+            "export { /** @deprecated use original */ original as foo } from \"./base\";"
                 .to_owned(),
-        },
-        InputFile {
-            name: "/consumer.js".to_owned(),
-            text: "const foo = require(\"./dep\").foo; foo();".to_owned(),
-        },
+        ),
+        InputFile::new(
+            "/consumer.js".to_owned(),
+            "const foo = require(\"./dep\").foo; foo();".to_owned(),
+        ),
     ];
     let result = check_program(
         &files,
@@ -2730,10 +2610,7 @@ fn explicit_mts_cts_extensions_report_or_suggest_the_full_extension() {
         ];
     let inputs: Vec<InputFile> = files
         .iter()
-        .map(|(name, text)| InputFile {
-            name: (*name).to_owned(),
-            text: (*text).to_owned(),
-        })
+        .map(|(name, text)| InputFile::new((*name).to_owned(), (*text).to_owned()))
         .collect();
     let diagnostics = check_program(&inputs, &CompilerOptions::default()).diagnostics;
     let pins: Vec<(u32, u32, String)> = diagnostics
@@ -2944,10 +2821,7 @@ fn declaration_import_suggestion_uses_usage_emit_mode() {
     ];
     let inputs: Vec<InputFile> = files
         .iter()
-        .map(|(name, text)| InputFile {
-            name: (*name).to_owned(),
-            text: (*text).to_owned(),
-        })
+        .map(|(name, text)| InputFile::new((*name).to_owned(), (*text).to_owned()))
         .collect();
     let diagnostics = check_program(
         &inputs,
@@ -2993,10 +2867,7 @@ fn declaration_import_suggestion_uses_usage_emit_mode() {
     ];
     let inputs: Vec<InputFile> = files
         .iter()
-        .map(|(name, text)| InputFile {
-            name: (*name).to_owned(),
-            text: (*text).to_owned(),
-        })
+        .map(|(name, text)| InputFile::new((*name).to_owned(), (*text).to_owned()))
         .collect();
     let diagnostics = check_program(
         &inputs,

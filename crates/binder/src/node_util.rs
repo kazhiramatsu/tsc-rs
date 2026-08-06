@@ -1017,8 +1017,8 @@ pub fn declaration_name_to_string(source: &SourceFile, name: Option<NodeId>) -> 
             if node.end == node.pos {
                 return "(Missing)".to_owned();
             }
-            let start = tsc_syntax::skip_trivia(&source.text, node.pos as usize);
-            source.text[start..node.end as usize].to_owned()
+            let start = tsc_syntax::skip_trivia(&source.text(), node.pos as usize);
+            source.text()[start..node.end as usize].to_owned()
         }
     }
 }
@@ -1027,7 +1027,7 @@ pub fn declaration_name_to_string(source: &SourceFile, name: Option<NodeId>) -> 
 /// tsc-hash: 1389c564d97e9dbaa92975ba813b8d14180a73654923d1bc6d0817ac357009b0
 /// tsc-span: _tsc.js:13983-13997
 pub fn get_span_of_token_at_position(source: &SourceFile, pos: usize) -> (usize, usize) {
-    let tokens = tsc_syntax::scan_tokens(&source.text[pos..], source.language_variant);
+    let tokens = tsc_syntax::scan_tokens(&source.text()[pos..], source.language_variant);
     match tokens.first() {
         Some(token) => (pos + token.start as usize, pos + token.end as usize),
         None => (pos, pos),
@@ -1044,8 +1044,8 @@ pub fn get_error_span_for_node(source: &SourceFile, id: NodeId) -> (usize, usize
     let mut error_node = Some(id);
     match &node.data {
         NodeData::SourceFile(_) => {
-            let pos = tsc_syntax::skip_trivia(&source.text, 0);
-            if pos == source.text.len() {
+            let pos = tsc_syntax::skip_trivia(&source.text(), 0);
+            if pos == source.text().len() {
                 return (0, 0);
             }
             return get_span_of_token_at_position(source, pos);
@@ -1054,21 +1054,21 @@ pub fn get_error_span_for_node(source: &SourceFile, id: NodeId) -> (usize, usize
             return get_error_span_for_arrow_function(source, id, data.body);
         }
         NodeData::CaseClause(data) => {
-            let start = tsc_syntax::skip_trivia(&source.text, node.pos as usize);
+            let start = tsc_syntax::skip_trivia(&source.text(), node.pos as usize);
             return case_clause_span(source, node.end as usize, start, data.statements);
         }
         NodeData::DefaultClause(data) => {
-            let start = tsc_syntax::skip_trivia(&source.text, node.pos as usize);
+            let start = tsc_syntax::skip_trivia(&source.text(), node.pos as usize);
             return case_clause_span(source, node.end as usize, start, data.statements);
         }
         NodeData::ReturnStatement(_) | NodeData::YieldExpression(_) => {
-            let pos = tsc_syntax::skip_trivia(&source.text, node.pos as usize);
+            let pos = tsc_syntax::skip_trivia(&source.text(), node.pos as usize);
             return get_span_of_token_at_position(source, pos);
         }
         NodeData::SatisfiesExpression(data) => {
             if let Some(expression) = data.expression {
                 let pos = tsc_syntax::skip_trivia(
-                    &source.text,
+                    &source.text(),
                     source.arena.node(expression).end as usize,
                 );
                 return get_span_of_token_at_position(source, pos);
@@ -1077,13 +1077,13 @@ pub fn get_error_span_for_node(source: &SourceFile, id: NodeId) -> (usize, usize
         NodeData::JSDocSatisfiesTag(data) => {
             if let Some(tag_name) = data.tag_name {
                 let tag_name = source.arena.node(tag_name);
-                let pos = tsc_syntax::skip_trivia(&source.text, tag_name.pos as usize);
+                let pos = tsc_syntax::skip_trivia(&source.text(), tag_name.pos as usize);
                 return get_span_of_token_at_position(source, pos);
             }
         }
         NodeData::Constructor(_) => {
-            let start = tsc_syntax::skip_trivia(&source.text, node.pos as usize);
-            let tokens = tsc_syntax::scan_tokens(&source.text[start..], source.language_variant);
+            let start = tsc_syntax::skip_trivia(&source.text(), node.pos as usize);
+            let tokens = tsc_syntax::scan_tokens(&source.text()[start..], source.language_variant);
             for token in &tokens {
                 if token.kind == SyntaxKind::ConstructorKeyword {
                     return (start, start + token.end as usize);
@@ -1125,7 +1125,7 @@ pub fn get_error_span_for_node(source: &SourceFile, id: NodeId) -> (usize, usize
     let pos = if is_missing || node.kind == SyntaxKind::JsxText {
         error.pos as usize
     } else {
-        tsc_syntax::skip_trivia(&source.text, error.pos as usize)
+        tsc_syntax::skip_trivia(&source.text(), error.pos as usize)
     };
     (pos, error.end as usize)
 }
@@ -1155,17 +1155,17 @@ fn get_error_span_for_arrow_function(
     body: Option<NodeId>,
 ) -> (usize, usize) {
     let node = source.arena.node(id);
-    let pos = tsc_syntax::skip_trivia(&source.text, node.pos as usize);
+    let pos = tsc_syntax::skip_trivia(&source.text(), node.pos as usize);
     if let Some(body) = body {
         if kind_of(source, body) == SyntaxKind::Block {
             let body_node = source.arena.node(body);
-            let starts = byte_line_starts(&source.text);
+            let starts = byte_line_starts(&source.text());
             let start_line = line_of_bytes(&starts, body_node.pos as usize);
             let end_line = line_of_bytes(&starts, body_node.end as usize);
             if start_line < end_line {
                 return (
                     pos,
-                    get_end_line_position(&source.text, &starts, start_line) + 1,
+                    get_end_line_position(&source.text(), &starts, start_line) + 1,
                 );
             }
         }

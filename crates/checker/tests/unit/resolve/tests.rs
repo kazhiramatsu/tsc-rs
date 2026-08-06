@@ -221,18 +221,18 @@ fn unchecked_js_spelling_rows_publish_as_suggestions() {
         "/../../vendor/typescript-6.0.3/lib/lib.es5.d.ts"
     );
     let result = check_program_with_libs(
-        &[InputFile {
-            name: "lib.es5.d.ts".to_owned(),
-            text: std::fs::read_to_string(lib_path).expect("vendored lib.es5.d.ts"),
-        }],
-        &[InputFile {
-            name: "a.js".to_owned(),
-            text: "export var inModule = 1;\n\
+        &[InputFile::new(
+            "lib.es5.d.ts".to_owned(),
+            std::fs::read_to_string(lib_path).expect("vendored lib.es5.d.ts"),
+        )],
+        &[InputFile::new(
+            "a.js".to_owned(),
+            "export var inModule = 1;\n\
                    inmodule.toFixed();\n\
                    var object = { spaaace: 3 };\n\
                    object.spaace;\n"
                 .to_owned(),
-        }],
+        )],
         &CompilerOptions {
             allow_js: true,
             ..CompilerOptions::default()
@@ -258,11 +258,10 @@ fn unchecked_js_spelling_rows_publish_as_suggestions() {
 #[test]
 fn value_only_symbol_reports_2749_in_type_position() {
     let result = check_program(
-        &[InputFile {
-            name: "a.ts".to_owned(),
-            text: "const value = 1;\ntype Bad = value;\nclass Both {}\ntype Good = Both;\n"
-                .to_owned(),
-        }],
+        &[InputFile::new(
+            "a.ts".to_owned(),
+            "const value = 1;\ntype Bad = value;\nclass Both {}\ntype Good = Both;\n".to_owned(),
+        )],
         &CompilerOptions::default(),
     );
     assert_eq!(
@@ -282,12 +281,11 @@ fn value_only_symbol_reports_2749_in_type_position() {
 #[test]
 fn type_only_symbol_reports_the_type_as_value_alternate() {
     let result = check_program(
-        &[InputFile {
-            name: "a.ts".to_owned(),
-            text:
-                "interface Only {}\nOnly;\nclass Both {}\nBoth;\ninterface Promise {}\nPromise;\n"
-                    .to_owned(),
-        }],
+        &[InputFile::new(
+            "a.ts".to_owned(),
+            "interface Only {}\nOnly;\nclass Both {}\nBoth;\ninterface Promise {}\nPromise;\n"
+                .to_owned(),
+        )],
         &CompilerOptions::default(),
     );
     assert_eq!(
@@ -303,10 +301,10 @@ fn type_only_symbol_reports_the_type_as_value_alternate() {
 #[test]
 fn class_and_interface_import_alias_targets_report_2702() {
     let result = check_program(
-        &[InputFile {
-            name: "a.ts".to_owned(),
-            text: "class C {}\nimport c = C;\ninterface I {}\nimport i = I;\n".to_owned(),
-        }],
+        &[InputFile::new(
+            "a.ts".to_owned(),
+            "class C {}\nimport c = C;\ninterface I {}\nimport i = I;\n".to_owned(),
+        )],
         &CompilerOptions::default(),
     );
     assert_eq!(
@@ -322,9 +320,9 @@ fn class_and_interface_import_alias_targets_report_2702() {
 #[test]
 fn value_only_namespace_roots_fall_through_to_2503() {
     let result = check_program(
-        &[InputFile {
-            name: "a.ts".to_owned(),
-            text: "var V = 1;\n\
+        &[InputFile::new(
+            "a.ts".to_owned(),
+            "var V = 1;\n\
                    import v = V;\n\
                    declare namespace lf {\n\
                      interface Transaction {\n\
@@ -332,7 +330,7 @@ fn value_only_namespace_roots_fall_through_to_2503() {
                      }\n\
                    }\n"
             .to_owned(),
-        }],
+        )],
         &CompilerOptions::default(),
     );
     assert_eq!(
@@ -348,10 +346,10 @@ fn value_only_namespace_roots_fall_through_to_2503() {
 #[test]
 fn namespace_used_directly_reports_value_and_type_alternates() {
     let result = check_program(
-        &[InputFile {
-            name: "a.ts".to_owned(),
-            text: "namespace N { export interface I {} }\nN;\ntype T = N;\n".to_owned(),
-        }],
+        &[InputFile::new(
+            "a.ts".to_owned(),
+            "namespace N { export interface I {} }\nN;\ntype T = N;\n".to_owned(),
+        )],
         &CompilerOptions::default(),
     );
     assert_eq!(
@@ -367,14 +365,14 @@ fn namespace_used_directly_reports_value_and_type_alternates() {
 #[test]
 fn external_module_umd_value_reference_is_error_or_suggestion() {
     let files = [
-        InputFile {
-            name: "umd.d.ts".to_owned(),
-            text: "export as namespace Foo;\nexport const value: number;\n".to_owned(),
-        },
-        InputFile {
-            name: "a.ts".to_owned(),
-            text: "export {};\nconst value = Foo;\n".to_owned(),
-        },
+        InputFile::new(
+            "umd.d.ts".to_owned(),
+            "export as namespace Foo;\nexport const value: number;\n".to_owned(),
+        ),
+        InputFile::new(
+            "a.ts".to_owned(),
+            "export {};\nconst value = Foo;\n".to_owned(),
+        ),
     ];
     let categories = |options: &CompilerOptions| {
         check_program(&files, options)
@@ -397,14 +395,14 @@ fn external_module_umd_value_reference_is_error_or_suggestion() {
     );
     let suppressed = check_program(
         &[
-            InputFile {
-                name: "umd.d.ts".to_owned(),
-                text: "export as namespace Foo;\nexport const value: number;\n".to_owned(),
-            },
-            InputFile {
-                name: "a.ts".to_owned(),
-                text: "export {};\n// @ts-ignore\nconst value = Foo;\n".to_owned(),
-            },
+            InputFile::new(
+                "umd.d.ts".to_owned(),
+                "export as namespace Foo;\nexport const value: number;\n".to_owned(),
+            ),
+            InputFile::new(
+                "a.ts".to_owned(),
+                "export {};\n// @ts-ignore\nconst value = Foo;\n".to_owned(),
+            ),
         ],
         &CompilerOptions::default(),
     );
@@ -418,13 +416,10 @@ fn external_module_umd_value_reference_is_error_or_suggestion() {
 fn type_only_alias_value_uses_report_origin_and_preserve_type_sites() {
     let result = check_program(
         &[
-            InputFile {
-                name: "/a.ts".to_owned(),
-                text: "export class A {}\n".to_owned(),
-            },
-            InputFile {
-                name: "/b.ts".to_owned(),
-                text: "import type { A } from './a';\n\
+            InputFile::new("/a.ts".to_owned(), "export class A {}\n".to_owned()),
+            InputFile::new(
+                "/b.ts".to_owned(),
+                "import type { A } from './a';\n\
                        new A();\n\
                        const shorthand = { A };\n\
                        type T = A;\n\
@@ -432,7 +427,7 @@ fn type_only_alias_value_uses_report_origin_and_preserve_type_sites() {
                        interface I extends A {}\n\
                        class C implements A {}\n"
                     .to_owned(),
-            },
+            ),
         ],
         &CompilerOptions::default(),
     );
@@ -456,18 +451,12 @@ fn type_only_alias_value_uses_report_origin_and_preserve_type_sites() {
 fn checked_js_type_only_export_value_use_is_explicitly_published() {
     let result = check_program(
         &[
-            InputFile {
-                name: "/a.js".to_owned(),
-                text: "export class A {}\n".to_owned(),
-            },
-            InputFile {
-                name: "/b.js".to_owned(),
-                text: "export type * from './a';\n".to_owned(),
-            },
-            InputFile {
-                name: "/c.js".to_owned(),
-                text: "import { A } from './b';\nA;\n".to_owned(),
-            },
+            InputFile::new("/a.js".to_owned(), "export class A {}\n".to_owned()),
+            InputFile::new("/b.js".to_owned(), "export type * from './a';\n".to_owned()),
+            InputFile::new(
+                "/c.js".to_owned(),
+                "import { A } from './b';\nA;\n".to_owned(),
+            ),
         ],
         &CompilerOptions {
             allow_js: true,
@@ -503,11 +492,8 @@ fn checked_js_type_only_export_value_use_is_explicitly_published() {
 #[test]
 fn qualified_value_only_symbol_reports_2749_for_the_full_name() {
     let result = check_program(
-        &[InputFile {
-            name: "a.ts".to_owned(),
-            text: "interface Object {}\nnamespace N { export const value = 1; export interface Both {} }\ntype Bad = N.value;\ntype Good = N.Both;\n"
-                .to_owned(),
-        }],
+        &[InputFile::new("a.ts".to_owned(), "interface Object {}\nnamespace N { export const value = 1; export interface Both {} }\ntype Bad = N.value;\ntype Good = N.Both;\n"
+                .to_owned())],
         &CompilerOptions::default(),
     );
     assert_eq!(
@@ -528,15 +514,9 @@ fn qualified_value_only_symbol_reports_2749_for_the_full_name() {
 fn mixed_checked_js_keeps_value_misses_but_shields_jsdoc_type_misses() {
     let result = check_program(
         &[
-            InputFile {
-                name: "a.js".to_owned(),
-                text: "missingValue;\n/** @typedef {{ nested: { value: number } }} Hidden */\nCtor.prototype = {};\n"
-                    .to_owned(),
-            },
-            InputFile {
-                name: "b.ts".to_owned(),
-                text: "type T = Hidden;\nmissingTs;\n".to_owned(),
-            },
+            InputFile::new("a.js".to_owned(), "missingValue;\n/** @typedef {{ nested: { value: number } }} Hidden */\nCtor.prototype = {};\n"
+                    .to_owned()),
+            InputFile::new("b.ts".to_owned(), "type T = Hidden;\nmissingTs;\n".to_owned()),
         ],
         &CompilerOptions {
             allow_js: true,
@@ -561,10 +541,10 @@ fn mixed_checked_js_keeps_value_misses_but_shields_jsdoc_type_misses() {
 #[test]
 fn diagnostics_preserve_escaped_identifier_spelling() {
     let result = check_program(
-        &[InputFile {
-            name: "a.ts".to_owned(),
-            text: "let \\u0078x: number;\n\\u0078x;\n\\u005F01234;\n".to_owned(),
-        }],
+        &[InputFile::new(
+            "a.ts".to_owned(),
+            "let \\u0078x: number;\n\\u0078x;\n\\u005F01234;\n".to_owned(),
+        )],
         &CompilerOptions {
             strict_null_checks: Some(true),
             ..CompilerOptions::default()

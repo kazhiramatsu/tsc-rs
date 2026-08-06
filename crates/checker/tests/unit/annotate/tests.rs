@@ -50,14 +50,14 @@ fn with_state<R>(text: &str, run: impl FnOnce(&mut CheckerState) -> R) -> R {
 fn checked_js_non_jsdoc_base_constructor_error_is_published() {
     let result = check_program(
         &[
-            InputFile {
-                name: "first.js".to_owned(),
-                text: "class Drakkhen extends Dragon {}\n".to_owned(),
-            },
-            InputFile {
-                name: "second.ts".to_owned(),
-                text: "function Dragon(numberEaten: number) { void numberEaten; }\n".to_owned(),
-            },
+            InputFile::new(
+                "first.js".to_owned(),
+                "class Drakkhen extends Dragon {}\n".to_owned(),
+            ),
+            InputFile::new(
+                "second.ts".to_owned(),
+                "function Dragon(numberEaten: number) { void numberEaten; }\n".to_owned(),
+            ),
         ],
         &CompilerOptions {
             allow_js: true,
@@ -88,10 +88,7 @@ fn base_constructor_type_argument_count_error_uses_expression_span() {
                 declare function getBase(): BaseConstructor;\n\
                 class D extends getBase() <string, string, string> {}\n";
     let result = check_program(
-        &[InputFile {
-            name: "a.ts".to_owned(),
-            text: text.to_owned(),
-        }],
+        &[InputFile::new("a.ts".to_owned(), text.to_owned())],
         &CompilerOptions {
             target: Some(2),
             ..CompilerOptions::default()

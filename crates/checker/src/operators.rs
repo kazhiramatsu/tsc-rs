@@ -1283,14 +1283,14 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn text_of_node(&self, node: NodeId) -> CheckResult<String> {
         let source = self.binder.source_of_node(node);
         let raw = source.arena.node(node);
-        let start = tsc_syntax::skip_trivia(&source.text, raw.pos as usize);
+        let start = tsc_syntax::skip_trivia(&source.text(), raw.pos as usize);
         let end = raw.end as usize;
         let (begin, finish) = if start <= end {
             (start, end)
         } else {
             (end, start)
         };
-        Ok(source.text[begin..finish].to_owned())
+        Ok(source.text()[begin..finish].to_owned())
     }
 
     /// isIndirectCall (80278-80283) on the comma binary's parent
@@ -1336,7 +1336,7 @@ impl<'a> CheckerState<'a> {
     fn comma_left_inside_jsx_2657_span(&self, left: NodeId) -> bool {
         let source = self.binder.source_of_node(left);
         let raw = source.arena.node(left);
-        let start = tsc_syntax::skip_trivia(&source.text, raw.pos as usize) as u32;
+        let start = tsc_syntax::skip_trivia(&source.text(), raw.pos as usize) as u32;
         source.parse_diagnostics.iter().any(|diag| {
             let (Some(diag_start), Some(length)) = (diag.start, diag.length) else {
                 return false;
@@ -2696,13 +2696,11 @@ impl<'a> CheckerState<'a> {
     fn literal_operand_reported_since(&self, operand: NodeId, before: usize) -> bool {
         let source = self.binder.source_of_node(operand);
         let node = source.arena.node(operand);
-        let start_byte = tsc_syntax::skip_trivia(&source.text, node.pos as usize);
+        let start_byte = tsc_syntax::skip_trivia(&source.text(), node.pos as usize);
         let to_utf16 = |byte: usize| -> u32 {
             source
-                .line_map
-                .byte_to_utf16
-                .get(byte)
-                .copied()
+                .positions()
+                .byte_to_utf16((byte) as u32)
                 .unwrap_or(byte as u32)
         };
         let start = to_utf16(start_byte);
@@ -3014,13 +3012,11 @@ impl<'a> CheckerState<'a> {
         };
         let source = self.binder.source_of_node(node);
         let array = source.arena.node_array(array);
-        let start_byte = tsc_syntax::skip_trivia(&source.text, array.pos as usize);
+        let start_byte = tsc_syntax::skip_trivia(&source.text(), array.pos as usize);
         let to_utf16 = |byte: usize| -> u32 {
             source
-                .line_map
-                .byte_to_utf16
-                .get(byte)
-                .copied()
+                .positions()
+                .byte_to_utf16((byte) as u32)
                 .unwrap_or(byte as u32)
         };
         let start = to_utf16(start_byte);
@@ -3093,13 +3089,11 @@ impl<'a> CheckerState<'a> {
             return false;
         }
         let start_byte = array.pos as usize - "<".len();
-        let end_byte = tsc_syntax::skip_trivia(&source.text, array.end as usize) + ">".len();
+        let end_byte = tsc_syntax::skip_trivia(&source.text(), array.end as usize) + ">".len();
         let to_utf16 = |byte: usize| -> u32 {
             source
-                .line_map
-                .byte_to_utf16
-                .get(byte)
-                .copied()
+                .positions()
+                .byte_to_utf16((byte) as u32)
                 .unwrap_or(byte as u32)
         };
         let start = to_utf16(start_byte);
@@ -3179,8 +3173,8 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn meta_property_is_new(&self, node: NodeId) -> bool {
         let source = self.binder.source_of_node(node);
         let raw = source.arena.node(node);
-        let start = tsc_syntax::skip_trivia(&source.text, raw.pos as usize);
-        source.text[start..].starts_with("new")
+        let start = tsc_syntax::skip_trivia(&source.text(), raw.pos as usize);
+        source.text()[start..].starts_with("new")
     }
 
     fn meta_property_name_text(&self, node: NodeId) -> Option<String> {
@@ -3228,10 +3222,8 @@ impl<'a> CheckerState<'a> {
                         let raw = source.arena.node(node);
                         let to_utf16 = |byte: usize| -> u32 {
                             source
-                                .line_map
-                                .byte_to_utf16
-                                .get(byte)
-                                .copied()
+                                .positions()
+                                .byte_to_utf16((byte) as u32)
                                 .unwrap_or(byte as u32)
                         };
                         let pos = to_utf16(raw.end as usize);
@@ -3650,10 +3642,8 @@ impl<'a> CheckerState<'a> {
         }
         let to_utf16 = |byte: usize| -> u32 {
             source
-                .line_map
-                .byte_to_utf16
-                .get(byte)
-                .copied()
+                .positions()
+                .byte_to_utf16((byte) as u32)
                 .unwrap_or(byte as u32)
         };
         let start = to_utf16(array.end as usize - 1);

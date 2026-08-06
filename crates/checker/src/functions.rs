@@ -4930,7 +4930,7 @@ impl<'a> CheckerState<'a> {
         let pos = if range_pos == range_end {
             range_pos
         } else {
-            tsc_syntax::skip_trivia(&source.text, range_pos)
+            tsc_syntax::skip_trivia(&source.text(), range_pos)
         };
         self.grammar_error_at_pos(
             node,
@@ -4975,13 +4975,11 @@ impl<'a> CheckerState<'a> {
             return false;
         }
         let start_byte = array.pos as usize - "<".len();
-        let end_byte = tsc_syntax::skip_trivia(&source.text, array.end as usize) + ">".len();
+        let end_byte = tsc_syntax::skip_trivia(&source.text(), array.end as usize) + ">".len();
         let to_utf16 = |byte: usize| -> u32 {
             source
-                .line_map
-                .byte_to_utf16
-                .get(byte)
-                .copied()
+                .positions()
+                .byte_to_utf16((byte) as u32)
                 .unwrap_or(byte as u32)
         };
         let start = to_utf16(start_byte);
@@ -5121,22 +5119,14 @@ impl<'a> CheckerState<'a> {
         let arrow_record = source.arena.node(arrow);
         let line_of = |byte: u32| -> usize {
             let utf16 = source
-                .line_map
-                .byte_to_utf16
-                .get(byte as usize)
-                .copied()
-                .unwrap_or_else(|| {
-                    source
-                        .line_map
-                        .byte_to_utf16
-                        .last()
-                        .copied()
-                        .expect("line map always contains EOF")
-                });
-            match source.line_map.line_starts.binary_search(&utf16) {
-                Ok(line) => line,
-                Err(insertion) => insertion.saturating_sub(1),
-            }
+                .positions()
+                .byte_to_utf16(byte)
+                .unwrap_or_else(|| source.positions().utf16_len());
+            source
+                .positions()
+                .line_and_character_utf16(utf16)
+                .expect("clamped source position has a line")
+                .line as usize
         };
         let start_line = line_of(arrow_record.pos);
         let end_line = line_of(arrow_record.end);
@@ -5419,10 +5409,8 @@ impl<'a> CheckerState<'a> {
         let (start, end) = node_util::get_span_of_token_at_position(source, pos);
         let to_utf16 = |byte: usize| -> u32 {
             source
-                .line_map
-                .byte_to_utf16
-                .get(byte)
-                .copied()
+                .positions()
+                .byte_to_utf16((byte) as u32)
                 .unwrap_or(byte as u32)
         };
         let start_utf16 = to_utf16(start);

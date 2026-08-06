@@ -2314,8 +2314,8 @@ impl<'a> Binder<'a> {
         if expr.pos >= expr.end {
             return false;
         }
-        let start = tsc_syntax::skip_trivia(&self.source.text, expr.pos as usize);
-        let text = &self.source.text[start..expr.end as usize];
+        let start = tsc_syntax::skip_trivia(&self.source.text(), expr.pos as usize);
+        let text = &self.source.text()[start..expr.end as usize];
         text == "\"use strict\"" || text == "'use strict'"
     }
 
@@ -2645,8 +2645,12 @@ impl<'a> Binder<'a> {
         args: &[&str],
     ) {
         let args: Vec<String> = args.iter().map(|arg| (*arg).to_owned()).collect();
-        let map = &self.source.line_map.byte_to_utf16;
-        let to_utf16 = |byte: usize| -> u32 { map.get(byte).copied().unwrap_or(byte as u32) };
+        let to_utf16 = |byte: usize| -> u32 {
+            self.source
+                .positions()
+                .byte_to_utf16(byte as u32)
+                .expect("binder diagnostic offsets are UTF-8 scalar boundaries")
+        };
         let start_utf16 = to_utf16(start);
         let end_utf16 = to_utf16(end);
         self.bind_diagnostics.push(tsc_diagnostics::Diagnostic::new(

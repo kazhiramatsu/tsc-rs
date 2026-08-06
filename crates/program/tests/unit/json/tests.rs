@@ -12,13 +12,13 @@ fn strict_and_jsonc_objects_share_the_same_owned_projection() {
     let path = Path::new("/types/pkg/package.json");
     let strict = r#"{"name":"pkg","exports":{".":"./index.d.ts"}}"#.to_owned();
     let (retained, object) = parse_json_object(path, strict.clone());
-    assert_eq!(retained, strict);
+    assert_eq!(retained.text(), strict);
     assert_eq!(object["name"], json!("pkg"));
     assert_eq!(object["exports"], json!({".": "./index.d.ts"}));
 
     let jsonc = r#"{/* comment */"typings":null,"nested":[1,-2,{}],}"#.to_owned();
     let (retained, object) = parse_json_object(path, jsonc.clone());
-    assert_eq!(retained, jsonc);
+    assert_eq!(retained.text(), jsonc);
     assert_eq!(object["typings"], Value::Null);
     assert_eq!(object["nested"], json!([1.0, -2.0, {}]));
 }

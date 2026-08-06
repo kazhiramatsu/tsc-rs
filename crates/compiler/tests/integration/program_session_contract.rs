@@ -212,17 +212,16 @@ fn consume(session: ProgramSession) -> NoEmitOutcome {
 fn assert_one_cached_library_saved_work(
     owned: &NoEmitOutcome,
     cached: &NoEmitOutcome,
-    library_bytes: usize,
+    _library_bytes: usize,
 ) {
     let owned = owned.work_counters();
     let cached = cached.work_counters();
     assert_eq!(owned.parsed_documents(), cached.parsed_documents() + 1);
     assert_eq!(owned.bound_documents(), cached.bound_documents() + 1);
-    assert_eq!(owned.full_text_copies(), cached.full_text_copies() + 1);
-    assert_eq!(
-        owned.full_text_bytes_copied(),
-        cached.full_text_bytes_copied() + library_bytes as u64
-    );
+    assert_eq!(owned.full_text_copies(), 0);
+    assert_eq!(cached.full_text_copies(), 0);
+    assert_eq!(owned.full_text_bytes_copied(), 0);
+    assert_eq!(cached.full_text_bytes_copied(), 0);
 }
 
 #[test]
@@ -247,11 +246,10 @@ fn l0_work_counters_and_sorted_batch_syntax_diagnostics() {
     assert!(outcome.semantic_diagnostics().is_empty());
 
     let work = outcome.work_counters();
-    let source_bytes = files.iter().map(|(_, text)| text.len() as u64).sum::<u64>();
     assert_eq!(work.parsed_documents(), 3);
     assert_eq!(work.bound_documents(), 3);
-    assert_eq!(work.full_text_copies(), 6);
-    assert_eq!(work.full_text_bytes_copied(), source_bytes * 2);
+    assert_eq!(work.full_text_copies(), 0);
+    assert_eq!(work.full_text_bytes_copied(), 0);
 }
 
 #[test]
@@ -498,14 +496,14 @@ fn suggestion_getter_rows_never_enter_noemit_outcome() {
         ..CompilerOptions::default()
     };
     let checked = check_program_with_owned_libs_at(
-        &[InputFile {
-            name: "lib.d.ts".to_owned(),
-            text: MINIMAL_GLOBALS.to_owned(),
-        }],
-        &[InputFile {
-            name: "suggestion.ts".to_owned(),
-            text: "export {};\nconst dead = 1;\n".to_owned(),
-        }],
+        &[InputFile::new(
+            "lib.d.ts".to_owned(),
+            MINIMAL_GLOBALS.to_owned(),
+        )],
+        &[InputFile::new(
+            "suggestion.ts".to_owned(),
+            "export {};\nconst dead = 1;\n".to_owned(),
+        )],
         &options,
         "/Display/Project",
     );

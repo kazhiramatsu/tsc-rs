@@ -662,11 +662,9 @@ impl<'a> Binder<'a> {
 
     fn to_utf16(&self, byte: usize) -> u32 {
         self.source
-            .line_map
-            .byte_to_utf16
-            .get(byte)
-            .copied()
-            .unwrap_or(byte as u32)
+            .positions()
+            .byte_to_utf16(byte as u32)
+            .expect("binder diagnostic offsets are UTF-8 scalar boundaries")
     }
 
     /// tsc createDiagnosticForNode(InSourceFile): span from

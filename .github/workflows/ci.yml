@@ -28,6 +28,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:
+      head_sha: ${{ steps.diff.outputs.head_sha }}
+      base_sha: ${{ steps.diff.outputs.base_sha }}
       docs_only: ${{ steps.diff.outputs.docs_only }}
       static: ${{ steps.diff.outputs.static }}
       host_platform: ${{ steps.diff.outputs.host_platform }}
@@ -106,6 +108,22 @@ jobs:
           node --check crates/oracle/l0-performance.mjs
           node crates/oracle/l0-performance.mjs --check
           cargo test --locked \
+            --manifest-path crates/diagnostics/Cargo.toml \
+            --lib \
+            text::tests
+          cargo test --locked \
+            --manifest-path crates/syntax/Cargo.toml \
+            --lib \
+            snapshot_entry_preserves_text_and_position_owner_identity
+          cargo test --locked \
+            --manifest-path crates/checker/Cargo.toml \
+            --lib \
+            checker_input_and_source_file_share_the_exact_snapshot_arc
+          cargo test --locked \
+            --manifest-path crates/compiler/Cargo.toml \
+            --lib \
+            prepared_to_checker_projection_preserves_the_exact_snapshot_arc
+          cargo test --locked \
             --manifest-path crates/compiler/Cargo.toml \
             --test contracts \
             l0_work_counters
@@ -150,14 +168,165 @@ jobs:
           --manifest-path crates/program/Cargo.toml
           --test host_platform_smoke_contract
 
-  # L0.0 can only freeze deterministic large-edit inputs. L0/L1 runtime work
-  # extends this scheduled lane with randomized edits, registry reclamation,
-  # fresh/incremental exactness, cancellation, and bounded-RSS observations.
+  # The semantic merge authority. The complete unsplit gate is executed at
+  # the exact classified HEAD/base, then its strict result is signed through
+  # GitHub's OIDC-backed artifact-attestation service. The job succeeds only
+  # after an independent gh verifier checks the signer workflow and the final
+  # receipt rebinds that verified bundle to the same result and commits.
+  exact_qualification:
+    name: exact-merge-qualification
+    needs: classify
+    if: >-
+      ${{
+        needs.classify.outputs.static == 'true' &&
+        (needs.classify.outputs.l0_l1 == 'true' || needs.classify.outputs.h1 == 'true') &&
+        (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+      }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+      artifact-metadata: write
+    env:
+      CARGO_BUILD_JOBS: "2"
+      CARGO_INCREMENTAL: "0"
+      CARGO_PROFILE_TEST_DEBUG: "0"
+      RUST_TEST_THREADS: "2"
+      RUSTC_WRAPPER: ""
+      EXACT_HEAD: ${{ needs.classify.outputs.head_sha }}
+      EXACT_BASE: ${{ needs.classify.outputs.base_sha }}
+      EXPECTED_SELECTION_SHA256: ${{ needs.classify.outputs.selection_sha256 }}
+    steps:
+      - name: Checkout the exact candidate
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+          ref: ${{ needs.classify.outputs.head_sha }}
+
+      - name: Reproduce the exact lane selection
+        shell: bash
+        run: |
+          node .github/ci/qualification.mjs classify \
+            --base "$EXACT_BASE" \
+            --head "$EXACT_HEAD" \
+            --out "$RUNNER_TEMP/lane-selection.json" \
+            --github-output "$RUNNER_TEMP/reclassified.outputs"
+          actual="$(sed -n 's/^selection_sha256=//p' "$RUNNER_TEMP/reclassified.outputs")"
+          test "$actual" = "$EXPECTED_SELECTION_SHA256"
+
+      - name: Run the unsplit full gate at the exact base
+        id: full_gate
+        shell: bash
+        run: |
+          set +e
+          cargo xtask ci --baseline "$EXACT_BASE" \
+            >"$RUNNER_TEMP/full-gate.stdout" \
+            2>"$RUNNER_TEMP/full-gate.stderr"
+          code=$?
+          set -e
+          if [ "$code" -ne 0 ]; then
+            {
+              printf 'stdout:\n'
+              cat "$RUNNER_TEMP/full-gate.stdout"
+              printf '\nstderr:\n'
+              cat "$RUNNER_TEMP/full-gate.stderr"
+            } >"$RUNNER_TEMP/full-gate.failure.log"
+            exit "$code"
+          fi
+
+      - name: Produce the strict attestation subject
+        run: |
+          node .github/ci/qualification.mjs produce-result \
+            --base "$EXACT_BASE" \
+            --head "$EXACT_HEAD" \
+            --selection "$RUNNER_TEMP/lane-selection.json" \
+            --stdout "$RUNNER_TEMP/full-gate.stdout" \
+            --stderr "$RUNNER_TEMP/full-gate.stderr" \
+            --out "$RUNNER_TEMP/qualification-result.json"
+
+      - name: Sign the exact qualification result with GitHub OIDC
+        id: attest
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4
+        with:
+          subject-path: ${{ runner.temp }}/qualification-result.json
+
+      - name: Verify OIDC provenance and finalize the receipt
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ATTESTATION_BUNDLE: ${{ steps.attest.outputs.bundle-path }}
+        run: |
+          gh attestation verify "$RUNNER_TEMP/qualification-result.json" \
+            --repo "$GITHUB_REPOSITORY" \
+            --bundle "$ATTESTATION_BUNDLE" \
+            --signer-workflow "$GITHUB_REPOSITORY/.github/workflows/ci.yml" \
+            --cert-oidc-issuer "https://token.actions.githubusercontent.com"
+          node .github/ci/qualification.mjs finalize-receipt \
+            --result "$RUNNER_TEMP/qualification-result.json" \
+            --bundle "$ATTESTATION_BUNDLE" \
+            --issuer "https://token.actions.githubusercontent.com" \
+            --subject "$GITHUB_REPOSITORY/.github/workflows/ci.yml" \
+            --out "$RUNNER_TEMP/merge-receipt.json"
+          node .github/ci/qualification.mjs verify-bound-receipt \
+            --receipt "$RUNNER_TEMP/merge-receipt.json" \
+            --result "$RUNNER_TEMP/qualification-result.json" \
+            --bundle "$ATTESTATION_BUNDLE" \
+            --head "$EXACT_HEAD" \
+            --base "$EXACT_BASE"
+
+      - name: Publish authenticated receipt evidence
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: exact-qualification-${{ needs.classify.outputs.head_sha }}
+          path: |
+            ${{ runner.temp }}/qualification-result.json
+            ${{ runner.temp }}/merge-receipt.json
+            ${{ steps.attest.outputs.bundle-path }}
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Produce bounded full-gate failure evidence
+        if: ${{ failure() && steps.full_gate.outcome == 'failure' }}
+        run: |
+          node .github/ci/qualification.mjs write-failure \
+            --head "$EXACT_HEAD" \
+            --base "$EXACT_BASE" \
+            --track l0-l1 \
+            --source "$RUNNER_TEMP/full-gate.failure.log" \
+            --payload-path target/ci-failure/full-gate.log \
+            --content-type text/plain \
+            --out target/ci-failure/full-gate.json
+          node .github/ci/qualification.mjs verify-failure \
+            --path target/ci-failure/full-gate.json \
+            --payload target/ci-failure/full-gate.log
+
+      - name: Upload bounded full-gate failure evidence
+        if: ${{ failure() && steps.full_gate.outcome == 'failure' }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: exact-qualification-failure-${{ needs.classify.outputs.head_sha }}
+          path: target/ci-failure/
+          if-no-files-found: error
+          retention-days: 14
+
+  # L0.1 activates deterministic randomized byte/UTF-16 edits, bounded
+  # snapshot history, and bounded RSS over the frozen large-edit input.
+  # L0.2+ extend this authority with registry reclamation, Program churn,
+  # fresh/incremental parse exactness, and cancellation observations.
   scheduled_stress:
-    name: scheduled-stress-inputs
+    name: scheduled-text-stress
     if: ${{ github.event_name == 'schedule' }}
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 30
+    env:
+      CARGO_BUILD_JOBS: "2"
+      CARGO_INCREMENTAL: "0"
+      CARGO_PROFILE_TEST_DEBUG: "0"
+      RUST_TEST_THREADS: "2"
+      RUSTC_WRAPPER: ""
     steps:
       - name: Checkout protected main
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -168,7 +337,53 @@ jobs:
         run: |
           node --check crates/oracle/l0-fixtures.mjs
           node crates/oracle/l0-fixtures.mjs --check
-          node crates/oracle/l0-fixtures.mjs --smoke
+          node crates/oracle/l0-fixtures.mjs --materialize "$RUNNER_TEMP/l0-fixtures"
+
+      - name: Run deterministic long text-store stress with an RSS bound
+        id: text_stress
+        run: >-
+          cargo xtask l0 text-stress
+          --fixture "$RUNNER_TEMP/l0-fixtures/large-edit/large-edit.ts"
+          --seed 0x5eed1a01cafef00d
+          --edits 20000
+          --max-rss-bytes 536870912
+          --report target/l0/text-stress.json
+
+      - name: Produce bounded stress failure evidence
+        if: ${{ failure() && steps.text_stress.outcome == 'failure' }}
+        shell: bash
+        env:
+          EXACT_HEAD: ${{ github.sha }}
+        run: |
+          base="$(git rev-parse HEAD^)"
+          initial_hash="$(node -e 'const fs=require("fs"),crypto=require("crypto");process.stdout.write(crypto.createHash("sha256").update(fs.readFileSync(process.argv[1])).digest("hex"))' "$RUNNER_TEMP/l0-fixtures/large-edit/large-edit.ts")"
+          if [ ! -f target/l0/text-stress.json ]; then
+            mkdir -p target/l0
+            printf '{"error":"text-stress command failed before publishing its report"}\n' >target/l0/text-stress.json
+          fi
+          node .github/ci/qualification.mjs write-failure \
+            --head "$EXACT_HEAD" \
+            --base "$base" \
+            --track stress \
+            --source target/l0/text-stress.json \
+            --payload-path target/ci-failure/text-stress.json \
+            --content-type application/json \
+            --seed 0x5eed1a01cafef00d \
+            --fixture ratchets/l0-fixtures.v1.json \
+            --initial-text-sha256 "$initial_hash" \
+            --out target/ci-failure/text-stress-manifest.json
+          node .github/ci/qualification.mjs verify-failure \
+            --path target/ci-failure/text-stress-manifest.json \
+            --payload target/ci-failure/text-stress.json
+
+      - name: Upload bounded stress failure evidence
+        if: ${{ failure() && steps.text_stress.outcome == 'failure' }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: scheduled-text-stress-failure-${{ github.sha }}
+          path: target/ci-failure/
+          if-no-files-found: error
+          retention-days: 14
 
   # One stable branch-protection context. Selected jobs must finish in a
   # known state; an absent, unknown, or unexpectedly skipped lane fails.
@@ -179,6 +394,7 @@ jobs:
       - classify
       - static
       - host_platform
+      - exact_qualification
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -193,6 +409,7 @@ jobs:
           PROGRAM_PATH: ${{ needs.classify.outputs.program_path }}
           L0_L1: ${{ needs.classify.outputs.l0_l1 }}
           H1: ${{ needs.classify.outputs.h1 }}
+          EXACT_QUALIFICATION_RESULT: ${{ needs.exact_qualification.result }}
           SELECTION_SHA256: ${{ needs.classify.outputs.selection_sha256 }}
         run: |
           test "$CLASSIFY_RESULT" = success
@@ -221,5 +438,10 @@ jobs:
               test "$HOST_PLATFORM_RESULT" = success
             else
               test "$HOST_PLATFORM_RESULT" = skipped
+            fi
+            if [ "$L0_L1" = true ] || [ "$H1" = true ]; then
+              test "$EXACT_QUALIFICATION_RESULT" = success
+            else
+              test "$EXACT_QUALIFICATION_RESULT" = skipped
             fi
           fi
