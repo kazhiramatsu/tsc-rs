@@ -15,7 +15,7 @@ static GLOBAL: &StatsAlloc<System> = &INSTRUMENTED_SYSTEM;
 
 fn main() {
     let arguments = std::env::args().skip(1).collect::<Vec<_>>();
-    let region = Region::new(&GLOBAL);
+    let region = Region::new(GLOBAL);
     let output = tsc_compiler::run_cli(&arguments);
     let stats = region.change();
 
