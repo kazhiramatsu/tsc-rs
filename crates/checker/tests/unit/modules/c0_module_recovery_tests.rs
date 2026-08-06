@@ -33,7 +33,7 @@ fn property_access_with_text(source: &SourceFile, expected: &str) -> NodeId {
         .node_ids()
         .find(|&node| {
             let raw = source.arena.node(node);
-            let start = tsc_syntax::skip_trivia(&source.text(), raw.pos as usize);
+            let start = tsc_syntax::skip_trivia(source.text(), raw.pos as usize);
             raw.kind == SyntaxKind::PropertyAccessExpression
                 && &source.text()[start..raw.end as usize] == expected
         })
@@ -49,7 +49,7 @@ fn common_js_flow_recovery_values_leave_the_ordinary_flow_query_live() {
         .node_ids()
         .filter(|&node| {
             let raw = source.arena.node(node);
-            let start = tsc_syntax::skip_trivia(&source.text(), raw.pos as usize);
+            let start = tsc_syntax::skip_trivia(source.text(), raw.pos as usize);
             raw.kind == SyntaxKind::PropertyAccessExpression
                 && &source.text()[start..raw.end as usize] == "exports.x"
         })

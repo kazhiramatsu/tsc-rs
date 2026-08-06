@@ -6257,7 +6257,7 @@ impl<'a> CheckerState<'a> {
                 }
                 let source = self.binder.source_of_node(name);
                 let raw = source.arena.node(name);
-                let start = tsc_syntax::skip_trivia(&source.text(), raw.pos as usize);
+                let start = tsc_syntax::skip_trivia(source.text(), raw.pos as usize);
                 let end = if matches!(
                     kind,
                     SyntaxKind::PrivateIdentifier | SyntaxKind::StringLiteral
@@ -6294,7 +6294,7 @@ impl<'a> CheckerState<'a> {
         }) {
             let source = self.binder.source_of_node(name);
             let raw = source.arena.node(name);
-            let start = tsc_syntax::skip_trivia(&source.text(), raw.pos as usize);
+            let start = tsc_syntax::skip_trivia(source.text(), raw.pos as usize);
             if let Some(token) =
                 tsc_syntax::scan_tokens(&source.text()[start..], source.language_variant).first()
             {

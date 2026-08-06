@@ -243,7 +243,7 @@
         "storage": "Arc<TextSnapshot>",
         "path": "crates/checker/src/lib.rs",
         "line": 61,
-        "source_sha256": "420698901e36085e72908a457c3ee117293889f6570fd97dc1eb2deaf870e40a",
+        "source_sha256": "febcac2edba13f25d54e1ea95f141e7e67ef63602b4a48f1950fea2493fab032",
         "evidence": "pub struct InputFile {"
       },
       {
@@ -303,7 +303,7 @@
         "branch": "json",
         "path": "crates/checker/src/lib.rs",
         "line": 1413,
-        "source_sha256": "420698901e36085e72908a457c3ee117293889f6570fd97dc1eb2deaf870e40a",
+        "source_sha256": "febcac2edba13f25d54e1ea95f141e7e67ef63602b4a48f1950fea2493fab032",
         "evidence": "            let source_file = tsc_syntax::parse_json_text_from_snapshot_with_bases("
       },
       {
@@ -312,7 +312,7 @@
         "branch": "ordinary",
         "path": "crates/checker/src/lib.rs",
         "line": 1512,
-        "source_sha256": "420698901e36085e72908a457c3ee117293889f6570fd97dc1eb2deaf870e40a",
+        "source_sha256": "febcac2edba13f25d54e1ea95f141e7e67ef63602b4a48f1950fea2493fab032",
         "evidence": "        let source_file = tsc_syntax::parse_source_file_from_snapshot("
       },
       {

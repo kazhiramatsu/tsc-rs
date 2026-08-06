@@ -75,7 +75,7 @@ impl<'program> CheckerState<'program> {
         if record.pos == u32::MAX || record.pos as usize > source.text().len() {
             return None;
         }
-        let byte = tsc_syntax::skip_trivia(&source.text(), record.pos as usize);
+        let byte = tsc_syntax::skip_trivia(source.text(), record.pos as usize);
         display_clone_line_of_byte(source, byte)
     }
 
@@ -1897,7 +1897,7 @@ impl DisplayClonePrinter<'_, '_> {
             return (false, false);
         }
         let dot_start =
-            tsc_syntax::skip_trivia(&expression_source.text(), expression_record.end as usize);
+            tsc_syntax::skip_trivia(expression_source.text(), expression_record.end as usize);
         let line_before_dot = match (
             self.state.display_clone_end_line(expression),
             display_clone_line_of_byte(expression_source, dot_start),

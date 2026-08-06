@@ -696,7 +696,7 @@ fn unused_expect_error_diagnostics(
     if source.comment_directives.is_empty() {
         return Vec::new();
     }
-    let byte_line_starts = compute_byte_line_starts(&source.text());
+    let byte_line_starts = compute_byte_line_starts(source.text());
     let line_of_byte = |offset: usize| -> usize {
         match byte_line_starts.binary_search(&offset) {
             Ok(line) => line,

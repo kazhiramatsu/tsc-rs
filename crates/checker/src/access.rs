@@ -46,7 +46,7 @@ impl<'a> CheckerState<'a> {
                         .unwrap_or_default()
                         .to_owned());
                 }
-                let start = tsc_syntax::skip_trivia(&source.text(), raw.pos as usize);
+                let start = tsc_syntax::skip_trivia(source.text(), raw.pos as usize);
                 Ok(source.text()[start..raw.end as usize].to_owned())
             }
             SyntaxKind::QualifiedName => {
@@ -2066,7 +2066,7 @@ impl<'a> CheckerState<'a> {
                         let source = self.binder.source_of_node(class);
                         crate::is_plain_js_file(
                             crate::is_js_file_name(&source.file_name),
-                            crate::check_directive(&source.text()),
+                            crate::check_directive(source.text()),
                             self.options,
                         )
                     });

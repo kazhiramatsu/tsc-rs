@@ -1626,7 +1626,7 @@ impl<'a> CheckerState<'a> {
                     Some(argument) => {
                         let source = self.binder.source_of_node(argument);
                         let raw = source.arena.node(argument);
-                        let start = tsc_syntax::skip_trivia(&source.text(), raw.pos as usize);
+                        let start = tsc_syntax::skip_trivia(source.text(), raw.pos as usize);
                         source.text()[start..raw.end as usize].to_owned()
                     }
                     None => String::new(),

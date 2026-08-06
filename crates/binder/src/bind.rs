@@ -2314,7 +2314,7 @@ impl<'a> Binder<'a> {
         if expr.pos >= expr.end {
             return false;
         }
-        let start = tsc_syntax::skip_trivia(&self.source.text(), expr.pos as usize);
+        let start = tsc_syntax::skip_trivia(self.source.text(), expr.pos as usize);
         let text = &self.source.text()[start..expr.end as usize];
         text == "\"use strict\"" || text == "'use strict'"
     }

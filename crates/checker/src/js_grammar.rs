@@ -159,7 +159,7 @@ impl<'a> JsGrammarWalker<'a> {
                 let pos = if node.pos == node.end {
                     node.pos as usize
                 } else {
-                    tsc_syntax::skip_trivia(&self.source.text(), node.pos as usize)
+                    tsc_syntax::skip_trivia(self.source.text(), node.pos as usize)
                 };
                 (pos, node.end as usize)
             }
@@ -623,7 +623,7 @@ impl<'a> JsGrammarWalker<'a> {
             }
             SyntaxKind::HeritageClause => {
                 let pos = tsc_syntax::skip_trivia(
-                    &self.source.text(),
+                    self.source.text(),
                     self.source.arena.node(id).pos as usize,
                 );
                 if self.token_kind_at(pos) == Some(SyntaxKind::ImplementsKeyword) {

@@ -4930,7 +4930,7 @@ impl<'a> CheckerState<'a> {
         let pos = if range_pos == range_end {
             range_pos
         } else {
-            tsc_syntax::skip_trivia(&source.text(), range_pos)
+            tsc_syntax::skip_trivia(source.text(), range_pos)
         };
         self.grammar_error_at_pos(
             node,
@@ -4975,7 +4975,7 @@ impl<'a> CheckerState<'a> {
             return false;
         }
         let start_byte = array.pos as usize - "<".len();
-        let end_byte = tsc_syntax::skip_trivia(&source.text(), array.end as usize) + ">".len();
+        let end_byte = tsc_syntax::skip_trivia(source.text(), array.end as usize) + ">".len();
         let to_utf16 = |byte: usize| -> u32 {
             source
                 .positions()

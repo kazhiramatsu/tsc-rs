@@ -1599,7 +1599,7 @@ impl<'a> CheckerState<'a> {
         }
         // getTokenPosOfNode = skipTrivia from the node's pos.
         let start = tsc_syntax::skip_trivia(
-            &self.binder.source_of_node(start_node).text(),
+            self.binder.source_of_node(start_node).text(),
             self.pos_of(start_node) as usize,
         );
         let end = self.end_of(end_node) as usize;
@@ -2982,7 +2982,7 @@ impl<'a> CheckerState<'a> {
                     if type_name_end == source.arena.node_array(type_arguments).pos as usize {
                         return None;
                     }
-                    let start = tsc_syntax::skip_trivia(&source.text(), type_name_end);
+                    let start = tsc_syntax::skip_trivia(source.text(), type_name_end);
                     (source.text().as_bytes().get(start) == Some(&b'.')).then(|| {
                         source
                             .positions()

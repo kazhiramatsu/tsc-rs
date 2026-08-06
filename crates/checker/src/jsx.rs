@@ -171,7 +171,7 @@ impl<'a> CheckerState<'a> {
         if let Some(opening_fragment) = opening_fragment {
             self.check_jsx_opening_like_element_or_opening_fragment(opening_fragment)?;
         }
-        let pragmas = leading_jsx_pragmas(&self.binder.source_of_node(node).text());
+        let pragmas = leading_jsx_pragmas(self.binder.source_of_node(node).text());
         if matches!(self.options.jsx, Some(2) | Some(4) | Some(5))
             && (self.options.jsx_factory.is_some() || pragmas.factory.is_some())
             && self.options.jsx_fragment_factory.is_none()
@@ -2094,7 +2094,7 @@ impl<'a> CheckerState<'a> {
         if let Some(cached) = self.jsx_implicit_import_containers.get(&file_index) {
             return Ok(*cached);
         }
-        let pragmas = leading_jsx_pragmas(&self.binder.source(file_index).text());
+        let pragmas = leading_jsx_pragmas(self.binder.source(file_index).text());
         let base = if pragmas.runtime.as_deref() == Some("classic") {
             None
         } else if matches!(self.options.jsx, Some(4) | Some(5))
@@ -2151,7 +2151,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:47491-47537
     ///
     pub(crate) fn get_jsx_namespace_name(&self, location: NodeId) -> String {
-        let pragmas = leading_jsx_pragmas(&self.binder.source_of_node(location).text());
+        let pragmas = leading_jsx_pragmas(self.binder.source_of_node(location).text());
         if matches!(
             self.kind_of(location),
             SyntaxKind::JsxOpeningFragment | SyntaxKind::JsxFragment
@@ -2178,7 +2178,7 @@ impl<'a> CheckerState<'a> {
     }
 
     fn get_jsx_factory_namespace_name(&self, location: NodeId) -> String {
-        let pragmas = leading_jsx_pragmas(&self.binder.source_of_node(location).text());
+        let pragmas = leading_jsx_pragmas(self.binder.source_of_node(location).text());
         pragmas
             .factory
             .as_deref()
