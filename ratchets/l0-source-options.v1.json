@@ -432,14 +432,14 @@
         "storage": "Arc-owned ParsedDocument/BoundDocument handles ordered by ProgramSnapshot",
         "path": "crates/checker/src/program.rs",
         "line": 54,
-        "source_sha256": "3e3a118c7325a953a47b0cf9d30fc53267d7d19568d6f2cf52f8833a64e9f445",
+        "source_sha256": "1627d37bca79662e71846d753b9813be446caaa68ab67c0c44cce28facacef60",
         "evidence": "pub struct ProgramSnapshot {"
       },
       "program_owner_intervals": {
         "contract": "base-sorted non-contiguous and non-overlapping",
         "path": "crates/checker/src/program.rs",
         "line": 220,
-        "source_sha256": "3e3a118c7325a953a47b0cf9d30fc53267d7d19568d6f2cf52f8833a64e9f445",
+        "source_sha256": "1627d37bca79662e71846d753b9813be446caaa68ab67c0c44cce28facacef60",
         "evidence": "    symbol_owners: Vec<ArenaOwner>,"
       },
       "checker_transient_partition": {
