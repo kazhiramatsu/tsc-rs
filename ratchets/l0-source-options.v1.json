@@ -397,14 +397,14 @@
         ],
         "path": "crates/types/src/identity.rs",
         "line": 400,
-        "source_sha256": "6e23f045a9edb128e71e894c8b8d8669702a6be5048972e3ec4c8a163d2d5584",
+        "source_sha256": "bd03e47ba29789155534e9b7e1d630133942b45dc2c34be322b5bfbe081a29d8",
         "evidence": "pub struct IdentityDomain {"
       },
       "lease_lifetime": {
         "storage": "Arc lease; last-owner Drop releases the exact interval",
         "path": "crates/types/src/identity.rs",
         "line": 629,
-        "source_sha256": "6e23f045a9edb128e71e894c8b8d8669702a6be5048972e3ec4c8a163d2d5584",
+        "source_sha256": "bd03e47ba29789155534e9b7e1d630133942b45dc2c34be322b5bfbe081a29d8",
         "evidence": "pub struct IdentityLease {"
       },
       "syntax_owner": {
@@ -439,7 +439,7 @@
         "high_bit": 2147483648,
         "path": "crates/types/src/identity.rs",
         "line": 15,
-        "source_sha256": "6e23f045a9edb128e71e894c8b8d8669702a6be5048972e3ec4c8a163d2d5584",
+        "source_sha256": "bd03e47ba29789155534e9b7e1d630133942b45dc2c34be322b5bfbe081a29d8",
         "evidence": "pub const TRANSIENT_SYMBOL_BIT: u32 = 1 << 31;"
       }
     },
