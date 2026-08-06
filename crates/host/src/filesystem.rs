@@ -212,8 +212,30 @@ fn metadata_if_present(
     match fs::metadata(path) {
         Ok(metadata) => Ok(Some(metadata)),
         Err(error) if is_absence(&error) => Ok(None),
+        // TypeScript's UNC-style root parsing treats a verbatim drive path
+        // such as `//?/C:/work/a.ts` as rooted at `//?/`. Its ancestor walk
+        // consequently probes the synthetic `//?/C:` and `//?/` directories.
+        // Node's `statSync(..., { throwIfNoEntry: false })` wrapper converts
+        // every error for those incomplete namespace spellings to absence.
+        // Rust reports ERROR_INVALID_FUNCTION instead, so preserve the
+        // upstream existence observation without weakening fail-closed I/O
+        // handling for any complete filesystem path.
+        #[cfg(windows)]
+        Err(_) if is_incomplete_windows_namespace_ancestor(path) => Ok(None),
         Err(error) => Err(map_io_error(error, operation, Some(path.to_path_buf()))),
     }
+}
+
+#[cfg(windows)]
+fn is_incomplete_windows_namespace_ancestor(path: &Path) -> bool {
+    let Some(text) = path.to_str() else {
+        return false;
+    };
+    let slashed = text.replace('\\', "/");
+    let namespace_tail = slashed
+        .strip_prefix("//?/")
+        .or_else(|| slashed.strip_prefix("//./"));
+    namespace_tail.is_some_and(|tail| tail.is_empty() || !tail.contains('/'))
 }
 
 fn validate_input_path(path: &Path, operation: HostOperation) -> Result<&str, HostError> {

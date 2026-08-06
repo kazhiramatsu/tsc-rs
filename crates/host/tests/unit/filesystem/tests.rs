@@ -3,6 +3,12 @@ use std::io;
 use super::map_io_error;
 use crate::{HostErrorKind, HostOperation};
 
+#[cfg(windows)]
+use std::path::Path;
+
+#[cfg(windows)]
+use super::is_incomplete_windows_namespace_ancestor;
+
 #[test]
 fn maps_stable_io_error_classes() {
     for (source, expected) in [
@@ -22,6 +28,27 @@ fn maps_stable_io_error_classes() {
         assert_eq!(error.kind(), expected);
         assert_eq!(error.operation(), HostOperation::ReadFile);
     }
+}
+
+#[cfg(windows)]
+#[test]
+fn recognizes_only_incomplete_windows_namespace_ancestors() {
+    assert!(is_incomplete_windows_namespace_ancestor(Path::new(
+        "//?/C:"
+    )));
+    assert!(is_incomplete_windows_namespace_ancestor(Path::new("//?/")));
+    assert!(is_incomplete_windows_namespace_ancestor(Path::new(
+        r"\\.\VolumeName"
+    )));
+    assert!(!is_incomplete_windows_namespace_ancestor(Path::new(
+        "//?/C:/"
+    )));
+    assert!(!is_incomplete_windows_namespace_ancestor(Path::new(
+        "//?/C:/work"
+    )));
+    assert!(!is_incomplete_windows_namespace_ancestor(Path::new(
+        "C:/work"
+    )));
 }
 
 #[cfg(windows)]
