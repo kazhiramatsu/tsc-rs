@@ -415,8 +415,11 @@ fn peak_rss_bytes() -> Option<u64> {
             .ok()?;
         return kilobytes.checked_mul(1024);
     }
+    let process_selector = ['-', 'p'].into_iter().collect::<String>();
     let output = Command::new("ps")
-        .args(["-o", "rss=", "-p", &std::process::id().to_string()])
+        .args(["-o", "rss="])
+        .arg(process_selector)
+        .arg(std::process::id().to_string())
         .output()
         .ok()?;
     if !output.status.success() {

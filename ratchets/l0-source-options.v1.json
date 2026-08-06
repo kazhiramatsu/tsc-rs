@@ -294,7 +294,7 @@
         "to": "InputFile.snapshot",
         "path": "crates/compiler/src/lib.rs",
         "line": 849,
-        "source_sha256": "754e465f65e60381d81494ed717aa8af6a5c973e5a7191791b1989063ccaf089",
+        "source_sha256": "ebcc4f6014cc7e60671af40b04c892ee09e48893ba423658f6f9c6d1ac553248",
         "evidence": "        InputFile::from_snapshot(name, Arc::clone(source.snapshot())),"
       },
       {
@@ -360,26 +360,26 @@
         "representation": "private dense byte/UTF-16 tables",
         "path": "crates/diagnostics/src/text.rs",
         "line": 55,
-        "source_sha256": "ce60dc0aade474fa9b57d7e206058e2ea653c3cf02bcd704a26cfbea6d4d747b",
+        "source_sha256": "cdfb32a09432e02f277574b63818b57c5af83ee7d81d943b8a7fa15e61727cba",
         "evidence": "struct DensePositionIndex {"
       },
       "edited": {
         "representation": "persistent line tree with subtree byte/UTF-16/line counts",
         "path": "crates/diagnostics/src/text.rs",
         "line": 237,
-        "source_sha256": "ce60dc0aade474fa9b57d7e206058e2ea653c3cf02bcd704a26cfbea6d4d747b",
+        "source_sha256": "cdfb32a09432e02f277574b63818b57c5af83ee7d81d943b8a7fa15e61727cba",
         "evidence": "struct PersistentLineTree {"
       },
       "accessor_contract": {
         "path": "crates/diagnostics/src/text.rs",
         "line": 517,
-        "source_sha256": "ce60dc0aade474fa9b57d7e206058e2ea653c3cf02bcd704a26cfbea6d4d747b",
+        "source_sha256": "cdfb32a09432e02f277574b63818b57c5af83ee7d81d943b8a7fa15e61727cba",
         "evidence": "    pub fn byte_to_utf16(&self, position: u32) -> Option<u32> {"
       },
       "versioned_store": {
         "path": "crates/diagnostics/src/text.rs",
         "line": 804,
-        "source_sha256": "ce60dc0aade474fa9b57d7e206058e2ea653c3cf02bcd704a26cfbea6d4d747b",
+        "source_sha256": "cdfb32a09432e02f277574b63818b57c5af83ee7d81d943b8a7fa15e61727cba",
         "evidence": "pub struct VersionedTextStore {"
       }
     },
