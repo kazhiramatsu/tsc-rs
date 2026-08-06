@@ -1,6 +1,6 @@
 # LSP and incremental parsing — persistent Program foundation
 
-Status: L0.1 text ownership complete, 2026-08-06; L0.2 identity leases are
+Status: L0.2 identity leases complete, 2026-08-06; L0.3 owned bind state is
 next. The architecture audit found that the L0.0 one-shot data model was
 **not sufficient** for efficient Language Service, tsserver, or LSP operation.
 A bounded persistent-source foundation (`L0`) and the incremental-parser proof
@@ -526,7 +526,7 @@ The recommended order is now:
 2. **L0.1 — text ownership (complete):** introduce shared text and accessor-only static
    position indexes, remove full-text projection copies, then port the
    versioned line/snapshot store;
-3. **L0.2 — identity leases (next):** generate node/array/symbol relocation, admit
+3. **L0.2 — identity leases (complete):** generate node/array/symbol relocation, admit
    non-contiguous owner ranges, and prove release/no-overlap/exhaustion
    behavior;
 4. **L0.3 — owned bind state:** split `BinderWorker` from `BindData`, construct
@@ -595,9 +595,10 @@ fixture input, and strict receipt/failure-artifact schemas live under
 exact candidate/base and immutable inputs plus trusted-runner OIDC or a
 registered signer; unsigned files, artifacts, and PR comments are rejected.
 L0.0 froze and tested that contract without treating an unsigned summary as
-acceptance. L0.1 activates the exact status producer, text-store stress, and
-approved-runner comparison described in section 8.2. Registry/Program churn,
-incremental-parser exactness, and their resource gates remain L0.2-L1 work.
+acceptance. L0.1 activated the exact status producer, text-store stress, and
+approved-runner comparison described in section 8.2. L0.2 adds identity-range
+reclamation and its chained evidence in section 8.3. Registry/Program reuse,
+owned bind state, and incremental-parser exactness remain L0.3-L1 work.
 
 ### 8.2 L0.1 accepted text-ownership record
 
@@ -658,9 +659,66 @@ The active policy binds selected L0/L1 and H1 runtime candidates to the exact
 unsplit full-gate result, immutable inputs, GitHub OIDC attestation, verified
 signer workflow, and final receipt. Protected-main scheduled stress and the
 manual approved-runner performance workflow publish only bounded,
-content-addressed evidence. L0.2 may build identity leases on this boundary;
-it must not expose snapshot lineage as a public revision or replace these
+content-addressed evidence. L0.2 builds identity leases on this boundary
+without exposing snapshot lineage as a public revision or replacing these
 authorities with the aggregate hosted sentinel.
+
+### 8.3 L0.2 accepted identity-lease record
+
+L0.2 completed on 2026-08-06. Its qualified runtime is commit
+`460825348249e56da3a0954cb1b6d94b50fd6ce0`, compared with exact base
+`2b814b19902a49ffe8964c0fe9d56ea87687095e`. The base runtime-tree fingerprint
+is the accepted L0.1 candidate fingerprint, so the evidence forms a checked
+L0.1-to-L0.2 chain. Later evidence and documentation commits qualify only
+while their runtime-tree fingerprint remains identical to the L0.2 candidate.
+The accepted identity boundary is:
+
+- `IdentityDomain` leases node, node-array, persistent-symbol, and private-name
+  serial intervals through either an ephemeral bump policy or a reclaiming,
+  coalescing interval policy. Batch reservation is atomic, provisional H0
+  reservations seal exactly or cancel, the last lease clone releases a range,
+  and all limit, overflow, partition, and allocator failures are typed.
+- `NodeArena` and `SourceFile` retain node/array leases. The node schema now
+  generates mutable relocation for every ID-bearing node payload alongside
+  child visitation, including parents, JSDoc, arrays, roots, external-module
+  indicators, and arena bases. Reclaiming parses construct locally and
+  relocate after exact reservation; ephemeral H0 parses use sealed final bases
+  directly. Forced-nonzero tests prove both paths logically identical.
+- Binder publication leases and relocates persistent symbols plus the serials
+  embedded in private-name keys. Its declared exhaustive field move is the
+  completeness boundary until L0.3 owns `BindData`; symbol tables, links,
+  node maps, assigned serials, and ambient-module records all move together.
+- `ProgramBinder` accepts independently sorted, non-contiguous node, array,
+  and symbol owner intervals, rejects overlaps, unmanaged mixtures, and
+  cross-domain Programs, and does not assume bind order. The untagged symbol
+  half remains persistent; the high bit identifies checker-session-local
+  transient symbols, with typed exhaustion on both sides.
+- Every production H0 parse/bind path now supplies a domain. One-shot work
+  uses direct ephemeral bases, while process-lifetime prepared libraries retain
+  reclaiming leases and release them when the bundle drops.
+
+The scheduled `identity-stress` authority deterministically exercised 10,000
+open/edit/close operations with at most 64 active documents across four
+projects, TS/TSX/JS/JSON, and eight option variants. It checked non-overlap on
+every iteration, ended with zero active ranges, kept maximum bumps at 1,541
+nodes, 371 arrays, 488 symbols, and 49 private-name serials, and observed
+6,537,216 bytes RSS under the 512 MiB ceiling.
+
+The approved macOS arm64 comparison is checked in as
+[L0.2 performance evidence](../../../ratchets/l0-identity-leases-performance.v1.json).
+It contains one cold plus seven warm pairs per workload in alternating AB/BA
+order. All parse, bind, text-copy, and copied-byte ratios remain exactly 1;
+the remaining candidate/base ratios are:
+
+| Workload | Warm median | Warm p95 | Peak RSS | Allocations | Allocated bytes |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| explicit root | 0.997728 | 1.007362 | 0.998709 | 1.005749 | 1.012714 |
+| project | 0.986129 | 0.992770 | 1.000166 | 1.004077 | 1.008805 |
+| scale | 0.996657 | 1.003321 | 0.999908 | 1.002155 | 1.005240 |
+
+L0.3 is next: split worker state from owned `BindData`, construct
+`ProgramSnapshot`, and make the fresh checker borrow that snapshot without
+weakening this lease or qualification boundary.
 
 Thus full Language Service work should not precede H1, but L0 and L1 should.
 Completing them first is cheaper than retrofitting persistent identities,
@@ -724,12 +782,12 @@ edit-specific evidence:
    or registered-signer authentication defined by the
    [cross-track CI contract](compiler-compatibility-residual.md#114-cross-track-ci-and-qualification-topology)
    may post the required status; a hash or PR comment alone is insufficient.
-3. **Scheduled stress.** At L0.1, protected-main runs long deterministic
-   randomized byte/UTF-16 edit scripts, dense-oracle conversion checks,
-   bounded snapshot history, and bounded RSS. L0.2-L1 extend that authority
-   with repeated open/edit/close and multi-project churn, option and script-
-   kind changes, registry/identity-range reclamation, cancellation, and fresh-
-   versus-incremental exactness. A failure publishes a bounded reproducer
+3. **Scheduled stress.** At L0.2, protected-main runs long deterministic
+   randomized byte/UTF-16 edit scripts plus repeated open/edit/close and
+   multi-project identity churn, option and script-kind changes, range
+   reclamation, bounded snapshot history, and bounded RSS. L0.3-L1 extend that
+   authority with registry reuse, cancellation, and fresh-versus-incremental
+   exactness. A failure publishes a bounded reproducer
    containing the available initial-text hash, ordered edits, seed, option/
    version keys, reuse counters, owner ranges, diagnostics, and resource
    observations.
@@ -738,11 +796,11 @@ edit-specific evidence:
    candidate samples on the frozen runner/profile. A moving hosted image may
    smoke the behavior but cannot mint or relax a performance ratchet.
 
-L0.1 has activated the schema-bound fail-closed classifier, common non-
-document format/locked-all-target lane, exact Arc/text-store tests, applicable
-Windows host smoke, stable aggregate, OIDC-attested exact full-gate producer,
-scheduled text-store stress, approved-runner H0 comparison, and strict bounded
-failure evidence. A green `gates` sentinel or unsigned summary remains
+L0.2 has extended the schema-bound fail-closed classifier and common non-
+document format/locked-all-target lane with exact identity-owner tests,
+scheduled 10,000-operation reclamation stress, a chained approved-runner H0
+comparison, and strict bounded failure evidence while retaining the L0.1
+Arc/text-store authorities. A green `gates` sentinel or unsigned summary remains
 insufficient: a selected runtime candidate requires the exact qualification.
 Windows selection expands in later slices with program, registry, path,
 toolchain, and compiler adapters that exercise platform-specific paths or file

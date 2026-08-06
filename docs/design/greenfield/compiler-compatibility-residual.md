@@ -88,7 +88,7 @@ There is no single honest “100%” number spanning these surfaces:
 | Broad one-shot `tsc` compilation | Not designed as one approved milestone | Full JS transform matrix, declarations, maps, output/config/CLI matrix, and complete emit suites |
 | Build/watch/project references | Preliminary seams only | Builder state, `.tsbuildinfo`, graph reuse, solution orchestration, watchers, and their suites |
 | Compiler API/custom transforms | Not exposed | Stable AST/factory/printer/Program/TypeChecker contracts and callback lifetimes |
-| Persistent source + incremental parser | L0.1 text ownership complete; L0.2 next | L0 identity/owned bind/Program snapshots and L1 fresh-equivalent, performance-qualified update parsing |
+| Persistent source + incremental parser | L0.2 identity leases complete; L0.3 next | L0 owned bind/Program snapshots and L1 fresh-equivalent, performance-qualified update parsing |
 | Language Service | Audited engine prerequisites only | Full document registry/program and resolution reuse, query/cache APIs, cancellation, and FourSlash qualification |
 | tsserver | Not implemented | Session protocol, Project Service, open-file overlays, watches, plugins, type acquisition, and server suites |
 | LSP adapter | Not implemented and not an upstream tsc surface | Explicit protocol mapping, synchronization, capabilities, concurrency, and LSP tests |
@@ -992,9 +992,9 @@ H1 output paths/sinks and later watch/server work expand the Windows selector
 beyond the present host/program paths. Cargo commands use `--locked` where
 supported, third-party Actions are pinned to reviewed full commit SHAs,
 performance runners are explicitly approved, and failure artifacts are
-bounded and content-addressed. L0.1 activates the trusted exact-result
-producer, text-owner focused selection, scheduled Unicode edit stress, and
-approved-runner H0 comparison. H1 must reuse the common authenticated
+bounded and content-addressed. L0.2 extends the trusted exact-result producer
+with identity-owner focused selection, scheduled open/edit/close reclamation
+stress, and chained approved-runner H0 comparison. H1 must reuse the common authenticated
 authority while adding its implementation-specific focused selection, emit
 stress, and approved-runner qualification before its first runtime change;
 the aggregate hosted sentinel alone is not acceptance evidence.
