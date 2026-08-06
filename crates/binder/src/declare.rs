@@ -1009,14 +1009,34 @@ impl Binder<'_> {
             relocate_private_table_keys(&mut symbol.exports, &serial_relocation)?;
             relocate_private_table_keys(&mut symbol.global_exports, &serial_relocation)?;
         }
-        for symbol in node_symbol.values_mut() {
-            symbol_relocation.symbol(symbol)?;
+        let mut node_symbol_keys = node_symbol.keys().copied().collect::<Vec<_>>();
+        node_symbol_keys.sort_unstable();
+        for node in node_symbol_keys {
+            symbol_relocation.symbol(
+                node_symbol
+                    .get_mut(&node)
+                    .expect("collected node-symbol key must remain present"),
+            )?;
         }
-        for symbol in node_local_symbol.values_mut() {
-            symbol_relocation.symbol(symbol)?;
+        let mut node_local_symbol_keys = node_local_symbol.keys().copied().collect::<Vec<_>>();
+        node_local_symbol_keys.sort_unstable();
+        for node in node_local_symbol_keys {
+            symbol_relocation.symbol(
+                node_local_symbol
+                    .get_mut(&node)
+                    .expect("collected local-symbol key must remain present"),
+            )?;
         }
-        for table in locals.values_mut() {
-            relocate_symbol_table(table, &symbol_relocation, &serial_relocation)?;
+        let mut local_keys = locals.keys().copied().collect::<Vec<_>>();
+        local_keys.sort_unstable();
+        for node in local_keys {
+            relocate_symbol_table(
+                locals
+                    .get_mut(&node)
+                    .expect("collected locals key must remain present"),
+                &symbol_relocation,
+                &serial_relocation,
+            )?;
         }
         relocate_symbol_table(
             js_global_augmentations,
@@ -1024,7 +1044,10 @@ impl Binder<'_> {
             &serial_relocation,
         )?;
 
-        let old_assigned = std::mem::take(assigned_symbol_ids);
+        let mut old_assigned = std::mem::take(assigned_symbol_ids)
+            .into_iter()
+            .collect::<Vec<_>>();
+        old_assigned.sort_unstable_by_key(|(symbol, _)| *symbol);
         assigned_symbol_ids.reserve(old_assigned.len());
         for (mut symbol, mut serial) in old_assigned {
             symbol_relocation.symbol(&mut symbol)?;

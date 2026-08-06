@@ -425,7 +425,7 @@
         "storage": "SymbolArena symbol lease plus Binder private-name serial lease",
         "path": "crates/binder/src/declare.rs",
         "line": 69,
-        "source_sha256": "e4b929efdc7620d87d01fc90f980f65432665b55a1cca9e0fa4cce3e3d3d0678",
+        "source_sha256": "6c15daec1a963e3b21133e1619af2ed93bcae7f3c3c8bad48e042ac69851d259",
         "evidence": "    private_name_serial_lease: Option<IdentityLease>,"
       },
       "program_owner_intervals": {
