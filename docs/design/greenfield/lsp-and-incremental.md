@@ -728,7 +728,7 @@ owned bind state, and editable text beneath an already-landed emitter.
 ### 8.4 L0.3 accepted owned-bind-state record
 
 L0.3 completed on 2026-08-06. Its qualified runtime is commit
-`48e38c1c19e82b6bebd920aa2c9cbde2f674dbbd`, compared with exact base
+`d78bf23f73b341e0a7ba840367f515b5ec521e04`, compared with exact base
 `f03be30d4c581ec432b059b7f133d4439b3b1902`. The base runtime-tree fingerprint
 is the accepted L0.2 candidate fingerprint, so the evidence forms a checked
 L0.2-to-L0.3 chain. Later evidence and documentation commits qualify only
@@ -768,9 +768,9 @@ ratios are:
 
 | Workload | Warm median | Warm p95 | Peak RSS | Allocations | Allocated bytes |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| explicit root | 1.006374 | 1.012559 | 1.000970 | 1.000158 | 1.000731 |
-| project | 1.007895 | 0.984983 | 1.001831 | 1.000134 | 1.000622 |
-| scale | 1.002976 | 1.007340 | 1.004492 | 1.000056 | 1.000257 |
+| explicit root | 0.992898 | 0.960340 | 1.001290 | 1.000158 | 1.000731 |
+| project | 0.999751 | 1.000813 | 1.000998 | 1.000134 | 1.000622 |
+| scale | 1.010421 | 0.943605 | 1.000639 | 1.000056 | 1.000257 |
 
 L0.4 is next: move the one-shot H0 adapter through an ephemeral document
 store, then prove registry refcounts and unchanged-file parse/bind reuse
