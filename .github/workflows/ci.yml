@@ -195,6 +195,7 @@ jobs:
       CARGO_PROFILE_TEST_DEBUG: "0"
       RUST_TEST_THREADS: "2"
       RUSTC_WRAPPER: ""
+      TSRS_M8_RUNNER_PROFILE: github-ubuntu-x64-standard
       EXACT_HEAD: ${{ needs.classify.outputs.head_sha }}
       EXACT_BASE: ${{ needs.classify.outputs.base_sha }}
       EXPECTED_SELECTION_SHA256: ${{ needs.classify.outputs.selection_sha256 }}

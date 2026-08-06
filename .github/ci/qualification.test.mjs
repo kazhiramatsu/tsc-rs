@@ -33,6 +33,7 @@ test("policy and every qualification schema boundary are valid", () => {
     policy.exact_merge_qualification.node_setup_action,
     "actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38",
   );
+  assert.equal(policy.exact_merge_qualification.m8_runner_profile, "github-ubuntu-x64-standard");
   assert.equal(policy.scheduled_stress.authority_job, "scheduled_stress");
   assert.equal(policy.approved_performance.authority_job, "qualify");
 

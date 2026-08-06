@@ -279,7 +279,7 @@ export function validatePolicy(policy) {
   if (policy.limits.changed_paths !== 4096 || policy.limits.failure_artifact_bytes !== 10_485_760) throw new Error("qualification bounds drifted");
   if (policy.classification.unknown_non_documentation !== "select-all") throw new Error("classification must fail closed");
   const exact = policy.exact_merge_qualification;
-  if (exact.authority_workflow !== ".github/workflows/ci.yml" || exact.authority_job !== "exact_qualification" || exact.result_producer !== ".github/ci/qualification.mjs produce-result" || exact.result_contract !== ".github/ci/contracts/qualification-result.schema.json" || exact.receipt_contract !== ".github/ci/contracts/merge-receipt.schema.json" || exact.attestation_action !== "actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6" || exact.node_setup_action !== "actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38") throw new Error("invalid exact qualification authority policy");
+  if (exact.authority_workflow !== ".github/workflows/ci.yml" || exact.authority_job !== "exact_qualification" || exact.result_producer !== ".github/ci/qualification.mjs produce-result" || exact.result_contract !== ".github/ci/contracts/qualification-result.schema.json" || exact.receipt_contract !== ".github/ci/contracts/merge-receipt.schema.json" || exact.attestation_action !== "actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6" || exact.node_setup_action !== "actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38" || exact.m8_runner_profile !== "github-ubuntu-x64-standard") throw new Error("invalid exact qualification authority policy");
   if (policy.exact_merge_qualification.unsigned_receipts_qualify !== false) throw new Error("unsigned merge receipts must not qualify");
   if (policy.scheduled_stress.authority_workflow !== ".github/workflows/ci.yml" || policy.scheduled_stress.authority_job !== "scheduled_stress" || policy.scheduled_stress.event !== "schedule" || !policy.scheduled_stress.active_scope.includes("randomized-edits")) throw new Error("invalid scheduled stress authority policy");
   const workflow = fs.readFileSync(path.join(workspace, exact.authority_workflow), "utf8");
@@ -291,9 +291,10 @@ export function validatePolicy(policy) {
   const exactJob = workflow.slice(exactStart, exactEnd);
   const setupIndex = exactJob.indexOf(`uses: ${exact.node_setup_action}`);
   const versionFileIndex = exactJob.indexOf("node-version-file: .node-version");
+  const runnerProfileIndex = exactJob.indexOf(`TSRS_M8_RUNNER_PROFILE: ${exact.m8_runner_profile}`);
   const gateIndex = exactJob.indexOf("name: Run the unsplit full gate at the exact base");
-  if (setupIndex < 0 || versionFileIndex < setupIndex || gateIndex < versionFileIndex) {
-    throw new Error("exact qualification must install .node-version before the full gate");
+  if (setupIndex < 0 || versionFileIndex < setupIndex || runnerProfileIndex < 0 || gateIndex < versionFileIndex) {
+    throw new Error("exact qualification must pin its Node and M8 runner profiles before the full gate");
   }
   if (policy.approved_performance.authority_workflow !== ".github/workflows/l0-performance.yml" || policy.approved_performance.authority_job !== "qualify" || policy.approved_performance.environment !== "approved-performance" || policy.approved_performance.evidence !== "ratchets/l0-text-ownership-performance.v1.json") throw new Error("invalid performance authority binding");
   if (!policy.approved_performance.alternating_baseline_candidate || policy.approved_performance.moving_hosted_images_may_mint_ratchets) throw new Error("invalid performance authority policy");
