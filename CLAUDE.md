@@ -63,27 +63,33 @@ there.
    GitHub guardrail; the hosted workflow runs only its lightweight
    change classifier and required `gates` sentinel.
 8. Pushing to `origin` is allowed and expected: push the slice branch
-   with `-u` while working. PR Actions uses a GitHub-only guardrail with Cargo
-   parallelism capped at two. Rust/build-input changes run `cargo fmt --check`
-   and one non-linking `cargo check --workspace --locked` pass;
-   oracle-driver changes run pinned-Node syntax checks. The workflow does not
-   build the monolithic xtask. Focused Windows host contracts run only when
-   host/path infrastructure changes. Clippy, workspace tests, static/generated
-   contracts, semantic history, corpus conformance/recovery, invariants,
-   evidence, readiness, and performance remain local-only. The workflow runs
-   for pull requests and manual dispatch, not again after every merge to
-   `main`; the final `gates` job requires the applicable hosted checks. Local
-   `cargo xtask ci` remains required before opening and before merging except
-   for the exact Markdown-only rule above; its result and trusted baseline are
-   recorded in the PR body.
+   with `-u` while working. The current PR Actions workflow is a GitHub-only
+   guardrail: it classifies the trusted-base diff and runs focused Windows host
+   contracts only when host/path/toolchain infrastructure changes, with Cargo
+   parallelism capped at two. It does not run formatting, workspace check,
+   Node, Clippy, workspace tests, static/generated contracts, semantic history,
+   corpus conformance/recovery, invariants, evidence, readiness, or performance.
+   The workflow runs for pull requests and manual dispatch, not again after
+   every merge to `main`; the final `gates` job validates classification and
+   the applicable Windows result. Local `cargo xtask ci` remains required
+   before opening and before merging except for the exact Markdown-only rule
+   above; its result and trusted baseline are recorded in the PR body.
+
+   Before the first L0.1 or H1 runtime slice, land the expanded CI topology
+   defined by the L0/L1 and H1 design contracts: a required non-doc hosted
+   static lane, focused track tests, an authenticated exact HEAD/base-bound
+   full-gate receipt, scheduled stress coverage, and approved-runner
+   performance qualification.
+   Until then, a green hosted `gates` result alone is never acceptance evidence
+   for those runtime changes.
 
 ## Verification quick reference
 
 - **Markdown-only changes:** if and only if every trusted-base diff path is
   `*.md` and README's generated `STATUS` block is unchanged, run no
   Cargo/Node/full-corpus CI. Use `git diff --check` and review links, anchors,
-  and generated-block boundaries. Hosted `classify` skips the `hosted` job
-  and lets the lightweight required `gates` sentinel
+  and generated-block boundaries. Hosted `classify` skips the
+  `host_platform` job and lets the lightweight required `gates` sentinel
   succeed. Do not label a workflow/config/generated-artifact or generated-
   status change as documentation-only.
 - **NEVER pipe a gate command through `tail`/`head`/`grep` — the
@@ -99,17 +105,18 @@ there.
   full-corpus B2 producer reuses an existing exact-fingerprint artifact
   only after raw schema/hash/inventory/count/review validation; otherwise
   it regenerates the artifact with one single-threaded worker.
-- GitHub guardrail: `.github/workflows/ci.yml` directly runs formatting and a
-  single non-linking workspace `cargo check` only for changed Rust/build
-  inputs, plus pinned-Node syntax checks only for changed oracle-driver
-  inputs. This avoids compiling xtask merely to select CI work. The optional
-  `cargo xtask ci --lane hosted` static diagnostic and its
+- GitHub guardrail: `.github/workflows/ci.yml` currently performs fail-closed
+  change classification and the focused Windows host/program smoke only. It
+  does not run formatting, workspace check, or Node syntax checks. The
+  optional `cargo xtask ci --lane hosted` static diagnostic and its
   `--history-sensitive --baseline <trusted-ref-or-sha>` mode remain available
   locally but are never selected automatically by Actions. The legacy
   `--lane rust|semantic [--baseline <trusted-ref-or-sha>]` split remains
   available for diagnosing either half of the full local gate. Except for the
   exact Markdown-only rule, slice acceptance still requires the unsplit local
-  command above; a green GitHub guardrail is never a replacement for it.
+  command above; a green GitHub guardrail is never a replacement for it. The
+  L0/L1 and H1 contracts make expanding this guardrail a prerequisite to their
+  first runtime slices.
 - Conformance single band: `cargo xtask conformance [--band 2xxx]`
   (every gating run also enforces the A1 accepted-set ratchet;
   partial `--files`/`--limit` runs gate the executed-fixture

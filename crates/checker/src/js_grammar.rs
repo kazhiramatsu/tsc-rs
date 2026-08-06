@@ -44,7 +44,7 @@ struct JsGrammarWalker<'a> {
     diagnostics: Vec<Diagnostic>,
 }
 
-#[derive(Default)]
+#[derive(Clone, Copy, Default)]
 struct Roles {
     question_token: Option<NodeId>,
     r#type: Option<NodeId>,
@@ -223,52 +223,87 @@ impl<'a> JsGrammarWalker<'a> {
     }
 
     fn recurse(&mut self, id: NodeId) {
-        let kind = self.kind(id);
-        let roles = self.roles_for(id, kind);
-        let mut skipped: Vec<NodeId> = Vec::new();
-
-        if let Some(modifiers) = roles.modifiers {
-            if self.walk_modifiers_array(kind, modifiers) == Visit::Skip {
-                skipped.extend(self.array_elements(modifiers));
-            }
-        }
-        if let Some(type_parameters) = roles.type_parameters {
-            self.push_for_array(
-                type_parameters,
-                &gen::Type_parameter_declarations_can_only_be_used_in_TypeScript_files,
-            );
-            skipped.extend(self.array_elements(type_parameters));
-        }
-        if let Some(type_arguments) = roles.type_arguments {
-            self.push_for_array(
-                type_arguments,
-                &gen::Type_arguments_can_only_be_used_in_TypeScript_files,
-            );
-            skipped.extend(self.array_elements(type_arguments));
+        // The TypeScript walker is recursive, but JavaScript stress fixtures
+        // intentionally contain thousands of left-associated binary nodes.
+        // Keep the same depth-first child/diagnostic order with an explicit
+        // work stack so a normal Rust test/CLI stack is sufficient.
+        enum Work {
+            Visit(NodeId),
+            Child {
+                parent: NodeId,
+                child: NodeId,
+                roles: Roles,
+                skipped: bool,
+            },
         }
 
-        for child in self.children_of(id) {
-            if skipped.contains(&child) {
-                continue;
-            }
-            if roles.question_token == Some(child) {
-                self.push_for_node(
+        let mut work = vec![Work::Visit(id)];
+        while let Some(item) = work.pop() {
+            match item {
+                Work::Visit(id) => {
+                    let kind = self.kind(id);
+                    let roles = self.roles_for(id, kind);
+                    let mut skipped = Vec::new();
+
+                    if let Some(modifiers) = roles.modifiers {
+                        if self.walk_modifiers_array(kind, modifiers) == Visit::Skip {
+                            skipped.extend(self.array_elements(modifiers));
+                        }
+                    }
+                    if let Some(type_parameters) = roles.type_parameters {
+                        self.push_for_array(
+                            type_parameters,
+                            &gen::Type_parameter_declarations_can_only_be_used_in_TypeScript_files,
+                        );
+                        skipped.extend(self.array_elements(type_parameters));
+                    }
+                    if let Some(type_arguments) = roles.type_arguments {
+                        self.push_for_array(
+                            type_arguments,
+                            &gen::Type_arguments_can_only_be_used_in_TypeScript_files,
+                        );
+                        skipped.extend(self.array_elements(type_arguments));
+                    }
+
+                    let children = self.children_of(id);
+                    for child in children.into_iter().rev() {
+                        work.push(Work::Child {
+                            parent: id,
+                            child,
+                            roles,
+                            skipped: skipped.contains(&child),
+                        });
+                    }
+                }
+                Work::Child {
+                    parent,
                     child,
-                    &gen::The_0_modifier_can_only_be_used_in_TypeScript_files,
-                    &["?"],
-                );
-                continue;
-            }
-            if roles.r#type == Some(child) {
-                self.push_for_node(
-                    child,
-                    &gen::Type_annotations_can_only_be_used_in_TypeScript_files,
-                    &[],
-                );
-                continue;
-            }
-            if self.check_node(child, id) == Visit::Descend {
-                self.recurse(child);
+                    roles,
+                    skipped,
+                } => {
+                    if skipped {
+                        continue;
+                    }
+                    if roles.question_token == Some(child) {
+                        self.push_for_node(
+                            child,
+                            &gen::The_0_modifier_can_only_be_used_in_TypeScript_files,
+                            &["?"],
+                        );
+                        continue;
+                    }
+                    if roles.r#type == Some(child) {
+                        self.push_for_node(
+                            child,
+                            &gen::Type_annotations_can_only_be_used_in_TypeScript_files,
+                            &[],
+                        );
+                        continue;
+                    }
+                    if self.check_node(child, parent) == Visit::Descend {
+                        work.push(Work::Visit(child));
+                    }
+                }
             }
         }
     }
@@ -790,61 +825,5 @@ pub(crate) fn can_have_decorators(kind: SyntaxKind) -> bool {
 }
 
 #[cfg(test)]
-mod tests {
-    use tsc_syntax::{parse_source_file, ParseOptions};
-
-    use super::get_js_syntactic_diagnostics;
-
-    fn js_syntactic_diagnostics(text: &str) -> Vec<tsc_diagnostics::Diagnostic> {
-        let source = parse_source_file(
-            "a.js".to_owned(),
-            text.to_owned(),
-            ParseOptions {
-                javascript_file: true,
-                ..ParseOptions::default()
-            },
-            None,
-        );
-        get_js_syntactic_diagnostics(&source, false)
-    }
-
-    #[test]
-    fn decorators_split_by_export_carry_1486_related_information_in_js() {
-        for (text, trailing_start) in [
-            ("@dec export @dec class C6 {}", 12),
-            ("@dec export default @dec class C7 {}", 20),
-        ] {
-            let diagnostics = js_syntactic_diagnostics(text);
-            let diagnostic = diagnostics
-                .iter()
-                .find(|diagnostic| diagnostic.code() == 8038)
-                .expect("TS8038");
-            assert_eq!(
-                (diagnostic.start, diagnostic.length),
-                (Some(trailing_start), Some(4))
-            );
-            assert_eq!(diagnostic.related.len(), 1);
-            let related = &diagnostic.related[0];
-            assert_eq!(related.message.code, 1486);
-            assert_eq!(related.message.text, "Decorator used before 'export' here.");
-            assert_eq!((related.start, related.length), (Some(0), Some(4)));
-        }
-    }
-
-    #[test]
-    fn decorators_on_only_one_side_of_export_do_not_report_8038_in_js() {
-        for text in [
-            "@dec export class C1 {}",
-            "@dec export default class C2 {}",
-            "export @dec class C4 {}",
-            "export default @dec class C5 {}",
-        ] {
-            assert!(
-                js_syntactic_diagnostics(text)
-                    .iter()
-                    .all(|diagnostic| diagnostic.code() != 8038),
-                "unexpected TS8038 for {text}"
-            );
-        }
-    }
-}
+#[path = "../tests/unit/js_grammar/tests.rs"]
+mod tests;

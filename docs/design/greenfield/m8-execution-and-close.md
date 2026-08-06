@@ -310,10 +310,9 @@ Focused probes, crate tests, and the target family report are the iteration
 loop. Generated artifacts and README status are refreshed before the final
 verification. Run the complete local
 `CARGO_BUILD_JOBS=2 cargo xtask ci --baseline origin/main` once on the clean
-candidate branch, then let the required GitHub Actions workflow verify the
-same slice with its bounded compile/syntax guardrail; it does not repeat
-clippy, static contracts, tests, receipt-bound B2-B4 evidence, full invariants,
-readiness, or performance work. As soon as every required hosted check passes and the PR is mergeable,
+candidate branch. GitHub Actions only classifies the diff and runs the
+focused Windows filesystem smoke for platform-sensitive changes; it does not
+repeat the local gate. As soon as every required hosted check passes and the PR is mergeable,
 merge it automatically with `gh pr merge --merge --delete-branch`; no fresh
 per-PR approval is required unless the work introduces a substantial design
 or scope change. Do not repeatedly run full conformance, the B2 Node sweep, or
@@ -393,5 +392,5 @@ Each track requires a separate design, goal, compatibility surface, oracle or
 reference contract, performance bounds, and definition of done. Its design
 may reuse the batch engine, but it may not change M8 scope identities,
 denominators, evidence, or completion criteria. The existing
-[LSP and incremental notes](lsp-and-incremental.md) are preliminary design
-input for the future L-track, not an active M8 execution plan.
+[LSP and incremental design](lsp-and-incremental.md) is now an audited
+follow-on architecture plan, not an active M8 execution plan or M8 credit.

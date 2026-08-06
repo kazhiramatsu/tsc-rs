@@ -51,9 +51,21 @@ stage step docs referenced there.
   exact owner-triage and burn-in loop, fingerprint freeze, 14-window
   qualification, and close contract.
 - [greenfield/noemit-cli.md](greenfield/noemit-cli.md):
-  the active H0 contract that turns the completed prepared-program checker
-  into a filesystem-hosted `--noEmit` compiler through exact host-owner
-  closure, program/config loading, and CLI behavior.
+  the completed H0 contract that turns the prepared-program checker into a
+  filesystem-hosted `--noEmit` compiler through exact host-owner closure,
+  program/config loading, and CLI behavior.
+- [greenfield/h1-emit.md](greenfield/h1-emit.md):
+  the active H1 JavaScript-emit design — exact vendored resolver/transform/
+  printer/output owners, immutable source-tree and output-sink boundaries,
+  and a mandatory zero-cost/performance-ratcheted `--noEmit` path.
+- [greenfield/compiler-compatibility-residual.md](greenfield/compiler-compatibility-residual.md):
+  the audited gap from the current workspace through bounded H1 and the
+  broader TypeScript 6.0.3 compiler/tooling surfaces, with dependency order,
+  owner matrices, test evidence, and explicit claim boundaries.
+- [greenfield/lsp-and-incremental.md](greenfield/lsp-and-incremental.md):
+  the audited persistent-source and incremental architecture: current Rust
+  ownership/identity gaps, L0/L1 prerequisites before H1 runtime work, and
+  later Program/resolution, Language Service, tsserver, and LSP layers.
 - [greenfield/terminal-residue-protocol.md](greenfield/terminal-residue-protocol.md):
   the last-mile parity-sweep protocol — pipeline-layer classification,
   exact shape/provenance proof, and terminal identity-diff gates.

@@ -131,7 +131,10 @@ impl AuthoritativeModuleProvider for PreparedModuleProvider<'_> {
                 ModuleExtension::Arbitrary(extension)
                     if extension.starts_with(".d.") && extension.ends_with(".ts")
             );
-            if !module.extension().is_javascript() && !arbitrary_declaration {
+            if !module.extension().is_javascript()
+                && !arbitrary_declaration
+                && !matches!(reason, UnloadedModuleReason::NoResolve)
+            {
                 return Err(AuthoritativeModuleLookupFailure::Unsupported(
                     UnsupportedAuthoritativeResolution::UnloadedTargetExtension,
                 ));
@@ -183,6 +186,11 @@ impl AuthoritativeModuleProvider for PreparedModuleProvider<'_> {
                 .compiler_options()
                 .node_modules_depth_exceeds_limit(1);
             let resolution_diagnostic = match reason {
+                UnloadedModuleReason::NoResolve
+                    if self.prepared.compiler_options().no_resolve == Some(true) =>
+                {
+                    None
+                }
                 UnloadedModuleReason::JsxWithoutJsxOption
                     if matches!(module.extension(), ModuleExtension::Jsx)
                         && self.prepared.compiler_options().jsx.unwrap_or(0) == 0 =>
@@ -260,7 +268,11 @@ impl AuthoritativeModuleProvider for PreparedModuleProvider<'_> {
         // transition against this SourceFileId. The checker consumes the
         // selected source through its stable token; originalPath is resolver
         // provenance and does not replace that source identity.
-        let ResolvedModuleTarget::Source { source, .. } = module.target() else {
+        let ResolvedModuleTarget::Source {
+            source,
+            resolved_file,
+        } = module.target()
+        else {
             unreachable!("unloaded target returned above")
         };
         if self.prepared.source_file(*source).is_none() {
@@ -269,6 +281,13 @@ impl AuthoritativeModuleProvider for PreparedModuleProvider<'_> {
         Ok(AuthoritativeModuleResolution::Resolved(
             AuthoritativeResolvedModule {
                 target_token: AuthoritativeSourceToken(source.raw()),
+                resolved_file_name: resolved_file
+                    .display()
+                    .to_str()
+                    .ok_or(AuthoritativeModuleLookupFailure::Unsupported(
+                        UnsupportedAuthoritativeResolution::ResolvedFileIdentity,
+                    ))?
+                    .to_owned(),
                 resolved_using_ts_extension: module.resolved_using_ts_extension(),
                 is_tsx: matches!(
                     module.extension(),
@@ -367,15 +386,18 @@ impl ProgramSession {
         self.run_inner(false)
     }
 
-    /// Conformance-harness execution with exact-match vendored-lib reuse.
+    /// Upstream-harness execution with exact-match vendored-lib reuse.
     ///
     /// This is deliberately not the production H0 entry: [`run`](Self::run)
     /// keeps every parsed and bound source owned by its one-shot session.
-    /// Only the differential conformance harness may opt into the checker's
+    /// Only pinned, immutable upstream harnesses may opt into the checker's
     /// process-lifetime lib bundle to avoid rebuilding an identical standard
-    /// library prefix for every fixture case.
+    /// library prefix for every fixture case. The cache validates the ordered
+    /// library names, full source text, and parser/binder option projection
+    /// before reuse, so compiler/project suite audits can share the same safe
+    /// path as the conformance runner.
     #[doc(hidden)]
-    pub fn run_for_conformance_with_harness_lib_cache(self) -> Result<NoEmitOutcome, DriverError> {
+    pub fn run_for_harness_with_lib_cache(self) -> Result<NoEmitOutcome, DriverError> {
         self.run_inner(true)
     }
 

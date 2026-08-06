@@ -329,8 +329,11 @@ dependencies = [
 name = "tsc-rs-compiler"
 version = "0.1.0"
 dependencies = [
+ "serde",
+ "serde_json",
  "tsc-rs-checker",
  "tsc-rs-diagnostics",
+ "tsc-rs-harness",
  "tsc-rs-host",
  "tsc-rs-program",
 ]

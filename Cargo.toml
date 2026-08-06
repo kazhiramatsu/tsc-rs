@@ -41,6 +41,13 @@ tsc-program = { package = "tsc-rs-program", path = "crates/program" }
 tsc-syntax = { package = "tsc-rs-syntax", path = "crates/syntax" }
 tsc-types = { package = "tsc-rs-types", path = "crates/types" }
 
+# Test failures retain Rust backtraces and assertion context without embedding
+# full DWARF/PDB data in every large integration binary. This materially
+# reduces local link and process-startup I/O while leaving dev binaries
+# debuggable under the ordinary profile.
+[profile.test]
+debug = 0
+
 # `cargo xtask` runs the dev profile; unoptimized parse/bind/check made
 # corpus-wide commands ~9x slower than release. Optimize the compute
 # crates while keeping dev's debug-assertions (invariant checks stay on).

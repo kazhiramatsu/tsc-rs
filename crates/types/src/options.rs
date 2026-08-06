@@ -87,6 +87,10 @@ impl ModuleSuffix {
 pub struct CompilerOptions {
     /// tsc getAllowJSCompilerOption: allowJs ?? !!checkJs.
     pub allow_js: bool,
+    /// tsc `forceConsistentCasingInFileNames`: absent/true reports a
+    /// file-name diagnostic when two spellings collapse to one host identity;
+    /// an explicit false retains the collapsed source without that report.
+    pub force_consistent_casing_in_file_names: Option<bool>,
     /// Maximum JavaScript import depth admitted while searching
     /// `node_modules`. The raw JavaScript number defaults to zero and is only
     /// effective for source admission when `allowJs` is enabled. Fractions,
@@ -191,6 +195,11 @@ pub struct CompilerOptions {
     /// when noEmit is set (filterSemanticDiagnostics 125664). 727
     /// conformance fixtures carry the directive (469 true-valued).
     pub no_emit: Option<bool>,
+    /// Prevents program source discovery from following path, type, and
+    /// module references. TypeScript still resolves module requests so their
+    /// diagnostics remain authoritative; it only suppresses adding resolved
+    /// targets to the source graph.
+    pub no_resolve: Option<bool>,
     /// Imports downlevel emit helpers from `tslib`. Unlike the
     /// transformer-side use of this option, checkExternalEmitHelpers
     /// is semantic: it verifies that an in-program helper module
@@ -287,9 +296,22 @@ pub struct CompilerOptions {
     pub jsx_fragment_factory: Option<String>,
     pub jsx_import_source: Option<String>,
     pub react_namespace: Option<String>,
+    /// TypeScript 6.0's option-diagnostic suppression version. This is a
+    /// config/driver concern rather than a checker option, but carrying the
+    /// converted value through the owned option snapshot keeps
+    /// `getOptionsDiagnostics` and config-backed program execution on the
+    /// same effective option set. Only the exact supported `"6.0"` value
+    /// suppresses options deprecated in 6.0; invalid values are diagnosed at
+    /// the config boundary.
+    pub ignore_deprecations: Option<String>,
 }
 
 impl CompilerOptions {
+    /// tsc's module-resolution option defaults to true when absent.
+    pub fn force_consistent_casing_in_file_names_effective(&self) -> bool {
+        self.force_consistent_casing_in_file_names != Some(false)
+    }
+
     /// tsc createProgram defaults the raw option to zero.
     pub fn max_node_module_js_depth_effective(&self) -> f64 {
         self.max_node_module_js_depth

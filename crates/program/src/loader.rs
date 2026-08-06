@@ -2,8 +2,9 @@ use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::error::Error;
 use std::fmt;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
-use tsc_diagnostics::{gen, Diagnostic, MessageChain};
+use tsc_diagnostics::{gen, Diagnostic, MessageChain, RelatedInfo};
 use tsc_host::{to_file_name_lower_case, CompilerHost, HostError};
 use tsc_types::CompilerOptions;
 
@@ -20,8 +21,8 @@ use crate::module_resolution::{
 use crate::path::{CanonicalPath, ProgramPath};
 use crate::prepared::{
     extensionless_source_probe_extensions, PackageJsonType, PackageMetadata, PathContext,
-    PreparationDiagnostics, PreparedProgram, PreparedRoot, PreparedSourceFile, ProgramOptions,
-    SourceFileId,
+    PreparationDiagnostics, PreparedAuxiliaryFile, PreparedProgram, PreparedRoot,
+    PreparedSourceFile, ProgramConfigFile, ProgramOptions, SourceFileId,
 };
 use crate::resolution::{
     ModuleExtension, ModuleResolution, PackageId, ResolutionError, ResolutionKey, ResolutionMode,
@@ -307,7 +308,7 @@ impl ProgramLoadError {
         }
     }
 
-    fn unsupported(
+    pub(crate) fn unsupported(
         operation: ProgramLoadOperation,
         path: Option<PathBuf>,
         feature: impl Into<String>,
@@ -441,6 +442,7 @@ pub fn load_no_lib_program(
         None,
         true,
         limits,
+        None,
     )
 }
 
@@ -472,9 +474,58 @@ pub fn load_program(
         Some(library_catalog),
         false,
         limits,
+        None,
     )
 }
 
+/// Root inclusion provenance used by config-backed program construction.
+/// TypeScript exposes this in the TS6053/unsupported-root diagnostic chain;
+/// preserving it here keeps the loader independent of the config parser while
+/// allowing `files` roots to differ from explicit command-line roots.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) enum RootFileReason {
+    Explicit,
+    FilesList {
+        spec: Arc<str>,
+    },
+    IncludePattern {
+        spec: Arc<str>,
+        config_file: Arc<str>,
+    },
+    DefaultInclude,
+}
+
+/// Load a config-derived root closure while retaining the source of each root
+/// spelling for TypeScript's inclusion-chain diagnostics.
+pub(crate) fn load_program_with_root_reasons(
+    host: &dyn CompilerHost,
+    roots: &[(PathBuf, RootFileReason)],
+    compiler_options: CompilerOptions,
+    program_options: ProgramOptions,
+    library_catalog: &LibraryCatalog,
+    limits: ProgramLoadLimits,
+) -> Result<PreparedProgram, ProgramLoadError> {
+    let root_names = roots
+        .iter()
+        .map(|(path, _)| path.clone())
+        .collect::<Vec<_>>();
+    let root_reasons = roots
+        .iter()
+        .map(|(_, reason)| reason.clone())
+        .collect::<Vec<_>>();
+    load_program_worker(
+        host,
+        &root_names,
+        compiler_options,
+        program_options,
+        Some(library_catalog),
+        false,
+        limits,
+        Some(&root_reasons),
+    )
+}
+
+#[allow(clippy::too_many_arguments)] // Root provenance is an orthogonal config-only input.
 fn load_program_worker(
     host: &dyn CompilerHost,
     root_names: &[PathBuf],
@@ -483,6 +534,7 @@ fn load_program_worker(
     library_catalog: Option<&LibraryCatalog>,
     require_no_lib: bool,
     limits: ProgramLoadLimits,
+    root_reasons: Option<&[RootFileReason]>,
 ) -> Result<PreparedProgram, ProgramLoadError> {
     validate_admitted_options(
         &compiler_options,
@@ -521,9 +573,13 @@ fn load_program_worker(
         limits,
         &mut resolver,
     );
-    for root_name in root_names {
+    for (index, root_name) in root_names.iter().enumerate() {
+        let root_spelling = root_name.clone();
         let root = normalize_root(root_name, &path_context)?;
-        graph.load_root(root)?;
+        let reason = root_reasons
+            .and_then(|reasons| reasons.get(index).cloned())
+            .unwrap_or(RootFileReason::Explicit);
+        graph.load_root(root, &root_spelling, reason)?;
     }
     if !root_names.is_empty() {
         graph.load_automatic_type_directives()?;
@@ -556,10 +612,6 @@ fn validate_admitted_options(
     let reject_input = |detail| {
         ProgramLoadError::invalid_input(ProgramLoadOperation::ValidateOptions, None, detail)
     };
-    let reject_feature = |feature, detail| {
-        ProgramLoadError::unsupported(ProgramLoadOperation::ValidateOptions, None, feature, detail)
-    };
-
     if compiler_options.no_emit != Some(true) {
         return Err(reject_input(
             "compilerOptions.noEmit must be explicitly true",
@@ -568,12 +620,11 @@ fn validate_admitted_options(
     if require_no_lib && program_options.no_lib() != Some(true) {
         return Err(reject_input("programOptions.noLib must be explicitly true"));
     }
-    if program_options.no_lib() == Some(true) && compiler_options.lib.is_some() {
-        return Err(reject_feature(
-            "explicit-libraries",
-            "the noLib/lib option diagnostic is owned by the later H0.5 driver",
-        ));
-    }
+    // `noLib` suppresses library loading even when an explicit `lib` list is
+    // present.  TypeScript reports TS5053 for that combination from
+    // `getOptionsDiagnostics`; the config/CLI driver owns that diagnostic
+    // gate, while the lower-level program loader must still mirror
+    // createProgram's source graph (which simply skips the library phase).
     if program_options.no_lib() != Some(true) {
         let Some(catalog) = library_catalog else {
             return Err(reject_input(
@@ -607,12 +658,6 @@ fn validate_admitted_options(
             ));
         }
     }
-    if compiler_options.no_dts_resolution == Some(true) {
-        return Err(reject_feature(
-            "noDtsResolution",
-            "the first recursive loader requires ordinary declaration resolution",
-        ));
-    }
     Ok(())
 }
 
@@ -620,7 +665,7 @@ fn normalize_library_directory(
     catalog: &LibraryCatalog,
     path_context: &PathContext,
 ) -> Result<ProgramPath, ProgramLoadError> {
-    reject_unowned_windows_path(catalog.directory(), ProgramLoadOperation::ValidateOptions)?;
+    reject_unowned_drive_relative_path(catalog.directory(), ProgramLoadOperation::ValidateOptions)?;
     let current_directory = path_context
         .current_directory()
         .display()
@@ -654,7 +699,7 @@ fn normalize_root(
         .display()
         .to_str()
         .expect("resolver path context is representable");
-    reject_unowned_windows_path(root, ProgramLoadOperation::NormalizeRoot)?;
+    reject_unowned_drive_relative_path(root, ProgramLoadOperation::NormalizeRoot)?;
     let trailing_separator = root
         .to_str()
         .is_some_and(|text| text.ends_with(['/', '\\']));
@@ -703,7 +748,10 @@ fn validate_type_roots(
         .to_str()
         .expect("resolver path context is representable");
     for type_root in type_roots {
-        reject_unowned_windows_path(type_root.display(), ProgramLoadOperation::ValidateOptions)?;
+        reject_unowned_drive_relative_path(
+            type_root.display(),
+            ProgramLoadOperation::ValidateOptions,
+        )?;
         let normalized = normalize_absolute_path(type_root.display(), Some(current_directory))
             .map_err(|error| {
                 ProgramLoadError::resolution(
@@ -735,7 +783,7 @@ fn validate_type_roots(
     Ok(())
 }
 
-fn reject_unowned_windows_path(
+fn reject_unowned_drive_relative_path(
     path: &Path,
     operation: ProgramLoadOperation,
 ) -> Result<(), ProgramLoadError> {
@@ -747,16 +795,16 @@ fn reject_unowned_windows_path(
         ));
     };
     let slashed = text.replace('\\', "/");
-    let drive_relative = slashed.len() >= 2
+    let drive_relative = slashed.len() > 2
         && slashed.as_bytes()[0].is_ascii_alphabetic()
         && slashed.as_bytes()[1] == b':'
-        && slashed.as_bytes().get(2) != Some(&b'/');
-    if slashed.starts_with("//") || slashed.starts_with("//?/") || drive_relative {
+        && slashed.as_bytes()[2] != b'/';
+    if drive_relative {
         return Err(ProgramLoadError::unsupported(
             operation,
             Some(path.to_path_buf()),
             "windows-path-form",
-            "UNC, extended-length, and drive-relative paths are not yet owned",
+            "drive-relative root spellings are not yet owned",
         ));
     }
     Ok(())
@@ -766,35 +814,92 @@ fn reject_unowned_windows_path(
 enum VisitState {
     Visiting(usize),
     Complete(usize),
+    /// A distinct resolved path whose exact package identity redirects to the
+    /// first source admitted for that `PackageId`.
+    PackageRedirect(usize),
     Missing,
 }
 
 impl VisitState {
     const fn source(self) -> Option<usize> {
         match self {
-            Self::Visiting(source) | Self::Complete(source) => Some(source),
+            Self::Visiting(source) | Self::Complete(source) | Self::PackageRedirect(source) => {
+                Some(source)
+            }
             Self::Missing => None,
         }
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Debug, Eq, PartialEq)]
+enum SourceInclusionReason {
+    Root(RootFileReason),
+    Import {
+        parent: PathBuf,
+        specifier: String,
+        pos: u32,
+        end: u32,
+    },
+    PathReference {
+        parent: PathBuf,
+        specifier: String,
+        pos: u32,
+        end: u32,
+    },
+    TypeReference {
+        parent: PathBuf,
+        specifier: String,
+        pos: u32,
+        end: u32,
+    },
+    AutomaticType {
+        name: String,
+    },
+    Synthetic,
+    Library,
+}
+
+impl SourceInclusionReason {
+    const fn is_referenced(&self) -> bool {
+        !matches!(self, Self::Root(_))
+    }
+}
+
+#[derive(Clone, Debug)]
 struct DiscoveryReason {
     seeds_non_external_reachability: bool,
+    inclusion: SourceInclusionReason,
+    package_id: Option<PackageId>,
 }
 
 impl DiscoveryReason {
-    const ROOT: Self = Self {
-        seeds_non_external_reachability: true,
-    };
-    const DEPENDENCY: Self = Self {
-        seeds_non_external_reachability: false,
-    };
+    fn root(reason: RootFileReason) -> Self {
+        Self {
+            seeds_non_external_reachability: true,
+            inclusion: SourceInclusionReason::Root(reason),
+            package_id: None,
+        }
+    }
 
-    const fn automatic_type(is_external_library_import: bool) -> Self {
+    fn dependency(inclusion: SourceInclusionReason) -> Self {
+        Self {
+            seeds_non_external_reachability: false,
+            inclusion,
+            package_id: None,
+        }
+    }
+
+    fn automatic_type(is_external_library_import: bool, name: String) -> Self {
         Self {
             seeds_non_external_reachability: !is_external_library_import,
+            inclusion: SourceInclusionReason::AutomaticType { name },
+            package_id: None,
         }
+    }
+
+    fn with_package_id(mut self, package_id: Option<PackageId>) -> Self {
+        self.package_id = package_id;
+        self
     }
 }
 
@@ -806,16 +911,33 @@ enum SourceClass {
 
 struct StagedSource {
     prepared: PreparedSourceFile,
+    /// Root-file inclusion occurrences are retained separately from the
+    /// canonical source identity.  They are observable in the TS1149
+    /// program-preprocessing message chain when two root spellings collapse
+    /// on a case-insensitive host.
+    root_inclusions: Vec<PathBuf>,
+    inclusion_reasons: Vec<SourceInclusionReason>,
+    alternate_inclusion_reasons: Vec<(PathBuf, SourceInclusionReason)>,
     has_non_external_reason: bool,
     class: SourceClass,
     path_references: Vec<PlannedPathReference>,
     type_reference_directives: Vec<PlannedTypeReferenceDirective>,
     lib_reference_directives: Vec<PlannedLibReferenceDirective>,
     module_requests: Vec<(ResolutionKey, bool)>,
+    module_request_spans: BTreeMap<ResolutionKey, (u32, u32)>,
     found_searching_node_modules: bool,
     modules_with_elided_imports: bool,
     processing_references: bool,
     pending_reprocesses: VecDeque<SourceReprocess>,
+}
+
+/// A pair of distinct source identities that collide only under tsc's
+/// locale-independent file-name fold on a case-sensitive host. Both sources
+/// remain in the program; this record exists only to publish TS1149/TS1261.
+struct CaseSensitiveCasingConflict {
+    existing_source: usize,
+    incoming_path: PathBuf,
+    incoming_reason: SourceInclusionReason,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -874,6 +996,9 @@ struct StagedGraph<'host, 'options, 'resolver> {
     limits: ProgramLoadLimits,
     resolver: &'resolver mut ModuleResolver<'host>,
     states: BTreeMap<CanonicalPath, VisitState>,
+    package_id_to_source: BTreeMap<PackageId, usize>,
+    files_by_name_ignore_case: BTreeMap<String, usize>,
+    case_sensitive_casing_conflicts: Vec<CaseSensitiveCasingConflict>,
     sources: Vec<StagedSource>,
     source_edges: Vec<Vec<(usize, bool)>>,
     postorder: Vec<usize>,
@@ -882,7 +1007,6 @@ struct StagedGraph<'host, 'options, 'resolver> {
     module_resolutions: Vec<StagedModuleResolution>,
     type_resolution_by_key: BTreeMap<TypeReferenceResolutionKey, usize>,
     type_resolutions: Vec<StagedTypeResolution>,
-    package_targets: BTreeMap<PackageId, CanonicalPath>,
     diagnosed_missing_roots: BTreeSet<String>,
     diagnosed_missing_library_roots: BTreeSet<PathBuf>,
     program_diagnostics: Vec<Diagnostic>,
@@ -909,6 +1033,9 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
             limits,
             resolver,
             states: BTreeMap::new(),
+            package_id_to_source: BTreeMap::new(),
+            files_by_name_ignore_case: BTreeMap::new(),
+            case_sensitive_casing_conflicts: Vec::new(),
             sources: Vec::new(),
             source_edges: Vec::new(),
             postorder: Vec::new(),
@@ -917,7 +1044,6 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
             module_resolutions: Vec::new(),
             type_resolution_by_key: BTreeMap::new(),
             type_resolutions: Vec::new(),
-            package_targets: BTreeMap::new(),
             diagnosed_missing_roots: BTreeSet::new(),
             diagnosed_missing_library_roots: BTreeSet::new(),
             program_diagnostics: Vec::new(),
@@ -926,13 +1052,22 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
         }
     }
 
-    fn load_root(&mut self, path: ProgramPath) -> Result<(), ProgramLoadError> {
+    fn load_root(
+        &mut self,
+        path: ProgramPath,
+        root_spelling: &Path,
+        root_reason: RootFileReason,
+    ) -> Result<(), ProgramLoadError> {
         if !path_has_extension(path.display()) {
-            return self.load_extensionless_root(path);
+            return self.load_extensionless_root(path, root_spelling, root_reason);
         }
         if !is_admitted_source(path.canonical(), self.compiler_options) {
-            let diagnostic =
-                unsupported_root_extension_diagnostic(&path, self.compiler_options.allow_js)?;
+            let diagnostic = unsupported_root_extension_diagnostic(
+                &path,
+                root_spelling,
+                self.compiler_options.allow_js,
+                root_reason,
+            )?;
             if self
                 .diagnosed_missing_roots
                 .insert(path_text(path.display())?)
@@ -950,10 +1085,17 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
             path.clone(),
             0,
             0,
-            DiscoveryReason::ROOT,
+            DiscoveryReason::root(root_reason.clone()),
             SourceClass::Ordinary,
         )?;
-        let missing_diagnostic = source.is_none().then(|| missing_root_diagnostic(&path));
+        if let Some(source) = source {
+            self.sources[source]
+                .root_inclusions
+                .push(path.display().to_path_buf());
+        }
+        let missing_diagnostic = source
+            .is_none()
+            .then(|| missing_root_diagnostic(root_spelling, root_reason));
         if let Some(diagnostic) = missing_diagnostic.clone() {
             if self
                 .diagnosed_missing_roots
@@ -970,7 +1112,12 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
         Ok(())
     }
 
-    fn load_extensionless_root(&mut self, path: ProgramPath) -> Result<(), ProgramLoadError> {
+    fn load_extensionless_root(
+        &mut self,
+        path: ProgramPath,
+        root_spelling: &Path,
+        root_reason: RootFileReason,
+    ) -> Result<(), ProgramLoadError> {
         let requested_text = path
             .display()
             .to_str()
@@ -993,9 +1140,12 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                 candidate,
                 0,
                 0,
-                DiscoveryReason::ROOT,
+                DiscoveryReason::root(root_reason.clone()),
                 SourceClass::Ordinary,
             )? {
+                self.sources[source]
+                    .root_inclusions
+                    .push(path.display().to_path_buf());
                 self.roots.push(StagedRoot {
                     path,
                     source: Some(source),
@@ -1005,8 +1155,11 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
             }
         }
 
-        let diagnostic =
-            unresolved_extensionless_root_diagnostic(&path, self.compiler_options.allow_js)?;
+        let diagnostic = unresolved_extensionless_root_diagnostic(
+            root_spelling,
+            self.compiler_options.allow_js,
+            root_reason,
+        )?;
         if self
             .diagnosed_missing_roots
             .insert(path_text(path.display())?)
@@ -1086,13 +1239,18 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                     target.resolved_file().clone(),
                     target.extension().clone(),
                     target.is_external_library_import(),
+                    target.package_id().cloned(),
                 )),
                 ResolutionOutcome::NotFound => None,
             };
-            let Some((target, extension, external)) = target else {
+            let Some((target, extension, external, package_id)) = target else {
                 self.type_resolutions[index]
                     .diagnostics
-                    .push(automatic_type_reference_diagnostic(&name, uses_wildcard));
+                    .push(automatic_type_reference_diagnostic(
+                        &name,
+                        uses_wildcard,
+                        self.program_options.config_file(),
+                    ));
                 continue;
             };
             if !processed.insert(index) {
@@ -1110,7 +1268,8 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                     target.clone(),
                     0,
                     usize::from(external),
-                    DiscoveryReason::automatic_type(external),
+                    DiscoveryReason::automatic_type(external, name.clone())
+                        .with_package_id(package_id),
                     SourceClass::Ordinary,
                 )?
                 .is_none()
@@ -1307,7 +1466,7 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                     path.clone(),
                     0,
                     0,
-                    DiscoveryReason::DEPENDENCY,
+                    DiscoveryReason::dependency(SourceInclusionReason::Library),
                     SourceClass::Library,
                 )?
                 .is_none()
@@ -1315,7 +1474,11 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                     .diagnosed_missing_library_roots
                     .insert(path.display().to_path_buf())
             {
-                let diagnostic = missing_library_root_diagnostic(&path, &reason);
+                let diagnostic = missing_library_root_diagnostic(
+                    &path,
+                    &reason,
+                    self.program_options.config_file(),
+                );
                 let replaced_root_diagnostics = self
                     .roots
                     .iter_mut()
@@ -1333,6 +1496,51 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
     }
 
     fn finish(mut self) -> CompleteGraph {
+        if self
+            .compiler_options
+            .force_consistent_casing_in_file_names_effective()
+        {
+            let casing_diagnostics = self
+                .sources
+                .iter()
+                .flat_map(|source| {
+                    source
+                        .alternate_inclusion_reasons
+                        .iter()
+                        .map(|(alias, reason)| {
+                            casing_alias_diagnostic(
+                                &source.prepared,
+                                alias,
+                                &source.inclusion_reasons,
+                                reason,
+                                self.program_options.config_file(),
+                            )
+                        })
+                })
+                .collect::<Vec<_>>();
+            self.program_diagnostics.extend(casing_diagnostics);
+        }
+        // On a case-sensitive host tsc keeps distinct physical spellings in
+        // `filesByName` and independently checks them through
+        // `filesByNameIgnoreCase`. Unlike aliases collapsed by the host's
+        // canonical key, these diagnostics are unconditional even when
+        // `forceConsistentCasingInFileNames` is explicitly false.
+        let case_sensitive_casing_diagnostics = self
+            .case_sensitive_casing_conflicts
+            .iter()
+            .map(|conflict| {
+                let existing = &self.sources[conflict.existing_source];
+                casing_distinct_file_diagnostic(
+                    &existing.prepared,
+                    &conflict.incoming_path,
+                    &existing.inclusion_reasons,
+                    &conflict.incoming_reason,
+                    self.program_options.config_file(),
+                )
+            })
+            .collect::<Vec<_>>();
+        self.program_diagnostics
+            .extend(case_sensitive_casing_diagnostics);
         self.propagate_non_external_reachability();
         let mut library_postorder = self
             .postorder
@@ -1381,63 +1589,15 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
     ) -> Result<Option<usize>, ProgramLoadError> {
         if let Some(state) = self.states.get(path.canonical()).copied() {
             if let Some(source) = state.source() {
-                let first_path = self.sources[source].prepared.path();
-                if first_path.display() != path.display()
-                    && !self.normalized_display_paths_are_equal(first_path, &path)?
-                {
-                    return Err(ProgramLoadError::unsupported(
-                        ProgramLoadOperation::ReadSource,
-                        Some(path.display().to_path_buf()),
-                        "canonical-source-display-alias",
-                        format!(
-                            "the path has the same canonical identity as already discovered source {} but a different display spelling",
-                            first_path.display().display()
-                        ),
-                    ));
-                }
-                if self.sources[source].class != class {
-                    return Err(ProgramLoadError::unsupported(
-                        ProgramLoadOperation::ReadSource,
-                        Some(path.display().to_path_buf()),
-                        "library-source-classification-collision",
-                        format!(
-                            "the source was first discovered as {:?} and later requested as {:?}",
-                            self.sources[source].class, class
-                        ),
-                    ));
-                }
-                let reprocess = {
-                    let staged = &mut self.sources[source];
-                    staged.has_non_external_reason |= reason.seeds_non_external_reachability;
-                    if staged.found_searching_node_modules && node_modules_depth == 0 {
-                        // tsc clears both latches before recursively processing
-                        // the source again. A cycle can therefore observe the
-                        // promoted state without scheduling duplicate work.
-                        staged.found_searching_node_modules = false;
-                        staged.modules_with_elided_imports = false;
-                        Some(SourceReprocess {
-                            kind: SourceReprocessKind::AllReferences,
-                            source_depth: depth,
-                            node_modules_depth,
-                        })
-                    } else if staged.modules_with_elided_imports
-                        && self
-                            .compiler_options
-                            .node_modules_depth_below_limit(node_modules_depth)
-                    {
-                        staged.modules_with_elided_imports = false;
-                        Some(SourceReprocess {
-                            kind: SourceReprocessKind::ImportedModules,
-                            source_depth: depth,
-                            node_modules_depth,
-                        })
-                    } else {
-                        None
-                    }
-                };
-                if let Some(reprocess) = reprocess {
-                    self.schedule_source_reprocess(source, reprocess)?;
-                }
+                self.observe_existing_source(
+                    source,
+                    &path,
+                    depth,
+                    node_modules_depth,
+                    &reason,
+                    class,
+                    matches!(state, VisitState::PackageRedirect(_)),
+                )?;
             }
             return Ok(state.source());
         }
@@ -1490,6 +1650,32 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
             path: path.display().to_path_buf(),
             source,
         })?;
+        if let Some(package_id) = reason.package_id.as_ref() {
+            if let Some(source) = self.package_id_to_source.get(package_id).copied() {
+                // TypeScript calls host.getSourceFile before consulting the
+                // package-id map, so retain read/decode failure precedence and
+                // byte accounting even though this second AST is not admitted
+                // to the Rust parser/binder program.
+                self.total_source_bytes = total_source_bytes;
+                self.sources[source]
+                    .prepared
+                    .remember_package_redirect(path.clone());
+                self.states.insert(
+                    path.canonical().clone(),
+                    VisitState::PackageRedirect(source),
+                );
+                self.observe_existing_source(
+                    source,
+                    &path,
+                    depth,
+                    node_modules_depth,
+                    &reason,
+                    class,
+                    true,
+                )?;
+                return Ok(Some(source));
+            }
+        }
         let package_scope = self
             .resolver
             .package_scope_for_file(path.display())
@@ -1549,6 +1735,15 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                 .map(|(key, loads_source)| (key.clone(), loads_source))
                 .collect::<Vec<_>>()
         });
+        let module_request_spans = plan.as_ref().map_or_else(BTreeMap::new, |plan| {
+            plan.module_requests()
+                .iter()
+                .filter_map(|key| {
+                    plan.module_request_span(key)
+                        .map(|span| (key.clone(), span))
+                })
+                .collect::<BTreeMap<_, _>>()
+        });
         self.enforce_limit(
             ProgramLoadOperation::PlanSourceRequests,
             ProgramLoadLimit::RequestEdges,
@@ -1562,17 +1757,43 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
         let source = self.sources.len();
         self.sources.push(StagedSource {
             prepared,
+            root_inclusions: Vec::new(),
+            inclusion_reasons: vec![reason.inclusion.clone()],
+            alternate_inclusion_reasons: Vec::new(),
             has_non_external_reason: reason.seeds_non_external_reachability,
             class,
             path_references,
             type_reference_directives,
             lib_reference_directives,
             module_requests,
+            module_request_spans,
             found_searching_node_modules: node_modules_depth > 0,
             modules_with_elided_imports: false,
             processing_references: false,
             pending_reprocesses: VecDeque::new(),
         });
+        if let Some(package_id) = reason.package_id.clone() {
+            self.package_id_to_source.insert(package_id, source);
+        }
+        if self.resolver.path_context().use_case_sensitive_file_names() {
+            let canonical_text = path
+                .canonical()
+                .as_path()
+                .to_str()
+                .expect("validated program paths are Unicode");
+            let path_lower_case = to_file_name_lower_case(canonical_text);
+            if let Some(&existing_source) = self.files_by_name_ignore_case.get(&path_lower_case) {
+                self.case_sensitive_casing_conflicts
+                    .push(CaseSensitiveCasingConflict {
+                        existing_source,
+                        incoming_path: path.display().to_path_buf(),
+                        incoming_reason: reason.inclusion.clone(),
+                    });
+            } else {
+                self.files_by_name_ignore_case
+                    .insert(path_lower_case, source);
+            }
+        }
         self.source_edges.push(Vec::new());
         self.states
             .insert(path.canonical().clone(), VisitState::Visiting(source));
@@ -1600,6 +1821,76 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
             .insert(path.canonical().clone(), VisitState::Complete(source));
         self.postorder.push(source);
         Ok(Some(source))
+    }
+
+    #[allow(clippy::too_many_arguments)] // Mirrors findSourceFileWorker's existing-source branch.
+    fn observe_existing_source(
+        &mut self,
+        source: usize,
+        path: &ProgramPath,
+        depth: usize,
+        node_modules_depth: usize,
+        reason: &DiscoveryReason,
+        class: SourceClass,
+        package_redirect: bool,
+    ) -> Result<(), ProgramLoadError> {
+        let first_path = self.sources[source].prepared.path();
+        if !package_redirect
+            && first_path.display() != path.display()
+            && !self.normalized_display_paths_are_equal(first_path, path)?
+        {
+            self.sources[source]
+                .prepared
+                .remember_display_alias(path.display());
+            self.sources[source]
+                .alternate_inclusion_reasons
+                .push((path.display().to_path_buf(), reason.inclusion.clone()));
+        }
+        if self.sources[source].class != class {
+            return Err(ProgramLoadError::unsupported(
+                ProgramLoadOperation::ReadSource,
+                Some(path.display().to_path_buf()),
+                "library-source-classification-collision",
+                format!(
+                    "the source was first discovered as {:?} and later requested as {:?}",
+                    self.sources[source].class, class
+                ),
+            ));
+        }
+        let reprocess = {
+            let staged = &mut self.sources[source];
+            staged.inclusion_reasons.push(reason.inclusion.clone());
+            staged.has_non_external_reason |= reason.seeds_non_external_reachability;
+            if staged.found_searching_node_modules && node_modules_depth == 0 {
+                // tsc clears both latches before recursively processing the
+                // source again. A cycle can therefore observe the promoted
+                // state without scheduling duplicate work.
+                staged.found_searching_node_modules = false;
+                staged.modules_with_elided_imports = false;
+                Some(SourceReprocess {
+                    kind: SourceReprocessKind::AllReferences,
+                    source_depth: depth,
+                    node_modules_depth,
+                })
+            } else if staged.modules_with_elided_imports
+                && self
+                    .compiler_options
+                    .node_modules_depth_below_limit(node_modules_depth)
+            {
+                staged.modules_with_elided_imports = false;
+                Some(SourceReprocess {
+                    kind: SourceReprocessKind::ImportedModules,
+                    source_depth: depth,
+                    node_modules_depth,
+                })
+            } else {
+                None
+            }
+        };
+        if let Some(reprocess) = reprocess {
+            self.schedule_source_reprocess(source, reprocess)?;
+        }
+        Ok(())
     }
 
     fn schedule_source_reprocess(
@@ -1649,10 +1940,20 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
         let type_reference_directives = self.sources[source].type_reference_directives.clone();
         let lib_reference_directives = self.sources[source].lib_reference_directives.clone();
 
-        for reference in path_references {
-            self.process_path_reference(source, &reference, depth, node_modules_depth)?;
+        // `noResolve` only suppresses path/type-reference source discovery.
+        // Module requests still go through the resolver below so their
+        // authoritative resolution facts and diagnostics remain available.
+        if self.compiler_options.no_resolve != Some(true) {
+            for reference in path_references {
+                self.process_path_reference(source, &reference, depth, node_modules_depth)?;
+            }
+            self.process_type_references(
+                source,
+                type_reference_directives,
+                depth,
+                node_modules_depth,
+            )?;
         }
-        self.process_type_references(source, type_reference_directives, depth, node_modules_depth)?;
         if self.program_options.no_lib() != Some(true) {
             self.process_lib_references(
                 source,
@@ -1746,7 +2047,7 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                 target.clone(),
                 depth.saturating_add(1),
                 node_modules_depth,
-                DiscoveryReason::DEPENDENCY,
+                DiscoveryReason::dependency(SourceInclusionReason::Library),
                 SourceClass::Library,
             )? {
                 Some(target_source) if target_source == source => {
@@ -1806,6 +2107,16 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
         Ok(normalize(left)? == normalize(right)?)
     }
 
+    /// Empty reference text is intentional: `combinePaths(basePath, "")`
+    /// selects the containing directory, after which the ordinary
+    /// extensionless source probe and TS6231 diagnostic apply.
+    ///
+    /// tsc-port: resolveTripleslashReference @6.0.3
+    /// tsc-hash: c265a32a7d63be44dc5f33017bd2a5e51263f267c3222e20a37afdd59f649bfc
+    /// tsc-span: _tsc.js:121904-121908
+    /// tsc-port: processReferencedFiles @6.0.3
+    /// tsc-hash: 921ee36a44bea86b4495ac4d7f7046aa22d889a2f712097a273a8fc77cecf386
+    /// tsc-span: _tsc.js:124459-124468
     fn process_path_reference(
         &mut self,
         source: usize,
@@ -1813,29 +2124,26 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
         depth: usize,
         node_modules_depth: usize,
     ) -> Result<(), ProgramLoadError> {
-        if reference.file_name().is_empty() {
-            return Err(ProgramLoadError::unsupported(
-                ProgramLoadOperation::NormalizeReference,
-                Some(self.sources[source].prepared.path().display().to_path_buf()),
-                "empty-path-reference",
-                "empty triple-slash path references are not yet admitted",
-            ));
-        }
         let source_path = self.sources[source].prepared.path().clone();
         let source_text = source_path
             .display()
             .to_str()
             .expect("program paths are representable");
         let base = directory_name(source_text);
-        let normalized = normalize_absolute_path(Path::new(reference.file_name()), Some(&base))
-            .map_err(|error| {
-                ProgramLoadError::resolution(
-                    ProgramLoadOperation::NormalizeReference,
-                    Some(source_path.display().to_path_buf()),
-                    Some(reference.file_name().to_owned()),
-                    error,
-                )
-            })?;
+        let normalized = if reference.file_name().is_empty() {
+            base.clone()
+        } else {
+            normalize_absolute_path(Path::new(reference.file_name()), Some(&base)).map_err(
+                |error| {
+                    ProgramLoadError::resolution(
+                        ProgramLoadOperation::NormalizeReference,
+                        Some(source_path.display().to_path_buf()),
+                        Some(reference.file_name().to_owned()),
+                        error,
+                    )
+                },
+            )?
+        };
         let has_extension = reference
             .file_name()
             .rsplit(['/', '\\'])
@@ -1888,7 +2196,12 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                 target.clone(),
                 child_depth,
                 node_modules_depth,
-                DiscoveryReason::DEPENDENCY,
+                DiscoveryReason::dependency(SourceInclusionReason::PathReference {
+                    parent: source_path.display().to_path_buf(),
+                    specifier: reference.file_name().to_owned(),
+                    pos: reference.pos(),
+                    end: reference.end(),
+                }),
                 self.sources[source].class,
             )?;
             match target_source {
@@ -1932,7 +2245,12 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                 target,
                 child_depth,
                 node_modules_depth,
-                DiscoveryReason::DEPENDENCY,
+                DiscoveryReason::dependency(SourceInclusionReason::PathReference {
+                    parent: source_path.display().to_path_buf(),
+                    specifier: reference.file_name().to_owned(),
+                    pos: reference.pos(),
+                    end: reference.end(),
+                }),
                 self.sources[source].class,
             )? {
                 self.record_source_edge(source, target_source, false);
@@ -2029,10 +2347,11 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                     target.resolved_file().clone(),
                     target.extension().clone(),
                     target.is_external_library_import(),
+                    target.package_id().cloned(),
                 )),
                 ResolutionOutcome::NotFound => None,
             };
-            let Some((target, extension, external)) = target else {
+            let Some((target, extension, external, package_id)) = target else {
                 continue;
             };
             if !is_loadable_typescript_extension(&extension) {
@@ -2042,11 +2361,21 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                     "a resolved type-reference target is not a TypeScript source file",
                 ));
             }
+            let type_key = self.type_resolutions[index].key.clone();
+            let directive = directives
+                .iter()
+                .find(|directive| directive.key() == &type_key);
+            let type_inclusion = SourceInclusionReason::TypeReference {
+                parent: containing_source.display().to_path_buf(),
+                specifier: type_key.specifier().to_owned(),
+                pos: directive.map_or(0, PlannedTypeReferenceDirective::pos),
+                end: directive.map_or(0, PlannedTypeReferenceDirective::end),
+            };
             let loaded = self.visit_source(
                 target.clone(),
                 depth.saturating_add(1),
                 node_modules_depth.saturating_add(usize::from(external)),
-                DiscoveryReason::DEPENDENCY,
+                DiscoveryReason::dependency(type_inclusion).with_package_id(package_id),
                 SourceClass::Ordinary,
             )?;
             let Some(target_source) = loaded else {
@@ -2077,6 +2406,16 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
             .to_str()
             .is_some_and(is_declaration_file_name);
         for (key, loads_source) in requests {
+            let inclusion = self.sources[source]
+                .module_request_spans
+                .get(&key)
+                .map(|(pos, end)| SourceInclusionReason::Import {
+                    parent: containing_file.clone(),
+                    specifier: key.specifier().to_owned(),
+                    pos: *pos,
+                    end: *end,
+                })
+                .unwrap_or(SourceInclusionReason::Synthetic);
             let index = if let Some(index) = self.module_resolution_by_key.get(&key).copied() {
                 self.module_resolutions[index].loads_source |= loads_source;
                 index
@@ -2092,7 +2431,6 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                             error,
                         )
                     })?;
-                self.observe_package_target(&host)?;
                 let index = self.module_resolutions.len();
                 self.module_resolutions.push(StagedModuleResolution {
                     key: key.clone(),
@@ -2103,12 +2441,12 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                 self.module_resolution_by_key.insert(key, index);
                 index
             };
-            phase_indices.push(index);
+            phase_indices.push((index, inclusion));
         }
 
         // As with type directives, all requests in this source are resolved
         // before the first successful target starts its DFS.
-        for index in phase_indices {
+        for (index, inclusion) in phase_indices {
             let loads_source = self.module_resolutions[index].loads_source;
             let target = match self.module_resolutions[index].host.outcome() {
                 ResolutionOutcome::Resolved(target) => Some((
@@ -2116,10 +2454,11 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                     target.extension().clone(),
                     target.is_external_library_import(),
                     target.original_path().is_some(),
+                    target.package_id().cloned(),
                 )),
                 ResolutionOutcome::NotFound => None,
             };
-            let Some((target, extension, external, has_original_path)) = target else {
+            let Some((target, extension, external, has_original_path, package_id)) = target else {
                 continue;
             };
             let child_node_modules_depth = node_modules_depth.saturating_add(usize::from(external));
@@ -2151,6 +2490,11 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                     continue;
                 }
             }
+            if self.compiler_options.no_resolve == Some(true) {
+                self.module_resolutions[index].unloaded_reason =
+                    Some(UnloadedModuleReason::NoResolve);
+                continue;
+            }
             if !loads_source {
                 continue;
             }
@@ -2180,7 +2524,8 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                     target.clone(),
                     depth.saturating_add(1),
                     child_node_modules_depth,
-                    DiscoveryReason::DEPENDENCY,
+                    DiscoveryReason::dependency(inclusion.clone())
+                        .with_package_id(package_id.clone()),
                     SourceClass::Ordinary,
                 )?;
                 let Some(target_source) = loaded else {
@@ -2208,7 +2553,7 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                 target.clone(),
                 depth.saturating_add(1),
                 child_node_modules_depth,
-                DiscoveryReason::DEPENDENCY,
+                DiscoveryReason::dependency(inclusion).with_package_id(package_id),
                 SourceClass::Ordinary,
             )?;
             let Some(target_source) = loaded else {
@@ -2221,38 +2566,6 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
             self.record_source_edge(source, target_source, external);
         }
         Ok(())
-    }
-
-    fn observe_package_target(
-        &mut self,
-        resolution: &HostModuleResolution,
-    ) -> Result<(), ProgramLoadError> {
-        let ResolutionOutcome::Resolved(module) = resolution.outcome() else {
-            return Ok(());
-        };
-        let Some(package_id) = module.package_id() else {
-            return Ok(());
-        };
-        let target = module.resolved_file().canonical();
-        match self.package_targets.get(package_id) {
-            Some(existing) if existing != target => Err(ProgramLoadError::unsupported(
-                ProgramLoadOperation::ResolveModule,
-                Some(module.resolved_file().display().to_path_buf()),
-                "package-source-redirect",
-                format!(
-                    "package identity {:?} resolves to both {} and {}",
-                    package_id.name(),
-                    existing,
-                    target
-                ),
-            )),
-            Some(_) => Ok(()),
-            None => {
-                self.package_targets
-                    .insert(package_id.clone(), target.clone());
-                Ok(())
-            }
-        }
     }
 
     fn enforce_limit(
@@ -2314,7 +2627,19 @@ fn publish_program(
     program_options: ProgramOptions,
 ) -> Result<PreparedProgram, ProgramLoadError> {
     let mut builder = PreparedProgram::builder(path_context, compiler_options.clone());
+    let config_file = program_options.config_file().cloned();
     builder.set_program_options(program_options);
+
+    if let Some(config_file) = config_file {
+        builder
+            .add_auxiliary_file(PreparedAuxiliaryFile::new(
+                config_file.path().clone(),
+                config_file.text().to_owned(),
+            ))
+            .map_err(|error| {
+                ProgramLoadError::preparation(ProgramLoadOperation::BuildPreparedProgram, error)
+            })?;
+    }
 
     let mut published_ids = vec![None; staged.sources.len()];
     let mut source_by_canonical = BTreeMap::<CanonicalPath, SourceFileId>::new();
@@ -2340,6 +2665,19 @@ fn publish_program(
         }
         published_ids[source_index] = Some(source_id);
         source_by_canonical.insert(prepared.path().canonical().clone(), source_id);
+        for redirect in prepared.package_redirect_paths() {
+            if let Some(previous) =
+                source_by_canonical.insert(redirect.canonical().clone(), source_id)
+            {
+                if previous != source_id {
+                    return Err(ProgramLoadError::invalid_data(
+                        ProgramLoadOperation::BuildPreparedProgram,
+                        Some(redirect.display().to_path_buf()),
+                        "package redirect identity belongs to more than one staged source",
+                    ));
+                }
+            }
+        }
     }
 
     for root in staged.roots {
@@ -2381,6 +2719,7 @@ fn publish_program(
             &package_map,
             resolution.loads_source,
             resolution.unloaded_reason,
+            compiler_options.no_resolve == Some(true),
         )
         .map_err(|error| {
             ProgramLoadError::resolution(
@@ -2438,6 +2777,7 @@ fn bind_module_resolution(
     package_map: &BTreeMap<String, bool>,
     loads_source: bool,
     unloaded_reason: Option<UnloadedModuleReason>,
+    no_resolve: bool,
 ) -> Result<ModuleResolution, ResolutionError> {
     let alternate_result = host.alternate_result().cloned();
     let ResolutionOutcome::Resolved(module) = host.into_outcome() else {
@@ -2455,7 +2795,12 @@ fn bind_module_resolution(
             )
         });
     let owned_source = source_by_canonical.get(module.resolved_file().canonical());
-    let target = if module.extension().is_javascript() && owned_source.is_none() {
+    let target = if no_resolve && owned_source.is_none() {
+        ResolvedModuleTarget::Unloaded {
+            resolved_file: module.resolved_file().clone(),
+            reason: unloaded_reason.unwrap_or(UnloadedModuleReason::NoResolve),
+        }
+    } else if module.extension().is_javascript() && owned_source.is_none() {
         let reason = unloaded_reason.ok_or_else(|| {
             ResolutionError::unsupported(
                 "unexplained-unloaded-javascript",
@@ -2694,10 +3039,19 @@ fn is_loadable_typescript_extension(extension: &ModuleExtension) -> bool {
 /// tsc-span: _tsc.js:124173-124209
 fn unsupported_root_extension_diagnostic(
     path: &ProgramPath,
+    root_spelling: &Path,
     allow_js: bool,
+    root_reason: RootFileReason,
 ) -> Result<Diagnostic, ProgramLoadError> {
     let javascript = is_javascript_source(path.canonical());
-    let path = path_text(path.display())?;
+    let path = root_spelling.to_str().ok_or_else(|| {
+        ProgramLoadError::invalid_input(
+            ProgramLoadOperation::NormalizeRoot,
+            Some(root_spelling.to_path_buf()),
+            "root spelling is not valid Unicode",
+        )
+    })?;
+    let path = path.to_owned();
     let (message, arguments) = if javascript {
         (
             &gen::File_0_is_a_JavaScript_file_Did_you_mean_to_enable_the_allowJs_option,
@@ -2709,7 +3063,7 @@ fn unsupported_root_extension_diagnostic(
             vec![path, supported_source_extension_list(allow_js).to_owned()],
         )
     };
-    let root_reason = MessageChain::new(&gen::Root_file_specified_for_compilation, &[]);
+    let root_reason = root_file_reason_message(&root_reason);
     let inclusion = MessageChain::new(&gen::The_file_is_in_the_program_because, &[])
         .with_next(vec![root_reason]);
     Ok(Diagnostic::new(
@@ -2720,8 +3074,8 @@ fn unsupported_root_extension_diagnostic(
     ))
 }
 
-fn missing_root_diagnostic(path: &ProgramPath) -> Diagnostic {
-    let root_reason = MessageChain::new(&gen::Root_file_specified_for_compilation, &[]);
+fn missing_root_diagnostic(path: &Path, root_file_reason: RootFileReason) -> Diagnostic {
+    let root_reason = root_file_reason_message(&root_file_reason);
     let inclusion = MessageChain::new(&gen::The_file_is_in_the_program_because, &[])
         .with_next(vec![root_reason]);
     Diagnostic::new(
@@ -2731,9 +3085,8 @@ fn missing_root_diagnostic(path: &ProgramPath) -> Diagnostic {
         MessageChain::new(
             &gen::File_0_not_found,
             &[path
-                .display()
                 .to_str()
-                .expect("program paths are representable")
+                .expect("root paths are representable")
                 .to_owned()],
         )
         .with_next(vec![inclusion]),
@@ -2741,10 +3094,11 @@ fn missing_root_diagnostic(path: &ProgramPath) -> Diagnostic {
 }
 
 fn unresolved_extensionless_root_diagnostic(
-    path: &ProgramPath,
+    path: &Path,
     allow_js: bool,
+    root_reason: RootFileReason,
 ) -> Result<Diagnostic, ProgramLoadError> {
-    let root_reason = MessageChain::new(&gen::Root_file_specified_for_compilation, &[]);
+    let root_reason = root_file_reason_message(&root_reason);
     let inclusion = MessageChain::new(&gen::The_file_is_in_the_program_because, &[])
         .with_next(vec![root_reason]);
     Ok(Diagnostic::new(
@@ -2754,7 +3108,15 @@ fn unresolved_extensionless_root_diagnostic(
         MessageChain::new(
             &gen::Could_not_resolve_the_path_0_with_the_extensions_1,
             &[
-                path_text(path.display())?,
+                path.to_str()
+                    .ok_or_else(|| {
+                        ProgramLoadError::invalid_input(
+                            ProgramLoadOperation::NormalizeRoot,
+                            Some(path.to_path_buf()),
+                            "root spelling is not valid Unicode",
+                        )
+                    })?
+                    .to_owned(),
                 supported_source_extension_list(allow_js).to_owned(),
             ],
         )
@@ -2762,8 +3124,33 @@ fn unresolved_extensionless_root_diagnostic(
     ))
 }
 
-fn missing_library_root_diagnostic(path: &ProgramPath, reason: &LibraryRootReason) -> Diagnostic {
-    let reason = match reason {
+/// tsc-port: fileIncludeReasonToDiagnostics @6.0.3 (RootFile)
+/// tsc-hash: 30e07b28f72a81d3eb29d0ab7e49d8d2a65a20dedc61205c00e488973787233a
+/// tsc-span: _tsc.js:129341-129369
+fn root_file_reason_message(reason: &RootFileReason) -> MessageChain {
+    match reason {
+        RootFileReason::Explicit => {
+            MessageChain::new(&gen::Root_file_specified_for_compilation, &[])
+        }
+        RootFileReason::FilesList { .. } => {
+            MessageChain::new(&gen::Part_of_files_list_in_tsconfig_json, &[])
+        }
+        RootFileReason::IncludePattern { spec, config_file } => MessageChain::new(
+            &gen::Matched_by_include_pattern_0_in_1,
+            &[spec.to_string(), config_file.to_string()],
+        ),
+        RootFileReason::DefaultInclude => {
+            MessageChain::new(&gen::Matched_by_default_include_pattern, &[])
+        }
+    }
+}
+
+fn missing_library_root_diagnostic(
+    path: &ProgramPath,
+    reason: &LibraryRootReason,
+    config_file: Option<&ProgramConfigFile>,
+) -> Diagnostic {
+    let inclusion_reason = match reason {
         LibraryRootReason::Default { target } => MessageChain::new(
             &gen::Default_library_for_target_0,
             std::slice::from_ref(target),
@@ -2773,9 +3160,9 @@ fn missing_library_root_diagnostic(path: &ProgramPath, reason: &LibraryRootReaso
             std::slice::from_ref(file_name),
         ),
     };
-    let inclusion =
-        MessageChain::new(&gen::The_file_is_in_the_program_because, &[]).with_next(vec![reason]);
-    Diagnostic::new(
+    let inclusion = MessageChain::new(&gen::The_file_is_in_the_program_because, &[])
+        .with_next(vec![inclusion_reason]);
+    let mut diagnostic = Diagnostic::new(
         None,
         None,
         None,
@@ -2788,10 +3175,40 @@ fn missing_library_root_diagnostic(path: &ProgramPath, reason: &LibraryRootReaso
                 .to_owned()],
         )
         .with_next(vec![inclusion]),
-    )
+    );
+    if let LibraryRootReason::Default { target } = reason {
+        if let Some((config_file, location)) = config_file.and_then(|config_file| {
+            config_file
+                .compiler_option_string_location("target", target)
+                .map(|location| (config_file, location))
+        }) {
+            diagnostic.related_information_present = true;
+            diagnostic.related.push(RelatedInfo {
+                file_name: Some(
+                    config_file
+                        .path()
+                        .display()
+                        .to_str()
+                        .expect("validated config paths are Unicode")
+                        .to_owned(),
+                ),
+                start: Some(location.start()),
+                length: Some(location.length()),
+                message: MessageChain::new(
+                    &gen::File_is_default_library_for_target_specified_here,
+                    &[],
+                ),
+            });
+        }
+    }
+    diagnostic
 }
 
-fn automatic_type_reference_diagnostic(name: &str, uses_wildcard: bool) -> Diagnostic {
+fn automatic_type_reference_diagnostic(
+    name: &str,
+    uses_wildcard: bool,
+    config_file: Option<&ProgramConfigFile>,
+) -> Diagnostic {
     let reason = MessageChain::new(
         if uses_wildcard {
             &gen::Entry_point_for_implicit_type_library_0
@@ -2802,7 +3219,7 @@ fn automatic_type_reference_diagnostic(name: &str, uses_wildcard: bool) -> Diagn
     );
     let inclusion =
         MessageChain::new(&gen::The_file_is_in_the_program_because, &[]).with_next(vec![reason]);
-    Diagnostic::new(
+    let mut diagnostic = Diagnostic::new(
         None,
         None,
         None,
@@ -2811,7 +3228,32 @@ fn automatic_type_reference_diagnostic(name: &str, uses_wildcard: bool) -> Diagn
             &[name.to_owned()],
         )
         .with_next(vec![inclusion]),
-    )
+    );
+    let syntax_name = if uses_wildcard { "*" } else { name };
+    if let Some((config_file, location)) = config_file.and_then(|config_file| {
+        config_file
+            .automatic_type_directive_location(syntax_name)
+            .map(|location| (config_file, location))
+    }) {
+        diagnostic.related_information_present = true;
+        diagnostic.related.push(RelatedInfo {
+            file_name: Some(
+                config_file
+                    .path()
+                    .display()
+                    .to_str()
+                    .expect("validated config paths are Unicode")
+                    .to_owned(),
+            ),
+            start: Some(location.start()),
+            length: Some(location.length()),
+            message: MessageChain::new(
+                &gen::File_is_entry_point_of_type_library_specified_here,
+                &[],
+            ),
+        });
+    }
+    diagnostic
 }
 
 fn script_target_name(options: &CompilerOptions) -> &'static str {
@@ -2846,6 +3288,217 @@ fn unresolved_type_reference_diagnostic(
         &gen::Cannot_find_type_definition_file_for_0,
         &[directive.key().specifier().to_owned()],
     )
+}
+
+/// Reproduce tsc's file-preprocessing casing diagnostic while retaining the
+/// first discovered source as the canonical program identity. TypeScript
+/// chooses TS1261 when a root spelling arrives after a referenced spelling;
+/// otherwise it uses TS1149. Referenced reasons also own the source span used
+/// by the renderer (the import/reference literal), while root-only collisions
+/// remain compiler diagnostics with no source span. Config-backed `files`
+/// roots retain TS1410 related information at the matching root literal.
+///
+/// tsc-port: fileIncludeReasonToRelatedInformation @6.0.3 (RootFile)
+/// tsc-hash: 2a9e2f89989b2c92cc283fc2abc093c67973e2ddfd81145bab64b9c98004eab7
+/// tsc-span: _tsc.js:125971-125985
+fn casing_alias_diagnostic(
+    existing: &PreparedSourceFile,
+    incoming: &Path,
+    existing_reasons: &[SourceInclusionReason],
+    incoming_reason: &SourceInclusionReason,
+    config_file: Option<&ProgramConfigFile>,
+) -> Diagnostic {
+    casing_diagnostic(
+        existing,
+        incoming,
+        existing_reasons,
+        incoming_reason,
+        config_file,
+        true,
+    )
+}
+
+/// Publish the same explaining diagnostic for two independently loaded files
+/// on a case-sensitive host. The incoming reason belongs to the second source
+/// rather than `existing_reasons`, matching tsc's `filesByNameIgnoreCase`
+/// branch.
+///
+/// tsc-port: findSourceFileWorker @6.0.3 (`filesByNameIgnoreCase`)
+/// tsc-hash: 3fe29e4e1cb6c2e1b58594265c7e7140e0719cb08bedf239bebd99046cc3795b
+/// tsc-span: _tsc.js:124396-124402
+fn casing_distinct_file_diagnostic(
+    existing: &PreparedSourceFile,
+    incoming: &Path,
+    existing_reasons: &[SourceInclusionReason],
+    incoming_reason: &SourceInclusionReason,
+    config_file: Option<&ProgramConfigFile>,
+) -> Diagnostic {
+    casing_diagnostic(
+        existing,
+        incoming,
+        existing_reasons,
+        incoming_reason,
+        config_file,
+        false,
+    )
+}
+
+fn casing_diagnostic(
+    existing: &PreparedSourceFile,
+    incoming: &Path,
+    existing_reasons: &[SourceInclusionReason],
+    incoming_reason: &SourceInclusionReason,
+    config_file: Option<&ProgramConfigFile>,
+    incoming_reason_is_recorded_on_existing: bool,
+) -> Diagnostic {
+    let existing_name = existing
+        .path()
+        .display()
+        .to_str()
+        .expect("validated program paths are Unicode");
+    let incoming_name = incoming
+        .to_str()
+        .expect("alternate display aliases come from validated program paths");
+    let existing_has_reference = existing_reasons
+        .iter()
+        .any(SourceInclusionReason::is_referenced);
+    let root_arrived_after_reference = !incoming_reason.is_referenced() && existing_has_reference;
+    let (message, arguments) = if root_arrived_after_reference {
+        (
+            &gen::Already_included_file_name_0_differs_from_file_name_1_only_in_casing,
+            vec![existing_name.to_owned(), incoming_name.to_owned()],
+        )
+    } else {
+        (
+            &gen::File_name_0_differs_from_already_included_file_name_1_only_in_casing,
+            vec![incoming_name.to_owned(), existing_name.to_owned()],
+        )
+    };
+    let mut all_reasons = existing_reasons.iter().collect::<Vec<_>>();
+    // A host-collapsed alias is recorded on the existing source before
+    // `finish`; an independently loaded case-sensitive source is not.
+    if !incoming_reason_is_recorded_on_existing {
+        all_reasons.push(incoming_reason);
+    }
+    let mut reasons = all_reasons
+        .iter()
+        .filter_map(|reason| source_inclusion_reason_message(reason))
+        .collect::<Vec<_>>();
+    // Root aliases retain one reason per explicit root occurrence (the
+    // program-preprocessing contract exposes that multiplicity).  A root
+    // spelling arriving after an import/reference is different: tsc reports
+    // the dependency chain once and does not repeat the same files-list
+    // reason for the alias occurrence.
+    if incoming_reason_is_recorded_on_existing && root_arrived_after_reference {
+        reasons.dedup();
+    }
+    let message = MessageChain::new(message, &arguments).with_next(vec![MessageChain::new(
+        &gen::The_file_is_in_the_program_because,
+        &[],
+    )
+    .with_next(reasons)]);
+    let location_reason = if incoming_reason.is_referenced() {
+        Some(incoming_reason)
+    } else {
+        existing_reasons
+            .iter()
+            .find(|reason| reason.is_referenced())
+    };
+    let (file_name, start, length) = location_reason
+        .and_then(source_inclusion_location)
+        .map_or((None, None, None), |(path, start, end)| {
+            (Some(path), Some(start), Some(end.saturating_sub(start)))
+        });
+    let mut diagnostic = Diagnostic::new(file_name, start, length, message);
+    for reason in all_reasons {
+        let SourceInclusionReason::Root(reason) = reason else {
+            continue;
+        };
+        let (option_name, spec, related_message) = match reason {
+            RootFileReason::FilesList { spec } => (
+                "files",
+                spec,
+                &gen::File_is_matched_by_files_list_specified_here,
+            ),
+            RootFileReason::IncludePattern { spec, .. } => (
+                "include",
+                spec,
+                &gen::File_is_matched_by_include_pattern_specified_here,
+            ),
+            RootFileReason::Explicit | RootFileReason::DefaultInclude => continue,
+        };
+        let Some((config_file, location)) = config_file.and_then(|config_file| {
+            config_file
+                .root_option_array_location(option_name, spec)
+                .map(|location| (config_file, location))
+        }) else {
+            continue;
+        };
+        diagnostic.related.push(RelatedInfo {
+            file_name: Some(
+                config_file
+                    .path()
+                    .display()
+                    .to_str()
+                    .expect("validated config paths are Unicode")
+                    .to_owned(),
+            ),
+            start: Some(location.start()),
+            length: Some(location.length()),
+            message: MessageChain::new(related_message, &[]),
+        });
+    }
+    diagnostic.related_information_present = !diagnostic.related.is_empty();
+    diagnostic
+}
+
+fn source_inclusion_reason_message(reason: &SourceInclusionReason) -> Option<MessageChain> {
+    let path_text = |path: &Path| path.to_str().map(str::to_owned);
+    match reason {
+        SourceInclusionReason::Root(root) => Some(root_file_reason_message(root)),
+        SourceInclusionReason::Import {
+            parent, specifier, ..
+        } => Some(MessageChain::new(
+            &gen::Imported_via_0_from_file_1,
+            &[format!("'{specifier}'"), path_text(parent)?],
+        )),
+        SourceInclusionReason::PathReference {
+            parent, specifier, ..
+        } => Some(MessageChain::new(
+            &gen::Referenced_via_0_from_file_1,
+            &[format!("'{specifier}'"), path_text(parent)?],
+        )),
+        SourceInclusionReason::TypeReference {
+            parent, specifier, ..
+        } => Some(MessageChain::new(
+            &gen::Type_library_referenced_via_0_from_file_1,
+            &[format!("'{specifier}'"), path_text(parent)?],
+        )),
+        SourceInclusionReason::AutomaticType { name } => Some(MessageChain::new(
+            &gen::Entry_point_of_type_library_0_specified_in_compilerOptions,
+            std::slice::from_ref(name),
+        )),
+        SourceInclusionReason::Library => {
+            Some(MessageChain::new(&gen::File_is_library_specified_here, &[]))
+        }
+        SourceInclusionReason::Synthetic => None,
+    }
+}
+
+fn source_inclusion_location(reason: &SourceInclusionReason) -> Option<(String, u32, u32)> {
+    let (parent, pos, end) = match reason {
+        SourceInclusionReason::Import {
+            parent, pos, end, ..
+        }
+        | SourceInclusionReason::PathReference {
+            parent, pos, end, ..
+        }
+        | SourceInclusionReason::TypeReference {
+            parent, pos, end, ..
+        } => (parent, *pos, *end),
+        _ => return None,
+    };
+    Some((parent.to_str()?.to_owned(), pos, end))
 }
 
 fn located_diagnostic(

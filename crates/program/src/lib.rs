@@ -65,16 +65,27 @@
 //! `pathsValidation` cases additionally fix the six paths option diagnostics,
 //! their UTF-16 locations, and ordering. Config-derived resolver options carry
 //! `paths` atomically with its declaring base and share precompiled matching
-//! metadata across resolver instances. This does not execute the remaining
-//! compiler/project cases or cover the full `ParsedCommandLine`, remaining
-//! root object schemas, general filesystem `matchFiles`, general
-//! project-runner configs, or CLI ownership. `load_config_program` now connects
+//! metadata across resolver instances. The compiler harness also freezes and
+//! compares the exact `ParseConfigHost` operation trace for all 103
+//! config-bearing fixtures (106 matrix cases); this qualifies the pinned
+//! virtual compiler host, not every real-filesystem `matchFiles` profile.
+//! This does not execute the remaining compiler/project cases or cover the
+//! full `ParsedCommandLine`, remaining root object schemas, general filesystem
+//! `matchFiles`, general project-runner configs, or CLI ownership.
+//! `load_config_program` now connects
 //! this immutable plan to the catalog-backed loader while preserving the
 //! config/option diagnostic gate and mandatory `noEmit=true` boundary. The
 //! harness separately uses this boundary for six focused official
 //! `NodeModulesSearch` variants without claiming their emit baselines.
+//! The plan also exposes the primary-only project-reference value and the
+//! effective inherited watch/type-acquisition/compile-on-save root fields;
+//! unsupported truthy values remain fail-closed at the loader boundary.
+//! [`CompilerConfigHost`] provides the shared `CompilerHost` to
+//! [`ConfigParseHost`] adapter used by both filesystem and memory-backed
+//! config discovery.
 
 mod config;
+mod config_host;
 mod config_matcher;
 mod config_options;
 mod error;
@@ -89,13 +100,16 @@ mod resolution;
 mod text;
 
 pub use config::{
-    load_config_program, load_config_program_with_no_emit_override, parse_config_root_plan,
-    ConfigDiscoveryOptions, ConfigHostError, ConfigHostOperation, ConfigModuleResolutionOptions,
-    ConfigOption, ConfigOptionBag, ConfigOptionValueState, ConfigParseError, ConfigParseErrorKind,
-    ConfigParseHost, ConfigProgramLoadError, ConfigRootPlan, ConfigRootPlanRequest,
+    is_non_fatal_option_diagnostic, load_config_program, load_config_program_with_no_emit_override,
+    parse_config_root_plan, validate_config_plan, ConfigDiscoveryOptions, ConfigHostError,
+    ConfigHostOperation, ConfigModuleResolutionOptions, ConfigOption, ConfigOptionBag,
+    ConfigOptionValueState, ConfigParseError, ConfigParseErrorKind, ConfigParseHost,
+    ConfigProgramLoadError, ConfigProjectReference, ConfigRootPlan, ConfigRootPlanRequest,
     ConfigSourceText, ConfigTypedJsonValue, ConfigTypedListElement, ConfigTypedObjectProperty,
-    ConfigTypedObjectShape, ConfigTypedObjectValue,
+    ConfigTypedObjectShape, ConfigTypedObjectValue, ConfigWildcardDirectory,
+    H0_SUPPORTED_CONFIG_OPTIONS,
 };
+pub use config_host::CompilerConfigHost;
 pub use config_matcher::ConfigFilePattern;
 pub use config_options::{
     compiler_option_declaration, compiler_option_declarations, compiler_option_spelling_suggestion,
@@ -122,7 +136,8 @@ pub use path::{CanonicalPath, ProgramPath};
 pub use prepared::{
     PackageJsonType, PackageMetadata, PathContext, PathMapping, PreparationDiagnostics,
     PreparedAuxiliaryFile, PreparedProgram, PreparedProgramBuilder, PreparedRoot,
-    PreparedSourceFile, ProgramOptions, ResolutionTable, SourceFileId,
+    PreparedSourceFile, ProgramConfigFile, ProgramConfigSpan, ProgramOptions, ResolutionTable,
+    SourceFileId,
 };
 pub use resolution::{
     MissingResolutionError, ModuleExtension, ModuleResolution, PackageId, ResolutionError,

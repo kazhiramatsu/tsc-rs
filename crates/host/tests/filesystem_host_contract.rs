@@ -277,6 +277,21 @@ fn invalid_filesystem_host_inputs_fail_closed() {
     assert_eq!(error.path(), Some(nul.as_path()));
 }
 
+#[cfg(windows)]
+#[test]
+fn incomplete_windows_namespace_ancestors_are_absent() {
+    let tree = TempTree::new();
+    let host = FsCompilerHost::new(tree.root(), false).unwrap();
+
+    // TypeScript's getDirectoryPath/getRootLength pair can synthesize both
+    // spellings while walking an ordinary Rust-canonicalized `//?/C:/...`
+    // path. Node's system host observes failed stat probes as `false`.
+    for path in [Path::new("//?/C:"), Path::new("//?/")] {
+        assert!(!host.directory_exists(path).unwrap());
+        assert!(!host.file_exists(path).unwrap());
+    }
+}
+
 #[cfg(unix)]
 #[test]
 fn filesystem_host_follows_symlinks_and_rejects_inspection_failures() {

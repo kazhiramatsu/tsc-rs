@@ -137,6 +137,84 @@ impl ConfigFilePattern {
 
         previous[input_count]
     }
+
+    /// Return whether a directory can contain a path selected by this
+    /// pattern.
+    ///
+    /// `matchFiles` uses a separate directory regexp to avoid descending into
+    /// directories which cannot contribute a matching file.  Keeping the
+    /// equivalent as a small NFA over compiled components means the host can
+    /// retain that pruning without making the file matcher recursive or
+    /// allocating a regex for every directory.  A recursive component may
+    /// consume a directory only when the same implicit-directory rules used by
+    /// [`Self::matches`] allow it; an explicit `node_modules` component thus
+    /// remains selectable while `**/*` still skips it.
+    pub(crate) fn could_match_descendant(&self, absolute_directory: &str) -> bool {
+        let Ok(path) = normalize_absolute(absolute_directory) else {
+            return false;
+        };
+        let root = path.root.strip_suffix('/').unwrap_or(&path.root);
+        if !self.root.matches(
+            &InputComponent::new(root, self.case_sensitive),
+            self.components.is_empty(),
+            self.case_sensitive,
+        ) {
+            return false;
+        }
+
+        let mut states = vec![0usize];
+        for component in &path.components {
+            states = self.advance_directory_states(&states, component);
+            if states.is_empty() {
+                return false;
+            }
+        }
+
+        // A state before the end has at least one remaining pattern component
+        // which can be supplied by a descendant path.  The constructor never
+        // leaves a bare trailing `**`, so an end state is only a directory
+        // match and does not itself prove a descendant file match.
+        states
+            .into_iter()
+            .any(|state| state < self.components.len())
+    }
+
+    fn advance_directory_states(&self, states: &[usize], input: &str) -> Vec<usize> {
+        let mut closure = states.to_vec();
+        let mut index = 0;
+        while index < closure.len() {
+            let state = closure[index];
+            if matches!(
+                self.components.get(state),
+                Some(PatternComponent::Recursive)
+            ) && !closure.contains(&(state + 1))
+            {
+                closure.push(state + 1);
+            }
+            index += 1;
+        }
+
+        let input = InputComponent::new(input, self.case_sensitive);
+        let mut next = Vec::new();
+        for state in closure {
+            match self.components.get(state) {
+                Some(PatternComponent::Recursive) => {
+                    if input.recursive_wildcard_allowed() {
+                        next.push(state);
+                    }
+                }
+                Some(PatternComponent::Glob(glob)) => {
+                    if glob.matches(&input, false, self.case_sensitive) {
+                        next.push(state + 1);
+                    }
+                }
+                None => {}
+            }
+        }
+        next.sort_unstable();
+        next.dedup();
+        next
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -385,105 +463,5 @@ fn regex_canonicalize_code_unit(unit: u16) -> u16 {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::ConfigFilePattern;
-
-    fn pattern(spec: &str) -> ConfigFilePattern {
-        ConfigFilePattern::new(spec, "/work", true)
-            .expect("valid pattern")
-            .expect("usable files pattern")
-    }
-
-    #[test]
-    fn normalizes_paths_and_expands_implicit_directory_globs() {
-        let pattern = pattern("./src/../src");
-        assert!(pattern.matches("/work/src/index.ts"));
-        assert!(pattern.matches("/work/src/nested/index.ts"));
-        assert!(!pattern.matches("/work/index.ts"));
-
-        let drive = ConfigFilePattern::new("../src/*.TS", "C:/Project/config", false)
-            .expect("valid drive pattern")
-            .expect("usable drive pattern");
-        assert!(drive.matches("c:\\project\\SRC\\main.ts"));
-    }
-
-    #[test]
-    fn recursive_wildcard_excludes_implicit_directories() {
-        let selection = pattern("src/**/*.ts");
-        assert!(selection.matches("/work/src/nested/index.ts"));
-        assert!(!selection.matches("/work/src/.cache/index.ts"));
-        assert!(!selection.matches("/work/src/node_modules/pkg/index.ts"));
-
-        let explicit = pattern("src/node_modules/**/*.ts");
-        assert!(explicit.matches("/work/src/node_modules/pkg/index.ts"));
-    }
-
-    #[test]
-    fn component_wildcards_preserve_dot_package_and_min_js_rules() {
-        let javascript = pattern("src/*.js");
-        assert!(javascript.matches("/work/src/main.js"));
-        assert!(!javascript.matches("/work/src/.hidden.js"));
-        assert!(!javascript.matches("/work/src/main.min.js"));
-
-        assert!(pattern("src/.*.js").matches("/work/src/.hidden.js"));
-        assert!(pattern("src/*.min.js").matches("/work/src/main.min.js"));
-        assert!(pattern("src/*.*").matches("/work/src/.hidden.js"));
-        assert!(pattern("src/*.*").matches("/work/src/main.min.js"));
-        assert!(!pattern("src/*/*.ts").matches("/work/src/node_modules/index.ts"));
-
-        let implicit = pattern("src");
-        assert!(!implicit.matches("/work/src/.hidden.ts"));
-        assert!(!implicit.matches("/work/src/main.min.js"));
-        assert!(pattern(".dir/**/*.ts").matches("/work/.dir/main.ts"));
-    }
-
-    #[test]
-    fn only_a_whole_component_double_star_is_recursive() {
-        assert!(ConfigFilePattern::new("src/**", "/work", true)
-            .expect("valid pattern")
-            .is_none());
-
-        let ordinary = pattern("src/**name.ts");
-        assert!(ordinary.matches("/work/src/long-name.ts"));
-        assert!(!ordinary.matches("/work/src/nested/long-name.ts"));
-    }
-
-    #[test]
-    fn question_mark_matches_one_character_with_the_host_case_profile() {
-        let sensitive = pattern("src/file?.ts");
-        assert!(sensitive.matches("/work/src/file1.ts"));
-        assert!(!sensitive.matches("/work/src/file10.ts"));
-        assert!(!sensitive.matches("/WORK/src/file1.ts"));
-
-        let insensitive = ConfigFilePattern::new("src/file?.TS", "/work", false)
-            .expect("valid pattern")
-            .expect("usable files pattern");
-        assert!(insensitive.matches("/WORK/SRC/FILE1.ts"));
-
-        let protected = ConfigFilePattern::new("İ/*.TS", "/work", false)
-            .expect("valid protected-case pattern")
-            .expect("usable protected-case pattern");
-        assert!(protected.matches("/WORK/İ/FILE.ts"));
-        assert!(!protected.matches("/work/i/file.ts"));
-
-        let insensitive_component = |component: &str| {
-            ConfigFilePattern::new(&format!("{component}/*.ts"), "/work", false)
-                .expect("valid Unicode case pattern")
-                .expect("usable Unicode case pattern")
-        };
-        assert!(!insensitive_component("K").matches("/work/k/file.ts"));
-        assert!(insensitive_component("Σ").matches("/work/ς/file.ts"));
-        assert!(!insensitive_component("ẞ").matches("/work/ß/file.ts"));
-
-        assert!(!pattern("src/?.ts").matches("/work/src/💩.ts"));
-        assert!(pattern("src/??.ts").matches("/work/src/💩.ts"));
-        assert!(pattern("src/💩.ts").matches("/work/src/💩.ts"));
-    }
-
-    #[test]
-    fn relative_patterns_can_select_files_outside_the_config_base() {
-        let outside = pattern("../shared/**/*.ts");
-        assert!(outside.matches("/shared/nested/main.ts"));
-        assert!(!outside.matches("/work/shared/main.ts"));
-    }
-}
+#[path = "../tests/unit/config_matcher/tests.rs"]
+mod tests;

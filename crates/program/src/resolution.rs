@@ -357,6 +357,8 @@ impl PackageId {
 /// resolved row but skips `findSourceFile` for those branches.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum UnloadedModuleReason {
+    /// Resolution succeeded while `noResolve` prevented source discovery.
+    NoResolve,
     /// JavaScript was resolved while the effective `allowJs` option was off.
     JavaScriptNotAdmitted,
     /// JavaScript found through `node_modules` was elided by the active depth

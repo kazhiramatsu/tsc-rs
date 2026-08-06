@@ -96,9 +96,17 @@ pub struct SourceFile {
     /// Whether leading multiline comments contain a recognized
     /// `@jsxImportSource` pragma.
     pub has_jsx_import_source_pragma: bool,
+    /// The final argument of the last recognized `@jsxImportSource` pragma,
+    /// when it has a usable argument. TypeScript's pragma map is last-write
+    /// wins; the boolean above is retained for malformed/argument-less
+    /// pragma observations.
+    pub jsx_import_source_pragma: Option<String>,
     /// Whether leading multiline comments contain a recognized `@jsxRuntime`
     /// pragma.
     pub has_jsx_runtime_pragma: bool,
+    /// The final argument of the last recognized `@jsxRuntime` pragma, when
+    /// it has a usable argument (for example `automatic` or `classic`).
+    pub jsx_runtime_pragma: Option<String>,
     /// tsc SourceFile.commentDirectives: scanner-collected
     /// `@ts-expect-error`/`@ts-ignore` markers, in scan order (byte
     /// offsets; see CommentDirective).
@@ -187,26 +195,5 @@ pub fn unescape_leading_underscores(name: &str) -> &str {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn parse_source_file_creates_root_and_eof_nodes() {
-        let source = parse_source_file("a.ts", "", ParseOptions::default(), None);
-
-        assert_eq!(source.node_count(), 2);
-        assert_eq!(source.identifier_count(), 0);
-        assert_eq!(source.line_map.line_starts, vec![0]);
-        assert_eq!(source.arena.node(source.root).kind, SyntaxKind::SourceFile);
-
-        let data = source
-            .arena
-            .node(source.root)
-            .data
-            .as_source_file()
-            .expect("root is a source file");
-        let eof = data.end_of_file_token.expect("source file has EOF token");
-        assert_eq!(source.arena.node(eof).kind, SyntaxKind::EndOfFileToken);
-        assert_eq!(source.arena.node(eof).parent, Some(source.root));
-    }
-}
+#[path = "../tests/unit/lib/tests.rs"]
+mod tests;

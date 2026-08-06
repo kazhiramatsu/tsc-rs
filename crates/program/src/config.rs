@@ -47,12 +47,16 @@ use crate::json::{
     RecoverableJsonValue,
 };
 use crate::library::LibraryCatalog;
-use crate::loader::{load_program, ProgramLoadError, ProgramLoadLimits};
+use crate::loader::{
+    load_program_with_root_reasons, ProgramLoadError, ProgramLoadLimits, RootFileReason,
+};
 use crate::module_resolution::{
     directory_name, normalize_absolute_path_lexical, normalized_root_parts, ModuleResolver,
 };
 use crate::path::ProgramPath;
-use crate::prepared::{PathMapping, PreparedProgram, ProgramOptions};
+use crate::prepared::{
+    PathMapping, PreparedProgram, ProgramConfigFile, ProgramConfigSpan, ProgramOptions,
+};
 use crate::resolution::{ResolutionError, ResolutionOutcome};
 use crate::ConfigFilePattern;
 
@@ -141,9 +145,9 @@ impl Error for ConfigHostError {}
 ///
 /// `read_directory` has the shape of TypeScript's filtered recursive callback,
 /// not a raw operating-system listing. Implementors own its filtering and
-/// `matchFiles` semantics. The current compiler-fixture adapter is qualified
-/// only against the frozen config-bearing corpus; a general filesystem adapter
-/// remains a later slice.
+/// `matchFiles` semantics. The production [`crate::CompilerConfigHost`]
+/// supplies that contract for both filesystem and memory hosts; specialized
+/// fixture hosts may intentionally expose a narrower files-only surface.
 pub trait ConfigParseHost {
     fn use_case_sensitive_file_names(&self) -> bool;
 
@@ -858,6 +862,27 @@ pub struct ConfigRootPlanRequest {
     pub base_path: String,
 }
 
+/// One normalized `ParsedCommandLine.projectReferences` entry.  The H0
+/// loader still rejects non-empty project references at execution time, but
+/// parsing must retain the same primary-config observation for embeddings and
+/// diagnostics that inspect a partial command line.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ConfigProjectReference {
+    pub path: String,
+    pub original_path: String,
+    pub prepend: Option<bool>,
+    pub circular: Option<bool>,
+}
+
+/// One `ParsedCommandLine.wildcardDirectories` entry.  TypeScript encodes the
+/// flag as `Recursive=1` or `None=0`; a bool keeps that boundary explicit and
+/// avoids exposing the internal watcher enum to the no-emit loader.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ConfigWildcardDirectory {
+    pub path: String,
+    pub recursive: bool,
+}
+
 /// Program-owned root-planning projection, not a complete `ParsedCommandLine`.
 #[derive(Clone, Debug, PartialEq)]
 pub struct ConfigRootPlan {
@@ -868,7 +893,30 @@ pub struct ConfigRootPlan {
     options: ConfigOptionBag,
     discovery_options: ConfigDiscoveryOptions,
     module_resolution_options: ConfigModuleResolutionOptions,
+    /// Effective root specs after the extends merge. These remain separate
+    /// from `file_names`: TypeScript exposes both the declarative
+    /// `ParsedCommandLine` lists and the discovered file-name projection.
+    files: Option<Vec<String>>,
+    include: Option<Vec<String>>,
+    exclude: Option<Vec<String>>,
+    /// Root-level `references` are observable on the primary config only;
+    /// TypeScript does not inherit them through `extends`.
+    references: Option<Value>,
+    project_references: Option<Vec<ConfigProjectReference>>,
+    /// These root schemas are inherited by `extends` and retained as raw
+    /// recovered values for the ParsedCommandLine-facing boundary. The
+    /// no-emit loader still rejects truthy values before source loading.
+    watch_options: Option<Value>,
+    type_acquisition: Option<Value>,
+    compile_on_save: Option<Value>,
+    /// Truthy root-level schemas which the single-project no-emit loader does
+    /// not consume. Keep this separate from `raw`: `raw` is intentionally a
+    /// projection of the primary config and therefore cannot, by itself,
+    /// distinguish a value inherited from an `extends` source.
+    unsupported_root_scopes: BTreeSet<String>,
     file_names: Vec<String>,
+    root_reasons: Vec<RootFileReason>,
+    wildcard_directories: Vec<ConfigWildcardDirectory>,
     root_parse_diagnostics: Vec<Diagnostic>,
     errors: Vec<Diagnostic>,
     option_diagnostics: Vec<Diagnostic>,
@@ -904,6 +952,57 @@ impl ConfigRootPlan {
         &self.module_resolution_options
     }
 
+    /// Effective `files` entries after extends rebasing. `None` preserves an
+    /// absent/undefined property, while `Some([])` is an explicit empty list.
+    pub fn files(&self) -> Option<&[String]> {
+        self.files.as_deref()
+    }
+
+    /// Effective `include` entries after extends rebasing.
+    pub fn include(&self) -> Option<&[String]> {
+        self.include.as_deref()
+    }
+
+    /// Effective `exclude` entries after extends rebasing.
+    pub fn exclude(&self) -> Option<&[String]> {
+        self.exclude.as_deref()
+    }
+
+    /// The primary config's raw `references` value. Project references are
+    /// deliberately not inherited by TypeScript's config merge.
+    pub fn references(&self) -> Option<&Value> {
+        self.references.as_ref()
+    }
+
+    /// Normalized project-reference entries for the primary config.  This is
+    /// observation-only; the H0 single-project loader rejects non-empty
+    /// references before source loading.
+    pub fn project_references(&self) -> Option<&[ConfigProjectReference]> {
+        self.project_references.as_deref()
+    }
+
+    /// Effective raw `watchOptions` after `extends` merging.
+    pub fn watch_options(&self) -> Option<&Value> {
+        self.watch_options.as_ref()
+    }
+
+    /// Effective raw `typeAcquisition` after `extends` merging.
+    pub fn type_acquisition(&self) -> Option<&Value> {
+        self.type_acquisition.as_ref()
+    }
+
+    /// Effective raw `compileOnSave` after `extends` merging.
+    pub fn compile_on_save(&self) -> Option<&Value> {
+        self.compile_on_save.as_ref()
+    }
+
+    /// Root-level config scopes retained for the fail-closed program gate.
+    /// These may originate in an `extends` source and therefore are not
+    /// recoverable from the primary `raw` projection alone.
+    pub fn unsupported_root_scopes(&self) -> impl Iterator<Item = &str> {
+        self.unsupported_root_scopes.iter().map(String::as_str)
+    }
+
     /// The checker-facing compiler options projected from the merged config.
     ///
     /// This is intentionally a borrowed view of the immutable plan. Callers
@@ -921,6 +1020,12 @@ impl ConfigRootPlan {
 
     pub fn file_names(&self) -> &[String] {
         &self.file_names
+    }
+
+    /// Directory watcher roots derived from the effective include/exclude
+    /// specs, in TypeScript's stable insertion order.
+    pub fn wildcard_directories(&self) -> &[ConfigWildcardDirectory] {
+        &self.wildcard_directories
     }
 
     /// Parse diagnostics owned by the primary config source. TypeScript keeps
@@ -958,10 +1063,12 @@ impl ConfigRootPlan {
 }
 
 /// A config plan cannot be turned into a prepared no-emit program when the
-/// config itself has diagnostics, when `noEmit` is absent/false, or when the
-/// filesystem loader rejects a typed host/resolution boundary. Keeping these
-/// cases distinct lets a future CLI render config diagnostics while treating
-/// the latter two as fail-closed driver outcomes.
+/// config itself has diagnostics, when a fatal option diagnostic is present,
+/// when `noEmit` is absent/false, or when the filesystem loader rejects a
+/// typed host/resolution boundary. TypeScript 6.0 deprecation rows (5101 and
+/// 5107) are reportable but do not stop program construction. Keeping these
+/// cases distinct lets a CLI render those rows while treating the latter
+/// failures as fail-closed driver outcomes.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ConfigProgramLoadError {
     Diagnostics {
@@ -1027,8 +1134,10 @@ impl Error for ConfigProgramLoadError {
 /// Turn a parsed config/root plan into the owned no-emit program consumed by
 /// [`tsc_compiler::ProgramSession`].
 ///
-/// Config and option diagnostics are a gate: no source host work is started
-/// while either collection is non-empty. A config without an explicit
+/// Config diagnostics and fatal option diagnostics are a gate: no source host
+/// work is started while either collection is non-empty. TypeScript 6.0
+/// deprecation diagnostics are retained on the plan but do not block loading.
+/// A config without an explicit
 /// `noEmit: true` is rejected before `load_program`; this prevents an omitted
 /// or false value from accidentally entering an emitter-capable path. The
 /// input plan remains immutable and can be reused by a caller for rendering or
@@ -1045,7 +1154,7 @@ pub fn load_config_program(
 /// Load a config plan while applying the command-line `--noEmit` override.
 ///
 /// TypeScript gives an explicit command-line value precedence over the config
-/// file. The override is deliberately limited to `noEmit`; all config and
+/// file. The override is deliberately limited to `noEmit`; config and fatal
 /// option diagnostics remain a gate and no other option is silently mutated.
 pub fn load_config_program_with_no_emit_override(
     host: &dyn CompilerHost,
@@ -1056,6 +1165,61 @@ pub fn load_config_program_with_no_emit_override(
     load_config_program_inner(host, plan, library_catalog, limits, true)
 }
 
+/// Validate the config-facing gates without starting source discovery.
+///
+/// Embedding runners such as the upstream project harness may need to apply
+/// their own `existingOptions` projection before calling `load_program`.  The
+/// validation must nevertheless remain owned by this crate so those runners
+/// cannot accidentally bypass config diagnostics or the H0 fail-closed
+/// option/root-scope boundary.
+pub fn validate_config_plan(plan: &ConfigRootPlan) -> Result<(), ConfigProgramLoadError> {
+    validate_config_plan_with_no_emit_override(plan, false)
+}
+
+fn validate_config_plan_with_no_emit_override(
+    plan: &ConfigRootPlan,
+    force_no_emit: bool,
+) -> Result<(), ConfigProgramLoadError> {
+    let config = plan.diagnostics().cloned().collect::<Vec<_>>();
+    // TypeScript reports deprecation diagnostics from getOptionsDiagnostics
+    // but still constructs and checks the program. Keep those non-fatal rows
+    // out of the source-loading gate; malformed option values and structural
+    // validation diagnostics remain fatal and fail closed before host work.
+    let options = plan
+        .option_diagnostics()
+        .iter()
+        .filter(|diagnostic| {
+            !(is_non_fatal_option_diagnostic(diagnostic)
+                || force_no_emit && diagnostic.code() == 5096)
+        })
+        .cloned()
+        .collect::<Vec<_>>();
+    if !config.is_empty() || !options.is_empty() {
+        return Err(ConfigProgramLoadError::Diagnostics { config, options });
+    }
+
+    if let Some((feature, detail)) =
+        unsupported_config_scope(&plan.options, &plan.raw, plan.unsupported_root_scopes())
+    {
+        return Err(ConfigProgramLoadError::Program(
+            ProgramLoadError::unsupported(
+                crate::loader::ProgramLoadOperation::ValidateOptions,
+                Some(PathBuf::from(plan.config_file_name())),
+                feature,
+                detail,
+            ),
+        ));
+    }
+    Ok(())
+}
+
+/// Whether an option diagnostic is reportable while the program still enters
+/// the checker. TypeScript 6.0 deprecation rows are non-fatal; malformed
+/// values and structural option errors remain a source-loading gate.
+pub fn is_non_fatal_option_diagnostic(diagnostic: &Diagnostic) -> bool {
+    matches!(diagnostic.code(), 5101 | 5107)
+}
+
 fn load_config_program_inner(
     host: &dyn CompilerHost,
     plan: &ConfigRootPlan,
@@ -1063,11 +1227,7 @@ fn load_config_program_inner(
     limits: ProgramLoadLimits,
     force_no_emit: bool,
 ) -> Result<PreparedProgram, ConfigProgramLoadError> {
-    let config = plan.diagnostics().cloned().collect::<Vec<_>>();
-    let options = plan.option_diagnostics().to_vec();
-    if !config.is_empty() || !options.is_empty() {
-        return Err(ConfigProgramLoadError::Diagnostics { config, options });
-    }
+    validate_config_plan_with_no_emit_override(plan, force_no_emit)?;
 
     if !force_no_emit && plan.compiler_options().no_emit != Some(true) {
         return Err(ConfigProgramLoadError::NoEmitRequired {
@@ -1078,13 +1238,14 @@ fn load_config_program_inner(
     let roots = plan
         .file_names()
         .iter()
-        .map(PathBuf::from)
+        .zip(&plan.root_reasons)
+        .map(|(file_name, reason)| (PathBuf::from(file_name), reason.clone()))
         .collect::<Vec<_>>();
     let mut compiler_options = plan.compiler_options().clone();
     if force_no_emit {
         compiler_options.no_emit = Some(true);
     }
-    load_program(
+    load_program_with_root_reasons(
         host,
         &roots,
         compiler_options,
@@ -1156,6 +1317,11 @@ struct ParsedConfigNode {
     inheritable_files: Option<Vec<ConfigSpec>>,
     inheritable_include: Option<Vec<ConfigSpec>>,
     inheritable_exclude: Option<Vec<ConfigSpec>>,
+    references: Option<Value>,
+    watch_options: Option<Value>,
+    type_acquisition: Option<Value>,
+    compile_on_save: Option<Value>,
+    unsupported_root_scopes: BTreeSet<String>,
     extended_sources: Vec<ConfigSourceText>,
     extended_source_files: Vec<String>,
 }
@@ -1212,12 +1378,17 @@ pub fn parse_config_root_plan(
         )?
         .expect("the primary config cannot be a recursive child of itself");
     node.options.finalize_config_dir_templates(&config_base)?;
-    let option_diagnostics = paths_option_diagnostics(&node.options, &node.source);
+    let mut option_diagnostics = paths_option_diagnostics(&node.options, &node.source);
+    option_diagnostics.extend(no_lib_lib_option_diagnostics(&node.options, &node.source));
+    option_diagnostics.extend(deprecation_option_diagnostics(&node.options, &node.source));
+    option_diagnostics.extend(option_relationship_diagnostics(&node.options, &node.source));
+    sort_and_dedupe_diagnostics(&mut option_diagnostics);
     let discovery_options = effective_discovery_options(&node.options, &config_base)?;
     let module_resolution_options = config_module_resolution_options(
         &node.options,
         &discovery_options,
         &config_file_name,
+        &node.source,
         host.use_case_sensitive_file_names(),
     )?;
     let file_names = derive_file_names(
@@ -1228,7 +1399,34 @@ pub fn parse_config_root_plan(
         &discovery_options,
         &mut context.errors,
     )?;
+    let root_reasons = config_root_reasons(
+        &file_names,
+        node.files.as_deref(),
+        node.include.as_deref(),
+        &config_base,
+        &node.source.file_name,
+        host.use_case_sensitive_file_names(),
+    )?;
+    let project_references = config_project_references(node.references.as_ref(), &config_base);
+    let wildcard_directories = derive_wildcard_directories(
+        &node,
+        &config_base,
+        &discovery_options,
+        host.use_case_sensitive_file_names(),
+    )?;
     node.options.restore_public_entry_order();
+    let files = node
+        .files
+        .as_ref()
+        .map(|specs| specs.iter().map(|spec| spec.text.clone()).collect());
+    let include = node
+        .include
+        .as_ref()
+        .map(|specs| specs.iter().map(|spec| spec.text.clone()).collect());
+    let exclude = node
+        .exclude
+        .as_ref()
+        .map(|specs| specs.iter().map(|spec| spec.text.clone()).collect());
     Ok(ConfigRootPlan {
         config_file_name,
         source: node.source,
@@ -1238,11 +1436,359 @@ pub fn parse_config_root_plan(
         options: node.options,
         discovery_options,
         module_resolution_options,
+        files,
+        include,
+        exclude,
+        references: node.references,
+        project_references,
+        watch_options: node.watch_options,
+        type_acquisition: node.type_acquisition,
+        compile_on_save: node.compile_on_save,
+        unsupported_root_scopes: node.unsupported_root_scopes,
         file_names,
+        root_reasons,
+        wildcard_directories,
         root_parse_diagnostics: context.root_parse_diagnostics,
         errors: context.errors,
         option_diagnostics,
     })
+}
+
+/// H0 is a single-project, no-emit driver. Recognized options which would
+/// select an emitter, build graph, watch/incremental state, or a plugin are
+/// therefore an unsupported *scope* failure, not an option we may silently
+/// carry through the narrower `CompilerOptions` projection. This check runs
+/// at the program-load gate rather than during parsing so the config oracle
+/// can still observe TypeScript's complete partial `ParsedCommandLine` shape.
+fn unsupported_config_scope(
+    options: &ConfigOptionBag,
+    raw: &Value,
+    unsupported_root_scopes: impl IntoIterator<Item = impl AsRef<str>>,
+) -> Option<(&'static str, String)> {
+    if let Some(references) = raw.as_object().and_then(|raw| raw.get("references")) {
+        if config_value_requests_feature(references) {
+            return Some((
+                "project-references",
+                "project references are outside the H0 single-project driver".to_owned(),
+            ));
+        }
+    }
+
+    if let Some(scope) = unsupported_root_scopes.into_iter().next() {
+        let scope = scope.as_ref();
+        let detail = match scope {
+            "watchOptions" => "watchOptions are outside the H0 single-project no-emit driver",
+            "typeAcquisition" => "typeAcquisition is outside the H0 single-project no-emit driver",
+            "compileOnSave" => "compileOnSave is outside the H0 single-project no-emit driver",
+            _ => "root config scope is outside the H0 single-project no-emit driver",
+        };
+        return Some(("unsupported-config-scope", detail.to_owned()));
+    }
+
+    for option in options.entries() {
+        if !config_option_is_supported_by_h0(&option.name)
+            && config_value_requests_feature(&option.value)
+        {
+            return Some((
+                "unsupported-config-option",
+                format!(
+                    "compiler option {:?} is outside the H0 single-project no-emit driver",
+                    option.name
+                ),
+            ));
+        }
+    }
+    None
+}
+
+fn config_project_references(
+    references: Option<&Value>,
+    config_base_path: &str,
+) -> Option<Vec<ConfigProjectReference>> {
+    let values = references?.as_array()?;
+    let mut result = Vec::new();
+    for reference in values {
+        let Some(object) = reference.as_object() else {
+            continue;
+        };
+        let Some(original_path) = object.get("path").and_then(Value::as_str) else {
+            continue;
+        };
+        let Ok(path) = normalized_path(original_path, config_base_path) else {
+            continue;
+        };
+        result.push(ConfigProjectReference {
+            path,
+            original_path: original_path.to_owned(),
+            prepend: object.get("prepend").and_then(Value::as_bool),
+            circular: object.get("circular").and_then(Value::as_bool),
+        });
+    }
+    (!result.is_empty()).then_some(result)
+}
+
+fn derive_wildcard_directories(
+    config: &ParsedConfigNode,
+    config_base_path: &str,
+    discovery: &ConfigDiscoveryOptions,
+    case_sensitive: bool,
+) -> Result<Vec<ConfigWildcardDirectory>, ConfigParseError> {
+    // A `files` property disables wildcard discovery.  Otherwise TypeScript
+    // supplies the implicit `**/*` include when `include` is absent.
+    let includes = if config.files.is_some() {
+        Vec::new()
+    } else if let Some(includes) = &config.include {
+        includes.clone()
+    } else {
+        vec![ConfigSpec {
+            text: "**/*".to_owned(),
+            base_path: config_base_path.to_owned(),
+            location: None,
+        }]
+    };
+    let excludes = if let Some(excludes) = &config.exclude {
+        excludes.clone()
+    } else {
+        [discovery.out_dir.clone(), discovery.declaration_dir.clone()]
+            .into_iter()
+            .flatten()
+            .map(|path| ConfigSpec {
+                text: path,
+                base_path: config_base_path.to_owned(),
+                location: None,
+            })
+            .collect()
+    };
+    let excludes = excludes
+        .iter()
+        .map(|exclude| normalized_spec_path(exclude, config_base_path))
+        .collect::<Result<Vec<_>, _>>()?;
+    let mut directories = Vec::new();
+    for include in includes {
+        let spec = normalized_spec_path(&include, config_base_path)?;
+        if excludes
+            .iter()
+            .any(|exclude| wildcard_spec_is_excluded(&spec, exclude, case_sensitive))
+        {
+            continue;
+        }
+        let Some((path, recursive)) = wildcard_directory_from_spec(&spec) else {
+            continue;
+        };
+        let key = if case_sensitive {
+            path.clone()
+        } else {
+            to_file_name_lower_case(&path)
+        };
+        if let Some(existing) =
+            directories
+                .iter_mut()
+                .find(|entry: &&mut ConfigWildcardDirectory| {
+                    let existing_key = if case_sensitive {
+                        entry.path.clone()
+                    } else {
+                        to_file_name_lower_case(&entry.path)
+                    };
+                    existing_key == key
+                })
+        {
+            existing.recursive |= recursive;
+        } else {
+            directories.push(ConfigWildcardDirectory { path, recursive });
+        }
+    }
+
+    // Watcher roots nested below an already-recursive root are removed by
+    // TypeScript's canonical-key cleanup.  Keep insertion order for the
+    // remaining entries; it is observable through ParsedCommandLine.
+    let recursive_paths = directories
+        .iter()
+        .filter(|entry| entry.recursive)
+        .map(|entry| entry.path.clone())
+        .collect::<Vec<_>>();
+    directories.retain(|entry| {
+        !recursive_paths.iter().any(|parent| {
+            if same_path(parent, &entry.path, case_sensitive) {
+                return false;
+            }
+            path_is_descendant(parent, &entry.path, case_sensitive)
+        })
+    });
+    Ok(directories)
+}
+
+fn wildcard_spec_is_excluded(spec: &str, exclude: &str, case_sensitive: bool) -> bool {
+    let normalize = |value: &str| {
+        if case_sensitive {
+            value.to_owned()
+        } else {
+            to_file_name_lower_case(value)
+        }
+    };
+    let spec = normalize(spec);
+    let exclude = normalize(exclude).trim_end_matches('/').to_owned();
+    if !exclude.contains(['*', '?']) {
+        return spec == exclude
+            || spec
+                .strip_prefix(&exclude)
+                .is_some_and(|tail| tail.starts_with('/'));
+    }
+    ConfigFilePattern::new(&exclude, "/", case_sensitive)
+        .ok()
+        .flatten()
+        .is_some_and(|pattern| pattern.matches(&spec))
+}
+
+fn wildcard_directory_from_spec(spec: &str) -> Option<(String, bool)> {
+    let spec = spec.trim_end_matches('/');
+    if spec.is_empty() {
+        return None;
+    }
+    let last_separator = spec.rfind('/');
+    let wildcard = spec.find(['*', '?']);
+    if let Some(wildcard) = wildcard {
+        let recursive = wildcard < last_separator.unwrap_or(spec.len());
+        let path = if recursive {
+            let component_separator = spec[..wildcard].rfind('/').unwrap_or(0);
+            if component_separator == 0 {
+                "/"
+            } else {
+                &spec[..component_separator]
+            }
+        } else {
+            last_separator
+                .map(|index| if index == 0 { "/" } else { &spec[..index] })
+                .unwrap_or(".")
+        };
+        return Some((path.to_owned(), recursive));
+    }
+
+    // `include: ["src"]` is TypeScript's implicit recursive glob.
+    let file_name = last_separator
+        .map(|index| &spec[index + 1..])
+        .unwrap_or(spec);
+    if !file_name.contains('.') {
+        return Some((spec.to_owned(), true));
+    }
+    None
+}
+
+fn same_path(left: &str, right: &str, case_sensitive: bool) -> bool {
+    if case_sensitive {
+        left == right
+    } else {
+        to_file_name_lower_case(left) == to_file_name_lower_case(right)
+    }
+}
+
+fn path_is_descendant(parent: &str, child: &str, case_sensitive: bool) -> bool {
+    let parent = if case_sensitive {
+        parent.to_owned()
+    } else {
+        to_file_name_lower_case(parent)
+    };
+    let child = if case_sensitive {
+        child.to_owned()
+    } else {
+        to_file_name_lower_case(child)
+    };
+    child
+        .strip_prefix(parent.trim_end_matches('/'))
+        .is_some_and(|tail| tail.starts_with('/'))
+}
+
+/// The config parser deliberately knows the complete TypeScript option
+/// declaration table so it can reproduce `ParsedCommandLine` diagnostics.
+/// That does not mean the no-emit loader can consume every recognized option:
+/// an option which never reaches either `CompilerOptions`, `ProgramOptions`,
+/// or root discovery would otherwise be silently ignored. Keep this allowlist
+/// next to the fail-closed gate so adding a new projection requires an
+/// explicit review of its execution semantics.
+pub const H0_SUPPORTED_CONFIG_OPTIONS: &[&str] = &[
+    // Discovery and checker-facing compiler options.
+    "allowJs",
+    "checkJs",
+    "forceConsistentCasingInFileNames",
+    "maxNodeModuleJsDepth",
+    "experimentalDecorators",
+    "target",
+    "module",
+    "moduleDetection",
+    "alwaysStrict",
+    "strict",
+    "strictNullChecks",
+    "strictFunctionTypes",
+    "noImplicitAny",
+    "noErrorTruncation",
+    "noImplicitThis",
+    "noImplicitOverride",
+    "strictBindCallApply",
+    "exactOptionalPropertyTypes",
+    "noFallthroughCasesInSwitch",
+    "noImplicitReturns",
+    "noUnusedLocals",
+    "noUnusedParameters",
+    "allowUnreachableCode",
+    "allowUnusedLabels",
+    "noUncheckedIndexedAccess",
+    "noPropertyAccessFromIndexSignature",
+    "noUncheckedSideEffectImports",
+    "strictPropertyInitialization",
+    "useDefineForClassFields",
+    "useUnknownInCatchVariables",
+    "lib",
+    "jsx",
+    "noEmit",
+    "noResolve",
+    "importHelpers",
+    "downlevelIteration",
+    "strictBuiltinIteratorReturn",
+    "moduleResolution",
+    "esModuleInterop",
+    "allowSyntheticDefaultImports",
+    "preserveConstEnums",
+    "isolatedModules",
+    "verbatimModuleSyntax",
+    "allowUmdGlobalAccess",
+    "baseUrl",
+    "moduleSuffixes",
+    "resolvePackageJsonExports",
+    "resolvePackageJsonImports",
+    "customConditions",
+    "noDtsResolution",
+    "allowArbitraryExtensions",
+    "allowImportingTsExtensions",
+    "rewriteRelativeImportExtensions",
+    "resolveJsonModule",
+    "skipLibCheck",
+    "jsxFactory",
+    "jsxFragmentFactory",
+    "jsxImportSource",
+    "reactNamespace",
+    "ignoreDeprecations",
+    // Program-facing roots/resolution and default-exclude inputs.
+    "noLib",
+    "preserveSymlinks",
+    "types",
+    "typeRoots",
+    "rootDirs",
+    "paths",
+    "outDir",
+    "declarationDir",
+];
+
+fn config_option_is_supported_by_h0(name: &str) -> bool {
+    H0_SUPPORTED_CONFIG_OPTIONS.contains(&name)
+}
+
+fn config_value_requests_feature(value: &Value) -> bool {
+    match value {
+        Value::Null => false,
+        Value::Bool(value) => *value,
+        Value::Number(_) | Value::String(_) => true,
+        Value::Array(values) => !values.is_empty(),
+        Value::Object(values) => !values.is_empty(),
+    }
 }
 
 impl ParseContext<'_> {
@@ -1371,6 +1917,18 @@ impl ParseContext<'_> {
             .flat_map(|root| config_object_properties(&parsed, root))
             .map(|property| property.name)
             .collect::<BTreeSet<_>>();
+        let mut unsupported_root_scopes = BTreeSet::new();
+        let own_references =
+            config_property_get(object, &raw_property_names, "references").cloned();
+        let own_watch_options_present = raw_property_names.contains("watchOptions");
+        let own_watch_options =
+            config_property_get(object, &raw_property_names, "watchOptions").cloned();
+        let own_type_acquisition_present = raw_property_names.contains("typeAcquisition");
+        let own_type_acquisition =
+            config_property_get(object, &raw_property_names, "typeAcquisition").cloned();
+        let own_compile_on_save_present = raw_property_names.contains("compileOnSave");
+        let own_compile_on_save =
+            config_property_get(object, &raw_property_names, "compileOnSave").cloned();
 
         let mut own_options = default_compiler_options(normalized_file_name, base_path);
         let mut converted_own_options = compiler_options(base_path, &parsed, &mut own_errors)?;
@@ -1416,6 +1974,9 @@ impl ParseContext<'_> {
         let mut inherited_files = None;
         let mut inherited_include = None;
         let mut inherited_exclude = None;
+        let mut inherited_watch_options = None;
+        let mut inherited_type_acquisition = None;
+        let mut inherited_compile_on_save = None;
         let mut extended_sources = Vec::new();
         let mut seen_sources = BTreeSet::new();
         let mut extended_source_files = Vec::new();
@@ -1522,6 +2083,15 @@ impl ParseContext<'_> {
                     extended_source_files.push(extended_source_file.clone());
                 }
             }
+            if extended.watch_options.is_some() {
+                inherited_watch_options = extended.watch_options.clone();
+            }
+            if extended.type_acquisition.is_some() {
+                inherited_type_acquisition = extended.type_acquisition.clone();
+            }
+            if extended.compile_on_save.is_some() {
+                inherited_compile_on_save = extended.compile_on_save.clone();
+            }
         }
         inherited_options.extend_from(&own_options);
         own_options = inherited_options;
@@ -1533,6 +2103,30 @@ impl ParseContext<'_> {
             .and_then(|node| config_location(&parsed, node));
         let include = own_include.or(inherited_include);
         let exclude = own_exclude.or(inherited_exclude);
+        let watch_options = if own_watch_options_present {
+            own_watch_options
+        } else {
+            inherited_watch_options
+        };
+        let type_acquisition = if own_type_acquisition_present {
+            own_type_acquisition
+        } else {
+            inherited_type_acquisition
+        };
+        let compile_on_save = if own_compile_on_save_present {
+            own_compile_on_save
+        } else {
+            inherited_compile_on_save
+        };
+        for (name, value) in [
+            ("watchOptions", watch_options.as_ref()),
+            ("typeAcquisition", type_acquisition.as_ref()),
+            ("compileOnSave", compile_on_save.as_ref()),
+        ] {
+            if value.is_some_and(json_value_is_truthy) {
+                unsupported_root_scopes.insert(name.to_owned());
+            }
+        }
         let raw_object = raw
             .as_object_mut()
             .expect("config raw was validated as an object");
@@ -1552,6 +2146,18 @@ impl ParseContext<'_> {
                                 .collect(),
                         ),
                     );
+                    raw_property_names.insert(name.to_owned());
+                }
+            }
+        }
+        for (name, value) in [
+            ("watchOptions", watch_options.as_ref()),
+            ("typeAcquisition", type_acquisition.as_ref()),
+            ("compileOnSave", compile_on_save.as_ref()),
+        ] {
+            if !raw_property_names.contains(name) {
+                if let Some(value) = value {
+                    raw_object.insert(name.to_owned(), value.clone());
                     raw_property_names.insert(name.to_owned());
                 }
             }
@@ -1585,6 +2191,11 @@ impl ParseContext<'_> {
             inheritable_files,
             inheritable_include,
             inheritable_exclude,
+            references: own_references,
+            watch_options,
+            type_acquisition,
+            compile_on_save,
+            unsupported_root_scopes,
             extended_sources,
             extended_source_files,
         }))
@@ -1920,6 +2531,511 @@ fn paths_option_diagnostics(
     }
     sort_and_dedupe_diagnostics(&mut diagnostics);
     diagnostics
+}
+
+/// Validate the `lib`/`noLib` option pair at the same post-conversion
+/// boundary as TypeScript's `verifyCompilerOptions`. The two properties are
+/// both diagnosed (rather than only the second one) and locations are tied to
+/// every effective root-syntax occurrence, matching
+/// `createOptionDiagnosticInObjectLiteralSyntax`.
+///
+/// tsc-port: verifyCompilerOptions @6.0.3 (lib/noLib block)
+/// tsc-hash: 6cc5d6e4258b1645ed0788fb31322db101b9e6b9ae34f203e749610f23e48fb3
+/// tsc-span: _tsc.js:124888-124890
+fn no_lib_lib_option_diagnostics(
+    options: &ConfigOptionBag,
+    source: &ConfigSourceText,
+) -> Vec<Diagnostic> {
+    let has_lib = matches!(
+        options.typed_value_state("lib"),
+        ConfigOptionValueState::List(_)
+    );
+    let no_lib_enabled = matches!(
+        options.typed_value_state("noLib"),
+        ConfigOptionValueState::Value(Value::Bool(true))
+    );
+    if !has_lib || !no_lib_enabled {
+        return Vec::new();
+    }
+
+    let parsed = tsc_syntax::parse_json_text(&source.file_name, &source.text);
+    let mut locations = Vec::new();
+    if let Some(root) = config_root_object(&parsed) {
+        for compiler_options in config_object_properties(&parsed, root)
+            .into_iter()
+            .filter(|property| property.name == "compilerOptions")
+        {
+            for property in config_object_properties(&parsed, compiler_options.initializer) {
+                if matches!(property.name.as_str(), "lib" | "noLib") {
+                    locations.push(config_location(&parsed, property.name_node));
+                }
+            }
+        }
+    }
+    if locations.iter().all(Option::is_none) {
+        locations.push(
+            config_property(&parsed, "compilerOptions")
+                .and_then(|property| config_location(&parsed, property.name_node)),
+        );
+    }
+
+    locations
+        .into_iter()
+        .map(|location| {
+            config_diagnostic(
+                &gen::Option_0_cannot_be_specified_with_option_1,
+                &["lib".to_owned(), "noLib".to_owned()],
+                location,
+            )
+        })
+        .collect()
+}
+
+/// Produce the non-fatal TypeScript 6.0 option-deprecation diagnostics owned
+/// by `getOptionsDiagnostics`.  These diagnostics must remain attached to the
+/// immutable config plan even though they do not prevent a no-emit program
+/// from being constructed.
+///
+/// tsc-port: verifyDeprecatedCompilerOptions @6.0.3
+/// tsc-hash: b6d09b278ef2bfb9854fcd27e61627d116411742e757e3113a5338df88bcb08d
+/// tsc-span: _tsc.js:129942-130078
+fn deprecation_option_diagnostics(
+    options: &ConfigOptionBag,
+    source: &ConfigSourceText,
+) -> Vec<Diagnostic> {
+    let parsed = tsc_syntax::parse_json_text(&source.file_name, &source.text);
+    let compiler_properties = config_compiler_option_properties(&parsed);
+    let fallback = config_property(&parsed, "compilerOptions")
+        .and_then(|property| config_location(&parsed, property.name_node));
+    let ignore_state = options.typed_value_state("ignoreDeprecations");
+    let ignore = match ignore_state {
+        ConfigOptionValueState::Value(Value::String(value)) => Some(value.as_str()),
+        _ => None,
+    };
+    let ignore_invalid = match ignore_state {
+        ConfigOptionValueState::Absent => false,
+        ConfigOptionValueState::Value(Value::String(value)) => {
+            !matches!(value.as_str(), "5.0" | "6.0")
+        }
+        ConfigOptionValueState::Value(_)
+        | ConfigOptionValueState::Undefined
+        | ConfigOptionValueState::List(_)
+        | ConfigOptionValueState::Object(_)
+        | ConfigOptionValueState::PositiveInfinity
+        | ConfigOptionValueState::NegativeInfinity => true,
+    };
+    let mut diagnostics = Vec::new();
+
+    if ignore_invalid {
+        emit_option_diagnostic_for_properties(
+            &mut diagnostics,
+            &parsed,
+            &compiler_properties,
+            &fallback,
+            "ignoreDeprecations",
+            false,
+            &gen::Invalid_value_for_ignoreDeprecations,
+            &[],
+        );
+    }
+
+    // A deprecation can be silenced only by the matching 6.0 suppression
+    // version. `"5.0"` remains a valid value, but intentionally does not
+    // silence options deprecated in 6.0.
+    let silences_ts6 = ignore == Some("6.0");
+
+    let target = config_option_i32(options, "target");
+    if target == Some(0) {
+        // ES3 was removed in 5.5, so ignoreDeprecations cannot silence this
+        // row even when it is set to the current 6.0 version.
+        emit_option_diagnostic_for_properties(
+            &mut diagnostics,
+            &parsed,
+            &compiler_properties,
+            &fallback,
+            "target",
+            false,
+            &gen::Option_0_1_has_been_removed_Please_remove_it_from_your_configuration,
+            &["target".to_owned(), "ES3".to_owned()],
+        );
+    }
+    if !silences_ts6 {
+        if target == Some(1) {
+            emit_option_deprecation_5107(
+                &mut diagnostics,
+                &parsed,
+                &compiler_properties,
+                &fallback,
+                "target",
+                "ES5",
+                false,
+            );
+        }
+        if config_option_bool(options, "alwaysStrict") == Some(false) {
+            emit_option_deprecation_5107(
+                &mut diagnostics,
+                &parsed,
+                &compiler_properties,
+                &fallback,
+                "alwaysStrict",
+                "false",
+                false,
+            );
+        }
+        if config_option_i32(options, "moduleResolution") == Some(1) {
+            emit_option_deprecation_5107(
+                &mut diagnostics,
+                &parsed,
+                &compiler_properties,
+                &fallback,
+                "moduleResolution",
+                "classic",
+                false,
+            );
+        } else if config_option_i32(options, "moduleResolution") == Some(2) {
+            emit_option_deprecation_5107(
+                &mut diagnostics,
+                &parsed,
+                &compiler_properties,
+                &fallback,
+                "moduleResolution",
+                "node10",
+                true,
+            );
+        }
+        if options.typed_value("baseUrl").is_some() {
+            emit_option_deprecation_name(
+                &mut diagnostics,
+                &parsed,
+                &compiler_properties,
+                &fallback,
+                "baseUrl",
+                true,
+            );
+        }
+        if config_option_bool(options, "esModuleInterop") == Some(false) {
+            emit_option_deprecation_5107(
+                &mut diagnostics,
+                &parsed,
+                &compiler_properties,
+                &fallback,
+                "esModuleInterop",
+                "false",
+                false,
+            );
+        }
+        if config_option_bool(options, "allowSyntheticDefaultImports") == Some(false) {
+            emit_option_deprecation_5107(
+                &mut diagnostics,
+                &parsed,
+                &compiler_properties,
+                &fallback,
+                "allowSyntheticDefaultImports",
+                "false",
+                false,
+            );
+        }
+        if options.typed_value("outFile").is_some() {
+            emit_option_deprecation_name(
+                &mut diagnostics,
+                &parsed,
+                &compiler_properties,
+                &fallback,
+                "outFile",
+                false,
+            );
+        }
+        if config_option_bool(options, "downlevelIteration").is_some() {
+            emit_option_deprecation_name(
+                &mut diagnostics,
+                &parsed,
+                &compiler_properties,
+                &fallback,
+                "downlevelIteration",
+                false,
+            );
+        }
+        let module = config_option_i32(options, "module");
+        let module_name = match module {
+            Some(0) => Some("None"),
+            Some(2) => Some("AMD"),
+            Some(3) => Some("UMD"),
+            Some(4) => Some("System"),
+            _ => None,
+        };
+        if let Some(module_name) = module_name {
+            emit_option_deprecation_5107(
+                &mut diagnostics,
+                &parsed,
+                &compiler_properties,
+                &fallback,
+                "module",
+                module_name,
+                false,
+            );
+        }
+    }
+
+    sort_and_dedupe_diagnostics(&mut diagnostics);
+    diagnostics
+}
+
+/// Produce option-combination diagnostics which TypeScript evaluates after
+/// computing the effective module and module-resolution kinds. Keeping these
+/// rows on the immutable config plan prevents an incompatible resolver mode
+/// from reaching source discovery, while still allowing the CLI to render the
+/// exact option diagnostics before the no-emit gate fails closed.
+///
+/// tsc-port: verifyCompilerOptions @6.0.3
+/// tsc-hash: 379bc580139f96f948f7e041ea76b960282efe6c7924b06a4de1f11bffb9b558
+/// tsc-span: _tsc.js:124936-125020
+fn option_relationship_diagnostics(
+    options: &ConfigOptionBag,
+    source: &ConfigSourceText,
+) -> Vec<Diagnostic> {
+    let parsed = tsc_syntax::parse_json_text(&source.file_name, &source.text);
+    let compiler_properties = config_compiler_option_properties(&parsed);
+    // Relationship diagnostics whose option is absent are compiler-level
+    // rows in TypeScript, not diagnostics attached to the compilerOptions
+    // object. Property-backed rows still use their exact value/key span.
+    let no_fallback = None;
+    let projected = CompilerOptions {
+        target: config_option_i32(options, "target"),
+        module: config_option_i32(options, "module"),
+        module_resolution: config_option_i32(options, "moduleResolution"),
+        ..CompilerOptions::default()
+    };
+    let module_kind = projected.emit_module_kind();
+    let module_resolution = projected.emit_module_resolution_kind();
+    let mut diagnostics = Vec::new();
+
+    if module_resolution == 100 && !matches!(module_kind, 1 | 5..=99 | 200) {
+        emit_option_diagnostic_for_properties(
+            &mut diagnostics,
+            &parsed,
+            &compiler_properties,
+            &no_fallback,
+            "moduleResolution",
+            false,
+            &gen::Option_0_can_only_be_used_when_module_is_set_to_preserve_commonjs_or_es2015_or_later,
+            &["bundler".to_owned()],
+        );
+    }
+
+    if (3..=99).contains(&module_resolution) && !(100..=199).contains(&module_kind) {
+        let module_resolution_name = if module_resolution == 99 {
+            "NodeNext"
+        } else {
+            "Node16"
+        };
+        emit_option_diagnostic_for_properties(
+            &mut diagnostics,
+            &parsed,
+            &compiler_properties,
+            &no_fallback,
+            "module",
+            false,
+            &gen::Option_module_must_be_set_to_0_when_option_moduleResolution_is_set_to_1,
+            &[
+                module_resolution_name.to_owned(),
+                module_resolution_name.to_owned(),
+            ],
+        );
+    } else if (100..=199).contains(&module_kind)
+        && options.typed_value("moduleResolution").is_some()
+        && !(3..=99).contains(&module_resolution)
+    {
+        let module_kind_name = if module_kind == 199 {
+            "NodeNext"
+        } else {
+            "Node16"
+        };
+        emit_option_diagnostic_for_properties(
+            &mut diagnostics,
+            &parsed,
+            &compiler_properties,
+            &no_fallback,
+            "moduleResolution",
+            false,
+            &gen::Option_moduleResolution_must_be_set_to_0_or_left_unspecified_when_option_module_is_set_to_1,
+            &[
+                module_kind_name.to_owned(),
+                module_kind_name.to_owned(),
+            ],
+        );
+    }
+
+    let package_maps_supported = (3..=99).contains(&module_resolution) || module_resolution == 100;
+    if !package_maps_supported {
+        for name in ["resolvePackageJsonExports", "resolvePackageJsonImports"] {
+            if config_option_bool(options, name) == Some(true) {
+                emit_option_diagnostic_for_properties(
+                    &mut diagnostics,
+                    &parsed,
+                    &compiler_properties,
+                    &no_fallback,
+                    name,
+                    true,
+                    &gen::Option_0_can_only_be_used_when_moduleResolution_is_set_to_node16_nodenext_or_bundler,
+                    &[name.to_owned()],
+                );
+            }
+        }
+        if matches!(
+            options.typed_value_state("customConditions"),
+            ConfigOptionValueState::List(_)
+        ) {
+            emit_option_diagnostic_for_properties(
+                &mut diagnostics,
+                &parsed,
+                &compiler_properties,
+                &no_fallback,
+                "customConditions",
+                true,
+                &gen::Option_0_can_only_be_used_when_moduleResolution_is_set_to_node16_nodenext_or_bundler,
+                &["customConditions".to_owned()],
+            );
+        }
+    }
+
+    if config_option_bool(options, "verbatimModuleSyntax") == Some(true)
+        && matches!(module_kind, 0 | 2..=4)
+    {
+        emit_option_diagnostic_for_properties(
+            &mut diagnostics,
+            &parsed,
+            &compiler_properties,
+            &no_fallback,
+            "verbatimModuleSyntax",
+            true,
+            &gen::Option_verbatimModuleSyntax_cannot_be_used_when_module_is_set_to_UMD_AMD_or_System,
+            &[],
+        );
+    }
+
+    if config_option_bool(options, "allowImportingTsExtensions") == Some(true)
+        && config_option_bool(options, "noEmit") != Some(true)
+        && config_option_bool(options, "rewriteRelativeImportExtensions") != Some(true)
+    {
+        emit_option_diagnostic_for_properties(
+            &mut diagnostics,
+            &parsed,
+            &compiler_properties,
+            &no_fallback,
+            "allowImportingTsExtensions",
+            true,
+            &gen::Option_allowImportingTsExtensions_can_only_be_used_when_one_of_noEmit_emitDeclarationOnly_or_rewriteRelativeImportExtensions_is_set,
+            &[],
+        );
+    }
+
+    diagnostics
+}
+
+fn config_compiler_option_properties(source: &SourceFile) -> Vec<ConfigPropertyNode> {
+    let Some(root) = config_root_object(source) else {
+        return Vec::new();
+    };
+    config_object_properties(source, root)
+        .into_iter()
+        .filter(|property| property.name == "compilerOptions")
+        .flat_map(|property| config_object_properties(source, property.initializer))
+        .collect()
+}
+
+fn emit_option_deprecation_5107(
+    diagnostics: &mut Vec<Diagnostic>,
+    source: &SourceFile,
+    properties: &[ConfigPropertyNode],
+    fallback: &Option<ConfigLocation>,
+    name: &str,
+    value: &str,
+    related: bool,
+) {
+    let start = diagnostics.len();
+    emit_option_diagnostic_for_properties(
+        diagnostics,
+        source,
+        properties,
+        fallback,
+        name,
+        false,
+        &gen::Option_0_1_is_deprecated_and_will_stop_functioning_in_TypeScript_2_Specify_compilerOption_ignoreDeprecations_3_to_silence_this_error,
+        &[
+            name.to_owned(),
+            value.to_owned(),
+            "7.0".to_owned(),
+            "6.0".to_owned(),
+        ],
+    );
+    if related {
+        // Replace only the rows created by this call. Other 5107 rows may
+        // precede it in the same option pass (for example `module=AMD`).
+        for diagnostic in &mut diagnostics[start..] {
+            diagnostic.message = diagnostic.message.clone().with_next(vec![MessageChain::new(
+                &gen::Visit_https_aka_ms_ts6_for_migration_information,
+                &[],
+            )]);
+        }
+    }
+}
+
+fn emit_option_deprecation_name(
+    diagnostics: &mut Vec<Diagnostic>,
+    source: &SourceFile,
+    properties: &[ConfigPropertyNode],
+    fallback: &Option<ConfigLocation>,
+    name: &str,
+    related: bool,
+) {
+    let start = diagnostics.len();
+    emit_option_diagnostic_for_properties(
+        diagnostics,
+        source,
+        properties,
+        fallback,
+        name,
+        true,
+        &gen::Option_0_is_deprecated_and_will_stop_functioning_in_TypeScript_1_Specify_compilerOption_ignoreDeprecations_2_to_silence_this_error,
+        &[name.to_owned(), "7.0".to_owned(), "6.0".to_owned()],
+    );
+    if related {
+        for diagnostic in &mut diagnostics[start..] {
+            diagnostic.message = diagnostic.message.clone().with_next(vec![MessageChain::new(
+                &gen::Visit_https_aka_ms_ts6_for_migration_information,
+                &[],
+            )]);
+        }
+    }
+}
+
+#[allow(clippy::too_many_arguments)] // Mirrors createOptionDiagnostic's location/message tuple.
+fn emit_option_diagnostic_for_properties(
+    diagnostics: &mut Vec<Diagnostic>,
+    source: &SourceFile,
+    properties: &[ConfigPropertyNode],
+    fallback: &Option<ConfigLocation>,
+    name: &str,
+    on_key: bool,
+    message: &'static DiagnosticMessage,
+    arguments: &[String],
+) {
+    let mut emitted = false;
+    for property in properties.iter().filter(|property| property.name == name) {
+        let location = config_location(
+            source,
+            if on_key {
+                property.name_node
+            } else {
+                property.initializer
+            },
+        );
+        diagnostics.push(config_diagnostic(message, arguments, location));
+        emitted = true;
+    }
+    if !emitted {
+        diagnostics.push(config_diagnostic(message, arguments, fallback.clone()));
+    }
 }
 
 fn pending_paths_option_diagnostics(
@@ -3062,10 +4178,15 @@ fn config_module_resolution_options(
     options: &ConfigOptionBag,
     discovery: &ConfigDiscoveryOptions,
     config_file_name: &str,
+    config_source: &ConfigSourceText,
     case_sensitive: bool,
 ) -> Result<ConfigModuleResolutionOptions, ConfigParseError> {
     let compiler_options = CompilerOptions {
         allow_js: discovery.allow_js,
+        force_consistent_casing_in_file_names: config_option_bool(
+            options,
+            "forceConsistentCasingInFileNames",
+        ),
         max_node_module_js_depth: config_option_number(options, "maxNodeModuleJsDepth"),
         experimental_decorators: config_option_bool(options, "experimentalDecorators")
             .unwrap_or(false),
@@ -3110,6 +4231,7 @@ fn config_module_resolution_options(
         lib: config_option_lib(options),
         jsx: config_option_i32(options, "jsx"),
         no_emit: config_option_bool(options, "noEmit"),
+        no_resolve: config_option_bool(options, "noResolve"),
         import_helpers: config_option_bool(options, "importHelpers"),
         downlevel_iteration: config_option_bool(options, "downlevelIteration"),
         strict_builtin_iterator_return: config_option_bool(options, "strictBuiltinIteratorReturn"),
@@ -3141,10 +4263,12 @@ fn config_module_resolution_options(
         jsx_fragment_factory: config_option_string(options, "jsxFragmentFactory"),
         jsx_import_source: config_option_string(options, "jsxImportSource"),
         react_namespace: config_option_string(options, "reactNamespace"),
+        ignore_deprecations: config_option_string(options, "ignoreDeprecations"),
     };
 
-    let mut program_options = ProgramOptions::default()
-        .with_config_file_path(config_program_path(config_file_name, case_sensitive)?);
+    let config_path = config_program_path(config_file_name, case_sensitive)?;
+    let config_file = program_config_file(config_path, config_source);
+    let mut program_options = ProgramOptions::default().with_config_file(config_file);
     if let Some(value) = config_option_bool(options, "noLib") {
         program_options = program_options.with_no_lib(value);
     }
@@ -3297,6 +4421,82 @@ fn config_option_module_suffixes(options: &ConfigOptionBag) -> Option<Vec<Module
     )
 }
 
+/// tsc-port: getMatchedFileSpec @6.0.3
+/// tsc-hash: e2dca297bc277048704a713d9d169ddd59813bce20d200095738473671da5915
+/// tsc-span: _tsc.js:129276-129284
+/// tsc-port: getMatchedIncludeSpec @6.0.3
+/// tsc-hash: c19a07b2779a4153a04034ed25d80da875bb9796ce33f327899e55168d145ca2
+/// tsc-span: _tsc.js:129285-129299
+fn config_root_reasons(
+    file_names: &[String],
+    files: Option<&[ConfigSpec]>,
+    include: Option<&[ConfigSpec]>,
+    config_base_path: &str,
+    config_file_name: &str,
+    case_sensitive: bool,
+) -> Result<Vec<RootFileReason>, ConfigParseError> {
+    let mut normalized_files = Vec::with_capacity(files.map_or(0, <[ConfigSpec]>::len));
+    for spec in files.unwrap_or(&[]) {
+        normalized_files.push((
+            canonical_key(
+                &normalized_spec_path(spec, config_base_path)?,
+                case_sensitive,
+            ),
+            Arc::<str>::from(spec.text.as_str()),
+        ));
+    }
+
+    let mut include_patterns = Vec::with_capacity(include.map_or(0, <[ConfigSpec]>::len));
+    for spec in include.unwrap_or(&[]) {
+        if invalid_trailing_recursion_pattern(&spec.text)
+            || invalid_dot_dot_after_recursive_wildcard(&spec.text)
+        {
+            continue;
+        }
+        let host_spec = config_host_spec(spec, config_base_path)?;
+        let pattern = ConfigFilePattern::new(&host_spec, config_base_path, case_sensitive)
+            .map_err(|detail| {
+                ConfigParseError::new(
+                    ConfigParseErrorKind::InvalidPath,
+                    Some(host_spec.clone()),
+                    detail,
+                )
+            })?;
+        if let Some(pattern) = pattern {
+            include_patterns.push((pattern, host_spec, Arc::<str>::from(spec.text.as_str())));
+        }
+    }
+    let config_file = Arc::<str>::from(config_file_name);
+    let default_include = files.is_none() && include.is_none();
+
+    Ok(file_names
+        .iter()
+        .map(|file_name| {
+            let key = canonical_key(file_name, case_sensitive);
+            if let Some((_, spec)) = normalized_files
+                .iter()
+                .find(|(candidate, _)| candidate == &key)
+            {
+                return RootFileReason::FilesList { spec: spec.clone() };
+            }
+            if let Some((_, _, spec)) = include_patterns.iter().find(|(pattern, host_spec, _)| {
+                (!file_extension_is(file_name, ".json") || host_spec.ends_with(".json"))
+                    && pattern.matches(file_name)
+            }) {
+                return RootFileReason::IncludePattern {
+                    spec: spec.clone(),
+                    config_file: config_file.clone(),
+                };
+            }
+            if default_include {
+                RootFileReason::DefaultInclude
+            } else {
+                RootFileReason::Explicit
+            }
+        })
+        .collect())
+}
+
 fn config_program_path(path: &str, case_sensitive: bool) -> Result<ProgramPath, ConfigParseError> {
     ProgramPath::from_trusted_parts(path, canonical_key(path, case_sensitive)).map_err(|error| {
         ConfigParseError::new(
@@ -3305,6 +4505,84 @@ fn config_program_path(path: &str, case_sensitive: bool) -> Result<ProgramPath, 
             error.to_string(),
         )
     })
+}
+
+/// Retain the root config text plus the exact string syntax consumed by
+/// `fileIncludeReasonToRelatedInformation`. TypeScript selects the first root
+/// property/value occurrence; inherited option and file-spec syntax therefore
+/// intentionally has no root location.
+///
+/// tsc-port: getTsConfigPropArrayElementValue @6.0.3
+/// tsc-hash: 891d5e562eb7429a579f16799d64da319620a7f23f6603171af1aacfdb167dcb
+/// tsc-span: _tsc.js:14432-14434
+/// tsc-port: getOptionsSyntaxByArrayElementValue @6.0.3
+/// tsc-hash: b553000947caf2234186ed0101506333c7de4d13ce5df020b91939d173bd14c7
+/// tsc-span: _tsc.js:20105-20111
+/// tsc-port: getOptionsSyntaxByValue @6.0.3
+/// tsc-hash: 17ba3301b0e0b235cd27fe80671cceec3dc0473af4f1aee5dcf1cacbbbe6fe66
+/// tsc-span: _tsc.js:20111-20116
+fn program_config_file(path: ProgramPath, source: &ConfigSourceText) -> ProgramConfigFile {
+    let mut config_file = ProgramConfigFile::new(path, source.text.clone());
+    let parsed = tsc_syntax::parse_json_text(&source.file_name, &source.text);
+    let Some(root) = config_root_object(&parsed) else {
+        return config_file;
+    };
+    let root_properties = config_object_properties(&parsed, root);
+    for property in root_properties
+        .iter()
+        .filter(|property| matches!(property.name.as_str(), "files" | "include"))
+    {
+        for element in config_array_elements(&parsed, property.initializer) {
+            let Some(literal) = parsed.arena.node(element).data.as_string_literal() else {
+                continue;
+            };
+            let Some(span) = config_span(&parsed, element) else {
+                continue;
+            };
+            config_file = config_file.with_root_option_array_location(
+                property.name.clone(),
+                literal.text.clone(),
+                ProgramConfigSpan::new(span.start, span.length),
+            );
+        }
+    }
+    let Some(compiler_options) = root_properties
+        .into_iter()
+        .find(|property| property.name == "compilerOptions")
+    else {
+        return config_file;
+    };
+    for property in config_object_properties(&parsed, compiler_options.initializer) {
+        if let (Some(literal), Some(span)) = (
+            parsed
+                .arena
+                .node(property.initializer)
+                .data
+                .as_string_literal(),
+            config_span(&parsed, property.initializer),
+        ) {
+            config_file = config_file.with_compiler_option_string_location(
+                property.name.clone(),
+                literal.text.clone(),
+                ProgramConfigSpan::new(span.start, span.length),
+            );
+        }
+        if property.name == "types" {
+            for element in config_array_elements(&parsed, property.initializer) {
+                let Some(literal) = parsed.arena.node(element).data.as_string_literal() else {
+                    continue;
+                };
+                let Some(span) = config_span(&parsed, element) else {
+                    continue;
+                };
+                config_file = config_file.with_automatic_type_directive_location(
+                    literal.text.clone(),
+                    ProgramConfigSpan::new(span.start, span.length),
+                );
+            }
+        }
+    }
+    config_file
 }
 
 fn normalized_option_path(

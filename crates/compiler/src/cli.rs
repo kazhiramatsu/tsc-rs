@@ -3,32 +3,44 @@
 //! The driver intentionally owns process concerns (argument selection,
 //! current-directory discovery, diagnostic rendering, and exit status) while
 //! [`tsc_program`] owns config conversion and program construction. Unsupported
-//! flags and infrastructure failures return exit status 2; ordinary TypeScript
-//! diagnostics return status 1.
+//! flags and infrastructure failures return exit status 2. TypeScript's
+//! no-emit program diagnostics return status 2 as well (the vendored driver
+//! reports `DiagnosticsPresent_OutputsGenerated` because its no-emit emit
+//! boundary is not marked skipped); command-line selection diagnostics such as
+//! TS5112 retain status 1.
 
-use std::cmp::Ordering;
 use std::collections::BTreeMap;
-use std::env;
 use std::error::Error;
 use std::fmt;
+use std::io::IsTerminal;
 use std::path::{Path, PathBuf};
 
-use tsc_diagnostics::{format_diagnostics_with_context, Diagnostic, FormatDiagnosticsHost};
+use tsc_diagnostics::gen;
+use tsc_diagnostics::{
+    compute_line_starts, format_diagnostics_with_context, get_line_and_character_of_position,
+    sort_and_dedupe_diagnostic_indices_with_context, Diagnostic, FormatDiagnosticsHost,
+    MessageChain,
+};
 use tsc_host::{CompilerHost, FsCompilerHost, HostError};
 use tsc_program::{
-    decode_host_text, load_config_program, load_config_program_with_no_emit_override, load_program,
-    parse_config_root_plan, CompilerOptions, ConfigFilePattern, ConfigHostError,
-    ConfigHostOperation, ConfigParseError, ConfigParseHost, ConfigProgramLoadError, ConfigRootPlan,
+    decode_host_text, is_non_fatal_option_diagnostic, load_config_program,
+    load_config_program_with_no_emit_override, load_program, parse_config_root_plan,
+    CompilerConfigHost, CompilerOptions, ConfigParseError, ConfigProgramLoadError, ConfigRootPlan,
     ConfigRootPlanRequest, LibraryCatalog, ProgramLoadLimits, ProgramOptions,
 };
 
 use crate::ProgramSession;
 
+mod embedded_libraries {
+    include!(concat!(env!("OUT_DIR"), "/typescript_6_0_3_libraries.rs"));
+}
+
 const EXIT_SUCCESS: i32 = 0;
-const EXIT_DIAGNOSTIC: i32 = 1;
+const EXIT_COMMAND_LINE: i32 = 1;
+const EXIT_DIAGNOSTIC: i32 = 2;
 const EXIT_FAILURE: i32 = 2;
 const CONFIG_FILE_NAME: &str = "tsconfig.json";
-const MAX_DIRECTORY_DEPTH: usize = 256;
+const TYPESCRIPT_VERSION: &str = "6.0.3";
 const DEFAULT_LIMITS: ProgramLoadLimits = ProgramLoadLimits::new(
     1_000_000,
     2_000_000,
@@ -91,7 +103,106 @@ struct CommandLine {
     project: Option<PathBuf>,
     files: Vec<PathBuf>,
     no_emit: bool,
-    pretty: bool,
+    ignore_config: bool,
+    pretty: Option<bool>,
+}
+
+/// Production CLI host with an immutable, binary-owned TypeScript 6.0.3
+/// standard-library directory. User/config/package paths retain ordinary
+/// filesystem semantics; only exact immediate children of this private
+/// directory are intercepted.
+#[derive(Clone, Debug)]
+struct CliCompilerHost {
+    filesystem: FsCompilerHost,
+    library_directory: PathBuf,
+}
+
+impl CliCompilerHost {
+    fn new(filesystem: FsCompilerHost, current_directory: &Path) -> Self {
+        Self {
+            filesystem,
+            library_directory: current_directory
+                .join(".tsc-rs-embedded-569177652966bd52")
+                .join(TYPESCRIPT_VERSION)
+                .join("lib"),
+        }
+    }
+
+    fn library_directory(&self) -> &Path {
+        &self.library_directory
+    }
+
+    fn embedded_file_name<'a>(&self, path: &'a Path) -> Option<&'a str> {
+        (path.parent() == Some(self.library_directory.as_path()))
+            .then(|| path.file_name().and_then(|name| name.to_str()))
+            .flatten()
+    }
+
+    fn embedded_bytes(&self, path: &Path) -> Option<&'static [u8]> {
+        let name = self.embedded_file_name(path)?;
+        embedded_libraries::TYPESCRIPT_6_0_3_LIBRARIES
+            .binary_search_by_key(&name, |(candidate, _)| *candidate)
+            .ok()
+            .map(|index| embedded_libraries::TYPESCRIPT_6_0_3_LIBRARIES[index].1)
+    }
+}
+
+impl CompilerHost for CliCompilerHost {
+    fn current_directory(&self) -> Result<PathBuf, HostError> {
+        self.filesystem.current_directory()
+    }
+
+    fn use_case_sensitive_file_names(&self) -> bool {
+        self.filesystem.use_case_sensitive_file_names()
+    }
+
+    fn read_file(&self, path: &Path) -> Result<Option<Vec<u8>>, HostError> {
+        if self.embedded_file_name(path).is_some() {
+            return Ok(self.embedded_bytes(path).map(<[u8]>::to_vec));
+        }
+        self.filesystem.read_file(path)
+    }
+
+    fn file_exists(&self, path: &Path) -> Result<bool, HostError> {
+        if self.embedded_file_name(path).is_some() {
+            return Ok(self.embedded_bytes(path).is_some());
+        }
+        self.filesystem.file_exists(path)
+    }
+
+    fn directory_exists(&self, path: &Path) -> Result<bool, HostError> {
+        if path == self.library_directory {
+            return Ok(true);
+        }
+        self.filesystem.directory_exists(path)
+    }
+
+    fn read_directory(&self, path: &Path) -> Result<Vec<PathBuf>, HostError> {
+        if path == self.library_directory {
+            return Ok(embedded_libraries::TYPESCRIPT_6_0_3_LIBRARIES
+                .iter()
+                .map(|(name, _)| path.join(name))
+                .collect());
+        }
+        self.filesystem.read_directory(path)
+    }
+
+    fn get_directories(&self, path: &Path) -> Result<Vec<PathBuf>, HostError> {
+        if path == self.library_directory {
+            return Ok(Vec::new());
+        }
+        self.filesystem.get_directories(path)
+    }
+
+    fn realpath(&self, path: &Path) -> Result<Option<PathBuf>, HostError> {
+        if path == self.library_directory || self.embedded_bytes(path).is_some() {
+            return Ok(Some(path.to_path_buf()));
+        }
+        if self.embedded_file_name(path).is_some() {
+            return Ok(None);
+        }
+        self.filesystem.realpath(path)
+    }
 }
 
 /// Execute the bounded H0 command-line surface.
@@ -110,20 +221,67 @@ fn execute(args: &[String]) -> Result<CliOutput, CliError> {
     let command_line = parse_arguments(args)?;
     if args.iter().any(|arg| arg == "--version") {
         return Ok(CliOutput {
-            stdout: format!("{}\n", env!("CARGO_PKG_VERSION")),
+            stdout: format!("Version {TYPESCRIPT_VERSION}\n"),
             stderr: String::new(),
             exit_code: EXIT_SUCCESS,
         });
     }
 
-    let host = FsCompilerHost::from_process().map_err(host_error)?;
-    let _pretty = command_line.pretty;
-    let current_directory = host.current_directory().map_err(host_error)?;
-    let catalog = LibraryCatalog::typescript_6_0_3(library_directory(&current_directory));
+    let filesystem = FsCompilerHost::from_process().map_err(host_error)?;
+    let pretty = command_line.pretty.unwrap_or_else(default_pretty);
+    let current_directory = filesystem.current_directory().map_err(host_error)?;
+    let host = CliCompilerHost::new(filesystem, &current_directory);
+    let catalog = LibraryCatalog::typescript_6_0_3(host.library_directory());
 
     if let Some(project) = command_line.project {
-        let config_file = resolve_project_file(&host, &current_directory, &project)?;
-        let (plan, source_texts) = parse_config_file(&host, &config_file)?;
+        let config_file = match resolve_project_file(&host, &current_directory, &project)? {
+            Ok(config_file) => config_file,
+            Err(ProjectFileError::MissingPath(path)) => {
+                let diagnostic = Diagnostic::new(
+                    None,
+                    None,
+                    None,
+                    MessageChain::new(&gen::The_specified_path_does_not_exist_0, &[path]),
+                );
+                return rendered_diagnostics_with_exit(
+                    &current_directory,
+                    &BTreeMap::new(),
+                    &[diagnostic],
+                    pretty,
+                    EXIT_COMMAND_LINE,
+                );
+            }
+            Err(ProjectFileError::MissingConfig(directory)) => {
+                let diagnostic = Diagnostic::new(
+                    None,
+                    None,
+                    None,
+                    MessageChain::new(
+                        &gen::Cannot_find_a_tsconfig_json_file_at_the_specified_directory_0,
+                        &[directory],
+                    ),
+                );
+                return rendered_diagnostics_with_exit(
+                    &current_directory,
+                    &BTreeMap::new(),
+                    &[diagnostic],
+                    pretty,
+                    EXIT_COMMAND_LINE,
+                );
+            }
+        };
+        let requested = absolutize(&current_directory, &project);
+        let config_display = if requested == config_file {
+            project
+        } else {
+            project.join(CONFIG_FILE_NAME)
+        };
+        let (plan, source_texts) = parse_config_file(
+            &host,
+            &current_directory,
+            &config_file,
+            Some(&config_display),
+        )?;
         return execute_config(
             &host,
             &current_directory,
@@ -131,21 +289,52 @@ fn execute(args: &[String]) -> Result<CliOutput, CliError> {
             &plan,
             source_texts,
             command_line.no_emit,
+            pretty,
         );
     }
 
     if !command_line.files.is_empty() {
+        if !command_line.ignore_config && find_config_file(&host, &current_directory)?.is_some() {
+            let diagnostic = Diagnostic::new(
+                    None,
+                    None,
+                    None,
+                    MessageChain::new(
+                        &gen::tsconfig_json_is_present_but_will_not_be_loaded_if_files_are_specified_on_commandline_Use_ignoreConfig_to_skip_this_error,
+                        &[],
+                    ),
+                );
+            // TS5112 is fileless: the config is discovered with
+            // `fileExists`, but TypeScript does not read or parse it
+            // before rejecting explicit roots. Keep this branch free of
+            // a second host read and of source-text ownership.
+            let source_texts = BTreeMap::new();
+            return rendered_diagnostics_with_exit(
+                &current_directory,
+                &source_texts,
+                &[diagnostic],
+                pretty,
+                EXIT_COMMAND_LINE,
+            );
+        }
         if !command_line.no_emit {
             return Err(CliError::Usage(
                 "explicit source files require --noEmit; H0 never invokes an emitter".to_owned(),
             ));
         }
-        let roots = command_line
-            .files
-            .into_iter()
-            .map(|file| absolutize(&current_directory, &file))
-            .collect::<Vec<_>>();
-        return execute_explicit_files(&host, &current_directory, &catalog, &roots);
+        // Keep the caller's spelling for root-file diagnostics. The program
+        // loader normalizes these against the host cwd for identity and I/O,
+        // while TypeScript reports a missing explicit root as it was written
+        // on the command line (for example `missing.ts`, not its absolute
+        // cwd-expanded path).
+        let roots = command_line.files;
+        return execute_explicit_files(&host, &current_directory, &catalog, &roots, pretty);
+    }
+
+    if command_line.ignore_config {
+        return Err(CliError::Usage(
+            "--ignoreConfig requires explicit source files or -p".to_owned(),
+        ));
     }
 
     let config_file = find_config_file(&host, &current_directory)?.ok_or_else(|| {
@@ -154,7 +343,7 @@ fn execute(args: &[String]) -> Result<CliOutput, CliError> {
             current_directory.display()
         ))
     })?;
-    let (plan, source_texts) = parse_config_file(&host, &config_file)?;
+    let (plan, source_texts) = parse_config_file(&host, &current_directory, &config_file, None)?;
     execute_config(
         &host,
         &current_directory,
@@ -162,15 +351,13 @@ fn execute(args: &[String]) -> Result<CliOutput, CliError> {
         &plan,
         source_texts,
         command_line.no_emit,
+        pretty,
     )
 }
 
 fn parse_arguments(args: &[String]) -> Result<CommandLine, CliError> {
     let mut command_line = CommandLine {
-        // The H0 formatter is the context formatter. Keep the switch in the
-        // parsed state so adding the plain formatter does not change argument
-        // selection or program construction.
-        pretty: true,
+        pretty: None,
         ..CommandLine::default()
     };
     let mut index = 0usize;
@@ -190,23 +377,30 @@ fn parse_arguments(args: &[String]) -> Result<CommandLine, CliError> {
             "--version" | "-v" => {
                 index += 1;
             }
-            "--noEmit" | "--noEmit=true" => {
+            "--noEmit" => {
+                let (value, next_index) = consume_boolean_value(args, index, true);
+                if !value {
+                    return Err(CliError::Usage(
+                        "--noEmit=false is outside the mandatory no-emit driver".to_owned(),
+                    ));
+                }
                 command_line.no_emit = true;
-                index += 1;
+                index = next_index;
             }
             "--noEmit=false" => {
                 return Err(CliError::Usage(
                     "--noEmit=false is outside the mandatory no-emit driver".to_owned(),
                 ));
             }
-            "--pretty" | "--pretty=true" => {
-                command_line.pretty = true;
-                index += 1;
+            "--ignoreConfig" => {
+                let (value, next_index) = consume_boolean_value(args, index, true);
+                command_line.ignore_config = value;
+                index = next_index;
             }
-            "--pretty=false" => {
-                return Err(CliError::Usage(
-                    "plain diagnostic rendering is not enabled in this H0 slice".to_owned(),
-                ));
+            "--pretty" => {
+                let (value, next_index) = consume_boolean_value(args, index, true);
+                command_line.pretty = Some(value);
+                index = next_index;
             }
             "-p" | "--project" => {
                 let value = args.get(index + 1).ok_or_else(|| {
@@ -255,13 +449,25 @@ fn parse_arguments(args: &[String]) -> Result<CommandLine, CliError> {
     Ok(command_line)
 }
 
+/// TypeScript's command-line parser consumes a separate `true`/`false` token
+/// for boolean switches. Keep the no-emit surface compatible while leaving
+/// arbitrary following paths available as explicit roots.
+fn consume_boolean_value(args: &[String], index: usize, default: bool) -> (bool, usize) {
+    match args.get(index + 1).map(String::as_str) {
+        Some("true") => (true, index + 2),
+        Some("false") => (false, index + 2),
+        _ => (default, index + 1),
+    }
+}
+
 fn execute_config(
-    host: &FsCompilerHost,
+    host: &dyn CompilerHost,
     current_directory: &Path,
     catalog: &LibraryCatalog,
     plan: &ConfigRootPlan,
     mut source_texts: BTreeMap<String, String>,
     no_emit_override: bool,
+    pretty: bool,
 ) -> Result<CliOutput, CliError> {
     for source in plan.extended_sources() {
         source_texts.insert(source.file_name.clone(), source.text.clone());
@@ -277,7 +483,7 @@ fn execute_config(
         Err(ConfigProgramLoadError::Diagnostics { config, options }) => {
             let mut diagnostics = config;
             diagnostics.extend(options);
-            return rendered_diagnostics(current_directory, &source_texts, &diagnostics);
+            return rendered_diagnostics(current_directory, &source_texts, &diagnostics, pretty);
         }
         Err(ConfigProgramLoadError::NoEmitRequired { value }) => {
             return Err(CliError::Load(format!(
@@ -300,14 +506,27 @@ fn execute_config(
             source.text().to_owned(),
         );
     }
-    execute_prepared(current_directory, source_texts, prepared)
+    let option_diagnostics = plan
+        .option_diagnostics()
+        .iter()
+        .filter(|diagnostic| is_non_fatal_option_diagnostic(diagnostic))
+        .cloned()
+        .collect::<Vec<_>>();
+    execute_prepared(
+        current_directory,
+        source_texts,
+        prepared,
+        &option_diagnostics,
+        pretty,
+    )
 }
 
 fn execute_explicit_files(
-    host: &FsCompilerHost,
+    host: &dyn CompilerHost,
     current_directory: &Path,
     catalog: &LibraryCatalog,
     roots: &[PathBuf],
+    pretty: bool,
 ) -> Result<CliOutput, CliError> {
     let options = CompilerOptions {
         no_emit: Some(true),
@@ -329,25 +548,57 @@ fn execute_explicit_files(
             source.text().to_owned(),
         );
     }
-    execute_prepared(current_directory, source_texts, prepared)
+    execute_prepared(current_directory, source_texts, prepared, &[], pretty)
 }
 
 fn execute_prepared(
     current_directory: &Path,
     source_texts: BTreeMap<String, String>,
     prepared: tsc_program::PreparedProgram,
+    additional_diagnostics: &[Diagnostic],
+    pretty: bool,
 ) -> Result<CliOutput, CliError> {
     let outcome = ProgramSession::new(prepared)
         .run()
         .map_err(|error| CliError::Driver(error.to_string()))?;
-    let diagnostics = outcome.into_diagnostics();
-    rendered_diagnostics(current_directory, &source_texts, &diagnostics)
+    // Config-owned non-fatal option rows are supplied separately from the
+    // prepared program. Insert them at the same bucket boundary as
+    // `getOptionsDiagnostics`, before global and semantic rows; appending
+    // them after `into_diagnostics` would make TS5107 appear after semantic
+    // diagnostics and would violate the command-line ordering contract.
+    let mut diagnostics = Vec::new();
+    diagnostics.extend(outcome.config_diagnostics().iter().cloned());
+    diagnostics.extend(outcome.syntactic_diagnostics().iter().cloned());
+    if outcome.syntactic_diagnostics().is_empty() {
+        diagnostics.extend(outcome.options_diagnostics().iter().cloned());
+        diagnostics.extend(additional_diagnostics.iter().cloned());
+        diagnostics.extend(outcome.global_diagnostics().iter().cloned());
+        diagnostics.extend(outcome.semantic_diagnostics().iter().cloned());
+    }
+    rendered_diagnostics(current_directory, &source_texts, &diagnostics, pretty)
 }
 
 fn rendered_diagnostics(
     current_directory: &Path,
     source_texts: &BTreeMap<String, String>,
     diagnostics: &[Diagnostic],
+    pretty: bool,
+) -> Result<CliOutput, CliError> {
+    rendered_diagnostics_with_exit(
+        current_directory,
+        source_texts,
+        diagnostics,
+        pretty,
+        EXIT_DIAGNOSTIC,
+    )
+}
+
+fn rendered_diagnostics_with_exit(
+    current_directory: &Path,
+    source_texts: &BTreeMap<String, String>,
+    diagnostics: &[Diagnostic],
+    pretty: bool,
+    exit_code: i32,
 ) -> Result<CliOutput, CliError> {
     if diagnostics.is_empty() {
         return Ok(CliOutput {
@@ -360,18 +611,432 @@ fn rendered_diagnostics(
         .to_str()
         .ok_or_else(|| CliError::Render("current directory is not Unicode".to_owned()))?;
     let host = FormatDiagnosticsHost::new(current_directory, source_texts);
-    let text = format_diagnostics_with_context(diagnostics, &host)
-        .map_err(|error| CliError::Render(error.to_string()))?;
+    let text = if pretty {
+        let mut text = format_diagnostics_with_context(diagnostics, &host)
+            .map_err(|error| CliError::Render(error.to_string()))?;
+        append_pretty_error_summary(
+            &mut text,
+            diagnostics,
+            &host,
+            source_texts,
+            current_directory,
+        );
+        colorize_pretty_output(&text)
+    } else {
+        format_plain_diagnostics(diagnostics, &host, source_texts, current_directory)
+            .map_err(|error| CliError::Render(error.to_string()))?
+    };
     Ok(CliOutput {
         stdout: text,
         stderr: String::new(),
-        exit_code: EXIT_DIAGNOSTIC,
+        exit_code,
     })
 }
 
+/// Append the command-line reporter's contextual error summary. Plain output
+/// intentionally omits this block, matching TypeScript's non-pretty reporter.
+/// The per-file counts are derived from the same sorted/deduplicated view used
+/// by the formatter, so the summary cannot count an occurrence which was not
+/// printed above.
+fn append_pretty_error_summary(
+    output: &mut String,
+    diagnostics: &[Diagnostic],
+    host: &FormatDiagnosticsHost<'_>,
+    source_texts: &BTreeMap<String, String>,
+    current_directory: &str,
+) {
+    let indices = sort_and_dedupe_diagnostic_indices_with_context(diagnostics, host);
+    let mut file_counts = BTreeMap::<String, (usize, u32)>::new();
+    let mut total = 0usize;
+    for index in indices {
+        let diagnostic = &diagnostics[index];
+        if diagnostic.category().name() != "error"
+            || is_command_line_selection_diagnostic(diagnostic.code())
+        {
+            continue;
+        }
+        let file_name = diagnostic.file_name.as_deref();
+        let Some(file_name) = file_name else {
+            total += 1;
+            continue;
+        };
+        total += 1;
+        let display_name = relative_file_name(file_name, current_directory);
+        let line = diagnostic
+            .start
+            .and_then(|start| {
+                source_texts
+                    .get(file_name)
+                    .or_else(|| {
+                        let normalized = normalize_slashes(file_name);
+                        source_texts
+                            .iter()
+                            .find(|(candidate, _)| normalize_slashes(candidate) == normalized)
+                            .map(|(_, text)| text)
+                    })
+                    .map(|text| {
+                        get_line_and_character_of_position(&compute_line_starts(text), start).line
+                            + 1
+                    })
+            })
+            .unwrap_or(1);
+        file_counts
+            .entry(display_name)
+            .and_modify(|entry| {
+                entry.0 += 1;
+                entry.1 = entry.1.min(line);
+            })
+            .or_insert((1, line));
+    }
+    if total == 0 {
+        return;
+    }
+
+    output.push_str("\n\n");
+    let noun = if total == 1 { "error" } else { "errors" };
+    match (total, file_counts.len()) {
+        (1, 0) => output.push_str("Found 1 error.\n"),
+        (1, 1) => {
+            let (file, (_, line)) = file_counts.iter().next().expect("one file exists");
+            output.push_str(&format!("Found 1 error in {file}:{line}\n"));
+        }
+        (_, 0) => output.push_str(&format!("Found {total} {noun}.\n")),
+        (_, 1) => {
+            let (file, (_, line)) = file_counts.iter().next().expect("one file exists");
+            output.push_str(&format!(
+                "Found {total} {noun} in the same file, starting at: {file}:{line}\n"
+            ));
+        }
+        (_, file_count) => {
+            output.push_str(&format!("Found {total} {noun} in {file_count} files.\n\n"));
+            output.push_str("Errors  Files\n");
+            for (file, (count, line)) in file_counts {
+                output.push_str(&format!("{count:>6}  {file}:{line}\n"));
+            }
+        }
+    }
+    output.push('\n');
+}
+
+const ANSI_RESET: &str = "\u{1b}[0m";
+const ANSI_GRAY: &str = "\u{1b}[90m";
+const ANSI_CYAN: &str = "\u{1b}[96m";
+const ANSI_YELLOW: &str = "\u{1b}[93m";
+const ANSI_RED: &str = "\u{1b}[91m";
+const ANSI_REVERSE: &str = "\u{1b}[7m";
+
+/// Add the ANSI layer owned by TypeScript's pretty command-line reporter.
+///
+/// The shared diagnostics renderer intentionally remains color-free because
+/// its output is also consumed by conformance and JSONL adapters. CLI pretty
+/// output applies the small, stable ANSI vocabulary after the common text and
+/// context layout has been selected, which keeps plain and pretty sorting
+/// byte-identical apart from styling.
+fn colorize_pretty_output(input: &str) -> String {
+    let mut output = String::with_capacity(input.len() + input.len() / 2);
+    let mut context = None;
+    let mut previous_fileless_diagnostic = false;
+    let mut previous_context_line = false;
+    for line in input.split_inclusive('\n') {
+        let (line, newline) = line
+            .strip_suffix('\n')
+            .map_or((line, ""), |line| (line, "\n"));
+        if let Some(colored) = colorize_header(line) {
+            if previous_fileless_diagnostic || previous_context_line {
+                output.push('\n');
+            }
+            output.push_str(&colored);
+            output.push_str(newline);
+            context = category_context_color(line).map(|color| (color, 0));
+            previous_fileless_diagnostic = false;
+            previous_context_line = false;
+        } else if let Some(colored) = colorize_related_location(line) {
+            output.push_str(&colored);
+            output.push_str(newline);
+            context = Some((ANSI_CYAN, 4));
+            previous_fileless_diagnostic = false;
+            previous_context_line = false;
+        } else if let Some(colored) = colorize_fileless_diagnostic(line) {
+            output.push_str(&colored);
+            output.push_str(newline);
+            context = None;
+            previous_fileless_diagnostic = true;
+            previous_context_line = false;
+        } else if line.starts_with("Found ") {
+            output.push_str(&colorize_summary(line));
+            output.push_str(newline);
+            context = None;
+            previous_fileless_diagnostic = false;
+            previous_context_line = false;
+        } else if let Some((squiggle_color, indent)) = context {
+            output.push_str(&colorize_context_line(line, squiggle_color, indent));
+            output.push_str(newline);
+            previous_fileless_diagnostic = false;
+            previous_context_line = true;
+        } else {
+            output.push_str(line);
+            output.push_str(newline);
+            previous_fileless_diagnostic = false;
+            previous_context_line = false;
+        }
+    }
+    output
+}
+
+fn category_context_color(line: &str) -> Option<&'static str> {
+    let (_, detail) = line.split_once(" - ")?;
+    let (category, _) = detail.split_once(" TS")?;
+    match category {
+        "error" => Some(ANSI_RED),
+        "warning" => Some(ANSI_YELLOW),
+        "suggestion" => Some("\u{1b}[92m"),
+        "message" => Some(ANSI_CYAN),
+        _ => None,
+    }
+}
+
+fn colorize_related_location(line: &str) -> Option<String> {
+    let location = line.strip_prefix("  ")?;
+    let mut location_parts = location.rsplitn(3, ':');
+    let character = location_parts.next()?;
+    let line_number = location_parts.next()?;
+    let file_name = location_parts.next()?;
+    if file_name.is_empty()
+        || line_number.is_empty()
+        || character.is_empty()
+        || !line_number.bytes().all(|byte| byte.is_ascii_digit())
+        || !character.bytes().all(|byte| byte.is_ascii_digit())
+    {
+        return None;
+    }
+    Some(format!(
+        "  {ANSI_CYAN}{file_name}{ANSI_RESET}:{ANSI_YELLOW}{line_number}{ANSI_RESET}:{ANSI_YELLOW}{character}{ANSI_RESET}"
+    ))
+}
+
+fn colorize_fileless_diagnostic(line: &str) -> Option<String> {
+    let (category, detail) = line.split_once(" TS")?;
+    let color = match category {
+        "error" if !is_command_line_selection_line(line) => ANSI_RED,
+        "warning" if !is_command_line_selection_line(line) => ANSI_YELLOW,
+        "suggestion" if !is_command_line_selection_line(line) => "\u{1b}[92m",
+        "message" if !is_command_line_selection_line(line) => ANSI_CYAN,
+        _ => return None,
+    };
+    let (code, message) = detail.split_once(": ")?;
+    if code.is_empty() || !code.bytes().all(|byte| byte.is_ascii_digit()) {
+        return None;
+    }
+    Some(format!(
+        "{color}{category}{ANSI_RESET}{ANSI_GRAY} TS{code}: {ANSI_RESET}{message}"
+    ))
+}
+
+fn is_command_line_selection_line(line: &str) -> bool {
+    line.split_once(" TS")
+        .and_then(|(_, detail)| detail.split_once(": "))
+        .and_then(|(code, _)| code.parse::<u32>().ok())
+        .is_some_and(is_command_line_selection_diagnostic)
+}
+
+fn is_command_line_selection_diagnostic(code: u32) -> bool {
+    matches!(code, 5057 | 5058 | 5112)
+}
+
+fn colorize_header(line: &str) -> Option<String> {
+    let (location, detail) = line.split_once(" - ")?;
+    let mut location_parts = location.rsplitn(3, ':');
+    let character = location_parts.next()?;
+    let line_number = location_parts.next()?;
+    let file_name = location_parts.next()?;
+    if file_name.is_empty()
+        || line_number.is_empty()
+        || character.is_empty()
+        || !line_number.bytes().all(|byte| byte.is_ascii_digit())
+        || !character.bytes().all(|byte| byte.is_ascii_digit())
+    {
+        return None;
+    }
+    let (category, message) = detail.split_once(" TS")?;
+    let category_color = match category {
+        "error" => ANSI_RED,
+        "warning" => ANSI_YELLOW,
+        "suggestion" => "\u{1b}[92m",
+        "message" => ANSI_CYAN,
+        _ => return None,
+    };
+    let (code, message) = message.split_once(": ")?;
+    Some(format!(
+        "{ANSI_CYAN}{file_name}{ANSI_RESET}:{ANSI_YELLOW}{line_number}{ANSI_RESET}:{ANSI_YELLOW}{character}{ANSI_RESET} - {category_color}{category}{ANSI_RESET}{ANSI_GRAY} TS{code}: {ANSI_RESET}{message}"
+    ))
+}
+
+fn colorize_context_line(line: &str, squiggle_color: &str, indent: usize) -> String {
+    if line.is_empty() {
+        return String::new();
+    }
+    if line.len() < indent || !line[..indent].bytes().all(|byte| byte == b' ') {
+        return line.to_owned();
+    }
+    let (indent_text, context_line) = line.split_at(indent);
+    if line.bytes().all(|byte| byte == b' ') {
+        if let Some((first, rest)) = context_line.split_at_checked(1) {
+            if let Some((plain, red_rest)) = rest.split_at_checked(1) {
+                return format!(
+                    "{indent_text}{ANSI_REVERSE}{first}{ANSI_RESET}{plain}{squiggle_color}{red_rest}{ANSI_RESET}"
+                );
+            }
+        }
+    }
+    if let Some(first_tilde) = line.find('~') {
+        if line[first_tilde..].bytes().all(|byte| byte == b'~') {
+            let (prefix, marks) = line.split_at(first_tilde);
+            let Some(prefix) = prefix.strip_prefix(indent_text) else {
+                return line.to_owned();
+            };
+            if let Some((first, rest)) = prefix.split_at_checked(1) {
+                if let Some((plain, red_rest)) = rest.split_at_checked(1) {
+                    return format!(
+                        "{indent_text}{ANSI_REVERSE}{first}{ANSI_RESET}{plain}{squiggle_color}{red_rest}{marks}{ANSI_RESET}"
+                    );
+                }
+            }
+        }
+    }
+    let gutter_start = context_line
+        .bytes()
+        .take_while(|byte| *byte == b' ')
+        .count();
+    let digit_start = indent + gutter_start;
+    let Some(first) = line.as_bytes().get(digit_start) else {
+        return line.to_owned();
+    };
+    if !first.is_ascii_digit() {
+        return line.to_owned();
+    }
+    let digit_end = line[digit_start..]
+        .find(|character: char| !character.is_ascii_digit())
+        .map_or(line.len(), |offset| digit_start + offset);
+    if digit_end == digit_start || line[digit_end..].is_empty() {
+        return line.to_owned();
+    }
+    format!(
+        "{}{ANSI_REVERSE}{}{ANSI_RESET}{}",
+        indent_text,
+        &line[indent..digit_end],
+        &line[digit_end..]
+    )
+}
+
+fn colorize_summary(line: &str) -> String {
+    let Some((prefix, line_number)) = line.rsplit_once(':') else {
+        return line.to_owned();
+    };
+    if line_number.is_empty() || !line_number.bytes().all(|byte| byte.is_ascii_digit()) {
+        return line.to_owned();
+    }
+    format!("{prefix}{ANSI_GRAY}:{line_number}{ANSI_RESET}")
+}
+
+fn default_pretty() -> bool {
+    std::io::stdout().is_terminal()
+}
+
+/// Format the command-line's non-contextual reporter.
+///
+/// TypeScript's plain reporter deliberately omits source excerpts and related
+/// information. It still owns the same stable sort/dedup boundary as the
+/// contextual reporter, so switching `--pretty` never changes which
+/// diagnostic occurrence is retained.
+fn format_plain_diagnostics(
+    diagnostics: &[Diagnostic],
+    host: &FormatDiagnosticsHost<'_>,
+    source_texts: &BTreeMap<String, String>,
+    current_directory: &str,
+) -> Result<String, String> {
+    let indices = sort_and_dedupe_diagnostic_indices_with_context(diagnostics, host);
+    let mut output = String::new();
+    for index in indices {
+        let diagnostic = &diagnostics[index];
+        if let Some(file_name) = diagnostic.file_name.as_deref() {
+            let text = source_texts
+                .get(file_name)
+                .or_else(|| {
+                    let normalized = normalize_slashes(file_name);
+                    source_texts
+                        .iter()
+                        .find(|(candidate, _)| normalize_slashes(candidate) == normalized)
+                        .map(|(_, text)| text)
+                })
+                .ok_or_else(|| {
+                    format!("diagnostic source text is unavailable for {file_name:?}")
+                })?;
+            let line_starts = compute_line_starts(text);
+            let position = diagnostic
+                .start
+                .ok_or_else(|| format!("diagnostic start is unavailable for {file_name:?}"))?;
+            // A one-line source has a final line start of zero; clamp to the
+            // UTF-16 text length rather than to that line-start sentinel so
+            // located config diagnostics near the end of the line retain
+            // their column.
+            let text_length = text.encode_utf16().count() as u32;
+            let position = position.min(text_length);
+            let location = get_line_and_character_of_position(&line_starts, position);
+            output.push_str(&format!(
+                "{}({},{}): ",
+                relative_file_name(file_name, current_directory),
+                location.line + 1,
+                location.character + 1
+            ));
+        }
+        output.push_str(diagnostic.category().name());
+        output.push_str(" TS");
+        output.push_str(&diagnostic.code().to_string());
+        output.push_str(": ");
+        append_plain_message(&diagnostic.message, 0, &mut output);
+        output.push('\n');
+    }
+    Ok(output)
+}
+
+fn append_plain_message(message: &MessageChain, indent: usize, output: &mut String) {
+    if indent != 0 {
+        output.push('\n');
+        output.push_str(&"  ".repeat(indent));
+    }
+    output.push_str(&message.text);
+    for child in &message.next {
+        append_plain_message(child, indent + 1, output);
+    }
+}
+
+fn relative_file_name(file_name: &str, current_directory: &str) -> String {
+    let file_name = normalize_slashes(file_name);
+    let normalized_current_directory = normalize_slashes(current_directory);
+    let current_directory = normalized_current_directory.trim_end_matches('/');
+    if current_directory.is_empty() {
+        return file_name;
+    }
+    if file_name == current_directory {
+        return ".".to_owned();
+    }
+    if let Some(suffix) = file_name.strip_prefix(current_directory) {
+        if let Some(suffix) = suffix.strip_prefix('/') {
+            return suffix.to_owned();
+        }
+    }
+    file_name
+}
+
+fn normalize_slashes(path: &str) -> String {
+    path.replace('\\', "/")
+}
+
 fn parse_config_file(
-    host: &FsCompilerHost,
+    host: &dyn CompilerHost,
+    current_directory: &Path,
     config_file: &Path,
+    display_file_name: Option<&Path>,
 ) -> Result<(ConfigRootPlan, BTreeMap<String, String>), CliError> {
     let bytes = host
         .read_file(config_file)
@@ -383,42 +1048,55 @@ fn parse_config_file(
             ))
         })?;
     let text = decode_host_text(bytes).map_err(|error| CliError::Config(error.to_string()))?;
-    let file_name = config_file
+    let display_file_name = display_file_name
+        .unwrap_or(config_file)
         .to_str()
-        .ok_or_else(|| CliError::Config("config path is not Unicode".to_owned()))?;
-    let base_path = config_file
-        .parent()
-        .and_then(Path::to_str)
-        .ok_or_else(|| CliError::Config("config parent path is not Unicode".to_owned()))?;
-    let adapter = FsConfigHost { host };
+        .ok_or_else(|| CliError::Config("config display path is not Unicode".to_owned()))?;
+    let base_path = current_directory
+        .to_str()
+        .ok_or_else(|| CliError::Config("current directory is not Unicode".to_owned()))?;
+    let adapter = CompilerConfigHost::new(host);
     let plan = parse_config_root_plan(
         &adapter,
         ConfigRootPlanRequest {
-            file_name: file_name.to_owned(),
+            file_name: display_file_name.to_owned(),
             text: text.clone(),
             base_path: base_path.to_owned(),
         },
     )
     .map_err(config_error)?;
     let mut source_texts = BTreeMap::new();
-    source_texts.insert(file_name.to_owned(), text);
+    source_texts.insert(display_file_name.to_owned(), text);
     Ok((plan, source_texts))
 }
 
+enum ProjectFileError {
+    MissingPath(String),
+    MissingConfig(String),
+}
+
 fn resolve_project_file(
-    host: &FsCompilerHost,
+    host: &dyn CompilerHost,
     current_directory: &Path,
     project: &Path,
-) -> Result<PathBuf, CliError> {
+) -> Result<Result<PathBuf, ProjectFileError>, CliError> {
+    let requested = project.to_string_lossy().replace('\\', "/");
     let project = absolutize(current_directory, project);
     if host.directory_exists(&project).map_err(host_error)? {
-        return Ok(project.join(CONFIG_FILE_NAME));
+        let config_file = project.join(CONFIG_FILE_NAME);
+        if host.file_exists(&config_file).map_err(host_error)? {
+            return Ok(Ok(config_file));
+        }
+        return Ok(Err(ProjectFileError::MissingConfig(requested)));
     }
-    Ok(project)
+    if !host.file_exists(&project).map_err(host_error)? {
+        return Ok(Err(ProjectFileError::MissingPath(requested)));
+    }
+    Ok(Ok(project))
 }
 
 fn find_config_file(
-    host: &FsCompilerHost,
+    host: &dyn CompilerHost,
     current_directory: &Path,
 ) -> Result<Option<PathBuf>, CliError> {
     let mut directory = current_directory.to_path_buf();
@@ -441,14 +1119,6 @@ fn absolutize(current_directory: &Path, path: &Path) -> PathBuf {
     }
 }
 
-fn library_directory(current_directory: &Path) -> PathBuf {
-    let local = current_directory.join("vendor/typescript-6.0.3/lib");
-    if local.is_dir() {
-        return local;
-    }
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../vendor/typescript-6.0.3/lib")
-}
-
 fn host_error(error: HostError) -> CliError {
     CliError::Host(error.to_string())
 }
@@ -457,192 +1127,6 @@ fn config_error(error: ConfigParseError) -> CliError {
     CliError::Config(error.to_string())
 }
 
-fn config_host_error(
-    operation: ConfigHostOperation,
-    path: &str,
-    error: HostError,
-) -> ConfigHostError {
-    ConfigHostError::new(operation, path, error.to_string())
-}
-
-struct FsConfigHost<'a> {
-    host: &'a dyn CompilerHost,
-}
-
-impl ConfigParseHost for FsConfigHost<'_> {
-    fn use_case_sensitive_file_names(&self) -> bool {
-        self.host.use_case_sensitive_file_names()
-    }
-
-    fn file_exists(&self, path: &str) -> Result<bool, ConfigHostError> {
-        self.host
-            .file_exists(Path::new(path))
-            .map_err(|error| config_host_error(ConfigHostOperation::FileExists, path, error))
-    }
-
-    fn read_file(&self, path: &str) -> Result<Option<String>, ConfigHostError> {
-        let Some(bytes) = self
-            .host
-            .read_file(Path::new(path))
-            .map_err(|error| config_host_error(ConfigHostOperation::ReadFile, path, error))?
-        else {
-            return Ok(None);
-        };
-        decode_host_text(bytes).map(Some).map_err(|error| {
-            ConfigHostError::new(ConfigHostOperation::ReadFile, path, error.to_string())
-        })
-    }
-
-    fn read_directory(
-        &self,
-        directory: &str,
-        extensions: &[&str],
-        excludes: Option<&[String]>,
-        includes: Option<&[String]>,
-        depth: Option<usize>,
-    ) -> Result<Vec<String>, ConfigHostError> {
-        let case_sensitive = self.host.use_case_sensitive_file_names();
-        let include_patterns = compile_patterns(includes, directory, case_sensitive)?;
-        let exclude_patterns = compile_patterns(excludes, directory, case_sensitive)?;
-        let mut files = Vec::new();
-        self.walk_directory(
-            Path::new(directory),
-            extensions,
-            &include_patterns,
-            &exclude_patterns,
-            depth.unwrap_or(MAX_DIRECTORY_DEPTH),
-            &mut files,
-        )?;
-        files.sort_by(|left, right| compare_utf16(left, right));
-        Ok(files)
-    }
-}
-
-impl FsConfigHost<'_> {
-    fn walk_directory(
-        &self,
-        directory: &Path,
-        extensions: &[&str],
-        includes: &[ConfigFilePattern],
-        excludes: &[ConfigFilePattern],
-        depth: usize,
-        files: &mut Vec<String>,
-    ) -> Result<(), ConfigHostError> {
-        if depth == 0 {
-            return Ok(());
-        }
-        let entries = self.host.read_directory(directory).map_err(|error| {
-            config_host_error(
-                ConfigHostOperation::ReadDirectory,
-                &directory.display().to_string(),
-                error,
-            )
-        })?;
-        for entry in entries {
-            let text = entry.to_str().ok_or_else(|| {
-                ConfigHostError::new(
-                    ConfigHostOperation::ReadDirectory,
-                    entry.display().to_string(),
-                    "filesystem entry is not Unicode",
-                )
-            })?;
-            if self.host.directory_exists(&entry).map_err(|error| {
-                config_host_error(ConfigHostOperation::ReadDirectory, text, error)
-            })? {
-                if is_implicit_excluded_directory(&entry) {
-                    continue;
-                }
-                if !excludes.iter().any(|pattern| pattern.matches(text)) {
-                    self.walk_directory(&entry, extensions, includes, excludes, depth - 1, files)?;
-                }
-                continue;
-            }
-            if !extensions.iter().any(|extension| text.ends_with(extension)) {
-                continue;
-            }
-            if excludes.iter().any(|pattern| pattern.matches(text)) {
-                continue;
-            }
-            if includes.is_empty() || includes.iter().any(|pattern| pattern.matches(text)) {
-                files.push(text.to_owned());
-            }
-        }
-        Ok(())
-    }
-}
-
-fn compile_patterns(
-    patterns: Option<&[String]>,
-    directory: &str,
-    case_sensitive: bool,
-) -> Result<Vec<ConfigFilePattern>, ConfigHostError> {
-    let mut compiled = Vec::new();
-    for pattern in patterns.unwrap_or(&[]) {
-        let pattern =
-            ConfigFilePattern::new(pattern, directory, case_sensitive).map_err(|detail| {
-                ConfigHostError::new(ConfigHostOperation::ReadDirectory, directory, detail)
-            })?;
-        if let Some(pattern) = pattern {
-            compiled.push(pattern);
-        }
-    }
-    Ok(compiled)
-}
-
-fn is_implicit_excluded_directory(path: &Path) -> bool {
-    path.file_name()
-        .and_then(|name| name.to_str())
-        .is_some_and(|name| {
-            matches!(
-                name.to_ascii_lowercase().as_str(),
-                "node_modules" | "bower_components" | "jspm_packages"
-            )
-        })
-}
-
-fn compare_utf16(left: &str, right: &str) -> Ordering {
-    left.encode_utf16().cmp(right.encode_utf16())
-}
-
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn run(arguments: &[&str]) -> CliOutput {
-        run_cli(
-            &arguments
-                .iter()
-                .map(|argument| (*argument).to_owned())
-                .collect::<Vec<_>>(),
-        )
-    }
-
-    #[test]
-    fn argument_parser_rejects_emit_and_unknown_options() {
-        assert_eq!(
-            parse_arguments(&["--noEmit=false".to_owned()]),
-            Err(CliError::Usage(
-                "--noEmit=false is outside the mandatory no-emit driver".to_owned()
-            ))
-        );
-        assert!(matches!(
-            parse_arguments(&["--watch".to_owned()]),
-            Err(CliError::Usage(_))
-        ));
-    }
-
-    #[test]
-    fn explicit_files_require_no_emit() {
-        let output = run(&["missing.ts"]);
-        assert_eq!(output.exit_code(), EXIT_FAILURE);
-        assert!(output.stderr().contains("require --noEmit"));
-    }
-
-    #[test]
-    fn version_is_available_without_a_filesystem_host() {
-        let output = run(&["--version"]);
-        assert_eq!(output.exit_code(), EXIT_SUCCESS);
-        assert!(output.stderr().is_empty());
-        assert_eq!(output.stdout().trim(), env!("CARGO_PKG_VERSION"));
-    }
-}
+#[path = "../tests/unit/cli/tests.rs"]
+mod tests;

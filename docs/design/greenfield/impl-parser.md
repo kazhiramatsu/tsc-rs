@@ -16,12 +16,15 @@ Stage 2.0 (AST shape) is superseded by impl-nodes.md §1-2: run
 `xtask codegen nodes` and commit the generated `nodes.rs` /
 `for_each_child.rs` as this stage.
 
-Entry-point contract (lsp-and-incremental.md §2 rule 1): the public
+Entry-point contract: the public
 parse entry is `parse_source_file(file_name, text, opts, cursor:
 Option<&SyntaxCursor>) -> SourceFile` — `SyntaxCursor` is an empty
-placeholder until the L-track; batch always passes `None`. tsc's own
-parser takes the cursor as its fourth parameter (`_tsc.js` 29014);
-reserving it now is what keeps incremental reparse additive.
+placeholder in the current implementation; batch always passes `None`. tsc's
+own parser takes the cursor as its fourth parameter (`_tsc.js` 29014). The
+[persistent Program design](lsp-and-incremental.md) found that this call-shape
+reservation alone is insufficient: L0 must first add persistent text/ID/bind
+ownership, then L1 makes cursor reuse real and performance-qualifies the arena
+strategy before H1 runtime work.
 `ParseOptions.script_target` is the effective tsc `languageVersion`:
 program/lib callers pass `getEmitScriptTarget(options)`, parse-only
 callers default to ES2025, and JSON parsing uses ES2015.

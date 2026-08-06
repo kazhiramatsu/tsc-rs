@@ -212,8 +212,30 @@ fn metadata_if_present(
     match fs::metadata(path) {
         Ok(metadata) => Ok(Some(metadata)),
         Err(error) if is_absence(&error) => Ok(None),
+        // TypeScript's UNC-style root parsing treats a verbatim drive path
+        // such as `//?/C:/work/a.ts` as rooted at `//?/`. Its ancestor walk
+        // consequently probes the synthetic `//?/C:` and `//?/` directories.
+        // Node's `statSync(..., { throwIfNoEntry: false })` wrapper converts
+        // every error for those incomplete namespace spellings to absence.
+        // Rust reports ERROR_INVALID_FUNCTION instead, so preserve the
+        // upstream existence observation without weakening fail-closed I/O
+        // handling for any complete filesystem path.
+        #[cfg(windows)]
+        Err(_) if is_incomplete_windows_namespace_ancestor(path) => Ok(None),
         Err(error) => Err(map_io_error(error, operation, Some(path.to_path_buf()))),
     }
+}
+
+#[cfg(windows)]
+fn is_incomplete_windows_namespace_ancestor(path: &Path) -> bool {
+    let Some(text) = path.to_str() else {
+        return false;
+    };
+    let slashed = text.replace('\\', "/");
+    let namespace_tail = slashed
+        .strip_prefix("//?/")
+        .or_else(|| slashed.strip_prefix("//./"));
+    namespace_tail.is_some_and(|tail| tail.is_empty() || !tail.contains('/'))
 }
 
 fn validate_input_path(path: &Path, operation: HostOperation) -> Result<&str, HostError> {
@@ -326,51 +348,5 @@ fn normalize_windows_realpath(path: PathBuf) -> PathBuf {
 }
 
 #[cfg(test)]
-mod tests {
-    use std::io;
-
-    use super::map_io_error;
-    use crate::{HostErrorKind, HostOperation};
-
-    #[test]
-    fn maps_stable_io_error_classes() {
-        for (source, expected) in [
-            (
-                io::ErrorKind::PermissionDenied,
-                HostErrorKind::PermissionDenied,
-            ),
-            (io::ErrorKind::InvalidInput, HostErrorKind::InvalidInput),
-            (io::ErrorKind::InvalidData, HostErrorKind::InvalidData),
-            (io::ErrorKind::OutOfMemory, HostErrorKind::ResourceLimit),
-            (io::ErrorKind::StorageFull, HostErrorKind::ResourceLimit),
-            (io::ErrorKind::FileTooLarge, HostErrorKind::ResourceLimit),
-            (io::ErrorKind::QuotaExceeded, HostErrorKind::ResourceLimit),
-            (io::ErrorKind::Other, HostErrorKind::Other),
-        ] {
-            let error = map_io_error(io::Error::from(source), HostOperation::ReadFile, None);
-            assert_eq!(error.kind(), expected);
-            assert_eq!(error.operation(), HostOperation::ReadFile);
-        }
-    }
-
-    #[cfg(windows)]
-    #[test]
-    fn removes_only_verbatim_disk_realpath_prefixes() {
-        use std::path::PathBuf;
-
-        use super::normalize_windows_realpath;
-
-        assert_eq!(
-            normalize_windows_realpath(PathBuf::from(r"\\?\C:\work\a.ts")),
-            PathBuf::from(r"C:\work\a.ts")
-        );
-        assert_eq!(
-            normalize_windows_realpath(PathBuf::from(r"\\?\UNC\server\share\a.ts")),
-            PathBuf::from(r"\\?\UNC\server\share\a.ts")
-        );
-        assert_eq!(
-            normalize_windows_realpath(PathBuf::from(r"\\?\Volume{1234}\a.ts")),
-            PathBuf::from(r"\\?\Volume{1234}\a.ts")
-        );
-    }
-}
+#[path = "../tests/unit/filesystem/tests.rs"]
+mod tests;

@@ -1,7 +1,7 @@
 # H0: filesystem-hosted `--noEmit` execution contract
 
-Status: active follow-on track after M8 batch-diagnostics completion. M9 is
-paused after the merged M9.1b true-replay foundation while H0 executes.
+Status: complete for the frozen single-project no-emit profile. M9 remains
+paused after the merged M9.1b true-replay foundation.
 
 Compatibility target: the vendored TypeScript 6.0.3 compiler only.
 
@@ -65,10 +65,10 @@ At that entry baseline the implementation also had these driver-level gaps:
 - only the conformance per-file getter aggregate, which includes suggestion
   diagnostics that `tsc --noEmit` does not print.
 
-Sections H0.0--H0.4 below are the current status authority: the 241-row
-registry is now closed, the owned five-bucket `ProgramSession` and production
-`FsCompilerHost` have landed, and the remaining config, CLI, and general
-program-construction work is listed explicitly there.
+Sections H0.0--H0.6 below are the status authority: the 241-row registry is
+closed, the owned five-bucket `ProgramSession`, production `FsCompilerHost`,
+config/CLI driver, and embedded library catalog have landed, and the frozen
+profile is machine checked by `ratchets/h0-qualification.v1.json`.
 
 ## 3. Scope
 
@@ -205,6 +205,14 @@ file order equals allocation-base order. `ProgramBinder` maintains a
 separately sorted interval index for node and array ownership. `SymbolId`s
 remain contiguous in final bind order.
 
+Those are the completed H0 one-shot rules. The pre-H1
+[persistent Program foundation](lsp-and-incremental.md#42-stable-identity-without-enlarging-every-ast-edge)
+replaces Program-order bases with leased non-overlapping node, array, and
+symbol intervals so unchanged parsed/bound documents can survive across
+Program snapshots. H0 reaches that representation only through an ephemeral
+store, must retain no entry after the invocation, and must re-pass this
+contract's original behavior and resource gates.
+
 No H0 production path may rely on `Box::leak`. A one-shot session owns and
 drops its sources and bound state. Any reusable lib cache is injected,
 bounded, and evictable.
@@ -279,8 +287,9 @@ identities imported from the schema-2 A2 scope under the eight-family
 inventory. It pins the effective module-resolution kind, exact vendored
 request chain, D2 primary/dependency/diagnostic declaration spans and hashes,
 an emitting canary, a reviewed typed control, and bounded pre-H0 local and
-GitHub-hosted CPU/wall/RSS observations. These observations are reference
-baselines, not the final resolver/CLI profiles or budgets frozen by H0.6.
+GitHub-hosted CPU/wall/RSS observations. These observations remain entry
+references; the final CLI and local-gate profiles and budgets are frozen
+separately by H0.6.
 `cargo xtask host-resolution check` reconciles open, closed, and lapsed rows
 with live A2 exclusions and tombstones, and rejects owner/control drift or a
 closed row without an authoritative Rust route and historical exact T0--T4
@@ -323,7 +332,8 @@ verdict.
 Close the TS2307 owner families first, starting with the 144-row
 `exports`-pattern cluster.
 
-Implementation status: H0.2 is partial. The reviewed in-memory route now
+Implementation status: H0.2 is complete for the frozen H0 option and host
+profiles. The reviewed in-memory route
 plans static imports, export-from declarations, external import-equals, and
 literal dynamic imports with authoritative request modes;
 resolves the bounded package-exports pattern, blocked-subpath, conditional,
@@ -377,8 +387,9 @@ declaration extension. JSON declaration twins retain the upstream
 `.d.json.ts` arbitrary-extension identity. The recursive loader admits
 `.d.*.ts` twins when `allowArbitraryExtensions` is enabled or the containing
 source is itself a declaration file; otherwise it preserves an unloaded
-authoritative row and the checker reports TS6263. These slices do not claim
-the remaining general H0.2 resolution surface or H0 completion.
+authoritative row and the checker reports TS6263. Resolver constructs outside
+the frozen option profile retain typed fail-closed outcomes and are not
+silently treated as misses.
 
 ### H0.3 — residual host consumers
 
@@ -408,12 +419,17 @@ No diagnostic-specific shortcut may replace the underlying resolution fact.
 
 Filesystem discovery must use the same resolver closed in H0.2 and H0.3.
 
-Implementation status: H0.4 is active and partial. The production
+Implementation status: H0.4 is complete for the frozen H0 host and platform
+profiles. The production
 `FsCompilerHost` primitive preserves raw bytes, distinguishes absence from
 typed I/O failure, follows filesystem realpaths, and exposes deterministically
 ordered immediate entries in JavaScript UTF-16 display-name order plus a
 directory-only `CompilerHost::get_directories`
 projection under an explicit or detected case profile. The
+`tsc_program::CompilerConfigHost` adapter now owns the shared config-side
+recursive enumeration, include/exclude filtering, UTF-16 ordering, and host
+text decoding for both `FsCompilerHost` and `MemoryCompilerHost`; the CLI no
+longer carries a second copy of those rules. The
 shared program-layer decoder consumes those bytes with the vendored Node
 host's BOM, endian, odd-byte, and invalid-UTF-8 rules, and package metadata
 uses that same decoded text. Package consumers then apply the vendored
@@ -426,7 +442,10 @@ same semantic converter, but not the resolver's I/O cache, filters automatic
 type packages with `typings: null`. The syntax parser owns the single leading-pragma
 observation for path, type, and lib references, and the source request plan
 projects those references together with module keys and the exact
-resolution-only versus source-loading distinction.
+resolution-only versus source-loading distinction. An empty triple-slash path
+literal selects the containing directory, participates in the ordinary
+extensionless source probe, and publishes a located zero-length TS6231 miss
+instead of becoming an infrastructure failure.
 
 The bounded recursive loader is complete through both `load_no_lib_program`
 and the catalog-enabled `load_program`. Both require `noEmit=true` and accept
@@ -444,9 +463,16 @@ carries its reason across the compiler
 seam, so an `allowJs` program cannot silently accept an unexplained local
 unloaded target. A `.jsx` module target without an active JSX mode is retained
 without reading its bytes and produces TS6142; an already-owned `.jsx` source still
-produces TS6142 without losing its module symbol. Effective
+produces TS6142 without losing its module symbol. ReactJSX/ReactJSXDev,
+`jsxImportSource`, and leading `@jsxImportSource`/`@jsxRuntime` pragmas now
+publish TypeScript's synthetic runtime request (`react/jsx-runtime`,
+`react/jsx-dev-runtime`, or the configured package) immediately after the
+synthetic `tslib` request, preserving the checker-visible source order.
+`@jsxRuntime classic` suppresses that synthetic request. Effective
 `resolveJsonModule` admits explicit JSON roots as well as explicit JSON
-requests. `noDtsResolution` is also still outside this slice. The no-lib
+requests. `noDtsResolution` applies TypeScript's implementation-file mask,
+removes `types`/`types@...` package conditions, and suppresses declaration
+fallbacks. The no-lib
 wrapper requires explicit `noLib=true`. Ordered `rootDirs` participate in
 relative module resolution and recursive source membership. Their normalized
 display paths select the strict longest prefix, probe the original candidate
@@ -455,11 +481,12 @@ preserve their outer TypeScript/declaration then JavaScript/JSON passes, while
 Node16/NodeNext/Bundler finish all admitted extensions per root candidate. The
 catalog-enabled route also admits absent or false `noLib`, retains lowercased
 raw `compilerOptions.lib` keys, treats an explicit empty list as suppressing
-the default library, and fails typed on the `noLib` plus `lib` combination
-until H0.5 owns TS5053. Ordered `paths` mappings and `baseUrl` participate in
-recursive source discovery through the shared resolver. Roots are normalized
-and visited one at a time, preserving input order, multiplicity, and
-observable failure precedence. An extensionless root retains that requested
+the default library, and lets H0.5 publish TS5053 at both option names for the
+`noLib` plus `lib` combination while the lower loader suppresses all library
+host work as `createProgram` does. Ordered `paths` mappings and `baseUrl`
+participate in recursive source discovery through the shared resolver. Roots
+are normalized and visited one at a time, preserving input order,
+multiplicity, and observable failure precedence. An extensionless root retains that requested
 path in `PreparedRoot` while its source identity records the first existing
 candidate from `.ts`, `.tsx`, and `.d.ts`; `allowJs` appends only `.js` and
 `.jsx`. The modern and JSON extensions remain outside this first probe group,
@@ -468,13 +495,34 @@ display list. Canonical source identities are loaded once, cycles and diamonds
 are staged without duplicate files, and `SourceFileId`s are assigned only
 after discovery.
 
+Case-insensitive host aliases retain every alternate display spelling on the
+owning `PreparedSourceFile`. The default/absent
+`forceConsistentCasingInFileNames` value publishes TS1149 at the program
+preprocessing boundary, including the `The file is in the program because:`
+message chain with one root-file reason per root occurrence; an explicit
+`false` keeps the collapsed source without that diagnostic. Config projection
+and the harness option allowlist carry the same tri-state value. On a
+case-sensitive host, distinct physical files whose normalized names differ
+only under TypeScript's locale-independent file-name fold remain separate
+program sources and are tracked by an independent `filesByNameIgnoreCase`
+index. Their TS1149/TS1261 diagnostic is unconditional even when the option is
+explicitly false, preserves first-discovery/source order and import/reference
+location ownership, and retains both `files` provenance entries with TS1410
+related information. A pinned four-order API oracle covers root/root,
+import-then-root, and root-then-import cases.
+
 `LibraryCatalog::typescript_6_0_3` injects static metadata for the exact 107
 logical library names and 95 distinct mapped files. It performs no runtime
 `_tsc.js` parse and obtains every byte through the same `CompilerHost` as user
 sources. Absent-target/ES2025 selection starts at `lib.es2025.full.d.ts`, and
 ES2015 preserves the `lib.es6.d.ts` compatibility root. A real-vendor contract
 pins the transitive closure sizes at 82 files for ES2025, 19 for ES2015, and
-15 for explicit `es5` plus `dom`.
+15 for explicit `es5` plus `dom`. The production CLI now supplies that same
+host boundary through a read-only embedded overlay: all 107 catalog files plus
+the compatibility `lib.d.ts` are compiled into the binary, exact immediate
+library paths are served from those bytes, and every user/config/package path
+still delegates to `FsCompilerHost`. Runtime execution therefore neither
+searches the repository's `vendor` tree nor requires Node.
 
 For each source the loader follows the vendored construction phases: each
 path reference performs its DFS before the next path reference; every unique
@@ -492,6 +540,12 @@ manifests before filtering dot directories, excludes exactly packages whose
 decoded JSON or JSONC has `typings: null`, and performs case-sensitive stable
 first-wins deduplication after flattening.
 
+The `noResolve` branch follows the same boundary as
+`findSourceFileWorker`: path and type-reference discovery is skipped, while
+module requests are still resolved and retained as authoritative unloaded
+rows without adding their targets to source membership. An explicitly rooted
+target remains owned and is still published normally.
+
 All automatic names are resolved under the normalized
 `__inferred type names__.ts` synthetic origin and unspecified mode before the
 first target is visited. Resolved declaration targets then run sequential DFS
@@ -501,8 +555,17 @@ implicit inclusion chain. Repeated explicit names retain raw diagnostic
 occurrences while final diagnostic consumption sorts and deduplicates them.
 An empty requested-root list suppresses this phase, whereas a requested but
 missing root does not. A normalized `ProgramOptions::config_file_path` anchors
-both automatic and source-owned default type-root lookup; ownership of the
-config AST and TS1419 related location remains H0.5.
+both automatic and source-owned default type-root lookup. H0.5 additionally
+retains the root config source and the first matching UTF-16 string syntax by
+option/value from the first root `compilerOptions` object, without carrying a
+parser arena across the program boundary. A missing explicit automatic type
+therefore publishes TS1419 at its `types` entry; wildcard discovery selects
+the `"*"` entry. A missing target-selected default library publishes TS1426
+at the exact `target` literal. Case-only values, inherited-only syntax, and an
+absent target intentionally have no root-config location. The pinned API
+oracle also preserves TypeScript 6.0.3's asymmetric explicit-`lib` behavior:
+the mapped `lib.es5.d.ts` option value does not match the raw `"es5"` config
+literal, so that missing-root TS6053 has no TS1423 related information.
 
 Default or explicit library roots are selected only after the automatic type
 phase. Publication then forms a stable catalog-priority default-library prefix
@@ -567,19 +630,70 @@ type-reference results on their lexical link identities without publishing
 lexical `originalPath`. The policy is program-owned, and source publication
 therefore deduplicates only the physical-policy result.
 
-This is deliberately not general H0.4 program construction. The first H0.5
-root-planning slice now parses the recorded projection for all 103 virtual
+Program construction now also owns TypeScript's exact package-ID redirect
+boundary. After the host has supplied and decoded a resolved source, the full
+`name`/`subModuleName`/`version`/`peerDependencies` identity selects the first
+admitted source. A later equal identity retains its resolver-selected path as
+a redirect spelling but does not enter the Rust parser/binder/checker source
+set a second time. `PreparedProgram::source_id` joins that spelling to the
+first `SourceFileId`, while each authoritative resolution retains its own
+`resolvedFileName`; diagnostics such as TS2306 therefore display the redirect
+path selected for that import rather than the reused source's path. The eight
+contiguous official `duplicatePackage*.ts` compiler fixtures are pinned by a
+Node 25.2.1 / TypeScript 6.0.3 oracle: 38 non-library source wrappers, seven
+redirects, and five exact pre-emit diagnostics. A program integration contract
+also proves that unequal source text behind an equal package identity is
+decoded but not admitted or checked independently.
+
+The H0.5 root-planning route parses the recorded projection for all 103 virtual
 compiler configs (106 case expansions). The frozen TypeScript 6.0.3 oracle has
 167 fixture-level roots (170 case-weighted) and the compiler runner's
 original-unit stable partition is preserved. This fixed corpus has four
 fixtures with `extends`, one with `files`, one with `include`, none with
 `exclude`, no `jsconfig.json`, and no nonempty config diagnostics; it is not a
-general proof of those semantics. General filesystem config discovery, package
-redirects during program construction, case-only alias diagnostics, and the
-complete cross-platform case/separator/symlink/encoding matrix remain in later
-slices. Discovery stays sequential where vendored host calls and failure
-precedence are observable; future pipeline parallelism must preserve that
-contract.
+general proof of those semantics. General filesystem config discovery remains
+in later slices. The
+focused case-only alias diagnostics now match the pinned TypeScript oracle in
+plain and pretty output. Config-backed aliases retain the first matching root
+`files` or `include` literal and publish TypeScript's TS1410 or TS1408 related
+context. Explicit include roots retain TS1407 with the config spelling, while
+the implicit `**/*` root reason retains TS1457 without fabricated related
+syntax. Pretty rendering no longer mistakes digits inside inclusion-chain
+paths for source gutters. The case-sensitive distinct-file collision cell and
+the MemoryHost lexical cells for UNC, extended-length, root-relative, and
+absolute drive paths are closed in addition to the existing case-insensitive
+alias cell. The declared platform profiles are full local macOS filesystem
+qualification and a focused Windows x64 host/program filesystem canary.
+Ambiguous raw drive-relative roots are outside that profile and fail closed.
+Discovery stays
+sequential where vendored host calls and failure precedence are observable;
+future pipeline parallelism must preserve that contract.
+
+The compiler-suite harness now exposes a bounded `load_compiler_no_emit`
+adapter. It reconstructs the recorded compiler fixture VFS (including
+document/global symlink identities), projects loader-relevant options and
+root selection, and returns the same catalog-backed `PreparedProgram` used by
+the Rust no-emit session. Fixture paths remain on the immutable memory host;
+only the exact vendored TypeScript library directory is mounted through the
+filesystem host, so default-library tests now consume the real 6.0.3 bytes.
+Representative default, type-reference, case-sensitive, virtual-config,
+preserve-symlink, and duplicate-package fixtures exercise this boundary. The
+earlier all-7,276 load/run audit predated that library mount and was partly
+short-circuited by missing-library/global diagnostics. The post-mount local
+audit now loads and executes all 7,276 recorded compiler plans through the
+Rust no-emit session with zero harness or session failures (453.9 seconds,
+2026-08-06). Its immutable-lib harness path reuses only an exact ordered
+library bundle whose names, full source text, and parser/binder option
+projection match; production sessions retain one-shot ownership. This is
+structural execution qualification, not a diagnostic-baseline comparison.
+The adapter intentionally stops before emit and general baseline comparison;
+conflicting `noLib`/`lib`, raw
+drive-relative root spellings, and other unported construction faces retain
+their typed boundaries. A
+compiler-crate integration contract feeds representative prepared programs
+through `ProgramSession::run`, so this source/config/loader seam is exercised
+by the actual Rust no-emit session without adding the expensive corpus sweep
+to GitHub Actions.
 
 A focused project-runner bridge now owns the official `NodeModulesSearch`
 config-to-loader path for its three descriptors under CommonJS and AMD. All
@@ -592,12 +706,35 @@ and source publication order, inclusive external-JavaScript depth,
 shallower/root reprocessing, and automatic `@types` membership. An official
 frozen oracle records those facts and the 17 upstream pre-emit diagnostics.
 The Rust boundary deliberately adds `noEmit=true`; it neither emits nor
-compares project baselines, and all six manifest cases remain `not-run`. This
-is not general `ProjectConfig` or `DiscoverConfig` execution.
+compares project baselines, and all six manifest cases remain `not-run`. The
+local compiler contract nevertheless runs the six prepared programs through
+`ProgramSession` and compares their source/global diagnostic rows with the
+frozen oracle (option-deprecation rows remain on `ConfigRootPlan`). This is
+not general `ProjectConfig` or `DiscoverConfig` execution.
 The mount removes repeated corpus-artifact decoding by Git blob identity; each
 independent program still owns its source-text decode and parse. Reusing that
 prepared text/parse work across project variants is a later performance slice
 and must preserve option-sensitive source identity and publication order.
+
+The project harness now also exposes a shared no-emit adapter for all three
+descriptor root modes: explicit `inputFiles`, an explicit `project` config,
+and `tsconfig.json` discovery at the project root. It applies the runner's
+existing `module`, `moduleResolution`, `strict`, and no-error-truncation
+defaults before forcing `noEmit=true`, and it delegates config validation to
+the program-owned fail-closed gate. The adapter is qualified on representative
+explicit and discovered projects, including the `NestedDeclare` ambient
+import-equals boundary. Descriptor/config requests for declaration, source
+maps, output paths, and other emit-only controls remain typed unsupported
+outcomes; `noResolve` is projected into the same source-discovery boundary as
+the production loader and is no longer rejected by the adapter. A complete
+local classification of the 632 recorded project cases now qualifies every
+one of the 82 H0-compatible plans through both program loading and
+`ProgramSession`. The other 550 cases are exhaustively accounted for by the
+declared H0 non-scope: 452 descriptor emit controls, 70 descriptor declaration
+requests, 10 `compileOnSave` configs, 16 config declaration/`outFile`
+requests, and two descriptor `rootDir` emit controls. No compatible plan is
+unclassified or fails execution; this does not claim the upstream emit
+baselines.
 
 ### H0.5 — tsconfig and command-line driver
 
@@ -614,7 +751,8 @@ and must preserve option-sensitive source identity and publication order.
 Unknown options and valid-but-out-of-scope options are distinct failures and
 are never ignored.
 
-Implementation status: H0.5 is active and partial. `tsc_program` owns an
+Implementation status: H0.5 is complete for the frozen H0 command-line and
+config-option profiles. `tsc_program` owns an
 immutable, shareable `ConfigRootPlan` for the recorded valid root-planning
 projection. JSONC values use the iterative syntax-AST converter. A separate
 51-fixture TypeScript 6.0.3 oracle fixes recoverable primary/extended
@@ -639,13 +777,24 @@ final sorted order, and UTF-16 root-config location after `${configDir}`
 substitution, including duplicate syntax, compacted-array indices, and
 inherited fallback locations. They remain separate from parsed-config errors
 as in `getOptionsDiagnostics`. `ConfigModuleResolutionOptions` projects the
-currently modeled resolver-facing option surface. Effective `paths` and its
+currently modeled resolver-facing option surface, including the
+`forceConsistentCasingInFileNames` casing-diagnostic switch. Effective `paths` and its
 declaring `pathsBasePath` share one immutable allocation; `ModuleResolver` selects
 `baseUrl` then `pathsBasePath` then cwd for substitutions without treating the
 latter as a baseUrl fallback. Exact keys and valid single-star offsets are
 compiled once, mappings are shared between resolver instances, and per-request
 substitution-vector clones are eliminated; structural validation is cached
 with that immutable table instead of rescanned by every resolver.
+The public `ConfigRootPlan` also retains the effective `files`, `include`,
+and `exclude` spec lists after extends rebasing, preserving absent versus
+explicit-empty states alongside the discovered `fileNames` projection.
+The public plan also retains the primary-only raw `references` value and the
+effective inherited `watchOptions`, `typeAcquisition`, and `compileOnSave`
+values. These fields are observable for ParsedCommandLine parity, while the
+no-emit program gate rejects truthy unsupported scopes before loading sources.
+It additionally projects normalized `projectReferences` entries and the
+stable `wildcardDirectories` watcher roots (including recursive flags) without
+enabling project-reference orchestration or watch mode.
 `moduleSuffixes` is projected without normalizing case, whitespace, empty
 entries, or recoverable JavaScript `undefined` slots. Every resolver file
 candidate uses TypeScript's extension-major/suffix-minor probe order, including
@@ -671,31 +820,52 @@ path, resource, and explicitly unsupported conversion boundaries. The harness
 uses a case-insensitive virtual adapter specialized for the fixed compiler
 fixture units, parses each fixture once before matrix variants, and compares
 raw config values, ordered `fileNames`, extended-source identities and
-contents, four discovery-option values, and original-unit partitions with the
-official oracle. Include patterns are compiled once and reused through an
+contents, four discovery-option values, the exact `ParseConfigHost` operation
+trace for all 103 config-bearing fixtures (106 matrix cases), and original-unit
+partitions with the official oracle. Include patterns are compiled once and reused through an
 iterative, linear-scratch UTF-16 matcher; candidate matching does not recurse,
-build a quadratic memo table, or require a regex dependency. This is not yet a
-general `ParseConfigHost`/`matchFiles` qualification. Remaining root fields,
-remaining resolver/loader options such as `noDtsResolution`, full
-`ParsedCommandLine`, filesystem discovery,
-general project/project-runner config handling beyond the focused
-`NodeModulesSearch` bridge remain open. The validated projection now exposes
+build a quadratic memo table, or require a regex dependency. The production
+`CompilerConfigHost` now applies the same matcher to real and in-memory
+recursive trees, prunes impossible directories, honors explicit package-folder
+includes, and suppresses symlink cycles through host realpaths. The fixed
+compiler-corpus `ParseConfigHost`/`matchFiles` trace qualification is green.
+Root fields and resolver/loader options not named by the frozen profile, full
+public `ParsedCommandLine` compatibility, and the project baseline/emit runner
+are explicit non-scope rather than partial H0 execution. The validated
+projection exposes
 the merged checker/program options and has a fail-closed `load_config_program`
-bridge into the general catalog-backed loader: config and option diagnostics
-stop source loading first, and an omitted or false `noEmit` is rejected before
-any source host work. A command-line override applies `noEmit=true` without
-mutating the remaining config options. The compiler crate now ships a bounded
+bridge into the general catalog-backed loader: config and fatal option
+diagnostics stop source loading first, while TypeScript 6.0 deprecation rows
+(5101/5107) remain reportable without blocking a no-emit program. An omitted
+or false `noEmit` is rejected before any source host work. A command-line
+override applies `noEmit=true` without mutating the remaining config options.
+The program gate also maintains an
+explicit allowlist for options projected into `CompilerOptions`,
+`ProgramOptions`, or root discovery; a recognized option outside that set
+fails as a typed unsupported scope instead of being silently ignored. The
+same gate retains truthy `watchOptions`, `typeAcquisition`, and
+`compileOnSave` root scopes across the `extends` graph and rejects them before
+source loading, rather than dropping an inherited root setting. The
+compiler crate now ships a bounded
 `tsc-rs` binary that discovers a config from the current directory or `-p`,
 accepts explicit files only with `--noEmit`, adapts `FsCompilerHost` to the
-config parser's filtered directory contract, and renders contextual
-diagnostics to stdout with exit 1; usage, host, config, loader, and unsupported
+config parser's filtered directory contract, and renders contextual or plain
+diagnostics to stdout with the contextual error summary; usage, host, config,
+loader, and unsupported
 option failures are stderr/exit 2. The initial CLI surface intentionally
-rejects `--pretty=false`, watch/build/emit options, project-plus-file mixes,
-and other unimplemented flags instead of silently ignoring them. Focused
+rejects watch/build/emit options, project-plus-file mixes, and other
+unimplemented flags instead of silently ignoring them. Focused
 filesystem binary contracts cover include discovery, command-line no-emit
-precedence, diagnostic output, and version/unsupported-option behavior. This
-bridge remains independent of CLI selection so the same immutable plan can
-feed MemoryHost and FsHost differentials.
+precedence, diagnostic output, no-output writes, and version/unsupported-option
+behavior. Local ignored oracle contracts compare plain and explicit `--pretty`
+`-p`/`--noEmit` results byte-for-byte with vendored `_tsc.js`, including the
+status-2 no-emit diagnostic result, the ANSI contextual renderer, current-
+directory config discovery, encodings, symlinks, `rootDirs`, and Node16/18/20/
+NodeNext package modes. This bridge remains independent of CLI selection so
+the same immutable plan can feed MemoryHost and FsHost differentials.
+All ten local CLI oracle matrices pass against vendored `_tsc.js`; they remain
+ignored in the ordinary Rust gate because they require the pinned Node runtime,
+not because they are unqualified.
 
 ### H0.6 — qualification and release
 
@@ -706,6 +876,20 @@ feed MemoryHost and FsHost differentials.
 - update README and setup documentation without changing M8 historical
   claims; and
 - publish the binary only after the release gate is green.
+
+H0.6 is complete. `ratchets/h0-qualification.v1.json` freezes the exact
+config and command-line allowlists, the macOS full-local and Windows focused
+canary host profiles, the 107 logical/95 distinct TypeScript 6.0.3 library
+catalog entries, all suite counts, resource ceilings, and the local-first
+release policy. Its compiler integration contract rejects schema or option
+drift and executes the built binary from a temporary directory with the
+embedded default library, proving that neither the repository `vendor/` tree
+nor Node is a runtime dependency. The complete local evidence is 241/241
+host-resolution rows, 7,276/7,276 compiler plans, 82/82 H0-compatible project
+plans with all other 550 cases classified as declared non-scope, ten exact CLI
+oracle matrices, and five program oracle contracts, all with zero failures.
+The measured macOS CLI workload is 0.70 seconds cold and 0.14 seconds warm
+with peak RSS below 102 MB; the final warm local Rust lane is 64.32 seconds.
 
 ## 9. Fail-closed policy
 
@@ -728,9 +912,12 @@ unsupported resolver branch becomes a typed H0 failure; it must not be
 converted into `Missed`, `Suppressed`, an empty diagnostic list, or exit
 zero.
 
-TypeScript and config diagnostics are reported through the normal diagnostic
-stream and exit one. H0 infrastructure or unsupported-scope failures are
-reported separately and exit two. Success is exit zero.
+TypeScript no-emit program and config diagnostics are reported through the
+normal diagnostic stream and exit two, matching the vendored driver's
+`DiagnosticsPresent_OutputsGenerated` result at its no-emit emit boundary.
+Command-line selection diagnostics such as TS5112 retain exit one. H0
+infrastructure or unsupported-scope failures are reported separately and
+also exit two. Success is exit zero.
 
 ## 10. Definition of done
 
@@ -760,14 +947,45 @@ H0 is complete only when all of the following are true:
 - the installable binary carries the exact vendored library catalog and
   requires no Node runtime.
 
-M9 fuzz qualification, emit, LSP, project builds, and the public
-`TypeChecker` API remain separate goals.
+The frozen qualification artifact and its integration contract make this
+list an executable release invariant. All rows above are green for the
+declared H0 profile as of 2026-08-06; adding an option or platform profile
+requires a reviewed artifact update and new oracle evidence.
+
+M9 fuzz qualification, [H1 JavaScript emit](h1-emit.md), LSP, project builds,
+and the public `TypeChecker` API remain separate goals. H1 treats this frozen
+H0 route, including its resource profile, as a hard non-regression boundary.
+H1 may reserve dormant declaration/map/build-info artifact kinds internally,
+but none is constructed on this profile. A future incremental/build profile
+must separately qualify tsc's possible `.tsbuildinfo` write under `noEmit`;
+that does not amend H0's zero-output guarantee.
 
 ## 11. CI and merge policy
 
 During implementation, use focused owner tests and targeted MemoryHost
 differentials. Do not run full corpus or multi-platform probes in the edit
 loop.
+
+The local Rust phase of the gate uses stripped test binaries, compiles all
+Cargo test targets once, and launches 24 discovered executables through an
+ordered two-process pipeline after all-target Clippy. Broad integration
+contracts share one executable per crate. The conformance library uses two
+harness threads alongside at most one ordinary single-threaded target, keeping
+peak harness parallelism at three. It does not
+repeat a standalone workspace build or launch the workspace's empty doctest
+crates. Per-target stdout/stderr uses ephemeral regular files instead of
+anonymous pipes: fuzz/conformance process-isolation descendants cannot keep a
+completed libtest target artificially alive through inherited pipe handles,
+and successful progress noise is not replayed. This changes neither the
+executable test set nor the semantic lane. In the local macOS qualification,
+the final warm Rust lane measured 64.32 seconds. The diagnostic run before the
+capture correction measured 628.22 seconds, including 193 seconds of rebuild;
+the capture-specific target timings are the cleaner comparison:
+`executor_e2e` fell from 98.721 to 0.651 seconds and `foundation_contract`
+from 156.071 to 0.067 seconds. The later contract bundling reduced the warm
+lane from 96.40 to 64.32 seconds while retaining every test and using at most
+three harness threads.
+`TSRS_CI_TEST_WORKERS=1` retains a serial diagnostic mode.
 
 For each semantic H0 candidate:
 
@@ -777,13 +995,11 @@ For each semantic H0 candidate:
    changes;
 4. run `CARGO_BUILD_JOBS=2 RUST_TEST_THREADS=2 cargo xtask ci --baseline
    origin/main` exactly once on the committed final candidate;
-5. run the required GitHub compile/syntax guardrail (changed Rust/build inputs
-   get formatting plus one non-linking workspace check; clippy, tests,
-   generated/static contracts, history, conformance, invariants, evidence,
-   readiness, and performance remain local);
-6. run the Windows path smoke only when host, path, or config behavior changes
-   (the required local gate already covers macOS); and
-7. merge automatically with a merge commit after every required check
+5. run the compact Windows host/program filesystem smoke only when host, path,
+   config, or toolchain behavior changes (the broad program contracts remain
+   local-only, the clean runner omits incremental state/test debuginfo, and the
+   required local gate already covers macOS); and
+6. merge automatically with a merge commit after every required check
    passes.
 
 The 241-row MemoryHost oracle artifact is content-addressed and regenerated

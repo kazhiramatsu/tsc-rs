@@ -24,15 +24,76 @@ All gates run from the repository root:
 
 ```sh
 cargo xtask ci                      # full merge-gate suite (must be green on main)
-CARGO_BUILD_JOBS=2 cargo check --workspace --locked  # reproduce the GitHub Rust check
 cargo xtask conformance             # conformance sweep (optionally --band 2xxx)
 cargo xtask conformance --syntactic-only
 cargo xtask invariants --suite all  # sampled determinism/idempotence developer run
 cargo xtask invariants --suite all --full-corpus  # completion/CI row 10
 cargo xtask completion              # report all 11 final completion rows
+cargo test -p tsc-rs-compiler --test contracts h0_qualification_contract
 cargo xtask m8 trace --program-json target/probe/program.json --code 8020 \
   --out target/m8-trace.json        # targeted D2 trace; report-only
 ```
+
+The local Rust phase of `cargo xtask ci` compiles
+`cargo test --workspace --all-targets --no-run`
+once, then launches 24 discovered test executables through an ordered
+two-process pipeline. Broad integration contracts are grouped into one target
+per crate; the two focused Windows canaries remain independent targets. The
+conformance library uses two harness threads while sharing the pipeline with
+one ordinary single-threaded target, so peak harness parallelism is three and
+average CPU use stays bounded. Every unit, binary, integration, example, and
+benchmark test remains covered, while the workspace's documentation contains
+no executable Rust doctests. Set
+`TSRS_CI_TEST_WORKERS=1` to diagnose order-sensitive resource issues. The
+pipeline captures each target into short-lived regular files below
+`target/ci-test-output` and prints ordinary output only on failure. This is a
+correctness-relevant performance detail: process-isolation tests launch Node
+and Rust grandchildren, and anonymous `Command::output` pipes otherwise stay
+open after libtest has already exited. Regular-file capture preserves ordered
+failure output without waiting on unrelated inherited pipe descriptors. The
+separate `cargo build --workspace` pass is intentionally omitted because
+all-target Clippy type-checks every target and the test compile performs
+codegen. Test binaries omit debug information to reduce link and startup I/O;
+ordinary dev-profile binaries retain their debugging profile.
+
+Private unit-test bodies live under each crate's `tests/unit/` tree and are
+included from `src` through `#[path]` modules, so they retain private-item
+access without keeping test implementations beside production code. Broad
+integration files live under `tests/integration/` behind a single
+`tests/contracts.rs` target per crate. `cargo xtask workspace audit` rejects a
+new inline test module, a missing crate `tests/` directory, or renewed
+integration-target fragmentation.
+
+The complete recorded TypeScript compiler-suite execution audit is deliberately
+local-only and ignored by the ordinary test gate. It reuses an exact immutable
+standard-library bundle within the process, keeps case order deterministic, and
+reports progress every 250 cases:
+
+```sh
+CARGO_BUILD_JOBS=2 RUST_TEST_THREADS=1 cargo test -p tsc-rs-compiler \
+  --test contracts \
+  upstream_no_emit_harness_contract::audit_all_recorded_compiler_no_emit_sessions_locally \
+  -- --ignored --nocapture
+```
+
+After investigating a failure, resume at a compiler-plan offset with
+`TSRS_COMPILER_AUDIT_START=<offset>`. A final acceptance run must omit that
+variable so all 7,276 plans execute. This audit qualifies bounded load and
+no-emit execution; it does not compare TypeScript diagnostic baselines.
+
+The corresponding project audit classifies all 632 project-runner cases,
+executes the 82 plans inside H0's single-project no-emit scope, and verifies
+that the remaining 550 request only declared emit/build/watch non-scope:
+
+```sh
+CARGO_BUILD_JOBS=2 RUST_TEST_THREADS=1 cargo test -p tsc-rs-compiler \
+  --test contracts \
+  upstream_no_emit_harness_contract::audit_all_recorded_project_no_emit_sessions_locally \
+  -- --ignored --nocapture
+```
+
+`TSRS_PROJECT_AUDIT_START=<offset>` is available for investigation; omit it
+for the pinned full classification.
 
 If every path changed from the trusted base ends in `.md` and README's
 generated `STATUS` block is byte-identical to the base, do not run the
@@ -41,20 +102,30 @@ repository root and review changed links, anchors, and generated-block
 boundaries. Any non-Markdown or generated-status change uses the full merge
 gate.
 
-The GitHub lane is deliberately a compile/syntax canary, not a second merge
-gate. Its classifier runs formatting and one non-linking workspace `cargo
-check` only when Rust/build inputs changed, and pinned-Node syntax checks only
-when oracle-driver inputs changed. It never compiles the monolithic xtask.
-Host/path changes additionally receive a focused Windows filesystem smoke;
-all Cargo/test parallelism is capped at two. Clippy, workspace tests,
-workspace/static/generated contracts, semantic history, corpus
-binding/conformance, recovery census, invariants, receipt-bound B2-B4
-evidence, readiness/README rendering, and calibrated performance observations
-remain mandatory in the unsplit local command, whose result is recorded in
-the PR body. GitHub success alone is not acceptance evidence. The optional
-`cargo xtask ci --lane hosted --history-sensitive --baseline <trusted-sha>`
-diagnostic remains available locally for immutable-history investigation and
-is never selected automatically by Actions.
+GitHub Actions intentionally does not repeat the local merge gate. It only
+classifies the changed paths and runs the focused Windows host contracts plus
+one compact filesystem-to-program parity smoke when host, path, or toolchain
+inputs change; ordinary Rust, Node, semantic,
+corpus, evidence, readiness, and performance checks remain local-only. The
+Windows lane is capped at two Cargo/test workers and disables incremental
+state and test debuginfo on its clean runner. It is a platform canary, not
+acceptance evidence. The optional `cargo xtask ci --lane hosted
+--history-sensitive --baseline <trusted-sha>` diagnostic remains available
+locally for immutable-history investigation and is never selected
+automatically by Actions.
+
+That topology is the current H0/M8/M9 operating state, not the finished
+topology for new persistent-program or emit runtime work. Before the first
+L0.1 or H1 runtime slice, the repository must add the required non-doc static
+and focused track lanes, authenticated machine-verifiable HEAD/base-bound
+full-gate summary, scheduled stress lane, and approved-runner performance lane
+specified in the
+[incremental architecture](design/greenfield/lsp-and-incremental.md#91-ci-and-qualification-topology),
+[H1 emit contract](design/greenfield/h1-emit.md#64-ci-and-qualification-topology),
+and [compatibility roadmap](design/greenfield/compiler-compatibility-residual.md#114-cross-track-ci-and-qualification-topology).
+Until that prerequisite lands, the hosted `gates` sentinel proves only its
+classifier/platform-canary contract; it does not qualify an L0/L1/H1 runtime
+change.
 
 `cargo xtask completion` is report-only during M8 and succeeds while naming
 pending rows in `target/completion/report.json`. The post-M9 release gate is
@@ -79,6 +150,15 @@ Node process to isolate V8 lazy-compilation state. The instrumented bundle is
 cached by the source, inventory, tool, selected-code, and pinned-Node
 fingerprint under
 `target/m8/trace/cache/`.
+
+The `tsc-rs` executable embeds the pinned TypeScript 6.0.3 standard-library
+bytes at build time. After it has been built or installed, running a no-emit
+project does not require this repository's `vendor/` directory or a Node
+runtime; Node is needed only for the optional oracle comparisons above.
+The strict `h0_qualification_contract` test validates the frozen option,
+host, library, suite, and resource profile in
+`ratchets/h0-qualification.v1.json`, then launches the built binary from a
+temporary directory to exercise that standalone packaging boundary.
 
 The full gate list, the trusted-base variants, and the per-artifact
 audit commands (`ratchet check`, `scope audit`, `families check`,

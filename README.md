@@ -103,6 +103,9 @@ For example, from a project containing a compatible `tsconfig.json`:
 cargo run --manifest-path crates/compiler/Cargo.toml -- --noEmit -p .
 ```
 
+The built `tsc-rs` binary contains the exact TypeScript 6.0.3 standard-library
+catalog and does not look up `vendor/` or launch Node at runtime.
+
 See [setup and verification](docs/setup.md) for focused commands and
 environment details.
 
@@ -116,18 +119,18 @@ does not imply compatibility with newer TypeScript releases.
 | Capability | Availability |
 | --- | --- |
 | Existing harness-assembled, in-memory batch diagnostics | Available and conformance-gated |
-| Owned `PreparedProgram` execution path | Internal one-shot no-emit path available; exact table consumption is active for reviewed H0.2 package-map slices |
+| Owned `PreparedProgram` execution path | Available for the frozen one-shot H0 no-emit profile |
 | Color-free contextual diagnostic formatting | Available in the conformance harness |
-| Filesystem-hosted `--noEmit` command | Bounded production binary; broader surface in development |
-| tsconfig discovery and JSONC configuration | Bounded `files`/`include`/option bridge; broader surface in development |
-| `node_modules`, package `exports`/`imports`, `paths`, and `typeRoots` resolution | Bounded in-memory package maps, legacy package fields/`typesVersions`, ordered optional settings, and Classic-through-Bundler `@types`/type-reference slices are available internally; general resolution remains in development |
+| Filesystem-hosted `--noEmit` command | Available for the frozen H0 command-line and config profile |
+| tsconfig discovery and JSONC configuration | Available for the frozen H0 option/root profile; other recognized fields fail closed |
+| `node_modules`, package `exports`/`imports`, `paths`, and `typeRoots` resolution | Available for the frozen Classic-through-Bundler H0 profile |
 | Output emission (`.js`, `.d.ts`, source maps, or build info) | Not implemented |
 | Watch, incremental, project-reference, or solution builds | Outside the current scope |
 | Language server and stable public `TypeChecker` API | Outside the current scope |
 | TypeScript versions other than 6.0.3 | Unsupported |
 
-The active filesystem work is limited to a single-project, mandatory
-`--noEmit` flow. Unsupported operations must fail closed rather than check
+The frozen filesystem profile is limited to a single-project, mandatory
+`--noEmit` flow. Unsupported operations fail closed rather than check
 only part of a project or silently ignore an option.
 
 ## How Correctness Is Measured
@@ -205,6 +208,8 @@ Start with:
 - [greenfield execution guide](docs/design/greenfield/README.md);
 - [definition of done](docs/design/greenfield/definition-of-done.md);
 - [H0 filesystem-hosted no-emit contract](docs/design/greenfield/noemit-cli.md);
+- [H1 JavaScript emit contract](docs/design/greenfield/h1-emit.md);
+- [persistent Program and incremental-parser design](docs/design/greenfield/lsp-and-incremental.md);
 - [M8 execution and close contract](docs/design/greenfield/m8-execution-and-close.md);
 - [M9 execution and close contract](docs/design/greenfield/m9-execution-and-close.md); and
 - [M7 band and owner strategy](docs/design/greenfield/m7-band-and-owner-strategy.md).
@@ -218,23 +223,28 @@ Node, or full-corpus CI.
 
 ## Development Status and Roadmap
 
-Milestones M0–M8 are complete on the frozen supported batch-diagnostics
-scope. M9 is paused after its typed-outcome and canonical true-replay
-foundations. H0, the filesystem-hosted `--noEmit` track, is the active
-frontier.
+Milestones M0–M8 and the frozen H0 filesystem-hosted `--noEmit` profile are
+complete. H1 JavaScript-emit design has started with H0 no-emit performance as
+a hard non-regression boundary. Its runtime implementation follows the L0
+persistent-source and L1 incremental-parser proof; complete Language Service,
+tsserver, and LSP behavior remains later work. The audited
+[compiler compatibility residual](docs/design/greenfield/compiler-compatibility-residual.md)
+separates H1 blockers from later declaration/map, build/watch, public-API, and
+LSP work. M9 is paused after its typed-outcome and canonical true-replay
+foundations.
 
 H0.0 now freezes the 241 exact host-resolution identities in a dedicated
 machine-checked registry. Each row pins its owner family, vendored TypeScript
 primary/dependency/diagnostic declarations and hashes, effective
 module-resolution kind, exact vendored source/specifier/request-mode and
 anchor chain, Rust seam, and a positive canary plus reviewed typed feature
-control. The semantic CI lane checks the registry against the same trusted A2
+control. The local semantic gate checks the registry against the same trusted A2
 baseline. A closed row must match its non-lapsed A2 tombstone, name an
 authoritative Rust route, and retain historical accepted-set proof at T0--T4;
 oracle-correction tombstones remain explicit `lapsed` rows. Initial bounded
-pre-H0 local and GitHub-hosted CPU, wall-time, and RSS observations are
-recorded with the registry; H0.6 still owns the final resolver/CLI resource
-profiles and budgets.
+pre-H0 local CPU, wall-time, and RSS observations are recorded with the
+registry. H0.6 freezes the final CLI/local-gate profiles and budgets in
+`ratchets/h0-qualification.v1.json`.
 
 H0.1 has landed five prerequisite slices without changing accepted
 diagnostics:
@@ -253,7 +263,7 @@ diagnostics:
   bucket indexes, verifies exact ordered names, texts, and binder options, and
   uses locally owned parse/bind state when cache reuse is disabled.
 
-H0.0 and H0.1 are complete. H0.2 is active and partial: its reviewed
+H0.0 and H0.1 are complete. H0.2 is complete for the frozen H0 profile: its
 `MemoryCompilerHost` route now connects the checker to the authoritative table
 and closes all 179 package-exports-patterns-and-blocked-subpaths rows plus all
 36 package-imports-self-references-and-conditions rows. The reviewed legacy
@@ -290,9 +300,9 @@ diagnostic. The reviewed untyped-package consumer slice closes the final 4
 rows: checked-JavaScript literal `require` requests load their resolved module
 symbols for 3 exact TS2339 member diagnostics, while an external-module
 augmentation consumes an unloaded JavaScript target for the exact TS2665
-diagnostic. All 241 host-resolution rows are now closed at T0--T4 with typed
-Bundler controls and full-corpus FP=0. General filesystem-backed program
-construction is not complete. H0.4 is active: its raw `FsCompilerHost`
+diagnostic. All 241 host-resolution rows are closed at T0--T4 with typed
+Bundler controls and full-corpus FP=0. H0.4 is complete for the frozen
+host/platform profile: its raw `FsCompilerHost`
 primitive preserves bytes, typed host failures, deterministic directory
 observations in JavaScript UTF-16 display-name order, native case profiles,
 and realpaths. A shared program-layer
@@ -320,6 +330,9 @@ project runner's config roots, loader-facing option projection, ES5 host
 default library, and exact source order through bounded no-emit program
 construction. The upstream project runner still owns emit and baseline
 comparison, so all six manifest cases deliberately remain `not-run`.
+The general project no-emit adapter also classifies all 632 recorded project
+cases: all 82 H0-compatible plans load and execute successfully, while the
+remaining 550 request only the declared emit/watch non-scope and fail closed.
 Later shallower and root discoveries reprocess
 exactly the imports or full reference phases required by TypeScript. A `.jsx`
 module target without an active JSX mode is not
@@ -343,8 +356,13 @@ the checker consumes the validated source id for loaded rows and the physical
 path for TS7016. An explicit `preserveSymlinks=true` instead keeps external
 non-relative modules and type references on their distinct lexical link
 identities, while absent or false retains physical-source deduplication.
-Config-derived root selection, package redirects, case-only aliases, and the
-remaining platform matrix remain.
+General config-derived root selection and exact package-ID redirects have also
+landed; the focused case-only alias diagnostics match the pinned TypeScript
+oracle, and all 7,276 recorded compiler plans load and execute through the Rust
+no-emit session in the local structural audit. The declared platform profiles
+are full local macOS qualification and a focused Windows x64 host/program
+filesystem canary. Ambiguous raw drive-relative roots remain outside the
+profile and fail closed.
 
 | Phase | State | Focus |
 | --- | --- | --- |
@@ -353,7 +371,9 @@ remaining platform matrix remain.
 | M7 | Complete | Non-2XXX diagnostic families closed on the supported scope |
 | M8 | Complete | Supported-scope T0–T4 closure, full-corpus FP=0, and recovery/escapes zero |
 | M9 | Paused after 1b | Typed outcomes and true replay landed; production generator, burn-in, freeze, and qualification deferred |
-| H0 | Active (H0.0–H0.1 complete; reviewed H0.2/H0.3 rows closed 241/241; H0.4 bounded loader and focused project-config execution partial; H0.5 config-plan loader and bounded CLI binary landed) | Filesystem-hosted `--noEmit`: program construction, config/CLI, rendering, and exit behavior |
+| H0 | Complete (frozen single-project no-emit profile; 241/241 host rows, 7,276/7,276 compiler plans, 82/82 compatible project plans, exact CLI/program oracles) | Filesystem-hosted `--noEmit`: program construction, config/CLI, embedded libraries, rendering, and exit behavior |
+| L0/L1 | Audited design; not implemented | Persistent source/text/identity/bind/Program ownership, then incremental parsing and large-file edit proof before H1 runtime work |
+| H1 | Design started | Bounded JavaScript emit through the vendored resolver/transform/printer/output architecture after L0/L1, while preserving the H0 `--noEmit` fast path |
 
 The exact accepted-state summary below is generated by
 `cargo xtask readme-status` and must not be edited by hand.

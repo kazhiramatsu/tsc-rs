@@ -85,6 +85,11 @@ impl PathContext {
 pub struct PreparedSourceFile {
     path: ProgramPath,
     alternate_display_paths: Vec<PathBuf>,
+    /// Distinct resolved package paths redirected to this source by
+    /// `createProgram`'s exact `PackageId` identity map. These are not case
+    /// aliases or symlink spellings: the resolver must retain the selected
+    /// path while the parser/binder/checker consume this source only once.
+    package_redirect_paths: Vec<ProgramPath>,
     real_path: Option<ProgramPath>,
     text: String,
     may_be_emitted: bool,
@@ -109,6 +114,7 @@ impl PreparedSourceFile {
         Self {
             path,
             alternate_display_paths: Vec::new(),
+            package_redirect_paths: Vec::new(),
             real_path: None,
             text: text.into(),
             // A prepared source is normally a direct program input. Loaders
@@ -175,6 +181,13 @@ impl PreparedSourceFile {
         &self.alternate_display_paths
     }
 
+    /// Resolved package source identities redirected to this source by an
+    /// exact vendored [`PackageId`](crate::PackageId) match, in discovery
+    /// order.
+    pub fn package_redirect_paths(&self) -> &[ProgramPath] {
+        &self.package_redirect_paths
+    }
+
     pub fn real_path(&self) -> Option<&ProgramPath> {
         self.real_path.as_ref()
     }
@@ -209,7 +222,7 @@ impl PreparedSourceFile {
             && canonical_of(self.real_path.as_ref()) == canonical_of(other.real_path.as_ref())
     }
 
-    fn remember_display_alias(&mut self, display: &Path) {
+    pub(crate) fn remember_display_alias(&mut self, display: &Path) {
         if display != self.path.display()
             && !self
                 .alternate_display_paths
@@ -217,6 +230,17 @@ impl PreparedSourceFile {
                 .any(|existing| existing == display)
         {
             self.alternate_display_paths.push(display.to_path_buf());
+        }
+    }
+
+    pub(crate) fn remember_package_redirect(&mut self, path: ProgramPath) {
+        if path.canonical() != self.path.canonical()
+            && !self
+                .package_redirect_paths
+                .iter()
+                .any(|existing| existing.canonical() == path.canonical())
+        {
+            self.package_redirect_paths.push(path);
         }
     }
 }
@@ -553,10 +577,18 @@ fn validate_path_mappings(entries: &[PathMapping]) -> Result<(), ResolutionError
     let mut patterns = BTreeSet::new();
     for mapping in entries {
         let pattern = mapping.pattern();
-        // Empty and multi-star patterns are getOptionsDiagnostics rows
-        // (TS5061 for the latter), not resolver-construction failures. The
-        // matcher skips them with TypeScript's own truthiness/parse rules.
-        validate_owned_path_text(pattern, "paths pattern", /* allow_empty */ true)?;
+        // A paths key is a module-specifier pattern, not a filesystem path.
+        // TypeScript therefore accepts rooted/UNC/URI spellings here (for
+        // example `//server/*` and `file:///*`) and only applies filesystem
+        // path validation to the substitutions below. Empty and multi-star
+        // patterns are getOptionsDiagnostics rows (TS5061 for the latter),
+        // not resolver-construction failures; the matcher skips them with
+        // TypeScript's own truthiness/parse rules.
+        if pattern.contains('\0') {
+            return Err(ResolutionError::invalid_data(
+                "paths pattern is empty or contains a NUL byte",
+            ));
+        }
         if !patterns.insert(pattern) {
             return Err(ResolutionError::invalid_data(format!(
                 "duplicate paths pattern {pattern:?} has no object-equivalent ordering semantics"
@@ -577,6 +609,121 @@ fn validate_path_mappings(entries: &[PathMapping]) -> Result<(), ResolutionError
     Ok(())
 }
 
+/// UTF-16 source span in the retained root config.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct ProgramConfigSpan {
+    start: u32,
+    length: u32,
+}
+
+impl ProgramConfigSpan {
+    pub const fn new(start: u32, length: u32) -> Self {
+        Self { start, length }
+    }
+
+    pub const fn start(self) -> u32 {
+        self.start
+    }
+
+    pub const fn length(self) -> u32 {
+        self.length
+    }
+}
+
+/// Root config source retained by program construction for diagnostics whose
+/// inclusion reason points back into `compilerOptions` or a root `files` /
+/// `include` array. The config parser precomputes only the syntax facts the
+/// loader consumes; no parser arena crosses the one-shot program boundary.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ProgramConfigFile {
+    path: ProgramPath,
+    text: String,
+    automatic_type_directive_locations: BTreeMap<String, ProgramConfigSpan>,
+    compiler_option_string_locations: BTreeMap<String, BTreeMap<String, ProgramConfigSpan>>,
+    root_option_array_locations: BTreeMap<String, BTreeMap<String, ProgramConfigSpan>>,
+}
+
+impl ProgramConfigFile {
+    pub fn new(path: ProgramPath, text: impl Into<String>) -> Self {
+        Self {
+            path,
+            text: text.into(),
+            automatic_type_directive_locations: BTreeMap::new(),
+            compiler_option_string_locations: BTreeMap::new(),
+            root_option_array_locations: BTreeMap::new(),
+        }
+    }
+
+    pub fn with_automatic_type_directive_location(
+        mut self,
+        name: impl Into<String>,
+        location: ProgramConfigSpan,
+    ) -> Self {
+        self.automatic_type_directive_locations
+            .entry(name.into())
+            .or_insert(location);
+        self
+    }
+
+    pub fn with_compiler_option_string_location(
+        mut self,
+        name: impl Into<String>,
+        value: impl Into<String>,
+        location: ProgramConfigSpan,
+    ) -> Self {
+        self.compiler_option_string_locations
+            .entry(name.into())
+            .or_default()
+            .entry(value.into())
+            .or_insert(location);
+        self
+    }
+
+    pub fn with_root_option_array_location(
+        mut self,
+        name: impl Into<String>,
+        value: impl Into<String>,
+        location: ProgramConfigSpan,
+    ) -> Self {
+        self.root_option_array_locations
+            .entry(name.into())
+            .or_default()
+            .entry(value.into())
+            .or_insert(location);
+        self
+    }
+
+    pub fn path(&self) -> &ProgramPath {
+        &self.path
+    }
+
+    pub fn text(&self) -> &str {
+        &self.text
+    }
+
+    pub fn automatic_type_directive_location(&self, name: &str) -> Option<ProgramConfigSpan> {
+        self.automatic_type_directive_locations.get(name).copied()
+    }
+
+    pub fn compiler_option_string_location(
+        &self,
+        name: &str,
+        value: &str,
+    ) -> Option<ProgramConfigSpan> {
+        self.compiler_option_string_locations
+            .get(name)
+            .and_then(|values| values.get(value))
+            .copied()
+    }
+
+    pub fn root_option_array_location(&self, name: &str, value: &str) -> Option<ProgramConfigSpan> {
+        self.root_option_array_locations
+            .get(name)
+            .and_then(|values| values.get(value))
+            .copied()
+    }
+}
+
 /// Program/host options that do not belong in the checker's
 /// [`CompilerOptions`]. Optional collections preserve absent versus explicitly
 /// empty config values where the distinction affects discovery.
@@ -587,6 +734,7 @@ pub struct ProgramOptions {
     types: Option<Vec<String>>,
     type_roots: Option<Vec<ProgramPath>>,
     config_file_path: Option<ProgramPath>,
+    config_file: Option<ProgramConfigFile>,
     /// Host-selected default library basename. TypeScript's test project host
     /// deliberately returns `lib.es5.d.ts` independently of `target`; keeping
     /// that host fact here avoids pretending that `compilerOptions.lib` was
@@ -623,6 +771,15 @@ impl ProgramOptions {
     /// effective type roots and the synthetic automatic-types origin.
     pub fn with_config_file_path(mut self, value: ProgramPath) -> Self {
         self.config_file_path = Some(value);
+        self.config_file = None;
+        self
+    }
+
+    /// Retain the normalized root config source and its precomputed syntax
+    /// provenance for program-construction related information.
+    pub fn with_config_file(mut self, value: ProgramConfigFile) -> Self {
+        self.config_file_path = Some(value.path().clone());
+        self.config_file = Some(value);
         self
     }
 
@@ -630,6 +787,7 @@ impl ProgramOptions {
     /// without passing TypeScript's optional `configFileName` argument.
     pub fn without_config_file_path(mut self) -> Self {
         self.config_file_path = None;
+        self.config_file = None;
         self
     }
 
@@ -691,6 +849,10 @@ impl ProgramOptions {
 
     pub fn config_file_path(&self) -> Option<&ProgramPath> {
         self.config_file_path.as_ref()
+    }
+
+    pub fn config_file(&self) -> Option<&ProgramConfigFile> {
+        self.config_file.as_ref()
     }
 
     pub fn default_library_file_name(&self) -> Option<&str> {
@@ -953,6 +1115,7 @@ impl PreparedProgramBuilder {
         source: PreparedSourceFile,
     ) -> Result<SourceFileId, PreparationError> {
         let canonical = source.path().canonical().clone();
+        let package_redirect_paths = source.package_redirect_paths().to_vec();
         self.register_text_owner(
             &canonical,
             source.text(),
@@ -971,6 +1134,9 @@ impl PreparedProgramBuilder {
             let existing = &mut self.source_files[existing_id.index()];
             if existing.compatible_with(&source) {
                 existing.remember_display_alias(source.path().display());
+                for redirect in package_redirect_paths {
+                    self.try_add_package_redirect(existing_id, redirect)?;
+                }
                 return Ok(existing_id);
             }
             return Err(PreparationError::new(
@@ -1017,7 +1183,70 @@ impl PreparedProgramBuilder {
             self.source_by_realpath.entry(realpath).or_insert(id);
         }
         self.source_files.push(source);
+        for redirect in package_redirect_paths {
+            self.try_add_package_redirect(id, redirect)?;
+        }
         Ok(id)
+    }
+
+    fn try_add_package_redirect(
+        &mut self,
+        source: SourceFileId,
+        redirect: ProgramPath,
+    ) -> Result<(), PreparationError> {
+        let prepared = self.source_files.get(source.index()).ok_or_else(|| {
+            PreparationError::new(
+                PreparationErrorKind::InvalidReference,
+                PreparationOperation::AddSourceFile,
+                Some(redirect.display().to_path_buf()),
+                format!(
+                    "package redirect names unknown SourceFileId {}",
+                    source.raw()
+                ),
+            )
+        })?;
+        if redirect.canonical() == prepared.path().canonical() {
+            return Ok(());
+        }
+        if let Some(real_path) = prepared.real_path() {
+            if redirect.canonical() == real_path.canonical() {
+                return Ok(());
+            }
+        }
+        if let Some(existing) = self.source_by_canonical.get(redirect.canonical()).copied() {
+            if existing == source {
+                return Ok(());
+            }
+            return Err(PreparationError::new(
+                PreparationErrorKind::IdentityConflict,
+                PreparationOperation::AddSourceFile,
+                Some(redirect.display().to_path_buf()),
+                format!(
+                    "package redirect {} already belongs to SourceFileId {}",
+                    redirect.canonical(),
+                    existing.raw()
+                ),
+            ));
+        }
+        if let Some(existing) = self.source_by_realpath.get(redirect.canonical()).copied() {
+            if existing != source {
+                return Err(PreparationError::new(
+                    PreparationErrorKind::IdentityConflict,
+                    PreparationOperation::AddSourceFile,
+                    Some(redirect.display().to_path_buf()),
+                    format!(
+                        "package redirect {} is the physical identity of SourceFileId {}",
+                        redirect.canonical(),
+                        existing.raw()
+                    ),
+                ));
+            }
+            return Ok(());
+        }
+        self.source_by_canonical
+            .insert(redirect.canonical().clone(), source);
+        self.source_files[source.index()].remember_package_redirect(redirect);
+        Ok(())
     }
 
     pub fn add_root(&mut self, root: PreparedRoot) -> Result<(), PreparationError> {
@@ -1463,6 +1692,9 @@ impl PreparedProgramBuilder {
         self.validate_canonical_case(self.path_context.current_directory().canonical())?;
         for source in &self.source_files {
             self.validate_canonical_case(source.path().canonical())?;
+            for redirect in source.package_redirect_paths() {
+                self.validate_canonical_case(redirect.canonical())?;
+            }
             if let Some(real_path) = source.real_path() {
                 self.validate_canonical_case(real_path.canonical())?;
             }
@@ -1550,6 +1782,10 @@ impl PreparedProgramBuilder {
         };
         let has_source = self.source_files.iter().any(|source| {
             matches_path(source.path(), source.alternate_display_paths())
+                || source
+                    .package_redirect_paths()
+                    .iter()
+                    .any(|path| matches_path(path, &[]))
                 || source
                     .real_path()
                     .is_some_and(|path| matches_path(path, &[]))
@@ -1812,7 +2048,11 @@ impl PreparedProgramBuilder {
         let distinct_real = real.filter(|path| *path != program_path);
         let matches_program_path = program_path == target.canonical();
         let matches_real = real.is_some_and(|path| path == target.canonical());
-        if !matches_program_path && !matches_real {
+        let matches_package_redirect = prepared
+            .package_redirect_paths()
+            .iter()
+            .any(|path| path.canonical() == target.canonical());
+        if !matches_program_path && !matches_real && !matches_package_redirect {
             return Err(PreparationError::new(
                 PreparationErrorKind::InvalidData,
                 operation,
@@ -1827,6 +2067,15 @@ impl PreparedProgramBuilder {
         }
 
         match original_path {
+            None if matches_package_redirect => Ok(()),
+            Some(original) if matches_package_redirect => Err(PreparationError::new(
+                PreparationErrorKind::InvalidData,
+                operation,
+                Some(original.display().to_path_buf()),
+                format!(
+                    "{label} combines package redirection with an unowned lexical symlink path"
+                ),
+            )),
             Some(original)
                 if original.canonical() == program_path
                     && distinct_real == Some(target.canonical())

@@ -102,11 +102,24 @@ fail codegen.
 ## 3. Line map (M0 utility, used by every tier)
 
 Port `computeLineStarts` (8250) and `getLineAndCharacterOfPosition`
-(8328) verbatim — tsc's line-break set (LF, CR, CRLF, LS, PS, NEL)
-is wider than `\n` and IS the T0 line/col contract. `line_starts` is
-computed once per SourceFile in UTF-16 space (the oracle reports
-UTF-16 columns); the byte↔UTF-16 map and the line map are built in
-the same single pass over the text.
+(8328) verbatim — tsc's line-break set (LF, CR, CRLF, LS, and PS) is
+wider than `\n` and IS the T0 line/col contract. NEL is whitespace in
+tsc 6.0.3, not a line break. `line_starts` is computed once per
+SourceFile in UTF-16 space (the oracle reports UTF-16 columns); the
+byte↔UTF-16 map and the line map are built in the same single pass over
+the text.
+
+Parsed node and array positions remain UTF-8 byte offsets. The
+[H1 emit design](h1-emit.md#71-position-domains-are-explicit) borrows this
+existing map to translate source-map observations; it does not change node
+positions to UTF-16 or add a second location field to every node.
+
+Before H1 runtime implementation, the
+[persistent Program design](lsp-and-incremental.md#41-text-snapshots-and-position-index)
+replaces direct field coupling with a `PositionIndex` accessor contract. The
+one-shot H0 specialization may retain a compact immutable representation;
+edited snapshots use an incrementally spliced line index. Both keep AST
+ranges byte-domain and perform checked UTF-16 conversion only at boundaries.
 
 ## 4. externalModuleIndicator (parser post-step)
 
