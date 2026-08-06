@@ -1002,6 +1002,7 @@ impl<'a> CheckerState<'a> {
     /// immutable ProgramSnapshot. The snapshot is borrowed for the session;
     /// no parser or binder work is performed here, and all checker caches
     /// remain session-local.
+    /// tsrs-native: fresh checker session over an immutable ProgramSnapshot.
     pub fn from_snapshot(snapshot: &'a ProgramSnapshot, options: &'a CompilerOptions) -> Self {
         Self::from_program_binder(ProgramBinder::from_snapshot(snapshot), options)
     }

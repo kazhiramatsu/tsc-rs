@@ -23,6 +23,7 @@ pub struct ParsedDocument {
 }
 
 impl ParsedDocument {
+    /// tsrs-native: constructs an immutable parsed-document handle.
     pub fn new(source: Arc<SourceFile>) -> Self {
         Self { source }
     }
@@ -37,10 +38,12 @@ pub struct BoundDocument {
 }
 
 impl BoundDocument {
+    /// tsrs-native: publishes a completed parsed/bound document pair.
     pub fn new(parsed: Arc<ParsedDocument>, data: BindData) -> Self {
         Self { parsed, data }
     }
 
+    /// tsrs-native: projects the parsed source retained by this bound record.
     pub fn source(&self) -> &SourceFile {
         &self.parsed.source
     }
@@ -57,6 +60,7 @@ pub struct ProgramSnapshot {
 }
 
 impl ProgramSnapshot {
+    /// tsrs-native: validates and publishes ordered immutable Program handles.
     pub fn new(
         documents: Vec<Arc<BoundDocument>>,
         lib_count: usize,
@@ -76,18 +80,22 @@ impl ProgramSnapshot {
         })
     }
 
+    /// tsrs-native: returns all ordered immutable document handles.
     pub fn documents(&self) -> &[Arc<BoundDocument>] {
         &self.documents
     }
 
+    /// tsrs-native: returns one immutable document handle by Program order.
     pub fn document(&self, index: usize) -> &Arc<BoundDocument> {
         &self.documents[index]
     }
 
+    /// tsrs-native: returns the number of ordered Program documents.
     pub fn file_count(&self) -> usize {
         self.documents.len()
     }
 
+    /// tsrs-native: returns the library-prefix length in Program order.
     pub fn lib_count(&self) -> usize {
         self.lib_count
     }
@@ -323,13 +331,14 @@ impl<'a> ProgramBinder<'a> {
     }
 
     /// Construct a checker view over an owned immutable ProgramSnapshot.
+    /// tsrs-native: fresh checker view over immutable snapshot handles.
     /// Only the snapshot's Arc handles are cloned; parsed trees and bind
     /// results remain shared and no worker is retained.
     pub fn from_snapshot(snapshot: &'a ProgramSnapshot) -> Self {
         Self::try_from_snapshot(snapshot).expect("invalid Program snapshot identity ownership")
     }
 
-    /// Fallible snapshot adapter used by fresh checker sessions.
+    /// tsrs-native: fallible snapshot adapter used by fresh checker sessions.
     pub fn try_from_snapshot(snapshot: &'a ProgramSnapshot) -> Result<Self, ProgramIdentityError> {
         if snapshot.documents.is_empty() {
             return Err(ProgramIdentityError::EmptyProgram);
