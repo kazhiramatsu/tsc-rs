@@ -602,7 +602,7 @@ incremental-parser exactness, and their resource gates remain L0.2-L1 work.
 ### 8.2 L0.1 accepted text-ownership record
 
 L0.1 completed on 2026-08-06. Its qualified runtime is commit
-`97671dccc873b1d4a697082a256a5661056d1c51`, compared with exact base
+`3ed0304704d73312d72ddbf1edfaae103adf8d34`, compared with exact base
 `298705ef79525dd50c888af013202b4505520435`. Later evidence and documentation
 commits qualify only when their runtime-tree fingerprint remains identical to
 that candidate. The accepted ownership boundary is:
@@ -650,9 +650,9 @@ order. Every ratio is candidate/base and remains below its frozen ceiling:
 
 | Workload | Warm median | Warm p95 | Peak RSS | Allocations | Allocated bytes | Candidate text copies / bytes |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| explicit root | 1.001518 | 0.988031 | 1.059860 | 0.999846 | 0.907713 | 0 / 0 |
-| project | 0.991067 | 0.986476 | 1.066501 | 0.999873 | 0.906290 | 0 / 0 |
-| scale | 0.993036 | 0.983444 | 1.008968 | 0.999944 | 0.963931 | 0 / 0 |
+| explicit root | 0.994584 | 1.001815 | 1.054921 | 0.999846 | 0.907713 | 0 / 0 |
+| project | 0.993084 | 0.994539 | 1.064048 | 0.999873 | 0.906290 | 0 / 0 |
+| scale | 0.995711 | 0.990133 | 1.003220 | 0.999944 | 0.963931 | 0 / 0 |
 
 The active policy binds selected L0/L1 and H1 runtime candidates to the exact
 unsplit full-gate result, immutable inputs, GitHub OIDC attestation, verified
