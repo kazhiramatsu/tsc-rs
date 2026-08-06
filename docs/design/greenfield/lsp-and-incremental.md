@@ -666,7 +666,7 @@ authorities with the aggregate hosted sentinel.
 ### 8.3 L0.2 accepted identity-lease record
 
 L0.2 completed on 2026-08-06. Its qualified runtime is commit
-`460825348249e56da3a0954cb1b6d94b50fd6ce0`, compared with exact base
+`a74851d306a0786a35b1732a12b679ea0f4e98af`, compared with exact base
 `2b814b19902a49ffe8964c0fe9d56ea87687095e`. The base runtime-tree fingerprint
 is the accepted L0.1 candidate fingerprint, so the evidence forms a checked
 L0.1-to-L0.2 chain. Later evidence and documentation commits qualify only
@@ -712,9 +712,9 @@ the remaining candidate/base ratios are:
 
 | Workload | Warm median | Warm p95 | Peak RSS | Allocations | Allocated bytes |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| explicit root | 0.997728 | 1.007362 | 0.998709 | 1.005749 | 1.012714 |
-| project | 0.986129 | 0.992770 | 1.000166 | 1.004077 | 1.008805 |
-| scale | 0.996657 | 1.003321 | 0.999908 | 1.002155 | 1.005240 |
+| explicit root | 0.989630 | 0.992463 | 0.999677 | 1.005749 | 1.012714 |
+| project | 0.986408 | 0.995600 | 1.000666 | 1.004077 | 1.008805 |
+| scale | 0.996998 | 1.011052 | 0.999817 | 1.002155 | 1.005240 |
 
 L0.3 is next: split worker state from owned `BindData`, construct
 `ProgramSnapshot`, and make the fresh checker borrow that snapshot without
