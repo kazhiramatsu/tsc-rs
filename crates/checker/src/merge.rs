@@ -498,7 +498,7 @@ impl<'a> CheckerState<'a> {
                     let source = state.binder.source_of_node(declaration);
                     crate::is_plain_js_file(
                         is_js_file_name(&source.file_name),
-                        crate::check_directive(&source.text),
+                        crate::check_directive(source.text()),
                         state.options,
                     )
                 })

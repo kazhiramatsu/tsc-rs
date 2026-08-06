@@ -21,6 +21,7 @@ mod ci_conformance_receipt;
 mod completion;
 mod host_resolution;
 mod invariant_attestation;
+mod l0_text_stress;
 mod m8_evidence;
 mod m8_plan;
 mod m8_trace;
@@ -57,6 +58,17 @@ fn main() {
         Some("slice-evidence") => run_or_exit(slice_evidence::run(args)),
         Some("invariants") => run_or_exit(invariants(args)),
         Some("completion") => run_or_exit(completion_gate(args)),
+        Some("l0") => match args.next().as_deref() {
+            Some("text-stress") => run_or_exit(l0_text_stress::run(args)),
+            Some(other) => {
+                eprintln!("unknown l0 command: {other}");
+                std::process::exit(2);
+            }
+            None => {
+                eprintln!("missing l0 command (text-stress)");
+                std::process::exit(2);
+            }
+        },
         Some("m8") => match args.next().as_deref() {
             Some("readiness") => run_or_exit(m8_readiness(args)),
             Some("evidence") => run_or_exit(m8_evidence::evidence(args)),
@@ -2566,9 +2578,7 @@ fn rust_ast_dump_text(file_name: &str, text: &str) -> (String, usize) {
         },
         None,
     );
-    let map = tsc_diagnostics::compute_line_map(text);
-    let to_utf16 =
-        |pos: u32| -> u32 { map.byte_to_utf16.get(pos as usize).copied().unwrap_or(pos) };
+    let to_utf16 = |pos: u32| -> u32 { source.positions().byte_to_utf16(pos).unwrap_or(pos) };
 
     let mut out = String::new();
     let mut stack = vec![(source.root, 0usize)];
@@ -2960,14 +2970,7 @@ fn rust_jsdoc_ast_dump(file_name: &str, text: &str) -> serde_json::Value {
         },
         None,
     );
-    let to_utf16 = |pos: u32| -> u32 {
-        source
-            .line_map
-            .byte_to_utf16
-            .get(pos as usize)
-            .copied()
-            .unwrap_or(pos)
-    };
+    let to_utf16 = |pos: u32| -> u32 { source.positions().byte_to_utf16(pos).unwrap_or(pos) };
 
     let mut ast_ids = BTreeMap::new();
     let mut ast_entries = Vec::new();
@@ -5006,14 +5009,14 @@ fn load_sample_programs(
                             .libs
                             .iter()
                             .map(|name| {
-                                Ok(InputFile {
-                                    name: name.clone(),
-                                    text: fs::read_to_string(vendor_lib_dir.join(name)).map_err(
+                                Ok(InputFile::new(
+                                    name.clone(),
+                                    fs::read_to_string(vendor_lib_dir.join(name)).map_err(
                                         |error| {
                                             format!("failed to read invariant lib {name}: {error}")
                                         },
                                     )?,
-                                })
+                                ))
                             })
                             .collect::<Result<Vec<_>, Box<dyn Error>>>()?,
                     );
@@ -5025,10 +5028,10 @@ fn load_sample_programs(
                 .files
                 .iter()
                 .map(|file| {
-                    Ok(InputFile {
-                        name: file.name.clone(),
-                        text: base64_decode_to_string(&file.text_b64)?,
-                    })
+                    Ok(InputFile::new(
+                        file.name.clone(),
+                        base64_decode_to_string(&file.text_b64)?,
+                    ))
                 })
                 .collect::<Result<Vec<_>, Box<dyn Error>>>()?;
             let sample = SampleProgram {
@@ -5102,13 +5105,13 @@ fn run_prefix_determinism(programs: &[SampleProgram]) -> Result<(), Box<dyn Erro
     for program in programs {
         for file in &program.files {
             let variant = language_variant_for_path(Path::new(&file.name));
-            if !prefix_determinism_holds(&file.text, variant) {
+            if !prefix_determinism_holds(file.text(), variant) {
                 return Err(format!(
                     "prefix-determinism failed for {} [{}] file {} (cut {})",
                     program.fixture,
                     program.matrix_key,
                     file.name,
-                    midpoint_char_boundary(&file.text)
+                    midpoint_char_boundary(file.text())
                 )
                 .into());
             }
@@ -5275,10 +5278,10 @@ fn run_encodings(programs: &[SampleProgram]) -> Result<(), Box<dyn Error>> {
     for program in programs {
         let baseline = diagnostic_semantic_bytes(&check_diagnostics(program)?);
         for file_index in 0..program.files.len() {
-            let original = &program.files[file_index].text;
+            let original = program.files[file_index].text();
             for (variant_name, variant) in distinct_encoding_variants(original) {
                 let mut files = program.files.clone();
-                files[file_index].text = variant;
+                files[file_index] = InputFile::new(files[file_index].name.clone(), variant);
                 let candidate =
                     diagnostic_semantic_bytes(&check_diagnostics_with_files(program, &files)?);
                 if baseline != candidate {

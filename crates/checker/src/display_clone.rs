@@ -72,10 +72,10 @@ impl<'program> CheckerState<'program> {
     pub(crate) fn display_clone_start_line(&self, node: NodeId) -> Option<usize> {
         let source = self.binder.source_of_node(node);
         let record = source.arena.node(node);
-        if record.pos == u32::MAX || record.pos as usize > source.text.len() {
+        if record.pos == u32::MAX || record.pos as usize > source.text().len() {
             return None;
         }
-        let byte = tsc_syntax::skip_trivia(&source.text, record.pos as usize);
+        let byte = tsc_syntax::skip_trivia(source.text(), record.pos as usize);
         display_clone_line_of_byte(source, byte)
     }
 
@@ -84,7 +84,7 @@ impl<'program> CheckerState<'program> {
     pub(crate) fn display_clone_end_line(&self, node: NodeId) -> Option<usize> {
         let source = self.binder.source_of_node(node);
         let record = source.arena.node(node);
-        if record.end == u32::MAX || record.end as usize > source.text.len() {
+        if record.end == u32::MAX || record.end as usize > source.text().len() {
             return None;
         }
         display_clone_line_of_byte(source, record.end as usize)
@@ -1891,13 +1891,13 @@ impl DisplayClonePrinter<'_, '_> {
         let name_record = name_source.arena.node(name);
         if expression_record.end == u32::MAX
             || name_record.pos == u32::MAX
-            || expression_record.end as usize > expression_source.text.len()
-            || name_record.pos as usize > name_source.text.len()
+            || expression_record.end as usize > expression_source.text().len()
+            || name_record.pos as usize > name_source.text().len()
         {
             return (false, false);
         }
         let dot_start =
-            tsc_syntax::skip_trivia(&expression_source.text, expression_record.end as usize);
+            tsc_syntax::skip_trivia(expression_source.text(), expression_record.end as usize);
         let line_before_dot = match (
             self.state.display_clone_end_line(expression),
             display_clone_line_of_byte(expression_source, dot_start),
@@ -1920,8 +1920,8 @@ impl DisplayClonePrinter<'_, '_> {
         let record = source.arena.node(node);
         if record.pos == u32::MAX
             || record.end == u32::MAX
-            || record.pos as usize > source.text.len()
-            || record.end as usize > source.text.len()
+            || record.pos as usize > source.text().len()
+            || record.end as usize > source.text().len()
         {
             return false;
         }
@@ -1943,11 +1943,10 @@ impl DisplayClonePrinter<'_, '_> {
 }
 
 fn display_clone_line_of_byte(source: &tsc_syntax::SourceFile, byte: usize) -> Option<usize> {
-    let utf16 = *source.line_map.byte_to_utf16.get(byte)?;
-    Some(match source.line_map.line_starts.binary_search(&utf16) {
-        Ok(line) => line,
-        Err(insertion) => insertion.saturating_sub(1),
-    })
+    source
+        .positions()
+        .line_and_character_byte(byte as u32)
+        .map(|location| location.line as usize)
 }
 
 fn text_ends_at_line_start(text: &str) -> bool {

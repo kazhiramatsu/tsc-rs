@@ -13,7 +13,9 @@ mod regex_unicode;
 pub mod scanner;
 pub mod tokens;
 
-use tsc_diagnostics::{DiagnosticList, LineMap};
+use std::sync::Arc;
+
+use tsc_diagnostics::{DiagnosticList, DocumentVersion, PositionIndex, TextSnapshot};
 use tsc_types::ScriptTarget;
 
 pub use arena::NodeArena;
@@ -70,7 +72,7 @@ pub struct TypeReferenceDirective {
 #[derive(Clone, Debug, PartialEq)]
 pub struct SourceFile {
     pub file_name: String,
-    pub text: String,
+    snapshot: Arc<TextSnapshot>,
     /// tsc SourceFile.languageVersion: the effective target used by the
     /// parser and scanner for this file.
     pub language_version: ScriptTarget,
@@ -78,7 +80,6 @@ pub struct SourceFile {
     pub is_declaration_file: bool,
     /// tsc SourceFile.jsDocParsingMode.
     pub js_doc_parsing_mode: JSDocParsingMode,
-    pub line_map: LineMap,
     pub arena: NodeArena,
     pub root: NodeId,
     pub external_module_indicator: Option<NodeId>,
@@ -114,6 +115,18 @@ pub struct SourceFile {
 }
 
 impl SourceFile {
+    pub fn snapshot(&self) -> &Arc<TextSnapshot> {
+        &self.snapshot
+    }
+
+    pub fn text(&self) -> &str {
+        self.snapshot.text()
+    }
+
+    pub fn positions(&self) -> &PositionIndex {
+        self.snapshot.positions()
+    }
+
     pub fn node_count(&self) -> usize {
         self.arena.len()
     }
@@ -133,12 +146,30 @@ pub fn parse_source_file(
     options: ParseOptions,
     cursor: Option<&SyntaxCursor>,
 ) -> SourceFile {
-    parser::parse_source_file(file_name.into(), text.into(), options, cursor)
+    let snapshot = TextSnapshot::new(text.into(), DocumentVersion::default());
+    parser::parse_source_file_from_snapshot(file_name.into(), snapshot, options, cursor)
+}
+
+pub fn parse_source_file_from_snapshot(
+    file_name: impl Into<String>,
+    snapshot: Arc<TextSnapshot>,
+    options: ParseOptions,
+    cursor: Option<&SyntaxCursor>,
+) -> SourceFile {
+    parser::parse_source_file_from_snapshot(file_name.into(), snapshot, options, cursor)
 }
 
 /// tsc parseJsonText: .json inputs parse as a single JSON value expression.
 pub fn parse_json_text(file_name: impl Into<String>, text: impl Into<String>) -> SourceFile {
-    parser::parse_json_text(file_name.into(), text.into())
+    let snapshot = TextSnapshot::new(text.into(), DocumentVersion::default());
+    parser::parse_json_text_from_snapshot(file_name.into(), snapshot)
+}
+
+pub fn parse_json_text_from_snapshot(
+    file_name: impl Into<String>,
+    snapshot: Arc<TextSnapshot>,
+) -> SourceFile {
+    parser::parse_json_text_from_snapshot(file_name.into(), snapshot)
 }
 
 /// `parse_json_text` with explicit arena bases for a multi-file program.
@@ -148,9 +179,24 @@ pub fn parse_json_text_with_bases(
     node_id_base: u32,
     node_array_id_base: u32,
 ) -> SourceFile {
-    parser::parse_json_text_with_bases(
+    let snapshot = TextSnapshot::new(text.into(), DocumentVersion::default());
+    parser::parse_json_text_from_snapshot_with_bases(
         file_name.into(),
-        text.into(),
+        snapshot,
+        node_id_base,
+        node_array_id_base,
+    )
+}
+
+pub fn parse_json_text_from_snapshot_with_bases(
+    file_name: impl Into<String>,
+    snapshot: Arc<TextSnapshot>,
+    node_id_base: u32,
+    node_array_id_base: u32,
+) -> SourceFile {
+    parser::parse_json_text_from_snapshot_with_bases(
+        file_name.into(),
+        snapshot,
         node_id_base,
         node_array_id_base,
     )

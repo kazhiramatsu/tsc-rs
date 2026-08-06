@@ -458,10 +458,8 @@ impl<'a> CheckerState<'a> {
         let (start, end) = node_util::get_span_of_token_at_position(source, statements_pos);
         let to_utf16 = |byte: usize| -> u32 {
             source
-                .line_map
-                .byte_to_utf16
-                .get(byte)
-                .copied()
+                .positions()
+                .byte_to_utf16((byte) as u32)
                 .unwrap_or(byte as u32)
         };
         let start_utf16 = to_utf16(start);

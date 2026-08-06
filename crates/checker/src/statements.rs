@@ -1877,10 +1877,8 @@ impl<'a> CheckerState<'a> {
     fn utf16_position(&self, node: NodeId, byte: usize) -> u32 {
         let source = self.binder.source_of_node(node);
         source
-            .line_map
-            .byte_to_utf16
-            .get(byte)
-            .copied()
+            .positions()
+            .byte_to_utf16((byte) as u32)
             .unwrap_or(byte as u32)
     }
 

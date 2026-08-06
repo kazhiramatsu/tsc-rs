@@ -1370,10 +1370,8 @@ impl<'a> CheckerState<'a> {
         let (start, end) = node_util::get_error_span_for_node(source, node);
         let to_utf16 = |byte: usize| -> u32 {
             source
-                .line_map
-                .byte_to_utf16
-                .get(byte)
-                .copied()
+                .positions()
+                .byte_to_utf16((byte) as u32)
                 .unwrap_or(byte as u32)
         };
         let (start, end) = (to_utf16(start), to_utf16(end));
@@ -1388,13 +1386,11 @@ impl<'a> CheckerState<'a> {
     /// semantics: start = skipTrivia(text, pos), end taken verbatim.
     fn diag_span_of_byte_range(&self, node_in_file: NodeId, pos: u32, end: u32) -> DiagSpan {
         let source = self.binder.source_of_node(node_in_file);
-        let start_byte = tsc_syntax::skip_trivia(&source.text, pos as usize);
+        let start_byte = tsc_syntax::skip_trivia(source.text(), pos as usize);
         let to_utf16 = |byte: usize| -> u32 {
             source
-                .line_map
-                .byte_to_utf16
-                .get(byte)
-                .copied()
+                .positions()
+                .byte_to_utf16((byte) as u32)
                 .unwrap_or(byte as u32)
         };
         let (start, end) = (to_utf16(start_byte), to_utf16(end as usize));
@@ -1943,11 +1939,11 @@ impl<'a> CheckerState<'a> {
         let source = self.binder.source_of_node(literal);
         let raw = source.arena.node(literal);
         let end = raw.end as usize;
-        if end < source.text.len() {
+        if end < source.text().len() {
             return false;
         }
-        let start = tsc_syntax::skip_trivia(&source.text, raw.pos as usize);
-        let text = &source.text[start..end.min(source.text.len())];
+        let start = tsc_syntax::skip_trivia(source.text(), raw.pos as usize);
+        let text = &source.text()[start..end.min(source.text().len())];
         let Some(rest) = text.strip_suffix('`') else {
             return true;
         };
@@ -3281,13 +3277,11 @@ impl<'a> CheckerState<'a> {
     ) -> Vec<ApplicabilityError> {
         let source = self.binder.source_of_node(node);
         let syntax_node = source.arena.node(node);
-        let start_byte = tsc_syntax::skip_trivia(&source.text, syntax_node.pos as usize);
+        let start_byte = tsc_syntax::skip_trivia(source.text(), syntax_node.pos as usize);
         let to_utf16 = |byte: usize| -> u32 {
             source
-                .line_map
-                .byte_to_utf16
-                .get(byte)
-                .copied()
+                .positions()
+                .byte_to_utf16((byte) as u32)
                 .unwrap_or(byte as u32)
         };
         let node_start = to_utf16(start_byte);
@@ -5403,7 +5397,7 @@ impl<'a> CheckerState<'a> {
                 if arguments.len() == 1 {
                     let source = self.binder.source_of_node(node);
                     let callee_end = source.arena.node(expression).end as usize;
-                    if line_break_precedes_next_token(&source.text, callee_end) {
+                    if line_break_precedes_next_token(source.text(), callee_end) {
                         related_information = Some(self.related_info_for_node(
                             expression,
                             &diagnostics::Are_you_missing_a_semicolon,

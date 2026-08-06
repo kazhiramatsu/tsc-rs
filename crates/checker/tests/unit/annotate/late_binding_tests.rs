@@ -139,10 +139,7 @@ fn late_bound_index_info_includes_sibling_property_types() {
         assert!(types.contains(&state.tables.intrinsics.string));
     });
     let result = check_program(
-        &[InputFile {
-            name: "a.ts".to_owned(),
-            text: text.to_owned(),
-        }],
+        &[InputFile::new("a.ts".to_owned(), text.to_owned())],
         &CompilerOptions::default(),
     );
     assert!(!result

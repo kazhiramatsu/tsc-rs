@@ -102,7 +102,7 @@ impl Error for H0MemoryError {}
 struct DecodedSource {
     display: String,
     canonical: PathBuf,
-    text: String,
+    snapshot: std::sync::Arc<tsc_diagnostics::TextSnapshot>,
 }
 
 #[derive(Clone)]
@@ -122,7 +122,7 @@ pub(crate) fn run(
             Ok(DecodedSource {
                 display: lib.name.clone(),
                 canonical: normalize_source_path(&current_directory, &lib.name)?,
-                text: lib.text.clone(),
+                snapshot: std::sync::Arc::clone(lib.snapshot()),
             })
         })
         .collect::<Result<Vec<_>, H0MemoryError>>()?;
@@ -132,7 +132,7 @@ pub(crate) fn run(
             Ok(DecodedSource {
                 display: file.name.clone(),
                 canonical: normalize_source_path(&current_directory, &file.name)?,
-                text: file.text.clone(),
+                snapshot: std::sync::Arc::clone(file.snapshot()),
             })
         })
         .collect::<Result<Vec<_>, H0MemoryError>>()?;
@@ -140,7 +140,10 @@ pub(crate) fn run(
     let mut host_builder = MemoryCompilerHost::builder(&current_directory).case_sensitive(true);
     let mut trailing_directory_aliases = BTreeSet::new();
     for source in decoded_libs.iter().chain(&decoded_files) {
-        host_builder = host_builder.file(&source.canonical, source.text.as_bytes().to_vec());
+        host_builder = host_builder.file(
+            &source.canonical,
+            source.snapshot.text().as_bytes().to_vec(),
+        );
         // The official harness VFS treats a directory spelling with or
         // without its trailing separator as the same directory. The exact
         // MemoryCompilerHost deliberately does not normalize host queries,
@@ -176,8 +179,10 @@ pub(crate) fn run(
     let mut source_by_canonical = BTreeMap::<PathBuf, SourceFileId>::new();
     for source in &decoded_libs {
         let path = public_program_path(source)?;
-        let source_id = prepared_builder
-            .add_source_file(PreparedSourceFile::new(path.clone(), source.text.clone()))?;
+        let source_id = prepared_builder.add_source_file(PreparedSourceFile::from_snapshot(
+            path.clone(),
+            std::sync::Arc::clone(&source.snapshot),
+        ))?;
         prepared_builder.add_library_file(source_id)?;
         source_by_canonical.insert(source.canonical.clone(), source_id);
     }
@@ -196,8 +201,11 @@ pub(crate) fn run(
         let implied_node_format_for_emit =
             implied_node_format_for_emit(&source.display, package_scope.as_ref(), &options);
         let path = public_program_path(source)?;
-        let mut prepared = PreparedSourceFile::new(path.clone(), source.text.clone())
-            .with_implied_node_formats(implied_node_format, implied_node_format_for_emit);
+        let mut prepared = PreparedSourceFile::from_snapshot(
+            path.clone(),
+            std::sync::Arc::clone(&source.snapshot),
+        )
+        .with_implied_node_formats(implied_node_format, implied_node_format_for_emit);
         if let Some(scope) = package_scope.as_ref() {
             prepared = prepared.with_package_scope(scope.package_json().canonical().clone());
         }

@@ -1,17 +1,37 @@
 use super::*;
 
+#[test]
+fn checker_input_and_source_file_share_the_exact_snapshot_arc() {
+    let input = InputFile::new("main.ts", "const value = '😀';\n");
+    let source = tsc_syntax::parse_source_file_from_snapshot(
+        input.name.clone(),
+        Arc::clone(input.snapshot()),
+        tsc_syntax::ParseOptions::default(),
+        None,
+    );
+
+    assert!(Arc::ptr_eq(input.snapshot(), source.snapshot()));
+    assert!(Arc::ptr_eq(
+        &input.snapshot().shared_text(),
+        &source.snapshot().shared_text(),
+    ));
+    assert!(Arc::ptr_eq(
+        &input.snapshot().shared_positions(),
+        &source.snapshot().shared_positions(),
+    ));
+}
+
 fn assert_one_cached_library_saved_work(
     owned: CheckWorkCounters,
     cached: CheckWorkCounters,
-    library_bytes: usize,
+    _library_bytes: usize,
 ) {
     assert_eq!(owned.parsed_documents(), cached.parsed_documents() + 1);
     assert_eq!(owned.bound_documents(), cached.bound_documents() + 1);
-    assert_eq!(owned.full_text_copies(), cached.full_text_copies() + 1);
-    assert_eq!(
-        owned.full_text_bytes_copied(),
-        cached.full_text_bytes_copied() + library_bytes as u64
-    );
+    assert_eq!(owned.full_text_copies(), 0);
+    assert_eq!(cached.full_text_copies(), 0);
+    assert_eq!(owned.full_text_bytes_copied(), 0);
+    assert_eq!(cached.full_text_bytes_copied(), 0);
 }
 
 #[test]
@@ -27,15 +47,12 @@ fn empty_engine_returns_no_diagnostics() {
 
 #[test]
 fn owned_no_emit_entry_keeps_library_borrows_local_and_matches_file_getters() {
-    let libs = [InputFile {
-            name: "/lib.d.ts".to_owned(),
-            text: "interface IArguments {}\ninterface Array<T> {}\ninterface Object {}\ninterface Function {}\ninterface CallableFunction extends Function {}\ninterface NewableFunction extends Function {}\ninterface String {}\ninterface Number {}\ninterface Boolean {}\ninterface RegExp {}\n"
-                .to_owned(),
-        }];
-    let files = [InputFile {
-        name: "/main.ts".to_owned(),
-        text: "const value: string = 1;\n".to_owned(),
-    }];
+    let libs = [InputFile::new("/lib.d.ts".to_owned(), "interface IArguments {}\ninterface Array<T> {}\ninterface Object {}\ninterface Function {}\ninterface CallableFunction extends Function {}\ninterface NewableFunction extends Function {}\ninterface String {}\ninterface Number {}\ninterface Boolean {}\ninterface RegExp {}\n"
+                .to_owned())];
+    let files = [InputFile::new(
+        "/main.ts".to_owned(),
+        "const value: string = 1;\n".to_owned(),
+    )];
     let options = CompilerOptions {
         no_emit: Some(true),
         ..CompilerOptions::default()
@@ -61,10 +78,10 @@ fn owned_no_emit_entry_keeps_library_borrows_local_and_matches_file_getters() {
 fn owned_no_emit_entry_materializes_global_diagnostics_before_semantics() {
     let result = check_program_with_owned_libs_at(
         &[],
-        &[InputFile {
-            name: "/main.ts".to_owned(),
-            text: "export {};\n".to_owned(),
-        }],
+        &[InputFile::new(
+            "/main.ts".to_owned(),
+            "export {};\n".to_owned(),
+        )],
         &CompilerOptions {
             no_emit: Some(true),
             ..CompilerOptions::default()
@@ -148,11 +165,8 @@ fn owned_no_emit_entry_materializes_globals_without_a_source_binder() {
 fn owned_no_emit_entry_keeps_located_global_shape_errors_semantic() {
     let result = check_program_with_owned_libs_at(
             &[],
-            &[InputFile {
-                name: "/main.ts".to_owned(),
-                text: "interface IArguments {}\ninterface Array {}\ninterface Object {}\ninterface Function {}\ninterface CallableFunction extends Function {}\ninterface NewableFunction extends Function {}\ninterface String {}\ninterface Number {}\ninterface Boolean {}\ninterface RegExp {}\n"
-                    .to_owned(),
-            }],
+            &[InputFile::new("/main.ts".to_owned(), "interface IArguments {}\ninterface Array {}\ninterface Object {}\ninterface Function {}\ninterface CallableFunction extends Function {}\ninterface NewableFunction extends Function {}\ninterface String {}\ninterface Number {}\ninterface Boolean {}\ninterface RegExp {}\n"
+                    .to_owned())],
             &CompilerOptions {
                 no_emit: Some(true),
                 ..CompilerOptions::default()
@@ -189,14 +203,14 @@ fn observed_entry_reports_each_coarse_phase_once() {
 fn public_getter_passes_keep_fixture_ordinal_before_global_sort() {
     let result = check_program(
         &[
-            InputFile {
-                name: "z.ts".to_owned(),
-                text: "/// <reference path=\"/z-missing.d.ts\" />\n".to_owned(),
-            },
-            InputFile {
-                name: "a.ts".to_owned(),
-                text: "/// <reference path=\"/a-missing.d.ts\" />\n".to_owned(),
-            },
+            InputFile::new(
+                "z.ts".to_owned(),
+                "/// <reference path=\"/z-missing.d.ts\" />\n".to_owned(),
+            ),
+            InputFile::new(
+                "a.ts".to_owned(),
+                "/// <reference path=\"/a-missing.d.ts\" />\n".to_owned(),
+            ),
         ],
         &CompilerOptions::default(),
     );
@@ -240,10 +254,10 @@ fn public_getter_passes_keep_fixture_ordinal_before_global_sort() {
 #[test]
 fn missing_leading_path_reference_reports_exact_6053() {
     let result = check_program(
-        &[InputFile {
-            name: "a.ts".to_owned(),
-            text: "/// <reference path=\"/missing.d.ts\" />\n".to_owned(),
-        }],
+        &[InputFile::new(
+            "a.ts".to_owned(),
+            "/// <reference path=\"/missing.d.ts\" />\n".to_owned(),
+        )],
         &CompilerOptions::default(),
     );
     assert_eq!(result.diagnostics.len(), 1, "{:?}", result.diagnostics);
@@ -272,10 +286,10 @@ fn missing_leading_path_reference_reports_exact_6053() {
 #[test]
 fn relative_single_quoted_path_reference_resolves_against_the_source() {
     let result = check_program(
-        &[InputFile {
-            name: "src/a.ts".to_owned(),
-            text: "///<reference path='../typescript.ts' />\n".to_owned(),
-        }],
+        &[InputFile::new(
+            "src/a.ts".to_owned(),
+            "///<reference path='../typescript.ts' />\n".to_owned(),
+        )],
         &CompilerOptions::default(),
     );
     assert_eq!(result.diagnostics.len(), 1, "{:?}", result.diagnostics);
@@ -295,14 +309,14 @@ fn relative_single_quoted_path_reference_resolves_against_the_source() {
 fn existing_path_reference_is_loaded_without_a_missing_file_diagnostic() {
     let result = check_program(
         &[
-            InputFile {
-                name: "src/a.ts".to_owned(),
-                text: "/// <reference path=\"./dep.d.ts\" />\n".to_owned(),
-            },
-            InputFile {
-                name: "src/dep.d.ts".to_owned(),
-                text: "declare const dep: number;\n".to_owned(),
-            },
+            InputFile::new(
+                "src/a.ts".to_owned(),
+                "/// <reference path=\"./dep.d.ts\" />\n".to_owned(),
+            ),
+            InputFile::new(
+                "src/dep.d.ts".to_owned(),
+                "declare const dep: number;\n".to_owned(),
+            ),
         ],
         &CompilerOptions::default(),
     );
@@ -319,16 +333,16 @@ fn existing_path_reference_is_loaded_without_a_missing_file_diagnostic() {
 #[test]
 fn path_reference_projection_stays_on_its_owned_pragma_face() {
     let result = check_program(
-        &[InputFile {
-            name: "a.ts".to_owned(),
-            text: concat!(
+        &[InputFile::new(
+            "a.ts".to_owned(),
+            concat!(
                 "/// <reference types=\"node\" path=\"/not-a-path-ref.d.ts\" />\n",
                 "/// <reference path=\"/unsupported.html\" />\n",
                 "const text = '/// <reference path=\"/inside-string.d.ts\" />';\n",
                 "/// <reference path=\"/after-token.d.ts\" />\n",
             )
             .to_owned(),
-        }],
+        )],
         &CompilerOptions::default(),
     );
     assert!(
@@ -365,14 +379,11 @@ fn cwd_probe_diagnostic_rows(current_directory: &str) -> Vec<(String, u32, u32, 
     let result = check_program_with_libs_at(
         &[],
         &[
-            InputFile {
-                name: "b.ts".to_owned(),
-                text: "export const bee = 1;\n".to_owned(),
-            },
-            InputFile {
-                name: "a.ts".to_owned(),
-                text: "import * as b from \"./b\";\nb.nope;\n".to_owned(),
-            },
+            InputFile::new("b.ts".to_owned(), "export const bee = 1;\n".to_owned()),
+            InputFile::new(
+                "a.ts".to_owned(),
+                "import * as b from \"./b\";\nb.nope;\n".to_owned(),
+            ),
         ],
         &CompilerOptions::default(),
         current_directory,
@@ -479,10 +490,10 @@ fn absolute_cwd_backslash_segments_stay_literal_during_dot_resolution() {
 fn lib_bundle_key_projects_to_bind_observables() {
     use tsc_types::flags::ScriptTarget;
     // A lib name unique to this test: the cache is process-global.
-    let lib = InputFile {
-        name: "lib.bundle-key-probe.d.ts".to_owned(),
-        text: "declare const bundleKeyProbe: number;\n".to_owned(),
-    };
+    let lib = InputFile::new(
+        "lib.bundle-key-probe.d.ts".to_owned(),
+        "declare const bundleKeyProbe: number;\n".to_owned(),
+    );
     let libs = [&lib];
     let base = CompilerOptions::default();
     let shared = lib_bundle(&libs, &base);
@@ -533,14 +544,14 @@ fn lib_bundle_forced_fingerprint_collision_requires_exact_text() {
         0
     }
 
-    let first = InputFile {
-        name: "lib.bundle-collision-probe.d.ts".to_owned(),
-        text: "declare const collisionProbe: string;\n".to_owned(),
-    };
-    let second = InputFile {
-        name: first.name.clone(),
-        text: "declare const collisionProbe: number;\n".to_owned(),
-    };
+    let first = InputFile::new(
+        "lib.bundle-collision-probe.d.ts".to_owned(),
+        "declare const collisionProbe: string;\n".to_owned(),
+    );
+    let second = InputFile::new(
+        first.name.clone(),
+        "declare const collisionProbe: number;\n".to_owned(),
+    );
     let options = CompilerOptions::default();
 
     let first_bundle = lib_bundle_with_fingerprint(&[&first], &options, collide_all_text);
@@ -549,8 +560,8 @@ fn lib_bundle_forced_fingerprint_collision_requires_exact_text() {
 
     assert!(!std::ptr::eq(first_bundle, second_bundle));
     assert!(std::ptr::eq(first_bundle, first_again));
-    assert_eq!(first_bundle.sources[0].text, first.text);
-    assert_eq!(second_bundle.sources[0].text, second.text);
+    assert_eq!(first_bundle.sources[0].text(), first.text());
+    assert_eq!(second_bundle.sources[0].text(), second.text());
 }
 
 #[test]
@@ -558,14 +569,14 @@ fn prepared_harness_bundle_validates_exact_text_and_projected_options() {
     fn assert_handle_traits<T: Copy + Send + Sync + 'static>() {}
 
     assert_handle_traits::<PreparedHarnessLibBundle>();
-    let original = InputFile {
-        name: "lib.prepared-validation-probe.d.ts".to_owned(),
-        text: "declare const preparedProbe: string;\n".to_owned(),
-    };
-    let changed = InputFile {
-        name: original.name.clone(),
-        text: "declare const preparedProbe: number;\n".to_owned(),
-    };
+    let original = InputFile::new(
+        "lib.prepared-validation-probe.d.ts".to_owned(),
+        "declare const preparedProbe: string;\n".to_owned(),
+    );
+    let changed = InputFile::new(
+        original.name.clone(),
+        "declare const preparedProbe: number;\n".to_owned(),
+    );
     let base = CompilerOptions::default();
     let prepared = prepare_harness_lib_bundle(std::slice::from_ref(&original), &base).unwrap();
     let base_projection = lib_bundle_options(&base);
@@ -594,10 +605,10 @@ fn prepared_harness_bundle_validates_exact_text_and_projected_options() {
         .validated(&[&original], &lib_bundle_options(&bind_observable))
         .is_none());
 
-    let second = InputFile {
-        name: "lib.prepared-validation-second.d.ts".to_owned(),
-        text: "declare const preparedSecond: boolean;\n".to_owned(),
-    };
+    let second = InputFile::new(
+        "lib.prepared-validation-second.d.ts".to_owned(),
+        "declare const preparedSecond: boolean;\n".to_owned(),
+    );
     let ordered = [original.clone(), second.clone()];
     let ordered_prepared = prepare_harness_lib_bundle(&ordered, &base).unwrap();
     assert!(ordered_prepared
@@ -606,10 +617,10 @@ fn prepared_harness_bundle_validates_exact_text_and_projected_options() {
     assert!(ordered_prepared
         .validated(&[&ordered[1], &ordered[0]], &base_projection)
         .is_none());
-    let renamed = InputFile {
-        name: "lib.prepared-validation-renamed.d.ts".to_owned(),
-        text: second.text.clone(),
-    };
+    let renamed = InputFile::new(
+        "lib.prepared-validation-renamed.d.ts".to_owned(),
+        second.text(),
+    );
     assert!(ordered_prepared
         .validated(&[&ordered[0], &renamed], &base_projection)
         .is_none());
@@ -625,18 +636,18 @@ fn stale_prepared_harness_bundle_falls_back_to_ordinary_exact_bundle() {
             .collect()
     }
 
-    let original = InputFile {
-        name: "lib.prepared-fallback-probe.d.ts".to_owned(),
-        text: "declare const preparedFallbackProbe: string;\n".to_owned(),
-    };
-    let changed = InputFile {
-        name: original.name.clone(),
-        text: "declare const preparedFallbackProbe: number;\n".to_owned(),
-    };
-    let files = [InputFile {
-        name: "/prepared-fallback.ts".to_owned(),
-        text: "const value: string = preparedFallbackProbe;\n".to_owned(),
-    }];
+    let original = InputFile::new(
+        "lib.prepared-fallback-probe.d.ts".to_owned(),
+        "declare const preparedFallbackProbe: string;\n".to_owned(),
+    );
+    let changed = InputFile::new(
+        original.name.clone(),
+        "declare const preparedFallbackProbe: number;\n".to_owned(),
+    );
+    let files = [InputFile::new(
+        "/prepared-fallback.ts".to_owned(),
+        "const value: string = preparedFallbackProbe;\n".to_owned(),
+    )];
     let options = CompilerOptions::default();
     let prepared = prepare_harness_lib_bundle(std::slice::from_ref(&original), &options).unwrap();
 
@@ -665,10 +676,10 @@ fn stale_prepared_harness_bundle_falls_back_to_ordinary_exact_bundle() {
     );
     assert_eq!(rows(&cache_off), rows(&ordinary));
 
-    let shadowing_file = [InputFile {
-        name: original.name.clone(),
-        text: "const localOnly = 1;\n".to_owned(),
-    }];
+    let shadowing_file = [InputFile::new(
+        original.name.clone(),
+        "const localOnly = 1;\n".to_owned(),
+    )];
     let ordinary_shadowed = check_program_with_libs_at(
         std::slice::from_ref(&original),
         &shadowing_file,
@@ -687,12 +698,12 @@ fn stale_prepared_harness_bundle_falls_back_to_ordinary_exact_bundle() {
 
 #[test]
 fn parallel_cold_lib_bundle_callers_share_one_exact_entry() {
-    let lib = InputFile {
-        name: "lib.bundle-parallel-cold-probe.d.ts".to_owned(),
-        text: (0..512)
+    let lib = InputFile::new(
+        "lib.bundle-parallel-cold-probe.d.ts".to_owned(),
+        (0..512)
             .map(|index| format!("interface ColdProbe{index} {{ value: number }}\n"))
-            .collect(),
-    };
+            .collect::<String>(),
+    );
     let options = CompilerOptions::default();
     let start = std::sync::Barrier::new(3);
 
@@ -717,15 +728,12 @@ fn parallel_cold_lib_bundle_callers_share_one_exact_entry() {
 
 #[test]
 fn cache_off_owned_prefix_matches_cached_harness_result() {
-    let libs = [InputFile {
-            name: "lib.cache-mode-probe.d.ts".to_owned(),
-            text: "interface IArguments {}\ninterface Array<T> {}\ninterface Object {}\ninterface Function {}\ninterface CallableFunction extends Function {}\ninterface NewableFunction extends Function {}\ninterface String {}\ninterface Number {}\ninterface Boolean {}\ninterface RegExp {}\n"
-                .to_owned(),
-        }];
-    let files = [InputFile {
-        name: "cache-mode-probe.ts".to_owned(),
-        text: "const value: string = 1;\n".to_owned(),
-    }];
+    let libs = [InputFile::new("lib.cache-mode-probe.d.ts".to_owned(), "interface IArguments {}\ninterface Array<T> {}\ninterface Object {}\ninterface Function {}\ninterface CallableFunction extends Function {}\ninterface NewableFunction extends Function {}\ninterface String {}\ninterface Number {}\ninterface Boolean {}\ninterface RegExp {}\n"
+                .to_owned())];
+    let files = [InputFile::new(
+        "cache-mode-probe.ts".to_owned(),
+        "const value: string = 1;\n".to_owned(),
+    )];
     let options = CompilerOptions::default();
     let mut cached_phases = Vec::new();
     let mut owned_phases = Vec::new();
@@ -751,7 +759,7 @@ fn cache_off_owned_prefix_matches_cached_harness_result() {
     assert_one_cached_library_saved_work(
         owned.work_counters,
         cached.work_counters,
-        libs[0].text.len(),
+        libs[0].text().len(),
     );
     assert_eq!(owned_phases, cached_phases);
     assert_eq!(
@@ -784,15 +792,12 @@ fn authoritative_owned_and_harness_cached_modes_are_exactly_equivalent() {
         }
     }
 
-    let libs = [InputFile {
-            name: "/lib.authoritative-cache-mode-probe.d.ts".to_owned(),
-            text: "interface IArguments {}\ninterface Array<T> {}\ninterface Object {}\ninterface Function {}\ninterface CallableFunction extends Function {}\ninterface NewableFunction extends Function {}\ninterface String {}\ninterface Number {}\ninterface Boolean {}\ninterface RegExp {}\n"
-                .to_owned(),
-        }];
-    let files = [InputFile {
-        name: "/main.ts".to_owned(),
-        text: "import 'pkg';\nconst value: string = 1;\n".to_owned(),
-    }];
+    let libs = [InputFile::new("/lib.authoritative-cache-mode-probe.d.ts".to_owned(), "interface IArguments {}\ninterface Array<T> {}\ninterface Object {}\ninterface Function {}\ninterface CallableFunction extends Function {}\ninterface NewableFunction extends Function {}\ninterface String {}\ninterface Number {}\ninterface Boolean {}\ninterface RegExp {}\n"
+                .to_owned())];
+    let files = [InputFile::new(
+        "/main.ts".to_owned(),
+        "import 'pkg';\nconst value: string = 1;\n".to_owned(),
+    )];
     let lib_metadata = [AuthoritativeSourceMetadata {
         token: AuthoritativeSourceToken(0),
         file_name: libs[0].name.clone(),
@@ -832,7 +837,7 @@ fn authoritative_owned_and_harness_cached_modes_are_exactly_equivalent() {
     assert_one_cached_library_saved_work(
         owned.work_counters,
         cached.work_counters,
-        libs[0].text.len(),
+        libs[0].text().len(),
     );
     assert_eq!(
         cached
@@ -874,10 +879,7 @@ fn authoritative_not_found_facts_reach_the_node10_diagnostic_chain() {
     }
 
     let source = "import { pkg } from \"pkg\";\n";
-    let files = [InputFile {
-        name: "/index.ts".to_owned(),
-        text: source.to_owned(),
-    }];
+    let files = [InputFile::new("/index.ts".to_owned(), source.to_owned())];
     let metadata = [AuthoritativeSourceMetadata {
         token: AuthoritativeSourceToken(1),
         file_name: files[0].name.clone(),
@@ -937,10 +939,10 @@ fn authoritative_not_found_facts_reach_the_node10_diagnostic_chain() {
 
 #[test]
 fn program_parser_receives_the_effective_script_target() {
-    let files = [InputFile {
-        name: "a.ts".to_owned(),
-        text: "foo.\u{08a1};\n".to_owned(),
-    }];
+    let files = [InputFile::new(
+        "a.ts".to_owned(),
+        "foo.\u{08a1};\n".to_owned(),
+    )];
     let es5 = check_program(
         &files,
         &CompilerOptions {
@@ -970,10 +972,7 @@ fn program_parser_receives_the_effective_script_target() {
 fn js_files_report_typescript_only_syntax() {
     // Pins from tsc program.getSyntacticDiagnostics on an allowJs program.
     let result = check_program(
-            &[InputFile {
-                name: "a.js".to_owned(),
-                text: "function f(x: number): string { return \"\"; }\ninterface I { a: string }\nenum E { A }\nvar x!;\nimport eq = require(\"m\");\n".to_owned(),
-            }],
+            &[InputFile::new("a.js".to_owned(), "function f(x: number): string { return \"\"; }\ninterface I { a: string }\nenum E { A }\nvar x!;\nimport eq = require(\"m\");\n".to_owned())],
             &CompilerOptions {
                 allow_js: true,
                 ..CompilerOptions::default()
@@ -999,10 +998,7 @@ fn js_files_report_typescript_only_syntax() {
 #[test]
 fn js_files_report_type_only_imports_and_export_equals() {
     let result = check_program(
-            &[InputFile {
-                name: "a.js".to_owned(),
-                text: "import type { A } from \"m\";\nimport { type B } from \"m\";\nexport type { C };\nexport = 5;\n".to_owned(),
-            }],
+            &[InputFile::new("a.js".to_owned(), "import type { A } from \"m\";\nimport { type B } from \"m\";\nexport type { C };\nexport = 5;\n".to_owned())],
             &CompilerOptions {
                 allow_js: true,
                 ..CompilerOptions::default()
@@ -1025,10 +1021,7 @@ fn codes_of(source: &str) -> Vec<u32> {
 
 fn codes_of_with_options(source: &str, options: &CompilerOptions) -> Vec<u32> {
     let result = check_program(
-        &[InputFile {
-            name: "a.ts".to_owned(),
-            text: source.to_owned(),
-        }],
+        &[InputFile::new("a.ts".to_owned(), source.to_owned())],
         options,
     );
     result
@@ -1072,18 +1065,12 @@ fn strict_options() -> CompilerOptions {
 fn typeof_import_follows_value_alias_reexports() {
     let result = check_program(
         &[
-            InputFile {
-                name: "a.ts".to_owned(),
-                text: "export const x = 1;\n".to_owned(),
-            },
-            InputFile {
-                name: "b.ts".to_owned(),
-                text: "export { x } from \"./a\";\n".to_owned(),
-            },
-            InputFile {
-                name: "main.ts".to_owned(),
-                text: "type T = typeof import(\"./b\").x;\nlet y: T = \"bad\";\n".to_owned(),
-            },
+            InputFile::new("a.ts".to_owned(), "export const x = 1;\n".to_owned()),
+            InputFile::new("b.ts".to_owned(), "export { x } from \"./a\";\n".to_owned()),
+            InputFile::new(
+                "main.ts".to_owned(),
+                "type T = typeof import(\"./b\").x;\nlet y: T = \"bad\";\n".to_owned(),
+            ),
         ],
         &CompilerOptions::default(),
     );
@@ -1101,15 +1088,12 @@ fn typeof_import_follows_value_alias_reexports() {
 fn implicit_external_modules_exclude_umd_global_aliases() {
     let run =
         |file_name: &str, file_text: &str, options: CompilerOptions, extra_files: &[InputFile]| {
-            let mut files = vec![InputFile {
-                name: "umd.d.ts".to_owned(),
-                text: "export as namespace U;\nexport const s: unique symbol;\n".to_owned(),
-            }];
+            let mut files = vec![InputFile::new(
+                "umd.d.ts".to_owned(),
+                "export as namespace U;\nexport const s: unique symbol;\n".to_owned(),
+            )];
             files.extend_from_slice(extra_files);
-            files.push(InputFile {
-                name: file_name.to_owned(),
-                text: file_text.to_owned(),
-            });
+            files.push(InputFile::new(file_name.to_owned(), file_text.to_owned()));
             let result = check_program(&files, &options);
             result
                 .diagnostics
@@ -1166,10 +1150,10 @@ fn implicit_external_modules_exclude_umd_global_aliases() {
                 module_detection: Some(2),
                 ..CompilerOptions::default()
             },
-            &[InputFile {
-                name: "/package.json".to_owned(),
-                text: r#"{"type":"module"}"#.to_owned(),
-            }]
+            &[InputFile::new(
+                "/package.json".to_owned(),
+                r#"{"type":"module"}"#.to_owned()
+            )]
         ),
         expected
     );
@@ -1192,14 +1176,14 @@ fn implicit_external_modules_exclude_umd_global_aliases() {
 fn import_type_missing_member_uses_absolute_module_name() {
     let result = check_program(
         &[
-            InputFile {
-                name: "m.ts".to_owned(),
-                text: "export interface Present {}\n".to_owned(),
-            },
-            InputFile {
-                name: "main.ts".to_owned(),
-                text: "type T = import(\"./m\").Missing;\n".to_owned(),
-            },
+            InputFile::new(
+                "m.ts".to_owned(),
+                "export interface Present {}\n".to_owned(),
+            ),
+            InputFile::new(
+                "main.ts".to_owned(),
+                "type T = import(\"./m\").Missing;\n".to_owned(),
+            ),
         ],
         &CompilerOptions::default(),
     );
@@ -1217,10 +1201,10 @@ fn import_type_missing_member_uses_absolute_module_name() {
 #[test]
 fn bare_import_defer_does_not_run_import_meta_module_checks() {
     let result = check_program(
-        &[InputFile {
-            name: "a.ts".to_owned(),
-            text: "const x = import.defer;\n".to_owned(),
-        }],
+        &[InputFile::new(
+            "a.ts".to_owned(),
+            "const x = import.defer;\n".to_owned(),
+        )],
         &CompilerOptions {
             module: Some(1),
             ..CompilerOptions::default()
@@ -1248,10 +1232,10 @@ fn node16_plain_ts_uses_package_scope_for_import_meta() {
         ..CompilerOptions::default()
     };
     let commonjs = check_program(
-        &[InputFile {
-            name: "src/main.ts".to_owned(),
-            text: "const x = import.meta;\n".to_owned(),
-        }],
+        &[InputFile::new(
+            "src/main.ts".to_owned(),
+            "const x = import.meta;\n".to_owned(),
+        )],
         &options,
     );
     assert!(commonjs
@@ -1261,14 +1245,14 @@ fn node16_plain_ts_uses_package_scope_for_import_meta() {
 
     let esm = check_program(
         &[
-            InputFile {
-                name: "package.json".to_owned(),
-                text: "{\"type\":\"module\"}\n".to_owned(),
-            },
-            InputFile {
-                name: "src/main.ts".to_owned(),
-                text: "const x = import.meta;\n".to_owned(),
-            },
+            InputFile::new(
+                "package.json".to_owned(),
+                "{\"type\":\"module\"}\n".to_owned(),
+            ),
+            InputFile::new(
+                "src/main.ts".to_owned(),
+                "const x = import.meta;\n".to_owned(),
+            ),
         ],
         &options,
     );
@@ -1282,14 +1266,14 @@ fn node16_plain_ts_uses_package_scope_for_import_meta() {
 fn node16_windows_paths_use_package_scope_for_import_meta() {
     let result = check_program(
         &[
-            InputFile {
-                name: r"C:\pkg\package.json".to_owned(),
-                text: "{\"type\":\"module\"}\n".to_owned(),
-            },
-            InputFile {
-                name: r"C:\pkg\main.ts".to_owned(),
-                text: "const x = import.meta;\n".to_owned(),
-            },
+            InputFile::new(
+                r"C:\pkg\package.json".to_owned(),
+                "{\"type\":\"module\"}\n".to_owned(),
+            ),
+            InputFile::new(
+                r"C:\pkg\main.ts".to_owned(),
+                "const x = import.meta;\n".to_owned(),
+            ),
         ],
         &CompilerOptions {
             module: Some(100),
@@ -1311,18 +1295,18 @@ fn node16_windows_paths_use_package_scope_for_import_meta() {
 fn node16_package_commonjs_format_applies_to_default_import_and_export_equals() {
     let result = check_program(
         &[
-            InputFile {
-                name: "package.json".to_owned(),
-                text: "{\"type\":\"commonjs\"}\n".to_owned(),
-            },
-            InputFile {
-                name: "dep.ts".to_owned(),
-                text: "const value = { a: 1 };\nexport = value;\n".to_owned(),
-            },
-            InputFile {
-                name: "main.mts".to_owned(),
-                text: "import value from \"./dep.js\";\nvalue.a;\n".to_owned(),
-            },
+            InputFile::new(
+                "package.json".to_owned(),
+                "{\"type\":\"commonjs\"}\n".to_owned(),
+            ),
+            InputFile::new(
+                "dep.ts".to_owned(),
+                "const value = { a: 1 };\nexport = value;\n".to_owned(),
+            ),
+            InputFile::new(
+                "main.mts".to_owned(),
+                "import value from \"./dep.js\";\nvalue.a;\n".to_owned(),
+            ),
         ],
         &CompilerOptions {
             module: Some(100),
@@ -1344,18 +1328,18 @@ fn node16_package_commonjs_format_applies_to_default_import_and_export_equals() 
 fn unrelated_package_inputs_do_not_hide_a_bare_module_miss() {
     let result = check_program(
         &[
-            InputFile {
-                name: "package.json".to_owned(),
-                text: "{\"name\":\"unrelated\"}\n".to_owned(),
-            },
-            InputFile {
-                name: "node_modules/other/index.d.ts".to_owned(),
-                text: "export {};\n".to_owned(),
-            },
-            InputFile {
-                name: "main.ts".to_owned(),
-                text: "import { value } from \"definitely-missing\";\nvalue;\n".to_owned(),
-            },
+            InputFile::new(
+                "package.json".to_owned(),
+                "{\"name\":\"unrelated\"}\n".to_owned(),
+            ),
+            InputFile::new(
+                "node_modules/other/index.d.ts".to_owned(),
+                "export {};\n".to_owned(),
+            ),
+            InputFile::new(
+                "main.ts".to_owned(),
+                "import { value } from \"definitely-missing\";\nvalue;\n".to_owned(),
+            ),
         ],
         &CompilerOptions::default(),
     );
@@ -1372,10 +1356,10 @@ fn unrelated_package_inputs_do_not_hide_a_bare_module_miss() {
 #[test]
 fn base_url_miss_without_a_paths_match_reports_2307() {
     let result = check_program(
-        &[InputFile {
-            name: "src/main.ts".to_owned(),
-            text: "import { value } from \"definitely-missing\";\nvalue;\n".to_owned(),
-        }],
+        &[InputFile::new(
+            "src/main.ts".to_owned(),
+            "import { value } from \"definitely-missing\";\nvalue;\n".to_owned(),
+        )],
         &CompilerOptions {
             base_url: Some("src".to_owned()),
             ..CompilerOptions::default()
@@ -1395,14 +1379,11 @@ fn base_url_miss_without_a_paths_match_reports_2307() {
 fn checked_js_definite_relative_module_miss_is_public() {
     let result = check_program(
         &[
-            InputFile {
-                name: "foo.js".to_owned(),
-                text: "export const value = 1;\n".to_owned(),
-            },
-            InputFile {
-                name: "main.mjs".to_owned(),
-                text: "import { value } from \"./foo\";\nvalue;\n".to_owned(),
-            },
+            InputFile::new("foo.js".to_owned(), "export const value = 1;\n".to_owned()),
+            InputFile::new(
+                "main.mjs".to_owned(),
+                "import { value } from \"./foo\";\nvalue;\n".to_owned(),
+            ),
         ],
         &CompilerOptions {
             allow_js: true,
@@ -1423,10 +1404,10 @@ fn checked_js_definite_relative_module_miss_is_public() {
 #[test]
 fn checked_js_global_this_collision_is_public() {
     let result = check_program(
-        &[InputFile {
-            name: "globalThisCollision.js".to_owned(),
-            text: "var globalThis;".to_owned(),
-        }],
+        &[InputFile::new(
+            "globalThisCollision.js".to_owned(),
+            "var globalThis;".to_owned(),
+        )],
         &CompilerOptions {
             allow_js: true,
             check_js: Some(true),
@@ -1451,14 +1432,11 @@ fn checked_js_global_this_collision_is_public() {
 #[test]
 fn checked_js_publishes_namespace_export_declaration_bind_diagnostic() {
     let files = [
-        InputFile {
-            name: "cls.js".to_owned(),
-            text: "export class Foo {}\n".to_owned(),
-        },
-        InputFile {
-            name: "globalNs.js".to_owned(),
-            text: "export * from \"./cls\";\nexport as namespace GLO;\n".to_owned(),
-        },
+        InputFile::new("cls.js".to_owned(), "export class Foo {}\n".to_owned()),
+        InputFile::new(
+            "globalNs.js".to_owned(),
+            "export * from \"./cls\";\nexport as namespace GLO;\n".to_owned(),
+        ),
     ];
     let checked = check_program(
         &files,
@@ -1485,7 +1463,7 @@ fn checked_js_publishes_namespace_export_declaration_bind_diagnostic() {
         pins,
         [(
             Some("globalNs.js"),
-            Some(files[1].text.find("export as").expect("namespace export") as u32),
+            Some(files[1].text().find("export as").expect("namespace export") as u32,),
             Some("export as namespace GLO;".len() as u32),
         )]
     );
@@ -1512,14 +1490,14 @@ fn checked_js_publishes_namespace_export_declaration_bind_diagnostic() {
 fn checked_js_host_dependent_module_resolution_stays_suppressed() {
     let result = check_program(
         &[
-            InputFile {
-                name: "node_modules/pkg/index.js".to_owned(),
-                text: "export const value = 1;\n".to_owned(),
-            },
-            InputFile {
-                name: "main.js".to_owned(),
-                text: "import { value } from \"pkg\";\nvalue;\n".to_owned(),
-            },
+            InputFile::new(
+                "node_modules/pkg/index.js".to_owned(),
+                "export const value = 1;\n".to_owned(),
+            ),
+            InputFile::new(
+                "main.js".to_owned(),
+                "import { value } from \"pkg\";\nvalue;\n".to_owned(),
+            ),
         ],
         &CompilerOptions {
             allow_js: true,
@@ -1543,18 +1521,15 @@ fn checked_js_host_dependent_module_resolution_stays_suppressed() {
 fn external_emit_helpers_validate_an_in_program_tslib() {
     let result = check_program(
         &[
-            InputFile {
-                name: "types.d.ts".to_owned(),
-                text: "declare module \"tslib\" { export {}; }\n".to_owned(),
-            },
-            InputFile {
-                name: "a.ts".to_owned(),
-                text: "export {};\n".to_owned(),
-            },
-            InputFile {
-                name: "main.ts".to_owned(),
-                text: "export * as ns from \"./a\";\n".to_owned(),
-            },
+            InputFile::new(
+                "types.d.ts".to_owned(),
+                "declare module \"tslib\" { export {}; }\n".to_owned(),
+            ),
+            InputFile::new("a.ts".to_owned(), "export {};\n".to_owned()),
+            InputFile::new(
+                "main.ts".to_owned(),
+                "export * as ns from \"./a\";\n".to_owned(),
+            ),
         ],
         &CompilerOptions {
             module: Some(1),
@@ -1573,14 +1548,11 @@ fn external_emit_helpers_validate_an_in_program_tslib() {
 #[test]
 fn external_emit_helpers_report_only_definite_tslib_misses() {
     let files = [
-        InputFile {
-            name: "a.ts".to_owned(),
-            text: "export {};\n".to_owned(),
-        },
-        InputFile {
-            name: "main.ts".to_owned(),
-            text: "export * as ns from \"./a\";\n".to_owned(),
-        },
+        InputFile::new("a.ts".to_owned(), "export {};\n".to_owned()),
+        InputFile::new(
+            "main.ts".to_owned(),
+            "export * as ns from \"./a\";\n".to_owned(),
+        ),
     ];
     let options = CompilerOptions {
         module: Some(1),
@@ -1598,10 +1570,10 @@ fn external_emit_helpers_report_only_definite_tslib_misses() {
     );
 
     let mut host_dependent = files.to_vec();
-    host_dependent.push(InputFile {
-        name: "node_modules/tslib/index.d.ts".to_owned(),
-        text: "export {};\n".to_owned(),
-    });
+    host_dependent.push(InputFile::new(
+        "node_modules/tslib/index.d.ts".to_owned(),
+        "export {};\n".to_owned(),
+    ));
     let suppressed = check_program(&host_dependent, &options);
     assert!(
         suppressed
@@ -1617,14 +1589,8 @@ fn external_emit_helpers_report_only_definite_tslib_misses() {
 fn external_emit_helpers_check_spread_array_arity() {
     let result = check_program(
             &[
-                InputFile {
-                    name: "types.d.ts".to_owned(),
-                    text: "declare module \"tslib\" {\n  export function __spreadArray(to: any[], from: any[]): any[];\n}\n".to_owned(),
-                },
-                InputFile {
-                    name: "main.ts".to_owned(),
-                    text: "export {};\nconst values = [1, ...[2], 3];\n".to_owned(),
-                },
+                InputFile::new("types.d.ts".to_owned(), "declare module \"tslib\" {\n  export function __spreadArray(to: any[], from: any[]): any[];\n}\n".to_owned()),
+                InputFile::new("main.ts".to_owned(), "export {};\nconst values = [1, ...[2], 3];\n".to_owned()),
             ],
             &CompilerOptions {
                 target: Some(tsc_types::ScriptTarget::ES5.bits()),
@@ -1642,16 +1608,13 @@ fn external_emit_helpers_check_spread_array_arity() {
 
 #[test]
 fn external_emit_helpers_check_private_get_and_set_arity() {
-    let tslib = InputFile {
-            name: "types.d.ts".to_owned(),
-            text: concat!(
+    let tslib = InputFile::new("types.d.ts".to_owned(), concat!(
                 "declare module \"tslib\" {\n",
                 "  export function __classPrivateFieldGet<T extends object, V>(receiver: T, state: any): V;\n",
                 "  export function __classPrivateFieldSet<T extends object, V>(receiver: T, state: any, value: V): V;\n",
                 "}\n",
             )
-            .to_owned(),
-        };
+            .to_owned());
     let cases = [
         (
             "instance.ts",
@@ -1693,10 +1656,7 @@ fn external_emit_helpers_check_private_get_and_set_arity() {
         let result = check_program(
             &[
                 tslib.clone(),
-                InputFile {
-                    name: file_name.to_owned(),
-                    text: text.to_owned(),
-                },
+                InputFile::new(file_name.to_owned(), text.to_owned()),
             ],
             &options,
         );
@@ -1731,10 +1691,10 @@ fn external_emit_helpers_check_private_get_and_set_arity() {
     let native = check_program(
         &[
             tslib,
-            InputFile {
-                name: "native.ts".to_owned(),
-                text: "export class C { #x = 1; read() { return this.#x; } }\n".to_owned(),
-            },
+            InputFile::new(
+                "native.ts".to_owned(),
+                "export class C { #x = 1; read() { return this.#x; } }\n".to_owned(),
+            ),
         ],
         &CompilerOptions {
             target: Some(tsc_types::ScriptTarget::ES_NEXT.bits()),
@@ -1753,14 +1713,8 @@ fn external_emit_helpers_check_private_get_and_set_arity() {
 fn external_emit_helpers_cover_decorator_named_evaluation_helpers() {
     let result = check_program(
             &[
-                InputFile {
-                    name: "types.d.ts".to_owned(),
-                    text: "declare module \"tslib\" { export {}; }\n".to_owned(),
-                },
-                InputFile {
-                    name: "main.ts".to_owned(),
-                    text: "export {};\ndeclare let dec: any;\ndeclare let key: any;\n({ [key]: @dec class {} });\n".to_owned(),
-                },
+                InputFile::new("types.d.ts".to_owned(), "declare module \"tslib\" { export {}; }\n".to_owned()),
+                InputFile::new("main.ts".to_owned(), "export {};\ndeclare let dec: any;\ndeclare let key: any;\n({ [key]: @dec class {} });\n".to_owned()),
             ],
             &CompilerOptions {
                 target: Some(tsc_types::ScriptTarget::ES2022.bits()),
@@ -1802,17 +1756,17 @@ fn parameter_initializer_ordering_reports_self_and_later_but_not_deferred() {
 #[test]
 fn parameter_initializer_scope_change_honors_explicit_legacy_class_fields() {
     let result = check_program(
-            &[InputFile {
-                name: "a.ts".to_owned(),
-                text: "class C {}\n((b = class extends C { static x = 1 }, d = x) => { var C; var x; })();\n"
-                    .to_owned(),
-            }],
-            &CompilerOptions {
-                target: Some(tsc_types::ScriptTarget::ES_NEXT.bits()),
-                use_define_for_class_fields: Some(false),
-                ..CompilerOptions::default()
-            },
-        );
+        &[InputFile::new(
+            "a.ts".to_owned(),
+            "class C {}\n((b = class extends C { static x = 1 }, d = x) => { var C; var x; })();\n"
+                .to_owned(),
+        )],
+        &CompilerOptions {
+            target: Some(tsc_types::ScriptTarget::ES_NEXT.bits()),
+            use_define_for_class_fields: Some(false),
+            ..CompilerOptions::default()
+        },
+    );
     let rows: Vec<(u32, u32, u32)> = result
         .diagnostics
         .iter()
@@ -1856,10 +1810,10 @@ fn ts_nocheck_does_not_publish_missing_generator_globals() {
 #[test]
 fn check_js_false_does_not_publish_missing_generator_globals() {
     let result = check_program(
-        &[InputFile {
-            name: "a.js".to_owned(),
-            text: "function* f() { yield 1; }\n".to_owned(),
-        }],
+        &[InputFile::new(
+            "a.js".to_owned(),
+            "function* f() { yield 1; }\n".to_owned(),
+        )],
         &CompilerOptions {
             allow_js: true,
             check_js: Some(false),
@@ -1873,14 +1827,14 @@ fn check_js_false_does_not_publish_missing_generator_globals() {
 fn node16_esm_import_of_commonjs_has_synthetic_default_even_when_option_is_false() {
     let result = check_program(
         &[
-            InputFile {
-                name: "dep.cts".to_owned(),
-                text: "declare const value: { x: number };\nexport = value;\n".to_owned(),
-            },
-            InputFile {
-                name: "main.mts".to_owned(),
-                text: "import value from \"./dep.cjs\";\nvalue.x;\n".to_owned(),
-            },
+            InputFile::new(
+                "dep.cts".to_owned(),
+                "declare const value: { x: number };\nexport = value;\n".to_owned(),
+            ),
+            InputFile::new(
+                "main.mts".to_owned(),
+                "import value from \"./dep.cjs\";\nvalue.x;\n".to_owned(),
+            ),
         ],
         &CompilerOptions {
             module: Some(100),
@@ -1906,22 +1860,19 @@ fn node16_esm_import_of_commonjs_has_synthetic_default_even_when_option_is_false
 fn node16_package_commonjs_target_has_synthetic_default() {
     let result = check_program(
         &[
-            InputFile {
-                name: "esm/package.json".to_owned(),
-                text: "{\"type\":\"module\"}\n".to_owned(),
-            },
-            InputFile {
-                name: "cjs/package.json".to_owned(),
-                text: "{\"type\":\"commonjs\"}\n".to_owned(),
-            },
-            InputFile {
-                name: "cjs/dep.ts".to_owned(),
-                text: "export const ok = 1;\n".to_owned(),
-            },
-            InputFile {
-                name: "esm/main.ts".to_owned(),
-                text: "import value from \"../cjs/dep.js\";\nvalue.ok;\n".to_owned(),
-            },
+            InputFile::new(
+                "esm/package.json".to_owned(),
+                "{\"type\":\"module\"}\n".to_owned(),
+            ),
+            InputFile::new(
+                "cjs/package.json".to_owned(),
+                "{\"type\":\"commonjs\"}\n".to_owned(),
+            ),
+            InputFile::new("cjs/dep.ts".to_owned(), "export const ok = 1;\n".to_owned()),
+            InputFile::new(
+                "esm/main.ts".to_owned(),
+                "import value from \"../cjs/dep.js\";\nvalue.ok;\n".to_owned(),
+            ),
         ],
         &CompilerOptions {
             module: Some(100),
@@ -1946,30 +1897,27 @@ fn node16_mode_mismatch_details_preserve_package_type_evidence() {
     let run = |package_json: &str| {
         check_program(
             &[
-                InputFile {
-                    name: "/package.json".to_owned(),
-                    text: package_json.to_owned(),
-                },
-                InputFile {
-                    name: "/module.mts".to_owned(),
-                    text: "export const value = 1;\n".to_owned(),
-                },
-                InputFile {
-                    name: "/common.cts".to_owned(),
-                    text: "import { value } from \"./module.mjs\";\nvalue;\n".to_owned(),
-                },
-                InputFile {
-                    name: "/common.js".to_owned(),
-                    text: "import { value } from \"./module.mjs\";\nvalue;\n".to_owned(),
-                },
-                InputFile {
-                    name: "/common.ts".to_owned(),
-                    text: "import { value } from \"./module.mjs\";\nvalue;\n".to_owned(),
-                },
-                InputFile {
-                    name: "/common.tsx".to_owned(),
-                    text: "import { value } from \"./module.mjs\";\nvalue;\n".to_owned(),
-                },
+                InputFile::new("/package.json".to_owned(), package_json.to_owned()),
+                InputFile::new(
+                    "/module.mts".to_owned(),
+                    "export const value = 1;\n".to_owned(),
+                ),
+                InputFile::new(
+                    "/common.cts".to_owned(),
+                    "import { value } from \"./module.mjs\";\nvalue;\n".to_owned(),
+                ),
+                InputFile::new(
+                    "/common.js".to_owned(),
+                    "import { value } from \"./module.mjs\";\nvalue;\n".to_owned(),
+                ),
+                InputFile::new(
+                    "/common.ts".to_owned(),
+                    "import { value } from \"./module.mjs\";\nvalue;\n".to_owned(),
+                ),
+                InputFile::new(
+                    "/common.tsx".to_owned(),
+                    "import { value } from \"./module.mjs\";\nvalue;\n".to_owned(),
+                ),
             ],
             &CompilerOptions {
                 allow_js: true,
@@ -2023,21 +1971,15 @@ fn node16_mode_mismatch_details_preserve_package_type_evidence() {
 fn node16_mode_mismatch_selects_construct_and_honors_overrides() {
     let result = check_program(
             &[
-                InputFile {
-                    name: "/module.mts".to_owned(),
-                    text: "export type T = number;\n".to_owned(),
-                },
-                InputFile {
-                    name: "/common.cts".to_owned(),
-                    text: "import value = require(\"./module.mjs\");\n\
+                InputFile::new("/module.mts".to_owned(), "export type T = number;\n".to_owned()),
+                InputFile::new("/common.cts".to_owned(), "import value = require(\"./module.mjs\");\n\
                            import type {} from \"./module.mjs\";\n\
                            import type {} from \"./module.mjs\" with { \"resolution-mode\": \"import\" };\n\
                            type Plain = typeof import(\"./module.mjs\");\n\
                            type Overridden = typeof import(\"./module.mjs\", { with: { \"resolution-mode\": \"import\" } });\n\
                            const dynamic = import(\"./module.mjs\");\n\
                            void value;\nvoid dynamic;\n"
-                        .to_owned(),
-                },
+                        .to_owned()),
             ],
             &CompilerOptions {
                 module: Some(100),
@@ -2064,25 +2006,13 @@ fn node16_mode_mismatch_selects_construct_and_honors_overrides() {
 fn node16_mode_mismatch_resolves_package_conditions_and_patterns_without_publishing_symbols() {
     let result = check_program(
             &[
-                InputFile {
-                    name: "/node_modules/pkg/package.json".to_owned(),
-                    text: "{\"exports\":{\"./exact\":{\"require\":\"./esm.mjs\",\"import\":\"./cjs.cjs\"},\"./pattern/*\":\"./*.mjs\"}}\n".to_owned(),
-                },
-                InputFile {
-                    name: "/node_modules/pkg/esm.mts".to_owned(),
-                    text: "export const exact = 1;\n".to_owned(),
-                },
-                InputFile {
-                    name: "/node_modules/pkg/value.mts".to_owned(),
-                    text: "export const pattern = 1;\n".to_owned(),
-                },
-                InputFile {
-                    name: "/consumer.cts".to_owned(),
-                    text: "import { exact } from \"pkg/exact\";\n\
+                InputFile::new("/node_modules/pkg/package.json".to_owned(), "{\"exports\":{\"./exact\":{\"require\":\"./esm.mjs\",\"import\":\"./cjs.cjs\"},\"./pattern/*\":\"./*.mjs\"}}\n".to_owned()),
+                InputFile::new("/node_modules/pkg/esm.mts".to_owned(), "export const exact = 1;\n".to_owned()),
+                InputFile::new("/node_modules/pkg/value.mts".to_owned(), "export const pattern = 1;\n".to_owned()),
+                InputFile::new("/consumer.cts".to_owned(), "import { exact } from \"pkg/exact\";\n\
                            import { pattern } from \"pkg/pattern/value\";\n\
                            exact;\npattern;\n"
-                        .to_owned(),
-                },
+                        .to_owned()),
             ],
             &CompilerOptions {
                 module: Some(100),
@@ -2112,23 +2042,11 @@ fn node16_mode_mismatch_resolves_package_conditions_and_patterns_without_publish
 fn bundler_does_not_infer_plain_target_format_from_package_scope() {
     let result = check_program(
             &[
-                InputFile {
-                    name: "/package.json".to_owned(),
-                    text: "{\"type\":\"module\"}\n".to_owned(),
-                },
-                InputFile {
-                    name: "/plain.ts".to_owned(),
-                    text: "declare const plain: number;\nexport = plain;\n".to_owned(),
-                },
-                InputFile {
-                    name: "/decisive.mts".to_owned(),
-                    text: "declare const decisive: number;\nexport = decisive;\n".to_owned(),
-                },
-                InputFile {
-                    name: "/consumer.ts".to_owned(),
-                    text: "import plain from \"./plain\";\nimport decisive from \"./decisive.mts\";\nplain;\ndecisive;\n"
-                        .to_owned(),
-                },
+                InputFile::new("/package.json".to_owned(), "{\"type\":\"module\"}\n".to_owned()),
+                InputFile::new("/plain.ts".to_owned(), "declare const plain: number;\nexport = plain;\n".to_owned()),
+                InputFile::new("/decisive.mts".to_owned(), "declare const decisive: number;\nexport = decisive;\n".to_owned()),
+                InputFile::new("/consumer.ts".to_owned(), "import plain from \"./plain\";\nimport decisive from \"./decisive.mts\";\nplain;\ndecisive;\n"
+                        .to_owned()),
             ],
             &CompilerOptions {
                 module: Some(99),
@@ -2158,22 +2076,22 @@ fn bundler_does_not_infer_plain_target_format_from_package_scope() {
 fn emit_format_distinguishes_explicit_commonjs_from_missing_package_type() {
     let result = check_program(
         &[
-            InputFile {
-                name: "/node_modules/cjs/package.json".to_owned(),
-                text: "{\"type\":\"commonjs\"}\n".to_owned(),
-            },
-            InputFile {
-                name: "/node_modules/cjs/index.ts".to_owned(),
-                text: "export const value = 1;\n".to_owned(),
-            },
-            InputFile {
-                name: "/node_modules/other/package.json".to_owned(),
-                text: "{}\n".to_owned(),
-            },
-            InputFile {
-                name: "/node_modules/other/index.ts".to_owned(),
-                text: "export const value = 1;\n".to_owned(),
-            },
+            InputFile::new(
+                "/node_modules/cjs/package.json".to_owned(),
+                "{\"type\":\"commonjs\"}\n".to_owned(),
+            ),
+            InputFile::new(
+                "/node_modules/cjs/index.ts".to_owned(),
+                "export const value = 1;\n".to_owned(),
+            ),
+            InputFile::new(
+                "/node_modules/other/package.json".to_owned(),
+                "{}\n".to_owned(),
+            ),
+            InputFile::new(
+                "/node_modules/other/index.ts".to_owned(),
+                "export const value = 1;\n".to_owned(),
+            ),
         ],
         &CompilerOptions {
             module: Some(99),
@@ -2206,14 +2124,14 @@ fn emit_format_distinguishes_explicit_commonjs_from_missing_package_type() {
 fn node16_json_declaration_rejects_named_esm_imports() {
     let result = check_program(
         &[
-            InputFile {
-                name: "data.d.json.ts".to_owned(),
-                text: "export const x: number;\n".to_owned(),
-            },
-            InputFile {
-                name: "main.mts".to_owned(),
-                text: "import data, { x } from \"./data.d.json.ts\";\ndata.x;\nx;\n".to_owned(),
-            },
+            InputFile::new(
+                "data.d.json.ts".to_owned(),
+                "export const x: number;\n".to_owned(),
+            ),
+            InputFile::new(
+                "main.mts".to_owned(),
+                "import data, { x } from \"./data.d.json.ts\";\ndata.x;\nx;\n".to_owned(),
+            ),
         ],
         &CompilerOptions {
             module: Some(100),
@@ -2232,14 +2150,11 @@ fn node16_json_declaration_rejects_named_esm_imports() {
 fn node18_json_default_import_requires_type_attribute() {
     let files = |main: &str| {
         vec![
-            InputFile {
-                name: "data.d.json.ts".to_owned(),
-                text: "export const x: number;\n".to_owned(),
-            },
-            InputFile {
-                name: "main.mts".to_owned(),
-                text: main.to_owned(),
-            },
+            InputFile::new(
+                "data.d.json.ts".to_owned(),
+                "export const x: number;\n".to_owned(),
+            ),
+            InputFile::new("main.mts".to_owned(), main.to_owned()),
         ]
     };
     let options = CompilerOptions {
@@ -2285,14 +2200,11 @@ fn import_attributes_on_cjs_emit_report_2856_with_priority() {
     // DeclarationEmit fixtures).
     let files = |main: &str| {
         vec![
-            InputFile {
-                name: "data.d.json.ts".to_owned(),
-                text: "declare const _default: {};\nexport default _default;\n".to_owned(),
-            },
-            InputFile {
-                name: "main.cts".to_owned(),
-                text: main.to_owned(),
-            },
+            InputFile::new(
+                "data.d.json.ts".to_owned(),
+                "declare const _default: {};\nexport default _default;\n".to_owned(),
+            ),
+            InputFile::new("main.cts".to_owned(), main.to_owned()),
         ]
     };
     let options = CompilerOptions {
@@ -2334,23 +2246,23 @@ fn import_attributes_on_cjs_emit_report_2856_with_priority() {
 fn node18_actual_json_module_is_resolved_and_typed() {
     let result = check_program(
         &[
-            InputFile {
-                name: "package.json".to_owned(),
-                text: "{\"type\":\"module\"}\n".to_owned(),
-            },
-            InputFile {
-                name: "data.json".to_owned(),
-                text: "{\"count\": 1, \"label\": \"ok\"}\n".to_owned(),
-            },
-            InputFile {
-                name: "main.ts".to_owned(),
-                text: "import data from \"./data.json\";\n\
+            InputFile::new(
+                "package.json".to_owned(),
+                "{\"type\":\"module\"}\n".to_owned(),
+            ),
+            InputFile::new(
+                "data.json".to_owned(),
+                "{\"count\": 1, \"label\": \"ok\"}\n".to_owned(),
+            ),
+            InputFile::new(
+                "main.ts".to_owned(),
+                "import data from \"./data.json\";\n\
                            let count: number;\n\
                            count = data.count;\n\
                            let wrong: string;\n\
                            wrong = data.count;\n"
                     .to_owned(),
-            },
+            ),
         ],
         &CompilerOptions {
             module: Some(101),
@@ -2373,15 +2285,14 @@ fn node18_actual_json_module_is_resolved_and_typed() {
 fn node20_commonjs_default_import_uses_module_exports_export() {
     let result = check_program(
         &[
-            InputFile {
-                name: "dep.mts".to_owned(),
-                text: "const value = { a: 1 };\nexport { value as \"module.exports\" };\n"
-                    .to_owned(),
-            },
-            InputFile {
-                name: "main.cts".to_owned(),
-                text: "import value from \"./dep.mjs\";\nvalue.a;\n".to_owned(),
-            },
+            InputFile::new(
+                "dep.mts".to_owned(),
+                "const value = { a: 1 };\nexport { value as \"module.exports\" };\n".to_owned(),
+            ),
+            InputFile::new(
+                "main.cts".to_owned(),
+                "import value from \"./dep.mjs\";\nvalue.a;\n".to_owned(),
+            ),
         ],
         &CompilerOptions {
             module: Some(102),
@@ -2401,15 +2312,14 @@ fn node20_commonjs_default_import_uses_module_exports_export() {
 fn node20_module_exports_default_import_requires_explicit_interop_when_disabled() {
     let result = check_program(
         &[
-            InputFile {
-                name: "dep.mts".to_owned(),
-                text: "const value = { a: 1 };\nexport { value as \"module.exports\" };\n"
-                    .to_owned(),
-            },
-            InputFile {
-                name: "main.cts".to_owned(),
-                text: "import value from \"./dep.mjs\";\nvalue.a;\n".to_owned(),
-            },
+            InputFile::new(
+                "dep.mts".to_owned(),
+                "const value = { a: 1 };\nexport { value as \"module.exports\" };\n".to_owned(),
+            ),
+            InputFile::new(
+                "main.cts".to_owned(),
+                "import value from \"./dep.mjs\";\nvalue.a;\n".to_owned(),
+            ),
         ],
         &CompilerOptions {
             module: Some(102),
@@ -2434,17 +2344,17 @@ fn node20_module_exports_default_import_requires_explicit_interop_when_disabled(
 fn node20_module_exports_precedes_syntactic_default() {
     let result = check_program(
         &[
-            InputFile {
-                name: "dep.mts".to_owned(),
-                text: "export default function actual(x: string): string { return x; }\n\
+            InputFile::new(
+                "dep.mts".to_owned(),
+                "export default function actual(x: string): string { return x; }\n\
                            const compat = (x: number) => x;\n\
                            export { compat as \"module.exports\" };\n"
                     .to_owned(),
-            },
-            InputFile {
-                name: "main.cts".to_owned(),
-                text: "import fn from \"./dep.mjs\";\nfn(1);\nfn(\"x\");\n".to_owned(),
-            },
+            ),
+            InputFile::new(
+                "main.cts".to_owned(),
+                "import fn from \"./dep.mjs\";\nfn(1);\nfn(\"x\");\n".to_owned(),
+            ),
         ],
         &CompilerOptions {
             module: Some(102),
@@ -2469,17 +2379,17 @@ fn checked_cjs_require_of_node20_esm_namespace_is_not_constructable() {
     for es_module_interop in [true, false] {
         let result = check_program(
             &[
-                InputFile {
-                    name: "/exporter.mts".to_owned(),
-                    text: "export default class Foo {}\n\
+                InputFile::new(
+                    "/exporter.mts".to_owned(),
+                    "export default class Foo {}\n\
                                const oops = \"oops\";\n\
                                export { oops as \"module.exports\" };\n"
                         .to_owned(),
-                },
-                InputFile {
-                    name: "/importer.cjs".to_owned(),
-                    text: "const Foo = require(\"./exporter.mjs\");\nnew Foo();\n".to_owned(),
-                },
+                ),
+                InputFile::new(
+                    "/importer.cjs".to_owned(),
+                    "const Foo = require(\"./exporter.mjs\");\nnew Foo();\n".to_owned(),
+                ),
             ],
             &CompilerOptions {
                 allow_js: true,
@@ -2513,17 +2423,17 @@ fn checked_cjs_require_of_node20_esm_namespace_is_not_constructable() {
 fn node20_namespace_import_uses_distinct_module_exports_export() {
     let result = check_program(
         &[
-            InputFile {
-                name: "dep.mts".to_owned(),
-                text: "export default function actual(x: string): string { return x; }\n\
+            InputFile::new(
+                "dep.mts".to_owned(),
+                "export default function actual(x: string): string { return x; }\n\
                            const compat = (x: number) => x;\n\
                            export { compat as \"module.exports\" };\n"
                     .to_owned(),
-            },
-            InputFile {
-                name: "main.cts".to_owned(),
-                text: "import * as fn from \"./dep.mjs\";\nfn(1);\nfn(\"x\");\n".to_owned(),
-            },
+            ),
+            InputFile::new(
+                "main.cts".to_owned(),
+                "import * as fn from \"./dep.mjs\";\nfn(1);\nfn(\"x\");\n".to_owned(),
+            ),
         ],
         &CompilerOptions {
             module: Some(102),
@@ -2547,17 +2457,17 @@ fn node20_namespace_import_uses_distinct_module_exports_export() {
 fn node20_namespace_import_uses_module_exports_even_when_it_aliases_default() {
     let result = check_program(
         &[
-            InputFile {
-                name: "dep.mts".to_owned(),
-                text: "const compat = (x: number) => x;\n\
+            InputFile::new(
+                "dep.mts".to_owned(),
+                "const compat = (x: number) => x;\n\
                            export default compat;\n\
                            export { compat as \"module.exports\" };\n"
                     .to_owned(),
-            },
-            InputFile {
-                name: "main.cts".to_owned(),
-                text: "import * as fn from \"./dep.mjs\";\nfn(1);\n".to_owned(),
-            },
+            ),
+            InputFile::new(
+                "main.cts".to_owned(),
+                "import * as fn from \"./dep.mjs\";\nfn(1);\n".to_owned(),
+            ),
         ],
         &CompilerOptions {
             module: Some(102),
@@ -2571,14 +2481,8 @@ fn node20_namespace_import_uses_module_exports_even_when_it_aliases_default() {
 fn js_pair_diagnostics(js: &str, ts: &str) -> Vec<(u32, Option<String>)> {
     check_program(
         &[
-            InputFile {
-                name: "a.js".to_owned(),
-                text: js.to_owned(),
-            },
-            InputFile {
-                name: "b.ts".to_owned(),
-                text: ts.to_owned(),
-            },
+            InputFile::new("a.js".to_owned(), js.to_owned()),
+            InputFile::new("b.ts".to_owned(), ts.to_owned()),
         ],
         &CompilerOptions {
             allow_js: true,
@@ -2633,9 +2537,11 @@ fn full_lib_bundle(target_libs: &[&str]) -> Vec<InputFile> {
     );
     target_libs
         .iter()
-        .map(|name| InputFile {
-            name: (*name).to_owned(),
-            text: std::fs::read_to_string(format!("{base}{name}")).expect("vendored lib"),
+        .map(|name| {
+            InputFile::new(
+                (*name).to_owned(),
+                std::fs::read_to_string(format!("{base}{name}")).expect("vendored lib"),
+            )
         })
         .collect()
 }
@@ -2673,10 +2579,7 @@ fn in_operator_missing_key_join_keeps_later_const_key_narrowing() {
     };
     let result = check_program_with_libs(
             &libs,
-            &[InputFile {
-                name: "a.ts".to_owned(),
-                text: "const a = 'a';\nconst b = 'b';\nconst d = 'd';\ntype A = { [a]: number; };\ntype B = { [b]: string; };\ndeclare const c: A | B;\nif ('d' in c) {\n    c;\n}\nif (a in c) {\n    c;\n    c[a];\n}\n".to_owned(),
-            }],
+            &[InputFile::new("a.ts".to_owned(), "const a = 'a';\nconst b = 'b';\nconst d = 'd';\ntype A = { [a]: number; };\ntype B = { [b]: string; };\ndeclare const c: A | B;\nif ('d' in c) {\n    c;\n}\nif (a in c) {\n    c;\n    c[a];\n}\n".to_owned())],
             &options,
         );
     let rows: Vec<(String, u32)> = result
@@ -2742,10 +2645,7 @@ fn overload_failure_promise_intersection_awaits_to_never() {
     };
     let result = check_program_with_libs(
             &libs,
-            &[InputFile {
-                name: "a.ts".to_owned(),
-                text: "declare const cond: boolean;\ndeclare function foo(x: string): Promise<number>;\ndeclare function foo(x: number): Promise<string>;\nasync function g1() {\n    let x: string | number | boolean;\n    x = \"\";\n    while (cond) {\n        x = await foo(x);\n        x;\n    }\n    x;\n}\n".to_owned(),
-            }],
+            &[InputFile::new("a.ts".to_owned(), "declare const cond: boolean;\ndeclare function foo(x: string): Promise<number>;\ndeclare function foo(x: number): Promise<string>;\nasync function g1() {\n    let x: string | number | boolean;\n    x = \"\";\n    while (cond) {\n        x = await foo(x);\n        x;\n    }\n    x;\n}\n".to_owned())],
             &options,
         );
     let rows: Vec<(u32, u32)> = result
@@ -2790,14 +2690,8 @@ fn async_iteration_fixture_reports_no_spurious_2322() {
     .filter(|line| !line.trim_start().starts_with("// @"))
     .collect::<Vec<_>>()
     .join("\n");
-    let result = check_program_with_libs(
-        &libs,
-        &[InputFile {
-            name: "a.ts".to_owned(),
-            text,
-        }],
-        &options,
-    );
+    let result =
+        check_program_with_libs(&libs, &[InputFile::new("a.ts".to_owned(), text)], &options);
     let rows: Vec<u32> = result
         .diagnostics
         .iter()
@@ -2853,10 +2747,7 @@ fn body_predicate_narrows_reference_inside_compound_return() {
 fn lib_codes_of_with_options(source: &str, options: &CompilerOptions) -> Vec<u32> {
     let result = check_program_with_libs(
         &[es5_lib()],
-        &[InputFile {
-            name: "a.ts".to_owned(),
-            text: source.to_owned(),
-        }],
+        &[InputFile::new("a.ts".to_owned(), source.to_owned())],
         options,
     );
     result.diagnostics.iter().map(|d| d.code()).collect()
@@ -2926,10 +2817,7 @@ fn expando_member_uses_annotated_parent_property_type() {
 
 fn checked_js_codes(source: &str) -> Vec<u32> {
     check_program(
-        &[InputFile {
-            name: "a.js".to_owned(),
-            text: source.to_owned(),
-        }],
+        &[InputFile::new("a.js".to_owned(), source.to_owned())],
         &CompilerOptions {
             allow_js: true,
             check_js: Some(true),
@@ -2949,10 +2837,7 @@ fn checked_js_codes_with_function_prototype(source: &str) -> Vec<u32> {
     // lib, whose lib.es5.d.ts:299 declares `prototype: any`.
     check_program_with_libs(
         &[es5_lib()],
-        &[InputFile {
-            name: "a.js".to_owned(),
-            text: source.to_owned(),
-        }],
+        &[InputFile::new("a.js".to_owned(), source.to_owned())],
         &CompilerOptions {
             allow_js: true,
             check_js: Some(true),
@@ -3072,10 +2957,10 @@ fn function_return_annotation_is_not_an_expando_parent_annotation() {
 #[test]
 fn plain_js_object_reference_warning_requires_strict_equality() {
     let result = check_program(
-        &[InputFile {
-            name: "a.js".to_owned(),
-            text: "if ({} === {}) {}\nif ({} == {}) {}\n".to_owned(),
-        }],
+        &[InputFile::new(
+            "a.js".to_owned(),
+            "if ({} === {}) {}\nif ({} == {}) {}\n".to_owned(),
+        )],
         &CompilerOptions {
             allow_js: true,
             ..CompilerOptions::default()
@@ -3207,17 +3092,11 @@ fn nested_js_assignment_still_opens_its_actual_receiver() {
 fn unresolved_module_augmentation_keeps_unrelated_property_miss() {
     let diagnostics = check_program(
             &[
-                InputFile {
-                    name: "augmentation.ts".to_owned(),
-                    text: "export {};\ndeclare module \"pkg\" { interface X { missing(): void } }\n(\"x\").missing;\n"
-                        .to_owned(),
-                },
+                InputFile::new("augmentation.ts".to_owned(), "export {};\ndeclare module \"pkg\" { interface X { missing(): void } }\n(\"x\").missing;\n"
+                        .to_owned()),
                 // An unrelated package scope does not make "pkg"
                 // resolvable and therefore must not hide 2664.
-                InputFile {
-                    name: "package.json".to_owned(),
-                    text: "{}".to_owned(),
-                },
+                InputFile::new("package.json".to_owned(), "{}".to_owned()),
             ],
             &CompilerOptions::default(),
         )
@@ -3235,15 +3114,9 @@ fn unresolved_module_augmentation_keeps_unrelated_property_miss() {
 fn unresolved_module_augmentation_does_not_open_same_named_local_type() {
     let diagnostics = check_program(
             &[
-                InputFile {
-                    name: "node_modules/pkg/index.d.ts".to_owned(),
-                    text: "export interface X {}\n".to_owned(),
-                },
-                InputFile {
-                    name: "augmentation.ts".to_owned(),
-                    text: "export {};\ndeclare module \"pkg\" { interface X { missing(): void } }\ninterface X {}\ndeclare const local: X;\nlocal.missing;\n"
-                        .to_owned(),
-                },
+                InputFile::new("node_modules/pkg/index.d.ts".to_owned(), "export interface X {}\n".to_owned()),
+                InputFile::new("augmentation.ts".to_owned(), "export {};\ndeclare module \"pkg\" { interface X { missing(): void } }\ninterface X {}\ndeclare const local: X;\nlocal.missing;\n"
+                        .to_owned()),
             ],
             &CompilerOptions::default(),
         )
@@ -3261,19 +3134,19 @@ fn unresolved_module_augmentation_does_not_open_same_named_local_type() {
 fn unresolved_bare_augmentation_does_not_claim_same_spelled_workspace_file() {
     let diagnostics = check_program(
         &[
-            InputFile {
-                name: "node_modules/other/index.d.ts".to_owned(),
-                text: "export {};\n".to_owned(),
-            },
-            InputFile {
-                name: "pkg.ts".to_owned(),
-                text: "interface X {}\ndeclare const local: X;\nlocal.missing;\n".to_owned(),
-            },
-            InputFile {
-                name: "augmentation.ts".to_owned(),
-                text: "export {};\ndeclare module \"pkg\" { interface X { missing(): void } }\n"
+            InputFile::new(
+                "node_modules/other/index.d.ts".to_owned(),
+                "export {};\n".to_owned(),
+            ),
+            InputFile::new(
+                "pkg.ts".to_owned(),
+                "interface X {}\ndeclare const local: X;\nlocal.missing;\n".to_owned(),
+            ),
+            InputFile::new(
+                "augmentation.ts".to_owned(),
+                "export {};\ndeclare module \"pkg\" { interface X { missing(): void } }\n"
                     .to_owned(),
-            },
+            ),
         ],
         &CompilerOptions::default(),
     )
@@ -3291,19 +3164,10 @@ fn unresolved_bare_augmentation_does_not_claim_same_spelled_workspace_file() {
 fn unresolved_module_augmentation_contains_index_signature_property() {
     let diagnostics = check_program(
             &[
-                InputFile {
-                    name: "node_modules/pkg/index.d.ts".to_owned(),
-                    text: "export as namespace Pkg;\nexport interface X {}\n".to_owned(),
-                },
-                InputFile {
-                    name: "augmentation.d.ts".to_owned(),
-                    text: "import * as Pkg from \"pkg\";\ndeclare module \"pkg\" { interface X { [key: string]: unknown } }\n"
-                        .to_owned(),
-                },
-                InputFile {
-                    name: "use.ts".to_owned(),
-                    text: "declare const value: Pkg.X;\nvalue.anything;\n".to_owned(),
-                },
+                InputFile::new("node_modules/pkg/index.d.ts".to_owned(), "export as namespace Pkg;\nexport interface X {}\n".to_owned()),
+                InputFile::new("augmentation.d.ts".to_owned(), "import * as Pkg from \"pkg\";\ndeclare module \"pkg\" { interface X { [key: string]: unknown } }\n"
+                        .to_owned()),
+                InputFile::new("use.ts".to_owned(), "declare const value: Pkg.X;\nvalue.anything;\n".to_owned()),
             ],
             &CompilerOptions::default(),
         )
@@ -3318,19 +3182,10 @@ fn unresolved_module_augmentation_contains_index_signature_property() {
 fn unresolved_module_augmentation_contains_computed_property() {
     let result = check_program(
             &[
-                InputFile {
-                    name: "node_modules/pkg/index.d.ts".to_owned(),
-                    text: "export as namespace Pkg;\nexport interface X {}\n".to_owned(),
-                },
-                InputFile {
-                    name: "augmentation.d.ts".to_owned(),
-                    text: "import * as Pkg from \"pkg\";\ndeclare const member: \"extra\";\ndeclare module \"pkg\" { interface X { [member](): void } }\n"
-                        .to_owned(),
-                },
-                InputFile {
-                    name: "use.ts".to_owned(),
-                    text: "declare const value: Pkg.X;\nvalue.extra();\n".to_owned(),
-                },
+                InputFile::new("node_modules/pkg/index.d.ts".to_owned(), "export as namespace Pkg;\nexport interface X {}\n".to_owned()),
+                InputFile::new("augmentation.d.ts".to_owned(), "import * as Pkg from \"pkg\";\ndeclare const member: \"extra\";\ndeclare module \"pkg\" { interface X { [member](): void } }\n"
+                        .to_owned()),
+                InputFile::new("use.ts".to_owned(), "declare const value: Pkg.X;\nvalue.extra();\n".to_owned()),
             ],
             &CompilerOptions::default(),
         );
@@ -3351,21 +3206,12 @@ fn unresolved_module_augmentation_contains_computed_property() {
 fn unresolved_module_augmentation_matches_export_equals_namespace_target() {
     let diagnostics = check_program(
             &[
-                InputFile {
-                    name: "node_modules/pkg/index.d.ts".to_owned(),
-                    text: "export as namespace Pkg;\nexport = Package;\ndeclare namespace Package { class X {} }\n"
-                        .to_owned(),
-                },
-                InputFile {
-                    name: "augmentation.d.ts".to_owned(),
-                    text: "import * as Pkg from \"pkg\";\ndeclare module \"pkg\" { interface X { added(): void } }\n"
-                        .to_owned(),
-                },
-                InputFile {
-                    name: "use.ts".to_owned(),
-                    text: "declare const value: Pkg.X;\nvalue.added();\nfunction use<T extends Pkg.X>(item: T) { item.added(); }\ndeclare const mixed: Pkg.X | { added(): void };\nmixed.added();\n"
-                        .to_owned(),
-                },
+                InputFile::new("node_modules/pkg/index.d.ts".to_owned(), "export as namespace Pkg;\nexport = Package;\ndeclare namespace Package { class X {} }\n"
+                        .to_owned()),
+                InputFile::new("augmentation.d.ts".to_owned(), "import * as Pkg from \"pkg\";\ndeclare module \"pkg\" { interface X { added(): void } }\n"
+                        .to_owned()),
+                InputFile::new("use.ts".to_owned(), "declare const value: Pkg.X;\nvalue.added();\nfunction use<T extends Pkg.X>(item: T) { item.added(); }\ndeclare const mixed: Pkg.X | { added(): void };\nmixed.added();\n"
+                        .to_owned()),
             ],
             &CompilerOptions::default(),
         )
@@ -3380,24 +3226,12 @@ fn unresolved_module_augmentation_matches_export_equals_namespace_target() {
 fn unresolved_module_augmentation_does_not_open_sibling_package_subpath() {
     let diagnostics = check_program(
             &[
-                InputFile {
-                    name: "node_modules/pkg/a.d.ts".to_owned(),
-                    text: "export as namespace PkgA;\nexport interface X {}\n".to_owned(),
-                },
-                InputFile {
-                    name: "node_modules/pkg/b.d.ts".to_owned(),
-                    text: "export as namespace PkgB;\nexport interface X {}\n".to_owned(),
-                },
-                InputFile {
-                    name: "augmentation.d.ts".to_owned(),
-                    text: "import * as PkgA from \"pkg/a\";\ndeclare module \"pkg/a\" { interface X { added(): void } }\n"
-                        .to_owned(),
-                },
-                InputFile {
-                    name: "use.ts".to_owned(),
-                    text: "declare const aValue: PkgA.X;\naValue.added();\ndeclare const bValue: PkgB.X;\nbValue.added();\n"
-                        .to_owned(),
-                },
+                InputFile::new("node_modules/pkg/a.d.ts".to_owned(), "export as namespace PkgA;\nexport interface X {}\n".to_owned()),
+                InputFile::new("node_modules/pkg/b.d.ts".to_owned(), "export as namespace PkgB;\nexport interface X {}\n".to_owned()),
+                InputFile::new("augmentation.d.ts".to_owned(), "import * as PkgA from \"pkg/a\";\ndeclare module \"pkg/a\" { interface X { added(): void } }\n"
+                        .to_owned()),
+                InputFile::new("use.ts".to_owned(), "declare const aValue: PkgA.X;\naValue.added();\ndeclare const bValue: PkgB.X;\nbValue.added();\n"
+                        .to_owned()),
             ],
             &CompilerOptions::default(),
         )
@@ -3418,24 +3252,12 @@ fn unresolved_module_augmentation_does_not_open_sibling_package_subpath() {
 fn unresolved_module_augmentation_stays_with_nearest_package_instance() {
     let diagnostics = check_program(
             &[
-                InputFile {
-                    name: "app1/node_modules/pkg/index.d.ts".to_owned(),
-                    text: "export as namespace PkgOne;\nexport interface X {}\n".to_owned(),
-                },
-                InputFile {
-                    name: "app2/node_modules/pkg/index.d.ts".to_owned(),
-                    text: "export as namespace PkgTwo;\nexport interface X {}\n".to_owned(),
-                },
-                InputFile {
-                    name: "app1/augmentation.d.ts".to_owned(),
-                    text: "import * as PkgOne from \"pkg\";\ndeclare module \"pkg\" { interface X { added(): void } }\n"
-                        .to_owned(),
-                },
-                InputFile {
-                    name: "app2/use.ts".to_owned(),
-                    text: "declare const one: PkgOne.X;\none.added();\ndeclare const two: PkgTwo.X;\ntwo.added();\n"
-                        .to_owned(),
-                },
+                InputFile::new("app1/node_modules/pkg/index.d.ts".to_owned(), "export as namespace PkgOne;\nexport interface X {}\n".to_owned()),
+                InputFile::new("app2/node_modules/pkg/index.d.ts".to_owned(), "export as namespace PkgTwo;\nexport interface X {}\n".to_owned()),
+                InputFile::new("app1/augmentation.d.ts".to_owned(), "import * as PkgOne from \"pkg\";\ndeclare module \"pkg\" { interface X { added(): void } }\n"
+                        .to_owned()),
+                InputFile::new("app2/use.ts".to_owned(), "declare const one: PkgOne.X;\none.added();\ndeclare const two: PkgTwo.X;\ntwo.added();\n"
+                        .to_owned()),
             ],
             &CompilerOptions::default(),
         )
@@ -3456,24 +3278,12 @@ fn unresolved_module_augmentation_stays_with_nearest_package_instance() {
 fn unresolved_node_core_augmentation_matches_only_its_at_types_node_subpath() {
     let diagnostics = check_program(
             &[
-                InputFile {
-                    name: "node_modules/@types/node/fs.d.ts".to_owned(),
-                    text: "export as namespace NodeFs;\nexport interface X {}\n".to_owned(),
-                },
-                InputFile {
-                    name: "node_modules/@types/node/http.d.ts".to_owned(),
-                    text: "export as namespace NodeHttp;\nexport interface X {}\n".to_owned(),
-                },
-                InputFile {
-                    name: "augmentation.d.ts".to_owned(),
-                    text: "import * as NodeFs from \"node:fs\";\ndeclare module \"node:fs\" { interface X { added(): void } }\n"
-                        .to_owned(),
-                },
-                InputFile {
-                    name: "use.ts".to_owned(),
-                    text: "declare const fsValue: NodeFs.X;\nfsValue.added();\ndeclare const httpValue: NodeHttp.X;\nhttpValue.added();\n"
-                        .to_owned(),
-                },
+                InputFile::new("node_modules/@types/node/fs.d.ts".to_owned(), "export as namespace NodeFs;\nexport interface X {}\n".to_owned()),
+                InputFile::new("node_modules/@types/node/http.d.ts".to_owned(), "export as namespace NodeHttp;\nexport interface X {}\n".to_owned()),
+                InputFile::new("augmentation.d.ts".to_owned(), "import * as NodeFs from \"node:fs\";\ndeclare module \"node:fs\" { interface X { added(): void } }\n"
+                        .to_owned()),
+                InputFile::new("use.ts".to_owned(), "declare const fsValue: NodeFs.X;\nfsValue.added();\ndeclare const httpValue: NodeHttp.X;\nhttpValue.added();\n"
+                        .to_owned()),
             ],
             &CompilerOptions::default(),
         )
@@ -3614,10 +3424,7 @@ fn eopt_widened_absent_property_takes_the_missing_flavor() {
         ..CompilerOptions::default()
     };
     let result = check_program(
-            &[InputFile {
-                name: "a.ts".to_owned(),
-                text: "declare const b: boolean;\nconst o = b ? { a: 1 } : { a: 2, c: \"x\" };\n// @ts-expect-error\nconst t: { a: number; c?: string } = o;\n".to_owned(),
-            }],
+            &[InputFile::new("a.ts".to_owned(), "declare const b: boolean;\nconst o = b ? { a: 1 } : { a: 2, c: \"x\" };\n// @ts-expect-error\nconst t: { a: number; c?: string } = o;\n".to_owned())],
             &options,
         );
     let rows: Vec<(u32, Option<u32>, Option<u32>)> = result
@@ -3650,10 +3457,10 @@ fn condition_join_reports_use_before_assignment() {
     // tsc's. (The straight-line form reports since 6.2, the
     // condition-free try/catch join since 6.3 — pinned below.)
     let result = check_program(
-        &[InputFile {
-            name: "a.ts".to_owned(),
-            text: "declare const c: boolean;\nlet x: number;\nif (c) { x = 1; }\nx;\n".to_owned(),
-        }],
+        &[InputFile::new(
+            "a.ts".to_owned(),
+            "declare const c: boolean;\nlet x: number;\nif (c) { x = 1; }\nx;\n".to_owned(),
+        )],
         &CompilerOptions {
             strict: Some(true),
             ..CompilerOptions::default()
@@ -3678,10 +3485,7 @@ fn const_variable_guard_inlines_into_the_condition() {
     // containment (pre-6.4h the inline conditions flagged the
     // query and the failed-argument gate partial-marked).
     let result = check_program(
-            &[InputFile {
-                name: "a.ts".to_owned(),
-                text: "declare function fs(s: string): void;\ndeclare const x: string | number;\nconst isStr = typeof x === \"string\";\nif (isStr) { fs(x); }\n".to_owned(),
-            }],
+            &[InputFile::new("a.ts".to_owned(), "declare function fs(s: string): void;\ndeclare const x: string | number;\nconst isStr = typeof x === \"string\";\nif (isStr) { fs(x); }\n".to_owned())],
             &CompilerOptions {
                 strict: Some(true),
                 ..CompilerOptions::default()
@@ -3707,10 +3511,7 @@ fn destructuring_query_does_not_inline_const_guards() {
     // guard must NOT narrow p to string, so `p === 42` stays a
     // legal overlap (no 2367) exactly like tsc.
     let result = check_program(
-            &[InputFile {
-                name: "a.ts".to_owned(),
-                text: "declare const o: { p: string | number };\nconst isStr = typeof o.p === \"string\";\nif (isStr) {\n  const { p } = o;\n  if (p === 42) {}\n}\n".to_owned(),
-            }],
+            &[InputFile::new("a.ts".to_owned(), "declare const o: { p: string | number };\nconst isStr = typeof o.p === \"string\";\nif (isStr) {\n  const { p } = o;\n  if (p === 42) {}\n}\n".to_owned())],
             &CompilerOptions {
                 strict: Some(true),
                 ..CompilerOptions::default()
@@ -3742,10 +3543,7 @@ fn empty_string_typeof_case_witnesses_none() {
     // the "" witness took the host-object fallback and narrowed
     // unknown to object — a 2322 FP alongside.
     let result = check_program(
-            &[InputFile {
-                name: "a.ts".to_owned(),
-                text: "declare const x: unknown;\nswitch (typeof x) {\n  case \"\": {\n    const y: never = x;\n    break;\n  }\n}\n".to_owned(),
-            }],
+            &[InputFile::new("a.ts".to_owned(), "declare const x: unknown;\nswitch (typeof x) {\n  case \"\": {\n    const y: never = x;\n    break;\n  }\n}\n".to_owned())],
             &CompilerOptions {
                 strict: Some(true),
                 ..CompilerOptions::default()
@@ -3772,10 +3570,7 @@ fn multi_signature_body_inference_resolves_the_selection() {
     // report their straight-line 2454, unflagged (oracle q2:
     // (2454, 137, 1) + (2454, 152, 1), vendored 6.0.3 strict).
     let result = check_program(
-            &[InputFile {
-                name: "a.ts".to_owned(),
-                text: "function f(v: unknown) { return !!v; }\nfunction g(v: unknown) { return !!v; }\ndeclare const h: typeof f & typeof g;\nlet x: number;\nif (h(x)) { x = 1; }\nx;\n".to_owned(),
-            }],
+            &[InputFile::new("a.ts".to_owned(), "function f(v: unknown) { return !!v; }\nfunction g(v: unknown) { return !!v; }\ndeclare const h: typeof f & typeof g;\nlet x: number;\nif (h(x)) { x = 1; }\nx;\n".to_owned())],
             &CompilerOptions {
                 strict: Some(true),
                 ..CompilerOptions::default()
@@ -3800,12 +3595,11 @@ fn body_inference_resolves_the_runtime_trigger() {
     // (oracle q6: (2454, 60, 1) + (2454, 75, 1), vendored 6.0.3
     // strict). No partial mark remains.
     let result = check_program(
-        &[InputFile {
-            name: "a.ts".to_owned(),
-            text:
-                "function f(v: unknown) { return !!v; }\nlet x: number;\nif (f(x)) { x = 1; }\nx;\n"
-                    .to_owned(),
-        }],
+        &[InputFile::new(
+            "a.ts".to_owned(),
+            "function f(v: unknown) { return !!v; }\nlet x: number;\nif (f(x)) { x = 1; }\nx;\n"
+                .to_owned(),
+        )],
         &CompilerOptions {
             strict: Some(true),
             ..CompilerOptions::default()
@@ -3828,10 +3622,10 @@ fn join_dependent_auto_type_resolves_without_implicit_any() {
     // undefined for real — no implicit-any diagnostic and no
     // partial mark, like tsc.
     let result = check_program(
-        &[InputFile {
-            name: "a.ts".to_owned(),
-            text: "declare const c: boolean;\nlet x;\nif (c) { x = 1; }\nx;\n".to_owned(),
-        }],
+        &[InputFile::new(
+            "a.ts".to_owned(),
+            "declare const c: boolean;\nlet x;\nif (c) { x = 1; }\nx;\n".to_owned(),
+        )],
         &CompilerOptions {
             strict: Some(true),
             ..CompilerOptions::default()
@@ -3856,11 +3650,10 @@ fn join_dependent_auto_type_resolves_through_guard_calls() {
     // shape (oracle q7, vendored 6.0.3 strict) — no rows, no
     // partial mark.
     let result = check_program(
-        &[InputFile {
-            name: "a.ts".to_owned(),
-            text: "function f(v: unknown) { return !!v; }\nlet x;\nif (f(x)) { x = 1; }\nx;\n"
-                .to_owned(),
-        }],
+        &[InputFile::new(
+            "a.ts".to_owned(),
+            "function f(v: unknown) { return !!v; }\nlet x;\nif (f(x)) { x = 1; }\nx;\n".to_owned(),
+        )],
         &CompilerOptions {
             strict: Some(true),
             ..CompilerOptions::default()
@@ -3885,10 +3678,10 @@ fn branch_join_reports_use_before_assignment_across_try_catch() {
     // the REAL union: number ∪ (number | undefined) → the ladder's
     // 2454 fires like tsc's.
     let result = check_program(
-        &[InputFile {
-            name: "a.ts".to_owned(),
-            text: "let x: number;\ntry { x = 1; } catch {}\nx;\n".to_owned(),
-        }],
+        &[InputFile::new(
+            "a.ts".to_owned(),
+            "let x: number;\ntry { x = 1; } catch {}\nx;\n".to_owned(),
+        )],
         &CompilerOptions {
             strict: Some(true),
             ..CompilerOptions::default()
@@ -3913,10 +3706,7 @@ fn loop_fixpoint_converges_across_back_edges() {
     // "a" → string; the back edge re-assigns "b" → string; the
     // fixpoint converges to string and fs(x) is clean.
     let result = check_program(
-            &[InputFile {
-                name: "a.ts".to_owned(),
-                text: "declare function fs(s: string): void;\nlet x: string | number = \"a\";\nwhile (true) {\n  fs(x);\n  x = \"b\";\n}\n".to_owned(),
-            }],
+            &[InputFile::new("a.ts".to_owned(), "declare function fs(s: string): void;\nlet x: string | number = \"a\";\nwhile (true) {\n  fs(x);\n  x = \"b\";\n}\n".to_owned())],
             &CompilerOptions {
                 strict: Some(true),
                 ..CompilerOptions::default()
@@ -3944,10 +3734,7 @@ fn loop_fixpoint_accumulates_widening_back_edge_types() {
     // gates retired at 6.6f, the true positive REPORTS
     // (oracle-exact: 2345 at the argument).
     let result = check_program(
-            &[InputFile {
-                name: "a.ts".to_owned(),
-                text: "declare function fs(s: string): void;\nlet x: string | number = \"a\";\nwhile (true) {\n  fs(x);\n  x = 1;\n}\n".to_owned(),
-            }],
+            &[InputFile::new("a.ts".to_owned(), "declare function fs(s: string): void;\nlet x: string | number = \"a\";\nwhile (true) {\n  fs(x);\n  x = 1;\n}\n".to_owned())],
             &CompilerOptions {
                 strict: Some(true),
                 ..CompilerOptions::default()
@@ -3985,10 +3772,7 @@ fn speculative_overload_failure_in_fixpoint_leaves_no_signature_memo() {
     // overload failure at the real call check), no 2322, no
     // partial marks.
     let result = check_program(
-            &[InputFile {
-                name: "a.ts".to_owned(),
-                text: "declare function foo(x: string): number;\ndeclare function foo(x: number): string;\ndeclare const cond: boolean;\nlet x: string | number | boolean;\nx = \"\";\nwhile (cond) {\n  x;\n  x = foo(x);\n}\n".to_owned(),
-            }],
+            &[InputFile::new("a.ts".to_owned(), "declare function foo(x: string): number;\ndeclare function foo(x: number): string;\ndeclare const cond: boolean;\nlet x: string | number | boolean;\nx = \"\";\nwhile (cond) {\n  x;\n  x = foo(x);\n}\n".to_owned())],
             &CompilerOptions {
                 strict: Some(true),
                 ..CompilerOptions::default()
@@ -4023,10 +3807,7 @@ fn loop_fixpoint_joins_evolving_arrays_incomplete_first_pass() {
     // at the use — clean, like tsc.
     let result = check_program_with_libs(
             &[es5_lib()],
-            &[InputFile {
-                name: "a.ts".to_owned(),
-                text: "declare function tn(ns: number[]): void;\nlet a = [];\nwhile (true) {\n  tn(a);\n  a.push(1);\n}\n".to_owned(),
-            }],
+            &[InputFile::new("a.ts".to_owned(), "declare function tn(ns: number[]): void;\nlet a = [];\nwhile (true) {\n  tn(a);\n  a.push(1);\n}\n".to_owned())],
             &CompilerOptions {
                 strict: Some(true),
                 ..CompilerOptions::default()
@@ -4051,10 +3832,7 @@ fn loop_fixpoint_reports_2454_through_live_conditions() {
     // second query may legitimately hit flowLoopCaches (same
     // key, unflagged).
     let result = check_program(
-            &[InputFile {
-                name: "a.ts".to_owned(),
-                text: "declare const cond: boolean;\nlet x: number;\nwhile (true) {\n  x;\n  x;\n  if (cond) { x = 1; }\n}\n".to_owned(),
-            }],
+            &[InputFile::new("a.ts".to_owned(), "declare const cond: boolean;\nlet x: number;\nwhile (true) {\n  x;\n  x;\n  if (cond) { x = 1; }\n}\n".to_owned())],
             &CompilerOptions {
                 strict: Some(true),
                 ..CompilerOptions::default()
@@ -4078,10 +3856,7 @@ fn loop_fixpoint_reports_for_real_through_guard_calls() {
     // THREE uses report their 2454 exactly like tsc (oracle q5:
     // (2454, 71/76/87), vendored 6.0.3 strict).
     let result = check_program(
-            &[InputFile {
-                name: "a.ts".to_owned(),
-                text: "function f(v: unknown) { return !!v; }\nlet x: number;\nwhile (true) {\n  x;\n  x;\n  if (f(x)) { x = 1; }\n}\n".to_owned(),
-            }],
+            &[InputFile::new("a.ts".to_owned(), "function f(v: unknown) { return !!v; }\nlet x: number;\nwhile (true) {\n  x;\n  x;\n  if (f(x)) { x = 1; }\n}\n".to_owned())],
             &CompilerOptions {
                 strict: Some(true),
                 ..CompilerOptions::default()
@@ -4105,10 +3880,7 @@ fn arithmetic_face_narrows_through_the_inferred_predicate() {
     // guard, and the arithmetic face is clean like tsc
     // (verify/d2_operator_face.ts + oracle q3).
     let result = check_program(
-            &[InputFile {
-                name: "a.ts".to_owned(),
-                text: "function isNum(x: unknown) { return typeof x === \"number\"; }\nfunction f(u: string | number) {\n    if (isNum(u)) {\n        const a = u * 2;\n    }\n}\n".to_owned(),
-            }],
+            &[InputFile::new("a.ts".to_owned(), "function isNum(x: unknown) { return typeof x === \"number\"; }\nfunction f(u: string | number) {\n    if (isNum(u)) {\n        const a = u * 2;\n    }\n}\n".to_owned())],
             &CompilerOptions::default(),
         );
     assert_eq!(
@@ -4130,10 +3902,7 @@ fn assignment_face_relates_through_the_inferred_predicate() {
     // compound RHS, and the assignment face relates cleanly like
     // tsc (verify/d1_assignment_face.ts + oracle q4).
     let result = check_program(
-            &[InputFile {
-                name: "a.ts".to_owned(),
-                text: "function isNum(x: unknown) { return typeof x === \"number\"; }\nfunction g(u: string | number) {\n    let t: { p: number };\n    if (isNum(u)) {\n        t = { p: u };\n        void t;\n    }\n}\n".to_owned(),
-            }],
+            &[InputFile::new("a.ts".to_owned(), "function isNum(x: unknown) { return typeof x === \"number\"; }\nfunction g(u: string | number) {\n    let t: { p: number };\n    if (isNum(u)) {\n        t = { p: u };\n        void t;\n    }\n}\n".to_owned())],
             &CompilerOptions::default(),
         );
     assert_eq!(
@@ -4154,10 +3923,7 @@ fn dependent_parameter_narrowing_types_rest_tuple_slices() {
     // (pre-fix the whole reference stopped at a recovery boundary).
     // kind types as the [0]-slice "a" | "b", so takeAB accepts it.
     let result = check_program(
-            &[InputFile {
-                name: "a.ts".to_owned(),
-                text: "declare function f(cb: (...args: [\"a\", number] | [\"b\", string]) => void): void;\ndeclare function takeAB(x: \"a\" | \"b\"): void;\nf((kind, _data) => { takeAB(kind); });\n".to_owned(),
-            }],
+            &[InputFile::new("a.ts".to_owned(), "declare function f(cb: (...args: [\"a\", number] | [\"b\", string]) => void): void;\ndeclare function takeAB(x: \"a\" | \"b\"): void;\nf((kind, _data) => { takeAB(kind); });\n".to_owned())],
             &CompilerOptions {
                 strict: Some(true),
                 ..CompilerOptions::default()
@@ -4180,13 +3946,13 @@ fn dependent_parameter_narrowing_skips_a_non_union_rest_type() {
     // contextually indexed normally, but does not enter the
     // dependent union-of-tuples flow walk.
     let result = check_program(
-        &[InputFile {
-            name: "a.ts".to_owned(),
-            text: "declare function f(cb: (...args: [\"a\", number]) => void): void;\n\
+        &[InputFile::new(
+            "a.ts".to_owned(),
+            "declare function f(cb: (...args: [\"a\", number]) => void): void;\n\
                        declare function takeA(x: \"a\"): void;\n\
                        f((kind, _data) => { takeA(kind); });\n"
                 .to_owned(),
-        }],
+        )],
         &CompilerOptions {
             strict: Some(true),
             ..CompilerOptions::default()
@@ -4211,10 +3977,7 @@ fn dependent_parameter_narrowing_stops_after_parameter_assignment() {
     // retains both tuple payloads and reports tsc 6.0.3's exact
     // chained 2339 rather than narrowing data from kind.
     let result = check_program(
-            &[InputFile {
-                name: "a.ts".to_owned(),
-                text: "declare function f(cb: (...args: [\"a\", { aOnly: 1 }] | [\"b\", { bOnly: 1 }]) => void): void;\nf((kind, data) => { kind = kind; if (kind === \"a\") { data.aOnly; } });\n".to_owned(),
-            }],
+            &[InputFile::new("a.ts".to_owned(), "declare function f(cb: (...args: [\"a\", { aOnly: 1 }] | [\"b\", { bOnly: 1 }]) => void): void;\nf((kind, data) => { kind = kind; if (kind === \"a\") { data.aOnly; } });\n".to_owned())],
             &CompilerOptions {
                 strict: Some(true),
                 ..CompilerOptions::default()
@@ -4256,10 +4019,10 @@ fn unused_expect_error_reports_2578() {
 #[test]
 fn suggestion_does_not_consume_or_hide_expect_error() {
     let result = check_program(
-        &[InputFile {
-            name: "a.ts".to_owned(),
-            text: "export {};\n// @ts-expect-error\nconst dead = 1;\n".to_owned(),
-        }],
+        &[InputFile::new(
+            "a.ts".to_owned(),
+            "export {};\n// @ts-expect-error\nconst dead = 1;\n".to_owned(),
+        )],
         &CompilerOptions::default(),
     );
     assert_eq!(
@@ -4312,10 +4075,10 @@ fn expect_error_inside_contained_object_accessor_body_is_exempt() {
 fn checked_js_marks_directives_from_the_full_diagnostic_stream() {
     let result = check_program_with_libs(
         &[es5_lib()],
-        &[InputFile {
-            name: "a.js".to_owned(),
-            text: "// @ts-check\n// @ts-expect-error\n(1)();\n".to_owned(),
-        }],
+        &[InputFile::new(
+            "a.js".to_owned(),
+            "// @ts-check\n// @ts-expect-error\n(1)();\n".to_owned(),
+        )],
         &CompilerOptions {
             allow_js: true,
             check_js: Some(true),
@@ -4385,10 +4148,10 @@ fn directive_inside_a_checked_mapped_type_is_not_blanket_exempted() {
 fn checked_js_exposes_supported_checker_call_diagnostics() {
     let result = check_program_with_libs(
         &[es5_lib()],
-        &[InputFile {
-            name: "a.js".to_owned(),
-            text: "// @ts-check\n(1)();\n".to_owned(),
-        }],
+        &[InputFile::new(
+            "a.js".to_owned(),
+            "// @ts-check\n(1)();\n".to_owned(),
+        )],
         &CompilerOptions {
             allow_js: true,
             check_js: Some(true),
@@ -4410,10 +4173,7 @@ fn checked_js_publishes_symbol_free_property_misses() {
     let source = "const n = 1;\nn.missing;\n";
     let result = check_program_with_libs(
         &[es5_lib()],
-        &[InputFile {
-            name: "a.js".to_owned(),
-            text: source.to_owned(),
-        }],
+        &[InputFile::new("a.js".to_owned(), source.to_owned())],
         &CompilerOptions {
             allow_js: true,
             check_js: Some(true),
@@ -4442,10 +4202,10 @@ fn checked_js_publishes_symbol_free_property_misses() {
 fn checked_js_contains_symbol_bearing_expando_property_misses() {
     let result = check_program_with_libs(
         &[es5_lib()],
-        &[InputFile {
-            name: "a.js".to_owned(),
-            text: "const value = {};\nvalue.added = 1;\nvalue.added;\n".to_owned(),
-        }],
+        &[InputFile::new(
+            "a.js".to_owned(),
+            "const value = {};\nvalue.added = 1;\nvalue.added;\n".to_owned(),
+        )],
         &CompilerOptions {
             allow_js: true,
             check_js: Some(true),
@@ -4467,10 +4227,7 @@ fn checked_js_publishes_jsdoc_symbol_free_property_misses() {
     let source = "/** @type {number} */\nconst n = 1;\nn.missing;\n";
     let result = check_program_with_libs(
         &[es5_lib()],
-        &[InputFile {
-            name: "a.js".to_owned(),
-            text: source.to_owned(),
-        }],
+        &[InputFile::new("a.js".to_owned(), source.to_owned())],
         &CompilerOptions {
             allow_js: true,
             check_js: Some(true),
@@ -4500,15 +4257,11 @@ fn checked_js_publishes_property_misses_on_non_js_declared_types() {
     let source = "value.missing;\n";
     let result = check_program(
         &[
-            InputFile {
-                name: "types.d.ts".to_owned(),
-                text: "interface Declared { known: number }\ndeclare const value: Declared;\n"
-                    .to_owned(),
-            },
-            InputFile {
-                name: "a.js".to_owned(),
-                text: source.to_owned(),
-            },
+            InputFile::new(
+                "types.d.ts".to_owned(),
+                "interface Declared { known: number }\ndeclare const value: Declared;\n".to_owned(),
+            ),
+            InputFile::new("a.js".to_owned(), source.to_owned()),
         ],
         &CompilerOptions {
             allow_js: true,
@@ -4541,14 +4294,11 @@ fn checked_js_non_js_declared_prototype_replacement_reports_assignment_type() {
     let source = "C.prototype = {};\nC.bar = 2;\n";
     let result = check_program(
         &[
-            InputFile {
-                name: "types.d.ts".to_owned(),
-                text: "declare namespace C { function bar(): void }\n".to_owned(),
-            },
-            InputFile {
-                name: "a.js".to_owned(),
-                text: source.to_owned(),
-            },
+            InputFile::new(
+                "types.d.ts".to_owned(),
+                "declare namespace C { function bar(): void }\n".to_owned(),
+            ),
+            InputFile::new("a.js".to_owned(), source.to_owned()),
         ],
         &CompilerOptions {
             allow_js: true,
@@ -4578,10 +4328,7 @@ fn checked_js_non_js_declared_prototype_replacement_reports_assignment_type() {
 fn checked_js_publishes_plain_value_module_property_reads() {
     let source = "exports.missing();\nexports.created = 1;\n";
     let result = check_program(
-        &[InputFile {
-            name: "a.js".to_owned(),
-            text: source.to_owned(),
-        }],
+        &[InputFile::new("a.js".to_owned(), source.to_owned())],
         &CompilerOptions {
             allow_js: true,
             check_js: Some(true),
@@ -4609,14 +4356,14 @@ fn checked_js_publishes_plain_value_module_property_reads() {
 #[test]
 fn checked_js_contains_assignment_bearing_value_module_property_misses() {
     let result = check_program(
-        &[InputFile {
-            name: "a.js".to_owned(),
-            text: "function C() { this.p = 1; }\n\
+        &[InputFile::new(
+            "a.js".to_owned(),
+            "function C() { this.p = 1; }\n\
                        C.prototype = { q: 2 };\n\
                        const c = new C();\n\
                        c.q;\n"
                 .to_owned(),
-        }],
+        )],
         &CompilerOptions {
             allow_js: true,
             check_js: Some(true),
@@ -4633,10 +4380,7 @@ fn checked_js_publishes_assignment_bearing_class_property_reads() {
                       const c = new C();\n\
                       c.q;\n";
     let result = check_program(
-        &[InputFile {
-            name: "a.js".to_owned(),
-            text: source.to_owned(),
-        }],
+        &[InputFile::new("a.js".to_owned(), source.to_owned())],
         &CompilerOptions {
             allow_js: true,
             check_js: Some(true),
@@ -4661,10 +4405,7 @@ fn checked_js_publishes_assignment_bearing_class_property_reads() {
 fn checked_js_publishes_direct_this_class_property_reads() {
     let source = "class C { method() { this.missing; } }\n";
     let result = check_program(
-        &[InputFile {
-            name: "a.js".to_owned(),
-            text: source.to_owned(),
-        }],
+        &[InputFile::new("a.js".to_owned(), source.to_owned())],
         &CompilerOptions {
             allow_js: true,
             check_js: Some(true),
@@ -4696,14 +4437,11 @@ fn checked_js_publishes_imported_class_alias_expando_misses() {
                       value.added = 1;\n";
     let result = check_program(
         &[
-            InputFile {
-                name: "defs.js".to_owned(),
-                text: "export class C {}\nexport const value = {};\n".to_owned(),
-            },
-            InputFile {
-                name: "main.js".to_owned(),
-                text: source.to_owned(),
-            },
+            InputFile::new(
+                "defs.js".to_owned(),
+                "export class C {}\nexport const value = {};\n".to_owned(),
+            ),
+            InputFile::new("main.js".to_owned(), source.to_owned()),
         ],
         &CompilerOptions {
             allow_js: true,
@@ -4752,10 +4490,7 @@ fn checked_js_publishes_jsdoc_adjacent_private_name_misses() {
                         }\n\
                       }\n";
     let result = check_program(
-        &[InputFile {
-            name: "a.js".to_owned(),
-            text: source.to_owned(),
-        }],
+        &[InputFile::new("a.js".to_owned(), source.to_owned())],
         &CompilerOptions {
             allow_js: true,
             check_js: Some(true),
@@ -4797,10 +4532,7 @@ fn checked_js_publishes_chained_this_assignment_misses() {
                         this.x.alsoMissing = {};\n\
                       }\n";
     let result = check_program(
-        &[InputFile {
-            name: "a.js".to_owned(),
-            text: source.to_owned(),
-        }],
+        &[InputFile::new("a.js".to_owned(), source.to_owned())],
         &CompilerOptions {
             allow_js: true,
             check_js: Some(true),
@@ -4845,10 +4577,7 @@ fn checked_js_publishes_chained_identifier_empty_assignment_misses() {
                       B.direct = {};\n\
                       B.direct;\n";
     let result = check_program(
-        &[InputFile {
-            name: "a.js".to_owned(),
-            text: source.to_owned(),
-        }],
+        &[InputFile::new("a.js".to_owned(), source.to_owned())],
         &CompilerOptions {
             allow_js: true,
             check_js: Some(true),
@@ -4915,10 +4644,7 @@ fn checked_js_publishes_prototype_object_property_assignment_misses() {
                       Plain.prototype = { existing() {} };\n\
                       Plain.prototype.incremental = function() {};\n";
     let result = check_program(
-        &[InputFile {
-            name: "a.js".to_owned(),
-            text: source.to_owned(),
-        }],
+        &[InputFile::new("a.js".to_owned(), source.to_owned())],
         &CompilerOptions {
             allow_js: true,
             check_js: Some(true),
@@ -4977,10 +4703,7 @@ fn checked_js_nested_constructor_this_uses_merged_prototype_members() {
                         Multimap.prototype.addon = function() {};\n\
                       })();\n";
     let result = check_program(
-        &[InputFile {
-            name: "a.js".to_owned(),
-            text: source.to_owned(),
-        }],
+        &[InputFile::new("a.js".to_owned(), source.to_owned())],
         &CompilerOptions {
             allow_js: true,
             check_js: Some(true),
@@ -5020,10 +4743,7 @@ fn checked_js_publishes_jsdoc_satisfies_object_literal_property_reads() {
                       const asserted = /** @type {{ present: number }} */ ({ present: 1 });\n\
                       asserted.hidden;\n";
     let result = check_program(
-        &[InputFile {
-            name: "a.js".to_owned(),
-            text: source.to_owned(),
-        }],
+        &[InputFile::new("a.js".to_owned(), source.to_owned())],
         &CompilerOptions {
             allow_js: true,
             check_js: Some(true),
@@ -5077,10 +4797,7 @@ fn checked_js_valid_template_nested_prototype_read_is_parse_all_crash_guard() {
                         }\n\
                       }\n";
     let result = check_program(
-        &[InputFile {
-            name: "a.js".to_owned(),
-            text: source.to_owned(),
-        }],
+        &[InputFile::new("a.js".to_owned(), source.to_owned())],
         &CompilerOptions {
             allow_js: true,
             check_js: Some(true),
@@ -5128,10 +4845,7 @@ fn checked_js_outer_template_display_crash_does_not_stop_later_errors() {
                       const later = { present: 1 };\n\
                       later.missing;\n";
     let result = check_program(
-        &[InputFile {
-            name: "a.js".to_owned(),
-            text: source.to_owned(),
-        }],
+        &[InputFile::new("a.js".to_owned(), source.to_owned())],
         &CompilerOptions {
             allow_js: true,
             check_js: Some(true),
@@ -5180,10 +4894,7 @@ fn checked_js_outer_template_display_crash_consumes_preceding_expect_error_range
                         }\n\
                       }\n";
     let result = check_program(
-        &[InputFile {
-            name: "a.js".to_owned(),
-            text: source.to_owned(),
-        }],
+        &[InputFile::new("a.js".to_owned(), source.to_owned())],
         &CompilerOptions {
             allow_js: true,
             check_js: Some(true),
@@ -5215,10 +4926,7 @@ fn checked_js_publishes_this_prototype_class_property_reads() {
                         }\n\
                       }\n";
     let result = check_program(
-        &[InputFile {
-            name: "a.js".to_owned(),
-            text: source.to_owned(),
-        }],
+        &[InputFile::new("a.js".to_owned(), source.to_owned())],
         &CompilerOptions {
             allow_js: true,
             check_js: Some(true),
@@ -5256,10 +4964,7 @@ fn checked_js_publishes_jsdoc_chained_static_assignment_this_reads() {
                         return n + this.instanceOnly;\n\
                       };\n";
     let result = check_program(
-        &[InputFile {
-            name: "a.js".to_owned(),
-            text: source.to_owned(),
-        }],
+        &[InputFile::new("a.js".to_owned(), source.to_owned())],
         &CompilerOptions {
             allow_js: true,
             check_js: Some(true),
@@ -5300,10 +5005,7 @@ fn checked_js_publishes_class_this_miss_from_jsdoc_this_annotated_arrow() {
                         p = (a) => this.missing(a);\n\
                       }\n";
     let result = check_program(
-        &[InputFile {
-            name: "a.js".to_owned(),
-            text: source.to_owned(),
-        }],
+        &[InputFile::new("a.js".to_owned(), source.to_owned())],
         &CompilerOptions {
             allow_js: true,
             check_js: Some(true),
@@ -5344,18 +5046,15 @@ fn checked_js_publishes_primitive_module_exports_assignment_misses() {
     let primitive = "module.exports = 1;\nmodule.exports.missing = 1;\n";
     let result = check_program(
         &[
-            InputFile {
-                name: "requires.d.ts".to_owned(),
-                text: "declare var module: { exports: any };\n".to_owned(),
-            },
-            InputFile {
-                name: "primitive.js".to_owned(),
-                text: primitive.to_owned(),
-            },
-            InputFile {
-                name: "object.js".to_owned(),
-                text: "module.exports = {};\nmodule.exports.allowed = 1;\n".to_owned(),
-            },
+            InputFile::new(
+                "requires.d.ts".to_owned(),
+                "declare var module: { exports: any };\n".to_owned(),
+            ),
+            InputFile::new("primitive.js".to_owned(), primitive.to_owned()),
+            InputFile::new(
+                "object.js".to_owned(),
+                "module.exports = {};\nmodule.exports.allowed = 1;\n".to_owned(),
+            ),
         ],
         &CompilerOptions {
             allow_js: true,
@@ -5393,15 +5092,15 @@ fn checked_js_common_js_object_replacement_unions_direct_export_members() {
     let result = check_program_with_libs(
         &[es5_lib()],
         &[
-            InputFile {
-                name: "requires.d.ts".to_owned(),
-                text: "declare var module: { exports: any };\n\
+            InputFile::new(
+                "requires.d.ts".to_owned(),
+                "declare var module: { exports: any };\n\
                            declare function require(name: string): any;\n"
                     .to_owned(),
-            },
-            InputFile {
-                name: "mod1.js".to_owned(),
-                text: "module.exports.bothBefore = 'string';\n\
+            ),
+            InputFile::new(
+                "mod1.js".to_owned(),
+                "module.exports.bothBefore = 'string';\n\
                            module.exports = {\n\
                                justExport: 1,\n\
                                bothBefore: 2,\n\
@@ -5410,11 +5109,8 @@ fn checked_js_common_js_object_replacement_unions_direct_export_members() {
                            module.exports.bothAfter = 'string';\n\
                            module.exports.justProperty = 'string';\n"
                     .to_owned(),
-            },
-            InputFile {
-                name: "a.js".to_owned(),
-                text: source.to_owned(),
-            },
+            ),
+            InputFile::new("a.js".to_owned(), source.to_owned()),
         ],
         &CompilerOptions {
             allow_js: true,
@@ -5466,9 +5162,9 @@ fn checked_js_common_js_object_replacement_unions_direct_export_members() {
 fn checked_js_exposes_typed_declaration_arity_diagnostics() {
     let result = check_program(
         &[
-            InputFile {
-                name: "defs.d.ts".to_owned(),
-                text: "declare function f1(p: void): void;\n\
+            InputFile::new(
+                "defs.d.ts".to_owned(),
+                "declare function f1(p: void): void;\n\
                            declare function f2(p: undefined): void;\n\
                            declare function f3(p: unknown): void;\n\
                            declare function f4(p: any): void;\n\
@@ -5478,11 +5174,11 @@ fn checked_js_exposes_typed_declaration_arity_diagnostics() {
                            declare const o3: I<unknown>;\n\
                            declare const o4: I<any>;\n"
                     .to_owned(),
-            },
-            InputFile {
-                name: "a.js".to_owned(),
-                text: "f1();\no1.m();\nf2();\nf3();\nf4();\no2.m();\no3.m();\no4.m();\n".to_owned(),
-            },
+            ),
+            InputFile::new(
+                "a.js".to_owned(),
+                "f1();\no1.m();\nf2();\nf3();\nf4();\no2.m();\no3.m();\no4.m();\n".to_owned(),
+            ),
         ],
         &CompilerOptions {
             allow_js: true,
@@ -5507,14 +5203,11 @@ fn checked_js_publishes_non_jsdoc_readonly_enum_expandos() {
     let source = "lf.Order = {};\nlf.Order.DESC = 0;\nlf.Order.ASC = 1;\n";
     let result = check_program(
         &[
-            InputFile {
-                name: "types.d.ts".to_owned(),
-                text: "declare namespace lf { export enum Order { ASC, DESC } }\n".to_owned(),
-            },
-            InputFile {
-                name: "enums.js".to_owned(),
-                text: source.to_owned(),
-            },
+            InputFile::new(
+                "types.d.ts".to_owned(),
+                "declare namespace lf { export enum Order { ASC, DESC } }\n".to_owned(),
+            ),
+            InputFile::new("enums.js".to_owned(), source.to_owned()),
         ],
         &CompilerOptions {
             allow_js: true,
@@ -5588,10 +5281,10 @@ fn complex_union_guards_report_across_intersection_template_and_tuple_paths() {
 #[test]
 fn checked_js_jsdoc_type_checks_its_initializer() {
     let result = check_program(
-        &[InputFile {
-            name: "a.js".to_owned(),
-            text: "// @ts-check\n/** @type {number} */\nlet value = \"wrong\";\n".to_owned(),
-        }],
+        &[InputFile::new(
+            "a.js".to_owned(),
+            "// @ts-check\n/** @type {number} */\nlet value = \"wrong\";\n".to_owned(),
+        )],
         &CompilerOptions {
             allow_js: true,
             check_js: Some(true),
@@ -5611,10 +5304,10 @@ fn checked_js_jsdoc_type_checks_its_initializer() {
 #[test]
 fn checked_js_does_not_treat_other_jsdoc_tags_as_type() {
     let result = check_program(
-        &[InputFile {
-            name: "a.js".to_owned(),
-            text: "// @ts-check\n/** @types {number} */\nlet value = \"ok\";\n".to_owned(),
-        }],
+        &[InputFile::new(
+            "a.js".to_owned(),
+            "// @ts-check\n/** @types {number} */\nlet value = \"ok\";\n".to_owned(),
+        )],
         &CompilerOptions {
             allow_js: true,
             check_js: Some(true),
@@ -5645,10 +5338,7 @@ fn checked_js_jsdoc_augments_reports_only_effective_hosts() {
                       class D extends A {}\n\
                       /** @extends {A} */\n";
     let result = check_program(
-        &[InputFile {
-            name: "a.js".to_owned(),
-            text: source.to_owned(),
-        }],
+        &[InputFile::new("a.js".to_owned(), source.to_owned())],
         &CompilerOptions {
             allow_js: true,
             check_js: Some(true),
@@ -5729,10 +5419,7 @@ fn checked_js_detached_augments_document_keeps_fileless_8022() {
                       /** @constructor */\n\
                       class B extends A {}\n";
     let result = check_program(
-        &[InputFile {
-            name: "a.js".to_owned(),
-            text: source.to_owned(),
-        }],
+        &[InputFile::new("a.js".to_owned(), source.to_owned())],
         &CompilerOptions {
             allow_js: true,
             check_js: Some(true),
@@ -5775,10 +5462,7 @@ fn checked_js_detached_implements_document_keeps_fileless_8022() {
                       /** @implements {A} */\n\
                       class C {}\n";
     let result = check_program(
-        &[InputFile {
-            name: "a.js".to_owned(),
-            text: source.to_owned(),
-        }],
+        &[InputFile::new("a.js".to_owned(), source.to_owned())],
         &CompilerOptions {
             allow_js: true,
             check_js: Some(true),
@@ -5837,10 +5521,7 @@ fn jsdoc_augments_projection_preserves_matching_siblings_and_typescript() {
         ),
     ] {
         let result = check_program(
-            &[InputFile {
-                name: name.to_owned(),
-                text: text.to_owned(),
-            }],
+            &[InputFile::new(name.to_owned(), text.to_owned())],
             &options,
         );
         assert!(
@@ -5868,10 +5549,7 @@ fn checked_js_set_only_accessors_use_jsdoc_parameter_annotations() {
                       C.stat = \"bad\";\n";
     for target in [1, 2] {
         let result = check_program(
-            &[InputFile {
-                name: "a.js".to_owned(),
-                text: source.to_owned(),
-            }],
+            &[InputFile::new("a.js".to_owned(), source.to_owned())],
             &CompilerOptions {
                 allow_js: true,
                 check_js: Some(true),
@@ -5928,10 +5606,7 @@ fn checked_js_super_call_uses_effective_jsdoc_extends_type_arguments() {
                       }\n";
     for target in [1, 2] {
         let result = check_program(
-            &[InputFile {
-                name: "a.js".to_owned(),
-                text: source.to_owned(),
-            }],
+            &[InputFile::new("a.js".to_owned(), source.to_owned())],
             &CompilerOptions {
                 allow_js: true,
                 check_js: Some(true),
@@ -6027,10 +5702,10 @@ fn directive_on_the_diagnostic_line_itself_does_not_suppress() {
 #[test]
 fn ts_nocheck_suppresses_checked_js_diagnostics() {
     let result = check_program(
-        &[InputFile {
-            name: "a.js".to_owned(),
-            text: "// @ts-nocheck\nlet x;\nlet x;\n".to_owned(),
-        }],
+        &[InputFile::new(
+            "a.js".to_owned(),
+            "// @ts-nocheck\nlet x;\nlet x;\n".to_owned(),
+        )],
         &CompilerOptions {
             allow_js: true,
             check_js: Some(true),
@@ -6045,10 +5720,7 @@ fn ts_nocheck_suppresses_checked_js_diagnostics() {
 fn jsdoc_parse_diagnostics_publish_only_for_checked_js_semantics() {
     let text = "/**\n * @typedef Name\n * @type {string}\n * @type {Oops}\n */";
     let checked = check_program(
-        &[InputFile {
-            name: "a.js".to_owned(),
-            text: text.to_owned(),
-        }],
+        &[InputFile::new("a.js".to_owned(), text.to_owned())],
         &CompilerOptions {
             allow_js: true,
             check_js: Some(true),
@@ -6077,10 +5749,7 @@ fn jsdoc_parse_diagnostics_publish_only_for_checked_js_semantics() {
         (format!("// @ts-nocheck\n{text}"), true),
     ] {
         let result = check_program(
-            &[InputFile {
-                name: "a.js".to_owned(),
-                text: source,
-            }],
+            &[InputFile::new("a.js".to_owned(), source)],
             &CompilerOptions {
                 allow_js: true,
                 check_js: Some(check_js),
@@ -6101,10 +5770,10 @@ fn jsdoc_parse_diagnostics_publish_only_for_checked_js_semantics() {
 #[test]
 fn ts_check_overrides_explicit_check_js_false() {
     let result = check_program(
-        &[InputFile {
-            name: "a.js".to_owned(),
-            text: "// @ts-check\nlet x;\nlet x;\n".to_owned(),
-        }],
+        &[InputFile::new(
+            "a.js".to_owned(),
+            "// @ts-check\nlet x;\nlet x;\n".to_owned(),
+        )],
         &CompilerOptions {
             allow_js: true,
             check_js: Some(false),
@@ -6129,10 +5798,10 @@ fn ts_check_overrides_explicit_check_js_false() {
 #[test]
 fn checked_js_uses_comment_directives() {
     let result = check_program(
-        &[InputFile {
-            name: "a.js".to_owned(),
-            text: "// @ts-check\n// @ts-ignore\nlet x;\nlet x;\n".to_owned(),
-        }],
+        &[InputFile::new(
+            "a.js".to_owned(),
+            "// @ts-check\n// @ts-ignore\nlet x;\nlet x;\n".to_owned(),
+        )],
         &CompilerOptions {
             allow_js: true,
             ..CompilerOptions::default()
@@ -6150,10 +5819,10 @@ fn checked_js_uses_comment_directives() {
 #[test]
 fn check_js_option_uses_comment_directives() {
     let result = check_program(
-        &[InputFile {
-            name: "a.js".to_owned(),
-            text: "// @ts-ignore\nlet x;\nlet x;\n".to_owned(),
-        }],
+        &[InputFile::new(
+            "a.js".to_owned(),
+            "// @ts-ignore\nlet x;\nlet x;\n".to_owned(),
+        )],
         &CompilerOptions {
             allow_js: true,
             check_js: Some(true),
@@ -6196,10 +5865,10 @@ fn check_directive_matches_shebang_bom_and_unicode_line_breaks() {
 #[test]
 fn unicode_line_break_last_ts_check_restores_semantic_diagnostics() {
     let result = check_program(
-        &[InputFile {
-            name: "a.ts".to_owned(),
-            text: "// @ts-nocheck\u{2028}// @ts-check\u{2028}const value: string = 1;".to_owned(),
-        }],
+        &[InputFile::new(
+            "a.ts".to_owned(),
+            "// @ts-nocheck\u{2028}// @ts-check\u{2028}const value: string = 1;".to_owned(),
+        )],
         &CompilerOptions::default(),
     );
 
@@ -6216,11 +5885,10 @@ fn unicode_line_break_last_ts_check_restores_semantic_diagnostics() {
 #[test]
 fn bom_before_shebang_does_not_enable_following_ts_nocheck() {
     let result = check_program(
-        &[InputFile {
-            name: "a.ts".to_owned(),
-            text: "\u{FEFF}#!/usr/bin/env node\n// @ts-nocheck\nconst value: string = 1;\n"
-                .to_owned(),
-        }],
+        &[InputFile::new(
+            "a.ts".to_owned(),
+            "\u{FEFF}#!/usr/bin/env node\n// @ts-nocheck\nconst value: string = 1;\n".to_owned(),
+        )],
         &CompilerOptions::default(),
     );
 
@@ -6237,10 +5905,10 @@ fn bom_before_shebang_does_not_enable_following_ts_nocheck() {
 #[test]
 fn ts_nocheck_after_shebang_suppresses_semantic_diagnostics() {
     let result = check_program(
-        &[InputFile {
-            name: "a.ts".to_owned(),
-            text: "#!/usr/bin/env node\n// @ts-nocheck\nconst value: string = 1;\n".to_owned(),
-        }],
+        &[InputFile::new(
+            "a.ts".to_owned(),
+            "#!/usr/bin/env node\n// @ts-nocheck\nconst value: string = 1;\n".to_owned(),
+        )],
         &CompilerOptions::default(),
     );
 
@@ -6251,22 +5919,22 @@ fn ts_nocheck_after_shebang_suppresses_semantic_diagnostics() {
 fn skip_lib_check_preserves_syntax_errors_and_skips_semantic_errors() {
     let result = check_program(
         &[
-            InputFile {
-                name: "bad-syntax.d.ts".to_owned(),
-                text: "declare const x: ;\n".to_owned(),
-            },
-            InputFile {
-                name: "bad-semantic.d.ts".to_owned(),
-                text: "declare const y: Missing;\n".to_owned(),
-            },
-            InputFile {
-                name: "merge-a.d.ts".to_owned(),
-                text: "declare let merged: number;\n".to_owned(),
-            },
-            InputFile {
-                name: "merge-b.d.ts".to_owned(),
-                text: "declare let merged: string;\n".to_owned(),
-            },
+            InputFile::new(
+                "bad-syntax.d.ts".to_owned(),
+                "declare const x: ;\n".to_owned(),
+            ),
+            InputFile::new(
+                "bad-semantic.d.ts".to_owned(),
+                "declare const y: Missing;\n".to_owned(),
+            ),
+            InputFile::new(
+                "merge-a.d.ts".to_owned(),
+                "declare let merged: number;\n".to_owned(),
+            ),
+            InputFile::new(
+                "merge-b.d.ts".to_owned(),
+                "declare let merged: string;\n".to_owned(),
+            ),
         ],
         &CompilerOptions {
             skip_lib_check: Some(true),
@@ -6295,19 +5963,16 @@ fn es5_lib() -> InputFile {
         env!("CARGO_MANIFEST_DIR"),
         "/../../vendor/typescript-6.0.3/lib/lib.es5.d.ts"
     );
-    InputFile {
-        name: "lib.es5.d.ts".to_owned(),
-        text: std::fs::read_to_string(path).expect("vendored lib.es5.d.ts"),
-    }
+    InputFile::new(
+        "lib.es5.d.ts".to_owned(),
+        std::fs::read_to_string(path).expect("vendored lib.es5.d.ts"),
+    )
 }
 
 fn lib_backed_diags(text: &str) -> Vec<(u32, u32, u32, String)> {
     let result = check_program_with_libs(
         &[es5_lib()],
-        &[InputFile {
-            name: "a.ts".to_owned(),
-            text: text.to_owned(),
-        }],
+        &[InputFile::new("a.ts".to_owned(), text.to_owned())],
         &CompilerOptions::default(),
     );
     result
@@ -6430,10 +6095,10 @@ fn lib_array_in_parameter_position_reports_2636() {
 #[test]
 fn check_program_includes_parse_diagnostics() {
     let result = check_program(
-        &[InputFile {
-            name: "a.ts".to_owned(),
-            text: "\"unterminated".to_owned(),
-        }],
+        &[InputFile::new(
+            "a.ts".to_owned(),
+            "\"unterminated".to_owned(),
+        )],
         &CompilerOptions::default(),
     );
 
@@ -6453,9 +6118,11 @@ fn merged_lib_interface_type_parameters_unify() {
         env!("CARGO_MANIFEST_DIR"),
         "/../../vendor/typescript-6.0.3/lib/"
     );
-    let lib = |name: &str| InputFile {
-        name: name.to_owned(),
-        text: std::fs::read_to_string(format!("{vendor}{name}")).expect("vendored lib"),
+    let lib = |name: &str| {
+        InputFile::new(
+            name.to_owned(),
+            std::fs::read_to_string(format!("{vendor}{name}")).expect("vendored lib"),
+        )
     };
     let result = check_program_with_libs(
         &[
@@ -6463,10 +6130,10 @@ fn merged_lib_interface_type_parameters_unify() {
             lib("lib.es2015.promise.d.ts"),
             lib("lib.es2015.symbol.wellknown.d.ts"),
         ],
-        &[InputFile {
-            name: "a.ts".to_owned(),
-            text: "type X = Promise<number>;\n".to_owned(),
-        }],
+        &[InputFile::new(
+            "a.ts".to_owned(),
+            "type X = Promise<number>;\n".to_owned(),
+        )],
         &CompilerOptions::default(),
     );
     assert_eq!(result.diagnostics, []);

@@ -78,14 +78,14 @@ there.
    only rule above; its result and trusted baseline are recorded in the PR
    body.
 
-   L0.0 froze the lane-selection, exact HEAD/base-bound receipt, and bounded
-   failure-artifact contracts and landed the common non-documentation hosted
-   guardrail plus deterministic scheduled inputs. Before the first L0.1 or H1
-   runtime slice is accepted, activate the remaining authority defined by the
-   L0/L1 and H1 designs: authenticated receipt status, the implementation-
-   specific focused tests, runtime stress coverage, and approved-runner
-   performance qualification. Until then, a green hosted `gates` result alone
-   is never acceptance evidence for those runtime changes.
+   L0.1 activates the authenticated exact HEAD/base full-gate producer,
+   text-owner focused tests, protected-main Unicode edit stress, and the
+   approved macOS arm64 H0 comparison on top of L0.0's schemas and common
+   guardrail. Later L0/L1 slices extend those owner/stress/performance scopes;
+   H1 must add its implementation-specific emit tests, stress, and approved-
+   runner qualification before its first runtime slice. A green hosted
+   `gates` aggregate without the selected exact qualification is never
+   acceptance evidence for these runtime changes.
 
 ## Verification quick reference
 

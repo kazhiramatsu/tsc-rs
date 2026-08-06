@@ -28,7 +28,8 @@ use std::sync::Arc;
 
 use serde_json::{Map, Value};
 use tsc_diagnostics::{
-    gen, sort_and_dedupe_diagnostics, Diagnostic, DiagnosticMessage, MessageChain,
+    gen, sort_and_dedupe_diagnostics, Diagnostic, DiagnosticMessage, DocumentVersion, MessageChain,
+    TextSnapshot,
 };
 use tsc_host::{to_file_name_lower_case, CompilerHost, HostError, HostErrorKind, HostOperation};
 use tsc_syntax::{NodeId, SourceFile, SyntaxKind};
@@ -259,7 +260,24 @@ impl From<ConfigHostError> for ConfigParseError {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ConfigSourceText {
     pub file_name: String,
-    pub text: String,
+    snapshot: Arc<TextSnapshot>,
+}
+
+impl ConfigSourceText {
+    pub fn new(file_name: impl Into<String>, text: impl Into<String>) -> Self {
+        Self {
+            file_name: file_name.into(),
+            snapshot: TextSnapshot::new(text.into(), DocumentVersion::default()),
+        }
+    }
+
+    pub fn text(&self) -> &str {
+        self.snapshot.text()
+    }
+
+    pub fn snapshot(&self) -> &Arc<TextSnapshot> {
+        &self.snapshot
+    }
 }
 
 /// One merged compiler-option property with its defining config directory.
@@ -1368,10 +1386,7 @@ pub fn parse_config_root_plan(
     };
     let mut node = context
         .parse_node(
-            ConfigSourceText {
-                file_name: request.file_name,
-                text: request.text,
-            },
+            ConfigSourceText::new(request.file_name, request.text),
             &config_file_name,
             &config_base,
             true,
@@ -1799,7 +1814,7 @@ impl ParseContext<'_> {
         base_path: &str,
         is_root: bool,
     ) -> Result<Option<ParsedConfigNode>, ConfigParseError> {
-        match json_parser_preflight(&source.text) {
+        match json_parser_preflight(source.text()) {
             JsonParserPreflight::Safe => {}
             JsonParserPreflight::UnsafeSyntax => {
                 return Err(ConfigParseError::new(
@@ -1816,7 +1831,10 @@ impl ParseContext<'_> {
                 ));
             }
         }
-        let parsed = tsc_syntax::parse_json_text(&source.file_name, &source.text);
+        let parsed = tsc_syntax::parse_json_text_from_snapshot(
+            &source.file_name,
+            Arc::clone(source.snapshot()),
+        );
         if !parsed.parse_diagnostics.is_empty() {
             if is_root {
                 self.root_parse_diagnostics
@@ -2039,10 +2057,7 @@ impl ParseContext<'_> {
                 }
             };
             let extended_base = directory_name(&extended_path);
-            let extended_source = ConfigSourceText {
-                file_name: extended_path.clone(),
-                text,
-            };
+            let extended_source = ConfigSourceText::new(extended_path.clone(), text);
             if seen_sources.insert(extended_path.clone()) {
                 extended_sources.push(extended_source.clone());
             }
@@ -2516,7 +2531,8 @@ fn paths_option_diagnostics(
     // Location indexing is used only by invalid `paths` configurations.
     // Valid large maps stay on the single-parse path and do not retain or sort
     // one syntax entry per substitution.
-    let parsed = tsc_syntax::parse_json_text(&source.file_name, &source.text);
+    let parsed =
+        tsc_syntax::parse_json_text_from_snapshot(&source.file_name, Arc::clone(source.snapshot()));
     let syntax = config_paths_syntax_index(&parsed);
     let mut diagnostics = Vec::with_capacity(pending.len());
     for pending in pending {
@@ -2558,7 +2574,8 @@ fn no_lib_lib_option_diagnostics(
         return Vec::new();
     }
 
-    let parsed = tsc_syntax::parse_json_text(&source.file_name, &source.text);
+    let parsed =
+        tsc_syntax::parse_json_text_from_snapshot(&source.file_name, Arc::clone(source.snapshot()));
     let mut locations = Vec::new();
     if let Some(root) = config_root_object(&parsed) {
         for compiler_options in config_object_properties(&parsed, root)
@@ -2603,7 +2620,8 @@ fn deprecation_option_diagnostics(
     options: &ConfigOptionBag,
     source: &ConfigSourceText,
 ) -> Vec<Diagnostic> {
-    let parsed = tsc_syntax::parse_json_text(&source.file_name, &source.text);
+    let parsed =
+        tsc_syntax::parse_json_text_from_snapshot(&source.file_name, Arc::clone(source.snapshot()));
     let compiler_properties = config_compiler_option_properties(&parsed);
     let fallback = config_property(&parsed, "compilerOptions")
         .and_then(|property| config_location(&parsed, property.name_node));
@@ -2793,7 +2811,8 @@ fn option_relationship_diagnostics(
     options: &ConfigOptionBag,
     source: &ConfigSourceText,
 ) -> Vec<Diagnostic> {
-    let parsed = tsc_syntax::parse_json_text(&source.file_name, &source.text);
+    let parsed =
+        tsc_syntax::parse_json_text_from_snapshot(&source.file_name, Arc::clone(source.snapshot()));
     let compiler_properties = config_compiler_option_properties(&parsed);
     // Relationship diagnostics whose option is absent are compiler-level
     // rows in TypeScript, not diagnostics attached to the compilerOptions
@@ -3278,10 +3297,10 @@ fn config_location(source: &SourceFile, node: NodeId) -> Option<ConfigLocation> 
 
 fn config_span(source: &SourceFile, node: NodeId) -> Option<ConfigSpan> {
     let node = source.arena.node(node);
-    let end_byte = usize::try_from(node.end).ok()?.min(source.text.len());
-    let start_byte = tsc_syntax::skip_trivia(&source.text, node.pos as usize).min(end_byte);
-    let start = *source.line_map.byte_to_utf16.get(start_byte)?;
-    let end = *source.line_map.byte_to_utf16.get(end_byte)?;
+    let end_byte = usize::try_from(node.end).ok()?.min(source.text().len());
+    let start_byte = tsc_syntax::skip_trivia(source.text(), node.pos as usize).min(end_byte);
+    let start = source.positions().byte_to_utf16(start_byte as u32)?;
+    let end = source.positions().byte_to_utf16(end_byte as u32)?;
     Some(ConfigSpan {
         start,
         length: end.saturating_sub(start),
@@ -4522,8 +4541,9 @@ fn config_program_path(path: &str, case_sensitive: bool) -> Result<ProgramPath, 
 /// tsc-hash: 17ba3301b0e0b235cd27fe80671cceec3dc0473af4f1aee5dcf1cacbbbe6fe66
 /// tsc-span: _tsc.js:20111-20116
 fn program_config_file(path: ProgramPath, source: &ConfigSourceText) -> ProgramConfigFile {
-    let mut config_file = ProgramConfigFile::new(path, source.text.clone());
-    let parsed = tsc_syntax::parse_json_text(&source.file_name, &source.text);
+    let mut config_file = ProgramConfigFile::from_snapshot(path, Arc::clone(source.snapshot()));
+    let parsed =
+        tsc_syntax::parse_json_text_from_snapshot(&source.file_name, Arc::clone(source.snapshot()));
     let Some(root) = config_root_object(&parsed) else {
         return config_file;
     };

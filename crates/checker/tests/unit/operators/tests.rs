@@ -544,10 +544,10 @@ fn always_truthy_literal_condition_reports_2872() {
 #[test]
 fn checked_js_syntactic_truthiness_row_is_published() {
     let result = check_program(
-        &[InputFile {
-            name: "a.js".to_owned(),
-            text: "function f() { return 5 || true; }\n".to_owned(),
-        }],
+        &[InputFile::new(
+            "a.js".to_owned(),
+            "function f() { return 5 || true; }\n".to_owned(),
+        )],
         &CompilerOptions {
             allow_js: true,
             check_js: Some(true),
@@ -571,10 +571,10 @@ fn checked_js_syntactic_truthiness_row_is_published() {
 #[test]
 fn checked_js_non_jsdoc_operator_row_is_published() {
     let result = check_program(
-        &[InputFile {
-            name: "a.js".to_owned(),
-            text: "const orbitol = 1;\nvar orbitol = 1 + false;\n".to_owned(),
-        }],
+        &[InputFile::new(
+            "a.js".to_owned(),
+            "const orbitol = 1;\nvar orbitol = 1 + false;\n".to_owned(),
+        )],
         &CompilerOptions {
             allow_js: true,
             check_js: Some(true),
@@ -603,22 +603,16 @@ fn checked_js_import_meta_commonjs_row_is_published() {
     let source = "const x = import.meta.url;\nexport {x};\n";
     let result = check_program(
         &[
-            InputFile {
-                name: "/package.json".to_owned(),
-                text: "{\"type\":\"module\"}\n".to_owned(),
-            },
-            InputFile {
-                name: "/index.js".to_owned(),
-                text: source.to_owned(),
-            },
-            InputFile {
-                name: "/subfolder/package.json".to_owned(),
-                text: "{\"type\":\"commonjs\"}\n".to_owned(),
-            },
-            InputFile {
-                name: "/subfolder/index.js".to_owned(),
-                text: source.to_owned(),
-            },
+            InputFile::new(
+                "/package.json".to_owned(),
+                "{\"type\":\"module\"}\n".to_owned(),
+            ),
+            InputFile::new("/index.js".to_owned(), source.to_owned()),
+            InputFile::new(
+                "/subfolder/package.json".to_owned(),
+                "{\"type\":\"commonjs\"}\n".to_owned(),
+            ),
+            InputFile::new("/subfolder/index.js".to_owned(), source.to_owned()),
         ],
         &CompilerOptions {
             allow_js: true,

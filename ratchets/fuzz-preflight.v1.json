@@ -4,11 +4,11 @@
   "source_references": [
     {
       "path": "ratchets/fuzz-domain.v1.toml",
-      "sha256": "3e706cc23e1679ab2d3e65ad807b82b82379383f81f91ea949283527b6d41b1c"
+      "sha256": "b95b5553f300f0ed9c0ff148a787b1dca59730259bf1217d7165f97986697ab0"
     },
     {
       "path": "ratchets/fuzz-oracle-deviations.v1.json",
-      "sha256": "0e9d2c5d5981ccea00f11011973698b83adfb844afa1882b948f74e4bdde1417"
+      "sha256": "25747201d3bf59edb879b30116998517b2c57d1ee095a3a1871c1c52720076b0"
     },
     {
       "path": "m8-evidence.json",
@@ -36,19 +36,19 @@
     },
     {
       "path": "crates/xtask/src/m8_evidence.rs",
-      "sha256": "f944277858145c13150af52ab3875fc6a22031afbe91591998bc4e37ddd8b088"
+      "sha256": "eb6e421db46f7f2bc2bed70ad6192b18c1324ece6bb16360ab262e827f9efdc8"
     },
     {
       "path": "crates/checker/src/lib.rs",
-      "sha256": "a1e2ce979f9d441ed592104cf887ba848c1f55abd8b515a8b1e3fa8321b6a116"
+      "sha256": "e54d53a5e2e593a89c0c624cc9c9b43c80ebb9d26daab8aa53841b95e36c9d94"
     },
     {
       "path": "crates/diagnostics/src/lib.rs",
-      "sha256": "5d58c08b7fd226a4b0e6a8e20ceda67d1596ca943c756aa55ced42b011de08ff"
+      "sha256": "6c5d88773007f8a54d98b7ebc51c96c5110caa452b95d4d670e2002079302068"
     },
     {
       "path": "crates/diagnostics/src/render.rs",
-      "sha256": "2b84dd1ba5cec8102f0e6170d8f80c859bb65c907be2e15eac0a7cf43bce2103"
+      "sha256": "45f68c41d3012f4482796651795b22358c0cee0d7725657c067e068648c529c8"
     },
     {
       "path": "crates/harness/src/lib.rs",
@@ -56,7 +56,7 @@
     },
     {
       "path": "crates/conformance/src/lib.rs",
-      "sha256": "29d3353bec2326a0142eae9668ee8c913dd159c9b8181be63c35d5595f1763b3"
+      "sha256": "b587f15621bf06f14c799f2562be869415982c2dffc11672c7f682f82a2b3e21"
     },
     {
       "path": "crates/conformance/src/rendered.rs",
@@ -96,7 +96,7 @@
     },
     {
       "path": "crates/fuzz/src/lib.rs",
-      "sha256": "802f0d7b8dc47010e0cd72a8302947a86de443ce86fc7af59d6f3051a1af98b6"
+      "sha256": "86e34b3da7750e75f54168135d6e6e98e45d6e27f8875dc254206369b383d63d"
     },
     {
       "path": "crates/fuzz/src/error.rs",
@@ -136,7 +136,7 @@
     },
     {
       "path": "crates/fuzz/src/adapters/tsrs.rs",
-      "sha256": "5c743b28b91abb5d938d512232e9ee8cfa0b0720000b632e81329649bd8805e6"
+      "sha256": "01bf2ff1bb623384b2ec906a804ea15ad73ca0ae9e619c270cfd95a954886f46"
     },
     {
       "path": "crates/fuzz/src/bin/tsc-rs-fuzz-producer.rs",

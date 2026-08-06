@@ -164,10 +164,7 @@ fn named_parameter_without_type_is_an_error_or_suggestion() {
         ),
     ] {
         let result = check_program(
-            &[InputFile {
-                name: "a.ts".to_owned(),
-                text: source.to_owned(),
-            }],
+            &[InputFile::new("a.ts".to_owned(), source.to_owned())],
             &options,
         );
         let diagnostic = result
@@ -233,10 +230,7 @@ fn checked_js_publishes_loose_parameter_suggestions() {
         );
     });
 
-    let inputs = files.map(|(name, text)| InputFile {
-        name: name.to_owned(),
-        text: text.to_owned(),
-    });
+    let inputs = files.map(|(name, text)| InputFile::new(name.to_owned(), text.to_owned()));
     let published = check_program(&inputs, &options)
         .diagnostics
         .iter()
@@ -255,10 +249,10 @@ fn unchecked_js_does_not_publish_loose_implicit_any_suggestions() {
         ..CompilerOptions::default()
     };
     let result = check_program(
-        &[InputFile {
-            name: "a.js".to_owned(),
-            text: "function f(value) { return value; }\nf(1);\n".to_owned(),
-        }],
+        &[InputFile::new(
+            "a.js".to_owned(),
+            "function f(value) { return value; }\nf(1);\n".to_owned(),
+        )],
         &options,
     );
     assert!(result
@@ -277,9 +271,9 @@ fn checked_js_publishes_constructor_flow_implicit_any_members() {
         ..CompilerOptions::default()
     };
     let result = check_program(
-        &[InputFile {
-            name: "a.js".to_owned(),
-            text: "function A() {\n\
+        &[InputFile::new(
+            "a.js".to_owned(),
+            "function A() {\n\
                        this.unknown = null;\n\
                        this.unknowable = undefined;\n\
                        this.empty = [];\n\
@@ -289,7 +283,7 @@ fn checked_js_publishes_constructor_flow_implicit_any_members() {
                        a.unknowable = 1;\n\
                        a.empty.push(1);\n"
                 .to_owned(),
-        }],
+        )],
         &options,
     );
     let rows = result
@@ -306,14 +300,14 @@ fn checked_js_publishes_constructor_flow_implicit_any_members() {
     assert_eq!(rows.len(), 3);
 
     let sibling = check_program(
-        &[InputFile {
-            name: "sibling.js".to_owned(),
-            text: "function Installer() { this.args = 0; }\n\
+        &[InputFile::new(
+            "sibling.js".to_owned(),
+            "function Installer() { this.args = 0; }\n\
                        Installer.prototype.load = function () {\n\
                        (() => { this.newProperty = 1; });\n\
                        };\n"
                 .to_owned(),
-        }],
+        )],
         &options,
     );
     assert!(sibling
@@ -322,16 +316,16 @@ fn checked_js_publishes_constructor_flow_implicit_any_members() {
         .all(|diagnostic| diagnostic.code() != 7008));
 
     let annotated = check_program(
-        &[InputFile {
-            name: "annotated.js".to_owned(),
-            text: "class Render {\n\
+        &[InputFile::new(
+            "annotated.js".to_owned(),
+            "class Render {\n\
                        constructor() {\n\
                        /** @type {number[]} */\n\
                        this.objects = [];\n\
                        }\n\
                        }\n"
             .to_owned(),
-        }],
+        )],
         &options,
     );
     assert!(annotated
@@ -394,10 +388,7 @@ fn checked_js_ports_direct_inline_and_method_level_parameter_types() {
     });
 
     let published = check_program(
-        &[InputFile {
-            name: "a.js".to_owned(),
-            text: text.to_owned(),
-        }],
+        &[InputFile::new("a.js".to_owned(), text.to_owned())],
         &options,
     );
     let published_7044 = published

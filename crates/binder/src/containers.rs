@@ -698,8 +698,12 @@ impl<'a> Binder<'a> {
         let pos = self.source.arena.node(node).pos as usize;
         let (start, end) = crate::node_util::get_span_of_token_at_position(self.source, pos);
         let args: Vec<String> = args.iter().map(|arg| (*arg).to_owned()).collect();
-        let map = &self.source.line_map.byte_to_utf16;
-        let to_utf16 = |byte: usize| -> u32 { map.get(byte).copied().unwrap_or(byte as u32) };
+        let to_utf16 = |byte: usize| -> u32 {
+            self.source
+                .positions()
+                .byte_to_utf16(byte as u32)
+                .expect("binder diagnostic offsets are UTF-8 scalar boundaries")
+        };
         let start_utf16 = to_utf16(start);
         let end_utf16 = to_utf16(end);
         self.bind_diagnostics.push(tsc_diagnostics::Diagnostic::new(

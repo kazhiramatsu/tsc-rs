@@ -7,6 +7,7 @@ import { fileURLToPath } from "node:url";
 
 const workspace = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const evidencePath = path.join(workspace, "ratchets/l0-evidence.v1.json");
+const comparisonPath = path.join(workspace, "ratchets/l0-text-ownership-performance.v1.json");
 const fixtureManifestPath = path.join(workspace, "ratchets/l0-fixtures.v1.json");
 const fixtureRoot = path.join(workspace, "target/l0/qualification-fixtures");
 const binaryPath = path.join(workspace, "target/release/examples/h0_qualification");
@@ -55,6 +56,30 @@ function trackedRuntimeFingerprint() {
     hash.update(entry);
     hash.update("\0");
     hash.update(sha256(fs.readFileSync(path.join(workspace, entry))));
+    hash.update("\0");
+  }
+  return { files: paths.length, sha256: hash.digest("hex") };
+}
+
+function trackedRuntimeFingerprintAt(commit) {
+  const paths = execFileSync("git", ["ls-tree", "-r", "--name-only", "-z", commit], {
+    cwd: workspace,
+    maxBuffer: 64 * 1024 * 1024,
+  })
+    .toString("utf8")
+    .split("\0")
+    .filter(Boolean)
+    .filter((entry) => runtimeExact.has(entry) || runtimePrefixes.some((prefix) => entry.startsWith(prefix)))
+    .sort((left, right) => left.localeCompare(right));
+  const hash = crypto.createHash("sha256");
+  for (const entry of paths) {
+    const bytes = execFileSync("git", ["show", `${commit}:${entry}`], {
+      cwd: workspace,
+      maxBuffer: 64 * 1024 * 1024,
+    });
+    hash.update(entry);
+    hash.update("\0");
+    hash.update(sha256(bytes));
     hash.update("\0");
   }
   return { files: paths.length, sha256: hash.digest("hex") };
@@ -112,31 +137,16 @@ function parseObservation(result, elapsedSeconds) {
   };
 }
 
-function measureWorkload(workload, sampleCount) {
-  const cwd = path.join(fixtureRoot, workload.id);
-  const samples = [];
-  for (let ordinal = 0; ordinal < sampleCount; ordinal += 1) {
-    const started = process.hrtime.bigint();
-    const result = spawnSync("/usr/bin/time", ["-l", binaryPath, ...workload.args], {
-      cwd,
-      encoding: "utf8",
-      env: { ...process.env, CARGO_BUILD_JOBS: "2" },
-      maxBuffer: 64 * 1024 * 1024,
-    });
-    const elapsed = Number(process.hrtime.bigint() - started) / 1_000_000_000;
-    samples.push({
-      ordinal,
-      temperature: ordinal === 0 ? "cold" : "warm",
-      ...parseObservation(result, elapsed),
-    });
-  }
-  return {
-    id: workload.id,
-    args: workload.args,
-    workload_sha256: workload.workload_sha256,
-    samples,
-    summary: summary(samples),
-  };
+function measureBinary(binary, workload) {
+  const started = process.hrtime.bigint();
+  const result = spawnSync("/usr/bin/time", ["-l", binary, ...workload.args], {
+    cwd: path.join(fixtureRoot, workload.id),
+    encoding: "utf8",
+    env: { ...process.env, CARGO_BUILD_JOBS: "2" },
+    maxBuffer: 64 * 1024 * 1024,
+  });
+  const elapsed = Number(process.hrtime.bigint() - started) / 1_000_000_000;
+  return parseObservation(result, elapsed);
 }
 
 function policy() {
@@ -175,50 +185,174 @@ function runner() {
   };
 }
 
-function measure(sampleCount) {
-  if (!Number.isInteger(sampleCount) || sampleCount < 8) throw new Error("measurement requires at least eight samples per workload");
-  command("node", ["crates/oracle/l0-fixtures.mjs", "--check"]);
-  command("cargo", ["build", "--release", "--locked", "-p", "tsc-rs-compiler", "--example", "h0_qualification"]);
-  command("node", ["crates/oracle/l0-fixtures.mjs", "--materialize", fixtureRoot]);
-  const fixtures = JSON.parse(fs.readFileSync(fixtureManifestPath, "utf8"));
-  const workloads = fixtures.workloads.filter((workload) => workload.args !== null);
-  const runtime = trackedRuntimeFingerprint();
+function commandAt(cwd, program, args, options = {}) {
+  return execFileSync(program, args, {
+    cwd,
+    encoding: "utf8",
+    maxBuffer: 64 * 1024 * 1024,
+    ...options,
+  }).trim();
+}
+
+function comparisonSummary(samples) {
+  const field = (name) => samples.map((sample) => sample[name]);
   return {
-    schema: 1,
-    status: "frozen",
-    typescript_version: "6.0.3",
-    observed_runtime_commit: git("rev-parse", "HEAD"),
-    runtime_tree: runtime,
-    fixture_manifest_sha256: sha256(fs.readFileSync(fixtureManifestPath)),
-    measured_at_utc: new Date().toISOString(),
-    runner: runner(),
-    toolchain: {
-      rustc: command("rustc", ["--version"]),
-      node: process.version,
-      cargo_build_jobs: 2,
-      profile: "release",
-      allocator_observer: "stats_alloc-0.1.10-example-only",
-    },
-    binary: {
-      path: "target/release/examples/h0_qualification",
-      bytes: fs.statSync(binaryPath).size,
-      sha256: sha256(fs.readFileSync(binaryPath)),
-    },
-    workloads: workloads.map((workload) => measureWorkload(workload, sampleCount)),
-    relative_regression_policy: policy(),
+    median_wall_seconds: rounded(median(field("wall_seconds"))),
+    p95_wall_seconds: rounded(percentile(field("wall_seconds"), 95)),
+    max_rss_bytes: Math.max(...field("max_rss_bytes")),
+    median_allocations: median(field("allocations")),
+    median_bytes_allocated: median(field("bytes_allocated")),
+    work: samples[0].work,
   };
+}
+
+function ratio(candidate, base) {
+  if (base === 0) return candidate === 0 ? 1 : Number.POSITIVE_INFINITY;
+  return rounded(candidate / base);
+}
+
+function comparisonRatios(base, candidate) {
+  return {
+    warm_median_wall_ratio: ratio(candidate.median_wall_seconds, base.median_wall_seconds),
+    warm_p95_wall_ratio: ratio(candidate.p95_wall_seconds, base.p95_wall_seconds),
+    peak_rss_ratio: ratio(candidate.max_rss_bytes, base.max_rss_bytes),
+    allocation_count_ratio: ratio(candidate.median_allocations, base.median_allocations),
+    allocated_bytes_ratio: ratio(candidate.median_bytes_allocated, base.median_bytes_allocated),
+    parsed_documents_ratio: ratio(candidate.work.parsed_documents, base.work.parsed_documents),
+    bound_documents_ratio: ratio(candidate.work.bound_documents, base.work.bound_documents),
+    full_text_copies_ratio: ratio(candidate.work.full_text_copies, base.work.full_text_copies),
+    full_text_bytes_copied_ratio: ratio(
+      candidate.work.full_text_bytes_copied,
+      base.work.full_text_bytes_copied,
+    ),
+  };
+}
+
+function ratiosQualify(ratios) {
+  const ceilings = policy().ceilings;
+  return Object.entries(ceilings).every(([name, ceiling]) => ratios[name] <= ceiling);
+}
+
+function compareWorkload(workload, pairCount, binaries) {
+  const pairs = [];
+  for (let ordinal = 0; ordinal < pairCount; ordinal += 1) {
+    const order = ordinal % 2 === 0 ? "ab" : "ba";
+    const observations = {};
+    for (const side of order === "ab" ? ["base", "candidate"] : ["candidate", "base"]) {
+      observations[side] = measureBinary(binaries[side], workload);
+    }
+    pairs.push({ ordinal, order, ...observations });
+  }
+  const warmPairs = pairs.slice(1);
+  const base = comparisonSummary(warmPairs.map((pair) => pair.base));
+  const candidate = comparisonSummary(warmPairs.map((pair) => pair.candidate));
+  const ratios = comparisonRatios(base, candidate);
+  return {
+    id: workload.id,
+    args: workload.args,
+    workload_sha256: workload.workload_sha256,
+    cold_pair_ordinal: 0,
+    pairs,
+    base_summary: base,
+    candidate_summary: candidate,
+    ratios,
+    qualified: ratiosQualify(ratios),
+  };
+}
+
+function compare(baseRef, pairCount) {
+  if (!Number.isInteger(pairCount) || pairCount < policy().minimum_paired_samples + 1) {
+    throw new Error("comparison requires one cold pair plus at least seven warm paired samples");
+  }
+  if (git("status", "--porcelain").length !== 0) {
+    throw new Error("performance comparison requires a clean candidate worktree");
+  }
+  const candidateCommit = git("rev-parse", "HEAD");
+  const baseCommit = git("rev-parse", "--verify", `${baseRef}^{commit}`);
+  if (candidateCommit === baseCommit) throw new Error("performance comparison requires distinct candidate/base commits");
+  command("git", ["merge-base", "--is-ancestor", baseCommit, candidateCommit]);
+  command("node", ["crates/oracle/l0-fixtures.mjs", "--check"]);
+  command("node", ["crates/oracle/l0-fixtures.mjs", "--materialize", fixtureRoot]);
+
+  const temporary = fs.mkdtempSync(path.join(os.tmpdir(), "tsc-rs-l0-performance-"));
+  const baseWorkspace = path.join(temporary, "base");
+  const baseTarget = path.join(temporary, "base-target");
+  const candidateBinary = path.join(temporary, "candidate-h0-qualification");
+  let worktreeAdded = false;
+  try {
+    command("cargo", ["build", "--release", "--locked", "-p", "tsc-rs-compiler", "--example", "h0_qualification"]);
+    fs.copyFileSync(binaryPath, candidateBinary);
+    fs.chmodSync(candidateBinary, 0o755);
+
+    command("git", ["worktree", "add", "--detach", baseWorkspace, baseCommit]);
+    worktreeAdded = true;
+    commandAt(
+      baseWorkspace,
+      "cargo",
+      ["build", "--release", "--locked", "-p", "tsc-rs-compiler", "--example", "h0_qualification"],
+      { env: { ...process.env, CARGO_TARGET_DIR: baseTarget, CARGO_BUILD_JOBS: "2" } },
+    );
+    const baseBinary = path.join(baseTarget, "release/examples/h0_qualification");
+    const fixtures = JSON.parse(fs.readFileSync(fixtureManifestPath, "utf8"));
+    const workloads = fixtures.workloads.filter((workload) => workload.args !== null);
+    const compared = workloads.map((workload) =>
+      compareWorkload(workload, pairCount, { base: baseBinary, candidate: candidateBinary }),
+    );
+    return {
+      schema: 1,
+      kind: "l0-text-ownership-performance",
+      status: compared.every((workload) => workload.qualified) ? "qualified" : "failed",
+      typescript_version: "6.0.3",
+      candidate: {
+        commit: candidateCommit,
+        runtime_tree: trackedRuntimeFingerprint(),
+        binary_sha256: sha256(fs.readFileSync(candidateBinary)),
+      },
+      base: {
+        commit: baseCommit,
+        runtime_tree: trackedRuntimeFingerprintAt(baseCommit),
+        binary_sha256: sha256(fs.readFileSync(baseBinary)),
+      },
+      fixture_manifest_sha256: sha256(fs.readFileSync(fixtureManifestPath)),
+      measured_at_utc: new Date().toISOString(),
+      runner: runner(),
+      toolchain: {
+        rustc: command("rustc", ["--version"]),
+        node: process.version,
+        cargo_build_jobs: 2,
+        profile: "release",
+        allocator_observer: "stats_alloc-0.1.10-example-only",
+      },
+      pair_count: pairCount,
+      warm_pair_count: pairCount - 1,
+      order: "alternating-ab-ba",
+      workloads: compared,
+      relative_regression_policy: policy(),
+    };
+  } finally {
+    if (worktreeAdded) {
+      try {
+        command("git", ["worktree", "remove", "--force", baseWorkspace]);
+      } catch {
+        // Preserve the original comparison failure; `worktree prune` below
+        // still removes a stale administrative entry after temp cleanup.
+      }
+    }
+    fs.rmSync(temporary, { force: true, recursive: true });
+    command("git", ["worktree", "prune"]);
+  }
 }
 
 function sameJson(left, right) {
   return JSON.stringify(left) === JSON.stringify(right);
 }
 
-function validate(evidence) {
+function validateBaseline(evidence) {
   if (evidence.schema !== 1 || evidence.status !== "frozen" || evidence.typescript_version !== "6.0.3") throw new Error("invalid L0 evidence header");
   if (!/^[0-9a-f]{40}$/u.test(evidence.observed_runtime_commit)) throw new Error("invalid observed runtime commit");
   command("git", ["cat-file", "-e", `${evidence.observed_runtime_commit}^{commit}`]);
-  const currentRuntime = trackedRuntimeFingerprint();
-  if (!sameJson(evidence.runtime_tree, currentRuntime)) throw new Error("L0 runtime source fingerprint changed after the evidence freeze");
+  const observedRuntime = trackedRuntimeFingerprintAt(evidence.observed_runtime_commit);
+  if (!sameJson(evidence.runtime_tree, observedRuntime)) throw new Error("L0.0 runtime commit no longer matches its frozen fingerprint");
   if (evidence.fixture_manifest_sha256 !== sha256(fs.readFileSync(fixtureManifestPath))) throw new Error("L0 fixture manifest changed after the evidence freeze");
   if (evidence.runner.id !== "macos-arm64-local-approved" || evidence.toolchain.node !== "v25.2.1" || evidence.toolchain.cargo_build_jobs !== 2 || evidence.toolchain.profile !== "release") throw new Error("L0 evidence used an unapproved runner/toolchain profile");
   if (!sameJson(evidence.relative_regression_policy, policy())) throw new Error("L0 relative regression policy drifted");
@@ -248,18 +382,133 @@ function validate(evidence) {
   return evidence;
 }
 
+function validateComparison(evidence) {
+  if (
+    evidence.schema !== 1 ||
+    evidence.kind !== "l0-text-ownership-performance" ||
+    evidence.status !== "qualified" ||
+    evidence.typescript_version !== "6.0.3"
+  ) {
+    throw new Error("invalid L0.1 performance evidence header");
+  }
+  for (const side of ["candidate", "base"]) {
+    if (!/^[0-9a-f]{40}$/u.test(evidence[side].commit)) throw new Error(`invalid ${side} commit`);
+    command("git", ["cat-file", "-e", `${evidence[side].commit}^{commit}`]);
+    if (!sameJson(evidence[side].runtime_tree, trackedRuntimeFingerprintAt(evidence[side].commit))) {
+      throw new Error(`L0.1 ${side} runtime fingerprint does not match its commit`);
+    }
+    if (!/^[0-9a-f]{64}$/u.test(evidence[side].binary_sha256)) throw new Error(`invalid ${side} binary hash`);
+  }
+  command("git", ["merge-base", "--is-ancestor", evidence.base.commit, evidence.candidate.commit]);
+  if (!sameJson(evidence.candidate.runtime_tree, trackedRuntimeFingerprint())) {
+    throw new Error("current runtime sources differ from the qualified L0.1 candidate");
+  }
+  if (evidence.fixture_manifest_sha256 !== sha256(fs.readFileSync(fixtureManifestPath))) {
+    throw new Error("L0.1 performance fixture binding changed");
+  }
+  if (
+    evidence.runner.id !== "macos-arm64-local-approved" ||
+    evidence.runner.os !== "darwin" ||
+    evidence.runner.architecture !== "arm64" ||
+    evidence.toolchain.node !== "v25.2.1" ||
+    evidence.toolchain.cargo_build_jobs !== 2 ||
+    evidence.toolchain.profile !== "release"
+  ) {
+    throw new Error("L0.1 comparison used an unapproved runner/toolchain profile");
+  }
+  if (!sameJson(evidence.relative_regression_policy, policy())) {
+    throw new Error("L0.1 relative regression policy drifted");
+  }
+  if (
+    !Number.isInteger(evidence.pair_count) ||
+    evidence.pair_count < policy().minimum_paired_samples + 1 ||
+    evidence.warm_pair_count !== evidence.pair_count - 1 ||
+    evidence.order !== "alternating-ab-ba"
+  ) {
+    throw new Error("L0.1 comparison has too few or incorrectly ordered pairs");
+  }
+  const fixtures = JSON.parse(fs.readFileSync(fixtureManifestPath, "utf8"));
+  const expected = fixtures.workloads.filter((workload) => workload.args !== null);
+  if (!Array.isArray(evidence.workloads) || evidence.workloads.length !== expected.length) {
+    throw new Error("L0.1 comparison workload set is incomplete");
+  }
+  for (const [index, workload] of evidence.workloads.entries()) {
+    const fixture = expected[index];
+    if (
+      workload.id !== fixture.id ||
+      !sameJson(workload.args, fixture.args) ||
+      workload.workload_sha256 !== fixture.workload_sha256 ||
+      workload.cold_pair_ordinal !== 0 ||
+      !Array.isArray(workload.pairs) ||
+      workload.pairs.length !== evidence.pair_count
+    ) {
+      throw new Error(`L0.1 workload ${workload.id} does not match its frozen fixture/pair shape`);
+    }
+    let baseWork;
+    let candidateWork;
+    for (const [ordinal, pair] of workload.pairs.entries()) {
+      if (pair.ordinal !== ordinal || pair.order !== (ordinal % 2 === 0 ? "ab" : "ba")) {
+        throw new Error(`L0.1 workload ${workload.id} has invalid alternating order`);
+      }
+      for (const side of ["base", "candidate"]) {
+        const sample = pair[side];
+        for (const field of ["wall_seconds", "max_rss_bytes", "allocations", "bytes_allocated"]) {
+          if (!(sample[field] > 0)) throw new Error(`L0.1 workload ${workload.id} has invalid ${side} ${field}`);
+        }
+        const expectedWork = side === "base" ? baseWork : candidateWork;
+        if (expectedWork && !sameJson(sample.work, expectedWork)) {
+          throw new Error(`L0.1 workload ${workload.id} ${side} work changed across pairs`);
+        }
+        if (side === "base") baseWork ??= sample.work;
+        else candidateWork ??= sample.work;
+      }
+    }
+    const warmPairs = workload.pairs.slice(1);
+    const baseSummary = comparisonSummary(warmPairs.map((pair) => pair.base));
+    const candidateSummary = comparisonSummary(warmPairs.map((pair) => pair.candidate));
+    const ratios = comparisonRatios(baseSummary, candidateSummary);
+    if (
+      !sameJson(workload.base_summary, baseSummary) ||
+      !sameJson(workload.candidate_summary, candidateSummary) ||
+      !sameJson(workload.ratios, ratios) ||
+      workload.qualified !== ratiosQualify(ratios) ||
+      !workload.qualified
+    ) {
+      throw new Error(`L0.1 workload ${workload.id} exceeds or misstates its relative budget`);
+    }
+    if (
+      !(candidateWork.parsed_documents > 0) ||
+      candidateWork.parsed_documents !== candidateWork.bound_documents ||
+      candidateWork.parsed_documents > baseWork.parsed_documents ||
+      candidateWork.bound_documents > baseWork.bound_documents ||
+      candidateWork.full_text_copies !== 0 ||
+      candidateWork.full_text_bytes_copied !== 0
+    ) {
+      throw new Error(`L0.1 workload ${workload.id} does not prove zero-copy H0 ownership`);
+    }
+  }
+  return evidence;
+}
+
 const commandName = process.argv[2];
-if (commandName === "--write") {
-  const samplesArgument = process.argv.indexOf("--samples");
-  const sampleCount = samplesArgument >= 0 ? Number(process.argv[samplesArgument + 1]) : 9;
-  const evidence = measure(sampleCount);
-  validate(evidence);
-  fs.writeFileSync(evidencePath, `${JSON.stringify(evidence, null, 2)}\n`);
-  process.stdout.write(`wrote ${path.relative(workspace, evidencePath)}\n`);
+if (commandName === "--compare") {
+  const baselineArgument = process.argv.indexOf("--baseline");
+  const pairsArgument = process.argv.indexOf("--pairs");
+  const baseline = baselineArgument >= 0 ? process.argv[baselineArgument + 1] : undefined;
+  const pairCount = pairsArgument >= 0 ? Number(process.argv[pairsArgument + 1]) : 8;
+  if (!baseline) throw new Error("--compare requires --baseline <exact-commit>");
+  const evidence = compare(baseline, pairCount);
+  validateComparison(evidence);
+  fs.writeFileSync(comparisonPath, `${JSON.stringify(evidence, null, 2)}\n`);
+  process.stdout.write(`wrote ${path.relative(workspace, comparisonPath)}\n`);
 } else if (commandName === "--check") {
-  if (!fs.existsSync(evidencePath)) throw new Error("missing ratchets/l0-evidence.v1.json; run --write on the approved runner");
-  validate(JSON.parse(fs.readFileSync(evidencePath, "utf8")));
-  process.stdout.write("L0 performance evidence is valid and current\n");
+  if (!fs.existsSync(evidencePath)) throw new Error("missing frozen ratchets/l0-evidence.v1.json");
+  validateBaseline(JSON.parse(fs.readFileSync(evidencePath, "utf8")));
+  if (!fs.existsSync(comparisonPath)) {
+    throw new Error("missing ratchets/l0-text-ownership-performance.v1.json; run --compare on the approved runner");
+  }
+  validateComparison(JSON.parse(fs.readFileSync(comparisonPath, "utf8")));
+  process.stdout.write("L0.0 baseline and L0.1 relative performance evidence are valid and current\n");
 } else {
-  throw new Error("usage: l0-performance.mjs --write [--samples N]|--check");
+  throw new Error("usage: l0-performance.mjs --compare --baseline <exact-commit> [--pairs N]|--check");
 }

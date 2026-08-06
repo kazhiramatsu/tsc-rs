@@ -15,10 +15,7 @@ fn unused_rows_for_files(
 ) -> Vec<(u32, DiagnosticCategory, u32, u32, String)> {
     let files = files
         .iter()
-        .map(|(name, text)| InputFile {
-            name: (*name).to_owned(),
-            text: (*text).to_owned(),
-        })
+        .map(|(name, text)| InputFile::new((*name).to_owned(), (*text).to_owned()))
         .collect::<Vec<_>>();
     check_program(&files, options)
         .diagnostics
@@ -47,10 +44,7 @@ fn unused_rows_with_file_for_files(
 ) -> Vec<(String, u32, DiagnosticCategory, u32, u32, String)> {
     let files = files
         .iter()
-        .map(|(name, text)| InputFile {
-            name: (*name).to_owned(),
-            text: (*text).to_owned(),
-        })
+        .map(|(name, text)| InputFile::new((*name).to_owned(), (*text).to_owned()))
         .collect::<Vec<_>>();
     check_program(&files, options)
         .diagnostics

@@ -1599,7 +1599,7 @@ impl<'a> CheckerState<'a> {
         }
         // getTokenPosOfNode = skipTrivia from the node's pos.
         let start = tsc_syntax::skip_trivia(
-            &self.binder.source_of_node(start_node).text,
+            self.binder.source_of_node(start_node).text(),
             self.pos_of(start_node) as usize,
         );
         let end = self.end_of(end_node) as usize;
@@ -2982,13 +2982,11 @@ impl<'a> CheckerState<'a> {
                     if type_name_end == source.arena.node_array(type_arguments).pos as usize {
                         return None;
                     }
-                    let start = tsc_syntax::skip_trivia(&source.text, type_name_end);
-                    (source.text.as_bytes().get(start) == Some(&b'.')).then(|| {
+                    let start = tsc_syntax::skip_trivia(source.text(), type_name_end);
+                    (source.text().as_bytes().get(start) == Some(&b'.')).then(|| {
                         source
-                            .line_map
-                            .byte_to_utf16
-                            .get(start)
-                            .copied()
+                            .positions()
+                            .byte_to_utf16((start) as u32)
                             .unwrap_or(start as u32)
                     })
                 });
@@ -12538,7 +12536,7 @@ impl<'a> CheckerState<'a> {
             return false;
         }
         let end = source.arena.node(name).end as usize;
-        end > 0 && source.text.as_bytes().get(end - 1) == Some(&b'\'')
+        end > 0 && source.text().as_bytes().get(end - 1) == Some(&b'\'')
     }
 
     /// tsc-port: formatUnionTypes @6.0.3 (error-display face)

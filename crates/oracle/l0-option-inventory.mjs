@@ -104,8 +104,8 @@ function optionNames(options) {
 }
 
 const inventory = {
-  schema: 1,
-  status: "frozen",
+  schema: 2,
+  status: "text-ownership-complete",
   typescript: {
     version: ts.version,
     source_commit: "050880ce59e30b356b686bd3144efe24f875ebc8",
@@ -133,67 +133,122 @@ const inventory = {
     module_resolution: optionNames(ts.moduleResolutionOptionDeclarations),
     program_structure: optionNames(ts.optionsAffectingProgramStructure),
   },
-  current_rust_source_ownership: {
+  rust_source_ownership: {
     representations: [
       {
-        owner: "PreparedSourceFile.text",
-        storage: "String",
+        owner: "PreparedSourceFile.snapshot",
+        storage: "Arc<TextSnapshot>",
         ...owner("crates/program/src/prepared.rs", "pub struct PreparedSourceFile {"),
       },
       {
-        owner: "InputFile.text",
-        storage: "String",
+        owner: "InputFile.snapshot",
+        storage: "Arc<TextSnapshot>",
         ...owner("crates/checker/src/lib.rs", "pub struct InputFile {"),
       },
       {
-        owner: "SourceFile.text",
-        storage: "String",
+        owner: "SourceFile.snapshot",
+        storage: "Arc<TextSnapshot>",
+        authority: "parsed-document-single-snapshot-authority",
         ...owner("crates/syntax/src/lib.rs", "pub struct SourceFile {"),
       },
-    ],
-    full_text_copy_edges: [
       {
-        from: "PreparedSourceFile.text",
-        to: "InputFile.text",
-        ...owner("crates/compiler/src/lib.rs", "            text: source.text().to_owned(),"),
+        owner: "ConfigSourceText.snapshot",
+        storage: "Arc<TextSnapshot>",
+        ...owner("crates/program/src/config.rs", "pub struct ConfigSourceText {"),
       },
       {
-        from: "InputFile.text",
-        to: "SourceFile.text",
+        owner: "ProgramConfigFile.snapshot",
+        storage: "Arc<TextSnapshot>",
+        ...owner("crates/program/src/prepared.rs", "pub struct ProgramConfigFile {"),
+      },
+      {
+        owner: "PreparedAuxiliaryFile.snapshot",
+        storage: "Arc<TextSnapshot>",
+        ...owner("crates/program/src/prepared.rs", "pub struct PreparedAuxiliaryFile {"),
+      },
+      {
+        owner: "PackageMetadata.snapshot",
+        storage: "Arc<TextSnapshot>",
+        ...owner("crates/program/src/prepared.rs", "pub struct PackageMetadata {"),
+      },
+    ],
+    shared_snapshot_edges: [
+      {
+        from: "PreparedSourceFile.snapshot",
+        to: "InputFile.snapshot",
+        ...owner(
+          "crates/compiler/src/lib.rs",
+          "        InputFile::from_snapshot(name, Arc::clone(source.snapshot())),",
+        ),
+      },
+      {
+        from: "InputFile.snapshot",
+        to: "SourceFile.snapshot",
         branch: "json",
         ...owner(
           "crates/checker/src/lib.rs",
-          "            let source_file = tsc_syntax::parse_json_text_with_bases(",
+          "            let source_file = tsc_syntax::parse_json_text_from_snapshot_with_bases(",
         ),
       },
       {
-        from: "InputFile.text",
-        to: "SourceFile.text",
+        from: "InputFile.snapshot",
+        to: "SourceFile.snapshot",
         branch: "ordinary",
         ...owner(
           "crates/checker/src/lib.rs",
-          "        let source_file = tsc_syntax::parse_source_file(",
+          "        let source_file = tsc_syntax::parse_source_file_from_snapshot(",
         ),
       },
       {
-        from: "PreparedProgram source and auxiliary text",
-        to: "CLI diagnostic source_texts",
-        branch: "config-project",
+        from: "PreparedSourceFile.snapshot",
+        to: "module-request SourceFile.snapshot",
         ...owner(
-          "crates/compiler/src/cli.rs",
-          "    for source in prepared.auxiliary_files() {",
+          "crates/program/src/module_requests.rs",
+          "    let parsed = parse_source_file_from_snapshot(",
         ),
       },
       {
-        from: "PreparedProgram source text",
-        to: "CLI diagnostic source_texts",
-        branch: "explicit-roots",
+        from: "ConfigSourceText.snapshot",
+        to: "ProgramConfigFile.snapshot",
+        ...owner(
+          "crates/program/src/config.rs",
+          "    let mut config_file = ProgramConfigFile::from_snapshot(path, Arc::clone(source.snapshot()));",
+        ),
+      },
+      {
+        from: "package-json ingress snapshot",
+        to: "JSON SourceFile.snapshot and PackageMetadata.snapshot",
+        ...owner("crates/program/src/json.rs", "    let source = parse_json_text_from_snapshot("),
+      },
+      {
+        from: "prepared/config/auxiliary snapshots",
+        to: "CLI diagnostic snapshot map",
         ...owner(
           "crates/compiler/src/cli.rs",
-          "    execute_prepared(current_directory, source_texts, prepared, &[], pretty)",
+          "    let host = FormatDiagnosticsHost::from_snapshots(current_directory, source_texts);",
         ),
       },
     ],
+    full_text_copy_edges: [],
+    zero_copy_counter_contract: owner(
+      "crates/compiler/tests/integration/program_session_contract.rs",
+      "fn l0_work_counters_and_sorted_batch_syntax_diagnostics() {",
+    ),
+    position_index: {
+      static_h0: {
+        representation: "private dense byte/UTF-16 tables",
+        ...owner("crates/diagnostics/src/text.rs", "struct DensePositionIndex {"),
+      },
+      edited: {
+        representation: "persistent line tree with subtree byte/UTF-16/line counts",
+        ...owner("crates/diagnostics/src/text.rs", "struct PersistentLineTree {"),
+      },
+      accessor_contract: owner(
+        "crates/diagnostics/src/text.rs",
+        "    pub fn byte_to_utf16(&self, position: u32) -> Option<u32> {",
+      ),
+      versioned_store: owner("crates/diagnostics/src/text.rs", "pub struct VersionedTextStore {"),
+    },
     compiler_options_owner: {
       path: "crates/types/src/options.rs",
       source_sha256: sha256(optionsText),

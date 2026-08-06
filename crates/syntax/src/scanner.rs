@@ -13,7 +13,9 @@ pub enum LanguageVariant {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct TokenRecord {
     pub kind: SyntaxKind,
+    /// UTF-16 offsets relative to the text passed to `scan_tokens`.
     pub start: u32,
+    /// UTF-16 offsets relative to the text passed to `scan_tokens`.
     pub end: u32,
     pub preceding_line_break: bool,
 }

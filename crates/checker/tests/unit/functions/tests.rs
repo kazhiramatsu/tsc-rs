@@ -56,10 +56,7 @@ fn checked_program_rows_with_file(
     options: &CompilerOptions,
 ) -> Vec<(u32, u32, u32)> {
     check_program(
-        &[InputFile {
-            name: file_name.to_owned(),
-            text: text.to_owned(),
-        }],
+        &[InputFile::new(file_name.to_owned(), text.to_owned())],
         options,
     )
     .diagnostics
@@ -261,10 +258,10 @@ fn checked_js_constructor_overloads_keep_constructor_semantics() {
 #[test]
 fn recovered_missing_body_is_not_an_absent_implementation() {
     let result = check_program(
-        &[InputFile {
-            name: "a.ts".to_owned(),
-            text: "function f() => 4;\n".to_owned(),
-        }],
+        &[InputFile::new(
+            "a.ts".to_owned(),
+            "function f() => 4;\n".to_owned(),
+        )],
         &CompilerOptions::default(),
     );
     assert_eq!(
@@ -782,10 +779,7 @@ declare const u: unknown;
 
     let js = "(async () => { await 1; })();\n";
     let js_rows = check_program(
-        &[InputFile {
-            name: "a.js".to_owned(),
-            text: js.to_owned(),
-        }],
+        &[InputFile::new("a.js".to_owned(), js.to_owned())],
         &CompilerOptions {
             allow_js: true,
             check_js: Some(true),
@@ -1072,10 +1066,7 @@ fn checked_js_async_callback_alias_checks_the_contextual_return() {
         ..CompilerOptions::default()
     };
     let result = check_program(
-        &[InputFile {
-            name: "a.js".to_owned(),
-            text: text.to_owned(),
-        }],
+        &[InputFile::new("a.js".to_owned(), text.to_owned())],
         &options,
     );
     let diagnostic = result
@@ -1115,18 +1106,12 @@ fn checked_js_es5_thenable_alias_preserves_relation_chain() {
     };
     let result = check_program(
         &[
-            InputFile {
-                name: "/lib.d.ts".to_owned(),
-                text: lib.to_owned(),
-            },
-            InputFile {
-                name: "/types.d.ts".to_owned(),
-                text: "declare class Thenable { then(): void; }\n".to_owned(),
-            },
-            InputFile {
-                name: "/a.js".to_owned(),
-                text: js.to_owned(),
-            },
+            InputFile::new("/lib.d.ts".to_owned(), lib.to_owned()),
+            InputFile::new(
+                "/types.d.ts".to_owned(),
+                "declare class Thenable { then(): void; }\n".to_owned(),
+            ),
+            InputFile::new("/a.js".to_owned(), js.to_owned()),
         ],
         &options,
     );
@@ -1155,14 +1140,8 @@ fn es5_async_constructor_relation_uses_the_tsc_compatibility_pyramid() {
     let source = "declare class Thenable { then(): void; }\nasync function value(): Thenable {}\n";
     let result = check_program(
         &[
-            InputFile {
-                name: "/lib.d.ts".to_owned(),
-                text: lib.to_owned(),
-            },
-            InputFile {
-                name: "/a.ts".to_owned(),
-                text: source.to_owned(),
-            },
+            InputFile::new("/lib.d.ts".to_owned(), lib.to_owned()),
+            InputFile::new("/a.ts".to_owned(), source.to_owned()),
         ],
         &CompilerOptions {
             target: Some(tsc_types::ScriptTarget::ES5.bits()),
@@ -1246,14 +1225,8 @@ fn checked_js_inherited_jsdoc_getter_type_does_not_form_a_derived_accessor_cycle
     };
     let result = check_program(
         &[
-            InputFile {
-                name: "/lib.d.ts".to_owned(),
-                text: lib.to_owned(),
-            },
-            InputFile {
-                name: "/a.js".to_owned(),
-                text: source.to_owned(),
-            },
+            InputFile::new("/lib.d.ts".to_owned(), lib.to_owned()),
+            InputFile::new("/a.js".to_owned(), source.to_owned()),
         ],
         &options,
     );

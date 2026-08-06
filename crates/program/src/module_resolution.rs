@@ -4654,7 +4654,7 @@ impl<'a> ModuleResolver<'a> {
             Some(_) => PackageJsonType::Other,
             None => PackageJsonType::Unspecified,
         };
-        let metadata = Rc::new(PackageMetadata::from_trusted_parsed(
+        let metadata = Rc::new(PackageMetadata::from_trusted_snapshot(
             package_path,
             text,
             name,

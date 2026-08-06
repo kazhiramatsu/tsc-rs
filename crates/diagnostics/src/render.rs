@@ -10,7 +10,9 @@ use std::collections::BTreeMap;
 use std::error::Error;
 use std::fmt;
 
-use crate::{compare_diagnostics, diagnostics_equal, Diagnostic, MessageChain, RelatedInfo};
+use crate::{
+    compare_diagnostics, diagnostics_equal, Diagnostic, MessageChain, RelatedInfo, TextSnapshot,
+};
 
 const FILE_APPEARS_TO_BE_BINARY: u32 = 1490;
 const HALF_INDENT: &str = "  ";
@@ -20,27 +22,58 @@ const ELLIPSIS: &str = "...";
 #[derive(Clone, Copy, Debug)]
 pub struct FormatDiagnosticsHost<'a> {
     current_directory: &'a str,
-    file_texts: &'a BTreeMap<String, String>,
+    file_texts: DiagnosticSourceTexts<'a>,
+}
+
+#[derive(Clone, Copy, Debug)]
+enum DiagnosticSourceTexts<'a> {
+    Owned(&'a BTreeMap<String, String>),
+    Snapshots(&'a BTreeMap<String, std::sync::Arc<TextSnapshot>>),
 }
 
 impl<'a> FormatDiagnosticsHost<'a> {
     pub fn new(current_directory: &'a str, file_texts: &'a BTreeMap<String, String>) -> Self {
         Self {
             current_directory,
-            file_texts,
+            file_texts: DiagnosticSourceTexts::Owned(file_texts),
+        }
+    }
+
+    pub fn from_snapshots(
+        current_directory: &'a str,
+        file_texts: &'a BTreeMap<String, std::sync::Arc<TextSnapshot>>,
+    ) -> Self {
+        Self {
+            current_directory,
+            file_texts: DiagnosticSourceTexts::Snapshots(file_texts),
         }
     }
 
     fn file_text(&self, file_name: &str) -> Option<&'a str> {
-        if let Some(text) = self.file_texts.get(file_name) {
-            return Some(text);
+        match self.file_texts {
+            DiagnosticSourceTexts::Owned(file_texts) => {
+                lookup_source_text(file_texts, file_name, String::as_str)
+            }
+            DiagnosticSourceTexts::Snapshots(file_texts) => {
+                lookup_source_text(file_texts, file_name, |snapshot| snapshot.text())
+            }
         }
-        let normalized = normalize_slashes(file_name);
-        self.file_texts
-            .iter()
-            .find(|(candidate, _)| normalize_slashes(candidate) == normalized)
-            .map(|(_, text)| text.as_str())
     }
+}
+
+fn lookup_source_text<'a, T>(
+    file_texts: &'a BTreeMap<String, T>,
+    file_name: &str,
+    text: impl Fn(&'a T) -> &'a str,
+) -> Option<&'a str> {
+    if let Some(source) = file_texts.get(file_name) {
+        return Some(text(source));
+    }
+    let normalized = normalize_slashes(file_name);
+    file_texts
+        .iter()
+        .find(|(candidate, _)| normalize_slashes(candidate) == normalized)
+        .map(|(_, source)| text(source))
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]

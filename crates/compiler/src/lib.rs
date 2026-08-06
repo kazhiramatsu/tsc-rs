@@ -12,6 +12,7 @@ use std::collections::BTreeMap;
 use std::error::Error;
 use std::fmt;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
 use tsc_checker::{
     check_program_with_authoritative_modules_at,
@@ -431,18 +432,11 @@ impl ProgramSession {
         }
         .map_err(|failure| map_authoritative_failure(&self.prepared, failure))?;
         let checker_work = checked.work_counters;
-        let projected_documents = inputs.libs.len() + inputs.files.len();
-        let projected_text_bytes = inputs
-            .libs
-            .iter()
-            .chain(&inputs.files)
-            .map(|input| input.text.len() as u64)
-            .sum::<u64>();
         let work_counters = NoEmitWorkCounters {
             parsed_documents: checker_work.parsed_documents(),
             bound_documents: checker_work.bound_documents(),
-            full_text_copies: checker_work.full_text_copies() + projected_documents as u64,
-            full_text_bytes_copied: checker_work.full_text_bytes_copied() + projected_text_bytes,
+            full_text_copies: checker_work.full_text_copies(),
+            full_text_bytes_copied: checker_work.full_text_bytes_copied(),
         };
 
         let preparation = self.prepared.diagnostics();
@@ -615,16 +609,6 @@ impl NoEmitWorkCounters {
 
     pub const fn full_text_bytes_copied(self) -> u64 {
         self.full_text_bytes_copied
-    }
-
-    pub(crate) const fn with_additional_full_text_projection(
-        mut self,
-        copies: u64,
-        bytes: u64,
-    ) -> Self {
-        self.full_text_copies += copies;
-        self.full_text_bytes_copied += bytes;
-        self
     }
 }
 
@@ -862,10 +846,7 @@ fn project_source(
             .map(checker_resolution_mode),
     };
     Ok((
-        InputFile {
-            name,
-            text: source.text().to_owned(),
-        },
+        InputFile::from_snapshot(name, Arc::clone(source.snapshot())),
         metadata,
     ))
 }
@@ -896,3 +877,7 @@ fn prepared_source_owns_diagnostic(prepared: &PreparedProgram, file_name: &str) 
             })
     })
 }
+
+#[cfg(test)]
+#[path = "../tests/unit/lib/tests.rs"]
+mod tests;

@@ -1753,10 +1753,8 @@ impl<'a> CheckerState<'a> {
         let args: Vec<String> = args.iter().map(|arg| (*arg).to_owned()).collect();
         let to_utf16 = |byte: usize| -> u32 {
             source
-                .line_map
-                .byte_to_utf16
-                .get(byte)
-                .copied()
+                .positions()
+                .byte_to_utf16((byte) as u32)
                 .unwrap_or(byte as u32)
         };
         let start_utf16 = to_utf16(start);
@@ -1808,10 +1806,8 @@ impl<'a> CheckerState<'a> {
         let raw = source.arena.node(node);
         let to_utf16 = |byte: u32| {
             source
-                .line_map
-                .byte_to_utf16
-                .get(byte as usize)
-                .copied()
+                .positions()
+                .byte_to_utf16((byte as usize) as u32)
                 .unwrap_or(byte)
         };
         let start = to_utf16(raw.pos);
@@ -1948,10 +1944,8 @@ impl<'a> CheckerState<'a> {
         let source = self.binder.source_of_node(node_for_file);
         let to_utf16 = |byte: usize| -> u32 {
             source
-                .line_map
-                .byte_to_utf16
-                .get(byte)
-                .copied()
+                .positions()
+                .byte_to_utf16((byte) as u32)
                 .unwrap_or(byte as u32)
         };
         let start_utf16 = to_utf16(start_byte);

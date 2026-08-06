@@ -36,8 +36,7 @@ pub fn audit_source_file(source: &SourceFile, binder: &tsc_binder::Binder<'_>) -
             }
         }
     }
-    let map = tsc_diagnostics::compute_line_map(&source.text);
-    let to_utf16 = |pos: u32| map.byte_to_utf16.get(pos as usize).copied().unwrap_or(pos);
+    let to_utf16 = |pos: u32| source.positions().byte_to_utf16(pos).unwrap_or(pos);
     names
         .iter()
         .map(|&name| {

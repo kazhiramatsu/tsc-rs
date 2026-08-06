@@ -49,14 +49,49 @@ mod unused;
 pub mod variance;
 pub mod widen;
 
-use tsc_diagnostics::{Diagnostic, DiagnosticCategory, DiagnosticList};
+use std::sync::Arc;
+
+use tsc_diagnostics::{
+    Diagnostic, DiagnosticCategory, DiagnosticList, DocumentVersion, TextSnapshot,
+};
 
 pub use tsc_types::CompilerOptions;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct InputFile {
     pub name: String,
-    pub text: String,
+    snapshot: Arc<TextSnapshot>,
+}
+
+impl InputFile {
+    /// tsrs-native: construct a one-shot L0 snapshot at the checker
+    /// compatibility edge.
+    pub fn new(name: impl Into<String>, text: impl Into<String>) -> Self {
+        Self {
+            name: name.into(),
+            snapshot: TextSnapshot::new(text.into(), DocumentVersion::default()),
+        }
+    }
+
+    /// tsrs-native: retain the exact producer-owned L0 snapshot Arc at the
+    /// checker compatibility edge.
+    pub fn from_snapshot(name: impl Into<String>, snapshot: Arc<TextSnapshot>) -> Self {
+        Self {
+            name: name.into(),
+            snapshot,
+        }
+    }
+
+    /// tsrs-native: expose the shared L0 snapshot owner without its private
+    /// store lineage.
+    pub fn snapshot(&self) -> &Arc<TextSnapshot> {
+        &self.snapshot
+    }
+
+    /// tsrs-native: borrow contiguous parser text from the shared L0 snapshot.
+    pub fn text(&self) -> &str {
+        self.snapshot.text()
+    }
 }
 
 /// Stable caller-owned identity for one source admitted to an authoritative
@@ -323,10 +358,9 @@ impl Eq for CheckResult {}
 
 /// Parse/bind and full-text-copy observations for one checker invocation.
 ///
-/// A full-text copy is the owned `InputFile.text -> SourceFile.text`
-/// projection made immediately before a fresh parse. Callers that own an
-/// earlier source representation add that projection separately. Reused
-/// parsed/bound documents therefore contribute zero to all four fields.
+/// Text snapshots are shared across checker boundaries, so a fresh parse no
+/// longer contributes a full-text projection. The copy counters remain in
+/// the evidence schema as a zero-valued compatibility observation.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct CheckWorkCounters {
     parsed_documents: u64,
@@ -362,8 +396,7 @@ impl CheckWorkCounters {
 
     fn record_parse(&mut self, text_bytes: usize) {
         self.parsed_documents += 1;
-        self.full_text_copies += 1;
-        self.full_text_bytes_copied += text_bytes as u64;
+        let _ = text_bytes;
     }
 
     fn record_bind(&mut self) {
@@ -374,8 +407,8 @@ impl CheckWorkCounters {
         Self {
             parsed_documents: inputs.len() as u64,
             bound_documents: inputs.len() as u64,
-            full_text_copies: inputs.len() as u64,
-            full_text_bytes_copied: inputs.iter().map(|input| input.text.len() as u64).sum(),
+            full_text_copies: 0,
+            full_text_bytes_copied: 0,
         }
     }
 }
@@ -534,13 +567,10 @@ fn preceding_comment_directive_line(
     text: &str,
     byte_line_starts: &[usize],
     directive_lines: &std::collections::HashSet<usize>,
-    utf16_line_starts: &[u32],
+    positions: &tsc_diagnostics::PositionIndex,
     diagnostic_start: u32,
 ) -> Option<usize> {
-    let diagnostic_line = match utf16_line_starts.binary_search(&diagnostic_start) {
-        Ok(line) => line,
-        Err(insert) => insert.saturating_sub(1),
-    };
+    let diagnostic_line = positions.line_and_character_utf16(diagnostic_start)?.line as usize;
     let mut line = diagnostic_line;
     while line > 0 {
         line -= 1;
@@ -570,7 +600,7 @@ fn filter_by_comment_directives_and_mark_used(
     if source.comment_directives.is_empty() {
         return diagnostics.collect();
     }
-    let text = source.text.as_str();
+    let text = source.text();
     // LineMap.line_starts are UTF-16 offsets; build BYTE line starts
     // with the same break set (\r\n, \r, \n, U+2028, U+2029) for text
     // slicing and for placing the byte-offset directive ranges.
@@ -586,8 +616,6 @@ fn filter_by_comment_directives_and_mark_used(
         .iter()
         .map(|directive| line_of_byte(directive.end as usize))
         .collect();
-    // Diagnostic.start is UTF-16, matching line_starts' units.
-    let utf16_line_starts: &[u32] = &source.line_map.line_starts;
     let mut result = Vec::new();
     for diagnostic in diagnostics {
         // Suggestion diagnostics come from getSuggestionDiagnostics,
@@ -606,7 +634,7 @@ fn filter_by_comment_directives_and_mark_used(
             text,
             &byte_line_starts,
             &directive_lines,
-            utf16_line_starts,
+            source.positions(),
             start,
         ) {
             if let Some(used) = used_directive_lines.as_deref_mut() {
@@ -634,7 +662,7 @@ fn mark_comment_directives_for_partial_ranges(
     if source.comment_directives.is_empty() || partial_ranges.is_empty() {
         return;
     }
-    let text = source.text.as_str();
+    let text = source.text();
     let byte_line_starts = compute_byte_line_starts(text);
     let line_of_byte = |offset: usize| -> usize {
         match byte_line_starts.binary_search(&offset) {
@@ -651,16 +679,14 @@ fn mark_comment_directives_for_partial_ranges(
     for &(start, _) in partial_ranges {
         let start = tsc_syntax::skip_trivia(text, start as usize);
         let start_utf16 = source
-            .line_map
-            .byte_to_utf16
-            .get(start)
-            .copied()
+            .positions()
+            .byte_to_utf16((start) as u32)
             .unwrap_or(start as u32);
         if let Some(line) = preceding_comment_directive_line(
             text,
             &byte_line_starts,
             &directive_lines,
-            &source.line_map.line_starts,
+            source.positions(),
             start_utf16,
         ) {
             used_directive_lines.insert(line);
@@ -677,7 +703,7 @@ fn unused_expect_error_diagnostics(
     if source.comment_directives.is_empty() {
         return Vec::new();
     }
-    let byte_line_starts = compute_byte_line_starts(&source.text);
+    let byte_line_starts = compute_byte_line_starts(source.text());
     let line_of_byte = |offset: usize| -> usize {
         match byte_line_starts.binary_search(&offset) {
             Ok(line) => line,
@@ -699,16 +725,12 @@ fn unused_expect_error_diagnostics(
                 return None;
             }
             let start = source
-                .line_map
-                .byte_to_utf16
-                .get(directive.pos as usize)
-                .copied()
+                .positions()
+                .byte_to_utf16((directive.pos as usize) as u32)
                 .unwrap_or(directive.pos);
             let end = source
-                .line_map
-                .byte_to_utf16
-                .get(directive.end as usize)
-                .copied()
+                .positions()
+                .byte_to_utf16((directive.end as usize) as u32)
                 .unwrap_or(directive.end);
             Some(tsc_diagnostics::Diagnostic::new(
                 Some(source.file_name.clone()),
@@ -1338,7 +1360,7 @@ fn check_program_with_prebound_libs_at_observed(
                 .is_some_and(|name| name == "package.json")
         })
         .map(|file| {
-            let module_type = parse_host_package_json(&file.text)
+            let module_type = parse_host_package_json(file.text())
                 .and_then(|value| {
                     value
                         .get("type")
@@ -1395,13 +1417,13 @@ fn check_program_with_prebound_libs_at_observed(
                     .map(|previous| (previous.arena.node_end(), previous.arena.array_end()))
                     .unwrap_or((0, 0)),
             };
-            let source_file = tsc_syntax::parse_json_text_with_bases(
+            let source_file = tsc_syntax::parse_json_text_from_snapshot_with_bases(
                 file.name.clone(),
-                file.text.clone(),
+                Arc::clone(file.snapshot()),
                 node_id_base,
                 node_array_id_base,
             );
-            work_counters.record_parse(file.text.len());
+            work_counters.record_parse(file.text().len());
             let mut syntactic = source_file.parse_diagnostics.clone();
             tsc_diagnostics::sort_and_dedupe_diagnostics(&mut syntactic);
             file_diagnostics.push(FileDiagnosticPasses {
@@ -1494,9 +1516,9 @@ fn check_program_with_prebound_libs_at_observed(
                 .map(|previous| (previous.arena.node_end(), previous.arena.array_end()))
                 .unwrap_or((0, 0)),
         };
-        let source_file = tsc_syntax::parse_source_file(
+        let source_file = tsc_syntax::parse_source_file_from_snapshot(
             file.name.clone(),
-            file.text.clone(),
+            Arc::clone(file.snapshot()),
             tsc_syntax::ParseOptions {
                 script_target: options.emit_script_target(),
                 language_variant,
@@ -1509,7 +1531,7 @@ fn check_program_with_prebound_libs_at_observed(
             },
             None,
         );
-        work_counters.record_parse(file.text.len());
+        work_counters.record_parse(file.text().len());
         // tsc getSyntacticDiagnosticsForFile: JS files prepend the
         // TypeScript-only-syntax walker output to their parse diagnostics.
         let mut syntactic = if is_js_file_name(&file.name) {
@@ -1550,7 +1572,7 @@ fn check_program_with_prebound_libs_at_observed(
 
     let check_directives: std::collections::HashMap<&str, Option<CheckDirective>> = program_sources
         .iter()
-        .map(|source| (source.file_name.as_str(), check_directive(&source.text)))
+        .map(|source| (source.file_name.as_str(), check_directive(source.text())))
         .collect();
     let mut bind_diagnostics_by_file = Vec::with_capacity(program_sources.len());
     let mut binders: Vec<tsc_binder::Binder<'_>> = Vec::new();
@@ -1622,7 +1644,7 @@ fn check_program_with_prebound_libs_at_observed(
                 if file_name != "package.json" {
                     return None;
                 }
-                let value = parse_host_package_json(&file.text)?;
+                let value = parse_host_package_json(file.text())?;
                 Some((
                     state::CheckerState::normalize_program_path(&file.name, ""),
                     value,
@@ -1877,11 +1899,9 @@ impl LibBundle {
     fn exactly_matches(&self, libs: &[&InputFile], options: &CompilerOptions) -> bool {
         self.options == options
             && self.sources.len() == libs.len()
-            && self
-                .sources
-                .iter()
-                .zip(libs)
-                .all(|(source, lib)| source.file_name == lib.name && source.text == lib.text)
+            && self.sources.iter().zip(libs).all(|(source, lib)| {
+                source.file_name == lib.name && Arc::ptr_eq(source.snapshot(), lib.snapshot())
+            })
     }
 }
 
@@ -1942,7 +1962,7 @@ fn lib_bundle_with_fingerprint(
 
     let key: Key = (
         libs.iter()
-            .map(|lib| (lib.name.clone(), fingerprint(&lib.text)))
+            .map(|lib| (lib.name.clone(), fingerprint(lib.text())))
             .collect(),
         bundle_options.clone(),
     );
@@ -2013,9 +2033,9 @@ fn parse_lib_sources(
             Some(previous) => (previous.arena.node_end(), previous.arena.array_end()),
             None => (0, 0),
         };
-        sources.push(tsc_syntax::parse_source_file(
+        sources.push(tsc_syntax::parse_source_file_from_snapshot(
             lib.name.clone(),
-            lib.text.clone(),
+            Arc::clone(lib.snapshot()),
             tsc_syntax::ParseOptions {
                 script_target: options.emit_script_target(),
                 language_variant: tsc_syntax::LanguageVariant::Standard,

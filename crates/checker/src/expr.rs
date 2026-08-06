@@ -803,10 +803,8 @@ impl<'a> CheckerState<'a> {
             let literal_text = data.text.clone();
             let token_start_byte = (raw.end as usize).saturating_sub(literal_text.len());
             let token_start_utf16 = source
-                .line_map
-                .byte_to_utf16
-                .get(token_start_byte)
-                .copied()
+                .positions()
+                .byte_to_utf16((token_start_byte) as u32)
                 .unwrap_or(token_start_byte as u32);
             (
                 literal_text,
@@ -890,10 +888,8 @@ impl<'a> CheckerState<'a> {
         let (start, end) = node_util::get_span_of_token_at_position(source, pos);
         let to_utf16 = |byte: usize| -> u32 {
             source
-                .line_map
-                .byte_to_utf16
-                .get(byte)
-                .copied()
+                .positions()
+                .byte_to_utf16((byte) as u32)
                 .unwrap_or(byte as u32)
         };
         let start_utf16 = to_utf16(start);

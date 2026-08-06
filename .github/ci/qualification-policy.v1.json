@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "status": "frozen",
+  "status": "active",
   "aggregate_check": "gates",
   "limits": {
     "changed_paths": 4096,
@@ -38,6 +38,7 @@
     },
     "common_exact": [
       ".github/workflows/ci.yml",
+      ".github/workflows/l0-performance.yml",
       ".github/ci/qualification-policy.v1.json",
       "Cargo.lock",
       "Cargo.toml",
@@ -67,6 +68,10 @@
         ["node", "crates/oracle/l0-option-inventory.mjs", "--check"],
         ["node", "--check", "crates/oracle/l0-performance.mjs"],
         ["node", "crates/oracle/l0-performance.mjs", "--check"],
+        ["cargo", "test", "--locked", "--manifest-path", "crates/diagnostics/Cargo.toml", "--lib", "text::tests"],
+        ["cargo", "test", "--locked", "--manifest-path", "crates/syntax/Cargo.toml", "--lib", "snapshot_entry_preserves_text_and_position_owner_identity"],
+        ["cargo", "test", "--locked", "--manifest-path", "crates/checker/Cargo.toml", "--lib", "checker_input_and_source_file_share_the_exact_snapshot_arc"],
+        ["cargo", "test", "--locked", "--manifest-path", "crates/compiler/Cargo.toml", "--lib", "prepared_to_checker_projection_preserves_the_exact_snapshot_arc"],
         ["cargo", "test", "--locked", "--manifest-path", "crates/compiler/Cargo.toml", "--test", "contracts", "l0_work_counters"]
       ],
       "h1": [
@@ -75,6 +80,12 @@
     }
   },
   "exact_merge_qualification": {
+    "authority_workflow": ".github/workflows/ci.yml",
+    "authority_job": "exact_qualification",
+    "result_producer": ".github/ci/qualification.mjs produce-result",
+    "result_contract": ".github/ci/contracts/qualification-result.schema.json",
+    "receipt_contract": ".github/ci/contracts/merge-receipt.schema.json",
+    "attestation_action": "actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6",
     "authoritative_command": ["cargo", "xtask", "ci", "--baseline", "<exact-base-sha>"],
     "required_input_roles": [
       "rust_toolchain",
@@ -89,8 +100,10 @@
     "unsigned_receipts_qualify": false
   },
   "scheduled_stress": {
+    "authority_workflow": ".github/workflows/ci.yml",
+    "authority_job": "scheduled_stress",
     "event": "schedule",
-    "initial_scope": ["fixture-regeneration", "large-edit-materialization"],
+    "active_scope": ["fixture-regeneration", "large-edit-materialization", "randomized-edits", "unicode-coordinate-exactness", "snapshot-history-bound", "bounded-rss"],
     "future_l0_l1_scope": [
       "randomized-edits",
       "open-edit-close",
@@ -101,6 +114,10 @@
   },
   "approved_performance": {
     "runner_profile": "macos-arm64-local-approved",
+    "authority_workflow": ".github/workflows/l0-performance.yml",
+    "authority_job": "qualify",
+    "environment": "approved-performance",
+    "evidence": "ratchets/l0-text-ownership-performance.v1.json",
     "moving_hosted_images_may_mint_ratchets": false,
     "alternating_baseline_candidate": true
   }

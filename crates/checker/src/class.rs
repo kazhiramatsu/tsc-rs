@@ -1072,10 +1072,8 @@ impl<'a> CheckerState<'a> {
                     let source = self.binder.source_of_node(node);
                     let byte_pos = source.arena.node_array(types).pos;
                     source
-                        .line_map
-                        .byte_to_utf16
-                        .get(byte_pos as usize)
-                        .copied()
+                        .positions()
+                        .byte_to_utf16((byte_pos as usize) as u32)
                         .unwrap_or(byte_pos)
                 };
                 return self.grammar_error_at_pos(

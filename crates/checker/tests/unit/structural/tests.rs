@@ -1061,10 +1061,7 @@ fn same_declaration_private_instantiations_survive_the_bailout() {
 
 fn program_rows(text: &str) -> Vec<(u32, Option<u32>, Option<u32>)> {
     let result = crate::check_program(
-        &[crate::InputFile {
-            name: "a.ts".to_owned(),
-            text: text.to_owned(),
-        }],
+        &[crate::InputFile::new("a.ts".to_owned(), text.to_owned())],
         &CompilerOptions::default(),
     );
     result

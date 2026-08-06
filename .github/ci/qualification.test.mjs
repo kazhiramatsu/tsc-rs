@@ -5,12 +5,15 @@ import {
   classifyPaths,
   loadPolicy,
   pathsDigest,
+  qualificationResultHash,
   receiptResultHash,
   sha256,
   validateFailureArtifact,
   validateLaneSelection,
   validateMergeReceipt,
   validatePolicy,
+  validateQualificationResult,
+  validateBoundReceipt,
 } from "./qualification.mjs";
 
 const HEAD = "1".repeat(40);
@@ -21,8 +24,17 @@ function clone(value) {
   return structuredClone(value);
 }
 
-test("policy and all three schema boundaries are frozen", () => {
-  assert.equal(validatePolicy(loadPolicy()).aggregate_check, "gates");
+test("policy and every qualification schema boundary are valid", () => {
+  const policy = validatePolicy(loadPolicy());
+  assert.equal(policy.status, "active");
+  assert.equal(policy.aggregate_check, "gates");
+  assert.equal(policy.exact_merge_qualification.authority_job, "exact_qualification");
+  assert.equal(policy.scheduled_stress.authority_job, "scheduled_stress");
+  assert.equal(policy.approved_performance.authority_job, "qualify");
+
+  const frozen = clone(policy);
+  frozen.status = "frozen";
+  assert.throws(() => validatePolicy(frozen), /policy header/u);
 });
 
 test("documentation-only changes select no execution lane", () => {
@@ -165,6 +177,32 @@ test("exact receipt binds successful commands, immutable inputs, and authenticat
   const unknown = clone(receipt);
   unknown.inputs.extra = HASH;
   assert.throws(() => validateMergeReceipt(unknown), /input binding/u);
+});
+
+test("OIDC receipt remains bound to the exact attested qualification result", () => {
+  const receipt = validReceipt();
+  const result = clone(receipt);
+  delete result.authentication;
+  result.kind = "exact-merge-qualification-result";
+  result.result_sha256 = qualificationResultHash(result);
+  assert.equal(validateQualificationResult(result), result);
+
+  const bundle = Buffer.from('{"mediaType":"application/vnd.dev.sigstore.bundle.v0.3+json"}\n');
+  receipt.authentication.attestation_sha256 = sha256(bundle);
+  receipt.result_sha256 = receiptResultHash(receipt);
+  assert.equal(validateBoundReceipt(receipt, result, bundle, HEAD, BASE), receipt);
+
+  const movedResult = clone(result);
+  movedResult.base_sha = "3".repeat(40);
+  movedResult.result_sha256 = qualificationResultHash(movedResult);
+  assert.throws(
+    () => validateBoundReceipt(receipt, movedResult, bundle, HEAD, BASE),
+    /expected HEAD\/base/u,
+  );
+  assert.throws(
+    () => validateBoundReceipt(receipt, result, Buffer.from("{}"), HEAD, BASE),
+    /verified attestation bundle/u,
+  );
 });
 
 test("failure artifacts are bounded, relative, and content addressed", () => {

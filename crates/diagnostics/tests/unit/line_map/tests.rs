@@ -1,4 +1,4 @@
-use super::{compute_line_map, compute_line_starts, get_line_and_character_of_position};
+use super::{compute_line_map, compute_line_starts};
 
 #[test]
 fn line_starts_match_tsc_line_breaks() {
@@ -11,11 +11,11 @@ fn line_starts_match_tsc_line_breaks() {
 #[test]
 fn columns_are_utf16_code_units() {
     let map = compute_line_map("a😀b\nc");
-    assert_eq!(map.byte_to_utf16[0], 0);
-    assert_eq!(map.byte_to_utf16["a".len()], 1);
-    assert_eq!(map.byte_to_utf16["a😀".len()], 3);
+    assert_eq!(map.byte_to_utf16(0), Some(0));
+    assert_eq!(map.byte_to_utf16("a".len() as u32), Some(1));
+    assert_eq!(map.byte_to_utf16("a😀".len() as u32), Some(3));
     assert_eq!(
-        get_line_and_character_of_position(&map.line_starts, 4),
+        map.line_and_character_utf16(4).unwrap(),
         super::LineAndCharacter {
             line: 0,
             character: 4,

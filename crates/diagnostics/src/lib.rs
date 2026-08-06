@@ -5,17 +5,23 @@ pub mod gen;
 pub mod line_map;
 /// TypeScript 6.0.3-compatible, deterministic diagnostic rendering.
 pub mod render;
+pub mod text;
 
 use std::cmp::Ordering;
 
 pub use line_map::{
-    compute_line_map, compute_line_starts, get_line_and_character_of_position, LineAndCharacter,
-    LineMap,
+    compute_line_map, compute_line_starts, get_line_and_character_of_position, LineMap,
 };
 pub use render::{
     format_diagnostics_with_context, format_diagnostics_with_context_raw,
     format_sorted_diagnostics_with_context, format_sorted_diagnostics_with_context_raw,
     sort_and_dedupe_diagnostic_indices_with_context, FormatDiagnosticsError, FormatDiagnosticsHost,
+};
+pub use text::{
+    collapse_byte_changes, collapse_utf16_changes, ByteTextChangeRange, ByteTextSpan,
+    DocumentVersion, LineAndCharacter, PositionIndex, PositionIndexKind, PositionUnit,
+    TextEditError, TextEditOutcome, TextSnapshot, Utf16TextChangeRange, Utf16TextSpan,
+    VersionedTextStore,
 };
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

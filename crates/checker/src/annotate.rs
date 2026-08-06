@@ -6257,18 +6257,24 @@ impl<'a> CheckerState<'a> {
                 }
                 let source = self.binder.source_of_node(name);
                 let raw = source.arena.node(name);
-                let start = tsc_syntax::skip_trivia(&source.text, raw.pos as usize);
+                let start = tsc_syntax::skip_trivia(source.text(), raw.pos as usize);
                 let end = if matches!(
                     kind,
                     SyntaxKind::PrivateIdentifier | SyntaxKind::StringLiteral
                 ) {
-                    tsc_syntax::scan_tokens(&source.text[start..], source.language_variant)
+                    tsc_syntax::scan_tokens(&source.text()[start..], source.language_variant)
                         .first()
-                        .map_or(raw.end as usize, |token| start + token.end as usize)
+                        .map_or(raw.end as usize, |token| {
+                            source
+                                .positions()
+                                .byte_offset_from_utf16_delta(start as u32, token.end)
+                                .expect("scanner UTF-16 token end is a scalar boundary")
+                                as usize
+                        })
                 } else {
                     raw.end as usize
                 };
-                Some(source.text[start..end].to_owned())
+                Some(source.text()[start..end].to_owned())
             });
         source_name_text.unwrap_or_else(|| self.symbol_display_name(symbol))
     }
@@ -6294,17 +6300,19 @@ impl<'a> CheckerState<'a> {
         }) {
             let source = self.binder.source_of_node(name);
             let raw = source.arena.node(name);
-            let start = tsc_syntax::skip_trivia(&source.text, raw.pos as usize);
+            let start = tsc_syntax::skip_trivia(source.text(), raw.pos as usize);
             if let Some(token) =
-                tsc_syntax::scan_tokens(&source.text[start..], source.language_variant).first()
+                tsc_syntax::scan_tokens(&source.text()[start..], source.language_variant).first()
             {
-                let end = start + token.end as usize;
+                let end = source
+                    .positions()
+                    .byte_offset_from_utf16_delta(start as u32, token.end)
+                    .expect("scanner UTF-16 token end is a scalar boundary")
+                    as usize;
                 let to_utf16 = |byte: usize| {
                     source
-                        .line_map
-                        .byte_to_utf16
-                        .get(byte)
-                        .copied()
+                        .positions()
+                        .byte_to_utf16((byte) as u32)
                         .unwrap_or(byte as u32)
                 };
                 diagnostic.start = Some(to_utf16(start));

@@ -65,20 +65,20 @@ fn metadata(
 
 #[test]
 fn authoritative_external_fact_alone_controls_checked_js_implicit_any_suggestion() {
-    let libs = [InputFile {
-        name: "/lib.d.ts".to_owned(),
-        text: MINIMAL_GLOBALS.to_owned(),
-    }];
+    let libs = [InputFile::new(
+        "/lib.d.ts".to_owned(),
+        MINIMAL_GLOBALS.to_owned(),
+    )];
     let lib_metadata = [metadata(0, "/lib.d.ts", false, None)];
     let files = [
-        InputFile {
-            name: "/node_modules/pkg/index.js".to_owned(),
-            text: "module.exports = {};\n".to_owned(),
-        },
-        InputFile {
-            name: "/main.js".to_owned(),
-            text: "const value = require('pkg');\nvalue.answer = 42;\n".to_owned(),
-        },
+        InputFile::new(
+            "/node_modules/pkg/index.js".to_owned(),
+            "module.exports = {};\n".to_owned(),
+        ),
+        InputFile::new(
+            "/main.js".to_owned(),
+            "const value = require('pkg');\nvalue.answer = 42;\n".to_owned(),
+        ),
     ];
     let file_metadata = [
         metadata(

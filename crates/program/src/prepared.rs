@@ -2,7 +2,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use tsc_diagnostics::{Diagnostic, DiagnosticList};
+use tsc_diagnostics::{Diagnostic, DiagnosticList, DocumentVersion, TextSnapshot};
 use tsc_host::to_file_name_lower_case;
 use tsc_types::CompilerOptions;
 
@@ -91,7 +91,7 @@ pub struct PreparedSourceFile {
     /// path while the parser/binder/checker consume this source only once.
     package_redirect_paths: Vec<ProgramPath>,
     real_path: Option<ProgramPath>,
-    text: String,
+    snapshot: Arc<TextSnapshot>,
     may_be_emitted: bool,
     implied_node_format: Option<ResolutionMode>,
     implied_node_format_for_emit: Option<ResolutionMode>,
@@ -100,6 +100,13 @@ pub struct PreparedSourceFile {
 
 impl PreparedSourceFile {
     pub fn new(path: ProgramPath, text: impl Into<String>) -> Self {
+        Self::from_snapshot(
+            path,
+            TextSnapshot::new(text.into(), DocumentVersion::default()),
+        )
+    }
+
+    pub fn from_snapshot(path: ProgramPath, snapshot: Arc<TextSnapshot>) -> Self {
         let may_be_emitted = !path.display().to_str().is_some_and(|file_name| {
             file_name.ends_with(".d.ts")
                 || file_name.ends_with(".d.cts")
@@ -116,7 +123,7 @@ impl PreparedSourceFile {
             alternate_display_paths: Vec::new(),
             package_redirect_paths: Vec::new(),
             real_path: None,
-            text: text.into(),
+            snapshot,
             // A prepared source is normally a direct program input. Loaders
             // that admit an external-library dependency retain that distinct
             // source-side fact with `with_may_be_emitted(false)`; resolution
@@ -193,7 +200,11 @@ impl PreparedSourceFile {
     }
 
     pub fn text(&self) -> &str {
-        &self.text
+        self.snapshot.text()
+    }
+
+    pub fn snapshot(&self) -> &Arc<TextSnapshot> {
+        &self.snapshot
     }
 
     /// tsrs-native: expose the retained source-side emit-eligibility fact.
@@ -214,7 +225,7 @@ impl PreparedSourceFile {
     }
 
     fn compatible_with(&self, other: &Self) -> bool {
-        self.text == other.text
+        self.snapshot.text() == other.snapshot.text()
             && self.may_be_emitted == other.may_be_emitted
             && self.implied_node_format == other.implied_node_format
             && self.implied_node_format_for_emit == other.implied_node_format_for_emit
@@ -278,15 +289,22 @@ pub struct PreparedRoot {
 pub struct PreparedAuxiliaryFile {
     path: ProgramPath,
     alternate_display_paths: Vec<PathBuf>,
-    text: String,
+    snapshot: Arc<TextSnapshot>,
 }
 
 impl PreparedAuxiliaryFile {
     pub fn new(path: ProgramPath, text: impl Into<String>) -> Self {
+        Self::from_snapshot(
+            path,
+            TextSnapshot::new(text.into(), DocumentVersion::default()),
+        )
+    }
+
+    pub fn from_snapshot(path: ProgramPath, snapshot: Arc<TextSnapshot>) -> Self {
         Self {
             path,
             alternate_display_paths: Vec::new(),
-            text: text.into(),
+            snapshot,
         }
     }
 
@@ -299,7 +317,11 @@ impl PreparedAuxiliaryFile {
     }
 
     pub fn text(&self) -> &str {
-        &self.text
+        self.snapshot.text()
+    }
+
+    pub fn snapshot(&self) -> &Arc<TextSnapshot> {
+        &self.snapshot
     }
 
     fn remember_display_alias(&mut self, display: &Path) {
@@ -389,7 +411,7 @@ pub enum PackageJsonType {
 pub struct PackageMetadata {
     package_json: ProgramPath,
     alternate_display_paths: Vec<PathBuf>,
-    text: String,
+    snapshot: Arc<TextSnapshot>,
     name: Option<String>,
     version: Option<String>,
     module_type: PackageJsonType,
@@ -400,7 +422,7 @@ impl PackageMetadata {
         Self {
             package_json,
             alternate_display_paths: Vec::new(),
-            text: text.into(),
+            snapshot: TextSnapshot::new(text.into(), DocumentVersion::default()),
             name: None,
             version: None,
             module_type: PackageJsonType::Unspecified,
@@ -417,10 +439,26 @@ impl PackageMetadata {
         version: Option<String>,
         module_type: PackageJsonType,
     ) -> Self {
+        Self::from_trusted_snapshot(
+            package_json,
+            TextSnapshot::new(text.into(), DocumentVersion::default()),
+            name,
+            version,
+            module_type,
+        )
+    }
+
+    pub fn from_trusted_snapshot(
+        package_json: ProgramPath,
+        snapshot: Arc<TextSnapshot>,
+        name: Option<String>,
+        version: Option<String>,
+        module_type: PackageJsonType,
+    ) -> Self {
         Self {
             package_json,
             alternate_display_paths: Vec::new(),
-            text: text.into(),
+            snapshot,
             name,
             version,
             module_type,
@@ -436,7 +474,11 @@ impl PackageMetadata {
     }
 
     pub fn text(&self) -> &str {
-        &self.text
+        self.snapshot.text()
+    }
+
+    pub fn snapshot(&self) -> &Arc<TextSnapshot> {
+        &self.snapshot
     }
 
     pub fn name(&self) -> Option<&str> {
@@ -452,7 +494,7 @@ impl PackageMetadata {
     }
 
     fn compatible_with(&self, other: &Self) -> bool {
-        self.text == other.text
+        self.text() == other.text()
             && self.name == other.name
             && self.version == other.version
             && self.module_type == other.module_type
@@ -637,7 +679,7 @@ impl ProgramConfigSpan {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ProgramConfigFile {
     path: ProgramPath,
-    text: String,
+    snapshot: Arc<TextSnapshot>,
     automatic_type_directive_locations: BTreeMap<String, ProgramConfigSpan>,
     compiler_option_string_locations: BTreeMap<String, BTreeMap<String, ProgramConfigSpan>>,
     root_option_array_locations: BTreeMap<String, BTreeMap<String, ProgramConfigSpan>>,
@@ -645,9 +687,16 @@ pub struct ProgramConfigFile {
 
 impl ProgramConfigFile {
     pub fn new(path: ProgramPath, text: impl Into<String>) -> Self {
+        Self::from_snapshot(
+            path,
+            TextSnapshot::new(text.into(), DocumentVersion::default()),
+        )
+    }
+
+    pub fn from_snapshot(path: ProgramPath, snapshot: Arc<TextSnapshot>) -> Self {
         Self {
             path,
-            text: text.into(),
+            snapshot,
             automatic_type_directive_locations: BTreeMap::new(),
             compiler_option_string_locations: BTreeMap::new(),
             root_option_array_locations: BTreeMap::new(),
@@ -698,7 +747,11 @@ impl ProgramConfigFile {
     }
 
     pub fn text(&self) -> &str {
-        &self.text
+        self.snapshot.text()
+    }
+
+    pub fn snapshot(&self) -> &Arc<TextSnapshot> {
+        &self.snapshot
     }
 
     pub fn automatic_type_directive_location(&self, name: &str) -> Option<ProgramConfigSpan> {

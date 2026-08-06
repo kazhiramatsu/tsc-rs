@@ -1,7 +1,12 @@
 use std::path::Path;
+use std::sync::Arc;
 
 use serde_json::{Map, Number, Value};
-use tsc_syntax::{scan_token_kinds, LanguageVariant, NodeId, SourceFile, SyntaxKind};
+use tsc_diagnostics::{DocumentVersion, TextSnapshot};
+use tsc_syntax::{
+    parse_json_text_from_snapshot, scan_token_kinds, LanguageVariant, NodeId, SourceFile,
+    SyntaxKind,
+};
 
 /// Keep malformed or adversarial manifests from reaching the recursive JSON
 /// parser with unbounded structural nesting. Package consumers expose empty
@@ -28,15 +33,19 @@ pub(crate) enum JsonParserPreflight {
 /// tsc-hash: 0be1077ca0dcab5ef44710716a6fb660d94811c5b51312f6c2fb20fc3029786e
 /// tsc-span: _tsc.js:17261-17275
 /// JSONC conversion also follows `_tsc.js:38331-38344,38475-38553`.
-pub(crate) fn parse_json_object(file_name: &Path, text: String) -> (String, Map<String, Value>) {
-    if json_parser_preflight(&text) != JsonParserPreflight::Safe {
-        return (text, Map::new());
+pub(crate) fn parse_json_object(
+    file_name: &Path,
+    text: String,
+) -> (Arc<TextSnapshot>, Map<String, Value>) {
+    let snapshot = TextSnapshot::new(text, DocumentVersion::default());
+    if json_parser_preflight(snapshot.text()) != JsonParserPreflight::Safe {
+        return (snapshot, Map::new());
     }
 
-    if let Ok(mut value) = serde_json::from_str::<Value>(&text) {
+    if let Ok(mut value) = serde_json::from_str::<Value>(snapshot.text()) {
         encode_user_object_keys(&mut value);
         return (
-            text,
+            snapshot,
             match value {
                 Value::Object(object) => object,
                 _ => Map::new(),
@@ -44,10 +53,11 @@ pub(crate) fn parse_json_object(file_name: &Path, text: String) -> (String, Map<
         );
     }
 
-    let strict_json = text_is_strict_json(&text);
-    let source = tsc_syntax::parse_json_text(file_name.to_string_lossy(), text);
+    let strict_json = text_is_strict_json(snapshot.text());
+    let source = parse_json_text_from_snapshot(file_name.to_string_lossy(), Arc::clone(&snapshot));
     let object = parse_jsonc_object(&source, strict_json).unwrap_or_default();
-    (source.text, object)
+    debug_assert!(Arc::ptr_eq(source.snapshot(), &snapshot));
+    (snapshot, object)
 }
 
 fn encode_user_object_keys(value: &mut Value) {
@@ -918,9 +928,9 @@ pub(crate) fn is_double_quoted_json_string(source: &SourceFile, value: NodeId) -
         return false;
     }
     source
-        .text
+        .text()
         .as_bytes()
-        .get(tsc_syntax::skip_trivia(&source.text, node.pos as usize))
+        .get(tsc_syntax::skip_trivia(source.text(), node.pos as usize))
         == Some(&b'"')
 }
 
