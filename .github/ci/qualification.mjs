@@ -124,10 +124,16 @@ export function classifyPaths({ paths, headSha, baseSha, statusBlockEqual, polic
     for (const changedPath of changedPaths) {
       const hostMatch = policy.classification.host_platform_prefixes.some((prefix) => changedPath.startsWith(prefix));
       const programMatch = policy.classification.program_path_prefixes.some((prefix) => changedPath.startsWith(prefix));
+      const commonMatch =
+        policy.classification.common_exact.includes(changedPath) ||
+        policy.classification.common_prefixes.some((prefix) => changedPath.startsWith(prefix));
       hostPlatform ||= hostMatch;
       programPath ||= programMatch;
-      let known = hostMatch || programMatch || policy.classification.common_exact.includes(changedPath);
-      if (policy.classification.common_prefixes.some((prefix) => changedPath.startsWith(prefix))) known = true;
+      let known = hostMatch || programMatch || commonMatch;
+      if (commonMatch) {
+        tracks.add("l0-l1");
+        tracks.add("h1");
+      }
       for (const [track, prefixes] of Object.entries(policy.classification.track_prefixes)) {
         if (prefixes.some((prefix) => changedPath.startsWith(prefix))) {
           tracks.add(track);

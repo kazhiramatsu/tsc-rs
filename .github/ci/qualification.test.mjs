@@ -105,6 +105,25 @@ test("known compiler and program owners select their focused tracks", () => {
   assert.ok(program.selected.tracks.includes("l0-l1"));
 });
 
+test("qualification authority inputs always select exact qualification tracks", () => {
+  for (const changedPath of [
+    ".github/workflows/ci.yml",
+    ".github/ci/qualification-policy.v1.json",
+    ".github/ci/contracts/qualification-result.schema.json",
+    "Cargo.lock",
+    ".node-version",
+  ]) {
+    const selection = classifyPaths({
+      paths: [changedPath],
+      headSha: HEAD,
+      baseSha: BASE,
+      statusBlockEqual: true,
+      policy: loadPolicy(),
+    });
+    assert.deepEqual(selection.selected.tracks, ["common", "h1", "l0-l1"], changedPath);
+  }
+});
+
 test("lane selection rejects ambiguity, traversal, and missing lanes", () => {
   const selection = {
     schema: 1,
