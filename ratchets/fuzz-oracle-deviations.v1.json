@@ -16,11 +16,11 @@
     },
     {
       "path": "crates/checker/src/check.rs",
-      "sha256": "878b3ea2ac5ac6f4160c69f77ee63899769a231cc697ae2dc276149a5451cc6c"
+      "sha256": "ecd1cee157b429b5d2e3bf9808007182c0e6c334396f639cecf1f20f74bf9b96"
     },
     {
       "path": "crates/checker/src/state.rs",
-      "sha256": "30eb099051c791f5f10f751f6804b3990cdecb0b902429fb71bb04e4b8b7a2f2"
+      "sha256": "b43daaad371004c9548f46a9740ce759db780b1ff3fbecac2fcbfb62025524c9"
     }
   ],
   "checks": [

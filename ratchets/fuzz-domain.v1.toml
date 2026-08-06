@@ -7,7 +7,7 @@ sha256 = "d16978210177b86ff718cf9e7f90774f4bc8c9a492894edae36b9220d710abb2"
 
 [[source_references]]
 path = "crates/xtask/src/m8_evidence.rs"
-sha256 = "f944277858145c13150af52ab3875fc6a22031afbe91591998bc4e37ddd8b088"
+sha256 = "eb6e421db46f7f2bc2bed70ad6192b18c1324ece6bb16360ab262e827f9efdc8"
 
 [[source_references]]
 path = "crates/harness/src/lib.rs"
