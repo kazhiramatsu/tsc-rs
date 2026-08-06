@@ -191,6 +191,8 @@ impl<'a> ProgramBinder<'a> {
         Self::try_new(file_binders).expect("invalid Program identity ownership")
     }
 
+    /// tsrs-native: fallible multi-file numeric arena routing constructor;
+    /// tsc stores direct object references and has no identity-domain check.
     pub fn try_new(file_binders: Vec<&'a Binder<'a>>) -> Result<Self, ProgramIdentityError> {
         if file_binders.is_empty() {
             return Err(ProgramIdentityError::EmptyProgram);

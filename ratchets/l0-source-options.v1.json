@@ -432,7 +432,7 @@
         "contract": "base-sorted non-contiguous and non-overlapping",
         "path": "crates/checker/src/program.rs",
         "line": 109,
-        "source_sha256": "8b049751d0fbaaa271df2308fd7c0ee3949787771602db3727b43cf5beda99d0",
+        "source_sha256": "bd37321d61469465e7627bb3d7dd4819708ee3cf808e37aed9c5b27124af6739",
         "evidence": "    symbol_owners: Vec<ArenaOwner>,"
       },
       "checker_transient_partition": {
