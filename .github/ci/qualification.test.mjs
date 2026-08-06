@@ -29,6 +29,11 @@ test("policy and every qualification schema boundary are valid", () => {
   assert.equal(policy.status, "active");
   assert.equal(policy.aggregate_check, "gates");
   assert.equal(policy.exact_merge_qualification.authority_job, "exact_qualification");
+  assert.equal(
+    policy.exact_merge_qualification.node_setup_action,
+    "actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38",
+  );
+  assert.equal(policy.exact_merge_qualification.m8_runner_profile, "github-ubuntu-x64-standard");
   assert.equal(policy.scheduled_stress.authority_job, "scheduled_stress");
   assert.equal(policy.approved_performance.authority_job, "qualify");
 
@@ -99,6 +104,25 @@ test("known compiler and program owners select their focused tracks", () => {
   assert.equal(program.selected.host_platform, true);
   assert.equal(program.selected.program_path, true);
   assert.ok(program.selected.tracks.includes("l0-l1"));
+});
+
+test("qualification authority inputs always select exact qualification tracks", () => {
+  for (const changedPath of [
+    ".github/workflows/ci.yml",
+    ".github/ci/qualification-policy.v1.json",
+    ".github/ci/contracts/qualification-result.schema.json",
+    "Cargo.lock",
+    ".node-version",
+  ]) {
+    const selection = classifyPaths({
+      paths: [changedPath],
+      headSha: HEAD,
+      baseSha: BASE,
+      statusBlockEqual: true,
+      policy: loadPolicy(),
+    });
+    assert.deepEqual(selection.selected.tracks, ["common", "h1", "l0-l1"], changedPath);
+  }
 });
 
 test("lane selection rejects ambiguity, traversal, and missing lanes", () => {

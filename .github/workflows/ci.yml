@@ -195,6 +195,7 @@ jobs:
       CARGO_PROFILE_TEST_DEBUG: "0"
       RUST_TEST_THREADS: "2"
       RUSTC_WRAPPER: ""
+      TSRS_M8_RUNNER_PROFILE: github-ubuntu-x64-standard
       EXACT_HEAD: ${{ needs.classify.outputs.head_sha }}
       EXACT_BASE: ${{ needs.classify.outputs.base_sha }}
       EXPECTED_SELECTION_SHA256: ${{ needs.classify.outputs.selection_sha256 }}
@@ -205,6 +206,18 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
           ref: ${{ needs.classify.outputs.head_sha }}
+
+      - name: Install the pinned Node runtime
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version-file: .node-version
+
+      - name: Verify the pinned Node runtime
+        shell: bash
+        run: |
+          expected="$(tr -d '[:space:]' <.node-version)"
+          actual="$(node --version)"
+          test "${actual#v}" = "${expected#v}"
 
       - name: Reproduce the exact lane selection
         shell: bash
