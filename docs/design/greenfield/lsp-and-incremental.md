@@ -1,7 +1,7 @@
 # LSP and incremental parsing — persistent Program foundation
 
-Status: L0.2 identity leases complete, 2026-08-06; L0.3 owned bind state is
-next. The architecture audit found that the L0.0 one-shot data model was
+Status: L0.3 owned bind state complete, 2026-08-06; L0.4 one-shot and registry
+proof is next. The architecture audit found that the L0.0 one-shot data model was
 **not sufficient** for efficient Language Service, tsserver, or LSP operation.
 A bounded persistent-source foundation (`L0`) and the incremental-parser proof
 (`L1`) must land before H1 emit implementation starts. This does not put
@@ -597,8 +597,9 @@ registered signer; unsigned files, artifacts, and PR comments are rejected.
 L0.0 froze and tested that contract without treating an unsigned summary as
 acceptance. L0.1 activated the exact status producer, text-store stress, and
 approved-runner comparison described in section 8.2. L0.2 adds identity-range
-reclamation and its chained evidence in section 8.3. Registry/Program reuse,
-owned bind state, and incremental-parser exactness remain L0.3-L1 work.
+reclamation and its chained evidence in section 8.3. L0.3 adds owned bind
+publication and fresh-checker snapshot borrowing in section 8.4. Registry/
+Program reuse and incremental-parser exactness remain L0.4-L1 work.
 
 ### 8.2 L0.1 accepted text-ownership record
 
@@ -685,9 +686,9 @@ The accepted identity boundary is:
   relocate after exact reservation; ephemeral H0 parses use sealed final bases
   directly. Forced-nonzero tests prove both paths logically identical.
 - Binder publication leases and relocates persistent symbols plus the serials
-  embedded in private-name keys. Its declared exhaustive field move is the
-  completeness boundary until L0.3 owns `BindData`; symbol tables, links,
-  node maps, assigned serials, and ambient-module records all move together.
+  embedded in private-name keys. L0.3 now consumes the worker through an
+  exhaustive `BinderWorker::into_bind_data` move; symbol tables, links, node
+  maps, assigned serials, and ambient-module records all move together.
 - `ProgramBinder` accepts independently sorted, non-contiguous node, array,
   and symbol owner intervals, rejects overlaps, unmanaged mixtures, and
   cross-domain Programs, and does not assume bind order. The untagged symbol
@@ -716,13 +717,64 @@ the remaining candidate/base ratios are:
 | project | 0.993702 | 0.985400 | 0.999834 | 1.004077 | 1.008805 |
 | scale | 0.989254 | 0.991974 | 0.999817 | 1.002155 | 1.005240 |
 
-L0.3 is next: split worker state from owned `BindData`, construct
-`ProgramSnapshot`, and make the fresh checker borrow that snapshot without
-weakening this lease or qualification boundary.
+L0.3 is complete: worker state is split from owned `BindData`,
+`ProgramSnapshot` retains ordered Arc handles, and each fresh checker borrows
+that snapshot without weakening this lease or qualification boundary.
 
 Thus full Language Service work should not precede H1, but L0 and L1 should.
 Completing them first is cheaper than retrofitting persistent identities,
 owned bind state, and editable text beneath an already-landed emitter.
+
+### 8.4 L0.3 accepted owned-bind-state record
+
+L0.3 completed on 2026-08-06. Its qualified runtime is commit
+`ae1fa15645b36e2c7b5a6a56e7bd671e4e15c626`, compared with exact base
+`f03be30d4c581ec432b059b7f133d4439b3b1902`. The base runtime-tree fingerprint
+is the accepted L0.2 candidate fingerprint, so the evidence forms a checked
+L0.2-to-L0.3 chain. Later evidence and documentation commits qualify only
+while their runtime-tree fingerprint remains identical to the L0.3 candidate.
+The accepted ownership boundary is:
+
+- `BinderWorker` is the concrete borrowed walk worker and `Binder` remains a
+  compatibility alias. `BinderWorker::into_bind_data` exhaustively moves the
+  completed checker-facing tables, flow graph, flags, diagnostics, and leases
+  into `BindData`; container cursors, active labels, delayed queues, and all
+  other walk state are discarded before publication.
+- `ParsedDocument` owns an `Arc<SourceFile>` and `BoundDocument` pairs it with
+  the owned `BindData`. `ProgramSnapshot` owns the ordered `Arc` document
+  handles and library-prefix boundary. It validates identity domains and
+  independently sorted non-contiguous node/array/symbol owner intervals when
+  the checker view is constructed.
+- `ProgramBinder::from_snapshot` borrows only the snapshot's immutable handles.
+  `CheckerState::from_snapshot` creates fresh transient symbols and checker
+  caches for every session; no links, flow results, or checker arena migrate
+  between sessions. Production fixture binds and process-lifetime library
+  bundles publish `BoundDocument` records before checking.
+- Legacy raw-Binder unit-test adapters remain available, but the production
+  checker path no longer stores a `BinderWorker` in `ProgramBinder` or
+  `LibBundle`. Library cache reuse shares the same parsed/bound Arc handles.
+
+The focused checker program tests prove worker publication, snapshot source
+identity, two fresh sessions over one snapshot, and session-local transient
+symbol arenas. The complete checker library suite (1,540 tests) and binder
+library suite (71 tests) remain green.
+
+The approved macOS arm64 comparison is checked in as
+[L0.3 performance evidence](../../../ratchets/l0-owned-bind-state-performance.v1.json).
+It contains one cold plus seven warm pairs per workload in alternating AB/BA
+order. Parse, bind, full-text-copy, and copied-byte counters remain exactly
+equal to the L0.2 base (and full-text copies remain zero); the candidate/base
+ratios are:
+
+| Workload | Warm median | Warm p95 | Peak RSS | Allocations | Allocated bytes |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| explicit root | 0.995889 | 1.067556 | 1.004839 | 1.000158 | 1.001235 |
+| project | 0.996894 | 1.008073 | 1.002162 | 1.000134 | 1.001053 |
+| scale | 1.008993 | 1.006698 | 1.005133 | 1.000056 | 1.000448 |
+
+L0.4 is next: move the one-shot H0 adapter through an ephemeral document
+store, then prove registry refcounts and unchanged-file parse/bind reuse
+across two Program snapshots.
 
 ## 9. Evidence and tests
 
@@ -785,7 +837,7 @@ edit-specific evidence:
 3. **Scheduled stress.** At L0.2, protected-main runs long deterministic
    randomized byte/UTF-16 edit scripts plus repeated open/edit/close and
    multi-project identity churn, option and script-kind changes, range
-   reclamation, bounded snapshot history, and bounded RSS. L0.3-L1 extend that
+   reclamation, bounded snapshot history, and bounded RSS. L0.4-L1 extend that
    authority with registry reuse, cancellation, and fresh-versus-incremental
    exactness. A failure publishes a bounded reproducer
    containing the available initial-text hash, ordered edits, seed, option/
