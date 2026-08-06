@@ -271,7 +271,7 @@ impl std::fmt::Display for AuthoritativeModuleFailure {
 
 impl std::error::Error for AuthoritativeModuleFailure {}
 
-#[derive(Clone, Debug, Default, Eq, PartialEq)]
+#[derive(Clone, Debug, Default)]
 pub struct CheckResult {
     pub diagnostics: DiagnosticList,
     /// `program.getSyntacticDiagnostics(sourceFile)`, flattened in
@@ -299,6 +299,85 @@ pub struct CheckResult {
     /// deliberately excluded; its range participates only in internal
     /// comment-directive accounting.
     pub partial_checks: Vec<PartialCheck>,
+    /// Coarse document work performed by this invocation. The counters are
+    /// updated only at parse/bind entry boundaries; they never add a branch
+    /// to node, symbol, or type hot loops. Operational work is intentionally
+    /// excluded from result equality; callers compare it explicitly through
+    /// this field or its accessors.
+    pub work_counters: CheckWorkCounters,
+}
+
+impl PartialEq for CheckResult {
+    fn eq(&self, other: &Self) -> bool {
+        self.diagnostics == other.diagnostics
+            && self.syntactic_diagnostics == other.syntactic_diagnostics
+            && self.semantic_diagnostics == other.semantic_diagnostics
+            && self.global_diagnostics == other.global_diagnostics
+            && self.suggestion_diagnostics == other.suggestion_diagnostics
+            && self.file_diagnostics == other.file_diagnostics
+            && self.partial_checks == other.partial_checks
+    }
+}
+
+impl Eq for CheckResult {}
+
+/// Parse/bind and full-text-copy observations for one checker invocation.
+///
+/// A full-text copy is the owned `InputFile.text -> SourceFile.text`
+/// projection made immediately before a fresh parse. Callers that own an
+/// earlier source representation add that projection separately. Reused
+/// parsed/bound documents therefore contribute zero to all four fields.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct CheckWorkCounters {
+    parsed_documents: u64,
+    bound_documents: u64,
+    full_text_copies: u64,
+    full_text_bytes_copied: u64,
+}
+
+impl CheckWorkCounters {
+    /// tsrs-native: expose the L0 parse-work observation without changing the
+    /// pinned checker algorithm.
+    pub const fn parsed_documents(self) -> u64 {
+        self.parsed_documents
+    }
+
+    /// tsrs-native: expose the L0 bind-work observation without changing the
+    /// pinned binder algorithm.
+    pub const fn bound_documents(self) -> u64 {
+        self.bound_documents
+    }
+
+    /// tsrs-native: expose the Rust ownership projection count used by the L0
+    /// resource contract.
+    pub const fn full_text_copies(self) -> u64 {
+        self.full_text_copies
+    }
+
+    /// tsrs-native: expose the Rust ownership projection bytes used by the L0
+    /// resource contract.
+    pub const fn full_text_bytes_copied(self) -> u64 {
+        self.full_text_bytes_copied
+    }
+
+    fn record_parse(&mut self, text_bytes: usize) {
+        self.parsed_documents += 1;
+        self.full_text_copies += 1;
+        self.full_text_bytes_copied += text_bytes as u64;
+    }
+
+    fn record_bind(&mut self) {
+        self.bound_documents += 1;
+    }
+
+    fn for_fresh_inputs(inputs: &[&InputFile]) -> Self {
+        Self {
+            parsed_documents: inputs.len() as u64,
+            bound_documents: inputs.len() as u64,
+            full_text_copies: inputs.len() as u64,
+            full_text_bytes_copied: inputs.iter().map(|input| input.text.len() as u64).sum(),
+        }
+    }
 }
 
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
@@ -977,6 +1056,7 @@ fn check_program_with_libs_at_observed_cache_mode_prepared(
             current_directory,
             &lib_sources,
             &lib_binders,
+            CheckWorkCounters::for_fresh_inputs(&effective_libs),
             false,
             observe_phase,
             None,
@@ -1003,6 +1083,7 @@ fn check_program_with_libs_at_observed_cache_mode_prepared(
         current_directory,
         lib_sources,
         lib_binders,
+        CheckWorkCounters::default(),
         false,
         observe_phase,
         None,
@@ -1039,6 +1120,7 @@ pub fn check_program_with_owned_libs_at(
         current_directory,
         &lib_sources,
         &lib_binders,
+        CheckWorkCounters::for_fresh_inputs(&effective_libs),
         true,
         &mut observe_phase,
         None,
@@ -1169,6 +1251,7 @@ fn check_program_with_authoritative_modules_at_cache_mode(
             current_directory,
             lib_sources,
             lib_binders,
+            CheckWorkCounters::default(),
             true,
             &mut observe_phase,
             Some(&run),
@@ -1184,6 +1267,7 @@ fn check_program_with_authoritative_modules_at_cache_mode(
             current_directory,
             &lib_sources,
             &lib_binders,
+            CheckWorkCounters::for_fresh_inputs(&effective_libs),
             true,
             &mut observe_phase,
             Some(&run),
@@ -1230,6 +1314,7 @@ fn check_program_with_prebound_libs_at_observed(
     current_directory: &str,
     lib_sources: &[tsc_syntax::SourceFile],
     lib_binders: &[tsc_binder::Binder<'_>],
+    mut work_counters: CheckWorkCounters,
     collect_global_diagnostics: bool,
     observe_phase: &mut impl FnMut(CheckPhase),
     authoritative_run: Option<&AuthoritativeRun<'_>>,
@@ -1316,6 +1401,7 @@ fn check_program_with_prebound_libs_at_observed(
                 node_id_base,
                 node_array_id_base,
             );
+            work_counters.record_parse(file.text.len());
             let mut syntactic = source_file.parse_diagnostics.clone();
             tsc_diagnostics::sort_and_dedupe_diagnostics(&mut syntactic);
             file_diagnostics.push(FileDiagnosticPasses {
@@ -1423,6 +1509,7 @@ fn check_program_with_prebound_libs_at_observed(
             },
             None,
         );
+        work_counters.record_parse(file.text.len());
         // tsc getSyntacticDiagnosticsForFile: JS files prepend the
         // TypeScript-only-syntax walker output to their parse diagnostics.
         let mut syntactic = if is_js_file_name(&file.name) {
@@ -1478,6 +1565,7 @@ fn check_program_with_prebound_libs_at_observed(
         let mut binder =
             tsc_binder::Binder::with_bases(source_file, options, symbol_id_seed, symbol_base);
         binder.bind_source_file();
+        work_counters.record_bind();
         bind_diagnostics_by_file.push(binder.bind_diagnostics.clone());
         binders.push(binder);
     }
@@ -1732,6 +1820,7 @@ fn check_program_with_prebound_libs_at_observed(
             suggestion_diagnostics,
             file_diagnostics,
             partial_checks,
+            work_counters,
         },
         authoritative_failure,
     }

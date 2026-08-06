@@ -1,10 +1,10 @@
 # TypeScript 6.0.3 compiler compatibility residual
 
-Status: audited design input, 2026-08-06. This page records the current Rust
-implementation boundary, the work required to finish bounded H1 JavaScript
-emit, and the remaining work after H1 for broader TypeScript 6.0.3 compiler
-and tooling compatibility. It is not an implementation-complete claim and it
-does not authorize a broader H1 profile.
+Status: audited design input, 2026-08-06, with the L0.0 evidence freeze
+complete. This page records the current Rust implementation boundary, the work
+required to finish bounded H1 JavaScript emit, and the remaining work after H1
+for broader TypeScript 6.0.3 compiler and tooling compatibility. It is not an
+implementation-complete claim and it does not authorize a broader H1 profile.
 
 The persistent-source audit found one dependency-order correction: the L0
 ownership/identity foundation and L1 incremental-parser proof are required
@@ -88,7 +88,7 @@ There is no single honest “100%” number spanning these surfaces:
 | Broad one-shot `tsc` compilation | Not designed as one approved milestone | Full JS transform matrix, declarations, maps, output/config/CLI matrix, and complete emit suites |
 | Build/watch/project references | Preliminary seams only | Builder state, `.tsbuildinfo`, graph reuse, solution orchestration, watchers, and their suites |
 | Compiler API/custom transforms | Not exposed | Stable AST/factory/printer/Program/TypeChecker contracts and callback lifetimes |
-| Persistent source + incremental parser | Audited design; not implemented | L0 shared text/identity/owned bind/Program snapshots and L1 fresh-equivalent, performance-qualified update parsing |
+| Persistent source + incremental parser | L0.0 evidence freeze complete; L0.1 next | L0 shared text/identity/owned bind/Program snapshots and L1 fresh-equivalent, performance-qualified update parsing |
 | Language Service | Audited engine prerequisites only | Full document registry/program and resolution reuse, query/cache APIs, cancellation, and FourSlash qualification |
 | tsserver | Not implemented | Session protocol, Project Service, open-file overlays, watches, plugins, type acquisition, and server suites |
 | LSP adapter | Not implemented and not an upstream tsc surface | Explicit protocol mapping, synchronization, capabilities, concurrency, and LSP tests |
@@ -941,15 +941,16 @@ equality.
 
 ### 11.4 Cross-track CI and qualification topology
 
-The current GitHub workflow is deliberately narrower than the future
-compatibility program: it classifies changes and runs focused Windows
-host/program canaries, while the unsplit local `cargo xtask ci` owns semantic
-acceptance. That is sufficient for the closed H0/M8 operating contract, but a
-green classifier sentinel alone would leave future emitter, persistent-cache,
-builder, service, and protocol changes uncompiled and untested on the hosted
-PR path.
+L0.0 expanded the GitHub workflow from the closed H0/M8 classifier/platform
+canary to schema-bound fail-closed selection, a common non-documentation
+format/locked-all-target lane, initial track-focused controls, the applicable
+Windows host/program canaries, a stable aggregate, and deterministic scheduled
+inputs. The unsplit local `cargo xtask ci` still owns semantic acceptance. The
+strict receipt and bounded failure-artifact schemas are frozen and tested, but
+the workflow does not yet mint an authenticated exact full-gate status, run
+runtime stress, or qualify performance.
 
-Before the first L0.1 or H1 runtime PR, land this shared topology:
+The complete shared topology is:
 
 | Layer | Required role | Authority and boundary |
 | --- | --- | --- |
@@ -991,8 +992,10 @@ H1 output paths/sinks and later watch/server work expand the Windows selector
 beyond the present host/program paths. Cargo commands use `--locked` where
 supported, third-party Actions are pinned to reviewed full commit SHAs,
 performance runners are explicitly approved, and failure artifacts are
-bounded and content-addressed. These are implementation requirements for the
-future workflow, not claims about the current YAML.
+bounded and content-addressed. Before the first L0.1 or H1 runtime change is
+accepted, the remaining trusted receipt producer, implementation-specific
+focused selection, runtime stress, and approved-runner qualification must be
+active; the checked-in L0.0 schemas alone are not acceptance evidence.
 
 The required workflow runs on `pull_request` and, when a merge queue is used,
 `merge_group`; a protected-main `push` verifies the merged composition, while

@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/kazhiramatsu/tsc-rs/.github/ci/contracts/lane-selection.schema.json",
+  "title": "tsc-rs fail-closed CI lane selection",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "kind",
+    "head_sha",
+    "base_sha",
+    "paths_sha256",
+    "changed_paths",
+    "docs_only",
+    "selected"
+  ],
+  "properties": {
+    "schema": { "const": 1 },
+    "kind": { "const": "lane-selection" },
+    "head_sha": { "$ref": "#/$defs/sha1" },
+    "base_sha": { "$ref": "#/$defs/sha1" },
+    "paths_sha256": { "$ref": "#/$defs/sha256" },
+    "changed_paths": {
+      "type": "array",
+      "maxItems": 4096,
+      "items": { "$ref": "#/$defs/repositoryPath" }
+    },
+    "docs_only": { "type": "boolean" },
+    "selected": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["static", "host_platform", "program_path", "tracks"],
+      "properties": {
+        "static": { "type": "boolean" },
+        "host_platform": { "type": "boolean" },
+        "program_path": { "type": "boolean" },
+        "tracks": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "enum": ["common", "l0-l1", "h1"] }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "sha1": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "repositoryPath": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 4096,
+      "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$)).+$"
+    }
+  }
+}

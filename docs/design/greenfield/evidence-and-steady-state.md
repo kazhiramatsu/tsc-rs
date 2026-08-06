@@ -456,14 +456,17 @@ check while marking the Windows lane skipped. Local validation is
 `git diff --check` plus review of changed links/anchors and generated-block
 boundaries. Any other path or generated-status change keeps all Rust, Node,
 semantic, corpus, evidence, readiness, and performance work in the required
-local gate.
+local gate. Since L0.0, every such non-documentation change also runs the
+bounded hosted format/locked-all-target guardrail, common CI-contract tests,
+and selected track controls; that feedback does not inherit semantic
+authority from the local full gate.
 
 Host/path/toolchain changes additionally run focused filesystem-host contracts
 on Windows with at most two Cargo/test workers. The developer's required local
 gate covers ordinary Rust and macOS paths; the Windows lane is only a platform
 canary and is not an evidence authority. A final job named `gates` validates
-classifier success, the complete boolean output domain, and the applicable
-Windows result before it succeeds.
+classifier success, the complete boolean output domain, the required common
+static/focused result, and the applicable Windows result before it succeeds.
 
 Except for the exact documentation-only rule above, the unsplit local
 `cargo xtask ci --baseline <trusted-sha>` is the required pre-PR and pre-merge
@@ -494,29 +497,33 @@ The final release job uses the approved performance runner, regenerates
 B1-B4 evidence, runs full-corpus invariants, verifies M9 history, and
 then runs `cargo xtask completion --require-done` in the same workspace.
 It consumes the existing 14 windows rather than producing a fifteenth. Gate
-acceptance implementations stay in local commands; YAML owns only fail-closed
-change classification and the bounded Windows platform smoke.
+acceptance implementations stay in local commands; YAML owns fail-closed
+change classification, bounded static/focused feedback, and the Windows
+platform smoke, but does not recreate semantic acceptance.
 
 ### 5.1 Follow-on L0/L1/H1 amendment
 
-The topology above describes the closed H0/M8/M9 operating boundary. L0/L1
-persistent-program work and H1 emit add stateful and output-producing runtime
-surfaces that the current classifier/platform canary does not compile or
-exercise. Therefore, before the first L0.1 or H1 runtime PR, the repository
-must add the common topology specified by
+The topology above describes the closed H0/M8/M9 operating boundary. L0.0 has
+now added schema-bound fail-closed selection, the common non-documentation
+static/focused lane, a stable aggregate, deterministic scheduled large-edit
+input, strict exact-candidate receipt and bounded failure-artifact schemas,
+and their adversarial validators. Those pieces implement the first layer of
+the common topology specified by
 [lsp-and-incremental.md](lsp-and-incremental.md#91-ci-and-qualification-topology),
 [h1-emit.md](h1-emit.md#64-ci-and-qualification-topology), and
 [compiler-compatibility-residual.md](compiler-compatibility-residual.md#114-cross-track-ci-and-qualification-topology).
 
-That follow-on consists of a required non-documentation static/focused PR
-lane, an authenticated exact HEAD/base-bound full-gate summary,
-protected-main scheduled stress work, and approved-runner performance/release
-qualification. Its stable aggregate check fails closed for missing, skipped,
-or unknown selected lanes.
-A new commit, changed base, merge-queue composition, lockfile/toolchain/pin/
-profile change, or mismatched result hash invalidates the merge summary. Until
-the prerequisite lands, a green hosted `gates` sentinel is only classifier and
-platform-canary evidence and cannot accept an L0/L1/H1 runtime change.
+Before the first L0.1 or H1 runtime change is accepted, the repository must
+activate an authenticated exact HEAD/base-bound full-gate status, add the
+runtime owner tests selected by that implementation, extend protected-main
+scheduled work from fixture validation to the required stress, and run
+performance/release qualification on an approved runner. The stable aggregate
+already fails closed for missing, skipped, or unknown selected hosted lanes,
+but it does not currently consume an authenticated full-gate receipt. A new
+commit, changed base, merge-queue composition, lockfile/toolchain/pin/profile
+change, or mismatched result hash invalidates any future merge summary. Until
+that authority is active, a green hosted `gates` sentinel is bounded feedback
+and cannot accept an L0/L1/H1 runtime change by itself.
 
 The new serializable summary must not turn the M8/M9 move-only conformance
 receipt into a cross-job artifact. The unsplit command still creates and

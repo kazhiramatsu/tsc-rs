@@ -430,6 +430,20 @@ impl ProgramSession {
             )
         }
         .map_err(|failure| map_authoritative_failure(&self.prepared, failure))?;
+        let checker_work = checked.work_counters;
+        let projected_documents = inputs.libs.len() + inputs.files.len();
+        let projected_text_bytes = inputs
+            .libs
+            .iter()
+            .chain(&inputs.files)
+            .map(|input| input.text.len() as u64)
+            .sum::<u64>();
+        let work_counters = NoEmitWorkCounters {
+            parsed_documents: checker_work.parsed_documents(),
+            bound_documents: checker_work.bound_documents(),
+            full_text_copies: checker_work.full_text_copies() + projected_documents as u64,
+            full_text_bytes_copied: checker_work.full_text_bytes_copied() + projected_text_bytes,
+        };
 
         let preparation = self.prepared.diagnostics();
         let mut conformance_diagnostics = checked.diagnostics;
@@ -534,6 +548,7 @@ impl ProgramSession {
             global_diagnostics,
             semantic_diagnostics,
             conformance_diagnostics,
+            work_counters,
         })
     }
 }
@@ -543,7 +558,7 @@ impl ProgramSession {
 /// Buckets retain their getter-local ordering. [`diagnostics`](Self::diagnostics)
 /// and [`into_diagnostics`](Self::into_diagnostics) expose the command driver
 /// order without re-sorting across bucket boundaries.
-#[derive(Clone, Debug, Default, Eq, PartialEq)]
+#[derive(Clone, Debug, Default)]
 pub struct NoEmitOutcome {
     config_diagnostics: DiagnosticList,
     syntactic_diagnostics: DiagnosticList,
@@ -554,6 +569,63 @@ pub struct NoEmitOutcome {
     // per-file getters, including suggestions. This stream is retained only
     // as evidence; diagnostics()/into_diagnostics intentionally exclude it.
     conformance_diagnostics: DiagnosticList,
+    // Operational evidence is not part of diagnostic-result equality. Tests
+    // and qualification compare it explicitly through work_counters().
+    work_counters: NoEmitWorkCounters,
+}
+
+impl PartialEq for NoEmitOutcome {
+    fn eq(&self, other: &Self) -> bool {
+        self.config_diagnostics == other.config_diagnostics
+            && self.syntactic_diagnostics == other.syntactic_diagnostics
+            && self.options_diagnostics == other.options_diagnostics
+            && self.global_diagnostics == other.global_diagnostics
+            && self.semantic_diagnostics == other.semantic_diagnostics
+            && self.conformance_diagnostics == other.conformance_diagnostics
+    }
+}
+
+impl Eq for NoEmitOutcome {}
+
+/// Coarse H0/L0 work observations for one no-emit session.
+///
+/// The program-session fields cover the current owned projections from
+/// prepared source text through checker input into a parsed source. The CLI
+/// augments the same counters with its diagnostic-rendering text projection.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct NoEmitWorkCounters {
+    parsed_documents: u64,
+    bound_documents: u64,
+    full_text_copies: u64,
+    full_text_bytes_copied: u64,
+}
+
+impl NoEmitWorkCounters {
+    pub const fn parsed_documents(self) -> u64 {
+        self.parsed_documents
+    }
+
+    pub const fn bound_documents(self) -> u64 {
+        self.bound_documents
+    }
+
+    pub const fn full_text_copies(self) -> u64 {
+        self.full_text_copies
+    }
+
+    pub const fn full_text_bytes_copied(self) -> u64 {
+        self.full_text_bytes_copied
+    }
+
+    pub(crate) const fn with_additional_full_text_projection(
+        mut self,
+        copies: u64,
+        bytes: u64,
+    ) -> Self {
+        self.full_text_copies += copies;
+        self.full_text_bytes_copied += bytes;
+        self
+    }
 }
 
 impl NoEmitOutcome {
@@ -581,6 +653,11 @@ impl NoEmitOutcome {
     /// It includes suggestions and is therefore not CLI output.
     pub fn conformance_diagnostics(&self) -> &[Diagnostic] {
         &self.conformance_diagnostics
+    }
+
+    /// Parse/bind/full-text-copy evidence for this consumed session.
+    pub const fn work_counters(&self) -> NoEmitWorkCounters {
+        self.work_counters
     }
 
     /// Iterate in the no-emit command's bucket order.

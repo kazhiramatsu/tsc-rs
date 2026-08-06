@@ -1,0 +1,371 @@
+{
+  "schema": 1,
+  "status": "frozen",
+  "typescript": {
+    "version": "6.0.3",
+    "source_commit": "050880ce59e30b356b686bd3144efe24f875ebc8",
+    "tsc_path": "vendor/typescript-6.0.3/lib/_tsc.js",
+    "tsc_sha256": "1c59e77a54b186ec43fa7f3e0d3c4bb15ca5eb5ba43e96b1d3a267139eddd3e3",
+    "option_declarations": 129
+  },
+  "document_address": {
+    "registry_namespace": [
+      "typescript_pin",
+      "jsdoc_parsing_mode",
+      "canonicalization_profile",
+      "rust_parser_policy"
+    ],
+    "bucket": [
+      "source_file_affecting_options",
+      "implied_node_format"
+    ],
+    "path": "canonical_path",
+    "variant": "script_kind",
+    "excluded_version_facts": [
+      "document_version",
+      "text_hash",
+      "snapshot_lineage"
+    ]
+  },
+  "option_sets": {
+    "source_file_affecting": [
+      {
+        "name": "target",
+        "rust_field": "target",
+        "affects_source_file": true,
+        "affects_bind_diagnostics": false,
+        "affects_semantic_diagnostics": false,
+        "affects_module_resolution": true,
+        "strict_flag": false,
+        "allow_js_flag": false
+      },
+      {
+        "name": "module",
+        "rust_field": "module",
+        "affects_source_file": true,
+        "affects_bind_diagnostics": false,
+        "affects_semantic_diagnostics": false,
+        "affects_module_resolution": true,
+        "strict_flag": false,
+        "allow_js_flag": false
+      },
+      {
+        "name": "jsx",
+        "rust_field": "jsx",
+        "affects_source_file": true,
+        "affects_bind_diagnostics": false,
+        "affects_semantic_diagnostics": true,
+        "affects_module_resolution": true,
+        "strict_flag": false,
+        "allow_js_flag": false
+      },
+      {
+        "name": "importHelpers",
+        "rust_field": "import_helpers",
+        "affects_source_file": true,
+        "affects_bind_diagnostics": false,
+        "affects_semantic_diagnostics": false,
+        "affects_module_resolution": false,
+        "strict_flag": false,
+        "allow_js_flag": false
+      },
+      {
+        "name": "alwaysStrict",
+        "rust_field": "always_strict",
+        "affects_source_file": true,
+        "affects_bind_diagnostics": false,
+        "affects_semantic_diagnostics": false,
+        "affects_module_resolution": false,
+        "strict_flag": false,
+        "allow_js_flag": false
+      },
+      {
+        "name": "noFallthroughCasesInSwitch",
+        "rust_field": "no_fallthrough_cases_in_switch",
+        "affects_source_file": false,
+        "affects_bind_diagnostics": true,
+        "affects_semantic_diagnostics": true,
+        "affects_module_resolution": false,
+        "strict_flag": false,
+        "allow_js_flag": false
+      },
+      {
+        "name": "moduleResolution",
+        "rust_field": "module_resolution",
+        "affects_source_file": true,
+        "affects_bind_diagnostics": false,
+        "affects_semantic_diagnostics": false,
+        "affects_module_resolution": true,
+        "strict_flag": false,
+        "allow_js_flag": false
+      },
+      {
+        "name": "jsxImportSource",
+        "rust_field": "jsx_import_source",
+        "affects_source_file": true,
+        "affects_bind_diagnostics": false,
+        "affects_semantic_diagnostics": true,
+        "affects_module_resolution": true,
+        "strict_flag": false,
+        "allow_js_flag": false
+      },
+      {
+        "name": "allowUnusedLabels",
+        "rust_field": "allow_unused_labels",
+        "affects_source_file": false,
+        "affects_bind_diagnostics": true,
+        "affects_semantic_diagnostics": true,
+        "affects_module_resolution": false,
+        "strict_flag": false,
+        "allow_js_flag": false
+      },
+      {
+        "name": "allowUnreachableCode",
+        "rust_field": "allow_unreachable_code",
+        "affects_source_file": false,
+        "affects_bind_diagnostics": true,
+        "affects_semantic_diagnostics": true,
+        "affects_module_resolution": false,
+        "strict_flag": false,
+        "allow_js_flag": false
+      },
+      {
+        "name": "moduleDetection",
+        "rust_field": "module_detection",
+        "affects_source_file": true,
+        "affects_bind_diagnostics": false,
+        "affects_semantic_diagnostics": false,
+        "affects_module_resolution": true,
+        "strict_flag": false,
+        "allow_js_flag": false
+      }
+    ],
+    "source_file_only": [
+      "target",
+      "module",
+      "jsx",
+      "importHelpers",
+      "alwaysStrict",
+      "moduleResolution",
+      "jsxImportSource",
+      "moduleDetection"
+    ],
+    "bind_diagnostics": [
+      "noFallthroughCasesInSwitch",
+      "allowUnusedLabels",
+      "allowUnreachableCode"
+    ],
+    "semantic_diagnostics": [
+      "assumeChangesOnlyAffectDirectDependencies",
+      "checkJs",
+      "jsx",
+      "importsNotUsedAsValues",
+      "verbatimModuleSyntax",
+      "isolatedDeclarations",
+      "erasableSyntaxOnly",
+      "noImplicitAny",
+      "strictNullChecks",
+      "strictFunctionTypes",
+      "strictBindCallApply",
+      "strictPropertyInitialization",
+      "strictBuiltinIteratorReturn",
+      "stableTypeOrdering",
+      "noImplicitThis",
+      "useUnknownInCatchVariables",
+      "noUnusedLocals",
+      "noUnusedParameters",
+      "exactOptionalPropertyTypes",
+      "noImplicitReturns",
+      "noFallthroughCasesInSwitch",
+      "noUncheckedIndexedAccess",
+      "noImplicitOverride",
+      "noPropertyAccessFromIndexSignature",
+      "allowSyntheticDefaultImports",
+      "esModuleInterop",
+      "allowUmdGlobalAccess",
+      "allowImportingTsExtensions",
+      "rewriteRelativeImportExtensions",
+      "noUncheckedSideEffectImports",
+      "experimentalDecorators",
+      "emitDecoratorMetadata",
+      "jsxImportSource",
+      "noErrorTruncation",
+      "noImplicitUseStrict",
+      "allowUnusedLabels",
+      "allowUnreachableCode",
+      "suppressExcessPropertyErrors",
+      "suppressImplicitAnyIndexErrors",
+      "noStrictGenericChecks",
+      "useDefineForClassFields"
+    ],
+    "module_resolution": [
+      "target",
+      "module",
+      "checkJs",
+      "jsx",
+      "moduleResolution",
+      "baseUrl",
+      "paths",
+      "rootDirs",
+      "typeRoots",
+      "moduleSuffixes",
+      "resolvePackageJsonExports",
+      "resolvePackageJsonImports",
+      "customConditions",
+      "jsxImportSource",
+      "resolveJsonModule",
+      "noResolve",
+      "forceConsistentCasingInFileNames",
+      "maxNodeModuleJsDepth",
+      "moduleDetection"
+    ],
+    "program_structure": [
+      "lib",
+      "libReplacement",
+      "types",
+      "allowArbitraryExtensions",
+      "noLib",
+      "disableSizeLimit"
+    ]
+  },
+  "current_rust_source_ownership": {
+    "representations": [
+      {
+        "owner": "PreparedSourceFile.text",
+        "storage": "String",
+        "path": "crates/program/src/prepared.rs",
+        "line": 85,
+        "source_sha256": "9df05a9035000c21fac979b16cefa2a4b0b79f9b8d4ec5bcb09d395f6dc36db7",
+        "evidence": "pub struct PreparedSourceFile {"
+      },
+      {
+        "owner": "InputFile.text",
+        "storage": "String",
+        "path": "crates/checker/src/lib.rs",
+        "line": 57,
+        "source_sha256": "a1e2ce979f9d441ed592104cf887ba848c1f55abd8b515a8b1e3fa8321b6a116",
+        "evidence": "pub struct InputFile {"
+      },
+      {
+        "owner": "SourceFile.text",
+        "storage": "String",
+        "path": "crates/syntax/src/lib.rs",
+        "line": 71,
+        "source_sha256": "1495bab3ffdf14e9c6502ab3d99b9f8e43d21feb25381542a7dee1f6bb92c405",
+        "evidence": "pub struct SourceFile {"
+      }
+    ],
+    "full_text_copy_edges": [
+      {
+        "from": "PreparedSourceFile.text",
+        "to": "InputFile.text",
+        "path": "crates/compiler/src/lib.rs",
+        "line": 867,
+        "source_sha256": "2b6851a11ed3f281381daf5e6638aea384cb57faaab31a361b4438938009f1fb",
+        "evidence": "            text: source.text().to_owned(),"
+      },
+      {
+        "from": "InputFile.text",
+        "to": "SourceFile.text",
+        "branch": "json",
+        "path": "crates/checker/src/lib.rs",
+        "line": 1398,
+        "source_sha256": "a1e2ce979f9d441ed592104cf887ba848c1f55abd8b515a8b1e3fa8321b6a116",
+        "evidence": "            let source_file = tsc_syntax::parse_json_text_with_bases("
+      },
+      {
+        "from": "InputFile.text",
+        "to": "SourceFile.text",
+        "branch": "ordinary",
+        "path": "crates/checker/src/lib.rs",
+        "line": 1497,
+        "source_sha256": "a1e2ce979f9d441ed592104cf887ba848c1f55abd8b515a8b1e3fa8321b6a116",
+        "evidence": "        let source_file = tsc_syntax::parse_source_file("
+      },
+      {
+        "from": "PreparedProgram source and auxiliary text",
+        "to": "CLI diagnostic source_texts",
+        "branch": "config-project",
+        "path": "crates/compiler/src/cli.rs",
+        "line": 513,
+        "source_sha256": "bf5a0aaeac86ee25a1f015accdb1ff60e73fc215530ddc57d07377a409ae1ebe",
+        "evidence": "    for source in prepared.auxiliary_files() {"
+      },
+      {
+        "from": "PreparedProgram source text",
+        "to": "CLI diagnostic source_texts",
+        "branch": "explicit-roots",
+        "path": "crates/compiler/src/cli.rs",
+        "line": 561,
+        "source_sha256": "bf5a0aaeac86ee25a1f015accdb1ff60e73fc215530ddc57d07377a409ae1ebe",
+        "evidence": "    execute_prepared(current_directory, source_texts, prepared, &[], pretty)"
+      }
+    ],
+    "compiler_options_owner": {
+      "path": "crates/types/src/options.rs",
+      "source_sha256": "002620757c9844eacd85a5f490cd83df9e6719d437ba9ba6ae203270bf918da0",
+      "fields": [
+        "allow_arbitrary_extensions",
+        "allow_importing_ts_extensions",
+        "allow_js",
+        "allow_synthetic_default_imports",
+        "allow_umd_global_access",
+        "allow_unreachable_code",
+        "allow_unused_labels",
+        "always_strict",
+        "base_url",
+        "check_js",
+        "custom_conditions",
+        "downlevel_iteration",
+        "es_module_interop",
+        "exact_optional_property_types",
+        "experimental_decorators",
+        "force_consistent_casing_in_file_names",
+        "ignore_deprecations",
+        "import_helpers",
+        "isolated_modules",
+        "jsx",
+        "jsx_factory",
+        "jsx_fragment_factory",
+        "jsx_import_source",
+        "lib",
+        "max_node_module_js_depth",
+        "module",
+        "module_detection",
+        "module_resolution",
+        "module_suffixes",
+        "no_dts_resolution",
+        "no_emit",
+        "no_error_truncation",
+        "no_fallthrough_cases_in_switch",
+        "no_implicit_any",
+        "no_implicit_override",
+        "no_implicit_returns",
+        "no_implicit_this",
+        "no_property_access_from_index_signature",
+        "no_resolve",
+        "no_unchecked_indexed_access",
+        "no_unchecked_side_effect_imports",
+        "no_unused_locals",
+        "no_unused_parameters",
+        "preserve_const_enums",
+        "react_namespace",
+        "resolve_json_module",
+        "resolve_package_json_exports",
+        "resolve_package_json_imports",
+        "rewrite_relative_import_extensions",
+        "skip_lib_check",
+        "strict",
+        "strict_bind_call_apply",
+        "strict_builtin_iterator_return",
+        "strict_function_types",
+        "strict_null_checks",
+        "strict_property_initialization",
+        "target",
+        "use_define_for_class_fields",
+        "use_unknown_in_catch_variables",
+        "verbatim_module_syntax"
+      ]
+    }
+  }
+}

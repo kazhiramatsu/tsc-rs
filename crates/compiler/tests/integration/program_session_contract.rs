@@ -209,18 +209,30 @@ fn consume(session: ProgramSession) -> NoEmitOutcome {
     session.run().expect("one-shot session")
 }
 
-#[test]
-fn session_consumes_owned_program_and_sorts_batch_syntax_diagnostics() {
-    let prepared = prepared_program(
-        &[
-            ("lib.d.ts", MINIMAL_GLOBALS),
-            ("second.ts", "const second = ;"),
-            ("first.ts", "const first = ;"),
-        ],
-        1,
-        PreparationDiagnostics::default(),
-        |_| {},
+fn assert_one_cached_library_saved_work(
+    owned: &NoEmitOutcome,
+    cached: &NoEmitOutcome,
+    library_bytes: usize,
+) {
+    let owned = owned.work_counters();
+    let cached = cached.work_counters();
+    assert_eq!(owned.parsed_documents(), cached.parsed_documents() + 1);
+    assert_eq!(owned.bound_documents(), cached.bound_documents() + 1);
+    assert_eq!(owned.full_text_copies(), cached.full_text_copies() + 1);
+    assert_eq!(
+        owned.full_text_bytes_copied(),
+        cached.full_text_bytes_copied() + library_bytes as u64
     );
+}
+
+#[test]
+fn l0_work_counters_and_sorted_batch_syntax_diagnostics() {
+    let files = [
+        ("lib.d.ts", MINIMAL_GLOBALS),
+        ("second.ts", "const second = ;"),
+        ("first.ts", "const first = ;"),
+    ];
+    let prepared = prepared_program(&files, 1, PreparationDiagnostics::default(), |_| {});
 
     let outcome = consume(ProgramSession::new(prepared));
     let file_names = outcome
@@ -233,6 +245,13 @@ fn session_consumes_owned_program_and_sorts_batch_syntax_diagnostics() {
     assert!(outcome.options_diagnostics().is_empty());
     assert!(outcome.global_diagnostics().is_empty());
     assert!(outcome.semantic_diagnostics().is_empty());
+
+    let work = outcome.work_counters();
+    let source_bytes = files.iter().map(|(_, text)| text.len() as u64).sum::<u64>();
+    assert_eq!(work.parsed_documents(), 3);
+    assert_eq!(work.bound_documents(), 3);
+    assert_eq!(work.full_text_copies(), 6);
+    assert_eq!(work.full_text_bytes_copied(), source_bytes * 2);
 }
 
 #[test]
@@ -590,6 +609,7 @@ fn conformance_harness_lib_cache_preserves_authoritative_diagnostics() {
         .expect("cached conformance authoritative session");
 
     assert_eq!(owned, cached);
+    assert_one_cached_library_saved_work(&owned, &cached, MINIMAL_GLOBALS.len());
     assert_eq!(codes(cached.semantic_diagnostics()), [2322]);
 }
 
@@ -936,6 +956,7 @@ fn authoritative_ts_extension_fact_controls_non_relative_rewrite_diagnostic() {
             .run_for_harness_with_lib_cache()
             .expect("cached authoritative rewrite session");
         assert_eq!(owned, cached, "{} cache mode", case.name);
+        assert_one_cached_library_saved_work(&owned, &cached, MINIMAL_GLOBALS.len());
         let outcome = owned;
         let diagnostics = outcome
             .semantic_diagnostics()
