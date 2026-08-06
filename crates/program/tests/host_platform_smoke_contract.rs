@@ -72,10 +72,14 @@ fn native_filesystem_and_memory_hosts_build_the_same_small_program() {
         .use_case_sensitive_file_names();
     let filesystem =
         FsCompilerHost::new(tree.root(), case_sensitive).expect("construct filesystem host");
-    let memory = MemoryCompilerHost::builder(tree.root())
+    // ModuleResolver deliberately presents TypeScript-normalized `/` path
+    // spellings to its host. MemoryCompilerHost preserves caller spelling
+    // exactly, so seed the equivalent logical tree in that boundary spelling
+    // instead of Windows' native `\\?\C:\...` PathBuf spelling.
+    let memory = MemoryCompilerHost::builder(normalized_display(tree.root()))
         .case_sensitive(case_sensitive)
-        .file(&main, main_text.to_vec())
-        .file(&child, child_text.to_vec())
+        .file(normalized_display(&main), main_text.to_vec())
+        .file(normalized_display(&child), child_text.to_vec())
         .build()
         .expect("construct equivalent memory host");
     let options = CompilerOptions {
