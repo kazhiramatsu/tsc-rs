@@ -602,7 +602,7 @@ incremental-parser exactness, and their resource gates remain L0.2-L1 work.
 ### 8.2 L0.1 accepted text-ownership record
 
 L0.1 completed on 2026-08-06. Its qualified runtime is commit
-`b2708ed04acc061c81f660c384bbccab1c53c816`, compared with exact base
+`97671dccc873b1d4a697082a256a5661056d1c51`, compared with exact base
 `298705ef79525dd50c888af013202b4505520435`. Later evidence and documentation
 commits qualify only when their runtime-tree fingerprint remains identical to
 that candidate. The accepted ownership boundary is:
@@ -620,6 +620,10 @@ that candidate. The accepted ownership boundary is:
 - Byte and UTF-16 edit ranges are distinct types. Conversion rejects UTF-8 or
   surrogate midpoints rather than rounding, and line accounting recognizes
   LF, CR, CRLF, LS, and PS while intentionally excluding NEL.
+- Scanner dump token offsets remain UTF-16-relative by contract. Binder and
+  checker diagnostic helpers convert those deltas through `PositionIndex`
+  before slicing byte text; BOM/astral canaries and the 7,691-program encoding
+  invariant prevent the old midpoint interpretation from returning.
 - `VersionedTextStore` separates host versions from internal ancestry,
   materializes at the TypeScript-compatible ninth-pending-edit or greater-
   than-256-UTF-16 threshold, retains at most eight published ancestors, and
@@ -646,9 +650,9 @@ order. Every ratio is candidate/base and remains below its frozen ceiling:
 
 | Workload | Warm median | Warm p95 | Peak RSS | Allocations | Allocated bytes | Candidate text copies / bytes |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| explicit root | 0.978382 | 0.947026 | 1.058252 | 0.999846 | 0.907713 | 0 / 0 |
-| project | 0.990944 | 0.976482 | 1.065391 | 0.999873 | 0.906290 | 0 / 0 |
-| scale | 0.980087 | 0.981848 | 1.003867 | 0.999944 | 0.963931 | 0 / 0 |
+| explicit root | 1.001518 | 0.988031 | 1.059860 | 0.999846 | 0.907713 | 0 / 0 |
+| project | 0.991067 | 0.986476 | 1.066501 | 0.999873 | 0.906290 | 0 / 0 |
+| scale | 0.993036 | 0.983444 | 1.008968 | 0.999944 | 0.963931 | 0 / 0 |
 
 The active policy binds selected L0/L1 and H1 runtime candidates to the exact
 unsplit full-gate result, immutable inputs, GitHub OIDC attestation, verified
