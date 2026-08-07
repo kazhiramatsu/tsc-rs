@@ -1,0 +1,293 @@
+{
+  "schema": 1,
+  "status": "frozen",
+  "phase": "H1.0a-bootstrap-profile",
+  "typescript": {
+    "version": "6.0.3",
+    "source_commit": "050880ce59e30b356b686bd3144efe24f875ebc8",
+    "implementation": "vendor/typescript-6.0.3/lib/_tsc.js",
+    "implementation_sha256": "1c59e77a54b186ec43fa7f3e0d3c4bb15ca5eb5ba43e96b1d3a267139eddd3e3",
+    "oracle_bundle": "vendor/typescript-6.0.3/lib/typescript.js",
+    "oracle_bundle_sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39"
+  },
+  "toolchain": {
+    "node": "25.2.1"
+  },
+  "generator": {
+    "path": "crates/oracle/h1-emit-oracle.mjs",
+    "sha256": "f5d93601f766ed254ef52786138b88e0fad819cf3201135a6e51e13ba0c43940"
+  },
+  "schemas": {
+    "profile": {
+      "path": ".github/ci/contracts/h1-emit-profile.schema.json",
+      "sha256": "b69dd18d0bee2c0838cbd8fe5813c3c9526f5ff8c0bd8b136bb6f7ed9304f41d"
+    },
+    "observation": {
+      "path": ".github/ci/contracts/h1-emit-observation.schema.json",
+      "sha256": "eb3fc6601eb0f7aca975558578e70701726876828d85e50dc4dd47e9078c2c6b"
+    }
+  },
+  "base_program_profile": {
+    "path": "ratchets/h0-qualification.v1.json",
+    "sha256": "41ed8448322e7ea47070f508e53187794110c0a21a75158b843ce8e4e0987cb8",
+    "retained_scope": "H0 single-project program/config/host/checker options unless narrowed below"
+  },
+  "owner_inventory": {
+    "path": "ratchets/h1-owner-inventory.v1.json",
+    "sha256": "c7dfa3204acdaa17648d0a1d8fa104b466f94fdf30d0da737e02b9e176701758",
+    "status": "draft/report-only"
+  },
+  "execution": {
+    "project": "single",
+    "lifetime": "one-shot",
+    "selection": "whole-program",
+    "emitted_root": "source-file",
+    "output_products": [
+      "javascript"
+    ],
+    "unsupported_policy": "typed-fail-closed-before-first-sink-write"
+  },
+  "source_profile": {
+    "emit_eligible_extensions": [
+      ".ts"
+    ],
+    "non_emitting_dependencies": [
+      ".d.ts"
+    ],
+    "admitted_language": "ESNext JavaScript plus erasable TypeScript syntax accepted by the H0 parser",
+    "rejected_feature_roots": [
+      "decorators",
+      "export-equals",
+      "import-equals",
+      "jsx",
+      "parameter-properties",
+      "runtime-enums",
+      "runtime-namespaces"
+    ]
+  },
+  "emit_active_options": {
+    "required": [
+      {
+        "name": "target",
+        "accepted": [
+          {
+            "name": "ESNext",
+            "value": 99
+          }
+        ]
+      },
+      {
+        "name": "module",
+        "accepted": [
+          {
+            "name": "Preserve",
+            "value": 200
+          }
+        ]
+      }
+    ],
+    "admitted_optional": [
+      {
+        "name": "useDefineForClassFields",
+        "accepted": [
+          "absent",
+          true
+        ]
+      },
+      {
+        "name": "noEmitOnError",
+        "accepted": [
+          "absent",
+          false,
+          true
+        ]
+      },
+      {
+        "name": "emitBOM",
+        "accepted": [
+          "absent",
+          false,
+          true
+        ]
+      },
+      {
+        "name": "newLine",
+        "accepted": [
+          "absent",
+          {
+            "name": "CarriageReturnLineFeed",
+            "value": 0
+          },
+          {
+            "name": "LineFeed",
+            "value": 1
+          }
+        ]
+      },
+      {
+        "name": "listEmittedFiles",
+        "accepted": [
+          "absent",
+          false,
+          true
+        ]
+      }
+    ],
+    "h0_route": [
+      {
+        "name": "noEmit",
+        "accepted": [
+          true
+        ]
+      }
+    ],
+    "rejected_when_effective": [
+      "allowImportingTsExtensions",
+      "allowJs",
+      "composite",
+      "declaration",
+      "declarationDir",
+      "declarationMap",
+      "emitDeclarationOnly",
+      "experimentalDecorators",
+      "importHelpers",
+      "incremental",
+      "inlineSourceMap",
+      "isolatedModules",
+      "jsx",
+      "noCheck",
+      "noEmitHelpers",
+      "outDir",
+      "outFile",
+      "rewriteRelativeImportExtensions",
+      "resolveJsonModule",
+      "sourceMap",
+      "tsBuildInfoFile",
+      "verbatimModuleSyntax"
+    ],
+    "retained_h0_options": [
+      "checkJs",
+      "forceConsistentCasingInFileNames",
+      "maxNodeModuleJsDepth",
+      "moduleDetection",
+      "alwaysStrict",
+      "strict",
+      "strictNullChecks",
+      "strictFunctionTypes",
+      "noImplicitAny",
+      "noErrorTruncation",
+      "noImplicitThis",
+      "noImplicitOverride",
+      "strictBindCallApply",
+      "exactOptionalPropertyTypes",
+      "noFallthroughCasesInSwitch",
+      "noImplicitReturns",
+      "noUnusedLocals",
+      "noUnusedParameters",
+      "allowUnreachableCode",
+      "allowUnusedLabels",
+      "noUncheckedIndexedAccess",
+      "noPropertyAccessFromIndexSignature",
+      "noUncheckedSideEffectImports",
+      "strictPropertyInitialization",
+      "useUnknownInCatchVariables",
+      "lib",
+      "noResolve",
+      "downlevelIteration",
+      "strictBuiltinIteratorReturn",
+      "moduleResolution",
+      "esModuleInterop",
+      "allowSyntheticDefaultImports",
+      "preserveConstEnums",
+      "allowUmdGlobalAccess",
+      "baseUrl",
+      "moduleSuffixes",
+      "resolvePackageJsonExports",
+      "resolvePackageJsonImports",
+      "customConditions",
+      "noDtsResolution",
+      "allowArbitraryExtensions",
+      "skipLibCheck",
+      "jsxFactory",
+      "jsxFragmentFactory",
+      "jsxImportSource",
+      "reactNamespace",
+      "ignoreDeprecations",
+      "noLib",
+      "preserveSymlinks",
+      "types",
+      "typeRoots",
+      "rootDirs",
+      "paths"
+    ],
+    "unlisted_option_policy": "unsupported-before-first-write",
+    "request_only_rejections": [
+      "custom-transformers",
+      "plugins"
+    ]
+  },
+  "transformer_order": [
+    {
+      "index": 0,
+      "name": "transformTypeScript"
+    },
+    {
+      "index": 1,
+      "name": "transformClassFields"
+    },
+    {
+      "index": 2,
+      "name": "transformECMAScriptModule"
+    }
+  ],
+  "output_contract": {
+    "callback_text_encoding": "UTF-8 without BOM",
+    "bom": "independent callback boolean; sink prepends EFBBBF when true",
+    "path_profile": "case-sensitive canonical POSIX virtual root",
+    "source_provenance": "presence plus ordered canonical source paths",
+    "metadata": "presence plus own keys, generated UTF-16 source-map URL position, transform diagnostics, and dormant builder fields",
+    "callback_order_independent_from_emitted_files": true,
+    "sink_dispositions": [
+      "written"
+    ],
+    "source_maps": "typed absent slot in admitted profile"
+  },
+  "dormant_axes": {
+    "selections": [
+      "target-source-file"
+    ],
+    "emitted_roots": [
+      "bundle"
+    ],
+    "products": [
+      "javascript-map",
+      "declaration",
+      "declaration-map",
+      "build-info"
+    ],
+    "modes": [
+      "declaration-only",
+      "builder-signature",
+      "build-info-only"
+    ]
+  },
+  "oracle_cases": {
+    "admitted": [
+      "erasable-typescript",
+      "ordered-multi-file-bom-crlf",
+      "diagnostics-with-output",
+      "no-emit-on-error",
+      "emitted-files-observation-absent"
+    ],
+    "adjacent_unsupported": [
+      "runtime-enum-control",
+      "runtime-namespace-control",
+      "parameter-property-control",
+      "jsx-control",
+      "source-map-control",
+      "declaration-control",
+      "mts-output-control"
+    ]
+  },
+  "profile_fingerprint_sha256": "a2fc1c826d625e0b9bffbf6aa614e32a9be008d818ce21a95c95aaca5a228f98"
+}

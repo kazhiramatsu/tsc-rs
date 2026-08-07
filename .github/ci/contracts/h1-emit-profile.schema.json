@@ -1,0 +1,262 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/kazhiramatsu/tsc-rs/.github/ci/contracts/h1-emit-profile.schema.json",
+  "title": "tsc-rs frozen H1 JavaScript emit bootstrap profile",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "status",
+    "phase",
+    "typescript",
+    "toolchain",
+    "generator",
+    "schemas",
+    "base_program_profile",
+    "owner_inventory",
+    "execution",
+    "source_profile",
+    "emit_active_options",
+    "transformer_order",
+    "output_contract",
+    "dormant_axes",
+    "oracle_cases",
+    "profile_fingerprint_sha256"
+  ],
+  "properties": {
+    "schema": { "const": 1 },
+    "status": { "const": "frozen" },
+    "phase": { "const": "H1.0a-bootstrap-profile" },
+    "typescript": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version",
+        "source_commit",
+        "implementation",
+        "implementation_sha256",
+        "oracle_bundle",
+        "oracle_bundle_sha256"
+      ],
+      "properties": {
+        "version": { "const": "6.0.3" },
+        "source_commit": { "$ref": "#/$defs/sha1" },
+        "implementation": { "const": "vendor/typescript-6.0.3/lib/_tsc.js" },
+        "implementation_sha256": { "$ref": "#/$defs/sha256" },
+        "oracle_bundle": { "const": "vendor/typescript-6.0.3/lib/typescript.js" },
+        "oracle_bundle_sha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "toolchain": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["node"],
+      "properties": { "node": { "const": "25.2.1" } }
+    },
+    "generator": { "$ref": "#/$defs/path_hash" },
+    "schemas": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["profile", "observation"],
+      "properties": {
+        "profile": { "$ref": "#/$defs/path_hash" },
+        "observation": { "$ref": "#/$defs/path_hash" }
+      }
+    },
+    "base_program_profile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256", "retained_scope"],
+      "properties": {
+        "path": { "const": "ratchets/h0-qualification.v1.json" },
+        "sha256": { "$ref": "#/$defs/sha256" },
+        "retained_scope": { "type": "string", "minLength": 1 }
+      }
+    },
+    "owner_inventory": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256", "status"],
+      "properties": {
+        "path": { "const": "ratchets/h1-owner-inventory.v1.json" },
+        "sha256": { "$ref": "#/$defs/sha256" },
+        "status": { "const": "draft/report-only" }
+      }
+    },
+    "execution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "project",
+        "lifetime",
+        "selection",
+        "emitted_root",
+        "output_products",
+        "unsupported_policy"
+      ],
+      "properties": {
+        "project": { "const": "single" },
+        "lifetime": { "const": "one-shot" },
+        "selection": { "const": "whole-program" },
+        "emitted_root": { "const": "source-file" },
+        "output_products": {
+          "type": "array",
+          "prefixItems": [{ "const": "javascript" }],
+          "items": false,
+          "minItems": 1,
+          "maxItems": 1
+        },
+        "unsupported_policy": { "const": "typed-fail-closed-before-first-sink-write" }
+      }
+    },
+    "source_profile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "emit_eligible_extensions",
+        "non_emitting_dependencies",
+        "admitted_language",
+        "rejected_feature_roots"
+      ],
+      "properties": {
+        "emit_eligible_extensions": {
+          "type": "array",
+          "prefixItems": [{ "const": ".ts" }],
+          "items": false,
+          "minItems": 1,
+          "maxItems": 1
+        },
+        "non_emitting_dependencies": {
+          "type": "array",
+          "prefixItems": [{ "const": ".d.ts" }],
+          "items": false,
+          "minItems": 1,
+          "maxItems": 1
+        },
+        "admitted_language": { "type": "string", "minLength": 1 },
+        "rejected_feature_roots": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "emit_active_options": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "required",
+        "admitted_optional",
+        "h0_route",
+        "rejected_when_effective",
+        "retained_h0_options",
+        "unlisted_option_policy",
+        "request_only_rejections"
+      ],
+      "properties": {
+        "required": { "$ref": "#/$defs/option_rows" },
+        "admitted_optional": { "$ref": "#/$defs/option_rows" },
+        "h0_route": { "$ref": "#/$defs/option_rows" },
+        "rejected_when_effective": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "retained_h0_options": { "$ref": "#/$defs/nonempty_strings" },
+        "unlisted_option_policy": { "const": "unsupported-before-first-write" },
+        "request_only_rejections": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "transformer_order": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 3,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["index", "name"],
+        "properties": {
+          "index": { "type": "integer", "minimum": 0, "maximum": 2 },
+          "name": {
+            "enum": [
+              "transformTypeScript",
+              "transformClassFields",
+              "transformECMAScriptModule"
+            ]
+          }
+        }
+      }
+    },
+    "output_contract": { "$ref": "#/$defs/string_map" },
+    "dormant_axes": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["selections", "emitted_roots", "products", "modes"],
+      "properties": {
+        "selections": { "$ref": "#/$defs/nonempty_strings" },
+        "emitted_roots": { "$ref": "#/$defs/nonempty_strings" },
+        "products": { "$ref": "#/$defs/nonempty_strings" },
+        "modes": { "$ref": "#/$defs/nonempty_strings" }
+      }
+    },
+    "oracle_cases": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["admitted", "adjacent_unsupported"],
+      "properties": {
+        "admitted": { "$ref": "#/$defs/nonempty_strings" },
+        "adjacent_unsupported": { "$ref": "#/$defs/nonempty_strings" }
+      }
+    },
+    "profile_fingerprint_sha256": { "$ref": "#/$defs/sha256" }
+  },
+  "$defs": {
+    "sha1": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "path_hash": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256"],
+      "properties": {
+        "path": { "type": "string", "minLength": 1 },
+        "sha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "option_rows": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "accepted"],
+        "properties": {
+          "name": { "type": "string", "minLength": 1 },
+          "accepted": { "type": "array", "minItems": 1, "items": {} }
+        }
+      }
+    },
+    "nonempty_strings": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "string_map": {
+      "type": "object",
+      "additionalProperties": {
+        "oneOf": [
+          { "type": "string", "minLength": 1 },
+          { "type": "boolean" },
+          { "$ref": "#/$defs/nonempty_strings" }
+        ]
+      }
+    }
+  }
+}

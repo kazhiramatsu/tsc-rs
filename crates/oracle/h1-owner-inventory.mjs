@@ -561,11 +561,13 @@ const output = {
     property_dispatch_edges: graphEdges.filter((edge) => edge.kind === "property-candidate").length,
     unresolved_calls: unresolvedCalls.length,
   },
+  completed_h1_0a: [
+    "freeze the exact bootstrap option/syntax/output profile",
+    "land callback-level in-memory oracle observations and schemas",
+  ],
   pending_h1_0a: [
     "review and disposition every unresolved/dynamic call and property-dispatch over-approximation",
-    "freeze the exact bootstrap option/syntax/output profile",
     "classify compiler/project/conformance/transpile and FourSlash emit inventories",
-    "land callback-level in-memory oracle observations and schemas",
     "record every current emit-only Rust omission",
   ],
   functions,

@@ -1,0 +1,1547 @@
+{
+  "schema": 1,
+  "status": "frozen",
+  "phase": "H1.0a-callback-oracle",
+  "typescript_version": "6.0.3",
+  "source_commit": "050880ce59e30b356b686bd3144efe24f875ebc8",
+  "profile": {
+    "path": "ratchets/h1-emit-profile.v1.json",
+    "sha256": "e0b951b6397a4c77fa2714f87ddc5fa0fbd198887fd942215af9775c5a466533"
+  },
+  "oracle_environment": {
+    "virtual_root": "/project",
+    "case_sensitive": true,
+    "library": {
+      "path": "/__oracle__/lib.d.ts",
+      "utf8_base64": "aW50ZXJmYWNlIEFycmF5PFQ+IHsgcmVhZG9ubHkgbGVuZ3RoOiBudW1iZXI7IFtuOiBudW1iZXJdOiBUOyB9CmludGVyZmFjZSBCb29sZWFuIHt9CmludGVyZmFjZSBDYWxsYWJsZUZ1bmN0aW9uIGV4dGVuZHMgRnVuY3Rpb24ge30KaW50ZXJmYWNlIEZ1bmN0aW9uIHt9CmludGVyZmFjZSBJQXJndW1lbnRzIHsgcmVhZG9ubHkgbGVuZ3RoOiBudW1iZXI7IFtuOiBudW1iZXJdOiBhbnk7IH0KaW50ZXJmYWNlIE5ld2FibGVGdW5jdGlvbiBleHRlbmRzIEZ1bmN0aW9uIHt9CmludGVyZmFjZSBOdW1iZXIge30KaW50ZXJmYWNlIE9iamVjdCB7fQppbnRlcmZhY2UgUmVnRXhwIHt9CmludGVyZmFjZSBTdHJpbmcge30K",
+      "utf8_sha256": "b34f850d0274803d1c643d0b3664cb11927e6d43cc03af86e6b1dbe16f084170",
+      "utf8_bytes": 348
+    }
+  },
+  "comparison": {
+    "output_bytes": "exact",
+    "text_normalization": "none",
+    "path_mapping": "/__h1/project -> /project",
+    "repeated_runs": 2
+  },
+  "cases": [
+    {
+      "input": {
+        "id": "erasable-typescript",
+        "classification": "admitted",
+        "compiler_options": {
+          "listEmittedFiles": true,
+          "module": 200,
+          "newLine": 1,
+          "noLib": true,
+          "target": 99,
+          "useDefineForClassFields": true
+        },
+        "root_files": [
+          {
+            "path": "/project/src/main.ts",
+            "utf8_base64": "ZXhwb3J0IGludGVyZmFjZSBTaGFwZSB7IHZhbHVlOiBudW1iZXIgfQpleHBvcnQgdHlwZSBCb3hlZDxUPiA9IHsgdmFsdWU6IFQgfTsKZXhwb3J0IGNvbnN0IGFuc3dlcjogbnVtYmVyID0gNDEgYXMgbnVtYmVyOwpleHBvcnQgZnVuY3Rpb24gaW5jKHZhbHVlOiBudW1iZXIpOiBudW1iZXIgeyByZXR1cm4gdmFsdWUgKyAxOyB9CmV4cG9ydCBjbGFzcyBCb3g8VD4gewogICAgcmVhZG9ubHkgdmFsdWU6IFQ7CiAgICBjb25zdHJ1Y3Rvcih2YWx1ZTogVCkgeyB0aGlzLnZhbHVlID0gdmFsdWU7IH0KICAgIGdldCgpOiBUIHsgcmV0dXJuIHRoaXMudmFsdWU7IH0KfQpleHBvcnQgY29uc3QgYm94ZWQgPSBuZXcgQm94KGFuc3dlciBzYXRpc2ZpZXMgbnVtYmVyKTsK",
+            "utf8_sha256": "cb6ae6b8aefe6a17beb42129a6b176ced267a3da25fecba32929f2b19234a01e",
+            "utf8_bytes": 375
+          }
+        ]
+      },
+      "determinism": {
+        "repeat_runs": 2,
+        "exact_match": true
+      },
+      "observation": {
+        "profile_gate": {
+          "disposition": "admitted",
+          "reasons": []
+        },
+        "rust_expectation": {
+          "outcome": "exact-typescript-observation",
+          "sink_write_count": 1
+        },
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/src/main.js",
+            "kind": "javascript",
+            "callback_text": "export const answer = 41;\nexport function inc(value) { return value + 1; }\nexport class Box {\n    value;\n    constructor(value) { this.value = value; }\n    get() { return this.value; }\n}\nexport const boxed = new Box(answer);\n",
+            "callback_utf8_base64": "ZXhwb3J0IGNvbnN0IGFuc3dlciA9IDQxOwpleHBvcnQgZnVuY3Rpb24gaW5jKHZhbHVlKSB7IHJldHVybiB2YWx1ZSArIDE7IH0KZXhwb3J0IGNsYXNzIEJveCB7CiAgICB2YWx1ZTsKICAgIGNvbnN0cnVjdG9yKHZhbHVlKSB7IHRoaXMudmFsdWUgPSB2YWx1ZTsgfQogICAgZ2V0KCkgeyByZXR1cm4gdGhpcy52YWx1ZTsgfQp9CmV4cG9ydCBjb25zdCBib3hlZCA9IG5ldyBCb3goYW5zd2VyKTsK",
+            "callback_utf8_sha256": "6e43a815862dc2a959d4317b3a5cbece57551d4581e9561b3639f03436d000ab",
+            "callback_utf8_bytes": 225,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGNvbnN0IGFuc3dlciA9IDQxOwpleHBvcnQgZnVuY3Rpb24gaW5jKHZhbHVlKSB7IHJldHVybiB2YWx1ZSArIDE7IH0KZXhwb3J0IGNsYXNzIEJveCB7CiAgICB2YWx1ZTsKICAgIGNvbnN0cnVjdG9yKHZhbHVlKSB7IHRoaXMudmFsdWUgPSB2YWx1ZTsgfQogICAgZ2V0KCkgeyByZXR1cm4gdGhpcy52YWx1ZTsgfQp9CmV4cG9ydCBjb25zdCBib3hlZCA9IG5ldyBCb3goYW5zd2VyKTsK",
+            "materialized_utf8_sha256": "6e43a815862dc2a959d4317b3a5cbece57551d4581e9561b3639f03436d000ab",
+            "materialized_utf8_bytes": 225,
+            "on_error_callback_present": true,
+            "source_files_present": true,
+            "source_files": [
+              "/project/src/main.ts"
+            ],
+            "metadata": {
+              "present": true,
+              "value": {
+                "own_keys": [
+                  "diagnostics",
+                  "sourceMapUrlPos"
+                ],
+                "source_map_url_position_utf16": {
+                  "present": false,
+                  "value": null
+                },
+                "diagnostics_present": true,
+                "diagnostics": [],
+                "skipped_dts_write": {
+                  "present": false,
+                  "value": null
+                },
+                "differs_only_in_map": {
+                  "present": false,
+                  "value": null
+                },
+                "build_info": {
+                  "present": false,
+                  "value": null
+                }
+              }
+            },
+            "sink_disposition": "written"
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_result": {
+          "emit_skipped": false,
+          "emit_diagnostics": [],
+          "emitted_files_present": true,
+          "emitted_files": [
+            "/project/src/main.js"
+          ],
+          "source_maps_present": false,
+          "source_maps": []
+        },
+        "status_writes": [
+          "TSFILE: /project/src/main.js"
+        ],
+        "process_exit": {
+          "code": 0,
+          "name": "success"
+        }
+      }
+    },
+    {
+      "input": {
+        "id": "ordered-multi-file-bom-crlf",
+        "classification": "admitted",
+        "compiler_options": {
+          "emitBOM": true,
+          "listEmittedFiles": true,
+          "module": 200,
+          "newLine": 0,
+          "noLib": true,
+          "target": 99,
+          "useDefineForClassFields": true
+        },
+        "root_files": [
+          {
+            "path": "/project/src/zeta.ts",
+            "utf8_base64": "ZXhwb3J0IGNvbnN0IHpldGE6IHN0cmluZyA9ICLpm6oiOwo=",
+            "utf8_sha256": "adb576cba37a8909d47e75f5a393097161c50ccc117ba0755ce3e89cade3d642",
+            "utf8_bytes": 35
+          },
+          {
+            "path": "/project/src/alpha.ts",
+            "utf8_base64": "ZXhwb3J0IGNvbnN0IGFscGhhOiBudW1iZXIgPSAxOwo=",
+            "utf8_sha256": "5978b8eefb5c7d99471720084244da5f13e053b983d9e3e201a9f0c1e99005f9",
+            "utf8_bytes": 32
+          }
+        ]
+      },
+      "determinism": {
+        "repeat_runs": 2,
+        "exact_match": true
+      },
+      "observation": {
+        "profile_gate": {
+          "disposition": "admitted",
+          "reasons": []
+        },
+        "rust_expectation": {
+          "outcome": "exact-typescript-observation",
+          "sink_write_count": 2
+        },
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/src/zeta.js",
+            "kind": "javascript",
+            "callback_text": "export const zeta = \"雪\";\r\n",
+            "callback_utf8_base64": "ZXhwb3J0IGNvbnN0IHpldGEgPSAi6ZuqIjsNCg==",
+            "callback_utf8_sha256": "419f403bd3155b75b8132b4819e2045f9dd4b8485a9af6b5c50583c2650942c1",
+            "callback_utf8_bytes": 28,
+            "write_byte_order_mark": true,
+            "materialized_utf8_base64": "77u/ZXhwb3J0IGNvbnN0IHpldGEgPSAi6ZuqIjsNCg==",
+            "materialized_utf8_sha256": "16ae5bba5764a7a3379982fbda3b158e6c96868c37bf1857eaf94f1c2491b419",
+            "materialized_utf8_bytes": 31,
+            "on_error_callback_present": true,
+            "source_files_present": true,
+            "source_files": [
+              "/project/src/zeta.ts"
+            ],
+            "metadata": {
+              "present": true,
+              "value": {
+                "own_keys": [
+                  "diagnostics",
+                  "sourceMapUrlPos"
+                ],
+                "source_map_url_position_utf16": {
+                  "present": false,
+                  "value": null
+                },
+                "diagnostics_present": true,
+                "diagnostics": [],
+                "skipped_dts_write": {
+                  "present": false,
+                  "value": null
+                },
+                "differs_only_in_map": {
+                  "present": false,
+                  "value": null
+                },
+                "build_info": {
+                  "present": false,
+                  "value": null
+                }
+              }
+            },
+            "sink_disposition": "written"
+          },
+          {
+            "index": 1,
+            "path": "/project/src/alpha.js",
+            "kind": "javascript",
+            "callback_text": "export const alpha = 1;\r\n",
+            "callback_utf8_base64": "ZXhwb3J0IGNvbnN0IGFscGhhID0gMTsNCg==",
+            "callback_utf8_sha256": "d8a91b341f08b1917cf455c3adb602f3c08a1e77eeadbc7432c3e9ed743f17fd",
+            "callback_utf8_bytes": 25,
+            "write_byte_order_mark": true,
+            "materialized_utf8_base64": "77u/ZXhwb3J0IGNvbnN0IGFscGhhID0gMTsNCg==",
+            "materialized_utf8_sha256": "8f1dc393569f767c2a462ef95457717c1800698faf4697736b88e230ed04a24e",
+            "materialized_utf8_bytes": 28,
+            "on_error_callback_present": true,
+            "source_files_present": true,
+            "source_files": [
+              "/project/src/alpha.ts"
+            ],
+            "metadata": {
+              "present": true,
+              "value": {
+                "own_keys": [
+                  "diagnostics",
+                  "sourceMapUrlPos"
+                ],
+                "source_map_url_position_utf16": {
+                  "present": false,
+                  "value": null
+                },
+                "diagnostics_present": true,
+                "diagnostics": [],
+                "skipped_dts_write": {
+                  "present": false,
+                  "value": null
+                },
+                "differs_only_in_map": {
+                  "present": false,
+                  "value": null
+                },
+                "build_info": {
+                  "present": false,
+                  "value": null
+                }
+              }
+            },
+            "sink_disposition": "written"
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_result": {
+          "emit_skipped": false,
+          "emit_diagnostics": [],
+          "emitted_files_present": true,
+          "emitted_files": [
+            "/project/src/zeta.js",
+            "/project/src/alpha.js"
+          ],
+          "source_maps_present": false,
+          "source_maps": []
+        },
+        "status_writes": [
+          "TSFILE: /project/src/zeta.js",
+          "TSFILE: /project/src/alpha.js"
+        ],
+        "process_exit": {
+          "code": 0,
+          "name": "success"
+        }
+      }
+    },
+    {
+      "input": {
+        "id": "diagnostics-with-output",
+        "classification": "admitted",
+        "compiler_options": {
+          "listEmittedFiles": true,
+          "module": 200,
+          "newLine": 1,
+          "noEmitOnError": false,
+          "noLib": true,
+          "target": 99,
+          "useDefineForClassFields": true
+        },
+        "root_files": [
+          {
+            "path": "/project/src/error.ts",
+            "utf8_base64": "ZXhwb3J0IGNvbnN0IGNvdW50OiBudW1iZXIgPSAibm90IGEgbnVtYmVyIjsK",
+            "utf8_sha256": "ed1a6cd70466f6b186b94e915f4fbb8d050d2214087b34a4186a9b35eecdba95",
+            "utf8_bytes": 45
+          }
+        ]
+      },
+      "determinism": {
+        "repeat_runs": 2,
+        "exact_match": true
+      },
+      "observation": {
+        "profile_gate": {
+          "disposition": "admitted",
+          "reasons": []
+        },
+        "rust_expectation": {
+          "outcome": "exact-typescript-observation",
+          "sink_write_count": 1
+        },
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/src/error.js",
+            "kind": "javascript",
+            "callback_text": "export const count = \"not a number\";\n",
+            "callback_utf8_base64": "ZXhwb3J0IGNvbnN0IGNvdW50ID0gIm5vdCBhIG51bWJlciI7Cg==",
+            "callback_utf8_sha256": "afe0a374e6d2efa9948d89701b07de7311707c10fb07c06b55d318e3a22fef8e",
+            "callback_utf8_bytes": 37,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGNvbnN0IGNvdW50ID0gIm5vdCBhIG51bWJlciI7Cg==",
+            "materialized_utf8_sha256": "afe0a374e6d2efa9948d89701b07de7311707c10fb07c06b55d318e3a22fef8e",
+            "materialized_utf8_bytes": 37,
+            "on_error_callback_present": true,
+            "source_files_present": true,
+            "source_files": [
+              "/project/src/error.ts"
+            ],
+            "metadata": {
+              "present": true,
+              "value": {
+                "own_keys": [
+                  "diagnostics",
+                  "sourceMapUrlPos"
+                ],
+                "source_map_url_position_utf16": {
+                  "present": false,
+                  "value": null
+                },
+                "diagnostics_present": true,
+                "diagnostics": [],
+                "skipped_dts_write": {
+                  "present": false,
+                  "value": null
+                },
+                "differs_only_in_map": {
+                  "present": false,
+                  "value": null
+                },
+                "build_info": {
+                  "present": false,
+                  "value": null
+                }
+              }
+            },
+            "sink_disposition": "written"
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "file": {
+              "present": true,
+              "value": "/project/src/error.ts"
+            },
+            "start": {
+              "present": true,
+              "value": 13
+            },
+            "length": {
+              "present": true,
+              "value": 5
+            },
+            "line": {
+              "present": true,
+              "value": 0
+            },
+            "column": {
+              "present": true,
+              "value": 13
+            },
+            "code": 2322,
+            "category": "error",
+            "chain": {
+              "text": "Type 'string' is not assignable to type 'number'.",
+              "code": 2322,
+              "category": "error",
+              "next_present": false,
+              "next": []
+            },
+            "related_information_present": false,
+            "related": [],
+            "reports_unnecessary": {
+              "present": false,
+              "value": null
+            },
+            "reports_deprecated": {
+              "present": false,
+              "value": null
+            },
+            "source": {
+              "present": false,
+              "value": null
+            }
+          }
+        ],
+        "emit_result": {
+          "emit_skipped": false,
+          "emit_diagnostics": [],
+          "emitted_files_present": true,
+          "emitted_files": [
+            "/project/src/error.js"
+          ],
+          "source_maps_present": false,
+          "source_maps": []
+        },
+        "status_writes": [
+          "TSFILE: /project/src/error.js"
+        ],
+        "process_exit": {
+          "code": 2,
+          "name": "diagnostics-present-outputs-generated"
+        }
+      }
+    },
+    {
+      "input": {
+        "id": "no-emit-on-error",
+        "classification": "admitted",
+        "compiler_options": {
+          "listEmittedFiles": true,
+          "module": 200,
+          "newLine": 1,
+          "noEmitOnError": true,
+          "noLib": true,
+          "target": 99,
+          "useDefineForClassFields": true
+        },
+        "root_files": [
+          {
+            "path": "/project/src/error.ts",
+            "utf8_base64": "ZXhwb3J0IGNvbnN0IGNvdW50OiBudW1iZXIgPSAibm90IGEgbnVtYmVyIjsK",
+            "utf8_sha256": "ed1a6cd70466f6b186b94e915f4fbb8d050d2214087b34a4186a9b35eecdba95",
+            "utf8_bytes": 45
+          }
+        ]
+      },
+      "determinism": {
+        "repeat_runs": 2,
+        "exact_match": true
+      },
+      "observation": {
+        "profile_gate": {
+          "disposition": "admitted",
+          "reasons": []
+        },
+        "rust_expectation": {
+          "outcome": "exact-typescript-observation",
+          "sink_write_count": 0
+        },
+        "writes": [],
+        "reported_diagnostics": [
+          {
+            "file": {
+              "present": true,
+              "value": "/project/src/error.ts"
+            },
+            "start": {
+              "present": true,
+              "value": 13
+            },
+            "length": {
+              "present": true,
+              "value": 5
+            },
+            "line": {
+              "present": true,
+              "value": 0
+            },
+            "column": {
+              "present": true,
+              "value": 13
+            },
+            "code": 2322,
+            "category": "error",
+            "chain": {
+              "text": "Type 'string' is not assignable to type 'number'.",
+              "code": 2322,
+              "category": "error",
+              "next_present": false,
+              "next": []
+            },
+            "related_information_present": false,
+            "related": [],
+            "reports_unnecessary": {
+              "present": false,
+              "value": null
+            },
+            "reports_deprecated": {
+              "present": false,
+              "value": null
+            },
+            "source": {
+              "present": false,
+              "value": null
+            }
+          }
+        ],
+        "emit_result": {
+          "emit_skipped": true,
+          "emit_diagnostics": [
+            {
+              "file": {
+                "present": true,
+                "value": "/project/src/error.ts"
+              },
+              "start": {
+                "present": true,
+                "value": 13
+              },
+              "length": {
+                "present": true,
+                "value": 5
+              },
+              "line": {
+                "present": true,
+                "value": 0
+              },
+              "column": {
+                "present": true,
+                "value": 13
+              },
+              "code": 2322,
+              "category": "error",
+              "chain": {
+                "text": "Type 'string' is not assignable to type 'number'.",
+                "code": 2322,
+                "category": "error",
+                "next_present": false,
+                "next": []
+              },
+              "related_information_present": false,
+              "related": [],
+              "reports_unnecessary": {
+                "present": false,
+                "value": null
+              },
+              "reports_deprecated": {
+                "present": false,
+                "value": null
+              },
+              "source": {
+                "present": false,
+                "value": null
+              }
+            }
+          ],
+          "emitted_files_present": true,
+          "emitted_files": [],
+          "source_maps_present": false,
+          "source_maps": []
+        },
+        "status_writes": [],
+        "process_exit": {
+          "code": 1,
+          "name": "diagnostics-present-outputs-skipped"
+        }
+      }
+    },
+    {
+      "input": {
+        "id": "emitted-files-observation-absent",
+        "classification": "admitted",
+        "compiler_options": {
+          "listEmittedFiles": false,
+          "module": 200,
+          "newLine": 1,
+          "noLib": true,
+          "target": 99,
+          "useDefineForClassFields": true
+        },
+        "root_files": [
+          {
+            "path": "/project/src/absent.ts",
+            "utf8_base64": "ZXhwb3J0IGNvbnN0IGFjdGl2ZTogYm9vbGVhbiA9IHRydWU7Cg==",
+            "utf8_sha256": "f0ee90c3d03cccb411a578e7228162630feb74085f95fd1631667db4ede6af35",
+            "utf8_bytes": 37
+          }
+        ]
+      },
+      "determinism": {
+        "repeat_runs": 2,
+        "exact_match": true
+      },
+      "observation": {
+        "profile_gate": {
+          "disposition": "admitted",
+          "reasons": []
+        },
+        "rust_expectation": {
+          "outcome": "exact-typescript-observation",
+          "sink_write_count": 1
+        },
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/src/absent.js",
+            "kind": "javascript",
+            "callback_text": "export const active = true;\n",
+            "callback_utf8_base64": "ZXhwb3J0IGNvbnN0IGFjdGl2ZSA9IHRydWU7Cg==",
+            "callback_utf8_sha256": "c69a95be804199dd98303c2efe137d8de44883700a5c66dc9a7828bd9ee4d451",
+            "callback_utf8_bytes": 28,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGNvbnN0IGFjdGl2ZSA9IHRydWU7Cg==",
+            "materialized_utf8_sha256": "c69a95be804199dd98303c2efe137d8de44883700a5c66dc9a7828bd9ee4d451",
+            "materialized_utf8_bytes": 28,
+            "on_error_callback_present": true,
+            "source_files_present": true,
+            "source_files": [
+              "/project/src/absent.ts"
+            ],
+            "metadata": {
+              "present": true,
+              "value": {
+                "own_keys": [
+                  "diagnostics",
+                  "sourceMapUrlPos"
+                ],
+                "source_map_url_position_utf16": {
+                  "present": false,
+                  "value": null
+                },
+                "diagnostics_present": true,
+                "diagnostics": [],
+                "skipped_dts_write": {
+                  "present": false,
+                  "value": null
+                },
+                "differs_only_in_map": {
+                  "present": false,
+                  "value": null
+                },
+                "build_info": {
+                  "present": false,
+                  "value": null
+                }
+              }
+            },
+            "sink_disposition": "written"
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_result": {
+          "emit_skipped": false,
+          "emit_diagnostics": [],
+          "emitted_files_present": false,
+          "emitted_files": [],
+          "source_maps_present": false,
+          "source_maps": []
+        },
+        "status_writes": [],
+        "process_exit": {
+          "code": 0,
+          "name": "success"
+        }
+      }
+    },
+    {
+      "input": {
+        "id": "runtime-enum-control",
+        "classification": "adjacent-unsupported",
+        "compiler_options": {
+          "listEmittedFiles": true,
+          "module": 200,
+          "newLine": 1,
+          "noLib": true,
+          "target": 99,
+          "useDefineForClassFields": true
+        },
+        "root_files": [
+          {
+            "path": "/project/src/enum.ts",
+            "utf8_base64": "ZXhwb3J0IGVudW0gRGlyZWN0aW9uIHsgVXAsIERvd24gfQo=",
+            "utf8_sha256": "fa00fb2feb853851d98c510294a5b84b47c7cf1931132371c0ad00d87758a775",
+            "utf8_bytes": 35
+          }
+        ]
+      },
+      "determinism": {
+        "repeat_runs": 2,
+        "exact_match": true
+      },
+      "observation": {
+        "profile_gate": {
+          "disposition": "unsupported-before-first-write",
+          "reasons": [
+            "syntax.runtime-enum"
+          ]
+        },
+        "rust_expectation": {
+          "outcome": "typed-unsupported-before-first-write",
+          "sink_write_count": 0
+        },
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/src/enum.js",
+            "kind": "javascript",
+            "callback_text": "export var Direction;\n(function (Direction) {\n    Direction[Direction[\"Up\"] = 0] = \"Up\";\n    Direction[Direction[\"Down\"] = 1] = \"Down\";\n})(Direction || (Direction = {}));\n",
+            "callback_utf8_base64": "ZXhwb3J0IHZhciBEaXJlY3Rpb247CihmdW5jdGlvbiAoRGlyZWN0aW9uKSB7CiAgICBEaXJlY3Rpb25bRGlyZWN0aW9uWyJVcCJdID0gMF0gPSAiVXAiOwogICAgRGlyZWN0aW9uW0RpcmVjdGlvblsiRG93biJdID0gMV0gPSAiRG93biI7Cn0pKERpcmVjdGlvbiB8fCAoRGlyZWN0aW9uID0ge30pKTsK",
+            "callback_utf8_sha256": "98926450db477a93ae64228d7fbc6b18caeda6b6f754512b3d3b3927452c2bf0",
+            "callback_utf8_bytes": 171,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IHZhciBEaXJlY3Rpb247CihmdW5jdGlvbiAoRGlyZWN0aW9uKSB7CiAgICBEaXJlY3Rpb25bRGlyZWN0aW9uWyJVcCJdID0gMF0gPSAiVXAiOwogICAgRGlyZWN0aW9uW0RpcmVjdGlvblsiRG93biJdID0gMV0gPSAiRG93biI7Cn0pKERpcmVjdGlvbiB8fCAoRGlyZWN0aW9uID0ge30pKTsK",
+            "materialized_utf8_sha256": "98926450db477a93ae64228d7fbc6b18caeda6b6f754512b3d3b3927452c2bf0",
+            "materialized_utf8_bytes": 171,
+            "on_error_callback_present": true,
+            "source_files_present": true,
+            "source_files": [
+              "/project/src/enum.ts"
+            ],
+            "metadata": {
+              "present": true,
+              "value": {
+                "own_keys": [
+                  "diagnostics",
+                  "sourceMapUrlPos"
+                ],
+                "source_map_url_position_utf16": {
+                  "present": false,
+                  "value": null
+                },
+                "diagnostics_present": true,
+                "diagnostics": [],
+                "skipped_dts_write": {
+                  "present": false,
+                  "value": null
+                },
+                "differs_only_in_map": {
+                  "present": false,
+                  "value": null
+                },
+                "build_info": {
+                  "present": false,
+                  "value": null
+                }
+              }
+            },
+            "sink_disposition": "written"
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_result": {
+          "emit_skipped": false,
+          "emit_diagnostics": [],
+          "emitted_files_present": true,
+          "emitted_files": [
+            "/project/src/enum.js"
+          ],
+          "source_maps_present": false,
+          "source_maps": []
+        },
+        "status_writes": [
+          "TSFILE: /project/src/enum.js"
+        ],
+        "process_exit": {
+          "code": 0,
+          "name": "success"
+        }
+      }
+    },
+    {
+      "input": {
+        "id": "runtime-namespace-control",
+        "classification": "adjacent-unsupported",
+        "compiler_options": {
+          "listEmittedFiles": true,
+          "module": 200,
+          "newLine": 1,
+          "noLib": true,
+          "target": 99,
+          "useDefineForClassFields": true
+        },
+        "root_files": [
+          {
+            "path": "/project/src/namespace.ts",
+            "utf8_base64": "ZXhwb3J0IG5hbWVzcGFjZSBSdW50aW1lIHsgZXhwb3J0IGNvbnN0IHZhbHVlOiBudW1iZXIgPSAxOyB9Cg==",
+            "utf8_sha256": "eaf10b0b9349dad9eeb63723de573e0ac736624a2542885b63aec6b1a1462c3c",
+            "utf8_bytes": 61
+          }
+        ]
+      },
+      "determinism": {
+        "repeat_runs": 2,
+        "exact_match": true
+      },
+      "observation": {
+        "profile_gate": {
+          "disposition": "unsupported-before-first-write",
+          "reasons": [
+            "syntax.runtime-namespace"
+          ]
+        },
+        "rust_expectation": {
+          "outcome": "typed-unsupported-before-first-write",
+          "sink_write_count": 0
+        },
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/src/namespace.js",
+            "kind": "javascript",
+            "callback_text": "export var Runtime;\n(function (Runtime) {\n    Runtime.value = 1;\n})(Runtime || (Runtime = {}));\n",
+            "callback_utf8_base64": "ZXhwb3J0IHZhciBSdW50aW1lOwooZnVuY3Rpb24gKFJ1bnRpbWUpIHsKICAgIFJ1bnRpbWUudmFsdWUgPSAxOwp9KShSdW50aW1lIHx8IChSdW50aW1lID0ge30pKTsK",
+            "callback_utf8_sha256": "ce82929c851ad455d3e68c718b86e55532495bb28b5cd90d6c757e96d833634a",
+            "callback_utf8_bytes": 96,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IHZhciBSdW50aW1lOwooZnVuY3Rpb24gKFJ1bnRpbWUpIHsKICAgIFJ1bnRpbWUudmFsdWUgPSAxOwp9KShSdW50aW1lIHx8IChSdW50aW1lID0ge30pKTsK",
+            "materialized_utf8_sha256": "ce82929c851ad455d3e68c718b86e55532495bb28b5cd90d6c757e96d833634a",
+            "materialized_utf8_bytes": 96,
+            "on_error_callback_present": true,
+            "source_files_present": true,
+            "source_files": [
+              "/project/src/namespace.ts"
+            ],
+            "metadata": {
+              "present": true,
+              "value": {
+                "own_keys": [
+                  "diagnostics",
+                  "sourceMapUrlPos"
+                ],
+                "source_map_url_position_utf16": {
+                  "present": false,
+                  "value": null
+                },
+                "diagnostics_present": true,
+                "diagnostics": [],
+                "skipped_dts_write": {
+                  "present": false,
+                  "value": null
+                },
+                "differs_only_in_map": {
+                  "present": false,
+                  "value": null
+                },
+                "build_info": {
+                  "present": false,
+                  "value": null
+                }
+              }
+            },
+            "sink_disposition": "written"
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_result": {
+          "emit_skipped": false,
+          "emit_diagnostics": [],
+          "emitted_files_present": true,
+          "emitted_files": [
+            "/project/src/namespace.js"
+          ],
+          "source_maps_present": false,
+          "source_maps": []
+        },
+        "status_writes": [
+          "TSFILE: /project/src/namespace.js"
+        ],
+        "process_exit": {
+          "code": 0,
+          "name": "success"
+        }
+      }
+    },
+    {
+      "input": {
+        "id": "parameter-property-control",
+        "classification": "adjacent-unsupported",
+        "compiler_options": {
+          "listEmittedFiles": true,
+          "module": 200,
+          "newLine": 1,
+          "noLib": true,
+          "target": 99,
+          "useDefineForClassFields": true
+        },
+        "root_files": [
+          {
+            "path": "/project/src/parameter-property.ts",
+            "utf8_base64": "ZXhwb3J0IGNsYXNzIFNlcnZpY2UgeyBjb25zdHJ1Y3RvcihwdWJsaWMgdmFsdWU6IG51bWJlcikge30gfQo=",
+            "utf8_sha256": "e3dffe368e3d23c2648a22a9670ee960ddd69363dc3f30399fe6ab7dfac2ceac",
+            "utf8_bytes": 62
+          }
+        ]
+      },
+      "determinism": {
+        "repeat_runs": 2,
+        "exact_match": true
+      },
+      "observation": {
+        "profile_gate": {
+          "disposition": "unsupported-before-first-write",
+          "reasons": [
+            "syntax.parameter-property"
+          ]
+        },
+        "rust_expectation": {
+          "outcome": "typed-unsupported-before-first-write",
+          "sink_write_count": 0
+        },
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/src/parameter-property.js",
+            "kind": "javascript",
+            "callback_text": "export class Service {\n    value;\n    constructor(value) {\n        this.value = value;\n    }\n}\n",
+            "callback_utf8_base64": "ZXhwb3J0IGNsYXNzIFNlcnZpY2UgewogICAgdmFsdWU7CiAgICBjb25zdHJ1Y3Rvcih2YWx1ZSkgewogICAgICAgIHRoaXMudmFsdWUgPSB2YWx1ZTsKICAgIH0KfQo=",
+            "callback_utf8_sha256": "6335111c6901969a3869078d3f63ba718906f95b41e9d71ad669d33d9dd6d9c3",
+            "callback_utf8_bytes": 95,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGNsYXNzIFNlcnZpY2UgewogICAgdmFsdWU7CiAgICBjb25zdHJ1Y3Rvcih2YWx1ZSkgewogICAgICAgIHRoaXMudmFsdWUgPSB2YWx1ZTsKICAgIH0KfQo=",
+            "materialized_utf8_sha256": "6335111c6901969a3869078d3f63ba718906f95b41e9d71ad669d33d9dd6d9c3",
+            "materialized_utf8_bytes": 95,
+            "on_error_callback_present": true,
+            "source_files_present": true,
+            "source_files": [
+              "/project/src/parameter-property.ts"
+            ],
+            "metadata": {
+              "present": true,
+              "value": {
+                "own_keys": [
+                  "diagnostics",
+                  "sourceMapUrlPos"
+                ],
+                "source_map_url_position_utf16": {
+                  "present": false,
+                  "value": null
+                },
+                "diagnostics_present": true,
+                "diagnostics": [],
+                "skipped_dts_write": {
+                  "present": false,
+                  "value": null
+                },
+                "differs_only_in_map": {
+                  "present": false,
+                  "value": null
+                },
+                "build_info": {
+                  "present": false,
+                  "value": null
+                }
+              }
+            },
+            "sink_disposition": "written"
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_result": {
+          "emit_skipped": false,
+          "emit_diagnostics": [],
+          "emitted_files_present": true,
+          "emitted_files": [
+            "/project/src/parameter-property.js"
+          ],
+          "source_maps_present": false,
+          "source_maps": []
+        },
+        "status_writes": [
+          "TSFILE: /project/src/parameter-property.js"
+        ],
+        "process_exit": {
+          "code": 0,
+          "name": "success"
+        }
+      }
+    },
+    {
+      "input": {
+        "id": "jsx-control",
+        "classification": "adjacent-unsupported",
+        "compiler_options": {
+          "jsx": 1,
+          "listEmittedFiles": true,
+          "module": 200,
+          "newLine": 1,
+          "noLib": true,
+          "target": 99,
+          "useDefineForClassFields": true
+        },
+        "root_files": [
+          {
+            "path": "/project/src/view.tsx",
+            "utf8_base64": "ZXhwb3J0IGNvbnN0IHZpZXcgPSA8ZGl2IC8+Owo=",
+            "utf8_sha256": "09f32a10886030f092faa610cc71e1b3328791ebc64cfebc924e39fa5fdfb11a",
+            "utf8_bytes": 29
+          }
+        ]
+      },
+      "determinism": {
+        "repeat_runs": 2,
+        "exact_match": true
+      },
+      "observation": {
+        "profile_gate": {
+          "disposition": "unsupported-before-first-write",
+          "reasons": [
+            "extension.tsx",
+            "option.jsx",
+            "syntax.jsx"
+          ]
+        },
+        "rust_expectation": {
+          "outcome": "typed-unsupported-before-first-write",
+          "sink_write_count": 0
+        },
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/src/view.jsx",
+            "kind": "javascript",
+            "callback_text": "export const view = <div />;\n",
+            "callback_utf8_base64": "ZXhwb3J0IGNvbnN0IHZpZXcgPSA8ZGl2IC8+Owo=",
+            "callback_utf8_sha256": "09f32a10886030f092faa610cc71e1b3328791ebc64cfebc924e39fa5fdfb11a",
+            "callback_utf8_bytes": 29,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGNvbnN0IHZpZXcgPSA8ZGl2IC8+Owo=",
+            "materialized_utf8_sha256": "09f32a10886030f092faa610cc71e1b3328791ebc64cfebc924e39fa5fdfb11a",
+            "materialized_utf8_bytes": 29,
+            "on_error_callback_present": true,
+            "source_files_present": true,
+            "source_files": [
+              "/project/src/view.tsx"
+            ],
+            "metadata": {
+              "present": true,
+              "value": {
+                "own_keys": [
+                  "diagnostics",
+                  "sourceMapUrlPos"
+                ],
+                "source_map_url_position_utf16": {
+                  "present": false,
+                  "value": null
+                },
+                "diagnostics_present": true,
+                "diagnostics": [],
+                "skipped_dts_write": {
+                  "present": false,
+                  "value": null
+                },
+                "differs_only_in_map": {
+                  "present": false,
+                  "value": null
+                },
+                "build_info": {
+                  "present": false,
+                  "value": null
+                }
+              }
+            },
+            "sink_disposition": "written"
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "file": {
+              "present": true,
+              "value": "/project/src/view.tsx"
+            },
+            "start": {
+              "present": true,
+              "value": 20
+            },
+            "length": {
+              "present": true,
+              "value": 7
+            },
+            "line": {
+              "present": true,
+              "value": 0
+            },
+            "column": {
+              "present": true,
+              "value": 20
+            },
+            "code": 7026,
+            "category": "error",
+            "chain": {
+              "text": "JSX element implicitly has type 'any' because no interface 'JSX.IntrinsicElements' exists.",
+              "code": 7026,
+              "category": "error",
+              "next_present": false,
+              "next": []
+            },
+            "related_information_present": false,
+            "related": [],
+            "reports_unnecessary": {
+              "present": false,
+              "value": null
+            },
+            "reports_deprecated": {
+              "present": false,
+              "value": null
+            },
+            "source": {
+              "present": false,
+              "value": null
+            }
+          }
+        ],
+        "emit_result": {
+          "emit_skipped": false,
+          "emit_diagnostics": [],
+          "emitted_files_present": true,
+          "emitted_files": [
+            "/project/src/view.jsx"
+          ],
+          "source_maps_present": false,
+          "source_maps": []
+        },
+        "status_writes": [
+          "TSFILE: /project/src/view.jsx"
+        ],
+        "process_exit": {
+          "code": 2,
+          "name": "diagnostics-present-outputs-generated"
+        }
+      }
+    },
+    {
+      "input": {
+        "id": "source-map-control",
+        "classification": "adjacent-unsupported",
+        "compiler_options": {
+          "listEmittedFiles": true,
+          "module": 200,
+          "newLine": 1,
+          "noLib": true,
+          "sourceMap": true,
+          "target": 99,
+          "useDefineForClassFields": true
+        },
+        "root_files": [
+          {
+            "path": "/project/src/mapped.ts",
+            "utf8_base64": "ZXhwb3J0IGNvbnN0IG1hcHBlZDogbnVtYmVyID0gMTsK",
+            "utf8_sha256": "085b4d3c73b5d3f333ac99d6b2fc9a216329813804e0fabdb5111cec9c7841d8",
+            "utf8_bytes": 33
+          }
+        ]
+      },
+      "determinism": {
+        "repeat_runs": 2,
+        "exact_match": true
+      },
+      "observation": {
+        "profile_gate": {
+          "disposition": "unsupported-before-first-write",
+          "reasons": [
+            "option.sourceMap"
+          ]
+        },
+        "rust_expectation": {
+          "outcome": "typed-unsupported-before-first-write",
+          "sink_write_count": 0
+        },
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/src/mapped.js.map",
+            "kind": "source-map",
+            "callback_text": "{\"version\":3,\"file\":\"mapped.js\",\"sourceRoot\":\"\",\"sources\":[\"mapped.ts\"],\"names\":[],\"mappings\":\"AAAA,MAAM,CAAC,MAAM,MAAM,GAAW,CAAC,CAAC\"}",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFwcGVkLmpzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsibWFwcGVkLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQUFBLE1BQU0sQ0FBQyxNQUFNLE1BQU0sR0FBVyxDQUFDLENBQUMifQ==",
+            "callback_utf8_sha256": "e9fd730aa73108322e974db23fc0f14e2d98402801034f4208ea59be1d0bd724",
+            "callback_utf8_bytes": 136,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFwcGVkLmpzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsibWFwcGVkLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQUFBLE1BQU0sQ0FBQyxNQUFNLE1BQU0sR0FBVyxDQUFDLENBQUMifQ==",
+            "materialized_utf8_sha256": "e9fd730aa73108322e974db23fc0f14e2d98402801034f4208ea59be1d0bd724",
+            "materialized_utf8_bytes": 136,
+            "on_error_callback_present": true,
+            "source_files_present": true,
+            "source_files": [
+              "/project/src/mapped.ts"
+            ],
+            "metadata": {
+              "present": false,
+              "value": null
+            },
+            "sink_disposition": "written"
+          },
+          {
+            "index": 1,
+            "path": "/project/src/mapped.js",
+            "kind": "javascript",
+            "callback_text": "export const mapped = 1;\n//# sourceMappingURL=mapped.js.map",
+            "callback_utf8_base64": "ZXhwb3J0IGNvbnN0IG1hcHBlZCA9IDE7Ci8vIyBzb3VyY2VNYXBwaW5nVVJMPW1hcHBlZC5qcy5tYXA=",
+            "callback_utf8_sha256": "85b37e3d9da1bc7f1030bbc1c7e7a90e2a5b5ad746e71d0541ca386ab35360d6",
+            "callback_utf8_bytes": 59,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGNvbnN0IG1hcHBlZCA9IDE7Ci8vIyBzb3VyY2VNYXBwaW5nVVJMPW1hcHBlZC5qcy5tYXA=",
+            "materialized_utf8_sha256": "85b37e3d9da1bc7f1030bbc1c7e7a90e2a5b5ad746e71d0541ca386ab35360d6",
+            "materialized_utf8_bytes": 59,
+            "on_error_callback_present": true,
+            "source_files_present": true,
+            "source_files": [
+              "/project/src/mapped.ts"
+            ],
+            "metadata": {
+              "present": true,
+              "value": {
+                "own_keys": [
+                  "diagnostics",
+                  "sourceMapUrlPos"
+                ],
+                "source_map_url_position_utf16": {
+                  "present": true,
+                  "value": 25
+                },
+                "diagnostics_present": true,
+                "diagnostics": [],
+                "skipped_dts_write": {
+                  "present": false,
+                  "value": null
+                },
+                "differs_only_in_map": {
+                  "present": false,
+                  "value": null
+                },
+                "build_info": {
+                  "present": false,
+                  "value": null
+                }
+              }
+            },
+            "sink_disposition": "written"
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_result": {
+          "emit_skipped": false,
+          "emit_diagnostics": [],
+          "emitted_files_present": true,
+          "emitted_files": [
+            "/project/src/mapped.js",
+            "/project/src/mapped.js.map"
+          ],
+          "source_maps_present": true,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/project/src/mapped.ts"
+              ],
+              "source_map": {
+                "version": 3,
+                "file": "mapped.js",
+                "sourceRoot": "",
+                "sources": [
+                  "mapped.ts"
+                ],
+                "names": [],
+                "mappings": "AAAA,MAAM,CAAC,MAAM,MAAM,GAAW,CAAC,CAAC"
+              }
+            }
+          ]
+        },
+        "status_writes": [
+          "TSFILE: /project/src/mapped.js",
+          "TSFILE: /project/src/mapped.js.map"
+        ],
+        "process_exit": {
+          "code": 0,
+          "name": "success"
+        }
+      }
+    },
+    {
+      "input": {
+        "id": "declaration-control",
+        "classification": "adjacent-unsupported",
+        "compiler_options": {
+          "declaration": true,
+          "listEmittedFiles": true,
+          "module": 200,
+          "newLine": 1,
+          "noLib": true,
+          "target": 99,
+          "useDefineForClassFields": true
+        },
+        "root_files": [
+          {
+            "path": "/project/src/declaration.ts",
+            "utf8_base64": "ZXhwb3J0IGNvbnN0IGRlY2xhcmVkOiBudW1iZXIgPSAxOwo=",
+            "utf8_sha256": "030849f94bcc82db6995d80650b9eaffb373aaedbeb84641a7568fe33ab9fa27",
+            "utf8_bytes": 35
+          }
+        ]
+      },
+      "determinism": {
+        "repeat_runs": 2,
+        "exact_match": true
+      },
+      "observation": {
+        "profile_gate": {
+          "disposition": "unsupported-before-first-write",
+          "reasons": [
+            "option.declaration"
+          ]
+        },
+        "rust_expectation": {
+          "outcome": "typed-unsupported-before-first-write",
+          "sink_write_count": 0
+        },
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/src/declaration.js",
+            "kind": "javascript",
+            "callback_text": "export const declared = 1;\n",
+            "callback_utf8_base64": "ZXhwb3J0IGNvbnN0IGRlY2xhcmVkID0gMTsK",
+            "callback_utf8_sha256": "ddadc2f25b589239717bfca18e29d30d6d48d83f3daf3befeb6bc7109171c589",
+            "callback_utf8_bytes": 27,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGNvbnN0IGRlY2xhcmVkID0gMTsK",
+            "materialized_utf8_sha256": "ddadc2f25b589239717bfca18e29d30d6d48d83f3daf3befeb6bc7109171c589",
+            "materialized_utf8_bytes": 27,
+            "on_error_callback_present": true,
+            "source_files_present": true,
+            "source_files": [
+              "/project/src/declaration.ts"
+            ],
+            "metadata": {
+              "present": true,
+              "value": {
+                "own_keys": [
+                  "diagnostics",
+                  "sourceMapUrlPos"
+                ],
+                "source_map_url_position_utf16": {
+                  "present": false,
+                  "value": null
+                },
+                "diagnostics_present": true,
+                "diagnostics": [],
+                "skipped_dts_write": {
+                  "present": false,
+                  "value": null
+                },
+                "differs_only_in_map": {
+                  "present": false,
+                  "value": null
+                },
+                "build_info": {
+                  "present": false,
+                  "value": null
+                }
+              }
+            },
+            "sink_disposition": "written"
+          },
+          {
+            "index": 1,
+            "path": "/project/src/declaration.d.ts",
+            "kind": "declaration",
+            "callback_text": "export declare const declared: number;\n",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgZGVjbGFyZWQ6IG51bWJlcjsK",
+            "callback_utf8_sha256": "5ee57139a6304fbe655befea2dd5df29d59cb22d2fe308c6af82b93a13af0cc2",
+            "callback_utf8_bytes": 39,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgZGVjbGFyZWQ6IG51bWJlcjsK",
+            "materialized_utf8_sha256": "5ee57139a6304fbe655befea2dd5df29d59cb22d2fe308c6af82b93a13af0cc2",
+            "materialized_utf8_bytes": 39,
+            "on_error_callback_present": true,
+            "source_files_present": true,
+            "source_files": [
+              "/project/src/declaration.ts"
+            ],
+            "metadata": {
+              "present": true,
+              "value": {
+                "own_keys": [
+                  "diagnostics",
+                  "sourceMapUrlPos"
+                ],
+                "source_map_url_position_utf16": {
+                  "present": false,
+                  "value": null
+                },
+                "diagnostics_present": true,
+                "diagnostics": [],
+                "skipped_dts_write": {
+                  "present": false,
+                  "value": null
+                },
+                "differs_only_in_map": {
+                  "present": false,
+                  "value": null
+                },
+                "build_info": {
+                  "present": false,
+                  "value": null
+                }
+              }
+            },
+            "sink_disposition": "written"
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_result": {
+          "emit_skipped": false,
+          "emit_diagnostics": [],
+          "emitted_files_present": true,
+          "emitted_files": [
+            "/project/src/declaration.js",
+            "/project/src/declaration.d.ts"
+          ],
+          "source_maps_present": false,
+          "source_maps": []
+        },
+        "status_writes": [
+          "TSFILE: /project/src/declaration.js",
+          "TSFILE: /project/src/declaration.d.ts"
+        ],
+        "process_exit": {
+          "code": 0,
+          "name": "success"
+        }
+      }
+    },
+    {
+      "input": {
+        "id": "mts-output-control",
+        "classification": "adjacent-unsupported",
+        "compiler_options": {
+          "listEmittedFiles": true,
+          "module": 200,
+          "newLine": 1,
+          "noLib": true,
+          "target": 99,
+          "useDefineForClassFields": true
+        },
+        "root_files": [
+          {
+            "path": "/project/src/module.mts",
+            "utf8_base64": "ZXhwb3J0IGNvbnN0IG1vZHVsZVZhbHVlOiBudW1iZXIgPSAxOwo=",
+            "utf8_sha256": "dec8035137393f3fa2e3c7d7c89d7bc9e5929ae76506365b444aa111221ea9f8",
+            "utf8_bytes": 38
+          }
+        ]
+      },
+      "determinism": {
+        "repeat_runs": 2,
+        "exact_match": true
+      },
+      "observation": {
+        "profile_gate": {
+          "disposition": "unsupported-before-first-write",
+          "reasons": [
+            "extension.mts"
+          ]
+        },
+        "rust_expectation": {
+          "outcome": "typed-unsupported-before-first-write",
+          "sink_write_count": 0
+        },
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/src/module.mjs",
+            "kind": "javascript",
+            "callback_text": "export const moduleValue = 1;\n",
+            "callback_utf8_base64": "ZXhwb3J0IGNvbnN0IG1vZHVsZVZhbHVlID0gMTsK",
+            "callback_utf8_sha256": "b522f09d8f50528d70ebf04d3868302392d5efe6ed00241d37589623295fcbc4",
+            "callback_utf8_bytes": 30,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGNvbnN0IG1vZHVsZVZhbHVlID0gMTsK",
+            "materialized_utf8_sha256": "b522f09d8f50528d70ebf04d3868302392d5efe6ed00241d37589623295fcbc4",
+            "materialized_utf8_bytes": 30,
+            "on_error_callback_present": true,
+            "source_files_present": true,
+            "source_files": [
+              "/project/src/module.mts"
+            ],
+            "metadata": {
+              "present": true,
+              "value": {
+                "own_keys": [
+                  "diagnostics",
+                  "sourceMapUrlPos"
+                ],
+                "source_map_url_position_utf16": {
+                  "present": false,
+                  "value": null
+                },
+                "diagnostics_present": true,
+                "diagnostics": [],
+                "skipped_dts_write": {
+                  "present": false,
+                  "value": null
+                },
+                "differs_only_in_map": {
+                  "present": false,
+                  "value": null
+                },
+                "build_info": {
+                  "present": false,
+                  "value": null
+                }
+              }
+            },
+            "sink_disposition": "written"
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_result": {
+          "emit_skipped": false,
+          "emit_diagnostics": [],
+          "emitted_files_present": true,
+          "emitted_files": [
+            "/project/src/module.mjs"
+          ],
+          "source_maps_present": false,
+          "source_maps": []
+        },
+        "status_writes": [
+          "TSFILE: /project/src/module.mjs"
+        ],
+        "process_exit": {
+          "code": 0,
+          "name": "success"
+        }
+      }
+    }
+  ]
+}
