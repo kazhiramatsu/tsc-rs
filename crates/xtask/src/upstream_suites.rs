@@ -63,7 +63,12 @@ pub(crate) fn run(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Erro
             // bytes that reached the fixed workspace path.
             validate_manifest(&manifest)?;
             let rendered = render_manifest(&manifest)?;
-            let path = atomic_write_manifest(&workspace, &rendered)?;
+            let path = atomic_write_manifest(
+                &workspace,
+                MANIFEST_RELATIVE_PATH,
+                &rendered,
+                "upstream suite manifest",
+            )?;
             let summary = check_recorded_manifest(&workspace)?;
             print_summary("wrote upstream suite expansion manifest", &summary);
             println!("path: {}", path.display());
@@ -106,13 +111,18 @@ fn print_summary(label: &str, summary: &ExpansionSummary) {
     );
 }
 
-fn atomic_write_manifest(workspace: &Path, bytes: &[u8]) -> Result<PathBuf, Box<dyn Error>> {
+pub(crate) fn atomic_write_manifest(
+    workspace: &Path,
+    relative_path: &str,
+    bytes: &[u8],
+    description: &str,
+) -> Result<PathBuf, Box<dyn Error>> {
     static TEMP_COUNTER: AtomicU64 = AtomicU64::new(0);
 
-    let path = workspace.join(MANIFEST_RELATIVE_PATH);
+    let path = workspace.join(relative_path);
     let relative = path.strip_prefix(workspace).map_err(|_| {
         format!(
-            "upstream suite manifest path escaped the workspace: {}",
+            "{description} path escaped the workspace: {}",
             path.display()
         )
     })?;
@@ -121,7 +131,7 @@ fn atomic_write_manifest(workspace: &Path, bytes: &[u8]) -> Result<PathBuf, Box<
         .any(|component| !matches!(component, Component::Normal(_)))
     {
         return Err(format!(
-            "upstream suite manifest path is not a normalized workspace path: {}",
+            "{description} path is not a normalized workspace path: {}",
             path.display()
         )
         .into());
@@ -134,7 +144,7 @@ fn atomic_write_manifest(workspace: &Path, bytes: &[u8]) -> Result<PathBuf, Box<
     let canonical_parent = parent.canonicalize()?;
     if !canonical_parent.starts_with(&canonical_workspace) {
         return Err(format!(
-            "upstream suite manifest parent escaped the workspace: {}",
+            "{description} parent escaped the workspace: {}",
             parent.display()
         )
         .into());
@@ -146,7 +156,7 @@ fn atomic_write_manifest(workspace: &Path, bytes: &[u8]) -> Result<PathBuf, Box<
     match fs::symlink_metadata(&target) {
         Ok(metadata) if metadata.file_type().is_symlink() || !metadata.is_file() => {
             return Err(format!(
-                "upstream suite manifest target is not a regular file: {}",
+                "{description} target is not a regular file: {}",
                 target.display()
             )
             .into())
@@ -174,10 +184,10 @@ fn atomic_write_manifest(workspace: &Path, bytes: &[u8]) -> Result<PathBuf, Box<
         fs::rename(&temporary, &target)?;
         let metadata = fs::symlink_metadata(&target)?;
         if metadata.file_type().is_symlink() || !metadata.is_file() {
-            return Err("published upstream suite manifest is not a regular file".into());
+            return Err(format!("published {description} is not a regular file").into());
         }
         if fs::read(&target)? != bytes {
-            return Err("upstream suite manifest changed during atomic publication".into());
+            return Err(format!("{description} changed during atomic publication").into());
         }
         fs::File::open(&canonical_parent)?.sync_all()?;
         Ok(())

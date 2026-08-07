@@ -276,8 +276,10 @@ Milestones M0–M8, the frozen H0 filesystem-hosted `--noEmit` profile, and the
 L0/L1 persistent-source and incremental-parser prerequisites are complete.
 H1.0a JavaScript-emit inventory work now has a generated report-only owner
 graph plus a frozen bootstrap profile and callback-level TypeScript oracle;
-H0 no-emit performance remains a hard non-regression boundary. Corpus and
-current-Rust omission classification plus owner-disposition review remain open. Complete
+the exact conformance runner universe is also frozen as 5,907 fixtures, 7,697
+cases, and 46,182 explicitly `not-run` observations. H0 no-emit performance
+remains a hard non-regression boundary. Corpus classification plus
+owner-disposition review remain open. Complete
 Language Service, tsserver, and LSP behavior remains later work. The audited
 [compiler compatibility residual](docs/design/greenfield/compiler-compatibility-residual.md)
 separates H1 blockers from later declaration/map, build/watch, public-API, and

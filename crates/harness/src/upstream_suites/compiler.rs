@@ -8,7 +8,7 @@ use super::{
 // This order is derived from `CompilerTest.varyBy` in TypeScript 6.0.3's
 // `src/testRunner/compilerRunner.ts`. It is observable: it determines both the
 // dimensions and iteration order of the configuration Cartesian product.
-const VARY_BY: [&str; 77] = [
+pub(super) const VARY_BY: [&str; 77] = [
     "declaration",
     "declarationMap",
     "emitDeclarationOnly",

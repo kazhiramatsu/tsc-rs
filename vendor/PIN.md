@@ -35,7 +35,7 @@ expansion or claim a transpile execution result.
 
 The runner-derived companion inventory is pinned at
 `vendor/typescript-6.0.3/transpile-suite-inventory.v1.json` (SHA-256
-`34d8002c3875a53393ecf472c90229bc22ee4e759a6d0c20bed098a29a4da2fd`).
+`432b162c65edd912ef8184cc258aa880e1fe8356cdd4c3443dab93b82f71835e`).
 It reconstructs the exact 22-fixture, 25-configuration `TranspileRunner`
 matrix as 42 fixture units, 37 cases, and 79 per-unit operations. All 37 cases
 retain execution state `not-run`: 14 are JavaScript transform/printer controls,
@@ -95,6 +95,25 @@ Rust suite contract reconstructs that Git tree and its blob inventory from the
 checked-in files. This transition adds no case expansion, execution, baseline
 comparison, or passing result; the existing diagnostic harness evidence is not
 promoted to an upstream emit-suite result.
+
+The conformance runner's subsequent inventory-only expansion is pinned at
+`vendor/typescript-6.0.3/conformance-suite-expansion.v1.json`. It reproduces
+the TypeScript 6.0.3 `CompilerBaselineRunner` `/\.tsx?$/` enumeration and
+dynamic 77-option variation contract: 5,907 enumerated fixtures, one pinned
+`.js` not-enumerated control, 7,697 cases, six runner observations per case,
+and 46,182 case-observations. Every case and observation starts `not-run`;
+execution-result and compared-reference-baseline counts are zero. The Rust
+producer and independent Node reconstruction are fixed, unfilterable checks:
+
+```text
+cargo xtask h1-conformance manifest --check
+node crates/oracle/h1-conformance-expansion.mjs --check
+```
+
+Regeneration uses `cargo xtask h1-conformance manifest --write`. The command
+accepts no suite, filter, limit, or output-path selector. This expansion does
+not classify a case into the H1 bootstrap profile and does not claim Program
+construction, JavaScript emit, baseline parity, or an upstream pass rate.
 
 The v1 suites' deterministic case expansion is pinned at
 `vendor/typescript-6.0.3/test-suite-expansion.v1.json`: 7,276 `compiler`

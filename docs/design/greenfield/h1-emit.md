@@ -14,7 +14,10 @@ execution or reference-baseline results. Additive suite pin v3 also binds the
 complete 6,568-file FourSlash tree identity and vendors the exact 38-file
 batch-emit witness projection, again with zero expansion or execution rows.
 Additive suite pin v4 now binds v3 byte-for-byte and pins the complete
-5,908-file upstream conformance tree without adding a case or result.
+5,908-file upstream conformance tree. A separate runner manifest now expands
+the 5,907 `.ts`/`.tsx` fixtures selected by `CompilerBaselineRunner` into
+7,697 cases and all six observation kinds, with all 46,182 case-observations
+still `not-run` and no reference baseline compared.
 The shared L0/L1 prerequisite and its evidence/CI-contract freeze are complete.
 The graph's unresolved dynamic calls and conservative property dispatch still
 need review, and compiler/project/conformance classification plus promoted
@@ -997,22 +1000,34 @@ The existing expansion v1 remains byte-identical: it inventories 7,086
 cases and 632 project cases, and retains initial state `not-run` for all 7,908
 rows. It deliberately contains no transpile row; the separate transpile
 inventory adds 37 classified `not-run` rows without mutating that established
-artifact. Suite pin v4 also adds no conformance expansion or result row. H0
-structural load/session qualification does not change any upstream-runner
-state. At the pinned
-commit, `compilerRunner` separately observes diagnostics, module-resolution
-traces, source-map records, JavaScript/declaration output, source-map output,
-and type/symbol baselines. H1 records a separate result for every row and
-observation it admits and leaves all other observations explicitly deferred;
-it never promotes Program construction alone to an emit pass.
+artifact. The separate
+[`conformance-suite-expansion.v1.json`](../../../vendor/typescript-6.0.3/conformance-suite-expansion.v1.json)
+reconstructs `CompilerBaselineRunner` directly rather than reusing the
+diagnostic `ProgramJson` denominator: its `/\.tsx?$/` enumerator selects 5,907
+of the 5,908 pinned sources, leaving the single `.js` source as an explicit
+not-enumerated control. The dynamic 77-option `varyBy` list and 25-variation
+limit produce 4,809 default fixtures, 1,098 matrix fixtures, and 7,697 cases.
+Each case points to all six runner observations—diagnostics,
+module-resolution trace, source-map record, JavaScript output, source-map
+output, and types/symbols—so 46,182 case-observations are explicit. Every case
+and observation remains `not-run`; execution results and compared reference
+baselines are both zero. Rust generation and an independent Node
+reconstruction from the vendored TypeScript option declarations must match
+every source, unit, configuration, case ID, and observation row. This is
+expansion evidence, not profile classification, Program execution, emit
+parity, or an upstream pass rate. H0 structural load/session qualification
+does not change any upstream-runner state. H1 records a separate result for
+every row and observation it later admits and leaves all others explicitly
+deferred; it never promotes Program construction alone to an emit pass.
 
 The inventory then classifies these sources:
 
 1. `tests/cases/compiler`, `tests/cases/project`,
    `tests/cases/projects`, and the existing conformance emitter families are
    the primary whole-Program input universe. The complete conformance source
-   tree is pinned in additive suite pin v4. An admitted row must pass through
-   production program construction and `ProgramSession::emit`.
+   tree is pinned in additive suite pin v4 and its 7,697 runner cases are
+   expanded separately with all observations `not-run`. An admitted row must
+   pass through production program construction and `ProgramSession::emit`.
 2. The complete TypeScript 6.0.3 `tests/cases/transpile` tree has been added
    through a reviewed additive suite-pin-v2 transition. H1.0a now reproduces
    the complete `transpileRunner` unit partitioning and option matrix as 37
@@ -1153,9 +1168,11 @@ reconstructs and classifies all 37 runner rows while leaving every execution
 state `not-run` and every reference baseline uncompared. The additive v3
 source universe now freezes the complete FourSlash tree identity and exact
 38-file emit projection, also with zero expansion or execution rows. Additive
-v4 preserves that evidence and pins the complete conformance tree with zero
-new expansion or execution rows; corpus classification and reviewed
-unresolved/property-dispatch dispositions still keep item 1 open.
+v4 preserves that evidence and pins the complete conformance tree. Its
+separate manifest now reconstructs all 5,907 runner fixtures, 7,697 cases, and
+46,182 case-observations without executing or comparing any of them. Corpus
+classification and reviewed unresolved/property-dispatch dispositions still
+keep item 1 open.
 
 1. **H1.0a — inventory and oracle:** generate the JavaScript-emitter owner
    graph, classify the compiler/project/conformance corpus plus the already
