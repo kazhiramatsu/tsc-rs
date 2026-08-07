@@ -21,7 +21,7 @@
     },
     "h1_execution": {
       "path": "docs/design/greenfield/h1-emit.md",
-      "sha256": "5e82c739851199faf35cb16f2b19074ac9b33f8adf67ffc5a351ccf47cbb901a"
+      "sha256": "2f5b408ea14093889670348f42754417102dcb28c0208c93c585ce000b7f4464"
     },
     "emit_profile": {
       "path": "ratchets/h1-emit-profile.v1.json",
@@ -1310,5 +1310,5 @@
       }
     ]
   },
-  "inventory_fingerprint_sha256": "d5e1585debbdfab6cab90ea565a7c97d0cb236f22868e74484ec779b431af46e"
+  "inventory_fingerprint_sha256": "c4175e7889d4592726363023a16797ceb309ac5381a20f61a3df1c5ce34bdb25"
 }

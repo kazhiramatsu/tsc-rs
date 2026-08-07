@@ -90,8 +90,8 @@ complete. H1.0b is complete too: the exact pre-H1 runtime and guarded
 candidate are frozen in `ratchets/h1-noemit-performance.v1.json` after eight
 alternating AB/BA pairs across the explicit-root, project, and scale
 workloads. All output-write and eight emitter-activity counts are zero; the
-latest H1.2 remeasurement has a largest warm-median wall ratio of 1.004417,
-largest RSS ratio of 1.000000, and executable-size ratio of 1.000080. The bounded,
+latest H1.2 remeasurement has a largest warm-median wall ratio of 1.012085,
+largest RSS ratio of 1.001425, and executable-size ratio of 1.000080. The bounded,
 tsc-architected JavaScript emitter preserves that H0
 `--noEmit` entry while porting the exact resolver/transform/printer/output
 spine. H1.1 is complete: the acyclic emitter owner now fixes artifacts,
