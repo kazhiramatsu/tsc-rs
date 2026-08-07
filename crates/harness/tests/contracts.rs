@@ -1,3 +1,5 @@
+#[path = "integration/h1_conformance_expansion.rs"]
+mod h1_conformance_expansion;
 #[path = "integration/module_suffixes_oracle_contract.rs"]
 mod module_suffixes_oracle_contract;
 #[path = "integration/transpile_suite_inventory.rs"]

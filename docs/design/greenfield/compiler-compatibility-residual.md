@@ -7,7 +7,8 @@ transpile source tree content-addressed in additive suite pin v2 and its exact
 37-row runner matrix classified without execution or baseline comparison, plus
 the exact 38-file FourSlash batch-emit witness projection pinned in additive
 suite pin v3, and the complete 5,908-file conformance tree pinned in additive
-suite pin v4 without new expansion or execution rows. This page records the
+suite pin v4 plus its separate exact 5,907-fixture/7,697-case runner expansion
+with all 46,182 observation rows `not-run`. This page records the
 current Rust implementation boundary, the work required to finish bounded H1
 JavaScript emit, and the remaining work after H1
 for broader TypeScript 6.0.3 compiler and tooling compatibility. It is not an
@@ -69,7 +70,7 @@ That review fixes the current evidence boundary as follows:
 | Compiler input expansion | 7,276/7,276 plans structurally load and run through H0 | Upstream diagnostic, trace, JS/d.ts/map, or type/symbol baselines |
 | Project expansion | 82/632 H0-compatible plans are qualified; the other 550 are explicitly classified H0 non-scope | The upstream project emit/build baselines |
 | Expansion manifest | All 7,908 compiler/project cases retain initial state `not-run` | Any upstream runner pass rate |
-| Conformance source pin | The complete 5,908-file upstream tree is content-addressed in additive suite pin v4 | Emit-case expansion, output-baseline comparison, or an upstream emit pass rate |
+| Conformance runner expansion | The complete 5,908-file upstream tree is pinned; `CompilerBaselineRunner` selects 5,907 `.ts`/`.tsx` fixtures and expands 7,697 cases × six observations, all `not-run` | H1 profile classification, Program/emit execution, output-baseline comparison, or an upstream pass rate |
 | Transpile runner matrix | All 37 cases reconstructed from 22 fixtures and classified; every row remains `not-run` and zero reference baselines were compared | A transpile pass rate or equivalence between `transpileModule` and whole-Program emit |
 | FourSlash emit projection | The full 6,568-file tree identity and all 38 direct emit-operation witnesses are pinned; expansion/execution/pass rows are zero | A FourSlash or Language Service pass rate, or equivalence to whole-Program emit |
 
@@ -915,9 +916,15 @@ retain explicit unsupported dispositions.
 
 Suite pin v4 binds v3 byte-for-byte, preserves its four full suites, runner
 identities, and FourSlash projection, and appends the complete 5,908-file
-conformance tree at the same source commit. It adds zero expansion, execution,
-baseline-comparison, or passing rows. The existing diagnostic-conformance
-qualification therefore remains separate from upstream emit-suite evidence.
+conformance tree at the same source commit. The pin transition itself added
+no result. The separate `conformance-suite-expansion.v1.json` now reproduces
+the runner's `/\.tsx?$/` selection (5,907 fixtures; the one `.js` file remains
+an explicit not-enumerated control), dynamic 77-option matrix, 7,697 cases,
+and six observations per case. All 46,182 case-observations remain `not-run`,
+with zero execution results and zero reference-baseline comparisons. The
+existing diagnostic-conformance qualification therefore remains separate
+from upstream emit-suite evidence, whose profile classification is still
+open.
 
 The local `test-suite-expansion.v1.json` remains byte-identical and inventories
 7,086 `compiler`, `project`, and `projects` sources, 7,276 compiler cases, and

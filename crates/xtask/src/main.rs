@@ -19,6 +19,7 @@ use tsc_diagnostics::DiagnosticList;
 mod bounded_pipeline;
 mod ci_conformance_receipt;
 mod completion;
+mod h1_conformance;
 mod host_resolution;
 mod invariant_attestation;
 mod l0_identity_stress;
@@ -170,6 +171,7 @@ fn main() {
                 std::process::exit(2);
             }
         },
+        Some("h1-conformance") => run_or_exit(h1_conformance::run(args)),
         Some("upstream-suites") => run_or_exit(upstream_suites::run(args)),
         Some("ratchet") => match args.next().as_deref() {
             Some("check") => run_or_exit(ratchet_check(args)),
