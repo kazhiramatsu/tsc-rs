@@ -305,6 +305,7 @@ export function validatePolicy(policy) {
     policy.approved_performance.l1_authority_workflow !==
       ".github/workflows/l1-performance.yml" ||
     policy.approved_performance.l1_authority_job !== "qualify" ||
+    policy.approved_performance.l1_h0_evidence !== "ratchets/l1-h0-performance.v1.json" ||
     policy.approved_performance.l1_evidence !==
       "ratchets/l1-incremental-parser-performance.v1.json"
   )

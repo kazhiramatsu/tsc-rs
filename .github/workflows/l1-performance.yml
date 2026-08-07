@@ -46,6 +46,7 @@ jobs:
       BASELINE_SHA: ${{ inputs.baseline_sha }}
       PAIRS: ${{ inputs.pairs }}
       EVIDENCE_PATH: ratchets/l1-incremental-parser-performance.v1.json
+      H0_EVIDENCE_PATH: ratchets/l1-h0-performance.v1.json
     steps:
       - name: Validate exact inputs
         shell: bash
@@ -61,11 +62,30 @@ jobs:
           persist-credentials: false
           ref: ${{ inputs.candidate_sha }}
 
-      - name: Measure alternating fresh/incremental pairs
+      - name: Measure H0 non-regression and fresh/incremental pairs
         id: comparison
         shell: bash
         run: |
           test "$(git rev-parse HEAD)" = "$CANDIDATE_SHA"
+          set +e
+          node crates/oracle/l0-performance.mjs \
+            --compare \
+            --baseline "$BASELINE_SHA" \
+            --pairs "$PAIRS" \
+            --l1-h0 \
+            >"$RUNNER_TEMP/l1-h0-performance.stdout" \
+            2>"$RUNNER_TEMP/l1-h0-performance.stderr"
+          code=$?
+          set -e
+          if [ "$code" -ne 0 ]; then
+            {
+              printf 'stdout:\n'
+              cat "$RUNNER_TEMP/l1-h0-performance.stdout"
+              printf '\nstderr:\n'
+              cat "$RUNNER_TEMP/l1-h0-performance.stderr"
+            } >"$RUNNER_TEMP/l1-performance.failure.log"
+            exit "$code"
+          fi
           set +e
           node crates/oracle/l1-performance.mjs \
             --compare \
@@ -84,10 +104,17 @@ jobs:
             } >"$RUNNER_TEMP/l1-performance.failure.log"
             exit "$code"
           fi
+          node crates/oracle/l0-performance.mjs --check
           node crates/oracle/l1-performance.mjs --check
 
-      - name: Attest approved-runner comparison
-        id: attest
+      - name: Attest H0 non-regression comparison
+        id: attest_h0
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4
+        with:
+          subject-path: ${{ env.H0_EVIDENCE_PATH }}
+
+      - name: Attest incremental comparison
+        id: attest_incremental
         uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4
         with:
           subject-path: ${{ env.EVIDENCE_PATH }}
@@ -96,26 +123,36 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
-          ATTESTATION_BUNDLE: ${{ steps.attest.outputs.bundle-path }}
+          H0_ATTESTATION_BUNDLE: ${{ steps.attest_h0.outputs.bundle-path }}
+          INCREMENTAL_ATTESTATION_BUNDLE: ${{ steps.attest_incremental.outputs.bundle-path }}
         run: |
+          gh attestation verify "$H0_EVIDENCE_PATH" \
+            --repo "$GITHUB_REPOSITORY" \
+            --bundle "$H0_ATTESTATION_BUNDLE" \
+            --signer-workflow "$GITHUB_REPOSITORY/.github/workflows/l1-performance.yml" \
+            --cert-oidc-issuer "https://token.actions.githubusercontent.com"
           gh attestation verify "$EVIDENCE_PATH" \
             --repo "$GITHUB_REPOSITORY" \
-            --bundle "$ATTESTATION_BUNDLE" \
+            --bundle "$INCREMENTAL_ATTESTATION_BUNDLE" \
             --signer-workflow "$GITHUB_REPOSITORY/.github/workflows/l1-performance.yml" \
             --cert-oidc-issuer "https://token.actions.githubusercontent.com"
           node -e '
             const fs = require("fs");
-            const evidence = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
-            if (evidence.status !== "qualified" || evidence.candidate.commit !== process.argv[2] || evidence.base.commit !== process.argv[3]) process.exit(1);
-          ' "$EVIDENCE_PATH" "$CANDIDATE_SHA" "$BASELINE_SHA"
+            for (const path of process.argv.slice(1, 3)) {
+              const evidence = JSON.parse(fs.readFileSync(path, "utf8"));
+              if (evidence.status !== "qualified" || evidence.candidate.commit !== process.argv[3] || evidence.base.commit !== process.argv[4]) process.exit(1);
+            }
+          ' "$H0_EVIDENCE_PATH" "$EVIDENCE_PATH" "$CANDIDATE_SHA" "$BASELINE_SHA"
 
       - name: Publish approved performance evidence
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: l1-performance-${{ inputs.candidate_sha }}
           path: |
+            ${{ env.H0_EVIDENCE_PATH }}
             ${{ env.EVIDENCE_PATH }}
-            ${{ steps.attest.outputs.bundle-path }}
+            ${{ steps.attest_h0.outputs.bundle-path }}
+            ${{ steps.attest_incremental.outputs.bundle-path }}
           if-no-files-found: error
           retention-days: 30
 

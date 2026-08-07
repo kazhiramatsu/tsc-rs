@@ -317,7 +317,16 @@ function compare(baseRef, pairCount) {
   if (!Number.isInteger(pairCount) || pairCount < policy().minimum_paired_samples + 1) {
     throw new Error("comparison requires one cold pair plus at least seven warm paired samples");
   }
-  if (git("status", "--porcelain").length !== 0) {
+  const allowedDirty = new Set([
+    "ratchets/l1-h0-performance.v1.json",
+    "ratchets/l1-incremental-parser-performance.v1.json",
+  ]);
+  const unexpectedDirty = git("status", "--porcelain")
+    .split("\n")
+    .filter(Boolean)
+    .map((line) => line.slice(3))
+    .filter((entry) => !allowedDirty.has(entry));
+  if (unexpectedDirty.length !== 0) {
     throw new Error("performance comparison requires a clean candidate worktree");
   }
   const candidateCommit = git("rev-parse", "HEAD");

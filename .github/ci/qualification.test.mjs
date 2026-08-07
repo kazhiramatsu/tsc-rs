@@ -37,6 +37,10 @@ test("policy and every qualification schema boundary are valid", () => {
   assert.equal(policy.scheduled_stress.authority_job, "scheduled_stress");
   assert.equal(policy.approved_performance.authority_job, "qualify");
   assert.equal(policy.approved_performance.l1_authority_job, "qualify");
+  assert.equal(
+    policy.approved_performance.l1_h0_evidence,
+    "ratchets/l1-h0-performance.v1.json",
+  );
   assert.ok(policy.scheduled_stress.active_scope.includes("fresh-incremental-exactness"));
 
   const frozen = clone(policy);

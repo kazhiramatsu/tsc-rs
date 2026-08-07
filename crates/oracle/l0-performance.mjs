@@ -11,6 +11,7 @@ const textComparisonPath = path.join(workspace, "ratchets/l0-text-ownership-perf
 const identityComparisonPath = path.join(workspace, "ratchets/l0-identity-leases-performance.v1.json");
 const ownedBindComparisonPath = path.join(workspace, "ratchets/l0-owned-bind-state-performance.v1.json");
 const oneShotRegistryComparisonPath = path.join(workspace, "ratchets/l0-one-shot-registry-performance.v1.json");
+const l1H0ComparisonPath = path.join(workspace, "ratchets/l1-h0-performance.v1.json");
 const fixtureManifestPath = path.join(workspace, "ratchets/l0-fixtures.v1.json");
 const fixtureRoot = path.join(workspace, "target/l0/qualification-fixtures");
 const binaryPath = path.join(workspace, "target/release/examples/h0_qualification");
@@ -267,7 +268,19 @@ function compare(baseRef, pairCount, kind) {
   if (!Number.isInteger(pairCount) || pairCount < policy().minimum_paired_samples + 1) {
     throw new Error("comparison requires one cold pair plus at least seven warm paired samples");
   }
-  if (git("status", "--porcelain").length !== 0) {
+  const allowedDirty =
+    kind === "l1-h0-nonregression-performance"
+      ? new Set([
+          "ratchets/l1-h0-performance.v1.json",
+          "ratchets/l1-incremental-parser-performance.v1.json",
+        ])
+      : new Set();
+  const unexpectedDirty = git("status", "--porcelain")
+    .split("\n")
+    .filter(Boolean)
+    .map((line) => line.slice(3))
+    .filter((entry) => !allowedDirty.has(entry));
+  if (unexpectedDirty.length !== 0) {
     throw new Error("performance comparison requires a clean candidate worktree");
   }
   const candidateCommit = git("rev-parse", "HEAD");
@@ -500,18 +513,29 @@ if (commandName === "--compare") {
   const baseline = baselineArgument >= 0 ? process.argv[baselineArgument + 1] : undefined;
   const pairCount = pairsArgument >= 0 ? Number(process.argv[pairsArgument + 1]) : 8;
   if (!baseline) throw new Error("--compare requires --baseline <exact-commit>");
-  const stages = ["--owned-bind", "--one-shot-registry"].filter((flag) => process.argv.includes(flag));
+  const stages = ["--owned-bind", "--one-shot-registry", "--l1-h0"].filter((flag) => process.argv.includes(flag));
   if (stages.length > 1) throw new Error("--compare accepts at most one L0 stage selector");
   const stage = stages[0];
   const kind =
-    stage === "--one-shot-registry"
+    stage === "--l1-h0"
+      ? "l1-h0-nonregression-performance"
+      : stage === "--one-shot-registry"
       ? "l0-one-shot-registry-performance"
       : stage === "--owned-bind"
         ? "l0-owned-bind-state-performance"
         : "l0-identity-leases-performance";
-  const label = stage === "--one-shot-registry" ? "L0.4" : stage === "--owned-bind" ? "L0.3" : "L0.2";
+  const label =
+    stage === "--l1-h0"
+      ? "L1 H0 non-regression"
+      : stage === "--one-shot-registry"
+        ? "L0.4"
+        : stage === "--owned-bind"
+          ? "L0.3"
+          : "L0.2";
   const outputPath =
-    stage === "--one-shot-registry"
+    stage === "--l1-h0"
+      ? l1H0ComparisonPath
+      : stage === "--one-shot-registry"
       ? oneShotRegistryComparisonPath
       : stage === "--owned-bind"
         ? ownedBindComparisonPath
@@ -548,11 +572,24 @@ if (commandName === "--compare") {
     throw new Error("missing ratchets/l0-one-shot-registry-performance.v1.json; run --compare --one-shot-registry on the approved runner");
   }
   const oneShotRegistryComparison = JSON.parse(fs.readFileSync(oneShotRegistryComparisonPath, "utf8"));
-  validateComparison(oneShotRegistryComparison, "l0-one-shot-registry-performance", "L0.4", true);
+  validateComparison(oneShotRegistryComparison, "l0-one-shot-registry-performance", "L0.4", false);
   if (!sameJson(oneShotRegistryComparison.base.runtime_tree, ownedBindComparison.candidate.runtime_tree)) {
     throw new Error("L0.4 performance base is not the exact L0.3 qualified runtime tree");
   }
-  process.stdout.write("L0.0 baseline plus L0.1, L0.2, L0.3, and L0.4 relative performance evidence are valid and current\n");
+  if (!fs.existsSync(l1H0ComparisonPath)) {
+    throw new Error("missing ratchets/l1-h0-performance.v1.json; run --compare --l1-h0 on the approved runner");
+  }
+  const l1H0Comparison = JSON.parse(fs.readFileSync(l1H0ComparisonPath, "utf8"));
+  validateComparison(
+    l1H0Comparison,
+    "l1-h0-nonregression-performance",
+    "L1 H0 non-regression",
+    true,
+  );
+  if (!sameJson(l1H0Comparison.base.runtime_tree, oneShotRegistryComparison.candidate.runtime_tree)) {
+    throw new Error("L1 H0 performance base is not the exact L0.4 qualified runtime tree");
+  }
+  process.stdout.write("L0.0 through L0.4 plus L1 H0 relative performance evidence are valid and current\n");
 } else {
-  throw new Error("usage: l0-performance.mjs --compare --baseline <exact-commit> [--pairs N] [--owned-bind|--one-shot-registry]|--check");
+  throw new Error("usage: l0-performance.mjs --compare --baseline <exact-commit> [--pairs N] [--owned-bind|--one-shot-registry|--l1-h0]|--check");
 }
