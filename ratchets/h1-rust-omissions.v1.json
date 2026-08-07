@@ -8,7 +8,7 @@
   },
   "generator": {
     "path": "crates/oracle/h1-rust-omission-inventory.mjs",
-    "sha256": "cd0e731bf47b205ee926b3990a200b7cca8b952decb359328808016cfe408cd2"
+    "sha256": "8bb88a7968f46f76015d15bd16c7102568bee8c5b337240c2ba3cd7d29ea48cc"
   },
   "contract": {
     "path": ".github/ci/contracts/h1-rust-omissions.schema.json",
@@ -17,11 +17,11 @@
   "authorities": {
     "compatibility_residual": {
       "path": "docs/design/greenfield/compiler-compatibility-residual.md",
-      "sha256": "8a47b8ee0c2aa719637bf70b37365a07f4d533d0f2fd6940ddee6f2c46ff6cd9"
+      "sha256": "b8c009817ce7cc5da1c41cc35e744ffd71a809ab3382aa1fbdace2ab4a5acfd0"
     },
     "h1_execution": {
       "path": "docs/design/greenfield/h1-emit.md",
-      "sha256": "c8b2cbee0a87beb9bb486e23b42289ed38ed178de82d4af5c6b2d9bb34e5895f"
+      "sha256": "e7f68ba17cdf25cdc08f907aef5d2f12deae1577c09fa79a4848e4a206391ef8"
     },
     "emit_profile": {
       "path": "ratchets/h1-emit-profile.v1.json",
@@ -39,18 +39,18 @@
       "crates/*/Cargo.toml",
       "crates/*/src/**/*.rs"
     ],
-    "file_count": 178,
-    "rust_source_files": 164,
+    "file_count": 179,
+    "rust_source_files": 165,
     "cargo_manifests": 14,
-    "bytes": 12307460,
-    "tree_sha256": "fa34ce670ed02e7700ce55ca08911031b6ba42465f1e3b57746bd751d9651433"
+    "bytes": 12313808,
+    "tree_sha256": "a79d351522bab94b3c0a93bc7e8f6068ce54cf5c3e64caabec9ef6f281c63423"
   },
   "summary": {
     "production_boundary_omissions": 11,
     "absence_proofs": 9,
     "option_projection_omissions": 32,
     "explicit_checker_emit_elisions": 25,
-    "existing_prerequisites": 8
+    "existing_prerequisites": 9
   },
   "existing_prerequisites": [
     {
@@ -90,6 +90,14 @@
       "evidence": [
         "compiler-options-no-emit",
         "loader-no-emit-gate"
+      ]
+    },
+    {
+      "id": "h1-no-emit-constructor-write-canary",
+      "treatment": "preserve-and-thread-through-no-emit-route",
+      "evidence": [
+        "program-session-run",
+        "h1-no-emit-canary"
       ]
     },
     {
@@ -660,20 +668,29 @@
       {
         "id": "program-session-owner",
         "path": "crates/compiler/src/lib.rs",
-        "line": 43,
+        "line": 45,
         "column": 1,
         "text": "pub struct ProgramSession {\n    prepared: PreparedProgram,\n}",
         "text_sha256": "665e8cc79aa3899b9439120a02ffdfe34c92d54b8953b9eb431f216af633981a",
-        "file_sha256": "ebcc4f6014cc7e60671af40b04c892ee09e48893ba423658f6f9c6d1ac553248"
+        "file_sha256": "c0b491a99f2f347f290ab62a9d8c0502db35183bf43c161a1fd0dc0bb3403ee2"
       },
       {
         "id": "program-session-run",
         "path": "crates/compiler/src/lib.rs",
-        "line": 386,
+        "line": 388,
         "column": 5,
-        "text": "pub fn run(self) -> Result<NoEmitOutcome, DriverError> {\n        self.run_inner(false)\n    }",
-        "text_sha256": "0d74770e0c3d7f91e9cba4903ecba506cdd1c0c7aca1bacd327f69daed76d654",
-        "file_sha256": "ebcc4f6014cc7e60671af40b04c892ee09e48893ba423658f6f9c6d1ac553248"
+        "text": "pub fn run(self) -> Result<NoEmitOutcome, DriverError> {\n        let mut no_emit_canary = no_emit_canary::NoEmitCanary::new();\n        self.run_with_no_emit_canary(false, &mut no_emit_canary)\n    }",
+        "text_sha256": "c30f239d4cc7adcb83f90cf49d9a44e24cb81cffff7608a1ac3ef112e9c099b0",
+        "file_sha256": "c0b491a99f2f347f290ab62a9d8c0502db35183bf43c161a1fd0dc0bb3403ee2"
+      },
+      {
+        "id": "h1-no-emit-canary",
+        "path": "crates/compiler/src/no_emit_canary.rs",
+        "line": 67,
+        "column": 1,
+        "text": "pub(crate) struct NoEmitCanary;",
+        "text_sha256": "44c2420d5e624e8d4bb8dd7129d9d66bb1cb9dcb26aeb5c04f1f2cedd11e7c80",
+        "file_sha256": "ecff9037597bb57f64a5548d4843aae9003b37505759253afe5d9eb76c878665"
       },
       {
         "id": "checker-session-local-state",
@@ -804,20 +821,20 @@
       {
         "id": "cli-explicit-root-no-emit-gate",
         "path": "crates/compiler/src/cli.rs",
-        "line": 333,
+        "line": 352,
         "column": 18,
         "text": "explicit source files require --noEmit; H0 never invokes an emitter",
         "text_sha256": "7d96037c8a32481c78df8e66dfa233830627b0204a2af94c82fa9239a9c4c361",
-        "file_sha256": "27eec2a5fa1886d482d5aa05813b80c0996cc0a60f820f005c5aac2bfa42b933"
+        "file_sha256": "1805e75a63a0d3205d3043521f661412793880fa90c63207a5a8b2d04e90cb46"
       },
       {
         "id": "cli-false-no-emit-gate",
         "path": "crates/compiler/src/cli.rs",
-        "line": 401,
+        "line": 426,
         "column": 13,
         "text": "\"--noEmit=false\" => {\n                return Err(CliError::Usage(\n                    \"--noEmit=false is outside the mandatory no-emit driver\"",
         "text_sha256": "5d087f910f6c3ea538755d9967aca7f1a4cfffa72899827e325957d43d0b0fee",
-        "file_sha256": "27eec2a5fa1886d482d5aa05813b80c0996cc0a60f820f005c5aac2bfa42b933"
+        "file_sha256": "1805e75a63a0d3205d3043521f661412793880fa90c63207a5a8b2d04e90cb46"
       },
       {
         "id": "config-transient-output-discovery",
@@ -1154,5 +1171,5 @@
       }
     ]
   },
-  "inventory_fingerprint_sha256": "7a895aa8d1d5b921933dcacfa162872f16bd50cd6ba75c9e17e6e7a2655ec374"
+  "inventory_fingerprint_sha256": "d087db66c0d83850114e79f029a84008014ef59ee9591b1bebe43031cb308cde"
 }
