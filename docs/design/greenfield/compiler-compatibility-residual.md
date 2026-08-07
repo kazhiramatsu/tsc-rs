@@ -10,7 +10,9 @@ suite pin v3, and the complete 5,908-file conformance tree pinned in additive
 suite pin v4 plus its separate exact 5,907-fixture/7,697-case runner expansion
 with all 46,182 observation rows `not-run`, and an exact effective-option
 classification of all 7,697 cases that proves zero bootstrap admissions while
-retaining every row `not-run`. This page records the
+retaining every row `not-run`, plus exact effective-option and reached-source
+classification of all 7,276 compiler rows that retains one bootstrap candidate
+while keeping every row `not-run`. This page records the
 current Rust implementation boundary, the work required to finish bounded H1
 JavaScript emit, and the remaining work after H1
 for broader TypeScript 6.0.3 compiler and tooling compatibility. It is not an
@@ -69,7 +71,7 @@ That review fixes the current evidence boundary as follows:
 | --- | --- | --- |
 | M8 diagnostic scope | `m8-scope.json` has **0 live exclusions** and 600 resolved tombstones | Emit/declaration/build/API paths that were not part of the frozen batch entry |
 | H0 host closure | 241/241 historical host-resolution rows are closed | Emitted outputs, project references, watch, or public host callbacks |
-| Compiler input expansion | 7,276/7,276 plans structurally load and run through H0 | Upstream diagnostic, trace, JS/d.ts/map, or type/symbol baselines |
+| Compiler runner expansion/classification | 7,276/7,276 plans structurally load and run through H0. Exact H1 classification finds seven required target/module matches, two option-clear rows, and one source-compatible bootstrap candidate; every runner row remains `not-run` | Rust Program/emit execution, upstream diagnostic/trace/JS/d.ts/map/type/symbol baseline comparison, or a compiler-suite pass rate |
 | Project expansion | 82/632 H0-compatible plans are qualified; the other 550 are explicitly classified H0 non-scope | The upstream project emit/build baselines |
 | Expansion manifest | All 7,908 compiler/project cases retain initial state `not-run` | Any upstream runner pass rate |
 | Conformance runner expansion/classification | The complete 5,908-file upstream tree is pinned; `CompilerBaselineRunner` selects 5,907 `.ts`/`.tsx` fixtures and expands 7,697 cases × six observations. Exact effective-option classification finds 7,655 JavaScript-applicable cases and three required target/module matches, but every case has another blocker, so admissions are zero and all rows remain `not-run` | Source-reachability or syntax classification beyond the option-level zero-admission proof, Program/emit execution, output-baseline comparison, or an upstream pass rate |
@@ -945,6 +947,19 @@ into an upstream baseline result. The remaining 550 project rows are
 classified as 452 descriptor emit controls, 70 descriptor declaration
 requests, 10 `compileOnSave` configs, 16 config declaration/`outFile`
 requests, and two descriptor `rootDir` emit controls.
+
+The companion `compiler-profile-classification.v1.json` now classifies all
+7,276 compiler rows in that unchanged expansion. It exactly replays all 103
+virtual configs/106 config variants against the config-plan oracle and applies
+the compiler runner's option precedence. Seven rows match `target=ESNext` plus
+`module=Preserve`; five still have option blockers. A vendored TypeScript
+Program analyzes the other two over their exact fixture roots and resolved
+dependencies: `modulePreserve1.ts#default` is blocked by reachable
+`export =`/`import =`, while
+`esmNoSynthesizedDefault.ts#module%3Dpreserve` remains the sole bootstrap
+candidate. The 7,273 deferred-profile rows, two H0 `noEmit` rows, and one
+candidate all remain `not-run`; baseline comparisons and upstream pass claims
+remain zero.
 
 At the pinned commit, upstream
 [`compilerRunner.ts`](https://github.com/microsoft/TypeScript/blob/050880ce59e30b356b686bd3144efe24f875ebc8/src/testRunner/compilerRunner.ts)

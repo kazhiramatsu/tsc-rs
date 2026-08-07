@@ -24,9 +24,17 @@ observation, only three have both `target=ESNext` and `module=Preserve`, and
 all three retain another profile blocker, so the admitted count is exactly
 zero. This proves an option disposition for every row without claiming source
 reachability, syntax support, execution, or baseline parity.
+The 7,276 existing compiler-runner rows now have a separate exact
+classification too. Seven match the required target/module pair; five retain
+an effective-option blocker, and only two proceed to a vendored TypeScript
+Program reachability analysis. Reachable `export =`/`import =` syntax blocks
+`modulePreserve1.ts`; only
+`esmNoSynthesizedDefault.ts#module%3Dpreserve` remains a bootstrap candidate.
+All 7,276 execution states remain `not-run`, and no reference baseline has
+been compared, so this is an admission proof rather than an emit result.
 The shared L0/L1 prerequisite and its evidence/CI-contract freeze are complete.
 The graph's unresolved dynamic calls and conservative property dispatch still
-need review, and compiler/project classification plus promoted FourSlash
+need review, and project classification plus promoted FourSlash
 whole-Program equivalence review remain open. No H1 runtime implementation or
 compatibility claim exists until the complete H1.0 inventory and post-L0/L1
 no-emit performance baseline described below are frozen.
@@ -1039,15 +1047,32 @@ records a separate result for every row and observation it later admits and
 leaves all others explicitly deferred; it never promotes Program construction
 alone to an emit pass.
 
+The separate
+[`compiler-profile-classification.v1.json`](../../../vendor/typescript-6.0.3/compiler-profile-classification.v1.json)
+classifies all 7,276 compiler rows without mutating expansion v1. It
+reconstructs all 103 virtual configs and 106 config variants against the
+frozen config-plan oracle, then applies virtual-config, compile-default, and
+harness/matrix overrides in runner order. Seven rows have both required
+target/module values, but five retain an option blocker. The remaining two
+are analyzed with a vendored TypeScript Program over the exact fixture VFS:
+`modulePreserve1.ts#default` reaches `export =` and `import =` and is deferred,
+while `esmNoSynthesizedDefault.ts#module%3Dpreserve` reaches one declaration
+dependency plus one JavaScript input and remains the sole bootstrap candidate.
+The final dispositions are 7,273 deferred-profile rows, two H0 `noEmit` rows,
+and one candidate. Every row remains `not-run`, reference-baseline comparisons
+remain zero, and the artifact claims neither Program/emit execution by Rust nor
+an upstream compiler-suite pass.
+
 The inventory then classifies these sources:
 
 1. `tests/cases/compiler`, `tests/cases/project`,
    `tests/cases/projects`, and the existing conformance emitter families are
    the primary whole-Program input universe. The complete conformance source
    tree is pinned in additive suite pin v4 and its 7,697 runner cases are
-   expanded and effective-option classified separately. All observations stay
-   `not-run`; zero cases enter the bootstrap profile. A future admitted row
-   must pass through production program construction and
+   expanded and effective-option classified separately. The 7,276 compiler
+   rows are also classified, with one explicit bootstrap candidate. All
+   observations stay `not-run`; no case has an execution result. A future
+   admitted row must pass through production program construction and
    `ProgramSession::emit`.
 2. The complete TypeScript 6.0.3 `tests/cases/transpile` tree has been added
    through a reviewed additive suite-pin-v2 transition. H1.0a now reproduces
@@ -1194,11 +1219,14 @@ separate manifest now reconstructs all 5,907 runner fixtures, 7,697 cases, and
 46,182 case-observations without executing or comparing any of them. Its
 companion classification reproduces effective settings for every row and
 proves zero bootstrap admissions while leaving all 7,697 rows `not-run`.
-Compiler/project classification, promoted FourSlash equivalence, and reviewed
-unresolved/property-dispatch dispositions still keep item 1 open.
+The companion compiler classification covers all 7,276 rows, performs source
+analysis for the two option-clear cases, and retains one bootstrap candidate
+while leaving every row `not-run`. Project classification, promoted FourSlash
+equivalence, and reviewed unresolved/property-dispatch dispositions still keep
+item 1 open.
 
 1. **H1.0a — inventory and oracle:** generate the JavaScript-emitter owner
-   graph, classify the compiler/project corpus plus the already classified
+   graph, classify the project corpus plus the already classified compiler and
    conformance corpus, reconstructed transpile matrix, and FourSlash emit
    projection, freeze dormant declaration/map/bundle/targeted/build-info seams,
    land the in-memory oracle, and record every current emit-only Rust omission.

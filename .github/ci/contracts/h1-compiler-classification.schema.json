@@ -1,0 +1,484 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/kazhiramatsu/tsc-rs/.github/ci/contracts/h1-compiler-classification.schema.json",
+  "title": "tsc-rs H1 compiler bootstrap-profile classification",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "status",
+    "phase",
+    "typescript",
+    "generator",
+    "contract",
+    "inputs",
+    "classification_contract",
+    "config_classification",
+    "analyses",
+    "cases",
+    "summary"
+  ],
+  "properties": {
+    "schema": { "const": 1 },
+    "status": { "const": "classified-not-run" },
+    "phase": { "const": "H1.0a-compiler-profile-classification" },
+    "typescript": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["version", "source_repository", "source_commit"],
+      "properties": {
+        "version": { "const": "6.0.3" },
+        "source_repository": { "const": "https://github.com/microsoft/TypeScript.git" },
+        "source_commit": { "const": "050880ce59e30b356b686bd3144efe24f875ebc8" }
+      }
+    },
+    "generator": { "$ref": "#/$defs/path_hash" },
+    "contract": { "$ref": "#/$defs/path_hash" },
+    "inputs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "suite_expansion",
+        "compiler_config_plans",
+        "h1_profile",
+        "typescript_bundle",
+        "implementation_sources"
+      ],
+      "properties": {
+        "suite_expansion": { "$ref": "#/$defs/path_hash" },
+        "compiler_config_plans": { "$ref": "#/$defs/path_hash" },
+        "h1_profile": { "$ref": "#/$defs/path_hash" },
+        "typescript_bundle": { "$ref": "#/$defs/path_hash" },
+        "implementation_sources": {
+          "type": "array",
+          "minItems": 4,
+          "maxItems": 4,
+          "items": { "$ref": "#/$defs/git_source" }
+        }
+      }
+    },
+    "classification_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "effective_option_order",
+        "source_analysis_gate",
+        "source_analysis_scope",
+        "required_options",
+        "admitted_products",
+        "execution_state",
+        "reference_baseline_state"
+      ],
+      "properties": {
+        "effective_option_order": {
+          "const": "virtual tsconfig parse, Compiler.compileFiles defaults, then harness settings with matrix overrides"
+        },
+        "source_analysis_gate": {
+          "const": "construct a vendored TypeScript Program only when effective options have no bootstrap blocker"
+        },
+        "source_analysis_scope": {
+          "const": "fixture VFS program roots plus module-resolved fixture source dependencies"
+        },
+        "required_options": {
+          "type": "array",
+          "prefixItems": [
+            { "const": "target=ESNext(99)" },
+            { "const": "module=Preserve(200)" }
+          ],
+          "items": false,
+          "minItems": 2,
+          "maxItems": 2
+        },
+        "admitted_products": {
+          "type": "array",
+          "prefixItems": [{ "const": "javascript" }],
+          "items": false,
+          "minItems": 1,
+          "maxItems": 1
+        },
+        "execution_state": { "const": "not-run" },
+        "reference_baseline_state": { "$ref": "#/$defs/reference_baseline_state" }
+      }
+    },
+    "config_classification": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["fixtures", "cases", "diagnostics"],
+      "properties": {
+        "fixtures": { "const": 103 },
+        "cases": { "const": 106 },
+        "diagnostics": { "const": 0 }
+      }
+    },
+    "analyses": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 2,
+      "items": { "$ref": "#/$defs/analysis" }
+    },
+    "cases": {
+      "type": "array",
+      "minItems": 7276,
+      "maxItems": 7276,
+      "items": { "$ref": "#/$defs/case" }
+    },
+    "summary": { "$ref": "#/$defs/summary" }
+  },
+  "$defs": {
+    "sha1": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "path_hash": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256"],
+      "properties": {
+        "path": { "type": "string", "minLength": 1 },
+        "sha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "git_source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source_path", "git_blob_sha1"],
+      "properties": {
+        "source_path": { "type": "string", "minLength": 1 },
+        "git_blob_sha1": { "$ref": "#/$defs/sha1" }
+      }
+    },
+    "reference_baseline_state": { "const": "content-not-vendored-or-compared" },
+    "origin": { "enum": ["virtual-config", "harness-setting"] },
+    "target_projection": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["state"],
+          "properties": { "state": { "const": "absent" } }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["state", "name", "value", "origin"],
+          "properties": {
+            "state": { "const": "set" },
+            "name": {
+              "enum": [
+                "ES3", "ES5", "ES2015", "ES2016", "ES2017", "ES2018",
+                "ES2019", "ES2020", "ES2021", "ES2022", "ES2023",
+                "ES2024", "ES2025", "ESNext", "JSON"
+              ]
+            },
+            "value": { "enum": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 99, 100] },
+            "origin": { "$ref": "#/$defs/origin" }
+          }
+        }
+      ]
+    },
+    "module_projection": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["state"],
+          "properties": { "state": { "const": "absent" } }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["state", "name", "value", "origin"],
+          "properties": {
+            "state": { "const": "set" },
+            "name": {
+              "enum": [
+                "None", "CommonJS", "AMD", "UMD", "System", "ES2015",
+                "ES2020", "ES2022", "ESNext", "Node16", "Node18",
+                "Node20", "NodeNext", "Preserve"
+              ]
+            },
+            "value": { "enum": [0, 1, 2, 3, 4, 5, 6, 7, 99, 100, 101, 102, 199, 200] },
+            "origin": { "$ref": "#/$defs/origin" }
+          }
+        }
+      ]
+    },
+    "boolean_projection": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["state"],
+          "properties": { "state": { "const": "absent" } }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["state", "value", "origin"],
+          "properties": {
+            "state": { "const": "set" },
+            "value": { "type": "boolean" },
+            "origin": { "$ref": "#/$defs/origin" }
+          }
+        }
+      ]
+    },
+    "rejected_option_name": {
+      "enum": [
+        "allowImportingTsExtensions", "allowJs", "composite", "declaration",
+        "declarationDir", "declarationMap", "emitDeclarationOnly",
+        "experimentalDecorators", "importHelpers", "incremental",
+        "inlineSourceMap", "isolatedModules", "jsx", "noCheck",
+        "noEmitHelpers", "outDir", "outFile",
+        "rewriteRelativeImportExtensions", "resolveJsonModule", "sourceMap",
+        "tsBuildInfoFile", "verbatimModuleSyntax"
+      ]
+    },
+    "feature_name": {
+      "enum": [
+        "decorators", "export-equals", "import-equals", "jsx",
+        "parameter-properties", "runtime-enums", "runtime-namespaces"
+      ]
+    },
+    "rejected_option": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "value", "origin"],
+      "properties": {
+        "name": { "$ref": "#/$defs/rejected_option_name" },
+        "value": { "type": ["boolean", "integer", "string"] },
+        "origin": { "$ref": "#/$defs/origin" }
+      }
+    },
+    "effective_profile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "target", "module", "use_define_for_class_fields", "no_emit",
+        "rejected_when_effective"
+      ],
+      "properties": {
+        "target": { "$ref": "#/$defs/target_projection" },
+        "module": { "$ref": "#/$defs/module_projection" },
+        "use_define_for_class_fields": { "$ref": "#/$defs/boolean_projection" },
+        "no_emit": { "$ref": "#/$defs/boolean_projection" },
+        "rejected_when_effective": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/rejected_option" }
+        }
+      }
+    },
+    "reached_unit": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "unit", "name", "source_kind", "rejected_feature_roots",
+        "parse_diagnostic_codes"
+      ],
+      "properties": {
+        "unit": { "type": "integer", "minimum": 0 },
+        "name": { "type": "string", "minLength": 1 },
+        "source_kind": {
+          "enum": [
+            "javascript-emit-input", "declaration-dependency",
+            "unsupported-extension"
+          ]
+        },
+        "rejected_feature_roots": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/feature_name" }
+        },
+        "parse_diagnostic_codes": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "integer", "minimum": 1 }
+        }
+      }
+    },
+    "unit_ids": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "type": "integer", "minimum": 0 }
+    },
+    "analysis": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "expansion_case", "source", "configuration", "current_directory",
+        "root_unit_ids", "other_unit_ids", "program_root_unit_ids",
+        "reached_units", "profile_blockers"
+      ],
+      "properties": {
+        "expansion_case": { "type": "integer", "minimum": 0, "maximum": 7275 },
+        "source": { "type": "integer", "minimum": 0, "maximum": 6536 },
+        "configuration": { "type": "integer", "minimum": 0, "maximum": 24 },
+        "current_directory": { "type": "string", "pattern": "^/" },
+        "root_unit_ids": { "$ref": "#/$defs/unit_ids" },
+        "other_unit_ids": { "$ref": "#/$defs/unit_ids" },
+        "program_root_unit_ids": { "$ref": "#/$defs/unit_ids" },
+        "reached_units": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/reached_unit" }
+        },
+        "profile_blockers": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "source_analysis": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["state"],
+          "properties": { "state": { "const": "not-required-effective-options" } }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["state", "analysis"],
+          "properties": {
+            "state": { "const": "analyzed" },
+            "analysis": { "type": "integer", "minimum": 0, "maximum": 1 }
+          }
+        }
+      ]
+    },
+    "case": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "expansion_case", "id", "source", "configuration",
+        "effective_profile", "source_analysis", "bootstrap_profile_admitted",
+        "disposition", "decisive_blocker", "profile_blockers",
+        "execution_state", "reference_baseline_state"
+      ],
+      "properties": {
+        "expansion_case": { "type": "integer", "minimum": 0, "maximum": 7275 },
+        "id": { "type": "string", "pattern": "^typescript-6\\.0\\.3/compiler/" },
+        "source": { "type": "integer", "minimum": 0, "maximum": 6536 },
+        "configuration": { "type": "integer", "minimum": 0, "maximum": 24 },
+        "effective_profile": { "$ref": "#/$defs/effective_profile" },
+        "source_analysis": { "$ref": "#/$defs/source_analysis" },
+        "bootstrap_profile_admitted": { "type": "boolean" },
+        "disposition": {
+          "enum": [
+            "bootstrap-candidate-not-run", "deferred-profile", "h0-no-emit"
+          ]
+        },
+        "decisive_blocker": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "string", "minLength": 1 }
+          ]
+        },
+        "profile_blockers": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "execution_state": { "const": "not-run" },
+        "reference_baseline_state": { "$ref": "#/$defs/reference_baseline_state" }
+      }
+    },
+    "option_count": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "cases"],
+      "properties": {
+        "name": { "$ref": "#/$defs/rejected_option_name" },
+        "cases": { "type": "integer", "minimum": 0, "maximum": 7276 }
+      }
+    },
+    "feature_count": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "cases"],
+      "properties": {
+        "name": { "$ref": "#/$defs/feature_name" },
+        "cases": { "type": "integer", "minimum": 0, "maximum": 7276 }
+      }
+    },
+    "value_count": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["value", "cases"],
+      "properties": {
+        "value": { "type": "string", "minLength": 1 },
+        "cases": { "type": "integer", "minimum": 1, "maximum": 7276 }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "fixtures", "virtual_config_fixtures", "cases",
+        "required_target_module_matches", "effective_option_clear_cases",
+        "source_analyzed_cases", "source_profile_blocked_cases",
+        "cases_with_target_blocker", "cases_with_module_blocker",
+        "cases_with_use_define_for_class_fields_blocker",
+        "cases_with_no_emit_route", "cases_with_rejected_effective_options",
+        "rejected_option_cases", "rejected_feature_cases",
+        "decisive_blockers", "target_states", "module_states",
+        "dispositions", "bootstrap_profile_admitted_cases", "not_run_cases",
+        "reference_baselines_compared"
+      ],
+      "properties": {
+        "fixtures": { "const": 6537 },
+        "virtual_config_fixtures": { "const": 103 },
+        "cases": { "const": 7276 },
+        "required_target_module_matches": { "const": 7 },
+        "effective_option_clear_cases": { "const": 2 },
+        "source_analyzed_cases": { "const": 2 },
+        "source_profile_blocked_cases": { "const": 1 },
+        "cases_with_target_blocker": { "const": 7056 },
+        "cases_with_module_blocker": { "const": 7255 },
+        "cases_with_use_define_for_class_fields_blocker": { "const": 13 },
+        "cases_with_no_emit_route": { "const": 510 },
+        "cases_with_rejected_effective_options": { "const": 2094 },
+        "rejected_option_cases": {
+          "type": "array",
+          "minItems": 22,
+          "maxItems": 22,
+          "items": { "$ref": "#/$defs/option_count" }
+        },
+        "rejected_feature_cases": {
+          "type": "array",
+          "minItems": 7,
+          "maxItems": 7,
+          "items": { "$ref": "#/$defs/feature_count" }
+        },
+        "decisive_blockers": {
+          "type": "array",
+          "minItems": 22,
+          "maxItems": 22,
+          "items": { "$ref": "#/$defs/value_count" }
+        },
+        "target_states": {
+          "type": "array",
+          "minItems": 13,
+          "maxItems": 13,
+          "items": { "$ref": "#/$defs/value_count" }
+        },
+        "module_states": {
+          "type": "array",
+          "minItems": 15,
+          "maxItems": 15,
+          "items": { "$ref": "#/$defs/value_count" }
+        },
+        "dispositions": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 3,
+          "items": { "$ref": "#/$defs/value_count" }
+        },
+        "bootstrap_profile_admitted_cases": { "const": 1 },
+        "not_run_cases": { "const": 7276 },
+        "reference_baselines_compared": { "const": 0 }
+      }
+    }
+  }
+}

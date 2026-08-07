@@ -1,3 +1,5 @@
+#[path = "integration/h1_compiler_profile_classification.rs"]
+mod h1_compiler_profile_classification;
 #[path = "integration/h1_conformance_expansion.rs"]
 mod h1_conformance_expansion;
 #[path = "integration/h1_conformance_profile_classification.rs"]
