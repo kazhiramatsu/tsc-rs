@@ -425,21 +425,21 @@
         "storage": "BinderWorker publication moves symbol/private-name leases into owned BindData",
         "path": "crates/binder/src/declare.rs",
         "line": 69,
-        "source_sha256": "3349bb6ea917510e244f7e11f7fa21a526bc33b00a103503dd0dc708adf89bcb",
+        "source_sha256": "eb5a88b86c2a2553dbb0231f84d3ef4d9702435f5d7fff56c515f9d31f5198d5",
         "evidence": "    private_name_serial_lease: Option<IdentityLease>,"
       },
       "program_snapshot_owner": {
         "storage": "Arc-owned ParsedDocument/BoundDocument handles ordered by ProgramSnapshot",
         "path": "crates/checker/src/program.rs",
-        "line": 505,
-        "source_sha256": "6bddbe1c6be37bfbe97f40ef0a8aef3b7f573755b2cd2ae3cc3bddec8e6ef883",
+        "line": 529,
+        "source_sha256": "5c51d9c0447189f73a82442018c31d191574888b14794753d9f767c95335fbe3",
         "evidence": "pub struct ProgramSnapshot {"
       },
       "program_owner_intervals": {
         "contract": "base-sorted non-contiguous and non-overlapping",
         "path": "crates/checker/src/program.rs",
-        "line": 676,
-        "source_sha256": "6bddbe1c6be37bfbe97f40ef0a8aef3b7f573755b2cd2ae3cc3bddec8e6ef883",
+        "line": 700,
+        "source_sha256": "5c51d9c0447189f73a82442018c31d191574888b14794753d9f767c95335fbe3",
         "evidence": "    symbol_owners: Vec<ArenaOwner>,"
       },
       "checker_transient_partition": {
