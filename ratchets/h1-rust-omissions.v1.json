@@ -8,20 +8,20 @@
   },
   "generator": {
     "path": "crates/oracle/h1-rust-omission-inventory.mjs",
-    "sha256": "8bb88a7968f46f76015d15bd16c7102568bee8c5b337240c2ba3cd7d29ea48cc"
+    "sha256": "7de66f1ea87d2df8c0b5c84249693e7ac47c5d3c9552e4da00da14771605980f"
   },
   "contract": {
     "path": ".github/ci/contracts/h1-rust-omissions.schema.json",
-    "sha256": "1d5edc43c867153e405f762bc69a3f7ce6074cb1d680728210db7b0fd384de38"
+    "sha256": "916476de8ec3b14a45606caeb2d2392024597e33a1042c7f3f8b37a7c9f2d26e"
   },
   "authorities": {
     "compatibility_residual": {
       "path": "docs/design/greenfield/compiler-compatibility-residual.md",
-      "sha256": "b8c009817ce7cc5da1c41cc35e744ffd71a809ab3382aa1fbdace2ab4a5acfd0"
+      "sha256": "2d7a25449fd44d006ec218feae119e71a06913c3ad2083c6fe0a20877ccb0102"
     },
     "h1_execution": {
       "path": "docs/design/greenfield/h1-emit.md",
-      "sha256": "e7f68ba17cdf25cdc08f907aef5d2f12deae1577c09fa79a4848e4a206391ef8"
+      "sha256": "6f9670e9367e18e8824946b84eb6cea1e1b0255ca075178a2af1f3857245b871"
     },
     "emit_profile": {
       "path": "ratchets/h1-emit-profile.v1.json",
@@ -39,20 +39,35 @@
       "crates/*/Cargo.toml",
       "crates/*/src/**/*.rs"
     ],
-    "file_count": 179,
-    "rust_source_files": 165,
-    "cargo_manifests": 14,
-    "bytes": 12313808,
-    "tree_sha256": "a79d351522bab94b3c0a93bc7e8f6068ce54cf5c3e64caabec9ef6f281c63423"
+    "file_count": 186,
+    "rust_source_files": 171,
+    "cargo_manifests": 15,
+    "bytes": 12340791,
+    "tree_sha256": "f861e3eb2726fba6f7a52cbb71926c2f91dd679f5ce6097db1aa80e3c23522a7"
   },
   "summary": {
-    "production_boundary_omissions": 11,
-    "absence_proofs": 9,
+    "production_boundary_omissions": 10,
+    "absence_proofs": 6,
     "option_projection_omissions": 32,
     "explicit_checker_emit_elisions": 25,
-    "existing_prerequisites": 9
+    "existing_prerequisites": 10
   },
   "existing_prerequisites": [
+    {
+      "id": "h1-typed-execution-spine",
+      "treatment": "reuse-and-extend-without-routing-no-emit-through-emitter",
+      "evidence": [
+        "prepared-program-emitting-builder",
+        "program-session-run",
+        "program-session-emit",
+        "program-session-emit-fail-before-sink",
+        "emitter-artifact-protocol",
+        "emitter-output-plan-shape",
+        "emitter-output-sink-protocol",
+        "emitter-memory-sink",
+        "emitter-outcome-protocol"
+      ]
+    },
     {
       "id": "persistent-program-snapshot",
       "treatment": "reuse",
@@ -125,32 +140,22 @@
   "production_boundary_omissions": [
     {
       "id": "workspace-emitter-owner",
-      "planned_phase": "H1.1-H1.4",
-      "current": "The workspace has no emitter crate or dependency edge.",
-      "missing": "Acyclic protocols, factory/transform/printer implementation, output planning, and the memory sink.",
+      "planned_phase": "H1.2-H1.4",
+      "current": "The acyclic emitter workspace owner now contains H1.1 artifacts, metadata, output-path topology, outcomes, typed failures, OutputSink, and MemoryOutputSink.",
+      "missing": "EmitHost/EmitResolver protocols plus factory, transform, printer, and executable output-planning implementations.",
       "evidence": {
         "anchors": [
-          "workspace-members"
+          "workspace-members",
+          "emitter-manifest-owner",
+          "emitter-artifact-protocol",
+          "emitter-output-plan-shape",
+          "emitter-output-sink-protocol",
+          "emitter-memory-sink",
+          "emitter-outcome-protocol"
         ],
         "absence_proofs": [
-          "emitter-crate-directory",
-          "emitter-workspace-member-or-dependency",
-          "emitter-module-declaration"
-        ]
-      }
-    },
-    {
-      "id": "separate-program-emit-entry",
-      "planned_phase": "H1.1",
-      "current": "ProgramSession exposes only the consuming no-emit run entry.",
-      "missing": "A separate consuming emit entry that leaves the H0 run call graph unchanged.",
-      "evidence": {
-        "anchors": [
-          "program-session-owner",
-          "program-session-run"
-        ],
-        "absence_proofs": [
-          "program-session-emit-entry"
+          "emitter-host-resolver-protocols",
+          "transform-printer-output-functions"
         ]
       }
     },
@@ -176,6 +181,7 @@
       "evidence": {
         "anchors": [],
         "absence_proofs": [
+          "emitter-host-resolver-protocols",
           "checker-emit-session-or-resolver"
         ]
       }
@@ -247,16 +253,21 @@
     },
     {
       "id": "output-plan-artifacts-sinks",
-      "planned_phase": "H1.1-H1.5",
-      "current": "PreparedProgram owns source/config/check inputs but no output plan, artifacts, sink, or write diagnostics.",
-      "missing": "Typed output-path slots, collision preflight, callback metadata/order, partial failure, and memory/filesystem sinks.",
+      "planned_phase": "H1.4-H1.5",
+      "current": "H1.1 owns the complete dormant-axis output shape, exact callback artifact identity, typed sink feedback/I/O errors, independent outcome observations, and ordered MemoryOutputSink.",
+      "missing": "Executable source/path planning, collision preflight, callback error continuation, partial-failure behavior, and FsOutputSink.",
       "evidence": {
         "anchors": [
-          "prepared-program-current-shape"
+          "prepared-program-current-shape",
+          "emitter-artifact-protocol",
+          "emitter-output-plan-shape",
+          "emitter-output-sink-protocol",
+          "emitter-memory-sink",
+          "emitter-outcome-protocol"
         ],
         "absence_proofs": [
-          "typed-emitter-protocol",
-          "transform-printer-output-functions"
+          "transform-printer-output-functions",
+          "filesystem-output-sink"
         ]
       }
     },
@@ -659,29 +670,110 @@
       {
         "id": "workspace-members",
         "path": "Cargo.toml",
-        "line": 8,
+        "line": 7,
         "column": 1,
-        "text": "    \"crates/compiler\",\n    \"crates/checker\",",
-        "text_sha256": "43f1476813afa953fd8343f05c77b791193e1e22f2a767afd699d9a01a293e3b",
-        "file_sha256": "dc6ef28fe6c53f90506e875a9456a7a5d1fd3c9eb3e362f6ffc6a58cc3822ee3"
+        "text": "    \"crates/program\",\n    \"crates/emitter\",\n    \"crates/compiler\",",
+        "text_sha256": "11d80371dad721c0702ded12bc7d6c64eaf97b4b14135a85a3fddb11f67ed08b",
+        "file_sha256": "d6ed0524bea8604aaf2abb9dba057e90e1e27473526ce432f31d5880705eab80"
+      },
+      {
+        "id": "emitter-manifest-owner",
+        "path": "crates/emitter/Cargo.toml",
+        "line": 7,
+        "column": 1,
+        "text": "[package.metadata.tsc-rs]\nrole = \"emitter\"",
+        "text_sha256": "bb00a46c3a95145942bbef601602c1bad5c1697edb22ddd5551a548fe501e76f",
+        "file_sha256": "629e889381da6330e78bd402874a237653c491a491370c496da868f94e136991"
+      },
+      {
+        "id": "emitter-artifact-protocol",
+        "path": "crates/emitter/src/artifact.rs",
+        "line": 97,
+        "column": 1,
+        "text": "pub struct EmitArtifact {\n    path: PathBuf,\n    callback_text: Box<str>,\n    write_byte_order_mark: bool,\n    kind: EmitArtifactKind,\n    source_files: Option<Box<[PathBuf]>>,\n    metadata: Option<EmitWriteMetadata>,\n}",
+        "text_sha256": "7d7687dfea5eadd4e5389d38e9f0a3a99095f98841a764bb701caaf042570836",
+        "file_sha256": "a0cfa87e8bce0b60cf2b8331da6a407476e19e4fb11fe45dac70a93597f534c6"
+      },
+      {
+        "id": "emitter-output-plan-shape",
+        "path": "crates/emitter/src/plan.rs",
+        "line": 51,
+        "column": 1,
+        "text": "pub struct EmitOutputPaths {\n    javascript: Option<PathBuf>,\n    javascript_map: Option<PathBuf>,\n    declaration: Option<PathBuf>,\n    declaration_map: Option<PathBuf>,\n    build_info: Option<PathBuf>,\n}",
+        "text_sha256": "7b9332f2f24bd1e1ac1a7a6c7379f51b9b5161b02ba290af1eb9fd8b98d86f70",
+        "file_sha256": "4e03e747184f03b1cfe67d086c0c950717d093847a6c65a1659ab8943cfb33bc"
+      },
+      {
+        "id": "emitter-output-sink-protocol",
+        "path": "crates/emitter/src/sink.rs",
+        "line": 13,
+        "column": 1,
+        "text": "pub trait OutputSink {\n    fn write(&mut self, artifact: EmitArtifact) -> Result<EmitWriteDisposition, EmitIoError>;\n}",
+        "text_sha256": "2fbebc79e857ae5de0b5bcec090b681d4da9dfaec995bbf2725a925bd49097ec",
+        "file_sha256": "7c3c80ee8e439ffe818e79cadafeef88d067f8867c7823260990c6135b824b52"
+      },
+      {
+        "id": "emitter-memory-sink",
+        "path": "crates/emitter/src/sink.rs",
+        "line": 19,
+        "column": 1,
+        "text": "pub struct MemoryOutputSink {\n    writes: Vec<EmitArtifact>,\n}",
+        "text_sha256": "af2c33c91b2107ba124d86db378a5085555e50bc1216f00890c73696d1689f44",
+        "file_sha256": "7c3c80ee8e439ffe818e79cadafeef88d067f8867c7823260990c6135b824b52"
+      },
+      {
+        "id": "emitter-outcome-protocol",
+        "path": "crates/emitter/src/outcome.rs",
+        "line": 36,
+        "column": 1,
+        "text": "pub struct EmitOutcome {\n    diagnostics: DiagnosticList,\n    emit_skipped: bool,\n    emitted_files: Option<Box<[PathBuf]>>,\n    source_maps: Option<Box<[SourceMapObservation]>>,\n}",
+        "text_sha256": "61b8345d5cd7bb8c265b341317bba05a8a06874a7c76ef7bc5de8f52bc691b37",
+        "file_sha256": "22985991b14468f199ed3aeed90ee28fe0f8a6be3a69fd2c382a9999794712dd"
+      },
+      {
+        "id": "prepared-program-emitting-builder",
+        "path": "crates/program/src/prepared.rs",
+        "line": 1055,
+        "column": 5,
+        "text": "pub fn emitting_builder(\n        path_context: PathContext,\n        compiler_options: CompilerOptions,\n    ) -> PreparedProgramBuilder {",
+        "text_sha256": "deac2532e1f03c9f92934b1c3b401a65c77cb1e75d0b9c8e96ed353bbc7e6c16",
+        "file_sha256": "29878e3cc1f0bcc843d0bbf81331cf3ef3a72c64da603ea8164ff65da1e11e05"
       },
       {
         "id": "program-session-owner",
         "path": "crates/compiler/src/lib.rs",
-        "line": 45,
+        "line": 55,
         "column": 1,
         "text": "pub struct ProgramSession {\n    prepared: PreparedProgram,\n}",
         "text_sha256": "665e8cc79aa3899b9439120a02ffdfe34c92d54b8953b9eb431f216af633981a",
-        "file_sha256": "c0b491a99f2f347f290ab62a9d8c0502db35183bf43c161a1fd0dc0bb3403ee2"
+        "file_sha256": "59696e1f1db778093d5619fee6c356ba9cf3330214caf9f6db5536ae08b9cd91"
       },
       {
         "id": "program-session-run",
         "path": "crates/compiler/src/lib.rs",
-        "line": 388,
+        "line": 398,
         "column": 5,
-        "text": "pub fn run(self) -> Result<NoEmitOutcome, DriverError> {\n        let mut no_emit_canary = no_emit_canary::NoEmitCanary::new();\n        self.run_with_no_emit_canary(false, &mut no_emit_canary)\n    }",
-        "text_sha256": "c30f239d4cc7adcb83f90cf49d9a44e24cb81cffff7608a1ac3ef112e9c099b0",
-        "file_sha256": "c0b491a99f2f347f290ab62a9d8c0502db35183bf43c161a1fd0dc0bb3403ee2"
+        "text": "pub fn run(self) -> Result<NoEmitOutcome, DriverError> {\n        self.require_mode(PreparedProgramMode::NoEmit)?;\n        let mut no_emit_canary = no_emit_canary::NoEmitCanary::new();\n        self.run_with_no_emit_canary(false, &mut no_emit_canary)\n    }",
+        "text_sha256": "86127c4bedf713e3a340c844b3a95f20427c4d559f0762c433c114252388fc90",
+        "file_sha256": "59696e1f1db778093d5619fee6c356ba9cf3330214caf9f6db5536ae08b9cd91"
+      },
+      {
+        "id": "program-session-emit",
+        "path": "crates/compiler/src/lib.rs",
+        "line": 409,
+        "column": 5,
+        "text": "pub fn emit(self, sink: &mut dyn OutputSink) -> Result<EmitOutcome, DriverError> {",
+        "text_sha256": "07a8bfeb7192441ea0205e51647ae2e065d5268e4e32d1f6183a039cbd2faa0a",
+        "file_sha256": "59696e1f1db778093d5619fee6c356ba9cf3330214caf9f6db5536ae08b9cd91"
+      },
+      {
+        "id": "program-session-emit-fail-before-sink",
+        "path": "crates/compiler/src/lib.rs",
+        "line": 413,
+        "column": 9,
+        "text": "Err(DriverError::Emit(EmitFailure::StageUnavailable(\n            EmitStage::TransformAndPrint,\n        )))",
+        "text_sha256": "30088e881873a06e6ba4c3df89a504213cb2d3820a41e9c96d17dbd452b2d151",
+        "file_sha256": "59696e1f1db778093d5619fee6c356ba9cf3330214caf9f6db5536ae08b9cd91"
       },
       {
         "id": "h1-no-emit-canary",
@@ -731,20 +823,20 @@
       {
         "id": "prepared-program-current-shape",
         "path": "crates/program/src/prepared.rs",
-        "line": 1021,
+        "line": 1028,
         "column": 1,
-        "text": "pub struct PreparedProgram {\n    path_context: PathContext,\n    compiler_options: CompilerOptions,\n    program_options: ProgramOptions,",
-        "text_sha256": "81f23e18cd2ea4ed9ebce6957d1e1673e459337d0663539e15cfdd725f25d8c0",
-        "file_sha256": "65e9c407c215339f68c36f4434550907da54a29e90b401e9cca2b191130b218f"
+        "text": "pub struct PreparedProgram {\n    mode: PreparedProgramMode,\n    path_context: PathContext,\n    compiler_options: CompilerOptions,\n    program_options: ProgramOptions,",
+        "text_sha256": "7154a3ed2670d5958b7d02d684d1bd43295530a7de7f26ad0a1b6540d9c2a706",
+        "file_sha256": "29878e3cc1f0bcc843d0bbf81331cf3ef3a72c64da603ea8164ff65da1e11e05"
       },
       {
         "id": "prepared-source-emit-facts",
         "path": "crates/program/src/prepared.rs",
-        "line": 95,
+        "line": 102,
         "column": 5,
         "text": "may_be_emitted: bool,\n    implied_node_format: Option<ResolutionMode>,\n    implied_node_format_for_emit: Option<ResolutionMode>,",
         "text_sha256": "1aba6224a8c27a73e287ac96e80f1a36afde25124d316b52a7acff589ad67538",
-        "file_sha256": "65e9c407c215339f68c36f4434550907da54a29e90b401e9cca2b191130b218f"
+        "file_sha256": "29878e3cc1f0bcc843d0bbf81331cf3ef3a72c64da603ea8164ff65da1e11e05"
       },
       {
         "id": "checker-authoritative-emit-facts",
@@ -1100,40 +1192,18 @@
     ],
     "absence_proofs": [
       {
-        "id": "emitter-crate-directory",
-        "kind": "path-absent",
-        "path": "crates/emitter",
-        "exists": false
-      },
-      {
-        "id": "emitter-workspace-member-or-dependency",
+        "id": "emitter-host-resolver-protocols",
         "kind": "regex-zero",
-        "scope": "cargo-manifests",
-        "expression": "(?:crates/emitter|tsc-emitter|tsc_emitter)",
+        "scope": "emitter-production",
+        "expression": "^[ \\t]*(?:pub(?:\\([^)]*\\))?[ \\t]+)?trait[ \\t]+(?:EmitHost|EmitResolver)\\b",
         "match_count": 0,
         "matches": []
       },
       {
-        "id": "emitter-module-declaration",
+        "id": "filesystem-output-sink",
         "kind": "regex-zero",
-        "scope": "production-rust",
-        "expression": "^[ \\t]*(?:pub(?:\\([^)]*\\))?[ \\t]+)?mod[ \\t]+emitter\\b",
-        "match_count": 0,
-        "matches": []
-      },
-      {
-        "id": "typed-emitter-protocol",
-        "kind": "regex-zero",
-        "scope": "production-rust",
-        "expression": "^[ \\t]*(?:pub(?:\\([^)]*\\))?[ \\t]+)?(?:struct|enum|trait|type)[ \\t]+(?:EmitArtifact|EmitArtifactKind|EmitCallbackMetadata|EmitOutputPaths|SinkDisposition|OutputSink|EmitOutcome|EmitFailure|EmitHost|EmitResolver|TransformRoot|MemoryOutputSink|FsOutputSink)\\b",
-        "match_count": 0,
-        "matches": []
-      },
-      {
-        "id": "program-session-emit-entry",
-        "kind": "regex-zero",
-        "scope": "compiler-production",
-        "expression": "^[ \\t]*pub[ \\t]+fn[ \\t]+emit[ \\t]*\\(",
+        "scope": "emitter-production",
+        "expression": "^[ \\t]*(?:pub(?:\\([^)]*\\))?[ \\t]+)?struct[ \\t]+FsOutputSink\\b",
         "match_count": 0,
         "matches": []
       },
@@ -1171,5 +1241,5 @@
       }
     ]
   },
-  "inventory_fingerprint_sha256": "d087db66c0d83850114e79f029a84008014ef59ee9591b1bebe43031cb308cde"
+  "inventory_fingerprint_sha256": "1296732e11b69ee3dcc32da39740504192241a0daf9a16927513b8a23011dab5"
 }

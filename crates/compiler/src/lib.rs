@@ -5,7 +5,9 @@
 //! This crate is the dependency boundary between the owned program contract
 //! and the parser/binder/checker implementation. A [`ProgramSession`] owns
 //! exactly one [`PreparedProgram`], projects its already-final source order
-//! into the checker, and is consumed by [`ProgramSession::run`].
+//! into the checker, and is consumed by either the no-emit
+//! [`ProgramSession::run`] entry or the distinct emitting
+//! [`ProgramSession::emit`] entry.
 
 use std::cell::RefCell;
 use std::collections::BTreeMap;
@@ -24,6 +26,14 @@ use tsc_checker::{
     AuthoritativeUntypedModule, InputFile, UnsupportedAuthoritativeResolution,
 };
 use tsc_diagnostics::{sort_and_dedupe_diagnostics, Diagnostic, DiagnosticList};
+pub use tsc_emitter::{
+    EmitArtifact, EmitArtifactKind, EmitBuildInfoMetadata, EmitContractViolation, EmitFailure,
+    EmitIoError, EmitIoOperation, EmitMode, EmitOutcome, EmitOutputPaths, EmitOutputPlan,
+    EmitOutputUnit, EmitRoot, EmitSelection, EmitStage, EmitTextMetadata, EmitWriteDisposition,
+    EmitWriteMetadata, GeneratedUtf16Position, MemoryOutputSink, OutputSink, SourceMapObservation,
+    UnsupportedEmitFeature,
+};
+pub use tsc_program::PreparedProgramMode;
 use tsc_program::{
     plan_source_requests, MissingResolutionError, ModuleExtension, PreparedProgram,
     PreparedSourceFile, ResolutionKey, ResolutionMode, ResolutionOutcome, ResolvedModuleTarget,
@@ -36,7 +46,7 @@ mod no_emit_canary;
 pub use cli::{run_cli, CliOutput};
 pub use no_emit_canary::NoEmitActivityCounters;
 
-/// A one-shot owner for one prepared no-emit program.
+/// A one-shot owner for one mode-validated prepared program.
 ///
 /// The consuming [`run`](Self::run) method keeps every parser, binder, and
 /// checker borrow inside the call. No retained checker or self-referential
@@ -386,8 +396,23 @@ impl ProgramSession {
     /// exact `(source, specifier, mode)` row is an infrastructure error; the
     /// checker never falls back to its legacy heuristic resolver.
     pub fn run(self) -> Result<NoEmitOutcome, DriverError> {
+        self.require_mode(PreparedProgramMode::NoEmit)?;
         let mut no_emit_canary = no_emit_canary::NoEmitCanary::new();
         self.run_with_no_emit_canary(false, &mut no_emit_canary)
+    }
+
+    /// Consume the prepared program through the separately typed emit path.
+    ///
+    /// H1.1 freezes this entry and the output protocol before transform and
+    /// print execution lands. Until H1.2 connects that next stage, every emit
+    /// request fails before the first [`OutputSink::write`] call.
+    pub fn emit(self, sink: &mut dyn OutputSink) -> Result<EmitOutcome, DriverError> {
+        self.require_mode(PreparedProgramMode::Emit)?;
+        let _prepared = self.prepared;
+        let _sink = sink;
+        Err(DriverError::Emit(EmitFailure::StageUnavailable(
+            EmitStage::TransformAndPrint,
+        )))
     }
 
     /// Upstream-harness execution with exact-match vendored-lib reuse.
@@ -402,6 +427,7 @@ impl ProgramSession {
     /// path as the conformance runner.
     #[doc(hidden)]
     pub fn run_for_harness_with_lib_cache(self) -> Result<NoEmitOutcome, DriverError> {
+        self.require_mode(PreparedProgramMode::NoEmit)?;
         let mut no_emit_canary = no_emit_canary::NoEmitCanary::new();
         self.run_with_no_emit_canary(true, &mut no_emit_canary)
     }
@@ -412,6 +438,15 @@ impl ProgramSession {
         no_emit_canary: &mut no_emit_canary::NoEmitCanary,
     ) -> Result<NoEmitOutcome, DriverError> {
         self.run_inner(harness_lib_cache, no_emit_canary)
+    }
+
+    fn require_mode(&self, expected: PreparedProgramMode) -> Result<(), DriverError> {
+        let actual = self.prepared.mode();
+        if actual == expected {
+            Ok(())
+        } else {
+            Err(DriverError::InvalidProgramMode { expected, actual })
+        }
     }
 
     fn run_inner(
@@ -705,6 +740,10 @@ impl NoEmitOutcome {
 /// typed boundary prevents any of them from becoming a partial success.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum DriverError {
+    InvalidProgramMode {
+        expected: PreparedProgramMode,
+        actual: PreparedProgramMode,
+    },
     InvalidLibraryPrefix {
         position: usize,
         source_file: SourceFileId,
@@ -728,11 +767,16 @@ pub enum DriverError {
     },
     MissingResolution(MissingResolutionError),
     AuthoritativeResolution(AuthoritativeModuleFailure),
+    Emit(EmitFailure),
 }
 
 impl fmt::Display for DriverError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::InvalidProgramMode { expected, actual } => write!(
+                formatter,
+                "program session entry requires a {expected:?} prepared program, received {actual:?}",
+            ),
             Self::InvalidLibraryPrefix {
                 position,
                 source_file,
@@ -768,6 +812,7 @@ impl fmt::Display for DriverError {
             ),
             Self::MissingResolution(error) => error.fmt(formatter),
             Self::AuthoritativeResolution(error) => error.fmt(formatter),
+            Self::Emit(error) => error.fmt(formatter),
         }
     }
 }
@@ -777,6 +822,7 @@ impl Error for DriverError {
         match self {
             Self::MissingResolution(error) => Some(error),
             Self::AuthoritativeResolution(error) => Some(error),
+            Self::Emit(error) => Some(error),
             _ => None,
         }
     }

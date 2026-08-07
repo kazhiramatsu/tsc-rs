@@ -93,7 +93,11 @@ workloads. All output-write and eight emitter-activity counts are zero; the
 largest warm-median wall ratio is 1.006 and executable size decreased by 112
 bytes. The bounded, tsc-architected JavaScript emitter preserves that H0
 `--noEmit` entry while porting the exact resolver/transform/printer/output
-spine. H1.1 next adds the typed execution spine. Ordinary GitHub CI remains
+spine. H1.1 is complete: the acyclic emitter owner now fixes artifacts,
+callback metadata, dormant output topology, typed failures, sink feedback,
+independent outcomes, and `MemoryOutputSink`; distinct prepared-program and
+session modes reject unsupported emission before a sink call. H1.2 next adds
+the factory, transform-context, writer, and printer foundation. Ordinary GitHub CI remains
 the single `cargo xtask acceptance` command. Runtime implementation is
 unblocked by the completed L0 persistent-source and L1 incremental-parser
 proof, while build/watch and LSP remain separate compatibility tracks.
@@ -224,7 +228,7 @@ is one commit.
 | M9 differential-fuzzer steady state — paused after M9.1b | [M9 execution](m9-execution-and-close.md) + [evidence contract](evidence-and-steady-state.md#31-m9-steady-state) | preflight/domain/owner burn-in green, then `fuzz steady-state --require-ready`: 14 frozen-fingerprint 100,000-case windows, rate < 1 new class/window, no untriaged incident or unresolved owner task |
 | H0 filesystem-hosted `--noEmit` — complete | [H0 execution](noemit-cli.md) | exact closure of the 241 host-resolution identities, MemoryHost/FsHost equivalence, config/CLI/output parity, embedded libraries, no emitted files |
 | L0/L1 persistent source + incremental parser — complete and performance-qualified | [persistent Program design](lsp-and-incremental.md) | shared text/position snapshots, domain-scoped identity leases, generated relocation, non-contiguous ownership, owned bind/Program snapshots, immutable incremental parse/rebind, exact fresh equivalence, reclamation stress, and approved large-edit evidence |
-| H1 JavaScript emit — H1.0a profile/oracle/Rust omissions/upstream source evidence frozen, conformance/compiler/project classification complete, inventory closure active | [H1 execution](h1-emit.md) | report-only active-root graph, exact callback oracle, generated Rust omission baseline, complete transpile inputs and exact 37-row runner classification, 38-file inventory-only FourSlash emit projection, exact 7,697-row conformance expansion/classification, exact 7,276-row compiler classification, and exact 632-row project classification first; then FourSlash/owner-disposition closure, zero-cost H0 `--noEmit` route, byte-identical bounded JavaScript output, and resource qualification |
+| H1 JavaScript emit — H1.0a/H1.0b and H1.1 typed execution spine complete | [H1 execution](h1-emit.md) | reviewed active-root graph, exact callback oracle, generated current-Rust residual, complete upstream classifications, frozen zero-cost H0 `--noEmit` boundary, and typed artifact/plan/sink/outcome session seam; H1.2–H1.6 add byte-identical bounded JavaScript output and resource qualification |
 
 The T0 percentages are calibration points from the first
 implementation's history, not promises; the gate is "meets or beats,

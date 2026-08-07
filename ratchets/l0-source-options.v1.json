@@ -234,8 +234,8 @@
         "owner": "PreparedSourceFile.snapshot",
         "storage": "Arc<TextSnapshot>",
         "path": "crates/program/src/prepared.rs",
-        "line": 85,
-        "source_sha256": "65e9c407c215339f68c36f4434550907da54a29e90b401e9cca2b191130b218f",
+        "line": 92,
+        "source_sha256": "29878e3cc1f0bcc843d0bbf81331cf3ef3a72c64da603ea8164ff65da1e11e05",
         "evidence": "pub struct PreparedSourceFile {"
       },
       {
@@ -267,24 +267,24 @@
         "owner": "ProgramConfigFile.snapshot",
         "storage": "Arc<TextSnapshot>",
         "path": "crates/program/src/prepared.rs",
-        "line": 680,
-        "source_sha256": "65e9c407c215339f68c36f4434550907da54a29e90b401e9cca2b191130b218f",
+        "line": 687,
+        "source_sha256": "29878e3cc1f0bcc843d0bbf81331cf3ef3a72c64da603ea8164ff65da1e11e05",
         "evidence": "pub struct ProgramConfigFile {"
       },
       {
         "owner": "PreparedAuxiliaryFile.snapshot",
         "storage": "Arc<TextSnapshot>",
         "path": "crates/program/src/prepared.rs",
-        "line": 289,
-        "source_sha256": "65e9c407c215339f68c36f4434550907da54a29e90b401e9cca2b191130b218f",
+        "line": 296,
+        "source_sha256": "29878e3cc1f0bcc843d0bbf81331cf3ef3a72c64da603ea8164ff65da1e11e05",
         "evidence": "pub struct PreparedAuxiliaryFile {"
       },
       {
         "owner": "PackageMetadata.snapshot",
         "storage": "Arc<TextSnapshot>",
         "path": "crates/program/src/prepared.rs",
-        "line": 411,
-        "source_sha256": "65e9c407c215339f68c36f4434550907da54a29e90b401e9cca2b191130b218f",
+        "line": 418,
+        "source_sha256": "29878e3cc1f0bcc843d0bbf81331cf3ef3a72c64da603ea8164ff65da1e11e05",
         "evidence": "pub struct PackageMetadata {"
       }
     ],
@@ -293,8 +293,8 @@
         "from": "PreparedSourceFile.snapshot",
         "to": "InputFile.snapshot",
         "path": "crates/compiler/src/lib.rs",
-        "line": 874,
-        "source_sha256": "c0b491a99f2f347f290ab62a9d8c0502db35183bf43c161a1fd0dc0bb3403ee2",
+        "line": 920,
+        "source_sha256": "59696e1f1db778093d5619fee6c356ba9cf3330214caf9f6db5536ae08b9cd91",
         "evidence": "        InputFile::from_snapshot(name, Arc::clone(source.snapshot())),"
       },
       {

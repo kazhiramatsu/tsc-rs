@@ -6,10 +6,10 @@ use tsc_program::{
     CompilerOptions, ModuleExtension, ModuleResolution, PackageId, PackageJsonType,
     PackageMetadata, PathContext, PathMapping, PreparationDiagnostics, PreparationErrorKind,
     PreparationOperation, PreparedAuxiliaryFile, PreparedProgram, PreparedProgramBuilder,
-    PreparedRoot, PreparedSourceFile, ProgramOptions, ProgramPath, ResolutionError,
-    ResolutionErrorKind, ResolutionKey, ResolutionMode, ResolutionOutcome, ResolutionRequestKind,
-    ResolvedModule, ResolvedModuleTarget, ResolvedTypeReferenceDirective, SourceFileId,
-    TypeReferenceResolution, TypeReferenceResolutionKey, UnloadedModuleReason,
+    PreparedProgramMode, PreparedRoot, PreparedSourceFile, ProgramOptions, ProgramPath,
+    ResolutionError, ResolutionErrorKind, ResolutionKey, ResolutionMode, ResolutionOutcome,
+    ResolutionRequestKind, ResolvedModule, ResolvedModuleTarget, ResolvedTypeReferenceDirective,
+    SourceFileId, TypeReferenceResolution, TypeReferenceResolutionKey, UnloadedModuleReason,
 };
 
 fn path(display: &str, canonical: &str) -> ProgramPath {
@@ -525,6 +525,37 @@ fn requires_explicit_no_emit_and_a_library_prefix() {
         error.operation(),
         PreparationOperation::BuildPreparedProgram
     );
+}
+
+#[test]
+fn emitting_builder_is_distinct_and_rejects_effective_no_emit() {
+    let emitting = PreparedProgram::emitting_builder(
+        PathContext::new(path("/Work", "/work"), false),
+        CompilerOptions {
+            no_emit: Some(false),
+            target: Some(99),
+            module: Some(200),
+            ..CompilerOptions::default()
+        },
+    )
+    .build()
+    .expect("empty emitting program remains a typed program");
+    assert_eq!(emitting.mode(), PreparedProgramMode::Emit);
+
+    let rejected = PreparedProgram::emitting_builder(
+        PathContext::new(path("/Work", "/work"), false),
+        no_emit_options(),
+    )
+    .build()
+    .expect_err("effective noEmit belongs to the H0 builder");
+    assert_eq!(rejected.kind(), PreparationErrorKind::InvalidInput);
+    assert_eq!(
+        rejected.operation(),
+        PreparationOperation::BuildPreparedProgram
+    );
+
+    let no_emit = builder().build().expect("ordinary H0 program");
+    assert_eq!(no_emit.mode(), PreparedProgramMode::NoEmit);
 }
 
 #[test]

@@ -153,12 +153,12 @@ The following work is real input to an emitter and should not be rebuilt:
 
 ### 2.2 Missing production boundaries
 
-The audit found no production JavaScript emitter:
+The audit still finds no executable production JavaScript emitter. H1.1 has
+closed the typed workspace/session seam, leaving these ten runtime boundaries:
 
 | Boundary | Current implementation | Missing boundary |
 | --- | --- | --- |
-| Workspace crate | No `crates/emitter` member | Emitter protocols, factory, transforms, writer/printer, output plan, and memory sink |
-| Program execution | `ProgramSession::run(self)` only | Separate consuming emit entry; zero changes to the H0 call graph |
+| Workspace crate | `crates/emitter` owns artifacts, dormant output topology, outcomes, typed failures, `OutputSink`, and `MemoryOutputSink` without depending on checker | `EmitHost`/`EmitResolver` protocols plus factory, transforms, writer/printer, and executable output planning |
 | Checker lifetime | Parsed sources, binders, and `CheckerState` are local to a checker function and collapse into `CheckResult` | Scoped checker execution that keeps the live state borrowed through resolver, transform, and print |
 | Semantic emit API | No `EmitResolver` | Consumer-owned internal resolver implemented by the live checker |
 | AST transform gates | No node or node-array `TransformFlags` storage | Exact emitter-session side tables plus synthetic-node aggregation |
@@ -166,18 +166,19 @@ The audit found no production JavaScript emitter:
 | Synthetic tree | No general `NodeFactory`/transform arena | Reachability-generated create/update/clone/replace surface and parenthesizer rules |
 | Transformation | No `transformNodes` or built-in transformer | Context, lexical/block scopes, helpers, substitutions, notifications, diagnostics, and disposal |
 | Printing | Only checker-private bounded display-clone printers | The real generic tsc printer, text writer, comments/trivia, precedence, literals, and map hook phases |
-| Output | No output paths, artifacts, sink, or write diagnostics | Typed planning, collision gates, callback order, partial failure, memory/filesystem sinks |
+| Output | Typed paths, artifacts, callback identity, sink feedback/I/O errors, independent outcomes, and ordered memory writes exist | Executable planning, collision gates, callback-error continuation, partial failure, and filesystem sink |
 | Emitting config/CLI | H0 loaders require `noEmit == true`; explicit files also force no-emit | Separate emitting projection, loader validation, CLI dispatch, and exact exit behavior |
 
-These 11 boundaries, the emit-active options recognized but not retained by
+These 10 remaining boundaries, the emit-active options recognized but not retained by
 the effective Rust option snapshot, and every explicit checker-side emit
 elision/control row are machine-frozen in
 [`h1-rust-omissions.v1.json`](../../../ratchets/h1-rust-omissions.v1.json).
 Its producer scans every workspace crate `src` tree plus all Cargo manifests,
 hashes that complete production scope, and fails when a missing declaration or
 owner anchor changes. Existing prerequisites such as `ProgramSnapshot`,
-`may_be_emitted`, implied module format, and semantic helper checks are listed
-separately so they cannot be counted as completed emitter boundaries.
+`may_be_emitted`, implied module format, semantic helper checks, and the
+completed H1.1 typed execution spine are listed separately so later stages
+cannot count those prerequisites as executable transform/print/output work.
 
 The checker-private `display_clone*.rs` modules are deliberately not an
 emitter. Their own module contract excludes source copying, general comments,
