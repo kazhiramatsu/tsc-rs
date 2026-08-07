@@ -7,7 +7,9 @@ owner-graph draft plus the frozen
 callback-level [`h1-emit-oracle.v1.json`](../../../ratchets/h1-emit-oracle.v1.json),
 and the current-Rust
 [`h1-rust-omissions.v1.json`](../../../ratchets/h1-rust-omissions.v1.json)
-baseline.
+baseline, and the complete 22-file upstream `transpile` source tree is now
+content-addressed in the additive suite pin v2 without fabricating expansion
+or runner results.
 The shared L0/L1 prerequisite and its evidence/CI-contract freeze are complete.
 The graph's unresolved dynamic calls and conservative property dispatch still
 need review, and the corpus classification portion of H1.0a remains open. No
@@ -974,15 +976,22 @@ preflight succeeds.
 H1.0a inventories upstream tests by the API path they exercise rather than
 treating every file containing output as interchangeable.
 
-The audited starting state is explicit: the repository's current suite pin
-contains only `compiler`, `project`, and `projects`, and the local `ts-tests`
-tree contains neither `transpile` nor `fourslash`. At source commit
-`050880ce59e30b356b686bd3144efe24f875ebc8`, the upstream trees contain 22
-transpile files and 6,568 FourSlash files. These counts are pin-transition
-inputs, not executed-test or compatibility claims.
+The audited pre-transition state was explicit: suite pin v1 contained only
+`compiler`, `project`, and `projects`, and the local `ts-tests` tree contained
+neither `transpile` nor `fourslash`. The reviewed additive suite pin v2 binds
+v1 by path and SHA-256, preserves its three entries exactly, and now pins and
+vendors all 22 `transpile` files plus the `transpileRunner` Git blob from
+source commit `050880ce59e30b356b686bd3144efe24f875ebc8`. The 6,568-file
+FourSlash tree remains absent and will be scanned through its separate
+projection manifest. These counts and source pins are inventory facts, not
+executed-test or compatibility claims.
 
-The current expansion manifest has 7,276 compiler cases and 632 project cases;
-all 7,908 rows retain initial state `not-run`. H0 structural load/session
+The existing expansion v1 remains byte-identical: it inventories 7,086
+`compiler`, `project`, and `projects` sources, expands exactly 7,276 compiler
+cases and 632 project cases, and retains initial state `not-run` for all 7,908
+rows.
+The newly pinned transpile sources have no expansion or execution rows until
+H1 reproduces and classifies their runner matrices. H0 structural load/session
 qualification does not change that upstream-runner state. At the pinned
 commit, `compilerRunner` separately observes diagnostics, module-resolution
 traces, source-map records, JavaScript/declaration output, source-map output,
@@ -996,9 +1005,10 @@ The inventory then classifies these sources:
    `tests/cases/projects`, and the existing conformance emitter families are
    the primary whole-Program input universe. An admitted row must pass through
    production program construction and `ProgramSession::emit`.
-2. The complete TypeScript 6.0.3 `tests/cases/transpile` tree is added through
-   a reviewed suite-pin transition. H1 reproduces `transpileRunner` unit
-   partitioning and option matrices. In-profile JavaScript rows directly pin
+2. The complete TypeScript 6.0.3 `tests/cases/transpile` tree has been added
+   through a reviewed additive suite-pin-v2 transition. H1 next reproduces
+   `transpileRunner` unit partitioning and option matrices. In-profile
+   JavaScript rows directly pin
    transform/printer behavior; declaration and map rows remain inventoried
    unsupported controls. `transpileModule` is a component oracle and never
    substitutes for whole-Program emit acceptance.
@@ -1126,7 +1136,9 @@ effective option-projection omissions, and 25 explicit checker emit elision
 and control rows
 are frozen with
 `node crates/oracle/h1-rust-omission-inventory.mjs --check`. The owner artifact
-deliberately remains `draft/report-only`: corpus classification and reviewed
+deliberately remains `draft/report-only`. The complete transpile source tree is
+also pinned in the additive v2 source universe without expansion or execution
+rows; corpus classification, FourSlash projection, and reviewed
 unresolved/property-dispatch dispositions still keep item 1 open.
 
 1. **H1.0a — inventory and oracle:** generate the JavaScript-emitter owner

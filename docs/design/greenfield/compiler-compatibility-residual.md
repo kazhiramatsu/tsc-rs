@@ -2,11 +2,12 @@
 
 Status: audited design input, updated 2026-08-07 with L0.4 and L1 complete and
 qualified, the H1.0a owner graph active as a report-only draft, and the current
-Rust emit omissions frozen in a generated baseline. This page records the
-current Rust implementation boundary, the work required to finish bounded H1
-JavaScript emit, and the remaining work after H1 for broader TypeScript 6.0.3
-compiler and tooling compatibility. It is not an implementation-complete claim
-and it does not authorize a broader H1 profile.
+Rust emit omissions frozen in a generated baseline, with the complete upstream
+transpile source tree now content-addressed in additive suite pin v2. This page
+records the current Rust implementation boundary, the work required to finish
+bounded H1 JavaScript emit, and the remaining work after H1 for broader
+TypeScript 6.0.3 compiler and tooling compatibility. It is not an
+implementation-complete claim and it does not authorize a broader H1 profile.
 
 The persistent-source audit found one dependency-order correction: the L0
 ownership/identity foundation and L1 incremental-parser proof had to complete
@@ -884,16 +885,19 @@ compatibility transition. It is not routine dependency updating.
 | `src/testRunner/unittests` watch/build/incremental/public-API/tsserver owners | Long-lived, cache, callback, protocol, and builder behavior | Inventory only | Required by their corresponding tracks |
 | `APISample_*` compiler cases | Public compiler, watch, linter, transform API examples | Classification controls | Public API compatibility |
 
-The checked-in `ts-tests` snapshot currently contains compiler,
-conformance, project, and projects inputs but no transpile or FourSlash tree
-and no checked-in upstream output baselines. H1's reviewed suite-pin transition
-must preserve exact source commit, paths, blob hashes, runner/extractor
-identity, and unsupported classifications.
+The checked-in `ts-tests` snapshot currently contains compiler, conformance,
+project, projects, and all 22 transpile inputs, but no FourSlash tree and no
+checked-in upstream output baselines. The landed suite-pin transition preserves
+the exact source commit, paths, blob hashes, and `transpileRunner` identity in
+an additive v2 pin bound to the unchanged v1 pin; the classification stage
+must retain explicit unsupported dispositions.
 
-The local `test-suite-expansion.v1.json` contains 7,276 compiler and 632
-project cases, and all 7,908 rows deliberately have initial execution state
-`not-run`. H0 later proved structural load/session execution for all compiler
-plans and 82 compatible project plans, but it did not mutate that manifest
+The local `test-suite-expansion.v1.json` remains byte-identical and inventories
+7,086 `compiler`, `project`, and `projects` sources, 7,276 compiler cases, and
+632 project cases. It contains no transpile expansion or execution row, and all
+7,908 existing rows deliberately have initial execution state `not-run`. H0
+later proved structural load/session execution for all compiler plans and 82
+compatible project plans, but it did not mutate that manifest
 into an upstream baseline result. The remaining 550 project rows are
 classified as 452 descriptor emit controls, 70 descriptor declaration
 requests, 10 `compileOnSave` configs, 16 config declaration/`outFile`

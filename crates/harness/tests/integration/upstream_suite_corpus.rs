@@ -7,14 +7,25 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use serde::Deserialize;
 use sha2::{Digest, Sha256};
 
-const PIN: &str = include_str!(concat!(
+const BASE_PIN: &[u8] = include_bytes!(concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/../../vendor/typescript-6.0.3/test-suites-pin.v1.json"
 ));
+const PIN: &[u8] = include_bytes!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../../vendor/typescript-6.0.3/test-suites-pin.v2.json"
+));
+const BASE_PIN_RELATIVE_PATH: &str = "vendor/typescript-6.0.3/test-suites-pin.v1.json";
+const BASE_PIN_SHA256: &str = "f231d984c31d5d16a6fb845e66a25bc9601ffd23212d548cb337149e40397da9";
+const PIN_SHA256: &str = "83f8edbb6f4535a19e61cf872532a46722f8cedbd2d746a0922dc507addc0879";
 const TYPESCRIPT_VERSION: &str = "6.0.3";
 const SOURCE_REPOSITORY: &str = "https://github.com/microsoft/TypeScript.git";
 const SOURCE_COMMIT: &str = "050880ce59e30b356b686bd3144efe24f875ebc8";
-const SUITES: [(&str, &str, &str); 3] = [
+const IMPLEMENTATION_SOURCES: [(&str, &str); 1] = [(
+    "src/testRunner/transpileRunner.ts",
+    "3926aa9b7d88e953163ed1fee843d273783be131",
+)];
+const SUITES: [(&str, &str, &str); 4] = [
     (
         "compiler",
         "tests/cases/compiler",
@@ -30,6 +41,11 @@ const SUITES: [(&str, &str, &str); 3] = [
         "tests/cases/projects",
         "ts-tests/tests/cases/projects",
     ),
+    (
+        "transpile",
+        "tests/cases/transpile",
+        "ts-tests/tests/cases/transpile",
+    ),
 ];
 
 #[derive(Debug, Deserialize)]
@@ -39,10 +55,29 @@ struct TestSuitesPin {
     typescript_version: String,
     source_repository: String,
     source_commit: String,
+    base_pin: BasePinIdentity,
+    suites: Vec<SuitePin>,
+    implementation_sources: Vec<ImplementationSourcePin>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct LegacyTestSuitesPin {
+    schema: u32,
+    typescript_version: String,
+    source_repository: String,
+    source_commit: String,
     suites: Vec<SuitePin>,
 }
 
 #[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct BasePinIdentity {
+    path: String,
+    sha256: String,
+}
+
+#[derive(Debug, Deserialize, Eq, PartialEq)]
 #[serde(deny_unknown_fields)]
 struct SuitePin {
     name: String,
@@ -54,6 +89,13 @@ struct SuitePin {
     bytes: u64,
     unique_blobs: usize,
     executable_paths: Vec<String>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct ImplementationSourcePin {
+    source_path: String,
+    git_blob_sha1: String,
 }
 
 #[derive(Debug, Default)]
@@ -129,16 +171,58 @@ impl Drop for ScratchDir {
 
 #[test]
 fn vendored_upstream_test_suites_match_exact_git_trees() {
-    let pin: TestSuitesPin = serde_json::from_str(PIN).expect("test suite pin must be valid JSON");
-    assert_eq!(pin.schema, 1, "unsupported test suite pin schema");
+    assert_eq!(
+        format!("{:x}", Sha256::digest(BASE_PIN)),
+        BASE_PIN_SHA256,
+        "legacy test suite pin hash"
+    );
+    assert_eq!(
+        format!("{:x}", Sha256::digest(PIN)),
+        PIN_SHA256,
+        "H1 test suite pin hash"
+    );
+    let legacy: LegacyTestSuitesPin =
+        serde_json::from_slice(BASE_PIN).expect("legacy test suite pin must be valid JSON");
+    let pin: TestSuitesPin =
+        serde_json::from_slice(PIN).expect("H1 test suite pin must be valid JSON");
+    assert_eq!(legacy.schema, 1, "unsupported legacy test suite pin schema");
+    assert_eq!(pin.schema, 2, "unsupported H1 test suite pin schema");
+    assert_eq!(pin.base_pin.path, BASE_PIN_RELATIVE_PATH);
+    assert_eq!(pin.base_pin.sha256, BASE_PIN_SHA256);
     assert_eq!(pin.typescript_version, TYPESCRIPT_VERSION);
     assert_eq!(pin.source_repository, SOURCE_REPOSITORY);
     assert_eq!(pin.source_commit, SOURCE_COMMIT);
+    assert_eq!(legacy.typescript_version, pin.typescript_version);
+    assert_eq!(legacy.source_repository, pin.source_repository);
+    assert_eq!(legacy.source_commit, pin.source_commit);
+    assert_eq!(
+        legacy.suites.len(),
+        SUITES.len() - 1,
+        "schema 1 must remain the exact three-suite base"
+    );
     assert_eq!(
         pin.suites.len(),
         SUITES.len(),
-        "the pin must contain all and only compiler/project/projects"
+        "the pin must contain all and only compiler/project/projects/transpile"
     );
+    assert_eq!(
+        &pin.suites[..legacy.suites.len()],
+        legacy.suites.as_slice(),
+        "schema 2 must preserve the complete schema-1 suite prefix"
+    );
+    assert_eq!(
+        pin.implementation_sources.len(),
+        IMPLEMENTATION_SOURCES.len()
+    );
+    for (source, (path, git_blob_sha1)) in pin
+        .implementation_sources
+        .iter()
+        .zip(IMPLEMENTATION_SOURCES)
+    {
+        assert_eq!(source.source_path, path);
+        assert_eq!(source.git_blob_sha1, git_blob_sha1);
+        assert_hex(&source.git_blob_sha1, 40, "implementation Git blob SHA-1");
+    }
 
     let workspace = Path::new(env!("CARGO_MANIFEST_DIR"))
         .parent()

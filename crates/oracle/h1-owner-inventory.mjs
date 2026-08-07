@@ -565,6 +565,7 @@ const output = {
     "freeze the exact bootstrap option/syntax/output profile",
     "land callback-level in-memory oracle observations and schemas",
     "record every current emit-only Rust omission",
+    "pin the complete upstream transpile source tree and runner identity without execution results",
   ],
   pending_h1_0a: [
     "review and disposition every unresolved/dynamic call and property-dispatch over-approximation",
