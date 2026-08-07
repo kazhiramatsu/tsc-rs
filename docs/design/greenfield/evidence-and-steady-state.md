@@ -239,13 +239,13 @@ Cold/warm diagnostic canaries must be byte-identical, and changing this
 cache policy resets the semantic fingerprint.
 
 After M9.2 implements the bounded domain producer and before M9.3 changes the
-CI/schema consumer, hosted calibration freezes the PR smoke's exact case
+schema consumer, approved calibration freezes the PR smoke's exact case
 count, seed list, domain-canary ids, and wall/RSS/scratch ceilings. The list
 is bounded and does not grow implicitly when the nightly domain manifest
-grows. At that reviewed transition, the bounded hosted PR guardrail invokes
-the smoke exactly once; its single versioned artifact supplies both the M8 B3
+grows. At that reviewed transition, the complete local gate invokes the smoke
+exactly once; its single versioned artifact supplies both the M8 B3
 readiness projection and M9 classifier/replay/reducer/domain evidence.
-Scheduled CI alone runs the full window. A separate mutation canary may
+Only the explicitly invoked approved producer runs the full window. A separate mutation canary may
 exercise the one-sided path when the smoke is exact, but it is labeled,
 excluded from generated observations, and cannot substitute for real
 two-case dedupe evidence. The old 32-case/eight-template producer is retired
@@ -283,14 +283,14 @@ artifacts:
   `frozen` through the reviewed-snapshot protocol. Its freeze record contains
   the adjudication commit and exact hashes of the green preflight/domain,
   oracle-deviation registry, bounded-runner calibration, burn-in-zero,
-  producer/verifier input manifest, scheduled workflow, and attestation
-  policy. A scheduled producer refuses to mint qualifying evidence while
+  producer/verifier input manifest, approved producer identity, and attestation
+  policy. The approved producer refuses to mint qualifying evidence while
   that anchor is missing, draft, or mismatched. The frozen policy fixes 14
   consecutive UTC windows, exactly 100,000 valid cases per window (ordinary
   exact/divergent comparisons, tsrs terminal divergences with a valid oracle,
   and exact recorded oracle-deviation outcomes), the measured standard-
   runner wall/RSS/disk ceilings, generator-domain quotas/uniqueness, worker/
-  process/timeout limits, deterministic seed derivation, and CI attestation
+  process/timeout limits, deterministic seed derivation, and producer attestation
   policy. Fourteen windows and 100,000 cases are contract constants, not
   tunable defaults. Wall time is a maximum, never a minimum to consume. Any
   later policy change is a new reviewed freeze, changes the semantic
@@ -324,24 +324,23 @@ Each history row references one slot directory
 per-seed outcome digests, failure/class/incident membership, domain
 aggregates, and witness hashes. Its `attestation.v1.json` is the complete
 signed statement/transparency bundle; the attested subject digest must equal
-the window file, and repository/workflow/event/attempt/authority claims must
-match frozen policy. Both sidecars are mandatory and hashed by history.
+the window file, and producer/invocation/attempt/authority claims must match
+frozen policy. Both sidecars are mandatory and hashed by history.
 Append-only authority is the decompressed canonical record bytes plus
 previous-record hashes, not incidental compressed-container bytes.
 
 Qualifying seeds are derived from semantic policy fingerprint + UTC slot +
-shard id; a workflow input cannot select them. There is at most one
-finalized slot per UTC date, and only the scheduled workflow's attested
-`run_attempt == 1` may qualify. A failed/cancelled/interrupted first attempt
+shard id; an invocation input cannot select them. There is at most one
+finalized slot per UTC date, and only the approved producer's attested first
+attempt may qualify. A failed/cancelled/interrupted first attempt
 breaks the date and streak. Reruns use the same seeds for diagnosis but are
 non-qualifying, so an artifact-less first failure cannot be hidden offline
 by a successful retry.
 
-Protected-main scheduled CI produces a GitHub artifact attestation for the
-compact raw bundle using minimal OIDC/attestation permissions and no
-long-lived signing secret. The policy pins repository identity, workflow
-path/hash, scheduled event, relevant-input fingerprint, runner profile, and
-artifact digest, and `run_attempt == 1`. PR/manual/rerun jobs cannot mint
+An explicitly invoked approved producer signs the compact raw bundle without
+making it part of ordinary GitHub CI. The policy pins producer identity,
+relevant-input fingerprint, runner profile, artifact digest, and first-attempt
+status. PR, ordinary CI, user-selected-seed, and retry invocations cannot mint
 qualifying evidence.
 Aggregation verifies that provenance and recomputes every raw digest,
 class, incident, quota, and history edge before appending; it never reruns
@@ -363,7 +362,7 @@ hand-authored, seed-selected, rerun-attempt, or reordered row cannot count.
 
 A checker, oracle, generator, reducer, comparator/class/outcome schema,
 domain/corpus-mutation input, process policy, M9 history/attestation
-verifier, scheduled workflow, or attestation-policy change resets the
+verifier, approved producer, or attestation-policy change resets the
 streak. UTC slot/seed/attempt metadata, append-only history/registry/window
 records, and close-only docs/`STAGE` are outside that semantic fingerprint.
 A missing, failed, under-budget, over-time, overlapping, stale, rewritten,
@@ -449,24 +448,13 @@ and receipt never cross a job, Actions cache, or uploaded artifact boundary.
 
 ## 5. Required CI topology
 
-A trusted-base diff containing only `.md` paths and leaving README's
-generated `STATUS` block byte-identical runs no Cargo, Node, B2, or full-
-corpus work. A lightweight hosted classifier preserves the required `gates`
-check while marking the Windows lane skipped. Local validation is
-`git diff --check` plus review of changed links/anchors and generated-block
-boundaries. Any other path or generated-status change keeps all Rust, Node,
-semantic, corpus, evidence, readiness, and performance work in the required
-local gate. Since L0.0, every such non-documentation change also runs the
-bounded hosted format/locked-all-target guardrail, common CI-contract tests,
-and selected track controls; that feedback does not inherit semantic
-authority from the local full gate.
-
-Host/path/toolchain changes additionally run focused filesystem-host contracts
-on Windows with at most two Cargo/test workers. The developer's required local
-gate covers ordinary Rust and macOS paths; the Windows lane is only a platform
-canary and is not an evidence authority. A final job named `gates` validates
-classifier success, the complete boolean output domain, the required common
-static/focused result, and the applicable Windows result before it succeeds.
+Ordinary GitHub CI has one stable job, `gates`, and one command, `cargo xtask
+acceptance`. The command is an unsplit acceptance boundary sourced from
+`ts-tests` and its pinned baselines. It accepts no limit, file, band, or phase
+selector. The workflow does not run formatting, Cargo check/test/Clippy,
+owner-focused controls, Windows/platform canaries, stress, performance,
+readiness, or evidence production. New runtime tracks extend the same
+`ts-tests` acceptance command instead of adding hosted lanes.
 
 Except for the exact documentation-only rule above, the unsplit local
 `cargo xtask ci --baseline <trusted-sha>` is the required pre-PR and pre-merge
@@ -478,62 +466,45 @@ move-only conformance receipt, all evidence producer/consumer pairs, and the
 A1/A2/H0/A5 ordering therefore remain in one local process/workspace.
 
 Pull-request runs do not restore or write Cargo/compiler caches for local-only
-validation. Conformance, readiness, B2-B4, fuzz, and other semantic evidence
-artifacts never cross the local/Actions boundary.
+validation. Readiness, B2-B4, fuzz, and other internal semantic evidence
+artifacts never cross the local/Actions boundary. Hosted conformance publishes
+only its process result; it is not an evidence transport.
 
 The full local gate runs the one short, calibrated, fixed-seed M9 domain/
 classifier/replay/reducer smoke described above; the M8 B3 projection is
 derived from the same artifact, and neither invocation nor case generation is
 duplicated. It never runs a qualifying window. After the M9.2 schema
 transition, the separately bounded PR smoke specified by the M9 execution
-contract remains local; Actions does not reintroduce B2, readiness, or
-performance work. Protected-main scheduled CI runs exactly
-100,000 valid cases within the frozen measured ceiling, streams the compact
-raw bundle, and attests it. A reviewed aggregation verifies and appends one or
-more independently attested windows without rerunning the producer or
-rewriting history. B2 AST instrumentation is not part of that scheduled job.
+contract remains local; Actions does not reintroduce B2, readiness,
+performance, or scheduled fuzz work. A manually invoked producer may run the
+frozen 100,000-case window, stream the compact raw bundle, and retain bounded
+reproduction evidence. Reviewed aggregation remains explicit and never
+rewrites history.
 
 The final release job uses the approved performance runner, regenerates
 B1-B4 evidence, runs full-corpus invariants, verifies M9 history, and
 then runs `cargo xtask completion --require-done` in the same workspace.
-It consumes the existing 14 windows rather than producing a fifteenth. Gate
-acceptance implementations stay in local commands; YAML owns fail-closed
-change classification, bounded static/focused feedback, and the Windows
-platform smoke, but does not recreate semantic acceptance.
+It consumes the existing 14 windows rather than producing a fifteenth. YAML
+owns only the `ts-tests` acceptance invocation and does not recreate internal
+phase or evidence gates.
 
 ### 5.1 Follow-on L0/L1/H1 amendment
 
-The topology above describes the closed H0/M8/M9 operating boundary. L0.0 has
-now added schema-bound fail-closed selection, the common non-documentation
-static/focused lane, a stable aggregate, deterministic scheduled large-edit
-input, strict exact-candidate receipt and bounded failure-artifact schemas,
-and their adversarial validators. Those pieces implement the first layer of
-the common topology specified by
+Schema 2 replaces the earlier classified multi-lane hosted topology with the
+single acceptance boundary above. The earlier selection, exact-result,
+receipt, and bounded failure-artifact validators remain local evidence tools;
+they do not authorize Actions jobs. This policy applies equally to the
+common topology specified by
 [lsp-and-incremental.md](lsp-and-incremental.md#91-ci-and-qualification-topology),
 [h1-emit.md](h1-emit.md#64-ci-and-qualification-topology), and
 [compiler-compatibility-residual.md](compiler-compatibility-residual.md#114-cross-track-ci-and-qualification-topology).
 
-L0.2 extends the authenticated exact HEAD/base-bound full-gate result with
-identity-owner tests, protected-main open/edit/close reclamation stress, and a
-chained approved-runner H0 comparison while retaining the L0.1 Unicode edit
-authority. The stable aggregate now requires the selected exact
-qualification and still fails closed for missing, skipped, or unknown lanes.
-A new commit, changed base, merge-queue composition, lockfile/toolchain/pin/
-profile change, or mismatched result hash invalidates the receipt. Later
-L0/L1 owners extend the same stress/performance scopes; H1 still must add emit-
-specific focused tests, scheduled stress, and approved-runner qualification
-before its first runtime change. A `gates` sentinel without the selected exact
-receipt remains bounded feedback, not acceptance authority.
-
-The new serializable summary must not turn the M8/M9 move-only conformance
-receipt into a cross-job artifact. The unsplit command still creates and
-consumes B4 and all producer evidence in one process/workspace; the summary
-attests only that the exact authoritative command and selected track gates
-finished successfully for the bound immutable inputs. Workflow YAML neither
-reopens the evidence nor recreates a producer/consumer sequence. Detailed
-failures may upload bounded content-addressed reproducers, logs, diffs, seeds,
-and counters, but never a token that another job can treat as acceptance
-authority.
+L0/L1 identity, edit, reclamation, and fresh/incremental controls remain in the
+complete local gate. H1 adds emit-specific controls there and adds only
+compatible upstream emit cases to hosted acceptance. Approved-runner
+performance remains explicitly dispatched. The same-process M8/M9 move-only
+receipt never becomes a cross-job artifact, and detailed local failure
+evidence never becomes a token another job can treat as acceptance authority.
 
 ## 6. Required adversarial tests
 

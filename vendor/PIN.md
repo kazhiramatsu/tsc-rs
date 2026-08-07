@@ -101,8 +101,9 @@ manifest source and compiler-fixture rows, parses the same config through the
 production root planner, then exactly compares the Rust resolver's resolution
 record and ordered `fileExists` probes. The other upstream probe streams stay
 frozen evidence rather than being treated as a cross-host API-equivalence
-claim. The local oracle gate executes the pinned producer freshness check; the
-GitHub guardrail performs syntax checking only. These 16 manifest cases remain
+claim. The local oracle gate executes the pinned producer freshness check;
+ordinary GitHub CI does not execute or syntax-check this producer. These 16
+manifest cases remain
 `not-run`: this focused artifact establishes module-suffix resolver semantics,
 not complete compiler-baseline execution or a passing upstream test result.
 
@@ -128,8 +129,8 @@ default-library contract needed by the loader, and compares all six oracle
 cases through bounded program construction. It adds an explicit `noEmit=true`
 adapter because H0 does not own emit. Upstream project emit and baseline
 comparison therefore remain `not-run`, as do the manifest cases themselves.
-The local oracle gate executes the freshness check; GitHub Actions only
-syntax-checks the producer.
+The local oracle gate executes the freshness check; ordinary GitHub CI does
+not execute or syntax-check the producer.
 
 `vendor/typescript-6.0.3/compiler-config-diagnostics.v1.json` separately pins
 the 51 focused malformed/config-conversion fixtures and an options-diagnostic

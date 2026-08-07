@@ -381,12 +381,12 @@ not-applicable emitter or an emitter without a family—fail.
 
 Pin Rust/clippy and Node; require the full local `cargo xtask ci` before PR
 and merge; fetch all anchor history locally; run trusted-base ratchet/scope
-checks; produce and consume readiness evidence in one workspace; schedule
-signed fuzz windows; and reserve an approved runner for performance and
-release. Ordinary GitHub Actions only performs the fail-closed change
-classification and a bounded Windows filesystem smoke for platform-sensitive
-changes. Local commands own all acceptance-gate implementations; workflow YAML
-does not repeat Rust, Node, semantic, corpus, evidence, or performance work.
+checks; produce and consume readiness evidence in one workspace; explicitly
+produce signed fuzz windows; and reserve an approved runner for performance and
+release. Ordinary GitHub Actions runs only the fixed `cargo xtask acceptance`
+boundary sourced from `ts-tests`. Local commands own formatting, internal
+phase tests, history, recovery/invariants, stress, evidence, and performance;
+workflow YAML does not repeat those gates.
 
 #### E2. Current documentation
 
@@ -430,8 +430,8 @@ Row 17 expands in this fixed order without renumbering the completed rows:
 |---|---|---|
 | 17a | implementation/contract, generator-domain, tsc/D2, and resource preflight | fuzzer foundation |
 | 17b | dedicated producer, true replay/reduction, pass-aware multiplicity-preserving class, terminal outcomes, adversarial tests | long producer |
-| 17c | bounded streaming executor, fixed domain quotas/coverage ledger, one-worker/process-lifetime policy | hosted calibration |
-| 17d | class/witness/recurrence registry, owner joins, signed scheduled producer, aggregation, Node-free steady-state/completion verifier | qualifying history |
+| 17c | bounded streaming executor, fixed domain quotas/coverage ledger, one-worker/process-lifetime policy | approved calibration |
+| 17d | class/witness/recurrence registry, owner joins, explicitly invoked signed producer, aggregation, Node-free steady-state/completion verifier | qualifying history |
 | 17e | non-qualifying full-domain burn-in and closure of every diagnostic-D2 or pipeline-native owner task | fingerprint freeze |
 | 17f | reviewed semantic fingerprint/policy freeze, then 14 consecutive qualifying UTC windows | M9 close |
 | 17g | close-only `STAGE=M9`/documentation candidate, then final release gate on that exact tree | project completion |

@@ -338,7 +338,7 @@ slices. The complete JSDoc port is accepted only when:
 - accepted identities lost remain zero, supported JSDoc tier residuals are
   exact, and all-corpus false positives remain zero;
 - focused performance evidence stays within the bounds above; and
-- the full local CI and all required hosted lanes pass.
+- the full local CI and the hosted `ts-tests` acceptance command pass.
 
 The complete subsystem is one approved prerequisite/consumer chain for the
 `checkjs-jsdoc` owner family. It does not authorize unrelated non-JSDoc

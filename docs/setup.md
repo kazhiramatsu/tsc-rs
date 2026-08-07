@@ -24,6 +24,7 @@ All gates run from the repository root:
 
 ```sh
 cargo xtask ci                      # full merge-gate suite (must be green on main)
+cargo xtask acceptance              # fixed GitHub `ts-tests` acceptance boundary
 cargo xtask conformance             # conformance sweep (optionally --band 2xxx)
 cargo xtask conformance --syntactic-only
 cargo xtask invariants --suite all  # sampled determinism/idempotence developer run
@@ -102,30 +103,21 @@ repository root and review changed links, anchors, and generated-block
 boundaries. Any non-Markdown or generated-status change uses the full merge
 gate.
 
-GitHub Actions intentionally does not repeat the local merge gate. It only
-classifies the changed paths and runs the focused Windows host contracts plus
-one compact filesystem-to-program parity smoke when host, path, or toolchain
-inputs change; ordinary Rust, Node, semantic,
-corpus, evidence, readiness, and performance checks remain local-only. The
-Windows lane is capped at two Cargo/test workers and disables incremental
-state and test debuginfo on its clean runner. It is a platform canary, not
-acceptance evidence. The optional `cargo xtask ci --lane hosted
+GitHub Actions intentionally does not repeat the local merge gate. It has one
+stable `gates` job and runs only `cargo xtask acceptance`, whose inputs are the
+checked-in `ts-tests` acceptance corpus and its pinned baselines. The command
+currently executes the full diagnostic conformance set: 5,908 fixtures, 7,691
+expanded cases, and the accepted-set ratchet. H1 extends this same entrypoint
+with compatible emit cases instead of adding phase-specific hosted jobs.
+
+Formatting, Cargo check/test/Clippy, owner-focused controls, Windows canaries,
+history audits, recovery/invariants, stress, evidence production, and
+performance remain in `cargo xtask ci --baseline <trusted-sha>` or an explicit
+manual qualification workflow. The optional `cargo xtask ci --lane hosted
 --history-sensitive --baseline <trusted-sha>` diagnostic remains available
 locally for immutable-history investigation and is never selected
-automatically by Actions.
-
-That topology is the current H0/M8/M9 operating state, not the finished
-topology for new persistent-program or emit runtime work. Before the first
-L0.1 or H1 runtime slice, the repository must add the required non-doc static
-and focused track lanes, authenticated machine-verifiable HEAD/base-bound
-full-gate summary, scheduled stress lane, and approved-runner performance lane
-specified in the
-[incremental architecture](design/greenfield/lsp-and-incremental.md#91-ci-and-qualification-topology),
-[H1 emit contract](design/greenfield/h1-emit.md#64-ci-and-qualification-topology),
-and [compatibility roadmap](design/greenfield/compiler-compatibility-residual.md#114-cross-track-ci-and-qualification-topology).
-Until that prerequisite lands, the hosted `gates` sentinel proves only its
-classifier/platform-canary contract; it does not qualify an L0/L1/H1 runtime
-change.
+automatically by Actions. A green hosted acceptance result is required but
+does not replace the complete local gate recorded in the PR body.
 
 `cargo xtask completion` is report-only during M8 and succeeds while naming
 pending rows in `target/completion/report.json`. The post-M9 release gate is

@@ -513,59 +513,29 @@ parsing cannot hide a regression outside the original small canary.
 
 ### 6.4 CI and qualification topology
 
-H1 must not rely on one undifferentiated hosted job. Before H1.1 changes
-runtime behavior, the repository needs four explicit lanes with distinct
-authority. L0.2 has extended the common static/focused guardrail, exact
-OIDC-attested result producer, bounded failure schemas, text/identity stress,
-and chained H0 comparison. H1 still must extend the focused owner selection, scheduled work,
-and approved-runner evidence to emit runtime behavior:
+Ordinary GitHub CI owns one stable acceptance boundary: the `gates` job runs
+only `cargo xtask acceptance`. The command accepts no partial selectors and
+draws test cases from `ts-tests`; it currently executes the complete diagnostic
+conformance corpus. H1 extends that same command with the compatible
+transpile/compiler/project/FourSlash emit projections as they become executable.
+It does not add emitter-focused jobs, static phase checks, platform matrices,
+scheduled stress, or evidence producers to Actions.
 
-1. **Required PR guardrail.** Every non-documentation change runs
-   `cargo fmt --check`, the non-linking locked all-target command
-   `cargo check --workspace --all-targets --locked`, and the focused tests
-   selected from the changed owner graph.
-   H1 changes select emitter/checker/compiler contracts, the in-memory oracle,
-   output-plan/sink tests, and the H0 constructor/write-zero canary. This lane
-   uses checked-in deterministic inputs and must not require the Node oracle
-   unless the oracle driver or its pin changes.
-2. **Exact merge qualification.** The unsplit local or trusted-runner
-   `cargo xtask ci --baseline <exact-base-sha>` remains the semantic authority.
-   A machine-readable summary binds the result to the exact HEAD SHA, base SHA,
-   Rust and Node pins, `Cargo.lock`, vendor/oracle inventory, qualification
-   profile, commands, and result hashes. Free-form PR text is explanatory, not
-   the receipt. Any commit, base movement, lockfile/pin/profile change, or
-   missing receipt invalidates it; a merge-queue composition must qualify the
-   composed HEAD/base pair rather than inherit the PR-head result. The summary
-   is authenticated by the trusted-runner or registered-signer rule in the
-   [cross-track CI contract](compiler-compatibility-residual.md#114-cross-track-ci-and-qualification-topology);
-   an unsigned hash or artifact is not sufficient.
-3. **Scheduled stress and compatibility.** Protected-main scheduled work runs
-   the broader compatible compiler/conformance/project/transpile emit set,
-   repeated-run determinism, injected sink failures, and bounded-memory
-   workloads. Failures retain the exact fixture, effective options, ordered
-   callbacks/artifacts, byte diff, seed, and resource counters as bounded
-   diagnostic artifacts. This lane detects drift but cannot retroactively make
-   an unqualified PR acceptable.
-4. **Approved-runner performance and release.** No-emit and emit performance
-   ratchets run only on the frozen runner/profile with alternating
-   baseline/candidate samples. Moving `*-latest` hosted images are functional
-   canaries, not performance authorities. Release qualification consumes the
-   exact compatible-corpus and performance summaries and rechecks their
-   fingerprints.
+The complete local `cargo xtask ci --baseline <trusted-base>` remains required
+before opening and merging every non-documentation runtime PR. It owns
+formatting, Clippy, workspace tests, owner/oracle freshness, exact trusted-base
+history, conformance/recovery/invariants, constructor/write-zero canaries,
+stress, and same-process evidence production and consumption. The exact base,
+conformance counts, FP/FN state, and gate result are recorded in the PR body.
+A green hosted acceptance result never substitutes for that local proof.
 
-The Windows canary expands when H1.1 lands so that changes under the emitter,
-compiler, output-path planner, sink, toolchain, and filesystem host select
-focused Windows path/case/BOM/collision and partial-write tests. All Cargo
-invocations use `--locked` where supported, third-party Actions are pinned to
-reviewed full commit SHAs, classifications are fail-closed, and the stable
-required check fails if a selected lane is missing, skipped unexpectedly, or
-reports an unknown state. A green classifier-only `gates` sentinel is not H1
-acceptance evidence.
-
-The merge receipt deliberately summarizes the existing same-process M8/M9
-gate without exporting its move-only B4 token or ephemeral evidence between
-jobs. H1 adds its own serializable result summary; it does not weaken or
-reimplement producer/consumer ownership in workflow YAML.
+No-emit and emit performance ratchets continue to use alternating
+baseline/candidate samples on the approved frozen runner. Long stress and
+resource qualification run locally or through an explicitly dispatched
+qualification workflow; they are not ordinary GitHub CI. Third-party Actions
+remain pinned to reviewed full commit SHAs, and the hosted Cargo build uses at
+most two jobs. The retained receipt/failure-artifact schemas are local evidence
+utilities and do not authorize additional hosted lanes.
 
 ## 7. Source tree, transform state, and future reuse
 
@@ -1144,8 +1114,8 @@ unresolved/property-dispatch dispositions still keep item 1 open.
 1. **H1.0a — inventory and oracle:** generate the JavaScript-emitter owner
    graph, classify the compiler/project/conformance/transpile corpus plus the
    FourSlash emit projection, freeze dormant declaration/map/bundle/targeted/
-   build-info seams, land the in-memory oracle and CI receipt/failure-artifact
-   schemas, and record every current emit-only Rust omission. The inventory
+   build-info seams, land the in-memory oracle, and record every current
+   emit-only Rust omission. The inventory
    and design portion may proceed in parallel with the next item.
 2. **L0/L1 prerequisite — persistent source and parser proof:** land shared
    text/position snapshots, identity leases, owned parse/bind records,
@@ -1155,9 +1125,9 @@ unresolved/property-dispatch dispositions still keep item 1 open.
    new baseline by weakening the frozen H0 ceilings.
 3. **H1.0b — no-emit performance and CI freeze:** collect alternating
    post-L0/L1 pre-H1 baseline/candidate measurements, freeze the relative
-   regression policy, and land the required non-doc static/focused lanes,
-   exact HEAD/base-bound full-gate check, failure artifacts, and
-   constructor/write-zero canaries before H1 runtime behavior changes.
+   regression policy, freeze ordinary GitHub CI to the `ts-tests`-only
+   `cargo xtask acceptance` boundary, and land constructor/write-zero canaries
+   in the complete local gate before H1 runtime behavior changes.
 4. **H1.1 — typed execution spine:** add the non-publicly-constructible
    `EmitArtifact`, callback metadata, sink disposition, full typed output-path
    shape, `OutputSink`, typed failures, and the separate emitting session
@@ -1216,9 +1186,9 @@ H1 is complete only when:
   behavior, partial output set, `emitSkipped`, and exit status;
 - `ProgramSession::run` and the CLI `--noEmit` route construct zero H1
   components and perform zero output writes;
-- every H1 runtime PR has passed its required static/focused hosted lanes and
-  has a valid exact HEAD/base-bound full-gate receipt; classifier-only success
-  and free-form PR claims are rejected;
+- every H1 runtime PR has passed the hosted `ts-tests` acceptance command and
+  the complete local gate against its trusted base; the local result and exact
+  base are recorded in the PR body, and hosted acceptance alone is rejected;
 - all H0 diagnostics, renderings, exit statuses, host identities, and
   accepted sets remain exact with full-corpus FP=0;
 - no-emit cold/warm wall time, peak RSS, and executable-startup effects remain
@@ -1265,9 +1235,9 @@ Stop and review the H1 design if:
   `noEmit` gate instead of adding a separate emitting entry;
 - one slice spans unrelated transformer/resolver/printer owner groups;
 - a candidate exceeds the H1 no-emit relative performance budget;
-- an H1 runtime change can merge with only the classifier/Windows sentinel,
-  with a stale or text-only local-gate claim, or without its selected focused
-  tests;
+- an H1 runtime change can merge with hosted `ts-tests` acceptance alone,
+  with a stale or text-only local-gate claim, or without its internal focused
+  tests in the complete local gate;
 - H0's resource ceiling or accepted state would need weakening; or
 - L0/L1 state is bypassed, copied into an H1-private source model, or polluted
   with checker/transform/printer state; or

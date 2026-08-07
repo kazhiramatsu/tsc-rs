@@ -17,11 +17,11 @@
   "authorities": {
     "compatibility_residual": {
       "path": "docs/design/greenfield/compiler-compatibility-residual.md",
-      "sha256": "bc62973712dfe670af9e4c8042322664146102a95746dd52cdf3b5c953359e8a"
+      "sha256": "0ddbb7f13c109f1ec2d3516bb4b5741012b56a86aa505ef2c6dfe78916da0d2c"
     },
     "h1_execution": {
       "path": "docs/design/greenfield/h1-emit.md",
-      "sha256": "f3f89c40ae2a334329cf7806a09e43c0562f593fbe5a9fa2eaa9935b8267a688"
+      "sha256": "ed7f83bf722c98a6089edb9289cfd74d8398b1387ca4cb12c29e5e4a9bd09d40"
     },
     "emit_profile": {
       "path": "ratchets/h1-emit-profile.v1.json",
@@ -42,8 +42,8 @@
     "file_count": 176,
     "rust_source_files": 162,
     "cargo_manifests": 14,
-    "bytes": 12267570,
-    "tree_sha256": "00cfb2b48e35bfc8886f9c44a5edf0c82e3123c85c74c3ff16d242ee366d6069"
+    "bytes": 12268089,
+    "tree_sha256": "bdc4815ef5217b4110307950775001b142260738d667d19a8be6967289027b9b"
   },
   "summary": {
     "production_boundary_omissions": 11,
@@ -1154,5 +1154,5 @@
       }
     ]
   },
-  "inventory_fingerprint_sha256": "1329642c5abd3262893afd09d1df9eadcaed3c7658486f53fa9d106d656561cb"
+  "inventory_fingerprint_sha256": "a86f08942db330dff8fec6927aa887d28afc177a9f2da4b11858ea18ec7ac62f"
 }

@@ -71,7 +71,7 @@ satisfy an M9 window:
 | Dedupe proof | repeats one saved signature value | at least two independently executed cases in the same class |
 | Storage | retains all cases and per-case scratch trees | streaming digests and bounded scratch; full bytes only for failures |
 | Completion | row 11 is explicitly false | data-driven, Node-free history verifier |
-| Hosted operation | no scheduled workflow | attested scheduled producer and reviewed aggregation |
+| Qualification operation | no approved producer | explicitly invoked signed producer and reviewed aggregation |
 
 The entry implementation also stores the rotating seed/case arguments in
 the producer fingerprint and keeps the M9 code inside the broad xtask
@@ -96,16 +96,16 @@ M9 executes in this order:
 3. **M9.2 bounded domain producer** — implement grammar-aware generation,
    corpus mutation, domain quotas, streaming execution, bounded
    child/Node lifetimes, and the coverage ledger.
-4. **M9.3 history and CI foundation** — land window/history/class/witness
+4. **M9.3 history and producer foundation** — land window/history/class/witness
    schemas, recurrence and owner triage, attestation verification,
-   scheduled production, aggregation, the Node-free steady-state verifier,
+   explicit production, aggregation, the Node-free steady-state verifier,
    the data-driven completion row, and code-level acceptance of the future
    `STAGE=M9` close marker while the checked-in marker remains `M8`.
 5. **M9.4 non-qualifying burn-in** — exercise every domain shard, reduce and
    register every incident, and close them through owner/declaration
    slices. Burn-in never earns a qualifying window.
 6. **M9.5 fingerprint freeze** — freeze the exact producer inputs, policy,
-   domain quotas, scheduled workflow, and attestation policy only after
+   domain quotas, approved producer identity, and attestation policy only after
    the final complete burn-in has zero newly discovered class, zero
    untriaged incident, and zero unresolved owner task.
 7. **M9.6 qualification** — append 14 consecutive qualifying UTC windows
@@ -223,7 +223,7 @@ The **semantic fingerprint** includes:
   option/topology adapter;
 - comparator, renderer, reducer, classifier, deduper, and outcome schemas;
 - the M9 history/attestation verifier and pinned trust policy;
-- worker/process/timeout policy and scheduled workflow/attestation policy;
+- worker/process/timeout policy and approved-producer/attestation policy;
 - fixed cases-per-window and domain quotas; and
 - stable toolchain and runner-profile fields that can affect outcomes.
 
@@ -528,7 +528,7 @@ construct the canonical AST. It prohibits a downstream semantic owner from
 re-parsing or reconstructing syntax/state that should have been represented
 by the parser, arena, binder, type, flow, or program model.
 
-## 8. Nightly evidence, attestation, and CI cadence
+## 8. Window evidence, attestation, and explicit cadence
 
 The frozen policy derives every qualifying seed from:
 
@@ -536,11 +536,11 @@ The frozen policy derives every qualifying seed from:
 semantic policy fingerprint + UTC slot + shard id
 ```
 
-A workflow input or maintainer cannot choose a qualifying seed. There is at
-most one finalized slot per UTC date, and only the scheduled workflow's
-attested `run_attempt == 1` may qualify. A failed, cancelled, or interrupted
-first attempt breaks that date and therefore the consecutive streak.
-Reruns use the same slot/seeds for diagnosis or burn-in but are always
+A producer argument or maintainer cannot choose a qualifying seed. There is at
+most one finalized slot per UTC date, and only the approved producer's signed
+first attempt may qualify. A failed, cancelled, or interrupted first attempt
+breaks that date and therefore the consecutive streak. Retries use the same
+slot/seeds for diagnosis or burn-in but are always
 non-qualifying. This rule lets the checked-in attestation prove offline that
 a successful retry did not hide an artifact-less earlier failure.
 
@@ -553,27 +553,26 @@ Discovering a divergence does not make infrastructure evidence disappear:
 the class and incident are appended and block zero-open. An unknown
 oracle/domain/harness/controller failure makes the window non-qualifying.
 
-The scheduled producer runs only from protected `main` on a standard public
-runner. It has read-only repository contents and the minimal OIDC/
-attestation permissions needed to produce a GitHub artifact attestation;
-there is no long-lived signing secret and no paid larger runner. The policy
-pins repository identity, workflow path/hash, scheduled event, relevant
-input fingerprint, runner profile, artifact digest, and attestation
-authority, including `run_attempt == 1`. PR/manual/rerun jobs cannot mint a
-qualifying window.
+The producer is invoked explicitly from protected `main` on its approved
+frozen runner and is not an ordinary GitHub Actions job. It has read-only
+repository access and signs the compact result through the registered
+qualification authority. The policy pins repository identity, producer and
+signer identity, relevant-input fingerprint, runner profile, artifact digest,
+and first-attempt status. PR, ordinary CI, user-selected-seed, and retry
+invocations cannot mint a qualifying window.
 
 The attested subject is the compact raw window bundle. Each accepted slot is
 checked in as `ratchets/fuzz-windows/<UTC-slot>/window.v1.json.zst` beside
 `attestation.v1.json`, the complete signed statement/transparency bundle
 whose subject digest must equal that window file. An aggregation command
-verifies the sidecar against the frozen repository/workflow/authority policy,
+verifies the sidecar against the frozen repository/producer/authority policy,
 recomputes every digest/class/quota and history edge, then appends canonical
 window, class, witness, and incident records. It never reruns the long
 producer or edits an old record. Several independently attested consecutive
-windows may share one aggregation PR so local full acceptance and the hosted
-PR guardrail are not repeated every night. Temporary hosted artifacts are
-retained only long enough for verified aggregation; durable compact records,
-attestation sidecars, and
+windows may share one aggregation PR so local full acceptance and hosted
+`ts-tests` acceptance are not repeated for each window. Temporary producer
+artifacts are retained only long enough for verified aggregation; durable
+compact records, attestation sidecars, and
 divergence repros live in-repo.
 
 Append-only authority is the decompressed canonical record bytes and their
@@ -582,14 +581,15 @@ Node-free steady-state verifier rechecks the checked-in attestation bundles,
 lineage, raw-to-summary calculations, relevant-input fingerprints, class/
 incident state, and current policy.
 
-After M9.2 lands and before M9.3 changes the CI/schema consumer, hosted
+After M9.2 lands and before M9.3 changes the schema consumer, approved
 calibration freezes a bounded PR-smoke case count, exact seed/domain-canary
 list, and wall/CPU/RSS/scratch ceilings. The list does not grow implicitly
-with the nightly manifest. After that transition, the bounded hosted PR
-guardrail executes it exactly once: one versioned artifact supplies both the
+with the window manifest. After that transition, the complete local gate
+executes it exactly once: one versioned artifact supplies both the
 M8 B3 readiness projection and the M9 domain/classifier/replay/reducer/
 registry checks. The legacy M8 smoke is retired at that schema transition and
-is not run beside it. The 100,000-case producer is scheduled-only. The final
+is not run beside it. Only the explicitly invoked approved producer runs the
+100,000-case window. The final
 release job verifies the 14 checked-in windows; it does not create a
 fifteenth.
 
@@ -625,8 +625,8 @@ M9.5 freeze requires:
 - the preflight gap/domain/resource report green;
 - true replay/reduction and every adversarial test green;
 - the bounded producer meeting the reviewed 100,000-case wall/RSS/disk
-  ceilings established by the hosted calibration;
-- scheduled production, attestation, aggregation, history, recurrence, and
+  ceilings established by the approved calibration;
+- explicit production, attestation, aggregation, history, recurrence, and
   completion verification proven end to end with non-qualifying canaries;
 - all close-path code, including parsing/auditing a future `STAGE=M9`,
   landed while the actual marker remains `M8`;
