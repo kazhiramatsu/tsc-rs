@@ -8,13 +8,16 @@ callback-level [`h1-emit-oracle.v1.json`](../../../ratchets/h1-emit-oracle.v1.js
 and the current-Rust
 [`h1-rust-omissions.v1.json`](../../../ratchets/h1-rust-omissions.v1.json)
 baseline, and the complete 22-file upstream `transpile` source tree is now
-content-addressed in the additive suite pin v2 without fabricating expansion
-or runner results. Additive suite pin v3 now also binds the complete
+content-addressed in the additive suite pin v2. Its exact runner matrix is
+separately reconstructed as 37 classified `not-run` rows without fabricating
+execution or reference-baseline results. Additive suite pin v3 also binds the
+complete
 6,568-file FourSlash tree identity and vendors the exact 38-file batch-emit
 witness projection, again with zero expansion or execution rows.
 The shared L0/L1 prerequisite and its evidence/CI-contract freeze are complete.
 The graph's unresolved dynamic calls and conservative property dispatch still
-need review, and the corpus classification portion of H1.0a remains open. No
+need review, and compiler/project/conformance classification plus promoted
+FourSlash whole-Program equivalence review remain open. No
 H1 runtime implementation or compatibility claim exists until the complete
 H1.0 inventory and post-L0/L1 no-emit performance baseline described below are
 frozen.
@@ -959,6 +962,19 @@ and pins the complete FourSlash source tree as 6,568 files, 14,198,525 bytes,
 and Git tree `775c30f57c0638a180e7ac2e38b2581976620ca5`.
 
 The checked-in
+[`transpile-suite-inventory.v1.json`](../../../vendor/typescript-6.0.3/transpile-suite-inventory.v1.json)
+mechanically reproduces the pinned `transpileRunner` contract. The 22 fixtures
+produce 25 ordered configurations, 42 fixture units, 37 runner cases, and 79
+per-unit operations. All 37 cases remain `not-run`: 14 are classified as
+JavaScript transform/printer component controls, two as deferred source-map
+controls, 20 as deferred declaration controls, and one as a deferred
+declaration-map control. None is admitted to the H1 bootstrap profile because
+the runner exercises a component API and every row also has an effective
+profile blocker. Reference-baseline paths are pinned, but their bytes are not
+vendored or compared. These are expansion and classification facts, not
+transpile execution, baseline parity, or whole-Program equivalence claims.
+
+The checked-in
 [`fourslash-emit-projection.v1.json`](../../../vendor/typescript-6.0.3/fourslash-emit-projection.v1.json)
 is the mechanically extracted batch-emit projection of that full tree. It
 vendors only 38 fixtures/31,051 bytes: 31
@@ -975,10 +991,10 @@ inventory facts, not executed-test or compatibility claims.
 The existing expansion v1 remains byte-identical: it inventories 7,086
 `compiler`, `project`, and `projects` sources, expands exactly 7,276 compiler
 cases and 632 project cases, and retains initial state `not-run` for all 7,908
-rows.
-The newly pinned transpile sources have no expansion or execution rows until
-H1 reproduces and classifies their runner matrices. H0 structural load/session
-qualification does not change that upstream-runner state. At the pinned
+rows. It deliberately contains no transpile row; the separate transpile
+inventory adds 37 classified `not-run` rows without mutating that established
+artifact. H0 structural load/session qualification does not change either
+upstream-runner state. At the pinned
 commit, `compilerRunner` separately observes diagnostics, module-resolution
 traces, source-map records, JavaScript/declaration output, source-map output,
 and type/symbol baselines. H1 records a separate result for every row and
@@ -992,12 +1008,12 @@ The inventory then classifies these sources:
    the primary whole-Program input universe. An admitted row must pass through
    production program construction and `ProgramSession::emit`.
 2. The complete TypeScript 6.0.3 `tests/cases/transpile` tree has been added
-   through a reviewed additive suite-pin-v2 transition. H1 next reproduces
-   `transpileRunner` unit partitioning and option matrices. In-profile
-   JavaScript rows directly pin
-   transform/printer behavior; declaration and map rows remain inventoried
-   unsupported controls. `transpileModule` is a component oracle and never
-   substitutes for whole-Program emit acceptance.
+   through a reviewed additive suite-pin-v2 transition. H1.0a now reproduces
+   the complete `transpileRunner` unit partitioning and option matrix as 37
+   explicit `not-run` rows. Fourteen JavaScript rows are retained as focused
+   transform/printer component controls; the 23 declaration/map rows remain
+   inventoried deferred controls. `transpileModule` is a component oracle and
+   never substitutes for whole-Program emit acceptance.
 3. H1.0a has scanned the complete upstream `tests/cases/fourslash` tree at the
    same source commit and written a versioned manifest of every direct
    DSL/API operation whose runner reaches Language Service `getEmitOutput`,
@@ -1126,17 +1142,19 @@ and control rows
 are frozen with
 `node crates/oracle/h1-rust-omission-inventory.mjs --check`. The owner artifact
 deliberately remains `draft/report-only`. The complete transpile source tree is
-also pinned in the additive v2 source universe without expansion or execution
-rows. The additive v3 source universe now freezes the complete FourSlash tree
+also pinned in the additive v2 source universe, and its companion inventory
+reconstructs and classifies all 37 runner rows while leaving every execution
+state `not-run` and every reference baseline uncompared. The additive v3
+source universe now freezes the complete FourSlash tree
 identity and exact 38-file emit projection, also with zero expansion or
 execution rows; corpus classification and reviewed unresolved/property-
 dispatch dispositions still keep item 1 open.
 
 1. **H1.0a — inventory and oracle:** generate the JavaScript-emitter owner
-   graph, classify the compiler/project/conformance/transpile corpus plus the
-   FourSlash emit projection, freeze dormant declaration/map/bundle/targeted/
-   build-info seams, land the in-memory oracle, and record every current
-   emit-only Rust omission. The inventory
+   graph, classify the compiler/project/conformance corpus plus the already
+   reconstructed transpile matrix and FourSlash emit projection, freeze dormant
+   declaration/map/bundle/targeted/build-info seams, land the in-memory oracle,
+   and record every current emit-only Rust omission. The inventory
    and design portion may proceed in parallel with the next item.
 2. **L0/L1 prerequisite — persistent source and parser proof:** land shared
    text/position snapshots, identity leases, owned parse/bind records,

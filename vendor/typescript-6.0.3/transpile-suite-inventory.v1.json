@@ -1,0 +1,3275 @@
+{
+  "schema": 1,
+  "status": "classified-not-run",
+  "phase": "H1.0a-transpile-runner-inventory",
+  "typescript": {
+    "version": "6.0.3",
+    "source_repository": "https://github.com/microsoft/TypeScript.git",
+    "source_commit": "050880ce59e30b356b686bd3144efe24f875ebc8"
+  },
+  "generator": {
+    "path": "crates/oracle/h1-transpile-inventory.mjs",
+    "sha256": "279602bbadb20cb4765a536c61215667d0fe8999ba9c5e8a9c1ebb9ee495e31c"
+  },
+  "contract": {
+    "path": ".github/ci/contracts/h1-transpile-inventory.schema.json",
+    "sha256": "67518769af8865462a66619c193b4e011d898b892b25ed55140ede8e70f5c6d7"
+  },
+  "inputs": {
+    "suite_pin": {
+      "path": "vendor/typescript-6.0.3/test-suites-pin.v2.json",
+      "sha256": "83f8edbb6f4535a19e61cf872532a46722f8cedbd2d746a0922dc507addc0879"
+    },
+    "transpile_suite": {
+      "name": "transpile",
+      "source_path": "tests/cases/transpile",
+      "vendored_path": "ts-tests/tests/cases/transpile",
+      "git_tree_sha1": "e457f4923a084d10e9902ab311f640f02467e20d",
+      "blob_inventory_sha256": "d07d1ac154da492d5d1d5a01fd00eea830f9d372aff03215eda1baad8b2c12ac",
+      "files": 22,
+      "bytes": 13480,
+      "unique_blobs": 22,
+      "executable_paths": []
+    },
+    "h1_profile": {
+      "path": "ratchets/h1-emit-profile.v1.json",
+      "sha256": "9a47ddf34b449249d310a9075ffa938adad44cc18384d280f8e8987fac1a8f18"
+    },
+    "typescript_bundle": {
+      "path": "vendor/typescript-6.0.3/lib/typescript.js",
+      "sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39"
+    },
+    "implementation_sources": [
+      {
+        "source_path": "src/testRunner/transpileRunner.ts",
+        "git_blob_sha1": "3926aa9b7d88e953163ed1fee843d273783be131"
+      },
+      {
+        "source_path": "src/harness/harnessIO.ts",
+        "git_blob_sha1": "a06bde1c95182ea1bfad0ddf9af73053501a6dc7"
+      },
+      {
+        "source_path": "src/harness/harnessUtils.ts",
+        "git_blob_sha1": "f768325897167ad793eeff9ced7763e12f9aa154"
+      }
+    ]
+  },
+  "runner_contract": {
+    "enumeration": "recursive files matching /\\.[cm]?[tj]sx?/i in tests/cases/transpile",
+    "vary_by": [
+      "declarationMap",
+      "sourceMap",
+      "inlineSourceMap"
+    ],
+    "variation_limit": 25,
+    "configuration_order": "vary_by order, then each comma-separated value order",
+    "unit_partition": "harnessIO.makeUnitsFromTest with CRLF/LF line splitting and @filename metadata",
+    "unit_execution": "each configuration runs each parsed unit independently in source order",
+    "run_kinds": [
+      "module",
+      "declaration"
+    ],
+    "reference_baseline_state": "path-pinned-content-not-vendored-or-compared"
+  },
+  "source_inventory_sha256": "0d2bc549e922b8e6fb99361892ea7faadb5feb68cc4338783de4ea58fe74a5f6",
+  "sources": [
+    {
+      "path": "declarationAsyncAndGeneratorFunctions.ts",
+      "mode": "100644",
+      "bytes": 395,
+      "sha256": "4aa4c17ff8ed8d29909a37586b42bea24eb3e37025112094abb49db67bdef6b3",
+      "git_blob_sha1": "fb280cdd5800ff9247ee305d42003bcc32310a29"
+    },
+    {
+      "path": "declarationBasicSyntax.ts",
+      "mode": "100644",
+      "bytes": 941,
+      "sha256": "5e8fd0ec505965fbcb98dff73ab1791d442fde5316e441f41185613d7c744dab",
+      "git_blob_sha1": "7ed0ce9368ae1972576856f5d027d7e5050005be"
+    },
+    {
+      "path": "declarationComputedPropertyNames.ts",
+      "mode": "100644",
+      "bytes": 1712,
+      "sha256": "b3a9c8cc8e618795aa4d20bc81599f86b7e9882dadb89b7d53fbd5b49e8403e1",
+      "git_blob_sha1": "3fa9aa041a18949e51cd938b259bcda09a068540"
+    },
+    {
+      "path": "declarationCrossFileInferences.ts",
+      "mode": "100644",
+      "bytes": 341,
+      "sha256": "6f4650e10d813de9aa88c0588d7a2908baf05ed453fc8881da1c3951cf652e2d",
+      "git_blob_sha1": "1a2f1768dd28d82204ed497dfaad5cb23ce12cc9"
+    },
+    {
+      "path": "declarationEmitPartialNodeReuse.ts",
+      "mode": "100644",
+      "bytes": 578,
+      "sha256": "12bde7a809a1cc285c2e7af6ce5b918c34c7ded6e52d2f3d14e78f419076feec",
+      "git_blob_sha1": "d217ea90b4b507f4401b533e4c2a3922299bd6d4"
+    },
+    {
+      "path": "declarationFunctionDeclarations.ts",
+      "mode": "100644",
+      "bytes": 3385,
+      "sha256": "bce5aec7e289ea3bcd6004e00e851fa1aed085192d7fdecef5a87371849c0774",
+      "git_blob_sha1": "7d9d8c82e27115231769d8a70deee80bf60a84e7"
+    },
+    {
+      "path": "declarationLinkedAliases.ts",
+      "mode": "100644",
+      "bytes": 121,
+      "sha256": "96c6d331626e0416b4f97a2417683743d8cb04cd7570dd19c679f720eb71a76a",
+      "git_blob_sha1": "5f1bea29c12eafb08629060d19780f7089636c4b"
+    },
+    {
+      "path": "declarationLocalAliasOfImportAlias.ts",
+      "mode": "100644",
+      "bytes": 253,
+      "sha256": "f86be0e3934c0b982ca5c9f97854d53776bc6252218431503e453af6b30b20eb",
+      "git_blob_sha1": "0092c21ce80781f0fa4dc62b68813b46139b8066"
+    },
+    {
+      "path": "declarationNotInScopeTypes.ts",
+      "mode": "100644",
+      "bytes": 289,
+      "sha256": "665ca18dd6bb0383f51881db708b318c4b57b07324af4b91157531998a80ea21",
+      "git_blob_sha1": "9d407bd9dd716c843ce25c28ffa6b5b00c9a0ff8"
+    },
+    {
+      "path": "declarationPartialNodeReuseTypeOf.ts",
+      "mode": "100644",
+      "bytes": 572,
+      "sha256": "e4a8187685f7e90f74153f537b6c9f73614d8f5e0fa0d727f767b3108d4a9c6c",
+      "git_blob_sha1": "f0e01e5914773d9a5b9072216c54031024217e8f"
+    },
+    {
+      "path": "declarationRestParameters.ts",
+      "mode": "100644",
+      "bytes": 440,
+      "sha256": "12bc4f63e971cf21e7dad3615aad1dab18ae0afbf2c2a408da8becb7823ed9d7",
+      "git_blob_sha1": "8cfdfbc6a40b6775a6fa8c10b2ff3b05faaf6c0e"
+    },
+    {
+      "path": "declarationSelfReferentialConstraint.ts",
+      "mode": "100644",
+      "bytes": 173,
+      "sha256": "b6868e47d542a09a778d41f227072853dc8e2ebf85969df668cd25362f2bc6d0",
+      "git_blob_sha1": "6d1c784c69828432a091a4ce502f824e715f58e5"
+    },
+    {
+      "path": "declarationSingleFileHasErrors.ts",
+      "mode": "100644",
+      "bytes": 105,
+      "sha256": "9dcd91abb2e5d5c5de5f100bafb447ec042a81d82eef81a65c46fed6421abd36",
+      "git_blob_sha1": "e354a1a01cda5a6a2543568345aa67ef923d2948"
+    },
+    {
+      "path": "declarationSingleFileHasErrorsReported.ts",
+      "mode": "100644",
+      "bytes": 134,
+      "sha256": "61d005cc4b3153b68744a284077cee66452c8fec0ae5d888cc3b2ffd361da447",
+      "git_blob_sha1": "8567694a31eeb7207a9f42b1c3896d9cb517c691"
+    },
+    {
+      "path": "declarationTypeParameterConstraint.ts",
+      "mode": "100644",
+      "bytes": 222,
+      "sha256": "b0de28f0df938c5d04e00e177f75044c7e3c042e586e499e67d694cf8fa51d2c",
+      "git_blob_sha1": "5b4c380f31561481dcf11619af6e857e1e8b0bdf"
+    },
+    {
+      "path": "declarationTypeWithComputedName.ts",
+      "mode": "100644",
+      "bytes": 258,
+      "sha256": "32c07165b5f1ffa3a63dda13249a290605470845813b20b2a5b9bd3cb3bec337",
+      "git_blob_sha1": "569ccc53820ae426be61d0771c17fb5f1348136e"
+    },
+    {
+      "path": "declarationUnresolvedGlobalReferencesNoErrors.ts",
+      "mode": "100644",
+      "bytes": 588,
+      "sha256": "7a2ca87b53ab153022ecb65b59f037353bcee56b2d8d53bfd82a3a77d548f649",
+      "git_blob_sha1": "9b4d05192b7572c51b691628092f5608d421d70c"
+    },
+    {
+      "path": "declarationUnresolvedTypeReference.ts",
+      "mode": "100644",
+      "bytes": 229,
+      "sha256": "2f2172e9bab6e59fabb2f1c6bbdaf69b0d85c3b9f5446b18649229f132f27d5e",
+      "git_blob_sha1": "371018661d1ed1c368458181dd37182e0ae8e3aa"
+    },
+    {
+      "path": "declarationUnresolvedTypeReference2.ts",
+      "mode": "100644",
+      "bytes": 697,
+      "sha256": "3059e7514ac1d992d4e76ab95272099c98c8e475e2b92246e71b496ae6cc00a6",
+      "git_blob_sha1": "5fc146deeeb9280eee3dc29bbd1deda254f035be"
+    },
+    {
+      "path": "declarationsSimple.ts",
+      "mode": "100644",
+      "bytes": 215,
+      "sha256": "f7eac6f0d42ce2a3af73958b04563a270c51aafa800f1eda1052519cedee4afd",
+      "git_blob_sha1": "c4316721ccce89f2f1a7ff9b88c49d76faf361d5"
+    },
+    {
+      "path": "jsWithInlineSourceMapBasic.ts",
+      "mode": "100644",
+      "bytes": 919,
+      "sha256": "a783d8b12e378f932763ca2e2a85adef3d47de98a622676e43393d95ee704c8d",
+      "git_blob_sha1": "89f9546f2938b4a99dd347cb25db5fab2b5cf780"
+    },
+    {
+      "path": "jsWithSourceMapBasic.ts",
+      "mode": "100644",
+      "bytes": 913,
+      "sha256": "410401f2065af931a2d6c742836b6c2b22af659188c6b4923aaaae4a21b97b3b",
+      "git_blob_sha1": "914133536c2729fb754d4a25e9a75e133d98b94c"
+    }
+  ],
+  "fixtures": [
+    {
+      "source": 0,
+      "encoding": "utf-8",
+      "decoded_utf8_bytes": 395,
+      "decoded_sha256": "4aa4c17ff8ed8d29909a37586b42bea24eb3e37025112094abb49db67bdef6b3",
+      "settings": [
+        {
+          "name": "declaration",
+          "value": "true"
+        },
+        {
+          "name": "target",
+          "value": "esnext"
+        }
+      ],
+      "units": [
+        {
+          "name": "declarationAsyncAndGeneratorFunctions.ts",
+          "file_options": [
+            {
+              "name": "declaration",
+              "value": "true"
+            },
+            {
+              "name": "target",
+              "value": "esnext"
+            }
+          ],
+          "content": {
+            "utf8_bytes": 332,
+            "sha256": "73ad075e9c0785d1230535be4d6f58f853b110b296a8cebc3c6fb6f202f2600d"
+          },
+          "rejected_feature_roots": [],
+          "parse_diagnostic_codes": []
+        }
+      ],
+      "configurations": [
+        {
+          "variant": "default",
+          "runner_name": "declarationAsyncAndGeneratorFunctions",
+          "overrides": []
+        }
+      ]
+    },
+    {
+      "source": 1,
+      "encoding": "utf-8",
+      "decoded_utf8_bytes": 941,
+      "decoded_sha256": "5e8fd0ec505965fbcb98dff73ab1791d442fde5316e441f41185613d7c744dab",
+      "settings": [
+        {
+          "name": "declaration",
+          "value": "true"
+        },
+        {
+          "name": "declarationMap",
+          "value": "true,false"
+        },
+        {
+          "name": "target",
+          "value": "es6"
+        },
+        {
+          "name": "filename",
+          "value": "alias.ts"
+        }
+      ],
+      "units": [
+        {
+          "name": "variables.ts",
+          "file_options": [
+            {
+              "name": "declaration",
+              "value": "true"
+            },
+            {
+              "name": "declarationMap",
+              "value": "true,false"
+            },
+            {
+              "name": "target",
+              "value": "es6"
+            },
+            {
+              "name": "filename",
+              "value": "interface.ts"
+            }
+          ],
+          "content": {
+            "utf8_bytes": 131,
+            "sha256": "a94f49b20fa4268c553a57a045fcc0f147c8b604f7f94cea9dd68a8a0ec28c14"
+          },
+          "rejected_feature_roots": [],
+          "parse_diagnostic_codes": []
+        },
+        {
+          "name": "interface.ts",
+          "file_options": [
+            {
+              "name": "filename",
+              "value": "class.ts"
+            }
+          ],
+          "content": {
+            "utf8_bytes": 79,
+            "sha256": "707c60978f00b090ff34df62e7931078355b0af55ceda3d966db138708233ab0"
+          },
+          "rejected_feature_roots": [],
+          "parse_diagnostic_codes": []
+        },
+        {
+          "name": "class.ts",
+          "file_options": [
+            {
+              "name": "filename",
+              "value": "namespace.ts"
+            }
+          ],
+          "content": {
+            "utf8_bytes": 300,
+            "sha256": "1f0de403ee9764134894eed53eeb520aea5c7dc9589244564ea38e15175cc726"
+          },
+          "rejected_feature_roots": [],
+          "parse_diagnostic_codes": []
+        },
+        {
+          "name": "namespace.ts",
+          "file_options": [
+            {
+              "name": "filename",
+              "value": "alias.ts"
+            }
+          ],
+          "content": {
+            "utf8_bytes": 158,
+            "sha256": "6169076bfead831da63387e9ee9ceb2866dc89ceeca82178c60c418247033ef1"
+          },
+          "rejected_feature_roots": [
+            "import-equals",
+            "runtime-namespaces"
+          ],
+          "parse_diagnostic_codes": []
+        },
+        {
+          "name": "alias.ts",
+          "file_options": [],
+          "content": {
+            "utf8_bytes": 28,
+            "sha256": "74445c4b24c8af79b0b6f489272e00e595a456fc9ee803a96cebb86600e13f5b"
+          },
+          "rejected_feature_roots": [],
+          "parse_diagnostic_codes": []
+        }
+      ],
+      "configurations": [
+        {
+          "variant": "declarationMap=true",
+          "runner_name": "declarationBasicSyntax(declarationMap=true)",
+          "overrides": [
+            {
+              "name": "declarationMap",
+              "value": "true"
+            }
+          ]
+        },
+        {
+          "variant": "declarationMap=false",
+          "runner_name": "declarationBasicSyntax(declarationMap=false)",
+          "overrides": [
+            {
+              "name": "declarationMap",
+              "value": "false"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "source": 2,
+      "encoding": "utf-8",
+      "decoded_utf8_bytes": 1712,
+      "decoded_sha256": "b3a9c8cc8e618795aa4d20bc81599f86b7e9882dadb89b7d53fbd5b49e8403e1",
+      "settings": [
+        {
+          "name": "declaration",
+          "value": "true"
+        },
+        {
+          "name": "emitDeclarationOnly",
+          "value": "true"
+        },
+        {
+          "name": "target",
+          "value": "es6"
+        }
+      ],
+      "units": [
+        {
+          "name": "declarationComputedPropertyNames.ts",
+          "file_options": [
+            {
+              "name": "declaration",
+              "value": "true"
+            },
+            {
+              "name": "emitDeclarationOnly",
+              "value": "true"
+            },
+            {
+              "name": "target",
+              "value": "es6"
+            }
+          ],
+          "content": {
+            "utf8_bytes": 1578,
+            "sha256": "9083945066c4eae3411a5f6de1cc2d8c167c7247db9aec47d2fab2b4c23e5b60"
+          },
+          "rejected_feature_roots": [
+            "runtime-namespaces"
+          ],
+          "parse_diagnostic_codes": []
+        }
+      ],
+      "configurations": [
+        {
+          "variant": "default",
+          "runner_name": "declarationComputedPropertyNames",
+          "overrides": []
+        }
+      ]
+    },
+    {
+      "source": 3,
+      "encoding": "utf-8",
+      "decoded_utf8_bytes": 341,
+      "decoded_sha256": "6f4650e10d813de9aa88c0588d7a2908baf05ed453fc8881da1c3951cf652e2d",
+      "settings": [
+        {
+          "name": "target",
+          "value": "es2015"
+        },
+        {
+          "name": "module",
+          "value": "commonjs"
+        },
+        {
+          "name": "declaration",
+          "value": "true"
+        },
+        {
+          "name": "filename",
+          "value": "exposes.ts"
+        }
+      ],
+      "units": [
+        {
+          "name": "defines.ts",
+          "file_options": [
+            {
+              "name": "target",
+              "value": "es2015"
+            },
+            {
+              "name": "module",
+              "value": "commonjs"
+            },
+            {
+              "name": "declaration",
+              "value": "true"
+            },
+            {
+              "name": "filename",
+              "value": "consumes.ts"
+            }
+          ],
+          "content": {
+            "utf8_bytes": 39,
+            "sha256": "137d5484ff07ce114ef94e990374d5de37a1630d7080780b7c4689094a905da0"
+          },
+          "rejected_feature_roots": [],
+          "parse_diagnostic_codes": []
+        },
+        {
+          "name": "consumes.ts",
+          "file_options": [
+            {
+              "name": "filename",
+              "value": "exposes.ts"
+            }
+          ],
+          "content": {
+            "utf8_bytes": 80,
+            "sha256": "25d8af6c1a639585ab1218f965147074693c044830a267a29b74594cb3c6b5b4"
+          },
+          "rejected_feature_roots": [],
+          "parse_diagnostic_codes": []
+        },
+        {
+          "name": "exposes.ts",
+          "file_options": [],
+          "content": {
+            "utf8_bytes": 68,
+            "sha256": "ac3b54771b29debc9a3add491930f9ad7305ec2bcdb51fe40406baa83c944085"
+          },
+          "rejected_feature_roots": [],
+          "parse_diagnostic_codes": []
+        }
+      ],
+      "configurations": [
+        {
+          "variant": "default",
+          "runner_name": "declarationCrossFileInferences",
+          "overrides": []
+        }
+      ]
+    },
+    {
+      "source": 4,
+      "encoding": "utf-8",
+      "decoded_utf8_bytes": 578,
+      "decoded_sha256": "12bde7a809a1cc285c2e7af6ce5b918c34c7ded6e52d2f3d14e78f419076feec",
+      "settings": [
+        {
+          "name": "strict",
+          "value": "true"
+        },
+        {
+          "name": "declaration",
+          "value": "true"
+        },
+        {
+          "name": "emitDeclarationOnly",
+          "value": "true"
+        },
+        {
+          "name": "target",
+          "value": "es2020"
+        },
+        {
+          "name": "filename",
+          "value": "c.ts"
+        }
+      ],
+      "units": [
+        {
+          "name": "a.ts",
+          "file_options": [
+            {
+              "name": "strict",
+              "value": "true"
+            },
+            {
+              "name": "declaration",
+              "value": "true"
+            },
+            {
+              "name": "emitDeclarationOnly",
+              "value": "true"
+            },
+            {
+              "name": "target",
+              "value": "es2020"
+            },
+            {
+              "name": "filename",
+              "value": "b.ts"
+            }
+          ],
+          "content": {
+            "utf8_bytes": 305,
+            "sha256": "997baf3403031be957a23eccd68b8488e0a20ea62b85086c26743e08fdb69a39"
+          },
+          "rejected_feature_roots": [
+            "runtime-namespaces"
+          ],
+          "parse_diagnostic_codes": []
+        },
+        {
+          "name": "b.ts",
+          "file_options": [
+            {
+              "name": "filename",
+              "value": "c.ts"
+            }
+          ],
+          "content": {
+            "utf8_bytes": 47,
+            "sha256": "979646e57a48bb865b78ac43ef9d75f5b3c0a4ff1d67756fc9e3ef68a59184e3"
+          },
+          "rejected_feature_roots": [],
+          "parse_diagnostic_codes": []
+        },
+        {
+          "name": "c.ts",
+          "file_options": [],
+          "content": {
+            "utf8_bytes": 58,
+            "sha256": "80ecfebb443fe3d08b986e9762b0dd3d880b4df4c16607efd2f62ef25cda8806"
+          },
+          "rejected_feature_roots": [],
+          "parse_diagnostic_codes": []
+        }
+      ],
+      "configurations": [
+        {
+          "variant": "default",
+          "runner_name": "declarationEmitPartialNodeReuse",
+          "overrides": []
+        }
+      ]
+    },
+    {
+      "source": 5,
+      "encoding": "utf-8",
+      "decoded_utf8_bytes": 3385,
+      "decoded_sha256": "bce5aec7e289ea3bcd6004e00e851fa1aed085192d7fdecef5a87371849c0774",
+      "settings": [
+        {
+          "name": "declaration",
+          "value": "true"
+        },
+        {
+          "name": "target",
+          "value": "esnext"
+        },
+        {
+          "name": "strict",
+          "value": "true"
+        },
+        {
+          "name": "fileName",
+          "value": "fnDecl.ts"
+        }
+      ],
+      "units": [
+        {
+          "name": "fnDecl.ts",
+          "file_options": [
+            {
+              "name": "declaration",
+              "value": "true"
+            },
+            {
+              "name": "target",
+              "value": "esnext"
+            },
+            {
+              "name": "strict",
+              "value": "true"
+            },
+            {
+              "name": "fileName",
+              "value": "fnDecl.ts"
+            }
+          ],
+          "content": {
+            "utf8_bytes": 3245,
+            "sha256": "b4e480802e9f81cb77e3507e7d280a6b03c2bf6f9aead6a4e349ccd76622d90d"
+          },
+          "rejected_feature_roots": [
+            "parameter-properties"
+          ],
+          "parse_diagnostic_codes": []
+        }
+      ],
+      "configurations": [
+        {
+          "variant": "default",
+          "runner_name": "declarationFunctionDeclarations",
+          "overrides": []
+        }
+      ]
+    },
+    {
+      "source": 6,
+      "encoding": "utf-8",
+      "decoded_utf8_bytes": 121,
+      "decoded_sha256": "96c6d331626e0416b4f97a2417683743d8cb04cd7570dd19c679f720eb71a76a",
+      "settings": [
+        {
+          "name": "target",
+          "value": "es2015"
+        },
+        {
+          "name": "module",
+          "value": "commonjs"
+        },
+        {
+          "name": "declaration",
+          "value": "true"
+        }
+      ],
+      "units": [
+        {
+          "name": "declarationLinkedAliases.ts",
+          "file_options": [
+            {
+              "name": "target",
+              "value": "es2015"
+            },
+            {
+              "name": "module",
+              "value": "commonjs"
+            },
+            {
+              "name": "declaration",
+              "value": "true"
+            }
+          ],
+          "content": {
+            "utf8_bytes": 54,
+            "sha256": "4a5e97d6814cbecce48a6c96884db96c7e9c7993cda1ff25d2c24a579ecf94e5"
+          },
+          "rejected_feature_roots": [
+            "import-equals"
+          ],
+          "parse_diagnostic_codes": []
+        }
+      ],
+      "configurations": [
+        {
+          "variant": "default",
+          "runner_name": "declarationLinkedAliases",
+          "overrides": []
+        }
+      ]
+    },
+    {
+      "source": 7,
+      "encoding": "utf-8",
+      "decoded_utf8_bytes": 253,
+      "decoded_sha256": "f86be0e3934c0b982ca5c9f97854d53776bc6252218431503e453af6b30b20eb",
+      "settings": [
+        {
+          "name": "target",
+          "value": "es2015"
+        },
+        {
+          "name": "module",
+          "value": "commonjs"
+        },
+        {
+          "name": "declaration",
+          "value": "true"
+        }
+      ],
+      "units": [
+        {
+          "name": "declarationLocalAliasOfImportAlias.ts",
+          "file_options": [
+            {
+              "name": "target",
+              "value": "es2015"
+            },
+            {
+              "name": "module",
+              "value": "commonjs"
+            },
+            {
+              "name": "declaration",
+              "value": "true"
+            }
+          ],
+          "content": {
+            "utf8_bytes": 181,
+            "sha256": "f5325fa80422a1cf01be60e5e745705902f24e8d74871302209aa3bb62f323be"
+          },
+          "rejected_feature_roots": [],
+          "parse_diagnostic_codes": []
+        }
+      ],
+      "configurations": [
+        {
+          "variant": "default",
+          "runner_name": "declarationLocalAliasOfImportAlias",
+          "overrides": []
+        }
+      ]
+    },
+    {
+      "source": 8,
+      "encoding": "utf-8",
+      "decoded_utf8_bytes": 289,
+      "decoded_sha256": "665ca18dd6bb0383f51881db708b318c4b57b07324af4b91157531998a80ea21",
+      "settings": [
+        {
+          "name": "declaration",
+          "value": "true"
+        },
+        {
+          "name": "target",
+          "value": "es6"
+        },
+        {
+          "name": "filename",
+          "value": "variables.ts"
+        }
+      ],
+      "units": [
+        {
+          "name": "variables.ts",
+          "file_options": [
+            {
+              "name": "declaration",
+              "value": "true"
+            },
+            {
+              "name": "target",
+              "value": "es6"
+            },
+            {
+              "name": "filename",
+              "value": "variables.ts"
+            }
+          ],
+          "content": {
+            "utf8_bytes": 208,
+            "sha256": "ad3e894ebf30d5ccef62ded3df94f03686ee2396104f0330b89ad0345b3be7ef"
+          },
+          "rejected_feature_roots": [],
+          "parse_diagnostic_codes": []
+        }
+      ],
+      "configurations": [
+        {
+          "variant": "default",
+          "runner_name": "declarationNotInScopeTypes",
+          "overrides": []
+        }
+      ]
+    },
+    {
+      "source": 9,
+      "encoding": "utf-8",
+      "decoded_utf8_bytes": 572,
+      "decoded_sha256": "e4a8187685f7e90f74153f537b6c9f73614d8f5e0fa0d727f767b3108d4a9c6c",
+      "settings": [
+        {
+          "name": "strict",
+          "value": "true"
+        },
+        {
+          "name": "declaration",
+          "value": "true"
+        },
+        {
+          "name": "emitDeclarationOnly",
+          "value": "true"
+        },
+        {
+          "name": "target",
+          "value": "es2020"
+        },
+        {
+          "name": "filename",
+          "value": "c.ts"
+        }
+      ],
+      "units": [
+        {
+          "name": "a.ts",
+          "file_options": [
+            {
+              "name": "strict",
+              "value": "true"
+            },
+            {
+              "name": "declaration",
+              "value": "true"
+            },
+            {
+              "name": "emitDeclarationOnly",
+              "value": "true"
+            },
+            {
+              "name": "target",
+              "value": "es2020"
+            },
+            {
+              "name": "filename",
+              "value": "b.ts"
+            }
+          ],
+          "content": {
+            "utf8_bytes": 279,
+            "sha256": "3678c2a35cb9c648402e9baad466c504bae17f8b6aec7c055141f68366dfcb65"
+          },
+          "rejected_feature_roots": [],
+          "parse_diagnostic_codes": []
+        },
+        {
+          "name": "b.ts",
+          "file_options": [
+            {
+              "name": "filename",
+              "value": "c.ts"
+            }
+          ],
+          "content": {
+            "utf8_bytes": 79,
+            "sha256": "f175074e04d0e6b526a0f3a30962d958c5b9bb658da83604a0c5f685666bf6b4"
+          },
+          "rejected_feature_roots": [],
+          "parse_diagnostic_codes": []
+        },
+        {
+          "name": "c.ts",
+          "file_options": [],
+          "content": {
+            "utf8_bytes": 47,
+            "sha256": "979646e57a48bb865b78ac43ef9d75f5b3c0a4ff1d67756fc9e3ef68a59184e3"
+          },
+          "rejected_feature_roots": [],
+          "parse_diagnostic_codes": []
+        }
+      ],
+      "configurations": [
+        {
+          "variant": "default",
+          "runner_name": "declarationPartialNodeReuseTypeOf",
+          "overrides": []
+        }
+      ]
+    },
+    {
+      "source": 10,
+      "encoding": "utf-8",
+      "decoded_utf8_bytes": 440,
+      "decoded_sha256": "12bc4f63e971cf21e7dad3615aad1dab18ae0afbf2c2a408da8becb7823ed9d7",
+      "settings": [
+        {
+          "name": "declaration",
+          "value": "true"
+        },
+        {
+          "name": "target",
+          "value": "es2015"
+        },
+        {
+          "name": "module",
+          "value": "commonjs"
+        },
+        {
+          "name": "emitDeclarationOnly",
+          "value": "true"
+        },
+        {
+          "name": "fileName",
+          "value": "v2.ts"
+        }
+      ],
+      "units": [
+        {
+          "name": "v1.ts",
+          "file_options": [
+            {
+              "name": "declaration",
+              "value": "true"
+            },
+            {
+              "name": "target",
+              "value": "es2015"
+            },
+            {
+              "name": "module",
+              "value": "commonjs"
+            },
+            {
+              "name": "emitDeclarationOnly",
+              "value": "true"
+            },
+            {
+              "name": "fileName",
+              "value": "v2.ts"
+            }
+          ],
+          "content": {
+            "utf8_bytes": 113,
+            "sha256": "de2be4d13cb6fdbae3a7564ba16f9f827842a1bc2b29901e88709d95843f1675"
+          },
+          "rejected_feature_roots": [],
+          "parse_diagnostic_codes": []
+        },
+        {
+          "name": "v2.ts",
+          "file_options": [],
+          "content": {
+            "utf8_bytes": 171,
+            "sha256": "41f2657bbed3b09431d004a3164eeb91ac621231e9a799a6306e82f35b163dfd"
+          },
+          "rejected_feature_roots": [],
+          "parse_diagnostic_codes": []
+        }
+      ],
+      "configurations": [
+        {
+          "variant": "default",
+          "runner_name": "declarationRestParameters",
+          "overrides": []
+        }
+      ]
+    },
+    {
+      "source": 11,
+      "encoding": "utf-8",
+      "decoded_utf8_bytes": 173,
+      "decoded_sha256": "b6868e47d542a09a778d41f227072853dc8e2ebf85969df668cd25362f2bc6d0",
+      "settings": [
+        {
+          "name": "target",
+          "value": "es2015"
+        },
+        {
+          "name": "module",
+          "value": "commonjs"
+        },
+        {
+          "name": "declaration",
+          "value": "true"
+        },
+        {
+          "name": "emitDeclarationOnly",
+          "value": "true"
+        }
+      ],
+      "units": [
+        {
+          "name": "declarationSelfReferentialConstraint.ts",
+          "file_options": [
+            {
+              "name": "target",
+              "value": "es2015"
+            },
+            {
+              "name": "module",
+              "value": "commonjs"
+            },
+            {
+              "name": "declaration",
+              "value": "true"
+            },
+            {
+              "name": "emitDeclarationOnly",
+              "value": "true"
+            }
+          ],
+          "content": {
+            "utf8_bytes": 75,
+            "sha256": "92271e2d4b2309873c7333ac5f21c481724866cc389c838bd5f4652ed7fee730"
+          },
+          "rejected_feature_roots": [],
+          "parse_diagnostic_codes": []
+        }
+      ],
+      "configurations": [
+        {
+          "variant": "default",
+          "runner_name": "declarationSelfReferentialConstraint",
+          "overrides": []
+        }
+      ]
+    },
+    {
+      "source": 12,
+      "encoding": "utf-8",
+      "decoded_utf8_bytes": 105,
+      "decoded_sha256": "9dcd91abb2e5d5c5de5f100bafb447ec042a81d82eef81a65c46fed6421abd36",
+      "settings": [
+        {
+          "name": "target",
+          "value": "es2015"
+        },
+        {
+          "name": "module",
+          "value": "commonjs"
+        },
+        {
+          "name": "declaration",
+          "value": "true"
+        }
+      ],
+      "units": [
+        {
+          "name": "declarationSingleFileHasErrors.ts",
+          "file_options": [
+            {
+              "name": "target",
+              "value": "es2015"
+            },
+            {
+              "name": "module",
+              "value": "commonjs"
+            },
+            {
+              "name": "declaration",
+              "value": "true"
+            }
+          ],
+          "content": {
+            "utf8_bytes": 40,
+            "sha256": "3e12a28e9dcbba46a1cd924ce404fc4b63de5c0df60f4a76a4c53927dd42b434"
+          },
+          "rejected_feature_roots": [],
+          "parse_diagnostic_codes": [
+            1005
+          ]
+        }
+      ],
+      "configurations": [
+        {
+          "variant": "default",
+          "runner_name": "declarationSingleFileHasErrors",
+          "overrides": []
+        }
+      ]
+    },
+    {
+      "source": 13,
+      "encoding": "utf-8",
+      "decoded_utf8_bytes": 134,
+      "decoded_sha256": "61d005cc4b3153b68744a284077cee66452c8fec0ae5d888cc3b2ffd361da447",
+      "settings": [
+        {
+          "name": "target",
+          "value": "es2015"
+        },
+        {
+          "name": "module",
+          "value": "commonjs"
+        },
+        {
+          "name": "declaration",
+          "value": "true"
+        },
+        {
+          "name": "reportDiagnostics",
+          "value": "true"
+        }
+      ],
+      "units": [
+        {
+          "name": "declarationSingleFileHasErrorsReported.ts",
+          "file_options": [
+            {
+              "name": "target",
+              "value": "es2015"
+            },
+            {
+              "name": "module",
+              "value": "commonjs"
+            },
+            {
+              "name": "declaration",
+              "value": "true"
+            },
+            {
+              "name": "reportDiagnostics",
+              "value": "true"
+            }
+          ],
+          "content": {
+            "utf8_bytes": 40,
+            "sha256": "a97aeaa9aac9f3aa83a60ae55ee1b31bef7d4ab456701e1be2e1d13981c8633e"
+          },
+          "rejected_feature_roots": [],
+          "parse_diagnostic_codes": [
+            1005
+          ]
+        }
+      ],
+      "configurations": [
+        {
+          "variant": "default",
+          "runner_name": "declarationSingleFileHasErrorsReported",
+          "overrides": []
+        }
+      ]
+    },
+    {
+      "source": 14,
+      "encoding": "utf-8",
+      "decoded_utf8_bytes": 222,
+      "decoded_sha256": "b0de28f0df938c5d04e00e177f75044c7e3c042e586e499e67d694cf8fa51d2c",
+      "settings": [
+        {
+          "name": "target",
+          "value": "es2015"
+        },
+        {
+          "name": "module",
+          "value": "commonjs"
+        },
+        {
+          "name": "declaration",
+          "value": "true"
+        }
+      ],
+      "units": [
+        {
+          "name": "declarationTypeParameterConstraint.ts",
+          "file_options": [
+            {
+              "name": "target",
+              "value": "es2015"
+            },
+            {
+              "name": "module",
+              "value": "commonjs"
+            },
+            {
+              "name": "declaration",
+              "value": "true"
+            }
+          ],
+          "content": {
+            "utf8_bytes": 151,
+            "sha256": "dbcb9fbd6b132da99db66c62d65619573f9343d0c4517d044d0df01914caf65d"
+          },
+          "rejected_feature_roots": [],
+          "parse_diagnostic_codes": []
+        }
+      ],
+      "configurations": [
+        {
+          "variant": "default",
+          "runner_name": "declarationTypeParameterConstraint",
+          "overrides": []
+        }
+      ]
+    },
+    {
+      "source": 15,
+      "encoding": "utf-8",
+      "decoded_utf8_bytes": 258,
+      "decoded_sha256": "32c07165b5f1ffa3a63dda13249a290605470845813b20b2a5b9bd3cb3bec337",
+      "settings": [
+        {
+          "name": "target",
+          "value": "es2015"
+        },
+        {
+          "name": "module",
+          "value": "commonjs"
+        },
+        {
+          "name": "declaration",
+          "value": "true"
+        },
+        {
+          "name": "emitDeclarationOnly",
+          "value": "true"
+        }
+      ],
+      "units": [
+        {
+          "name": "declarationTypeWithComputedName.ts",
+          "file_options": [
+            {
+              "name": "target",
+              "value": "es2015"
+            },
+            {
+              "name": "module",
+              "value": "commonjs"
+            },
+            {
+              "name": "declaration",
+              "value": "true"
+            },
+            {
+              "name": "emitDeclarationOnly",
+              "value": "true"
+            }
+          ],
+          "content": {
+            "utf8_bytes": 151,
+            "sha256": "945be29d890812cc6404e834e9a2428405325738280c71346e940c92a60d70a6"
+          },
+          "rejected_feature_roots": [],
+          "parse_diagnostic_codes": []
+        }
+      ],
+      "configurations": [
+        {
+          "variant": "default",
+          "runner_name": "declarationTypeWithComputedName",
+          "overrides": []
+        }
+      ]
+    },
+    {
+      "source": 16,
+      "encoding": "utf-8",
+      "decoded_utf8_bytes": 588,
+      "decoded_sha256": "7a2ca87b53ab153022ecb65b59f037353bcee56b2d8d53bfd82a3a77d548f649",
+      "settings": [
+        {
+          "name": "target",
+          "value": "es2015"
+        },
+        {
+          "name": "module",
+          "value": "commonjs"
+        },
+        {
+          "name": "declaration",
+          "value": "true"
+        },
+        {
+          "name": "emitDeclarationOnly",
+          "value": "true"
+        }
+      ],
+      "units": [
+        {
+          "name": "declarationUnresolvedGlobalReferencesNoErrors.ts",
+          "file_options": [
+            {
+              "name": "target",
+              "value": "es2015"
+            },
+            {
+              "name": "module",
+              "value": "commonjs"
+            },
+            {
+              "name": "declaration",
+              "value": "true"
+            },
+            {
+              "name": "emitDeclarationOnly",
+              "value": "true"
+            }
+          ],
+          "content": {
+            "utf8_bytes": 480,
+            "sha256": "4ef74f35a930cd0724a4202ad6c1ceaec91e055434d276e1af72cec16696229d"
+          },
+          "rejected_feature_roots": [],
+          "parse_diagnostic_codes": []
+        }
+      ],
+      "configurations": [
+        {
+          "variant": "default",
+          "runner_name": "declarationUnresolvedGlobalReferencesNoErrors",
+          "overrides": []
+        }
+      ]
+    },
+    {
+      "source": 17,
+      "encoding": "utf-8",
+      "decoded_utf8_bytes": 229,
+      "decoded_sha256": "2f2172e9bab6e59fabb2f1c6bbdaf69b0d85c3b9f5446b18649229f132f27d5e",
+      "settings": [
+        {
+          "name": "target",
+          "value": "es2015"
+        },
+        {
+          "name": "module",
+          "value": "commonjs"
+        },
+        {
+          "name": "declaration",
+          "value": "true"
+        },
+        {
+          "name": "emitDeclarationOnly",
+          "value": "true"
+        }
+      ],
+      "units": [
+        {
+          "name": "declarationUnresolvedTypeReference.ts",
+          "file_options": [
+            {
+              "name": "target",
+              "value": "es2015"
+            },
+            {
+              "name": "module",
+              "value": "commonjs"
+            },
+            {
+              "name": "declaration",
+              "value": "true"
+            },
+            {
+              "name": "emitDeclarationOnly",
+              "value": "true"
+            }
+          ],
+          "content": {
+            "utf8_bytes": 131,
+            "sha256": "87dc33078bf97f43864ebe597105dec0a39852c4c5496b2b11804fcf464e0d7e"
+          },
+          "rejected_feature_roots": [],
+          "parse_diagnostic_codes": []
+        }
+      ],
+      "configurations": [
+        {
+          "variant": "default",
+          "runner_name": "declarationUnresolvedTypeReference",
+          "overrides": []
+        }
+      ]
+    },
+    {
+      "source": 18,
+      "encoding": "utf-8",
+      "decoded_utf8_bytes": 697,
+      "decoded_sha256": "3059e7514ac1d992d4e76ab95272099c98c8e475e2b92246e71b496ae6cc00a6",
+      "settings": [
+        {
+          "name": "target",
+          "value": "es2015"
+        },
+        {
+          "name": "module",
+          "value": "commonjs"
+        },
+        {
+          "name": "declaration",
+          "value": "true"
+        },
+        {
+          "name": "emitDeclarationOnly",
+          "value": "true"
+        },
+        {
+          "name": "fileName",
+          "value": "index.ts"
+        }
+      ],
+      "units": [
+        {
+          "name": "globals.ts",
+          "file_options": [
+            {
+              "name": "target",
+              "value": "es2015"
+            },
+            {
+              "name": "module",
+              "value": "commonjs"
+            },
+            {
+              "name": "declaration",
+              "value": "true"
+            },
+            {
+              "name": "emitDeclarationOnly",
+              "value": "true"
+            },
+            {
+              "name": "fileName",
+              "value": "index.ts"
+            }
+          ],
+          "content": {
+            "utf8_bytes": 73,
+            "sha256": "91b6bfca12ddf23103242cada44d75fdea02de24c14641940619dd99e74c311d"
+          },
+          "rejected_feature_roots": [],
+          "parse_diagnostic_codes": []
+        },
+        {
+          "name": "index.ts",
+          "file_options": [],
+          "content": {
+            "utf8_bytes": 467,
+            "sha256": "b4a47572505de6e8bdeeaad66ecb065e24e05ee626232da3b25aecfed9b0cb1a"
+          },
+          "rejected_feature_roots": [],
+          "parse_diagnostic_codes": []
+        }
+      ],
+      "configurations": [
+        {
+          "variant": "default",
+          "runner_name": "declarationUnresolvedTypeReference2",
+          "overrides": []
+        }
+      ]
+    },
+    {
+      "source": 19,
+      "encoding": "utf-8",
+      "decoded_utf8_bytes": 215,
+      "decoded_sha256": "f7eac6f0d42ce2a3af73958b04563a270c51aafa800f1eda1052519cedee4afd",
+      "settings": [
+        {
+          "name": "target",
+          "value": "es2015"
+        },
+        {
+          "name": "module",
+          "value": "commonjs"
+        },
+        {
+          "name": "declaration",
+          "value": "true"
+        }
+      ],
+      "units": [
+        {
+          "name": "declarationsSimple.ts",
+          "file_options": [
+            {
+              "name": "target",
+              "value": "es2015"
+            },
+            {
+              "name": "module",
+              "value": "commonjs"
+            },
+            {
+              "name": "declaration",
+              "value": "true"
+            }
+          ],
+          "content": {
+            "utf8_bytes": 138,
+            "sha256": "85e5082a415a29e7868b13a1942edf1baa12a56ded0a36dd3db03eeb896fdbbe"
+          },
+          "rejected_feature_roots": [],
+          "parse_diagnostic_codes": []
+        }
+      ],
+      "configurations": [
+        {
+          "variant": "default",
+          "runner_name": "declarationsSimple",
+          "overrides": []
+        }
+      ]
+    },
+    {
+      "source": 20,
+      "encoding": "utf-8",
+      "decoded_utf8_bytes": 919,
+      "decoded_sha256": "a783d8b12e378f932763ca2e2a85adef3d47de98a622676e43393d95ee704c8d",
+      "settings": [
+        {
+          "name": "inlineSourceMap",
+          "value": "true,false"
+        },
+        {
+          "name": "target",
+          "value": "es6"
+        },
+        {
+          "name": "filename",
+          "value": "alias.ts"
+        }
+      ],
+      "units": [
+        {
+          "name": "variables.ts",
+          "file_options": [
+            {
+              "name": "inlineSourceMap",
+              "value": "true,false"
+            },
+            {
+              "name": "target",
+              "value": "es6"
+            },
+            {
+              "name": "filename",
+              "value": "interface.ts"
+            }
+          ],
+          "content": {
+            "utf8_bytes": 131,
+            "sha256": "a94f49b20fa4268c553a57a045fcc0f147c8b604f7f94cea9dd68a8a0ec28c14"
+          },
+          "rejected_feature_roots": [],
+          "parse_diagnostic_codes": []
+        },
+        {
+          "name": "interface.ts",
+          "file_options": [
+            {
+              "name": "filename",
+              "value": "class.ts"
+            }
+          ],
+          "content": {
+            "utf8_bytes": 79,
+            "sha256": "707c60978f00b090ff34df62e7931078355b0af55ceda3d966db138708233ab0"
+          },
+          "rejected_feature_roots": [],
+          "parse_diagnostic_codes": []
+        },
+        {
+          "name": "class.ts",
+          "file_options": [
+            {
+              "name": "filename",
+              "value": "namespace.ts"
+            }
+          ],
+          "content": {
+            "utf8_bytes": 300,
+            "sha256": "1f0de403ee9764134894eed53eeb520aea5c7dc9589244564ea38e15175cc726"
+          },
+          "rejected_feature_roots": [],
+          "parse_diagnostic_codes": []
+        },
+        {
+          "name": "namespace.ts",
+          "file_options": [
+            {
+              "name": "filename",
+              "value": "alias.ts"
+            }
+          ],
+          "content": {
+            "utf8_bytes": 158,
+            "sha256": "6169076bfead831da63387e9ee9ceb2866dc89ceeca82178c60c418247033ef1"
+          },
+          "rejected_feature_roots": [
+            "import-equals",
+            "runtime-namespaces"
+          ],
+          "parse_diagnostic_codes": []
+        },
+        {
+          "name": "alias.ts",
+          "file_options": [],
+          "content": {
+            "utf8_bytes": 28,
+            "sha256": "74445c4b24c8af79b0b6f489272e00e595a456fc9ee803a96cebb86600e13f5b"
+          },
+          "rejected_feature_roots": [],
+          "parse_diagnostic_codes": []
+        }
+      ],
+      "configurations": [
+        {
+          "variant": "inlineSourceMap=true",
+          "runner_name": "jsWithInlineSourceMapBasic(inlineSourceMap=true)",
+          "overrides": [
+            {
+              "name": "inlineSourceMap",
+              "value": "true"
+            }
+          ]
+        },
+        {
+          "variant": "inlineSourceMap=false",
+          "runner_name": "jsWithInlineSourceMapBasic(inlineSourceMap=false)",
+          "overrides": [
+            {
+              "name": "inlineSourceMap",
+              "value": "false"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "source": 21,
+      "encoding": "utf-8",
+      "decoded_utf8_bytes": 913,
+      "decoded_sha256": "410401f2065af931a2d6c742836b6c2b22af659188c6b4923aaaae4a21b97b3b",
+      "settings": [
+        {
+          "name": "sourceMap",
+          "value": "true,false"
+        },
+        {
+          "name": "target",
+          "value": "es6"
+        },
+        {
+          "name": "filename",
+          "value": "alias.ts"
+        }
+      ],
+      "units": [
+        {
+          "name": "variables.ts",
+          "file_options": [
+            {
+              "name": "sourceMap",
+              "value": "true,false"
+            },
+            {
+              "name": "target",
+              "value": "es6"
+            },
+            {
+              "name": "filename",
+              "value": "interface.ts"
+            }
+          ],
+          "content": {
+            "utf8_bytes": 131,
+            "sha256": "a94f49b20fa4268c553a57a045fcc0f147c8b604f7f94cea9dd68a8a0ec28c14"
+          },
+          "rejected_feature_roots": [],
+          "parse_diagnostic_codes": []
+        },
+        {
+          "name": "interface.ts",
+          "file_options": [
+            {
+              "name": "filename",
+              "value": "class.ts"
+            }
+          ],
+          "content": {
+            "utf8_bytes": 79,
+            "sha256": "707c60978f00b090ff34df62e7931078355b0af55ceda3d966db138708233ab0"
+          },
+          "rejected_feature_roots": [],
+          "parse_diagnostic_codes": []
+        },
+        {
+          "name": "class.ts",
+          "file_options": [
+            {
+              "name": "filename",
+              "value": "namespace.ts"
+            }
+          ],
+          "content": {
+            "utf8_bytes": 300,
+            "sha256": "1f0de403ee9764134894eed53eeb520aea5c7dc9589244564ea38e15175cc726"
+          },
+          "rejected_feature_roots": [],
+          "parse_diagnostic_codes": []
+        },
+        {
+          "name": "namespace.ts",
+          "file_options": [
+            {
+              "name": "filename",
+              "value": "alias.ts"
+            }
+          ],
+          "content": {
+            "utf8_bytes": 158,
+            "sha256": "6169076bfead831da63387e9ee9ceb2866dc89ceeca82178c60c418247033ef1"
+          },
+          "rejected_feature_roots": [
+            "import-equals",
+            "runtime-namespaces"
+          ],
+          "parse_diagnostic_codes": []
+        },
+        {
+          "name": "alias.ts",
+          "file_options": [],
+          "content": {
+            "utf8_bytes": 28,
+            "sha256": "74445c4b24c8af79b0b6f489272e00e595a456fc9ee803a96cebb86600e13f5b"
+          },
+          "rejected_feature_roots": [],
+          "parse_diagnostic_codes": []
+        }
+      ],
+      "configurations": [
+        {
+          "variant": "sourceMap=true",
+          "runner_name": "jsWithSourceMapBasic(sourceMap=true)",
+          "overrides": [
+            {
+              "name": "sourceMap",
+              "value": "true"
+            }
+          ]
+        },
+        {
+          "variant": "sourceMap=false",
+          "runner_name": "jsWithSourceMapBasic(sourceMap=false)",
+          "overrides": [
+            {
+              "name": "sourceMap",
+              "value": "false"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "cases": [
+    {
+      "id": "transpile:declarationAsyncAndGeneratorFunctions.ts#default#module",
+      "source": 0,
+      "configuration": 0,
+      "kind": "module",
+      "api": "transpileModule",
+      "baseline_path": "tests/baselines/reference/transpile/declarationAsyncAndGeneratorFunctions.js",
+      "unit_outputs": [
+        {
+          "unit": "declarationAsyncAndGeneratorFunctions.ts",
+          "output_path": "declarationAsyncAndGeneratorFunctions.js",
+          "products": [
+            "javascript"
+          ]
+        }
+      ],
+      "report_diagnostics": false,
+      "execution_state": "not-run",
+      "reference_baseline_state": "path-pinned-content-not-vendored-or-compared",
+      "component_disposition": "javascript-transform-printer-control",
+      "whole_program_equivalence": "unproven",
+      "bootstrap_profile_admitted": false,
+      "profile_blockers": [
+        "api:component-only:transpileModule",
+        "required-option:module=absent",
+        "rejected-option:declaration"
+      ]
+    },
+    {
+      "id": "transpile:declarationAsyncAndGeneratorFunctions.ts#default#declaration",
+      "source": 0,
+      "configuration": 0,
+      "kind": "declaration",
+      "api": "transpileDeclaration",
+      "baseline_path": "tests/baselines/reference/transpile/declarationAsyncAndGeneratorFunctions.d.ts",
+      "unit_outputs": [
+        {
+          "unit": "declarationAsyncAndGeneratorFunctions.ts",
+          "output_path": "declarationAsyncAndGeneratorFunctions.d.ts",
+          "products": [
+            "declaration"
+          ]
+        }
+      ],
+      "report_diagnostics": false,
+      "execution_state": "not-run",
+      "reference_baseline_state": "path-pinned-content-not-vendored-or-compared",
+      "component_disposition": "deferred-declaration-control",
+      "whole_program_equivalence": "unproven",
+      "bootstrap_profile_admitted": false,
+      "profile_blockers": [
+        "api:component-only:transpileDeclaration",
+        "required-option:module=absent",
+        "rejected-option:declaration",
+        "product:declaration"
+      ]
+    },
+    {
+      "id": "transpile:declarationBasicSyntax.ts#declarationMap=true#module",
+      "source": 1,
+      "configuration": 0,
+      "kind": "module",
+      "api": "transpileModule",
+      "baseline_path": "tests/baselines/reference/transpile/declarationBasicSyntax(declarationMap=true).js",
+      "unit_outputs": [
+        {
+          "unit": "variables.ts",
+          "output_path": "variables.js",
+          "products": [
+            "javascript"
+          ]
+        },
+        {
+          "unit": "interface.ts",
+          "output_path": "interface.js",
+          "products": [
+            "javascript"
+          ]
+        },
+        {
+          "unit": "class.ts",
+          "output_path": "class.js",
+          "products": [
+            "javascript"
+          ]
+        },
+        {
+          "unit": "namespace.ts",
+          "output_path": "namespace.js",
+          "products": [
+            "javascript"
+          ]
+        },
+        {
+          "unit": "alias.ts",
+          "output_path": "alias.js",
+          "products": [
+            "javascript"
+          ]
+        }
+      ],
+      "report_diagnostics": false,
+      "execution_state": "not-run",
+      "reference_baseline_state": "path-pinned-content-not-vendored-or-compared",
+      "component_disposition": "javascript-transform-printer-control",
+      "whole_program_equivalence": "unproven",
+      "bootstrap_profile_admitted": false,
+      "profile_blockers": [
+        "api:component-only:transpileModule",
+        "required-option:target=es6",
+        "required-option:module=absent",
+        "rejected-option:declaration",
+        "rejected-option:declarationMap",
+        "rejected-feature:import-equals",
+        "rejected-feature:runtime-namespaces"
+      ]
+    },
+    {
+      "id": "transpile:declarationBasicSyntax.ts#declarationMap=true#declaration",
+      "source": 1,
+      "configuration": 0,
+      "kind": "declaration",
+      "api": "transpileDeclaration",
+      "baseline_path": "tests/baselines/reference/transpile/declarationBasicSyntax(declarationMap=true).d.ts",
+      "unit_outputs": [
+        {
+          "unit": "variables.ts",
+          "output_path": "variables.d.ts",
+          "products": [
+            "declaration",
+            "declaration-map"
+          ]
+        },
+        {
+          "unit": "interface.ts",
+          "output_path": "interface.d.ts",
+          "products": [
+            "declaration",
+            "declaration-map"
+          ]
+        },
+        {
+          "unit": "class.ts",
+          "output_path": "class.d.ts",
+          "products": [
+            "declaration",
+            "declaration-map"
+          ]
+        },
+        {
+          "unit": "namespace.ts",
+          "output_path": "namespace.d.ts",
+          "products": [
+            "declaration",
+            "declaration-map"
+          ]
+        },
+        {
+          "unit": "alias.ts",
+          "output_path": "alias.d.ts",
+          "products": [
+            "declaration",
+            "declaration-map"
+          ]
+        }
+      ],
+      "report_diagnostics": false,
+      "execution_state": "not-run",
+      "reference_baseline_state": "path-pinned-content-not-vendored-or-compared",
+      "component_disposition": "deferred-declaration-map-control",
+      "whole_program_equivalence": "unproven",
+      "bootstrap_profile_admitted": false,
+      "profile_blockers": [
+        "api:component-only:transpileDeclaration",
+        "required-option:target=es6",
+        "required-option:module=absent",
+        "rejected-option:declaration",
+        "rejected-option:declarationMap",
+        "rejected-feature:import-equals",
+        "rejected-feature:runtime-namespaces",
+        "product:declaration"
+      ]
+    },
+    {
+      "id": "transpile:declarationBasicSyntax.ts#declarationMap=false#module",
+      "source": 1,
+      "configuration": 1,
+      "kind": "module",
+      "api": "transpileModule",
+      "baseline_path": "tests/baselines/reference/transpile/declarationBasicSyntax(declarationMap=false).js",
+      "unit_outputs": [
+        {
+          "unit": "variables.ts",
+          "output_path": "variables.js",
+          "products": [
+            "javascript"
+          ]
+        },
+        {
+          "unit": "interface.ts",
+          "output_path": "interface.js",
+          "products": [
+            "javascript"
+          ]
+        },
+        {
+          "unit": "class.ts",
+          "output_path": "class.js",
+          "products": [
+            "javascript"
+          ]
+        },
+        {
+          "unit": "namespace.ts",
+          "output_path": "namespace.js",
+          "products": [
+            "javascript"
+          ]
+        },
+        {
+          "unit": "alias.ts",
+          "output_path": "alias.js",
+          "products": [
+            "javascript"
+          ]
+        }
+      ],
+      "report_diagnostics": false,
+      "execution_state": "not-run",
+      "reference_baseline_state": "path-pinned-content-not-vendored-or-compared",
+      "component_disposition": "javascript-transform-printer-control",
+      "whole_program_equivalence": "unproven",
+      "bootstrap_profile_admitted": false,
+      "profile_blockers": [
+        "api:component-only:transpileModule",
+        "required-option:target=es6",
+        "required-option:module=absent",
+        "rejected-option:declaration",
+        "rejected-feature:import-equals",
+        "rejected-feature:runtime-namespaces"
+      ]
+    },
+    {
+      "id": "transpile:declarationBasicSyntax.ts#declarationMap=false#declaration",
+      "source": 1,
+      "configuration": 1,
+      "kind": "declaration",
+      "api": "transpileDeclaration",
+      "baseline_path": "tests/baselines/reference/transpile/declarationBasicSyntax(declarationMap=false).d.ts",
+      "unit_outputs": [
+        {
+          "unit": "variables.ts",
+          "output_path": "variables.d.ts",
+          "products": [
+            "declaration"
+          ]
+        },
+        {
+          "unit": "interface.ts",
+          "output_path": "interface.d.ts",
+          "products": [
+            "declaration"
+          ]
+        },
+        {
+          "unit": "class.ts",
+          "output_path": "class.d.ts",
+          "products": [
+            "declaration"
+          ]
+        },
+        {
+          "unit": "namespace.ts",
+          "output_path": "namespace.d.ts",
+          "products": [
+            "declaration"
+          ]
+        },
+        {
+          "unit": "alias.ts",
+          "output_path": "alias.d.ts",
+          "products": [
+            "declaration"
+          ]
+        }
+      ],
+      "report_diagnostics": false,
+      "execution_state": "not-run",
+      "reference_baseline_state": "path-pinned-content-not-vendored-or-compared",
+      "component_disposition": "deferred-declaration-control",
+      "whole_program_equivalence": "unproven",
+      "bootstrap_profile_admitted": false,
+      "profile_blockers": [
+        "api:component-only:transpileDeclaration",
+        "required-option:target=es6",
+        "required-option:module=absent",
+        "rejected-option:declaration",
+        "rejected-feature:import-equals",
+        "rejected-feature:runtime-namespaces",
+        "product:declaration"
+      ]
+    },
+    {
+      "id": "transpile:declarationComputedPropertyNames.ts#default#declaration",
+      "source": 2,
+      "configuration": 0,
+      "kind": "declaration",
+      "api": "transpileDeclaration",
+      "baseline_path": "tests/baselines/reference/transpile/declarationComputedPropertyNames.d.ts",
+      "unit_outputs": [
+        {
+          "unit": "declarationComputedPropertyNames.ts",
+          "output_path": "declarationComputedPropertyNames.d.ts",
+          "products": [
+            "declaration"
+          ]
+        }
+      ],
+      "report_diagnostics": false,
+      "execution_state": "not-run",
+      "reference_baseline_state": "path-pinned-content-not-vendored-or-compared",
+      "component_disposition": "deferred-declaration-control",
+      "whole_program_equivalence": "unproven",
+      "bootstrap_profile_admitted": false,
+      "profile_blockers": [
+        "api:component-only:transpileDeclaration",
+        "required-option:target=es6",
+        "required-option:module=absent",
+        "rejected-option:declaration",
+        "rejected-option:emitDeclarationOnly",
+        "rejected-feature:runtime-namespaces",
+        "product:declaration"
+      ]
+    },
+    {
+      "id": "transpile:declarationCrossFileInferences.ts#default#module",
+      "source": 3,
+      "configuration": 0,
+      "kind": "module",
+      "api": "transpileModule",
+      "baseline_path": "tests/baselines/reference/transpile/declarationCrossFileInferences.js",
+      "unit_outputs": [
+        {
+          "unit": "defines.ts",
+          "output_path": "defines.js",
+          "products": [
+            "javascript"
+          ]
+        },
+        {
+          "unit": "consumes.ts",
+          "output_path": "consumes.js",
+          "products": [
+            "javascript"
+          ]
+        },
+        {
+          "unit": "exposes.ts",
+          "output_path": "exposes.js",
+          "products": [
+            "javascript"
+          ]
+        }
+      ],
+      "report_diagnostics": false,
+      "execution_state": "not-run",
+      "reference_baseline_state": "path-pinned-content-not-vendored-or-compared",
+      "component_disposition": "javascript-transform-printer-control",
+      "whole_program_equivalence": "unproven",
+      "bootstrap_profile_admitted": false,
+      "profile_blockers": [
+        "api:component-only:transpileModule",
+        "required-option:target=es2015",
+        "required-option:module=commonjs",
+        "rejected-option:declaration"
+      ]
+    },
+    {
+      "id": "transpile:declarationCrossFileInferences.ts#default#declaration",
+      "source": 3,
+      "configuration": 0,
+      "kind": "declaration",
+      "api": "transpileDeclaration",
+      "baseline_path": "tests/baselines/reference/transpile/declarationCrossFileInferences.d.ts",
+      "unit_outputs": [
+        {
+          "unit": "defines.ts",
+          "output_path": "defines.d.ts",
+          "products": [
+            "declaration"
+          ]
+        },
+        {
+          "unit": "consumes.ts",
+          "output_path": "consumes.d.ts",
+          "products": [
+            "declaration"
+          ]
+        },
+        {
+          "unit": "exposes.ts",
+          "output_path": "exposes.d.ts",
+          "products": [
+            "declaration"
+          ]
+        }
+      ],
+      "report_diagnostics": false,
+      "execution_state": "not-run",
+      "reference_baseline_state": "path-pinned-content-not-vendored-or-compared",
+      "component_disposition": "deferred-declaration-control",
+      "whole_program_equivalence": "unproven",
+      "bootstrap_profile_admitted": false,
+      "profile_blockers": [
+        "api:component-only:transpileDeclaration",
+        "required-option:target=es2015",
+        "required-option:module=commonjs",
+        "rejected-option:declaration",
+        "product:declaration"
+      ]
+    },
+    {
+      "id": "transpile:declarationEmitPartialNodeReuse.ts#default#declaration",
+      "source": 4,
+      "configuration": 0,
+      "kind": "declaration",
+      "api": "transpileDeclaration",
+      "baseline_path": "tests/baselines/reference/transpile/declarationEmitPartialNodeReuse.d.ts",
+      "unit_outputs": [
+        {
+          "unit": "a.ts",
+          "output_path": "a.d.ts",
+          "products": [
+            "declaration"
+          ]
+        },
+        {
+          "unit": "b.ts",
+          "output_path": "b.d.ts",
+          "products": [
+            "declaration"
+          ]
+        },
+        {
+          "unit": "c.ts",
+          "output_path": "c.d.ts",
+          "products": [
+            "declaration"
+          ]
+        }
+      ],
+      "report_diagnostics": false,
+      "execution_state": "not-run",
+      "reference_baseline_state": "path-pinned-content-not-vendored-or-compared",
+      "component_disposition": "deferred-declaration-control",
+      "whole_program_equivalence": "unproven",
+      "bootstrap_profile_admitted": false,
+      "profile_blockers": [
+        "api:component-only:transpileDeclaration",
+        "required-option:target=es2020",
+        "required-option:module=absent",
+        "rejected-option:declaration",
+        "rejected-option:emitDeclarationOnly",
+        "rejected-feature:runtime-namespaces",
+        "product:declaration"
+      ]
+    },
+    {
+      "id": "transpile:declarationFunctionDeclarations.ts#default#module",
+      "source": 5,
+      "configuration": 0,
+      "kind": "module",
+      "api": "transpileModule",
+      "baseline_path": "tests/baselines/reference/transpile/declarationFunctionDeclarations.js",
+      "unit_outputs": [
+        {
+          "unit": "fnDecl.ts",
+          "output_path": "fnDecl.js",
+          "products": [
+            "javascript"
+          ]
+        }
+      ],
+      "report_diagnostics": false,
+      "execution_state": "not-run",
+      "reference_baseline_state": "path-pinned-content-not-vendored-or-compared",
+      "component_disposition": "javascript-transform-printer-control",
+      "whole_program_equivalence": "unproven",
+      "bootstrap_profile_admitted": false,
+      "profile_blockers": [
+        "api:component-only:transpileModule",
+        "required-option:module=absent",
+        "rejected-option:declaration",
+        "rejected-feature:parameter-properties"
+      ]
+    },
+    {
+      "id": "transpile:declarationFunctionDeclarations.ts#default#declaration",
+      "source": 5,
+      "configuration": 0,
+      "kind": "declaration",
+      "api": "transpileDeclaration",
+      "baseline_path": "tests/baselines/reference/transpile/declarationFunctionDeclarations.d.ts",
+      "unit_outputs": [
+        {
+          "unit": "fnDecl.ts",
+          "output_path": "fnDecl.d.ts",
+          "products": [
+            "declaration"
+          ]
+        }
+      ],
+      "report_diagnostics": false,
+      "execution_state": "not-run",
+      "reference_baseline_state": "path-pinned-content-not-vendored-or-compared",
+      "component_disposition": "deferred-declaration-control",
+      "whole_program_equivalence": "unproven",
+      "bootstrap_profile_admitted": false,
+      "profile_blockers": [
+        "api:component-only:transpileDeclaration",
+        "required-option:module=absent",
+        "rejected-option:declaration",
+        "rejected-feature:parameter-properties",
+        "product:declaration"
+      ]
+    },
+    {
+      "id": "transpile:declarationLinkedAliases.ts#default#module",
+      "source": 6,
+      "configuration": 0,
+      "kind": "module",
+      "api": "transpileModule",
+      "baseline_path": "tests/baselines/reference/transpile/declarationLinkedAliases.js",
+      "unit_outputs": [
+        {
+          "unit": "declarationLinkedAliases.ts",
+          "output_path": "declarationLinkedAliases.js",
+          "products": [
+            "javascript"
+          ]
+        }
+      ],
+      "report_diagnostics": false,
+      "execution_state": "not-run",
+      "reference_baseline_state": "path-pinned-content-not-vendored-or-compared",
+      "component_disposition": "javascript-transform-printer-control",
+      "whole_program_equivalence": "unproven",
+      "bootstrap_profile_admitted": false,
+      "profile_blockers": [
+        "api:component-only:transpileModule",
+        "required-option:target=es2015",
+        "required-option:module=commonjs",
+        "rejected-option:declaration",
+        "rejected-feature:import-equals"
+      ]
+    },
+    {
+      "id": "transpile:declarationLinkedAliases.ts#default#declaration",
+      "source": 6,
+      "configuration": 0,
+      "kind": "declaration",
+      "api": "transpileDeclaration",
+      "baseline_path": "tests/baselines/reference/transpile/declarationLinkedAliases.d.ts",
+      "unit_outputs": [
+        {
+          "unit": "declarationLinkedAliases.ts",
+          "output_path": "declarationLinkedAliases.d.ts",
+          "products": [
+            "declaration"
+          ]
+        }
+      ],
+      "report_diagnostics": false,
+      "execution_state": "not-run",
+      "reference_baseline_state": "path-pinned-content-not-vendored-or-compared",
+      "component_disposition": "deferred-declaration-control",
+      "whole_program_equivalence": "unproven",
+      "bootstrap_profile_admitted": false,
+      "profile_blockers": [
+        "api:component-only:transpileDeclaration",
+        "required-option:target=es2015",
+        "required-option:module=commonjs",
+        "rejected-option:declaration",
+        "rejected-feature:import-equals",
+        "product:declaration"
+      ]
+    },
+    {
+      "id": "transpile:declarationLocalAliasOfImportAlias.ts#default#module",
+      "source": 7,
+      "configuration": 0,
+      "kind": "module",
+      "api": "transpileModule",
+      "baseline_path": "tests/baselines/reference/transpile/declarationLocalAliasOfImportAlias.js",
+      "unit_outputs": [
+        {
+          "unit": "declarationLocalAliasOfImportAlias.ts",
+          "output_path": "declarationLocalAliasOfImportAlias.js",
+          "products": [
+            "javascript"
+          ]
+        }
+      ],
+      "report_diagnostics": false,
+      "execution_state": "not-run",
+      "reference_baseline_state": "path-pinned-content-not-vendored-or-compared",
+      "component_disposition": "javascript-transform-printer-control",
+      "whole_program_equivalence": "unproven",
+      "bootstrap_profile_admitted": false,
+      "profile_blockers": [
+        "api:component-only:transpileModule",
+        "required-option:target=es2015",
+        "required-option:module=commonjs",
+        "rejected-option:declaration"
+      ]
+    },
+    {
+      "id": "transpile:declarationLocalAliasOfImportAlias.ts#default#declaration",
+      "source": 7,
+      "configuration": 0,
+      "kind": "declaration",
+      "api": "transpileDeclaration",
+      "baseline_path": "tests/baselines/reference/transpile/declarationLocalAliasOfImportAlias.d.ts",
+      "unit_outputs": [
+        {
+          "unit": "declarationLocalAliasOfImportAlias.ts",
+          "output_path": "declarationLocalAliasOfImportAlias.d.ts",
+          "products": [
+            "declaration"
+          ]
+        }
+      ],
+      "report_diagnostics": false,
+      "execution_state": "not-run",
+      "reference_baseline_state": "path-pinned-content-not-vendored-or-compared",
+      "component_disposition": "deferred-declaration-control",
+      "whole_program_equivalence": "unproven",
+      "bootstrap_profile_admitted": false,
+      "profile_blockers": [
+        "api:component-only:transpileDeclaration",
+        "required-option:target=es2015",
+        "required-option:module=commonjs",
+        "rejected-option:declaration",
+        "product:declaration"
+      ]
+    },
+    {
+      "id": "transpile:declarationNotInScopeTypes.ts#default#module",
+      "source": 8,
+      "configuration": 0,
+      "kind": "module",
+      "api": "transpileModule",
+      "baseline_path": "tests/baselines/reference/transpile/declarationNotInScopeTypes.js",
+      "unit_outputs": [
+        {
+          "unit": "variables.ts",
+          "output_path": "variables.js",
+          "products": [
+            "javascript"
+          ]
+        }
+      ],
+      "report_diagnostics": false,
+      "execution_state": "not-run",
+      "reference_baseline_state": "path-pinned-content-not-vendored-or-compared",
+      "component_disposition": "javascript-transform-printer-control",
+      "whole_program_equivalence": "unproven",
+      "bootstrap_profile_admitted": false,
+      "profile_blockers": [
+        "api:component-only:transpileModule",
+        "required-option:target=es6",
+        "required-option:module=absent",
+        "rejected-option:declaration"
+      ]
+    },
+    {
+      "id": "transpile:declarationNotInScopeTypes.ts#default#declaration",
+      "source": 8,
+      "configuration": 0,
+      "kind": "declaration",
+      "api": "transpileDeclaration",
+      "baseline_path": "tests/baselines/reference/transpile/declarationNotInScopeTypes.d.ts",
+      "unit_outputs": [
+        {
+          "unit": "variables.ts",
+          "output_path": "variables.d.ts",
+          "products": [
+            "declaration"
+          ]
+        }
+      ],
+      "report_diagnostics": false,
+      "execution_state": "not-run",
+      "reference_baseline_state": "path-pinned-content-not-vendored-or-compared",
+      "component_disposition": "deferred-declaration-control",
+      "whole_program_equivalence": "unproven",
+      "bootstrap_profile_admitted": false,
+      "profile_blockers": [
+        "api:component-only:transpileDeclaration",
+        "required-option:target=es6",
+        "required-option:module=absent",
+        "rejected-option:declaration",
+        "product:declaration"
+      ]
+    },
+    {
+      "id": "transpile:declarationPartialNodeReuseTypeOf.ts#default#declaration",
+      "source": 9,
+      "configuration": 0,
+      "kind": "declaration",
+      "api": "transpileDeclaration",
+      "baseline_path": "tests/baselines/reference/transpile/declarationPartialNodeReuseTypeOf.d.ts",
+      "unit_outputs": [
+        {
+          "unit": "a.ts",
+          "output_path": "a.d.ts",
+          "products": [
+            "declaration"
+          ]
+        },
+        {
+          "unit": "b.ts",
+          "output_path": "b.d.ts",
+          "products": [
+            "declaration"
+          ]
+        },
+        {
+          "unit": "c.ts",
+          "output_path": "c.d.ts",
+          "products": [
+            "declaration"
+          ]
+        }
+      ],
+      "report_diagnostics": false,
+      "execution_state": "not-run",
+      "reference_baseline_state": "path-pinned-content-not-vendored-or-compared",
+      "component_disposition": "deferred-declaration-control",
+      "whole_program_equivalence": "unproven",
+      "bootstrap_profile_admitted": false,
+      "profile_blockers": [
+        "api:component-only:transpileDeclaration",
+        "required-option:target=es2020",
+        "required-option:module=absent",
+        "rejected-option:declaration",
+        "rejected-option:emitDeclarationOnly",
+        "product:declaration"
+      ]
+    },
+    {
+      "id": "transpile:declarationRestParameters.ts#default#declaration",
+      "source": 10,
+      "configuration": 0,
+      "kind": "declaration",
+      "api": "transpileDeclaration",
+      "baseline_path": "tests/baselines/reference/transpile/declarationRestParameters.d.ts",
+      "unit_outputs": [
+        {
+          "unit": "v1.ts",
+          "output_path": "v1.d.ts",
+          "products": [
+            "declaration"
+          ]
+        },
+        {
+          "unit": "v2.ts",
+          "output_path": "v2.d.ts",
+          "products": [
+            "declaration"
+          ]
+        }
+      ],
+      "report_diagnostics": false,
+      "execution_state": "not-run",
+      "reference_baseline_state": "path-pinned-content-not-vendored-or-compared",
+      "component_disposition": "deferred-declaration-control",
+      "whole_program_equivalence": "unproven",
+      "bootstrap_profile_admitted": false,
+      "profile_blockers": [
+        "api:component-only:transpileDeclaration",
+        "required-option:target=es2015",
+        "required-option:module=commonjs",
+        "rejected-option:declaration",
+        "rejected-option:emitDeclarationOnly",
+        "product:declaration"
+      ]
+    },
+    {
+      "id": "transpile:declarationSelfReferentialConstraint.ts#default#declaration",
+      "source": 11,
+      "configuration": 0,
+      "kind": "declaration",
+      "api": "transpileDeclaration",
+      "baseline_path": "tests/baselines/reference/transpile/declarationSelfReferentialConstraint.d.ts",
+      "unit_outputs": [
+        {
+          "unit": "declarationSelfReferentialConstraint.ts",
+          "output_path": "declarationSelfReferentialConstraint.d.ts",
+          "products": [
+            "declaration"
+          ]
+        }
+      ],
+      "report_diagnostics": false,
+      "execution_state": "not-run",
+      "reference_baseline_state": "path-pinned-content-not-vendored-or-compared",
+      "component_disposition": "deferred-declaration-control",
+      "whole_program_equivalence": "unproven",
+      "bootstrap_profile_admitted": false,
+      "profile_blockers": [
+        "api:component-only:transpileDeclaration",
+        "required-option:target=es2015",
+        "required-option:module=commonjs",
+        "rejected-option:declaration",
+        "rejected-option:emitDeclarationOnly",
+        "product:declaration"
+      ]
+    },
+    {
+      "id": "transpile:declarationSingleFileHasErrors.ts#default#module",
+      "source": 12,
+      "configuration": 0,
+      "kind": "module",
+      "api": "transpileModule",
+      "baseline_path": "tests/baselines/reference/transpile/declarationSingleFileHasErrors.js",
+      "unit_outputs": [
+        {
+          "unit": "declarationSingleFileHasErrors.ts",
+          "output_path": "declarationSingleFileHasErrors.js",
+          "products": [
+            "javascript"
+          ]
+        }
+      ],
+      "report_diagnostics": false,
+      "execution_state": "not-run",
+      "reference_baseline_state": "path-pinned-content-not-vendored-or-compared",
+      "component_disposition": "javascript-transform-printer-control",
+      "whole_program_equivalence": "unproven",
+      "bootstrap_profile_admitted": false,
+      "profile_blockers": [
+        "api:component-only:transpileModule",
+        "required-option:target=es2015",
+        "required-option:module=commonjs",
+        "rejected-option:declaration"
+      ]
+    },
+    {
+      "id": "transpile:declarationSingleFileHasErrors.ts#default#declaration",
+      "source": 12,
+      "configuration": 0,
+      "kind": "declaration",
+      "api": "transpileDeclaration",
+      "baseline_path": "tests/baselines/reference/transpile/declarationSingleFileHasErrors.d.ts",
+      "unit_outputs": [
+        {
+          "unit": "declarationSingleFileHasErrors.ts",
+          "output_path": "declarationSingleFileHasErrors.d.ts",
+          "products": [
+            "declaration"
+          ]
+        }
+      ],
+      "report_diagnostics": false,
+      "execution_state": "not-run",
+      "reference_baseline_state": "path-pinned-content-not-vendored-or-compared",
+      "component_disposition": "deferred-declaration-control",
+      "whole_program_equivalence": "unproven",
+      "bootstrap_profile_admitted": false,
+      "profile_blockers": [
+        "api:component-only:transpileDeclaration",
+        "required-option:target=es2015",
+        "required-option:module=commonjs",
+        "rejected-option:declaration",
+        "product:declaration"
+      ]
+    },
+    {
+      "id": "transpile:declarationSingleFileHasErrorsReported.ts#default#module",
+      "source": 13,
+      "configuration": 0,
+      "kind": "module",
+      "api": "transpileModule",
+      "baseline_path": "tests/baselines/reference/transpile/declarationSingleFileHasErrorsReported.js",
+      "unit_outputs": [
+        {
+          "unit": "declarationSingleFileHasErrorsReported.ts",
+          "output_path": "declarationSingleFileHasErrorsReported.js",
+          "products": [
+            "javascript"
+          ]
+        }
+      ],
+      "report_diagnostics": true,
+      "execution_state": "not-run",
+      "reference_baseline_state": "path-pinned-content-not-vendored-or-compared",
+      "component_disposition": "javascript-transform-printer-control",
+      "whole_program_equivalence": "unproven",
+      "bootstrap_profile_admitted": false,
+      "profile_blockers": [
+        "api:component-only:transpileModule",
+        "required-option:target=es2015",
+        "required-option:module=commonjs",
+        "rejected-option:declaration"
+      ]
+    },
+    {
+      "id": "transpile:declarationSingleFileHasErrorsReported.ts#default#declaration",
+      "source": 13,
+      "configuration": 0,
+      "kind": "declaration",
+      "api": "transpileDeclaration",
+      "baseline_path": "tests/baselines/reference/transpile/declarationSingleFileHasErrorsReported.d.ts",
+      "unit_outputs": [
+        {
+          "unit": "declarationSingleFileHasErrorsReported.ts",
+          "output_path": "declarationSingleFileHasErrorsReported.d.ts",
+          "products": [
+            "declaration"
+          ]
+        }
+      ],
+      "report_diagnostics": true,
+      "execution_state": "not-run",
+      "reference_baseline_state": "path-pinned-content-not-vendored-or-compared",
+      "component_disposition": "deferred-declaration-control",
+      "whole_program_equivalence": "unproven",
+      "bootstrap_profile_admitted": false,
+      "profile_blockers": [
+        "api:component-only:transpileDeclaration",
+        "required-option:target=es2015",
+        "required-option:module=commonjs",
+        "rejected-option:declaration",
+        "product:declaration"
+      ]
+    },
+    {
+      "id": "transpile:declarationTypeParameterConstraint.ts#default#module",
+      "source": 14,
+      "configuration": 0,
+      "kind": "module",
+      "api": "transpileModule",
+      "baseline_path": "tests/baselines/reference/transpile/declarationTypeParameterConstraint.js",
+      "unit_outputs": [
+        {
+          "unit": "declarationTypeParameterConstraint.ts",
+          "output_path": "declarationTypeParameterConstraint.js",
+          "products": [
+            "javascript"
+          ]
+        }
+      ],
+      "report_diagnostics": false,
+      "execution_state": "not-run",
+      "reference_baseline_state": "path-pinned-content-not-vendored-or-compared",
+      "component_disposition": "javascript-transform-printer-control",
+      "whole_program_equivalence": "unproven",
+      "bootstrap_profile_admitted": false,
+      "profile_blockers": [
+        "api:component-only:transpileModule",
+        "required-option:target=es2015",
+        "required-option:module=commonjs",
+        "rejected-option:declaration"
+      ]
+    },
+    {
+      "id": "transpile:declarationTypeParameterConstraint.ts#default#declaration",
+      "source": 14,
+      "configuration": 0,
+      "kind": "declaration",
+      "api": "transpileDeclaration",
+      "baseline_path": "tests/baselines/reference/transpile/declarationTypeParameterConstraint.d.ts",
+      "unit_outputs": [
+        {
+          "unit": "declarationTypeParameterConstraint.ts",
+          "output_path": "declarationTypeParameterConstraint.d.ts",
+          "products": [
+            "declaration"
+          ]
+        }
+      ],
+      "report_diagnostics": false,
+      "execution_state": "not-run",
+      "reference_baseline_state": "path-pinned-content-not-vendored-or-compared",
+      "component_disposition": "deferred-declaration-control",
+      "whole_program_equivalence": "unproven",
+      "bootstrap_profile_admitted": false,
+      "profile_blockers": [
+        "api:component-only:transpileDeclaration",
+        "required-option:target=es2015",
+        "required-option:module=commonjs",
+        "rejected-option:declaration",
+        "product:declaration"
+      ]
+    },
+    {
+      "id": "transpile:declarationTypeWithComputedName.ts#default#declaration",
+      "source": 15,
+      "configuration": 0,
+      "kind": "declaration",
+      "api": "transpileDeclaration",
+      "baseline_path": "tests/baselines/reference/transpile/declarationTypeWithComputedName.d.ts",
+      "unit_outputs": [
+        {
+          "unit": "declarationTypeWithComputedName.ts",
+          "output_path": "declarationTypeWithComputedName.d.ts",
+          "products": [
+            "declaration"
+          ]
+        }
+      ],
+      "report_diagnostics": false,
+      "execution_state": "not-run",
+      "reference_baseline_state": "path-pinned-content-not-vendored-or-compared",
+      "component_disposition": "deferred-declaration-control",
+      "whole_program_equivalence": "unproven",
+      "bootstrap_profile_admitted": false,
+      "profile_blockers": [
+        "api:component-only:transpileDeclaration",
+        "required-option:target=es2015",
+        "required-option:module=commonjs",
+        "rejected-option:declaration",
+        "rejected-option:emitDeclarationOnly",
+        "product:declaration"
+      ]
+    },
+    {
+      "id": "transpile:declarationUnresolvedGlobalReferencesNoErrors.ts#default#declaration",
+      "source": 16,
+      "configuration": 0,
+      "kind": "declaration",
+      "api": "transpileDeclaration",
+      "baseline_path": "tests/baselines/reference/transpile/declarationUnresolvedGlobalReferencesNoErrors.d.ts",
+      "unit_outputs": [
+        {
+          "unit": "declarationUnresolvedGlobalReferencesNoErrors.ts",
+          "output_path": "declarationUnresolvedGlobalReferencesNoErrors.d.ts",
+          "products": [
+            "declaration"
+          ]
+        }
+      ],
+      "report_diagnostics": false,
+      "execution_state": "not-run",
+      "reference_baseline_state": "path-pinned-content-not-vendored-or-compared",
+      "component_disposition": "deferred-declaration-control",
+      "whole_program_equivalence": "unproven",
+      "bootstrap_profile_admitted": false,
+      "profile_blockers": [
+        "api:component-only:transpileDeclaration",
+        "required-option:target=es2015",
+        "required-option:module=commonjs",
+        "rejected-option:declaration",
+        "rejected-option:emitDeclarationOnly",
+        "product:declaration"
+      ]
+    },
+    {
+      "id": "transpile:declarationUnresolvedTypeReference.ts#default#declaration",
+      "source": 17,
+      "configuration": 0,
+      "kind": "declaration",
+      "api": "transpileDeclaration",
+      "baseline_path": "tests/baselines/reference/transpile/declarationUnresolvedTypeReference.d.ts",
+      "unit_outputs": [
+        {
+          "unit": "declarationUnresolvedTypeReference.ts",
+          "output_path": "declarationUnresolvedTypeReference.d.ts",
+          "products": [
+            "declaration"
+          ]
+        }
+      ],
+      "report_diagnostics": false,
+      "execution_state": "not-run",
+      "reference_baseline_state": "path-pinned-content-not-vendored-or-compared",
+      "component_disposition": "deferred-declaration-control",
+      "whole_program_equivalence": "unproven",
+      "bootstrap_profile_admitted": false,
+      "profile_blockers": [
+        "api:component-only:transpileDeclaration",
+        "required-option:target=es2015",
+        "required-option:module=commonjs",
+        "rejected-option:declaration",
+        "rejected-option:emitDeclarationOnly",
+        "product:declaration"
+      ]
+    },
+    {
+      "id": "transpile:declarationUnresolvedTypeReference2.ts#default#declaration",
+      "source": 18,
+      "configuration": 0,
+      "kind": "declaration",
+      "api": "transpileDeclaration",
+      "baseline_path": "tests/baselines/reference/transpile/declarationUnresolvedTypeReference2.d.ts",
+      "unit_outputs": [
+        {
+          "unit": "globals.ts",
+          "output_path": "globals.d.ts",
+          "products": [
+            "declaration"
+          ]
+        },
+        {
+          "unit": "index.ts",
+          "output_path": "index.d.ts",
+          "products": [
+            "declaration"
+          ]
+        }
+      ],
+      "report_diagnostics": false,
+      "execution_state": "not-run",
+      "reference_baseline_state": "path-pinned-content-not-vendored-or-compared",
+      "component_disposition": "deferred-declaration-control",
+      "whole_program_equivalence": "unproven",
+      "bootstrap_profile_admitted": false,
+      "profile_blockers": [
+        "api:component-only:transpileDeclaration",
+        "required-option:target=es2015",
+        "required-option:module=commonjs",
+        "rejected-option:declaration",
+        "rejected-option:emitDeclarationOnly",
+        "product:declaration"
+      ]
+    },
+    {
+      "id": "transpile:declarationsSimple.ts#default#module",
+      "source": 19,
+      "configuration": 0,
+      "kind": "module",
+      "api": "transpileModule",
+      "baseline_path": "tests/baselines/reference/transpile/declarationsSimple.js",
+      "unit_outputs": [
+        {
+          "unit": "declarationsSimple.ts",
+          "output_path": "declarationsSimple.js",
+          "products": [
+            "javascript"
+          ]
+        }
+      ],
+      "report_diagnostics": false,
+      "execution_state": "not-run",
+      "reference_baseline_state": "path-pinned-content-not-vendored-or-compared",
+      "component_disposition": "javascript-transform-printer-control",
+      "whole_program_equivalence": "unproven",
+      "bootstrap_profile_admitted": false,
+      "profile_blockers": [
+        "api:component-only:transpileModule",
+        "required-option:target=es2015",
+        "required-option:module=commonjs",
+        "rejected-option:declaration"
+      ]
+    },
+    {
+      "id": "transpile:declarationsSimple.ts#default#declaration",
+      "source": 19,
+      "configuration": 0,
+      "kind": "declaration",
+      "api": "transpileDeclaration",
+      "baseline_path": "tests/baselines/reference/transpile/declarationsSimple.d.ts",
+      "unit_outputs": [
+        {
+          "unit": "declarationsSimple.ts",
+          "output_path": "declarationsSimple.d.ts",
+          "products": [
+            "declaration"
+          ]
+        }
+      ],
+      "report_diagnostics": false,
+      "execution_state": "not-run",
+      "reference_baseline_state": "path-pinned-content-not-vendored-or-compared",
+      "component_disposition": "deferred-declaration-control",
+      "whole_program_equivalence": "unproven",
+      "bootstrap_profile_admitted": false,
+      "profile_blockers": [
+        "api:component-only:transpileDeclaration",
+        "required-option:target=es2015",
+        "required-option:module=commonjs",
+        "rejected-option:declaration",
+        "product:declaration"
+      ]
+    },
+    {
+      "id": "transpile:jsWithInlineSourceMapBasic.ts#inlineSourceMap=true#module",
+      "source": 20,
+      "configuration": 0,
+      "kind": "module",
+      "api": "transpileModule",
+      "baseline_path": "tests/baselines/reference/transpile/jsWithInlineSourceMapBasic(inlineSourceMap=true).js",
+      "unit_outputs": [
+        {
+          "unit": "variables.ts",
+          "output_path": "variables.js",
+          "products": [
+            "javascript",
+            "javascript-inline-map"
+          ]
+        },
+        {
+          "unit": "interface.ts",
+          "output_path": "interface.js",
+          "products": [
+            "javascript",
+            "javascript-inline-map"
+          ]
+        },
+        {
+          "unit": "class.ts",
+          "output_path": "class.js",
+          "products": [
+            "javascript",
+            "javascript-inline-map"
+          ]
+        },
+        {
+          "unit": "namespace.ts",
+          "output_path": "namespace.js",
+          "products": [
+            "javascript",
+            "javascript-inline-map"
+          ]
+        },
+        {
+          "unit": "alias.ts",
+          "output_path": "alias.js",
+          "products": [
+            "javascript",
+            "javascript-inline-map"
+          ]
+        }
+      ],
+      "report_diagnostics": false,
+      "execution_state": "not-run",
+      "reference_baseline_state": "path-pinned-content-not-vendored-or-compared",
+      "component_disposition": "deferred-source-map-control",
+      "whole_program_equivalence": "unproven",
+      "bootstrap_profile_admitted": false,
+      "profile_blockers": [
+        "api:component-only:transpileModule",
+        "required-option:target=es6",
+        "required-option:module=absent",
+        "rejected-option:inlineSourceMap",
+        "rejected-feature:import-equals",
+        "rejected-feature:runtime-namespaces"
+      ]
+    },
+    {
+      "id": "transpile:jsWithInlineSourceMapBasic.ts#inlineSourceMap=false#module",
+      "source": 20,
+      "configuration": 1,
+      "kind": "module",
+      "api": "transpileModule",
+      "baseline_path": "tests/baselines/reference/transpile/jsWithInlineSourceMapBasic(inlineSourceMap=false).js",
+      "unit_outputs": [
+        {
+          "unit": "variables.ts",
+          "output_path": "variables.js",
+          "products": [
+            "javascript"
+          ]
+        },
+        {
+          "unit": "interface.ts",
+          "output_path": "interface.js",
+          "products": [
+            "javascript"
+          ]
+        },
+        {
+          "unit": "class.ts",
+          "output_path": "class.js",
+          "products": [
+            "javascript"
+          ]
+        },
+        {
+          "unit": "namespace.ts",
+          "output_path": "namespace.js",
+          "products": [
+            "javascript"
+          ]
+        },
+        {
+          "unit": "alias.ts",
+          "output_path": "alias.js",
+          "products": [
+            "javascript"
+          ]
+        }
+      ],
+      "report_diagnostics": false,
+      "execution_state": "not-run",
+      "reference_baseline_state": "path-pinned-content-not-vendored-or-compared",
+      "component_disposition": "javascript-transform-printer-control",
+      "whole_program_equivalence": "unproven",
+      "bootstrap_profile_admitted": false,
+      "profile_blockers": [
+        "api:component-only:transpileModule",
+        "required-option:target=es6",
+        "required-option:module=absent",
+        "rejected-feature:import-equals",
+        "rejected-feature:runtime-namespaces"
+      ]
+    },
+    {
+      "id": "transpile:jsWithSourceMapBasic.ts#sourceMap=true#module",
+      "source": 21,
+      "configuration": 0,
+      "kind": "module",
+      "api": "transpileModule",
+      "baseline_path": "tests/baselines/reference/transpile/jsWithSourceMapBasic(sourceMap=true).js",
+      "unit_outputs": [
+        {
+          "unit": "variables.ts",
+          "output_path": "variables.js",
+          "products": [
+            "javascript",
+            "javascript-map"
+          ]
+        },
+        {
+          "unit": "interface.ts",
+          "output_path": "interface.js",
+          "products": [
+            "javascript",
+            "javascript-map"
+          ]
+        },
+        {
+          "unit": "class.ts",
+          "output_path": "class.js",
+          "products": [
+            "javascript",
+            "javascript-map"
+          ]
+        },
+        {
+          "unit": "namespace.ts",
+          "output_path": "namespace.js",
+          "products": [
+            "javascript",
+            "javascript-map"
+          ]
+        },
+        {
+          "unit": "alias.ts",
+          "output_path": "alias.js",
+          "products": [
+            "javascript",
+            "javascript-map"
+          ]
+        }
+      ],
+      "report_diagnostics": false,
+      "execution_state": "not-run",
+      "reference_baseline_state": "path-pinned-content-not-vendored-or-compared",
+      "component_disposition": "deferred-source-map-control",
+      "whole_program_equivalence": "unproven",
+      "bootstrap_profile_admitted": false,
+      "profile_blockers": [
+        "api:component-only:transpileModule",
+        "required-option:target=es6",
+        "required-option:module=absent",
+        "rejected-option:sourceMap",
+        "rejected-feature:import-equals",
+        "rejected-feature:runtime-namespaces"
+      ]
+    },
+    {
+      "id": "transpile:jsWithSourceMapBasic.ts#sourceMap=false#module",
+      "source": 21,
+      "configuration": 1,
+      "kind": "module",
+      "api": "transpileModule",
+      "baseline_path": "tests/baselines/reference/transpile/jsWithSourceMapBasic(sourceMap=false).js",
+      "unit_outputs": [
+        {
+          "unit": "variables.ts",
+          "output_path": "variables.js",
+          "products": [
+            "javascript"
+          ]
+        },
+        {
+          "unit": "interface.ts",
+          "output_path": "interface.js",
+          "products": [
+            "javascript"
+          ]
+        },
+        {
+          "unit": "class.ts",
+          "output_path": "class.js",
+          "products": [
+            "javascript"
+          ]
+        },
+        {
+          "unit": "namespace.ts",
+          "output_path": "namespace.js",
+          "products": [
+            "javascript"
+          ]
+        },
+        {
+          "unit": "alias.ts",
+          "output_path": "alias.js",
+          "products": [
+            "javascript"
+          ]
+        }
+      ],
+      "report_diagnostics": false,
+      "execution_state": "not-run",
+      "reference_baseline_state": "path-pinned-content-not-vendored-or-compared",
+      "component_disposition": "javascript-transform-printer-control",
+      "whole_program_equivalence": "unproven",
+      "bootstrap_profile_admitted": false,
+      "profile_blockers": [
+        "api:component-only:transpileModule",
+        "required-option:target=es6",
+        "required-option:module=absent",
+        "rejected-feature:import-equals",
+        "rejected-feature:runtime-namespaces"
+      ]
+    }
+  ],
+  "summary": {
+    "source_files": 22,
+    "source_bytes": 13480,
+    "unique_blobs": 22,
+    "fixtures": 22,
+    "configurations": 25,
+    "fixture_units": 42,
+    "cases": 37,
+    "module_cases": 16,
+    "declaration_cases": 21,
+    "unit_operations": 79,
+    "javascript_transform_printer_controls": 14,
+    "deferred_source_map_controls": 2,
+    "deferred_declaration_controls": 20,
+    "deferred_declaration_map_controls": 1,
+    "report_diagnostics_cases": 2,
+    "bootstrap_profile_admitted_cases": 0,
+    "not_run_cases": 37,
+    "reference_baselines_compared": 0
+  }
+}

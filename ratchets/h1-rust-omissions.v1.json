@@ -17,19 +17,19 @@
   "authorities": {
     "compatibility_residual": {
       "path": "docs/design/greenfield/compiler-compatibility-residual.md",
-      "sha256": "68e079a8daca3f32eeb6ad39f7496b722663d28b3c80d8e5be098baa7ee12fa1"
+      "sha256": "f70b65d56413ca66487fcafcb320f81db2f713c40d99291db6f02da68bcc137f"
     },
     "h1_execution": {
       "path": "docs/design/greenfield/h1-emit.md",
-      "sha256": "9aa4ffb8a1be026932e5036c18c11ca4c71cfcce829868130f753832d816b4af"
+      "sha256": "0e1ee8a982f6e6355a2f211b9b53213a95a798fceb8fbfdf53218dede6993af0"
     },
     "emit_profile": {
       "path": "ratchets/h1-emit-profile.v1.json",
-      "sha256": "d4b6493a422b064bdd915584082343a18316683d5cdfc73cdc809c5dac9ed445"
+      "sha256": "9a47ddf34b449249d310a9075ffa938adad44cc18384d280f8e8987fac1a8f18"
     },
     "owner_inventory": {
       "path": "ratchets/h1-owner-inventory.v1.json",
-      "sha256": "d483a506b93fd9f07611e22862543fc56639547f2c0ac6733334a35fa84b52f8"
+      "sha256": "020335c4cb3fe07aab05d9d4c17140550b8666fb205cf32b36cac52365f5569d"
     }
   },
   "scope": {
@@ -42,8 +42,8 @@
     "file_count": 176,
     "rust_source_files": 162,
     "cargo_manifests": 14,
-    "bytes": 12268130,
-    "tree_sha256": "0fe436c6ec58ac4624fdbec22567f709e1e521a8415ec4dbe8498f476e724279"
+    "bytes": 12268168,
+    "tree_sha256": "1e689f7c1e04f82ad3865c2bc2a279152e62d678b1eafe8efdfedb72e1cfbb3b"
   },
   "summary": {
     "production_boundary_omissions": 11,
@@ -1154,5 +1154,5 @@
       }
     ]
   },
-  "inventory_fingerprint_sha256": "820517932409e659fb167d59708fb3387217e20a58642b6a75bfa7361e056eb2"
+  "inventory_fingerprint_sha256": "d860ff04d3a7400c1bc85275b3a4f509f2f603805b85c37c30c139e318ea40dc"
 }
