@@ -23,7 +23,17 @@ contract recursively verifies every entry; the three trees are not sampled or
 filtered. This is an inventory-integrity contract: it does not execute those
 upstream suites or claim that the compiler passes them.
 
-Their deterministic case expansion is pinned at
+H1's additive source-universe transition is pinned separately at
+`vendor/typescript-6.0.3/test-suites-pin.v2.json`. It binds the complete v1
+pin by path and SHA-256, preserves its three suite entries exactly, adds the
+exact 22-file `transpile` tree, and pins
+`src/testRunner/transpileRunner.ts` by Git blob ID. Its SHA-256 is
+`83f8edbb6f4535a19e61cf872532a46722f8cedbd2d746a0922dc507addc0879`.
+The harness recursively verifies all four v2 trees. This transition records
+inputs and runner identity only; it deliberately does not change the v1
+expansion or claim a transpile execution result.
+
+The v1 suites' deterministic case expansion is pinned at
 `vendor/typescript-6.0.3/test-suite-expansion.v1.json`: 7,276 `compiler`
 cases plus 632 `project` runner cases backed by the shared `projects` tree, for
 7,908 total. Every case starts as `not-run`; inclusion in the manifest records
