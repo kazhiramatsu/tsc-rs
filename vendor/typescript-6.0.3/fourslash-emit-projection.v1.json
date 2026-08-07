@@ -1,0 +1,707 @@
+{
+  "schema": 1,
+  "kind": "typescript-fourslash-batch-emit-projection",
+  "status": "inventory-only-not-run",
+  "typescript_version": "6.0.3",
+  "source_repository": "https://github.com/microsoft/TypeScript.git",
+  "source_commit": "050880ce59e30b356b686bd3144efe24f875ebc8",
+  "generator": {
+    "path": "crates/oracle/fourslash-emit-projection.mjs",
+    "sha256": "0211bc1500582945457d12e523363084b131bbad0075e4d24a8d84a3447a1f85"
+  },
+  "source_tree": {
+    "path": "tests/cases/fourslash",
+    "git_tree_sha1": "775c30f57c0638a180e7ac2e38b2581976620ca5",
+    "blob_inventory_sha256": "5f6ada2902ef3f7ce41e0652111d5d0db144a107b19d4d58f2369c8bd0cf3461",
+    "files": 6568,
+    "bytes": 14198525,
+    "unique_blobs": 6547,
+    "executable_paths": []
+  },
+  "selector": {
+    "operation_call_pattern": "^[ \\t]*verify\\.(baselineGetEmitOutput|getEmitOutput|verifyGetEmitOutputForCurrentFile|verifyGetEmitOutputContentsForCurrentFile)[ \\t]*\\(",
+    "operation_call_flags": "gm",
+    "operation_methods": [
+      "baselineGetEmitOutput",
+      "getEmitOutput",
+      "verifyGetEmitOutputContentsForCurrentFile",
+      "verifyGetEmitOutputForCurrentFile"
+    ],
+    "metadata_pattern": "^[ \\t]*//[ \\t]*@emitThisFile[ \\t]*:[ \\t]*(true|false)[ \\t]*\\r?$",
+    "metadata_flags": "gm",
+    "broad_mentions": 40,
+    "selected_operation_files": 38,
+    "false_positive_controls": [
+      {
+        "path": "fourslash.ts",
+        "git_blob_sha1": "c53af3e78a24efd8352825f050ecfbbb7f00fbd0",
+        "bytes": 44800,
+        "mention_lines": [
+          330,
+          331,
+          360,
+          363
+        ],
+        "disposition": "interface-declarations-only"
+      },
+      {
+        "path": "incrementalParsing1.ts",
+        "git_blob_sha1": "e09e96c9e0d2d5d9a83d940d22c019d22c58cb7b",
+        "bytes": 540,
+        "mention_lines": [
+          16
+        ],
+        "disposition": "comment-only"
+      }
+    ]
+  },
+  "projection": {
+    "vendored_path": "ts-tests/tests/cases/fourslash",
+    "git_tree_sha1": "bc4bdc7e593ef3545066853fa50f3526ffec955b",
+    "blob_inventory_sha256": "e31ec9bdc1921d7628cda659e150521a4a2ffe03524c59c75be0d475a684bb81",
+    "files": 38,
+    "bytes": 31051,
+    "unique_blobs": 38,
+    "executable_paths": [],
+    "summary": {
+      "fixture_files": 38,
+      "fixture_bytes": 31051,
+      "unique_blobs": 38,
+      "operation_calls": 38,
+      "operation_counts": {
+        "baselineGetEmitOutput": 31,
+        "getEmitOutput": 5,
+        "verifyGetEmitOutputContentsForCurrentFile": 1,
+        "verifyGetEmitOutputForCurrentFile": 1
+      },
+      "fixtures_with_emit_this_file": 37,
+      "emit_this_file_directives": 49,
+      "emit_this_file_true": 47,
+      "emit_this_file_false": 2
+    }
+  },
+  "fixtures": [
+    {
+      "path": "compileOnSaveWorksWhenEmitBlockingErrorOnOtherFile.ts",
+      "git_blob_sha1": "07f6316e4dd5418ac939933aaef6f91de8551d52",
+      "bytes": 438,
+      "operation": {
+        "method": "baselineGetEmitOutput",
+        "line": 13
+      },
+      "emit_this_file_directives": [
+        {
+          "line": 6,
+          "value": true
+        },
+        {
+          "line": 10,
+          "value": true
+        }
+      ]
+    },
+    {
+      "path": "constEnumsEmitOutputInMultipleFiles.ts",
+      "git_blob_sha1": "85023d9a83f2462f96d519365e9fb5229e335730",
+      "bytes": 467,
+      "operation": {
+        "method": "verifyGetEmitOutputForCurrentFile",
+        "line": 17
+      },
+      "emit_this_file_directives": []
+    },
+    {
+      "path": "diagnosticsJsFileCompilationDuplicateFunctionImplementation.ts",
+      "git_blob_sha1": "1580c1bda4b5126af915180a894366f6eebf27be",
+      "bytes": 1005,
+      "operation": {
+        "method": "verifyGetEmitOutputContentsForCurrentFile",
+        "line": 23
+      },
+      "emit_this_file_directives": [
+        {
+          "line": 9,
+          "value": true
+        },
+        {
+          "line": 13,
+          "value": true
+        }
+      ]
+    },
+    {
+      "path": "getEmitOutputDeclarationMultiFiles.ts",
+      "git_blob_sha1": "8148dd3960d2ec31add4bb782e61d1dbe4908e5d",
+      "bytes": 467,
+      "operation": {
+        "method": "baselineGetEmitOutput",
+        "line": 22
+      },
+      "emit_this_file_directives": [
+        {
+          "line": 7,
+          "value": true
+        },
+        {
+          "line": 15,
+          "value": true
+        }
+      ]
+    },
+    {
+      "path": "getEmitOutputDeclarationSingleFile.ts",
+      "git_blob_sha1": "c416c81c61515c11d61f5e89a3c6e72b9dd9a475",
+      "bytes": 477,
+      "operation": {
+        "method": "baselineGetEmitOutput",
+        "line": 22
+      },
+      "emit_this_file_directives": [
+        {
+          "line": 8,
+          "value": true
+        }
+      ]
+    },
+    {
+      "path": "getEmitOutputExternalModule.ts",
+      "git_blob_sha1": "5b98419b50ed3c86c384241ac155aea91af342ba",
+      "bytes": 396,
+      "operation": {
+        "method": "baselineGetEmitOutput",
+        "line": 19
+      },
+      "emit_this_file_directives": [
+        {
+          "line": 7,
+          "value": true
+        }
+      ]
+    },
+    {
+      "path": "getEmitOutputExternalModule2.ts",
+      "git_blob_sha1": "96ce850013aa0891564e236b077a73bdaa3dc331",
+      "bytes": 527,
+      "operation": {
+        "method": "baselineGetEmitOutput",
+        "line": 26
+      },
+      "emit_this_file_directives": [
+        {
+          "line": 14,
+          "value": true
+        }
+      ]
+    },
+    {
+      "path": "getEmitOutputMapRoot.ts",
+      "git_blob_sha1": "2dfc2b327787def1627ebd03fc656f547fd913b8",
+      "bytes": 371,
+      "operation": {
+        "method": "baselineGetEmitOutput",
+        "line": 17
+      },
+      "emit_this_file_directives": [
+        {
+          "line": 9,
+          "value": true
+        }
+      ]
+    },
+    {
+      "path": "getEmitOutputNoErrors.ts",
+      "git_blob_sha1": "6ef4f34da51d7ac30c352eb3e4e64d661d64d4da",
+      "bytes": 251,
+      "operation": {
+        "method": "baselineGetEmitOutput",
+        "line": 12
+      },
+      "emit_this_file_directives": [
+        {
+          "line": 5,
+          "value": true
+        }
+      ]
+    },
+    {
+      "path": "getEmitOutputOnlyOneFile.ts",
+      "git_blob_sha1": "ecf042f9184ac1145645478c5b9783f14ee57e20",
+      "bytes": 382,
+      "operation": {
+        "method": "baselineGetEmitOutput",
+        "line": 20
+      },
+      "emit_this_file_directives": [
+        {
+          "line": 13,
+          "value": true
+        }
+      ]
+    },
+    {
+      "path": "getEmitOutputOut.ts",
+      "git_blob_sha1": "073c4fc4656f964ef36fbcb663b4b4e4d7503d0f",
+      "bytes": 516,
+      "operation": {
+        "method": "baselineGetEmitOutput",
+        "line": 23
+      },
+      "emit_this_file_directives": [
+        {
+          "line": 7,
+          "value": false
+        },
+        {
+          "line": 13,
+          "value": false
+        },
+        {
+          "line": 20,
+          "value": true
+        }
+      ]
+    },
+    {
+      "path": "getEmitOutputOutFile.ts",
+      "git_blob_sha1": "4a9439737eae2f5e2b8cd1b20f7a467fc8dc85eb",
+      "bytes": 454,
+      "operation": {
+        "method": "baselineGetEmitOutput",
+        "line": 22
+      },
+      "emit_this_file_directives": [
+        {
+          "line": 8,
+          "value": true
+        }
+      ]
+    },
+    {
+      "path": "getEmitOutputSingleFile.ts",
+      "git_blob_sha1": "64a0d097db7de2e10edaccafe24d4e84ec064325",
+      "bytes": 421,
+      "operation": {
+        "method": "baselineGetEmitOutput",
+        "line": 21
+      },
+      "emit_this_file_directives": [
+        {
+          "line": 14,
+          "value": true
+        }
+      ]
+    },
+    {
+      "path": "getEmitOutputSingleFile2.ts",
+      "git_blob_sha1": "19d86a5747c86f4983243231473f0a72f7a46708",
+      "bytes": 619,
+      "operation": {
+        "method": "baselineGetEmitOutput",
+        "line": 28
+      },
+      "emit_this_file_directives": [
+        {
+          "line": 24,
+          "value": true
+        }
+      ]
+    },
+    {
+      "path": "getEmitOutputSourceMap.ts",
+      "git_blob_sha1": "24e37648064cb1099e16c6330c5be95c630a7b15",
+      "bytes": 312,
+      "operation": {
+        "method": "baselineGetEmitOutput",
+        "line": 15
+      },
+      "emit_this_file_directives": [
+        {
+          "line": 7,
+          "value": true
+        }
+      ]
+    },
+    {
+      "path": "getEmitOutputSourceMap2.ts",
+      "git_blob_sha1": "4b4b1185c7a35835bf5a133ce5612d8ebcb1f6bc",
+      "bytes": 491,
+      "operation": {
+        "method": "baselineGetEmitOutput",
+        "line": 23
+      },
+      "emit_this_file_directives": [
+        {
+          "line": 8,
+          "value": true
+        },
+        {
+          "line": 17,
+          "value": true
+        }
+      ]
+    },
+    {
+      "path": "getEmitOutputSourceRoot.ts",
+      "git_blob_sha1": "ac7d63558e488809f9e75bb5bd910f944c94bd54",
+      "bytes": 345,
+      "operation": {
+        "method": "baselineGetEmitOutput",
+        "line": 16
+      },
+      "emit_this_file_directives": [
+        {
+          "line": 8,
+          "value": true
+        }
+      ]
+    },
+    {
+      "path": "getEmitOutputSourceRootMultiFiles.ts",
+      "git_blob_sha1": "7360f9f27ef4bf6aa793b2b4356e04e3aa15c41f",
+      "bytes": 517,
+      "operation": {
+        "method": "baselineGetEmitOutput",
+        "line": 24
+      },
+      "emit_this_file_directives": [
+        {
+          "line": 8,
+          "value": true
+        },
+        {
+          "line": 17,
+          "value": true
+        }
+      ]
+    },
+    {
+      "path": "getEmitOutputTsxFile_Preserve.ts",
+      "git_blob_sha1": "19eda2ad11172e68dc8422b2c16a57b29b6d2046",
+      "bytes": 478,
+      "operation": {
+        "method": "baselineGetEmitOutput",
+        "line": 22
+      },
+      "emit_this_file_directives": [
+        {
+          "line": 9,
+          "value": true
+        },
+        {
+          "line": 18,
+          "value": true
+        }
+      ]
+    },
+    {
+      "path": "getEmitOutputTsxFile_React.ts",
+      "git_blob_sha1": "046eaa79da23b5294c75487314dd847dc9625ec2",
+      "bytes": 665,
+      "operation": {
+        "method": "baselineGetEmitOutput",
+        "line": 31
+      },
+      "emit_this_file_directives": [
+        {
+          "line": 10,
+          "value": true
+        },
+        {
+          "line": 20,
+          "value": true
+        }
+      ]
+    },
+    {
+      "path": "getEmitOutputWithDeclarationFile.ts",
+      "git_blob_sha1": "9e73a8490da69a0da2d8cdffc753958ba44475e5",
+      "bytes": 379,
+      "operation": {
+        "method": "baselineGetEmitOutput",
+        "line": 17
+      },
+      "emit_this_file_directives": [
+        {
+          "line": 6,
+          "value": true
+        },
+        {
+          "line": 10,
+          "value": true
+        }
+      ]
+    },
+    {
+      "path": "getEmitOutputWithDeclarationFile2.ts",
+      "git_blob_sha1": "8f8e21cbcbb5ccec3fb0b338ef5aed2e882f2c83",
+      "bytes": 409,
+      "operation": {
+        "method": "baselineGetEmitOutput",
+        "line": 18
+      },
+      "emit_this_file_directives": [
+        {
+          "line": 7,
+          "value": true
+        },
+        {
+          "line": 11,
+          "value": true
+        },
+        {
+          "line": 15,
+          "value": true
+        }
+      ]
+    },
+    {
+      "path": "getEmitOutputWithDeclarationFile3.ts",
+      "git_blob_sha1": "5a5e057ade4fd9b8b39534bd98172c57afeb7dd5",
+      "bytes": 478,
+      "operation": {
+        "method": "baselineGetEmitOutput",
+        "line": 21
+      },
+      "emit_this_file_directives": [
+        {
+          "line": 13,
+          "value": true
+        }
+      ]
+    },
+    {
+      "path": "getEmitOutputWithEarlySemanticErrors.ts",
+      "git_blob_sha1": "58d6ce19ed19e91956a91199e549dc43cab4d9dc",
+      "bytes": 302,
+      "operation": {
+        "method": "baselineGetEmitOutput",
+        "line": 10
+      },
+      "emit_this_file_directives": [
+        {
+          "line": 6,
+          "value": true
+        }
+      ]
+    },
+    {
+      "path": "getEmitOutputWithEmitterErrors.ts",
+      "git_blob_sha1": "faa6519f5a8cf95911d7e95976245032a8ed5e01",
+      "bytes": 364,
+      "operation": {
+        "method": "baselineGetEmitOutput",
+        "line": 15
+      },
+      "emit_this_file_directives": [
+        {
+          "line": 7,
+          "value": true
+        }
+      ]
+    },
+    {
+      "path": "getEmitOutputWithEmitterErrors2.ts",
+      "git_blob_sha1": "6c9796b194cf67ca300b69e38d8b73d15e305d23",
+      "bytes": 311,
+      "operation": {
+        "method": "baselineGetEmitOutput",
+        "line": 14
+      },
+      "emit_this_file_directives": [
+        {
+          "line": 8,
+          "value": true
+        }
+      ]
+    },
+    {
+      "path": "getEmitOutputWithSemanticErrors.ts",
+      "git_blob_sha1": "13aeda82cc8f7c0632889c29e9b2caa3edb3cc23",
+      "bytes": 224,
+      "operation": {
+        "method": "baselineGetEmitOutput",
+        "line": 9
+      },
+      "emit_this_file_directives": [
+        {
+          "line": 6,
+          "value": true
+        }
+      ]
+    },
+    {
+      "path": "getEmitOutputWithSemanticErrors2.ts",
+      "git_blob_sha1": "174b42bb37e00179340a068cdcbfe238132aec6f",
+      "bytes": 248,
+      "operation": {
+        "method": "baselineGetEmitOutput",
+        "line": 10
+      },
+      "emit_this_file_directives": [
+        {
+          "line": 7,
+          "value": true
+        }
+      ]
+    },
+    {
+      "path": "getEmitOutputWithSemanticErrorsForMultipleFiles.ts",
+      "git_blob_sha1": "0c6f4786c2534b3446e4c5db78a9175cce6e7b9a",
+      "bytes": 537,
+      "operation": {
+        "method": "baselineGetEmitOutput",
+        "line": 15
+      },
+      "emit_this_file_directives": [
+        {
+          "line": 7,
+          "value": true
+        }
+      ]
+    },
+    {
+      "path": "getEmitOutputWithSemanticErrorsForMultipleFiles2.ts",
+      "git_blob_sha1": "f01f4c3b19474e218cdf89ba1cd3688d54778ea2",
+      "bytes": 584,
+      "operation": {
+        "method": "baselineGetEmitOutput",
+        "line": 17
+      },
+      "emit_this_file_directives": [
+        {
+          "line": 8,
+          "value": true
+        }
+      ]
+    },
+    {
+      "path": "getEmitOutputWithSyntacticErrorsForMultipleFiles.ts",
+      "git_blob_sha1": "c2ddd3ea0042eaec14430f3807f6a2c9d09baefb",
+      "bytes": 502,
+      "operation": {
+        "method": "baselineGetEmitOutput",
+        "line": 15
+      },
+      "emit_this_file_directives": [
+        {
+          "line": 6,
+          "value": true
+        }
+      ]
+    },
+    {
+      "path": "getEmitOutputWithSyntacticErrorsForMultipleFiles2.ts",
+      "git_blob_sha1": "72e866692ca99533e4c9840bf684afd607b3a246",
+      "bytes": 543,
+      "operation": {
+        "method": "baselineGetEmitOutput",
+        "line": 16
+      },
+      "emit_this_file_directives": [
+        {
+          "line": 7,
+          "value": true
+        }
+      ]
+    },
+    {
+      "path": "getEmitOutputWithSyntaxErrors.ts",
+      "git_blob_sha1": "4d094f463d1f8ab179ed4309655d736abd31dc97",
+      "bytes": 199,
+      "operation": {
+        "method": "baselineGetEmitOutput",
+        "line": 9
+      },
+      "emit_this_file_directives": [
+        {
+          "line": 6,
+          "value": true
+        }
+      ]
+    },
+    {
+      "path": "server/declarationMapsEnableMapping_NoInline.ts",
+      "git_blob_sha1": "f1205c69c5da84a4b89b726b29003336792f420a",
+      "bytes": 3368,
+      "operation": {
+        "method": "getEmitOutput",
+        "line": 79
+      },
+      "emit_this_file_directives": [
+        {
+          "line": 21,
+          "value": true
+        }
+      ]
+    },
+    {
+      "path": "server/declarationMapsEnableMapping_NoInlineSources.ts",
+      "git_blob_sha1": "38df15316a8be1a58d94e415e5a584fc95449f6b",
+      "bytes": 3827,
+      "operation": {
+        "method": "getEmitOutput",
+        "line": 80
+      },
+      "emit_this_file_directives": [
+        {
+          "line": 22,
+          "value": true
+        }
+      ]
+    },
+    {
+      "path": "server/declarationMapsGeneratedMapsEnableMapping.ts",
+      "git_blob_sha1": "90d001af40b69b8b3c2b1d0a02394a81fdc56aa4",
+      "bytes": 2817,
+      "operation": {
+        "method": "getEmitOutput",
+        "line": 78
+      },
+      "emit_this_file_directives": [
+        {
+          "line": 20,
+          "value": true
+        }
+      ]
+    },
+    {
+      "path": "server/declarationMapsGeneratedMapsEnableMapping2.ts",
+      "git_blob_sha1": "a4fb38b2e69416031e0d16070ae494ee96f9069a",
+      "bytes": 3459,
+      "operation": {
+        "method": "getEmitOutput",
+        "line": 83
+      },
+      "emit_this_file_directives": [
+        {
+          "line": 22,
+          "value": true
+        }
+      ]
+    },
+    {
+      "path": "server/declarationMapsGeneratedMapsEnableMapping3.ts",
+      "git_blob_sha1": "34241db5b1247224fa4860f44a1b8537a4a230ec",
+      "bytes": 2901,
+      "operation": {
+        "method": "getEmitOutput",
+        "line": 79
+      },
+      "emit_this_file_directives": [
+        {
+          "line": 21,
+          "value": true
+        }
+      ]
+    }
+  ],
+  "qualification": {
+    "expansion_rows": 0,
+    "executed_rows": 0,
+    "passing_rows": 0,
+    "source_inventory_integrity": true,
+    "fourslash_pass_rate": false,
+    "language_service_compatibility": false,
+    "whole_program_emit_equivalence": false
+  }
+}

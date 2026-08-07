@@ -3,10 +3,11 @@
 Status: audited design input, updated 2026-08-07 with L0.4 and L1 complete and
 qualified, the H1.0a owner graph active as a report-only draft, and the current
 Rust emit omissions frozen in a generated baseline, with the complete upstream
-transpile source tree now content-addressed in additive suite pin v2. This page
-records the current Rust implementation boundary, the work required to finish
-bounded H1 JavaScript emit, and the remaining work after H1 for broader
-TypeScript 6.0.3 compiler and tooling compatibility. It is not an
+transpile source tree now content-addressed in additive suite pin v2 and the
+exact 38-file FourSlash batch-emit witness projection pinned in additive suite
+pin v3. This page records the current Rust implementation boundary, the work
+required to finish bounded H1 JavaScript emit, and the remaining work after H1
+for broader TypeScript 6.0.3 compiler and tooling compatibility. It is not an
 implementation-complete claim and it does not authorize a broader H1 profile.
 
 The persistent-source audit found one dependency-order correction: the L0
@@ -65,6 +66,7 @@ That review fixes the current evidence boundary as follows:
 | Compiler input expansion | 7,276/7,276 plans structurally load and run through H0 | Upstream diagnostic, trace, JS/d.ts/map, or type/symbol baselines |
 | Project expansion | 82/632 H0-compatible plans are qualified; the other 550 are explicitly classified H0 non-scope | The upstream project emit/build baselines |
 | Expansion manifest | All 7,908 compiler/project cases retain initial state `not-run` | Any upstream runner pass rate |
+| FourSlash emit projection | The full 6,568-file tree identity and all 38 direct emit-operation witnesses are pinned; expansion/execution/pass rows are zero | A FourSlash or Language Service pass rate, or equivalence to whole-Program emit |
 
 There is therefore no known conformance-diagnostic exclusion backlog to
 silently fold into H1. New execution paths can still change which diagnostics
@@ -886,11 +888,18 @@ compatibility transition. It is not routine dependency updating.
 | `APISample_*` compiler cases | Public compiler, watch, linter, transform API examples | Classification controls | Public API compatibility |
 
 The checked-in `ts-tests` snapshot currently contains compiler, conformance,
-project, projects, and all 22 transpile inputs, but no FourSlash tree and no
-checked-in upstream output baselines. The landed suite-pin transition preserves
-the exact source commit, paths, blob hashes, and `transpileRunner` identity in
-an additive v2 pin bound to the unchanged v1 pin; the classification stage
-must retain explicit unsupported dispositions.
+project, projects, all 22 transpile inputs, and exactly 38 FourSlash emit
+witnesses, but not the other 6,530 FourSlash files or checked-in upstream
+output baselines. Suite pin v2 preserves the exact transpile source commit,
+paths, blob hashes, and `transpileRunner` identity while binding the unchanged
+v1 pin. Suite pin v3 binds v2 unchanged, records the complete 6,568-file
+FourSlash tree identity, pins the two FourSlash harness implementation blobs,
+and reconstructs the projected 38-file Git tree/blob inventory. Its manifest
+classifies 31 `baselineGetEmitOutput`, five `getEmitOutput`, and two focused
+current-file verification calls plus all 49 `emitThisFile` directives. It has
+zero expansion/execution/pass rows and therefore establishes no FourSlash,
+Language Service, or whole-Program emit result; the classification stage must
+retain explicit unsupported dispositions.
 
 The local `test-suite-expansion.v1.json` remains byte-identical and inventories
 7,086 `compiler`, `project`, and `projects` sources, 7,276 compiler cases, and

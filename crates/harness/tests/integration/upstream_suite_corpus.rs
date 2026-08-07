@@ -1,4 +1,4 @@
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
@@ -11,20 +11,55 @@ const BASE_PIN: &[u8] = include_bytes!(concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/../../vendor/typescript-6.0.3/test-suites-pin.v1.json"
 ));
-const PIN: &[u8] = include_bytes!(concat!(
+const PIN_V2: &[u8] = include_bytes!(concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/../../vendor/typescript-6.0.3/test-suites-pin.v2.json"
 ));
+const PIN_V3: &[u8] = include_bytes!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../../vendor/typescript-6.0.3/test-suites-pin.v3.json"
+));
+const FOURSLASH_PROJECTION_MANIFEST: &[u8] = include_bytes!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../../vendor/typescript-6.0.3/fourslash-emit-projection.v1.json"
+));
 const BASE_PIN_RELATIVE_PATH: &str = "vendor/typescript-6.0.3/test-suites-pin.v1.json";
 const BASE_PIN_SHA256: &str = "f231d984c31d5d16a6fb845e66a25bc9601ffd23212d548cb337149e40397da9";
-const PIN_SHA256: &str = "83f8edbb6f4535a19e61cf872532a46722f8cedbd2d746a0922dc507addc0879";
+const PIN_V2_RELATIVE_PATH: &str = "vendor/typescript-6.0.3/test-suites-pin.v2.json";
+const PIN_V2_SHA256: &str = "83f8edbb6f4535a19e61cf872532a46722f8cedbd2d746a0922dc507addc0879";
+const PIN_V3_SHA256: &str = "5f7aee7d434066017c5cd115fb2195ff4959e5203eddc7ed9dafaf705cb38b34";
+const FOURSLASH_PROJECTION_MANIFEST_RELATIVE_PATH: &str =
+    "vendor/typescript-6.0.3/fourslash-emit-projection.v1.json";
+const FOURSLASH_PROJECTION_MANIFEST_SHA256: &str =
+    "d652d0e0ad1a6195cb3d74e97cb241f3da6a55b6811bd4770fb1ec56a2843c46";
+const FOURSLASH_PROJECTION_GENERATOR_RELATIVE_PATH: &str =
+    "crates/oracle/fourslash-emit-projection.mjs";
+const FOURSLASH_PROJECTION_GENERATOR_SHA256: &str =
+    "0211bc1500582945457d12e523363084b131bbad0075e4d24a8d84a3447a1f85";
 const TYPESCRIPT_VERSION: &str = "6.0.3";
 const SOURCE_REPOSITORY: &str = "https://github.com/microsoft/TypeScript.git";
 const SOURCE_COMMIT: &str = "050880ce59e30b356b686bd3144efe24f875ebc8";
-const IMPLEMENTATION_SOURCES: [(&str, &str); 1] = [(
+const IMPLEMENTATION_SOURCES_V2: [(&str, &str); 1] = [(
     "src/testRunner/transpileRunner.ts",
     "3926aa9b7d88e953163ed1fee843d273783be131",
 )];
+const IMPLEMENTATION_SOURCES_V3: [(&str, &str); 3] = [
+    IMPLEMENTATION_SOURCES_V2[0],
+    (
+        "src/harness/fourslashImpl.ts",
+        "dc6341ef018f79e5d55a1d59aeafaeae2932c3d6",
+    ),
+    (
+        "src/harness/fourslashInterfaceImpl.ts",
+        "6178b2723f13e86f78261d848f48af8f4a998e18",
+    ),
+];
+const FOURSLASH_OPERATION_METHODS: [&str; 4] = [
+    "baselineGetEmitOutput",
+    "getEmitOutput",
+    "verifyGetEmitOutputContentsForCurrentFile",
+    "verifyGetEmitOutputForCurrentFile",
+];
 const SUITES: [(&str, &str, &str); 4] = [
     (
         "compiler",
@@ -62,6 +97,19 @@ struct TestSuitesPin {
 
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
+struct ProjectedTestSuitesPin {
+    schema: u32,
+    typescript_version: String,
+    source_repository: String,
+    source_commit: String,
+    base_pin: BasePinIdentity,
+    suites: Vec<SuitePin>,
+    implementation_sources: Vec<ImplementationSourcePin>,
+    projections: Vec<ProjectionPin>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
 struct LegacyTestSuitesPin {
     schema: u32,
     typescript_version: String,
@@ -70,7 +118,7 @@ struct LegacyTestSuitesPin {
     suites: Vec<SuitePin>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Eq, PartialEq)]
 #[serde(deny_unknown_fields)]
 struct BasePinIdentity {
     path: String,
@@ -91,11 +139,155 @@ struct SuitePin {
     executable_paths: Vec<String>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Eq, PartialEq)]
 #[serde(deny_unknown_fields)]
 struct ImplementationSourcePin {
     source_path: String,
     git_blob_sha1: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct ProjectionPin {
+    name: String,
+    source_path: String,
+    vendored_path: String,
+    source_git_tree_sha1: String,
+    source_blob_inventory_sha256: String,
+    source_files: u64,
+    source_bytes: u64,
+    source_unique_blobs: usize,
+    manifest: BasePinIdentity,
+    projected_git_tree_sha1: String,
+    projected_blob_inventory_sha256: String,
+    projected_files: u64,
+    projected_bytes: u64,
+    projected_unique_blobs: usize,
+    projected_executable_paths: Vec<String>,
+    execution_state: String,
+    expansion_rows: u64,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct FourSlashProjectionManifest {
+    schema: u32,
+    kind: String,
+    status: String,
+    typescript_version: String,
+    source_repository: String,
+    source_commit: String,
+    generator: BasePinIdentity,
+    source_tree: SourceTreeIdentity,
+    selector: FourSlashSelector,
+    projection: FourSlashProjectionIdentity,
+    fixtures: Vec<FourSlashFixture>,
+    qualification: FourSlashQualification,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct SourceTreeIdentity {
+    path: String,
+    git_tree_sha1: String,
+    blob_inventory_sha256: String,
+    files: u64,
+    bytes: u64,
+    unique_blobs: usize,
+    executable_paths: Vec<String>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct FourSlashSelector {
+    operation_call_pattern: String,
+    operation_call_flags: String,
+    operation_methods: Vec<String>,
+    metadata_pattern: String,
+    metadata_flags: String,
+    broad_mentions: u64,
+    selected_operation_files: u64,
+    false_positive_controls: Vec<FalsePositiveControl>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct FalsePositiveControl {
+    path: String,
+    git_blob_sha1: String,
+    bytes: u64,
+    mention_lines: Vec<usize>,
+    disposition: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct FourSlashProjectionIdentity {
+    vendored_path: String,
+    git_tree_sha1: String,
+    blob_inventory_sha256: String,
+    files: u64,
+    bytes: u64,
+    unique_blobs: usize,
+    executable_paths: Vec<String>,
+    summary: FourSlashSummary,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct FourSlashSummary {
+    fixture_files: u64,
+    fixture_bytes: u64,
+    unique_blobs: usize,
+    operation_calls: u64,
+    operation_counts: BTreeMap<String, u64>,
+    fixtures_with_emit_this_file: u64,
+    emit_this_file_directives: u64,
+    emit_this_file_true: u64,
+    emit_this_file_false: u64,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct FourSlashFixture {
+    path: String,
+    git_blob_sha1: String,
+    bytes: u64,
+    operation: FourSlashOperation,
+    emit_this_file_directives: Vec<EmitThisFileDirective>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct FourSlashOperation {
+    method: String,
+    line: usize,
+}
+
+#[derive(Debug, Deserialize, Eq, PartialEq)]
+#[serde(deny_unknown_fields)]
+struct EmitThisFileDirective {
+    line: usize,
+    value: bool,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct FourSlashQualification {
+    expansion_rows: u64,
+    executed_rows: u64,
+    passing_rows: u64,
+    source_inventory_integrity: bool,
+    fourslash_pass_rate: bool,
+    language_service_compatibility: bool,
+    whole_program_emit_equivalence: bool,
+}
+
+#[derive(Debug, Eq, PartialEq)]
+struct BlobIdentity {
+    mode: String,
+    git_blob_sha1: String,
+    bytes: u64,
 }
 
 #[derive(Debug, Default)]
@@ -177,47 +369,81 @@ fn vendored_upstream_test_suites_match_exact_git_trees() {
         "legacy test suite pin hash"
     );
     assert_eq!(
-        format!("{:x}", Sha256::digest(PIN)),
-        PIN_SHA256,
-        "H1 test suite pin hash"
+        format!("{:x}", Sha256::digest(PIN_V2)),
+        PIN_V2_SHA256,
+        "H1 schema-2 test suite pin hash"
+    );
+    assert_eq!(
+        format!("{:x}", Sha256::digest(PIN_V3)),
+        PIN_V3_SHA256,
+        "H1 schema-3 test suite pin hash"
+    );
+    assert_eq!(
+        format!("{:x}", Sha256::digest(FOURSLASH_PROJECTION_MANIFEST)),
+        FOURSLASH_PROJECTION_MANIFEST_SHA256,
+        "FourSlash emit projection manifest hash"
     );
     let legacy: LegacyTestSuitesPin =
         serde_json::from_slice(BASE_PIN).expect("legacy test suite pin must be valid JSON");
-    let pin: TestSuitesPin =
-        serde_json::from_slice(PIN).expect("H1 test suite pin must be valid JSON");
+    let pin_v2: TestSuitesPin =
+        serde_json::from_slice(PIN_V2).expect("H1 schema-2 test suite pin must be valid JSON");
+    let pin_v3: ProjectedTestSuitesPin =
+        serde_json::from_slice(PIN_V3).expect("H1 schema-3 test suite pin must be valid JSON");
+    let fourslash: FourSlashProjectionManifest =
+        serde_json::from_slice(FOURSLASH_PROJECTION_MANIFEST)
+            .expect("FourSlash emit projection manifest must be valid JSON");
     assert_eq!(legacy.schema, 1, "unsupported legacy test suite pin schema");
-    assert_eq!(pin.schema, 2, "unsupported H1 test suite pin schema");
-    assert_eq!(pin.base_pin.path, BASE_PIN_RELATIVE_PATH);
-    assert_eq!(pin.base_pin.sha256, BASE_PIN_SHA256);
-    assert_eq!(pin.typescript_version, TYPESCRIPT_VERSION);
-    assert_eq!(pin.source_repository, SOURCE_REPOSITORY);
-    assert_eq!(pin.source_commit, SOURCE_COMMIT);
-    assert_eq!(legacy.typescript_version, pin.typescript_version);
-    assert_eq!(legacy.source_repository, pin.source_repository);
-    assert_eq!(legacy.source_commit, pin.source_commit);
+    assert_eq!(pin_v2.schema, 2, "unsupported H1 schema-2 pin");
+    assert_eq!(pin_v3.schema, 3, "unsupported H1 schema-3 pin");
+    assert_eq!(pin_v2.base_pin.path, BASE_PIN_RELATIVE_PATH);
+    assert_eq!(pin_v2.base_pin.sha256, BASE_PIN_SHA256);
+    assert_eq!(pin_v3.base_pin.path, PIN_V2_RELATIVE_PATH);
+    assert_eq!(pin_v3.base_pin.sha256, PIN_V2_SHA256);
+    assert_eq!(pin_v2.typescript_version, TYPESCRIPT_VERSION);
+    assert_eq!(pin_v2.source_repository, SOURCE_REPOSITORY);
+    assert_eq!(pin_v2.source_commit, SOURCE_COMMIT);
+    assert_eq!(pin_v3.typescript_version, pin_v2.typescript_version);
+    assert_eq!(pin_v3.source_repository, pin_v2.source_repository);
+    assert_eq!(pin_v3.source_commit, pin_v2.source_commit);
+    assert_eq!(legacy.typescript_version, pin_v2.typescript_version);
+    assert_eq!(legacy.source_repository, pin_v2.source_repository);
+    assert_eq!(legacy.source_commit, pin_v2.source_commit);
     assert_eq!(
         legacy.suites.len(),
         SUITES.len() - 1,
         "schema 1 must remain the exact three-suite base"
     );
     assert_eq!(
-        pin.suites.len(),
+        pin_v2.suites.len(),
         SUITES.len(),
         "the pin must contain all and only compiler/project/projects/transpile"
     );
     assert_eq!(
-        &pin.suites[..legacy.suites.len()],
+        &pin_v2.suites[..legacy.suites.len()],
         legacy.suites.as_slice(),
         "schema 2 must preserve the complete schema-1 suite prefix"
     );
     assert_eq!(
-        pin.implementation_sources.len(),
-        IMPLEMENTATION_SOURCES.len()
+        pin_v3.suites, pin_v2.suites,
+        "schema 3 must preserve every schema-2 full-suite identity"
     );
-    for (source, (path, git_blob_sha1)) in pin
+    assert_eq!(
+        pin_v2.implementation_sources.len(),
+        IMPLEMENTATION_SOURCES_V2.len()
+    );
+    assert_eq!(
+        pin_v3.implementation_sources.len(),
+        IMPLEMENTATION_SOURCES_V3.len()
+    );
+    assert_eq!(
+        &pin_v3.implementation_sources[..pin_v2.implementation_sources.len()],
+        pin_v2.implementation_sources.as_slice(),
+        "schema 3 must preserve the schema-2 implementation-source prefix"
+    );
+    for (source, (path, git_blob_sha1)) in pin_v3
         .implementation_sources
         .iter()
-        .zip(IMPLEMENTATION_SOURCES)
+        .zip(IMPLEMENTATION_SOURCES_V3)
     {
         assert_eq!(source.source_path, path);
         assert_eq!(source.git_blob_sha1, git_blob_sha1);
@@ -229,7 +455,7 @@ fn vendored_upstream_test_suites_match_exact_git_trees() {
         .and_then(Path::parent)
         .expect("harness crate must be inside the workspace");
 
-    for (suite, (name, source_path, vendored_path)) in pin.suites.iter().zip(SUITES) {
+    for (suite, (name, source_path, vendored_path)) in pin_v2.suites.iter().zip(SUITES) {
         assert_eq!(suite.name, name);
         assert_eq!(suite.source_path, source_path);
         assert_eq!(suite.vendored_path, vendored_path);
@@ -262,6 +488,328 @@ fn vendored_upstream_test_suites_match_exact_git_trees() {
 
         verify_git_identities(&suite_root, suite, &expected_executable_paths);
     }
+
+    assert_eq!(
+        pin_v3.projections.len(),
+        1,
+        "exactly one projection is pinned"
+    );
+    verify_fourslash_projection(workspace, &pin_v3.projections[0], &fourslash);
+}
+
+fn verify_fourslash_projection(
+    workspace: &Path,
+    pin: &ProjectionPin,
+    manifest: &FourSlashProjectionManifest,
+) {
+    assert_eq!(pin.name, "fourslash-batch-emit");
+    assert_eq!(pin.source_path, "tests/cases/fourslash");
+    assert_eq!(pin.vendored_path, "ts-tests/tests/cases/fourslash");
+    assert_eq!(
+        pin.manifest.path,
+        FOURSLASH_PROJECTION_MANIFEST_RELATIVE_PATH
+    );
+    assert_eq!(pin.manifest.sha256, FOURSLASH_PROJECTION_MANIFEST_SHA256);
+    assert_eq!(pin.execution_state, "not-run");
+    assert_eq!(pin.expansion_rows, 0);
+    assert!(pin.projected_executable_paths.is_empty());
+    assert_hex(
+        &pin.source_git_tree_sha1,
+        40,
+        "FourSlash source Git tree SHA-1",
+    );
+    assert_hex(
+        &pin.source_blob_inventory_sha256,
+        64,
+        "FourSlash source inventory SHA-256",
+    );
+    assert_hex(
+        &pin.projected_git_tree_sha1,
+        40,
+        "FourSlash projection Git tree SHA-1",
+    );
+    assert_hex(
+        &pin.projected_blob_inventory_sha256,
+        64,
+        "FourSlash projection inventory SHA-256",
+    );
+
+    assert_eq!(manifest.schema, 1);
+    assert_eq!(manifest.kind, "typescript-fourslash-batch-emit-projection");
+    assert_eq!(manifest.status, "inventory-only-not-run");
+    assert_eq!(manifest.typescript_version, TYPESCRIPT_VERSION);
+    assert_eq!(manifest.source_repository, SOURCE_REPOSITORY);
+    assert_eq!(manifest.source_commit, SOURCE_COMMIT);
+    assert_eq!(
+        manifest.generator.path,
+        FOURSLASH_PROJECTION_GENERATOR_RELATIVE_PATH
+    );
+    assert_eq!(
+        manifest.generator.sha256,
+        FOURSLASH_PROJECTION_GENERATOR_SHA256
+    );
+    assert_eq!(
+        format!(
+            "{:x}",
+            Sha256::digest(
+                fs::read(workspace.join(&manifest.generator.path))
+                    .expect("FourSlash projection generator must exist")
+            )
+        ),
+        FOURSLASH_PROJECTION_GENERATOR_SHA256,
+        "FourSlash projection generator hash"
+    );
+
+    assert_eq!(manifest.source_tree.path, pin.source_path);
+    assert_eq!(manifest.source_tree.git_tree_sha1, pin.source_git_tree_sha1);
+    assert_eq!(
+        manifest.source_tree.blob_inventory_sha256,
+        pin.source_blob_inventory_sha256
+    );
+    assert_eq!(manifest.source_tree.files, pin.source_files);
+    assert_eq!(manifest.source_tree.bytes, pin.source_bytes);
+    assert_eq!(manifest.source_tree.unique_blobs, pin.source_unique_blobs);
+    assert!(manifest.source_tree.executable_paths.is_empty());
+
+    assert_eq!(
+        manifest.selector.operation_call_pattern,
+        r"^[ \t]*verify\.(baselineGetEmitOutput|getEmitOutput|verifyGetEmitOutputForCurrentFile|verifyGetEmitOutputContentsForCurrentFile)[ \t]*\("
+    );
+    assert_eq!(manifest.selector.operation_call_flags, "gm");
+    assert!(manifest
+        .selector
+        .operation_methods
+        .iter()
+        .map(String::as_str)
+        .eq(FOURSLASH_OPERATION_METHODS));
+    assert_eq!(
+        manifest.selector.metadata_pattern,
+        r"^[ \t]*//[ \t]*@emitThisFile[ \t]*:[ \t]*(true|false)[ \t]*\r?$"
+    );
+    assert_eq!(manifest.selector.metadata_flags, "gm");
+    assert_eq!(manifest.selector.broad_mentions, 40);
+    assert_eq!(manifest.selector.selected_operation_files, 38);
+    verify_false_positive_controls(&manifest.selector.false_positive_controls);
+
+    assert_eq!(manifest.projection.vendored_path, pin.vendored_path);
+    assert_eq!(
+        manifest.projection.git_tree_sha1,
+        pin.projected_git_tree_sha1
+    );
+    assert_eq!(
+        manifest.projection.blob_inventory_sha256,
+        pin.projected_blob_inventory_sha256
+    );
+    assert_eq!(manifest.projection.files, pin.projected_files);
+    assert_eq!(manifest.projection.bytes, pin.projected_bytes);
+    assert_eq!(manifest.projection.unique_blobs, pin.projected_unique_blobs);
+    assert!(manifest.projection.executable_paths.is_empty());
+
+    let projected_suite = SuitePin {
+        name: pin.name.clone(),
+        source_path: pin.source_path.clone(),
+        vendored_path: pin.vendored_path.clone(),
+        git_tree_sha1: pin.projected_git_tree_sha1.clone(),
+        blob_inventory_sha256: pin.projected_blob_inventory_sha256.clone(),
+        files: pin.projected_files,
+        bytes: pin.projected_bytes,
+        unique_blobs: pin.projected_unique_blobs,
+        executable_paths: pin.projected_executable_paths.clone(),
+    };
+    let projection_root = workspace.join(&pin.vendored_path);
+    let stats = collect_suite_stats(&projection_root);
+    assert_eq!(stats.files, pin.projected_files);
+    assert_eq!(stats.bytes, pin.projected_bytes);
+    if executable_modes_are_available() {
+        assert!(stats.executable_paths.is_empty());
+    }
+    let inventory = verify_git_identities(&projection_root, &projected_suite, &BTreeSet::new());
+    verify_fourslash_fixtures(&projection_root, manifest, &inventory);
+
+    let qualification = &manifest.qualification;
+    assert_eq!(qualification.expansion_rows, 0);
+    assert_eq!(qualification.executed_rows, 0);
+    assert_eq!(qualification.passing_rows, 0);
+    assert!(qualification.source_inventory_integrity);
+    assert!(!qualification.fourslash_pass_rate);
+    assert!(!qualification.language_service_compatibility);
+    assert!(!qualification.whole_program_emit_equivalence);
+}
+
+fn verify_false_positive_controls(controls: &[FalsePositiveControl]) {
+    let expected = [
+        (
+            "fourslash.ts",
+            "c53af3e78a24efd8352825f050ecfbbb7f00fbd0",
+            44_800,
+            &[330, 331, 360, 363][..],
+            "interface-declarations-only",
+        ),
+        (
+            "incrementalParsing1.ts",
+            "e09e96c9e0d2d5d9a83d940d22c019d22c58cb7b",
+            540,
+            &[16][..],
+            "comment-only",
+        ),
+    ];
+    assert_eq!(controls.len(), expected.len());
+    for (control, (path, blob, bytes, lines, disposition)) in controls.iter().zip(expected) {
+        assert_eq!(control.path, path);
+        assert_eq!(control.git_blob_sha1, blob);
+        assert_eq!(control.bytes, bytes);
+        assert_eq!(control.mention_lines, lines);
+        assert_eq!(control.disposition, disposition);
+        assert_hex(&control.git_blob_sha1, 40, "false-positive Git blob SHA-1");
+    }
+}
+
+fn verify_fourslash_fixtures(
+    root: &Path,
+    manifest: &FourSlashProjectionManifest,
+    inventory: &BTreeMap<String, BlobIdentity>,
+) {
+    assert_eq!(manifest.fixtures.len(), inventory.len());
+    let fixture_paths = manifest
+        .fixtures
+        .iter()
+        .map(|fixture| fixture.path.clone())
+        .collect::<BTreeSet<_>>();
+    assert_eq!(fixture_paths.len(), manifest.fixtures.len());
+    assert!(fixture_paths.iter().eq(inventory.keys()));
+    assert!(
+        manifest
+            .fixtures
+            .windows(2)
+            .all(|pair| pair[0].path < pair[1].path),
+        "FourSlash fixtures must be byte-path sorted"
+    );
+
+    let mut operation_counts = BTreeMap::<String, u64>::new();
+    let mut fixture_bytes = 0_u64;
+    let mut fixtures_with_directives = 0_u64;
+    let mut directive_count = 0_u64;
+    let mut true_count = 0_u64;
+    let mut false_count = 0_u64;
+    let mut unique_blobs = BTreeSet::new();
+
+    for fixture in &manifest.fixtures {
+        let blob = inventory
+            .get(&fixture.path)
+            .unwrap_or_else(|| panic!("missing projection inventory row {}", fixture.path));
+        assert_eq!(blob.mode, "100644");
+        assert_eq!(fixture.git_blob_sha1, blob.git_blob_sha1);
+        assert_eq!(fixture.bytes, blob.bytes);
+        assert_hex(&fixture.git_blob_sha1, 40, "fixture Git blob SHA-1");
+        assert!(FOURSLASH_OPERATION_METHODS.contains(&fixture.operation.method.as_str()));
+
+        let raw = fs::read(root.join(&fixture.path))
+            .unwrap_or_else(|error| panic!("failed to read {}: {error}", fixture.path));
+        assert_eq!(raw.len() as u64, fixture.bytes);
+        let text = std::str::from_utf8(&raw)
+            .unwrap_or_else(|error| panic!("{} is not UTF-8: {error}", fixture.path));
+        let (operations, directives) = fourslash_observations(text);
+        assert_eq!(
+            operations,
+            vec![(fixture.operation.method.clone(), fixture.operation.line)],
+            "{} selected operation",
+            fixture.path
+        );
+        assert_eq!(
+            directives, fixture.emit_this_file_directives,
+            "{} emitThisFile directives",
+            fixture.path
+        );
+
+        *operation_counts
+            .entry(fixture.operation.method.clone())
+            .or_default() += 1;
+        fixture_bytes += fixture.bytes;
+        unique_blobs.insert(fixture.git_blob_sha1.clone());
+        if !directives.is_empty() {
+            fixtures_with_directives += 1;
+        }
+        directive_count += directives.len() as u64;
+        true_count += directives
+            .iter()
+            .filter(|directive| directive.value)
+            .count() as u64;
+        false_count += directives
+            .iter()
+            .filter(|directive| !directive.value)
+            .count() as u64;
+    }
+
+    let summary = &manifest.projection.summary;
+    assert_eq!(summary.fixture_files, manifest.fixtures.len() as u64);
+    assert_eq!(summary.fixture_bytes, fixture_bytes);
+    assert_eq!(summary.unique_blobs, unique_blobs.len());
+    assert_eq!(summary.operation_calls, manifest.fixtures.len() as u64);
+    assert_eq!(summary.operation_counts, operation_counts);
+    assert_eq!(
+        summary.fixtures_with_emit_this_file,
+        fixtures_with_directives
+    );
+    assert_eq!(summary.emit_this_file_directives, directive_count);
+    assert_eq!(summary.emit_this_file_true, true_count);
+    assert_eq!(summary.emit_this_file_false, false_count);
+    assert_eq!(summary.fixture_files, 38);
+    assert_eq!(summary.fixture_bytes, 31_051);
+    assert_eq!(summary.unique_blobs, 38);
+    assert_eq!(summary.operation_counts["baselineGetEmitOutput"], 31);
+    assert_eq!(summary.operation_counts["getEmitOutput"], 5);
+    assert_eq!(
+        summary.operation_counts["verifyGetEmitOutputContentsForCurrentFile"],
+        1
+    );
+    assert_eq!(
+        summary.operation_counts["verifyGetEmitOutputForCurrentFile"],
+        1
+    );
+    assert_eq!(summary.fixtures_with_emit_this_file, 37);
+    assert_eq!(summary.emit_this_file_directives, 49);
+    assert_eq!(summary.emit_this_file_true, 47);
+    assert_eq!(summary.emit_this_file_false, 2);
+}
+
+fn fourslash_observations(text: &str) -> (Vec<(String, usize)>, Vec<EmitThisFileDirective>) {
+    let mut operations = Vec::new();
+    let mut directives = Vec::new();
+    for (index, line) in text.split('\n').enumerate() {
+        let line_number = index + 1;
+        let trimmed_start = line.trim_start();
+        for method in FOURSLASH_OPERATION_METHODS {
+            let prefix = format!("verify.{method}");
+            if trimmed_start
+                .strip_prefix(&prefix)
+                .is_some_and(|rest| rest.trim_start().starts_with('('))
+            {
+                operations.push((method.to_owned(), line_number));
+            }
+        }
+
+        let Some(metadata) = trimmed_start.strip_prefix("//") else {
+            continue;
+        };
+        let Some(value) = metadata
+            .trim_start()
+            .strip_prefix("@emitThisFile")
+            .and_then(|rest| rest.trim_start().strip_prefix(':'))
+            .map(str::trim)
+        else {
+            continue;
+        };
+        let value = match value {
+            "true" => true,
+            "false" => false,
+            _ => continue,
+        };
+        directives.push(EmitThisFileDirective {
+            line: line_number,
+            value,
+        });
+    }
+    (operations, directives)
 }
 
 fn collect_suite_stats(root: &Path) -> SuiteStats {
@@ -317,7 +865,7 @@ fn verify_git_identities(
     suite_root: &Path,
     suite: &SuitePin,
     expected_executable_paths: &BTreeSet<String>,
-) {
+) -> BTreeMap<String, BlobIdentity> {
     let scratch = ScratchDir::new(&suite.name);
     let git_dir = scratch.root.join("objects.git");
 
@@ -380,7 +928,8 @@ fn verify_git_identities(
         suite.name
     );
 
-    let (files, bytes, unique_blobs, executable_paths) = parse_blob_inventory(&inventory);
+    let (files, bytes, unique_blobs, executable_paths, blobs_by_path) =
+        parse_blob_inventory(&inventory);
     assert_eq!(files, suite.files, "{} Git blob count", suite.name);
     assert_eq!(bytes, suite.bytes, "{} Git blob bytes", suite.name);
     assert_eq!(
@@ -393,9 +942,18 @@ fn verify_git_identities(
         "{} pinned Git executable modes",
         suite.name
     );
+    blobs_by_path
 }
 
-fn parse_blob_inventory(bytes: &[u8]) -> (u64, u64, usize, BTreeSet<String>) {
+fn parse_blob_inventory(
+    bytes: &[u8],
+) -> (
+    u64,
+    u64,
+    usize,
+    BTreeSet<String>,
+    BTreeMap<String, BlobIdentity>,
+) {
     assert_eq!(
         bytes.last(),
         Some(&0),
@@ -405,6 +963,7 @@ fn parse_blob_inventory(bytes: &[u8]) -> (u64, u64, usize, BTreeSet<String>) {
     let mut total_bytes = 0_u64;
     let mut blobs = BTreeSet::new();
     let mut executable_paths = BTreeSet::new();
+    let mut blobs_by_path = BTreeMap::new();
 
     for record in bytes
         .split(|byte| *byte == 0)
@@ -432,11 +991,30 @@ fn parse_blob_inventory(bytes: &[u8]) -> (u64, u64, usize, BTreeSet<String>) {
         } else {
             assert_eq!(mode, "100644", "unsupported Git blob mode for {path}");
         }
+        assert!(
+            blobs_by_path
+                .insert(
+                    path.to_owned(),
+                    BlobIdentity {
+                        mode: mode.to_owned(),
+                        git_blob_sha1: blob.to_owned(),
+                        bytes: size,
+                    },
+                )
+                .is_none(),
+            "duplicate Git inventory path {path}"
+        );
         files += 1;
         total_bytes += size;
     }
 
-    (files, total_bytes, blobs.len(), executable_paths)
+    (
+        files,
+        total_bytes,
+        blobs.len(),
+        executable_paths,
+        blobs_by_path,
+    )
 }
 
 fn suite_git_command(scratch: &ScratchDir, git_dir: &Path, work_tree: &Path) -> Command {
