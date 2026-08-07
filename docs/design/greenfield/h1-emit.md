@@ -4,13 +4,16 @@ Status: H1.0a now has the generated, report-only
 [`h1-owner-inventory.v1.json`](../../../ratchets/h1-owner-inventory.v1.json)
 owner-graph draft plus the frozen
 [`h1-emit-profile.v1.json`](../../../ratchets/h1-emit-profile.v1.json) and
-callback-level [`h1-emit-oracle.v1.json`](../../../ratchets/h1-emit-oracle.v1.json).
+callback-level [`h1-emit-oracle.v1.json`](../../../ratchets/h1-emit-oracle.v1.json),
+and the current-Rust
+[`h1-rust-omissions.v1.json`](../../../ratchets/h1-rust-omissions.v1.json)
+baseline.
 The shared L0/L1 prerequisite and its evidence/CI-contract freeze are complete.
 The graph's unresolved dynamic calls and conservative property dispatch still
-need review, and the corpus classification and current-Rust omission inventory
-portions of H1.0a remain open. No H1 runtime implementation or compatibility
-claim exists until the complete H1.0 inventory and post-L0/L1 no-emit
-performance baseline described below are frozen.
+need review, and the corpus classification portion of H1.0a remains open. No
+H1 runtime implementation or compatibility claim exists until the complete
+H1.0 inventory and post-L0/L1 no-emit performance baseline described below are
+frozen.
 H0 remains the released, frozen single-project `--noEmit` profile. M9 remains a
 separate paused batch-diagnostics qualification track.
 
@@ -1117,9 +1120,14 @@ declaration/body/ledger hashes, callback-nesting edges, unresolved calls, and
 dormant declaration/map/bundle/targeted/build-info anchors with
 `node crates/oracle/h1-owner-inventory.mjs --check`, and freeze the bootstrap
 profile plus callback observations with
-`node crates/oracle/h1-emit-oracle.mjs --check`. The owner artifact deliberately
-remains `draft/report-only`: corpus classification, the Rust omission inventory,
-and reviewed unresolved/property-dispatch dispositions still keep item 1 open.
+`node crates/oracle/h1-emit-oracle.mjs --check`. The current production Rust
+scope is independently hashed and its 11 missing production boundaries, 32
+effective option-projection omissions, and 25 explicit checker emit elision
+and control rows
+are frozen with
+`node crates/oracle/h1-rust-omission-inventory.mjs --check`. The owner artifact
+deliberately remains `draft/report-only`: corpus classification and reviewed
+unresolved/property-dispatch dispositions still keep item 1 open.
 
 1. **H1.0a — inventory and oracle:** generate the JavaScript-emitter owner
    graph, classify the compiler/project/conformance/transpile corpus plus the

@@ -59,13 +59,14 @@ filesystem/config loading, no-emit diagnostics, rendering, and exit behavior.
 
 **H1 JavaScript emit contract:**
 [h1-emit.md](h1-emit.md) — H1.0a now has a generated report-only owner-graph
-draft plus a frozen bootstrap profile and callback-level TypeScript oracle for
-the bounded, tsc-architected JavaScript emitter. It preserves the H0 `--noEmit`
-entry without initializing the emitter and ports the exact resolver/transform/
-printer/output spine. Corpus/Rust-omission classification and owner-disposition
-review remain open; runtime implementation is unblocked by
-the completed L0 persistent-source and L1 incremental-parser proof, while
-build/watch and LSP remain separate compatibility tracks.
+draft plus a frozen bootstrap profile, callback-level TypeScript oracle, and
+current-Rust omission baseline for the bounded, tsc-architected JavaScript
+emitter. It preserves the H0 `--noEmit` entry without initializing the emitter
+and ports the exact resolver/transform/printer/output spine. Corpus
+classification and owner-disposition review remain open; runtime
+implementation is unblocked by the completed L0 persistent-source and L1
+incremental-parser proof, while build/watch and LSP remain separate
+compatibility tracks.
 
 **Compiler compatibility residual:**
 [compiler-compatibility-residual.md](compiler-compatibility-residual.md) — the
@@ -193,7 +194,7 @@ is one commit.
 | M9 differential-fuzzer steady state — paused after M9.1b | [M9 execution](m9-execution-and-close.md) + [evidence contract](evidence-and-steady-state.md#31-m9-steady-state) | preflight/domain/owner burn-in green, then `fuzz steady-state --require-ready`: 14 frozen-fingerprint 100,000-case windows, rate < 1 new class/window, no untriaged incident or unresolved owner task |
 | H0 filesystem-hosted `--noEmit` — complete | [H0 execution](noemit-cli.md) | exact closure of the 241 host-resolution identities, MemoryHost/FsHost equivalence, config/CLI/output parity, embedded libraries, no emitted files |
 | L0/L1 persistent source + incremental parser — complete and performance-qualified | [persistent Program design](lsp-and-incremental.md) | shared text/position snapshots, domain-scoped identity leases, generated relocation, non-contiguous ownership, owned bind/Program snapshots, immutable incremental parse/rebind, exact fresh equivalence, reclamation stress, and approved large-edit evidence |
-| H1 JavaScript emit — H1.0a profile/oracle frozen, inventory closure active | [H1 execution](h1-emit.md) | report-only active-root graph and exact callback oracle first; then corpus/Rust-omission closure, zero-cost H0 `--noEmit` route, byte-identical bounded JavaScript output, and resource qualification |
+| H1 JavaScript emit — H1.0a profile/oracle/Rust omissions frozen, inventory closure active | [H1 execution](h1-emit.md) | report-only active-root graph, exact callback oracle, and generated Rust omission baseline first; then corpus/owner-disposition closure, zero-cost H0 `--noEmit` route, byte-identical bounded JavaScript output, and resource qualification |
 
 The T0 percentages are calibration points from the first
 implementation's history, not promises; the gate is "meets or beats,

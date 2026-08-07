@@ -1,0 +1,302 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/kazhiramatsu/tsc-rs/.github/ci/contracts/h1-rust-omissions.schema.json",
+  "title": "tsc-rs H1 current Rust emit omission inventory",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "status",
+    "phase",
+    "typescript",
+    "generator",
+    "contract",
+    "authorities",
+    "scope",
+    "summary",
+    "existing_prerequisites",
+    "production_boundary_omissions",
+    "option_projection_omissions",
+    "checker_emit_elisions",
+    "evidence",
+    "inventory_fingerprint_sha256"
+  ],
+  "properties": {
+    "schema": { "const": 1 },
+    "status": { "const": "frozen-current-rust-baseline" },
+    "phase": { "const": "H1.0a-rust-omission-inventory" },
+    "typescript": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["version", "source_commit"],
+      "properties": {
+        "version": { "const": "6.0.3" },
+        "source_commit": { "$ref": "#/$defs/sha1" }
+      }
+    },
+    "generator": { "$ref": "#/$defs/path_hash" },
+    "contract": { "$ref": "#/$defs/path_hash" },
+    "authorities": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "compatibility_residual",
+        "h1_execution",
+        "emit_profile",
+        "owner_inventory"
+      ],
+      "properties": {
+        "compatibility_residual": { "$ref": "#/$defs/path_hash" },
+        "h1_execution": { "$ref": "#/$defs/path_hash" },
+        "emit_profile": { "$ref": "#/$defs/path_hash" },
+        "owner_inventory": { "$ref": "#/$defs/path_hash" }
+      }
+    },
+    "scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "description",
+        "inclusion",
+        "file_count",
+        "rust_source_files",
+        "cargo_manifests",
+        "bytes",
+        "tree_sha256"
+      ],
+      "properties": {
+        "description": { "type": "string", "minLength": 1 },
+        "inclusion": { "$ref": "#/$defs/nonempty_strings" },
+        "file_count": { "$ref": "#/$defs/positive_integer" },
+        "rust_source_files": { "$ref": "#/$defs/positive_integer" },
+        "cargo_manifests": { "$ref": "#/$defs/positive_integer" },
+        "bytes": { "$ref": "#/$defs/positive_integer" },
+        "tree_sha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "production_boundary_omissions",
+        "absence_proofs",
+        "option_projection_omissions",
+        "explicit_checker_emit_elisions",
+        "existing_prerequisites"
+      ],
+      "properties": {
+        "production_boundary_omissions": { "const": 11 },
+        "absence_proofs": { "$ref": "#/$defs/positive_integer" },
+        "option_projection_omissions": { "$ref": "#/$defs/positive_integer" },
+        "explicit_checker_emit_elisions": { "$ref": "#/$defs/positive_integer" },
+        "existing_prerequisites": { "$ref": "#/$defs/positive_integer" }
+      }
+    },
+    "existing_prerequisites": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/prerequisite" }
+    },
+    "production_boundary_omissions": {
+      "type": "array",
+      "minItems": 11,
+      "maxItems": 11,
+      "items": { "$ref": "#/$defs/boundary_omission" }
+    },
+    "option_projection_omissions": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/option_omission" }
+    },
+    "checker_emit_elisions": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/checker_elision" }
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["anchors", "absence_proofs"],
+      "properties": {
+        "anchors": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/anchor" }
+        },
+        "absence_proofs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/absence_proof" }
+        }
+      }
+    },
+    "inventory_fingerprint_sha256": { "$ref": "#/$defs/sha256" }
+  },
+  "$defs": {
+    "sha1": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "positive_integer": { "type": "integer", "minimum": 1 },
+    "nonnegative_integer": { "type": "integer", "minimum": 0 },
+    "nonempty_strings": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "path_hash": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256"],
+      "properties": {
+        "path": { "type": "string", "minLength": 1 },
+        "sha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "prerequisite": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "treatment", "evidence"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "treatment": { "type": "string", "minLength": 1 },
+        "evidence": { "$ref": "#/$defs/nonempty_strings" }
+      }
+    },
+    "boundary_evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["anchors", "absence_proofs"],
+      "properties": {
+        "anchors": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "absence_proofs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "boundary_omission": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "planned_phase", "current", "missing", "evidence"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "planned_phase": { "type": "string", "pattern": "^H1\\." },
+        "current": { "type": "string", "minLength": 1 },
+        "missing": { "type": "string", "minLength": 1 },
+        "evidence": { "$ref": "#/$defs/boundary_evidence" }
+      }
+    },
+    "option_omission": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "option",
+        "rust_field",
+        "current_retention",
+        "disposition",
+        "planned_phase"
+      ],
+      "properties": {
+        "option": { "type": "string", "minLength": 1 },
+        "rust_field": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
+        "current_retention": { "type": "string", "minLength": 1 },
+        "disposition": { "type": "string", "minLength": 1 },
+        "planned_phase": { "type": "string", "minLength": 1 }
+      }
+    },
+    "checker_elision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "anchor", "disposition", "closure"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "anchor": { "type": "string", "minLength": 1 },
+        "disposition": { "type": "string", "minLength": 1 },
+        "closure": { "type": "string", "minLength": 1 }
+      }
+    },
+    "anchor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "path",
+        "line",
+        "column",
+        "text",
+        "text_sha256",
+        "file_sha256"
+      ],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "path": { "type": "string", "minLength": 1 },
+        "line": { "$ref": "#/$defs/positive_integer" },
+        "column": { "$ref": "#/$defs/positive_integer" },
+        "text": { "type": "string", "minLength": 1 },
+        "text_sha256": { "$ref": "#/$defs/sha256" },
+        "file_sha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "match": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "line", "text"],
+      "properties": {
+        "path": { "type": "string", "minLength": 1 },
+        "line": { "$ref": "#/$defs/positive_integer" },
+        "text": { "type": "string", "minLength": 1 }
+      }
+    },
+    "absence_proof": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["id", "kind", "path", "exists"],
+          "properties": {
+            "id": { "type": "string", "minLength": 1 },
+            "kind": { "const": "path-absent" },
+            "path": { "type": "string", "minLength": 1 },
+            "exists": { "const": false }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "id",
+            "kind",
+            "scope",
+            "expression",
+            "match_count",
+            "matches"
+          ],
+          "properties": {
+            "id": { "type": "string", "minLength": 1 },
+            "kind": { "const": "regex-zero" },
+            "scope": {
+              "enum": [
+                "production-rust",
+                "cargo-manifests",
+                "compiler-production",
+                "checker-production"
+              ]
+            },
+            "expression": { "type": "string", "minLength": 1 },
+            "match_count": { "const": 0 },
+            "matches": {
+              "type": "array",
+              "maxItems": 0,
+              "items": { "$ref": "#/$defs/match" }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

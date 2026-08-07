@@ -94,6 +94,8 @@
       "h1": [
         ["node", "--check", "crates/oracle/h1-owner-inventory.mjs"],
         ["node", "crates/oracle/h1-owner-inventory.mjs", "--check"],
+        ["node", "--check", "crates/oracle/h1-rust-omission-inventory.mjs"],
+        ["node", "crates/oracle/h1-rust-omission-inventory.mjs", "--check"],
         ["node", "--check", "crates/oracle/h1-emit-oracle.mjs"],
         ["node", "crates/oracle/h1-emit-oracle.mjs", "--check"],
         ["cargo", "test", "--locked", "--manifest-path", "crates/compiler/Cargo.toml", "--test", "contracts", "frozen_h0_profile_matches_the_executable_boundaries"]

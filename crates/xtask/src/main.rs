@@ -7718,6 +7718,14 @@ fn ci_oracle_gates(workspace: &Path) -> Result<(), Box<dyn Error>> {
             .arg(&h1_inventory)
             .arg("--check"),
     )?;
+    let h1_rust_omissions = workspace.join("crates/oracle/h1-rust-omission-inventory.mjs");
+    run_command(Command::new("node").arg("--check").arg(&h1_rust_omissions))?;
+    run_command(
+        Command::new("node")
+            .current_dir(workspace)
+            .arg(&h1_rust_omissions)
+            .arg("--check"),
+    )?;
     let h1_emit_oracle = workspace.join("crates/oracle/h1-emit-oracle.mjs");
     run_command(Command::new("node").arg("--check").arg(&h1_emit_oracle))?;
     run_command(

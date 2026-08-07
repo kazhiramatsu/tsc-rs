@@ -564,11 +564,11 @@ const output = {
   completed_h1_0a: [
     "freeze the exact bootstrap option/syntax/output profile",
     "land callback-level in-memory oracle observations and schemas",
+    "record every current emit-only Rust omission",
   ],
   pending_h1_0a: [
     "review and disposition every unresolved/dynamic call and property-dispatch over-approximation",
     "classify compiler/project/conformance/transpile and FourSlash emit inventories",
-    "record every current emit-only Rust omission",
   ],
   functions,
   graph: { edges: graphEdges, unresolved_calls: unresolvedCalls },
