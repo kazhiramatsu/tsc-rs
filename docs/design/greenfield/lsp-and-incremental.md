@@ -778,14 +778,14 @@ completed binds through an ephemeral document store, and the minimal registry
 proves refcounted unchanged-file parse/bind reuse across two Program snapshots.
 The approved-runner comparison is chained from the L0.3 runtime tree:
 
-- candidate `e943972e246775e2d539c0d556f6a780f790a114`, exact base
+- candidate `648f2fa211f73acc511f6c35d8cd1d6f810bc8fc`, exact base
   `903debdb73d3220a48fe32b8e69dedf15f2c39bd`;
 - [L0.4 performance evidence](../../../ratchets/l0-one-shot-registry-performance.v1.json)
   contains one cold plus seven warm AB/BA pairs per workload on the approved
   macOS arm64 runner; and
 - every workload stays within the frozen relative policy. The largest ratios
-  are warm median 1.002933, warm p95 1.022564, peak RSS 1.002257,
-  allocation count 0.999999, and allocated bytes 0.999992. Parse, bind,
+  are warm median 1.027454, warm p95 1.046512, peak RSS 1.001328,
+  allocation count 1.000000, and allocated bytes 0.999992. Parse, bind,
   full-text-copy, and copied-byte counters are exactly equal to the L0.3 base.
 
 `l0-performance.mjs --check` validates the complete L0.0 → L0.4 evidence
