@@ -35,7 +35,7 @@ expansion or claim a transpile execution result.
 
 The runner-derived companion inventory is pinned at
 `vendor/typescript-6.0.3/transpile-suite-inventory.v1.json` (SHA-256
-`947b22bc08b76fe56bfc34076e5e87147dc0e713bcfd995903e41a936ef6ba59`).
+`d764594064cbbba0fc6523a5c2467699f00df180842a3b82dbd568df799763fb`).
 It reconstructs the exact 22-fixture, 25-configuration `TranspileRunner`
 matrix as 42 fixture units, 37 cases, and 79 per-unit operations. All 37 cases
 retain execution state `not-run`: 14 are JavaScript transform/printer controls,
@@ -83,6 +83,31 @@ execution, or passing rows; it claims neither a FourSlash pass rate nor
 Language Service or whole-Program emit equivalence. The complete FourSlash
 tree and runner are not vendored or executed.
 
+The projection's exact H1 disposition is pinned separately at
+`vendor/typescript-6.0.3/fourslash-whole-program-equivalence.v1.json`
+(SHA-256
+`88cf5d26976061700c1417be71fae4fee7d5c52ef61d7c2f6df064db168d5837`).
+It consumes the v3 pin, projection, frozen H1 profile, and vendored
+`typescript.js` byte-for-byte. The artifact pins the two FourSlash harness
+source blobs plus the exact bundle declarations proving that each selected
+operation calls `LanguageService.getEmitOutput(fileName)`, then
+`getFileEmitOutput`, then targeted `Program.emit(sourceFile)`. Its 36
+`emitThisFile=true` selections and two active-file selections yield 47
+targeted calls. All 38 cases use `target=ES2025`; module is absent for 30,
+CommonJS for seven, and AMD for one. None matches H1's target-free
+whole-Program request or required `ESNext`/`Preserve` profile, so promotions
+are zero and every row remains deferred, unpromoted, and `not-run`. Reference
+baseline comparisons are zero. Regeneration and freshness checks are fixed
+and unfiltered:
+
+```text
+node crates/oracle/h1-fourslash-equivalence.mjs --write
+node crates/oracle/h1-fourslash-equivalence.mjs --check
+```
+
+This is route/profile classification evidence only. It claims neither
+FourSlash execution nor Language Service or whole-Program emit parity.
+
 The additive H1 source-universe pin v4 is
 `vendor/typescript-6.0.3/test-suites-pin.v4.json` (SHA-256
 `9cd0b499d22c8936b78d1bd30d5ab7faa295b23903e838953fddaaffc48d52d4`).
@@ -118,7 +143,7 @@ construction, JavaScript emit, baseline parity, or an upstream pass rate.
 The separate effective-option classification is pinned at
 `vendor/typescript-6.0.3/conformance-profile-classification.v1.json`
 (SHA-256
-`ac879a75c8ca9accf39e41dfa37b26fa2359e91398217da339686c88a493eeea`).
+`d47eb4c46cfc04b584f5a00c2c0661ce10df69b4957d68207951316798014174`).
 It consumes the expansion byte-for-byte and reproduces virtual `tsconfig`
 parsing, compiler-runner defaults, and harness/matrix override precedence for
 all 7,697 cases. The artifact records 27 virtual configs, two config-diagnostic
@@ -182,7 +207,7 @@ claims no upstream test result.
 
 The H1 compiler-runner classification is pinned separately at
 `vendor/typescript-6.0.3/compiler-profile-classification.v1.json` (SHA-256
-`8d641b9d4b5a8b841f24fe080ecc2d53685fb0c16fda909e94dd4805b5dac777`).
+`fbe4d05310edca95c2aa52cdfa0c08b39725745d93846f037e674d803d5e452a`).
 It consumes the expansion, config-plan artifact, frozen H1 profile, and
 vendored TypeScript bundle byte-for-byte. It verifies all 103 virtual configs
 and 106 config variants against the config-plan oracle before reproducing
@@ -207,7 +232,7 @@ upstream test result.
 
 The H1 project-runner classification is pinned separately at
 `vendor/typescript-6.0.3/project-profile-classification.v1.json` (SHA-256
-`fd9d728bce7e60f8db7e59bb92513648d50a2ee2580847e38cbd8b3e1fb835c9`).
+`5492db8291e70b2f54cf99b66c9ce41998b75d4b284f817327ee6a7eb7fe96be`).
 It consumes the unchanged expansion, frozen H1 profile, vendored TypeScript
 bundle, and focused six-case project oracle byte-for-byte. It reproduces the
 pinned `projectsRunner.ts` defaults,

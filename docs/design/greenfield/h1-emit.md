@@ -39,10 +39,17 @@ explicit-input rows plus 62 config-backed rows. Every CommonJS/AMD row has
 both a required target and module blocker, so admissions are exactly zero.
 All 632 execution states remain `not-run`, and no reference baseline has been
 compared.
+The 38 projected FourSlash emit witnesses now have a separate exact
+whole-Program-equivalence classification. The four DSL operations select 47
+Language Service calls whose pinned implementation route ends at targeted
+`Program.emit(sourceFile)`, not H1's target-free whole-Program request. Every
+case also has `target=ES2025` plus an absent/CommonJS/AMD module state rather
+than the frozen `ESNext`/`Preserve` pair. Promotions are therefore zero; all
+38 controls remain explicitly deferred and `not-run`, and no reference
+baseline has been compared.
 The shared L0/L1 prerequisite and its evidence/CI-contract freeze are complete.
 The graph's unresolved dynamic calls and conservative property dispatch still
-need review, and promoted FourSlash whole-Program equivalence review remains
-open. No H1 runtime implementation or
+need review. No H1 runtime implementation or
 compatibility claim exists until the complete H1.0 inventory and post-L0/L1
 no-emit performance baseline described below are frozen.
 H0 remains the released, frozen single-project `--noEmit` profile. M9 remains a
@@ -1015,6 +1022,21 @@ ordinary `--check` is offline; `--source-root` additionally reconstructs and
 re-scans the full pinned upstream tree. These counts and source pins are
 inventory facts, not executed-test or compatibility claims.
 
+The companion
+[`fourslash-whole-program-equivalence.v1.json`](../../../vendor/typescript-6.0.3/fourslash-whole-program-equivalence.v1.json)
+classifies every projected operation against the frozen H1 request. It pins
+the exact `fourslashImpl`/`fourslashInterfaceImpl` source blobs and the
+`typescript.js` declarations showing
+`LanguageService.getEmitOutput(fileName) -> getFileEmitOutput ->
+Program.emit(sourceFile)`. The 36 `emitThisFile=true` selections and two
+active-file selections produce 47 targeted Program emit calls. All 38 cases
+run under FourSlash's `ES2025` default; 30 have no module option, seven use
+CommonJS, and one uses AMD. Twenty-nine also retain at least one rejected H1
+option. Thus zero rows satisfy either the API-route or frozen-profile
+promotion requirements. The artifact records 38 deferred, unpromoted,
+`not-run` rows and zero compared reference baselines; it proves a complete
+disposition, not FourSlash execution or equivalence.
+
 The existing expansion v1 remains byte-identical: it inventories 7,086
 `compiler`, `project`, and `projects` sources, expands exactly 7,276 compiler
 cases and 632 project cases, and retains initial state `not-run` for all 7,908
@@ -1114,10 +1136,14 @@ The inventory then classifies these sources:
    operation line/class, and metadata order. The 38 selected fixture bytes
    are checked in; the other 6,530 FourSlash files are represented only by
    the complete source-tree identity.
-   A one-shot case may become a non-gating H1 cross-control only after the
-   oracle proves that its Language Service observation is equivalent to the
-   H1 whole-Program request. Per-file, edit/version, formatting, server, or
-   other Language Service state remains deferred to the L-track.
+   The separate equivalence classification traces all four operations through
+   targeted Language Service `Program.emit(sourceFile)`, reconstructs their
+   effective FourSlash/config options, and explicitly defers all 38: none has
+   the H1 whole-Program API shape or required `ESNext`/`Preserve` pair. A
+   future one-shot case may become a non-gating H1 cross-control only after
+   new oracle evidence proves exact request/observation equivalence. Per-file,
+   edit/version, formatting, server, or other Language Service state remains
+   deferred to the L-track.
 
 The full FourSlash runner is not an H1 dependency, and H1 does not claim a
 FourSlash pass rate. Any promoted input bytes are checked in with their pinned
@@ -1245,13 +1271,17 @@ The companion compiler classification covers all 7,276 rows, performs source
 analysis for the two option-clear cases, and retains one bootstrap candidate
 while leaving every row `not-run`. The companion project classification covers
 all 632 rows, pins exact roots and option precedence, proves zero admissions,
-and also leaves every row `not-run`. Promoted FourSlash equivalence and reviewed
-unresolved/property-dispatch dispositions still keep item 1 open.
+and also leaves every row `not-run`. The FourSlash companion classifies all 38
+projected operations as targeted Language Service emits, proves zero
+whole-Program promotions, and leaves every row deferred/`not-run`. Reviewed
+unresolved/property-dispatch dispositions are the remaining item keeping
+H1.0a open.
 
 1. **H1.0a — inventory and oracle:** generate the JavaScript-emitter owner
    graph, retain the classified project, compiler, and conformance corpora,
    reconstructed transpile matrix, and FourSlash emit
-   projection, freeze dormant declaration/map/bundle/targeted/build-info seams,
+   projection/equivalence dispositions, freeze dormant
+   declaration/map/bundle/targeted/build-info seams,
    land the in-memory oracle, and record every current emit-only Rust omission.
    The inventory and design portion may proceed in parallel with the next item.
 2. **L0/L1 prerequisite — persistent source and parser proof:** land shared

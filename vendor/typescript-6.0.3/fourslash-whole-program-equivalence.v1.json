@@ -1,0 +1,3714 @@
+{
+  "schema": 1,
+  "status": "classified-not-run",
+  "phase": "H1.0a-fourslash-whole-program-equivalence",
+  "typescript": {
+    "version": "6.0.3",
+    "source_repository": "https://github.com/microsoft/TypeScript.git",
+    "source_commit": "050880ce59e30b356b686bd3144efe24f875ebc8"
+  },
+  "generator": {
+    "path": "crates/oracle/h1-fourslash-equivalence.mjs",
+    "sha256": "4928e17a87c6af722e2f7a39136278251b7aa2b7161d8077317592100b60a2d7"
+  },
+  "contract": {
+    "path": ".github/ci/contracts/h1-fourslash-equivalence.schema.json",
+    "sha256": "17f545e8244b11d2ead9e2e387c32c11d6a71d6c8d025e8bd50c82a78b452522"
+  },
+  "inputs": {
+    "suite_pin_v3": {
+      "path": "vendor/typescript-6.0.3/test-suites-pin.v3.json",
+      "sha256": "5f7aee7d434066017c5cd115fb2195ff4959e5203eddc7ed9dafaf705cb38b34"
+    },
+    "emit_projection": {
+      "path": "vendor/typescript-6.0.3/fourslash-emit-projection.v1.json",
+      "sha256": "d652d0e0ad1a6195cb3d74e97cb241f3da6a55b6811bd4770fb1ec56a2843c46"
+    },
+    "h1_profile": {
+      "path": "ratchets/h1-emit-profile.v1.json",
+      "sha256": "501c363f2ea6c626d46b195daab949886cc9bacb1314f3c6584a1f82bd76ef8f"
+    },
+    "typescript_bundle": {
+      "path": "vendor/typescript-6.0.3/lib/typescript.js",
+      "sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39"
+    },
+    "implementation_sources": [
+      {
+        "source_path": "src/harness/fourslashImpl.ts",
+        "git_blob_sha1": "dc6341ef018f79e5d55a1d59aeafaeae2932c3d6"
+      },
+      {
+        "source_path": "src/harness/fourslashInterfaceImpl.ts",
+        "git_blob_sha1": "6178b2723f13e86f78261d848f48af8f4a998e18"
+      }
+    ],
+    "bundle_declarations": [
+      {
+        "name": "getFileEmitOutput",
+        "start_offset": 6118484,
+        "end_offset": 6118964,
+        "start_line": 130904,
+        "end_line": 130911,
+        "sha256": "b8dc847c489382197ad6b85f3a109cdb1d54a050d805ff46c986bd601e7ab421"
+      },
+      {
+        "name": "getEmitOutput",
+        "start_offset": 7102303,
+        "end_offset": 7102668,
+        "start_line": 154020,
+        "end_line": 154025,
+        "sha256": "ea72a701544cbbf9389898d750a700a7e532f21df4d75dd85f45921d526ac9bd"
+      }
+    ]
+  },
+  "classification_contract": {
+    "fourslash_defaults": "getDefaultCompilerOptions, jsx cleared, CRLF newline, then global settings and skipDefaultLibCheck=true; virtual config options are parsed with existing options winning",
+    "operation_route": "every selected operation calls LanguageService.getEmitOutput(fileName), which calls getFileEmitOutput and Program.emit(sourceFile)",
+    "h1_request": "ProgramSession::emit is a whole-Program request with no target source",
+    "promotion_rule": "a control requires exact targeted-versus-whole-Program observation equivalence and the frozen H1 profile before promotion",
+    "required_options": [
+      "target=ESNext(99)",
+      "module=Preserve(200)"
+    ],
+    "execution_state": "not-run",
+    "reference_baseline_state": "content-not-vendored-or-compared"
+  },
+  "cases": [
+    {
+      "case": 0,
+      "id": "typescript-6.0.3/fourslash/compileOnSaveWorksWhenEmitBlockingErrorOnOtherFile.ts",
+      "fixture": {
+        "path": "compileOnSaveWorksWhenEmitBlockingErrorOnOtherFile.ts",
+        "bytes": 438,
+        "sha256": "3f787fc4de73764b38b486ef8e9e4f4371fa04f6642d8fc67d9a4ddd369a4fd6",
+        "git_blob_sha1": "07f6316e4dd5418ac939933aaef6f91de8551d52"
+      },
+      "test_type": "native",
+      "global_settings": [
+        {
+          "name": "baselinefile",
+          "value": "compileOnSaveWorksWhenEmitBlockingErrorOnOtherFile.baseline"
+        },
+        {
+          "name": "allowjs",
+          "value": "true"
+        }
+      ],
+      "virtual_files": [
+        {
+          "path": "/tests/cases/fourslash/b.js",
+          "emit_this_file": true
+        },
+        {
+          "path": "/tests/cases/fourslash/a.ts",
+          "emit_this_file": true
+        }
+      ],
+      "config": null,
+      "config_roots": [],
+      "config_diagnostic_codes": [],
+      "operation": {
+        "method": "baselineGetEmitOutput",
+        "line": 13,
+        "language_service_method": "getEmitOutput(fileName)",
+        "selection": "emit-this-file-true",
+        "selected_files": [
+          "/tests/cases/fourslash/b.js",
+          "/tests/cases/fourslash/a.ts"
+        ],
+        "targeted_program_emit_calls": 2
+      },
+      "effective_profile": {
+        "target": {
+          "state": "set",
+          "name": "ES2025",
+          "value": 12,
+          "origin": "fourslash-default"
+        },
+        "module": {
+          "state": "absent"
+        },
+        "use_define_for_class_fields": {
+          "state": "absent"
+        },
+        "no_emit": {
+          "state": "absent"
+        },
+        "rejected_when_effective": [
+          {
+            "name": "allowJs",
+            "value": true,
+            "origin": "global-setting"
+          }
+        ]
+      },
+      "source_analysis": {
+        "state": "not-required-effective-options-and-api-route"
+      },
+      "expected_observation": {
+        "state": "baseline-path-pinned-content-not-vendored-or-compared",
+        "baseline_path": "tests/baselines/reference/fourslash/compileOnSaveWorksWhenEmitBlockingErrorOnOtherFile.baseline"
+      },
+      "equivalence_decisive_blocker": "api:language-service-targeted-emit",
+      "equivalence_blockers": [
+        "api:language-service-targeted-emit",
+        "required-option:target=ES2025(12)",
+        "required-option:module=absent",
+        "rejected-option:allowJs"
+      ],
+      "whole_program_equivalence": "deferred",
+      "promotion_state": "not-promoted",
+      "execution_state": "not-run",
+      "reference_baseline_state": "content-not-vendored-or-compared"
+    },
+    {
+      "case": 1,
+      "id": "typescript-6.0.3/fourslash/constEnumsEmitOutputInMultipleFiles.ts",
+      "fixture": {
+        "path": "constEnumsEmitOutputInMultipleFiles.ts",
+        "bytes": 467,
+        "sha256": "a901fe34d0481c2ba72d417a53241967677fdc87f4722f8fa7566e1068702b1b",
+        "git_blob_sha1": "85023d9a83f2462f96d519365e9fb5229e335730"
+      },
+      "test_type": "native",
+      "global_settings": [
+        {
+          "name": "strict",
+          "value": "false"
+        },
+        {
+          "name": "newline",
+          "value": "lf"
+        }
+      ],
+      "virtual_files": [
+        {
+          "path": "/tests/cases/fourslash/a.ts",
+          "emit_this_file": null
+        },
+        {
+          "path": "/tests/cases/fourslash/b.ts",
+          "emit_this_file": null
+        }
+      ],
+      "config": null,
+      "config_roots": [],
+      "config_diagnostic_codes": [],
+      "operation": {
+        "method": "verifyGetEmitOutputForCurrentFile",
+        "line": 17,
+        "language_service_method": "getEmitOutput(fileName)",
+        "selection": "active-file",
+        "selected_files": [
+          "/tests/cases/fourslash/b.ts"
+        ],
+        "targeted_program_emit_calls": 1
+      },
+      "effective_profile": {
+        "target": {
+          "state": "set",
+          "name": "ES2025",
+          "value": 12,
+          "origin": "fourslash-default"
+        },
+        "module": {
+          "state": "absent"
+        },
+        "use_define_for_class_fields": {
+          "state": "absent"
+        },
+        "no_emit": {
+          "state": "absent"
+        },
+        "rejected_when_effective": []
+      },
+      "source_analysis": {
+        "state": "not-required-effective-options-and-api-route"
+      },
+      "expected_observation": {
+        "state": "inline-expectation-not-executed"
+      },
+      "equivalence_decisive_blocker": "api:language-service-targeted-emit",
+      "equivalence_blockers": [
+        "api:language-service-targeted-emit",
+        "required-option:target=ES2025(12)",
+        "required-option:module=absent"
+      ],
+      "whole_program_equivalence": "deferred",
+      "promotion_state": "not-promoted",
+      "execution_state": "not-run",
+      "reference_baseline_state": "content-not-vendored-or-compared"
+    },
+    {
+      "case": 2,
+      "id": "typescript-6.0.3/fourslash/diagnosticsJsFileCompilationDuplicateFunctionImplementation.ts",
+      "fixture": {
+        "path": "diagnosticsJsFileCompilationDuplicateFunctionImplementation.ts",
+        "bytes": 1005,
+        "sha256": "bad7886a2875b827607dbf4c052101c2cae04c510fd7c527bf3b9d9d4cbda81a",
+        "git_blob_sha1": "1580c1bda4b5126af915180a894366f6eebf27be"
+      },
+      "test_type": "native",
+      "global_settings": [
+        {
+          "name": "strict",
+          "value": "false"
+        },
+        {
+          "name": "declaration",
+          "value": "true"
+        },
+        {
+          "name": "newline",
+          "value": "lf"
+        },
+        {
+          "name": "outfile",
+          "value": "out.js"
+        },
+        {
+          "name": "allowjs",
+          "value": "true"
+        }
+      ],
+      "virtual_files": [
+        {
+          "path": "/tests/cases/fourslash/b.js",
+          "emit_this_file": true
+        },
+        {
+          "path": "/tests/cases/fourslash/a.ts",
+          "emit_this_file": true
+        }
+      ],
+      "config": null,
+      "config_roots": [],
+      "config_diagnostic_codes": [],
+      "operation": {
+        "method": "verifyGetEmitOutputContentsForCurrentFile",
+        "line": 23,
+        "language_service_method": "getEmitOutput(fileName)",
+        "selection": "active-file",
+        "selected_files": [
+          "/tests/cases/fourslash/a.ts"
+        ],
+        "targeted_program_emit_calls": 1
+      },
+      "effective_profile": {
+        "target": {
+          "state": "set",
+          "name": "ES2025",
+          "value": 12,
+          "origin": "fourslash-default"
+        },
+        "module": {
+          "state": "absent"
+        },
+        "use_define_for_class_fields": {
+          "state": "absent"
+        },
+        "no_emit": {
+          "state": "absent"
+        },
+        "rejected_when_effective": [
+          {
+            "name": "allowJs",
+            "value": true,
+            "origin": "global-setting"
+          },
+          {
+            "name": "declaration",
+            "value": true,
+            "origin": "global-setting"
+          },
+          {
+            "name": "outFile",
+            "value": "out.js",
+            "origin": "global-setting"
+          }
+        ]
+      },
+      "source_analysis": {
+        "state": "not-required-effective-options-and-api-route"
+      },
+      "expected_observation": {
+        "state": "inline-expectation-not-executed"
+      },
+      "equivalence_decisive_blocker": "api:language-service-targeted-emit",
+      "equivalence_blockers": [
+        "api:language-service-targeted-emit",
+        "required-option:target=ES2025(12)",
+        "required-option:module=absent",
+        "rejected-option:allowJs",
+        "rejected-option:declaration",
+        "rejected-option:outFile"
+      ],
+      "whole_program_equivalence": "deferred",
+      "promotion_state": "not-promoted",
+      "execution_state": "not-run",
+      "reference_baseline_state": "content-not-vendored-or-compared"
+    },
+    {
+      "case": 3,
+      "id": "typescript-6.0.3/fourslash/getEmitOutputDeclarationMultiFiles.ts",
+      "fixture": {
+        "path": "getEmitOutputDeclarationMultiFiles.ts",
+        "bytes": 467,
+        "sha256": "5ce67d96ae53c462a15100c64c8cf1a16434b9fc8d7d2121b1f3493237e633a6",
+        "git_blob_sha1": "8148dd3960d2ec31add4bb782e61d1dbe4908e5d"
+      },
+      "test_type": "native",
+      "global_settings": [
+        {
+          "name": "baselinefile",
+          "value": "getEmitOutputDeclarationMultiFiles.baseline"
+        },
+        {
+          "name": "declaration",
+          "value": "true"
+        }
+      ],
+      "virtual_files": [
+        {
+          "path": "/tests/cases/fourslash/inputFile1.ts",
+          "emit_this_file": true
+        },
+        {
+          "path": "/tests/cases/fourslash/inputFile2.ts",
+          "emit_this_file": true
+        }
+      ],
+      "config": null,
+      "config_roots": [],
+      "config_diagnostic_codes": [],
+      "operation": {
+        "method": "baselineGetEmitOutput",
+        "line": 22,
+        "language_service_method": "getEmitOutput(fileName)",
+        "selection": "emit-this-file-true",
+        "selected_files": [
+          "/tests/cases/fourslash/inputFile1.ts",
+          "/tests/cases/fourslash/inputFile2.ts"
+        ],
+        "targeted_program_emit_calls": 2
+      },
+      "effective_profile": {
+        "target": {
+          "state": "set",
+          "name": "ES2025",
+          "value": 12,
+          "origin": "fourslash-default"
+        },
+        "module": {
+          "state": "absent"
+        },
+        "use_define_for_class_fields": {
+          "state": "absent"
+        },
+        "no_emit": {
+          "state": "absent"
+        },
+        "rejected_when_effective": [
+          {
+            "name": "declaration",
+            "value": true,
+            "origin": "global-setting"
+          }
+        ]
+      },
+      "source_analysis": {
+        "state": "not-required-effective-options-and-api-route"
+      },
+      "expected_observation": {
+        "state": "baseline-path-pinned-content-not-vendored-or-compared",
+        "baseline_path": "tests/baselines/reference/fourslash/getEmitOutputDeclarationMultiFiles.baseline"
+      },
+      "equivalence_decisive_blocker": "api:language-service-targeted-emit",
+      "equivalence_blockers": [
+        "api:language-service-targeted-emit",
+        "required-option:target=ES2025(12)",
+        "required-option:module=absent",
+        "rejected-option:declaration"
+      ],
+      "whole_program_equivalence": "deferred",
+      "promotion_state": "not-promoted",
+      "execution_state": "not-run",
+      "reference_baseline_state": "content-not-vendored-or-compared"
+    },
+    {
+      "case": 4,
+      "id": "typescript-6.0.3/fourslash/getEmitOutputDeclarationSingleFile.ts",
+      "fixture": {
+        "path": "getEmitOutputDeclarationSingleFile.ts",
+        "bytes": 477,
+        "sha256": "081912b320884412671166216c071308dcd86465e2c2603c336bc501bfc8e23d",
+        "git_blob_sha1": "c416c81c61515c11d61f5e89a3c6e72b9dd9a475"
+      },
+      "test_type": "native",
+      "global_settings": [
+        {
+          "name": "baselinefile",
+          "value": "getEmitOutputDeclarationSingleFile.baseline"
+        },
+        {
+          "name": "declaration",
+          "value": "true"
+        },
+        {
+          "name": "outfile",
+          "value": "declSingleFile.js"
+        }
+      ],
+      "virtual_files": [
+        {
+          "path": "/tests/cases/fourslash/inputFile1.ts",
+          "emit_this_file": true
+        },
+        {
+          "path": "/tests/cases/fourslash/inputFile2.ts",
+          "emit_this_file": null
+        }
+      ],
+      "config": null,
+      "config_roots": [],
+      "config_diagnostic_codes": [],
+      "operation": {
+        "method": "baselineGetEmitOutput",
+        "line": 22,
+        "language_service_method": "getEmitOutput(fileName)",
+        "selection": "emit-this-file-true",
+        "selected_files": [
+          "/tests/cases/fourslash/inputFile1.ts"
+        ],
+        "targeted_program_emit_calls": 1
+      },
+      "effective_profile": {
+        "target": {
+          "state": "set",
+          "name": "ES2025",
+          "value": 12,
+          "origin": "fourslash-default"
+        },
+        "module": {
+          "state": "absent"
+        },
+        "use_define_for_class_fields": {
+          "state": "absent"
+        },
+        "no_emit": {
+          "state": "absent"
+        },
+        "rejected_when_effective": [
+          {
+            "name": "declaration",
+            "value": true,
+            "origin": "global-setting"
+          },
+          {
+            "name": "outFile",
+            "value": "declSingleFile.js",
+            "origin": "global-setting"
+          }
+        ]
+      },
+      "source_analysis": {
+        "state": "not-required-effective-options-and-api-route"
+      },
+      "expected_observation": {
+        "state": "baseline-path-pinned-content-not-vendored-or-compared",
+        "baseline_path": "tests/baselines/reference/fourslash/getEmitOutputDeclarationSingleFile.baseline"
+      },
+      "equivalence_decisive_blocker": "api:language-service-targeted-emit",
+      "equivalence_blockers": [
+        "api:language-service-targeted-emit",
+        "required-option:target=ES2025(12)",
+        "required-option:module=absent",
+        "rejected-option:declaration",
+        "rejected-option:outFile"
+      ],
+      "whole_program_equivalence": "deferred",
+      "promotion_state": "not-promoted",
+      "execution_state": "not-run",
+      "reference_baseline_state": "content-not-vendored-or-compared"
+    },
+    {
+      "case": 5,
+      "id": "typescript-6.0.3/fourslash/getEmitOutputExternalModule.ts",
+      "fixture": {
+        "path": "getEmitOutputExternalModule.ts",
+        "bytes": 396,
+        "sha256": "27e5cd1bd435cc8472db7e2c86e43923460c3961a092793187a3b390d096cc00",
+        "git_blob_sha1": "5b98419b50ed3c86c384241ac155aea91af342ba"
+      },
+      "test_type": "native",
+      "global_settings": [
+        {
+          "name": "baselinefile",
+          "value": "getEmitOutputExternalModule.baseline"
+        },
+        {
+          "name": "outfile",
+          "value": "declSingleFile.js"
+        }
+      ],
+      "virtual_files": [
+        {
+          "path": "/tests/cases/fourslash/inputFile1.ts",
+          "emit_this_file": true
+        },
+        {
+          "path": "/tests/cases/fourslash/inputFile2.ts",
+          "emit_this_file": null
+        }
+      ],
+      "config": null,
+      "config_roots": [],
+      "config_diagnostic_codes": [],
+      "operation": {
+        "method": "baselineGetEmitOutput",
+        "line": 19,
+        "language_service_method": "getEmitOutput(fileName)",
+        "selection": "emit-this-file-true",
+        "selected_files": [
+          "/tests/cases/fourslash/inputFile1.ts"
+        ],
+        "targeted_program_emit_calls": 1
+      },
+      "effective_profile": {
+        "target": {
+          "state": "set",
+          "name": "ES2025",
+          "value": 12,
+          "origin": "fourslash-default"
+        },
+        "module": {
+          "state": "absent"
+        },
+        "use_define_for_class_fields": {
+          "state": "absent"
+        },
+        "no_emit": {
+          "state": "absent"
+        },
+        "rejected_when_effective": [
+          {
+            "name": "outFile",
+            "value": "declSingleFile.js",
+            "origin": "global-setting"
+          }
+        ]
+      },
+      "source_analysis": {
+        "state": "not-required-effective-options-and-api-route"
+      },
+      "expected_observation": {
+        "state": "baseline-path-pinned-content-not-vendored-or-compared",
+        "baseline_path": "tests/baselines/reference/fourslash/getEmitOutputExternalModule.baseline"
+      },
+      "equivalence_decisive_blocker": "api:language-service-targeted-emit",
+      "equivalence_blockers": [
+        "api:language-service-targeted-emit",
+        "required-option:target=ES2025(12)",
+        "required-option:module=absent",
+        "rejected-option:outFile"
+      ],
+      "whole_program_equivalence": "deferred",
+      "promotion_state": "not-promoted",
+      "execution_state": "not-run",
+      "reference_baseline_state": "content-not-vendored-or-compared"
+    },
+    {
+      "case": 6,
+      "id": "typescript-6.0.3/fourslash/getEmitOutputExternalModule2.ts",
+      "fixture": {
+        "path": "getEmitOutputExternalModule2.ts",
+        "bytes": 527,
+        "sha256": "44b4c97eb2bbe9decb51f1f22e024253fd7890c531449aa37347a195240f462d",
+        "git_blob_sha1": "96ce850013aa0891564e236b077a73bdaa3dc331"
+      },
+      "test_type": "native",
+      "global_settings": [
+        {
+          "name": "baselinefile",
+          "value": "getEmitOutputExternalModule2.baseline"
+        },
+        {
+          "name": "outfile",
+          "value": "declSingleFile.js"
+        }
+      ],
+      "virtual_files": [
+        {
+          "path": "/tests/cases/fourslash/inputFile1.ts",
+          "emit_this_file": null
+        },
+        {
+          "path": "/tests/cases/fourslash/inputFile2.ts",
+          "emit_this_file": true
+        },
+        {
+          "path": "/tests/cases/fourslash/inputFile3.ts",
+          "emit_this_file": null
+        }
+      ],
+      "config": null,
+      "config_roots": [],
+      "config_diagnostic_codes": [],
+      "operation": {
+        "method": "baselineGetEmitOutput",
+        "line": 26,
+        "language_service_method": "getEmitOutput(fileName)",
+        "selection": "emit-this-file-true",
+        "selected_files": [
+          "/tests/cases/fourslash/inputFile2.ts"
+        ],
+        "targeted_program_emit_calls": 1
+      },
+      "effective_profile": {
+        "target": {
+          "state": "set",
+          "name": "ES2025",
+          "value": 12,
+          "origin": "fourslash-default"
+        },
+        "module": {
+          "state": "absent"
+        },
+        "use_define_for_class_fields": {
+          "state": "absent"
+        },
+        "no_emit": {
+          "state": "absent"
+        },
+        "rejected_when_effective": [
+          {
+            "name": "outFile",
+            "value": "declSingleFile.js",
+            "origin": "global-setting"
+          }
+        ]
+      },
+      "source_analysis": {
+        "state": "not-required-effective-options-and-api-route"
+      },
+      "expected_observation": {
+        "state": "baseline-path-pinned-content-not-vendored-or-compared",
+        "baseline_path": "tests/baselines/reference/fourslash/getEmitOutputExternalModule2.baseline"
+      },
+      "equivalence_decisive_blocker": "api:language-service-targeted-emit",
+      "equivalence_blockers": [
+        "api:language-service-targeted-emit",
+        "required-option:target=ES2025(12)",
+        "required-option:module=absent",
+        "rejected-option:outFile"
+      ],
+      "whole_program_equivalence": "deferred",
+      "promotion_state": "not-promoted",
+      "execution_state": "not-run",
+      "reference_baseline_state": "content-not-vendored-or-compared"
+    },
+    {
+      "case": 7,
+      "id": "typescript-6.0.3/fourslash/getEmitOutputMapRoot.ts",
+      "fixture": {
+        "path": "getEmitOutputMapRoot.ts",
+        "bytes": 371,
+        "sha256": "3dc3cb1a54149a3f47fb42d24f1c2e9a1e2f9ad3fe995ff043b48cebbd3d8d26",
+        "git_blob_sha1": "2dfc2b327787def1627ebd03fc656f547fd913b8"
+      },
+      "test_type": "native",
+      "global_settings": [
+        {
+          "name": "baselinefile",
+          "value": "getEmitOutputMapRoots.baseline"
+        },
+        {
+          "name": "outfile",
+          "value": "declSingleFile.js"
+        },
+        {
+          "name": "sourcemap",
+          "value": "true"
+        },
+        {
+          "name": "maproot",
+          "value": "mapRootDir/"
+        }
+      ],
+      "virtual_files": [
+        {
+          "path": "/tests/cases/fourslash/inputFile.ts",
+          "emit_this_file": true
+        }
+      ],
+      "config": null,
+      "config_roots": [],
+      "config_diagnostic_codes": [],
+      "operation": {
+        "method": "baselineGetEmitOutput",
+        "line": 17,
+        "language_service_method": "getEmitOutput(fileName)",
+        "selection": "emit-this-file-true",
+        "selected_files": [
+          "/tests/cases/fourslash/inputFile.ts"
+        ],
+        "targeted_program_emit_calls": 1
+      },
+      "effective_profile": {
+        "target": {
+          "state": "set",
+          "name": "ES2025",
+          "value": 12,
+          "origin": "fourslash-default"
+        },
+        "module": {
+          "state": "absent"
+        },
+        "use_define_for_class_fields": {
+          "state": "absent"
+        },
+        "no_emit": {
+          "state": "absent"
+        },
+        "rejected_when_effective": [
+          {
+            "name": "outFile",
+            "value": "declSingleFile.js",
+            "origin": "global-setting"
+          },
+          {
+            "name": "sourceMap",
+            "value": true,
+            "origin": "global-setting"
+          }
+        ]
+      },
+      "source_analysis": {
+        "state": "not-required-effective-options-and-api-route"
+      },
+      "expected_observation": {
+        "state": "baseline-path-pinned-content-not-vendored-or-compared",
+        "baseline_path": "tests/baselines/reference/fourslash/getEmitOutputMapRoots.baseline"
+      },
+      "equivalence_decisive_blocker": "api:language-service-targeted-emit",
+      "equivalence_blockers": [
+        "api:language-service-targeted-emit",
+        "required-option:target=ES2025(12)",
+        "required-option:module=absent",
+        "rejected-option:outFile",
+        "rejected-option:sourceMap"
+      ],
+      "whole_program_equivalence": "deferred",
+      "promotion_state": "not-promoted",
+      "execution_state": "not-run",
+      "reference_baseline_state": "content-not-vendored-or-compared"
+    },
+    {
+      "case": 8,
+      "id": "typescript-6.0.3/fourslash/getEmitOutputNoErrors.ts",
+      "fixture": {
+        "path": "getEmitOutputNoErrors.ts",
+        "bytes": 251,
+        "sha256": "dde15fa24ef6445e5345e27746faf71f4ad9fba9ddc5bcbff157bb81ec08392b",
+        "git_blob_sha1": "6ef4f34da51d7ac30c352eb3e4e64d661d64d4da"
+      },
+      "test_type": "native",
+      "global_settings": [
+        {
+          "name": "baselinefile",
+          "value": "getEmitOutputNoErrors.baseline"
+        }
+      ],
+      "virtual_files": [
+        {
+          "path": "/tests/cases/fourslash/inputFile.ts",
+          "emit_this_file": true
+        }
+      ],
+      "config": null,
+      "config_roots": [],
+      "config_diagnostic_codes": [],
+      "operation": {
+        "method": "baselineGetEmitOutput",
+        "line": 12,
+        "language_service_method": "getEmitOutput(fileName)",
+        "selection": "emit-this-file-true",
+        "selected_files": [
+          "/tests/cases/fourslash/inputFile.ts"
+        ],
+        "targeted_program_emit_calls": 1
+      },
+      "effective_profile": {
+        "target": {
+          "state": "set",
+          "name": "ES2025",
+          "value": 12,
+          "origin": "fourslash-default"
+        },
+        "module": {
+          "state": "absent"
+        },
+        "use_define_for_class_fields": {
+          "state": "absent"
+        },
+        "no_emit": {
+          "state": "absent"
+        },
+        "rejected_when_effective": []
+      },
+      "source_analysis": {
+        "state": "not-required-effective-options-and-api-route"
+      },
+      "expected_observation": {
+        "state": "baseline-path-pinned-content-not-vendored-or-compared",
+        "baseline_path": "tests/baselines/reference/fourslash/getEmitOutputNoErrors.baseline"
+      },
+      "equivalence_decisive_blocker": "api:language-service-targeted-emit",
+      "equivalence_blockers": [
+        "api:language-service-targeted-emit",
+        "required-option:target=ES2025(12)",
+        "required-option:module=absent"
+      ],
+      "whole_program_equivalence": "deferred",
+      "promotion_state": "not-promoted",
+      "execution_state": "not-run",
+      "reference_baseline_state": "content-not-vendored-or-compared"
+    },
+    {
+      "case": 9,
+      "id": "typescript-6.0.3/fourslash/getEmitOutputOnlyOneFile.ts",
+      "fixture": {
+        "path": "getEmitOutputOnlyOneFile.ts",
+        "bytes": 382,
+        "sha256": "78ab7161608b145be6788f3728ac8ad9fdc7dbd3a0fde7dfb0993b342cd3ad79",
+        "git_blob_sha1": "ecf042f9184ac1145645478c5b9783f14ee57e20"
+      },
+      "test_type": "native",
+      "global_settings": [
+        {
+          "name": "baselinefile",
+          "value": "getEmitOutputOnlyOneFile.baseline"
+        }
+      ],
+      "virtual_files": [
+        {
+          "path": "/tests/cases/fourslash/inputFile1.ts",
+          "emit_this_file": null
+        },
+        {
+          "path": "/tests/cases/fourslash/inputFile2.ts",
+          "emit_this_file": true
+        }
+      ],
+      "config": null,
+      "config_roots": [],
+      "config_diagnostic_codes": [],
+      "operation": {
+        "method": "baselineGetEmitOutput",
+        "line": 20,
+        "language_service_method": "getEmitOutput(fileName)",
+        "selection": "emit-this-file-true",
+        "selected_files": [
+          "/tests/cases/fourslash/inputFile2.ts"
+        ],
+        "targeted_program_emit_calls": 1
+      },
+      "effective_profile": {
+        "target": {
+          "state": "set",
+          "name": "ES2025",
+          "value": 12,
+          "origin": "fourslash-default"
+        },
+        "module": {
+          "state": "absent"
+        },
+        "use_define_for_class_fields": {
+          "state": "absent"
+        },
+        "no_emit": {
+          "state": "absent"
+        },
+        "rejected_when_effective": []
+      },
+      "source_analysis": {
+        "state": "not-required-effective-options-and-api-route"
+      },
+      "expected_observation": {
+        "state": "baseline-path-pinned-content-not-vendored-or-compared",
+        "baseline_path": "tests/baselines/reference/fourslash/getEmitOutputOnlyOneFile.baseline"
+      },
+      "equivalence_decisive_blocker": "api:language-service-targeted-emit",
+      "equivalence_blockers": [
+        "api:language-service-targeted-emit",
+        "required-option:target=ES2025(12)",
+        "required-option:module=absent"
+      ],
+      "whole_program_equivalence": "deferred",
+      "promotion_state": "not-promoted",
+      "execution_state": "not-run",
+      "reference_baseline_state": "content-not-vendored-or-compared"
+    },
+    {
+      "case": 10,
+      "id": "typescript-6.0.3/fourslash/getEmitOutputOut.ts",
+      "fixture": {
+        "path": "getEmitOutputOut.ts",
+        "bytes": 516,
+        "sha256": "51f00ab3e471a79c3f3fbcad04a918c224559293c15880fd28198db8e88aa803",
+        "git_blob_sha1": "073c4fc4656f964ef36fbcb663b4b4e4d7503d0f"
+      },
+      "test_type": "native",
+      "global_settings": [
+        {
+          "name": "baselinefile",
+          "value": "getEmitOutputOut.baseline"
+        },
+        {
+          "name": "outfile",
+          "value": "out.js"
+        }
+      ],
+      "virtual_files": [
+        {
+          "path": "/tests/cases/fourslash/my.d.ts",
+          "emit_this_file": false
+        },
+        {
+          "path": "/tests/cases/fourslash/input0.ts",
+          "emit_this_file": false
+        },
+        {
+          "path": "/tests/cases/fourslash/input1.ts",
+          "emit_this_file": true
+        }
+      ],
+      "config": null,
+      "config_roots": [],
+      "config_diagnostic_codes": [],
+      "operation": {
+        "method": "baselineGetEmitOutput",
+        "line": 23,
+        "language_service_method": "getEmitOutput(fileName)",
+        "selection": "emit-this-file-true",
+        "selected_files": [
+          "/tests/cases/fourslash/input1.ts"
+        ],
+        "targeted_program_emit_calls": 1
+      },
+      "effective_profile": {
+        "target": {
+          "state": "set",
+          "name": "ES2025",
+          "value": 12,
+          "origin": "fourslash-default"
+        },
+        "module": {
+          "state": "absent"
+        },
+        "use_define_for_class_fields": {
+          "state": "absent"
+        },
+        "no_emit": {
+          "state": "absent"
+        },
+        "rejected_when_effective": [
+          {
+            "name": "outFile",
+            "value": "out.js",
+            "origin": "global-setting"
+          }
+        ]
+      },
+      "source_analysis": {
+        "state": "not-required-effective-options-and-api-route"
+      },
+      "expected_observation": {
+        "state": "baseline-path-pinned-content-not-vendored-or-compared",
+        "baseline_path": "tests/baselines/reference/fourslash/getEmitOutputOut.baseline"
+      },
+      "equivalence_decisive_blocker": "api:language-service-targeted-emit",
+      "equivalence_blockers": [
+        "api:language-service-targeted-emit",
+        "required-option:target=ES2025(12)",
+        "required-option:module=absent",
+        "rejected-option:outFile"
+      ],
+      "whole_program_equivalence": "deferred",
+      "promotion_state": "not-promoted",
+      "execution_state": "not-run",
+      "reference_baseline_state": "content-not-vendored-or-compared"
+    },
+    {
+      "case": 11,
+      "id": "typescript-6.0.3/fourslash/getEmitOutputOutFile.ts",
+      "fixture": {
+        "path": "getEmitOutputOutFile.ts",
+        "bytes": 454,
+        "sha256": "4ce66c42f17c8eed47fc15ec12f43f4f95504f81ee3227974e02850770fcccc9",
+        "git_blob_sha1": "4a9439737eae2f5e2b8cd1b20f7a467fc8dc85eb"
+      },
+      "test_type": "native",
+      "global_settings": [
+        {
+          "name": "baselinefile",
+          "value": "getEmitOutputOutFile.baseline"
+        },
+        {
+          "name": "declaration",
+          "value": "true"
+        },
+        {
+          "name": "outfile",
+          "value": "outFile.js"
+        }
+      ],
+      "virtual_files": [
+        {
+          "path": "/tests/cases/fourslash/inputFile1.ts",
+          "emit_this_file": true
+        },
+        {
+          "path": "/tests/cases/fourslash/inputFile2.ts",
+          "emit_this_file": null
+        }
+      ],
+      "config": null,
+      "config_roots": [],
+      "config_diagnostic_codes": [],
+      "operation": {
+        "method": "baselineGetEmitOutput",
+        "line": 22,
+        "language_service_method": "getEmitOutput(fileName)",
+        "selection": "emit-this-file-true",
+        "selected_files": [
+          "/tests/cases/fourslash/inputFile1.ts"
+        ],
+        "targeted_program_emit_calls": 1
+      },
+      "effective_profile": {
+        "target": {
+          "state": "set",
+          "name": "ES2025",
+          "value": 12,
+          "origin": "fourslash-default"
+        },
+        "module": {
+          "state": "absent"
+        },
+        "use_define_for_class_fields": {
+          "state": "absent"
+        },
+        "no_emit": {
+          "state": "absent"
+        },
+        "rejected_when_effective": [
+          {
+            "name": "declaration",
+            "value": true,
+            "origin": "global-setting"
+          },
+          {
+            "name": "outFile",
+            "value": "outFile.js",
+            "origin": "global-setting"
+          }
+        ]
+      },
+      "source_analysis": {
+        "state": "not-required-effective-options-and-api-route"
+      },
+      "expected_observation": {
+        "state": "baseline-path-pinned-content-not-vendored-or-compared",
+        "baseline_path": "tests/baselines/reference/fourslash/getEmitOutputOutFile.baseline"
+      },
+      "equivalence_decisive_blocker": "api:language-service-targeted-emit",
+      "equivalence_blockers": [
+        "api:language-service-targeted-emit",
+        "required-option:target=ES2025(12)",
+        "required-option:module=absent",
+        "rejected-option:declaration",
+        "rejected-option:outFile"
+      ],
+      "whole_program_equivalence": "deferred",
+      "promotion_state": "not-promoted",
+      "execution_state": "not-run",
+      "reference_baseline_state": "content-not-vendored-or-compared"
+    },
+    {
+      "case": 12,
+      "id": "typescript-6.0.3/fourslash/getEmitOutputSingleFile.ts",
+      "fixture": {
+        "path": "getEmitOutputSingleFile.ts",
+        "bytes": 421,
+        "sha256": "df95a196b5ba117a6bcdb65d8dc8755102ecbfddfdde64f9ff90acaf60954b0d",
+        "git_blob_sha1": "64a0d097db7de2e10edaccafe24d4e84ec064325"
+      },
+      "test_type": "native",
+      "global_settings": [
+        {
+          "name": "baselinefile",
+          "value": "getEmitOutputSingleFile.baseline"
+        },
+        {
+          "name": "outfile",
+          "value": "outputDir/singleFile.js"
+        }
+      ],
+      "virtual_files": [
+        {
+          "path": "/tests/cases/fourslash/inputFile1.ts",
+          "emit_this_file": null
+        },
+        {
+          "path": "/tests/cases/fourslash/inputFile2.ts",
+          "emit_this_file": true
+        }
+      ],
+      "config": null,
+      "config_roots": [],
+      "config_diagnostic_codes": [],
+      "operation": {
+        "method": "baselineGetEmitOutput",
+        "line": 21,
+        "language_service_method": "getEmitOutput(fileName)",
+        "selection": "emit-this-file-true",
+        "selected_files": [
+          "/tests/cases/fourslash/inputFile2.ts"
+        ],
+        "targeted_program_emit_calls": 1
+      },
+      "effective_profile": {
+        "target": {
+          "state": "set",
+          "name": "ES2025",
+          "value": 12,
+          "origin": "fourslash-default"
+        },
+        "module": {
+          "state": "absent"
+        },
+        "use_define_for_class_fields": {
+          "state": "absent"
+        },
+        "no_emit": {
+          "state": "absent"
+        },
+        "rejected_when_effective": [
+          {
+            "name": "outFile",
+            "value": "outputDir/singleFile.js",
+            "origin": "global-setting"
+          }
+        ]
+      },
+      "source_analysis": {
+        "state": "not-required-effective-options-and-api-route"
+      },
+      "expected_observation": {
+        "state": "baseline-path-pinned-content-not-vendored-or-compared",
+        "baseline_path": "tests/baselines/reference/fourslash/getEmitOutputSingleFile.baseline"
+      },
+      "equivalence_decisive_blocker": "api:language-service-targeted-emit",
+      "equivalence_blockers": [
+        "api:language-service-targeted-emit",
+        "required-option:target=ES2025(12)",
+        "required-option:module=absent",
+        "rejected-option:outFile"
+      ],
+      "whole_program_equivalence": "deferred",
+      "promotion_state": "not-promoted",
+      "execution_state": "not-run",
+      "reference_baseline_state": "content-not-vendored-or-compared"
+    },
+    {
+      "case": 13,
+      "id": "typescript-6.0.3/fourslash/getEmitOutputSingleFile2.ts",
+      "fixture": {
+        "path": "getEmitOutputSingleFile2.ts",
+        "bytes": 619,
+        "sha256": "d77d4eebe5a04681ce142888c4c84b03033156e3176aaad6ef07872296a8d87d",
+        "git_blob_sha1": "19d86a5747c86f4983243231473f0a72f7a46708"
+      },
+      "test_type": "native",
+      "global_settings": [
+        {
+          "name": "baselinefile",
+          "value": "getEmitOutputSingleFile2.baseline"
+        },
+        {
+          "name": "module",
+          "value": "CommonJS"
+        },
+        {
+          "name": "declaration",
+          "value": "true"
+        },
+        {
+          "name": "outfile",
+          "value": "declSingleFile.js"
+        },
+        {
+          "name": "outdir",
+          "value": "/tests/cases/fourslash/"
+        }
+      ],
+      "virtual_files": [
+        {
+          "path": "/tests/cases/fourslash/inputFile1.ts",
+          "emit_this_file": null
+        },
+        {
+          "path": "/tests/cases/fourslash/inputFile2.ts",
+          "emit_this_file": null
+        },
+        {
+          "path": "/tests/cases/fourslash/inputFile3.ts",
+          "emit_this_file": true
+        }
+      ],
+      "config": null,
+      "config_roots": [],
+      "config_diagnostic_codes": [],
+      "operation": {
+        "method": "baselineGetEmitOutput",
+        "line": 28,
+        "language_service_method": "getEmitOutput(fileName)",
+        "selection": "emit-this-file-true",
+        "selected_files": [
+          "/tests/cases/fourslash/inputFile3.ts"
+        ],
+        "targeted_program_emit_calls": 1
+      },
+      "effective_profile": {
+        "target": {
+          "state": "set",
+          "name": "ES2025",
+          "value": 12,
+          "origin": "fourslash-default"
+        },
+        "module": {
+          "state": "set",
+          "name": "CommonJS",
+          "value": 1,
+          "origin": "global-setting"
+        },
+        "use_define_for_class_fields": {
+          "state": "absent"
+        },
+        "no_emit": {
+          "state": "absent"
+        },
+        "rejected_when_effective": [
+          {
+            "name": "declaration",
+            "value": true,
+            "origin": "global-setting"
+          },
+          {
+            "name": "outDir",
+            "value": "/tests/cases/fourslash/",
+            "origin": "global-setting"
+          },
+          {
+            "name": "outFile",
+            "value": "declSingleFile.js",
+            "origin": "global-setting"
+          }
+        ]
+      },
+      "source_analysis": {
+        "state": "not-required-effective-options-and-api-route"
+      },
+      "expected_observation": {
+        "state": "baseline-path-pinned-content-not-vendored-or-compared",
+        "baseline_path": "tests/baselines/reference/fourslash/getEmitOutputSingleFile2.baseline"
+      },
+      "equivalence_decisive_blocker": "api:language-service-targeted-emit",
+      "equivalence_blockers": [
+        "api:language-service-targeted-emit",
+        "required-option:target=ES2025(12)",
+        "required-option:module=CommonJS(1)",
+        "rejected-option:declaration",
+        "rejected-option:outDir",
+        "rejected-option:outFile"
+      ],
+      "whole_program_equivalence": "deferred",
+      "promotion_state": "not-promoted",
+      "execution_state": "not-run",
+      "reference_baseline_state": "content-not-vendored-or-compared"
+    },
+    {
+      "case": 14,
+      "id": "typescript-6.0.3/fourslash/getEmitOutputSourceMap.ts",
+      "fixture": {
+        "path": "getEmitOutputSourceMap.ts",
+        "bytes": 312,
+        "sha256": "7ddebf7f8b0e229331dd279732a7038e90a8845bbcbd96ac1ea41d8fb3e7a256",
+        "git_blob_sha1": "24e37648064cb1099e16c6330c5be95c630a7b15"
+      },
+      "test_type": "native",
+      "global_settings": [
+        {
+          "name": "baselinefile",
+          "value": "getEmitOutputSourceMap.baseline"
+        },
+        {
+          "name": "sourcemap",
+          "value": "true"
+        }
+      ],
+      "virtual_files": [
+        {
+          "path": "/tests/cases/fourslash/inputFile.ts",
+          "emit_this_file": true
+        }
+      ],
+      "config": null,
+      "config_roots": [],
+      "config_diagnostic_codes": [],
+      "operation": {
+        "method": "baselineGetEmitOutput",
+        "line": 15,
+        "language_service_method": "getEmitOutput(fileName)",
+        "selection": "emit-this-file-true",
+        "selected_files": [
+          "/tests/cases/fourslash/inputFile.ts"
+        ],
+        "targeted_program_emit_calls": 1
+      },
+      "effective_profile": {
+        "target": {
+          "state": "set",
+          "name": "ES2025",
+          "value": 12,
+          "origin": "fourslash-default"
+        },
+        "module": {
+          "state": "absent"
+        },
+        "use_define_for_class_fields": {
+          "state": "absent"
+        },
+        "no_emit": {
+          "state": "absent"
+        },
+        "rejected_when_effective": [
+          {
+            "name": "sourceMap",
+            "value": true,
+            "origin": "global-setting"
+          }
+        ]
+      },
+      "source_analysis": {
+        "state": "not-required-effective-options-and-api-route"
+      },
+      "expected_observation": {
+        "state": "baseline-path-pinned-content-not-vendored-or-compared",
+        "baseline_path": "tests/baselines/reference/fourslash/getEmitOutputSourceMap.baseline"
+      },
+      "equivalence_decisive_blocker": "api:language-service-targeted-emit",
+      "equivalence_blockers": [
+        "api:language-service-targeted-emit",
+        "required-option:target=ES2025(12)",
+        "required-option:module=absent",
+        "rejected-option:sourceMap"
+      ],
+      "whole_program_equivalence": "deferred",
+      "promotion_state": "not-promoted",
+      "execution_state": "not-run",
+      "reference_baseline_state": "content-not-vendored-or-compared"
+    },
+    {
+      "case": 15,
+      "id": "typescript-6.0.3/fourslash/getEmitOutputSourceMap2.ts",
+      "fixture": {
+        "path": "getEmitOutputSourceMap2.ts",
+        "bytes": 491,
+        "sha256": "63404624afc580814eae6b1bfe342e0e664beec1f83f168ebe0c68879f4b2f9c",
+        "git_blob_sha1": "4b4b1185c7a35835bf5a133ce5612d8ebcb1f6bc"
+      },
+      "test_type": "native",
+      "global_settings": [
+        {
+          "name": "baselinefile",
+          "value": "getEmitOutputSourceMap2.baseline"
+        },
+        {
+          "name": "sourcemap",
+          "value": "true"
+        },
+        {
+          "name": "outdir",
+          "value": "sample/outDir"
+        }
+      ],
+      "virtual_files": [
+        {
+          "path": "/tests/cases/fourslash/inputFile1.ts",
+          "emit_this_file": true
+        },
+        {
+          "path": "/tests/cases/fourslash/inputFile2.ts",
+          "emit_this_file": true
+        }
+      ],
+      "config": null,
+      "config_roots": [],
+      "config_diagnostic_codes": [],
+      "operation": {
+        "method": "baselineGetEmitOutput",
+        "line": 23,
+        "language_service_method": "getEmitOutput(fileName)",
+        "selection": "emit-this-file-true",
+        "selected_files": [
+          "/tests/cases/fourslash/inputFile1.ts",
+          "/tests/cases/fourslash/inputFile2.ts"
+        ],
+        "targeted_program_emit_calls": 2
+      },
+      "effective_profile": {
+        "target": {
+          "state": "set",
+          "name": "ES2025",
+          "value": 12,
+          "origin": "fourslash-default"
+        },
+        "module": {
+          "state": "absent"
+        },
+        "use_define_for_class_fields": {
+          "state": "absent"
+        },
+        "no_emit": {
+          "state": "absent"
+        },
+        "rejected_when_effective": [
+          {
+            "name": "outDir",
+            "value": "sample/outDir",
+            "origin": "global-setting"
+          },
+          {
+            "name": "sourceMap",
+            "value": true,
+            "origin": "global-setting"
+          }
+        ]
+      },
+      "source_analysis": {
+        "state": "not-required-effective-options-and-api-route"
+      },
+      "expected_observation": {
+        "state": "baseline-path-pinned-content-not-vendored-or-compared",
+        "baseline_path": "tests/baselines/reference/fourslash/getEmitOutputSourceMap2.baseline"
+      },
+      "equivalence_decisive_blocker": "api:language-service-targeted-emit",
+      "equivalence_blockers": [
+        "api:language-service-targeted-emit",
+        "required-option:target=ES2025(12)",
+        "required-option:module=absent",
+        "rejected-option:outDir",
+        "rejected-option:sourceMap"
+      ],
+      "whole_program_equivalence": "deferred",
+      "promotion_state": "not-promoted",
+      "execution_state": "not-run",
+      "reference_baseline_state": "content-not-vendored-or-compared"
+    },
+    {
+      "case": 16,
+      "id": "typescript-6.0.3/fourslash/getEmitOutputSourceRoot.ts",
+      "fixture": {
+        "path": "getEmitOutputSourceRoot.ts",
+        "bytes": 345,
+        "sha256": "41b977c216cd7ccf91e147e399f133a7c07cdee780d9c7a6af978fdc5996a2ce",
+        "git_blob_sha1": "ac7d63558e488809f9e75bb5bd910f944c94bd54"
+      },
+      "test_type": "native",
+      "global_settings": [
+        {
+          "name": "baselinefile",
+          "value": "getEmitOutputSourceRoot.baseline"
+        },
+        {
+          "name": "sourcemap",
+          "value": "true"
+        },
+        {
+          "name": "sourceroot",
+          "value": "sourceRootDir/"
+        }
+      ],
+      "virtual_files": [
+        {
+          "path": "/tests/cases/fourslash/inputFile.ts",
+          "emit_this_file": true
+        }
+      ],
+      "config": null,
+      "config_roots": [],
+      "config_diagnostic_codes": [],
+      "operation": {
+        "method": "baselineGetEmitOutput",
+        "line": 16,
+        "language_service_method": "getEmitOutput(fileName)",
+        "selection": "emit-this-file-true",
+        "selected_files": [
+          "/tests/cases/fourslash/inputFile.ts"
+        ],
+        "targeted_program_emit_calls": 1
+      },
+      "effective_profile": {
+        "target": {
+          "state": "set",
+          "name": "ES2025",
+          "value": 12,
+          "origin": "fourslash-default"
+        },
+        "module": {
+          "state": "absent"
+        },
+        "use_define_for_class_fields": {
+          "state": "absent"
+        },
+        "no_emit": {
+          "state": "absent"
+        },
+        "rejected_when_effective": [
+          {
+            "name": "sourceMap",
+            "value": true,
+            "origin": "global-setting"
+          }
+        ]
+      },
+      "source_analysis": {
+        "state": "not-required-effective-options-and-api-route"
+      },
+      "expected_observation": {
+        "state": "baseline-path-pinned-content-not-vendored-or-compared",
+        "baseline_path": "tests/baselines/reference/fourslash/getEmitOutputSourceRoot.baseline"
+      },
+      "equivalence_decisive_blocker": "api:language-service-targeted-emit",
+      "equivalence_blockers": [
+        "api:language-service-targeted-emit",
+        "required-option:target=ES2025(12)",
+        "required-option:module=absent",
+        "rejected-option:sourceMap"
+      ],
+      "whole_program_equivalence": "deferred",
+      "promotion_state": "not-promoted",
+      "execution_state": "not-run",
+      "reference_baseline_state": "content-not-vendored-or-compared"
+    },
+    {
+      "case": 17,
+      "id": "typescript-6.0.3/fourslash/getEmitOutputSourceRootMultiFiles.ts",
+      "fixture": {
+        "path": "getEmitOutputSourceRootMultiFiles.ts",
+        "bytes": 517,
+        "sha256": "03fa9c7487933a1426f90d8346229e23dc1b41758ee43f267112a715e8eda443",
+        "git_blob_sha1": "7360f9f27ef4bf6aa793b2b4356e04e3aa15c41f"
+      },
+      "test_type": "native",
+      "global_settings": [
+        {
+          "name": "baselinefile",
+          "value": "getEmitOutputSourceRootMultiFiles.baseline"
+        },
+        {
+          "name": "sourcemap",
+          "value": "true"
+        },
+        {
+          "name": "sourceroot",
+          "value": "sourceRootDir/"
+        }
+      ],
+      "virtual_files": [
+        {
+          "path": "/tests/cases/fourslash/inputFile1.ts",
+          "emit_this_file": true
+        },
+        {
+          "path": "/tests/cases/fourslash/inputFile2.ts",
+          "emit_this_file": true
+        }
+      ],
+      "config": null,
+      "config_roots": [],
+      "config_diagnostic_codes": [],
+      "operation": {
+        "method": "baselineGetEmitOutput",
+        "line": 24,
+        "language_service_method": "getEmitOutput(fileName)",
+        "selection": "emit-this-file-true",
+        "selected_files": [
+          "/tests/cases/fourslash/inputFile1.ts",
+          "/tests/cases/fourslash/inputFile2.ts"
+        ],
+        "targeted_program_emit_calls": 2
+      },
+      "effective_profile": {
+        "target": {
+          "state": "set",
+          "name": "ES2025",
+          "value": 12,
+          "origin": "fourslash-default"
+        },
+        "module": {
+          "state": "absent"
+        },
+        "use_define_for_class_fields": {
+          "state": "absent"
+        },
+        "no_emit": {
+          "state": "absent"
+        },
+        "rejected_when_effective": [
+          {
+            "name": "sourceMap",
+            "value": true,
+            "origin": "global-setting"
+          }
+        ]
+      },
+      "source_analysis": {
+        "state": "not-required-effective-options-and-api-route"
+      },
+      "expected_observation": {
+        "state": "baseline-path-pinned-content-not-vendored-or-compared",
+        "baseline_path": "tests/baselines/reference/fourslash/getEmitOutputSourceRootMultiFiles.baseline"
+      },
+      "equivalence_decisive_blocker": "api:language-service-targeted-emit",
+      "equivalence_blockers": [
+        "api:language-service-targeted-emit",
+        "required-option:target=ES2025(12)",
+        "required-option:module=absent",
+        "rejected-option:sourceMap"
+      ],
+      "whole_program_equivalence": "deferred",
+      "promotion_state": "not-promoted",
+      "execution_state": "not-run",
+      "reference_baseline_state": "content-not-vendored-or-compared"
+    },
+    {
+      "case": 18,
+      "id": "typescript-6.0.3/fourslash/getEmitOutputTsxFile_Preserve.ts",
+      "fixture": {
+        "path": "getEmitOutputTsxFile_Preserve.ts",
+        "bytes": 478,
+        "sha256": "492760a053dfa05ab230f3d89e1628fd7ae5741e534da85261916e9abcc71faa",
+        "git_blob_sha1": "19eda2ad11172e68dc8422b2c16a57b29b6d2046"
+      },
+      "test_type": "native",
+      "global_settings": [
+        {
+          "name": "baselinefile",
+          "value": "getEmitOutputTsxFile_Preserve.baseline"
+        },
+        {
+          "name": "declaration",
+          "value": "true"
+        },
+        {
+          "name": "sourcemap",
+          "value": "true"
+        },
+        {
+          "name": "jsx",
+          "value": "preserve"
+        }
+      ],
+      "virtual_files": [
+        {
+          "path": "/tests/cases/fourslash/inputFile1.ts",
+          "emit_this_file": true
+        },
+        {
+          "path": "/tests/cases/fourslash/inputFile2.tsx",
+          "emit_this_file": true
+        }
+      ],
+      "config": null,
+      "config_roots": [],
+      "config_diagnostic_codes": [],
+      "operation": {
+        "method": "baselineGetEmitOutput",
+        "line": 22,
+        "language_service_method": "getEmitOutput(fileName)",
+        "selection": "emit-this-file-true",
+        "selected_files": [
+          "/tests/cases/fourslash/inputFile1.ts",
+          "/tests/cases/fourslash/inputFile2.tsx"
+        ],
+        "targeted_program_emit_calls": 2
+      },
+      "effective_profile": {
+        "target": {
+          "state": "set",
+          "name": "ES2025",
+          "value": 12,
+          "origin": "fourslash-default"
+        },
+        "module": {
+          "state": "absent"
+        },
+        "use_define_for_class_fields": {
+          "state": "absent"
+        },
+        "no_emit": {
+          "state": "absent"
+        },
+        "rejected_when_effective": [
+          {
+            "name": "declaration",
+            "value": true,
+            "origin": "global-setting"
+          },
+          {
+            "name": "jsx",
+            "value": 1,
+            "origin": "global-setting"
+          },
+          {
+            "name": "sourceMap",
+            "value": true,
+            "origin": "global-setting"
+          }
+        ]
+      },
+      "source_analysis": {
+        "state": "not-required-effective-options-and-api-route"
+      },
+      "expected_observation": {
+        "state": "baseline-path-pinned-content-not-vendored-or-compared",
+        "baseline_path": "tests/baselines/reference/fourslash/getEmitOutputTsxFile_Preserve.baseline"
+      },
+      "equivalence_decisive_blocker": "api:language-service-targeted-emit",
+      "equivalence_blockers": [
+        "api:language-service-targeted-emit",
+        "required-option:target=ES2025(12)",
+        "required-option:module=absent",
+        "rejected-option:declaration",
+        "rejected-option:jsx",
+        "rejected-option:sourceMap"
+      ],
+      "whole_program_equivalence": "deferred",
+      "promotion_state": "not-promoted",
+      "execution_state": "not-run",
+      "reference_baseline_state": "content-not-vendored-or-compared"
+    },
+    {
+      "case": 19,
+      "id": "typescript-6.0.3/fourslash/getEmitOutputTsxFile_React.ts",
+      "fixture": {
+        "path": "getEmitOutputTsxFile_React.ts",
+        "bytes": 665,
+        "sha256": "1a314150d0194afda1a03f32aef981287c79306396f0e49c5b620b9230cef3f1",
+        "git_blob_sha1": "046eaa79da23b5294c75487314dd847dc9625ec2"
+      },
+      "test_type": "native",
+      "global_settings": [
+        {
+          "name": "baselinefile",
+          "value": "getEmitOutputTsxFile_React.baseline"
+        },
+        {
+          "name": "declaration",
+          "value": "true"
+        },
+        {
+          "name": "sourcemap",
+          "value": "true"
+        },
+        {
+          "name": "jsx",
+          "value": "react"
+        },
+        {
+          "name": "strict",
+          "value": "false"
+        }
+      ],
+      "virtual_files": [
+        {
+          "path": "/tests/cases/fourslash/inputFile1.ts",
+          "emit_this_file": true
+        },
+        {
+          "path": "/tests/cases/fourslash/inputFile2.tsx",
+          "emit_this_file": true
+        }
+      ],
+      "config": null,
+      "config_roots": [],
+      "config_diagnostic_codes": [],
+      "operation": {
+        "method": "baselineGetEmitOutput",
+        "line": 31,
+        "language_service_method": "getEmitOutput(fileName)",
+        "selection": "emit-this-file-true",
+        "selected_files": [
+          "/tests/cases/fourslash/inputFile1.ts",
+          "/tests/cases/fourslash/inputFile2.tsx"
+        ],
+        "targeted_program_emit_calls": 2
+      },
+      "effective_profile": {
+        "target": {
+          "state": "set",
+          "name": "ES2025",
+          "value": 12,
+          "origin": "fourslash-default"
+        },
+        "module": {
+          "state": "absent"
+        },
+        "use_define_for_class_fields": {
+          "state": "absent"
+        },
+        "no_emit": {
+          "state": "absent"
+        },
+        "rejected_when_effective": [
+          {
+            "name": "declaration",
+            "value": true,
+            "origin": "global-setting"
+          },
+          {
+            "name": "jsx",
+            "value": 2,
+            "origin": "global-setting"
+          },
+          {
+            "name": "sourceMap",
+            "value": true,
+            "origin": "global-setting"
+          }
+        ]
+      },
+      "source_analysis": {
+        "state": "not-required-effective-options-and-api-route"
+      },
+      "expected_observation": {
+        "state": "baseline-path-pinned-content-not-vendored-or-compared",
+        "baseline_path": "tests/baselines/reference/fourslash/getEmitOutputTsxFile_React.baseline"
+      },
+      "equivalence_decisive_blocker": "api:language-service-targeted-emit",
+      "equivalence_blockers": [
+        "api:language-service-targeted-emit",
+        "required-option:target=ES2025(12)",
+        "required-option:module=absent",
+        "rejected-option:declaration",
+        "rejected-option:jsx",
+        "rejected-option:sourceMap"
+      ],
+      "whole_program_equivalence": "deferred",
+      "promotion_state": "not-promoted",
+      "execution_state": "not-run",
+      "reference_baseline_state": "content-not-vendored-or-compared"
+    },
+    {
+      "case": 20,
+      "id": "typescript-6.0.3/fourslash/getEmitOutputWithDeclarationFile.ts",
+      "fixture": {
+        "path": "getEmitOutputWithDeclarationFile.ts",
+        "bytes": 379,
+        "sha256": "1ecb95535814e4a6a1587c430ede48e6715e95d9ea268269f5d0200dc0d8c09a",
+        "git_blob_sha1": "9e73a8490da69a0da2d8cdffc753958ba44475e5"
+      },
+      "test_type": "native",
+      "global_settings": [
+        {
+          "name": "baselinefile",
+          "value": "getEmitOutputWithDeclarationFile.baseline"
+        }
+      ],
+      "virtual_files": [
+        {
+          "path": "/tests/cases/fourslash/decl.d.ts",
+          "emit_this_file": true
+        },
+        {
+          "path": "/tests/cases/fourslash/inputFile2.ts",
+          "emit_this_file": true
+        }
+      ],
+      "config": null,
+      "config_roots": [],
+      "config_diagnostic_codes": [],
+      "operation": {
+        "method": "baselineGetEmitOutput",
+        "line": 17,
+        "language_service_method": "getEmitOutput(fileName)",
+        "selection": "emit-this-file-true",
+        "selected_files": [
+          "/tests/cases/fourslash/decl.d.ts",
+          "/tests/cases/fourslash/inputFile2.ts"
+        ],
+        "targeted_program_emit_calls": 2
+      },
+      "effective_profile": {
+        "target": {
+          "state": "set",
+          "name": "ES2025",
+          "value": 12,
+          "origin": "fourslash-default"
+        },
+        "module": {
+          "state": "absent"
+        },
+        "use_define_for_class_fields": {
+          "state": "absent"
+        },
+        "no_emit": {
+          "state": "absent"
+        },
+        "rejected_when_effective": []
+      },
+      "source_analysis": {
+        "state": "not-required-effective-options-and-api-route"
+      },
+      "expected_observation": {
+        "state": "baseline-path-pinned-content-not-vendored-or-compared",
+        "baseline_path": "tests/baselines/reference/fourslash/getEmitOutputWithDeclarationFile.baseline"
+      },
+      "equivalence_decisive_blocker": "api:language-service-targeted-emit",
+      "equivalence_blockers": [
+        "api:language-service-targeted-emit",
+        "required-option:target=ES2025(12)",
+        "required-option:module=absent"
+      ],
+      "whole_program_equivalence": "deferred",
+      "promotion_state": "not-promoted",
+      "execution_state": "not-run",
+      "reference_baseline_state": "content-not-vendored-or-compared"
+    },
+    {
+      "case": 21,
+      "id": "typescript-6.0.3/fourslash/getEmitOutputWithDeclarationFile2.ts",
+      "fixture": {
+        "path": "getEmitOutputWithDeclarationFile2.ts",
+        "bytes": 409,
+        "sha256": "fd86fa508a167fd503cd7eb66cc0e24542a9bd44d5330efe2cfef7ef2eb0b2c7",
+        "git_blob_sha1": "8f8e21cbcbb5ccec3fb0b338ef5aed2e882f2c83"
+      },
+      "test_type": "native",
+      "global_settings": [
+        {
+          "name": "baselinefile",
+          "value": "getEmitOutputWithDeclarationFile2.baseline"
+        },
+        {
+          "name": "module",
+          "value": "CommonJS"
+        }
+      ],
+      "virtual_files": [
+        {
+          "path": "/tests/cases/fourslash/decl.d.ts",
+          "emit_this_file": true
+        },
+        {
+          "path": "/tests/cases/fourslash/inputFile2.ts",
+          "emit_this_file": true
+        },
+        {
+          "path": "/tests/cases/fourslash/inputFile3.ts",
+          "emit_this_file": true
+        }
+      ],
+      "config": null,
+      "config_roots": [],
+      "config_diagnostic_codes": [],
+      "operation": {
+        "method": "baselineGetEmitOutput",
+        "line": 18,
+        "language_service_method": "getEmitOutput(fileName)",
+        "selection": "emit-this-file-true",
+        "selected_files": [
+          "/tests/cases/fourslash/decl.d.ts",
+          "/tests/cases/fourslash/inputFile2.ts",
+          "/tests/cases/fourslash/inputFile3.ts"
+        ],
+        "targeted_program_emit_calls": 3
+      },
+      "effective_profile": {
+        "target": {
+          "state": "set",
+          "name": "ES2025",
+          "value": 12,
+          "origin": "fourslash-default"
+        },
+        "module": {
+          "state": "set",
+          "name": "CommonJS",
+          "value": 1,
+          "origin": "global-setting"
+        },
+        "use_define_for_class_fields": {
+          "state": "absent"
+        },
+        "no_emit": {
+          "state": "absent"
+        },
+        "rejected_when_effective": []
+      },
+      "source_analysis": {
+        "state": "not-required-effective-options-and-api-route"
+      },
+      "expected_observation": {
+        "state": "baseline-path-pinned-content-not-vendored-or-compared",
+        "baseline_path": "tests/baselines/reference/fourslash/getEmitOutputWithDeclarationFile2.baseline"
+      },
+      "equivalence_decisive_blocker": "api:language-service-targeted-emit",
+      "equivalence_blockers": [
+        "api:language-service-targeted-emit",
+        "required-option:target=ES2025(12)",
+        "required-option:module=CommonJS(1)"
+      ],
+      "whole_program_equivalence": "deferred",
+      "promotion_state": "not-promoted",
+      "execution_state": "not-run",
+      "reference_baseline_state": "content-not-vendored-or-compared"
+    },
+    {
+      "case": 22,
+      "id": "typescript-6.0.3/fourslash/getEmitOutputWithDeclarationFile3.ts",
+      "fixture": {
+        "path": "getEmitOutputWithDeclarationFile3.ts",
+        "bytes": 478,
+        "sha256": "fcd2e60bfa0c3cc4e33c33c73f74956ae57a2f9b1750ed49d21568697a1a888f",
+        "git_blob_sha1": "5a5e057ade4fd9b8b39534bd98172c57afeb7dd5"
+      },
+      "test_type": "native",
+      "global_settings": [
+        {
+          "name": "baselinefile",
+          "value": "getEmitOutputWithDeclarationFile3.baseline"
+        },
+        {
+          "name": "outfile",
+          "value": "declSingle.js"
+        }
+      ],
+      "virtual_files": [
+        {
+          "path": "/tests/cases/fourslash/decl.d.ts",
+          "emit_this_file": null
+        },
+        {
+          "path": "/tests/cases/fourslash/inputFile2.ts",
+          "emit_this_file": null
+        },
+        {
+          "path": "/tests/cases/fourslash/inputFile3.ts",
+          "emit_this_file": true
+        },
+        {
+          "path": "/tests/cases/fourslash/inputFile4.ts",
+          "emit_this_file": null
+        },
+        {
+          "path": "/tests/cases/fourslash/inputFile5.js",
+          "emit_this_file": null
+        }
+      ],
+      "config": null,
+      "config_roots": [],
+      "config_diagnostic_codes": [],
+      "operation": {
+        "method": "baselineGetEmitOutput",
+        "line": 21,
+        "language_service_method": "getEmitOutput(fileName)",
+        "selection": "emit-this-file-true",
+        "selected_files": [
+          "/tests/cases/fourslash/inputFile3.ts"
+        ],
+        "targeted_program_emit_calls": 1
+      },
+      "effective_profile": {
+        "target": {
+          "state": "set",
+          "name": "ES2025",
+          "value": 12,
+          "origin": "fourslash-default"
+        },
+        "module": {
+          "state": "absent"
+        },
+        "use_define_for_class_fields": {
+          "state": "absent"
+        },
+        "no_emit": {
+          "state": "absent"
+        },
+        "rejected_when_effective": [
+          {
+            "name": "outFile",
+            "value": "declSingle.js",
+            "origin": "global-setting"
+          }
+        ]
+      },
+      "source_analysis": {
+        "state": "not-required-effective-options-and-api-route"
+      },
+      "expected_observation": {
+        "state": "baseline-path-pinned-content-not-vendored-or-compared",
+        "baseline_path": "tests/baselines/reference/fourslash/getEmitOutputWithDeclarationFile3.baseline"
+      },
+      "equivalence_decisive_blocker": "api:language-service-targeted-emit",
+      "equivalence_blockers": [
+        "api:language-service-targeted-emit",
+        "required-option:target=ES2025(12)",
+        "required-option:module=absent",
+        "rejected-option:outFile"
+      ],
+      "whole_program_equivalence": "deferred",
+      "promotion_state": "not-promoted",
+      "execution_state": "not-run",
+      "reference_baseline_state": "content-not-vendored-or-compared"
+    },
+    {
+      "case": 23,
+      "id": "typescript-6.0.3/fourslash/getEmitOutputWithEarlySemanticErrors.ts",
+      "fixture": {
+        "path": "getEmitOutputWithEarlySemanticErrors.ts",
+        "bytes": 302,
+        "sha256": "ff6345ebddb32777f852bbe7d7e81d04b46ed09e64ea546f39d1b9f44614a208",
+        "git_blob_sha1": "58d6ce19ed19e91956a91199e549dc43cab4d9dc"
+      },
+      "test_type": "native",
+      "global_settings": [
+        {
+          "name": "baselinefile",
+          "value": "getEmitOutputWithEarlySyntacticErrors.baseline"
+        }
+      ],
+      "virtual_files": [
+        {
+          "path": "/tests/cases/fourslash/inputFile1.ts",
+          "emit_this_file": true
+        }
+      ],
+      "config": null,
+      "config_roots": [],
+      "config_diagnostic_codes": [],
+      "operation": {
+        "method": "baselineGetEmitOutput",
+        "line": 10,
+        "language_service_method": "getEmitOutput(fileName)",
+        "selection": "emit-this-file-true",
+        "selected_files": [
+          "/tests/cases/fourslash/inputFile1.ts"
+        ],
+        "targeted_program_emit_calls": 1
+      },
+      "effective_profile": {
+        "target": {
+          "state": "set",
+          "name": "ES2025",
+          "value": 12,
+          "origin": "fourslash-default"
+        },
+        "module": {
+          "state": "absent"
+        },
+        "use_define_for_class_fields": {
+          "state": "absent"
+        },
+        "no_emit": {
+          "state": "absent"
+        },
+        "rejected_when_effective": []
+      },
+      "source_analysis": {
+        "state": "not-required-effective-options-and-api-route"
+      },
+      "expected_observation": {
+        "state": "baseline-path-pinned-content-not-vendored-or-compared",
+        "baseline_path": "tests/baselines/reference/fourslash/getEmitOutputWithEarlySyntacticErrors.baseline"
+      },
+      "equivalence_decisive_blocker": "api:language-service-targeted-emit",
+      "equivalence_blockers": [
+        "api:language-service-targeted-emit",
+        "required-option:target=ES2025(12)",
+        "required-option:module=absent"
+      ],
+      "whole_program_equivalence": "deferred",
+      "promotion_state": "not-promoted",
+      "execution_state": "not-run",
+      "reference_baseline_state": "content-not-vendored-or-compared"
+    },
+    {
+      "case": 24,
+      "id": "typescript-6.0.3/fourslash/getEmitOutputWithEmitterErrors.ts",
+      "fixture": {
+        "path": "getEmitOutputWithEmitterErrors.ts",
+        "bytes": 364,
+        "sha256": "c395507bcb7685331befe2f70e5bcb3a78b2c9189e97ae4f4b5cb7f9b4c542b2",
+        "git_blob_sha1": "faa6519f5a8cf95911d7e95976245032a8ed5e01"
+      },
+      "test_type": "native",
+      "global_settings": [
+        {
+          "name": "baselinefile",
+          "value": "getEmitOutputWithEmitterErrors.baseline"
+        },
+        {
+          "name": "declaration",
+          "value": "true"
+        }
+      ],
+      "virtual_files": [
+        {
+          "path": "/tests/cases/fourslash/inputFile.ts",
+          "emit_this_file": true
+        }
+      ],
+      "config": null,
+      "config_roots": [],
+      "config_diagnostic_codes": [],
+      "operation": {
+        "method": "baselineGetEmitOutput",
+        "line": 15,
+        "language_service_method": "getEmitOutput(fileName)",
+        "selection": "emit-this-file-true",
+        "selected_files": [
+          "/tests/cases/fourslash/inputFile.ts"
+        ],
+        "targeted_program_emit_calls": 1
+      },
+      "effective_profile": {
+        "target": {
+          "state": "set",
+          "name": "ES2025",
+          "value": 12,
+          "origin": "fourslash-default"
+        },
+        "module": {
+          "state": "absent"
+        },
+        "use_define_for_class_fields": {
+          "state": "absent"
+        },
+        "no_emit": {
+          "state": "absent"
+        },
+        "rejected_when_effective": [
+          {
+            "name": "declaration",
+            "value": true,
+            "origin": "global-setting"
+          }
+        ]
+      },
+      "source_analysis": {
+        "state": "not-required-effective-options-and-api-route"
+      },
+      "expected_observation": {
+        "state": "baseline-path-pinned-content-not-vendored-or-compared",
+        "baseline_path": "tests/baselines/reference/fourslash/getEmitOutputWithEmitterErrors.baseline"
+      },
+      "equivalence_decisive_blocker": "api:language-service-targeted-emit",
+      "equivalence_blockers": [
+        "api:language-service-targeted-emit",
+        "required-option:target=ES2025(12)",
+        "required-option:module=absent",
+        "rejected-option:declaration"
+      ],
+      "whole_program_equivalence": "deferred",
+      "promotion_state": "not-promoted",
+      "execution_state": "not-run",
+      "reference_baseline_state": "content-not-vendored-or-compared"
+    },
+    {
+      "case": 25,
+      "id": "typescript-6.0.3/fourslash/getEmitOutputWithEmitterErrors2.ts",
+      "fixture": {
+        "path": "getEmitOutputWithEmitterErrors2.ts",
+        "bytes": 311,
+        "sha256": "9cfbf25d8b78ef343679a4c23c08004aebfa0706f54e5ce3ac189396d98f97e5",
+        "git_blob_sha1": "6c9796b194cf67ca300b69e38d8b73d15e305d23"
+      },
+      "test_type": "native",
+      "global_settings": [
+        {
+          "name": "baselinefile",
+          "value": "getEmitOutputWithEmitterErrors2.baseline"
+        },
+        {
+          "name": "declaration",
+          "value": "true"
+        },
+        {
+          "name": "module",
+          "value": "AMD"
+        }
+      ],
+      "virtual_files": [
+        {
+          "path": "/tests/cases/fourslash/inputFile.ts",
+          "emit_this_file": true
+        }
+      ],
+      "config": null,
+      "config_roots": [],
+      "config_diagnostic_codes": [],
+      "operation": {
+        "method": "baselineGetEmitOutput",
+        "line": 14,
+        "language_service_method": "getEmitOutput(fileName)",
+        "selection": "emit-this-file-true",
+        "selected_files": [
+          "/tests/cases/fourslash/inputFile.ts"
+        ],
+        "targeted_program_emit_calls": 1
+      },
+      "effective_profile": {
+        "target": {
+          "state": "set",
+          "name": "ES2025",
+          "value": 12,
+          "origin": "fourslash-default"
+        },
+        "module": {
+          "state": "set",
+          "name": "AMD",
+          "value": 2,
+          "origin": "global-setting"
+        },
+        "use_define_for_class_fields": {
+          "state": "absent"
+        },
+        "no_emit": {
+          "state": "absent"
+        },
+        "rejected_when_effective": [
+          {
+            "name": "declaration",
+            "value": true,
+            "origin": "global-setting"
+          }
+        ]
+      },
+      "source_analysis": {
+        "state": "not-required-effective-options-and-api-route"
+      },
+      "expected_observation": {
+        "state": "baseline-path-pinned-content-not-vendored-or-compared",
+        "baseline_path": "tests/baselines/reference/fourslash/getEmitOutputWithEmitterErrors2.baseline"
+      },
+      "equivalence_decisive_blocker": "api:language-service-targeted-emit",
+      "equivalence_blockers": [
+        "api:language-service-targeted-emit",
+        "required-option:target=ES2025(12)",
+        "required-option:module=AMD(2)",
+        "rejected-option:declaration"
+      ],
+      "whole_program_equivalence": "deferred",
+      "promotion_state": "not-promoted",
+      "execution_state": "not-run",
+      "reference_baseline_state": "content-not-vendored-or-compared"
+    },
+    {
+      "case": 26,
+      "id": "typescript-6.0.3/fourslash/getEmitOutputWithSemanticErrors.ts",
+      "fixture": {
+        "path": "getEmitOutputWithSemanticErrors.ts",
+        "bytes": 224,
+        "sha256": "11c89cd8ba99296ea5a2ba4709f157144b927ac7bddde42b5872c6c7e5ab2f9d",
+        "git_blob_sha1": "13aeda82cc8f7c0632889c29e9b2caa3edb3cc23"
+      },
+      "test_type": "native",
+      "global_settings": [
+        {
+          "name": "baselinefile",
+          "value": "getEmitOutputWithSemanticErrors.baseline"
+        }
+      ],
+      "virtual_files": [
+        {
+          "path": "/tests/cases/fourslash/inputFile.ts",
+          "emit_this_file": true
+        }
+      ],
+      "config": null,
+      "config_roots": [],
+      "config_diagnostic_codes": [],
+      "operation": {
+        "method": "baselineGetEmitOutput",
+        "line": 9,
+        "language_service_method": "getEmitOutput(fileName)",
+        "selection": "emit-this-file-true",
+        "selected_files": [
+          "/tests/cases/fourslash/inputFile.ts"
+        ],
+        "targeted_program_emit_calls": 1
+      },
+      "effective_profile": {
+        "target": {
+          "state": "set",
+          "name": "ES2025",
+          "value": 12,
+          "origin": "fourslash-default"
+        },
+        "module": {
+          "state": "absent"
+        },
+        "use_define_for_class_fields": {
+          "state": "absent"
+        },
+        "no_emit": {
+          "state": "absent"
+        },
+        "rejected_when_effective": []
+      },
+      "source_analysis": {
+        "state": "not-required-effective-options-and-api-route"
+      },
+      "expected_observation": {
+        "state": "baseline-path-pinned-content-not-vendored-or-compared",
+        "baseline_path": "tests/baselines/reference/fourslash/getEmitOutputWithSemanticErrors.baseline"
+      },
+      "equivalence_decisive_blocker": "api:language-service-targeted-emit",
+      "equivalence_blockers": [
+        "api:language-service-targeted-emit",
+        "required-option:target=ES2025(12)",
+        "required-option:module=absent"
+      ],
+      "whole_program_equivalence": "deferred",
+      "promotion_state": "not-promoted",
+      "execution_state": "not-run",
+      "reference_baseline_state": "content-not-vendored-or-compared"
+    },
+    {
+      "case": 27,
+      "id": "typescript-6.0.3/fourslash/getEmitOutputWithSemanticErrors2.ts",
+      "fixture": {
+        "path": "getEmitOutputWithSemanticErrors2.ts",
+        "bytes": 248,
+        "sha256": "cba453426f4bf30a3b46921e209743a04dab756539f91263914ac700bb58d847",
+        "git_blob_sha1": "174b42bb37e00179340a068cdcbfe238132aec6f"
+      },
+      "test_type": "native",
+      "global_settings": [
+        {
+          "name": "baselinefile",
+          "value": "getEmitOutputWithSemanticErrors2.baseline"
+        },
+        {
+          "name": "declaration",
+          "value": "true"
+        }
+      ],
+      "virtual_files": [
+        {
+          "path": "/tests/cases/fourslash/inputFile.ts",
+          "emit_this_file": true
+        }
+      ],
+      "config": null,
+      "config_roots": [],
+      "config_diagnostic_codes": [],
+      "operation": {
+        "method": "baselineGetEmitOutput",
+        "line": 10,
+        "language_service_method": "getEmitOutput(fileName)",
+        "selection": "emit-this-file-true",
+        "selected_files": [
+          "/tests/cases/fourslash/inputFile.ts"
+        ],
+        "targeted_program_emit_calls": 1
+      },
+      "effective_profile": {
+        "target": {
+          "state": "set",
+          "name": "ES2025",
+          "value": 12,
+          "origin": "fourslash-default"
+        },
+        "module": {
+          "state": "absent"
+        },
+        "use_define_for_class_fields": {
+          "state": "absent"
+        },
+        "no_emit": {
+          "state": "absent"
+        },
+        "rejected_when_effective": [
+          {
+            "name": "declaration",
+            "value": true,
+            "origin": "global-setting"
+          }
+        ]
+      },
+      "source_analysis": {
+        "state": "not-required-effective-options-and-api-route"
+      },
+      "expected_observation": {
+        "state": "baseline-path-pinned-content-not-vendored-or-compared",
+        "baseline_path": "tests/baselines/reference/fourslash/getEmitOutputWithSemanticErrors2.baseline"
+      },
+      "equivalence_decisive_blocker": "api:language-service-targeted-emit",
+      "equivalence_blockers": [
+        "api:language-service-targeted-emit",
+        "required-option:target=ES2025(12)",
+        "required-option:module=absent",
+        "rejected-option:declaration"
+      ],
+      "whole_program_equivalence": "deferred",
+      "promotion_state": "not-promoted",
+      "execution_state": "not-run",
+      "reference_baseline_state": "content-not-vendored-or-compared"
+    },
+    {
+      "case": 28,
+      "id": "typescript-6.0.3/fourslash/getEmitOutputWithSemanticErrorsForMultipleFiles.ts",
+      "fixture": {
+        "path": "getEmitOutputWithSemanticErrorsForMultipleFiles.ts",
+        "bytes": 537,
+        "sha256": "47ec3290800510229c1efa6b5e9b05a16f9dab833468a28e51f236c9cff8ace1",
+        "git_blob_sha1": "0c6f4786c2534b3446e4c5db78a9175cce6e7b9a"
+      },
+      "test_type": "native",
+      "global_settings": [
+        {
+          "name": "baselinefile",
+          "value": "getEmitOutputWithSemanticErrorsForMultipleFiles.baseline"
+        },
+        {
+          "name": "declaration",
+          "value": "true"
+        }
+      ],
+      "virtual_files": [
+        {
+          "path": "/tests/cases/fourslash/inputFile1.ts",
+          "emit_this_file": true
+        },
+        {
+          "path": "/tests/cases/fourslash/inputFile2.ts",
+          "emit_this_file": null
+        }
+      ],
+      "config": null,
+      "config_roots": [],
+      "config_diagnostic_codes": [],
+      "operation": {
+        "method": "baselineGetEmitOutput",
+        "line": 15,
+        "language_service_method": "getEmitOutput(fileName)",
+        "selection": "emit-this-file-true",
+        "selected_files": [
+          "/tests/cases/fourslash/inputFile1.ts"
+        ],
+        "targeted_program_emit_calls": 1
+      },
+      "effective_profile": {
+        "target": {
+          "state": "set",
+          "name": "ES2025",
+          "value": 12,
+          "origin": "fourslash-default"
+        },
+        "module": {
+          "state": "absent"
+        },
+        "use_define_for_class_fields": {
+          "state": "absent"
+        },
+        "no_emit": {
+          "state": "absent"
+        },
+        "rejected_when_effective": [
+          {
+            "name": "declaration",
+            "value": true,
+            "origin": "global-setting"
+          }
+        ]
+      },
+      "source_analysis": {
+        "state": "not-required-effective-options-and-api-route"
+      },
+      "expected_observation": {
+        "state": "baseline-path-pinned-content-not-vendored-or-compared",
+        "baseline_path": "tests/baselines/reference/fourslash/getEmitOutputWithSemanticErrorsForMultipleFiles.baseline"
+      },
+      "equivalence_decisive_blocker": "api:language-service-targeted-emit",
+      "equivalence_blockers": [
+        "api:language-service-targeted-emit",
+        "required-option:target=ES2025(12)",
+        "required-option:module=absent",
+        "rejected-option:declaration"
+      ],
+      "whole_program_equivalence": "deferred",
+      "promotion_state": "not-promoted",
+      "execution_state": "not-run",
+      "reference_baseline_state": "content-not-vendored-or-compared"
+    },
+    {
+      "case": 29,
+      "id": "typescript-6.0.3/fourslash/getEmitOutputWithSemanticErrorsForMultipleFiles2.ts",
+      "fixture": {
+        "path": "getEmitOutputWithSemanticErrorsForMultipleFiles2.ts",
+        "bytes": 584,
+        "sha256": "8f0f5fb71ab67f46121bf7406eb770a36b716692acc0ed0556e616964b21bdf5",
+        "git_blob_sha1": "f01f4c3b19474e218cdf89ba1cd3688d54778ea2"
+      },
+      "test_type": "native",
+      "global_settings": [
+        {
+          "name": "baselinefile",
+          "value": "getEmitOutputWithSemanticErrorsForMultipleFiles2.baseline"
+        },
+        {
+          "name": "declaration",
+          "value": "true"
+        },
+        {
+          "name": "outfile",
+          "value": "out.js"
+        }
+      ],
+      "virtual_files": [
+        {
+          "path": "/tests/cases/fourslash/inputFile1.ts",
+          "emit_this_file": true
+        },
+        {
+          "path": "/tests/cases/fourslash/inputFile2.ts",
+          "emit_this_file": null
+        }
+      ],
+      "config": null,
+      "config_roots": [],
+      "config_diagnostic_codes": [],
+      "operation": {
+        "method": "baselineGetEmitOutput",
+        "line": 17,
+        "language_service_method": "getEmitOutput(fileName)",
+        "selection": "emit-this-file-true",
+        "selected_files": [
+          "/tests/cases/fourslash/inputFile1.ts"
+        ],
+        "targeted_program_emit_calls": 1
+      },
+      "effective_profile": {
+        "target": {
+          "state": "set",
+          "name": "ES2025",
+          "value": 12,
+          "origin": "fourslash-default"
+        },
+        "module": {
+          "state": "absent"
+        },
+        "use_define_for_class_fields": {
+          "state": "absent"
+        },
+        "no_emit": {
+          "state": "absent"
+        },
+        "rejected_when_effective": [
+          {
+            "name": "declaration",
+            "value": true,
+            "origin": "global-setting"
+          },
+          {
+            "name": "outFile",
+            "value": "out.js",
+            "origin": "global-setting"
+          }
+        ]
+      },
+      "source_analysis": {
+        "state": "not-required-effective-options-and-api-route"
+      },
+      "expected_observation": {
+        "state": "baseline-path-pinned-content-not-vendored-or-compared",
+        "baseline_path": "tests/baselines/reference/fourslash/getEmitOutputWithSemanticErrorsForMultipleFiles2.baseline"
+      },
+      "equivalence_decisive_blocker": "api:language-service-targeted-emit",
+      "equivalence_blockers": [
+        "api:language-service-targeted-emit",
+        "required-option:target=ES2025(12)",
+        "required-option:module=absent",
+        "rejected-option:declaration",
+        "rejected-option:outFile"
+      ],
+      "whole_program_equivalence": "deferred",
+      "promotion_state": "not-promoted",
+      "execution_state": "not-run",
+      "reference_baseline_state": "content-not-vendored-or-compared"
+    },
+    {
+      "case": 30,
+      "id": "typescript-6.0.3/fourslash/getEmitOutputWithSyntacticErrorsForMultipleFiles.ts",
+      "fixture": {
+        "path": "getEmitOutputWithSyntacticErrorsForMultipleFiles.ts",
+        "bytes": 502,
+        "sha256": "1882a39e0cf3937955d83465f86975031bd4a2999512be308a03630f5ac1992a",
+        "git_blob_sha1": "c2ddd3ea0042eaec14430f3807f6a2c9d09baefb"
+      },
+      "test_type": "native",
+      "global_settings": [
+        {
+          "name": "baselinefile",
+          "value": "getEmitOutputWithSyntacticErrorsForMultipleFiles.baseline"
+        }
+      ],
+      "virtual_files": [
+        {
+          "path": "/tests/cases/fourslash/inputFile1.ts",
+          "emit_this_file": true
+        },
+        {
+          "path": "/tests/cases/fourslash/inputFile2.ts",
+          "emit_this_file": null
+        }
+      ],
+      "config": null,
+      "config_roots": [],
+      "config_diagnostic_codes": [],
+      "operation": {
+        "method": "baselineGetEmitOutput",
+        "line": 15,
+        "language_service_method": "getEmitOutput(fileName)",
+        "selection": "emit-this-file-true",
+        "selected_files": [
+          "/tests/cases/fourslash/inputFile1.ts"
+        ],
+        "targeted_program_emit_calls": 1
+      },
+      "effective_profile": {
+        "target": {
+          "state": "set",
+          "name": "ES2025",
+          "value": 12,
+          "origin": "fourslash-default"
+        },
+        "module": {
+          "state": "absent"
+        },
+        "use_define_for_class_fields": {
+          "state": "absent"
+        },
+        "no_emit": {
+          "state": "absent"
+        },
+        "rejected_when_effective": []
+      },
+      "source_analysis": {
+        "state": "not-required-effective-options-and-api-route"
+      },
+      "expected_observation": {
+        "state": "baseline-path-pinned-content-not-vendored-or-compared",
+        "baseline_path": "tests/baselines/reference/fourslash/getEmitOutputWithSyntacticErrorsForMultipleFiles.baseline"
+      },
+      "equivalence_decisive_blocker": "api:language-service-targeted-emit",
+      "equivalence_blockers": [
+        "api:language-service-targeted-emit",
+        "required-option:target=ES2025(12)",
+        "required-option:module=absent"
+      ],
+      "whole_program_equivalence": "deferred",
+      "promotion_state": "not-promoted",
+      "execution_state": "not-run",
+      "reference_baseline_state": "content-not-vendored-or-compared"
+    },
+    {
+      "case": 31,
+      "id": "typescript-6.0.3/fourslash/getEmitOutputWithSyntacticErrorsForMultipleFiles2.ts",
+      "fixture": {
+        "path": "getEmitOutputWithSyntacticErrorsForMultipleFiles2.ts",
+        "bytes": 543,
+        "sha256": "df39b455c300b1d2248a06a161f92789b1c0138fee6617647b3981fe6aaf0d7d",
+        "git_blob_sha1": "72e866692ca99533e4c9840bf684afd607b3a246"
+      },
+      "test_type": "native",
+      "global_settings": [
+        {
+          "name": "baselinefile",
+          "value": "getEmitOutputWithSyntacticErrorsForMultipleFiles2.baseline"
+        },
+        {
+          "name": "outfile",
+          "value": "out.js"
+        }
+      ],
+      "virtual_files": [
+        {
+          "path": "/tests/cases/fourslash/inputFile1.ts",
+          "emit_this_file": true
+        },
+        {
+          "path": "/tests/cases/fourslash/inputFile2.ts",
+          "emit_this_file": null
+        }
+      ],
+      "config": null,
+      "config_roots": [],
+      "config_diagnostic_codes": [],
+      "operation": {
+        "method": "baselineGetEmitOutput",
+        "line": 16,
+        "language_service_method": "getEmitOutput(fileName)",
+        "selection": "emit-this-file-true",
+        "selected_files": [
+          "/tests/cases/fourslash/inputFile1.ts"
+        ],
+        "targeted_program_emit_calls": 1
+      },
+      "effective_profile": {
+        "target": {
+          "state": "set",
+          "name": "ES2025",
+          "value": 12,
+          "origin": "fourslash-default"
+        },
+        "module": {
+          "state": "absent"
+        },
+        "use_define_for_class_fields": {
+          "state": "absent"
+        },
+        "no_emit": {
+          "state": "absent"
+        },
+        "rejected_when_effective": [
+          {
+            "name": "outFile",
+            "value": "out.js",
+            "origin": "global-setting"
+          }
+        ]
+      },
+      "source_analysis": {
+        "state": "not-required-effective-options-and-api-route"
+      },
+      "expected_observation": {
+        "state": "baseline-path-pinned-content-not-vendored-or-compared",
+        "baseline_path": "tests/baselines/reference/fourslash/getEmitOutputWithSyntacticErrorsForMultipleFiles2.baseline"
+      },
+      "equivalence_decisive_blocker": "api:language-service-targeted-emit",
+      "equivalence_blockers": [
+        "api:language-service-targeted-emit",
+        "required-option:target=ES2025(12)",
+        "required-option:module=absent",
+        "rejected-option:outFile"
+      ],
+      "whole_program_equivalence": "deferred",
+      "promotion_state": "not-promoted",
+      "execution_state": "not-run",
+      "reference_baseline_state": "content-not-vendored-or-compared"
+    },
+    {
+      "case": 32,
+      "id": "typescript-6.0.3/fourslash/getEmitOutputWithSyntaxErrors.ts",
+      "fixture": {
+        "path": "getEmitOutputWithSyntaxErrors.ts",
+        "bytes": 199,
+        "sha256": "c01df7e34710bf75d4ab05835f53b4a1bf98fa3860165aedf8e7612411a9027c",
+        "git_blob_sha1": "4d094f463d1f8ab179ed4309655d736abd31dc97"
+      },
+      "test_type": "native",
+      "global_settings": [
+        {
+          "name": "baselinefile",
+          "value": "getEmitOutputWithSyntaxErrors.baseline"
+        }
+      ],
+      "virtual_files": [
+        {
+          "path": "/tests/cases/fourslash/inputFile.ts",
+          "emit_this_file": true
+        }
+      ],
+      "config": null,
+      "config_roots": [],
+      "config_diagnostic_codes": [],
+      "operation": {
+        "method": "baselineGetEmitOutput",
+        "line": 9,
+        "language_service_method": "getEmitOutput(fileName)",
+        "selection": "emit-this-file-true",
+        "selected_files": [
+          "/tests/cases/fourslash/inputFile.ts"
+        ],
+        "targeted_program_emit_calls": 1
+      },
+      "effective_profile": {
+        "target": {
+          "state": "set",
+          "name": "ES2025",
+          "value": 12,
+          "origin": "fourslash-default"
+        },
+        "module": {
+          "state": "absent"
+        },
+        "use_define_for_class_fields": {
+          "state": "absent"
+        },
+        "no_emit": {
+          "state": "absent"
+        },
+        "rejected_when_effective": []
+      },
+      "source_analysis": {
+        "state": "not-required-effective-options-and-api-route"
+      },
+      "expected_observation": {
+        "state": "baseline-path-pinned-content-not-vendored-or-compared",
+        "baseline_path": "tests/baselines/reference/fourslash/getEmitOutputWithSyntaxErrors.baseline"
+      },
+      "equivalence_decisive_blocker": "api:language-service-targeted-emit",
+      "equivalence_blockers": [
+        "api:language-service-targeted-emit",
+        "required-option:target=ES2025(12)",
+        "required-option:module=absent"
+      ],
+      "whole_program_equivalence": "deferred",
+      "promotion_state": "not-promoted",
+      "execution_state": "not-run",
+      "reference_baseline_state": "content-not-vendored-or-compared"
+    },
+    {
+      "case": 33,
+      "id": "typescript-6.0.3/fourslash/server/declarationMapsEnableMapping_NoInline.ts",
+      "fixture": {
+        "path": "server/declarationMapsEnableMapping_NoInline.ts",
+        "bytes": 3368,
+        "sha256": "d2d3ac0133c985bc6543f79f0874fa076e9238ed4dca7d287d405d1f3e12c5e5",
+        "git_blob_sha1": "f1205c69c5da84a4b89b726b29003336792f420a"
+      },
+      "test_type": "server",
+      "global_settings": [],
+      "virtual_files": [
+        {
+          "path": "/home/src/workspaces/project/tsconfig.json",
+          "emit_this_file": null
+        },
+        {
+          "path": "/home/src/workspaces/project/index.ts",
+          "emit_this_file": true
+        },
+        {
+          "path": "/home/src/workspaces/project/mymodule.ts",
+          "emit_this_file": null
+        },
+        {
+          "path": "/home/src/workspaces/project/dist/index.js",
+          "emit_this_file": null
+        },
+        {
+          "path": "/home/src/workspaces/project/dist/index.d.ts.map",
+          "emit_this_file": null
+        },
+        {
+          "path": "/home/src/workspaces/project/dist/index.d.ts",
+          "emit_this_file": null
+        }
+      ],
+      "config": "/home/src/workspaces/project/tsconfig.json",
+      "config_roots": [
+        "/home/src/workspaces/project/index.ts"
+      ],
+      "config_diagnostic_codes": [],
+      "operation": {
+        "method": "getEmitOutput",
+        "line": 79,
+        "language_service_method": "getEmitOutput(fileName)",
+        "selection": "emit-this-file-true",
+        "selected_files": [
+          "/home/src/workspaces/project/index.ts"
+        ],
+        "targeted_program_emit_calls": 1
+      },
+      "effective_profile": {
+        "target": {
+          "state": "set",
+          "name": "ES2025",
+          "value": 12,
+          "origin": "fourslash-default"
+        },
+        "module": {
+          "state": "set",
+          "name": "CommonJS",
+          "value": 1,
+          "origin": "virtual-config"
+        },
+        "use_define_for_class_fields": {
+          "state": "absent"
+        },
+        "no_emit": {
+          "state": "absent"
+        },
+        "rejected_when_effective": [
+          {
+            "name": "declaration",
+            "value": true,
+            "origin": "virtual-config"
+          },
+          {
+            "name": "declarationMap",
+            "value": true,
+            "origin": "virtual-config"
+          },
+          {
+            "name": "inlineSourceMap",
+            "value": true,
+            "origin": "virtual-config"
+          },
+          {
+            "name": "outDir",
+            "value": "/home/src/workspaces/project/dist",
+            "origin": "virtual-config"
+          }
+        ]
+      },
+      "source_analysis": {
+        "state": "not-required-effective-options-and-api-route"
+      },
+      "expected_observation": {
+        "state": "inline-expectation-not-executed"
+      },
+      "equivalence_decisive_blocker": "api:language-service-targeted-emit",
+      "equivalence_blockers": [
+        "api:language-service-targeted-emit",
+        "required-option:target=ES2025(12)",
+        "required-option:module=CommonJS(1)",
+        "rejected-option:declaration",
+        "rejected-option:declarationMap",
+        "rejected-option:inlineSourceMap",
+        "rejected-option:outDir"
+      ],
+      "whole_program_equivalence": "deferred",
+      "promotion_state": "not-promoted",
+      "execution_state": "not-run",
+      "reference_baseline_state": "content-not-vendored-or-compared"
+    },
+    {
+      "case": 34,
+      "id": "typescript-6.0.3/fourslash/server/declarationMapsEnableMapping_NoInlineSources.ts",
+      "fixture": {
+        "path": "server/declarationMapsEnableMapping_NoInlineSources.ts",
+        "bytes": 3827,
+        "sha256": "b87e99bb8bb95bbc149a411e200b3eadbc09c02063726f45d36d2bb17b8e33e3",
+        "git_blob_sha1": "38df15316a8be1a58d94e415e5a584fc95449f6b"
+      },
+      "test_type": "server",
+      "global_settings": [],
+      "virtual_files": [
+        {
+          "path": "/home/src/workspaces/project/tsconfig.json",
+          "emit_this_file": null
+        },
+        {
+          "path": "/home/src/workspaces/project/index.ts",
+          "emit_this_file": true
+        },
+        {
+          "path": "/home/src/workspaces/project/mymodule.ts",
+          "emit_this_file": null
+        },
+        {
+          "path": "/home/src/workspaces/project/dist/index.js",
+          "emit_this_file": null
+        },
+        {
+          "path": "/home/src/workspaces/project/dist/index.d.ts.map",
+          "emit_this_file": null
+        },
+        {
+          "path": "/home/src/workspaces/project/dist/index.d.ts",
+          "emit_this_file": null
+        }
+      ],
+      "config": "/home/src/workspaces/project/tsconfig.json",
+      "config_roots": [
+        "/home/src/workspaces/project/index.ts"
+      ],
+      "config_diagnostic_codes": [],
+      "operation": {
+        "method": "getEmitOutput",
+        "line": 80,
+        "language_service_method": "getEmitOutput(fileName)",
+        "selection": "emit-this-file-true",
+        "selected_files": [
+          "/home/src/workspaces/project/index.ts"
+        ],
+        "targeted_program_emit_calls": 1
+      },
+      "effective_profile": {
+        "target": {
+          "state": "set",
+          "name": "ES2025",
+          "value": 12,
+          "origin": "fourslash-default"
+        },
+        "module": {
+          "state": "set",
+          "name": "CommonJS",
+          "value": 1,
+          "origin": "virtual-config"
+        },
+        "use_define_for_class_fields": {
+          "state": "absent"
+        },
+        "no_emit": {
+          "state": "absent"
+        },
+        "rejected_when_effective": [
+          {
+            "name": "declaration",
+            "value": true,
+            "origin": "virtual-config"
+          },
+          {
+            "name": "declarationMap",
+            "value": true,
+            "origin": "virtual-config"
+          },
+          {
+            "name": "inlineSourceMap",
+            "value": true,
+            "origin": "virtual-config"
+          },
+          {
+            "name": "outDir",
+            "value": "/home/src/workspaces/project/dist",
+            "origin": "virtual-config"
+          }
+        ]
+      },
+      "source_analysis": {
+        "state": "not-required-effective-options-and-api-route"
+      },
+      "expected_observation": {
+        "state": "inline-expectation-not-executed"
+      },
+      "equivalence_decisive_blocker": "api:language-service-targeted-emit",
+      "equivalence_blockers": [
+        "api:language-service-targeted-emit",
+        "required-option:target=ES2025(12)",
+        "required-option:module=CommonJS(1)",
+        "rejected-option:declaration",
+        "rejected-option:declarationMap",
+        "rejected-option:inlineSourceMap",
+        "rejected-option:outDir"
+      ],
+      "whole_program_equivalence": "deferred",
+      "promotion_state": "not-promoted",
+      "execution_state": "not-run",
+      "reference_baseline_state": "content-not-vendored-or-compared"
+    },
+    {
+      "case": 35,
+      "id": "typescript-6.0.3/fourslash/server/declarationMapsGeneratedMapsEnableMapping.ts",
+      "fixture": {
+        "path": "server/declarationMapsGeneratedMapsEnableMapping.ts",
+        "bytes": 2817,
+        "sha256": "901b2e671949354eebaec94059d8eaa283e6d9136a22ee4dd89e5f62dfd9753a",
+        "git_blob_sha1": "90d001af40b69b8b3c2b1d0a02394a81fdc56aa4"
+      },
+      "test_type": "server",
+      "global_settings": [],
+      "virtual_files": [
+        {
+          "path": "/home/src/workspaces/project/tsconfig.json",
+          "emit_this_file": null
+        },
+        {
+          "path": "/home/src/workspaces/project/index.ts",
+          "emit_this_file": true
+        },
+        {
+          "path": "/home/src/workspaces/project/mymodule.ts",
+          "emit_this_file": null
+        },
+        {
+          "path": "/home/src/workspaces/project/dist/index.js",
+          "emit_this_file": null
+        },
+        {
+          "path": "/home/src/workspaces/project/dist/index.d.ts.map",
+          "emit_this_file": null
+        },
+        {
+          "path": "/home/src/workspaces/project/dist/index.d.ts",
+          "emit_this_file": null
+        }
+      ],
+      "config": "/home/src/workspaces/project/tsconfig.json",
+      "config_roots": [
+        "/home/src/workspaces/project/index.ts"
+      ],
+      "config_diagnostic_codes": [],
+      "operation": {
+        "method": "getEmitOutput",
+        "line": 78,
+        "language_service_method": "getEmitOutput(fileName)",
+        "selection": "emit-this-file-true",
+        "selected_files": [
+          "/home/src/workspaces/project/index.ts"
+        ],
+        "targeted_program_emit_calls": 1
+      },
+      "effective_profile": {
+        "target": {
+          "state": "set",
+          "name": "ES2025",
+          "value": 12,
+          "origin": "fourslash-default"
+        },
+        "module": {
+          "state": "set",
+          "name": "CommonJS",
+          "value": 1,
+          "origin": "virtual-config"
+        },
+        "use_define_for_class_fields": {
+          "state": "absent"
+        },
+        "no_emit": {
+          "state": "absent"
+        },
+        "rejected_when_effective": [
+          {
+            "name": "declaration",
+            "value": true,
+            "origin": "virtual-config"
+          },
+          {
+            "name": "declarationMap",
+            "value": true,
+            "origin": "virtual-config"
+          },
+          {
+            "name": "outDir",
+            "value": "/home/src/workspaces/project/dist",
+            "origin": "virtual-config"
+          }
+        ]
+      },
+      "source_analysis": {
+        "state": "not-required-effective-options-and-api-route"
+      },
+      "expected_observation": {
+        "state": "inline-expectation-not-executed"
+      },
+      "equivalence_decisive_blocker": "api:language-service-targeted-emit",
+      "equivalence_blockers": [
+        "api:language-service-targeted-emit",
+        "required-option:target=ES2025(12)",
+        "required-option:module=CommonJS(1)",
+        "rejected-option:declaration",
+        "rejected-option:declarationMap",
+        "rejected-option:outDir"
+      ],
+      "whole_program_equivalence": "deferred",
+      "promotion_state": "not-promoted",
+      "execution_state": "not-run",
+      "reference_baseline_state": "content-not-vendored-or-compared"
+    },
+    {
+      "case": 36,
+      "id": "typescript-6.0.3/fourslash/server/declarationMapsGeneratedMapsEnableMapping2.ts",
+      "fixture": {
+        "path": "server/declarationMapsGeneratedMapsEnableMapping2.ts",
+        "bytes": 3459,
+        "sha256": "f7e64bc43b46996fd3a8065a8f8c2b7ff3af572a0d8480cbe881607a1e8f9455",
+        "git_blob_sha1": "a4fb38b2e69416031e0d16070ae494ee96f9069a"
+      },
+      "test_type": "server",
+      "global_settings": [],
+      "virtual_files": [
+        {
+          "path": "/home/src/workspaces/project/tsconfig.json",
+          "emit_this_file": null
+        },
+        {
+          "path": "/home/src/workspaces/project/index.ts",
+          "emit_this_file": true
+        },
+        {
+          "path": "/home/src/workspaces/project/mymodule.ts",
+          "emit_this_file": null
+        },
+        {
+          "path": "/home/src/workspaces/project/dist/index.js.map",
+          "emit_this_file": null
+        },
+        {
+          "path": "/home/src/workspaces/project/dist/index.js",
+          "emit_this_file": null
+        },
+        {
+          "path": "/home/src/workspaces/project/dist/index.d.ts.map",
+          "emit_this_file": null
+        },
+        {
+          "path": "/home/src/workspaces/project/dist/index.d.ts",
+          "emit_this_file": null
+        }
+      ],
+      "config": "/home/src/workspaces/project/tsconfig.json",
+      "config_roots": [
+        "/home/src/workspaces/project/index.ts"
+      ],
+      "config_diagnostic_codes": [],
+      "operation": {
+        "method": "getEmitOutput",
+        "line": 83,
+        "language_service_method": "getEmitOutput(fileName)",
+        "selection": "emit-this-file-true",
+        "selected_files": [
+          "/home/src/workspaces/project/index.ts"
+        ],
+        "targeted_program_emit_calls": 1
+      },
+      "effective_profile": {
+        "target": {
+          "state": "set",
+          "name": "ES2025",
+          "value": 12,
+          "origin": "fourslash-default"
+        },
+        "module": {
+          "state": "set",
+          "name": "CommonJS",
+          "value": 1,
+          "origin": "virtual-config"
+        },
+        "use_define_for_class_fields": {
+          "state": "absent"
+        },
+        "no_emit": {
+          "state": "absent"
+        },
+        "rejected_when_effective": [
+          {
+            "name": "declaration",
+            "value": true,
+            "origin": "virtual-config"
+          },
+          {
+            "name": "declarationMap",
+            "value": true,
+            "origin": "virtual-config"
+          },
+          {
+            "name": "outDir",
+            "value": "/home/src/workspaces/project/dist",
+            "origin": "virtual-config"
+          },
+          {
+            "name": "sourceMap",
+            "value": true,
+            "origin": "virtual-config"
+          }
+        ]
+      },
+      "source_analysis": {
+        "state": "not-required-effective-options-and-api-route"
+      },
+      "expected_observation": {
+        "state": "inline-expectation-not-executed"
+      },
+      "equivalence_decisive_blocker": "api:language-service-targeted-emit",
+      "equivalence_blockers": [
+        "api:language-service-targeted-emit",
+        "required-option:target=ES2025(12)",
+        "required-option:module=CommonJS(1)",
+        "rejected-option:declaration",
+        "rejected-option:declarationMap",
+        "rejected-option:outDir",
+        "rejected-option:sourceMap"
+      ],
+      "whole_program_equivalence": "deferred",
+      "promotion_state": "not-promoted",
+      "execution_state": "not-run",
+      "reference_baseline_state": "content-not-vendored-or-compared"
+    },
+    {
+      "case": 37,
+      "id": "typescript-6.0.3/fourslash/server/declarationMapsGeneratedMapsEnableMapping3.ts",
+      "fixture": {
+        "path": "server/declarationMapsGeneratedMapsEnableMapping3.ts",
+        "bytes": 2901,
+        "sha256": "ac094b2939d884dcbe64d0cc368b27ad259cd0931481792d14acb26d96266db4",
+        "git_blob_sha1": "34241db5b1247224fa4860f44a1b8537a4a230ec"
+      },
+      "test_type": "server",
+      "global_settings": [],
+      "virtual_files": [
+        {
+          "path": "/home/src/workspaces/project/tsconfig.json",
+          "emit_this_file": null
+        },
+        {
+          "path": "/home/src/workspaces/project/index.ts",
+          "emit_this_file": true
+        },
+        {
+          "path": "/home/src/workspaces/project/mymodule.ts",
+          "emit_this_file": null
+        },
+        {
+          "path": "/home/src/workspaces/project/dist/index.js",
+          "emit_this_file": null
+        },
+        {
+          "path": "/home/src/workspaces/project/dist/index.d.ts.map",
+          "emit_this_file": null
+        },
+        {
+          "path": "/home/src/workspaces/project/dist/index.d.ts",
+          "emit_this_file": null
+        }
+      ],
+      "config": "/home/src/workspaces/project/tsconfig.json",
+      "config_roots": [
+        "/home/src/workspaces/project/index.ts"
+      ],
+      "config_diagnostic_codes": [],
+      "operation": {
+        "method": "getEmitOutput",
+        "line": 79,
+        "language_service_method": "getEmitOutput(fileName)",
+        "selection": "emit-this-file-true",
+        "selected_files": [
+          "/home/src/workspaces/project/index.ts"
+        ],
+        "targeted_program_emit_calls": 1
+      },
+      "effective_profile": {
+        "target": {
+          "state": "set",
+          "name": "ES2025",
+          "value": 12,
+          "origin": "fourslash-default"
+        },
+        "module": {
+          "state": "set",
+          "name": "CommonJS",
+          "value": 1,
+          "origin": "virtual-config"
+        },
+        "use_define_for_class_fields": {
+          "state": "absent"
+        },
+        "no_emit": {
+          "state": "absent"
+        },
+        "rejected_when_effective": [
+          {
+            "name": "declaration",
+            "value": true,
+            "origin": "virtual-config"
+          },
+          {
+            "name": "declarationMap",
+            "value": true,
+            "origin": "virtual-config"
+          },
+          {
+            "name": "outDir",
+            "value": "/home/src/workspaces/project/dist",
+            "origin": "virtual-config"
+          }
+        ]
+      },
+      "source_analysis": {
+        "state": "not-required-effective-options-and-api-route"
+      },
+      "expected_observation": {
+        "state": "inline-expectation-not-executed"
+      },
+      "equivalence_decisive_blocker": "api:language-service-targeted-emit",
+      "equivalence_blockers": [
+        "api:language-service-targeted-emit",
+        "required-option:target=ES2025(12)",
+        "required-option:module=CommonJS(1)",
+        "rejected-option:declaration",
+        "rejected-option:declarationMap",
+        "rejected-option:outDir"
+      ],
+      "whole_program_equivalence": "deferred",
+      "promotion_state": "not-promoted",
+      "execution_state": "not-run",
+      "reference_baseline_state": "content-not-vendored-or-compared"
+    }
+  ],
+  "summary": {
+    "fixtures": 38,
+    "fixture_bytes": 31051,
+    "native_cases": 33,
+    "server_cases": 5,
+    "config_cases": 5,
+    "config_diagnostic_cases": 0,
+    "virtual_files": 94,
+    "emit_this_file_true": 47,
+    "emit_this_file_false": 2,
+    "targeted_program_emit_calls": 47,
+    "operation_methods": [
+      {
+        "value": "baselineGetEmitOutput",
+        "cases": 31
+      },
+      {
+        "value": "getEmitOutput",
+        "cases": 5
+      },
+      {
+        "value": "verifyGetEmitOutputContentsForCurrentFile",
+        "cases": 1
+      },
+      {
+        "value": "verifyGetEmitOutputForCurrentFile",
+        "cases": 1
+      }
+    ],
+    "selection_modes": [
+      {
+        "value": "emit-this-file-true",
+        "cases": 36
+      },
+      {
+        "value": "active-file",
+        "cases": 2
+      }
+    ],
+    "target_states": [
+      {
+        "value": "ES2025(12)",
+        "cases": 38
+      }
+    ],
+    "module_states": [
+      {
+        "value": "absent",
+        "cases": 30
+      },
+      {
+        "value": "CommonJS(1)",
+        "cases": 7
+      },
+      {
+        "value": "AMD(2)",
+        "cases": 1
+      }
+    ],
+    "cases_with_rejected_effective_options": 29,
+    "rejected_option_cases": [
+      {
+        "name": "allowImportingTsExtensions",
+        "cases": 0
+      },
+      {
+        "name": "allowJs",
+        "cases": 2
+      },
+      {
+        "name": "composite",
+        "cases": 0
+      },
+      {
+        "name": "declaration",
+        "cases": 17
+      },
+      {
+        "name": "declarationDir",
+        "cases": 0
+      },
+      {
+        "name": "declarationMap",
+        "cases": 5
+      },
+      {
+        "name": "emitDeclarationOnly",
+        "cases": 0
+      },
+      {
+        "name": "experimentalDecorators",
+        "cases": 0
+      },
+      {
+        "name": "importHelpers",
+        "cases": 0
+      },
+      {
+        "name": "incremental",
+        "cases": 0
+      },
+      {
+        "name": "inlineSourceMap",
+        "cases": 2
+      },
+      {
+        "name": "isolatedModules",
+        "cases": 0
+      },
+      {
+        "name": "jsx",
+        "cases": 2
+      },
+      {
+        "name": "noCheck",
+        "cases": 0
+      },
+      {
+        "name": "noEmitHelpers",
+        "cases": 0
+      },
+      {
+        "name": "outDir",
+        "cases": 7
+      },
+      {
+        "name": "outFile",
+        "cases": 12
+      },
+      {
+        "name": "rewriteRelativeImportExtensions",
+        "cases": 0
+      },
+      {
+        "name": "resolveJsonModule",
+        "cases": 0
+      },
+      {
+        "name": "sourceMap",
+        "cases": 8
+      },
+      {
+        "name": "tsBuildInfoFile",
+        "cases": 0
+      },
+      {
+        "name": "verbatimModuleSyntax",
+        "cases": 0
+      }
+    ],
+    "baseline_path_observations": 31,
+    "inline_expectations": 7,
+    "targeted_api_blocked_cases": 38,
+    "required_target_module_matches": 0,
+    "promotion_candidates": 0,
+    "promoted_controls": 0,
+    "deferred_controls": 38,
+    "not_run_cases": 38,
+    "reference_baselines_compared": 0
+  }
+}
