@@ -28,24 +28,38 @@ test("policy and every qualification schema boundary are valid", () => {
   const policy = validatePolicy(loadPolicy());
   assert.equal(policy.status, "active");
   assert.equal(policy.aggregate_check, "gates");
-  assert.equal(policy.exact_merge_qualification.authority_job, "exact_qualification");
-  assert.equal(
-    policy.exact_merge_qualification.node_setup_action,
-    "actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38",
-  );
-  assert.equal(policy.exact_merge_qualification.m8_runner_profile, "github-ubuntu-x64-standard");
-  assert.equal(policy.scheduled_stress.authority_job, "scheduled_stress");
+  assert.equal(policy.hosted_acceptance.authority_job, "gates");
+  assert.equal(policy.hosted_acceptance.test_root, "ts-tests/");
+  assert.deepEqual(policy.hosted_acceptance.authoritative_command, [
+    "cargo",
+    "xtask",
+    "acceptance",
+  ]);
+  assert.equal(policy.hosted_acceptance.only_acceptance_tests, true);
+  assert.deepEqual(policy.local_full_gate.authoritative_command, [
+    "cargo",
+    "xtask",
+    "ci",
+    "--baseline",
+    "<trusted-base>",
+  ]);
   assert.equal(policy.approved_performance.authority_job, "qualify");
   assert.equal(policy.approved_performance.l1_authority_job, "qualify");
   assert.equal(
     policy.approved_performance.l1_h0_evidence,
     "ratchets/l1-h0-performance.v1.json",
   );
-  assert.ok(policy.scheduled_stress.active_scope.includes("fresh-incremental-exactness"));
 
   const frozen = clone(policy);
   frozen.status = "frozen";
   assert.throws(() => validatePolicy(frozen), /policy header/u);
+
+  const broadenedHostedCommand = clone(policy);
+  broadenedHostedCommand.hosted_acceptance.authoritative_command = ["cargo", "xtask", "ci"];
+  assert.throws(
+    () => validatePolicy(broadenedHostedCommand),
+    /hosted ts-tests acceptance/u,
+  );
 });
 
 test("documentation-only changes select no execution lane", () => {
@@ -112,11 +126,11 @@ test("known compiler and program owners select their focused tracks", () => {
   assert.ok(program.selected.tracks.includes("l0-l1"));
 });
 
-test("qualification authority inputs always select exact qualification tracks", () => {
+test("local evidence classification remains fail-closed for policy inputs", () => {
   for (const changedPath of [
     ".github/workflows/ci.yml",
     ".github/workflows/l1-performance.yml",
-    ".github/ci/qualification-policy.v1.json",
+    ".github/ci/qualification-policy.v2.json",
     ".github/ci/contracts/qualification-result.schema.json",
     "Cargo.lock",
     ".node-version",

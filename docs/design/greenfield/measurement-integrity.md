@@ -52,11 +52,11 @@ bootstrap, a pointer to an older-but-not-immediate version, or any
 shrinking edge fails.
 
 The full local merge gate always compares HEAD directly with its recorded
-trusted-base artifact. The ordinary hosted static guardrail does not repeat
+trusted-base artifact. The ordinary hosted `ts-tests` acceptance job does not repeat
 that history decode; `ci --lane hosted --history-sensitive --baseline
 <trusted-sha>` retains the same comparison only as an explicit manual
 diagnostic. Required local evidence prevents a rewritten branch from
-manufacturing a smaller self-consistent chain, while unrelated Actions runs do
+manufacturing a smaller self-consistent chain, while hosted acceptance does
 not pay for the decode. The only missing-base exception is the initial
 bootstrap PR: the base has no artifact and the candidate has exactly one
 oldest bootstrap version. After that, absence is an error.
@@ -79,7 +79,7 @@ not own it.
 
 Every anchor check fails on insufficient clone depth. Any local or manual
 history invocation must reach the unique bootstrap and every recorded
-adjudication or transition commit; the depth-one hosted static guardrail does
+adjudication or transition commit; the depth-one hosted acceptance job does
 not invoke anchor checks.
 
 ## 2. A1 — accepted conformance state
@@ -107,7 +107,7 @@ tooling never touches goldens, and an overbroad pin would invalidate
 the manifest on unrelated churn. The Node pin is enforced at launch,
 not by declaration: `oracle-refresh` refuses to write any golden
 unless the LAUNCHED driver's `process.version` equals the tree pin,
-and hosted CI installs the pinned version.
+and the complete local gate launches the pinned version.
 
 A3 does not edit or repurpose that structured-record producer.
 `crates/oracle/render-driver.mjs` is a separate, optional producer pin

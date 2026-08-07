@@ -310,9 +310,9 @@ Focused probes, crate tests, and the target family report are the iteration
 loop. Generated artifacts and README status are refreshed before the final
 verification. Run the complete local
 `CARGO_BUILD_JOBS=2 cargo xtask ci --baseline origin/main` once on the clean
-candidate branch. GitHub Actions only classifies the diff and runs the
-focused Windows filesystem smoke for platform-sensitive changes; it does not
-repeat the local gate. As soon as every required hosted check passes and the PR is mergeable,
+candidate branch. GitHub Actions runs only the `ts-tests` acceptance
+entrypoint; it does not repeat the internal phases of the
+local gate. As soon as every required hosted check passes and the PR is mergeable,
 merge it automatically with `gh pr merge --merge --delete-branch`; no fresh
 per-PR approval is required unless the work introduces a substantial design
 or scope change. Do not repeatedly run full conformance, the B2 Node sweep, or

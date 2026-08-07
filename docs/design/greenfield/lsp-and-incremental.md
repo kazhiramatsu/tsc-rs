@@ -589,18 +589,13 @@ text-copy, and copied-byte counter. A moving hosted runner cannot mint or relax
 these ratios, and the existing absolute H0 ceilings remain independently
 required.
 
-The common PR lane, fail-closed selector, stable aggregate, scheduled frozen-
-fixture input, and strict receipt/failure-artifact schemas live under
-`.github/ci` and `.github/workflows/ci.yml`. Receipt validation requires the
-exact candidate/base and immutable inputs plus trusted-runner OIDC or a
-registered signer; unsigned files, artifacts, and PR comments are rejected.
-L0.0 froze and tested that contract without treating an unsigned summary as
-acceptance. L0.1 activated the exact status producer, text-store stress, and
-approved-runner comparison described in section 8.2. L0.2 adds identity-range
-reclamation and its chained evidence in section 8.3. L0.3 adds owned bind
-publication and fresh-checker snapshot borrowing in section 8.4. L0.4 adds
-the one-shot/registry proof and its approved-runner resource qualification;
-incremental-parser exactness remains L1 work.
+The current schema-2 policy under `.github/ci` binds the stable hosted
+aggregate to `cargo xtask acceptance` and the complete developer gate to
+`cargo xtask ci --baseline <trusted-base>`. Earlier strict receipt and bounded
+failure-artifact schemas remain tested local evidence utilities, but ordinary
+Actions no longer produces or consumes them. The accepted L0.1 through L0.4
+text, identity, bind, and one-shot/registry records below remain valid local
+and approved-runner evidence; incremental-parser exactness remains L1 work.
 
 ### 8.2 L0.1 accepted text-ownership record
 
@@ -657,13 +652,13 @@ order. Every ratio is candidate/base and remains below its frozen ceiling:
 | project | 0.993084 | 0.994539 | 1.064048 | 0.999873 | 0.906290 | 0 / 0 |
 | scale | 0.995711 | 0.990133 | 1.003220 | 0.999944 | 0.963931 | 0 / 0 |
 
-The active policy binds selected L0/L1 and H1 runtime candidates to the exact
-unsplit full-gate result, immutable inputs, GitHub OIDC attestation, verified
-signer workflow, and final receipt. Protected-main scheduled stress and the
-manual approved-runner performance workflow publish only bounded,
-content-addressed evidence. L0.2 builds identity leases on this boundary
-without exposing snapshot lineage as a public revision or replacing these
-authorities with the aggregate hosted sentinel.
+The active policy binds L0/L1 and H1 runtime candidates to two required
+observations: the hosted `ts-tests` acceptance result and the complete local
+gate against the recorded trusted base. Ordinary GitHub CI does not attest or
+rerun the local gate and has no scheduled stress lane. Manual approved-runner
+performance work may publish bounded, content-addressed evidence. L0.2 builds
+identity leases on this boundary without exposing snapshot lineage as a public
+revision.
 
 ### 8.3 L0.2 accepted identity-lease record
 
@@ -849,7 +844,7 @@ The pinned incremental-parser matrix covers reusable contexts, lookahead and
 regex transitions, comments/JSDoc, strict and yield contexts, class/interface/
 object moves, and simulated typing sequences. Deterministic Unicode and
 malformed edits compare every reachable node/array field, diagnostics,
-directives, and module fact with a fresh parse. The scheduled stress owner runs
+directives, and module fact with a fresh parse. The local qualification stress owner runs
 512 edits over the frozen 1 MiB fixture, checks registry/Program churn and
 identity reclamation on every version, and records a bounded reproducer. The
 acceptance seed completed 512/512 edits, reused at least 190,089 nodes per
@@ -869,9 +864,9 @@ AB/BA order on the frozen macOS arm64 runner. The fixed Unicode edit reuses
 Incremental median/p95 operation latency is 14.924/16.480 ms and peak RSS is
 80,642,048 bytes. `l1-performance.mjs --check` binds the driver, fixture,
 candidate runtime tree, L0.4 chain, runner/toolchain, raw pairs, recomputed
-summaries, reuse floor, and all relative and absolute ceilings. Required PR,
-exact full-gate, scheduled stress, and the separate approved performance
-workflow now all select active L1 owners.
+summaries, reuse floor, and all relative and absolute ceilings. Hosted
+`ts-tests` acceptance, the complete local gate, and the separately dispatched
+approved performance workflow cover the active L1 owners.
 
 Because L1 changes the H0 runtime tree, the same approved workflow also
 publishes [L1 H0 non-regression evidence](../../../ratchets/l1-h0-performance.v1.json)
@@ -920,61 +915,28 @@ Rust owners should remain adjacent to the implementation:
 
 ### 9.1 CI and qualification topology
 
-L0/L1 use the same four authorities as H1, but select persistent-program and
-edit-specific evidence:
+L0/L1 use the same acceptance-only hosted boundary as H1. Ordinary GitHub CI
+has one `gates` job and runs only `cargo xtask acceptance`, sourced from
+`ts-tests` and its pinned baselines. Persistent-program, incremental-parser,
+Language Service, tsserver, and LSP work may add compatible upstream acceptance
+cases to that command; none may add byte/UTF-16 unit tests, owner-focused
+controls, platform matrices, stress loops, or evidence producers to Actions.
 
-1. **Required PR guardrail.** Every non-documentation change runs formatting,
-   a locked all-target workspace check, and focused tests selected
-   fail-closed from the owner graph. L0/L1 changes select byte/UTF-16 boundary
-   tests, text/snapshot/version contracts, forced-nonzero identity relocation,
-   owner-range exhaustion/reclamation, parse/bind option variants,
-   document-owned flow keys, deterministic fresh-versus-incremental cases,
-   and the unchanged H0 adapter/no-emit canaries. Small fixed seeds and
-   checked-in fixtures keep this lane bounded.
-2. **Exact merge qualification.** The unsplit full gate runs against an exact
-   base commit, and its machine-readable summary is bound to HEAD, base,
-   toolchain and Node pins, `Cargo.lock`, suite/oracle inventories, commands,
-   profiles, and result hashes. A new commit, moving base, changed pin, or
-   missing/unknown lane invalidates the summary. Merge-queue composition is a
-   new candidate and must not reuse a PR-head result. Only the trusted-runner
-   or registered-signer authentication defined by the
-   [cross-track CI contract](compiler-compatibility-residual.md#114-cross-track-ci-and-qualification-topology)
-   may post the required status; a hash or PR comment alone is insufficient.
-3. **Scheduled stress.** At L0.2, protected-main runs long deterministic
-   randomized byte/UTF-16 edit scripts plus repeated open/edit/close and
-   multi-project identity churn, option and script-kind changes, range
-   reclamation, bounded snapshot history, and bounded RSS. L0.4-L1 extend that
-   authority with registry reuse and fresh-versus-incremental exactness;
-   cancellation observations remain a later service owner. A failure publishes a bounded reproducer
-   containing the available initial-text hash, ordered edits, seed, option/
-   version keys, reuse counters, owner ranges, diagnostics, and resource
-   observations.
-4. **Approved-runner performance.** The H0 relative guard and L1 large-file
-   edit latency/allocation/RSS qualification run with alternating baseline and
-   candidate samples on the frozen runner/profile. A moving hosted image may
-   smoke the behavior but cannot mint or relax a performance ratchet.
+Every non-documentation candidate still runs the complete local
+`cargo xtask ci --baseline <trusted-base>` before PR and merge. That command
+owns formatting, Clippy, workspace tests, exact history checks, byte/UTF-16
+boundaries, snapshot/version/identity contracts, fresh-versus-incremental
+comparison, reclamation stress, recovery/invariants, and H0 no-emit canaries.
+The result and exact trusted base are recorded in the PR body; hosted
+acceptance alone is insufficient.
 
-L0.2 has extended the schema-bound fail-closed classifier and common non-
-document format/locked-all-target lane with exact identity-owner tests,
-scheduled 10,000-operation reclamation stress, a chained approved-runner H0
-comparison, and strict bounded failure evidence while retaining the L0.1
-Arc/text-store authorities. A green `gates` sentinel or unsigned summary remains
-insufficient: a selected runtime candidate requires the exact qualification.
-Windows selection expands in later slices with program, registry, path,
-toolchain, and compiler adapters that exercise platform-specific paths or file
-identity. Third-party Actions use reviewed full commit SHAs and Cargo
-resolution is locked.
-
-L1 adds generated exact syntax-graph comparison, focused pinned and Unicode
-edit tests, a bounded PR/full-gate stress seed, the 512-edit scheduled owner,
-and a separately attested fresh/incremental approved-runner comparison. The
-policy activates registry reclamation and fresh-incremental exactness rather
-than leaving them as future placeholders.
-
-Language Service, tsserver, and LSP later add their query, protocol,
-cancellation, event-ordering, and platform matrices to this topology; their
-future checks are not substituted for the L0/L1 engine gates, and L0/L1 does
-not claim those products merely by reserving their lanes.
+Long randomized edit scripts, repeated open/edit/close and multi-project
+churn, bounded RSS, cancellation, and platform-specific contracts remain local
+or explicitly dispatched qualification work. H0 and L1 performance ratchets
+continue to use alternating baseline/candidate samples on the approved frozen
+runner. A moving hosted image cannot mint or relax them. Third-party Actions
+use reviewed full commit SHAs, and ordinary hosted Cargo compilation is capped
+at two jobs.
 
 Acceptance requires all of these quantitative observations:
 
@@ -1023,9 +985,9 @@ Stop and amend this design if:
   file;
 - copy-on-reuse misses the L1 large-file budget and H1 proceeds before the
   representation is corrected;
-- an L0/L1 runtime change can merge from classifier/platform success alone,
-  from a full-gate claim not bound to its exact HEAD/base, or without the
-  selected incremental owner tests;
+- an L0/L1 runtime change can merge from hosted `ts-tests` success alone,
+  without the complete local gate against its recorded trusted base or without
+  the incremental owner tests inside that gate;
 - reused parsed nodes carry checker, transform, printer, or generated-name
   state; or
 - FourSlash, tsserver, and LSP results are substituted for one another.

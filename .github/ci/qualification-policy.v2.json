@@ -1,0 +1,84 @@
+{
+  "schema": 2,
+  "status": "active",
+  "aggregate_check": "gates",
+  "limits": {
+    "changed_paths": 4096,
+    "failure_artifact_bytes": 10485760
+  },
+  "hosted_acceptance": {
+    "authority_workflow": ".github/workflows/ci.yml",
+    "authority_job": "gates",
+    "test_root": "ts-tests/",
+    "authoritative_command": ["cargo", "xtask", "acceptance"],
+    "only_acceptance_tests": true
+  },
+  "local_full_gate": {
+    "authoritative_command": ["cargo", "xtask", "ci", "--baseline", "<trusted-base>"],
+    "required_for_non_documentation": true,
+    "documentation_only_exception": true
+  },
+  "classification": {
+    "usage": "local-evidence-tooling-only",
+    "unknown_non_documentation": "select-all",
+    "host_platform_prefixes": [
+      "crates/host/",
+      "crates/program/",
+      "rust-toolchain.toml"
+    ],
+    "program_path_prefixes": [
+      "crates/program/"
+    ],
+    "track_prefixes": {
+      "l0-l1": [
+        "crates/types/",
+        "crates/diagnostics/",
+        "crates/syntax/",
+        "crates/binder/",
+        "crates/checker/",
+        "crates/host/",
+        "crates/program/",
+        "crates/compiler/",
+        "crates/oracle/l0-",
+        "crates/oracle/l1-",
+        "ratchets/l0-",
+        "ratchets/l1-"
+      ],
+      "h1": [
+        "crates/types/",
+        "crates/checker/",
+        "crates/compiler/",
+        "crates/emitter/",
+        "crates/oracle/h1-",
+        "ratchets/h1-"
+      ]
+    },
+    "common_exact": [
+      ".github/workflows/ci.yml",
+      ".github/workflows/l0-performance.yml",
+      ".github/workflows/l1-performance.yml",
+      ".github/ci/qualification-policy.v2.json",
+      "Cargo.lock",
+      "Cargo.toml",
+      "rust-toolchain.toml",
+      ".node-version"
+    ],
+    "common_prefixes": [
+      ".github/ci/contracts/",
+      ".github/ci/qualification."
+    ]
+  },
+  "approved_performance": {
+    "runner_profile": "macos-arm64-local-approved",
+    "authority_workflow": ".github/workflows/l0-performance.yml",
+    "authority_job": "qualify",
+    "environment": "approved-performance",
+    "evidence": "ratchets/l0-one-shot-registry-performance.v1.json",
+    "l1_authority_workflow": ".github/workflows/l1-performance.yml",
+    "l1_authority_job": "qualify",
+    "l1_h0_evidence": "ratchets/l1-h0-performance.v1.json",
+    "l1_evidence": "ratchets/l1-incremental-parser-performance.v1.json",
+    "moving_hosted_images_may_mint_ratchets": false,
+    "alternating_baseline_candidate": true
+  }
+}

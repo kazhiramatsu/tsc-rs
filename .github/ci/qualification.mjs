@@ -5,7 +5,7 @@ import { execFileSync } from "node:child_process";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 const workspace = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
-const policyPath = path.join(workspace, ".github/ci/qualification-policy.v1.json");
+const policyPath = path.join(workspace, ".github/ci/qualification-policy.v2.json");
 const contractDirectory = path.join(workspace, ".github/ci/contracts");
 
 export function sha256(value) {
@@ -275,26 +275,31 @@ export function loadPolicy() {
 }
 
 export function validatePolicy(policy) {
-  if (policy.schema !== 1 || policy.status !== "active" || policy.aggregate_check !== "gates") throw new Error("invalid qualification policy header");
+  if (!exactKeys(policy, ["schema", "status", "aggregate_check", "limits", "hosted_acceptance", "local_full_gate", "classification", "approved_performance"])) throw new Error("qualification policy has missing or unknown fields");
+  if (policy.schema !== 2 || policy.status !== "active" || policy.aggregate_check !== "gates") throw new Error("invalid qualification policy header");
   if (policy.limits.changed_paths !== 4096 || policy.limits.failure_artifact_bytes !== 10_485_760) throw new Error("qualification bounds drifted");
-  if (policy.classification.unknown_non_documentation !== "select-all") throw new Error("classification must fail closed");
-  const exact = policy.exact_merge_qualification;
-  if (exact.authority_workflow !== ".github/workflows/ci.yml" || exact.authority_job !== "exact_qualification" || exact.result_producer !== ".github/ci/qualification.mjs produce-result" || exact.result_contract !== ".github/ci/contracts/qualification-result.schema.json" || exact.receipt_contract !== ".github/ci/contracts/merge-receipt.schema.json" || exact.attestation_action !== "actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6" || exact.node_setup_action !== "actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38" || exact.m8_runner_profile !== "github-ubuntu-x64-standard") throw new Error("invalid exact qualification authority policy");
-  if (policy.exact_merge_qualification.unsigned_receipts_qualify !== false) throw new Error("unsigned merge receipts must not qualify");
-  if (policy.scheduled_stress.authority_workflow !== ".github/workflows/ci.yml" || policy.scheduled_stress.authority_job !== "scheduled_stress" || policy.scheduled_stress.event !== "schedule" || !policy.scheduled_stress.active_scope.includes("randomized-edits")) throw new Error("invalid scheduled stress authority policy");
-  const workflow = fs.readFileSync(path.join(workspace, exact.authority_workflow), "utf8");
-  const exactMarker = `\n  ${exact.authority_job}:\n`;
-  const nextMarker = `\n  ${policy.scheduled_stress.authority_job}:\n`;
-  const exactStart = workflow.indexOf(exactMarker);
-  const exactEnd = workflow.indexOf(nextMarker, exactStart + exactMarker.length);
-  if (exactStart < 0 || exactEnd < 0) throw new Error("exact qualification workflow job is missing");
-  const exactJob = workflow.slice(exactStart, exactEnd);
-  const setupIndex = exactJob.indexOf(`uses: ${exact.node_setup_action}`);
-  const versionFileIndex = exactJob.indexOf("node-version-file: .node-version");
-  const runnerProfileIndex = exactJob.indexOf(`TSRS_M8_RUNNER_PROFILE: ${exact.m8_runner_profile}`);
-  const gateIndex = exactJob.indexOf("name: Run the unsplit full gate at the exact base");
-  if (setupIndex < 0 || versionFileIndex < setupIndex || runnerProfileIndex < 0 || gateIndex < versionFileIndex) {
-    throw new Error("exact qualification must pin its Node and M8 runner profiles before the full gate");
+  if (policy.classification.usage !== "local-evidence-tooling-only" || policy.classification.unknown_non_documentation !== "select-all") throw new Error("classification utility policy must be local-only and fail closed");
+
+  const hosted = policy.hosted_acceptance;
+  if (!exactKeys(hosted, ["authority_workflow", "authority_job", "test_root", "authoritative_command", "only_acceptance_tests"]) || hosted.authority_workflow !== ".github/workflows/ci.yml" || hosted.authority_job !== "gates" || hosted.test_root !== "ts-tests/" || canonical(hosted.authoritative_command) !== canonical(["cargo", "xtask", "acceptance"]) || hosted.only_acceptance_tests !== true) {
+    throw new Error("invalid hosted ts-tests acceptance policy");
+  }
+  const local = policy.local_full_gate;
+  if (!exactKeys(local, ["authoritative_command", "required_for_non_documentation", "documentation_only_exception"]) || canonical(local.authoritative_command) !== canonical(["cargo", "xtask", "ci", "--baseline", "<trusted-base>"]) || local.required_for_non_documentation !== true || local.documentation_only_exception !== true) {
+    throw new Error("invalid local full-gate policy");
+  }
+
+  const workflow = fs.readFileSync(path.join(workspace, hosted.authority_workflow), "utf8");
+  const jobsStart = workflow.indexOf("\njobs:\n");
+  if (jobsStart < 0) throw new Error("hosted acceptance workflow has no jobs boundary");
+  const jobIds = [...workflow.slice(jobsStart + 1).matchAll(/^  ([a-z][a-z0-9_-]*):\s*$/gmu)].map((match) => match[1]);
+  if (canonical(jobIds) !== canonical([hosted.authority_job])) throw new Error("hosted acceptance workflow must contain only the gates job");
+  const runCommands = [...workflow.matchAll(/^\s+run:\s+([^\n]+)$/gmu)].map((match) => match[1].trim());
+  if (canonical(runCommands) !== canonical([hosted.authoritative_command.join(" ")])) throw new Error("hosted acceptance workflow must run only the pinned acceptance command");
+  const actions = [...workflow.matchAll(/^\s+uses:\s+(\S+)/gmu)].map((match) => match[1]);
+  if (canonical(actions) !== canonical(["actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1"])) throw new Error("hosted acceptance workflow may use only the pinned checkout action");
+  for (const forbidden of ["actions/setup-node", "runs-on: windows", "\n  schedule:"]) {
+    if (workflow.includes(forbidden)) throw new Error(`hosted acceptance workflow contains forbidden non-acceptance work: ${forbidden}`);
   }
   if (
     policy.approved_performance.authority_workflow !== ".github/workflows/l0-performance.yml" ||

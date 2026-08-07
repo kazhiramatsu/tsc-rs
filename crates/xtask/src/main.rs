@@ -55,6 +55,7 @@ fn main() {
         Some("oracle-smoke") => run_or_exit(oracle_smoke(args)),
         Some("oracle-refresh") => run_or_exit(oracle_refresh(args)),
         Some("goldens-diff") => run_or_exit(goldens_diff(args)),
+        Some("acceptance") => run_or_exit(acceptance(args)),
         Some("conformance") => run_or_exit(conformance(args)),
         Some("conformance-diff") => run_or_exit(conformance_diff(args)),
         Some("slice-evidence") => run_or_exit(slice_evidence::run(args)),
@@ -4253,6 +4254,16 @@ fn goldens_diff(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>
     }
     println!("full report: {}", out_json.display());
     Ok(())
+}
+
+/// Fixed GitHub Actions entrypoint for acceptance tests sourced from
+/// `ts-tests`. Internal phase tests and evidence producers belong to the
+/// complete local `ci` command, not this hosted boundary.
+fn acceptance(mut args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
+    if let Some(argument) = args.next() {
+        return Err(format!("unexpected acceptance argument: {argument}").into());
+    }
+    conformance(std::iter::empty())
 }
 
 fn conformance(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {

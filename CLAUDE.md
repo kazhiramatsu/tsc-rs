@@ -39,8 +39,9 @@ there.
 4. **Merge via GitHub PR** (`gh` CLI): when the slice is done and
    the required local gate (or the documentation-only checks above) is
    green, push the branch and open a PR whose body carries the local gate
-   summary (conformance rates + FP=0, escapes, tests). GitHub Actions is a
-   bounded hosted guardrail, not the full-corpus acceptance authority.
+   summary (conformance rates + FP=0, escapes, tests). GitHub Actions runs only
+   the fixed `ts-tests` acceptance entrypoint; it does not repeat the complete
+   local gate.
    Monitor the PR and fix failures as additional commits on the same branch.
    As soon as the required hosted checks are successful and the PR is
    mergeable, merge automatically with
@@ -60,32 +61,22 @@ there.
    merging.
 7. Trivial process/docs-only changes may land directly on `main`
    and be pushed. Markdown-only changes intentionally skip the local and
-   GitHub guardrail; the hosted workflow runs only its lightweight
-   change classifier and required `gates` sentinel.
+   full-corpus developer gate. A pull request still receives the same hosted
+   `ts-tests` acceptance check as every other candidate.
 8. Pushing to `origin` is allowed and expected: push the slice branch
-   with `-u` while working. The current PR Actions workflow is a GitHub-only
-   guardrail: it validates a schema-bound, fail-closed trusted-base
-   classification. Every non-documentation change runs formatting, a locked
-   all-target workspace check, common CI-contract tests, and selected bounded
-   L0/L1 or H1 controls; host/path/toolchain changes additionally run focused
-   Windows host contracts, with Cargo parallelism capped at two. It does not
-   run Clippy, workspace tests, semantic history, corpus conformance/recovery,
-   invariants, readiness, or performance qualification. The workflow runs for
-   pull requests, merge groups, pushes to `main`, manual dispatch, and the
-   declared scheduled-input check; the final `gates` job validates
-   classification and every selected PR lane. Local `cargo xtask ci` remains
-   required before opening and before merging except for the exact Markdown-
+   with `-u` while working. The current PR Actions workflow has one stable job,
+   `gates`, and one test command, `cargo xtask acceptance`. That command is the
+   unsplit acceptance boundary sourced from `ts-tests`; it currently executes
+   the full diagnostic conformance corpus and is the extension point for H1
+   emit acceptance. Actions does not run formatting, Cargo check/test/Clippy,
+   owner-focused tests, Windows canaries, stress, performance, evidence
+   production, or `cargo xtask ci`. Cargo build parallelism remains capped at
+   two. The workflow runs for pull requests, merge groups, pushes to `main`,
+   and manual dispatch. Local `cargo xtask ci --baseline <trusted-base>`
+   remains required before opening and merging except for the exact Markdown-
    only rule above; its result and trusted baseline are recorded in the PR
-   body.
-
-   L0.1 activates the authenticated exact HEAD/base full-gate producer,
-   text-owner focused tests, protected-main Unicode edit stress, and the
-   approved macOS arm64 H0 comparison on top of L0.0's schemas and common
-   guardrail. Later L0/L1 slices extend those owner/stress/performance scopes;
-   H1 must add its implementation-specific emit tests, stress, and approved-
-   runner qualification before its first runtime slice. A green hosted
-   `gates` aggregate without the selected exact qualification is never
-   acceptance evidence for these runtime changes.
+   body. Manually dispatched approved-runner performance workflows are
+   separate qualification tools, not ordinary GitHub CI.
 
 ## Verification quick reference
 
@@ -109,23 +100,24 @@ there.
   full-corpus B2 producer reuses an existing exact-fingerprint artifact
   only after raw schema/hash/inventory/count/review validation; otherwise
   it regenerates the artifact with one single-threaded worker.
-- GitHub guardrail: `.github/workflows/ci.yml` currently performs fail-closed
-  change classification, formatting, a locked all-target workspace check,
-  CI-contract tests, selected bounded L0/L1 or H1 controls, and the applicable
-  focused Windows host/program smoke. The optional
+- GitHub acceptance: `.github/workflows/ci.yml` runs only `cargo xtask
+  acceptance`, the fixed `ts-tests` acceptance boundary, in the stable
+  `gates` job. The optional
   `cargo xtask ci --lane hosted` static diagnostic and its
   `--history-sensitive --baseline <trusted-ref-or-sha>` mode remain available
   locally but are never selected automatically by Actions. The legacy
   `--lane rust|semantic [--baseline <trusted-ref-or-sha>]` split remains
   available for diagnosing either half of the full local gate. Except for the
   exact Markdown-only rule, slice acceptance still requires the unsplit local
-  command above; a green GitHub guardrail is never a replacement for it. The
-  L0/L1 and H1 contracts additionally require an authenticated exact-candidate
-  qualification status, runtime stress coverage, and approved-runner
-  performance evidence before their first runtime slices are accepted.
+  command above; a green GitHub acceptance result is never a replacement for
+  the complete local gate. Runtime stress and approved-runner performance
+  evidence are produced locally or by their explicitly dispatched
+  qualification workflows, never by ordinary CI.
 - H1 owner inventory: `node crates/oracle/h1-owner-inventory.mjs --check`
   regenerates in memory and byte-compares the report-only H1.0a active-root
   graph, declaration/body/ledger hashes, unresolved calls, and dormant seams.
+- Hosted acceptance: `cargo xtask acceptance` is fixed and unsplit; it accepts
+  no file/band/limit selectors and runs only suites sourced from `ts-tests`.
 - Conformance single band: `cargo xtask conformance [--band 2xxx]`
   (every gating run also enforces the A1 accepted-set ratchet;
   partial `--files`/`--limit` runs gate the executed-fixture

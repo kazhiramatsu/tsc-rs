@@ -955,72 +955,35 @@ equality.
 
 ### 11.4 Cross-track CI and qualification topology
 
-L0.0 expanded the GitHub workflow from the closed H0/M8 classifier/platform
-canary to schema-bound fail-closed selection, a common non-documentation
-format/locked-all-target lane, initial track-focused controls, the applicable
-Windows host/program canaries, a stable aggregate, and deterministic scheduled
-inputs. The unsplit local `cargo xtask ci` still owns semantic acceptance. The
-strict receipt and bounded failure-artifact schemas are frozen and tested, but
-the workflow does not yet mint an authenticated exact full-gate status, run
-runtime stress, or qualify performance.
+Ordinary GitHub CI is deliberately acceptance-only. One stable `gates` job
+runs one fixed command, `cargo xtask acceptance`, and that command may consume
+only cases sourced from `ts-tests` plus their pinned baselines. It currently
+runs the complete diagnostic conformance corpus. H1, build/watch, and later
+service products extend this same acceptance entrypoint with compatible
+upstream suites; they do not add phase-specific Actions jobs.
 
-The complete shared topology is:
+The shared topology is:
 
 | Layer | Required role | Authority and boundary |
 | --- | --- | --- |
-| Required PR guardrail | Fail-closed path classification; formatting; locked, non-linking all-target workspace check; bounded owner-focused tests; applicable Windows/platform smoke | Fast regression feedback only; every selected job must report a known terminal state |
-| Exact merge qualification | Unsplit full gate and track gates with a machine-readable result bound to exact HEAD/base, toolchain/Node pins, lockfile, vendor/suite/profile hashes, commands, and outputs | Semantic merge authority; a new commit, base update, merge-queue composition, or input change invalidates the result |
-| Protected-main scheduled/soak | Randomized edits, open/close/cache reclamation, broad compatible emit corpus, deterministic repeats, bounded fuzz and long-running resource checks | Drift/stress authority; preserves bounded seeds, traces, diffs, counters, and reproducers, but never retroactively qualifies a PR |
-| Approved performance/release | Alternating baseline/candidate measurements on a frozen runner followed by exact artifact/receipt verification and release gates | May mint performance ratchets and release claims; moving `*-latest` images may only act as functional canaries |
+| Hosted acceptance | The unsplit `ts-tests` acceptance entrypoint | Required branch-protection signal; no static, focused, platform, stress, performance, or evidence phase may be added to ordinary Actions |
+| Local full gate | `cargo xtask ci --baseline <trusted-base>` | Required before PR and merge; owns formatting, Clippy, workspace tests, history, all semantic bands, recovery/invariants, stress, and evidence production/consumption |
+| Approved performance/release | Alternating baseline/candidate measurements on a frozen runner, explicitly dispatched | May mint performance ratchets and release claims; moving `*-latest` images may not relax them |
 
-The serializable merge summary is separate from M8/M9's move-only,
-same-process evidence token: it records that the authoritative command
-completed for these immutable inputs, but it does not export, reconstruct, or
-trust ephemeral producer evidence across jobs. Free-form PR-body text remains
-a human summary and cannot satisfy the required check. Branch protection uses
-one stable aggregate name and fails if classification is incomplete, a
-selected lane is absent or unexpectedly skipped, or a receipt does not match
-the candidate pair. A content hash alone is not authentication: an accepted
-summary comes from an approved trusted runner with GitHub OIDC/artifact
-attestation, or from an explicitly registered local signer whose verifier
-posts the required status. Fork PRs receive no signing credential, and an
-unsigned repository file, artifact, or PR comment is never a receipt.
+The local full-gate result, trusted base, conformance counts, FP/FN state, and
+test/escape result are recorded in the PR body. This reviewable record is not
+reconstructed in Actions, and a green hosted acceptance job is never a
+substitute for the local command. Retained exact-result, receipt, and bounded
+failure-artifact schemas remain local evidence utilities; they are not an
+authorization to restore fine-grained hosted lanes.
 
-Each track extends focused selection rather than replacing the common gate:
-
-- L0/L1 select source/text/UTF-16 conversion, relocation, parse/bind ownership,
-  fresh-versus-incremental, registry, reclamation, and H0 no-emit controls;
-- H1 selects checker/emitter/compiler, transform/printer/output plan, memory
-  and filesystem sinks, exact output ordering, and zero-constructor/write
-  no-emit controls;
-- build/watch select signature/build-info/reference, invalidation, watcher,
-  partial-failure, and long-running event/resource tests;
-- Language Service/tsserver select query cache, cancellation, project-service,
-  protocol, plugin, type-acquisition, event-ordering, and memory tests; and
-- an LSP product selects URI/path and UTF-16 protocol conversion,
-  synchronization, capabilities, request cancellation, diagnostics, workspace
-  changes, and multi-platform transport tests without borrowing tsserver
-  results.
-
-H1 output paths/sinks and later watch/server work expand the Windows selector
-beyond the present host/program paths. Cargo commands use `--locked` where
-supported, third-party Actions are pinned to reviewed full commit SHAs,
-performance runners are explicitly approved, and failure artifacts are
-bounded and content-addressed. L0.2 extends the trusted exact-result producer
-with identity-owner focused selection, scheduled open/edit/close reclamation
-stress, and chained approved-runner H0 comparison. H1 must reuse the common authenticated
-authority while adding its implementation-specific focused selection, emit
-stress, and approved-runner qualification before its first runtime change;
-the aggregate hosted sentinel alone is not acceptance evidence.
-
-The required workflow runs on `pull_request` and, when a merge queue is used,
-`merge_group`; a protected-main `push` verifies the merged composition, while
-scheduled and release entry points select only their declared authorities.
-Jobs use least privilege, bounded timeouts, stale-PR concurrency cancellation,
-and no writable cache for acceptance evidence. Classifier contract tests cover
-renames, empty or unavailable base ranges, docs-only changes, the generated
-README status block, every boolean output combination, and unknown/new paths;
-ambiguity always selects more validation rather than silently skipping it.
+Long randomized edit scripts, reclamation, broad emit determinism, sink-fault
+injection, fuzz, memory/resource checks, and platform-specific contracts run
+inside the complete local gate or through an explicit manual qualification
+workflow. They do not run on a protected-main schedule. Third-party Actions
+are pinned to reviewed full commit SHAs, the hosted Cargo build is capped at
+two jobs, and the workflow uses least privilege, bounded timeouts, and
+stale-candidate cancellation.
 
 ## 12. Dependency order toward broader compatibility
 
@@ -1150,7 +1113,7 @@ Stop and amend the relevant design if:
 - internal arenas/checker methods are exposed as a public API without a
   declared Rust-native versus JavaScript-compatible product contract;
 - an L0/L1, H1, builder, service, server, or LSP runtime change is accepted
-  from classifier/platform success alone, a stale or free-form gate claim, or
-  a receipt not bound to the exact candidate/base and immutable inputs; or
+  from hosted `ts-tests` success alone, without the complete local gate against
+  its recorded trusted base; or
 - an H1, M9, builder, L-track, public-API, or version claim borrows evidence
   from a different finish line in section 1.

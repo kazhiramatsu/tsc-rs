@@ -140,6 +140,12 @@ above:
 CARGO_BUILD_JOBS=2 RUST_TEST_THREADS=2 cargo xtask ci --baseline origin/main
 ```
 
+GitHub Actions deliberately runs only `cargo xtask acceptance`. That stable
+entrypoint consumes the checked-in `ts-tests` acceptance corpus and currently
+runs all 5,908 diagnostic fixtures / 7,691 expanded cases. Formatting,
+workspace tests, fine-grained phase controls, stress, and evidence production
+remain in the complete local gate.
+
 For example, from a project containing a compatible `tsconfig.json`:
 
 ```sh
