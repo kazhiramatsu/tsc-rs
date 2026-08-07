@@ -89,7 +89,7 @@ pub struct DocumentAddress {
 }
 
 impl DocumentAddress {
-    /// Construct an address for the pinned registry namespace.
+    /// tsrs-native: constructs an address for the pinned registry namespace.
     pub fn new(
         namespace: impl Into<String>,
         path: impl Into<String>,
@@ -107,6 +107,7 @@ impl DocumentAddress {
         }
     }
 
+    /// tsrs-native: adds the module-format facts that complete the address key.
     pub fn with_module_facts(
         mut self,
         implied_node_format: Option<i32>,
@@ -119,30 +120,37 @@ impl DocumentAddress {
         self
     }
 
+    /// tsrs-native: returns the registry namespace component.
     pub fn namespace(&self) -> &str {
         &self.namespace
     }
 
+    /// tsrs-native: returns the host path component.
     pub fn path(&self) -> &str {
         &self.path
     }
 
+    /// tsrs-native: returns the parser script-kind component.
     pub fn script_kind(&self) -> &DocumentScriptKind {
         &self.script_kind
     }
 
+    /// tsrs-native: returns the conservative source/bind option bucket.
     pub fn compiler_options(&self) -> &CompilerOptions {
         &self.compiler_options
     }
 
+    /// tsrs-native: returns the implied module format component.
     pub const fn implied_node_format(&self) -> Option<i32> {
         self.implied_node_format
     }
 
+    /// tsrs-native: returns the forced external-module fact.
     pub const fn force_external_module(&self) -> bool {
         self.force_external_module
     }
 
+    /// tsrs-native: returns the JSX external-module detection fact.
     pub const fn detect_external_module_from_jsx(&self) -> bool {
         self.detect_external_module_from_jsx
     }
@@ -163,14 +171,17 @@ pub struct DocumentLease {
 }
 
 impl DocumentLease {
+    /// tsrs-native: returns the immutable document retained by this lease.
     pub fn document(&self) -> &Arc<BoundDocument> {
         &self.document
     }
 
+    /// tsrs-native: returns the address retained by this lease.
     pub fn address(&self) -> &DocumentAddress {
         &self.address
     }
 
+    /// tsrs-native: returns the host version retained by this lease.
     pub fn version(&self) -> &DocumentVersion {
         self.document.source().snapshot().document_version()
     }
@@ -259,6 +270,7 @@ pub struct DocumentRegistry {
 }
 
 impl DocumentRegistry {
+    /// tsrs-native: constructs a synchronous, non-global registry namespace.
     pub fn new(namespace: impl Into<String>) -> Self {
         Self {
             namespace: namespace.into(),
@@ -267,10 +279,12 @@ impl DocumentRegistry {
         }
     }
 
+    /// tsrs-native: returns the namespace owned by this registry.
     pub fn namespace(&self) -> &str {
         &self.namespace
     }
 
+    /// tsrs-native: acquires or atomically publishes an exact document variant.
     /// Acquire an existing exact `(address, host version, text)` record, or
     /// build and publish one atomically from the supplied closure.
     pub fn acquire(
@@ -336,6 +350,7 @@ impl DocumentRegistry {
         })
     }
 
+    /// tsrs-native: updates an address through the same fail-closed acquire path.
     /// Publish a new host version at an existing address. The exact same
     /// version still follows the acquire path and therefore cannot silently
     /// replace text under an equal host version.
@@ -348,6 +363,7 @@ impl DocumentRegistry {
         self.acquire(address, snapshot, build)
     }
 
+    /// tsrs-native: releases one lease and reclaims its final live variant.
     /// Release exactly one acquired reference. When the last reference to a
     /// version is released, its registry entry disappears immediately.
     pub fn release(&mut self, lease: DocumentLease) -> Result<(), DocumentRegistryError> {
@@ -381,10 +397,12 @@ impl DocumentRegistry {
         Ok(())
     }
 
+    /// tsrs-native: returns the number of live address/version variants.
     pub fn active_entry_count(&self) -> usize {
         self.entries.values().map(Vec::len).sum()
     }
 
+    /// tsrs-native: returns the number of explicit live leases.
     pub fn active_reference_count(&self) -> usize {
         self.entries
             .values()
@@ -448,6 +466,7 @@ pub struct EphemeralDocumentStore {
 }
 
 impl EphemeralDocumentStore {
+    /// tsrs-native: constructs a one-shot store for one identity domain.
     pub fn new(identity_domain: IdentityDomain) -> Self {
         Self {
             identity_domain,
@@ -455,6 +474,7 @@ impl EphemeralDocumentStore {
         }
     }
 
+    /// tsrs-native: constructs a one-shot store from completed document handles.
     pub fn with_documents(
         identity_domain: IdentityDomain,
         documents: impl IntoIterator<Item = Arc<BoundDocument>>,
@@ -465,14 +485,17 @@ impl EphemeralDocumentStore {
         }
     }
 
+    /// tsrs-native: returns the store's identity domain.
     pub fn identity_domain(&self) -> &IdentityDomain {
         &self.identity_domain
     }
 
+    /// tsrs-native: returns the direct immutable document slots.
     pub fn documents(&self) -> &[Arc<BoundDocument>] {
         &self.documents
     }
 
+    /// tsrs-native: publishes a completed bind after ownership validation.
     /// Publish a fully completed bind. The worker must already have been
     /// consumed, so a partial bind can never enter the one-shot store.
     pub fn publish(
@@ -492,6 +515,7 @@ impl EphemeralDocumentStore {
         Ok(document)
     }
 
+    /// tsrs-native: transfers the one-shot slots into an immutable Program snapshot.
     pub fn into_snapshot(self, lib_count: usize) -> Result<ProgramSnapshot, ProgramIdentityError> {
         ProgramSnapshot::new(self.documents, lib_count)
     }

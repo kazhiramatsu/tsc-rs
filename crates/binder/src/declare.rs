@@ -211,7 +211,7 @@ impl BindData {
         self.private_name_serial_lease.as_ref()
     }
 
-    /// Verify that every persistent identity carried by the published bind
+    /// tsrs-native: verifies that every persistent identity carried by the published bind
     /// belongs to one document domain. Publication paths use this before a
     /// `BindData` enters an owned Program store; a partial or cross-domain
     /// record must fail closed rather than becoming a cacheable variant.
