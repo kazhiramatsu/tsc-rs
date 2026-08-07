@@ -15,3 +15,7 @@ path = "src/lib.rs"
 [dependencies]
 tsc-diagnostics.workspace = true
 tsc-types.workspace = true
+
+[dev-dependencies]
+serde_json = "1.0"
+stats_alloc = "0.1.10"

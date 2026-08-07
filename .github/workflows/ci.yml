@@ -107,6 +107,47 @@ jobs:
           node crates/oracle/l0-option-inventory.mjs --check
           node --check crates/oracle/l0-performance.mjs
           node crates/oracle/l0-performance.mjs --check
+          node --check crates/oracle/l1-performance.mjs
+          node crates/oracle/l1-performance.mjs --check
+          cargo xtask codegen nodes-check
+          cargo test --locked \
+            --manifest-path crates/types/Cargo.toml \
+            --lib \
+            identity::tests
+          cargo test --locked \
+            --manifest-path crates/syntax/Cargo.toml \
+            --lib \
+            generated_relocation_matches_a_direct_forced_nonzero_parse
+          cargo test --locked \
+            --manifest-path crates/syntax/Cargo.toml \
+            --lib \
+            incremental
+          cargo test --locked \
+            --manifest-path crates/binder/Cargo.toml \
+            --lib \
+            bind_relocation_matches_direct_nonzero_symbols_and_private_serials
+          cargo test --locked \
+            --manifest-path crates/checker/Cargo.toml \
+            --lib \
+            program::tests
+          cargo test --locked \
+            --manifest-path crates/checker/Cargo.toml \
+            --lib \
+            registry_incrementally_reparses_only_the_changed_document_and_reclaims_versions
+          cargo xtask l0 identity-stress \
+            --seed 0x1d3a71a5e5ca5e02 \
+            --iterations 256 \
+            --max-active 16 \
+            --max-rss-bytes 268435456 \
+            --report target/l0/identity-stress-pr.json
+          node crates/oracle/l0-fixtures.mjs \
+            --materialize target/l0/qualification-fixtures
+          cargo xtask l1 incremental-stress \
+            --fixture target/l0/qualification-fixtures/large-edit/large-edit.ts \
+            --seed 0x1ac15eedfae50001 \
+            --edits 16 \
+            --max-rss-bytes 268435456 \
+            --report target/l1/incremental-stress-pr.json
           cargo test --locked \
             --manifest-path crates/diagnostics/Cargo.toml \
             --lib \
@@ -325,12 +366,12 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
-  # L0.1 activates deterministic randomized byte/UTF-16 edits, bounded
-  # snapshot history, and bounded RSS over the frozen large-edit input.
-  # L0.2+ extend this authority with registry reclamation, Program churn,
-  # fresh/incremental parse exactness, and cancellation observations.
+  # L0 activates deterministic randomized byte/UTF-16 edits, bounded
+  # snapshot history, identity/open-close churn, and bounded RSS. L1 adds
+  # registry/Program churn plus fresh-versus-incremental structural and
+  # diagnostic exactness over the same frozen large-edit input.
   scheduled_stress:
-    name: scheduled-text-stress
+    name: scheduled-l0-l1-stress
     if: ${{ github.event_name == 'schedule' }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -362,6 +403,26 @@ jobs:
           --max-rss-bytes 536870912
           --report target/l0/text-stress.json
 
+      - name: Run deterministic identity open/edit/close churn
+        id: identity_stress
+        run: >-
+          cargo xtask l0 identity-stress
+          --seed 0x1d3a71a5e5ca5e02
+          --iterations 10000
+          --max-active 64
+          --max-rss-bytes 536870912
+          --report target/l0/identity-stress.json
+
+      - name: Run deterministic incremental parse and registry churn
+        id: incremental_stress
+        run: >-
+          cargo xtask l1 incremental-stress
+          --fixture "$RUNNER_TEMP/l0-fixtures/large-edit/large-edit.ts"
+          --seed 0x1ac15eedfae50001
+          --edits 512
+          --max-rss-bytes 536870912
+          --report target/l1/incremental-stress.json
+
       - name: Produce bounded stress failure evidence
         if: ${{ failure() && steps.text_stress.outcome == 'failure' }}
         shell: bash
@@ -389,11 +450,62 @@ jobs:
             --path target/ci-failure/text-stress-manifest.json \
             --payload target/ci-failure/text-stress.json
 
+      - name: Produce bounded identity-stress failure evidence
+        if: ${{ failure() && steps.identity_stress.outcome == 'failure' }}
+        shell: bash
+        env:
+          EXACT_HEAD: ${{ github.sha }}
+        run: |
+          base="$(git rev-parse HEAD^)"
+          if [ ! -f target/l0/identity-stress.json ]; then
+            mkdir -p target/l0
+            printf '{"error":"identity-stress command failed before publishing its report"}\n' >target/l0/identity-stress.json
+          fi
+          node .github/ci/qualification.mjs write-failure \
+            --head "$EXACT_HEAD" \
+            --base "$base" \
+            --track stress \
+            --source target/l0/identity-stress.json \
+            --payload-path target/ci-failure/identity-stress.json \
+            --content-type application/json \
+            --seed 0x1d3a71a5e5ca5e02 \
+            --out target/ci-failure/identity-stress-manifest.json
+          node .github/ci/qualification.mjs verify-failure \
+            --path target/ci-failure/identity-stress-manifest.json \
+            --payload target/ci-failure/identity-stress.json
+
+      - name: Produce bounded incremental-stress failure evidence
+        if: ${{ failure() && steps.incremental_stress.outcome == 'failure' }}
+        shell: bash
+        env:
+          EXACT_HEAD: ${{ github.sha }}
+        run: |
+          base="$(git rev-parse HEAD^)"
+          initial_hash="$(node -e 'const fs=require("fs"),crypto=require("crypto");process.stdout.write(crypto.createHash("sha256").update(fs.readFileSync(process.argv[1])).digest("hex"))' "$RUNNER_TEMP/l0-fixtures/large-edit/large-edit.ts")"
+          if [ ! -f target/l1/incremental-stress.json ]; then
+            mkdir -p target/l1
+            printf '{"error":"incremental-stress command failed before publishing its report"}\n' >target/l1/incremental-stress.json
+          fi
+          node .github/ci/qualification.mjs write-failure \
+            --head "$EXACT_HEAD" \
+            --base "$base" \
+            --track stress \
+            --source target/l1/incremental-stress.json \
+            --payload-path target/ci-failure/incremental-stress.json \
+            --content-type application/json \
+            --seed 0x1ac15eedfae50001 \
+            --fixture ratchets/l0-fixtures.v1.json \
+            --initial-text-sha256 "$initial_hash" \
+            --out target/ci-failure/incremental-stress-manifest.json
+          node .github/ci/qualification.mjs verify-failure \
+            --path target/ci-failure/incremental-stress-manifest.json \
+            --payload target/ci-failure/incremental-stress.json
+
       - name: Upload bounded stress failure evidence
-        if: ${{ failure() && steps.text_stress.outcome == 'failure' }}
+        if: ${{ failure() && (steps.text_stress.outcome == 'failure' || steps.identity_stress.outcome == 'failure' || steps.incremental_stress.outcome == 'failure') }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
-          name: scheduled-text-stress-failure-${{ github.sha }}
+          name: scheduled-l0-l1-stress-failure-${{ github.sha }}
           path: target/ci-failure/
           if-no-files-found: error
           retention-days: 14

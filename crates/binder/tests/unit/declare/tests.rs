@@ -5,6 +5,75 @@ fn parse(text: &str) -> SourceFile {
     parse_source_file("main.ts", text, ParseOptions::default(), None)
 }
 
+#[test]
+fn bind_relocation_matches_direct_nonzero_symbols_and_private_serials() {
+    let domain = IdentityDomain::reclaiming();
+    let symbol_gap = domain.lease(IdentitySpace::Symbol, 13).unwrap();
+    let serial_gap = domain.lease(IdentitySpace::PrivateNameSerial, 9).unwrap();
+    let mut source = parse(
+        "export class Box { #value = 1; copy(other: Box) { return other.#value + this.#value; } }",
+    );
+    source.relocate_into_identity_domain(&domain).unwrap();
+    let options = tsc_types::CompilerOptions::default();
+
+    let relocated = Binder::bind_in_identity_domain(&source, &options, &domain).unwrap();
+    let mut direct = Binder::with_bases(&source, &options, 10, 13);
+    direct.bind_source_file();
+
+    assert!(relocated.identity_owned_by(&domain));
+    assert_eq!(
+        relocated.symbols.identity_lease().unwrap().range().start(),
+        13
+    );
+    assert_eq!(
+        relocated
+            .private_name_serial_lease()
+            .unwrap()
+            .range()
+            .start(),
+        10
+    );
+    assert_eq!(relocated.symbols, direct.symbols);
+    assert_eq!(relocated.node_symbol, direct.node_symbol);
+    assert_eq!(relocated.node_local_symbol, direct.node_local_symbol);
+    assert_eq!(relocated.locals, direct.locals);
+    assert_eq!(
+        relocated.js_global_augmentations,
+        direct.js_global_augmentations
+    );
+    assert_eq!(relocated.classifiable_names, direct.classifiable_names);
+    assert_eq!(relocated.assigned_symbol_ids, direct.assigned_symbol_ids);
+    assert_eq!(relocated.next_symbol_id, direct.next_symbol_id);
+    assert!(relocated
+        .symbols
+        .symbols()
+        .iter()
+        .flat_map(|symbol| symbol.members.keys())
+        .any(|name| name.starts_with("__#10@")));
+
+    drop(relocated);
+    assert_eq!(
+        domain
+            .stats()
+            .unwrap()
+            .space(IdentitySpace::Symbol)
+            .active_ranges,
+        1
+    );
+    drop(direct);
+    drop(source);
+    drop(symbol_gap);
+    drop(serial_gap);
+    assert_eq!(
+        domain
+            .stats()
+            .unwrap()
+            .space(IdentitySpace::Symbol)
+            .active_ranges,
+        0
+    );
+}
+
 fn statements(source: &SourceFile) -> Vec<NodeId> {
     let data = source
         .arena

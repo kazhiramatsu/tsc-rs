@@ -51,8 +51,16 @@ pub mod widen;
 
 use std::sync::Arc;
 
+use tsc_binder::BindData;
 use tsc_diagnostics::{
     Diagnostic, DiagnosticCategory, DiagnosticList, DocumentVersion, TextSnapshot,
+};
+use tsc_types::IdentityDomain;
+
+pub use crate::program::{
+    BoundDocument, DocumentAddress, DocumentLease, DocumentRegistry, DocumentRegistryError,
+    DocumentScriptKind, EphemeralDocumentStore, EphemeralDocumentStoreError,
+    IncrementalDocumentOptions, IncrementalDocumentUpdate, ParsedDocument, ProgramSnapshot,
 };
 
 pub use tsc_types::CompilerOptions;
@@ -889,8 +897,8 @@ fn is_supported_path_reference(file_name: &str, options: &CompilerOptions) -> bo
 /// reports 6053 when absent. Extensionless, unsupported-extension,
 /// redirect, config, and project-reference faces remain outside this
 /// slice.
-fn missing_path_reference_diagnostics(
-    sources: &[tsc_syntax::SourceFile],
+fn missing_path_reference_diagnostics<'a>(
+    sources: impl IntoIterator<Item = &'a tsc_syntax::SourceFile>,
     host_files: impl Iterator<Item = String>,
     options: &CompilerOptions,
     current_directory: &str,
@@ -1069,15 +1077,18 @@ fn check_program_with_libs_at_observed_cache_mode_prepared(
         // Cache-off is the L3 A/B path. Keep the parsed and bound prefix local
         // so repeated disabled-cache calls do not leak one bundle each.
         let bundle_options = lib_bundle_options(options);
-        let lib_sources = parse_lib_sources(&effective_libs, &bundle_options);
-        let lib_binders = bind_lib_sources(&lib_sources, &bundle_options);
+        let identity_domain = IdentityDomain::ephemeral();
+        let lib_sources = parse_lib_sources(&effective_libs, &bundle_options, &identity_domain);
+        let lib_binders = bind_lib_sources(&lib_sources, &bundle_options, &identity_domain);
+        let lib_data = binders_into_data(lib_binders);
+        let lib_documents = publish_bound_documents(lib_sources, lib_data);
         return check_program_with_prebound_libs_at_observed(
             libs,
             files,
             options,
             current_directory,
-            &lib_sources,
-            &lib_binders,
+            &lib_documents,
+            &identity_domain,
             CheckWorkCounters::for_fresh_inputs(&effective_libs),
             false,
             observe_phase,
@@ -1092,19 +1103,21 @@ fn check_program_with_libs_at_observed_cache_mode_prepared(
             .and_then(|prepared| prepared.validated(&effective_libs, &bundle_options))
             .unwrap_or_else(|| lib_bundle(&effective_libs, options))
     });
-    let (lib_sources, lib_binders): (&[tsc_syntax::SourceFile], &[tsc_binder::Binder<'_>]) =
-        match bundle {
-            Some(bundle) => (bundle.sources, bundle.binders),
-            None => (&[], &[]),
-        };
+    let lib_documents: &[Arc<BoundDocument>] = match bundle {
+        Some(bundle) => bundle.documents,
+        None => &[],
+    };
+    let identity_domain = bundle
+        .map(|bundle| bundle.identity_domain.clone())
+        .unwrap_or_else(IdentityDomain::ephemeral);
 
     check_program_with_prebound_libs_at_observed(
         libs,
         files,
         options,
         current_directory,
-        lib_sources,
-        lib_binders,
+        lib_documents,
+        &identity_domain,
         CheckWorkCounters::default(),
         false,
         observe_phase,
@@ -1131,8 +1144,11 @@ pub fn check_program_with_owned_libs_at(
         .filter(|lib| !fixture_names.contains(lib.name.as_str()))
         .collect();
     let bundle_options = lib_bundle_options(options);
-    let lib_sources = parse_lib_sources(&effective_libs, &bundle_options);
-    let lib_binders = bind_lib_sources(&lib_sources, &bundle_options);
+    let identity_domain = IdentityDomain::ephemeral();
+    let lib_sources = parse_lib_sources(&effective_libs, &bundle_options, &identity_domain);
+    let lib_binders = bind_lib_sources(&lib_sources, &bundle_options, &identity_domain);
+    let lib_data = binders_into_data(lib_binders);
+    let lib_documents = publish_bound_documents(lib_sources, lib_data);
     let mut observe_phase = |_| {};
 
     check_program_with_prebound_libs_at_observed(
@@ -1140,8 +1156,8 @@ pub fn check_program_with_owned_libs_at(
         files,
         options,
         current_directory,
-        &lib_sources,
-        &lib_binders,
+        &lib_documents,
+        &identity_domain,
         CheckWorkCounters::for_fresh_inputs(&effective_libs),
         true,
         &mut observe_phase,
@@ -1261,18 +1277,20 @@ fn check_program_with_authoritative_modules_at_cache_mode(
     let mut observe_phase = |_| {};
     let execution = if cache_enabled {
         let bundle = (!effective_libs.is_empty()).then(|| lib_bundle(&effective_libs, options));
-        let (lib_sources, lib_binders): (&[tsc_syntax::SourceFile], &[tsc_binder::Binder<'_>]) =
-            match bundle {
-                Some(bundle) => (bundle.sources, bundle.binders),
-                None => (&[], &[]),
-            };
+        let lib_documents: &[Arc<BoundDocument>] = match bundle {
+            Some(bundle) => bundle.documents,
+            None => &[],
+        };
+        let identity_domain = bundle
+            .map(|bundle| bundle.identity_domain.clone())
+            .unwrap_or_else(IdentityDomain::ephemeral);
         check_program_with_prebound_libs_at_observed(
             libs,
             files,
             options,
             current_directory,
-            lib_sources,
-            lib_binders,
+            lib_documents,
+            &identity_domain,
             CheckWorkCounters::default(),
             true,
             &mut observe_phase,
@@ -1280,15 +1298,18 @@ fn check_program_with_authoritative_modules_at_cache_mode(
         )
     } else {
         let bundle_options = lib_bundle_options(options);
-        let lib_sources = parse_lib_sources(&effective_libs, &bundle_options);
-        let lib_binders = bind_lib_sources(&lib_sources, &bundle_options);
+        let identity_domain = IdentityDomain::ephemeral();
+        let lib_sources = parse_lib_sources(&effective_libs, &bundle_options, &identity_domain);
+        let lib_binders = bind_lib_sources(&lib_sources, &bundle_options, &identity_domain);
+        let lib_data = binders_into_data(lib_binders);
+        let lib_documents = publish_bound_documents(lib_sources, lib_data);
         check_program_with_prebound_libs_at_observed(
             libs,
             files,
             options,
             current_directory,
-            &lib_sources,
-            &lib_binders,
+            &lib_documents,
+            &identity_domain,
             CheckWorkCounters::for_fresh_inputs(&effective_libs),
             true,
             &mut observe_phase,
@@ -1334,8 +1355,8 @@ fn check_program_with_prebound_libs_at_observed(
     files: &[InputFile],
     options: &CompilerOptions,
     current_directory: &str,
-    lib_sources: &[tsc_syntax::SourceFile],
-    lib_binders: &[tsc_binder::Binder<'_>],
+    lib_documents: &[Arc<BoundDocument>],
+    identity_domain: &IdentityDomain,
     mut work_counters: CheckWorkCounters,
     collect_global_diagnostics: bool,
     observe_phase: &mut impl FnMut(CheckPhase),
@@ -1385,12 +1406,11 @@ fn check_program_with_prebound_libs_at_observed(
         last_index_by_name.insert(file.name.as_str(), index);
     }
 
-    // Fixture parse pass (M4 5.0): files parse in program order with
-    // contiguous NodeId/NodeArrayId bases CONTINUING FROM THE LIB
-    // PREFIX so the checker sees tsc's one-heap identity space. JSON
-    // files remain in that same program: the binder publishes their
-    // root value as the module's default/export= property.
-    let mut program_sources: Vec<tsc_syntax::SourceFile> = Vec::new();
+    // Fixture parse pass: every published source receives exact node/array
+    // leases from the same domain as the library prefix. JSON files remain in
+    // that same program: the binder publishes their root value as the
+    // module's default/export= property.
+    let mut program_sources: Vec<Arc<tsc_syntax::SourceFile>> = Vec::new();
     let mut authoritative_program_metadata = Vec::new();
     for (index, file) in files.iter().enumerate() {
         if last_index_by_name.get(file.name.as_str()) != Some(&index) {
@@ -1410,19 +1430,12 @@ fn check_program_with_prebound_libs_at_observed(
         }
         // tsc ensureScriptKind: .json programs parse as JSON values.
         if file.name.ends_with(".json") {
-            let (node_id_base, node_array_id_base) = match program_sources.last() {
-                Some(previous) => (previous.arena.node_end(), previous.arena.array_end()),
-                None => lib_sources
-                    .last()
-                    .map(|previous| (previous.arena.node_end(), previous.arena.array_end()))
-                    .unwrap_or((0, 0)),
-            };
-            let source_file = tsc_syntax::parse_json_text_from_snapshot_with_bases(
+            let source_file = tsc_syntax::parse_json_text_from_snapshot_in_identity_domain(
                 file.name.clone(),
                 Arc::clone(file.snapshot()),
-                node_id_base,
-                node_array_id_base,
-            );
+                identity_domain,
+            )
+            .expect("JSON source identity allocation failed");
             work_counters.record_parse(file.text().len());
             let mut syntactic = source_file.parse_diagnostics.clone();
             tsc_diagnostics::sort_and_dedupe_diagnostics(&mut syntactic);
@@ -1432,7 +1445,7 @@ fn check_program_with_prebound_libs_at_observed(
                 semantic: Vec::new(),
                 suggestion: Vec::new(),
             });
-            program_sources.push(source_file);
+            program_sources.push(Arc::new(source_file));
             continue;
         }
         // tsc getLanguageVariant: JSX scanning for TSX/JSX/JS script kinds.
@@ -1509,14 +1522,7 @@ fn check_program_with_prebound_libs_at_observed(
             };
         let detect_external_module_from_jsx =
             !is_declaration_file && module_detection == 2 && matches!(options.jsx, Some(4 | 5));
-        let (node_id_base, node_array_id_base) = match program_sources.last() {
-            Some(previous) => (previous.arena.node_end(), previous.arena.array_end()),
-            None => lib_sources
-                .last()
-                .map(|previous| (previous.arena.node_end(), previous.arena.array_end()))
-                .unwrap_or((0, 0)),
-        };
-        let source_file = tsc_syntax::parse_source_file_from_snapshot(
+        let source_file = tsc_syntax::parse_source_file_from_snapshot_in_identity_domain(
             file.name.clone(),
             Arc::clone(file.snapshot()),
             tsc_syntax::ParseOptions {
@@ -1525,12 +1531,14 @@ fn check_program_with_prebound_libs_at_observed(
                 javascript_file,
                 force_external_module,
                 detect_external_module_from_jsx,
-                node_id_base,
-                node_array_id_base,
+                node_id_base: 0,
+                node_array_id_base: 0,
                 js_doc_parsing_mode: tsc_syntax::JSDocParsingMode::ParseAll,
             },
             None,
-        );
+            identity_domain,
+        )
+        .expect("source identity allocation failed");
         work_counters.record_parse(file.text().len());
         // tsc getSyntacticDiagnosticsForFile: JS files prepend the
         // TypeScript-only-syntax walker output to their parse diagnostics.
@@ -1549,12 +1557,12 @@ fn check_program_with_prebound_libs_at_observed(
             semantic: Vec::new(),
             suggestion: Vec::new(),
         });
-        program_sources.push(source_file);
+        program_sources.push(Arc::new(source_file));
     }
 
     let host_current_directory = resolve_host_current_directory(current_directory);
     let program_diagnostics = missing_path_reference_diagnostics(
-        &program_sources,
+        program_sources.iter().map(Arc::as_ref),
         libs.iter().chain(files.iter()).map(|file| {
             state::CheckerState::normalize_program_path(&file.name, &host_current_directory)
         }),
@@ -1562,9 +1570,18 @@ fn check_program_with_prebound_libs_at_observed(
         &host_current_directory,
     );
 
-    // Fixture bind pass: per-file binders with contiguous SymbolId
-    // bases continuing from the lib prefix (tsc bindSourceFile per
-    // file over one heap).
+    // The production H0 path publishes through a direct, session-owned store.
+    // Library documents may already come from the separately authorized
+    // harness cache, but fixture documents are never inserted into a global
+    // map or kept past the ProgramSnapshot below.
+    let lib_count = lib_documents.len();
+    let mut document_store = EphemeralDocumentStore::with_documents(
+        identity_domain.clone(),
+        lib_documents.iter().cloned(),
+    );
+
+    // Fixture bind pass: each completed binder owns exact persistent-symbol
+    // and private-name-serial leases in the source's identity domain.
     // Parse the per-file check directive (ts-check/ts-nocheck pragma)
     // ONCE; @ts-ignore/@ts-expect-error ride on each SourceFile's
     // scanner-collected comment_directives.
@@ -1575,21 +1592,18 @@ fn check_program_with_prebound_libs_at_observed(
         .map(|source| (source.file_name.as_str(), check_directive(source.text())))
         .collect();
     let mut bind_diagnostics_by_file = Vec::with_capacity(program_sources.len());
-    let mut binders: Vec<tsc_binder::Binder<'_>> = Vec::new();
     for source_file in &program_sources {
-        let (symbol_id_seed, symbol_base) = match binders.last() {
-            Some(previous) => (previous.next_symbol_id(), previous.symbols.next_id().0),
-            None => lib_binders
-                .last()
-                .map(|previous| (previous.next_symbol_id(), previous.symbols.next_id().0))
-                .unwrap_or((1, 0)),
-        };
-        let mut binder =
-            tsc_binder::Binder::with_bases(source_file, options, symbol_id_seed, symbol_base);
-        binder.bind_source_file();
+        let binder = tsc_binder::Binder::bind_in_identity_domain(
+            source_file.as_ref(),
+            options,
+            identity_domain,
+        )
+        .expect("bind identity allocation failed");
         work_counters.record_bind();
         bind_diagnostics_by_file.push(binder.bind_diagnostics.clone());
-        binders.push(binder);
+        document_store
+            .publish(Arc::clone(source_file), binder.into_bind_data())
+            .expect("completed bind must belong to the ephemeral document domain");
     }
 
     // Checker-state construction (M4 5.0) + the check driver (M4 5.4):
@@ -1602,14 +1616,18 @@ fn check_program_with_prebound_libs_at_observed(
     // block — none are modeled yet, so the gate is vacuously open.
     observe_phase(CheckPhase::Check);
 
-    let binder_refs: Vec<&tsc_binder::Binder<'_>> =
-        lib_binders.iter().chain(binders.iter()).collect();
-    if binder_refs.is_empty() && collect_global_diagnostics {
+    if lib_documents.is_empty() && program_sources.is_empty() && collect_global_diagnostics {
         global_diagnostics = globals::missing_init_global_type_diagnostics(options);
     }
-    if !binder_refs.is_empty() {
-        let lib_count = lib_binders.len();
-        let mut state = state::CheckerState::from_program(binder_refs, options);
+    if !lib_documents.is_empty() || !program_sources.is_empty() {
+        // The store owns all published handles until this snapshot takes
+        // ownership. This is the one-shot H0 adapter: dropping the consumed
+        // ProgramSession drops the complete store and cannot leave a process
+        // cache behind.
+        let snapshot = document_store
+            .into_snapshot(lib_count)
+            .expect("program snapshot identity allocation failed");
+        let mut state = state::CheckerState::from_snapshot(&snapshot, options);
         if let Some(run) = authoritative_run {
             let mut metadata = run.lib_metadata.clone();
             metadata.extend(authoritative_program_metadata.iter().cloned());
@@ -1857,14 +1875,17 @@ fn check_program_with_prebound_libs_at_observed(
 /// bundle is deliberately leaked (process-lifetime; bounded by the
 /// distinct lib-set count, 39 across the conformance corpus), which
 /// resolves the sources↔binders self-reference without unsafe.
-/// This cache is legacy harness infrastructure only; the H0 production
-/// ProgramSession uses the locally owned entry above and never reaches it.
-/// Read-only-after-bind is structural: ProgramBinder holds shared
-/// references and its symbol_mut refuses file-owned ids.
+/// Published bundles contain only Arc-owned ParsedDocument/BoundDocument
+/// records; the temporary BinderWorker is consumed before the bundle is
+/// inserted into the cache.
 struct LibBundle {
     options: &'static CompilerOptions,
-    sources: &'static [tsc_syntax::SourceFile],
-    binders: &'static [tsc_binder::Binder<'static>],
+    /// Compatibility projection for harness tests; these are the same Arc
+    /// source handles retained by `documents`, never cloned ASTs.
+    #[allow(dead_code)]
+    sources: &'static [Arc<tsc_syntax::SourceFile>],
+    documents: &'static [Arc<BoundDocument>],
+    identity_domain: IdentityDomain,
 }
 
 /// Opaque exact-match hint returned by [`prepare_harness_lib_bundle`].
@@ -1898,8 +1919,9 @@ pub struct HarnessLibBundleOptionsKey(CompilerOptions);
 impl LibBundle {
     fn exactly_matches(&self, libs: &[&InputFile], options: &CompilerOptions) -> bool {
         self.options == options
-            && self.sources.len() == libs.len()
-            && self.sources.iter().zip(libs).all(|(source, lib)| {
+            && self.documents.len() == libs.len()
+            && self.documents.iter().zip(libs).all(|(document, lib)| {
+                let source = document.source();
                 source.file_name == lib.name && Arc::ptr_eq(source.snapshot(), lib.snapshot())
             })
     }
@@ -2012,42 +2034,48 @@ fn lib_text_fingerprint(text: &str) -> u64 {
 fn build_lib_bundle(libs: &[&InputFile], options: &CompilerOptions) -> &'static LibBundle {
     // Binder borrows its CompilerOptions for the bundle's lifetime.
     let options: &'static CompilerOptions = Box::leak(Box::new(options.clone()));
-    let sources: &'static [tsc_syntax::SourceFile] =
-        Box::leak(parse_lib_sources(libs, options).into_boxed_slice());
-    let binders: &'static [tsc_binder::Binder<'static>] =
-        Box::leak(bind_lib_sources(sources, options).into_boxed_slice());
+    let identity_domain = IdentityDomain::reclaiming();
+    let sources = parse_lib_sources(libs, options, &identity_domain);
+    let binders = bind_lib_sources(&sources, options, &identity_domain);
+    let data = binders_into_data(binders);
+    let sources = sources.into_iter().map(Arc::new).collect::<Vec<_>>();
+    let documents = publish_bound_documents_from_handles(sources.clone(), data);
+    let sources: &'static [Arc<tsc_syntax::SourceFile>] = Box::leak(sources.into_boxed_slice());
+    let documents: &'static [Arc<BoundDocument>] = Box::leak(documents.into_boxed_slice());
     Box::leak(Box::new(LibBundle {
         options,
         sources,
-        binders,
+        documents,
+        identity_domain,
     }))
 }
 
 fn parse_lib_sources(
     libs: &[&InputFile],
     options: &CompilerOptions,
+    identity_domain: &IdentityDomain,
 ) -> Vec<tsc_syntax::SourceFile> {
     let mut sources: Vec<tsc_syntax::SourceFile> = Vec::new();
     for lib in libs {
-        let (node_id_base, node_array_id_base) = match sources.last() {
-            Some(previous) => (previous.arena.node_end(), previous.arena.array_end()),
-            None => (0, 0),
-        };
-        sources.push(tsc_syntax::parse_source_file_from_snapshot(
-            lib.name.clone(),
-            Arc::clone(lib.snapshot()),
-            tsc_syntax::ParseOptions {
-                script_target: options.emit_script_target(),
-                language_variant: tsc_syntax::LanguageVariant::Standard,
-                javascript_file: false,
-                force_external_module: false,
-                detect_external_module_from_jsx: false,
-                node_id_base,
-                node_array_id_base,
-                js_doc_parsing_mode: tsc_syntax::JSDocParsingMode::ParseAll,
-            },
-            None,
-        ));
+        sources.push(
+            tsc_syntax::parse_source_file_from_snapshot_in_identity_domain(
+                lib.name.clone(),
+                Arc::clone(lib.snapshot()),
+                tsc_syntax::ParseOptions {
+                    script_target: options.emit_script_target(),
+                    language_variant: tsc_syntax::LanguageVariant::Standard,
+                    javascript_file: false,
+                    force_external_module: false,
+                    detect_external_module_from_jsx: false,
+                    node_id_base: 0,
+                    node_array_id_base: 0,
+                    js_doc_parsing_mode: tsc_syntax::JSDocParsingMode::ParseAll,
+                },
+                None,
+                identity_domain,
+            )
+            .expect("library source identity allocation failed"),
+        );
     }
     sources
 }
@@ -2055,19 +2083,56 @@ fn parse_lib_sources(
 fn bind_lib_sources<'a>(
     sources: &'a [tsc_syntax::SourceFile],
     options: &'a CompilerOptions,
+    identity_domain: &IdentityDomain,
 ) -> Vec<tsc_binder::Binder<'a>> {
     let mut binders: Vec<tsc_binder::Binder<'a>> = Vec::new();
     for source in sources {
-        let (symbol_id_seed, symbol_base) = match binders.last() {
-            Some(previous) => (previous.next_symbol_id(), previous.symbols.next_id().0),
-            None => (1, 0),
-        };
-        let mut binder =
-            tsc_binder::Binder::with_bases(source, options, symbol_id_seed, symbol_base);
-        binder.bind_source_file();
-        binders.push(binder);
+        binders.push(
+            tsc_binder::Binder::bind_in_identity_domain(source, options, identity_domain)
+                .expect("library bind identity allocation failed"),
+        );
     }
     binders
+}
+
+/// Consume completed bind workers into immutable document handles. The
+/// worker borrow of the source/options ends at `into_bind_data`; snapshots
+/// retain only the Arc-owned parsed source and checker-facing BindData.
+fn binders_into_data(binders: Vec<tsc_binder::Binder<'_>>) -> Vec<BindData> {
+    binders
+        .into_iter()
+        .map(tsc_binder::Binder::into_bind_data)
+        .collect()
+}
+
+fn publish_bound_documents(
+    sources: Vec<tsc_syntax::SourceFile>,
+    data: Vec<BindData>,
+) -> Vec<Arc<BoundDocument>> {
+    assert_eq!(sources.len(), data.len());
+    sources
+        .into_iter()
+        .zip(data)
+        .map(|(source, data)| {
+            let parsed = Arc::new(ParsedDocument::new(Arc::new(source)));
+            Arc::new(BoundDocument::new(parsed, data))
+        })
+        .collect()
+}
+
+fn publish_bound_documents_from_handles(
+    sources: Vec<Arc<tsc_syntax::SourceFile>>,
+    data: Vec<BindData>,
+) -> Vec<Arc<BoundDocument>> {
+    assert_eq!(sources.len(), data.len());
+    sources
+        .into_iter()
+        .zip(data)
+        .map(|(source, data)| {
+            let parsed = Arc::new(ParsedDocument::new(source));
+            Arc::new(BoundDocument::new(parsed, data))
+        })
+        .collect()
 }
 
 #[cfg(test)]

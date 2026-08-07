@@ -104,8 +104,8 @@ function optionNames(options) {
 }
 
 const inventory = {
-  schema: 2,
-  status: "text-ownership-complete",
+  schema: 3,
+  status: "owned-bind-state-complete",
   typescript: {
     version: ts.version,
     source_commit: "050880ce59e30b356b686bd3144efe24f875ebc8",
@@ -187,7 +187,7 @@ const inventory = {
         branch: "json",
         ...owner(
           "crates/checker/src/lib.rs",
-          "            let source_file = tsc_syntax::parse_json_text_from_snapshot_with_bases(",
+          "            let source_file = tsc_syntax::parse_json_text_from_snapshot_in_identity_domain(",
         ),
       },
       {
@@ -196,7 +196,7 @@ const inventory = {
         branch: "ordinary",
         ...owner(
           "crates/checker/src/lib.rs",
-          "        let source_file = tsc_syntax::parse_source_file_from_snapshot(",
+          "        let source_file = tsc_syntax::parse_source_file_from_snapshot_in_identity_domain(",
         ),
       },
       {
@@ -248,6 +248,41 @@ const inventory = {
         "    pub fn byte_to_utf16(&self, position: u32) -> Option<u32> {",
       ),
       versioned_store: owner("crates/diagnostics/src/text.rs", "pub struct VersionedTextStore {"),
+    },
+    identity_ownership: {
+      domain_allocator: {
+        policies: ["ephemeral-bump", "reclaiming-interval"],
+        spaces: ["node", "node-array", "persistent-symbol", "private-name-serial"],
+        ...owner("crates/types/src/identity.rs", "pub struct IdentityDomain {"),
+      },
+      lease_lifetime: {
+        storage: "Arc lease; last-owner Drop releases the exact interval",
+        ...owner("crates/types/src/identity.rs", "pub struct IdentityLease {"),
+      },
+      syntax_owner: {
+        storage: "NodeArena node/array leases",
+        ...owner("crates/syntax/src/arena.rs", "    node_lease: Option<IdentityLease>,"),
+      },
+      generated_syntax_relocation: {
+        source: "nodes.schema.json field model",
+        ...owner("crates/xtask/src/main.rs", "fn render_relocate_rs(schemas: &[NodeSchema])"),
+      },
+      bind_owner: {
+        storage: "BinderWorker publication moves symbol/private-name leases into owned BindData",
+        ...owner("crates/binder/src/declare.rs", "    private_name_serial_lease: Option<IdentityLease>,"),
+      },
+      program_snapshot_owner: {
+        storage: "Arc-owned ParsedDocument/BoundDocument handles ordered by ProgramSnapshot",
+        ...owner("crates/checker/src/program.rs", "pub struct ProgramSnapshot {")
+      },
+      program_owner_intervals: {
+        contract: "base-sorted non-contiguous and non-overlapping",
+        ...owner("crates/checker/src/program.rs", "    symbol_owners: Vec<ArenaOwner>,"),
+      },
+      checker_transient_partition: {
+        high_bit: 2147483648,
+        ...owner("crates/types/src/identity.rs", "pub const TRANSIENT_SYMBOL_BIT: u32 = 1 << 31;"),
+      },
     },
     compiler_options_owner: {
       path: "crates/types/src/options.rs",

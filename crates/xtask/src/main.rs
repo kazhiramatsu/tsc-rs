@@ -21,7 +21,9 @@ mod ci_conformance_receipt;
 mod completion;
 mod host_resolution;
 mod invariant_attestation;
+mod l0_identity_stress;
 mod l0_text_stress;
+mod l1_incremental_stress;
 mod m8_evidence;
 mod m8_plan;
 mod m8_trace;
@@ -59,13 +61,25 @@ fn main() {
         Some("invariants") => run_or_exit(invariants(args)),
         Some("completion") => run_or_exit(completion_gate(args)),
         Some("l0") => match args.next().as_deref() {
+            Some("identity-stress") => run_or_exit(l0_identity_stress::run(args)),
             Some("text-stress") => run_or_exit(l0_text_stress::run(args)),
             Some(other) => {
                 eprintln!("unknown l0 command: {other}");
                 std::process::exit(2);
             }
             None => {
-                eprintln!("missing l0 command (text-stress)");
+                eprintln!("missing l0 command (identity-stress|text-stress)");
+                std::process::exit(2);
+            }
+        },
+        Some("l1") => match args.next().as_deref() {
+            Some("incremental-stress") => run_or_exit(l1_incremental_stress::run(args)),
+            Some(other) => {
+                eprintln!("unknown l1 command: {other}");
+                std::process::exit(2);
+            }
+            None => {
+                eprintln!("missing l1 command (incremental-stress)");
                 std::process::exit(2);
             }
         },
@@ -7643,6 +7657,14 @@ fn ci_oracle_gates(workspace: &Path) -> Result<(), Box<dyn Error>> {
             .arg(&l0_fixtures)
             .arg("--smoke"),
     )?;
+    let qualification_fixtures = workspace.join("target/l0/qualification-fixtures");
+    run_command(
+        Command::new("node")
+            .current_dir(workspace)
+            .arg(&l0_fixtures)
+            .arg("--materialize")
+            .arg(&qualification_fixtures),
+    )?;
     let l0_performance = workspace.join("crates/oracle/l0-performance.mjs");
     run_command(Command::new("node").arg("--check").arg(&l0_performance))?;
     run_command(
@@ -7650,6 +7672,35 @@ fn ci_oracle_gates(workspace: &Path) -> Result<(), Box<dyn Error>> {
             .current_dir(workspace)
             .arg(&l0_performance)
             .arg("--check"),
+    )?;
+    let l1_performance = workspace.join("crates/oracle/l1-performance.mjs");
+    run_command(Command::new("node").arg("--check").arg(&l1_performance))?;
+    run_command(
+        Command::new("node")
+            .current_dir(workspace)
+            .arg(&l1_performance)
+            .arg("--check"),
+    )?;
+    l1_incremental_stress::run(
+        [
+            "--fixture".to_owned(),
+            qualification_fixtures
+                .join("large-edit/large-edit.ts")
+                .to_string_lossy()
+                .into_owned(),
+            "--seed".to_owned(),
+            "0x1ac15eedfae50001".to_owned(),
+            "--edits".to_owned(),
+            "16".to_owned(),
+            "--max-rss-bytes".to_owned(),
+            "268435456".to_owned(),
+            "--report".to_owned(),
+            workspace
+                .join("target/l1/incremental-stress-ci.json")
+                .to_string_lossy()
+                .into_owned(),
+        ]
+        .into_iter(),
     )?;
     let l0_inventory = workspace.join("crates/oracle/l0-option-inventory.mjs");
     run_command(Command::new("node").arg("--check").arg(&l0_inventory))?;
@@ -9532,6 +9583,7 @@ fn codegen_nodes(check: bool) -> Result<(), Box<dyn Error>> {
 
     let nodes_rs = rustfmt_text(&render_nodes_rs(&schemas)?)?;
     let for_each_child_rs = rustfmt_text(&render_for_each_child_rs(&schemas)?)?;
+    let relocate_rs = rustfmt_text(&render_relocate_rs(&schemas)?)?;
     let observable_fields_rs = rustfmt_text(&render_observable_fields_rs(&schemas)?)?;
     let schema_json = render_nodes_schema_json(&schemas)?;
 
@@ -9543,6 +9595,11 @@ fn codegen_nodes(check: bool) -> Result<(), Box<dyn Error>> {
     write_generated(
         &workspace.join("crates/syntax/src/for_each_child.rs"),
         &for_each_child_rs,
+        check,
+    )?;
+    write_generated(
+        &workspace.join("crates/syntax/src/relocate.rs"),
+        &relocate_rs,
         check,
     )?;
     write_generated(
@@ -10948,6 +11005,71 @@ fn render_for_each_child_rs(schemas: &[NodeSchema]) -> Result<String, Box<dyn Er
     writeln!(out)?;
     writeln!(
         out,
+        "pub fn for_each_child_array<F>(node: &Node, mut cb: F) -> Option<NodeArrayId>"
+    )?;
+    writeln!(out, "where")?;
+    writeln!(out, "    F: FnMut(NodeArrayId) -> bool,")?;
+    writeln!(out, "{{")?;
+    writeln!(out, "    match &node.data {{")?;
+    writeln!(out, "        NodeData::Token => None,")?;
+    for schema in schemas {
+        let array_children = schema
+            .children
+            .iter()
+            .filter_map(|child| {
+                let field = schema
+                    .fields
+                    .iter()
+                    .find(|field| field.ts_name == child.name)?;
+                matches!(
+                    field.ty,
+                    RustFieldType::NodeArray | RustFieldType::JSDocComment
+                )
+                .then_some(field)
+            })
+            .collect::<Vec<_>>();
+        if array_children.is_empty() {
+            writeln!(
+                out,
+                "        NodeData::{}(_data) => None,",
+                schema.kind_name
+            )?;
+            continue;
+        }
+        writeln!(out, "        NodeData::{}(data) => {{", schema.kind_name)?;
+        for field in array_children {
+            match (field.ty, rust_optional(field)) {
+                (RustFieldType::NodeArray, true) => writeln!(
+                    out,
+                    "            if let Some(id) = data.{} {{ if cb(id) {{ return Some(id); }} }}",
+                    field.rust_name
+                )?,
+                (RustFieldType::NodeArray, false) => writeln!(
+                    out,
+                    "            if cb(data.{}) {{ return Some(data.{}); }}",
+                    field.rust_name, field.rust_name
+                )?,
+                (RustFieldType::JSDocComment, true) => writeln!(
+                    out,
+                    "            if let Some(JSDocComment::Nodes(id)) = data.{}.as_ref() {{ if cb(*id) {{ return Some(*id); }} }}",
+                    field.rust_name
+                )?,
+                (RustFieldType::JSDocComment, false) => writeln!(
+                    out,
+                    "            if let JSDocComment::Nodes(id) = &data.{} {{ if cb(*id) {{ return Some(*id); }} }}",
+                    field.rust_name
+                )?,
+                _ => unreachable!("child-array rendering received a non-array field"),
+            }
+        }
+        writeln!(out, "            None")?;
+        writeln!(out, "        }}")?;
+    }
+    writeln!(out, "    }}")?;
+    writeln!(out, "}}")?;
+    writeln!(out)?;
+    writeln!(
+        out,
         "fn visit_node<F>(id: NodeId, cb: &mut F) -> Option<NodeId>"
     )?;
     writeln!(
@@ -10988,6 +11110,370 @@ fn render_for_each_child_rs(schemas: &[NodeSchema]) -> Result<String, Box<dyn Er
     writeln!(out)?;
     writeln!(out, "fn visit_optional_nodes<L, F>(lookup: &L, id: Option<NodeArrayId>, cb: &mut F) -> Option<NodeId>")?;
     writeln!(out, "where L: NodeLookup, F: FnMut(NodeId) -> bool {{ id.and_then(|id| visit_nodes(lookup, id, cb)) }}")?;
+    Ok(out)
+}
+
+/// Generate the complete mutable identity walk from the same field schema as
+/// `NodeData`. Unlike `forEachChild`, relocation owns every ID-bearing field,
+/// including compatibility fields which are not ordinary syntax children.
+fn render_relocate_rs(schemas: &[NodeSchema]) -> Result<String, Box<dyn Error>> {
+    let mut out = String::new();
+    writeln!(
+        out,
+        "// @generated by `cargo xtask codegen nodes`. Do not edit by hand."
+    )?;
+    writeln!(out)?;
+    writeln!(out, "use crate::arena::SyntaxIdentityRelocation;")?;
+    writeln!(
+        out,
+        "use crate::nodes::{{JSDocComment, NodeArrayId, NodeData, NodeId}};"
+    )?;
+    writeln!(out, "use tsc_types::IdentityError;")?;
+    writeln!(out)?;
+    writeln!(
+        out,
+        "pub(crate) fn relocate_node_data(data: &mut NodeData, relocation: &SyntaxIdentityRelocation) -> Result<(), IdentityError> {{"
+    )?;
+    writeln!(out, "    match data {{")?;
+    writeln!(out, "        NodeData::Token => Ok(()),")?;
+    for schema in schemas {
+        let identity_fields = schema
+            .fields
+            .iter()
+            .filter(|field| {
+                matches!(
+                    field.ty,
+                    RustFieldType::Node | RustFieldType::NodeArray | RustFieldType::JSDocComment
+                )
+            })
+            .collect::<Vec<_>>();
+        let binding = if identity_fields.is_empty() {
+            "_data"
+        } else {
+            "data"
+        };
+        writeln!(
+            out,
+            "        NodeData::{}({binding}) => {{",
+            schema.kind_name
+        )?;
+        for field in identity_fields {
+            let optional = rust_optional(field);
+            match (field.ty, optional) {
+                (RustFieldType::Node, true) => writeln!(
+                    out,
+                    "            if let Some(id) = &mut data.{} {{ relocation.node(id)?; }}",
+                    field.rust_name
+                )?,
+                (RustFieldType::Node, false) => writeln!(
+                    out,
+                    "            relocation.node(&mut data.{})?;",
+                    field.rust_name
+                )?,
+                (RustFieldType::NodeArray, true) => writeln!(
+                    out,
+                    "            if let Some(id) = &mut data.{} {{ relocation.node_array(id)?; }}",
+                    field.rust_name
+                )?,
+                (RustFieldType::NodeArray, false) => writeln!(
+                    out,
+                    "            relocation.node_array(&mut data.{})?;",
+                    field.rust_name
+                )?,
+                (RustFieldType::JSDocComment, true) => writeln!(
+                    out,
+                    "            if let Some(JSDocComment::Nodes(id)) = &mut data.{} {{ relocation.node_array(id)?; }}",
+                    field.rust_name
+                )?,
+                (RustFieldType::JSDocComment, false) => writeln!(
+                    out,
+                    "            if let JSDocComment::Nodes(id) = &mut data.{} {{ relocation.node_array(id)?; }}",
+                    field.rust_name
+                )?,
+                _ => unreachable!("identity field filter and rendering disagree"),
+            }
+        }
+        writeln!(out, "            Ok(())")?;
+        writeln!(out, "        }}")?;
+    }
+    writeln!(out, "    }}")?;
+    writeln!(out, "}}")?;
+    writeln!(out)?;
+    writeln!(
+        out,
+        "pub(crate) fn collect_node_data_ids(data: &NodeData, nodes: &mut Vec<NodeId>, arrays: &mut Vec<NodeArrayId>) {{"
+    )?;
+    writeln!(out, "    match data {{")?;
+    writeln!(out, "        NodeData::Token => {{}}")?;
+    for schema in schemas {
+        let identity_fields = schema
+            .fields
+            .iter()
+            .filter(|field| {
+                matches!(
+                    field.ty,
+                    RustFieldType::Node | RustFieldType::NodeArray | RustFieldType::JSDocComment
+                )
+            })
+            .collect::<Vec<_>>();
+        let binding = if identity_fields.is_empty() {
+            "_data"
+        } else {
+            "data"
+        };
+        writeln!(
+            out,
+            "        NodeData::{}({binding}) => {{",
+            schema.kind_name
+        )?;
+        for field in identity_fields {
+            match (field.ty, rust_optional(field)) {
+                (RustFieldType::Node, true) => writeln!(
+                    out,
+                    "            if let Some(id) = data.{} {{ nodes.push(id); }}",
+                    field.rust_name
+                )?,
+                (RustFieldType::Node, false) => writeln!(
+                    out,
+                    "            nodes.push(data.{});",
+                    field.rust_name
+                )?,
+                (RustFieldType::NodeArray, true) => writeln!(
+                    out,
+                    "            if let Some(id) = data.{} {{ arrays.push(id); }}",
+                    field.rust_name
+                )?,
+                (RustFieldType::NodeArray, false) => writeln!(
+                    out,
+                    "            arrays.push(data.{});",
+                    field.rust_name
+                )?,
+                (RustFieldType::JSDocComment, true) => writeln!(
+                    out,
+                    "            if let Some(JSDocComment::Nodes(id)) = data.{}.as_ref() {{ arrays.push(*id); }}",
+                    field.rust_name
+                )?,
+                (RustFieldType::JSDocComment, false) => writeln!(
+                    out,
+                    "            if let JSDocComment::Nodes(id) = &data.{} {{ arrays.push(*id); }}",
+                    field.rust_name
+                )?,
+                _ => unreachable!("identity field filter and collection disagree"),
+            }
+        }
+        writeln!(out, "        }}")?;
+    }
+    writeln!(out, "    }}")?;
+    writeln!(out, "}}")?;
+    writeln!(out)?;
+    writeln!(
+        out,
+        "pub(crate) fn remap_node_data_ids<N, A>(data: &mut NodeData, mut node: N, mut array: A)"
+    )?;
+    writeln!(out, "where")?;
+    writeln!(out, "    N: FnMut(NodeId) -> NodeId,")?;
+    writeln!(out, "    A: FnMut(NodeArrayId) -> NodeArrayId,")?;
+    writeln!(out, "{{")?;
+    writeln!(out, "    match data {{")?;
+    writeln!(out, "        NodeData::Token => {{}}")?;
+    for schema in schemas {
+        let identity_fields = schema
+            .fields
+            .iter()
+            .filter(|field| {
+                matches!(
+                    field.ty,
+                    RustFieldType::Node | RustFieldType::NodeArray | RustFieldType::JSDocComment
+                )
+            })
+            .collect::<Vec<_>>();
+        let binding = if identity_fields.is_empty() {
+            "_data"
+        } else {
+            "data"
+        };
+        writeln!(
+            out,
+            "        NodeData::{}({binding}) => {{",
+            schema.kind_name
+        )?;
+        for field in identity_fields {
+            match (field.ty, rust_optional(field)) {
+                (RustFieldType::Node, true) => writeln!(
+                    out,
+                    "            if let Some(id) = &mut data.{} {{ *id = node(*id); }}",
+                    field.rust_name
+                )?,
+                (RustFieldType::Node, false) => writeln!(
+                    out,
+                    "            data.{} = node(data.{});",
+                    field.rust_name, field.rust_name
+                )?,
+                (RustFieldType::NodeArray, true) => writeln!(
+                    out,
+                    "            if let Some(id) = &mut data.{} {{ *id = array(*id); }}",
+                    field.rust_name
+                )?,
+                (RustFieldType::NodeArray, false) => writeln!(
+                    out,
+                    "            data.{} = array(data.{});",
+                    field.rust_name, field.rust_name
+                )?,
+                (RustFieldType::JSDocComment, true) => writeln!(
+                    out,
+                    "            if let Some(JSDocComment::Nodes(id)) = &mut data.{} {{ *id = array(*id); }}",
+                    field.rust_name
+                )?,
+                (RustFieldType::JSDocComment, false) => writeln!(
+                    out,
+                    "            if let JSDocComment::Nodes(id) = &mut data.{} {{ *id = array(*id); }}",
+                    field.rust_name
+                )?,
+                _ => unreachable!("identity field filter and remapping disagree"),
+            }
+        }
+        writeln!(out, "        }}")?;
+    }
+    writeln!(out, "    }}")?;
+    writeln!(out, "}}")?;
+    writeln!(out)?;
+    writeln!(
+        out,
+        "fn optional_node_equal<N>(left: Option<NodeId>, right: Option<NodeId>, node: &mut N) -> bool"
+    )?;
+    writeln!(out, "where")?;
+    writeln!(out, "    N: FnMut(NodeId, NodeId) -> bool,")?;
+    writeln!(out, "{{")?;
+    writeln!(out, "    match (left, right) {{")?;
+    writeln!(
+        out,
+        "        (Some(left), Some(right)) => node(left, right),"
+    )?;
+    writeln!(out, "        (None, None) => true,")?;
+    writeln!(out, "        _ => false,")?;
+    writeln!(out, "    }}")?;
+    writeln!(out, "}}")?;
+    writeln!(out)?;
+    writeln!(
+        out,
+        "fn optional_array_equal<A>(left: Option<NodeArrayId>, right: Option<NodeArrayId>, array: &mut A) -> bool"
+    )?;
+    writeln!(out, "where")?;
+    writeln!(out, "    A: FnMut(NodeArrayId, NodeArrayId) -> bool,")?;
+    writeln!(out, "{{")?;
+    writeln!(out, "    match (left, right) {{")?;
+    writeln!(
+        out,
+        "        (Some(left), Some(right)) => array(left, right),"
+    )?;
+    writeln!(out, "        (None, None) => true,")?;
+    writeln!(out, "        _ => false,")?;
+    writeln!(out, "    }}")?;
+    writeln!(out, "}}")?;
+    writeln!(out)?;
+    writeln!(
+        out,
+        "fn jsdoc_comment_equal<A>(left: &JSDocComment, right: &JSDocComment, array: &mut A) -> bool"
+    )?;
+    writeln!(out, "where")?;
+    writeln!(out, "    A: FnMut(NodeArrayId, NodeArrayId) -> bool,")?;
+    writeln!(out, "{{")?;
+    writeln!(out, "    match (left, right) {{")?;
+    writeln!(
+        out,
+        "        (JSDocComment::Text(left), JSDocComment::Text(right)) => left == right,"
+    )?;
+    writeln!(
+        out,
+        "        (JSDocComment::Nodes(left), JSDocComment::Nodes(right)) => array(*left, *right),"
+    )?;
+    writeln!(out, "        _ => false,")?;
+    writeln!(out, "    }}")?;
+    writeln!(out, "}}")?;
+    writeln!(out)?;
+    writeln!(
+        out,
+        "fn optional_jsdoc_comment_equal<A>(left: Option<&JSDocComment>, right: Option<&JSDocComment>, array: &mut A) -> bool"
+    )?;
+    writeln!(out, "where")?;
+    writeln!(out, "    A: FnMut(NodeArrayId, NodeArrayId) -> bool,")?;
+    writeln!(out, "{{")?;
+    writeln!(out, "    match (left, right) {{")?;
+    writeln!(
+        out,
+        "        (Some(left), Some(right)) => jsdoc_comment_equal(left, right, array),"
+    )?;
+    writeln!(out, "        (None, None) => true,")?;
+    writeln!(out, "        _ => false,")?;
+    writeln!(out, "    }}")?;
+    writeln!(out, "}}")?;
+    writeln!(out)?;
+    writeln!(
+        out,
+        "pub(crate) fn node_data_structurally_equal<N, A>(left: &NodeData, right: &NodeData, mut node: N, mut array: A) -> bool"
+    )?;
+    writeln!(out, "where")?;
+    writeln!(out, "    N: FnMut(NodeId, NodeId) -> bool,")?;
+    writeln!(out, "    A: FnMut(NodeArrayId, NodeArrayId) -> bool,")?;
+    writeln!(out, "{{")?;
+    writeln!(out, "    match (left, right) {{")?;
+    writeln!(out, "        (NodeData::Token, NodeData::Token) => true,")?;
+    for schema in schemas {
+        let binding = if schema.fields.is_empty() {
+            "_"
+        } else {
+            "left"
+        };
+        let other_binding = if schema.fields.is_empty() {
+            "_"
+        } else {
+            "right"
+        };
+        writeln!(
+            out,
+            "        (NodeData::{}({binding}), NodeData::{}({other_binding})) => {{",
+            schema.kind_name, schema.kind_name,
+        )?;
+        if schema.fields.is_empty() {
+            writeln!(out, "            true")?;
+        }
+        for (index, field) in schema.fields.iter().enumerate() {
+            let expression = match (field.ty, rust_optional(field)) {
+                (RustFieldType::Node, true) => format!(
+                    "optional_node_equal(left.{0}, right.{0}, &mut node)",
+                    field.rust_name
+                ),
+                (RustFieldType::Node, false) => {
+                    format!("node(left.{0}, right.{0})", field.rust_name)
+                }
+                (RustFieldType::NodeArray, true) => format!(
+                    "optional_array_equal(left.{0}, right.{0}, &mut array)",
+                    field.rust_name
+                ),
+                (RustFieldType::NodeArray, false) => {
+                    format!("array(left.{0}, right.{0})", field.rust_name)
+                }
+                (RustFieldType::JSDocComment, true) => format!(
+                    "optional_jsdoc_comment_equal(left.{0}.as_ref(), right.{0}.as_ref(), &mut array)",
+                    field.rust_name
+                ),
+                (RustFieldType::JSDocComment, false) => format!(
+                    "jsdoc_comment_equal(&left.{0}, &right.{0}, &mut array)",
+                    field.rust_name
+                ),
+                _ => format!("left.{0} == right.{0}", field.rust_name),
+            };
+            if index == 0 {
+                writeln!(out, "            {expression}")?;
+            } else {
+                writeln!(out, "                && {expression}")?;
+            }
+        }
+        writeln!(out, "        }}")?;
+    }
+    writeln!(out, "        _ => false,")?;
+    writeln!(out, "    }}")?;
+    writeln!(out, "}}")?;
     Ok(out)
 }
 

@@ -2,8 +2,11 @@
 
 mod jsdoc;
 
-use crate::arena::NodeArena;
+use crate::arena::{NodeArena, SubtreeCopier};
 use crate::for_each_child::for_each_child;
+use crate::incremental::{
+    IncrementalParseOptions, IncrementalParseStats, ReusableNode, ReuseLineage, SyntaxCursor,
+};
 use crate::nodes::{
     ArrayBindingPatternData, ArrayLiteralExpressionData, ArrayTypeData, ArrowFunctionData,
     AsExpressionData, AwaitExpressionData, BigIntLiteralData, BinaryExpressionData,
@@ -109,11 +112,6 @@ impl Default for ParseOptions {
             node_array_id_base: 0,
         }
     }
-}
-
-#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
-pub struct SyntaxCursor {
-    _private: (),
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -235,6 +233,10 @@ struct Parser<'text> {
     /// TokenFlags.PrecedingJSDocComment.
     jsdoc_positions: std::collections::HashSet<usize>,
     has_jsdoc_comments: bool,
+    syntax_cursor: Option<SyntaxCursor>,
+    subtree_copier: Option<SubtreeCopier>,
+    incremental_options: IncrementalParseOptions,
+    incremental_stats: IncrementalParseStats,
 }
 
 /// tsc Tristate: the arrow-function lookahead verdict.
@@ -262,6 +264,7 @@ struct FinishedParse {
     has_jsx_runtime_pragma: bool,
     jsx_runtime_pragma: Option<String>,
     comment_directives: Vec<crate::CommentDirective>,
+    incremental_stats: IncrementalParseStats,
 }
 
 struct ProcessedReferenceDirectives {
@@ -851,6 +854,10 @@ impl<'text> Parser<'text> {
             jsdoc_candidates: Vec::new(),
             jsdoc_positions: std::collections::HashSet::new(),
             has_jsdoc_comments: text.contains("/**"),
+            syntax_cursor: None,
+            subtree_copier: None,
+            incremental_options: IncrementalParseOptions::default(),
+            incremental_stats: IncrementalParseStats::default(),
         }
     }
 
@@ -1255,6 +1262,179 @@ impl<'text> Parser<'text> {
         result
     }
 
+    fn current_node(&self, context: ParsingContext) -> Option<ReusableNode> {
+        let cursor = self.syntax_cursor.as_ref()?;
+        if !Self::is_reusable_parsing_context(context) || self.parse_error_before_next_finished_node
+        {
+            return None;
+        }
+        let candidate = cursor.current_node(self.scanner.full_start_pos() as u32)?;
+        let source = cursor.source();
+        let node = source.arena.node(candidate.old_node);
+        let flags = NodeFlags::from_bits(node.flags);
+        if node.pos == node.end && node.kind != SyntaxKind::EndOfFileToken
+            || candidate.intersects_change
+            || flags.intersects(
+                NodeFlags::THIS_NODE_HAS_ERROR | NodeFlags::THIS_NODE_OR_ANY_SUB_NODES_HAS_ERROR,
+            )
+            || flags & NodeFlags::CONTEXT_FLAGS != self.context_flags & NodeFlags::CONTEXT_FLAGS
+            || !Self::can_reuse_node(source, candidate.old_node, context)
+        {
+            return None;
+        }
+        Some(candidate)
+    }
+
+    fn consume_node(&mut self, candidate: ReusableNode) -> NodeId {
+        let source = Arc::clone(
+            self.syntax_cursor
+                .as_ref()
+                .expect("a reusable candidate has a syntax cursor")
+                .source(),
+        );
+        let copier = self
+            .subtree_copier
+            .get_or_insert_with(|| SubtreeCopier::new(&source.arena));
+        let root = copier.copy_subtree_from(
+            &mut self.arena,
+            &source.arena,
+            candidate.old_node,
+            candidate.position_delta,
+        );
+        debug_assert_eq!(self.arena.node(root).pos, candidate.adjusted_pos);
+        debug_assert_eq!(self.arena.node(root).end, candidate.adjusted_end);
+        self.incremental_stats.reused_roots.push(root);
+        self.incremental_stats
+            .reused_new_nodes
+            .extend(copier.node_lineage().iter().map(|(_, new)| *new));
+        self.incremental_stats
+            .reused_new_arrays
+            .extend(copier.new_arrays().iter().copied());
+        let old_root = source.arena.node(candidate.old_node);
+        self.incremental_stats.reused_old_ranges.push((
+            old_root.pos,
+            old_root.end,
+            candidate.position_delta,
+        ));
+        self.incremental_stats.reused_range_roots.push(root);
+        if self.incremental_options.record_reuse_lineage {
+            self.incremental_stats
+                .lineage
+                .extend(
+                    copier
+                        .node_lineage()
+                        .iter()
+                        .map(|(old_node, new_node)| ReuseLineage {
+                            old_node: *old_node,
+                            new_node: *new_node,
+                        }),
+                );
+        }
+        self.scanner
+            .reset_token_state(self.arena.node(root).end as usize);
+        self.next_token();
+        root
+    }
+
+    const fn is_reusable_parsing_context(context: ParsingContext) -> bool {
+        matches!(
+            context,
+            ParsingContext::ClassMembers
+                | ParsingContext::SwitchClauses
+                | ParsingContext::SourceElements
+                | ParsingContext::BlockStatements
+                | ParsingContext::SwitchClauseStatements
+                | ParsingContext::EnumMembers
+                | ParsingContext::TypeMembers
+                | ParsingContext::VariableDeclarations
+                | ParsingContext::JSDocParameters
+                | ParsingContext::Parameters
+        )
+    }
+
+    fn can_reuse_node(source: &SourceFile, id: NodeId, context: ParsingContext) -> bool {
+        let node = source.arena.node(id);
+        match context {
+            ParsingContext::ClassMembers => match node.kind {
+                SyntaxKind::Constructor
+                | SyntaxKind::IndexSignature
+                | SyntaxKind::GetAccessor
+                | SyntaxKind::SetAccessor
+                | SyntaxKind::PropertyDeclaration
+                | SyntaxKind::SemicolonClassElement => true,
+                SyntaxKind::MethodDeclaration => {
+                    node.data.as_method_declaration().is_some_and(|data| {
+                        !data.name.is_some_and(|name| {
+                            matches!(
+                                &source.arena.node(name).data,
+                                NodeData::Identifier(data) if data.escaped_text == "constructor"
+                            )
+                        })
+                    })
+                }
+                _ => false,
+            },
+            ParsingContext::SwitchClauses => {
+                matches!(
+                    node.data,
+                    NodeData::CaseClause(_) | NodeData::DefaultClause(_)
+                )
+            }
+            ParsingContext::SourceElements
+            | ParsingContext::BlockStatements
+            | ParsingContext::SwitchClauseStatements => matches!(
+                node.kind,
+                SyntaxKind::FunctionDeclaration
+                    | SyntaxKind::VariableStatement
+                    | SyntaxKind::Block
+                    | SyntaxKind::IfStatement
+                    | SyntaxKind::ExpressionStatement
+                    | SyntaxKind::ThrowStatement
+                    | SyntaxKind::ReturnStatement
+                    | SyntaxKind::SwitchStatement
+                    | SyntaxKind::BreakStatement
+                    | SyntaxKind::ContinueStatement
+                    | SyntaxKind::ForInStatement
+                    | SyntaxKind::ForOfStatement
+                    | SyntaxKind::ForStatement
+                    | SyntaxKind::WhileStatement
+                    | SyntaxKind::WithStatement
+                    | SyntaxKind::EmptyStatement
+                    | SyntaxKind::TryStatement
+                    | SyntaxKind::LabeledStatement
+                    | SyntaxKind::DoStatement
+                    | SyntaxKind::DebuggerStatement
+                    | SyntaxKind::ImportDeclaration
+                    | SyntaxKind::ImportEqualsDeclaration
+                    | SyntaxKind::ExportDeclaration
+                    | SyntaxKind::ExportAssignment
+                    | SyntaxKind::ModuleDeclaration
+                    | SyntaxKind::ClassDeclaration
+                    | SyntaxKind::InterfaceDeclaration
+                    | SyntaxKind::EnumDeclaration
+                    | SyntaxKind::TypeAliasDeclaration
+            ),
+            ParsingContext::EnumMembers => node.kind == SyntaxKind::EnumMember,
+            ParsingContext::TypeMembers => matches!(
+                node.kind,
+                SyntaxKind::ConstructSignature
+                    | SyntaxKind::MethodSignature
+                    | SyntaxKind::IndexSignature
+                    | SyntaxKind::PropertySignature
+                    | SyntaxKind::CallSignature
+            ),
+            ParsingContext::VariableDeclarations => matches!(
+                &node.data,
+                NodeData::VariableDeclaration(data) if data.initializer.is_none()
+            ),
+            ParsingContext::JSDocParameters | ParsingContext::Parameters => matches!(
+                &node.data,
+                NodeData::Parameter(data) if data.initializer.is_none()
+            ),
+            _ => false,
+        }
+    }
+
     fn parse_list(
         &mut self,
         context: ParsingContext,
@@ -1268,7 +1448,11 @@ impl<'text> Parser<'text> {
         while !self.is_list_terminator(context) {
             if self.is_list_element(context, false) {
                 let start_pos = self.scanner.full_start_pos();
-                if let Some(element) = parse_element(self) {
+                let element = self
+                    .current_node(context)
+                    .map(|node| self.consume_node(node))
+                    .or_else(|| parse_element(self));
+                if let Some(element) = element {
                     list.push(element);
                     if start_pos == self.scanner.full_start_pos() {
                         self.next_token();
@@ -1313,7 +1497,11 @@ impl<'text> Parser<'text> {
         loop {
             if self.is_list_element(context, false) {
                 let start_pos = self.scanner.full_start_pos();
-                let Some(element) = parse_element(self) else {
+                let element = self
+                    .current_node(context)
+                    .map(|node| self.consume_node(node))
+                    .or_else(|| parse_element(self));
+                let Some(element) = element else {
                     self.parsing_context = saved_context;
                     return None;
                 };
@@ -1436,6 +1624,9 @@ impl<'text> Parser<'text> {
     }
 
     fn is_list_element(&mut self, context: ParsingContext, in_error_recovery: bool) -> bool {
+        if self.current_node(context).is_some() {
+            return true;
+        }
         match context {
             ParsingContext::SourceElements
             | ParsingContext::BlockStatements
@@ -9445,6 +9636,7 @@ impl<'text> Parser<'text> {
             has_jsx_runtime_pragma: directives.has_jsx_runtime_pragma,
             jsx_runtime_pragma: directives.jsx_runtime_pragma,
             comment_directives,
+            incremental_stats: self.incremental_stats,
         }
     }
 
@@ -9580,8 +9772,41 @@ pub fn parse_source_file_from_snapshot(
     file_name: String,
     snapshot: Arc<TextSnapshot>,
     options: ParseOptions,
-    _cursor: Option<&SyntaxCursor>,
+    cursor: Option<&SyntaxCursor>,
 ) -> SourceFile {
+    parse_source_file_from_snapshot_worker(
+        file_name,
+        snapshot,
+        options,
+        cursor,
+        IncrementalParseOptions::default(),
+    )
+    .0
+}
+
+pub(crate) fn parse_source_file_from_snapshot_incrementally(
+    file_name: String,
+    snapshot: Arc<TextSnapshot>,
+    options: ParseOptions,
+    cursor: &SyntaxCursor,
+    incremental_options: IncrementalParseOptions,
+) -> (SourceFile, IncrementalParseStats) {
+    parse_source_file_from_snapshot_worker(
+        file_name,
+        snapshot,
+        options,
+        Some(cursor),
+        incremental_options,
+    )
+}
+
+fn parse_source_file_from_snapshot_worker(
+    file_name: String,
+    snapshot: Arc<TextSnapshot>,
+    options: ParseOptions,
+    cursor: Option<&SyntaxCursor>,
+    incremental_options: IncrementalParseOptions,
+) -> (SourceFile, IncrementalParseStats) {
     let text = snapshot.text();
     let mut parser = Parser::new_with_target(
         file_name,
@@ -9591,6 +9816,8 @@ pub fn parse_source_file_from_snapshot(
         options.language_variant,
         options.javascript_file,
     );
+    parser.syntax_cursor = cursor.cloned();
+    parser.incremental_options = incremental_options;
     parser
         .scanner
         .set_jsdoc_parsing_mode(options.js_doc_parsing_mode, !options.javascript_file);
@@ -9632,7 +9859,8 @@ pub fn parse_source_file_from_snapshot(
     let finished = parser.finish(statements, end_of_file_token, true);
     let external_module_indicator = detected_external_module_indicator
         .or_else(|| force_external_module.then_some(finished.root));
-    SourceFile {
+    let incremental_stats = finished.incremental_stats;
+    let source = SourceFile {
         file_name: finished.file_name,
         snapshot,
         language_version: finished.language_version,
@@ -9652,7 +9880,8 @@ pub fn parse_source_file_from_snapshot(
         has_jsx_runtime_pragma: finished.has_jsx_runtime_pragma,
         jsx_runtime_pragma: finished.jsx_runtime_pragma,
         comment_directives: finished.comment_directives,
-    }
+    };
+    (source, incremental_stats)
 }
 
 /// tsc Parser.parseJsonText. The JavaScriptFile/JsonFile context flags are

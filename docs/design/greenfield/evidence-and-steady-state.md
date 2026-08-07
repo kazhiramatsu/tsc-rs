@@ -513,9 +513,10 @@ the common topology specified by
 [h1-emit.md](h1-emit.md#64-ci-and-qualification-topology), and
 [compiler-compatibility-residual.md](compiler-compatibility-residual.md#114-cross-track-ci-and-qualification-topology).
 
-L0.1 activates an authenticated exact HEAD/base-bound full-gate result,
-text-owner tests, protected-main Unicode edit stress, and approved-runner H0
-comparison. The stable aggregate now requires the selected exact
+L0.2 extends the authenticated exact HEAD/base-bound full-gate result with
+identity-owner tests, protected-main open/edit/close reclamation stress, and a
+chained approved-runner H0 comparison while retaining the L0.1 Unicode edit
+authority. The stable aggregate now requires the selected exact
 qualification and still fails closed for missing, skipped, or unknown lanes.
 A new commit, changed base, merge-queue composition, lockfile/toolchain/pin/
 profile change, or mismatched result hash invalidates the receipt. Later

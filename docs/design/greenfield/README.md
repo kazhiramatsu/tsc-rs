@@ -61,8 +61,8 @@ filesystem/config loading, no-emit diagnostics, rendering, and exit behavior.
 [h1-emit.md](h1-emit.md) — the active design for a bounded, tsc-architected
 JavaScript emitter. It preserves the H0 `--noEmit` entry without initializing
 the emitter and ports the exact resolver/transform/printer/output spine. Its
-runtime implementation follows the L0 persistent-source and L1 incremental-
-parser proof, while incremental behavior, build/watch, and LSP remain separate
+runtime implementation is now unblocked by the completed L0 persistent-source
+and L1 incremental-parser proof, while build/watch and LSP remain separate
 compatibility tracks.
 
 **Compiler compatibility residual:**
@@ -190,7 +190,7 @@ is one commit.
 | M8 diagnostics close | [m8-readiness.md](m8-readiness.md) + [M8 execution](m8-execution-and-close.md) | supported-scope T0-T3 and T4 complete; escapes zero; all-corpus FP=0 |
 | M9 differential-fuzzer steady state — paused after M9.1b | [M9 execution](m9-execution-and-close.md) + [evidence contract](evidence-and-steady-state.md#31-m9-steady-state) | preflight/domain/owner burn-in green, then `fuzz steady-state --require-ready`: 14 frozen-fingerprint 100,000-case windows, rate < 1 new class/window, no untriaged incident or unresolved owner task |
 | H0 filesystem-hosted `--noEmit` — complete | [H0 execution](noemit-cli.md) | exact closure of the 241 host-resolution identities, MemoryHost/FsHost equivalence, config/CLI/output parity, embedded libraries, no emitted files |
-| L0/L1 persistent source + incremental parser — L0.1 text ownership complete; L0.2 next | [persistent Program design](lsp-and-incremental.md) | shared immutable text/position snapshots, bounded persistent edits, zero-copy H0 projection, and qualified stress/performance evidence, then identity/owned bind/Program snapshots, unchanged-file reuse, and incremental parse exactness before H1 runtime work |
+| L0/L1 persistent source + incremental parser — complete and performance-qualified | [persistent Program design](lsp-and-incremental.md) | shared text/position snapshots, domain-scoped identity leases, generated relocation, non-contiguous ownership, owned bind/Program snapshots, immutable incremental parse/rebind, exact fresh equivalence, reclamation stress, and approved large-edit evidence |
 | H1 JavaScript emit — design started | [H1 execution](h1-emit.md) | after L0/L1: frozen owner/profile inventory, exact output oracle, zero-cost H0 `--noEmit` route, then byte-identical bounded JavaScript output and resource qualification |
 
 The T0 percentages are calibration points from the first

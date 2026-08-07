@@ -14,15 +14,18 @@ use crate::node_util::{
     node_is_missing, parent_of,
 };
 use crate::symbols::{
-    escape_leading_underscores, unescape_leading_underscores, InternalSymbolName, SymbolArena,
-    SymbolId, SymbolTable,
+    escape_leading_underscores, relocate_symbol_table_values, unescape_leading_underscores,
+    InternalSymbolName, SymbolArena, SymbolId, SymbolIdentityRelocation, SymbolTable,
 };
 use indexmap::IndexSet;
 use tsc_diagnostics::{
     gen as diagnostics, Diagnostic, DiagnosticList, DiagnosticMessage, MessageChain, RelatedInfo,
 };
 use tsc_syntax::{NodeData, NodeId, SourceFile, SyntaxKind};
-use tsc_types::{ModifierFlags, SymbolFlags};
+use tsc_types::{
+    IdentityAllocationPolicy, IdentityDomain, IdentityError, IdentityLease, IdentityRange,
+    IdentitySpace, ModifierFlags, SymbolFlags, TRANSIENT_SYMBOL_BIT,
+};
 
 /// Which symbol table a declaration lands in. tsc passes the table
 /// object; the arena design passes its owner.
@@ -38,7 +41,7 @@ pub enum TableRef {
 
 /// The binder for one source file. Grows container/flow state in
 /// stages 3.3–3.5; stage 3.2 carries the symbol side only.
-pub struct Binder<'a> {
+pub struct BinderWorker<'a> {
     pub source: &'a SourceFile,
     pub options: &'a tsc_types::CompilerOptions,
     /// tsc languageVersion = getEmitScriptTarget(options).
@@ -61,7 +64,9 @@ pub struct Binder<'a> {
     /// tsc getSymbolId's lazily-assigned global symbol ids; the counter
     /// is program-wide in tsc, so it is seedable for multi-file binds.
     assigned_symbol_ids: HashMap<SymbolId, u32>,
+    private_name_serial_base: u32,
     next_symbol_id: u32,
+    private_name_serial_lease: Option<IdentityLease>,
 
     // ---- container state (stage 3.3, bindContainer 42734) ----
     pub container: Option<NodeId>,
@@ -122,7 +127,113 @@ pub struct Binder<'a> {
     pub js_doc_imports: Vec<NodeId>,
 }
 
-impl<'a> Binder<'a> {
+/// The completed, checker-consumed half of one bind operation.
+///
+/// `BinderWorker` is the temporary worker: it borrows the parsed source and
+/// compiler options while it walks containers and builds this record. Once
+/// publication succeeds, callers retain only `BindData`; no walk cursor,
+/// borrowed input, or in-flight target is carried into a Program snapshot.
+#[derive(Clone, Debug)]
+pub struct BindData {
+    pub language_version: i32,
+    pub common_js_module_indicator: Option<NodeId>,
+    pub symbols: SymbolArena,
+    pub node_symbol: HashMap<NodeId, SymbolId>,
+    pub node_local_symbol: HashMap<NodeId, SymbolId>,
+    pub locals: HashMap<NodeId, SymbolTable>,
+    pub js_global_augmentations: SymbolTable,
+    pub bind_diagnostics: DiagnosticList,
+    pub classifiable_names: IndexSet<String>,
+    pub assigned_symbol_ids: HashMap<SymbolId, u32>,
+    pub private_name_serial_base: u32,
+    pub next_symbol_id: u32,
+    pub private_name_serial_lease: Option<IdentityLease>,
+    pub next_container: HashMap<NodeId, NodeId>,
+    pub node_flags_mut: Vec<i32>,
+    pub pattern_ambient_modules: Vec<(String, String, SymbolId)>,
+    pub flow: crate::flow::FlowArena,
+    pub unreachable_flow: crate::flow::FlowId,
+    pub node_flow: HashMap<NodeId, crate::flow::FlowId>,
+    pub node_end_flow: HashMap<NodeId, crate::flow::FlowId>,
+    pub node_return_flow: HashMap<NodeId, crate::flow::FlowId>,
+    pub node_flow_when_true: HashMap<NodeId, crate::flow::FlowId>,
+    pub node_flow_when_false: HashMap<NodeId, crate::flow::FlowId>,
+    pub possibly_exhaustive: HashMap<NodeId, bool>,
+    pub node_fallthrough_flow: HashMap<NodeId, crate::flow::FlowId>,
+    pub emit_flags: i32,
+}
+
+/// Compatibility name retained for existing binder/checker callers. New
+/// publication code should name the worker explicitly as `BinderWorker` and
+/// retain only `BindData` in an owned document.
+pub type Binder<'a> = BinderWorker<'a>;
+
+impl BindData {
+    /// Clone only the completed result for a compatibility adapter. The
+    /// production snapshot path uses `Binder::into_bind_data` to move these
+    /// fields without retaining the worker or borrowing its source.
+    pub fn from_binder(binder: &BinderWorker<'_>) -> Self {
+        Self {
+            language_version: binder.language_version,
+            common_js_module_indicator: binder.common_js_module_indicator,
+            symbols: binder.symbols.clone(),
+            node_symbol: binder.node_symbol.clone(),
+            node_local_symbol: binder.node_local_symbol.clone(),
+            locals: binder.locals.clone(),
+            js_global_augmentations: binder.js_global_augmentations.clone(),
+            bind_diagnostics: binder.bind_diagnostics.clone(),
+            classifiable_names: binder.classifiable_names.clone(),
+            assigned_symbol_ids: binder.assigned_symbol_ids.clone(),
+            private_name_serial_base: binder.private_name_serial_base,
+            next_symbol_id: binder.next_symbol_id,
+            private_name_serial_lease: binder.private_name_serial_lease.clone(),
+            next_container: binder.next_container.clone(),
+            node_flags_mut: binder.node_flags_mut.clone(),
+            pattern_ambient_modules: binder.pattern_ambient_modules.clone(),
+            flow: binder.flow.clone(),
+            unreachable_flow: binder.unreachable_flow,
+            node_flow: binder.node_flow.clone(),
+            node_end_flow: binder.node_end_flow.clone(),
+            node_return_flow: binder.node_return_flow.clone(),
+            node_flow_when_true: binder.node_flow_when_true.clone(),
+            node_flow_when_false: binder.node_flow_when_false.clone(),
+            possibly_exhaustive: binder.possibly_exhaustive.clone(),
+            node_fallthrough_flow: binder.node_fallthrough_flow.clone(),
+            emit_flags: binder.emit_flags,
+        }
+    }
+
+    pub fn symbol_identity_lease(&self) -> Option<&IdentityLease> {
+        self.symbols.identity_lease()
+    }
+
+    pub fn private_name_serial_lease(&self) -> Option<&IdentityLease> {
+        self.private_name_serial_lease.as_ref()
+    }
+
+    /// tsrs-native: verifies that every persistent identity carried by the published bind
+    /// belongs to one document domain. Publication paths use this before a
+    /// `BindData` enters an owned Program store; a partial or cross-domain
+    /// record must fail closed rather than becoming a cacheable variant.
+    pub fn identity_owned_by(&self, domain: &IdentityDomain) -> bool {
+        self.symbol_identity_lease()
+            .is_some_and(|lease| lease.belongs_to(domain))
+            && self
+                .private_name_serial_lease()
+                .is_some_and(|lease| lease.belongs_to(domain))
+    }
+
+    pub fn next_symbol_id(&self) -> u32 {
+        self.next_symbol_id
+    }
+
+    pub fn flags_of(&self, node: NodeId, node_base: u32) -> tsc_types::NodeFlags {
+        let index = (node.0 - node_base) as usize;
+        tsc_types::NodeFlags::from_bits(self.node_flags_mut[index])
+    }
+}
+
+impl<'a> BinderWorker<'a> {
     pub fn new(source: &'a SourceFile, options: &'a tsc_types::CompilerOptions) -> Self {
         Self::with_symbol_id_seed(source, options, 1)
     }
@@ -164,7 +275,9 @@ impl<'a> Binder<'a> {
             bind_diagnostics: Vec::new(),
             classifiable_names: IndexSet::new(),
             assigned_symbol_ids: HashMap::new(),
+            private_name_serial_base: next_symbol_id,
             next_symbol_id,
+            private_name_serial_lease: None,
             container: None,
             this_parent_container: None,
             block_scope_container: None,
@@ -219,6 +332,164 @@ impl<'a> Binder<'a> {
         self.next_symbol_id
     }
 
+    pub fn symbol_identity_lease(&self) -> Option<&IdentityLease> {
+        self.symbols.identity_lease()
+    }
+
+    pub fn private_name_serial_lease(&self) -> Option<&IdentityLease> {
+        self.private_name_serial_lease.as_ref()
+    }
+
+    pub fn identity_owned_by(&self, domain: &IdentityDomain) -> bool {
+        self.source.identity_owned_by(domain)
+            && self
+                .symbol_identity_lease()
+                .is_some_and(|lease| lease.belongs_to(domain))
+            && self
+                .private_name_serial_lease()
+                .is_some_and(|lease| lease.belongs_to(domain))
+    }
+
+    /// Bind one source and publish completed symbol/private-name identities.
+    /// Ephemeral domains construct directly at a sealed tail; reclaiming
+    /// domains bind locally and relocate only after exact counts are known.
+    pub fn bind_in_identity_domain(
+        source: &'a SourceFile,
+        options: &'a tsc_types::CompilerOptions,
+        domain: &IdentityDomain,
+    ) -> Result<Self, IdentityError> {
+        if !source.identity_owned_by(domain) {
+            return Err(IdentityError::InvalidLease {
+                space: IdentitySpace::Node,
+                detail: "bound source does not belong to the requested identity domain",
+            });
+        }
+        match domain.policy() {
+            IdentityAllocationPolicy::EphemeralBump => {
+                let reservation = domain.reserve_provisional(&[
+                    IdentitySpace::Symbol,
+                    IdentitySpace::PrivateNameSerial,
+                ])?;
+                let mut binder = Self::with_bases(
+                    source,
+                    options,
+                    reservation.base(IdentitySpace::PrivateNameSerial)?,
+                    reservation.base(IdentitySpace::Symbol)?,
+                );
+                binder.bind_source_file();
+                let (symbol_count, serial_count) = binder.identity_counts()?;
+                let leases = reservation.seal(&[
+                    (IdentitySpace::Symbol, symbol_count),
+                    (IdentitySpace::PrivateNameSerial, serial_count),
+                ])?;
+                binder.attach_identity_leases(domain, leases)?;
+                Ok(binder)
+            }
+            IdentityAllocationPolicy::Reclaiming => {
+                let mut binder = Self::with_bases(source, options, 1, 0);
+                binder.bind_source_file();
+                binder.relocate_into_identity_domain(domain)?;
+                Ok(binder)
+            }
+        }
+    }
+
+    pub fn relocate_into_identity_domain(
+        &mut self,
+        domain: &IdentityDomain,
+    ) -> Result<(), IdentityError> {
+        if !self.source.identity_owned_by(domain) {
+            return Err(IdentityError::InvalidLease {
+                space: IdentitySpace::Node,
+                detail: "bound source and bind identities would use different domains",
+            });
+        }
+        let (symbol_count, serial_count) = self.identity_counts()?;
+        let leases = domain.lease_batch(&[
+            (IdentitySpace::Symbol, symbol_count),
+            (IdentitySpace::PrivateNameSerial, serial_count),
+        ])?;
+        let (symbol_lease, serial_lease) = bind_leases(leases)?;
+        self.apply_identity_relocation(domain, symbol_lease, serial_lease)
+    }
+
+    fn identity_counts(&self) -> Result<(u32, u32), IdentityError> {
+        let symbol_count =
+            u32::try_from(self.symbols.len()).map_err(|_| IdentityError::Exhausted {
+                space: IdentitySpace::Symbol,
+                requested: u32::MAX,
+                limit: TRANSIENT_SYMBOL_BIT,
+            })?;
+        let serial_count = self
+            .next_symbol_id
+            .checked_sub(self.private_name_serial_base)
+            .ok_or(IdentityError::InvalidLease {
+                space: IdentitySpace::PrivateNameSerial,
+                detail: "private-name serial counter precedes its base",
+            })?;
+        Ok((symbol_count, serial_count))
+    }
+
+    fn attach_identity_leases(
+        &mut self,
+        domain: &IdentityDomain,
+        leases: Vec<IdentityLease>,
+    ) -> Result<(), IdentityError> {
+        let (symbol_lease, serial_lease) = bind_leases(leases)?;
+        if !domain.owns(&symbol_lease)
+            || !domain.owns(&serial_lease)
+            || !symbol_lease.same_domain(&serial_lease)
+        {
+            return Err(IdentityError::InvalidLease {
+                space: IdentitySpace::Symbol,
+                detail: "bind leases do not share the requested domain",
+            });
+        }
+        self.symbols.attach_identity_lease(symbol_lease)?;
+        validate_serial_lease(
+            &serial_lease,
+            self.private_name_serial_base,
+            self.next_symbol_id,
+            true,
+        )?;
+        self.private_name_serial_lease = Some(serial_lease);
+        Ok(())
+    }
+
+    fn apply_identity_relocation(
+        &mut self,
+        domain: &IdentityDomain,
+        symbol_lease: IdentityLease,
+        serial_lease: IdentityLease,
+    ) -> Result<(), IdentityError> {
+        if !domain.owns(&symbol_lease)
+            || !domain.owns(&serial_lease)
+            || !symbol_lease.same_domain(&serial_lease)
+        {
+            return Err(IdentityError::InvalidLease {
+                space: IdentitySpace::Symbol,
+                detail: "bind relocation leases do not share the requested domain",
+            });
+        }
+        let symbol_relocation = self.symbols.identity_relocation(&symbol_lease)?;
+        validate_serial_lease(
+            &serial_lease,
+            self.private_name_serial_base,
+            self.next_symbol_id,
+            false,
+        )?;
+        let serial_relocation = PrivateNameSerialRelocation {
+            old: IdentityRange::new(self.private_name_serial_base, self.next_symbol_id),
+            new: serial_lease.range(),
+        };
+        self.apply_declared_identity_relocation(
+            symbol_relocation,
+            serial_relocation,
+            symbol_lease,
+            serial_lease,
+        )
+    }
+
     fn table(&mut self, table: TableRef) -> &SymbolTable {
         match table {
             TableRef::Locals(node) => self.locals.entry(node).or_default(),
@@ -249,7 +520,10 @@ impl<'a> Binder<'a> {
             return id;
         }
         let id = self.next_symbol_id;
-        self.next_symbol_id += 1;
+        self.next_symbol_id = self
+            .next_symbol_id
+            .checked_add(1)
+            .expect("private-name serial identity space exhausted");
         self.assigned_symbol_ids.insert(symbol, id);
         id
     }
@@ -703,6 +977,302 @@ impl<'a> Binder<'a> {
     }
 }
 
+#[derive(Clone, Copy, Debug)]
+struct PrivateNameSerialRelocation {
+    old: IdentityRange,
+    new: IdentityRange,
+}
+
+impl PrivateNameSerialRelocation {
+    fn serial(&self, value: &mut u32) -> Result<(), IdentityError> {
+        if self.old.len() != self.new.len() {
+            return Err(IdentityError::InvalidLease {
+                space: IdentitySpace::PrivateNameSerial,
+                detail: "private-name relocation ranges have different lengths",
+            });
+        }
+        let offset = value
+            .checked_sub(self.old.start())
+            .filter(|offset| *offset < self.old.len())
+            .ok_or(IdentityError::InvalidLease {
+                space: IdentitySpace::PrivateNameSerial,
+                detail: "private-name serial is outside its source lease",
+            })?;
+        *value = self
+            .new
+            .start()
+            .checked_add(offset)
+            .ok_or(IdentityError::InvalidLease {
+                space: IdentitySpace::PrivateNameSerial,
+                detail: "private-name serial relocation overflowed",
+            })?;
+        Ok(())
+    }
+
+    fn name(&self, value: &mut String) -> Result<bool, IdentityError> {
+        let Some(rest) = value.strip_prefix("__#") else {
+            return Ok(false);
+        };
+        let Some(at) = rest.find('@') else {
+            return Err(IdentityError::InvalidLease {
+                space: IdentitySpace::PrivateNameSerial,
+                detail: "mangled private name has no @ delimiter",
+            });
+        };
+        let digits = &rest[..at];
+        if digits.is_empty() || !digits.bytes().all(|byte| byte.is_ascii_digit()) {
+            return Err(IdentityError::InvalidLease {
+                space: IdentitySpace::PrivateNameSerial,
+                detail: "mangled private name has an invalid serial",
+            });
+        }
+        let mut serial = digits
+            .parse::<u32>()
+            .map_err(|_| IdentityError::InvalidLease {
+                space: IdentitySpace::PrivateNameSerial,
+                detail: "mangled private-name serial exceeds u32",
+            })?;
+        self.serial(&mut serial)?;
+        value.replace_range(3..3 + digits.len(), &serial.to_string());
+        Ok(true)
+    }
+}
+
+impl BinderWorker<'_> {
+    /// Declared completeness boundary for published bind identity. The
+    /// exhaustive destructure makes every new BinderWorker field a compile-time
+    /// relocation review item.
+    fn apply_declared_identity_relocation(
+        &mut self,
+        symbol_relocation: SymbolIdentityRelocation,
+        serial_relocation: PrivateNameSerialRelocation,
+        symbol_lease: IdentityLease,
+        serial_lease: IdentityLease,
+    ) -> Result<(), IdentityError> {
+        let Self {
+            source: _,
+            options: _,
+            language_version: _,
+            common_js_module_indicator: _,
+            symbols,
+            node_symbol,
+            node_local_symbol,
+            locals,
+            js_global_augmentations,
+            bind_diagnostics: _,
+            classifiable_names,
+            assigned_symbol_ids,
+            private_name_serial_base,
+            next_symbol_id,
+            private_name_serial_lease,
+            container: _,
+            this_parent_container: _,
+            block_scope_container: _,
+            last_container: _,
+            next_container: _,
+            node_flags_mut: _,
+            pattern_ambient_modules,
+            flow: _,
+            unreachable_flow: _,
+            current_flow: _,
+            current_break_target: _,
+            current_continue_target: _,
+            current_return_target: _,
+            current_true_target: _,
+            current_false_target: _,
+            current_exception_target: _,
+            pre_switch_case_flow: _,
+            node_flow: _,
+            node_end_flow: _,
+            node_return_flow: _,
+            node_flow_when_true: _,
+            node_flow_when_false: _,
+            possibly_exhaustive: _,
+            node_fallthrough_flow: _,
+            active_label_list: _,
+            in_strict_mode: _,
+            seen_this_keyword: _,
+            in_assignment_pattern: _,
+            has_explicit_return: _,
+            in_return_position: _,
+            has_flow_effects: _,
+            emit_flags: _,
+            delayed_type_aliases: _,
+            js_doc_imports: _,
+        } = self;
+
+        if private_name_serial_lease.is_some() {
+            return Err(IdentityError::InvalidLease {
+                space: IdentitySpace::PrivateNameSerial,
+                detail: "binder is already identity-owned",
+            });
+        }
+
+        symbols.apply_identity_relocation(symbol_relocation, symbol_lease)?;
+        for symbol in symbols.symbols_mut() {
+            serial_relocation.name(&mut symbol.escaped_name)?;
+            relocate_private_table_keys(&mut symbol.members, &serial_relocation)?;
+            relocate_private_table_keys(&mut symbol.exports, &serial_relocation)?;
+            relocate_private_table_keys(&mut symbol.global_exports, &serial_relocation)?;
+        }
+        let mut node_symbol_keys = node_symbol.keys().copied().collect::<Vec<_>>();
+        node_symbol_keys.sort_unstable();
+        for node in node_symbol_keys {
+            symbol_relocation.symbol(
+                node_symbol
+                    .get_mut(&node)
+                    .expect("collected node-symbol key must remain present"),
+            )?;
+        }
+        let mut node_local_symbol_keys = node_local_symbol.keys().copied().collect::<Vec<_>>();
+        node_local_symbol_keys.sort_unstable();
+        for node in node_local_symbol_keys {
+            symbol_relocation.symbol(
+                node_local_symbol
+                    .get_mut(&node)
+                    .expect("collected local-symbol key must remain present"),
+            )?;
+        }
+        let mut local_keys = locals.keys().copied().collect::<Vec<_>>();
+        local_keys.sort_unstable();
+        for node in local_keys {
+            relocate_symbol_table(
+                locals
+                    .get_mut(&node)
+                    .expect("collected locals key must remain present"),
+                &symbol_relocation,
+                &serial_relocation,
+            )?;
+        }
+        relocate_symbol_table(
+            js_global_augmentations,
+            &symbol_relocation,
+            &serial_relocation,
+        )?;
+
+        let mut old_assigned = std::mem::take(assigned_symbol_ids)
+            .into_iter()
+            .collect::<Vec<_>>();
+        old_assigned.sort_unstable_by_key(|(symbol, _)| *symbol);
+        assigned_symbol_ids.reserve(old_assigned.len());
+        for (mut symbol, mut serial) in old_assigned {
+            symbol_relocation.symbol(&mut symbol)?;
+            serial_relocation.serial(&mut serial)?;
+            if assigned_symbol_ids.insert(symbol, serial).is_some() {
+                return Err(IdentityError::InvalidLease {
+                    space: IdentitySpace::Symbol,
+                    detail: "symbol relocation duplicated an assigned-serial key",
+                });
+            }
+        }
+
+        if classifiable_names
+            .iter()
+            .any(|name| name.starts_with("__#"))
+        {
+            let old_names = std::mem::take(classifiable_names);
+            classifiable_names.reserve(old_names.len());
+            for mut name in old_names {
+                serial_relocation.name(&mut name)?;
+                if !classifiable_names.insert(name) {
+                    return Err(IdentityError::InvalidLease {
+                        space: IdentitySpace::PrivateNameSerial,
+                        detail: "private-name relocation duplicated a classifiable name",
+                    });
+                }
+            }
+        }
+        for (_, _, symbol) in pattern_ambient_modules {
+            symbol_relocation.symbol(symbol)?;
+        }
+
+        *private_name_serial_base = serial_relocation.new.start();
+        *next_symbol_id = serial_relocation.new.end();
+        *private_name_serial_lease = Some(serial_lease);
+        Ok(())
+    }
+}
+
+fn bind_leases(
+    leases: Vec<IdentityLease>,
+) -> Result<(IdentityLease, IdentityLease), IdentityError> {
+    let mut symbol = None;
+    let mut serial = None;
+    for lease in leases {
+        match lease.space() {
+            IdentitySpace::Symbol => symbol = Some(lease),
+            IdentitySpace::PrivateNameSerial => serial = Some(lease),
+            space => {
+                return Err(IdentityError::InvalidLease {
+                    space,
+                    detail: "bind publication received a non-bind lease",
+                });
+            }
+        }
+    }
+    Ok((
+        symbol.ok_or(IdentityError::ReservationMismatch)?,
+        serial.ok_or(IdentityError::ReservationMismatch)?,
+    ))
+}
+
+fn validate_serial_lease(
+    lease: &IdentityLease,
+    old_start: u32,
+    old_end: u32,
+    require_same_base: bool,
+) -> Result<(), IdentityError> {
+    if lease.space() != IdentitySpace::PrivateNameSerial {
+        return Err(IdentityError::InvalidLease {
+            space: IdentitySpace::PrivateNameSerial,
+            detail: "binder received a non-private-name lease",
+        });
+    }
+    if lease.range().len() != old_end - old_start {
+        return Err(IdentityError::InvalidLease {
+            space: IdentitySpace::PrivateNameSerial,
+            detail: "private-name lease length differs from the assigned serial count",
+        });
+    }
+    if require_same_base && lease.range().start() != old_start {
+        return Err(IdentityError::InvalidLease {
+            space: IdentitySpace::PrivateNameSerial,
+            detail: "direct-construction serial lease base differs from the binder seed",
+        });
+    }
+    Ok(())
+}
+
+fn relocate_symbol_table(
+    table: &mut SymbolTable,
+    symbol_relocation: &SymbolIdentityRelocation,
+    serial_relocation: &PrivateNameSerialRelocation,
+) -> Result<(), IdentityError> {
+    relocate_symbol_table_values(table, symbol_relocation)?;
+    relocate_private_table_keys(table, serial_relocation)
+}
+
+fn relocate_private_table_keys(
+    table: &mut SymbolTable,
+    serial_relocation: &PrivateNameSerialRelocation,
+) -> Result<(), IdentityError> {
+    if !table.keys().any(|name| name.starts_with("__#")) {
+        return Ok(());
+    }
+    let old_table = std::mem::take(table);
+    table.reserve(old_table.len());
+    for (mut name, symbol) in old_table {
+        serial_relocation.name(&mut name)?;
+        if table.insert(name, symbol).is_some() {
+            return Err(IdentityError::InvalidLease {
+                space: IdentitySpace::PrivateNameSerial,
+                detail: "private-name relocation duplicated a symbol-table key",
+            });
+        }
+    }
+    Ok(())
+}
+
 /// tsc isAssignmentDeclaration (_tsc.js 14964).
 pub fn is_assignment_declaration(source: &SourceFile, id: NodeId) -> bool {
     matches!(
@@ -721,6 +1291,94 @@ pub fn is_effective_module_declaration(source: &SourceFile, id: NodeId) -> bool 
         kind_of(source, id),
         SyntaxKind::ModuleDeclaration | SyntaxKind::Identifier
     )
+}
+
+impl BinderWorker<'_> {
+    /// Publish the completed result and discard all temporary worker state.
+    /// The exhaustive move is deliberate: adding a field to `BinderWorker` forces
+    /// an explicit decision about whether it belongs in `BindData` or remains
+    /// worker-local.
+    pub fn into_bind_data(self) -> BindData {
+        let Self {
+            source: _,
+            options: _,
+            language_version,
+            common_js_module_indicator,
+            symbols,
+            node_symbol,
+            node_local_symbol,
+            locals,
+            js_global_augmentations,
+            bind_diagnostics,
+            classifiable_names,
+            assigned_symbol_ids,
+            private_name_serial_base,
+            next_symbol_id,
+            private_name_serial_lease,
+            container: _,
+            this_parent_container: _,
+            block_scope_container: _,
+            last_container: _,
+            next_container,
+            node_flags_mut,
+            pattern_ambient_modules,
+            flow,
+            unreachable_flow,
+            current_flow: _,
+            current_break_target: _,
+            current_continue_target: _,
+            current_return_target: _,
+            current_true_target: _,
+            current_false_target: _,
+            current_exception_target: _,
+            pre_switch_case_flow: _,
+            node_flow,
+            node_end_flow,
+            node_return_flow,
+            node_flow_when_true,
+            node_flow_when_false,
+            possibly_exhaustive,
+            node_fallthrough_flow,
+            active_label_list: _,
+            in_strict_mode: _,
+            seen_this_keyword: _,
+            in_assignment_pattern: _,
+            has_explicit_return: _,
+            in_return_position: _,
+            has_flow_effects: _,
+            emit_flags,
+            delayed_type_aliases: _,
+            js_doc_imports: _,
+        } = self;
+        BindData {
+            language_version,
+            common_js_module_indicator,
+            symbols,
+            node_symbol,
+            node_local_symbol,
+            locals,
+            js_global_augmentations,
+            bind_diagnostics,
+            classifiable_names,
+            assigned_symbol_ids,
+            private_name_serial_base,
+            next_symbol_id,
+            private_name_serial_lease,
+            next_container,
+            node_flags_mut,
+            pattern_ambient_modules,
+            flow,
+            unreachable_flow,
+            node_flow,
+            node_end_flow,
+            node_return_flow,
+            node_flow_when_true,
+            node_flow_when_false,
+            possibly_exhaustive,
+            node_fallthrough_flow,
+            emit_flags,
+        }
+    }
 }
 
 #[cfg(test)]

@@ -15,7 +15,9 @@ use crate::assignment::{
     is_prototype_access, AssignmentDeclarationKind,
 };
 use crate::containers::{get_container_flags, ContainerFlags};
-use crate::declare::{Binder, TableRef};
+#[cfg(test)]
+use crate::declare::Binder;
+use crate::declare::{BinderWorker, TableRef};
 use crate::flow::FlowId;
 use crate::node_util::{
     can_have_flow_node, declaration_name_to_string, get_containing_class, get_error_span_for_node,
@@ -35,7 +37,7 @@ use tsc_diagnostics::{gen as diagnostics, DiagnosticMessage};
 use tsc_syntax::{for_each_child, NodeArrayId, NodeData, NodeId, SyntaxKind};
 use tsc_types::{FlowFlags, ModifierFlags, NodeFlags, ScriptTarget, SymbolFlags};
 
-impl<'a> Binder<'a> {
+impl<'a> BinderWorker<'a> {
     /// tsc-port: bindSourceFile2 @6.0.3
     /// tsc-hash: 213891d27022fad429657a32a61e019a181b1fa5a1abd1f54586b72fdc3495a1
     /// tsc-span: _tsc.js:42456-42505

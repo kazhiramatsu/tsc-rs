@@ -296,7 +296,20 @@ export function validatePolicy(policy) {
   if (setupIndex < 0 || versionFileIndex < setupIndex || runnerProfileIndex < 0 || gateIndex < versionFileIndex) {
     throw new Error("exact qualification must pin its Node and M8 runner profiles before the full gate");
   }
-  if (policy.approved_performance.authority_workflow !== ".github/workflows/l0-performance.yml" || policy.approved_performance.authority_job !== "qualify" || policy.approved_performance.environment !== "approved-performance" || policy.approved_performance.evidence !== "ratchets/l0-text-ownership-performance.v1.json") throw new Error("invalid performance authority binding");
+  if (
+    policy.approved_performance.authority_workflow !== ".github/workflows/l0-performance.yml" ||
+    policy.approved_performance.authority_job !== "qualify" ||
+    policy.approved_performance.environment !== "approved-performance" ||
+    policy.approved_performance.evidence !==
+      "ratchets/l0-one-shot-registry-performance.v1.json" ||
+    policy.approved_performance.l1_authority_workflow !==
+      ".github/workflows/l1-performance.yml" ||
+    policy.approved_performance.l1_authority_job !== "qualify" ||
+    policy.approved_performance.l1_h0_evidence !== "ratchets/l1-h0-performance.v1.json" ||
+    policy.approved_performance.l1_evidence !==
+      "ratchets/l1-incremental-parser-performance.v1.json"
+  )
+    throw new Error("invalid performance authority binding");
   if (!policy.approved_performance.alternating_baseline_candidate || policy.approved_performance.moving_hosted_images_may_mint_ratchets) throw new Error("invalid performance authority policy");
   for (const contract of ["lane-selection", "qualification-result", "merge-receipt", "failure-artifact"]) {
     const schema = JSON.parse(fs.readFileSync(path.join(contractDirectory, `${contract}.schema.json`), "utf8"));
@@ -348,7 +361,11 @@ function qualificationInputs(selection) {
     ]),
     qualification_profile_sha256: trackedTreeDigest(
       [".github/ci/"],
-      [".github/workflows/ci.yml", ".github/workflows/l0-performance.yml"],
+      [
+        ".github/workflows/ci.yml",
+        ".github/workflows/l0-performance.yml",
+        ".github/workflows/l1-performance.yml",
+      ],
     ),
     lane_selection_sha256: sha256(canonical(selection)),
   };

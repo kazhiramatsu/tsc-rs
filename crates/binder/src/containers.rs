@@ -3,7 +3,7 @@
 //! declareSymbolAndAddToSymbolTable routing family, and
 //! bindModuleDeclaration with its instance-state machinery.
 
-use crate::declare::{Binder, TableRef};
+use crate::declare::{BinderWorker, TableRef};
 use crate::flow::FlowPayload;
 use crate::node_util::{
     asterisk_token_of, body_of, get_combined_modifier_flags,
@@ -178,7 +178,7 @@ pub fn get_container_flags(source: &SourceFile, node: NodeId) -> ContainerFlags 
     }
 }
 
-impl<'a> Binder<'a> {
+impl<'a> BinderWorker<'a> {
     /// tsc container.symbol — the symbol of the current container node.
     pub fn container_symbol(&self) -> Option<SymbolId> {
         self.container

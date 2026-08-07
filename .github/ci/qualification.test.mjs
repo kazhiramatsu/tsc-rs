@@ -36,6 +36,12 @@ test("policy and every qualification schema boundary are valid", () => {
   assert.equal(policy.exact_merge_qualification.m8_runner_profile, "github-ubuntu-x64-standard");
   assert.equal(policy.scheduled_stress.authority_job, "scheduled_stress");
   assert.equal(policy.approved_performance.authority_job, "qualify");
+  assert.equal(policy.approved_performance.l1_authority_job, "qualify");
+  assert.equal(
+    policy.approved_performance.l1_h0_evidence,
+    "ratchets/l1-h0-performance.v1.json",
+  );
+  assert.ok(policy.scheduled_stress.active_scope.includes("fresh-incremental-exactness"));
 
   const frozen = clone(policy);
   frozen.status = "frozen";
@@ -109,6 +115,7 @@ test("known compiler and program owners select their focused tracks", () => {
 test("qualification authority inputs always select exact qualification tracks", () => {
   for (const changedPath of [
     ".github/workflows/ci.yml",
+    ".github/workflows/l1-performance.yml",
     ".github/ci/qualification-policy.v1.json",
     ".github/ci/contracts/qualification-result.schema.json",
     "Cargo.lock",

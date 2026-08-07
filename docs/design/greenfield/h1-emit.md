@@ -502,9 +502,9 @@ parsing cannot hide a regression outside the original small canary.
 
 H1 must not rely on one undifferentiated hosted job. Before H1.1 changes
 runtime behavior, the repository needs four explicit lanes with distinct
-authority. L0.1 has activated the common static/focused guardrail, exact
-OIDC-attested result producer, bounded failure schemas, text stress, and H0
-comparison. H1 still must extend the focused owner selection, scheduled work,
+authority. L0.2 has extended the common static/focused guardrail, exact
+OIDC-attested result producer, bounded failure schemas, text/identity stress,
+and chained H0 comparison. H1 still must extend the focused owner selection, scheduled work,
 and approved-runner evidence to emit runtime behavior:
 
 1. **Required PR guardrail.** Every non-documentation change runs

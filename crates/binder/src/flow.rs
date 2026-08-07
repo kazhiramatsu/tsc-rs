@@ -40,7 +40,7 @@ pub struct FlowNode {
     pub antecedent: Vec<FlowId>,
 }
 
-#[derive(Debug, Default)]
+#[derive(Clone, Debug, Default)]
 pub struct FlowArena {
     nodes: Vec<FlowNode>,
 }
@@ -156,14 +156,14 @@ pub struct ActiveLabel {
     pub referenced: bool,
 }
 
-use crate::declare::Binder;
+use crate::declare::BinderWorker;
 use crate::node_util::{
     is_expression_of_optional_chain_root, is_narrowing_expression, is_nullish_coalesce, kind_of,
     parent_of,
 };
 use tsc_syntax::SyntaxKind;
 
-impl<'a> Binder<'a> {
+impl<'a> BinderWorker<'a> {
     /// tsc-port: createFlowCondition @6.0.3
     /// tsc-hash: 9e1f79f023aa72c19d5493060927a917d1231495eaa8d121d5453129722fe801
     /// tsc-span: _tsc.js:43107-43122

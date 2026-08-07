@@ -1,15 +1,15 @@
 # TypeScript 6.0.3 compiler compatibility residual
 
-Status: audited design input, 2026-08-06, with the L0.0 evidence freeze
-complete. This page records the current Rust implementation boundary, the work
+Status: audited design input, updated 2026-08-07 with L0.4 and L1 complete and
+qualified. This page records the current Rust implementation boundary, the work
 required to finish bounded H1 JavaScript emit, and the remaining work after H1
 for broader TypeScript 6.0.3 compiler and tooling compatibility. It is not an
 implementation-complete claim and it does not authorize a broader H1 profile.
 
 The persistent-source audit found one dependency-order correction: the L0
-ownership/identity foundation and L1 incremental-parser proof are required
-before H1 runtime implementation, although incremental behavior remains
-outside H1's product claim. Full old-Program/resolution reuse, Language
+ownership/identity foundation and L1 incremental-parser proof had to complete
+before H1 runtime implementation and now have, although incremental behavior
+remains outside H1's product claim. Full old-Program/resolution reuse, Language
 Service, tsserver, and LSP remain later products.
 
 Source authority: the current Rust workspace; vendored `_tsc.js` for the
@@ -88,7 +88,7 @@ There is no single honest “100%” number spanning these surfaces:
 | Broad one-shot `tsc` compilation | Not designed as one approved milestone | Full JS transform matrix, declarations, maps, output/config/CLI matrix, and complete emit suites |
 | Build/watch/project references | Preliminary seams only | Builder state, `.tsbuildinfo`, graph reuse, solution orchestration, watchers, and their suites |
 | Compiler API/custom transforms | Not exposed | Stable AST/factory/printer/Program/TypeChecker contracts and callback lifetimes |
-| Persistent source + incremental parser | L0.1 text ownership complete; L0.2 next | L0 identity/owned bind/Program snapshots and L1 fresh-equivalent, performance-qualified update parsing |
+| Persistent source + incremental parser | L0.4 and L1 complete and qualified | Preserve fresh exactness and the large-edit budget; L2 Program/resolution reuse remains Language Service work |
 | Language Service | Audited engine prerequisites only | Full document registry/program and resolution reuse, query/cache APIs, cancellation, and FourSlash qualification |
 | tsserver | Not implemented | Session protocol, Project Service, open-file overlays, watches, plugins, type acquisition, and server suites |
 | LSP adapter | Not implemented and not an upstream tsc surface | Explicit protocol mapping, synchronization, capabilities, concurrency, and LSP tests |
@@ -259,10 +259,9 @@ These are implementation packages, not permission to combine them into one
 large slice. Each package closes only after exact owner, oracle, adjacent
 control, and no-emit evidence exist.
 
-Before package 4.2 changes runtime types, complete L0/L1 in
-[the persistent Program design](lsp-and-incremental.md). Package 4.1 inventory
-work may proceed in parallel. The post-L0/L1 H0 route is the baseline used by
-the remaining packages.
+The L0/L1 prerequisite for package 4.2 is now complete and qualified in
+[the persistent Program design](lsp-and-incremental.md). The post-L0/L1 H0
+route is the baseline used by the remaining packages.
 
 ### 4.1 Inventory, profile, and evidence freeze
 
@@ -748,24 +747,23 @@ from it.
 The audited [LSP/incremental design](lsp-and-incremental.md) separates three
 layers whose schedules differ:
 
-- **L0, before H1 runtime:** shared text/position snapshots, collision-safe
+- **L0, complete before H1 runtime:** shared text/position snapshots, collision-safe
   identity leases, owned parsed/bound documents, `ProgramSnapshot`, an
   ephemeral H0 adapter, and proof that an unchanged file parses/binds zero
   times across two snapshots;
-- **L1, before H1 runtime:** port `updateSourceFile`, affected-range extension,
+- **L1, complete before H1 runtime:** port `updateSourceFile`, affected-range extension,
   syntax cursor and node-reuse eligibility, copy-on-reuse relocation, exact
   fresh-parse equivalence, and the large-file edit performance gate; and
 - **L2, after H1 is allowed:** complete `DocumentRegistry`, old-Program
   structure states, resolution dependency tracking/invalidation, watchers,
   and service-owned eviction policy.
 
-The current empty `SyntaxCursor`, Program-order-dependent node/symbol bases,
-borrowed binder result, full-text copies, per-byte position table, consuming
-`ProgramSession`, and per-run resolution cache are not sufficient for a
-Language Service. L0/L1 are on H1's architectural critical path because a
-failed copy-on-reuse benchmark may force an arena representation change. They
-remain outside H1's observable compatibility scope, and the checker remains
-fresh per Program version.
+The earlier empty `SyntaxCursor`, Program-order-dependent node/symbol bases,
+borrowed binder result, full-text copies, and consuming `ProgramSession` were
+not sufficient for a Language Service. L0/L1 now replace those seams and the
+copy-on-reuse benchmark passes; L2 still owns complete old-Program/resolution
+reuse, watchers, and service eviction. L0/L1 remain outside H1's observable
+compatibility scope, and the checker remains fresh per Program version.
 
 ### 10.5 Public compiler API and custom transformers
 
@@ -992,9 +990,9 @@ H1 output paths/sinks and later watch/server work expand the Windows selector
 beyond the present host/program paths. Cargo commands use `--locked` where
 supported, third-party Actions are pinned to reviewed full commit SHAs,
 performance runners are explicitly approved, and failure artifacts are
-bounded and content-addressed. L0.1 activates the trusted exact-result
-producer, text-owner focused selection, scheduled Unicode edit stress, and
-approved-runner H0 comparison. H1 must reuse the common authenticated
+bounded and content-addressed. L0.2 extends the trusted exact-result producer
+with identity-owner focused selection, scheduled open/edit/close reclamation
+stress, and chained approved-runner H0 comparison. H1 must reuse the common authenticated
 authority while adding its implementation-specific focused selection, emit
 stress, and approved-runner qualification before its first runtime change;
 the aggregate hosted sentinel alone is not acceptance evidence.
@@ -1012,12 +1010,12 @@ ambiguity always selects more validation rather than silently skipping it.
 
 The critical path is:
 
-1. freeze the current H0 parse/bind/text-copy and resource evidence, define
+1. **Complete:** freeze the current H0 parse/bind/text-copy and resource evidence, define
    the shared CI lane/receipt/failure-artifact schemas, and continue the
    read-only H1 inventory/profile/oracle work;
-2. land L0 shared text/position ownership, identity leases, owned bind state,
+2. **Complete:** land L0 shared text/position ownership, identity leases, owned bind state,
    `ProgramSnapshot`, ephemeral H0 adapter, and minimal registry reuse;
-3. land L1 incremental parsing and its exactness, Unicode-edit, randomized-
+3. **Complete:** land L1 incremental parsing and its exactness, Unicode-edit, randomized-
    edit, memory, and large-file latency gates, then requalify H0;
 4. freeze the post-L0/L1 H1 no-emit baseline;
 5. land emitter protocols, emitting options/loader, and scoped checker
@@ -1046,8 +1044,8 @@ The critical path is:
 
 Some work can proceed in parallel without violating that order:
 
-- H1 owner/profile/oracle inventory and later-surface inventories can proceed
-  while L0/L1 land, but H1 runtime types and its performance baseline cannot;
+- H1 owner/profile/oracle inventory and later-surface inventories could proceed
+  while L0/L1 landed; their completed qualification now unblocks H1 runtime;
 - source-map generator and full JavaScript transformer expansion are largely
   independent;
 - declaration resolver/NodeBuilder inventory can be designed while maps are

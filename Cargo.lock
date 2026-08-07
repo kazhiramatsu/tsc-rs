@@ -422,6 +422,8 @@ dependencies = [
 name = "tsc-rs-syntax"
 version = "0.1.0"
 dependencies = [
+ "serde_json",
+ "stats_alloc",
  "tsc-rs-diagnostics",
  "tsc-rs-types",
 ]
@@ -450,6 +452,7 @@ dependencies = [
  "tsc-rs-harness",
  "tsc-rs-oracle",
  "tsc-rs-syntax",
+ "tsc-rs-types",
  "yaml-rust2",
 ]
 
