@@ -1,7 +1,7 @@
 # LSP and incremental parsing — persistent Program foundation
 
-Status: L0.4 one-shot and registry qualification complete, 2026-08-07;
-L1 incremental-parser closure is next. The architecture audit found that the L0.0 one-shot data model was
+Status: L0.4 one-shot/registry and L1 incremental-parser qualification
+complete, 2026-08-07. The architecture audit found that the L0.0 one-shot data model was
 **not sufficient** for efficient Language Service, tsserver, or LSP operation.
 A bounded persistent-source foundation (`L0`) and the incremental-parser proof
 (`L1`) must land before H1 emit implementation starts. This does not put
@@ -821,6 +821,58 @@ active entries after all releases. The compiler contract suite remains green
 with the H0 diagnostic and work-counter behavior unchanged. These local proofs
 and the chained approved-runner evidence now qualify L0.4.
 
+### 8.6 L1 accepted incremental-parser record
+
+L1 completed on 2026-08-07. Its qualified runtime is commit
+`eab1c2b1a3576321fdfe98da412d54bb2616bbea`, chained from exact accepted L0.4
+base `eb6fa670ce146171a74e408c65603cb264c10c30`. The base runtime-tree
+fingerprint is the L0.4 approved candidate fingerprint, so later evidence and
+documentation commits qualify only while the runtime fingerprint remains
+identical. The implementation boundary is:
+
+- change ranges fail closed on length, prefix/suffix, bounds, and UTF-8 scalar
+  boundaries, then expand by the pinned one-token lookahead rule;
+- a highest-list-element syntax cursor supplies ordinary parser list contexts,
+  and pinned `currentNode`/`canReuseNode` rules decide consumption;
+- immutable old subtrees are copied through a reusable dense relocation
+  scratch arena, receive fresh IDs, shifted ranges, parents, JSDoc, and every
+  schema-declared identity edge, while speculative reuse that does not reach
+  the published root is excluded from the counters;
+- Language Service source creation/update owns exact snapshots and versions,
+  preserves directives/pragmas and reused JSDoc diagnostics, and reparses
+  external-module and top-level-await facts through the normal parser; and
+- `DocumentRegistry::update_incrementally` publishes a fully rebound changed
+  document while old Program versions remain immutable and unchanged bound
+  documents retain exact Arc identity.
+
+The pinned incremental-parser matrix covers reusable contexts, lookahead and
+regex transitions, comments/JSDoc, strict and yield contexts, class/interface/
+object moves, and simulated typing sequences. Deterministic Unicode and
+malformed edits compare every reachable node/array field, diagnostics,
+directives, and module fact with a fresh parse. The scheduled stress owner runs
+512 edits over the frozen 1 MiB fixture, checks registry/Program churn and
+identity reclamation on every version, and records a bounded reproducer. The
+acceptance seed completed 512/512 edits, reused at least 190,080 nodes per
+version, ended with zero registry entries and identity ranges, and observed
+71,942,144 bytes peak RSS under its 256 MiB local qualification ceiling.
+
+The approved comparison is checked in as
+[L1 performance evidence](../../../ratchets/l1-incremental-parser-performance.v1.json).
+It contains one cold plus seven warm fresh/incremental pairs in alternating
+AB/BA order on the frozen macOS arm64 runner. The fixed Unicode edit reuses
+194,996 of 195,008 nodes and reparses 12; the accepted ratios are:
+
+| Warm median operation | Warm p95 operation | Peak RSS | Allocations | Allocated bytes |
+| ---: | ---: | ---: | ---: | ---: |
+| 0.808239 | 0.831061 | 1.056879 | 0.793732 | 1.114514 |
+
+Incremental median/p95 operation latency is 15.591/16.677 ms and peak RSS is
+80,674,816 bytes. `l1-performance.mjs --check` binds the driver, fixture,
+candidate runtime tree, L0.4 chain, runner/toolchain, raw pairs, recomputed
+summaries, reuse floor, and all relative and absolute ceilings. Required PR,
+exact full-gate, scheduled stress, and the separate approved performance
+workflow now all select active L1 owners.
+
 ## 9. Evidence and tests
 
 Pinned upstream owners to import or mirror are:
@@ -883,8 +935,8 @@ edit-specific evidence:
    randomized byte/UTF-16 edit scripts plus repeated open/edit/close and
    multi-project identity churn, option and script-kind changes, range
    reclamation, bounded snapshot history, and bounded RSS. L0.4-L1 extend that
-   authority with registry reuse, cancellation, and fresh-versus-incremental
-   exactness. A failure publishes a bounded reproducer
+   authority with registry reuse and fresh-versus-incremental exactness;
+   cancellation observations remain a later service owner. A failure publishes a bounded reproducer
    containing the available initial-text hash, ordered edits, seed, option/
    version keys, reuse counters, owner ranges, diagnostics, and resource
    observations.
@@ -903,6 +955,12 @@ Windows selection expands in later slices with program, registry, path,
 toolchain, and compiler adapters that exercise platform-specific paths or file
 identity. Third-party Actions use reviewed full commit SHAs and Cargo
 resolution is locked.
+
+L1 adds generated exact syntax-graph comparison, focused pinned and Unicode
+edit tests, a bounded PR/full-gate stress seed, the 512-edit scheduled owner,
+and a separately attested fresh/incremental approved-runner comparison. The
+policy activates registry reclamation and fresh-incremental exactness rather
+than leaving them as future placeholders.
 
 Language Service, tsserver, and LSP later add their query, protocol,
 cancellation, event-ordering, and platform matrices to this topology; their

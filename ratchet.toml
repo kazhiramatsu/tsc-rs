@@ -1,8 +1,9 @@
-# L0.4 accepted one-shot/registry state is bound by
+# L0.4/L1 accepted persistent-source and incremental-parser state is bound by
 # ratchets/l0-source-options.v1.json and
-# ratchets/l0-one-shot-registry-performance.v1.json. It changes ownership and
-# H0 resource evidence, not the accepted diagnostic counts below; STAGE stays
-# M8 because L0 is not yet closed.
+# ratchets/l0-one-shot-registry-performance.v1.json plus
+# ratchets/l1-incremental-parser-performance.v1.json. It changes ownership,
+# update parsing, and resource evidence, not the accepted diagnostic counts
+# below; STAGE stays M8 because L0/L1 are outside the diagnostic-stage marker.
 [t0]
 # rate is display-only once matched/total are present; the gate
 # compares the exact integer counts (zero-regression).
