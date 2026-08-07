@@ -852,9 +852,9 @@ malformed edits compare every reachable node/array field, diagnostics,
 directives, and module fact with a fresh parse. The scheduled stress owner runs
 512 edits over the frozen 1 MiB fixture, checks registry/Program churn and
 identity reclamation on every version, and records a bounded reproducer. The
-acceptance seed completed 512/512 edits, reused at least 190,080 nodes per
+acceptance seed completed 512/512 edits, reused at least 190,089 nodes per
 version, ended with zero registry entries and identity ranges, and observed
-71,942,144 bytes peak RSS under its 256 MiB local qualification ceiling.
+77,611,008 bytes peak RSS under its 256 MiB local qualification ceiling.
 
 The approved comparison is checked in as
 [L1 performance evidence](../../../ratchets/l1-incremental-parser-performance.v1.json).
