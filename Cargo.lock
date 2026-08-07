@@ -327,6 +327,7 @@ dependencies = [
  "serde_json",
  "tsc-rs-binder",
  "tsc-rs-diagnostics",
+ "tsc-rs-emitter",
  "tsc-rs-syntax",
  "tsc-rs-types",
 ]
@@ -340,6 +341,7 @@ dependencies = [
  "stats_alloc",
  "tsc-rs-checker",
  "tsc-rs-diagnostics",
+ "tsc-rs-emitter",
  "tsc-rs-harness",
  "tsc-rs-host",
  "tsc-rs-program",
@@ -366,6 +368,16 @@ dependencies = [
 [[package]]
 name = "tsc-rs-diagnostics"
 version = "0.1.0"
+
+[[package]]
+name = "tsc-rs-emitter"
+version = "0.1.0"
+dependencies = [
+ "tsc-rs-diagnostics",
+ "tsc-rs-program",
+ "tsc-rs-syntax",
+ "tsc-rs-types",
+]
 
 [[package]]
 name = "tsc-rs-fuzz"

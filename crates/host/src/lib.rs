@@ -64,7 +64,8 @@ pub fn to_file_name_lower_case(path: &str) -> String {
 /// `Ok(None)` and `Ok(false)` mean that an entry is absent. An inability to
 /// answer the question is a [`HostError`] and must not be converted into a
 /// resolution miss. There is intentionally no write operation on this
-/// interface: H0 is a mandatory no-emit execution track.
+/// interface: H0 remains a mandatory no-emit execution track, and H1 writes
+/// through its separate `OutputSink` boundary.
 pub trait CompilerHost {
     fn current_directory(&self) -> Result<PathBuf, HostError>;
 

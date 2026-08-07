@@ -5,6 +5,7 @@ members = [
     "crates/types",
     "crates/host",
     "crates/program",
+    "crates/emitter",
     "crates/compiler",
     "crates/checker",
     "crates/diagnostics",
@@ -33,6 +34,7 @@ tsc-checker = { package = "tsc-rs-checker", path = "crates/checker" }
 tsc-compiler = { package = "tsc-rs-compiler", path = "crates/compiler" }
 tsc-conformance = { package = "tsc-rs-conformance", path = "crates/conformance" }
 tsc-diagnostics = { package = "tsc-rs-diagnostics", path = "crates/diagnostics" }
+tsc-emitter = { package = "tsc-rs-emitter", path = "crates/emitter" }
 tsc-fuzz = { package = "tsc-rs-fuzz", path = "crates/fuzz" }
 tsc-harness = { package = "tsc-rs-harness", path = "crates/harness" }
 tsc-host = { package = "tsc-rs-host", path = "crates/host" }
@@ -59,6 +61,8 @@ opt-level = 3
 [profile.dev.package.tsc-rs-conformance]
 opt-level = 3
 [profile.dev.package.tsc-rs-diagnostics]
+opt-level = 3
+[profile.dev.package.tsc-rs-emitter]
 opt-level = 3
 [profile.dev.package.tsc-rs-harness]
 opt-level = 3

@@ -139,7 +139,42 @@ const anchorSpecs = [
   [
     "workspace-members",
     "Cargo.toml",
-    '    "crates/compiler",\n    "crates/checker",',
+    '    "crates/program",\n    "crates/emitter",\n    "crates/compiler",',
+  ],
+  [
+    "emitter-manifest-owner",
+    "crates/emitter/Cargo.toml",
+    '[package.metadata.tsc-rs]\nrole = "emitter"',
+  ],
+  [
+    "emitter-artifact-protocol",
+    "crates/emitter/src/artifact.rs",
+    "pub struct EmitArtifact {\n    path: PathBuf,\n    callback_text: Box<str>,\n    write_byte_order_mark: bool,\n    kind: EmitArtifactKind,\n    source_files: Option<Box<[PathBuf]>>,\n    metadata: Option<EmitWriteMetadata>,\n}",
+  ],
+  [
+    "emitter-output-plan-shape",
+    "crates/emitter/src/plan.rs",
+    "pub struct EmitOutputPaths {\n    javascript: Option<PathBuf>,\n    javascript_map: Option<PathBuf>,\n    declaration: Option<PathBuf>,\n    declaration_map: Option<PathBuf>,\n    build_info: Option<PathBuf>,\n}",
+  ],
+  [
+    "emitter-output-sink-protocol",
+    "crates/emitter/src/sink.rs",
+    "pub trait OutputSink {\n    fn write(&mut self, artifact: EmitArtifact) -> Result<EmitWriteDisposition, EmitIoError>;\n}",
+  ],
+  [
+    "emitter-memory-sink",
+    "crates/emitter/src/sink.rs",
+    "pub struct MemoryOutputSink {\n    writes: Vec<EmitArtifact>,\n}",
+  ],
+  [
+    "emitter-outcome-protocol",
+    "crates/emitter/src/outcome.rs",
+    "pub struct EmitOutcome {\n    diagnostics: DiagnosticList,\n    emit_skipped: bool,\n    emitted_files: Option<Box<[PathBuf]>>,\n    source_maps: Option<Box<[SourceMapObservation]>>,\n}",
+  ],
+  [
+    "prepared-program-emitting-builder",
+    "crates/program/src/prepared.rs",
+    "pub fn emitting_builder(\n        path_context: PathContext,\n        compiler_options: CompilerOptions,\n    ) -> PreparedProgramBuilder {",
   ],
   [
     "program-session-owner",
@@ -149,7 +184,17 @@ const anchorSpecs = [
   [
     "program-session-run",
     "crates/compiler/src/lib.rs",
-    "pub fn run(self) -> Result<NoEmitOutcome, DriverError> {\n        let mut no_emit_canary = no_emit_canary::NoEmitCanary::new();\n        self.run_with_no_emit_canary(false, &mut no_emit_canary)\n    }",
+    "pub fn run(self) -> Result<NoEmitOutcome, DriverError> {\n        self.require_mode(PreparedProgramMode::NoEmit)?;\n        let mut no_emit_canary = no_emit_canary::NoEmitCanary::new();\n        self.run_with_no_emit_canary(false, &mut no_emit_canary)\n    }",
+  ],
+  [
+    "program-session-emit",
+    "crates/compiler/src/lib.rs",
+    "pub fn emit(self, sink: &mut dyn OutputSink) -> Result<EmitOutcome, DriverError> {",
+  ],
+  [
+    "program-session-emit-fail-before-sink",
+    "crates/compiler/src/lib.rs",
+    "Err(DriverError::Emit(EmitFailure::StageUnavailable(\n            EmitStage::TransformAndPrint,\n        )))",
   ],
   [
     "h1-no-emit-canary",
@@ -179,7 +224,7 @@ const anchorSpecs = [
   [
     "prepared-program-current-shape",
     "crates/program/src/prepared.rs",
-    "pub struct PreparedProgram {\n    path_context: PathContext,\n    compiler_options: CompilerOptions,\n    program_options: ProgramOptions,",
+    "pub struct PreparedProgram {\n    mode: PreparedProgramMode,\n    path_context: PathContext,\n    compiler_options: CompilerOptions,\n    program_options: ProgramOptions,",
   ],
   [
     "prepared-source-emit-facts",
@@ -401,6 +446,10 @@ function scopedFiles(scope) {
       return inventory.files.filter(
         (file) => file.startsWith("crates/checker/src/") && file.endsWith(".rs"),
       );
+    case "emitter-production":
+      return inventory.files.filter(
+        (file) => file.startsWith("crates/emitter/src/") && file.endsWith(".rs"),
+      );
     default:
       throw new Error(`unknown omission search scope ${scope}`);
   }
@@ -425,35 +474,18 @@ function regexMatches(scope, expression) {
 
 const absenceSpecs = [
   {
-    id: "emitter-crate-directory",
-    kind: "path-absent",
-    path: "crates/emitter",
-  },
-  {
-    id: "emitter-workspace-member-or-dependency",
+    id: "emitter-host-resolver-protocols",
     kind: "regex-zero",
-    scope: "cargo-manifests",
-    expression: "(?:crates/emitter|tsc-emitter|tsc_emitter)",
-  },
-  {
-    id: "emitter-module-declaration",
-    kind: "regex-zero",
-    scope: "production-rust",
+    scope: "emitter-production",
     expression:
-      "^[ \\t]*(?:pub(?:\\([^)]*\\))?[ \\t]+)?mod[ \\t]+emitter\\b",
+      "^[ \\t]*(?:pub(?:\\([^)]*\\))?[ \\t]+)?trait[ \\t]+(?:EmitHost|EmitResolver)\\b",
   },
   {
-    id: "typed-emitter-protocol",
+    id: "filesystem-output-sink",
     kind: "regex-zero",
-    scope: "production-rust",
+    scope: "emitter-production",
     expression:
-      "^[ \\t]*(?:pub(?:\\([^)]*\\))?[ \\t]+)?(?:struct|enum|trait|type)[ \\t]+(?:EmitArtifact|EmitArtifactKind|EmitCallbackMetadata|EmitOutputPaths|SinkDisposition|OutputSink|EmitOutcome|EmitFailure|EmitHost|EmitResolver|TransformRoot|MemoryOutputSink|FsOutputSink)\\b",
-  },
-  {
-    id: "program-session-emit-entry",
-    kind: "regex-zero",
-    scope: "compiler-production",
-    expression: "^[ \\t]*pub[ \\t]+fn[ \\t]+emit[ \\t]*\\(",
+      "^[ \\t]*(?:pub(?:\\([^)]*\\))?[ \\t]+)?struct[ \\t]+FsOutputSink\\b",
   },
   {
     id: "checker-emit-session-or-resolver",
@@ -509,28 +541,22 @@ function evidence(anchorIds = [], absenceIds = []) {
 const boundaryOmissions = [
   {
     id: "workspace-emitter-owner",
-    planned_phase: "H1.1-H1.4",
-    current: "The workspace has no emitter crate or dependency edge.",
+    planned_phase: "H1.2-H1.4",
+    current:
+      "The acyclic emitter workspace owner now contains H1.1 artifacts, metadata, output-path topology, outcomes, typed failures, OutputSink, and MemoryOutputSink.",
     missing:
-      "Acyclic protocols, factory/transform/printer implementation, output planning, and the memory sink.",
+      "EmitHost/EmitResolver protocols plus factory, transform, printer, and executable output-planning implementations.",
     evidence: evidence(
-      ["workspace-members"],
       [
-        "emitter-crate-directory",
-        "emitter-workspace-member-or-dependency",
-        "emitter-module-declaration",
+        "workspace-members",
+        "emitter-manifest-owner",
+        "emitter-artifact-protocol",
+        "emitter-output-plan-shape",
+        "emitter-output-sink-protocol",
+        "emitter-memory-sink",
+        "emitter-outcome-protocol",
       ],
-    ),
-  },
-  {
-    id: "separate-program-emit-entry",
-    planned_phase: "H1.1",
-    current: "ProgramSession exposes only the consuming no-emit run entry.",
-    missing:
-      "A separate consuming emit entry that leaves the H0 run call graph unchanged.",
-    evidence: evidence(
-      ["program-session-owner", "program-session-run"],
-      ["program-session-emit-entry"],
+      ["emitter-host-resolver-protocols", "transform-printer-output-functions"],
     ),
   },
   {
@@ -552,7 +578,10 @@ const boundaryOmissions = [
     current: "No consumer-owned EmitResolver boundary exists.",
     missing:
       "A live-checker resolver adapter with typed unsupported answers for unreached methods.",
-    evidence: evidence([], ["checker-emit-session-or-resolver"]),
+    evidence: evidence(
+      [],
+      ["emitter-host-resolver-protocols", "checker-emit-session-or-resolver"],
+    ),
   },
   {
     id: "transform-flags",
@@ -605,14 +634,21 @@ const boundaryOmissions = [
   },
   {
     id: "output-plan-artifacts-sinks",
-    planned_phase: "H1.1-H1.5",
+    planned_phase: "H1.4-H1.5",
     current:
-      "PreparedProgram owns source/config/check inputs but no output plan, artifacts, sink, or write diagnostics.",
+      "H1.1 owns the complete dormant-axis output shape, exact callback artifact identity, typed sink feedback/I/O errors, independent outcome observations, and ordered MemoryOutputSink.",
     missing:
-      "Typed output-path slots, collision preflight, callback metadata/order, partial failure, and memory/filesystem sinks.",
+      "Executable source/path planning, collision preflight, callback error continuation, partial-failure behavior, and FsOutputSink.",
     evidence: evidence(
-      ["prepared-program-current-shape"],
-      ["typed-emitter-protocol", "transform-printer-output-functions"],
+      [
+        "prepared-program-current-shape",
+        "emitter-artifact-protocol",
+        "emitter-output-plan-shape",
+        "emitter-output-sink-protocol",
+        "emitter-memory-sink",
+        "emitter-outcome-protocol",
+      ],
+      ["transform-printer-output-functions", "filesystem-output-sink"],
     ),
   },
   {
@@ -739,6 +775,21 @@ const checkerEmitElisions = checkerElisionSpecs.map(
 );
 
 const existingPrerequisites = [
+  {
+    id: "h1-typed-execution-spine",
+    treatment: "reuse-and-extend-without-routing-no-emit-through-emitter",
+    evidence: [
+      "prepared-program-emitting-builder",
+      "program-session-run",
+      "program-session-emit",
+      "program-session-emit-fail-before-sink",
+      "emitter-artifact-protocol",
+      "emitter-output-plan-shape",
+      "emitter-output-sink-protocol",
+      "emitter-memory-sink",
+      "emitter-outcome-protocol",
+    ],
+  },
   {
     id: "persistent-program-snapshot",
     treatment: "reuse",
@@ -899,7 +950,7 @@ function validateArtifact(value) {
 validateArtifact(artifact);
 
 requireCondition(
-  boundaryOmissions.length === 11,
+  boundaryOmissions.length === 10,
   "the reviewed missing-production-boundary table must remain exhaustive",
 );
 requireCondition(

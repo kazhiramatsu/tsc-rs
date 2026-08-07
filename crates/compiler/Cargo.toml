@@ -19,6 +19,7 @@ path = "src/bin/tsc-rs.rs"
 [dependencies]
 tsc-checker.workspace = true
 tsc-diagnostics.workspace = true
+tsc-emitter.workspace = true
 tsc-host.workspace = true
 tsc-program.workspace = true
 

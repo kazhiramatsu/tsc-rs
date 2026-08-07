@@ -1,23 +1,20 @@
 [package]
-name = "tsc-rs-checker"
+name = "tsc-rs-emitter"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 
 [package.metadata.tsc-rs]
-role = "checker"
+role = "emitter"
 dev-profile-opt-level = 3
 
 [lib]
-name = "tsc_checker"
+name = "tsc_emitter"
 path = "src/lib.rs"
 
 [dependencies]
-indexmap = "2"
-serde_json = { version = "1.0", features = ["preserve_order"] }
-tsc-binder.workspace = true
 tsc-diagnostics.workspace = true
-tsc-emitter.workspace = true
+tsc-program.workspace = true
 tsc-syntax.workspace = true
 tsc-types.workspace = true
 

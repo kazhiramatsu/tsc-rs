@@ -55,9 +55,14 @@ exact/conservative ownership edges: 19,033 lexical, 4,511 nested-function,
 property/dynamic or otherwise non-lexical call sites has an explicit reviewed
 disposition. Of those, 711 produce exact symbol edges and 4,491 remain
 classified non-edges, with 442 complete property review candidate sets and
-zero unresolved or undispositioned rows. No H1 runtime
-implementation or compatibility claim exists until the post-L0/L1 no-emit
-performance baseline and remaining H1 stages described below are frozen.
+zero unresolved or undispositioned rows. H1.0b has frozen the post-L0/L1
+no-emit performance boundary. H1.1 is now complete: `crates/emitter` owns the
+typed artifact, callback metadata, dormant output topology, outcome, failure,
+sink-disposition, `OutputSink`, and `MemoryOutputSink` contracts; emitting
+prepared programs and the separate `ProgramSession::emit` entry fail at the
+unimplemented transform/print stage before the first sink call. This is an
+execution-spine claim, not JavaScript output compatibility; H1.2–H1.6 remain
+below.
 H0 remains the released, frozen single-project `--noEmit` profile. M9 remains a
 separate paused batch-diagnostics qualification track.
 
@@ -559,14 +564,18 @@ generated and revalidated by
 [`h1-noemit-performance.mjs`](../../../crates/oracle/h1-noemit-performance.mjs).
 The exact trusted pre-H1 commit is `c0951bf15cdec74223de29e06cd908b0899712f6`
 and the first guarded candidate is
-`7a8b04959279fa668579e95d74b084f3198e0039`. Each of the three frozen
-workloads has one cold and seven warm alternating AB/BA pairs. The largest
-observed warm p95/median ratio is 1.037 and the largest warm relative range is
-0.063; the reviewed ceilings remain 1.10 for median wall/RSS, 1.15 for p95
-wall, 1.02/1.03 for allocation count/bytes, 1.0 for parse/bind/copy work, and
-1.25 for executable size. The measured candidate stays below every ceiling:
-its largest warm-median wall ratio is 1.006, every work and allocation-count
-ratio is 1.0, and its executable is 112 bytes smaller.
+`7a8b04959279fa668579e95d74b084f3198e0039`. Every H1 runtime slice reuses
+that immutable base and replaces the current candidate observation; H1.1 is
+measured at `04749573905db11aa27a760a9ca0b701ad392290`. Each of the three
+frozen workloads has one cold and seven warm alternating AB/BA pairs. In the
+H1.1 measurement, the largest warm p95/median ratio is 1.028 and the largest
+warm relative range is 0.040; the reviewed ceilings remain 1.10 for median
+wall/RSS, 1.15 for p95 wall, 1.02/1.03 for allocation count/bytes, 1.0 for
+parse/bind/copy work, and 1.25 for executable size. The measured candidate
+stays below every ceiling:
+its largest warm-median wall ratio is 1.007, its largest RSS ratio is 1.004,
+every work and allocation-count ratio is 1.0, and its executable-size ratio is
+1.000057 (704 bytes larger).
 
 The zero-sized [`NoEmitCanary`](../../../crates/compiler/src/no_emit_canary.rs)
 is threaded from CLI dispatch through `ProgramSession`. Its eight frozen
@@ -1284,9 +1293,10 @@ declaration/map/bundle/targeted/build-info anchors with
 `node crates/oracle/h1-owner-inventory.mjs --check`, and freeze the bootstrap
 profile plus callback observations with
 `node crates/oracle/h1-emit-oracle.mjs --check`. The current production Rust
-scope is independently hashed and its 11 missing production boundaries, 32
+scope is independently hashed and its 10 remaining production boundaries, 32
 effective option-projection omissions, and 25 explicit checker emit elision
-and control rows
+and control rows, together with the completed H1.1 spine as an existing
+prerequisite,
 are frozen with
 `node crates/oracle/h1-rust-omission-inventory.mjs --check`. The owner artifact
 deliberately remains `draft/report-only`. The complete transpile source tree is
@@ -1333,12 +1343,12 @@ runtime.
    `ts-tests`-only `cargo xtask acceptance` boundary, and land
    constructor/write-zero canaries in the complete local gate before H1
    runtime behavior changes.
-4. **Next — H1.1 typed execution spine:** add the non-publicly-constructible
-   `EmitArtifact`, callback metadata, sink disposition, full typed output-path
-   shape, `OutputSink`, typed failures, and the separate emitting session
-   entry. Unsupported emission reaches no sink. H0 results and performance
-   remain unchanged.
-5. **H1.2 — factory, transform context, and printer foundation:** port the
+4. **Complete — H1.1 typed execution spine:** add the private-layout,
+   product-constructed `EmitArtifact`, callback metadata, sink disposition,
+   full typed output-path shape, `OutputSink`, typed failures, and the separate
+   emitting session entry. Unsupported emission reaches no sink. H0 results
+   and performance remain unchanged.
+5. **Next — H1.2 factory, transform context, and printer foundation:** port the
    synthetic/original-node ownership model, `transformNodes` lifecycle,
    dual-domain writer/position conversion, disabled source-map hook phases,
    and the generic printer pipeline, with direct Unicode/newline oracle pins.

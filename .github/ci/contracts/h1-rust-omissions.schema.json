@@ -85,7 +85,7 @@
         "existing_prerequisites"
       ],
       "properties": {
-        "production_boundary_omissions": { "const": 11 },
+        "production_boundary_omissions": { "const": 10 },
         "absence_proofs": { "$ref": "#/$defs/positive_integer" },
         "option_projection_omissions": { "$ref": "#/$defs/positive_integer" },
         "explicit_checker_emit_elisions": { "$ref": "#/$defs/positive_integer" },
@@ -99,8 +99,8 @@
     },
     "production_boundary_omissions": {
       "type": "array",
-      "minItems": 11,
-      "maxItems": 11,
+      "minItems": 10,
+      "maxItems": 10,
       "items": { "$ref": "#/$defs/boundary_omission" }
     },
     "option_projection_omissions": {

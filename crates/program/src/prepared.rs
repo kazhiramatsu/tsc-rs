@@ -48,6 +48,13 @@ impl SourceFileId {
     }
 }
 
+/// Execution entry for which a prepared program was validated.
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub enum PreparedProgramMode {
+    NoEmit,
+    Emit,
+}
+
 /// Host path facts that remain observable after preparation.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct PathContext {
@@ -1016,9 +1023,10 @@ impl ResolutionTable {
     }
 }
 
-/// Fully owned input to the one-shot H0 checker session.
+/// Fully owned input to one validated no-emit or emitting session entry.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct PreparedProgram {
+    mode: PreparedProgramMode,
     path_context: PathContext,
     compiler_options: CompilerOptions,
     program_options: ProgramOptions,
@@ -1038,6 +1046,21 @@ impl PreparedProgram {
         compiler_options: CompilerOptions,
     ) -> PreparedProgramBuilder {
         PreparedProgramBuilder::new(path_context, compiler_options)
+    }
+
+    /// Construct a program for the distinct emitting session entry.
+    ///
+    /// Existing loaders continue to use [`builder`](Self::builder) and retain
+    /// their mandatory `noEmit=true` contract.
+    pub fn emitting_builder(
+        path_context: PathContext,
+        compiler_options: CompilerOptions,
+    ) -> PreparedProgramBuilder {
+        PreparedProgramBuilder::new_emitting(path_context, compiler_options)
+    }
+
+    pub const fn mode(&self) -> PreparedProgramMode {
+        self.mode
     }
 
     pub fn current_directory(&self) -> &ProgramPath {
@@ -1110,6 +1133,7 @@ impl PreparedProgram {
 /// table.
 #[derive(Clone, Debug)]
 pub struct PreparedProgramBuilder {
+    mode: PreparedProgramMode,
     path_context: PathContext,
     compiler_options: CompilerOptions,
     program_options: ProgramOptions,
@@ -1128,7 +1152,20 @@ pub struct PreparedProgramBuilder {
 
 impl PreparedProgramBuilder {
     pub fn new(path_context: PathContext, compiler_options: CompilerOptions) -> Self {
+        Self::for_mode(PreparedProgramMode::NoEmit, path_context, compiler_options)
+    }
+
+    pub fn new_emitting(path_context: PathContext, compiler_options: CompilerOptions) -> Self {
+        Self::for_mode(PreparedProgramMode::Emit, path_context, compiler_options)
+    }
+
+    fn for_mode(
+        mode: PreparedProgramMode,
+        path_context: PathContext,
+        compiler_options: CompilerOptions,
+    ) -> Self {
         Self {
+            mode,
             path_context,
             compiler_options,
             program_options: ProgramOptions::default(),
@@ -1553,13 +1590,24 @@ impl PreparedProgramBuilder {
         if let Some(error) = self.fatal_error {
             return Err(error);
         }
-        if self.compiler_options.no_emit != Some(true) {
-            return Err(PreparationError::new(
-                PreparationErrorKind::InvalidInput,
-                PreparationOperation::BuildPreparedProgram,
-                None,
-                "H0 PreparedProgram requires compilerOptions.noEmit to be explicitly true",
-            ));
+        match self.mode {
+            PreparedProgramMode::NoEmit if self.compiler_options.no_emit != Some(true) => {
+                return Err(PreparationError::new(
+                    PreparationErrorKind::InvalidInput,
+                    PreparationOperation::BuildPreparedProgram,
+                    None,
+                    "H0 PreparedProgram requires compilerOptions.noEmit to be explicitly true",
+                ));
+            }
+            PreparedProgramMode::Emit if self.compiler_options.no_emit == Some(true) => {
+                return Err(PreparationError::new(
+                    PreparationErrorKind::InvalidInput,
+                    PreparationOperation::BuildPreparedProgram,
+                    None,
+                    "H1 emitting PreparedProgram rejects effective compilerOptions.noEmit=true",
+                ));
+            }
+            PreparedProgramMode::NoEmit | PreparedProgramMode::Emit => {}
         }
 
         self.validate_case_profile()?;
@@ -1598,6 +1646,7 @@ impl PreparedProgramBuilder {
         self.validate_diagnostic_sources()?;
 
         Ok(PreparedProgram {
+            mode: self.mode,
             path_context: self.path_context,
             compiler_options: self.compiler_options,
             program_options: self.program_options,

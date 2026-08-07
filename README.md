@@ -36,7 +36,10 @@ supported scope, summarized under [Development Status and
 Roadmap](#development-status-and-roadmap). The `PreparedProgram` type in
 `crates/program` can be consumed by the internal `ProgramSession` in
 `crates/compiler`; the session owns the program, keeps parser/binder/checker
-borrows within one run, and separates the five no-emit diagnostic buckets.
+borrows within one run, separates the five no-emit diagnostic buckets, and
+now exposes a distinct fail-closed emit entry backed by the typed protocols in
+`crates/emitter`. Transformer/printer execution and JavaScript output are not
+yet connected.
 Existing conformance tests still assemble files, libraries, options, and
   resolution facts through the harness and checker APIs. The bounded
   filesystem/config/CLI path is available through the production binary;
@@ -121,10 +124,11 @@ Focused checks for the host and prepared-program boundaries are:
 ```sh
 CARGO_BUILD_JOBS=2 cargo xtask test host -- --test-threads=2
 CARGO_BUILD_JOBS=2 cargo xtask test program -- --test-threads=2
+CARGO_BUILD_JOBS=2 cargo xtask test emitter -- --test-threads=2
 CARGO_BUILD_JOBS=2 cargo xtask test compiler -- --test-threads=2
 ```
 
-`checker`, `host`, `program`, and `compiler` are stable workspace roles rather
+`checker`, `host`, `program`, `emitter`, and `compiler` are stable workspace roles rather
 than Cargo package names. Contributor commands and CI use
 `cargo xtask test <role>`, so an internal package rename does not require every
 workflow and document to be rewritten. `cargo xtask workspace audit` verifies
@@ -219,6 +223,7 @@ repository root. There is intentionally no top-level `src/` directory.
 | `crates/types` | Shared compiler options, symbols, types, signatures, and relation data |
 | `crates/host` | Read-only compiler-host contract and deterministic in-memory host adapter |
 | `crates/program` | Owned prepared-program, path-identity, and authoritative resolution contracts |
+| `crates/emitter` | Typed emit artifacts, output topology, outcomes, failures, and in-memory sink |
 | `crates/compiler` | One-shot owned program execution and no-emit diagnostic buckets |
 | `crates/checker` | Parser/binder assembly and semantic diagnostic checking |
 | `crates/diagnostics` | Diagnostic messages, structures, line maps, sorting, and deduplication |
@@ -305,7 +310,14 @@ alternating AB/BA pairs for each explicit-root, project, and scale workload.
 All 48 executions wrote zero files; every candidate execution recorded zero
 for all eight emitter-construction/sink activities; parse/bind, copy, and
 allocation counts did not regress; the largest warm-median wall ratio was
-1.006; and the candidate executable was 112 bytes smaller. H1.1 is next.
+1.007; peak RSS stayed within 1.004; and the candidate executable grew by
+only 704 bytes (ratio 1.000057). H1.1 is now
+implemented: the acyclic `emitter` owner freezes private-layout artifacts,
+exact callback text/BOM/provenance/metadata observations, the complete dormant
+output-plan axes, typed failures and sink feedback, independent outcome
+observations, and ordered `MemoryOutputSink`; `PreparedProgram` and
+`ProgramSession` have separate no-emit/emit modes, and the still-unimplemented
+transform/print stage fails before the first sink call. H1.2 is next.
 Ordinary GitHub CI remains the single `cargo xtask acceptance` entrypoint
 while the complete gate remains local. Complete Language Service,
 tsserver, and LSP behavior remains later work. The audited
@@ -454,7 +466,7 @@ profile and fail closed.
 | M9 | Paused after 1b | Typed outcomes and true replay landed; production generator, burn-in, freeze, and qualification deferred |
 | H0 | Complete (frozen single-project no-emit profile; 241/241 host rows, 7,276/7,276 compiler plans, 82/82 compatible project plans, exact CLI/program oracles) | Filesystem-hosted `--noEmit`: program construction, config/CLI, embedded libraries, rendering, and exit behavior |
 | L0/L1 | Complete and performance-qualified | Shared text/position snapshots, domain-scoped identity leases, owned bind/Program snapshots, immutable incremental parsing/rebinding, registry reuse, exact fresh equivalence, reclamation stress, and approved large-edit evidence |
-| H1 | H1.0a inventory/oracle and H1.0b no-emit qualification complete; H1.1 typed execution spine next | Reviewed active-root graph with zero unresolved calls, exact callback/upstream-classification evidence, and a frozen three-workload no-emit performance/write-zero boundary, then bounded JavaScript emit through the vendored resolver/transform/printer/output architecture |
+| H1 | H1.0a/H1.0b qualification and H1.1 typed execution spine complete; H1.2 factory/transform/printer foundation next | Reviewed active-root graph with zero unresolved calls, exact callback/upstream-classification evidence, frozen no-emit performance/write-zero boundary, typed artifact/plan/sink/outcome protocols, then bounded JavaScript emit through the vendored resolver/transform/printer/output architecture |
 
 The exact accepted-state summary below is generated by
 `cargo xtask readme-status` and must not be edited by hand.
