@@ -9,7 +9,9 @@ and the current-Rust
 [`h1-rust-omissions.v1.json`](../../../ratchets/h1-rust-omissions.v1.json)
 baseline, and the complete 22-file upstream `transpile` source tree is now
 content-addressed in the additive suite pin v2 without fabricating expansion
-or runner results.
+or runner results. Additive suite pin v3 now also binds the complete
+6,568-file FourSlash tree identity and vendors the exact 38-file batch-emit
+witness projection, again with zero expansion or execution rows.
 The shared L0/L1 prerequisite and its evidence/CI-contract freeze are complete.
 The graph's unresolved dynamic calls and conservative property dispatch still
 need review, and the corpus classification portion of H1.0a remains open. No
@@ -949,12 +951,26 @@ treating every file containing output as interchangeable.
 The audited pre-transition state was explicit: suite pin v1 contained only
 `compiler`, `project`, and `projects`, and the local `ts-tests` tree contained
 neither `transpile` nor `fourslash`. The reviewed additive suite pin v2 binds
-v1 by path and SHA-256, preserves its three entries exactly, and now pins and
+v1 by path and SHA-256, preserves its three entries exactly, and pins and
 vendors all 22 `transpile` files plus the `transpileRunner` Git blob from
-source commit `050880ce59e30b356b686bd3144efe24f875ebc8`. The 6,568-file
-FourSlash tree remains absent and will be scanned through its separate
-projection manifest. These counts and source pins are inventory facts, not
-executed-test or compatibility claims.
+source commit `050880ce59e30b356b686bd3144efe24f875ebc8`. Additive suite pin
+v3 in turn binds v2 byte-for-byte, preserves all four complete suite entries,
+and pins the complete FourSlash source tree as 6,568 files, 14,198,525 bytes,
+and Git tree `775c30f57c0638a180e7ac2e38b2581976620ca5`.
+
+The checked-in
+[`fourslash-emit-projection.v1.json`](../../../vendor/typescript-6.0.3/fourslash-emit-projection.v1.json)
+is the mechanically extracted batch-emit projection of that full tree. It
+vendors only 38 fixtures/31,051 bytes: 31
+`baselineGetEmitOutput`, five `getEmitOutput`, one
+`verifyGetEmitOutputForCurrentFile`, and one
+`verifyGetEmitOutputContentsForCurrentFile` call. It also freezes all 49
+ordered `emitThisFile` directives, the two declaration/comment false-positive
+controls, the extractor hash, the projection Git tree/blob inventory, and the
+`fourslashImpl`/`fourslashInterfaceImpl` runner-source blobs. The producer's
+ordinary `--check` is offline; `--source-root` additionally reconstructs and
+re-scans the full pinned upstream tree. These counts and source pins are
+inventory facts, not executed-test or compatibility claims.
 
 The existing expansion v1 remains byte-identical: it inventories 7,086
 `compiler`, `project`, and `projects` sources, expands exactly 7,276 compiler
@@ -982,14 +998,17 @@ The inventory then classifies these sources:
    transform/printer behavior; declaration and map rows remain inventoried
    unsupported controls. `transpileModule` is a component oracle and never
    substitutes for whole-Program emit acceptance.
-3. H1.0a scans the complete upstream `tests/cases/fourslash` tree at the same
-   source commit and writes a versioned manifest of every DSL/API operation
-   whose runner reaches Language Service `getEmitOutput`, including
+3. H1.0a has scanned the complete upstream `tests/cases/fourslash` tree at the
+   same source commit and written a versioned manifest of every direct
+   DSL/API operation whose runner reaches Language Service `getEmitOutput`,
+   including
    `getEmitOutput`, `baselineGetEmitOutput`,
    `verifyGetEmitOutputForCurrentFile`,
    `verifyGetEmitOutputContentsForCurrentFile`, and `emitThisFile` metadata.
-   The manifest pins the upstream tree, extractor, paths, blob hashes, and
-   operation class.
+   The manifest pins the upstream tree, extractor, paths, blob hashes,
+   operation line/class, and metadata order. The 38 selected fixture bytes
+   are checked in; the other 6,530 FourSlash files are represented only by
+   the complete source-tree identity.
    A one-shot case may become a non-gating H1 cross-control only after the
    oracle proves that its Language Service observation is equivalent to the
    H1 whole-Program request. Per-file, edit/version, formatting, server, or
@@ -1108,8 +1127,10 @@ are frozen with
 `node crates/oracle/h1-rust-omission-inventory.mjs --check`. The owner artifact
 deliberately remains `draft/report-only`. The complete transpile source tree is
 also pinned in the additive v2 source universe without expansion or execution
-rows; corpus classification, FourSlash projection, and reviewed
-unresolved/property-dispatch dispositions still keep item 1 open.
+rows. The additive v3 source universe now freezes the complete FourSlash tree
+identity and exact 38-file emit projection, also with zero expansion or
+execution rows; corpus classification and reviewed unresolved/property-
+dispatch dispositions still keep item 1 open.
 
 1. **H1.0a — inventory and oracle:** generate the JavaScript-emitter owner
    graph, classify the compiler/project/conformance/transpile corpus plus the

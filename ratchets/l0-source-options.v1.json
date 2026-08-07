@@ -417,8 +417,8 @@
       "generated_syntax_relocation": {
         "source": "nodes.schema.json field model",
         "path": "crates/xtask/src/main.rs",
-        "line": 11154,
-        "source_sha256": "03a5eee21010096a57197f2d10deee9f830a78861c2eaa5bdec1b6085d1e4336",
+        "line": 11155,
+        "source_sha256": "17b26d6287d5c9f60848747070b5065c1f18d7d7af29759d53257e5c8c9ef158",
         "evidence": "fn render_relocate_rs(schemas: &[NodeSchema])"
       },
       "bind_owner": {

@@ -7756,6 +7756,7 @@ fn ci_oracle_gates(workspace: &Path) -> Result<(), Box<dyn Error>> {
             .arg(workspace.join("crates/oracle/trace-driver.mjs")),
     )?;
     for driver in [
+        "fourslash-emit-projection.mjs",
         "compiler-config-plans.mjs",
         "compiler-config-diagnostics.mjs",
         "compiler-module-suffixes.mjs",

@@ -1,0 +1,97 @@
+{
+  "schema": 3,
+  "typescript_version": "6.0.3",
+  "source_repository": "https://github.com/microsoft/TypeScript.git",
+  "source_commit": "050880ce59e30b356b686bd3144efe24f875ebc8",
+  "base_pin": {
+    "path": "vendor/typescript-6.0.3/test-suites-pin.v2.json",
+    "sha256": "83f8edbb6f4535a19e61cf872532a46722f8cedbd2d746a0922dc507addc0879"
+  },
+  "suites": [
+    {
+      "name": "compiler",
+      "source_path": "tests/cases/compiler",
+      "vendored_path": "ts-tests/tests/cases/compiler",
+      "git_tree_sha1": "9982425f8fc156678687afd21aa6f7ac681a7c01",
+      "blob_inventory_sha256": "7d21dca57fe92942f818333b9b12b51139b740bc334179d4e89cd73e2251c434",
+      "files": 6537,
+      "bytes": 4588680,
+      "unique_blobs": 6523,
+      "executable_paths": [
+        "parserPrivateIdentifierInArrayAssignment.ts",
+        "taggedTemplateWithoutDeclaredHelper.ts"
+      ]
+    },
+    {
+      "name": "project",
+      "source_path": "tests/cases/project",
+      "vendored_path": "ts-tests/tests/cases/project",
+      "git_tree_sha1": "c13353cca2c55fb831ba40ca022b29839fdfab26",
+      "blob_inventory_sha256": "04fe8a0e3777b9a51bf150377e15363dd930d13de2608cd25de306dedb45cde5",
+      "files": 316,
+      "bytes": 100994,
+      "unique_blobs": 316,
+      "executable_paths": []
+    },
+    {
+      "name": "projects",
+      "source_path": "tests/cases/projects",
+      "vendored_path": "ts-tests/tests/cases/projects",
+      "git_tree_sha1": "85282d8f70ef48a26a7b9f9c4e0bee88a1cf16e7",
+      "blob_inventory_sha256": "a881ee1ae51c01e8455bdedf040900b6bfa403aa745a2c809420469b9d1b4926",
+      "files": 233,
+      "bytes": 28468,
+      "unique_blobs": 154,
+      "executable_paths": []
+    },
+    {
+      "name": "transpile",
+      "source_path": "tests/cases/transpile",
+      "vendored_path": "ts-tests/tests/cases/transpile",
+      "git_tree_sha1": "e457f4923a084d10e9902ab311f640f02467e20d",
+      "blob_inventory_sha256": "d07d1ac154da492d5d1d5a01fd00eea830f9d372aff03215eda1baad8b2c12ac",
+      "files": 22,
+      "bytes": 13480,
+      "unique_blobs": 22,
+      "executable_paths": []
+    }
+  ],
+  "implementation_sources": [
+    {
+      "source_path": "src/testRunner/transpileRunner.ts",
+      "git_blob_sha1": "3926aa9b7d88e953163ed1fee843d273783be131"
+    },
+    {
+      "source_path": "src/harness/fourslashImpl.ts",
+      "git_blob_sha1": "dc6341ef018f79e5d55a1d59aeafaeae2932c3d6"
+    },
+    {
+      "source_path": "src/harness/fourslashInterfaceImpl.ts",
+      "git_blob_sha1": "6178b2723f13e86f78261d848f48af8f4a998e18"
+    }
+  ],
+  "projections": [
+    {
+      "name": "fourslash-batch-emit",
+      "source_path": "tests/cases/fourslash",
+      "vendored_path": "ts-tests/tests/cases/fourslash",
+      "source_git_tree_sha1": "775c30f57c0638a180e7ac2e38b2581976620ca5",
+      "source_blob_inventory_sha256": "5f6ada2902ef3f7ce41e0652111d5d0db144a107b19d4d58f2369c8bd0cf3461",
+      "source_files": 6568,
+      "source_bytes": 14198525,
+      "source_unique_blobs": 6547,
+      "manifest": {
+        "path": "vendor/typescript-6.0.3/fourslash-emit-projection.v1.json",
+        "sha256": "d652d0e0ad1a6195cb3d74e97cb241f3da6a55b6811bd4770fb1ec56a2843c46"
+      },
+      "projected_git_tree_sha1": "bc4bdc7e593ef3545066853fa50f3526ffec955b",
+      "projected_blob_inventory_sha256": "e31ec9bdc1921d7628cda659e150521a4a2ffe03524c59c75be0d475a684bb81",
+      "projected_files": 38,
+      "projected_bytes": 31051,
+      "projected_unique_blobs": 38,
+      "projected_executable_paths": [],
+      "execution_state": "not-run",
+      "expansion_rows": 0
+    }
+  ]
+}

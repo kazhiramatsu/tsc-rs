@@ -61,7 +61,8 @@ filesystem/config loading, no-emit diagnostics, rendering, and exit behavior.
 [h1-emit.md](h1-emit.md) — H1.0a now has a generated report-only owner-graph
 draft plus a frozen bootstrap profile, callback-level TypeScript oracle, and
 current-Rust omission baseline, plus the complete content-addressed upstream
-transpile source universe in additive suite pin v2. The bounded,
+transpile source universe in additive suite pin v2 and the exact 38-file
+FourSlash batch-emit witness projection in additive suite pin v3. The bounded,
 tsc-architected JavaScript emitter preserves the H0 `--noEmit` entry without
 initializing the emitter and ports the exact resolver/transform/printer/output
 spine. Corpus
@@ -196,7 +197,7 @@ is one commit.
 | M9 differential-fuzzer steady state — paused after M9.1b | [M9 execution](m9-execution-and-close.md) + [evidence contract](evidence-and-steady-state.md#31-m9-steady-state) | preflight/domain/owner burn-in green, then `fuzz steady-state --require-ready`: 14 frozen-fingerprint 100,000-case windows, rate < 1 new class/window, no untriaged incident or unresolved owner task |
 | H0 filesystem-hosted `--noEmit` — complete | [H0 execution](noemit-cli.md) | exact closure of the 241 host-resolution identities, MemoryHost/FsHost equivalence, config/CLI/output parity, embedded libraries, no emitted files |
 | L0/L1 persistent source + incremental parser — complete and performance-qualified | [persistent Program design](lsp-and-incremental.md) | shared text/position snapshots, domain-scoped identity leases, generated relocation, non-contiguous ownership, owned bind/Program snapshots, immutable incremental parse/rebind, exact fresh equivalence, reclamation stress, and approved large-edit evidence |
-| H1 JavaScript emit — H1.0a profile/oracle/Rust omissions/transpile source pin frozen, inventory closure active | [H1 execution](h1-emit.md) | report-only active-root graph, exact callback oracle, generated Rust omission baseline, and additive content-addressed transpile inputs first; then corpus/owner-disposition closure, zero-cost H0 `--noEmit` route, byte-identical bounded JavaScript output, and resource qualification |
+| H1 JavaScript emit — H1.0a profile/oracle/Rust omissions/transpile/FourSlash emit source pins frozen, inventory closure active | [H1 execution](h1-emit.md) | report-only active-root graph, exact callback oracle, generated Rust omission baseline, complete transpile inputs, and the 38-file inventory-only FourSlash emit projection first; then corpus/owner-disposition closure, zero-cost H0 `--noEmit` route, byte-identical bounded JavaScript output, and resource qualification |
 
 The T0 percentages are calibration points from the first
 implementation's history, not promises; the gate is "meets or beats,

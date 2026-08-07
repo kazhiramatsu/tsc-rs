@@ -33,6 +33,35 @@ The harness recursively verifies all four v2 trees. This transition records
 inputs and runner identity only; it deliberately does not change the v1
 expansion or claim a transpile execution result.
 
+The next additive H1 source transition is pinned at
+`vendor/typescript-6.0.3/test-suites-pin.v3.json`. It binds the complete v2
+pin by path and SHA-256, preserves all four suite entries and the
+`transpileRunner` source identity exactly, and has SHA-256
+`5f7aee7d434066017c5cd115fb2195ff4959e5203eddc7ed9dafaf705cb38b34`.
+The v3 pin records the complete 6,568-file FourSlash source-tree identity but
+vendors only the 38 fixtures whose DSL body directly calls one of the four
+emit-output verification operations. Those exact 31,051 bytes are described
+by `vendor/typescript-6.0.3/fourslash-emit-projection.v1.json` (SHA-256
+`d652d0e0ad1a6195cb3d74e97cb241f3da6a55b6811bd4770fb1ec56a2843c46`),
+along with 38 operation lines, 49 ordered `emitThisFile` directives, two
+false-positive controls, the full-tree identity, and the projection tree and
+blob inventories. The v3 pin also records the Git blobs for
+`src/harness/fourslashImpl.ts` and
+`src/harness/fourslashInterfaceImpl.ts`.
+
+The projection producer can re-scan a pinned upstream checkout and always
+checks the checked-in projection offline:
+
+```text
+node crates/oracle/fourslash-emit-projection.mjs --check
+node crates/oracle/fourslash-emit-projection.mjs --check --source-root /path/to/TypeScript/tests/cases/fourslash
+```
+
+This is an inventory-only `not-run` transition. It adds zero expansion,
+execution, or passing rows; it claims neither a FourSlash pass rate nor
+Language Service or whole-Program emit equivalence. The complete FourSlash
+tree and runner are not vendored or executed.
+
 The v1 suites' deterministic case expansion is pinned at
 `vendor/typescript-6.0.3/test-suite-expansion.v1.json`: 7,276 `compiler`
 cases plus 632 `project` runner cases backed by the shared `projects` tree, for
