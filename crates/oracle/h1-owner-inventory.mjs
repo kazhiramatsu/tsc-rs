@@ -568,6 +568,7 @@ const output = {
     "pin the complete upstream transpile source tree and runner identity without execution results",
     "pin the complete upstream FourSlash tree identity and classify the 38 direct emit-operation witnesses without execution results",
     "reproduce and classify all 37 transpile runner rows without execution or reference-baseline results",
+    "pin the complete upstream conformance source tree without adding expansion or execution results",
   ],
   pending_h1_0a: [
     "review and disposition every unresolved/dynamic call and property-dispatch over-approximation",

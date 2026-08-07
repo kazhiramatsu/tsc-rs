@@ -6,7 +6,7 @@
   "source_commit": "050880ce59e30b356b686bd3144efe24f875ebc8",
   "profile": {
     "path": "ratchets/h1-emit-profile.v1.json",
-    "sha256": "9a47ddf34b449249d310a9075ffa938adad44cc18384d280f8e8987fac1a8f18"
+    "sha256": "d965a2d75c4205e53a7c38193a96f2c17802e8414f06244098a516c6af4c01ba"
   },
   "oracle_environment": {
     "virtual_root": "/project",

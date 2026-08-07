@@ -34,7 +34,7 @@
   },
   "owner_inventory": {
     "path": "ratchets/h1-owner-inventory.v1.json",
-    "sha256": "020335c4cb3fe07aab05d9d4c17140550b8666fb205cf32b36cac52365f5569d",
+    "sha256": "760ab4d11a4e9fd1eb4e240b243351e14e7f1dcb590992f77ab8374ebdcb4e9c",
     "status": "draft/report-only"
   },
   "execution": {
@@ -289,5 +289,5 @@
       "mts-output-control"
     ]
   },
-  "profile_fingerprint_sha256": "aec7690c09ad2001b1d0dc796170c7fcdd537241276b42a2b06d6dddbe657eb1"
+  "profile_fingerprint_sha256": "b4f741109a2c032bb1f54380f3c466a0c0649c82ecaf88c15e5ccc32f8a41a21"
 }

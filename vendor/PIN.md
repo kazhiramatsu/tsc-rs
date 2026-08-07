@@ -35,7 +35,7 @@ expansion or claim a transpile execution result.
 
 The runner-derived companion inventory is pinned at
 `vendor/typescript-6.0.3/transpile-suite-inventory.v1.json` (SHA-256
-`03c4672f0a9b4f0776908501115b088fbabb846af6f90f3106735a42df11d0c6`).
+`34d8002c3875a53393ecf472c90229bc22ee4e759a6d0c20bed098a29a4da2fd`).
 It reconstructs the exact 22-fixture, 25-configuration `TranspileRunner`
 matrix as 42 fixture units, 37 cases, and 79 per-unit operations. All 37 cases
 retain execution state `not-run`: 14 are JavaScript transform/printer controls,
@@ -82,6 +82,19 @@ This is an inventory-only `not-run` transition. It adds zero expansion,
 execution, or passing rows; it claims neither a FourSlash pass rate nor
 Language Service or whole-Program emit equivalence. The complete FourSlash
 tree and runner are not vendored or executed.
+
+The additive H1 source-universe pin v4 is
+`vendor/typescript-6.0.3/test-suites-pin.v4.json` (SHA-256
+`9cd0b499d22c8936b78d1bd30d5ab7faa295b23903e838953fddaaffc48d52d4`).
+It binds v3 byte-for-byte, preserves all four existing full suites, all three
+implementation-source identities, and the FourSlash projection exactly, then
+appends the complete `tests/cases/conformance` tree: 5,908 files, 3,825,804
+bytes, 5,862 unique blobs, Git tree
+`9d28e54f5b0c7695ca2de6b1a15508dc35b0db98`, and no executable paths. The
+Rust suite contract reconstructs that Git tree and its blob inventory from the
+checked-in files. This transition adds no case expansion, execution, baseline
+comparison, or passing result; the existing diagnostic harness evidence is not
+promoted to an upstream emit-suite result.
 
 The v1 suites' deterministic case expansion is pinned at
 `vendor/typescript-6.0.3/test-suite-expansion.v1.json`: 7,276 `compiler`
