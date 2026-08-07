@@ -275,8 +275,11 @@ function compare(baseRef, pairCount, kind) {
           "ratchets/l1-incremental-parser-performance.v1.json",
         ])
       : new Set();
-  const unexpectedDirty = git("status", "--porcelain")
-    .split("\n")
+  const unexpectedDirty = execFileSync("git", ["status", "--porcelain=v1", "-z"], {
+    cwd: workspace,
+    encoding: "utf8",
+  })
+    .split("\0")
     .filter(Boolean)
     .map((line) => line.slice(3))
     .filter((entry) => !allowedDirty.has(entry));
