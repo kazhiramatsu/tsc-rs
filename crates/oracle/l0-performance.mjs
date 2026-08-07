@@ -127,7 +127,9 @@ function parseObservation(result, elapsedSeconds) {
   const output = JSON.parse(result.stdout.trim());
   const rss = /^\s*(\d+)\s+maximum resident set size$/mu.exec(result.stderr);
   if (!rss) throw new Error(`cannot read Darwin maximum RSS from /usr/bin/time:\n${result.stderr}`);
-  if (output.schema !== 1 || output.exit_code !== 0) throw new Error("invalid allocation observation");
+  if (![1, 2].includes(output.schema) || output.exit_code !== 0) {
+    throw new Error("invalid allocation observation");
+  }
   return {
     wall_seconds: rounded(elapsedSeconds),
     max_rss_bytes: Number(rss[1]),
@@ -587,12 +589,12 @@ if (commandName === "--compare") {
     l1H0Comparison,
     "l1-h0-nonregression-performance",
     "L1 H0 non-regression",
-    true,
+    false,
   );
   if (!sameJson(l1H0Comparison.base.runtime_tree, oneShotRegistryComparison.candidate.runtime_tree)) {
     throw new Error("L1 H0 performance base is not the exact L0.4 qualified runtime tree");
   }
-  process.stdout.write("L0.0 through L0.4 plus L1 H0 relative performance evidence are valid and current\n");
+  process.stdout.write("L0.0 through L0.4 plus the L1 H0 performance lineage are valid\n");
 } else {
   throw new Error("usage: l0-performance.mjs --compare --baseline <exact-commit> [--pairs N] [--owned-bind|--one-shot-registry|--l1-h0]|--check");
 }

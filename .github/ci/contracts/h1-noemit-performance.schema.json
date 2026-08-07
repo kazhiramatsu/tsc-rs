@@ -1,0 +1,530 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/kazhiramatsu/tsc-rs/.github/ci/contracts/h1-noemit-performance.schema.json",
+  "title": "tsc-rs H1 no-emit performance qualification",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "kind",
+    "status",
+    "phase",
+    "typescript_version",
+    "base",
+    "candidate",
+    "generator",
+    "contract",
+    "fixture_manifest",
+    "measured_at_utc",
+    "runner",
+    "toolchain",
+    "sampling",
+    "observed_variance",
+    "trusted_runtime_parent",
+    "absolute_h0_policy",
+    "relative_regression_policy",
+    "binary_size",
+    "workloads"
+  ],
+  "properties": {
+    "schema": { "const": 1 },
+    "kind": { "const": "h1-noemit-performance" },
+    "status": { "const": "qualified" },
+    "phase": { "const": "H1.0b" },
+    "typescript_version": { "const": "6.0.3" },
+    "base": { "$ref": "#/$defs/identity" },
+    "candidate": { "$ref": "#/$defs/identity" },
+    "generator": {
+      "allOf": [
+        { "$ref": "#/$defs/path_hash" },
+        {
+          "properties": {
+            "path": { "const": "crates/oracle/h1-noemit-performance.mjs" }
+          }
+        }
+      ]
+    },
+    "contract": {
+      "allOf": [
+        { "$ref": "#/$defs/path_hash" },
+        {
+          "properties": {
+            "path": {
+              "const": ".github/ci/contracts/h1-noemit-performance.schema.json"
+            }
+          }
+        }
+      ]
+    },
+    "fixture_manifest": {
+      "allOf": [
+        { "$ref": "#/$defs/path_hash" },
+        {
+          "properties": {
+            "path": { "const": "ratchets/l0-fixtures.v1.json" }
+          }
+        }
+      ]
+    },
+    "measured_at_utc": { "type": "string", "format": "date-time" },
+    "runner": { "$ref": "#/$defs/runner" },
+    "toolchain": { "$ref": "#/$defs/toolchain" },
+    "sampling": { "$ref": "#/$defs/sampling" },
+    "observed_variance": { "$ref": "#/$defs/observed_variance" },
+    "trusted_runtime_parent": { "$ref": "#/$defs/trusted_runtime_parent" },
+    "absolute_h0_policy": { "$ref": "#/$defs/absolute_h0_policy" },
+    "relative_regression_policy": { "$ref": "#/$defs/relative_policy" },
+    "binary_size": { "$ref": "#/$defs/binary_size" },
+    "workloads": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 3,
+      "items": { "$ref": "#/$defs/workload" }
+    }
+  },
+  "$defs": {
+    "sha1": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "non_negative_integer": { "type": "integer", "minimum": 0 },
+    "positive_integer": { "type": "integer", "minimum": 1 },
+    "positive_number": { "type": "number", "exclusiveMinimum": 0 },
+    "ratio": { "type": "number", "minimum": 0 },
+    "path_hash": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256"],
+      "properties": {
+        "path": { "type": "string", "minLength": 1 },
+        "sha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "runtime_tree": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["files", "sha256"],
+      "properties": {
+        "files": { "$ref": "#/$defs/positive_integer" },
+        "sha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "executable": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sha256", "bytes"],
+      "properties": {
+        "sha256": { "$ref": "#/$defs/sha256" },
+        "bytes": { "$ref": "#/$defs/positive_integer" }
+      }
+    },
+    "identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["commit", "runtime_tree", "executable"],
+      "properties": {
+        "commit": { "$ref": "#/$defs/sha1" },
+        "runtime_tree": { "$ref": "#/$defs/runtime_tree" },
+        "executable": { "$ref": "#/$defs/executable" }
+      }
+    },
+    "runner": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "os",
+        "architecture",
+        "os_release",
+        "product_version",
+        "cpu",
+        "logical_cpus"
+      ],
+      "properties": {
+        "id": { "const": "macos-arm64-local-approved" },
+        "os": { "const": "darwin" },
+        "architecture": { "const": "arm64" },
+        "os_release": { "type": "string", "minLength": 1 },
+        "product_version": { "type": "string", "minLength": 1 },
+        "cpu": { "type": "string", "minLength": 1 },
+        "logical_cpus": { "$ref": "#/$defs/positive_integer" }
+      }
+    },
+    "toolchain": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "rustc",
+        "node",
+        "cargo_build_jobs",
+        "profile",
+        "allocator_observer",
+        "rss_observer"
+      ],
+      "properties": {
+        "rustc": { "const": "rustc 1.93.0 (254b59607 2026-01-19)" },
+        "node": { "const": "v25.2.1" },
+        "cargo_build_jobs": { "const": 2 },
+        "profile": { "const": "release" },
+        "allocator_observer": { "const": "stats_alloc-0.1.10-example-only" },
+        "rss_observer": { "const": "bsd-time-l" }
+      }
+    },
+    "sampling": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["pair_count", "warm_pair_count", "cold_pair_ordinal", "order"],
+      "properties": {
+        "pair_count": { "type": "integer", "minimum": 8 },
+        "warm_pair_count": { "type": "integer", "minimum": 7 },
+        "cold_pair_ordinal": { "const": 0 },
+        "order": { "const": "alternating-ab-ba" }
+      }
+    },
+    "work": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "parsed_documents",
+        "bound_documents",
+        "full_text_copies",
+        "full_text_bytes_copied"
+      ],
+      "properties": {
+        "parsed_documents": { "$ref": "#/$defs/non_negative_integer" },
+        "bound_documents": { "$ref": "#/$defs/non_negative_integer" },
+        "full_text_copies": { "$ref": "#/$defs/non_negative_integer" },
+        "full_text_bytes_copied": { "$ref": "#/$defs/non_negative_integer" }
+      }
+    },
+    "activity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "emit_resolver_constructions",
+        "transformer_initializations",
+        "transform_context_constructions",
+        "emit_side_table_allocations",
+        "printer_writer_constructions",
+        "output_plan_constructions",
+        "emit_artifact_creations",
+        "output_sink_writes"
+      ],
+      "properties": {
+        "emit_resolver_constructions": { "$ref": "#/$defs/non_negative_integer" },
+        "transformer_initializations": { "$ref": "#/$defs/non_negative_integer" },
+        "transform_context_constructions": { "$ref": "#/$defs/non_negative_integer" },
+        "emit_side_table_allocations": { "$ref": "#/$defs/non_negative_integer" },
+        "printer_writer_constructions": { "$ref": "#/$defs/non_negative_integer" },
+        "output_plan_constructions": { "$ref": "#/$defs/non_negative_integer" },
+        "emit_artifact_creations": { "$ref": "#/$defs/non_negative_integer" },
+        "output_sink_writes": { "$ref": "#/$defs/non_negative_integer" }
+      }
+    },
+    "observation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "wall_seconds",
+        "max_rss_bytes",
+        "allocations",
+        "deallocations",
+        "reallocations",
+        "bytes_allocated",
+        "bytes_deallocated",
+        "bytes_reallocated",
+        "output_writes",
+        "work",
+        "h1_no_emit"
+      ],
+      "properties": {
+        "wall_seconds": { "$ref": "#/$defs/positive_number" },
+        "max_rss_bytes": { "$ref": "#/$defs/positive_integer" },
+        "allocations": { "$ref": "#/$defs/positive_integer" },
+        "deallocations": { "$ref": "#/$defs/non_negative_integer" },
+        "reallocations": { "$ref": "#/$defs/non_negative_integer" },
+        "bytes_allocated": { "$ref": "#/$defs/positive_integer" },
+        "bytes_deallocated": { "$ref": "#/$defs/non_negative_integer" },
+        "bytes_reallocated": { "$ref": "#/$defs/non_negative_integer" },
+        "output_writes": { "$ref": "#/$defs/non_negative_integer" },
+        "work": { "$ref": "#/$defs/work" },
+        "h1_no_emit": {
+          "oneOf": [{ "$ref": "#/$defs/activity" }, { "type": "null" }]
+        }
+      }
+    },
+    "pair": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ordinal", "order", "base", "candidate"],
+      "properties": {
+        "ordinal": { "$ref": "#/$defs/non_negative_integer" },
+        "order": { "enum": ["ab", "ba"] },
+        "base": { "$ref": "#/$defs/observation" },
+        "candidate": { "$ref": "#/$defs/observation" }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "cold_wall_seconds",
+        "cold_max_rss_bytes",
+        "warm_median_wall_seconds",
+        "warm_p95_wall_seconds",
+        "peak_rss_bytes",
+        "warm_median_allocations",
+        "warm_median_bytes_allocated",
+        "max_output_writes",
+        "work",
+        "h1_no_emit"
+      ],
+      "properties": {
+        "cold_wall_seconds": { "$ref": "#/$defs/positive_number" },
+        "cold_max_rss_bytes": { "$ref": "#/$defs/positive_integer" },
+        "warm_median_wall_seconds": { "$ref": "#/$defs/positive_number" },
+        "warm_p95_wall_seconds": { "$ref": "#/$defs/positive_number" },
+        "peak_rss_bytes": { "$ref": "#/$defs/positive_integer" },
+        "warm_median_allocations": { "$ref": "#/$defs/positive_number" },
+        "warm_median_bytes_allocated": { "$ref": "#/$defs/positive_number" },
+        "max_output_writes": { "$ref": "#/$defs/non_negative_integer" },
+        "work": { "$ref": "#/$defs/work" },
+        "h1_no_emit": {
+          "oneOf": [{ "$ref": "#/$defs/activity" }, { "type": "null" }]
+        }
+      }
+    },
+    "variance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "base_warm_p95_over_median",
+        "candidate_warm_p95_over_median",
+        "base_warm_relative_range",
+        "candidate_warm_relative_range",
+        "paired_wall_ratio_min",
+        "paired_wall_ratio_max"
+      ],
+      "properties": {
+        "base_warm_p95_over_median": { "$ref": "#/$defs/ratio" },
+        "candidate_warm_p95_over_median": { "$ref": "#/$defs/ratio" },
+        "base_warm_relative_range": { "$ref": "#/$defs/ratio" },
+        "candidate_warm_relative_range": { "$ref": "#/$defs/ratio" },
+        "paired_wall_ratio_min": { "$ref": "#/$defs/ratio" },
+        "paired_wall_ratio_max": { "$ref": "#/$defs/ratio" }
+      }
+    },
+    "ratios": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "warm_median_wall_ratio",
+        "warm_p95_wall_ratio",
+        "peak_rss_ratio",
+        "allocation_count_ratio",
+        "allocated_bytes_ratio",
+        "parsed_documents_ratio",
+        "bound_documents_ratio",
+        "full_text_copies_ratio",
+        "full_text_bytes_copied_ratio"
+      ],
+      "properties": {
+        "warm_median_wall_ratio": { "$ref": "#/$defs/ratio" },
+        "warm_p95_wall_ratio": { "$ref": "#/$defs/ratio" },
+        "peak_rss_ratio": { "$ref": "#/$defs/ratio" },
+        "allocation_count_ratio": { "$ref": "#/$defs/ratio" },
+        "allocated_bytes_ratio": { "$ref": "#/$defs/ratio" },
+        "parsed_documents_ratio": { "$ref": "#/$defs/ratio" },
+        "bound_documents_ratio": { "$ref": "#/$defs/ratio" },
+        "full_text_copies_ratio": { "$ref": "#/$defs/ratio" },
+        "full_text_bytes_copied_ratio": { "$ref": "#/$defs/ratio" }
+      }
+    },
+    "workload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "args",
+        "workload_sha256",
+        "absolute_h0_ceiling_applied",
+        "pairs",
+        "base_summary",
+        "candidate_summary",
+        "variance",
+        "ratios",
+        "qualified"
+      ],
+      "properties": {
+        "id": { "enum": ["explicit-root", "project", "scale"] },
+        "args": {
+          "type": "array",
+          "minItems": 3,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "workload_sha256": { "$ref": "#/$defs/sha256" },
+        "absolute_h0_ceiling_applied": { "type": "boolean" },
+        "pairs": {
+          "type": "array",
+          "minItems": 8,
+          "items": { "$ref": "#/$defs/pair" }
+        },
+        "base_summary": { "$ref": "#/$defs/summary" },
+        "candidate_summary": { "$ref": "#/$defs/summary" },
+        "variance": { "$ref": "#/$defs/variance" },
+        "ratios": { "$ref": "#/$defs/ratios" },
+        "qualified": { "const": true }
+      }
+    },
+    "observed_variance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "method",
+        "max_base_warm_p95_over_median",
+        "max_candidate_warm_p95_over_median",
+        "max_base_warm_relative_range",
+        "max_candidate_warm_relative_range"
+      ],
+      "properties": {
+        "method": {
+          "const": "warm-nearest-rank-p95-over-median-plus-relative-range"
+        },
+        "max_base_warm_p95_over_median": { "$ref": "#/$defs/ratio" },
+        "max_candidate_warm_p95_over_median": { "$ref": "#/$defs/ratio" },
+        "max_base_warm_relative_range": { "$ref": "#/$defs/ratio" },
+        "max_candidate_warm_relative_range": { "$ref": "#/$defs/ratio" }
+      }
+    },
+    "absolute_h0_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["artifact", "resource_profile_id", "workload_id", "ceilings"],
+      "properties": {
+        "artifact": {
+          "allOf": [
+            { "$ref": "#/$defs/path_hash" },
+            { "properties": { "path": { "const": "ratchets/h0-qualification.v1.json" } } }
+          ]
+        },
+        "resource_profile_id": { "const": "cli-dev-macos-arm64" },
+        "workload_id": { "const": "explicit-root" },
+        "ceilings": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["cold_wall_seconds", "warm_wall_seconds", "max_rss_bytes"],
+          "properties": {
+            "cold_wall_seconds": { "const": 2.0 },
+            "warm_wall_seconds": { "const": 1.0 },
+            "max_rss_bytes": { "const": 268435456 }
+          }
+        }
+      }
+    },
+    "trusted_runtime_parent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["artifact", "candidate_commit", "candidate_runtime_tree"],
+      "properties": {
+        "artifact": {
+          "allOf": [
+            { "$ref": "#/$defs/path_hash" },
+            { "properties": { "path": { "const": "ratchets/l1-h0-performance.v1.json" } } }
+          ]
+        },
+        "candidate_commit": { "$ref": "#/$defs/sha1" },
+        "candidate_runtime_tree": { "$ref": "#/$defs/runtime_tree" }
+      }
+    },
+    "relative_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "comparison",
+        "trusted_pre_h1_commit",
+        "minimum_warm_paired_samples",
+        "order",
+        "variance_review",
+        "ceilings",
+        "exact_zero",
+        "moving_hosted_runner_can_mint_or_relax"
+      ],
+      "properties": {
+        "comparison": { "const": "same-approved-runner-alternating-baseline-candidate" },
+        "trusted_pre_h1_commit": {
+          "const": "c0951bf15cdec74223de29e06cd908b0899712f6"
+        },
+        "minimum_warm_paired_samples": { "const": 7 },
+        "order": { "const": "alternating-ab-ba" },
+        "variance_review": {
+          "const": "warm-nearest-rank-p95-over-median-plus-relative-range"
+        },
+        "ceilings": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "warm_median_wall_ratio",
+            "warm_p95_wall_ratio",
+            "peak_rss_ratio",
+            "allocation_count_ratio",
+            "allocated_bytes_ratio",
+            "parsed_documents_ratio",
+            "bound_documents_ratio",
+            "full_text_copies_ratio",
+            "full_text_bytes_copied_ratio",
+            "executable_size_ratio"
+          ],
+          "properties": {
+            "warm_median_wall_ratio": { "const": 1.1 },
+            "warm_p95_wall_ratio": { "const": 1.15 },
+            "peak_rss_ratio": { "const": 1.1 },
+            "allocation_count_ratio": { "const": 1.02 },
+            "allocated_bytes_ratio": { "const": 1.03 },
+            "parsed_documents_ratio": { "const": 1 },
+            "bound_documents_ratio": { "const": 1 },
+            "full_text_copies_ratio": { "const": 1 },
+            "full_text_bytes_copied_ratio": { "const": 1 },
+            "executable_size_ratio": { "const": 1.25 }
+          }
+        },
+        "exact_zero": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "output_writes",
+            "emit_resolver_constructions",
+            "transformer_initializations",
+            "transform_context_constructions",
+            "emit_side_table_allocations",
+            "printer_writer_constructions",
+            "output_plan_constructions",
+            "emit_artifact_creations",
+            "output_sink_writes"
+          ],
+          "properties": {
+            "output_writes": { "const": 0 },
+            "emit_resolver_constructions": { "const": 0 },
+            "transformer_initializations": { "const": 0 },
+            "transform_context_constructions": { "const": 0 },
+            "emit_side_table_allocations": { "const": 0 },
+            "printer_writer_constructions": { "const": 0 },
+            "output_plan_constructions": { "const": 0 },
+            "emit_artifact_creations": { "const": 0 },
+            "output_sink_writes": { "const": 0 }
+          }
+        },
+        "moving_hosted_runner_can_mint_or_relax": { "const": false }
+      }
+    },
+    "binary_size": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["base_bytes", "candidate_bytes", "ratio", "ceiling", "qualified"],
+      "properties": {
+        "base_bytes": { "$ref": "#/$defs/positive_integer" },
+        "candidate_bytes": { "$ref": "#/$defs/positive_integer" },
+        "ratio": { "$ref": "#/$defs/ratio" },
+        "ceiling": { "const": 1.25 },
+        "qualified": { "const": true }
+      }
+    }
+  }
+}

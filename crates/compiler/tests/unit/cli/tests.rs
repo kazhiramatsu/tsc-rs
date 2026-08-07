@@ -57,6 +57,7 @@ fn version_is_available_without_a_filesystem_host() {
         output.stdout().trim(),
         format!("Version {TYPESCRIPT_VERSION}")
     );
+    assert!(output.no_emit_activity().all_zero());
 }
 
 #[test]

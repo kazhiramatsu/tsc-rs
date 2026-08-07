@@ -45,9 +45,14 @@ test("policy and every qualification schema boundary are valid", () => {
   ]);
   assert.equal(policy.approved_performance.authority_job, "qualify");
   assert.equal(policy.approved_performance.l1_authority_job, "qualify");
+  assert.equal(policy.approved_performance.h1_authority_job, "qualify");
   assert.equal(
     policy.approved_performance.l1_h0_evidence,
     "ratchets/l1-h0-performance.v1.json",
+  );
+  assert.equal(
+    policy.approved_performance.h1_evidence,
+    "ratchets/h1-noemit-performance.v1.json",
   );
 
   const frozen = clone(policy);
@@ -130,6 +135,7 @@ test("local evidence classification remains fail-closed for policy inputs", () =
   for (const changedPath of [
     ".github/workflows/ci.yml",
     ".github/workflows/l1-performance.yml",
+    ".github/workflows/h1-noemit-performance.yml",
     ".github/ci/qualification-policy.v2.json",
     ".github/ci/contracts/qualification-result.schema.json",
     "Cargo.lock",

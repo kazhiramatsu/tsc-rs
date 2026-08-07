@@ -1,0 +1,146 @@
+name: h1-approved-noemit-performance
+
+on:
+  workflow_dispatch:
+    inputs:
+      candidate_sha:
+        description: Exact H1 candidate commit to qualify
+        required: true
+        type: string
+      baseline_sha:
+        description: Exact frozen pre-H1 commit
+        required: true
+        default: c0951bf15cdec74223de29e06cd908b0899712f6
+        type: string
+      pairs:
+        description: Total AB/BA pairs, including one cold pair
+        required: true
+        default: "8"
+        type: choice
+        options:
+          - "8"
+          - "10"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: h1-approved-noemit-performance
+  cancel-in-progress: false
+
+jobs:
+  qualify:
+    name: approved-macos-arm64-noemit
+    runs-on: [self-hosted, macOS, ARM64, tsc-rs-approved-performance]
+    environment: approved-performance
+    timeout-minutes: 90
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+      artifact-metadata: write
+    env:
+      CARGO_BUILD_JOBS: "2"
+      CARGO_INCREMENTAL: "0"
+      RUSTC_WRAPPER: ""
+      CANDIDATE_SHA: ${{ inputs.candidate_sha }}
+      BASELINE_SHA: ${{ inputs.baseline_sha }}
+      PAIRS: ${{ inputs.pairs }}
+      EVIDENCE_PATH: ratchets/h1-noemit-performance.v1.json
+    steps:
+      - name: Validate exact inputs
+        shell: bash
+        run: |
+          [[ "$CANDIDATE_SHA" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$BASELINE_SHA" =~ ^[0-9a-f]{40}$ ]]
+          test "$CANDIDATE_SHA" != "$BASELINE_SHA"
+
+      - name: Checkout the exact candidate
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+          ref: ${{ inputs.candidate_sha }}
+
+      - name: Measure no-emit AB/BA pairs
+        id: comparison
+        shell: bash
+        run: |
+          test "$(git rev-parse HEAD)" = "$CANDIDATE_SHA"
+          set +e
+          node crates/oracle/h1-noemit-performance.mjs \
+            --compare \
+            --baseline "$BASELINE_SHA" \
+            --pairs "$PAIRS" \
+            >"$RUNNER_TEMP/h1-noemit-performance.stdout" \
+            2>"$RUNNER_TEMP/h1-noemit-performance.stderr"
+          code=$?
+          set -e
+          if [ "$code" -ne 0 ]; then
+            {
+              printf 'stdout:\n'
+              cat "$RUNNER_TEMP/h1-noemit-performance.stdout"
+              printf '\nstderr:\n'
+              cat "$RUNNER_TEMP/h1-noemit-performance.stderr"
+            } >"$RUNNER_TEMP/h1-noemit-performance.failure.log"
+            exit "$code"
+          fi
+          node crates/oracle/h1-noemit-performance.mjs --check
+
+      - name: Attest no-emit comparison
+        id: attest
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4
+        with:
+          subject-path: ${{ env.EVIDENCE_PATH }}
+
+      - name: Verify signer and exact comparison commits
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ATTESTATION_BUNDLE: ${{ steps.attest.outputs.bundle-path }}
+        run: |
+          gh attestation verify "$EVIDENCE_PATH" \
+            --repo "$GITHUB_REPOSITORY" \
+            --bundle "$ATTESTATION_BUNDLE" \
+            --signer-workflow "$GITHUB_REPOSITORY/.github/workflows/h1-noemit-performance.yml" \
+            --cert-oidc-issuer "https://token.actions.githubusercontent.com"
+          node -e '
+            const fs = require("fs");
+            const evidence = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
+            if (evidence.status !== "qualified" || evidence.candidate.commit !== process.argv[2] || evidence.base.commit !== process.argv[3]) process.exit(1);
+          ' "$EVIDENCE_PATH" "$CANDIDATE_SHA" "$BASELINE_SHA"
+
+      - name: Publish approved performance evidence
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: h1-noemit-performance-${{ inputs.candidate_sha }}
+          path: |
+            ${{ env.EVIDENCE_PATH }}
+            ${{ steps.attest.outputs.bundle-path }}
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Produce bounded performance failure evidence
+        if: ${{ failure() && steps.comparison.outcome == 'failure' }}
+        run: |
+          node .github/ci/qualification.mjs write-failure \
+            --head "$CANDIDATE_SHA" \
+            --base "$BASELINE_SHA" \
+            --track performance \
+            --source "$RUNNER_TEMP/h1-noemit-performance.failure.log" \
+            --payload-path target/ci-failure/h1-noemit-performance.log \
+            --content-type text/plain \
+            --fixture ratchets/l0-fixtures.v1.json \
+            --out target/ci-failure/h1-noemit-performance.json
+          node .github/ci/qualification.mjs verify-failure \
+            --path target/ci-failure/h1-noemit-performance.json \
+            --payload target/ci-failure/h1-noemit-performance.log
+
+      - name: Upload bounded performance failure evidence
+        if: ${{ failure() && steps.comparison.outcome == 'failure' }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: h1-noemit-performance-failure-${{ inputs.candidate_sha }}
+          path: target/ci-failure/
+          if-no-files-found: error
+          retention-days: 14

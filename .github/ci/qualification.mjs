@@ -302,6 +302,22 @@ export function validatePolicy(policy) {
     if (workflow.includes(forbidden)) throw new Error(`hosted acceptance workflow contains forbidden non-acceptance work: ${forbidden}`);
   }
   if (
+    !exactKeys(policy.approved_performance, [
+      "runner_profile",
+      "authority_workflow",
+      "authority_job",
+      "environment",
+      "evidence",
+      "l1_authority_workflow",
+      "l1_authority_job",
+      "l1_h0_evidence",
+      "l1_evidence",
+      "h1_authority_workflow",
+      "h1_authority_job",
+      "h1_evidence",
+      "moving_hosted_images_may_mint_ratchets",
+      "alternating_baseline_candidate",
+    ]) ||
     policy.approved_performance.authority_workflow !== ".github/workflows/l0-performance.yml" ||
     policy.approved_performance.authority_job !== "qualify" ||
     policy.approved_performance.environment !== "approved-performance" ||
@@ -312,7 +328,11 @@ export function validatePolicy(policy) {
     policy.approved_performance.l1_authority_job !== "qualify" ||
     policy.approved_performance.l1_h0_evidence !== "ratchets/l1-h0-performance.v1.json" ||
     policy.approved_performance.l1_evidence !==
-      "ratchets/l1-incremental-parser-performance.v1.json"
+      "ratchets/l1-incremental-parser-performance.v1.json" ||
+    policy.approved_performance.h1_authority_workflow !==
+      ".github/workflows/h1-noemit-performance.yml" ||
+    policy.approved_performance.h1_authority_job !== "qualify" ||
+    policy.approved_performance.h1_evidence !== "ratchets/h1-noemit-performance.v1.json"
   )
     throw new Error("invalid performance authority binding");
   if (!policy.approved_performance.alternating_baseline_candidate || policy.approved_performance.moving_hosted_images_may_mint_ratchets) throw new Error("invalid performance authority policy");
@@ -324,6 +344,7 @@ export function validatePolicy(policy) {
     "h1-emit-profile",
     "h1-emit-observation",
     "h1-owner-inventory",
+    "h1-noemit-performance",
     "h1-rust-omissions",
   ]) {
     const schema = JSON.parse(fs.readFileSync(path.join(contractDirectory, `${contract}.schema.json`), "utf8"));
