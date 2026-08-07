@@ -311,7 +311,14 @@ export function validatePolicy(policy) {
   )
     throw new Error("invalid performance authority binding");
   if (!policy.approved_performance.alternating_baseline_candidate || policy.approved_performance.moving_hosted_images_may_mint_ratchets) throw new Error("invalid performance authority policy");
-  for (const contract of ["lane-selection", "qualification-result", "merge-receipt", "failure-artifact"]) {
+  for (const contract of [
+    "lane-selection",
+    "qualification-result",
+    "merge-receipt",
+    "failure-artifact",
+    "h1-emit-profile",
+    "h1-emit-observation",
+  ]) {
     const schema = JSON.parse(fs.readFileSync(path.join(contractDirectory, `${contract}.schema.json`), "utf8"));
     if (schema.$schema !== "https://json-schema.org/draft/2020-12/schema" || schema.additionalProperties !== false || !schema.$id.endsWith(`/${contract}.schema.json`)) {
       throw new Error(`invalid ${contract} JSON schema boundary`);

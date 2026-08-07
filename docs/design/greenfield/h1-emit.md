@@ -1,12 +1,16 @@
 # H1: filesystem-hosted JavaScript emit execution contract
 
-Status: H1.0a started with the generated, report-only
+Status: H1.0a now has the generated, report-only
 [`h1-owner-inventory.v1.json`](../../../ratchets/h1-owner-inventory.v1.json)
-owner-graph draft; the shared L0.0 evidence/CI-contract freeze is complete.
-The graph's unresolved dynamic calls and conservative property dispatch remain
-review work, and the profile/corpus/oracle portions of H1.0a remain open. No H1
-implementation or compatibility claim exists until the complete H1.0 inventory,
-oracle, and post-L0/L1 no-emit performance baseline described below are frozen.
+owner-graph draft plus the frozen
+[`h1-emit-profile.v1.json`](../../../ratchets/h1-emit-profile.v1.json) and
+callback-level [`h1-emit-oracle.v1.json`](../../../ratchets/h1-emit-oracle.v1.json).
+The shared L0/L1 prerequisite and its evidence/CI-contract freeze are complete.
+The graph's unresolved dynamic calls and conservative property dispatch still
+need review, and the corpus classification and current-Rust omission inventory
+portions of H1.0a remain open. No H1 runtime implementation or compatibility
+claim exists until the complete H1.0 inventory and post-L0/L1 no-emit
+performance baseline described below are frozen.
 H0 remains the released, frozen single-project `--noEmit` profile. M9 remains a
 separate paused batch-diagnostics qualification track.
 
@@ -915,6 +919,14 @@ a machine manifest. A program that reaches enum,
 namespace, decorators, parameter-property, JSX, module-downlevel, helper, or
 other unported behavior fails before the first sink write.
 
+The bootstrap choices are now machine-frozen in
+[`h1-emit-profile.v1.json`](../../../ratchets/h1-emit-profile.v1.json). Its
+generator executes the vendored `getTransformers` selection and rejects drift
+from `transformTypeScript`, `transformClassFields`, then
+`transformECMAScriptModule`; it also binds the exact H0 base profile, TypeScript
+bundles, schemas, Node pin, admitted options, rejected feature roots, and
+dormant axes.
+
 Profile expansion is monotonic and evidence-backed. One slice adds one
 dependency-complete transformer/resolver/printer owner group plus exact
 oracle output. It may not trade away a previously matching output.
@@ -1020,6 +1032,14 @@ The H1 oracle creates the same TypeScript 6.0.3 program and captures its
   source-map-observation presence; and
 - process exit status.
 
+The first callback-level producer is
+[`h1-emit-oracle.mjs`](../../../crates/oracle/h1-emit-oracle.mjs), checked with
+`node crates/oracle/h1-emit-oracle.mjs --check`. It executes every frozen case
+twice and records exact callback text bytes separately from BOM-materialized
+sink bytes. The initial controls make map-before-text callback order visibly
+independent from text-before-map `emittedFiles` order without admitting maps
+to H1.
+
 Comparison is exact. Line-normalized or formatter-normalized JavaScript is
 not acceptance evidence. Paths may be canonicalized only through the same
 typed virtual-root mapping on both sides; contents remain byte-for-byte.
@@ -1092,12 +1112,14 @@ incremental/FourSlash compatibility in H1.
 
 H1 and its workspace prerequisite execute in dependency order:
 
-The first H1.0a producer now regenerates the active-root closure, exact
+The H1.0a producers now regenerate the active-root closure, exact
 declaration/body/ledger hashes, callback-nesting edges, unresolved calls, and
 dormant declaration/map/bundle/targeted/build-info anchors with
-`node crates/oracle/h1-owner-inventory.mjs --check`. Its artifact deliberately
-remains `draft/report-only`: it starts item 1 but does not satisfy the corpus,
-profile, oracle, Rust-omission, or reviewed-disposition requirements below.
+`node crates/oracle/h1-owner-inventory.mjs --check`, and freeze the bootstrap
+profile plus callback observations with
+`node crates/oracle/h1-emit-oracle.mjs --check`. The owner artifact deliberately
+remains `draft/report-only`: corpus classification, the Rust omission inventory,
+and reviewed unresolved/property-dispatch dispositions still keep item 1 open.
 
 1. **H1.0a — inventory and oracle:** generate the JavaScript-emitter owner
    graph, classify the compiler/project/conformance/transpile corpus plus the
