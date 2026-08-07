@@ -90,15 +90,20 @@ complete. H1.0b is complete too: the exact pre-H1 runtime and guarded
 candidate are frozen in `ratchets/h1-noemit-performance.v1.json` after eight
 alternating AB/BA pairs across the explicit-root, project, and scale
 workloads. All output-write and eight emitter-activity counts are zero; the
-latest H1.1 remeasurement has a largest warm-median wall ratio of 1.007,
-largest RSS ratio of 1.004, and executable-size ratio of 1.000057. The bounded,
+latest H1.2 remeasurement has a largest warm-median wall ratio of 1.005244,
+largest RSS ratio of 1.000638, and executable-size ratio of 1.000080. The bounded,
 tsc-architected JavaScript emitter preserves that H0
 `--noEmit` entry while porting the exact resolver/transform/printer/output
 spine. H1.1 is complete: the acyclic emitter owner now fixes artifacts,
 callback metadata, dormant output topology, typed failures, sink feedback,
 independent outcomes, and `MemoryOutputSink`; distinct prepared-program and
-session modes reject unsupported emission before a sink call. H1.2 next adds
-the factory, transform-context, writer, and printer foundation. Ordinary
+session modes reject unsupported emission before a sink call. H1.2 is also
+complete: detached emit-session syntax, sparse transform/emit side tables,
+factory/original-node rules, transform lifecycle, byte/UTF-16 position types,
+the text writer, disabled map phases, and the whole-source printer pipeline
+are pinned by direct TypeScript Unicode/newline oracles. H1.3 next activates
+the bounded transformer/resolver slice; transformed JavaScript output is not
+yet claimed. Ordinary
 GitHub CI remains
 the single `cargo xtask acceptance` command. Runtime implementation is
 unblocked by the completed L0 persistent-source and L1 incremental-parser
@@ -230,7 +235,7 @@ is one commit.
 | M9 differential-fuzzer steady state — paused after M9.1b | [M9 execution](m9-execution-and-close.md) + [evidence contract](evidence-and-steady-state.md#31-m9-steady-state) | preflight/domain/owner burn-in green, then `fuzz steady-state --require-ready`: 14 frozen-fingerprint 100,000-case windows, rate < 1 new class/window, no untriaged incident or unresolved owner task |
 | H0 filesystem-hosted `--noEmit` — complete | [H0 execution](noemit-cli.md) | exact closure of the 241 host-resolution identities, MemoryHost/FsHost equivalence, config/CLI/output parity, embedded libraries, no emitted files |
 | L0/L1 persistent source + incremental parser — complete and performance-qualified | [persistent Program design](lsp-and-incremental.md) | shared text/position snapshots, domain-scoped identity leases, generated relocation, non-contiguous ownership, owned bind/Program snapshots, immutable incremental parse/rebind, exact fresh equivalence, reclamation stress, and approved large-edit evidence |
-| H1 JavaScript emit — H1.0a/H1.0b and H1.1 typed execution spine complete | [H1 execution](h1-emit.md) | reviewed active-root graph, exact callback oracle, generated current-Rust residual, complete upstream classifications, frozen zero-cost H0 `--noEmit` boundary, and typed artifact/plan/sink/outcome session seam; H1.2–H1.6 add byte-identical bounded JavaScript output and resource qualification |
+| H1 JavaScript emit — H1.0a/H1.0b, H1.1 typed execution spine, and H1.2 factory/transform/printer foundation complete | [H1 execution](h1-emit.md) | reviewed active-root graph, exact callback oracle, generated current-Rust residual, complete upstream classifications, frozen zero-cost H0 `--noEmit` boundary, typed artifact/plan/sink/outcome session seam, and direct writer/position/printer-foundation oracle; H1.3–H1.6 add byte-identical bounded JavaScript output and resource qualification |
 
 The T0 percentages are calibration points from the first
 implementation's history, not promises; the gate is "meets or beats,

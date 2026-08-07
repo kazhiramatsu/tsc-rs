@@ -60,9 +60,19 @@ no-emit performance boundary. H1.1 is now complete: `crates/emitter` owns the
 typed artifact, callback metadata, dormant output topology, outcome, failure,
 sink-disposition, `OutputSink`, and `MemoryOutputSink` contracts; emitting
 prepared programs and the separate `ProgramSession::emit` entry fail at the
-unimplemented transform/print stage before the first sink call. This is an
-execution-spine claim, not JavaScript output compatibility; H1.2–H1.6 remain
-below.
+unconnected executable transform/print stage before the first sink call. This
+is an execution-spine claim, not JavaScript output compatibility; H1.3–H1.6
+remain below.
+H1.2 is also complete. `crates/emitter` now owns an emit-session detached
+syntax arena and sparse transform/emit metadata, clone/original-node rules,
+the `transformNodes` lifecycle and context stacks, typed source-byte/source-
+UTF-16/generated-UTF-16 positions, the TypeScript text-writer contract, and a
+generic request pipeline whose only active arm copies a whole original source
+through the real notification and disabled source-map hook phases. Direct
+vendored oracles pin astral and combining text, lone-surrogate cooked values,
+escaped names/literals, LF/CR/CRLF/LS/PS, and NEL as a non-line-break control.
+Synthetic/changed-node workers and the active resolver/transformer chain begin
+in H1.3, so H1.2 alone is not a JavaScript output compatibility claim.
 H0 remains the released, frozen single-project `--noEmit` profile. M9 remains a
 separate paused batch-diagnostics qualification track.
 
@@ -565,17 +575,17 @@ generated and revalidated by
 The exact trusted pre-H1 commit is `c0951bf15cdec74223de29e06cd908b0899712f6`
 and the first guarded candidate is
 `7a8b04959279fa668579e95d74b084f3198e0039`. Every H1 runtime slice reuses
-that immutable base and replaces the current candidate observation; H1.1 is
-measured at `04749573905db11aa27a760a9ca0b701ad392290`. Each of the three
+that immutable base and replaces the current candidate observation; H1.2 is
+measured at `c41881a21e8114d86ff7fc0ccc5e01d986912500`. Each of the three
 frozen workloads has one cold and seven warm alternating AB/BA pairs. In the
-H1.1 measurement, the largest warm p95/median ratio is 1.028 and the largest
-warm relative range is 0.040; the reviewed ceilings remain 1.10 for median
+H1.2 measurement, the largest warm p95/median ratio is 1.028633 and the largest
+warm relative range is 0.033770; the reviewed ceilings remain 1.10 for median
 wall/RSS, 1.15 for p95 wall, 1.02/1.03 for allocation count/bytes, 1.0 for
 parse/bind/copy work, and 1.25 for executable size. The measured candidate
 stays below every ceiling:
-its largest warm-median wall ratio is 1.007, its largest RSS ratio is 1.004,
+its largest warm-median wall ratio is 1.005244, its largest RSS ratio is 1.000638,
 every work and allocation-count ratio is 1.0, and its executable-size ratio is
-1.000057 (704 bytes larger).
+1.000080 (992 bytes larger).
 
 The zero-sized [`NoEmitCanary`](../../../crates/compiler/src/no_emit_canary.rs)
 is threaded from CLI dispatch through `ProgramSession`. Its eight frozen
@@ -884,7 +894,7 @@ profile.
 ### 10.4 Declaration and source-map seams required now
 
 Declaration and source-map behavior remains outside H1 compatibility, but the
-following structure is fixed before H1.2 starts:
+following structure is fixed across H1.1 and H1.2:
 
 - `getTransformers` produces separate script/declaration plans;
 - `noEmitOnError` retains the declaration-diagnostics position after
@@ -1293,11 +1303,10 @@ declaration/map/bundle/targeted/build-info anchors with
 `node crates/oracle/h1-owner-inventory.mjs --check`, and freeze the bootstrap
 profile plus callback observations with
 `node crates/oracle/h1-emit-oracle.mjs --check`. The current production Rust
-scope is independently hashed and its 10 remaining production boundaries, 32
+scope is independently hashed and its 6 remaining production boundaries, 28
 effective option-projection omissions, and 25 explicit checker emit elision
-and control rows, together with the completed H1.1 spine as an existing
-prerequisite,
-are frozen with
+and control rows. The completed H1.1 spine and H1.2 foundation are recorded as
+existing prerequisites. These facts are frozen with
 `node crates/oracle/h1-rust-omission-inventory.mjs --check`. The owner artifact
 deliberately remains `draft/report-only`. The complete transpile source tree is
 also pinned in the additive v2 source universe, and its companion inventory
@@ -1348,13 +1357,13 @@ runtime.
    full typed output-path shape, `OutputSink`, typed failures, and the separate
    emitting session entry. Unsupported emission reaches no sink. H0 results
    and performance remain unchanged.
-5. **Next — H1.2 factory, transform context, and printer foundation:** port the
+5. **Complete — H1.2 factory, transform context, and printer foundation:** port the
    synthetic/original-node ownership model, `transformNodes` lifecycle,
    dual-domain writer/position conversion, disabled source-map hook phases,
    and the generic printer pipeline, with direct Unicode/newline oracle pins.
    Only whole-source printing is active; node-list, standalone-node, bundle,
    map, and declaration requests remain unreachable typed controls.
-6. **H1.3 — active transformer and resolver slice:** port the exact
+6. **Next — H1.3 active transformer and resolver slice:** port the exact
    `transformTypeScript` -> `transformClassFields` ->
    `transformECMAScriptModule` list selected by the frozen profile, including
    each transform's context/hook setup. Port the reachable

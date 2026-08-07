@@ -17,11 +17,11 @@
   "authorities": {
     "compatibility_residual": {
       "path": "docs/design/greenfield/compiler-compatibility-residual.md",
-      "sha256": "2d7a25449fd44d006ec218feae119e71a06913c3ad2083c6fe0a20877ccb0102"
+      "sha256": "d0a8801a530978ce043f8e81f4a7b7e560b2d4bf69a21584950b9b624b0378bf"
     },
     "h1_execution": {
       "path": "docs/design/greenfield/h1-emit.md",
-      "sha256": "1848f9743b15f5493fbe150a924e20ddc745a98dff3bdd778f9131fcc5d42650"
+      "sha256": "570151471280489edd4d5dbc6d8f99ee64fd721030c00d7816586e875174b650"
     },
     "emit_profile": {
       "path": "ratchets/h1-emit-profile.v1.json",
@@ -1310,5 +1310,5 @@
       }
     ]
   },
-  "inventory_fingerprint_sha256": "e020eb5b654d262eef0dac4966efc90f559482b8b9e2ebf4292bf34f4a9a8fed"
+  "inventory_fingerprint_sha256": "3c6b8494b31eadf10d2e38cf4f1f8ba285b3405be29bbc0659ca857e52dd0f0f"
 }

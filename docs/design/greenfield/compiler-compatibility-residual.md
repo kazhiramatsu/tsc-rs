@@ -1,7 +1,8 @@
 # TypeScript 6.0.3 compiler compatibility residual
 
 Status: audited design input, updated 2026-08-07 with L0.4 and L1 complete and
-qualified, the H1.0a report-only owner graph fully dispositioned with zero
+qualified, H1.1's typed execution spine and H1.2's factory/transform/printer
+foundation complete, the H1.0a report-only owner graph fully dispositioned with zero
 unresolved calls, and the current
 Rust emit omissions frozen in a generated baseline, with the complete upstream
 transpile source tree content-addressed in additive suite pin v2 and its exact
@@ -153,32 +154,31 @@ The following work is real input to an emitter and should not be rebuilt:
 
 ### 2.2 Missing production boundaries
 
-The audit still finds no executable production JavaScript emitter. H1.1 has
-closed the typed workspace/session seam, leaving these ten runtime boundaries:
+The audit still finds no transformed production JavaScript output. H1.1 closed
+the typed workspace/session seam and H1.2 closed the session-owned
+factory/transform/writer/printer foundation, leaving these six runtime
+boundaries:
 
 | Boundary | Current implementation | Missing boundary |
 | --- | --- | --- |
-| Workspace crate | `crates/emitter` owns artifacts, dormant output topology, outcomes, typed failures, `OutputSink`, and `MemoryOutputSink` without depending on checker | `EmitHost`/`EmitResolver` protocols plus factory, transforms, writer/printer, and executable output planning |
+| Workspace crate | `crates/emitter` owns H1.1 artifacts/plans/sinks/outcomes and the H1.2 detached transform arena, sparse metadata, factory/context, writer, typed positions, map-hook seam, and whole-source printer foundation without depending on checker | `EmitHost`/`EmitResolver`, active built-ins and changed-node printer workers, plus executable output planning |
 | Checker lifetime | Parsed sources, binders, and `CheckerState` are local to a checker function and collapse into `CheckResult` | Scoped checker execution that keeps the live state borrowed through resolver, transform, and print |
 | Semantic emit API | No `EmitResolver` | Consumer-owned internal resolver implemented by the live checker |
-| AST transform gates | No node or node-array `TransformFlags` storage | Exact emitter-session side tables plus synthetic-node aggregation |
-| Transform metadata | No `emitNode`, original-node, helper, substitution, source-map-range, or generated-name state | Session-owned equivalent; no mutation of the parsed arena |
-| Synthetic tree | No general `NodeFactory`/transform arena | Reachability-generated create/update/clone/replace surface and parenthesizer rules |
-| Transformation | No `transformNodes` or built-in transformer | Context, lexical/block scopes, helpers, substitutions, notifications, diagnostics, and disposal |
-| Printing | Only checker-private bounded display-clone printers | The real generic tsc printer, text writer, comments/trivia, precedence, literals, and map hook phases |
+| Transformation runtime | H1.2 owns exact flag constants/exclusions, sparse node/array aggregation, emit metadata, synthetic clone/original identity, factory create/update/clone, context stacks, hooks, diagnostics, and disposal | Reachability-generated constructors/visitors/parenthesizer plus the active `transformTypeScript` → `transformClassFields` → `transformECMAScriptModule` chain |
 | Output | Typed paths, artifacts, callback identity, sink feedback/I/O errors, independent outcomes, and ordered memory writes exist | Executable planning, collision gates, callback-error continuation, partial failure, and filesystem sink |
-| Emitting config/CLI | H0 loaders require `noEmit == true`; explicit files also force no-emit | Separate emitting projection, loader validation, CLI dispatch, and exact exit behavior |
+| Emitting config/CLI | Effective options now retain `newLine`, `removeComments`, `noImplicitUseStrict`, and `noEmitHelpers`, while H0 loaders still require `noEmit == true` and explicit files force no-emit | Remaining emitting projection, separate loader validation, CLI dispatch, and exact exit behavior |
 
-These 10 remaining boundaries, the emit-active options recognized but not retained by
-the effective Rust option snapshot, and every explicit checker-side emit
-elision/control row are machine-frozen in
+These 6 remaining boundaries, the 28 emit-active options recognized but not
+retained by the effective Rust option snapshot, and every explicit checker-side emit
+elision/control row (25 at H1.2) are machine-frozen in
 [`h1-rust-omissions.v1.json`](../../../ratchets/h1-rust-omissions.v1.json).
 Its producer scans every workspace crate `src` tree plus all Cargo manifests,
 hashes that complete production scope, and fails when a missing declaration or
 owner anchor changes. Existing prerequisites such as `ProgramSnapshot`,
 `may_be_emitted`, implied module format, semantic helper checks, and the
-completed H1.1 typed execution spine are listed separately so later stages
-cannot count those prerequisites as executable transform/print/output work.
+completed H1.1 typed execution spine and H1.2 foundation are listed separately
+so later stages cannot count those prerequisites as executable
+transform/print/output work.
 
 The checker-private `display_clone*.rs` modules are deliberately not an
 emitter. Their own module contract excludes source copying, general comments,
@@ -1089,10 +1089,11 @@ The critical path is:
 4. **Complete:** freeze the post-L0/L1 H1 no-emit baseline and
    constructor/write-zero canaries; ordinary hosted CI remains frozen to
    `cargo xtask acceptance`;
-5. **Next:** land emitter protocols, emitting options/loader, and scoped checker
-   lifetime;
-6. land transform flags, factory/context, writer/printer, resolver, and the
-   three-transform bootstrap;
+5. **Complete:** land the emitter protocols and factory/transform-context/
+   writer/printer foundation while retaining the first emit-only scalar
+   options without weakening the H0 loader;
+6. **Next:** land the separate emitting loader, scoped checker lifetime,
+   resolver, changed-node printer workers, and three-transform bootstrap;
 7. close output planning, sinks, CLI, and H1 qualification;
 8. expand JavaScript transforms/options/file kinds while closing one-shot
    config, host/System, library-replacement, CLI, and source-map behavior;
