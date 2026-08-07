@@ -169,13 +169,15 @@ jobs:
             --test contracts \
             l0_work_counters
 
-      - name: Run H1 zero-cost H0 control
+      - name: Run H1 inventory and zero-cost H0 controls
         if: ${{ needs.classify.outputs.h1 == 'true' }}
-        run: >-
-          cargo test --locked
-          --manifest-path crates/compiler/Cargo.toml
-          --test contracts
-          frozen_h0_profile_matches_the_executable_boundaries
+        run: |
+          node --check crates/oracle/h1-owner-inventory.mjs
+          node crates/oracle/h1-owner-inventory.mjs --check
+          cargo test --locked \
+            --manifest-path crates/compiler/Cargo.toml \
+            --test contracts \
+            frozen_h0_profile_matches_the_executable_boundaries
 
   # Platform-sensitive host/program changes retain focused Windows evidence.
   host_platform:

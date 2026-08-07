@@ -58,12 +58,13 @@ boundary: owned program/session seams, exact module and package resolution,
 filesystem/config loading, no-emit diagnostics, rendering, and exit behavior.
 
 **H1 JavaScript emit contract:**
-[h1-emit.md](h1-emit.md) — the active design for a bounded, tsc-architected
-JavaScript emitter. It preserves the H0 `--noEmit` entry without initializing
-the emitter and ports the exact resolver/transform/printer/output spine. Its
-runtime implementation is now unblocked by the completed L0 persistent-source
-and L1 incremental-parser proof, while build/watch and LSP remain separate
-compatibility tracks.
+[h1-emit.md](h1-emit.md) — H1.0a has started with a generated report-only
+owner-graph draft for the bounded, tsc-architected JavaScript emitter. It
+preserves the H0 `--noEmit` entry without initializing the emitter and ports
+the exact resolver/transform/printer/output spine. Profile, corpus, oracle, and
+owner-disposition freeze remain open; runtime implementation is unblocked by
+the completed L0 persistent-source and L1 incremental-parser proof, while
+build/watch and LSP remain separate compatibility tracks.
 
 **Compiler compatibility residual:**
 [compiler-compatibility-residual.md](compiler-compatibility-residual.md) — the
@@ -191,7 +192,7 @@ is one commit.
 | M9 differential-fuzzer steady state — paused after M9.1b | [M9 execution](m9-execution-and-close.md) + [evidence contract](evidence-and-steady-state.md#31-m9-steady-state) | preflight/domain/owner burn-in green, then `fuzz steady-state --require-ready`: 14 frozen-fingerprint 100,000-case windows, rate < 1 new class/window, no untriaged incident or unresolved owner task |
 | H0 filesystem-hosted `--noEmit` — complete | [H0 execution](noemit-cli.md) | exact closure of the 241 host-resolution identities, MemoryHost/FsHost equivalence, config/CLI/output parity, embedded libraries, no emitted files |
 | L0/L1 persistent source + incremental parser — complete and performance-qualified | [persistent Program design](lsp-and-incremental.md) | shared text/position snapshots, domain-scoped identity leases, generated relocation, non-contiguous ownership, owned bind/Program snapshots, immutable incremental parse/rebind, exact fresh equivalence, reclamation stress, and approved large-edit evidence |
-| H1 JavaScript emit — design started | [H1 execution](h1-emit.md) | after L0/L1: frozen owner/profile inventory, exact output oracle, zero-cost H0 `--noEmit` route, then byte-identical bounded JavaScript output and resource qualification |
+| H1 JavaScript emit — H1.0a owner inventory started | [H1 execution](h1-emit.md) | report-only active-root graph first; then frozen owner/profile/corpus inventory, exact output oracle, zero-cost H0 `--noEmit` route, byte-identical bounded JavaScript output, and resource qualification |
 
 The T0 percentages are calibration points from the first
 implementation's history, not promises; the gate is "meets or beats,
