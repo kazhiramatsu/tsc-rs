@@ -90,14 +90,16 @@ complete. H1.0b is complete too: the exact pre-H1 runtime and guarded
 candidate are frozen in `ratchets/h1-noemit-performance.v1.json` after eight
 alternating AB/BA pairs across the explicit-root, project, and scale
 workloads. All output-write and eight emitter-activity counts are zero; the
-largest warm-median wall ratio is 1.006 and executable size decreased by 112
-bytes. The bounded, tsc-architected JavaScript emitter preserves that H0
+latest H1.1 remeasurement has a largest warm-median wall ratio of 1.007,
+largest RSS ratio of 1.004, and executable-size ratio of 1.000057. The bounded,
+tsc-architected JavaScript emitter preserves that H0
 `--noEmit` entry while porting the exact resolver/transform/printer/output
 spine. H1.1 is complete: the acyclic emitter owner now fixes artifacts,
 callback metadata, dormant output topology, typed failures, sink feedback,
 independent outcomes, and `MemoryOutputSink`; distinct prepared-program and
 session modes reject unsupported emission before a sink call. H1.2 next adds
-the factory, transform-context, writer, and printer foundation. Ordinary GitHub CI remains
+the factory, transform-context, writer, and printer foundation. Ordinary
+GitHub CI remains
 the single `cargo xtask acceptance` command. Runtime implementation is
 unblocked by the completed L0 persistent-source and L1 incremental-parser
 proof, while build/watch and LSP remain separate compatibility tracks.

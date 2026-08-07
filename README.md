@@ -310,7 +310,8 @@ alternating AB/BA pairs for each explicit-root, project, and scale workload.
 All 48 executions wrote zero files; every candidate execution recorded zero
 for all eight emitter-construction/sink activities; parse/bind, copy, and
 allocation counts did not regress; the largest warm-median wall ratio was
-1.006; and the candidate executable was 112 bytes smaller. H1.1 is now
+1.007; peak RSS stayed within 1.004; and the candidate executable grew by
+only 704 bytes (ratio 1.000057). H1.1 is now
 implemented: the acyclic `emitter` owner freezes private-layout artifacts,
 exact callback text/BOM/provenance/metadata observations, the complete dormant
 output-plan axes, typed failures and sink feedback, independent outcome
