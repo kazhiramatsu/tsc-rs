@@ -393,9 +393,10 @@ impl DocumentRegistry {
         self.acquire(address, snapshot, build)
     }
 
-    /// Publish one immutable successor by incrementally reparsing and fully
-    /// rebinding the changed document. The previous lease remains live until
-    /// its owning Program explicitly releases it; no old tree is mutated.
+    /// tsrs-native: publish one immutable successor by incrementally reparsing
+    /// and fully rebinding the changed document. The previous lease remains
+    /// live until its owning Program explicitly releases it; no old tree is
+    /// mutated.
     pub fn update_incrementally(
         &mut self,
         previous: &DocumentLease,
