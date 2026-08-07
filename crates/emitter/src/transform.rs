@@ -84,7 +84,7 @@ impl TransformFlags {
     }
 
     /// tsc-port: getTransformFlagsSubtreeExclusions @6.0.3
-    /// tsc-hash: d94b42cc1f872ac661aff8b76a035afebd4943ad1765bc55003e99d33ad35a85
+    /// tsc-hash: 2d364dcf4298f054e648486f6e466f4b82d973fc80597df00ed06d9c612aa913
     /// tsc-span: _tsc.js:25125-25194
     pub const fn subtree_exclusions(kind: SyntaxKind) -> Self {
         if (kind as u16) >= SyntaxKind::FirstTypeNode as u16
@@ -733,7 +733,7 @@ impl Drop for TransformationResult {
 }
 
 /// tsc-port: transformNodes @6.0.3
-/// tsc-hash: 3115c907f6d6ed5217cf1e2a9eda8dfab77fcd6bb5472926670c686d0e85cf06
+/// tsc-hash: ef2079da1a35b78b43d8794c034dd6caabdad5b71547b22c3270c40d47349e84
 /// tsc-span: _tsc.js:115977-116276
 pub fn transform_nodes(
     arena: TransformArena,

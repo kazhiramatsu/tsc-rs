@@ -206,7 +206,7 @@ impl TransformArena {
     }
 
     /// tsc-port: getOriginalNode @6.0.3
-    /// tsc-hash: b934db3d55bd0eb6bebca82dce97b8f693ad055812d7abafa3340e0cfed74a5a
+    /// tsc-hash: e6e639e966314faf444b9b68796893745ffb06eb0adcf1180d6935332d8797a3
     /// tsc-span: _tsc.js:11400-11410
     pub fn get_original_node(&self, mut node: TransformNode) -> TransformNode {
         let mut remaining = self.metadata.len().saturating_add(1);
@@ -221,7 +221,7 @@ impl TransformArena {
     }
 
     /// tsc-port: setOriginalNode @6.0.3
-    /// tsc-hash: 9b8a0d666f6c7c78e82dc6c54f02ee222d838717f6afe36bee0651879cedee8e
+    /// tsc-hash: 8ef5d40b9635be7af9ec133e0cb89a40498944062d5e9570facb5c3468121129
     /// tsc-span: _tsc.js:25208-25217
     pub fn set_original_node(
         &mut self,
@@ -252,7 +252,7 @@ impl TransformArena {
     }
 
     /// tsc-port: propagateChildFlags @6.0.3
-    /// tsc-hash: 76bc9cd89a2ee3750e99c51c91ef4566f5f4f9ebb8760179e4de4593cb09c860
+    /// tsc-hash: 8ddb64c96b023e53f3d136865d331f4ff32cc68182cf51faa166e2023be5abb0
     /// tsc-span: _tsc.js:25110-25114
     pub fn propagate_child_flags(
         &self,
@@ -385,7 +385,7 @@ impl<'arena> NodeFactory<'arena> {
     }
 
     /// tsc-port: cloneNode @6.0.3
-    /// tsc-hash: d2da400839203fb9edb46bba233688560f9e7a6146cd330d0c34b798f4bb03dd
+    /// tsc-hash: d223dcea6ccf14e9212d40d5b8df188197023622ea3e5d624ffb974a25db19d6
     /// tsc-span: _tsc.js:24436-24466
     pub fn clone_node(&mut self, original: TransformNode) -> Result<TransformNode, TransformError> {
         let record = self.arena.node(original)?.clone();

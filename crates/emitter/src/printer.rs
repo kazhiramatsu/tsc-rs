@@ -156,7 +156,7 @@ pub struct Printer {
 }
 
 /// tsc-port: createPrinter @6.0.3
-/// tsc-hash: c1ca84c9b6e0fd047ed1c89b6585be47d6bdfc44ab5e2e527411386695cd7e20
+/// tsc-hash: b227b66a85178f81faf58d6de65ed31fe2a87de1448ec6ec61e535fd36194697
 /// tsc-span: _tsc.js:116912-121378
 ///
 /// H1.2 implements the pipeline foundation and whole-source identity arm.

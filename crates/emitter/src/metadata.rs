@@ -299,7 +299,7 @@ impl EmitMetadata {
     }
 
     /// tsc-port: mergeEmitNode @6.0.3
-    /// tsc-hash: fbb071893c01e70474bcfa9e2e06d2fa7ec542c7fc5009b5c29824d2a2ef6254
+    /// tsc-hash: 6d9f4af1f1fa79b494c5ef7b570972925000f7939cd16ffe520855a67583f375
     /// tsc-span: _tsc.js:25218-25277
     pub(crate) fn merge_from(&mut self, source: &Self) {
         if !source.flags.is_empty() {

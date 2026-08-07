@@ -43,7 +43,7 @@
     "rust_source_files": 177,
     "cargo_manifests": 15,
     "bytes": 12436669,
-    "tree_sha256": "35621f60cc0ad003316a4fd0e946145075027b6af3b6a96bfebe7c96ac268bff"
+    "tree_sha256": "c539595f968698d84001de00d8a692e157cfe48d4ac0fb1af14c3a3663a009f1"
   },
   "summary": {
     "production_boundary_omissions": 6,
@@ -688,7 +688,7 @@
         "column": 1,
         "text": "pub struct TransformArena {",
         "text_sha256": "b6c3e905d93355f0b9cd4c8674ab28ed477ff430fd554a7d9b2bafbac5e314f2",
-        "file_sha256": "bec1172ba4709163782799049cf5db7afa6932a80fa6e9a361d7d485d89b304e"
+        "file_sha256": "7e46bda3520d61d7ca740ed165637224b6358207add024cc1db9b985a2cea5f7"
       },
       {
         "id": "emitter-node-factory",
@@ -697,7 +697,7 @@
         "column": 1,
         "text": "pub struct NodeFactory<'arena> {",
         "text_sha256": "fb050d83d8a697d4861efcdb071a8263bf79739425178a3d2f1eac9d053c68df",
-        "file_sha256": "bec1172ba4709163782799049cf5db7afa6932a80fa6e9a361d7d485d89b304e"
+        "file_sha256": "7e46bda3520d61d7ca740ed165637224b6358207add024cc1db9b985a2cea5f7"
       },
       {
         "id": "emitter-transform-flags",
@@ -706,7 +706,7 @@
         "column": 1,
         "text": "pub struct TransformFlags(i32);",
         "text_sha256": "7c653a426ba14a23c6ac44c6c084daceaab7fd4dd8e74b8b181e04bb2a0fa9f6",
-        "file_sha256": "416121812eccee4eae7be1c8a1321f1db071e533b15922feafbc0a3116a4048a"
+        "file_sha256": "741c6c45e7e4b1c158b2e820fcf10ffc90f8d0293267b69f4bf2c5ab2015bd2f"
       },
       {
         "id": "emitter-emit-metadata",
@@ -715,7 +715,7 @@
         "column": 1,
         "text": "pub struct EmitMetadata {",
         "text_sha256": "8ef23fa666dcb24593e950f34243354d67421355e90ba282ceead155eff4bf82",
-        "file_sha256": "55af23e979273d60616d3721be1110984316a7587cfa2419fc7d3e1bf35b4265"
+        "file_sha256": "d23519f3d0f2cd5ea2911fee985c7a115e6273a1ef9d3f323f4a5f235358437f"
       },
       {
         "id": "emitter-transformation-context",
@@ -724,7 +724,7 @@
         "column": 1,
         "text": "pub struct TransformationContext {",
         "text_sha256": "a5d206c9a41608a94d45968e79501af02c879c7e8679fe82d310c007ef891c32",
-        "file_sha256": "416121812eccee4eae7be1c8a1321f1db071e533b15922feafbc0a3116a4048a"
+        "file_sha256": "741c6c45e7e4b1c158b2e820fcf10ffc90f8d0293267b69f4bf2c5ab2015bd2f"
       },
       {
         "id": "emitter-transform-nodes",
@@ -733,7 +733,7 @@
         "column": 1,
         "text": "pub fn transform_nodes(\n    arena: TransformArena,",
         "text_sha256": "47b45d0a5973731a1823fe6f8ad2955ea8a812acdf4d09f17aa0ea5c288df0ae",
-        "file_sha256": "416121812eccee4eae7be1c8a1321f1db071e533b15922feafbc0a3116a4048a"
+        "file_sha256": "741c6c45e7e4b1c158b2e820fcf10ffc90f8d0293267b69f4bf2c5ab2015bd2f"
       },
       {
         "id": "emitter-text-writer",
@@ -742,7 +742,7 @@
         "column": 1,
         "text": "pub struct TextWriter {",
         "text_sha256": "7b734811755d47e0c85b6139208b95d862f5d7db46da45c9459aaecb6e63286f",
-        "file_sha256": "7d60a68224aceccb1bee989afd762f1b8f361f5171f8b281427b11a66e29da05"
+        "file_sha256": "26037baa960644ad971c33c1ce2774a4801c142a781c45950baeb76e7e3aee14"
       },
       {
         "id": "emitter-printer-factory",
@@ -751,7 +751,7 @@
         "column": 1,
         "text": "pub const fn create_printer(options: PrinterOptions) -> Printer {",
         "text_sha256": "ad5575a93d7bc5976768228967001d7add6871a47da1b0316d75313def10d0f8",
-        "file_sha256": "16c56134b2c983cc4eec9d233cbd65ce3211b1b85d7574419ef83cda93b92cbe"
+        "file_sha256": "47a17f1f5f7bcab6043d676f4754e5a2c6d776b555982e15f4558fb9c785b283"
       },
       {
         "id": "emitter-position-domains",
@@ -769,7 +769,7 @@
         "column": 1,
         "text": "pub trait SourceMapRecorder {",
         "text_sha256": "76298cd03affa09442e1ee73bff9ba404f8ce719406bc4d5d1c45e0461acd461",
-        "file_sha256": "16c56134b2c983cc4eec9d233cbd65ce3211b1b85d7574419ef83cda93b92cbe"
+        "file_sha256": "47a17f1f5f7bcab6043d676f4754e5a2c6d776b555982e15f4558fb9c785b283"
       },
       {
         "id": "prepared-program-emitting-builder",
@@ -1310,5 +1310,5 @@
       }
     ]
   },
-  "inventory_fingerprint_sha256": "530695cb5db30c234207d98d26e543545a4497d55059af6431462ed37f60b602"
+  "inventory_fingerprint_sha256": "d5e1585debbdfab6cab90ea565a7c97d0cb236f22868e74484ec779b431af46e"
 }

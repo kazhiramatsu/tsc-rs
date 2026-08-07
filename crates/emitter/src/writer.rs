@@ -37,7 +37,7 @@ pub struct TextWriter {
 }
 
 /// tsc-port: createTextWriter @6.0.3
-/// tsc-hash: 835dadc2e09d2d66ae9b4a65e5a33e62cd885251ca297a525ab4f1ac3928b5eb
+/// tsc-hash: 468df403cf6a10a3b3c1349c60309814fbfaf24cca610b0f6aac30fb6952bd84
 /// tsc-span: _tsc.js:16365-16461
 pub fn create_text_writer(new_line: NewLineKind) -> TextWriter {
     TextWriter::new(new_line)
