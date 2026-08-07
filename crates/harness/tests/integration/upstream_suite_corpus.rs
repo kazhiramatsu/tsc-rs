@@ -19,6 +19,10 @@ const PIN_V3: &[u8] = include_bytes!(concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/../../vendor/typescript-6.0.3/test-suites-pin.v3.json"
 ));
+const PIN_V4: &[u8] = include_bytes!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../../vendor/typescript-6.0.3/test-suites-pin.v4.json"
+));
 const FOURSLASH_PROJECTION_MANIFEST: &[u8] = include_bytes!(concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/../../vendor/typescript-6.0.3/fourslash-emit-projection.v1.json"
@@ -27,7 +31,9 @@ const BASE_PIN_RELATIVE_PATH: &str = "vendor/typescript-6.0.3/test-suites-pin.v1
 const BASE_PIN_SHA256: &str = "f231d984c31d5d16a6fb845e66a25bc9601ffd23212d548cb337149e40397da9";
 const PIN_V2_RELATIVE_PATH: &str = "vendor/typescript-6.0.3/test-suites-pin.v2.json";
 const PIN_V2_SHA256: &str = "83f8edbb6f4535a19e61cf872532a46722f8cedbd2d746a0922dc507addc0879";
+const PIN_V3_RELATIVE_PATH: &str = "vendor/typescript-6.0.3/test-suites-pin.v3.json";
 const PIN_V3_SHA256: &str = "5f7aee7d434066017c5cd115fb2195ff4959e5203eddc7ed9dafaf705cb38b34";
+const PIN_V4_SHA256: &str = "9cd0b499d22c8936b78d1bd30d5ab7faa295b23903e838953fddaaffc48d52d4";
 const FOURSLASH_PROJECTION_MANIFEST_RELATIVE_PATH: &str =
     "vendor/typescript-6.0.3/fourslash-emit-projection.v1.json";
 const FOURSLASH_PROJECTION_MANIFEST_SHA256: &str =
@@ -60,7 +66,7 @@ const FOURSLASH_OPERATION_METHODS: [&str; 4] = [
     "verifyGetEmitOutputContentsForCurrentFile",
     "verifyGetEmitOutputForCurrentFile",
 ];
-const SUITES: [(&str, &str, &str); 4] = [
+const SUITES_V4: [(&str, &str, &str); 5] = [
     (
         "compiler",
         "tests/cases/compiler",
@@ -80,6 +86,11 @@ const SUITES: [(&str, &str, &str); 4] = [
         "transpile",
         "tests/cases/transpile",
         "ts-tests/tests/cases/transpile",
+    ),
+    (
+        "conformance",
+        "tests/cases/conformance",
+        "ts-tests/tests/cases/conformance",
     ),
 ];
 
@@ -146,7 +157,7 @@ struct ImplementationSourcePin {
     git_blob_sha1: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Eq, PartialEq)]
 #[serde(deny_unknown_fields)]
 struct ProjectionPin {
     name: String,
@@ -379,6 +390,11 @@ fn vendored_upstream_test_suites_match_exact_git_trees() {
         "H1 schema-3 test suite pin hash"
     );
     assert_eq!(
+        format!("{:x}", Sha256::digest(PIN_V4)),
+        PIN_V4_SHA256,
+        "H1 schema-4 test suite pin hash"
+    );
+    assert_eq!(
         format!("{:x}", Sha256::digest(FOURSLASH_PROJECTION_MANIFEST)),
         FOURSLASH_PROJECTION_MANIFEST_SHA256,
         "FourSlash emit projection manifest hash"
@@ -389,33 +405,41 @@ fn vendored_upstream_test_suites_match_exact_git_trees() {
         serde_json::from_slice(PIN_V2).expect("H1 schema-2 test suite pin must be valid JSON");
     let pin_v3: ProjectedTestSuitesPin =
         serde_json::from_slice(PIN_V3).expect("H1 schema-3 test suite pin must be valid JSON");
+    let pin_v4: ProjectedTestSuitesPin =
+        serde_json::from_slice(PIN_V4).expect("H1 schema-4 test suite pin must be valid JSON");
     let fourslash: FourSlashProjectionManifest =
         serde_json::from_slice(FOURSLASH_PROJECTION_MANIFEST)
             .expect("FourSlash emit projection manifest must be valid JSON");
     assert_eq!(legacy.schema, 1, "unsupported legacy test suite pin schema");
     assert_eq!(pin_v2.schema, 2, "unsupported H1 schema-2 pin");
     assert_eq!(pin_v3.schema, 3, "unsupported H1 schema-3 pin");
+    assert_eq!(pin_v4.schema, 4, "unsupported H1 schema-4 pin");
     assert_eq!(pin_v2.base_pin.path, BASE_PIN_RELATIVE_PATH);
     assert_eq!(pin_v2.base_pin.sha256, BASE_PIN_SHA256);
     assert_eq!(pin_v3.base_pin.path, PIN_V2_RELATIVE_PATH);
     assert_eq!(pin_v3.base_pin.sha256, PIN_V2_SHA256);
+    assert_eq!(pin_v4.base_pin.path, PIN_V3_RELATIVE_PATH);
+    assert_eq!(pin_v4.base_pin.sha256, PIN_V3_SHA256);
     assert_eq!(pin_v2.typescript_version, TYPESCRIPT_VERSION);
     assert_eq!(pin_v2.source_repository, SOURCE_REPOSITORY);
     assert_eq!(pin_v2.source_commit, SOURCE_COMMIT);
     assert_eq!(pin_v3.typescript_version, pin_v2.typescript_version);
     assert_eq!(pin_v3.source_repository, pin_v2.source_repository);
     assert_eq!(pin_v3.source_commit, pin_v2.source_commit);
+    assert_eq!(pin_v4.typescript_version, pin_v3.typescript_version);
+    assert_eq!(pin_v4.source_repository, pin_v3.source_repository);
+    assert_eq!(pin_v4.source_commit, pin_v3.source_commit);
     assert_eq!(legacy.typescript_version, pin_v2.typescript_version);
     assert_eq!(legacy.source_repository, pin_v2.source_repository);
     assert_eq!(legacy.source_commit, pin_v2.source_commit);
     assert_eq!(
         legacy.suites.len(),
-        SUITES.len() - 1,
+        SUITES_V4.len() - 2,
         "schema 1 must remain the exact three-suite base"
     );
     assert_eq!(
         pin_v2.suites.len(),
-        SUITES.len(),
+        SUITES_V4.len() - 1,
         "the pin must contain all and only compiler/project/projects/transpile"
     );
     assert_eq!(
@@ -426,6 +450,16 @@ fn vendored_upstream_test_suites_match_exact_git_trees() {
     assert_eq!(
         pin_v3.suites, pin_v2.suites,
         "schema 3 must preserve every schema-2 full-suite identity"
+    );
+    assert_eq!(
+        &pin_v4.suites[..pin_v3.suites.len()],
+        pin_v3.suites.as_slice(),
+        "schema 4 must preserve every schema-3 full-suite identity"
+    );
+    assert_eq!(
+        pin_v4.suites.len(),
+        SUITES_V4.len(),
+        "schema 4 must append exactly the complete conformance suite"
     );
     assert_eq!(
         pin_v2.implementation_sources.len(),
@@ -439,6 +473,10 @@ fn vendored_upstream_test_suites_match_exact_git_trees() {
         &pin_v3.implementation_sources[..pin_v2.implementation_sources.len()],
         pin_v2.implementation_sources.as_slice(),
         "schema 3 must preserve the schema-2 implementation-source prefix"
+    );
+    assert_eq!(
+        pin_v4.implementation_sources, pin_v3.implementation_sources,
+        "schema 4 must preserve every schema-3 implementation-source identity"
     );
     for (source, (path, git_blob_sha1)) in pin_v3
         .implementation_sources
@@ -455,7 +493,7 @@ fn vendored_upstream_test_suites_match_exact_git_trees() {
         .and_then(Path::parent)
         .expect("harness crate must be inside the workspace");
 
-    for (suite, (name, source_path, vendored_path)) in pin_v2.suites.iter().zip(SUITES) {
+    for (suite, (name, source_path, vendored_path)) in pin_v4.suites.iter().zip(SUITES_V4) {
         assert_eq!(suite.name, name);
         assert_eq!(suite.source_path, source_path);
         assert_eq!(suite.vendored_path, vendored_path);
@@ -494,7 +532,11 @@ fn vendored_upstream_test_suites_match_exact_git_trees() {
         1,
         "exactly one projection is pinned"
     );
-    verify_fourslash_projection(workspace, &pin_v3.projections[0], &fourslash);
+    assert_eq!(
+        pin_v4.projections, pin_v3.projections,
+        "schema 4 must preserve the schema-3 FourSlash projection"
+    );
+    verify_fourslash_projection(workspace, &pin_v4.projections[0], &fourslash);
 }
 
 fn verify_fourslash_projection(

@@ -11,9 +11,10 @@ baseline, and the complete 22-file upstream `transpile` source tree is now
 content-addressed in the additive suite pin v2. Its exact runner matrix is
 separately reconstructed as 37 classified `not-run` rows without fabricating
 execution or reference-baseline results. Additive suite pin v3 also binds the
-complete
-6,568-file FourSlash tree identity and vendors the exact 38-file batch-emit
-witness projection, again with zero expansion or execution rows.
+complete 6,568-file FourSlash tree identity and vendors the exact 38-file
+batch-emit witness projection, again with zero expansion or execution rows.
+Additive suite pin v4 now binds v3 byte-for-byte and pins the complete
+5,908-file upstream conformance tree without adding a case or result.
 The shared L0/L1 prerequisite and its evidence/CI-contract freeze are complete.
 The graph's unresolved dynamic calls and conservative property dispatch still
 need review, and compiler/project/conformance classification plus promoted
@@ -959,7 +960,10 @@ vendors all 22 `transpile` files plus the `transpileRunner` Git blob from
 source commit `050880ce59e30b356b686bd3144efe24f875ebc8`. Additive suite pin
 v3 in turn binds v2 byte-for-byte, preserves all four complete suite entries,
 and pins the complete FourSlash source tree as 6,568 files, 14,198,525 bytes,
-and Git tree `775c30f57c0638a180e7ac2e38b2581976620ca5`.
+and Git tree `775c30f57c0638a180e7ac2e38b2581976620ca5`. Additive suite pin
+v4 binds v3 byte-for-byte and appends the complete conformance source tree as
+5,908 files, 3,825,804 bytes, 5,862 unique blobs, and Git tree
+`9d28e54f5b0c7695ca2de6b1a15508dc35b0db98`.
 
 The checked-in
 [`transpile-suite-inventory.v1.json`](../../../vendor/typescript-6.0.3/transpile-suite-inventory.v1.json)
@@ -993,8 +997,9 @@ The existing expansion v1 remains byte-identical: it inventories 7,086
 cases and 632 project cases, and retains initial state `not-run` for all 7,908
 rows. It deliberately contains no transpile row; the separate transpile
 inventory adds 37 classified `not-run` rows without mutating that established
-artifact. H0 structural load/session qualification does not change either
-upstream-runner state. At the pinned
+artifact. Suite pin v4 also adds no conformance expansion or result row. H0
+structural load/session qualification does not change any upstream-runner
+state. At the pinned
 commit, `compilerRunner` separately observes diagnostics, module-resolution
 traces, source-map records, JavaScript/declaration output, source-map output,
 and type/symbol baselines. H1 records a separate result for every row and
@@ -1005,7 +1010,8 @@ The inventory then classifies these sources:
 
 1. `tests/cases/compiler`, `tests/cases/project`,
    `tests/cases/projects`, and the existing conformance emitter families are
-   the primary whole-Program input universe. An admitted row must pass through
+   the primary whole-Program input universe. The complete conformance source
+   tree is pinned in additive suite pin v4. An admitted row must pass through
    production program construction and `ProgramSession::emit`.
 2. The complete TypeScript 6.0.3 `tests/cases/transpile` tree has been added
    through a reviewed additive suite-pin-v2 transition. H1.0a now reproduces
@@ -1145,10 +1151,11 @@ deliberately remains `draft/report-only`. The complete transpile source tree is
 also pinned in the additive v2 source universe, and its companion inventory
 reconstructs and classifies all 37 runner rows while leaving every execution
 state `not-run` and every reference baseline uncompared. The additive v3
-source universe now freezes the complete FourSlash tree
-identity and exact 38-file emit projection, also with zero expansion or
-execution rows; corpus classification and reviewed unresolved/property-
-dispatch dispositions still keep item 1 open.
+source universe now freezes the complete FourSlash tree identity and exact
+38-file emit projection, also with zero expansion or execution rows. Additive
+v4 preserves that evidence and pins the complete conformance tree with zero
+new expansion or execution rows; corpus classification and reviewed
+unresolved/property-dispatch dispositions still keep item 1 open.
 
 1. **H1.0a — inventory and oracle:** generate the JavaScript-emitter owner
    graph, classify the compiler/project/conformance corpus plus the already

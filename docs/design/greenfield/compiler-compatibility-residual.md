@@ -6,9 +6,10 @@ Rust emit omissions frozen in a generated baseline, with the complete upstream
 transpile source tree content-addressed in additive suite pin v2 and its exact
 37-row runner matrix classified without execution or baseline comparison, plus
 the exact 38-file FourSlash batch-emit witness projection pinned in additive
-suite pin v3. This page records the current Rust implementation boundary, the
-work
-required to finish bounded H1 JavaScript emit, and the remaining work after H1
+suite pin v3, and the complete 5,908-file conformance tree pinned in additive
+suite pin v4 without new expansion or execution rows. This page records the
+current Rust implementation boundary, the work required to finish bounded H1
+JavaScript emit, and the remaining work after H1
 for broader TypeScript 6.0.3 compiler and tooling compatibility. It is not an
 implementation-complete claim and it does not authorize a broader H1 profile.
 
@@ -56,8 +57,8 @@ The final review crossed the residual against these independent roots:
   package-json caches, Project Service, and server Session owners;
 - the local option declarations, H0 prepared-program/config projections,
   M8 scope state, H0 qualification records, and upstream-suite expansion; and
-- the pinned upstream compiler, projects, transpile, and FourSlash runner
-  entry points and their reference-baseline roles.
+- the pinned upstream compiler, projects, conformance, transpile, and FourSlash
+  inputs, runner entry points, and their reference-baseline roles.
 
 That review fixes the current evidence boundary as follows:
 
@@ -68,6 +69,7 @@ That review fixes the current evidence boundary as follows:
 | Compiler input expansion | 7,276/7,276 plans structurally load and run through H0 | Upstream diagnostic, trace, JS/d.ts/map, or type/symbol baselines |
 | Project expansion | 82/632 H0-compatible plans are qualified; the other 550 are explicitly classified H0 non-scope | The upstream project emit/build baselines |
 | Expansion manifest | All 7,908 compiler/project cases retain initial state `not-run` | Any upstream runner pass rate |
+| Conformance source pin | The complete 5,908-file upstream tree is content-addressed in additive suite pin v4 | Emit-case expansion, output-baseline comparison, or an upstream emit pass rate |
 | Transpile runner matrix | All 37 cases reconstructed from 22 fixtures and classified; every row remains `not-run` and zero reference baselines were compared | A transpile pass rate or equivalence between `transpileModule` and whole-Program emit |
 | FourSlash emit projection | The full 6,568-file tree identity and all 38 direct emit-operation witnesses are pinned; expansion/execution/pass rows are zero | A FourSlash or Language Service pass rate, or equivalence to whole-Program emit |
 
@@ -902,14 +904,20 @@ deferred source-map controls, 20 are deferred declaration controls, and one is
 a deferred declaration-map control. Zero cases are admitted to the H1
 bootstrap profile, and the pinned reference-baseline paths have no vendored or
 compared content. Suite pin v3 binds v2 unchanged, records the complete
-6,568-file
-FourSlash tree identity, pins the two FourSlash harness implementation blobs,
-and reconstructs the projected 38-file Git tree/blob inventory. Its manifest
+6,568-file FourSlash tree identity, pins the two FourSlash harness
+implementation blobs, and reconstructs the projected 38-file Git tree/blob
+inventory. Its manifest
 classifies 31 `baselineGetEmitOutput`, five `getEmitOutput`, and two focused
 current-file verification calls plus all 49 `emitThisFile` directives. It has
 zero expansion/execution/pass rows and therefore establishes no FourSlash,
 Language Service, or whole-Program emit result; the classification stage must
 retain explicit unsupported dispositions.
+
+Suite pin v4 binds v3 byte-for-byte, preserves its four full suites, runner
+identities, and FourSlash projection, and appends the complete 5,908-file
+conformance tree at the same source commit. It adds zero expansion, execution,
+baseline-comparison, or passing rows. The existing diagnostic-conformance
+qualification therefore remains separate from upstream emit-suite evidence.
 
 The local `test-suite-expansion.v1.json` remains byte-identical and inventories
 7,086 `compiler`, `project`, and `projects` sources, 7,276 compiler cases, and
