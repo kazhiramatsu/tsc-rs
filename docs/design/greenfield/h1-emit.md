@@ -18,13 +18,18 @@ Additive suite pin v4 now binds v3 byte-for-byte and pins the complete
 the 5,907 `.ts`/`.tsx` fixtures selected by `CompilerBaselineRunner` into
 7,697 cases and all six observation kinds, with all 46,182 case-observations
 still `not-run` and no reference baseline compared.
+Its companion effective-option classification covers every case, including
+the 27 virtual-config fixtures: 7,655 cases have an applicable JavaScript
+observation, only three have both `target=ESNext` and `module=Preserve`, and
+all three retain another profile blocker, so the admitted count is exactly
+zero. This proves an option disposition for every row without claiming source
+reachability, syntax support, execution, or baseline parity.
 The shared L0/L1 prerequisite and its evidence/CI-contract freeze are complete.
 The graph's unresolved dynamic calls and conservative property dispatch still
-need review, and compiler/project/conformance classification plus promoted
-FourSlash whole-Program equivalence review remain open. No
-H1 runtime implementation or compatibility claim exists until the complete
-H1.0 inventory and post-L0/L1 no-emit performance baseline described below are
-frozen.
+need review, and compiler/project classification plus promoted FourSlash
+whole-Program equivalence review remain open. No H1 runtime implementation or
+compatibility claim exists until the complete H1.0 inventory and post-L0/L1
+no-emit performance baseline described below are frozen.
 H0 remains the released, frozen single-project `--noEmit` profile. M9 remains a
 separate paused batch-diagnostics qualification track.
 
@@ -1014,11 +1019,25 @@ and observation remains `not-run`; execution results and compared reference
 baselines are both zero. Rust generation and an independent Node
 reconstruction from the vendored TypeScript option declarations must match
 every source, unit, configuration, case ID, and observation row. This is
-expansion evidence, not profile classification, Program execution, emit
-parity, or an upstream pass rate. H0 structural load/session qualification
-does not change any upstream-runner state. H1 records a separate result for
-every row and observation it later admits and leaves all others explicitly
-deferred; it never promotes Program construction alone to an emit pass.
+expansion evidence, not Program execution, emit parity, or an upstream pass
+rate. The separate
+[`conformance-profile-classification.v1.json`](../../../vendor/typescript-6.0.3/conformance-profile-classification.v1.json)
+then reproduces the runner's virtual-`tsconfig` parse, compile defaults, and
+harness/matrix override order for every case. Twenty-seven fixtures contain a
+virtual config and two retain config diagnostic 5024. Of 7,697 cases, 7,655
+have an applicable JavaScript observation, 7,152 have a target blocker, 7,678
+have a module blocker, 2,483 have at least one rejected effective option, and
+547 route through `noEmit=true`; these categories overlap. Only three cases
+match both required options, and their remaining `allowJs`/JSX/output-path/
+rewrite/verbatim or `noEmit` blockers leave zero bootstrap admissions. Every
+row and JavaScript observation remains explicitly `not-run`, and compared
+reference baselines remain zero. Because every case is rejected by effective
+options, source reachability and syntax classification are neither required
+for this zero-admission proof nor claimed by the artifact. H0 structural
+load/session qualification does not change any upstream-runner state. H1
+records a separate result for every row and observation it later admits and
+leaves all others explicitly deferred; it never promotes Program construction
+alone to an emit pass.
 
 The inventory then classifies these sources:
 
@@ -1026,8 +1045,10 @@ The inventory then classifies these sources:
    `tests/cases/projects`, and the existing conformance emitter families are
    the primary whole-Program input universe. The complete conformance source
    tree is pinned in additive suite pin v4 and its 7,697 runner cases are
-   expanded separately with all observations `not-run`. An admitted row must
-   pass through production program construction and `ProgramSession::emit`.
+   expanded and effective-option classified separately. All observations stay
+   `not-run`; zero cases enter the bootstrap profile. A future admitted row
+   must pass through production program construction and
+   `ProgramSession::emit`.
 2. The complete TypeScript 6.0.3 `tests/cases/transpile` tree has been added
    through a reviewed additive suite-pin-v2 transition. H1.0a now reproduces
    the complete `transpileRunner` unit partitioning and option matrix as 37
@@ -1170,16 +1191,18 @@ source universe now freezes the complete FourSlash tree identity and exact
 38-file emit projection, also with zero expansion or execution rows. Additive
 v4 preserves that evidence and pins the complete conformance tree. Its
 separate manifest now reconstructs all 5,907 runner fixtures, 7,697 cases, and
-46,182 case-observations without executing or comparing any of them. Corpus
-classification and reviewed unresolved/property-dispatch dispositions still
-keep item 1 open.
+46,182 case-observations without executing or comparing any of them. Its
+companion classification reproduces effective settings for every row and
+proves zero bootstrap admissions while leaving all 7,697 rows `not-run`.
+Compiler/project classification, promoted FourSlash equivalence, and reviewed
+unresolved/property-dispatch dispositions still keep item 1 open.
 
 1. **H1.0a — inventory and oracle:** generate the JavaScript-emitter owner
-   graph, classify the compiler/project/conformance corpus plus the already
-   reconstructed transpile matrix and FourSlash emit projection, freeze dormant
-   declaration/map/bundle/targeted/build-info seams, land the in-memory oracle,
-   and record every current emit-only Rust omission. The inventory
-   and design portion may proceed in parallel with the next item.
+   graph, classify the compiler/project corpus plus the already classified
+   conformance corpus, reconstructed transpile matrix, and FourSlash emit
+   projection, freeze dormant declaration/map/bundle/targeted/build-info seams,
+   land the in-memory oracle, and record every current emit-only Rust omission.
+   The inventory and design portion may proceed in parallel with the next item.
 2. **L0/L1 prerequisite — persistent source and parser proof:** land shared
    text/position snapshots, identity leases, owned parse/bind records,
    `ProgramSnapshot`, the ephemeral H0 adapter, minimal registry reuse, and
