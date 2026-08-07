@@ -35,7 +35,7 @@ expansion or claim a transpile execution result.
 
 The runner-derived companion inventory is pinned at
 `vendor/typescript-6.0.3/transpile-suite-inventory.v1.json` (SHA-256
-`0ffc8936db1639bde194e0ce63b198ce83507a02f3a6cdf49bfefadaa09a5a5e`).
+`947b22bc08b76fe56bfc34076e5e87147dc0e713bcfd995903e41a936ef6ba59`).
 It reconstructs the exact 22-fixture, 25-configuration `TranspileRunner`
 matrix as 42 fixture units, 37 cases, and 79 per-unit operations. All 37 cases
 retain execution state `not-run`: 14 are JavaScript transform/printer controls,
@@ -118,7 +118,7 @@ construction, JavaScript emit, baseline parity, or an upstream pass rate.
 The separate effective-option classification is pinned at
 `vendor/typescript-6.0.3/conformance-profile-classification.v1.json`
 (SHA-256
-`fc248fb34bffcc4df18daa0663e3792bca93927020d9d2a8350f94c2269fd2f0`).
+`ac879a75c8ca9accf39e41dfa37b26fa2359e91398217da339686c88a493eeea`).
 It consumes the expansion byte-for-byte and reproduces virtual `tsconfig`
 parsing, compiler-runner defaults, and harness/matrix override precedence for
 all 7,697 cases. The artifact records 27 virtual configs, two config-diagnostic
@@ -182,7 +182,7 @@ claims no upstream test result.
 
 The H1 compiler-runner classification is pinned separately at
 `vendor/typescript-6.0.3/compiler-profile-classification.v1.json` (SHA-256
-`502851cfe84b49c2447609499aa75dcaf70d8aa854bdebc208f1ef194394fc08`).
+`8d641b9d4b5a8b841f24fe080ecc2d53685fb0c16fda909e94dd4805b5dac777`).
 It consumes the expansion, config-plan artifact, frozen H1 profile, and
 vendored TypeScript bundle byte-for-byte. It verifies all 103 virtual configs
 and 106 config variants against the config-plan oracle before reproducing
@@ -204,6 +204,30 @@ node crates/oracle/h1-compiler-classification.mjs --check
 This is classification and admission evidence only. It claims neither Rust
 Program/emit execution nor compiler-runner baseline parity or a passing
 upstream test result.
+
+The H1 project-runner classification is pinned separately at
+`vendor/typescript-6.0.3/project-profile-classification.v1.json` (SHA-256
+`fd9d728bce7e60f8db7e59bb92513648d50a2ee2580847e38cbd8b3e1fb835c9`).
+It consumes the unchanged expansion, frozen H1 profile, vendored TypeScript
+bundle, and focused six-case project oracle byte-for-byte. It reproduces the
+pinned `projectsRunner.ts` defaults,
+descriptor/compiler-option conversion, config precedence, and root-selection
+order for all 316 descriptors and both CommonJS/AMD variants. The 632 rows
+contain 570 explicit-input selections and 62 config-backed selections, with
+six deliberately missing explicit roots, 74 config roots, and zero config
+diagnostics. JavaScript observation is applicable to 572 rows. Every row has
+both a required target and module blocker, so admissions are zero. Every row
+remains `not-run`, and zero reference baselines are compared. Regeneration and
+freshness checking are fixed and unfiltered:
+
+```text
+node crates/oracle/h1-project-classification.mjs --write
+node crates/oracle/h1-project-classification.mjs --check
+```
+
+This is root/option classification and admission evidence only. It claims
+neither Rust Program/emit execution nor project-runner baseline parity or a
+passing upstream test result.
 
 The 16 contiguous official compiler fixtures
 `moduleResolutionWithSuffixes_empty.ts` through
