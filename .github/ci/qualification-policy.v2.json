@@ -57,6 +57,7 @@
       ".github/workflows/ci.yml",
       ".github/workflows/l0-performance.yml",
       ".github/workflows/l1-performance.yml",
+      ".github/workflows/h1-noemit-performance.yml",
       ".github/ci/qualification-policy.v2.json",
       "Cargo.lock",
       "Cargo.toml",
@@ -78,6 +79,9 @@
     "l1_authority_job": "qualify",
     "l1_h0_evidence": "ratchets/l1-h0-performance.v1.json",
     "l1_evidence": "ratchets/l1-incremental-parser-performance.v1.json",
+    "h1_authority_workflow": ".github/workflows/h1-noemit-performance.yml",
+    "h1_authority_job": "qualify",
+    "h1_evidence": "ratchets/h1-noemit-performance.v1.json",
     "moving_hosted_images_may_mint_ratchets": false,
     "alternating_baseline_candidate": true
   }

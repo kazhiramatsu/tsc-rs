@@ -149,7 +149,12 @@ const anchorSpecs = [
   [
     "program-session-run",
     "crates/compiler/src/lib.rs",
-    "pub fn run(self) -> Result<NoEmitOutcome, DriverError> {\n        self.run_inner(false)\n    }",
+    "pub fn run(self) -> Result<NoEmitOutcome, DriverError> {\n        let mut no_emit_canary = no_emit_canary::NoEmitCanary::new();\n        self.run_with_no_emit_canary(false, &mut no_emit_canary)\n    }",
+  ],
+  [
+    "h1-no-emit-canary",
+    "crates/compiler/src/no_emit_canary.rs",
+    "pub(crate) struct NoEmitCanary;",
   ],
   [
     "checker-session-local-state",
@@ -758,6 +763,11 @@ const existingPrerequisites = [
     id: "h0-no-emit-option",
     treatment: "preserve-separate-route",
     evidence: ["compiler-options-no-emit", "loader-no-emit-gate"],
+  },
+  {
+    id: "h1-no-emit-constructor-write-canary",
+    treatment: "preserve-and-thread-through-no-emit-route",
+    evidence: ["program-session-run", "h1-no-emit-canary"],
   },
   {
     id: "sourcefile-aggregate-binder-emit-flags",

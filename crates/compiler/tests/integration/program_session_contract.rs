@@ -250,6 +250,7 @@ fn l0_work_counters_and_sorted_batch_syntax_diagnostics() {
     assert_eq!(work.bound_documents(), 3);
     assert_eq!(work.full_text_copies(), 0);
     assert_eq!(work.full_text_bytes_copied(), 0);
+    assert!(outcome.no_emit_activity().all_zero());
 }
 
 #[test]

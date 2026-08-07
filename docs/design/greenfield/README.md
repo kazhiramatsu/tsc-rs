@@ -86,11 +86,14 @@ the exact active-root closure, the old 12,183 same-name property fan-out edges
 are gone, and all 5,202 property/dynamic or otherwise non-lexical call sites
 have explicit dispositions. Of those, 711 produce exact symbol edges and
 4,491 remain classified non-edges, with zero unresolved rows. H1.0a is
-complete. The bounded, tsc-architected
-JavaScript emitter preserves the H0 `--noEmit` entry without
-initializing the emitter and ports the exact resolver/transform/printer/output
-spine. H1.0b next freezes the post-L0/L1 no-emit performance evidence and
-constructor/write-zero canaries; its ordinary GitHub CI boundary is already
+complete. H1.0b is complete too: the exact pre-H1 runtime and guarded
+candidate are frozen in `ratchets/h1-noemit-performance.v1.json` after eight
+alternating AB/BA pairs across the explicit-root, project, and scale
+workloads. All output-write and eight emitter-activity counts are zero; the
+largest warm-median wall ratio is 1.006 and executable size decreased by 112
+bytes. The bounded, tsc-architected JavaScript emitter preserves that H0
+`--noEmit` entry while porting the exact resolver/transform/printer/output
+spine. H1.1 next adds the typed execution spine. Ordinary GitHub CI remains
 the single `cargo xtask acceptance` command. Runtime implementation is
 unblocked by the completed L0 persistent-source and L1 incremental-parser
 proof, while build/watch and LSP remain separate compatibility tracks.

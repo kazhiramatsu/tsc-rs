@@ -29,7 +29,8 @@ use tsc_program::{
     ConfigRootPlanRequest, LibraryCatalog, ProgramLoadLimits, ProgramOptions,
 };
 
-use crate::{NoEmitWorkCounters, ProgramSession};
+use crate::no_emit_canary::NoEmitCanary;
+use crate::{NoEmitActivityCounters, NoEmitWorkCounters, ProgramSession};
 
 mod embedded_libraries {
     include!(concat!(env!("OUT_DIR"), "/typescript_6_0_3_libraries.rs"));
@@ -59,6 +60,7 @@ pub struct CliOutput {
     stderr: String,
     exit_code: i32,
     work_counters: NoEmitWorkCounters,
+    no_emit_activity: NoEmitActivityCounters,
 }
 
 impl CliOutput {
@@ -80,6 +82,11 @@ impl CliOutput {
     pub const fn work_counters(&self) -> NoEmitWorkCounters {
         self.work_counters
     }
+
+    /// H1 constructor/output-write observations for this CLI execution.
+    pub const fn no_emit_activity(&self) -> NoEmitActivityCounters {
+        self.no_emit_activity
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -90,6 +97,11 @@ enum CliError {
     Load(String),
     Driver(String),
     Render(String),
+}
+
+struct NoEmitRoute<'a> {
+    pretty: bool,
+    canary: &'a mut NoEmitCanary,
 }
 
 impl fmt::Display for CliError {
@@ -216,18 +228,20 @@ impl CompilerHost for CliCompilerHost {
 
 /// Execute the bounded H0 command-line surface.
 pub fn run_cli(args: &[String]) -> CliOutput {
-    match execute(args) {
+    let mut no_emit_canary = NoEmitCanary::new();
+    match execute(args, &mut no_emit_canary) {
         Ok(output) => output,
         Err(error) => CliOutput {
             stdout: String::new(),
             stderr: format!("tsc-rs: {error}\n"),
             exit_code: EXIT_FAILURE,
             work_counters: NoEmitWorkCounters::default(),
+            no_emit_activity: NoEmitActivityCounters,
         },
     }
 }
 
-fn execute(args: &[String]) -> Result<CliOutput, CliError> {
+fn execute(args: &[String], no_emit_canary: &mut NoEmitCanary) -> Result<CliOutput, CliError> {
     let command_line = parse_arguments(args)?;
     if args.iter().any(|arg| arg == "--version") {
         return Ok(CliOutput {
@@ -235,11 +249,16 @@ fn execute(args: &[String]) -> Result<CliOutput, CliError> {
             stderr: String::new(),
             exit_code: EXIT_SUCCESS,
             work_counters: NoEmitWorkCounters::default(),
+            no_emit_activity: NoEmitActivityCounters,
         });
     }
 
     let filesystem = FsCompilerHost::from_process().map_err(host_error)?;
     let pretty = command_line.pretty.unwrap_or_else(default_pretty);
+    let mut no_emit_route = NoEmitRoute {
+        pretty,
+        canary: no_emit_canary,
+    };
     let current_directory = filesystem.current_directory().map_err(host_error)?;
     let host = CliCompilerHost::new(filesystem, &current_directory);
     let catalog = LibraryCatalog::typescript_6_0_3(host.library_directory());
@@ -300,7 +319,7 @@ fn execute(args: &[String]) -> Result<CliOutput, CliError> {
             &plan,
             source_texts,
             command_line.no_emit,
-            pretty,
+            &mut no_emit_route,
         );
     }
 
@@ -339,7 +358,13 @@ fn execute(args: &[String]) -> Result<CliOutput, CliError> {
         // on the command line (for example `missing.ts`, not its absolute
         // cwd-expanded path).
         let roots = command_line.files;
-        return execute_explicit_files(&host, &current_directory, &catalog, &roots, pretty);
+        return execute_explicit_files(
+            &host,
+            &current_directory,
+            &catalog,
+            &roots,
+            &mut no_emit_route,
+        );
     }
 
     if command_line.ignore_config {
@@ -362,7 +387,7 @@ fn execute(args: &[String]) -> Result<CliOutput, CliError> {
         &plan,
         source_texts,
         command_line.no_emit,
-        pretty,
+        &mut no_emit_route,
     )
 }
 
@@ -478,7 +503,7 @@ fn execute_config(
     plan: &ConfigRootPlan,
     mut source_texts: DiagnosticSourceMap,
     no_emit_override: bool,
-    pretty: bool,
+    route: &mut NoEmitRoute<'_>,
 ) -> Result<CliOutput, CliError> {
     for source in plan.extended_sources() {
         source_texts.insert(source.file_name.clone(), Arc::clone(source.snapshot()));
@@ -497,7 +522,12 @@ fn execute_config(
         Err(ConfigProgramLoadError::Diagnostics { config, options }) => {
             let mut diagnostics = config;
             diagnostics.extend(options);
-            return rendered_diagnostics(current_directory, &source_texts, &diagnostics, pretty);
+            return rendered_diagnostics(
+                current_directory,
+                &source_texts,
+                &diagnostics,
+                route.pretty,
+            );
         }
         Err(ConfigProgramLoadError::NoEmitRequired { value }) => {
             return Err(CliError::Load(format!(
@@ -531,7 +561,7 @@ fn execute_config(
         source_texts,
         prepared,
         &option_diagnostics,
-        pretty,
+        route,
     )
 }
 
@@ -540,7 +570,7 @@ fn execute_explicit_files(
     current_directory: &Path,
     catalog: &LibraryCatalog,
     roots: &[PathBuf],
-    pretty: bool,
+    route: &mut NoEmitRoute<'_>,
 ) -> Result<CliOutput, CliError> {
     let options = CompilerOptions {
         no_emit: Some(true),
@@ -562,7 +592,7 @@ fn execute_explicit_files(
             Arc::clone(source.snapshot()),
         );
     }
-    execute_prepared(current_directory, source_texts, prepared, &[], pretty)
+    execute_prepared(current_directory, source_texts, prepared, &[], route)
 }
 
 fn execute_prepared(
@@ -570,10 +600,10 @@ fn execute_prepared(
     source_texts: DiagnosticSourceMap,
     prepared: tsc_program::PreparedProgram,
     additional_diagnostics: &[Diagnostic],
-    pretty: bool,
+    route: &mut NoEmitRoute<'_>,
 ) -> Result<CliOutput, CliError> {
     let outcome = ProgramSession::new(prepared)
-        .run()
+        .run_with_no_emit_canary(false, route.canary)
         .map_err(|error| CliError::Driver(error.to_string()))?;
     // Config-owned non-fatal option rows are supplied separately from the
     // prepared program. Insert them at the same bucket boundary as
@@ -590,12 +620,14 @@ fn execute_prepared(
         diagnostics.extend(outcome.semantic_diagnostics().iter().cloned());
     }
     let work_counters = outcome.work_counters();
+    let no_emit_activity = outcome.no_emit_activity();
     rendered_diagnostics_with_work(
         current_directory,
         &source_texts,
         &diagnostics,
-        pretty,
+        route.pretty,
         work_counters,
+        no_emit_activity,
     )
 }
 
@@ -611,6 +643,7 @@ fn rendered_diagnostics(
         diagnostics,
         pretty,
         NoEmitWorkCounters::default(),
+        NoEmitActivityCounters,
     )
 }
 
@@ -620,6 +653,7 @@ fn rendered_diagnostics_with_work(
     diagnostics: &[Diagnostic],
     pretty: bool,
     work_counters: NoEmitWorkCounters,
+    no_emit_activity: NoEmitActivityCounters,
 ) -> Result<CliOutput, CliError> {
     rendered_diagnostics_with_exit_and_work(
         current_directory,
@@ -628,6 +662,7 @@ fn rendered_diagnostics_with_work(
         pretty,
         EXIT_DIAGNOSTIC,
         work_counters,
+        no_emit_activity,
     )
 }
 
@@ -645,6 +680,7 @@ fn rendered_diagnostics_with_exit(
         pretty,
         exit_code,
         NoEmitWorkCounters::default(),
+        NoEmitActivityCounters,
     )
 }
 
@@ -655,6 +691,7 @@ fn rendered_diagnostics_with_exit_and_work(
     pretty: bool,
     exit_code: i32,
     work_counters: NoEmitWorkCounters,
+    no_emit_activity: NoEmitActivityCounters,
 ) -> Result<CliOutput, CliError> {
     if diagnostics.is_empty() {
         return Ok(CliOutput {
@@ -662,6 +699,7 @@ fn rendered_diagnostics_with_exit_and_work(
             stderr: String::new(),
             exit_code: EXIT_SUCCESS,
             work_counters,
+            no_emit_activity,
         });
     }
     let current_directory = current_directory
@@ -688,6 +726,7 @@ fn rendered_diagnostics_with_exit_and_work(
         stderr: String::new(),
         exit_code,
         work_counters,
+        no_emit_activity,
     })
 }
 

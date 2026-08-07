@@ -7694,6 +7694,18 @@ fn ci_oracle_gates(workspace: &Path) -> Result<(), Box<dyn Error>> {
             .arg(&l1_performance)
             .arg("--check"),
     )?;
+    let h1_noemit_performance = workspace.join("crates/oracle/h1-noemit-performance.mjs");
+    run_command(
+        Command::new("node")
+            .arg("--check")
+            .arg(&h1_noemit_performance),
+    )?;
+    run_command(
+        Command::new("node")
+            .current_dir(workspace)
+            .arg(&h1_noemit_performance)
+            .arg("--check"),
+    )?;
     l1_incremental_stress::run(
         [
             "--fixture".to_owned(),

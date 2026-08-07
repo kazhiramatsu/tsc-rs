@@ -30,7 +30,7 @@ fn main() {
     }
 
     let observation = json!({
-        "schema": 1,
+        "schema": 2,
         "exit_code": output.exit_code(),
         "allocations": stats.allocations,
         "deallocations": stats.deallocations,
@@ -43,6 +43,16 @@ fn main() {
             "bound_documents": output.work_counters().bound_documents(),
             "full_text_copies": output.work_counters().full_text_copies(),
             "full_text_bytes_copied": output.work_counters().full_text_bytes_copied(),
+        },
+        "h1_no_emit": {
+            "emit_resolver_constructions": output.no_emit_activity().emit_resolver_constructions(),
+            "transformer_initializations": output.no_emit_activity().transformer_initializations(),
+            "transform_context_constructions": output.no_emit_activity().transform_context_constructions(),
+            "emit_side_table_allocations": output.no_emit_activity().emit_side_table_allocations(),
+            "printer_writer_constructions": output.no_emit_activity().printer_writer_constructions(),
+            "output_plan_constructions": output.no_emit_activity().output_plan_constructions(),
+            "emit_artifact_creations": output.no_emit_activity().emit_artifact_creations(),
+            "output_sink_writes": output.no_emit_activity().output_sink_writes(),
         },
     });
     println!("{observation}");

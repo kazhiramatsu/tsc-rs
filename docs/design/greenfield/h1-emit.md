@@ -553,6 +553,31 @@ startup and binary-layout regressions, the project row guards ordinary linter
 use, and the scale row guards asymptotic no-emit regressions. Output-option
 parsing cannot hide a regression outside the original small canary.
 
+H1.0b freezes this boundary in
+[`h1-noemit-performance.v1.json`](../../../ratchets/h1-noemit-performance.v1.json),
+generated and revalidated by
+[`h1-noemit-performance.mjs`](../../../crates/oracle/h1-noemit-performance.mjs).
+The exact trusted pre-H1 commit is `c0951bf15cdec74223de29e06cd908b0899712f6`
+and the first guarded candidate is
+`7a8b04959279fa668579e95d74b084f3198e0039`. Each of the three frozen
+workloads has one cold and seven warm alternating AB/BA pairs. The largest
+observed warm p95/median ratio is 1.037 and the largest warm relative range is
+0.063; the reviewed ceilings remain 1.10 for median wall/RSS, 1.15 for p95
+wall, 1.02/1.03 for allocation count/bytes, 1.0 for parse/bind/copy work, and
+1.25 for executable size. The measured candidate stays below every ceiling:
+its largest warm-median wall ratio is 1.006, every work and allocation-count
+ratio is 1.0, and its executable is 112 bytes smaller.
+
+The zero-sized [`NoEmitCanary`](../../../crates/compiler/src/no_emit_canary.rs)
+is threaded from CLI dispatch through `ProgramSession`. Its eight frozen
+factory/sink methods panic, while the successful observation token reports
+exact zero counts without adding storage to each Program or syntax node. The
+performance runner also snapshots each workload tree around all 48 process
+executions; every observed output-write count is zero. The strict JSON schema
+and a Rust harness contract bind the generator, fixture manifest, H0 absolute
+ratchet, L1-qualified runtime parent, commits, runtime trees, sample order,
+recomputed summaries/variance/ratios, and all zero canaries.
+
 ### 6.4 CI and qualification topology
 
 Ordinary GitHub CI owns one stable acceptance boundary: the `gates` job runs
@@ -1284,7 +1309,10 @@ projected operations as targeted Language Service emits, proves zero
 whole-Program promotions, and leaves every row deferred/`not-run`. The owner
 contract independently verifies all 6,193 declarations, 24,054 edges, and
 5,202 reviewed call-site dispositions and requires both unresolved and
-undispositioned counts to remain zero. H1.0a is therefore closed.
+undispositioned counts to remain zero. H1.0a is therefore closed. H1.0b also
+freezes the three-workload AB/BA no-emit artifact, strict relative ceilings,
+zero-sized panic canary, and zero output writes before emitter code enters the
+runtime.
 
 1. **Complete — H1.0a inventory and oracle:** generate the JavaScript-emitter owner
    graph, retain the classified project, compiler, and conformance corpora,
@@ -1299,13 +1327,13 @@ undispositioned counts to remain zero. H1.0a is therefore closed.
    the incremental parser plus its large-file performance gate. Requalify H0
    diagnostics, host observations, exits, latency, and RSS; do not accept a
    new baseline by weakening the frozen H0 ceilings.
-3. **Next — H1.0b no-emit performance and CI freeze:** collect alternating
+3. **Complete — H1.0b no-emit performance and CI freeze:** collect alternating
    post-L0/L1 pre-H1 baseline/candidate measurements, freeze the relative
    regression policy, retain ordinary GitHub CI at the already-frozen
    `ts-tests`-only `cargo xtask acceptance` boundary, and land
    constructor/write-zero canaries in the complete local gate before H1
    runtime behavior changes.
-4. **H1.1 — typed execution spine:** add the non-publicly-constructible
+4. **Next — H1.1 typed execution spine:** add the non-publicly-constructible
    `EmitArtifact`, callback metadata, sink disposition, full typed output-path
    shape, `OutputSink`, typed failures, and the separate emitting session
    entry. Unsupported emission reaches no sink. H0 results and performance

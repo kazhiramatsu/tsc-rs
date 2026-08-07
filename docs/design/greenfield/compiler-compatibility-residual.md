@@ -312,8 +312,10 @@ that reviewed graph.
 - Capture callback-level oracle observations: path, text bytes before BOM,
   BOM decision, source-file provenance, callback metadata, callback order,
   diagnostics, `emitSkipped`, optional `emittedFiles`, and exit status.
-- Freeze H0 startup/project/scale no-emit baselines and constructor/write-zero
-  canaries before any emitter code enters the workspace.
+- **Complete:** freeze the exact H0 startup/project/scale no-emit AB/BA
+  baseline in `ratchets/h1-noemit-performance.v1.json`, with strict relative
+  ceilings and zero-sized constructor/write-zero panic canaries, before any
+  emitter code enters the workspace.
 - Pin the compiler, conformance, project, transpile, and FourSlash inventory
   inputs described by H1; classify rather than silently omit every
   out-of-profile row.
@@ -1083,9 +1085,10 @@ The critical path is:
    `ProgramSnapshot`, ephemeral H0 adapter, and minimal registry reuse;
 3. **Complete:** land L1 incremental parsing and its exactness, Unicode-edit, randomized-
    edit, memory, and large-file latency gates, then requalify H0;
-4. **Next:** freeze the post-L0/L1 H1 no-emit baseline and constructor/write-zero
-   canaries; ordinary hosted CI is already frozen to `cargo xtask acceptance`;
-5. land emitter protocols, emitting options/loader, and scoped checker
+4. **Complete:** freeze the post-L0/L1 H1 no-emit baseline and
+   constructor/write-zero canaries; ordinary hosted CI remains frozen to
+   `cargo xtask acceptance`;
+5. **Next:** land emitter protocols, emitting options/loader, and scoped checker
    lifetime;
 6. land transform flags, factory/context, writer/printer, resolver, and the
    three-transform bootstrap;

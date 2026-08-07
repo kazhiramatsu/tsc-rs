@@ -31,8 +31,10 @@ use tsc_program::{
 };
 
 mod cli;
+mod no_emit_canary;
 
 pub use cli::{run_cli, CliOutput};
+pub use no_emit_canary::NoEmitActivityCounters;
 
 /// A one-shot owner for one prepared no-emit program.
 ///
@@ -384,7 +386,8 @@ impl ProgramSession {
     /// exact `(source, specifier, mode)` row is an infrastructure error; the
     /// checker never falls back to its legacy heuristic resolver.
     pub fn run(self) -> Result<NoEmitOutcome, DriverError> {
-        self.run_inner(false)
+        let mut no_emit_canary = no_emit_canary::NoEmitCanary::new();
+        self.run_with_no_emit_canary(false, &mut no_emit_canary)
     }
 
     /// Upstream-harness execution with exact-match vendored-lib reuse.
@@ -399,10 +402,23 @@ impl ProgramSession {
     /// path as the conformance runner.
     #[doc(hidden)]
     pub fn run_for_harness_with_lib_cache(self) -> Result<NoEmitOutcome, DriverError> {
-        self.run_inner(true)
+        let mut no_emit_canary = no_emit_canary::NoEmitCanary::new();
+        self.run_with_no_emit_canary(true, &mut no_emit_canary)
     }
 
-    fn run_inner(self, harness_lib_cache: bool) -> Result<NoEmitOutcome, DriverError> {
+    pub(crate) fn run_with_no_emit_canary(
+        self,
+        harness_lib_cache: bool,
+        no_emit_canary: &mut no_emit_canary::NoEmitCanary,
+    ) -> Result<NoEmitOutcome, DriverError> {
+        self.run_inner(harness_lib_cache, no_emit_canary)
+    }
+
+    fn run_inner(
+        self,
+        harness_lib_cache: bool,
+        _no_emit_canary: &mut no_emit_canary::NoEmitCanary,
+    ) -> Result<NoEmitOutcome, DriverError> {
         let inputs = project_checker_inputs(&self.prepared)?;
         let has_roots = !self.prepared.roots().is_empty();
         let provider = PreparedModuleProvider {
@@ -543,6 +559,7 @@ impl ProgramSession {
             semantic_diagnostics,
             conformance_diagnostics,
             work_counters,
+            no_emit_activity: NoEmitActivityCounters,
         })
     }
 }
@@ -566,6 +583,9 @@ pub struct NoEmitOutcome {
     // Operational evidence is not part of diagnostic-result equality. Tests
     // and qualification compare it explicitly through work_counters().
     work_counters: NoEmitWorkCounters,
+    // H1.0b proof is zero-sized; successful construction means every guarded
+    // emitter factory and output-sink call remained unreachable.
+    no_emit_activity: NoEmitActivityCounters,
 }
 
 impl PartialEq for NoEmitOutcome {
@@ -642,6 +662,11 @@ impl NoEmitOutcome {
     /// Parse/bind/full-text-copy evidence for this consumed session.
     pub const fn work_counters(&self) -> NoEmitWorkCounters {
         self.work_counters
+    }
+
+    /// H1 constructor/output-write observations for this no-emit session.
+    pub const fn no_emit_activity(&self) -> NoEmitActivityCounters {
+        self.no_emit_activity
     }
 
     /// Iterate in the no-emit command's bucket order.
