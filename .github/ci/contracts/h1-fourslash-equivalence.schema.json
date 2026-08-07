@@ -1,0 +1,596 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/kazhiramatsu/tsc-rs/.github/ci/contracts/h1-fourslash-equivalence.schema.json",
+  "title": "tsc-rs H1 FourSlash whole-Program equivalence classification",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "status",
+    "phase",
+    "typescript",
+    "generator",
+    "contract",
+    "inputs",
+    "classification_contract",
+    "cases",
+    "summary"
+  ],
+  "properties": {
+    "schema": { "const": 1 },
+    "status": { "const": "classified-not-run" },
+    "phase": { "const": "H1.0a-fourslash-whole-program-equivalence" },
+    "typescript": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["version", "source_repository", "source_commit"],
+      "properties": {
+        "version": { "const": "6.0.3" },
+        "source_repository": {
+          "const": "https://github.com/microsoft/TypeScript.git"
+        },
+        "source_commit": {
+          "const": "050880ce59e30b356b686bd3144efe24f875ebc8"
+        }
+      }
+    },
+    "generator": { "$ref": "#/$defs/path_hash" },
+    "contract": { "$ref": "#/$defs/path_hash" },
+    "inputs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "suite_pin_v3",
+        "emit_projection",
+        "h1_profile",
+        "typescript_bundle",
+        "implementation_sources",
+        "bundle_declarations"
+      ],
+      "properties": {
+        "suite_pin_v3": { "$ref": "#/$defs/path_hash" },
+        "emit_projection": { "$ref": "#/$defs/path_hash" },
+        "h1_profile": { "$ref": "#/$defs/path_hash" },
+        "typescript_bundle": { "$ref": "#/$defs/path_hash" },
+        "implementation_sources": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "items": { "$ref": "#/$defs/git_source" }
+        },
+        "bundle_declarations": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "items": { "$ref": "#/$defs/bundle_declaration" }
+        }
+      }
+    },
+    "classification_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "fourslash_defaults",
+        "operation_route",
+        "h1_request",
+        "promotion_rule",
+        "required_options",
+        "execution_state",
+        "reference_baseline_state"
+      ],
+      "properties": {
+        "fourslash_defaults": {
+          "const": "getDefaultCompilerOptions, jsx cleared, CRLF newline, then global settings and skipDefaultLibCheck=true; virtual config options are parsed with existing options winning"
+        },
+        "operation_route": {
+          "const": "every selected operation calls LanguageService.getEmitOutput(fileName), which calls getFileEmitOutput and Program.emit(sourceFile)"
+        },
+        "h1_request": {
+          "const": "ProgramSession::emit is a whole-Program request with no target source"
+        },
+        "promotion_rule": {
+          "const": "a control requires exact targeted-versus-whole-Program observation equivalence and the frozen H1 profile before promotion"
+        },
+        "required_options": {
+          "type": "array",
+          "prefixItems": [
+            { "const": "target=ESNext(99)" },
+            { "const": "module=Preserve(200)" }
+          ],
+          "items": false,
+          "minItems": 2,
+          "maxItems": 2
+        },
+        "execution_state": { "const": "not-run" },
+        "reference_baseline_state": { "$ref": "#/$defs/reference_state" }
+      }
+    },
+    "cases": {
+      "type": "array",
+      "minItems": 38,
+      "maxItems": 38,
+      "items": { "$ref": "#/$defs/case" }
+    },
+    "summary": { "$ref": "#/$defs/summary" }
+  },
+  "$defs": {
+    "sha1": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "path_hash": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256"],
+      "properties": {
+        "path": { "type": "string", "minLength": 1 },
+        "sha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "git_source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source_path", "git_blob_sha1"],
+      "properties": {
+        "source_path": { "type": "string", "minLength": 1 },
+        "git_blob_sha1": { "$ref": "#/$defs/sha1" }
+      }
+    },
+    "bundle_declaration": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "start_offset",
+        "end_offset",
+        "start_line",
+        "end_line",
+        "sha256"
+      ],
+      "properties": {
+        "name": { "enum": ["getFileEmitOutput", "getEmitOutput"] },
+        "start_offset": { "type": "integer", "minimum": 1 },
+        "end_offset": { "type": "integer", "minimum": 1 },
+        "start_line": { "type": "integer", "minimum": 1 },
+        "end_line": { "type": "integer", "minimum": 1 },
+        "sha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "reference_state": { "const": "content-not-vendored-or-compared" },
+    "origin": {
+      "enum": ["fourslash-default", "global-setting", "virtual-config"]
+    },
+    "target_projection": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["state"],
+          "properties": { "state": { "const": "absent" } }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["state", "name", "value", "origin"],
+          "properties": {
+            "state": { "const": "set" },
+            "name": {
+              "enum": [
+                "ES3",
+                "ES5",
+                "ES2015",
+                "ES2016",
+                "ES2017",
+                "ES2018",
+                "ES2019",
+                "ES2020",
+                "ES2021",
+                "ES2022",
+                "ES2023",
+                "ES2024",
+                "ES2025",
+                "ESNext",
+                "JSON"
+              ]
+            },
+            "value": {
+              "enum": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 99, 100]
+            },
+            "origin": { "$ref": "#/$defs/origin" }
+          }
+        }
+      ]
+    },
+    "module_projection": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["state"],
+          "properties": { "state": { "const": "absent" } }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["state", "name", "value", "origin"],
+          "properties": {
+            "state": { "const": "set" },
+            "name": {
+              "enum": [
+                "None",
+                "CommonJS",
+                "AMD",
+                "UMD",
+                "System",
+                "ES2015",
+                "ES2020",
+                "ES2022",
+                "ESNext",
+                "Node16",
+                "Node18",
+                "Node20",
+                "NodeNext",
+                "Preserve"
+              ]
+            },
+            "value": {
+              "enum": [0, 1, 2, 3, 4, 5, 6, 7, 99, 100, 101, 102, 199, 200]
+            },
+            "origin": { "$ref": "#/$defs/origin" }
+          }
+        }
+      ]
+    },
+    "boolean_projection": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["state"],
+          "properties": { "state": { "const": "absent" } }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["state", "value", "origin"],
+          "properties": {
+            "state": { "const": "set" },
+            "value": { "type": "boolean" },
+            "origin": { "$ref": "#/$defs/origin" }
+          }
+        }
+      ]
+    },
+    "rejected_option_name": {
+      "enum": [
+        "allowImportingTsExtensions",
+        "allowJs",
+        "composite",
+        "declaration",
+        "declarationDir",
+        "declarationMap",
+        "emitDeclarationOnly",
+        "experimentalDecorators",
+        "importHelpers",
+        "incremental",
+        "inlineSourceMap",
+        "isolatedModules",
+        "jsx",
+        "noCheck",
+        "noEmitHelpers",
+        "outDir",
+        "outFile",
+        "rewriteRelativeImportExtensions",
+        "resolveJsonModule",
+        "sourceMap",
+        "tsBuildInfoFile",
+        "verbatimModuleSyntax"
+      ]
+    },
+    "rejected_option": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "value", "origin"],
+      "properties": {
+        "name": { "$ref": "#/$defs/rejected_option_name" },
+        "value": { "type": ["boolean", "integer", "string"] },
+        "origin": { "$ref": "#/$defs/origin" }
+      }
+    },
+    "effective_profile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "target",
+        "module",
+        "use_define_for_class_fields",
+        "no_emit",
+        "rejected_when_effective"
+      ],
+      "properties": {
+        "target": { "$ref": "#/$defs/target_projection" },
+        "module": { "$ref": "#/$defs/module_projection" },
+        "use_define_for_class_fields": { "$ref": "#/$defs/boolean_projection" },
+        "no_emit": { "$ref": "#/$defs/boolean_projection" },
+        "rejected_when_effective": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/rejected_option" }
+        }
+      }
+    },
+    "fixture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "bytes", "sha256", "git_blob_sha1"],
+      "properties": {
+        "path": { "type": "string", "pattern": "\\.ts$" },
+        "bytes": { "type": "integer", "minimum": 1 },
+        "sha256": { "$ref": "#/$defs/sha256" },
+        "git_blob_sha1": { "$ref": "#/$defs/sha1" }
+      }
+    },
+    "setting": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "value"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "value": { "type": "string" }
+      }
+    },
+    "virtual_file": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "emit_this_file"],
+      "properties": {
+        "path": { "type": "string", "pattern": "^/" },
+        "emit_this_file": { "type": ["boolean", "null"] }
+      }
+    },
+    "operation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "method",
+        "line",
+        "language_service_method",
+        "selection",
+        "selected_files",
+        "targeted_program_emit_calls"
+      ],
+      "properties": {
+        "method": {
+          "enum": [
+            "baselineGetEmitOutput",
+            "getEmitOutput",
+            "verifyGetEmitOutputForCurrentFile",
+            "verifyGetEmitOutputContentsForCurrentFile"
+          ]
+        },
+        "line": { "type": "integer", "minimum": 1 },
+        "language_service_method": { "const": "getEmitOutput(fileName)" },
+        "selection": { "enum": ["emit-this-file-true", "active-file"] },
+        "selected_files": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "type": "string", "pattern": "^/" }
+        },
+        "targeted_program_emit_calls": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 3
+        }
+      }
+    },
+    "source_analysis": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["state"],
+      "properties": {
+        "state": { "const": "not-required-effective-options-and-api-route" }
+      }
+    },
+    "expected_observation": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["state", "baseline_path"],
+          "properties": {
+            "state": {
+              "const": "baseline-path-pinned-content-not-vendored-or-compared"
+            },
+            "baseline_path": {
+              "type": "string",
+              "pattern": "^tests/baselines/reference/fourslash/"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["state"],
+          "properties": {
+            "state": { "const": "inline-expectation-not-executed" }
+          }
+        }
+      ]
+    },
+    "case": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "case",
+        "id",
+        "fixture",
+        "test_type",
+        "global_settings",
+        "virtual_files",
+        "config",
+        "config_roots",
+        "config_diagnostic_codes",
+        "operation",
+        "effective_profile",
+        "source_analysis",
+        "expected_observation",
+        "equivalence_decisive_blocker",
+        "equivalence_blockers",
+        "whole_program_equivalence",
+        "promotion_state",
+        "execution_state",
+        "reference_baseline_state"
+      ],
+      "properties": {
+        "case": { "type": "integer", "minimum": 0, "maximum": 37 },
+        "id": {
+          "type": "string",
+          "pattern": "^typescript-6\\.0\\.3/fourslash/"
+        },
+        "fixture": { "$ref": "#/$defs/fixture" },
+        "test_type": { "enum": ["native", "server"] },
+        "global_settings": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/setting" }
+        },
+        "virtual_files": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/virtual_file" }
+        },
+        "config": { "type": ["string", "null"] },
+        "config_roots": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string", "pattern": "^/" }
+        },
+        "config_diagnostic_codes": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "integer", "minimum": 1 }
+        },
+        "operation": { "$ref": "#/$defs/operation" },
+        "effective_profile": { "$ref": "#/$defs/effective_profile" },
+        "source_analysis": { "$ref": "#/$defs/source_analysis" },
+        "expected_observation": { "$ref": "#/$defs/expected_observation" },
+        "equivalence_decisive_blocker": {
+          "const": "api:language-service-targeted-emit"
+        },
+        "equivalence_blockers": {
+          "type": "array",
+          "minItems": 3,
+          "uniqueItems": true,
+          "prefixItems": [
+            { "const": "api:language-service-targeted-emit" }
+          ],
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "whole_program_equivalence": { "const": "deferred" },
+        "promotion_state": { "const": "not-promoted" },
+        "execution_state": { "const": "not-run" },
+        "reference_baseline_state": { "$ref": "#/$defs/reference_state" }
+      }
+    },
+    "option_count": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "cases"],
+      "properties": {
+        "name": { "$ref": "#/$defs/rejected_option_name" },
+        "cases": { "type": "integer", "minimum": 0, "maximum": 38 }
+      }
+    },
+    "value_count": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["value", "cases"],
+      "properties": {
+        "value": { "type": "string", "minLength": 1 },
+        "cases": { "type": "integer", "minimum": 1, "maximum": 38 }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "fixtures",
+        "fixture_bytes",
+        "native_cases",
+        "server_cases",
+        "config_cases",
+        "config_diagnostic_cases",
+        "virtual_files",
+        "emit_this_file_true",
+        "emit_this_file_false",
+        "targeted_program_emit_calls",
+        "operation_methods",
+        "selection_modes",
+        "target_states",
+        "module_states",
+        "cases_with_rejected_effective_options",
+        "rejected_option_cases",
+        "baseline_path_observations",
+        "inline_expectations",
+        "targeted_api_blocked_cases",
+        "required_target_module_matches",
+        "promotion_candidates",
+        "promoted_controls",
+        "deferred_controls",
+        "not_run_cases",
+        "reference_baselines_compared"
+      ],
+      "properties": {
+        "fixtures": { "const": 38 },
+        "fixture_bytes": { "const": 31051 },
+        "native_cases": { "const": 33 },
+        "server_cases": { "const": 5 },
+        "config_cases": { "const": 5 },
+        "config_diagnostic_cases": { "const": 0 },
+        "virtual_files": { "const": 94 },
+        "emit_this_file_true": { "const": 47 },
+        "emit_this_file_false": { "const": 2 },
+        "targeted_program_emit_calls": { "const": 47 },
+        "operation_methods": {
+          "type": "array",
+          "minItems": 4,
+          "maxItems": 4,
+          "items": { "$ref": "#/$defs/value_count" }
+        },
+        "selection_modes": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "items": { "$ref": "#/$defs/value_count" }
+        },
+        "target_states": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 1,
+          "items": { "$ref": "#/$defs/value_count" }
+        },
+        "module_states": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 3,
+          "items": { "$ref": "#/$defs/value_count" }
+        },
+        "cases_with_rejected_effective_options": { "const": 29 },
+        "rejected_option_cases": {
+          "type": "array",
+          "minItems": 22,
+          "maxItems": 22,
+          "items": { "$ref": "#/$defs/option_count" }
+        },
+        "baseline_path_observations": { "const": 31 },
+        "inline_expectations": { "const": 7 },
+        "targeted_api_blocked_cases": { "const": 38 },
+        "required_target_module_matches": { "const": 0 },
+        "promotion_candidates": { "const": 0 },
+        "promoted_controls": { "const": 0 },
+        "deferred_controls": { "const": 38 },
+        "not_run_cases": { "const": 38 },
+        "reference_baselines_compared": { "const": 0 }
+      }
+    }
+  }
+}

@@ -78,7 +78,7 @@ That review fixes the current evidence boundary as follows:
 | Expansion manifest | All 7,908 compiler/project cases retain initial state `not-run` | Any upstream runner pass rate |
 | Conformance runner expansion/classification | The complete 5,908-file upstream tree is pinned; `CompilerBaselineRunner` selects 5,907 `.ts`/`.tsx` fixtures and expands 7,697 cases × six observations. Exact effective-option classification finds 7,655 JavaScript-applicable cases and three required target/module matches, but every case has another blocker, so admissions are zero and all rows remain `not-run` | Source-reachability or syntax classification beyond the option-level zero-admission proof, Program/emit execution, output-baseline comparison, or an upstream pass rate |
 | Transpile runner matrix | All 37 cases reconstructed from 22 fixtures and classified; every row remains `not-run` and zero reference baselines were compared | A transpile pass rate or equivalence between `transpileModule` and whole-Program emit |
-| FourSlash emit projection | The full 6,568-file tree identity and all 38 direct emit-operation witnesses are pinned; expansion/execution/pass rows are zero | A FourSlash or Language Service pass rate, or equivalence to whole-Program emit |
+| FourSlash emit projection/classification | The full 6,568-file tree identity and all 38 direct emit-operation witnesses are pinned. Exact route/profile classification finds 47 targeted Language Service `Program.emit(sourceFile)` calls, zero whole-Program promotions, and retains all 38 rows deferred/`not-run` | A FourSlash or Language Service pass rate, executed output parity, or equivalence between targeted and whole-Program emit |
 
 There is therefore no known conformance-diagnostic exclusion backlog to
 silently fold into H1. New execution paths can still change which diagnostics
@@ -894,7 +894,7 @@ compatibility transition. It is not routine dependency updating.
 | `tests/cases/conformance` | Feature and transform matrices | Run compatible JS emit rows alongside existing diagnostics | Full target/module/JSX/decorator/declaration/map matrix |
 | `tests/cases/project` and `projects` | Config roots, output topology, multi-file order, project behavior | Compatible single-project JS cases | Declarations, bundles, references, build/watch |
 | `tests/cases/transpile` | `transpileModule`/transformer component behavior | Classify all 37 rows; use the 14 JavaScript rows as focused factory/transform/printer controls | Complete transpile and no-check APIs |
-| `tests/cases/fourslash` | Language Service and per-file emit operations | Inventory/promote only batch-relevant emit witnesses | Full FourSlash runner and L-track qualification |
+| `tests/cases/fourslash` | Language Service and per-file emit operations | Inventory and classify batch-relevant witnesses; the current 38 are all deferred targeted emits | Full FourSlash runner and L-track qualification |
 | `tests/baselines/reference` plus runner code | Exact expected diagnostics, traces, JS/d.ts/maps, source-map records, type/symbol views, project, service, and server observations | Pin only reached H1 products | Required; input inventory alone is insufficient |
 | `src/testRunner/unittests` watch/build/incremental/public-API/tsserver owners | Long-lived, cache, callback, protocol, and builder behavior | Inventory only | Required by their corresponding tracks |
 | `APISample_*` compiler cases | Public compiler, watch, linter, transform API examples | Classification controls | Public API compatibility |
@@ -917,8 +917,14 @@ inventory. Its manifest
 classifies 31 `baselineGetEmitOutput`, five `getEmitOutput`, and two focused
 current-file verification calls plus all 49 `emitThisFile` directives. It has
 zero expansion/execution/pass rows and therefore establishes no FourSlash,
-Language Service, or whole-Program emit result; the classification stage must
-retain explicit unsupported dispositions.
+Language Service, or whole-Program emit result. Its companion
+`fourslash-whole-program-equivalence.v1.json` now traces every selected
+operation through `LanguageService.getEmitOutput(fileName)` to targeted
+`Program.emit(sourceFile)` and reconstructs the effective FourSlash/config
+profile. The 38 cases select 47 targeted emits; all use `target=ES2025`, with
+module absent on 30, CommonJS on seven, and AMD on one. Zero match H1's API
+shape or `ESNext`/`Preserve` pair, so all 38 retain explicit deferred,
+unpromoted, `not-run` dispositions and zero reference baselines are compared.
 
 Suite pin v4 binds v3 byte-for-byte, preserves its four full suites, runner
 identities, and FourSlash projection, and appends the complete 5,908-file

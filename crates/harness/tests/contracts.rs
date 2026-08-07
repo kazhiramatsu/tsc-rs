@@ -4,6 +4,8 @@ mod h1_compiler_profile_classification;
 mod h1_conformance_expansion;
 #[path = "integration/h1_conformance_profile_classification.rs"]
 mod h1_conformance_profile_classification;
+#[path = "integration/h1_fourslash_whole_program_equivalence.rs"]
+mod h1_fourslash_whole_program_equivalence;
 #[path = "integration/h1_project_profile_classification.rs"]
 mod h1_project_profile_classification;
 #[path = "integration/module_suffixes_oracle_contract.rs"]

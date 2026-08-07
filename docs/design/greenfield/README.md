@@ -75,11 +75,16 @@ states stay `not-run`/zero. The project runner now has exact root selection and
 effective-option dispositions for all 632 CommonJS/AMD rows as well. Every
 row has both a target and module blocker, admissions are zero, and execution
 and baseline-comparison states stay `not-run`/zero.
+The 38 projected FourSlash emit witnesses now have exact route/profile
+dispositions too: their 47 selected calls are targeted Language Service
+`Program.emit(sourceFile)` requests, all 38 use `target=ES2025` and a
+non-`Preserve` module state, and therefore none is promoted as an H1
+whole-Program control. Every row remains deferred/`not-run`, with zero
+reference baselines compared.
 The bounded, tsc-architected
 JavaScript emitter preserves the H0 `--noEmit` entry without
 initializing the emitter and ports the exact resolver/transform/printer/output
-spine. Promoted FourSlash equivalence and owner-disposition review remain
-open; runtime
+spine. Owner-disposition review is the remaining H1.0a inventory item; runtime
 implementation is unblocked by the completed L0 persistent-source and L1
 incremental-parser proof, while build/watch and LSP remain separate
 compatibility tracks.

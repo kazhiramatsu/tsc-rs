@@ -287,9 +287,14 @@ Every compiler row remains `not-run`, and no reference baseline has been
 compared. All 632 project-runner rows now have exact root and effective-option
 dispositions too. Every CommonJS/AMD variant has both a target and module
 blocker, so admissions are zero; all rows remain `not-run`, and no reference
-baseline has been compared. H0 no-emit performance remains a hard
-non-regression boundary. Promoted FourSlash equivalence and owner-disposition
-review remain open. Complete
+baseline has been compared. The 38 projected FourSlash emit witnesses now
+also have exact route/profile dispositions: they select 47 targeted
+`Program.emit(sourceFile)` calls through Language Service, every case uses
+`target=ES2025` and a non-`Preserve` module state, and none is promotable to a
+whole-Program H1 control. All 38 remain explicitly deferred and `not-run`,
+with zero reference baselines compared. H0 no-emit performance remains a hard
+non-regression boundary. Only owner-disposition review remains open in H1.0a.
+Complete
 Language Service, tsserver, and LSP behavior remains later work. The audited
 [compiler compatibility residual](docs/design/greenfield/compiler-compatibility-residual.md)
 separates H1 blockers from later declaration/map, build/watch, public-API, and
