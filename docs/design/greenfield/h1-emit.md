@@ -559,13 +559,13 @@ generated and revalidated by
 [`h1-noemit-performance.mjs`](../../../crates/oracle/h1-noemit-performance.mjs).
 The exact trusted pre-H1 commit is `c0951bf15cdec74223de29e06cd908b0899712f6`
 and the first guarded candidate is
-`2f1f4c0e88b68c0a65b2dc3aa1fa8d5fd0e82d8c`. Each of the three frozen
+`7a8b04959279fa668579e95d74b084f3198e0039`. Each of the three frozen
 workloads has one cold and seven warm alternating AB/BA pairs. The largest
-observed warm p95/median ratio is 1.024 and the largest warm relative range is
-0.047; the reviewed ceilings remain 1.10 for median wall/RSS, 1.15 for p95
+observed warm p95/median ratio is 1.037 and the largest warm relative range is
+0.063; the reviewed ceilings remain 1.10 for median wall/RSS, 1.15 for p95
 wall, 1.02/1.03 for allocation count/bytes, 1.0 for parse/bind/copy work, and
 1.25 for executable size. The measured candidate stays below every ceiling:
-its largest warm-median wall ratio is 1.011, every work and allocation-count
+its largest warm-median wall ratio is 1.006, every work and allocation-count
 ratio is 1.0, and its executable is 112 bytes smaller.
 
 The zero-sized [`NoEmitCanary`](../../../crates/compiler/src/no_emit_canary.rs)

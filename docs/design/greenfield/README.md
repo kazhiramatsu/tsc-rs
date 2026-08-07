@@ -90,7 +90,7 @@ complete. H1.0b is complete too: the exact pre-H1 runtime and guarded
 candidate are frozen in `ratchets/h1-noemit-performance.v1.json` after eight
 alternating AB/BA pairs across the explicit-root, project, and scale
 workloads. All output-write and eight emitter-activity counts are zero; the
-largest warm-median wall ratio is 1.011 and executable size decreased by 112
+largest warm-median wall ratio is 1.006 and executable size decreased by 112
 bytes. The bounded, tsc-architected JavaScript emitter preserves that H0
 `--noEmit` entry while porting the exact resolver/transform/printer/output
 spine. H1.1 next adds the typed execution spine. Ordinary GitHub CI remains

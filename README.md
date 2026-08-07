@@ -305,7 +305,7 @@ alternating AB/BA pairs for each explicit-root, project, and scale workload.
 All 48 executions wrote zero files; every candidate execution recorded zero
 for all eight emitter-construction/sink activities; parse/bind, copy, and
 allocation counts did not regress; the largest warm-median wall ratio was
-1.011; and the candidate executable was 112 bytes smaller. H1.1 is next.
+1.006; and the candidate executable was 112 bytes smaller. H1.1 is next.
 Ordinary GitHub CI remains the single `cargo xtask acceptance` entrypoint
 while the complete gate remains local. Complete Language Service,
 tsserver, and LSP behavior remains later work. The audited
