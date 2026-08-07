@@ -566,10 +566,12 @@ const output = {
     "land callback-level in-memory oracle observations and schemas",
     "record every current emit-only Rust omission",
     "pin the complete upstream transpile source tree and runner identity without execution results",
+    "pin the complete upstream FourSlash tree identity and classify the 38 direct emit-operation witnesses without execution results",
+    "reproduce and classify all 37 transpile runner rows without execution or reference-baseline results",
   ],
   pending_h1_0a: [
     "review and disposition every unresolved/dynamic call and property-dispatch over-approximation",
-    "classify compiler/project/conformance/transpile and FourSlash emit inventories",
+    "classify compiler/project/conformance emit inventories and prove or defer each promoted FourSlash whole-Program equivalence control",
   ],
   functions,
   graph: { edges: graphEdges, unresolved_calls: unresolvedCalls },

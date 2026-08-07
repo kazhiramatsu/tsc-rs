@@ -3,9 +3,11 @@
 Status: audited design input, updated 2026-08-07 with L0.4 and L1 complete and
 qualified, the H1.0a owner graph active as a report-only draft, and the current
 Rust emit omissions frozen in a generated baseline, with the complete upstream
-transpile source tree now content-addressed in additive suite pin v2 and the
-exact 38-file FourSlash batch-emit witness projection pinned in additive suite
-pin v3. This page records the current Rust implementation boundary, the work
+transpile source tree content-addressed in additive suite pin v2 and its exact
+37-row runner matrix classified without execution or baseline comparison, plus
+the exact 38-file FourSlash batch-emit witness projection pinned in additive
+suite pin v3. This page records the current Rust implementation boundary, the
+work
 required to finish bounded H1 JavaScript emit, and the remaining work after H1
 for broader TypeScript 6.0.3 compiler and tooling compatibility. It is not an
 implementation-complete claim and it does not authorize a broader H1 profile.
@@ -66,6 +68,7 @@ That review fixes the current evidence boundary as follows:
 | Compiler input expansion | 7,276/7,276 plans structurally load and run through H0 | Upstream diagnostic, trace, JS/d.ts/map, or type/symbol baselines |
 | Project expansion | 82/632 H0-compatible plans are qualified; the other 550 are explicitly classified H0 non-scope | The upstream project emit/build baselines |
 | Expansion manifest | All 7,908 compiler/project cases retain initial state `not-run` | Any upstream runner pass rate |
+| Transpile runner matrix | All 37 cases reconstructed from 22 fixtures and classified; every row remains `not-run` and zero reference baselines were compared | A transpile pass rate or equivalence between `transpileModule` and whole-Program emit |
 | FourSlash emit projection | The full 6,568-file tree identity and all 38 direct emit-operation witnesses are pinned; expansion/execution/pass rows are zero | A FourSlash or Language Service pass rate, or equivalence to whole-Program emit |
 
 There is therefore no known conformance-diagnostic exclusion backlog to
@@ -881,7 +884,7 @@ compatibility transition. It is not routine dependency updating.
 | `tests/cases/compiler` | Compiler directives and the inputs consumed by `compilerRunner` | Classify all; run compatible JS rows | Complete all admitted product/option rows |
 | `tests/cases/conformance` | Feature and transform matrices | Run compatible JS emit rows alongside existing diagnostics | Full target/module/JSX/decorator/declaration/map matrix |
 | `tests/cases/project` and `projects` | Config roots, output topology, multi-file order, project behavior | Compatible single-project JS cases | Declarations, bundles, references, build/watch |
-| `tests/cases/transpile` | `transpileModule`/transformer component behavior | Pin and use focused factory/transform/printer controls | Complete transpile and no-check APIs |
+| `tests/cases/transpile` | `transpileModule`/transformer component behavior | Classify all 37 rows; use the 14 JavaScript rows as focused factory/transform/printer controls | Complete transpile and no-check APIs |
 | `tests/cases/fourslash` | Language Service and per-file emit operations | Inventory/promote only batch-relevant emit witnesses | Full FourSlash runner and L-track qualification |
 | `tests/baselines/reference` plus runner code | Exact expected diagnostics, traces, JS/d.ts/maps, source-map records, type/symbol views, project, service, and server observations | Pin only reached H1 products | Required; input inventory alone is insufficient |
 | `src/testRunner/unittests` watch/build/incremental/public-API/tsserver owners | Long-lived, cache, callback, protocol, and builder behavior | Inventory only | Required by their corresponding tracks |
@@ -892,7 +895,14 @@ project, projects, all 22 transpile inputs, and exactly 38 FourSlash emit
 witnesses, but not the other 6,530 FourSlash files or checked-in upstream
 output baselines. Suite pin v2 preserves the exact transpile source commit,
 paths, blob hashes, and `transpileRunner` identity while binding the unchanged
-v1 pin. Suite pin v3 binds v2 unchanged, records the complete 6,568-file
+v1 pin. Its companion inventory mechanically reconstructs 25 configurations,
+42 fixture units, 37 runner cases, and 79 per-unit operations. All 37 cases
+remain `not-run`: 14 are JavaScript transform/printer controls, two are
+deferred source-map controls, 20 are deferred declaration controls, and one is
+a deferred declaration-map control. Zero cases are admitted to the H1
+bootstrap profile, and the pinned reference-baseline paths have no vendored or
+compared content. Suite pin v3 binds v2 unchanged, records the complete
+6,568-file
 FourSlash tree identity, pins the two FourSlash harness implementation blobs,
 and reconstructs the projected 38-file Git tree/blob inventory. Its manifest
 classifies 31 `baselineGetEmitOutput`, five `getEmitOutput`, and two focused
@@ -904,7 +914,8 @@ retain explicit unsupported dispositions.
 The local `test-suite-expansion.v1.json` remains byte-identical and inventories
 7,086 `compiler`, `project`, and `projects` sources, 7,276 compiler cases, and
 632 project cases. It contains no transpile expansion or execution row, and all
-7,908 existing rows deliberately have initial execution state `not-run`. H0
+7,908 existing rows deliberately have initial execution state `not-run`. The
+separate transpile inventory does not mutate this artifact. H0
 later proved structural load/session execution for all compiler plans and 82
 compatible project plans, but it did not mutate that manifest
 into an upstream baseline result. The remaining 550 project rows are

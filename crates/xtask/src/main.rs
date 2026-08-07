@@ -7757,6 +7757,7 @@ fn ci_oracle_gates(workspace: &Path) -> Result<(), Box<dyn Error>> {
     )?;
     for driver in [
         "fourslash-emit-projection.mjs",
+        "h1-transpile-inventory.mjs",
         "compiler-config-plans.mjs",
         "compiler-config-diagnostics.mjs",
         "compiler-module-suffixes.mjs",

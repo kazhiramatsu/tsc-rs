@@ -1,0 +1,375 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/kazhiramatsu/tsc-rs/.github/ci/contracts/h1-transpile-inventory.schema.json",
+  "title": "tsc-rs H1 transpile runner inventory",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "status",
+    "phase",
+    "typescript",
+    "generator",
+    "contract",
+    "inputs",
+    "runner_contract",
+    "source_inventory_sha256",
+    "sources",
+    "fixtures",
+    "cases",
+    "summary"
+  ],
+  "properties": {
+    "schema": { "const": 1 },
+    "status": { "const": "classified-not-run" },
+    "phase": { "const": "H1.0a-transpile-runner-inventory" },
+    "typescript": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["version", "source_repository", "source_commit"],
+      "properties": {
+        "version": { "const": "6.0.3" },
+        "source_repository": { "const": "https://github.com/microsoft/TypeScript.git" },
+        "source_commit": { "$ref": "#/$defs/sha1" }
+      }
+    },
+    "generator": { "$ref": "#/$defs/path_hash" },
+    "contract": { "$ref": "#/$defs/path_hash" },
+    "inputs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "suite_pin",
+        "transpile_suite",
+        "h1_profile",
+        "typescript_bundle",
+        "implementation_sources"
+      ],
+      "properties": {
+        "suite_pin": { "$ref": "#/$defs/path_hash" },
+        "transpile_suite": { "$ref": "#/$defs/suite_identity" },
+        "h1_profile": { "$ref": "#/$defs/path_hash" },
+        "typescript_bundle": { "$ref": "#/$defs/path_hash" },
+        "implementation_sources": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 3,
+          "items": { "$ref": "#/$defs/git_source" }
+        }
+      }
+    },
+    "runner_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "enumeration",
+        "vary_by",
+        "variation_limit",
+        "configuration_order",
+        "unit_partition",
+        "unit_execution",
+        "run_kinds",
+        "reference_baseline_state"
+      ],
+      "properties": {
+        "enumeration": { "type": "string", "minLength": 1 },
+        "vary_by": {
+          "type": "array",
+          "prefixItems": [
+            { "const": "declarationMap" },
+            { "const": "sourceMap" },
+            { "const": "inlineSourceMap" }
+          ],
+          "items": false,
+          "minItems": 3,
+          "maxItems": 3
+        },
+        "variation_limit": { "const": 25 },
+        "configuration_order": { "type": "string", "minLength": 1 },
+        "unit_partition": { "type": "string", "minLength": 1 },
+        "unit_execution": { "type": "string", "minLength": 1 },
+        "run_kinds": {
+          "type": "array",
+          "prefixItems": [{ "const": "module" }, { "const": "declaration" }],
+          "items": false,
+          "minItems": 2,
+          "maxItems": 2
+        },
+        "reference_baseline_state": { "const": "path-pinned-content-not-vendored-or-compared" }
+      }
+    },
+    "source_inventory_sha256": { "$ref": "#/$defs/sha256" },
+    "sources": {
+      "type": "array",
+      "minItems": 22,
+      "maxItems": 22,
+      "items": { "$ref": "#/$defs/source" }
+    },
+    "fixtures": {
+      "type": "array",
+      "minItems": 22,
+      "maxItems": 22,
+      "items": { "$ref": "#/$defs/fixture" }
+    },
+    "cases": {
+      "type": "array",
+      "minItems": 37,
+      "maxItems": 37,
+      "items": { "$ref": "#/$defs/case" }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_files",
+        "source_bytes",
+        "unique_blobs",
+        "fixtures",
+        "configurations",
+        "fixture_units",
+        "cases",
+        "module_cases",
+        "declaration_cases",
+        "unit_operations",
+        "javascript_transform_printer_controls",
+        "deferred_source_map_controls",
+        "deferred_declaration_controls",
+        "deferred_declaration_map_controls",
+        "report_diagnostics_cases",
+        "bootstrap_profile_admitted_cases",
+        "not_run_cases",
+        "reference_baselines_compared"
+      ],
+      "properties": {
+        "source_files": { "const": 22 },
+        "source_bytes": { "const": 13480 },
+        "unique_blobs": { "const": 22 },
+        "fixtures": { "const": 22 },
+        "configurations": { "const": 25 },
+        "fixture_units": { "const": 42 },
+        "cases": { "const": 37 },
+        "module_cases": { "const": 16 },
+        "declaration_cases": { "const": 21 },
+        "unit_operations": { "const": 79 },
+        "javascript_transform_printer_controls": { "const": 14 },
+        "deferred_source_map_controls": { "const": 2 },
+        "deferred_declaration_controls": { "const": 20 },
+        "deferred_declaration_map_controls": { "const": 1 },
+        "report_diagnostics_cases": { "const": 2 },
+        "bootstrap_profile_admitted_cases": { "const": 0 },
+        "not_run_cases": { "const": 37 },
+        "reference_baselines_compared": { "const": 0 }
+      }
+    }
+  },
+  "$defs": {
+    "sha1": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "path_hash": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256"],
+      "properties": {
+        "path": { "type": "string", "minLength": 1 },
+        "sha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "git_source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source_path", "git_blob_sha1"],
+      "properties": {
+        "source_path": { "type": "string", "minLength": 1 },
+        "git_blob_sha1": { "$ref": "#/$defs/sha1" }
+      }
+    },
+    "suite_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "source_path",
+        "vendored_path",
+        "git_tree_sha1",
+        "blob_inventory_sha256",
+        "files",
+        "bytes",
+        "unique_blobs",
+        "executable_paths"
+      ],
+      "properties": {
+        "name": { "const": "transpile" },
+        "source_path": { "const": "tests/cases/transpile" },
+        "vendored_path": { "const": "ts-tests/tests/cases/transpile" },
+        "git_tree_sha1": { "$ref": "#/$defs/sha1" },
+        "blob_inventory_sha256": { "$ref": "#/$defs/sha256" },
+        "files": { "const": 22 },
+        "bytes": { "const": 13480 },
+        "unique_blobs": { "const": 22 },
+        "executable_paths": { "type": "array", "maxItems": 0 }
+      }
+    },
+    "setting": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "value"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "value": { "type": "string" }
+      }
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "mode", "bytes", "sha256", "git_blob_sha1"],
+      "properties": {
+        "path": { "type": "string", "pattern": "^[^/]" },
+        "mode": { "const": "100644" },
+        "bytes": { "type": "integer", "minimum": 1 },
+        "sha256": { "$ref": "#/$defs/sha256" },
+        "git_blob_sha1": { "$ref": "#/$defs/sha1" }
+      }
+    },
+    "content_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["utf8_bytes", "sha256"],
+      "properties": {
+        "utf8_bytes": { "type": "integer", "minimum": 0 },
+        "sha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "unit": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "file_options",
+        "content",
+        "rejected_feature_roots",
+        "parse_diagnostic_codes"
+      ],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "file_options": { "type": "array", "items": { "$ref": "#/$defs/setting" } },
+        "content": { "$ref": "#/$defs/content_identity" },
+        "rejected_feature_roots": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "parse_diagnostic_codes": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "integer", "minimum": 1 }
+        }
+      }
+    },
+    "configuration": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["variant", "runner_name", "overrides"],
+      "properties": {
+        "variant": { "type": "string", "minLength": 1 },
+        "runner_name": { "type": "string", "minLength": 1 },
+        "overrides": { "type": "array", "items": { "$ref": "#/$defs/setting" } }
+      }
+    },
+    "fixture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source",
+        "encoding",
+        "decoded_utf8_bytes",
+        "decoded_sha256",
+        "settings",
+        "units",
+        "configurations"
+      ],
+      "properties": {
+        "source": { "type": "integer", "minimum": 0, "maximum": 21 },
+        "encoding": { "const": "utf-8" },
+        "decoded_utf8_bytes": { "type": "integer", "minimum": 1 },
+        "decoded_sha256": { "$ref": "#/$defs/sha256" },
+        "settings": { "type": "array", "items": { "$ref": "#/$defs/setting" } },
+        "units": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/unit" } },
+        "configurations": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/configuration" }
+        }
+      }
+    },
+    "unit_output": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["unit", "output_path", "products"],
+      "properties": {
+        "unit": { "type": "string", "minLength": 1 },
+        "output_path": { "type": "string", "minLength": 1 },
+        "products": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "case": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "source",
+        "configuration",
+        "kind",
+        "api",
+        "baseline_path",
+        "unit_outputs",
+        "report_diagnostics",
+        "execution_state",
+        "reference_baseline_state",
+        "component_disposition",
+        "whole_program_equivalence",
+        "bootstrap_profile_admitted",
+        "profile_blockers"
+      ],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "source": { "type": "integer", "minimum": 0, "maximum": 21 },
+        "configuration": { "type": "integer", "minimum": 0 },
+        "kind": { "enum": ["module", "declaration"] },
+        "api": { "enum": ["transpileModule", "transpileDeclaration"] },
+        "baseline_path": {
+          "type": "string",
+          "pattern": "^tests/baselines/reference/transpile/"
+        },
+        "unit_outputs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/unit_output" }
+        },
+        "report_diagnostics": { "type": "boolean" },
+        "execution_state": { "const": "not-run" },
+        "reference_baseline_state": { "const": "path-pinned-content-not-vendored-or-compared" },
+        "component_disposition": {
+          "enum": [
+            "javascript-transform-printer-control",
+            "deferred-source-map-control",
+            "deferred-declaration-control",
+            "deferred-declaration-map-control"
+          ]
+        },
+        "whole_program_equivalence": { "const": "unproven" },
+        "bootstrap_profile_admitted": { "const": false },
+        "profile_blockers": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 }
+        }
+      }
+    }
+  }
+}

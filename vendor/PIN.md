@@ -33,6 +33,27 @@ The harness recursively verifies all four v2 trees. This transition records
 inputs and runner identity only; it deliberately does not change the v1
 expansion or claim a transpile execution result.
 
+The runner-derived companion inventory is pinned at
+`vendor/typescript-6.0.3/transpile-suite-inventory.v1.json` (SHA-256
+`03c4672f0a9b4f0776908501115b088fbabb846af6f90f3106735a42df11d0c6`).
+It reconstructs the exact 22-fixture, 25-configuration `TranspileRunner`
+matrix as 42 fixture units, 37 cases, and 79 per-unit operations. All 37 cases
+retain execution state `not-run`: 14 are JavaScript transform/printer controls,
+two are deferred source-map controls, 20 are deferred declaration controls,
+and one is a deferred declaration-map control. No case is admitted to the H1
+bootstrap profile. The manifest pins expected reference-baseline paths but
+does not vendor or compare their contents. Regeneration and freshness checking
+use only the pinned vendor and corpus:
+
+```text
+node crates/oracle/h1-transpile-inventory.mjs --write
+node crates/oracle/h1-transpile-inventory.mjs --check
+```
+
+This establishes exact runner expansion and classification only, not a
+transpile execution result, baseline parity, or equivalence between the
+component API and H1 whole-Program emit.
+
 The next additive H1 source transition is pinned at
 `vendor/typescript-6.0.3/test-suites-pin.v3.json`. It binds the complete v2
 pin by path and SHA-256, preserves all four suite entries and the
