@@ -1,0 +1,577 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/kazhiramatsu/tsc-rs/.github/ci/contracts/h1-owner-inventory.schema.json",
+  "title": "tsc-rs H1 reviewed JavaScript emit owner graph",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "status",
+    "phase",
+    "typescript",
+    "generator",
+    "contract",
+    "identity",
+    "ledger_hash",
+    "closure_model",
+    "call_review_contract",
+    "active_roots",
+    "dormant_seams",
+    "summary",
+    "completed_h1_0a",
+    "pending_h1_0a",
+    "functions",
+    "graph"
+  ],
+  "properties": {
+    "schema": { "const": 2 },
+    "status": { "const": "draft/report-only" },
+    "phase": { "const": "H1.0a-reviewed-owner-graph" },
+    "typescript": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["version", "source_commit", "source", "source_sha256"],
+      "properties": {
+        "version": { "const": "6.0.3" },
+        "source_commit": {
+          "const": "050880ce59e30b356b686bd3144efe24f875ebc8"
+        },
+        "source": { "const": "vendor/typescript-6.0.3/lib/_tsc.js" },
+        "source_sha256": {
+          "const": "1c59e77a54b186ec43fa7f3e0d3c4bb15ca5eb5ba43e96b1d3a267139eddd3e3"
+        }
+      }
+    },
+    "generator": { "const": "crates/oracle/h1-owner-inventory.mjs" },
+    "contract": { "$ref": "#/$defs/path_hash" },
+    "identity": { "type": "string", "minLength": 1 },
+    "ledger_hash": { "type": "string", "minLength": 1 },
+    "closure_model": { "type": "string", "minLength": 1 },
+    "call_review_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "exact_edges",
+        "runtime_library",
+        "callback_and_value_calls",
+        "structural_property_dispatch",
+        "dynamic_expressions",
+        "candidate_sets",
+        "unresolved_state"
+      ],
+      "properties": {
+        "exact_edges": { "type": "string", "minLength": 1 },
+        "runtime_library": { "type": "string", "minLength": 1 },
+        "callback_and_value_calls": { "type": "string", "minLength": 1 },
+        "structural_property_dispatch": { "type": "string", "minLength": 1 },
+        "dynamic_expressions": { "type": "string", "minLength": 1 },
+        "candidate_sets": { "type": "string", "minLength": 1 },
+        "unresolved_state": { "const": "none" }
+      }
+    },
+    "active_roots": {
+      "type": "array",
+      "minItems": 11,
+      "maxItems": 11,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["key", "declaration"],
+        "properties": {
+          "key": { "type": "string", "minLength": 1 },
+          "declaration": { "$ref": "#/$defs/declaration" }
+        }
+      }
+    },
+    "dormant_seams": {
+      "type": "array",
+      "minItems": 8,
+      "maxItems": 8,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["axis", "role", "declaration"],
+        "properties": {
+          "axis": { "type": "string", "minLength": 1 },
+          "role": { "type": "string", "minLength": 1 },
+          "declaration": { "$ref": "#/$defs/declaration" }
+        }
+      }
+    },
+    "summary": { "$ref": "#/$defs/summary" },
+    "completed_h1_0a": {
+      "type": "array",
+      "minItems": 13,
+      "maxItems": 13,
+      "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "pending_h1_0a": { "type": "array", "maxItems": 0 },
+    "functions": {
+      "type": "array",
+      "minItems": 6193,
+      "maxItems": 6193,
+      "items": { "$ref": "#/$defs/function" }
+    },
+    "graph": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "edges",
+        "call_dispositions",
+        "property_candidate_sets",
+        "unresolved_calls"
+      ],
+      "properties": {
+        "edges": {
+          "type": "array",
+          "minItems": 24054,
+          "maxItems": 24054,
+          "items": { "$ref": "#/$defs/edge" }
+        },
+        "call_dispositions": {
+          "type": "array",
+          "minItems": 5202,
+          "maxItems": 5202,
+          "items": {
+            "oneOf": [
+              { "$ref": "#/$defs/identifier_disposition" },
+              { "$ref": "#/$defs/property_disposition" },
+              { "$ref": "#/$defs/dynamic_disposition" }
+            ]
+          }
+        },
+        "property_candidate_sets": {
+          "type": "array",
+          "minItems": 442,
+          "maxItems": 442,
+          "items": { "$ref": "#/$defs/property_candidate_set" }
+        },
+        "unresolved_calls": { "type": "array", "maxItems": 0 }
+      }
+    }
+  },
+  "$defs": {
+    "h1_id": { "type": "string", "pattern": "^h1:[0-9a-f]{64}$" },
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "path_hash": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256"],
+      "properties": {
+        "path": {
+          "const": ".github/ci/contracts/h1-owner-inventory.schema.json"
+        },
+        "sha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "position": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["offset", "line", "character"],
+      "properties": {
+        "offset": { "type": "integer", "minimum": 0 },
+        "line": { "type": "integer", "minimum": 1 },
+        "character": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "range": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["start", "end"],
+      "properties": {
+        "start": { "$ref": "#/$defs/position" },
+        "end": { "$ref": "#/$defs/position" }
+      }
+    },
+    "declaration": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "name",
+        "kind",
+        "lexical_owner",
+        "lexical_path",
+        "source_range",
+        "declaration_sha256",
+        "body_range",
+        "body_sha256",
+        "ledger_slice_sha256"
+      ],
+      "properties": {
+        "id": { "$ref": "#/$defs/h1_id" },
+        "name": { "type": "string", "minLength": 1 },
+        "kind": { "type": "string", "minLength": 1 },
+        "lexical_owner": {
+          "oneOf": [{ "$ref": "#/$defs/h1_id" }, { "type": "null" }]
+        },
+        "lexical_path": { "type": "string", "minLength": 1 },
+        "source_range": { "$ref": "#/$defs/range" },
+        "declaration_sha256": { "$ref": "#/$defs/sha256" },
+        "body_range": {
+          "oneOf": [{ "$ref": "#/$defs/range" }, { "type": "null" }]
+        },
+        "body_sha256": {
+          "oneOf": [{ "$ref": "#/$defs/sha256" }, { "type": "null" }]
+        },
+        "ledger_slice_sha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "function": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "name",
+        "kind",
+        "lexical_owner",
+        "lexical_path",
+        "source_range",
+        "declaration_sha256",
+        "body_range",
+        "body_sha256",
+        "ledger_slice_sha256",
+        "reachable_from",
+        "shortest_root_path"
+      ],
+      "properties": {
+        "id": { "$ref": "#/$defs/h1_id" },
+        "name": { "type": "string", "minLength": 1 },
+        "kind": { "type": "string", "minLength": 1 },
+        "lexical_owner": {
+          "oneOf": [{ "$ref": "#/$defs/h1_id" }, { "type": "null" }]
+        },
+        "lexical_path": { "type": "string", "minLength": 1 },
+        "source_range": { "$ref": "#/$defs/range" },
+        "declaration_sha256": { "$ref": "#/$defs/sha256" },
+        "body_range": {
+          "oneOf": [{ "$ref": "#/$defs/range" }, { "type": "null" }]
+        },
+        "body_sha256": {
+          "oneOf": [{ "$ref": "#/$defs/sha256" }, { "type": "null" }]
+        },
+        "ledger_slice_sha256": { "$ref": "#/$defs/sha256" },
+        "reachable_from": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "shortest_root_path": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["root", "declarations"],
+          "properties": {
+            "root": { "type": "string", "minLength": 1 },
+            "declarations": {
+              "type": "array",
+              "minItems": 1,
+              "items": { "$ref": "#/$defs/h1_id" }
+            }
+          }
+        }
+      }
+    },
+    "site": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["line", "character"],
+      "properties": {
+        "line": { "type": "integer", "minimum": 1 },
+        "character": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "edge": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["caller", "callee", "kind", "sites"],
+      "properties": {
+        "caller": { "$ref": "#/$defs/h1_id" },
+        "callee": { "$ref": "#/$defs/h1_id" },
+        "kind": {
+          "enum": [
+            "lexical",
+            "immediate",
+            "dynamic-symbol",
+            "nested-function",
+            "property-symbol"
+          ]
+        },
+        "sites": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/site" }
+        }
+      }
+    },
+    "common_disposition": {
+      "type": "object",
+      "required": [
+        "caller",
+        "expression",
+        "expression_sha256",
+        "line",
+        "character",
+        "kind"
+      ],
+      "properties": {
+        "caller": { "$ref": "#/$defs/h1_id" },
+        "expression": { "type": "string", "minLength": 1 },
+        "expression_sha256": { "$ref": "#/$defs/sha256" },
+        "line": { "type": "integer", "minimum": 1 },
+        "character": { "type": "integer", "minimum": 1 },
+        "kind": { "enum": ["identifier", "property", "dynamic"] }
+      }
+    },
+    "identifier_disposition": {
+      "allOf": [
+        { "$ref": "#/$defs/common_disposition" },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "caller",
+            "expression",
+            "expression_sha256",
+            "line",
+            "character",
+            "kind",
+            "resolution",
+            "symbol_declaration_kinds",
+            "library_paths"
+          ],
+          "properties": {
+            "caller": { "$ref": "#/$defs/h1_id" },
+            "expression": { "type": "string", "minLength": 1 },
+            "expression_sha256": { "$ref": "#/$defs/sha256" },
+            "line": { "type": "integer", "minimum": 1 },
+            "character": { "type": "integer", "minimum": 1 },
+            "kind": { "const": "identifier" },
+            "resolution": {
+              "enum": [
+                "runtime-library",
+                "parameter-callback",
+                "destructured-callback",
+                "source-value-call",
+                "external-global"
+              ]
+            },
+            "symbol_declaration_kinds": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": { "type": "string", "minLength": 1 }
+            },
+            "library_paths": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": { "type": "string", "minLength": 1 }
+            }
+          }
+        }
+      ]
+    },
+    "property_disposition": {
+      "allOf": [
+        { "$ref": "#/$defs/common_disposition" },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "caller",
+            "expression",
+            "expression_sha256",
+            "line",
+            "character",
+            "kind",
+            "property",
+            "receiver",
+            "resolution",
+            "checker_state",
+            "symbol_declaration_kinds",
+            "library_paths",
+            "source_callees",
+            "candidate_set"
+          ],
+          "properties": {
+            "caller": { "$ref": "#/$defs/h1_id" },
+            "expression": { "type": "string", "minLength": 1 },
+            "expression_sha256": { "$ref": "#/$defs/sha256" },
+            "line": { "type": "integer", "minimum": 1 },
+            "character": { "type": "integer", "minimum": 1 },
+            "kind": { "const": "property" },
+            "property": { "type": "string", "minLength": 1 },
+            "receiver": { "type": "string", "minLength": 1 },
+            "resolution": {
+              "enum": ["source-symbol", "runtime-library", "structural-dispatch"]
+            },
+            "checker_state": {
+              "enum": ["resolved", "absent", "source-symbol-unfollowed", "stack-overflow"]
+            },
+            "symbol_declaration_kinds": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": { "type": "string", "minLength": 1 }
+            },
+            "library_paths": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": { "type": "string", "minLength": 1 }
+            },
+            "source_callees": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": { "$ref": "#/$defs/h1_id" }
+            },
+            "candidate_set": {
+              "type": ["string", "null"]
+            }
+          }
+        }
+      ]
+    },
+    "dynamic_disposition": {
+      "allOf": [
+        { "$ref": "#/$defs/common_disposition" },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "caller",
+            "expression",
+            "expression_sha256",
+            "line",
+            "character",
+            "kind",
+            "expression_kind",
+            "resolution",
+            "source_callees"
+          ],
+          "properties": {
+            "caller": { "$ref": "#/$defs/h1_id" },
+            "expression": { "type": "string", "minLength": 1 },
+            "expression_sha256": { "$ref": "#/$defs/sha256" },
+            "line": { "type": "integer", "minimum": 1 },
+            "character": { "type": "integer", "minimum": 1 },
+            "kind": { "const": "dynamic" },
+            "expression_kind": { "type": "string", "minLength": 1 },
+            "resolution": {
+              "enum": [
+                "source-expression",
+                "computed-element",
+                "call-result",
+                "computed-expression"
+              ]
+            },
+            "source_callees": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": { "$ref": "#/$defs/h1_id" }
+            }
+          }
+        }
+      ]
+    },
+    "property_candidate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "name",
+        "kind",
+        "lexical_owner",
+        "line",
+        "character",
+        "declaration_sha256"
+      ],
+      "properties": {
+        "id": { "$ref": "#/$defs/h1_id" },
+        "name": { "type": "string", "minLength": 1 },
+        "kind": { "type": "string", "minLength": 1 },
+        "lexical_owner": {
+          "oneOf": [{ "$ref": "#/$defs/h1_id" }, { "type": "null" }]
+        },
+        "line": { "type": "integer", "minimum": 1 },
+        "character": { "type": "integer", "minimum": 1 },
+        "declaration_sha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "property_candidate_set": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["property", "candidates"],
+      "properties": {
+        "property": { "type": "string", "minLength": 1 },
+        "candidates": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/property_candidate" }
+        }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_declarations",
+        "active_roots",
+        "dormant_seams",
+        "closure_declarations",
+        "static_edges",
+        "lexical_edges",
+        "immediate_edges",
+        "dynamic_symbol_edges",
+        "nested_function_edges",
+        "property_symbol_edges",
+        "call_sites",
+        "reviewed_call_sites",
+        "identifier_runtime_library_calls",
+        "identifier_parameter_callback_calls",
+        "identifier_destructured_callback_calls",
+        "identifier_source_value_calls",
+        "identifier_external_global_calls",
+        "property_source_symbol_calls",
+        "property_runtime_library_calls",
+        "property_structural_dispatch_calls",
+        "property_checker_stack_overflow_calls",
+        "dynamic_expression_calls",
+        "dynamic_source_expression_calls",
+        "reviewed_exact_edge_calls",
+        "reviewed_non_edge_calls",
+        "property_candidate_sets",
+        "property_candidate_declarations",
+        "undispositioned_calls"
+      ],
+      "properties": {
+        "source_declarations": { "const": 10899 },
+        "active_roots": { "const": 11 },
+        "dormant_seams": { "const": 8 },
+        "closure_declarations": { "const": 6193 },
+        "static_edges": { "const": 24054 },
+        "lexical_edges": { "const": 19033 },
+        "immediate_edges": { "const": 0 },
+        "dynamic_symbol_edges": { "const": 10 },
+        "nested_function_edges": { "const": 4511 },
+        "property_symbol_edges": { "const": 500 },
+        "call_sites": { "const": 29310 },
+        "reviewed_call_sites": { "const": 5202 },
+        "identifier_runtime_library_calls": { "const": 23 },
+        "identifier_parameter_callback_calls": { "const": 279 },
+        "identifier_destructured_callback_calls": { "const": 114 },
+        "identifier_source_value_calls": { "const": 301 },
+        "identifier_external_global_calls": { "const": 1 },
+        "property_source_symbol_calls": { "const": 704 },
+        "property_runtime_library_calls": { "const": 749 },
+        "property_structural_dispatch_calls": { "const": 3021 },
+        "property_checker_stack_overflow_calls": { "const": 1 },
+        "dynamic_expression_calls": { "const": 10 },
+        "dynamic_source_expression_calls": { "const": 7 },
+        "reviewed_exact_edge_calls": { "const": 711 },
+        "reviewed_non_edge_calls": { "const": 4491 },
+        "property_candidate_sets": { "const": 442 },
+        "property_candidate_declarations": { "const": 652 },
+        "undispositioned_calls": { "const": 0 }
+      }
+    }
+  }
+}

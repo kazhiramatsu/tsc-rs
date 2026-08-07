@@ -11,6 +11,16 @@ The vendored implementation lives under
 `typescript.js`, `typescript.d.ts`, `diagnosticMessages.json`, and the
 108 layered `lib*.d.ts` files used by the oracle and future codegen.
 
+The reviewed H1 owner projection of that exact `_tsc.js` is pinned at
+`ratchets/h1-owner-inventory.v1.json` (SHA-256
+`6148160678bf0b34a8310551eac8c9ab3f2afb1cd9260fa8eaa59efadc71abb5`)
+under `.github/ci/contracts/h1-owner-inventory.schema.json` (SHA-256
+`433809f8489f12ec34c3de10dbecc8fad019bf0d7f777302298b10cfaf707cf2`).
+Schema 2 retains 6,193 active-root declarations and 24,054 ownership edges,
+records 5,202 reviewed call-site dispositions (711 exact-symbol edge sites and
+4,491 classified non-edges) plus 442 structural-property candidate sets, and
+requires zero unresolved or undispositioned calls.
+
 The conformance corpus is vendored under
 `ts-tests/tests/cases/conformance/`.
 
@@ -35,7 +45,7 @@ expansion or claim a transpile execution result.
 
 The runner-derived companion inventory is pinned at
 `vendor/typescript-6.0.3/transpile-suite-inventory.v1.json` (SHA-256
-`d764594064cbbba0fc6523a5c2467699f00df180842a3b82dbd568df799763fb`).
+`5762b9fbf86c0437ff3bfc2f1e1deab48e35effc8d9117299035d23d6c45f949`).
 It reconstructs the exact 22-fixture, 25-configuration `TranspileRunner`
 matrix as 42 fixture units, 37 cases, and 79 per-unit operations. All 37 cases
 retain execution state `not-run`: 14 are JavaScript transform/printer controls,
@@ -86,7 +96,7 @@ tree and runner are not vendored or executed.
 The projection's exact H1 disposition is pinned separately at
 `vendor/typescript-6.0.3/fourslash-whole-program-equivalence.v1.json`
 (SHA-256
-`88cf5d26976061700c1417be71fae4fee7d5c52ef61d7c2f6df064db168d5837`).
+`3960e1beefe159ff9d609d7ff66d979b0f30198edcb0bf7f82efdfc1e9b0ff4b`).
 It consumes the v3 pin, projection, frozen H1 profile, and vendored
 `typescript.js` byte-for-byte. The artifact pins the two FourSlash harness
 source blobs plus the exact bundle declarations proving that each selected
@@ -143,7 +153,7 @@ construction, JavaScript emit, baseline parity, or an upstream pass rate.
 The separate effective-option classification is pinned at
 `vendor/typescript-6.0.3/conformance-profile-classification.v1.json`
 (SHA-256
-`d47eb4c46cfc04b584f5a00c2c0661ce10df69b4957d68207951316798014174`).
+`d54b51d44da91836ad1b7be3be4b7de19c6892e6cb1fe9605fda06cdda5a67eb`).
 It consumes the expansion byte-for-byte and reproduces virtual `tsconfig`
 parsing, compiler-runner defaults, and harness/matrix override precedence for
 all 7,697 cases. The artifact records 27 virtual configs, two config-diagnostic
@@ -207,7 +217,7 @@ claims no upstream test result.
 
 The H1 compiler-runner classification is pinned separately at
 `vendor/typescript-6.0.3/compiler-profile-classification.v1.json` (SHA-256
-`fbe4d05310edca95c2aa52cdfa0c08b39725745d93846f037e674d803d5e452a`).
+`3c3cbcb3c29a5254c145dc2665ca21683a1bd94f5271841320f061e82b614603`).
 It consumes the expansion, config-plan artifact, frozen H1 profile, and
 vendored TypeScript bundle byte-for-byte. It verifies all 103 virtual configs
 and 106 config variants against the config-plan oracle before reproducing
@@ -232,7 +242,7 @@ upstream test result.
 
 The H1 project-runner classification is pinned separately at
 `vendor/typescript-6.0.3/project-profile-classification.v1.json` (SHA-256
-`5492db8291e70b2f54cf99b66c9ce41998b75d4b284f817327ee6a7eb7fe96be`).
+`4e984ab1847a551ecbe9f8736237aee74a8c42134403e7cb56a624a2fef78d87`).
 It consumes the unchanged expansion, frozen H1 profile, vendored TypeScript
 bundle, and focused six-case project oracle byte-for-byte. It reproduces the
 pinned `projectsRunner.ts` defaults,

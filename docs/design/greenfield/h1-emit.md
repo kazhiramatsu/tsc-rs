@@ -48,10 +48,16 @@ than the frozen `ESNext`/`Preserve` pair. Promotions are therefore zero; all
 38 controls remain explicitly deferred and `not-run`, and no reference
 baseline has been compared.
 The shared L0/L1 prerequisite and its evidence/CI-contract freeze are complete.
-The graph's unresolved dynamic calls and conservative property dispatch still
-need review. No H1 runtime implementation or
-compatibility claim exists until the complete H1.0 inventory and post-L0/L1
-no-emit performance baseline described below are frozen.
+H1.0a is complete. Its reviewed graph retains 6,193 declarations and 24,054
+exact/conservative ownership edges: 19,033 lexical, 4,511 nested-function,
+500 exact property-symbol, and ten exact dynamic-symbol edges. The former
+12,183 same-property-name fan-out edges are gone. Every one of the 5,202
+property/dynamic or otherwise non-lexical call sites has an explicit reviewed
+disposition. Of those, 711 produce exact symbol edges and 4,491 remain
+classified non-edges, with 442 complete property review candidate sets and
+zero unresolved or undispositioned rows. No H1 runtime
+implementation or compatibility claim exists until the post-L0/L1 no-emit
+performance baseline and remaining H1 stages described below are frozen.
 H0 remains the released, frozen single-project `--noEmit` profile. M9 remains a
 separate paused batch-diagnostics qualification track.
 
@@ -1246,8 +1252,10 @@ incremental/FourSlash compatibility in H1.
 H1 and its workspace prerequisite execute in dependency order:
 
 The H1.0a producers now regenerate the active-root closure, exact
-declaration/body/ledger hashes, callback-nesting edges, unresolved calls, and
-dormant declaration/map/bundle/targeted/build-info anchors with
+declaration/body/ledger hashes, exact symbol-resolved calls, conservative
+callback-nesting ownership, explicit reviewed call-site dispositions, complete
+structural-property review candidate sets, and dormant
+declaration/map/bundle/targeted/build-info anchors with
 `node crates/oracle/h1-owner-inventory.mjs --check`, and freeze the bootstrap
 profile plus callback observations with
 `node crates/oracle/h1-emit-oracle.mjs --check`. The current production Rust
@@ -1273,28 +1281,30 @@ while leaving every row `not-run`. The companion project classification covers
 all 632 rows, pins exact roots and option precedence, proves zero admissions,
 and also leaves every row `not-run`. The FourSlash companion classifies all 38
 projected operations as targeted Language Service emits, proves zero
-whole-Program promotions, and leaves every row deferred/`not-run`. Reviewed
-unresolved/property-dispatch dispositions are the remaining item keeping
-H1.0a open.
+whole-Program promotions, and leaves every row deferred/`not-run`. The owner
+contract independently verifies all 6,193 declarations, 24,054 edges, and
+5,202 reviewed call-site dispositions and requires both unresolved and
+undispositioned counts to remain zero. H1.0a is therefore closed.
 
-1. **H1.0a — inventory and oracle:** generate the JavaScript-emitter owner
+1. **Complete — H1.0a inventory and oracle:** generate the JavaScript-emitter owner
    graph, retain the classified project, compiler, and conformance corpora,
    reconstructed transpile matrix, and FourSlash emit
    projection/equivalence dispositions, freeze dormant
    declaration/map/bundle/targeted/build-info seams,
    land the in-memory oracle, and record every current emit-only Rust omission.
    The inventory and design portion may proceed in parallel with the next item.
-2. **L0/L1 prerequisite — persistent source and parser proof:** land shared
+2. **Complete — L0/L1 prerequisite, persistent source and parser proof:** land shared
    text/position snapshots, identity leases, owned parse/bind records,
    `ProgramSnapshot`, the ephemeral H0 adapter, minimal registry reuse, and
    the incremental parser plus its large-file performance gate. Requalify H0
    diagnostics, host observations, exits, latency, and RSS; do not accept a
    new baseline by weakening the frozen H0 ceilings.
-3. **H1.0b — no-emit performance and CI freeze:** collect alternating
+3. **Next — H1.0b no-emit performance and CI freeze:** collect alternating
    post-L0/L1 pre-H1 baseline/candidate measurements, freeze the relative
-   regression policy, freeze ordinary GitHub CI to the `ts-tests`-only
-   `cargo xtask acceptance` boundary, and land constructor/write-zero canaries
-   in the complete local gate before H1 runtime behavior changes.
+   regression policy, retain ordinary GitHub CI at the already-frozen
+   `ts-tests`-only `cargo xtask acceptance` boundary, and land
+   constructor/write-zero canaries in the complete local gate before H1
+   runtime behavior changes.
 4. **H1.1 — typed execution spine:** add the non-publicly-constructible
    `EmitArtifact`, callback metadata, sink disposition, full typed output-path
    shape, `OutputSink`, typed failures, and the separate emitting session

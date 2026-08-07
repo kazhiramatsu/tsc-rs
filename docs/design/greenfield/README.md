@@ -81,13 +81,19 @@ dispositions too: their 47 selected calls are targeted Language Service
 non-`Preserve` module state, and therefore none is promoted as an H1
 whole-Program control. Every row remains deferred/`not-run`, with zero
 reference baselines compared.
-The bounded, tsc-architected
+The owner graph is now fully reviewed as well: 6,193 declarations remain in
+the exact active-root closure, the old 12,183 same-name property fan-out edges
+are gone, and all 5,202 property/dynamic or otherwise non-lexical call sites
+have explicit dispositions. Of those, 711 produce exact symbol edges and
+4,491 remain classified non-edges, with zero unresolved rows. H1.0a is
+complete. The bounded, tsc-architected
 JavaScript emitter preserves the H0 `--noEmit` entry without
 initializing the emitter and ports the exact resolver/transform/printer/output
-spine. Owner-disposition review is the remaining H1.0a inventory item; runtime
-implementation is unblocked by the completed L0 persistent-source and L1
-incremental-parser proof, while build/watch and LSP remain separate
-compatibility tracks.
+spine. H1.0b next freezes the post-L0/L1 no-emit performance evidence and
+constructor/write-zero canaries; its ordinary GitHub CI boundary is already
+the single `cargo xtask acceptance` command. Runtime implementation is
+unblocked by the completed L0 persistent-source and L1 incremental-parser
+proof, while build/watch and LSP remain separate compatibility tracks.
 
 **Compiler compatibility residual:**
 [compiler-compatibility-residual.md](compiler-compatibility-residual.md) — the

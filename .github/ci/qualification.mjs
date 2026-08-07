@@ -323,6 +323,7 @@ export function validatePolicy(policy) {
     "failure-artifact",
     "h1-emit-profile",
     "h1-emit-observation",
+    "h1-owner-inventory",
     "h1-rust-omissions",
   ]) {
     const schema = JSON.parse(fs.readFileSync(path.join(contractDirectory, `${contract}.schema.json`), "utf8"));
