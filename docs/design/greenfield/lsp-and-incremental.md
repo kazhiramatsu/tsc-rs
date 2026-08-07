@@ -824,7 +824,7 @@ and the chained approved-runner evidence now qualify L0.4.
 ### 8.6 L1 accepted incremental-parser record
 
 L1 completed on 2026-08-07. Its qualified runtime is commit
-`eab1c2b1a3576321fdfe98da412d54bb2616bbea`, chained from exact accepted L0.4
+`c76d6dfb4d6677015e2a0d2245861ba0e5256988`, chained from exact accepted L0.4
 base `eb6fa670ce146171a74e408c65603cb264c10c30`. The base runtime-tree
 fingerprint is the L0.4 approved candidate fingerprint, so later evidence and
 documentation commits qualify only while the runtime fingerprint remains
@@ -864,14 +864,23 @@ AB/BA order on the frozen macOS arm64 runner. The fixed Unicode edit reuses
 
 | Warm median operation | Warm p95 operation | Peak RSS | Allocations | Allocated bytes |
 | ---: | ---: | ---: | ---: | ---: |
-| 0.808239 | 0.831061 | 1.056879 | 0.793732 | 1.114514 |
+| 0.801829 | 0.790163 | 1.056652 | 0.793732 | 1.114514 |
 
-Incremental median/p95 operation latency is 15.591/16.677 ms and peak RSS is
+Incremental median/p95 operation latency is 14.997/15.195 ms and peak RSS is
 80,674,816 bytes. `l1-performance.mjs --check` binds the driver, fixture,
 candidate runtime tree, L0.4 chain, runner/toolchain, raw pairs, recomputed
 summaries, reuse floor, and all relative and absolute ceilings. Required PR,
 exact full-gate, scheduled stress, and the separate approved performance
 workflow now all select active L1 owners.
+
+Because L1 changes the H0 runtime tree, the same approved workflow also
+publishes [L1 H0 non-regression evidence](../../../ratchets/l1-h0-performance.v1.json)
+against the exact L0.4 candidate. All three workloads preserve parse, bind,
+full-text-copy, and copied-byte counters exactly. The largest warm median,
+warm p95, peak RSS, allocation-count, and allocated-byte ratios are 1.005351,
+1.002835, 1.001163, 1.000000, and 1.000000 respectively.
+`l0-performance.mjs --check` validates this final L0.4-to-L1 link after the
+frozen L0.0-to-L0.4 chain.
 
 ## 9. Evidence and tests
 
