@@ -310,7 +310,7 @@ alternating AB/BA pairs for each explicit-root, project, and scale workload.
 All 48 executions wrote zero files; every candidate execution recorded zero
 for all eight emitter-construction/sink activities; parse/bind, copy, and
 allocation counts did not regress; the latest H1.2 measurement has a largest
-warm-median wall ratio of 1.005244, a largest peak-RSS ratio of 1.000638, and
+warm-median wall ratio of 1.004417, a largest peak-RSS ratio of 1.000000, and
 an executable-size ratio of 1.000080 (+992 bytes). H1.1 is
 implemented: the acyclic `emitter` owner freezes private-layout artifacts,
 exact callback text/BOM/provenance/metadata observations, the complete dormant
