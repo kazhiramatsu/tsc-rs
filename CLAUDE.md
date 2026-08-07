@@ -116,6 +116,13 @@ there.
 - H1 owner inventory: `node crates/oracle/h1-owner-inventory.mjs --check`
   regenerates in memory and byte-compares the report-only H1.0a active-root
   graph, declaration/body/ledger hashes, unresolved calls, and dormant seams.
+- H1 no-emit qualification:
+  `node crates/oracle/h1-noemit-performance.mjs --check` validates the frozen
+  three-workload AB/BA evidence, exact pre-H1/runtime-parent lineage, H0
+  absolute and H1 relative ceilings, executable size, and constructor/write
+  zeros. Only the approved macOS arm64 profile may run `--compare`; the
+  manually dispatched `h1-approved-noemit-performance` workflow is evidence
+  tooling and never broadens ordinary GitHub CI beyond `ts-tests` acceptance.
 - Hosted acceptance: `cargo xtask acceptance` is fixed and unsplit; it accepts
   no file/band/limit selectors and runs only suites sourced from `ts-tests`.
 - Conformance single band: `cargo xtask conformance [--band 2xxx]`
