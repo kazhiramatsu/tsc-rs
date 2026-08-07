@@ -42,8 +42,8 @@
     "file_count": 192,
     "rust_source_files": 177,
     "cargo_manifests": 15,
-    "bytes": 12436615,
-    "tree_sha256": "18c5258efcb030fbb81a4074c5ca6350e77c321b4ebc92db82003631095bb6c5"
+    "bytes": 12436669,
+    "tree_sha256": "35621f60cc0ad003316a4fd0e946145075027b6af3b6a96bfebe7c96ac268bff"
   },
   "summary": {
     "production_boundary_omissions": 6,
@@ -747,11 +747,11 @@
       {
         "id": "emitter-printer-factory",
         "path": "crates/emitter/src/printer.rs",
-        "line": 161,
+        "line": 163,
         "column": 1,
         "text": "pub const fn create_printer(options: PrinterOptions) -> Printer {",
         "text_sha256": "ad5575a93d7bc5976768228967001d7add6871a47da1b0316d75313def10d0f8",
-        "file_sha256": "ac0f2b91e7abca611dd2440865cfc19be300714a0bfad9c019cf99b32612af9a"
+        "file_sha256": "16c56134b2c983cc4eec9d233cbd65ce3211b1b85d7574419ef83cda93b92cbe"
       },
       {
         "id": "emitter-position-domains",
@@ -769,7 +769,7 @@
         "column": 1,
         "text": "pub trait SourceMapRecorder {",
         "text_sha256": "76298cd03affa09442e1ee73bff9ba404f8ce719406bc4d5d1c45e0461acd461",
-        "file_sha256": "ac0f2b91e7abca611dd2440865cfc19be300714a0bfad9c019cf99b32612af9a"
+        "file_sha256": "16c56134b2c983cc4eec9d233cbd65ce3211b1b85d7574419ef83cda93b92cbe"
       },
       {
         "id": "prepared-program-emitting-builder",
@@ -1310,5 +1310,5 @@
       }
     ]
   },
-  "inventory_fingerprint_sha256": "3c6b8494b31eadf10d2e38cf4f1f8ba285b3405be29bbc0659ca857e52dd0f0f"
+  "inventory_fingerprint_sha256": "b55662c499ad2c725ae6f5d502ef021af4aa89928e12be8e10c4b1aa06700bba"
 }

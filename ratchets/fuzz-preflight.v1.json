@@ -4,7 +4,7 @@
   "source_references": [
     {
       "path": "ratchets/fuzz-domain.v1.toml",
-      "sha256": "b95b5553f300f0ed9c0ff148a787b1dca59730259bf1217d7165f97986697ab0"
+      "sha256": "e02c98f7401d7b6683cc7a0706577cdb9cffc11745958397dccbbccbcf9c4317"
     },
     {
       "path": "ratchets/fuzz-oracle-deviations.v1.json",
@@ -52,7 +52,7 @@
     },
     {
       "path": "crates/harness/src/lib.rs",
-      "sha256": "77d87b0200c16c4a47b5724db68ad1874753a8815fd9b5dabe2b66969522ce3e"
+      "sha256": "49e3cdf0ded6a337d6c51eac5ad58e77a5d7058835ef874e41b03a3ceed5d21e"
     },
     {
       "path": "crates/conformance/src/lib.rs",

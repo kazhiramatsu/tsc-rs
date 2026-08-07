@@ -155,9 +155,11 @@ pub struct Printer {
     options: PrinterOptions,
 }
 
-/// tsc-port: createPrinter H1.2 pipeline foundation @6.0.3
+/// tsc-port: createPrinter @6.0.3
 /// tsc-hash: c1ca84c9b6e0fd047ed1c89b6585be47d6bdfc44ab5e2e527411386695cd7e20
 /// tsc-span: _tsc.js:116912-121378
+///
+/// H1.2 implements the pipeline foundation and whole-source identity arm.
 pub const fn create_printer(options: PrinterOptions) -> Printer {
     Printer { options }
 }
