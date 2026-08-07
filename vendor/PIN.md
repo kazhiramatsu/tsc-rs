@@ -35,7 +35,7 @@ expansion or claim a transpile execution result.
 
 The runner-derived companion inventory is pinned at
 `vendor/typescript-6.0.3/transpile-suite-inventory.v1.json` (SHA-256
-`432b162c65edd912ef8184cc258aa880e1fe8356cdd4c3443dab93b82f71835e`).
+`e8992cf7d0a22dc55a9a17c0c52cc06f848970be5e99c7dbdc6f156af4ae7beb`).
 It reconstructs the exact 22-fixture, 25-configuration `TranspileRunner`
 matrix as 42 fixture units, 37 cases, and 79 per-unit operations. All 37 cases
 retain execution state `not-run`: 14 are JavaScript transform/printer controls,
@@ -114,6 +114,26 @@ Regeneration uses `cargo xtask h1-conformance manifest --write`. The command
 accepts no suite, filter, limit, or output-path selector. This expansion does
 not classify a case into the H1 bootstrap profile and does not claim Program
 construction, JavaScript emit, baseline parity, or an upstream pass rate.
+
+The separate effective-option classification is pinned at
+`vendor/typescript-6.0.3/conformance-profile-classification.v1.json`
+(SHA-256
+`0cbc05ea6f6f0fbe25c1f63521fe7f979dc5b404724c8ab26065605cf36bff0b`).
+It consumes the expansion byte-for-byte and reproduces virtual `tsconfig`
+parsing, compiler-runner defaults, and harness/matrix override precedence for
+all 7,697 cases. The artifact records 27 virtual configs, two config-diagnostic
+fixtures, and 7,655 applicable JavaScript observations. Only three cases match
+both `target=ESNext` and `module=Preserve`; all three retain another effective
+option blocker, so every case is explicitly deferred and the bootstrap
+admission count is zero. Every execution state remains `not-run`, no reference
+baseline is compared, and the option-level zero-admission proof makes no
+source-reachability or syntax-support claim. Regeneration and freshness checks
+are fixed and unfiltered:
+
+```text
+node crates/oracle/h1-conformance-classification.mjs --write
+node crates/oracle/h1-conformance-classification.mjs --check
+```
 
 The v1 suites' deterministic case expansion is pinned at
 `vendor/typescript-6.0.3/test-suite-expansion.v1.json`: 7,276 `compiler`

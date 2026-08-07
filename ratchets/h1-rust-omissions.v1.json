@@ -17,19 +17,19 @@
   "authorities": {
     "compatibility_residual": {
       "path": "docs/design/greenfield/compiler-compatibility-residual.md",
-      "sha256": "50fb8748ec825ee3cce7f86fcb77a0d3c79052ebc4350edaa1f5d6f63092a664"
+      "sha256": "73c8c2c127c148f85ab36576482503f7a33162c65d2ca0cd1ff9c3b868e18171"
     },
     "h1_execution": {
       "path": "docs/design/greenfield/h1-emit.md",
-      "sha256": "737ca4813a251d06b949f0fbcd2bc4d9cd8cac6379a04ba8d74a4259eebfa270"
+      "sha256": "4e3a906de7834d9eaf7938cea76d49d738b2d986af5af38b757e598882a85520"
     },
     "emit_profile": {
       "path": "ratchets/h1-emit-profile.v1.json",
-      "sha256": "36a39b505fd08531f7588d475339a42858591a80c3585b6d8bb259c2b90ca0dd"
+      "sha256": "2edf0ec23a59cef953bf3322397c642fb5e38b5a33bd98310349ca16188ee6be"
     },
     "owner_inventory": {
       "path": "ratchets/h1-owner-inventory.v1.json",
-      "sha256": "32d340eb4e202e49fa0ed35e9d6d106d1b1251837e71626993e9f7ba7eceb889"
+      "sha256": "f4136dc534c6b573cca5991a40f9c106b18f5d4bc9ecba0e926bf11540ca4c2e"
     }
   },
   "scope": {
@@ -1154,5 +1154,5 @@
       }
     ]
   },
-  "inventory_fingerprint_sha256": "7f062c1a60110156849f2d0a27626b7fd1beccbbba87cb58e940c02370118b88"
+  "inventory_fingerprint_sha256": "43c4cc6b9d6ffea4c88018672d7eae54732160447850d02b02f5bf42ca7e259d"
 }
