@@ -92,6 +92,8 @@
         ["cargo", "test", "--locked", "--manifest-path", "crates/compiler/Cargo.toml", "--test", "contracts", "l0_work_counters"]
       ],
       "h1": [
+        ["node", "--check", "crates/oracle/h1-owner-inventory.mjs"],
+        ["node", "crates/oracle/h1-owner-inventory.mjs", "--check"],
         ["cargo", "test", "--locked", "--manifest-path", "crates/compiler/Cargo.toml", "--test", "contracts", "frozen_h0_profile_matches_the_executable_boundaries"]
       ]
     }

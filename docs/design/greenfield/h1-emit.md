@@ -1,10 +1,14 @@
 # H1: filesystem-hosted JavaScript emit execution contract
 
-Status: design started; the shared L0.0 evidence/CI-contract freeze is
-complete. No H1 implementation or compatibility claim exists until the H1.0
-inventory, oracle, and post-L0/L1 no-emit performance baseline described below
-are frozen. H0 remains the released, frozen single-project `--noEmit` profile.
-M9 remains a separate paused batch-diagnostics qualification track.
+Status: H1.0a started with the generated, report-only
+[`h1-owner-inventory.v1.json`](../../../ratchets/h1-owner-inventory.v1.json)
+owner-graph draft; the shared L0.0 evidence/CI-contract freeze is complete.
+The graph's unresolved dynamic calls and conservative property dispatch remain
+review work, and the profile/corpus/oracle portions of H1.0a remain open. No H1
+implementation or compatibility claim exists until the complete H1.0 inventory,
+oracle, and post-L0/L1 no-emit performance baseline described below are frozen.
+H0 remains the released, frozen single-project `--noEmit` profile. M9 remains a
+separate paused batch-diagnostics qualification track.
 
 The persistent-source `L0` foundation and incremental-parser `L1` proof in
 [the LSP/incremental design](lsp-and-incremental.md) are workspace
@@ -1087,6 +1091,13 @@ incremental/FourSlash compatibility in H1.
 ## 14. Required landing order
 
 H1 and its workspace prerequisite execute in dependency order:
+
+The first H1.0a producer now regenerates the active-root closure, exact
+declaration/body/ledger hashes, callback-nesting edges, unresolved calls, and
+dormant declaration/map/bundle/targeted/build-info anchors with
+`node crates/oracle/h1-owner-inventory.mjs --check`. Its artifact deliberately
+remains `draft/report-only`: it starts item 1 but does not satisfy the corpus,
+profile, oracle, Rust-omission, or reviewed-disposition requirements below.
 
 1. **H1.0a — inventory and oracle:** generate the JavaScript-emitter owner
    graph, classify the compiler/project/conformance/transpile corpus plus the

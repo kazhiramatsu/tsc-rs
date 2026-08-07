@@ -123,6 +123,9 @@ there.
   L0/L1 and H1 contracts additionally require an authenticated exact-candidate
   qualification status, runtime stress coverage, and approved-runner
   performance evidence before their first runtime slices are accepted.
+- H1 owner inventory: `node crates/oracle/h1-owner-inventory.mjs --check`
+  regenerates in memory and byte-compares the report-only H1.0a active-root
+  graph, declaration/body/ledger hashes, unresolved calls, and dormant seams.
 - Conformance single band: `cargo xtask conformance [--band 2xxx]`
   (every gating run also enforces the A1 accepted-set ratchet;
   partial `--files`/`--limit` runs gate the executed-fixture

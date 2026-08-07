@@ -7710,6 +7710,14 @@ fn ci_oracle_gates(workspace: &Path) -> Result<(), Box<dyn Error>> {
             .arg(&l0_inventory)
             .arg("--check"),
     )?;
+    let h1_inventory = workspace.join("crates/oracle/h1-owner-inventory.mjs");
+    run_command(Command::new("node").arg("--check").arg(&h1_inventory))?;
+    run_command(
+        Command::new("node")
+            .current_dir(workspace)
+            .arg(&h1_inventory)
+            .arg("--check"),
+    )?;
     run_command(
         Command::new("node")
             .arg("--check")

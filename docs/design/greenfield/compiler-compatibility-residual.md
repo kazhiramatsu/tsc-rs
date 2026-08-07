@@ -1,9 +1,10 @@
 # TypeScript 6.0.3 compiler compatibility residual
 
 Status: audited design input, updated 2026-08-07 with L0.4 and L1 complete and
-qualified. This page records the current Rust implementation boundary, the work
-required to finish bounded H1 JavaScript emit, and the remaining work after H1
-for broader TypeScript 6.0.3 compiler and tooling compatibility. It is not an
+qualified and H1.0a owner-graph inventory started as a report-only draft. This
+page records the current Rust implementation boundary, the work required to
+finish bounded H1 JavaScript emit, and the remaining work after H1 for broader
+TypeScript 6.0.3 compiler and tooling compatibility. It is not an
 implementation-complete claim and it does not authorize a broader H1 profile.
 
 The persistent-source audit found one dependency-order correction: the L0
