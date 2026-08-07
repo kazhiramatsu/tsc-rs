@@ -736,6 +736,33 @@ fn config_plan_projects_checker_options_into_the_prepared_program() {
 }
 
 #[test]
+fn config_plan_retains_h1_printer_options_without_broadening_h0_loader() {
+    let host = host();
+    let adapter = ConfigHostAdapter::new(&host);
+    let plan = parse_config_root_plan(
+        &adapter,
+        request(
+            r#"{"compilerOptions":{"noEmit":true,"noLib":true,"newLine":"crlf","removeComments":true,"noImplicitUseStrict":true,"noEmitHelpers":true},"files":["main.ts"]}"#,
+        ),
+    )
+    .expect("parse H1 printer option projection plan");
+
+    assert_eq!(plan.compiler_options().new_line, Some(0));
+    assert_eq!(plan.compiler_options().remove_comments, Some(true));
+    assert_eq!(plan.compiler_options().no_implicit_use_strict, Some(true));
+    assert_eq!(plan.compiler_options().no_emit_helpers, Some(true));
+
+    let error = load_config_program(
+        &host,
+        &plan,
+        &LibraryCatalog::typescript_6_0_3("/vendor/typescript/lib"),
+        LIMITS,
+    )
+    .expect_err("the H0 loader remains closed over its no-emit option profile");
+    assert!(error.to_string().contains("unsupported-config-option"));
+}
+
+#[test]
 fn config_plan_projects_no_resolve_and_keeps_dependencies_out_of_the_program() {
     let host = MemoryCompilerHost::builder("/project")
         .file(

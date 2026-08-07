@@ -7759,6 +7759,14 @@ fn ci_oracle_gates(workspace: &Path) -> Result<(), Box<dyn Error>> {
             .arg(&h1_emit_oracle)
             .arg("--check"),
     )?;
+    let h1_printer_oracle = workspace.join("crates/oracle/h1-printer-foundation.mjs");
+    run_command(Command::new("node").arg("--check").arg(&h1_printer_oracle))?;
+    run_command(
+        Command::new("node")
+            .current_dir(workspace)
+            .arg(&h1_printer_oracle)
+            .arg("--check"),
+    )?;
     run_command(
         Command::new("node")
             .arg("--check")

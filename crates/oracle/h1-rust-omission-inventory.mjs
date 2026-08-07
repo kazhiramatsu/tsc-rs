@@ -172,6 +172,56 @@ const anchorSpecs = [
     "pub struct EmitOutcome {\n    diagnostics: DiagnosticList,\n    emit_skipped: bool,\n    emitted_files: Option<Box<[PathBuf]>>,\n    source_maps: Option<Box<[SourceMapObservation]>>,\n}",
   ],
   [
+    "emitter-transform-arena",
+    "crates/emitter/src/factory.rs",
+    "pub struct TransformArena {",
+  ],
+  [
+    "emitter-node-factory",
+    "crates/emitter/src/factory.rs",
+    "pub struct NodeFactory<'arena> {",
+  ],
+  [
+    "emitter-transform-flags",
+    "crates/emitter/src/transform.rs",
+    "pub struct TransformFlags(i32);",
+  ],
+  [
+    "emitter-emit-metadata",
+    "crates/emitter/src/metadata.rs",
+    "pub struct EmitMetadata {",
+  ],
+  [
+    "emitter-transformation-context",
+    "crates/emitter/src/transform.rs",
+    "pub struct TransformationContext {",
+  ],
+  [
+    "emitter-transform-nodes",
+    "crates/emitter/src/transform.rs",
+    "pub fn transform_nodes(\n    arena: TransformArena,",
+  ],
+  [
+    "emitter-text-writer",
+    "crates/emitter/src/writer.rs",
+    "pub struct TextWriter {",
+  ],
+  [
+    "emitter-printer-factory",
+    "crates/emitter/src/printer.rs",
+    "pub const fn create_printer(options: PrinterOptions) -> Printer {",
+  ],
+  [
+    "emitter-position-domains",
+    "crates/emitter/src/position.rs",
+    "pub enum SourceRange {",
+  ],
+  [
+    "emitter-source-map-recorder",
+    "crates/emitter/src/printer.rs",
+    "pub trait SourceMapRecorder {",
+  ],
+  [
     "prepared-program-emitting-builder",
     "crates/program/src/prepared.rs",
     "pub fn emitting_builder(\n        path_context: PathContext,\n        compiler_options: CompilerOptions,\n    ) -> PreparedProgramBuilder {",
@@ -255,6 +305,26 @@ const anchorSpecs = [
     "compiler-options-no-emit",
     "crates/types/src/options.rs",
     "pub no_emit: Option<bool>,",
+  ],
+  [
+    "compiler-options-new-line",
+    "crates/types/src/options.rs",
+    "pub new_line: Option<i32>,",
+  ],
+  [
+    "compiler-options-remove-comments",
+    "crates/types/src/options.rs",
+    "pub remove_comments: Option<bool>,",
+  ],
+  [
+    "compiler-options-no-implicit-use-strict",
+    "crates/types/src/options.rs",
+    "pub no_implicit_use_strict: Option<bool>,",
+  ],
+  [
+    "compiler-options-no-emit-helpers",
+    "crates/types/src/options.rs",
+    "pub no_emit_helpers: Option<bool>,",
   ],
   [
     "binder-source-aggregate-emit-flags",
@@ -495,18 +565,11 @@ const absenceSpecs = [
       "^[ \\t]*(?:pub(?:\\([^)]*\\))?[ \\t]+)?(?:struct|enum|trait|type)[ \\t]+(?:CheckerSession|EmitResolver)\\b",
   },
   {
-    id: "transform-session-types",
+    id: "active-transform-and-output-functions",
     kind: "regex-zero",
     scope: "production-rust",
     expression:
-      "^[ \\t]*(?:pub(?:\\([^)]*\\))?[ \\t]+)?(?:struct|enum|trait|type)[ \\t]+(?:TransformFlags|EmitNode|EmitMetadata|NodeFactory|TransformArena|TransformationContext|TransformationResult)\\b",
-  },
-  {
-    id: "transform-printer-output-functions",
-    kind: "regex-zero",
-    scope: "production-rust",
-    expression:
-      "^[ \\t]*(?:pub(?:\\([^)]*\\))?[ \\t]+)?fn[ \\t]+(?:transform_nodes|create_text_writer|create_printer|transform_type_script|transform_class_fields|transform_ecmascript_module|get_source_files_to_emit|get_output_paths_for|for_each_emitted_file|emit_files)[ \\t]*\\(",
+      "^[ \\t]*(?:pub(?:\\([^)]*\\))?[ \\t]+)?fn[ \\t]+(?:transform_type_script|transform_class_fields|transform_ecmascript_module|get_source_files_to_emit|get_output_paths_for|for_each_emitted_file|emit_files)[ \\t]*\\(",
   },
   {
     id: "linked-reference-producers",
@@ -541,11 +604,11 @@ function evidence(anchorIds = [], absenceIds = []) {
 const boundaryOmissions = [
   {
     id: "workspace-emitter-owner",
-    planned_phase: "H1.2-H1.4",
+    planned_phase: "H1.3-H1.4",
     current:
-      "The acyclic emitter workspace owner now contains H1.1 artifacts, metadata, output-path topology, outcomes, typed failures, OutputSink, and MemoryOutputSink.",
+      "The acyclic emitter workspace owner contains the H1.1 execution spine and the H1.2 factory, transform lifecycle, typed position, writer, map-hook, and whole-source printer foundation.",
     missing:
-      "EmitHost/EmitResolver protocols plus factory, transform, printer, and executable output-planning implementations.",
+      "EmitHost/EmitResolver protocols, active built-in transformers, and executable output planning.",
     evidence: evidence(
       [
         "workspace-members",
@@ -555,8 +618,14 @@ const boundaryOmissions = [
         "emitter-output-sink-protocol",
         "emitter-memory-sink",
         "emitter-outcome-protocol",
+        "emitter-transform-arena",
+        "emitter-node-factory",
+        "emitter-transformation-context",
+        "emitter-transform-nodes",
+        "emitter-text-writer",
+        "emitter-printer-factory",
       ],
-      ["emitter-host-resolver-protocols", "transform-printer-output-functions"],
+      ["emitter-host-resolver-protocols", "active-transform-and-output-functions"],
     ),
   },
   {
@@ -584,52 +653,21 @@ const boundaryOmissions = [
     ),
   },
   {
-    id: "transform-flags",
-    planned_phase: "H1.2",
-    current:
-      "Only binder SourceFile aggregate NodeFlags exist; nodes and node arrays have no emitter TransformFlags facts.",
-    missing:
-      "Emitter-session parsed-node/array transform-flag side tables and exact synthetic aggregation with subtree exclusions.",
-    evidence: evidence(
-      ["binder-source-aggregate-emit-flags"],
-      ["transform-session-types"],
-    ),
-  },
-  {
-    id: "transform-metadata",
-    planned_phase: "H1.2",
-    current:
-      "Parsed arenas have no emit-node/original/helper/substitution/map/generated-name session metadata.",
-    missing:
-      "Session-owned original identities, emit flags, comments/ranges, helpers, substitutions, assigned/generated names, and constants.",
-    evidence: evidence([], ["transform-session-types"]),
-  },
-  {
-    id: "synthetic-node-factory",
-    planned_phase: "H1.2",
-    current: "There is no general NodeFactory or transform arena.",
-    missing:
-      "Reachability-generated create/update/clone/replace operations, node-array metadata, parenthesizer, and converter rules.",
-    evidence: evidence([], ["transform-session-types"]),
-  },
-  {
     id: "transformation-runtime",
-    planned_phase: "H1.2-H1.3",
-    current: "There is no transformNodes lifecycle or built-in script transformer.",
-    missing:
-      "Transformation context, lexical/block scopes, helpers, substitutions, notifications, diagnostics, disposal, and the frozen three-transform chain.",
-    evidence: evidence([], ["transform-printer-output-functions"]),
-  },
-  {
-    id: "production-writer-printer",
-    planned_phase: "H1.2",
+    planned_phase: "H1.3",
     current:
-      "The checker-private display-clone printer explicitly excludes production emitter responsibilities.",
+      "H1.2 owns transformNodes state, lexical/block scopes, helpers, substitutions, notifications, diagnostics, disposal, and session-local factory/metadata storage.",
     missing:
-      "The generic tsc text writer/printer with trivia/comments, precedence, literals, generated positions, and map hook phases.",
+      "The active transformTypeScript, transformClassFields, and transformECMAScriptModule chain and its reachable node-factory operations.",
     evidence: evidence(
-      ["display-clone-not-emitter", "display-clone-exclusions"],
-      ["transform-printer-output-functions"],
+      [
+        "emitter-transform-arena",
+        "emitter-transform-flags",
+        "emitter-emit-metadata",
+        "emitter-transformation-context",
+        "emitter-transform-nodes",
+      ],
+      ["active-transform-and-output-functions"],
     ),
   },
   {
@@ -648,7 +686,7 @@ const boundaryOmissions = [
         "emitter-memory-sink",
         "emitter-outcome-protocol",
       ],
-      ["transform-printer-output-functions", "filesystem-output-sink"],
+      ["active-transform-and-output-functions", "filesystem-output-sink"],
     ),
   },
   {
@@ -682,13 +720,9 @@ const compilerOptionsBlock = compilerOptionsSource.slice(
 const optionSpecs = [
   ["listEmittedFiles", "list_emitted_files", "bootstrap", "H1.4"],
   ["emitBOM", "emit_bom", "bootstrap", "H1.4"],
-  ["newLine", "new_line", "bootstrap", "H1.2-H1.4"],
   ["noEmitOnError", "no_emit_on_error", "bootstrap", "H1.4-H1.5"],
   ["outDir", "out_dir", "output-planning", "H1.4"],
   ["rootDir", "root_dir", "output-planning", "H1.4"],
-  ["removeComments", "remove_comments", "printer-control", "H1.2"],
-  ["noImplicitUseStrict", "no_implicit_use_strict", "printer-control", "H1.2-H1.4"],
-  ["noEmitHelpers", "no_emit_helpers", "helper-control", "H1.2-H1.3"],
   ["noCheck", "no_check", "diagnostic-gate-control", "H1.4"],
   ["erasableSyntaxOnly", "erasable_syntax_only", "profile-preflight-control", "H1.4"],
   ["importsNotUsedAsValues", "imports_not_used_as_values", "legacy-transform-control", "typed-deferred"],
@@ -713,6 +747,18 @@ const optionSpecs = [
   ["assumeChangesOnlyAffectDirectDependencies", "assume_changes_only_affect_direct_dependencies", "dormant-build-info", "typed-slot-only"],
   ["tsBuildInfoFile", "ts_build_info_file", "dormant-build-info", "typed-slot-only"],
 ];
+
+for (const [option, rustField] of [
+  ["newLine", "new_line"],
+  ["removeComments", "remove_comments"],
+  ["noImplicitUseStrict", "no_implicit_use_strict"],
+  ["noEmitHelpers", "no_emit_helpers"],
+]) {
+  requireCondition(
+    new RegExp(`\\bpub[ \\t]+${rustField}[ \\t]*:`).test(compilerOptionsBlock),
+    `H1.2 CompilerOptions projection lost ${option}`,
+  );
+}
 
 const optionProjectionOmissions = optionSpecs.map(
   ([option, rustField, disposition, plannedPhase]) => {
@@ -775,6 +821,27 @@ const checkerEmitElisions = checkerElisionSpecs.map(
 );
 
 const existingPrerequisites = [
+  {
+    id: "h1-factory-transform-printer-foundation",
+    treatment:
+      "reuse-and-extend-with-active-transformers-and-node-workers-without-mutating-published-syntax",
+    evidence: [
+      "emitter-transform-arena",
+      "emitter-node-factory",
+      "emitter-transform-flags",
+      "emitter-emit-metadata",
+      "emitter-transformation-context",
+      "emitter-transform-nodes",
+      "emitter-position-domains",
+      "emitter-text-writer",
+      "emitter-source-map-recorder",
+      "emitter-printer-factory",
+      "compiler-options-new-line",
+      "compiler-options-remove-comments",
+      "compiler-options-no-implicit-use-strict",
+      "compiler-options-no-emit-helpers",
+    ],
+  },
   {
     id: "h1-typed-execution-spine",
     treatment: "reuse-and-extend-without-routing-no-emit-through-emitter",
@@ -870,7 +937,7 @@ function exactKeys(value, required) {
 const artifact = {
   schema: 1,
   status: "frozen-current-rust-baseline",
-  phase: "H1.0a-rust-omission-inventory",
+  phase: "H1.2-rust-omission-inventory",
   typescript: { version: TYPESCRIPT_VERSION, source_commit: SOURCE_COMMIT },
   generator: pathHash(GENERATOR_RELATIVE_PATH),
   contract: pathHash(SCHEMA_RELATIVE_PATH),
@@ -925,7 +992,7 @@ function validateArtifact(value) {
   requireCondition(
     value.schema === 1 &&
       value.status === "frozen-current-rust-baseline" &&
-      value.phase === "H1.0a-rust-omission-inventory",
+      value.phase === "H1.2-rust-omission-inventory",
     "invalid H1 Rust omission artifact header",
   );
   const semantic = { ...value };
@@ -950,7 +1017,7 @@ function validateArtifact(value) {
 validateArtifact(artifact);
 
 requireCondition(
-  boundaryOmissions.length === 10,
+  boundaryOmissions.length === 6,
   "the reviewed missing-production-boundary table must remain exhaustive",
 );
 requireCondition(
@@ -958,13 +1025,13 @@ requireCondition(
   "production boundary omission identifiers are not unique",
 );
 requireCondition(
-  optionProjectionOmissions.length === 32 &&
+  optionProjectionOmissions.length === 28 &&
     new Set(optionProjectionOmissions.map((entry) => entry.option)).size ===
       optionProjectionOmissions.length,
   "emit option projection omission set drifted or contains duplicates",
 );
 requireCondition(
-  optionProjectionOmissions.filter((entry) => entry.disposition === "bootstrap").length === 4,
+  optionProjectionOmissions.filter((entry) => entry.disposition === "bootstrap").length === 3,
   "bootstrap emit option omission set drifted",
 );
 requireCondition(

@@ -93,6 +93,26 @@ fn closed_compiler_option_projection_rejects_invalid_inputs() {
 }
 
 #[test]
+fn corpus_projection_retains_h1_printer_options_without_expanding_m9() {
+    let options = BTreeMap::from([
+        ("newLine".to_owned(), OptionValue::String("CRLF".to_owned())),
+        ("removeComments".to_owned(), OptionValue::Bool(true)),
+        ("noImplicitUseStrict".to_owned(), OptionValue::Bool(true)),
+        ("noEmitHelpers".to_owned(), OptionValue::Bool(true)),
+    ]);
+
+    let projected = compiler_options_from_options(&options);
+    assert_eq!(projected.new_line, Some(0));
+    assert_eq!(projected.remove_comments, Some(true));
+    assert_eq!(projected.no_implicit_use_strict, Some(true));
+    assert_eq!(projected.no_emit_helpers, Some(true));
+    assert!(
+        try_compiler_options_from_options(&options).is_err(),
+        "H1 emit options do not broaden the closed M9 checker projection"
+    );
+}
+
+#[test]
 fn closed_compiler_option_projection_rejects_casefold_duplicates() {
     let options = BTreeMap::from([
         ("Strict".to_owned(), OptionValue::Bool(true)),
