@@ -1,7 +1,7 @@
 # LSP and incremental parsing — persistent Program foundation
 
-Status: L0.4 one-shot and registry implementation complete, 2026-08-07;
-approved-runner qualification remains before L1. The architecture audit found that the L0.0 one-shot data model was
+Status: L0.4 one-shot and registry qualification complete, 2026-08-07;
+L1 incremental-parser closure is next. The architecture audit found that the L0.0 one-shot data model was
 **not sufficient** for efficient Language Service, tsserver, or LSP operation.
 A bounded persistent-source foundation (`L0`) and the incremental-parser proof
 (`L1`) must land before H1 emit implementation starts. This does not put
@@ -598,8 +598,9 @@ L0.0 froze and tested that contract without treating an unsigned summary as
 acceptance. L0.1 activated the exact status producer, text-store stress, and
 approved-runner comparison described in section 8.2. L0.2 adds identity-range
 reclamation and its chained evidence in section 8.3. L0.3 adds owned bind
-publication and fresh-checker snapshot borrowing in section 8.4. Registry/
-Program reuse and incremental-parser exactness remain L0.4-L1 work.
+publication and fresh-checker snapshot borrowing in section 8.4. L0.4 adds
+the one-shot/registry proof and its approved-runner resource qualification;
+incremental-parser exactness remains L1 work.
 
 ### 8.2 L0.1 accepted text-ownership record
 
@@ -772,11 +773,24 @@ ratios are:
 | project | 0.999751 | 1.000813 | 1.000998 | 1.000134 | 1.000622 |
 | scale | 1.010421 | 0.943605 | 1.000639 | 1.000056 | 1.000257 |
 
-L0.4 implementation is landed: the one-shot H0 adapter publishes completed
-binds through an ephemeral document store, and the minimal registry proves
-refcounted unchanged-file parse/bind reuse across two Program snapshots.
-Approved-runner qualification and the corresponding chained performance
-receipt remain required before this becomes an accepted runtime record.
+L0.4 qualification completed on 2026-08-07. The one-shot H0 adapter publishes
+completed binds through an ephemeral document store, and the minimal registry
+proves refcounted unchanged-file parse/bind reuse across two Program snapshots.
+The approved-runner comparison is chained from the L0.3 runtime tree:
+
+- candidate `e943972e246775e2d539c0d556f6a780f790a114`, exact base
+  `903debdb73d3220a48fe32b8e69dedf15f2c39bd`;
+- [L0.4 performance evidence](../../../ratchets/l0-one-shot-registry-performance.v1.json)
+  contains one cold plus seven warm AB/BA pairs per workload on the approved
+  macOS arm64 runner; and
+- every workload stays within the frozen relative policy. The largest ratios
+  are warm median 1.002933, warm p95 1.022564, peak RSS 1.002257,
+  allocation count 0.999999, and allocated bytes 0.999992. Parse, bind,
+  full-text-copy, and copied-byte counters are exactly equal to the L0.3 base.
+
+`l0-performance.mjs --check` validates the complete L0.0 → L0.4 evidence
+chain. The workflow remains the authority for the signed attestation when
+publishing the performance artifact.
 
 ### 8.5 L0.4 implementation record
 
@@ -804,9 +818,8 @@ The focused Program tests construct parse and bind records inside the registry
 builder and observe one parse/bind for two unchanged ProgramSnapshots, two
 after a new version, exact Arc reuse, equal-version text rejection, and zero
 active entries after all releases. The compiler contract suite remains green
-with the H0 diagnostic and work-counter behavior unchanged. These are local
-implementation proofs; the approved-runner qualification is intentionally
-still pending.
+with the H0 diagnostic and work-counter behavior unchanged. These local proofs
+and the chained approved-runner evidence now qualify L0.4.
 
 ## 9. Evidence and tests
 
