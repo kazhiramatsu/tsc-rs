@@ -10,11 +10,13 @@
 //! holes; cached documents retain their leases when Program order changes.
 //! Checker transient symbols use the tagged high half of `SymbolId`.
 
+use std::collections::HashMap;
 use std::sync::Arc;
 
 use tsc_binder::{BindData, Binder, Symbol, SymbolArena, SymbolId, SymbolTable};
+use tsc_diagnostics::{DocumentVersion, TextSnapshot};
 use tsc_syntax::{NodeArray, NodeArrayId, NodeId, SourceFile};
-use tsc_types::{SymbolFlags, TRANSIENT_SYMBOL_BIT};
+use tsc_types::{CompilerOptions, IdentityDomain, SymbolFlags, TRANSIENT_SYMBOL_BIT};
 
 /// Immutable parsed source handle retained by a Program snapshot.
 #[derive(Clone, Debug)]
@@ -46,6 +48,452 @@ impl BoundDocument {
     /// tsrs-native: projects the parsed source retained by this bound record.
     pub fn source(&self) -> &SourceFile {
         &self.parsed.source
+    }
+}
+
+/// The script-kind part of a document-registry address.
+///
+/// A path alone is not a sufficient cache key: a host may assign a different
+/// script kind to the same extension, and JSON has a different parser entry
+/// point from TypeScript. `Other` is retained instead of collapsing unknown
+/// extensions into one bucket so a future host override cannot reuse a tree
+/// produced for another kind.
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+pub enum DocumentScriptKind {
+    TypeScript,
+    Tsx,
+    JavaScript,
+    Jsx,
+    Json,
+    Other(String),
+}
+
+/// Complete address of one registry document variant.
+///
+/// The registry namespace is deliberately part of the address even though a
+/// `DocumentRegistry` also checks it. This keeps an address self-describing
+/// when it is recorded in a Program-building trace. The current implementation
+/// stores the full compiler-option bag as the source/bind bucket. That is
+/// conservative (checker-only option projections can be split for now), but
+/// it cannot reuse stale parse or bind state when a new source-affecting read
+/// is added before the generated projection is tightened.
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+pub struct DocumentAddress {
+    namespace: String,
+    path: String,
+    script_kind: DocumentScriptKind,
+    compiler_options: CompilerOptions,
+    implied_node_format: Option<i32>,
+    force_external_module: bool,
+    detect_external_module_from_jsx: bool,
+}
+
+impl DocumentAddress {
+    /// Construct an address for the pinned registry namespace.
+    pub fn new(
+        namespace: impl Into<String>,
+        path: impl Into<String>,
+        script_kind: DocumentScriptKind,
+        compiler_options: CompilerOptions,
+    ) -> Self {
+        Self {
+            namespace: namespace.into(),
+            path: path.into(),
+            script_kind,
+            compiler_options,
+            implied_node_format: None,
+            force_external_module: false,
+            detect_external_module_from_jsx: false,
+        }
+    }
+
+    pub fn with_module_facts(
+        mut self,
+        implied_node_format: Option<i32>,
+        force_external_module: bool,
+        detect_external_module_from_jsx: bool,
+    ) -> Self {
+        self.implied_node_format = implied_node_format;
+        self.force_external_module = force_external_module;
+        self.detect_external_module_from_jsx = detect_external_module_from_jsx;
+        self
+    }
+
+    pub fn namespace(&self) -> &str {
+        &self.namespace
+    }
+
+    pub fn path(&self) -> &str {
+        &self.path
+    }
+
+    pub fn script_kind(&self) -> &DocumentScriptKind {
+        &self.script_kind
+    }
+
+    pub fn compiler_options(&self) -> &CompilerOptions {
+        &self.compiler_options
+    }
+
+    pub const fn implied_node_format(&self) -> Option<i32> {
+        self.implied_node_format
+    }
+
+    pub const fn force_external_module(&self) -> bool {
+        self.force_external_module
+    }
+
+    pub const fn detect_external_module_from_jsx(&self) -> bool {
+        self.detect_external_module_from_jsx
+    }
+}
+
+/// A reference-counted immutable document handle returned by
+/// [`DocumentRegistry::acquire`] or [`DocumentRegistry::update`].
+///
+/// The handle is intentionally not `Clone`: each active Program snapshot must
+/// acquire its own reference and release it exactly once. Cloning the inner
+/// `Arc<BoundDocument>` is allowed for the snapshot itself and does not alter
+/// registry accounting.
+#[derive(Debug)]
+pub struct DocumentLease {
+    generation: u64,
+    address: DocumentAddress,
+    document: Arc<BoundDocument>,
+}
+
+impl DocumentLease {
+    pub fn document(&self) -> &Arc<BoundDocument> {
+        &self.document
+    }
+
+    pub fn address(&self) -> &DocumentAddress {
+        &self.address
+    }
+
+    pub fn version(&self) -> &DocumentVersion {
+        self.document.source().snapshot().document_version()
+    }
+
+    fn generation(&self) -> u64 {
+        self.generation
+    }
+}
+
+#[derive(Debug)]
+struct RegistryEntry {
+    generation: u64,
+    snapshot: Arc<TextSnapshot>,
+    document: Arc<BoundDocument>,
+    references: usize,
+}
+
+/// Fail-closed errors for the minimal L0 document registry.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum DocumentRegistryError {
+    NamespaceMismatch {
+        expected: String,
+        actual: String,
+    },
+    VersionTextMismatch {
+        path: String,
+        version: DocumentVersion,
+    },
+    BuiltDocumentDoesNotOwnSnapshot {
+        path: String,
+    },
+    BuiltDocumentPathMismatch {
+        expected: String,
+        actual: String,
+    },
+    UnknownLease {
+        generation: u64,
+    },
+}
+
+impl std::fmt::Display for DocumentRegistryError {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::NamespaceMismatch { expected, actual } => write!(
+                formatter,
+                "document registry namespace mismatch: expected {expected:?}, got {actual:?}"
+            ),
+            Self::VersionTextMismatch { path, version } => write!(
+                formatter,
+                "document {path:?} changed text without changing host version {:?}",
+                version.as_str()
+            ),
+            Self::BuiltDocumentDoesNotOwnSnapshot { path } => write!(
+                formatter,
+                "built document {path:?} does not retain the supplied snapshot"
+            ),
+            Self::BuiltDocumentPathMismatch { expected, actual } => write!(
+                formatter,
+                "built document path mismatch: expected {expected:?}, got {actual:?}"
+            ),
+            Self::UnknownLease { generation } => {
+                write!(
+                    formatter,
+                    "unknown or already released document lease {generation}"
+                )
+            }
+        }
+    }
+}
+
+impl std::error::Error for DocumentRegistryError {}
+
+/// Minimal non-global registry for immutable parsed/bound documents.
+///
+/// Entries are retained only while at least one explicit lease is active.
+/// Different versions of one address may coexist while an older Program is
+/// still alive; each version is removed as soon as its last lease is released.
+/// This is deliberately a synchronous building block. Synchronization belongs
+/// to the future service/project owner, not to the immutable syntax or bind
+/// records.
+#[derive(Debug)]
+pub struct DocumentRegistry {
+    namespace: String,
+    entries: HashMap<DocumentAddress, Vec<RegistryEntry>>,
+    next_generation: u64,
+}
+
+impl DocumentRegistry {
+    pub fn new(namespace: impl Into<String>) -> Self {
+        Self {
+            namespace: namespace.into(),
+            entries: HashMap::new(),
+            next_generation: 0,
+        }
+    }
+
+    pub fn namespace(&self) -> &str {
+        &self.namespace
+    }
+
+    /// Acquire an existing exact `(address, host version, text)` record, or
+    /// build and publish one atomically from the supplied closure.
+    pub fn acquire(
+        &mut self,
+        address: DocumentAddress,
+        snapshot: Arc<TextSnapshot>,
+        build: impl FnOnce() -> Arc<BoundDocument>,
+    ) -> Result<DocumentLease, DocumentRegistryError> {
+        self.check_namespace(&address)?;
+        if let Some(entries) = self.entries.get_mut(&address) {
+            for entry in entries.iter_mut() {
+                if entry.snapshot.document_version() == snapshot.document_version() {
+                    if entry.snapshot.text() != snapshot.text() {
+                        return Err(DocumentRegistryError::VersionTextMismatch {
+                            path: address.path.clone(),
+                            version: snapshot.document_version().clone(),
+                        });
+                    }
+                    entry.references = entry
+                        .references
+                        .checked_add(1)
+                        .expect("document registry reference count overflow");
+                    return Ok(DocumentLease {
+                        generation: entry.generation,
+                        address,
+                        document: Arc::clone(&entry.document),
+                    });
+                }
+            }
+        }
+
+        let document = build();
+        if document.source().file_name != address.path {
+            return Err(DocumentRegistryError::BuiltDocumentPathMismatch {
+                expected: address.path,
+                actual: document.source().file_name.clone(),
+            });
+        }
+        if !Arc::ptr_eq(document.source().snapshot(), &snapshot) {
+            return Err(DocumentRegistryError::BuiltDocumentDoesNotOwnSnapshot {
+                path: document.source().file_name.clone(),
+            });
+        }
+
+        self.next_generation = self
+            .next_generation
+            .checked_add(1)
+            .expect("document registry generation overflow");
+        let generation = self.next_generation;
+        self.entries
+            .entry(address.clone())
+            .or_default()
+            .push(RegistryEntry {
+                generation,
+                snapshot: Arc::clone(&snapshot),
+                document: Arc::clone(&document),
+                references: 1,
+            });
+        Ok(DocumentLease {
+            generation,
+            address,
+            document,
+        })
+    }
+
+    /// Publish a new host version at an existing address. The exact same
+    /// version still follows the acquire path and therefore cannot silently
+    /// replace text under an equal host version.
+    pub fn update(
+        &mut self,
+        address: DocumentAddress,
+        snapshot: Arc<TextSnapshot>,
+        build: impl FnOnce() -> Arc<BoundDocument>,
+    ) -> Result<DocumentLease, DocumentRegistryError> {
+        self.acquire(address, snapshot, build)
+    }
+
+    /// Release exactly one acquired reference. When the last reference to a
+    /// version is released, its registry entry disappears immediately.
+    pub fn release(&mut self, lease: DocumentLease) -> Result<(), DocumentRegistryError> {
+        self.check_namespace(&lease.address)?;
+        let Some(entries) = self.entries.get_mut(&lease.address) else {
+            return Err(DocumentRegistryError::UnknownLease {
+                generation: lease.generation(),
+            });
+        };
+        let Some(index) = entries
+            .iter()
+            .position(|entry| entry.generation == lease.generation())
+        else {
+            return Err(DocumentRegistryError::UnknownLease {
+                generation: lease.generation(),
+            });
+        };
+        let entry = &mut entries[index];
+        if entry.references == 0 {
+            return Err(DocumentRegistryError::UnknownLease {
+                generation: lease.generation(),
+            });
+        }
+        entry.references -= 1;
+        if entry.references == 0 {
+            entries.remove(index);
+        }
+        if entries.is_empty() {
+            self.entries.remove(&lease.address);
+        }
+        Ok(())
+    }
+
+    pub fn active_entry_count(&self) -> usize {
+        self.entries.values().map(Vec::len).sum()
+    }
+
+    pub fn active_reference_count(&self) -> usize {
+        self.entries
+            .values()
+            .flat_map(|entries| entries.iter())
+            .map(|entry| entry.references)
+            .sum()
+    }
+
+    fn check_namespace(&self, address: &DocumentAddress) -> Result<(), DocumentRegistryError> {
+        if address.namespace != self.namespace {
+            return Err(DocumentRegistryError::NamespaceMismatch {
+                expected: self.namespace.clone(),
+                actual: address.namespace.clone(),
+            });
+        }
+        Ok(())
+    }
+}
+
+impl Default for DocumentRegistry {
+    fn default() -> Self {
+        Self::new("typescript-6.0.3")
+    }
+}
+
+/// Typed publication failures for the one-shot store. A failed source or bind
+/// never enters the store, so callers can contain the failure before creating
+/// a ProgramSnapshot.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum EphemeralDocumentStoreError {
+    SourceIdentityDomainMismatch,
+    BindIdentityDomainMismatch,
+}
+
+impl std::fmt::Display for EphemeralDocumentStoreError {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str(match self {
+            Self::SourceIdentityDomainMismatch => {
+                "ephemeral document source belongs to a different identity domain"
+            }
+            Self::BindIdentityDomainMismatch => {
+                "ephemeral document bind data belongs to a different identity domain"
+            }
+        })
+    }
+}
+
+impl std::error::Error for EphemeralDocumentStoreError {}
+
+/// One-shot document store used by H0.
+///
+/// It owns direct document slots and an identity domain for exactly one
+/// checker run. There is no global lookup, retained version, or background
+/// owner. A reusable registry is exercised separately through
+/// [`DocumentRegistry`]; both publish the same immutable `BoundDocument`
+/// handles consumed by [`ProgramSnapshot`].
+#[derive(Debug)]
+pub struct EphemeralDocumentStore {
+    identity_domain: IdentityDomain,
+    documents: Vec<Arc<BoundDocument>>,
+}
+
+impl EphemeralDocumentStore {
+    pub fn new(identity_domain: IdentityDomain) -> Self {
+        Self {
+            identity_domain,
+            documents: Vec::new(),
+        }
+    }
+
+    pub fn with_documents(
+        identity_domain: IdentityDomain,
+        documents: impl IntoIterator<Item = Arc<BoundDocument>>,
+    ) -> Self {
+        Self {
+            identity_domain,
+            documents: documents.into_iter().collect(),
+        }
+    }
+
+    pub fn identity_domain(&self) -> &IdentityDomain {
+        &self.identity_domain
+    }
+
+    pub fn documents(&self) -> &[Arc<BoundDocument>] {
+        &self.documents
+    }
+
+    /// Publish a fully completed bind. The worker must already have been
+    /// consumed, so a partial bind can never enter the one-shot store.
+    pub fn publish(
+        &mut self,
+        source: Arc<SourceFile>,
+        data: BindData,
+    ) -> Result<Arc<BoundDocument>, EphemeralDocumentStoreError> {
+        if !source.identity_owned_by(&self.identity_domain) {
+            return Err(EphemeralDocumentStoreError::SourceIdentityDomainMismatch);
+        }
+        if !data.identity_owned_by(&self.identity_domain) {
+            return Err(EphemeralDocumentStoreError::BindIdentityDomainMismatch);
+        }
+        let parsed = Arc::new(ParsedDocument::new(source));
+        let document = Arc::new(BoundDocument::new(parsed, data));
+        self.documents.push(Arc::clone(&document));
+        Ok(document)
+    }
+
+    pub fn into_snapshot(self, lib_count: usize) -> Result<ProgramSnapshot, ProgramIdentityError> {
+        ProgramSnapshot::new(self.documents, lib_count)
     }
 }
 

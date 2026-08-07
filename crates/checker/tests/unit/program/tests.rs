@@ -2,8 +2,33 @@ use super::*;
 use crate::state::CheckerState;
 use std::sync::Arc;
 use tsc_binder::BinderWorker;
+use tsc_diagnostics::{DocumentVersion, TextSnapshot};
 use tsc_syntax::{parse_source_file, ParseOptions};
 use tsc_types::{CompilerOptions, IdentityDomain};
+
+fn bound_document_for_snapshot(
+    path: &str,
+    snapshot: Arc<TextSnapshot>,
+    domain: &IdentityDomain,
+) -> Arc<BoundDocument> {
+    let source = tsc_syntax::parse_source_file_from_snapshot_in_identity_domain(
+        path.to_owned(),
+        Arc::clone(&snapshot),
+        ParseOptions::default(),
+        None,
+        domain,
+    )
+    .expect("source identity allocation");
+    let source = Arc::new(source);
+    let options = CompilerOptions::default();
+    let worker = BinderWorker::bind_in_identity_domain(&source, &options, domain)
+        .expect("bind identity allocation");
+    let data = worker.into_bind_data();
+    Arc::new(BoundDocument::new(
+        Arc::new(ParsedDocument::new(source)),
+        data,
+    ))
+}
 
 #[test]
 fn routes_parse_order_arenas_without_changing_program_order() {
@@ -197,4 +222,129 @@ fn snapshot_reuses_owned_handles_across_fresh_checker_sessions() {
         snapshot.document(0).data.next_symbol_id(),
         document.data.next_symbol_id()
     );
+}
+
+#[test]
+fn ephemeral_store_publishes_only_completed_owned_documents() {
+    let domain = IdentityDomain::reclaiming();
+    let snapshot = TextSnapshot::new("export const value = 1;", DocumentVersion::new("1"));
+    let source = tsc_syntax::parse_source_file_from_snapshot_in_identity_domain(
+        "/ephemeral.ts".to_owned(),
+        Arc::clone(&snapshot),
+        ParseOptions::default(),
+        None,
+        &domain,
+    )
+    .expect("source identity allocation");
+    let source = Arc::new(source);
+    let options = CompilerOptions::default();
+    let worker = BinderWorker::bind_in_identity_domain(&source, &options, &domain)
+        .expect("bind identity allocation");
+    let mut store = EphemeralDocumentStore::new(domain.clone());
+    let document = store
+        .publish(Arc::clone(&source), worker.into_bind_data())
+        .expect("completed bind belongs to the ephemeral store domain");
+
+    assert_eq!(store.documents().len(), 1);
+    assert!(Arc::ptr_eq(document.source().snapshot(), &snapshot));
+    let program = store
+        .into_snapshot(0)
+        .expect("ephemeral store publishes a valid ProgramSnapshot");
+    assert_eq!(program.file_count(), 1);
+    assert!(Arc::ptr_eq(program.document(0), &document));
+}
+
+#[test]
+fn registry_reuses_unchanged_parse_and_bind_and_releases_versions() {
+    let domain = IdentityDomain::reclaiming();
+    let path = "/registry.ts";
+    let snapshot_v1 = TextSnapshot::new("export const value = 1;", DocumentVersion::new("1"));
+    let snapshot_v2 = TextSnapshot::new("export const value = 2;", DocumentVersion::new("2"));
+    let address = DocumentAddress::new(
+        "test-registry",
+        path,
+        DocumentScriptKind::TypeScript,
+        CompilerOptions::default(),
+    );
+    let mut registry = DocumentRegistry::new("test-registry");
+    let mut parses = 0u32;
+    let mut binds = 0u32;
+
+    let first = registry
+        .acquire(address.clone(), Arc::clone(&snapshot_v1), || {
+            parses += 1;
+            binds += 1;
+            bound_document_for_snapshot(path, Arc::clone(&snapshot_v1), &domain)
+        })
+        .expect("first version publishes");
+    let second = registry
+        .acquire(address.clone(), Arc::clone(&snapshot_v1), || {
+            parses += 1;
+            binds += 1;
+            bound_document_for_snapshot(path, Arc::clone(&snapshot_v1), &domain)
+        })
+        .expect("same version reuses");
+    assert_eq!(parses, 1);
+    assert_eq!(binds, 1);
+    assert!(Arc::ptr_eq(first.document(), second.document()));
+    assert_eq!(registry.active_entry_count(), 1);
+    assert_eq!(registry.active_reference_count(), 2);
+
+    let first_program =
+        ProgramSnapshot::new(vec![first.document().clone()], 0).expect("first snapshot");
+    let second_program =
+        ProgramSnapshot::new(vec![second.document().clone()], 0).expect("second snapshot");
+    assert!(Arc::ptr_eq(
+        first_program.document(0),
+        second_program.document(0)
+    ));
+
+    let newer = registry
+        .update(address.clone(), Arc::clone(&snapshot_v2), || {
+            parses += 1;
+            binds += 1;
+            bound_document_for_snapshot(path, Arc::clone(&snapshot_v2), &domain)
+        })
+        .expect("new version publishes beside the live old version");
+    assert_eq!(parses, 2);
+    assert_eq!(binds, 2);
+    assert_eq!(registry.active_entry_count(), 2);
+    assert_eq!(registry.active_reference_count(), 3);
+
+    registry.release(first).expect("release first snapshot");
+    assert_eq!(registry.active_reference_count(), 2);
+    registry.release(second).expect("release second snapshot");
+    assert_eq!(registry.active_entry_count(), 1);
+    registry.release(newer).expect("release updated snapshot");
+    assert_eq!(registry.active_entry_count(), 0);
+    assert_eq!(registry.active_reference_count(), 0);
+}
+
+#[test]
+fn registry_rejects_same_version_text_replacement() {
+    let domain = IdentityDomain::reclaiming();
+    let path = "/registry-version.ts";
+    let snapshot = TextSnapshot::new("export const value = 1;", DocumentVersion::new("1"));
+    let replacement = TextSnapshot::new("export const value = 2;", DocumentVersion::new("1"));
+    let document = bound_document_for_snapshot(path, Arc::clone(&snapshot), &domain);
+    let address = DocumentAddress::new(
+        "test-registry",
+        path,
+        DocumentScriptKind::TypeScript,
+        CompilerOptions::default(),
+    );
+    let mut registry = DocumentRegistry::new("test-registry");
+    let lease = registry
+        .acquire(address.clone(), Arc::clone(&snapshot), || {
+            Arc::clone(&document)
+        })
+        .expect("initial document");
+    let error = registry
+        .acquire(address, replacement, || Arc::clone(&document))
+        .expect_err("equal host versions cannot fork text");
+    assert!(matches!(
+        error,
+        DocumentRegistryError::VersionTextMismatch { .. }
+    ));
+    registry.release(lease).expect("release initial document");
 }

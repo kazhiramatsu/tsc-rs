@@ -211,6 +211,18 @@ impl BindData {
         self.private_name_serial_lease.as_ref()
     }
 
+    /// Verify that every persistent identity carried by the published bind
+    /// belongs to one document domain. Publication paths use this before a
+    /// `BindData` enters an owned Program store; a partial or cross-domain
+    /// record must fail closed rather than becoming a cacheable variant.
+    pub fn identity_owned_by(&self, domain: &IdentityDomain) -> bool {
+        self.symbol_identity_lease()
+            .is_some_and(|lease| lease.belongs_to(domain))
+            && self
+                .private_name_serial_lease()
+                .is_some_and(|lease| lease.belongs_to(domain))
+    }
+
     pub fn next_symbol_id(&self) -> u32 {
         self.next_symbol_id
     }

@@ -57,7 +57,11 @@ use tsc_diagnostics::{
 };
 use tsc_types::IdentityDomain;
 
-use crate::program::{BoundDocument, ParsedDocument, ProgramSnapshot};
+pub use crate::program::{
+    BoundDocument, DocumentAddress, DocumentLease, DocumentRegistry, DocumentRegistryError,
+    DocumentScriptKind, EphemeralDocumentStore, EphemeralDocumentStoreError, ParsedDocument,
+    ProgramSnapshot,
+};
 
 pub use tsc_types::CompilerOptions;
 
@@ -1566,6 +1570,16 @@ fn check_program_with_prebound_libs_at_observed(
         &host_current_directory,
     );
 
+    // The production H0 path publishes through a direct, session-owned store.
+    // Library documents may already come from the separately authorized
+    // harness cache, but fixture documents are never inserted into a global
+    // map or kept past the ProgramSnapshot below.
+    let lib_count = lib_documents.len();
+    let mut document_store = EphemeralDocumentStore::with_documents(
+        identity_domain.clone(),
+        lib_documents.iter().cloned(),
+    );
+
     // Fixture bind pass: each completed binder owns exact persistent-symbol
     // and private-name-serial leases in the source's identity domain.
     // Parse the per-file check directive (ts-check/ts-nocheck pragma)
@@ -1578,7 +1592,6 @@ fn check_program_with_prebound_libs_at_observed(
         .map(|source| (source.file_name.as_str(), check_directive(source.text())))
         .collect();
     let mut bind_diagnostics_by_file = Vec::with_capacity(program_sources.len());
-    let mut binders: Vec<tsc_binder::Binder<'_>> = Vec::new();
     for source_file in &program_sources {
         let binder = tsc_binder::Binder::bind_in_identity_domain(
             source_file.as_ref(),
@@ -1588,7 +1601,9 @@ fn check_program_with_prebound_libs_at_observed(
         .expect("bind identity allocation failed");
         work_counters.record_bind();
         bind_diagnostics_by_file.push(binder.bind_diagnostics.clone());
-        binders.push(binder);
+        document_store
+            .publish(Arc::clone(source_file), binder.into_bind_data())
+            .expect("completed bind must belong to the ephemeral document domain");
     }
 
     // Checker-state construction (M4 5.0) + the check driver (M4 5.4):
@@ -1601,24 +1616,16 @@ fn check_program_with_prebound_libs_at_observed(
     // block — none are modeled yet, so the gate is vacuously open.
     observe_phase(CheckPhase::Check);
 
-    if lib_documents.is_empty() && binders.is_empty() && collect_global_diagnostics {
+    if lib_documents.is_empty() && program_sources.is_empty() && collect_global_diagnostics {
         global_diagnostics = globals::missing_init_global_type_diagnostics(options);
     }
-    if !lib_documents.is_empty() || !binders.is_empty() {
-        let lib_count = lib_documents.len();
-        // Publish only immutable parsed/bound records. Library handles are
-        // already owned by the cache or this call; fixture workers are moved
-        // into their BoundDocument records before the fresh checker borrows
-        // the snapshot.
-        let mut documents = lib_documents.to_vec();
-        for (source, binder) in program_sources.iter().zip(binders.into_iter()) {
-            let parsed = Arc::new(ParsedDocument::new(Arc::clone(source)));
-            documents.push(Arc::new(BoundDocument::new(
-                parsed,
-                binder.into_bind_data(),
-            )));
-        }
-        let snapshot = ProgramSnapshot::new(documents, lib_count)
+    if !lib_documents.is_empty() || !program_sources.is_empty() {
+        // The store owns all published handles until this snapshot takes
+        // ownership. This is the one-shot H0 adapter: dropping the consumed
+        // ProgramSession drops the complete store and cannot leave a process
+        // cache behind.
+        let snapshot = document_store
+            .into_snapshot(lib_count)
             .expect("program snapshot identity allocation failed");
         let mut state = state::CheckerState::from_snapshot(&snapshot, options);
         if let Some(run) = authoritative_run {

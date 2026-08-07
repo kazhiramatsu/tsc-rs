@@ -1,7 +1,7 @@
 # LSP and incremental parsing — persistent Program foundation
 
-Status: L0.3 owned bind state complete, 2026-08-06; L0.4 one-shot and registry
-proof is next. The architecture audit found that the L0.0 one-shot data model was
+Status: L0.4 one-shot and registry implementation complete, 2026-08-07;
+approved-runner qualification remains before L1. The architecture audit found that the L0.0 one-shot data model was
 **not sufficient** for efficient Language Service, tsserver, or LSP operation.
 A bounded persistent-source foundation (`L0`) and the incremental-parser proof
 (`L1`) must land before H1 emit implementation starts. This does not put
@@ -772,9 +772,41 @@ ratios are:
 | project | 0.999751 | 1.000813 | 1.000998 | 1.000134 | 1.000622 |
 | scale | 1.010421 | 0.943605 | 1.000639 | 1.000056 | 1.000257 |
 
-L0.4 is next: move the one-shot H0 adapter through an ephemeral document
-store, then prove registry refcounts and unchanged-file parse/bind reuse
-across two Program snapshots.
+L0.4 implementation is landed: the one-shot H0 adapter publishes completed
+binds through an ephemeral document store, and the minimal registry proves
+refcounted unchanged-file parse/bind reuse across two Program snapshots.
+Approved-runner qualification and the corresponding chained performance
+receipt remain required before this becomes an accepted runtime record.
+
+### 8.5 L0.4 implementation record
+
+The L0.4 implementation adds the following ownership boundaries:
+
+- `EphemeralDocumentStore` owns the identity domain and direct immutable
+  `BoundDocument` slots for one H0 run. It publishes only completed bind data,
+  then transfers the slots into `ProgramSnapshot`; it is not global and does
+  not retain a version after the session drops.
+- `DocumentAddress` includes the registry namespace, path, script kind, full
+  source/bind option bucket, and module-format facts. The synchronous
+  `DocumentRegistry` keeps one entry per live `(address, host version, text)`
+  variant, rejects equal-version text replacement, and removes a variant when
+  its final explicit lease is released.
+- registry metadata retains the source's `Arc<TextSnapshot>` rather than a
+  second text or position-index projection. A new version may coexist with an
+  older live Program, while a same-version request reuses the exact
+  `Arc<BoundDocument>`.
+- the production checker path now moves fixture bind workers through the
+  ephemeral store before creating its fresh checker. H0's library bundle is
+  still the separately authorized harness-only cache; production sessions do
+  not acquire a global document registry.
+
+The focused Program tests construct parse and bind records inside the registry
+builder and observe one parse/bind for two unchanged ProgramSnapshots, two
+after a new version, exact Arc reuse, equal-version text rejection, and zero
+active entries after all releases. The compiler contract suite remains green
+with the H0 diagnostic and work-counter behavior unchanged. These are local
+implementation proofs; the approved-runner qualification is intentionally
+still pending.
 
 ## 9. Evidence and tests
 
