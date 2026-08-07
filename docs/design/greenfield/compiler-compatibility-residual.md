@@ -1,11 +1,12 @@
 # TypeScript 6.0.3 compiler compatibility residual
 
 Status: audited design input, updated 2026-08-07 with L0.4 and L1 complete and
-qualified and H1.0a owner-graph inventory started as a report-only draft. This
-page records the current Rust implementation boundary, the work required to
-finish bounded H1 JavaScript emit, and the remaining work after H1 for broader
-TypeScript 6.0.3 compiler and tooling compatibility. It is not an
-implementation-complete claim and it does not authorize a broader H1 profile.
+qualified, the H1.0a owner graph active as a report-only draft, and the current
+Rust emit omissions frozen in a generated baseline. This page records the
+current Rust implementation boundary, the work required to finish bounded H1
+JavaScript emit, and the remaining work after H1 for broader TypeScript 6.0.3
+compiler and tooling compatibility. It is not an implementation-complete claim
+and it does not authorize a broader H1 profile.
 
 The persistent-source audit found one dependency-order correction: the L0
 ownership/identity foundation and L1 incremental-parser proof had to complete
@@ -151,6 +152,16 @@ The audit found no production JavaScript emitter:
 | Printing | Only checker-private bounded display-clone printers | The real generic tsc printer, text writer, comments/trivia, precedence, literals, and map hook phases |
 | Output | No output paths, artifacts, sink, or write diagnostics | Typed planning, collision gates, callback order, partial failure, memory/filesystem sinks |
 | Emitting config/CLI | H0 loaders require `noEmit == true`; explicit files also force no-emit | Separate emitting projection, loader validation, CLI dispatch, and exact exit behavior |
+
+These 11 boundaries, the emit-active options recognized but not retained by
+the effective Rust option snapshot, and every explicit checker-side emit
+elision/control row are machine-frozen in
+[`h1-rust-omissions.v1.json`](../../../ratchets/h1-rust-omissions.v1.json).
+Its producer scans every workspace crate `src` tree plus all Cargo manifests,
+hashes that complete production scope, and fails when a missing declaration or
+owner anchor changes. Existing prerequisites such as `ProgramSnapshot`,
+`may_be_emitted`, implied module format, and semantic helper checks are listed
+separately so they cannot be counted as completed emitter boundaries.
 
 The checker-private `display_clone*.rs` modules are deliberately not an
 emitter. Their own module contract excludes source copying, general comments,

@@ -1,0 +1,1158 @@
+{
+  "schema": 1,
+  "status": "frozen-current-rust-baseline",
+  "phase": "H1.0a-rust-omission-inventory",
+  "typescript": {
+    "version": "6.0.3",
+    "source_commit": "050880ce59e30b356b686bd3144efe24f875ebc8"
+  },
+  "generator": {
+    "path": "crates/oracle/h1-rust-omission-inventory.mjs",
+    "sha256": "cd0e731bf47b205ee926b3990a200b7cca8b952decb359328808016cfe408cd2"
+  },
+  "contract": {
+    "path": ".github/ci/contracts/h1-rust-omissions.schema.json",
+    "sha256": "1d5edc43c867153e405f762bc69a3f7ce6074cb1d680728210db7b0fd384de38"
+  },
+  "authorities": {
+    "compatibility_residual": {
+      "path": "docs/design/greenfield/compiler-compatibility-residual.md",
+      "sha256": "1bfaf3532dc1b9c390ed55ce5fb425f0a1eec66181e358d53c6031fc6a1ad988"
+    },
+    "h1_execution": {
+      "path": "docs/design/greenfield/h1-emit.md",
+      "sha256": "8905b04cc04a26deeee12c6a5042a7615f2d7d660f7867f980b508a1603fbb72"
+    },
+    "emit_profile": {
+      "path": "ratchets/h1-emit-profile.v1.json",
+      "sha256": "b83b7d0fdc52776e8e135c7314d60cfefb100179758f3ae6c158f553fc1931a4"
+    },
+    "owner_inventory": {
+      "path": "ratchets/h1-owner-inventory.v1.json",
+      "sha256": "d77af9c16c8402701071d907bb4b83531c618fa09362a6c901718233ac6915b1"
+    }
+  },
+  "scope": {
+    "description": "workspace Cargo manifests plus every Rust file under each workspace crate src tree; tests/benches/examples are excluded unless embedded in src",
+    "inclusion": [
+      "Cargo.toml",
+      "crates/*/Cargo.toml",
+      "crates/*/src/**/*.rs"
+    ],
+    "file_count": 176,
+    "rust_source_files": 162,
+    "cargo_manifests": 14,
+    "bytes": 12267570,
+    "tree_sha256": "00cfb2b48e35bfc8886f9c44a5edf0c82e3123c85c74c3ff16d242ee366d6069"
+  },
+  "summary": {
+    "production_boundary_omissions": 11,
+    "absence_proofs": 9,
+    "option_projection_omissions": 32,
+    "explicit_checker_emit_elisions": 25,
+    "existing_prerequisites": 8
+  },
+  "existing_prerequisites": [
+    {
+      "id": "persistent-program-snapshot",
+      "treatment": "reuse",
+      "evidence": [
+        "program-snapshot-owner"
+      ]
+    },
+    {
+      "id": "source-emit-eligibility",
+      "treatment": "verify-and-project",
+      "evidence": [
+        "prepared-source-emit-facts",
+        "checker-authoritative-emit-facts"
+      ]
+    },
+    {
+      "id": "implied-node-format-for-emit",
+      "treatment": "verify-and-project",
+      "evidence": [
+        "prepared-source-emit-facts",
+        "checker-authoritative-emit-facts"
+      ]
+    },
+    {
+      "id": "bootstrap-target-module-class-field-options",
+      "treatment": "reuse-scalars-through-separate-emit-projection",
+      "evidence": [
+        "compiler-options-bootstrap-scalars",
+        "compiler-options-class-fields"
+      ]
+    },
+    {
+      "id": "h0-no-emit-option",
+      "treatment": "preserve-separate-route",
+      "evidence": [
+        "compiler-options-no-emit",
+        "loader-no-emit-gate"
+      ]
+    },
+    {
+      "id": "sourcefile-aggregate-binder-emit-flags",
+      "treatment": "do-not-confuse-with-transform-flags",
+      "evidence": [
+        "binder-source-aggregate-emit-flags"
+      ]
+    },
+    {
+      "id": "external-helper-semantic-producer",
+      "treatment": "reuse-only-when-profile-reachability-opens",
+      "evidence": [
+        "external-helper-producer-present"
+      ]
+    },
+    {
+      "id": "jsx-alias-semantic-producer",
+      "treatment": "existing-but-JSX-remains-out-of-profile",
+      "evidence": [
+        "jsx-alias-producer-present"
+      ]
+    }
+  ],
+  "production_boundary_omissions": [
+    {
+      "id": "workspace-emitter-owner",
+      "planned_phase": "H1.1-H1.4",
+      "current": "The workspace has no emitter crate or dependency edge.",
+      "missing": "Acyclic protocols, factory/transform/printer implementation, output planning, and the memory sink.",
+      "evidence": {
+        "anchors": [
+          "workspace-members"
+        ],
+        "absence_proofs": [
+          "emitter-crate-directory",
+          "emitter-workspace-member-or-dependency",
+          "emitter-module-declaration"
+        ]
+      }
+    },
+    {
+      "id": "separate-program-emit-entry",
+      "planned_phase": "H1.1",
+      "current": "ProgramSession exposes only the consuming no-emit run entry.",
+      "missing": "A separate consuming emit entry that leaves the H0 run call graph unchanged.",
+      "evidence": {
+        "anchors": [
+          "program-session-owner",
+          "program-session-run"
+        ],
+        "absence_proofs": [
+          "program-session-emit-entry"
+        ]
+      }
+    },
+    {
+      "id": "scoped-checker-lifetime",
+      "planned_phase": "H1.3",
+      "current": "CheckerState is local to check_program_with_prebound_libs_at_observed and collapses to owned result fields.",
+      "missing": "A scoped checker callback that keeps ProgramSnapshot, binder links, symbols, and types live through resolve/transform/print.",
+      "evidence": {
+        "anchors": [
+          "program-snapshot-owner",
+          "checker-session-local-state",
+          "checker-state-collapse"
+        ],
+        "absence_proofs": []
+      }
+    },
+    {
+      "id": "semantic-emit-resolver",
+      "planned_phase": "H1.3",
+      "current": "No consumer-owned EmitResolver boundary exists.",
+      "missing": "A live-checker resolver adapter with typed unsupported answers for unreached methods.",
+      "evidence": {
+        "anchors": [],
+        "absence_proofs": [
+          "checker-emit-session-or-resolver"
+        ]
+      }
+    },
+    {
+      "id": "transform-flags",
+      "planned_phase": "H1.2",
+      "current": "Only binder SourceFile aggregate NodeFlags exist; nodes and node arrays have no emitter TransformFlags facts.",
+      "missing": "Emitter-session parsed-node/array transform-flag side tables and exact synthetic aggregation with subtree exclusions.",
+      "evidence": {
+        "anchors": [
+          "binder-source-aggregate-emit-flags"
+        ],
+        "absence_proofs": [
+          "transform-session-types"
+        ]
+      }
+    },
+    {
+      "id": "transform-metadata",
+      "planned_phase": "H1.2",
+      "current": "Parsed arenas have no emit-node/original/helper/substitution/map/generated-name session metadata.",
+      "missing": "Session-owned original identities, emit flags, comments/ranges, helpers, substitutions, assigned/generated names, and constants.",
+      "evidence": {
+        "anchors": [],
+        "absence_proofs": [
+          "transform-session-types"
+        ]
+      }
+    },
+    {
+      "id": "synthetic-node-factory",
+      "planned_phase": "H1.2",
+      "current": "There is no general NodeFactory or transform arena.",
+      "missing": "Reachability-generated create/update/clone/replace operations, node-array metadata, parenthesizer, and converter rules.",
+      "evidence": {
+        "anchors": [],
+        "absence_proofs": [
+          "transform-session-types"
+        ]
+      }
+    },
+    {
+      "id": "transformation-runtime",
+      "planned_phase": "H1.2-H1.3",
+      "current": "There is no transformNodes lifecycle or built-in script transformer.",
+      "missing": "Transformation context, lexical/block scopes, helpers, substitutions, notifications, diagnostics, disposal, and the frozen three-transform chain.",
+      "evidence": {
+        "anchors": [],
+        "absence_proofs": [
+          "transform-printer-output-functions"
+        ]
+      }
+    },
+    {
+      "id": "production-writer-printer",
+      "planned_phase": "H1.2",
+      "current": "The checker-private display-clone printer explicitly excludes production emitter responsibilities.",
+      "missing": "The generic tsc text writer/printer with trivia/comments, precedence, literals, generated positions, and map hook phases.",
+      "evidence": {
+        "anchors": [
+          "display-clone-not-emitter",
+          "display-clone-exclusions"
+        ],
+        "absence_proofs": [
+          "transform-printer-output-functions"
+        ]
+      }
+    },
+    {
+      "id": "output-plan-artifacts-sinks",
+      "planned_phase": "H1.1-H1.5",
+      "current": "PreparedProgram owns source/config/check inputs but no output plan, artifacts, sink, or write diagnostics.",
+      "missing": "Typed output-path slots, collision preflight, callback metadata/order, partial failure, and memory/filesystem sinks.",
+      "evidence": {
+        "anchors": [
+          "prepared-program-current-shape"
+        ],
+        "absence_proofs": [
+          "typed-emitter-protocol",
+          "transform-printer-output-functions"
+        ]
+      }
+    },
+    {
+      "id": "emitting-loader-and-cli-route",
+      "planned_phase": "H1.4-H1.5",
+      "current": "H0 loader/config/CLI gates require noEmit=true and reject the emitting route before source execution.",
+      "missing": "A separate emitting option projection, config/explicit-root loader, preflight, CLI dispatch, filesystem sink connection, and exact exit behavior.",
+      "evidence": {
+        "anchors": [
+          "loader-no-emit-gate",
+          "config-no-emit-gate",
+          "cli-explicit-root-no-emit-gate",
+          "cli-false-no-emit-gate"
+        ],
+        "absence_proofs": []
+      }
+    }
+  ],
+  "option_projection_omissions": [
+    {
+      "option": "listEmittedFiles",
+      "rust_field": "list_emitted_files",
+      "current_retention": "recognized by the config option catalog; absent from CompilerOptions",
+      "disposition": "bootstrap",
+      "planned_phase": "H1.4"
+    },
+    {
+      "option": "emitBOM",
+      "rust_field": "emit_bom",
+      "current_retention": "recognized by the config option catalog; absent from CompilerOptions",
+      "disposition": "bootstrap",
+      "planned_phase": "H1.4"
+    },
+    {
+      "option": "newLine",
+      "rust_field": "new_line",
+      "current_retention": "recognized by the config option catalog; absent from CompilerOptions",
+      "disposition": "bootstrap",
+      "planned_phase": "H1.2-H1.4"
+    },
+    {
+      "option": "noEmitOnError",
+      "rust_field": "no_emit_on_error",
+      "current_retention": "recognized by the config option catalog; absent from CompilerOptions",
+      "disposition": "bootstrap",
+      "planned_phase": "H1.4-H1.5"
+    },
+    {
+      "option": "outDir",
+      "rust_field": "out_dir",
+      "current_retention": "config-root-discovery-only; absent from CompilerOptions and PreparedProgram emit projection",
+      "disposition": "output-planning",
+      "planned_phase": "H1.4"
+    },
+    {
+      "option": "rootDir",
+      "rust_field": "root_dir",
+      "current_retention": "recognized by the config option catalog; absent from CompilerOptions",
+      "disposition": "output-planning",
+      "planned_phase": "H1.4"
+    },
+    {
+      "option": "removeComments",
+      "rust_field": "remove_comments",
+      "current_retention": "recognized by the config option catalog; absent from CompilerOptions",
+      "disposition": "printer-control",
+      "planned_phase": "H1.2"
+    },
+    {
+      "option": "noImplicitUseStrict",
+      "rust_field": "no_implicit_use_strict",
+      "current_retention": "recognized by the config option catalog; absent from CompilerOptions",
+      "disposition": "printer-control",
+      "planned_phase": "H1.2-H1.4"
+    },
+    {
+      "option": "noEmitHelpers",
+      "rust_field": "no_emit_helpers",
+      "current_retention": "recognized by the config option catalog; absent from CompilerOptions",
+      "disposition": "helper-control",
+      "planned_phase": "H1.2-H1.3"
+    },
+    {
+      "option": "noCheck",
+      "rust_field": "no_check",
+      "current_retention": "recognized by the config option catalog; absent from CompilerOptions",
+      "disposition": "diagnostic-gate-control",
+      "planned_phase": "H1.4"
+    },
+    {
+      "option": "erasableSyntaxOnly",
+      "rust_field": "erasable_syntax_only",
+      "current_retention": "recognized by the config option catalog; absent from CompilerOptions",
+      "disposition": "profile-preflight-control",
+      "planned_phase": "H1.4"
+    },
+    {
+      "option": "importsNotUsedAsValues",
+      "rust_field": "imports_not_used_as_values",
+      "current_retention": "recognized by the config option catalog; absent from CompilerOptions",
+      "disposition": "legacy-transform-control",
+      "planned_phase": "typed-deferred"
+    },
+    {
+      "option": "preserveValueImports",
+      "rust_field": "preserve_value_imports",
+      "current_retention": "recognized by the config option catalog; absent from CompilerOptions",
+      "disposition": "legacy-transform-control",
+      "planned_phase": "typed-deferred"
+    },
+    {
+      "option": "emitDecoratorMetadata",
+      "rust_field": "emit_decorator_metadata",
+      "current_retention": "recognized by the config option catalog; absent from CompilerOptions",
+      "disposition": "adjacent-decorator",
+      "planned_phase": "profile-control"
+    },
+    {
+      "option": "sourceMap",
+      "rust_field": "source_map",
+      "current_retention": "recognized by the config option catalog; absent from CompilerOptions",
+      "disposition": "dormant-source-map",
+      "planned_phase": "typed-slot-only"
+    },
+    {
+      "option": "inlineSourceMap",
+      "rust_field": "inline_source_map",
+      "current_retention": "recognized by the config option catalog; absent from CompilerOptions",
+      "disposition": "dormant-source-map",
+      "planned_phase": "typed-slot-only"
+    },
+    {
+      "option": "inlineSources",
+      "rust_field": "inline_sources",
+      "current_retention": "recognized by the config option catalog; absent from CompilerOptions",
+      "disposition": "dormant-source-map",
+      "planned_phase": "typed-slot-only"
+    },
+    {
+      "option": "sourceRoot",
+      "rust_field": "source_root",
+      "current_retention": "recognized by the config option catalog; absent from CompilerOptions",
+      "disposition": "dormant-source-map",
+      "planned_phase": "typed-slot-only"
+    },
+    {
+      "option": "mapRoot",
+      "rust_field": "map_root",
+      "current_retention": "recognized by the config option catalog; absent from CompilerOptions",
+      "disposition": "dormant-source-map",
+      "planned_phase": "typed-slot-only"
+    },
+    {
+      "option": "declaration",
+      "rust_field": "declaration",
+      "current_retention": "recognized by the config option catalog; absent from CompilerOptions",
+      "disposition": "dormant-declaration",
+      "planned_phase": "typed-slot-only"
+    },
+    {
+      "option": "declarationMap",
+      "rust_field": "declaration_map",
+      "current_retention": "recognized by the config option catalog; absent from CompilerOptions",
+      "disposition": "dormant-declaration",
+      "planned_phase": "typed-slot-only"
+    },
+    {
+      "option": "emitDeclarationOnly",
+      "rust_field": "emit_declaration_only",
+      "current_retention": "recognized by the config option catalog; absent from CompilerOptions",
+      "disposition": "dormant-declaration",
+      "planned_phase": "typed-slot-only"
+    },
+    {
+      "option": "isolatedDeclarations",
+      "rust_field": "isolated_declarations",
+      "current_retention": "recognized by the config option catalog; absent from CompilerOptions",
+      "disposition": "dormant-declaration",
+      "planned_phase": "typed-slot-only"
+    },
+    {
+      "option": "stableTypeOrdering",
+      "rust_field": "stable_type_ordering",
+      "current_retention": "recognized by the config option catalog; absent from CompilerOptions",
+      "disposition": "dormant-declaration",
+      "planned_phase": "typed-slot-only"
+    },
+    {
+      "option": "declarationDir",
+      "rust_field": "declaration_dir",
+      "current_retention": "config-root-discovery-only; absent from CompilerOptions and PreparedProgram emit projection",
+      "disposition": "dormant-declaration",
+      "planned_phase": "typed-slot-only"
+    },
+    {
+      "option": "stripInternal",
+      "rust_field": "strip_internal",
+      "current_retention": "recognized by the config option catalog; absent from CompilerOptions",
+      "disposition": "dormant-declaration",
+      "planned_phase": "typed-slot-only"
+    },
+    {
+      "option": "outFile",
+      "rust_field": "out_file",
+      "current_retention": "recognized by the config option catalog; absent from CompilerOptions",
+      "disposition": "dormant-bundle",
+      "planned_phase": "typed-slot-only"
+    },
+    {
+      "option": "out",
+      "rust_field": "out",
+      "current_retention": "recognized by the config option catalog; absent from CompilerOptions",
+      "disposition": "dormant-bundle",
+      "planned_phase": "typed-slot-only"
+    },
+    {
+      "option": "incremental",
+      "rust_field": "incremental",
+      "current_retention": "recognized by the config option catalog; absent from CompilerOptions",
+      "disposition": "dormant-build-info",
+      "planned_phase": "typed-slot-only"
+    },
+    {
+      "option": "composite",
+      "rust_field": "composite",
+      "current_retention": "recognized by the config option catalog; absent from CompilerOptions",
+      "disposition": "dormant-build-info",
+      "planned_phase": "typed-slot-only"
+    },
+    {
+      "option": "assumeChangesOnlyAffectDirectDependencies",
+      "rust_field": "assume_changes_only_affect_direct_dependencies",
+      "current_retention": "recognized by the config option catalog; absent from CompilerOptions",
+      "disposition": "dormant-build-info",
+      "planned_phase": "typed-slot-only"
+    },
+    {
+      "option": "tsBuildInfoFile",
+      "rust_field": "ts_build_info_file",
+      "current_retention": "recognized by the config option catalog; absent from CompilerOptions",
+      "disposition": "dormant-build-info",
+      "planned_phase": "typed-slot-only"
+    }
+  ],
+  "checker_emit_elisions": [
+    {
+      "id": "captured-block-scope-bindings",
+      "anchor": "captured-block-scope-bindings-elided",
+      "disposition": "runtime-transform",
+      "closure": "H1.3"
+    },
+    {
+      "id": "computed-property-loop-capture",
+      "anchor": "computed-property-loop-capture-elided",
+      "disposition": "runtime-transform",
+      "closure": "H1.3"
+    },
+    {
+      "id": "private-scope-loop-capture",
+      "anchor": "private-scope-loop-capture-elided",
+      "disposition": "adjacent-class-field",
+      "closure": "profile-control"
+    },
+    {
+      "id": "constructor-capture-lexical-this",
+      "anchor": "constructor-capture-this-elided",
+      "disposition": "adjacent-class-field",
+      "closure": "profile-control"
+    },
+    {
+      "id": "async-mark-linked-references",
+      "anchor": "async-linked-references-elided",
+      "disposition": "dormant-declaration",
+      "closure": "typed-deferred"
+    },
+    {
+      "id": "decorator-mark-linked-references",
+      "anchor": "decorator-linked-references-elided",
+      "disposition": "dormant-declaration/decorator",
+      "closure": "typed-deferred"
+    },
+    {
+      "id": "import-equals-mark-linked-references",
+      "anchor": "import-equals-linked-references-elided",
+      "disposition": "alias-reference",
+      "closure": "H1.3-reachability"
+    },
+    {
+      "id": "export-collect-linked-aliases",
+      "anchor": "export-linked-aliases-elided",
+      "disposition": "dormant-declaration",
+      "closure": "typed-deferred"
+    },
+    {
+      "id": "property-access-mark-linked-references",
+      "anchor": "property-access-linked-references-elided",
+      "disposition": "alias/reference-side-effect",
+      "closure": "H1.3-reachability"
+    },
+    {
+      "id": "inaccessible-this-tracking",
+      "anchor": "inaccessible-this-elided",
+      "disposition": "dormant-declaration",
+      "closure": "typed-deferred"
+    },
+    {
+      "id": "binding-object-rest-helper",
+      "anchor": "binding-object-rest-helper-elided",
+      "disposition": "adjacent-helper",
+      "closure": "profile-control"
+    },
+    {
+      "id": "binding-array-downlevel-helper",
+      "anchor": "binding-array-helper-elided",
+      "disposition": "adjacent-helper",
+      "closure": "profile-control"
+    },
+    {
+      "id": "for-await-helper",
+      "anchor": "for-await-helper-elided",
+      "disposition": "adjacent-helper",
+      "closure": "profile-control"
+    },
+    {
+      "id": "for-of-downlevel-helper",
+      "anchor": "for-of-helper-elided",
+      "disposition": "adjacent-helper",
+      "closure": "profile-control"
+    },
+    {
+      "id": "signature-helper-probes",
+      "anchor": "signature-helper-probes-elided",
+      "disposition": "adjacent-helper",
+      "closure": "profile-control"
+    },
+    {
+      "id": "yield-helper-probes",
+      "anchor": "yield-helper-probes-elided",
+      "disposition": "adjacent-helper",
+      "closure": "profile-control"
+    },
+    {
+      "id": "class-extends-helper",
+      "anchor": "class-extends-helper-elided",
+      "disposition": "adjacent-helper",
+      "closure": "profile-control"
+    },
+    {
+      "id": "class-private-field-in-helper",
+      "anchor": "private-field-in-helper-elided",
+      "disposition": "adjacent-helper",
+      "closure": "profile-control"
+    },
+    {
+      "id": "object-rest-helper",
+      "anchor": "object-rest-helper-elided",
+      "disposition": "adjacent-helper",
+      "closure": "profile-control"
+    },
+    {
+      "id": "destructuring-helper",
+      "anchor": "destructuring-helper-elided",
+      "disposition": "adjacent-helper",
+      "closure": "profile-control"
+    },
+    {
+      "id": "class-private-field-set-helper",
+      "anchor": "private-field-set-helper-elided",
+      "disposition": "adjacent-helper",
+      "closure": "profile-control"
+    },
+    {
+      "id": "object-assign-helper",
+      "anchor": "object-assign-helper-inactive",
+      "disposition": "inactive-at-ESNext",
+      "closure": "generated-canary"
+    },
+    {
+      "id": "template-object-helper",
+      "anchor": "template-helper-inactive",
+      "disposition": "inactive-at-ESNext",
+      "closure": "generated-canary"
+    },
+    {
+      "id": "export-assignment-collect-linked-aliases",
+      "anchor": "export-assignment-linked-aliases-elided",
+      "disposition": "dormant-declaration",
+      "closure": "typed-deferred"
+    },
+    {
+      "id": "standard-class-fields-check",
+      "anchor": "standard-class-fields-check-elided",
+      "disposition": "adjacent-class-field",
+      "closure": "profile-control"
+    }
+  ],
+  "evidence": {
+    "anchors": [
+      {
+        "id": "workspace-members",
+        "path": "Cargo.toml",
+        "line": 8,
+        "column": 1,
+        "text": "    \"crates/compiler\",\n    \"crates/checker\",",
+        "text_sha256": "43f1476813afa953fd8343f05c77b791193e1e22f2a767afd699d9a01a293e3b",
+        "file_sha256": "dc6ef28fe6c53f90506e875a9456a7a5d1fd3c9eb3e362f6ffc6a58cc3822ee3"
+      },
+      {
+        "id": "program-session-owner",
+        "path": "crates/compiler/src/lib.rs",
+        "line": 43,
+        "column": 1,
+        "text": "pub struct ProgramSession {\n    prepared: PreparedProgram,\n}",
+        "text_sha256": "665e8cc79aa3899b9439120a02ffdfe34c92d54b8953b9eb431f216af633981a",
+        "file_sha256": "ebcc4f6014cc7e60671af40b04c892ee09e48893ba423658f6f9c6d1ac553248"
+      },
+      {
+        "id": "program-session-run",
+        "path": "crates/compiler/src/lib.rs",
+        "line": 386,
+        "column": 5,
+        "text": "pub fn run(self) -> Result<NoEmitOutcome, DriverError> {\n        self.run_inner(false)\n    }",
+        "text_sha256": "0d74770e0c3d7f91e9cba4903ecba506cdd1c0c7aca1bacd327f69daed76d654",
+        "file_sha256": "ebcc4f6014cc7e60671af40b04c892ee09e48893ba423658f6f9c6d1ac553248"
+      },
+      {
+        "id": "checker-session-local-state",
+        "path": "crates/checker/src/lib.rs",
+        "line": 1630,
+        "column": 9,
+        "text": "let mut state = state::CheckerState::from_snapshot(&snapshot, options);",
+        "text_sha256": "66431a38f7144074bc77255200f22293db4d3cec0c2a25e8f9803518da8f1b6a",
+        "file_sha256": "a8ceb7238a7b5ca64ee8c6ba077cd8bc70a47293981082fcf5bfe1f17516cf84"
+      },
+      {
+        "id": "checker-state-collapse",
+        "path": "crates/checker/src/lib.rs",
+        "line": 1820,
+        "column": 9,
+        "text": "partial_checks = state.partial_check_records.clone();\n        authoritative_failure = state.take_authoritative_module_failure();",
+        "text_sha256": "8c4b08d85fa65cffc07ed4b19a65542608d4991af99d50672f5fe53d65d75885",
+        "file_sha256": "a8ceb7238a7b5ca64ee8c6ba077cd8bc70a47293981082fcf5bfe1f17516cf84"
+      },
+      {
+        "id": "display-clone-not-emitter",
+        "path": "crates/checker/src/display_clone.rs",
+        "line": 3,
+        "column": 5,
+        "text": "This is deliberately not an emitter. It prints the synthesized face of",
+        "text_sha256": "3c24a6622a50fc81cdf2c3e219a5c176ea59c0e2ecd3e6fa7344fde37c0fcdc0",
+        "file_sha256": "ae87ea05998a8d6fead55bb11142e9108c507f105a7f14f5850b0fb33eadb587"
+      },
+      {
+        "id": "display-clone-exclusions",
+        "path": "crates/checker/src/display_clone.rs",
+        "line": 4,
+        "column": 61,
+        "text": "It does not copy\n//! source text, comments, source maps, substitutions, or declaration emit\n//! state",
+        "text_sha256": "bd4a64f8bff85d17147f9c15781d3dedddfeadbb2fd34a3c8c0ac64f7a91c96d",
+        "file_sha256": "ae87ea05998a8d6fead55bb11142e9108c507f105a7f14f5850b0fb33eadb587"
+      },
+      {
+        "id": "prepared-program-current-shape",
+        "path": "crates/program/src/prepared.rs",
+        "line": 1021,
+        "column": 1,
+        "text": "pub struct PreparedProgram {\n    path_context: PathContext,\n    compiler_options: CompilerOptions,\n    program_options: ProgramOptions,",
+        "text_sha256": "81f23e18cd2ea4ed9ebce6957d1e1673e459337d0663539e15cfdd725f25d8c0",
+        "file_sha256": "65e9c407c215339f68c36f4434550907da54a29e90b401e9cca2b191130b218f"
+      },
+      {
+        "id": "prepared-source-emit-facts",
+        "path": "crates/program/src/prepared.rs",
+        "line": 95,
+        "column": 5,
+        "text": "may_be_emitted: bool,\n    implied_node_format: Option<ResolutionMode>,\n    implied_node_format_for_emit: Option<ResolutionMode>,",
+        "text_sha256": "1aba6224a8c27a73e287ac96e80f1a36afde25124d316b52a7acff589ad67538",
+        "file_sha256": "65e9c407c215339f68c36f4434550907da54a29e90b401e9cca2b191130b218f"
+      },
+      {
+        "id": "checker-authoritative-emit-facts",
+        "path": "crates/checker/src/lib.rs",
+        "line": 130,
+        "column": 5,
+        "text": "pub may_be_emitted: bool,\n    /// Raw `SourceFile.impliedNodeFormat`",
+        "text_sha256": "3d4ae97d2c33a29370c93a0ac34ff42c614ac8cac2f3d8cf8a1291f4bfa10444",
+        "file_sha256": "a8ceb7238a7b5ca64ee8c6ba077cd8bc70a47293981082fcf5bfe1f17516cf84"
+      },
+      {
+        "id": "compiler-options-current-shape",
+        "path": "crates/types/src/options.rs",
+        "line": 87,
+        "column": 1,
+        "text": "pub struct CompilerOptions {",
+        "text_sha256": "26ecd93b5a351f3bfc7897c600ee93f422303b72187b8f49fa50bb10e97dbaed",
+        "file_sha256": "002620757c9844eacd85a5f490cd83df9e6719d437ba9ba6ae203270bf918da0"
+      },
+      {
+        "id": "compiler-options-bootstrap-scalars",
+        "path": "crates/types/src/options.rs",
+        "line": 101,
+        "column": 5,
+        "text": "pub target: Option<i32>,\n    /// tsc ModuleKind value; None when the option is absent.",
+        "text_sha256": "72849bd6c27037777c9a8702e8a896ed5180945b9a3c6e6399e6d7ac28c4df17",
+        "file_sha256": "002620757c9844eacd85a5f490cd83df9e6719d437ba9ba6ae203270bf918da0"
+      },
+      {
+        "id": "compiler-options-class-fields",
+        "path": "crates/types/src/options.rs",
+        "line": 181,
+        "column": 5,
+        "text": "pub use_define_for_class_fields: Option<bool>,",
+        "text_sha256": "4a2e57ffc561b38f20b1d02ff112ac6299bac6498a0583cfc1bdb3bbaff78474",
+        "file_sha256": "002620757c9844eacd85a5f490cd83df9e6719d437ba9ba6ae203270bf918da0"
+      },
+      {
+        "id": "compiler-options-no-emit",
+        "path": "crates/types/src/options.rs",
+        "line": 197,
+        "column": 5,
+        "text": "pub no_emit: Option<bool>,",
+        "text_sha256": "bfa25442fb2488d03706d502b88b76e651350f20e40f4051056cf1b99d2d9ce0",
+        "file_sha256": "002620757c9844eacd85a5f490cd83df9e6719d437ba9ba6ae203270bf918da0"
+      },
+      {
+        "id": "binder-source-aggregate-emit-flags",
+        "path": "crates/binder/src/containers.rs",
+        "line": 321,
+        "column": 17,
+        "text": "flags = NodeFlags::from_bits(flags.bits() | self.emit_flags);",
+        "text_sha256": "b36ad2deac5ebd21ed6ef4cef86d0d1fd16244c2ba6bc92c10ba1a42fdc9b412",
+        "file_sha256": "0b3195baf932773a125c9e35fe972bbd018210eaed051a2a6facd4275fac9c37"
+      },
+      {
+        "id": "loader-no-emit-gate",
+        "path": "crates/program/src/loader.rs",
+        "line": 615,
+        "column": 5,
+        "text": "if compiler_options.no_emit != Some(true) {\n        return Err(reject_input(\n            \"compilerOptions.noEmit must be explicitly true\",\n        ));\n    }",
+        "text_sha256": "dd3552061700086a4ec373fc631f9c663904c29a413f0ae15153d1b8d5d5781e",
+        "file_sha256": "06a7cf818c41de378ef1def9b679f72abd6aa9ba9e190f363f8288fa1763375b"
+      },
+      {
+        "id": "config-no-emit-gate",
+        "path": "crates/program/src/config.rs",
+        "line": 1158,
+        "column": 5,
+        "text": "A config without an explicit\n/// `noEmit: true` is rejected before `load_program`",
+        "text_sha256": "161a551a4d1b128d9d948b1d08261a98bd294a5e7bb6fecdfc5aa1dfb3ff004d",
+        "file_sha256": "df5c86b1264402f67d898f030166cab4a19798e1f8fdd687753c6b4e6b99318c"
+      },
+      {
+        "id": "cli-explicit-root-no-emit-gate",
+        "path": "crates/compiler/src/cli.rs",
+        "line": 333,
+        "column": 18,
+        "text": "explicit source files require --noEmit; H0 never invokes an emitter",
+        "text_sha256": "7d96037c8a32481c78df8e66dfa233830627b0204a2af94c82fa9239a9c4c361",
+        "file_sha256": "27eec2a5fa1886d482d5aa05813b80c0996cc0a60f820f005c5aac2bfa42b933"
+      },
+      {
+        "id": "cli-false-no-emit-gate",
+        "path": "crates/compiler/src/cli.rs",
+        "line": 401,
+        "column": 13,
+        "text": "\"--noEmit=false\" => {\n                return Err(CliError::Usage(\n                    \"--noEmit=false is outside the mandatory no-emit driver\"",
+        "text_sha256": "5d087f910f6c3ea538755d9967aca7f1a4cfffa72899827e325957d43d0b0fee",
+        "file_sha256": "27eec2a5fa1886d482d5aa05813b80c0996cc0a60f820f005c5aac2bfa42b933"
+      },
+      {
+        "id": "config-transient-output-discovery",
+        "path": "crates/program/src/config.rs",
+        "line": 831,
+        "column": 5,
+        "text": "out_dir: Option<String>,\n    declaration_dir: Option<String>,",
+        "text_sha256": "a8617177e430f042fb859063fe81c6befc627994db9f901f674fb6b6c436373d",
+        "file_sha256": "df5c86b1264402f67d898f030166cab4a19798e1f8fdd687753c6b4e6b99318c"
+      },
+      {
+        "id": "program-snapshot-owner",
+        "path": "crates/checker/src/program.rs",
+        "line": 654,
+        "column": 1,
+        "text": "pub struct ProgramSnapshot {",
+        "text_sha256": "fb951bcb22124d9299bd8c6db9cbecab03b8f7fa17ce5ed47c9a5a0c19f39422",
+        "file_sha256": "191e536c221d6989556e4b08b1b3d946be65f6b744379b938025e4b3623f915d"
+      },
+      {
+        "id": "captured-block-scope-bindings-elided",
+        "path": "crates/checker/src/expr.rs",
+        "line": 1425,
+        "column": 32,
+        "text": "links.capturedBlockScopeBindings pushIfUnique",
+        "text_sha256": "8c2536d77577cef4abf5c3766059493d48b998360e215d32ab95452f087ff2c7",
+        "file_sha256": "2fb68cec9b0ed4699dc6b833459da787ed1f833556eab0a377b1ae5f3767efdc"
+      },
+      {
+        "id": "computed-property-loop-capture-elided",
+        "path": "crates/checker/src/literals.rs",
+        "line": 431,
+        "column": 22,
+        "text": "class-expression-property loop-capture side-effect",
+        "text_sha256": "7306fb3ac41fd46857418598ee7212151c47d2bf82e3fc5734b33561b43ba8fc",
+        "file_sha256": "1e506242357b3e8f5d8d2870807b37073cdde7b2591beee3017bdda9a0ee3df0"
+      },
+      {
+        "id": "private-scope-loop-capture-elided",
+        "path": "crates/checker/src/functions.rs",
+        "line": 2838,
+        "column": 9,
+        "text": "The class-expression-in-iteration arm sets emit-only flags",
+        "text_sha256": "068555ddb73a1d68ba21ec0edbcc216ca2db70088e16ee062d36e812301b69eb",
+        "file_sha256": "e1345b7dca81e4507882702502033b8f730e8970dfa4e485cf3a7b01b82be2c6"
+      },
+      {
+        "id": "constructor-capture-this-elided",
+        "path": "crates/checker/src/functions.rs",
+        "line": 2889,
+        "column": 9,
+        "text": "captureLexicalThis is emit-only (no-op)",
+        "text_sha256": "a5afdcaea9009dcbe6110f8e5c425c2b95c80c101b40a974145aea8d8c3a5d23",
+        "file_sha256": "e1345b7dca81e4507882702502033b8f730e8970dfa4e485cf3a7b01b82be2c6"
+      },
+      {
+        "id": "async-linked-references-elided",
+        "path": "crates/checker/src/functions.rs",
+        "line": 2199,
+        "column": 28,
+        "text": "`markLinkedReferences` is emit-only.",
+        "text_sha256": "75a1a3c197f04e688ff2785c06a229889434ebc3db6c17e4e3d57db7df9c98cc",
+        "file_sha256": "e1345b7dca81e4507882702502033b8f730e8970dfa4e485cf3a7b01b82be2c6"
+      },
+      {
+        "id": "decorator-linked-references-elided",
+        "path": "crates/checker/src/calls.rs",
+        "line": 150,
+        "column": 9,
+        "text": "markLinkedReferences is declaration-emit bookkeeping",
+        "text_sha256": "e8150228ea991d60766c6ebf7021b01797a4147e5e888edf89b02885304e7518",
+        "file_sha256": "403b08106045441888ce62e368a61b4d31ec0ff4bd352028c61379a621363335"
+      },
+      {
+        "id": "import-equals-linked-references-elided",
+        "path": "crates/checker/src/modules.rs",
+        "line": 8343,
+        "column": 37,
+        "text": "markLinkedReferences' declaration-emit\n    /// traversal remains outside this checker slice",
+        "text_sha256": "f29a07c6d655ccc82756d03676617e4d38bd025f1ae0d1f572fa68db0c07d25f",
+        "file_sha256": "c2f5da11efaa8540ce78bd9e88e3ddd00366a12e9305a5a5629555d2d7ba68fc"
+      },
+      {
+        "id": "export-linked-aliases-elided",
+        "path": "crates/checker/src/modules.rs",
+        "line": 8562,
+        "column": 9,
+        "text": "collectLinkedAliases remains declaration-emit bookkeeping",
+        "text_sha256": "cb431b3f060205621a432fa23e1325d3e9708de7e5a7771977711ddfe20b9c07",
+        "file_sha256": "c2f5da11efaa8540ce78bd9e88e3ddd00366a12e9305a5a5629555d2d7ba68fc"
+      },
+      {
+        "id": "property-access-linked-references-elided",
+        "path": "crates/checker/src/access.rs",
+        "line": 1952,
+        "column": 11,
+        "text": "markLinkedReferences' non-alias bookkeeping",
+        "text_sha256": "3efb7dc8370504d1a849885324fc1d5353c79da322996324626f1db46db1d879",
+        "file_sha256": "0821557003e894df38b452de7e09920c5f2ea59f483ee6f50def2b3109b75bc7"
+      },
+      {
+        "id": "inaccessible-this-elided",
+        "path": "crates/checker/src/check.rs",
+        "line": 5923,
+        "column": 16,
+        "text": "inaccessible-this tracking is declaration-emit band",
+        "text_sha256": "16bfbe4a19081974e7847b1b3bb1e3749c92e0d792d02f9370b5becbf731c972",
+        "file_sha256": "ecd1cee157b429b5d2e3bf9808007182c0e6c334396f639cecf1f20f74bf9b96"
+      },
+      {
+        "id": "binding-object-rest-helper-elided",
+        "path": "crates/checker/src/statements.rs",
+        "line": 157,
+        "column": 17,
+        "text": "Object-rest emit-helper probe elided",
+        "text_sha256": "42a70c07fffaf36dd3c3ba48cb67b038da64059eedb77415ccc77cc955518cfd",
+        "file_sha256": "016ef7af8d475e900be0023fde2bf9988f432354f5de5c899f60e47a3a1cf35e"
+      },
+      {
+        "id": "binding-array-helper-elided",
+        "path": "crates/checker/src/statements.rs",
+        "line": 208,
+        "column": 12,
+        "text": "downlevelIteration emit-helper probe is elided",
+        "text_sha256": "747920ad8a12ab86165c7e42ffec4988937e008324baabe436c209bc6161707e",
+        "file_sha256": "016ef7af8d475e900be0023fde2bf9988f432354f5de5c899f60e47a3a1cf35e"
+      },
+      {
+        "id": "for-await-helper-elided",
+        "path": "crates/checker/src/statements.rs",
+        "line": 2049,
+        "column": 27,
+        "text": "ForAwaitOf emit-helper probe — elided",
+        "text_sha256": "146d22250a56eae1acd985846dc96db6f0ea07d219a434fa2d495cbc6639aea4",
+        "file_sha256": "016ef7af8d475e900be0023fde2bf9988f432354f5de5c899f60e47a3a1cf35e"
+      },
+      {
+        "id": "for-of-helper-elided",
+        "path": "crates/checker/src/statements.rs",
+        "line": 2051,
+        "column": 13,
+        "text": "downlevelIteration ForOf emit-helper probe — elided",
+        "text_sha256": "907e5bd8ed066c6e704bfeb9af310c69e929dec2806999802901e87259a1ddfe",
+        "file_sha256": "016ef7af8d475e900be0023fde2bf9988f432354f5de5c899f60e47a3a1cf35e"
+      },
+      {
+        "id": "signature-helper-probes-elided",
+        "path": "crates/checker/src/functions.rs",
+        "line": 2003,
+        "column": 9,
+        "text": "Emit-helper probes are importHelpers-gated (no-op)",
+        "text_sha256": "9c5de72689a22c8e0799402f36e66fe8f0eec13c37cff814da77dcaa0d6f0393",
+        "file_sha256": "e1345b7dca81e4507882702502033b8f730e8970dfa4e485cf3a7b01b82be2c6"
+      },
+      {
+        "id": "yield-helper-probes-elided",
+        "path": "crates/checker/src/functions.rs",
+        "line": 1688,
+        "column": 9,
+        "text": "Grammar closure runs eager (the 5.4 addLazyDiagnostic\n    /// decision), as does the noImplicitAny 7057 closure. Emit-helper\n    /// probes are importHelpers-gated (no-op)",
+        "text_sha256": "bcb6ffe779b4ebaa2e9df2c10203b9b75cf8cc9a1effdce3d237d3af3ca5913d",
+        "file_sha256": "e1345b7dca81e4507882702502033b8f730e8970dfa4e485cf3a7b01b82be2c6"
+      },
+      {
+        "id": "class-extends-helper-elided",
+        "path": "crates/checker/src/class.rs",
+        "line": 630,
+        "column": 9,
+        "text": "Elision: the ES5 Extends emit-helper probe",
+        "text_sha256": "bb21850556c12b7bd6df9003137503e5b2e454a4ae3227ce1d410ae3025083a4",
+        "file_sha256": "3fb423936a213667668d06423df53a7ef7eeb37e3c5cabc6e60112527b2e5c54"
+      },
+      {
+        "id": "private-field-in-helper-elided",
+        "path": "crates/checker/src/operators.rs",
+        "line": 1141,
+        "column": 21,
+        "text": "ClassPrivateFieldIn emit-helper rows are",
+        "text_sha256": "c6d829a07734b2b4a430901ce369faa37a42b3d117f36926f0c650d86a395700",
+        "file_sha256": "d65ccd5662de73efb045d3e102af0a7ac082acf6a64ba0f2f22a31feebddf38f"
+      },
+      {
+        "id": "object-rest-helper-elided",
+        "path": "crates/checker/src/operators.rs",
+        "line": 2148,
+        "column": 13,
+        "text": "ObjectSpreadRest emit-helper row is importHelpers-gated",
+        "text_sha256": "6648786413c0c11ceb9e34c26050d93b7c8cdb56b56432876af5eee10e5632b3",
+        "file_sha256": "d65ccd5662de73efb045d3e102af0a7ac082acf6a64ba0f2f22a31feebddf38f"
+      },
+      {
+        "id": "destructuring-helper-elided",
+        "path": "crates/checker/src/operators.rs",
+        "line": 2276,
+        "column": 13,
+        "text": "DestructuringAssignment emit-helper row is",
+        "text_sha256": "c5660a02f51abf708bf8a2aea9da1ae488400c02e79b492f8eaf0b0249033ca7",
+        "file_sha256": "d65ccd5662de73efb045d3e102af0a7ac082acf6a64ba0f2f22a31feebddf38f"
+      },
+      {
+        "id": "private-field-set-helper-elided",
+        "path": "crates/checker/src/operators.rs",
+        "line": 2454,
+        "column": 13,
+        "text": "ClassPrivateFieldSet emit-helper row is importHelpers-gated",
+        "text_sha256": "cba827eeafce9c37fb699863568cc72102e7ff49d4a26801dfd5b224642f8c9d",
+        "file_sha256": "d65ccd5662de73efb045d3e102af0a7ac082acf6a64ba0f2f22a31feebddf38f"
+      },
+      {
+        "id": "object-assign-helper-inactive",
+        "path": "crates/checker/src/literals.rs",
+        "line": 901,
+        "column": 9,
+        "text": "languageVersion ObjectAssign emit-helper gate is dead at",
+        "text_sha256": "24e19960db18b8d9cec2364b3256206c513a0f2d7db64e451167b397cb44495f",
+        "file_sha256": "1e506242357b3e8f5d8d2870807b37073cdde7b2591beee3017bdda9a0ee3df0"
+      },
+      {
+        "id": "template-helper-inactive",
+        "path": "crates/checker/src/calls.rs",
+        "line": 5994,
+        "column": 13,
+        "text": "MakeTemplateObject emit-helper check is dead at ES2025",
+        "text_sha256": "087a603f871a4885b303e2dbb727b4eb24404b2edc544dbcd0fd98a28a8b5d3f",
+        "file_sha256": "403b08106045441888ce62e368a61b4d31ec0ff4bd352028c61379a621363335"
+      },
+      {
+        "id": "export-assignment-linked-aliases-elided",
+        "path": "crates/checker/src/modules.rs",
+        "line": 8640,
+        "column": 9,
+        "text": "erasableSyntaxOnly, collectLinkedAliases (emit), and the JSDoc",
+        "text_sha256": "cc4dd50e43884202d07a86cd80ca77696185e6febb386d95556809d479592f8e",
+        "file_sha256": "c2f5da11efaa8540ce78bd9e88e3ddd00366a12e9305a5a5629555d2d7ba68fc"
+      },
+      {
+        "id": "standard-class-fields-check-elided",
+        "path": "crates/checker/src/resolve.rs",
+        "line": 1014,
+        "column": 37,
+        "text": "getEmitStandardClassFields:\n    /// useDefineForClassFields unmodeled",
+        "text_sha256": "22f82a45e3476622b95f8e96982de99395efa66747cc0dd0ef5b03450d058600",
+        "file_sha256": "2814514e5975d2d0d8e5cfa7d08a3877c8b09a79a2b74be97c185b189c759d6e"
+      },
+      {
+        "id": "external-helper-producer-present",
+        "path": "crates/checker/src/modules.rs",
+        "line": 4953,
+        "column": 5,
+        "text": "pub(crate) fn check_external_emit_helpers(",
+        "text_sha256": "e127a45e63e86b553a6030b1b4e9a7c4f9a4388a49143d7aa0267cf5b6df8884",
+        "file_sha256": "c2f5da11efaa8540ce78bd9e88e3ddd00366a12e9305a5a5629555d2d7ba68fc"
+      },
+      {
+        "id": "jsx-alias-producer-present",
+        "path": "crates/checker/src/jsx.rs",
+        "line": 930,
+        "column": 5,
+        "text": "fn mark_jsx_alias_referenced(&mut self, node: NodeId) -> CheckResult<()> {",
+        "text_sha256": "917d92a0f0662bd0cbcda4260a8721fb7800a6f7587734654abf2cb4557260e5",
+        "file_sha256": "da3eefd50e9d52459f606518f6f433fd31b00ce8499b88f82f5d077955f9e422"
+      }
+    ],
+    "absence_proofs": [
+      {
+        "id": "emitter-crate-directory",
+        "kind": "path-absent",
+        "path": "crates/emitter",
+        "exists": false
+      },
+      {
+        "id": "emitter-workspace-member-or-dependency",
+        "kind": "regex-zero",
+        "scope": "cargo-manifests",
+        "expression": "(?:crates/emitter|tsc-emitter|tsc_emitter)",
+        "match_count": 0,
+        "matches": []
+      },
+      {
+        "id": "emitter-module-declaration",
+        "kind": "regex-zero",
+        "scope": "production-rust",
+        "expression": "^[ \\t]*(?:pub(?:\\([^)]*\\))?[ \\t]+)?mod[ \\t]+emitter\\b",
+        "match_count": 0,
+        "matches": []
+      },
+      {
+        "id": "typed-emitter-protocol",
+        "kind": "regex-zero",
+        "scope": "production-rust",
+        "expression": "^[ \\t]*(?:pub(?:\\([^)]*\\))?[ \\t]+)?(?:struct|enum|trait|type)[ \\t]+(?:EmitArtifact|EmitArtifactKind|EmitCallbackMetadata|EmitOutputPaths|SinkDisposition|OutputSink|EmitOutcome|EmitFailure|EmitHost|EmitResolver|TransformRoot|MemoryOutputSink|FsOutputSink)\\b",
+        "match_count": 0,
+        "matches": []
+      },
+      {
+        "id": "program-session-emit-entry",
+        "kind": "regex-zero",
+        "scope": "compiler-production",
+        "expression": "^[ \\t]*pub[ \\t]+fn[ \\t]+emit[ \\t]*\\(",
+        "match_count": 0,
+        "matches": []
+      },
+      {
+        "id": "checker-emit-session-or-resolver",
+        "kind": "regex-zero",
+        "scope": "checker-production",
+        "expression": "^[ \\t]*(?:pub(?:\\([^)]*\\))?[ \\t]+)?(?:struct|enum|trait|type)[ \\t]+(?:CheckerSession|EmitResolver)\\b",
+        "match_count": 0,
+        "matches": []
+      },
+      {
+        "id": "transform-session-types",
+        "kind": "regex-zero",
+        "scope": "production-rust",
+        "expression": "^[ \\t]*(?:pub(?:\\([^)]*\\))?[ \\t]+)?(?:struct|enum|trait|type)[ \\t]+(?:TransformFlags|EmitNode|EmitMetadata|NodeFactory|TransformArena|TransformationContext|TransformationResult)\\b",
+        "match_count": 0,
+        "matches": []
+      },
+      {
+        "id": "transform-printer-output-functions",
+        "kind": "regex-zero",
+        "scope": "production-rust",
+        "expression": "^[ \\t]*(?:pub(?:\\([^)]*\\))?[ \\t]+)?fn[ \\t]+(?:transform_nodes|create_text_writer|create_printer|transform_type_script|transform_class_fields|transform_ecmascript_module|get_source_files_to_emit|get_output_paths_for|for_each_emitted_file|emit_files)[ \\t]*\\(",
+        "match_count": 0,
+        "matches": []
+      },
+      {
+        "id": "linked-reference-producers",
+        "kind": "regex-zero",
+        "scope": "checker-production",
+        "expression": "^[ \\t]*(?:pub(?:\\([^)]*\\))?[ \\t]+)?fn[ \\t]+(?:mark_linked_references|collect_linked_aliases)[ \\t]*\\(",
+        "match_count": 0,
+        "matches": []
+      }
+    ]
+  },
+  "inventory_fingerprint_sha256": "69674035d5fdf7c1606e5da83fe635617e8e4d554fb8bd03d48c49f8e8ca2cf1"
+}

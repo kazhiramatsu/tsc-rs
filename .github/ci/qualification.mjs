@@ -318,6 +318,7 @@ export function validatePolicy(policy) {
     "failure-artifact",
     "h1-emit-profile",
     "h1-emit-observation",
+    "h1-rust-omissions",
   ]) {
     const schema = JSON.parse(fs.readFileSync(path.join(contractDirectory, `${contract}.schema.json`), "utf8"));
     if (schema.$schema !== "https://json-schema.org/draft/2020-12/schema" || schema.additionalProperties !== false || !schema.$id.endsWith(`/${contract}.schema.json`)) {
