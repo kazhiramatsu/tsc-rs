@@ -86,6 +86,11 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
+      - name: Install the pinned Node runtime
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.3.0
+        with:
+          node-version-file: .node-version
+
       - name: Check formatting
         run: cargo fmt --all -- --check
 
