@@ -32,10 +32,17 @@ Program reachability analysis. Reachable `export =`/`import =` syntax blocks
 `esmNoSynthesizedDefault.ts#module%3Dpreserve` remains a bootstrap candidate.
 All 7,276 execution states remain `not-run`, and no reference baseline has
 been compared, so this is an admission proof rather than an emit result.
+The 632 existing project-runner rows now have a separate exact classification
+as well. It reconstructs the pinned `projectsRunner` option and root-selection
+orders, verifies all descriptor/config/root source identities, and records 570
+explicit-input rows plus 62 config-backed rows. Every CommonJS/AMD row has
+both a required target and module blocker, so admissions are exactly zero.
+All 632 execution states remain `not-run`, and no reference baseline has been
+compared.
 The shared L0/L1 prerequisite and its evidence/CI-contract freeze are complete.
 The graph's unresolved dynamic calls and conservative property dispatch still
-need review, and project classification plus promoted FourSlash
-whole-Program equivalence review remain open. No H1 runtime implementation or
+need review, and promoted FourSlash whole-Program equivalence review remains
+open. No H1 runtime implementation or
 compatibility claim exists until the complete H1.0 inventory and post-L0/L1
 no-emit performance baseline described below are frozen.
 H0 remains the released, frozen single-project `--noEmit` profile. M9 remains a
@@ -1063,6 +1070,19 @@ and one candidate. Every row remains `not-run`, reference-baseline comparisons
 remain zero, and the artifact claims neither Program/emit execution by Rust nor
 an upstream compiler-suite pass.
 
+The separate
+[`project-profile-classification.v1.json`](../../../vendor/typescript-6.0.3/project-profile-classification.v1.json)
+classifies all 632 project rows without mutating expansion v1. It reproduces
+the pinned `projectsRunner` defaults, descriptor options, config precedence,
+and exact root-selection order over all 316 descriptors and the shared
+233-file backing tree. The result contains 570 explicit-input rows and 62
+config-backed rows, including six deliberately missing explicit roots and 74
+config roots with zero config diagnostics. JavaScript observation is
+applicable to 572 rows. Every CommonJS/AMD variant has both a target and
+module blocker before source analysis, so admissions are zero. All 632 rows
+remain `not-run`, reference-baseline comparisons remain zero, and the artifact
+claims neither Program/emit execution nor an upstream project-suite pass.
+
 The inventory then classifies these sources:
 
 1. `tests/cases/compiler`, `tests/cases/project`,
@@ -1070,7 +1090,9 @@ The inventory then classifies these sources:
    the primary whole-Program input universe. The complete conformance source
    tree is pinned in additive suite pin v4 and its 7,697 runner cases are
    expanded and effective-option classified separately. The 7,276 compiler
-   rows are also classified, with one explicit bootstrap candidate. All
+   rows are also classified, with one explicit bootstrap candidate, and all
+   632 project rows have exact root/effective-option dispositions with zero
+   admissions. All
    observations stay `not-run`; no case has an execution result. A future
    admitted row must pass through production program construction and
    `ProgramSession::emit`.
@@ -1221,13 +1243,14 @@ companion classification reproduces effective settings for every row and
 proves zero bootstrap admissions while leaving all 7,697 rows `not-run`.
 The companion compiler classification covers all 7,276 rows, performs source
 analysis for the two option-clear cases, and retains one bootstrap candidate
-while leaving every row `not-run`. Project classification, promoted FourSlash
-equivalence, and reviewed unresolved/property-dispatch dispositions still keep
-item 1 open.
+while leaving every row `not-run`. The companion project classification covers
+all 632 rows, pins exact roots and option precedence, proves zero admissions,
+and also leaves every row `not-run`. Promoted FourSlash equivalence and reviewed
+unresolved/property-dispatch dispositions still keep item 1 open.
 
 1. **H1.0a — inventory and oracle:** generate the JavaScript-emitter owner
-   graph, classify the project corpus plus the already classified compiler and
-   conformance corpus, reconstructed transpile matrix, and FourSlash emit
+   graph, retain the classified project, compiler, and conformance corpora,
+   reconstructed transpile matrix, and FourSlash emit
    projection, freeze dormant declaration/map/bundle/targeted/build-info seams,
    land the in-memory oracle, and record every current emit-only Rust omission.
    The inventory and design portion may proceed in parallel with the next item.

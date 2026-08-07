@@ -12,7 +12,9 @@ with all 46,182 observation rows `not-run`, and an exact effective-option
 classification of all 7,697 cases that proves zero bootstrap admissions while
 retaining every row `not-run`, plus exact effective-option and reached-source
 classification of all 7,276 compiler rows that retains one bootstrap candidate
-while keeping every row `not-run`. This page records the
+while keeping every row `not-run`, plus exact root and effective-option
+classification of all 632 project rows that proves zero admissions while
+keeping every row `not-run`. This page records the
 current Rust implementation boundary, the work required to finish bounded H1
 JavaScript emit, and the remaining work after H1
 for broader TypeScript 6.0.3 compiler and tooling compatibility. It is not an
@@ -72,7 +74,7 @@ That review fixes the current evidence boundary as follows:
 | M8 diagnostic scope | `m8-scope.json` has **0 live exclusions** and 600 resolved tombstones | Emit/declaration/build/API paths that were not part of the frozen batch entry |
 | H0 host closure | 241/241 historical host-resolution rows are closed | Emitted outputs, project references, watch, or public host callbacks |
 | Compiler runner expansion/classification | 7,276/7,276 plans structurally load and run through H0. Exact H1 classification finds seven required target/module matches, two option-clear rows, and one source-compatible bootstrap candidate; every runner row remains `not-run` | Rust Program/emit execution, upstream diagnostic/trace/JS/d.ts/map/type/symbol baseline comparison, or a compiler-suite pass rate |
-| Project expansion | 82/632 H0-compatible plans are qualified; the other 550 are explicitly classified H0 non-scope | The upstream project emit/build baselines |
+| Project runner expansion/classification | 82/632 H0-compatible plans are qualified for no-emit. Exact H1 root/effective-option classification covers all 632 CommonJS/AMD rows, finds both target and module blockers on every row, and admits zero; every runner row remains `not-run` | Rust Program/emit execution, upstream JavaScript/declaration/map baseline comparison, or a project-suite pass rate |
 | Expansion manifest | All 7,908 compiler/project cases retain initial state `not-run` | Any upstream runner pass rate |
 | Conformance runner expansion/classification | The complete 5,908-file upstream tree is pinned; `CompilerBaselineRunner` selects 5,907 `.ts`/`.tsx` fixtures and expands 7,697 cases × six observations. Exact effective-option classification finds 7,655 JavaScript-applicable cases and three required target/module matches, but every case has another blocker, so admissions are zero and all rows remain `not-run` | Source-reachability or syntax classification beyond the option-level zero-admission proof, Program/emit execution, output-baseline comparison, or an upstream pass rate |
 | Transpile runner matrix | All 37 cases reconstructed from 22 fixtures and classified; every row remains `not-run` and zero reference baselines were compared | A transpile pass rate or equivalence between `transpileModule` and whole-Program emit |
@@ -960,6 +962,16 @@ dependencies: `modulePreserve1.ts#default` is blocked by reachable
 candidate. The 7,273 deferred-profile rows, two H0 `noEmit` rows, and one
 candidate all remain `not-run`; baseline comparisons and upstream pass claims
 remain zero.
+
+The companion `project-profile-classification.v1.json` classifies all 632
+project rows in that same unchanged expansion. It reproduces the exact
+`projectsRunner` default/descriptor/config option precedence and root-selection
+order for all 316 descriptors against the shared 233-file backing tree. It
+records 570 explicit-input rows, 62 config-backed rows, six deliberately
+missing explicit roots, 74 config roots, zero config diagnostics, and 572
+JavaScript-applicable observations. Every CommonJS/AMD row has both a target
+and module blocker before source analysis, so admissions are zero. Every row
+remains `not-run`; baseline comparisons and upstream pass claims remain zero.
 
 At the pinned commit, upstream
 [`compilerRunner.ts`](https://github.com/microsoft/TypeScript/blob/050880ce59e30b356b686bd3144efe24f875ebc8/src/testRunner/compilerRunner.ts)
