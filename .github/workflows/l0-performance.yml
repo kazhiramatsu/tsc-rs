@@ -11,6 +11,15 @@ on:
         description: Exact ancestor commit used as baseline
         required: true
         type: string
+      stage:
+        description: L0 performance stage to qualify
+        required: true
+        default: one-shot-registry
+        type: choice
+        options:
+          - one-shot-registry
+          - owned-bind
+          - identity
       pairs:
         description: Total AB/BA pairs, including one cold pair
         required: true
@@ -44,6 +53,9 @@ jobs:
       RUSTC_WRAPPER: ""
       CANDIDATE_SHA: ${{ inputs.candidate_sha }}
       BASELINE_SHA: ${{ inputs.baseline_sha }}
+      STAGE: ${{ inputs.stage }}
+      COMPARE_SELECTOR: ${{ inputs.stage == 'one-shot-registry' && '--one-shot-registry' || inputs.stage == 'owned-bind' && '--owned-bind' || '' }}
+      EVIDENCE_PATH: ${{ inputs.stage == 'one-shot-registry' && 'ratchets/l0-one-shot-registry-performance.v1.json' || inputs.stage == 'owned-bind' && 'ratchets/l0-owned-bind-state-performance.v1.json' || 'ratchets/l0-identity-leases-performance.v1.json' }}
       PAIRS: ${{ inputs.pairs }}
     steps:
       - name: Validate exact inputs
@@ -52,6 +64,10 @@ jobs:
           [[ "$CANDIDATE_SHA" =~ ^[0-9a-f]{40}$ ]]
           [[ "$BASELINE_SHA" =~ ^[0-9a-f]{40}$ ]]
           test "$CANDIDATE_SHA" != "$BASELINE_SHA"
+          case "$STAGE" in
+            one-shot-registry|owned-bind|identity) ;;
+            *) exit 1 ;;
+          esac
 
       - name: Checkout the exact candidate
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -65,11 +81,16 @@ jobs:
         shell: bash
         run: |
           test "$(git rev-parse HEAD)" = "$CANDIDATE_SHA"
+          selector_args=()
+          if [ -n "$COMPARE_SELECTOR" ]; then
+            selector_args=("$COMPARE_SELECTOR")
+          fi
           set +e
           node crates/oracle/l0-performance.mjs \
             --compare \
             --baseline "$BASELINE_SHA" \
             --pairs "$PAIRS" \
+            "${selector_args[@]}" \
             >"$RUNNER_TEMP/l0-performance.stdout" \
             2>"$RUNNER_TEMP/l0-performance.stderr"
           code=$?
@@ -89,7 +110,7 @@ jobs:
         id: attest
         uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4
         with:
-          subject-path: ratchets/l0-identity-leases-performance.v1.json
+          subject-path: ${{ env.EVIDENCE_PATH }}
 
       - name: Verify signer and exact comparison commits
         shell: bash
@@ -97,7 +118,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           ATTESTATION_BUNDLE: ${{ steps.attest.outputs.bundle-path }}
         run: |
-          gh attestation verify ratchets/l0-identity-leases-performance.v1.json \
+          gh attestation verify "$EVIDENCE_PATH" \
             --repo "$GITHUB_REPOSITORY" \
             --bundle "$ATTESTATION_BUNDLE" \
             --signer-workflow "$GITHUB_REPOSITORY/.github/workflows/l0-performance.yml" \
@@ -106,14 +127,14 @@ jobs:
             const fs = require("fs");
             const evidence = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
             if (evidence.status !== "qualified" || evidence.candidate.commit !== process.argv[2] || evidence.base.commit !== process.argv[3]) process.exit(1);
-          ' ratchets/l0-identity-leases-performance.v1.json "$CANDIDATE_SHA" "$BASELINE_SHA"
+          ' "$EVIDENCE_PATH" "$CANDIDATE_SHA" "$BASELINE_SHA"
 
       - name: Publish approved performance evidence
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: l0-performance-${{ inputs.candidate_sha }}
           path: |
-            ratchets/l0-identity-leases-performance.v1.json
+            ${{ env.EVIDENCE_PATH }}
             ${{ steps.attest.outputs.bundle-path }}
           if-no-files-found: error
           retention-days: 30

@@ -126,7 +126,7 @@
     "authority_workflow": ".github/workflows/l0-performance.yml",
     "authority_job": "qualify",
     "environment": "approved-performance",
-    "evidence": "ratchets/l0-identity-leases-performance.v1.json",
+    "evidence": "ratchets/l0-one-shot-registry-performance.v1.json",
     "moving_hosted_images_may_mint_ratchets": false,
     "alternating_baseline_candidate": true
   }

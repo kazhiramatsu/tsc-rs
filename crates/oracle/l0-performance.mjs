@@ -10,6 +10,7 @@ const evidencePath = path.join(workspace, "ratchets/l0-evidence.v1.json");
 const textComparisonPath = path.join(workspace, "ratchets/l0-text-ownership-performance.v1.json");
 const identityComparisonPath = path.join(workspace, "ratchets/l0-identity-leases-performance.v1.json");
 const ownedBindComparisonPath = path.join(workspace, "ratchets/l0-owned-bind-state-performance.v1.json");
+const oneShotRegistryComparisonPath = path.join(workspace, "ratchets/l0-one-shot-registry-performance.v1.json");
 const fixtureManifestPath = path.join(workspace, "ratchets/l0-fixtures.v1.json");
 const fixtureRoot = path.join(workspace, "target/l0/qualification-fixtures");
 const binaryPath = path.join(workspace, "target/release/examples/h0_qualification");
@@ -499,10 +500,22 @@ if (commandName === "--compare") {
   const baseline = baselineArgument >= 0 ? process.argv[baselineArgument + 1] : undefined;
   const pairCount = pairsArgument >= 0 ? Number(process.argv[pairsArgument + 1]) : 8;
   if (!baseline) throw new Error("--compare requires --baseline <exact-commit>");
-  const ownedBind = process.argv.includes("--owned-bind");
-  const kind = ownedBind ? "l0-owned-bind-state-performance" : "l0-identity-leases-performance";
-  const label = ownedBind ? "L0.3" : "L0.2";
-  const outputPath = ownedBind ? ownedBindComparisonPath : identityComparisonPath;
+  const stages = ["--owned-bind", "--one-shot-registry"].filter((flag) => process.argv.includes(flag));
+  if (stages.length > 1) throw new Error("--compare accepts at most one L0 stage selector");
+  const stage = stages[0];
+  const kind =
+    stage === "--one-shot-registry"
+      ? "l0-one-shot-registry-performance"
+      : stage === "--owned-bind"
+        ? "l0-owned-bind-state-performance"
+        : "l0-identity-leases-performance";
+  const label = stage === "--one-shot-registry" ? "L0.4" : stage === "--owned-bind" ? "L0.3" : "L0.2";
+  const outputPath =
+    stage === "--one-shot-registry"
+      ? oneShotRegistryComparisonPath
+      : stage === "--owned-bind"
+        ? ownedBindComparisonPath
+        : identityComparisonPath;
   const evidence = compare(baseline, pairCount, kind);
   validateComparison(evidence, kind, label, true);
   fs.writeFileSync(outputPath, `${JSON.stringify(evidence, null, 2)}\n`);
@@ -527,11 +540,19 @@ if (commandName === "--compare") {
     throw new Error("missing ratchets/l0-owned-bind-state-performance.v1.json; run --compare --owned-bind on the approved runner");
   }
   const ownedBindComparison = JSON.parse(fs.readFileSync(ownedBindComparisonPath, "utf8"));
-  validateComparison(ownedBindComparison, "l0-owned-bind-state-performance", "L0.3", true);
+  validateComparison(ownedBindComparison, "l0-owned-bind-state-performance", "L0.3", false);
   if (!sameJson(ownedBindComparison.base.runtime_tree, identityComparison.candidate.runtime_tree)) {
     throw new Error("L0.3 performance base is not the exact L0.2 qualified runtime tree");
   }
-  process.stdout.write("L0.0 baseline plus L0.1, L0.2, and L0.3 relative performance evidence are valid and current\n");
+  if (!fs.existsSync(oneShotRegistryComparisonPath)) {
+    throw new Error("missing ratchets/l0-one-shot-registry-performance.v1.json; run --compare --one-shot-registry on the approved runner");
+  }
+  const oneShotRegistryComparison = JSON.parse(fs.readFileSync(oneShotRegistryComparisonPath, "utf8"));
+  validateComparison(oneShotRegistryComparison, "l0-one-shot-registry-performance", "L0.4", true);
+  if (!sameJson(oneShotRegistryComparison.base.runtime_tree, ownedBindComparison.candidate.runtime_tree)) {
+    throw new Error("L0.4 performance base is not the exact L0.3 qualified runtime tree");
+  }
+  process.stdout.write("L0.0 baseline plus L0.1, L0.2, L0.3, and L0.4 relative performance evidence are valid and current\n");
 } else {
-  throw new Error("usage: l0-performance.mjs --compare --baseline <exact-commit> [--pairs N] [--owned-bind]|--check");
+  throw new Error("usage: l0-performance.mjs --compare --baseline <exact-commit> [--pairs N] [--owned-bind|--one-shot-registry]|--check");
 }
