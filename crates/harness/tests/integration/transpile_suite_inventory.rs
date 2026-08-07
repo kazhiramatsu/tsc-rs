@@ -9,15 +9,15 @@ const MANIFEST: &[u8] = include_bytes!(concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/../../vendor/typescript-6.0.3/transpile-suite-inventory.v1.json"
 ));
-const MANIFEST_SHA256: &str = "d764594064cbbba0fc6523a5c2467699f00df180842a3b82dbd568df799763fb";
+const MANIFEST_SHA256: &str = "5762b9fbf86c0437ff3bfc2f1e1deab48e35effc8d9117299035d23d6c45f949";
 const GENERATOR_PATH: &str = "crates/oracle/h1-transpile-inventory.mjs";
-const GENERATOR_SHA256: &str = "c28da05e632bf96d14bd5a264f43df12e0b9c6ca376c00ad51cd55321d1e53d3";
+const GENERATOR_SHA256: &str = "b49f853935e063cd1e932ebdbb90006a8a0aa4e7d407bc85dfe50af63b774a3e";
 const CONTRACT_PATH: &str = ".github/ci/contracts/h1-transpile-inventory.schema.json";
 const CONTRACT_SHA256: &str = "67518769af8865462a66619c193b4e011d898b892b25ed55140ede8e70f5c6d7";
 const SUITE_PIN_PATH: &str = "vendor/typescript-6.0.3/test-suites-pin.v2.json";
 const SUITE_PIN_SHA256: &str = "83f8edbb6f4535a19e61cf872532a46722f8cedbd2d746a0922dc507addc0879";
 const PROFILE_PATH: &str = "ratchets/h1-emit-profile.v1.json";
-const PROFILE_SHA256: &str = "501c363f2ea6c626d46b195daab949886cc9bacb1314f3c6584a1f82bd76ef8f";
+const PROFILE_SHA256: &str = "91e05db331a090e180e9cda7fc8eaa505d795b229a49d78d62d1e086c8602991";
 const TYPESCRIPT_BUNDLE_PATH: &str = "vendor/typescript-6.0.3/lib/typescript.js";
 const TYPESCRIPT_BUNDLE_SHA256: &str =
     "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39";

@@ -6,6 +6,8 @@ mod h1_conformance_expansion;
 mod h1_conformance_profile_classification;
 #[path = "integration/h1_fourslash_whole_program_equivalence.rs"]
 mod h1_fourslash_whole_program_equivalence;
+#[path = "integration/h1_owner_inventory_dispositions.rs"]
+mod h1_owner_inventory_dispositions;
 #[path = "integration/h1_project_profile_classification.rs"]
 mod h1_project_profile_classification;
 #[path = "integration/module_suffixes_oracle_contract.rs"]

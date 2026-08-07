@@ -1,7 +1,8 @@
 # TypeScript 6.0.3 compiler compatibility residual
 
 Status: audited design input, updated 2026-08-07 with L0.4 and L1 complete and
-qualified, the H1.0a owner graph active as a report-only draft, and the current
+qualified, the H1.0a report-only owner graph fully dispositioned with zero
+unresolved calls, and the current
 Rust emit omissions frozen in a generated baseline, with the complete upstream
 transpile source tree content-addressed in additive suite pin v2 and its exact
 37-row runner matrix classified without execution or baseline comparison, plus
@@ -291,6 +292,16 @@ The L0/L1 prerequisite for package 4.2 is now complete and qualified in
 route is the baseline used by the remaining packages.
 
 ### 4.1 Inventory, profile, and evidence freeze
+
+This package is complete. The exact graph retains 6,193 reachable declarations
+and 24,054 ownership edges after deleting the former 12,183 same-name property
+fan-out edges. It records all 5,202 property/dynamic or otherwise non-lexical
+call sites as exact source-symbol, runtime-library, callback/value,
+structural-property, or computed dispositions: 711 produce exact symbol edges
+and 4,491 remain classified non-edges. It leaves zero unresolved or
+undispositioned rows. The frozen profile, callback oracle, Rust
+omission census, and all upstream classifications are content-addressed to
+that reviewed graph.
 
 - Generate the complete reachable declaration graph from `Program.emit`,
   `emitFilesAndReportErrors`, `getTransformers`, the three active transform
@@ -1072,7 +1083,8 @@ The critical path is:
    `ProgramSnapshot`, ephemeral H0 adapter, and minimal registry reuse;
 3. **Complete:** land L1 incremental parsing and its exactness, Unicode-edit, randomized-
    edit, memory, and large-file latency gates, then requalify H0;
-4. freeze the post-L0/L1 H1 no-emit baseline;
+4. **Next:** freeze the post-L0/L1 H1 no-emit baseline and constructor/write-zero
+   canaries; ordinary hosted CI is already frozen to `cargo xtask acceptance`;
 5. land emitter protocols, emitting options/loader, and scoped checker
    lifetime;
 6. land transform flags, factory/context, writer/printer, resolver, and the

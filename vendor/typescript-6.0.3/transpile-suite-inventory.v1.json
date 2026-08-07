@@ -9,7 +9,7 @@
   },
   "generator": {
     "path": "crates/oracle/h1-transpile-inventory.mjs",
-    "sha256": "c28da05e632bf96d14bd5a264f43df12e0b9c6ca376c00ad51cd55321d1e53d3"
+    "sha256": "b49f853935e063cd1e932ebdbb90006a8a0aa4e7d407bc85dfe50af63b774a3e"
   },
   "contract": {
     "path": ".github/ci/contracts/h1-transpile-inventory.schema.json",
@@ -33,7 +33,7 @@
     },
     "h1_profile": {
       "path": "ratchets/h1-emit-profile.v1.json",
-      "sha256": "501c363f2ea6c626d46b195daab949886cc9bacb1314f3c6584a1f82bd76ef8f"
+      "sha256": "91e05db331a090e180e9cda7fc8eaa505d795b229a49d78d62d1e086c8602991"
     },
     "typescript_bundle": {
       "path": "vendor/typescript-6.0.3/lib/typescript.js",

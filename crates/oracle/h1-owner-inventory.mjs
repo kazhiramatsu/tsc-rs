@@ -10,6 +10,7 @@ const sourceRelativePath = "vendor/typescript-6.0.3/lib/_tsc.js";
 const sourcePath = path.join(workspace, sourceRelativePath);
 const targetRelativePath = "ratchets/h1-owner-inventory.v1.json";
 const targetPath = path.join(workspace, targetRelativePath);
+const contractRelativePath = ".github/ci/contracts/h1-owner-inventory.schema.json";
 const expectedSourceSha256 = "1c59e77a54b186ec43fa7f3e0d3c4bb15ca5eb5ba43e96b1d3a267139eddd3e3";
 
 const activeRootSpecs = [
@@ -78,8 +79,51 @@ const dormantSeamSpecs = [
   },
 ];
 
+const EXPECTED_SUMMARY = {
+  source_declarations: 10899,
+  active_roots: 11,
+  dormant_seams: 8,
+  closure_declarations: 6193,
+  static_edges: 24054,
+  lexical_edges: 19033,
+  immediate_edges: 0,
+  dynamic_symbol_edges: 10,
+  nested_function_edges: 4511,
+  property_symbol_edges: 500,
+  call_sites: 29310,
+  reviewed_call_sites: 5202,
+  identifier_runtime_library_calls: 23,
+  identifier_parameter_callback_calls: 279,
+  identifier_destructured_callback_calls: 114,
+  identifier_source_value_calls: 301,
+  identifier_external_global_calls: 1,
+  property_source_symbol_calls: 704,
+  property_runtime_library_calls: 749,
+  property_structural_dispatch_calls: 3021,
+  property_checker_stack_overflow_calls: 1,
+  dynamic_expression_calls: 10,
+  dynamic_source_expression_calls: 7,
+  reviewed_exact_edge_calls: 711,
+  reviewed_non_edge_calls: 4491,
+  property_candidate_sets: 442,
+  property_candidate_declarations: 652,
+  undispositioned_calls: 0,
+};
+
 function sha256(value) {
   return crypto.createHash("sha256").update(value).digest("hex");
+}
+
+function pathHash(relative) {
+  return { path: relative, sha256: sha256(fs.readFileSync(path.join(workspace, relative))) };
+}
+
+function requireJsonEqual(actual, expected, description) {
+  if (JSON.stringify(actual) !== JSON.stringify(expected)) {
+    throw new Error(
+      `${description} mismatch\nactual=${JSON.stringify(actual)}\nexpected=${JSON.stringify(expected)}`,
+    );
+  }
 }
 
 const sourceText = fs.readFileSync(sourcePath, "utf8");
@@ -210,7 +254,9 @@ function createRecord(node, owner, info) {
     selfBinding: info.selfBinding,
     propertyAlias: info.propertyAlias,
     rawCalls: [],
-    unresolvedCalls: [],
+    callDispositions: [],
+    callSites: 0,
+    classifiedCallSites: 0,
   };
   records.push(record);
   recordByNode.set(node, record);
@@ -266,7 +312,7 @@ for (const candidates of aliasCandidates.values()) {
   candidates.sort((left, right) => left.id.localeCompare(right.id));
 }
 
-function lexicalCandidates(record, expression, name) {
+function functionCandidatesForSymbol(symbol) {
   const candidates = [];
   const seenSymbols = new Set();
   const collectSymbol = (symbol) => {
@@ -276,21 +322,40 @@ function lexicalCandidates(record, expression, name) {
       if (ts.isFunctionLike(declaration)) {
         const candidate = recordByNode.get(declaration);
         if (candidate) candidates.push(candidate);
-      } else if (ts.isVariableDeclaration(declaration) && declaration.initializer) {
-        if (ts.isFunctionLike(declaration.initializer)) {
-          const candidate = recordByNode.get(declaration.initializer);
+        continue;
+      }
+      if (ts.isShorthandPropertyAssignment(declaration)) {
+        collectSymbol(checker.getShorthandAssignmentValueSymbol(declaration));
+        continue;
+      }
+      if (
+        (ts.isVariableDeclaration(declaration) ||
+          ts.isPropertyAssignment(declaration) ||
+          ts.isPropertyDeclaration(declaration)) &&
+        declaration.initializer
+      ) {
+        const initializer = declaration.initializer;
+        if (ts.isFunctionLike(initializer)) {
+          const candidate = recordByNode.get(initializer);
           if (candidate) candidates.push(candidate);
-        } else if (ts.isIdentifier(declaration.initializer)) {
-          collectSymbol(checker.getSymbolAtLocation(declaration.initializer));
+        } else if (ts.isIdentifier(initializer)) {
+          collectSymbol(checker.getSymbolAtLocation(initializer));
+        } else if (ts.isPropertyAccessExpression(initializer)) {
+          collectSymbol(checker.getSymbolAtLocation(initializer.name));
         }
       }
     }
   };
-  collectSymbol(checker.getSymbolAtLocation(expression));
+  collectSymbol(symbol);
+  return [...new Map(candidates.map((candidate) => [candidate.id, candidate])).values()].sort(
+    (left, right) => left.id.localeCompare(right.id),
+  );
+}
+
+function lexicalCandidates(record, expression, name) {
+  const candidates = functionCandidatesForSymbol(checker.getSymbolAtLocation(expression));
   if (candidates.length > 0) {
-    return [...new Map(candidates.map((candidate) => [candidate.id, candidate])).values()].sort(
-      (left, right) => left.id.localeCompare(right.id),
-    );
+    return candidates;
   }
 
   let scope = record;
@@ -314,10 +379,196 @@ function propertyCallName(expression) {
   return null;
 }
 
+function sourcePathForDeclaration(declaration) {
+  return path.relative(workspace, declaration.getSourceFile().fileName).replaceAll("\\", "/");
+}
+
+function symbolDeclarationKinds(symbol) {
+  return [...new Set((symbol?.declarations ?? []).map((declaration) => ts.SyntaxKind[declaration.kind]))]
+    .sort();
+}
+
+function externalDeclarationPaths(symbol) {
+  return [
+    ...new Set(
+      (symbol?.declarations ?? [])
+        .filter((declaration) => declaration.getSourceFile() !== source)
+        .map(sourcePathForDeclaration),
+    ),
+  ].sort();
+}
+
+function callSite(expression) {
+  const start = position(expression.getStart(source));
+  const text = expression.getText(source);
+  return {
+    expression: text,
+    expression_sha256: sha256(text),
+    line: start.line,
+    character: start.character,
+  };
+}
+
+function identifierDisposition(expression) {
+  const site = callSite(expression);
+  const symbol = checker.getSymbolAtLocation(expression);
+  const declarationKinds = symbolDeclarationKinds(symbol);
+  const libraryPaths = externalDeclarationPaths(symbol);
+  if (libraryPaths.length > 0) {
+    return {
+      ...site,
+      kind: "identifier",
+      resolution: "runtime-library",
+      symbol_declaration_kinds: declarationKinds,
+      library_paths: libraryPaths,
+    };
+  }
+  if (declarationKinds.length === 1 && declarationKinds[0] === "Parameter") {
+    return {
+      ...site,
+      kind: "identifier",
+      resolution: "parameter-callback",
+      symbol_declaration_kinds: declarationKinds,
+      library_paths: [],
+    };
+  }
+  if (declarationKinds.length === 1 && declarationKinds[0] === "BindingElement") {
+    return {
+      ...site,
+      kind: "identifier",
+      resolution: "destructured-callback",
+      symbol_declaration_kinds: declarationKinds,
+      library_paths: [],
+    };
+  }
+  if (declarationKinds.length === 1 && declarationKinds[0] === "VariableDeclaration") {
+    return {
+      ...site,
+      kind: "identifier",
+      resolution: "source-value-call",
+      symbol_declaration_kinds: declarationKinds,
+      library_paths: [],
+    };
+  }
+  if (declarationKinds.length === 0) {
+    return {
+      ...site,
+      kind: "identifier",
+      resolution: "external-global",
+      symbol_declaration_kinds: [],
+      library_paths: [],
+    };
+  }
+  throw new Error(
+    `unreviewed identifier call ${expression.text} at ${site.line}:${site.character} (${declarationKinds.join(",") || "no-symbol"})`,
+  );
+}
+
+function propertyDisposition(expression, property) {
+  const site = callSite(expression);
+  const location = ts.isPropertyAccessExpression(expression)
+    ? expression.name
+    : expression.argumentExpression;
+  let symbol;
+  let checkerState = "resolved";
+  try {
+    symbol = checker.getSymbolAtLocation(location);
+  } catch (error) {
+    if (!(error instanceof RangeError)) throw error;
+    checkerState = "stack-overflow";
+  }
+  const candidates = functionCandidatesForSymbol(symbol);
+  const libraryPaths = externalDeclarationPaths(symbol);
+  let resolution;
+  if (candidates.length > 0) {
+    resolution = "source-symbol";
+  } else if (libraryPaths.length > 0) {
+    resolution = "runtime-library";
+  } else {
+    resolution = "structural-dispatch";
+    if (checkerState === "resolved") checkerState = symbol ? "source-symbol-unfollowed" : "absent";
+  }
+  return {
+    disposition: {
+      ...site,
+      kind: "property",
+      property,
+      receiver: expression.expression.getText(source),
+      resolution,
+      checker_state: checkerState,
+      symbol_declaration_kinds: symbolDeclarationKinds(symbol),
+      library_paths: libraryPaths,
+      source_callees: candidates.map((candidate) => candidate.id),
+      candidate_set: resolution === "structural-dispatch" ? property : null,
+    },
+    candidates,
+  };
+}
+
+function unwrapParentheses(expression) {
+  let current = expression;
+  while (ts.isParenthesizedExpression(current)) current = current.expression;
+  return current;
+}
+
+function dynamicExpressionCandidates(record, expression) {
+  const current = unwrapParentheses(expression);
+  if (ts.isFunctionLike(current)) {
+    const candidate = recordByNode.get(current);
+    return candidate ? [candidate] : [];
+  }
+  if (ts.isIdentifier(current)) {
+    return lexicalCandidates(record, current, current.text);
+  }
+  if (ts.isConditionalExpression(current)) {
+    return [
+      ...dynamicExpressionCandidates(record, current.whenTrue),
+      ...dynamicExpressionCandidates(record, current.whenFalse),
+    ];
+  }
+  if (
+    ts.isBinaryExpression(current) &&
+    (current.operatorToken.kind === ts.SyntaxKind.BarBarToken ||
+      current.operatorToken.kind === ts.SyntaxKind.QuestionQuestionToken)
+  ) {
+    return [
+      ...dynamicExpressionCandidates(record, current.left),
+      ...dynamicExpressionCandidates(record, current.right),
+    ];
+  }
+  return [];
+}
+
+function dynamicDisposition(record, expression) {
+  const site = callSite(expression);
+  const current = unwrapParentheses(expression);
+  const candidates = [
+    ...new Map(
+      dynamicExpressionCandidates(record, expression).map((candidate) => [candidate.id, candidate]),
+    ).values(),
+  ].sort((left, right) => left.id.localeCompare(right.id));
+  let resolution = "computed-expression";
+  if (candidates.length > 0) resolution = "source-expression";
+  else if (ts.isElementAccessExpression(current)) resolution = "computed-element";
+  else if (ts.isCallExpression(current)) resolution = "call-result";
+  return {
+    disposition: {
+      ...site,
+      kind: "dynamic",
+      expression_kind: ts.SyntaxKind[current.kind],
+      resolution,
+      source_callees: candidates.map((candidate) => candidate.id),
+    },
+    candidates,
+  };
+}
+
 function scanDeclaration(node, record, root = false) {
   if (!root && ts.isFunctionLike(node)) return;
 
   if (ts.isCallExpression(node)) {
+    record.callSites += 1;
+    const dispositionCount = record.callDispositions.length;
     const callStart = position(node.expression.getStart(source));
     const edges = [];
     if (ts.isIdentifier(node.expression)) {
@@ -325,12 +576,7 @@ function scanDeclaration(node, record, root = false) {
         edges.push({ callee: candidate.id, kind: "lexical" });
       }
       if (edges.length === 0) {
-        record.unresolvedCalls.push({
-          expression: node.expression.text,
-          kind: "identifier",
-          line: callStart.line,
-          character: callStart.character,
-        });
+        record.callDispositions.push(identifierDisposition(node.expression));
       }
     } else if (ts.isFunctionLike(node.expression)) {
       const candidate = recordByNode.get(node.expression);
@@ -338,22 +584,28 @@ function scanDeclaration(node, record, root = false) {
     } else {
       const property = propertyCallName(node.expression);
       if (property !== null) {
-        for (const candidate of aliasCandidates.get(property) ?? []) {
-          edges.push({ callee: candidate.id, kind: "property-candidate" });
+        const resolved = propertyDisposition(node.expression, property);
+        record.callDispositions.push(resolved.disposition);
+        if (resolved.disposition.resolution === "source-symbol") {
+          for (const candidate of resolved.candidates) {
+            edges.push({ callee: candidate.id, kind: "property-symbol" });
+          }
         }
-        if (edges.length === 0) {
-          record.unresolvedCalls.push({
-            expression: property,
-            kind: "property",
-            line: callStart.line,
-            character: callStart.character,
-          });
+      } else {
+        const resolved = dynamicDisposition(record, node.expression);
+        record.callDispositions.push(resolved.disposition);
+        for (const candidate of resolved.candidates) {
+          edges.push({ callee: candidate.id, kind: "dynamic-symbol" });
         }
       }
     }
     for (const edge of edges) {
       record.rawCalls.push({ ...edge, line: callStart.line, character: callStart.character });
     }
+    if (edges.length === 0 && record.callDispositions.length === dispositionCount) {
+      throw new Error(`unclassified call at ${callStart.line}:${callStart.character}`);
+    }
+    record.classifiedCallSites += 1;
   }
 
   ts.forEachChild(node, (child) => scanDeclaration(child, record));
@@ -486,9 +738,9 @@ const graphEdges = closure.flatMap((record) =>
     .filter((edge) => closureIds.has(edge.callee))
     .map((edge) => ({ caller: record.id, ...edge })),
 );
-const unresolvedCalls = closure
+const callDispositions = closure
   .flatMap((record) =>
-    record.unresolvedCalls.map((call) => ({ caller: record.id, ...call })),
+    record.callDispositions.map((disposition) => ({ caller: record.id, ...disposition })),
   )
   .sort(
     (left, right) =>
@@ -497,6 +749,42 @@ const unresolvedCalls = closure
       left.character - right.character ||
       left.expression.localeCompare(right.expression),
   );
+
+function propertyCandidateReference(record) {
+  return {
+    id: record.id,
+    name: record.name,
+    kind: record.kind,
+    lexical_owner: record.lexicalOwner,
+    line: record.sourceRange.start.line,
+    character: record.sourceRange.start.character,
+    declaration_sha256: record.declarationSha256,
+  };
+}
+
+const structuralProperties = [
+  ...new Set(
+    callDispositions
+      .filter(
+        (disposition) =>
+          disposition.kind === "property" &&
+          disposition.resolution === "structural-dispatch",
+      )
+      .map((disposition) => disposition.property),
+  ),
+].sort();
+const propertyCandidateSets = structuralProperties.map((property) => ({
+  property,
+  candidates: (aliasCandidates.get(property) ?? []).map(propertyCandidateReference),
+}));
+
+function dispositionCount(kind, resolution) {
+  return callDispositions.filter(
+    (disposition) =>
+      (kind === undefined || disposition.kind === kind) &&
+      (resolution === undefined || disposition.resolution === resolution),
+  ).length;
+}
 
 function declarationRecord(record) {
   return {
@@ -523,10 +811,59 @@ const functions = closure.map((record) => {
   };
 });
 
+const summary = {
+  source_declarations: records.length,
+  active_roots: activeRoots.length,
+  dormant_seams: dormantSeams.length,
+  closure_declarations: functions.length,
+  static_edges: graphEdges.length,
+  lexical_edges: graphEdges.filter((edge) => edge.kind === "lexical").length,
+  immediate_edges: graphEdges.filter((edge) => edge.kind === "immediate").length,
+  dynamic_symbol_edges: graphEdges.filter((edge) => edge.kind === "dynamic-symbol").length,
+  nested_function_edges: graphEdges.filter((edge) => edge.kind === "nested-function").length,
+  property_symbol_edges: graphEdges.filter((edge) => edge.kind === "property-symbol").length,
+  call_sites: closure.reduce((total, record) => total + record.callSites, 0),
+  reviewed_call_sites: callDispositions.length,
+  identifier_runtime_library_calls: dispositionCount("identifier", "runtime-library"),
+  identifier_parameter_callback_calls: dispositionCount("identifier", "parameter-callback"),
+  identifier_destructured_callback_calls: dispositionCount(
+    "identifier",
+    "destructured-callback",
+  ),
+  identifier_source_value_calls: dispositionCount("identifier", "source-value-call"),
+  identifier_external_global_calls: dispositionCount("identifier", "external-global"),
+  property_source_symbol_calls: dispositionCount("property", "source-symbol"),
+  property_runtime_library_calls: dispositionCount("property", "runtime-library"),
+  property_structural_dispatch_calls: dispositionCount("property", "structural-dispatch"),
+  property_checker_stack_overflow_calls: callDispositions.filter(
+    (disposition) =>
+      disposition.kind === "property" && disposition.checker_state === "stack-overflow",
+  ).length,
+  dynamic_expression_calls: dispositionCount("dynamic", undefined),
+  dynamic_source_expression_calls: dispositionCount("dynamic", "source-expression"),
+  reviewed_exact_edge_calls:
+    dispositionCount("property", "source-symbol") +
+    dispositionCount("dynamic", "source-expression"),
+  reviewed_non_edge_calls:
+    callDispositions.length -
+    dispositionCount("property", "source-symbol") -
+    dispositionCount("dynamic", "source-expression"),
+  property_candidate_sets: propertyCandidateSets.length,
+  property_candidate_declarations: propertyCandidateSets.reduce(
+    (total, set) => total + set.candidates.length,
+    0,
+  ),
+  undispositioned_calls: closure.reduce(
+    (total, record) => total + record.callSites - record.classifiedCallSites,
+    0,
+  ),
+};
+requireJsonEqual(summary, EXPECTED_SUMMARY, "H1 reviewed owner summary");
+
 const output = {
-  schema: 1,
+  schema: 2,
   status: "draft/report-only",
-  phase: "H1.0a-owner-graph",
+  phase: "H1.0a-reviewed-owner-graph",
   typescript: {
     version: ts.version,
     source_commit: "050880ce59e30b356b686bd3144efe24f875ebc8",
@@ -534,12 +871,28 @@ const output = {
     source_sha256: expectedSourceSha256,
   },
   generator: "crates/oracle/h1-owner-inventory.mjs",
+  contract: pathHash(contractRelativePath),
   identity:
     "sha256(lexical owner path + declaration kind + name-or-anonymous + UTF-16 start/end offsets + exact declaration SHA-256)",
   ledger_hash:
     "SHA-256 of inclusive complete source lines, compatible with tsc-span/tsc-hash ledger verification",
   closure_model:
-    "exact lexical identifier calls plus conservative immediate nested-function and distinct property-dispatch declaration candidates; unresolved dynamic calls remain explicit",
+    "exact lexical and source-symbol calls plus conservative immediate nested-function ownership; runtime-library, callback/value, structural-property, and computed calls have explicit non-edge dispositions",
+  call_review_contract: {
+    exact_edges:
+      "lexical declarations, followed shorthand/property aliases, and statically selected callable expressions become graph edges",
+    runtime_library:
+      "symbols declared by vendored default-library files are recorded as runtime-library calls and never mapped to same-name _tsc.js declarations",
+    callback_and_value_calls:
+      "parameter, binding-element, and source variable callees remain explicit callback/value seams without guessed concrete graph edges",
+    structural_property_dispatch:
+      "a property without one followed source symbol remains a receiver-qualified structural dispatch; same-name source declarations are review candidates, not graph edges",
+    dynamic_expressions:
+      "computed elements and call results remain explicit dynamic seams; conditional/logical/function expressions add only statically found source callees",
+    candidate_sets:
+      "each structural property names its complete distinct same-name _tsc.js declaration set, including an explicit empty set",
+    unresolved_state: "none",
+  },
   active_roots: activeRoots.map(({ spec, record }) => ({
     key: spec.key,
     declaration: declarationRecord(record),
@@ -549,18 +902,7 @@ const output = {
     role: spec.role,
     declaration: declarationRecord(record),
   })),
-  summary: {
-    source_declarations: records.length,
-    active_roots: activeRoots.length,
-    dormant_seams: dormantSeams.length,
-    closure_declarations: functions.length,
-    static_edges: graphEdges.length,
-    lexical_edges: graphEdges.filter((edge) => edge.kind === "lexical").length,
-    immediate_edges: graphEdges.filter((edge) => edge.kind === "immediate").length,
-    nested_function_edges: graphEdges.filter((edge) => edge.kind === "nested-function").length,
-    property_dispatch_edges: graphEdges.filter((edge) => edge.kind === "property-candidate").length,
-    unresolved_calls: unresolvedCalls.length,
-  },
+  summary,
   completed_h1_0a: [
     "freeze the exact bootstrap option/syntax/output profile",
     "land callback-level in-memory oracle observations and schemas",
@@ -574,12 +916,16 @@ const output = {
     "classify all 7,276 compiler runner rows by exact effective bootstrap options and reached fixture sources, retaining one bootstrap candidate and every row not-run",
     "classify all 632 project runner rows by exact roots and effective bootstrap options, proving zero admissions while retaining every row not-run",
     "classify all 38 projected FourSlash emit-operation witnesses by exact targeted Language Service route and effective bootstrap options, proving zero promotions while retaining every row not-run",
+    "replace property-name fan-out with exact source-symbol edges and disposition every runtime-library, callback/value, structural-property, and computed call without unresolved rows",
   ],
-  pending_h1_0a: [
-    "review and disposition every unresolved/dynamic call and property-dispatch over-approximation",
-  ],
+  pending_h1_0a: [],
   functions,
-  graph: { edges: graphEdges, unresolved_calls: unresolvedCalls },
+  graph: {
+    edges: graphEdges,
+    call_dispositions: callDispositions,
+    property_candidate_sets: propertyCandidateSets,
+    unresolved_calls: [],
+  },
 };
 
 const functionIds = new Set(functions.map((record) => record.id));
@@ -592,17 +938,119 @@ for (const edge of graphEdges) {
 for (const { record } of activeRoots) {
   if (!functionIds.has(record.id)) throw new Error(`active root ${record.name} left the closure`);
 }
+for (const record of closure) {
+  if (record.callSites !== record.classifiedCallSites) {
+    throw new Error(`owner ${record.id} has an undispositioned call site`);
+  }
+}
+const dispositionSites = new Set();
+const candidateSetByProperty = new Map(
+  propertyCandidateSets.map((set) => [set.property, set]),
+);
+for (const disposition of callDispositions) {
+  if (!functionIds.has(disposition.caller)) {
+    throw new Error(`call disposition caller ${disposition.caller} left the closure`);
+  }
+  // Nested calls can share an expression start (for example
+  // `emitHelpers().createHelper(...)`). Include the exact callee expression
+  // identity so both reviewed call sites remain independently pinned.
+  const site = `${disposition.caller}\0${disposition.line}\0${disposition.character}\0${disposition.expression_sha256}`;
+  if (dispositionSites.has(site)) throw new Error(`duplicate call disposition site ${site}`);
+  dispositionSites.add(site);
+  if (sha256(disposition.expression) !== disposition.expression_sha256) {
+    throw new Error(`call disposition expression hash changed at ${site}`);
+  }
+  for (const callee of disposition.source_callees ?? []) {
+    if (!functionIds.has(callee)) {
+      throw new Error(`call disposition callee ${callee} left the closure`);
+    }
+  }
+  if (disposition.kind === "identifier") {
+    if (
+      disposition.resolution === "runtime-library" &&
+      disposition.library_paths.length === 0
+    ) {
+      throw new Error(`runtime identifier ${site} lost its library declaration`);
+    }
+    if (
+      disposition.resolution !== "runtime-library" &&
+      disposition.library_paths.length !== 0
+    ) {
+      throw new Error(`source identifier ${site} gained a library declaration`);
+    }
+  } else if (disposition.kind === "property") {
+    if (
+      disposition.resolution === "source-symbol" &&
+      disposition.source_callees.length === 0
+    ) {
+      throw new Error(`source property ${site} lost its exact callee`);
+    }
+    if (
+      disposition.resolution === "runtime-library" &&
+      disposition.library_paths.length === 0
+    ) {
+      throw new Error(`runtime property ${site} lost its library declaration`);
+    }
+    if (disposition.resolution === "structural-dispatch") {
+      if (
+        disposition.candidate_set !== disposition.property ||
+        !candidateSetByProperty.has(disposition.property)
+      ) {
+        throw new Error(`structural property ${site} lost its candidate set`);
+      }
+    } else if (disposition.candidate_set !== null) {
+      throw new Error(`non-structural property ${site} gained a candidate set`);
+    }
+  } else if (disposition.kind === "dynamic") {
+    if (
+      disposition.resolution === "source-expression" &&
+      disposition.source_callees.length === 0
+    ) {
+      throw new Error(`source dynamic call ${site} lost its exact callee`);
+    }
+  } else {
+    throw new Error(`unknown call disposition kind ${disposition.kind}`);
+  }
+}
+for (const set of propertyCandidateSets) {
+  const ids = new Set();
+  for (const candidate of set.candidates) {
+    if (!recordById.has(candidate.id) || ids.has(candidate.id)) {
+      throw new Error(`invalid ${set.property} property candidate ${candidate.id}`);
+    }
+    ids.add(candidate.id);
+  }
+}
+if (output.graph.unresolved_calls.length !== 0 || summary.undispositioned_calls !== 0) {
+  throw new Error("H1 reviewed owner graph retained an unresolved call");
+}
+requireJsonEqual(
+  callDispositions
+    .filter((disposition) => disposition.resolution === "external-global")
+    .map((disposition) => [disposition.expression, disposition.line, disposition.character]),
+  [["onProfilerEvent", 2582, 7]],
+  "external global call canary",
+);
+requireJsonEqual(
+  callDispositions
+    .filter((disposition) => disposition.checker_state === "stack-overflow")
+    .map((disposition) => [disposition.expression, disposition.line, disposition.character]),
+  [["typeElements.push", 52156, 11]],
+  "checker stack-overflow call canary",
+);
 for (const expected of [
   "emitWorker",
   "getScriptTransformers",
   "getSourceFilesToEmit",
   "sourceFileMayBeEmitted",
-  "getOutputJSFileName",
   "getOutputExtension",
 ]) {
   if (!functions.some((record) => record.name === expected)) {
     throw new Error(`H1 active closure is missing required owner ${expected}`);
   }
+}
+if (functions.some((record) => record.name === "getOutputJSFileName")) {
+  throw new Error("same-name property fan-out reintroduced inactive getOutputJSFileName");
 }
 
 const rendered = `${JSON.stringify(output, null, 2)}\n`;
@@ -615,7 +1063,7 @@ if (mode === "--write") {
     throw new Error(`stale ${targetRelativePath}; run with --write and review`);
   }
   process.stdout.write(
-    `H1 owner inventory is fresh: roots=${output.summary.active_roots} closure=${output.summary.closure_declarations} unresolved=${output.summary.unresolved_calls}\n`,
+    `H1 owner inventory is fresh: roots=${output.summary.active_roots} closure=${output.summary.closure_declarations} reviewed=${output.summary.reviewed_call_sites} undispositioned=0\n`,
   );
 } else if (mode === undefined) {
   process.stdout.write(rendered);
