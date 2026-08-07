@@ -571,10 +571,11 @@ const output = {
     "pin the complete upstream conformance source tree without adding expansion or execution results",
     "reconstruct all 7,697 conformance runner rows and 46,182 observation states without execution or reference-baseline results",
     "classify all 7,697 conformance runner rows by exact effective bootstrap options, proving zero admissions while retaining every row not-run",
+    "classify all 7,276 compiler runner rows by exact effective bootstrap options and reached fixture sources, retaining one bootstrap candidate and every row not-run",
   ],
   pending_h1_0a: [
     "review and disposition every unresolved/dynamic call and property-dispatch over-approximation",
-    "classify compiler/project emit inventories and prove or defer each promoted FourSlash whole-Program equivalence control",
+    "classify the project emit inventory and prove or defer each promoted FourSlash whole-Program equivalence control",
   ],
   functions,
   graph: { edges: graphEdges, unresolved_calls: unresolvedCalls },

@@ -9,7 +9,7 @@
   },
   "generator": {
     "path": "crates/oracle/h1-conformance-classification.mjs",
-    "sha256": "fbb74ac6a39540bd9abf7b2a70f76cec36bb321eb38c9123190c7853ae9499b1"
+    "sha256": "3016650ecfaf9bc0bccde5628bef9034350c217d66a1ef556b525d6d6920a1c4"
   },
   "contract": {
     "path": ".github/ci/contracts/h1-conformance-classification.schema.json",
@@ -22,7 +22,7 @@
     },
     "h1_profile": {
       "path": "ratchets/h1-emit-profile.v1.json",
-      "sha256": "2edf0ec23a59cef953bf3322397c642fb5e38b5a33bd98310349ca16188ee6be"
+      "sha256": "e1718758ad9f855def4417468cd3b313e4a2b28473d9c8083b35723c82c802b2"
     },
     "typescript_bundle": {
       "path": "vendor/typescript-6.0.3/lib/typescript.js",

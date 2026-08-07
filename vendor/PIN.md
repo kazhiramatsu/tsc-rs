@@ -35,7 +35,7 @@ expansion or claim a transpile execution result.
 
 The runner-derived companion inventory is pinned at
 `vendor/typescript-6.0.3/transpile-suite-inventory.v1.json` (SHA-256
-`e8992cf7d0a22dc55a9a17c0c52cc06f848970be5e99c7dbdc6f156af4ae7beb`).
+`0ffc8936db1639bde194e0ce63b198ce83507a02f3a6cdf49bfefadaa09a5a5e`).
 It reconstructs the exact 22-fixture, 25-configuration `TranspileRunner`
 matrix as 42 fixture units, 37 cases, and 79 per-unit operations. All 37 cases
 retain execution state `not-run`: 14 are JavaScript transform/printer controls,
@@ -118,7 +118,7 @@ construction, JavaScript emit, baseline parity, or an upstream pass rate.
 The separate effective-option classification is pinned at
 `vendor/typescript-6.0.3/conformance-profile-classification.v1.json`
 (SHA-256
-`0cbc05ea6f6f0fbe25c1f63521fe7f979dc5b404724c8ab26065605cf36bff0b`).
+`fc248fb34bffcc4df18daa0663e3792bca93927020d9d2a8350f94c2269fd2f0`).
 It consumes the expansion byte-for-byte and reproduces virtual `tsconfig`
 parsing, compiler-runner defaults, and harness/matrix override precedence for
 all 7,697 cases. The artifact records 27 virtual configs, two config-diagnostic
@@ -179,6 +179,31 @@ not establish general config-diagnostic, compiler-option conversion,
 filesystem `matchFiles`, project/project-runner, or compiler-execution
 compatibility. Every upstream case remains `not-run`; this layer therefore
 claims no upstream test result.
+
+The H1 compiler-runner classification is pinned separately at
+`vendor/typescript-6.0.3/compiler-profile-classification.v1.json` (SHA-256
+`502851cfe84b49c2447609499aa75dcaf70d8aa854bdebc208f1ef194394fc08`).
+It consumes the expansion, config-plan artifact, frozen H1 profile, and
+vendored TypeScript bundle byte-for-byte. It verifies all 103 virtual configs
+and 106 config variants against the config-plan oracle before reproducing
+compile defaults and harness/matrix override order for all 7,276 compiler
+rows. Seven rows match `target=ESNext` plus `module=Preserve`; five retain an
+effective-option blocker. The remaining two receive a vendored TypeScript
+Program reachability analysis: reachable `export =`/`import =` defers
+`modulePreserve1.ts#default`, leaving
+`esmNoSynthesizedDefault.ts#module%3Dpreserve` as the sole bootstrap
+candidate. The final 7,273 deferred-profile, two H0 `noEmit`, and one
+candidate rows all remain `not-run`, and zero reference baselines are
+compared. Regeneration and freshness checking are fixed and unfiltered:
+
+```text
+node crates/oracle/h1-compiler-classification.mjs --write
+node crates/oracle/h1-compiler-classification.mjs --check
+```
+
+This is classification and admission evidence only. It claims neither Rust
+Program/emit execution nor compiler-runner baseline parity or a passing
+upstream test result.
 
 The 16 contiguous official compiler fixtures
 `moduleResolutionWithSuffixes_empty.ts` through
