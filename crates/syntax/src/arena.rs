@@ -1,6 +1,6 @@
 use crate::for_each_child::{for_each_child, NodeLookup};
 use crate::nodes::{Node, NodeArray, NodeArrayId, NodeData, NodeId};
-use crate::relocate::relocate_node_data;
+use crate::relocate::{collect_node_data_ids, relocate_node_data, remap_node_data_ids};
 use crate::SyntaxKind;
 use tsc_types::{IdentityError, IdentityLease, IdentityRange, IdentitySpace, NodeFlags};
 
@@ -35,6 +35,214 @@ pub(crate) struct SyntaxIdentityRelocation {
     new_nodes: IdentityRange,
     old_arrays: IdentityRange,
     new_arrays: IdentityRange,
+}
+
+/// Reusable dense scratch state for immutable old-subtree copies.
+///
+/// Old arena IDs are contiguous, so hash tables per list element are both
+/// unnecessary and disproportionately expensive for large files containing
+/// thousands of small declarations. Generation-stamped dense maps preserve
+/// the same complete schema-generated relocation while allocating scratch
+/// storage only once per incremental parse.
+#[derive(Debug)]
+pub(crate) struct SubtreeCopier {
+    old_node_base: u32,
+    old_array_base: u32,
+    generation: u32,
+    node_marks: Vec<u32>,
+    array_marks: Vec<u32>,
+    node_map: Vec<NodeId>,
+    array_map: Vec<NodeArrayId>,
+    pending_nodes: Vec<NodeId>,
+    pending_arrays: Vec<NodeArrayId>,
+    old_nodes: Vec<NodeId>,
+    old_arrays: Vec<NodeArrayId>,
+    node_lineage: Vec<(NodeId, NodeId)>,
+    new_arrays: Vec<NodeArrayId>,
+}
+
+impl SubtreeCopier {
+    pub(crate) fn new(old: &NodeArena) -> Self {
+        Self {
+            old_node_base: old.node_base(),
+            old_array_base: old.array_base(),
+            generation: 0,
+            node_marks: vec![0; old.nodes.len()],
+            array_marks: vec![0; old.arrays.len()],
+            node_map: vec![NodeId(0); old.nodes.len()],
+            array_map: vec![NodeArrayId(0); old.arrays.len()],
+            pending_nodes: Vec::new(),
+            pending_arrays: Vec::new(),
+            old_nodes: Vec::new(),
+            old_arrays: Vec::new(),
+            node_lineage: Vec::new(),
+            new_arrays: Vec::new(),
+        }
+    }
+
+    pub(crate) fn node_lineage(&self) -> &[(NodeId, NodeId)] {
+        &self.node_lineage
+    }
+
+    pub(crate) fn new_arrays(&self) -> &[NodeArrayId] {
+        &self.new_arrays
+    }
+
+    fn node_index(&self, id: NodeId) -> usize {
+        let index =
+            id.0.checked_sub(self.old_node_base)
+                .expect("copied NodeId is below the old arena base") as usize;
+        assert!(
+            index < self.node_marks.len(),
+            "copied NodeId is outside the old arena"
+        );
+        index
+    }
+
+    fn array_index(&self, id: NodeArrayId) -> usize {
+        let index =
+            id.0.checked_sub(self.old_array_base)
+                .expect("copied NodeArrayId is below the old arena base") as usize;
+        assert!(
+            index < self.array_marks.len(),
+            "copied NodeArrayId is outside the old arena"
+        );
+        index
+    }
+
+    fn begin_copy(&mut self) {
+        self.generation = self.generation.wrapping_add(1);
+        if self.generation == 0 {
+            self.node_marks.fill(0);
+            self.array_marks.fill(0);
+            self.generation = 1;
+        }
+        self.pending_nodes.clear();
+        self.pending_arrays.clear();
+        self.old_nodes.clear();
+        self.old_arrays.clear();
+        self.node_lineage.clear();
+        self.new_arrays.clear();
+    }
+
+    pub(crate) fn copy_subtree_from(
+        &mut self,
+        destination: &mut NodeArena,
+        old: &NodeArena,
+        root: NodeId,
+        position_delta: i64,
+    ) -> NodeId {
+        assert_eq!(old.node_base(), self.old_node_base);
+        assert_eq!(old.array_base(), self.old_array_base);
+        assert_eq!(old.nodes.len(), self.node_marks.len());
+        assert_eq!(old.arrays.len(), self.array_marks.len());
+        self.begin_copy();
+        self.pending_nodes.push(root);
+
+        while !self.pending_nodes.is_empty() || !self.pending_arrays.is_empty() {
+            if let Some(id) = self.pending_nodes.pop() {
+                let index = self.node_index(id);
+                if self.node_marks[index] == self.generation {
+                    continue;
+                }
+                self.node_marks[index] = self.generation;
+                let node = old.node(id);
+                self.old_nodes.push(id);
+                collect_node_data_ids(
+                    &node.data,
+                    &mut self.pending_nodes,
+                    &mut self.pending_arrays,
+                );
+                if let Some(js_doc) = node.js_doc {
+                    self.pending_arrays.push(js_doc);
+                }
+                continue;
+            }
+
+            let id = self
+                .pending_arrays
+                .pop()
+                .expect("a non-empty identity work list has an element");
+            let index = self.array_index(id);
+            if self.array_marks[index] == self.generation {
+                continue;
+            }
+            self.array_marks[index] = self.generation;
+            let array = old.node_array(id);
+            self.old_arrays.push(id);
+            self.pending_nodes.extend(array.nodes.iter().copied());
+        }
+
+        for old_id in &self.old_nodes {
+            let old_node = old.node(*old_id);
+            let id = destination.push_node(
+                old_node.kind,
+                old_node.data.clone(),
+                shifted_position(old_node.pos, position_delta) as usize,
+                shifted_position(old_node.end, position_delta) as usize,
+                NodeFlags::from_bits(old_node.flags),
+            );
+            let copied = destination.node_mut(id);
+            copied.numeric_literal_flags = old_node.numeric_literal_flags;
+            copied.multi_line = old_node.multi_line;
+            let index = self.node_index(*old_id);
+            self.node_map[index] = id;
+            self.node_lineage.push((*old_id, id));
+        }
+
+        for old_id in &self.old_arrays {
+            let old_array = old.node_array(*old_id);
+            let id = destination.alloc_array(
+                old_array.nodes.clone(),
+                shifted_position(old_array.pos, position_delta) as usize,
+                shifted_position(old_array.end, position_delta) as usize,
+                old_array.has_trailing_comma,
+            );
+            let destination_index = destination.array_index(id);
+            destination.arrays[destination_index].is_missing_list = old_array.is_missing_list;
+            let old_index = self.array_index(*old_id);
+            self.array_map[old_index] = id;
+            self.new_arrays.push(id);
+        }
+
+        for (old_id, new_id) in &self.node_lineage {
+            let old_node = old.node(*old_id);
+            let node = destination.node_mut(*new_id);
+            remap_node_data_ids(
+                &mut node.data,
+                |id| {
+                    let index = (id.0 - self.old_node_base) as usize;
+                    debug_assert_eq!(self.node_marks[index], self.generation);
+                    self.node_map[index]
+                },
+                |id| {
+                    let index = (id.0 - self.old_array_base) as usize;
+                    debug_assert_eq!(self.array_marks[index], self.generation);
+                    self.array_map[index]
+                },
+            );
+            node.parent = None;
+            node.js_doc = old_node.js_doc.map(|id| {
+                let index = self.array_index(id);
+                debug_assert_eq!(self.array_marks[index], self.generation);
+                self.array_map[index]
+            });
+        }
+
+        for old_id in &self.old_arrays {
+            let old_index = self.array_index(*old_id);
+            let new_id = self.array_map[old_index];
+            let destination_index = destination.array_index(new_id);
+            for node in &mut destination.arrays[destination_index].nodes {
+                let index = (node.0 - self.old_node_base) as usize;
+                debug_assert_eq!(self.node_marks[index], self.generation);
+                *node = self.node_map[index];
+            }
+        }
+
+        let root_index = self.node_index(root);
+        self.node_map[root_index]
+    }
 }
 
 impl SyntaxIdentityRelocation {
@@ -474,6 +682,16 @@ impl NodeArena {
         assert!(index < self.arrays.len(), "invalid NodeArrayId: {id:?}");
         index
     }
+}
+
+fn shifted_position(position: u32, delta: i64) -> u32 {
+    if position == u32::MAX {
+        return position;
+    }
+    let shifted = i64::from(position)
+        .checked_add(delta)
+        .expect("incremental subtree position overflow");
+    u32::try_from(shifted).expect("validated incremental edit keeps positions in the u32 domain")
 }
 
 fn validate_lease(

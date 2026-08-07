@@ -3,6 +3,7 @@
 pub mod arena;
 mod chars;
 pub mod for_each_child;
+mod incremental;
 mod keywords;
 pub mod kind;
 pub mod nodes;
@@ -24,13 +25,20 @@ use tsc_types::{
 
 pub use arena::NodeArena;
 pub use for_each_child::{for_each_child, NodeLookup};
+pub use incremental::{
+    create_language_service_source_file, create_language_service_source_file_in_identity_domain,
+    create_syntax_cursor, extend_to_affected_range, source_files_structurally_equal,
+    update_language_service_source_file, update_language_service_source_file_in_identity_domain,
+    IncrementalParseError, IncrementalParseOptions, IncrementalParseResult, IncrementalParseStats,
+    ReuseLineage, SyntaxCursor,
+};
 pub use kind::SyntaxKind;
 pub use nodes::{
     JSDocComment, Node, NodeArray, NodeArrayId, NodeData, NodeId, NodePayload, SourceFileData,
 };
 pub use observable_fields::{for_each_observable_field, ObservableField};
 pub use parser::{
-    is_identifier_text, is_identifier_text_for_target, JSDocParsingMode, ParseOptions, SyntaxCursor,
+    is_identifier_text, is_identifier_text_for_target, JSDocParsingMode, ParseOptions,
 };
 pub use scanner::{
     is_js_whitespace, is_line_break, is_whitespace_like, js_trim_start, scan_big_int_string,

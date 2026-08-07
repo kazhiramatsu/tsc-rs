@@ -59,8 +59,8 @@ use tsc_types::IdentityDomain;
 
 pub use crate::program::{
     BoundDocument, DocumentAddress, DocumentLease, DocumentRegistry, DocumentRegistryError,
-    DocumentScriptKind, EphemeralDocumentStore, EphemeralDocumentStoreError, ParsedDocument,
-    ProgramSnapshot,
+    DocumentScriptKind, EphemeralDocumentStore, EphemeralDocumentStoreError,
+    IncrementalDocumentOptions, IncrementalDocumentUpdate, ParsedDocument, ProgramSnapshot,
 };
 
 pub use tsc_types::CompilerOptions;

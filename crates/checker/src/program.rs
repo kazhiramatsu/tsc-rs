@@ -13,10 +13,15 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use tsc_binder::{BindData, Binder, Symbol, SymbolArena, SymbolId, SymbolTable};
-use tsc_diagnostics::{DocumentVersion, TextSnapshot};
-use tsc_syntax::{NodeArray, NodeArrayId, NodeId, SourceFile};
-use tsc_types::{CompilerOptions, IdentityDomain, SymbolFlags, TRANSIENT_SYMBOL_BIT};
+use tsc_binder::{BindData, Binder, BinderWorker, Symbol, SymbolArena, SymbolId, SymbolTable};
+use tsc_diagnostics::{ByteTextChangeRange, DocumentVersion, TextSnapshot};
+use tsc_syntax::{
+    IncrementalParseError, IncrementalParseOptions, IncrementalParseStats, NodeArray, NodeArrayId,
+    NodeId, ParseOptions, SourceFile,
+};
+use tsc_types::{
+    CompilerOptions, IdentityDomain, IdentityError, SymbolFlags, TRANSIENT_SYMBOL_BIT,
+};
 
 /// Immutable parsed source handle retained by a Program snapshot.
 #[derive(Clone, Debug)]
@@ -220,6 +225,9 @@ pub enum DocumentRegistryError {
     UnknownLease {
         generation: u64,
     },
+    PreviousLeaseAddressMismatch,
+    IncrementalParse(IncrementalParseError),
+    BindIdentity(IdentityError),
 }
 
 impl std::fmt::Display for DocumentRegistryError {
@@ -248,11 +256,33 @@ impl std::fmt::Display for DocumentRegistryError {
                     "unknown or already released document lease {generation}"
                 )
             }
+            Self::PreviousLeaseAddressMismatch => formatter
+                .write_str("incremental document update used a previous lease for another address"),
+            Self::IncrementalParse(error) => error.fmt(formatter),
+            Self::BindIdentity(error) => error.fmt(formatter),
         }
     }
 }
 
 impl std::error::Error for DocumentRegistryError {}
+
+impl From<IncrementalParseError> for DocumentRegistryError {
+    fn from(error: IncrementalParseError) -> Self {
+        Self::IncrementalParse(error)
+    }
+}
+
+#[derive(Debug)]
+pub struct IncrementalDocumentUpdate {
+    pub lease: DocumentLease,
+    pub parse_stats: IncrementalParseStats,
+}
+
+#[derive(Clone, Debug, Default)]
+pub struct IncrementalDocumentOptions {
+    pub parse: ParseOptions,
+    pub incremental: IncrementalParseOptions,
+}
 
 /// Minimal non-global registry for immutable parsed/bound documents.
 ///
@@ -361,6 +391,100 @@ impl DocumentRegistry {
         build: impl FnOnce() -> Arc<BoundDocument>,
     ) -> Result<DocumentLease, DocumentRegistryError> {
         self.acquire(address, snapshot, build)
+    }
+
+    /// Publish one immutable successor by incrementally reparsing and fully
+    /// rebinding the changed document. The previous lease remains live until
+    /// its owning Program explicitly releases it; no old tree is mutated.
+    pub fn update_incrementally(
+        &mut self,
+        previous: &DocumentLease,
+        address: DocumentAddress,
+        snapshot: Arc<TextSnapshot>,
+        change: ByteTextChangeRange,
+        options: IncrementalDocumentOptions,
+        domain: &IdentityDomain,
+    ) -> Result<IncrementalDocumentUpdate, DocumentRegistryError> {
+        self.check_namespace(&address)?;
+        if previous.address != address {
+            return Err(DocumentRegistryError::PreviousLeaseAddressMismatch);
+        }
+        let previous_is_live = self.entries.get(&address).is_some_and(|entries| {
+            entries.iter().any(|entry| {
+                entry.generation == previous.generation()
+                    && Arc::ptr_eq(&entry.document, previous.document())
+            })
+        });
+        if !previous_is_live {
+            return Err(DocumentRegistryError::UnknownLease {
+                generation: previous.generation(),
+            });
+        }
+
+        if let Some(entries) = self.entries.get_mut(&address) {
+            for entry in entries.iter_mut() {
+                if entry.snapshot.document_version() == snapshot.document_version() {
+                    if entry.snapshot.text() != snapshot.text() {
+                        return Err(DocumentRegistryError::VersionTextMismatch {
+                            path: address.path.clone(),
+                            version: snapshot.document_version().clone(),
+                        });
+                    }
+                    entry.references = entry
+                        .references
+                        .checked_add(1)
+                        .expect("document registry reference count overflow");
+                    return Ok(IncrementalDocumentUpdate {
+                        lease: DocumentLease {
+                            generation: entry.generation,
+                            address,
+                            document: Arc::clone(&entry.document),
+                        },
+                        parse_stats: IncrementalParseStats::default(),
+                    });
+                }
+            }
+        }
+
+        let updated = tsc_syntax::update_language_service_source_file_in_identity_domain(
+            Arc::clone(&previous.document.parsed.source),
+            Arc::clone(&snapshot),
+            change,
+            options.parse,
+            options.incremental,
+            domain,
+        )?;
+        let worker = BinderWorker::bind_in_identity_domain(
+            &updated.source,
+            address.compiler_options(),
+            domain,
+        )
+        .map_err(DocumentRegistryError::BindIdentity)?;
+        let parsed = Arc::new(ParsedDocument::new(Arc::clone(&updated.source)));
+        let document = Arc::new(BoundDocument::new(parsed, worker.into_bind_data()));
+
+        self.next_generation = self
+            .next_generation
+            .checked_add(1)
+            .expect("document registry generation overflow");
+        let generation = self.next_generation;
+        self.entries
+            .entry(address.clone())
+            .or_default()
+            .push(RegistryEntry {
+                generation,
+                snapshot,
+                document: Arc::clone(&document),
+                references: 1,
+            });
+        Ok(IncrementalDocumentUpdate {
+            lease: DocumentLease {
+                generation,
+                address,
+                document,
+            },
+            parse_stats: updated.stats,
+        })
     }
 
     /// tsrs-native: releases one lease and reclaims its final live variant.

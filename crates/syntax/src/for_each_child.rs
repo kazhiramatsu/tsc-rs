@@ -1946,6 +1946,1088 @@ where
     }
 }
 
+pub fn for_each_child_array<F>(node: &Node, mut cb: F) -> Option<NodeArrayId>
+where
+    F: FnMut(NodeArrayId) -> bool,
+{
+    match &node.data {
+        NodeData::Token => None,
+        NodeData::ArrayBindingPattern(data) => {
+            if let Some(id) = data.elements {
+                if cb(id) {
+                    return Some(id);
+                }
+            }
+            None
+        }
+        NodeData::ArrayLiteralExpression(data) => {
+            if let Some(id) = data.elements {
+                if cb(id) {
+                    return Some(id);
+                }
+            }
+            None
+        }
+        NodeData::ArrayType(_data) => None,
+        NodeData::ArrowFunction(data) => {
+            if let Some(id) = data.modifiers {
+                if cb(id) {
+                    return Some(id);
+                }
+            }
+            if let Some(id) = data.type_parameters {
+                if cb(id) {
+                    return Some(id);
+                }
+            }
+            if let Some(id) = data.parameters {
+                if cb(id) {
+                    return Some(id);
+                }
+            }
+            None
+        }
+        NodeData::AsExpression(_data) => None,
+        NodeData::AwaitExpression(_data) => None,
+        NodeData::BigIntLiteral(_data) => None,
+        NodeData::BinaryExpression(_data) => None,
+        NodeData::BindingElement(_data) => None,
+        NodeData::Block(data) => {
+            if let Some(id) = data.statements {
+                if cb(id) {
+                    return Some(id);
+                }
+            }
+            None
+        }
+        NodeData::BreakStatement(_data) => None,
+        NodeData::CallExpression(data) => {
+            if let Some(id) = data.type_arguments {
+                if cb(id) {
+                    return Some(id);
+                }
+            }
+            if let Some(id) = data.arguments {
+                if cb(id) {
+                    return Some(id);
+                }
+            }
+            None
+        }
+        NodeData::CallSignature(data) => {
+            if let Some(id) = data.type_parameters {
+                if cb(id) {
+                    return Some(id);
+                }
+            }
+            if let Some(id) = data.parameters {
+                if cb(id) {
+                    return Some(id);
+                }
+            }
+            None
+        }
+        NodeData::CaseBlock(data) => {
+            if let Some(id) = data.clauses {
+                if cb(id) {
+                    return Some(id);
+                }
+            }
+            None
+        }
+        NodeData::CaseClause(data) => {
+            if let Some(id) = data.statements {
+                if cb(id) {
+                    return Some(id);
+                }
+            }
+            None
+        }
+        NodeData::CatchClause(_data) => None,
+        NodeData::ClassDeclaration(data) => {
+            if let Some(id) = data.modifiers {
+                if cb(id) {
+                    return Some(id);
+                }
+            }
+            if let Some(id) = data.type_parameters {
+                if cb(id) {
+                    return Some(id);
+                }
+            }
+            if let Some(id) = data.heritage_clauses {
+                if cb(id) {
+                    return Some(id);
+                }
+            }
+            if let Some(id) = data.members {
+                if cb(id) {
+                    return Some(id);
+                }
+            }
+            None
+        }
+        NodeData::ClassExpression(data) => {
+            if let Some(id) = data.modifiers {
+                if cb(id) {
+                    return Some(id);
+                }
+            }
+            if let Some(id) = data.type_parameters {
+                if cb(id) {
+                    return Some(id);
+                }
+            }
+            if let Some(id) = data.heritage_clauses {
+                if cb(id) {
+                    return Some(id);
+                }
+            }
+            if let Some(id) = data.members {
+                if cb(id) {
+                    return Some(id);
+                }
+            }
+            None
+        }
+        NodeData::ClassStaticBlockDeclaration(data) => {
+            if let Some(id) = data.modifiers {
+                if cb(id) {
+                    return Some(id);
+                }
+            }
+            None
+        }
+        NodeData::CommaListExpression(data) => {
+            if let Some(id) = data.elements {
+                if cb(id) {
+                    return Some(id);
+                }
+            }
+            None
+        }
+        NodeData::ComputedPropertyName(_data) => None,
+        NodeData::ConditionalExpression(_data) => None,
+        NodeData::ConditionalType(_data) => None,
+        NodeData::ConstructSignature(data) => {
+            if let Some(id) = data.type_parameters {
+                if cb(id) {
+                    return Some(id);
+                }
+            }
+            if let Some(id) = data.parameters {
+                if cb(id) {
+                    return Some(id);
+                }
+            }
+            None
+        }
+        NodeData::Constructor(data) => {
+            if let Some(id) = data.modifiers {
+                if cb(id) {
+                    return Some(id);
+                }
+            }
+            if let Some(id) = data.type_parameters {
+                if cb(id) {
+                    return Some(id);
+                }
+            }
+            if let Some(id) = data.parameters {
+                if cb(id) {
+                    return Some(id);
+                }
+            }
+            None
+        }
+        NodeData::ConstructorType(data) => {
+            if let Some(id) = data.modifiers {
+                if cb(id) {
+                    return Some(id);
+                }
+            }
+            if let Some(id) = data.type_parameters {
+                if cb(id) {
+                    return Some(id);
+                }
+            }
+            if let Some(id) = data.parameters {
+                if cb(id) {
+                    return Some(id);
+                }
+            }
+            None
+        }
+        NodeData::ContinueStatement(_data) => None,
+        NodeData::DebuggerStatement(_data) => None,
+        NodeData::Decorator(_data) => None,
+        NodeData::DefaultClause(data) => {
+            if let Some(id) = data.statements {
+                if cb(id) {
+                    return Some(id);
+                }
+            }
+            None
+        }
+        NodeData::DeleteExpression(_data) => None,
+        NodeData::DoStatement(_data) => None,
+        NodeData::ElementAccessExpression(_data) => None,
+        NodeData::EmptyStatement(_data) => None,
+        NodeData::EnumDeclaration(data) => {
+            if let Some(id) = data.modifiers {
+                if cb(id) {
+                    return Some(id);
+                }
+            }
+            if let Some(id) = data.members {
+                if cb(id) {
+                    return Some(id);
+                }
+            }
+            None
+        }
+        NodeData::EnumMember(_data) => None,
+        NodeData::ExportAssignment(data) => {
+            if let Some(id) = data.modifiers {
+                if cb(id) {
+                    return Some(id);
+                }
+            }
+            None
+        }
+        NodeData::ExportDeclaration(data) => {
+            if let Some(id) = data.modifiers {
+                if cb(id) {
+                    return Some(id);
+                }
+            }
+            None
+        }
+        NodeData::ExportSpecifier(_data) => None,
+        NodeData::ExpressionStatement(_data) => None,
+        NodeData::ExpressionWithTypeArguments(data) => {
+            if let Some(id) = data.type_arguments {
+                if cb(id) {
+                    return Some(id);
+                }
+            }
+            None
+        }
+        NodeData::ExternalModuleReference(_data) => None,
+        NodeData::ForInStatement(_data) => None,
+        NodeData::ForOfStatement(_data) => None,
+        NodeData::ForStatement(_data) => None,
+        NodeData::FunctionDeclaration(data) => {
+            if let Some(id) = data.modifiers {
+                if cb(id) {
+                    return Some(id);
+                }
+            }
+            if let Some(id) = data.type_parameters {
+                if cb(id) {
+                    return Some(id);
+                }
+            }
+            if let Some(id) = data.parameters {
+                if cb(id) {
+                    return Some(id);
+                }
+            }
+            None
+        }
+        NodeData::FunctionExpression(data) => {
+            if let Some(id) = data.modifiers {
+                if cb(id) {
+                    return Some(id);
+                }
+            }
+            if let Some(id) = data.type_parameters {
+                if cb(id) {
+                    return Some(id);
+                }
+            }
+            if let Some(id) = data.parameters {
+                if cb(id) {
+                    return Some(id);
+                }
+            }
+            None
+        }
+        NodeData::FunctionType(data) => {
+            if let Some(id) = data.modifiers {
+                if cb(id) {
+                    return Some(id);
+                }
+            }
+            if let Some(id) = data.type_parameters {
+                if cb(id) {
+                    return Some(id);
+                }
+            }
+            if let Some(id) = data.parameters {
+                if cb(id) {
+                    return Some(id);
+                }
+            }
+            None
+        }
+        NodeData::GetAccessor(data) => {
+            if let Some(id) = data.modifiers {
+                if cb(id) {
+                    return Some(id);
+                }
+            }
+            if let Some(id) = data.type_parameters {
+                if cb(id) {
+                    return Some(id);
+                }
+            }
+            if let Some(id) = data.parameters {
+                if cb(id) {
+                    return Some(id);
+                }
+            }
+            None
+        }
+        NodeData::HeritageClause(data) => {
+            if let Some(id) = data.types {
+                if cb(id) {
+                    return Some(id);
+                }
+            }
+            None
+        }
+        NodeData::Identifier(_data) => None,
+        NodeData::IfStatement(_data) => None,
+        NodeData::ImportAttribute(_data) => None,
+        NodeData::ImportAttributes(data) => {
+            if let Some(id) = data.elements {
+                if cb(id) {
+                    return Some(id);
+                }
+            }
+            None
+        }
+        NodeData::ImportClause(_data) => None,
+        NodeData::ImportDeclaration(data) => {
+            if let Some(id) = data.modifiers {
+                if cb(id) {
+                    return Some(id);
+                }
+            }
+            None
+        }
+        NodeData::ImportEqualsDeclaration(data) => {
+            if let Some(id) = data.modifiers {
+                if cb(id) {
+                    return Some(id);
+                }
+            }
+            None
+        }
+        NodeData::ImportSpecifier(_data) => None,
+        NodeData::ImportType(data) => {
+            if let Some(id) = data.type_arguments {
+                if cb(id) {
+                    return Some(id);
+                }
+            }
+            None
+        }
+        NodeData::ImportTypeAssertionContainer(_data) => None,
+        NodeData::IndexSignature(data) => {
+            if let Some(id) = data.modifiers {
+                if cb(id) {
+                    return Some(id);
+                }
+            }
+            if let Some(id) = data.type_parameters {
+                if cb(id) {
+                    return Some(id);
+                }
+            }
+            if let Some(id) = data.parameters {
+                if cb(id) {
+                    return Some(id);
+                }
+            }
+            None
+        }
+        NodeData::IndexedAccessType(_data) => None,
+        NodeData::InferType(_data) => None,
+        NodeData::InterfaceDeclaration(data) => {
+            if let Some(id) = data.modifiers {
+                if cb(id) {
+                    return Some(id);
+                }
+            }
+            if let Some(id) = data.type_parameters {
+                if cb(id) {
+                    return Some(id);
+                }
+            }
+            if let Some(id) = data.heritage_clauses {
+                if cb(id) {
+                    return Some(id);
+                }
+            }
+            if let Some(id) = data.members {
+                if cb(id) {
+                    return Some(id);
+                }
+            }
+            None
+        }
+        NodeData::IntersectionType(data) => {
+            if let Some(id) = data.types {
+                if cb(id) {
+                    return Some(id);
+                }
+            }
+            None
+        }
+        NodeData::JSDoc(data) => {
+            if let Some(JSDocComment::Nodes(id)) = data.comment.as_ref() {
+                if cb(*id) {
+                    return Some(*id);
+                }
+            }
+            if let Some(id) = data.tags {
+                if cb(id) {
+                    return Some(id);
+                }
+            }
+            None
+        }
+        NodeData::JSDocAllType(_data) => None,
+        NodeData::JSDocAugmentsTag(data) => {
+            if let Some(JSDocComment::Nodes(id)) = data.comment.as_ref() {
+                if cb(*id) {
+                    return Some(*id);
+                }
+            }
+            None
+        }
+        NodeData::JSDocAuthorTag(data) => {
+            if let Some(JSDocComment::Nodes(id)) = data.comment.as_ref() {
+                if cb(*id) {
+                    return Some(*id);
+                }
+            }
+            None
+        }
+        NodeData::JSDocCallbackTag(data) => {
+            if let Some(JSDocComment::Nodes(id)) = data.comment.as_ref() {
+                if cb(*id) {
+                    return Some(*id);
+                }
+            }
+            None
+        }
+        NodeData::JSDocClassTag(data) => {
+            if let Some(JSDocComment::Nodes(id)) = data.comment.as_ref() {
+                if cb(*id) {
+                    return Some(*id);
+                }
+            }
+            None
+        }
+        NodeData::JSDocDeprecatedTag(data) => {
+            if let Some(JSDocComment::Nodes(id)) = data.comment.as_ref() {
+                if cb(*id) {
+                    return Some(*id);
+                }
+            }
+            None
+        }
+        NodeData::JSDocEnumTag(data) => {
+            if let Some(JSDocComment::Nodes(id)) = data.comment.as_ref() {
+                if cb(*id) {
+                    return Some(*id);
+                }
+            }
+            None
+        }
+        NodeData::JSDocFunctionType(data) => {
+            if let Some(id) = data.parameters {
+                if cb(id) {
+                    return Some(id);
+                }
+            }
+            None
+        }
+        NodeData::JSDocImplementsTag(data) => {
+            if let Some(JSDocComment::Nodes(id)) = data.comment.as_ref() {
+                if cb(*id) {
+                    return Some(*id);
+                }
+            }
+            None
+        }
+        NodeData::JSDocImportTag(data) => {
+            if let Some(JSDocComment::Nodes(id)) = data.comment.as_ref() {
+                if cb(*id) {
+                    return Some(*id);
+                }
+            }
+            None
+        }
+        NodeData::JSDocLink(_data) => None,
+        NodeData::JSDocLinkCode(_data) => None,
+        NodeData::JSDocLinkPlain(_data) => None,
+        NodeData::JSDocMemberName(_data) => None,
+        NodeData::JSDocNameReference(_data) => None,
+        NodeData::JSDocNamepathType(_data) => None,
+        NodeData::JSDocNonNullableType(_data) => None,
+        NodeData::JSDocNullableType(_data) => None,
+        NodeData::JSDocOptionalType(_data) => None,
+        NodeData::JSDocOverloadTag(data) => {
+            if let Some(JSDocComment::Nodes(id)) = data.comment.as_ref() {
+                if cb(*id) {
+                    return Some(*id);
+                }
+            }
+            None
+        }
+        NodeData::JSDocOverrideTag(data) => {
+            if let Some(JSDocComment::Nodes(id)) = data.comment.as_ref() {
+                if cb(*id) {
+                    return Some(*id);
+                }
+            }
+            None
+        }
+        NodeData::JSDocParameterTag(data) => {
+            if let Some(JSDocComment::Nodes(id)) = data.comment.as_ref() {
+                if cb(*id) {
+                    return Some(*id);
+                }
+            }
+            None
+        }
+        NodeData::JSDocPrivateTag(data) => {
+            if let Some(JSDocComment::Nodes(id)) = data.comment.as_ref() {
+                if cb(*id) {
+                    return Some(*id);
+                }
+            }
+            None
+        }
+        NodeData::JSDocPropertyTag(data) => {
+            if let Some(JSDocComment::Nodes(id)) = data.comment.as_ref() {
+                if cb(*id) {
+                    return Some(*id);
+                }
+            }
+            None
+        }
+        NodeData::JSDocProtectedTag(data) => {
+            if let Some(JSDocComment::Nodes(id)) = data.comment.as_ref() {
+                if cb(*id) {
+                    return Some(*id);
+                }
+            }
+            None
+        }
+        NodeData::JSDocPublicTag(data) => {
+            if let Some(JSDocComment::Nodes(id)) = data.comment.as_ref() {
+                if cb(*id) {
+                    return Some(*id);
+                }
+            }
+            None
+        }
+        NodeData::JSDocReadonlyTag(data) => {
+            if let Some(JSDocComment::Nodes(id)) = data.comment.as_ref() {
+                if cb(*id) {
+                    return Some(*id);
+                }
+            }
+            None
+        }
+        NodeData::JSDocReturnTag(data) => {
+            if let Some(JSDocComment::Nodes(id)) = data.comment.as_ref() {
+                if cb(*id) {
+                    return Some(*id);
+                }
+            }
+            None
+        }
+        NodeData::JSDocSatisfiesTag(data) => {
+            if let Some(JSDocComment::Nodes(id)) = data.comment.as_ref() {
+                if cb(*id) {
+                    return Some(*id);
+                }
+            }
+            None
+        }
+        NodeData::JSDocSeeTag(data) => {
+            if let Some(JSDocComment::Nodes(id)) = data.comment.as_ref() {
+                if cb(*id) {
+                    return Some(*id);
+                }
+            }
+            None
+        }
+        NodeData::JSDocSignature(data) => {
+            if let Some(id) = data.type_parameters {
+                if cb(id) {
+                    return Some(id);
+                }
+            }
+            if let Some(id) = data.parameters {
+                if cb(id) {
+                    return Some(id);
+                }
+            }
+            None
+        }
+        NodeData::JSDocTag(data) => {
+            if let Some(JSDocComment::Nodes(id)) = data.comment.as_ref() {
+                if cb(*id) {
+                    return Some(*id);
+                }
+            }
+            None
+        }
+        NodeData::JSDocTemplateTag(data) => {
+            if let Some(id) = data.type_parameters {
+                if cb(id) {
+                    return Some(id);
+                }
+            }
+            if let Some(JSDocComment::Nodes(id)) = data.comment.as_ref() {
+                if cb(*id) {
+                    return Some(*id);
+                }
+            }
+            None
+        }
+        NodeData::JSDocText(_data) => None,
+        NodeData::JSDocThisTag(data) => {
+            if let Some(JSDocComment::Nodes(id)) = data.comment.as_ref() {
+                if cb(*id) {
+                    return Some(*id);
+                }
+            }
+            None
+        }
+        NodeData::JSDocThrowsTag(data) => {
+            if let Some(JSDocComment::Nodes(id)) = data.comment.as_ref() {
+                if cb(*id) {
+                    return Some(*id);
+                }
+            }
+            None
+        }
+        NodeData::JSDocTypeExpression(_data) => None,
+        NodeData::JSDocTypeLiteral(data) => {
+            if let Some(id) = data.js_doc_property_tags {
+                if cb(id) {
+                    return Some(id);
+                }
+            }
+            None
+        }
+        NodeData::JSDocTypeTag(data) => {
+            if let Some(JSDocComment::Nodes(id)) = data.comment.as_ref() {
+                if cb(*id) {
+                    return Some(*id);
+                }
+            }
+            None
+        }
+        NodeData::JSDocTypedefTag(data) => {
+            if let Some(JSDocComment::Nodes(id)) = data.comment.as_ref() {
+                if cb(*id) {
+                    return Some(*id);
+                }
+            }
+            None
+        }
+        NodeData::JSDocUnknownType(_data) => None,
+        NodeData::JSDocVariadicType(_data) => None,
+        NodeData::JsxAttribute(_data) => None,
+        NodeData::JsxAttributes(data) => {
+            if let Some(id) = data.properties {
+                if cb(id) {
+                    return Some(id);
+                }
+            }
+            None
+        }
+        NodeData::JsxClosingElement(_data) => None,
+        NodeData::JsxElement(data) => {
+            if let Some(id) = data.children {
+                if cb(id) {
+                    return Some(id);
+                }
+            }
+            None
+        }
+        NodeData::JsxExpression(_data) => None,
+        NodeData::JsxFragment(data) => {
+            if let Some(id) = data.children {
+                if cb(id) {
+                    return Some(id);
+                }
+            }
+            None
+        }
+        NodeData::JsxNamespacedName(_data) => None,
+        NodeData::JsxOpeningElement(data) => {
+            if let Some(id) = data.type_arguments {
+                if cb(id) {
+                    return Some(id);
+                }
+            }
+            None
+        }
+        NodeData::JsxSelfClosingElement(data) => {
+            if let Some(id) = data.type_arguments {
+                if cb(id) {
+                    return Some(id);
+                }
+            }
+            None
+        }
+        NodeData::JsxSpreadAttribute(_data) => None,
+        NodeData::JsxText(_data) => None,
+        NodeData::LabeledStatement(_data) => None,
+        NodeData::LiteralType(_data) => None,
+        NodeData::MappedType(data) => {
+            if let Some(id) = data.members {
+                if cb(id) {
+                    return Some(id);
+                }
+            }
+            None
+        }
+        NodeData::MetaProperty(_data) => None,
+        NodeData::MethodDeclaration(data) => {
+            if let Some(id) = data.modifiers {
+                if cb(id) {
+                    return Some(id);
+                }
+            }
+            if let Some(id) = data.type_parameters {
+                if cb(id) {
+                    return Some(id);
+                }
+            }
+            if let Some(id) = data.parameters {
+                if cb(id) {
+                    return Some(id);
+                }
+            }
+            None
+        }
+        NodeData::MethodSignature(data) => {
+            if let Some(id) = data.modifiers {
+                if cb(id) {
+                    return Some(id);
+                }
+            }
+            if let Some(id) = data.type_parameters {
+                if cb(id) {
+                    return Some(id);
+                }
+            }
+            if let Some(id) = data.parameters {
+                if cb(id) {
+                    return Some(id);
+                }
+            }
+            None
+        }
+        NodeData::MissingDeclaration(data) => {
+            if let Some(id) = data.modifiers {
+                if cb(id) {
+                    return Some(id);
+                }
+            }
+            None
+        }
+        NodeData::ModuleBlock(data) => {
+            if let Some(id) = data.statements {
+                if cb(id) {
+                    return Some(id);
+                }
+            }
+            None
+        }
+        NodeData::ModuleDeclaration(data) => {
+            if let Some(id) = data.modifiers {
+                if cb(id) {
+                    return Some(id);
+                }
+            }
+            None
+        }
+        NodeData::NamedExports(data) => {
+            if let Some(id) = data.elements {
+                if cb(id) {
+                    return Some(id);
+                }
+            }
+            None
+        }
+        NodeData::NamedImports(data) => {
+            if let Some(id) = data.elements {
+                if cb(id) {
+                    return Some(id);
+                }
+            }
+            None
+        }
+        NodeData::NamedTupleMember(_data) => None,
+        NodeData::NamespaceExport(_data) => None,
+        NodeData::NamespaceExportDeclaration(data) => {
+            if let Some(id) = data.modifiers {
+                if cb(id) {
+                    return Some(id);
+                }
+            }
+            None
+        }
+        NodeData::NamespaceImport(_data) => None,
+        NodeData::NewExpression(data) => {
+            if let Some(id) = data.type_arguments {
+                if cb(id) {
+                    return Some(id);
+                }
+            }
+            if let Some(id) = data.arguments {
+                if cb(id) {
+                    return Some(id);
+                }
+            }
+            None
+        }
+        NodeData::NoSubstitutionTemplateLiteral(_data) => None,
+        NodeData::NonNullExpression(_data) => None,
+        NodeData::NumericLiteral(_data) => None,
+        NodeData::ObjectBindingPattern(data) => {
+            if let Some(id) = data.elements {
+                if cb(id) {
+                    return Some(id);
+                }
+            }
+            None
+        }
+        NodeData::ObjectLiteralExpression(data) => {
+            if let Some(id) = data.properties {
+                if cb(id) {
+                    return Some(id);
+                }
+            }
+            None
+        }
+        NodeData::OmittedExpression(_data) => None,
+        NodeData::OptionalType(_data) => None,
+        NodeData::Parameter(data) => {
+            if let Some(id) = data.modifiers {
+                if cb(id) {
+                    return Some(id);
+                }
+            }
+            None
+        }
+        NodeData::ParenthesizedExpression(_data) => None,
+        NodeData::ParenthesizedType(_data) => None,
+        NodeData::PartiallyEmittedExpression(_data) => None,
+        NodeData::PostfixUnaryExpression(_data) => None,
+        NodeData::PrefixUnaryExpression(_data) => None,
+        NodeData::PrivateIdentifier(_data) => None,
+        NodeData::PropertyAccessExpression(_data) => None,
+        NodeData::PropertyAssignment(data) => {
+            if let Some(id) = data.modifiers {
+                if cb(id) {
+                    return Some(id);
+                }
+            }
+            None
+        }
+        NodeData::PropertyDeclaration(data) => {
+            if let Some(id) = data.modifiers {
+                if cb(id) {
+                    return Some(id);
+                }
+            }
+            None
+        }
+        NodeData::PropertySignature(data) => {
+            if let Some(id) = data.modifiers {
+                if cb(id) {
+                    return Some(id);
+                }
+            }
+            None
+        }
+        NodeData::QualifiedName(_data) => None,
+        NodeData::RegularExpressionLiteral(_data) => None,
+        NodeData::RestType(_data) => None,
+        NodeData::ReturnStatement(_data) => None,
+        NodeData::SatisfiesExpression(_data) => None,
+        NodeData::SetAccessor(data) => {
+            if let Some(id) = data.modifiers {
+                if cb(id) {
+                    return Some(id);
+                }
+            }
+            if let Some(id) = data.type_parameters {
+                if cb(id) {
+                    return Some(id);
+                }
+            }
+            if let Some(id) = data.parameters {
+                if cb(id) {
+                    return Some(id);
+                }
+            }
+            None
+        }
+        NodeData::ShorthandPropertyAssignment(data) => {
+            if let Some(id) = data.modifiers {
+                if cb(id) {
+                    return Some(id);
+                }
+            }
+            None
+        }
+        NodeData::SourceFile(data) => {
+            if let Some(id) = data.statements {
+                if cb(id) {
+                    return Some(id);
+                }
+            }
+            None
+        }
+        NodeData::SpreadAssignment(_data) => None,
+        NodeData::SpreadElement(_data) => None,
+        NodeData::StringLiteral(_data) => None,
+        NodeData::SwitchStatement(_data) => None,
+        NodeData::SyntaxList(_data) => None,
+        NodeData::TaggedTemplateExpression(data) => {
+            if let Some(id) = data.type_arguments {
+                if cb(id) {
+                    return Some(id);
+                }
+            }
+            None
+        }
+        NodeData::TemplateExpression(data) => {
+            if let Some(id) = data.template_spans {
+                if cb(id) {
+                    return Some(id);
+                }
+            }
+            None
+        }
+        NodeData::TemplateHead(_data) => None,
+        NodeData::TemplateLiteralType(data) => {
+            if let Some(id) = data.template_spans {
+                if cb(id) {
+                    return Some(id);
+                }
+            }
+            None
+        }
+        NodeData::TemplateLiteralTypeSpan(_data) => None,
+        NodeData::TemplateMiddle(_data) => None,
+        NodeData::TemplateSpan(_data) => None,
+        NodeData::TemplateTail(_data) => None,
+        NodeData::ThrowStatement(_data) => None,
+        NodeData::TryStatement(_data) => None,
+        NodeData::TupleType(data) => {
+            if let Some(id) = data.elements {
+                if cb(id) {
+                    return Some(id);
+                }
+            }
+            None
+        }
+        NodeData::TypeAliasDeclaration(data) => {
+            if let Some(id) = data.modifiers {
+                if cb(id) {
+                    return Some(id);
+                }
+            }
+            if let Some(id) = data.type_parameters {
+                if cb(id) {
+                    return Some(id);
+                }
+            }
+            None
+        }
+        NodeData::TypeAssertionExpression(_data) => None,
+        NodeData::TypeLiteral(data) => {
+            if let Some(id) = data.members {
+                if cb(id) {
+                    return Some(id);
+                }
+            }
+            None
+        }
+        NodeData::TypeOfExpression(_data) => None,
+        NodeData::TypeOperator(_data) => None,
+        NodeData::TypeParameter(data) => {
+            if let Some(id) = data.modifiers {
+                if cb(id) {
+                    return Some(id);
+                }
+            }
+            None
+        }
+        NodeData::TypePredicate(_data) => None,
+        NodeData::TypeQuery(data) => {
+            if let Some(id) = data.type_arguments {
+                if cb(id) {
+                    return Some(id);
+                }
+            }
+            None
+        }
+        NodeData::TypeReference(data) => {
+            if let Some(id) = data.type_arguments {
+                if cb(id) {
+                    return Some(id);
+                }
+            }
+            None
+        }
+        NodeData::UnionType(data) => {
+            if let Some(id) = data.types {
+                if cb(id) {
+                    return Some(id);
+                }
+            }
+            None
+        }
+        NodeData::VariableDeclaration(_data) => None,
+        NodeData::VariableDeclarationList(data) => {
+            if let Some(id) = data.declarations {
+                if cb(id) {
+                    return Some(id);
+                }
+            }
+            None
+        }
+        NodeData::VariableStatement(data) => {
+            if let Some(id) = data.modifiers {
+                if cb(id) {
+                    return Some(id);
+                }
+            }
+            None
+        }
+        NodeData::VoidExpression(_data) => None,
+        NodeData::WhileStatement(_data) => None,
+        NodeData::WithStatement(_data) => None,
+        NodeData::YieldExpression(_data) => None,
+    }
+}
+
 fn visit_node<F>(id: NodeId, cb: &mut F) -> Option<NodeId>
 where
     F: FnMut(NodeId) -> bool,

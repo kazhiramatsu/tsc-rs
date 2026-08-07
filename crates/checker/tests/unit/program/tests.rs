@@ -2,9 +2,9 @@ use super::*;
 use crate::state::CheckerState;
 use std::sync::Arc;
 use tsc_binder::BinderWorker;
-use tsc_diagnostics::{DocumentVersion, TextSnapshot};
-use tsc_syntax::{parse_source_file, ParseOptions};
-use tsc_types::{CompilerOptions, IdentityDomain};
+use tsc_diagnostics::{ByteTextChangeRange, ByteTextSpan, DocumentVersion, TextSnapshot};
+use tsc_syntax::{parse_source_file, IncrementalParseOptions, ParseOptions};
+use tsc_types::{CompilerOptions, IdentityDomain, IdentitySpace};
 
 fn bound_document_for_snapshot(
     path: &str,
@@ -347,4 +347,137 @@ fn registry_rejects_same_version_text_replacement() {
         DocumentRegistryError::VersionTextMismatch { .. }
     ));
     registry.release(lease).expect("release initial document");
+}
+
+#[test]
+fn registry_incrementally_reparses_only_the_changed_document_and_reclaims_versions() {
+    let domain = IdentityDomain::reclaiming();
+    let changed_path = "/changed.ts";
+    let stable_path = "/stable.ts";
+    let changed_v1_text = concat!(
+        "export const before = 1;\n",
+        "export function value() { return 1; }\n",
+        "export const after = 3;\n",
+    );
+    let edit_start = changed_v1_text.rfind("return 1").unwrap() + "return ".len();
+    let mut changed_v2_text = changed_v1_text.to_owned();
+    changed_v2_text.replace_range(edit_start..edit_start + 1, "2");
+    let changed_v1 = TextSnapshot::new(changed_v1_text, DocumentVersion::new("changed-1"));
+    let changed_v2 = TextSnapshot::new(changed_v2_text, DocumentVersion::new("changed-2"));
+    let stable = TextSnapshot::new(
+        "export interface Stable { value: string }",
+        DocumentVersion::new("stable-1"),
+    );
+    let options = CompilerOptions::default();
+    let changed_address = DocumentAddress::new(
+        "incremental-registry",
+        changed_path,
+        DocumentScriptKind::TypeScript,
+        options.clone(),
+    );
+    let stable_address = DocumentAddress::new(
+        "incremental-registry",
+        stable_path,
+        DocumentScriptKind::TypeScript,
+        options,
+    );
+    let mut registry = DocumentRegistry::new("incremental-registry");
+
+    let changed_old = registry
+        .acquire(changed_address.clone(), Arc::clone(&changed_v1), || {
+            bound_document_for_snapshot(changed_path, Arc::clone(&changed_v1), &domain)
+        })
+        .unwrap();
+    let stable_old = registry
+        .acquire(stable_address.clone(), Arc::clone(&stable), || {
+            bound_document_for_snapshot(stable_path, Arc::clone(&stable), &domain)
+        })
+        .unwrap();
+    let old_program = ProgramSnapshot::new(
+        vec![
+            Arc::clone(changed_old.document()),
+            Arc::clone(stable_old.document()),
+        ],
+        2,
+    )
+    .unwrap();
+
+    let changed_new = registry
+        .update_incrementally(
+            &changed_old,
+            changed_address,
+            Arc::clone(&changed_v2),
+            ByteTextChangeRange {
+                span: ByteTextSpan::new(edit_start as u32, 1),
+                new_length: 1,
+            },
+            IncrementalDocumentOptions {
+                parse: ParseOptions::default(),
+                incremental: IncrementalParseOptions {
+                    record_reuse_lineage: true,
+                },
+            },
+            &domain,
+        )
+        .unwrap();
+    let stable_new = registry
+        .acquire(stable_address, Arc::clone(&stable), || {
+            panic!("an unchanged document must reuse its parsed and bound entry")
+        })
+        .unwrap();
+    let new_program = ProgramSnapshot::new(
+        vec![
+            Arc::clone(changed_new.lease.document()),
+            Arc::clone(stable_new.document()),
+        ],
+        2,
+    )
+    .unwrap();
+
+    assert!(changed_new.parse_stats.incremental);
+    assert!(!changed_new.parse_stats.full_parse_fallback);
+    assert!(changed_new.parse_stats.reused_list_elements >= 2);
+    assert!(!changed_new.parse_stats.lineage.is_empty());
+    assert!(!Arc::ptr_eq(
+        old_program.document(0),
+        new_program.document(0)
+    ));
+    assert!(Arc::ptr_eq(
+        old_program.document(1),
+        new_program.document(1)
+    ));
+    assert!(Arc::ptr_eq(
+        old_program.document(0).source().snapshot(),
+        &changed_v1
+    ));
+    assert!(Arc::ptr_eq(
+        new_program.document(0).source().snapshot(),
+        &changed_v2
+    ));
+    assert_eq!(old_program.document(0).source().text(), changed_v1_text);
+    assert_eq!(new_program.document(0).source().text(), changed_v2.text());
+    assert_eq!(registry.active_entry_count(), 3);
+
+    registry.release(changed_old).unwrap();
+    registry.release(stable_old).unwrap();
+    registry.release(changed_new.lease).unwrap();
+    registry.release(stable_new).unwrap();
+    assert_eq!(registry.active_entry_count(), 0);
+    assert_eq!(registry.active_reference_count(), 0);
+
+    // Registry release is explicit, while identity leases remain valid for
+    // the immutable Programs that still expose the old and new IDs.
+    let live = domain.stats().unwrap();
+    assert!(live.space(IdentitySpace::Node).active_ranges >= 3);
+    drop(old_program);
+    drop(new_program);
+    let reclaimed = domain.stats().unwrap();
+    for space in [
+        IdentitySpace::Node,
+        IdentitySpace::NodeArray,
+        IdentitySpace::Symbol,
+        IdentitySpace::PrivateNameSerial,
+    ] {
+        assert_eq!(reclaimed.space(space).active_ranges, 0, "{space:?}");
+    }
 }

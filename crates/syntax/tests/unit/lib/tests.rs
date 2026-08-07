@@ -144,3 +144,86 @@ fn source_clones_retain_leases_and_ephemeral_parse_seals_exact_counts() {
         source.arena.node_arrays().len()
     );
 }
+
+#[test]
+fn incremental_update_reuses_unchanged_list_elements_with_fresh_ids() {
+    use tsc_diagnostics::{ByteTextChangeRange, ByteTextSpan};
+
+    let before = "const first = 1;\nconst middle = 2;\nconst last = 3;\n";
+    let old_snapshot = TextSnapshot::new(before, DocumentVersion::new("1"));
+    let domain = IdentityDomain::reclaiming();
+    let old = Arc::new(
+        parse_source_file_from_snapshot_in_identity_domain(
+            "incremental.ts",
+            Arc::clone(&old_snapshot),
+            ParseOptions::default(),
+            None,
+            &domain,
+        )
+        .unwrap(),
+    );
+    let edit_start = before.find("2;").unwrap() as u32;
+    let after = before.replacen("2;", "20;", 1);
+    let new_snapshot = TextSnapshot::new(after, DocumentVersion::new("2"));
+    let result = update_language_service_source_file_in_identity_domain(
+        Arc::clone(&old),
+        Arc::clone(&new_snapshot),
+        ByteTextChangeRange {
+            span: ByteTextSpan::new(edit_start, 1),
+            new_length: 2,
+        },
+        ParseOptions::default(),
+        IncrementalParseOptions {
+            record_reuse_lineage: true,
+        },
+        &domain,
+    )
+    .unwrap();
+
+    assert!(result.stats.incremental);
+    assert!(!result.stats.full_parse_fallback);
+    assert!(
+        result.stats.reused_list_elements >= 2,
+        "{:#?}",
+        result.stats
+    );
+    assert!(result.stats.reused_nodes > result.stats.reused_list_elements);
+    assert_eq!(result.stats.lineage.len(), result.stats.reused_nodes);
+    assert!(Arc::ptr_eq(result.source.snapshot(), &new_snapshot));
+    assert_eq!(
+        result.source.text(),
+        "const first = 1;\nconst middle = 20;\nconst last = 3;\n"
+    );
+    assert!(result.source.parse_diagnostics.is_empty());
+    assert!(result.stats.lineage.iter().all(|lineage| {
+        old.arena.contains_node(lineage.old_node)
+            && result.source.arena.contains_node(lineage.new_node)
+            && lineage.old_node != lineage.new_node
+    }));
+}
+
+#[test]
+fn incremental_update_rejects_an_inexact_change_range() {
+    use tsc_diagnostics::{ByteTextChangeRange, ByteTextSpan};
+
+    let old_snapshot = TextSnapshot::new("const value = 1;", DocumentVersion::new("1"));
+    let old = Arc::new(parse_source_file_from_snapshot(
+        "invalid-change.ts",
+        old_snapshot,
+        ParseOptions::default(),
+        None,
+    ));
+    let new_snapshot = TextSnapshot::new("const value = 2;", DocumentVersion::new("2"));
+    let error = update_language_service_source_file(
+        old,
+        new_snapshot,
+        ByteTextChangeRange {
+            span: ByteTextSpan::new(0, 1),
+            new_length: 1,
+        },
+        ParseOptions::default(),
+        IncrementalParseOptions::default(),
+    )
+    .unwrap_err();
+    assert_eq!(error, IncrementalParseError::SuffixMismatch);
+}

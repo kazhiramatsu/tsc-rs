@@ -1,0 +1,145 @@
+name: l1-approved-performance
+
+on:
+  workflow_dispatch:
+    inputs:
+      candidate_sha:
+        description: Exact L1 candidate commit to qualify
+        required: true
+        type: string
+      baseline_sha:
+        description: Exact ancestor with the L0.4 qualified runtime tree
+        required: true
+        type: string
+      pairs:
+        description: Total fresh/incremental AB/BA pairs, including one cold pair
+        required: true
+        default: "8"
+        type: choice
+        options:
+          - "8"
+          - "10"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: l1-approved-performance
+  cancel-in-progress: false
+
+jobs:
+  qualify:
+    name: approved-macos-arm64-fresh-incremental
+    runs-on: [self-hosted, macOS, ARM64, tsc-rs-approved-performance]
+    environment: approved-performance
+    timeout-minutes: 90
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+      artifact-metadata: write
+    env:
+      CARGO_BUILD_JOBS: "2"
+      CARGO_INCREMENTAL: "0"
+      RUSTC_WRAPPER: ""
+      CANDIDATE_SHA: ${{ inputs.candidate_sha }}
+      BASELINE_SHA: ${{ inputs.baseline_sha }}
+      PAIRS: ${{ inputs.pairs }}
+      EVIDENCE_PATH: ratchets/l1-incremental-parser-performance.v1.json
+    steps:
+      - name: Validate exact inputs
+        shell: bash
+        run: |
+          [[ "$CANDIDATE_SHA" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$BASELINE_SHA" =~ ^[0-9a-f]{40}$ ]]
+          test "$CANDIDATE_SHA" != "$BASELINE_SHA"
+
+      - name: Checkout the exact candidate
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+          ref: ${{ inputs.candidate_sha }}
+
+      - name: Measure alternating fresh/incremental pairs
+        id: comparison
+        shell: bash
+        run: |
+          test "$(git rev-parse HEAD)" = "$CANDIDATE_SHA"
+          set +e
+          node crates/oracle/l1-performance.mjs \
+            --compare \
+            --baseline "$BASELINE_SHA" \
+            --pairs "$PAIRS" \
+            >"$RUNNER_TEMP/l1-performance.stdout" \
+            2>"$RUNNER_TEMP/l1-performance.stderr"
+          code=$?
+          set -e
+          if [ "$code" -ne 0 ]; then
+            {
+              printf 'stdout:\n'
+              cat "$RUNNER_TEMP/l1-performance.stdout"
+              printf '\nstderr:\n'
+              cat "$RUNNER_TEMP/l1-performance.stderr"
+            } >"$RUNNER_TEMP/l1-performance.failure.log"
+            exit "$code"
+          fi
+          node crates/oracle/l1-performance.mjs --check
+
+      - name: Attest approved-runner comparison
+        id: attest
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4
+        with:
+          subject-path: ${{ env.EVIDENCE_PATH }}
+
+      - name: Verify signer and exact comparison commits
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ATTESTATION_BUNDLE: ${{ steps.attest.outputs.bundle-path }}
+        run: |
+          gh attestation verify "$EVIDENCE_PATH" \
+            --repo "$GITHUB_REPOSITORY" \
+            --bundle "$ATTESTATION_BUNDLE" \
+            --signer-workflow "$GITHUB_REPOSITORY/.github/workflows/l1-performance.yml" \
+            --cert-oidc-issuer "https://token.actions.githubusercontent.com"
+          node -e '
+            const fs = require("fs");
+            const evidence = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
+            if (evidence.status !== "qualified" || evidence.candidate.commit !== process.argv[2] || evidence.base.commit !== process.argv[3]) process.exit(1);
+          ' "$EVIDENCE_PATH" "$CANDIDATE_SHA" "$BASELINE_SHA"
+
+      - name: Publish approved performance evidence
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: l1-performance-${{ inputs.candidate_sha }}
+          path: |
+            ${{ env.EVIDENCE_PATH }}
+            ${{ steps.attest.outputs.bundle-path }}
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Produce bounded performance failure evidence
+        if: ${{ failure() && steps.comparison.outcome == 'failure' }}
+        run: |
+          node .github/ci/qualification.mjs write-failure \
+            --head "$CANDIDATE_SHA" \
+            --base "$BASELINE_SHA" \
+            --track performance \
+            --source "$RUNNER_TEMP/l1-performance.failure.log" \
+            --payload-path target/ci-failure/l1-performance.log \
+            --content-type text/plain \
+            --fixture ratchets/l0-fixtures.v1.json \
+            --out target/ci-failure/l1-performance.json
+          node .github/ci/qualification.mjs verify-failure \
+            --path target/ci-failure/l1-performance.json \
+            --payload target/ci-failure/l1-performance.log
+
+      - name: Upload bounded performance failure evidence
+        if: ${{ failure() && steps.comparison.outcome == 'failure' }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: l1-performance-failure-${{ inputs.candidate_sha }}
+          path: target/ci-failure/
+          if-no-files-found: error
+          retention-days: 14
