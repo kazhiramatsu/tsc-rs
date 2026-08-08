@@ -12,6 +12,8 @@ mod h1_noemit_performance_contract;
 mod h1_owner_inventory_dispositions;
 #[path = "integration/h1_project_profile_classification.rs"]
 mod h1_project_profile_classification;
+#[path = "integration/h2_transition.rs"]
+mod h2_transition;
 #[path = "integration/module_suffixes_oracle_contract.rs"]
 mod module_suffixes_oracle_contract;
 #[path = "integration/transpile_suite_inventory.rs"]

@@ -1,0 +1,187 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/kazhiramatsu/tsc-rs/.github/ci/contracts/h2-candidate-dispositions.schema.json",
+  "title": "tsc-rs H2 upstream runner candidate dispositions",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "status",
+    "phase",
+    "typescript",
+    "generator",
+    "contract",
+    "inputs",
+    "disposition_contract",
+    "cases",
+    "summary",
+    "inventory_fingerprint_sha256"
+  ],
+  "properties": {
+    "schema": { "const": 1 },
+    "status": { "const": "frozen" },
+    "phase": { "const": "H2.0a-runner-candidate-dispositions" },
+    "typescript": { "$ref": "#/$defs/typescript" },
+    "generator": { "$ref": "#/$defs/path_hash" },
+    "contract": { "$ref": "#/$defs/path_hash" },
+    "inputs": {
+      "type": "array",
+      "minItems": 6,
+      "items": { "$ref": "#/$defs/path_hash" }
+    },
+    "disposition_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["module_only_definition", "source_analysis", "execution", "reference_baselines", "no_implicit_success"],
+      "properties": {
+        "module_only_definition": { "type": "string", "minLength": 1 },
+        "source_analysis": { "const": "pending-until-owning-runtime-slice" },
+        "execution": { "const": "not-run-except-frozen-h1-compatible-case" },
+        "reference_baselines": { "const": "not-compared-except-frozen-h1-compatible-case" },
+        "no_implicit_success": { "const": true }
+      }
+    },
+    "cases": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/case" }
+    },
+    "summary": { "$ref": "#/$defs/summary" },
+    "inventory_fingerprint_sha256": { "$ref": "#/$defs/sha256" }
+  },
+  "$defs": {
+    "sha1": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "path_hash": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256"],
+      "properties": {
+        "path": { "type": "string", "minLength": 1 },
+        "sha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "typescript": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["version", "source_commit"],
+      "properties": {
+        "version": { "const": "6.0.3" },
+        "source_commit": { "$ref": "#/$defs/sha1" }
+      }
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "bytes", "sha256", "git_blob_sha1"],
+      "properties": {
+        "path": { "type": "string", "minLength": 1 },
+        "bytes": { "type": "integer", "minimum": 0 },
+        "sha256": { "$ref": "#/$defs/sha256" },
+        "git_blob_sha1": { "$ref": "#/$defs/sha1" }
+      }
+    },
+    "case": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "suite",
+        "upstream_case",
+        "id",
+        "source",
+        "profile_blockers",
+        "candidate_class",
+        "disposition",
+        "source_analysis_state",
+        "execution_state",
+        "reference_baseline_state",
+        "required_slices",
+        "next_slice"
+      ],
+      "properties": {
+        "suite": { "enum": ["compiler", "conformance", "project", "transpile"] },
+        "upstream_case": { "type": "integer", "minimum": 0 },
+        "id": { "type": "string", "minLength": 1 },
+        "source": { "$ref": "#/$defs/source" },
+        "profile_blockers": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "candidate_class": { "enum": ["h1-compatible", "h2.1a-module-only", "deferred-profile", "component-only"] },
+        "disposition": { "enum": ["closed-h1-exact", "pending-source-analysis", "deferred-to-slices", "deferred-component-route"] },
+        "source_analysis_state": { "enum": ["closed-h1", "pending-owning-slice", "not-yet-required"] },
+        "execution_state": { "enum": ["executed-h1-exact", "not-run"] },
+        "reference_baseline_state": { "enum": ["compared-h1-exact", "not-compared"] },
+        "required_slices": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string", "pattern": "^H2\\.[0-9]+[a-z]?$" }
+        },
+        "next_slice": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "string", "pattern": "^H2\\.[0-9]+[a-z]?$" }
+          ]
+        }
+      }
+    },
+    "suite_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["suite", "cases", "closed_h1", "module_only", "deferred"],
+      "properties": {
+        "suite": { "enum": ["compiler", "conformance", "project", "transpile"] },
+        "cases": { "type": "integer", "minimum": 0 },
+        "closed_h1": { "type": "integer", "minimum": 0 },
+        "module_only": { "type": "integer", "minimum": 0 },
+        "deferred": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "module_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["value", "cases"],
+      "properties": {
+        "value": { "enum": ["absent", "ESNext(99)"] },
+        "cases": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "cases",
+        "suite_rows",
+        "closed_h1_cases",
+        "module_only_candidates",
+        "module_only_compiler_candidates",
+        "module_only_conformance_candidates",
+        "module_only_states",
+        "not_run_cases",
+        "undispositioned_cases"
+      ],
+      "properties": {
+        "cases": { "type": "integer", "minimum": 1 },
+        "suite_rows": {
+          "type": "array",
+          "minItems": 4,
+          "maxItems": 4,
+          "items": { "$ref": "#/$defs/suite_summary" }
+        },
+        "closed_h1_cases": { "type": "integer", "minimum": 0 },
+        "module_only_candidates": { "const": 295 },
+        "module_only_compiler_candidates": { "const": 94 },
+        "module_only_conformance_candidates": { "const": 201 },
+        "module_only_states": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "items": { "$ref": "#/$defs/module_state" }
+        },
+        "not_run_cases": { "type": "integer", "minimum": 0 },
+        "undispositioned_cases": { "const": 0 }
+      }
+    }
+  }
+}

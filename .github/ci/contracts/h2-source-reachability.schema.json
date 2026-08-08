@@ -1,0 +1,115 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/kazhiramatsu/tsc-rs/.github/ci/contracts/h2-source-reachability.schema.json",
+  "title": "tsc-rs H2 source reachability oracle",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "phase",
+    "typescript_version",
+    "source_commit",
+    "candidate_dispositions",
+    "suite",
+    "case_id",
+    "slice",
+    "inputs",
+    "files",
+    "owner_reachability",
+    "disposition",
+    "required_slices",
+    "analysis_fingerprint_sha256"
+  ],
+  "properties": {
+    "schema": { "const": 1 },
+    "phase": { "const": "H2-source-reachability" },
+    "typescript_version": { "const": "6.0.3" },
+    "source_commit": { "$ref": "#/$defs/sha1" },
+    "candidate_dispositions": { "$ref": "#/$defs/path_hash" },
+    "suite": { "enum": ["compiler", "conformance", "project", "transpile"] },
+    "case_id": { "type": "string", "minLength": 1 },
+    "slice": { "type": "string", "pattern": "^H2\\.[0-9]+[a-z]?$" },
+    "inputs": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/input" }
+    },
+    "files": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/file" }
+    },
+    "owner_reachability": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/owner" }
+    },
+    "disposition": { "enum": ["admitted-for-execution", "deferred-to-slices", "unsupported-before-first-write"] },
+    "required_slices": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "type": "string", "pattern": "^H2\\.[0-9]+[a-z]?$" }
+    },
+    "analysis_fingerprint_sha256": { "$ref": "#/$defs/sha256" }
+  },
+  "$defs": {
+    "sha1": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "path_hash": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256"],
+      "properties": {
+        "path": { "type": "string", "minLength": 1 },
+        "sha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "input": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "bytes", "sha256"],
+      "properties": {
+        "path": { "type": "string", "minLength": 1 },
+        "bytes": { "type": "integer", "minimum": 0 },
+        "sha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "file": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "script_kind", "implied_module_format", "feature_roots"],
+      "properties": {
+        "path": { "type": "string", "minLength": 1 },
+        "script_kind": { "enum": ["TS", "TSX", "JS", "JSX", "JSON", "External"] },
+        "implied_module_format": { "enum": ["None", "CommonJS", "ESModule"] },
+        "feature_roots": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "owner": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["owner_key", "reachable", "evidence"],
+      "properties": {
+        "owner_key": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$" },
+        "reachable": { "type": "boolean" },
+        "evidence": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["file", "start", "end", "kind"],
+            "properties": {
+              "file": { "type": "string", "minLength": 1 },
+              "start": { "type": "integer", "minimum": 0 },
+              "end": { "type": "integer", "minimum": 0 },
+              "kind": { "type": "string", "minLength": 1 }
+            }
+          }
+        }
+      }
+    }
+  }
+}

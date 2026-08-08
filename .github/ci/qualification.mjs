@@ -349,6 +349,11 @@ export function validatePolicy(policy) {
     "h1-noemit-performance",
     "h1-rust-omissions",
     "h1-printer-foundation",
+    "h2-owner-inventory",
+    "h2-candidate-dispositions",
+    "h2-profile-transition",
+    "h2-source-reachability",
+    "h2-emit-observation",
   ]) {
     const schema = JSON.parse(fs.readFileSync(path.join(contractDirectory, `${contract}.schema.json`), "utf8"));
     if (schema.$schema !== "https://json-schema.org/draft/2020-12/schema" || schema.additionalProperties !== false || !schema.$id.endsWith(`/${contract}.schema.json`)) {

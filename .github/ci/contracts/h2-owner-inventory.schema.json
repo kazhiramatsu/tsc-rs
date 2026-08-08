@@ -1,0 +1,223 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/kazhiramatsu/tsc-rs/.github/ci/contracts/h2-owner-inventory.schema.json",
+  "title": "tsc-rs H2 post-H1 owner and Rust converse inventory",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "status",
+    "phase",
+    "typescript",
+    "generator",
+    "contract",
+    "inputs",
+    "closure_model",
+    "slices",
+    "owners",
+    "dependencies",
+    "rust_converse",
+    "summary",
+    "inventory_fingerprint_sha256"
+  ],
+  "properties": {
+    "schema": { "const": 1 },
+    "status": { "const": "frozen" },
+    "phase": { "const": "H2.0a-owner-converse-inventory" },
+    "typescript": { "$ref": "#/$defs/typescript" },
+    "generator": { "$ref": "#/$defs/path_hash" },
+    "contract": { "$ref": "#/$defs/path_hash" },
+    "inputs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["h1_owner_inventory", "h1_rust_omissions"],
+      "properties": {
+        "h1_owner_inventory": { "$ref": "#/$defs/path_hash" },
+        "h1_rust_omissions": { "$ref": "#/$defs/path_hash" }
+      }
+    },
+    "closure_model": { "type": "string", "minLength": 1 },
+    "slices": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "type": "string", "pattern": "^(H1|H2\\.[0-9]+[a-z]?)$" }
+    },
+    "owners": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/owner" }
+    },
+    "dependencies": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/dependency" }
+    },
+    "rust_converse": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/rust_converse" }
+    },
+    "summary": { "$ref": "#/$defs/summary" },
+    "inventory_fingerprint_sha256": { "$ref": "#/$defs/sha256" }
+  },
+  "$defs": {
+    "sha1": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "path_hash": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256"],
+      "properties": {
+        "path": { "type": "string", "minLength": 1 },
+        "sha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "typescript": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["version", "source_commit", "compiler", "library"],
+      "properties": {
+        "version": { "const": "6.0.3" },
+        "source_commit": { "$ref": "#/$defs/sha1" },
+        "compiler": { "$ref": "#/$defs/path_hash" },
+        "library": { "$ref": "#/$defs/path_hash" }
+      }
+    },
+    "position": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["offset", "line", "character"],
+      "properties": {
+        "offset": { "type": "integer", "minimum": 0 },
+        "line": { "type": "integer", "minimum": 1 },
+        "character": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "range": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["start", "end"],
+      "properties": {
+        "start": { "$ref": "#/$defs/position" },
+        "end": { "$ref": "#/$defs/position" }
+      }
+    },
+    "declaration": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "source",
+        "name",
+        "kind",
+        "lexical_path",
+        "source_range",
+        "declaration_sha256",
+        "body_sha256",
+        "ledger_slice_sha256"
+      ],
+      "properties": {
+        "id": { "type": "string", "pattern": "^h2:[0-9a-f]{64}$" },
+        "source": { "enum": ["vendor/typescript-6.0.3/lib/_tsc.js", "vendor/typescript-6.0.3/lib/typescript.js"] },
+        "name": { "type": "string", "minLength": 1 },
+        "kind": { "const": "FunctionDeclaration" },
+        "lexical_path": { "type": "string", "minLength": 1 },
+        "source_range": { "$ref": "#/$defs/range" },
+        "declaration_sha256": { "$ref": "#/$defs/sha256" },
+        "body_sha256": { "$ref": "#/$defs/sha256" },
+        "ledger_slice_sha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "owner": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["key", "role", "owner_slice", "disposition", "activation", "declaration"],
+      "properties": {
+        "key": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$" },
+        "role": { "type": "string", "minLength": 1 },
+        "owner_slice": { "type": "string", "pattern": "^(H1|H2\\.[0-9]+[a-z]?)$" },
+        "disposition": { "enum": ["closed-h1", "partial-h1-residual", "deferred-h2"] },
+        "activation": { "type": "string", "minLength": 1 },
+        "declaration": { "$ref": "#/$defs/declaration" }
+      }
+    },
+    "dependency": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["from", "to", "usage_kinds", "sites"],
+      "properties": {
+        "from": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$" },
+        "to": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$" },
+        "usage_kinds": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "enum": ["call", "return", "argument", "array-element", "reference"] }
+        },
+        "sites": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["line", "character"],
+            "properties": {
+              "line": { "type": "integer", "minimum": 1 },
+              "character": { "type": "integer", "minimum": 1 }
+            }
+          }
+        }
+      }
+    },
+    "rust_converse": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["anchor", "upstream_owners", "disposition"],
+      "properties": {
+        "anchor": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["id", "path", "line", "text_sha256", "file_sha256"],
+          "properties": {
+            "id": { "type": "string", "minLength": 1 },
+            "path": { "type": "string", "minLength": 1 },
+            "line": { "type": "integer", "minimum": 1 },
+            "text_sha256": { "$ref": "#/$defs/sha256" },
+            "file_sha256": { "$ref": "#/$defs/sha256" }
+          }
+        },
+        "upstream_owners": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$" }
+        },
+        "disposition": { "enum": ["implements-h1", "shared-h1-seam", "dormant-h2-seam"] }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "owner_roots",
+        "closed_h1_roots",
+        "partial_h1_roots",
+        "deferred_h2_roots",
+        "dependency_edges",
+        "rust_converse_rows",
+        "undispositioned_owners",
+        "unmapped_rust_converse_rows"
+      ],
+      "properties": {
+        "owner_roots": { "type": "integer", "minimum": 1 },
+        "closed_h1_roots": { "type": "integer", "minimum": 0 },
+        "partial_h1_roots": { "type": "integer", "minimum": 0 },
+        "deferred_h2_roots": { "type": "integer", "minimum": 0 },
+        "dependency_edges": { "type": "integer", "minimum": 0 },
+        "rust_converse_rows": { "type": "integer", "minimum": 1 },
+        "undispositioned_owners": { "const": 0 },
+        "unmapped_rust_converse_rows": { "const": 0 }
+      }
+    }
+  }
+}
