@@ -22,6 +22,7 @@ mod completion;
 mod h1_conformance;
 mod h1_emit_acceptance;
 mod h2_1a_acceptance;
+mod h2_1b_acceptance;
 mod host_resolution;
 mod invariant_attestation;
 mod l0_identity_stress;
@@ -4270,7 +4271,8 @@ fn acceptance(mut args: impl Iterator<Item = String>) -> Result<(), Box<dyn Erro
     conformance(std::iter::empty())?;
     let workspace = find_workspace_root()?;
     h1_emit_acceptance::run(&workspace)?;
-    h2_1a_acceptance::run(&workspace)
+    h2_1a_acceptance::run(&workspace)?;
+    h2_1b_acceptance::run(&workspace)
 }
 
 fn conformance(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
@@ -7772,10 +7774,27 @@ fn ci_oracle_gates(workspace: &Path) -> Result<(), Box<dyn Error>> {
     )?;
     let h2_1a_profile = workspace.join("crates/oracle/h2-1a-profile.mjs");
     run_command(Command::new("node").arg("--check").arg(&h2_1a_profile))?;
+    // H2.1a is immutable lineage once H2.1b owns the current runtime. Its
+    // Rust contract checks the exact recorded artifact and authority bytes;
+    // regenerating it against H2.1b inputs would reinterpret history.
+    let h2_1b_qualification = workspace.join("crates/oracle/h2-1b-qualification.mjs");
+    run_command(
+        Command::new("node")
+            .arg("--check")
+            .arg(&h2_1b_qualification),
+    )?;
     run_command(
         Command::new("node")
             .current_dir(workspace)
-            .arg(&h2_1a_profile)
+            .arg(&h2_1b_qualification)
+            .arg("--check"),
+    )?;
+    let h2_1b_profile = workspace.join("crates/oracle/h2-1b-profile.mjs");
+    run_command(Command::new("node").arg("--check").arg(&h2_1b_profile))?;
+    run_command(
+        Command::new("node")
+            .current_dir(workspace)
+            .arg(&h2_1b_profile)
             .arg("--check"),
     )?;
     let h1_rust_omissions = workspace.join("crates/oracle/h1-rust-omission-inventory.mjs");

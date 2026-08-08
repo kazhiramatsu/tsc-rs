@@ -200,7 +200,7 @@ fn h2_1a_omitted_and_explicit_esnext_select_the_exact_esm_path() {
 }
 
 #[test]
-fn h2_1a_cjs_selection_is_typed_and_precedes_the_first_sink_write() {
+fn h2_1b_explicit_and_implied_commonjs_select_the_exact_path() {
     let cases = [
         (
             Some(1),
@@ -231,21 +231,34 @@ fn h2_1a_cjs_selection_is_typed_and_precedes_the_first_sink_write() {
             },
             vec![source],
         );
-        let mut sink = CountingSink::default();
-        let error = ProgramSession::new(prepared)
+        let mut sink = MemoryOutputSink::new();
+        let outcome = ProgramSession::new(prepared)
             .emit(&mut sink)
-            .expect_err("H2.1b CommonJS branch remains deferred");
-        let DriverError::Emit(EmitFailure::Transform(error)) = error else {
-            panic!("unexpected H2.1a CJS failure: {error:?}");
-        };
-        assert!(matches!(
-            error.as_ref(),
-            tsc_emitter::TransformError::DeferredModuleFormat {
-                format: 1,
-                owner_slice: "H2.1b"
+            .expect("H2.1b CommonJS emit");
+        assert!(outcome.diagnostics().is_empty());
+        assert_eq!(sink.writes().len(), 1);
+        assert_eq!(
+            sink.writes()[0].callback_text(),
+            concat!(
+                "\"use strict\";\n",
+                "Object.defineProperty(exports, \"__esModule\", { value: true });\n",
+                "exports.value = void 0;\n",
+                "exports.value = 1;\n",
+            )
+        );
+        assert_eq!(
+            outcome.h2_activity().runtime_slice(H2RuntimeSlice::H2_1a),
+            1
+        );
+        assert_eq!(
+            outcome.h2_activity().runtime_slice(H2RuntimeSlice::H2_1b),
+            1
+        );
+        for slice in H2RuntimeSlice::ALL {
+            if !matches!(slice, H2RuntimeSlice::H2_1a | H2RuntimeSlice::H2_1b) {
+                assert_eq!(outcome.h2_activity().runtime_slice(slice), 0);
             }
-        ));
-        assert_eq!(sink.writes, 0);
+        }
     }
 }
 
@@ -357,15 +370,26 @@ fn a_later_unsupported_source_cannot_leave_an_earlier_partial_write() {
 
 #[test]
 fn filesystem_failure_at_each_write_index_preserves_partial_set_and_continuation() {
-    assert_filesystem_failure_at_each_write_index(200, 0);
+    assert_filesystem_failure_at_each_write_index(200, &[]);
 }
 
 #[test]
 fn h2_1a_filesystem_failure_preserves_partial_set_continuation_and_activity() {
-    assert_filesystem_failure_at_each_write_index(99, 2);
+    assert_filesystem_failure_at_each_write_index(99, &[(H2RuntimeSlice::H2_1a, 2)]);
 }
 
-fn assert_filesystem_failure_at_each_write_index(module: i32, expected_h2_1a_activity: u64) {
+#[test]
+fn h2_1b_commonjs_filesystem_failure_preserves_partial_set_continuation_and_activity() {
+    assert_filesystem_failure_at_each_write_index(
+        1,
+        &[(H2RuntimeSlice::H2_1a, 2), (H2RuntimeSlice::H2_1b, 2)],
+    );
+}
+
+fn assert_filesystem_failure_at_each_write_index(
+    module: i32,
+    expected_runtime_activity: &[(H2RuntimeSlice, u64)],
+) {
     let output_paths = [
         PathBuf::from("/project/first.js"),
         PathBuf::from("/project/second.js"),
@@ -441,14 +465,12 @@ fn assert_filesystem_failure_at_each_write_index(module: i32, expected_h2_1a_act
         assert_eq!(activity.javascript_artifact_creations(), 2);
         assert_eq!(activity.output_sink_write_attempts(), 2);
         assert_eq!(activity.output_sink_failures(), 1);
-        assert_eq!(
-            activity.runtime_slice(H2RuntimeSlice::H2_1a),
-            expected_h2_1a_activity
-        );
         for slice in H2RuntimeSlice::ALL {
-            if slice != H2RuntimeSlice::H2_1a {
-                assert_eq!(activity.runtime_slice(slice), 0);
-            }
+            let expected = expected_runtime_activity
+                .iter()
+                .find_map(|(expected_slice, count)| (*expected_slice == slice).then_some(*count))
+                .unwrap_or(0);
+            assert_eq!(activity.runtime_slice(slice), expected);
         }
     }
 }

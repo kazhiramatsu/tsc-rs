@@ -1,5 +1,6 @@
 use std::collections::{BTreeMap, BTreeSet};
 
+use tsc_program::SourceFileId;
 use tsc_syntax::{
     for_each_child, for_each_child_array, try_visit_each_child, Node, NodeArrayId, NodeData,
     NodeDataChildVisitor, NodeId, SyntaxKind,
@@ -17,6 +18,43 @@ const MODULE_COMMON_JS: i32 = 1;
 const MODULE_ES_NEXT: i32 = 99;
 const MODULE_PRESERVE: i32 = 200;
 
+const CREATE_BINDING_HELPER_TEXT: &str = r#"var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));"#;
+const SET_MODULE_DEFAULT_HELPER_TEXT: &str = r#"var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});"#;
+const IMPORT_STAR_HELPER_TEXT: &str = r#"var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();"#;
+const IMPORT_DEFAULT_HELPER_TEXT: &str = r#"var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};"#;
+
 /// tsc-port: getScriptTransformers @6.0.3
 /// tsc-hash: 69bdc65a0c428ad5819419fabd0ecd483bb661350434c5ad0ea0bdec15096fd0
 /// tsc-span: _tsc.js:115903-115949
@@ -24,7 +62,7 @@ pub fn get_script_transformers<'resolver>(
     options: &CompilerOptions,
     resolver: &'resolver dyn EmitResolver,
 ) -> Result<Vec<Box<dyn Transformer + 'resolver>>, TransformError> {
-    let mut activity = H2ActivityCanary::h2_1a_profile();
+    let mut activity = H2ActivityCanary::h2_1b_profile();
     get_script_transformers_with_optional_host(options, resolver, None, &mut activity)
 }
 
@@ -32,15 +70,16 @@ pub(crate) fn get_script_transformers_with_activity<'transformers>(
     options: &CompilerOptions,
     resolver: &'transformers dyn EmitResolver,
     host: &'transformers dyn EmitHost,
+    source: SourceFileId,
     activity: &mut H2ActivityCanary,
 ) -> Result<Vec<Box<dyn Transformer + 'transformers>>, TransformError> {
-    get_script_transformers_with_optional_host(options, resolver, Some(host), activity)
+    get_script_transformers_with_optional_host(options, resolver, Some((host, source)), activity)
 }
 
 fn get_script_transformers_with_optional_host<'transformers>(
     options: &CompilerOptions,
     resolver: &'transformers dyn EmitResolver,
-    host: Option<&'transformers dyn EmitHost>,
+    host: Option<(&'transformers dyn EmitHost, SourceFileId)>,
     activity: &mut H2ActivityCanary,
 ) -> Result<Vec<Box<dyn Transformer + 'transformers>>, TransformError> {
     if options.emit_script_target() != ScriptTarget::ES_NEXT {
@@ -55,7 +94,7 @@ fn get_script_transformers_with_optional_host<'transformers>(
     ) {
         return Err(TransformError::UnsupportedCompilerOption {
             option: "module",
-            detail: "the current transformer list requires Preserve, ESNext, or the fail-closed CommonJS control",
+            detail: "the current transformer list requires Preserve, ESNext, or CommonJS",
         });
     }
     if !options.use_define_for_class_fields_effective() {
@@ -80,9 +119,15 @@ fn get_script_transformers_with_optional_host<'transformers>(
         activity.construct_transform_ecmascript_module();
         transform_ecmascript_module(options)
     } else {
-        let host = host.ok_or(TransformError::EmitHostRequiredForImpliedModuleFormat)?;
+        let (host, source) = host.ok_or(TransformError::EmitHostRequiredForImpliedModuleFormat)?;
         activity.observe_runtime_slice(H2RuntimeSlice::H2_1a);
-        transform_implied_node_format_dependent_module(options, host, activity)
+        if host
+            .get_emit_module_format_of_file(source)
+            .is_some_and(|format| format < 5)
+        {
+            activity.observe_runtime_slice(H2RuntimeSlice::H2_1b);
+        }
+        transform_implied_node_format_dependent_module(options, resolver, host, activity)
     };
     Ok(vec![
         transform_typescript,
@@ -133,17 +178,18 @@ pub fn transform_ecmascript_module(options: &CompilerOptions) -> Box<dyn Transfo
 ///
 /// TypeScript constructs both module factories against one context, captures
 /// each factory's hooks, and dispatches the transform and hooks per source.
-/// Rust represents the same ownership with a composite transformer. The CJS
-/// child is intentionally a fail-closed constructor until H2.1b ports
-/// `transformModule`; selecting it returns before an emit artifact exists.
-fn transform_implied_node_format_dependent_module<'host>(
+/// Rust represents the same ownership with a composite transformer. H2.1b
+/// supplies the CommonJS child while later implied formats retain their
+/// independently owned fail-closed boundaries.
+fn transform_implied_node_format_dependent_module<'dependencies>(
     options: &CompilerOptions,
-    host: &'host dyn EmitHost,
+    resolver: &'dependencies dyn EmitResolver,
+    host: &'dependencies dyn EmitHost,
     activity: &mut H2ActivityCanary,
-) -> Box<dyn Transformer + 'host> {
+) -> Box<dyn Transformer + 'dependencies> {
     activity.construct_transform_ecmascript_module();
     let esm = transform_ecmascript_module(options);
-    let cjs: Box<dyn Transformer> = Box::new(DeferredCommonJsModuleTransformer);
+    let cjs = transform_module(options, resolver);
     Box::new(ImpliedNodeFormatDependentModuleTransformer { host, esm, cjs })
 }
 
@@ -550,11 +596,11 @@ enum ImpliedModuleBranch {
 
 struct ImpliedNodeFormatDependentModuleTransformer<'host> {
     host: &'host dyn EmitHost,
-    esm: Box<dyn Transformer>,
-    cjs: Box<dyn Transformer>,
+    esm: Box<dyn Transformer + 'host>,
+    cjs: Box<dyn Transformer + 'host>,
 }
 
-impl ImpliedNodeFormatDependentModuleTransformer<'_> {
+impl<'host> ImpliedNodeFormatDependentModuleTransformer<'host> {
     fn branch_for_source(
         &self,
         context: &TransformationContext,
@@ -576,7 +622,7 @@ impl ImpliedNodeFormatDependentModuleTransformer<'_> {
         })
     }
 
-    fn branch_mut(&mut self, branch: ImpliedModuleBranch) -> &mut dyn Transformer {
+    fn branch_mut(&mut self, branch: ImpliedModuleBranch) -> &mut (dyn Transformer + 'host) {
         match branch {
             ImpliedModuleBranch::Esm => self.esm.as_mut(),
             ImpliedModuleBranch::CommonJs => self.cjs.as_mut(),
@@ -656,22 +702,2189 @@ impl Transformer for ImpliedNodeFormatDependentModuleTransformer<'_> {
     }
 }
 
-struct DeferredCommonJsModuleTransformer;
+/// tsc-port: transformModule @6.0.3
+/// tsc-hash: 3d54d8672774bc47f161ad1b4747b2d39a9a04f3da0a7cdab4c8b5ea125ca3eb
+/// tsc-span: _tsc.js:110090-112041
+fn transform_module<'resolver>(
+    options: &CompilerOptions,
+    resolver: &'resolver dyn EmitResolver,
+) -> Box<dyn Transformer + 'resolver> {
+    Box::new(CommonJsModuleTransformer {
+        resolver,
+        always_strict: options.always_strict_effective(),
+        es_module_interop: options.es_module_interop_effective(),
+    })
+}
 
-impl Transformer for DeferredCommonJsModuleTransformer {
+struct CommonJsModuleTransformer<'resolver> {
+    resolver: &'resolver dyn EmitResolver,
+    always_strict: bool,
+    es_module_interop: bool,
+}
+
+impl Transformer for CommonJsModuleTransformer<'_> {
     fn name(&self) -> &'static str {
         "transformModule"
     }
 
+    fn initialize(&mut self, context: &mut TransformationContext) -> Result<(), TransformError> {
+        for kind in [
+            SyntaxKind::CallExpression,
+            SyntaxKind::TaggedTemplateExpression,
+            SyntaxKind::Identifier,
+            SyntaxKind::BinaryExpression,
+            SyntaxKind::ShorthandPropertyAssignment,
+        ] {
+            context.enable_substitution(kind)?;
+        }
+        context.enable_emit_notification(SyntaxKind::SourceFile)?;
+        Ok(())
+    }
+
     fn transform_root(
         &mut self,
-        _context: &mut TransformationContext,
-        _root: TransformRoot,
+        context: &mut TransformationContext,
+        root: TransformRoot,
     ) -> Result<TransformRoot, TransformError> {
+        let TransformRoot::SourceFile(source) = root else {
+            return Err(TransformError::Unsupported(
+                crate::UnsupportedEmitFeature::BundleRoot,
+            ));
+        };
+        if context.arena().source(source)?.syntax().is_declaration_file {
+            return Ok(TransformRoot::SourceFile(source));
+        }
+        let is_external = context
+            .arena()
+            .source(source)?
+            .syntax()
+            .external_module_indicator
+            .is_some();
+        let current_root = context.arena().root(source)?;
+        let has_dynamic_import = source_contains_dynamic_import(context.arena(), current_root)?;
+        if !is_external && !has_dynamic_import {
+            return Ok(TransformRoot::SourceFile(source));
+        }
+        if self.always_strict || is_external {
+            let strict_root = context.arena().root(source)?;
+            let strict_root = ensure_use_strict_prologue(context, source, strict_root)?;
+            context.arena_mut()?.replace_root(source, strict_root)?;
+        }
+
+        let current_root = context.arena().root(source)?;
+        let info = CommonJsModuleInfo::collect(context.arena(), source, current_root)?;
+        let referenced_declarations = collect_referenced_value_declarations(
+            context.arena(),
+            source,
+            current_root,
+            self.resolver,
+            &info.exported_variable_declarations,
+        )?;
+        let mut visitor = CommonJsVisitor::new(
+            context,
+            source,
+            self.resolver,
+            self.es_module_interop,
+            info,
+            referenced_declarations,
+        );
+        let updated = visitor.transform_source_file(current_root)?;
+        visitor.context.arena_mut()?.replace_root(source, updated)?;
+        Ok(TransformRoot::SourceFile(source))
+    }
+
+    fn substitute_node(
+        &mut self,
+        _context: &TransformationContext,
+        _hint: EmitHint,
+        node: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        // This Rust ownership adaptation performs substitutions while the AST
+        // is mutable. The hook remains installed because the implied-format
+        // composite must preserve transformModule's upstream hook surface.
+        Ok(node)
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum ImportHelperKind {
+    None,
+    Star,
+    Default,
+}
+
+#[derive(Clone, Debug)]
+struct ImportPlan {
+    generated_name: Box<str>,
+    helper: ImportHelperKind,
+}
+
+#[derive(Clone, Debug)]
+struct ImportBinding {
+    generated_name: Box<str>,
+    property: Option<Box<str>>,
+}
+
+#[derive(Debug)]
+struct CommonJsModuleInfo {
+    is_external: bool,
+    imports: BTreeMap<NodeId, ImportPlan>,
+    import_bindings: BTreeMap<NodeId, ImportBinding>,
+    exports_by_local: BTreeMap<Box<str>, Vec<Box<str>>>,
+    exported_names: Vec<Box<str>>,
+    hoisted_function_exports: Vec<(Box<str>, Box<str>)>,
+    exported_variable_declarations: BTreeSet<NodeId>,
+}
+
+impl CommonJsModuleInfo {
+    fn collect(
+        arena: &TransformArena,
+        source: TransformSourceId,
+        root: TransformNode,
+    ) -> Result<Self, TransformError> {
+        let is_external = arena
+            .source(source)?
+            .syntax()
+            .external_module_indicator
+            .is_some();
+        let statements = source_file_statement_nodes(arena, source, root)?;
+        let mut info = Self {
+            is_external,
+            imports: BTreeMap::new(),
+            import_bindings: BTreeMap::new(),
+            exports_by_local: BTreeMap::new(),
+            exported_names: Vec::new(),
+            hoisted_function_exports: Vec::new(),
+            exported_variable_declarations: BTreeSet::new(),
+        };
+        let mut generated_names = BTreeMap::<String, usize>::new();
+
+        for statement in &statements {
+            let record = arena.node(*statement)?;
+            match &record.data {
+                NodeData::ImportDeclaration(data) => {
+                    let Some(module_specifier) = data
+                        .module_specifier
+                        .and_then(|id| arena.node_ref(source, id))
+                    else {
+                        continue;
+                    };
+                    let module_text = string_literal_text(arena, module_specifier)?;
+                    let base = generated_module_name(module_text);
+                    let ordinal = generated_names.entry(base.clone()).or_insert(0);
+                    *ordinal += 1;
+                    let generated_name = format!("{base}_{}", *ordinal).into_boxed_str();
+                    let mut helper = ImportHelperKind::None;
+                    if let Some(clause) =
+                        data.import_clause.and_then(|id| arena.node_ref(source, id))
+                    {
+                        if let NodeData::ImportClause(clause_data) = &arena.node(clause)?.data {
+                            let has_default = clause_data.name.is_some();
+                            let has_namespace = clause_data
+                                .named_bindings
+                                .and_then(|id| arena.node_ref(source, id))
+                                .is_some_and(|node| {
+                                    arena
+                                        .node(node)
+                                        .is_ok_and(|node| node.kind == SyntaxKind::NamespaceImport)
+                                });
+                            helper = if has_namespace
+                                || has_default && clause_data.named_bindings.is_some()
+                            {
+                                ImportHelperKind::Star
+                            } else if has_default {
+                                ImportHelperKind::Default
+                            } else {
+                                ImportHelperKind::None
+                            };
+                            if let Some(_name) = clause_data.name {
+                                info.import_bindings.insert(
+                                    arena.get_original_node(clause).node(),
+                                    ImportBinding {
+                                        generated_name: generated_name.clone(),
+                                        property: Some("default".into()),
+                                    },
+                                );
+                            }
+                            if let Some(bindings) = clause_data
+                                .named_bindings
+                                .and_then(|id| arena.node_ref(source, id))
+                            {
+                                match &arena.node(bindings)?.data {
+                                    NodeData::NamespaceImport(_) => {
+                                        info.import_bindings.insert(
+                                            arena.get_original_node(bindings).node(),
+                                            ImportBinding {
+                                                generated_name: generated_name.clone(),
+                                                property: None,
+                                            },
+                                        );
+                                    }
+                                    NodeData::NamedImports(named) => {
+                                        for specifier in
+                                            node_array_nodes(arena, source, named.elements)?
+                                        {
+                                            let NodeData::ImportSpecifier(specifier_data) =
+                                                &arena.node(specifier)?.data
+                                            else {
+                                                continue;
+                                            };
+                                            let property = specifier_data
+                                                .property_name
+                                                .or(specifier_data.name)
+                                                .and_then(|id| arena.node_ref(source, id))
+                                                .and_then(|name| {
+                                                    identifier_or_literal_text(arena, name).ok()
+                                                })
+                                                .unwrap_or_default();
+                                            info.import_bindings.insert(
+                                                arena.get_original_node(specifier).node(),
+                                                ImportBinding {
+                                                    generated_name: generated_name.clone(),
+                                                    property: Some(property.into_boxed_str()),
+                                                },
+                                            );
+                                        }
+                                    }
+                                    _ => {}
+                                }
+                            }
+                        }
+                    }
+                    info.imports.insert(
+                        arena.get_original_node(*statement).node(),
+                        ImportPlan {
+                            generated_name,
+                            helper,
+                        },
+                    );
+                }
+                NodeData::FunctionDeclaration(data)
+                    if has_modifier(arena, source, data.modifiers, SyntaxKind::ExportKeyword)? =>
+                {
+                    if let Some(local) = data
+                        .name
+                        .and_then(|id| arena.node_ref(source, id))
+                        .and_then(|name| identifier_or_literal_text(arena, name).ok())
+                    {
+                        let export = if has_modifier(
+                            arena,
+                            source,
+                            data.modifiers,
+                            SyntaxKind::DefaultKeyword,
+                        )? {
+                            "default".to_owned()
+                        } else {
+                            local.clone()
+                        };
+                        info.add_export(&local, &export);
+                        info.hoisted_function_exports
+                            .push((export.into_boxed_str(), local.into_boxed_str()));
+                    }
+                }
+                NodeData::ClassDeclaration(data)
+                    if has_modifier(arena, source, data.modifiers, SyntaxKind::ExportKeyword)? =>
+                {
+                    if let Some(local) = data
+                        .name
+                        .and_then(|id| arena.node_ref(source, id))
+                        .and_then(|name| identifier_or_literal_text(arena, name).ok())
+                    {
+                        let export = if has_modifier(
+                            arena,
+                            source,
+                            data.modifiers,
+                            SyntaxKind::DefaultKeyword,
+                        )? {
+                            "default".to_owned()
+                        } else {
+                            local.clone()
+                        };
+                        info.add_export(&local, &export);
+                    }
+                }
+                NodeData::VariableStatement(data)
+                    if has_modifier(arena, source, data.modifiers, SyntaxKind::ExportKeyword)? =>
+                {
+                    for declaration in variable_declarations(arena, source, data.declaration_list)?
+                    {
+                        if let NodeData::VariableDeclaration(variable) =
+                            &arena.node(declaration)?.data
+                        {
+                            if let Some(local) = variable
+                                .name
+                                .and_then(|id| arena.node_ref(source, id))
+                                .and_then(|name| identifier_or_literal_text(arena, name).ok())
+                            {
+                                info.add_export(&local, &local);
+                                info.exported_variable_declarations
+                                    .insert(arena.get_original_node(declaration).node());
+                            }
+                        }
+                    }
+                }
+                NodeData::ExportDeclaration(data) if data.module_specifier.is_none() => {
+                    let Some(clause) = data.export_clause.and_then(|id| arena.node_ref(source, id))
+                    else {
+                        continue;
+                    };
+                    let NodeData::NamedExports(named) = &arena.node(clause)?.data else {
+                        continue;
+                    };
+                    for specifier in node_array_nodes(arena, source, named.elements)? {
+                        let NodeData::ExportSpecifier(specifier) = &arena.node(specifier)?.data
+                        else {
+                            continue;
+                        };
+                        let Some(local) = specifier
+                            .property_name
+                            .or(specifier.name)
+                            .and_then(|id| arena.node_ref(source, id))
+                            .and_then(|name| identifier_or_literal_text(arena, name).ok())
+                        else {
+                            continue;
+                        };
+                        let Some(export) = specifier
+                            .name
+                            .and_then(|id| arena.node_ref(source, id))
+                            .and_then(|name| identifier_or_literal_text(arena, name).ok())
+                        else {
+                            continue;
+                        };
+                        info.add_export(&local, &export);
+                    }
+                }
+                _ => {}
+            }
+        }
+
+        for statement in &statements {
+            collect_exported_variable_declarations(arena, source, *statement, &mut info)?;
+        }
+        Ok(info)
+    }
+
+    fn add_export(&mut self, local: &str, export: &str) {
+        let exports = self.exports_by_local.entry(local.into()).or_default();
+        if !exports.iter().any(|existing| existing.as_ref() == export) {
+            exports.push(export.into());
+        }
+        if !self
+            .exported_names
+            .iter()
+            .any(|existing| existing.as_ref() == export)
+        {
+            self.exported_names.push(export.into());
+        }
+    }
+}
+
+fn source_file_statement_nodes(
+    arena: &TransformArena,
+    source: TransformSourceId,
+    root: TransformNode,
+) -> Result<Vec<TransformNode>, TransformError> {
+    let NodeData::SourceFile(data) = &arena.node(root)?.data else {
+        return Err(TransformError::RootKindExpected {
+            actual: arena.node(root)?.kind,
+        });
+    };
+    node_array_nodes(arena, source, data.statements)
+}
+
+fn node_array_nodes(
+    arena: &TransformArena,
+    source: TransformSourceId,
+    array: Option<NodeArrayId>,
+) -> Result<Vec<TransformNode>, TransformError> {
+    let Some(array) = array.and_then(|id| arena.node_array_ref(source, id)) else {
+        return Ok(Vec::new());
+    };
+    arena
+        .node_array(array)?
+        .nodes
+        .iter()
+        .map(|id| {
+            arena
+                .node_ref(source, *id)
+                .ok_or_else(|| TransformError::UnknownNode(TransformNode::new(source, *id)))
+        })
+        .collect()
+}
+
+fn source_contains_dynamic_import(
+    arena: &TransformArena,
+    root: TransformNode,
+) -> Result<bool, TransformError> {
+    let mut stack = vec![root.node()];
+    while let Some(id) = stack.pop() {
+        let node = arena
+            .node_ref(root.source(), id)
+            .ok_or_else(|| TransformError::UnknownNode(TransformNode::new(root.source(), id)))?;
+        let record = arena.node(node)?;
+        if let NodeData::CallExpression(data) = &record.data {
+            if data
+                .expression
+                .and_then(|id| arena.node_ref(root.source(), id))
+                .is_some_and(|expression| {
+                    arena
+                        .node(expression)
+                        .is_ok_and(|expression| expression.kind == SyntaxKind::ImportKeyword)
+                })
+            {
+                return Ok(true);
+            }
+        }
+        for_each_child(
+            &arena.source(root.source())?.syntax().arena,
+            record,
+            |child| {
+                stack.push(child);
+                false
+            },
+        );
+    }
+    Ok(false)
+}
+
+fn string_literal_text(
+    arena: &TransformArena,
+    node: TransformNode,
+) -> Result<&str, TransformError> {
+    match &arena.node(node)?.data {
+        NodeData::StringLiteral(data) => Ok(&data.text),
+        _ => Err(TransformError::RequiredChildRemoved {
+            parent: SyntaxKind::ImportDeclaration,
+            field: "string module_specifier",
+        }),
+    }
+}
+
+fn identifier_or_literal_text(
+    arena: &TransformArena,
+    node: TransformNode,
+) -> Result<String, TransformError> {
+    match &arena.node(node)?.data {
+        NodeData::Identifier(data) => Ok(data.text.clone()),
+        NodeData::StringLiteral(data) => Ok(data.text.clone()),
+        _ => Err(TransformError::RequiredChildRemoved {
+            parent: arena.node(node)?.kind,
+            field: "identifier or literal text",
+        }),
+    }
+}
+
+fn generated_module_name(module_specifier: &str) -> String {
+    let segment = module_specifier
+        .rsplit('/')
+        .next()
+        .unwrap_or(module_specifier)
+        .split('.')
+        .next()
+        .unwrap_or("module");
+    let mut generated = segment
+        .chars()
+        .map(|character| {
+            if character.is_ascii_alphanumeric() || matches!(character, '_' | '$') {
+                character
+            } else {
+                '_'
+            }
+        })
+        .collect::<String>();
+    if generated.is_empty() || generated.as_bytes()[0].is_ascii_digit() {
+        generated.insert_str(0, "module");
+    }
+    generated
+}
+
+fn has_modifier(
+    arena: &TransformArena,
+    source: TransformSourceId,
+    modifiers: Option<NodeArrayId>,
+    expected: SyntaxKind,
+) -> Result<bool, TransformError> {
+    Ok(node_array_nodes(arena, source, modifiers)?
+        .iter()
+        .any(|modifier| {
+            arena
+                .node(*modifier)
+                .is_ok_and(|node| node.kind == expected)
+        }))
+}
+
+fn variable_declarations(
+    arena: &TransformArena,
+    source: TransformSourceId,
+    declaration_list: Option<NodeId>,
+) -> Result<Vec<TransformNode>, TransformError> {
+    let Some(list) = declaration_list.and_then(|id| arena.node_ref(source, id)) else {
+        return Ok(Vec::new());
+    };
+    let NodeData::VariableDeclarationList(data) = &arena.node(list)?.data else {
+        return Ok(Vec::new());
+    };
+    variable_declarations_from_array(arena, source, data.declarations)
+}
+
+fn variable_declarations_from_array(
+    arena: &TransformArena,
+    source: TransformSourceId,
+    declarations: Option<NodeArrayId>,
+) -> Result<Vec<TransformNode>, TransformError> {
+    node_array_nodes(arena, source, declarations)
+}
+
+fn collect_exported_variable_declarations(
+    arena: &TransformArena,
+    source: TransformSourceId,
+    statement: TransformNode,
+    info: &mut CommonJsModuleInfo,
+) -> Result<(), TransformError> {
+    let mut stack = vec![statement.node()];
+    while let Some(id) = stack.pop() {
+        let node = arena
+            .node_ref(source, id)
+            .ok_or_else(|| TransformError::UnknownNode(TransformNode::new(source, id)))?;
+        let record = arena.node(node)?;
+        if matches!(
+            record.kind,
+            SyntaxKind::FunctionDeclaration
+                | SyntaxKind::FunctionExpression
+                | SyntaxKind::ArrowFunction
+                | SyntaxKind::ClassDeclaration
+                | SyntaxKind::ClassExpression
+        ) && node != statement
+        {
+            continue;
+        }
+        if let NodeData::VariableDeclaration(data) = &record.data {
+            if let Some(local) = data
+                .name
+                .and_then(|id| arena.node_ref(source, id))
+                .and_then(|name| identifier_or_literal_text(arena, name).ok())
+            {
+                if info.exports_by_local.contains_key(local.as_str()) {
+                    info.exported_variable_declarations
+                        .insert(arena.get_original_node(node).node());
+                }
+            }
+        }
+        for_each_child(&arena.source(source)?.syntax().arena, record, |child| {
+            stack.push(child);
+            false
+        });
+    }
+    Ok(())
+}
+
+fn collect_referenced_value_declarations(
+    arena: &TransformArena,
+    source: TransformSourceId,
+    root: TransformNode,
+    resolver: &dyn EmitResolver,
+    candidates: &BTreeSet<NodeId>,
+) -> Result<BTreeSet<NodeId>, TransformError> {
+    if candidates.is_empty() {
+        return Ok(BTreeSet::new());
+    }
+    let program_source = arena
+        .source(source)?
+        .program_source()
+        .ok_or(TransformError::MissingProgramSource(root))?;
+    let mut referenced = BTreeSet::new();
+    let mut stack = vec![root.node()];
+    while let Some(id) = stack.pop() {
+        let node = arena
+            .node_ref(source, id)
+            .ok_or_else(|| TransformError::UnknownNode(TransformNode::new(source, id)))?;
+        let record = arena.node(node)?;
+        if record.kind == SyntaxKind::Identifier {
+            let original = arena.get_original_node(node);
+            if !is_declaration_name_node(arena, original)? {
+                if let Some(declaration) = resolver.get_referenced_value_declaration(
+                    EmitResolverNode::new(program_source, original.node()),
+                )? {
+                    if candidates.contains(&declaration.node()) {
+                        referenced.insert(declaration.node());
+                    }
+                }
+            }
+        }
+        for_each_child(&arena.source(source)?.syntax().arena, record, |child| {
+            stack.push(child);
+            false
+        });
+    }
+    Ok(referenced)
+}
+
+fn is_declaration_name_node(
+    arena: &TransformArena,
+    node: TransformNode,
+) -> Result<bool, TransformError> {
+    let Some(parent) = arena
+        .node(node)?
+        .parent
+        .and_then(|id| arena.node_ref(node.source(), id))
+    else {
+        return Ok(false);
+    };
+    Ok(match &arena.node(parent)?.data {
+        NodeData::VariableDeclaration(data) => data.name == Some(node.node()),
+        NodeData::FunctionDeclaration(data) => data.name == Some(node.node()),
+        NodeData::ClassDeclaration(data) => data.name == Some(node.node()),
+        NodeData::Parameter(data) => data.name == Some(node.node()),
+        NodeData::BindingElement(data) => data.name == Some(node.node()),
+        NodeData::ImportClause(data) => data.name == Some(node.node()),
+        NodeData::ImportSpecifier(data) => data.name == Some(node.node()),
+        NodeData::NamespaceImport(data) => data.name == Some(node.node()),
+        _ => false,
+    })
+}
+
+fn is_prologue_statement(
+    arena: &TransformArena,
+    statement: TransformNode,
+) -> Result<bool, TransformError> {
+    let NodeData::ExpressionStatement(data) = &arena.node(statement)?.data else {
+        return Ok(false);
+    };
+    Ok(data
+        .expression
+        .and_then(|id| arena.node_ref(statement.source(), id))
+        .is_some_and(|expression| {
+            arena
+                .node(expression)
+                .is_ok_and(|expression| matches!(expression.data, NodeData::StringLiteral(_)))
+        }))
+}
+
+fn variable_has_initializer(
+    arena: &TransformArena,
+    declaration: TransformNode,
+) -> Result<bool, TransformError> {
+    Ok(matches!(
+        &arena.node(declaration)?.data,
+        NodeData::VariableDeclaration(data) if data.initializer.is_some()
+    ))
+}
+
+fn variable_list_has_exported_declaration(
+    arena: &TransformArena,
+    source: TransformSourceId,
+    list: TransformNode,
+    exports: &BTreeMap<Box<str>, Vec<Box<str>>>,
+) -> Result<bool, TransformError> {
+    let NodeData::VariableDeclarationList(data) = &arena.node(list)?.data else {
+        return Ok(false);
+    };
+    for declaration in variable_declarations_from_array(arena, source, data.declarations)? {
+        if let NodeData::VariableDeclaration(data) = &arena.node(declaration)?.data {
+            if data
+                .name
+                .and_then(|id| arena.node_ref(source, id))
+                .and_then(|name| identifier_or_literal_text(arena, name).ok())
+                .is_some_and(|name| exports.contains_key(name.as_str()))
+            {
+                return Ok(true);
+            }
+        }
+    }
+    Ok(false)
+}
+
+fn is_identifier_export_name(name: &str) -> bool {
+    let mut characters = name.chars();
+    let Some(first) = characters.next() else {
+        return false;
+    };
+    (first == '_' || first == '$' || first.is_ascii_alphabetic())
+        && characters.all(|character| {
+            character == '_' || character == '$' || character.is_ascii_alphanumeric()
+        })
+}
+
+struct CommonJsVisitor<'context, 'resolver> {
+    context: &'context mut TransformationContext,
+    source: TransformSourceId,
+    resolver: &'resolver dyn EmitResolver,
+    es_module_interop: bool,
+    info: CommonJsModuleInfo,
+    referenced_declarations: BTreeSet<NodeId>,
+    nodes: BTreeMap<NodeId, NodeId>,
+    arrays: BTreeMap<NodeArrayId, NodeArrayId>,
+}
+
+impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
+    fn new(
+        context: &'context mut TransformationContext,
+        source: TransformSourceId,
+        resolver: &'resolver dyn EmitResolver,
+        es_module_interop: bool,
+        info: CommonJsModuleInfo,
+        referenced_declarations: BTreeSet<NodeId>,
+    ) -> Self {
+        Self {
+            context,
+            source,
+            resolver,
+            es_module_interop,
+            info,
+            referenced_declarations,
+            nodes: BTreeMap::new(),
+            arrays: BTreeMap::new(),
+        }
+    }
+
+    fn transform_source_file(
+        &mut self,
+        root: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        let (mut source_data, original_array) = match self.context.arena().node(root)?.data.clone()
+        {
+            NodeData::SourceFile(data) => {
+                let statements = data.statements;
+                (data, statements)
+            }
+            _ => {
+                return Err(TransformError::RootKindExpected {
+                    actual: self.context.arena().node(root)?.kind,
+                })
+            }
+        };
+        let input = node_array_nodes(self.context.arena(), self.source, original_array)?;
+        let mut output = Vec::new();
+        let mut offset = 0usize;
+        while offset < input.len() && is_prologue_statement(self.context.arena(), input[offset])? {
+            output.push(self.visit(input[offset].node())?);
+            offset += 1;
+        }
+
+        if self.info.is_external {
+            output.push(self.create_es_module_marker()?);
+        }
+        let hoisted_function_exports = self.info.hoisted_function_exports.clone();
+        let function_export_names = hoisted_function_exports
+            .iter()
+            .map(|(export, _)| export.clone())
+            .collect::<BTreeSet<_>>();
+        let preinitialized = self
+            .info
+            .exported_names
+            .iter()
+            .filter(|name| !function_export_names.contains(*name))
+            .cloned()
+            .collect::<Vec<_>>();
+        for chunk in preinitialized.chunks(50) {
+            let mut expression = self.create_void_zero()?;
+            for name in chunk {
+                let target = self.create_export_access(name)?;
+                expression = self.create_assignment(target, expression)?;
+            }
+            output.push(self.create_expression_statement(expression)?);
+        }
+        for (export, local) in hoisted_function_exports {
+            let target = self.create_export_access(&export)?;
+            let value = self.create_identifier(&local)?;
+            let assignment = self.create_assignment(target, value)?;
+            output.push(self.create_expression_statement(assignment)?);
+        }
+
+        for statement in input.into_iter().skip(offset) {
+            output.extend(self.visit_top_level_statement(statement)?);
+        }
+        let statements = if let Some(original_array) =
+            original_array.and_then(|array| self.context.arena().node_array_ref(self.source, array))
+        {
+            self.context
+                .factory()?
+                .update_node_array(original_array, output)?
+        } else {
+            self.context
+                .factory()?
+                .create_node_array(self.source, output)?
+        };
+        source_data.statements = Some(statements.array());
+        let flags = self.context.arena().transform_flags(root);
+        self.context
+            .factory()?
+            .update_node(root, NodeData::SourceFile(source_data), flags)
+    }
+
+    fn visit_top_level_statement(
+        &mut self,
+        statement: TransformNode,
+    ) -> Result<Vec<TransformNode>, TransformError> {
+        let record = self.context.arena().node(statement)?.clone();
+        match record.data {
+            NodeData::ImportDeclaration(data) => self.transform_import(statement, data),
+            NodeData::ExportDeclaration(data) => self.transform_export_declaration(statement, data),
+            NodeData::ExportAssignment(data) => {
+                if data.is_export_equals == Some(true) {
+                    return Err(TransformError::DeferredModuleFormat {
+                        format: MODULE_COMMON_JS,
+                        owner_slice: "H2.2d",
+                    });
+                }
+                let expression = data
+                    .expression
+                    .ok_or(TransformError::RequiredChildRemoved {
+                        parent: SyntaxKind::ExportAssignment,
+                        field: "expression",
+                    })?;
+                let value = self.visit(expression)?;
+                let target = self.create_export_access("default")?;
+                let assignment = self.create_assignment(target, value)?;
+                let emitted = self.create_expression_statement(assignment)?;
+                self.set_original_and_range(emitted, statement)?;
+                Ok(vec![emitted])
+            }
+            NodeData::FunctionDeclaration(mut data) => {
+                data.modifiers = self.remove_export_modifiers(data.modifiers)?;
+                let function =
+                    self.update_generic(statement, NodeData::FunctionDeclaration(data))?;
+                Ok(vec![function])
+            }
+            NodeData::ClassDeclaration(mut data) => {
+                let name = data
+                    .name
+                    .and_then(|id| self.context.arena().node_ref(self.source, id))
+                    .and_then(|name| identifier_or_literal_text(self.context.arena(), name).ok());
+                let exported = name
+                    .as_deref()
+                    .and_then(|name| self.info.exports_by_local.get(name).cloned())
+                    .unwrap_or_default();
+                data.modifiers = self.remove_export_modifiers(data.modifiers)?;
+                let class = self.update_generic(statement, NodeData::ClassDeclaration(data))?;
+                let mut statements = vec![class];
+                if let Some(name) = name {
+                    for export in exported {
+                        let target = self.create_export_access(&export)?;
+                        let value = self.create_identifier(&name)?;
+                        let assignment = self.create_assignment(target, value)?;
+                        statements.push(self.create_expression_statement(assignment)?);
+                    }
+                }
+                Ok(statements)
+            }
+            NodeData::VariableStatement(data) => self.transform_variable_statement(statement, data),
+            NodeData::Block(data) => Ok(vec![self.transform_block(statement, data)?]),
+            NodeData::IfStatement(data) => self.transform_if_statement(statement, data),
+            NodeData::SwitchStatement(data) => self.transform_switch_statement(statement, data),
+            NodeData::WhileStatement(data) => self.transform_while_statement(statement, data),
+            NodeData::DoStatement(data) => self.transform_do_statement(statement, data),
+            NodeData::ForStatement(data) => self.transform_for_statement(statement, data),
+            NodeData::ForInStatement(data) => self.transform_for_in_statement(statement, data),
+            NodeData::ForOfStatement(data) => self.transform_for_of_statement(statement, data),
+            NodeData::TryStatement(data) => self.transform_try_statement(statement, data),
+            NodeData::LabeledStatement(data) => self.transform_labeled_statement(statement, data),
+            NodeData::WithStatement(data) => self.transform_with_statement(statement, data),
+            _ => Ok(vec![self.visit(statement.node())?]),
+        }
+    }
+
+    fn transform_import(
+        &mut self,
+        original: TransformNode,
+        data: tsc_syntax::nodes::ImportDeclarationData,
+    ) -> Result<Vec<TransformNode>, TransformError> {
+        let key = self.context.arena().get_original_node(original).node();
+        let plan =
+            self.info
+                .imports
+                .get(&key)
+                .cloned()
+                .ok_or(TransformError::RequiredChildRemoved {
+                    parent: SyntaxKind::ImportDeclaration,
+                    field: "module plan",
+                })?;
+        let module_specifier = data
+            .module_specifier
+            .and_then(|id| self.context.arena().node_ref(self.source, id))
+            .ok_or(TransformError::RequiredChildRemoved {
+                parent: SyntaxKind::ImportDeclaration,
+                field: "module_specifier",
+            })?;
+        let require = self.create_require_call(module_specifier)?;
+        if data.import_clause.is_none() {
+            let statement = self.create_expression_statement(require)?;
+            self.set_original_and_range(statement, original)?;
+            return Ok(vec![statement]);
+        }
+        let initializer = match plan.helper {
+            ImportHelperKind::None => require,
+            ImportHelperKind::Star if self.es_module_interop => {
+                self.request_import_star_helper()?;
+                let helper = self.create_identifier("__importStar")?;
+                self.create_call(helper, vec![require])?
+            }
+            ImportHelperKind::Default if self.es_module_interop => {
+                self.request_import_default_helper()?;
+                let helper = self.create_identifier("__importDefault")?;
+                self.create_call(helper, vec![require])?
+            }
+            ImportHelperKind::Star | ImportHelperKind::Default => require,
+        };
+        let declaration = self.create_variable_declaration(&plan.generated_name, initializer)?;
+        let statement = self.create_variable_statement(vec![declaration], NodeFlags::CONST)?;
+        self.set_original_and_range(statement, original)?;
+        Ok(vec![statement])
+    }
+
+    fn transform_export_declaration(
+        &mut self,
+        original: TransformNode,
+        data: tsc_syntax::nodes::ExportDeclarationData,
+    ) -> Result<Vec<TransformNode>, TransformError> {
+        if data.module_specifier.is_none() {
+            return Ok(Vec::new());
+        }
+        let module_specifier = data
+            .module_specifier
+            .and_then(|id| self.context.arena().node_ref(self.source, id))
+            .ok_or(TransformError::RequiredChildRemoved {
+                parent: SyntaxKind::ExportDeclaration,
+                field: "module_specifier",
+            })?;
+        let require = self.create_require_call(module_specifier)?;
+        if data.export_clause.is_none() {
+            let helper = self.create_identifier("__exportStar")?;
+            let exports = self.create_identifier("exports")?;
+            let call = self.create_call(helper, vec![require, exports])?;
+            let statement = self.create_expression_statement(call)?;
+            self.set_original_and_range(statement, original)?;
+            return Ok(vec![statement]);
+        }
         Err(TransformError::DeferredModuleFormat {
             format: MODULE_COMMON_JS,
-            owner_slice: "H2.1b",
+            owner_slice: "H2.2d",
         })
+    }
+
+    fn transform_variable_statement(
+        &mut self,
+        original: TransformNode,
+        mut data: tsc_syntax::nodes::VariableStatementData,
+    ) -> Result<Vec<TransformNode>, TransformError> {
+        let direct_export = has_modifier(
+            self.context.arena(),
+            self.source,
+            data.modifiers,
+            SyntaxKind::ExportKeyword,
+        )?;
+        data.modifiers = self.remove_export_modifiers(data.modifiers)?;
+        let declarations =
+            variable_declarations(self.context.arena(), self.source, data.declaration_list)?;
+        let mut retained = Vec::new();
+        let mut trailing = Vec::new();
+        for declaration in declarations {
+            let NodeData::VariableDeclaration(mut variable) =
+                self.context.arena().node(declaration)?.data.clone()
+            else {
+                retained.push(self.visit(declaration.node())?);
+                continue;
+            };
+            let local = variable
+                .name
+                .and_then(|id| self.context.arena().node_ref(self.source, id))
+                .and_then(|name| identifier_or_literal_text(self.context.arena(), name).ok());
+            let exports = local
+                .as_deref()
+                .and_then(|name| self.info.exports_by_local.get(name).cloned())
+                .unwrap_or_default();
+            let original_declaration = self.context.arena().get_original_node(declaration).node();
+            let unreferenced_direct = direct_export
+                && !self.referenced_declarations.contains(&original_declaration)
+                && variable.initializer.is_some()
+                && exports.len() == 1;
+            if unreferenced_direct {
+                let initializer = self.visit(variable.initializer.expect("checked initializer"))?;
+                let target = self.create_export_access(&exports[0])?;
+                let assignment = self.create_assignment(target, initializer)?;
+                let statement = self.create_expression_statement(assignment)?;
+                self.set_original_and_range(statement, original)?;
+                trailing.push(statement);
+                continue;
+            }
+            if let Some(initializer) = variable.initializer {
+                let mut initializer = self.visit(initializer)?;
+                if direct_export {
+                    for export in &exports {
+                        let target = self.create_export_access(export)?;
+                        initializer = self.create_assignment(target, initializer)?;
+                    }
+                }
+                variable.initializer = Some(initializer.node());
+            }
+            let updated =
+                self.update_generic(declaration, NodeData::VariableDeclaration(variable))?;
+            retained.push(updated);
+            if !direct_export && variable_has_initializer(self.context.arena(), updated)? {
+                if let Some(local) = &local {
+                    for export in exports {
+                        let target = self.create_export_access(&export)?;
+                        let value = self.create_identifier(local)?;
+                        let assignment = self.create_assignment(target, value)?;
+                        trailing.push(self.create_expression_statement(assignment)?);
+                    }
+                }
+            }
+        }
+        let mut result = Vec::new();
+        if !retained.is_empty() {
+            let list = data
+                .declaration_list
+                .and_then(|id| self.context.arena().node_ref(self.source, id))
+                .ok_or(TransformError::RequiredChildRemoved {
+                    parent: SyntaxKind::VariableStatement,
+                    field: "declaration_list",
+                })?;
+            let NodeData::VariableDeclarationList(mut list_data) =
+                self.context.arena().node(list)?.data.clone()
+            else {
+                return Err(TransformError::RequiredChildRemoved {
+                    parent: SyntaxKind::VariableStatement,
+                    field: "declaration_list",
+                });
+            };
+            let array = if let Some(original_array) = list_data
+                .declarations
+                .and_then(|id| self.context.arena().node_array_ref(self.source, id))
+            {
+                self.context
+                    .factory()?
+                    .update_node_array(original_array, retained)?
+            } else {
+                self.context
+                    .factory()?
+                    .create_node_array(self.source, retained)?
+            };
+            list_data.declarations = Some(array.array());
+            let flags = self.context.arena().transform_flags(list);
+            let list = self.context.factory()?.update_node(
+                list,
+                NodeData::VariableDeclarationList(list_data),
+                flags,
+            )?;
+            data.declaration_list = Some(list.node());
+            let flags = self.context.arena().transform_flags(original);
+            result.push(self.context.factory()?.update_node(
+                original,
+                NodeData::VariableStatement(data),
+                flags,
+            )?);
+        }
+        result.extend(trailing);
+        Ok(result)
+    }
+
+    fn transform_block(
+        &mut self,
+        original: TransformNode,
+        mut data: tsc_syntax::nodes::BlockData,
+    ) -> Result<TransformNode, TransformError> {
+        let input = node_array_nodes(self.context.arena(), self.source, data.statements)?;
+        let mut output = Vec::new();
+        for statement in input {
+            output.extend(self.visit_top_level_statement(statement)?);
+        }
+        data.statements = Some(
+            if let Some(array) = data
+                .statements
+                .and_then(|id| self.context.arena().node_array_ref(self.source, id))
+            {
+                self.context
+                    .factory()?
+                    .update_node_array(array, output)?
+                    .array()
+            } else {
+                self.context
+                    .factory()?
+                    .create_node_array(self.source, output)?
+                    .array()
+            },
+        );
+        let flags = self.context.arena().transform_flags(original);
+        self.context
+            .factory()?
+            .update_node(original, NodeData::Block(data), flags)
+    }
+
+    fn transform_embedded_statement(
+        &mut self,
+        statement: Option<NodeId>,
+        parent: SyntaxKind,
+    ) -> Result<TransformNode, TransformError> {
+        let statement = statement
+            .and_then(|id| self.context.arena().node_ref(self.source, id))
+            .ok_or(TransformError::RequiredChildRemoved {
+                parent,
+                field: "statement",
+            })?;
+        if let NodeData::Block(data) = self.context.arena().node(statement)?.data.clone() {
+            return self.transform_block(statement, data);
+        }
+        let mut statements = self.visit_top_level_statement(statement)?;
+        if statements.len() == 1 {
+            return Ok(statements.remove(0));
+        }
+        self.create_block(statements, true)
+    }
+
+    fn transform_if_statement(
+        &mut self,
+        original: TransformNode,
+        mut data: tsc_syntax::nodes::IfStatementData,
+    ) -> Result<Vec<TransformNode>, TransformError> {
+        data.expression = data
+            .expression
+            .map(|id| self.visit(id).map(TransformNode::node))
+            .transpose()?;
+        data.then_statement = Some(
+            self.transform_embedded_statement(data.then_statement, SyntaxKind::IfStatement)?
+                .node(),
+        );
+        data.else_statement = data
+            .else_statement
+            .map(|id| {
+                self.transform_embedded_statement(Some(id), SyntaxKind::IfStatement)
+                    .map(TransformNode::node)
+            })
+            .transpose()?;
+        let flags = self.context.arena().transform_flags(original);
+        Ok(vec![self.context.factory()?.update_node(
+            original,
+            NodeData::IfStatement(data),
+            flags,
+        )?])
+    }
+
+    fn transform_switch_statement(
+        &mut self,
+        original: TransformNode,
+        mut data: tsc_syntax::nodes::SwitchStatementData,
+    ) -> Result<Vec<TransformNode>, TransformError> {
+        data.expression = data
+            .expression
+            .map(|id| self.visit(id).map(TransformNode::node))
+            .transpose()?;
+        if let Some(case_block) = data
+            .case_block
+            .and_then(|id| self.context.arena().node_ref(self.source, id))
+        {
+            let NodeData::CaseBlock(mut block_data) =
+                self.context.arena().node(case_block)?.data.clone()
+            else {
+                return Err(TransformError::RequiredChildRemoved {
+                    parent: SyntaxKind::SwitchStatement,
+                    field: "case_block",
+                });
+            };
+            let clauses = node_array_nodes(self.context.arena(), self.source, block_data.clauses)?;
+            let mut updated_clauses = Vec::new();
+            for clause in clauses {
+                let record = self.context.arena().node(clause)?.clone();
+                let updated = match record.data {
+                    NodeData::CaseClause(mut clause_data) => {
+                        clause_data.expression = clause_data
+                            .expression
+                            .map(|id| self.visit(id).map(TransformNode::node))
+                            .transpose()?;
+                        clause_data.statements = Some(
+                            self.transform_statement_array(clause_data.statements)?
+                                .array(),
+                        );
+                        let flags = self.context.arena().transform_flags(clause);
+                        self.context.factory()?.update_node(
+                            clause,
+                            NodeData::CaseClause(clause_data),
+                            flags,
+                        )?
+                    }
+                    NodeData::DefaultClause(mut clause_data) => {
+                        clause_data.statements = Some(
+                            self.transform_statement_array(clause_data.statements)?
+                                .array(),
+                        );
+                        let flags = self.context.arena().transform_flags(clause);
+                        self.context.factory()?.update_node(
+                            clause,
+                            NodeData::DefaultClause(clause_data),
+                            flags,
+                        )?
+                    }
+                    _ => self.visit(clause.node())?,
+                };
+                updated_clauses.push(updated);
+            }
+            block_data.clauses = Some(
+                if let Some(array) = block_data
+                    .clauses
+                    .and_then(|id| self.context.arena().node_array_ref(self.source, id))
+                {
+                    self.context
+                        .factory()?
+                        .update_node_array(array, updated_clauses)?
+                        .array()
+                } else {
+                    self.context
+                        .factory()?
+                        .create_node_array(self.source, updated_clauses)?
+                        .array()
+                },
+            );
+            let flags = self.context.arena().transform_flags(case_block);
+            data.case_block = Some(
+                self.context
+                    .factory()?
+                    .update_node(case_block, NodeData::CaseBlock(block_data), flags)?
+                    .node(),
+            );
+        }
+        let flags = self.context.arena().transform_flags(original);
+        Ok(vec![self.context.factory()?.update_node(
+            original,
+            NodeData::SwitchStatement(data),
+            flags,
+        )?])
+    }
+
+    fn transform_statement_array(
+        &mut self,
+        statements: Option<NodeArrayId>,
+    ) -> Result<TransformNodeArray, TransformError> {
+        let input = node_array_nodes(self.context.arena(), self.source, statements)?;
+        let mut output = Vec::new();
+        for statement in input {
+            output.extend(self.visit_top_level_statement(statement)?);
+        }
+        if let Some(array) =
+            statements.and_then(|id| self.context.arena().node_array_ref(self.source, id))
+        {
+            self.context.factory()?.update_node_array(array, output)
+        } else {
+            self.context
+                .factory()?
+                .create_node_array(self.source, output)
+        }
+    }
+
+    fn transform_while_statement(
+        &mut self,
+        original: TransformNode,
+        mut data: tsc_syntax::nodes::WhileStatementData,
+    ) -> Result<Vec<TransformNode>, TransformError> {
+        data.expression = data
+            .expression
+            .map(|id| self.visit(id).map(TransformNode::node))
+            .transpose()?;
+        data.statement = Some(
+            self.transform_embedded_statement(data.statement, SyntaxKind::WhileStatement)?
+                .node(),
+        );
+        let flags = self.context.arena().transform_flags(original);
+        Ok(vec![self.context.factory()?.update_node(
+            original,
+            NodeData::WhileStatement(data),
+            flags,
+        )?])
+    }
+
+    fn transform_do_statement(
+        &mut self,
+        original: TransformNode,
+        mut data: tsc_syntax::nodes::DoStatementData,
+    ) -> Result<Vec<TransformNode>, TransformError> {
+        data.statement = Some(
+            self.transform_embedded_statement(data.statement, SyntaxKind::DoStatement)?
+                .node(),
+        );
+        data.expression = data
+            .expression
+            .map(|id| self.visit(id).map(TransformNode::node))
+            .transpose()?;
+        let flags = self.context.arena().transform_flags(original);
+        Ok(vec![self.context.factory()?.update_node(
+            original,
+            NodeData::DoStatement(data),
+            flags,
+        )?])
+    }
+
+    fn transform_for_statement(
+        &mut self,
+        original: TransformNode,
+        mut data: tsc_syntax::nodes::ForStatementData,
+    ) -> Result<Vec<TransformNode>, TransformError> {
+        let mut prefix = Vec::new();
+        if let Some(initializer) = data
+            .initializer
+            .and_then(|id| self.context.arena().node_ref(self.source, id))
+        {
+            if self.context.arena().node(initializer)?.kind == SyntaxKind::VariableDeclarationList
+                && variable_list_has_exported_declaration(
+                    self.context.arena(),
+                    self.source,
+                    initializer,
+                    &self.info.exports_by_local,
+                )?
+            {
+                let statement = self.context.factory()?.create_node(
+                    self.source,
+                    NodeData::VariableStatement(tsc_syntax::nodes::VariableStatementData {
+                        modifiers: None,
+                        declaration_list: Some(initializer.node()),
+                    }),
+                    TransformFlags::NONE,
+                )?;
+                prefix.extend(self.transform_variable_statement(
+                    statement,
+                    tsc_syntax::nodes::VariableStatementData {
+                        modifiers: None,
+                        declaration_list: Some(initializer.node()),
+                    },
+                )?);
+                data.initializer = None;
+            } else {
+                data.initializer = Some(self.visit(initializer.node())?.node());
+            }
+        }
+        data.condition = data
+            .condition
+            .map(|id| self.visit(id).map(TransformNode::node))
+            .transpose()?;
+        data.incrementor = data
+            .incrementor
+            .map(|id| self.visit(id).map(TransformNode::node))
+            .transpose()?;
+        data.statement = Some(
+            self.transform_embedded_statement(data.statement, SyntaxKind::ForStatement)?
+                .node(),
+        );
+        let flags = self.context.arena().transform_flags(original);
+        prefix.push(self.context.factory()?.update_node(
+            original,
+            NodeData::ForStatement(data),
+            flags,
+        )?);
+        Ok(prefix)
+    }
+
+    fn transform_for_in_statement(
+        &mut self,
+        original: TransformNode,
+        mut data: tsc_syntax::nodes::ForInStatementData,
+    ) -> Result<Vec<TransformNode>, TransformError> {
+        let assignments = self.export_assignments_for_initializer(data.initializer)?;
+        data.initializer = data
+            .initializer
+            .map(|id| self.visit(id).map(TransformNode::node))
+            .transpose()?;
+        data.expression = data
+            .expression
+            .map(|id| self.visit(id).map(TransformNode::node))
+            .transpose()?;
+        data.statement = Some(
+            self.transform_loop_body(data.statement, SyntaxKind::ForInStatement, assignments)?
+                .node(),
+        );
+        let flags = self.context.arena().transform_flags(original);
+        Ok(vec![self.context.factory()?.update_node(
+            original,
+            NodeData::ForInStatement(data),
+            flags,
+        )?])
+    }
+
+    fn transform_for_of_statement(
+        &mut self,
+        original: TransformNode,
+        mut data: tsc_syntax::nodes::ForOfStatementData,
+    ) -> Result<Vec<TransformNode>, TransformError> {
+        let assignments = self.export_assignments_for_initializer(data.initializer)?;
+        data.initializer = data
+            .initializer
+            .map(|id| self.visit(id).map(TransformNode::node))
+            .transpose()?;
+        data.expression = data
+            .expression
+            .map(|id| self.visit(id).map(TransformNode::node))
+            .transpose()?;
+        data.statement = Some(
+            self.transform_loop_body(data.statement, SyntaxKind::ForOfStatement, assignments)?
+                .node(),
+        );
+        let flags = self.context.arena().transform_flags(original);
+        Ok(vec![self.context.factory()?.update_node(
+            original,
+            NodeData::ForOfStatement(data),
+            flags,
+        )?])
+    }
+
+    fn export_assignments_for_initializer(
+        &mut self,
+        initializer: Option<NodeId>,
+    ) -> Result<Vec<TransformNode>, TransformError> {
+        let Some(initializer) =
+            initializer.and_then(|id| self.context.arena().node_ref(self.source, id))
+        else {
+            return Ok(Vec::new());
+        };
+        if self.context.arena().node(initializer)?.kind != SyntaxKind::VariableDeclarationList {
+            return Ok(Vec::new());
+        }
+        let declarations = match &self.context.arena().node(initializer)?.data {
+            NodeData::VariableDeclarationList(data) => variable_declarations_from_array(
+                self.context.arena(),
+                self.source,
+                data.declarations,
+            )?,
+            _ => Vec::new(),
+        };
+        let mut assignments = Vec::new();
+        for declaration in declarations {
+            let NodeData::VariableDeclaration(data) = &self.context.arena().node(declaration)?.data
+            else {
+                continue;
+            };
+            let Some(local) = data
+                .name
+                .and_then(|id| self.context.arena().node_ref(self.source, id))
+                .and_then(|name| identifier_or_literal_text(self.context.arena(), name).ok())
+            else {
+                continue;
+            };
+            let exports = self
+                .info
+                .exports_by_local
+                .get(local.as_str())
+                .cloned()
+                .unwrap_or_default();
+            for export in exports {
+                let target = self.create_export_access(&export)?;
+                let value = self.create_identifier(&local)?;
+                let assignment = self.create_assignment(target, value)?;
+                assignments.push(self.create_expression_statement(assignment)?);
+            }
+        }
+        Ok(assignments)
+    }
+
+    fn transform_loop_body(
+        &mut self,
+        statement: Option<NodeId>,
+        parent: SyntaxKind,
+        mut prefix: Vec<TransformNode>,
+    ) -> Result<TransformNode, TransformError> {
+        let body = self.transform_embedded_statement(statement, parent)?;
+        if prefix.is_empty() {
+            return Ok(body);
+        }
+        if let NodeData::Block(mut data) = self.context.arena().node(body)?.data.clone() {
+            prefix.extend(node_array_nodes(
+                self.context.arena(),
+                self.source,
+                data.statements,
+            )?);
+            data.statements = Some(
+                self.context
+                    .factory()?
+                    .create_node_array(self.source, prefix)?
+                    .array(),
+            );
+            let flags = self.context.arena().transform_flags(body);
+            return self
+                .context
+                .factory()?
+                .update_node(body, NodeData::Block(data), flags);
+        }
+        prefix.push(body);
+        self.create_block(prefix, true)
+    }
+
+    fn transform_try_statement(
+        &mut self,
+        original: TransformNode,
+        mut data: tsc_syntax::nodes::TryStatementData,
+    ) -> Result<Vec<TransformNode>, TransformError> {
+        if let Some(block) = data
+            .try_block
+            .and_then(|id| self.context.arena().node_ref(self.source, id))
+        {
+            let NodeData::Block(block_data) = self.context.arena().node(block)?.data.clone() else {
+                return Err(TransformError::RequiredChildRemoved {
+                    parent: SyntaxKind::TryStatement,
+                    field: "try_block",
+                });
+            };
+            data.try_block = Some(self.transform_block(block, block_data)?.node());
+        }
+        if let Some(catch) = data
+            .catch_clause
+            .and_then(|id| self.context.arena().node_ref(self.source, id))
+        {
+            let NodeData::CatchClause(mut catch_data) =
+                self.context.arena().node(catch)?.data.clone()
+            else {
+                return Err(TransformError::RequiredChildRemoved {
+                    parent: SyntaxKind::TryStatement,
+                    field: "catch_clause",
+                });
+            };
+            catch_data.variable_declaration = catch_data
+                .variable_declaration
+                .map(|id| self.visit(id).map(TransformNode::node))
+                .transpose()?;
+            if let Some(block) = catch_data
+                .block
+                .and_then(|id| self.context.arena().node_ref(self.source, id))
+            {
+                let NodeData::Block(block_data) = self.context.arena().node(block)?.data.clone()
+                else {
+                    return Err(TransformError::RequiredChildRemoved {
+                        parent: SyntaxKind::CatchClause,
+                        field: "block",
+                    });
+                };
+                catch_data.block = Some(self.transform_block(block, block_data)?.node());
+            }
+            let flags = self.context.arena().transform_flags(catch);
+            data.catch_clause = Some(
+                self.context
+                    .factory()?
+                    .update_node(catch, NodeData::CatchClause(catch_data), flags)?
+                    .node(),
+            );
+        }
+        if let Some(block) = data
+            .finally_block
+            .and_then(|id| self.context.arena().node_ref(self.source, id))
+        {
+            let NodeData::Block(block_data) = self.context.arena().node(block)?.data.clone() else {
+                return Err(TransformError::RequiredChildRemoved {
+                    parent: SyntaxKind::TryStatement,
+                    field: "finally_block",
+                });
+            };
+            data.finally_block = Some(self.transform_block(block, block_data)?.node());
+        }
+        let flags = self.context.arena().transform_flags(original);
+        Ok(vec![self.context.factory()?.update_node(
+            original,
+            NodeData::TryStatement(data),
+            flags,
+        )?])
+    }
+
+    fn transform_labeled_statement(
+        &mut self,
+        original: TransformNode,
+        mut data: tsc_syntax::nodes::LabeledStatementData,
+    ) -> Result<Vec<TransformNode>, TransformError> {
+        data.statement = Some(
+            self.transform_embedded_statement(data.statement, SyntaxKind::LabeledStatement)?
+                .node(),
+        );
+        let flags = self.context.arena().transform_flags(original);
+        Ok(vec![self.context.factory()?.update_node(
+            original,
+            NodeData::LabeledStatement(data),
+            flags,
+        )?])
+    }
+
+    fn transform_with_statement(
+        &mut self,
+        original: TransformNode,
+        mut data: tsc_syntax::nodes::WithStatementData,
+    ) -> Result<Vec<TransformNode>, TransformError> {
+        data.expression = data
+            .expression
+            .map(|id| self.visit(id).map(TransformNode::node))
+            .transpose()?;
+        data.statement = Some(
+            self.transform_embedded_statement(data.statement, SyntaxKind::WithStatement)?
+                .node(),
+        );
+        let flags = self.context.arena().transform_flags(original);
+        Ok(vec![self.context.factory()?.update_node(
+            original,
+            NodeData::WithStatement(data),
+            flags,
+        )?])
+    }
+
+    fn visit(&mut self, id: NodeId) -> Result<TransformNode, TransformError> {
+        if let Some(mapped) = self.nodes.get(&id) {
+            return Ok(self.node(*mapped));
+        }
+        let original = self
+            .context
+            .arena()
+            .node_ref(self.source, id)
+            .ok_or_else(|| TransformError::UnknownNode(self.node(id)))?;
+        let record = self.context.arena().node(original)?.clone();
+        let transformed = match record.data {
+            NodeData::Token => original,
+            NodeData::Identifier(_) => self.substitute_import_identifier(original)?,
+            NodeData::CallExpression(data) => self.visit_call_expression(original, data)?,
+            data => self.update_generic(original, data)?,
+        };
+        self.nodes.insert(id, transformed.node());
+        Ok(transformed)
+    }
+
+    fn visit_call_expression(
+        &mut self,
+        original: TransformNode,
+        data: tsc_syntax::nodes::CallExpressionData,
+    ) -> Result<TransformNode, TransformError> {
+        let is_dynamic_import = data
+            .expression
+            .and_then(|id| self.context.arena().node_ref(self.source, id))
+            .is_some_and(|expression| {
+                self.context
+                    .arena()
+                    .node(expression)
+                    .is_ok_and(|node| node.kind == SyntaxKind::ImportKeyword)
+            });
+        if is_dynamic_import {
+            let arguments = node_array_nodes(self.context.arena(), self.source, data.arguments)?;
+            let Some(argument) = arguments.first().copied() else {
+                return Err(TransformError::RequiredChildRemoved {
+                    parent: SyntaxKind::CallExpression,
+                    field: "arguments[0]",
+                });
+            };
+            let argument = self.visit(argument.node())?;
+            let require = self.create_require_call(argument)?;
+            let loaded = if self.es_module_interop {
+                self.request_import_star_helper()?;
+                let helper = self.create_identifier("__importStar")?;
+                self.create_call(helper, vec![require])?
+            } else {
+                require
+            };
+            let body = loaded;
+            let parameters = self
+                .context
+                .factory()?
+                .create_node_array(self.source, Vec::new())?;
+            let arrow_token = self.context.factory()?.create_token(
+                self.source,
+                SyntaxKind::EqualsGreaterThanToken,
+                TransformFlags::NONE,
+            )?;
+            let arrow = self.context.factory()?.create_node(
+                self.source,
+                NodeData::ArrowFunction(tsc_syntax::nodes::ArrowFunctionData {
+                    type_parameters: None,
+                    parameters: Some(parameters.array()),
+                    r#type: None,
+                    body: Some(body.node()),
+                    modifiers: None,
+                    equals_greater_than_token: Some(arrow_token.node()),
+                }),
+                TransformFlags::NONE,
+            )?;
+            let promise = self.create_identifier("Promise")?;
+            let resolve = self.create_property_access(promise, "resolve")?;
+            let resolved = self.create_call(resolve, Vec::new())?;
+            let then = self.create_property_access(resolved, "then")?;
+            let transformed = self.create_call(then, vec![arrow])?;
+            self.set_original_and_range(transformed, original)?;
+            return Ok(transformed);
+        }
+
+        let imported_callee = data
+            .expression
+            .and_then(|id| self.context.arena().node_ref(self.source, id))
+            .map(|callee| self.import_binding_for_reference(callee))
+            .transpose()?
+            .flatten()
+            .is_some();
+        let mut node_data = NodeData::CallExpression(data);
+        try_visit_each_child(&mut node_data, self)?;
+        let NodeData::CallExpression(mut data) = node_data else {
+            unreachable!("call expression visitor preserves kind")
+        };
+        if imported_callee {
+            let callee = data
+                .expression
+                .and_then(|id| self.context.arena().node_ref(self.source, id))
+                .ok_or(TransformError::RequiredChildRemoved {
+                    parent: SyntaxKind::CallExpression,
+                    field: "expression",
+                })?;
+            let zero = self.create_numeric_literal("0")?;
+            let comma = self.context.factory()?.create_token(
+                self.source,
+                SyntaxKind::CommaToken,
+                TransformFlags::NONE,
+            )?;
+            let indirect = self.context.factory()?.create_node(
+                self.source,
+                NodeData::BinaryExpression(tsc_syntax::nodes::BinaryExpressionData {
+                    left: Some(zero.node()),
+                    operator_token: Some(comma.node()),
+                    right: Some(callee.node()),
+                }),
+                TransformFlags::NONE,
+            )?;
+            let parenthesized = self.context.factory()?.create_node(
+                self.source,
+                NodeData::ParenthesizedExpression(tsc_syntax::nodes::ParenthesizedExpressionData {
+                    expression: Some(indirect.node()),
+                }),
+                TransformFlags::NONE,
+            )?;
+            data.expression = Some(parenthesized.node());
+        }
+        self.update_generic_without_visit(original, NodeData::CallExpression(data))
+    }
+
+    fn substitute_import_identifier(
+        &mut self,
+        original: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        let Some(binding) = self.import_binding_for_reference(original)? else {
+            return Ok(original);
+        };
+        let target = self.create_identifier(&binding.generated_name)?;
+        let transformed = if let Some(property) = binding.property {
+            self.create_property_access(target, &property)?
+        } else {
+            target
+        };
+        self.set_original_and_range(transformed, original)?;
+        Ok(transformed)
+    }
+
+    fn import_binding_for_reference(
+        &self,
+        node: TransformNode,
+    ) -> Result<Option<ImportBinding>, TransformError> {
+        let original = self.context.arena().get_original_node(node);
+        if original == node
+            && NodeFlags::from_bits(self.context.arena().node(node)?.flags)
+                .contains(NodeFlags::SYNTHESIZED)
+        {
+            return Ok(None);
+        }
+        let resolver_node = self.resolver_node(node)?;
+        let declaration = self
+            .resolver
+            .get_referenced_import_declaration(resolver_node)?;
+        Ok(declaration
+            .and_then(|declaration| self.info.import_bindings.get(&declaration.node()).cloned()))
+    }
+
+    fn update_generic(
+        &mut self,
+        original: TransformNode,
+        mut data: NodeData,
+    ) -> Result<TransformNode, TransformError> {
+        try_visit_each_child(&mut data, self)?;
+        self.update_generic_without_visit(original, data)
+    }
+
+    fn update_generic_without_visit(
+        &mut self,
+        original: TransformNode,
+        data: NodeData,
+    ) -> Result<TransformNode, TransformError> {
+        let flags = flags_after_update(self.context.arena(), original, &data)?;
+        self.context.factory()?.update_node(original, data, flags)
+    }
+
+    fn remove_export_modifiers(
+        &mut self,
+        modifiers: Option<NodeArrayId>,
+    ) -> Result<Option<NodeArrayId>, TransformError> {
+        let Some(modifiers) =
+            modifiers.and_then(|id| self.context.arena().node_array_ref(self.source, id))
+        else {
+            return Ok(None);
+        };
+        let retained = self
+            .context
+            .arena()
+            .node_array(modifiers)?
+            .nodes
+            .iter()
+            .filter_map(|id| self.context.arena().node_ref(self.source, *id))
+            .filter(|modifier| {
+                self.context.arena().node(*modifier).is_ok_and(|node| {
+                    !matches!(
+                        node.kind,
+                        SyntaxKind::ExportKeyword | SyntaxKind::DefaultKeyword
+                    )
+                })
+            })
+            .collect::<Vec<_>>();
+        if retained.is_empty() {
+            Ok(None)
+        } else {
+            Ok(Some(
+                self.context
+                    .factory()?
+                    .update_node_array(modifiers, retained)?
+                    .array(),
+            ))
+        }
+    }
+
+    fn create_identifier(&mut self, text: &str) -> Result<TransformNode, TransformError> {
+        self.context.factory()?.create_node(
+            self.source,
+            NodeData::Identifier(tsc_syntax::nodes::IdentifierData {
+                escaped_text: text.to_owned(),
+                text: text.to_owned(),
+            }),
+            TransformFlags::NONE,
+        )
+    }
+
+    fn create_numeric_literal(&mut self, text: &str) -> Result<TransformNode, TransformError> {
+        self.context.factory()?.create_node(
+            self.source,
+            NodeData::NumericLiteral(tsc_syntax::nodes::NumericLiteralData {
+                text: text.to_owned(),
+            }),
+            TransformFlags::NONE,
+        )
+    }
+
+    fn create_string_literal(&mut self, text: &str) -> Result<TransformNode, TransformError> {
+        self.context.factory()?.create_node(
+            self.source,
+            NodeData::StringLiteral(tsc_syntax::nodes::StringLiteralData {
+                text: text.to_owned(),
+                has_extended_unicode_escape: None,
+            }),
+            TransformFlags::NONE,
+        )
+    }
+
+    fn create_property_access(
+        &mut self,
+        expression: TransformNode,
+        name: &str,
+    ) -> Result<TransformNode, TransformError> {
+        let name = self.create_identifier(name)?;
+        self.context.factory()?.create_node(
+            self.source,
+            NodeData::PropertyAccessExpression(tsc_syntax::nodes::PropertyAccessExpressionData {
+                name: Some(name.node()),
+                expression: Some(expression.node()),
+                question_dot_token: None,
+            }),
+            TransformFlags::NONE,
+        )
+    }
+
+    fn create_call(
+        &mut self,
+        expression: TransformNode,
+        arguments: Vec<TransformNode>,
+    ) -> Result<TransformNode, TransformError> {
+        let arguments = self
+            .context
+            .factory()?
+            .create_node_array(self.source, arguments)?;
+        self.context.factory()?.create_node(
+            self.source,
+            NodeData::CallExpression(tsc_syntax::nodes::CallExpressionData {
+                expression: Some(expression.node()),
+                question_dot_token: None,
+                type_arguments: None,
+                arguments: Some(arguments.array()),
+            }),
+            TransformFlags::NONE,
+        )
+    }
+
+    fn create_require_call(
+        &mut self,
+        module_specifier: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        let require = self.create_identifier("require")?;
+        self.create_call(require, vec![module_specifier])
+    }
+
+    fn create_assignment(
+        &mut self,
+        left: TransformNode,
+        right: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        let equals = self.context.factory()?.create_token(
+            self.source,
+            SyntaxKind::EqualsToken,
+            TransformFlags::NONE,
+        )?;
+        self.context.factory()?.create_node(
+            self.source,
+            NodeData::BinaryExpression(tsc_syntax::nodes::BinaryExpressionData {
+                left: Some(left.node()),
+                operator_token: Some(equals.node()),
+                right: Some(right.node()),
+            }),
+            TransformFlags::NONE,
+        )
+    }
+
+    fn create_expression_statement(
+        &mut self,
+        expression: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        self.context.factory()?.create_node(
+            self.source,
+            NodeData::ExpressionStatement(tsc_syntax::nodes::ExpressionStatementData {
+                expression: Some(expression.node()),
+            }),
+            TransformFlags::NONE,
+        )
+    }
+
+    fn create_export_access(&mut self, name: &str) -> Result<TransformNode, TransformError> {
+        let exports = self.create_identifier("exports")?;
+        if is_identifier_export_name(name) {
+            self.create_property_access(exports, name)
+        } else {
+            let name = self.create_string_literal(name)?;
+            self.context.factory()?.create_node(
+                self.source,
+                NodeData::ElementAccessExpression(tsc_syntax::nodes::ElementAccessExpressionData {
+                    expression: Some(exports.node()),
+                    question_dot_token: None,
+                    argument_expression: Some(name.node()),
+                }),
+                TransformFlags::NONE,
+            )
+        }
+    }
+
+    fn create_void_zero(&mut self) -> Result<TransformNode, TransformError> {
+        let zero = self.create_numeric_literal("0")?;
+        self.context.factory()?.create_node(
+            self.source,
+            NodeData::VoidExpression(tsc_syntax::nodes::VoidExpressionData {
+                expression: Some(zero.node()),
+            }),
+            TransformFlags::NONE,
+        )
+    }
+
+    fn create_es_module_marker(&mut self) -> Result<TransformNode, TransformError> {
+        let object = self.create_identifier("Object")?;
+        let define_property = self.create_property_access(object, "defineProperty")?;
+        let exports = self.create_identifier("exports")?;
+        let marker = self.create_string_literal("__esModule")?;
+        let value_name = self.create_identifier("value")?;
+        let value = self.context.factory()?.create_token(
+            self.source,
+            SyntaxKind::TrueKeyword,
+            TransformFlags::NONE,
+        )?;
+        let property = self.context.factory()?.create_node(
+            self.source,
+            NodeData::PropertyAssignment(tsc_syntax::nodes::PropertyAssignmentData {
+                name: Some(value_name.node()),
+                initializer: Some(value.node()),
+                modifiers: None,
+                question_token: None,
+                exclamation_token: None,
+            }),
+            TransformFlags::NONE,
+        )?;
+        let properties = self
+            .context
+            .factory()?
+            .create_node_array(self.source, vec![property])?;
+        let descriptor = self.context.factory()?.create_node(
+            self.source,
+            NodeData::ObjectLiteralExpression(tsc_syntax::nodes::ObjectLiteralExpressionData {
+                properties: Some(properties.array()),
+            }),
+            TransformFlags::NONE,
+        )?;
+        let call = self.create_call(define_property, vec![exports, marker, descriptor])?;
+        let statement = self.create_expression_statement(call)?;
+        self.context
+            .arena_mut()?
+            .metadata_mut(statement)
+            .add_flags(crate::EmitFlags::CUSTOM_PROLOGUE);
+        Ok(statement)
+    }
+
+    fn create_variable_declaration(
+        &mut self,
+        name: &str,
+        initializer: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        let name = self.create_identifier(name)?;
+        self.context.factory()?.create_node(
+            self.source,
+            NodeData::VariableDeclaration(tsc_syntax::nodes::VariableDeclarationData {
+                name: Some(name.node()),
+                exclamation_token: None,
+                r#type: None,
+                initializer: Some(initializer.node()),
+            }),
+            TransformFlags::NONE,
+        )
+    }
+
+    fn create_variable_statement(
+        &mut self,
+        declarations: Vec<TransformNode>,
+        flags: NodeFlags,
+    ) -> Result<TransformNode, TransformError> {
+        let declarations = self
+            .context
+            .factory()?
+            .create_node_array(self.source, declarations)?;
+        let list = self.context.factory()?.create_node(
+            self.source,
+            NodeData::VariableDeclarationList(tsc_syntax::nodes::VariableDeclarationListData {
+                declarations: Some(declarations.array()),
+            }),
+            TransformFlags::NONE,
+        )?;
+        self.context.factory()?.set_node_flags(list, flags)?;
+        self.context.factory()?.create_node(
+            self.source,
+            NodeData::VariableStatement(tsc_syntax::nodes::VariableStatementData {
+                modifiers: None,
+                declaration_list: Some(list.node()),
+            }),
+            TransformFlags::NONE,
+        )
+    }
+
+    fn create_block(
+        &mut self,
+        statements: Vec<TransformNode>,
+        multi_line: bool,
+    ) -> Result<TransformNode, TransformError> {
+        let statements = self
+            .context
+            .factory()?
+            .create_node_array(self.source, statements)?;
+        let block = self.context.factory()?.create_node(
+            self.source,
+            NodeData::Block(tsc_syntax::nodes::BlockData {
+                statements: Some(statements.array()),
+            }),
+            TransformFlags::NONE,
+        )?;
+        self.context.factory()?.set_multi_line(block, multi_line)
+    }
+
+    fn request_import_star_helper(&mut self) -> Result<(), TransformError> {
+        let create_binding = crate::EmitHelper::with_text(
+            "typescript:commonjscreatebinding",
+            false,
+            CREATE_BINDING_HELPER_TEXT,
+            1,
+            Vec::new(),
+        );
+        let set_default = crate::EmitHelper::with_text(
+            "typescript:commonjscreatevalue",
+            false,
+            SET_MODULE_DEFAULT_HELPER_TEXT,
+            1,
+            Vec::new(),
+        );
+        self.context
+            .request_emit_helper(crate::EmitHelper::with_text(
+                "typescript:commonjsimportstar",
+                false,
+                IMPORT_STAR_HELPER_TEXT,
+                2,
+                vec![create_binding, set_default],
+            ))
+    }
+
+    fn request_import_default_helper(&mut self) -> Result<(), TransformError> {
+        self.context
+            .request_emit_helper(crate::EmitHelper::with_text(
+                "typescript:commonjsimportdefault",
+                false,
+                IMPORT_DEFAULT_HELPER_TEXT,
+                1,
+                Vec::new(),
+            ))
+    }
+
+    fn set_original_and_range(
+        &mut self,
+        node: TransformNode,
+        original: TransformNode,
+    ) -> Result<(), TransformError> {
+        self.context.factory()?.set_text_range(node, original)?;
+        self.context
+            .arena_mut()?
+            .set_original_node(node, Some(original))
+    }
+
+    fn resolver_node(&self, node: TransformNode) -> Result<EmitResolverNode, TransformError> {
+        let original = self.context.arena().get_original_node(node);
+        let source = self
+            .context
+            .arena()
+            .source(original.source())?
+            .program_source()
+            .ok_or(TransformError::MissingProgramSource(original))?;
+        Ok(EmitResolverNode::new(source, original.node()))
+    }
+
+    const fn node(&self, id: NodeId) -> TransformNode {
+        TransformNode::new(self.source, id)
+    }
+
+    const fn array(&self, id: NodeArrayId) -> TransformNodeArray {
+        TransformNodeArray::new(self.source, id)
+    }
+}
+
+impl NodeDataChildVisitor for CommonJsVisitor<'_, '_> {
+    type Error = TransformError;
+
+    fn node_kind(&self, id: NodeId) -> SyntaxKind {
+        self.context
+            .arena()
+            .node(self.node(id))
+            .expect("CommonJS child belongs to its transform source")
+            .kind
+    }
+
+    fn visit_node(&mut self, id: NodeId) -> Result<Option<NodeId>, Self::Error> {
+        self.visit(id).map(|node| Some(node.node()))
+    }
+
+    fn visit_nodes(&mut self, id: NodeArrayId) -> Result<Option<NodeArrayId>, Self::Error> {
+        if let Some(mapped) = self.arrays.get(&id) {
+            return Ok(Some(*mapped));
+        }
+        let original = self.array(id);
+        let nodes = self.context.arena().node_array(original)?.nodes.clone();
+        let mut visited = Vec::with_capacity(nodes.len());
+        for node in nodes {
+            visited.push(self.visit(node)?);
+        }
+        let updated = self
+            .context
+            .factory()?
+            .update_node_array(original, visited)?;
+        self.arrays.insert(id, updated.array());
+        Ok(Some(updated.array()))
+    }
+
+    fn required_child_removed(&mut self, parent: SyntaxKind, field: &'static str) -> Self::Error {
+        TransformError::RequiredChildRemoved { parent, field }
     }
 }
 

@@ -5,7 +5,7 @@ use tsc_syntax::{scan_tokens, skip_trivia, NodeData, SyntaxKind};
 use tsc_types::NodeFlags;
 
 use crate::{
-    create_text_writer, EmitFlags, EmitHint, GeneratedUtf16Location, NewLineKind,
+    create_text_writer, EmitFlags, EmitHelper, EmitHint, GeneratedUtf16Location, NewLineKind,
     SourceBytePosition, SourceByteRange, SourceMapRange, SourcePositionError, SourceRange,
     TextWriter, TransformBundle, TransformError, TransformNode, TransformNodeArray,
     TransformSourceId, TransformationResult, UnsupportedEmitFeature,
@@ -382,9 +382,31 @@ impl Printer {
             }
         };
         let mut writer = create_text_writer(self.options.new_line);
+        let helpers = if self.options.no_emit_helpers {
+            Vec::new()
+        } else {
+            let mut helpers = transformation.emit_helpers().to_vec();
+            helpers.sort_by_key(|helper| helper.priority());
+            helpers
+        };
+        let helper_offset = statements
+            .iter()
+            .take_while(|statement| {
+                transformation
+                    .arena()
+                    .node_ref(source_id, **statement)
+                    .is_some_and(|statement| self.is_prologue_statement(transformation, statement))
+            })
+            .count();
         let mut emitted_original_prefix_comments = false;
         let mut last_original_statement = None;
-        for raw_statement in statements {
+        if statements.is_empty() {
+            self.emit_helpers(&helpers, &mut writer)?;
+        }
+        for (statement_index, raw_statement) in statements.into_iter().enumerate() {
+            if statement_index == helper_offset {
+                self.emit_helpers(&helpers, &mut writer)?;
+            }
             let statement = transformation
                 .arena()
                 .node_ref(source_id, raw_statement)
@@ -483,6 +505,24 @@ impl Printer {
         let multi_line = record.multi_line == Some(true);
 
         match record.data {
+            NodeData::Token if changed => {
+                let text = tsc_syntax::tokens::token_to_string(record.kind).ok_or(
+                    PrinterError::UnsupportedTransformedSyntax {
+                        node,
+                        kind: record.kind,
+                    },
+                )?;
+                writer.write(text);
+                Ok(())
+            }
+            NodeData::Identifier(data) if changed => {
+                writer.write_symbol(&data.text);
+                Ok(())
+            }
+            NodeData::NumericLiteral(data) if changed => {
+                writer.write_literal(&data.text);
+                Ok(())
+            }
             NodeData::ExpressionStatement(data) => {
                 self.emit_required_node(
                     transformation,
@@ -505,16 +545,11 @@ impl Printer {
                 Ok(())
             }
             NodeData::StringLiteral(data) => {
-                if data.text == "use strict" {
-                    writer.write_string_literal("\"use strict\"");
-                    Ok(())
-                } else if !changed {
+                if !changed {
                     self.write_original_without_leading_trivia(transformation, node, writer)
                 } else {
-                    Err(PrinterError::UnsupportedTransformedSyntax {
-                        node,
-                        kind: record.kind,
-                    })
+                    writer.write_string_literal(&quote_string_literal(&data.text));
+                    Ok(())
                 }
             }
             NodeData::NoSubstitutionTemplateLiteral(_) | NodeData::TemplateExpression(_)
@@ -846,6 +881,18 @@ impl Printer {
                     node.source(),
                     data.expression,
                     SyntaxKind::AwaitExpression,
+                    "expression",
+                    writer,
+                )
+            }
+            NodeData::VoidExpression(data) => {
+                writer.write_keyword("void");
+                writer.write_space(" ");
+                self.emit_required_node(
+                    transformation,
+                    node.source(),
+                    data.expression,
+                    SyntaxKind::VoidExpression,
                     "expression",
                     writer,
                 )
@@ -1412,6 +1459,45 @@ impl Printer {
                 writer.write_trailing_semicolon(";");
                 Ok(())
             }
+            NodeData::LabeledStatement(data) => {
+                self.emit_required_node(
+                    transformation,
+                    node.source(),
+                    data.label,
+                    SyntaxKind::LabeledStatement,
+                    "label",
+                    writer,
+                )?;
+                writer.write_punctuation(":");
+                self.emit_embedded_statement(
+                    transformation,
+                    node.source(),
+                    data.statement,
+                    SyntaxKind::LabeledStatement,
+                    writer,
+                )
+            }
+            NodeData::WithStatement(data) => {
+                writer.write_keyword("with");
+                writer.write_space(" ");
+                writer.write_punctuation("(");
+                self.emit_required_node(
+                    transformation,
+                    node.source(),
+                    data.expression,
+                    SyntaxKind::WithStatement,
+                    "expression",
+                    writer,
+                )?;
+                writer.write_punctuation(")");
+                self.emit_embedded_statement(
+                    transformation,
+                    node.source(),
+                    data.statement,
+                    SyntaxKind::WithStatement,
+                    writer,
+                )
+            }
             NodeData::PartiallyEmittedExpression(data) => self.emit_required_node(
                 transformation,
                 node.source(),
@@ -1784,6 +1870,44 @@ impl Printer {
                 kind: record.kind,
             }),
         }
+    }
+
+    fn is_prologue_statement(
+        &self,
+        transformation: &TransformationResult<'_>,
+        statement: TransformNode,
+    ) -> bool {
+        let Ok(record) = transformation.arena().node(statement) else {
+            return false;
+        };
+        let NodeData::ExpressionStatement(data) = &record.data else {
+            return false;
+        };
+        data.expression
+            .and_then(|expression| {
+                transformation
+                    .arena()
+                    .node_ref(statement.source(), expression)
+            })
+            .and_then(|expression| transformation.arena().node(expression).ok())
+            .is_some_and(|expression| matches!(expression.data, NodeData::StringLiteral(_)))
+    }
+
+    fn emit_helpers(
+        &self,
+        helpers: &[EmitHelper],
+        writer: &mut TextWriter,
+    ) -> Result<(), PrinterError> {
+        for helper in helpers {
+            let text = helper
+                .text()
+                .ok_or_else(|| PrinterError::EmitHelperTextUnavailable(helper.name().into()))?;
+            for line in text.lines() {
+                writer.write(line);
+                writer.write_line(false);
+            }
+        }
+        Ok(())
     }
 
     fn emit_case_block(
@@ -3113,6 +3237,31 @@ fn normalize_new_lines(text: &str, new_line: &str) -> String {
     }
 }
 
+fn quote_string_literal(text: &str) -> String {
+    let mut quoted = String::with_capacity(text.len() + 2);
+    quoted.push('"');
+    for character in text.chars() {
+        match character {
+            '"' => quoted.push_str("\\\""),
+            '\\' => quoted.push_str("\\\\"),
+            '\n' => quoted.push_str("\\n"),
+            '\r' => quoted.push_str("\\r"),
+            '\t' => quoted.push_str("\\t"),
+            '\u{0008}' => quoted.push_str("\\b"),
+            '\u{000c}' => quoted.push_str("\\f"),
+            '\u{2028}' => quoted.push_str("\\u2028"),
+            '\u{2029}' => quoted.push_str("\\u2029"),
+            character if character < '\u{0020}' => {
+                use std::fmt::Write;
+                let _ = write!(quoted, "\\u{:04x}", character as u32);
+            }
+            character => quoted.push(character),
+        }
+    }
+    quoted.push('"');
+    quoted
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 struct TokenSpan {
     kind: SyntaxKind,
@@ -3176,6 +3325,7 @@ pub enum PrinterError {
     TokenPositionNotScalarBoundary {
         position: u32,
     },
+    EmitHelperTextUnavailable(Box<str>),
 }
 
 impl From<TransformError> for PrinterError {
@@ -3250,6 +3400,9 @@ impl fmt::Display for PrinterError {
                 formatter,
                 "UTF-16 token position {position} does not map to a source scalar boundary"
             ),
+            Self::EmitHelperTextUnavailable(helper) => {
+                write!(formatter, "emit helper {helper} has no printable text")
+            }
         }
     }
 }

@@ -14,6 +14,8 @@ mod h1_owner_inventory_dispositions;
 mod h1_project_profile_classification;
 #[path = "integration/h2_1a_profile.rs"]
 mod h2_1a_profile;
+#[path = "integration/h2_1b_profile.rs"]
+mod h2_1b_profile;
 #[path = "integration/h2_baseline.rs"]
 mod h2_baseline;
 #[path = "integration/h2_transition.rs"]

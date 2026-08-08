@@ -239,6 +239,16 @@ impl H2ActivityCanary {
         profile
     }
 
+    /// Construct the current production admission profile. H2.1b adds the
+    /// CommonJS arm while retaining the H2.1a implied-ESM owner that selects
+    /// the per-source branch.
+    #[doc(hidden)]
+    pub const fn h2_1b_profile() -> Self {
+        let mut profile = Self::h2_1a_profile();
+        profile.admitted_runtime_slices |= 1_u64 << H2RuntimeSlice::H2_1b.index();
+        profile
+    }
+
     pub const fn counters(&self) -> H2ActivityCounters {
         self.counters
     }

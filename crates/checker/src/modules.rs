@@ -151,6 +151,44 @@ impl<'a> CheckerState<'a> {
     // §9 alias protocol (resolveAlias family)
     // ================================================================
 
+    /// tsc-port: getReferencedImportDeclaration @6.0.3
+    /// tsc-hash: 340da277e95c697ff52f213006bacc361d4c71bf18eff9f1c28dc29531b79624
+    /// tsc-span: _tsc.js:87900-87918
+    pub(crate) fn emit_get_referenced_import_declaration(
+        &mut self,
+        node: NodeId,
+    ) -> CheckResult<Option<NodeId>> {
+        if self.kind_of(node) != SyntaxKind::Identifier {
+            return Ok(None);
+        }
+        let symbol = self.get_resolved_symbol(node)?;
+        if !self.is_non_local_alias(symbol, SymbolFlags::VALUE) {
+            return Ok(None);
+        }
+        let symbol = symbol.expect("non-local alias is present");
+        if self.get_type_only_alias_declaration(symbol)?.is_some() {
+            return Ok(None);
+        }
+        Ok(self.get_declaration_of_alias_symbol(symbol))
+    }
+
+    /// tsc-port: getReferencedValueDeclaration @6.0.3
+    /// tsc-hash: 8d55ebde21486405455e3f86f963264ce4f2a664c66adf8b5de80874ea957798
+    /// tsc-span: _tsc.js:88450-88460
+    pub(crate) fn emit_get_referenced_value_declaration(
+        &mut self,
+        node: NodeId,
+    ) -> CheckResult<Option<NodeId>> {
+        if self.kind_of(node) != SyntaxKind::Identifier {
+            return Ok(None);
+        }
+        let Some(symbol) = self.get_resolved_symbol(node)? else {
+            return Ok(None);
+        };
+        let symbol = self.get_export_symbol_of_value_symbol_if_exported(symbol);
+        Ok(self.binder.symbol(symbol).value_declaration)
+    }
+
     /// tsc-port: isExportOrExportExpression @6.0.3
     /// tsc-hash: cea0c3dcc402c1d015329d558f5758763d1a1697f9010e21458c0aa7496bcc50
     /// tsc-span: _tsc.js:71647-71661

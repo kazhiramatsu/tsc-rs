@@ -355,6 +355,8 @@ export function validatePolicy(policy) {
     "h2-runtime-baseline",
     "h2-1a-qualification",
     "h2-1a-profile",
+    "h2-1b-qualification",
+    "h2-1b-profile",
     "h2-source-reachability",
     "h2-emit-observation",
   ]) {
