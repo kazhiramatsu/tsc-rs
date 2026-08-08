@@ -31,7 +31,7 @@
     },
     "rust_omissions": {
       "path": "ratchets/h1-rust-omissions.v1.json",
-      "sha256": "a44b8196244a821b8a0918db691371a7005b39285e8347111724a99f8bd2cb46"
+      "sha256": "706ad27efa1177eec5dc92de1834c1947b2dc051fe3ff48f576297c00d78a6e8"
     },
     "suite_expansion": {
       "path": "vendor/typescript-6.0.3/test-suite-expansion.v1.json",
