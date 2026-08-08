@@ -173,7 +173,12 @@ H1-compatible emit case, and the L1 large-edit fresh/incremental workload has
 one cold plus seven warm alternating AB/BA pairs. The same artifact freezes
 production/compiler and qualification-observer binary sizes, cold startup,
 allocation and RSS ceilings, exact output bytes, and the immutable lineage of
-the older H1/L1 performance artifacts.
+the older H1/L1 performance artifacts. The recorded candidate is
+`2894d167b336c6c8039f23f71d31bef223c40ef5`: the largest no-emit warm-median,
+warm-p95, and RSS ratios are 1.008095, 1.006398, and 1.008474; H1 emit records
+1.014961, 1.009044, and 0.997680; and the largest candidate/base L1 operation
+ratio is 1.038047. Compiler and H0 observer size ratios are 1.000166 and
+1.000164, while the L1 observer is byte-identical.
 
 The production session now carries one
 [`H2ActivityCanary`](../../../crates/emitter/src/activity.rs). Its positive H1
@@ -200,7 +205,7 @@ production and the complete regression gate remain local qualification work.
 
 | Slice | Scope | Dependencies and close evidence |
 | --- | --- | --- |
-| H2.1a | Port `transformImpliedNodeFormatDependentModule`, `getEmitModuleFormatOfFile`, and both ESM/CJS constructor and hook-composition closures. Admit only files proven to select the already-closed ESM path; an incomplete CJS selection fails before the first sink call. | H2.0b. Effective omitted module under `target=ESNext` and explicit `module=ESNext` candidates receive source reachability dispositions and exact outputs. |
+| **H2.1a — next** | Port `transformImpliedNodeFormatDependentModule`, `getEmitModuleFormatOfFile`, and both ESM/CJS constructor and hook-composition closures. Admit only files proven to select the already-closed ESM path; an incomplete CJS selection fails before the first sink call. | H2.0b. Effective omitted module under `target=ESNext` and explicit `module=ESNext` candidates receive source reachability dispositions and exact outputs. |
 | H2.1b | Close `transformModule` for CommonJS, including prologues, interop, substitutions/notifications, helpers, resolver facts, and printer/output dependencies. | H2.1a. CJS positive and ESM-adjacent controls, multi-file ordering, helper de-duplication, and failure parity are exact. |
 | H2.1c | Activate AMD and UMD branches that reuse `transformModule`, including dependency arrays, wrappers, names, and option interactions. | H2.1b. AMD/UMD runner observations are exact; System and bundle-only rows remain controls. |
 | H2.1d | Port and qualify `transformSystemModule` and its resolver/helper/output closure. | H2.1c. System-specific execute/setter/export ordering and diagnostics are exact. |
