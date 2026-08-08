@@ -260,7 +260,7 @@
         "storage": "Arc<TextSnapshot>",
         "path": "crates/program/src/config.rs",
         "line": 261,
-        "source_sha256": "df5c86b1264402f67d898f030166cab4a19798e1f8fdd687753c6b4e6b99318c",
+        "source_sha256": "ec45d7d4257ca952627b60e70e1f7ab89a130634c1d3c57c80ea9f27bae0bce4",
         "evidence": "pub struct ConfigSourceText {"
       },
       {
@@ -327,8 +327,8 @@
         "from": "ConfigSourceText.snapshot",
         "to": "ProgramConfigFile.snapshot",
         "path": "crates/program/src/config.rs",
-        "line": 4544,
-        "source_sha256": "df5c86b1264402f67d898f030166cab4a19798e1f8fdd687753c6b4e6b99318c",
+        "line": 4548,
+        "source_sha256": "ec45d7d4257ca952627b60e70e1f7ab89a130634c1d3c57c80ea9f27bae0bce4",
         "evidence": "    let mut config_file = ProgramConfigFile::from_snapshot(path, Arc::clone(source.snapshot()));"
       },
       {
@@ -411,14 +411,14 @@
         "storage": "NodeArena node/array leases",
         "path": "crates/syntax/src/arena.rs",
         "line": 18,
-        "source_sha256": "31a17e6f521198afc18a83362519d492a6777331ed939d1ea172be69fc748fa3",
+        "source_sha256": "06fd1a9e0a8449f7eb2edf3c501864c2717a79082dbd555980711f605df5cd44",
         "evidence": "    node_lease: Option<IdentityLease>,"
       },
       "generated_syntax_relocation": {
         "source": "nodes.schema.json field model",
         "path": "crates/xtask/src/main.rs",
-        "line": 11170,
-        "source_sha256": "22c6a27237c002350eb827b8969113ce47e966b903f97d62c95060637eac8331",
+        "line": 11178,
+        "source_sha256": "31718f3a8758280c73afc59ea8fc0060f1ffb107c764fbe29359b259588a1363",
         "evidence": "fn render_relocate_rs(schemas: &[NodeSchema])"
       },
       "bind_owner": {
@@ -452,7 +452,7 @@
     },
     "compiler_options_owner": {
       "path": "crates/types/src/options.rs",
-      "source_sha256": "002620757c9844eacd85a5f490cd83df9e6719d437ba9ba6ae203270bf918da0",
+      "source_sha256": "24fdfd713c42c70b70fdb9f26a9fb7eec956f7ecc32d1f9c3a2ad3bd0edaa901",
       "fields": [
         "allow_arbitrary_extensions",
         "allow_importing_ts_extensions",
@@ -483,14 +483,17 @@
         "module_detection",
         "module_resolution",
         "module_suffixes",
+        "new_line",
         "no_dts_resolution",
         "no_emit",
+        "no_emit_helpers",
         "no_error_truncation",
         "no_fallthrough_cases_in_switch",
         "no_implicit_any",
         "no_implicit_override",
         "no_implicit_returns",
         "no_implicit_this",
+        "no_implicit_use_strict",
         "no_property_access_from_index_signature",
         "no_resolve",
         "no_unchecked_indexed_access",
@@ -499,6 +502,7 @@
         "no_unused_parameters",
         "preserve_const_enums",
         "react_namespace",
+        "remove_comments",
         "resolve_json_module",
         "resolve_package_json_exports",
         "resolve_package_json_imports",

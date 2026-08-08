@@ -3,21 +3,7 @@ use std::path::{Path, PathBuf};
 
 use tsc_diagnostics::{Diagnostic, DiagnosticList};
 
-/// A generated-text position measured in UTF-16 code units.
-///
-/// This is intentionally distinct from byte offsets and source positions.
-#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub struct GeneratedUtf16Position(u32);
-
-impl GeneratedUtf16Position {
-    pub const fn new(value: u32) -> Self {
-        Self(value)
-    }
-
-    pub const fn value(self) -> u32 {
-        self.0
-    }
-}
+use crate::GeneratedUtf16Position;
 
 /// Normalized data passed with a JavaScript or declaration text callback.
 #[derive(Clone, Debug, Default, Eq, PartialEq)]

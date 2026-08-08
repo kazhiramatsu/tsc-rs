@@ -195,6 +195,19 @@ pub struct CompilerOptions {
     /// when noEmit is set (filterSemanticDiagnostics 125664). 727
     /// conformance fixtures carry the directive (469 true-valued).
     pub no_emit: Option<bool>,
+    /// tsc `NewLineKind` value used by the JavaScript writer
+    /// (CarriageReturnLineFeed=0, LineFeed=1). H0 retains but never reads it;
+    /// an emitting session projects it into `PrinterOptions` lazily.
+    pub new_line: Option<i32>,
+    /// Suppresses source comments in emitted JavaScript. This is emit-only
+    /// state and is deliberately absent from parsed nodes and checker links.
+    pub remove_comments: Option<bool>,
+    /// Disables the transformer's implicit strict-mode prologue. The H1
+    /// bootstrap profile retains the raw value for transformer selection.
+    pub no_implicit_use_strict: Option<bool>,
+    /// Prevents helper text from being emitted. Helper requests remain
+    /// transformation-session state rather than persistent syntax state.
+    pub no_emit_helpers: Option<bool>,
     /// Prevents program source discovery from following path, type, and
     /// module references. TypeScript still resolves module requests so their
     /// diagnostics remain authoritative; it only suppresses adding resolved

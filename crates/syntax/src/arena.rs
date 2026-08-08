@@ -299,6 +299,26 @@ impl NodeArena {
         Self::default()
     }
 
+    /// Clone syntax storage without cloning its identity capabilities.
+    ///
+    /// Parsed arenas published through L0 own exact leases whose ranges must
+    /// never be extended. An emit session may need a private, mutable copy of
+    /// the same local IDs before appending synthetic nodes. The detached copy
+    /// preserves every observable node/array field and both ID bases, while
+    /// deliberately dropping the publication leases.
+    pub fn detached_clone(&self) -> Self {
+        self.clone().into_detached()
+    }
+
+    /// Consume a private arena copy and release only its cloned publication
+    /// capabilities. This lets emit clone a `SourceFile` once, then append
+    /// synthetic nodes without copying the complete syntax storage again.
+    pub fn into_detached(mut self) -> Self {
+        self.node_lease = None;
+        self.array_lease = None;
+        self
+    }
+
     pub fn with_bases(node_base: u32, array_base: u32) -> Self {
         Self {
             node_base,

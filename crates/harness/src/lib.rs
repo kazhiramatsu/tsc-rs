@@ -307,6 +307,7 @@ fn project_compiler_options(options: &BTreeMap<String, OptionValue>) -> Compiler
     let module = enum_option("module", module_option_value);
     let module_resolution = enum_option("moduleResolution", module_resolution_option_value);
     let module_detection = enum_option("moduleDetection", module_detection_option_value);
+    let new_line = enum_option("newLine", new_line_option_value);
     CompilerOptions {
         allow_js: bool_option("allowJs").unwrap_or_else(|| bool_option("checkJs").unwrap_or(false)),
         force_consistent_casing_in_file_names: bool_option("forceConsistentCasingInFileNames"),
@@ -339,6 +340,10 @@ fn project_compiler_options(options: &BTreeMap<String, OptionValue>) -> Compiler
         use_define_for_class_fields: bool_option("useDefineForClassFields"),
         use_unknown_in_catch_variables: bool_option("useUnknownInCatchVariables"),
         no_emit: bool_option("noEmit"),
+        new_line,
+        remove_comments: bool_option("removeComments"),
+        no_implicit_use_strict: bool_option("noImplicitUseStrict"),
+        no_emit_helpers: bool_option("noEmitHelpers"),
         no_resolve: bool_option("noResolve"),
         import_helpers: bool_option("importHelpers"),
         downlevel_iteration: bool_option("downlevelIteration"),
@@ -480,6 +485,14 @@ fn module_detection_option_value(value: &str) -> Option<i32> {
         "legacy" => 1,
         "auto" => 2,
         "force" => 3,
+        _ => return None,
+    })
+}
+
+fn new_line_option_value(value: &str) -> Option<i32> {
+    Some(match value.to_ascii_lowercase().as_str() {
+        "crlf" => 0,
+        "lf" => 1,
         _ => return None,
     })
 }

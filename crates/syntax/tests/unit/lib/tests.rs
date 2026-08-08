@@ -47,6 +47,39 @@ fn snapshot_entry_preserves_text_and_position_owner_identity() {
 }
 
 #[test]
+fn detached_arena_preserves_ids_without_extending_published_leases() {
+    let mut source = parse_source_file(
+        "emit.ts",
+        "const value = 1;\n",
+        ParseOptions::default(),
+        None,
+    );
+    let domain = IdentityDomain::reclaiming();
+    source.relocate_into_identity_domain(&domain).unwrap();
+    assert!(source.arena.has_identity_leases());
+
+    let original_node_end = source.arena.node_end();
+    let original_array_end = source.arena.array_end();
+    let mut detached = source.arena.detached_clone();
+    assert!(!detached.has_identity_leases());
+    assert_eq!(detached.node_base(), source.arena.node_base());
+    assert_eq!(detached.array_base(), source.arena.array_base());
+    assert_eq!(detached.node_end(), original_node_end);
+    assert_eq!(detached.array_end(), original_array_end);
+
+    let synthetic = detached.alloc_token(
+        SyntaxKind::Identifier,
+        usize::MAX,
+        usize::MAX,
+        tsc_types::NodeFlags::SYNTHESIZED,
+    );
+    assert_eq!(synthetic.0, original_node_end);
+    assert!(!source.arena.contains_node(synthetic));
+    assert_eq!(source.arena.node_end(), original_node_end);
+    assert!(source.arena.has_identity_leases());
+}
+
+#[test]
 fn generated_relocation_matches_a_direct_forced_nonzero_parse() {
     let text = r#"
 /** @typedef {{ value: string }} Alias */

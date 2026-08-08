@@ -1,0 +1,1617 @@
+{
+  "schema": 1,
+  "status": "frozen-h1.2-printer-foundation",
+  "phase": "H1.2",
+  "typescript": {
+    "version": "6.0.3",
+    "source_commit": "050880ce59e30b356b686bd3144efe24f875ebc8"
+  },
+  "generator": {
+    "path": "crates/oracle/h1-printer-foundation.mjs",
+    "sha256": "b5337bcccbeeb1147d0938be90237a9be374348b7f6e83ad08ca5ef4a53e0b11"
+  },
+  "contract": {
+    "path": ".github/ci/contracts/h1-printer-foundation.schema.json",
+    "sha256": "2aed4adedfcd0c4a119e7bfff14f479d34344da889b321613dba4639b3463ba9"
+  },
+  "authorities": {
+    "design": {
+      "path": "docs/design/greenfield/h1-emit.md",
+      "sha256": "2f5b408ea14093889670348f42754417102dcb28c0208c93c585ce000b7f4464"
+    },
+    "typescript": {
+      "path": "vendor/typescript-6.0.3/lib/typescript.js",
+      "sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39"
+    },
+    "tsc": {
+      "path": "vendor/typescript-6.0.3/lib/_tsc.js",
+      "sha256": "1c59e77a54b186ec43fa7f3e0d3c4bb15ca5eb5ba43e96b1d3a267139eddd3e3"
+    }
+  },
+  "summary": {
+    "writer_cases": 2,
+    "writer_steps": 20,
+    "source_position_cases": 3,
+    "source_positions": 28,
+    "printer_cases": 2,
+    "printer_tokens": 35
+  },
+  "writer_cases": [
+    {
+      "id": "lf-unicode-indent-comment-reset",
+      "new_line": "lf",
+      "new_line_text": "\n",
+      "steps": [
+        {
+          "index": 0,
+          "operation": {
+            "kind": "write",
+            "text": "A😀é"
+          },
+          "state": {
+            "text": "A😀é",
+            "text_utf8_bytes": 8,
+            "text_utf8_sha256": "27d657fa9cfe037d71dea1653e48317ab0046088ad199a2c6684bf5cc95392d0",
+            "text_position_utf16": 5,
+            "line": 0,
+            "column_utf16": 5,
+            "indent": 0,
+            "at_start_of_line": false,
+            "has_trailing_comment": false,
+            "has_trailing_whitespace": false
+          }
+        },
+        {
+          "index": 1,
+          "operation": {
+            "kind": "write",
+            "text": "\r\n雪 x"
+          },
+          "state": {
+            "text": "A😀é\r\n雪 x",
+            "text_utf8_bytes": 17,
+            "text_utf8_sha256": "0c396d86653d3f2dc91a1a668f214a7146a742c33d9ea7eb07ca299f40a939f1",
+            "text_position_utf16": 10,
+            "line": 2,
+            "column_utf16": 1,
+            "indent": 0,
+            "at_start_of_line": false,
+            "has_trailing_comment": false,
+            "has_trailing_whitespace": false
+          }
+        },
+        {
+          "index": 2,
+          "operation": {
+            "kind": "write",
+            "text": ""
+          },
+          "state": {
+            "text": "A😀é\r\n雪 x",
+            "text_utf8_bytes": 19,
+            "text_utf8_sha256": "116890965bd5f246123bbb669165b4c71bbc87a17c90f4a2af23c35c14ef46f8",
+            "text_position_utf16": 11,
+            "line": 2,
+            "column_utf16": 2,
+            "indent": 0,
+            "at_start_of_line": false,
+            "has_trailing_comment": false,
+            "has_trailing_whitespace": true
+          }
+        },
+        {
+          "index": 3,
+          "operation": {
+            "kind": "writeLine",
+            "force": false
+          },
+          "state": {
+            "text": "A😀é\r\n雪 x\n",
+            "text_utf8_bytes": 20,
+            "text_utf8_sha256": "e2c8278b33a055b29e91dad12bac1c3a8c60ae8a98ce84a5c78ae470bd7cdb65",
+            "text_position_utf16": 12,
+            "line": 3,
+            "column_utf16": 0,
+            "indent": 0,
+            "at_start_of_line": true,
+            "has_trailing_comment": false,
+            "has_trailing_whitespace": true
+          }
+        },
+        {
+          "index": 4,
+          "operation": {
+            "kind": "increaseIndent"
+          },
+          "state": {
+            "text": "A😀é\r\n雪 x\n",
+            "text_utf8_bytes": 20,
+            "text_utf8_sha256": "e2c8278b33a055b29e91dad12bac1c3a8c60ae8a98ce84a5c78ae470bd7cdb65",
+            "text_position_utf16": 12,
+            "line": 3,
+            "column_utf16": 4,
+            "indent": 1,
+            "at_start_of_line": true,
+            "has_trailing_comment": false,
+            "has_trailing_whitespace": true
+          }
+        },
+        {
+          "index": 5,
+          "operation": {
+            "kind": "writeKeyword",
+            "text": "const"
+          },
+          "state": {
+            "text": "A😀é\r\n雪 x\n    const",
+            "text_utf8_bytes": 29,
+            "text_utf8_sha256": "ff319857dbd1ca0e7645630a697359dba825a008f0d562eebcfb2d239e89c1ab",
+            "text_position_utf16": 21,
+            "line": 3,
+            "column_utf16": 9,
+            "indent": 1,
+            "at_start_of_line": false,
+            "has_trailing_comment": false,
+            "has_trailing_whitespace": false
+          }
+        },
+        {
+          "index": 6,
+          "operation": {
+            "kind": "writeComment",
+            "text": "/*c*/"
+          },
+          "state": {
+            "text": "A😀é\r\n雪 x\n    const/*c*/",
+            "text_utf8_bytes": 34,
+            "text_utf8_sha256": "b9487fc2d8c27083db6c4e563b5c9ea301198fb1fda744c2c190b5b02427c00c",
+            "text_position_utf16": 26,
+            "line": 3,
+            "column_utf16": 14,
+            "indent": 1,
+            "at_start_of_line": false,
+            "has_trailing_comment": true,
+            "has_trailing_whitespace": false
+          }
+        },
+        {
+          "index": 7,
+          "operation": {
+            "kind": "writeSpace",
+            "text": " "
+          },
+          "state": {
+            "text": "A😀é\r\n雪 x\n    const/*c*/ ",
+            "text_utf8_bytes": 35,
+            "text_utf8_sha256": "822bc126598d26a6de36dcc2605de839baea088897ffc9546ecef465e67bb799",
+            "text_position_utf16": 27,
+            "line": 3,
+            "column_utf16": 15,
+            "indent": 1,
+            "at_start_of_line": false,
+            "has_trailing_comment": false,
+            "has_trailing_whitespace": true
+          }
+        },
+        {
+          "index": 8,
+          "operation": {
+            "kind": "rawWrite",
+            "text": ""
+          },
+          "state": {
+            "text": "A😀é\r\n雪 x\n    const/*c*/ ",
+            "text_utf8_bytes": 35,
+            "text_utf8_sha256": "822bc126598d26a6de36dcc2605de839baea088897ffc9546ecef465e67bb799",
+            "text_position_utf16": 27,
+            "line": 3,
+            "column_utf16": 15,
+            "indent": 1,
+            "at_start_of_line": false,
+            "has_trailing_comment": false,
+            "has_trailing_whitespace": true
+          }
+        },
+        {
+          "index": 9,
+          "operation": {
+            "kind": "writeLiteral",
+            "text": "\"\\u{1F600}\""
+          },
+          "state": {
+            "text": "A😀é\r\n雪 x\n    const/*c*/ \"\\u{1F600}\"",
+            "text_utf8_bytes": 46,
+            "text_utf8_sha256": "9fd93a1c72604edb8f4dcaa8b94560138911ee0d3bda67ad65c4b732e399681e",
+            "text_position_utf16": 38,
+            "line": 3,
+            "column_utf16": 26,
+            "indent": 1,
+            "at_start_of_line": false,
+            "has_trailing_comment": false,
+            "has_trailing_whitespace": false
+          }
+        },
+        {
+          "index": 10,
+          "operation": {
+            "kind": "writeLine",
+            "force": true
+          },
+          "state": {
+            "text": "A😀é\r\n雪 x\n    const/*c*/ \"\\u{1F600}\"\n",
+            "text_utf8_bytes": 47,
+            "text_utf8_sha256": "f4e249e71640e501e458e96e2e77db9fa122d874ed0c6599e83e5c783a48d4bd",
+            "text_position_utf16": 39,
+            "line": 4,
+            "column_utf16": 4,
+            "indent": 1,
+            "at_start_of_line": true,
+            "has_trailing_comment": false,
+            "has_trailing_whitespace": true
+          }
+        },
+        {
+          "index": 11,
+          "operation": {
+            "kind": "clear"
+          },
+          "state": {
+            "text": "",
+            "text_utf8_bytes": 0,
+            "text_utf8_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "text_position_utf16": 0,
+            "line": 0,
+            "column_utf16": 0,
+            "indent": 0,
+            "at_start_of_line": true,
+            "has_trailing_comment": false,
+            "has_trailing_whitespace": false
+          }
+        }
+      ]
+    },
+    {
+      "id": "crlf-unicode-mixed-line-breaks",
+      "new_line": "crlf",
+      "new_line_text": "\r\n",
+      "steps": [
+        {
+          "index": 0,
+          "operation": {
+            "kind": "increaseIndent"
+          },
+          "state": {
+            "text": "",
+            "text_utf8_bytes": 0,
+            "text_utf8_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "text_position_utf16": 0,
+            "line": 0,
+            "column_utf16": 4,
+            "indent": 1,
+            "at_start_of_line": true,
+            "has_trailing_comment": false,
+            "has_trailing_whitespace": false
+          }
+        },
+        {
+          "index": 1,
+          "operation": {
+            "kind": "write",
+            "text": "😀"
+          },
+          "state": {
+            "text": "    😀",
+            "text_utf8_bytes": 8,
+            "text_utf8_sha256": "1d0cfe996ada7addce29bd71d475b2858947ce0801ee60729f379ff3de93921c",
+            "text_position_utf16": 6,
+            "line": 0,
+            "column_utf16": 6,
+            "indent": 1,
+            "at_start_of_line": false,
+            "has_trailing_comment": false,
+            "has_trailing_whitespace": false
+          }
+        },
+        {
+          "index": 2,
+          "operation": {
+            "kind": "writeLine",
+            "force": false
+          },
+          "state": {
+            "text": "    😀\r\n",
+            "text_utf8_bytes": 10,
+            "text_utf8_sha256": "dee860cf408d127f0ea838be215136c5cb9c4623059a3fe97f117be1f10a9f69",
+            "text_position_utf16": 8,
+            "line": 1,
+            "column_utf16": 4,
+            "indent": 1,
+            "at_start_of_line": true,
+            "has_trailing_comment": false,
+            "has_trailing_whitespace": true
+          }
+        },
+        {
+          "index": 3,
+          "operation": {
+            "kind": "rawWrite",
+            "text": "雪\rZ\nQ R"
+          },
+          "state": {
+            "text": "    😀\r\n雪\rZ\nQ R",
+            "text_utf8_bytes": 21,
+            "text_utf8_sha256": "60d8654f755d23dba67ff4fee69be9571c00138421f83957cb1640858f830084",
+            "text_position_utf16": 15,
+            "line": 4,
+            "column_utf16": 1,
+            "indent": 1,
+            "at_start_of_line": false,
+            "has_trailing_comment": false,
+            "has_trailing_whitespace": false
+          }
+        },
+        {
+          "index": 4,
+          "operation": {
+            "kind": "writeLine",
+            "force": true
+          },
+          "state": {
+            "text": "    😀\r\n雪\rZ\nQ R\r\n",
+            "text_utf8_bytes": 23,
+            "text_utf8_sha256": "2878061b0fea1296092fbec6b838f6fb9ac0a4af1050dc573724ac8d895e3079",
+            "text_position_utf16": 17,
+            "line": 5,
+            "column_utf16": 4,
+            "indent": 1,
+            "at_start_of_line": true,
+            "has_trailing_comment": false,
+            "has_trailing_whitespace": true
+          }
+        },
+        {
+          "index": 5,
+          "operation": {
+            "kind": "decreaseIndent"
+          },
+          "state": {
+            "text": "    😀\r\n雪\rZ\nQ R\r\n",
+            "text_utf8_bytes": 23,
+            "text_utf8_sha256": "2878061b0fea1296092fbec6b838f6fb9ac0a4af1050dc573724ac8d895e3079",
+            "text_position_utf16": 17,
+            "line": 5,
+            "column_utf16": 0,
+            "indent": 0,
+            "at_start_of_line": true,
+            "has_trailing_comment": false,
+            "has_trailing_whitespace": true
+          }
+        },
+        {
+          "index": 6,
+          "operation": {
+            "kind": "writeComment",
+            "text": "//é"
+          },
+          "state": {
+            "text": "    😀\r\n雪\rZ\nQ R\r\n//é",
+            "text_utf8_bytes": 28,
+            "text_utf8_sha256": "d48e5203ef90995a7ff0ecdc23f1e047ab7d427f547509c2ea8b5cbe0c1fc522",
+            "text_position_utf16": 21,
+            "line": 5,
+            "column_utf16": 4,
+            "indent": 0,
+            "at_start_of_line": false,
+            "has_trailing_comment": true,
+            "has_trailing_whitespace": false
+          }
+        },
+        {
+          "index": 7,
+          "operation": {
+            "kind": "writeLine",
+            "force": false
+          },
+          "state": {
+            "text": "    😀\r\n雪\rZ\nQ R\r\n//é\r\n",
+            "text_utf8_bytes": 30,
+            "text_utf8_sha256": "1753aa66e636de8c016b33ceac392ea13e0b83e911eb600af3baf6e1170e0593",
+            "text_position_utf16": 23,
+            "line": 6,
+            "column_utf16": 0,
+            "indent": 0,
+            "at_start_of_line": true,
+            "has_trailing_comment": false,
+            "has_trailing_whitespace": true
+          }
+        }
+      ]
+    }
+  ],
+  "source_position_cases": [
+    {
+      "id": "astral-combining-crlf-ls-ps",
+      "text": "a😀\r\né 雪 z",
+      "text_utf8_bytes": 20,
+      "text_utf16_units": 11,
+      "positions": [
+        {
+          "label": "start",
+          "source_byte_position": 0,
+          "source_utf16_position": 0,
+          "line": 0,
+          "column_utf16": 0
+        },
+        {
+          "label": "after-a",
+          "source_byte_position": 1,
+          "source_utf16_position": 1,
+          "line": 0,
+          "column_utf16": 1
+        },
+        {
+          "label": "after-astral",
+          "source_byte_position": 5,
+          "source_utf16_position": 3,
+          "line": 0,
+          "column_utf16": 3
+        },
+        {
+          "label": "after-cr",
+          "source_byte_position": 6,
+          "source_utf16_position": 4,
+          "line": 0,
+          "column_utf16": 4
+        },
+        {
+          "label": "after-crlf",
+          "source_byte_position": 7,
+          "source_utf16_position": 5,
+          "line": 1,
+          "column_utf16": 0
+        },
+        {
+          "label": "after-combining-base",
+          "source_byte_position": 8,
+          "source_utf16_position": 6,
+          "line": 1,
+          "column_utf16": 1
+        },
+        {
+          "label": "after-combining-mark",
+          "source_byte_position": 10,
+          "source_utf16_position": 7,
+          "line": 1,
+          "column_utf16": 2
+        },
+        {
+          "label": "after-ls",
+          "source_byte_position": 13,
+          "source_utf16_position": 8,
+          "line": 2,
+          "column_utf16": 0
+        },
+        {
+          "label": "after-snow",
+          "source_byte_position": 16,
+          "source_utf16_position": 9,
+          "line": 2,
+          "column_utf16": 1
+        },
+        {
+          "label": "after-ps",
+          "source_byte_position": 19,
+          "source_utf16_position": 10,
+          "line": 3,
+          "column_utf16": 0
+        },
+        {
+          "label": "end",
+          "source_byte_position": 20,
+          "source_utf16_position": 11,
+          "line": 3,
+          "column_utf16": 1
+        }
+      ]
+    },
+    {
+      "id": "nel-control-lf-cr",
+      "text": "NQ\nR\rS",
+      "text_utf8_bytes": 8,
+      "text_utf16_units": 7,
+      "positions": [
+        {
+          "label": "start",
+          "source_byte_position": 0,
+          "source_utf16_position": 0,
+          "line": 0,
+          "column_utf16": 0
+        },
+        {
+          "label": "after-n",
+          "source_byte_position": 1,
+          "source_utf16_position": 1,
+          "line": 0,
+          "column_utf16": 1
+        },
+        {
+          "label": "after-nel",
+          "source_byte_position": 3,
+          "source_utf16_position": 2,
+          "line": 0,
+          "column_utf16": 2
+        },
+        {
+          "label": "after-q",
+          "source_byte_position": 4,
+          "source_utf16_position": 3,
+          "line": 0,
+          "column_utf16": 3
+        },
+        {
+          "label": "after-lf",
+          "source_byte_position": 5,
+          "source_utf16_position": 4,
+          "line": 1,
+          "column_utf16": 0
+        },
+        {
+          "label": "after-r",
+          "source_byte_position": 6,
+          "source_utf16_position": 5,
+          "line": 1,
+          "column_utf16": 1
+        },
+        {
+          "label": "after-cr",
+          "source_byte_position": 7,
+          "source_utf16_position": 6,
+          "line": 2,
+          "column_utf16": 0
+        },
+        {
+          "label": "end",
+          "source_byte_position": 8,
+          "source_utf16_position": 7,
+          "line": 2,
+          "column_utf16": 1
+        }
+      ]
+    },
+    {
+      "id": "escaped-and-unescaped-identifiers-literals",
+      "text": "const \\u0061 = \"\\u{1F600}\";\nconst café = \"😀\";\n",
+      "text_utf8_bytes": 50,
+      "text_utf16_units": 47,
+      "positions": [
+        {
+          "label": "escaped-identifier-start",
+          "source_byte_position": 6,
+          "source_utf16_position": 6,
+          "line": 0,
+          "column_utf16": 6
+        },
+        {
+          "label": "escaped-identifier-end",
+          "source_byte_position": 12,
+          "source_utf16_position": 12,
+          "line": 0,
+          "column_utf16": 12
+        },
+        {
+          "label": "escaped-literal-start",
+          "source_byte_position": 15,
+          "source_utf16_position": 15,
+          "line": 0,
+          "column_utf16": 15
+        },
+        {
+          "label": "escaped-literal-end",
+          "source_byte_position": 26,
+          "source_utf16_position": 26,
+          "line": 0,
+          "column_utf16": 26
+        },
+        {
+          "label": "unescaped-identifier-start",
+          "source_byte_position": 34,
+          "source_utf16_position": 34,
+          "line": 1,
+          "column_utf16": 6
+        },
+        {
+          "label": "unescaped-identifier-end",
+          "source_byte_position": 39,
+          "source_utf16_position": 38,
+          "line": 1,
+          "column_utf16": 10
+        },
+        {
+          "label": "astral-literal-start",
+          "source_byte_position": 43,
+          "source_utf16_position": 42,
+          "line": 1,
+          "column_utf16": 14
+        },
+        {
+          "label": "astral-literal-end",
+          "source_byte_position": 47,
+          "source_utf16_position": 44,
+          "line": 1,
+          "column_utf16": 16
+        },
+        {
+          "label": "end",
+          "source_byte_position": 50,
+          "source_utf16_position": 47,
+          "line": 2,
+          "column_utf16": 0
+        }
+      ]
+    }
+  ],
+  "printer_cases": [
+    {
+      "id": "lf-comments-escapes-astral-combining",
+      "file_name": "unicode.js",
+      "new_line": "lf",
+      "source": "// lead 😀\nconst \\u0061 = \"\\u{1F600}\";\nconst café = \"😀é\";\nconst high = \"\\uD800\";\nconst low = \"\\uDC00\";\nconst escapedBackslash = \"\\\\uD800\";\n",
+      "source_utf8_sha256": "c748c84ef52b7fd5ed6ba469d629b4e23ecc6897a4e04f99345e53d8563498d8",
+      "output": "// lead 😀\nconst \\u0061 = \"\\u{1F600}\";\nconst café = \"😀é\";\nconst high = \"\\uD800\";\nconst low = \"\\uDC00\";\nconst escapedBackslash = \"\\\\uD800\";\n",
+      "output_utf8_sha256": "c748c84ef52b7fd5ed6ba469d629b4e23ecc6897a4e04f99345e53d8563498d8",
+      "output_utf16_units": 141,
+      "output_end": {
+        "position_utf16": 141,
+        "line": 6,
+        "column_utf16": 0
+      },
+      "tokens": [
+        {
+          "index": 0,
+          "kind": 87,
+          "kind_name": "ConstKeyword",
+          "text": "const",
+          "value_utf16_units": [
+            99,
+            111,
+            110,
+            115,
+            116
+          ],
+          "start": {
+            "label": "start",
+            "source_byte_position": 13,
+            "source_utf16_position": 11,
+            "line": 1,
+            "column_utf16": 0
+          },
+          "end": {
+            "label": "end",
+            "source_byte_position": 18,
+            "source_utf16_position": 16,
+            "line": 1,
+            "column_utf16": 5
+          }
+        },
+        {
+          "index": 1,
+          "kind": 80,
+          "kind_name": "Identifier",
+          "text": "\\u0061",
+          "value_utf16_units": [
+            97
+          ],
+          "start": {
+            "label": "start",
+            "source_byte_position": 19,
+            "source_utf16_position": 17,
+            "line": 1,
+            "column_utf16": 6
+          },
+          "end": {
+            "label": "end",
+            "source_byte_position": 25,
+            "source_utf16_position": 23,
+            "line": 1,
+            "column_utf16": 12
+          }
+        },
+        {
+          "index": 2,
+          "kind": 64,
+          "kind_name": "FirstAssignment",
+          "text": "=",
+          "value_utf16_units": [
+            97
+          ],
+          "start": {
+            "label": "start",
+            "source_byte_position": 26,
+            "source_utf16_position": 24,
+            "line": 1,
+            "column_utf16": 13
+          },
+          "end": {
+            "label": "end",
+            "source_byte_position": 27,
+            "source_utf16_position": 25,
+            "line": 1,
+            "column_utf16": 14
+          }
+        },
+        {
+          "index": 3,
+          "kind": 11,
+          "kind_name": "StringLiteral",
+          "text": "\"\\u{1F600}\"",
+          "value_utf16_units": [
+            55357,
+            56832
+          ],
+          "start": {
+            "label": "start",
+            "source_byte_position": 28,
+            "source_utf16_position": 26,
+            "line": 1,
+            "column_utf16": 15
+          },
+          "end": {
+            "label": "end",
+            "source_byte_position": 39,
+            "source_utf16_position": 37,
+            "line": 1,
+            "column_utf16": 26
+          }
+        },
+        {
+          "index": 4,
+          "kind": 27,
+          "kind_name": "SemicolonToken",
+          "text": ";",
+          "value_utf16_units": [
+            55357,
+            56832
+          ],
+          "start": {
+            "label": "start",
+            "source_byte_position": 39,
+            "source_utf16_position": 37,
+            "line": 1,
+            "column_utf16": 26
+          },
+          "end": {
+            "label": "end",
+            "source_byte_position": 40,
+            "source_utf16_position": 38,
+            "line": 1,
+            "column_utf16": 27
+          }
+        },
+        {
+          "index": 5,
+          "kind": 87,
+          "kind_name": "ConstKeyword",
+          "text": "const",
+          "value_utf16_units": [
+            99,
+            111,
+            110,
+            115,
+            116
+          ],
+          "start": {
+            "label": "start",
+            "source_byte_position": 41,
+            "source_utf16_position": 39,
+            "line": 2,
+            "column_utf16": 0
+          },
+          "end": {
+            "label": "end",
+            "source_byte_position": 46,
+            "source_utf16_position": 44,
+            "line": 2,
+            "column_utf16": 5
+          }
+        },
+        {
+          "index": 6,
+          "kind": 80,
+          "kind_name": "Identifier",
+          "text": "café",
+          "value_utf16_units": [
+            99,
+            97,
+            102,
+            233
+          ],
+          "start": {
+            "label": "start",
+            "source_byte_position": 47,
+            "source_utf16_position": 45,
+            "line": 2,
+            "column_utf16": 6
+          },
+          "end": {
+            "label": "end",
+            "source_byte_position": 52,
+            "source_utf16_position": 49,
+            "line": 2,
+            "column_utf16": 10
+          }
+        },
+        {
+          "index": 7,
+          "kind": 64,
+          "kind_name": "FirstAssignment",
+          "text": "=",
+          "value_utf16_units": [
+            99,
+            97,
+            102,
+            233
+          ],
+          "start": {
+            "label": "start",
+            "source_byte_position": 53,
+            "source_utf16_position": 50,
+            "line": 2,
+            "column_utf16": 11
+          },
+          "end": {
+            "label": "end",
+            "source_byte_position": 54,
+            "source_utf16_position": 51,
+            "line": 2,
+            "column_utf16": 12
+          }
+        },
+        {
+          "index": 8,
+          "kind": 11,
+          "kind_name": "StringLiteral",
+          "text": "\"😀é\"",
+          "value_utf16_units": [
+            55357,
+            56832,
+            101,
+            769
+          ],
+          "start": {
+            "label": "start",
+            "source_byte_position": 55,
+            "source_utf16_position": 52,
+            "line": 2,
+            "column_utf16": 13
+          },
+          "end": {
+            "label": "end",
+            "source_byte_position": 64,
+            "source_utf16_position": 58,
+            "line": 2,
+            "column_utf16": 19
+          }
+        },
+        {
+          "index": 9,
+          "kind": 27,
+          "kind_name": "SemicolonToken",
+          "text": ";",
+          "value_utf16_units": [
+            55357,
+            56832,
+            101,
+            769
+          ],
+          "start": {
+            "label": "start",
+            "source_byte_position": 64,
+            "source_utf16_position": 58,
+            "line": 2,
+            "column_utf16": 19
+          },
+          "end": {
+            "label": "end",
+            "source_byte_position": 65,
+            "source_utf16_position": 59,
+            "line": 2,
+            "column_utf16": 20
+          }
+        },
+        {
+          "index": 10,
+          "kind": 87,
+          "kind_name": "ConstKeyword",
+          "text": "const",
+          "value_utf16_units": [
+            99,
+            111,
+            110,
+            115,
+            116
+          ],
+          "start": {
+            "label": "start",
+            "source_byte_position": 66,
+            "source_utf16_position": 60,
+            "line": 3,
+            "column_utf16": 0
+          },
+          "end": {
+            "label": "end",
+            "source_byte_position": 71,
+            "source_utf16_position": 65,
+            "line": 3,
+            "column_utf16": 5
+          }
+        },
+        {
+          "index": 11,
+          "kind": 80,
+          "kind_name": "Identifier",
+          "text": "high",
+          "value_utf16_units": [
+            104,
+            105,
+            103,
+            104
+          ],
+          "start": {
+            "label": "start",
+            "source_byte_position": 72,
+            "source_utf16_position": 66,
+            "line": 3,
+            "column_utf16": 6
+          },
+          "end": {
+            "label": "end",
+            "source_byte_position": 76,
+            "source_utf16_position": 70,
+            "line": 3,
+            "column_utf16": 10
+          }
+        },
+        {
+          "index": 12,
+          "kind": 64,
+          "kind_name": "FirstAssignment",
+          "text": "=",
+          "value_utf16_units": [
+            104,
+            105,
+            103,
+            104
+          ],
+          "start": {
+            "label": "start",
+            "source_byte_position": 77,
+            "source_utf16_position": 71,
+            "line": 3,
+            "column_utf16": 11
+          },
+          "end": {
+            "label": "end",
+            "source_byte_position": 78,
+            "source_utf16_position": 72,
+            "line": 3,
+            "column_utf16": 12
+          }
+        },
+        {
+          "index": 13,
+          "kind": 11,
+          "kind_name": "StringLiteral",
+          "text": "\"\\uD800\"",
+          "value_utf16_units": [
+            55296
+          ],
+          "start": {
+            "label": "start",
+            "source_byte_position": 79,
+            "source_utf16_position": 73,
+            "line": 3,
+            "column_utf16": 13
+          },
+          "end": {
+            "label": "end",
+            "source_byte_position": 87,
+            "source_utf16_position": 81,
+            "line": 3,
+            "column_utf16": 21
+          }
+        },
+        {
+          "index": 14,
+          "kind": 27,
+          "kind_name": "SemicolonToken",
+          "text": ";",
+          "value_utf16_units": [
+            55296
+          ],
+          "start": {
+            "label": "start",
+            "source_byte_position": 87,
+            "source_utf16_position": 81,
+            "line": 3,
+            "column_utf16": 21
+          },
+          "end": {
+            "label": "end",
+            "source_byte_position": 88,
+            "source_utf16_position": 82,
+            "line": 3,
+            "column_utf16": 22
+          }
+        },
+        {
+          "index": 15,
+          "kind": 87,
+          "kind_name": "ConstKeyword",
+          "text": "const",
+          "value_utf16_units": [
+            99,
+            111,
+            110,
+            115,
+            116
+          ],
+          "start": {
+            "label": "start",
+            "source_byte_position": 89,
+            "source_utf16_position": 83,
+            "line": 4,
+            "column_utf16": 0
+          },
+          "end": {
+            "label": "end",
+            "source_byte_position": 94,
+            "source_utf16_position": 88,
+            "line": 4,
+            "column_utf16": 5
+          }
+        },
+        {
+          "index": 16,
+          "kind": 80,
+          "kind_name": "Identifier",
+          "text": "low",
+          "value_utf16_units": [
+            108,
+            111,
+            119
+          ],
+          "start": {
+            "label": "start",
+            "source_byte_position": 95,
+            "source_utf16_position": 89,
+            "line": 4,
+            "column_utf16": 6
+          },
+          "end": {
+            "label": "end",
+            "source_byte_position": 98,
+            "source_utf16_position": 92,
+            "line": 4,
+            "column_utf16": 9
+          }
+        },
+        {
+          "index": 17,
+          "kind": 64,
+          "kind_name": "FirstAssignment",
+          "text": "=",
+          "value_utf16_units": [
+            108,
+            111,
+            119
+          ],
+          "start": {
+            "label": "start",
+            "source_byte_position": 99,
+            "source_utf16_position": 93,
+            "line": 4,
+            "column_utf16": 10
+          },
+          "end": {
+            "label": "end",
+            "source_byte_position": 100,
+            "source_utf16_position": 94,
+            "line": 4,
+            "column_utf16": 11
+          }
+        },
+        {
+          "index": 18,
+          "kind": 11,
+          "kind_name": "StringLiteral",
+          "text": "\"\\uDC00\"",
+          "value_utf16_units": [
+            56320
+          ],
+          "start": {
+            "label": "start",
+            "source_byte_position": 101,
+            "source_utf16_position": 95,
+            "line": 4,
+            "column_utf16": 12
+          },
+          "end": {
+            "label": "end",
+            "source_byte_position": 109,
+            "source_utf16_position": 103,
+            "line": 4,
+            "column_utf16": 20
+          }
+        },
+        {
+          "index": 19,
+          "kind": 27,
+          "kind_name": "SemicolonToken",
+          "text": ";",
+          "value_utf16_units": [
+            56320
+          ],
+          "start": {
+            "label": "start",
+            "source_byte_position": 109,
+            "source_utf16_position": 103,
+            "line": 4,
+            "column_utf16": 20
+          },
+          "end": {
+            "label": "end",
+            "source_byte_position": 110,
+            "source_utf16_position": 104,
+            "line": 4,
+            "column_utf16": 21
+          }
+        },
+        {
+          "index": 20,
+          "kind": 87,
+          "kind_name": "ConstKeyword",
+          "text": "const",
+          "value_utf16_units": [
+            99,
+            111,
+            110,
+            115,
+            116
+          ],
+          "start": {
+            "label": "start",
+            "source_byte_position": 111,
+            "source_utf16_position": 105,
+            "line": 5,
+            "column_utf16": 0
+          },
+          "end": {
+            "label": "end",
+            "source_byte_position": 116,
+            "source_utf16_position": 110,
+            "line": 5,
+            "column_utf16": 5
+          }
+        },
+        {
+          "index": 21,
+          "kind": 80,
+          "kind_name": "Identifier",
+          "text": "escapedBackslash",
+          "value_utf16_units": [
+            101,
+            115,
+            99,
+            97,
+            112,
+            101,
+            100,
+            66,
+            97,
+            99,
+            107,
+            115,
+            108,
+            97,
+            115,
+            104
+          ],
+          "start": {
+            "label": "start",
+            "source_byte_position": 117,
+            "source_utf16_position": 111,
+            "line": 5,
+            "column_utf16": 6
+          },
+          "end": {
+            "label": "end",
+            "source_byte_position": 133,
+            "source_utf16_position": 127,
+            "line": 5,
+            "column_utf16": 22
+          }
+        },
+        {
+          "index": 22,
+          "kind": 64,
+          "kind_name": "FirstAssignment",
+          "text": "=",
+          "value_utf16_units": [
+            101,
+            115,
+            99,
+            97,
+            112,
+            101,
+            100,
+            66,
+            97,
+            99,
+            107,
+            115,
+            108,
+            97,
+            115,
+            104
+          ],
+          "start": {
+            "label": "start",
+            "source_byte_position": 134,
+            "source_utf16_position": 128,
+            "line": 5,
+            "column_utf16": 23
+          },
+          "end": {
+            "label": "end",
+            "source_byte_position": 135,
+            "source_utf16_position": 129,
+            "line": 5,
+            "column_utf16": 24
+          }
+        },
+        {
+          "index": 23,
+          "kind": 11,
+          "kind_name": "StringLiteral",
+          "text": "\"\\\\uD800\"",
+          "value_utf16_units": [
+            92,
+            117,
+            68,
+            56,
+            48,
+            48
+          ],
+          "start": {
+            "label": "start",
+            "source_byte_position": 136,
+            "source_utf16_position": 130,
+            "line": 5,
+            "column_utf16": 25
+          },
+          "end": {
+            "label": "end",
+            "source_byte_position": 145,
+            "source_utf16_position": 139,
+            "line": 5,
+            "column_utf16": 34
+          }
+        },
+        {
+          "index": 24,
+          "kind": 27,
+          "kind_name": "SemicolonToken",
+          "text": ";",
+          "value_utf16_units": [
+            92,
+            117,
+            68,
+            56,
+            48,
+            48
+          ],
+          "start": {
+            "label": "start",
+            "source_byte_position": 145,
+            "source_utf16_position": 139,
+            "line": 5,
+            "column_utf16": 34
+          },
+          "end": {
+            "label": "end",
+            "source_byte_position": 146,
+            "source_utf16_position": 140,
+            "line": 5,
+            "column_utf16": 35
+          }
+        }
+      ]
+    },
+    {
+      "id": "crlf-astral-combining",
+      "file_name": "unicode-crlf.js",
+      "new_line": "crlf",
+      "source": "const astral = \"😀\";\r\nconst combining = \"é\";\r\n",
+      "source_utf8_sha256": "174e66f89cbe8d3ad588088f2803d31a64611aef0c2aa4fb6dec1929f4d07363",
+      "output": "const astral = \"😀\";\r\nconst combining = \"é\";\r\n",
+      "output_utf8_sha256": "174e66f89cbe8d3ad588088f2803d31a64611aef0c2aa4fb6dec1929f4d07363",
+      "output_utf16_units": 47,
+      "output_end": {
+        "position_utf16": 47,
+        "line": 2,
+        "column_utf16": 0
+      },
+      "tokens": [
+        {
+          "index": 0,
+          "kind": 87,
+          "kind_name": "ConstKeyword",
+          "text": "const",
+          "value_utf16_units": [
+            99,
+            111,
+            110,
+            115,
+            116
+          ],
+          "start": {
+            "label": "start",
+            "source_byte_position": 0,
+            "source_utf16_position": 0,
+            "line": 0,
+            "column_utf16": 0
+          },
+          "end": {
+            "label": "end",
+            "source_byte_position": 5,
+            "source_utf16_position": 5,
+            "line": 0,
+            "column_utf16": 5
+          }
+        },
+        {
+          "index": 1,
+          "kind": 80,
+          "kind_name": "Identifier",
+          "text": "astral",
+          "value_utf16_units": [
+            97,
+            115,
+            116,
+            114,
+            97,
+            108
+          ],
+          "start": {
+            "label": "start",
+            "source_byte_position": 6,
+            "source_utf16_position": 6,
+            "line": 0,
+            "column_utf16": 6
+          },
+          "end": {
+            "label": "end",
+            "source_byte_position": 12,
+            "source_utf16_position": 12,
+            "line": 0,
+            "column_utf16": 12
+          }
+        },
+        {
+          "index": 2,
+          "kind": 64,
+          "kind_name": "FirstAssignment",
+          "text": "=",
+          "value_utf16_units": [
+            97,
+            115,
+            116,
+            114,
+            97,
+            108
+          ],
+          "start": {
+            "label": "start",
+            "source_byte_position": 13,
+            "source_utf16_position": 13,
+            "line": 0,
+            "column_utf16": 13
+          },
+          "end": {
+            "label": "end",
+            "source_byte_position": 14,
+            "source_utf16_position": 14,
+            "line": 0,
+            "column_utf16": 14
+          }
+        },
+        {
+          "index": 3,
+          "kind": 11,
+          "kind_name": "StringLiteral",
+          "text": "\"😀\"",
+          "value_utf16_units": [
+            55357,
+            56832
+          ],
+          "start": {
+            "label": "start",
+            "source_byte_position": 15,
+            "source_utf16_position": 15,
+            "line": 0,
+            "column_utf16": 15
+          },
+          "end": {
+            "label": "end",
+            "source_byte_position": 21,
+            "source_utf16_position": 19,
+            "line": 0,
+            "column_utf16": 19
+          }
+        },
+        {
+          "index": 4,
+          "kind": 27,
+          "kind_name": "SemicolonToken",
+          "text": ";",
+          "value_utf16_units": [
+            55357,
+            56832
+          ],
+          "start": {
+            "label": "start",
+            "source_byte_position": 21,
+            "source_utf16_position": 19,
+            "line": 0,
+            "column_utf16": 19
+          },
+          "end": {
+            "label": "end",
+            "source_byte_position": 22,
+            "source_utf16_position": 20,
+            "line": 0,
+            "column_utf16": 20
+          }
+        },
+        {
+          "index": 5,
+          "kind": 87,
+          "kind_name": "ConstKeyword",
+          "text": "const",
+          "value_utf16_units": [
+            99,
+            111,
+            110,
+            115,
+            116
+          ],
+          "start": {
+            "label": "start",
+            "source_byte_position": 24,
+            "source_utf16_position": 22,
+            "line": 1,
+            "column_utf16": 0
+          },
+          "end": {
+            "label": "end",
+            "source_byte_position": 29,
+            "source_utf16_position": 27,
+            "line": 1,
+            "column_utf16": 5
+          }
+        },
+        {
+          "index": 6,
+          "kind": 80,
+          "kind_name": "Identifier",
+          "text": "combining",
+          "value_utf16_units": [
+            99,
+            111,
+            109,
+            98,
+            105,
+            110,
+            105,
+            110,
+            103
+          ],
+          "start": {
+            "label": "start",
+            "source_byte_position": 30,
+            "source_utf16_position": 28,
+            "line": 1,
+            "column_utf16": 6
+          },
+          "end": {
+            "label": "end",
+            "source_byte_position": 39,
+            "source_utf16_position": 37,
+            "line": 1,
+            "column_utf16": 15
+          }
+        },
+        {
+          "index": 7,
+          "kind": 64,
+          "kind_name": "FirstAssignment",
+          "text": "=",
+          "value_utf16_units": [
+            99,
+            111,
+            109,
+            98,
+            105,
+            110,
+            105,
+            110,
+            103
+          ],
+          "start": {
+            "label": "start",
+            "source_byte_position": 40,
+            "source_utf16_position": 38,
+            "line": 1,
+            "column_utf16": 16
+          },
+          "end": {
+            "label": "end",
+            "source_byte_position": 41,
+            "source_utf16_position": 39,
+            "line": 1,
+            "column_utf16": 17
+          }
+        },
+        {
+          "index": 8,
+          "kind": 11,
+          "kind_name": "StringLiteral",
+          "text": "\"é\"",
+          "value_utf16_units": [
+            101,
+            769
+          ],
+          "start": {
+            "label": "start",
+            "source_byte_position": 42,
+            "source_utf16_position": 40,
+            "line": 1,
+            "column_utf16": 18
+          },
+          "end": {
+            "label": "end",
+            "source_byte_position": 47,
+            "source_utf16_position": 44,
+            "line": 1,
+            "column_utf16": 22
+          }
+        },
+        {
+          "index": 9,
+          "kind": 27,
+          "kind_name": "SemicolonToken",
+          "text": ";",
+          "value_utf16_units": [
+            101,
+            769
+          ],
+          "start": {
+            "label": "start",
+            "source_byte_position": 47,
+            "source_utf16_position": 44,
+            "line": 1,
+            "column_utf16": 22
+          },
+          "end": {
+            "label": "end",
+            "source_byte_position": 48,
+            "source_utf16_position": 45,
+            "line": 1,
+            "column_utf16": 23
+          }
+        }
+      ]
+    }
+  ],
+  "oracle_fingerprint_sha256": "2a36d36c7c4534dd5ab19ee5393e4cc8c36576ec4a134104a5827ba4798fd15d"
+}

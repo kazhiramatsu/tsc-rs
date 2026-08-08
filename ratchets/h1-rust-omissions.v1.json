@@ -1,27 +1,27 @@
 {
   "schema": 1,
   "status": "frozen-current-rust-baseline",
-  "phase": "H1.0a-rust-omission-inventory",
+  "phase": "H1.2-rust-omission-inventory",
   "typescript": {
     "version": "6.0.3",
     "source_commit": "050880ce59e30b356b686bd3144efe24f875ebc8"
   },
   "generator": {
     "path": "crates/oracle/h1-rust-omission-inventory.mjs",
-    "sha256": "7de66f1ea87d2df8c0b5c84249693e7ac47c5d3c9552e4da00da14771605980f"
+    "sha256": "5a26e0f3002e102412c3b55baf369d9d44af97d2345b88a95d2b49eeff7f7966"
   },
   "contract": {
     "path": ".github/ci/contracts/h1-rust-omissions.schema.json",
-    "sha256": "916476de8ec3b14a45606caeb2d2392024597e33a1042c7f3f8b37a7c9f2d26e"
+    "sha256": "069161294e1ed5d8ee8534294fca3b16aff29c70ba8c9a322b36e824796c38f6"
   },
   "authorities": {
     "compatibility_residual": {
       "path": "docs/design/greenfield/compiler-compatibility-residual.md",
-      "sha256": "2d7a25449fd44d006ec218feae119e71a06913c3ad2083c6fe0a20877ccb0102"
+      "sha256": "d0a8801a530978ce043f8e81f4a7b7e560b2d4bf69a21584950b9b624b0378bf"
     },
     "h1_execution": {
       "path": "docs/design/greenfield/h1-emit.md",
-      "sha256": "1848f9743b15f5493fbe150a924e20ddc745a98dff3bdd778f9131fcc5d42650"
+      "sha256": "2f5b408ea14093889670348f42754417102dcb28c0208c93c585ce000b7f4464"
     },
     "emit_profile": {
       "path": "ratchets/h1-emit-profile.v1.json",
@@ -39,20 +39,40 @@
       "crates/*/Cargo.toml",
       "crates/*/src/**/*.rs"
     ],
-    "file_count": 186,
-    "rust_source_files": 171,
+    "file_count": 192,
+    "rust_source_files": 177,
     "cargo_manifests": 15,
-    "bytes": 12340791,
-    "tree_sha256": "f861e3eb2726fba6f7a52cbb71926c2f91dd679f5ce6097db1aa80e3c23522a7"
+    "bytes": 12436669,
+    "tree_sha256": "c539595f968698d84001de00d8a692e157cfe48d4ac0fb1af14c3a3663a009f1"
   },
   "summary": {
-    "production_boundary_omissions": 10,
-    "absence_proofs": 6,
-    "option_projection_omissions": 32,
+    "production_boundary_omissions": 6,
+    "absence_proofs": 5,
+    "option_projection_omissions": 28,
     "explicit_checker_emit_elisions": 25,
-    "existing_prerequisites": 10
+    "existing_prerequisites": 11
   },
   "existing_prerequisites": [
+    {
+      "id": "h1-factory-transform-printer-foundation",
+      "treatment": "reuse-and-extend-with-active-transformers-and-node-workers-without-mutating-published-syntax",
+      "evidence": [
+        "emitter-transform-arena",
+        "emitter-node-factory",
+        "emitter-transform-flags",
+        "emitter-emit-metadata",
+        "emitter-transformation-context",
+        "emitter-transform-nodes",
+        "emitter-position-domains",
+        "emitter-text-writer",
+        "emitter-source-map-recorder",
+        "emitter-printer-factory",
+        "compiler-options-new-line",
+        "compiler-options-remove-comments",
+        "compiler-options-no-implicit-use-strict",
+        "compiler-options-no-emit-helpers"
+      ]
+    },
     {
       "id": "h1-typed-execution-spine",
       "treatment": "reuse-and-extend-without-routing-no-emit-through-emitter",
@@ -140,9 +160,9 @@
   "production_boundary_omissions": [
     {
       "id": "workspace-emitter-owner",
-      "planned_phase": "H1.2-H1.4",
-      "current": "The acyclic emitter workspace owner now contains H1.1 artifacts, metadata, output-path topology, outcomes, typed failures, OutputSink, and MemoryOutputSink.",
-      "missing": "EmitHost/EmitResolver protocols plus factory, transform, printer, and executable output-planning implementations.",
+      "planned_phase": "H1.3-H1.4",
+      "current": "The acyclic emitter workspace owner contains the H1.1 execution spine and the H1.2 factory, transform lifecycle, typed position, writer, map-hook, and whole-source printer foundation.",
+      "missing": "EmitHost/EmitResolver protocols, active built-in transformers, and executable output planning.",
       "evidence": {
         "anchors": [
           "workspace-members",
@@ -151,11 +171,17 @@
           "emitter-output-plan-shape",
           "emitter-output-sink-protocol",
           "emitter-memory-sink",
-          "emitter-outcome-protocol"
+          "emitter-outcome-protocol",
+          "emitter-transform-arena",
+          "emitter-node-factory",
+          "emitter-transformation-context",
+          "emitter-transform-nodes",
+          "emitter-text-writer",
+          "emitter-printer-factory"
         ],
         "absence_proofs": [
           "emitter-host-resolver-protocols",
-          "transform-printer-output-functions"
+          "active-transform-and-output-functions"
         ]
       }
     },
@@ -187,67 +213,20 @@
       }
     },
     {
-      "id": "transform-flags",
-      "planned_phase": "H1.2",
-      "current": "Only binder SourceFile aggregate NodeFlags exist; nodes and node arrays have no emitter TransformFlags facts.",
-      "missing": "Emitter-session parsed-node/array transform-flag side tables and exact synthetic aggregation with subtree exclusions.",
-      "evidence": {
-        "anchors": [
-          "binder-source-aggregate-emit-flags"
-        ],
-        "absence_proofs": [
-          "transform-session-types"
-        ]
-      }
-    },
-    {
-      "id": "transform-metadata",
-      "planned_phase": "H1.2",
-      "current": "Parsed arenas have no emit-node/original/helper/substitution/map/generated-name session metadata.",
-      "missing": "Session-owned original identities, emit flags, comments/ranges, helpers, substitutions, assigned/generated names, and constants.",
-      "evidence": {
-        "anchors": [],
-        "absence_proofs": [
-          "transform-session-types"
-        ]
-      }
-    },
-    {
-      "id": "synthetic-node-factory",
-      "planned_phase": "H1.2",
-      "current": "There is no general NodeFactory or transform arena.",
-      "missing": "Reachability-generated create/update/clone/replace operations, node-array metadata, parenthesizer, and converter rules.",
-      "evidence": {
-        "anchors": [],
-        "absence_proofs": [
-          "transform-session-types"
-        ]
-      }
-    },
-    {
       "id": "transformation-runtime",
-      "planned_phase": "H1.2-H1.3",
-      "current": "There is no transformNodes lifecycle or built-in script transformer.",
-      "missing": "Transformation context, lexical/block scopes, helpers, substitutions, notifications, diagnostics, disposal, and the frozen three-transform chain.",
-      "evidence": {
-        "anchors": [],
-        "absence_proofs": [
-          "transform-printer-output-functions"
-        ]
-      }
-    },
-    {
-      "id": "production-writer-printer",
-      "planned_phase": "H1.2",
-      "current": "The checker-private display-clone printer explicitly excludes production emitter responsibilities.",
-      "missing": "The generic tsc text writer/printer with trivia/comments, precedence, literals, generated positions, and map hook phases.",
+      "planned_phase": "H1.3",
+      "current": "H1.2 owns transformNodes state, lexical/block scopes, helpers, substitutions, notifications, diagnostics, disposal, and session-local factory/metadata storage.",
+      "missing": "The active transformTypeScript, transformClassFields, and transformECMAScriptModule chain and its reachable node-factory operations.",
       "evidence": {
         "anchors": [
-          "display-clone-not-emitter",
-          "display-clone-exclusions"
+          "emitter-transform-arena",
+          "emitter-transform-flags",
+          "emitter-emit-metadata",
+          "emitter-transformation-context",
+          "emitter-transform-nodes"
         ],
         "absence_proofs": [
-          "transform-printer-output-functions"
+          "active-transform-and-output-functions"
         ]
       }
     },
@@ -266,7 +245,7 @@
           "emitter-outcome-protocol"
         ],
         "absence_proofs": [
-          "transform-printer-output-functions",
+          "active-transform-and-output-functions",
           "filesystem-output-sink"
         ]
       }
@@ -303,13 +282,6 @@
       "planned_phase": "H1.4"
     },
     {
-      "option": "newLine",
-      "rust_field": "new_line",
-      "current_retention": "recognized by the config option catalog; absent from CompilerOptions",
-      "disposition": "bootstrap",
-      "planned_phase": "H1.2-H1.4"
-    },
-    {
       "option": "noEmitOnError",
       "rust_field": "no_emit_on_error",
       "current_retention": "recognized by the config option catalog; absent from CompilerOptions",
@@ -329,27 +301,6 @@
       "current_retention": "recognized by the config option catalog; absent from CompilerOptions",
       "disposition": "output-planning",
       "planned_phase": "H1.4"
-    },
-    {
-      "option": "removeComments",
-      "rust_field": "remove_comments",
-      "current_retention": "recognized by the config option catalog; absent from CompilerOptions",
-      "disposition": "printer-control",
-      "planned_phase": "H1.2"
-    },
-    {
-      "option": "noImplicitUseStrict",
-      "rust_field": "no_implicit_use_strict",
-      "current_retention": "recognized by the config option catalog; absent from CompilerOptions",
-      "disposition": "printer-control",
-      "planned_phase": "H1.2-H1.4"
-    },
-    {
-      "option": "noEmitHelpers",
-      "rust_field": "no_emit_helpers",
-      "current_retention": "recognized by the config option catalog; absent from CompilerOptions",
-      "disposition": "helper-control",
-      "planned_phase": "H1.2-H1.3"
     },
     {
       "option": "noCheck",
@@ -683,16 +634,16 @@
         "column": 1,
         "text": "[package.metadata.tsc-rs]\nrole = \"emitter\"",
         "text_sha256": "bb00a46c3a95145942bbef601602c1bad5c1697edb22ddd5551a548fe501e76f",
-        "file_sha256": "629e889381da6330e78bd402874a237653c491a491370c496da868f94e136991"
+        "file_sha256": "652ccbfbe16502c9addcc130bd1fcc67e1ddca2f8d6e1d0afba109aa7a2c54f2"
       },
       {
         "id": "emitter-artifact-protocol",
         "path": "crates/emitter/src/artifact.rs",
-        "line": 97,
+        "line": 83,
         "column": 1,
         "text": "pub struct EmitArtifact {\n    path: PathBuf,\n    callback_text: Box<str>,\n    write_byte_order_mark: bool,\n    kind: EmitArtifactKind,\n    source_files: Option<Box<[PathBuf]>>,\n    metadata: Option<EmitWriteMetadata>,\n}",
         "text_sha256": "7d7687dfea5eadd4e5389d38e9f0a3a99095f98841a764bb701caaf042570836",
-        "file_sha256": "a0cfa87e8bce0b60cf2b8331da6a407476e19e4fb11fe45dac70a93597f534c6"
+        "file_sha256": "b90d9389a9d4aa3a737900a6a6f7e1d742720633f57436f77a8d4dfc309f1a8b"
       },
       {
         "id": "emitter-output-plan-shape",
@@ -729,6 +680,96 @@
         "text": "pub struct EmitOutcome {\n    diagnostics: DiagnosticList,\n    emit_skipped: bool,\n    emitted_files: Option<Box<[PathBuf]>>,\n    source_maps: Option<Box<[SourceMapObservation]>>,\n}",
         "text_sha256": "61b8345d5cd7bb8c265b341317bba05a8a06874a7c76ef7bc5de8f52bc691b37",
         "file_sha256": "22985991b14468f199ed3aeed90ee28fe0f8a6be3a69fd2c382a9999794712dd"
+      },
+      {
+        "id": "emitter-transform-arena",
+        "path": "crates/emitter/src/factory.rs",
+        "line": 75,
+        "column": 1,
+        "text": "pub struct TransformArena {",
+        "text_sha256": "b6c3e905d93355f0b9cd4c8674ab28ed477ff430fd554a7d9b2bafbac5e314f2",
+        "file_sha256": "7e46bda3520d61d7ca740ed165637224b6358207add024cc1db9b985a2cea5f7"
+      },
+      {
+        "id": "emitter-node-factory",
+        "path": "crates/emitter/src/factory.rs",
+        "line": 302,
+        "column": 1,
+        "text": "pub struct NodeFactory<'arena> {",
+        "text_sha256": "fb050d83d8a697d4861efcdb071a8263bf79739425178a3d2f1eac9d053c68df",
+        "file_sha256": "7e46bda3520d61d7ca740ed165637224b6358207add024cc1db9b985a2cea5f7"
+      },
+      {
+        "id": "emitter-transform-flags",
+        "path": "crates/emitter/src/transform.rs",
+        "line": 14,
+        "column": 1,
+        "text": "pub struct TransformFlags(i32);",
+        "text_sha256": "7c653a426ba14a23c6ac44c6c084daceaab7fd4dd8e74b8b181e04bb2a0fa9f6",
+        "file_sha256": "741c6c45e7e4b1c158b2e820fcf10ffc90f8d0293267b69f4bf2c5ab2015bd2f"
+      },
+      {
+        "id": "emitter-emit-metadata",
+        "path": "crates/emitter/src/metadata.rs",
+        "line": 199,
+        "column": 1,
+        "text": "pub struct EmitMetadata {",
+        "text_sha256": "8ef23fa666dcb24593e950f34243354d67421355e90ba282ceead155eff4bf82",
+        "file_sha256": "d23519f3d0f2cd5ea2911fee985c7a115e6273a1ef9d3f323f4a5f235358437f"
+      },
+      {
+        "id": "emitter-transformation-context",
+        "path": "crates/emitter/src/transform.rs",
+        "line": 315,
+        "column": 1,
+        "text": "pub struct TransformationContext {",
+        "text_sha256": "a5d206c9a41608a94d45968e79501af02c879c7e8679fe82d310c007ef891c32",
+        "file_sha256": "741c6c45e7e4b1c158b2e820fcf10ffc90f8d0293267b69f4bf2c5ab2015bd2f"
+      },
+      {
+        "id": "emitter-transform-nodes",
+        "path": "crates/emitter/src/transform.rs",
+        "line": 738,
+        "column": 1,
+        "text": "pub fn transform_nodes(\n    arena: TransformArena,",
+        "text_sha256": "47b45d0a5973731a1823fe6f8ad2955ea8a812acdf4d09f17aa0ea5c288df0ae",
+        "file_sha256": "741c6c45e7e4b1c158b2e820fcf10ffc90f8d0293267b69f4bf2c5ab2015bd2f"
+      },
+      {
+        "id": "emitter-text-writer",
+        "path": "crates/emitter/src/writer.rs",
+        "line": 28,
+        "column": 1,
+        "text": "pub struct TextWriter {",
+        "text_sha256": "7b734811755d47e0c85b6139208b95d862f5d7db46da45c9459aaecb6e63286f",
+        "file_sha256": "26037baa960644ad971c33c1ce2774a4801c142a781c45950baeb76e7e3aee14"
+      },
+      {
+        "id": "emitter-printer-factory",
+        "path": "crates/emitter/src/printer.rs",
+        "line": 163,
+        "column": 1,
+        "text": "pub const fn create_printer(options: PrinterOptions) -> Printer {",
+        "text_sha256": "ad5575a93d7bc5976768228967001d7add6871a47da1b0316d75313def10d0f8",
+        "file_sha256": "47a17f1f5f7bcab6043d676f4754e5a2c6d776b555982e15f4558fb9c785b283"
+      },
+      {
+        "id": "emitter-position-domains",
+        "path": "crates/emitter/src/position.rs",
+        "line": 69,
+        "column": 1,
+        "text": "pub enum SourceRange {",
+        "text_sha256": "c000e2e0be185e253b9d0b9e3e2ac3b14ebb42854abc480b7c8ce866c00f428f",
+        "file_sha256": "7ebf0bb8faa88a79ffe06886f6d2096416f63c23fd2e19967822841141b94688"
+      },
+      {
+        "id": "emitter-source-map-recorder",
+        "path": "crates/emitter/src/printer.rs",
+        "line": 137,
+        "column": 1,
+        "text": "pub trait SourceMapRecorder {",
+        "text_sha256": "76298cd03affa09442e1ee73bff9ba404f8ce719406bc4d5d1c45e0461acd461",
+        "file_sha256": "47a17f1f5f7bcab6043d676f4754e5a2c6d776b555982e15f4558fb9c785b283"
       },
       {
         "id": "prepared-program-emitting-builder",
@@ -854,7 +895,7 @@
         "column": 1,
         "text": "pub struct CompilerOptions {",
         "text_sha256": "26ecd93b5a351f3bfc7897c600ee93f422303b72187b8f49fa50bb10e97dbaed",
-        "file_sha256": "002620757c9844eacd85a5f490cd83df9e6719d437ba9ba6ae203270bf918da0"
+        "file_sha256": "24fdfd713c42c70b70fdb9f26a9fb7eec956f7ecc32d1f9c3a2ad3bd0edaa901"
       },
       {
         "id": "compiler-options-bootstrap-scalars",
@@ -863,7 +904,7 @@
         "column": 5,
         "text": "pub target: Option<i32>,\n    /// tsc ModuleKind value; None when the option is absent.",
         "text_sha256": "72849bd6c27037777c9a8702e8a896ed5180945b9a3c6e6399e6d7ac28c4df17",
-        "file_sha256": "002620757c9844eacd85a5f490cd83df9e6719d437ba9ba6ae203270bf918da0"
+        "file_sha256": "24fdfd713c42c70b70fdb9f26a9fb7eec956f7ecc32d1f9c3a2ad3bd0edaa901"
       },
       {
         "id": "compiler-options-class-fields",
@@ -872,7 +913,7 @@
         "column": 5,
         "text": "pub use_define_for_class_fields: Option<bool>,",
         "text_sha256": "4a2e57ffc561b38f20b1d02ff112ac6299bac6498a0583cfc1bdb3bbaff78474",
-        "file_sha256": "002620757c9844eacd85a5f490cd83df9e6719d437ba9ba6ae203270bf918da0"
+        "file_sha256": "24fdfd713c42c70b70fdb9f26a9fb7eec956f7ecc32d1f9c3a2ad3bd0edaa901"
       },
       {
         "id": "compiler-options-no-emit",
@@ -881,7 +922,43 @@
         "column": 5,
         "text": "pub no_emit: Option<bool>,",
         "text_sha256": "bfa25442fb2488d03706d502b88b76e651350f20e40f4051056cf1b99d2d9ce0",
-        "file_sha256": "002620757c9844eacd85a5f490cd83df9e6719d437ba9ba6ae203270bf918da0"
+        "file_sha256": "24fdfd713c42c70b70fdb9f26a9fb7eec956f7ecc32d1f9c3a2ad3bd0edaa901"
+      },
+      {
+        "id": "compiler-options-new-line",
+        "path": "crates/types/src/options.rs",
+        "line": 201,
+        "column": 5,
+        "text": "pub new_line: Option<i32>,",
+        "text_sha256": "93f0e2e3378c1b520fdcf5beb6390f647adcf4e008f4877e6176b54dc6cb388a",
+        "file_sha256": "24fdfd713c42c70b70fdb9f26a9fb7eec956f7ecc32d1f9c3a2ad3bd0edaa901"
+      },
+      {
+        "id": "compiler-options-remove-comments",
+        "path": "crates/types/src/options.rs",
+        "line": 204,
+        "column": 5,
+        "text": "pub remove_comments: Option<bool>,",
+        "text_sha256": "76a9e83ac783b8d2ca87042b54bbcea595186a03e3fc5886e8753e9a18f72286",
+        "file_sha256": "24fdfd713c42c70b70fdb9f26a9fb7eec956f7ecc32d1f9c3a2ad3bd0edaa901"
+      },
+      {
+        "id": "compiler-options-no-implicit-use-strict",
+        "path": "crates/types/src/options.rs",
+        "line": 207,
+        "column": 5,
+        "text": "pub no_implicit_use_strict: Option<bool>,",
+        "text_sha256": "696627f9b67f69259d63411a930db1d5a04984b92bb8b64e989a1386db4d2808",
+        "file_sha256": "24fdfd713c42c70b70fdb9f26a9fb7eec956f7ecc32d1f9c3a2ad3bd0edaa901"
+      },
+      {
+        "id": "compiler-options-no-emit-helpers",
+        "path": "crates/types/src/options.rs",
+        "line": 210,
+        "column": 5,
+        "text": "pub no_emit_helpers: Option<bool>,",
+        "text_sha256": "8f5ef00bd1995716ebc5e58ccc51b9d5609091f1a7b173058bbcf8df3f83cc28",
+        "file_sha256": "24fdfd713c42c70b70fdb9f26a9fb7eec956f7ecc32d1f9c3a2ad3bd0edaa901"
       },
       {
         "id": "binder-source-aggregate-emit-flags",
@@ -908,7 +985,7 @@
         "column": 5,
         "text": "A config without an explicit\n/// `noEmit: true` is rejected before `load_program`",
         "text_sha256": "161a551a4d1b128d9d948b1d08261a98bd294a5e7bb6fecdfc5aa1dfb3ff004d",
-        "file_sha256": "df5c86b1264402f67d898f030166cab4a19798e1f8fdd687753c6b4e6b99318c"
+        "file_sha256": "ec45d7d4257ca952627b60e70e1f7ab89a130634c1d3c57c80ea9f27bae0bce4"
       },
       {
         "id": "cli-explicit-root-no-emit-gate",
@@ -935,7 +1012,7 @@
         "column": 5,
         "text": "out_dir: Option<String>,\n    declaration_dir: Option<String>,",
         "text_sha256": "a8617177e430f042fb859063fe81c6befc627994db9f901f674fb6b6c436373d",
-        "file_sha256": "df5c86b1264402f67d898f030166cab4a19798e1f8fdd687753c6b4e6b99318c"
+        "file_sha256": "ec45d7d4257ca952627b60e70e1f7ab89a130634c1d3c57c80ea9f27bae0bce4"
       },
       {
         "id": "program-snapshot-owner",
@@ -1216,18 +1293,10 @@
         "matches": []
       },
       {
-        "id": "transform-session-types",
+        "id": "active-transform-and-output-functions",
         "kind": "regex-zero",
         "scope": "production-rust",
-        "expression": "^[ \\t]*(?:pub(?:\\([^)]*\\))?[ \\t]+)?(?:struct|enum|trait|type)[ \\t]+(?:TransformFlags|EmitNode|EmitMetadata|NodeFactory|TransformArena|TransformationContext|TransformationResult)\\b",
-        "match_count": 0,
-        "matches": []
-      },
-      {
-        "id": "transform-printer-output-functions",
-        "kind": "regex-zero",
-        "scope": "production-rust",
-        "expression": "^[ \\t]*(?:pub(?:\\([^)]*\\))?[ \\t]+)?fn[ \\t]+(?:transform_nodes|create_text_writer|create_printer|transform_type_script|transform_class_fields|transform_ecmascript_module|get_source_files_to_emit|get_output_paths_for|for_each_emitted_file|emit_files)[ \\t]*\\(",
+        "expression": "^[ \\t]*(?:pub(?:\\([^)]*\\))?[ \\t]+)?fn[ \\t]+(?:transform_type_script|transform_class_fields|transform_ecmascript_module|get_source_files_to_emit|get_output_paths_for|for_each_emitted_file|emit_files)[ \\t]*\\(",
         "match_count": 0,
         "matches": []
       },
@@ -1241,5 +1310,5 @@
       }
     ]
   },
-  "inventory_fingerprint_sha256": "eefaf991cfbd6ca710acc13f278b5906eda87fdabc6abd2f198e7aad162820bb"
+  "inventory_fingerprint_sha256": "c4175e7889d4592726363023a16797ceb309ac5381a20f61a3df1c5ce34bdb25"
 }
