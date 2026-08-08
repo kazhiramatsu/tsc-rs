@@ -101,9 +101,12 @@ session modes reject unsupported emission before a sink call. H1.2 is also
 complete: detached emit-session syntax, sparse transform/emit side tables,
 factory/original-node rules, transform lifecycle, byte/UTF-16 position types,
 the text writer, disabled map phases, and the whole-source printer pipeline
-are pinned by direct TypeScript Unicode/newline oracles. H1.3 next activates
-the bounded transformer/resolver slice; transformed JavaScript output is not
-yet claimed. Ordinary
+are pinned by direct TypeScript Unicode/newline oracles. H1.3 is complete: the
+exact three-transform bootstrap order now performs active type erasure, the
+checker lends live alias/reference facts through a scoped fail-closed resolver,
+and changed import/export plus bootstrap node workers match the new vendored
+`h1-active-transform` oracle. H1.4 next connects source/output planning and
+`MemoryOutputSink`; production JavaScript output is not yet claimed. Ordinary
 GitHub CI remains
 the single `cargo xtask acceptance` command. Runtime implementation is
 unblocked by the completed L0 persistent-source and L1 incremental-parser
@@ -235,7 +238,7 @@ is one commit.
 | M9 differential-fuzzer steady state — paused after M9.1b | [M9 execution](m9-execution-and-close.md) + [evidence contract](evidence-and-steady-state.md#31-m9-steady-state) | preflight/domain/owner burn-in green, then `fuzz steady-state --require-ready`: 14 frozen-fingerprint 100,000-case windows, rate < 1 new class/window, no untriaged incident or unresolved owner task |
 | H0 filesystem-hosted `--noEmit` — complete | [H0 execution](noemit-cli.md) | exact closure of the 241 host-resolution identities, MemoryHost/FsHost equivalence, config/CLI/output parity, embedded libraries, no emitted files |
 | L0/L1 persistent source + incremental parser — complete and performance-qualified | [persistent Program design](lsp-and-incremental.md) | shared text/position snapshots, domain-scoped identity leases, generated relocation, non-contiguous ownership, owned bind/Program snapshots, immutable incremental parse/rebind, exact fresh equivalence, reclamation stress, and approved large-edit evidence |
-| H1 JavaScript emit — H1.0a/H1.0b, H1.1 typed execution spine, and H1.2 factory/transform/printer foundation complete | [H1 execution](h1-emit.md) | reviewed active-root graph, exact callback oracle, generated current-Rust residual, complete upstream classifications, frozen zero-cost H0 `--noEmit` boundary, typed artifact/plan/sink/outcome session seam, and direct writer/position/printer-foundation oracle; H1.3–H1.6 add byte-identical bounded JavaScript output and resource qualification |
+| H1 JavaScript emit — H1.0a/H1.0b, H1.1 typed execution spine, H1.2 factory/transform/printer foundation, and H1.3 active transformer/scoped resolver complete | [H1 execution](h1-emit.md) | reviewed active-root graph, exact callback and active-transform oracles, generated current-Rust residual, complete upstream classifications, frozen zero-cost H0 `--noEmit` boundary, typed artifact/plan/sink/outcome session seam, direct writer/position/printer foundation, and real checker-driven alias elision; H1.4–H1.6 add production output execution, filesystem/CLI behavior, and resource qualification |
 
 The T0 percentages are calibration points from the first
 implementation's history, not promises; the gate is "meets or beats,

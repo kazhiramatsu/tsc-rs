@@ -2,6 +2,7 @@ use std::error::Error;
 use std::fmt;
 
 use tsc_syntax::{scan_tokens, skip_trivia, NodeData, SyntaxKind};
+use tsc_types::NodeFlags;
 
 use crate::{
     create_text_writer, EmitFlags, EmitHint, GeneratedUtf16Location, NewLineKind,
@@ -169,12 +170,12 @@ impl Printer {
         self.options
     }
 
-    /// The H1.2 executable printer surface. Its dispatch is already generic,
-    /// while only the whole-source JavaScript arm is constructible in this
-    /// slice. Later node workers reuse this pipeline rather than replacing it.
+    /// The generic H1 printer surface. H1.2 established the exact whole-source
+    /// identity arm; H1.3 adds the bounded changed-node JavaScript workers
+    /// while the remaining request/product axes stay typed controls.
     pub fn print(
         &self,
-        transformation: &mut TransformationResult,
+        transformation: &mut TransformationResult<'_>,
         request: PrintRequest,
         recorder: &mut dyn SourceMapRecorder,
     ) -> Result<PrintedText, PrinterError> {
@@ -205,7 +206,7 @@ impl Printer {
 
     fn print_source_file(
         &self,
-        transformation: &mut TransformationResult,
+        transformation: &mut TransformationResult<'_>,
         source_id: TransformSourceId,
         recorder: &mut dyn SourceMapRecorder,
     ) -> Result<PrintedText, PrinterError> {
@@ -254,6 +255,21 @@ impl Printer {
             )
         };
         let _ = language_variant;
+
+        if transformation
+            .arena()
+            .metadata(root)
+            .and_then(crate::EmitMetadata::original)
+            .is_some()
+        {
+            return self.print_transformed_source_file(
+                transformation,
+                source_id,
+                root,
+                statements,
+                recorder,
+            );
+        }
 
         transformation.before_emit_node(EmitHint::SourceFile, root)?;
         let substituted_root = transformation.substitute_node(EmitHint::SourceFile, root)?;
@@ -330,9 +346,806 @@ impl Printer {
         })
     }
 
+    fn print_transformed_source_file(
+        &self,
+        transformation: &mut TransformationResult<'_>,
+        source_id: TransformSourceId,
+        root: TransformNode,
+        statements: Vec<tsc_syntax::NodeId>,
+        recorder: &mut dyn SourceMapRecorder,
+    ) -> Result<PrintedText, PrinterError> {
+        transformation.before_emit_node(EmitHint::SourceFile, root)?;
+        let emitted_root = transformation.substitute_node(EmitHint::SourceFile, root)?;
+        if emitted_root != root {
+            transformation.after_emit_node(EmitHint::SourceFile, root)?;
+            return Err(PrinterError::TransformedNodeWorkerUnavailable(emitted_root));
+        }
+
+        let mut writer = create_text_writer(self.options.new_line);
+        for raw_statement in statements {
+            let statement = transformation
+                .arena()
+                .node_ref(source_id, raw_statement)
+                .ok_or(PrinterError::UnknownStatement(raw_statement.0))?;
+            transformation.before_emit_node(EmitHint::Unspecified, statement)?;
+            let emitted = transformation.substitute_node(EmitHint::Unspecified, statement)?;
+            self.record_node_hook(
+                transformation,
+                recorder,
+                SourceMapHookPhase::BeforeNode,
+                emitted,
+                &writer,
+            )?;
+            self.emit_transformed_node(transformation, emitted, &mut writer)?;
+            self.record_node_hook(
+                transformation,
+                recorder,
+                SourceMapHookPhase::AfterNode,
+                emitted,
+                &writer,
+            )?;
+            transformation.after_emit_node(EmitHint::Unspecified, statement)?;
+            writer.write_line(false);
+        }
+        transformation.after_emit_node(EmitHint::SourceFile, root)?;
+        Ok(PrintedText {
+            text: writer.text().to_owned(),
+            end: writer.location(),
+        })
+    }
+
+    fn emit_transformed_node(
+        &self,
+        transformation: &mut TransformationResult<'_>,
+        node: TransformNode,
+        writer: &mut TextWriter,
+    ) -> Result<(), PrinterError> {
+        let record = transformation.arena().node(node)?.clone();
+        let changed = transformation
+            .arena()
+            .metadata(node)
+            .and_then(crate::EmitMetadata::original)
+            .is_some()
+            || NodeFlags::from_bits(record.flags).contains(NodeFlags::SYNTHESIZED);
+        if !changed {
+            return self.write_original_without_leading_trivia(transformation, node, writer);
+        }
+
+        match record.data {
+            NodeData::ImportDeclaration(data) => {
+                if data.attributes.is_some() {
+                    return Err(PrinterError::UnsupportedTransformedSyntax {
+                        node,
+                        kind: record.kind,
+                    });
+                }
+                if self.emit_modifiers(transformation, node.source(), data.modifiers, writer)? {
+                    writer.write_space(" ");
+                }
+                writer.write_keyword("import");
+                if let Some(clause) = data.import_clause {
+                    writer.write_space(" ");
+                    self.emit_node_id(transformation, node.source(), clause, writer)?;
+                    writer.write_space(" ");
+                    writer.write_keyword("from");
+                }
+                writer.write_space(" ");
+                self.emit_required_node(
+                    transformation,
+                    node.source(),
+                    data.module_specifier,
+                    SyntaxKind::ImportDeclaration,
+                    "module_specifier",
+                    writer,
+                )?;
+                writer.write_trailing_semicolon(";");
+                Ok(())
+            }
+            NodeData::ImportClause(data) => {
+                if data.is_type_only || data.phase_modifier.is_some() {
+                    return Err(PrinterError::UnsupportedTransformedSyntax {
+                        node,
+                        kind: record.kind,
+                    });
+                }
+                if let Some(name) = data.name {
+                    self.emit_node_id(transformation, node.source(), name, writer)?;
+                    if data.named_bindings.is_some() {
+                        writer.write_punctuation(",");
+                        writer.write_space(" ");
+                    }
+                }
+                if let Some(bindings) = data.named_bindings {
+                    self.emit_node_id(transformation, node.source(), bindings, writer)?;
+                }
+                Ok(())
+            }
+            NodeData::NamespaceImport(data) => {
+                writer.write_operator("*");
+                writer.write_space(" ");
+                writer.write_keyword("as");
+                writer.write_space(" ");
+                self.emit_required_node(
+                    transformation,
+                    node.source(),
+                    data.name,
+                    SyntaxKind::NamespaceImport,
+                    "name",
+                    writer,
+                )
+            }
+            NodeData::NamedImports(data) => self.emit_named_import_or_export_list(
+                transformation,
+                node.source(),
+                data.elements,
+                writer,
+            ),
+            NodeData::ImportSpecifier(data) => {
+                if data.is_type_only {
+                    return Err(PrinterError::UnsupportedTransformedSyntax {
+                        node,
+                        kind: record.kind,
+                    });
+                }
+                self.emit_renamed_specifier(
+                    transformation,
+                    node.source(),
+                    data.property_name,
+                    data.name,
+                    SyntaxKind::ImportSpecifier,
+                    writer,
+                )
+            }
+            NodeData::ExportDeclaration(data) => {
+                if data.is_type_only || data.attributes.is_some() {
+                    return Err(PrinterError::UnsupportedTransformedSyntax {
+                        node,
+                        kind: record.kind,
+                    });
+                }
+                if self.emit_modifiers(transformation, node.source(), data.modifiers, writer)? {
+                    writer.write_space(" ");
+                }
+                writer.write_keyword("export");
+                writer.write_space(" ");
+                if let Some(clause) = data.export_clause {
+                    self.emit_node_id(transformation, node.source(), clause, writer)?;
+                } else {
+                    writer.write_operator("*");
+                }
+                if let Some(module_specifier) = data.module_specifier {
+                    writer.write_space(" ");
+                    writer.write_keyword("from");
+                    writer.write_space(" ");
+                    self.emit_node_id(transformation, node.source(), module_specifier, writer)?;
+                }
+                writer.write_trailing_semicolon(";");
+                Ok(())
+            }
+            NodeData::NamedExports(data) => self.emit_named_import_or_export_list(
+                transformation,
+                node.source(),
+                data.elements,
+                writer,
+            ),
+            NodeData::NamespaceExport(data) => {
+                writer.write_operator("*");
+                writer.write_space(" ");
+                writer.write_keyword("as");
+                writer.write_space(" ");
+                self.emit_required_node(
+                    transformation,
+                    node.source(),
+                    data.name,
+                    SyntaxKind::NamespaceExport,
+                    "name",
+                    writer,
+                )
+            }
+            NodeData::ExportSpecifier(data) => {
+                if data.is_type_only {
+                    return Err(PrinterError::UnsupportedTransformedSyntax {
+                        node,
+                        kind: record.kind,
+                    });
+                }
+                self.emit_renamed_specifier(
+                    transformation,
+                    node.source(),
+                    data.property_name,
+                    data.name,
+                    SyntaxKind::ExportSpecifier,
+                    writer,
+                )
+            }
+            NodeData::ExportAssignment(data) => {
+                if data.is_export_equals == Some(true) {
+                    return Err(PrinterError::UnsupportedTransformedSyntax {
+                        node,
+                        kind: record.kind,
+                    });
+                }
+                if self.emit_modifiers(transformation, node.source(), data.modifiers, writer)? {
+                    writer.write_space(" ");
+                }
+                writer.write_keyword("export");
+                writer.write_space(" ");
+                writer.write_keyword("default");
+                writer.write_space(" ");
+                self.emit_required_node(
+                    transformation,
+                    node.source(),
+                    data.expression,
+                    SyntaxKind::ExportAssignment,
+                    "expression",
+                    writer,
+                )?;
+                writer.write_trailing_semicolon(";");
+                Ok(())
+            }
+            NodeData::VariableStatement(data) => {
+                if self.emit_modifiers(transformation, node.source(), data.modifiers, writer)? {
+                    writer.write_space(" ");
+                }
+                self.emit_required_node(
+                    transformation,
+                    node.source(),
+                    data.declaration_list,
+                    SyntaxKind::VariableStatement,
+                    "declaration_list",
+                    writer,
+                )?;
+                writer.write_trailing_semicolon(";");
+                Ok(())
+            }
+            NodeData::VariableDeclarationList(data) => {
+                let flags = NodeFlags::from_bits(record.flags);
+                writer.write_keyword(if flags.contains(NodeFlags::CONST) {
+                    "const"
+                } else if flags.contains(NodeFlags::LET) {
+                    "let"
+                } else {
+                    "var"
+                });
+                writer.write_space(" ");
+                self.emit_node_array(
+                    transformation,
+                    node.source(),
+                    data.declarations,
+                    ", ",
+                    writer,
+                )
+            }
+            NodeData::VariableDeclaration(data) => {
+                self.emit_required_node(
+                    transformation,
+                    node.source(),
+                    data.name,
+                    SyntaxKind::VariableDeclaration,
+                    "name",
+                    writer,
+                )?;
+                if let Some(initializer) = data.initializer {
+                    writer.write_space(" ");
+                    writer.write_operator("=");
+                    writer.write_space(" ");
+                    self.emit_node_id(transformation, node.source(), initializer, writer)?;
+                }
+                Ok(())
+            }
+            NodeData::FunctionDeclaration(data) => {
+                if self.emit_modifiers(transformation, node.source(), data.modifiers, writer)? {
+                    writer.write_space(" ");
+                }
+                writer.write_keyword("function");
+                if let Some(asterisk) = data.asterisk_token {
+                    self.emit_node_id(transformation, node.source(), asterisk, writer)?;
+                }
+                if let Some(name) = data.name {
+                    writer.write_space(" ");
+                    self.emit_node_id(transformation, node.source(), name, writer)?;
+                }
+                self.emit_parameter_list(transformation, node.source(), data.parameters, writer)?;
+                if let Some(body) = data.body {
+                    writer.write_space(" ");
+                    self.emit_node_id(transformation, node.source(), body, writer)?;
+                }
+                Ok(())
+            }
+            NodeData::FunctionExpression(data) => {
+                if self.emit_modifiers(transformation, node.source(), data.modifiers, writer)? {
+                    writer.write_space(" ");
+                }
+                writer.write_keyword("function");
+                if let Some(asterisk) = data.asterisk_token {
+                    self.emit_node_id(transformation, node.source(), asterisk, writer)?;
+                }
+                if let Some(name) = data.name {
+                    writer.write_space(" ");
+                    self.emit_node_id(transformation, node.source(), name, writer)?;
+                }
+                self.emit_parameter_list(transformation, node.source(), data.parameters, writer)?;
+                if let Some(body) = data.body {
+                    writer.write_space(" ");
+                    self.emit_node_id(transformation, node.source(), body, writer)?;
+                }
+                Ok(())
+            }
+            NodeData::ArrowFunction(data) => {
+                if self.emit_modifiers(transformation, node.source(), data.modifiers, writer)? {
+                    writer.write_space(" ");
+                }
+                self.emit_parameter_list(transformation, node.source(), data.parameters, writer)?;
+                writer.write_space(" ");
+                writer.write_operator("=>");
+                writer.write_space(" ");
+                self.emit_required_node(
+                    transformation,
+                    node.source(),
+                    data.body,
+                    SyntaxKind::ArrowFunction,
+                    "body",
+                    writer,
+                )
+            }
+            NodeData::Parameter(data) => {
+                if self.emit_modifiers(transformation, node.source(), data.modifiers, writer)? {
+                    writer.write_space(" ");
+                }
+                if let Some(rest) = data.dot_dot_dot_token {
+                    self.emit_node_id(transformation, node.source(), rest, writer)?;
+                }
+                self.emit_required_node(
+                    transformation,
+                    node.source(),
+                    data.name,
+                    SyntaxKind::Parameter,
+                    "name",
+                    writer,
+                )?;
+                if let Some(initializer) = data.initializer {
+                    writer.write_space(" ");
+                    writer.write_operator("=");
+                    writer.write_space(" ");
+                    self.emit_node_id(transformation, node.source(), initializer, writer)?;
+                }
+                Ok(())
+            }
+            NodeData::ClassDeclaration(data) => self.emit_class(
+                transformation,
+                node.source(),
+                data.modifiers,
+                data.name,
+                data.heritage_clauses,
+                data.members,
+                false,
+                writer,
+            ),
+            NodeData::ClassExpression(data) => self.emit_class(
+                transformation,
+                node.source(),
+                data.modifiers,
+                data.name,
+                data.heritage_clauses,
+                data.members,
+                true,
+                writer,
+            ),
+            NodeData::PropertyDeclaration(data) => {
+                if self.emit_modifiers(transformation, node.source(), data.modifiers, writer)? {
+                    writer.write_space(" ");
+                }
+                self.emit_required_node(
+                    transformation,
+                    node.source(),
+                    data.name,
+                    SyntaxKind::PropertyDeclaration,
+                    "name",
+                    writer,
+                )?;
+                if let Some(initializer) = data.initializer {
+                    writer.write_space(" ");
+                    writer.write_operator("=");
+                    writer.write_space(" ");
+                    self.emit_node_id(transformation, node.source(), initializer, writer)?;
+                }
+                writer.write_trailing_semicolon(";");
+                Ok(())
+            }
+            NodeData::Constructor(data) => {
+                writer.write_keyword("constructor");
+                self.emit_parameter_list(transformation, node.source(), data.parameters, writer)?;
+                if let Some(body) = data.body {
+                    writer.write_space(" ");
+                    self.emit_node_id(transformation, node.source(), body, writer)?;
+                }
+                Ok(())
+            }
+            NodeData::MethodDeclaration(data) => {
+                if self.emit_modifiers(transformation, node.source(), data.modifiers, writer)? {
+                    writer.write_space(" ");
+                }
+                if let Some(asterisk) = data.asterisk_token {
+                    self.emit_node_id(transformation, node.source(), asterisk, writer)?;
+                }
+                self.emit_required_node(
+                    transformation,
+                    node.source(),
+                    data.name,
+                    SyntaxKind::MethodDeclaration,
+                    "name",
+                    writer,
+                )?;
+                self.emit_parameter_list(transformation, node.source(), data.parameters, writer)?;
+                if let Some(body) = data.body {
+                    writer.write_space(" ");
+                    self.emit_node_id(transformation, node.source(), body, writer)?;
+                }
+                Ok(())
+            }
+            NodeData::GetAccessor(data) => {
+                if self.emit_modifiers(transformation, node.source(), data.modifiers, writer)? {
+                    writer.write_space(" ");
+                }
+                writer.write_keyword("get");
+                writer.write_space(" ");
+                self.emit_required_node(
+                    transformation,
+                    node.source(),
+                    data.name,
+                    SyntaxKind::GetAccessor,
+                    "name",
+                    writer,
+                )?;
+                self.emit_parameter_list(transformation, node.source(), data.parameters, writer)?;
+                if let Some(body) = data.body {
+                    writer.write_space(" ");
+                    self.emit_node_id(transformation, node.source(), body, writer)?;
+                }
+                Ok(())
+            }
+            NodeData::SetAccessor(data) => {
+                if self.emit_modifiers(transformation, node.source(), data.modifiers, writer)? {
+                    writer.write_space(" ");
+                }
+                writer.write_keyword("set");
+                writer.write_space(" ");
+                self.emit_required_node(
+                    transformation,
+                    node.source(),
+                    data.name,
+                    SyntaxKind::SetAccessor,
+                    "name",
+                    writer,
+                )?;
+                self.emit_parameter_list(transformation, node.source(), data.parameters, writer)?;
+                if let Some(body) = data.body {
+                    writer.write_space(" ");
+                    self.emit_node_id(transformation, node.source(), body, writer)?;
+                }
+                Ok(())
+            }
+            NodeData::PartiallyEmittedExpression(data) => self.emit_required_node(
+                transformation,
+                node.source(),
+                data.expression,
+                SyntaxKind::PartiallyEmittedExpression,
+                "expression",
+                writer,
+            ),
+            NodeData::NewExpression(data) => {
+                writer.write_keyword("new");
+                writer.write_space(" ");
+                self.emit_required_node(
+                    transformation,
+                    node.source(),
+                    data.expression,
+                    SyntaxKind::NewExpression,
+                    "expression",
+                    writer,
+                )?;
+                if data.arguments.is_some() {
+                    writer.write_punctuation("(");
+                    self.emit_node_array(
+                        transformation,
+                        node.source(),
+                        data.arguments,
+                        ", ",
+                        writer,
+                    )?;
+                    writer.write_punctuation(")");
+                }
+                Ok(())
+            }
+            NodeData::CallExpression(data) => {
+                self.emit_required_node(
+                    transformation,
+                    node.source(),
+                    data.expression,
+                    SyntaxKind::CallExpression,
+                    "expression",
+                    writer,
+                )?;
+                if data.question_dot_token.is_some() {
+                    writer.write_punctuation("?.");
+                }
+                writer.write_punctuation("(");
+                self.emit_node_array(transformation, node.source(), data.arguments, ", ", writer)?;
+                writer.write_punctuation(")");
+                Ok(())
+            }
+            NodeData::ParenthesizedExpression(data) => {
+                writer.write_punctuation("(");
+                self.emit_required_node(
+                    transformation,
+                    node.source(),
+                    data.expression,
+                    SyntaxKind::ParenthesizedExpression,
+                    "expression",
+                    writer,
+                )?;
+                writer.write_punctuation(")");
+                Ok(())
+            }
+            NodeData::BinaryExpression(data) => {
+                self.emit_required_node(
+                    transformation,
+                    node.source(),
+                    data.left,
+                    SyntaxKind::BinaryExpression,
+                    "left",
+                    writer,
+                )?;
+                writer.write_space(" ");
+                self.emit_required_node(
+                    transformation,
+                    node.source(),
+                    data.operator_token,
+                    SyntaxKind::BinaryExpression,
+                    "operator_token",
+                    writer,
+                )?;
+                writer.write_space(" ");
+                self.emit_required_node(
+                    transformation,
+                    node.source(),
+                    data.right,
+                    SyntaxKind::BinaryExpression,
+                    "right",
+                    writer,
+                )
+            }
+            NodeData::Block(data) => {
+                writer.write_punctuation("{");
+                if data.statements.is_some() {
+                    writer.write_line(false);
+                    writer.increase_indent();
+                    let array = data
+                        .statements
+                        .and_then(|id| transformation.arena().node_array_ref(node.source(), id));
+                    if let Some(array) = array {
+                        let statements = transformation.arena().node_array(array)?.nodes.clone();
+                        for statement in statements {
+                            self.emit_node_id(transformation, node.source(), statement, writer)?;
+                            writer.write_line(false);
+                        }
+                    }
+                    writer.decrease_indent();
+                }
+                writer.write_punctuation("}");
+                Ok(())
+            }
+            _ => Err(PrinterError::UnsupportedTransformedSyntax {
+                node,
+                kind: record.kind,
+            }),
+        }
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn emit_class(
+        &self,
+        transformation: &mut TransformationResult<'_>,
+        source: TransformSourceId,
+        modifiers: Option<tsc_syntax::NodeArrayId>,
+        name: Option<tsc_syntax::NodeId>,
+        heritage_clauses: Option<tsc_syntax::NodeArrayId>,
+        members: Option<tsc_syntax::NodeArrayId>,
+        expression: bool,
+        writer: &mut TextWriter,
+    ) -> Result<(), PrinterError> {
+        if self.emit_modifiers(transformation, source, modifiers, writer)? {
+            writer.write_space(" ");
+        }
+        writer.write_keyword("class");
+        if let Some(name) = name {
+            writer.write_space(" ");
+            self.emit_node_id(transformation, source, name, writer)?;
+        } else if !expression {
+            return Err(PrinterError::MissingTransformedChild {
+                parent: SyntaxKind::ClassDeclaration,
+                field: "name",
+            });
+        }
+        if heritage_clauses.is_some() {
+            writer.write_space(" ");
+            self.emit_node_array(transformation, source, heritage_clauses, " ", writer)?;
+        }
+        writer.write_space(" ");
+        writer.write_punctuation("{");
+        let member_array = members.and_then(|id| transformation.arena().node_array_ref(source, id));
+        if let Some(member_array) = member_array {
+            let member_ids = transformation
+                .arena()
+                .node_array(member_array)?
+                .nodes
+                .clone();
+            if !member_ids.is_empty() {
+                writer.write_line(false);
+                writer.increase_indent();
+                for member in member_ids {
+                    self.emit_node_id(transformation, source, member, writer)?;
+                    writer.write_line(false);
+                }
+                writer.decrease_indent();
+            }
+        }
+        writer.write_punctuation("}");
+        Ok(())
+    }
+
+    fn emit_parameter_list(
+        &self,
+        transformation: &mut TransformationResult<'_>,
+        source: TransformSourceId,
+        parameters: Option<tsc_syntax::NodeArrayId>,
+        writer: &mut TextWriter,
+    ) -> Result<(), PrinterError> {
+        writer.write_punctuation("(");
+        self.emit_node_array(transformation, source, parameters, ", ", writer)?;
+        writer.write_punctuation(")");
+        Ok(())
+    }
+
+    fn emit_named_import_or_export_list(
+        &self,
+        transformation: &mut TransformationResult<'_>,
+        source: TransformSourceId,
+        elements: Option<tsc_syntax::NodeArrayId>,
+        writer: &mut TextWriter,
+    ) -> Result<(), PrinterError> {
+        writer.write_punctuation("{");
+        let non_empty = elements
+            .and_then(|id| transformation.arena().node_array_ref(source, id))
+            .is_some_and(|array| {
+                transformation
+                    .arena()
+                    .node_array(array)
+                    .is_ok_and(|array| !array.nodes.is_empty())
+            });
+        if non_empty {
+            writer.write_space(" ");
+            self.emit_node_array(transformation, source, elements, ", ", writer)?;
+            writer.write_space(" ");
+        }
+        writer.write_punctuation("}");
+        Ok(())
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn emit_renamed_specifier(
+        &self,
+        transformation: &mut TransformationResult<'_>,
+        source: TransformSourceId,
+        property_name: Option<tsc_syntax::NodeId>,
+        name: Option<tsc_syntax::NodeId>,
+        parent: SyntaxKind,
+        writer: &mut TextWriter,
+    ) -> Result<(), PrinterError> {
+        if let Some(property_name) = property_name {
+            self.emit_node_id(transformation, source, property_name, writer)?;
+            writer.write_space(" ");
+            writer.write_keyword("as");
+            writer.write_space(" ");
+        }
+        self.emit_required_node(transformation, source, name, parent, "name", writer)
+    }
+
+    fn emit_modifiers(
+        &self,
+        transformation: &mut TransformationResult<'_>,
+        source: TransformSourceId,
+        modifiers: Option<tsc_syntax::NodeArrayId>,
+        writer: &mut TextWriter,
+    ) -> Result<bool, PrinterError> {
+        let present = modifiers
+            .and_then(|id| transformation.arena().node_array_ref(source, id))
+            .is_some_and(|array| {
+                transformation
+                    .arena()
+                    .node_array(array)
+                    .is_ok_and(|array| !array.nodes.is_empty())
+            });
+        self.emit_node_array(transformation, source, modifiers, " ", writer)?;
+        Ok(present)
+    }
+
+    fn emit_node_array(
+        &self,
+        transformation: &mut TransformationResult<'_>,
+        source: TransformSourceId,
+        array: Option<tsc_syntax::NodeArrayId>,
+        separator: &str,
+        writer: &mut TextWriter,
+    ) -> Result<(), PrinterError> {
+        let Some(array) = array.and_then(|id| transformation.arena().node_array_ref(source, id))
+        else {
+            return Ok(());
+        };
+        let ids = transformation.arena().node_array(array)?.nodes.clone();
+        for (index, id) in ids.into_iter().enumerate() {
+            if index != 0 {
+                writer.write(separator);
+            }
+            self.emit_node_id(transformation, source, id, writer)?;
+        }
+        Ok(())
+    }
+
+    fn emit_required_node(
+        &self,
+        transformation: &mut TransformationResult<'_>,
+        source: TransformSourceId,
+        id: Option<tsc_syntax::NodeId>,
+        parent: SyntaxKind,
+        field: &'static str,
+        writer: &mut TextWriter,
+    ) -> Result<(), PrinterError> {
+        let id = id.ok_or(PrinterError::MissingTransformedChild { parent, field })?;
+        self.emit_node_id(transformation, source, id, writer)
+    }
+
+    fn emit_node_id(
+        &self,
+        transformation: &mut TransformationResult<'_>,
+        source: TransformSourceId,
+        id: tsc_syntax::NodeId,
+        writer: &mut TextWriter,
+    ) -> Result<(), PrinterError> {
+        let node = transformation
+            .arena()
+            .node_ref(source, id)
+            .ok_or(PrinterError::UnknownStatement(id.0))?;
+        let substituted = transformation.substitute_node(EmitHint::Unspecified, node)?;
+        self.emit_transformed_node(transformation, substituted, writer)
+    }
+
+    fn write_original_without_leading_trivia(
+        &self,
+        transformation: &TransformationResult<'_>,
+        node: TransformNode,
+        writer: &mut TextWriter,
+    ) -> Result<(), PrinterError> {
+        let source = transformation.arena().source(node.source())?.syntax();
+        let record = transformation.arena().node(node)?;
+        let range = SourceRange::from_raw(record.pos, record.end, source.positions())?;
+        let SourceRange::Original(range) = range else {
+            return Err(PrinterError::SyntheticNodeWorkerUnavailable(node));
+        };
+        let start = u32::try_from(skip_trivia(source.text(), range.start().value() as usize))
+            .expect("source trivia position exceeds u32");
+        let end = range.end().value();
+        let slice = source
+            .text()
+            .get(start as usize..end as usize)
+            .ok_or(PrinterError::InvalidTextSlice { start, end })?;
+        writer.write(slice);
+        Ok(())
+    }
+
     fn node_range(
         &self,
-        transformation: &TransformationResult,
+        transformation: &TransformationResult<'_>,
         node: TransformNode,
     ) -> Result<SourceByteRange, PrinterError> {
         let source = transformation.arena().source(node.source())?.syntax();
@@ -345,7 +1158,7 @@ impl Printer {
 
     fn write_original_node(
         &self,
-        transformation: &TransformationResult,
+        transformation: &TransformationResult<'_>,
         node: TransformNode,
         original: OriginalNodeText<'_>,
         writer: &mut TextWriter,
@@ -392,7 +1205,7 @@ impl Printer {
 
     fn record_node_hook(
         &self,
-        transformation: &TransformationResult,
+        transformation: &TransformationResult<'_>,
         recorder: &mut dyn SourceMapRecorder,
         phase: SourceMapHookPhase,
         node: TransformNode,
@@ -449,7 +1262,7 @@ impl Printer {
 
     fn record_token_hook(
         &self,
-        transformation: &TransformationResult,
+        transformation: &TransformationResult<'_>,
         recorder: &mut dyn SourceMapRecorder,
         phase: SourceMapHookPhase,
         node: TransformNode,
@@ -550,9 +1363,25 @@ pub enum PrinterError {
     UnknownStatement(u32),
     SyntheticNodeWorkerUnavailable(TransformNode),
     TransformedNodeWorkerUnavailable(TransformNode),
-    OverlappingSourceRange { previous_end: u32, start: u32 },
-    InvalidTextSlice { start: u32, end: u32 },
-    TokenPositionNotScalarBoundary { position: u32 },
+    UnsupportedTransformedSyntax {
+        node: TransformNode,
+        kind: SyntaxKind,
+    },
+    MissingTransformedChild {
+        parent: SyntaxKind,
+        field: &'static str,
+    },
+    OverlappingSourceRange {
+        previous_end: u32,
+        start: u32,
+    },
+    InvalidTextSlice {
+        start: u32,
+        end: u32,
+    },
+    TokenPositionNotScalarBoundary {
+        position: u32,
+    },
 }
 
 impl From<TransformError> for PrinterError {
@@ -604,6 +1433,15 @@ impl fmt::Display for PrinterError {
                 node.source().raw(),
                 node.node().0
             ),
+            Self::UnsupportedTransformedSyntax { node, kind } => write!(
+                formatter,
+                "transformed {kind:?} node {}:{} has no active H1 printer worker",
+                node.source().raw(),
+                node.node().0
+            ),
+            Self::MissingTransformedChild { parent, field } => {
+                write!(formatter, "transformed {parent:?} is missing child {field}")
+            }
             Self::OverlappingSourceRange {
                 previous_end,
                 start,

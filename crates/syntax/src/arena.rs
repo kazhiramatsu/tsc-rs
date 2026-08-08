@@ -463,6 +463,11 @@ impl NodeArena {
         &self.arrays[self.array_index(id)]
     }
 
+    pub fn node_array_mut(&mut self, id: NodeArrayId) -> &mut NodeArray {
+        let index = self.array_index(id);
+        &mut self.arrays[index]
+    }
+
     pub fn node_arrays(&self) -> &[NodeArray] {
         &self.arrays
     }

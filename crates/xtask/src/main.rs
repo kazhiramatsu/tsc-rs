@@ -7759,6 +7759,18 @@ fn ci_oracle_gates(workspace: &Path) -> Result<(), Box<dyn Error>> {
             .arg(&h1_emit_oracle)
             .arg("--check"),
     )?;
+    let h1_active_transform_oracle = workspace.join("crates/oracle/h1-active-transform.mjs");
+    run_command(
+        Command::new("node")
+            .arg("--check")
+            .arg(&h1_active_transform_oracle),
+    )?;
+    run_command(
+        Command::new("node")
+            .current_dir(workspace)
+            .arg(&h1_active_transform_oracle)
+            .arg("--check"),
+    )?;
     let h1_printer_oracle = workspace.join("crates/oracle/h1-printer-foundation.mjs");
     run_command(Command::new("node").arg("--check").arg(&h1_printer_oracle))?;
     run_command(
@@ -11125,6 +11137,210 @@ fn render_for_each_child_rs(schemas: &[NodeSchema]) -> Result<String, Box<dyn Er
         writeln!(out, "        }}")?;
     }
     writeln!(out, "    }}")?;
+    writeln!(out, "}}")?;
+    writeln!(out)?;
+    writeln!(
+        out,
+        "/// Fallible, replacement-aware counterpart to `for_each_child` used by"
+    )?;
+    writeln!(
+        out,
+        "/// emit-session transforms. Parsed syntax remains immutable; callers map a"
+    )?;
+    writeln!(
+        out,
+        "/// cloned `NodeData` value and install it through their own node factory."
+    )?;
+    writeln!(out, "pub trait NodeDataChildVisitor {{")?;
+    writeln!(out, "    type Error;")?;
+    writeln!(out)?;
+    writeln!(out, "    fn node_kind(&self, id: NodeId) -> SyntaxKind;")?;
+    writeln!(
+        out,
+        "    fn visit_node(&mut self, id: NodeId) -> Result<Option<NodeId>, Self::Error>;"
+    )?;
+    writeln!(out, "    fn visit_nodes(&mut self, id: NodeArrayId) -> Result<Option<NodeArrayId>, Self::Error>;")?;
+    writeln!(out, "    fn required_child_removed(&mut self, parent: SyntaxKind, field: &'static str) -> Self::Error;")?;
+    writeln!(out, "}}")?;
+    writeln!(out)?;
+    writeln!(out, "pub fn try_visit_each_child<V>(data: &mut NodeData, visitor: &mut V) -> Result<(), V::Error>")?;
+    writeln!(out, "where")?;
+    writeln!(out, "    V: NodeDataChildVisitor,")?;
+    writeln!(out, "{{")?;
+    writeln!(out, "    match data {{")?;
+    writeln!(out, "        NodeData::Token => Ok(()),")?;
+    for schema in schemas {
+        if schema.children.is_empty() {
+            writeln!(
+                out,
+                "        NodeData::{}(_data) => Ok(()),",
+                schema.kind_name
+            )?;
+            continue;
+        }
+        writeln!(out, "        NodeData::{}(data) => {{", schema.kind_name)?;
+        if matches!(
+            schema.kind_name.as_str(),
+            "JSDocParameterTag" | "JSDocPropertyTag"
+        ) {
+            writeln!(
+                out,
+                "            map_optional_node(&mut data.tag_name, visitor)?;"
+            )?;
+            writeln!(out, "            if data.is_name_first {{")?;
+            writeln!(
+                out,
+                "                map_optional_node(&mut data.name, visitor)?;"
+            )?;
+            writeln!(
+                out,
+                "                map_optional_node(&mut data.type_expression, visitor)?;"
+            )?;
+            writeln!(out, "            }} else {{")?;
+            writeln!(
+                out,
+                "                map_optional_node(&mut data.type_expression, visitor)?;"
+            )?;
+            writeln!(
+                out,
+                "                map_optional_node(&mut data.name, visitor)?;"
+            )?;
+            writeln!(out, "            }}")?;
+            writeln!(
+                out,
+                "            map_optional_jsdoc_comment(&mut data.comment, visitor)?;"
+            )?;
+            writeln!(out, "            Ok(())")?;
+            writeln!(out, "        }}")?;
+            continue;
+        }
+        if schema.kind_name == "JSDocTypedefTag" {
+            writeln!(
+                out,
+                "            map_optional_node(&mut data.tag_name, visitor)?;"
+            )?;
+            writeln!(out, "            let type_expression_first = data.type_expression.is_some_and(|node| visitor.node_kind(node) == SyntaxKind::JSDocTypeExpression);")?;
+            writeln!(out, "            if type_expression_first {{")?;
+            writeln!(
+                out,
+                "                map_optional_node(&mut data.type_expression, visitor)?;"
+            )?;
+            writeln!(
+                out,
+                "                map_optional_node(&mut data.full_name, visitor)?;"
+            )?;
+            writeln!(out, "            }} else {{")?;
+            writeln!(
+                out,
+                "                map_optional_node(&mut data.full_name, visitor)?;"
+            )?;
+            writeln!(
+                out,
+                "                map_optional_node(&mut data.type_expression, visitor)?;"
+            )?;
+            writeln!(out, "            }}")?;
+            writeln!(
+                out,
+                "            map_optional_jsdoc_comment(&mut data.comment, visitor)?;"
+            )?;
+            writeln!(out, "            Ok(())")?;
+            writeln!(out, "        }}")?;
+            continue;
+        }
+        for child in &schema.children {
+            let field = schema
+                .fields
+                .iter()
+                .find(|field| field.ts_name == child.name)
+                .ok_or_else(|| format!("missing generated field for child {}", child.name))?;
+            if field.ty == RustFieldType::JSDocComment {
+                if rust_optional(field) {
+                    writeln!(
+                        out,
+                        "            map_optional_jsdoc_comment(&mut data.{}, visitor)?;",
+                        field.rust_name
+                    )?;
+                } else {
+                    writeln!(
+                        out,
+                        "            map_jsdoc_comment(&mut data.{}, SyntaxKind::{}, \"{}\", visitor)?;",
+                        field.rust_name, schema.kind_name, field.rust_name
+                    )?;
+                }
+                continue;
+            }
+            let helper = match (child.kind, rust_optional(field)) {
+                (ChildKind::Node, true) => "map_optional_node",
+                (ChildKind::Nodes, true) => "map_optional_nodes",
+                (ChildKind::Node, false) => "map_required_node",
+                (ChildKind::Nodes, false) => "map_required_nodes",
+            };
+            if rust_optional(field) {
+                writeln!(
+                    out,
+                    "            {}(&mut data.{}, visitor)?;",
+                    helper, field.rust_name
+                )?;
+            } else {
+                writeln!(
+                    out,
+                    "            {}(&mut data.{}, SyntaxKind::{}, \"{}\", visitor)?;",
+                    helper, field.rust_name, schema.kind_name, field.rust_name
+                )?;
+            }
+        }
+        writeln!(out, "            Ok(())")?;
+        writeln!(out, "        }}")?;
+    }
+    writeln!(out, "    }}")?;
+    writeln!(out, "}}")?;
+    writeln!(out)?;
+    writeln!(out, "fn map_optional_node<V: NodeDataChildVisitor>(slot: &mut Option<NodeId>, visitor: &mut V) -> Result<(), V::Error> {{")?;
+    writeln!(
+        out,
+        "    if let Some(id) = *slot {{ *slot = visitor.visit_node(id)?; }}"
+    )?;
+    writeln!(out, "    Ok(())")?;
+    writeln!(out, "}}")?;
+    writeln!(out)?;
+    writeln!(out, "fn map_optional_nodes<V: NodeDataChildVisitor>(slot: &mut Option<NodeArrayId>, visitor: &mut V) -> Result<(), V::Error> {{")?;
+    writeln!(
+        out,
+        "    if let Some(id) = *slot {{ *slot = visitor.visit_nodes(id)?; }}"
+    )?;
+    writeln!(out, "    Ok(())")?;
+    writeln!(out, "}}")?;
+    writeln!(out)?;
+    writeln!(out, "#[allow(dead_code)]")?;
+    writeln!(out, "fn map_required_node<V: NodeDataChildVisitor>(slot: &mut NodeId, parent: SyntaxKind, field: &'static str, visitor: &mut V) -> Result<(), V::Error> {{")?;
+    writeln!(out, "    *slot = visitor.visit_node(*slot)?.ok_or_else(|| visitor.required_child_removed(parent, field))?;")?;
+    writeln!(out, "    Ok(())")?;
+    writeln!(out, "}}")?;
+    writeln!(out)?;
+    writeln!(out, "#[allow(dead_code)]")?;
+    writeln!(out, "fn map_required_nodes<V: NodeDataChildVisitor>(slot: &mut NodeArrayId, parent: SyntaxKind, field: &'static str, visitor: &mut V) -> Result<(), V::Error> {{")?;
+    writeln!(out, "    *slot = visitor.visit_nodes(*slot)?.ok_or_else(|| visitor.required_child_removed(parent, field))?;")?;
+    writeln!(out, "    Ok(())")?;
+    writeln!(out, "}}")?;
+    writeln!(out)?;
+    writeln!(out, "fn map_optional_jsdoc_comment<V: NodeDataChildVisitor>(slot: &mut Option<JSDocComment>, visitor: &mut V) -> Result<(), V::Error> {{")?;
+    writeln!(
+        out,
+        "    let Some(JSDocComment::Nodes(id)) = slot.as_ref() else {{ return Ok(()); }};"
+    )?;
+    writeln!(
+        out,
+        "    *slot = visitor.visit_nodes(*id)?.map(JSDocComment::Nodes);"
+    )?;
+    writeln!(out, "    Ok(())")?;
+    writeln!(out, "}}")?;
+    writeln!(out)?;
+    writeln!(out, "#[allow(dead_code)]")?;
+    writeln!(out, "fn map_jsdoc_comment<V: NodeDataChildVisitor>(slot: &mut JSDocComment, parent: SyntaxKind, field: &'static str, visitor: &mut V) -> Result<(), V::Error> {{")?;
+    writeln!(out, "    if let JSDocComment::Nodes(id) = slot {{")?;
+    writeln!(out, "        *id = visitor.visit_nodes(*id)?.ok_or_else(|| visitor.required_child_removed(parent, field))?;")?;
+    writeln!(out, "    }}")?;
+    writeln!(out, "    Ok(())")?;
     writeln!(out, "}}")?;
     writeln!(out)?;
     writeln!(

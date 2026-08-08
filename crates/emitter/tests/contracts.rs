@@ -1,3 +1,5 @@
+#[path = "integration/active_transform_contract.rs"]
+mod active_transform_contract;
 #[path = "integration/artifact_sink_contract.rs"]
 mod artifact_sink_contract;
 #[path = "integration/dependency_direction_contract.rs"]

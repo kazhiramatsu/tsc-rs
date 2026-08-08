@@ -23,7 +23,7 @@ impl SourceMapRecorder for RecordingSourceMapHooks {
 fn transformed(
     text: &str,
 ) -> (
-    tsc_emitter::TransformationResult,
+    tsc_emitter::TransformationResult<'static>,
     tsc_emitter::TransformSourceId,
 ) {
     let parsed = parse_source_file("unicode.js", text, Default::default(), None);

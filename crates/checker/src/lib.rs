@@ -12,6 +12,7 @@ mod display_clone;
 mod display_clone_body;
 mod display_clone_module;
 pub mod elaboration;
+pub mod emit;
 pub mod engine;
 pub mod evaluate;
 pub mod expr;
