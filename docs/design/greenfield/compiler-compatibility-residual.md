@@ -105,7 +105,7 @@ There is no single honest “100%” number spanning these surfaces:
 | Frozen batch-diagnostics implementation | M0-M8 complete | M9.1c-M9.7 confidence production, burn-in, freeze, and qualification |
 | Frozen filesystem `--noEmit` compiler | H0 complete | Preserve behavior and cost; do not route it through emitter setup |
 | Bounded one-shot JavaScript emit | H1.0-H1.6 complete and qualified | Preserve the frozen profile while broader one-shot emit expands under new evidence |
-| Broad one-shot `tsc` compilation | H2 sliced; H2.0a evidence/profile transition next | Full JS transform matrix, declarations, maps, output/config/CLI matrix, and complete emit suites |
+| Broad one-shot `tsc` compilation | H2.0a evidence/profile transition complete; H2.0b baselines next | Full JS transform matrix, declarations, maps, output/config/CLI matrix, and complete emit suites |
 | Build/watch/project references | BLD1/W1 sliced after L2; preliminary seams only | Builder state, `.tsbuildinfo`, graph reuse, solution orchestration, watchers, and their suites |
 | Compiler API/custom transforms | API1 sliced after stable compiler/build contracts; not exposed | Stable AST/factory/printer/Program/TypeChecker contracts and callback lifetimes |
 | Persistent source + incremental parser | L0.4 and L1 complete and qualified; L2 sliced after H2 | Preserve fresh exactness and the large-edit budget; complete old-Program/resolution reuse |
@@ -1091,24 +1091,28 @@ records only the cross-track critical path.
 The completed prerequisites are H0, L0/L1, and H1. The remaining runtime order
 is:
 
-1. **Next — H2.0a:** freeze the full post-H1 owner/converse inventory, profile
-   transition, oracle schemas, and exact candidate dispositions without
+1. **Complete — H2.0a:** the full post-H1 50-root owner/converse inventory,
+   39-row profile transition, oracle schemas, and all 15,642 compiler,
+   conformance, project, and transpile dispositions are frozen without
    modifying or borrowing H1 evidence;
-2. expand broad one-shot compiler behavior through dependency-closed module,
+2. **Next — H2.0b:** freeze the post-H1 no-emit, H1 emit, L1 edit,
+   binary/startup, output-fault, and resource baselines plus H2
+   constructor/activity canaries;
+3. expand broad one-shot compiler behavior through dependency-closed module,
    TypeScript runtime, source-kind, JSX/decorator, target, map, declaration,
    output/config/System, and CLI slices, then qualify H2 over every applicable
    upstream runner observation;
-3. land L2 once as the shared old-Program, registry, resolution-cache,
+4. land L2 once as the shared old-Program, registry, resolution-cache,
    dependency-set, invalidation, publication, release, and cancellation
    substrate for both builders and services;
-4. implement deterministic builder signatures/build info, project references,
+5. implement deterministic builder signatures/build info, project references,
    solution build, and then ordinary and solution watch on that substrate;
-5. stabilize the public compiler/custom-transformer and cancellation contracts;
-6. close Language Service, then tsserver Project Service/protocol, and only
+6. stabilize the public compiler/custom-transformer and cancellation contracts;
+7. close Language Service, then tsserver Project Service/protocol, and only
    then the independent Rust-native LSP adapter;
-7. resume M9 confidence production after shared checker producers are stable,
+8. resume M9 confidence production after shared checker producers are stable,
    then close locale/platform/package/reproducible-release slices; and
-8. begin a post-6.0.3 transition only under a separately approved evidence
+9. begin a post-6.0.3 transition only under a separately approved evidence
    contract.
 
 Read-only owner, suite, public-signature, protocol, locale/package, and platform

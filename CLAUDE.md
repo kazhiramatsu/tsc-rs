@@ -116,6 +116,10 @@ there.
 - H1 owner inventory: `node crates/oracle/h1-owner-inventory.mjs --check`
   regenerates in memory and byte-compares the report-only H1.0a active-root
   graph, declaration/body/ledger hashes, unresolved calls, and dormant seams.
+- H2 transition inventory: `node crates/oracle/h2-transition.mjs --check`
+  regenerates in memory and byte-compares the H2 owner/Rust-converse graph,
+  all 15,642 compiler/conformance/project/transpile dispositions, and the
+  39-row evidence-only profile transition while pinning every H1 input hash.
 - H1 no-emit qualification:
   `node crates/oracle/h1-noemit-performance.mjs --check` validates the frozen
   three-workload AB/BA evidence, exact pre-H1/runtime-parent lineage, H0

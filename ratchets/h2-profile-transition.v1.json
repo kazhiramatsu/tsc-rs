@@ -1,0 +1,596 @@
+{
+  "schema": 1,
+  "status": "frozen-evidence-only",
+  "phase": "H2.0a-profile-transition",
+  "typescript": {
+    "version": "6.0.3",
+    "source_commit": "050880ce59e30b356b686bd3144efe24f875ebc8"
+  },
+  "generator": {
+    "path": "crates/oracle/h2-transition.mjs",
+    "sha256": "3364d6520df924a67c2be28fbd00eb76a0d45a001d9975e39a2e9b48a153ed27"
+  },
+  "contract": {
+    "path": ".github/ci/contracts/h2-profile-transition.schema.json",
+    "sha256": "9a04322f45707331d9a5f384766af7852429853d063a137b85d148058c0e5743"
+  },
+  "h1_frozen_inputs": [
+    {
+      "path": "ratchets/h1-emit-profile.v1.json",
+      "sha256": "91e05db331a090e180e9cda7fc8eaa505d795b229a49d78d62d1e086c8602991"
+    },
+    {
+      "path": "ratchets/h1-owner-inventory.v1.json",
+      "sha256": "6148160678bf0b34a8310551eac8c9ab3f2afb1cd9260fa8eaa59efadc71abb5"
+    },
+    {
+      "path": "ratchets/h1-rust-omissions.v1.json",
+      "sha256": "9a3af9215f1ca2d15b706f533e70eacb65d57418e0ff930dc65cdc710c6d8b4b"
+    },
+    {
+      "path": "ratchets/h1-emit-oracle.v1.json",
+      "sha256": "5586988b943028464a7a2c0e543ecb6de062b57d1408ff6ba12004d80b01c793"
+    },
+    {
+      "path": "ratchets/h1-emit-qualification.v1.json",
+      "sha256": "8c079a22dbd8dd03ed258dd8bb5846a27bdf1ca19204150bbd67328e0626fad0"
+    }
+  ],
+  "h2_inputs": {
+    "owner_inventory": {
+      "path": "ratchets/h2-owner-inventory.v1.json",
+      "sha256": "3f81019dfc6fe4d70318d6260d4b3e1168f9a4dbc676e435ed5890a4d082ccf3"
+    },
+    "candidate_dispositions": {
+      "path": "ratchets/h2-candidate-dispositions.v1.json",
+      "sha256": "42795770807110f08fc60bc3aaa75ec407ef43bf2eb343cd85d30dbea5b6812d"
+    }
+  },
+  "oracle_contracts": {
+    "source_reachability": {
+      "path": ".github/ci/contracts/h2-source-reachability.schema.json",
+      "sha256": "ca1582af41dda95550b5986874c0883c99647abcc22524a6a2517a248a85dd89"
+    },
+    "emit_observation": {
+      "path": ".github/ci/contracts/h2-emit-observation.schema.json",
+      "sha256": "fb993ab3df5618537d55d074ccbbd9a21028b6caf932ed7633c91da02d0ef899"
+    }
+  },
+  "current_runtime_profile": {
+    "source": "ratchets/h1-emit-profile.v1.json",
+    "execution": "single-project-one-shot-whole-program",
+    "target": "ESNext(99)",
+    "module": "Preserve(200)",
+    "products": [
+      "javascript"
+    ],
+    "status": "frozen-h1"
+  },
+  "first_runtime_candidate": {
+    "slice": "H2.1a",
+    "status": "not-admitted",
+    "target": "ESNext(99)",
+    "module_states": [
+      "absent",
+      "ESNext(99)"
+    ],
+    "source_kinds": [
+      ".ts"
+    ],
+    "candidate_cases": 295,
+    "claim": "option-level candidates only; source compatibility and execution remain unproven"
+  },
+  "transitions": [
+    {
+      "slice": "H2.0a",
+      "state": "complete-evidence-only",
+      "dependencies": [
+        "H1.6"
+      ],
+      "axes": [
+        "owner-converse",
+        "profile-manifest",
+        "oracle-schemas",
+        "runner-dispositions"
+      ],
+      "close_evidence": "all owners and 15,642 runner rows dispositioned; zero runtime admissions"
+    },
+    {
+      "slice": "H2.0b",
+      "state": "next",
+      "dependencies": [
+        "H2.0a"
+      ],
+      "axes": [
+        "no-emit",
+        "H1-emit",
+        "L1-edit",
+        "binary-startup",
+        "fault-resource-baselines"
+      ],
+      "close_evidence": "alternating approved-runner baselines and constructor/activity zeros"
+    },
+    {
+      "slice": "H2.1a",
+      "state": "planned",
+      "dependencies": [
+        "H2.0b"
+      ],
+      "axes": [
+        "implied-module-dispatch",
+        "ESM",
+        "hook-composition"
+      ],
+      "close_evidence": "source analysis and exact execution for 295 option-level candidates"
+    },
+    {
+      "slice": "H2.1b",
+      "state": "planned",
+      "dependencies": [
+        "H2.1a"
+      ],
+      "axes": [
+        "CommonJS",
+        "interop",
+        "helpers"
+      ],
+      "close_evidence": "exact CJS output and adjacent ESM controls"
+    },
+    {
+      "slice": "H2.1c",
+      "state": "planned",
+      "dependencies": [
+        "H2.1b"
+      ],
+      "axes": [
+        "AMD",
+        "UMD"
+      ],
+      "close_evidence": "exact wrapper/dependency/name observations"
+    },
+    {
+      "slice": "H2.1d",
+      "state": "planned",
+      "dependencies": [
+        "H2.1c"
+      ],
+      "axes": [
+        "System"
+      ],
+      "close_evidence": "exact setter/execute/export ordering"
+    },
+    {
+      "slice": "H2.1e",
+      "state": "planned",
+      "dependencies": [
+        "H2.1a",
+        "H2.1d"
+      ],
+      "axes": [
+        "Node16",
+        "Node18",
+        "Node20",
+        "NodeNext",
+        "mts-cts"
+      ],
+      "close_evidence": "mixed-format project and package-format evidence"
+    },
+    {
+      "slice": "H2.2a",
+      "state": "planned",
+      "dependencies": [
+        "H2.1b"
+      ],
+      "axes": [
+        "runtime-enum",
+        "const-enum"
+      ],
+      "close_evidence": "exact runtime/inlining/preserve behavior"
+    },
+    {
+      "slice": "H2.2b",
+      "state": "planned",
+      "dependencies": [
+        "H2.2a"
+      ],
+      "axes": [
+        "namespace",
+        "module-declaration"
+      ],
+      "close_evidence": "exact nested/merged/export-container behavior"
+    },
+    {
+      "slice": "H2.2c",
+      "state": "planned",
+      "dependencies": [
+        "H2.2a"
+      ],
+      "axes": [
+        "parameter-properties",
+        "class-typescript-syntax"
+      ],
+      "close_evidence": "exact constructor and class-field ordering"
+    },
+    {
+      "slice": "H2.2d",
+      "state": "planned",
+      "dependencies": [
+        "H2.1b",
+        "H2.2c"
+      ],
+      "axes": [
+        "import-equals",
+        "export-equals",
+        "import-elision"
+      ],
+      "close_evidence": "exact resolver alias/value and module interaction"
+    },
+    {
+      "slice": "H2.3a",
+      "state": "planned",
+      "dependencies": [
+        "H2.1e"
+      ],
+      "axes": [
+        "js",
+        "mjs",
+        "cjs",
+        "allowJs",
+        "checkJs"
+      ],
+      "close_evidence": "production Program JavaScript emit"
+    },
+    {
+      "slice": "H2.3b",
+      "state": "planned",
+      "dependencies": [
+        "H2.3a"
+      ],
+      "axes": [
+        "classic-jsx",
+        "tsx",
+        "jsx-output"
+      ],
+      "close_evidence": "classic/preserve/native JSX observations"
+    },
+    {
+      "slice": "H2.3c",
+      "state": "planned",
+      "dependencies": [
+        "H2.1b",
+        "H2.3b"
+      ],
+      "axes": [
+        "automatic-jsx",
+        "development-jsx"
+      ],
+      "close_evidence": "runtime import ordering and diagnostics"
+    },
+    {
+      "slice": "H2.3d",
+      "state": "planned",
+      "dependencies": [
+        "H2.3a"
+      ],
+      "axes": [
+        "json",
+        "resolveJsonModule"
+      ],
+      "close_evidence": "exact JSON bytes, paths, and collisions"
+    },
+    {
+      "slice": "H2.4a",
+      "state": "planned",
+      "dependencies": [
+        "H2.2c"
+      ],
+      "axes": [
+        "legacy-decorators",
+        "metadata"
+      ],
+      "close_evidence": "evaluation order and helper evidence"
+    },
+    {
+      "slice": "H2.4b",
+      "state": "planned",
+      "dependencies": [
+        "H2.4a"
+      ],
+      "axes": [
+        "standard-decorators",
+        "class-fields"
+      ],
+      "close_evidence": "ESNext and first-downlevel class/decorator closure"
+    },
+    {
+      "slice": "H2.5a",
+      "state": "planned",
+      "dependencies": [
+        "H2.4b"
+      ],
+      "axes": [
+        "transformESNext"
+      ],
+      "close_evidence": "newest target transform closure"
+    },
+    {
+      "slice": "H2.5b",
+      "state": "planned",
+      "dependencies": [
+        "H2.5a"
+      ],
+      "axes": [
+        "transformES2021"
+      ],
+      "close_evidence": "ES2021 transform closure"
+    },
+    {
+      "slice": "H2.5c",
+      "state": "planned",
+      "dependencies": [
+        "H2.5b"
+      ],
+      "axes": [
+        "transformES2020"
+      ],
+      "close_evidence": "ES2020 transform closure"
+    },
+    {
+      "slice": "H2.5d",
+      "state": "planned",
+      "dependencies": [
+        "H2.5c"
+      ],
+      "axes": [
+        "transformES2019"
+      ],
+      "close_evidence": "ES2019 transform closure"
+    },
+    {
+      "slice": "H2.5e",
+      "state": "planned",
+      "dependencies": [
+        "H2.5d"
+      ],
+      "axes": [
+        "transformES2018"
+      ],
+      "close_evidence": "ES2018 transform closure"
+    },
+    {
+      "slice": "H2.5f",
+      "state": "planned",
+      "dependencies": [
+        "H2.5e"
+      ],
+      "axes": [
+        "transformES2017"
+      ],
+      "close_evidence": "ES2017 transform closure"
+    },
+    {
+      "slice": "H2.5g",
+      "state": "planned",
+      "dependencies": [
+        "H2.5f"
+      ],
+      "axes": [
+        "transformES2016"
+      ],
+      "close_evidence": "ES2016 transform closure"
+    },
+    {
+      "slice": "H2.5h",
+      "state": "planned",
+      "dependencies": [
+        "H2.5g"
+      ],
+      "axes": [
+        "transformES2015",
+        "transformGenerators"
+      ],
+      "close_evidence": "ES2015/generator transform closure"
+    },
+    {
+      "slice": "H2.6a",
+      "state": "planned",
+      "dependencies": [
+        "H2.0b"
+      ],
+      "axes": [
+        "external-source-map",
+        "range-recorder"
+      ],
+      "close_evidence": "exact map JSON and callback metadata"
+    },
+    {
+      "slice": "H2.6b",
+      "state": "planned",
+      "dependencies": [
+        "H2.6a"
+      ],
+      "axes": [
+        "inline-map",
+        "sources",
+        "mapRoot",
+        "sourceRoot"
+      ],
+      "close_evidence": "exact transformed/multi-source mapping"
+    },
+    {
+      "slice": "H2.6c",
+      "state": "planned",
+      "dependencies": [
+        "H2.6b"
+      ],
+      "axes": [
+        "runner-map-qualification"
+      ],
+      "close_evidence": "every applicable upstream map observation exact"
+    },
+    {
+      "slice": "H2.7a",
+      "state": "planned",
+      "dependencies": [
+        "H2.0a"
+      ],
+      "axes": [
+        "declaration-owner-inventory",
+        "NodeBuilder",
+        "declaration-printer"
+      ],
+      "close_evidence": "zero unresolved declaration owners"
+    },
+    {
+      "slice": "H2.7b",
+      "state": "planned",
+      "dependencies": [
+        "H2.7a"
+      ],
+      "axes": [
+        "dts",
+        "declaration-only",
+        "callback-metadata"
+      ],
+      "close_evidence": "exact non-bundle declaration output"
+    },
+    {
+      "slice": "H2.7c",
+      "state": "planned",
+      "dependencies": [
+        "H2.7b"
+      ],
+      "axes": [
+        "declaration-diagnostics",
+        "stripInternal",
+        "isolatedDeclarations"
+      ],
+      "close_evidence": "exact diagnostic and partial-output behavior"
+    },
+    {
+      "slice": "H2.7d",
+      "state": "planned",
+      "dependencies": [
+        "H2.1d",
+        "H2.7b"
+      ],
+      "axes": [
+        "bundle",
+        "outFile"
+      ],
+      "close_evidence": "exact JS/declaration bundle ordering and failures"
+    },
+    {
+      "slice": "H2.7e",
+      "state": "planned",
+      "dependencies": [
+        "H2.6b",
+        "H2.7d"
+      ],
+      "axes": [
+        "declaration-map"
+      ],
+      "close_evidence": "exact d.ts.map bytes and metadata"
+    },
+    {
+      "slice": "H2.8a",
+      "state": "planned",
+      "dependencies": [
+        "H2.0b"
+      ],
+      "axes": [
+        "output-directory",
+        "collision",
+        "filesystem-fault"
+      ],
+      "close_evidence": "exact Memory/Fs sink equivalence"
+    },
+    {
+      "slice": "H2.8b",
+      "state": "planned",
+      "dependencies": [
+        "H2.8a"
+      ],
+      "axes": [
+        "config",
+        "host",
+        "System",
+        "library-replacement"
+      ],
+      "close_evidence": "exact host fallback and diagnostic precedence"
+    },
+    {
+      "slice": "H2.8c",
+      "state": "planned",
+      "dependencies": [
+        "H2.8b"
+      ],
+      "axes": [
+        "noCheck",
+        "transpileModule",
+        "transpileDeclaration"
+      ],
+      "close_evidence": "distinct no-check/transpile route evidence"
+    },
+    {
+      "slice": "H2.8d",
+      "state": "planned",
+      "dependencies": [
+        "H2.8c"
+      ],
+      "axes": [
+        "targeted-emit",
+        "emit-only",
+        "cancellation",
+        "callbacks"
+      ],
+      "close_evidence": "exact targeted Program.emit and cancellation behavior"
+    },
+    {
+      "slice": "H2.8e",
+      "state": "planned",
+      "dependencies": [
+        "H2.8b"
+      ],
+      "axes": [
+        "CLI",
+        "locale",
+        "trace",
+        "exit",
+        "terminal"
+      ],
+      "close_evidence": "exact remaining one-shot CLI observations"
+    },
+    {
+      "slice": "H2.9",
+      "state": "planned",
+      "dependencies": [
+        "H2.5h",
+        "H2.6c",
+        "H2.7e",
+        "H2.8e"
+      ],
+      "axes": [
+        "broad-runner-qualification",
+        "resource-freeze"
+      ],
+      "close_evidence": "every applicable runner observation executed and dispositioned"
+    }
+  ],
+  "admission_contract": {
+    "monotonic": true,
+    "case_gate": "all required owner slices complete, source reachability exact, TypeScript oracle repeated deterministically, Rust exact, and adjacent failures occur before the first sink write",
+    "failure_boundary": "before-first-sink-write",
+    "h1_evidence_reuse": "forbidden-outside-exact-h1-profile",
+    "execution_default": "not-run",
+    "reference_default": "not-compared"
+  },
+  "summary": {
+    "transition_rows": 39,
+    "completed_rows": 1,
+    "next_rows": 1,
+    "planned_rows": 37,
+    "runtime_admissions": 0
+  },
+  "profile_fingerprint_sha256": "07b3bfdee5ce64bb7c233b2d6c3c5cbd58f8c0e2524454c4ff2e66c757135d6e"
+}

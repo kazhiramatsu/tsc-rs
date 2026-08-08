@@ -74,9 +74,11 @@ compatibility.
 branch-sized execution schedule for H2 broad one-shot compiler, L2 shared
 Program/resolution reuse, builder/project references/watch, public API,
 Language Service, tsserver, the independent Rust-native LSP adapter, and final
-release work. **H2.0a is next:** freeze the new owner/converse inventory,
-profile transition, oracle schemas, and exact candidate dispositions before
-the first implied-format runtime expansion. The existing per-slice
+release work. **H2.0a is complete and H2.0b is next:** the new owner/converse
+inventory, profile transition, oracle schemas, and all 15,642 candidate
+dispositions are frozen; the next row freezes cross-track baselines and H2
+constructor/activity canaries before the first implied-format runtime
+expansion. The existing per-slice
 owner/oracle/profile/fail-closed/local-gate loop remains mandatory. Stateful
 tracks additionally require multi-generation fresh-versus-reused traces,
 explicit invalidation, release/resource bounds, cancellation safety, restart
@@ -212,7 +214,7 @@ each stage is one commit.
 | H0 filesystem-hosted `--noEmit` — complete | [H0 execution](noemit-cli.md) | exact closure of the 241 host-resolution identities, MemoryHost/FsHost equivalence, config/CLI/output parity, embedded libraries, no emitted files |
 | L0/L1 persistent source + incremental parser — complete and performance-qualified | [persistent Program design](lsp-and-incremental.md) | shared text/position snapshots, domain-scoped identity leases, generated relocation, non-contiguous ownership, owned bind/Program snapshots, immutable incremental parse/rebind, exact fresh equivalence, reclamation stress, and approved large-edit evidence |
 | H1 JavaScript emit — H1.0a through H1.6 complete and qualified | [H1 execution](h1-emit.md) | zero-open-row owner closure, exact callback/transform/upstream qualification, all 15,680 pinned cases dispositioned, the sole compatible compiler case executed exactly, filesystem/CLI and sink-fault parity, standalone binary proof, frozen H0 `--noEmit` canaries, and approved-runner no-emit/emit resource evidence; broader transforms, options, and file kinds are the next separately qualified expansion |
-| H2 broad one-shot compiler — sliced; H2.0a next | [post-H1 slices](post-h1-completion-slices.md) | new owner/converse/profile/oracle freeze, then dependency-closed module, TypeScript runtime, source-kind, JSX/decorator, target, map, declaration, output/config/System, CLI, and full upstream-runner qualification slices |
+| H2 broad one-shot compiler — H2.0a complete; H2.0b next | [post-H1 slices](post-h1-completion-slices.md) | frozen 50-root owner/converse graph, 15,642 exact runner dispositions, profile/oracle contracts, then cross-track baselines before dependency-closed module, TypeScript runtime, source-kind, JSX/decorator, target, map, declaration, output/config/System, CLI, and full upstream-runner qualification slices |
 | L2 shared Program/resolution reuse — planned after H2 | [post-H1 slices](post-h1-completion-slices.md) | full registry, `isProgramUptoDate`, structure reuse, dependency-tracked caches/invalidation, publication/release/cancellation, multi-generation fresh equality, and bounded resources |
 | BLD1/W1 builder, project references, and watch — planned after L2 core | [post-H1 slices](post-h1-completion-slices.md) | deterministic affected queues/signatures/build info/restarts, solution build, virtual-clock watch traces, fault/cancellation behavior, and long-running qualification |
 | API1/L3-L5 public API and interactive products — planned | [post-H1 slices](post-h1-completion-slices.md) | explicit public ownership/identity contract, Language Service, tsserver Project Service/protocol, then independent LSP capability/protocol/resource qualification |

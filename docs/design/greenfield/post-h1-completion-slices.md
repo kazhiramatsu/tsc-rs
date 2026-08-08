@@ -1,7 +1,7 @@
 # Post-H1 TypeScript 6.0.3 completion slices
 
-Status: execution schedule approved on 2026-08-08. H0, L0/L1, and H1 are
-complete. **H2.0a is the next slice.**
+Status: execution schedule approved on 2026-08-08. H0, L0/L1, H1, and H2.0a
+are complete. **H2.0b is the next slice.**
 
 This document turns the audited post-H1 residual into branch-sized execution
 slices. It owns post-H1 slice IDs, dependency order, and slice-specific
@@ -130,8 +130,40 @@ transform becomes reachable.
 
 | Slice | Scope | Dependencies and close evidence |
 | --- | --- | --- |
-| **H2.0a — next** | Generate the full post-H1 owner/converse inventory, profile-transition manifest, oracle schemas, and exact compiler/conformance/project/transpile candidate dispositions. Freeze the current 94 compiler and 201 conformance option-level one-module-blocker candidates without claiming source compatibility. | H1.6. Zero unresolved/undispositioned owners and cases; old H1 artifacts byte-identical; all rows remain explicit until source analysis and execution. |
-| H2.0b | Freeze post-H1 no-emit, H1 emit, L1 edit, binary/startup, output-fault, and resource baselines; add H2 constructor/activity canaries without changing ordinary CI. | H2.0a. Alternating approved-runner evidence and complete local regression gates before H2 runtime changes. |
+| H2.0a — complete | Generate the full post-H1 owner/converse inventory, profile-transition manifest, oracle schemas, and exact compiler/conformance/project/transpile candidate dispositions. Freeze the current 94 compiler and 201 conformance option-level one-module-blocker candidates without claiming source compatibility. | H1.6. Zero unresolved/undispositioned owners and cases; old H1 artifacts byte-identical; all rows remain explicit until source analysis and execution. |
+| **H2.0b — next** | Freeze post-H1 no-emit, H1 emit, L1 edit, binary/startup, output-fault, and resource baselines; add H2 constructor/activity canaries without changing ordinary CI. | H2.0a. Alternating approved-runner evidence and complete local regression gates before H2 runtime changes. |
+
+H2.0a closed on 2026-08-08 without changing the runtime profile or admitting a
+new case:
+
+- the [owner/converse inventory](../../../ratchets/h2-owner-inventory.v1.json)
+  freezes 50 one-shot compiler owner roots, 46 exact inter-owner references,
+  and 14 current Rust converse rows. One root is closed by H1, 22 have an H1
+  path plus explicit H2 residual, 27 are deferred, and no owner or Rust row is
+  undispositioned;
+- the [runner dispositions](../../../ratchets/h2-candidate-dispositions.v1.json)
+  retain all 15,642 compiler, conformance, project, and transpile rows. The
+  sole executed row is the already-frozen H1 compiler case. The 94 compiler
+  and 201 conformance module-only rows are `pending-source-analysis`, while
+  every other row names its earliest required H2 slice and remains `not-run`;
+- the [profile transition](../../../ratchets/h2-profile-transition.v1.json)
+  fixes all 39 H2 rows, keeps H1 as the only runtime profile, records zero H2
+  admissions, and identifies H2.0b as the next evidence row and H2.1a as the
+  first runtime candidate; and
+- strict contracts now exist for the
+  [owner inventory](../../../.github/ci/contracts/h2-owner-inventory.schema.json),
+  [candidate dispositions](../../../.github/ci/contracts/h2-candidate-dispositions.schema.json),
+  [profile transition](../../../.github/ci/contracts/h2-profile-transition.schema.json),
+  [source-reachability oracle](../../../.github/ci/contracts/h2-source-reachability.schema.json),
+  and [exact emit observation](../../../.github/ci/contracts/h2-emit-observation.schema.json).
+
+The single producer is
+[`crates/oracle/h2-transition.mjs`](../../../crates/oracle/h2-transition.mjs).
+`node crates/oracle/h2-transition.mjs --check` regenerates all three manifests
+in memory, checks every frozen H1/input hash, and byte-compares the results.
+The independent Rust contract repeats the lineage, identity, count, monotonic
+slice-order, and zero-undispositioned checks. Neither check treats the 295
+option-level candidates as source-compatible or executed.
 
 ### 4.2 Module formats at `target=ESNext`
 

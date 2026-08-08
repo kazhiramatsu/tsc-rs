@@ -1,0 +1,175 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/kazhiramatsu/tsc-rs/.github/ci/contracts/h2-profile-transition.schema.json",
+  "title": "tsc-rs H1 to H2 monotonic profile transition",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "status",
+    "phase",
+    "typescript",
+    "generator",
+    "contract",
+    "h1_frozen_inputs",
+    "h2_inputs",
+    "oracle_contracts",
+    "current_runtime_profile",
+    "first_runtime_candidate",
+    "transitions",
+    "admission_contract",
+    "summary",
+    "profile_fingerprint_sha256"
+  ],
+  "properties": {
+    "schema": { "const": 1 },
+    "status": { "const": "frozen-evidence-only" },
+    "phase": { "const": "H2.0a-profile-transition" },
+    "typescript": { "$ref": "#/$defs/typescript" },
+    "generator": { "$ref": "#/$defs/path_hash" },
+    "contract": { "$ref": "#/$defs/path_hash" },
+    "h1_frozen_inputs": {
+      "type": "array",
+      "minItems": 5,
+      "items": { "$ref": "#/$defs/path_hash" }
+    },
+    "h2_inputs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["owner_inventory", "candidate_dispositions"],
+      "properties": {
+        "owner_inventory": { "$ref": "#/$defs/path_hash" },
+        "candidate_dispositions": { "$ref": "#/$defs/path_hash" }
+      }
+    },
+    "oracle_contracts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source_reachability", "emit_observation"],
+      "properties": {
+        "source_reachability": { "$ref": "#/$defs/path_hash" },
+        "emit_observation": { "$ref": "#/$defs/path_hash" }
+      }
+    },
+    "current_runtime_profile": { "$ref": "#/$defs/runtime_profile" },
+    "first_runtime_candidate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["slice", "status", "target", "module_states", "source_kinds", "candidate_cases", "claim"],
+      "properties": {
+        "slice": { "const": "H2.1a" },
+        "status": { "const": "not-admitted" },
+        "target": { "const": "ESNext(99)" },
+        "module_states": {
+          "type": "array",
+          "prefixItems": [{ "const": "absent" }, { "const": "ESNext(99)" }],
+          "items": false,
+          "minItems": 2,
+          "maxItems": 2
+        },
+        "source_kinds": {
+          "type": "array",
+          "prefixItems": [{ "const": ".ts" }],
+          "items": false,
+          "minItems": 1,
+          "maxItems": 1
+        },
+        "candidate_cases": { "const": 295 },
+        "claim": { "const": "option-level candidates only; source compatibility and execution remain unproven" }
+      }
+    },
+    "transitions": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/transition" }
+    },
+    "admission_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["monotonic", "case_gate", "failure_boundary", "h1_evidence_reuse", "execution_default", "reference_default"],
+      "properties": {
+        "monotonic": { "const": true },
+        "case_gate": { "type": "string", "minLength": 1 },
+        "failure_boundary": { "const": "before-first-sink-write" },
+        "h1_evidence_reuse": { "const": "forbidden-outside-exact-h1-profile" },
+        "execution_default": { "const": "not-run" },
+        "reference_default": { "const": "not-compared" }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["transition_rows", "completed_rows", "next_rows", "planned_rows", "runtime_admissions"],
+      "properties": {
+        "transition_rows": { "type": "integer", "minimum": 1 },
+        "completed_rows": { "const": 1 },
+        "next_rows": { "const": 1 },
+        "planned_rows": { "type": "integer", "minimum": 1 },
+        "runtime_admissions": { "const": 0 }
+      }
+    },
+    "profile_fingerprint_sha256": { "$ref": "#/$defs/sha256" }
+  },
+  "$defs": {
+    "sha1": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "path_hash": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256"],
+      "properties": {
+        "path": { "type": "string", "minLength": 1 },
+        "sha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "typescript": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["version", "source_commit"],
+      "properties": {
+        "version": { "const": "6.0.3" },
+        "source_commit": { "$ref": "#/$defs/sha1" }
+      }
+    },
+    "runtime_profile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source", "execution", "target", "module", "products", "status"],
+      "properties": {
+        "source": { "const": "ratchets/h1-emit-profile.v1.json" },
+        "execution": { "const": "single-project-one-shot-whole-program" },
+        "target": { "const": "ESNext(99)" },
+        "module": { "const": "Preserve(200)" },
+        "products": {
+          "type": "array",
+          "prefixItems": [{ "const": "javascript" }],
+          "items": false,
+          "minItems": 1,
+          "maxItems": 1
+        },
+        "status": { "const": "frozen-h1" }
+      }
+    },
+    "transition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["slice", "state", "dependencies", "axes", "close_evidence"],
+      "properties": {
+        "slice": { "type": "string", "pattern": "^H2\\.[0-9]+[a-z]?$" },
+        "state": { "enum": ["complete-evidence-only", "next", "planned"] },
+        "dependencies": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string", "pattern": "^(H1\\.[0-9]+[a-z]?|H2\\.[0-9]+[a-z]?)$" }
+        },
+        "axes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "close_evidence": { "type": "string", "minLength": 1 }
+      }
+    }
+  }
+}

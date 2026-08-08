@@ -336,3 +336,25 @@ This is diagnostic-oracle evidence only for those five named compiler
 fixtures. Those five and every other compiler/project/project-runner case
 remain `not-run` in the expansion manifest; this artifact claims no upstream
 test pass.
+
+The post-H1 transition consumes these frozen suite artifacts without changing
+them. Its generated manifests are
+`ratchets/h2-owner-inventory.v1.json`,
+`ratchets/h2-candidate-dispositions.v1.json`, and
+`ratchets/h2-profile-transition.v1.json`. Together they pin 50 H2 one-shot
+compiler owner roots, all 15,642 compiler/conformance/project/transpile rows,
+and the 39-row monotonic H2 schedule. The option-level first-runtime pool is
+exactly 295 `.ts` rows at `target=ESNext`: 94 compiler and 201 conformance
+rows whose sole H1 blocker is effective module omission or `ESNext`. Those
+rows remain source-analysis-pending and `not-run`; the transition records zero
+new runtime admissions and compares no new reference baseline. Freshness is
+fixed and unfiltered:
+
+```text
+node crates/oracle/h2-transition.mjs --write
+node crates/oracle/h2-transition.mjs --check
+```
+
+The check also pins the unchanged H1 owner, Rust-omission, profile, oracle,
+and qualification artifacts byte-for-byte. It therefore cannot reinterpret
+H1 evidence as broader compiler compatibility.
