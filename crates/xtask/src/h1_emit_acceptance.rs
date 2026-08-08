@@ -373,12 +373,5 @@ pub fn run(workspace: &Path) -> Result<(), Box<dyn Error>> {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn frozen_h1_qualification_executes_exactly() {
-        let workspace = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
-        run(&workspace).expect("H1 compatible upstream acceptance");
-    }
-}
+#[path = "../tests/unit/h1_emit_acceptance/tests.rs"]
+mod tests;
