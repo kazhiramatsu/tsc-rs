@@ -7,9 +7,9 @@ use tsc_syntax::{
 use tsc_types::{CompilerOptions, NodeFlags, ScriptTarget};
 
 use crate::{
-    EmitHint, EmitResolver, EmitResolverNode, TransformArena, TransformError, TransformFlags,
-    TransformNode, TransformNodeArray, TransformRoot, TransformSourceId, TransformationContext,
-    Transformer, UnsupportedTransformFeature,
+    EmitHint, EmitResolver, EmitResolverNode, H2ActivityCanary, TransformArena, TransformError,
+    TransformFlags, TransformNode, TransformNodeArray, TransformRoot, TransformSourceId,
+    TransformationContext, Transformer, UnsupportedTransformFeature,
 };
 
 const MODULE_PRESERVE: i32 = 200;
@@ -20,6 +20,15 @@ const MODULE_PRESERVE: i32 = 200;
 pub fn get_script_transformers<'resolver>(
     options: &CompilerOptions,
     resolver: &'resolver dyn EmitResolver,
+) -> Result<Vec<Box<dyn Transformer + 'resolver>>, TransformError> {
+    let mut activity = H2ActivityCanary::h1_profile();
+    get_script_transformers_with_activity(options, resolver, &mut activity)
+}
+
+pub(crate) fn get_script_transformers_with_activity<'resolver>(
+    options: &CompilerOptions,
+    resolver: &'resolver dyn EmitResolver,
+    activity: &mut H2ActivityCanary,
 ) -> Result<Vec<Box<dyn Transformer + 'resolver>>, TransformError> {
     if options.emit_script_target() != ScriptTarget::ES_NEXT {
         return Err(TransformError::UnsupportedCompilerOption {
@@ -46,10 +55,17 @@ pub fn get_script_transformers<'resolver>(
         });
     }
 
+    activity.construct_script_transformer_list();
+    activity.construct_transform_typescript();
+    let transform_typescript = transform_type_script(resolver);
+    activity.construct_transform_class_fields();
+    let transform_class_fields = transform_class_fields(options);
+    activity.construct_transform_ecmascript_module();
+    let transform_ecmascript_module = transform_ecmascript_module(options);
     Ok(vec![
-        transform_type_script(resolver),
-        transform_class_fields(options),
-        transform_ecmascript_module(options),
+        transform_typescript,
+        transform_class_fields,
+        transform_ecmascript_module,
     ])
 }
 

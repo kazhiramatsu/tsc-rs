@@ -21,19 +21,20 @@ const CONTRACTS = Object.freeze({
   profile: ".github/ci/contracts/h2-profile-transition.schema.json",
   sourceReachability: ".github/ci/contracts/h2-source-reachability.schema.json",
   emitObservation: ".github/ci/contracts/h2-emit-observation.schema.json",
+  runtimeBaseline: ".github/ci/contracts/h2-runtime-baseline.schema.json",
 });
 
 const INPUT_HASHES = Object.freeze({
   "ratchets/h1-owner-inventory.v1.json":
     "6148160678bf0b34a8310551eac8c9ab3f2afb1cd9260fa8eaa59efadc71abb5",
   "ratchets/h1-rust-omissions.v1.json":
-    "9a3af9215f1ca2d15b706f533e70eacb65d57418e0ff930dc65cdc710c6d8b4b",
+    "9191624d90673877c5c60baf4e5934c40e8cf31a1a3505dba6301ca625a61ea0",
   "ratchets/h1-emit-profile.v1.json":
     "91e05db331a090e180e9cda7fc8eaa505d795b229a49d78d62d1e086c8602991",
   "ratchets/h1-emit-oracle.v1.json":
     "5586988b943028464a7a2c0e543ecb6de062b57d1408ff6ba12004d80b01c793",
   "ratchets/h1-emit-qualification.v1.json":
-    "8c079a22dbd8dd03ed258dd8bb5846a27bdf1ca19204150bbd67328e0626fad0",
+    "4a9a36b3b35acd9c22bf22fc88ba2c463bc6a16a18f61d2ee38c528d4aaa42ef",
   "vendor/typescript-6.0.3/compiler-profile-classification.v1.json":
     "3c3cbcb3c29a5254c145dc2665ca21683a1bd94f5271841320f061e82b614603",
   "vendor/typescript-6.0.3/conformance-profile-classification.v1.json":
@@ -661,8 +662,8 @@ function buildCandidateDispositions() {
 
 const TRANSITIONS = Object.freeze([
   ["H2.0a", "complete-evidence-only", ["H1.6"], ["owner-converse", "profile-manifest", "oracle-schemas", "runner-dispositions"], "all owners and 15,642 runner rows dispositioned; zero runtime admissions"],
-  ["H2.0b", "next", ["H2.0a"], ["no-emit", "H1-emit", "L1-edit", "binary-startup", "fault-resource-baselines"], "alternating approved-runner baselines and constructor/activity zeros"],
-  ["H2.1a", "planned", ["H2.0b"], ["implied-module-dispatch", "ESM", "hook-composition"], "source analysis and exact execution for 295 option-level candidates"],
+  ["H2.0b", "complete-evidence-only", ["H2.0a"], ["no-emit", "H1-emit", "L1-edit", "binary-startup", "fault-resource-baselines"], "eight alternating approved-runner pairs, positive H1 controls, two output-fault observations, and zero activity across all 37 H2 runtime slices"],
+  ["H2.1a", "next", ["H2.0b"], ["implied-module-dispatch", "ESM", "hook-composition"], "source analysis and exact execution for 295 option-level candidates"],
   ["H2.1b", "planned", ["H2.1a"], ["CommonJS", "interop", "helpers"], "exact CJS output and adjacent ESM controls"],
   ["H2.1c", "planned", ["H2.1b"], ["AMD", "UMD"], "exact wrapper/dependency/name observations"],
   ["H2.1d", "planned", ["H2.1c"], ["System"], "exact setter/execute/export ordering"],
@@ -715,8 +716,8 @@ function buildProfile(ownerRendered, candidateRendered) {
   );
   const output = {
     schema: 1,
-    status: "frozen-evidence-only",
-    phase: "H2.0a-profile-transition",
+    status: "frozen-pre-runtime-baseline",
+    phase: "H2.0b-baseline-transition",
     typescript: { version: ts.version, source_commit: SOURCE_COMMIT },
     generator: pathHash(GENERATOR_RELATIVE_PATH),
     contract: pathHash(CONTRACTS.profile),
@@ -734,6 +735,7 @@ function buildProfile(ownerRendered, candidateRendered) {
     oracle_contracts: {
       source_reachability: pathHash(CONTRACTS.sourceReachability),
       emit_observation: pathHash(CONTRACTS.emitObservation),
+      runtime_baseline: pathHash(CONTRACTS.runtimeBaseline),
     },
     current_runtime_profile: {
       source: "ratchets/h1-emit-profile.v1.json",
@@ -812,7 +814,7 @@ if (mode === undefined) {
   writeOrCheck(PROFILE_RELATIVE_PATH, profileRendered, mode);
   if (mode === "--check") {
     process.stdout.write(
-      `H2.0a transition is fresh: owners=${owner.summary.owner_roots} cases=${candidates.summary.cases} module-only=295 undispositioned=0 admissions=0\n`,
+      `H2.0b transition is fresh: owners=${owner.summary.owner_roots} cases=${candidates.summary.cases} module-only=295 baselines=1 undispositioned=0 admissions=0\n`,
     );
   }
 } else {

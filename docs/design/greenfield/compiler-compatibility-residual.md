@@ -105,7 +105,7 @@ There is no single honest “100%” number spanning these surfaces:
 | Frozen batch-diagnostics implementation | M0-M8 complete | M9.1c-M9.7 confidence production, burn-in, freeze, and qualification |
 | Frozen filesystem `--noEmit` compiler | H0 complete | Preserve behavior and cost; do not route it through emitter setup |
 | Bounded one-shot JavaScript emit | H1.0-H1.6 complete and qualified | Preserve the frozen profile while broader one-shot emit expands under new evidence |
-| Broad one-shot `tsc` compilation | H2.0a evidence/profile transition complete; H2.0b baselines next | Full JS transform matrix, declarations, maps, output/config/CLI matrix, and complete emit suites |
+| Broad one-shot `tsc` compilation | H2.0a/H2.0b evidence and pre-runtime baselines complete; H2.1a next | Full JS transform matrix, declarations, maps, output/config/CLI matrix, and complete emit suites |
 | Build/watch/project references | BLD1/W1 sliced after L2; preliminary seams only | Builder state, `.tsbuildinfo`, graph reuse, solution orchestration, watchers, and their suites |
 | Compiler API/custom transforms | API1 sliced after stable compiler/build contracts; not exposed | Stable AST/factory/printer/Program/TypeChecker contracts and callback lifetimes |
 | Persistent source + incremental parser | L0.4 and L1 complete and qualified; L2 sliced after H2 | Preserve fresh exactness and the large-edit budget; complete old-Program/resolution reuse |
@@ -1095,10 +1095,12 @@ is:
    39-row profile transition, oracle schemas, and all 15,642 compiler,
    conformance, project, and transpile dispositions are frozen without
    modifying or borrowing H1 evidence;
-2. **Next — H2.0b:** freeze the post-H1 no-emit, H1 emit, L1 edit,
+2. **Complete — H2.0b:** the post-H1 no-emit, H1 emit, L1 edit,
    binary/startup, output-fault, and resource baselines plus H2
-   constructor/activity canaries;
-3. expand broad one-shot compiler behavior through dependency-closed module,
+   constructor/activity canaries are frozen with zero H2 runtime admissions;
+3. **Next — H2.1a:** source-disposition and execute the implied-format/ESM
+   candidates, then expand broad one-shot compiler behavior through
+   dependency-closed module,
    TypeScript runtime, source-kind, JSX/decorator, target, map, declaration,
    output/config/System, and CLI slices, then qualify H2 over every applicable
    upstream runner observation;

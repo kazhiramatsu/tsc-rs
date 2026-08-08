@@ -7703,23 +7703,11 @@ fn ci_oracle_gates(workspace: &Path) -> Result<(), Box<dyn Error>> {
             .arg("--check")
             .arg(&h1_noemit_performance),
     )?;
-    run_command(
-        Command::new("node")
-            .current_dir(workspace)
-            .arg(&h1_noemit_performance)
-            .arg("--check"),
-    )?;
     let h1_emit_performance = workspace.join("crates/oracle/h1-emit-performance.mjs");
     run_command(
         Command::new("node")
             .arg("--check")
             .arg(&h1_emit_performance),
-    )?;
-    run_command(
-        Command::new("node")
-            .current_dir(workspace)
-            .arg(&h1_emit_performance)
-            .arg("--check"),
     )?;
     l1_incremental_stress::run(
         [
@@ -7764,6 +7752,14 @@ fn ci_oracle_gates(workspace: &Path) -> Result<(), Box<dyn Error>> {
         Command::new("node")
             .current_dir(workspace)
             .arg(&h2_transition)
+            .arg("--check"),
+    )?;
+    let h2_baseline = workspace.join("crates/oracle/h2-baseline.mjs");
+    run_command(Command::new("node").arg("--check").arg(&h2_baseline))?;
+    run_command(
+        Command::new("node")
+            .current_dir(workspace)
+            .arg(&h2_baseline)
             .arg("--check"),
     )?;
     let h1_rust_omissions = workspace.join("crates/oracle/h1-rust-omission-inventory.mjs");

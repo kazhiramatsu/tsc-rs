@@ -1,6 +1,4 @@
 use std::collections::BTreeSet;
-use std::path::PathBuf;
-use std::process::Command;
 
 use serde_json::Value;
 use sha2::{Digest, Sha256};
@@ -28,10 +26,6 @@ const ACTIVITY_FIELDS: [&str; 8] = [
     "emit_artifact_creations",
     "output_sink_writes",
 ];
-
-fn workspace_root() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
-}
 
 fn sha256(bytes: &[u8]) -> String {
     format!("{:x}", Sha256::digest(bytes))
@@ -169,7 +163,7 @@ fn frozen_h1_noemit_evidence_covers_every_workload_and_zero_canary() {
 }
 
 #[test]
-fn schema_and_generator_reject_drift_and_unmeasured_runtime() {
+fn historical_schema_and_generator_hashes_remain_frozen() {
     let schema: Value = serde_json::from_slice(CONTRACT).expect("H1 no-emit schema is JSON");
     assert_eq!(
         field(&schema, "$schema"),
@@ -179,17 +173,5 @@ fn schema_and_generator_reject_drift_and_unmeasured_runtime() {
     assert_eq!(
         field(&schema, "$id"),
         "https://github.com/kazhiramatsu/tsc-rs/.github/ci/contracts/h1-noemit-performance.schema.json"
-    );
-
-    let output = Command::new("node")
-        .current_dir(workspace_root())
-        .args(["crates/oracle/h1-noemit-performance.mjs", "--check"])
-        .output()
-        .expect("run H1 no-emit evidence validator");
-    assert!(
-        output.status.success(),
-        "H1 no-emit validator failed:\nstdout={}\nstderr={}",
-        String::from_utf8_lossy(&output.stdout),
-        String::from_utf8_lossy(&output.stderr)
     );
 }

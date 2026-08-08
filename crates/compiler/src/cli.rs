@@ -36,7 +36,8 @@ use tsc_program::{
 
 use crate::no_emit_canary::NoEmitCanary;
 use crate::{
-    EmitFileSystem, FsOutputSink, NoEmitActivityCounters, NoEmitWorkCounters, ProgramSession,
+    EmitFileSystem, FsOutputSink, H2ActivityCounters, NoEmitActivityCounters, NoEmitWorkCounters,
+    ProgramSession,
 };
 
 mod embedded_libraries {
@@ -68,6 +69,7 @@ pub struct CliOutput {
     exit_code: i32,
     work_counters: NoEmitWorkCounters,
     no_emit_activity: NoEmitActivityCounters,
+    h2_activity: H2ActivityCounters,
 }
 
 impl CliOutput {
@@ -93,6 +95,12 @@ impl CliOutput {
     /// H1 constructor/output-write observations for this CLI execution.
     pub const fn no_emit_activity(&self) -> NoEmitActivityCounters {
         self.no_emit_activity
+    }
+
+    /// H1 positive wiring counts plus one zero-until-admitted counter for
+    /// every H2 runtime slice.
+    pub const fn h2_activity(&self) -> H2ActivityCounters {
+        self.h2_activity
     }
 }
 
@@ -295,6 +303,7 @@ pub fn run_cli(args: &[String]) -> CliOutput {
             exit_code: EXIT_FAILURE,
             work_counters: NoEmitWorkCounters::default(),
             no_emit_activity: NoEmitActivityCounters,
+            h2_activity: H2ActivityCounters::default(),
         },
     }
 }
@@ -308,6 +317,7 @@ fn execute(args: &[String], no_emit_canary: &mut NoEmitCanary) -> Result<CliOutp
             exit_code: EXIT_SUCCESS,
             work_counters: NoEmitWorkCounters::default(),
             no_emit_activity: NoEmitActivityCounters,
+            h2_activity: H2ActivityCounters::default(),
         });
     }
 
@@ -956,7 +966,7 @@ fn execute_emitting_prepared(
     } else {
         EXIT_SUCCESS
     };
-    rendered_diagnostics_with_exit_work_and_status(
+    rendered_diagnostics_with_exit_work_status_and_h2(
         current_directory,
         &source_texts,
         &diagnostics,
@@ -964,6 +974,7 @@ fn execute_emitting_prepared(
         exit_code,
         outcome.work_counters,
         NoEmitActivityCounters,
+        outcome.emit.h2_activity(),
         &status_writes,
     )
 }
@@ -1053,6 +1064,31 @@ fn rendered_diagnostics_with_exit_work_and_status(
     no_emit_activity: NoEmitActivityCounters,
     status_writes: &[String],
 ) -> Result<CliOutput, CliError> {
+    rendered_diagnostics_with_exit_work_status_and_h2(
+        current_directory,
+        source_texts,
+        diagnostics,
+        pretty,
+        exit_code,
+        work_counters,
+        no_emit_activity,
+        H2ActivityCounters::default(),
+        status_writes,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn rendered_diagnostics_with_exit_work_status_and_h2(
+    current_directory: &Path,
+    source_texts: &DiagnosticSourceMap,
+    diagnostics: &[Diagnostic],
+    pretty: bool,
+    exit_code: i32,
+    work_counters: NoEmitWorkCounters,
+    no_emit_activity: NoEmitActivityCounters,
+    h2_activity: H2ActivityCounters,
+    status_writes: &[String],
+) -> Result<CliOutput, CliError> {
     if diagnostics.is_empty() && status_writes.is_empty() {
         return Ok(CliOutput {
             stdout: String::new(),
@@ -1060,6 +1096,7 @@ fn rendered_diagnostics_with_exit_work_and_status(
             exit_code: EXIT_SUCCESS,
             work_counters,
             no_emit_activity,
+            h2_activity,
         });
     }
     if diagnostics.is_empty() {
@@ -1071,6 +1108,7 @@ fn rendered_diagnostics_with_exit_work_and_status(
             exit_code: EXIT_SUCCESS,
             work_counters,
             no_emit_activity,
+            h2_activity,
         });
     }
     let current_directory = current_directory
@@ -1102,6 +1140,7 @@ fn rendered_diagnostics_with_exit_work_and_status(
         exit_code,
         work_counters,
         no_emit_activity,
+        h2_activity,
     })
 }
 

@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 
 use tsc_compiler::{
     DriverError, EmitArtifact, EmitFailure, EmitFileSystem, EmitIoError, EmitWriteDisposition,
-    FsOutputSink, MemoryOutputSink, OutputSink, ProgramSession,
+    FsOutputSink, H2ActivityCounters, H2RuntimeSlice, MemoryOutputSink, OutputSink, ProgramSession,
 };
 use tsc_program::{CompilerOptions, PathContext, PreparedProgram, PreparedSourceFile, ProgramPath};
 
@@ -102,6 +102,18 @@ fn empty_emit_program() -> PreparedProgram {
     .expect("empty emit program")
 }
 
+fn assert_h2_runtime_zero(counters: H2ActivityCounters) {
+    assert!(counters.h2_runtime_is_zero());
+    for slice in H2RuntimeSlice::ALL {
+        assert_eq!(
+            counters.runtime_slice(slice),
+            0,
+            "{} activity",
+            slice.name()
+        );
+    }
+}
+
 #[test]
 fn h1_4_emit_entry_runs_the_checked_transform_and_memory_sink_path() {
     let mut sink = MemoryOutputSink::new();
@@ -123,6 +135,20 @@ fn h1_4_emit_entry_runs_the_checked_transform_and_memory_sink_path() {
         "export const value = 1;\n"
     );
     assert!(!sink.writes()[0].write_byte_order_mark());
+    let activity = outcome.h2_activity();
+    assert_eq!(activity.emit_session_constructions(), 1);
+    assert_eq!(activity.output_plan_constructions(), 1);
+    assert_eq!(activity.emit_resolver_borrows(), 1);
+    assert_eq!(activity.script_transformer_list_constructions(), 1);
+    assert_eq!(activity.transform_typescript_constructions(), 1);
+    assert_eq!(activity.transform_class_fields_constructions(), 1);
+    assert_eq!(activity.transform_ecmascript_module_constructions(), 1);
+    assert_eq!(activity.transform_context_constructions(), 1);
+    assert_eq!(activity.printer_constructions(), 1);
+    assert_eq!(activity.javascript_artifact_creations(), 1);
+    assert_eq!(activity.output_sink_write_attempts(), 1);
+    assert_eq!(activity.output_sink_failures(), 0);
+    assert_h2_runtime_zero(activity);
 }
 
 #[test]
@@ -137,6 +163,17 @@ fn empty_emit_program_preserves_present_empty_observations_without_a_resolver() 
     assert_eq!(outcome.emitted_files(), Some([].as_slice()));
     assert!(outcome.source_maps().is_none());
     assert!(sink.writes().is_empty());
+    let activity = outcome.h2_activity();
+    assert_eq!(activity.emit_session_constructions(), 1);
+    assert_eq!(activity.output_plan_constructions(), 1);
+    assert_eq!(activity.emit_resolver_borrows(), 0);
+    assert_eq!(activity.script_transformer_list_constructions(), 0);
+    assert_eq!(activity.transform_context_constructions(), 0);
+    assert_eq!(activity.printer_constructions(), 1);
+    assert_eq!(activity.javascript_artifact_creations(), 0);
+    assert_eq!(activity.output_sink_write_attempts(), 0);
+    assert_eq!(activity.output_sink_failures(), 0);
+    assert_h2_runtime_zero(activity);
 }
 
 #[test]
@@ -284,5 +321,19 @@ fn filesystem_failure_at_each_write_index_preserves_partial_set_and_continuation
             expected_partial,
             "failure index {failed_index} partial output set"
         );
+        let activity = outcome.h2_activity();
+        assert_eq!(activity.emit_session_constructions(), 1);
+        assert_eq!(activity.output_plan_constructions(), 1);
+        assert_eq!(activity.emit_resolver_borrows(), 1);
+        assert_eq!(activity.script_transformer_list_constructions(), 2);
+        assert_eq!(activity.transform_typescript_constructions(), 2);
+        assert_eq!(activity.transform_class_fields_constructions(), 2);
+        assert_eq!(activity.transform_ecmascript_module_constructions(), 2);
+        assert_eq!(activity.transform_context_constructions(), 2);
+        assert_eq!(activity.printer_constructions(), 1);
+        assert_eq!(activity.javascript_artifact_creations(), 2);
+        assert_eq!(activity.output_sink_write_attempts(), 2);
+        assert_eq!(activity.output_sink_failures(), 1);
+        assert_h2_runtime_zero(activity);
     }
 }

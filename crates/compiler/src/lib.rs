@@ -29,15 +29,16 @@ use tsc_checker::{
 };
 use tsc_diagnostics::{sort_and_dedupe_diagnostics, Diagnostic, DiagnosticList};
 use tsc_emitter::{
-    emit_files, preflight_emit, validate_bootstrap_emit_request, EmitDiagnosticGate, EmitHost,
-    EmitSource, UnavailableEmitResolver,
+    emit_files_with_activity, preflight_emit, validate_bootstrap_emit_request, EmitDiagnosticGate,
+    EmitHost, EmitSource, H2ActivityCanary, UnavailableEmitResolver,
 };
 pub use tsc_emitter::{
     EmitArtifact, EmitArtifactKind, EmitBuildInfoMetadata, EmitContractViolation, EmitFailure,
     EmitFileSystem, EmitIoError, EmitIoOperation, EmitMode, EmitOutcome, EmitOutputPaths,
     EmitOutputPlan, EmitOutputUnit, EmitRoot, EmitSelection, EmitStage, EmitTextMetadata,
     EmitWriteDisposition, EmitWriteMetadata, FsOutputSink, GeneratedUtf16Position,
-    MemoryOutputSink, OutputSink, SourceMapObservation, UnsupportedEmitFeature,
+    H2ActivityCounters, H2RuntimeSlice, MemoryOutputSink, OutputSink, SourceMapObservation,
+    UnsupportedEmitFeature,
 };
 pub use tsc_program::PreparedProgramMode;
 use tsc_program::{
@@ -640,9 +641,12 @@ impl ProgramSession {
     ) -> Result<CliEmitSessionOutcome, DriverError> {
         self.require_mode(PreparedProgramMode::Emit)?;
         let prepared = self.prepared;
+        let mut h2_activity = H2ActivityCanary::h1_profile();
+        h2_activity.construct_emit_session();
         let emit_host = PreparedEmitHost::new(&prepared)?;
         validate_bootstrap_emit_request(&emit_host).map_err(DriverError::Emit)?;
         let selection = EmitSelection::WholeProgram;
+        h2_activity.construct_output_plan();
         let preflight = preflight_emit(&emit_host, selection).map_err(DriverError::Emit)?;
 
         let inputs = project_checker_inputs(&prepared)?;
@@ -685,14 +689,16 @@ impl ProgramSession {
                     .take()
                     .expect("checked emit callback runs once");
                 let preflight_diagnostics = preflight.diagnostics().to_vec();
+                h2_activity.borrow_emit_resolver();
                 emit_result = Some(checker.with_emit_resolver(|resolver| {
-                    emit_files(
+                    emit_files_with_activity(
                         resolver,
                         &checked_host,
                         preflight,
                         selection,
                         &diagnostic_gate,
                         sink,
+                        &mut h2_activity,
                     )
                     .map(|emit| diagnostics.with_emit(&preflight_diagnostics, emit, work_counters))
                     .map_err(DriverError::Emit)
@@ -714,13 +720,14 @@ impl ProgramSession {
         let work_counters = check_work_counters(&checked);
         let preflight = pending_preflight.expect("empty Program did not consume preflight");
         let preflight_diagnostics = preflight.diagnostics().to_vec();
-        emit_files(
+        emit_files_with_activity(
             &UnavailableEmitResolver,
             &emit_host,
             preflight,
             selection,
             &diagnostic_gate,
             sink,
+            &mut h2_activity,
         )
         .map(|emit| diagnostics.with_emit(&preflight_diagnostics, emit, work_counters))
         .map_err(DriverError::Emit)

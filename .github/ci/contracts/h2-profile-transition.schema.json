@@ -23,8 +23,8 @@
   ],
   "properties": {
     "schema": { "const": 1 },
-    "status": { "const": "frozen-evidence-only" },
-    "phase": { "const": "H2.0a-profile-transition" },
+    "status": { "const": "frozen-pre-runtime-baseline" },
+    "phase": { "const": "H2.0b-baseline-transition" },
     "typescript": { "$ref": "#/$defs/typescript" },
     "generator": { "$ref": "#/$defs/path_hash" },
     "contract": { "$ref": "#/$defs/path_hash" },
@@ -45,10 +45,11 @@
     "oracle_contracts": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["source_reachability", "emit_observation"],
+      "required": ["source_reachability", "emit_observation", "runtime_baseline"],
       "properties": {
         "source_reachability": { "$ref": "#/$defs/path_hash" },
-        "emit_observation": { "$ref": "#/$defs/path_hash" }
+        "emit_observation": { "$ref": "#/$defs/path_hash" },
+        "runtime_baseline": { "$ref": "#/$defs/path_hash" }
       }
     },
     "current_runtime_profile": { "$ref": "#/$defs/runtime_profile" },
@@ -102,9 +103,9 @@
       "required": ["transition_rows", "completed_rows", "next_rows", "planned_rows", "runtime_admissions"],
       "properties": {
         "transition_rows": { "type": "integer", "minimum": 1 },
-        "completed_rows": { "const": 1 },
+        "completed_rows": { "const": 2 },
         "next_rows": { "const": 1 },
-        "planned_rows": { "type": "integer", "minimum": 1 },
+        "planned_rows": { "const": 36 },
         "runtime_admissions": { "const": 0 }
       }
     },

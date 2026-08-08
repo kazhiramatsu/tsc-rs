@@ -7,6 +7,7 @@
 //! `tsc-rs-checker`; live checker state implements emitter-owned protocols
 //! without creating a dependency cycle.
 
+mod activity;
 mod artifact;
 mod builtins;
 mod error;
@@ -23,6 +24,7 @@ mod sink;
 mod transform;
 mod writer;
 
+pub use activity::{H2ActivityCanary, H2ActivityCounters, H2RuntimeSlice};
 pub use artifact::{
     EmitArtifact, EmitArtifactKind, EmitBuildInfoMetadata, EmitTextMetadata, EmitWriteMetadata,
 };
@@ -35,8 +37,8 @@ pub use error::{
     UnsupportedEmitFeature,
 };
 pub use execute::{
-    emit_files, validate_bootstrap_emit_options, validate_bootstrap_emit_request,
-    EmitDiagnosticGate,
+    emit_files, emit_files_with_activity, validate_bootstrap_emit_options,
+    validate_bootstrap_emit_request, EmitDiagnosticGate,
 };
 pub use factory::{
     NodeFactory, TransformArena, TransformNode, TransformNodeArray, TransformSource,
