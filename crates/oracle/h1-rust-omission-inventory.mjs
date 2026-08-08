@@ -179,7 +179,7 @@ const anchorSpecs = [
   [
     "emitter-outcome-protocol",
     "crates/emitter/src/outcome.rs",
-    "pub struct EmitOutcome {\n    diagnostics: DiagnosticList,\n    emit_skipped: bool,\n    emitted_files: Option<Box<[PathBuf]>>,\n    source_maps: Option<Box<[SourceMapObservation]>>,\n}",
+    "pub struct EmitOutcome {\n    diagnostics: DiagnosticList,\n    emit_skipped: bool,\n    emitted_files: Option<Box<[PathBuf]>>,\n    source_maps: Option<Box<[SourceMapObservation]>>,\n    h2_activity: H2ActivityCounters,\n}",
   ],
   [
     "emitter-transform-arena",

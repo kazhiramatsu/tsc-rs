@@ -2,6 +2,8 @@ use std::path::PathBuf;
 
 use tsc_diagnostics::{Diagnostic, DiagnosticList};
 
+use crate::H2ActivityCounters;
+
 /// Normalized source-map observation reserved by the H1 result shape.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct SourceMapObservation {
@@ -38,6 +40,7 @@ pub struct EmitOutcome {
     emit_skipped: bool,
     emitted_files: Option<Box<[PathBuf]>>,
     source_maps: Option<Box<[SourceMapObservation]>>,
+    h2_activity: H2ActivityCounters,
 }
 
 impl EmitOutcome {
@@ -48,12 +51,14 @@ impl EmitOutcome {
         emit_skipped: bool,
         emitted_files: Option<Vec<PathBuf>>,
         source_maps: Option<Vec<SourceMapObservation>>,
+        h2_activity: H2ActivityCounters,
     ) -> Self {
         Self {
             diagnostics,
             emit_skipped,
             emitted_files: emitted_files.map(Vec::into_boxed_slice),
             source_maps: source_maps.map(Vec::into_boxed_slice),
+            h2_activity,
         }
     }
 
@@ -71,5 +76,10 @@ impl EmitOutcome {
 
     pub fn source_maps(&self) -> Option<&[SourceMapObservation]> {
         self.source_maps.as_deref()
+    }
+
+    /// Session-owned H1 positive controls and H2 runtime-slice canaries.
+    pub const fn h2_activity(&self) -> H2ActivityCounters {
+        self.h2_activity
     }
 }

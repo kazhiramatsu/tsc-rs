@@ -1,10 +1,11 @@
 use tsc_diagnostics::{gen, sort_and_dedupe_diagnostics, Diagnostic, DiagnosticList, MessageChain};
 use tsc_types::{CompilerOptions, ScriptTarget};
 
+use crate::builtins::get_script_transformers_with_activity;
 use crate::{
-    create_printer, get_script_transformers, transform_nodes, DisabledSourceMapRecorder,
-    EmitArtifact, EmitContractViolation, EmitFailure, EmitHost, EmitOutcome, EmitPreflight,
-    EmitResolver, EmitRoot, EmitSelection, EmitTextMetadata, EmitWriteDisposition, NewLineKind,
+    create_printer, transform_nodes, DisabledSourceMapRecorder, EmitArtifact,
+    EmitContractViolation, EmitFailure, EmitHost, EmitOutcome, EmitPreflight, EmitResolver,
+    EmitRoot, EmitSelection, EmitTextMetadata, EmitWriteDisposition, H2ActivityCanary, NewLineKind,
     OutputSink, PrintRequest, PrinterOptions, TransformArena, TransformRoot,
 };
 
@@ -204,6 +205,35 @@ pub fn emit_files(
     diagnostic_gate: &EmitDiagnosticGate,
     sink: &mut dyn OutputSink,
 ) -> Result<EmitOutcome, EmitFailure> {
+    let mut activity = H2ActivityCanary::h1_profile();
+    activity.construct_emit_session();
+    activity.construct_output_plan();
+    if !preflight.plan().units().is_empty() {
+        activity.borrow_emit_resolver();
+    }
+    emit_files_with_activity(
+        resolver,
+        host,
+        preflight,
+        selection,
+        diagnostic_gate,
+        sink,
+        &mut activity,
+    )
+}
+
+/// Compiler-owned entry which carries one observer from request construction
+/// through callback completion.
+#[doc(hidden)]
+pub fn emit_files_with_activity(
+    resolver: &dyn EmitResolver,
+    host: &dyn EmitHost,
+    preflight: EmitPreflight,
+    selection: EmitSelection,
+    diagnostic_gate: &EmitDiagnosticGate,
+    sink: &mut dyn OutputSink,
+    activity: &mut H2ActivityCanary,
+) -> Result<EmitOutcome, EmitFailure> {
     validate_bootstrap_emit_request(host)?;
     preflight.plan().validate_bootstrap_shape()?;
     if preflight.plan().selection() != selection {
@@ -222,6 +252,7 @@ pub fn emit_files(
                 true,
                 emitted_files_enabled.then(Vec::new),
                 None,
+                activity.counters(),
             ));
         }
     }
@@ -231,6 +262,7 @@ pub fn emit_files(
         None | Some(1) => NewLineKind::LineFeed,
         Some(_) => return unsupported("newLine"),
     };
+    activity.construct_printer();
     let printer = create_printer(
         PrinterOptions::new(new_line)
             .with_remove_comments(options.remove_comments == Some(true))
@@ -262,7 +294,8 @@ pub fn emit_files(
 
         let mut arena = TransformArena::new();
         let transform_source = arena.add_source(syntax, Some(*source_id));
-        let transformers = get_script_transformers(options, resolver)?;
+        let transformers = get_script_transformers_with_activity(options, resolver, activity)?;
+        activity.construct_transform_context();
         let mut transformation = transform_nodes(
             arena,
             vec![TransformRoot::SourceFile(transform_source)],
@@ -275,6 +308,7 @@ pub fn emit_files(
             PrintRequest::SourceFile(transform_source),
             &mut DisabledSourceMapRecorder,
         )?;
+        activity.create_javascript_artifact();
         artifacts.push(EmitArtifact::javascript(
             javascript_path,
             printed.text(),
@@ -288,10 +322,12 @@ pub fn emit_files(
     let mut emitted_files = emitted_files_enabled.then(Vec::new);
     for artifact in artifacts {
         let path = artifact.path().to_path_buf();
+        activity.attempt_output_sink_write();
         let include_in_emitted_files = match sink.write(artifact) {
             Ok(EmitWriteDisposition::Written) => true,
             Ok(EmitWriteDisposition::SkippedUnchanged) => false,
             Err(error) => {
+                activity.observe_output_sink_failure();
                 diagnostics.push(write_diagnostic(&path, error.message()));
                 // TypeScript records the attempted output after the host's
                 // error callback returns; a callback error is not an
@@ -312,6 +348,7 @@ pub fn emit_files(
         emit_skipped,
         emitted_files,
         None,
+        activity.counters(),
     ))
 }
 

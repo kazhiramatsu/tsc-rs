@@ -1,18 +1,18 @@
 {
   "schema": 1,
-  "status": "frozen-evidence-only",
-  "phase": "H2.0a-profile-transition",
+  "status": "frozen-pre-runtime-baseline",
+  "phase": "H2.0b-baseline-transition",
   "typescript": {
     "version": "6.0.3",
     "source_commit": "050880ce59e30b356b686bd3144efe24f875ebc8"
   },
   "generator": {
     "path": "crates/oracle/h2-transition.mjs",
-    "sha256": "3364d6520df924a67c2be28fbd00eb76a0d45a001d9975e39a2e9b48a153ed27"
+    "sha256": "4cfee6be340ee1cb8d6452b52376fa46f81143943d002290cdcad86b9dce7c2f"
   },
   "contract": {
     "path": ".github/ci/contracts/h2-profile-transition.schema.json",
-    "sha256": "9a04322f45707331d9a5f384766af7852429853d063a137b85d148058c0e5743"
+    "sha256": "fb899f795a4b07b38da88748117347b3f662d85e4be194b2334b48c05e519b23"
   },
   "h1_frozen_inputs": [
     {
@@ -25,7 +25,7 @@
     },
     {
       "path": "ratchets/h1-rust-omissions.v1.json",
-      "sha256": "9a3af9215f1ca2d15b706f533e70eacb65d57418e0ff930dc65cdc710c6d8b4b"
+      "sha256": "9191624d90673877c5c60baf4e5934c40e8cf31a1a3505dba6301ca625a61ea0"
     },
     {
       "path": "ratchets/h1-emit-oracle.v1.json",
@@ -33,17 +33,17 @@
     },
     {
       "path": "ratchets/h1-emit-qualification.v1.json",
-      "sha256": "8c079a22dbd8dd03ed258dd8bb5846a27bdf1ca19204150bbd67328e0626fad0"
+      "sha256": "4a9a36b3b35acd9c22bf22fc88ba2c463bc6a16a18f61d2ee38c528d4aaa42ef"
     }
   ],
   "h2_inputs": {
     "owner_inventory": {
       "path": "ratchets/h2-owner-inventory.v1.json",
-      "sha256": "3f81019dfc6fe4d70318d6260d4b3e1168f9a4dbc676e435ed5890a4d082ccf3"
+      "sha256": "1f3d666d107247bef7b5e18d6e9506ff51d281277c136bf70112a863b6dfa98d"
     },
     "candidate_dispositions": {
       "path": "ratchets/h2-candidate-dispositions.v1.json",
-      "sha256": "42795770807110f08fc60bc3aaa75ec407ef43bf2eb343cd85d30dbea5b6812d"
+      "sha256": "6930d377041d755579e6dbcc1f5551ba84b8ebac29535e4b05e46b386e29b53a"
     }
   },
   "oracle_contracts": {
@@ -54,6 +54,10 @@
     "emit_observation": {
       "path": ".github/ci/contracts/h2-emit-observation.schema.json",
       "sha256": "fb993ab3df5618537d55d074ccbbd9a21028b6caf932ed7633c91da02d0ef899"
+    },
+    "runtime_baseline": {
+      "path": ".github/ci/contracts/h2-runtime-baseline.schema.json",
+      "sha256": "a37cbec40a1773d3b4199739764f34882457aaebe0661280ede262246b769fae"
     }
   },
   "current_runtime_profile": {
@@ -97,7 +101,7 @@
     },
     {
       "slice": "H2.0b",
-      "state": "next",
+      "state": "complete-evidence-only",
       "dependencies": [
         "H2.0a"
       ],
@@ -108,11 +112,11 @@
         "binary-startup",
         "fault-resource-baselines"
       ],
-      "close_evidence": "alternating approved-runner baselines and constructor/activity zeros"
+      "close_evidence": "eight alternating approved-runner pairs, positive H1 controls, two output-fault observations, and zero activity across all 37 H2 runtime slices"
     },
     {
       "slice": "H2.1a",
-      "state": "planned",
+      "state": "next",
       "dependencies": [
         "H2.0b"
       ],
@@ -587,10 +591,10 @@
   },
   "summary": {
     "transition_rows": 39,
-    "completed_rows": 1,
+    "completed_rows": 2,
     "next_rows": 1,
-    "planned_rows": 37,
+    "planned_rows": 36,
     "runtime_admissions": 0
   },
-  "profile_fingerprint_sha256": "07b3bfdee5ce64bb7c233b2d6c3c5cbd58f8c0e2524454c4ff2e66c757135d6e"
+  "profile_fingerprint_sha256": "9e3c122472e1080987794d2b7456810ce06fb6c20d082c3013edd06e0fee5452"
 }

@@ -119,14 +119,16 @@ there.
 - H2 transition inventory: `node crates/oracle/h2-transition.mjs --check`
   regenerates in memory and byte-compares the H2 owner/Rust-converse graph,
   all 15,642 compiler/conformance/project/transpile dispositions, and the
-  39-row evidence-only profile transition while pinning every H1 input hash.
-- H1 no-emit qualification:
-  `node crates/oracle/h1-noemit-performance.mjs --check` validates the frozen
-  three-workload AB/BA evidence, exact pre-H1/runtime-parent lineage, H0
-  absolute and H1 relative ceilings, executable size, and constructor/write
-  zeros. Only the approved macOS arm64 profile may run `--compare`; the
-  manually dispatched `h1-approved-noemit-performance` workflow is evidence
-  tooling and never broadens ordinary GitHub CI beyond `ts-tests` acceptance.
+  39-row pre-runtime profile transition while pinning every H1 input hash and
+  selecting H2.1a next.
+- H2 pre-runtime baseline: `node crates/oracle/h2-baseline.mjs --check`
+  validates the same-runner alternating H2.0a/candidate evidence for three H0
+  no-emit workloads, the exact H1 emit case, L1 fresh/incremental edit,
+  binaries/startup, two sink faults, positive H1 controls, and zero activity
+  across all 37 unadmitted H2 runtime slices. Only the approved macOS arm64
+  profile may mint it with `--compare`. The older H1 no-emit/emit performance
+  artifacts are immutable historical lineage; their generators remain syntax
+  checked but do not validate a later runtime tree.
 - Hosted acceptance: `cargo xtask acceptance` is fixed and unsplit; it accepts
   no file/band/limit selectors and runs only suites sourced from `ts-tests`.
 - Conformance single band: `cargo xtask conformance [--band 2xxx]`

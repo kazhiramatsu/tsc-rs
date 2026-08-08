@@ -1,7 +1,7 @@
 # Post-H1 TypeScript 6.0.3 completion slices
 
-Status: execution schedule approved on 2026-08-08. H0, L0/L1, H1, and H2.0a
-are complete. **H2.0b is the next slice.**
+Status: execution schedule approved on 2026-08-08. H0, L0/L1, H1, H2.0a, and
+H2.0b are complete. **H2.1a is the next slice.**
 
 This document turns the audited post-H1 residual into branch-sized execution
 slices. It owns post-H1 slice IDs, dependency order, and slice-specific
@@ -131,7 +131,7 @@ transform becomes reachable.
 | Slice | Scope | Dependencies and close evidence |
 | --- | --- | --- |
 | H2.0a — complete | Generate the full post-H1 owner/converse inventory, profile-transition manifest, oracle schemas, and exact compiler/conformance/project/transpile candidate dispositions. Freeze the current 94 compiler and 201 conformance option-level one-module-blocker candidates without claiming source compatibility. | H1.6. Zero unresolved/undispositioned owners and cases; old H1 artifacts byte-identical; all rows remain explicit until source analysis and execution. |
-| **H2.0b — next** | Freeze post-H1 no-emit, H1 emit, L1 edit, binary/startup, output-fault, and resource baselines; add H2 constructor/activity canaries without changing ordinary CI. | H2.0a. Alternating approved-runner evidence and complete local regression gates before H2 runtime changes. |
+| H2.0b — complete | Freeze post-H1 no-emit, H1 emit, L1 edit, binary/startup, output-fault, and resource baselines; add H2 constructor/activity canaries without changing ordinary CI. | H2.0a. Eight alternating approved-runner base/candidate pairs per workload, two exact sink-fault observations, positive H1 controls, zero activity across all 37 H2 runtime slices, and complete local regression gates before H2 runtime changes. |
 
 H2.0a closed on 2026-08-08 without changing the runtime profile or admitting a
 new case:
@@ -148,7 +148,7 @@ new case:
   every other row names its earliest required H2 slice and remains `not-run`;
 - the [profile transition](../../../ratchets/h2-profile-transition.v1.json)
   fixes all 39 H2 rows, keeps H1 as the only runtime profile, records zero H2
-  admissions, and identifies H2.0b as the next evidence row and H2.1a as the
+  admissions, closes both evidence rows, and identifies H2.1a as the next and
   first runtime candidate; and
 - strict contracts now exist for the
   [owner inventory](../../../.github/ci/contracts/h2-owner-inventory.schema.json),
@@ -165,11 +165,47 @@ The independent Rust contract repeats the lineage, identity, count, monotonic
 slice-order, and zero-undispositioned checks. Neither check treats the 295
 option-level candidates as source-compatible or executed.
 
+H2.0b closed on 2026-08-08 without admitting an H2 runtime path. The
+[pre-runtime baseline](../../../ratchets/h2-runtime-baseline.v1.json) compares
+the exact H2.0a merge with the final H2.0b runtime candidate on the same
+approved macOS arm64 runner. Each of the three H0 no-emit workloads, the sole
+H1-compatible emit case, and the L1 large-edit fresh/incremental workload has
+one cold plus seven warm alternating AB/BA pairs. The same artifact freezes
+production/compiler and qualification-observer binary sizes, cold startup,
+allocation and RSS ceilings, exact output bytes, and the immutable lineage of
+the older H1/L1 performance artifacts. The recorded candidate is
+`2894d167b336c6c8039f23f71d31bef223c40ef5`: the largest no-emit warm-median,
+warm-p95, and RSS ratios are 1.008095, 1.006398, and 1.008474; H1 emit records
+1.014961, 1.009044, and 0.997680; and the largest candidate/base L1 operation
+ratio is 1.038047. Compiler and H0 observer size ratios are 1.000166 and
+1.000164, while the L1 observer is byte-identical.
+
+The production session now carries one
+[`H2ActivityCanary`](../../../crates/emitter/src/activity.rs). Its positive H1
+controls prove that the session, plan, resolver, three active transformer
+constructors, transform context, printer, JavaScript artifact, and sink paths
+are actually observed. Three no-emit executions remain all-zero, both output
+failure positions retain exact partial-output behavior, and all 37 reserved
+H2 runtime-slice counters remain zero and fail closed before admission. The
+strict [baseline schema](../../../.github/ci/contracts/h2-runtime-baseline.schema.json),
+generator, and independent Rust contract bind those facts. Current-runtime
+freshness is checked with:
+
+```text
+node crates/oracle/h2-baseline.mjs --check
+```
+
+The historical H1 no-emit and emit generators remain syntax-checked, while
+their measured artifacts are immutable lineage inputs rather than being
+reinterpreted against a later runtime tree. Ordinary GitHub Actions remains
+the single `gates` job running only `cargo xtask acceptance`; evidence
+production and the complete regression gate remain local qualification work.
+
 ### 4.2 Module formats at `target=ESNext`
 
 | Slice | Scope | Dependencies and close evidence |
 | --- | --- | --- |
-| H2.1a | Port `transformImpliedNodeFormatDependentModule`, `getEmitModuleFormatOfFile`, and both ESM/CJS constructor and hook-composition closures. Admit only files proven to select the already-closed ESM path; an incomplete CJS selection fails before the first sink call. | H2.0b. Effective omitted module under `target=ESNext` and explicit `module=ESNext` candidates receive source reachability dispositions and exact outputs. |
+| **H2.1a — next** | Port `transformImpliedNodeFormatDependentModule`, `getEmitModuleFormatOfFile`, and both ESM/CJS constructor and hook-composition closures. Admit only files proven to select the already-closed ESM path; an incomplete CJS selection fails before the first sink call. | H2.0b. Effective omitted module under `target=ESNext` and explicit `module=ESNext` candidates receive source reachability dispositions and exact outputs. |
 | H2.1b | Close `transformModule` for CommonJS, including prologues, interop, substitutions/notifications, helpers, resolver facts, and printer/output dependencies. | H2.1a. CJS positive and ESM-adjacent controls, multi-file ordering, helper de-duplication, and failure parity are exact. |
 | H2.1c | Activate AMD and UMD branches that reuse `transformModule`, including dependency arrays, wrappers, names, and option interactions. | H2.1b. AMD/UMD runner observations are exact; System and bundle-only rows remain controls. |
 | H2.1d | Port and qualify `transformSystemModule` and its resolver/helper/output closure. | H2.1c. System-specific execute/setter/export ordering and diagnostics are exact. |

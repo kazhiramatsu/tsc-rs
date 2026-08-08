@@ -17,7 +17,7 @@
   "authorities": {
     "design": {
       "path": "docs/design/greenfield/h1-emit.md",
-      "sha256": "c76beb439d4a0379be7863d60f0b859327db5c0effe405392a67b0eef6a13951"
+      "sha256": "250c35515b336cf938c837dfa73ae0ce6c3192a56bb015acbac1fe07f33feccc"
     },
     "typescript": {
       "path": "vendor/typescript-6.0.3/lib/typescript.js",
@@ -1613,5 +1613,5 @@
       ]
     }
   ],
-  "oracle_fingerprint_sha256": "d0c168b0913e4be9f34eb30ca46ecafc2088d5a3b0e164281eced485c72b96da"
+  "oracle_fingerprint_sha256": "e80f57705c4c53d772e78a3d432f56fd640bbe3e9aa1f2108e1c0b9ade475d4d"
 }

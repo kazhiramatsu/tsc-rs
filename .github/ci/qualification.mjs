@@ -352,6 +352,7 @@ export function validatePolicy(policy) {
     "h2-owner-inventory",
     "h2-candidate-dispositions",
     "h2-profile-transition",
+    "h2-runtime-baseline",
     "h2-source-reachability",
     "h2-emit-observation",
   ]) {

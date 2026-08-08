@@ -614,7 +614,7 @@ parsing cannot hide a regression outside the original small canary.
 
 H1.0b freezes this boundary in
 [`h1-noemit-performance.v1.json`](../../../ratchets/h1-noemit-performance.v1.json),
-generated and revalidated by
+generated and revalidated through H1 closure by
 [`h1-noemit-performance.mjs`](../../../crates/oracle/h1-noemit-performance.mjs).
 The exact trusted pre-H1 commit is `c0951bf15cdec74223de29e06cd908b0899712f6`
 and the first guarded candidate is
@@ -631,6 +631,12 @@ candidate stays below every ceiling: its largest warm-median wall ratio is
 1.013631, its largest RSS ratio is 1.000547, its largest allocation-count and
 allocated-byte ratios are 1.000007 and 1.000013, every parse/bind/copy ratio
 is 1.0, and its executable-size ratio is 1.010013 (123,824 bytes larger).
+
+H2.0b makes this final H1 artifact, and the separate H1 emit performance
+artifact below, immutable historical lineage. Their generators remain
+syntax-checked; current-runtime comparison transfers to the versioned H2
+pre-runtime baseline instead of rewriting either H1 measurement against a
+later candidate.
 
 The zero-sized [`NoEmitCanary`](../../../crates/compiler/src/no_emit_canary.rs)
 is threaded from CLI dispatch through `ProgramSession`. Its eight frozen

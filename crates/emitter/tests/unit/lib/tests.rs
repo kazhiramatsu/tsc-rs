@@ -8,7 +8,7 @@ fn outcome_retains_optional_presence_and_independent_emitted_file_order() {
         vec![PathBuf::from("/project/input.ts")],
         "{\"version\":3}".into(),
     );
-    let absent = EmitOutcome::new(Vec::new(), true, None, None);
+    let absent = EmitOutcome::new(Vec::new(), true, None, None, Default::default());
     let present = EmitOutcome::new(
         Vec::new(),
         false,
@@ -17,6 +17,7 @@ fn outcome_retains_optional_presence_and_independent_emitted_file_order() {
             PathBuf::from("/project/out.js.map"),
         ]),
         Some(vec![source_map]),
+        Default::default(),
     );
 
     assert!(absent.emit_skipped());

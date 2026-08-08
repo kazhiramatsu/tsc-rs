@@ -18,7 +18,7 @@ const H1_FROZEN: [(&str, &str); 5] = [
     ),
     (
         "ratchets/h1-rust-omissions.v1.json",
-        "9a3af9215f1ca2d15b706f533e70eacb65d57418e0ff930dc65cdc710c6d8b4b",
+        "9191624d90673877c5c60baf4e5934c40e8cf31a1a3505dba6301ca625a61ea0",
     ),
     (
         "ratchets/h1-emit-profile.v1.json",
@@ -30,7 +30,7 @@ const H1_FROZEN: [(&str, &str); 5] = [
     ),
     (
         "ratchets/h1-emit-qualification.v1.json",
-        "8c079a22dbd8dd03ed258dd8bb5846a27bdf1ca19204150bbd67328e0626fad0",
+        "4a9a36b3b35acd9c22bf22fc88ba2c463bc6a16a18f61d2ee38c528d4aaa42ef",
     ),
 ];
 
@@ -159,6 +159,7 @@ fn h2_transition_is_fresh_and_preserves_every_h1_input() {
         &profile["oracle_contracts"]["source_reachability"],
     );
     assert_path_hash(&workspace, &profile["oracle_contracts"]["emit_observation"]);
+    assert_path_hash(&workspace, &profile["oracle_contracts"]["runtime_baseline"]);
 }
 
 #[test]
@@ -319,16 +320,16 @@ fn every_h2_runner_case_has_an_exact_monotonic_disposition() {
 }
 
 #[test]
-fn profile_transition_keeps_h2_0a_evidence_only_and_h2_0b_next() {
+fn profile_transition_closes_h2_0b_and_selects_h2_1a() {
     let workspace = workspace();
     let manifest = read_json(&workspace, PROFILE_PATH);
     assert_eq!(manifest["schema"], 1);
-    assert_eq!(manifest["status"], "frozen-evidence-only");
-    assert_eq!(manifest["phase"], "H2.0a-profile-transition");
+    assert_eq!(manifest["status"], "frozen-pre-runtime-baseline");
+    assert_eq!(manifest["phase"], "H2.0b-baseline-transition");
     assert_eq!(manifest["summary"]["transition_rows"], 39);
-    assert_eq!(manifest["summary"]["completed_rows"], 1);
+    assert_eq!(manifest["summary"]["completed_rows"], 2);
     assert_eq!(manifest["summary"]["next_rows"], 1);
-    assert_eq!(manifest["summary"]["planned_rows"], 37);
+    assert_eq!(manifest["summary"]["planned_rows"], 36);
     assert_eq!(manifest["summary"]["runtime_admissions"], 0);
 
     let transitions = array(&manifest["transitions"]);
@@ -340,8 +341,9 @@ fn profile_transition_keeps_h2_0a_evidence_only_and_h2_0b_next() {
         SLICE_ORDER
     );
     assert_eq!(transitions[0]["state"], "complete-evidence-only");
-    assert_eq!(transitions[1]["state"], "next");
-    assert!(transitions[2..].iter().all(|row| row["state"] == "planned"));
+    assert_eq!(transitions[1]["state"], "complete-evidence-only");
+    assert_eq!(transitions[2]["state"], "next");
+    assert!(transitions[3..].iter().all(|row| row["state"] == "planned"));
     assert_eq!(
         manifest["first_runtime_candidate"]["status"],
         "not-admitted"
