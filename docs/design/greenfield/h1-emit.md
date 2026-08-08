@@ -1,6 +1,7 @@
 # H1: filesystem-hosted JavaScript emit execution contract
 
-Status: H1.0a now has the generated, report-only
+Status: H1.0a-H1.6 are complete and performance-qualified. H1.0a established
+the generated, report-only
 [`h1-owner-inventory.v1.json`](../../../ratchets/h1-owner-inventory.v1.json)
 owner-graph draft plus the frozen
 [`h1-emit-profile.v1.json`](../../../ratchets/h1-emit-profile.v1.json) and
@@ -1307,6 +1308,10 @@ H1 and the L-track have a deliberate implementation dependency without
 sharing a compatibility claim. L0 and L1 land first to validate the source,
 arena, bind, and checker lifetime boundary; full old-Program/resolution reuse,
 Language Service, tsserver, and LSP behavior remain later tracks.
+The branch-sized route from the completed H1 profile through broad compiler,
+reuse, build/watch, service, server, and LSP work is owned by the
+[post-H1 completion slices](post-h1-completion-slices.md); it does not reopen
+or broaden the H1 claim.
 
 The shared invariants are:
 

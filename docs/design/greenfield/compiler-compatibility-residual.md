@@ -105,14 +105,14 @@ There is no single honest “100%” number spanning these surfaces:
 | Frozen batch-diagnostics implementation | M0-M8 complete | M9.1c-M9.7 confidence production, burn-in, freeze, and qualification |
 | Frozen filesystem `--noEmit` compiler | H0 complete | Preserve behavior and cost; do not route it through emitter setup |
 | Bounded one-shot JavaScript emit | H1.0-H1.6 complete and qualified | Preserve the frozen profile while broader one-shot emit expands under new evidence |
-| Broad one-shot `tsc` compilation | Not designed as one approved milestone | Full JS transform matrix, declarations, maps, output/config/CLI matrix, and complete emit suites |
-| Build/watch/project references | Preliminary seams only | Builder state, `.tsbuildinfo`, graph reuse, solution orchestration, watchers, and their suites |
-| Compiler API/custom transforms | Not exposed | Stable AST/factory/printer/Program/TypeChecker contracts and callback lifetimes |
-| Persistent source + incremental parser | L0.4 and L1 complete and qualified | Preserve fresh exactness and the large-edit budget; L2 Program/resolution reuse remains Language Service work |
-| Language Service | Audited engine prerequisites only | Full document registry/program and resolution reuse, query/cache APIs, cancellation, and FourSlash qualification |
-| tsserver | Not implemented | Session protocol, Project Service, open-file overlays, watches, plugins, type acquisition, and server suites |
-| LSP adapter | Not implemented and not an upstream tsc surface | Explicit protocol mapping, synchronization, capabilities, concurrency, and LSP tests |
-| TypeScript versions after 6.0.3 | Unsupported | A separate re-vendor, codegen, ledger, oracle, and compatibility transition per version |
+| Broad one-shot `tsc` compilation | H2 sliced; H2.0a evidence/profile transition next | Full JS transform matrix, declarations, maps, output/config/CLI matrix, and complete emit suites |
+| Build/watch/project references | BLD1/W1 sliced after L2; preliminary seams only | Builder state, `.tsbuildinfo`, graph reuse, solution orchestration, watchers, and their suites |
+| Compiler API/custom transforms | API1 sliced after stable compiler/build contracts; not exposed | Stable AST/factory/printer/Program/TypeChecker contracts and callback lifetimes |
+| Persistent source + incremental parser | L0.4 and L1 complete and qualified; L2 sliced after H2 | Preserve fresh exactness and the large-edit budget; complete old-Program/resolution reuse |
+| Language Service | L3 sliced after L2/API1; audited engine prerequisites only | Full document registry/program and resolution reuse, query/cache APIs, cancellation, and FourSlash qualification |
+| tsserver | L4 sliced after L3; not implemented | Session protocol, Project Service, open-file overlays, watches, plugins, type acquisition, and server suites |
+| LSP adapter | L5 sliced after L3; not implemented and not an upstream tsc surface | Explicit protocol mapping, synchronization, capabilities, concurrency, and LSP tests |
+| TypeScript versions after 6.0.3 | VER1 requires separate approval; unsupported | A separate re-vendor, codegen, ledger, oracle, and compatibility transition per version |
 
 H1 closes only the third row. The persistent-source/incremental-parser row is
 an implementation prerequisite but remains a separate compatibility claim;
@@ -1081,66 +1081,46 @@ stale-candidate cancellation.
 
 ## 12. Dependency order toward broader compatibility
 
-The critical path is:
+The branch-sized schedule is now owned by the
+[post-H1 completion slices](post-h1-completion-slices.md). That document turns
+this residual inventory into explicit H2, L2, BLD1/W1, API1, L3-L5, and
+release rows with dependencies and per-slice evidence. These IDs deliberately
+avoid the existing A1-A5 and B1-B4 evidence-contract namespaces. This section
+records only the cross-track critical path.
 
-1. **Complete:** freeze the current H0 parse/bind/text-copy and resource evidence, define
-   the shared CI lane/receipt/failure-artifact schemas, and continue the
-   read-only H1 inventory/profile/oracle work;
-2. **Complete:** land L0 shared text/position ownership, identity leases, owned bind state,
-   `ProgramSnapshot`, ephemeral H0 adapter, and minimal registry reuse;
-3. **Complete:** land L1 incremental parsing and its exactness, Unicode-edit, randomized-
-   edit, memory, and large-file latency gates, then requalify H0;
-4. **Complete:** freeze the post-L0/L1 H1 no-emit baseline and
-   constructor/write-zero canaries; ordinary hosted CI remains frozen to
-   `cargo xtask acceptance`;
-5. **Complete:** land the emitter protocols and factory/transform-context/
-   writer/printer foundation while retaining the first emit-only scalar
-   options without weakening the H0 loader;
-6. **Complete:** land the scoped checker lifetime, resolver, changed-node
-   printer workers, and three-transform bootstrap;
-7. **Complete:** land source/output planning, emit-active preflight, and exact
-   in-memory `emitFiles` dispatch;
-8. **Complete:** connect the separate emitting loader, filesystem sink, CLI,
-   and exact partial-failure/exit behavior;
-9. **Complete:** close the frozen H1 profile and qualification evidence;
-10. **Next:** expand JavaScript transforms/options/file kinds while closing one-shot
-   config, host/System, library-replacement, CLI, and source-map behavior;
-11. implement declaration emit, bundles/`outFile`, then declaration maps;
-12. implement deterministic builder signatures/build info and project
-   references, including solution-builder pull/clean behavior;
-13. add L2 old-Program/resolution and builder-program reuse, affected-file
-   queues, and solution build, then qualify ordinary watch and
-   build-with-watch;
-14. qualify the public compiler/custom-transformer API and any JavaScript
-   binding/package profile under its own contract;
-15. close Language Service query/cache suites, then tsserver Project Service,
-    protocol, plugins, and type acquisition;
-14. implement and qualify the separate LSP adapter if it remains a product
-    goal;
-15. close locales, platform matrices, package entry points, and reproducible
-    release artifacts; and
-16. start any post-6.0.3 version transition only after its new evidence
-    contract is approved.
+The completed prerequisites are H0, L0/L1, and H1. The remaining runtime order
+is:
 
-Some work can proceed in parallel without violating that order:
+1. **Next — H2.0a:** freeze the full post-H1 owner/converse inventory, profile
+   transition, oracle schemas, and exact candidate dispositions without
+   modifying or borrowing H1 evidence;
+2. expand broad one-shot compiler behavior through dependency-closed module,
+   TypeScript runtime, source-kind, JSX/decorator, target, map, declaration,
+   output/config/System, and CLI slices, then qualify H2 over every applicable
+   upstream runner observation;
+3. land L2 once as the shared old-Program, registry, resolution-cache,
+   dependency-set, invalidation, publication, release, and cancellation
+   substrate for both builders and services;
+4. implement deterministic builder signatures/build info, project references,
+   solution build, and then ordinary and solution watch on that substrate;
+5. stabilize the public compiler/custom-transformer and cancellation contracts;
+6. close Language Service, then tsserver Project Service/protocol, and only
+   then the independent Rust-native LSP adapter;
+7. resume M9 confidence production after shared checker producers are stable,
+   then close locale/platform/package/reproducible-release slices; and
+8. begin a post-6.0.3 transition only under a separately approved evidence
+   contract.
 
-- H1 owner/profile/oracle inventory and later-surface inventories could proceed
-  while L0/L1 landed; their completed qualification now unblocks H1 runtime;
-- source-map generator and full JavaScript transformer expansion are largely
-  independent;
-- declaration resolver/NodeBuilder inventory can be designed while maps are
-  implemented, but declaration maps wait for both;
-- FourSlash, tsserver, and LSP inventories can continue without claiming or
-  implementing their product layers; and
-- CLI/config/System inventories, public signature inventories, suite pins,
-  locale/package inventories, and platform probes can be prepared while
-  transformer slices land.
+Read-only owner, suite, public-signature, protocol, locale/package, and platform
+inventories may proceed early. Source-map implementation may proceed alongside
+JavaScript transformer expansion, and declaration owner/NodeBuilder inventory
+may proceed alongside both. Runtime publication and compatibility claims still
+wait for the dependency rows in the execution schedule.
 
-The M9 producer fingerprint must freeze only after H1's shared checker
-producer changes are stable. M9.1c-M9.7 are not prerequisites for H1
-functionality, but freezing or qualifying M9 first would make later
-emit-resolver side-effect corrections reset its evidence. H1 earns no M9
-window credit.
+The M9 producer fingerprint must freeze only after the final shared checker
+producer changes are stable. Freezing it first would cause later emit-resolver,
+Program-reuse, public-query, or service corrections to reset its evidence. No
+H2, builder, or L-track work earns M9 window credit.
 
 ## 13. Completion gates for the three practical targets
 

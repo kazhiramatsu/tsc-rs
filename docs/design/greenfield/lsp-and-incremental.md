@@ -537,10 +537,15 @@ The recommended order is now:
 6. **L1 — incremental parser closure:** port the owners in section 5 and pass
    the pinned incremental parser, version-cache, Unicode-edit, randomized
    edit, and large-file performance gates;
-7. **H1 implementation:** build resolver/transform/printer/output work on the
-   stable `ProgramSnapshot -> CheckerSession` boundary; and
-8. **L2-L5:** close Program/resolution reuse, then Language Service, tsserver,
-   and the independent LSP adapter.
+7. **H1 implementation (complete):** build resolver/transform/printer/output
+   work on the stable `ProgramSnapshot -> CheckerSession` boundary;
+8. **H2 broad compiler:** stabilize the complete one-shot Program/option/file-
+   kind/emit surface before making its keys persistent; and
+9. **L2-L5:** follow the
+   [post-H1 completion slices](post-h1-completion-slices.md), closing shared
+   Program/resolution reuse before Language Service, tsserver, and the
+   independent LSP adapter. Read-only L2-L5 owner/suite inventory may proceed
+   during H2, but runtime publication waits for the listed dependencies.
 
 ### 8.1 L0.0 frozen record
 
