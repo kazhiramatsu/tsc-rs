@@ -259,8 +259,8 @@
         "owner": "ConfigSourceText.snapshot",
         "storage": "Arc<TextSnapshot>",
         "path": "crates/program/src/config.rs",
-        "line": 261,
-        "source_sha256": "5ea1a8301a002d2eb8e50956ee772eb3e0412676a6d1d2fc2784ff54dfcee9ae",
+        "line": 262,
+        "source_sha256": "480f5fd37dde8e9ec4e459837892d09f08d8821dadbc6c1933651a966ce264b5",
         "evidence": "pub struct ConfigSourceText {"
       },
       {
@@ -293,8 +293,8 @@
         "from": "PreparedSourceFile.snapshot",
         "to": "InputFile.snapshot",
         "path": "crates/compiler/src/lib.rs",
-        "line": 1159,
-        "source_sha256": "f98d6ba1702e09cd4278563088777188c276bfcdd96ac5267cf670baf07288b2",
+        "line": 1231,
+        "source_sha256": "3595a03bc9723d6f4d032d5406623105b9280de29bd1ef341de3ff385ee8f8ea",
         "evidence": "        InputFile::from_snapshot(name, Arc::clone(source.snapshot())),"
       },
       {
@@ -327,8 +327,8 @@
         "from": "ConfigSourceText.snapshot",
         "to": "ProgramConfigFile.snapshot",
         "path": "crates/program/src/config.rs",
-        "line": 4579,
-        "source_sha256": "5ea1a8301a002d2eb8e50956ee772eb3e0412676a6d1d2fc2784ff54dfcee9ae",
+        "line": 4822,
+        "source_sha256": "480f5fd37dde8e9ec4e459837892d09f08d8821dadbc6c1933651a966ce264b5",
         "evidence": "    let mut config_file = ProgramConfigFile::from_snapshot(path, Arc::clone(source.snapshot()));"
       },
       {
@@ -343,8 +343,8 @@
         "from": "prepared/config/auxiliary snapshots",
         "to": "CLI diagnostic snapshot map",
         "path": "crates/compiler/src/cli.rs",
-        "line": 708,
-        "source_sha256": "1805e75a63a0d3205d3043521f661412793880fa90c63207a5a8b2d04e90cb46",
+        "line": 1079,
+        "source_sha256": "6f48a9ef0268f116426374084cb1a2932a7e0c6965690625655b31d15a751801",
         "evidence": "    let host = FormatDiagnosticsHost::from_snapshots(current_directory, source_texts);"
       }
     ],
