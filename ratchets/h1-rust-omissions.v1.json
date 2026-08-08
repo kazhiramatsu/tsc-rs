@@ -42,8 +42,8 @@
     "file_count": 197,
     "rust_source_files": 182,
     "cargo_manifests": 15,
-    "bytes": 12636391,
-    "tree_sha256": "d9ad64edaf21e4f45acc5c991a07f67a47030484d1266b14d1544b15a6792b96"
+    "bytes": 12636473,
+    "tree_sha256": "50a5f7975cc92cdf015b4942c423f3543f2794275a7327b3c787b3c9aa06cb7c"
   },
   "summary": {
     "production_boundary_omissions": 2,
@@ -711,11 +711,11 @@
       {
         "id": "checker-live-emit-callback",
         "path": "crates/checker/src/lib.rs",
-        "line": 1219,
+        "line": 1220,
         "column": 1,
         "text": "pub fn check_program_with_authoritative_modules_at_for_emit(",
         "text_sha256": "9a6778daa37b4dbd06c9aea5c03e49a2d7cf3cc17acd8bf568158f3f81e7a154",
-        "file_sha256": "7a738180c6f62a35d656137349ba88a82fd94aad63a5948f0491bcd2a8f6cbb3"
+        "file_sha256": "dceff2b9df932fadd72e7276207920151f5fea618dd2df7a0a3d5e951d430eea"
       },
       {
         "id": "h1-no-emit-canary",
@@ -729,20 +729,20 @@
       {
         "id": "checker-session-local-state",
         "path": "crates/checker/src/lib.rs",
-        "line": 1672,
+        "line": 1673,
         "column": 9,
         "text": "let mut state = state::CheckerState::from_snapshot(&snapshot, options);",
         "text_sha256": "66431a38f7144074bc77255200f22293db4d3cec0c2a25e8f9803518da8f1b6a",
-        "file_sha256": "7a738180c6f62a35d656137349ba88a82fd94aad63a5948f0491bcd2a8f6cbb3"
+        "file_sha256": "dceff2b9df932fadd72e7276207920151f5fea618dd2df7a0a3d5e951d430eea"
       },
       {
         "id": "checker-state-collapse",
         "path": "crates/checker/src/lib.rs",
-        "line": 1862,
+        "line": 1863,
         "column": 9,
         "text": "partial_checks = state.partial_check_records.clone();\n        authoritative_failure = state.take_authoritative_module_failure();",
         "text_sha256": "8c4b08d85fa65cffc07ed4b19a65542608d4991af99d50672f5fe53d65d75885",
-        "file_sha256": "7a738180c6f62a35d656137349ba88a82fd94aad63a5948f0491bcd2a8f6cbb3"
+        "file_sha256": "dceff2b9df932fadd72e7276207920151f5fea618dd2df7a0a3d5e951d430eea"
       },
       {
         "id": "display-clone-not-emitter",
@@ -787,7 +787,7 @@
         "column": 5,
         "text": "pub may_be_emitted: bool,\n    /// Raw `SourceFile.impliedNodeFormat`",
         "text_sha256": "3d4ae97d2c33a29370c93a0ac34ff42c614ac8cac2f3d8cf8a1291f4bfa10444",
-        "file_sha256": "7a738180c6f62a35d656137349ba88a82fd94aad63a5948f0491bcd2a8f6cbb3"
+        "file_sha256": "dceff2b9df932fadd72e7276207920151f5fea618dd2df7a0a3d5e951d430eea"
       },
       {
         "id": "compiler-options-current-shape",
@@ -1187,5 +1187,5 @@
       }
     ]
   },
-  "inventory_fingerprint_sha256": "d766d1733c1b42c4ac1059ab4598078a5504152b7d825e26c7cecad8e0d45aad"
+  "inventory_fingerprint_sha256": "dade6506a692c778016bc2e0f05b5f810cd59090776d2c217dea52536d3ff31c"
 }

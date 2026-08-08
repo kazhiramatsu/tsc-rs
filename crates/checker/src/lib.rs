@@ -1215,6 +1215,7 @@ pub fn check_program_with_authoritative_modules_at(
 /// Run the production authoritative checker and lend its live semantic state
 /// to one emit operation after all public diagnostic getters have completed.
 /// The callback cannot retain the snapshot or resolver beyond this call.
+/// tsrs-native: scoped callback seam that keeps checked state alive for H1 emit.
 #[allow(clippy::too_many_arguments)]
 pub fn check_program_with_authoritative_modules_at_for_emit(
     libs: &[InputFile],
