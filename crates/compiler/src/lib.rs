@@ -27,7 +27,7 @@ use tsc_checker::{
     AuthoritativeUntypedModule, CheckResult, InputFile, ProgramSnapshot,
     UnsupportedAuthoritativeResolution,
 };
-use tsc_diagnostics::{sort_and_dedupe_diagnostics, Diagnostic, DiagnosticList};
+use tsc_diagnostics::{gen, sort_and_dedupe_diagnostics, Diagnostic, DiagnosticList, MessageChain};
 use tsc_emitter::{
     emit_files_with_activity, preflight_emit, validate_bootstrap_emit_request, EmitDiagnosticGate,
     EmitHost, EmitSource, H2ActivityCanary, UnavailableEmitResolver,
@@ -686,7 +686,7 @@ impl ProgramSession {
     ) -> Result<CliEmitSessionOutcome, DriverError> {
         self.require_mode(PreparedProgramMode::Emit)?;
         let prepared = self.prepared;
-        let mut h2_activity = H2ActivityCanary::h2_1a_profile();
+        let mut h2_activity = H2ActivityCanary::h2_1b_profile();
         h2_activity.construct_emit_session();
         let emit_host = PreparedEmitHost::new(&prepared)?;
         validate_bootstrap_emit_request(&emit_host).map_err(DriverError::Emit)?;
@@ -867,6 +867,7 @@ impl ProgramSession {
         // Each public getter applies sortAndDeduplicateDiagnostics to its
         // combined result.
         let mut available_options = preparation.options().to_vec();
+        available_options.extend(programmatic_option_diagnostics(&self.prepared));
         let mut available_semantic = checked.semantic_diagnostics;
         let program_diagnostics = self
             .prepared
@@ -1310,6 +1311,7 @@ fn emit_session_diagnostics(
         .collect::<Vec<_>>();
 
     let mut options = preparation.options().to_vec();
+    options.extend(programmatic_option_diagnostics(prepared));
     let mut semantic = checked.semantic_diagnostics.clone();
     for diagnostic in preparation
         .program()
@@ -1338,6 +1340,38 @@ fn emit_session_diagnostics(
         global: checked.global_diagnostics.clone(),
         semantic,
     }
+}
+
+/// Produce the file-less option diagnostics created by `createProgram` when
+/// compiler options do not carry a parsed config source. Config-backed
+/// diagnostics remain owned by `ConfigRootPlan`, where their exact source
+/// locations are available.
+///
+/// tsc-port: verifyDeprecatedCompilerOptions @6.0.3 (baseUrl arm)
+/// tsc-hash: 2565bc5d5347775444bdbd8c11a3cc1ff2411d066648ec1f7786a231ec23a112
+/// tsc-span: _tsc.js:125087-125250
+fn programmatic_option_diagnostics(prepared: &PreparedProgram) -> DiagnosticList {
+    let options = prepared.compiler_options();
+    if prepared.program_options().config_file_path().is_some()
+        || options.base_url.is_none()
+        || options.ignore_deprecations.as_deref() == Some("6.0")
+    {
+        return Vec::new();
+    }
+
+    vec![Diagnostic::new(
+        None,
+        None,
+        None,
+        MessageChain::new(
+            &gen::Option_0_is_deprecated_and_will_stop_functioning_in_TypeScript_1_Specify_compilerOption_ignoreDeprecations_2_to_silence_this_error,
+            &["baseUrl".to_owned(), "7.0".to_owned(), "6.0".to_owned()],
+        )
+        .with_next(vec![MessageChain::new(
+            &gen::Visit_https_aka_ms_ts6_for_migration_information,
+            &[],
+        )]),
+    )]
 }
 
 fn check_work_counters(checked: &CheckResult) -> NoEmitWorkCounters {

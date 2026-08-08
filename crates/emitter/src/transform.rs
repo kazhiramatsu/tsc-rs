@@ -243,6 +243,8 @@ pub enum TransformRoot {
 pub struct EmitHelper {
     name: Box<str>,
     scoped: bool,
+    text: Option<Box<str>>,
+    priority: u8,
     dependencies: Box<[EmitHelper]>,
 }
 
@@ -251,6 +253,24 @@ impl EmitHelper {
         Self {
             name: name.into(),
             scoped,
+            text: None,
+            priority: 0,
+            dependencies: dependencies.into_boxed_slice(),
+        }
+    }
+
+    pub fn with_text(
+        name: impl Into<Box<str>>,
+        scoped: bool,
+        text: impl Into<Box<str>>,
+        priority: u8,
+        dependencies: Vec<EmitHelper>,
+    ) -> Self {
+        Self {
+            name: name.into(),
+            scoped,
+            text: Some(text.into()),
+            priority,
             dependencies: dependencies.into_boxed_slice(),
         }
     }
@@ -261,6 +281,14 @@ impl EmitHelper {
 
     pub const fn scoped(&self) -> bool {
         self.scoped
+    }
+
+    pub fn text(&self) -> Option<&str> {
+        self.text.as_deref()
+    }
+
+    pub const fn priority(&self) -> u8 {
+        self.priority
     }
 
     pub fn dependencies(&self) -> &[EmitHelper] {
@@ -567,6 +595,13 @@ impl TransformationContext {
         for dependency in helper.dependencies.iter().cloned() {
             self.request_emit_helper(dependency)?;
         }
+        if self
+            .emit_helpers
+            .iter()
+            .any(|existing| existing.name == helper.name)
+        {
+            return Ok(());
+        }
         self.emit_helpers.push(helper);
         Ok(())
     }
@@ -697,6 +732,10 @@ impl TransformationResult<'_> {
 
     pub fn diagnostics(&self) -> &[Diagnostic] {
         &self.context.diagnostics
+    }
+
+    pub(crate) fn emit_helpers(&self) -> &[EmitHelper] {
+        &self.context.emit_helpers
     }
 
     pub fn substitute_node(

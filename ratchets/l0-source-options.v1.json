@@ -293,8 +293,8 @@
         "from": "PreparedSourceFile.snapshot",
         "to": "InputFile.snapshot",
         "path": "crates/compiler/src/lib.rs",
-        "line": 1283,
-        "source_sha256": "af32bf2e6a6ee999b209fe44d46cb63e397efb06d112d4d7052ec508a03fe5ea",
+        "line": 1284,
+        "source_sha256": "954c52adc923e79c841b7c03b44717efda482d63ec0552bb36c407fbc31584c6",
         "evidence": "        InputFile::from_snapshot(name, Arc::clone(source.snapshot())),"
       },
       {
@@ -352,7 +352,7 @@
     "zero_copy_counter_contract": {
       "path": "crates/compiler/tests/integration/program_session_contract.rs",
       "line": 228,
-      "source_sha256": "b359ea74ca2f2615a033a3aa52d1a2a98487f72dbf75dde39a7f739b613d74d3",
+      "source_sha256": "4d01a1d23b0724705f3350eb5637b7575882e5cb1a0e20453fa5efdb3d4c0a7f",
       "evidence": "fn l0_work_counters_and_sorted_batch_syntax_diagnostics() {"
     },
     "position_index": {
@@ -417,8 +417,8 @@
       "generated_syntax_relocation": {
         "source": "nodes.schema.json field model",
         "path": "crates/xtask/src/main.rs",
-        "line": 11441,
-        "source_sha256": "2035b5854efd4678dfa00fb6466281a9d41561f50dcabd8d7e85674daf0dda54",
+        "line": 11460,
+        "source_sha256": "2aac0e82b80ef488ac7e70237c0cd2da3bf5375f6d58827d32bd1c4a375bb22c",
         "evidence": "fn render_relocate_rs(schemas: &[NodeSchema])"
       },
       "bind_owner": {

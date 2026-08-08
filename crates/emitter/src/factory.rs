@@ -542,4 +542,35 @@ impl<'arena> NodeFactory<'arena> {
         record.end = end;
         Ok(node)
     }
+
+    pub fn set_multi_line(
+        &mut self,
+        node: TransformNode,
+        multi_line: bool,
+    ) -> Result<TransformNode, TransformError> {
+        self.arena.node(node)?;
+        self.arena
+            .source_mut(node.source)?
+            .source
+            .arena
+            .node_mut(node.node)
+            .multi_line = Some(multi_line);
+        Ok(node)
+    }
+
+    pub fn set_node_flags(
+        &mut self,
+        node: TransformNode,
+        flags: NodeFlags,
+    ) -> Result<TransformNode, TransformError> {
+        self.arena.node(node)?;
+        let record = self
+            .arena
+            .source_mut(node.source)?
+            .source
+            .arena
+            .node_mut(node.node);
+        record.flags = (NodeFlags::from_bits(record.flags) | flags | NodeFlags::SYNTHESIZED).bits();
+        Ok(node)
+    }
 }

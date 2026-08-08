@@ -1,7 +1,7 @@
 # Post-H1 TypeScript 6.0.3 completion slices
 
 Status: execution schedule approved on 2026-08-08. H0, L0/L1, H1, H2.0a,
-H2.0b, and H2.1a are complete. **H2.1b is the next slice.**
+H2.0b, H2.1a, and H2.1b are complete. **H2.1c is the next slice.**
 
 This document turns the audited post-H1 residual into branch-sized execution
 slices. It owns post-H1 slice IDs, dependency order, and slice-specific
@@ -202,8 +202,8 @@ production and the complete regression gate remain local qualification work.
 | Slice | Scope | Dependencies and close evidence |
 | --- | --- | --- |
 | H2.1a — complete | Port `transformImpliedNodeFormatDependentModule`, `getEmitModuleFormatOfFile`, and both ESM/CJS constructor and hook-composition closures. Admit only files proven to select the already-closed ESM path; an incomplete CJS selection fails before the first sink call. | H2.0b. All 295 candidates execute twice: 241 complete observations are exact, 5 output-exact diagnostic controls remain deferred to H2.9, and 49 source-deferred rows fail before the first sink callback. |
-| **H2.1b — next** | Close `transformModule` for CommonJS, including prologues, interop, substitutions/notifications, helpers, resolver facts, and printer/output dependencies. | H2.1a. CJS positive and ESM-adjacent controls, multi-file ordering, helper de-duplication, and failure parity are exact. |
-| H2.1c | Activate AMD and UMD branches that reuse `transformModule`, including dependency arrays, wrappers, names, and option interactions. | H2.1b. AMD/UMD runner observations are exact; System and bundle-only rows remain controls. |
+| H2.1b — complete | Close `transformModule` for CommonJS, including prologues, interop, substitutions/notifications, helpers, resolver facts, and printer/output dependencies. | H2.1a. All 15 CommonJS-only candidates execute twice: 10 complete observations are exact and 5 source-deferred rows retain typed pre-write failures; multi-file ordering, helper de-duplication, workers, and sink-failure parity are exact. |
+| **H2.1c — next** | Activate AMD and UMD branches that reuse `transformModule`, including dependency arrays, wrappers, names, and option interactions. | H2.1b. AMD/UMD runner observations are exact; System and bundle-only rows remain controls. |
 | H2.1d | Port and qualify `transformSystemModule` and its resolver/helper/output closure. | H2.1c. System-specific execute/setter/export ordering and diagnostics are exact. |
 | H2.1e | Close Node16/18/20/Next implied-format behavior, package type, `.mts`/`.cts` output extensions, import attributes, and relative-extension rewriting. | H2.1a-H2.1d plus the required host facts. Mixed-format projects prove per-file dispatch, per-run package-format separation, path casing, and fresh-run behavior after package changes; persistent invalidation remains L2. |
 
@@ -226,15 +226,45 @@ TypeScript observations. Every row is executed twice by Rust as well:
   adjacent path, all H0 no-emit constructors, and every other H2 activity
   counter retain their owned boundaries.
 
-The [current runtime profile](../../../ratchets/h2-1a-profile.v1.json) and its
+The [H2.1a runtime profile](../../../ratchets/h2-1a-profile.v1.json) and its
 [strict schema](../../../.github/ci/contracts/h2-1a-profile.schema.json)
 content-address the production and acceptance inputs, preserve the H2.0a and
 H2.0b artifacts byte-for-byte as lineage, mark only H2.1a active, and name
-H2.1b as next. Freshness is checked with:
+H2.1b as next. After H2.1b admission this profile is immutable historical
+lineage: its generator remains syntax-checked and its independent Rust
+contract checks the exact recorded bytes without reinterpreting current
+runtime inputs.
+
+H2.1b closed on 2026-08-09. The
+[qualification](../../../ratchets/h2-1b-qualification.v1.json) takes all 15
+CommonJS-only blockers from the H2.1a source-deferred set and records their
+source owners and exact TypeScript observations twice:
+
+- 10 rows are complete exact admissions, covering 2 reported diagnostics and
+  15 byte-, path-, order-, BOM-, provenance-, result-, exit-, and
+  activity-exact writes;
+- the CommonJS transform covers strict and `__esModule` prologues, import and
+  export rewrites, generated bindings, resolver-owned imported-value
+  substitution, indirect calls, dynamic import, top-level variable hoisting,
+  and ordered, recursively de-duplicated interop helpers;
+- 5 rows remain explicitly source-deferred: 3 to H2.2d and one each to H2.2a
+  and H2.2b. Each returns a deterministic typed failure before the first sink
+  callback; and
+- exact multi-file output order, helper declaration de-duplication, two-worker
+  isolation, both CommonJS sink-failure positions, the H2.1a ESM path, and all
+  inactive H2 activity counters retain their owned boundaries.
+
+The [current runtime profile](../../../ratchets/h2-1b-profile.v1.json) and its
+[strict schema](../../../.github/ci/contracts/h2-1b-profile.schema.json)
+content-address the production and acceptance inputs, preserve the complete
+H2.1a profile and qualification as immutable lineage, mark H2.1a and H2.1b
+active, and name H2.1c as next. The monotonic profile now has 251 exact cases,
+501 exact reported diagnostics, 266 exact writes, 5 unchanged H2.9 diagnostic
+controls, and 39 source-deferred rows. Freshness is checked with:
 
 ```text
-node crates/oracle/h2-1a-qualification.mjs --check
-node crates/oracle/h2-1a-profile.mjs --check
+node crates/oracle/h2-1b-qualification.mjs --check
+node crates/oracle/h2-1b-profile.mjs --check
 ```
 
 The ordinary hosted boundary remains only `cargo xtask acceptance`; source

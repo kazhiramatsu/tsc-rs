@@ -40,3 +40,23 @@ fn every_h2_runtime_slice_fails_closed_before_admission() {
         assert!(result.is_err(), "{} did not fail closed", slice.name());
     }
 }
+
+#[test]
+fn h2_1b_profile_admits_only_the_two_completed_runtime_slices() {
+    let mut canary = H2ActivityCanary::h2_1b_profile();
+    canary.observe_runtime_slice(H2RuntimeSlice::H2_1a);
+    canary.observe_runtime_slice(H2RuntimeSlice::H2_1b);
+    let counters = canary.counters();
+    assert_eq!(counters.runtime_slice(H2RuntimeSlice::H2_1a), 1);
+    assert_eq!(counters.runtime_slice(H2RuntimeSlice::H2_1b), 1);
+
+    for slice in H2RuntimeSlice::ALL {
+        if matches!(slice, H2RuntimeSlice::H2_1a | H2RuntimeSlice::H2_1b) {
+            continue;
+        }
+        let result = std::panic::catch_unwind(|| {
+            H2ActivityCanary::h2_1b_profile().observe_runtime_slice(slice)
+        });
+        assert!(result.is_err(), "{} did not fail closed", slice.name());
+    }
+}

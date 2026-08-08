@@ -41,6 +41,7 @@ pub enum EmitResolverMethod {
     GetConstantValue,
     GetEnumMemberValue,
     GetReferencedExportContainer,
+    GetReferencedImportDeclaration,
     GetReferencedValueDeclaration,
     HasNodeCheckFlag,
     IsReferencedAliasDeclaration,
@@ -54,6 +55,7 @@ impl EmitResolverMethod {
             Self::GetConstantValue => "getConstantValue",
             Self::GetEnumMemberValue => "getEnumMemberValue",
             Self::GetReferencedExportContainer => "getReferencedExportContainer",
+            Self::GetReferencedImportDeclaration => "getReferencedImportDeclaration",
             Self::GetReferencedValueDeclaration => "getReferencedValueDeclaration",
             Self::HasNodeCheckFlag => "hasNodeCheckFlag",
             Self::IsReferencedAliasDeclaration => "isReferencedAliasDeclaration",
@@ -169,6 +171,16 @@ pub trait EmitResolver {
     ) -> Result<Option<EmitResolverNode>, EmitResolverError> {
         Err(unavailable(
             EmitResolverMethod::GetReferencedExportContainer,
+            node,
+        ))
+    }
+
+    fn get_referenced_import_declaration(
+        &self,
+        node: EmitResolverNode,
+    ) -> Result<Option<EmitResolverNode>, EmitResolverError> {
+        Err(unavailable(
+            EmitResolverMethod::GetReferencedImportDeclaration,
             node,
         ))
     }

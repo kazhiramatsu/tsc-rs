@@ -384,6 +384,7 @@ fn paths_base_url_and_root_dirs_produce_identical_filesystem_backed_diagnostics(
     let compiler_options = CompilerOptions {
         no_emit: Some(true),
         base_url: Some("base".to_owned()),
+        ignore_deprecations: Some("6.0".to_owned()),
         ..CompilerOptions::default()
     };
     let root_dirs = [tree.root().to_path_buf(), tree.path("generated")]

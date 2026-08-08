@@ -254,6 +254,36 @@ fn l0_work_counters_and_sorted_batch_syntax_diagnostics() {
 }
 
 #[test]
+fn programmatic_base_url_deprecation_is_fileless_and_suppressible() {
+    let deprecated = consume(ProgramSession::new(with_minimal_lib(
+        &[("main.ts", "export {};\n")],
+        PreparationDiagnostics::default(),
+        |options| options.base_url = Some("/Display/Project".to_owned()),
+    )));
+    let [diagnostic] = deprecated.options_diagnostics() else {
+        panic!("expected one baseUrl option diagnostic");
+    };
+    assert_eq!(diagnostic.code(), 5101);
+    assert_eq!(diagnostic.file_name, None);
+    assert_eq!(diagnostic.start, None);
+    assert_eq!(diagnostic.length, None);
+    assert_eq!(diagnostic.message.next.len(), 1);
+    assert_eq!(diagnostic.message.next[0].code, 5111);
+    assert!(deprecated.global_diagnostics().is_empty());
+    assert!(deprecated.semantic_diagnostics().is_empty());
+
+    let silenced = consume(ProgramSession::new(with_minimal_lib(
+        &[("main.ts", "export {};\n")],
+        PreparationDiagnostics::default(),
+        |options| {
+            options.base_url = Some("/Display/Project".to_owned());
+            options.ignore_deprecations = Some("6.0".to_owned());
+        },
+    )));
+    assert!(silenced.options_diagnostics().is_empty());
+}
+
+#[test]
 fn located_program_diagnostics_route_by_text_owner() {
     let mut builder = PreparedProgram::builder(
         PathContext::new(current_directory(), true),

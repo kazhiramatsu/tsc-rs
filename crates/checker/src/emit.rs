@@ -73,6 +73,34 @@ impl<'program> CheckerSession<'program> {
 /// erasable-TypeScript slice. Every other consumer-owned method retains the
 /// trait's typed unavailable default until its transformer branch is admitted.
 impl EmitResolver for CheckerSession<'_> {
+    fn get_referenced_import_declaration(
+        &self,
+        node: EmitResolverNode,
+    ) -> Result<Option<EmitResolverNode>, EmitResolverError> {
+        self.with_resolver_node(
+            EmitResolverMethod::GetReferencedImportDeclaration,
+            node,
+            CheckerState::emit_get_referenced_import_declaration,
+        )
+        .map(|declaration| {
+            declaration.map(|declaration| EmitResolverNode::new(node.source(), declaration))
+        })
+    }
+
+    fn get_referenced_value_declaration(
+        &self,
+        node: EmitResolverNode,
+    ) -> Result<Option<EmitResolverNode>, EmitResolverError> {
+        self.with_resolver_node(
+            EmitResolverMethod::GetReferencedValueDeclaration,
+            node,
+            CheckerState::emit_get_referenced_value_declaration,
+        )
+        .map(|declaration| {
+            declaration.map(|declaration| EmitResolverNode::new(node.source(), declaration))
+        })
+    }
+
     fn is_referenced_alias_declaration(
         &self,
         node: EmitResolverNode,
