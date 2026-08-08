@@ -64,7 +64,7 @@ pub use printer::{
 pub use resolver::{
     EmitResolver, EmitResolverError, EmitResolverMethod, EmitResolverNode, UnavailableEmitResolver,
 };
-pub use sink::{EmitWriteDisposition, MemoryOutputSink, OutputSink};
+pub use sink::{EmitFileSystem, EmitWriteDisposition, FsOutputSink, MemoryOutputSink, OutputSink};
 pub use transform::{
     transform_nodes, EmitHelper, EmitHint, LexicalEnvironment, LexicalEnvironmentFlags,
     TransformBundle, TransformError, TransformFlags, TransformRoot, TransformationContext,

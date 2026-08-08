@@ -60,7 +60,7 @@ no-emit performance boundary. H1.1 is now complete: `crates/emitter` owns the
 typed artifact, callback metadata, dormant output topology, outcome, failure,
 sink-disposition, `OutputSink`, and `MemoryOutputSink` contracts, and emitting
 prepared programs have a separate `ProgramSession::emit` entry. This was the
-typed execution spine subsequently connected by H1.2-H1.4; H1.5-H1.6 remain
+typed execution spine subsequently connected by H1.2-H1.5; H1.6 remains
 below.
 H1.2 is also complete. `crates/emitter` now owns an emit-session detached
 syntax arena and sparse transform/emit metadata, clone/original-node rules,
@@ -91,8 +91,17 @@ the first `MemoryOutputSink` callback so a later unsupported source cannot
 leave a partial write. The five admitted callback-oracle cases run twice and
 match exact text, BOM/materialized bytes, provenance, metadata, diagnostics,
 `emitSkipped`, optional-list presence/order, and repeated-run identity.
-Filesystem writes and the emitting CLI route remain H1.5 work, and full
-profile closure/qualification remains H1.6.
+H1.5 is now complete. `FsOutputSink` applies the same artifact stream through
+the ported first-write, recursive-parent creation, and single-retry boundary;
+stable create/final-write failures become TS5033 while later outputs continue.
+Separate config and explicit-root emitting loaders construct only emitting
+prepared programs, typed command-line overrides win before discovery, and the
+CLI preserves the direct H0 route whenever effective `noEmit` is true. All
+five admitted callback-oracle cases now also match through real filesystem
+materialization and CLI diagnostics, `TSFILE` order, and 0/1/2 exit status.
+Failure injection at every multi-output write index freezes retry count,
+partial output sets, continuation, `emitSkipped`, and `emittedFiles`.
+Full profile closure/qualification remains H1.6.
 H0 remains the released, frozen single-project `--noEmit` profile. M9 remains a
 separate paused batch-diagnostics qualification track.
 
@@ -1394,11 +1403,11 @@ runtime.
    source eligibility, emit-active option/output-collision preflight,
    `emitFiles`, output paths, callback versus emitted-file ordering,
    diagnostics, and repeated-run determinism through `MemoryOutputSink`.
-8. **Next — H1.5 filesystem/CLI connection:** connect the same artifacts to
-   `FsOutputSink`, match CLI diagnostics and exit behavior, and prove that a
-   failure before or during writing has the oracle's exact parent-retry,
+8. **Complete — H1.5 filesystem/CLI connection:** connect the same artifacts
+   to `FsOutputSink`, match CLI diagnostics and exit behavior, and prove that
+   a failure before or during writing has the oracle's exact parent-retry,
    diagnostic-and-continue, and partial-write boundary.
-9. **H1.6 — profile closure and qualification:** close every owner in the
+9. **Next — H1.6 profile closure and qualification:** close every owner in the
    frozen profile, execute every compatible upstream emit case, freeze output
    and resource summaries, and publish the expanded binary only after all H0
    and H1 gates are green.

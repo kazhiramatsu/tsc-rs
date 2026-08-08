@@ -104,7 +104,7 @@ There is no single honest “100%” number spanning these surfaces:
 | --- | --- | --- |
 | Frozen batch-diagnostics implementation | M0-M8 complete | M9.1c-M9.7 confidence production, burn-in, freeze, and qualification |
 | Frozen filesystem `--noEmit` compiler | H0 complete | Preserve behavior and cost; do not route it through emitter setup |
-| Bounded one-shot JavaScript emit | H1.0-H1.4 complete | H1.5 filesystem/CLI connection and H1.6 qualification |
+| Bounded one-shot JavaScript emit | H1.0-H1.5 complete | H1.6 profile closure and qualification |
 | Broad one-shot `tsc` compilation | Not designed as one approved milestone | Full JS transform matrix, declarations, maps, output/config/CLI matrix, and complete emit suites |
 | Build/watch/project references | Preliminary seams only | Builder state, `.tsbuildinfo`, graph reuse, solution orchestration, watchers, and their suites |
 | Compiler API/custom transforms | Not exposed | Stable AST/factory/printer/Program/TypeChecker contracts and callback lifetimes |
@@ -153,23 +153,23 @@ The following work is real input to an emitter and should not be rebuilt:
   it behind the snapshot `PositionIndex`, which H1 reuses; neither track needs
   UTF-16 positions on every persistent AST node.
 
-### 2.2 Missing production boundaries
+### 2.2 Production boundary closure
 
-The audit now finds oracle-exact transformed JavaScript through the production
-`ProgramSession::emit` path and ordered `MemoryOutputSink` dispatch, but no
-filesystem/CLI connection. H1.1 closed the typed workspace/session seam, H1.2
-closed the session-owned factory/transform/writer/printer foundation, H1.3
-closed the first active transformer and semantic-resolver slice, and H1.4
-closed the read-only host, output planning, preflight, and in-memory execution
-slice, leaving these two runtime boundaries:
+The audit now finds oracle-exact transformed JavaScript through both ordered
+`MemoryOutputSink` dispatch and the production filesystem/CLI route. H1.1
+closed the typed workspace/session seam, H1.2 closed the session-owned
+factory/transform/writer/printer foundation, H1.3 closed the first active
+transformer and semantic-resolver slice, H1.4 closed the read-only host,
+output planning, preflight, and in-memory execution slice, and H1.5 closed the
+remaining production connections:
 
-| Boundary | Current implementation | Missing boundary |
+| Boundary | H1.5 implementation | Open production boundary |
 | --- | --- | --- |
-| Output | `crates/emitter` owns the read-only `EmitHost`, executable source/path planning, collision gates, transform/print dispatch, callback-error continuation, independent outcomes, and exact ordered memory writes without depending on checker | Filesystem parent/retry sink and CLI-visible partial-failure qualification |
-| Emitting config/CLI | Effective options retain the full H1 emit/preflight projection and `ProgramSession::emit` executes checked in-memory output, while H0 loaders still require `noEmit == true` and explicit files force no-emit | Separate emitting loader validation, CLI dispatch, filesystem sink connection, and exact exit behavior |
+| Output | `crates/emitter` owns the read-only `EmitHost`, output planning, collision gates, transform/print dispatch, independent outcomes, ordered memory writes, and an injected-filesystem `FsOutputSink` with first-write/recursive-parent/single-retry semantics; every injected write index pins TS5033 continuation and partial outputs | None in the frozen profile |
+| Emitting config/CLI | Separate config and explicit-root loaders produce emitting-mode programs, admitted command-line scalars override config values before discovery, effective `noEmit` selects the unchanged H0 route, and CLI rendering/status/exit matches all five admitted oracle cases through filesystem materialization | None in the frozen profile |
 
-These two remaining boundaries, zero emit-option projection omissions, and
-every explicit checker-side emit elision/control row (24 at H1.4) are
+Zero production boundary omissions, zero emit-option projection omissions,
+and every explicit checker-side emit elision/control row (24 at H1.5) are
 machine-frozen in
 [`h1-rust-omissions.v1.json`](../../../ratchets/h1-rust-omissions.v1.json).
 Its producer scans every workspace crate `src` tree plus all Cargo manifests,
@@ -1097,9 +1097,9 @@ The critical path is:
    printer workers, and three-transform bootstrap;
 7. **Complete:** land source/output planning, emit-active preflight, and exact
    in-memory `emitFiles` dispatch;
-8. **Next:** connect the separate emitting loader, filesystem sink, CLI, and
-   exact partial-failure/exit behavior;
-9. close the frozen H1 profile and qualification evidence;
+8. **Complete:** connect the separate emitting loader, filesystem sink, CLI,
+   and exact partial-failure/exit behavior;
+9. **Next:** close the frozen H1 profile and qualification evidence;
 10. expand JavaScript transforms/options/file kinds while closing one-shot
    config, host/System, library-replacement, CLI, and source-map behavior;
 11. implement declaration emit, bundles/`outFile`, then declaration maps;

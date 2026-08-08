@@ -1,4 +1,4 @@
-//! Small, fail-closed H0 command-line driver.
+//! Small, fail-closed H0/H1 command-line driver.
 //!
 //! The driver intentionally owns process concerns (argument selection,
 //! current-directory discovery, diagnostic rendering, and exit status) while
@@ -12,6 +12,8 @@
 use std::collections::BTreeMap;
 use std::error::Error;
 use std::fmt;
+use std::fs;
+use std::io;
 use std::io::IsTerminal;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -24,13 +26,18 @@ use tsc_diagnostics::{
 use tsc_host::{CompilerHost, FsCompilerHost, HostError};
 use tsc_program::{
     decode_host_text, is_non_fatal_option_diagnostic, load_config_program,
-    load_config_program_with_no_emit_override, load_program, parse_config_root_plan,
-    CompilerConfigHost, CompilerOptions, ConfigParseError, ConfigProgramLoadError, ConfigRootPlan,
-    ConfigRootPlanRequest, LibraryCatalog, ProgramLoadLimits, ProgramOptions,
+    load_config_program_with_no_emit_override,
+    load_emitting_config_program_with_no_emit_override_and_overrides,
+    load_emitting_config_program_with_overrides, load_emitting_program, load_program,
+    parse_config_root_plan, CompilerConfigHost, CompilerOptions, ConfigEmitOptionOverrides,
+    ConfigParseError, ConfigProgramLoadError, ConfigRootPlan, ConfigRootPlanRequest,
+    LibraryCatalog, PreparedProgramMode, ProgramLoadLimits, ProgramOptions,
 };
 
 use crate::no_emit_canary::NoEmitCanary;
-use crate::{NoEmitActivityCounters, NoEmitWorkCounters, ProgramSession};
+use crate::{
+    EmitFileSystem, FsOutputSink, NoEmitActivityCounters, NoEmitWorkCounters, ProgramSession,
+};
 
 mod embedded_libraries {
     include!(concat!(env!("OUT_DIR"), "/typescript_6_0_3_libraries.rs"));
@@ -99,9 +106,10 @@ enum CliError {
     Render(String),
 }
 
-struct NoEmitRoute<'a> {
+struct CliRoute<'a> {
     pretty: bool,
     canary: &'a mut NoEmitCanary,
+    output_filesystem: &'a mut dyn EmitFileSystem,
 }
 
 impl fmt::Display for CliError {
@@ -123,9 +131,53 @@ impl Error for CliError {}
 struct CommandLine {
     project: Option<PathBuf>,
     files: Vec<PathBuf>,
-    no_emit: bool,
+    compiler_options: CompilerOptions,
+    no_lib: Option<bool>,
     ignore_config: bool,
     pretty: Option<bool>,
+}
+
+#[derive(Default)]
+struct NativeEmitFileSystem;
+
+impl EmitFileSystem for NativeEmitFileSystem {
+    fn write_file(&mut self, path: &Path, bytes: &[u8]) -> Result<(), String> {
+        fs::write(path, bytes).map_err(|error| stable_io_message(&error, "open", path))
+    }
+
+    fn create_directory(&mut self, path: &Path) -> Result<(), String> {
+        match fs::create_dir(path) {
+            Ok(()) => Ok(()),
+            Err(error) if error.kind() == io::ErrorKind::AlreadyExists && path.is_dir() => Ok(()),
+            Err(error) => Err(stable_io_message(&error, "mkdir", path)),
+        }
+    }
+
+    fn directory_exists(&mut self, path: &Path) -> bool {
+        path.is_dir()
+    }
+}
+
+fn stable_io_message(error: &io::Error, operation: &str, path: &Path) -> String {
+    #[cfg(unix)]
+    let known = match error.raw_os_error() {
+        Some(2) => Some(("ENOENT", "no such file or directory")),
+        Some(13) => Some(("EACCES", "permission denied")),
+        Some(17) => Some(("EEXIST", "file already exists")),
+        Some(20) => Some(("ENOTDIR", "not a directory")),
+        Some(21) => Some(("EISDIR", "illegal operation on a directory")),
+        Some(28) => Some(("ENOSPC", "no space left on device")),
+        Some(30) => Some(("EROFS", "read-only file system")),
+        _ => None,
+    };
+    #[cfg(not(unix))]
+    let known: Option<(&str, &str)> = None;
+
+    if let Some((code, detail)) = known {
+        format!("{code}: {detail}, {operation} '{}'", path.display())
+    } else {
+        error.to_string()
+    }
 }
 
 /// Production CLI host with an immutable, binary-owned TypeScript 6.0.3
@@ -226,7 +278,7 @@ impl CompilerHost for CliCompilerHost {
     }
 }
 
-/// Execute the bounded H0 command-line surface.
+/// Execute the bounded H0/H1 command-line surface.
 pub fn run_cli(args: &[String]) -> CliOutput {
     let mut no_emit_canary = NoEmitCanary::new();
     match execute(args, &mut no_emit_canary) {
@@ -255,16 +307,18 @@ fn execute(args: &[String], no_emit_canary: &mut NoEmitCanary) -> Result<CliOutp
 
     let filesystem = FsCompilerHost::from_process().map_err(host_error)?;
     let pretty = command_line.pretty.unwrap_or_else(default_pretty);
-    let mut no_emit_route = NoEmitRoute {
+    let mut output_filesystem = NativeEmitFileSystem;
+    let mut route = CliRoute {
         pretty,
         canary: no_emit_canary,
+        output_filesystem: &mut output_filesystem,
     };
     let current_directory = filesystem.current_directory().map_err(host_error)?;
     let host = CliCompilerHost::new(filesystem, &current_directory);
     let catalog = LibraryCatalog::typescript_6_0_3(host.library_directory());
 
-    if let Some(project) = command_line.project {
-        let config_file = match resolve_project_file(&host, &current_directory, &project)? {
+    if let Some(project) = command_line.project.as_ref() {
+        let config_file = match resolve_project_file(&host, &current_directory, project)? {
             Ok(config_file) => config_file,
             Err(ProjectFileError::MissingPath(path)) => {
                 let diagnostic = Diagnostic::new(
@@ -300,9 +354,9 @@ fn execute(args: &[String], no_emit_canary: &mut NoEmitCanary) -> Result<CliOutp
                 );
             }
         };
-        let requested = absolutize(&current_directory, &project);
+        let requested = absolutize(&current_directory, project);
         let config_display = if requested == config_file {
-            project
+            project.clone()
         } else {
             project.join(CONFIG_FILE_NAME)
         };
@@ -318,8 +372,9 @@ fn execute(args: &[String], no_emit_canary: &mut NoEmitCanary) -> Result<CliOutp
             &catalog,
             &plan,
             source_texts,
-            command_line.no_emit,
-            &mut no_emit_route,
+            command_line.compiler_options.no_emit,
+            config_emit_overrides(&command_line),
+            &mut route,
         );
     }
 
@@ -347,23 +402,19 @@ fn execute(args: &[String], no_emit_canary: &mut NoEmitCanary) -> Result<CliOutp
                 EXIT_COMMAND_LINE,
             );
         }
-        if !command_line.no_emit {
-            return Err(CliError::Usage(
-                "explicit source files require --noEmit; H0 never invokes an emitter".to_owned(),
-            ));
-        }
         // Keep the caller's spelling for root-file diagnostics. The program
         // loader normalizes these against the host cwd for identity and I/O,
         // while TypeScript reports a missing explicit root as it was written
         // on the command line (for example `missing.ts`, not its absolute
         // cwd-expanded path).
-        let roots = command_line.files;
         return execute_explicit_files(
             &host,
             &current_directory,
             &catalog,
-            &roots,
-            &mut no_emit_route,
+            &command_line.files,
+            &command_line.compiler_options,
+            command_line.no_lib,
+            &mut route,
         );
     }
 
@@ -386,9 +437,24 @@ fn execute(args: &[String], no_emit_canary: &mut NoEmitCanary) -> Result<CliOutp
         &catalog,
         &plan,
         source_texts,
-        command_line.no_emit,
-        &mut no_emit_route,
+        command_line.compiler_options.no_emit,
+        config_emit_overrides(&command_line),
+        &mut route,
     )
+}
+
+fn config_emit_overrides(command_line: &CommandLine) -> ConfigEmitOptionOverrides {
+    let options = &command_line.compiler_options;
+    ConfigEmitOptionOverrides {
+        target: options.target,
+        module: options.module,
+        use_define_for_class_fields: options.use_define_for_class_fields,
+        no_emit_on_error: options.no_emit_on_error,
+        emit_bom: options.emit_bom,
+        new_line: options.new_line,
+        list_emitted_files: options.list_emitted_files,
+        no_lib: command_line.no_lib,
+    }
 }
 
 fn parse_arguments(args: &[String]) -> Result<CommandLine, CliError> {
@@ -415,28 +481,107 @@ fn parse_arguments(args: &[String]) -> Result<CommandLine, CliError> {
             }
             "--noEmit" => {
                 let (value, next_index) = consume_boolean_value(args, index, true);
-                if !value {
-                    return Err(CliError::Usage(
-                        "--noEmit=false is outside the mandatory no-emit driver".to_owned(),
-                    ));
-                }
-                command_line.no_emit = true;
+                command_line.compiler_options.no_emit = Some(value);
                 index = next_index;
             }
-            "--noEmit=false" => {
-                return Err(CliError::Usage(
-                    "--noEmit=false is outside the mandatory no-emit driver".to_owned(),
-                ));
+            value if value.starts_with("--noEmit=") => {
+                command_line.compiler_options.no_emit = Some(parse_inline_boolean(value)?);
+                index += 1;
+            }
+            "--target" => {
+                let (value, next_index) = required_option_value(args, index)?;
+                command_line.compiler_options.target = Some(parse_target(value)?);
+                index = next_index;
+            }
+            value if value.starts_with("--target=") => {
+                command_line.compiler_options.target =
+                    Some(parse_target(inline_value(value, "--target")?)?);
+                index += 1;
+            }
+            "--module" => {
+                let (value, next_index) = required_option_value(args, index)?;
+                command_line.compiler_options.module = Some(parse_module(value)?);
+                index = next_index;
+            }
+            value if value.starts_with("--module=") => {
+                command_line.compiler_options.module =
+                    Some(parse_module(inline_value(value, "--module")?)?);
+                index += 1;
+            }
+            "--newLine" => {
+                let (value, next_index) = required_option_value(args, index)?;
+                command_line.compiler_options.new_line = Some(parse_new_line(value)?);
+                index = next_index;
+            }
+            value if value.starts_with("--newLine=") => {
+                command_line.compiler_options.new_line =
+                    Some(parse_new_line(inline_value(value, "--newLine")?)?);
+                index += 1;
+            }
+            "--listEmittedFiles" => {
+                let (value, next_index) = consume_boolean_value(args, index, true);
+                command_line.compiler_options.list_emitted_files = Some(value);
+                index = next_index;
+            }
+            value if value.starts_with("--listEmittedFiles=") => {
+                command_line.compiler_options.list_emitted_files =
+                    Some(parse_inline_boolean(value)?);
+                index += 1;
+            }
+            "--emitBOM" => {
+                let (value, next_index) = consume_boolean_value(args, index, true);
+                command_line.compiler_options.emit_bom = Some(value);
+                index = next_index;
+            }
+            value if value.starts_with("--emitBOM=") => {
+                command_line.compiler_options.emit_bom = Some(parse_inline_boolean(value)?);
+                index += 1;
+            }
+            "--noEmitOnError" => {
+                let (value, next_index) = consume_boolean_value(args, index, true);
+                command_line.compiler_options.no_emit_on_error = Some(value);
+                index = next_index;
+            }
+            value if value.starts_with("--noEmitOnError=") => {
+                command_line.compiler_options.no_emit_on_error = Some(parse_inline_boolean(value)?);
+                index += 1;
+            }
+            "--useDefineForClassFields" => {
+                let (value, next_index) = consume_boolean_value(args, index, true);
+                command_line.compiler_options.use_define_for_class_fields = Some(value);
+                index = next_index;
+            }
+            value if value.starts_with("--useDefineForClassFields=") => {
+                command_line.compiler_options.use_define_for_class_fields =
+                    Some(parse_inline_boolean(value)?);
+                index += 1;
+            }
+            "--noLib" => {
+                let (value, next_index) = consume_boolean_value(args, index, true);
+                command_line.no_lib = Some(value);
+                index = next_index;
+            }
+            value if value.starts_with("--noLib=") => {
+                command_line.no_lib = Some(parse_inline_boolean(value)?);
+                index += 1;
             }
             "--ignoreConfig" => {
                 let (value, next_index) = consume_boolean_value(args, index, true);
                 command_line.ignore_config = value;
                 index = next_index;
             }
+            value if value.starts_with("--ignoreConfig=") => {
+                command_line.ignore_config = parse_inline_boolean(value)?;
+                index += 1;
+            }
             "--pretty" => {
                 let (value, next_index) = consume_boolean_value(args, index, true);
                 command_line.pretty = Some(value);
                 index = next_index;
+            }
+            value if value.starts_with("--pretty=") => {
+                command_line.pretty = Some(parse_inline_boolean(value)?);
+                index += 1;
             }
             "-p" | "--project" => {
                 let value = args.get(index + 1).ok_or_else(|| {
@@ -496,14 +641,84 @@ fn consume_boolean_value(args: &[String], index: usize, default: bool) -> (bool,
     }
 }
 
+fn required_option_value(args: &[String], index: usize) -> Result<(&str, usize), CliError> {
+    let option = &args[index];
+    let value = args
+        .get(index + 1)
+        .ok_or_else(|| CliError::Usage(format!("{option} expects a value")))?;
+    if value.starts_with('-') {
+        return Err(CliError::Usage(format!(
+            "{option} expects a value, got {value:?}"
+        )));
+    }
+    Ok((value, index + 2))
+}
+
+fn inline_value<'a>(argument: &'a str, option: &str) -> Result<&'a str, CliError> {
+    let (_, value) = argument
+        .split_once('=')
+        .expect("caller selected an equals-form option");
+    if value.is_empty() {
+        Err(CliError::Usage(format!("{option} expects a value")))
+    } else {
+        Ok(value)
+    }
+}
+
+fn parse_inline_boolean(argument: &str) -> Result<bool, CliError> {
+    let (option, value) = argument
+        .split_once('=')
+        .expect("caller selected an equals-form boolean option");
+    match value {
+        "true" => Ok(true),
+        "false" => Ok(false),
+        _ => Err(CliError::Usage(format!(
+            "{option} expects 'true' or 'false', got {value:?}"
+        ))),
+    }
+}
+
+fn parse_target(value: &str) -> Result<i32, CliError> {
+    if value.eq_ignore_ascii_case("esnext") {
+        Ok(99)
+    } else {
+        Err(CliError::Usage(format!(
+            "--target currently admits only 'esnext', got {value:?}"
+        )))
+    }
+}
+
+fn parse_module(value: &str) -> Result<i32, CliError> {
+    if value.eq_ignore_ascii_case("preserve") {
+        Ok(200)
+    } else {
+        Err(CliError::Usage(format!(
+            "--module currently admits only 'preserve', got {value:?}"
+        )))
+    }
+}
+
+fn parse_new_line(value: &str) -> Result<i32, CliError> {
+    if value.eq_ignore_ascii_case("crlf") {
+        Ok(0)
+    } else if value.eq_ignore_ascii_case("lf") {
+        Ok(1)
+    } else {
+        Err(CliError::Usage(format!(
+            "--newLine expects 'crlf' or 'lf', got {value:?}"
+        )))
+    }
+}
+
 fn execute_config(
     host: &dyn CompilerHost,
     current_directory: &Path,
     catalog: &LibraryCatalog,
     plan: &ConfigRootPlan,
     mut source_texts: DiagnosticSourceMap,
-    no_emit_override: bool,
-    route: &mut NoEmitRoute<'_>,
+    no_emit_override: Option<bool>,
+    emit_overrides: ConfigEmitOptionOverrides,
+    route: &mut CliRoute<'_>,
 ) -> Result<CliOutput, CliError> {
     for source in plan.extended_sources() {
         source_texts.insert(source.file_name.clone(), Arc::clone(source.snapshot()));
@@ -512,10 +727,35 @@ fn execute_config(
         plan.source().file_name.clone(),
         Arc::clone(plan.source().snapshot()),
     );
-    let prepared = if no_emit_override {
-        load_config_program_with_no_emit_override(host, plan, catalog, DEFAULT_LIMITS)
-    } else {
-        load_config_program(host, plan, catalog, DEFAULT_LIMITS)
+    let effective_no_emit =
+        no_emit_override.unwrap_or_else(|| plan.compiler_options().no_emit == Some(true));
+    if effective_no_emit && !emit_overrides.is_empty() {
+        return Err(CliError::Usage(
+            "emit-profile command-line overrides are unavailable on the preserved --noEmit route"
+                .to_owned(),
+        ));
+    }
+    let prepared = match no_emit_override {
+        Some(true) => {
+            load_config_program_with_no_emit_override(host, plan, catalog, DEFAULT_LIMITS)
+        }
+        Some(false) => load_emitting_config_program_with_no_emit_override_and_overrides(
+            host,
+            plan,
+            catalog,
+            DEFAULT_LIMITS,
+            emit_overrides,
+        ),
+        None if plan.compiler_options().no_emit == Some(true) => {
+            load_config_program(host, plan, catalog, DEFAULT_LIMITS)
+        }
+        None => load_emitting_config_program_with_overrides(
+            host,
+            plan,
+            catalog,
+            DEFAULT_LIMITS,
+            emit_overrides,
+        ),
     };
     let prepared = match prepared {
         Ok(prepared) => prepared,
@@ -532,6 +772,11 @@ fn execute_config(
         Err(ConfigProgramLoadError::NoEmitRequired { value }) => {
             return Err(CliError::Load(format!(
                 "compilerOptions.noEmit must be true (observed {value:?}); pass --noEmit to override"
+            )));
+        }
+        Err(ConfigProgramLoadError::EmitRequired { value }) => {
+            return Err(CliError::Load(format!(
+                "compilerOptions.noEmit must be absent or false for emission (observed {value:?}); pass --noEmit=false to override"
             )));
         }
         Err(ConfigProgramLoadError::Program(error)) => {
@@ -570,20 +815,33 @@ fn execute_explicit_files(
     current_directory: &Path,
     catalog: &LibraryCatalog,
     roots: &[PathBuf],
-    route: &mut NoEmitRoute<'_>,
+    compiler_options: &CompilerOptions,
+    no_lib: Option<bool>,
+    route: &mut CliRoute<'_>,
 ) -> Result<CliOutput, CliError> {
-    let options = CompilerOptions {
-        no_emit: Some(true),
-        ..CompilerOptions::default()
-    };
-    let prepared = load_program(
-        host,
-        roots,
-        options,
-        ProgramOptions::default(),
-        catalog,
-        DEFAULT_LIMITS,
-    )
+    let options = compiler_options.clone();
+    let program_options = no_lib
+        .map(|value| ProgramOptions::default().with_no_lib(value))
+        .unwrap_or_default();
+    let prepared = if options.no_emit == Some(true) {
+        load_program(
+            host,
+            roots,
+            options,
+            program_options,
+            catalog,
+            DEFAULT_LIMITS,
+        )
+    } else {
+        load_emitting_program(
+            host,
+            roots,
+            options,
+            program_options,
+            catalog,
+            DEFAULT_LIMITS,
+        )
+    }
     .map_err(|error| CliError::Load(error.to_string()))?;
     let mut source_texts = BTreeMap::new();
     for source in prepared.source_files() {
@@ -600,8 +858,17 @@ fn execute_prepared(
     source_texts: DiagnosticSourceMap,
     prepared: tsc_program::PreparedProgram,
     additional_diagnostics: &[Diagnostic],
-    route: &mut NoEmitRoute<'_>,
+    route: &mut CliRoute<'_>,
 ) -> Result<CliOutput, CliError> {
+    if prepared.mode() == PreparedProgramMode::Emit {
+        return execute_emitting_prepared(
+            current_directory,
+            source_texts,
+            prepared,
+            additional_diagnostics,
+            route,
+        );
+    }
     let outcome = ProgramSession::new(prepared)
         .run_with_no_emit_canary(false, route.canary)
         .map_err(|error| CliError::Driver(error.to_string()))?;
@@ -628,6 +895,69 @@ fn execute_prepared(
         route.pretty,
         work_counters,
         no_emit_activity,
+    )
+}
+
+fn execute_emitting_prepared(
+    current_directory: &Path,
+    source_texts: DiagnosticSourceMap,
+    prepared: tsc_program::PreparedProgram,
+    additional_diagnostics: &[Diagnostic],
+    route: &mut CliRoute<'_>,
+) -> Result<CliOutput, CliError> {
+    let mut sink = FsOutputSink::new(route.output_filesystem);
+    let outcome = ProgramSession::new(prepared)
+        .emit_for_cli(&mut sink)
+        .map_err(|error| CliError::Driver(error.to_string()))?;
+
+    // tsc-port: emitFilesAndReportErrors @6.0.3
+    // tsc-hash: 9dc0128691c9a1bee5aeae85524cc8e2679b3905a4416a41095452e509951a8d
+    // tsc-span: _tsc.js:129412-129467
+    let mut diagnostics = outcome.config_diagnostics;
+    diagnostics.extend(outcome.syntactic_diagnostics.iter().cloned());
+    if outcome.syntactic_diagnostics.is_empty() {
+        let options_are_empty =
+            outcome.options_diagnostics.is_empty() && additional_diagnostics.is_empty();
+        diagnostics.extend(outcome.options_diagnostics);
+        diagnostics.extend(additional_diagnostics.iter().cloned());
+        let global_is_empty = outcome.global_diagnostics.is_empty();
+        diagnostics.extend(outcome.global_diagnostics);
+        if options_are_empty && global_is_empty {
+            diagnostics.extend(outcome.semantic_diagnostics);
+        }
+    }
+    diagnostics.extend(outcome.emit.diagnostics().iter().cloned());
+
+    let status_writes = outcome
+        .emit
+        .emitted_files()
+        .unwrap_or_default()
+        .iter()
+        .map(|path| {
+            let absolute = absolutize(current_directory, path);
+            format!("TSFILE: {}", normalize_slashes(&absolute.to_string_lossy()))
+        })
+        .collect::<Vec<_>>();
+
+    // tsc-port: emitFilesAndReportErrorsAndGetExitStatus @6.0.3
+    // tsc-hash: accac089a63c276079dd3309c69c617169dac0a0578c1551c8ea8a273d22bb78
+    // tsc-span: _tsc.js:129468-129485
+    let exit_code = if outcome.emit.emit_skipped() && !diagnostics.is_empty() {
+        EXIT_COMMAND_LINE
+    } else if !diagnostics.is_empty() {
+        EXIT_DIAGNOSTIC
+    } else {
+        EXIT_SUCCESS
+    };
+    rendered_diagnostics_with_exit_work_and_status(
+        current_directory,
+        &source_texts,
+        &diagnostics,
+        route.pretty,
+        exit_code,
+        outcome.work_counters,
+        NoEmitActivityCounters,
+        &status_writes,
     )
 }
 
@@ -693,9 +1023,43 @@ fn rendered_diagnostics_with_exit_and_work(
     work_counters: NoEmitWorkCounters,
     no_emit_activity: NoEmitActivityCounters,
 ) -> Result<CliOutput, CliError> {
-    if diagnostics.is_empty() {
+    rendered_diagnostics_with_exit_work_and_status(
+        current_directory,
+        source_texts,
+        diagnostics,
+        pretty,
+        exit_code,
+        work_counters,
+        no_emit_activity,
+        &[],
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn rendered_diagnostics_with_exit_work_and_status(
+    current_directory: &Path,
+    source_texts: &DiagnosticSourceMap,
+    diagnostics: &[Diagnostic],
+    pretty: bool,
+    exit_code: i32,
+    work_counters: NoEmitWorkCounters,
+    no_emit_activity: NoEmitActivityCounters,
+    status_writes: &[String],
+) -> Result<CliOutput, CliError> {
+    if diagnostics.is_empty() && status_writes.is_empty() {
         return Ok(CliOutput {
             stdout: String::new(),
+            stderr: String::new(),
+            exit_code: EXIT_SUCCESS,
+            work_counters,
+            no_emit_activity,
+        });
+    }
+    if diagnostics.is_empty() {
+        let mut stdout = String::new();
+        append_status_writes(&mut stdout, status_writes);
+        return Ok(CliOutput {
+            stdout,
             stderr: String::new(),
             exit_code: EXIT_SUCCESS,
             work_counters,
@@ -709,6 +1073,7 @@ fn rendered_diagnostics_with_exit_and_work(
     let text = if pretty {
         let mut text = format_diagnostics_with_context(diagnostics, &host)
             .map_err(|error| CliError::Render(error.to_string()))?;
+        append_status_writes(&mut text, status_writes);
         append_pretty_error_summary(
             &mut text,
             diagnostics,
@@ -718,8 +1083,11 @@ fn rendered_diagnostics_with_exit_and_work(
         );
         colorize_pretty_output(&text)
     } else {
-        format_plain_diagnostics(diagnostics, &host, source_texts, current_directory)
-            .map_err(|error| CliError::Render(error.to_string()))?
+        let mut text =
+            format_plain_diagnostics(diagnostics, &host, source_texts, current_directory)
+                .map_err(|error| CliError::Render(error.to_string()))?;
+        append_status_writes(&mut text, status_writes);
+        text
     };
     Ok(CliOutput {
         stdout: text,
@@ -728,6 +1096,13 @@ fn rendered_diagnostics_with_exit_and_work(
         work_counters,
         no_emit_activity,
     })
+}
+
+fn append_status_writes(output: &mut String, status_writes: &[String]) {
+    for status in status_writes {
+        output.push_str(status);
+        output.push('\n');
+    }
 }
 
 /// Append the command-line reporter's contextual error summary. Plain output

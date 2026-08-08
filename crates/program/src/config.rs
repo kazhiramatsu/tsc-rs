@@ -49,7 +49,8 @@ use crate::json::{
 };
 use crate::library::LibraryCatalog;
 use crate::loader::{
-    load_program_with_root_reasons, ProgramLoadError, ProgramLoadLimits, RootFileReason,
+    load_emitting_program_with_root_reasons, load_program_with_root_reasons, ProgramLoadError,
+    ProgramLoadLimits, RootFileReason,
 };
 use crate::module_resolution::{
     directory_name, normalize_absolute_path_lexical, normalized_root_parts, ModuleResolver,
@@ -1096,28 +1097,88 @@ pub enum ConfigProgramLoadError {
     NoEmitRequired {
         value: Option<bool>,
     },
+    EmitRequired {
+        value: Option<bool>,
+    },
     Program(ProgramLoadError),
+}
+
+/// Admitted command-line values which override a config-backed emitting
+/// invocation. Optional fields preserve absence, so a caller cannot erase a
+/// config value merely by constructing the override object.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct ConfigEmitOptionOverrides {
+    pub target: Option<i32>,
+    pub module: Option<i32>,
+    pub use_define_for_class_fields: Option<bool>,
+    pub no_emit_on_error: Option<bool>,
+    pub emit_bom: Option<bool>,
+    pub new_line: Option<i32>,
+    pub list_emitted_files: Option<bool>,
+    pub no_lib: Option<bool>,
+}
+
+impl ConfigEmitOptionOverrides {
+    pub const fn is_empty(self) -> bool {
+        self.target.is_none()
+            && self.module.is_none()
+            && self.use_define_for_class_fields.is_none()
+            && self.no_emit_on_error.is_none()
+            && self.emit_bom.is_none()
+            && self.new_line.is_none()
+            && self.list_emitted_files.is_none()
+            && self.no_lib.is_none()
+    }
+
+    fn apply(self, compiler_options: &mut CompilerOptions, program_options: &mut ProgramOptions) {
+        if let Some(value) = self.target {
+            compiler_options.target = Some(value);
+        }
+        if let Some(value) = self.module {
+            compiler_options.module = Some(value);
+        }
+        if let Some(value) = self.use_define_for_class_fields {
+            compiler_options.use_define_for_class_fields = Some(value);
+        }
+        if let Some(value) = self.no_emit_on_error {
+            compiler_options.no_emit_on_error = Some(value);
+        }
+        if let Some(value) = self.emit_bom {
+            compiler_options.emit_bom = Some(value);
+        }
+        if let Some(value) = self.new_line {
+            compiler_options.new_line = Some(value);
+        }
+        if let Some(value) = self.list_emitted_files {
+            compiler_options.list_emitted_files = Some(value);
+        }
+        if let Some(value) = self.no_lib {
+            *program_options = program_options.clone().with_no_lib(value);
+        }
+    }
 }
 
 impl ConfigProgramLoadError {
     pub fn config_diagnostics(&self) -> &[Diagnostic] {
         match self {
             Self::Diagnostics { config, .. } => config,
-            Self::NoEmitRequired { .. } | Self::Program(_) => &[],
+            Self::NoEmitRequired { .. } | Self::EmitRequired { .. } | Self::Program(_) => &[],
         }
     }
 
     pub fn options_diagnostics(&self) -> &[Diagnostic] {
         match self {
             Self::Diagnostics { options, .. } => options,
-            Self::NoEmitRequired { .. } | Self::Program(_) => &[],
+            Self::NoEmitRequired { .. } | Self::EmitRequired { .. } | Self::Program(_) => &[],
         }
     }
 
     pub const fn program_error(&self) -> Option<&ProgramLoadError> {
         match self {
             Self::Program(error) => Some(error),
-            Self::Diagnostics { .. } | Self::NoEmitRequired { .. } => None,
+            Self::Diagnostics { .. } | Self::NoEmitRequired { .. } | Self::EmitRequired { .. } => {
+                None
+            }
         }
     }
 }
@@ -1135,6 +1196,10 @@ impl fmt::Display for ConfigProgramLoadError {
                 formatter,
                 "compilerOptions.noEmit must be explicitly true (observed {value:?})"
             ),
+            Self::EmitRequired { value } => write!(
+                formatter,
+                "emitting config requires compilerOptions.noEmit to be absent or false (observed {value:?})"
+            ),
             Self::Program(error) => error.fmt(formatter),
         }
     }
@@ -1144,7 +1209,9 @@ impl Error for ConfigProgramLoadError {
     fn source(&self) -> Option<&(dyn Error + 'static)> {
         match self {
             Self::Program(error) => Some(error),
-            Self::Diagnostics { .. } | Self::NoEmitRequired { .. } => None,
+            Self::Diagnostics { .. } | Self::NoEmitRequired { .. } | Self::EmitRequired { .. } => {
+                None
+            }
         }
     }
 }
@@ -1166,7 +1233,14 @@ pub fn load_config_program(
     library_catalog: &LibraryCatalog,
     limits: ProgramLoadLimits,
 ) -> Result<PreparedProgram, ConfigProgramLoadError> {
-    load_config_program_inner(host, plan, library_catalog, limits, false)
+    load_config_program_inner(
+        host,
+        plan,
+        library_catalog,
+        limits,
+        ConfigProgramMode::NoEmit { force: false },
+        ConfigEmitOptionOverrides::default(),
+    )
 }
 
 /// Load a config plan while applying the command-line `--noEmit` override.
@@ -1180,7 +1254,86 @@ pub fn load_config_program_with_no_emit_override(
     library_catalog: &LibraryCatalog,
     limits: ProgramLoadLimits,
 ) -> Result<PreparedProgram, ConfigProgramLoadError> {
-    load_config_program_inner(host, plan, library_catalog, limits, true)
+    load_config_program_inner(
+        host,
+        plan,
+        library_catalog,
+        limits,
+        ConfigProgramMode::NoEmit { force: true },
+        ConfigEmitOptionOverrides::default(),
+    )
+}
+
+/// Turn a parsed config plan into the distinct H1 emitting program without
+/// weakening the H0 loader. An effective `noEmit=true` is rejected before
+/// source discovery.
+pub fn load_emitting_config_program(
+    host: &dyn CompilerHost,
+    plan: &ConfigRootPlan,
+    library_catalog: &LibraryCatalog,
+    limits: ProgramLoadLimits,
+) -> Result<PreparedProgram, ConfigProgramLoadError> {
+    load_emitting_config_program_with_overrides(
+        host,
+        plan,
+        library_catalog,
+        limits,
+        ConfigEmitOptionOverrides::default(),
+    )
+}
+
+/// Load an emitting config while applying the admitted scalar command-line
+/// projection after config conversion and before source discovery.
+pub fn load_emitting_config_program_with_overrides(
+    host: &dyn CompilerHost,
+    plan: &ConfigRootPlan,
+    library_catalog: &LibraryCatalog,
+    limits: ProgramLoadLimits,
+    overrides: ConfigEmitOptionOverrides,
+) -> Result<PreparedProgram, ConfigProgramLoadError> {
+    load_config_program_inner(
+        host,
+        plan,
+        library_catalog,
+        limits,
+        ConfigProgramMode::Emit { force: false },
+        overrides,
+    )
+}
+
+/// Load the emitting config route while applying an explicit command-line
+/// `--noEmit=false` override.
+pub fn load_emitting_config_program_with_no_emit_override(
+    host: &dyn CompilerHost,
+    plan: &ConfigRootPlan,
+    library_catalog: &LibraryCatalog,
+    limits: ProgramLoadLimits,
+) -> Result<PreparedProgram, ConfigProgramLoadError> {
+    load_emitting_config_program_with_no_emit_override_and_overrides(
+        host,
+        plan,
+        library_catalog,
+        limits,
+        ConfigEmitOptionOverrides::default(),
+    )
+}
+
+/// Apply both `--noEmit=false` and the admitted emitting scalar overrides.
+pub fn load_emitting_config_program_with_no_emit_override_and_overrides(
+    host: &dyn CompilerHost,
+    plan: &ConfigRootPlan,
+    library_catalog: &LibraryCatalog,
+    limits: ProgramLoadLimits,
+    overrides: ConfigEmitOptionOverrides,
+) -> Result<PreparedProgram, ConfigProgramLoadError> {
+    load_config_program_inner(
+        host,
+        plan,
+        library_catalog,
+        limits,
+        ConfigProgramMode::Emit { force: true },
+        overrides,
+    )
 }
 
 /// Validate the config-facing gates without starting source discovery.
@@ -1191,12 +1344,13 @@ pub fn load_config_program_with_no_emit_override(
 /// cannot accidentally bypass config diagnostics or the H0 fail-closed
 /// option/root-scope boundary.
 pub fn validate_config_plan(plan: &ConfigRootPlan) -> Result<(), ConfigProgramLoadError> {
-    validate_config_plan_with_no_emit_override(plan, false)
+    validate_config_plan_for_mode(plan, false, false)
 }
 
-fn validate_config_plan_with_no_emit_override(
+fn validate_config_plan_for_mode(
     plan: &ConfigRootPlan,
     force_no_emit: bool,
+    emitting: bool,
 ) -> Result<(), ConfigProgramLoadError> {
     let config = plan.diagnostics().cloned().collect::<Vec<_>>();
     // TypeScript reports deprecation diagnostics from getOptionsDiagnostics
@@ -1216,9 +1370,12 @@ fn validate_config_plan_with_no_emit_override(
         return Err(ConfigProgramLoadError::Diagnostics { config, options });
     }
 
-    if let Some((feature, detail)) =
-        unsupported_config_scope(&plan.options, &plan.raw, plan.unsupported_root_scopes())
-    {
+    if let Some((feature, detail)) = unsupported_config_scope(
+        &plan.options,
+        &plan.raw,
+        plan.unsupported_root_scopes(),
+        emitting,
+    ) {
         return Err(ConfigProgramLoadError::Program(
             ProgramLoadError::unsupported(
                 crate::loader::ProgramLoadOperation::ValidateOptions,
@@ -1238,19 +1395,43 @@ pub fn is_non_fatal_option_diagnostic(diagnostic: &Diagnostic) -> bool {
     matches!(diagnostic.code(), 5101 | 5107)
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum ConfigProgramMode {
+    NoEmit { force: bool },
+    Emit { force: bool },
+}
+
 fn load_config_program_inner(
     host: &dyn CompilerHost,
     plan: &ConfigRootPlan,
     library_catalog: &LibraryCatalog,
     limits: ProgramLoadLimits,
-    force_no_emit: bool,
+    mode: ConfigProgramMode,
+    overrides: ConfigEmitOptionOverrides,
 ) -> Result<PreparedProgram, ConfigProgramLoadError> {
-    validate_config_plan_with_no_emit_override(plan, force_no_emit)?;
+    let force_no_emit = matches!(mode, ConfigProgramMode::NoEmit { force: true });
+    validate_config_plan_for_mode(
+        plan,
+        force_no_emit,
+        matches!(mode, ConfigProgramMode::Emit { .. }),
+    )?;
 
-    if !force_no_emit && plan.compiler_options().no_emit != Some(true) {
-        return Err(ConfigProgramLoadError::NoEmitRequired {
-            value: plan.compiler_options().no_emit,
-        });
+    match mode {
+        ConfigProgramMode::NoEmit { force: false }
+            if plan.compiler_options().no_emit != Some(true) =>
+        {
+            return Err(ConfigProgramLoadError::NoEmitRequired {
+                value: plan.compiler_options().no_emit,
+            });
+        }
+        ConfigProgramMode::Emit { force: false }
+            if plan.compiler_options().no_emit == Some(true) =>
+        {
+            return Err(ConfigProgramLoadError::EmitRequired {
+                value: plan.compiler_options().no_emit,
+            });
+        }
+        ConfigProgramMode::NoEmit { .. } | ConfigProgramMode::Emit { .. } => {}
     }
 
     let roots = plan
@@ -1260,18 +1441,32 @@ fn load_config_program_inner(
         .map(|(file_name, reason)| (PathBuf::from(file_name), reason.clone()))
         .collect::<Vec<_>>();
     let mut compiler_options = plan.compiler_options().clone();
-    if force_no_emit {
-        compiler_options.no_emit = Some(true);
+    let mut program_options = plan.program_options().clone();
+    match mode {
+        ConfigProgramMode::NoEmit { force: true } => compiler_options.no_emit = Some(true),
+        ConfigProgramMode::Emit { force: true } => compiler_options.no_emit = Some(false),
+        ConfigProgramMode::NoEmit { force: false } | ConfigProgramMode::Emit { force: false } => {}
     }
-    load_program_with_root_reasons(
-        host,
-        &roots,
-        compiler_options,
-        plan.program_options().clone(),
-        library_catalog,
-        limits,
-    )
-    .map_err(ConfigProgramLoadError::Program)
+    overrides.apply(&mut compiler_options, &mut program_options);
+    let loaded = match mode {
+        ConfigProgramMode::NoEmit { .. } => load_program_with_root_reasons(
+            host,
+            &roots,
+            compiler_options,
+            program_options,
+            library_catalog,
+            limits,
+        ),
+        ConfigProgramMode::Emit { .. } => load_emitting_program_with_root_reasons(
+            host,
+            &roots,
+            compiler_options,
+            program_options,
+            library_catalog,
+            limits,
+        ),
+    };
+    loaded.map_err(ConfigProgramLoadError::Program)
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -1479,6 +1674,7 @@ fn unsupported_config_scope(
     options: &ConfigOptionBag,
     raw: &Value,
     unsupported_root_scopes: impl IntoIterator<Item = impl AsRef<str>>,
+    emitting: bool,
 ) -> Option<(&'static str, String)> {
     if let Some(references) = raw.as_object().and_then(|raw| raw.get("references")) {
         if config_value_requests_feature(references) {
@@ -1501,14 +1697,20 @@ fn unsupported_config_scope(
     }
 
     for option in options.entries() {
-        if !config_option_is_supported_by_h0(&option.name)
+        if !(config_option_is_supported_by_h0(&option.name)
+            || emitting && config_option_is_projected_for_h1_emit(&option.name))
             && config_value_requests_feature(&option.value)
         {
             return Some((
                 "unsupported-config-option",
                 format!(
-                    "compiler option {:?} is outside the H0 single-project no-emit driver",
-                    option.name
+                    "compiler option {:?} is outside the {} single-project driver",
+                    option.name,
+                    if emitting {
+                        "H1 emitting"
+                    } else {
+                        "H0 no-emit"
+                    },
                 ),
             ));
         }
@@ -1794,6 +1996,43 @@ pub const H0_SUPPORTED_CONFIG_OPTIONS: &[&str] = &[
 
 fn config_option_is_supported_by_h0(name: &str) -> bool {
     H0_SUPPORTED_CONFIG_OPTIONS.contains(&name)
+}
+
+const H1_EMIT_PROJECTED_CONFIG_OPTIONS: &[&str] = &[
+    "listEmittedFiles",
+    "emitBOM",
+    "noEmitOnError",
+    "noCheck",
+    "erasableSyntaxOnly",
+    "rootDir",
+    "sourceMap",
+    "inlineSourceMap",
+    "inlineSources",
+    "sourceRoot",
+    "mapRoot",
+    "declaration",
+    "declarationMap",
+    "emitDeclarationOnly",
+    "isolatedDeclarations",
+    "stableTypeOrdering",
+    "stripInternal",
+    "outFile",
+    "out",
+    "incremental",
+    "composite",
+    "assumeChangesOnlyAffectDirectDependencies",
+    "tsBuildInfoFile",
+    "importsNotUsedAsValues",
+    "preserveValueImports",
+    "emitDecoratorMetadata",
+    "newLine",
+    "removeComments",
+    "noImplicitUseStrict",
+    "noEmitHelpers",
+];
+
+fn config_option_is_projected_for_h1_emit(name: &str) -> bool {
+    H1_EMIT_PROJECTED_CONFIG_OPTIONS.contains(&name)
 }
 
 fn config_value_requests_feature(value: &Value) -> bool {
@@ -4311,7 +4550,11 @@ fn config_module_resolution_options(
             options,
             "rewriteRelativeImportExtensions",
         ),
-        resolve_json_module: Some(discovery.resolve_json_module),
+        // Preserve the raw option presence for emit-profile validation. The
+        // loader and resolver read the computed value through
+        // `resolve_json_module_effective`; root discovery separately retains
+        // the already-computed value on `ConfigDiscoveryOptions`.
+        resolve_json_module: config_option_bool(options, "resolveJsonModule"),
         skip_lib_check: config_option_bool(options, "skipLibCheck"),
         jsx_factory: config_option_string(options, "jsxFactory"),
         jsx_fragment_factory: config_option_string(options, "jsxFragmentFactory"),

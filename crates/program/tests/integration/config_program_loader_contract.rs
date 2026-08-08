@@ -9,8 +9,10 @@ use serde_json::{json, Value};
 use tsc_host::{CompilerHost, FsCompilerHost, MemoryCompilerHost};
 use tsc_program::{
     decode_host_text, load_config_program, load_config_program_with_no_emit_override,
-    parse_config_root_plan, CompilerConfigHost, ConfigHostError, ConfigHostOperation,
-    ConfigParseHost, ConfigProgramLoadError, ConfigRootPlanRequest, LibraryCatalog,
+    load_emitting_config_program, load_emitting_config_program_with_no_emit_override,
+    load_emitting_config_program_with_overrides, parse_config_root_plan, CompilerConfigHost,
+    ConfigEmitOptionOverrides, ConfigHostError, ConfigHostOperation, ConfigParseHost,
+    ConfigProgramLoadError, ConfigRootPlanRequest, LibraryCatalog, PreparedProgramMode,
     ProgramLoadLimits,
 };
 
@@ -1012,6 +1014,76 @@ fn command_line_no_emit_override_wins_over_a_false_config_value() {
     )
     .expect("command-line noEmit override");
     assert_eq!(prepared.compiler_options().no_emit, Some(true));
+}
+
+#[test]
+fn emitting_config_loader_is_distinct_and_rejects_effective_no_emit() {
+    let host = host();
+    let adapter = ConfigHostAdapter::new(&host);
+    let catalog = LibraryCatalog::typescript_6_0_3("/vendor/typescript/lib");
+    let emit_plan = parse_config_root_plan(
+        &adapter,
+        request(
+            r#"{"compilerOptions":{"target":"esnext","module":"preserve","noLib":true},"files":["main.ts"]}"#,
+        ),
+    )
+    .expect("parse emitting plan");
+    let prepared = load_emitting_config_program(&host, &emit_plan, &catalog, LIMITS)
+        .expect("load emitting config");
+    assert_eq!(prepared.mode(), PreparedProgramMode::Emit);
+    assert_eq!(prepared.compiler_options().no_emit, None);
+
+    let no_emit_plan = parse_config_root_plan(
+        &adapter,
+        request(
+            r#"{"compilerOptions":{"noEmit":true,"target":"esnext","module":"preserve","noLib":true},"files":["main.ts"]}"#,
+        ),
+    )
+    .expect("parse no-emit plan");
+    assert!(matches!(
+        load_emitting_config_program(&host, &no_emit_plan, &catalog, LIMITS),
+        Err(ConfigProgramLoadError::EmitRequired { value: Some(true) })
+    ));
+
+    let overridden =
+        load_emitting_config_program_with_no_emit_override(&host, &no_emit_plan, &catalog, LIMITS)
+            .expect("explicit false override selects emitting mode");
+    assert_eq!(overridden.mode(), PreparedProgramMode::Emit);
+    assert_eq!(overridden.compiler_options().no_emit, Some(false));
+}
+
+#[test]
+fn emitting_config_loader_applies_typed_command_line_precedence() {
+    let host = host();
+    let adapter = ConfigHostAdapter::new(&host);
+    let plan = parse_config_root_plan(
+        &adapter,
+        request(
+            r#"{"compilerOptions":{"target":"es2025","module":"esnext","lib":["es5"]},"files":["main.ts"]}"#,
+        ),
+    )
+    .expect("parse overridden emitting plan");
+    let prepared = load_emitting_config_program_with_overrides(
+        &host,
+        &plan,
+        &LibraryCatalog::typescript_6_0_3("/vendor/typescript/lib"),
+        LIMITS,
+        ConfigEmitOptionOverrides {
+            target: Some(99),
+            module: Some(200),
+            emit_bom: Some(true),
+            new_line: Some(0),
+            list_emitted_files: Some(true),
+            ..ConfigEmitOptionOverrides::default()
+        },
+    )
+    .expect("load config with command-line emit overrides");
+    let options = prepared.compiler_options();
+    assert_eq!(options.target, Some(99));
+    assert_eq!(options.module, Some(200));
+    assert_eq!(options.emit_bom, Some(true));
+    assert_eq!(options.new_line, Some(0));
+    assert_eq!(options.list_emitted_files, Some(true));
 }
 
 #[test]

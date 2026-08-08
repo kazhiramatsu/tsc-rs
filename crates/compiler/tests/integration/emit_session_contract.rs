@@ -1,12 +1,43 @@
+use std::collections::BTreeMap;
+use std::path::{Path, PathBuf};
+
 use tsc_compiler::{
-    DriverError, EmitArtifact, EmitFailure, EmitIoError, EmitWriteDisposition, MemoryOutputSink,
-    OutputSink, ProgramSession,
+    DriverError, EmitArtifact, EmitFailure, EmitFileSystem, EmitIoError, EmitWriteDisposition,
+    FsOutputSink, MemoryOutputSink, OutputSink, ProgramSession,
 };
 use tsc_program::{CompilerOptions, PathContext, PreparedProgram, PreparedSourceFile, ProgramPath};
 
 #[derive(Default)]
 struct CountingSink {
     writes: usize,
+}
+
+struct InjectedFileSystem {
+    fail_path: PathBuf,
+    attempts: Vec<PathBuf>,
+    files: BTreeMap<PathBuf, Vec<u8>>,
+}
+
+impl EmitFileSystem for InjectedFileSystem {
+    fn write_file(&mut self, path: &Path, bytes: &[u8]) -> Result<(), String> {
+        self.attempts.push(path.to_path_buf());
+        if path == self.fail_path {
+            return Err("injected stable write failure".to_owned());
+        }
+        self.files.insert(path.to_path_buf(), bytes.to_vec());
+        Ok(())
+    }
+
+    fn create_directory(&mut self, path: &Path) -> Result<(), String> {
+        panic!(
+            "existing project parent must not be created: {}",
+            path.display()
+        )
+    }
+
+    fn directory_exists(&mut self, path: &Path) -> bool {
+        path == Path::new("/project")
+    }
 }
 
 impl OutputSink for CountingSink {
@@ -187,4 +218,71 @@ fn a_later_unsupported_source_cannot_leave_an_earlier_partial_write() {
         DriverError::Emit(EmitFailure::Transform(_))
     ));
     assert_eq!(sink.writes, 0);
+}
+
+#[test]
+fn filesystem_failure_at_each_write_index_preserves_partial_set_and_continuation() {
+    let output_paths = [
+        PathBuf::from("/project/first.js"),
+        PathBuf::from("/project/second.js"),
+    ];
+    for failed_index in 0..output_paths.len() {
+        let prepared = prepared_with_sources(
+            CompilerOptions {
+                no_emit: Some(false),
+                target: Some(99),
+                module: Some(200),
+                list_emitted_files: Some(true),
+                ..CompilerOptions::default()
+            },
+            &[
+                ("/project/first.ts", "export const first: number = 1;\n"),
+                ("/project/second.ts", "export const second: number = 2;\n"),
+            ],
+        );
+        let mut filesystem = InjectedFileSystem {
+            fail_path: output_paths[failed_index].clone(),
+            attempts: Vec::new(),
+            files: BTreeMap::new(),
+        };
+        let mut sink = FsOutputSink::new(&mut filesystem);
+        let outcome = ProgramSession::new(prepared)
+            .emit(&mut sink)
+            .expect("filesystem write errors remain emit diagnostics");
+
+        assert_eq!(
+            outcome
+                .diagnostics()
+                .iter()
+                .map(|diagnostic| diagnostic.code())
+                .collect::<Vec<_>>(),
+            [5033],
+            "failure index {failed_index}"
+        );
+        assert!(!outcome.emit_skipped(), "failure index {failed_index}");
+        assert_eq!(
+            outcome.emitted_files(),
+            Some(output_paths.as_slice()),
+            "failure index {failed_index}"
+        );
+        assert_eq!(
+            filesystem
+                .attempts
+                .iter()
+                .filter(|path| *path == &output_paths[failed_index])
+                .count(),
+            2,
+            "failure index {failed_index} retries exactly once"
+        );
+        let expected_partial = output_paths
+            .iter()
+            .enumerate()
+            .filter_map(|(index, path)| (index != failed_index).then_some(path.clone()))
+            .collect::<Vec<_>>();
+        assert_eq!(
+            filesystem.files.keys().cloned().collect::<Vec<_>>(),
+            expected_partial,
+            "failure index {failed_index} partial output set"
+        );
+    }
 }
