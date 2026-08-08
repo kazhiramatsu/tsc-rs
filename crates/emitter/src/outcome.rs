@@ -10,7 +10,7 @@ pub struct SourceMapObservation {
 }
 
 impl SourceMapObservation {
-    // H1.1 freezes the result slot before H1.2/H1.4 can produce it.
+    // H1.1 freezes the result slot for a later source-map profile expansion.
     #[allow(dead_code)]
     pub(crate) fn new(input_source_files: Vec<PathBuf>, canonical_json: Box<str>) -> Self {
         Self {
@@ -41,8 +41,8 @@ pub struct EmitOutcome {
 }
 
 impl EmitOutcome {
-    // H1.1 keeps construction inside the emitter; execution lands later.
-    #[allow(dead_code)]
+    // Construction stays inside the emitter so callback and outcome ordering
+    // cannot be conflated by callers.
     pub(crate) fn new(
         diagnostics: DiagnosticList,
         emit_skipped: bool,

@@ -24,7 +24,7 @@
   "properties": {
     "schema": { "const": 1 },
     "status": { "const": "frozen-current-rust-baseline" },
-    "phase": { "const": "H1.3-rust-omission-inventory" },
+    "phase": { "const": "H1.4-rust-omission-inventory" },
     "typescript": {
       "type": "object",
       "additionalProperties": false,
@@ -85,9 +85,9 @@
         "existing_prerequisites"
       ],
       "properties": {
-        "production_boundary_omissions": { "const": 3 },
+        "production_boundary_omissions": { "const": 2 },
         "absence_proofs": { "$ref": "#/$defs/positive_integer" },
-        "option_projection_omissions": { "$ref": "#/$defs/positive_integer" },
+        "option_projection_omissions": { "$ref": "#/$defs/nonnegative_integer" },
         "explicit_checker_emit_elisions": { "$ref": "#/$defs/positive_integer" },
         "existing_prerequisites": { "$ref": "#/$defs/positive_integer" }
       }
@@ -99,13 +99,13 @@
     },
     "production_boundary_omissions": {
       "type": "array",
-      "minItems": 3,
-      "maxItems": 3,
+      "minItems": 2,
+      "maxItems": 2,
       "items": { "$ref": "#/$defs/boundary_omission" }
     },
     "option_projection_omissions": {
       "type": "array",
-      "minItems": 1,
+      "maxItems": 0,
       "items": { "$ref": "#/$defs/option_omission" }
     },
     "checker_emit_elisions": {
@@ -284,7 +284,8 @@
                 "production-rust",
                 "cargo-manifests",
                 "compiler-production",
-                "checker-production"
+                "checker-production",
+                "emitter-production"
               ]
             },
             "expression": { "type": "string", "minLength": 1 },

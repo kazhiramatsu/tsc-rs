@@ -2,6 +2,10 @@ use std::error::Error;
 use std::fmt;
 use std::path::{Path, PathBuf};
 
+use tsc_program::SourceFileId;
+
+use crate::{PrinterError, TransformError};
+
 /// Dormant request axis that the bounded H1 bootstrap cannot execute.
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub enum UnsupportedEmitFeature {
@@ -36,7 +40,9 @@ impl UnsupportedEmitFeature {
     }
 }
 
-/// Internal pipeline stage intentionally unavailable at the current H1 slice.
+/// Named orchestration stage retained for future requests that reach an
+/// unconnected pipeline axis. The H1.4 bootstrap path itself reaches
+/// transform/print and output planning.
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub enum EmitStage {
     TransformAndPrint,
@@ -55,17 +61,23 @@ impl EmitStage {
 }
 
 /// A malformed internal plan, distinct from a well-typed unsupported axis.
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum EmitContractViolation {
     ScriptOutputMissingJavaScriptPath,
+    PlannedSourceMissing(SourceFileId),
+    CheckedSyntaxUnavailable(SourceFileId),
 }
 
 /// Typed failure before or while orchestrating emission.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum EmitFailure {
     Unsupported(UnsupportedEmitFeature),
+    UnsupportedCompilerOption { option: &'static str },
+    UnsupportedSourceExtension { path: PathBuf },
     StageUnavailable(EmitStage),
     Contract(EmitContractViolation),
+    Transform(Box<TransformError>),
+    Printer(Box<PrinterError>),
 }
 
 impl fmt::Display for EmitFailure {
@@ -74,6 +86,14 @@ impl fmt::Display for EmitFailure {
             Self::Unsupported(feature) => {
                 write!(formatter, "unsupported emit request: {}", feature.name())
             }
+            Self::UnsupportedCompilerOption { option } => {
+                write!(formatter, "unsupported emit compiler option: {option}")
+            }
+            Self::UnsupportedSourceExtension { path } => write!(
+                formatter,
+                "unsupported emit source extension: {}",
+                path.display()
+            ),
             Self::StageUnavailable(stage) => {
                 write!(
                     formatter,
@@ -84,11 +104,43 @@ impl fmt::Display for EmitFailure {
             Self::Contract(EmitContractViolation::ScriptOutputMissingJavaScriptPath) => {
                 formatter.write_str("invalid emit plan: script output has no JavaScript path")
             }
+            Self::Contract(EmitContractViolation::PlannedSourceMissing(source)) => write!(
+                formatter,
+                "invalid emit plan: SourceFileId {} is not present in the emit host",
+                source.raw()
+            ),
+            Self::Contract(EmitContractViolation::CheckedSyntaxUnavailable(source)) => write!(
+                formatter,
+                "invalid emit execution: SourceFileId {} has no checked syntax",
+                source.raw()
+            ),
+            Self::Transform(error) => error.fmt(formatter),
+            Self::Printer(error) => error.fmt(formatter),
         }
     }
 }
 
-impl Error for EmitFailure {}
+impl Error for EmitFailure {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        match self {
+            Self::Transform(error) => Some(error.as_ref()),
+            Self::Printer(error) => Some(error.as_ref()),
+            _ => None,
+        }
+    }
+}
+
+impl From<TransformError> for EmitFailure {
+    fn from(value: TransformError) -> Self {
+        Self::Transform(Box::new(value))
+    }
+}
+
+impl From<PrinterError> for EmitFailure {
+    fn from(value: PrinterError) -> Self {
+        Self::Printer(Box::new(value))
+    }
+}
 
 /// Filesystem operation represented by an output-sink failure.
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]

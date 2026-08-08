@@ -195,6 +195,59 @@ pub struct CompilerOptions {
     /// when noEmit is set (filterSemanticDiagnostics 125664). 727
     /// conformance fixtures carry the directive (469 true-valued).
     pub no_emit: Option<bool>,
+    /// Include the independent `EmitResult.emittedFiles` observation. The
+    /// write callback keeps its own ordering and must never be reconstructed
+    /// from this list.
+    pub list_emitted_files: Option<bool>,
+    /// Pass the UTF-8 BOM decision separately to the output callback. The
+    /// callback text itself never contains the BOM.
+    pub emit_bom: Option<bool>,
+    /// Run options, syntactic, global, and semantic diagnostic gates before
+    /// constructing transformers or invoking an output sink.
+    pub no_emit_on_error: Option<bool>,
+    /// Skip semantic checking while retaining emit-time linked-reference
+    /// work. The bounded H1 bootstrap rejects the effective option before
+    /// output; retaining it prevents an emitting loader from erasing it.
+    pub no_check: Option<bool>,
+    /// Reject runtime TypeScript syntax at the option/checking boundary. H1's
+    /// syntax profile remains independently fail-closed even when absent.
+    pub erasable_syntax_only: Option<bool>,
+    /// Relocate per-source products below this normalized output directory.
+    /// H1.4 owns the path calculation while the first production profile
+    /// keeps an effective value unsupported.
+    pub out_dir: Option<String>,
+    /// Explicit common-source-directory root used by output relocation.
+    pub root_dir: Option<String>,
+    /// Dormant source-map product and path options retained so an emitting
+    /// request can reject them before the first output callback.
+    pub source_map: Option<bool>,
+    pub inline_source_map: Option<bool>,
+    pub inline_sources: Option<bool>,
+    pub source_root: Option<String>,
+    pub map_root: Option<String>,
+    /// Dormant declaration-product options. Their output-plan slots are
+    /// typed, but the H1 JavaScript profile does not execute them.
+    pub declaration: Option<bool>,
+    pub declaration_map: Option<bool>,
+    pub emit_declaration_only: Option<bool>,
+    pub isolated_declarations: Option<bool>,
+    pub stable_type_ordering: Option<bool>,
+    pub declaration_dir: Option<String>,
+    pub strip_internal: Option<bool>,
+    /// Dormant bundle aliases retained as distinct raw option spellings.
+    pub out_file: Option<String>,
+    pub out: Option<String>,
+    /// Dormant build-info options retained for preflight and the typed output
+    /// topology; H1 never constructs a build-info artifact.
+    pub incremental: Option<bool>,
+    pub composite: Option<bool>,
+    pub assume_changes_only_affect_direct_dependencies: Option<bool>,
+    pub ts_build_info_file: Option<String>,
+    /// Legacy/import and decorator controls whose transformer branches are
+    /// outside the first executable profile.
+    pub imports_not_used_as_values: Option<i32>,
+    pub preserve_value_imports: Option<bool>,
+    pub emit_decorator_metadata: Option<bool>,
     /// tsc `NewLineKind` value used by the JavaScript writer
     /// (CarriageReturnLineFeed=0, LineFeed=1). H0 retains but never reads it;
     /// an emitting session projects it into `PrinterOptions` lazily.

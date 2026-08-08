@@ -1,27 +1,27 @@
 {
   "schema": 1,
   "status": "frozen-current-rust-baseline",
-  "phase": "H1.3-rust-omission-inventory",
+  "phase": "H1.4-rust-omission-inventory",
   "typescript": {
     "version": "6.0.3",
     "source_commit": "050880ce59e30b356b686bd3144efe24f875ebc8"
   },
   "generator": {
     "path": "crates/oracle/h1-rust-omission-inventory.mjs",
-    "sha256": "737e92fe7edf34ca4b5760d0af3529ffd653d295fad81ae7e9c2e9134210f11f"
+    "sha256": "0c7cec89bc8bee411fcbd2d5a2e9841310aed8db8203b04563a3e6c006a49e02"
   },
   "contract": {
     "path": ".github/ci/contracts/h1-rust-omissions.schema.json",
-    "sha256": "183bf9200d5b9c09f8b805635c09cb8adde6cbfdee6c3058653c53d1d08cd445"
+    "sha256": "90b82c1580cabee2b6f8e2183057253dc30f68d91a8b57dd8efd2aabc4440ee6"
   },
   "authorities": {
     "compatibility_residual": {
       "path": "docs/design/greenfield/compiler-compatibility-residual.md",
-      "sha256": "b2cc0152bbc4e16cacc67cbaae3ec02febafe7111aa2f1e045d27853801b6d1c"
+      "sha256": "29b602ff2aa9c88cdbffe6d2a869baa2c11876614663a4d5e077bdbdb4963669"
     },
     "h1_execution": {
       "path": "docs/design/greenfield/h1-emit.md",
-      "sha256": "22fe2b14d2cd29a5b4b617e66cbe03d324b738a5ad274d505143d478adeb55e6"
+      "sha256": "9c6eeb33104ce2b08b311622cdb7e065605e407bebab8021ef9ff41415a04668"
     },
     "emit_profile": {
       "path": "ratchets/h1-emit-profile.v1.json",
@@ -39,16 +39,16 @@
       "crates/*/Cargo.toml",
       "crates/*/src/**/*.rs"
     ],
-    "file_count": 195,
-    "rust_source_files": 180,
+    "file_count": 197,
+    "rust_source_files": 182,
     "cargo_manifests": 15,
-    "bytes": 12586856,
-    "tree_sha256": "3c2be9c6d31dacb1f4eb2fdc3b0022ec7d8616a333ff662dd6c3c207e5825523"
+    "bytes": 12636391,
+    "tree_sha256": "d9ad64edaf21e4f45acc5c991a07f67a47030484d1266b14d1544b15a6792b96"
   },
   "summary": {
-    "production_boundary_omissions": 3,
-    "absence_proofs": 4,
-    "option_projection_omissions": 28,
+    "production_boundary_omissions": 2,
+    "absence_proofs": 2,
+    "option_projection_omissions": 0,
     "explicit_checker_emit_elisions": 24,
     "existing_prerequisites": 13
   },
@@ -108,7 +108,11 @@
         "prepared-program-emitting-builder",
         "program-session-run",
         "program-session-emit",
-        "program-session-emit-fail-before-sink",
+        "program-session-memory-emit",
+        "emitter-host-protocol",
+        "emitter-output-preflight",
+        "emitter-emit-files",
+        "checker-live-emit-callback",
         "emitter-artifact-protocol",
         "emitter-output-plan-shape",
         "emitter-output-sink-protocol",
@@ -187,46 +191,18 @@
   ],
   "production_boundary_omissions": [
     {
-      "id": "workspace-emitter-owner",
-      "planned_phase": "H1.4",
-      "current": "The acyclic emitter workspace owner contains the H1.1 execution spine, H1.2 transform/printer foundation, and H1.3 active built-in transformer, resolver, and changed-node printer slice.",
-      "missing": "The read-only EmitHost projection and executable output planning.",
-      "evidence": {
-        "anchors": [
-          "workspace-members",
-          "emitter-manifest-owner",
-          "emitter-artifact-protocol",
-          "emitter-output-plan-shape",
-          "emitter-output-sink-protocol",
-          "emitter-memory-sink",
-          "emitter-outcome-protocol",
-          "emitter-transform-arena",
-          "emitter-node-factory",
-          "emitter-transformation-context",
-          "emitter-transform-nodes",
-          "emitter-text-writer",
-          "emitter-printer-factory",
-          "emitter-resolver-protocol",
-          "emitter-script-transformer-selection",
-          "emitter-transform-typescript",
-          "emitter-transform-class-fields",
-          "emitter-transform-ecmascript-module",
-          "emitter-changed-import-printer"
-        ],
-        "absence_proofs": [
-          "emitter-host-protocol",
-          "active-output-functions"
-        ]
-      }
-    },
-    {
       "id": "output-plan-artifacts-sinks",
-      "planned_phase": "H1.4-H1.5",
-      "current": "H1.1 owns the complete dormant-axis output shape, exact callback artifact identity, typed sink feedback/I/O errors, independent outcome observations, and ordered MemoryOutputSink.",
-      "missing": "Executable source/path planning, collision preflight, callback error continuation, partial-failure behavior, and FsOutputSink.",
+      "planned_phase": "H1.5",
+      "current": "H1.4 owns the read-only EmitHost, executable source/path planning, collision preflight, fail-before-first-sink option and syntax validation, transform/print dispatch, sink error continuation, exact callback artifact identity, and ordered MemoryOutputSink.",
+      "missing": "Filesystem parent-directory creation, retry-safe FsOutputSink writes, and CLI-visible partial-failure qualification.",
       "evidence": {
         "anchors": [
           "prepared-program-current-shape",
+          "emitter-host-protocol",
+          "emitter-output-preflight",
+          "emitter-emit-files",
+          "checker-live-emit-callback",
+          "program-session-memory-emit",
           "emitter-artifact-protocol",
           "emitter-output-plan-shape",
           "emitter-output-sink-protocol",
@@ -234,225 +210,32 @@
           "emitter-outcome-protocol"
         ],
         "absence_proofs": [
-          "active-output-functions",
           "filesystem-output-sink"
         ]
       }
     },
     {
       "id": "emitting-loader-and-cli-route",
-      "planned_phase": "H1.4-H1.5",
-      "current": "H0 loader/config/CLI gates require noEmit=true and reject the emitting route before source execution.",
-      "missing": "A separate emitting option projection, config/explicit-root loader, preflight, CLI dispatch, filesystem sink connection, and exact exit behavior.",
+      "planned_phase": "H1.5",
+      "current": "H1.4 projects emitting CompilerOptions and ProgramSession owns checked in-memory emit, while the H0 loader/config/CLI gates still require noEmit=true and reject the emitting route before source execution.",
+      "missing": "A separate emitting config/explicit-root loader route, CLI dispatch, filesystem sink connection, and exact exit behavior.",
       "evidence": {
         "anchors": [
+          "compiler-options-current-shape",
+          "program-session-emit",
+          "program-session-memory-emit",
           "loader-no-emit-gate",
           "config-no-emit-gate",
           "cli-explicit-root-no-emit-gate",
           "cli-false-no-emit-gate"
         ],
-        "absence_proofs": []
+        "absence_proofs": [
+          "filesystem-output-sink"
+        ]
       }
     }
   ],
-  "option_projection_omissions": [
-    {
-      "option": "listEmittedFiles",
-      "rust_field": "list_emitted_files",
-      "current_retention": "recognized by the config option catalog; absent from CompilerOptions",
-      "disposition": "bootstrap",
-      "planned_phase": "H1.4"
-    },
-    {
-      "option": "emitBOM",
-      "rust_field": "emit_bom",
-      "current_retention": "recognized by the config option catalog; absent from CompilerOptions",
-      "disposition": "bootstrap",
-      "planned_phase": "H1.4"
-    },
-    {
-      "option": "noEmitOnError",
-      "rust_field": "no_emit_on_error",
-      "current_retention": "recognized by the config option catalog; absent from CompilerOptions",
-      "disposition": "bootstrap",
-      "planned_phase": "H1.4-H1.5"
-    },
-    {
-      "option": "outDir",
-      "rust_field": "out_dir",
-      "current_retention": "config-root-discovery-only; absent from CompilerOptions and PreparedProgram emit projection",
-      "disposition": "output-planning",
-      "planned_phase": "H1.4"
-    },
-    {
-      "option": "rootDir",
-      "rust_field": "root_dir",
-      "current_retention": "recognized by the config option catalog; absent from CompilerOptions",
-      "disposition": "output-planning",
-      "planned_phase": "H1.4"
-    },
-    {
-      "option": "noCheck",
-      "rust_field": "no_check",
-      "current_retention": "recognized by the config option catalog; absent from CompilerOptions",
-      "disposition": "diagnostic-gate-control",
-      "planned_phase": "H1.4"
-    },
-    {
-      "option": "erasableSyntaxOnly",
-      "rust_field": "erasable_syntax_only",
-      "current_retention": "recognized by the config option catalog; absent from CompilerOptions",
-      "disposition": "profile-preflight-control",
-      "planned_phase": "H1.4"
-    },
-    {
-      "option": "importsNotUsedAsValues",
-      "rust_field": "imports_not_used_as_values",
-      "current_retention": "recognized by the config option catalog; absent from CompilerOptions",
-      "disposition": "legacy-transform-control",
-      "planned_phase": "typed-deferred"
-    },
-    {
-      "option": "preserveValueImports",
-      "rust_field": "preserve_value_imports",
-      "current_retention": "recognized by the config option catalog; absent from CompilerOptions",
-      "disposition": "legacy-transform-control",
-      "planned_phase": "typed-deferred"
-    },
-    {
-      "option": "emitDecoratorMetadata",
-      "rust_field": "emit_decorator_metadata",
-      "current_retention": "recognized by the config option catalog; absent from CompilerOptions",
-      "disposition": "adjacent-decorator",
-      "planned_phase": "profile-control"
-    },
-    {
-      "option": "sourceMap",
-      "rust_field": "source_map",
-      "current_retention": "recognized by the config option catalog; absent from CompilerOptions",
-      "disposition": "dormant-source-map",
-      "planned_phase": "typed-slot-only"
-    },
-    {
-      "option": "inlineSourceMap",
-      "rust_field": "inline_source_map",
-      "current_retention": "recognized by the config option catalog; absent from CompilerOptions",
-      "disposition": "dormant-source-map",
-      "planned_phase": "typed-slot-only"
-    },
-    {
-      "option": "inlineSources",
-      "rust_field": "inline_sources",
-      "current_retention": "recognized by the config option catalog; absent from CompilerOptions",
-      "disposition": "dormant-source-map",
-      "planned_phase": "typed-slot-only"
-    },
-    {
-      "option": "sourceRoot",
-      "rust_field": "source_root",
-      "current_retention": "recognized by the config option catalog; absent from CompilerOptions",
-      "disposition": "dormant-source-map",
-      "planned_phase": "typed-slot-only"
-    },
-    {
-      "option": "mapRoot",
-      "rust_field": "map_root",
-      "current_retention": "recognized by the config option catalog; absent from CompilerOptions",
-      "disposition": "dormant-source-map",
-      "planned_phase": "typed-slot-only"
-    },
-    {
-      "option": "declaration",
-      "rust_field": "declaration",
-      "current_retention": "recognized by the config option catalog; absent from CompilerOptions",
-      "disposition": "dormant-declaration",
-      "planned_phase": "typed-slot-only"
-    },
-    {
-      "option": "declarationMap",
-      "rust_field": "declaration_map",
-      "current_retention": "recognized by the config option catalog; absent from CompilerOptions",
-      "disposition": "dormant-declaration",
-      "planned_phase": "typed-slot-only"
-    },
-    {
-      "option": "emitDeclarationOnly",
-      "rust_field": "emit_declaration_only",
-      "current_retention": "recognized by the config option catalog; absent from CompilerOptions",
-      "disposition": "dormant-declaration",
-      "planned_phase": "typed-slot-only"
-    },
-    {
-      "option": "isolatedDeclarations",
-      "rust_field": "isolated_declarations",
-      "current_retention": "recognized by the config option catalog; absent from CompilerOptions",
-      "disposition": "dormant-declaration",
-      "planned_phase": "typed-slot-only"
-    },
-    {
-      "option": "stableTypeOrdering",
-      "rust_field": "stable_type_ordering",
-      "current_retention": "recognized by the config option catalog; absent from CompilerOptions",
-      "disposition": "dormant-declaration",
-      "planned_phase": "typed-slot-only"
-    },
-    {
-      "option": "declarationDir",
-      "rust_field": "declaration_dir",
-      "current_retention": "config-root-discovery-only; absent from CompilerOptions and PreparedProgram emit projection",
-      "disposition": "dormant-declaration",
-      "planned_phase": "typed-slot-only"
-    },
-    {
-      "option": "stripInternal",
-      "rust_field": "strip_internal",
-      "current_retention": "recognized by the config option catalog; absent from CompilerOptions",
-      "disposition": "dormant-declaration",
-      "planned_phase": "typed-slot-only"
-    },
-    {
-      "option": "outFile",
-      "rust_field": "out_file",
-      "current_retention": "recognized by the config option catalog; absent from CompilerOptions",
-      "disposition": "dormant-bundle",
-      "planned_phase": "typed-slot-only"
-    },
-    {
-      "option": "out",
-      "rust_field": "out",
-      "current_retention": "recognized by the config option catalog; absent from CompilerOptions",
-      "disposition": "dormant-bundle",
-      "planned_phase": "typed-slot-only"
-    },
-    {
-      "option": "incremental",
-      "rust_field": "incremental",
-      "current_retention": "recognized by the config option catalog; absent from CompilerOptions",
-      "disposition": "dormant-build-info",
-      "planned_phase": "typed-slot-only"
-    },
-    {
-      "option": "composite",
-      "rust_field": "composite",
-      "current_retention": "recognized by the config option catalog; absent from CompilerOptions",
-      "disposition": "dormant-build-info",
-      "planned_phase": "typed-slot-only"
-    },
-    {
-      "option": "assumeChangesOnlyAffectDirectDependencies",
-      "rust_field": "assume_changes_only_affect_direct_dependencies",
-      "current_retention": "recognized by the config option catalog; absent from CompilerOptions",
-      "disposition": "dormant-build-info",
-      "planned_phase": "typed-slot-only"
-    },
-    {
-      "option": "tsBuildInfoFile",
-      "rust_field": "ts_build_info_file",
-      "current_retention": "recognized by the config option catalog; absent from CompilerOptions",
-      "disposition": "dormant-build-info",
-      "planned_phase": "typed-slot-only"
-    }
-  ],
+  "option_projection_omissions": [],
   "checker_emit_elisions": [
     {
       "id": "captured-block-scope-bindings",
@@ -631,11 +414,11 @@
       {
         "id": "emitter-output-plan-shape",
         "path": "crates/emitter/src/plan.rs",
-        "line": 51,
+        "line": 54,
         "column": 1,
         "text": "pub struct EmitOutputPaths {\n    javascript: Option<PathBuf>,\n    javascript_map: Option<PathBuf>,\n    declaration: Option<PathBuf>,\n    declaration_map: Option<PathBuf>,\n    build_info: Option<PathBuf>,\n}",
         "text_sha256": "7b9332f2f24bd1e1ac1a7a6c7379f51b9b5161b02ba290af1eb9fd8b98d86f70",
-        "file_sha256": "4e03e747184f03b1cfe67d086c0c950717d093847a6c65a1659ab8943cfb33bc"
+        "file_sha256": "e8ca03e1c607c38a296fc78b0689ae5243792a63e6630ab414c78494046ca23e"
       },
       {
         "id": "emitter-output-sink-protocol",
@@ -662,7 +445,7 @@
         "column": 1,
         "text": "pub struct EmitOutcome {\n    diagnostics: DiagnosticList,\n    emit_skipped: bool,\n    emitted_files: Option<Box<[PathBuf]>>,\n    source_maps: Option<Box<[SourceMapObservation]>>,\n}",
         "text_sha256": "61b8345d5cd7bb8c265b341317bba05a8a06874a7c76ef7bc5de8f52bc691b37",
-        "file_sha256": "22985991b14468f199ed3aeed90ee28fe0f8a6be3a69fd2c382a9999794712dd"
+        "file_sha256": "5939ab4f51565c67b1aa19927c8d6e1a60fc9b253e83b82a47a08f12ab72a34c"
       },
       {
         "id": "emitter-transform-arena",
@@ -865,38 +648,74 @@
       {
         "id": "program-session-owner",
         "path": "crates/compiler/src/lib.rs",
-        "line": 55,
+        "line": 61,
         "column": 1,
         "text": "pub struct ProgramSession {\n    prepared: PreparedProgram,\n}",
         "text_sha256": "665e8cc79aa3899b9439120a02ffdfe34c92d54b8953b9eb431f216af633981a",
-        "file_sha256": "59696e1f1db778093d5619fee6c356ba9cf3330214caf9f6db5536ae08b9cd91"
+        "file_sha256": "f98d6ba1702e09cd4278563088777188c276bfcdd96ac5267cf670baf07288b2"
       },
       {
         "id": "program-session-run",
         "path": "crates/compiler/src/lib.rs",
-        "line": 398,
+        "line": 570,
         "column": 5,
         "text": "pub fn run(self) -> Result<NoEmitOutcome, DriverError> {\n        self.require_mode(PreparedProgramMode::NoEmit)?;\n        let mut no_emit_canary = no_emit_canary::NoEmitCanary::new();\n        self.run_with_no_emit_canary(false, &mut no_emit_canary)\n    }",
         "text_sha256": "86127c4bedf713e3a340c844b3a95f20427c4d559f0762c433c114252388fc90",
-        "file_sha256": "59696e1f1db778093d5619fee6c356ba9cf3330214caf9f6db5536ae08b9cd91"
+        "file_sha256": "f98d6ba1702e09cd4278563088777188c276bfcdd96ac5267cf670baf07288b2"
       },
       {
         "id": "program-session-emit",
         "path": "crates/compiler/src/lib.rs",
-        "line": 409,
+        "line": 577,
         "column": 5,
         "text": "pub fn emit(self, sink: &mut dyn OutputSink) -> Result<EmitOutcome, DriverError> {",
         "text_sha256": "07a8bfeb7192441ea0205e51647ae2e065d5268e4e32d1f6183a039cbd2faa0a",
-        "file_sha256": "59696e1f1db778093d5619fee6c356ba9cf3330214caf9f6db5536ae08b9cd91"
+        "file_sha256": "f98d6ba1702e09cd4278563088777188c276bfcdd96ac5267cf670baf07288b2"
       },
       {
-        "id": "program-session-emit-fail-before-sink",
+        "id": "program-session-memory-emit",
         "path": "crates/compiler/src/lib.rs",
-        "line": 413,
+        "line": 583,
         "column": 9,
-        "text": "Err(DriverError::Emit(EmitFailure::StageUnavailable(\n            EmitStage::TransformAndPrint,\n        )))",
-        "text_sha256": "30088e881873a06e6ba4c3df89a504213cb2d3820a41e9c96d17dbd452b2d151",
-        "file_sha256": "59696e1f1db778093d5619fee6c356ba9cf3330214caf9f6db5536ae08b9cd91"
+        "text": "let preflight = preflight_emit(&emit_host, selection).map_err(DriverError::Emit)?;",
+        "text_sha256": "1523dcd4656d6ced2296771c8c2485ca7bae7b4ece4ae479d17f923938690fd9",
+        "file_sha256": "f98d6ba1702e09cd4278563088777188c276bfcdd96ac5267cf670baf07288b2"
+      },
+      {
+        "id": "emitter-host-protocol",
+        "path": "crates/emitter/src/host.rs",
+        "line": 66,
+        "column": 1,
+        "text": "pub trait EmitHost {",
+        "text_sha256": "24e57ba5fe1431ce68abf94caa9f328d352d90bfd61e0481b2642335d433eafc",
+        "file_sha256": "317684947d03666c95c19671e1133c0304cd18dbb5ecd39de6ad96e21430a935"
+      },
+      {
+        "id": "emitter-output-preflight",
+        "path": "crates/emitter/src/plan.rs",
+        "line": 375,
+        "column": 1,
+        "text": "pub fn preflight_emit(",
+        "text_sha256": "cadeaacab2c6b8cff7f06e8ac04d677e927e8404ce878894cec000b93eb46be0",
+        "file_sha256": "e8ca03e1c607c38a296fc78b0689ae5243792a63e6630ab414c78494046ca23e"
+      },
+      {
+        "id": "emitter-emit-files",
+        "path": "crates/emitter/src/execute.rs",
+        "line": 199,
+        "column": 1,
+        "text": "pub fn emit_files(",
+        "text_sha256": "06f4b40f5c04f28c09e441a13bd303ec30f299622d68d6270a7987525e7558e1",
+        "file_sha256": "d5c2ec265e28f60023b62009d65d87c7637183698bda0f2b068aa541b3b6cb79"
+      },
+      {
+        "id": "checker-live-emit-callback",
+        "path": "crates/checker/src/lib.rs",
+        "line": 1219,
+        "column": 1,
+        "text": "pub fn check_program_with_authoritative_modules_at_for_emit(",
+        "text_sha256": "9a6778daa37b4dbd06c9aea5c03e49a2d7cf3cc17acd8bf568158f3f81e7a154",
+        "file_sha256": "7a738180c6f62a35d656137349ba88a82fd94aad63a5948f0491bcd2a8f6cbb3"
       },
       {
         "id": "h1-no-emit-canary",
@@ -910,20 +729,20 @@
       {
         "id": "checker-session-local-state",
         "path": "crates/checker/src/lib.rs",
-        "line": 1631,
+        "line": 1672,
         "column": 9,
         "text": "let mut state = state::CheckerState::from_snapshot(&snapshot, options);",
         "text_sha256": "66431a38f7144074bc77255200f22293db4d3cec0c2a25e8f9803518da8f1b6a",
-        "file_sha256": "9cf62903017124327fd442b88f70576985dd3d08301aa118a286bb72c89d670d"
+        "file_sha256": "7a738180c6f62a35d656137349ba88a82fd94aad63a5948f0491bcd2a8f6cbb3"
       },
       {
         "id": "checker-state-collapse",
         "path": "crates/checker/src/lib.rs",
-        "line": 1821,
+        "line": 1862,
         "column": 9,
         "text": "partial_checks = state.partial_check_records.clone();\n        authoritative_failure = state.take_authoritative_module_failure();",
         "text_sha256": "8c4b08d85fa65cffc07ed4b19a65542608d4991af99d50672f5fe53d65d75885",
-        "file_sha256": "9cf62903017124327fd442b88f70576985dd3d08301aa118a286bb72c89d670d"
+        "file_sha256": "7a738180c6f62a35d656137349ba88a82fd94aad63a5948f0491bcd2a8f6cbb3"
       },
       {
         "id": "display-clone-not-emitter",
@@ -964,11 +783,11 @@
       {
         "id": "checker-authoritative-emit-facts",
         "path": "crates/checker/src/lib.rs",
-        "line": 131,
+        "line": 133,
         "column": 5,
         "text": "pub may_be_emitted: bool,\n    /// Raw `SourceFile.impliedNodeFormat`",
         "text_sha256": "3d4ae97d2c33a29370c93a0ac34ff42c614ac8cac2f3d8cf8a1291f4bfa10444",
-        "file_sha256": "9cf62903017124327fd442b88f70576985dd3d08301aa118a286bb72c89d670d"
+        "file_sha256": "7a738180c6f62a35d656137349ba88a82fd94aad63a5948f0491bcd2a8f6cbb3"
       },
       {
         "id": "compiler-options-current-shape",
@@ -977,7 +796,7 @@
         "column": 1,
         "text": "pub struct CompilerOptions {",
         "text_sha256": "26ecd93b5a351f3bfc7897c600ee93f422303b72187b8f49fa50bb10e97dbaed",
-        "file_sha256": "24fdfd713c42c70b70fdb9f26a9fb7eec956f7ecc32d1f9c3a2ad3bd0edaa901"
+        "file_sha256": "c279c07b186b378a1089c416043085d1abe56d655c7b91d145bebd08d23162fe"
       },
       {
         "id": "compiler-options-bootstrap-scalars",
@@ -986,7 +805,7 @@
         "column": 5,
         "text": "pub target: Option<i32>,\n    /// tsc ModuleKind value; None when the option is absent.",
         "text_sha256": "72849bd6c27037777c9a8702e8a896ed5180945b9a3c6e6399e6d7ac28c4df17",
-        "file_sha256": "24fdfd713c42c70b70fdb9f26a9fb7eec956f7ecc32d1f9c3a2ad3bd0edaa901"
+        "file_sha256": "c279c07b186b378a1089c416043085d1abe56d655c7b91d145bebd08d23162fe"
       },
       {
         "id": "compiler-options-class-fields",
@@ -995,7 +814,7 @@
         "column": 5,
         "text": "pub use_define_for_class_fields: Option<bool>,",
         "text_sha256": "4a2e57ffc561b38f20b1d02ff112ac6299bac6498a0583cfc1bdb3bbaff78474",
-        "file_sha256": "24fdfd713c42c70b70fdb9f26a9fb7eec956f7ecc32d1f9c3a2ad3bd0edaa901"
+        "file_sha256": "c279c07b186b378a1089c416043085d1abe56d655c7b91d145bebd08d23162fe"
       },
       {
         "id": "compiler-options-no-emit",
@@ -1004,43 +823,43 @@
         "column": 5,
         "text": "pub no_emit: Option<bool>,",
         "text_sha256": "bfa25442fb2488d03706d502b88b76e651350f20e40f4051056cf1b99d2d9ce0",
-        "file_sha256": "24fdfd713c42c70b70fdb9f26a9fb7eec956f7ecc32d1f9c3a2ad3bd0edaa901"
+        "file_sha256": "c279c07b186b378a1089c416043085d1abe56d655c7b91d145bebd08d23162fe"
       },
       {
         "id": "compiler-options-new-line",
         "path": "crates/types/src/options.rs",
-        "line": 201,
+        "line": 254,
         "column": 5,
         "text": "pub new_line: Option<i32>,",
         "text_sha256": "93f0e2e3378c1b520fdcf5beb6390f647adcf4e008f4877e6176b54dc6cb388a",
-        "file_sha256": "24fdfd713c42c70b70fdb9f26a9fb7eec956f7ecc32d1f9c3a2ad3bd0edaa901"
+        "file_sha256": "c279c07b186b378a1089c416043085d1abe56d655c7b91d145bebd08d23162fe"
       },
       {
         "id": "compiler-options-remove-comments",
         "path": "crates/types/src/options.rs",
-        "line": 204,
+        "line": 257,
         "column": 5,
         "text": "pub remove_comments: Option<bool>,",
         "text_sha256": "76a9e83ac783b8d2ca87042b54bbcea595186a03e3fc5886e8753e9a18f72286",
-        "file_sha256": "24fdfd713c42c70b70fdb9f26a9fb7eec956f7ecc32d1f9c3a2ad3bd0edaa901"
+        "file_sha256": "c279c07b186b378a1089c416043085d1abe56d655c7b91d145bebd08d23162fe"
       },
       {
         "id": "compiler-options-no-implicit-use-strict",
         "path": "crates/types/src/options.rs",
-        "line": 207,
+        "line": 260,
         "column": 5,
         "text": "pub no_implicit_use_strict: Option<bool>,",
         "text_sha256": "696627f9b67f69259d63411a930db1d5a04984b92bb8b64e989a1386db4d2808",
-        "file_sha256": "24fdfd713c42c70b70fdb9f26a9fb7eec956f7ecc32d1f9c3a2ad3bd0edaa901"
+        "file_sha256": "c279c07b186b378a1089c416043085d1abe56d655c7b91d145bebd08d23162fe"
       },
       {
         "id": "compiler-options-no-emit-helpers",
         "path": "crates/types/src/options.rs",
-        "line": 210,
+        "line": 263,
         "column": 5,
         "text": "pub no_emit_helpers: Option<bool>,",
         "text_sha256": "8f5ef00bd1995716ebc5e58ccc51b9d5609091f1a7b173058bbcf8df3f83cc28",
-        "file_sha256": "24fdfd713c42c70b70fdb9f26a9fb7eec956f7ecc32d1f9c3a2ad3bd0edaa901"
+        "file_sha256": "c279c07b186b378a1089c416043085d1abe56d655c7b91d145bebd08d23162fe"
       },
       {
         "id": "binder-source-aggregate-emit-flags",
@@ -1067,7 +886,7 @@
         "column": 5,
         "text": "A config without an explicit\n/// `noEmit: true` is rejected before `load_program`",
         "text_sha256": "161a551a4d1b128d9d948b1d08261a98bd294a5e7bb6fecdfc5aa1dfb3ff004d",
-        "file_sha256": "ec45d7d4257ca952627b60e70e1f7ab89a130634c1d3c57c80ea9f27bae0bce4"
+        "file_sha256": "5ea1a8301a002d2eb8e50956ee772eb3e0412676a6d1d2fc2784ff54dfcee9ae"
       },
       {
         "id": "cli-explicit-root-no-emit-gate",
@@ -1094,7 +913,7 @@
         "column": 5,
         "text": "out_dir: Option<String>,\n    declaration_dir: Option<String>,",
         "text_sha256": "a8617177e430f042fb859063fe81c6befc627994db9f901f674fb6b6c436373d",
-        "file_sha256": "ec45d7d4257ca952627b60e70e1f7ab89a130634c1d3c57c80ea9f27bae0bce4"
+        "file_sha256": "5ea1a8301a002d2eb8e50956ee772eb3e0412676a6d1d2fc2784ff54dfcee9ae"
       },
       {
         "id": "program-snapshot-owner",
@@ -1351,26 +1170,10 @@
     ],
     "absence_proofs": [
       {
-        "id": "emitter-host-protocol",
-        "kind": "regex-zero",
-        "scope": "emitter-production",
-        "expression": "^[ \\t]*(?:pub(?:\\([^)]*\\))?[ \\t]+)?trait[ \\t]+EmitHost\\b",
-        "match_count": 0,
-        "matches": []
-      },
-      {
         "id": "filesystem-output-sink",
         "kind": "regex-zero",
         "scope": "emitter-production",
         "expression": "^[ \\t]*(?:pub(?:\\([^)]*\\))?[ \\t]+)?struct[ \\t]+FsOutputSink\\b",
-        "match_count": 0,
-        "matches": []
-      },
-      {
-        "id": "active-output-functions",
-        "kind": "regex-zero",
-        "scope": "production-rust",
-        "expression": "^[ \\t]*(?:pub(?:\\([^)]*\\))?[ \\t]+)?fn[ \\t]+(?:get_source_files_to_emit|get_output_paths_for|for_each_emitted_file|emit_files)[ \\t]*\\(",
         "match_count": 0,
         "matches": []
       },
@@ -1384,5 +1187,5 @@
       }
     ]
   },
-  "inventory_fingerprint_sha256": "f0ddfb05efe528ffee2f0bac09cd9a120adda01f43809f49b6e0beb2de64a01f"
+  "inventory_fingerprint_sha256": "d766d1733c1b42c4ac1059ab4598078a5504152b7d825e26c7cecad8e0d45aad"
 }
