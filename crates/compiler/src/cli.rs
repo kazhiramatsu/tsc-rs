@@ -137,6 +137,12 @@ struct CommandLine {
     pretty: Option<bool>,
 }
 
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+struct ConfigCommandLineOverrides {
+    no_emit: Option<bool>,
+    emit: ConfigEmitOptionOverrides,
+}
+
 #[derive(Default)]
 struct NativeEmitFileSystem;
 
@@ -372,8 +378,7 @@ fn execute(args: &[String], no_emit_canary: &mut NoEmitCanary) -> Result<CliOutp
             &catalog,
             &plan,
             source_texts,
-            command_line.compiler_options.no_emit,
-            config_emit_overrides(&command_line),
+            config_command_line_overrides(&command_line),
             &mut route,
         );
     }
@@ -437,23 +442,25 @@ fn execute(args: &[String], no_emit_canary: &mut NoEmitCanary) -> Result<CliOutp
         &catalog,
         &plan,
         source_texts,
-        command_line.compiler_options.no_emit,
-        config_emit_overrides(&command_line),
+        config_command_line_overrides(&command_line),
         &mut route,
     )
 }
 
-fn config_emit_overrides(command_line: &CommandLine) -> ConfigEmitOptionOverrides {
+fn config_command_line_overrides(command_line: &CommandLine) -> ConfigCommandLineOverrides {
     let options = &command_line.compiler_options;
-    ConfigEmitOptionOverrides {
-        target: options.target,
-        module: options.module,
-        use_define_for_class_fields: options.use_define_for_class_fields,
-        no_emit_on_error: options.no_emit_on_error,
-        emit_bom: options.emit_bom,
-        new_line: options.new_line,
-        list_emitted_files: options.list_emitted_files,
-        no_lib: command_line.no_lib,
+    ConfigCommandLineOverrides {
+        no_emit: options.no_emit,
+        emit: ConfigEmitOptionOverrides {
+            target: options.target,
+            module: options.module,
+            use_define_for_class_fields: options.use_define_for_class_fields,
+            no_emit_on_error: options.no_emit_on_error,
+            emit_bom: options.emit_bom,
+            new_line: options.new_line,
+            list_emitted_files: options.list_emitted_files,
+            no_lib: command_line.no_lib,
+        },
     }
 }
 
@@ -716,8 +723,7 @@ fn execute_config(
     catalog: &LibraryCatalog,
     plan: &ConfigRootPlan,
     mut source_texts: DiagnosticSourceMap,
-    no_emit_override: Option<bool>,
-    emit_overrides: ConfigEmitOptionOverrides,
+    overrides: ConfigCommandLineOverrides,
     route: &mut CliRoute<'_>,
 ) -> Result<CliOutput, CliError> {
     for source in plan.extended_sources() {
@@ -727,15 +733,16 @@ fn execute_config(
         plan.source().file_name.clone(),
         Arc::clone(plan.source().snapshot()),
     );
-    let effective_no_emit =
-        no_emit_override.unwrap_or_else(|| plan.compiler_options().no_emit == Some(true));
-    if effective_no_emit && !emit_overrides.is_empty() {
+    let effective_no_emit = overrides
+        .no_emit
+        .unwrap_or_else(|| plan.compiler_options().no_emit == Some(true));
+    if effective_no_emit && !overrides.emit.is_empty() {
         return Err(CliError::Usage(
             "emit-profile command-line overrides are unavailable on the preserved --noEmit route"
                 .to_owned(),
         ));
     }
-    let prepared = match no_emit_override {
+    let prepared = match overrides.no_emit {
         Some(true) => {
             load_config_program_with_no_emit_override(host, plan, catalog, DEFAULT_LIMITS)
         }
@@ -744,7 +751,7 @@ fn execute_config(
             plan,
             catalog,
             DEFAULT_LIMITS,
-            emit_overrides,
+            overrides.emit,
         ),
         None if plan.compiler_options().no_emit == Some(true) => {
             load_config_program(host, plan, catalog, DEFAULT_LIMITS)
@@ -754,7 +761,7 @@ fn execute_config(
             plan,
             catalog,
             DEFAULT_LIMITS,
-            emit_overrides,
+            overrides.emit,
         ),
     };
     let prepared = match prepared {

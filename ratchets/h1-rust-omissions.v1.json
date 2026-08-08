@@ -42,8 +42,8 @@
     "file_count": 197,
     "rust_source_files": 182,
     "cargo_manifests": 15,
-    "bytes": 12667140,
-    "tree_sha256": "7bc38e49d13f137abeed35c8bc4943b5a22315b218a4216a46d4c0dc680c7157"
+    "bytes": 12667316,
+    "tree_sha256": "dd47e09320cd6e89077453f6cbd16719091f437310836969f8ee0759af37b1db"
   },
   "summary": {
     "production_boundary_omissions": 0,
@@ -897,20 +897,20 @@
       {
         "id": "cli-mode-dispatch",
         "path": "crates/compiler/src/cli.rs",
-        "line": 863,
+        "line": 870,
         "column": 5,
         "text": "if prepared.mode() == PreparedProgramMode::Emit {\n        return execute_emitting_prepared(",
         "text_sha256": "c84948081c61402e6e74bbd46486e07254a1b1cd3f66fcd6ff31d153a2664dfb",
-        "file_sha256": "fbac3db6295a78a83e65ccbc3c87d8d88148205a02d37db4545b094834baaa3d"
+        "file_sha256": "6f48a9ef0268f116426374084cb1a2932a7e0c6965690625655b31d15a751801"
       },
       {
         "id": "cli-filesystem-sink-dispatch",
         "path": "crates/compiler/src/cli.rs",
-        "line": 908,
+        "line": 915,
         "column": 5,
         "text": "let mut sink = FsOutputSink::new(route.output_filesystem);",
         "text_sha256": "177c3cf353fa6ee63c49c02a3b33a2794c580d44f8ee5e861ef87c64a994aa8b",
-        "file_sha256": "fbac3db6295a78a83e65ccbc3c87d8d88148205a02d37db4545b094834baaa3d"
+        "file_sha256": "6f48a9ef0268f116426374084cb1a2932a7e0c6965690625655b31d15a751801"
       },
       {
         "id": "config-transient-output-discovery",
@@ -1185,5 +1185,5 @@
       }
     ]
   },
-  "inventory_fingerprint_sha256": "f752442a868f7b5c006577f2c803faf2ddac6b94d850817f307459080669afe0"
+  "inventory_fingerprint_sha256": "dcbdea0c25d555f5123d3a09f37d908fe529f5b8fd273f527044884b5787d5b6"
 }
