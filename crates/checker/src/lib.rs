@@ -58,6 +58,8 @@ use tsc_diagnostics::{
 };
 use tsc_types::IdentityDomain;
 
+use crate::emit::CheckerSession;
+
 pub use crate::program::{
     BoundDocument, DocumentAddress, DocumentLease, DocumentRegistry, DocumentRegistryError,
     DocumentScriptKind, EphemeralDocumentStore, EphemeralDocumentStoreError,
@@ -1094,6 +1096,7 @@ fn check_program_with_libs_at_observed_cache_mode_prepared(
             false,
             observe_phase,
             None,
+            None,
         )
         .result;
     }
@@ -1122,6 +1125,7 @@ fn check_program_with_libs_at_observed_cache_mode_prepared(
         CheckWorkCounters::default(),
         false,
         observe_phase,
+        None,
         None,
     )
     .result
@@ -1163,6 +1167,7 @@ pub fn check_program_with_owned_libs_at(
         true,
         &mut observe_phase,
         None,
+        None,
     )
     .result
 }
@@ -1177,6 +1182,9 @@ struct CheckExecution {
     result: CheckResult,
     authoritative_failure: Option<AuthoritativeModuleFailure>,
 }
+
+type CheckedEmitOperation<'operation> =
+    dyn FnMut(&ProgramSnapshot, &CheckerSession<'_>, &CheckResult) + 'operation;
 
 /// tsrs-native: run one owned checker batch whose module lookups are supplied exclusively
 /// by an exact caller-owned table. The legacy in-memory resolver is never a
@@ -1200,6 +1208,35 @@ pub fn check_program_with_authoritative_modules_at(
         current_directory,
         provider,
         false,
+        None,
+    )
+}
+
+/// Run the production authoritative checker and lend its live semantic state
+/// to one emit operation after all public diagnostic getters have completed.
+/// The callback cannot retain the snapshot or resolver beyond this call.
+/// tsrs-native: scoped callback seam that keeps checked state alive for H1 emit.
+#[allow(clippy::too_many_arguments)]
+pub fn check_program_with_authoritative_modules_at_for_emit(
+    libs: &[InputFile],
+    files: &[InputFile],
+    lib_metadata: &[AuthoritativeSourceMetadata],
+    file_metadata: &[AuthoritativeSourceMetadata],
+    options: &CompilerOptions,
+    current_directory: &str,
+    provider: &dyn AuthoritativeModuleProvider,
+    mut operation: impl FnMut(&ProgramSnapshot, &CheckerSession<'_>, &CheckResult),
+) -> Result<CheckResult, AuthoritativeModuleFailure> {
+    check_program_with_authoritative_modules_at_cache_mode(
+        libs,
+        files,
+        lib_metadata,
+        file_metadata,
+        options,
+        current_directory,
+        provider,
+        false,
+        Some(&mut operation),
     )
 }
 
@@ -1232,6 +1269,7 @@ pub fn check_program_with_authoritative_modules_at_harness_cached(
         current_directory,
         provider,
         cache_enabled,
+        None,
     )
 }
 
@@ -1245,6 +1283,7 @@ fn check_program_with_authoritative_modules_at_cache_mode(
     current_directory: &str,
     provider: &dyn AuthoritativeModuleProvider,
     cache_enabled: bool,
+    emit_operation: Option<&mut CheckedEmitOperation<'_>>,
 ) -> Result<CheckResult, AuthoritativeModuleFailure> {
     validate_authoritative_metadata(libs, lib_metadata, "library")?;
     validate_authoritative_metadata(files, file_metadata, "program")?;
@@ -1296,6 +1335,7 @@ fn check_program_with_authoritative_modules_at_cache_mode(
             true,
             &mut observe_phase,
             Some(&run),
+            emit_operation,
         )
     } else {
         let bundle_options = lib_bundle_options(options);
@@ -1315,6 +1355,7 @@ fn check_program_with_authoritative_modules_at_cache_mode(
             true,
             &mut observe_phase,
             Some(&run),
+            emit_operation,
         )
     };
     match execution.authoritative_failure {
@@ -1362,6 +1403,7 @@ fn check_program_with_prebound_libs_at_observed(
     collect_global_diagnostics: bool,
     observe_phase: &mut impl FnMut(CheckPhase),
     authoritative_run: Option<&AuthoritativeRun<'_>>,
+    emit_operation: Option<&mut CheckedEmitOperation<'_>>,
 ) -> CheckExecution {
     let mut file_diagnostics = Vec::new();
     let mut partial_checks = Vec::new();
@@ -1820,8 +1862,40 @@ fn check_program_with_prebound_libs_at_observed(
         }
         partial_checks = state.partial_check_records.clone();
         authoritative_failure = state.take_authoritative_module_failure();
+        if authoritative_failure.is_none() {
+            if let Some(operation) = emit_operation {
+                let checked = assemble_check_result(
+                    &file_diagnostics,
+                    &global_diagnostics,
+                    &partial_checks,
+                    work_counters,
+                );
+                let session = CheckerSession::from_checked_state(state);
+                operation(&snapshot, &session, &checked);
+            }
+        }
     }
 
+    debug_assert!(tsc_binder::is_scaffolded());
+    debug_assert!(tsc_types::is_scaffolded());
+
+    CheckExecution {
+        result: assemble_check_result(
+            &file_diagnostics,
+            &global_diagnostics,
+            &partial_checks,
+            work_counters,
+        ),
+        authoritative_failure,
+    }
+}
+
+fn assemble_check_result(
+    file_diagnostics: &[FileDiagnosticPasses],
+    global_diagnostics: &[Diagnostic],
+    partial_checks: &[PartialCheck],
+    work_counters: CheckWorkCounters,
+) -> CheckResult {
     let syntactic_diagnostics = file_diagnostics
         .iter()
         .flat_map(|file| file.syntactic.iter().cloned())
@@ -1849,21 +1923,15 @@ fn check_program_with_prebound_libs_at_observed(
         .collect();
     tsc_diagnostics::sort_and_dedupe_diagnostics(&mut diagnostics);
 
-    debug_assert!(tsc_binder::is_scaffolded());
-    debug_assert!(tsc_types::is_scaffolded());
-
-    CheckExecution {
-        result: CheckResult {
-            diagnostics,
-            syntactic_diagnostics,
-            semantic_diagnostics,
-            global_diagnostics,
-            suggestion_diagnostics,
-            file_diagnostics,
-            partial_checks,
-            work_counters,
-        },
-        authoritative_failure,
+    CheckResult {
+        diagnostics,
+        syntactic_diagnostics,
+        semantic_diagnostics,
+        global_diagnostics: global_diagnostics.to_vec(),
+        suggestion_diagnostics,
+        file_diagnostics: file_diagnostics.to_vec(),
+        partial_checks: partial_checks.to_vec(),
+        work_counters,
     }
 }
 

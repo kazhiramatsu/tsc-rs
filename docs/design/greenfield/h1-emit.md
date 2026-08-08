@@ -58,11 +58,10 @@ classified non-edges, with 442 complete property review candidate sets and
 zero unresolved or undispositioned rows. H1.0b has frozen the post-L0/L1
 no-emit performance boundary. H1.1 is now complete: `crates/emitter` owns the
 typed artifact, callback metadata, dormant output topology, outcome, failure,
-sink-disposition, `OutputSink`, and `MemoryOutputSink` contracts; emitting
-prepared programs and the separate `ProgramSession::emit` entry fail at the
-unconnected executable transform/print stage before the first sink call. This
-is an execution-spine claim, not JavaScript output compatibility; H1.4–H1.6
-remain below.
+sink-disposition, `OutputSink`, and `MemoryOutputSink` contracts, and emitting
+prepared programs have a separate `ProgramSession::emit` entry. This was the
+typed execution spine subsequently connected by H1.2-H1.4; H1.5-H1.6 remain
+below.
 H1.2 is also complete. `crates/emitter` now owns an emit-session detached
 syntax arena and sparse transform/emit metadata, clone/original-node rules,
 the `transformNodes` lifecycle and context stacks, typed source-byte/source-
@@ -82,8 +81,18 @@ pins the real checker-driven import/export elision result and the structural
 transform-flag probe against vendored TypeScript. Runtime enum, namespace,
 parameter-property, import-equals, export-equals, JSX, decorator, class-field
 downlevel, and module-rewrite branches remain typed controls. Executable
-source/output planning and sink dispatch begin in H1.4, so H1.3 alone is not
-yet a production JavaScript output compatibility claim.
+source/output planning and sink dispatch were still deferred at that slice.
+H1.4 is now complete. A read-only `EmitHost` projects ordered source facts;
+executable `getSourceFilesToEmit`, `getOutputPathsFor`, `forEachEmittedFile`,
+and `emitFiles` ports perform case-aware collision preflight and deterministic
+transform/print dispatch. The checker lends its live snapshot and scoped
+resolver to `ProgramSession::emit`, while all artifacts are constructed before
+the first `MemoryOutputSink` callback so a later unsupported source cannot
+leave a partial write. The five admitted callback-oracle cases run twice and
+match exact text, BOM/materialized bytes, provenance, metadata, diagnostics,
+`emitSkipped`, optional-list presence/order, and repeated-run identity.
+Filesystem writes and the emitting CLI route remain H1.5 work, and full
+profile closure/qualification remains H1.6.
 H0 remains the released, frozen single-project `--noEmit` profile. M9 remains a
 separate paused batch-diagnostics qualification track.
 
@@ -1381,11 +1390,11 @@ runtime.
    `transformTypeScript` resolver producers for the first erasable-TypeScript
    profile; close inactive class-field/module branches with generated
    reachability evidence rather than fabricated resolver answers.
-7. **Next — H1.4 output planning and in-memory emit:** port transformer selection,
+7. **Complete — H1.4 output planning and in-memory emit:** port transformer selection,
    source eligibility, emit-active option/output-collision preflight,
    `emitFiles`, output paths, callback versus emitted-file ordering,
    diagnostics, and repeated-run determinism through `MemoryOutputSink`.
-8. **H1.5 — filesystem/CLI connection:** connect the same artifacts to
+8. **Next — H1.5 filesystem/CLI connection:** connect the same artifacts to
    `FsOutputSink`, match CLI diagnostics and exit behavior, and prove that a
    failure before or during writing has the oracle's exact parent-retry,
    diagnostic-and-continue, and partial-write boundary.

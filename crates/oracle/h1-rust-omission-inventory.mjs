@@ -297,9 +297,29 @@ const anchorSpecs = [
     "pub fn emit(self, sink: &mut dyn OutputSink) -> Result<EmitOutcome, DriverError> {",
   ],
   [
-    "program-session-emit-fail-before-sink",
+    "program-session-memory-emit",
     "crates/compiler/src/lib.rs",
-    "Err(DriverError::Emit(EmitFailure::StageUnavailable(\n            EmitStage::TransformAndPrint,\n        )))",
+    "let preflight = preflight_emit(&emit_host, selection).map_err(DriverError::Emit)?;",
+  ],
+  [
+    "emitter-host-protocol",
+    "crates/emitter/src/host.rs",
+    "pub trait EmitHost {",
+  ],
+  [
+    "emitter-output-preflight",
+    "crates/emitter/src/plan.rs",
+    "pub fn preflight_emit(",
+  ],
+  [
+    "emitter-emit-files",
+    "crates/emitter/src/execute.rs",
+    "pub fn emit_files(",
+  ],
+  [
+    "checker-live-emit-callback",
+    "crates/checker/src/lib.rs",
+    "pub fn check_program_with_authoritative_modules_at_for_emit(",
   ],
   [
     "h1-no-emit-canary",
@@ -599,25 +619,11 @@ function regexMatches(scope, expression) {
 
 const absenceSpecs = [
   {
-    id: "emitter-host-protocol",
-    kind: "regex-zero",
-    scope: "emitter-production",
-    expression:
-      "^[ \\t]*(?:pub(?:\\([^)]*\\))?[ \\t]+)?trait[ \\t]+EmitHost\\b",
-  },
-  {
     id: "filesystem-output-sink",
     kind: "regex-zero",
     scope: "emitter-production",
     expression:
       "^[ \\t]*(?:pub(?:\\([^)]*\\))?[ \\t]+)?struct[ \\t]+FsOutputSink\\b",
-  },
-  {
-    id: "active-output-functions",
-    kind: "regex-zero",
-    scope: "production-rust",
-    expression:
-      "^[ \\t]*(?:pub(?:\\([^)]*\\))?[ \\t]+)?fn[ \\t]+(?:get_source_files_to_emit|get_output_paths_for|for_each_emitted_file|emit_files)[ \\t]*\\(",
   },
   {
     id: "linked-reference-producers",
@@ -651,69 +657,48 @@ function evidence(anchorIds = [], absenceIds = []) {
 
 const boundaryOmissions = [
   {
-    id: "workspace-emitter-owner",
-    planned_phase: "H1.4",
-    current:
-      "The acyclic emitter workspace owner contains the H1.1 execution spine, H1.2 transform/printer foundation, and H1.3 active built-in transformer, resolver, and changed-node printer slice.",
-    missing:
-      "The read-only EmitHost projection and executable output planning.",
-    evidence: evidence(
-      [
-        "workspace-members",
-        "emitter-manifest-owner",
-        "emitter-artifact-protocol",
-        "emitter-output-plan-shape",
-        "emitter-output-sink-protocol",
-        "emitter-memory-sink",
-        "emitter-outcome-protocol",
-        "emitter-transform-arena",
-        "emitter-node-factory",
-        "emitter-transformation-context",
-        "emitter-transform-nodes",
-        "emitter-text-writer",
-        "emitter-printer-factory",
-        "emitter-resolver-protocol",
-        "emitter-script-transformer-selection",
-        "emitter-transform-typescript",
-        "emitter-transform-class-fields",
-        "emitter-transform-ecmascript-module",
-        "emitter-changed-import-printer",
-      ],
-      ["emitter-host-protocol", "active-output-functions"],
-    ),
-  },
-  {
     id: "output-plan-artifacts-sinks",
-    planned_phase: "H1.4-H1.5",
+    planned_phase: "H1.5",
     current:
-      "H1.1 owns the complete dormant-axis output shape, exact callback artifact identity, typed sink feedback/I/O errors, independent outcome observations, and ordered MemoryOutputSink.",
+      "H1.4 owns the read-only EmitHost, executable source/path planning, collision preflight, fail-before-first-sink option and syntax validation, transform/print dispatch, sink error continuation, exact callback artifact identity, and ordered MemoryOutputSink.",
     missing:
-      "Executable source/path planning, collision preflight, callback error continuation, partial-failure behavior, and FsOutputSink.",
+      "Filesystem parent-directory creation, retry-safe FsOutputSink writes, and CLI-visible partial-failure qualification.",
     evidence: evidence(
       [
         "prepared-program-current-shape",
+        "emitter-host-protocol",
+        "emitter-output-preflight",
+        "emitter-emit-files",
+        "checker-live-emit-callback",
+        "program-session-memory-emit",
         "emitter-artifact-protocol",
         "emitter-output-plan-shape",
         "emitter-output-sink-protocol",
         "emitter-memory-sink",
         "emitter-outcome-protocol",
       ],
-      ["active-output-functions", "filesystem-output-sink"],
+      ["filesystem-output-sink"],
     ),
   },
   {
     id: "emitting-loader-and-cli-route",
-    planned_phase: "H1.4-H1.5",
+    planned_phase: "H1.5",
     current:
-      "H0 loader/config/CLI gates require noEmit=true and reject the emitting route before source execution.",
+      "H1.4 projects emitting CompilerOptions and ProgramSession owns checked in-memory emit, while the H0 loader/config/CLI gates still require noEmit=true and reject the emitting route before source execution.",
     missing:
-      "A separate emitting option projection, config/explicit-root loader, preflight, CLI dispatch, filesystem sink connection, and exact exit behavior.",
-    evidence: evidence([
-      "loader-no-emit-gate",
-      "config-no-emit-gate",
-      "cli-explicit-root-no-emit-gate",
-      "cli-false-no-emit-gate",
-    ]),
+      "A separate emitting config/explicit-root loader route, CLI dispatch, filesystem sink connection, and exact exit behavior.",
+    evidence: evidence(
+      [
+        "compiler-options-current-shape",
+        "program-session-emit",
+        "program-session-memory-emit",
+        "loader-no-emit-gate",
+        "config-no-emit-gate",
+        "cli-explicit-root-no-emit-gate",
+        "cli-false-no-emit-gate",
+      ],
+      ["filesystem-output-sink"],
+    ),
   },
 ];
 
@@ -772,28 +757,19 @@ for (const [option, rustField] of [
   );
 }
 
-const optionProjectionOmissions = optionSpecs.map(
-  ([option, rustField, disposition, plannedPhase]) => {
-    const fieldExpression = new RegExp(`\\bpub[ \\t]+${rustField}[ \\t]*:`);
-    requireCondition(
-      !fieldExpression.test(compilerOptionsBlock),
-      `CompilerOptions now retains ${option}; update its omission disposition`,
-    );
-    const catalog = source("crates/program/src/config_options.rs");
-    const optionNeedle = `\"${option}\"`;
-    requireCondition(catalog.includes(optionNeedle), `option catalog no longer contains ${option}`);
-    return {
-      option,
-      rust_field: rustField,
-      current_retention:
-        option === "outDir" || option === "declarationDir"
-          ? "config-root-discovery-only; absent from CompilerOptions and PreparedProgram emit projection"
-          : "recognized by the config option catalog; absent from CompilerOptions",
-      disposition,
-      planned_phase: plannedPhase,
-    };
-  },
-);
+const optionCatalog = source("crates/program/src/config_options.rs");
+for (const [option, rustField] of optionSpecs) {
+  const fieldExpression = new RegExp(`\\bpub[ \\t]+${rustField}[ \\t]*:`);
+  requireCondition(
+    fieldExpression.test(compilerOptionsBlock),
+    `H1.4 CompilerOptions projection lost ${option}`,
+  );
+  requireCondition(
+    optionCatalog.includes(`\"${option}\"`),
+    `option catalog no longer contains ${option}`,
+  );
+}
+const optionProjectionOmissions = [];
 
 const checkerElisionSpecs = [
   ["captured-block-scope-bindings", "captured-block-scope-bindings-elided", "inactive-at-ESNext", "profile-control"],
@@ -890,7 +866,11 @@ const existingPrerequisites = [
       "prepared-program-emitting-builder",
       "program-session-run",
       "program-session-emit",
-      "program-session-emit-fail-before-sink",
+      "program-session-memory-emit",
+      "emitter-host-protocol",
+      "emitter-output-preflight",
+      "emitter-emit-files",
+      "checker-live-emit-callback",
       "emitter-artifact-protocol",
       "emitter-output-plan-shape",
       "emitter-output-sink-protocol",
@@ -978,7 +958,7 @@ function exactKeys(value, required) {
 const artifact = {
   schema: 1,
   status: "frozen-current-rust-baseline",
-  phase: "H1.3-rust-omission-inventory",
+  phase: "H1.4-rust-omission-inventory",
   typescript: { version: TYPESCRIPT_VERSION, source_commit: SOURCE_COMMIT },
   generator: pathHash(GENERATOR_RELATIVE_PATH),
   contract: pathHash(SCHEMA_RELATIVE_PATH),
@@ -1033,7 +1013,7 @@ function validateArtifact(value) {
   requireCondition(
     value.schema === 1 &&
       value.status === "frozen-current-rust-baseline" &&
-      value.phase === "H1.3-rust-omission-inventory",
+      value.phase === "H1.4-rust-omission-inventory",
     "invalid H1 Rust omission artifact header",
   );
   const semantic = { ...value };
@@ -1058,7 +1038,7 @@ function validateArtifact(value) {
 validateArtifact(artifact);
 
 requireCondition(
-  boundaryOmissions.length === 3,
+  boundaryOmissions.length === 2,
   "the reviewed missing-production-boundary table must remain exhaustive",
 );
 requireCondition(
@@ -1066,14 +1046,10 @@ requireCondition(
   "production boundary omission identifiers are not unique",
 );
 requireCondition(
-  optionProjectionOmissions.length === 28 &&
-    new Set(optionProjectionOmissions.map((entry) => entry.option)).size ===
-      optionProjectionOmissions.length,
+  optionSpecs.length === 28 &&
+    new Set(optionSpecs.map(([option]) => option)).size === optionSpecs.length &&
+    optionProjectionOmissions.length === 0,
   "emit option projection omission set drifted or contains duplicates",
-);
-requireCondition(
-  optionProjectionOmissions.filter((entry) => entry.disposition === "bootstrap").length === 3,
-  "bootstrap emit option omission set drifted",
 );
 requireCondition(
   checkerEmitElisions.length === checkerElisionSpecs.length &&

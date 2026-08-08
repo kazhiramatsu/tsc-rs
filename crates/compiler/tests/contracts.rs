@@ -8,6 +8,8 @@ mod emit_session_contract;
 mod filesystem_loader_contract;
 #[path = "integration/h0_qualification_contract.rs"]
 mod h0_qualification_contract;
+#[path = "integration/h1_memory_emit_oracle_contract.rs"]
+mod h1_memory_emit_oracle_contract;
 #[path = "integration/library_loader_session_contract.rs"]
 mod library_loader_session_contract;
 #[path = "integration/no_resolve_session_contract.rs"]

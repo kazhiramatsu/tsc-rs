@@ -2,15 +2,17 @@
 
 //! Typed ownership boundary for JavaScript emission.
 //!
-//! H1.1 freezes the output topology and callback protocol before transformer,
-//! printer, and filesystem behavior become executable. The crate deliberately
-//! has no dependency on `tsc-rs-checker`; checker-owned semantic state will
-//! implement emitter-owned protocols without creating a dependency cycle.
+//! H1.4 executes output planning, transform/print, and sink dispatch through
+//! the topology frozen in H1.1. The crate deliberately has no dependency on
+//! `tsc-rs-checker`; live checker state implements emitter-owned protocols
+//! without creating a dependency cycle.
 
 mod artifact;
 mod builtins;
 mod error;
+mod execute;
 mod factory;
+mod host;
 mod metadata;
 mod outcome;
 mod plan;
@@ -32,17 +34,24 @@ pub use error::{
     EmitContractViolation, EmitFailure, EmitIoError, EmitIoOperation, EmitStage,
     UnsupportedEmitFeature,
 };
+pub use execute::{
+    emit_files, validate_bootstrap_emit_options, validate_bootstrap_emit_request,
+    EmitDiagnosticGate,
+};
 pub use factory::{
     NodeFactory, TransformArena, TransformNode, TransformNodeArray, TransformSource,
     TransformSourceId,
 };
+pub use host::{EmitHost, EmitSource};
 pub use metadata::{
     EmitConstantValue, EmitFlags, EmitMetadata, InternalEmitFlags, JavaScriptString,
     SourceMapRange, SyntheticComment, SyntheticCommentKind,
 };
 pub use outcome::{EmitOutcome, SourceMapObservation};
 pub use plan::{
-    EmitBundle, EmitMode, EmitOutputPaths, EmitOutputPlan, EmitOutputUnit, EmitRoot, EmitSelection,
+    for_each_emitted_file, get_output_paths_for, get_source_files_to_emit, preflight_emit,
+    source_file_may_be_emitted, EmitBundle, EmitMode, EmitOutputPaths, EmitOutputPlan,
+    EmitOutputUnit, EmitPreflight, EmitRoot, EmitSelection,
 };
 pub use position::{
     GeneratedUtf16Location, GeneratedUtf16Position, PositionDomain, SourceBytePosition,

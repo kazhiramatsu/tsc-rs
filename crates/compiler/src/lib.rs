@@ -18,14 +18,20 @@ use std::sync::Arc;
 
 use tsc_checker::{
     check_program_with_authoritative_modules_at,
+    check_program_with_authoritative_modules_at_for_emit,
     check_program_with_authoritative_modules_at_harness_cached, AuthoritativeModuleFailure,
     AuthoritativeModuleLookupFailure, AuthoritativeModuleProvider, AuthoritativeModuleRequest,
     AuthoritativeModuleResolution, AuthoritativeModuleResolutionDiagnostic,
     AuthoritativeNotFoundModule, AuthoritativePackageId, AuthoritativeResolutionMode,
     AuthoritativeResolvedModule, AuthoritativeSourceMetadata, AuthoritativeSourceToken,
-    AuthoritativeUntypedModule, InputFile, UnsupportedAuthoritativeResolution,
+    AuthoritativeUntypedModule, CheckResult, InputFile, ProgramSnapshot,
+    UnsupportedAuthoritativeResolution,
 };
 use tsc_diagnostics::{sort_and_dedupe_diagnostics, Diagnostic, DiagnosticList};
+use tsc_emitter::{
+    emit_files, preflight_emit, validate_bootstrap_emit_request, EmitDiagnosticGate, EmitHost,
+    EmitSource, UnavailableEmitResolver,
+};
 pub use tsc_emitter::{
     EmitArtifact, EmitArtifactKind, EmitBuildInfoMetadata, EmitContractViolation, EmitFailure,
     EmitIoError, EmitIoOperation, EmitMode, EmitOutcome, EmitOutputPaths, EmitOutputPlan,
@@ -35,9 +41,9 @@ pub use tsc_emitter::{
 };
 pub use tsc_program::PreparedProgramMode;
 use tsc_program::{
-    plan_source_requests, MissingResolutionError, ModuleExtension, PreparedProgram,
-    PreparedSourceFile, ResolutionKey, ResolutionMode, ResolutionOutcome, ResolvedModuleTarget,
-    SourceFileId, SourceRequestPlan, UnloadedModuleReason,
+    plan_source_requests, CompilerOptions, MissingResolutionError, ModuleExtension,
+    PreparedProgram, PreparedSourceFile, ResolutionKey, ResolutionMode, ResolutionOutcome,
+    ResolvedModuleTarget, SourceFileId, SourceRequestPlan, UnloadedModuleReason,
 };
 
 mod cli;
@@ -59,6 +65,172 @@ pub struct ProgramSession {
 struct PreparedModuleProvider<'a> {
     prepared: &'a PreparedProgram,
     request_plans: RefCell<BTreeMap<SourceFileId, SourceRequestPlan>>,
+}
+
+struct PreparedEmitHost<'program> {
+    prepared: &'program PreparedProgram,
+    source_files: Vec<SourceFileId>,
+    common_source_directory: PathBuf,
+}
+
+impl<'program> PreparedEmitHost<'program> {
+    fn new(prepared: &'program PreparedProgram) -> Result<Self, DriverError> {
+        let source_files = prepared
+            .source_files()
+            .iter()
+            .map(|source| {
+                prepared
+                    .source_id(source.path().canonical())
+                    .ok_or_else(|| DriverError::MissingPreparedSourceIdentity {
+                        path: source.path().display().to_path_buf(),
+                    })
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+        let common_source_directory = common_emit_source_directory(prepared, &source_files);
+        Ok(Self {
+            prepared,
+            source_files,
+            common_source_directory,
+        })
+    }
+}
+
+impl EmitHost for PreparedEmitHost<'_> {
+    fn compiler_options(&self) -> &CompilerOptions {
+        self.prepared.compiler_options()
+    }
+
+    fn current_directory(&self) -> &Path {
+        self.prepared.current_directory().display()
+    }
+
+    fn common_source_directory(&self) -> &Path {
+        &self.common_source_directory
+    }
+
+    fn config_file_path(&self) -> Option<&Path> {
+        self.prepared
+            .program_options()
+            .config_file_path()
+            .map(|path| path.display())
+    }
+
+    fn use_case_sensitive_file_names(&self) -> bool {
+        self.prepared.path_context().use_case_sensitive_file_names()
+    }
+
+    fn source_file_ids(&self) -> &[SourceFileId] {
+        &self.source_files
+    }
+
+    fn source_file(&self, id: SourceFileId) -> Option<EmitSource<'_>> {
+        let source = self.prepared.source_file(id)?;
+        Some(EmitSource::new(
+            id,
+            source.path().display(),
+            source.path().canonical().as_path(),
+            source.may_be_emitted(),
+            None,
+        ))
+    }
+}
+
+struct CheckedEmitHost<'host, 'snapshot> {
+    prepared: &'host PreparedEmitHost<'host>,
+    snapshot: &'snapshot ProgramSnapshot,
+}
+
+impl EmitHost for CheckedEmitHost<'_, '_> {
+    fn compiler_options(&self) -> &CompilerOptions {
+        self.prepared.compiler_options()
+    }
+
+    fn current_directory(&self) -> &Path {
+        self.prepared.current_directory()
+    }
+
+    fn common_source_directory(&self) -> &Path {
+        self.prepared.common_source_directory()
+    }
+
+    fn config_file_path(&self) -> Option<&Path> {
+        self.prepared.config_file_path()
+    }
+
+    fn use_case_sensitive_file_names(&self) -> bool {
+        self.prepared.use_case_sensitive_file_names()
+    }
+
+    fn source_file_ids(&self) -> &[SourceFileId] {
+        self.prepared.source_file_ids()
+    }
+
+    fn source_file(&self, id: SourceFileId) -> Option<EmitSource<'_>> {
+        let source = self.prepared.prepared.source_file(id)?;
+        let expected_name = source.path().display().to_string_lossy();
+        let syntax = self
+            .snapshot
+            .documents()
+            .get(id.index())
+            .filter(|document| document.source().file_name == expected_name)
+            .or_else(|| {
+                self.snapshot
+                    .documents()
+                    .iter()
+                    .find(|document| document.source().file_name == expected_name)
+            })
+            .map(|document| document.source());
+        Some(EmitSource::new(
+            id,
+            source.path().display(),
+            source.path().canonical().as_path(),
+            source.may_be_emitted(),
+            syntax,
+        ))
+    }
+}
+
+fn common_emit_source_directory(
+    prepared: &PreparedProgram,
+    source_files: &[SourceFileId],
+) -> PathBuf {
+    if let Some(root_dir) = prepared.compiler_options().root_dir.as_deref() {
+        let root = Path::new(root_dir);
+        return if root.is_absolute() {
+            root.to_path_buf()
+        } else {
+            prepared.current_directory().display().join(root)
+        };
+    }
+
+    let mut directories = source_files.iter().filter_map(|id| {
+        let source = prepared.source_file(*id)?;
+        (source.may_be_emitted() && !is_declaration_file_name(source.path().display()))
+            .then(|| source.path().display().parent().map(Path::to_path_buf))
+            .flatten()
+    });
+    let Some(mut common) = directories.next() else {
+        return prepared.current_directory().display().to_path_buf();
+    };
+    let case_sensitive = prepared.path_context().use_case_sensitive_file_names();
+    for directory in directories {
+        while !path_starts_with(&directory, &common, case_sensitive) {
+            if !common.pop() {
+                return prepared.current_directory().display().to_path_buf();
+            }
+        }
+    }
+    common
+}
+
+fn path_starts_with(path: &Path, prefix: &Path, case_sensitive: bool) -> bool {
+    if case_sensitive {
+        path.starts_with(prefix)
+    } else {
+        path.to_string_lossy()
+            .to_lowercase()
+            .starts_with(&prefix.to_string_lossy().to_lowercase())
+    }
 }
 
 impl PreparedModuleProvider<'_> {
@@ -402,17 +574,84 @@ impl ProgramSession {
     }
 
     /// Consume the prepared program through the separately typed emit path.
-    ///
-    /// H1.1 freezes this entry and the output protocol before transform and
-    /// print execution lands. Until H1.2 connects that next stage, every emit
-    /// request fails before the first [`OutputSink::write`] call.
     pub fn emit(self, sink: &mut dyn OutputSink) -> Result<EmitOutcome, DriverError> {
         self.require_mode(PreparedProgramMode::Emit)?;
-        let _prepared = self.prepared;
-        let _sink = sink;
-        Err(DriverError::Emit(EmitFailure::StageUnavailable(
-            EmitStage::TransformAndPrint,
-        )))
+        let prepared = self.prepared;
+        let emit_host = PreparedEmitHost::new(&prepared)?;
+        validate_bootstrap_emit_request(&emit_host).map_err(DriverError::Emit)?;
+        let selection = EmitSelection::WholeProgram;
+        let preflight = preflight_emit(&emit_host, selection).map_err(DriverError::Emit)?;
+
+        let inputs = project_checker_inputs(&prepared)?;
+        let provider = PreparedModuleProvider {
+            prepared: &prepared,
+            request_plans: RefCell::new(BTreeMap::new()),
+        };
+        let mut pending_preflight = Some(preflight);
+        let mut emit_result: Option<Result<EmitOutcome, DriverError>> = None;
+        let checked = check_program_with_authoritative_modules_at_for_emit(
+            &inputs.libs,
+            &inputs.files,
+            &inputs.lib_metadata,
+            &inputs.file_metadata,
+            prepared.compiler_options(),
+            &inputs.current_directory,
+            &provider,
+            |snapshot, checker, checked| {
+                if emit_result.is_some() {
+                    return;
+                }
+                if let Some(partial) = checked.partial_checks.first() {
+                    emit_result = Some(Err(DriverError::IncompleteCheck {
+                        file_name: partial.file_name.clone(),
+                        start: partial.start,
+                        length: partial.length,
+                        reason: partial.reason.clone(),
+                        additional_partial_checks: checked.partial_checks.len().saturating_sub(1),
+                    }));
+                    return;
+                }
+                let diagnostics = emit_gate_diagnostics(&prepared, checked);
+                let checked_host = CheckedEmitHost {
+                    prepared: &emit_host,
+                    snapshot,
+                };
+                let preflight = pending_preflight
+                    .take()
+                    .expect("checked emit callback runs once");
+                emit_result = Some(checker.with_emit_resolver(|resolver| {
+                    emit_files(
+                        resolver,
+                        &checked_host,
+                        preflight,
+                        selection,
+                        &diagnostics,
+                        sink,
+                    )
+                    .map_err(DriverError::Emit)
+                }));
+            },
+        )
+        .map_err(|failure| map_authoritative_failure(&prepared, failure))?;
+
+        if let Some(result) = emit_result {
+            return result;
+        }
+
+        // An empty Program has no snapshot from which to construct a checker
+        // resolver. Its empty output plan cannot query one, so retain the same
+        // diagnostics gate and execute with the fail-closed unavailable
+        // projection.
+        let diagnostics = emit_gate_diagnostics(&prepared, &checked);
+        emit_files(
+            &UnavailableEmitResolver,
+            &emit_host,
+            pending_preflight.expect("empty Program did not consume preflight"),
+            selection,
+            &diagnostics,
+            sink,
+        )
+        .map_err(DriverError::Emit)
     }
 
     /// Upstream-harness execution with exact-match vendored-lib reuse.
@@ -928,6 +1167,49 @@ const fn checker_resolution_mode(mode: ResolutionMode) -> AuthoritativeResolutio
         ResolutionMode::EsNext => AuthoritativeResolutionMode::EsNext,
         ResolutionMode::Unspecified => AuthoritativeResolutionMode::Unspecified,
     }
+}
+
+/// Assemble the four `handleNoEmitOptions` getter streams in their vendored
+/// order. These diagnostics are returned by `Program.emit` only when
+/// `noEmitOnError` closes the emit path; an ordinary emit with type errors
+/// still returns emitter diagnostics only.
+fn emit_gate_diagnostics(prepared: &PreparedProgram, checked: &CheckResult) -> EmitDiagnosticGate {
+    let preparation = prepared.diagnostics();
+    let type_reference_diagnostics = prepared
+        .resolutions()
+        .type_references()
+        .flat_map(|(_, resolution)| resolution.diagnostics())
+        .cloned()
+        .collect::<Vec<_>>();
+
+    let mut options = preparation.options().to_vec();
+    let mut semantic = checked.semantic_diagnostics.clone();
+    for diagnostic in preparation
+        .program()
+        .iter()
+        .chain(type_reference_diagnostics.iter())
+    {
+        if diagnostic
+            .file_name
+            .as_deref()
+            .is_some_and(|file_name| prepared_source_owns_diagnostic(prepared, file_name))
+        {
+            semantic.push(diagnostic.clone());
+        } else {
+            options.push(diagnostic.clone());
+        }
+    }
+    sort_and_dedupe_diagnostics(&mut options);
+    sort_and_dedupe_diagnostics(&mut semantic);
+    let mut syntactic = checked.syntactic_diagnostics.clone();
+    sort_and_dedupe_diagnostics(&mut syntactic);
+
+    EmitDiagnosticGate::new(
+        options,
+        syntactic,
+        checked.global_diagnostics.clone(),
+        semantic,
+    )
 }
 
 fn prepared_source_owns_diagnostic(prepared: &PreparedProgram, file_name: &str) -> bool {
