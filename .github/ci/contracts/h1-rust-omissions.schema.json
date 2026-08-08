@@ -24,7 +24,7 @@
   "properties": {
     "schema": { "const": 1 },
     "status": { "const": "frozen-current-rust-baseline" },
-    "phase": { "const": "H1.4-rust-omission-inventory" },
+    "phase": { "const": "H1.5-rust-omission-inventory" },
     "typescript": {
       "type": "object",
       "additionalProperties": false,
@@ -85,7 +85,7 @@
         "existing_prerequisites"
       ],
       "properties": {
-        "production_boundary_omissions": { "const": 2 },
+        "production_boundary_omissions": { "const": 0 },
         "absence_proofs": { "$ref": "#/$defs/positive_integer" },
         "option_projection_omissions": { "$ref": "#/$defs/nonnegative_integer" },
         "explicit_checker_emit_elisions": { "$ref": "#/$defs/positive_integer" },
@@ -99,8 +99,7 @@
     },
     "production_boundary_omissions": {
       "type": "array",
-      "minItems": 2,
-      "maxItems": 2,
+      "maxItems": 0,
       "items": { "$ref": "#/$defs/boundary_omission" }
     },
     "option_projection_omissions": {

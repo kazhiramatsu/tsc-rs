@@ -167,6 +167,16 @@ const anchorSpecs = [
     "pub struct MemoryOutputSink {\n    writes: Vec<EmitArtifact>,\n}",
   ],
   [
+    "emitter-filesystem-protocol",
+    "crates/emitter/src/sink.rs",
+    "pub trait EmitFileSystem {\n    fn write_file(&mut self, path: &Path, bytes: &[u8]) -> Result<(), String>;",
+  ],
+  [
+    "emitter-filesystem-sink",
+    "crates/emitter/src/sink.rs",
+    "pub struct FsOutputSink<'filesystem> {\n    filesystem: &'filesystem mut dyn EmitFileSystem,\n}",
+  ],
+  [
     "emitter-outcome-protocol",
     "crates/emitter/src/outcome.rs",
     "pub struct EmitOutcome {\n    diagnostics: DiagnosticList,\n    emit_skipped: bool,\n    emitted_files: Option<Box<[PathBuf]>>,\n    source_maps: Option<Box<[SourceMapObservation]>>,\n}",
@@ -409,7 +419,17 @@ const anchorSpecs = [
   [
     "loader-no-emit-gate",
     "crates/program/src/loader.rs",
-    "if compiler_options.no_emit != Some(true) {\n        return Err(reject_input(\n            \"compilerOptions.noEmit must be explicitly true\",\n        ));\n    }",
+    "PreparedProgramMode::NoEmit if compiler_options.no_emit != Some(true) => {\n            return Err(reject_input(\n                \"compilerOptions.noEmit must be explicitly true\",\n            ));\n        }",
+  ],
+  [
+    "loader-emitting-entry",
+    "crates/program/src/loader.rs",
+    "pub fn load_emitting_program(\n    host: &dyn CompilerHost,",
+  ],
+  [
+    "config-emitting-entry",
+    "crates/program/src/config.rs",
+    "pub fn load_emitting_config_program_with_overrides(\n    host: &dyn CompilerHost,",
   ],
   [
     "config-no-emit-gate",
@@ -417,14 +437,14 @@ const anchorSpecs = [
     "A config without an explicit\n/// `noEmit: true` is rejected before `load_program`",
   ],
   [
-    "cli-explicit-root-no-emit-gate",
+    "cli-mode-dispatch",
     "crates/compiler/src/cli.rs",
-    "explicit source files require --noEmit; H0 never invokes an emitter",
+    "if prepared.mode() == PreparedProgramMode::Emit {\n        return execute_emitting_prepared(",
   ],
   [
-    "cli-false-no-emit-gate",
+    "cli-filesystem-sink-dispatch",
     "crates/compiler/src/cli.rs",
-    '"--noEmit=false" => {\n                return Err(CliError::Usage(\n                    "--noEmit=false is outside the mandatory no-emit driver"',
+    "let mut sink = FsOutputSink::new(route.output_filesystem);",
   ],
   [
     "config-transient-output-discovery",
@@ -619,13 +639,6 @@ function regexMatches(scope, expression) {
 
 const absenceSpecs = [
   {
-    id: "filesystem-output-sink",
-    kind: "regex-zero",
-    scope: "emitter-production",
-    expression:
-      "^[ \\t]*(?:pub(?:\\([^)]*\\))?[ \\t]+)?struct[ \\t]+FsOutputSink\\b",
-  },
-  {
     id: "linked-reference-producers",
     kind: "regex-zero",
     scope: "checker-production",
@@ -655,52 +668,7 @@ function evidence(anchorIds = [], absenceIds = []) {
   return { anchors: anchorIds, absence_proofs: absenceIds };
 }
 
-const boundaryOmissions = [
-  {
-    id: "output-plan-artifacts-sinks",
-    planned_phase: "H1.5",
-    current:
-      "H1.4 owns the read-only EmitHost, executable source/path planning, collision preflight, fail-before-first-sink option and syntax validation, transform/print dispatch, sink error continuation, exact callback artifact identity, and ordered MemoryOutputSink.",
-    missing:
-      "Filesystem parent-directory creation, retry-safe FsOutputSink writes, and CLI-visible partial-failure qualification.",
-    evidence: evidence(
-      [
-        "prepared-program-current-shape",
-        "emitter-host-protocol",
-        "emitter-output-preflight",
-        "emitter-emit-files",
-        "checker-live-emit-callback",
-        "program-session-memory-emit",
-        "emitter-artifact-protocol",
-        "emitter-output-plan-shape",
-        "emitter-output-sink-protocol",
-        "emitter-memory-sink",
-        "emitter-outcome-protocol",
-      ],
-      ["filesystem-output-sink"],
-    ),
-  },
-  {
-    id: "emitting-loader-and-cli-route",
-    planned_phase: "H1.5",
-    current:
-      "H1.4 projects emitting CompilerOptions and ProgramSession owns checked in-memory emit, while the H0 loader/config/CLI gates still require noEmit=true and reject the emitting route before source execution.",
-    missing:
-      "A separate emitting config/explicit-root loader route, CLI dispatch, filesystem sink connection, and exact exit behavior.",
-    evidence: evidence(
-      [
-        "compiler-options-current-shape",
-        "program-session-emit",
-        "program-session-memory-emit",
-        "loader-no-emit-gate",
-        "config-no-emit-gate",
-        "cli-explicit-root-no-emit-gate",
-        "cli-false-no-emit-gate",
-      ],
-      ["filesystem-output-sink"],
-    ),
-  },
-];
+const boundaryOmissions = [];
 
 const compilerOptionsSource = source("crates/types/src/options.rs");
 const compilerOptionsStart = compilerOptionsSource.indexOf("pub struct CompilerOptions {");
@@ -879,6 +847,22 @@ const existingPrerequisites = [
     ],
   },
   {
+    id: "h1-filesystem-cli-connection",
+    treatment:
+      "reuse-the-same-artifacts-through-parent-retry-filesystem-write-and-preserve-the-separate-no-emit-route",
+    evidence: [
+      "emitter-filesystem-protocol",
+      "emitter-filesystem-sink",
+      "loader-emitting-entry",
+      "config-emitting-entry",
+      "cli-mode-dispatch",
+      "cli-filesystem-sink-dispatch",
+      "program-session-emit",
+      "loader-no-emit-gate",
+      "program-session-run",
+    ],
+  },
+  {
     id: "persistent-program-snapshot",
     treatment: "reuse",
     evidence: ["program-snapshot-owner"],
@@ -958,7 +942,7 @@ function exactKeys(value, required) {
 const artifact = {
   schema: 1,
   status: "frozen-current-rust-baseline",
-  phase: "H1.4-rust-omission-inventory",
+  phase: "H1.5-rust-omission-inventory",
   typescript: { version: TYPESCRIPT_VERSION, source_commit: SOURCE_COMMIT },
   generator: pathHash(GENERATOR_RELATIVE_PATH),
   contract: pathHash(SCHEMA_RELATIVE_PATH),
@@ -1013,7 +997,7 @@ function validateArtifact(value) {
   requireCondition(
     value.schema === 1 &&
       value.status === "frozen-current-rust-baseline" &&
-      value.phase === "H1.4-rust-omission-inventory",
+      value.phase === "H1.5-rust-omission-inventory",
     "invalid H1 Rust omission artifact header",
   );
   const semantic = { ...value };
@@ -1038,8 +1022,8 @@ function validateArtifact(value) {
 validateArtifact(artifact);
 
 requireCondition(
-  boundaryOmissions.length === 2,
-  "the reviewed missing-production-boundary table must remain exhaustive",
+  boundaryOmissions.length === 0,
+  "H1.5 must leave no open production boundary omission",
 );
 requireCondition(
   new Set(boundaryOmissions.map((entry) => entry.id)).size === boundaryOmissions.length,

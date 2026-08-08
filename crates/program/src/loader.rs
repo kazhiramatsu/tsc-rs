@@ -21,8 +21,8 @@ use crate::module_resolution::{
 use crate::path::{CanonicalPath, ProgramPath};
 use crate::prepared::{
     extensionless_source_probe_extensions, PackageJsonType, PackageMetadata, PathContext,
-    PreparationDiagnostics, PreparedAuxiliaryFile, PreparedProgram, PreparedRoot,
-    PreparedSourceFile, ProgramConfigFile, ProgramOptions, SourceFileId,
+    PreparationDiagnostics, PreparedAuxiliaryFile, PreparedProgram, PreparedProgramMode,
+    PreparedRoot, PreparedSourceFile, ProgramConfigFile, ProgramOptions, SourceFileId,
 };
 use crate::resolution::{
     ModuleExtension, ModuleResolution, PackageId, ResolutionError, ResolutionKey, ResolutionMode,
@@ -435,6 +435,7 @@ pub fn load_no_lib_program(
     limits: ProgramLoadLimits,
 ) -> Result<PreparedProgram, ProgramLoadError> {
     load_program_worker(
+        PreparedProgramMode::NoEmit,
         host,
         root_names,
         compiler_options,
@@ -467,6 +468,36 @@ pub fn load_program(
     limits: ProgramLoadLimits,
 ) -> Result<PreparedProgram, ProgramLoadError> {
     load_program_worker(
+        PreparedProgramMode::NoEmit,
+        host,
+        root_names,
+        compiler_options,
+        program_options,
+        Some(library_catalog),
+        false,
+        limits,
+        None,
+    )
+}
+
+/// Load one finite source closure for the distinct H1 emitting session.
+///
+/// This entry deliberately does not generalize [`load_program`]: the H0
+/// loader continues to require `noEmit=true`, while this loader rejects an
+/// effective `noEmit=true` before source discovery. Emit-profile validation
+/// remains owned by the later emitter preflight so unsupported requests can
+/// retain the same prepared source/config diagnostics without reaching an
+/// output sink.
+pub fn load_emitting_program(
+    host: &dyn CompilerHost,
+    root_names: &[PathBuf],
+    compiler_options: CompilerOptions,
+    program_options: ProgramOptions,
+    library_catalog: &LibraryCatalog,
+    limits: ProgramLoadLimits,
+) -> Result<PreparedProgram, ProgramLoadError> {
+    load_program_worker(
+        PreparedProgramMode::Emit,
         host,
         root_names,
         compiler_options,
@@ -514,6 +545,36 @@ pub(crate) fn load_program_with_root_reasons(
         .map(|(_, reason)| reason.clone())
         .collect::<Vec<_>>();
     load_program_worker(
+        PreparedProgramMode::NoEmit,
+        host,
+        &root_names,
+        compiler_options,
+        program_options,
+        Some(library_catalog),
+        false,
+        limits,
+        Some(&root_reasons),
+    )
+}
+
+pub(crate) fn load_emitting_program_with_root_reasons(
+    host: &dyn CompilerHost,
+    roots: &[(PathBuf, RootFileReason)],
+    compiler_options: CompilerOptions,
+    program_options: ProgramOptions,
+    library_catalog: &LibraryCatalog,
+    limits: ProgramLoadLimits,
+) -> Result<PreparedProgram, ProgramLoadError> {
+    let root_names = roots
+        .iter()
+        .map(|(path, _)| path.clone())
+        .collect::<Vec<_>>();
+    let root_reasons = roots
+        .iter()
+        .map(|(_, reason)| reason.clone())
+        .collect::<Vec<_>>();
+    load_program_worker(
+        PreparedProgramMode::Emit,
         host,
         &root_names,
         compiler_options,
@@ -527,6 +588,7 @@ pub(crate) fn load_program_with_root_reasons(
 
 #[allow(clippy::too_many_arguments)] // Root provenance is an orthogonal config-only input.
 fn load_program_worker(
+    mode: PreparedProgramMode,
     host: &dyn CompilerHost,
     root_names: &[PathBuf],
     compiler_options: CompilerOptions,
@@ -537,6 +599,7 @@ fn load_program_worker(
     root_reasons: Option<&[RootFileReason]>,
 ) -> Result<PreparedProgram, ProgramLoadError> {
     validate_admitted_options(
+        mode,
         &compiler_options,
         &program_options,
         library_catalog,
@@ -595,6 +658,7 @@ fn load_program_worker(
     drop(resolver);
 
     publish_program(
+        mode,
         staged,
         packages,
         path_context,
@@ -604,6 +668,7 @@ fn load_program_worker(
 }
 
 fn validate_admitted_options(
+    mode: PreparedProgramMode,
     compiler_options: &CompilerOptions,
     program_options: &ProgramOptions,
     library_catalog: Option<&LibraryCatalog>,
@@ -612,10 +677,18 @@ fn validate_admitted_options(
     let reject_input = |detail| {
         ProgramLoadError::invalid_input(ProgramLoadOperation::ValidateOptions, None, detail)
     };
-    if compiler_options.no_emit != Some(true) {
-        return Err(reject_input(
-            "compilerOptions.noEmit must be explicitly true",
-        ));
+    match mode {
+        PreparedProgramMode::NoEmit if compiler_options.no_emit != Some(true) => {
+            return Err(reject_input(
+                "compilerOptions.noEmit must be explicitly true",
+            ));
+        }
+        PreparedProgramMode::Emit if compiler_options.no_emit == Some(true) => {
+            return Err(reject_input(
+                "emitting program rejects effective compilerOptions.noEmit=true",
+            ));
+        }
+        PreparedProgramMode::NoEmit | PreparedProgramMode::Emit => {}
     }
     if require_no_lib && program_options.no_lib() != Some(true) {
         return Err(reject_input("programOptions.noLib must be explicitly true"));
@@ -2620,13 +2693,21 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
 }
 
 fn publish_program(
+    mode: PreparedProgramMode,
     staged: CompleteGraph,
     packages: Vec<PackageMetadata>,
     path_context: PathContext,
     compiler_options: CompilerOptions,
     program_options: ProgramOptions,
 ) -> Result<PreparedProgram, ProgramLoadError> {
-    let mut builder = PreparedProgram::builder(path_context, compiler_options.clone());
+    let mut builder = match mode {
+        PreparedProgramMode::NoEmit => {
+            PreparedProgram::builder(path_context, compiler_options.clone())
+        }
+        PreparedProgramMode::Emit => {
+            PreparedProgram::emitting_builder(path_context, compiler_options.clone())
+        }
+    };
     let config_file = program_options.config_file().cloned();
     builder.set_program_options(program_options);
 

@@ -126,6 +126,10 @@ fn snapshot_files(root: &std::path::Path) -> Vec<(String, Vec<u8>)> {
     files
 }
 
+fn compiler_current_directory(tree: &TempTree) -> PathBuf {
+    fs::canonicalize(&tree.root).expect("canonicalize compiler current directory")
+}
+
 fn assert_typescript_parity(tree: &TempTree, rust_arguments: &[&str], ts_arguments: &[&str]) {
     let rust = run(tree, rust_arguments);
     let typescript = run_typescript(tree, ts_arguments);
@@ -182,21 +186,71 @@ fn config_and_include_discovery_run_through_the_production_binary() {
 }
 
 #[test]
-fn command_line_no_emit_overrides_the_config_and_missing_override_fails_closed() {
+fn config_without_no_emit_emits_and_command_line_no_emit_keeps_the_h0_route() {
     let tree = TempTree::new();
     fs::write(tree.path("main.ts"), "const value: number = 1;\n").expect("write source");
     fs::write(
         tree.path("tsconfig.json"),
-        r#"{"compilerOptions":{"lib":["es5"]},"files":["main.ts"]}"#,
+        r#"{"compilerOptions":{"target":"esnext","module":"preserve","lib":["es5"]},"files":["main.ts"]}"#,
     )
     .expect("write config");
 
-    let without_override = run(&tree, &["-p", "tsconfig.json"]);
-    assert_eq!(without_override.status.code(), Some(2));
-    assert!(String::from_utf8_lossy(&without_override.stderr).contains("noEmit"));
+    let emitting = run(&tree, &["-p", "tsconfig.json"]);
+    assert_eq!(emitting.status.code(), Some(0));
+    assert_eq!(
+        fs::read(tree.path("main.js")).expect("read emitted JavaScript"),
+        b"const value = 1;\n"
+    );
+    assert!(emitting.stdout.is_empty());
+    assert!(emitting.stderr.is_empty());
 
+    fs::remove_file(tree.path("main.js")).expect("remove first emitted output");
     let with_override = run(&tree, &["--noEmit", "-p", "tsconfig.json"]);
     assert_eq!(with_override.status.code(), Some(0));
+    assert!(!tree.path("main.js").exists());
+    assert!(with_override.stdout.is_empty());
+    assert!(with_override.stderr.is_empty());
+}
+
+#[test]
+fn command_line_emit_options_override_config_values_before_loading() {
+    let tree = TempTree::new();
+    fs::write(tree.path("main.ts"), "export const value: number = 1;\n").expect("write source");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"noEmit":true,"target":"es2025","module":"esnext","lib":["es5"]},"files":["main.ts"]}"#,
+    )
+    .expect("write config");
+
+    let output = run(
+        &tree,
+        &[
+            "--noEmit=false",
+            "--target",
+            "esnext",
+            "--module",
+            "preserve",
+            "--emitBOM",
+            "--newLine",
+            "crlf",
+            "--listEmittedFiles",
+            "-p",
+            "tsconfig.json",
+        ],
+    );
+    assert_eq!(output.status.code(), Some(0));
+    assert_eq!(
+        fs::read(tree.path("main.js")).expect("read overridden output"),
+        [&[0xEF, 0xBB, 0xBF][..], &b"export const value = 1;\r\n"[..],].concat()
+    );
+    assert_eq!(
+        String::from_utf8(output.stdout).expect("UTF-8 status output"),
+        format!(
+            "TSFILE: {}/main.js\n",
+            compiler_current_directory(&tree).display()
+        )
+    );
+    assert!(output.stderr.is_empty());
 }
 
 #[test]
@@ -257,6 +311,123 @@ fn no_emit_cli_does_not_write_project_outputs() {
     assert!(output.stdout.is_empty());
     assert!(output.stderr.is_empty());
     assert_eq!(snapshot_files(&tree.root), before);
+}
+
+#[test]
+fn explicit_root_emit_applies_bom_and_reports_the_absolute_output() {
+    let tree = TempTree::new();
+    fs::write(tree.path("main.ts"), "export const value: number = 1;\n").expect("write source");
+
+    let output = run(
+        &tree,
+        &[
+            "--ignoreConfig",
+            "--target",
+            "esnext",
+            "--module",
+            "preserve",
+            "--emitBOM",
+            "--listEmittedFiles",
+            "main.ts",
+        ],
+    );
+    assert_eq!(output.status.code(), Some(0));
+    assert_eq!(
+        fs::read(tree.path("main.js")).expect("read emitted output"),
+        [&[0xEF, 0xBB, 0xBF][..], &b"export const value = 1;\n"[..],].concat()
+    );
+    assert_eq!(
+        String::from_utf8(output.stdout).expect("UTF-8 status output"),
+        format!(
+            "TSFILE: {}/main.js\n",
+            compiler_current_directory(&tree).display()
+        )
+    );
+    assert!(output.stderr.is_empty());
+}
+
+#[test]
+fn semantic_diagnostics_still_generate_output_and_exit_two() {
+    let tree = TempTree::new();
+    fs::write(tree.path("error.ts"), "const value: number = 'wrong';\n").expect("write source");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"target":"esnext","module":"preserve","lib":["es5"],"listEmittedFiles":true},"files":["error.ts"]}"#,
+    )
+    .expect("write config");
+
+    let output = run(&tree, &["-p", "tsconfig.json"]);
+    assert_eq!(output.status.code(), Some(2));
+    let stdout = String::from_utf8(output.stdout).expect("UTF-8 diagnostics");
+    assert!(stdout.contains("TS2322"), "{stdout}");
+    assert!(
+        stdout.ends_with(&format!(
+            "TSFILE: {}/error.js\n",
+            compiler_current_directory(&tree).display()
+        )),
+        "{stdout}"
+    );
+    assert_eq!(
+        fs::read(tree.path("error.js")).expect("diagnostic emit output"),
+        b"const value = 'wrong';\n"
+    );
+    assert!(output.stderr.is_empty());
+}
+
+#[test]
+fn no_emit_on_error_skips_files_and_uses_exit_one() {
+    let tree = TempTree::new();
+    fs::write(tree.path("error.ts"), "const value: number = 'wrong';\n").expect("write source");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"target":"esnext","module":"preserve","lib":["es5"],"noEmitOnError":true,"listEmittedFiles":true},"files":["error.ts"]}"#,
+    )
+    .expect("write config");
+
+    let output = run(&tree, &["-p", "tsconfig.json"]);
+    assert_eq!(output.status.code(), Some(1));
+    let stdout = String::from_utf8(output.stdout).expect("UTF-8 diagnostics");
+    assert!(stdout.contains("TS2322"), "{stdout}");
+    assert!(!stdout.contains("TSFILE:"), "{stdout}");
+    assert!(!tree.path("error.js").exists());
+    assert!(output.stderr.is_empty());
+}
+
+#[test]
+fn filesystem_write_failure_reports_ts5033_continues_and_lists_attempted_files() {
+    let tree = TempTree::new();
+    fs::write(tree.path("first.ts"), "export const first: number = 1;\n")
+        .expect("write first source");
+    fs::write(tree.path("second.ts"), "export const second: number = 2;\n")
+        .expect("write second source");
+    fs::create_dir(tree.path("first.js")).expect("block first output with a directory");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"target":"esnext","module":"preserve","lib":["es5"],"listEmittedFiles":true},"files":["first.ts","second.ts"]}"#,
+    )
+    .expect("write config");
+
+    let output = run(&tree, &["-p", "tsconfig.json"]);
+    assert_eq!(output.status.code(), Some(2));
+    let stdout = String::from_utf8(output.stdout).expect("UTF-8 diagnostics");
+    assert!(stdout.contains("TS5033"), "{stdout}");
+    #[cfg(unix)]
+    assert!(
+        stdout.contains("EISDIR: illegal operation on a directory"),
+        "{stdout}"
+    );
+    let current_directory = compiler_current_directory(&tree);
+    let first_status = format!("TSFILE: {}/first.js", current_directory.display());
+    let second_status = format!("TSFILE: {}/second.js", current_directory.display());
+    let first_status = stdout.find(&first_status).expect("first TSFILE status");
+    let second_status = stdout.find(&second_status).expect("second TSFILE status");
+    assert!(first_status < second_status, "{stdout}");
+    assert!(tree.path("first.js").is_dir());
+    assert_eq!(
+        fs::read(tree.path("second.js")).expect("later output still written"),
+        b"export const second = 2;\n"
+    );
+    assert!(output.stderr.is_empty());
 }
 
 #[test]

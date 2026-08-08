@@ -101,11 +101,14 @@ mod text;
 
 pub use config::{
     is_non_fatal_option_diagnostic, load_config_program, load_config_program_with_no_emit_override,
-    parse_config_root_plan, validate_config_plan, ConfigDiscoveryOptions, ConfigHostError,
-    ConfigHostOperation, ConfigModuleResolutionOptions, ConfigOption, ConfigOptionBag,
-    ConfigOptionValueState, ConfigParseError, ConfigParseErrorKind, ConfigParseHost,
-    ConfigProgramLoadError, ConfigProjectReference, ConfigRootPlan, ConfigRootPlanRequest,
-    ConfigSourceText, ConfigTypedJsonValue, ConfigTypedListElement, ConfigTypedObjectProperty,
+    load_emitting_config_program, load_emitting_config_program_with_no_emit_override,
+    load_emitting_config_program_with_no_emit_override_and_overrides,
+    load_emitting_config_program_with_overrides, parse_config_root_plan, validate_config_plan,
+    ConfigDiscoveryOptions, ConfigEmitOptionOverrides, ConfigHostError, ConfigHostOperation,
+    ConfigModuleResolutionOptions, ConfigOption, ConfigOptionBag, ConfigOptionValueState,
+    ConfigParseError, ConfigParseErrorKind, ConfigParseHost, ConfigProgramLoadError,
+    ConfigProjectReference, ConfigRootPlan, ConfigRootPlanRequest, ConfigSourceText,
+    ConfigTypedJsonValue, ConfigTypedListElement, ConfigTypedObjectProperty,
     ConfigTypedObjectShape, ConfigTypedObjectValue, ConfigWildcardDirectory,
     H0_SUPPORTED_CONFIG_OPTIONS,
 };
@@ -121,8 +124,9 @@ pub use config_options::{
 pub use error::{PreparationError, PreparationErrorKind, PreparationOperation};
 pub use library::LibraryCatalog;
 pub use loader::{
-    load_no_lib_program, load_program, ProgramLoadError, ProgramLoadErrorKind, ProgramLoadLimit,
-    ProgramLoadLimitExceeded, ProgramLoadLimits, ProgramLoadOperation,
+    load_emitting_program, load_no_lib_program, load_program, ProgramLoadError,
+    ProgramLoadErrorKind, ProgramLoadLimit, ProgramLoadLimitExceeded, ProgramLoadLimits,
+    ProgramLoadOperation,
 };
 pub use module_requests::{
     plan_module_requests, plan_source_requests, plan_static_module_requests,

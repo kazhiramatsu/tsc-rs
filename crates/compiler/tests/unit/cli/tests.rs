@@ -10,16 +10,21 @@ fn run(arguments: &[&str]) -> CliOutput {
 }
 
 #[test]
-fn argument_parser_rejects_emit_and_unknown_options() {
+fn argument_parser_selects_emit_and_rejects_unknown_options() {
     assert_eq!(
-        parse_arguments(&["--noEmit=false".to_owned()]),
-        Err(CliError::Usage(
-            "--noEmit=false is outside the mandatory no-emit driver".to_owned()
-        ))
+        parse_arguments(&["--noEmit=false".to_owned()])
+            .expect("explicit false selects emit")
+            .compiler_options
+            .no_emit,
+        Some(false)
     );
     assert!(matches!(
         parse_arguments(&["--watch".to_owned()]),
         Err(CliError::Usage(_))
+    ));
+    assert!(matches!(
+        parse_arguments(&["--target=latest".to_owned()]),
+        Err(CliError::Usage(message)) if message.contains("only 'esnext'")
     ));
 }
 
@@ -35,17 +40,26 @@ fn boolean_switches_consume_separate_values_without_turning_them_into_roots() {
         "main.ts".to_owned(),
     ])
     .expect("separate boolean values are accepted");
-    assert!(parsed.no_emit);
+    assert_eq!(parsed.compiler_options.no_emit, Some(true));
     assert!(parsed.ignore_config);
     assert_eq!(parsed.pretty, Some(false));
     assert_eq!(parsed.files, [PathBuf::from("main.ts")]);
 }
 
 #[test]
-fn explicit_files_require_no_emit() {
-    let output = run(&["missing.ts"]);
+fn explicit_emit_reports_a_missing_root_after_profile_selection() {
+    let output = run(&[
+        "--ignoreConfig",
+        "--target",
+        "esnext",
+        "--module",
+        "preserve",
+        "--noLib",
+        "missing.ts",
+    ]);
     assert_eq!(output.exit_code(), EXIT_FAILURE);
-    assert!(output.stderr().contains("require --noEmit"));
+    assert!(output.stderr().is_empty());
+    assert!(output.stdout().contains("TS6053"));
 }
 
 #[test]

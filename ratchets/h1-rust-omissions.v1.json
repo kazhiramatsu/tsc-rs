@@ -1,27 +1,27 @@
 {
   "schema": 1,
   "status": "frozen-current-rust-baseline",
-  "phase": "H1.4-rust-omission-inventory",
+  "phase": "H1.5-rust-omission-inventory",
   "typescript": {
     "version": "6.0.3",
     "source_commit": "050880ce59e30b356b686bd3144efe24f875ebc8"
   },
   "generator": {
     "path": "crates/oracle/h1-rust-omission-inventory.mjs",
-    "sha256": "0c7cec89bc8bee411fcbd2d5a2e9841310aed8db8203b04563a3e6c006a49e02"
+    "sha256": "922f0c5f0bb323a3b9105d172f500255b87ffba6efa75c1b2ac6b8960fa1f269"
   },
   "contract": {
     "path": ".github/ci/contracts/h1-rust-omissions.schema.json",
-    "sha256": "90b82c1580cabee2b6f8e2183057253dc30f68d91a8b57dd8efd2aabc4440ee6"
+    "sha256": "ffcd7b89ca407f9e771483b27065fbbde4fceb7d079acdc9dfbcf8b21320535b"
   },
   "authorities": {
     "compatibility_residual": {
       "path": "docs/design/greenfield/compiler-compatibility-residual.md",
-      "sha256": "29b602ff2aa9c88cdbffe6d2a869baa2c11876614663a4d5e077bdbdb4963669"
+      "sha256": "0206f79b5e64a0223e8f356655fd2fb5fe0cb5e698ce2d7d10fdb7cccd676164"
     },
     "h1_execution": {
       "path": "docs/design/greenfield/h1-emit.md",
-      "sha256": "9c6eeb33104ce2b08b311622cdb7e065605e407bebab8021ef9ff41415a04668"
+      "sha256": "4da46f764616580ea7e7a9a0015e8885b16594f0bc06d26c02588638d8cd21e6"
     },
     "emit_profile": {
       "path": "ratchets/h1-emit-profile.v1.json",
@@ -42,15 +42,15 @@
     "file_count": 197,
     "rust_source_files": 182,
     "cargo_manifests": 15,
-    "bytes": 12636473,
-    "tree_sha256": "50a5f7975cc92cdf015b4942c423f3543f2794275a7327b3c787b3c9aa06cb7c"
+    "bytes": 12667316,
+    "tree_sha256": "dd47e09320cd6e89077453f6cbd16719091f437310836969f8ee0759af37b1db"
   },
   "summary": {
-    "production_boundary_omissions": 2,
-    "absence_proofs": 2,
+    "production_boundary_omissions": 0,
+    "absence_proofs": 1,
     "option_projection_omissions": 0,
     "explicit_checker_emit_elisions": 24,
-    "existing_prerequisites": 13
+    "existing_prerequisites": 14
   },
   "existing_prerequisites": [
     {
@@ -118,6 +118,21 @@
         "emitter-output-sink-protocol",
         "emitter-memory-sink",
         "emitter-outcome-protocol"
+      ]
+    },
+    {
+      "id": "h1-filesystem-cli-connection",
+      "treatment": "reuse-the-same-artifacts-through-parent-retry-filesystem-write-and-preserve-the-separate-no-emit-route",
+      "evidence": [
+        "emitter-filesystem-protocol",
+        "emitter-filesystem-sink",
+        "loader-emitting-entry",
+        "config-emitting-entry",
+        "cli-mode-dispatch",
+        "cli-filesystem-sink-dispatch",
+        "program-session-emit",
+        "loader-no-emit-gate",
+        "program-session-run"
       ]
     },
     {
@@ -189,52 +204,7 @@
       ]
     }
   ],
-  "production_boundary_omissions": [
-    {
-      "id": "output-plan-artifacts-sinks",
-      "planned_phase": "H1.5",
-      "current": "H1.4 owns the read-only EmitHost, executable source/path planning, collision preflight, fail-before-first-sink option and syntax validation, transform/print dispatch, sink error continuation, exact callback artifact identity, and ordered MemoryOutputSink.",
-      "missing": "Filesystem parent-directory creation, retry-safe FsOutputSink writes, and CLI-visible partial-failure qualification.",
-      "evidence": {
-        "anchors": [
-          "prepared-program-current-shape",
-          "emitter-host-protocol",
-          "emitter-output-preflight",
-          "emitter-emit-files",
-          "checker-live-emit-callback",
-          "program-session-memory-emit",
-          "emitter-artifact-protocol",
-          "emitter-output-plan-shape",
-          "emitter-output-sink-protocol",
-          "emitter-memory-sink",
-          "emitter-outcome-protocol"
-        ],
-        "absence_proofs": [
-          "filesystem-output-sink"
-        ]
-      }
-    },
-    {
-      "id": "emitting-loader-and-cli-route",
-      "planned_phase": "H1.5",
-      "current": "H1.4 projects emitting CompilerOptions and ProgramSession owns checked in-memory emit, while the H0 loader/config/CLI gates still require noEmit=true and reject the emitting route before source execution.",
-      "missing": "A separate emitting config/explicit-root loader route, CLI dispatch, filesystem sink connection, and exact exit behavior.",
-      "evidence": {
-        "anchors": [
-          "compiler-options-current-shape",
-          "program-session-emit",
-          "program-session-memory-emit",
-          "loader-no-emit-gate",
-          "config-no-emit-gate",
-          "cli-explicit-root-no-emit-gate",
-          "cli-false-no-emit-gate"
-        ],
-        "absence_proofs": [
-          "filesystem-output-sink"
-        ]
-      }
-    }
-  ],
+  "production_boundary_omissions": [],
   "option_projection_omissions": [],
   "checker_emit_elisions": [
     {
@@ -423,20 +393,38 @@
       {
         "id": "emitter-output-sink-protocol",
         "path": "crates/emitter/src/sink.rs",
-        "line": 13,
+        "line": 15,
         "column": 1,
         "text": "pub trait OutputSink {\n    fn write(&mut self, artifact: EmitArtifact) -> Result<EmitWriteDisposition, EmitIoError>;\n}",
         "text_sha256": "2fbebc79e857ae5de0b5bcec090b681d4da9dfaec995bbf2725a925bd49097ec",
-        "file_sha256": "7c3c80ee8e439ffe818e79cadafeef88d067f8867c7823260990c6135b824b52"
+        "file_sha256": "31c61d2ce54c744c763ed4a67c9cb835624cf99cdc6d4050405ef38f374fddaf"
       },
       {
         "id": "emitter-memory-sink",
         "path": "crates/emitter/src/sink.rs",
-        "line": 19,
+        "line": 96,
         "column": 1,
         "text": "pub struct MemoryOutputSink {\n    writes: Vec<EmitArtifact>,\n}",
         "text_sha256": "af2c33c91b2107ba124d86db378a5085555e50bc1216f00890c73696d1689f44",
-        "file_sha256": "7c3c80ee8e439ffe818e79cadafeef88d067f8867c7823260990c6135b824b52"
+        "file_sha256": "31c61d2ce54c744c763ed4a67c9cb835624cf99cdc6d4050405ef38f374fddaf"
+      },
+      {
+        "id": "emitter-filesystem-protocol",
+        "path": "crates/emitter/src/sink.rs",
+        "line": 25,
+        "column": 1,
+        "text": "pub trait EmitFileSystem {\n    fn write_file(&mut self, path: &Path, bytes: &[u8]) -> Result<(), String>;",
+        "text_sha256": "a17cb3439271a8ce2251a65f204b1146277f9fdfb7334b70f53479a9a48ff09e",
+        "file_sha256": "31c61d2ce54c744c763ed4a67c9cb835624cf99cdc6d4050405ef38f374fddaf"
+      },
+      {
+        "id": "emitter-filesystem-sink",
+        "path": "crates/emitter/src/sink.rs",
+        "line": 38,
+        "column": 1,
+        "text": "pub struct FsOutputSink<'filesystem> {\n    filesystem: &'filesystem mut dyn EmitFileSystem,\n}",
+        "text_sha256": "7146908da1b7729b833495ab14dbd53aa41b9ce2c91948fa4590d44e7c9ba12e",
+        "file_sha256": "31c61d2ce54c744c763ed4a67c9cb835624cf99cdc6d4050405ef38f374fddaf"
       },
       {
         "id": "emitter-outcome-protocol",
@@ -652,34 +640,34 @@
         "column": 1,
         "text": "pub struct ProgramSession {\n    prepared: PreparedProgram,\n}",
         "text_sha256": "665e8cc79aa3899b9439120a02ffdfe34c92d54b8953b9eb431f216af633981a",
-        "file_sha256": "f98d6ba1702e09cd4278563088777188c276bfcdd96ac5267cf670baf07288b2"
+        "file_sha256": "3595a03bc9723d6f4d032d5406623105b9280de29bd1ef341de3ff385ee8f8ea"
       },
       {
         "id": "program-session-run",
         "path": "crates/compiler/src/lib.rs",
-        "line": 570,
+        "line": 618,
         "column": 5,
         "text": "pub fn run(self) -> Result<NoEmitOutcome, DriverError> {\n        self.require_mode(PreparedProgramMode::NoEmit)?;\n        let mut no_emit_canary = no_emit_canary::NoEmitCanary::new();\n        self.run_with_no_emit_canary(false, &mut no_emit_canary)\n    }",
         "text_sha256": "86127c4bedf713e3a340c844b3a95f20427c4d559f0762c433c114252388fc90",
-        "file_sha256": "f98d6ba1702e09cd4278563088777188c276bfcdd96ac5267cf670baf07288b2"
+        "file_sha256": "3595a03bc9723d6f4d032d5406623105b9280de29bd1ef341de3ff385ee8f8ea"
       },
       {
         "id": "program-session-emit",
         "path": "crates/compiler/src/lib.rs",
-        "line": 577,
+        "line": 625,
         "column": 5,
         "text": "pub fn emit(self, sink: &mut dyn OutputSink) -> Result<EmitOutcome, DriverError> {",
         "text_sha256": "07a8bfeb7192441ea0205e51647ae2e065d5268e4e32d1f6183a039cbd2faa0a",
-        "file_sha256": "f98d6ba1702e09cd4278563088777188c276bfcdd96ac5267cf670baf07288b2"
+        "file_sha256": "3595a03bc9723d6f4d032d5406623105b9280de29bd1ef341de3ff385ee8f8ea"
       },
       {
         "id": "program-session-memory-emit",
         "path": "crates/compiler/src/lib.rs",
-        "line": 583,
+        "line": 646,
         "column": 9,
         "text": "let preflight = preflight_emit(&emit_host, selection).map_err(DriverError::Emit)?;",
         "text_sha256": "1523dcd4656d6ced2296771c8c2485ca7bae7b4ece4ae479d17f923938690fd9",
-        "file_sha256": "f98d6ba1702e09cd4278563088777188c276bfcdd96ac5267cf670baf07288b2"
+        "file_sha256": "3595a03bc9723d6f4d032d5406623105b9280de29bd1ef341de3ff385ee8f8ea"
       },
       {
         "id": "emitter-host-protocol",
@@ -873,47 +861,65 @@
       {
         "id": "loader-no-emit-gate",
         "path": "crates/program/src/loader.rs",
-        "line": 615,
-        "column": 5,
-        "text": "if compiler_options.no_emit != Some(true) {\n        return Err(reject_input(\n            \"compilerOptions.noEmit must be explicitly true\",\n        ));\n    }",
-        "text_sha256": "dd3552061700086a4ec373fc631f9c663904c29a413f0ae15153d1b8d5d5781e",
-        "file_sha256": "06a7cf818c41de378ef1def9b679f72abd6aa9ba9e190f363f8288fa1763375b"
+        "line": 681,
+        "column": 9,
+        "text": "PreparedProgramMode::NoEmit if compiler_options.no_emit != Some(true) => {\n            return Err(reject_input(\n                \"compilerOptions.noEmit must be explicitly true\",\n            ));\n        }",
+        "text_sha256": "ea56a5c792b675777b5e1504ab6d537ba08735cd18d681b5dde6fc83d6e62858",
+        "file_sha256": "b9186b74e6e0ea32c95b0bdadf0dfbb2b32c40479da113de68767ea221358fa2"
+      },
+      {
+        "id": "loader-emitting-entry",
+        "path": "crates/program/src/loader.rs",
+        "line": 491,
+        "column": 1,
+        "text": "pub fn load_emitting_program(\n    host: &dyn CompilerHost,",
+        "text_sha256": "847811760d5f9d4a072ca20e85e75e66fd13772d36606ca8e6e71925e3c86120",
+        "file_sha256": "b9186b74e6e0ea32c95b0bdadf0dfbb2b32c40479da113de68767ea221358fa2"
+      },
+      {
+        "id": "config-emitting-entry",
+        "path": "crates/program/src/config.rs",
+        "line": 1287,
+        "column": 1,
+        "text": "pub fn load_emitting_config_program_with_overrides(\n    host: &dyn CompilerHost,",
+        "text_sha256": "63acf5cb745e1348e9ab12605e59631e792b10440cd3fd2a84110e3c58017cbd",
+        "file_sha256": "480f5fd37dde8e9ec4e459837892d09f08d8821dadbc6c1933651a966ce264b5"
       },
       {
         "id": "config-no-emit-gate",
         "path": "crates/program/src/config.rs",
-        "line": 1158,
+        "line": 1225,
         "column": 5,
         "text": "A config without an explicit\n/// `noEmit: true` is rejected before `load_program`",
         "text_sha256": "161a551a4d1b128d9d948b1d08261a98bd294a5e7bb6fecdfc5aa1dfb3ff004d",
-        "file_sha256": "5ea1a8301a002d2eb8e50956ee772eb3e0412676a6d1d2fc2784ff54dfcee9ae"
+        "file_sha256": "480f5fd37dde8e9ec4e459837892d09f08d8821dadbc6c1933651a966ce264b5"
       },
       {
-        "id": "cli-explicit-root-no-emit-gate",
+        "id": "cli-mode-dispatch",
         "path": "crates/compiler/src/cli.rs",
-        "line": 352,
-        "column": 18,
-        "text": "explicit source files require --noEmit; H0 never invokes an emitter",
-        "text_sha256": "7d96037c8a32481c78df8e66dfa233830627b0204a2af94c82fa9239a9c4c361",
-        "file_sha256": "1805e75a63a0d3205d3043521f661412793880fa90c63207a5a8b2d04e90cb46"
+        "line": 870,
+        "column": 5,
+        "text": "if prepared.mode() == PreparedProgramMode::Emit {\n        return execute_emitting_prepared(",
+        "text_sha256": "c84948081c61402e6e74bbd46486e07254a1b1cd3f66fcd6ff31d153a2664dfb",
+        "file_sha256": "6f48a9ef0268f116426374084cb1a2932a7e0c6965690625655b31d15a751801"
       },
       {
-        "id": "cli-false-no-emit-gate",
+        "id": "cli-filesystem-sink-dispatch",
         "path": "crates/compiler/src/cli.rs",
-        "line": 426,
-        "column": 13,
-        "text": "\"--noEmit=false\" => {\n                return Err(CliError::Usage(\n                    \"--noEmit=false is outside the mandatory no-emit driver\"",
-        "text_sha256": "5d087f910f6c3ea538755d9967aca7f1a4cfffa72899827e325957d43d0b0fee",
-        "file_sha256": "1805e75a63a0d3205d3043521f661412793880fa90c63207a5a8b2d04e90cb46"
+        "line": 915,
+        "column": 5,
+        "text": "let mut sink = FsOutputSink::new(route.output_filesystem);",
+        "text_sha256": "177c3cf353fa6ee63c49c02a3b33a2794c580d44f8ee5e861ef87c64a994aa8b",
+        "file_sha256": "6f48a9ef0268f116426374084cb1a2932a7e0c6965690625655b31d15a751801"
       },
       {
         "id": "config-transient-output-discovery",
         "path": "crates/program/src/config.rs",
-        "line": 831,
+        "line": 832,
         "column": 5,
         "text": "out_dir: Option<String>,\n    declaration_dir: Option<String>,",
         "text_sha256": "a8617177e430f042fb859063fe81c6befc627994db9f901f674fb6b6c436373d",
-        "file_sha256": "5ea1a8301a002d2eb8e50956ee772eb3e0412676a6d1d2fc2784ff54dfcee9ae"
+        "file_sha256": "480f5fd37dde8e9ec4e459837892d09f08d8821dadbc6c1933651a966ce264b5"
       },
       {
         "id": "program-snapshot-owner",
@@ -1170,14 +1176,6 @@
     ],
     "absence_proofs": [
       {
-        "id": "filesystem-output-sink",
-        "kind": "regex-zero",
-        "scope": "emitter-production",
-        "expression": "^[ \\t]*(?:pub(?:\\([^)]*\\))?[ \\t]+)?struct[ \\t]+FsOutputSink\\b",
-        "match_count": 0,
-        "matches": []
-      },
-      {
         "id": "linked-reference-producers",
         "kind": "regex-zero",
         "scope": "checker-production",
@@ -1187,5 +1185,5 @@
       }
     ]
   },
-  "inventory_fingerprint_sha256": "dade6506a692c778016bc2e0f05b5f810cd59090776d2c217dea52536d3ff31c"
+  "inventory_fingerprint_sha256": "dcbdea0c25d555f5123d3a09f37d908fe529f5b8fd273f527044884b5787d5b6"
 }

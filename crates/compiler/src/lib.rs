@@ -34,10 +34,10 @@ use tsc_emitter::{
 };
 pub use tsc_emitter::{
     EmitArtifact, EmitArtifactKind, EmitBuildInfoMetadata, EmitContractViolation, EmitFailure,
-    EmitIoError, EmitIoOperation, EmitMode, EmitOutcome, EmitOutputPaths, EmitOutputPlan,
-    EmitOutputUnit, EmitRoot, EmitSelection, EmitStage, EmitTextMetadata, EmitWriteDisposition,
-    EmitWriteMetadata, GeneratedUtf16Position, MemoryOutputSink, OutputSink, SourceMapObservation,
-    UnsupportedEmitFeature,
+    EmitFileSystem, EmitIoError, EmitIoOperation, EmitMode, EmitOutcome, EmitOutputPaths,
+    EmitOutputPlan, EmitOutputUnit, EmitRoot, EmitSelection, EmitStage, EmitTextMetadata,
+    EmitWriteDisposition, EmitWriteMetadata, FsOutputSink, GeneratedUtf16Position,
+    MemoryOutputSink, OutputSink, SourceMapObservation, UnsupportedEmitFeature,
 };
 pub use tsc_program::PreparedProgramMode;
 use tsc_program::{
@@ -60,6 +60,54 @@ pub use no_emit_canary::NoEmitActivityCounters;
 #[derive(Debug)]
 pub struct ProgramSession {
     prepared: PreparedProgram,
+}
+
+pub(crate) struct CliEmitSessionOutcome {
+    pub(crate) emit: EmitOutcome,
+    pub(crate) config_diagnostics: DiagnosticList,
+    pub(crate) syntactic_diagnostics: DiagnosticList,
+    pub(crate) options_diagnostics: DiagnosticList,
+    pub(crate) global_diagnostics: DiagnosticList,
+    pub(crate) semantic_diagnostics: DiagnosticList,
+    pub(crate) work_counters: NoEmitWorkCounters,
+}
+
+struct EmitSessionDiagnostics {
+    config: DiagnosticList,
+    syntactic: DiagnosticList,
+    options: DiagnosticList,
+    global: DiagnosticList,
+    semantic: DiagnosticList,
+}
+
+impl EmitSessionDiagnostics {
+    fn gate(&self) -> EmitDiagnosticGate {
+        EmitDiagnosticGate::new(
+            self.options.clone(),
+            self.syntactic.clone(),
+            self.global.clone(),
+            self.semantic.clone(),
+        )
+    }
+
+    fn with_emit(
+        mut self,
+        preflight_diagnostics: &[Diagnostic],
+        emit: EmitOutcome,
+        work_counters: NoEmitWorkCounters,
+    ) -> CliEmitSessionOutcome {
+        self.options.extend_from_slice(preflight_diagnostics);
+        sort_and_dedupe_diagnostics(&mut self.options);
+        CliEmitSessionOutcome {
+            emit,
+            config_diagnostics: self.config,
+            syntactic_diagnostics: self.syntactic,
+            options_diagnostics: self.options,
+            global_diagnostics: self.global,
+            semantic_diagnostics: self.semantic,
+            work_counters,
+        }
+    }
 }
 
 struct PreparedModuleProvider<'a> {
@@ -575,6 +623,21 @@ impl ProgramSession {
 
     /// Consume the prepared program through the separately typed emit path.
     pub fn emit(self, sink: &mut dyn OutputSink) -> Result<EmitOutcome, DriverError> {
+        self.emit_with_command_outcome(sink)
+            .map(|outcome| outcome.emit)
+    }
+
+    pub(crate) fn emit_for_cli(
+        self,
+        sink: &mut dyn OutputSink,
+    ) -> Result<CliEmitSessionOutcome, DriverError> {
+        self.emit_with_command_outcome(sink)
+    }
+
+    fn emit_with_command_outcome(
+        self,
+        sink: &mut dyn OutputSink,
+    ) -> Result<CliEmitSessionOutcome, DriverError> {
         self.require_mode(PreparedProgramMode::Emit)?;
         let prepared = self.prepared;
         let emit_host = PreparedEmitHost::new(&prepared)?;
@@ -588,7 +651,7 @@ impl ProgramSession {
             request_plans: RefCell::new(BTreeMap::new()),
         };
         let mut pending_preflight = Some(preflight);
-        let mut emit_result: Option<Result<EmitOutcome, DriverError>> = None;
+        let mut emit_result: Option<Result<CliEmitSessionOutcome, DriverError>> = None;
         let checked = check_program_with_authoritative_modules_at_for_emit(
             &inputs.libs,
             &inputs.files,
@@ -611,7 +674,9 @@ impl ProgramSession {
                     }));
                     return;
                 }
-                let diagnostics = emit_gate_diagnostics(&prepared, checked);
+                let diagnostics = emit_session_diagnostics(&prepared, checked);
+                let diagnostic_gate = diagnostics.gate();
+                let work_counters = check_work_counters(checked);
                 let checked_host = CheckedEmitHost {
                     prepared: &emit_host,
                     snapshot,
@@ -619,15 +684,17 @@ impl ProgramSession {
                 let preflight = pending_preflight
                     .take()
                     .expect("checked emit callback runs once");
+                let preflight_diagnostics = preflight.diagnostics().to_vec();
                 emit_result = Some(checker.with_emit_resolver(|resolver| {
                     emit_files(
                         resolver,
                         &checked_host,
                         preflight,
                         selection,
-                        &diagnostics,
+                        &diagnostic_gate,
                         sink,
                     )
+                    .map(|emit| diagnostics.with_emit(&preflight_diagnostics, emit, work_counters))
                     .map_err(DriverError::Emit)
                 }));
             },
@@ -642,15 +709,20 @@ impl ProgramSession {
         // resolver. Its empty output plan cannot query one, so retain the same
         // diagnostics gate and execute with the fail-closed unavailable
         // projection.
-        let diagnostics = emit_gate_diagnostics(&prepared, &checked);
+        let diagnostics = emit_session_diagnostics(&prepared, &checked);
+        let diagnostic_gate = diagnostics.gate();
+        let work_counters = check_work_counters(&checked);
+        let preflight = pending_preflight.expect("empty Program did not consume preflight");
+        let preflight_diagnostics = preflight.diagnostics().to_vec();
         emit_files(
             &UnavailableEmitResolver,
             &emit_host,
-            pending_preflight.expect("empty Program did not consume preflight"),
+            preflight,
             selection,
-            &diagnostics,
+            &diagnostic_gate,
             sink,
         )
+        .map(|emit| diagnostics.with_emit(&preflight_diagnostics, emit, work_counters))
         .map_err(DriverError::Emit)
     }
 
@@ -1173,7 +1245,10 @@ const fn checker_resolution_mode(mode: ResolutionMode) -> AuthoritativeResolutio
 /// order. These diagnostics are returned by `Program.emit` only when
 /// `noEmitOnError` closes the emit path; an ordinary emit with type errors
 /// still returns emitter diagnostics only.
-fn emit_gate_diagnostics(prepared: &PreparedProgram, checked: &CheckResult) -> EmitDiagnosticGate {
+fn emit_session_diagnostics(
+    prepared: &PreparedProgram,
+    checked: &CheckResult,
+) -> EmitSessionDiagnostics {
     let preparation = prepared.diagnostics();
     let type_reference_diagnostics = prepared
         .resolutions()
@@ -1204,12 +1279,22 @@ fn emit_gate_diagnostics(prepared: &PreparedProgram, checked: &CheckResult) -> E
     let mut syntactic = checked.syntactic_diagnostics.clone();
     sort_and_dedupe_diagnostics(&mut syntactic);
 
-    EmitDiagnosticGate::new(
+    EmitSessionDiagnostics {
+        config: preparation.config().to_vec(),
         options,
         syntactic,
-        checked.global_diagnostics.clone(),
+        global: checked.global_diagnostics.clone(),
         semantic,
-    )
+    }
+}
+
+fn check_work_counters(checked: &CheckResult) -> NoEmitWorkCounters {
+    NoEmitWorkCounters {
+        parsed_documents: checked.work_counters.parsed_documents(),
+        bound_documents: checked.work_counters.bound_documents(),
+        full_text_copies: checked.work_counters.full_text_copies(),
+        full_text_bytes_copied: checked.work_counters.full_text_bytes_copied(),
+    }
 }
 
 fn prepared_source_owns_diagnostic(prepared: &PreparedProgram, file_name: &str) -> bool {
