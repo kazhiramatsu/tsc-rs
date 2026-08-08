@@ -29,9 +29,11 @@ classification too. Seven match the required target/module pair; five retain
 an effective-option blocker, and only two proceed to a vendored TypeScript
 Program reachability analysis. Reachable `export =`/`import =` syntax blocks
 `modulePreserve1.ts`; only
-`esmNoSynthesizedDefault.ts#module%3Dpreserve` remains a bootstrap candidate.
-All 7,276 execution states remain `not-run`, and no reference baseline has
-been compared, so this is an admission proof rather than an emit result.
+`esmNoSynthesizedDefault.ts#module%3Dpreserve` remains the sole compatible
+case. The classification artifact intentionally retains all 7,276 execution
+states as `not-run`; H1.6 records the candidate's separate exact TypeScript
+and Rust execution observation without rewriting that immutable admission
+inventory.
 The 632 existing project-runner rows now have a separate exact classification
 as well. It reconstructs the pinned `projectsRunner` option and root-selection
 orders, verifies all descriptor/config/root source identities, and records 570
@@ -60,8 +62,7 @@ no-emit performance boundary. H1.1 is now complete: `crates/emitter` owns the
 typed artifact, callback metadata, dormant output topology, outcome, failure,
 sink-disposition, `OutputSink`, and `MemoryOutputSink` contracts, and emitting
 prepared programs have a separate `ProgramSession::emit` entry. This was the
-typed execution spine subsequently connected by H1.2-H1.5; H1.6 remains
-below.
+typed execution spine subsequently connected through H1.6.
 H1.2 is also complete. `crates/emitter` now owns an emit-session detached
 syntax arena and sparse transform/emit metadata, clone/original-node rules,
 the `transformNodes` lifecycle and context stacks, typed source-byte/source-
@@ -101,7 +102,20 @@ five admitted callback-oracle cases now also match through real filesystem
 materialization and CLI diagnostics, `TSFILE` order, and 0/1/2 exit status.
 Failure injection at every multi-output write index freezes retry count,
 partial output sets, continuation, `emitSkipped`, and `emittedFiles`.
-Full profile closure/qualification remains H1.6.
+H1.6 is now complete. The generated
+[`h1-emit-qualification.v1.json`](../../../ratchets/h1-emit-qualification.v1.json)
+closes all 11 active owner roots, 6,193 declarations, 24,054 ownership edges,
+and 5,202 reviewed call sites with zero pending or undispositioned row. It
+dispositions all 15,680 pinned upstream cases and executes the sole compatible
+compiler case with exact diagnostics, callback metadata, JavaScript bytes,
+write order, result presence, and exit status. Seven adjacent controls fail
+before their first sink write. The qualification also binds repeated and
+two-worker identity, standalone CLI packaging, the final no-emit ratchet, and
+the approved-runner
+[`h1-emit-performance.v1.json`](../../../ratchets/h1-emit-performance.v1.json).
+The ordinary hosted boundary remains one `gates` job running only the
+`ts-tests`-sourced `cargo xtask acceptance`; all phase, static, stress, and
+resource work remains in the complete local gate or explicit qualification.
 H0 remains the released, frozen single-project `--noEmit` profile. M9 remains a
 separate paused batch-diagnostics qualification track.
 
@@ -604,17 +618,18 @@ generated and revalidated by
 The exact trusted pre-H1 commit is `c0951bf15cdec74223de29e06cd908b0899712f6`
 and the first guarded candidate is
 `7a8b04959279fa668579e95d74b084f3198e0039`. Every H1 runtime slice reuses
-that immutable base and replaces the current candidate observation; H1.2 is
-measured at `3c8511b836b985d2202767532011e972e2205f56`. Each of the three
-frozen workloads has one cold and seven warm alternating AB/BA pairs. In the
-H1.2 measurement, the largest warm p95/median ratio is 1.040239 and the largest
-warm relative range is 0.058733; the reviewed ceilings remain 1.10 for median
-wall/RSS, 1.15 for p95 wall, 1.02/1.03 for allocation count/bytes, 1.0 for
-parse/bind/copy work, and 1.25 for executable size. The measured candidate
-stays below every ceiling:
-its largest warm-median wall ratio is 1.012085, its largest RSS ratio is 1.001425,
-every work and allocation-count ratio is 1.0, and its executable-size ratio is
-1.000080 (992 bytes larger).
+that immutable base and replaces the current candidate observation; the final
+H1.6 candidate is measured at
+`7fa0d3991640b054a7a0e8e4edd05238624903aa`. Each of the three frozen
+workloads has one cold and seven warm alternating AB/BA pairs. In the final
+measurement, the largest candidate warm p95/median ratio is 1.017644 and the
+largest warm relative range is 0.056704; the reviewed ceilings remain 1.10
+for median wall/RSS, 1.15 for p95 wall, 1.02/1.03 for allocation count/bytes,
+1.0 for parse/bind/copy work, and 1.25 for executable size. The measured
+candidate stays below every ceiling: its largest warm-median wall ratio is
+1.013631, its largest RSS ratio is 1.000547, its largest allocation-count and
+allocated-byte ratios are 1.000007 and 1.000013, every parse/bind/copy ratio
+is 1.0, and its executable-size ratio is 1.010013 (123,824 bytes larger).
 
 The zero-sized [`NoEmitCanary`](../../../crates/compiler/src/no_emit_canary.rs)
 is threaded from CLI dispatch through `ProgramSession`. Its eight frozen
@@ -626,15 +641,24 @@ and a Rust harness contract bind the generator, fixture manifest, H0 absolute
 ratchet, L1-qualified runtime parent, commits, runtime trees, sample order,
 recomputed summaries/variance/ratios, and all zero canaries.
 
+H1.6 separately freezes the admitted emit workload in
+[`h1-emit-performance.v1.json`](../../../ratchets/h1-emit-performance.v1.json).
+Eight alternating H1.5/candidate pairs on the approved macOS arm64 runner
+retain the exact two diagnostics, 161 output bytes, output hash, and exit
+status. Warm median wall, warm p95 wall, peak RSS, and executable-size ratios
+are respectively 0.995586, 0.989096, 1.001551, and 1.0; candidate peak RSS is
+105,824,256 bytes. Every value is within its frozen relative and absolute
+ceiling. This artifact is local release evidence, not a hosted CI lane.
+
 ### 6.4 CI and qualification topology
 
 Ordinary GitHub CI owns one stable acceptance boundary: the `gates` job runs
 only `cargo xtask acceptance`. The command accepts no partial selectors and
-draws test cases from `ts-tests`; it currently executes the complete diagnostic
-conformance corpus. H1 extends that same command with the compatible
-transpile/compiler/project/FourSlash emit projections as they become executable.
-It does not add emitter-focused jobs, static phase checks, platform matrices,
-scheduled stress, or evidence producers to Actions.
+draws test cases from `ts-tests`; it executes the complete diagnostic
+conformance corpus plus every H1-compatible emit case: one compiler row and
+zero conformance, project, transpile, or FourSlash rows. It does not add
+emitter-focused jobs, static phase checks, platform matrices, scheduled
+stress, or evidence producers to Actions.
 
 The complete local `cargo xtask ci --baseline <trusted-base>` remains required
 before opening and merging every non-documentation runtime PR. It owns
@@ -1407,10 +1431,10 @@ runtime.
    to `FsOutputSink`, match CLI diagnostics and exit behavior, and prove that
    a failure before or during writing has the oracle's exact parent-retry,
    diagnostic-and-continue, and partial-write boundary.
-9. **Next — H1.6 profile closure and qualification:** close every owner in the
-   frozen profile, execute every compatible upstream emit case, freeze output
-   and resource summaries, and publish the expanded binary only after all H0
-   and H1 gates are green.
+9. **Complete — H1.6 profile closure and qualification:** every owner in the
+   frozen profile is closed, every compatible upstream emit case is executed,
+   output and resource summaries are frozen, and the expanded binary is
+   published only after all H0 and H1 gates are green.
 
 No slice may move emit work into `ProgramSession::run`, relax an H0 ceiling,
 or start M9 qualification history. M9 fingerprint freeze waits until shared

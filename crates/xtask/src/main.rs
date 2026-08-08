@@ -20,6 +20,7 @@ mod bounded_pipeline;
 mod ci_conformance_receipt;
 mod completion;
 mod h1_conformance;
+mod h1_emit_acceptance;
 mod host_resolution;
 mod invariant_attestation;
 mod l0_identity_stress;
@@ -4265,7 +4266,9 @@ fn acceptance(mut args: impl Iterator<Item = String>) -> Result<(), Box<dyn Erro
     if let Some(argument) = args.next() {
         return Err(format!("unexpected acceptance argument: {argument}").into());
     }
-    conformance(std::iter::empty())
+    conformance(std::iter::empty())?;
+    let workspace = find_workspace_root()?;
+    h1_emit_acceptance::run(&workspace)
 }
 
 fn conformance(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
@@ -7706,6 +7709,18 @@ fn ci_oracle_gates(workspace: &Path) -> Result<(), Box<dyn Error>> {
             .arg(&h1_noemit_performance)
             .arg("--check"),
     )?;
+    let h1_emit_performance = workspace.join("crates/oracle/h1-emit-performance.mjs");
+    run_command(
+        Command::new("node")
+            .arg("--check")
+            .arg(&h1_emit_performance),
+    )?;
+    run_command(
+        Command::new("node")
+            .current_dir(workspace)
+            .arg(&h1_emit_performance)
+            .arg("--check"),
+    )?;
     l1_incremental_stress::run(
         [
             "--fixture".to_owned(),
@@ -7757,6 +7772,18 @@ fn ci_oracle_gates(workspace: &Path) -> Result<(), Box<dyn Error>> {
         Command::new("node")
             .current_dir(workspace)
             .arg(&h1_emit_oracle)
+            .arg("--check"),
+    )?;
+    let h1_emit_qualification = workspace.join("crates/oracle/h1-emit-qualification.mjs");
+    run_command(
+        Command::new("node")
+            .arg("--check")
+            .arg(&h1_emit_qualification),
+    )?;
+    run_command(
+        Command::new("node")
+            .current_dir(workspace)
+            .arg(&h1_emit_qualification)
             .arg("--check"),
     )?;
     let h1_active_transform_oracle = workspace.join("crates/oracle/h1-active-transform.mjs");

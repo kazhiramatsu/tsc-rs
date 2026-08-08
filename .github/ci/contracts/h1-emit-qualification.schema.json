@@ -1,0 +1,744 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/kazhiramatsu/tsc-rs/.github/ci/contracts/h1-emit-qualification.schema.json",
+  "title": "tsc-rs H1 JavaScript emit closure qualification",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "kind",
+    "status",
+    "phase",
+    "typescript",
+    "generator",
+    "contract",
+    "authorities",
+    "owner_closure",
+    "upstream_closure",
+    "compatible_cases",
+    "adjacent_controls",
+    "output_summary",
+    "resource_summary",
+    "release_contract"
+  ],
+  "properties": {
+    "schema": { "const": 1 },
+    "kind": { "const": "h1-emit-qualification" },
+    "status": { "const": "qualified" },
+    "phase": { "const": "H1.6" },
+    "typescript": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["version", "source_repository", "source_commit"],
+      "properties": {
+        "version": { "const": "6.0.3" },
+        "source_repository": { "const": "https://github.com/microsoft/TypeScript.git" },
+        "source_commit": { "$ref": "#/$defs/sha1" }
+      }
+    },
+    "generator": { "$ref": "#/$defs/path_hash" },
+    "contract": { "$ref": "#/$defs/path_hash" },
+    "authorities": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "profile",
+        "callback_oracle",
+        "owner_inventory",
+        "rust_omissions",
+        "suite_expansion",
+        "typescript_bundle",
+        "typescript_implementation"
+      ],
+      "properties": {
+        "profile": { "$ref": "#/$defs/path_hash" },
+        "callback_oracle": { "$ref": "#/$defs/path_hash" },
+        "owner_inventory": { "$ref": "#/$defs/path_hash" },
+        "rust_omissions": { "$ref": "#/$defs/path_hash" },
+        "suite_expansion": { "$ref": "#/$defs/path_hash" },
+        "typescript_bundle": { "$ref": "#/$defs/path_hash" },
+        "typescript_implementation": { "$ref": "#/$defs/path_hash" }
+      }
+    },
+    "owner_closure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "inventory_status",
+        "active_roots",
+        "declarations",
+        "edges",
+        "reviewed_call_sites",
+        "unresolved_or_undispositioned",
+        "pending_rows",
+        "production_boundary_omissions",
+        "option_projection_omissions",
+        "explicit_checker_emit_elisions"
+      ],
+      "properties": {
+        "inventory_status": { "const": "draft/report-only" },
+        "active_roots": { "const": 11 },
+        "declarations": { "const": 6193 },
+        "edges": { "const": 24054 },
+        "reviewed_call_sites": { "const": 5202 },
+        "unresolved_or_undispositioned": { "const": 0 },
+        "pending_rows": { "const": 0 },
+        "production_boundary_omissions": { "const": 0 },
+        "option_projection_omissions": { "const": 0 },
+        "explicit_checker_emit_elisions": { "const": 24 }
+      }
+    },
+    "upstream_closure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "suites",
+        "total_cases",
+        "compatible_cases",
+        "executed_cases",
+        "exact_observations",
+        "unexecuted_compatible_cases"
+      ],
+      "properties": {
+        "suites": {
+          "type": "array",
+          "prefixItems": [
+            { "$ref": "#/$defs/compiler_suite" },
+            { "$ref": "#/$defs/conformance_suite" },
+            { "$ref": "#/$defs/project_suite" },
+            { "$ref": "#/$defs/transpile_suite" },
+            { "$ref": "#/$defs/fourslash_suite" }
+          ],
+          "items": false,
+          "minItems": 5,
+          "maxItems": 5
+        },
+        "total_cases": { "const": 15680 },
+        "compatible_cases": { "const": 1 },
+        "executed_cases": { "const": 1 },
+        "exact_observations": { "const": 1 },
+        "unexecuted_compatible_cases": { "const": 0 }
+      }
+    },
+    "compatible_cases": {
+      "type": "array",
+      "prefixItems": [{ "$ref": "#/$defs/compatible_case" }],
+      "items": false,
+      "minItems": 1,
+      "maxItems": 1
+    },
+    "adjacent_controls": {
+      "type": "array",
+      "minItems": 7,
+      "maxItems": 7,
+      "items": { "$ref": "#/$defs/adjacent_control" }
+    },
+    "output_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "frozen_oracle_admitted_cases",
+        "compatible_upstream_cases",
+        "total_qualified_cases",
+        "callback_writes",
+        "callback_utf8_bytes",
+        "materialized_utf8_bytes",
+        "ordered_outputs_sha256"
+      ],
+      "properties": {
+        "frozen_oracle_admitted_cases": { "const": 5 },
+        "compatible_upstream_cases": { "const": 1 },
+        "total_qualified_cases": { "const": 6 },
+        "callback_writes": { "type": "integer", "minimum": 6 },
+        "callback_utf8_bytes": { "$ref": "#/$defs/nonnegative_integer" },
+        "materialized_utf8_bytes": { "$ref": "#/$defs/nonnegative_integer" },
+        "ordered_outputs_sha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "resource_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["no_emit_performance", "emit_performance", "emit_workload"],
+      "properties": {
+        "no_emit_performance": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "artifact",
+            "candidate_commit",
+            "status",
+            "maximum_warm_median_wall_ratio",
+            "maximum_peak_rss_ratio",
+            "executable_size_ratio",
+            "zero_activity_canaries"
+          ],
+          "properties": {
+            "artifact": { "$ref": "#/$defs/path_hash" },
+            "candidate_commit": { "$ref": "#/$defs/sha1" },
+            "status": { "const": "qualified" },
+            "maximum_warm_median_wall_ratio": { "type": "number", "minimum": 0 },
+            "maximum_peak_rss_ratio": { "type": "number", "minimum": 0 },
+            "executable_size_ratio": { "type": "number", "minimum": 0 },
+            "zero_activity_canaries": { "const": true }
+          }
+        },
+        "emit_performance": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "artifact",
+            "base_commit",
+            "candidate_commit",
+            "status",
+            "warm_median_wall_ratio",
+            "warm_p95_wall_ratio",
+            "peak_rss_ratio",
+            "executable_size_ratio",
+            "peak_rss_bytes",
+            "output_utf8_bytes",
+            "output_sha256"
+          ],
+          "properties": {
+            "artifact": { "$ref": "#/$defs/path_hash" },
+            "base_commit": { "$ref": "#/$defs/sha1" },
+            "candidate_commit": { "$ref": "#/$defs/sha1" },
+            "status": { "const": "qualified" },
+            "warm_median_wall_ratio": { "type": "number", "minimum": 0 },
+            "warm_p95_wall_ratio": { "type": "number", "minimum": 0 },
+            "peak_rss_ratio": { "type": "number", "minimum": 0 },
+            "executable_size_ratio": { "type": "number", "minimum": 0 },
+            "peak_rss_bytes": { "$ref": "#/$defs/nonnegative_integer" },
+            "output_utf8_bytes": { "$ref": "#/$defs/nonnegative_integer" },
+            "output_sha256": { "$ref": "#/$defs/sha256" }
+          }
+        },
+        "emit_workload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "case_id",
+            "source_files",
+            "source_utf8_bytes",
+            "output_files",
+            "output_utf8_bytes",
+            "deterministic_repetitions",
+            "legal_worker_counts",
+            "local_max_rss_bytes"
+          ],
+          "properties": {
+            "case_id": { "$ref": "#/$defs/case_id" },
+            "source_files": { "const": 3 },
+            "source_utf8_bytes": { "$ref": "#/$defs/nonnegative_integer" },
+            "output_files": { "const": 1 },
+            "output_utf8_bytes": { "$ref": "#/$defs/nonnegative_integer" },
+            "deterministic_repetitions": { "const": 2 },
+            "legal_worker_counts": {
+              "type": "array",
+              "prefixItems": [{ "const": 1 }, { "const": 2 }],
+              "items": false,
+              "minItems": 2,
+              "maxItems": 2
+            },
+            "local_max_rss_bytes": { "const": 268435456 }
+          }
+        }
+      }
+    },
+    "release_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "hosted_entrypoint",
+        "hosted_test_root",
+        "hosted_jobs",
+        "local_full_gate",
+        "production_cli_runtime_node_required",
+        "production_cli_runtime_vendor_lookup",
+        "unsupported_before_first_sink_write"
+      ],
+      "properties": {
+        "hosted_entrypoint": { "const": "cargo xtask acceptance" },
+        "hosted_test_root": { "const": "ts-tests/" },
+        "hosted_jobs": {
+          "type": "array",
+          "prefixItems": [{ "const": "gates" }],
+          "items": false,
+          "minItems": 1,
+          "maxItems": 1
+        },
+        "local_full_gate": { "const": "cargo xtask ci --baseline <trusted-base>" },
+        "production_cli_runtime_node_required": { "const": false },
+        "production_cli_runtime_vendor_lookup": { "const": false },
+        "unsupported_before_first_sink_write": { "const": true }
+      }
+    }
+  },
+  "$defs": {
+    "sha1": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "base64": {
+      "type": "string",
+      "pattern": "^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$"
+    },
+    "nonnegative_integer": { "type": "integer", "minimum": 0 },
+    "path_hash": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256"],
+      "properties": {
+        "path": { "type": "string", "minLength": 1 },
+        "sha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "case_id": {
+      "const": "typescript-6.0.3/compiler/esmNoSynthesizedDefault.ts#module%3Dpreserve"
+    },
+    "suite_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "suite",
+        "classification",
+        "cases",
+        "compatible_cases",
+        "executed_cases",
+        "exact_observations"
+      ],
+      "properties": {
+        "suite": { "type": "string" },
+        "classification": { "$ref": "#/$defs/path_hash" },
+        "cases": { "$ref": "#/$defs/nonnegative_integer" },
+        "compatible_cases": { "$ref": "#/$defs/nonnegative_integer" },
+        "executed_cases": { "$ref": "#/$defs/nonnegative_integer" },
+        "exact_observations": { "$ref": "#/$defs/nonnegative_integer" }
+      }
+    },
+    "compiler_suite": {
+      "allOf": [
+        { "$ref": "#/$defs/suite_row" },
+        {
+          "properties": {
+            "suite": { "const": "compiler" },
+            "cases": { "const": 7276 },
+            "compatible_cases": { "const": 1 },
+            "executed_cases": { "const": 1 },
+            "exact_observations": { "const": 1 }
+          }
+        }
+      ]
+    },
+    "conformance_suite": {
+      "allOf": [
+        { "$ref": "#/$defs/suite_row" },
+        {
+          "properties": {
+            "suite": { "const": "conformance" },
+            "cases": { "const": 7697 },
+            "compatible_cases": { "const": 0 },
+            "executed_cases": { "const": 0 },
+            "exact_observations": { "const": 0 }
+          }
+        }
+      ]
+    },
+    "project_suite": {
+      "allOf": [
+        { "$ref": "#/$defs/suite_row" },
+        {
+          "properties": {
+            "suite": { "const": "project" },
+            "cases": { "const": 632 },
+            "compatible_cases": { "const": 0 },
+            "executed_cases": { "const": 0 },
+            "exact_observations": { "const": 0 }
+          }
+        }
+      ]
+    },
+    "transpile_suite": {
+      "allOf": [
+        { "$ref": "#/$defs/suite_row" },
+        {
+          "properties": {
+            "suite": { "const": "transpile" },
+            "cases": { "const": 37 },
+            "compatible_cases": { "const": 0 },
+            "executed_cases": { "const": 0 },
+            "exact_observations": { "const": 0 }
+          }
+        }
+      ]
+    },
+    "fourslash_suite": {
+      "allOf": [
+        { "$ref": "#/$defs/suite_row" },
+        {
+          "properties": {
+            "suite": { "const": "fourslash" },
+            "cases": { "const": 38 },
+            "compatible_cases": { "const": 0 },
+            "executed_cases": { "const": 0 },
+            "exact_observations": { "const": 0 }
+          }
+        }
+      ]
+    },
+    "presence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["present", "value"],
+      "properties": {
+        "present": { "type": "boolean" },
+        "value": {}
+      }
+    },
+    "message_chain": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["text", "code", "category", "next_present", "next"],
+      "properties": {
+        "text": { "type": "string", "minLength": 1 },
+        "code": { "$ref": "#/$defs/nonnegative_integer" },
+        "category": { "enum": ["warning", "error", "suggestion", "message"] },
+        "next_present": { "type": "boolean" },
+        "next": { "type": "array", "items": { "$ref": "#/$defs/message_chain" } }
+      }
+    },
+    "related_diagnostic": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["file", "start", "length", "code", "category", "chain"],
+      "properties": {
+        "file": { "$ref": "#/$defs/presence" },
+        "start": { "$ref": "#/$defs/presence" },
+        "length": { "$ref": "#/$defs/presence" },
+        "code": { "$ref": "#/$defs/nonnegative_integer" },
+        "category": { "enum": ["warning", "error", "suggestion", "message"] },
+        "chain": { "$ref": "#/$defs/message_chain" }
+      }
+    },
+    "diagnostic": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "file",
+        "start",
+        "length",
+        "line",
+        "column",
+        "code",
+        "category",
+        "chain",
+        "related_information_present",
+        "related",
+        "reports_unnecessary",
+        "reports_deprecated",
+        "source"
+      ],
+      "properties": {
+        "file": { "$ref": "#/$defs/presence" },
+        "start": { "$ref": "#/$defs/presence" },
+        "length": { "$ref": "#/$defs/presence" },
+        "line": { "$ref": "#/$defs/presence" },
+        "column": { "$ref": "#/$defs/presence" },
+        "code": { "$ref": "#/$defs/nonnegative_integer" },
+        "category": { "enum": ["warning", "error", "suggestion", "message"] },
+        "chain": { "$ref": "#/$defs/message_chain" },
+        "related_information_present": { "type": "boolean" },
+        "related": { "type": "array", "items": { "$ref": "#/$defs/related_diagnostic" } },
+        "reports_unnecessary": { "$ref": "#/$defs/presence" },
+        "reports_deprecated": { "$ref": "#/$defs/presence" },
+        "source": { "$ref": "#/$defs/presence" }
+      }
+    },
+    "metadata_value": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "own_keys",
+        "source_map_url_position_utf16",
+        "diagnostics_present",
+        "diagnostics",
+        "skipped_dts_write",
+        "differs_only_in_map",
+        "build_info"
+      ],
+      "properties": {
+        "own_keys": { "type": "array", "uniqueItems": true, "items": { "type": "string" } },
+        "source_map_url_position_utf16": { "$ref": "#/$defs/presence" },
+        "diagnostics_present": { "type": "boolean" },
+        "diagnostics": { "type": "array", "items": { "$ref": "#/$defs/diagnostic" } },
+        "skipped_dts_write": { "$ref": "#/$defs/presence" },
+        "differs_only_in_map": { "$ref": "#/$defs/presence" },
+        "build_info": { "$ref": "#/$defs/presence" }
+      }
+    },
+    "metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["present", "value"],
+      "properties": {
+        "present": { "type": "boolean" },
+        "value": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/metadata_value" }] }
+      }
+    },
+    "write": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "index",
+        "path",
+        "kind",
+        "callback_text",
+        "callback_utf8_base64",
+        "callback_utf8_sha256",
+        "callback_utf8_bytes",
+        "write_byte_order_mark",
+        "materialized_utf8_base64",
+        "materialized_utf8_sha256",
+        "materialized_utf8_bytes",
+        "on_error_callback_present",
+        "source_files_present",
+        "source_files",
+        "metadata",
+        "sink_disposition"
+      ],
+      "properties": {
+        "index": { "$ref": "#/$defs/nonnegative_integer" },
+        "path": { "type": "string", "pattern": "^/" },
+        "kind": { "enum": ["javascript", "source-map", "declaration", "build-info"] },
+        "callback_text": { "type": "string" },
+        "callback_utf8_base64": { "$ref": "#/$defs/base64" },
+        "callback_utf8_sha256": { "$ref": "#/$defs/sha256" },
+        "callback_utf8_bytes": { "$ref": "#/$defs/nonnegative_integer" },
+        "write_byte_order_mark": { "type": "boolean" },
+        "materialized_utf8_base64": { "$ref": "#/$defs/base64" },
+        "materialized_utf8_sha256": { "$ref": "#/$defs/sha256" },
+        "materialized_utf8_bytes": { "$ref": "#/$defs/nonnegative_integer" },
+        "on_error_callback_present": { "type": "boolean" },
+        "source_files_present": { "type": "boolean" },
+        "source_files": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "metadata": { "$ref": "#/$defs/metadata" },
+        "sink_disposition": { "const": "written" }
+      }
+    },
+    "emit_result": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "emit_skipped",
+        "emit_diagnostics",
+        "emitted_files_present",
+        "emitted_files",
+        "source_maps_present",
+        "source_maps"
+      ],
+      "properties": {
+        "emit_skipped": { "type": "boolean" },
+        "emit_diagnostics": { "type": "array", "items": { "$ref": "#/$defs/diagnostic" } },
+        "emitted_files_present": { "type": "boolean" },
+        "emitted_files": { "type": "array", "items": { "type": "string" } },
+        "source_maps_present": { "type": "boolean" },
+        "source_maps": { "type": "array" }
+      }
+    },
+    "observation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "writes",
+        "reported_diagnostics",
+        "emit_result",
+        "status_writes",
+        "process_exit"
+      ],
+      "properties": {
+        "writes": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/write" } },
+        "reported_diagnostics": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "items": { "$ref": "#/$defs/diagnostic" }
+        },
+        "emit_result": { "$ref": "#/$defs/emit_result" },
+        "status_writes": { "type": "array", "items": { "type": "string" } },
+        "process_exit": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["code", "name"],
+          "properties": {
+            "code": { "const": 2 },
+            "name": { "const": "diagnostics-present-outputs-generated" }
+          }
+        }
+      }
+    },
+    "input_file": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "utf8_base64", "utf8_sha256", "utf8_bytes"],
+      "properties": {
+        "path": { "type": "string", "pattern": "^/" },
+        "utf8_base64": { "$ref": "#/$defs/base64" },
+        "utf8_sha256": { "$ref": "#/$defs/sha256" },
+        "utf8_bytes": { "$ref": "#/$defs/nonnegative_integer" }
+      }
+    },
+    "compatible_case": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "suite",
+        "expansion_case",
+        "source",
+        "configuration",
+        "effective_options",
+        "roots",
+        "virtual_files",
+        "observation",
+        "cli_projection"
+      ],
+      "properties": {
+        "id": { "$ref": "#/$defs/case_id" },
+        "suite": { "const": "compiler" },
+        "expansion_case": { "const": 2794 },
+        "source": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["path", "bytes", "sha256", "git_blob_sha1"],
+          "properties": {
+            "path": { "const": "ts-tests/tests/cases/compiler/esmNoSynthesizedDefault.ts" },
+            "bytes": { "const": 454 },
+            "sha256": { "$ref": "#/$defs/sha256" },
+            "git_blob_sha1": { "$ref": "#/$defs/sha1" }
+          }
+        },
+        "configuration": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["index", "variant", "description", "upstream_name"],
+          "properties": {
+            "index": { "const": 0 },
+            "variant": { "const": "module=preserve" },
+            "description": { "const": "@module: preserve" },
+            "upstream_name": { "const": "esmNoSynthesizedDefault(module=preserve).ts" }
+          }
+        },
+        "effective_options": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "target",
+            "module",
+            "module_resolution",
+            "new_line",
+            "no_error_truncation",
+            "skip_default_lib_check"
+          ],
+          "properties": {
+            "target": { "const": 99 },
+            "module": { "const": 200 },
+            "module_resolution": { "const": 100 },
+            "new_line": { "const": 0 },
+            "no_error_truncation": { "const": true },
+            "skip_default_lib_check": { "const": true }
+          }
+        },
+        "roots": {
+          "type": "array",
+          "prefixItems": [
+            { "const": "/node_modules/mdast-util-to-string/index.d.ts" },
+            { "const": "/index.ts" }
+          ],
+          "items": false,
+          "minItems": 2,
+          "maxItems": 2
+        },
+        "virtual_files": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 3,
+          "items": { "$ref": "#/$defs/input_file" }
+        },
+        "observation": { "$ref": "#/$defs/observation" },
+        "cli_projection": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "config_utf8_base64",
+            "config_utf8_sha256",
+            "config_utf8_bytes",
+            "expected_exit_code",
+            "expected_output_paths",
+            "expected_diagnostic_codes"
+          ],
+          "properties": {
+            "config_utf8_base64": { "$ref": "#/$defs/base64" },
+            "config_utf8_sha256": { "$ref": "#/$defs/sha256" },
+            "config_utf8_bytes": { "$ref": "#/$defs/nonnegative_integer" },
+            "expected_exit_code": { "const": 2 },
+            "expected_output_paths": {
+              "type": "array",
+              "prefixItems": [{ "const": "/index.js" }],
+              "items": false,
+              "minItems": 1,
+              "maxItems": 1
+            },
+            "expected_diagnostic_codes": {
+              "type": "array",
+              "prefixItems": [{ "const": 1192 }, { "const": 2339 }],
+              "items": false,
+              "minItems": 2,
+              "maxItems": 2
+            }
+          }
+        }
+      }
+    },
+    "adjacent_control": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "oracle_write_count",
+        "expected_rust_failure",
+        "expected_rust_sink_writes"
+      ],
+      "properties": {
+        "id": {
+          "enum": [
+            "runtime-enum-control",
+            "runtime-namespace-control",
+            "parameter-property-control",
+            "jsx-control",
+            "source-map-control",
+            "declaration-control",
+            "mts-output-control"
+          ]
+        },
+        "oracle_write_count": { "type": "integer", "minimum": 1 },
+        "expected_rust_failure": {
+          "type": "object",
+          "minProperties": 2,
+          "maxProperties": 2,
+          "required": ["kind"],
+          "properties": {
+            "kind": {
+              "enum": [
+                "unsupported-transform-feature",
+                "unsupported-compiler-option",
+                "unsupported-source-extension"
+              ]
+            },
+            "feature": { "type": "string", "minLength": 1 },
+            "option": { "type": "string", "minLength": 1 },
+            "extension": { "type": "string", "minLength": 1 }
+          },
+          "additionalProperties": false
+        },
+        "expected_rust_sink_writes": { "const": 0 }
+      }
+    }
+  }
+}

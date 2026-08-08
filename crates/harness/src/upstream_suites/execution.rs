@@ -25,9 +25,10 @@ use tsc_host::{
     to_file_name_lower_case, CompilerHost, FsCompilerHost, HostError, MemoryCompilerHost,
 };
 use tsc_program::{
-    load_program, parse_config_root_plan, CompilerOptionNumber, CompilerOptions, ConfigFilePattern,
-    ConfigHostError, ConfigHostOperation, ConfigParseHost, ConfigRootPlan, ConfigRootPlanRequest,
-    LibraryCatalog, ModuleSuffix, PreparedProgram, ProgramLoadLimits, ProgramOptions, ProgramPath,
+    load_emitting_program, load_program, parse_config_root_plan, CompilerOptionNumber,
+    CompilerOptions, ConfigFilePattern, ConfigHostError, ConfigHostOperation, ConfigParseHost,
+    ConfigRootPlan, ConfigRootPlanRequest, LibraryCatalog, ModuleSuffix, PreparedProgram,
+    ProgramLoadLimits, ProgramOptions, ProgramPath,
 };
 
 use super::compiler::{
@@ -60,6 +61,36 @@ pub fn load_compiler_no_emit(
     workspace: &Path,
     plan: &CompilerExecutionPlan,
     limits: ProgramLoadLimits,
+) -> HarnessResult<PreparedProgram> {
+    load_compiler_program(workspace, plan, limits, CompilerProgramMode::NoEmit)
+}
+
+/// Build the profile-admitted emitting [`PreparedProgram`] for one pinned
+/// compiler-runner case.
+///
+/// The caller still owns classification and exact output comparison. This
+/// adapter only reconstructs the same verified VFS, root order, and effective
+/// options as [`load_compiler_no_emit`] before selecting the distinct emitting
+/// loader.
+pub fn load_compiler_emit(
+    workspace: &Path,
+    plan: &CompilerExecutionPlan,
+    limits: ProgramLoadLimits,
+) -> HarnessResult<PreparedProgram> {
+    load_compiler_program(workspace, plan, limits, CompilerProgramMode::Emit)
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum CompilerProgramMode {
+    NoEmit,
+    Emit,
+}
+
+fn load_compiler_program(
+    workspace: &Path,
+    plan: &CompilerExecutionPlan,
+    limits: ProgramLoadLimits,
+    mode: CompilerProgramMode,
 ) -> HarnessResult<PreparedProgram> {
     let current_directory = plan.current_directory.as_ref();
     let mut host_builder = MemoryCompilerHost::builder(current_directory)
@@ -141,18 +172,38 @@ pub fn load_compiler_no_emit(
     )?;
 
     let (mut compiler_options, program_options) = plan_compiler_options(plan)?;
-    compiler_options.no_emit = Some(true);
+    // CompilerBaselineRunner normalizes these harness-only defaults
+    // after config and directive projection. They are not command-line
+    // defaults: in particular, its absent `newLine` becomes CRLF even when
+    // the host running this adapter normally uses LF. Retain that distinction
+    // here so an emitting compiler-suite plan observes the upstream baseline
+    // bytes while the production CLI continues to use its own host default.
+    compiler_options.new_line.get_or_insert(0);
+    compiler_options.no_error_truncation = Some(true);
+    if mode == CompilerProgramMode::NoEmit {
+        compiler_options.no_emit = Some(true);
+    }
     let roots = compiler_root_paths(plan)?;
     let catalog = LibraryCatalog::typescript_6_0_3(library_directory);
-    load_program(
-        &host,
-        &roots,
-        compiler_options,
-        program_options,
-        &catalog,
-        limits,
-    )
-    .map_err(|load_error| {
+    let loaded = match mode {
+        CompilerProgramMode::NoEmit => load_program(
+            &host,
+            &roots,
+            compiler_options,
+            program_options,
+            &catalog,
+            limits,
+        ),
+        CompilerProgramMode::Emit => load_emitting_program(
+            &host,
+            &roots,
+            compiler_options,
+            program_options,
+            &catalog,
+            limits,
+        ),
+    };
+    loaded.map_err(|load_error| {
         error(format!(
             "failed to load compiler fixture {:?} ({:?}): {load_error}",
             plan.fixture.source.relative_path, plan.variant.key

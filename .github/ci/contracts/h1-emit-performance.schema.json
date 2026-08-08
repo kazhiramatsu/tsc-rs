@@ -1,0 +1,391 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/kazhiramatsu/tsc-rs/.github/ci/contracts/h1-emit-performance.schema.json",
+  "title": "tsc-rs H1 emit resource and performance qualification",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "kind",
+    "status",
+    "phase",
+    "typescript_version",
+    "base",
+    "candidate",
+    "generator",
+    "contract",
+    "measured_at_utc",
+    "runner",
+    "toolchain",
+    "sampling",
+    "policy",
+    "workload",
+    "pairs",
+    "base_summary",
+    "candidate_summary",
+    "variance",
+    "ratios",
+    "binary_size",
+    "qualified"
+  ],
+  "properties": {
+    "schema": { "const": 1 },
+    "kind": { "const": "h1-emit-performance" },
+    "status": { "const": "qualified" },
+    "phase": { "const": "H1.6" },
+    "typescript_version": { "const": "6.0.3" },
+    "base": { "$ref": "#/$defs/revision" },
+    "candidate": { "$ref": "#/$defs/revision" },
+    "generator": {
+      "allOf": [
+        { "$ref": "#/$defs/path_hash" },
+        { "properties": { "path": { "const": "crates/oracle/h1-emit-performance.mjs" } } }
+      ]
+    },
+    "contract": {
+      "allOf": [
+        { "$ref": "#/$defs/path_hash" },
+        {
+          "properties": {
+            "path": { "const": ".github/ci/contracts/h1-emit-performance.schema.json" }
+          }
+        }
+      ]
+    },
+    "measured_at_utc": { "type": "string", "format": "date-time" },
+    "runner": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "os",
+        "architecture",
+        "os_release",
+        "product_version",
+        "cpu",
+        "logical_cpus"
+      ],
+      "properties": {
+        "id": { "const": "macos-arm64-local-approved" },
+        "os": { "const": "darwin" },
+        "architecture": { "const": "arm64" },
+        "os_release": { "type": "string", "minLength": 1 },
+        "product_version": { "type": "string", "minLength": 1 },
+        "cpu": { "type": "string", "minLength": 1 },
+        "logical_cpus": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "toolchain": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "rustc",
+        "node",
+        "cargo_build_jobs",
+        "profile",
+        "wall_observer",
+        "rss_observer"
+      ],
+      "properties": {
+        "rustc": { "const": "rustc 1.93.0 (254b59607 2026-01-19)" },
+        "node": { "const": "v25.2.1" },
+        "cargo_build_jobs": { "const": 2 },
+        "profile": { "const": "release" },
+        "wall_observer": { "const": "node-hrtime-bigint" },
+        "rss_observer": { "const": "bsd-time-l" }
+      }
+    },
+    "sampling": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "pair_count",
+        "warm_pair_count",
+        "cold_pair_ordinal",
+        "order"
+      ],
+      "properties": {
+        "pair_count": { "type": "integer", "minimum": 8 },
+        "warm_pair_count": { "type": "integer", "minimum": 7 },
+        "cold_pair_ordinal": { "const": 0 },
+        "order": { "const": "alternating-ab-ba" }
+      }
+    },
+    "policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "comparison",
+        "trusted_h1_5_commit",
+        "minimum_warm_paired_samples",
+        "order",
+        "ceilings",
+        "exact_output_required",
+        "moving_hosted_runner_can_mint_or_relax"
+      ],
+      "properties": {
+        "comparison": { "const": "same-approved-runner-alternating-h1.5-candidate" },
+        "trusted_h1_5_commit": { "const": "6e4b4d95eb500ab4be612c94302eb08b9658a225" },
+        "minimum_warm_paired_samples": { "const": 7 },
+        "order": { "const": "alternating-ab-ba" },
+        "ceilings": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "warm_median_wall_ratio",
+            "warm_p95_wall_ratio",
+            "peak_rss_ratio",
+            "executable_size_ratio",
+            "absolute_peak_rss_bytes"
+          ],
+          "properties": {
+            "warm_median_wall_ratio": { "const": 1.1 },
+            "warm_p95_wall_ratio": { "const": 1.2 },
+            "peak_rss_ratio": { "const": 1.1 },
+            "executable_size_ratio": { "const": 1.1 },
+            "absolute_peak_rss_bytes": { "const": 268435456 }
+          }
+        },
+        "exact_output_required": { "const": true },
+        "moving_hosted_runner_can_mint_or_relax": { "const": false }
+      }
+    },
+    "workload": { "$ref": "#/$defs/workload" },
+    "pairs": {
+      "type": "array",
+      "minItems": 8,
+      "items": { "$ref": "#/$defs/pair" }
+    },
+    "base_summary": { "$ref": "#/$defs/summary" },
+    "candidate_summary": { "$ref": "#/$defs/summary" },
+    "variance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "base_warm_p95_over_median",
+        "candidate_warm_p95_over_median",
+        "base_warm_relative_range",
+        "candidate_warm_relative_range",
+        "paired_wall_ratio_min",
+        "paired_wall_ratio_max"
+      ],
+      "properties": {
+        "base_warm_p95_over_median": { "$ref": "#/$defs/nonnegative_number" },
+        "candidate_warm_p95_over_median": { "$ref": "#/$defs/nonnegative_number" },
+        "base_warm_relative_range": { "$ref": "#/$defs/nonnegative_number" },
+        "candidate_warm_relative_range": { "$ref": "#/$defs/nonnegative_number" },
+        "paired_wall_ratio_min": { "$ref": "#/$defs/nonnegative_number" },
+        "paired_wall_ratio_max": { "$ref": "#/$defs/nonnegative_number" }
+      }
+    },
+    "ratios": { "$ref": "#/$defs/ratios" },
+    "binary_size": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "base_bytes",
+        "candidate_bytes",
+        "ratio",
+        "ceiling",
+        "qualified"
+      ],
+      "properties": {
+        "base_bytes": { "type": "integer", "minimum": 1 },
+        "candidate_bytes": { "type": "integer", "minimum": 1 },
+        "ratio": { "$ref": "#/$defs/nonnegative_number" },
+        "ceiling": { "const": 1.1 },
+        "qualified": { "const": true }
+      }
+    },
+    "qualified": { "const": true }
+  },
+  "$defs": {
+    "sha1": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "nonnegative_number": { "type": "number", "minimum": 0 },
+    "path_hash": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256"],
+      "properties": {
+        "path": { "type": "string", "minLength": 1 },
+        "sha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "runtime_tree": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["files", "sha256"],
+      "properties": {
+        "files": { "type": "integer", "minimum": 100 },
+        "sha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "revision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["commit", "runtime_tree", "executable"],
+      "properties": {
+        "commit": { "$ref": "#/$defs/sha1" },
+        "runtime_tree": { "$ref": "#/$defs/runtime_tree" },
+        "executable": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["sha256", "bytes"],
+          "properties": {
+            "sha256": { "$ref": "#/$defs/sha256" },
+            "bytes": { "type": "integer", "minimum": 1 }
+          }
+        }
+      }
+    },
+    "source_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "bytes", "sha256", "git_blob_sha1"],
+      "properties": {
+        "path": { "const": "ts-tests/tests/cases/compiler/esmNoSynthesizedDefault.ts" },
+        "bytes": { "const": 454 },
+        "sha256": { "$ref": "#/$defs/sha256" },
+        "git_blob_sha1": { "$ref": "#/$defs/sha1" }
+      }
+    },
+    "workload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "case_id",
+        "source",
+        "suite_expansion",
+        "emit_profile",
+        "source_files",
+        "source_utf8_bytes",
+        "source_tree_sha256",
+        "config_utf8_sha256",
+        "config_utf8_bytes",
+        "arguments",
+        "expected_exit_code",
+        "expected_diagnostic_codes",
+        "expected_output"
+      ],
+      "properties": {
+        "case_id": {
+          "const": "typescript-6.0.3/compiler/esmNoSynthesizedDefault.ts#module%3Dpreserve"
+        },
+        "source": { "$ref": "#/$defs/source_identity" },
+        "suite_expansion": { "$ref": "#/$defs/path_hash" },
+        "emit_profile": { "$ref": "#/$defs/path_hash" },
+        "source_files": { "const": 3 },
+        "source_utf8_bytes": { "const": 227 },
+        "source_tree_sha256": { "$ref": "#/$defs/sha256" },
+        "config_utf8_sha256": { "$ref": "#/$defs/sha256" },
+        "config_utf8_bytes": { "type": "integer", "minimum": 1 },
+        "arguments": {
+          "type": "array",
+          "prefixItems": [
+            { "const": "--pretty" },
+            { "const": "false" },
+            { "const": "-p" },
+            { "const": "tsconfig.json" }
+          ],
+          "items": false,
+          "minItems": 4,
+          "maxItems": 4
+        },
+        "expected_exit_code": { "const": 2 },
+        "expected_diagnostic_codes": {
+          "type": "array",
+          "prefixItems": [{ "const": 1192 }, { "const": 2339 }],
+          "items": false,
+          "minItems": 2,
+          "maxItems": 2
+        },
+        "expected_output": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["path", "utf8_sha256", "utf8_bytes"],
+          "properties": {
+            "path": { "const": "/index.js" },
+            "utf8_sha256": { "$ref": "#/$defs/sha256" },
+            "utf8_bytes": { "const": 161 }
+          }
+        }
+      }
+    },
+    "observation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "wall_seconds",
+        "max_rss_bytes",
+        "exit_code",
+        "diagnostic_count",
+        "output_files",
+        "output_utf8_bytes",
+        "output_sha256"
+      ],
+      "properties": {
+        "wall_seconds": { "type": "number", "exclusiveMinimum": 0 },
+        "max_rss_bytes": { "type": "integer", "minimum": 1 },
+        "exit_code": { "const": 2 },
+        "diagnostic_count": { "const": 2 },
+        "output_files": { "const": 1 },
+        "output_utf8_bytes": { "const": 161 },
+        "output_sha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "pair": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ordinal", "order", "base", "candidate"],
+      "properties": {
+        "ordinal": { "type": "integer", "minimum": 0 },
+        "order": { "enum": ["ab", "ba"] },
+        "base": { "$ref": "#/$defs/observation" },
+        "candidate": { "$ref": "#/$defs/observation" }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "cold_wall_seconds",
+        "cold_max_rss_bytes",
+        "warm_median_wall_seconds",
+        "warm_p95_wall_seconds",
+        "peak_rss_bytes",
+        "exit_code",
+        "diagnostic_count",
+        "output_files",
+        "output_utf8_bytes",
+        "output_sha256"
+      ],
+      "properties": {
+        "cold_wall_seconds": { "type": "number", "exclusiveMinimum": 0 },
+        "cold_max_rss_bytes": { "type": "integer", "minimum": 1 },
+        "warm_median_wall_seconds": { "type": "number", "exclusiveMinimum": 0 },
+        "warm_p95_wall_seconds": { "type": "number", "exclusiveMinimum": 0 },
+        "peak_rss_bytes": { "type": "integer", "minimum": 1, "maximum": 268435456 },
+        "exit_code": { "const": 2 },
+        "diagnostic_count": { "const": 2 },
+        "output_files": { "const": 1 },
+        "output_utf8_bytes": { "const": 161 },
+        "output_sha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "ratios": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "warm_median_wall_ratio",
+        "warm_p95_wall_ratio",
+        "peak_rss_ratio"
+      ],
+      "properties": {
+        "warm_median_wall_ratio": { "type": "number", "minimum": 0, "maximum": 1.1 },
+        "warm_p95_wall_ratio": { "type": "number", "minimum": 0, "maximum": 1.2 },
+        "peak_rss_ratio": { "type": "number", "minimum": 0, "maximum": 1.1 }
+      }
+    }
+  }
+}

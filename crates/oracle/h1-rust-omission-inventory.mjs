@@ -942,7 +942,7 @@ function exactKeys(value, required) {
 const artifact = {
   schema: 1,
   status: "frozen-current-rust-baseline",
-  phase: "H1.5-rust-omission-inventory",
+  phase: "H1.6-rust-omission-inventory",
   typescript: { version: TYPESCRIPT_VERSION, source_commit: SOURCE_COMMIT },
   generator: pathHash(GENERATOR_RELATIVE_PATH),
   contract: pathHash(SCHEMA_RELATIVE_PATH),
@@ -997,7 +997,7 @@ function validateArtifact(value) {
   requireCondition(
     value.schema === 1 &&
       value.status === "frozen-current-rust-baseline" &&
-      value.phase === "H1.5-rust-omission-inventory",
+      value.phase === "H1.6-rust-omission-inventory",
     "invalid H1 Rust omission artifact header",
   );
   const semantic = { ...value };
@@ -1023,7 +1023,7 @@ validateArtifact(artifact);
 
 requireCondition(
   boundaryOmissions.length === 0,
-  "H1.5 must leave no open production boundary omission",
+  "H1.6 must leave no open production boundary omission",
 );
 requireCondition(
   new Set(boundaryOmissions.map((entry) => entry.id)).size === boundaryOmissions.length,

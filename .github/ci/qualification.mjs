@@ -343,6 +343,8 @@ export function validatePolicy(policy) {
     "failure-artifact",
     "h1-emit-profile",
     "h1-emit-observation",
+    "h1-emit-performance",
+    "h1-emit-qualification",
     "h1-owner-inventory",
     "h1-noemit-performance",
     "h1-rust-omissions",

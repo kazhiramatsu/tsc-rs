@@ -3453,7 +3453,15 @@ impl<'a> CheckerState<'a> {
             &tsc_diagnostics::gen::Property_0_does_not_exist_on_type_1,
             &[],
         );
-        diagnostic.message = head.with_next(chain_tail);
+        // chainDiagnosticMessages receives `undefined` when there is no
+        // elaboration row; an empty Rust Vec is not equivalent because tsc's
+        // raw diagnostic then has no `next` property at all. Preserve the
+        // presence bit for callback-level emit observations.
+        diagnostic.message = if chain_tail.is_empty() {
+            head
+        } else {
+            head.with_next(chain_tail)
+        };
         if let Some(related) = related {
             diagnostic.related.push(related);
         }
