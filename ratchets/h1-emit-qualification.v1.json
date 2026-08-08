@@ -1,0 +1,456 @@
+{
+  "schema": 1,
+  "kind": "h1-emit-qualification",
+  "status": "qualified",
+  "phase": "H1.6",
+  "typescript": {
+    "version": "6.0.3",
+    "source_repository": "https://github.com/microsoft/TypeScript.git",
+    "source_commit": "050880ce59e30b356b686bd3144efe24f875ebc8"
+  },
+  "generator": {
+    "path": "crates/oracle/h1-emit-qualification.mjs",
+    "sha256": "b0cabf2f15af3004bb5d047ed9904b16b13927c6641027ca5bc5a4366e28eae3"
+  },
+  "contract": {
+    "path": ".github/ci/contracts/h1-emit-qualification.schema.json",
+    "sha256": "1e67b8ee432e124f4ec77395c6f68779a701e52d58f0d525deb5ba812f8c5545"
+  },
+  "authorities": {
+    "profile": {
+      "path": "ratchets/h1-emit-profile.v1.json",
+      "sha256": "91e05db331a090e180e9cda7fc8eaa505d795b229a49d78d62d1e086c8602991"
+    },
+    "callback_oracle": {
+      "path": "ratchets/h1-emit-oracle.v1.json",
+      "sha256": "5586988b943028464a7a2c0e543ecb6de062b57d1408ff6ba12004d80b01c793"
+    },
+    "owner_inventory": {
+      "path": "ratchets/h1-owner-inventory.v1.json",
+      "sha256": "6148160678bf0b34a8310551eac8c9ab3f2afb1cd9260fa8eaa59efadc71abb5"
+    },
+    "rust_omissions": {
+      "path": "ratchets/h1-rust-omissions.v1.json",
+      "sha256": "ca8e49f5528520dfd73744bd157b85e9c089be1ae993983cd97a4ca990a1f1c3"
+    },
+    "suite_expansion": {
+      "path": "vendor/typescript-6.0.3/test-suite-expansion.v1.json",
+      "sha256": "9c6e991103b571f7a8800dc5e1ef66088017689f3769de8fcdb408b2dc125188"
+    },
+    "typescript_bundle": {
+      "path": "vendor/typescript-6.0.3/lib/typescript.js",
+      "sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39"
+    },
+    "typescript_implementation": {
+      "path": "vendor/typescript-6.0.3/lib/_tsc.js",
+      "sha256": "1c59e77a54b186ec43fa7f3e0d3c4bb15ca5eb5ba43e96b1d3a267139eddd3e3"
+    }
+  },
+  "owner_closure": {
+    "inventory_status": "draft/report-only",
+    "active_roots": 11,
+    "declarations": 6193,
+    "edges": 24054,
+    "reviewed_call_sites": 5202,
+    "unresolved_or_undispositioned": 0,
+    "pending_rows": 0,
+    "production_boundary_omissions": 0,
+    "option_projection_omissions": 0,
+    "explicit_checker_emit_elisions": 24
+  },
+  "upstream_closure": {
+    "suites": [
+      {
+        "suite": "compiler",
+        "classification": {
+          "path": "vendor/typescript-6.0.3/compiler-profile-classification.v1.json",
+          "sha256": "3c3cbcb3c29a5254c145dc2665ca21683a1bd94f5271841320f061e82b614603"
+        },
+        "cases": 7276,
+        "compatible_cases": 1,
+        "executed_cases": 1,
+        "exact_observations": 1
+      },
+      {
+        "suite": "conformance",
+        "classification": {
+          "path": "vendor/typescript-6.0.3/conformance-profile-classification.v1.json",
+          "sha256": "d54b51d44da91836ad1b7be3be4b7de19c6892e6cb1fe9605fda06cdda5a67eb"
+        },
+        "cases": 7697,
+        "compatible_cases": 0,
+        "executed_cases": 0,
+        "exact_observations": 0
+      },
+      {
+        "suite": "project",
+        "classification": {
+          "path": "vendor/typescript-6.0.3/project-profile-classification.v1.json",
+          "sha256": "4e984ab1847a551ecbe9f8736237aee74a8c42134403e7cb56a624a2fef78d87"
+        },
+        "cases": 632,
+        "compatible_cases": 0,
+        "executed_cases": 0,
+        "exact_observations": 0
+      },
+      {
+        "suite": "transpile",
+        "classification": {
+          "path": "vendor/typescript-6.0.3/transpile-suite-inventory.v1.json",
+          "sha256": "5762b9fbf86c0437ff3bfc2f1e1deab48e35effc8d9117299035d23d6c45f949"
+        },
+        "cases": 37,
+        "compatible_cases": 0,
+        "executed_cases": 0,
+        "exact_observations": 0
+      },
+      {
+        "suite": "fourslash",
+        "classification": {
+          "path": "vendor/typescript-6.0.3/fourslash-whole-program-equivalence.v1.json",
+          "sha256": "3960e1beefe159ff9d609d7ff66d979b0f30198edcb0bf7f82efdfc1e9b0ff4b"
+        },
+        "cases": 38,
+        "compatible_cases": 0,
+        "executed_cases": 0,
+        "exact_observations": 0
+      }
+    ],
+    "total_cases": 15680,
+    "compatible_cases": 1,
+    "executed_cases": 1,
+    "exact_observations": 1,
+    "unexecuted_compatible_cases": 0
+  },
+  "compatible_cases": [
+    {
+      "id": "typescript-6.0.3/compiler/esmNoSynthesizedDefault.ts#module%3Dpreserve",
+      "suite": "compiler",
+      "expansion_case": 2794,
+      "source": {
+        "path": "ts-tests/tests/cases/compiler/esmNoSynthesizedDefault.ts",
+        "bytes": 454,
+        "sha256": "70c49d6d6154d4cffa818649d8f7a37a702a73ec90c7ea864543db6b7ef29dd7",
+        "git_blob_sha1": "17fcea5f883c2356599ced41a4072099017ea360"
+      },
+      "configuration": {
+        "index": 0,
+        "variant": "module=preserve",
+        "description": "@module: preserve",
+        "upstream_name": "esmNoSynthesizedDefault(module=preserve).ts"
+      },
+      "effective_options": {
+        "target": 99,
+        "module": 200,
+        "module_resolution": 100,
+        "new_line": 0,
+        "no_error_truncation": true,
+        "skip_default_lib_check": true
+      },
+      "roots": [
+        "/node_modules/mdast-util-to-string/index.d.ts",
+        "/index.ts"
+      ],
+      "virtual_files": [
+        {
+          "path": "/node_modules/mdast-util-to-string/package.json",
+          "utf8_base64": "eyAidHlwZSI6ICJtb2R1bGUiIH0K",
+          "utf8_sha256": "5a065fe7d8eab2a582f428e11c2ea63aaf70607a54f69cfd5c711b5c53d91b32",
+          "utf8_bytes": 21
+        },
+        {
+          "path": "/node_modules/mdast-util-to-string/index.d.ts",
+          "utf8_base64": "ZXhwb3J0IGZ1bmN0aW9uIHRvU3RyaW5nKCk6IHN0cmluZzsK",
+          "utf8_sha256": "5af500f3018fed4144085a2a39af6ae00d73a7b5f375f8b26154b04aabfa82af",
+          "utf8_bytes": 36
+        },
+        {
+          "path": "/index.ts",
+          "utf8_base64": "aW1wb3J0IG1kYXN0LCB7IHRvU3RyaW5nIH0gZnJvbSAnbWRhc3QtdXRpbC10by1zdHJpbmcnOwptZGFzdDsKbWRhc3QudG9TdHJpbmcoKTsKCmNvbnN0IG1kYXN0MiA9IGF3YWl0IGltcG9ydCgnbWRhc3QtdXRpbC10by1zdHJpbmcnKTsKbWRhc3QyLnRvU3RyaW5nKCk7Cm1kYXN0Mi5kZWZhdWx0Owo=",
+          "utf8_sha256": "df67cfc8c1863e258c88def599ebd4becb52dfc874c7280081a75cb27f991ecb",
+          "utf8_bytes": 170
+        }
+      ],
+      "observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/index.js",
+            "kind": "javascript",
+            "callback_text": "import mdast from 'mdast-util-to-string';\r\nmdast;\r\nmdast.toString();\r\nconst mdast2 = await import('mdast-util-to-string');\r\nmdast2.toString();\r\nmdast2.default;\r\n",
+            "callback_utf8_base64": "aW1wb3J0IG1kYXN0IGZyb20gJ21kYXN0LXV0aWwtdG8tc3RyaW5nJzsNCm1kYXN0Ow0KbWRhc3QudG9TdHJpbmcoKTsNCmNvbnN0IG1kYXN0MiA9IGF3YWl0IGltcG9ydCgnbWRhc3QtdXRpbC10by1zdHJpbmcnKTsNCm1kYXN0Mi50b1N0cmluZygpOw0KbWRhc3QyLmRlZmF1bHQ7DQo=",
+            "callback_utf8_sha256": "7325b73d3ff4bdb8012618dc4431a79661b9b42c99af4b788fadb05867a2eaef",
+            "callback_utf8_bytes": 161,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "aW1wb3J0IG1kYXN0IGZyb20gJ21kYXN0LXV0aWwtdG8tc3RyaW5nJzsNCm1kYXN0Ow0KbWRhc3QudG9TdHJpbmcoKTsNCmNvbnN0IG1kYXN0MiA9IGF3YWl0IGltcG9ydCgnbWRhc3QtdXRpbC10by1zdHJpbmcnKTsNCm1kYXN0Mi50b1N0cmluZygpOw0KbWRhc3QyLmRlZmF1bHQ7DQo=",
+            "materialized_utf8_sha256": "7325b73d3ff4bdb8012618dc4431a79661b9b42c99af4b788fadb05867a2eaef",
+            "materialized_utf8_bytes": 161,
+            "on_error_callback_present": true,
+            "source_files_present": true,
+            "source_files": [
+              "/index.ts"
+            ],
+            "metadata": {
+              "present": true,
+              "value": {
+                "own_keys": [
+                  "diagnostics",
+                  "sourceMapUrlPos"
+                ],
+                "source_map_url_position_utf16": {
+                  "present": false,
+                  "value": null
+                },
+                "diagnostics_present": true,
+                "diagnostics": [],
+                "skipped_dts_write": {
+                  "present": false,
+                  "value": null
+                },
+                "differs_only_in_map": {
+                  "present": false,
+                  "value": null
+                },
+                "build_info": {
+                  "present": false,
+                  "value": null
+                }
+              }
+            },
+            "sink_disposition": "written"
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "file": {
+              "present": true,
+              "value": "/index.ts"
+            },
+            "start": {
+              "present": true,
+              "value": 7
+            },
+            "length": {
+              "present": true,
+              "value": 5
+            },
+            "line": {
+              "present": true,
+              "value": 0
+            },
+            "column": {
+              "present": true,
+              "value": 7
+            },
+            "code": 1192,
+            "category": "error",
+            "chain": {
+              "text": "Module '\"/node_modules/mdast-util-to-string/index\"' has no default export.",
+              "code": 1192,
+              "category": "error",
+              "next_present": false,
+              "next": []
+            },
+            "related_information_present": false,
+            "related": [],
+            "reports_unnecessary": {
+              "present": false,
+              "value": null
+            },
+            "reports_deprecated": {
+              "present": false,
+              "value": null
+            },
+            "source": {
+              "present": false,
+              "value": null
+            }
+          },
+          {
+            "file": {
+              "present": true,
+              "value": "/index.ts"
+            },
+            "start": {
+              "present": true,
+              "value": 161
+            },
+            "length": {
+              "present": true,
+              "value": 7
+            },
+            "line": {
+              "present": true,
+              "value": 6
+            },
+            "column": {
+              "present": true,
+              "value": 7
+            },
+            "code": 2339,
+            "category": "error",
+            "chain": {
+              "text": "Property 'default' does not exist on type 'typeof import(\"/node_modules/mdast-util-to-string/index\")'.",
+              "code": 2339,
+              "category": "error",
+              "next_present": false,
+              "next": []
+            },
+            "related_information_present": false,
+            "related": [],
+            "reports_unnecessary": {
+              "present": false,
+              "value": null
+            },
+            "reports_deprecated": {
+              "present": false,
+              "value": null
+            },
+            "source": {
+              "present": false,
+              "value": null
+            }
+          }
+        ],
+        "emit_result": {
+          "emit_skipped": false,
+          "emit_diagnostics": [],
+          "emitted_files_present": false,
+          "emitted_files": [],
+          "source_maps_present": false,
+          "source_maps": []
+        },
+        "status_writes": [],
+        "process_exit": {
+          "code": 2,
+          "name": "diagnostics-present-outputs-generated"
+        }
+      },
+      "cli_projection": {
+        "config_utf8_base64": "ewogICJjb21waWxlck9wdGlvbnMiOiB7CiAgICAidGFyZ2V0IjogImVzbmV4dCIsCiAgICAibW9kdWxlIjogInByZXNlcnZlIiwKICAgICJtb2R1bGVSZXNvbHV0aW9uIjogImJ1bmRsZXIiLAogICAgIm5ld0xpbmUiOiAiY3JsZiIsCiAgICAibm9FcnJvclRydW5jYXRpb24iOiB0cnVlCiAgfSwKICAiZmlsZXMiOiBbCiAgICAiaW5kZXgudHMiCiAgXQp9Cg==",
+        "config_utf8_sha256": "728d8513aa556b1637dca17b9c510115451270b05444f8bc1ba5472b1ec5897b",
+        "config_utf8_bytes": 202,
+        "expected_exit_code": 2,
+        "expected_output_paths": [
+          "/index.js"
+        ],
+        "expected_diagnostic_codes": [
+          1192,
+          2339
+        ]
+      }
+    }
+  ],
+  "adjacent_controls": [
+    {
+      "id": "runtime-enum-control",
+      "oracle_write_count": 1,
+      "expected_rust_failure": {
+        "kind": "unsupported-transform-feature",
+        "feature": "runtime-enum"
+      },
+      "expected_rust_sink_writes": 0
+    },
+    {
+      "id": "runtime-namespace-control",
+      "oracle_write_count": 1,
+      "expected_rust_failure": {
+        "kind": "unsupported-transform-feature",
+        "feature": "runtime-namespace"
+      },
+      "expected_rust_sink_writes": 0
+    },
+    {
+      "id": "parameter-property-control",
+      "oracle_write_count": 1,
+      "expected_rust_failure": {
+        "kind": "unsupported-transform-feature",
+        "feature": "parameter-property"
+      },
+      "expected_rust_sink_writes": 0
+    },
+    {
+      "id": "jsx-control",
+      "oracle_write_count": 1,
+      "expected_rust_failure": {
+        "kind": "unsupported-compiler-option",
+        "option": "jsx"
+      },
+      "expected_rust_sink_writes": 0
+    },
+    {
+      "id": "source-map-control",
+      "oracle_write_count": 2,
+      "expected_rust_failure": {
+        "kind": "unsupported-compiler-option",
+        "option": "sourceMap"
+      },
+      "expected_rust_sink_writes": 0
+    },
+    {
+      "id": "declaration-control",
+      "oracle_write_count": 2,
+      "expected_rust_failure": {
+        "kind": "unsupported-compiler-option",
+        "option": "declaration"
+      },
+      "expected_rust_sink_writes": 0
+    },
+    {
+      "id": "mts-output-control",
+      "oracle_write_count": 1,
+      "expected_rust_failure": {
+        "kind": "unsupported-source-extension",
+        "extension": ".mts"
+      },
+      "expected_rust_sink_writes": 0
+    }
+  ],
+  "output_summary": {
+    "frozen_oracle_admitted_cases": 5,
+    "compatible_upstream_cases": 1,
+    "total_qualified_cases": 6,
+    "callback_writes": 6,
+    "callback_utf8_bytes": 504,
+    "materialized_utf8_bytes": 510,
+    "ordered_outputs_sha256": "841859c5caf1df85d671605ce374ada3b5652127c0b17479d41a80f66722dad6"
+  },
+  "resource_summary": {
+    "no_emit_performance": {
+      "artifact": {
+        "path": "ratchets/h1-noemit-performance.v1.json",
+        "sha256": "4047cb2518df4d00822c8d91c81c56ea300c164006864f6329d1ab5fb1027c94"
+      },
+      "candidate_commit": "a34bad6ba779c48321775dac225e890d0ec14804",
+      "status": "qualified",
+      "maximum_warm_median_wall_ratio": 1.031955,
+      "maximum_peak_rss_ratio": 1,
+      "executable_size_ratio": 1.010013,
+      "zero_activity_canaries": true
+    },
+    "emit_workload": {
+      "case_id": "typescript-6.0.3/compiler/esmNoSynthesizedDefault.ts#module%3Dpreserve",
+      "source_files": 3,
+      "source_utf8_bytes": 227,
+      "output_files": 1,
+      "output_utf8_bytes": 161,
+      "deterministic_repetitions": 2,
+      "legal_worker_counts": [
+        1,
+        2
+      ],
+      "local_max_rss_bytes": 268435456
+    }
+  },
+  "release_contract": {
+    "hosted_entrypoint": "cargo xtask acceptance",
+    "hosted_test_root": "ts-tests/",
+    "hosted_jobs": [
+      "gates"
+    ],
+    "local_full_gate": "cargo xtask ci --baseline <trusted-base>",
+    "production_cli_runtime_node_required": false,
+    "production_cli_runtime_vendor_lookup": false,
+    "unsupported_before_first_sink_write": true
+  }
+}

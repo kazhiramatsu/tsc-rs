@@ -19,11 +19,13 @@ sha2 = "0.10"
 toml_edit = "0.22"
 tsc-binder.workspace = true
 tsc-checker.workspace = true
+tsc-compiler.workspace = true
 tsc-conformance.workspace = true
 tsc-diagnostics.workspace = true
 tsc-fuzz.workspace = true
 tsc-harness.workspace = true
 tsc-oracle.workspace = true
+tsc-program.workspace = true
 tsc-syntax.workspace = true
 tsc-types.workspace = true
 yaml-rust2 = { version = "0.11", default-features = false }
