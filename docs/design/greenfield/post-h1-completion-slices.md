@@ -1,7 +1,7 @@
 # Post-H1 TypeScript 6.0.3 completion slices
 
-Status: execution schedule approved on 2026-08-08. H0, L0/L1, H1, H2.0a, and
-H2.0b are complete. **H2.1a is the next slice.**
+Status: execution schedule approved on 2026-08-08. H0, L0/L1, H1, H2.0a,
+H2.0b, and H2.1a are complete. **H2.1b is the next slice.**
 
 This document turns the audited post-H1 residual into branch-sized execution
 slices. It owns post-H1 slice IDs, dependency order, and slice-specific
@@ -148,8 +148,8 @@ new case:
   every other row names its earliest required H2 slice and remains `not-run`;
 - the [profile transition](../../../ratchets/h2-profile-transition.v1.json)
   fixes all 39 H2 rows, keeps H1 as the only runtime profile, records zero H2
-  admissions, closes both evidence rows, and identifies H2.1a as the next and
-  first runtime candidate; and
+  admissions, closes both evidence rows, and records H2.1a as the then-next
+  and first runtime candidate; and
 - strict contracts now exist for the
   [owner inventory](../../../.github/ci/contracts/h2-owner-inventory.schema.json),
   [candidate dispositions](../../../.github/ci/contracts/h2-candidate-dispositions.schema.json),
@@ -188,16 +188,12 @@ are actually observed. Three no-emit executions remain all-zero, both output
 failure positions retain exact partial-output behavior, and all 37 reserved
 H2 runtime-slice counters remain zero and fail closed before admission. The
 strict [baseline schema](../../../.github/ci/contracts/h2-runtime-baseline.schema.json),
-generator, and independent Rust contract bind those facts. Current-runtime
-freshness is checked with:
-
-```text
-node crates/oracle/h2-baseline.mjs --check
-```
-
-The historical H1 no-emit and emit generators remain syntax-checked, while
-their measured artifacts are immutable lineage inputs rather than being
-reinterpreted against a later runtime tree. Ordinary GitHub Actions remains
+generator, and independent Rust contract bind those facts. After H2.1a
+admission this H2.0b artifact and its generator are historical: the generator
+remains syntax-checked and the Rust contract checks the exact recorded bytes,
+but it is no longer reinterpreted against the current runtime tree. Current
+ownership is content-addressed by the H2.1a profile below. The historical H1
+no-emit and emit generators are handled the same way. Ordinary GitHub Actions remains
 the single `gates` job running only `cargo xtask acceptance`; evidence
 production and the complete regression gate remain local qualification work.
 
@@ -205,11 +201,45 @@ production and the complete regression gate remain local qualification work.
 
 | Slice | Scope | Dependencies and close evidence |
 | --- | --- | --- |
-| **H2.1a — next** | Port `transformImpliedNodeFormatDependentModule`, `getEmitModuleFormatOfFile`, and both ESM/CJS constructor and hook-composition closures. Admit only files proven to select the already-closed ESM path; an incomplete CJS selection fails before the first sink call. | H2.0b. Effective omitted module under `target=ESNext` and explicit `module=ESNext` candidates receive source reachability dispositions and exact outputs. |
-| H2.1b | Close `transformModule` for CommonJS, including prologues, interop, substitutions/notifications, helpers, resolver facts, and printer/output dependencies. | H2.1a. CJS positive and ESM-adjacent controls, multi-file ordering, helper de-duplication, and failure parity are exact. |
+| H2.1a — complete | Port `transformImpliedNodeFormatDependentModule`, `getEmitModuleFormatOfFile`, and both ESM/CJS constructor and hook-composition closures. Admit only files proven to select the already-closed ESM path; an incomplete CJS selection fails before the first sink call. | H2.0b. All 295 candidates execute twice: 241 complete observations are exact, 5 output-exact diagnostic controls remain deferred to H2.9, and 49 source-deferred rows fail before the first sink callback. |
+| **H2.1b — next** | Close `transformModule` for CommonJS, including prologues, interop, substitutions/notifications, helpers, resolver facts, and printer/output dependencies. | H2.1a. CJS positive and ESM-adjacent controls, multi-file ordering, helper de-duplication, and failure parity are exact. |
 | H2.1c | Activate AMD and UMD branches that reuse `transformModule`, including dependency arrays, wrappers, names, and option interactions. | H2.1b. AMD/UMD runner observations are exact; System and bundle-only rows remain controls. |
 | H2.1d | Port and qualify `transformSystemModule` and its resolver/helper/output closure. | H2.1c. System-specific execute/setter/export ordering and diagnostics are exact. |
 | H2.1e | Close Node16/18/20/Next implied-format behavior, package type, `.mts`/`.cts` output extensions, import attributes, and relative-extension rewriting. | H2.1a-H2.1d plus the required host facts. Mixed-format projects prove per-file dispatch, per-run package-format separation, path casing, and fresh-run behavior after package changes; persistent invalidation remains L2. |
+
+H2.1a closed on 2026-08-08. The
+[qualification](../../../ratchets/h2-1a-qualification.v1.json) starts from all
+94 compiler and 201 conformance option-level candidates and records source,
+module-format, transform-root, parse-depth, comment, diagnostic, and exact
+TypeScript observations. Every row is executed twice by Rust as well:
+
+- 241 rows are complete exact admissions, covering 499 reported diagnostics
+  and 251 byte-, path-, order-, BOM-, provenance-, result-, exit-, and
+  activity-exact writes;
+- 5 rows have exact JavaScript output but retain pre-existing H2.0b checker,
+  option, or scanner diagnostic differences. They are executed controls, not
+  compatibility admissions, and their Rust diagnostic counts and hashes are
+  frozen until H2.9;
+- 49 rows reach a later source owner and deterministically fail with a typed
+  error before the first sink callback; and
+- the two-worker control, both ESNext sink-failure positions, the H1 Preserve
+  adjacent path, all H0 no-emit constructors, and every other H2 activity
+  counter retain their owned boundaries.
+
+The [current runtime profile](../../../ratchets/h2-1a-profile.v1.json) and its
+[strict schema](../../../.github/ci/contracts/h2-1a-profile.schema.json)
+content-address the production and acceptance inputs, preserve the H2.0a and
+H2.0b artifacts byte-for-byte as lineage, mark only H2.1a active, and name
+H2.1b as next. Freshness is checked with:
+
+```text
+node crates/oracle/h2-1a-qualification.mjs --check
+node crates/oracle/h2-1a-profile.mjs --check
+```
+
+The ordinary hosted boundary remains only `cargo xtask acceptance`; source
+generation, fault/worker controls, schema checks, and the complete H0/H1/L1
+regression gate remain local.
 
 ### 4.3 TypeScript, source-kind, JSX, and decorator families
 

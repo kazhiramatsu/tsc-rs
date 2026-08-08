@@ -847,6 +847,26 @@ pub enum TransformError {
         field: &'static str,
     },
     MissingProgramSource(TransformNode),
+    MissingProgramSourceForModuleFormat(TransformSourceId),
+    EmitHostRequiredForImpliedModuleFormat,
+    DeferredModuleFormat {
+        format: i32,
+        owner_slice: &'static str,
+    },
+    ParseDiagnosticsDeferred {
+        count: usize,
+        owner_slice: &'static str,
+    },
+    AstDepthDeferred {
+        limit: usize,
+        owner_slice: &'static str,
+    },
+    ImportAttributesDeferred {
+        owner_slice: &'static str,
+    },
+    AdvancedCommentPlacementDeferred {
+        owner_slice: &'static str,
+    },
     UnsupportedCompilerOption {
         option: &'static str,
         detail: &'static str,
@@ -920,6 +940,36 @@ impl fmt::Display for TransformError {
                 "transform node {}:{} has no Program source for an emit-resolver query",
                 node.source().raw(),
                 node.node().0
+            ),
+            Self::MissingProgramSourceForModuleFormat(source) => write!(
+                formatter,
+                "transform source {} has no Program source for emitted module-format dispatch",
+                source.raw()
+            ),
+            Self::EmitHostRequiredForImpliedModuleFormat => formatter
+                .write_str("implied module-format transformation requires a Program emit host"),
+            Self::DeferredModuleFormat {
+                format,
+                owner_slice,
+            } => write!(
+                formatter,
+                "emitted module format {format} is deferred to {owner_slice}"
+            ),
+            Self::ParseDiagnosticsDeferred { count, owner_slice } => write!(
+                formatter,
+                "emit recovery for {count} parse diagnostics is deferred to {owner_slice}"
+            ),
+            Self::AstDepthDeferred { limit, owner_slice } => write!(
+                formatter,
+                "emit transform AST depth above {limit} is deferred to {owner_slice}"
+            ),
+            Self::ImportAttributesDeferred { owner_slice } => write!(
+                formatter,
+                "import attributes during emit are deferred to {owner_slice}"
+            ),
+            Self::AdvancedCommentPlacementDeferred { owner_slice } => write!(
+                formatter,
+                "advanced comment placement during emit is deferred to {owner_slice}"
             ),
             Self::UnsupportedCompilerOption { option, detail } => {
                 write!(formatter, "unsupported transform option {option}: {detail}")

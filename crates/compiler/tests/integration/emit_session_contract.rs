@@ -5,6 +5,7 @@ use tsc_compiler::{
     DriverError, EmitArtifact, EmitFailure, EmitFileSystem, EmitIoError, EmitWriteDisposition,
     FsOutputSink, H2ActivityCounters, H2RuntimeSlice, MemoryOutputSink, OutputSink, ProgramSession,
 };
+use tsc_program::ResolutionMode;
 use tsc_program::{CompilerOptions, PathContext, PreparedProgram, PreparedSourceFile, ProgramPath};
 
 #[derive(Default)]
@@ -70,6 +71,19 @@ fn prepared_with_sources(options: CompilerOptions, sources: &[(&str, &str)]) -> 
         let source = builder
             .add_source_file(PreparedSourceFile::new(path(file_name), *text))
             .expect("add source");
+        builder.add_root_file(source).expect("add root");
+    }
+    builder.build().expect("prepared program")
+}
+
+fn prepared_with_owned_sources(
+    options: CompilerOptions,
+    sources: Vec<PreparedSourceFile>,
+) -> PreparedProgram {
+    let mut builder =
+        PreparedProgram::emitting_builder(PathContext::new(path("/project"), true), options);
+    for source in sources {
+        let source = builder.add_source_file(source).expect("add source");
         builder.add_root_file(source).expect("add root");
     }
     builder.build().expect("prepared program")
@@ -149,6 +163,90 @@ fn h1_4_emit_entry_runs_the_checked_transform_and_memory_sink_path() {
     assert_eq!(activity.output_sink_write_attempts(), 1);
     assert_eq!(activity.output_sink_failures(), 0);
     assert_h2_runtime_zero(activity);
+}
+
+#[test]
+fn h2_1a_omitted_and_explicit_esnext_select_the_exact_esm_path() {
+    for module in [None, Some(99)] {
+        let prepared = prepared_with_sources(
+            CompilerOptions {
+                no_emit: Some(false),
+                target: Some(99),
+                module,
+                ..CompilerOptions::default()
+            },
+            &[("/project/input.ts", "export const value: number = 1;\n")],
+        );
+        let mut sink = MemoryOutputSink::new();
+        let outcome = ProgramSession::new(prepared)
+            .emit(&mut sink)
+            .expect("H2.1a ESNext emit");
+        assert!(outcome.diagnostics().is_empty());
+        assert_eq!(sink.writes().len(), 1);
+        assert_eq!(
+            sink.writes()[0].callback_text(),
+            "export const value = 1;\n"
+        );
+        assert_eq!(
+            outcome.h2_activity().runtime_slice(H2RuntimeSlice::H2_1a),
+            1
+        );
+        for slice in H2RuntimeSlice::ALL {
+            if slice != H2RuntimeSlice::H2_1a {
+                assert_eq!(outcome.h2_activity().runtime_slice(slice), 0);
+            }
+        }
+    }
+}
+
+#[test]
+fn h2_1a_cjs_selection_is_typed_and_precedes_the_first_sink_write() {
+    let cases = [
+        (
+            Some(1),
+            PreparedSourceFile::new(
+                path("/project/commonjs.ts"),
+                "export const value: number = 1;\n",
+            ),
+        ),
+        (
+            Some(99),
+            PreparedSourceFile::new(
+                path("/project/package-commonjs.ts"),
+                "export const value: number = 1;\n",
+            )
+            .with_implied_node_formats(
+                Some(ResolutionMode::CommonJs),
+                Some(ResolutionMode::CommonJs),
+            ),
+        ),
+    ];
+    for (module, source) in cases {
+        let prepared = prepared_with_owned_sources(
+            CompilerOptions {
+                no_emit: Some(false),
+                target: Some(99),
+                module,
+                ..CompilerOptions::default()
+            },
+            vec![source],
+        );
+        let mut sink = CountingSink::default();
+        let error = ProgramSession::new(prepared)
+            .emit(&mut sink)
+            .expect_err("H2.1b CommonJS branch remains deferred");
+        let DriverError::Emit(EmitFailure::Transform(error)) = error else {
+            panic!("unexpected H2.1a CJS failure: {error:?}");
+        };
+        assert!(matches!(
+            error.as_ref(),
+            tsc_emitter::TransformError::DeferredModuleFormat {
+                format: 1,
+                owner_slice: "H2.1b"
+            }
+        ));
+        assert_eq!(sink.writes, 0);
+    }
 }
 
 #[test]
@@ -259,6 +357,15 @@ fn a_later_unsupported_source_cannot_leave_an_earlier_partial_write() {
 
 #[test]
 fn filesystem_failure_at_each_write_index_preserves_partial_set_and_continuation() {
+    assert_filesystem_failure_at_each_write_index(200, 0);
+}
+
+#[test]
+fn h2_1a_filesystem_failure_preserves_partial_set_continuation_and_activity() {
+    assert_filesystem_failure_at_each_write_index(99, 2);
+}
+
+fn assert_filesystem_failure_at_each_write_index(module: i32, expected_h2_1a_activity: u64) {
     let output_paths = [
         PathBuf::from("/project/first.js"),
         PathBuf::from("/project/second.js"),
@@ -268,7 +375,7 @@ fn filesystem_failure_at_each_write_index_preserves_partial_set_and_continuation
             CompilerOptions {
                 no_emit: Some(false),
                 target: Some(99),
-                module: Some(200),
+                module: Some(module),
                 list_emitted_files: Some(true),
                 ..CompilerOptions::default()
             },
@@ -334,6 +441,14 @@ fn filesystem_failure_at_each_write_index_preserves_partial_set_and_continuation
         assert_eq!(activity.javascript_artifact_creations(), 2);
         assert_eq!(activity.output_sink_write_attempts(), 2);
         assert_eq!(activity.output_sink_failures(), 1);
-        assert_h2_runtime_zero(activity);
+        assert_eq!(
+            activity.runtime_slice(H2RuntimeSlice::H2_1a),
+            expected_h2_1a_activity
+        );
+        for slice in H2RuntimeSlice::ALL {
+            if slice != H2RuntimeSlice::H2_1a {
+                assert_eq!(activity.runtime_slice(slice), 0);
+            }
+        }
     }
 }

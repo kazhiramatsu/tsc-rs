@@ -9,6 +9,8 @@ use crate::{
     OutputSink, PrintRequest, PrinterOptions, TransformArena, TransformRoot,
 };
 
+const MODULE_COMMON_JS: i32 = 1;
+const MODULE_ES_NEXT: i32 = 99;
 const MODULE_PRESERVE: i32 = 200;
 
 /// The four public diagnostic getter streams consumed by
@@ -58,7 +60,10 @@ pub fn validate_bootstrap_emit_options(options: &CompilerOptions) -> Result<(), 
     if options.emit_script_target() != ScriptTarget::ES_NEXT {
         return unsupported("target");
     }
-    if options.emit_module_kind() != MODULE_PRESERVE {
+    if !matches!(
+        options.emit_module_kind(),
+        MODULE_PRESERVE | MODULE_ES_NEXT | MODULE_COMMON_JS
+    ) {
         return unsupported("module");
     }
     if options.use_define_for_class_fields == Some(false) {
@@ -205,7 +210,7 @@ pub fn emit_files(
     diagnostic_gate: &EmitDiagnosticGate,
     sink: &mut dyn OutputSink,
 ) -> Result<EmitOutcome, EmitFailure> {
-    let mut activity = H2ActivityCanary::h1_profile();
+    let mut activity = H2ActivityCanary::h2_1a_profile();
     activity.construct_emit_session();
     activity.construct_output_plan();
     if !preflight.plan().units().is_empty() {
@@ -294,7 +299,8 @@ pub fn emit_files_with_activity(
 
         let mut arena = TransformArena::new();
         let transform_source = arena.add_source(syntax, Some(*source_id));
-        let transformers = get_script_transformers_with_activity(options, resolver, activity)?;
+        let transformers =
+            get_script_transformers_with_activity(options, resolver, host, activity)?;
         activity.construct_transform_context();
         let mut transformation = transform_nodes(
             arena,

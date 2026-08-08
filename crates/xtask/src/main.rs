@@ -21,6 +21,7 @@ mod ci_conformance_receipt;
 mod completion;
 mod h1_conformance;
 mod h1_emit_acceptance;
+mod h2_1a_acceptance;
 mod host_resolution;
 mod invariant_attestation;
 mod l0_identity_stress;
@@ -4268,7 +4269,8 @@ fn acceptance(mut args: impl Iterator<Item = String>) -> Result<(), Box<dyn Erro
     }
     conformance(std::iter::empty())?;
     let workspace = find_workspace_root()?;
-    h1_emit_acceptance::run(&workspace)
+    h1_emit_acceptance::run(&workspace)?;
+    h2_1a_acceptance::run(&workspace)
 }
 
 fn conformance(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
@@ -7748,18 +7750,32 @@ fn ci_oracle_gates(workspace: &Path) -> Result<(), Box<dyn Error>> {
     )?;
     let h2_transition = workspace.join("crates/oracle/h2-transition.mjs");
     run_command(Command::new("node").arg("--check").arg(&h2_transition))?;
-    run_command(
-        Command::new("node")
-            .current_dir(workspace)
-            .arg(&h2_transition)
-            .arg("--check"),
-    )?;
+    // H2.0a is immutable pre-runtime lineage once the first H2 runtime slice
+    // is active. Its independent Rust contract validates the recorded bytes;
+    // current-runtime freshness is now owned by the H2.1a profile.
     let h2_baseline = workspace.join("crates/oracle/h2-baseline.mjs");
     run_command(Command::new("node").arg("--check").arg(&h2_baseline))?;
+    // H2.0b is immutable pre-runtime lineage once the first H2 runtime slice
+    // is active. Its independent Rust contract still validates the recorded
+    // bytes; current-runtime freshness is now owned by the H2.1a profile.
+    let h2_1a_qualification = workspace.join("crates/oracle/h2-1a-qualification.mjs");
+    run_command(
+        Command::new("node")
+            .arg("--check")
+            .arg(&h2_1a_qualification),
+    )?;
     run_command(
         Command::new("node")
             .current_dir(workspace)
-            .arg(&h2_baseline)
+            .arg(&h2_1a_qualification)
+            .arg("--check"),
+    )?;
+    let h2_1a_profile = workspace.join("crates/oracle/h2-1a-profile.mjs");
+    run_command(Command::new("node").arg("--check").arg(&h2_1a_profile))?;
+    run_command(
+        Command::new("node")
+            .current_dir(workspace)
+            .arg(&h2_1a_profile)
             .arg("--check"),
     )?;
     let h1_rust_omissions = workspace.join("crates/oracle/h1-rust-omission-inventory.mjs");

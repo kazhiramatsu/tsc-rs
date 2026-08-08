@@ -212,6 +212,7 @@ impl EmitHost for TestEmitHost {
             &source.path,
             &source.canonical,
             source.may_be_emitted,
+            None,
             Some(&source.syntax),
         ))
     }

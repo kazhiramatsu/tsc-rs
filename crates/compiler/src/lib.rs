@@ -73,6 +73,32 @@ pub(crate) struct CliEmitSessionOutcome {
     pub(crate) work_counters: NoEmitWorkCounters,
 }
 
+impl CliEmitSessionOutcome {
+    /// tsc-port: emitFilesAndReportErrors @6.0.3
+    /// tsc-hash: 9dc0128691c9a1bee5aeae85524cc8e2679b3905a4416a41095452e509951a8d
+    /// tsc-span: _tsc.js:129412-129467
+    fn into_reported(
+        self,
+        additional_diagnostics: &[Diagnostic],
+    ) -> (EmitOutcome, DiagnosticList, NoEmitWorkCounters) {
+        let mut diagnostics = self.config_diagnostics;
+        diagnostics.extend(self.syntactic_diagnostics.iter().cloned());
+        if self.syntactic_diagnostics.is_empty() {
+            let options_are_empty =
+                self.options_diagnostics.is_empty() && additional_diagnostics.is_empty();
+            diagnostics.extend(self.options_diagnostics);
+            diagnostics.extend(additional_diagnostics.iter().cloned());
+            let global_is_empty = self.global_diagnostics.is_empty();
+            diagnostics.extend(self.global_diagnostics);
+            if options_are_empty && global_is_empty {
+                diagnostics.extend(self.semantic_diagnostics);
+            }
+        }
+        diagnostics.extend(self.emit.diagnostics().iter().cloned());
+        (self.emit, diagnostics, self.work_counters)
+    }
+}
+
 struct EmitSessionDiagnostics {
     config: DiagnosticList,
     syntactic: DiagnosticList,
@@ -179,6 +205,7 @@ impl EmitHost for PreparedEmitHost<'_> {
             source.path().display(),
             source.path().canonical().as_path(),
             source.may_be_emitted(),
+            source.implied_node_format_for_emit(),
             None,
         ))
     }
@@ -234,6 +261,7 @@ impl EmitHost for CheckedEmitHost<'_, '_> {
             source.path().display(),
             source.path().canonical().as_path(),
             source.may_be_emitted(),
+            source.implied_node_format_for_emit(),
             syntax,
         ))
     }
@@ -628,6 +656,23 @@ impl ProgramSession {
             .map(|outcome| outcome.emit)
     }
 
+    /// Execute the emitting Program while retaining the exact diagnostic
+    /// sequence reported by TypeScript's `emitFilesAndReportErrors` wrapper.
+    ///
+    /// This is a qualification-only projection. Product callers should use
+    /// [`emit`](Self::emit), while the CLI adds its own option diagnostics at
+    /// the same owned boundary.
+    #[doc(hidden)]
+    pub fn emit_with_reported_diagnostics_for_harness(
+        self,
+        sink: &mut dyn OutputSink,
+    ) -> Result<(EmitOutcome, DiagnosticList), DriverError> {
+        self.emit_with_command_outcome(sink).map(|outcome| {
+            let (emit, diagnostics, _) = outcome.into_reported(&[]);
+            (emit, diagnostics)
+        })
+    }
+
     pub(crate) fn emit_for_cli(
         self,
         sink: &mut dyn OutputSink,
@@ -641,7 +686,7 @@ impl ProgramSession {
     ) -> Result<CliEmitSessionOutcome, DriverError> {
         self.require_mode(PreparedProgramMode::Emit)?;
         let prepared = self.prepared;
-        let mut h2_activity = H2ActivityCanary::h1_profile();
+        let mut h2_activity = H2ActivityCanary::h2_1a_profile();
         h2_activity.construct_emit_session();
         let emit_host = PreparedEmitHost::new(&prepared)?;
         validate_bootstrap_emit_request(&emit_host).map_err(DriverError::Emit)?;

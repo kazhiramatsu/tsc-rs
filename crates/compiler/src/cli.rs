@@ -927,26 +927,9 @@ fn execute_emitting_prepared(
         .emit_for_cli(&mut sink)
         .map_err(|error| CliError::Driver(error.to_string()))?;
 
-    // tsc-port: emitFilesAndReportErrors @6.0.3
-    // tsc-hash: 9dc0128691c9a1bee5aeae85524cc8e2679b3905a4416a41095452e509951a8d
-    // tsc-span: _tsc.js:129412-129467
-    let mut diagnostics = outcome.config_diagnostics;
-    diagnostics.extend(outcome.syntactic_diagnostics.iter().cloned());
-    if outcome.syntactic_diagnostics.is_empty() {
-        let options_are_empty =
-            outcome.options_diagnostics.is_empty() && additional_diagnostics.is_empty();
-        diagnostics.extend(outcome.options_diagnostics);
-        diagnostics.extend(additional_diagnostics.iter().cloned());
-        let global_is_empty = outcome.global_diagnostics.is_empty();
-        diagnostics.extend(outcome.global_diagnostics);
-        if options_are_empty && global_is_empty {
-            diagnostics.extend(outcome.semantic_diagnostics);
-        }
-    }
-    diagnostics.extend(outcome.emit.diagnostics().iter().cloned());
+    let (emit, diagnostics, work_counters) = outcome.into_reported(additional_diagnostics);
 
-    let status_writes = outcome
-        .emit
+    let status_writes = emit
         .emitted_files()
         .unwrap_or_default()
         .iter()
@@ -959,7 +942,7 @@ fn execute_emitting_prepared(
     // tsc-port: emitFilesAndReportErrorsAndGetExitStatus @6.0.3
     // tsc-hash: accac089a63c276079dd3309c69c617169dac0a0578c1551c8ea8a273d22bb78
     // tsc-span: _tsc.js:129468-129485
-    let exit_code = if outcome.emit.emit_skipped() && !diagnostics.is_empty() {
+    let exit_code = if emit.emit_skipped() && !diagnostics.is_empty() {
         EXIT_COMMAND_LINE
     } else if !diagnostics.is_empty() {
         EXIT_DIAGNOSTIC
@@ -972,9 +955,9 @@ fn execute_emitting_prepared(
         &diagnostics,
         route.pretty,
         exit_code,
-        outcome.work_counters,
+        work_counters,
         NoEmitActivityCounters,
-        outcome.emit.h2_activity(),
+        emit.h2_activity(),
         &status_writes,
     )
 }

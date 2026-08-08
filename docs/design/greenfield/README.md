@@ -74,11 +74,13 @@ compatibility.
 branch-sized execution schedule for H2 broad one-shot compiler, L2 shared
 Program/resolution reuse, builder/project references/watch, public API,
 Language Service, tsserver, the independent Rust-native LSP adapter, and final
-release work. **H2.0a and H2.0b are complete and H2.1a is next:** the new
-owner/converse inventory, profile transition, oracle schemas, all 15,642
-candidate dispositions, cross-track approved-runner baselines, and H2
-constructor/activity canaries are frozen before the first implied-format
-runtime expansion. The existing per-slice
+release work. **H2.0a, H2.0b, and H2.1a are complete and H2.1b is next:** the
+first implied-format ESM runtime expansion executes all 295 candidates twice,
+admits 241 complete observations with 499 exact diagnostics and 251 exact
+writes, retains 5 output-exact diagnostic controls for H2.9, and proves 49
+source-deferred rows fail before the first sink callback. The earlier
+owner/converse inventory, all 15,642 candidate dispositions, and approved-runner
+cross-track baseline remain immutable lineage. The existing per-slice
 owner/oracle/profile/fail-closed/local-gate loop remains mandatory. Stateful
 tracks additionally require multi-generation fresh-versus-reused traces,
 explicit invalidation, release/resource bounds, cancellation safety, restart
@@ -214,7 +216,7 @@ each stage is one commit.
 | H0 filesystem-hosted `--noEmit` — complete | [H0 execution](noemit-cli.md) | exact closure of the 241 host-resolution identities, MemoryHost/FsHost equivalence, config/CLI/output parity, embedded libraries, no emitted files |
 | L0/L1 persistent source + incremental parser — complete and performance-qualified | [persistent Program design](lsp-and-incremental.md) | shared text/position snapshots, domain-scoped identity leases, generated relocation, non-contiguous ownership, owned bind/Program snapshots, immutable incremental parse/rebind, exact fresh equivalence, reclamation stress, and approved large-edit evidence |
 | H1 JavaScript emit — H1.0a through H1.6 complete and qualified | [H1 execution](h1-emit.md) | zero-open-row owner closure, exact callback/transform/upstream qualification, all 15,680 pinned cases dispositioned, the sole compatible compiler case executed exactly, filesystem/CLI and sink-fault parity, standalone binary proof, frozen H0 `--noEmit` canaries, and approved-runner no-emit/emit resource evidence; broader transforms, options, and file kinds are the next separately qualified expansion |
-| H2 broad one-shot compiler — H2.0a/H2.0b complete; H2.1a next | [post-H1 slices](post-h1-completion-slices.md) | frozen 50-root owner/converse graph, 15,642 exact runner dispositions, profile/oracle contracts, approved-runner cross-track baselines, and zero-before-admission activity canaries before dependency-closed module, TypeScript runtime, source-kind, JSX/decorator, target, map, declaration, output/config/System, CLI, and full upstream-runner qualification slices |
+| H2 broad one-shot compiler — H2.0a/H2.0b/H2.1a complete; H2.1b next | [post-H1 slices](post-h1-completion-slices.md) | frozen 50-root owner/converse graph and 15,642 runner dispositions; first 241 exact implied-format ESM admissions plus explicit diagnostic/source controls; immutable cross-track baseline lineage before dependency-closed CommonJS, remaining TypeScript runtime, source-kind, JSX/decorator, target, map, declaration, output/config/System, CLI, and full upstream-runner qualification slices |
 | L2 shared Program/resolution reuse — planned after H2 | [post-H1 slices](post-h1-completion-slices.md) | full registry, `isProgramUptoDate`, structure reuse, dependency-tracked caches/invalidation, publication/release/cancellation, multi-generation fresh equality, and bounded resources |
 | BLD1/W1 builder, project references, and watch — planned after L2 core | [post-H1 slices](post-h1-completion-slices.md) | deterministic affected queues/signatures/build info/restarts, solution build, virtual-clock watch traces, fault/cancellation behavior, and long-running qualification |
 | API1/L3-L5 public API and interactive products — planned | [post-H1 slices](post-h1-completion-slices.md) | explicit public ownership/identity contract, Language Service, tsserver Project Service/protocol, then independent LSP capability/protocol/resource qualification |
