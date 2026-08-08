@@ -31,6 +31,8 @@ cargo xtask invariants --suite all  # sampled determinism/idempotence developer 
 cargo xtask invariants --suite all --full-corpus  # completion/CI row 10
 cargo xtask completion              # report all 11 final completion rows
 cargo test -p tsc-rs-compiler --test contracts h0_qualification_contract
+node crates/oracle/h1-emit-qualification.mjs --check
+node crates/oracle/h1-emit-performance.mjs --check
 cargo xtask m8 trace --program-json target/probe/program.json --code 8020 \
   --out target/m8-trace.json        # targeted D2 trace; report-only
 ```
@@ -106,9 +108,9 @@ gate.
 GitHub Actions intentionally does not repeat the local merge gate. It has one
 stable `gates` job and runs only `cargo xtask acceptance`, whose inputs are the
 checked-in `ts-tests` acceptance corpus and its pinned baselines. The command
-currently executes the full diagnostic conformance set: 5,908 fixtures, 7,691
-expanded cases, and the accepted-set ratchet. H1 extends this same entrypoint
-with compatible emit cases instead of adding phase-specific hosted jobs.
+executes the full diagnostic conformance set (5,908 fixtures, 7,691 expanded
+cases, and the accepted-set ratchet) plus H1's sole compatible compiler emit
+case. No phase-specific hosted job is added.
 
 Formatting, Cargo check/test/Clippy, owner-focused controls, Windows canaries,
 history audits, recovery/invariants, stress, evidence production, and

@@ -24,7 +24,7 @@
   "properties": {
     "schema": { "const": 1 },
     "status": { "const": "frozen-current-rust-baseline" },
-    "phase": { "const": "H1.5-rust-omission-inventory" },
+    "phase": { "const": "H1.6-rust-omission-inventory" },
     "typescript": {
       "type": "object",
       "additionalProperties": false,

@@ -500,8 +500,9 @@ common topology specified by
 [compiler-compatibility-residual.md](compiler-compatibility-residual.md#114-cross-track-ci-and-qualification-topology).
 
 L0/L1 identity, edit, reclamation, and fresh/incremental controls remain in the
-complete local gate. H1 adds emit-specific controls there and adds only
-compatible upstream emit cases to hosted acceptance. Approved-runner
+complete local gate. H1 adds emit-specific controls there and adds every
+compatible upstream emit case—currently one compiler row—to hosted acceptance.
+Approved-runner
 performance remains explicitly dispatched. The same-process M8/M9 move-only
 receipt never becomes a cross-job artifact, and detailed local failure
 evidence never becomes a token another job can treat as acceptance authority.

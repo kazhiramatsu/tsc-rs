@@ -10,11 +10,11 @@
   },
   "generator": {
     "path": "crates/oracle/h1-emit-qualification.mjs",
-    "sha256": "b0cabf2f15af3004bb5d047ed9904b16b13927c6641027ca5bc5a4366e28eae3"
+    "sha256": "975afcebe9a9584cb7226129deb6e6aa6da759adb612926431dc769dc5e17d45"
   },
   "contract": {
     "path": ".github/ci/contracts/h1-emit-qualification.schema.json",
-    "sha256": "1e67b8ee432e124f4ec77395c6f68779a701e52d58f0d525deb5ba812f8c5545"
+    "sha256": "3d1f97f768375d2ab9fe61f2a221b23cf20ac465c248fd39c81b04f55a60225c"
   },
   "authorities": {
     "profile": {
@@ -31,7 +31,7 @@
     },
     "rust_omissions": {
       "path": "ratchets/h1-rust-omissions.v1.json",
-      "sha256": "ca8e49f5528520dfd73744bd157b85e9c089be1ae993983cd97a4ca990a1f1c3"
+      "sha256": "75cd35545f85577465cc7dd33a0c4864358f454b9f2e4b1719a503872dd3461a"
     },
     "suite_expansion": {
       "path": "vendor/typescript-6.0.3/test-suite-expansion.v1.json",
@@ -427,6 +427,22 @@
       "maximum_peak_rss_ratio": 1,
       "executable_size_ratio": 1.010013,
       "zero_activity_canaries": true
+    },
+    "emit_performance": {
+      "artifact": {
+        "path": "ratchets/h1-emit-performance.v1.json",
+        "sha256": "33fa3f9710733c937d7b66327d5957575a5b94424df47a69036c1a6ee9fc0754"
+      },
+      "base_commit": "6e4b4d95eb500ab4be612c94302eb08b9658a225",
+      "candidate_commit": "4ea76fc80100145a8a3db4eb43c74f5b6d90bb6e",
+      "status": "qualified",
+      "warm_median_wall_ratio": 0.995586,
+      "warm_p95_wall_ratio": 0.989096,
+      "peak_rss_ratio": 1.001551,
+      "executable_size_ratio": 1,
+      "peak_rss_bytes": 105824256,
+      "output_utf8_bytes": 161,
+      "output_sha256": "7325b73d3ff4bdb8012618dc4431a79661b9b42c99af4b788fadb05867a2eaef"
     },
     "emit_workload": {
       "case_id": "typescript-6.0.3/compiler/esmNoSynthesizedDefault.ts#module%3Dpreserve",

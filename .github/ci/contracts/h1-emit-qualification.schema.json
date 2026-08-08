@@ -158,7 +158,7 @@
     "resource_summary": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["no_emit_performance", "emit_workload"],
+      "required": ["no_emit_performance", "emit_performance", "emit_workload"],
       "properties": {
         "no_emit_performance": {
           "type": "object",
@@ -180,6 +180,36 @@
             "maximum_peak_rss_ratio": { "type": "number", "minimum": 0 },
             "executable_size_ratio": { "type": "number", "minimum": 0 },
             "zero_activity_canaries": { "const": true }
+          }
+        },
+        "emit_performance": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "artifact",
+            "base_commit",
+            "candidate_commit",
+            "status",
+            "warm_median_wall_ratio",
+            "warm_p95_wall_ratio",
+            "peak_rss_ratio",
+            "executable_size_ratio",
+            "peak_rss_bytes",
+            "output_utf8_bytes",
+            "output_sha256"
+          ],
+          "properties": {
+            "artifact": { "$ref": "#/$defs/path_hash" },
+            "base_commit": { "$ref": "#/$defs/sha1" },
+            "candidate_commit": { "$ref": "#/$defs/sha1" },
+            "status": { "const": "qualified" },
+            "warm_median_wall_ratio": { "type": "number", "minimum": 0 },
+            "warm_p95_wall_ratio": { "type": "number", "minimum": 0 },
+            "peak_rss_ratio": { "type": "number", "minimum": 0 },
+            "executable_size_ratio": { "type": "number", "minimum": 0 },
+            "peak_rss_bytes": { "$ref": "#/$defs/nonnegative_integer" },
+            "output_utf8_bytes": { "$ref": "#/$defs/nonnegative_integer" },
+            "output_sha256": { "$ref": "#/$defs/sha256" }
           }
         },
         "emit_workload": {

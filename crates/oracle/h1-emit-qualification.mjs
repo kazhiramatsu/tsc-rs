@@ -22,6 +22,7 @@ const CALLBACK_ORACLE = "ratchets/h1-emit-oracle.v1.json";
 const OWNER_INVENTORY = "ratchets/h1-owner-inventory.v1.json";
 const RUST_OMISSIONS = "ratchets/h1-rust-omissions.v1.json";
 const NOEMIT_PERFORMANCE = "ratchets/h1-noemit-performance.v1.json";
+const EMIT_PERFORMANCE = "ratchets/h1-emit-performance.v1.json";
 const CLASSIFICATIONS = Object.freeze([
   {
     suite: "compiler",
@@ -654,6 +655,7 @@ function buildArtifact() {
   const owner = readJson(OWNER_INVENTORY);
   const omissions = readJson(RUST_OMISSIONS);
   const noemitPerformance = readJson(NOEMIT_PERFORMANCE);
+  const emitPerformance = readJson(EMIT_PERFORMANCE);
   requireCondition(
     profile.status === "frozen" && profile.phase === "H1.0a-bootstrap-profile",
     "H1 profile changed",
@@ -668,6 +670,13 @@ function buildArtifact() {
     "current Rust production boundary is incomplete",
   );
   requireCondition(noemitPerformance.status === "qualified", "no-emit resource guard failed");
+  requireCondition(
+    emitPerformance.kind === "h1-emit-performance" &&
+      emitPerformance.phase === "H1.6" &&
+      emitPerformance.status === "qualified" &&
+      emitPerformance.qualified === true,
+    "emit resource guard failed",
+  );
 
   const candidate = loadCandidate(expansion, compilerClassification);
   const options = effectiveOptions(candidate.fixture, candidate.configuration);
@@ -705,6 +714,18 @@ function buildArtifact() {
     (entry) => entry.observation.writes,
   );
   const candidateWrites = observed.observation.writes;
+  requireCondition(
+    emitPerformance.workload.case_id === candidate.row.id &&
+      emitPerformance.candidate_summary.output_files === candidateWrites.length &&
+      emitPerformance.candidate_summary.output_utf8_bytes ===
+        candidateWrites.reduce(
+          (sum, write) => sum + write.materialized_utf8_bytes,
+          0,
+        ) &&
+      emitPerformance.candidate_summary.output_sha256 ===
+        candidateWrites[0].materialized_utf8_sha256,
+    "emit performance workload changed",
+  );
   const allWrites = [...frozenWrites, ...candidateWrites];
   const cliConfig = `${JSON.stringify(
     {
@@ -858,6 +879,19 @@ function buildArtifact() {
           Object.values(workload.candidate_summary.h1_no_emit).every((value) => value === 0),
         ),
       },
+      emit_performance: {
+        artifact: pathHash(EMIT_PERFORMANCE),
+        base_commit: emitPerformance.base.commit,
+        candidate_commit: emitPerformance.candidate.commit,
+        status: emitPerformance.status,
+        warm_median_wall_ratio: emitPerformance.ratios.warm_median_wall_ratio,
+        warm_p95_wall_ratio: emitPerformance.ratios.warm_p95_wall_ratio,
+        peak_rss_ratio: emitPerformance.ratios.peak_rss_ratio,
+        executable_size_ratio: emitPerformance.binary_size.ratio,
+        peak_rss_bytes: emitPerformance.candidate_summary.peak_rss_bytes,
+        output_utf8_bytes: emitPerformance.candidate_summary.output_utf8_bytes,
+        output_sha256: emitPerformance.candidate_summary.output_sha256,
+      },
       emit_workload: {
         case_id: candidate.row.id,
         source_files: candidate.units.length,
@@ -907,6 +941,11 @@ function validateArtifact(artifact) {
       artifact.adjacent_controls.length === 7 &&
       artifact.owner_closure.pending_rows === 0,
     "H1 qualification closure is incomplete",
+  );
+  requireCondition(
+    artifact.resource_summary.no_emit_performance.status === "qualified" &&
+      artifact.resource_summary.emit_performance.status === "qualified",
+    "H1 resource qualification is incomplete",
   );
   requireCondition(
     exactKeys(artifact.release_contract, [

@@ -1,27 +1,27 @@
 {
   "schema": 1,
   "status": "frozen-current-rust-baseline",
-  "phase": "H1.5-rust-omission-inventory",
+  "phase": "H1.6-rust-omission-inventory",
   "typescript": {
     "version": "6.0.3",
     "source_commit": "050880ce59e30b356b686bd3144efe24f875ebc8"
   },
   "generator": {
     "path": "crates/oracle/h1-rust-omission-inventory.mjs",
-    "sha256": "922f0c5f0bb323a3b9105d172f500255b87ffba6efa75c1b2ac6b8960fa1f269"
+    "sha256": "c03a72c85be9c570346c7b2f435ef90daa9c8086aca6db598618013cc9b1d437"
   },
   "contract": {
     "path": ".github/ci/contracts/h1-rust-omissions.schema.json",
-    "sha256": "ffcd7b89ca407f9e771483b27065fbbde4fceb7d079acdc9dfbcf8b21320535b"
+    "sha256": "d9acd36021bc026bcebbe2749539a3c9ee5d7b8706097a1030d8ce72adb2c8c6"
   },
   "authorities": {
     "compatibility_residual": {
       "path": "docs/design/greenfield/compiler-compatibility-residual.md",
-      "sha256": "0206f79b5e64a0223e8f356655fd2fb5fe0cb5e698ce2d7d10fdb7cccd676164"
+      "sha256": "0f3e6ee6a1bc5004cc827b9d60831cd3c7b84775627686ca7529b40dec80da6e"
     },
     "h1_execution": {
       "path": "docs/design/greenfield/h1-emit.md",
-      "sha256": "4da46f764616580ea7e7a9a0015e8885b16594f0bc06d26c02588638d8cd21e6"
+      "sha256": "00a082be160b37dcb513cf45014bc8ca118dc60136f317c387da36a611e4e5af"
     },
     "emit_profile": {
       "path": "ratchets/h1-emit-profile.v1.json",
@@ -39,11 +39,11 @@
       "crates/*/Cargo.toml",
       "crates/*/src/**/*.rs"
     ],
-    "file_count": 197,
-    "rust_source_files": 182,
+    "file_count": 198,
+    "rust_source_files": 183,
     "cargo_manifests": 15,
-    "bytes": 12667316,
-    "tree_sha256": "dd47e09320cd6e89077453f6cbd16719091f437310836969f8ee0759af37b1db"
+    "bytes": 12685011,
+    "tree_sha256": "9aa3d44d844ad8a5f574ec7a7f5f1adbb52e02db3456b2bd9657af7fdcfeb8d1"
   },
   "summary": {
     "production_boundary_omissions": 0,
@@ -1009,7 +1009,7 @@
         "column": 11,
         "text": "markLinkedReferences' non-alias bookkeeping",
         "text_sha256": "3efb7dc8370504d1a849885324fc1d5353c79da322996324626f1db46db1d879",
-        "file_sha256": "0821557003e894df38b452de7e09920c5f2ea59f483ee6f50def2b3109b75bc7"
+        "file_sha256": "f884cde41d2989df223f0da3d2d0cce7d17dc688d220f06a75cd60d4727b50cf"
       },
       {
         "id": "inaccessible-this-elided",
@@ -1185,5 +1185,5 @@
       }
     ]
   },
-  "inventory_fingerprint_sha256": "dcbdea0c25d555f5123d3a09f37d908fe529f5b8fd273f527044884b5787d5b6"
+  "inventory_fingerprint_sha256": "8b0f9d5b2d4d9daaf3cc722b39ce918ebf73f90518e443b61efc9181bc413257"
 }

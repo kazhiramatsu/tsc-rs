@@ -104,7 +104,7 @@ There is no single honest “100%” number spanning these surfaces:
 | --- | --- | --- |
 | Frozen batch-diagnostics implementation | M0-M8 complete | M9.1c-M9.7 confidence production, burn-in, freeze, and qualification |
 | Frozen filesystem `--noEmit` compiler | H0 complete | Preserve behavior and cost; do not route it through emitter setup |
-| Bounded one-shot JavaScript emit | H1.0-H1.5 complete | H1.6 profile closure and qualification |
+| Bounded one-shot JavaScript emit | H1.0-H1.6 complete and qualified | Preserve the frozen profile while broader one-shot emit expands under new evidence |
 | Broad one-shot `tsc` compilation | Not designed as one approved milestone | Full JS transform matrix, declarations, maps, output/config/CLI matrix, and complete emit suites |
 | Build/watch/project references | Preliminary seams only | Builder state, `.tsbuildinfo`, graph reuse, solution orchestration, watchers, and their suites |
 | Compiler API/custom transforms | Not exposed | Stable AST/factory/printer/Program/TypeChecker contracts and callback lifetimes |
@@ -160,16 +160,16 @@ The audit now finds oracle-exact transformed JavaScript through both ordered
 closed the typed workspace/session seam, H1.2 closed the session-owned
 factory/transform/writer/printer foundation, H1.3 closed the first active
 transformer and semantic-resolver slice, H1.4 closed the read-only host,
-output planning, preflight, and in-memory execution slice, and H1.5 closed the
-remaining production connections:
+output planning, preflight, and in-memory execution slice, H1.5 closed the
+remaining production connections, and H1.6 qualified that closed boundary:
 
-| Boundary | H1.5 implementation | Open production boundary |
+| Boundary | H1.6 qualified implementation | Open production boundary |
 | --- | --- | --- |
 | Output | `crates/emitter` owns the read-only `EmitHost`, output planning, collision gates, transform/print dispatch, independent outcomes, ordered memory writes, and an injected-filesystem `FsOutputSink` with first-write/recursive-parent/single-retry semantics; every injected write index pins TS5033 continuation and partial outputs | None in the frozen profile |
 | Emitting config/CLI | Separate config and explicit-root loaders produce emitting-mode programs, admitted command-line scalars override config values before discovery, effective `noEmit` selects the unchanged H0 route, and CLI rendering/status/exit matches all five admitted oracle cases through filesystem materialization | None in the frozen profile |
 
 Zero production boundary omissions, zero emit-option projection omissions,
-and every explicit checker-side emit elision/control row (24 at H1.5) are
+and every explicit checker-side emit elision/control row (24 at H1.6) are
 machine-frozen in
 [`h1-rust-omissions.v1.json`](../../../ratchets/h1-rust-omissions.v1.json).
 Its producer scans every workspace crate `src` tree plus all Cargo manifests,
@@ -979,10 +979,13 @@ the compiler runner's option precedence. Seven rows match `target=ESNext` plus
 Program analyzes the other two over their exact fixture roots and resolved
 dependencies: `modulePreserve1.ts#default` is blocked by reachable
 `export =`/`import =`, while
-`esmNoSynthesizedDefault.ts#module%3Dpreserve` remains the sole bootstrap
-candidate. The 7,273 deferred-profile rows, two H0 `noEmit` rows, and one
-candidate all remain `not-run`; baseline comparisons and upstream pass claims
-remain zero.
+`esmNoSynthesizedDefault.ts#module%3Dpreserve` remains the sole compatible
+case. The classification stays an immutable admission inventory, so its 7,273
+deferred-profile rows, two H0 `noEmit` rows, and one candidate remain
+`not-run`. The separate H1.6 qualification executes that one compatible row
+and freezes exact TypeScript/Rust diagnostics, JavaScript output, callback
+metadata, result presence, ordering, and exit status; it does not claim a
+7,276-row compiler-runner pass.
 
 The companion `project-profile-classification.v1.json` classifies all 632
 project rows in that same unchanged expansion. It reproduces the exact
@@ -1099,8 +1102,8 @@ The critical path is:
    in-memory `emitFiles` dispatch;
 8. **Complete:** connect the separate emitting loader, filesystem sink, CLI,
    and exact partial-failure/exit behavior;
-9. **Next:** close the frozen H1 profile and qualification evidence;
-10. expand JavaScript transforms/options/file kinds while closing one-shot
+9. **Complete:** close the frozen H1 profile and qualification evidence;
+10. **Next:** expand JavaScript transforms/options/file kinds while closing one-shot
    config, host/System, library-replacement, CLI, and source-map behavior;
 11. implement declaration emit, bundles/`outFile`, then declaration maps;
 12. implement deterministic builder signatures/build info and project
