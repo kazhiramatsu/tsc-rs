@@ -242,8 +242,8 @@
         "owner": "InputFile.snapshot",
         "storage": "Arc<TextSnapshot>",
         "path": "crates/checker/src/lib.rs",
-        "line": 69,
-        "source_sha256": "a8ceb7238a7b5ca64ee8c6ba077cd8bc70a47293981082fcf5bfe1f17516cf84",
+        "line": 70,
+        "source_sha256": "9cf62903017124327fd442b88f70576985dd3d08301aa118a286bb72c89d670d",
         "evidence": "pub struct InputFile {"
       },
       {
@@ -251,8 +251,8 @@
         "storage": "Arc<TextSnapshot>",
         "authority": "parsed-document-single-snapshot-authority",
         "path": "crates/syntax/src/lib.rs",
-        "line": 85,
-        "source_sha256": "38918edfe5b076f4ef3233ebda54bc42b235c810beb9cc75b506d8f291cf9b69",
+        "line": 87,
+        "source_sha256": "fc2ace98e4136882b0d2524f3e81664a40b1e91d937a311da5908aebf188bc50",
         "evidence": "pub struct SourceFile {"
       },
       {
@@ -302,8 +302,8 @@
         "to": "SourceFile.snapshot",
         "branch": "json",
         "path": "crates/checker/src/lib.rs",
-        "line": 1433,
-        "source_sha256": "a8ceb7238a7b5ca64ee8c6ba077cd8bc70a47293981082fcf5bfe1f17516cf84",
+        "line": 1434,
+        "source_sha256": "9cf62903017124327fd442b88f70576985dd3d08301aa118a286bb72c89d670d",
         "evidence": "            let source_file = tsc_syntax::parse_json_text_from_snapshot_in_identity_domain("
       },
       {
@@ -311,8 +311,8 @@
         "to": "SourceFile.snapshot",
         "branch": "ordinary",
         "path": "crates/checker/src/lib.rs",
-        "line": 1525,
-        "source_sha256": "a8ceb7238a7b5ca64ee8c6ba077cd8bc70a47293981082fcf5bfe1f17516cf84",
+        "line": 1526,
+        "source_sha256": "9cf62903017124327fd442b88f70576985dd3d08301aa118a286bb72c89d670d",
         "evidence": "        let source_file = tsc_syntax::parse_source_file_from_snapshot_in_identity_domain("
       },
       {
@@ -411,14 +411,14 @@
         "storage": "NodeArena node/array leases",
         "path": "crates/syntax/src/arena.rs",
         "line": 18,
-        "source_sha256": "06fd1a9e0a8449f7eb2edf3c501864c2717a79082dbd555980711f605df5cd44",
+        "source_sha256": "f0768edda52c5cc2037786b004de52a71a89e5d233475096d374028c2fbeffbf",
         "evidence": "    node_lease: Option<IdentityLease>,"
       },
       "generated_syntax_relocation": {
         "source": "nodes.schema.json field model",
         "path": "crates/xtask/src/main.rs",
-        "line": 11178,
-        "source_sha256": "31718f3a8758280c73afc59ea8fc0060f1ffb107c764fbe29359b259588a1363",
+        "line": 11394,
+        "source_sha256": "7482dcc458dc00376103c4fa1fdc1a4db64e7173aa7b2c86a731ffee04522138",
         "evidence": "fn render_relocate_rs(schemas: &[NodeSchema])"
       },
       "bind_owner": {
@@ -432,14 +432,14 @@
         "storage": "Arc-owned ParsedDocument/BoundDocument handles ordered by ProgramSnapshot",
         "path": "crates/checker/src/program.rs",
         "line": 654,
-        "source_sha256": "191e536c221d6989556e4b08b1b3d946be65f6b744379b938025e4b3623f915d",
+        "source_sha256": "5f647ba3c40df889f639aef4afbb61e724b2c21e3063992d4242a3c850c7a700",
         "evidence": "pub struct ProgramSnapshot {"
       },
       "program_owner_intervals": {
         "contract": "base-sorted non-contiguous and non-overlapping",
         "path": "crates/checker/src/program.rs",
         "line": 825,
-        "source_sha256": "191e536c221d6989556e4b08b1b3d946be65f6b744379b938025e4b3623f915d",
+        "source_sha256": "5f647ba3c40df889f639aef4afbb61e724b2c21e3063992d4242a3c850c7a700",
         "evidence": "    symbol_owners: Vec<ArenaOwner>,"
       },
       "checker_transient_partition": {
