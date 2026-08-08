@@ -618,17 +618,18 @@ generated and revalidated by
 The exact trusted pre-H1 commit is `c0951bf15cdec74223de29e06cd908b0899712f6`
 and the first guarded candidate is
 `7a8b04959279fa668579e95d74b084f3198e0039`. Every H1 runtime slice reuses
-that immutable base and replaces the current candidate observation; H1.2 is
-measured at `3c8511b836b985d2202767532011e972e2205f56`. Each of the three
-frozen workloads has one cold and seven warm alternating AB/BA pairs. In the
-H1.2 measurement, the largest warm p95/median ratio is 1.040239 and the largest
-warm relative range is 0.058733; the reviewed ceilings remain 1.10 for median
-wall/RSS, 1.15 for p95 wall, 1.02/1.03 for allocation count/bytes, 1.0 for
-parse/bind/copy work, and 1.25 for executable size. The measured candidate
-stays below every ceiling:
-its largest warm-median wall ratio is 1.012085, its largest RSS ratio is 1.001425,
-every work and allocation-count ratio is 1.0, and its executable-size ratio is
-1.000080 (992 bytes larger).
+that immutable base and replaces the current candidate observation; the final
+H1.6 candidate is measured at
+`7fa0d3991640b054a7a0e8e4edd05238624903aa`. Each of the three frozen
+workloads has one cold and seven warm alternating AB/BA pairs. In the final
+measurement, the largest candidate warm p95/median ratio is 1.017644 and the
+largest warm relative range is 0.056704; the reviewed ceilings remain 1.10
+for median wall/RSS, 1.15 for p95 wall, 1.02/1.03 for allocation count/bytes,
+1.0 for parse/bind/copy work, and 1.25 for executable size. The measured
+candidate stays below every ceiling: its largest warm-median wall ratio is
+1.013631, its largest RSS ratio is 1.000547, its largest allocation-count and
+allocated-byte ratios are 1.000007 and 1.000013, every parse/bind/copy ratio
+is 1.0, and its executable-size ratio is 1.010013 (123,824 bytes larger).
 
 The zero-sized [`NoEmitCanary`](../../../crates/compiler/src/no_emit_canary.rs)
 is threaded from CLI dispatch through `ProgramSession`. Its eight frozen

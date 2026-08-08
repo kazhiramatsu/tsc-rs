@@ -31,6 +31,7 @@ cargo xtask invariants --suite all  # sampled determinism/idempotence developer 
 cargo xtask invariants --suite all --full-corpus  # completion/CI row 10
 cargo xtask completion              # report all 11 final completion rows
 cargo test -p tsc-rs-compiler --test contracts h0_qualification_contract
+node crates/oracle/h1-noemit-performance.mjs --check
 node crates/oracle/h1-emit-qualification.mjs --check
 node crates/oracle/h1-emit-performance.mjs --check
 cargo xtask m8 trace --program-json target/probe/program.json --code 8020 \

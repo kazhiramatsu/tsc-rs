@@ -31,7 +31,7 @@
     },
     "rust_omissions": {
       "path": "ratchets/h1-rust-omissions.v1.json",
-      "sha256": "75cd35545f85577465cc7dd33a0c4864358f454b9f2e4b1719a503872dd3461a"
+      "sha256": "a44b8196244a821b8a0918db691371a7005b39285e8347111724a99f8bd2cb46"
     },
     "suite_expansion": {
       "path": "vendor/typescript-6.0.3/test-suite-expansion.v1.json",
@@ -419,12 +419,12 @@
     "no_emit_performance": {
       "artifact": {
         "path": "ratchets/h1-noemit-performance.v1.json",
-        "sha256": "4047cb2518df4d00822c8d91c81c56ea300c164006864f6329d1ab5fb1027c94"
+        "sha256": "452d2125fae0c386a7ced5fdcdb0ac91269bd29111013eb134e247ca6516303e"
       },
-      "candidate_commit": "a34bad6ba779c48321775dac225e890d0ec14804",
+      "candidate_commit": "7fa0d3991640b054a7a0e8e4edd05238624903aa",
       "status": "qualified",
-      "maximum_warm_median_wall_ratio": 1.031955,
-      "maximum_peak_rss_ratio": 1,
+      "maximum_warm_median_wall_ratio": 1.013631,
+      "maximum_peak_rss_ratio": 1.000547,
       "executable_size_ratio": 1.010013,
       "zero_activity_canaries": true
     },
