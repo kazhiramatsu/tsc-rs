@@ -277,60 +277,54 @@ Node, or full-corpus CI.
 
 ## Development Status and Roadmap
 
-Milestones M0–M8, the frozen H0 filesystem-hosted `--noEmit` profile, and the
-L0/L1 persistent-source and incremental-parser prerequisites are complete.
-H1.0a JavaScript-emit inventory work now has a generated report-only owner
-graph plus a frozen bootstrap profile and callback-level TypeScript oracle;
-the exact conformance runner universe is also frozen as 5,907 fixtures, 7,697
-cases, and 46,182 explicitly `not-run` observations. All 7,697 conformance
-cases now also have exact effective-option dispositions: only three match the
-required target/module pair, all three retain another blocker, and zero are
-admitted. All 7,276 compiler-runner cases now have exact effective-option
-dispositions as well: seven match the target/module pair, only two require
-source reachability analysis, and one is retained as a bootstrap candidate.
-Every compiler row remains `not-run`, and no reference baseline has been
-compared. All 632 project-runner rows now have exact root and effective-option
-dispositions too. Every CommonJS/AMD variant has both a target and module
-blocker, so admissions are zero; all rows remain `not-run`, and no reference
-baseline has been compared. The 38 projected FourSlash emit witnesses now
-also have exact route/profile dispositions: they select 47 targeted
-`Program.emit(sourceFile)` calls through Language Service, every case uses
-`target=ES2025` and a non-`Preserve` module state, and none is promotable to a
-whole-Program H1 control. All 38 remain explicitly deferred and `not-run`,
-with zero reference baselines compared. H0 no-emit performance remains a hard
-non-regression boundary. H1.0a is now closed: the reviewed owner graph contains
-6,193 reachable declarations and 24,054 exact/conservative ownership edges,
-replaces all 12,183 same-property-name fan-out edges with 500 exact
-source-symbol edges, and records explicit dispositions for all 5,202
-property/dynamic or otherwise non-lexical call sites: 711 produce exact symbol
-edges and 4,491 remain explicitly classified non-edges, with zero unresolved
-rows. H1.0b is now closed as well: the versioned no-emit artifact compares the
-exact `c0951bf1` pre-H1 runtime with the guarded candidate over eight
-alternating AB/BA pairs for each explicit-root, project, and scale workload.
-All 48 executions wrote zero files; every candidate execution recorded zero
-for all eight emitter-construction/sink activities; parse/bind, copy, and
-allocation counts did not regress; the latest H1.2 measurement has a largest
-warm-median wall ratio of 1.012085, a largest peak-RSS ratio of 1.001425, and
-an executable-size ratio of 1.000080 (+992 bytes). H1.1 is
-implemented: the acyclic `emitter` owner freezes private-layout artifacts,
-exact callback text/BOM/provenance/metadata observations, the complete dormant
-output-plan axes, typed failures and sink feedback, independent outcome
-observations, and ordered `MemoryOutputSink`; `PreparedProgram` and
-`ProgramSession` have separate no-emit/emit modes, and an unsupported emit
-still fails before the first sink call. H1.2 is now complete as a foundation:
-emit-session-owned detached syntax, sparse transform/emit metadata, factory
-clone/original rules, the `transformNodes` lifecycle, typed byte/UTF-16
-positions, a TypeScript-compatible text writer, disabled source-map phases,
-and the whole-source printer pipeline are directly pinned. This is not yet
-transformed JavaScript compatibility; H1.3 next activates the bounded
-transformer/resolver slice.
-Ordinary GitHub CI remains the single `cargo xtask acceptance` entrypoint
-while the complete gate remains local. Complete Language Service,
-tsserver, and LSP behavior remains later work. The audited
+Milestones M0–M8, the frozen H0 filesystem-hosted `--noEmit` profile, the
+L0/L1 persistent-source and incremental-parser prerequisites, and the bounded
+H1 JavaScript-emit profile are complete. H1.0a–H1.6 close the reviewed emit
+owner graph, no-emit non-regression boundary, typed execution protocols,
+detached factory/transform/printer pipeline, scoped resolver, output planning,
+memory/filesystem sinks, CLI behavior, failure semantics, upstream
+qualification, and resource evidence. The final qualification dispositions
+all 15,680 pinned upstream cases, executes the sole compatible compiler case
+with exact diagnostics, JavaScript bytes, callback metadata, write order,
+result presence, and exit status, and keeps seven adjacent controls fail-closed
+before their first sink write.
+
+H1 is deliberately narrower than broad one-shot `tsc`: its active runtime is
+whole-Program `.ts` emit at `target=ESNext`, `module=Preserve`, without maps,
+declarations, bundles, downlevel transforms, JavaScript/JSX-family inputs, or
+the wider option/config/host matrix. The selected route toward complete
+TypeScript 6.0.3 compiler and tooling coverage is:
+
+1. expand one-shot JavaScript emit, starting with effective
+   `module=ESNext`/implied-format ESM and CommonJS closure at
+   `target=ESNext`, then file kinds, option families, JSX/decorators, helpers,
+   and targets from newest to oldest; close config, host/System, library
+   replacement, CLI, and output behavior on the same path;
+2. implement source maps alongside transformer expansion, then declaration
+   emit, bundles/`outFile`, and declaration maps;
+3. land one shared versioned Program/resolution/invalidation substrate for
+   full `DocumentRegistry`, `isProgramUptoDate`, old-Program reuse, resolution
+   caches, and watcher dependency sets;
+4. build deterministic signatures/`.tsbuildinfo`, project references,
+   solution build, and watch on that substrate;
+5. stabilize cancellation and the public compiler/custom-transform API, then
+   implement Language Service and tsserver before the independent Rust-native
+   LSP adapter; and
+6. close M9 confidence production, locales/platform/package matrices,
+   reproducible release artifacts, and only then begin a post-6.0.3 transition.
+
+This order follows the pinned compiler ownership: ordinary CLI compilation
+constructs a Program before emit; builder/watch adds signatures, affected-file
+state, build info, project orchestration, and invalidation around that Program;
+Language Service synchronizes through `isProgramUptoDate` and
+`createProgram(oldProgram)`; and LSP is not an upstream TypeScript protocol.
+Sharing the Program/resolution invalidation layer keeps builder/watch and
+service work from growing separate caches with incompatible stale-state rules.
+The audited
 [compiler compatibility residual](docs/design/greenfield/compiler-compatibility-residual.md)
-separates H1 blockers from later declaration/map, build/watch, public-API, and
-LSP work. M9 is paused after its typed-outcome and canonical true-replay
-foundations.
+and [LSP/incremental design](docs/design/greenfield/lsp-and-incremental.md)
+define the detailed finish lines. Ordinary GitHub CI remains the single
+`cargo xtask acceptance` entrypoint while the complete gate remains local.
 
 H0.0 now freezes the 241 exact host-resolution identities in a dedicated
 machine-checked registry. Each row pins its owner family, vendored TypeScript
@@ -472,7 +466,7 @@ profile and fail closed.
 | M9 | Paused after 1b | Typed outcomes and true replay landed; production generator, burn-in, freeze, and qualification deferred |
 | H0 | Complete (frozen single-project no-emit profile; 241/241 host rows, 7,276/7,276 compiler plans, 82/82 compatible project plans, exact CLI/program oracles) | Filesystem-hosted `--noEmit`: program construction, config/CLI, embedded libraries, rendering, and exit behavior |
 | L0/L1 | Complete and performance-qualified | Shared text/position snapshots, domain-scoped identity leases, owned bind/Program snapshots, immutable incremental parsing/rebinding, registry reuse, exact fresh equivalence, reclamation stress, and approved large-edit evidence |
-| H1 | H1.0a/H1.0b qualification, H1.1 typed execution spine, and H1.2 factory/transform/printer foundation complete; H1.3 active transformer/resolver slice next | Reviewed active-root graph with zero unresolved calls, exact callback/upstream-classification evidence, frozen no-emit performance/write-zero boundary, typed artifact/plan/sink/outcome protocols, then bounded JavaScript emit through the vendored resolver/transform/printer/output architecture |
+| H1 | Complete and performance-qualified (H1.0a–H1.6); broad one-shot compiler expansion next | Bounded `ESNext`/`Preserve` whole-Program `.ts` JavaScript emit is exact and fail-closed; expand next through implied-format ESM/CommonJS, file kinds, options, transforms, maps, declarations, and the remaining compiler output matrix |
 
 The exact accepted-state summary below is generated by
 `cargo xtask readme-status` and must not be edited by hand.
