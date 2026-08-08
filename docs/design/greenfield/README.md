@@ -58,67 +58,38 @@ boundary: owned program/session seams, exact module and package resolution,
 filesystem/config loading, no-emit diagnostics, rendering, and exit behavior.
 
 **H1 JavaScript emit contract:**
-[h1-emit.md](h1-emit.md) — H1.0a now has a generated report-only owner-graph
-draft plus a frozen bootstrap profile, callback-level TypeScript oracle, and
-current-Rust omission baseline, plus the complete content-addressed upstream
-transpile source universe in additive suite pin v2, its exact 37-row
-`TranspileRunner` classification, and the exact 38-file FourSlash batch-emit
-witness projection in additive suite pin v3, plus the complete 5,908-file
-conformance source tree in additive suite pin v4 and its exact
-5,907-fixture/7,697-case/46,182-observation runner expansion, plus exact
-effective-option dispositions for all 7,697 cases. All remain `not-run`, and
-zero enter the bootstrap profile. The existing compiler expansion now also
-has exact dispositions for all 7,276 rows: seven match the required
-target/module pair, two pass effective-option preflight into source analysis,
-and one remains a bootstrap candidate; all execution and baseline-comparison
-states stay `not-run`/zero. The project runner now has exact root selection and
-effective-option dispositions for all 632 CommonJS/AMD rows as well. Every
-row has both a target and module blocker, admissions are zero, and execution
-and baseline-comparison states stay `not-run`/zero.
-The 38 projected FourSlash emit witnesses now have exact route/profile
-dispositions too: their 47 selected calls are targeted Language Service
-`Program.emit(sourceFile)` requests, all 38 use `target=ES2025` and a
-non-`Preserve` module state, and therefore none is promoted as an H1
-whole-Program control. Every row remains deferred/`not-run`, with zero
-reference baselines compared.
-The owner graph is now fully reviewed as well: 6,193 declarations remain in
-the exact active-root closure, the old 12,183 same-name property fan-out edges
-are gone, and all 5,202 property/dynamic or otherwise non-lexical call sites
-have explicit dispositions. Of those, 711 produce exact symbol edges and
-4,491 remain classified non-edges, with zero unresolved rows. H1.0a is
-complete. H1.0b is complete too: the exact pre-H1 runtime and guarded
-candidate are frozen in `ratchets/h1-noemit-performance.v1.json` after eight
-alternating AB/BA pairs across the explicit-root, project, and scale
-workloads. All output-write and eight emitter-activity counts are zero; the
-latest H1.2 remeasurement has a largest warm-median wall ratio of 1.012085,
-largest RSS ratio of 1.001425, and executable-size ratio of 1.000080. The bounded,
-tsc-architected JavaScript emitter preserves that H0
-`--noEmit` entry while porting the exact resolver/transform/printer/output
-spine. H1.1 is complete: the acyclic emitter owner now fixes artifacts,
-callback metadata, dormant output topology, typed failures, sink feedback,
-independent outcomes, and `MemoryOutputSink`; distinct prepared-program and
-session modes reject unsupported emission before a sink call. H1.2 is also
-complete: detached emit-session syntax, sparse transform/emit side tables,
-factory/original-node rules, transform lifecycle, byte/UTF-16 position types,
-the text writer, disabled map phases, and the whole-source printer pipeline
-are pinned by direct TypeScript Unicode/newline oracles. H1.3 is complete: the
-exact three-transform bootstrap order now performs active type erasure, the
-checker lends live alias/reference facts through a scoped fail-closed resolver,
-and changed import/export plus bootstrap node workers match the new vendored
-`h1-active-transform` oracle. H1.4 next connects source/output planning and
-`MemoryOutputSink`; production JavaScript output is not yet claimed. Ordinary
-GitHub CI remains
-the single `cargo xtask acceptance` command. Runtime implementation is
-unblocked by the completed L0 persistent-source and L1 incremental-parser
-proof, while build/watch and LSP remain separate compatibility tracks.
+[h1-emit.md](h1-emit.md) — H1.0a through H1.6 are complete and
+performance-qualified. The reviewed owner graph has zero unresolved or
+undispositioned calls; all 15,680 pinned upstream cases have explicit
+dispositions; the sole compatible compiler case matches exact diagnostics,
+JavaScript bytes, callback metadata, write order, result presence, and exit;
+and adjacent controls fail before their first sink write. The filesystem/CLI,
+partial-failure, standalone-package, repeated/two-worker, H0 no-emit, and
+approved-runner resource evidence are frozen. H1 remains the bounded
+`ESNext`/`Preserve` whole-Program `.ts` profile, not broad one-shot compiler
+compatibility.
+
+**Post-H1 completion slices:**
+[post-h1-completion-slices.md](post-h1-completion-slices.md) — the approved
+branch-sized execution schedule for H2 broad one-shot compiler, L2 shared
+Program/resolution reuse, builder/project references/watch, public API,
+Language Service, tsserver, the independent Rust-native LSP adapter, and final
+release work. **H2.0a is next:** freeze the new owner/converse inventory,
+profile transition, oracle schemas, and exact candidate dispositions before
+the first implied-format runtime expansion. The existing per-slice
+owner/oracle/profile/fail-closed/local-gate loop remains mandatory. Stateful
+tracks additionally require multi-generation fresh-versus-reused traces,
+explicit invalidation, release/resource bounds, cancellation safety, restart
+determinism, and schema/protocol contracts.
 
 **Compiler compatibility residual:**
 [compiler-compatibility-residual.md](compiler-compatibility-residual.md) — the
 audited current implementation boundary, L0/L1 prerequisites, H1 blocking
 dependency packages, exact built-in transformer/resolver expansion map, and
 the work remaining after H1 for declarations, maps, build/watch, public APIs,
-and the later L-track. It is a cross-track inventory, not an expansion of H1
-or the normative M8/M9 definition of done.
+and the later L-track. It owns the cross-track inventory; the post-H1 slice
+document owns execution order. Neither expands H1 or replaces the normative
+M8/M9 definition of done.
 
 **Complete JSDoc subsystem:**
 [m8-jsdoc-ast-materialization.md](m8-jsdoc-ast-materialization.md) — the
@@ -219,9 +190,11 @@ oracle binary is the ground truth:
 
 ## Milestones and their steps docs
 
-No milestone starts before the previous gate is green
-(greenfield §12). Within a milestone, stages are ordered; each stage
-is one commit.
+Historical M-track runtime did not start before the previous gate was green
+(greenfield §12). Post-H1 runtime follows the explicit dependency rows in the
+[completion slices](post-h1-completion-slices.md); only the read-only
+inventories named there may run ahead. Within a milestone, stages are ordered;
+each stage is one commit.
 
 | Milestone | Steps doc | Acceptance gate |
 |---|---|---|
@@ -239,6 +212,10 @@ is one commit.
 | H0 filesystem-hosted `--noEmit` — complete | [H0 execution](noemit-cli.md) | exact closure of the 241 host-resolution identities, MemoryHost/FsHost equivalence, config/CLI/output parity, embedded libraries, no emitted files |
 | L0/L1 persistent source + incremental parser — complete and performance-qualified | [persistent Program design](lsp-and-incremental.md) | shared text/position snapshots, domain-scoped identity leases, generated relocation, non-contiguous ownership, owned bind/Program snapshots, immutable incremental parse/rebind, exact fresh equivalence, reclamation stress, and approved large-edit evidence |
 | H1 JavaScript emit — H1.0a through H1.6 complete and qualified | [H1 execution](h1-emit.md) | zero-open-row owner closure, exact callback/transform/upstream qualification, all 15,680 pinned cases dispositioned, the sole compatible compiler case executed exactly, filesystem/CLI and sink-fault parity, standalone binary proof, frozen H0 `--noEmit` canaries, and approved-runner no-emit/emit resource evidence; broader transforms, options, and file kinds are the next separately qualified expansion |
+| H2 broad one-shot compiler — sliced; H2.0a next | [post-H1 slices](post-h1-completion-slices.md) | new owner/converse/profile/oracle freeze, then dependency-closed module, TypeScript runtime, source-kind, JSX/decorator, target, map, declaration, output/config/System, CLI, and full upstream-runner qualification slices |
+| L2 shared Program/resolution reuse — planned after H2 | [post-H1 slices](post-h1-completion-slices.md) | full registry, `isProgramUptoDate`, structure reuse, dependency-tracked caches/invalidation, publication/release/cancellation, multi-generation fresh equality, and bounded resources |
+| BLD1/W1 builder, project references, and watch — planned after L2 core | [post-H1 slices](post-h1-completion-slices.md) | deterministic affected queues/signatures/build info/restarts, solution build, virtual-clock watch traces, fault/cancellation behavior, and long-running qualification |
+| API1/L3-L5 public API and interactive products — planned | [post-H1 slices](post-h1-completion-slices.md) | explicit public ownership/identity contract, Language Service, tsserver Project Service/protocol, then independent LSP capability/protocol/resource qualification |
 
 The T0 percentages are calibration points from the first
 implementation's history, not promises; the gate is "meets or beats,
