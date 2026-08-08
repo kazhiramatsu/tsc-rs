@@ -361,7 +361,29 @@ impl Printer {
             return Err(PrinterError::TransformedNodeWorkerUnavailable(emitted_root));
         }
 
+        let (original_source_was_statementless, original_first_statement) = {
+            let original_root = transformation.arena().get_original_node(root);
+            match &transformation.arena().node(original_root)?.data {
+                NodeData::SourceFile(data) => {
+                    let statements = data.statements.and_then(|array| {
+                        transformation
+                            .arena()
+                            .node_array_ref(original_root.source(), array)
+                    });
+                    let statements = statements
+                        .map(|array| transformation.arena().node_array(array))
+                        .transpose()?;
+                    let first = statements
+                        .and_then(|array| array.nodes.first().copied())
+                        .and_then(|id| transformation.arena().node_ref(original_root.source(), id));
+                    (statements.is_none_or(|array| array.nodes.is_empty()), first)
+                }
+                _ => (false, None),
+            }
+        };
         let mut writer = create_text_writer(self.options.new_line);
+        let mut emitted_original_prefix_comments = false;
+        let mut last_original_statement = None;
         for raw_statement in statements {
             let statement = transformation
                 .arena()
@@ -369,6 +391,46 @@ impl Printer {
                 .ok_or(PrinterError::UnknownStatement(raw_statement.0))?;
             transformation.before_emit_node(EmitHint::Unspecified, statement)?;
             let emitted = transformation.substitute_node(EmitHint::Unspecified, statement)?;
+            let original = transformation.arena().get_original_node(emitted);
+            let original_source = transformation.arena().source(original.source())?.syntax();
+            let original_record = transformation.arena().node(original)?;
+            let had_previous_original_statement = last_original_statement.is_some();
+            let emitted_has_original_range = matches!(
+                SourceRange::from_raw(
+                    original_record.pos,
+                    original_record.end,
+                    original_source.positions(),
+                )?,
+                SourceRange::Original(_)
+            );
+            if emitted_has_original_range {
+                last_original_statement = Some(original);
+            }
+            if !emitted_original_prefix_comments {
+                if let SourceRange::Original(_) = SourceRange::from_raw(
+                    original_record.pos,
+                    original_record.end,
+                    original_source.positions(),
+                )? {
+                    if original_first_statement.is_some_and(|first| first != original) {
+                        self.emit_detached_leading_comments_for_node(
+                            transformation,
+                            original_first_statement.expect("checked first statement"),
+                            &mut writer,
+                        )?;
+                    }
+                    emitted_original_prefix_comments = true;
+                }
+            }
+            if had_previous_original_statement && emitted_has_original_range {
+                self.emit_leading_comments_for_node_after_sibling(
+                    transformation,
+                    emitted,
+                    &mut writer,
+                )?;
+            } else {
+                self.emit_leading_comments_for_node(transformation, emitted, &mut writer)?;
+            }
             self.record_node_hook(
                 transformation,
                 recorder,
@@ -377,6 +439,7 @@ impl Printer {
                 &writer,
             )?;
             self.emit_transformed_node(transformation, emitted, &mut writer)?;
+            self.emit_trailing_comments_for_node(transformation, emitted, &mut writer)?;
             self.record_node_hook(
                 transformation,
                 recorder,
@@ -386,6 +449,16 @@ impl Printer {
             )?;
             transformation.after_emit_node(EmitHint::Unspecified, statement)?;
             writer.write_line(false);
+        }
+        if original_source_was_statementless && !self.options.remove_comments {
+            let source = transformation.arena().source(source_id)?.syntax();
+            emit_leading_comments(source.text(), &mut writer);
+        } else if let Some(last_original_statement) = last_original_statement {
+            self.emit_source_file_trailing_comments(
+                transformation,
+                last_original_statement,
+                &mut writer,
+            )?;
         }
         transformation.after_emit_node(EmitHint::SourceFile, root)?;
         Ok(PrintedText {
@@ -407,12 +480,55 @@ impl Printer {
             .and_then(crate::EmitMetadata::original)
             .is_some()
             || NodeFlags::from_bits(record.flags).contains(NodeFlags::SYNTHESIZED);
-        if !changed {
-            return self.write_original_without_leading_trivia(transformation, node, writer);
-        }
+        let multi_line = record.multi_line == Some(true);
 
         match record.data {
+            NodeData::ExpressionStatement(data) => {
+                self.emit_required_node(
+                    transformation,
+                    node.source(),
+                    data.expression,
+                    SyntaxKind::ExpressionStatement,
+                    "expression",
+                    writer,
+                )?;
+                writer.write_trailing_semicolon(";");
+                Ok(())
+            }
+            NodeData::ReturnStatement(data) => {
+                writer.write_keyword("return");
+                if let Some(expression) = data.expression {
+                    writer.write_space(" ");
+                    self.emit_node_id(transformation, node.source(), expression, writer)?;
+                }
+                writer.write_trailing_semicolon(";");
+                Ok(())
+            }
+            NodeData::StringLiteral(data) => {
+                if data.text == "use strict" {
+                    writer.write_string_literal("\"use strict\"");
+                    Ok(())
+                } else if !changed {
+                    self.write_original_without_leading_trivia(transformation, node, writer)
+                } else {
+                    Err(PrinterError::UnsupportedTransformedSyntax {
+                        node,
+                        kind: record.kind,
+                    })
+                }
+            }
+            NodeData::NoSubstitutionTemplateLiteral(_) | NodeData::TemplateExpression(_)
+                if !changed =>
+            {
+                self.write_original_without_leading_trivia_verbatim(transformation, node, writer)
+            }
             NodeData::ImportDeclaration(data) => {
+                if !changed
+                    && !self.options.remove_comments
+                    && self.original_node_has_internal_comments(transformation, node)?
+                {
+                    return self.write_original_module_statement(transformation, node, writer);
+                }
                 if data.attributes.is_some() {
                     return Err(PrinterError::UnsupportedTransformedSyntax {
                         node,
@@ -497,6 +613,12 @@ impl Printer {
                 )
             }
             NodeData::ExportDeclaration(data) => {
+                if !changed
+                    && !self.options.remove_comments
+                    && self.original_node_has_internal_comments(transformation, node)?
+                {
+                    return self.write_original_module_statement(transformation, node, writer);
+                }
                 if data.is_type_only || data.attributes.is_some() {
                     return Err(PrinterError::UnsupportedTransformedSyntax {
                         node,
@@ -559,6 +681,12 @@ impl Printer {
                 )
             }
             NodeData::ExportAssignment(data) => {
+                if !changed
+                    && !self.options.remove_comments
+                    && self.original_node_has_internal_comments(transformation, node)?
+                {
+                    return self.write_original_module_statement(transformation, node, writer);
+                }
                 if data.is_export_equals == Some(true) {
                     return Err(PrinterError::UnsupportedTransformedSyntax {
                         node,
@@ -600,13 +728,19 @@ impl Printer {
             }
             NodeData::VariableDeclarationList(data) => {
                 let flags = NodeFlags::from_bits(record.flags);
-                writer.write_keyword(if flags.contains(NodeFlags::CONST) {
-                    "const"
+                if flags.contains(NodeFlags::AWAIT_USING) {
+                    writer.write_keyword("await");
+                    writer.write_space(" ");
+                    writer.write_keyword("using");
+                } else if flags.contains(NodeFlags::USING) {
+                    writer.write_keyword("using");
                 } else if flags.contains(NodeFlags::LET) {
-                    "let"
+                    writer.write_keyword("let");
+                } else if flags.contains(NodeFlags::CONST) {
+                    writer.write_keyword("const");
                 } else {
-                    "var"
-                });
+                    writer.write_keyword("var");
+                }
                 writer.write_space(" ");
                 self.emit_node_array(
                     transformation,
@@ -633,6 +767,223 @@ impl Printer {
                 }
                 Ok(())
             }
+            NodeData::ArrayLiteralExpression(data) => self.emit_delimited_expression_list(
+                transformation,
+                node.source(),
+                data.elements,
+                "[",
+                "]",
+                multi_line,
+                writer,
+            ),
+            NodeData::ArrayBindingPattern(data) => self.emit_delimited_expression_list(
+                transformation,
+                node.source(),
+                data.elements,
+                "[",
+                "]",
+                multi_line,
+                writer,
+            ),
+            NodeData::ObjectBindingPattern(data) => self.emit_delimited_expression_list(
+                transformation,
+                node.source(),
+                data.elements,
+                "{",
+                "}",
+                multi_line,
+                writer,
+            ),
+            NodeData::BindingElement(data) => {
+                if let Some(dot_dot_dot) = data.dot_dot_dot_token {
+                    self.emit_node_id(transformation, node.source(), dot_dot_dot, writer)?;
+                }
+                if let Some(property_name) = data.property_name {
+                    self.emit_node_id(transformation, node.source(), property_name, writer)?;
+                    writer.write_punctuation(":");
+                    writer.write_space(" ");
+                }
+                self.emit_required_node(
+                    transformation,
+                    node.source(),
+                    data.name,
+                    SyntaxKind::BindingElement,
+                    "name",
+                    writer,
+                )?;
+                if let Some(initializer) = data.initializer {
+                    writer.write_space(" ");
+                    writer.write_operator("=");
+                    writer.write_space(" ");
+                    self.emit_node_id(transformation, node.source(), initializer, writer)?;
+                }
+                Ok(())
+            }
+            NodeData::ComputedPropertyName(data) => {
+                writer.write_punctuation("[");
+                self.emit_required_node(
+                    transformation,
+                    node.source(),
+                    data.expression,
+                    SyntaxKind::ComputedPropertyName,
+                    "expression",
+                    writer,
+                )?;
+                writer.write_punctuation("]");
+                Ok(())
+            }
+            NodeData::AwaitExpression(data) => {
+                writer.write_keyword("await");
+                writer.write_space(" ");
+                if let Some(expression) = data
+                    .expression
+                    .and_then(|id| transformation.arena().node_ref(node.source(), id))
+                {
+                    self.emit_leading_comments_for_node(transformation, expression, writer)?;
+                }
+                self.emit_required_node(
+                    transformation,
+                    node.source(),
+                    data.expression,
+                    SyntaxKind::AwaitExpression,
+                    "expression",
+                    writer,
+                )
+            }
+            NodeData::ConditionalExpression(data) => {
+                self.emit_required_node(
+                    transformation,
+                    node.source(),
+                    data.condition,
+                    SyntaxKind::ConditionalExpression,
+                    "condition",
+                    writer,
+                )?;
+                writer.write_space(" ");
+                self.emit_required_node(
+                    transformation,
+                    node.source(),
+                    data.question_token,
+                    SyntaxKind::ConditionalExpression,
+                    "question_token",
+                    writer,
+                )?;
+                writer.write_space(" ");
+                self.emit_required_node(
+                    transformation,
+                    node.source(),
+                    data.when_true,
+                    SyntaxKind::ConditionalExpression,
+                    "when_true",
+                    writer,
+                )?;
+                writer.write_space(" ");
+                self.emit_required_node(
+                    transformation,
+                    node.source(),
+                    data.colon_token,
+                    SyntaxKind::ConditionalExpression,
+                    "colon_token",
+                    writer,
+                )?;
+                writer.write_space(" ");
+                self.emit_required_node(
+                    transformation,
+                    node.source(),
+                    data.when_false,
+                    SyntaxKind::ConditionalExpression,
+                    "when_false",
+                    writer,
+                )
+            }
+            NodeData::YieldExpression(data) => {
+                writer.write_keyword("yield");
+                if let Some(asterisk) = data.asterisk_token {
+                    self.emit_node_id(transformation, node.source(), asterisk, writer)?;
+                }
+                if let Some(expression) = data.expression {
+                    writer.write_space(" ");
+                    self.emit_node_id(transformation, node.source(), expression, writer)?;
+                }
+                Ok(())
+            }
+            NodeData::ObjectLiteralExpression(data) => self.emit_delimited_expression_list(
+                transformation,
+                node.source(),
+                data.properties,
+                "{",
+                "}",
+                multi_line,
+                writer,
+            ),
+            NodeData::PropertyAssignment(data) => {
+                if self.emit_modifiers(transformation, node.source(), data.modifiers, writer)? {
+                    writer.write_space(" ");
+                }
+                self.emit_required_node(
+                    transformation,
+                    node.source(),
+                    data.name,
+                    SyntaxKind::PropertyAssignment,
+                    "name",
+                    writer,
+                )?;
+                writer.write_punctuation(":");
+                writer.write_space(" ");
+                self.emit_required_node(
+                    transformation,
+                    node.source(),
+                    data.initializer,
+                    SyntaxKind::PropertyAssignment,
+                    "initializer",
+                    writer,
+                )
+            }
+            NodeData::HeritageClause(data) => {
+                let keyword = match data.token {
+                    SyntaxKind::ExtendsKeyword => "extends",
+                    SyntaxKind::ImplementsKeyword => "implements",
+                    _ => {
+                        return Err(PrinterError::UnsupportedTransformedSyntax {
+                            node,
+                            kind: record.kind,
+                        });
+                    }
+                };
+                writer.write_keyword(keyword);
+                writer.write_space(" ");
+                self.emit_node_array(transformation, node.source(), data.types, ", ", writer)
+            }
+            NodeData::ExpressionWithTypeArguments(data) => self.emit_required_node(
+                transformation,
+                node.source(),
+                data.expression,
+                SyntaxKind::ExpressionWithTypeArguments,
+                "expression",
+                writer,
+            ),
+            NodeData::SpreadAssignment(data) => {
+                writer.write_punctuation("...");
+                self.emit_required_node(
+                    transformation,
+                    node.source(),
+                    data.expression,
+                    SyntaxKind::SpreadAssignment,
+                    "expression",
+                    writer,
+                )
+            }
+            NodeData::SpreadElement(data) => {
+                writer.write_punctuation("...");
+                self.emit_required_node(
+                    transformation,
+                    node.source(),
+                    data.expression,
+                    SyntaxKind::SpreadElement,
+                    "expression",
+                    writer,
+                )
+            }
             NodeData::FunctionDeclaration(data) => {
                 if self.emit_modifiers(transformation, node.source(), data.modifiers, writer)? {
                     writer.write_space(" ");
@@ -644,6 +995,8 @@ impl Printer {
                 if let Some(name) = data.name {
                     writer.write_space(" ");
                     self.emit_node_id(transformation, node.source(), name, writer)?;
+                } else {
+                    writer.write_space(" ");
                 }
                 self.emit_parameter_list(transformation, node.source(), data.parameters, writer)?;
                 if let Some(body) = data.body {
@@ -663,6 +1016,8 @@ impl Printer {
                 if let Some(name) = data.name {
                     writer.write_space(" ");
                     self.emit_node_id(transformation, node.source(), name, writer)?;
+                } else {
+                    writer.write_space(" ");
                 }
                 self.emit_parameter_list(transformation, node.source(), data.parameters, writer)?;
                 if let Some(body) = data.body {
@@ -675,7 +1030,16 @@ impl Printer {
                 if self.emit_modifiers(transformation, node.source(), data.modifiers, writer)? {
                     writer.write_space(" ");
                 }
-                self.emit_parameter_list(transformation, node.source(), data.parameters, writer)?;
+                if let Some(parameter) = self.simple_arrow_parameter(transformation, node, &data)? {
+                    self.emit_node_id(transformation, node.source(), parameter, writer)?;
+                } else {
+                    self.emit_parameter_list(
+                        transformation,
+                        node.source(),
+                        data.parameters,
+                        writer,
+                    )?;
+                }
                 writer.write_space(" ");
                 writer.write_operator("=>");
                 writer.write_space(" ");
@@ -731,6 +1095,21 @@ impl Printer {
                 true,
                 writer,
             ),
+            NodeData::ClassStaticBlockDeclaration(data) => {
+                if self.emit_modifiers(transformation, node.source(), data.modifiers, writer)? {
+                    writer.write_space(" ");
+                }
+                writer.write_keyword("static");
+                writer.write_space(" ");
+                self.emit_required_node(
+                    transformation,
+                    node.source(),
+                    data.body,
+                    SyntaxKind::ClassStaticBlockDeclaration,
+                    "body",
+                    writer,
+                )
+            }
             NodeData::PropertyDeclaration(data) => {
                 if self.emit_modifiers(transformation, node.source(), data.modifiers, writer)? {
                     writer.write_space(" ");
@@ -825,6 +1204,214 @@ impl Printer {
                 }
                 Ok(())
             }
+            NodeData::ForStatement(data) => {
+                writer.write_keyword("for");
+                writer.write_space(" ");
+                writer.write_punctuation("(");
+                if let Some(initializer) = data.initializer {
+                    self.emit_node_id(transformation, node.source(), initializer, writer)?;
+                }
+                writer.write_punctuation(";");
+                if let Some(condition) = data.condition {
+                    writer.write_space(" ");
+                    self.emit_node_id(transformation, node.source(), condition, writer)?;
+                }
+                writer.write_punctuation(";");
+                if let Some(incrementor) = data.incrementor {
+                    writer.write_space(" ");
+                    self.emit_node_id(transformation, node.source(), incrementor, writer)?;
+                }
+                writer.write_punctuation(")");
+                self.emit_embedded_statement(
+                    transformation,
+                    node.source(),
+                    data.statement,
+                    SyntaxKind::ForStatement,
+                    writer,
+                )
+            }
+            NodeData::ForInStatement(data) => {
+                writer.write_keyword("for");
+                writer.write_space(" ");
+                writer.write_punctuation("(");
+                self.emit_required_node(
+                    transformation,
+                    node.source(),
+                    data.initializer,
+                    SyntaxKind::ForInStatement,
+                    "initializer",
+                    writer,
+                )?;
+                writer.write_space(" ");
+                writer.write_keyword("in");
+                writer.write_space(" ");
+                self.emit_required_node(
+                    transformation,
+                    node.source(),
+                    data.expression,
+                    SyntaxKind::ForInStatement,
+                    "expression",
+                    writer,
+                )?;
+                writer.write_punctuation(")");
+                self.emit_embedded_statement(
+                    transformation,
+                    node.source(),
+                    data.statement,
+                    SyntaxKind::ForInStatement,
+                    writer,
+                )
+            }
+            NodeData::ForOfStatement(data) => {
+                writer.write_keyword("for");
+                writer.write_space(" ");
+                if let Some(await_modifier) = data.await_modifier {
+                    self.emit_node_id(transformation, node.source(), await_modifier, writer)?;
+                    writer.write_space(" ");
+                }
+                writer.write_punctuation("(");
+                self.emit_required_node(
+                    transformation,
+                    node.source(),
+                    data.initializer,
+                    SyntaxKind::ForOfStatement,
+                    "initializer",
+                    writer,
+                )?;
+                writer.write_space(" ");
+                writer.write_keyword("of");
+                writer.write_space(" ");
+                self.emit_required_node(
+                    transformation,
+                    node.source(),
+                    data.expression,
+                    SyntaxKind::ForOfStatement,
+                    "expression",
+                    writer,
+                )?;
+                writer.write_punctuation(")");
+                self.emit_embedded_statement(
+                    transformation,
+                    node.source(),
+                    data.statement,
+                    SyntaxKind::ForOfStatement,
+                    writer,
+                )
+            }
+            NodeData::IfStatement(data) => {
+                writer.write_keyword("if");
+                writer.write_space(" ");
+                writer.write_punctuation("(");
+                self.emit_required_node(
+                    transformation,
+                    node.source(),
+                    data.expression,
+                    SyntaxKind::IfStatement,
+                    "expression",
+                    writer,
+                )?;
+                writer.write_punctuation(")");
+                self.emit_embedded_statement(
+                    transformation,
+                    node.source(),
+                    data.then_statement,
+                    SyntaxKind::IfStatement,
+                    writer,
+                )?;
+                if let Some(else_statement) = data.else_statement {
+                    writer.write_line(false);
+                    writer.write_keyword("else");
+                    let else_is_if = transformation
+                        .arena()
+                        .node_ref(node.source(), else_statement)
+                        .is_some_and(|statement| {
+                            transformation
+                                .arena()
+                                .node(statement)
+                                .is_ok_and(|statement| statement.kind == SyntaxKind::IfStatement)
+                        });
+                    if else_is_if {
+                        writer.write_space(" ");
+                        self.emit_node_id(transformation, node.source(), else_statement, writer)
+                    } else {
+                        self.emit_embedded_statement(
+                            transformation,
+                            node.source(),
+                            Some(else_statement),
+                            SyntaxKind::IfStatement,
+                            writer,
+                        )
+                    }
+                } else {
+                    Ok(())
+                }
+            }
+            NodeData::SwitchStatement(data) => {
+                writer.write_keyword("switch");
+                writer.write_space(" ");
+                writer.write_punctuation("(");
+                self.emit_required_node(
+                    transformation,
+                    node.source(),
+                    data.expression,
+                    SyntaxKind::SwitchStatement,
+                    "expression",
+                    writer,
+                )?;
+                writer.write_punctuation(")");
+                writer.write_space(" ");
+                self.emit_required_node(
+                    transformation,
+                    node.source(),
+                    data.case_block,
+                    SyntaxKind::SwitchStatement,
+                    "case_block",
+                    writer,
+                )
+            }
+            NodeData::CaseBlock(data) => {
+                self.emit_case_block(transformation, node.source(), data.clauses, writer)
+            }
+            NodeData::CaseClause(data) => {
+                writer.write_keyword("case");
+                writer.write_space(" ");
+                self.emit_required_node(
+                    transformation,
+                    node.source(),
+                    data.expression,
+                    SyntaxKind::CaseClause,
+                    "expression",
+                    writer,
+                )?;
+                writer.write_punctuation(":");
+                self.emit_case_clause_statements(
+                    transformation,
+                    node,
+                    node.source(),
+                    data.statements,
+                    writer,
+                )
+            }
+            NodeData::DefaultClause(data) => {
+                writer.write_keyword("default");
+                writer.write_punctuation(":");
+                self.emit_case_clause_statements(
+                    transformation,
+                    node,
+                    node.source(),
+                    data.statements,
+                    writer,
+                )
+            }
+            NodeData::BreakStatement(data) => {
+                writer.write_keyword("break");
+                if let Some(label) = data.label {
+                    writer.write_space(" ");
+                    self.emit_node_id(transformation, node.source(), label, writer)?;
+                }
+                writer.write_trailing_semicolon(";");
+                Ok(())
+            }
             NodeData::PartiallyEmittedExpression(data) => self.emit_required_node(
                 transformation,
                 node.source(),
@@ -857,6 +1444,93 @@ impl Printer {
                 }
                 Ok(())
             }
+            NodeData::WhileStatement(data) => {
+                writer.write_keyword("while");
+                writer.write_space(" ");
+                writer.write_punctuation("(");
+                self.emit_required_node(
+                    transformation,
+                    node.source(),
+                    data.expression,
+                    SyntaxKind::WhileStatement,
+                    "expression",
+                    writer,
+                )?;
+                writer.write_punctuation(")");
+                self.emit_embedded_statement(
+                    transformation,
+                    node.source(),
+                    data.statement,
+                    SyntaxKind::WhileStatement,
+                    writer,
+                )
+            }
+            NodeData::DoStatement(data) => {
+                writer.write_keyword("do");
+                self.emit_embedded_statement(
+                    transformation,
+                    node.source(),
+                    data.statement,
+                    SyntaxKind::DoStatement,
+                    writer,
+                )?;
+                writer.write_space(" ");
+                writer.write_keyword("while");
+                writer.write_space(" ");
+                writer.write_punctuation("(");
+                self.emit_required_node(
+                    transformation,
+                    node.source(),
+                    data.expression,
+                    SyntaxKind::DoStatement,
+                    "expression",
+                    writer,
+                )?;
+                writer.write_punctuation(")");
+                writer.write_trailing_semicolon(";");
+                Ok(())
+            }
+            NodeData::TryStatement(data) => {
+                writer.write_keyword("try");
+                writer.write_space(" ");
+                self.emit_required_node(
+                    transformation,
+                    node.source(),
+                    data.try_block,
+                    SyntaxKind::TryStatement,
+                    "try_block",
+                    writer,
+                )?;
+                if let Some(catch_clause) = data.catch_clause {
+                    writer.write_line(false);
+                    self.emit_node_id(transformation, node.source(), catch_clause, writer)?;
+                }
+                if let Some(finally_block) = data.finally_block {
+                    writer.write_line(false);
+                    writer.write_keyword("finally");
+                    writer.write_space(" ");
+                    self.emit_node_id(transformation, node.source(), finally_block, writer)?;
+                }
+                Ok(())
+            }
+            NodeData::CatchClause(data) => {
+                writer.write_keyword("catch");
+                writer.write_space(" ");
+                if let Some(variable) = data.variable_declaration {
+                    writer.write_punctuation("(");
+                    self.emit_node_id(transformation, node.source(), variable, writer)?;
+                    writer.write_punctuation(")");
+                    writer.write_space(" ");
+                }
+                self.emit_required_node(
+                    transformation,
+                    node.source(),
+                    data.block,
+                    SyntaxKind::CatchClause,
+                    "block",
+                    writer,
+                )
+            }
             NodeData::CallExpression(data) => {
                 self.emit_required_node(
                     transformation,
@@ -874,8 +1548,39 @@ impl Printer {
                 writer.write_punctuation(")");
                 Ok(())
             }
+            NodeData::TaggedTemplateExpression(data) => {
+                if data.type_arguments.is_some() || data.question_dot_token.is_some() {
+                    return Err(PrinterError::UnsupportedTransformedSyntax {
+                        node,
+                        kind: record.kind,
+                    });
+                }
+                self.emit_required_node(
+                    transformation,
+                    node.source(),
+                    data.tag,
+                    SyntaxKind::TaggedTemplateExpression,
+                    "tag",
+                    writer,
+                )?;
+                writer.write_space(" ");
+                self.emit_required_node(
+                    transformation,
+                    node.source(),
+                    data.template,
+                    SyntaxKind::TaggedTemplateExpression,
+                    "template",
+                    writer,
+                )
+            }
             NodeData::ParenthesizedExpression(data) => {
                 writer.write_punctuation("(");
+                if let Some(expression) = data
+                    .expression
+                    .and_then(|id| transformation.arena().node_ref(node.source(), id))
+                {
+                    self.emit_leading_comments_for_node(transformation, expression, writer)?;
+                }
                 self.emit_required_node(
                     transformation,
                     node.source(),
@@ -887,6 +1592,69 @@ impl Printer {
                 writer.write_punctuation(")");
                 Ok(())
             }
+            NodeData::PropertyAccessExpression(data) => {
+                let expression = data
+                    .expression
+                    .ok_or(PrinterError::MissingTransformedChild {
+                        parent: SyntaxKind::PropertyAccessExpression,
+                        field: "expression",
+                    })?;
+                let name = data.name.ok_or(PrinterError::MissingTransformedChild {
+                    parent: SyntaxKind::PropertyAccessExpression,
+                    field: "name",
+                })?;
+                self.emit_node_id(transformation, node.source(), expression, writer)?;
+                let break_before_name = self.source_gap_has_line_break(
+                    transformation,
+                    node.source(),
+                    expression,
+                    name,
+                )?;
+                if break_before_name {
+                    writer.write_line(false);
+                    writer.increase_indent();
+                }
+                writer.write_punctuation(if data.question_dot_token.is_some() {
+                    "?."
+                } else {
+                    "."
+                });
+                self.emit_node_id(transformation, node.source(), name, writer)?;
+                if break_before_name {
+                    writer.decrease_indent();
+                }
+                Ok(())
+            }
+            NodeData::ElementAccessExpression(data) => {
+                self.emit_required_node(
+                    transformation,
+                    node.source(),
+                    data.expression,
+                    SyntaxKind::ElementAccessExpression,
+                    "expression",
+                    writer,
+                )?;
+                if data.question_dot_token.is_some() {
+                    writer.write_punctuation("?.");
+                }
+                writer.write_punctuation("[");
+                if let Some(argument) = data
+                    .argument_expression
+                    .and_then(|id| transformation.arena().node_ref(node.source(), id))
+                {
+                    self.emit_leading_comments_for_node(transformation, argument, writer)?;
+                }
+                self.emit_required_node(
+                    transformation,
+                    node.source(),
+                    data.argument_expression,
+                    SyntaxKind::ElementAccessExpression,
+                    "argument_expression",
+                    writer,
+                )?;
+                writer.write_punctuation("]");
+                Ok(())
+            }
             NodeData::BinaryExpression(data) => {
                 self.emit_required_node(
                     transformation,
@@ -896,7 +1664,15 @@ impl Printer {
                     "left",
                     writer,
                 )?;
-                writer.write_space(" ");
+                let operator = data
+                    .operator_token
+                    .and_then(|id| transformation.arena().node_ref(node.source(), id))
+                    .map(|operator| transformation.arena().node(operator))
+                    .transpose()?
+                    .map(|operator| operator.kind);
+                if operator != Some(SyntaxKind::CommaToken) {
+                    writer.write_space(" ");
+                }
                 self.emit_required_node(
                     transformation,
                     node.source(),
@@ -917,28 +1693,327 @@ impl Printer {
             }
             NodeData::Block(data) => {
                 writer.write_punctuation("{");
-                if data.statements.is_some() {
+                let function_body = self.is_function_body_block(transformation, node)?;
+                let array = data
+                    .statements
+                    .and_then(|id| transformation.arena().node_array_ref(node.source(), id));
+                let statements = array
+                    .map(|array| transformation.arena().node_array(array))
+                    .transpose()?
+                    .map(|array| array.nodes.clone())
+                    .unwrap_or_default();
+                if statements.is_empty() {
+                    let emitted_comments = self.emit_empty_block_comments(
+                        transformation,
+                        node,
+                        multi_line,
+                        function_body,
+                        writer,
+                    )?;
+                    if !emitted_comments && multi_line {
+                        writer.write_line(false);
+                    } else if !emitted_comments {
+                        writer.write_space(" ");
+                    }
+                } else if !multi_line {
+                    if !function_body {
+                        self.emit_comment_after_open_brace(transformation, node, writer)?;
+                    }
+                    writer.write_space(" ");
+                    for (index, statement) in statements.into_iter().enumerate() {
+                        if index != 0 {
+                            writer.write_space(" ");
+                        }
+                        let statement_node = transformation
+                            .arena()
+                            .node_ref(node.source(), statement)
+                            .ok_or(PrinterError::UnknownStatement(statement.0))?;
+                        self.emit_node_id(transformation, node.source(), statement, writer)?;
+                        self.emit_trailing_comments_for_node(
+                            transformation,
+                            statement_node,
+                            writer,
+                        )?;
+                    }
+                    writer.write_space(" ");
+                } else {
+                    if !function_body {
+                        self.emit_comment_after_open_brace(transformation, node, writer)?;
+                    }
                     writer.write_line(false);
                     writer.increase_indent();
-                    let array = data
-                        .statements
-                        .and_then(|id| transformation.arena().node_array_ref(node.source(), id));
-                    if let Some(array) = array {
-                        let statements = transformation.arena().node_array(array)?.nodes.clone();
-                        for statement in statements {
-                            self.emit_node_id(transformation, node.source(), statement, writer)?;
-                            writer.write_line(false);
+                    let last_statement = statements.last().copied();
+                    for (index, statement) in statements.into_iter().enumerate() {
+                        let statement = transformation
+                            .arena()
+                            .node_ref(node.source(), statement)
+                            .ok_or(PrinterError::UnknownStatement(statement.0))?;
+                        if index == 0 {
+                            self.emit_leading_comments_for_node(transformation, statement, writer)?;
+                        } else {
+                            self.emit_leading_comments_for_node_after_sibling(
+                                transformation,
+                                statement,
+                                writer,
+                            )?;
                         }
+                        self.emit_node_id(transformation, node.source(), statement.node(), writer)?;
+                        self.emit_trailing_comments_for_node(transformation, statement, writer)?;
+                        writer.write_line(false);
+                    }
+                    if let Some(last_statement) = last_statement
+                        .and_then(|id| transformation.arena().node_ref(node.source(), id))
+                    {
+                        self.emit_comments_before_close_brace(
+                            transformation,
+                            node,
+                            last_statement,
+                            writer,
+                        )?;
                     }
                     writer.decrease_indent();
                 }
                 writer.write_punctuation("}");
                 Ok(())
             }
+            _ if !changed => {
+                self.write_original_without_leading_trivia(transformation, node, writer)
+            }
             _ => Err(PrinterError::UnsupportedTransformedSyntax {
                 node,
                 kind: record.kind,
             }),
+        }
+    }
+
+    fn emit_case_block(
+        &self,
+        transformation: &mut TransformationResult<'_>,
+        source: TransformSourceId,
+        clauses: Option<tsc_syntax::NodeArrayId>,
+        writer: &mut TextWriter,
+    ) -> Result<(), PrinterError> {
+        writer.write_punctuation("{");
+        let clauses = clauses
+            .and_then(|array| transformation.arena().node_array_ref(source, array))
+            .map(|array| transformation.arena().node_array(array))
+            .transpose()?
+            .map(|array| array.nodes.clone())
+            .unwrap_or_default();
+        if clauses.is_empty() {
+            writer.write_space(" ");
+        } else {
+            writer.write_line(false);
+            writer.increase_indent();
+            for (index, clause) in clauses.into_iter().enumerate() {
+                let clause = transformation
+                    .arena()
+                    .node_ref(source, clause)
+                    .ok_or(PrinterError::UnknownStatement(clause.0))?;
+                if index == 0 {
+                    self.emit_leading_comments_for_node(transformation, clause, writer)?;
+                } else {
+                    self.emit_leading_comments_for_node_after_sibling(
+                        transformation,
+                        clause,
+                        writer,
+                    )?;
+                }
+                self.emit_node_id(transformation, source, clause.node(), writer)?;
+                self.emit_trailing_comments_for_node(transformation, clause, writer)?;
+                writer.write_line(false);
+            }
+            writer.decrease_indent();
+        }
+        writer.write_punctuation("}");
+        Ok(())
+    }
+
+    fn emit_case_clause_statements(
+        &self,
+        transformation: &mut TransformationResult<'_>,
+        clause: TransformNode,
+        source: TransformSourceId,
+        statements: Option<tsc_syntax::NodeArrayId>,
+        writer: &mut TextWriter,
+    ) -> Result<(), PrinterError> {
+        let statements = statements
+            .and_then(|array| transformation.arena().node_array_ref(source, array))
+            .map(|array| transformation.arena().node_array(array))
+            .transpose()?
+            .map(|array| array.nodes.clone())
+            .unwrap_or_default();
+        if statements.is_empty() {
+            return Ok(());
+        }
+        let first = transformation
+            .arena()
+            .node_ref(source, statements[0])
+            .ok_or(PrinterError::UnknownStatement(statements[0].0))?;
+        let single_line = statements.len() == 1
+            && self.source_nodes_start_on_same_line(transformation, clause, first)?;
+        if single_line {
+            writer.write_space(" ");
+            self.emit_leading_comments_for_node(transformation, first, writer)?;
+            self.emit_node_id(transformation, source, first.node(), writer)?;
+            self.emit_trailing_comments_for_node(transformation, first, writer)?;
+            return Ok(());
+        }
+        writer.write_line(false);
+        writer.increase_indent();
+        for (index, statement) in statements.into_iter().enumerate() {
+            let statement = transformation
+                .arena()
+                .node_ref(source, statement)
+                .ok_or(PrinterError::UnknownStatement(statement.0))?;
+            if index == 0 {
+                self.emit_leading_comments_for_node(transformation, statement, writer)?;
+            } else {
+                self.emit_leading_comments_for_node_after_sibling(
+                    transformation,
+                    statement,
+                    writer,
+                )?;
+            }
+            self.emit_node_id(transformation, source, statement.node(), writer)?;
+            self.emit_trailing_comments_for_node(transformation, statement, writer)?;
+            writer.write_line(false);
+        }
+        writer.decrease_indent();
+        Ok(())
+    }
+
+    fn source_nodes_start_on_same_line(
+        &self,
+        transformation: &TransformationResult<'_>,
+        left: TransformNode,
+        right: TransformNode,
+    ) -> Result<bool, PrinterError> {
+        let left = transformation.arena().get_original_node(left);
+        let right = transformation.arena().get_original_node(right);
+        let source = transformation.arena().source(left.source())?.syntax();
+        let left_record = transformation.arena().node(left)?;
+        let right_record = transformation.arena().node(right)?;
+        let SourceRange::Original(left_range) =
+            SourceRange::from_raw(left_record.pos, left_record.end, source.positions())?
+        else {
+            return Ok(true);
+        };
+        let SourceRange::Original(right_range) =
+            SourceRange::from_raw(right_record.pos, right_record.end, source.positions())?
+        else {
+            return Ok(true);
+        };
+        let left_start = skip_trivia(source.text(), left_range.start().value() as usize);
+        let right_start = skip_trivia(source.text(), right_range.start().value() as usize);
+        if left_start > right_start || right_start > source.text().len() {
+            return Ok(false);
+        }
+        Ok(!source.text()[left_start..right_start]
+            .bytes()
+            .any(|byte| matches!(byte, b'\r' | b'\n')))
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn emit_delimited_expression_list(
+        &self,
+        transformation: &mut TransformationResult<'_>,
+        source: TransformSourceId,
+        elements: Option<tsc_syntax::NodeArrayId>,
+        open: &str,
+        close: &str,
+        multi_line: bool,
+        writer: &mut TextWriter,
+    ) -> Result<(), PrinterError> {
+        writer.write_punctuation(open);
+        let array = elements.and_then(|id| transformation.arena().node_array_ref(source, id));
+        let (ids, trailing_comma) = if let Some(array) = array {
+            let record = transformation.arena().node_array(array)?;
+            (record.nodes.clone(), record.has_trailing_comma)
+        } else {
+            (Vec::new(), false)
+        };
+        if ids.is_empty() {
+            writer.write_punctuation(close);
+            return Ok(());
+        }
+
+        if multi_line {
+            writer.write_line(false);
+            writer.increase_indent();
+            let count = ids.len();
+            for (index, id) in ids.into_iter().enumerate() {
+                let child = transformation
+                    .arena()
+                    .node_ref(source, id)
+                    .ok_or(PrinterError::UnknownStatement(id.0))?;
+                if index == 0 {
+                    self.emit_leading_comments_for_node(transformation, child, writer)?;
+                } else {
+                    self.emit_leading_comments_for_node_after_sibling(
+                        transformation,
+                        child,
+                        writer,
+                    )?;
+                }
+                self.emit_node_id(transformation, source, id, writer)?;
+                if index + 1 < count || trailing_comma {
+                    writer.write_punctuation(",");
+                }
+                self.emit_delimited_trailing_comments_for_node(transformation, child, writer)?;
+                writer.write_line(false);
+            }
+            writer.decrease_indent();
+        } else {
+            let space_between_braces = open == "{";
+            if space_between_braces {
+                writer.write_space(" ");
+            }
+            let count = ids.len();
+            for (index, id) in ids.into_iter().enumerate() {
+                if index != 0 {
+                    writer.write_punctuation(",");
+                    writer.write_space(" ");
+                }
+                self.emit_node_id(transformation, source, id, writer)?;
+                if index + 1 == count && trailing_comma {
+                    writer.write_punctuation(",");
+                }
+            }
+            if space_between_braces {
+                writer.write_space(" ");
+            }
+        }
+        writer.write_punctuation(close);
+        Ok(())
+    }
+
+    fn emit_embedded_statement(
+        &self,
+        transformation: &mut TransformationResult<'_>,
+        source: TransformSourceId,
+        statement: Option<tsc_syntax::NodeId>,
+        parent: SyntaxKind,
+        writer: &mut TextWriter,
+    ) -> Result<(), PrinterError> {
+        let statement = statement.ok_or(PrinterError::MissingTransformedChild {
+            parent,
+            field: "statement",
+        })?;
+        let statement_node = transformation
+            .arena()
+            .node_ref(source, statement)
+            .ok_or(PrinterError::UnknownStatement(statement.0))?;
+        if transformation.arena().node(statement_node)?.kind == SyntaxKind::Block {
+            writer.write_space(" ");
+            self.emit_node_id(transformation, source, statement, writer)
+        } else {
+            writer.write_line(false);
+            writer.increase_indent();
+            self.emit_leading_comments_for_node(transformation, statement_node, writer)?;
+            self.emit_node_id(transformation, source, statement, writer)?;
+            writer.decrease_indent();
+            Ok(())
         }
     }
 
@@ -967,7 +2042,12 @@ impl Printer {
                 field: "name",
             });
         }
-        if heritage_clauses.is_some() {
+        let has_heritage_clauses = heritage_clauses
+            .and_then(|id| transformation.arena().node_array_ref(source, id))
+            .map(|array| transformation.arena().node_array(array))
+            .transpose()?
+            .is_some_and(|array| !array.nodes.is_empty());
+        if has_heritage_clauses {
             writer.write_space(" ");
             self.emit_node_array(transformation, source, heritage_clauses, " ", writer)?;
         }
@@ -983,12 +2063,30 @@ impl Printer {
             if !member_ids.is_empty() {
                 writer.write_line(false);
                 writer.increase_indent();
-                for member in member_ids {
+                for (index, member) in member_ids.into_iter().enumerate() {
+                    let member_node = transformation
+                        .arena()
+                        .node_ref(source, member)
+                        .ok_or(PrinterError::UnknownStatement(member.0))?;
+                    if index == 0 {
+                        self.emit_leading_comments_for_node(transformation, member_node, writer)?;
+                    } else {
+                        self.emit_leading_comments_for_node_after_sibling(
+                            transformation,
+                            member_node,
+                            writer,
+                        )?;
+                    }
                     self.emit_node_id(transformation, source, member, writer)?;
+                    self.emit_trailing_comments_for_node(transformation, member_node, writer)?;
                     writer.write_line(false);
                 }
                 writer.decrease_indent();
+            } else {
+                writer.write_line(false);
             }
+        } else {
+            writer.write_line(false);
         }
         writer.write_punctuation("}");
         Ok(())
@@ -1005,6 +2103,97 @@ impl Printer {
         self.emit_node_array(transformation, source, parameters, ", ", writer)?;
         writer.write_punctuation(")");
         Ok(())
+    }
+
+    fn source_gap_has_line_break(
+        &self,
+        transformation: &TransformationResult<'_>,
+        source: TransformSourceId,
+        left: tsc_syntax::NodeId,
+        right: tsc_syntax::NodeId,
+    ) -> Result<bool, PrinterError> {
+        let left = transformation
+            .arena()
+            .node_ref(source, left)
+            .ok_or(PrinterError::UnknownStatement(left.0))?;
+        let right = transformation
+            .arena()
+            .node_ref(source, right)
+            .ok_or(PrinterError::UnknownStatement(right.0))?;
+        let left = transformation.arena().get_original_node(left);
+        let right = transformation.arena().get_original_node(right);
+        let syntax = transformation.arena().source(source)?.syntax();
+        let SourceRange::Original(left_range) = SourceRange::from_raw(
+            transformation.arena().node(left)?.pos,
+            transformation.arena().node(left)?.end,
+            syntax.positions(),
+        )?
+        else {
+            return Ok(false);
+        };
+        let SourceRange::Original(right_range) = SourceRange::from_raw(
+            transformation.arena().node(right)?.pos,
+            transformation.arena().node(right)?.end,
+            syntax.positions(),
+        )?
+        else {
+            return Ok(false);
+        };
+        let start = left_range.end().value() as usize;
+        let end = right_range.start().value() as usize;
+        if start > end || end > syntax.text().len() {
+            return Ok(false);
+        }
+        Ok(syntax.text()[start..end].contains('\r') || syntax.text()[start..end].contains('\n'))
+    }
+
+    fn simple_arrow_parameter(
+        &self,
+        transformation: &TransformationResult<'_>,
+        arrow: TransformNode,
+        data: &tsc_syntax::nodes::ArrowFunctionData,
+    ) -> Result<Option<tsc_syntax::NodeId>, PrinterError> {
+        if data.r#type.is_some() || data.modifiers.is_some() || data.type_parameters.is_some() {
+            return Ok(None);
+        }
+        let Some(parameters) = data
+            .parameters
+            .and_then(|id| transformation.arena().node_array_ref(arrow.source(), id))
+        else {
+            return Ok(None);
+        };
+        let parameters = transformation.arena().node_array(parameters)?;
+        if parameters.nodes.len() != 1 {
+            return Ok(None);
+        }
+        let parameter_id = parameters.nodes[0];
+        let parameter = transformation
+            .arena()
+            .node_ref(arrow.source(), parameter_id)
+            .ok_or(PrinterError::UnknownStatement(parameter_id.0))?;
+        let NodeData::Parameter(parameter_data) = &transformation.arena().node(parameter)?.data
+        else {
+            return Ok(None);
+        };
+        let simple_name = parameter_data
+            .name
+            .and_then(|id| transformation.arena().node_ref(arrow.source(), id))
+            .is_some_and(|name| {
+                transformation
+                    .arena()
+                    .node(name)
+                    .is_ok_and(|name| name.kind == SyntaxKind::Identifier)
+            });
+        let arrow_pos = transformation.arena().node(arrow)?.pos;
+        let parameter_pos = transformation.arena().node(parameter)?.pos;
+        Ok((arrow_pos == parameter_pos
+            && simple_name
+            && parameter_data.modifiers.is_none()
+            && parameter_data.dot_dot_dot_token.is_none()
+            && parameter_data.question_token.is_none()
+            && parameter_data.r#type.is_none()
+            && parameter_data.initializer.is_none())
+        .then_some(parameter_id))
     }
 
     fn emit_named_import_or_export_list(
@@ -1139,7 +2328,432 @@ impl Printer {
             .text()
             .get(start as usize..end as usize)
             .ok_or(PrinterError::InvalidTextSlice { start, end })?;
+        let normalized = normalize_new_lines(slice, self.options.new_line.text());
+        writer.write(&normalized);
+        Ok(())
+    }
+
+    fn write_original_without_leading_trivia_verbatim(
+        &self,
+        transformation: &TransformationResult<'_>,
+        node: TransformNode,
+        writer: &mut TextWriter,
+    ) -> Result<(), PrinterError> {
+        let source = transformation.arena().source(node.source())?.syntax();
+        let record = transformation.arena().node(node)?;
+        let SourceRange::Original(range) =
+            SourceRange::from_raw(record.pos, record.end, source.positions())?
+        else {
+            return Err(PrinterError::SyntheticNodeWorkerUnavailable(node));
+        };
+        let start = skip_trivia(source.text(), range.start().value() as usize);
+        let end = range.end().value() as usize;
+        let slice = source
+            .text()
+            .get(start..end)
+            .ok_or(PrinterError::InvalidTextSlice {
+                start: u32::try_from(start).expect("source position exceeds u32"),
+                end: u32::try_from(end).expect("source position exceeds u32"),
+            })?;
         writer.write(slice);
+        Ok(())
+    }
+
+    fn write_original_module_statement(
+        &self,
+        transformation: &TransformationResult<'_>,
+        node: TransformNode,
+        writer: &mut TextWriter,
+    ) -> Result<(), PrinterError> {
+        let original = transformation.arena().get_original_node(node);
+        let source = transformation.arena().source(original.source())?.syntax();
+        let record = transformation.arena().node(original)?;
+        let SourceRange::Original(range) =
+            SourceRange::from_raw(record.pos, record.end, source.positions())?
+        else {
+            return Err(PrinterError::SyntheticNodeWorkerUnavailable(node));
+        };
+        let ends_with_semicolon = source.text()
+            [range.start().value() as usize..range.end().value() as usize]
+            .trim_end()
+            .ends_with(';');
+        self.write_original_without_leading_trivia(transformation, node, writer)?;
+        if !ends_with_semicolon {
+            writer.write_trailing_semicolon(";");
+        }
+        Ok(())
+    }
+
+    fn original_node_has_internal_comments(
+        &self,
+        transformation: &TransformationResult<'_>,
+        node: TransformNode,
+    ) -> Result<bool, PrinterError> {
+        let original = transformation.arena().get_original_node(node);
+        let source = transformation.arena().source(original.source())?.syntax();
+        let record = transformation.arena().node(original)?;
+        let SourceRange::Original(range) =
+            SourceRange::from_raw(record.pos, record.end, source.positions())?
+        else {
+            return Ok(false);
+        };
+        let text = source.text();
+        let start = u32::try_from(skip_trivia(text, range.start().value() as usize))
+            .expect("source trivia position exceeds u32");
+        let end = range.end().value();
+        let mut cursor = start;
+        for token in scan_tokens(text, source.language_variant) {
+            let token_start = source.positions().utf16_to_byte(token.start).ok_or(
+                PrinterError::TokenPositionNotScalarBoundary {
+                    position: token.start,
+                },
+            )?;
+            let token_end = source.positions().utf16_to_byte(token.end).ok_or(
+                PrinterError::TokenPositionNotScalarBoundary {
+                    position: token.end,
+                },
+            )?;
+            if token_end <= start {
+                continue;
+            }
+            if token_start >= end {
+                break;
+            }
+            let gap_end = token_start.min(end);
+            if cursor < gap_end
+                && text.as_bytes()[cursor as usize..gap_end as usize]
+                    .windows(2)
+                    .any(|pair| pair == b"/*" || pair == b"//")
+            {
+                return Ok(true);
+            }
+            cursor = cursor.max(token_end.min(end));
+        }
+        Ok(cursor < end
+            && text.as_bytes()[cursor as usize..end as usize]
+                .windows(2)
+                .any(|pair| pair == b"/*" || pair == b"//"))
+    }
+
+    fn emit_leading_comments_for_node(
+        &self,
+        transformation: &TransformationResult<'_>,
+        node: TransformNode,
+        writer: &mut TextWriter,
+    ) -> Result<(), PrinterError> {
+        self.emit_leading_comments_for_node_worker(transformation, node, false, writer)
+    }
+
+    fn emit_leading_comments_for_node_after_sibling(
+        &self,
+        transformation: &TransformationResult<'_>,
+        node: TransformNode,
+        writer: &mut TextWriter,
+    ) -> Result<(), PrinterError> {
+        self.emit_leading_comments_for_node_worker(transformation, node, true, writer)
+    }
+
+    fn emit_leading_comments_for_node_worker(
+        &self,
+        transformation: &TransformationResult<'_>,
+        node: TransformNode,
+        after_sibling: bool,
+        writer: &mut TextWriter,
+    ) -> Result<(), PrinterError> {
+        if self.options.remove_comments {
+            return Ok(());
+        }
+        let original = transformation.arena().get_original_node(node);
+        let source = transformation.arena().source(original.source())?.syntax();
+        let record = transformation.arena().node(original)?;
+        let SourceRange::Original(range) =
+            SourceRange::from_raw(record.pos, record.end, source.positions())?
+        else {
+            return Ok(());
+        };
+        let start = range.start().value() as usize;
+        let code_start = skip_trivia(source.text(), start);
+        if code_start > start {
+            let mut trivia = &source.text()[start..code_start];
+            if after_sibling
+                || start > 0
+                    && matches!(
+                        source.text().as_bytes()[start - 1],
+                        b';' | b',' | b'{' | b'}' | b')'
+                    )
+            {
+                trivia = strip_same_line_comment_prefix(trivia);
+            }
+            emit_leading_comments(trivia, writer);
+        }
+        Ok(())
+    }
+
+    fn emit_detached_leading_comments_for_node(
+        &self,
+        transformation: &TransformationResult<'_>,
+        node: TransformNode,
+        writer: &mut TextWriter,
+    ) -> Result<(), PrinterError> {
+        if self.options.remove_comments {
+            return Ok(());
+        }
+        let original = transformation.arena().get_original_node(node);
+        let source = transformation.arena().source(original.source())?.syntax();
+        let record = transformation.arena().node(original)?;
+        let SourceRange::Original(range) =
+            SourceRange::from_raw(record.pos, record.end, source.positions())?
+        else {
+            return Ok(());
+        };
+        let start = range.start().value() as usize;
+        let code_start = skip_trivia(source.text(), start);
+        if let Some(detached) = detached_leading_trivia(&source.text()[start..code_start]) {
+            emit_leading_comments(detached, writer);
+        }
+        Ok(())
+    }
+
+    fn emit_trailing_comments_for_node(
+        &self,
+        transformation: &TransformationResult<'_>,
+        node: TransformNode,
+        writer: &mut TextWriter,
+    ) -> Result<(), PrinterError> {
+        if self.options.remove_comments {
+            return Ok(());
+        }
+        let original = transformation.arena().get_original_node(node);
+        let source = transformation.arena().source(original.source())?.syntax();
+        let record = transformation.arena().node(original)?;
+        let SourceRange::Original(range) =
+            SourceRange::from_raw(record.pos, record.end, source.positions())?
+        else {
+            return Ok(());
+        };
+        emit_same_line_trailing_comments(&source.text()[range.end().value() as usize..], writer);
+        Ok(())
+    }
+
+    fn emit_source_file_trailing_comments(
+        &self,
+        transformation: &TransformationResult<'_>,
+        last_statement: TransformNode,
+        writer: &mut TextWriter,
+    ) -> Result<(), PrinterError> {
+        if self.options.remove_comments {
+            return Ok(());
+        }
+        let source = transformation
+            .arena()
+            .source(last_statement.source())?
+            .syntax();
+        let record = transformation.arena().node(last_statement)?;
+        let SourceRange::Original(range) =
+            SourceRange::from_raw(record.pos, record.end, source.positions())?
+        else {
+            return Ok(());
+        };
+        let mut start = range.end().value() as usize;
+        if source.text().as_bytes().get(start) == Some(&b';') {
+            start += 1;
+        }
+        let tail = strip_same_line_comment_prefix(&source.text()[start..]);
+        if skip_trivia(tail, 0) == tail.len()
+            && tail
+                .as_bytes()
+                .windows(2)
+                .any(|pair| pair == b"/*" || pair == b"//")
+        {
+            emit_leading_comments(tail, writer);
+        }
+        Ok(())
+    }
+
+    fn emit_comment_after_open_brace(
+        &self,
+        transformation: &TransformationResult<'_>,
+        node: TransformNode,
+        writer: &mut TextWriter,
+    ) -> Result<(), PrinterError> {
+        if self.options.remove_comments {
+            return Ok(());
+        }
+        let original = transformation.arena().get_original_node(node);
+        let source = transformation.arena().source(original.source())?.syntax();
+        let record = transformation.arena().node(original)?;
+        let SourceRange::Original(range) =
+            SourceRange::from_raw(record.pos, record.end, source.positions())?
+        else {
+            return Ok(());
+        };
+        let start = skip_trivia(source.text(), range.start().value() as usize);
+        let end = range.end().value() as usize;
+        if start < end && source.text().as_bytes()[start] == b'{' {
+            emit_same_line_trailing_comments(&source.text()[start + 1..end], writer);
+        }
+        Ok(())
+    }
+
+    fn emit_empty_block_comments(
+        &self,
+        transformation: &TransformationResult<'_>,
+        node: TransformNode,
+        multi_line: bool,
+        function_body: bool,
+        writer: &mut TextWriter,
+    ) -> Result<bool, PrinterError> {
+        if self.options.remove_comments {
+            return Ok(false);
+        }
+        let original = transformation.arena().get_original_node(node);
+        let source = transformation.arena().source(original.source())?.syntax();
+        let record = transformation.arena().node(original)?;
+        let SourceRange::Original(range) =
+            SourceRange::from_raw(record.pos, record.end, source.positions())?
+        else {
+            return Ok(false);
+        };
+        let start = skip_trivia(source.text(), range.start().value() as usize);
+        let end = range.end().value() as usize;
+        if start >= end || source.text().as_bytes()[start] != b'{' {
+            return Ok(false);
+        }
+        let inner_end = source.text()[start + 1..end]
+            .rfind('}')
+            .map_or(end, |offset| start + 1 + offset);
+        let inner = &source.text()[start + 1..inner_end];
+        let inner = if function_body {
+            strip_same_line_comment_prefix(inner)
+        } else {
+            inner
+        };
+        if !inner
+            .as_bytes()
+            .windows(2)
+            .any(|pair| pair == b"/*" || pair == b"//")
+        {
+            return Ok(false);
+        }
+        if multi_line {
+            writer.write_line(false);
+            writer.increase_indent();
+            emit_leading_comments(inner, writer);
+            writer.decrease_indent();
+        } else {
+            writer.write_space(" ");
+            emit_leading_comments(inner, writer);
+        }
+        Ok(true)
+    }
+
+    fn is_function_body_block(
+        &self,
+        transformation: &TransformationResult<'_>,
+        node: TransformNode,
+    ) -> Result<bool, PrinterError> {
+        let original = transformation.arena().get_original_node(node);
+        let Some(parent) = transformation.arena().node(original)?.parent else {
+            return Ok(false);
+        };
+        let parent = transformation
+            .arena()
+            .node_ref(original.source(), parent)
+            .ok_or(PrinterError::UnknownStatement(parent.0))?;
+        Ok(matches!(
+            transformation.arena().node(parent)?.kind,
+            SyntaxKind::FunctionDeclaration
+                | SyntaxKind::FunctionExpression
+                | SyntaxKind::ArrowFunction
+                | SyntaxKind::MethodDeclaration
+                | SyntaxKind::GetAccessor
+                | SyntaxKind::SetAccessor
+                | SyntaxKind::Constructor
+                | SyntaxKind::ClassStaticBlockDeclaration
+        ))
+    }
+
+    fn emit_comments_before_close_brace(
+        &self,
+        transformation: &TransformationResult<'_>,
+        block: TransformNode,
+        last_statement: TransformNode,
+        writer: &mut TextWriter,
+    ) -> Result<(), PrinterError> {
+        if self.options.remove_comments {
+            return Ok(());
+        }
+        let original_block = transformation.arena().get_original_node(block);
+        let original_statement = transformation.arena().get_original_node(last_statement);
+        let source = transformation
+            .arena()
+            .source(original_block.source())?
+            .syntax();
+        let block_record = transformation.arena().node(original_block)?;
+        let statement_record = transformation.arena().node(original_statement)?;
+        let SourceRange::Original(block_range) =
+            SourceRange::from_raw(block_record.pos, block_record.end, source.positions())?
+        else {
+            return Ok(());
+        };
+        let SourceRange::Original(statement_range) = SourceRange::from_raw(
+            statement_record.pos,
+            statement_record.end,
+            source.positions(),
+        )?
+        else {
+            return Ok(());
+        };
+        let block_end = block_range.end().value() as usize;
+        let close = source.text()[block_range.start().value() as usize..block_end]
+            .rfind('}')
+            .map(|offset| block_range.start().value() as usize + offset)
+            .unwrap_or(block_end);
+        let start = statement_range.end().value() as usize;
+        if start >= close {
+            return Ok(());
+        }
+        let trivia = strip_same_line_comment_prefix(&source.text()[start..close]);
+        if trivia
+            .as_bytes()
+            .windows(2)
+            .any(|pair| pair == b"/*" || pair == b"//")
+        {
+            emit_leading_comments(trivia, writer);
+        }
+        Ok(())
+    }
+
+    fn emit_delimited_trailing_comments_for_node(
+        &self,
+        transformation: &TransformationResult<'_>,
+        node: TransformNode,
+        writer: &mut TextWriter,
+    ) -> Result<(), PrinterError> {
+        if self.options.remove_comments {
+            return Ok(());
+        }
+        let original = transformation.arena().get_original_node(node);
+        let source = transformation.arena().source(original.source())?.syntax();
+        let record = transformation.arena().node(original)?;
+        let SourceRange::Original(range) =
+            SourceRange::from_raw(record.pos, record.end, source.positions())?
+        else {
+            return Ok(());
+        };
+        let rest = &source.text()[range.end().value() as usize..];
+        let mut cursor = 0usize;
+        while rest
+            .as_bytes()
+            .get(cursor)
+            .is_some_and(|byte| matches!(byte, b' ' | b'\t'))
+        {
+            cursor += 1;
+        }
+        if rest.as_bytes().get(cursor) == Some(&b',') {
+            cursor += 1;
+        }
+        emit_same_line_trailing_comments(&rest[cursor..], writer);
         Ok(())
     }
 
@@ -1316,6 +2930,186 @@ impl Printer {
             generated: writer.location(),
         });
         Ok(())
+    }
+}
+
+fn emit_same_line_trailing_comments(rest: &str, writer: &mut TextWriter) {
+    let bytes = rest.as_bytes();
+    let mut cursor = 0usize;
+    loop {
+        while cursor < bytes.len() && matches!(bytes[cursor], b' ' | b'\t') {
+            cursor += 1;
+        }
+        if cursor >= bytes.len() || matches!(bytes[cursor], b'\r' | b'\n') {
+            return;
+        }
+        let (end, line_comment) = if bytes.get(cursor..cursor + 2) == Some(b"//") {
+            let mut end = cursor + 2;
+            while end < bytes.len() && !matches!(bytes[end], b'\r' | b'\n') {
+                end += 1;
+            }
+            (end, true)
+        } else if bytes.get(cursor..cursor + 2) == Some(b"/*") {
+            let mut end = cursor + 2;
+            while end + 1 < bytes.len() && &bytes[end..end + 2] != b"*/" {
+                end += 1;
+            }
+            ((end + 2).min(bytes.len()), false)
+        } else {
+            return;
+        };
+        if !writer.has_trailing_whitespace() {
+            writer.write_space(" ");
+        }
+        write_comment_with_normalized_newlines(&rest[cursor..end], writer);
+        cursor = end;
+        if line_comment {
+            return;
+        }
+    }
+}
+
+fn strip_same_line_comment_prefix(trivia: &str) -> &str {
+    let bytes = trivia.as_bytes();
+    let mut cursor = 0usize;
+    let mut found = false;
+    loop {
+        while cursor < bytes.len() && matches!(bytes[cursor], b' ' | b'\t') {
+            cursor += 1;
+        }
+        if bytes.get(cursor..cursor + 2) == Some(b"//") {
+            while cursor < bytes.len() && !matches!(bytes[cursor], b'\r' | b'\n') {
+                cursor += 1;
+            }
+            if cursor < bytes.len() && bytes[cursor] == b'\r' {
+                cursor += 1;
+            }
+            if cursor < bytes.len() && bytes[cursor] == b'\n' {
+                cursor += 1;
+            }
+            return &trivia[cursor..];
+        }
+        if bytes.get(cursor..cursor + 2) == Some(b"/*") {
+            found = true;
+            cursor += 2;
+            while cursor + 1 < bytes.len() && &bytes[cursor..cursor + 2] != b"*/" {
+                cursor += 1;
+            }
+            cursor = (cursor + 2).min(bytes.len());
+            continue;
+        }
+        return if found { &trivia[cursor..] } else { trivia };
+    }
+}
+
+fn detached_leading_trivia(trivia: &str) -> Option<&str> {
+    let bytes = trivia.as_bytes();
+    let mut cursor = 0usize;
+    let mut previous_line_end = None;
+    while cursor < bytes.len() {
+        let line_start = cursor;
+        if bytes[cursor] == b'\r' {
+            cursor += 1;
+            if bytes.get(cursor) == Some(&b'\n') {
+                cursor += 1;
+            }
+        } else if bytes[cursor] == b'\n' {
+            cursor += 1;
+        } else {
+            cursor += trivia[cursor..].chars().next().map_or(1, char::len_utf8);
+            continue;
+        }
+        if previous_line_end.is_some_and(|end| {
+            bytes[end..line_start]
+                .iter()
+                .all(|byte| matches!(byte, b' ' | b'\t'))
+        }) {
+            let detached = &trivia[..cursor];
+            if detached
+                .as_bytes()
+                .windows(2)
+                .any(|pair| pair == b"/*" || pair == b"//")
+            {
+                return Some(detached);
+            }
+        }
+        previous_line_end = Some(cursor);
+    }
+    None
+}
+
+fn emit_leading_comments(trivia: &str, writer: &mut TextWriter) {
+    let bytes = trivia.as_bytes();
+    let mut cursor = 0usize;
+    while cursor < bytes.len() {
+        let whitespace_start = cursor;
+        while cursor < bytes.len() && bytes[cursor].is_ascii_whitespace() {
+            cursor += 1;
+        }
+        let comment_follows = bytes.get(cursor..cursor + 2) == Some(b"//")
+            || bytes.get(cursor..cursor + 2) == Some(b"/*");
+        if comment_follows
+            && (trivia[whitespace_start..cursor].contains('\r')
+                || trivia[whitespace_start..cursor].contains('\n'))
+            && !writer.is_at_start_of_line()
+        {
+            writer.write_line(false);
+        }
+
+        let (comment_end, line_comment) = if bytes.get(cursor..cursor + 2) == Some(b"//") {
+            let mut end = cursor + 2;
+            while end < bytes.len() && !matches!(bytes[end], b'\r' | b'\n') {
+                end += 1;
+            }
+            (end, true)
+        } else if bytes.get(cursor..cursor + 2) == Some(b"/*") {
+            let mut end = cursor + 2;
+            while end + 1 < bytes.len() && &bytes[end..end + 2] != b"*/" {
+                end += 1;
+            }
+            end = (end + 2).min(bytes.len());
+            (end, false)
+        } else {
+            if cursor < bytes.len() {
+                cursor += trivia[cursor..].chars().next().map_or(1, char::len_utf8);
+            }
+            continue;
+        };
+
+        write_comment_with_normalized_newlines(&trivia[cursor..comment_end], writer);
+        cursor = comment_end;
+
+        let gap_start = cursor;
+        while cursor < bytes.len() && bytes[cursor].is_ascii_whitespace() {
+            cursor += 1;
+        }
+        let gap_has_line_break =
+            trivia[gap_start..cursor].contains('\r') || trivia[gap_start..cursor].contains('\n');
+        if line_comment || gap_has_line_break {
+            writer.write_line(false);
+        } else if gap_start < cursor || cursor < bytes.len() {
+            writer.write_space(" ");
+        }
+    }
+}
+
+fn write_comment_with_normalized_newlines(comment: &str, writer: &mut TextWriter) {
+    let normalized = comment.replace("\r\n", "\n").replace('\r', "\n");
+    let mut lines = normalized.split('\n').peekable();
+    while let Some(line) = lines.next() {
+        writer.write_comment(line);
+        if lines.peek().is_some() {
+            writer.write_line(false);
+        }
+    }
+}
+
+fn normalize_new_lines(text: &str, new_line: &str) -> String {
+    let normalized = text.replace("\r\n", "\n").replace('\r', "\n");
+    if new_line == "\n" {
+        normalized
+    } else {
+        normalized.replace('\n', new_line)
     }
 }
 

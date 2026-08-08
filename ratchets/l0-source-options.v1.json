@@ -293,8 +293,8 @@
         "from": "PreparedSourceFile.snapshot",
         "to": "InputFile.snapshot",
         "path": "crates/compiler/src/lib.rs",
-        "line": 1238,
-        "source_sha256": "ada2464597660de94a9ee8c205f7c1e0a92c5d85c270672565a2f74e1b22304b",
+        "line": 1283,
+        "source_sha256": "af32bf2e6a6ee999b209fe44d46cb63e397efb06d112d4d7052ec508a03fe5ea",
         "evidence": "        InputFile::from_snapshot(name, Arc::clone(source.snapshot())),"
       },
       {
@@ -343,8 +343,8 @@
         "from": "prepared/config/auxiliary snapshots",
         "to": "CLI diagnostic snapshot map",
         "path": "crates/compiler/src/cli.rs",
-        "line": 1117,
-        "source_sha256": "1bceb7f6fe9248d9b63ff5736b492fa97e6bfb2e49a3478c940f31ae5d909f1f",
+        "line": 1100,
+        "source_sha256": "3755db9ef2ac77e0d3903cfe7b31a28bcb74273d4e0b4aaf792d6b8c27ac51de",
         "evidence": "    let host = FormatDiagnosticsHost::from_snapshots(current_directory, source_texts);"
       }
     ],
@@ -417,8 +417,8 @@
       "generated_syntax_relocation": {
         "source": "nodes.schema.json field model",
         "path": "crates/xtask/src/main.rs",
-        "line": 11425,
-        "source_sha256": "2050478760c1e0040662f9900f2cf82bc5ce77bb2fab6d5878b4969442e63318",
+        "line": 11441,
+        "source_sha256": "2035b5854efd4678dfa00fb6466281a9d41561f50dcabd8d7e85674daf0dda54",
         "evidence": "fn render_relocate_rs(schemas: &[NodeSchema])"
       },
       "bind_owner": {

@@ -230,6 +230,15 @@ impl H2ActivityCanary {
         }
     }
 
+    /// Construct the current production admission profile. H2.1a is the
+    /// first runtime expansion; every later slice remains fail-closed.
+    #[doc(hidden)]
+    pub const fn h2_1a_profile() -> Self {
+        let mut profile = Self::h1_profile();
+        profile.admitted_runtime_slices = 1_u64 << H2RuntimeSlice::H2_1a.index();
+        profile
+    }
+
     pub const fn counters(&self) -> H2ActivityCounters {
         self.counters
     }

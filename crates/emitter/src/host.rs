@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use tsc_program::SourceFileId;
+use tsc_program::{ResolutionMode, SourceFileId};
 use tsc_syntax::SourceFile;
 use tsc_types::CompilerOptions;
 
@@ -16,6 +16,7 @@ pub struct EmitSource<'host> {
     path: &'host Path,
     canonical_path: &'host Path,
     may_be_emitted: bool,
+    implied_node_format_for_emit: Option<ResolutionMode>,
     syntax: Option<&'host SourceFile>,
 }
 
@@ -25,6 +26,7 @@ impl<'host> EmitSource<'host> {
         path: &'host Path,
         canonical_path: &'host Path,
         may_be_emitted: bool,
+        implied_node_format_for_emit: Option<ResolutionMode>,
         syntax: Option<&'host SourceFile>,
     ) -> Self {
         Self {
@@ -32,6 +34,7 @@ impl<'host> EmitSource<'host> {
             path,
             canonical_path,
             may_be_emitted,
+            implied_node_format_for_emit,
             syntax,
         }
     }
@@ -50,6 +53,13 @@ impl<'host> EmitSource<'host> {
 
     pub const fn may_be_emitted(self) -> bool {
         self.may_be_emitted
+    }
+
+    /// The already-computed `getImpliedNodeFormatForEmitWorker` result owned
+    /// by the Program loader. `None` means emission falls back to the
+    /// effective compiler `module` kind.
+    pub const fn implied_node_format_for_emit(self) -> Option<ResolutionMode> {
+        self.implied_node_format_for_emit
     }
 
     pub const fn syntax(self) -> Option<&'host SourceFile> {
@@ -71,6 +81,18 @@ pub trait EmitHost {
     fn use_case_sensitive_file_names(&self) -> bool;
     fn source_file_ids(&self) -> &[SourceFileId];
     fn source_file(&self, id: SourceFileId) -> Option<EmitSource<'_>>;
+
+    /// tsc-port: getEmitModuleFormatOfFileWorker @6.0.3
+    /// tsc-hash: ffe7b58092e4af38c9484bef12201ef7524d2e3d26ba829ea59087f1a2c0d2a1
+    /// tsc-span: _tsc.js:125493-125495
+    fn get_emit_module_format_of_file(&self, id: SourceFileId) -> Option<i32> {
+        let source = self.source_file(id)?;
+        Some(match source.implied_node_format_for_emit() {
+            Some(ResolutionMode::CommonJs) => 1,
+            Some(ResolutionMode::EsNext) => 99,
+            Some(ResolutionMode::Unspecified) | None => self.compiler_options().emit_module_kind(),
+        })
+    }
 
     /// Canonicalize one output spelling with the same case policy used for
     /// source identities. Implementations may override this when their path

@@ -1,0 +1,184 @@
+{
+  "schema": 1,
+  "kind": "h2-runtime-profile",
+  "status": "qualified",
+  "phase": "H2.1a",
+  "typescript": {
+    "version": "6.0.3",
+    "source_commit": "050880ce59e30b356b686bd3144efe24f875ebc8",
+    "bundle": {
+      "path": "vendor/typescript-6.0.3/lib/typescript.js",
+      "sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39"
+    },
+    "implementation": {
+      "path": "vendor/typescript-6.0.3/lib/_tsc.js",
+      "sha256": "1c59e77a54b186ec43fa7f3e0d3c4bb15ca5eb5ba43e96b1d3a267139eddd3e3"
+    }
+  },
+  "generator": {
+    "path": "crates/oracle/h2-1a-profile.mjs",
+    "sha256": "a7c0c000c5345540c5e92bca204a6d7ef875d039b69b1352d36f4b50b056e4cf"
+  },
+  "contract": {
+    "path": ".github/ci/contracts/h2-1a-profile.schema.json",
+    "sha256": "6eb004f407b94dbffa5e289dfbce343b63469373886da06b9d1b254a47fc0656"
+  },
+  "origin": {
+    "trusted_h2_0b_merge": "b22491e86da731e4657fb8ec2c31c19291099b4c",
+    "historical": {
+      "profile_transition": {
+        "path": "ratchets/h2-profile-transition.v1.json",
+        "sha256": "c7e02004a8ca337b2c9a2abd1784a2d1098b00f1660166c04233c41cccf7eb5a"
+      },
+      "runtime_baseline": {
+        "path": "ratchets/h2-runtime-baseline.v1.json",
+        "sha256": "634492148d44c374c922ed6bd0545c43cdcabe913c78dbffd9d2f940c4ac7cd9"
+      },
+      "transition_generator": {
+        "path": "crates/oracle/h2-transition.mjs",
+        "sha256": "4cfee6be340ee1cb8d6452b52376fa46f81143943d002290cdcad86b9dce7c2f"
+      },
+      "baseline_generator": {
+        "path": "crates/oracle/h2-baseline.mjs",
+        "sha256": "dd282acbf207980db2fcd540206957f980c4e05a1b41b68e1bc347d6b5487197"
+      },
+      "transition_contract": {
+        "path": ".github/ci/contracts/h2-profile-transition.schema.json",
+        "sha256": "fb899f795a4b07b38da88748117347b3f662d85e4be194b2334b48c05e519b23"
+      },
+      "baseline_contract": {
+        "path": ".github/ci/contracts/h2-runtime-baseline.schema.json",
+        "sha256": "a37cbec40a1773d3b4199739764f34882457aaebe0661280ede262246b769fae"
+      }
+    },
+    "interpretation": "H2.0a/H2.0b artifacts remain immutable lineage; current runtime ownership transfers to this H2.1a profile"
+  },
+  "qualification": {
+    "path": "ratchets/h2-1a-qualification.v1.json",
+    "sha256": "1a1dbd0bd51768f054c1fed51300df8de5211af7e4978f838efe93926bd527e3"
+  },
+  "runtime_inputs": [
+    {
+      "path": "crates/compiler/src/cli.rs",
+      "sha256": "3755db9ef2ac77e0d3903cfe7b31a28bcb74273d4e0b4aaf792d6b8c27ac51de"
+    },
+    {
+      "path": "crates/compiler/src/lib.rs",
+      "sha256": "af32bf2e6a6ee999b209fe44d46cb63e397efb06d112d4d7052ec508a03fe5ea"
+    },
+    {
+      "path": "crates/compiler/tests/integration/emit_session_contract.rs",
+      "sha256": "10e8975d1fad283bbe7f607bdf960abffe6cc2135c4aa869129d838a4653afe5"
+    },
+    {
+      "path": "crates/emitter/src/activity.rs",
+      "sha256": "277e3e803146dbcf333b4cb2e52e6aeccd210a17dfd1f38f04c6d123e49bc8d1"
+    },
+    {
+      "path": "crates/emitter/src/builtins.rs",
+      "sha256": "24461fea735f8602d2896490bdf4b8f8cb17e265f103e51ddcb4a29d0fde0e9e"
+    },
+    {
+      "path": "crates/emitter/src/execute.rs",
+      "sha256": "e46370042cd8da6d0f2e4d39820bec54c01022ed0330f16ad7654bb61a43b79a"
+    },
+    {
+      "path": "crates/emitter/src/host.rs",
+      "sha256": "2711421284a2a80b345cdc21dccd897b6c3c3908035f7bb9d080976a5af029a7"
+    },
+    {
+      "path": "crates/emitter/src/printer.rs",
+      "sha256": "71d8c497aa2a31629f30749ad5c913e9c8f57f3b464361c14aae88db7e506eb6"
+    },
+    {
+      "path": "crates/emitter/src/transform.rs",
+      "sha256": "94c7597740769e0ca7e8954b08400d537b9e9c41e9697ecd9d382a6e28d6b657"
+    },
+    {
+      "path": "crates/emitter/tests/integration/output_plan_contract.rs",
+      "sha256": "8d65f1bc9f3de73014b5e7eac6fc42861fa07eabb2b6fac7f59dd51554903c32"
+    },
+    {
+      "path": "crates/harness/src/upstream_suites/execution.rs",
+      "sha256": "660bd27e0000749b160c9dc7daadd51d2df02cc02d69004ee85c1754912e52f1"
+    },
+    {
+      "path": "crates/xtask/src/h2_1a_acceptance.rs",
+      "sha256": "dcb66f570acd838dba442eedb38cef68cddae6989b7354c198eca8fa9ded6743"
+    },
+    {
+      "path": "crates/xtask/src/main.rs",
+      "sha256": "2035b5854efd4678dfa00fb6466281a9d41561f50dcabd8d7e85674daf0dda54"
+    },
+    {
+      "path": "crates/xtask/tests/unit/h2_1a_acceptance/tests.rs",
+      "sha256": "529d6c9b06430d8c3c01a3f964987e90a1ab4b8c33c6b9fdd24f2d89fe189842"
+    }
+  ],
+  "admitted_profile": {
+    "execution": "single-project-one-shot-whole-program",
+    "target": "ESNext(99)",
+    "module_states": [
+      "absent-effective-ESNext",
+      "ESNext(99)"
+    ],
+    "source_kinds": [
+      ".ts"
+    ],
+    "products": [
+      "javascript"
+    ],
+    "exact_cases": 241,
+    "exact_reported_diagnostics": 499,
+    "exact_writes": 251,
+    "diagnostic_deferred_output_controls": 5,
+    "diagnostic_control_writes": 5,
+    "source_deferred_cases": 49,
+    "candidate_denominator": 295
+  },
+  "transition": {
+    "completed_slice": "H2.1a",
+    "next_slice": "H2.1b",
+    "active_runtime_slices": [
+      "H2.1a"
+    ],
+    "inactive_runtime_slice_count": 36,
+    "commonjs_owner": "H2.1b",
+    "commonjs_failure_boundary": "typed failure before first sink write"
+  },
+  "evidence": {
+    "typescript_repetitions": 2,
+    "rust_repetitions": 2,
+    "legal_worker_control": "h2_1a_two_worker_execution_is_exact_and_isolated",
+    "sink_fault_control": "h2_1a_filesystem_failure_preserves_partial_set_continuation_and_activity",
+    "h0_authority": {
+      "path": "ratchets/h0-qualification.v1.json",
+      "sha256": "41ed8448322e7ea47070f508e53187794110c0a21a75158b843ce8e4e0987cb8"
+    },
+    "h1_authority": {
+      "path": "ratchets/h1-emit-qualification.v1.json",
+      "sha256": "b6e0ddf51d1f0cb5a09624af4b0ebb7f55ec2c09b8bd37a7f15410393e1350fa"
+    },
+    "l1_authority": {
+      "path": "ratchets/l1-incremental-parser-performance.v1.json",
+      "sha256": "05b4fdc0a7e50bfe05c722165d71ff47a5ba3e74f10647c0f4c9b5492d77ac5c"
+    },
+    "historical_resource_baseline": {
+      "path": "ratchets/h2-runtime-baseline.v1.json",
+      "sha256": "634492148d44c374c922ed6bd0545c43cdcabe913c78dbffd9d2f940c4ac7cd9"
+    },
+    "local_full_gate": "cargo xtask ci --baseline b22491e86da731e4657fb8ec2c31c19291099b4c",
+    "hosted_gate": "cargo xtask acceptance",
+    "hosted_gate_scope": "fixed-unsplit-ts-tests-only"
+  },
+  "summary": {
+    "completed_runtime_slices": 1,
+    "next_runtime_slices": 1,
+    "runtime_admissions": 241,
+    "executed_candidates": 295,
+    "unexecuted_candidates": 0,
+    "undispositioned_candidates": 0,
+    "historical_artifacts_reinterpreted": 0
+  },
+  "profile_fingerprint_sha256": "4c7b6b420a67d017f86ab51f147d42b20bc04af7ca63fa08715189571184a7f4"
+}

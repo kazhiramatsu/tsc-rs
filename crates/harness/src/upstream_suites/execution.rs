@@ -80,6 +80,82 @@ pub fn load_compiler_emit(
     load_compiler_program(workspace, plan, limits, CompilerProgramMode::Emit)
 }
 
+/// Reconstruct one qualification-owned compiler-runner VFS without depending
+/// on which pinned suite originally supplied the fixture.
+///
+/// H2 source-reachability evidence carries the exact merged harness settings,
+/// root order, current directory, and verified virtual bytes. This adapter
+/// applies the same option projection and read-only TypeScript library mount
+/// as [`load_compiler_emit`]. Config discovery, links, and symlinks are
+/// deliberately absent from this protocol; a slice must first disposition
+/// those host behaviors before using a richer execution route.
+pub fn load_qualified_compiler_emit(
+    workspace: &Path,
+    current_directory: &str,
+    files: &[(PathBuf, Vec<u8>)],
+    roots: &[PathBuf],
+    settings: &[(String, String)],
+    limits: ProgramLoadLimits,
+) -> HarnessResult<PreparedProgram> {
+    if files.is_empty() || roots.is_empty() {
+        return Err(error(
+            "qualified compiler input must contain files and roots",
+        ));
+    }
+    let mut host_builder = MemoryCompilerHost::builder(current_directory).case_sensitive(true);
+    let mut unique_paths = HashSet::with_capacity(files.len());
+    for (file_name, bytes) in files {
+        if !file_name.is_absolute() || !unique_paths.insert(file_name.clone()) {
+            return Err(error(format!(
+                "qualified compiler input has invalid or duplicate file {file_name:?}"
+            )));
+        }
+        host_builder = host_builder.file(file_name, bytes.clone());
+    }
+    for root in roots {
+        if !root.is_absolute() || !unique_paths.contains(root) {
+            return Err(error(format!(
+                "qualified compiler root is absent from the VFS: {root:?}"
+            )));
+        }
+    }
+    let fixture_host = host_builder.build().map_err(|host_error| {
+        error(format!(
+            "failed to build qualified compiler fixture host: {host_error}"
+        ))
+    })?;
+    let library_directory = workspace.join("vendor/typescript-6.0.3/lib");
+    let host = CompilerSuiteHost::new(workspace, fixture_host, library_directory.clone(), true)?;
+
+    let mut compiler_options = CompilerOptions::default();
+    let mut program_options = ProgramOptions::default();
+    for (name, value) in settings {
+        apply_compiler_setting(
+            &mut compiler_options,
+            &mut program_options,
+            current_directory,
+            name,
+            value,
+        )?;
+    }
+    compiler_options.new_line.get_or_insert(0);
+    compiler_options.no_error_truncation = Some(true);
+    let catalog = LibraryCatalog::typescript_6_0_3(library_directory);
+    load_emitting_program(
+        &host,
+        roots,
+        compiler_options,
+        program_options,
+        &catalog,
+        limits,
+    )
+    .map_err(|load_error| {
+        error(format!(
+            "failed to load qualified compiler fixture: {load_error}"
+        ))
+    })
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum CompilerProgramMode {
     NoEmit,

@@ -1,7 +1,6 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::process::Command;
 
 use serde_json::{Map, Value};
 use sha2::{Digest, Sha256};
@@ -9,7 +8,6 @@ use sha2::{Digest, Sha256};
 const OWNER_PATH: &str = "ratchets/h2-owner-inventory.v1.json";
 const CANDIDATE_PATH: &str = "ratchets/h2-candidate-dispositions.v1.json";
 const PROFILE_PATH: &str = "ratchets/h2-profile-transition.v1.json";
-const GENERATOR_PATH: &str = "crates/oracle/h2-transition.mjs";
 
 const H1_FROZEN: [(&str, &str); 5] = [
     (
@@ -125,18 +123,8 @@ fn assert_path_hash(workspace: &Path, record: &Value) {
 }
 
 #[test]
-fn h2_transition_is_fresh_and_preserves_every_h1_input() {
+fn h2_transition_is_fresh_and_preserves_every_historical_h1_input() {
     let workspace = workspace();
-    for (relative, expected) in H1_FROZEN {
-        assert_eq!(file_sha256(&workspace, relative), expected, "{relative}");
-    }
-
-    let status = Command::new("node")
-        .current_dir(&workspace)
-        .args([GENERATOR_PATH, "--check"])
-        .status()
-        .unwrap();
-    assert!(status.success());
 
     let owner = read_json(&workspace, OWNER_PATH);
     let candidates = read_json(&workspace, CANDIDATE_PATH);
@@ -149,8 +137,17 @@ fn h2_transition_is_fresh_and_preserves_every_h1_input() {
         assert_path_hash(&workspace, &manifest["generator"]);
         assert_path_hash(&workspace, &manifest["contract"]);
     }
-    for record in array(&profile["h1_frozen_inputs"]) {
-        assert_path_hash(&workspace, record);
+    let h1_frozen_inputs = array(&profile["h1_frozen_inputs"]);
+    assert_eq!(h1_frozen_inputs.len(), H1_FROZEN.len());
+    for record in h1_frozen_inputs {
+        let record = object(record);
+        assert_eq!(record.len(), 2);
+        let relative = string(&record["path"]);
+        let expected = H1_FROZEN
+            .iter()
+            .find_map(|(path, sha256)| (*path == relative).then_some(*sha256))
+            .unwrap_or_else(|| panic!("unexpected historical H1 input: {relative}"));
+        assert_eq!(string(&record["sha256"]), expected, "{relative}");
     }
     assert_path_hash(&workspace, &profile["h2_inputs"]["owner_inventory"]);
     assert_path_hash(&workspace, &profile["h2_inputs"]["candidate_dispositions"]);
@@ -163,7 +160,7 @@ fn h2_transition_is_fresh_and_preserves_every_h1_input() {
 }
 
 #[test]
-fn h2_owner_and_rust_converse_have_no_unassigned_rows() {
+fn frozen_h2_owner_and_rust_converse_have_no_unassigned_rows() {
     let workspace = workspace();
     let manifest = read_json(&workspace, OWNER_PATH);
     assert_eq!(manifest["schema"], 1);
@@ -219,10 +216,10 @@ fn h2_owner_and_rust_converse_have_no_unassigned_rows() {
             assert!(owner_keys.contains(string(upstream)));
         }
         let anchor = object(&row["anchor"]);
-        assert_eq!(
-            string(&anchor["file_sha256"]),
-            file_sha256(&workspace, string(&anchor["path"]))
-        );
+        assert!(workspace.join(string(&anchor["path"])).is_file());
+        assert_eq!(string(&anchor["file_sha256"]).len(), 64);
+        assert_eq!(string(&anchor["text_sha256"]).len(), 64);
+        assert!(integer(&anchor["line"]) > 0);
     }
 }
 

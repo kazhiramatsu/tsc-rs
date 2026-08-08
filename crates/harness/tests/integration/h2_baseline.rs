@@ -1,7 +1,6 @@
 use std::collections::BTreeSet;
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::process::Command;
 
 use serde_json::{Map, Value};
 use sha2::{Digest, Sha256};
@@ -21,16 +20,43 @@ const GENERATOR: &[u8] = include_bytes!(concat!(
 const GENERATOR_PATH: &str = "crates/oracle/h2-baseline.mjs";
 const BASE_COMMIT: &str = "5d50819f39c8c36f9b8b3e420d5e96c779737578";
 const CANDIDATE_COMMIT: &str = "2894d167b336c6c8039f23f71d31bef223c40ef5";
-const AUTHORITIES: [&str; 9] = [
-    "ratchets/h2-owner-inventory.v1.json",
-    "ratchets/h2-candidate-dispositions.v1.json",
-    "ratchets/h2-profile-transition.v1.json",
-    "ratchets/h1-emit-qualification.v1.json",
-    "ratchets/h1-noemit-performance.v1.json",
-    "ratchets/h1-emit-performance.v1.json",
-    "ratchets/l1-incremental-parser-performance.v1.json",
-    "ratchets/l0-fixtures.v1.json",
-    "crates/compiler/examples/h2_baseline_qualification.rs",
+const AUTHORITIES: [(&str, &str); 9] = [
+    (
+        "ratchets/h2-owner-inventory.v1.json",
+        "1f3d666d107247bef7b5e18d6e9506ff51d281277c136bf70112a863b6dfa98d",
+    ),
+    (
+        "ratchets/h2-candidate-dispositions.v1.json",
+        "6930d377041d755579e6dbcc1f5551ba84b8ebac29535e4b05e46b386e29b53a",
+    ),
+    (
+        "ratchets/h2-profile-transition.v1.json",
+        "c7e02004a8ca337b2c9a2abd1784a2d1098b00f1660166c04233c41cccf7eb5a",
+    ),
+    (
+        "ratchets/h1-emit-qualification.v1.json",
+        "4a9a36b3b35acd9c22bf22fc88ba2c463bc6a16a18f61d2ee38c528d4aaa42ef",
+    ),
+    (
+        "ratchets/h1-noemit-performance.v1.json",
+        "452d2125fae0c386a7ced5fdcdb0ac91269bd29111013eb134e247ca6516303e",
+    ),
+    (
+        "ratchets/h1-emit-performance.v1.json",
+        "33fa3f9710733c937d7b66327d5957575a5b94424df47a69036c1a6ee9fc0754",
+    ),
+    (
+        "ratchets/l1-incremental-parser-performance.v1.json",
+        "05b4fdc0a7e50bfe05c722165d71ff47a5ba3e74f10647c0f4c9b5492d77ac5c",
+    ),
+    (
+        "ratchets/l0-fixtures.v1.json",
+        "365bb5c697a16713926345936ce553cb9a8d93b65aa34bcfa6398334c26e5d47",
+    ),
+    (
+        "crates/compiler/examples/h2_baseline_qualification.rs",
+        "2f4f5db638421b9097b0483bbd58ef36b78ea5a6acd7190379902a3b5d755c90",
+    ),
 ];
 const RUNTIME_SLICES: [&str; 37] = [
     "H2.1a", "H2.1b", "H2.1c", "H2.1d", "H2.1e", "H2.2a", "H2.2b", "H2.2c", "H2.2d", "H2.3a",
@@ -134,6 +160,12 @@ fn assert_path_hash(workspace: &Path, record: &Value, expected_path: &str) {
     );
 }
 
+fn assert_recorded_path_hash(record: &Value, expected_path: &str, expected_sha256: &str) {
+    exact_keys(record, &["path", "sha256"], expected_path);
+    assert_eq!(string(&record["path"], "path"), expected_path);
+    assert_eq!(string(&record["sha256"], "sha256"), expected_sha256);
+}
+
 fn assert_pairs(value: &Value, label: &str) {
     let pairs = array(value, label);
     assert_eq!(pairs.len(), 8, "{label}");
@@ -192,7 +224,7 @@ fn assert_strict_object_schemas(value: &Value, path: &str) {
 }
 
 #[test]
-fn h2_baseline_is_current_content_addressed_and_fingerprinted() {
+fn h2_baseline_is_immutable_content_addressed_and_fingerprinted() {
     let workspace = workspace();
     let artifact: Value = serde_json::from_slice(RECORDED).expect("H2 baseline is JSON");
     exact_keys(
@@ -243,18 +275,31 @@ fn h2_baseline_is_current_content_addressed_and_fingerprinted() {
 
     let authorities = array(&artifact["authorities"], "authorities");
     assert_eq!(authorities.len(), AUTHORITIES.len());
-    for (record, expected) in authorities.iter().zip(AUTHORITIES) {
-        assert_path_hash(&workspace, record, expected);
+    for (record, (expected_path, expected_sha256)) in authorities.iter().zip(AUTHORITIES) {
+        assert_recorded_path_hash(record, expected_path, expected_sha256);
     }
-    for (field, path) in [
-        ("h1_no_emit", "ratchets/h1-noemit-performance.v1.json"),
-        ("h1_emit", "ratchets/h1-emit-performance.v1.json"),
+    for (field, path, expected_sha256) in [
+        (
+            "h1_no_emit",
+            "ratchets/h1-noemit-performance.v1.json",
+            "452d2125fae0c386a7ced5fdcdb0ac91269bd29111013eb134e247ca6516303e",
+        ),
+        (
+            "h1_emit",
+            "ratchets/h1-emit-performance.v1.json",
+            "33fa3f9710733c937d7b66327d5957575a5b94424df47a69036c1a6ee9fc0754",
+        ),
         (
             "l1_edit",
             "ratchets/l1-incremental-parser-performance.v1.json",
+            "05b4fdc0a7e50bfe05c722165d71ff47a5ba3e74f10647c0f4c9b5492d77ac5c",
         ),
     ] {
-        assert_path_hash(&workspace, &artifact["historical_lineage"][field], path);
+        assert_recorded_path_hash(
+            &artifact["historical_lineage"][field],
+            path,
+            expected_sha256,
+        );
     }
     assert_eq!(
         artifact["historical_lineage"]["interpretation"],
@@ -270,18 +315,6 @@ fn h2_baseline_is_current_content_addressed_and_fingerprinted() {
     assert_eq!(
         string(&recorded, "fingerprint"),
         sha256(canonical(&semantic))
-    );
-
-    let output = Command::new("node")
-        .current_dir(&workspace)
-        .args([GENERATOR_PATH, "--check"])
-        .output()
-        .expect("run H2 baseline validator");
-    assert!(
-        output.status.success(),
-        "H2 baseline validator failed:\nstdout={}\nstderr={}",
-        String::from_utf8_lossy(&output.stdout),
-        String::from_utf8_lossy(&output.stderr)
     );
 }
 

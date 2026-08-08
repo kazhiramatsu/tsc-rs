@@ -353,6 +353,8 @@ export function validatePolicy(policy) {
     "h2-candidate-dispositions",
     "h2-profile-transition",
     "h2-runtime-baseline",
+    "h2-1a-qualification",
+    "h2-1a-profile",
     "h2-source-reachability",
     "h2-emit-observation",
   ]) {
