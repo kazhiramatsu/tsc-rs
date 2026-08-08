@@ -61,7 +61,7 @@ typed artifact, callback metadata, dormant output topology, outcome, failure,
 sink-disposition, `OutputSink`, and `MemoryOutputSink` contracts; emitting
 prepared programs and the separate `ProgramSession::emit` entry fail at the
 unconnected executable transform/print stage before the first sink call. This
-is an execution-spine claim, not JavaScript output compatibility; H1.3–H1.6
+is an execution-spine claim, not JavaScript output compatibility; H1.4–H1.6
 remain below.
 H1.2 is also complete. `crates/emitter` now owns an emit-session detached
 syntax arena and sparse transform/emit metadata, clone/original-node rules,
@@ -71,8 +71,19 @@ generic request pipeline whose only active arm copies a whole original source
 through the real notification and disabled source-map hook phases. Direct
 vendored oracles pin astral and combining text, lone-surrogate cooked values,
 escaped names/literals, LF/CR/CRLF/LS/PS, and NEL as a non-line-break control.
-Synthetic/changed-node workers and the active resolver/transformer chain begin
-in H1.3, so H1.2 alone is not a JavaScript output compatibility claim.
+H1.3 is complete as well. The frozen `transformTypeScript` ->
+`transformClassFields` -> `transformECMAScriptModule` order now runs over the
+detached tree; the first changed-node workers erase the admitted TypeScript
+surface and print the exact callback bytes. A scoped checker session lends the
+consumer-owned, fail-closed `EmitResolver` while live alias links remain
+available through transform and print. The generated
+[`h1-active-transform.v1.json`](../../../ratchets/h1-active-transform.v1.json)
+pins the real checker-driven import/export elision result and the structural
+transform-flag probe against vendored TypeScript. Runtime enum, namespace,
+parameter-property, import-equals, export-equals, JSX, decorator, class-field
+downlevel, and module-rewrite branches remain typed controls. Executable
+source/output planning and sink dispatch begin in H1.4, so H1.3 alone is not
+yet a production JavaScript output compatibility claim.
 H0 remains the released, frozen single-project `--noEmit` profile. M9 remains a
 separate paused batch-diagnostics qualification track.
 
@@ -1363,14 +1374,14 @@ runtime.
    and the generic printer pipeline, with direct Unicode/newline oracle pins.
    Only whole-source printing is active; node-list, standalone-node, bundle,
    map, and declaration requests remain unreachable typed controls.
-6. **Next — H1.3 active transformer and resolver slice:** port the exact
+6. **Complete — H1.3 active transformer and resolver slice:** port the exact
    `transformTypeScript` -> `transformClassFields` ->
    `transformECMAScriptModule` list selected by the frozen profile, including
    each transform's context/hook setup. Port the reachable
    `transformTypeScript` resolver producers for the first erasable-TypeScript
    profile; close inactive class-field/module branches with generated
    reachability evidence rather than fabricated resolver answers.
-7. **H1.4 — output planning and in-memory emit:** port transformer selection,
+7. **Next — H1.4 output planning and in-memory emit:** port transformer selection,
    source eligibility, emit-active option/output-collision preflight,
    `emitFiles`, output paths, callback versus emitted-file ordering,
    diagnostics, and repeated-run determinism through `MemoryOutputSink`.

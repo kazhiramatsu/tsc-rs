@@ -27,6 +27,10 @@ pub struct TransformNode {
 }
 
 impl TransformNode {
+    pub(crate) const fn new(source: TransformSourceId, node: NodeId) -> Self {
+        Self { source, node }
+    }
+
     pub const fn source(self) -> TransformSourceId {
         self.source
     }
@@ -44,6 +48,10 @@ pub struct TransformNodeArray {
 }
 
 impl TransformNodeArray {
+    pub(crate) const fn new(source: TransformSourceId, array: NodeArrayId) -> Self {
+        Self { source, array }
+    }
+
     pub const fn source(self) -> TransformSourceId {
         self.source
     }
@@ -130,6 +138,26 @@ impl TransformArena {
         Ok(TransformNode { source, node })
     }
 
+    pub fn replace_root(
+        &mut self,
+        source: TransformSourceId,
+        root: TransformNode,
+    ) -> Result<(), TransformError> {
+        if root.source != source {
+            return Err(TransformError::CrossSourceNode {
+                expected: source,
+                actual: root.source,
+            });
+        }
+        if self.node(root)?.kind != SyntaxKind::SourceFile {
+            return Err(TransformError::RootKindExpected {
+                actual: self.node(root)?.kind,
+            });
+        }
+        self.source_mut(source)?.source.root = root.node;
+        Ok(())
+    }
+
     pub fn node(&self, node: TransformNode) -> Result<&Node, TransformError> {
         let source = self.source(node.source)?;
         if !source.source.arena.contains_node(node.node) {
@@ -189,6 +217,14 @@ impl TransformArena {
             .get(&array)
             .copied()
             .unwrap_or(TransformFlags::NONE)
+    }
+
+    pub fn set_array_transform_flags(&mut self, array: TransformNodeArray, flags: TransformFlags) {
+        if flags.is_empty() {
+            self.array_transform_flags.remove(&array);
+        } else {
+            self.array_transform_flags.insert(array, flags);
+        }
     }
 
     pub fn metadata(&self, node: TransformNode) -> Option<&EmitMetadata> {
@@ -384,6 +420,31 @@ impl<'arena> NodeFactory<'arena> {
         Ok(array)
     }
 
+    pub fn update_node_array(
+        &mut self,
+        original: TransformNodeArray,
+        nodes: Vec<TransformNode>,
+    ) -> Result<TransformNodeArray, TransformError> {
+        let original_record = self.arena.node_array(original)?.clone();
+        if original_record.nodes.len() == nodes.len()
+            && original_record
+                .nodes
+                .iter()
+                .zip(&nodes)
+                .all(|(left, right)| right.source == original.source && *left == right.node)
+        {
+            return Ok(original);
+        }
+        let updated = self.create_node_array(original.source, nodes)?;
+        let syntax = &mut self.arena.source_mut(original.source)?.source;
+        let record = syntax.arena.node_array_mut(updated.array);
+        record.pos = original_record.pos;
+        record.end = original_record.end;
+        record.has_trailing_comma = original_record.has_trailing_comma;
+        record.is_missing_list = original_record.is_missing_list;
+        Ok(updated)
+    }
+
     /// tsc-port: cloneNode @6.0.3
     /// tsc-hash: d223dcea6ccf14e9212d40d5b8df188197023622ea3e5d624ffb974a25db19d6
     /// tsc-span: _tsc.js:24436-24466
@@ -443,14 +504,42 @@ impl<'arena> NodeFactory<'arena> {
         if record.data == data && self.arena.transform_flags(original) == transform_flags {
             return Ok(original);
         }
+        let (pos, end) = (record.pos, record.end);
         let updated = self.clone_node(original)?;
-        self.arena
+        let updated_record = self
+            .arena
             .source_mut(updated.source)?
             .source
             .arena
-            .node_mut(updated.node)
-            .data = data;
+            .node_mut(updated.node);
+        updated_record.data = data;
+        updated_record.pos = pos;
+        updated_record.end = end;
         self.arena.set_transform_flags(updated, transform_flags);
         Ok(updated)
+    }
+
+    pub fn set_text_range(
+        &mut self,
+        node: TransformNode,
+        location: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        if node.source != location.source {
+            return Err(TransformError::CrossSourceNode {
+                expected: node.source,
+                actual: location.source,
+            });
+        }
+        let location_record = self.arena.node(location)?;
+        let (pos, end) = (location_record.pos, location_record.end);
+        let record = self
+            .arena
+            .source_mut(node.source)?
+            .source
+            .arena
+            .node_mut(node.node);
+        record.pos = pos;
+        record.end = end;
+        Ok(node)
     }
 }

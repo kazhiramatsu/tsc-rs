@@ -179,6 +179,138 @@ impl<'a> CheckerState<'a> {
             || symbol.const_enum_only_module == Some(true)
     }
 
+    /// tsc-port: isValueAliasDeclaration @6.0.3
+    /// tsc-hash: eba18720abbdbd0651800589a37460fcdde212ca769970f24590355abfa629d3
+    /// tsc-span: _tsc.js:87981-88007
+    pub(crate) fn emit_is_value_alias_declaration(&mut self, node: NodeId) -> CheckResult<bool> {
+        debug_assert_ne!(self.options.verbatim_module_syntax, Some(true));
+        match self.kind_of(node) {
+            SyntaxKind::ImportEqualsDeclaration => {
+                let Some(symbol) = self.emit_alias_declaration_symbol(node) else {
+                    return Ok(false);
+                };
+                self.emit_is_alias_resolved_to_value(symbol, false)
+            }
+            SyntaxKind::ImportClause
+            | SyntaxKind::NamespaceImport
+            | SyntaxKind::ImportSpecifier
+            | SyntaxKind::ExportSpecifier => {
+                let Some(symbol) = self.emit_alias_declaration_symbol(node) else {
+                    return Ok(false);
+                };
+                self.emit_is_alias_resolved_to_value(symbol, true)
+            }
+            SyntaxKind::ExportDeclaration => {
+                let Some(export_clause) = (match self.data_of(node) {
+                    NodeData::ExportDeclaration(data) => data.export_clause,
+                    _ => None,
+                }) else {
+                    return Ok(false);
+                };
+                match self.data_of(export_clause) {
+                    NodeData::NamespaceExport(_) => Ok(true),
+                    NodeData::NamedExports(data) => {
+                        let Some(elements) = data.elements else {
+                            return Ok(false);
+                        };
+                        let elements = self.binder.node_array(elements).nodes.clone();
+                        for element in elements {
+                            if self.emit_is_value_alias_declaration(element)? {
+                                return Ok(true);
+                            }
+                        }
+                        Ok(false)
+                    }
+                    _ => Ok(false),
+                }
+            }
+            SyntaxKind::ExportAssignment => {
+                let expression = match self.data_of(node) {
+                    NodeData::ExportAssignment(data) => data.expression,
+                    _ => None,
+                };
+                if expression
+                    .is_some_and(|expression| self.kind_of(expression) == SyntaxKind::Identifier)
+                {
+                    let Some(symbol) = self.emit_alias_declaration_symbol(node) else {
+                        return Ok(false);
+                    };
+                    self.emit_is_alias_resolved_to_value(symbol, true)
+                } else {
+                    Ok(true)
+                }
+            }
+            _ => Ok(false),
+        }
+    }
+
+    fn emit_alias_declaration_symbol(&self, node: NodeId) -> Option<SymbolId> {
+        self.binder
+            .node_symbol(node)
+            .map(|symbol| self.get_merged_symbol(symbol))
+    }
+
+    /// tsc-port: isAliasResolvedToValue @6.0.3
+    /// tsc-hash: ce50b43488751ce2c61ce5d3d613cef9ab9bc7975bc855923c4e52efb940a457
+    /// tsc-span: _tsc.js:88016-88033
+    fn emit_is_alias_resolved_to_value(
+        &mut self,
+        symbol: SymbolId,
+        exclude_type_only_values: bool,
+    ) -> CheckResult<bool> {
+        if let Some(value_declaration) = self.binder.symbol(symbol).value_declaration {
+            let container = self.binder.source_of_node(value_declaration).root;
+            let file_symbol = self.binder.node_symbol(container);
+            let _ = self.resolve_external_module_symbol(file_symbol, false)?;
+        }
+        let target = self.resolve_alias(symbol)?;
+        let target = self.get_export_symbol_of_value_symbol_if_exported(target);
+        if target == self.unknown_symbol {
+            return Ok(!exclude_type_only_values
+                || self.get_type_only_alias_declaration(symbol)?.is_none());
+        }
+        let flags = self.get_symbol_flags_full(
+            symbol,
+            exclude_type_only_values,
+            /*exclude_local_meanings*/ true,
+        )?;
+        Ok(flags.intersects(SymbolFlags::VALUE)
+            && (self.options.should_preserve_const_enums()
+                || !self.is_const_enum_or_const_enum_only_module_symbol(target)))
+    }
+
+    /// tsc-port: isReferencedAliasDeclaration @6.0.3
+    /// tsc-hash: d706e9a617e62f292db7ea6bbf009f72a17129d39460c612b37f8261a4ab9061
+    /// tsc-span: _tsc.js:88037-88054
+    pub(crate) fn emit_is_referenced_alias_declaration(
+        &mut self,
+        node: NodeId,
+    ) -> CheckResult<bool> {
+        debug_assert_ne!(self.options.verbatim_module_syntax, Some(true));
+        if !self.is_alias_symbol_declaration(node) {
+            return Ok(false);
+        }
+        let Some(symbol) = self.emit_alias_declaration_symbol(node) else {
+            return Ok(false);
+        };
+        if self.links.symbol(symbol).alias_referenced {
+            return Ok(true);
+        }
+        let Some(target) = self.links.symbol(symbol).alias_target.resolved() else {
+            return Ok(false);
+        };
+        let source = self.binder.source_of_node(node);
+        let exported = node_util::get_effective_modifier_flags(source, node)
+            .intersects(tsc_types::ModifierFlags::EXPORT);
+        if !exported {
+            return Ok(false);
+        }
+        let target_flags = self.get_symbol_flags_of(target)?;
+        Ok(target_flags.intersects(SymbolFlags::VALUE)
+            && (self.options.should_preserve_const_enums()
+                || !self.is_const_enum_or_const_enum_only_module_symbol(target)))
+    }
+
     /// tsc-port: markAliasReferenced @6.0.3
     /// tsc-hash: 7eac8fd3c16dd740721e65064edee6867abb663438fdb669548decdaa2115012
     /// tsc-span: _tsc.js:71909-71929

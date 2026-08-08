@@ -199,7 +199,7 @@ const anchorSpecs = [
   [
     "emitter-transform-nodes",
     "crates/emitter/src/transform.rs",
-    "pub fn transform_nodes(\n    arena: TransformArena,",
+    "pub fn transform_nodes<'transformers>(\n    arena: TransformArena,",
   ],
   [
     "emitter-text-writer",
@@ -220,6 +220,61 @@ const anchorSpecs = [
     "emitter-source-map-recorder",
     "crates/emitter/src/printer.rs",
     "pub trait SourceMapRecorder {",
+  ],
+  [
+    "emitter-resolver-protocol",
+    "crates/emitter/src/resolver.rs",
+    "pub trait EmitResolver {",
+  ],
+  [
+    "emitter-script-transformer-selection",
+    "crates/emitter/src/builtins.rs",
+    "pub fn get_script_transformers<'resolver>(",
+  ],
+  [
+    "emitter-transform-typescript",
+    "crates/emitter/src/builtins.rs",
+    "pub fn transform_type_script<'resolver>(",
+  ],
+  [
+    "emitter-transform-class-fields",
+    "crates/emitter/src/builtins.rs",
+    "pub fn transform_class_fields(options: &CompilerOptions) -> Box<dyn Transformer> {",
+  ],
+  [
+    "emitter-transform-ecmascript-module",
+    "crates/emitter/src/builtins.rs",
+    "pub fn transform_ecmascript_module(options: &CompilerOptions) -> Box<dyn Transformer> {",
+  ],
+  [
+    "emitter-changed-import-printer",
+    "crates/emitter/src/printer.rs",
+    "NodeData::ImportDeclaration(data) => {",
+  ],
+  [
+    "checker-scoped-emit-session",
+    "crates/checker/src/emit.rs",
+    "pub struct CheckerSession<'program> {",
+  ],
+  [
+    "checker-emit-resolver-adapter",
+    "crates/checker/src/emit.rs",
+    "impl EmitResolver for CheckerSession<'_> {",
+  ],
+  [
+    "checker-value-alias-producer",
+    "crates/checker/src/modules.rs",
+    "pub(crate) fn emit_is_value_alias_declaration(",
+  ],
+  [
+    "checker-referenced-alias-producer",
+    "crates/checker/src/modules.rs",
+    "pub(crate) fn emit_is_referenced_alias_declaration(",
+  ],
+  [
+    "active-transform-oracle",
+    "ratchets/h1-active-transform.v1.json",
+    '"phase": "H1.3-active-transform-resolver"',
   ],
   [
     "prepared-program-emitting-builder",
@@ -482,9 +537,9 @@ const anchorSpecs = [
     "erasableSyntaxOnly, collectLinkedAliases (emit), and the JSDoc",
   ],
   [
-    "standard-class-fields-check-elided",
+    "standard-class-fields-profile-check",
     "crates/checker/src/resolve.rs",
-    "getEmitStandardClassFields:\n    /// useDefineForClassFields unmodeled",
+    "useDefineForClassFields is true, so getEmitStandardClassFields reduces\n    /// exactly to target >= ES2022",
   ],
   [
     "external-helper-producer-present",
@@ -544,11 +599,11 @@ function regexMatches(scope, expression) {
 
 const absenceSpecs = [
   {
-    id: "emitter-host-resolver-protocols",
+    id: "emitter-host-protocol",
     kind: "regex-zero",
     scope: "emitter-production",
     expression:
-      "^[ \\t]*(?:pub(?:\\([^)]*\\))?[ \\t]+)?trait[ \\t]+(?:EmitHost|EmitResolver)\\b",
+      "^[ \\t]*(?:pub(?:\\([^)]*\\))?[ \\t]+)?trait[ \\t]+EmitHost\\b",
   },
   {
     id: "filesystem-output-sink",
@@ -558,18 +613,11 @@ const absenceSpecs = [
       "^[ \\t]*(?:pub(?:\\([^)]*\\))?[ \\t]+)?struct[ \\t]+FsOutputSink\\b",
   },
   {
-    id: "checker-emit-session-or-resolver",
-    kind: "regex-zero",
-    scope: "checker-production",
-    expression:
-      "^[ \\t]*(?:pub(?:\\([^)]*\\))?[ \\t]+)?(?:struct|enum|trait|type)[ \\t]+(?:CheckerSession|EmitResolver)\\b",
-  },
-  {
-    id: "active-transform-and-output-functions",
+    id: "active-output-functions",
     kind: "regex-zero",
     scope: "production-rust",
     expression:
-      "^[ \\t]*(?:pub(?:\\([^)]*\\))?[ \\t]+)?fn[ \\t]+(?:transform_type_script|transform_class_fields|transform_ecmascript_module|get_source_files_to_emit|get_output_paths_for|for_each_emitted_file|emit_files)[ \\t]*\\(",
+      "^[ \\t]*(?:pub(?:\\([^)]*\\))?[ \\t]+)?fn[ \\t]+(?:get_source_files_to_emit|get_output_paths_for|for_each_emitted_file|emit_files)[ \\t]*\\(",
   },
   {
     id: "linked-reference-producers",
@@ -604,11 +652,11 @@ function evidence(anchorIds = [], absenceIds = []) {
 const boundaryOmissions = [
   {
     id: "workspace-emitter-owner",
-    planned_phase: "H1.3-H1.4",
+    planned_phase: "H1.4",
     current:
-      "The acyclic emitter workspace owner contains the H1.1 execution spine and the H1.2 factory, transform lifecycle, typed position, writer, map-hook, and whole-source printer foundation.",
+      "The acyclic emitter workspace owner contains the H1.1 execution spine, H1.2 transform/printer foundation, and H1.3 active built-in transformer, resolver, and changed-node printer slice.",
     missing:
-      "EmitHost/EmitResolver protocols, active built-in transformers, and executable output planning.",
+      "The read-only EmitHost projection and executable output planning.",
     evidence: evidence(
       [
         "workspace-members",
@@ -624,50 +672,14 @@ const boundaryOmissions = [
         "emitter-transform-nodes",
         "emitter-text-writer",
         "emitter-printer-factory",
+        "emitter-resolver-protocol",
+        "emitter-script-transformer-selection",
+        "emitter-transform-typescript",
+        "emitter-transform-class-fields",
+        "emitter-transform-ecmascript-module",
+        "emitter-changed-import-printer",
       ],
-      ["emitter-host-resolver-protocols", "active-transform-and-output-functions"],
-    ),
-  },
-  {
-    id: "scoped-checker-lifetime",
-    planned_phase: "H1.3",
-    current:
-      "CheckerState is local to check_program_with_prebound_libs_at_observed and collapses to owned result fields.",
-    missing:
-      "A scoped checker callback that keeps ProgramSnapshot, binder links, symbols, and types live through resolve/transform/print.",
-    evidence: evidence([
-      "program-snapshot-owner",
-      "checker-session-local-state",
-      "checker-state-collapse",
-    ]),
-  },
-  {
-    id: "semantic-emit-resolver",
-    planned_phase: "H1.3",
-    current: "No consumer-owned EmitResolver boundary exists.",
-    missing:
-      "A live-checker resolver adapter with typed unsupported answers for unreached methods.",
-    evidence: evidence(
-      [],
-      ["emitter-host-resolver-protocols", "checker-emit-session-or-resolver"],
-    ),
-  },
-  {
-    id: "transformation-runtime",
-    planned_phase: "H1.3",
-    current:
-      "H1.2 owns transformNodes state, lexical/block scopes, helpers, substitutions, notifications, diagnostics, disposal, and session-local factory/metadata storage.",
-    missing:
-      "The active transformTypeScript, transformClassFields, and transformECMAScriptModule chain and its reachable node-factory operations.",
-    evidence: evidence(
-      [
-        "emitter-transform-arena",
-        "emitter-transform-flags",
-        "emitter-emit-metadata",
-        "emitter-transformation-context",
-        "emitter-transform-nodes",
-      ],
-      ["active-transform-and-output-functions"],
+      ["emitter-host-protocol", "active-output-functions"],
     ),
   },
   {
@@ -686,7 +698,7 @@ const boundaryOmissions = [
         "emitter-memory-sink",
         "emitter-outcome-protocol",
       ],
-      ["active-transform-and-output-functions", "filesystem-output-sink"],
+      ["active-output-functions", "filesystem-output-sink"],
     ),
   },
   {
@@ -784,15 +796,15 @@ const optionProjectionOmissions = optionSpecs.map(
 );
 
 const checkerElisionSpecs = [
-  ["captured-block-scope-bindings", "captured-block-scope-bindings-elided", "runtime-transform", "H1.3"],
-  ["computed-property-loop-capture", "computed-property-loop-capture-elided", "runtime-transform", "H1.3"],
+  ["captured-block-scope-bindings", "captured-block-scope-bindings-elided", "inactive-at-ESNext", "profile-control"],
+  ["computed-property-loop-capture", "computed-property-loop-capture-elided", "inactive-at-ESNext", "profile-control"],
   ["private-scope-loop-capture", "private-scope-loop-capture-elided", "adjacent-class-field", "profile-control"],
   ["constructor-capture-lexical-this", "constructor-capture-this-elided", "adjacent-class-field", "profile-control"],
   ["async-mark-linked-references", "async-linked-references-elided", "dormant-declaration", "typed-deferred"],
   ["decorator-mark-linked-references", "decorator-linked-references-elided", "dormant-declaration/decorator", "typed-deferred"],
-  ["import-equals-mark-linked-references", "import-equals-linked-references-elided", "alias-reference", "H1.3-reachability"],
+  ["import-equals-mark-linked-references", "import-equals-linked-references-elided", "adjacent-import-equals", "profile-control"],
   ["export-collect-linked-aliases", "export-linked-aliases-elided", "dormant-declaration", "typed-deferred"],
-  ["property-access-mark-linked-references", "property-access-linked-references-elided", "alias/reference-side-effect", "H1.3-reachability"],
+  ["property-access-mark-linked-references", "property-access-linked-references-elided", "dormant-declaration-non-alias-bookkeeping", "typed-deferred"],
   ["inaccessible-this-tracking", "inaccessible-this-elided", "dormant-declaration", "typed-deferred"],
   ["binding-object-rest-helper", "binding-object-rest-helper-elided", "adjacent-helper", "profile-control"],
   ["binding-array-downlevel-helper", "binding-array-helper-elided", "adjacent-helper", "profile-control"],
@@ -808,7 +820,6 @@ const checkerElisionSpecs = [
   ["object-assign-helper", "object-assign-helper-inactive", "inactive-at-ESNext", "generated-canary"],
   ["template-object-helper", "template-helper-inactive", "inactive-at-ESNext", "generated-canary"],
   ["export-assignment-collect-linked-aliases", "export-assignment-linked-aliases-elided", "dormant-declaration", "typed-deferred"],
-  ["standard-class-fields-check", "standard-class-fields-check-elided", "adjacent-class-field", "profile-control"],
 ];
 
 const checkerEmitElisions = checkerElisionSpecs.map(
@@ -824,7 +835,7 @@ const existingPrerequisites = [
   {
     id: "h1-factory-transform-printer-foundation",
     treatment:
-      "reuse-and-extend-with-active-transformers-and-node-workers-without-mutating-published-syntax",
+      "reuse-and-extend-with-output-planning-without-mutating-published-syntax",
     evidence: [
       "emitter-transform-arena",
       "emitter-node-factory",
@@ -840,6 +851,36 @@ const existingPrerequisites = [
       "compiler-options-remove-comments",
       "compiler-options-no-implicit-use-strict",
       "compiler-options-no-emit-helpers",
+    ],
+  },
+  {
+    id: "h1-active-transformer-runtime",
+    treatment:
+      "reuse-exact-frozen-order-and-extend-only-with-oracle-backed-syntax-owners",
+    evidence: [
+      "emitter-script-transformer-selection",
+      "emitter-transform-typescript",
+      "emitter-transform-class-fields",
+      "emitter-transform-ecmascript-module",
+      "emitter-changed-import-printer",
+      "standard-class-fields-profile-check",
+      "active-transform-oracle",
+    ],
+  },
+  {
+    id: "h1-scoped-checker-resolver",
+    treatment:
+      "reuse-live-checker-alias-producers-through-the-consumer-owned-fail-closed-protocol",
+    evidence: [
+      "program-snapshot-owner",
+      "emitter-resolver-protocol",
+      "checker-scoped-emit-session",
+      "checker-emit-resolver-adapter",
+      "checker-value-alias-producer",
+      "checker-referenced-alias-producer",
+      "active-transform-oracle",
+      "checker-session-local-state",
+      "checker-state-collapse",
     ],
   },
   {
@@ -937,7 +978,7 @@ function exactKeys(value, required) {
 const artifact = {
   schema: 1,
   status: "frozen-current-rust-baseline",
-  phase: "H1.2-rust-omission-inventory",
+  phase: "H1.3-rust-omission-inventory",
   typescript: { version: TYPESCRIPT_VERSION, source_commit: SOURCE_COMMIT },
   generator: pathHash(GENERATOR_RELATIVE_PATH),
   contract: pathHash(SCHEMA_RELATIVE_PATH),
@@ -992,7 +1033,7 @@ function validateArtifact(value) {
   requireCondition(
     value.schema === 1 &&
       value.status === "frozen-current-rust-baseline" &&
-      value.phase === "H1.2-rust-omission-inventory",
+      value.phase === "H1.3-rust-omission-inventory",
     "invalid H1 Rust omission artifact header",
   );
   const semantic = { ...value };
@@ -1017,7 +1058,7 @@ function validateArtifact(value) {
 validateArtifact(artifact);
 
 requireCondition(
-  boundaryOmissions.length === 6,
+  boundaryOmissions.length === 3,
   "the reviewed missing-production-boundary table must remain exhaustive",
 );
 requireCondition(

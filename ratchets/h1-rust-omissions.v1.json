@@ -1,27 +1,27 @@
 {
   "schema": 1,
   "status": "frozen-current-rust-baseline",
-  "phase": "H1.2-rust-omission-inventory",
+  "phase": "H1.3-rust-omission-inventory",
   "typescript": {
     "version": "6.0.3",
     "source_commit": "050880ce59e30b356b686bd3144efe24f875ebc8"
   },
   "generator": {
     "path": "crates/oracle/h1-rust-omission-inventory.mjs",
-    "sha256": "5a26e0f3002e102412c3b55baf369d9d44af97d2345b88a95d2b49eeff7f7966"
+    "sha256": "737e92fe7edf34ca4b5760d0af3529ffd653d295fad81ae7e9c2e9134210f11f"
   },
   "contract": {
     "path": ".github/ci/contracts/h1-rust-omissions.schema.json",
-    "sha256": "069161294e1ed5d8ee8534294fca3b16aff29c70ba8c9a322b36e824796c38f6"
+    "sha256": "183bf9200d5b9c09f8b805635c09cb8adde6cbfdee6c3058653c53d1d08cd445"
   },
   "authorities": {
     "compatibility_residual": {
       "path": "docs/design/greenfield/compiler-compatibility-residual.md",
-      "sha256": "d0a8801a530978ce043f8e81f4a7b7e560b2d4bf69a21584950b9b624b0378bf"
+      "sha256": "b2cc0152bbc4e16cacc67cbaae3ec02febafe7111aa2f1e045d27853801b6d1c"
     },
     "h1_execution": {
       "path": "docs/design/greenfield/h1-emit.md",
-      "sha256": "2f5b408ea14093889670348f42754417102dcb28c0208c93c585ce000b7f4464"
+      "sha256": "22fe2b14d2cd29a5b4b617e66cbe03d324b738a5ad274d505143d478adeb55e6"
     },
     "emit_profile": {
       "path": "ratchets/h1-emit-profile.v1.json",
@@ -39,23 +39,23 @@
       "crates/*/Cargo.toml",
       "crates/*/src/**/*.rs"
     ],
-    "file_count": 192,
-    "rust_source_files": 177,
+    "file_count": 195,
+    "rust_source_files": 180,
     "cargo_manifests": 15,
-    "bytes": 12436669,
-    "tree_sha256": "c539595f968698d84001de00d8a692e157cfe48d4ac0fb1af14c3a3663a009f1"
+    "bytes": 12586856,
+    "tree_sha256": "3c2be9c6d31dacb1f4eb2fdc3b0022ec7d8616a333ff662dd6c3c207e5825523"
   },
   "summary": {
-    "production_boundary_omissions": 6,
-    "absence_proofs": 5,
+    "production_boundary_omissions": 3,
+    "absence_proofs": 4,
     "option_projection_omissions": 28,
-    "explicit_checker_emit_elisions": 25,
-    "existing_prerequisites": 11
+    "explicit_checker_emit_elisions": 24,
+    "existing_prerequisites": 13
   },
   "existing_prerequisites": [
     {
       "id": "h1-factory-transform-printer-foundation",
-      "treatment": "reuse-and-extend-with-active-transformers-and-node-workers-without-mutating-published-syntax",
+      "treatment": "reuse-and-extend-with-output-planning-without-mutating-published-syntax",
       "evidence": [
         "emitter-transform-arena",
         "emitter-node-factory",
@@ -71,6 +71,34 @@
         "compiler-options-remove-comments",
         "compiler-options-no-implicit-use-strict",
         "compiler-options-no-emit-helpers"
+      ]
+    },
+    {
+      "id": "h1-active-transformer-runtime",
+      "treatment": "reuse-exact-frozen-order-and-extend-only-with-oracle-backed-syntax-owners",
+      "evidence": [
+        "emitter-script-transformer-selection",
+        "emitter-transform-typescript",
+        "emitter-transform-class-fields",
+        "emitter-transform-ecmascript-module",
+        "emitter-changed-import-printer",
+        "standard-class-fields-profile-check",
+        "active-transform-oracle"
+      ]
+    },
+    {
+      "id": "h1-scoped-checker-resolver",
+      "treatment": "reuse-live-checker-alias-producers-through-the-consumer-owned-fail-closed-protocol",
+      "evidence": [
+        "program-snapshot-owner",
+        "emitter-resolver-protocol",
+        "checker-scoped-emit-session",
+        "checker-emit-resolver-adapter",
+        "checker-value-alias-producer",
+        "checker-referenced-alias-producer",
+        "active-transform-oracle",
+        "checker-session-local-state",
+        "checker-state-collapse"
       ]
     },
     {
@@ -160,9 +188,9 @@
   "production_boundary_omissions": [
     {
       "id": "workspace-emitter-owner",
-      "planned_phase": "H1.3-H1.4",
-      "current": "The acyclic emitter workspace owner contains the H1.1 execution spine and the H1.2 factory, transform lifecycle, typed position, writer, map-hook, and whole-source printer foundation.",
-      "missing": "EmitHost/EmitResolver protocols, active built-in transformers, and executable output planning.",
+      "planned_phase": "H1.4",
+      "current": "The acyclic emitter workspace owner contains the H1.1 execution spine, H1.2 transform/printer foundation, and H1.3 active built-in transformer, resolver, and changed-node printer slice.",
+      "missing": "The read-only EmitHost projection and executable output planning.",
       "evidence": {
         "anchors": [
           "workspace-members",
@@ -177,56 +205,17 @@
           "emitter-transformation-context",
           "emitter-transform-nodes",
           "emitter-text-writer",
-          "emitter-printer-factory"
+          "emitter-printer-factory",
+          "emitter-resolver-protocol",
+          "emitter-script-transformer-selection",
+          "emitter-transform-typescript",
+          "emitter-transform-class-fields",
+          "emitter-transform-ecmascript-module",
+          "emitter-changed-import-printer"
         ],
         "absence_proofs": [
-          "emitter-host-resolver-protocols",
-          "active-transform-and-output-functions"
-        ]
-      }
-    },
-    {
-      "id": "scoped-checker-lifetime",
-      "planned_phase": "H1.3",
-      "current": "CheckerState is local to check_program_with_prebound_libs_at_observed and collapses to owned result fields.",
-      "missing": "A scoped checker callback that keeps ProgramSnapshot, binder links, symbols, and types live through resolve/transform/print.",
-      "evidence": {
-        "anchors": [
-          "program-snapshot-owner",
-          "checker-session-local-state",
-          "checker-state-collapse"
-        ],
-        "absence_proofs": []
-      }
-    },
-    {
-      "id": "semantic-emit-resolver",
-      "planned_phase": "H1.3",
-      "current": "No consumer-owned EmitResolver boundary exists.",
-      "missing": "A live-checker resolver adapter with typed unsupported answers for unreached methods.",
-      "evidence": {
-        "anchors": [],
-        "absence_proofs": [
-          "emitter-host-resolver-protocols",
-          "checker-emit-session-or-resolver"
-        ]
-      }
-    },
-    {
-      "id": "transformation-runtime",
-      "planned_phase": "H1.3",
-      "current": "H1.2 owns transformNodes state, lexical/block scopes, helpers, substitutions, notifications, diagnostics, disposal, and session-local factory/metadata storage.",
-      "missing": "The active transformTypeScript, transformClassFields, and transformECMAScriptModule chain and its reachable node-factory operations.",
-      "evidence": {
-        "anchors": [
-          "emitter-transform-arena",
-          "emitter-transform-flags",
-          "emitter-emit-metadata",
-          "emitter-transformation-context",
-          "emitter-transform-nodes"
-        ],
-        "absence_proofs": [
-          "active-transform-and-output-functions"
+          "emitter-host-protocol",
+          "active-output-functions"
         ]
       }
     },
@@ -245,7 +234,7 @@
           "emitter-outcome-protocol"
         ],
         "absence_proofs": [
-          "active-transform-and-output-functions",
+          "active-output-functions",
           "filesystem-output-sink"
         ]
       }
@@ -468,14 +457,14 @@
     {
       "id": "captured-block-scope-bindings",
       "anchor": "captured-block-scope-bindings-elided",
-      "disposition": "runtime-transform",
-      "closure": "H1.3"
+      "disposition": "inactive-at-ESNext",
+      "closure": "profile-control"
     },
     {
       "id": "computed-property-loop-capture",
       "anchor": "computed-property-loop-capture-elided",
-      "disposition": "runtime-transform",
-      "closure": "H1.3"
+      "disposition": "inactive-at-ESNext",
+      "closure": "profile-control"
     },
     {
       "id": "private-scope-loop-capture",
@@ -504,8 +493,8 @@
     {
       "id": "import-equals-mark-linked-references",
       "anchor": "import-equals-linked-references-elided",
-      "disposition": "alias-reference",
-      "closure": "H1.3-reachability"
+      "disposition": "adjacent-import-equals",
+      "closure": "profile-control"
     },
     {
       "id": "export-collect-linked-aliases",
@@ -516,8 +505,8 @@
     {
       "id": "property-access-mark-linked-references",
       "anchor": "property-access-linked-references-elided",
-      "disposition": "alias/reference-side-effect",
-      "closure": "H1.3-reachability"
+      "disposition": "dormant-declaration-non-alias-bookkeeping",
+      "closure": "typed-deferred"
     },
     {
       "id": "inaccessible-this-tracking",
@@ -608,12 +597,6 @@
       "anchor": "export-assignment-linked-aliases-elided",
       "disposition": "dormant-declaration",
       "closure": "typed-deferred"
-    },
-    {
-      "id": "standard-class-fields-check",
-      "anchor": "standard-class-fields-check-elided",
-      "disposition": "adjacent-class-field",
-      "closure": "profile-control"
     }
   ],
   "evidence": {
@@ -684,20 +667,20 @@
       {
         "id": "emitter-transform-arena",
         "path": "crates/emitter/src/factory.rs",
-        "line": 75,
+        "line": 83,
         "column": 1,
         "text": "pub struct TransformArena {",
         "text_sha256": "b6c3e905d93355f0b9cd4c8674ab28ed477ff430fd554a7d9b2bafbac5e314f2",
-        "file_sha256": "7e46bda3520d61d7ca740ed165637224b6358207add024cc1db9b985a2cea5f7"
+        "file_sha256": "181377389f587c4c38dc2b4ffa7957c6ecc4372f119c8e3768fb4d1307f581f7"
       },
       {
         "id": "emitter-node-factory",
         "path": "crates/emitter/src/factory.rs",
-        "line": 302,
+        "line": 338,
         "column": 1,
         "text": "pub struct NodeFactory<'arena> {",
         "text_sha256": "fb050d83d8a697d4861efcdb071a8263bf79739425178a3d2f1eac9d053c68df",
-        "file_sha256": "7e46bda3520d61d7ca740ed165637224b6358207add024cc1db9b985a2cea5f7"
+        "file_sha256": "181377389f587c4c38dc2b4ffa7957c6ecc4372f119c8e3768fb4d1307f581f7"
       },
       {
         "id": "emitter-transform-flags",
@@ -706,7 +689,7 @@
         "column": 1,
         "text": "pub struct TransformFlags(i32);",
         "text_sha256": "7c653a426ba14a23c6ac44c6c084daceaab7fd4dd8e74b8b181e04bb2a0fa9f6",
-        "file_sha256": "741c6c45e7e4b1c158b2e820fcf10ffc90f8d0293267b69f4bf2c5ab2015bd2f"
+        "file_sha256": "aae195c85afe474fecd2ac3c3ae3c57ff68af18df41939fa647327198ec78f16"
       },
       {
         "id": "emitter-emit-metadata",
@@ -720,20 +703,20 @@
       {
         "id": "emitter-transformation-context",
         "path": "crates/emitter/src/transform.rs",
-        "line": 315,
+        "line": 340,
         "column": 1,
         "text": "pub struct TransformationContext {",
         "text_sha256": "a5d206c9a41608a94d45968e79501af02c879c7e8679fe82d310c007ef891c32",
-        "file_sha256": "741c6c45e7e4b1c158b2e820fcf10ffc90f8d0293267b69f4bf2c5ab2015bd2f"
+        "file_sha256": "aae195c85afe474fecd2ac3c3ae3c57ff68af18df41939fa647327198ec78f16"
       },
       {
         "id": "emitter-transform-nodes",
         "path": "crates/emitter/src/transform.rs",
-        "line": 738,
+        "line": 763,
         "column": 1,
-        "text": "pub fn transform_nodes(\n    arena: TransformArena,",
-        "text_sha256": "47b45d0a5973731a1823fe6f8ad2955ea8a812acdf4d09f17aa0ea5c288df0ae",
-        "file_sha256": "741c6c45e7e4b1c158b2e820fcf10ffc90f8d0293267b69f4bf2c5ab2015bd2f"
+        "text": "pub fn transform_nodes<'transformers>(\n    arena: TransformArena,",
+        "text_sha256": "ee73c8006515252e70d72539adf77b69e552e86480b442b60a9aece45010ca0a",
+        "file_sha256": "aae195c85afe474fecd2ac3c3ae3c57ff68af18df41939fa647327198ec78f16"
       },
       {
         "id": "emitter-text-writer",
@@ -747,11 +730,11 @@
       {
         "id": "emitter-printer-factory",
         "path": "crates/emitter/src/printer.rs",
-        "line": 163,
+        "line": 164,
         "column": 1,
         "text": "pub const fn create_printer(options: PrinterOptions) -> Printer {",
         "text_sha256": "ad5575a93d7bc5976768228967001d7add6871a47da1b0316d75313def10d0f8",
-        "file_sha256": "47a17f1f5f7bcab6043d676f4754e5a2c6d776b555982e15f4558fb9c785b283"
+        "file_sha256": "4a30db91db046d6cf6a4070d4ef2446b1a30436940755d8075a81d18beea73d7"
       },
       {
         "id": "emitter-position-domains",
@@ -765,11 +748,110 @@
       {
         "id": "emitter-source-map-recorder",
         "path": "crates/emitter/src/printer.rs",
-        "line": 137,
+        "line": 138,
         "column": 1,
         "text": "pub trait SourceMapRecorder {",
         "text_sha256": "76298cd03affa09442e1ee73bff9ba404f8ce719406bc4d5d1c45e0461acd461",
-        "file_sha256": "47a17f1f5f7bcab6043d676f4754e5a2c6d776b555982e15f4558fb9c785b283"
+        "file_sha256": "4a30db91db046d6cf6a4070d4ef2446b1a30436940755d8075a81d18beea73d7"
+      },
+      {
+        "id": "emitter-resolver-protocol",
+        "path": "crates/emitter/src/resolver.rs",
+        "line": 151,
+        "column": 1,
+        "text": "pub trait EmitResolver {",
+        "text_sha256": "ae109ea619b5241506500e367bb7aae9e5f56333941a673b9fbaf5c412e8f0fd",
+        "file_sha256": "f25f2e0cbbb0e5d19714c155af40d92fbb787da19932af6ee5c5077d7cbad886"
+      },
+      {
+        "id": "emitter-script-transformer-selection",
+        "path": "crates/emitter/src/builtins.rs",
+        "line": 20,
+        "column": 1,
+        "text": "pub fn get_script_transformers<'resolver>(",
+        "text_sha256": "88f607a40f2d43018feaa22538fc6ccec9553ddedee9f5c57b5d53482625ad1b",
+        "file_sha256": "b1869a52489ed555da085090eb72f1774d0d751af16dfdbd4538a71921aedc7c"
+      },
+      {
+        "id": "emitter-transform-typescript",
+        "path": "crates/emitter/src/builtins.rs",
+        "line": 59,
+        "column": 1,
+        "text": "pub fn transform_type_script<'resolver>(",
+        "text_sha256": "848a2eea9bbbb33aa08e7d3a84951a26791e61eeeea736dba1b7370193ffeee5",
+        "file_sha256": "b1869a52489ed555da085090eb72f1774d0d751af16dfdbd4538a71921aedc7c"
+      },
+      {
+        "id": "emitter-transform-class-fields",
+        "path": "crates/emitter/src/builtins.rs",
+        "line": 68,
+        "column": 1,
+        "text": "pub fn transform_class_fields(options: &CompilerOptions) -> Box<dyn Transformer> {",
+        "text_sha256": "091e93ad2cf17e2bf673c697c9a9c220a659359c35eef49cf7d84f78c7894311",
+        "file_sha256": "b1869a52489ed555da085090eb72f1774d0d751af16dfdbd4538a71921aedc7c"
+      },
+      {
+        "id": "emitter-transform-ecmascript-module",
+        "path": "crates/emitter/src/builtins.rs",
+        "line": 78,
+        "column": 1,
+        "text": "pub fn transform_ecmascript_module(options: &CompilerOptions) -> Box<dyn Transformer> {",
+        "text_sha256": "29640dfc9438abcb5ec228a2ef9199a2afcacc2b58bf8f5adc8adafd45f57e40",
+        "file_sha256": "b1869a52489ed555da085090eb72f1774d0d751af16dfdbd4538a71921aedc7c"
+      },
+      {
+        "id": "emitter-changed-import-printer",
+        "path": "crates/emitter/src/printer.rs",
+        "line": 415,
+        "column": 13,
+        "text": "NodeData::ImportDeclaration(data) => {",
+        "text_sha256": "910b2dd1f1b5eca67b7b7108c10a13a7a1793b32c1991a3434bd545954e7ce8b",
+        "file_sha256": "4a30db91db046d6cf6a4070d4ef2446b1a30436940755d8075a81d18beea73d7"
+      },
+      {
+        "id": "checker-scoped-emit-session",
+        "path": "crates/checker/src/emit.rs",
+        "line": 15,
+        "column": 1,
+        "text": "pub struct CheckerSession<'program> {",
+        "text_sha256": "c116253f653dd9a956605df77c212d4cdf2f1de1f490f223842fce7f005920ca",
+        "file_sha256": "b4711a01c04adc93708ce5f621a2e8c85907609b6179afe7d66994bd4676d192"
+      },
+      {
+        "id": "checker-emit-resolver-adapter",
+        "path": "crates/checker/src/emit.rs",
+        "line": 75,
+        "column": 1,
+        "text": "impl EmitResolver for CheckerSession<'_> {",
+        "text_sha256": "a3574a190846d6bbe3db3311fedd3678739660afbe2f1b146111edcceccbb1cd",
+        "file_sha256": "b4711a01c04adc93708ce5f621a2e8c85907609b6179afe7d66994bd4676d192"
+      },
+      {
+        "id": "checker-value-alias-producer",
+        "path": "crates/checker/src/modules.rs",
+        "line": 185,
+        "column": 5,
+        "text": "pub(crate) fn emit_is_value_alias_declaration(",
+        "text_sha256": "df1c2306bb3ade145585e2643e6444cdefa71cb6fa5e7607eaafbc121c57f4c9",
+        "file_sha256": "a05ecfd236d7ea02008ef496074b4596cefe8530e8f4e3c2fb9f0322c4b317dc"
+      },
+      {
+        "id": "checker-referenced-alias-producer",
+        "path": "crates/checker/src/modules.rs",
+        "line": 285,
+        "column": 5,
+        "text": "pub(crate) fn emit_is_referenced_alias_declaration(",
+        "text_sha256": "13ff591fc4def3e7f9b8c6325ea63baf7939970e1cdeac1f9f3efa84aa3d6fb8",
+        "file_sha256": "a05ecfd236d7ea02008ef496074b4596cefe8530e8f4e3c2fb9f0322c4b317dc"
+      },
+      {
+        "id": "active-transform-oracle",
+        "path": "ratchets/h1-active-transform.v1.json",
+        "line": 4,
+        "column": 3,
+        "text": "\"phase\": \"H1.3-active-transform-resolver\"",
+        "text_sha256": "9db208cb21b30365f310e3190b9e37f1761fc1a16677de50651d2257efb61a35",
+        "file_sha256": "02773cac06f78d76aada38624fa7b07efe8214e4bbc7a1a9420dbeab1869c8de"
       },
       {
         "id": "prepared-program-emitting-builder",
@@ -828,20 +910,20 @@
       {
         "id": "checker-session-local-state",
         "path": "crates/checker/src/lib.rs",
-        "line": 1630,
+        "line": 1631,
         "column": 9,
         "text": "let mut state = state::CheckerState::from_snapshot(&snapshot, options);",
         "text_sha256": "66431a38f7144074bc77255200f22293db4d3cec0c2a25e8f9803518da8f1b6a",
-        "file_sha256": "a8ceb7238a7b5ca64ee8c6ba077cd8bc70a47293981082fcf5bfe1f17516cf84"
+        "file_sha256": "9cf62903017124327fd442b88f70576985dd3d08301aa118a286bb72c89d670d"
       },
       {
         "id": "checker-state-collapse",
         "path": "crates/checker/src/lib.rs",
-        "line": 1820,
+        "line": 1821,
         "column": 9,
         "text": "partial_checks = state.partial_check_records.clone();\n        authoritative_failure = state.take_authoritative_module_failure();",
         "text_sha256": "8c4b08d85fa65cffc07ed4b19a65542608d4991af99d50672f5fe53d65d75885",
-        "file_sha256": "a8ceb7238a7b5ca64ee8c6ba077cd8bc70a47293981082fcf5bfe1f17516cf84"
+        "file_sha256": "9cf62903017124327fd442b88f70576985dd3d08301aa118a286bb72c89d670d"
       },
       {
         "id": "display-clone-not-emitter",
@@ -882,11 +964,11 @@
       {
         "id": "checker-authoritative-emit-facts",
         "path": "crates/checker/src/lib.rs",
-        "line": 130,
+        "line": 131,
         "column": 5,
         "text": "pub may_be_emitted: bool,\n    /// Raw `SourceFile.impliedNodeFormat`",
         "text_sha256": "3d4ae97d2c33a29370c93a0ac34ff42c614ac8cac2f3d8cf8a1291f4bfa10444",
-        "file_sha256": "a8ceb7238a7b5ca64ee8c6ba077cd8bc70a47293981082fcf5bfe1f17516cf84"
+        "file_sha256": "9cf62903017124327fd442b88f70576985dd3d08301aa118a286bb72c89d670d"
       },
       {
         "id": "compiler-options-current-shape",
@@ -1021,7 +1103,7 @@
         "column": 1,
         "text": "pub struct ProgramSnapshot {",
         "text_sha256": "fb951bcb22124d9299bd8c6db9cbecab03b8f7fa17ce5ed47c9a5a0c19f39422",
-        "file_sha256": "191e536c221d6989556e4b08b1b3d946be65f6b744379b938025e4b3623f915d"
+        "file_sha256": "5f647ba3c40df889f639aef4afbb61e724b2c21e3063992d4242a3c850c7a700"
       },
       {
         "id": "captured-block-scope-bindings-elided",
@@ -1080,20 +1162,20 @@
       {
         "id": "import-equals-linked-references-elided",
         "path": "crates/checker/src/modules.rs",
-        "line": 8343,
+        "line": 8475,
         "column": 37,
         "text": "markLinkedReferences' declaration-emit\n    /// traversal remains outside this checker slice",
         "text_sha256": "f29a07c6d655ccc82756d03676617e4d38bd025f1ae0d1f572fa68db0c07d25f",
-        "file_sha256": "c2f5da11efaa8540ce78bd9e88e3ddd00366a12e9305a5a5629555d2d7ba68fc"
+        "file_sha256": "a05ecfd236d7ea02008ef496074b4596cefe8530e8f4e3c2fb9f0322c4b317dc"
       },
       {
         "id": "export-linked-aliases-elided",
         "path": "crates/checker/src/modules.rs",
-        "line": 8562,
+        "line": 8694,
         "column": 9,
         "text": "collectLinkedAliases remains declaration-emit bookkeeping",
         "text_sha256": "cb431b3f060205621a432fa23e1325d3e9708de7e5a7771977711ddfe20b9c07",
-        "file_sha256": "c2f5da11efaa8540ce78bd9e88e3ddd00366a12e9305a5a5629555d2d7ba68fc"
+        "file_sha256": "a05ecfd236d7ea02008ef496074b4596cefe8530e8f4e3c2fb9f0322c4b317dc"
       },
       {
         "id": "property-access-linked-references-elided",
@@ -1233,29 +1315,29 @@
       {
         "id": "export-assignment-linked-aliases-elided",
         "path": "crates/checker/src/modules.rs",
-        "line": 8640,
+        "line": 8772,
         "column": 9,
         "text": "erasableSyntaxOnly, collectLinkedAliases (emit), and the JSDoc",
         "text_sha256": "cc4dd50e43884202d07a86cd80ca77696185e6febb386d95556809d479592f8e",
-        "file_sha256": "c2f5da11efaa8540ce78bd9e88e3ddd00366a12e9305a5a5629555d2d7ba68fc"
+        "file_sha256": "a05ecfd236d7ea02008ef496074b4596cefe8530e8f4e3c2fb9f0322c4b317dc"
       },
       {
-        "id": "standard-class-fields-check-elided",
+        "id": "standard-class-fields-profile-check",
         "path": "crates/checker/src/resolve.rs",
-        "line": 1014,
-        "column": 37,
-        "text": "getEmitStandardClassFields:\n    /// useDefineForClassFields unmodeled",
-        "text_sha256": "22f82a45e3476622b95f8e96982de99395efa66747cc0dd0ef5b03450d058600",
-        "file_sha256": "2814514e5975d2d0d8e5cfa7d08a3877c8b09a79a2b74be97c185b189c759d6e"
+        "line": 1015,
+        "column": 9,
+        "text": "useDefineForClassFields is true, so getEmitStandardClassFields reduces\n    /// exactly to target >= ES2022",
+        "text_sha256": "8a0f8503a6401f094f8e38bccab3d0a6596148269d00344e55a11c182b84046e",
+        "file_sha256": "f66788bbb1337527587e7d9d3bfdbde0fd9e2b67ad13d23abba6a5b58b72473d"
       },
       {
         "id": "external-helper-producer-present",
         "path": "crates/checker/src/modules.rs",
-        "line": 4953,
+        "line": 5085,
         "column": 5,
         "text": "pub(crate) fn check_external_emit_helpers(",
         "text_sha256": "e127a45e63e86b553a6030b1b4e9a7c4f9a4388a49143d7aa0267cf5b6df8884",
-        "file_sha256": "c2f5da11efaa8540ce78bd9e88e3ddd00366a12e9305a5a5629555d2d7ba68fc"
+        "file_sha256": "a05ecfd236d7ea02008ef496074b4596cefe8530e8f4e3c2fb9f0322c4b317dc"
       },
       {
         "id": "jsx-alias-producer-present",
@@ -1269,10 +1351,10 @@
     ],
     "absence_proofs": [
       {
-        "id": "emitter-host-resolver-protocols",
+        "id": "emitter-host-protocol",
         "kind": "regex-zero",
         "scope": "emitter-production",
-        "expression": "^[ \\t]*(?:pub(?:\\([^)]*\\))?[ \\t]+)?trait[ \\t]+(?:EmitHost|EmitResolver)\\b",
+        "expression": "^[ \\t]*(?:pub(?:\\([^)]*\\))?[ \\t]+)?trait[ \\t]+EmitHost\\b",
         "match_count": 0,
         "matches": []
       },
@@ -1285,18 +1367,10 @@
         "matches": []
       },
       {
-        "id": "checker-emit-session-or-resolver",
-        "kind": "regex-zero",
-        "scope": "checker-production",
-        "expression": "^[ \\t]*(?:pub(?:\\([^)]*\\))?[ \\t]+)?(?:struct|enum|trait|type)[ \\t]+(?:CheckerSession|EmitResolver)\\b",
-        "match_count": 0,
-        "matches": []
-      },
-      {
-        "id": "active-transform-and-output-functions",
+        "id": "active-output-functions",
         "kind": "regex-zero",
         "scope": "production-rust",
-        "expression": "^[ \\t]*(?:pub(?:\\([^)]*\\))?[ \\t]+)?fn[ \\t]+(?:transform_type_script|transform_class_fields|transform_ecmascript_module|get_source_files_to_emit|get_output_paths_for|for_each_emitted_file|emit_files)[ \\t]*\\(",
+        "expression": "^[ \\t]*(?:pub(?:\\([^)]*\\))?[ \\t]+)?fn[ \\t]+(?:get_source_files_to_emit|get_output_paths_for|for_each_emitted_file|emit_files)[ \\t]*\\(",
         "match_count": 0,
         "matches": []
       },
@@ -1310,5 +1384,5 @@
       }
     ]
   },
-  "inventory_fingerprint_sha256": "c4175e7889d4592726363023a16797ceb309ac5381a20f61a3df1c5ce34bdb25"
+  "inventory_fingerprint_sha256": "f0ddfb05efe528ffee2f0bac09cd9a120adda01f43809f49b6e0beb2de64a01f"
 }

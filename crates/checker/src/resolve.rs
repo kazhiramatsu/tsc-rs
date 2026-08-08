@@ -1011,8 +1011,9 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:48096-48110
     ///
     /// The checkAndReportErrorForMissingPrefix alternate is a
-    /// suggestion-family row (M8). getEmitStandardClassFields:
-    /// useDefineForClassFields unmodeled — target >= ES2022.
+    /// suggestion-family row (M8). In H1's frozen profile,
+    /// useDefineForClassFields is true, so getEmitStandardClassFields reduces
+    /// exactly to target >= ES2022.
     fn check_and_report_error_for_invalid_initializer(
         &mut self,
         error_location: Option<NodeId>,

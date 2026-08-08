@@ -3028,6 +3028,1095 @@ where
     }
 }
 
+/// Fallible, replacement-aware counterpart to `for_each_child` used by
+/// emit-session transforms. Parsed syntax remains immutable; callers map a
+/// cloned `NodeData` value and install it through their own node factory.
+pub trait NodeDataChildVisitor {
+    type Error;
+
+    fn node_kind(&self, id: NodeId) -> SyntaxKind;
+    fn visit_node(&mut self, id: NodeId) -> Result<Option<NodeId>, Self::Error>;
+    fn visit_nodes(&mut self, id: NodeArrayId) -> Result<Option<NodeArrayId>, Self::Error>;
+    fn required_child_removed(&mut self, parent: SyntaxKind, field: &'static str) -> Self::Error;
+}
+
+pub fn try_visit_each_child<V>(data: &mut NodeData, visitor: &mut V) -> Result<(), V::Error>
+where
+    V: NodeDataChildVisitor,
+{
+    match data {
+        NodeData::Token => Ok(()),
+        NodeData::ArrayBindingPattern(data) => {
+            map_optional_nodes(&mut data.elements, visitor)?;
+            Ok(())
+        }
+        NodeData::ArrayLiteralExpression(data) => {
+            map_optional_nodes(&mut data.elements, visitor)?;
+            Ok(())
+        }
+        NodeData::ArrayType(data) => {
+            map_optional_node(&mut data.element_type, visitor)?;
+            Ok(())
+        }
+        NodeData::ArrowFunction(data) => {
+            map_optional_nodes(&mut data.modifiers, visitor)?;
+            map_optional_nodes(&mut data.type_parameters, visitor)?;
+            map_optional_nodes(&mut data.parameters, visitor)?;
+            map_optional_node(&mut data.r#type, visitor)?;
+            map_optional_node(&mut data.equals_greater_than_token, visitor)?;
+            map_optional_node(&mut data.body, visitor)?;
+            Ok(())
+        }
+        NodeData::AsExpression(data) => {
+            map_optional_node(&mut data.expression, visitor)?;
+            map_optional_node(&mut data.r#type, visitor)?;
+            Ok(())
+        }
+        NodeData::AwaitExpression(data) => {
+            map_optional_node(&mut data.expression, visitor)?;
+            Ok(())
+        }
+        NodeData::BigIntLiteral(_data) => Ok(()),
+        NodeData::BinaryExpression(data) => {
+            map_optional_node(&mut data.left, visitor)?;
+            map_optional_node(&mut data.operator_token, visitor)?;
+            map_optional_node(&mut data.right, visitor)?;
+            Ok(())
+        }
+        NodeData::BindingElement(data) => {
+            map_optional_node(&mut data.dot_dot_dot_token, visitor)?;
+            map_optional_node(&mut data.property_name, visitor)?;
+            map_optional_node(&mut data.name, visitor)?;
+            map_optional_node(&mut data.initializer, visitor)?;
+            Ok(())
+        }
+        NodeData::Block(data) => {
+            map_optional_nodes(&mut data.statements, visitor)?;
+            Ok(())
+        }
+        NodeData::BreakStatement(data) => {
+            map_optional_node(&mut data.label, visitor)?;
+            Ok(())
+        }
+        NodeData::CallExpression(data) => {
+            map_optional_node(&mut data.expression, visitor)?;
+            map_optional_node(&mut data.question_dot_token, visitor)?;
+            map_optional_nodes(&mut data.type_arguments, visitor)?;
+            map_optional_nodes(&mut data.arguments, visitor)?;
+            Ok(())
+        }
+        NodeData::CallSignature(data) => {
+            map_optional_nodes(&mut data.type_parameters, visitor)?;
+            map_optional_nodes(&mut data.parameters, visitor)?;
+            map_optional_node(&mut data.r#type, visitor)?;
+            Ok(())
+        }
+        NodeData::CaseBlock(data) => {
+            map_optional_nodes(&mut data.clauses, visitor)?;
+            Ok(())
+        }
+        NodeData::CaseClause(data) => {
+            map_optional_node(&mut data.expression, visitor)?;
+            map_optional_nodes(&mut data.statements, visitor)?;
+            Ok(())
+        }
+        NodeData::CatchClause(data) => {
+            map_optional_node(&mut data.variable_declaration, visitor)?;
+            map_optional_node(&mut data.block, visitor)?;
+            Ok(())
+        }
+        NodeData::ClassDeclaration(data) => {
+            map_optional_nodes(&mut data.modifiers, visitor)?;
+            map_optional_node(&mut data.name, visitor)?;
+            map_optional_nodes(&mut data.type_parameters, visitor)?;
+            map_optional_nodes(&mut data.heritage_clauses, visitor)?;
+            map_optional_nodes(&mut data.members, visitor)?;
+            Ok(())
+        }
+        NodeData::ClassExpression(data) => {
+            map_optional_nodes(&mut data.modifiers, visitor)?;
+            map_optional_node(&mut data.name, visitor)?;
+            map_optional_nodes(&mut data.type_parameters, visitor)?;
+            map_optional_nodes(&mut data.heritage_clauses, visitor)?;
+            map_optional_nodes(&mut data.members, visitor)?;
+            Ok(())
+        }
+        NodeData::ClassStaticBlockDeclaration(data) => {
+            map_optional_nodes(&mut data.modifiers, visitor)?;
+            map_optional_node(&mut data.body, visitor)?;
+            Ok(())
+        }
+        NodeData::CommaListExpression(data) => {
+            map_optional_nodes(&mut data.elements, visitor)?;
+            Ok(())
+        }
+        NodeData::ComputedPropertyName(data) => {
+            map_optional_node(&mut data.expression, visitor)?;
+            Ok(())
+        }
+        NodeData::ConditionalExpression(data) => {
+            map_optional_node(&mut data.condition, visitor)?;
+            map_optional_node(&mut data.question_token, visitor)?;
+            map_optional_node(&mut data.when_true, visitor)?;
+            map_optional_node(&mut data.colon_token, visitor)?;
+            map_optional_node(&mut data.when_false, visitor)?;
+            Ok(())
+        }
+        NodeData::ConditionalType(data) => {
+            map_optional_node(&mut data.check_type, visitor)?;
+            map_optional_node(&mut data.extends_type, visitor)?;
+            map_optional_node(&mut data.true_type, visitor)?;
+            map_optional_node(&mut data.false_type, visitor)?;
+            Ok(())
+        }
+        NodeData::ConstructSignature(data) => {
+            map_optional_nodes(&mut data.type_parameters, visitor)?;
+            map_optional_nodes(&mut data.parameters, visitor)?;
+            map_optional_node(&mut data.r#type, visitor)?;
+            Ok(())
+        }
+        NodeData::Constructor(data) => {
+            map_optional_nodes(&mut data.modifiers, visitor)?;
+            map_optional_node(&mut data.name, visitor)?;
+            map_optional_nodes(&mut data.type_parameters, visitor)?;
+            map_optional_nodes(&mut data.parameters, visitor)?;
+            map_optional_node(&mut data.r#type, visitor)?;
+            map_optional_node(&mut data.body, visitor)?;
+            Ok(())
+        }
+        NodeData::ConstructorType(data) => {
+            map_optional_nodes(&mut data.modifiers, visitor)?;
+            map_optional_nodes(&mut data.type_parameters, visitor)?;
+            map_optional_nodes(&mut data.parameters, visitor)?;
+            map_optional_node(&mut data.r#type, visitor)?;
+            Ok(())
+        }
+        NodeData::ContinueStatement(data) => {
+            map_optional_node(&mut data.label, visitor)?;
+            Ok(())
+        }
+        NodeData::DebuggerStatement(_data) => Ok(()),
+        NodeData::Decorator(data) => {
+            map_optional_node(&mut data.expression, visitor)?;
+            Ok(())
+        }
+        NodeData::DefaultClause(data) => {
+            map_optional_nodes(&mut data.statements, visitor)?;
+            Ok(())
+        }
+        NodeData::DeleteExpression(data) => {
+            map_optional_node(&mut data.expression, visitor)?;
+            Ok(())
+        }
+        NodeData::DoStatement(data) => {
+            map_optional_node(&mut data.statement, visitor)?;
+            map_optional_node(&mut data.expression, visitor)?;
+            Ok(())
+        }
+        NodeData::ElementAccessExpression(data) => {
+            map_optional_node(&mut data.expression, visitor)?;
+            map_optional_node(&mut data.question_dot_token, visitor)?;
+            map_optional_node(&mut data.argument_expression, visitor)?;
+            Ok(())
+        }
+        NodeData::EmptyStatement(_data) => Ok(()),
+        NodeData::EnumDeclaration(data) => {
+            map_optional_nodes(&mut data.modifiers, visitor)?;
+            map_optional_node(&mut data.name, visitor)?;
+            map_optional_nodes(&mut data.members, visitor)?;
+            Ok(())
+        }
+        NodeData::EnumMember(data) => {
+            map_optional_node(&mut data.name, visitor)?;
+            map_optional_node(&mut data.initializer, visitor)?;
+            Ok(())
+        }
+        NodeData::ExportAssignment(data) => {
+            map_optional_nodes(&mut data.modifiers, visitor)?;
+            map_optional_node(&mut data.expression, visitor)?;
+            Ok(())
+        }
+        NodeData::ExportDeclaration(data) => {
+            map_optional_nodes(&mut data.modifiers, visitor)?;
+            map_optional_node(&mut data.export_clause, visitor)?;
+            map_optional_node(&mut data.module_specifier, visitor)?;
+            map_optional_node(&mut data.attributes, visitor)?;
+            Ok(())
+        }
+        NodeData::ExportSpecifier(data) => {
+            map_optional_node(&mut data.property_name, visitor)?;
+            map_optional_node(&mut data.name, visitor)?;
+            Ok(())
+        }
+        NodeData::ExpressionStatement(data) => {
+            map_optional_node(&mut data.expression, visitor)?;
+            Ok(())
+        }
+        NodeData::ExpressionWithTypeArguments(data) => {
+            map_optional_node(&mut data.expression, visitor)?;
+            map_optional_nodes(&mut data.type_arguments, visitor)?;
+            Ok(())
+        }
+        NodeData::ExternalModuleReference(data) => {
+            map_optional_node(&mut data.expression, visitor)?;
+            Ok(())
+        }
+        NodeData::ForInStatement(data) => {
+            map_optional_node(&mut data.initializer, visitor)?;
+            map_optional_node(&mut data.expression, visitor)?;
+            map_optional_node(&mut data.statement, visitor)?;
+            Ok(())
+        }
+        NodeData::ForOfStatement(data) => {
+            map_optional_node(&mut data.await_modifier, visitor)?;
+            map_optional_node(&mut data.initializer, visitor)?;
+            map_optional_node(&mut data.expression, visitor)?;
+            map_optional_node(&mut data.statement, visitor)?;
+            Ok(())
+        }
+        NodeData::ForStatement(data) => {
+            map_optional_node(&mut data.initializer, visitor)?;
+            map_optional_node(&mut data.condition, visitor)?;
+            map_optional_node(&mut data.incrementor, visitor)?;
+            map_optional_node(&mut data.statement, visitor)?;
+            Ok(())
+        }
+        NodeData::FunctionDeclaration(data) => {
+            map_optional_nodes(&mut data.modifiers, visitor)?;
+            map_optional_node(&mut data.asterisk_token, visitor)?;
+            map_optional_node(&mut data.name, visitor)?;
+            map_optional_nodes(&mut data.type_parameters, visitor)?;
+            map_optional_nodes(&mut data.parameters, visitor)?;
+            map_optional_node(&mut data.r#type, visitor)?;
+            map_optional_node(&mut data.body, visitor)?;
+            Ok(())
+        }
+        NodeData::FunctionExpression(data) => {
+            map_optional_nodes(&mut data.modifiers, visitor)?;
+            map_optional_node(&mut data.asterisk_token, visitor)?;
+            map_optional_node(&mut data.name, visitor)?;
+            map_optional_nodes(&mut data.type_parameters, visitor)?;
+            map_optional_nodes(&mut data.parameters, visitor)?;
+            map_optional_node(&mut data.r#type, visitor)?;
+            map_optional_node(&mut data.body, visitor)?;
+            Ok(())
+        }
+        NodeData::FunctionType(data) => {
+            map_optional_nodes(&mut data.modifiers, visitor)?;
+            map_optional_nodes(&mut data.type_parameters, visitor)?;
+            map_optional_nodes(&mut data.parameters, visitor)?;
+            map_optional_node(&mut data.r#type, visitor)?;
+            Ok(())
+        }
+        NodeData::GetAccessor(data) => {
+            map_optional_nodes(&mut data.modifiers, visitor)?;
+            map_optional_node(&mut data.name, visitor)?;
+            map_optional_nodes(&mut data.type_parameters, visitor)?;
+            map_optional_nodes(&mut data.parameters, visitor)?;
+            map_optional_node(&mut data.r#type, visitor)?;
+            map_optional_node(&mut data.body, visitor)?;
+            Ok(())
+        }
+        NodeData::HeritageClause(data) => {
+            map_optional_nodes(&mut data.types, visitor)?;
+            Ok(())
+        }
+        NodeData::Identifier(_data) => Ok(()),
+        NodeData::IfStatement(data) => {
+            map_optional_node(&mut data.expression, visitor)?;
+            map_optional_node(&mut data.then_statement, visitor)?;
+            map_optional_node(&mut data.else_statement, visitor)?;
+            Ok(())
+        }
+        NodeData::ImportAttribute(data) => {
+            map_optional_node(&mut data.name, visitor)?;
+            map_optional_node(&mut data.value, visitor)?;
+            Ok(())
+        }
+        NodeData::ImportAttributes(data) => {
+            map_optional_nodes(&mut data.elements, visitor)?;
+            Ok(())
+        }
+        NodeData::ImportClause(data) => {
+            map_optional_node(&mut data.name, visitor)?;
+            map_optional_node(&mut data.named_bindings, visitor)?;
+            Ok(())
+        }
+        NodeData::ImportDeclaration(data) => {
+            map_optional_nodes(&mut data.modifiers, visitor)?;
+            map_optional_node(&mut data.import_clause, visitor)?;
+            map_optional_node(&mut data.module_specifier, visitor)?;
+            map_optional_node(&mut data.attributes, visitor)?;
+            Ok(())
+        }
+        NodeData::ImportEqualsDeclaration(data) => {
+            map_optional_nodes(&mut data.modifiers, visitor)?;
+            map_optional_node(&mut data.name, visitor)?;
+            map_optional_node(&mut data.module_reference, visitor)?;
+            Ok(())
+        }
+        NodeData::ImportSpecifier(data) => {
+            map_optional_node(&mut data.property_name, visitor)?;
+            map_optional_node(&mut data.name, visitor)?;
+            Ok(())
+        }
+        NodeData::ImportType(data) => {
+            map_optional_node(&mut data.argument, visitor)?;
+            map_optional_node(&mut data.attributes, visitor)?;
+            map_optional_node(&mut data.qualifier, visitor)?;
+            map_optional_nodes(&mut data.type_arguments, visitor)?;
+            Ok(())
+        }
+        NodeData::ImportTypeAssertionContainer(data) => {
+            map_optional_node(&mut data.assert_clause, visitor)?;
+            Ok(())
+        }
+        NodeData::IndexSignature(data) => {
+            map_optional_nodes(&mut data.modifiers, visitor)?;
+            map_optional_nodes(&mut data.type_parameters, visitor)?;
+            map_optional_nodes(&mut data.parameters, visitor)?;
+            map_optional_node(&mut data.r#type, visitor)?;
+            Ok(())
+        }
+        NodeData::IndexedAccessType(data) => {
+            map_optional_node(&mut data.object_type, visitor)?;
+            map_optional_node(&mut data.index_type, visitor)?;
+            Ok(())
+        }
+        NodeData::InferType(data) => {
+            map_optional_node(&mut data.type_parameter, visitor)?;
+            Ok(())
+        }
+        NodeData::InterfaceDeclaration(data) => {
+            map_optional_nodes(&mut data.modifiers, visitor)?;
+            map_optional_node(&mut data.name, visitor)?;
+            map_optional_nodes(&mut data.type_parameters, visitor)?;
+            map_optional_nodes(&mut data.heritage_clauses, visitor)?;
+            map_optional_nodes(&mut data.members, visitor)?;
+            Ok(())
+        }
+        NodeData::IntersectionType(data) => {
+            map_optional_nodes(&mut data.types, visitor)?;
+            Ok(())
+        }
+        NodeData::JSDoc(data) => {
+            map_optional_jsdoc_comment(&mut data.comment, visitor)?;
+            map_optional_nodes(&mut data.tags, visitor)?;
+            Ok(())
+        }
+        NodeData::JSDocAllType(_data) => Ok(()),
+        NodeData::JSDocAugmentsTag(data) => {
+            map_optional_node(&mut data.tag_name, visitor)?;
+            map_optional_node(&mut data.class, visitor)?;
+            map_optional_jsdoc_comment(&mut data.comment, visitor)?;
+            Ok(())
+        }
+        NodeData::JSDocAuthorTag(data) => {
+            map_optional_node(&mut data.tag_name, visitor)?;
+            map_optional_jsdoc_comment(&mut data.comment, visitor)?;
+            Ok(())
+        }
+        NodeData::JSDocCallbackTag(data) => {
+            map_optional_node(&mut data.tag_name, visitor)?;
+            map_optional_node(&mut data.full_name, visitor)?;
+            map_optional_node(&mut data.type_expression, visitor)?;
+            map_optional_jsdoc_comment(&mut data.comment, visitor)?;
+            Ok(())
+        }
+        NodeData::JSDocClassTag(data) => {
+            map_optional_node(&mut data.tag_name, visitor)?;
+            map_optional_jsdoc_comment(&mut data.comment, visitor)?;
+            Ok(())
+        }
+        NodeData::JSDocDeprecatedTag(data) => {
+            map_optional_node(&mut data.tag_name, visitor)?;
+            map_optional_jsdoc_comment(&mut data.comment, visitor)?;
+            Ok(())
+        }
+        NodeData::JSDocEnumTag(data) => {
+            map_optional_node(&mut data.tag_name, visitor)?;
+            map_optional_node(&mut data.type_expression, visitor)?;
+            map_optional_jsdoc_comment(&mut data.comment, visitor)?;
+            Ok(())
+        }
+        NodeData::JSDocFunctionType(data) => {
+            map_optional_nodes(&mut data.parameters, visitor)?;
+            map_optional_node(&mut data.r#type, visitor)?;
+            Ok(())
+        }
+        NodeData::JSDocImplementsTag(data) => {
+            map_optional_node(&mut data.tag_name, visitor)?;
+            map_optional_node(&mut data.class, visitor)?;
+            map_optional_jsdoc_comment(&mut data.comment, visitor)?;
+            Ok(())
+        }
+        NodeData::JSDocImportTag(data) => {
+            map_optional_node(&mut data.tag_name, visitor)?;
+            map_optional_node(&mut data.import_clause, visitor)?;
+            map_optional_node(&mut data.module_specifier, visitor)?;
+            map_optional_node(&mut data.attributes, visitor)?;
+            map_optional_jsdoc_comment(&mut data.comment, visitor)?;
+            Ok(())
+        }
+        NodeData::JSDocLink(data) => {
+            map_optional_node(&mut data.name, visitor)?;
+            Ok(())
+        }
+        NodeData::JSDocLinkCode(data) => {
+            map_optional_node(&mut data.name, visitor)?;
+            Ok(())
+        }
+        NodeData::JSDocLinkPlain(data) => {
+            map_optional_node(&mut data.name, visitor)?;
+            Ok(())
+        }
+        NodeData::JSDocMemberName(data) => {
+            map_optional_node(&mut data.left, visitor)?;
+            map_optional_node(&mut data.right, visitor)?;
+            Ok(())
+        }
+        NodeData::JSDocNameReference(data) => {
+            map_optional_node(&mut data.name, visitor)?;
+            Ok(())
+        }
+        NodeData::JSDocNamepathType(_data) => Ok(()),
+        NodeData::JSDocNonNullableType(data) => {
+            map_optional_node(&mut data.r#type, visitor)?;
+            Ok(())
+        }
+        NodeData::JSDocNullableType(data) => {
+            map_optional_node(&mut data.r#type, visitor)?;
+            Ok(())
+        }
+        NodeData::JSDocOptionalType(data) => {
+            map_optional_node(&mut data.r#type, visitor)?;
+            Ok(())
+        }
+        NodeData::JSDocOverloadTag(data) => {
+            map_optional_node(&mut data.tag_name, visitor)?;
+            map_optional_node(&mut data.type_expression, visitor)?;
+            map_optional_jsdoc_comment(&mut data.comment, visitor)?;
+            Ok(())
+        }
+        NodeData::JSDocOverrideTag(data) => {
+            map_optional_node(&mut data.tag_name, visitor)?;
+            map_optional_jsdoc_comment(&mut data.comment, visitor)?;
+            Ok(())
+        }
+        NodeData::JSDocParameterTag(data) => {
+            map_optional_node(&mut data.tag_name, visitor)?;
+            if data.is_name_first {
+                map_optional_node(&mut data.name, visitor)?;
+                map_optional_node(&mut data.type_expression, visitor)?;
+            } else {
+                map_optional_node(&mut data.type_expression, visitor)?;
+                map_optional_node(&mut data.name, visitor)?;
+            }
+            map_optional_jsdoc_comment(&mut data.comment, visitor)?;
+            Ok(())
+        }
+        NodeData::JSDocPrivateTag(data) => {
+            map_optional_node(&mut data.tag_name, visitor)?;
+            map_optional_jsdoc_comment(&mut data.comment, visitor)?;
+            Ok(())
+        }
+        NodeData::JSDocPropertyTag(data) => {
+            map_optional_node(&mut data.tag_name, visitor)?;
+            if data.is_name_first {
+                map_optional_node(&mut data.name, visitor)?;
+                map_optional_node(&mut data.type_expression, visitor)?;
+            } else {
+                map_optional_node(&mut data.type_expression, visitor)?;
+                map_optional_node(&mut data.name, visitor)?;
+            }
+            map_optional_jsdoc_comment(&mut data.comment, visitor)?;
+            Ok(())
+        }
+        NodeData::JSDocProtectedTag(data) => {
+            map_optional_node(&mut data.tag_name, visitor)?;
+            map_optional_jsdoc_comment(&mut data.comment, visitor)?;
+            Ok(())
+        }
+        NodeData::JSDocPublicTag(data) => {
+            map_optional_node(&mut data.tag_name, visitor)?;
+            map_optional_jsdoc_comment(&mut data.comment, visitor)?;
+            Ok(())
+        }
+        NodeData::JSDocReadonlyTag(data) => {
+            map_optional_node(&mut data.tag_name, visitor)?;
+            map_optional_jsdoc_comment(&mut data.comment, visitor)?;
+            Ok(())
+        }
+        NodeData::JSDocReturnTag(data) => {
+            map_optional_node(&mut data.tag_name, visitor)?;
+            map_optional_node(&mut data.type_expression, visitor)?;
+            map_optional_jsdoc_comment(&mut data.comment, visitor)?;
+            Ok(())
+        }
+        NodeData::JSDocSatisfiesTag(data) => {
+            map_optional_node(&mut data.tag_name, visitor)?;
+            map_optional_node(&mut data.type_expression, visitor)?;
+            map_optional_jsdoc_comment(&mut data.comment, visitor)?;
+            Ok(())
+        }
+        NodeData::JSDocSeeTag(data) => {
+            map_optional_node(&mut data.tag_name, visitor)?;
+            map_optional_node(&mut data.name, visitor)?;
+            map_optional_jsdoc_comment(&mut data.comment, visitor)?;
+            Ok(())
+        }
+        NodeData::JSDocSignature(data) => {
+            map_optional_nodes(&mut data.type_parameters, visitor)?;
+            map_optional_nodes(&mut data.parameters, visitor)?;
+            map_optional_node(&mut data.r#type, visitor)?;
+            Ok(())
+        }
+        NodeData::JSDocTag(data) => {
+            map_optional_node(&mut data.tag_name, visitor)?;
+            map_optional_jsdoc_comment(&mut data.comment, visitor)?;
+            Ok(())
+        }
+        NodeData::JSDocTemplateTag(data) => {
+            map_optional_node(&mut data.tag_name, visitor)?;
+            map_optional_node(&mut data.constraint, visitor)?;
+            map_optional_nodes(&mut data.type_parameters, visitor)?;
+            map_optional_jsdoc_comment(&mut data.comment, visitor)?;
+            Ok(())
+        }
+        NodeData::JSDocText(_data) => Ok(()),
+        NodeData::JSDocThisTag(data) => {
+            map_optional_node(&mut data.tag_name, visitor)?;
+            map_optional_node(&mut data.type_expression, visitor)?;
+            map_optional_jsdoc_comment(&mut data.comment, visitor)?;
+            Ok(())
+        }
+        NodeData::JSDocThrowsTag(data) => {
+            map_optional_node(&mut data.tag_name, visitor)?;
+            map_optional_node(&mut data.type_expression, visitor)?;
+            map_optional_jsdoc_comment(&mut data.comment, visitor)?;
+            Ok(())
+        }
+        NodeData::JSDocTypeExpression(data) => {
+            map_optional_node(&mut data.r#type, visitor)?;
+            Ok(())
+        }
+        NodeData::JSDocTypeLiteral(data) => {
+            map_optional_nodes(&mut data.js_doc_property_tags, visitor)?;
+            Ok(())
+        }
+        NodeData::JSDocTypeTag(data) => {
+            map_optional_node(&mut data.tag_name, visitor)?;
+            map_optional_node(&mut data.type_expression, visitor)?;
+            map_optional_jsdoc_comment(&mut data.comment, visitor)?;
+            Ok(())
+        }
+        NodeData::JSDocTypedefTag(data) => {
+            map_optional_node(&mut data.tag_name, visitor)?;
+            let type_expression_first = data
+                .type_expression
+                .is_some_and(|node| visitor.node_kind(node) == SyntaxKind::JSDocTypeExpression);
+            if type_expression_first {
+                map_optional_node(&mut data.type_expression, visitor)?;
+                map_optional_node(&mut data.full_name, visitor)?;
+            } else {
+                map_optional_node(&mut data.full_name, visitor)?;
+                map_optional_node(&mut data.type_expression, visitor)?;
+            }
+            map_optional_jsdoc_comment(&mut data.comment, visitor)?;
+            Ok(())
+        }
+        NodeData::JSDocUnknownType(_data) => Ok(()),
+        NodeData::JSDocVariadicType(data) => {
+            map_optional_node(&mut data.r#type, visitor)?;
+            Ok(())
+        }
+        NodeData::JsxAttribute(data) => {
+            map_optional_node(&mut data.name, visitor)?;
+            map_optional_node(&mut data.initializer, visitor)?;
+            Ok(())
+        }
+        NodeData::JsxAttributes(data) => {
+            map_optional_nodes(&mut data.properties, visitor)?;
+            Ok(())
+        }
+        NodeData::JsxClosingElement(data) => {
+            map_optional_node(&mut data.tag_name, visitor)?;
+            Ok(())
+        }
+        NodeData::JsxElement(data) => {
+            map_optional_node(&mut data.opening_element, visitor)?;
+            map_optional_nodes(&mut data.children, visitor)?;
+            map_optional_node(&mut data.closing_element, visitor)?;
+            Ok(())
+        }
+        NodeData::JsxExpression(data) => {
+            map_optional_node(&mut data.dot_dot_dot_token, visitor)?;
+            map_optional_node(&mut data.expression, visitor)?;
+            Ok(())
+        }
+        NodeData::JsxFragment(data) => {
+            map_optional_node(&mut data.opening_fragment, visitor)?;
+            map_optional_nodes(&mut data.children, visitor)?;
+            map_optional_node(&mut data.closing_fragment, visitor)?;
+            Ok(())
+        }
+        NodeData::JsxNamespacedName(data) => {
+            map_optional_node(&mut data.namespace, visitor)?;
+            map_optional_node(&mut data.name, visitor)?;
+            Ok(())
+        }
+        NodeData::JsxOpeningElement(data) => {
+            map_optional_node(&mut data.tag_name, visitor)?;
+            map_optional_nodes(&mut data.type_arguments, visitor)?;
+            map_optional_node(&mut data.attributes, visitor)?;
+            Ok(())
+        }
+        NodeData::JsxSelfClosingElement(data) => {
+            map_optional_node(&mut data.tag_name, visitor)?;
+            map_optional_nodes(&mut data.type_arguments, visitor)?;
+            map_optional_node(&mut data.attributes, visitor)?;
+            Ok(())
+        }
+        NodeData::JsxSpreadAttribute(data) => {
+            map_optional_node(&mut data.expression, visitor)?;
+            Ok(())
+        }
+        NodeData::JsxText(_data) => Ok(()),
+        NodeData::LabeledStatement(data) => {
+            map_optional_node(&mut data.label, visitor)?;
+            map_optional_node(&mut data.statement, visitor)?;
+            Ok(())
+        }
+        NodeData::LiteralType(data) => {
+            map_optional_node(&mut data.literal, visitor)?;
+            Ok(())
+        }
+        NodeData::MappedType(data) => {
+            map_optional_node(&mut data.readonly_token, visitor)?;
+            map_optional_node(&mut data.type_parameter, visitor)?;
+            map_optional_node(&mut data.name_type, visitor)?;
+            map_optional_node(&mut data.question_token, visitor)?;
+            map_optional_node(&mut data.r#type, visitor)?;
+            map_optional_nodes(&mut data.members, visitor)?;
+            Ok(())
+        }
+        NodeData::MetaProperty(data) => {
+            map_optional_node(&mut data.name, visitor)?;
+            Ok(())
+        }
+        NodeData::MethodDeclaration(data) => {
+            map_optional_nodes(&mut data.modifiers, visitor)?;
+            map_optional_node(&mut data.asterisk_token, visitor)?;
+            map_optional_node(&mut data.name, visitor)?;
+            map_optional_node(&mut data.question_token, visitor)?;
+            map_optional_node(&mut data.exclamation_token, visitor)?;
+            map_optional_nodes(&mut data.type_parameters, visitor)?;
+            map_optional_nodes(&mut data.parameters, visitor)?;
+            map_optional_node(&mut data.r#type, visitor)?;
+            map_optional_node(&mut data.body, visitor)?;
+            Ok(())
+        }
+        NodeData::MethodSignature(data) => {
+            map_optional_nodes(&mut data.modifiers, visitor)?;
+            map_optional_node(&mut data.name, visitor)?;
+            map_optional_node(&mut data.question_token, visitor)?;
+            map_optional_nodes(&mut data.type_parameters, visitor)?;
+            map_optional_nodes(&mut data.parameters, visitor)?;
+            map_optional_node(&mut data.r#type, visitor)?;
+            Ok(())
+        }
+        NodeData::MissingDeclaration(data) => {
+            map_optional_nodes(&mut data.modifiers, visitor)?;
+            Ok(())
+        }
+        NodeData::ModuleBlock(data) => {
+            map_optional_nodes(&mut data.statements, visitor)?;
+            Ok(())
+        }
+        NodeData::ModuleDeclaration(data) => {
+            map_optional_nodes(&mut data.modifiers, visitor)?;
+            map_optional_node(&mut data.name, visitor)?;
+            map_optional_node(&mut data.body, visitor)?;
+            Ok(())
+        }
+        NodeData::NamedExports(data) => {
+            map_optional_nodes(&mut data.elements, visitor)?;
+            Ok(())
+        }
+        NodeData::NamedImports(data) => {
+            map_optional_nodes(&mut data.elements, visitor)?;
+            Ok(())
+        }
+        NodeData::NamedTupleMember(data) => {
+            map_optional_node(&mut data.dot_dot_dot_token, visitor)?;
+            map_optional_node(&mut data.name, visitor)?;
+            map_optional_node(&mut data.question_token, visitor)?;
+            map_optional_node(&mut data.r#type, visitor)?;
+            Ok(())
+        }
+        NodeData::NamespaceExport(data) => {
+            map_optional_node(&mut data.name, visitor)?;
+            Ok(())
+        }
+        NodeData::NamespaceExportDeclaration(data) => {
+            map_optional_nodes(&mut data.modifiers, visitor)?;
+            map_optional_node(&mut data.name, visitor)?;
+            Ok(())
+        }
+        NodeData::NamespaceImport(data) => {
+            map_optional_node(&mut data.name, visitor)?;
+            Ok(())
+        }
+        NodeData::NewExpression(data) => {
+            map_optional_node(&mut data.expression, visitor)?;
+            map_optional_node(&mut data.question_dot_token, visitor)?;
+            map_optional_nodes(&mut data.type_arguments, visitor)?;
+            map_optional_nodes(&mut data.arguments, visitor)?;
+            Ok(())
+        }
+        NodeData::NoSubstitutionTemplateLiteral(_data) => Ok(()),
+        NodeData::NonNullExpression(data) => {
+            map_optional_node(&mut data.expression, visitor)?;
+            Ok(())
+        }
+        NodeData::NumericLiteral(_data) => Ok(()),
+        NodeData::ObjectBindingPattern(data) => {
+            map_optional_nodes(&mut data.elements, visitor)?;
+            Ok(())
+        }
+        NodeData::ObjectLiteralExpression(data) => {
+            map_optional_nodes(&mut data.properties, visitor)?;
+            Ok(())
+        }
+        NodeData::OmittedExpression(_data) => Ok(()),
+        NodeData::OptionalType(data) => {
+            map_optional_node(&mut data.r#type, visitor)?;
+            Ok(())
+        }
+        NodeData::Parameter(data) => {
+            map_optional_nodes(&mut data.modifiers, visitor)?;
+            map_optional_node(&mut data.dot_dot_dot_token, visitor)?;
+            map_optional_node(&mut data.name, visitor)?;
+            map_optional_node(&mut data.question_token, visitor)?;
+            map_optional_node(&mut data.r#type, visitor)?;
+            map_optional_node(&mut data.initializer, visitor)?;
+            Ok(())
+        }
+        NodeData::ParenthesizedExpression(data) => {
+            map_optional_node(&mut data.expression, visitor)?;
+            Ok(())
+        }
+        NodeData::ParenthesizedType(data) => {
+            map_optional_node(&mut data.r#type, visitor)?;
+            Ok(())
+        }
+        NodeData::PartiallyEmittedExpression(data) => {
+            map_optional_node(&mut data.expression, visitor)?;
+            Ok(())
+        }
+        NodeData::PostfixUnaryExpression(data) => {
+            map_optional_node(&mut data.operand, visitor)?;
+            Ok(())
+        }
+        NodeData::PrefixUnaryExpression(data) => {
+            map_optional_node(&mut data.operand, visitor)?;
+            Ok(())
+        }
+        NodeData::PrivateIdentifier(_data) => Ok(()),
+        NodeData::PropertyAccessExpression(data) => {
+            map_optional_node(&mut data.expression, visitor)?;
+            map_optional_node(&mut data.question_dot_token, visitor)?;
+            map_optional_node(&mut data.name, visitor)?;
+            Ok(())
+        }
+        NodeData::PropertyAssignment(data) => {
+            map_optional_nodes(&mut data.modifiers, visitor)?;
+            map_optional_node(&mut data.name, visitor)?;
+            map_optional_node(&mut data.question_token, visitor)?;
+            map_optional_node(&mut data.exclamation_token, visitor)?;
+            map_optional_node(&mut data.initializer, visitor)?;
+            Ok(())
+        }
+        NodeData::PropertyDeclaration(data) => {
+            map_optional_nodes(&mut data.modifiers, visitor)?;
+            map_optional_node(&mut data.name, visitor)?;
+            map_optional_node(&mut data.question_token, visitor)?;
+            map_optional_node(&mut data.exclamation_token, visitor)?;
+            map_optional_node(&mut data.r#type, visitor)?;
+            map_optional_node(&mut data.initializer, visitor)?;
+            Ok(())
+        }
+        NodeData::PropertySignature(data) => {
+            map_optional_nodes(&mut data.modifiers, visitor)?;
+            map_optional_node(&mut data.name, visitor)?;
+            map_optional_node(&mut data.question_token, visitor)?;
+            map_optional_node(&mut data.r#type, visitor)?;
+            map_optional_node(&mut data.initializer, visitor)?;
+            Ok(())
+        }
+        NodeData::QualifiedName(data) => {
+            map_optional_node(&mut data.left, visitor)?;
+            map_optional_node(&mut data.right, visitor)?;
+            Ok(())
+        }
+        NodeData::RegularExpressionLiteral(_data) => Ok(()),
+        NodeData::RestType(data) => {
+            map_optional_node(&mut data.r#type, visitor)?;
+            Ok(())
+        }
+        NodeData::ReturnStatement(data) => {
+            map_optional_node(&mut data.expression, visitor)?;
+            Ok(())
+        }
+        NodeData::SatisfiesExpression(data) => {
+            map_optional_node(&mut data.expression, visitor)?;
+            map_optional_node(&mut data.r#type, visitor)?;
+            Ok(())
+        }
+        NodeData::SetAccessor(data) => {
+            map_optional_nodes(&mut data.modifiers, visitor)?;
+            map_optional_node(&mut data.name, visitor)?;
+            map_optional_nodes(&mut data.type_parameters, visitor)?;
+            map_optional_nodes(&mut data.parameters, visitor)?;
+            map_optional_node(&mut data.r#type, visitor)?;
+            map_optional_node(&mut data.body, visitor)?;
+            Ok(())
+        }
+        NodeData::ShorthandPropertyAssignment(data) => {
+            map_optional_nodes(&mut data.modifiers, visitor)?;
+            map_optional_node(&mut data.name, visitor)?;
+            map_optional_node(&mut data.question_token, visitor)?;
+            map_optional_node(&mut data.exclamation_token, visitor)?;
+            map_optional_node(&mut data.equals_token, visitor)?;
+            map_optional_node(&mut data.object_assignment_initializer, visitor)?;
+            Ok(())
+        }
+        NodeData::SourceFile(data) => {
+            map_optional_nodes(&mut data.statements, visitor)?;
+            map_optional_node(&mut data.end_of_file_token, visitor)?;
+            Ok(())
+        }
+        NodeData::SpreadAssignment(data) => {
+            map_optional_node(&mut data.expression, visitor)?;
+            Ok(())
+        }
+        NodeData::SpreadElement(data) => {
+            map_optional_node(&mut data.expression, visitor)?;
+            Ok(())
+        }
+        NodeData::StringLiteral(_data) => Ok(()),
+        NodeData::SwitchStatement(data) => {
+            map_optional_node(&mut data.expression, visitor)?;
+            map_optional_node(&mut data.case_block, visitor)?;
+            Ok(())
+        }
+        NodeData::SyntaxList(_data) => Ok(()),
+        NodeData::TaggedTemplateExpression(data) => {
+            map_optional_node(&mut data.tag, visitor)?;
+            map_optional_node(&mut data.question_dot_token, visitor)?;
+            map_optional_nodes(&mut data.type_arguments, visitor)?;
+            map_optional_node(&mut data.template, visitor)?;
+            Ok(())
+        }
+        NodeData::TemplateExpression(data) => {
+            map_optional_node(&mut data.head, visitor)?;
+            map_optional_nodes(&mut data.template_spans, visitor)?;
+            Ok(())
+        }
+        NodeData::TemplateHead(_data) => Ok(()),
+        NodeData::TemplateLiteralType(data) => {
+            map_optional_node(&mut data.head, visitor)?;
+            map_optional_nodes(&mut data.template_spans, visitor)?;
+            Ok(())
+        }
+        NodeData::TemplateLiteralTypeSpan(data) => {
+            map_optional_node(&mut data.r#type, visitor)?;
+            map_optional_node(&mut data.literal, visitor)?;
+            Ok(())
+        }
+        NodeData::TemplateMiddle(_data) => Ok(()),
+        NodeData::TemplateSpan(data) => {
+            map_optional_node(&mut data.expression, visitor)?;
+            map_optional_node(&mut data.literal, visitor)?;
+            Ok(())
+        }
+        NodeData::TemplateTail(_data) => Ok(()),
+        NodeData::ThrowStatement(data) => {
+            map_optional_node(&mut data.expression, visitor)?;
+            Ok(())
+        }
+        NodeData::TryStatement(data) => {
+            map_optional_node(&mut data.try_block, visitor)?;
+            map_optional_node(&mut data.catch_clause, visitor)?;
+            map_optional_node(&mut data.finally_block, visitor)?;
+            Ok(())
+        }
+        NodeData::TupleType(data) => {
+            map_optional_nodes(&mut data.elements, visitor)?;
+            Ok(())
+        }
+        NodeData::TypeAliasDeclaration(data) => {
+            map_optional_nodes(&mut data.modifiers, visitor)?;
+            map_optional_node(&mut data.name, visitor)?;
+            map_optional_nodes(&mut data.type_parameters, visitor)?;
+            map_optional_node(&mut data.r#type, visitor)?;
+            Ok(())
+        }
+        NodeData::TypeAssertionExpression(data) => {
+            map_optional_node(&mut data.r#type, visitor)?;
+            map_optional_node(&mut data.expression, visitor)?;
+            Ok(())
+        }
+        NodeData::TypeLiteral(data) => {
+            map_optional_nodes(&mut data.members, visitor)?;
+            Ok(())
+        }
+        NodeData::TypeOfExpression(data) => {
+            map_optional_node(&mut data.expression, visitor)?;
+            Ok(())
+        }
+        NodeData::TypeOperator(data) => {
+            map_optional_node(&mut data.r#type, visitor)?;
+            Ok(())
+        }
+        NodeData::TypeParameter(data) => {
+            map_optional_nodes(&mut data.modifiers, visitor)?;
+            map_optional_node(&mut data.name, visitor)?;
+            map_optional_node(&mut data.constraint, visitor)?;
+            map_optional_node(&mut data.r#default, visitor)?;
+            map_optional_node(&mut data.expression, visitor)?;
+            Ok(())
+        }
+        NodeData::TypePredicate(data) => {
+            map_optional_node(&mut data.asserts_modifier, visitor)?;
+            map_optional_node(&mut data.parameter_name, visitor)?;
+            map_optional_node(&mut data.r#type, visitor)?;
+            Ok(())
+        }
+        NodeData::TypeQuery(data) => {
+            map_optional_node(&mut data.expr_name, visitor)?;
+            map_optional_nodes(&mut data.type_arguments, visitor)?;
+            Ok(())
+        }
+        NodeData::TypeReference(data) => {
+            map_optional_node(&mut data.type_name, visitor)?;
+            map_optional_nodes(&mut data.type_arguments, visitor)?;
+            Ok(())
+        }
+        NodeData::UnionType(data) => {
+            map_optional_nodes(&mut data.types, visitor)?;
+            Ok(())
+        }
+        NodeData::VariableDeclaration(data) => {
+            map_optional_node(&mut data.name, visitor)?;
+            map_optional_node(&mut data.exclamation_token, visitor)?;
+            map_optional_node(&mut data.r#type, visitor)?;
+            map_optional_node(&mut data.initializer, visitor)?;
+            Ok(())
+        }
+        NodeData::VariableDeclarationList(data) => {
+            map_optional_nodes(&mut data.declarations, visitor)?;
+            Ok(())
+        }
+        NodeData::VariableStatement(data) => {
+            map_optional_nodes(&mut data.modifiers, visitor)?;
+            map_optional_node(&mut data.declaration_list, visitor)?;
+            Ok(())
+        }
+        NodeData::VoidExpression(data) => {
+            map_optional_node(&mut data.expression, visitor)?;
+            Ok(())
+        }
+        NodeData::WhileStatement(data) => {
+            map_optional_node(&mut data.expression, visitor)?;
+            map_optional_node(&mut data.statement, visitor)?;
+            Ok(())
+        }
+        NodeData::WithStatement(data) => {
+            map_optional_node(&mut data.expression, visitor)?;
+            map_optional_node(&mut data.statement, visitor)?;
+            Ok(())
+        }
+        NodeData::YieldExpression(data) => {
+            map_optional_node(&mut data.asterisk_token, visitor)?;
+            map_optional_node(&mut data.expression, visitor)?;
+            Ok(())
+        }
+    }
+}
+
+fn map_optional_node<V: NodeDataChildVisitor>(
+    slot: &mut Option<NodeId>,
+    visitor: &mut V,
+) -> Result<(), V::Error> {
+    if let Some(id) = *slot {
+        *slot = visitor.visit_node(id)?;
+    }
+    Ok(())
+}
+
+fn map_optional_nodes<V: NodeDataChildVisitor>(
+    slot: &mut Option<NodeArrayId>,
+    visitor: &mut V,
+) -> Result<(), V::Error> {
+    if let Some(id) = *slot {
+        *slot = visitor.visit_nodes(id)?;
+    }
+    Ok(())
+}
+
+#[allow(dead_code)]
+fn map_required_node<V: NodeDataChildVisitor>(
+    slot: &mut NodeId,
+    parent: SyntaxKind,
+    field: &'static str,
+    visitor: &mut V,
+) -> Result<(), V::Error> {
+    *slot = visitor
+        .visit_node(*slot)?
+        .ok_or_else(|| visitor.required_child_removed(parent, field))?;
+    Ok(())
+}
+
+#[allow(dead_code)]
+fn map_required_nodes<V: NodeDataChildVisitor>(
+    slot: &mut NodeArrayId,
+    parent: SyntaxKind,
+    field: &'static str,
+    visitor: &mut V,
+) -> Result<(), V::Error> {
+    *slot = visitor
+        .visit_nodes(*slot)?
+        .ok_or_else(|| visitor.required_child_removed(parent, field))?;
+    Ok(())
+}
+
+fn map_optional_jsdoc_comment<V: NodeDataChildVisitor>(
+    slot: &mut Option<JSDocComment>,
+    visitor: &mut V,
+) -> Result<(), V::Error> {
+    let Some(JSDocComment::Nodes(id)) = slot.as_ref() else {
+        return Ok(());
+    };
+    *slot = visitor.visit_nodes(*id)?.map(JSDocComment::Nodes);
+    Ok(())
+}
+
+#[allow(dead_code)]
+fn map_jsdoc_comment<V: NodeDataChildVisitor>(
+    slot: &mut JSDocComment,
+    parent: SyntaxKind,
+    field: &'static str,
+    visitor: &mut V,
+) -> Result<(), V::Error> {
+    if let JSDocComment::Nodes(id) = slot {
+        *id = visitor
+            .visit_nodes(*id)?
+            .ok_or_else(|| visitor.required_child_removed(parent, field))?;
+    }
+    Ok(())
+}
+
 fn visit_node<F>(id: NodeId, cb: &mut F) -> Option<NodeId>
 where
     F: FnMut(NodeId) -> bool,

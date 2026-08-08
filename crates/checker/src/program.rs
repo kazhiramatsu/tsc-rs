@@ -1053,6 +1053,14 @@ impl<'a> ProgramBinder<'a> {
         Self::owner_file(&self.node_owners, node.0, "NodeId")
     }
 
+    /// Fallible counterpart used at external identity boundaries such as the
+    /// checker-owned emit resolver. Ordinary checker code already owns valid
+    /// node identities and continues to use [`Self::file_index_of_node`].
+    /// tsrs-native: validation for Rust's source-token/node-id pair.
+    pub(crate) fn try_file_index_of_node(&self, node: NodeId) -> Option<usize> {
+        Self::try_owner_file(&self.node_owners, node.0)
+    }
+
     /// tsrs-native: multi-file arena routing for a numeric NodeId; tsc
     /// carries the SourceFile/object relationship directly.
     pub fn source_of_node(&self, node: NodeId) -> &'a SourceFile {
@@ -1073,13 +1081,16 @@ impl<'a> ProgramBinder<'a> {
     }
 
     fn owner_file(owners: &[ArenaOwner], id: u32, kind: &str) -> usize {
+        Self::try_owner_file(owners, id)
+            .unwrap_or_else(|| panic!("{kind} {id} is outside every program arena"))
+    }
+
+    fn try_owner_file(owners: &[ArenaOwner], id: u32) -> Option<usize> {
         let index = owners
             .partition_point(|owner| owner.start <= id)
-            .checked_sub(1)
-            .unwrap_or_else(|| panic!("{kind} {id} precedes the first program arena"));
+            .checked_sub(1)?;
         let owner = owners[index];
-        assert!(id < owner.end, "{kind} {id} is outside every program arena");
-        owner.file
+        (id < owner.end).then_some(owner.file)
     }
 
     fn owner_of_symbol(&self, id: SymbolId) -> Result<usize, ()> {

@@ -1,8 +1,9 @@
 # TypeScript 6.0.3 compiler compatibility residual
 
-Status: audited design input, updated 2026-08-07 with L0.4 and L1 complete and
-qualified, H1.1's typed execution spine and H1.2's factory/transform/printer
-foundation complete, the H1.0a report-only owner graph fully dispositioned with zero
+Status: audited design input, updated 2026-08-08 with L0.4 and L1 complete and
+qualified, H1.1's typed execution spine, H1.2's factory/transform/printer
+foundation, and H1.3's active transformer/scoped resolver slice complete, the
+H1.0a report-only owner graph fully dispositioned with zero
 unresolved calls, and the current
 Rust emit omissions frozen in a generated baseline, with the complete upstream
 transpile source tree content-addressed in additive suite pin v2 and its exact
@@ -103,7 +104,7 @@ There is no single honest “100%” number spanning these surfaces:
 | --- | --- | --- |
 | Frozen batch-diagnostics implementation | M0-M8 complete | M9.1c-M9.7 confidence production, burn-in, freeze, and qualification |
 | Frozen filesystem `--noEmit` compiler | H0 complete | Preserve behavior and cost; do not route it through emitter setup |
-| Bounded one-shot JavaScript emit | H1 design started | Every H1 blocking package in section 4 |
+| Bounded one-shot JavaScript emit | H1.0-H1.3 complete | H1.4 output execution, H1.5 filesystem/CLI connection, and H1.6 qualification |
 | Broad one-shot `tsc` compilation | Not designed as one approved milestone | Full JS transform matrix, declarations, maps, output/config/CLI matrix, and complete emit suites |
 | Build/watch/project references | Preliminary seams only | Builder state, `.tsbuildinfo`, graph reuse, solution orchestration, watchers, and their suites |
 | Compiler API/custom transforms | Not exposed | Stable AST/factory/printer/Program/TypeChecker contracts and callback lifetimes |
@@ -154,29 +155,29 @@ The following work is real input to an emitter and should not be rebuilt:
 
 ### 2.2 Missing production boundaries
 
-The audit still finds no transformed production JavaScript output. H1.1 closed
-the typed workspace/session seam and H1.2 closed the session-owned
-factory/transform/writer/printer foundation, leaving these six runtime
+The audit now finds oracle-exact transformed JavaScript inside the bounded
+emitter/checker contracts, but no production output dispatch. H1.1 closed the
+typed workspace/session seam, H1.2 closed the session-owned
+factory/transform/writer/printer foundation, and H1.3 closed the first active
+transformer and semantic-resolver slice, leaving these three runtime
 boundaries:
 
 | Boundary | Current implementation | Missing boundary |
 | --- | --- | --- |
-| Workspace crate | `crates/emitter` owns H1.1 artifacts/plans/sinks/outcomes and the H1.2 detached transform arena, sparse metadata, factory/context, writer, typed positions, map-hook seam, and whole-source printer foundation without depending on checker | `EmitHost`/`EmitResolver`, active built-ins and changed-node printer workers, plus executable output planning |
-| Checker lifetime | Parsed sources, binders, and `CheckerState` are local to a checker function and collapse into `CheckResult` | Scoped checker execution that keeps the live state borrowed through resolver, transform, and print |
-| Semantic emit API | No `EmitResolver` | Consumer-owned internal resolver implemented by the live checker |
-| Transformation runtime | H1.2 owns exact flag constants/exclusions, sparse node/array aggregation, emit metadata, synthetic clone/original identity, factory create/update/clone, context stacks, hooks, diagnostics, and disposal | Reachability-generated constructors/visitors/parenthesizer plus the active `transformTypeScript` → `transformClassFields` → `transformECMAScriptModule` chain |
+| Workspace crate | `crates/emitter` owns the H1.1/H1.2 foundation plus H1.3's exact built-in order, active type erasure, fail-closed resolver protocol, transform flags, generated replacement visitor, and first changed-node workers without depending on checker | Read-only `EmitHost` projection plus executable output planning |
 | Output | Typed paths, artifacts, callback identity, sink feedback/I/O errors, independent outcomes, and ordered memory writes exist | Executable planning, collision gates, callback-error continuation, partial failure, and filesystem sink |
 | Emitting config/CLI | Effective options now retain `newLine`, `removeComments`, `noImplicitUseStrict`, and `noEmitHelpers`, while H0 loaders still require `noEmit == true` and explicit files force no-emit | Remaining emitting projection, separate loader validation, CLI dispatch, and exact exit behavior |
 
-These 6 remaining boundaries, the 28 emit-active options recognized but not
+These 3 remaining boundaries, the 28 emit-active options recognized but not
 retained by the effective Rust option snapshot, and every explicit checker-side emit
-elision/control row (25 at H1.2) are machine-frozen in
+elision/control row (24 at H1.3) are machine-frozen in
 [`h1-rust-omissions.v1.json`](../../../ratchets/h1-rust-omissions.v1.json).
 Its producer scans every workspace crate `src` tree plus all Cargo manifests,
 hashes that complete production scope, and fails when a missing declaration or
 owner anchor changes. Existing prerequisites such as `ProgramSnapshot`,
 `may_be_emitted`, implied module format, semantic helper checks, and the
-completed H1.1 typed execution spine and H1.2 foundation are listed separately
+completed H1.1 typed execution spine, H1.2 foundation, and H1.3 active
+transformer/scoped-resolver slice are listed separately
 so later stages cannot count those prerequisites as executable
 transform/print/output work.
 

@@ -5,8 +5,8 @@ use tsc_diagnostics::{Diagnostic, DiagnosticList};
 use tsc_syntax::SyntaxKind;
 
 use crate::{
-    EmitFlags, NodeFactory, TransformArena, TransformNode, TransformNodeArray, TransformSourceId,
-    UnsupportedEmitFeature,
+    EmitFlags, EmitResolverError, NodeFactory, TransformArena, TransformNode, TransformNodeArray,
+    TransformSourceId, UnsupportedEmitFeature,
 };
 
 /// TypeScript transform-feature bits retained outside persistent syntax nodes.
@@ -189,6 +189,31 @@ pub enum EmitHint {
     Expression,
     IdentifierName,
     Unspecified,
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub enum UnsupportedTransformFeature {
+    Decorators,
+    ExportEquals,
+    ImportEquals,
+    Jsx,
+    ParameterProperties,
+    RuntimeEnums,
+    RuntimeNamespaces,
+}
+
+impl UnsupportedTransformFeature {
+    pub const fn name(self) -> &'static str {
+        match self {
+            Self::Decorators => "decorators",
+            Self::ExportEquals => "export-equals",
+            Self::ImportEquals => "import-equals",
+            Self::Jsx => "JSX",
+            Self::ParameterProperties => "parameter properties",
+            Self::RuntimeEnums => "runtime enums",
+            Self::RuntimeNamespaces => "runtime namespaces",
+        }
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -651,13 +676,13 @@ pub trait Transformer {
     fn dispose(&mut self) {}
 }
 
-pub struct TransformationResult {
+pub struct TransformationResult<'transformers> {
     context: TransformationContext,
     roots: Box<[TransformRoot]>,
-    transformers: Vec<Box<dyn Transformer>>,
+    transformers: Vec<Box<dyn Transformer + 'transformers>>,
 }
 
-impl TransformationResult {
+impl TransformationResult<'_> {
     pub const fn state(&self) -> TransformationState {
         self.context.state()
     }
@@ -726,7 +751,7 @@ impl TransformationResult {
     }
 }
 
-impl Drop for TransformationResult {
+impl Drop for TransformationResult<'_> {
     fn drop(&mut self) {
         self.dispose();
     }
@@ -735,12 +760,12 @@ impl Drop for TransformationResult {
 /// tsc-port: transformNodes @6.0.3
 /// tsc-hash: ef2079da1a35b78b43d8794c034dd6caabdad5b71547b22c3270c40d47349e84
 /// tsc-span: _tsc.js:115977-116276
-pub fn transform_nodes(
+pub fn transform_nodes<'transformers>(
     arena: TransformArena,
     roots: Vec<TransformRoot>,
-    mut transformers: Vec<Box<dyn Transformer>>,
+    mut transformers: Vec<Box<dyn Transformer + 'transformers>>,
     allow_declaration_files: bool,
-) -> Result<TransformationResult, TransformError> {
+) -> Result<TransformationResult<'transformers>, TransformError> {
     let mut context = TransformationContext::new(arena);
     let transformed = (|| {
         if roots
@@ -814,6 +839,23 @@ pub enum TransformError {
     },
     FactoryTokenDataRequiresTokenConstructor,
     FactoryTokenKindExpected(SyntaxKind),
+    RootKindExpected {
+        actual: SyntaxKind,
+    },
+    RequiredChildRemoved {
+        parent: SyntaxKind,
+        field: &'static str,
+    },
+    MissingProgramSource(TransformNode),
+    UnsupportedCompilerOption {
+        option: &'static str,
+        detail: &'static str,
+    },
+    UnsupportedSyntax {
+        feature: UnsupportedTransformFeature,
+        node: TransformNode,
+    },
+    Resolver(EmitResolverError),
     InvalidLifecycle {
         operation: &'static str,
         state: TransformationState,
@@ -863,6 +905,33 @@ impl fmt::Display for TransformError {
                 formatter,
                 "token factory received non-token syntax kind {actual:?}"
             ),
+            Self::RootKindExpected { actual } => {
+                write!(
+                    formatter,
+                    "transform root must be a SourceFile, got {actual:?}"
+                )
+            }
+            Self::RequiredChildRemoved { parent, field } => write!(
+                formatter,
+                "transform removed required child {field} from {parent:?}"
+            ),
+            Self::MissingProgramSource(node) => write!(
+                formatter,
+                "transform node {}:{} has no Program source for an emit-resolver query",
+                node.source().raw(),
+                node.node().0
+            ),
+            Self::UnsupportedCompilerOption { option, detail } => {
+                write!(formatter, "unsupported transform option {option}: {detail}")
+            }
+            Self::UnsupportedSyntax { feature, node } => write!(
+                formatter,
+                "unsupported {} syntax at transform node {}:{}",
+                feature.name(),
+                node.source().raw(),
+                node.node().0
+            ),
+            Self::Resolver(error) => error.fmt(formatter),
             Self::InvalidLifecycle { operation, state } => {
                 write!(
                     formatter,
@@ -903,3 +972,9 @@ impl fmt::Display for TransformError {
 }
 
 impl Error for TransformError {}
+
+impl From<EmitResolverError> for TransformError {
+    fn from(value: EmitResolverError) -> Self {
+        Self::Resolver(value)
+    }
+}

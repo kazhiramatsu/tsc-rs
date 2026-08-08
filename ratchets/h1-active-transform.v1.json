@@ -1,0 +1,97 @@
+{
+  "schema": 1,
+  "status": "frozen",
+  "phase": "H1.3-active-transform-resolver",
+  "typescript_version": "6.0.3",
+  "source_commit": "050880ce59e30b356b686bd3144efe24f875ebc8",
+  "authority": {
+    "typescript_js": {
+      "path": "vendor/typescript-6.0.3/lib/typescript.js",
+      "sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39"
+    },
+    "tsc_js": {
+      "path": "vendor/typescript-6.0.3/lib/_tsc.js",
+      "sha256": "1c59e77a54b186ec43fa7f3e0d3c4bb15ca5eb5ba43e96b1d3a267139eddd3e3"
+    },
+    "profile": {
+      "path": "ratchets/h1-emit-profile.v1.json",
+      "sha256": "91e05db331a090e180e9cda7fc8eaa505d795b229a49d78d62d1e086c8602991"
+    },
+    "emit_oracle": {
+      "path": "ratchets/h1-emit-oracle.v1.json",
+      "sha256": "5586988b943028464a7a2c0e543ecb6de062b57d1408ff6ba12004d80b01c793"
+    }
+  },
+  "compiler_options": {
+    "target": 99,
+    "module": 200,
+    "useDefineForClassFields": true,
+    "noLib": true,
+    "listEmittedFiles": true,
+    "newLine": 1
+  },
+  "inputs": [
+    {
+      "path": "/project/missing.ts",
+      "text": "export default function used() {}\nexport const unused = 1;\nexport type TypeOnly = string;\n",
+      "utf8_sha256": "b55181c38284034f951b3d46469a32ee6633050e51ad4fe108e184f9e67adf3a",
+      "utf8_bytes": 90
+    },
+    {
+      "path": "/project/main.ts",
+      "text": "import used, { unused, type TypeOnly } from './missing';\nused();\nconst runtime = 1;\ntype Shape = { value: number };\nexport { runtime, Shape };\n",
+      "utf8_sha256": "9458b0145992dfa7736308535e00c83b0babb891ed9487147615d6b5a69ca846",
+      "utf8_bytes": 143
+    }
+  ],
+  "determinism": {
+    "repeat_runs": 2,
+    "exact_match": true
+  },
+  "structural_probe": {
+    "source_path": "/project/src/main.ts",
+    "source_utf8_sha256": "cb6ae6b8aefe6a17beb42129a6b176ced267a3da25fecba32929f2b19234a01e",
+    "parsed_root_transform_flags": 21234849,
+    "transformed_root_transform_flags": 21234849,
+    "transformed_statement_kinds": [
+      "NotEmittedStatement",
+      "NotEmittedStatement",
+      "FirstStatement",
+      "FunctionDeclaration",
+      "ClassDeclaration",
+      "FirstStatement"
+    ],
+    "emitted_statement_count": 4
+  },
+  "observation": {
+    "semantic_diagnostic_codes": [],
+    "emit_skipped": false,
+    "emit_diagnostic_codes": [],
+    "emitted_files": [
+      "/project/missing.js",
+      "/project/main.js"
+    ],
+    "writes": [
+      {
+        "path": "/project/missing.js",
+        "text": "export default function used() { }\nexport const unused = 1;\n",
+        "utf8_sha256": "3c6a1e0346308f7763f460f5453af28c6ec6b4efd5c4feaee265b424eb59bbac",
+        "utf8_bytes": 60,
+        "write_byte_order_mark": false,
+        "source_files": [
+          "/project/missing.ts"
+        ]
+      },
+      {
+        "path": "/project/main.js",
+        "text": "import used from './missing';\nused();\nconst runtime = 1;\nexport { runtime };\n",
+        "utf8_sha256": "97883fecc7da1887977704047dc24ada7769cab64608538a29735be89da68d4e",
+        "utf8_bytes": 77,
+        "write_byte_order_mark": false,
+        "source_files": [
+          "/project/main.ts"
+        ]
+      }
+    ]
+  }
+}
