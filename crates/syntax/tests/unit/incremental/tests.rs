@@ -232,6 +232,19 @@ fn amd_pragma_edits_are_fresh_equivalent() {
 }
 
 #[test]
+fn dynamic_import_and_import_meta_edits_are_fresh_equivalent() {
+    let before = concat!(
+        "export const load = () => import(\"./before\");\n",
+        "export const url = import.meta.url;\n",
+    );
+    let specifier = before.find("./before").expect("dynamic import specifier");
+    compare_incremental(before, specifier, "./before".len(), "./after");
+
+    let meta = before.rfind("meta").expect("import.meta name");
+    compare_incremental(before, meta, "meta".len(), "metal");
+}
+
+#[test]
 fn pinned_incremental_parser_core_cases_are_fresh_equivalent() {
     let cases = [
         (

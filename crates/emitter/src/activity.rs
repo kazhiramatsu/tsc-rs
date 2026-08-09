@@ -258,6 +258,15 @@ impl H2ActivityCanary {
         profile
     }
 
+    /// Construct the current production admission profile. H2.1d activates
+    /// the dedicated System.register module transformer.
+    #[doc(hidden)]
+    pub const fn h2_1d_profile() -> Self {
+        let mut profile = Self::h2_1c_profile();
+        profile.admitted_runtime_slices |= 1_u64 << H2RuntimeSlice::H2_1d.index();
+        profile
+    }
+
     pub const fn counters(&self) -> H2ActivityCounters {
         self.counters
     }

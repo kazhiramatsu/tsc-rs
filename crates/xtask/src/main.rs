@@ -24,6 +24,7 @@ mod h1_emit_acceptance;
 mod h2_1a_acceptance;
 mod h2_1b_acceptance;
 mod h2_1c_acceptance;
+mod h2_1d_acceptance;
 mod host_resolution;
 mod invariant_attestation;
 mod l0_identity_stress;
@@ -4274,7 +4275,8 @@ fn acceptance(mut args: impl Iterator<Item = String>) -> Result<(), Box<dyn Erro
     h1_emit_acceptance::run(&workspace)?;
     h2_1a_acceptance::run(&workspace)?;
     h2_1b_acceptance::run(&workspace)?;
-    h2_1c_acceptance::run(&workspace)
+    h2_1c_acceptance::run(&workspace)?;
+    h2_1d_acceptance::run(&workspace)
 }
 
 fn conformance(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
@@ -7821,10 +7823,38 @@ fn ci_oracle_gates(workspace: &Path) -> Result<(), Box<dyn Error>> {
     )?;
     let h2_1c_profile = workspace.join("crates/oracle/h2-1c-profile.mjs");
     run_command(Command::new("node").arg("--check").arg(&h2_1c_profile))?;
+    // H2.1c is immutable lineage once H2.1d owns the current runtime. Its
+    // Rust contract validates the exact recorded authority bytes.
+    let h2_1d_qualification = workspace.join("crates/oracle/h2-1d-qualification.mjs");
+    run_command(
+        Command::new("node")
+            .arg("--check")
+            .arg(&h2_1d_qualification),
+    )?;
     run_command(
         Command::new("node")
             .current_dir(workspace)
-            .arg(&h2_1c_profile)
+            .arg(&h2_1d_qualification)
+            .arg("--check"),
+    )?;
+    let h2_1d_owner_controls = workspace.join("crates/oracle/h2-1d-owner-controls.mjs");
+    run_command(
+        Command::new("node")
+            .arg("--check")
+            .arg(&h2_1d_owner_controls),
+    )?;
+    run_command(
+        Command::new("node")
+            .current_dir(workspace)
+            .arg(&h2_1d_owner_controls)
+            .arg("--check"),
+    )?;
+    let h2_1d_profile = workspace.join("crates/oracle/h2-1d-profile.mjs");
+    run_command(Command::new("node").arg("--check").arg(&h2_1d_profile))?;
+    run_command(
+        Command::new("node")
+            .current_dir(workspace)
+            .arg(&h2_1d_profile)
             .arg("--check"),
     )?;
     let h1_rust_omissions = workspace.join("crates/oracle/h1-rust-omission-inventory.mjs");

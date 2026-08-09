@@ -1,0 +1,294 @@
+{
+  "schema": 1,
+  "kind": "h2-runtime-profile",
+  "status": "qualified",
+  "phase": "H2.1d",
+  "typescript": {
+    "version": "6.0.3",
+    "source_commit": "050880ce59e30b356b686bd3144efe24f875ebc8",
+    "bundle": {
+      "path": "vendor/typescript-6.0.3/lib/typescript.js",
+      "sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39"
+    },
+    "implementation": {
+      "path": "vendor/typescript-6.0.3/lib/_tsc.js",
+      "sha256": "1c59e77a54b186ec43fa7f3e0d3c4bb15ca5eb5ba43e96b1d3a267139eddd3e3"
+    }
+  },
+  "generator": {
+    "path": "crates/oracle/h2-1d-profile.mjs",
+    "sha256": "006e674787719d886200ca43b1df3955361ec38349df7bea26aa1eddaf851fe0"
+  },
+  "contract": {
+    "path": ".github/ci/contracts/h2-1d-profile.schema.json",
+    "sha256": "bb34e87b872b5f35f223ec424f4dcd621f63d1b8cd224d5ac5230eac7d966310"
+  },
+  "origin": {
+    "trusted_h2_1c_merge": "533caca4df1ebcf9e9f2ec5fd13b9c73a3ee2786",
+    "historical": {
+      "profile": {
+        "path": "ratchets/h2-1c-profile.v1.json",
+        "sha256": "54650263555d944047e5d58bbd42a16d9e897589024f08cf5f09d0f6cb24afe6"
+      },
+      "qualification": {
+        "path": "ratchets/h2-1c-qualification.v1.json",
+        "sha256": "97e5200a9e1d1c017246780aeee69ab52e310c1515be2c1eb9f1d09877407605"
+      },
+      "owner_controls": {
+        "path": "ratchets/h2-1c-owner-controls.v1.json",
+        "sha256": "6aa502734a38a0905d5e996dd3d1a61ce20617c9d1ffa4f7b72d689fd95596de"
+      },
+      "profile_generator": {
+        "path": "crates/oracle/h2-1c-profile.mjs",
+        "sha256": "b5584b51da4aac1e47cb6926001e8a73a16cf7a3c07b7eea0ae5797481ca2764"
+      },
+      "qualification_generator": {
+        "path": "crates/oracle/h2-1c-qualification.mjs",
+        "sha256": "bedfa00d3a0fee818d888179b735bacdbb0d051992d1f3fee5ed86c252e42705"
+      },
+      "owner_controls_generator": {
+        "path": "crates/oracle/h2-1c-owner-controls.mjs",
+        "sha256": "d6e7a70b8ec85a82b0f68c7884bdf9c2b15b0f41d0dfffa82cfca2f6a0ed0362"
+      },
+      "profile_contract": {
+        "path": ".github/ci/contracts/h2-1c-profile.schema.json",
+        "sha256": "23fad428ca467c2af1d821081dd58e26d3d637125e5d9a1295af3e7b9f6f4cdd"
+      },
+      "qualification_contract": {
+        "path": ".github/ci/contracts/h2-1c-qualification.schema.json",
+        "sha256": "982d4c268399746b9e04f98154c38dc687971999cddd321796d5645201dcd554"
+      },
+      "owner_controls_contract": {
+        "path": ".github/ci/contracts/h2-1c-owner-controls.schema.json",
+        "sha256": "9c25aade0699776dcf7d9d1d7ad42389e6c8df20d978a219247e6ebda01425bc"
+      }
+    },
+    "interpretation": "H2.1c artifacts remain immutable lineage; current runtime ownership transfers to this H2.1d profile"
+  },
+  "qualification": {
+    "path": "ratchets/h2-1d-qualification.v1.json",
+    "sha256": "9766ce1c9e59df5b62b0ca7c1b119b5055dbc5dca2b3deb3e2c5da5d43db1244"
+  },
+  "runtime_inputs": [
+    {
+      "path": "crates/checker/src/emit.rs",
+      "sha256": "361f347ef1037ebd138252fb4b525f8ddb2b5eb44be6f669b0e73a127f1eb480"
+    },
+    {
+      "path": "crates/checker/src/modules.rs",
+      "sha256": "4d440d7e3404536c880e3f3c2399b20f1dbdc38aec00e9036f1c255266c8cdb9"
+    },
+    {
+      "path": "crates/compiler/src/lib.rs",
+      "sha256": "92211389171d412770a38c4d8ec00ff89e57165e2a591cf1e2ed7e95b1b3023f"
+    },
+    {
+      "path": "crates/compiler/tests/integration/emit_session_contract.rs",
+      "sha256": "235eb05386e4811209d7324265de586ee7508ababcde32d85e43ae799a9ca2ab"
+    },
+    {
+      "path": "crates/compiler/tests/integration/program_session_contract.rs",
+      "sha256": "ecfd60ac4633e79931d6b3b00c91d1591ed16cf86da886557b57902e0ab7cc22"
+    },
+    {
+      "path": "crates/compiler/tests/integration/upstream_no_emit_harness_contract.rs",
+      "sha256": "c6eb6da239b48f4ad2f0dc6457c1763a102ccb7d2d74db1a38c6d1fcef7633b9"
+    },
+    {
+      "path": "crates/diagnostics/src/gen.rs",
+      "sha256": "378d98bf1d5d4dd30c5388c195b9e88c29f75bcb5f6291cb943c85b13d7a635d"
+    },
+    {
+      "path": "crates/emitter/src/activity.rs",
+      "sha256": "17fa9872e5fd6a99b1655bc0fa23c2c95c0e6f51194ed5be1cbc97f2e9d20f4b"
+    },
+    {
+      "path": "crates/emitter/src/builtins.rs",
+      "sha256": "550c043dd6219322d0bd803762b353c0143037af50ba63b8ee01acad9a37f8be"
+    },
+    {
+      "path": "crates/emitter/src/builtins/system.rs",
+      "sha256": "41e59292f5ab7fcac1fad9901a74efa8cdb9c4d34667bedae1257cf8eb95f32c"
+    },
+    {
+      "path": "crates/emitter/src/execute.rs",
+      "sha256": "d92d35620285001546f69093f386eec99e8e77af6aab3810cc1b66c3ec1c684b"
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "sha256": "e3dcf69e481acf448510973dbd36601d9294d6e4efa03009fa51f506783c8d5c"
+    },
+    {
+      "path": "crates/emitter/src/host.rs",
+      "sha256": "2711421284a2a80b345cdc21dccd897b6c3c3908035f7bb9d080976a5af029a7"
+    },
+    {
+      "path": "crates/emitter/src/printer.rs",
+      "sha256": "8669187fb5832db9eb66340cd2b87cff5020344b4dcaedf74a6040f59146baf5"
+    },
+    {
+      "path": "crates/emitter/src/resolver.rs",
+      "sha256": "0ec23e12cff4ab4322f16d4aa4ee4156236483f01b1963df5cf4956f0544b7e1"
+    },
+    {
+      "path": "crates/emitter/src/transform.rs",
+      "sha256": "5c41e49663e2991ae1eca9ac2a3f196e1133c2f694e6349464adbf15ce4f1f2c"
+    },
+    {
+      "path": "crates/harness/src/upstream_suites/execution.rs",
+      "sha256": "660bd27e0000749b160c9dc7daadd51d2df02cc02d69004ee85c1754912e52f1"
+    },
+    {
+      "path": "crates/harness/src/upstream_suites/execution/project.rs",
+      "sha256": "c2e0cc828d328ff5bf0c43968fcea1f3f50a092f0c2c4b6efab435a25148e05d"
+    },
+    {
+      "path": "crates/program/src/prepared.rs",
+      "sha256": "387ba069235066fcec609f323fc7c28387ebf642a6bbf0a681ae5790cdb7a5ac"
+    },
+    {
+      "path": "crates/syntax/src/incremental.rs",
+      "sha256": "fe264b19937baf13ba5500154019010d4249e61ca95bf1a72ecf9b3b9f9eec8e"
+    },
+    {
+      "path": "crates/syntax/src/lib.rs",
+      "sha256": "b8e2204a7e430e557aef2cad2de3dfa0ae5929f0c95662b331975d684a94fbd3"
+    },
+    {
+      "path": "crates/syntax/src/parser.rs",
+      "sha256": "63b36eb856ed92d77eb77a634a963b3a8d383ff4bb31429311350378c14e3d18"
+    },
+    {
+      "path": "crates/syntax/tests/unit/incremental/tests.rs",
+      "sha256": "d940efdce7c9185b64c4d95a1f703a963494cb8f380bc0a0ffb61a9de74c60fd"
+    },
+    {
+      "path": "crates/syntax/tests/unit/parser/tests.rs",
+      "sha256": "da1ea884f14ae5dc1e6d2ede4b8bb9a10ef709f0a1f653e7f77f68995a007cd7"
+    },
+    {
+      "path": "crates/xtask/src/h2_1c_acceptance.rs",
+      "sha256": "914b6f9eb859ab3dd08337339c3e29653bf1496d8cc7ea8867f9b91dc8cd9685"
+    },
+    {
+      "path": "crates/xtask/src/h2_1d_acceptance.rs",
+      "sha256": "3047a5a8a9050f88b43cf4f50913f924673d3b86b41e8433cfee3161412a8468"
+    },
+    {
+      "path": "crates/xtask/src/main.rs",
+      "sha256": "e41b8c4fa0bc2e3e071b9443dda7170d2470d1c754ae6386d02ae90f77849350"
+    },
+    {
+      "path": "crates/xtask/tests/unit/h2_1c_acceptance/tests.rs",
+      "sha256": "8e366b7040311d75319816f7fb3a70664172e18fcc922ebac3545be9430003e2"
+    },
+    {
+      "path": "crates/xtask/tests/unit/h2_1d_acceptance/tests.rs",
+      "sha256": "6e132470b54be4e11c31fa4d79658f84c80bc9bef2845bdefcb0c143918175e4"
+    }
+  ],
+  "admitted_profile": {
+    "execution": "single-project-one-shot-whole-program",
+    "target": "ESNext(99)",
+    "module_states": [
+      "absent-effective-ESNext",
+      "ESNext(99)",
+      "CommonJS(1)",
+      "AMD(2)",
+      "UMD(3)",
+      "System(4)"
+    ],
+    "source_kinds": [
+      ".ts"
+    ],
+    "products": [
+      "javascript"
+    ],
+    "exact_cases": 262,
+    "h2_1d_exact_cases": 5,
+    "exact_reported_diagnostics": 512,
+    "exact_writes": 289,
+    "diagnostic_deferred_output_controls": 5,
+    "diagnostic_control_writes": 5,
+    "source_deferred_cases": 28,
+    "candidate_denominator": 295,
+    "h2_1d_candidate_denominator": 6
+  },
+  "transition": {
+    "completed_slice": "H2.1d",
+    "next_slice": "H2.1e",
+    "active_runtime_slices": [
+      "H2.1a",
+      "H2.1b",
+      "H2.1c",
+      "H2.1d"
+    ],
+    "inactive_runtime_slice_count": 33,
+    "node_format_owner": "H2.1e",
+    "bundle_owner": "H2.7d",
+    "amd_umd_deferred_slices": [
+      "H2.2d"
+    ],
+    "amd_umd_deferred_cases": 2,
+    "system_deferred_slices": [
+      "H2.2a",
+      "H2.2b"
+    ],
+    "system_deferred_cases": 1,
+    "deferred_failure_boundary": "typed failure before first sink write"
+  },
+  "evidence": {
+    "typescript_repetitions": 2,
+    "rust_repetitions": 2,
+    "legal_worker_control": "h2_1d_two_worker_execution_is_exact_and_isolated",
+    "ordering_and_dynamic_import_control": "h2_1d_multifile_order_and_dynamic_import_rewrite_are_exact",
+    "dependency_and_name_control": "h2_1d_system_owner_closure_matches_the_pinned_transform",
+    "incremental_source_fact_control": "dynamic_import_and_import_meta_edits_are_fresh_equivalent",
+    "deferred_format_control": "unsupported_options_and_extensions_fail_before_the_first_sink_call",
+    "sink_fault_control": "h2_1d_system_filesystem_failure_preserves_partial_set_continuation_and_activity",
+    "owner_controls": {
+      "artifact": {
+        "path": "ratchets/h2-1d-owner-controls.v1.json",
+        "sha256": "aba2b26cbd92fab4bd6525274b5d4561bf168e45353a3c3ab6f8dea070054916"
+      },
+      "generator": {
+        "path": "crates/oracle/h2-1d-owner-controls.mjs",
+        "sha256": "1b2e2abdd44dc4cf394a55a3b90c28deae27d801576bf5597de71485fe31437b"
+      },
+      "contract": {
+        "path": ".github/ci/contracts/h2-1d-owner-controls.schema.json",
+        "sha256": "cc203640d70cc4427cd3dc2a9491a91b53a5c898308b61c4101d87d32d8c095d"
+      }
+    },
+    "h0_authority": {
+      "path": "ratchets/h0-qualification.v1.json",
+      "sha256": "41ed8448322e7ea47070f508e53187794110c0a21a75158b843ce8e4e0987cb8"
+    },
+    "h1_authority": {
+      "path": "ratchets/h1-emit-qualification.v1.json",
+      "sha256": "872eda7bc0d825fa3a93d1964dccc62d36ae755927aabc44d6a9b0f63934d772"
+    },
+    "l1_authority": {
+      "path": "ratchets/l1-incremental-parser-performance.v1.json",
+      "sha256": "05b4fdc0a7e50bfe05c722165d71ff47a5ba3e74f10647c0f4c9b5492d77ac5c"
+    },
+    "historical_h2_1c_profile": {
+      "path": "ratchets/h2-1c-profile.v1.json",
+      "sha256": "54650263555d944047e5d58bbd42a16d9e897589024f08cf5f09d0f6cb24afe6"
+    },
+    "local_full_gate": "cargo xtask ci --baseline 533caca4df1ebcf9e9f2ec5fd13b9c73a3ee2786",
+    "hosted_gate": "cargo xtask acceptance",
+    "hosted_gate_scope": "fixed-unsplit-ts-tests-only"
+  },
+  "summary": {
+    "completed_runtime_slices": 4,
+    "next_runtime_slices": 1,
+    "runtime_admissions": 262,
+    "executed_candidates": 295,
+    "h2_1d_executed_candidates": 6,
+    "unexecuted_candidates": 0,
+    "undispositioned_candidates": 0,
+    "historical_artifacts_reinterpreted": 0
+  },
+  "profile_fingerprint_sha256": "7c3fe6098ad4a03c2c7af30a05833821784dc9caddcf6fe9b2384a16efa04654"
+}
