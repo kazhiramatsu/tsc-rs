@@ -557,18 +557,65 @@ impl Printer {
             {
                 self.write_original_without_leading_trivia_verbatim(transformation, node, writer)
             }
+            NodeData::TemplateExpression(data) => {
+                self.emit_required_node(
+                    transformation,
+                    node.source(),
+                    data.head,
+                    SyntaxKind::TemplateExpression,
+                    "head",
+                    writer,
+                )?;
+                self.emit_node_array(
+                    transformation,
+                    node.source(),
+                    data.template_spans,
+                    "",
+                    writer,
+                )
+            }
+            NodeData::TemplateHead(data) => {
+                writer.write_punctuation("`");
+                writer.write_literal(data.raw_text.as_deref().unwrap_or(&data.text));
+                writer.write_punctuation("${");
+                Ok(())
+            }
+            NodeData::TemplateMiddle(data) => {
+                writer.write_punctuation("}");
+                writer.write_literal(data.raw_text.as_deref().unwrap_or(&data.text));
+                writer.write_punctuation("${");
+                Ok(())
+            }
+            NodeData::TemplateTail(data) => {
+                writer.write_punctuation("}");
+                writer.write_literal(data.raw_text.as_deref().unwrap_or(&data.text));
+                writer.write_punctuation("`");
+                Ok(())
+            }
+            NodeData::TemplateSpan(data) => {
+                self.emit_required_node(
+                    transformation,
+                    node.source(),
+                    data.expression,
+                    SyntaxKind::TemplateSpan,
+                    "expression",
+                    writer,
+                )?;
+                self.emit_required_node(
+                    transformation,
+                    node.source(),
+                    data.literal,
+                    SyntaxKind::TemplateSpan,
+                    "literal",
+                    writer,
+                )
+            }
             NodeData::ImportDeclaration(data) => {
                 if !changed
                     && !self.options.remove_comments
                     && self.original_node_has_internal_comments(transformation, node)?
                 {
                     return self.write_original_module_statement(transformation, node, writer);
-                }
-                if data.attributes.is_some() {
-                    return Err(PrinterError::UnsupportedTransformedSyntax {
-                        node,
-                        kind: record.kind,
-                    });
                 }
                 if self.emit_modifiers(transformation, node.source(), data.modifiers, writer)? {
                     writer.write_space(" ");
@@ -589,6 +636,10 @@ impl Printer {
                     "module_specifier",
                     writer,
                 )?;
+                if let Some(attributes) = data.attributes {
+                    writer.write_space(" ");
+                    self.emit_node_id(transformation, node.source(), attributes, writer)?;
+                }
                 writer.write_trailing_semicolon(";");
                 Ok(())
             }
@@ -654,7 +705,7 @@ impl Printer {
                 {
                     return self.write_original_module_statement(transformation, node, writer);
                 }
-                if data.is_type_only || data.attributes.is_some() {
+                if data.is_type_only {
                     return Err(PrinterError::UnsupportedTransformedSyntax {
                         node,
                         kind: record.kind,
@@ -676,8 +727,78 @@ impl Printer {
                     writer.write_space(" ");
                     self.emit_node_id(transformation, node.source(), module_specifier, writer)?;
                 }
+                if let Some(attributes) = data.attributes {
+                    writer.write_space(" ");
+                    self.emit_node_id(transformation, node.source(), attributes, writer)?;
+                }
                 writer.write_trailing_semicolon(";");
                 Ok(())
+            }
+            NodeData::ImportAttributes(data) => {
+                let keyword = tsc_syntax::tokens::token_to_string(data.token).ok_or(
+                    PrinterError::UnsupportedTransformedSyntax {
+                        node,
+                        kind: record.kind,
+                    },
+                )?;
+                writer.write_keyword(keyword);
+                writer.write_space(" ");
+                writer.write_punctuation("{");
+                let elements = data
+                    .elements
+                    .and_then(|id| transformation.arena().node_array_ref(node.source(), id))
+                    .map(|array| transformation.arena().node_array(array))
+                    .transpose()?;
+                let non_empty = elements.is_some_and(|array| !array.nodes.is_empty());
+                if non_empty {
+                    if data.multi_line == Some(true) || multi_line {
+                        let (ids, trailing_comma) = elements
+                            .map(|array| (array.nodes.clone(), array.has_trailing_comma))
+                            .unwrap_or_default();
+                        writer.write_line(false);
+                        writer.increase_indent();
+                        for (index, id) in ids.iter().enumerate() {
+                            self.emit_node_id(transformation, node.source(), *id, writer)?;
+                            if index + 1 != ids.len() || trailing_comma {
+                                writer.write_punctuation(",");
+                            }
+                            writer.write_line(false);
+                        }
+                        writer.decrease_indent();
+                    } else {
+                        writer.write_space(" ");
+                        self.emit_node_array(
+                            transformation,
+                            node.source(),
+                            data.elements,
+                            ", ",
+                            writer,
+                        )?;
+                        writer.write_space(" ");
+                    }
+                }
+                writer.write_punctuation("}");
+                Ok(())
+            }
+            NodeData::ImportAttribute(data) => {
+                self.emit_required_node(
+                    transformation,
+                    node.source(),
+                    data.name,
+                    SyntaxKind::ImportAttribute,
+                    "name",
+                    writer,
+                )?;
+                writer.write_punctuation(":");
+                writer.write_space(" ");
+                self.emit_required_node(
+                    transformation,
+                    node.source(),
+                    data.value,
+                    SyntaxKind::ImportAttribute,
+                    "value",
+                    writer,
+                )
             }
             NodeData::NamedExports(data) => self.emit_named_import_or_export_list(
                 transformation,

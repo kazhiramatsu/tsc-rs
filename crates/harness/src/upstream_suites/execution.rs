@@ -590,6 +590,17 @@ fn apply_compiler_setting(
         "jsxImportSource" => compiler_options.jsx_import_source = Some(value.to_owned()),
         "reactNamespace" => compiler_options.react_namespace = Some(value.to_owned()),
         "ignoreDeprecations" => compiler_options.ignore_deprecations = Some(value.to_owned()),
+        "newLine" => {
+            compiler_options.new_line = Some(match value.to_ascii_lowercase().as_str() {
+                "crlf" => 0,
+                "lf" => 1,
+                _ => {
+                    return Err(error(format!(
+                        "unsupported compiler setting newLine={value:?}"
+                    )))
+                }
+            })
+        }
         "noEmitHelpers"
         | "noEmitOnError"
         | "declaration"
@@ -599,7 +610,6 @@ fn apply_compiler_setting(
         | "inlineSourceMap"
         | "inlineSources"
         | "emitBOM"
-        | "newLine"
         | "outDir"
         | "declarationDir"
         | "sourceRoot"

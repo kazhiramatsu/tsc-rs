@@ -665,11 +665,11 @@ fn plan_module_requests_worker(
                         .arguments
                         .map(|arguments| parsed.arena.node_array(arguments).nodes.as_slice())
                         .unwrap_or_default();
-                    // TypeScript's collector only records a dynamic import
-                    // when its first argument is a string literal. Invalid
-                    // arity and computed arguments are checked by the
-                    // parser/checker but do not create a host resolution key.
-                    if arguments.len() == 1 {
+                    // TypeScript's collector records the first string-literal
+                    // argument whenever at least one argument exists. The
+                    // optional second argument carries import attributes and
+                    // does not suppress the host resolution request.
+                    if !arguments.is_empty() {
                         let argument = parsed.arena.node(arguments[0]);
                         if let NodeData::StringLiteral(literal) = &argument.data {
                             dynamic_occurrences.push(ModuleRequestOccurrence {

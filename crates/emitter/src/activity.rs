@@ -267,6 +267,16 @@ impl H2ActivityCanary {
         profile
     }
 
+    /// Construct the current production admission profile. H2.1e activates
+    /// Node16/18/20/Next per-file dispatch, Node output extensions, import
+    /// attributes, and relative TypeScript-extension rewriting.
+    #[doc(hidden)]
+    pub const fn h2_1e_profile() -> Self {
+        let mut profile = Self::h2_1d_profile();
+        profile.admitted_runtime_slices |= 1_u64 << H2RuntimeSlice::H2_1e.index();
+        profile
+    }
+
     pub const fn counters(&self) -> H2ActivityCounters {
         self.counters
     }

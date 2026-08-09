@@ -1,7 +1,7 @@
 # Post-H1 TypeScript 6.0.3 completion slices
 
 Status: execution schedule approved on 2026-08-08. H0, L0/L1, H1, H2.0a,
-H2.0b, and H2.1a-H2.1d are complete. **H2.1e is the next slice.**
+H2.0b, and H2.1a-H2.1e are complete. **H2.2a is the next slice.**
 
 This document turns the audited post-H1 residual into branch-sized execution
 slices. It owns post-H1 slice IDs, dependency order, and slice-specific
@@ -205,7 +205,7 @@ production and the complete regression gate remain local qualification work.
 | H2.1b — complete | Close `transformModule` for CommonJS, including prologues, interop, substitutions/notifications, helpers, resolver facts, and printer/output dependencies. | H2.1a. All 15 CommonJS-only candidates execute twice: 10 complete observations are exact and 5 source-deferred rows retain typed pre-write failures; multi-file ordering, helper de-duplication, workers, and sink-failure parity are exact. |
 | H2.1c — complete | Activate AMD and UMD branches that reuse `transformModule`, including dependency arrays, wrappers, names, and option interactions. | H2.1b. All 8 AMD/UMD-only candidates execute twice: 6 complete observations are exact and 2 `export =` rows retain typed pre-write failures; pinned owner controls close static dependencies and AMD names, while System and bundle-only paths remain controls. |
 | H2.1d — complete | Port and qualify `transformSystemModule` and its resolver/helper/output closure. | H2.1c. All 6 System-only candidates execute twice: 5 complete observations are exact and one enum/namespace row retains a typed pre-write failure; pinned owner controls close execute/setter/export ordering, dynamic import, and `import.meta`. |
-| **H2.1e — next** | Close Node16/18/20/Next implied-format behavior, package type, `.mts`/`.cts` output extensions, import attributes, and relative-extension rewriting. | H2.1a-H2.1d plus the required host facts. Mixed-format projects prove per-file dispatch, per-run package-format separation, path casing, and fresh-run behavior after package changes; persistent invalidation remains L2. |
+| H2.1e — complete | Close Node16/18/20/Next implied-format behavior, package type, `.mts`/`.cts` output extensions, import attributes, and relative-extension rewriting. | H2.1a-H2.1d plus the required host facts. Mixed-format projects prove per-file dispatch, per-run package-format separation, path casing, and fresh-run behavior after package changes; persistent invalidation remains L2. |
 
 H2.1a closed on 2026-08-08. The
 [qualification](../../../ratchets/h2-1a-qualification.v1.json) starts from all
@@ -339,19 +339,60 @@ namespace, and side-effect imports; named and star re-exports; exported-value
 updates; exported functions and default classes; dynamic import; and
 `import.meta` within one dependency-ordered witness.
 
-The [current runtime profile](../../../ratchets/h2-1d-profile.v1.json) and its
+The [H2.1d runtime profile](../../../ratchets/h2-1d-profile.v1.json) and its
 [strict schema](../../../.github/ci/contracts/h2-1d-profile.schema.json)
 content-address the production, acceptance, qualification, owner-control, and
 incremental source-fact inputs. It preserves all H2.1c authorities byte for
 byte as immutable lineage, marks H2.1a through H2.1d active, and names H2.1e
 as next. The monotonic profile now has 262 exact cases, 512 exact reported
 diagnostics, 289 exact writes, 5 unchanged H2.9 diagnostic controls, and 28
+source-deferred rows. After H2.1e admission it is immutable historical
+lineage; its generators remain syntax-checked and the Rust contract pins the
+recorded authority bytes.
+
+H2.1e closed on 2026-08-09. The
+[qualification](../../../ratchets/h2-1e-qualification.v1.json) selects 6
+Node-format and import-attribute candidates, including the exact H2.1a
+carry-forward rows, and records every TypeScript observation twice:
+
+- 4 rows are complete exact admissions, covering 6 reported diagnostics and
+  8 byte-, path-, order-, BOM-, provenance-, result-, exit-, and
+  activity-exact writes;
+- Node16, Node18, Node20, and NodeNext use Program-owned implied-format facts
+  for per-file ESM/CommonJS dispatch. `.mts` and `.cts` produce `.mjs` and
+  `.cjs`, static and dynamic relative TypeScript extensions are rewritten,
+  nonliteral dynamic imports use the exact helper, and import attributes are
+  preserved on ESM output;
+- one `import =` row remains source-deferred to H2.2d and one malformed
+  import-attribute row remains source-deferred to H2.9. Both fail
+  deterministically before the first sink callback; and
+- two-worker isolation, every output-failure position, earlier module-format
+  paths, and all later H2 activity counters retain their owned boundaries.
+
+The separate
+[owner controls](../../../ratchets/h2-1e-owner-controls.v1.json) run pinned
+TypeScript 6.0.3 30 times and freeze 56 exact outputs. They close all four Node
+module kinds over one mixed package project, package `type` boundaries,
+explicit and nested `.mts`/`.cts` files, static/literal/nonliteral dynamic
+extension rewriting, Node18/20/Next import attributes, output order, path
+casing, and alternating fresh Program runs whose package type changes between
+ESM and CommonJS. A cross-format control additionally freezes dynamic
+relative-extension behavior for CommonJS, AMD, UMD, ESNext, Preserve, and the
+intentional TypeScript System no-rewrite boundary.
+
+The [current runtime profile](../../../ratchets/h2-1e-profile.v1.json) and its
+[strict schema](../../../.github/ci/contracts/h2-1e-profile.schema.json)
+content-address the implementation, acceptance, owner controls, Program
+request planning, and incremental source-fact tests. It preserves every H2.1d
+authority byte for byte, marks H2.1a through H2.1e active, and names H2.2a as
+next. The monotonic profile has 266 exact cases, 518 exact reported
+diagnostics, 297 exact writes, 5 unchanged H2.9 diagnostic controls, and 24
 source-deferred rows. Freshness is checked with:
 
 ```text
-node crates/oracle/h2-1d-qualification.mjs --check
-node crates/oracle/h2-1d-owner-controls.mjs --check
-node crates/oracle/h2-1d-profile.mjs --check
+node crates/oracle/h2-1e-qualification.mjs --check
+node crates/oracle/h2-1e-owner-controls.mjs --check
+node crates/oracle/h2-1e-profile.mjs --check
 ```
 
 The ordinary hosted boundary remains only `cargo xtask acceptance`; source

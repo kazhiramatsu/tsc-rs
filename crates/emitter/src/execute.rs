@@ -14,6 +14,10 @@ const MODULE_AMD: i32 = 2;
 const MODULE_UMD: i32 = 3;
 const MODULE_SYSTEM: i32 = 4;
 const MODULE_ES_NEXT: i32 = 99;
+const MODULE_NODE16: i32 = 100;
+const MODULE_NODE18: i32 = 101;
+const MODULE_NODE20: i32 = 102;
+const MODULE_NODE_NEXT: i32 = 199;
 const MODULE_PRESERVE: i32 = 200;
 
 /// The four public diagnostic getter streams consumed by
@@ -71,6 +75,10 @@ pub fn validate_bootstrap_emit_options(options: &CompilerOptions) -> Result<(), 
             | MODULE_AMD
             | MODULE_UMD
             | MODULE_SYSTEM
+            | MODULE_NODE16
+            | MODULE_NODE18
+            | MODULE_NODE20
+            | MODULE_NODE_NEXT
     ) {
         return unsupported("module");
     }
@@ -100,10 +108,6 @@ pub fn validate_bootstrap_emit_options(options: &CompilerOptions) -> Result<(), 
         (
             options.allow_importing_ts_extensions == Some(true),
             "allowImportingTsExtensions",
-        ),
-        (
-            options.rewrite_relative_import_extensions == Some(true),
-            "rewriteRelativeImportExtensions",
         ),
         (
             options.resolve_json_module == Some(true),
@@ -185,7 +189,7 @@ pub fn validate_bootstrap_emit_request(host: &dyn EmitHost) -> Result<(), EmitFa
             continue;
         }
         let name = source.path().to_string_lossy().to_ascii_lowercase();
-        if !name.ends_with(".ts")
+        if !(name.ends_with(".ts") || name.ends_with(".mts") || name.ends_with(".cts"))
             || name.ends_with(".d.ts")
             || name.ends_with(".d.mts")
             || name.ends_with(".d.cts")
@@ -218,7 +222,7 @@ pub fn emit_files(
     diagnostic_gate: &EmitDiagnosticGate,
     sink: &mut dyn OutputSink,
 ) -> Result<EmitOutcome, EmitFailure> {
-    let mut activity = H2ActivityCanary::h2_1d_profile();
+    let mut activity = H2ActivityCanary::h2_1e_profile();
     activity.construct_emit_session();
     activity.construct_output_plan();
     if !preflight.plan().units().is_empty() {
