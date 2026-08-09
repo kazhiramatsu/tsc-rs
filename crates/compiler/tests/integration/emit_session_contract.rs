@@ -107,6 +107,36 @@ fn prepared_with_sources(options: CompilerOptions, sources: &[(&str, &str)]) -> 
     builder.build().expect("prepared program")
 }
 
+fn prepared_with_package_import(options: CompilerOptions, input: &str) -> PreparedProgram {
+    let mut builder =
+        PreparedProgram::emitting_builder(PathContext::new(path("/project"), true), options);
+    let input_id = builder
+        .add_source_file(PreparedSourceFile::new(path("/project/input.ts"), input))
+        .expect("add package-import root");
+    let package_id = builder
+        .add_source_file(PreparedSourceFile::new(
+            path("/project/pkg.d.ts"),
+            "declare const value: unknown;\nexport = value;\n",
+        ))
+        .expect("add package declaration");
+    builder
+        .add_root_file(input_id)
+        .expect("add package-import root file");
+    for mode in [ResolutionMode::Unspecified, ResolutionMode::CommonJs] {
+        builder
+            .add_module_resolution(
+                ResolutionKey::new(path("/project/input.ts").canonical().clone(), "pkg", mode),
+                Ok(source_resolution(
+                    package_id,
+                    "/project/pkg.d.ts",
+                    ModuleExtension::Dts,
+                )),
+            )
+            .expect("add package resolution");
+    }
+    builder.build().expect("prepared package-import program")
+}
+
 fn prepared_with_owned_sources(
     options: CompilerOptions,
     sources: Vec<PreparedSourceFile>,
@@ -665,20 +695,13 @@ fn a_later_unsupported_source_cannot_leave_an_earlier_partial_write() {
         },
         &[
             ("/project/first.ts", "export const first: number = 1;\n"),
-            (
-                "/project/second.ts",
-                concat!(
-                    "namespace Runtime { export const value = 1; }\n",
-                    "import value = Runtime.value;\n",
-                    "export { value };\n",
-                ),
-            ),
+            ("/project/second.ts", "@dec class Runtime {}\n"),
         ],
     );
     let mut sink = CountingSink::default();
     let error = ProgramSession::new(prepared)
         .emit(&mut sink)
-        .expect_err("import-equals remains owned by H2.2d");
+        .expect_err("decorators remain owned by H2.4a");
     assert!(
         matches!(error, DriverError::Emit(EmitFailure::Transform(_))),
         "unexpected later-source failure: {error:?}"
@@ -991,6 +1014,241 @@ fn h2_2c_parameter_property_emit_matches_typescript_shapes() {
             outcome.h2_activity().runtime_slice(H2RuntimeSlice::H2_2c),
             1
         );
+    }
+}
+
+#[test]
+fn h2_2d_module_format_interactions_match_typescript_shapes() {
+    let cases = [
+        (1, concat!("\"use strict\";\n", "module.exports = 42;\n")),
+        (
+            2,
+            concat!(
+                "define([\"require\", \"exports\"], function (require, exports) {\n",
+                "    \"use strict\";\n",
+                "    return 42;\n",
+                "});\n",
+            ),
+        ),
+        (
+            3,
+            concat!(
+                "(function (factory) {\n",
+                "    if (typeof module === \"object\" && typeof module.exports === \"object\") {\n",
+                "        var v = factory(require, exports);\n",
+                "        if (v !== undefined) module.exports = v;\n",
+                "    }\n",
+                "    else if (typeof define === \"function\" && define.amd) {\n",
+                "        define([\"require\", \"exports\"], factory);\n",
+                "    }\n",
+                "})(function (require, exports) {\n",
+                "    \"use strict\";\n",
+                "    return 42;\n",
+                "});\n",
+            ),
+        ),
+        (
+            4,
+            concat!(
+                "System.register([], function (exports_1, context_1) {\n",
+                "    \"use strict\";\n",
+                "    var __moduleName = context_1 && context_1.id;\n",
+                "    return {\n",
+                "        setters: [],\n",
+                "        execute: function () {\n",
+                "        }\n",
+                "    };\n",
+                "});\n",
+            ),
+        ),
+        (99, "export {};\n"),
+    ];
+    for (module, expected) in cases {
+        let prepared = prepared_with_sources(
+            CompilerOptions {
+                no_emit: Some(false),
+                target: Some(99),
+                module: Some(module),
+                ..CompilerOptions::default()
+            },
+            &[("/project/input.ts", "export = 42;\n")],
+        );
+        let mut sink = MemoryOutputSink::new();
+        let outcome = ProgramSession::new(prepared)
+            .emit(&mut sink)
+            .expect("H2.2d export-equals emit");
+        assert_eq!(sink.writes().len(), 1);
+        assert_eq!(sink.writes()[0].callback_text(), expected);
+        assert_eq!(
+            outcome.h2_activity().runtime_slice(H2RuntimeSlice::H2_2d),
+            1
+        );
+    }
+
+    let prepared = prepared_with_sources(
+        CompilerOptions {
+            no_emit: Some(false),
+            target: Some(99),
+            module: Some(99),
+            ..CompilerOptions::default()
+        },
+        &[(
+            "/project/input.ts",
+            concat!(
+                "declare namespace Runtime { const value: number; }\n",
+                "import value = Runtime.value;\n",
+            ),
+        )],
+    );
+    let mut sink = MemoryOutputSink::new();
+    let outcome = ProgramSession::new(prepared)
+        .emit(&mut sink)
+        .expect("H2.2d internal import-equals emit");
+    assert_eq!(
+        sink.writes()[0].callback_text(),
+        concat!("\"use strict\";\n", "var value = Runtime.value;\n")
+    );
+    assert_eq!(
+        outcome.h2_activity().runtime_slice(H2RuntimeSlice::H2_2d),
+        1
+    );
+
+    let prepared = prepared_with_package_import(
+        CompilerOptions {
+            no_emit: Some(false),
+            target: Some(99),
+            module: Some(4),
+            ..CompilerOptions::default()
+        },
+        concat!(
+            "export import value = require(\"pkg\");\n",
+            "console.log(value);\n",
+        ),
+    );
+    let mut sink = MemoryOutputSink::new();
+    ProgramSession::new(prepared)
+        .emit(&mut sink)
+        .expect("H2.2d System import-equals emit");
+    assert_eq!(
+        sink.writes()[0].callback_text(),
+        concat!(
+            "System.register([\"pkg\"], function (exports_1, context_1) {\n",
+            "    \"use strict\";\n",
+            "    var value;\n",
+            "    var __moduleName = context_1 && context_1.id;\n",
+            "    return {\n",
+            "        setters: [\n",
+            "            function (value_1) {\n",
+            "                value = value_1;\n",
+            "                exports_1(\"value\", value_1);\n",
+            "            }\n",
+            "        ],\n",
+            "        execute: function () {\n",
+            "            console.log(value);\n",
+            "        }\n",
+            "    };\n",
+            "});\n",
+        )
+    );
+
+    for (module, source, expected) in [
+        (
+            1,
+            concat!(
+                "export import value = require(\"pkg\");\n",
+                "console.log(value);\n",
+            ),
+            concat!(
+                "\"use strict\";\n",
+                "Object.defineProperty(exports, \"__esModule\", { value: true });\n",
+                "exports.value = require(\"pkg\");\n",
+                "console.log(exports.value);\n",
+            ),
+        ),
+        (
+            2,
+            concat!(
+                "export import value = require(\"pkg\");\n",
+                "console.log(value);\n",
+            ),
+            concat!(
+                "define([\"require\", \"exports\", \"pkg\"], function (require, exports, value) {\n",
+                "    \"use strict\";\n",
+                "    Object.defineProperty(exports, \"__esModule\", { value: true });\n",
+                "    exports.value = value;\n",
+                "    console.log(exports.value);\n",
+                "});\n",
+            ),
+        ),
+        (
+            3,
+            concat!(
+                "import value = require(\"pkg\");\n",
+                "console.log(value);\n",
+            ),
+            concat!(
+                "(function (factory) {\n",
+                "    if (typeof module === \"object\" && typeof module.exports === \"object\") {\n",
+                "        var v = factory(require, exports);\n",
+                "        if (v !== undefined) module.exports = v;\n",
+                "    }\n",
+                "    else if (typeof define === \"function\" && define.amd) {\n",
+                "        define([\"require\", \"exports\", \"pkg\"], factory);\n",
+                "    }\n",
+                "})(function (require, exports) {\n",
+                "    \"use strict\";\n",
+                "    Object.defineProperty(exports, \"__esModule\", { value: true });\n",
+                "    const value = require(\"pkg\");\n",
+                "    console.log(value);\n",
+                "});\n",
+            ),
+        ),
+    ] {
+        let prepared = prepared_with_package_import(
+            CompilerOptions {
+                no_emit: Some(false),
+                target: Some(99),
+                module: Some(module),
+                ..CompilerOptions::default()
+            },
+            source,
+        );
+        let mut sink = MemoryOutputSink::new();
+        ProgramSession::new(prepared)
+            .emit(&mut sink)
+            .expect("H2.2d CommonJS-family import-equals emit");
+        assert_eq!(sink.writes()[0].callback_text(), expected);
+    }
+
+    for (source, expected) in [
+        (
+            concat!(
+                "import value = require(\"pkg\");\n",
+                "console.log(value);\n",
+            ),
+            concat!("const value = require(\"pkg\");\n", "console.log(value);\n",),
+        ),
+        (
+            concat!("const value = 42;\n", "export = value;\n"),
+            concat!("const value = 42;\n", "module.exports = value;\n"),
+        ),
+    ] {
+        let options = CompilerOptions {
+            no_emit: Some(false),
+            target: Some(99),
+            module: Some(200),
+            ..CompilerOptions::default()
+        };
+        let prepared = if source.contains("require(\"pkg\")") {
+            prepared_with_package_import(options, source)
+        } else {
+            prepared_with_sources(options, &[("/project/input.ts", source)])
+        };
+        let mut sink = MemoryOutputSink::new();
+        ProgramSession::new(prepared)
+            .emit(&mut sink)
+            .expect("H2.2d Preserve import/export-equals emit");
+        assert_eq!(sink.writes()[0].callback_text(), expected);
     }
 }
 

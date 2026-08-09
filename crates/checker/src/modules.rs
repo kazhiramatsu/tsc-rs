@@ -350,6 +350,36 @@ impl<'a> CheckerState<'a> {
         }
     }
 
+    /// tsc-port: isTopLevelValueImportEqualsWithEntityName @6.0.3
+    /// tsc-hash: 36151203180ec64c4b2d13103b540cf730e36ffca5bb214c50fcac4a7aff0a03
+    /// tsc-span: _tsc.js:88008-88014
+    pub(crate) fn emit_is_top_level_value_import_equals_with_entity_name(
+        &mut self,
+        node: NodeId,
+    ) -> CheckResult<bool> {
+        if self.kind_of(node) != SyntaxKind::ImportEqualsDeclaration
+            || self
+                .parent_of(node)
+                .is_none_or(|parent| self.kind_of(parent) != SyntaxKind::SourceFile)
+            || !self.is_internal_module_import_equals_declaration(node)
+        {
+            return Ok(false);
+        }
+        let Some(symbol) = self.emit_alias_declaration_symbol(node) else {
+            return Ok(false);
+        };
+        if !self.emit_is_alias_resolved_to_value(symbol, false)? {
+            return Ok(false);
+        }
+        let module_reference = match self.data_of(node) {
+            NodeData::ImportEqualsDeclaration(data) => data.module_reference,
+            _ => None,
+        };
+        Ok(module_reference.is_some_and(|reference| {
+            !node_util::node_is_missing(self.binder.source_of_node(reference), Some(reference))
+        }))
+    }
+
     fn emit_alias_declaration_symbol(&self, node: NodeId) -> Option<SymbolId> {
         self.binder
             .node_symbol(node)

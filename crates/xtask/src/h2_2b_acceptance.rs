@@ -17,6 +17,7 @@ use tsc_harness::upstream_suites::execution::load_qualified_compiler_emit;
 use tsc_program::ProgramLoadLimits;
 
 const QUALIFICATION_RELATIVE_PATH: &str = "ratchets/h2-2b-qualification.v1.json";
+const H2_2D_QUALIFICATION_RELATIVE_PATH: &str = "ratchets/h2-2d-qualification.v1.json";
 
 fn failure(message: impl Into<String>) -> Box<dyn Error> {
     std::io::Error::other(message.into()).into()
@@ -491,11 +492,15 @@ fn execute_deferred(workspace: &Path, case: &Value) -> Result<(), Box<dyn Error>
 }
 
 /// Execute all 18 H2.2b candidates. Fully admitted rows compare every
-/// TypeScript observable twice, and source-deferred rows
-/// prove deterministic typed failure before the first sink callback twice.
+/// TypeScript observable twice, joins H2.2d promotions to their exact owner,
+/// and proves every still-deferred row fails before the first sink callback.
 pub fn run(workspace: &Path) -> Result<(), Box<dyn Error>> {
     let artifact: Value =
         serde_json::from_slice(&fs::read(workspace.join(QUALIFICATION_RELATIVE_PATH))?)?;
+    let h2_2d_artifact: Value = serde_json::from_slice(&fs::read(
+        workspace.join(H2_2D_QUALIFICATION_RELATIVE_PATH),
+    )?)?;
+    let h2_2d_cases = array(&h2_2d_artifact, "cases")?;
     if artifact["schema"] != 1
         || artifact["status"] != "qualified-typescript-oracle"
         || artifact["phase"] != "H2.2b-runtime-namespaces"
@@ -533,7 +538,9 @@ pub fn run(workspace: &Path) -> Result<(), Box<dyn Error>> {
                         string(case, "case_id")?
                     )));
                 }
-                execute_deferred(workspace, case)?;
+                if !crate::h2_2d_acceptance::promotes_historical_case(case, h2_2d_cases)? {
+                    execute_deferred(workspace, case)?;
+                }
             }
             disposition => return Err(failure(format!("unknown H2.2b disposition {disposition}"))),
         }

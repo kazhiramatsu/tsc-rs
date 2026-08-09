@@ -307,6 +307,16 @@ impl H2ActivityCanary {
         profile
     }
 
+    /// Construct the current production admission profile. H2.2d activates
+    /// import/export-equals erasure, value preservation, and their module
+    /// format projections.
+    #[doc(hidden)]
+    pub const fn h2_2d_profile() -> Self {
+        let mut profile = Self::h2_2c_profile();
+        profile.admitted_runtime_slices |= 1_u64 << H2RuntimeSlice::H2_2d.index();
+        profile
+    }
+
     pub const fn counters(&self) -> H2ActivityCounters {
         self.counters
     }
