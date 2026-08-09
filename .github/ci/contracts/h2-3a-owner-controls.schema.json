@@ -1,0 +1,245 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/kazhiramatsu/tsc-rs/.github/ci/contracts/h2-3a-owner-controls.schema.json",
+  "title": "tsc-rs H2.3a JavaScript source owner controls",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "phase",
+    "status",
+    "typescript",
+    "generator",
+    "contract",
+    "controls",
+    "summary",
+    "controls_fingerprint_sha256"
+  ],
+  "properties": {
+    "schema": { "const": 1 },
+    "phase": { "const": "H2.3a-javascript-source-owner-controls" },
+    "status": { "const": "qualified" },
+    "typescript": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["version", "source_commit", "bundle", "implementation"],
+      "properties": {
+        "version": { "const": "6.0.3" },
+        "source_commit": { "$ref": "#/$defs/sha1" },
+        "bundle": { "$ref": "#/$defs/path_hash" },
+        "implementation": { "$ref": "#/$defs/path_hash" }
+      }
+    },
+    "generator": { "$ref": "#/$defs/path_hash" },
+    "contract": { "$ref": "#/$defs/path_hash" },
+    "controls": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "control_id",
+          "input",
+          "variants",
+          "control_fingerprint_sha256"
+        ],
+        "properties": {
+          "control_id": { "const": "javascript-family-relocation-and-checking" },
+          "input": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "current_directory",
+              "roots",
+              "files",
+              "target",
+              "module",
+              "out_dir",
+              "allow_js",
+              "check_js_states",
+              "new_line",
+              "ignore_deprecations"
+            ],
+            "properties": {
+              "current_directory": { "const": "/project" },
+              "roots": {
+                "const": [
+                  "/project/plain.js",
+                  "/project/module.mjs",
+                  "/project/common.cjs"
+                ]
+              },
+              "files": {
+                "type": "array",
+                "minItems": 3,
+                "maxItems": 3,
+                "items": { "$ref": "#/$defs/file" }
+              },
+              "target": { "const": "ESNext(99)" },
+              "module": { "const": "Preserve(200)" },
+              "out_dir": { "const": "/project/dist" },
+              "allow_js": { "const": true },
+              "check_js_states": { "const": ["absent", "false", "true"] },
+              "new_line": { "const": "LF(1)" },
+              "ignore_deprecations": { "const": "6.0" }
+            }
+          },
+          "variants": {
+            "type": "array",
+            "minItems": 3,
+            "maxItems": 3,
+            "items": { "$ref": "#/$defs/variant" }
+          },
+          "control_fingerprint_sha256": { "$ref": "#/$defs/sha256" }
+        }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "controls",
+        "variants",
+        "exact_outputs",
+        "typescript_runs",
+        "reported_diagnostics"
+      ],
+      "properties": {
+        "controls": { "const": 1 },
+        "variants": { "const": 3 },
+        "exact_outputs": { "const": 9 },
+        "typescript_runs": { "const": 6 },
+        "reported_diagnostics": { "const": 1 }
+      }
+    },
+    "controls_fingerprint_sha256": { "$ref": "#/$defs/sha256" }
+  },
+  "$defs": {
+    "sha1": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "path_hash": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256"],
+      "properties": {
+        "path": { "type": "string", "minLength": 1 },
+        "sha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "bytes_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["utf8_base64", "utf8_sha256", "utf8_bytes"],
+      "properties": {
+        "utf8_base64": { "type": "string" },
+        "utf8_sha256": { "$ref": "#/$defs/sha256" },
+        "utf8_bytes": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "file": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "root", "utf8_base64", "utf8_sha256", "utf8_bytes"],
+      "properties": {
+        "path": {
+          "enum": [
+            "/project/plain.js",
+            "/project/module.mjs",
+            "/project/common.cjs"
+          ]
+        },
+        "root": { "const": true },
+        "utf8_base64": { "type": "string" },
+        "utf8_sha256": { "$ref": "#/$defs/sha256" },
+        "utf8_bytes": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "diagnostic": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["code", "category", "file", "start", "length", "message"],
+      "properties": {
+        "code": { "type": "integer", "minimum": 1 },
+        "category": { "enum": ["Warning", "Error", "Suggestion", "Message"] },
+        "file": { "type": ["string", "null"] },
+        "start": { "type": ["integer", "null"], "minimum": 0 },
+        "length": { "type": ["integer", "null"], "minimum": 0 },
+        "message": { "type": "string" }
+      }
+    },
+    "write": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "index",
+        "path",
+        "kind",
+        "callback_utf8_base64",
+        "callback_utf8_sha256",
+        "callback_utf8_bytes",
+        "write_byte_order_mark",
+        "materialized_utf8_sha256",
+        "materialized_utf8_bytes",
+        "on_error_callback_present",
+        "source_files"
+      ],
+      "properties": {
+        "index": { "type": "integer", "minimum": 0, "maximum": 2 },
+        "path": { "type": "string", "pattern": "^/project/dist/.+\\.(js|mjs|cjs)$" },
+        "kind": { "enum": ["javascript", "mjs", "cjs"] },
+        "callback_utf8_base64": { "type": "string" },
+        "callback_utf8_sha256": { "$ref": "#/$defs/sha256" },
+        "callback_utf8_bytes": { "type": "integer", "minimum": 1 },
+        "write_byte_order_mark": { "const": false },
+        "materialized_utf8_sha256": { "$ref": "#/$defs/sha256" },
+        "materialized_utf8_bytes": { "type": "integer", "minimum": 1 },
+        "on_error_callback_present": { "const": true },
+        "source_files": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 1,
+          "items": { "type": "string", "pattern": "^/project/.+\\.(js|mjs|cjs)$" }
+        }
+      }
+    },
+    "observation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "reported_diagnostics",
+        "emit_diagnostics",
+        "emit_skipped",
+        "writes",
+        "run_fingerprint_sha256"
+      ],
+      "properties": {
+        "reported_diagnostics": {
+          "type": "array",
+          "maxItems": 1,
+          "items": { "$ref": "#/$defs/diagnostic" }
+        },
+        "emit_diagnostics": { "const": [] },
+        "emit_skipped": { "const": false },
+        "writes": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 3,
+          "items": { "$ref": "#/$defs/write" }
+        },
+        "run_fingerprint_sha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "variant": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["check_js_state", "repetitions", "observation"],
+      "properties": {
+        "check_js_state": { "enum": ["absent", "false", "true"] },
+        "repetitions": { "const": 2 },
+        "observation": { "$ref": "#/$defs/observation" }
+      }
+    }
+  }
+}

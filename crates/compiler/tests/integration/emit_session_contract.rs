@@ -23,6 +23,23 @@ const H2_1D_OWNER_CONTROLS: &[u8] = include_bytes!(concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/../../ratchets/h2-1d-owner-controls.v1.json"
 ));
+const H2_3A_OWNER_CONTROLS: &[u8] = include_bytes!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../../ratchets/h2-3a-owner-controls.v1.json"
+));
+
+const MINIMAL_GLOBALS: &str = r#"
+interface IArguments { length: number; callee: Function; }
+interface Array<T> { length: number; [index: number]: T; }
+interface Object {}
+interface Function {}
+interface CallableFunction extends Function {}
+interface NewableFunction extends Function {}
+interface String {}
+interface Number {}
+interface Boolean {}
+interface RegExp {}
+"#;
 
 #[derive(Default)]
 struct CountingSink {
@@ -83,6 +100,29 @@ fn oracle_text(record: &Value) -> String {
     String::from_utf8(bytes).expect("oracle UTF-8")
 }
 
+fn oracle_callback_text(record: &Value) -> String {
+    let bytes = base64::engine::general_purpose::STANDARD
+        .decode(
+            record["callback_utf8_base64"]
+                .as_str()
+                .expect("callback base64 text"),
+        )
+        .expect("decode oracle callback text");
+    assert_eq!(
+        bytes.len() as u64,
+        record["callback_utf8_bytes"]
+            .as_u64()
+            .expect("oracle callback byte count")
+    );
+    assert_eq!(
+        format!("{:x}", Sha256::digest(&bytes)),
+        record["callback_utf8_sha256"]
+            .as_str()
+            .expect("oracle callback text hash")
+    );
+    String::from_utf8(bytes).expect("oracle callback UTF-8")
+}
+
 fn prepared_for_emit() -> PreparedProgram {
     prepared_with_sources(
         CompilerOptions {
@@ -105,6 +145,29 @@ fn prepared_with_sources(options: CompilerOptions, sources: &[(&str, &str)]) -> 
         builder.add_root_file(source).expect("add root");
     }
     builder.build().expect("prepared program")
+}
+
+fn prepared_with_sources_and_minimal_lib(
+    options: CompilerOptions,
+    sources: &[(&str, &str)],
+) -> PreparedProgram {
+    let mut builder =
+        PreparedProgram::emitting_builder(PathContext::new(path("/project"), true), options);
+    let library = builder
+        .add_source_file(PreparedSourceFile::new(path("/lib.d.ts"), MINIMAL_GLOBALS))
+        .expect("add minimal library");
+    builder
+        .add_library_file(library)
+        .expect("register minimal library");
+    for (file_name, text) in sources {
+        let source = builder
+            .add_source_file(PreparedSourceFile::new(path(file_name), *text))
+            .expect("add source");
+        builder.add_root_file(source).expect("add root");
+    }
+    builder
+        .build()
+        .expect("prepared program with minimal library")
 }
 
 fn prepared_with_package_import(options: CompilerOptions, input: &str) -> PreparedProgram {
@@ -681,6 +744,324 @@ fn unsupported_options_and_unadmitted_extensions_fail_before_the_first_sink_call
         DriverError::Emit(EmitFailure::UnsupportedSourceExtension { .. })
     ));
     assert_eq!(sink.writes, 0);
+}
+
+#[test]
+fn h2_3a_allow_js_routes_through_program_and_blocks_only_the_colliding_output() {
+    let options = CompilerOptions {
+        allow_js: true,
+        check_js: Some(true),
+        no_emit: Some(false),
+        target: Some(99),
+        module: Some(200),
+        list_emitted_files: Some(true),
+        ..CompilerOptions::default()
+    };
+    let prepared = prepared_with_sources_and_minimal_lib(
+        options,
+        &[
+            (
+                "/project/input.js",
+                "#!/usr/bin/env node\n\"use strict\";\n/** @type {number} */\nconst answer = 42;\n",
+            ),
+            ("/project/sibling.ts", "export const sibling: number = 1;\n"),
+        ],
+    );
+    let mut sink = MemoryOutputSink::new();
+    let (outcome, diagnostics) = ProgramSession::new(prepared)
+        .emit_with_reported_diagnostics_for_harness(&mut sink)
+        .expect("H2.3a checked JavaScript Program emit");
+
+    assert_eq!(
+        diagnostics
+            .iter()
+            .map(|diagnostic| diagnostic.code())
+            .collect::<Vec<_>>(),
+        [5055]
+    );
+    assert!(outcome.emit_skipped());
+    assert_eq!(
+        outcome.emitted_files(),
+        Some([PathBuf::from("/project/sibling.js")].as_slice())
+    );
+    assert_eq!(sink.writes().len(), 1);
+    assert_eq!(sink.writes()[0].path(), Path::new("/project/sibling.js"));
+    assert_eq!(
+        outcome.h2_activity().runtime_slice(H2RuntimeSlice::H2_3a),
+        1
+    );
+    for slice in H2RuntimeSlice::ALL {
+        if slice != H2RuntimeSlice::H2_3a {
+            assert_eq!(outcome.h2_activity().runtime_slice(slice), 0);
+        }
+    }
+}
+
+#[test]
+fn h2_3a_check_js_changes_diagnostics_without_changing_source_routing() {
+    const SOURCE: &str = "function checked() { return 5 || true; }\n";
+    for (check_js, expected_codes) in [
+        (None, Vec::<u32>::new()),
+        (Some(false), Vec::new()),
+        (Some(true), vec![2872]),
+    ] {
+        let prepared = prepared_with_sources_and_minimal_lib(
+            CompilerOptions {
+                allow_js: true,
+                check_js,
+                no_emit: Some(false),
+                target: Some(99),
+                module: Some(200),
+                out_dir: Some("/project/dist".to_owned()),
+                ..CompilerOptions::default()
+            },
+            &[("/project/checked.js", SOURCE)],
+        );
+        let mut sink = MemoryOutputSink::new();
+        let (outcome, diagnostics) = ProgramSession::new(prepared)
+            .emit_with_reported_diagnostics_for_harness(&mut sink)
+            .expect("H2.3a JavaScript diagnostic routing");
+        let codes = diagnostics
+            .iter()
+            .map(|diagnostic| diagnostic.code())
+            .collect::<Vec<_>>();
+        assert_eq!(codes, expected_codes, "checkJs={check_js:?}");
+        assert_eq!(
+            outcome.h2_activity().runtime_slice(H2RuntimeSlice::H2_3a),
+            1
+        );
+        assert_eq!(sink.writes().len(), 1);
+        assert_eq!(
+            sink.writes()[0].path(),
+            Path::new("/project/dist/checked.js")
+        );
+        assert_eq!(sink.writes()[0].callback_text(), SOURCE);
+        assert!(!outcome.emit_skipped());
+    }
+}
+
+#[test]
+fn h2_3a_mjs_and_cjs_roots_materialize_the_planned_extension() {
+    const SOURCE: &str = "\"use strict\";\n// retained\nconst value = 1;\n";
+    for extension in ["mjs", "cjs"] {
+        let input = format!("/project/input.{extension}");
+        let output = format!("/project/dist/input.{extension}");
+        let prepared = prepared_with_sources_and_minimal_lib(
+            CompilerOptions {
+                allow_js: true,
+                no_emit: Some(false),
+                target: Some(99),
+                module: Some(200),
+                out_dir: Some("/project/dist".to_owned()),
+                ..CompilerOptions::default()
+            },
+            &[(input.as_str(), SOURCE)],
+        );
+        let mut sink = MemoryOutputSink::new();
+        let (outcome, diagnostics) = ProgramSession::new(prepared)
+            .emit_with_reported_diagnostics_for_harness(&mut sink)
+            .expect("H2.3a explicit JavaScript-family emit");
+        assert!(diagnostics.is_empty(), "{extension}: {diagnostics:#?}");
+        assert!(!outcome.emit_skipped());
+        assert_eq!(sink.writes().len(), 1);
+        assert_eq!(sink.writes()[0].path(), Path::new(&output));
+        assert_eq!(sink.writes()[0].callback_text(), SOURCE);
+        assert_eq!(
+            outcome.h2_activity().runtime_slice(H2RuntimeSlice::H2_3a),
+            1
+        );
+    }
+}
+
+#[test]
+fn h2_3a_javascript_owner_controls_match_pinned_typescript() {
+    let artifact: Value =
+        serde_json::from_slice(H2_3A_OWNER_CONTROLS).expect("H2.3a owner controls JSON");
+    assert_eq!(artifact["phase"], "H2.3a-javascript-source-owner-controls");
+    assert_eq!(artifact["status"], "qualified");
+    assert_eq!(artifact["summary"]["exact_outputs"], 9);
+    let control = &artifact["controls"][0];
+    assert_eq!(
+        control["control_id"],
+        "javascript-family-relocation-and-checking"
+    );
+    let sources = control["input"]["files"]
+        .as_array()
+        .expect("owner-control files")
+        .iter()
+        .map(|file| {
+            (
+                file["path"].as_str().expect("owner-control path"),
+                oracle_text(file),
+            )
+        })
+        .collect::<Vec<_>>();
+
+    for variant in control["variants"]
+        .as_array()
+        .expect("owner-control variants")
+    {
+        let check_js = match variant["check_js_state"].as_str().expect("checkJs state") {
+            "absent" => None,
+            "false" => Some(false),
+            "true" => Some(true),
+            other => panic!("unexpected checkJs state {other}"),
+        };
+        let source_refs = sources
+            .iter()
+            .map(|(file_name, text)| (*file_name, text.as_str()))
+            .collect::<Vec<_>>();
+        let prepared = prepared_with_sources_and_minimal_lib(
+            CompilerOptions {
+                allow_js: true,
+                check_js,
+                no_emit: Some(false),
+                target: Some(99),
+                module: Some(200),
+                out_dir: Some("/project/dist".to_owned()),
+                new_line: Some(1),
+                ignore_deprecations: Some("6.0".to_owned()),
+                ..CompilerOptions::default()
+            },
+            &source_refs,
+        );
+        let mut sink = MemoryOutputSink::new();
+        let (outcome, diagnostics) = ProgramSession::new(prepared)
+            .emit_with_reported_diagnostics_for_harness(&mut sink)
+            .expect("H2.3a JavaScript owner-control emit");
+        let observation = &variant["observation"];
+        assert_eq!(outcome.emit_skipped(), observation["emit_skipped"] == true);
+        assert!(outcome.diagnostics().is_empty());
+
+        let expected_diagnostics = observation["reported_diagnostics"]
+            .as_array()
+            .expect("owner-control diagnostics");
+        assert_eq!(diagnostics.len(), expected_diagnostics.len());
+        for (actual, expected) in diagnostics.iter().zip(expected_diagnostics) {
+            assert_eq!(u64::from(actual.code()), expected["code"]);
+            assert_eq!(format!("{:?}", actual.category()), expected["category"]);
+            assert_eq!(actual.file_name.as_deref(), expected["file"].as_str());
+            assert_eq!(actual.start.map(u64::from), expected["start"].as_u64());
+            assert_eq!(actual.length.map(u64::from), expected["length"].as_u64());
+            assert_eq!(actual.message_text(), expected["message"]);
+        }
+
+        let expected_writes = observation["writes"]
+            .as_array()
+            .expect("owner-control writes");
+        assert_eq!(sink.writes().len(), expected_writes.len());
+        for (actual, expected) in sink.writes().iter().zip(expected_writes) {
+            assert_eq!(
+                actual.path(),
+                Path::new(expected["path"].as_str().expect("owner output path"))
+            );
+            assert_eq!(actual.callback_text(), oracle_callback_text(expected));
+            assert_eq!(
+                actual.write_byte_order_mark(),
+                expected["write_byte_order_mark"] == true
+            );
+            let expected_sources = expected["source_files"]
+                .as_array()
+                .expect("owner output sources")
+                .iter()
+                .map(|source| source.as_str().expect("owner source path"))
+                .collect::<Vec<_>>();
+            let actual_sources = actual
+                .source_files()
+                .expect("owner output provenance")
+                .iter()
+                .map(|source| source.to_string_lossy())
+                .collect::<Vec<_>>();
+            assert_eq!(
+                actual_sources
+                    .iter()
+                    .map(|source| source.as_ref())
+                    .collect::<Vec<_>>(),
+                expected_sources
+            );
+        }
+        assert_eq!(
+            outcome.h2_activity().runtime_slice(H2RuntimeSlice::H2_3a),
+            sources.len() as u64
+        );
+        for slice in H2RuntimeSlice::ALL {
+            if slice != H2RuntimeSlice::H2_3a {
+                assert_eq!(outcome.h2_activity().runtime_slice(slice), 0);
+            }
+        }
+    }
+}
+
+#[test]
+fn h2_3a_narrow_out_dir_and_source_family_boundary_fails_closed() {
+    let options = |out_dir: &str, allow_js| CompilerOptions {
+        allow_js,
+        no_emit: Some(false),
+        target: Some(99),
+        module: Some(200),
+        out_dir: Some(out_dir.to_owned()),
+        ..CompilerOptions::default()
+    };
+    for (case, compiler_options, source) in [
+        (
+            "TypeScript-only outDir remains H2.8a",
+            options("/project/dist", false),
+            ("/project/input.ts", "const value: number = 1;\n"),
+        ),
+        (
+            "relative JavaScript outDir remains H2.8a",
+            options("dist", true),
+            ("/project/input.js", "const value = 1;\n"),
+        ),
+    ] {
+        let mut sink = CountingSink::default();
+        let error = ProgramSession::new(prepared_with_sources(compiler_options, &[source]))
+            .emit(&mut sink)
+            .expect_err(case);
+        assert_eq!(
+            error,
+            DriverError::Emit(EmitFailure::UnsupportedCompilerOption { option: "outDir" }),
+            "{case}"
+        );
+        assert_eq!(sink.writes, 0, "{case}");
+    }
+
+    let mut sink = CountingSink::default();
+    let error = ProgramSession::new(prepared_with_sources(
+        options("/project/dist", true),
+        &[
+            ("/project/input.js", "const js = 1;\n"),
+            ("/project/input.ts", "const ts: number = 1;\n"),
+        ],
+    ))
+    .emit(&mut sink)
+    .expect_err("mixed-source outDir remains H2.8a");
+    assert_eq!(
+        error,
+        DriverError::Emit(EmitFailure::UnsupportedCompilerOption { option: "outDir" })
+    );
+    assert_eq!(sink.writes, 0);
+
+    for (file_name, allow_js) in [("/project/input.js", false), ("/project/input.jsx", true)] {
+        let mut sink = CountingSink::default();
+        let error = ProgramSession::new(prepared_with_sources(
+            CompilerOptions {
+                allow_js,
+                no_emit: Some(false),
+                target: Some(99),
+                module: Some(200),
+                ..CompilerOptions::default()
+            },
+            &[(file_name, "const value = 1;\n")],
+        ))
+        .emit(&mut sink)
+        .expect_err("unadmitted JavaScript source must fail closed");
+        assert!(matches!(
+            error,
+            DriverError::Emit(EmitFailure::UnsupportedSourceExtension { .. })
+        ));
+        assert_eq!(sink.writes, 0);
+    }
 }
 
 #[test]

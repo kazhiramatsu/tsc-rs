@@ -317,6 +317,16 @@ impl H2ActivityCanary {
         profile
     }
 
+    /// Construct the current production admission profile. H2.3a activates
+    /// `.js`/`.mjs`/`.cjs` source and output routing under the effective
+    /// `allowJs` option. JSX-family sources remain fail-closed for H2.3b.
+    #[doc(hidden)]
+    pub const fn h2_3a_profile() -> Self {
+        let mut profile = Self::h2_2d_profile();
+        profile.admitted_runtime_slices |= 1_u64 << H2RuntimeSlice::H2_3a.index();
+        profile
+    }
+
     pub const fn counters(&self) -> H2ActivityCounters {
         self.counters
     }

@@ -296,3 +296,45 @@ fn h2_2d_profile_admits_only_the_nine_completed_runtime_slices() {
         assert!(result.is_err(), "{} did not fail closed", slice.name());
     }
 }
+
+#[test]
+fn h2_3a_profile_admits_only_the_ten_completed_runtime_slices() {
+    let mut canary = H2ActivityCanary::h2_3a_profile();
+    for slice in [
+        H2RuntimeSlice::H2_1a,
+        H2RuntimeSlice::H2_1b,
+        H2RuntimeSlice::H2_1c,
+        H2RuntimeSlice::H2_1d,
+        H2RuntimeSlice::H2_1e,
+        H2RuntimeSlice::H2_2a,
+        H2RuntimeSlice::H2_2b,
+        H2RuntimeSlice::H2_2c,
+        H2RuntimeSlice::H2_2d,
+        H2RuntimeSlice::H2_3a,
+    ] {
+        canary.observe_runtime_slice(slice);
+        assert_eq!(canary.counters().runtime_slice(slice), 1);
+    }
+
+    for slice in H2RuntimeSlice::ALL {
+        if matches!(
+            slice,
+            H2RuntimeSlice::H2_1a
+                | H2RuntimeSlice::H2_1b
+                | H2RuntimeSlice::H2_1c
+                | H2RuntimeSlice::H2_1d
+                | H2RuntimeSlice::H2_1e
+                | H2RuntimeSlice::H2_2a
+                | H2RuntimeSlice::H2_2b
+                | H2RuntimeSlice::H2_2c
+                | H2RuntimeSlice::H2_2d
+                | H2RuntimeSlice::H2_3a
+        ) {
+            continue;
+        }
+        let result = std::panic::catch_unwind(|| {
+            H2ActivityCanary::h2_3a_profile().observe_runtime_slice(slice)
+        });
+        assert!(result.is_err(), "{} did not fail closed", slice.name());
+    }
+}
