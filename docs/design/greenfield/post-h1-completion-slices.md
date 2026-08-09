@@ -1,7 +1,7 @@
 # Post-H1 TypeScript 6.0.3 completion slices
 
 Status: execution schedule approved on 2026-08-08. H0, L0/L1, H1, H2.0a,
-H2.0b, H2.1a-H2.1e, H2.2a-H2.2d, and H2.3a are complete. **H2.3b is the next slice.**
+H2.0b, H2.1a-H2.1e, H2.2a-H2.2d, and H2.3a-H2.3b are complete. **H2.3c is the next slice.**
 
 This document turns the audited post-H1 residual into branch-sized execution
 slices. It owns post-H1 slice IDs, dependency order, and slice-specific
@@ -595,6 +595,55 @@ The ordinary hosted boundary remains only `cargo xtask acceptance`; profile
 generation, schema checks, focused controls, and the complete H0/H1/L1
 regression gate remain local.
 
+H2.3b closed on 2026-08-09. The
+[qualification](../../../ratchets/h2-3b-qualification.v1.json) derives its
+denominator from the immutable global candidate dispositions after H2.1a-H2.3a:
+exactly 6 compiler/conformance rows are dependency-closed for H2.3b. Every row
+is observed twice with pinned TypeScript 6.0.3 and then reaches an explicit
+Rust disposition:
+
+- the 2 classic `jsx=react` rows are complete exact admissions with 4 exact
+  reported diagnostics and 2 byte-, path-, order-, BOM-, provenance-, result-,
+  exit-, and activity-exact writes;
+- the other 4 rows require `react-jsx` or `react-jsxdev`. They remain
+  source-deferred to H2.3c and fail deterministically before the first sink
+  callback rather than borrowing classic-runtime behavior;
+- the classic transform now owns intrinsic, component/member, and namespaced
+  tags; attributes, spread attributes and children; entity decoding and JSX
+  whitespace; factory/fragment options, first leading pragma precedence, and
+  `reactNamespace`; imported factory substitution preserves lexical shadowing
+  across module transforms;
+- Preserve and ReactNative retain JSX while TypeScript-only syntax is erased.
+  `.tsx` and `allowJs` `.jsx` sources route to the exact `.jsx` or `.js`
+  extension selected by the JSX mode, including the admitted absolute-`outDir`
+  JavaScript-family path; and
+- the separate
+  [owner controls](../../../ratchets/h2-3b-owner-controls.v1.json) run pinned
+  TypeScript 6.0.3 sixteen times and freeze 8 exact outputs. They cover all
+  three admitted JSX modes, default and configured factories/fragments,
+  pragma and namespace precedence, full HTML4 named/numeric entities,
+  non-BMP UTF-16 text and paths, spreads, comments, and `.tsx`/`.jsx` output
+  extensions. H2.3b activity fires only for reached JSX-family sources;
+  earlier counters remain independently exact and every later counter stays
+  fail-closed.
+
+The [current runtime profile](../../../ratchets/h2-3b-profile.v1.json) and its
+[strict schema](../../../.github/ci/contracts/h2-3b-profile.schema.json)
+preserve every H2.3a authority byte for byte, mark H2.1a through H2.3b active,
+and name H2.3c as next. The monotonic profile has 305 exact cases, 638 exact
+reported diagnostics, 400 exact writes, 5 unchanged H2.9 diagnostic controls,
+and 4 source-deferred H2.3c rows. Freshness is checked with:
+
+```text
+node crates/oracle/h2-3b-qualification.mjs --check
+node crates/oracle/h2-3b-owner-controls.mjs --check
+node crates/oracle/h2-3b-profile.mjs --check
+```
+
+The ordinary hosted boundary remains only `cargo xtask acceptance`; profile
+generation, schema checks, focused controls, and the complete H0/H1/L1
+regression gate remain local.
+
 ### 4.3 TypeScript, source-kind, JSX, and decorator families
 
 | Slice | Scope | Dependencies and close evidence |
@@ -604,7 +653,7 @@ regression gate remain local.
 | H2.2c — complete | Parameter properties and remaining class TypeScript syntax reachable at ESNext. | H2.2a. Constructor ordering, modifiers, declarations, class-field interaction, diagnostics, and comment placement are exact. |
 | H2.2d — complete | `import =`, `export =`, import elision/value preservation, and module-transform interaction. | H2.1b and H2.2a-H2.2c. Resolver alias/value decisions and module-specific outputs are exact. |
 | H2.3a — complete | `.js`/`.mjs`/`.cjs` input and output families, `allowJs`/`checkJs` emit routing, shebang/directive/comment preservation, and extension planning. | H2.1e. Checked and unchecked JavaScript emit uses the production Program without a JS-only AST; the general output-directory matrix remains explicitly H2.8a-owned. |
-| H2.3b | Classic JSX/TSX transform, factory/fragment facts, pragmas, namespaces, and `.jsx` output. | H2.3a. Classic React/Preserve/ReactNative observations and UTF-16/source-range controls are exact. |
+| H2.3b — complete | Classic JSX/TSX transform, factory/fragment facts, pragmas, namespaces, and `.jsx` output. | H2.3a. Classic React/Preserve/ReactNative observations and UTF-16/source-range controls are exact; automatic-runtime rows remain explicitly H2.3c-owned. |
 | H2.3c | Automatic and development JSX runtimes, import source, helper imports, and file-kind interactions. | H2.3b and H2.1b. Runtime import de-duplication/order and diagnostics are exact. |
 | H2.3d | JSON source eligibility/copying and `resolveJsonModule` output/path behavior. | H2.3a. Text/BOM/newline, collision, and module-format controls are exact. |
 | H2.4a | Legacy decorators plus decorator metadata and referenced-value/check-flag resolver facts. | H2.2c. Evaluation order, metadata helpers, class/member cases, and failure behavior are exact. |

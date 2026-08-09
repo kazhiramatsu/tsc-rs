@@ -200,6 +200,44 @@ fn prepared_with_package_import(options: CompilerOptions, input: &str) -> Prepar
     builder.build().expect("prepared package-import program")
 }
 
+fn prepared_with_jsx_package_import(options: CompilerOptions, input: &str) -> PreparedProgram {
+    let mut builder =
+        PreparedProgram::emitting_builder(PathContext::new(path("/project"), true), options);
+    let library = builder
+        .add_source_file(PreparedSourceFile::new(path("/lib.d.ts"), MINIMAL_GLOBALS))
+        .expect("add minimal library");
+    builder
+        .add_library_file(library)
+        .expect("register minimal library");
+    let input_id = builder
+        .add_source_file(PreparedSourceFile::new(path("/project/view.tsx"), input))
+        .expect("add JSX package-import root");
+    let package_id = builder
+        .add_source_file(PreparedSourceFile::new(
+            path("/project/react.d.ts"),
+            "declare const React: any;\nexport default React;\n",
+        ))
+        .expect("add React declaration");
+    builder
+        .add_root_file(input_id)
+        .expect("add JSX package-import root file");
+    for mode in [ResolutionMode::Unspecified, ResolutionMode::CommonJs] {
+        builder
+            .add_module_resolution(
+                ResolutionKey::new(path("/project/view.tsx").canonical().clone(), "react", mode),
+                Ok(source_resolution(
+                    package_id,
+                    "/project/react.d.ts",
+                    ModuleExtension::Dts,
+                )),
+            )
+            .expect("add React package resolution");
+    }
+    builder
+        .build()
+        .expect("prepared JSX package-import program")
+}
+
 fn prepared_with_owned_sources(
     options: CompilerOptions,
     sources: Vec<PreparedSourceFile>,
@@ -732,18 +770,23 @@ fn unsupported_options_and_unadmitted_extensions_fail_before_the_first_sink_call
     );
     assert_eq!(sink.writes, 0);
 
-    let mut sink = CountingSink::default();
-    let error = ProgramSession::new(prepared_with_sources(
+    let mut sink = MemoryOutputSink::new();
+    let outcome = ProgramSession::new(prepared_with_sources(
         base(),
         &[("/project/module.tsx", "export const value = true;\n")],
     ))
     .emit(&mut sink)
-    .expect_err("tsx output remains owned by H2.3b");
-    assert!(matches!(
-        error,
-        DriverError::Emit(EmitFailure::UnsupportedSourceExtension { .. })
-    ));
-    assert_eq!(sink.writes, 0);
+    .expect("H2.3b admits TSX source/output routing");
+    assert_eq!(sink.writes().len(), 1);
+    assert_eq!(sink.writes()[0].path(), Path::new("/project/module.js"));
+    assert_eq!(
+        sink.writes()[0].callback_text(),
+        "export const value = true;\n"
+    );
+    assert_eq!(
+        outcome.h2_activity().runtime_slice(H2RuntimeSlice::H2_3b),
+        1
+    );
 }
 
 #[test]
@@ -993,6 +1036,146 @@ fn h2_3a_javascript_owner_controls_match_pinned_typescript() {
 }
 
 #[test]
+fn h2_3b_classic_jsx_factories_fragments_namespaces_and_ranges_match_typescript() {
+    const SOURCE: &str = concat!(
+        "/** @jsx Preact.h */\n",
+        "/** @jsxFrag Preact.Fragment */\n",
+        "declare const Preact: any, Comp: any, value: any, props: any, items: any[];\n",
+        "const a = <div disabled data-x=\"a&amp;b\" {...props}>  hello\n",
+        "  world {value as string}<Comp.Member x={1} />{...items}</div>;\n",
+        "const f = <>x<span />{value}</>;\n",
+        "const n = <svg:path xml:lang='a&amp;b' />;\n",
+    );
+    const EXPECTED: &str = concat!(
+        "const a = Preact.h(\"div\", { disabled: true, \"data-x\": \"a&b\", ...props },\n",
+        "    \"  hello world \",\n",
+        "    value,\n",
+        "    Preact.h(Comp.Member, { x: 1 }),\n",
+        "    ...items);\n",
+        "const f = Preact.h(Preact.Fragment, null,\n",
+        "    \"x\",\n",
+        "    Preact.h(\"span\", null),\n",
+        "    value);\n",
+        "const n = Preact.h(\"svg:path\", { \"xml:lang\": 'a&b' });\n",
+    );
+    let prepared = prepared_with_sources(
+        CompilerOptions {
+            no_emit: Some(false),
+            target: Some(99),
+            module: Some(200),
+            jsx: Some(2),
+            strict: Some(false),
+            always_strict: Some(false),
+            new_line: Some(1),
+            ignore_deprecations: Some("6.0".to_owned()),
+            ..CompilerOptions::default()
+        },
+        &[("/project/emoji-😀.tsx", SOURCE)],
+    );
+    let mut sink = MemoryOutputSink::new();
+    let outcome = ProgramSession::new(prepared)
+        .emit(&mut sink)
+        .expect("H2.3b classic JSX emit");
+    assert_eq!(sink.writes().len(), 1);
+    assert_eq!(sink.writes()[0].path(), Path::new("/project/emoji-😀.js"));
+    assert_eq!(sink.writes()[0].callback_text(), EXPECTED);
+    assert_eq!(
+        outcome.h2_activity().runtime_slice(H2RuntimeSlice::H2_3b),
+        1
+    );
+}
+
+#[test]
+fn h2_3b_classic_factory_import_substitution_and_lexical_shadowing_match_typescript() {
+    const SOURCE: &str = concat!(
+        "import React from \"react\";\n",
+        "export const top = <div />;\n",
+        "export function local(React: any) {\n",
+        "  return <span />;\n",
+        "}\n",
+    );
+    const EXPECTED: &str = concat!(
+        "\"use strict\";\n",
+        "var __importDefault = (this && this.__importDefault) || function (mod) {\n",
+        "    return (mod && mod.__esModule) ? mod : { \"default\": mod };\n",
+        "};\n",
+        "Object.defineProperty(exports, \"__esModule\", { value: true });\n",
+        "exports.top = void 0;\n",
+        "exports.local = local;\n",
+        "const react_1 = __importDefault(require(\"react\"));\n",
+        "exports.top = react_1.default.createElement(\"div\", null);\n",
+        "function local(React) {\n",
+        "    return React.createElement(\"span\", null);\n",
+        "}\n",
+    );
+    let prepared = prepared_with_jsx_package_import(
+        CompilerOptions {
+            no_emit: Some(false),
+            target: Some(99),
+            module: Some(1),
+            jsx: Some(2),
+            es_module_interop: Some(true),
+            new_line: Some(1),
+            ignore_deprecations: Some("6.0".to_owned()),
+            ..CompilerOptions::default()
+        },
+        SOURCE,
+    );
+    let mut sink = MemoryOutputSink::new();
+    let outcome = ProgramSession::new(prepared)
+        .emit(&mut sink)
+        .expect("H2.3b classic JSX CommonJS emit");
+    assert!(outcome.diagnostics().is_empty());
+    assert_eq!(sink.writes().len(), 1);
+    assert_eq!(sink.writes()[0].path(), Path::new("/project/view.js"));
+    assert_eq!(sink.writes()[0].callback_text(), EXPECTED);
+    assert_eq!(
+        outcome.h2_activity().runtime_slice(H2RuntimeSlice::H2_1b),
+        1
+    );
+    assert_eq!(
+        outcome.h2_activity().runtime_slice(H2RuntimeSlice::H2_3b),
+        1
+    );
+}
+
+#[test]
+fn h2_3b_preserve_and_react_native_reconstruct_jsx_with_exact_extensions() {
+    const SOURCE: &str = "const view: unknown = <Box value={answer as number}><span /></Box>;\n";
+    for (jsx, extension) in [(1, "jsx"), (3, "js")] {
+        let prepared = prepared_with_sources(
+            CompilerOptions {
+                no_emit: Some(false),
+                target: Some(99),
+                module: Some(200),
+                jsx: Some(jsx),
+                strict: Some(false),
+                always_strict: Some(false),
+                ..CompilerOptions::default()
+            },
+            &[("/project/view.tsx", SOURCE)],
+        );
+        let mut sink = MemoryOutputSink::new();
+        let outcome = ProgramSession::new(prepared)
+            .emit(&mut sink)
+            .expect("H2.3b preserved JSX emit");
+        assert_eq!(sink.writes().len(), 1);
+        assert_eq!(
+            sink.writes()[0].path(),
+            Path::new(&format!("/project/view.{extension}"))
+        );
+        assert_eq!(
+            sink.writes()[0].callback_text(),
+            "const view = <Box value={answer}><span /></Box>;\n"
+        );
+        assert_eq!(
+            outcome.h2_activity().runtime_slice(H2RuntimeSlice::H2_3b),
+            1
+        );
+    }
+}
+
+#[test]
 fn h2_3a_narrow_out_dir_and_source_family_boundary_fails_closed() {
     let options = |out_dir: &str, allow_js| CompilerOptions {
         allow_js,
@@ -1042,26 +1225,48 @@ fn h2_3a_narrow_out_dir_and_source_family_boundary_fails_closed() {
     );
     assert_eq!(sink.writes, 0);
 
-    for (file_name, allow_js) in [("/project/input.js", false), ("/project/input.jsx", true)] {
-        let mut sink = CountingSink::default();
-        let error = ProgramSession::new(prepared_with_sources(
-            CompilerOptions {
-                allow_js,
-                no_emit: Some(false),
-                target: Some(99),
-                module: Some(200),
-                ..CompilerOptions::default()
-            },
-            &[(file_name, "const value = 1;\n")],
-        ))
-        .emit(&mut sink)
-        .expect_err("unadmitted JavaScript source must fail closed");
-        assert!(matches!(
-            error,
-            DriverError::Emit(EmitFailure::UnsupportedSourceExtension { .. })
-        ));
-        assert_eq!(sink.writes, 0);
-    }
+    let mut sink = CountingSink::default();
+    let error = ProgramSession::new(prepared_with_sources(
+        CompilerOptions {
+            allow_js: false,
+            no_emit: Some(false),
+            target: Some(99),
+            module: Some(200),
+            ..CompilerOptions::default()
+        },
+        &[("/project/input.js", "const value = 1;\n")],
+    ))
+    .emit(&mut sink)
+    .expect_err("unadmitted JavaScript source must fail closed");
+    assert!(matches!(
+        error,
+        DriverError::Emit(EmitFailure::UnsupportedSourceExtension { .. })
+    ));
+    assert_eq!(sink.writes, 0);
+
+    let mut sink = MemoryOutputSink::new();
+    let outcome = ProgramSession::new(prepared_with_sources(
+        CompilerOptions {
+            allow_js: true,
+            no_emit: Some(false),
+            target: Some(99),
+            module: Some(200),
+            ..CompilerOptions::default()
+        },
+        &[("/project/input.jsx", "const value = 1;\n")],
+    ))
+    .emit(&mut sink)
+    .expect("H2.3b admits allowJs JSX-family source routing");
+    assert_eq!(sink.writes().len(), 1);
+    assert_eq!(sink.writes()[0].path(), Path::new("/project/input.js"));
+    assert_eq!(
+        outcome.h2_activity().runtime_slice(H2RuntimeSlice::H2_3a),
+        1
+    );
+    assert_eq!(
+        outcome.h2_activity().runtime_slice(H2RuntimeSlice::H2_3b),
+        1
+    );
 }
 
 #[test]

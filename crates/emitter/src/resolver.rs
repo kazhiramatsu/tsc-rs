@@ -42,6 +42,7 @@ pub enum EmitResolverMethod {
     GetEnumMemberValue,
     GetReferencedExportContainer,
     GetReferencedImportDeclaration,
+    GetJsxFactoryImportDeclaration,
     GetReferencedValueDeclaration,
     HasNodeCheckFlag,
     IsInstantiatedModule,
@@ -57,6 +58,7 @@ impl EmitResolverMethod {
             Self::GetEnumMemberValue => "getEnumMemberValue",
             Self::GetReferencedExportContainer => "getReferencedExportContainer",
             Self::GetReferencedImportDeclaration => "getReferencedImportDeclaration",
+            Self::GetJsxFactoryImportDeclaration => "getJsxFactoryImportDeclaration",
             Self::GetReferencedValueDeclaration => "getReferencedValueDeclaration",
             Self::HasNodeCheckFlag => "hasNodeCheckFlag",
             Self::IsInstantiatedModule => "isInstantiatedModule",
@@ -183,6 +185,22 @@ pub trait EmitResolver {
     ) -> Result<Option<EmitResolverNode>, EmitResolverError> {
         Err(unavailable(
             EmitResolverMethod::GetReferencedImportDeclaration,
+            node,
+        ))
+    }
+
+    /// Resolve the first identifier of a classic JSX factory/fragment entity
+    /// at the JSX location. Upstream gives the synthesized factory expression
+    /// a parse-tree parent so module substitution can resolve imports; this
+    /// typed projection carries the equivalent declaration across Rust's
+    /// immutable checker/emitter boundary.
+    fn get_jsx_factory_import_declaration(
+        &self,
+        node: EmitResolverNode,
+        _name: &str,
+    ) -> Result<Option<EmitResolverNode>, EmitResolverError> {
+        Err(unavailable(
+            EmitResolverMethod::GetJsxFactoryImportDeclaration,
             node,
         ))
     }

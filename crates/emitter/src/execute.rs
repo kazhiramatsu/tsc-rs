@@ -155,8 +155,11 @@ pub fn validate_bootstrap_emit_options(options: &CompilerOptions) -> Result<(), 
             return unsupported(name);
         }
     }
+    if !matches!(options.jsx, None | Some(1..=3)) {
+        return unsupported("jsx");
+    }
     for (present, name) in [
-        (options.jsx.is_some(), "jsx"),
+        (options.jsx_import_source.is_some(), "jsxImportSource"),
         (options.root_dir.is_some(), "rootDir"),
         (options.source_root.is_some(), "sourceRoot"),
         (options.map_root.is_some(), "mapRoot"),
@@ -193,10 +196,15 @@ pub fn validate_bootstrap_emit_request(host: &dyn EmitHost) -> Result<(), EmitFa
         }
         emit_eligible_sources += 1;
         let name = source.path().to_string_lossy().to_ascii_lowercase();
-        let is_typescript =
-            name.ends_with(".ts") || name.ends_with(".mts") || name.ends_with(".cts");
+        let is_typescript = name.ends_with(".ts")
+            || name.ends_with(".mts")
+            || name.ends_with(".cts")
+            || name.ends_with(".tsx");
         let is_javascript = options.allow_js
-            && (name.ends_with(".js") || name.ends_with(".mjs") || name.ends_with(".cjs"));
+            && (name.ends_with(".js")
+                || name.ends_with(".mjs")
+                || name.ends_with(".cjs")
+                || name.ends_with(".jsx"));
         if !(is_typescript || is_javascript)
             || name.ends_with(".d.ts")
             || name.ends_with(".d.mts")
@@ -205,6 +213,16 @@ pub fn validate_bootstrap_emit_request(host: &dyn EmitHost) -> Result<(), EmitFa
             return Err(EmitFailure::UnsupportedSourceExtension {
                 path: source.path().to_path_buf(),
             });
+        }
+        if (name.ends_with(".tsx") || name.ends_with(".jsx"))
+            && (source
+                .syntax()
+                .is_some_and(|syntax| syntax.has_jsx_import_source_pragma)
+                || source.syntax().is_some_and(|syntax| {
+                    syntax.jsx_runtime_pragma.as_deref() == Some("automatic")
+                }))
+        {
+            return unsupported("jsxImportSource");
         }
         javascript_sources += usize::from(is_javascript);
     }
@@ -231,8 +249,15 @@ fn observe_javascript_source_routing(host: &dyn EmitHost, activity: &mut H2Activ
             continue;
         }
         let name = source.path().to_string_lossy().to_ascii_lowercase();
-        if name.ends_with(".js") || name.ends_with(".mjs") || name.ends_with(".cjs") {
+        if name.ends_with(".js")
+            || name.ends_with(".mjs")
+            || name.ends_with(".cjs")
+            || name.ends_with(".jsx")
+        {
             activity.observe_runtime_slice(H2RuntimeSlice::H2_3a);
+        }
+        if name.ends_with(".tsx") || name.ends_with(".jsx") {
+            activity.observe_runtime_slice(H2RuntimeSlice::H2_3b);
         }
     }
 }
@@ -257,7 +282,7 @@ pub fn emit_files(
     diagnostic_gate: &EmitDiagnosticGate,
     sink: &mut dyn OutputSink,
 ) -> Result<EmitOutcome, EmitFailure> {
-    let mut activity = H2ActivityCanary::h2_3a_profile();
+    let mut activity = H2ActivityCanary::h2_3b_profile();
     activity.construct_emit_session();
     activity.construct_output_plan();
     if !preflight.plan().units().is_empty() {

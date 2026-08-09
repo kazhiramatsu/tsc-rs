@@ -105,7 +105,7 @@ There is no single honest “100%” number spanning these surfaces:
 | Frozen batch-diagnostics implementation | M0-M8 complete | M9.1c-M9.7 confidence production, burn-in, freeze, and qualification |
 | Frozen filesystem `--noEmit` compiler | H0 complete | Preserve behavior and cost; do not route it through emitter setup |
 | Bounded one-shot JavaScript emit | H1.0-H1.6 complete and qualified | Preserve the frozen profile while broader one-shot emit expands under new evidence |
-| Broad one-shot `tsc` compilation | H2.0a/H2.0b/H2.1a-H2.1e/H2.2a-H2.2d/H2.3a complete; 303 exact module-format, TypeScript-transform, and JavaScript-source admissions; H2.3b next | JSX/JSON source families, remaining transform matrix, declarations, maps, output/config/CLI matrix, and complete emit suites |
+| Broad one-shot `tsc` compilation | H2.0a/H2.0b/H2.1a-H2.1e/H2.2a-H2.2d/H2.3a-H2.3b complete; 305 exact module-format, TypeScript-transform, JavaScript-source, and classic-JSX admissions; H2.3c next | Automatic JSX and JSON source families, remaining transform matrix, declarations, maps, output/config/CLI matrix, and complete emit suites |
 | Build/watch/project references | BLD1/W1 sliced after L2; preliminary seams only | Builder state, `.tsbuildinfo`, graph reuse, solution orchestration, watchers, and their suites |
 | Compiler API/custom transforms | API1 sliced after stable compiler/build contracts; not exposed | Stable AST/factory/printer/Program/TypeChecker contracts and callback lifetimes |
 | Persistent source + incremental parser | L0.4 and L1 complete and qualified; L2 sliced after H2 | Preserve fresh exactness and the large-edit budget; complete old-Program/resolution reuse |
