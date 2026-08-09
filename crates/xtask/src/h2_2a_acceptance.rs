@@ -1,4 +1,4 @@
-//! Hosted H2.1a acceptance projection over the source-dispositioned
+//! Hosted H2.2a acceptance projection over the source-dispositioned
 //! compiler/conformance rows in the pinned `ts-tests` tree.
 
 use std::error::Error;
@@ -16,9 +16,7 @@ use tsc_diagnostics::{Diagnostic, DiagnosticCategory, MessageChain};
 use tsc_harness::upstream_suites::execution::load_qualified_compiler_emit;
 use tsc_program::ProgramLoadLimits;
 
-const QUALIFICATION_RELATIVE_PATH: &str = "ratchets/h2-1a-qualification.v1.json";
-const H2_1E_QUALIFICATION_RELATIVE_PATH: &str = "ratchets/h2-1e-qualification.v1.json";
-const H2_2A_QUALIFICATION_RELATIVE_PATH: &str = "ratchets/h2-2a-qualification.v1.json";
+const QUALIFICATION_RELATIVE_PATH: &str = "ratchets/h2-2a-qualification.v1.json";
 
 fn failure(message: impl Into<String>) -> Box<dyn Error> {
     std::io::Error::other(message.into()).into()
@@ -35,14 +33,14 @@ fn sha256(bytes: impl AsRef<[u8]>) -> String {
 fn string<'a>(value: &'a Value, field: &str) -> Result<&'a str, Box<dyn Error>> {
     value[field]
         .as_str()
-        .ok_or_else(|| failure(format!("H2.1a field {field} is not a string")))
+        .ok_or_else(|| failure(format!("H2.2a field {field} is not a string")))
 }
 
 fn array<'a>(value: &'a Value, field: &str) -> Result<&'a [Value], Box<dyn Error>> {
     value[field]
         .as_array()
         .map(Vec::as_slice)
-        .ok_or_else(|| failure(format!("H2.1a field {field} is not an array")))
+        .ok_or_else(|| failure(format!("H2.2a field {field} is not an array")))
 }
 
 fn case_input(
@@ -51,7 +49,7 @@ fn case_input(
 ) -> Result<tsc_program::PreparedProgram, Box<dyn Error>> {
     let input = &case["input"];
     let current_directory = string(input, "current_directory")?;
-    let files = array(input, "files")?
+    let mut files = array(input, "files")?
         .iter()
         .map(|file| {
             let path = PathBuf::from(string(file, "path")?);
@@ -68,12 +66,27 @@ fn case_input(
             Ok((path, bytes))
         })
         .collect::<Result<Vec<_>, Box<dyn Error>>>()?;
+    if !input["virtual_config"].is_null() {
+        let config = &input["virtual_config"];
+        let path = PathBuf::from(string(config, "path")?);
+        let bytes =
+            base64::engine::general_purpose::STANDARD.decode(string(config, "utf8_base64")?)?;
+        if bytes.len() as u64 != config["utf8_bytes"].as_u64().unwrap_or(u64::MAX)
+            || sha256(&bytes) != string(config, "utf8_sha256")?
+        {
+            return Err(failure(format!(
+                "{}: virtual config identity differs",
+                path.display()
+            )));
+        }
+        files.push((path, bytes));
+    }
     let roots = array(input, "roots")?
         .iter()
         .map(|root| {
             root.as_str()
                 .map(PathBuf::from)
-                .ok_or_else(|| failure("H2.1a root is not a string"))
+                .ok_or_else(|| failure("H2.2a root is not a string"))
         })
         .collect::<Result<Vec<_>, _>>()?;
     let settings = array(input, "settings")?
@@ -229,38 +242,7 @@ fn assert_reported_diagnostics(
     Ok(())
 }
 
-fn assert_base_diagnostic_control(
-    case_id: &str,
-    case: &Value,
-    expected: &[Value],
-    actual: &[Diagnostic],
-) -> Result<(), Box<dyn Error>> {
-    let actual = normalize_diagnostics(actual);
-    if actual == expected {
-        return Err(failure(format!(
-            "{case_id}: base diagnostic divergence closed; promote this control to exact"
-        )));
-    }
-    let baseline = &case["diagnostic_disposition"]["h2_0b_rust_reported_diagnostics"];
-    let expected_count = baseline["count"]
-        .as_u64()
-        .ok_or_else(|| failure(format!("{case_id}: base diagnostic count is absent")))?;
-    let expected_sha256 = string(baseline, "sha256")?;
-    let actual_sha256 = sha256(serde_json::to_vec(&actual)?);
-    if actual.len() as u64 != expected_count || actual_sha256 != expected_sha256 {
-        return Err(failure(format!(
-            "{case_id}: base diagnostic control drifted: expected_count={expected_count} actual_count={} expected_sha256={expected_sha256} actual_sha256={actual_sha256}",
-            actual.len(),
-        )));
-    }
-    Ok(())
-}
-
-fn execute_observed(
-    workspace: &Path,
-    case: &Value,
-    exact_diagnostics: bool,
-) -> Result<(usize, usize), Box<dyn Error>> {
+fn execute_observed(workspace: &Path, case: &Value) -> Result<(usize, usize), Box<dyn Error>> {
     let case_id = string(case, "case_id")?;
     let mut first_sink = MemoryOutputSink::new();
     let (first, first_reported) = ProgramSession::new(case_input(workspace, case)?)
@@ -277,21 +259,12 @@ fn execute_observed(
     }
     let expected = &array(case, "typescript_runs")?[0];
     let expected_reported = array(expected, "reported_diagnostics")?;
-    if exact_diagnostics {
-        if case["diagnostic_disposition"]["state"] != "exact-required" {
-            return Err(failure(format!(
-                "{case_id}: exact case lacks its diagnostic disposition"
-            )));
-        }
-        assert_reported_diagnostics(case_id, expected_reported, &first_reported)?;
-    } else {
-        if case["diagnostic_disposition"]["state"] != "deferred-to-H2.9" {
-            return Err(failure(format!(
-                "{case_id}: output control lacks its diagnostic disposition"
-            )));
-        }
-        assert_base_diagnostic_control(case_id, case, expected_reported, &first_reported)?;
+    if case["diagnostic_disposition"]["state"] != "exact-required" {
+        return Err(failure(format!(
+            "{case_id}: exact case lacks its diagnostic disposition"
+        )));
     }
+    assert_reported_diagnostics(case_id, expected_reported, &first_reported)?;
     let actual_exit_code = if first.emit_skipped() && !first_reported.is_empty() {
         1
     } else if !first_reported.is_empty() {
@@ -310,7 +283,7 @@ fn execute_observed(
         || first.emitted_files().is_some() == expected["emit_result"]["emitted_files"].is_null()
         || first.source_maps().is_some() == expected["emit_result"]["source_maps"].is_null()
         || !array(expected, "status_writes")?.is_empty()
-        || (exact_diagnostics && expected["exit_code"].as_i64() != Some(actual_exit_code))
+        || expected["exit_code"].as_i64() != Some(actual_exit_code)
     {
         return Err(failure(format!(
             "{case_id}: exact Program.emit result differs"
@@ -327,23 +300,42 @@ fn execute_observed(
                 .count() as u64
         })
         .unwrap_or(0);
-    if activity.runtime_slice(H2RuntimeSlice::H2_1a) != reached_sources {
+    let enum_sources = case["files"]
+        .as_array()
+        .map(|files| {
+            files
+                .iter()
+                .filter(|file| {
+                    file["emit_eligible"] == true
+                        && file["feature_roots"].as_array().is_some_and(|roots| {
+                            roots.iter().any(|root| root["feature"] == "runtime-enums")
+                        })
+                })
+                .count() as u64
+        })
+        .unwrap_or(0);
+    if activity.runtime_slice(H2RuntimeSlice::H2_1a) != reached_sources
+        || activity.runtime_slice(H2RuntimeSlice::H2_1b) != 0
+        || activity.runtime_slice(H2RuntimeSlice::H2_1c) != 0
+        || activity.runtime_slice(H2RuntimeSlice::H2_1d) != 0
+        || activity.runtime_slice(H2RuntimeSlice::H2_1e) != 0
+        || activity.runtime_slice(H2RuntimeSlice::H2_2a) != enum_sources
+    {
         return Err(failure(format!(
-            "{case_id}: H2.1a activity does not match {reached_sources} reached sources"
+            "{case_id}: H2.1a/H2.2a activity does not match {reached_sources} reached and {enum_sources} enum sources"
         )));
     }
     for slice in H2RuntimeSlice::ALL {
-        if slice != H2RuntimeSlice::H2_1a && activity.runtime_slice(slice) != 0 {
+        if !matches!(slice, H2RuntimeSlice::H2_1a | H2RuntimeSlice::H2_2a)
+            && activity.runtime_slice(slice) != 0
+        {
             return Err(failure(format!(
                 "{case_id}: unadmitted {} activity",
                 slice.name()
             )));
         }
     }
-    Ok((
-        first_sink.writes().len(),
-        usize::from(exact_diagnostics) * first_reported.len(),
-    ))
+    Ok((first_sink.writes().len(), first_reported.len()))
 }
 
 #[derive(Default)]
@@ -367,7 +359,7 @@ fn deferred_failure(workspace: &Path, case: &Value) -> Result<String, Box<dyn Er
     let mut sink = CountingSink::default();
     let error = ProgramSession::new(prepared)
         .emit(&mut sink)
-        .expect_err("source-deferred H2.1a case must fail closed");
+        .expect_err("source-deferred H2.2a case must fail closed");
     if sink.writes != 0 {
         return Err(failure(format!(
             "{case_id}: deferred case wrote {} artifacts",
@@ -399,112 +391,40 @@ fn execute_deferred(workspace: &Path, case: &Value) -> Result<(), Box<dyn Error>
     Ok(())
 }
 
-fn promoted_to_h2_1e(case: &Value, h2_1e_cases: &[Value]) -> Result<bool, Box<dyn Error>> {
-    if !array(case, "required_slices")?
-        .iter()
-        .any(|slice| slice.as_str() == Some("H2.1e"))
-    {
-        return Ok(false);
-    }
-    let case_id = string(case, "case_id")?;
-    let promoted = h2_1e_cases
-        .iter()
-        .find(|candidate| candidate["case_id"].as_str() == Some(case_id))
-        .ok_or_else(|| failure(format!("{case_id}: H2.1e promotion is not recorded")))?;
-    if promoted["disposition"] != "admitted-for-execution"
-        || promoted["diagnostic_disposition"]["state"] != "exact-required"
-    {
-        return Err(failure(format!(
-            "{case_id}: H2.1e promotion is not an exact admission"
-        )));
-    }
-    Ok(true)
-}
-
-fn promoted_to_h2_2a(case: &Value, h2_2a_cases: &[Value]) -> Result<bool, Box<dyn Error>> {
-    if !array(case, "required_slices")?
-        .iter()
-        .any(|slice| slice.as_str() == Some("H2.2a"))
-    {
-        return Ok(false);
-    }
-    let case_id = string(case, "case_id")?;
-    let candidate = h2_2a_cases
-        .iter()
-        .find(|candidate| candidate["case_id"].as_str() == Some(case_id))
-        .ok_or_else(|| failure(format!("{case_id}: H2.2a disposition is not recorded")))?;
-    match candidate["disposition"].as_str() {
-        Some("admitted-for-execution")
-            if candidate["diagnostic_disposition"]["state"] == "exact-required" =>
-        {
-            Ok(true)
-        }
-        Some("deferred-to-slices")
-            if candidate["diagnostic_disposition"]["state"] == "not-observed-source-deferred" =>
-        {
-            Ok(false)
-        }
-        _ => Err(failure(format!(
-            "{case_id}: H2.2a disposition is not closed"
-        ))),
-    }
-}
-
-/// Validate all 295 historical H2.1a dispositions. Fully admitted rows compare
-/// every TypeScript observable twice, five trusted-base diagnostic controls
-/// retain exact output but no compatibility admission, and still-deferred rows
+/// Execute all 11 H2.2a candidates. Fully admitted rows compare every
+/// TypeScript observable twice, and source-deferred rows
 /// prove deterministic typed failure before the first sink callback twice.
-/// Rows promoted by H2.1e or H2.2a are joined to those exact qualifications
-/// and executed by their acceptance gates later in the same hosted command.
 pub fn run(workspace: &Path) -> Result<(), Box<dyn Error>> {
     let artifact: Value =
         serde_json::from_slice(&fs::read(workspace.join(QUALIFICATION_RELATIVE_PATH))?)?;
-    let h2_1e_artifact: Value = serde_json::from_slice(&fs::read(
-        workspace.join(H2_1E_QUALIFICATION_RELATIVE_PATH),
-    )?)?;
-    let h2_1e_cases = array(&h2_1e_artifact, "cases")?;
-    let h2_2a_artifact: Value = serde_json::from_slice(&fs::read(
-        workspace.join(H2_2A_QUALIFICATION_RELATIVE_PATH),
-    )?)?;
-    let h2_2a_cases = array(&h2_2a_artifact, "cases")?;
     if artifact["schema"] != 1
         || artifact["status"] != "qualified-typescript-oracle"
-        || artifact["phase"] != "H2.1a-implied-esm-source-and-emit"
-        || artifact["summary"]["candidates"] != 295
-        || artifact["summary"]["admitted_cases"] != 241
-        || artifact["summary"]["deferred_cases"] != 54
-        || artifact["summary"]["diagnostic_deferred_output_control_cases"] != 5
-        || artifact["summary"]["source_deferred_cases"] != 49
+        || artifact["phase"] != "H2.2a-runtime-and-const-enums"
+        || artifact["summary"]["candidates"] != 11
+        || artifact["summary"]["admitted_cases"] != 6
+        || artifact["summary"]["deferred_cases"] != 5
+        || artifact["summary"]["diagnostic_deferred_output_control_cases"] != 0
+        || artifact["summary"]["source_deferred_cases"] != 5
         || artifact["summary"]["unexecuted_candidates"] != 0
         || artifact["summary"]["undispositioned_candidates"] != 0
     {
-        return Err(failure("H2.1a qualification header is not closed"));
+        return Err(failure("H2.2a qualification header is not closed"));
     }
     let cases = array(&artifact, "cases")?;
-    if cases.len() != 295 {
-        return Err(failure("H2.1a qualification case denominator changed"));
+    if cases.len() != 11 {
+        return Err(failure("H2.2a qualification case denominator changed"));
     }
     let mut admitted = 0;
-    let mut output_controls = 0;
     let mut source_deferred = 0;
     let mut writes = 0;
-    let mut control_writes = 0;
     let mut diagnostics = 0;
     for case in cases {
         match string(case, "disposition")? {
             "admitted-for-execution" => {
                 admitted += 1;
-                let (case_writes, case_diagnostics) = execute_observed(workspace, case, true)?;
+                let (case_writes, case_diagnostics) = execute_observed(workspace, case)?;
                 writes += case_writes;
                 diagnostics += case_diagnostics;
-            }
-            "diagnostic-deferred-output-control" => {
-                output_controls += 1;
-                let (case_writes, case_diagnostics) = execute_observed(workspace, case, false)?;
-                control_writes += case_writes;
-                if case_diagnostics != 0 {
-                    return Err(failure("diagnostic output control counted as exact"));
-                }
             }
             "deferred-to-slices" => {
                 source_deferred += 1;
@@ -514,31 +434,22 @@ pub fn run(workspace: &Path) -> Result<(), Box<dyn Error>> {
                         string(case, "case_id")?
                     )));
                 }
-                if !promoted_to_h2_1e(case, h2_1e_cases)? && !promoted_to_h2_2a(case, h2_2a_cases)?
-                {
-                    execute_deferred(workspace, case)?;
-                }
+                execute_deferred(workspace, case)?;
             }
-            disposition => return Err(failure(format!("unknown H2.1a disposition {disposition}"))),
+            disposition => return Err(failure(format!("unknown H2.2a disposition {disposition}"))),
         }
     }
-    if admitted != 241
-        || output_controls != 5
-        || source_deferred != 49
-        || writes != 251
-        || control_writes != 5
-        || diagnostics != 499
-    {
+    if admitted != 6 || source_deferred != 5 || writes != 9 || diagnostics != 8 {
         return Err(failure(format!(
-            "H2.1a execution totals differ: admitted={admitted} output_controls={output_controls} source_deferred={source_deferred} writes={writes} control_writes={control_writes} diagnostics={diagnostics}"
+            "H2.2a execution totals differ: admitted={admitted} source_deferred={source_deferred} writes={writes} diagnostics={diagnostics}"
         )));
     }
     println!(
-        "H2.1a emit acceptance: candidates=295 exact={admitted} diagnostic_controls={output_controls} source_deferred={source_deferred} exact_diagnostics={diagnostics} exact_writes={writes} control_writes={control_writes} repetitions=2"
+        "H2.2a emit acceptance: candidates=11 exact={admitted} source_deferred={source_deferred} exact_diagnostics={diagnostics} exact_writes={writes} repetitions=2"
     );
     Ok(())
 }
 
 #[cfg(test)]
-#[path = "../tests/unit/h2_1a_acceptance/tests.rs"]
+#[path = "../tests/unit/h2_2a_acceptance/tests.rs"]
 mod tests;

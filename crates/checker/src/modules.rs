@@ -155,9 +155,9 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 64fe010400264ccd927bf7b73511da7c480cf87f60b40ed5c8f43c8090aea8eb
     /// tsc-span: _tsc.js:87870-87899
     ///
-    /// H2.1d consumes only the SourceFile result. Runtime enum and namespace
-    /// containers remain unreachable behind transformTypeScript's typed
-    /// feature boundary until H2.2a/H2.2b.
+    /// H2.1d consumes the SourceFile result. H2.2a additionally consumes the
+    /// nearest matching enum declaration; namespace declarations use the same
+    /// typed path when H2.2b admits their transform.
     pub(crate) fn emit_get_referenced_export_container(
         &mut self,
         node: NodeId,
@@ -191,19 +191,32 @@ impl<'a> CheckerState<'a> {
         let Some(parent) = self.get_parent_of_symbol(symbol) else {
             return Ok(None);
         };
-        let parent = self.binder.symbol(parent);
-        if !parent.flags.intersects(SymbolFlags::VALUE_MODULE) {
-            return Ok(None);
+        let parent = self.get_merged_symbol(parent);
+        let parent_data = self.binder.symbol(parent);
+        if parent_data.flags.intersects(SymbolFlags::VALUE_MODULE) {
+            if let Some(container) = parent_data.value_declaration {
+                if self.kind_of(container) == SyntaxKind::SourceFile {
+                    return Ok((self.binder.source_of_node(container).root
+                        == self.binder.source_of_node(node).root)
+                        .then_some(container));
+                }
+            }
         }
-        let Some(container) = parent.value_declaration else {
-            return Ok(None);
-        };
-        if self.kind_of(container) != SyntaxKind::SourceFile
-            || self.binder.source_of_node(container).root != self.binder.source_of_node(node).root
-        {
-            return Ok(None);
+        let mut ancestor = self.parent_of(node);
+        while let Some(current) = ancestor {
+            let is_container = matches!(
+                self.kind_of(current),
+                SyntaxKind::ModuleDeclaration | SyntaxKind::EnumDeclaration
+            );
+            if is_container {
+                let symbol = self.get_symbol_of_declaration(current)?;
+                if self.get_merged_symbol(symbol) == parent {
+                    return Ok(Some(current));
+                }
+            }
+            ancestor = self.parent_of(current);
         }
-        Ok(Some(container))
+        Ok(None)
     }
 
     /// tsc-port: getReferencedImportDeclaration @6.0.3

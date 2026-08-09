@@ -7,8 +7,9 @@ use tsc_types::NodeFlags;
 use crate::{
     create_text_writer, EmitFlags, EmitHelper, EmitHint, GeneratedUtf16Location, NewLineKind,
     SourceBytePosition, SourceByteRange, SourceMapRange, SourcePositionError, SourceRange,
-    TextWriter, TransformBundle, TransformError, TransformNode, TransformNodeArray,
-    TransformSourceId, TransformationResult, UnsupportedEmitFeature,
+    SyntheticComment, SyntheticCommentKind, TextWriter, TransformBundle, TransformError,
+    TransformNode, TransformNodeArray, TransformSourceId, TransformationResult,
+    UnsupportedEmitFeature,
 };
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
@@ -548,7 +549,13 @@ impl Printer {
                 if !changed {
                     self.write_original_without_leading_trivia(transformation, node, writer)
                 } else {
-                    writer.write_string_literal(&quote_string_literal(&data.text));
+                    let quoted = transformation
+                        .arena()
+                        .metadata(node)
+                        .and_then(crate::EmitMetadata::javascript_string_value)
+                        .map(|value| quote_javascript_string(value.code_units()))
+                        .unwrap_or_else(|| quote_string_literal(&data.text));
+                    writer.write_string_literal(&quoted);
                     Ok(())
                 }
             }
@@ -2637,7 +2644,9 @@ impl Printer {
             .node_ref(source, id)
             .ok_or(PrinterError::UnknownStatement(id.0))?;
         let substituted = transformation.substitute_node(EmitHint::Unspecified, node)?;
-        self.emit_transformed_node(transformation, substituted, writer)
+        self.emit_synthetic_leading_comments_for_node(transformation, substituted, writer)?;
+        self.emit_transformed_node(transformation, substituted, writer)?;
+        self.emit_synthetic_trailing_comments_for_node(transformation, substituted, writer)
     }
 
     fn write_original_without_leading_trivia(
@@ -2791,7 +2800,12 @@ impl Printer {
         after_sibling: bool,
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
-        if self.options.remove_comments {
+        if self.options.remove_comments
+            || transformation
+                .arena()
+                .metadata(node)
+                .is_some_and(|metadata| metadata.flags().intersects(EmitFlags::NO_LEADING_COMMENTS))
+        {
             return Ok(());
         }
         let original = transformation.arena().get_original_node(node);
@@ -2851,7 +2865,14 @@ impl Printer {
         node: TransformNode,
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
-        if self.options.remove_comments {
+        if self.options.remove_comments
+            || transformation
+                .arena()
+                .metadata(node)
+                .is_some_and(|metadata| {
+                    metadata.flags().intersects(EmitFlags::NO_TRAILING_COMMENTS)
+                })
+        {
             return Ok(());
         }
         let original = transformation.arena().get_original_node(node);
@@ -2863,6 +2884,62 @@ impl Printer {
             return Ok(());
         };
         emit_same_line_trailing_comments(&source.text()[range.end().value() as usize..], writer);
+        Ok(())
+    }
+
+    fn emit_synthetic_leading_comments_for_node(
+        &self,
+        transformation: &TransformationResult<'_>,
+        node: TransformNode,
+        writer: &mut TextWriter,
+    ) -> Result<(), PrinterError> {
+        if self.options.remove_comments {
+            return Ok(());
+        }
+        let comments = transformation
+            .arena()
+            .metadata(node)
+            .map(|metadata| metadata.leading_comments().to_vec())
+            .unwrap_or_default();
+        for comment in comments {
+            if comment.has_leading_new_line() {
+                writer.write_line(false);
+            }
+            write_synthetic_comment(&comment, writer);
+            if comment.has_trailing_new_line() {
+                writer.write_line(false);
+            } else {
+                writer.write_space(" ");
+            }
+        }
+        Ok(())
+    }
+
+    fn emit_synthetic_trailing_comments_for_node(
+        &self,
+        transformation: &TransformationResult<'_>,
+        node: TransformNode,
+        writer: &mut TextWriter,
+    ) -> Result<(), PrinterError> {
+        if self.options.remove_comments {
+            return Ok(());
+        }
+        let comments = transformation
+            .arena()
+            .metadata(node)
+            .map(|metadata| metadata.trailing_comments().to_vec())
+            .unwrap_or_default();
+        for comment in comments {
+            if comment.has_leading_new_line() {
+                writer.write_line(false);
+            } else {
+                writer.write_space(" ");
+            }
+            write_synthetic_comment(&comment, writer);
+            if comment.has_trailing_new_line() {
+                writer.write_line(false);
+            }
+        }
         Ok(())
     }
 
@@ -3467,6 +3544,73 @@ fn quote_string_literal(text: &str) -> String {
     }
     quoted.push('"');
     quoted
+}
+
+fn quote_javascript_string(units: &[u16]) -> String {
+    let mut quoted = String::with_capacity(units.len() + 2);
+    quoted.push('"');
+    let mut index = 0usize;
+    while index < units.len() {
+        let unit = units[index];
+        if (0xd800..=0xdbff).contains(&unit)
+            && units
+                .get(index + 1)
+                .is_some_and(|next| (0xdc00..=0xdfff).contains(next))
+        {
+            let next = units[index + 1];
+            let scalar = 0x10000 + (((unit - 0xd800) as u32) << 10) + (next - 0xdc00) as u32;
+            if let Some(character) = char::from_u32(scalar) {
+                push_quoted_character(&mut quoted, character);
+            }
+            index += 2;
+            continue;
+        }
+        if (0xd800..=0xdfff).contains(&unit) {
+            use std::fmt::Write;
+            let _ = write!(quoted, "\\u{unit:04x}");
+            index += 1;
+            continue;
+        }
+        if let Some(character) = char::from_u32(unit as u32) {
+            push_quoted_character(&mut quoted, character);
+        }
+        index += 1;
+    }
+    quoted.push('"');
+    quoted
+}
+
+fn push_quoted_character(quoted: &mut String, character: char) {
+    match character {
+        '"' => quoted.push_str("\\\""),
+        '\\' => quoted.push_str("\\\\"),
+        '\n' => quoted.push_str("\\n"),
+        '\r' => quoted.push_str("\\r"),
+        '\t' => quoted.push_str("\\t"),
+        '\u{0008}' => quoted.push_str("\\b"),
+        '\u{000c}' => quoted.push_str("\\f"),
+        '\u{2028}' => quoted.push_str("\\u2028"),
+        '\u{2029}' => quoted.push_str("\\u2029"),
+        character if character < '\u{0020}' => {
+            use std::fmt::Write;
+            let _ = write!(quoted, "\\u{:04x}", character as u32);
+        }
+        character => quoted.push(character),
+    }
+}
+
+fn write_synthetic_comment(comment: &SyntheticComment, writer: &mut TextWriter) {
+    match comment.kind() {
+        SyntheticCommentKind::SingleLine => {
+            writer.write_comment("//");
+            writer.write_comment(comment.text());
+        }
+        SyntheticCommentKind::MultiLine => {
+            writer.write_comment("/*");
+            writer.write_comment(comment.text());
+            writer.write_comment("*/");
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

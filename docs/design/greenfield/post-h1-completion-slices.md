@@ -1,7 +1,7 @@
 # Post-H1 TypeScript 6.0.3 completion slices
 
 Status: execution schedule approved on 2026-08-08. H0, L0/L1, H1, H2.0a,
-H2.0b, and H2.1a-H2.1e are complete. **H2.2a is the next slice.**
+H2.0b, H2.1a-H2.1e, and H2.2a are complete. **H2.2b is the next slice.**
 
 This document turns the audited post-H1 residual into branch-sized execution
 slices. It owns post-H1 slice IDs, dependency order, and slice-specific
@@ -399,11 +399,46 @@ The ordinary hosted boundary remains only `cargo xtask acceptance`; source
 generation, fault/worker controls, schema checks, and the complete H0/H1/L1
 regression gate remain local.
 
+H2.2a closed on 2026-08-09. The
+[qualification](../../../ratchets/h2-2a-qualification.v1.json) derives its
+denominator from the immutable H2.1a, H2.1b, and H2.1d rows whose first
+required owner was H2.2a, then observes all 11 cases twice with pinned
+TypeScript 6.0.3:
+
+- 6 rows are complete exact admissions, covering 8 reported diagnostics and
+  9 byte-, path-, order-, BOM-, provenance-, result-, exit-, and
+  activity-exact writes;
+- runtime enum IIFEs, numeric reverse mappings, string-valued members,
+  computed initializers, merged declarations, const-enum removal,
+  `preserveConstEnums`, constant access replacement, and original-access
+  comments are live through the checker-owned resolver and printer;
+- 5 rows that also reach namespace/module-declaration behavior remain
+  source-deferred to H2.2b (one additionally requires H2.2d). Each returns a
+  deterministic typed failure before the first sink callback; and
+- the H2.2a runtime counter fires only for reached enum-bearing sources, while
+  every later counter remains fail-closed.
+
+The [current runtime profile](../../../ratchets/h2-2a-profile.v1.json) and its
+[strict schema](../../../.github/ci/contracts/h2-2a-profile.schema.json)
+preserve every H2.1e authority byte for byte, mark H2.1a through H2.2a active,
+and name H2.2b as next. The monotonic profile has 272 exact cases, 526 exact
+reported diagnostics, 306 exact writes, 5 unchanged H2.9 diagnostic controls,
+and 18 source-deferred rows. Freshness is checked with:
+
+```text
+node crates/oracle/h2-2a-qualification.mjs --check
+node crates/oracle/h2-2a-profile.mjs --check
+```
+
+The ordinary hosted boundary remains only `cargo xtask acceptance`; profile
+generation, schema checks, focused controls, and the complete H0/H1/L1
+regression gate remain local.
+
 ### 4.3 TypeScript, source-kind, JSX, and decorator families
 
 | Slice | Scope | Dependencies and close evidence |
 | --- | --- | --- |
-| H2.2a | Runtime and const enum branches of `transformTypeScript`, including resolver constant values and helper/printer closure. | H2.1b. Enum preservation/inlining/runtime output and adjacent type-only erasure are exact. |
+| H2.2a — complete | Runtime and const enum branches of `transformTypeScript`, including resolver constant values and helper/printer closure. | H2.1b. Enum preservation/inlining/runtime output and adjacent type-only erasure are exact. |
 | H2.2b | Namespace/module-declaration runtime transforms and export-container behavior. | H2.2a. Nested/merged/global/module cases and resolver ownership are exact. |
 | H2.2c | Parameter properties and remaining class TypeScript syntax reachable at ESNext. | H2.2a. Constructor ordering, modifiers, declarations, and class-field interaction controls are exact. |
 | H2.2d | `import =`, `export =`, import elision/value preservation, and module-transform interaction. | H2.1b and H2.2a-H2.2c. Resolver alias/value decisions and module-specific outputs are exact. |

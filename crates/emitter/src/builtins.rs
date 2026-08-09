@@ -2,16 +2,16 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use tsc_program::SourceFileId;
 use tsc_syntax::{
-    for_each_child, for_each_child_array, try_visit_each_child, Node, NodeArrayId, NodeData,
-    NodeDataChildVisitor, NodeId, SyntaxKind,
+    for_each_child, for_each_child_array, skip_trivia, try_visit_each_child, Node, NodeArrayId,
+    NodeData, NodeDataChildVisitor, NodeId, SyntaxKind,
 };
 use tsc_types::{CompilerOptions, NodeFlags, ScriptTarget};
 
 use crate::{
-    EmitHint, EmitHost, EmitResolver, EmitResolverNode, H2ActivityCanary, H2RuntimeSlice,
-    TransformArena, TransformError, TransformFlags, TransformNode, TransformNodeArray,
-    TransformRoot, TransformSourceId, TransformationContext, Transformer,
-    UnsupportedTransformFeature,
+    EmitConstantValue, EmitFlags, EmitHint, EmitHost, EmitResolver, EmitResolverNode,
+    H2ActivityCanary, H2RuntimeSlice, SyntheticComment, SyntheticCommentKind, TransformArena,
+    TransformError, TransformFlags, TransformNode, TransformNodeArray, TransformRoot,
+    TransformSourceId, TransformationContext, Transformer, UnsupportedTransformFeature,
 };
 
 const MODULE_COMMON_JS: i32 = 1;
@@ -79,7 +79,7 @@ pub fn get_script_transformers<'resolver>(
     options: &CompilerOptions,
     resolver: &'resolver dyn EmitResolver,
 ) -> Result<Vec<Box<dyn Transformer + 'resolver>>, TransformError> {
-    let mut activity = H2ActivityCanary::h2_1e_profile();
+    let mut activity = H2ActivityCanary::h2_2a_profile();
     get_script_transformers_with_optional_host(options, resolver, None, &mut activity)
 }
 
@@ -153,6 +153,12 @@ fn get_script_transformers_with_optional_host<'transformers>(
         if owns_node_format {
             activity.observe_runtime_slice(H2RuntimeSlice::H2_1e);
         }
+        if source_record
+            .and_then(crate::EmitSource::syntax)
+            .is_some_and(source_contains_runtime_enum)
+        {
+            activity.observe_runtime_slice(H2RuntimeSlice::H2_2a);
+        }
     }
 
     activity.construct_script_transformer_list();
@@ -196,6 +202,10 @@ pub fn transform_type_script<'resolver>(
         resolver,
         always_strict: options.always_strict_effective(),
         module_kind: options.emit_module_kind(),
+        preserve_const_enums: options.should_preserve_const_enums(),
+        isolated_modules: options.isolated_modules == Some(true)
+            || options.verbatim_module_syntax == Some(true),
+        remove_comments: options.remove_comments == Some(true),
     })
 }
 
@@ -246,6 +256,9 @@ struct TypeScriptTransformer<'resolver> {
     resolver: &'resolver dyn EmitResolver,
     always_strict: bool,
     module_kind: i32,
+    preserve_const_enums: bool,
+    isolated_modules: bool,
+    remove_comments: bool,
 }
 
 impl Transformer for TypeScriptTransformer<'_> {
@@ -285,7 +298,14 @@ impl Transformer for TypeScriptTransformer<'_> {
         preflight_source(context.arena(), source, self.module_kind == MODULE_SYSTEM)?;
         initialize_transform_flags(context.arena_mut()?, source)?;
         let root_node = context.arena().root(source)?;
-        let mut visitor = TypeScriptVisitor::new(context, source, self.resolver);
+        let mut visitor = TypeScriptVisitor::new(
+            context,
+            source,
+            self.resolver,
+            self.preserve_const_enums,
+            self.isolated_modules,
+            self.remove_comments,
+        );
         let transformed =
             visitor
                 .visit(root_node.node())?
@@ -1463,6 +1483,21 @@ fn source_contains_import_attributes(source: &tsc_syntax::SourceFile) -> bool {
             _ => false,
         };
         if static_attributes || dynamic_attributes {
+            return true;
+        }
+        for_each_child(&source.arena, record, |child| {
+            stack.push(child);
+            false
+        });
+    }
+    false
+}
+
+fn source_contains_runtime_enum(source: &tsc_syntax::SourceFile) -> bool {
+    let mut stack = vec![source.root];
+    while let Some(id) = stack.pop() {
+        let record = source.arena.node(id);
+        if record.kind == SyntaxKind::EnumDeclaration {
             return true;
         }
         for_each_child(&source.arena, record, |child| {
@@ -4023,8 +4058,14 @@ struct TypeScriptVisitor<'context, 'resolver> {
     context: &'context mut TransformationContext,
     source: TransformSourceId,
     resolver: &'resolver dyn EmitResolver,
+    preserve_const_enums: bool,
+    isolated_modules: bool,
+    remove_comments: bool,
     nodes: BTreeMap<NodeId, Option<NodeId>>,
     arrays: BTreeMap<NodeArrayId, Option<NodeArrayId>>,
+    expanded_enums: BTreeMap<NodeId, Vec<NodeId>>,
+    emitted_enum_declarations: BTreeSet<(Option<NodeId>, String)>,
+    current_enum_container: Option<NodeId>,
 }
 
 impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
@@ -4032,13 +4073,22 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
         context: &'context mut TransformationContext,
         source: TransformSourceId,
         resolver: &'resolver dyn EmitResolver,
+        preserve_const_enums: bool,
+        isolated_modules: bool,
+        remove_comments: bool,
     ) -> Self {
         Self {
             context,
             source,
             resolver,
+            preserve_const_enums,
+            isolated_modules,
+            remove_comments,
             nodes: BTreeMap::new(),
             arrays: BTreeMap::new(),
+            expanded_enums: BTreeMap::new(),
+            emitted_enum_declarations: BTreeSet::new(),
+            current_enum_container: None,
         }
     }
 
@@ -4054,7 +4104,8 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
         let record = self.context.arena().node(original)?.clone();
         let kind = record.kind;
 
-        let transformed = if is_type_node(kind)
+        let transformed = if kind == SyntaxKind::EnumDeclaration
+            || is_type_node(kind)
             || is_typescript_modifier(kind)
             || (matches!(
                 kind,
@@ -4086,6 +4137,15 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
                 }
                 NodeData::NonNullExpression(data) => {
                     self.visit_partially_emitted(original, data.expression)?
+                }
+                NodeData::PropertyAccessExpression(data) => {
+                    self.visit_constant_access(original, NodeData::PropertyAccessExpression(data))?
+                }
+                NodeData::ElementAccessExpression(data) => {
+                    self.visit_constant_access(original, NodeData::ElementAccessExpression(data))?
+                }
+                NodeData::Identifier(data) => {
+                    self.visit_enum_initializer_identifier(original, data)?
                 }
                 NodeData::FunctionDeclaration(mut data) => {
                     if data.body.is_none()
@@ -4263,6 +4323,658 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
         };
         self.nodes.insert(id, transformed);
         Ok(transformed)
+    }
+
+    /// tsc-port: visitEnumDeclaration @6.0.3
+    /// tsc-hash: 932cc1ff33658d02275ad8c936dadbfeb77f89f6645b194ba826e38c5e1e676a
+    /// tsc-span: _tsc.js:95177-95311
+    fn visit_enum_declaration(&mut self, id: NodeId) -> Result<Vec<TransformNode>, TransformError> {
+        if let Some(expanded) = self.expanded_enums.get(&id) {
+            return Ok(expanded.iter().copied().map(|id| self.node(id)).collect());
+        }
+        let original = self.node(id);
+        let record = self.context.arena().node(original)?.clone();
+        let NodeData::EnumDeclaration(data) = record.data else {
+            return Err(TransformError::RequiredChildRemoved {
+                parent: record.kind,
+                field: "enum declaration",
+            });
+        };
+        let ambient = NodeFlags::from_bits(record.flags).contains(NodeFlags::AMBIENT)
+            || self.has_modifier(data.modifiers, SyntaxKind::DeclareKeyword)?;
+        let is_const = self.has_modifier(data.modifiers, SyntaxKind::ConstKeyword)?;
+        if ambient || is_const && !self.preserve_const_enums {
+            self.nodes.insert(id, None);
+            self.expanded_enums.insert(id, Vec::new());
+            return Ok(Vec::new());
+        }
+
+        let name_id = data.name.ok_or(TransformError::RequiredChildRemoved {
+            parent: SyntaxKind::EnumDeclaration,
+            field: "name",
+        })?;
+        let name = self.identifier_text(name_id)?.to_owned();
+        let first_in_scope = self
+            .emitted_enum_declarations
+            .insert((record.parent, name.clone()));
+        let mut statements = Vec::with_capacity(if first_in_scope { 2 } else { 1 });
+
+        if first_in_scope {
+            let declaration_name = self.create_identifier(&name)?;
+            let declaration = self.context.factory()?.create_node(
+                self.source,
+                NodeData::VariableDeclaration(tsc_syntax::nodes::VariableDeclarationData {
+                    name: Some(declaration_name.node()),
+                    exclamation_token: None,
+                    r#type: None,
+                    initializer: None,
+                }),
+                TransformFlags::NONE,
+            )?;
+            let modifiers = self.enum_runtime_modifiers(data.modifiers)?;
+            let flags = if record.parent.is_some_and(|parent| {
+                self.context
+                    .arena()
+                    .node_ref(self.source, parent)
+                    .and_then(|parent| self.context.arena().node(parent).ok())
+                    .is_some_and(|parent| parent.kind != SyntaxKind::SourceFile)
+            }) {
+                NodeFlags::LET
+            } else {
+                NodeFlags::NONE
+            };
+            let statement = self.create_variable_statement(vec![declaration], modifiers, flags)?;
+            self.set_original_and_range(statement, original)?;
+            self.context
+                .arena_mut()?
+                .metadata_mut(statement)
+                .add_flags(EmitFlags::NO_TRAILING_COMMENTS);
+            statements.push(statement);
+        }
+
+        let members = data
+            .members
+            .and_then(|members| self.context.arena().node_array_ref(self.source, members))
+            .map(|members| self.context.arena().node_array(members))
+            .transpose()?
+            .map(|members| members.nodes.clone())
+            .unwrap_or_default();
+        let previous_container = self.current_enum_container.replace(id);
+        let mut member_statements = Vec::with_capacity(members.len());
+        for member in members {
+            member_statements.push(self.transform_enum_member(member, &name)?);
+        }
+        self.current_enum_container = previous_container;
+        let body = self.create_block_from_array(member_statements, data.members, true)?;
+        let parameter = self.create_parameter(&name)?;
+        let function = self.create_function_expression(vec![parameter], body)?;
+        let function = self.create_parenthesized(function)?;
+
+        let export_name = self.create_identifier(&name)?;
+        let assignment_left = self.create_identifier(&name)?;
+        let object = self.create_object_literal()?;
+        let assignment = self.create_assignment(assignment_left, object)?;
+        let assignment = self.create_parenthesized(assignment)?;
+        let module_arg = self.create_binary(export_name, SyntaxKind::BarBarToken, assignment)?;
+        let call = self.create_call(function, vec![module_arg])?;
+        let enum_statement = self.create_expression_statement(call)?;
+        self.set_original_and_range(enum_statement, original)?;
+        let mut emit_flags = EmitFlags::ADVISE_ON_EMIT_NODE;
+        if first_in_scope {
+            emit_flags |= EmitFlags::NO_LEADING_COMMENTS;
+        }
+        self.context
+            .arena_mut()?
+            .metadata_mut(enum_statement)
+            .add_flags(emit_flags);
+        statements.push(enum_statement);
+
+        self.nodes.insert(id, None);
+        self.expanded_enums.insert(
+            id,
+            statements
+                .iter()
+                .map(|statement| statement.node())
+                .collect(),
+        );
+        Ok(statements)
+    }
+
+    fn transform_enum_member(
+        &mut self,
+        id: NodeId,
+        container_name: &str,
+    ) -> Result<TransformNode, TransformError> {
+        let original = self.node(id);
+        let NodeData::EnumMember(data) = self.context.arena().node(original)?.data.clone() else {
+            return Err(TransformError::RequiredChildRemoved {
+                parent: self.context.arena().node(original)?.kind,
+                field: "enum member",
+            });
+        };
+        let evaluated = self
+            .resolver
+            .get_enum_member_value(self.resolver_node(original)?)?;
+        let value_expression = if let Some(value) = evaluated
+            .as_ref()
+            .and_then(crate::EmitEnumMemberValue::value)
+        {
+            self.create_constant_expression(value)?
+        } else if let Some(initializer) = data.initializer {
+            self.visit(initializer)?
+                .map(|initializer| self.node(initializer))
+                .ok_or(TransformError::RequiredChildRemoved {
+                    parent: SyntaxKind::EnumMember,
+                    field: "initializer",
+                })?
+        } else {
+            self.create_void_zero()?
+        };
+        let name = data.name.ok_or(TransformError::RequiredChildRemoved {
+            parent: SyntaxKind::EnumMember,
+            field: "name",
+        })?;
+        let name_expression = self.enum_member_name_expression(name)?;
+        let reverse_name = self.context.factory()?.clone_node(name_expression)?;
+        let container = self.create_identifier(container_name)?;
+        let target = self.create_element_access(container, name_expression)?;
+        let inner_assignment = self.create_assignment(target, value_expression)?;
+        let is_string = evaluated.as_ref().is_some_and(|evaluated| {
+            matches!(evaluated.value(), Some(EmitConstantValue::String(_)))
+                || evaluated.is_syntactically_string()
+        });
+        let expression = if is_string {
+            inner_assignment
+        } else {
+            let container = self.create_identifier(container_name)?;
+            let target = self.create_element_access(container, inner_assignment)?;
+            self.create_assignment(target, reverse_name)?
+        };
+        self.set_original_and_range(expression, original)?;
+        let statement = self.create_expression_statement(expression)?;
+        self.set_original_and_range(statement, original)
+    }
+
+    fn enum_member_name_expression(&mut self, id: NodeId) -> Result<TransformNode, TransformError> {
+        let original = self.node(id);
+        match self.context.arena().node(original)?.data.clone() {
+            NodeData::Identifier(data) => self.create_string_literal(&data.text),
+            NodeData::StringLiteral(data) => self.create_string_literal(&data.text),
+            NodeData::NumericLiteral(data) => self.create_numeric_literal(&data.text),
+            NodeData::ComputedPropertyName(data) => {
+                let expression = data
+                    .expression
+                    .ok_or(TransformError::RequiredChildRemoved {
+                        parent: SyntaxKind::ComputedPropertyName,
+                        field: "expression",
+                    })?;
+                self.visit(expression)?
+                    .map(|expression| self.node(expression))
+                    .ok_or(TransformError::RequiredChildRemoved {
+                        parent: SyntaxKind::ComputedPropertyName,
+                        field: "expression",
+                    })
+            }
+            NodeData::PrivateIdentifier(_) => self.create_string_literal(""),
+            _ => Err(TransformError::RequiredChildRemoved {
+                parent: SyntaxKind::EnumMember,
+                field: "property name",
+            }),
+        }
+    }
+
+    fn visit_constant_access(
+        &mut self,
+        original: TransformNode,
+        data: NodeData,
+    ) -> Result<Option<NodeId>, TransformError> {
+        let updated = self.update_generic(original, data)?;
+        if self.isolated_modules {
+            return Ok(Some(updated));
+        }
+        let Some(value) = self
+            .resolver
+            .get_constant_value(self.resolver_node(original)?)?
+        else {
+            return Ok(Some(updated));
+        };
+        let substitute = self.create_constant_expression(&value)?;
+        self.set_original_and_range(substitute, original)?;
+        if !self.remove_comments {
+            let text = self.original_node_text(original)?.replace("*/", "*_/");
+            self.context
+                .arena_mut()?
+                .metadata_mut(substitute)
+                .add_trailing_comment(SyntheticComment::new(
+                    SyntheticCommentKind::MultiLine,
+                    format!(" {text} "),
+                    false,
+                    false,
+                ));
+        }
+        Ok(Some(substitute.node()))
+    }
+
+    fn visit_enum_initializer_identifier(
+        &mut self,
+        original: TransformNode,
+        data: tsc_syntax::nodes::IdentifierData,
+    ) -> Result<Option<NodeId>, TransformError> {
+        if self.current_enum_container.is_none() {
+            return Ok(Some(
+                self.update_generic(original, NodeData::Identifier(data))?,
+            ));
+        }
+        let Some(container) = self
+            .resolver
+            .get_referenced_export_container(self.resolver_node(original)?)?
+        else {
+            return Ok(Some(original.node()));
+        };
+        let Some(container) = self.context.arena().node_ref(self.source, container.node()) else {
+            return Ok(Some(original.node()));
+        };
+        let NodeData::EnumDeclaration(container_data) =
+            self.context.arena().node(container)?.data.clone()
+        else {
+            return Ok(Some(original.node()));
+        };
+        let Some(container_name) = container_data.name else {
+            return Ok(Some(original.node()));
+        };
+        let container_name = self.identifier_text(container_name)?.to_owned();
+        let container = self.create_identifier(&container_name)?;
+        let substituted = self.create_property_access(container, &data.text)?;
+        self.set_original_and_range(substituted, original)?;
+        Ok(Some(substituted.node()))
+    }
+
+    fn enum_runtime_modifiers(
+        &mut self,
+        modifiers: Option<NodeArrayId>,
+    ) -> Result<Option<NodeArrayId>, TransformError> {
+        let Some(modifiers) =
+            modifiers.and_then(|id| self.context.arena().node_array_ref(self.source, id))
+        else {
+            return Ok(None);
+        };
+        let retained = self
+            .context
+            .arena()
+            .node_array(modifiers)?
+            .nodes
+            .iter()
+            .filter_map(|id| self.context.arena().node_ref(self.source, *id))
+            .filter(|modifier| {
+                self.context.arena().node(*modifier).is_ok_and(|modifier| {
+                    modifier.kind != SyntaxKind::ConstKeyword
+                        && !is_typescript_modifier(modifier.kind)
+                })
+            })
+            .collect::<Vec<_>>();
+        if retained.is_empty() {
+            Ok(None)
+        } else {
+            Ok(Some(
+                self.context
+                    .factory()?
+                    .update_node_array(modifiers, retained)?
+                    .array(),
+            ))
+        }
+    }
+
+    fn original_node_text(&self, node: TransformNode) -> Result<String, TransformError> {
+        let original = self.context.arena().get_original_node(node);
+        let source = self.context.arena().source(original.source())?.syntax();
+        let record = self.context.arena().node(original)?;
+        if record.pos == u32::MAX || record.end == u32::MAX || record.pos > record.end {
+            return Ok(String::new());
+        }
+        let start = skip_trivia(source.text(), record.pos as usize);
+        Ok(source
+            .text()
+            .get(start..record.end as usize)
+            .unwrap_or_default()
+            .to_owned())
+    }
+
+    fn identifier_text(&self, id: NodeId) -> Result<&str, TransformError> {
+        match &self.context.arena().node(self.node(id))?.data {
+            NodeData::Identifier(data) => Ok(&data.text),
+            _ => Err(TransformError::RequiredChildRemoved {
+                parent: SyntaxKind::EnumDeclaration,
+                field: "identifier name",
+            }),
+        }
+    }
+
+    fn create_identifier(&mut self, text: &str) -> Result<TransformNode, TransformError> {
+        self.context.factory()?.create_node(
+            self.source,
+            NodeData::Identifier(tsc_syntax::nodes::IdentifierData {
+                escaped_text: text.to_owned(),
+                text: text.to_owned(),
+            }),
+            TransformFlags::NONE,
+        )
+    }
+
+    fn create_numeric_literal(&mut self, text: &str) -> Result<TransformNode, TransformError> {
+        self.context.factory()?.create_node(
+            self.source,
+            NodeData::NumericLiteral(tsc_syntax::nodes::NumericLiteralData {
+                text: text.to_owned(),
+            }),
+            TransformFlags::NONE,
+        )
+    }
+
+    fn create_string_literal(&mut self, text: &str) -> Result<TransformNode, TransformError> {
+        self.context.factory()?.create_node(
+            self.source,
+            NodeData::StringLiteral(tsc_syntax::nodes::StringLiteralData {
+                text: text.to_owned(),
+                has_extended_unicode_escape: None,
+            }),
+            TransformFlags::NONE,
+        )
+    }
+
+    fn create_constant_expression(
+        &mut self,
+        value: &EmitConstantValue,
+    ) -> Result<TransformNode, TransformError> {
+        match value {
+            EmitConstantValue::String(value) => {
+                let text = String::from_utf16_lossy(value.code_units());
+                let literal = self.create_string_literal(&text)?;
+                self.context
+                    .arena_mut()?
+                    .metadata_mut(literal)
+                    .set_javascript_string_value(value.clone());
+                Ok(literal)
+            }
+            EmitConstantValue::Number(value) => {
+                let value = value.as_f64();
+                if value.is_nan() {
+                    return self.create_identifier("NaN");
+                }
+                if value == f64::INFINITY {
+                    return self.create_identifier("Infinity");
+                }
+                if value == f64::NEG_INFINITY {
+                    let infinity = self.create_identifier("Infinity")?;
+                    return self.create_prefix_unary(SyntaxKind::MinusToken, infinity);
+                }
+                if value < 0.0 {
+                    let literal =
+                        self.create_numeric_literal(&tsc_types::js_number_to_string(-value))?;
+                    self.create_prefix_unary(SyntaxKind::MinusToken, literal)
+                } else {
+                    self.create_numeric_literal(&tsc_types::js_number_to_string(value))
+                }
+            }
+            EmitConstantValue::Boolean(value) => {
+                self.create_identifier(if *value { "true" } else { "false" })
+            }
+        }
+    }
+
+    fn create_prefix_unary(
+        &mut self,
+        operator: SyntaxKind,
+        operand: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        self.context.factory()?.create_node(
+            self.source,
+            NodeData::PrefixUnaryExpression(tsc_syntax::nodes::PrefixUnaryExpressionData {
+                operator,
+                operand: Some(operand.node()),
+            }),
+            TransformFlags::NONE,
+        )
+    }
+
+    fn create_object_literal(&mut self) -> Result<TransformNode, TransformError> {
+        let properties = self
+            .context
+            .factory()?
+            .create_node_array(self.source, Vec::new())?;
+        self.context.factory()?.create_node(
+            self.source,
+            NodeData::ObjectLiteralExpression(tsc_syntax::nodes::ObjectLiteralExpressionData {
+                properties: Some(properties.array()),
+            }),
+            TransformFlags::NONE,
+        )
+    }
+
+    fn create_property_access(
+        &mut self,
+        expression: TransformNode,
+        name: &str,
+    ) -> Result<TransformNode, TransformError> {
+        let name = self.create_identifier(name)?;
+        self.context.factory()?.create_node(
+            self.source,
+            NodeData::PropertyAccessExpression(tsc_syntax::nodes::PropertyAccessExpressionData {
+                name: Some(name.node()),
+                expression: Some(expression.node()),
+                question_dot_token: None,
+            }),
+            TransformFlags::NONE,
+        )
+    }
+
+    fn create_element_access(
+        &mut self,
+        expression: TransformNode,
+        argument: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        self.context.factory()?.create_node(
+            self.source,
+            NodeData::ElementAccessExpression(tsc_syntax::nodes::ElementAccessExpressionData {
+                expression: Some(expression.node()),
+                question_dot_token: None,
+                argument_expression: Some(argument.node()),
+            }),
+            TransformFlags::NONE,
+        )
+    }
+
+    fn create_binary(
+        &mut self,
+        left: TransformNode,
+        operator: SyntaxKind,
+        right: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        let operator =
+            self.context
+                .factory()?
+                .create_token(self.source, operator, TransformFlags::NONE)?;
+        self.context.factory()?.create_node(
+            self.source,
+            NodeData::BinaryExpression(tsc_syntax::nodes::BinaryExpressionData {
+                left: Some(left.node()),
+                operator_token: Some(operator.node()),
+                right: Some(right.node()),
+            }),
+            TransformFlags::NONE,
+        )
+    }
+
+    fn create_assignment(
+        &mut self,
+        left: TransformNode,
+        right: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        self.create_binary(left, SyntaxKind::EqualsToken, right)
+    }
+
+    fn create_parenthesized(
+        &mut self,
+        expression: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        self.context.factory()?.create_node(
+            self.source,
+            NodeData::ParenthesizedExpression(tsc_syntax::nodes::ParenthesizedExpressionData {
+                expression: Some(expression.node()),
+            }),
+            TransformFlags::NONE,
+        )
+    }
+
+    fn create_call(
+        &mut self,
+        expression: TransformNode,
+        arguments: Vec<TransformNode>,
+    ) -> Result<TransformNode, TransformError> {
+        let arguments = self
+            .context
+            .factory()?
+            .create_node_array(self.source, arguments)?;
+        self.context.factory()?.create_node(
+            self.source,
+            NodeData::CallExpression(tsc_syntax::nodes::CallExpressionData {
+                expression: Some(expression.node()),
+                question_dot_token: None,
+                type_arguments: None,
+                arguments: Some(arguments.array()),
+            }),
+            TransformFlags::NONE,
+        )
+    }
+
+    fn create_parameter(&mut self, name: &str) -> Result<TransformNode, TransformError> {
+        let name = self.create_identifier(name)?;
+        self.context.factory()?.create_node(
+            self.source,
+            NodeData::Parameter(tsc_syntax::nodes::ParameterData {
+                name: Some(name.node()),
+                modifiers: None,
+                dot_dot_dot_token: None,
+                question_token: None,
+                r#type: None,
+                initializer: None,
+            }),
+            TransformFlags::NONE,
+        )
+    }
+
+    fn create_function_expression(
+        &mut self,
+        parameters: Vec<TransformNode>,
+        body: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        let parameters = self
+            .context
+            .factory()?
+            .create_node_array(self.source, parameters)?;
+        self.context.factory()?.create_node(
+            self.source,
+            NodeData::FunctionExpression(tsc_syntax::nodes::FunctionExpressionData {
+                name: None,
+                type_parameters: None,
+                parameters: Some(parameters.array()),
+                r#type: None,
+                asterisk_token: None,
+                body: Some(body.node()),
+                modifiers: None,
+            }),
+            TransformFlags::NONE,
+        )
+    }
+
+    fn create_expression_statement(
+        &mut self,
+        expression: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        self.context.factory()?.create_node(
+            self.source,
+            NodeData::ExpressionStatement(tsc_syntax::nodes::ExpressionStatementData {
+                expression: Some(expression.node()),
+            }),
+            TransformFlags::NONE,
+        )
+    }
+
+    fn create_void_zero(&mut self) -> Result<TransformNode, TransformError> {
+        let zero = self.create_numeric_literal("0")?;
+        self.context.factory()?.create_node(
+            self.source,
+            NodeData::VoidExpression(tsc_syntax::nodes::VoidExpressionData {
+                expression: Some(zero.node()),
+            }),
+            TransformFlags::NONE,
+        )
+    }
+
+    fn create_variable_statement(
+        &mut self,
+        declarations: Vec<TransformNode>,
+        modifiers: Option<NodeArrayId>,
+        flags: NodeFlags,
+    ) -> Result<TransformNode, TransformError> {
+        let declarations = self
+            .context
+            .factory()?
+            .create_node_array(self.source, declarations)?;
+        let list = self.context.factory()?.create_node(
+            self.source,
+            NodeData::VariableDeclarationList(tsc_syntax::nodes::VariableDeclarationListData {
+                declarations: Some(declarations.array()),
+            }),
+            TransformFlags::NONE,
+        )?;
+        self.context.factory()?.set_node_flags(list, flags)?;
+        self.context.factory()?.create_node(
+            self.source,
+            NodeData::VariableStatement(tsc_syntax::nodes::VariableStatementData {
+                modifiers,
+                declaration_list: Some(list.node()),
+            }),
+            TransformFlags::NONE,
+        )
+    }
+
+    fn create_block_from_array(
+        &mut self,
+        statements: Vec<TransformNode>,
+        original_array: Option<NodeArrayId>,
+        multi_line: bool,
+    ) -> Result<TransformNode, TransformError> {
+        let statements = if let Some(original) =
+            original_array.and_then(|array| self.context.arena().node_array_ref(self.source, array))
+        {
+            self.context
+                .factory()?
+                .update_node_array(original, statements)?
+        } else {
+            self.context
+                .factory()?
+                .create_node_array(self.source, statements)?
+        };
+        let block = self.context.factory()?.create_node(
+            self.source,
+            NodeData::Block(tsc_syntax::nodes::BlockData {
+                statements: Some(statements.array()),
+            }),
+            TransformFlags::NONE,
+        )?;
+        self.context.factory()?.set_multi_line(block, multi_line)
+    }
+
+    fn set_original_and_range(
+        &mut self,
+        node: TransformNode,
+        original: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        self.context.factory()?.set_text_range(node, original)?;
+        self.context
+            .arena_mut()?
+            .set_original_node(node, Some(original))?;
+        Ok(node)
     }
 
     fn update_generic(
@@ -4541,7 +5253,9 @@ impl NodeDataChildVisitor for TypeScriptVisitor<'_, '_> {
         let nodes = self.context.arena().node_array(original)?.nodes.clone();
         let mut visited = Vec::with_capacity(nodes.len());
         for node in nodes {
-            if let Some(node) = self.visit(node)? {
+            if self.context.arena().node(self.node(node))?.kind == SyntaxKind::EnumDeclaration {
+                visited.extend(self.visit_enum_declaration(node)?);
+            } else if let Some(node) = self.visit(node)? {
                 visited.push(self.node(node));
             }
         }
@@ -4562,7 +5276,7 @@ impl NodeDataChildVisitor for TypeScriptVisitor<'_, '_> {
 fn preflight_source(
     arena: &TransformArena,
     source: TransformSourceId,
-    allow_ambient_enum_and_module_erasure: bool,
+    allow_ambient_module_erasure: bool,
 ) -> Result<(), TransformError> {
     let syntax = arena.source(source)?.syntax();
     if !syntax.parse_diagnostics.is_empty() {
@@ -4589,14 +5303,8 @@ fn preflight_source(
         let feature = match node.kind {
             SyntaxKind::Decorator => Some(UnsupportedTransformFeature::Decorators),
             SyntaxKind::ImportEqualsDeclaration => Some(UnsupportedTransformFeature::ImportEquals),
-            SyntaxKind::EnumDeclaration
-                if !allow_ambient_enum_and_module_erasure
-                    || !NodeFlags::from_bits(node.flags).contains(NodeFlags::AMBIENT) =>
-            {
-                Some(UnsupportedTransformFeature::RuntimeEnums)
-            }
             SyntaxKind::ModuleDeclaration
-                if !allow_ambient_enum_and_module_erasure
+                if !allow_ambient_module_erasure
                     || !NodeFlags::from_bits(node.flags).contains(NodeFlags::AMBIENT) =>
             {
                 Some(UnsupportedTransformFeature::RuntimeNamespaces)

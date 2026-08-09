@@ -46,8 +46,8 @@ pub use factory::{
 };
 pub use host::{EmitHost, EmitSource};
 pub use metadata::{
-    EmitConstantValue, EmitFlags, EmitMetadata, InternalEmitFlags, JavaScriptString,
-    SourceMapRange, SyntheticComment, SyntheticCommentKind,
+    EmitConstantValue, EmitEnumMemberValue, EmitFlags, EmitMetadata, InternalEmitFlags,
+    JavaScriptNumber, JavaScriptString, SourceMapRange, SyntheticComment, SyntheticCommentKind,
 };
 pub use outcome::{EmitOutcome, SourceMapObservation};
 pub use plan::{

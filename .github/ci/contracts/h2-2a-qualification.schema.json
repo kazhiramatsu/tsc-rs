@@ -1,0 +1,525 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/kazhiramatsu/tsc-rs/.github/ci/contracts/h2-2a-qualification.schema.json",
+  "title": "tsc-rs H2.2a runtime and const enum qualification",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "status",
+    "phase",
+    "typescript",
+    "generator",
+    "contract",
+    "origin",
+    "inputs",
+    "execution_contract",
+    "owner_closure",
+    "cases",
+    "summary",
+    "qualification_fingerprint_sha256"
+  ],
+  "properties": {
+    "schema": { "const": 1 },
+    "status": { "const": "qualified-typescript-oracle" },
+    "phase": { "const": "H2.2a-runtime-and-const-enums" },
+    "typescript": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["version", "source_commit", "bundle", "implementation"],
+      "properties": {
+        "version": { "const": "6.0.3" },
+        "source_commit": { "$ref": "#/$defs/sha1" },
+        "bundle": { "$ref": "#/$defs/path_hash" },
+        "implementation": { "$ref": "#/$defs/path_hash" }
+      }
+    },
+    "generator": { "$ref": "#/$defs/path_hash" },
+    "contract": { "$ref": "#/$defs/path_hash" },
+    "origin": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["h2_1e_merge", "h2_1e_profile"],
+      "properties": {
+        "h2_1e_merge": { "$ref": "#/$defs/sha1" },
+        "h2_1e_profile": { "$ref": "#/$defs/path_hash" }
+      }
+    },
+    "inputs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "compiler_classification",
+        "conformance_classification",
+        "compiler_expansion",
+        "conformance_expansion",
+        "owner_inventory",
+        "h2_1a_qualification",
+        "h2_1b_qualification",
+        "h2_1d_qualification"
+      ],
+      "properties": {
+        "compiler_classification": { "$ref": "#/$defs/path_hash" },
+        "conformance_classification": { "$ref": "#/$defs/path_hash" },
+        "compiler_expansion": { "$ref": "#/$defs/path_hash" },
+        "conformance_expansion": { "$ref": "#/$defs/path_hash" },
+        "owner_inventory": { "$ref": "#/$defs/path_hash" },
+        "h2_1a_qualification": { "$ref": "#/$defs/path_hash" },
+        "h2_1b_qualification": { "$ref": "#/$defs/path_hash" },
+        "h2_1d_qualification": { "$ref": "#/$defs/path_hash" }
+      }
+    },
+    "execution_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_reachability",
+        "module_selection",
+        "admission",
+        "typescript_repetitions",
+        "rust_repetitions",
+        "normalization",
+        "deferred_boundary"
+      ],
+      "properties": {
+        "source_reachability": { "type": "string", "minLength": 1 },
+        "module_selection": { "type": "string", "minLength": 1 },
+        "admission": { "type": "string", "minLength": 1 },
+        "typescript_repetitions": { "const": 2 },
+        "rust_repetitions": { "const": 2 },
+        "normalization": { "const": "none" },
+        "deferred_boundary": { "const": "typed failure before first sink write" }
+      }
+    },
+    "owner_closure": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 1,
+      "items": { "$ref": "#/$defs/owner" }
+    },
+    "cases": {
+      "type": "array",
+      "minItems": 11,
+      "maxItems": 11,
+      "items": { "$ref": "#/$defs/case" }
+    },
+    "summary": { "$ref": "#/$defs/summary" },
+    "qualification_fingerprint_sha256": { "$ref": "#/$defs/sha256" }
+  },
+  "$defs": {
+    "sha1": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "path_hash": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256"],
+      "properties": {
+        "path": { "type": "string", "minLength": 1 },
+        "sha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "position": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["offset", "line", "character"],
+      "properties": {
+        "offset": { "type": "integer", "minimum": 0 },
+        "line": { "type": "integer", "minimum": 1 },
+        "character": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "declaration": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "source",
+        "name",
+        "kind",
+        "lexical_path",
+        "source_range",
+        "declaration_sha256",
+        "body_sha256",
+        "ledger_slice_sha256"
+      ],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "source": { "type": "string", "minLength": 1 },
+        "name": { "type": "string", "minLength": 1 },
+        "kind": { "type": "string", "minLength": 1 },
+        "lexical_path": { "type": "string", "minLength": 1 },
+        "source_range": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["start", "end"],
+          "properties": {
+            "start": { "$ref": "#/$defs/position" },
+            "end": { "$ref": "#/$defs/position" }
+          }
+        },
+        "declaration_sha256": { "$ref": "#/$defs/sha256" },
+        "body_sha256": { "$ref": "#/$defs/sha256" },
+        "ledger_slice_sha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "owner": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["key", "declaration", "disposition_before_h2_2a"],
+      "properties": {
+        "key": { "const": "transform-typescript" },
+        "declaration": { "$ref": "#/$defs/declaration" },
+        "disposition_before_h2_2a": { "const": "partial-h1-residual" }
+      }
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "bytes", "sha256", "git_blob_sha1"],
+      "properties": {
+        "path": { "type": "string", "minLength": 1 },
+        "bytes": { "type": "integer", "minimum": 0 },
+        "sha256": { "$ref": "#/$defs/sha256" },
+        "git_blob_sha1": { "$ref": "#/$defs/sha1" }
+      }
+    },
+    "input_file": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["unit", "path", "utf8_base64", "utf8_sha256", "utf8_bytes"],
+      "properties": {
+        "unit": { "type": "integer", "minimum": 0 },
+        "path": { "type": "string", "minLength": 1 },
+        "utf8_base64": { "type": "string" },
+        "utf8_sha256": { "$ref": "#/$defs/sha256" },
+        "utf8_bytes": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "input_config": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "utf8_base64", "utf8_sha256", "utf8_bytes"],
+      "properties": {
+        "path": { "type": "string", "minLength": 1 },
+        "utf8_base64": { "type": "string" },
+        "utf8_sha256": { "$ref": "#/$defs/sha256" },
+        "utf8_bytes": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "setting": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "value"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "value": { "type": "string" }
+      }
+    },
+    "input": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["current_directory", "roots", "settings", "virtual_config", "files"],
+      "properties": {
+        "current_directory": { "type": "string", "minLength": 1 },
+        "roots": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "settings": { "type": "array", "items": { "$ref": "#/$defs/setting" } },
+        "virtual_config": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/input_config" }
+          ]
+        },
+        "files": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/input_file" }
+        }
+      }
+    },
+    "feature_root": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["feature", "start", "end", "kind"],
+      "properties": {
+        "feature": {
+          "enum": [
+            "decorators",
+            "export-equals",
+            "import-equals",
+            "jsx",
+            "parameter-properties",
+            "runtime-enums",
+            "runtime-namespaces"
+          ]
+        },
+        "start": { "type": "integer", "minimum": 0 },
+        "end": { "type": "integer", "minimum": 0 },
+        "kind": { "type": "string", "minLength": 1 }
+      }
+    },
+    "file": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "unit",
+        "path",
+        "script_kind",
+        "declaration_file",
+        "emit_eligible",
+        "implied_module_format",
+        "emit_module_format",
+        "feature_roots",
+        "parse_diagnostic_codes",
+        "max_ast_depth",
+        "import_attributes",
+        "advanced_comment_placement",
+        "text_sha256"
+      ],
+      "properties": {
+        "unit": { "type": "integer", "minimum": 0 },
+        "path": { "type": "string", "minLength": 1 },
+        "script_kind": {
+          "enum": ["Unknown", "JS", "JSX", "TS", "TSX", "External", "JSON", "Deferred"]
+        },
+        "declaration_file": { "type": "boolean" },
+        "emit_eligible": { "type": "boolean" },
+        "implied_module_format": { "enum": ["None", "CommonJS", "ESModule"] },
+        "emit_module_format": { "type": "integer" },
+        "feature_roots": { "type": "array", "items": { "$ref": "#/$defs/feature_root" } },
+        "parse_diagnostic_codes": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "integer", "minimum": 0 }
+        },
+        "max_ast_depth": { "type": "integer", "minimum": 1 },
+        "import_attributes": { "type": "boolean" },
+        "advanced_comment_placement": { "type": "boolean" },
+        "text_sha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "diagnostic": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["code", "category", "file", "start", "length", "message"],
+      "properties": {
+        "code": { "type": "integer", "minimum": 0 },
+        "category": { "type": "string", "minLength": 1 },
+        "file": { "type": ["string", "null"] },
+        "start": { "type": ["integer", "null"], "minimum": 0 },
+        "length": { "type": ["integer", "null"], "minimum": 0 },
+        "message": { "type": "string" }
+      }
+    },
+    "write": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "index",
+        "path",
+        "kind",
+        "callback_utf8_base64",
+        "callback_utf8_sha256",
+        "callback_utf8_bytes",
+        "write_byte_order_mark",
+        "materialized_utf8_sha256",
+        "materialized_utf8_bytes",
+        "on_error_callback_present",
+        "source_files"
+      ],
+      "properties": {
+        "index": { "type": "integer", "minimum": 0 },
+        "path": { "type": "string", "minLength": 1 },
+        "kind": {
+          "enum": ["javascript", "jsx", "mjs", "cjs", "declaration", "source-map", "other"]
+        },
+        "callback_utf8_base64": { "type": "string" },
+        "callback_utf8_sha256": { "$ref": "#/$defs/sha256" },
+        "callback_utf8_bytes": { "type": "integer", "minimum": 0 },
+        "write_byte_order_mark": { "type": "boolean" },
+        "materialized_utf8_sha256": { "$ref": "#/$defs/sha256" },
+        "materialized_utf8_bytes": { "type": "integer", "minimum": 0 },
+        "on_error_callback_present": { "type": "boolean" },
+        "source_files": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "emit_result": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["emit_skipped", "diagnostics", "emitted_files", "source_maps"],
+      "properties": {
+        "emit_skipped": { "type": "boolean" },
+        "diagnostics": { "type": "array", "items": { "$ref": "#/$defs/diagnostic" } },
+        "emitted_files": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "array", "items": { "type": "string" } }
+          ]
+        },
+        "source_maps": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "array" }
+          ]
+        }
+      }
+    },
+    "run": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "writes",
+        "reported_diagnostics",
+        "emit_result",
+        "status_writes",
+        "exit_code",
+        "run_fingerprint_sha256"
+      ],
+      "properties": {
+        "writes": { "type": "array", "items": { "$ref": "#/$defs/write" } },
+        "reported_diagnostics": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/diagnostic" }
+        },
+        "emit_result": { "$ref": "#/$defs/emit_result" },
+        "status_writes": { "type": "array", "items": { "type": "string" } },
+        "exit_code": { "type": "integer", "minimum": 0 },
+        "run_fingerprint_sha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "case": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "suite",
+        "case_id",
+        "expansion_case",
+        "source",
+        "module_state",
+        "input",
+        "files",
+        "owner_reachability",
+        "disposition",
+        "required_slices",
+        "diagnostic_disposition",
+        "typescript_runs",
+        "rust_expectation",
+        "case_fingerprint_sha256"
+      ],
+      "properties": {
+        "suite": { "enum": ["compiler", "conformance"] },
+        "case_id": { "type": "string", "minLength": 1 },
+        "expansion_case": { "type": "integer", "minimum": 0 },
+        "source": { "$ref": "#/$defs/source" },
+        "module_state": {
+          "enum": ["absent-effective-ESNext", "CommonJS(1)", "System(4)"]
+        },
+        "input": { "$ref": "#/$defs/input" },
+        "files": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/file" } },
+        "owner_reachability": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 1,
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "disposition": {
+          "enum": ["admitted-for-execution", "deferred-to-slices"]
+        },
+        "required_slices": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string", "pattern": "^H2\\.[0-9]+[a-z]$" }
+        },
+        "diagnostic_disposition": {
+          "oneOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["state"],
+              "properties": { "state": { "const": "exact-required" } }
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["state"],
+              "properties": { "state": { "const": "not-observed-source-deferred" } }
+            }
+          ]
+        },
+        "typescript_runs": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "items": { "$ref": "#/$defs/run" }
+        },
+        "rust_expectation": {
+          "enum": ["two-deterministic-exact-runs", "typed-failure-before-first-sink-write"]
+        },
+        "case_fingerprint_sha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "count_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["value", "cases"],
+      "properties": {
+        "value": { "type": "string", "minLength": 1 },
+        "cases": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "candidates",
+        "compiler_candidates",
+        "conformance_candidates",
+        "admitted_cases",
+        "deferred_cases",
+        "diagnostic_deferred_output_control_cases",
+        "source_deferred_cases",
+        "no_emit_control_cases",
+        "module_states",
+        "dispositions",
+        "first_deferred_slices",
+        "typescript_runs",
+        "deterministic_typescript_cases",
+        "admitted_typescript_writes",
+        "diagnostic_control_typescript_writes",
+        "admitted_typescript_diagnostics",
+        "unexecuted_candidates",
+        "undispositioned_candidates"
+      ],
+      "properties": {
+        "candidates": { "const": 11 },
+        "compiler_candidates": { "const": 7 },
+        "conformance_candidates": { "const": 4 },
+        "admitted_cases": { "const": 6 },
+        "deferred_cases": { "const": 5 },
+        "diagnostic_deferred_output_control_cases": { "const": 0 },
+        "source_deferred_cases": { "const": 5 },
+        "no_emit_control_cases": { "const": 0 },
+        "module_states": { "type": "array", "items": { "$ref": "#/$defs/count_row" } },
+        "dispositions": { "type": "array", "items": { "$ref": "#/$defs/count_row" } },
+        "first_deferred_slices": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/count_row" }
+        },
+        "typescript_runs": { "const": 22 },
+        "deterministic_typescript_cases": { "const": 11 },
+        "admitted_typescript_writes": { "const": 9 },
+        "diagnostic_control_typescript_writes": { "const": 0 },
+        "admitted_typescript_diagnostics": { "const": 8 },
+        "unexecuted_candidates": { "const": 0 },
+        "undispositioned_candidates": { "const": 0 }
+      }
+    }
+  }
+}

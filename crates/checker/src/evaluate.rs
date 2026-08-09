@@ -17,7 +17,7 @@
 use tsc_binder::{node_util, SymbolId};
 use tsc_diagnostics::gen as diagnostics;
 use tsc_syntax::{NodeData, NodeId, SyntaxKind};
-use tsc_types::{ModifierFlags, NodeFlags, SymbolFlags};
+use tsc_types::{CheckMode, ModifierFlags, NodeFlags, SymbolFlags};
 
 use crate::state::{CheckResult, CheckerState};
 
@@ -75,6 +75,55 @@ impl<'a> CheckerState<'a> {
             .node(member)
             .enum_member_value
             .unwrap_or_else(undefined_result))
+    }
+
+    /// tsc-port: getConstantValue @6.0.3
+    /// tsc-hash: 55a4bc6c7bb06469ece300d996fa341632a4054e13ed755944cf043fc22d3d90
+    /// tsc-span: _tsc.js:88231-88263
+    ///
+    /// This emitter projection accepts only enum members and access
+    /// expressions, matching `canHaveConstantValue`. Access expressions are
+    /// checked on demand so their resolved symbol is available even when a
+    /// caller requests emit without having visited that expression first.
+    pub(crate) fn get_constant_value_for_emit(
+        &mut self,
+        node: NodeId,
+    ) -> CheckResult<Option<EvalValue>> {
+        if self.kind_of(node) == SyntaxKind::EnumMember {
+            return Ok(self.get_enum_member_value(node)?.value);
+        }
+        if !matches!(
+            self.kind_of(node),
+            SyntaxKind::PropertyAccessExpression | SyntaxKind::ElementAccessExpression
+        ) {
+            return Ok(None);
+        }
+        if self.links.node(node).resolved_symbol.resolved().is_none() {
+            let _ = self.check_expression_cached(node, CheckMode::NORMAL)?;
+        }
+        let Some(symbol) = self
+            .links
+            .node(node)
+            .resolved_symbol
+            .resolved()
+            .filter(|symbol| *symbol != self.unknown_symbol)
+        else {
+            return Ok(None);
+        };
+        let symbol_data = self.binder.symbol(symbol);
+        if !symbol_data.flags.intersects(SymbolFlags::ENUM_MEMBER) {
+            return Ok(None);
+        }
+        let Some(member) = symbol_data.value_declaration else {
+            return Ok(None);
+        };
+        let Some(parent) = self.parent_of(member) else {
+            return Ok(None);
+        };
+        if !self.is_enum_const(parent) {
+            return Ok(None);
+        }
+        Ok(self.get_enum_member_value(member)?.value)
     }
 
     /// tsc-port: computeEnumMemberValues @6.0.3

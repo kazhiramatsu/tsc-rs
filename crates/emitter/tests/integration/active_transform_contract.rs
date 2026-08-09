@@ -3,8 +3,9 @@ use std::cell::Cell;
 use serde_json::Value;
 use tsc_emitter::{
     create_printer, get_script_transformers, transform_nodes, DisabledSourceMapRecorder,
-    EmitResolver, EmitResolverError, EmitResolverNode, NewLineKind, PrintRequest, PrinterOptions,
-    TransformArena, TransformRoot, UnavailableEmitResolver, UnsupportedTransformFeature,
+    EmitConstantValue, EmitResolver, EmitResolverError, EmitResolverNode, NewLineKind,
+    PrintRequest, PrinterOptions, TransformArena, TransformRoot, UnavailableEmitResolver,
+    UnsupportedTransformFeature,
 };
 use tsc_program::SourceFileId;
 use tsc_syntax::{for_each_child, parse_source_file, NodeData, SyntaxKind};
@@ -66,6 +67,17 @@ fn bootstrap_options() -> CompilerOptions {
     }
 }
 
+struct NoConstantValueResolver;
+
+impl EmitResolver for NoConstantValueResolver {
+    fn get_constant_value(
+        &self,
+        _node: EmitResolverNode,
+    ) -> Result<Option<EmitConstantValue>, EmitResolverError> {
+        Ok(None)
+    }
+}
+
 #[test]
 fn exact_bootstrap_transformer_order_erases_the_frozen_typescript_tree() {
     let parsed = parse_source_file("main.ts", ERASABLE_TYPESCRIPT, Default::default(), None);
@@ -79,7 +91,7 @@ fn exact_bootstrap_transformer_order_erases_the_frozen_typescript_tree() {
     };
     assert_eq!(original_statement_count, 6);
 
-    let resolver = UnavailableEmitResolver;
+    let resolver = NoConstantValueResolver;
     let transformers = get_script_transformers(&bootstrap_options(), &resolver).unwrap();
     assert_eq!(
         transformers
@@ -179,11 +191,6 @@ fn exact_bootstrap_transformer_order_erases_the_frozen_typescript_tree() {
 #[test]
 fn rejected_feature_roots_fail_before_a_partial_transform_is_returned() {
     let cases = [
-        (
-            "enum.ts",
-            "export enum Direction { Up, Down }\n",
-            UnsupportedTransformFeature::RuntimeEnums,
-        ),
         (
             "namespace.ts",
             "namespace Runtime { export const value: number = 1; }\n",
