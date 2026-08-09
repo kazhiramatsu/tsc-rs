@@ -157,6 +157,17 @@ impl EmitResolver for CheckerSession<'_> {
         )
     }
 
+    fn is_top_level_value_import_equals_with_entity_name(
+        &self,
+        node: EmitResolverNode,
+    ) -> Result<bool, EmitResolverError> {
+        self.with_resolver_node(
+            EmitResolverMethod::IsTopLevelValueImportEqualsWithEntityName,
+            node,
+            CheckerState::emit_is_top_level_value_import_equals_with_entity_name,
+        )
+    }
+
     fn is_value_alias_declaration(
         &self,
         node: EmitResolverNode,

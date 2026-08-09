@@ -21,6 +21,7 @@ const H2_1E_QUALIFICATION_RELATIVE_PATH: &str = "ratchets/h2-1e-qualification.v1
 const H2_2A_QUALIFICATION_RELATIVE_PATH: &str = "ratchets/h2-2a-qualification.v1.json";
 const H2_2B_QUALIFICATION_RELATIVE_PATH: &str = "ratchets/h2-2b-qualification.v1.json";
 const H2_2C_QUALIFICATION_RELATIVE_PATH: &str = "ratchets/h2-2c-qualification.v1.json";
+const H2_2D_QUALIFICATION_RELATIVE_PATH: &str = "ratchets/h2-2d-qualification.v1.json";
 
 fn failure(message: impl Into<String>) -> Box<dyn Error> {
     std::io::Error::other(message.into()).into()
@@ -514,8 +515,9 @@ fn promoted_to_h2_2c(case: &Value, h2_2c_cases: &[Value]) -> Result<bool, Box<dy
 /// every TypeScript observable twice, five trusted-base diagnostic controls
 /// retain exact output but no compatibility admission, and still-deferred rows
 /// prove deterministic typed failure before the first sink callback twice.
-/// Rows promoted by H2.1e, H2.2a, H2.2b, or H2.2c are joined to those exact qualifications
-/// and executed by their acceptance gates later in the same hosted command.
+/// Rows promoted by H2.1e or H2.2a-H2.2d are joined to those exact
+/// qualifications and executed by their acceptance gates later in the same
+/// hosted command.
 pub fn run(workspace: &Path) -> Result<(), Box<dyn Error>> {
     let artifact: Value =
         serde_json::from_slice(&fs::read(workspace.join(QUALIFICATION_RELATIVE_PATH))?)?;
@@ -535,6 +537,10 @@ pub fn run(workspace: &Path) -> Result<(), Box<dyn Error>> {
         workspace.join(H2_2C_QUALIFICATION_RELATIVE_PATH),
     )?)?;
     let h2_2c_cases = array(&h2_2c_artifact, "cases")?;
+    let h2_2d_artifact: Value = serde_json::from_slice(&fs::read(
+        workspace.join(H2_2D_QUALIFICATION_RELATIVE_PATH),
+    )?)?;
+    let h2_2d_cases = array(&h2_2d_artifact, "cases")?;
     if artifact["schema"] != 1
         || artifact["status"] != "qualified-typescript-oracle"
         || artifact["phase"] != "H2.1a-implied-esm-source-and-emit"
@@ -586,6 +592,7 @@ pub fn run(workspace: &Path) -> Result<(), Box<dyn Error>> {
                     && !promoted_to_h2_2a(case, h2_2a_cases)?
                     && !promoted_to_h2_2b(case, h2_2b_cases)?
                     && !promoted_to_h2_2c(case, h2_2c_cases)?
+                    && !crate::h2_2d_acceptance::promotes_historical_case(case, h2_2d_cases)?
                 {
                     execute_deferred(workspace, case)?;
                 }

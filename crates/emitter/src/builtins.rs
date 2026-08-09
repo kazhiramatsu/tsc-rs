@@ -79,7 +79,7 @@ pub fn get_script_transformers<'resolver>(
     options: &CompilerOptions,
     resolver: &'resolver dyn EmitResolver,
 ) -> Result<Vec<Box<dyn Transformer + 'resolver>>, TransformError> {
-    let mut activity = H2ActivityCanary::h2_2c_profile();
+    let mut activity = H2ActivityCanary::h2_2d_profile();
     get_script_transformers_with_optional_host(options, resolver, None, &mut activity)
 }
 
@@ -170,6 +170,12 @@ fn get_script_transformers_with_optional_host<'transformers>(
             .is_some_and(source_contains_parameter_property)
         {
             activity.observe_runtime_slice(H2RuntimeSlice::H2_2c);
+        }
+        if source_record
+            .and_then(crate::EmitSource::syntax)
+            .is_some_and(source_contains_import_or_export_equals)
+        {
+            activity.observe_runtime_slice(H2RuntimeSlice::H2_2d);
         }
     }
 
@@ -506,6 +512,9 @@ impl Transformer for EcmaScriptModuleTransformer {
                 crate::UnsupportedEmitFeature::BundleRoot,
             ));
         };
+        if context.arena().source(source)?.syntax().is_declaration_file {
+            return Ok(TransformRoot::SourceFile(source));
+        }
         let was_external = context
             .arena()
             .source(source)?
@@ -532,6 +541,15 @@ impl Transformer for EcmaScriptModuleTransformer {
                 let cloned = context.factory()?.clone_node(current_root)?;
                 context.arena_mut()?.replace_root(source, cloned)?;
             }
+        }
+        if was_external {
+            let current_root = context.arena().root(source)?;
+            let mut visitor = EcmaScriptModuleEqualsVisitor::new(context, source, self.module_kind);
+            let rewritten = visitor.transform_source_file(current_root)?;
+            visitor
+                .context
+                .arena_mut()?
+                .replace_root(source, rewritten)?;
         }
         if !was_external || self.module_kind == MODULE_PRESERVE {
             return Ok(TransformRoot::SourceFile(source));
@@ -621,6 +639,455 @@ impl Transformer for EcmaScriptModuleTransformer {
         _hint: EmitHint,
         node: TransformNode,
     ) -> Result<TransformNode, TransformError> {
+        Ok(node)
+    }
+}
+
+struct EcmaScriptModuleEqualsVisitor<'context> {
+    context: &'context mut TransformationContext,
+    source: TransformSourceId,
+    module_kind: i32,
+    used_names: BTreeSet<String>,
+    create_require_name: Option<String>,
+    require_name: Option<String>,
+}
+
+impl<'context> EcmaScriptModuleEqualsVisitor<'context> {
+    fn new(
+        context: &'context mut TransformationContext,
+        source: TransformSourceId,
+        module_kind: i32,
+    ) -> Self {
+        let used_names = system::collect_identifier_texts(context.arena(), source);
+        Self {
+            context,
+            source,
+            module_kind,
+            used_names,
+            create_require_name: None,
+            require_name: None,
+        }
+    }
+
+    fn transform_source_file(
+        &mut self,
+        root: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        let (mut source_data, original_array) = match self.context.arena().node(root)?.data.clone()
+        {
+            NodeData::SourceFile(data) => {
+                let statements = data.statements;
+                (data, statements)
+            }
+            _ => {
+                return Err(TransformError::RootKindExpected {
+                    actual: self.context.arena().node(root)?.kind,
+                });
+            }
+        };
+        let input = node_array_nodes(self.context.arena(), self.source, original_array)?;
+        let mut output = Vec::with_capacity(input.len() + 2);
+        for statement in input {
+            match self.context.arena().node(statement)?.data.clone() {
+                NodeData::ImportEqualsDeclaration(data) => {
+                    output.extend(self.transform_import_equals(statement, data)?);
+                }
+                NodeData::ExportAssignment(data) if data.is_export_equals == Some(true) => {
+                    if self.module_kind == MODULE_PRESERVE {
+                        output.push(self.transform_preserve_export_equals(statement, data)?);
+                    }
+                }
+                _ => output.push(statement),
+            }
+        }
+        if self.create_require_name.is_some() {
+            let helpers = self.create_require_helpers()?;
+            let offset = output
+                .iter()
+                .take_while(|statement| {
+                    is_prologue_statement(self.context.arena(), **statement).unwrap_or(false)
+                })
+                .count();
+            output.splice(offset..offset, helpers);
+        }
+        let statements = if let Some(original) =
+            original_array.and_then(|array| self.context.arena().node_array_ref(self.source, array))
+        {
+            self.context
+                .factory()?
+                .update_node_array(original, output)?
+        } else {
+            self.context
+                .factory()?
+                .create_node_array(self.source, output)?
+        };
+        source_data.statements = Some(statements.array());
+        let flags = self.context.arena().transform_flags(root);
+        self.context
+            .factory()?
+            .update_node(root, NodeData::SourceFile(source_data), flags)
+    }
+
+    /// tsc-port: visitImportEqualsDeclaration/appendExportsOfImportEqualsDeclaration @6.0.3
+    /// tsc-hash: f9985c8750f1c4ce6ded0360679e5de13d68aea797aa62d2df69f05797defcf9
+    /// tsc-span: _tsc.js:113569-113621
+    fn transform_import_equals(
+        &mut self,
+        original: TransformNode,
+        data: tsc_syntax::nodes::ImportEqualsDeclarationData,
+    ) -> Result<Vec<TransformNode>, TransformError> {
+        let module_reference = data
+            .module_reference
+            .and_then(|id| self.context.arena().node_ref(self.source, id))
+            .ok_or(TransformError::RequiredChildRemoved {
+                parent: SyntaxKind::ImportEqualsDeclaration,
+                field: "module_reference",
+            })?;
+        if self.context.arena().node(module_reference)?.kind != SyntaxKind::ExternalModuleReference
+        {
+            return Err(TransformError::RequiredChildRemoved {
+                parent: SyntaxKind::ImportEqualsDeclaration,
+                field: "external module_reference",
+            });
+        }
+        if self.module_kind < MODULE_NODE16 && self.module_kind != MODULE_PRESERVE {
+            return Ok(Vec::new());
+        }
+        let name = data
+            .name
+            .and_then(|id| self.context.arena().node_ref(self.source, id))
+            .ok_or(TransformError::RequiredChildRemoved {
+                parent: SyntaxKind::ImportEqualsDeclaration,
+                field: "name",
+            })?;
+        let module_specifier = match &self.context.arena().node(module_reference)?.data {
+            NodeData::ExternalModuleReference(data) => data
+                .expression
+                .and_then(|id| self.context.arena().node_ref(self.source, id)),
+            _ => None,
+        }
+        .ok_or(TransformError::RequiredChildRemoved {
+            parent: SyntaxKind::ExternalModuleReference,
+            field: "expression",
+        })?;
+        let require = if self.module_kind == MODULE_PRESERVE {
+            self.create_identifier("require")?
+        } else {
+            self.ensure_require_names();
+            let require_name = self
+                .require_name
+                .clone()
+                .expect("require helper name initialized");
+            self.create_identifier(&require_name)?
+        };
+        let call = self.create_call(require, vec![module_specifier])?;
+        let statement = self.create_variable_statement(name, call, NodeFlags::CONST)?;
+        self.set_original_and_range(statement, original)?;
+        let mut output = vec![statement];
+        if has_modifier(
+            self.context.arena(),
+            self.source,
+            data.modifiers,
+            SyntaxKind::ExportKeyword,
+        )? {
+            let name = identifier_or_literal_text(self.context.arena(), name)?;
+            output.push(self.create_named_export(&name)?);
+        }
+        Ok(output)
+    }
+
+    /// tsc-port: visitExportAssignment @6.0.3
+    /// tsc-hash: 4078d37c3316121a91a2bb7c8fcbd1dbf41fe8d218eba426cc06c49c602a78ff
+    /// tsc-span: _tsc.js:113622-113642
+    fn transform_preserve_export_equals(
+        &mut self,
+        original: TransformNode,
+        data: tsc_syntax::nodes::ExportAssignmentData,
+    ) -> Result<TransformNode, TransformError> {
+        let expression = data
+            .expression
+            .and_then(|id| self.context.arena().node_ref(self.source, id))
+            .ok_or(TransformError::RequiredChildRemoved {
+                parent: SyntaxKind::ExportAssignment,
+                field: "expression",
+            })?;
+        let module = self.create_identifier("module")?;
+        let target = self.create_property_access(module, "exports")?;
+        let assignment = self.create_assignment(target, expression)?;
+        let statement = self.create_expression_statement(assignment)?;
+        self.context
+            .arena_mut()?
+            .set_original_node(statement, Some(original))?;
+        self.context
+            .arena_mut()?
+            .metadata_mut(statement)
+            .add_flags(EmitFlags::NO_COMMENTS);
+        Ok(statement)
+    }
+
+    fn create_require_helpers(&mut self) -> Result<Vec<TransformNode>, TransformError> {
+        let create_require_name = self
+            .create_require_name
+            .clone()
+            .expect("createRequire helper name initialized");
+        let require_name = self
+            .require_name
+            .clone()
+            .expect("require helper name initialized");
+        let property = self.create_identifier("createRequire")?;
+        let local = self.create_identifier(&create_require_name)?;
+        let specifier = self.context.factory()?.create_node(
+            self.source,
+            NodeData::ImportSpecifier(tsc_syntax::nodes::ImportSpecifierData {
+                name: Some(local.node()),
+                property_name: Some(property.node()),
+                is_type_only: false,
+            }),
+            TransformFlags::NONE,
+        )?;
+        let elements = self
+            .context
+            .factory()?
+            .create_node_array(self.source, vec![specifier])?;
+        let named = self.context.factory()?.create_node(
+            self.source,
+            NodeData::NamedImports(tsc_syntax::nodes::NamedImportsData {
+                elements: Some(elements.array()),
+            }),
+            TransformFlags::NONE,
+        )?;
+        let clause = self.context.factory()?.create_node(
+            self.source,
+            NodeData::ImportClause(tsc_syntax::nodes::ImportClauseData {
+                name: None,
+                is_type_only: false,
+                phase_modifier: None,
+                named_bindings: Some(named.node()),
+            }),
+            TransformFlags::NONE,
+        )?;
+        let module = self.create_string_literal("module")?;
+        let import = self.context.factory()?.create_node(
+            self.source,
+            NodeData::ImportDeclaration(tsc_syntax::nodes::ImportDeclarationData {
+                modifiers: None,
+                import_clause: Some(clause.node()),
+                module_specifier: Some(module.node()),
+                attributes: None,
+            }),
+            TransformFlags::NONE,
+        )?;
+
+        let create_require = self.create_identifier(&create_require_name)?;
+        // The printer treats synthetic identifier text as emitted text. This
+        // keeps the helper expression atomic while the parser-owned
+        // MetaProperty node remains available for source syntax.
+        let import_meta_url = self.create_identifier("import.meta.url")?;
+        let initializer = self.create_call(create_require, vec![import_meta_url])?;
+        let name = self.create_identifier(&require_name)?;
+        let declaration = self.create_variable_statement(name, initializer, NodeFlags::CONST)?;
+        Ok(vec![import, declaration])
+    }
+
+    fn create_named_export(&mut self, name: &str) -> Result<TransformNode, TransformError> {
+        let name = self.create_identifier(name)?;
+        let specifier = self.context.factory()?.create_node(
+            self.source,
+            NodeData::ExportSpecifier(tsc_syntax::nodes::ExportSpecifierData {
+                name: Some(name.node()),
+                property_name: None,
+                is_type_only: false,
+            }),
+            TransformFlags::NONE,
+        )?;
+        let elements = self
+            .context
+            .factory()?
+            .create_node_array(self.source, vec![specifier])?;
+        let named = self.context.factory()?.create_node(
+            self.source,
+            NodeData::NamedExports(tsc_syntax::nodes::NamedExportsData {
+                elements: Some(elements.array()),
+            }),
+            TransformFlags::NONE,
+        )?;
+        self.context.factory()?.create_node(
+            self.source,
+            NodeData::ExportDeclaration(tsc_syntax::nodes::ExportDeclarationData {
+                modifiers: None,
+                is_type_only: false,
+                export_clause: Some(named.node()),
+                module_specifier: None,
+                attributes: None,
+            }),
+            TransformFlags::NONE,
+        )
+    }
+
+    fn create_variable_statement(
+        &mut self,
+        name: TransformNode,
+        initializer: TransformNode,
+        flags: NodeFlags,
+    ) -> Result<TransformNode, TransformError> {
+        let declaration = self.context.factory()?.create_node(
+            self.source,
+            NodeData::VariableDeclaration(tsc_syntax::nodes::VariableDeclarationData {
+                name: Some(name.node()),
+                exclamation_token: None,
+                r#type: None,
+                initializer: Some(initializer.node()),
+            }),
+            TransformFlags::NONE,
+        )?;
+        let declarations = self
+            .context
+            .factory()?
+            .create_node_array(self.source, vec![declaration])?;
+        let list = self.context.factory()?.create_node(
+            self.source,
+            NodeData::VariableDeclarationList(tsc_syntax::nodes::VariableDeclarationListData {
+                declarations: Some(declarations.array()),
+            }),
+            TransformFlags::NONE,
+        )?;
+        self.context.factory()?.set_node_flags(list, flags)?;
+        self.context.factory()?.create_node(
+            self.source,
+            NodeData::VariableStatement(tsc_syntax::nodes::VariableStatementData {
+                modifiers: None,
+                declaration_list: Some(list.node()),
+            }),
+            TransformFlags::NONE,
+        )
+    }
+
+    fn create_identifier(&mut self, text: &str) -> Result<TransformNode, TransformError> {
+        self.context.factory()?.create_node(
+            self.source,
+            NodeData::Identifier(tsc_syntax::nodes::IdentifierData {
+                escaped_text: text.to_owned(),
+                text: text.to_owned(),
+            }),
+            TransformFlags::NONE,
+        )
+    }
+
+    fn create_string_literal(&mut self, text: &str) -> Result<TransformNode, TransformError> {
+        self.context.factory()?.create_node(
+            self.source,
+            NodeData::StringLiteral(tsc_syntax::nodes::StringLiteralData {
+                text: text.to_owned(),
+                has_extended_unicode_escape: None,
+            }),
+            TransformFlags::NONE,
+        )
+    }
+
+    fn create_call(
+        &mut self,
+        expression: TransformNode,
+        arguments: Vec<TransformNode>,
+    ) -> Result<TransformNode, TransformError> {
+        let arguments = self
+            .context
+            .factory()?
+            .create_node_array(self.source, arguments)?;
+        self.context.factory()?.create_node(
+            self.source,
+            NodeData::CallExpression(tsc_syntax::nodes::CallExpressionData {
+                expression: Some(expression.node()),
+                question_dot_token: None,
+                type_arguments: None,
+                arguments: Some(arguments.array()),
+            }),
+            TransformFlags::NONE,
+        )
+    }
+
+    fn create_property_access(
+        &mut self,
+        expression: TransformNode,
+        name: &str,
+    ) -> Result<TransformNode, TransformError> {
+        let name = self.create_identifier(name)?;
+        self.context.factory()?.create_node(
+            self.source,
+            NodeData::PropertyAccessExpression(tsc_syntax::nodes::PropertyAccessExpressionData {
+                name: Some(name.node()),
+                expression: Some(expression.node()),
+                question_dot_token: None,
+            }),
+            TransformFlags::NONE,
+        )
+    }
+
+    fn create_assignment(
+        &mut self,
+        left: TransformNode,
+        right: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        let equals = self.context.factory()?.create_token(
+            self.source,
+            SyntaxKind::EqualsToken,
+            TransformFlags::NONE,
+        )?;
+        self.context.factory()?.create_node(
+            self.source,
+            NodeData::BinaryExpression(tsc_syntax::nodes::BinaryExpressionData {
+                left: Some(left.node()),
+                operator_token: Some(equals.node()),
+                right: Some(right.node()),
+            }),
+            TransformFlags::NONE,
+        )
+    }
+
+    fn create_expression_statement(
+        &mut self,
+        expression: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        self.context.factory()?.create_node(
+            self.source,
+            NodeData::ExpressionStatement(tsc_syntax::nodes::ExpressionStatementData {
+                expression: Some(expression.node()),
+            }),
+            TransformFlags::NONE,
+        )
+    }
+
+    fn ensure_require_names(&mut self) {
+        if self.create_require_name.is_none() {
+            let create_require = self.fresh_name("_createRequire");
+            let require = self.fresh_name("__require");
+            self.create_require_name = Some(create_require);
+            self.require_name = Some(require);
+        }
+    }
+
+    fn fresh_name(&mut self, base: &str) -> String {
+        if self.used_names.insert(base.to_owned()) {
+            return base.to_owned();
+        }
+        let mut ordinal = 1usize;
+        loop {
+            let candidate = format!("{base}_{ordinal}");
+            if self.used_names.insert(candidate.clone()) {
+                return candidate;
+            }
+            ordinal += 1;
+        }
+    }
+
+    fn set_original_and_range(
+        &mut self,
+        node: TransformNode,
+        original: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        self.context.factory()?.set_text_range(node, original)?;
+        self.context
+            .arena_mut()?
+            .set_original_node(node, Some(original))?;
         Ok(node)
     }
 }
@@ -1116,6 +1583,7 @@ struct ImportPlan {
     module_specifier: Box<str>,
     has_import_clause: bool,
     helper: ImportHelperKind,
+    import_equals_export: Option<Box<str>>,
 }
 
 #[derive(Clone, Debug)]
@@ -1127,6 +1595,7 @@ struct ImportBinding {
 #[derive(Debug)]
 struct CommonJsModuleInfo {
     is_external: bool,
+    export_equals: Option<NodeId>,
     imports: BTreeMap<NodeId, ImportPlan>,
     external_imports: Vec<NodeId>,
     import_bindings: BTreeMap<NodeId, ImportBinding>,
@@ -1151,6 +1620,7 @@ impl CommonJsModuleInfo {
         let statements = source_file_statement_nodes(arena, source, root)?;
         let mut info = Self {
             is_external,
+            export_equals: None,
             imports: BTreeMap::new(),
             external_imports: Vec::new(),
             import_bindings: BTreeMap::new(),
@@ -1165,6 +1635,9 @@ impl CommonJsModuleInfo {
         for statement in &statements {
             let record = arena.node(*statement)?;
             match &record.data {
+                NodeData::ExportAssignment(data) if data.is_export_equals == Some(true) => {
+                    info.export_equals = Some(statement.node());
+                }
                 NodeData::ImportDeclaration(data) => {
                     let Some(module_specifier) = data
                         .module_specifier
@@ -1279,10 +1752,59 @@ impl CommonJsModuleInfo {
                             module_specifier: module_text.to_owned().into_boxed_str(),
                             has_import_clause: data.import_clause.is_some(),
                             helper,
+                            import_equals_export: None,
                         },
                     );
                     info.external_imports
                         .push(arena.get_original_node(*statement).node());
+                }
+                NodeData::ImportEqualsDeclaration(data) => {
+                    let Some(module_reference) = data
+                        .module_reference
+                        .and_then(|id| arena.node_ref(source, id))
+                    else {
+                        continue;
+                    };
+                    let NodeData::ExternalModuleReference(reference) =
+                        &arena.node(module_reference)?.data
+                    else {
+                        continue;
+                    };
+                    let Some(module_specifier) = reference
+                        .expression
+                        .and_then(|id| arena.node_ref(source, id))
+                    else {
+                        continue;
+                    };
+                    let module_text = string_literal_text(arena, module_specifier)?;
+                    let Some(name) = data
+                        .name
+                        .and_then(|id| arena.node_ref(source, id))
+                        .and_then(|name| identifier_or_literal_text(arena, name).ok())
+                    else {
+                        continue;
+                    };
+                    let exported =
+                        has_modifier(arena, source, data.modifiers, SyntaxKind::ExportKeyword)?;
+                    let key = arena.get_original_node(*statement).node();
+                    info.imports.insert(
+                        key,
+                        ImportPlan {
+                            generated_name: name.clone().into_boxed_str(),
+                            module_specifier: module_text.to_owned().into_boxed_str(),
+                            has_import_clause: true,
+                            helper: ImportHelperKind::None,
+                            import_equals_export: exported.then(|| name.clone().into_boxed_str()),
+                        },
+                    );
+                    info.import_bindings.insert(
+                        key,
+                        ImportBinding {
+                            generated_name: name.into_boxed_str(),
+                            property: None,
+                        },
+                    );
+                    info.external_imports.push(key);
                 }
                 NodeData::FunctionDeclaration(data)
                     if has_modifier(arena, source, data.modifiers, SyntaxKind::ExportKeyword)? =>
@@ -1572,6 +2094,26 @@ fn source_contains_parameter_property(source: &tsc_syntax::SourceFile) -> bool {
     false
 }
 
+fn source_contains_import_or_export_equals(source: &tsc_syntax::SourceFile) -> bool {
+    let mut stack = vec![source.root];
+    while let Some(id) = stack.pop() {
+        let record = source.arena.node(id);
+        if record.kind == SyntaxKind::ImportEqualsDeclaration
+            || matches!(
+                &record.data,
+                NodeData::ExportAssignment(data) if data.is_export_equals == Some(true)
+            )
+        {
+            return true;
+        }
+        for_each_child(&source.arena, record, |child| {
+            stack.push(child);
+            false
+        });
+    }
+    false
+}
+
 fn string_literal_text(
     arena: &TransformArena,
     node: TransformNode,
@@ -1796,6 +2338,7 @@ fn is_declaration_name_node(
         NodeData::Parameter(data) => data.name == Some(node.node()),
         NodeData::BindingElement(data) => data.name == Some(node.node()),
         NodeData::ImportClause(data) => data.name == Some(node.node()),
+        NodeData::ImportEqualsDeclaration(data) => data.name == Some(node.node()),
         NodeData::ImportSpecifier(data) => data.name == Some(node.node()),
         NodeData::NamespaceImport(data) => data.name == Some(node.node()),
         _ => false,
@@ -1978,7 +2521,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
             output.push(self.create_sync_require_declaration()?);
         }
         let temp_insertion = output.len();
-        if self.info.is_external {
+        if self.info.is_external && self.info.export_equals.is_none() {
             let marker = self.create_es_module_marker()?;
             if let Some(first) = first_runtime_declaration_original(
                 self.context.arena(),
@@ -2027,6 +2570,9 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         for statement in input.into_iter().skip(offset) {
             output.extend(self.visit_top_level_statement(statement)?);
         }
+        if let Some(export_equals) = self.info.export_equals {
+            output.push(self.create_export_equals_statement(export_equals)?);
+        }
         if !self.hoisted_temp_names.is_empty() {
             let mut declarations = Vec::with_capacity(self.hoisted_temp_names.len());
             for name in self.hoisted_temp_names.clone() {
@@ -2062,6 +2608,13 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
             .collect::<Vec<_>>();
         let mut statements = Vec::new();
         for plan in plans {
+            if let Some(export) = plan.import_equals_export {
+                let target = self.create_export_access(&export)?;
+                let value = self.create_identifier(&plan.generated_name)?;
+                let assignment = self.create_assignment(target, value)?;
+                statements.push(self.create_expression_statement(assignment)?);
+                continue;
+            }
             if !plan.has_import_clause || !self.es_module_interop {
                 continue;
             }
@@ -2105,6 +2658,45 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         )?;
         let declaration = self.create_variable_declaration("__syncRequire", condition)?;
         self.create_variable_statement(vec![declaration], NodeFlags::NONE)
+    }
+
+    /// tsc-port: addExportEqualsIfNeeded @6.0.3
+    /// tsc-hash: d04181926d998191c370e6a96184e7700d2a60a17d62275755ef3fdcaa9ac74d
+    /// tsc-span: _tsc.js:110535-110562
+    fn create_export_equals_statement(
+        &mut self,
+        export_equals: NodeId,
+    ) -> Result<TransformNode, TransformError> {
+        let original = self.node(export_equals);
+        let expression = match &self.context.arena().node(original)?.data {
+            NodeData::ExportAssignment(data) => data.expression,
+            _ => None,
+        }
+        .ok_or(TransformError::RequiredChildRemoved {
+            parent: SyntaxKind::ExportAssignment,
+            field: "expression",
+        })?;
+        let expression = self.visit(expression)?;
+        let statement = if matches!(self.module_kind, MODULE_AMD | MODULE_UMD) {
+            self.context.factory()?.create_node(
+                self.source,
+                NodeData::ReturnStatement(tsc_syntax::nodes::ReturnStatementData {
+                    expression: Some(expression.node()),
+                }),
+                TransformFlags::NONE,
+            )?
+        } else {
+            let module = self.create_identifier("module")?;
+            let target = self.create_property_access(module, "exports")?;
+            let assignment = self.create_assignment(target, expression)?;
+            self.create_expression_statement(assignment)?
+        };
+        self.set_original_and_range(statement, original)?;
+        self.context
+            .arena_mut()?
+            .metadata_mut(statement)
+            .add_flags(EmitFlags::NO_COMMENTS | EmitFlags::NO_TOKEN_SOURCE_MAPS);
+        Ok(statement)
     }
 
     fn asynchronous_dependencies(&self) -> Result<AsynchronousDependencies, TransformError> {
@@ -2320,13 +2912,13 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         let record = self.context.arena().node(statement)?.clone();
         match record.data {
             NodeData::ImportDeclaration(data) => self.transform_import(statement, data),
+            NodeData::ImportEqualsDeclaration(data) => {
+                self.transform_import_equals(statement, data)
+            }
             NodeData::ExportDeclaration(data) => self.transform_export_declaration(statement, data),
             NodeData::ExportAssignment(data) => {
                 if data.is_export_equals == Some(true) {
-                    return Err(TransformError::DeferredModuleFormat {
-                        format: self.module_kind,
-                        owner_slice: "H2.2d",
-                    });
+                    return Ok(Vec::new());
                 }
                 let expression = data
                     .expression
@@ -2432,6 +3024,57 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         };
         let declaration = self.create_variable_declaration(&plan.generated_name, initializer)?;
         let statement = self.create_variable_statement(vec![declaration], NodeFlags::CONST)?;
+        self.set_original_and_range(statement, original)?;
+        Ok(vec![statement])
+    }
+
+    /// tsc-port: visitTopLevelImportEqualsDeclaration @6.0.3
+    /// tsc-hash: 8577823442eb4668d4144ba8be82838ed14b0c7ebd76f51e2b82380cd29d4406
+    /// tsc-span: _tsc.js:111298-111365
+    fn transform_import_equals(
+        &mut self,
+        original: TransformNode,
+        data: tsc_syntax::nodes::ImportEqualsDeclarationData,
+    ) -> Result<Vec<TransformNode>, TransformError> {
+        let key = self.context.arena().get_original_node(original).node();
+        let plan =
+            self.info
+                .imports
+                .get(&key)
+                .cloned()
+                .ok_or(TransformError::RequiredChildRemoved {
+                    parent: SyntaxKind::ImportEqualsDeclaration,
+                    field: "module plan",
+                })?;
+        if self.module_kind == MODULE_AMD {
+            return Ok(Vec::new());
+        }
+        let module_reference = data
+            .module_reference
+            .and_then(|id| self.context.arena().node_ref(self.source, id))
+            .ok_or(TransformError::RequiredChildRemoved {
+                parent: SyntaxKind::ImportEqualsDeclaration,
+                field: "module_reference",
+            })?;
+        let module_specifier = match &self.context.arena().node(module_reference)?.data {
+            NodeData::ExternalModuleReference(reference) => reference
+                .expression
+                .and_then(|id| self.context.arena().node_ref(self.source, id)),
+            _ => None,
+        }
+        .ok_or(TransformError::RequiredChildRemoved {
+            parent: SyntaxKind::ExternalModuleReference,
+            field: "expression",
+        })?;
+        let require = self.create_require_call(module_specifier)?;
+        let statement = if let Some(export) = plan.import_equals_export {
+            let target = self.create_export_access(&export)?;
+            let assignment = self.create_assignment(target, require)?;
+            self.create_expression_statement(assignment)?
+        } else {
+            let declaration = self.create_variable_declaration(&plan.generated_name, require)?;
+            self.create_variable_statement(vec![declaration], NodeFlags::CONST)?
+        };
         self.set_original_and_range(statement, original)?;
         Ok(vec![statement])
     }
@@ -3572,8 +4215,20 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         let declaration = self
             .resolver
             .get_referenced_import_declaration(resolver_node)?;
-        Ok(declaration
-            .and_then(|declaration| self.info.import_bindings.get(&declaration.node()).cloned()))
+        Ok(declaration.and_then(|declaration| {
+            if let Some(export) = self
+                .info
+                .imports
+                .get(&declaration.node())
+                .and_then(|plan| plan.import_equals_export.clone())
+            {
+                return Some(ImportBinding {
+                    generated_name: "exports".into(),
+                    property: Some(export),
+                });
+            }
+            self.info.import_bindings.get(&declaration.node()).cloned()
+        }))
     }
 
     fn update_generic(
@@ -4541,14 +5196,18 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
                 NodeData::ImportDeclaration(data) => {
                     self.visit_import_declaration(original, data)?
                 }
+                NodeData::ImportEqualsDeclaration(data) => {
+                    self.visit_import_equals_declaration(original, data)?
+                }
                 NodeData::ExportDeclaration(data) => {
                     self.visit_export_declaration(original, data)?
                 }
-                NodeData::ExportAssignment(data) => {
+                NodeData::ExportAssignment(mut data) => {
                     if self
                         .resolver
                         .is_value_alias_declaration(self.resolver_node(original)?)?
                     {
+                        data.modifiers = None;
                         Some(self.update_generic(original, NodeData::ExportAssignment(data))?)
                     } else {
                         None
@@ -6117,6 +6776,125 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
         )?))
     }
 
+    /// tsc-port: visitImportEqualsDeclaration @6.0.3
+    /// tsc-hash: 5ef8a385c17d4f71d34bdb72046973d6ddc5012c9e4c705883c5263d5629c703
+    /// tsc-span: _tsc.js:95600-95644
+    fn visit_import_equals_declaration(
+        &mut self,
+        original: TransformNode,
+        mut data: tsc_syntax::nodes::ImportEqualsDeclarationData,
+    ) -> Result<Option<NodeId>, TransformError> {
+        if data.is_type_only {
+            return Ok(None);
+        }
+        let module_reference = data
+            .module_reference
+            .and_then(|id| self.context.arena().node_ref(self.source, id))
+            .ok_or(TransformError::RequiredChildRemoved {
+                parent: SyntaxKind::ImportEqualsDeclaration,
+                field: "module_reference",
+            })?;
+        let referenced = self
+            .resolver
+            .is_referenced_alias_declaration(self.resolver_node(original)?)?;
+        if self.context.arena().node(module_reference)?.kind == SyntaxKind::ExternalModuleReference
+        {
+            if !referenced {
+                return Ok(None);
+            }
+            data.modifiers = self.module_runtime_modifiers(data.modifiers)?;
+            return Ok(Some(self.update_generic(
+                original,
+                NodeData::ImportEqualsDeclaration(data),
+            )?));
+        }
+
+        let source_is_external = self
+            .context
+            .arena()
+            .source(self.source)?
+            .syntax()
+            .external_module_indicator
+            .is_some();
+        if !referenced
+            && (source_is_external
+                || !self
+                    .resolver
+                    .is_top_level_value_import_equals_with_entity_name(
+                        self.resolver_node(original)?,
+                    )?)
+        {
+            return Ok(None);
+        }
+
+        let name = data.name.ok_or(TransformError::RequiredChildRemoved {
+            parent: SyntaxKind::ImportEqualsDeclaration,
+            field: "name",
+        })?;
+        let name = self
+            .visit(name)?
+            .ok_or(TransformError::RequiredChildRemoved {
+                parent: SyntaxKind::ImportEqualsDeclaration,
+                field: "name",
+            })?;
+        let module_reference = self.create_expression_from_entity_name(module_reference)?;
+        self.context
+            .arena_mut()?
+            .metadata_mut(module_reference)
+            .add_flags(EmitFlags::NO_COMMENTS | EmitFlags::NO_NESTED_COMMENTS);
+        let declaration = self.context.factory()?.create_node(
+            self.source,
+            NodeData::VariableDeclaration(tsc_syntax::nodes::VariableDeclarationData {
+                name: Some(name),
+                exclamation_token: None,
+                r#type: None,
+                initializer: Some(module_reference.node()),
+            }),
+            TransformFlags::NONE,
+        )?;
+        self.context
+            .arena_mut()?
+            .set_original_node(declaration, Some(original))?;
+        let modifiers = self.module_runtime_modifiers(data.modifiers)?;
+        let statement =
+            self.create_variable_statement(vec![declaration], modifiers, NodeFlags::NONE)?;
+        self.set_original_and_range(statement, original)?;
+        Ok(Some(statement.node()))
+    }
+
+    fn create_expression_from_entity_name(
+        &mut self,
+        name: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        match self.context.arena().node(name)?.data.clone() {
+            NodeData::Identifier(_) => Ok(name),
+            NodeData::QualifiedName(data) => {
+                let left = data
+                    .left
+                    .and_then(|id| self.context.arena().node_ref(self.source, id))
+                    .ok_or(TransformError::RequiredChildRemoved {
+                        parent: SyntaxKind::QualifiedName,
+                        field: "left",
+                    })?;
+                let right = data
+                    .right
+                    .and_then(|id| self.context.arena().node_ref(self.source, id))
+                    .ok_or(TransformError::RequiredChildRemoved {
+                        parent: SyntaxKind::QualifiedName,
+                        field: "right",
+                    })?;
+                let right = identifier_or_literal_text(self.context.arena(), right)?;
+                let left = self.create_expression_from_entity_name(left)?;
+                let access = self.create_property_access(left, &right)?;
+                self.set_original_and_range(access, name)
+            }
+            _ => Err(TransformError::RequiredChildRemoved {
+                parent: SyntaxKind::ImportEqualsDeclaration,
+                field: "entity-name module_reference",
+            }),
+        }
+    }
+
     fn visit_import_clause(
         &mut self,
         original: TransformNode,
@@ -6562,16 +7340,7 @@ fn preflight_source(
         let node = syntax.arena.node(id);
         let feature = match node.kind {
             SyntaxKind::Decorator => Some(UnsupportedTransformFeature::Decorators),
-            SyntaxKind::ImportEqualsDeclaration => Some(UnsupportedTransformFeature::ImportEquals),
             kind if is_jsx_kind(kind) => Some(UnsupportedTransformFeature::Jsx),
-            SyntaxKind::ExportAssignment
-                if matches!(
-                    &node.data,
-                    NodeData::ExportAssignment(data) if data.is_export_equals == Some(true)
-                ) =>
-            {
-                Some(UnsupportedTransformFeature::ExportEquals)
-            }
             _ => None,
         };
         if let Some(feature) = feature {

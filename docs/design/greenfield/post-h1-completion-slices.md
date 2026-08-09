@@ -1,7 +1,7 @@
 # Post-H1 TypeScript 6.0.3 completion slices
 
 Status: execution schedule approved on 2026-08-08. H0, L0/L1, H1, H2.0a,
-H2.0b, H2.1a-H2.1e, and H2.2a-H2.2c are complete. **H2.2d is the next slice.**
+H2.0b, H2.1a-H2.1e, and H2.2a-H2.2d are complete. **H2.3a is the next slice.**
 
 This document turns the audited post-H1 residual into branch-sized execution
 slices. It owns post-H1 slice IDs, dependency order, and slice-specific
@@ -508,6 +508,44 @@ The ordinary hosted boundary remains only `cargo xtask acceptance`; profile
 generation, schema checks, focused controls, and the complete H0/H1/L1
 regression gate remain local.
 
+H2.2d closed on 2026-08-09. The
+[qualification](../../../ratchets/h2-2d-qualification.v1.json) deduplicates all
+nine import/export-equals owner witnesses accumulated across H2.1a-H2.2c, then
+observes every case twice with pinned TypeScript 6.0.3:
+
+- all 9 rows are complete exact admissions, covering 36 reported diagnostics
+  and 13 byte-, path-, order-, BOM-, provenance-, result-, exit-, and
+  activity-exact writes, with no H2.2d-deferred row;
+- internal entity-name imports use the checker-owned value-alias decision and
+  become exact `var` initializers when retained, while type-only and unused
+  external aliases are elided exactly;
+- CommonJS emits `module.exports`, AMD/UMD return the export-equals value,
+  NodeNext uses a collision-safe `createRequire(import.meta.url)` bridge, and
+  ES module output preserves or removes the construct according to the pinned
+  module semantics; dynamic imports compose with those paths byte for byte;
+- focused compiler controls additionally pin System dependency/setter export
+  behavior and Preserve `require`/`module.exports` behavior against TypeScript;
+  and
+- H2.2d activity fires only for reached import/export-equals sources. Every
+  earlier runtime counter remains independently exact and every later counter
+  stays fail-closed.
+
+The [current runtime profile](../../../ratchets/h2-2d-profile.v1.json) and its
+[strict schema](../../../.github/ci/contracts/h2-2d-profile.schema.json)
+preserve every H2.2c authority byte for byte, mark H2.1a through H2.2d active,
+and name H2.3a as next. The monotonic profile has 302 exact cases, 633 exact
+reported diagnostics, 397 exact writes, 5 unchanged H2.9 diagnostic controls,
+and zero source-deferred rows. Freshness is checked with:
+
+```text
+node crates/oracle/h2-2d-qualification.mjs --check
+node crates/oracle/h2-2d-profile.mjs --check
+```
+
+The ordinary hosted boundary remains only `cargo xtask acceptance`; profile
+generation, schema checks, focused controls, and the complete H0/H1/L1
+regression gate remain local.
+
 ### 4.3 TypeScript, source-kind, JSX, and decorator families
 
 | Slice | Scope | Dependencies and close evidence |
@@ -515,7 +553,7 @@ regression gate remain local.
 | H2.2a — complete | Runtime and const enum branches of `transformTypeScript`, including resolver constant values and helper/printer closure. | H2.1b. Enum preservation/inlining/runtime output and adjacent type-only erasure are exact. |
 | H2.2b — complete | Namespace/module-declaration runtime transforms and export-container behavior. | H2.2a. Nested/merged/global/module cases, instantiation, generated-local identity, and CommonJS/System resolver ownership are exact. |
 | H2.2c — complete | Parameter properties and remaining class TypeScript syntax reachable at ESNext. | H2.2a. Constructor ordering, modifiers, declarations, class-field interaction, diagnostics, and comment placement are exact. |
-| H2.2d | `import =`, `export =`, import elision/value preservation, and module-transform interaction. | H2.1b and H2.2a-H2.2c. Resolver alias/value decisions and module-specific outputs are exact. |
+| H2.2d — complete | `import =`, `export =`, import elision/value preservation, and module-transform interaction. | H2.1b and H2.2a-H2.2c. Resolver alias/value decisions and module-specific outputs are exact. |
 | H2.3a | `.js`/`.mjs`/`.cjs` input and output families, `allowJs`/`checkJs` emit routing, shebang/directive/comment preservation, and extension planning. | H2.1e. Checked and unchecked JavaScript emit uses the production Program without a JS-only AST. |
 | H2.3b | Classic JSX/TSX transform, factory/fragment facts, pragmas, namespaces, and `.jsx` output. | H2.3a. Classic React/Preserve/ReactNative observations and UTF-16/source-range controls are exact. |
 | H2.3c | Automatic and development JSX runtimes, import source, helper imports, and file-kind interactions. | H2.3b and H2.1b. Runtime import de-duplication/order and diagnostics are exact. |

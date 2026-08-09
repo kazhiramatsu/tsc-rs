@@ -15,7 +15,7 @@ use super::{
     first_runtime_declaration_original, flags_after_update, generated_module_name, has_modifier,
     identifier_or_literal_text, is_identifier_export_name, is_prologue_statement, node_array_nodes,
     source_contains_dynamic_import, source_file_statement_nodes, string_literal_text,
-    variable_declarations, CommonJsModuleInfo, ImportBinding, MODULE_SYSTEM,
+    variable_declarations, CommonJsModuleInfo, ImportBinding,
 };
 
 /// tsc-port: transformSystemModule @6.0.3
@@ -167,6 +167,13 @@ impl SystemModuleInfo {
             let record = arena.node(*statement)?;
             let module_specifier = match &record.data {
                 NodeData::ImportDeclaration(data) => data.module_specifier,
+                NodeData::ImportEqualsDeclaration(data) => data
+                    .module_reference
+                    .and_then(|id| arena.node_ref(source, id))
+                    .and_then(|reference| match &arena.node(reference).ok()?.data {
+                        NodeData::ExternalModuleReference(data) => data.expression,
+                        _ => None,
+                    }),
                 NodeData::ExportDeclaration(data) => data.module_specifier,
                 _ => None,
             }
@@ -501,6 +508,18 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
                             self.push_hoisted_name(&name);
                         }
                     }
+                } else if let NodeData::ImportEqualsDeclaration(data) =
+                    &self.context.arena().node(entry)?.data
+                {
+                    if let Some(name) = data
+                        .name
+                        .and_then(|id| self.context.arena().node_ref(self.source, id))
+                        .and_then(|name| {
+                            identifier_or_literal_text(self.context.arena(), name).ok()
+                        })
+                    {
+                        self.push_hoisted_name(&name);
+                    }
                 }
             }
         }
@@ -664,13 +683,12 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
     ) -> Result<Vec<TransformNode>, TransformError> {
         let record = self.context.arena().node(statement)?.clone();
         match record.data {
-            NodeData::ImportDeclaration(_) | NodeData::ExportDeclaration(_) => Ok(Vec::new()),
+            NodeData::ImportDeclaration(_)
+            | NodeData::ImportEqualsDeclaration(_)
+            | NodeData::ExportDeclaration(_) => Ok(Vec::new()),
             NodeData::ExportAssignment(data) => {
                 if data.is_export_equals == Some(true) {
-                    return Err(TransformError::DeferredModuleFormat {
-                        format: MODULE_SYSTEM,
-                        owner_slice: "H2.2d",
-                    });
+                    return Ok(Vec::new());
                 }
                 let expression = data
                     .expression
@@ -1482,6 +1500,16 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
                             }
                         }
                     }
+                    NodeData::ImportEqualsDeclaration(data) => {
+                        side_effect_only = false;
+                        local_name = data
+                            .name
+                            .and_then(|id| self.context.arena().node_ref(self.source, id))
+                            .and_then(|name| {
+                                identifier_or_literal_text(self.context.arena(), name).ok()
+                            });
+                        break;
+                    }
                     _ => side_effect_only = false,
                 }
             }
@@ -1504,6 +1532,32 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
                             let value = self.create_identifier(&parameter_name)?;
                             let assignment = self.create_assignment(target, value)?;
                             statements.push(self.create_expression_statement(assignment)?);
+                        }
+                    }
+                    NodeData::ImportEqualsDeclaration(data) => {
+                        let name = data
+                            .name
+                            .and_then(|id| self.context.arena().node_ref(self.source, id))
+                            .and_then(|name| {
+                                identifier_or_literal_text(self.context.arena(), name).ok()
+                            })
+                            .ok_or(TransformError::RequiredChildRemoved {
+                                parent: SyntaxKind::ImportEqualsDeclaration,
+                                field: "name",
+                            })?;
+                        let target = self.create_identifier(&name)?;
+                        let value = self.create_identifier(&parameter_name)?;
+                        let assignment = self.create_assignment(target, value)?;
+                        statements.push(self.create_expression_statement(assignment)?);
+                        if has_modifier(
+                            self.context.arena(),
+                            self.source,
+                            data.modifiers,
+                            SyntaxKind::ExportKeyword,
+                        )? {
+                            let value = self.create_identifier(&parameter_name)?;
+                            let call = self.create_export_call(&name, value)?;
+                            statements.push(self.create_expression_statement(call)?);
                         }
                     }
                     NodeData::ExportDeclaration(data) => {

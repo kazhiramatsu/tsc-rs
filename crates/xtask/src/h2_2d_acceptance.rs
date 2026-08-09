@@ -1,4 +1,4 @@
-//! Hosted H2.1e acceptance projection over the source-dispositioned
+//! Hosted H2.2d acceptance projection over the source-dispositioned
 //! compiler/conformance rows in the pinned `ts-tests` tree.
 
 use std::error::Error;
@@ -8,16 +8,12 @@ use std::path::{Path, PathBuf};
 use base64::Engine;
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
-use tsc_compiler::{
-    EmitArtifact, EmitFailure, EmitIoError, EmitWriteDisposition, H2RuntimeSlice, MemoryOutputSink,
-    OutputSink, ProgramSession,
-};
+use tsc_compiler::{H2RuntimeSlice, MemoryOutputSink, ProgramSession};
 use tsc_diagnostics::{Diagnostic, DiagnosticCategory, MessageChain};
 use tsc_harness::upstream_suites::execution::load_qualified_compiler_emit;
 use tsc_program::ProgramLoadLimits;
 
-const QUALIFICATION_RELATIVE_PATH: &str = "ratchets/h2-1e-qualification.v1.json";
-const H2_2D_QUALIFICATION_RELATIVE_PATH: &str = "ratchets/h2-2d-qualification.v1.json";
+const QUALIFICATION_RELATIVE_PATH: &str = "ratchets/h2-2d-qualification.v1.json";
 
 fn failure(message: impl Into<String>) -> Box<dyn Error> {
     std::io::Error::other(message.into()).into()
@@ -34,14 +30,14 @@ fn sha256(bytes: impl AsRef<[u8]>) -> String {
 fn string<'a>(value: &'a Value, field: &str) -> Result<&'a str, Box<dyn Error>> {
     value[field]
         .as_str()
-        .ok_or_else(|| failure(format!("H2.1e field {field} is not a string")))
+        .ok_or_else(|| failure(format!("H2.2d field {field} is not a string")))
 }
 
 fn array<'a>(value: &'a Value, field: &str) -> Result<&'a [Value], Box<dyn Error>> {
     value[field]
         .as_array()
         .map(Vec::as_slice)
-        .ok_or_else(|| failure(format!("H2.1e field {field} is not an array")))
+        .ok_or_else(|| failure(format!("H2.2d field {field} is not an array")))
 }
 
 fn case_input(
@@ -87,7 +83,7 @@ fn case_input(
         .map(|root| {
             root.as_str()
                 .map(PathBuf::from)
-                .ok_or_else(|| failure("H2.1e root is not a string"))
+                .ok_or_else(|| failure("H2.2d root is not a string"))
         })
         .collect::<Result<Vec<_>, _>>()?;
     let settings = array(input, "settings")?
@@ -301,19 +297,141 @@ fn execute_observed(workspace: &Path, case: &Value) -> Result<(usize, usize), Bo
                 .count() as u64
         })
         .unwrap_or(0);
-    if activity.runtime_slice(H2RuntimeSlice::H2_1a) != reached_sources
-        || activity.runtime_slice(H2RuntimeSlice::H2_1b) != 0
-        || activity.runtime_slice(H2RuntimeSlice::H2_1c) != 0
-        || activity.runtime_slice(H2RuntimeSlice::H2_1d) != 0
-        || activity.runtime_slice(H2RuntimeSlice::H2_1e) != reached_sources
+    let enum_sources = case["files"]
+        .as_array()
+        .map(|files| {
+            files
+                .iter()
+                .filter(|file| {
+                    file["emit_eligible"] == true
+                        && file["feature_roots"].as_array().is_some_and(|roots| {
+                            roots.iter().any(|root| root["feature"] == "runtime-enums")
+                        })
+                })
+                .count() as u64
+        })
+        .unwrap_or(0);
+    let namespace_sources = case["files"]
+        .as_array()
+        .map(|files| {
+            files
+                .iter()
+                .filter(|file| {
+                    file["emit_eligible"] == true
+                        && file["feature_roots"].as_array().is_some_and(|roots| {
+                            roots
+                                .iter()
+                                .any(|root| root["feature"] == "runtime-namespaces")
+                        })
+                })
+                .count() as u64
+        })
+        .unwrap_or(0);
+    let parameter_property_sources = case["files"]
+        .as_array()
+        .map(|files| {
+            files
+                .iter()
+                .filter(|file| {
+                    file["emit_eligible"] == true
+                        && file["feature_roots"].as_array().is_some_and(|roots| {
+                            roots
+                                .iter()
+                                .any(|root| root["feature"] == "parameter-properties")
+                        })
+                })
+                .count() as u64
+        })
+        .unwrap_or(0);
+    let import_export_equals_sources = case["files"]
+        .as_array()
+        .map(|files| {
+            files
+                .iter()
+                .filter(|file| {
+                    file["emit_eligible"] == true
+                        && file["feature_roots"].as_array().is_some_and(|roots| {
+                            roots.iter().any(|root| {
+                                matches!(
+                                    root["feature"].as_str(),
+                                    Some("import-equals" | "export-equals")
+                                )
+                            })
+                        })
+                })
+                .count() as u64
+        })
+        .unwrap_or(0);
+    let module_transform_sources = case["files"]
+        .as_array()
+        .map(|files| {
+            files
+                .iter()
+                .filter(|file| {
+                    file["emit_eligible"] == true
+                        && matches!(file["emit_module_format"].as_i64(), Some(1..=3))
+                })
+                .count() as u64
+        })
+        .unwrap_or(0);
+    let asynchronous_module_sources = case["files"]
+        .as_array()
+        .map(|files| {
+            files
+                .iter()
+                .filter(|file| {
+                    file["emit_eligible"] == true
+                        && matches!(file["emit_module_format"].as_i64(), Some(2 | 3))
+                })
+                .count() as u64
+        })
+        .unwrap_or(0);
+    let system_sources = case["files"]
+        .as_array()
+        .map(|files| {
+            files
+                .iter()
+                .filter(|file| file["emit_eligible"] == true && file["emit_module_format"] == 4)
+                .count() as u64
+        })
+        .unwrap_or(0);
+    let node_format_sources = expected_node_format_sources(case)?;
+    if activity.runtime_slice(H2RuntimeSlice::H2_1a) != reached_sources - system_sources
+        || activity.runtime_slice(H2RuntimeSlice::H2_1b) != module_transform_sources
+        || activity.runtime_slice(H2RuntimeSlice::H2_1c) != asynchronous_module_sources
+        || activity.runtime_slice(H2RuntimeSlice::H2_1d) != system_sources
+        || activity.runtime_slice(H2RuntimeSlice::H2_1e) != node_format_sources
+        || activity.runtime_slice(H2RuntimeSlice::H2_2a) != enum_sources
+        || activity.runtime_slice(H2RuntimeSlice::H2_2b) != namespace_sources
+        || activity.runtime_slice(H2RuntimeSlice::H2_2c) != parameter_property_sources
+        || activity.runtime_slice(H2RuntimeSlice::H2_2d) != import_export_equals_sources
     {
         return Err(failure(format!(
-            "{case_id}: H2.1a/H2.1e activity does not match {reached_sources} reached sources"
+            "{case_id}: H2.2d activity does not match {reached_sources} reached, {node_format_sources} node-format, {enum_sources} enum, {namespace_sources} namespace, {parameter_property_sources} parameter-property, and {import_export_equals_sources} import/export-equals sources: actual H2.1a={} H2.1b={} H2.1c={} H2.1d={} H2.1e={} H2.2a={} H2.2b={} H2.2c={} H2.2d={}",
+            activity.runtime_slice(H2RuntimeSlice::H2_1a),
+            activity.runtime_slice(H2RuntimeSlice::H2_1b),
+            activity.runtime_slice(H2RuntimeSlice::H2_1c),
+            activity.runtime_slice(H2RuntimeSlice::H2_1d),
+            activity.runtime_slice(H2RuntimeSlice::H2_1e),
+            activity.runtime_slice(H2RuntimeSlice::H2_2a),
+            activity.runtime_slice(H2RuntimeSlice::H2_2b),
+            activity.runtime_slice(H2RuntimeSlice::H2_2c),
+            activity.runtime_slice(H2RuntimeSlice::H2_2d),
         )));
     }
     for slice in H2RuntimeSlice::ALL {
-        if !matches!(slice, H2RuntimeSlice::H2_1a | H2RuntimeSlice::H2_1e)
-            && activity.runtime_slice(slice) != 0
+        if !matches!(
+            slice,
+            H2RuntimeSlice::H2_1a
+                | H2RuntimeSlice::H2_1b
+                | H2RuntimeSlice::H2_1c
+                | H2RuntimeSlice::H2_1d
+                | H2RuntimeSlice::H2_1e
+                | H2RuntimeSlice::H2_2a
+                | H2RuntimeSlice::H2_2b
+                | H2RuntimeSlice::H2_2c
+                | H2RuntimeSlice::H2_2d
+        ) && activity.runtime_slice(slice) != 0
         {
             return Err(failure(format!(
                 "{case_id}: unadmitted {} activity",
@@ -324,88 +442,108 @@ fn execute_observed(workspace: &Path, case: &Value) -> Result<(usize, usize), Bo
     Ok((first_sink.writes().len(), first_reported.len()))
 }
 
-#[derive(Default)]
-struct CountingSink {
-    writes: usize,
-}
-
-impl OutputSink for CountingSink {
-    fn write(&mut self, _artifact: EmitArtifact) -> Result<EmitWriteDisposition, EmitIoError> {
-        self.writes += 1;
-        Ok(EmitWriteDisposition::Written)
-    }
-}
-
-fn deferred_failure(workspace: &Path, case: &Value) -> Result<String, Box<dyn Error>> {
-    let case_id = string(case, "case_id")?;
-    let prepared = match case_input(workspace, case) {
-        Ok(prepared) => prepared,
-        Err(error) => return Ok(format!("load:{error}")),
-    };
-    let mut sink = CountingSink::default();
-    let error = ProgramSession::new(prepared)
-        .emit(&mut sink)
-        .expect_err("source-deferred H2.1e case must fail closed");
-    if sink.writes != 0 {
-        return Err(failure(format!(
-            "{case_id}: deferred case wrote {} artifacts",
-            sink.writes
-        )));
-    }
-    match &error {
-        tsc_compiler::DriverError::Emit(EmitFailure::UnsupportedSourceExtension { .. })
-        | tsc_compiler::DriverError::Emit(EmitFailure::Transform(_))
-        | tsc_compiler::DriverError::IncompleteCheck { .. } => {}
-        _ => {
-            return Err(failure(format!(
-                "{case_id}: deferred case returned an unowned failure: {error}"
-            )))
+fn expected_node_format_sources(case: &Value) -> Result<u64, Box<dyn Error>> {
+    let settings = array(&case["input"], "settings")?;
+    let all_sources = settings.iter().any(|setting| {
+        let name = setting["name"].as_str().unwrap_or_default();
+        let value = &setting["value"];
+        name == "rewriteRelativeImportExtensions" && value == true
+            || name == "module"
+                && value.as_str().is_some_and(|value| {
+                    matches!(
+                        value.to_ascii_lowercase().as_str(),
+                        "node16" | "node18" | "node20" | "nodenext"
+                    )
+                })
+    });
+    let inputs = array(&case["input"], "files")?;
+    let mut count = 0_u64;
+    for file in array(case, "files")?
+        .iter()
+        .filter(|file| file["emit_eligible"] == true)
+    {
+        let path = string(file, "path")?;
+        let owns_format = all_sources
+            || path.to_ascii_lowercase().ends_with(".mts")
+            || path.to_ascii_lowercase().ends_with(".cts")
+            || inputs
+                .iter()
+                .find(|input| input["path"].as_str() == Some(path))
+                .map(|input| {
+                    let bytes = base64::engine::general_purpose::STANDARD
+                        .decode(string(input, "utf8_base64")?)?;
+                    let text = String::from_utf8(bytes)?;
+                    Ok::<_, Box<dyn Error>>(
+                        text.contains(" with {")
+                            || text.contains(" assert {")
+                            || text.match_indices("import(").any(|(start, _)| {
+                                text[start + "import(".len()..]
+                                    .split_once(')')
+                                    .is_some_and(|(arguments, _)| arguments.contains(','))
+                            }),
+                    )
+                })
+                .transpose()?
+                .unwrap_or(false);
+        if owns_format {
+            count += 1;
         }
     }
-    Ok(format!("emit:{error}"))
+    Ok(count)
 }
 
-fn execute_deferred(workspace: &Path, case: &Value) -> Result<(), Box<dyn Error>> {
+/// Join a historically source-deferred row to the exact H2.2d admission that
+/// supersedes its old fail-closed runtime expectation. The historical
+/// qualification bytes remain immutable; only the current acceptance view is
+/// allowed to recognize the later exact owner.
+pub(crate) fn promotes_historical_case(
+    case: &Value,
+    h2_2d_cases: &[Value],
+) -> Result<bool, Box<dyn Error>> {
+    if !array(case, "required_slices")?
+        .iter()
+        .any(|slice| slice.as_str() == Some("H2.2d"))
+    {
+        return Ok(false);
+    }
     let case_id = string(case, "case_id")?;
-    let first = deferred_failure(workspace, case)?;
-    let second = deferred_failure(workspace, case)?;
-    if first != second {
+    let promoted = h2_2d_cases
+        .iter()
+        .find(|candidate| candidate["case_id"].as_str() == Some(case_id))
+        .ok_or_else(|| failure(format!("{case_id}: H2.2d promotion is not recorded")))?;
+    if promoted["disposition"] != "admitted-for-execution"
+        || promoted["diagnostic_disposition"]["state"] != "exact-required"
+    {
         return Err(failure(format!(
-            "{case_id}: deferred failure is not deterministic"
+            "{case_id}: H2.2d promotion is not an exact admission"
         )));
     }
-    Ok(())
+    Ok(true)
 }
 
-/// Execute all 6 H2.1e candidates. Fully admitted rows compare every
-/// TypeScript observable twice, joins H2.2d promotions to their exact owner,
-/// and proves every still-deferred row fails before the first sink callback.
+/// Execute all nine H2.2d candidates and compare every TypeScript observable
+/// twice against two deterministic Rust executions.
 pub fn run(workspace: &Path) -> Result<(), Box<dyn Error>> {
     let artifact: Value =
         serde_json::from_slice(&fs::read(workspace.join(QUALIFICATION_RELATIVE_PATH))?)?;
-    let h2_2d_artifact: Value = serde_json::from_slice(&fs::read(
-        workspace.join(H2_2D_QUALIFICATION_RELATIVE_PATH),
-    )?)?;
-    let h2_2d_cases = array(&h2_2d_artifact, "cases")?;
     if artifact["schema"] != 1
         || artifact["status"] != "qualified-typescript-oracle"
-        || artifact["phase"] != "H2.1e-node-formats-source-and-emit"
-        || artifact["summary"]["candidates"] != 6
-        || artifact["summary"]["admitted_cases"] != 4
-        || artifact["summary"]["deferred_cases"] != 2
+        || artifact["phase"] != "H2.2d-import-export-equals"
+        || artifact["summary"]["candidates"] != 9
+        || artifact["summary"]["admitted_cases"] != 9
+        || artifact["summary"]["deferred_cases"] != 0
         || artifact["summary"]["diagnostic_deferred_output_control_cases"] != 0
-        || artifact["summary"]["source_deferred_cases"] != 2
+        || artifact["summary"]["source_deferred_cases"] != 0
         || artifact["summary"]["unexecuted_candidates"] != 0
         || artifact["summary"]["undispositioned_candidates"] != 0
     {
-        return Err(failure("H2.1e qualification header is not closed"));
+        return Err(failure("H2.2d qualification header is not closed"));
     }
     let cases = array(&artifact, "cases")?;
-    if cases.len() != 6 {
-        return Err(failure("H2.1e qualification case denominator changed"));
+    if cases.len() != 9 {
+        return Err(failure("H2.2d qualification case denominator changed"));
     }
     let mut admitted = 0;
-    let mut source_deferred = 0;
     let mut writes = 0;
     let mut diagnostics = 0;
     for case in cases {
@@ -416,32 +554,20 @@ pub fn run(workspace: &Path) -> Result<(), Box<dyn Error>> {
                 writes += case_writes;
                 diagnostics += case_diagnostics;
             }
-            "deferred-to-slices" => {
-                source_deferred += 1;
-                if case["diagnostic_disposition"]["state"] != "not-observed-source-deferred" {
-                    return Err(failure(format!(
-                        "{}: source-deferred case lacks its diagnostic disposition",
-                        string(case, "case_id")?
-                    )));
-                }
-                if !crate::h2_2d_acceptance::promotes_historical_case(case, h2_2d_cases)? {
-                    execute_deferred(workspace, case)?;
-                }
-            }
-            disposition => return Err(failure(format!("unknown H2.1e disposition {disposition}"))),
+            disposition => return Err(failure(format!("unknown H2.2d disposition {disposition}"))),
         }
     }
-    if admitted != 4 || source_deferred != 2 || writes != 8 || diagnostics != 6 {
+    if admitted != 9 || writes != 13 || diagnostics != 36 {
         return Err(failure(format!(
-            "H2.1e execution totals differ: admitted={admitted} source_deferred={source_deferred} writes={writes} diagnostics={diagnostics}"
+            "H2.2d execution totals differ: admitted={admitted} writes={writes} diagnostics={diagnostics}"
         )));
     }
     println!(
-        "H2.1e emit acceptance: candidates=6 exact={admitted} source_deferred={source_deferred} exact_diagnostics={diagnostics} exact_writes={writes} repetitions=2"
+        "H2.2d emit acceptance: candidates=9 exact={admitted} source_deferred=0 exact_diagnostics={diagnostics} exact_writes={writes} repetitions=2"
     );
     Ok(())
 }
 
 #[cfg(test)]
-#[path = "../tests/unit/h2_1e_acceptance/tests.rs"]
+#[path = "../tests/unit/h2_2d_acceptance/tests.rs"]
 mod tests;

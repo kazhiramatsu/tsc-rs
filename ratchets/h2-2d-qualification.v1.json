@@ -1,0 +1,2317 @@
+{
+  "schema": 1,
+  "status": "qualified-typescript-oracle",
+  "phase": "H2.2d-import-export-equals",
+  "typescript": {
+    "version": "6.0.3",
+    "source_commit": "050880ce59e30b356b686bd3144efe24f875ebc8",
+    "bundle": {
+      "path": "vendor/typescript-6.0.3/lib/typescript.js",
+      "sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39"
+    },
+    "implementation": {
+      "path": "vendor/typescript-6.0.3/lib/_tsc.js",
+      "sha256": "1c59e77a54b186ec43fa7f3e0d3c4bb15ca5eb5ba43e96b1d3a267139eddd3e3"
+    }
+  },
+  "generator": {
+    "path": "crates/oracle/h2-2d-qualification.mjs",
+    "sha256": "8f92ce015f127d294e3d3ef179b420503fb032b071394dc29b82ebee7e9201ca"
+  },
+  "contract": {
+    "path": ".github/ci/contracts/h2-2d-qualification.schema.json",
+    "sha256": "33fc12f2fb96e4aa12620ffd9f68ca7acf4d09b17f38b89347fc2db61f405e60"
+  },
+  "origin": {
+    "trusted_base_commit": "8c61918365f186645d18724f50f125782754094c",
+    "h2_2c_profile": {
+      "path": "ratchets/h2-2c-profile.v1.json",
+      "sha256": "94e50a70b124cdaaf45f96f3ae376ddee8a5f8ebbbe64e1ebccfe3b48114f0c6"
+    }
+  },
+  "inputs": {
+    "compiler_classification": {
+      "path": "vendor/typescript-6.0.3/compiler-profile-classification.v1.json",
+      "sha256": "3c3cbcb3c29a5254c145dc2665ca21683a1bd94f5271841320f061e82b614603"
+    },
+    "conformance_classification": {
+      "path": "vendor/typescript-6.0.3/conformance-profile-classification.v1.json",
+      "sha256": "d54b51d44da91836ad1b7be3be4b7de19c6892e6cb1fe9605fda06cdda5a67eb"
+    },
+    "compiler_expansion": {
+      "path": "vendor/typescript-6.0.3/test-suite-expansion.v1.json",
+      "sha256": "9c6e991103b571f7a8800dc5e1ef66088017689f3769de8fcdb408b2dc125188"
+    },
+    "conformance_expansion": {
+      "path": "vendor/typescript-6.0.3/conformance-suite-expansion.v1.json",
+      "sha256": "924d4007b3ac93a3ee57032ea6089b649bab2902e30ee64cff02f4c9404b7bbd"
+    },
+    "owner_inventory": {
+      "path": "ratchets/h2-owner-inventory.v1.json",
+      "sha256": "1f3d666d107247bef7b5e18d6e9506ff51d281277c136bf70112a863b6dfa98d"
+    },
+    "carry_qualifications": [
+      {
+        "path": "ratchets/h2-1b-qualification.v1.json",
+        "sha256": "ec6429d753ce32a2709c91533ee14fbe52224c80852ed82cd9676ed98bc07f03"
+      },
+      {
+        "path": "ratchets/h2-1c-qualification.v1.json",
+        "sha256": "97e5200a9e1d1c017246780aeee69ab52e310c1515be2c1eb9f1d09877407605"
+      },
+      {
+        "path": "ratchets/h2-1e-qualification.v1.json",
+        "sha256": "0049570a37cf285da2547826b770c1902351035503b7ca865972ef3b2019d9a3"
+      },
+      {
+        "path": "ratchets/h2-2b-qualification.v1.json",
+        "sha256": "5b2ea88a2de176cdcad0733f96b0d51344a2e8ac435a341df87f23a06fb4aaf9"
+      }
+    ]
+  },
+  "execution_contract": {
+    "source_reachability": "fixture VFS roots plus module-resolved fixture dependencies in a vendored TypeScript Program",
+    "module_selection": "Program.getEmitModuleFormatOfFile for every reached fixture SourceFile",
+    "admission": "every emit-eligible source is .ts, has target ESNext, has no parse diagnostics, has AST depth <= 256, reaches the now-closed H2.2d import/export-equals transform and no later transform root, and has exact diagnostics and writes; declaration/package/config inputs remain non-emitted controls",
+    "typescript_repetitions": 2,
+    "rust_repetitions": 2,
+    "normalization": "none",
+    "deferred_boundary": "typed failure before first sink write"
+  },
+  "owner_closure": [
+    {
+      "key": "transform-es-module",
+      "declaration": {
+        "id": "h2:cd524f103db492f51f3bd999a732baf0c114c376fa1bc2677a11f123959faba3",
+        "source": "vendor/typescript-6.0.3/lib/_tsc.js",
+        "name": "transformECMAScriptModule",
+        "kind": "FunctionDeclaration",
+        "lexical_path": "<bundle>/transformECMAScriptModule@113369:1",
+        "source_range": {
+          "start": {
+            "offset": 5326269,
+            "line": 113369,
+            "character": 1
+          },
+          "end": {
+            "offset": 5339344,
+            "line": 113727,
+            "character": 2
+          }
+        },
+        "declaration_sha256": "7ea4b7eb1c8fd05c08493d1cd93dcc4b977740f0a317f69033447292388b86f2",
+        "body_sha256": "58bb018953d47897d8b7dbf86a1cfa87e0f95e0945da5d08916ecc13555d734b",
+        "ledger_slice_sha256": "a4106ecc07d7c7b1d1caa38cb6ef962b9c244316d94f1f6acca0e3d497b28d22"
+      },
+      "owner_slice": "H1",
+      "disposition_before_h2_2d": "closed-h1"
+    },
+    {
+      "key": "transform-module",
+      "declaration": {
+        "id": "h2:68d487a70b5c472d084f83eedd2e99e679ceb7309249527b729f15fa501a2e12",
+        "source": "vendor/typescript-6.0.3/lib/_tsc.js",
+        "name": "transformModule",
+        "kind": "FunctionDeclaration",
+        "lexical_path": "<bundle>/transformModule@110090:1",
+        "source_range": {
+          "start": {
+            "offset": 5206624,
+            "line": 110090,
+            "character": 1
+          },
+          "end": {
+            "offset": 5277736,
+            "line": 112041,
+            "character": 2
+          }
+        },
+        "declaration_sha256": "cf26f2e399146deae9ff23867f341893cd9ce8cade79acb93c146ea129b7907f",
+        "body_sha256": "25bdaa6ab240df508a422da5134e48d18b5d9cb9859e408892288c1bc9ef175a",
+        "ledger_slice_sha256": "3d54d8672774bc47f161ad1b4747b2d39a9a04f3da0a7cdab4c8b5ea125ca3eb"
+      },
+      "owner_slice": "H2.1b",
+      "disposition_before_h2_2d": "deferred-h2"
+    },
+    {
+      "key": "transform-typescript",
+      "declaration": {
+        "id": "h2:5060c2118ae6adb02ce51f3d5fbe31d2255c21ca0cb4f5f82fdfecac71b984f4",
+        "source": "vendor/typescript-6.0.3/lib/_tsc.js",
+        "name": "transformTypeScript",
+        "kind": "FunctionDeclaration",
+        "lexical_path": "<bundle>/transformTypeScript@94036:1",
+        "source_range": {
+          "start": {
+            "offset": 4588731,
+            "line": 94036,
+            "character": 1
+          },
+          "end": {
+            "offset": 4656191,
+            "line": 95849,
+            "character": 2
+          }
+        },
+        "declaration_sha256": "547f9cfdb2cdda74d76a5b22479ea9df8c56e6be19790021466a3c1cd6af9d0a",
+        "body_sha256": "b273aa05b75da7c7637fad04ed313f54d4a81c7cd2890e22a346bc7539fa0aa3",
+        "ledger_slice_sha256": "08e4305bdbb440c9e05fb551bd3a1988f4edf67ccc0119b2642f7a3dd2258e79"
+      },
+      "owner_slice": "H2.2a",
+      "disposition_before_h2_2d": "partial-h1-residual"
+    }
+  ],
+  "cases": [
+    {
+      "suite": "compiler",
+      "case_id": "typescript-6.0.3/compiler/blockScopedFunctionDeclarationInStrictModule.ts#default",
+      "expansion_case": 554,
+      "source": {
+        "path": "blockScopedFunctionDeclarationInStrictModule.ts",
+        "bytes": 125,
+        "sha256": "bb6b84f86d5744c59d1735e1f5e74e668418d6b84df6657e8ae1ef5823e3ce37",
+        "git_blob_sha1": "3590ab47a4031ff3d04218d64740edf4afb7083d"
+      },
+      "module_state": "CommonJS(1)",
+      "input": {
+        "current_directory": "/.src",
+        "roots": [
+          "/.src/blockScopedFunctionDeclarationInStrictModule.ts"
+        ],
+        "settings": [
+          {
+            "name": "target",
+            "value": "esnext"
+          },
+          {
+            "name": "module",
+            "value": "commonjs"
+          }
+        ],
+        "virtual_config": null,
+        "files": [
+          {
+            "unit": 0,
+            "path": "/.src/blockScopedFunctionDeclarationInStrictModule.ts",
+            "utf8_base64": "aWYgKHRydWUpIHsKICAgIGZ1bmN0aW9uIGZvbygpIHsgfQogICAgZm9vKCk7IC8vIG9rCn0KCmV4cG9ydCA9IGZvbzsgLy8gbm90IG9r",
+            "utf8_sha256": "75e09025a6b5799a6a4a104b12417a5699ab8ddbb5c20cbf1f553644fb5370e2",
+            "utf8_bytes": 78
+          }
+        ]
+      },
+      "files": [
+        {
+          "unit": 0,
+          "path": "/.src/blockScopedFunctionDeclarationInStrictModule.ts",
+          "script_kind": "TS",
+          "declaration_file": false,
+          "emit_eligible": true,
+          "implied_module_format": "None",
+          "emit_module_format": 1,
+          "feature_roots": [
+            {
+              "feature": "export-equals",
+              "start": 55,
+              "end": 68,
+              "kind": "ExportAssignment"
+            }
+          ],
+          "parse_diagnostic_codes": [],
+          "max_ast_depth": 6,
+          "import_attributes": false,
+          "advanced_comment_placement": false,
+          "text_sha256": "75e09025a6b5799a6a4a104b12417a5699ab8ddbb5c20cbf1f553644fb5370e2"
+        }
+      ],
+      "owner_reachability": [
+        "transform-es-module",
+        "transform-module",
+        "transform-typescript"
+      ],
+      "disposition": "admitted-for-execution",
+      "required_slices": [],
+      "diagnostic_disposition": {
+        "state": "exact-required"
+      },
+      "typescript_runs": [
+        {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/.src/blockScopedFunctionDeclarationInStrictModule.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KaWYgKHRydWUpIHsNCiAgICBmdW5jdGlvbiBmb28oKSB7IH0NCiAgICBmb28oKTsgLy8gb2sNCn0NCm1vZHVsZS5leHBvcnRzID0gZm9vOw0K",
+              "callback_utf8_sha256": "f441c1b513c4d9bdf05d94b6597f1d595d54d4216558fffd149f7d9a26a5b386",
+              "callback_utf8_bytes": 96,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "f441c1b513c4d9bdf05d94b6597f1d595d54d4216558fffd149f7d9a26a5b386",
+              "materialized_utf8_bytes": 96,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/blockScopedFunctionDeclarationInStrictModule.ts"
+              ]
+            }
+          ],
+          "reported_diagnostics": [
+            {
+              "code": 2304,
+              "category": "Error",
+              "file": "/.src/blockScopedFunctionDeclarationInStrictModule.ts",
+              "start": 64,
+              "length": 3,
+              "message": "Cannot find name 'foo'."
+            }
+          ],
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 2,
+          "run_fingerprint_sha256": "39a0cfec803a2a9d32ca2d251cf6bc06b18b93e04f48fdb18ae59d9ebfda81ed"
+        },
+        {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/.src/blockScopedFunctionDeclarationInStrictModule.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KaWYgKHRydWUpIHsNCiAgICBmdW5jdGlvbiBmb28oKSB7IH0NCiAgICBmb28oKTsgLy8gb2sNCn0NCm1vZHVsZS5leHBvcnRzID0gZm9vOw0K",
+              "callback_utf8_sha256": "f441c1b513c4d9bdf05d94b6597f1d595d54d4216558fffd149f7d9a26a5b386",
+              "callback_utf8_bytes": 96,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "f441c1b513c4d9bdf05d94b6597f1d595d54d4216558fffd149f7d9a26a5b386",
+              "materialized_utf8_bytes": 96,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/blockScopedFunctionDeclarationInStrictModule.ts"
+              ]
+            }
+          ],
+          "reported_diagnostics": [
+            {
+              "code": 2304,
+              "category": "Error",
+              "file": "/.src/blockScopedFunctionDeclarationInStrictModule.ts",
+              "start": 64,
+              "length": 3,
+              "message": "Cannot find name 'foo'."
+            }
+          ],
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 2,
+          "run_fingerprint_sha256": "39a0cfec803a2a9d32ca2d251cf6bc06b18b93e04f48fdb18ae59d9ebfda81ed"
+        }
+      ],
+      "rust_expectation": "two-deterministic-exact-runs",
+      "case_fingerprint_sha256": "2f4e3472e7d3d3a833d04b59ff701cc4827219f46d8447f1d9501b9ec7139de2"
+    },
+    {
+      "suite": "compiler",
+      "case_id": "typescript-6.0.3/compiler/moduleNodeImportRequireEmit.ts#target%3Desnext",
+      "expansion_case": 4818,
+      "source": {
+        "path": "moduleNodeImportRequireEmit.ts",
+        "bytes": 320,
+        "sha256": "adf860d67a15a82ab534e4fca281d212ce6cd6d86221835a778b1276b3e73a7f",
+        "git_blob_sha1": "8687a9db8fd1ffa8607dd2668768c8ae549d16a9"
+      },
+      "module_state": "NodeNext(199)",
+      "input": {
+        "current_directory": "/.src",
+        "roots": [
+          "/.src/index.ts"
+        ],
+        "settings": [
+          {
+            "name": "target",
+            "value": "esnext"
+          },
+          {
+            "name": "module",
+            "value": "nodenext"
+          },
+          {
+            "name": "filename",
+            "value": "index.ts"
+          }
+        ],
+        "virtual_config": null,
+        "files": [
+          {
+            "unit": 2,
+            "path": "/.src/index.ts",
+            "utf8_base64": "Ly8vIDxyZWZlcmVuY2UgcGF0aD0iLi9tb2QuZC50cyIgLz4KLy8gVGhpcyBzaG91bGQgZW1pdCBhIGNhbGwgdG8gY3JlYXRlUmVxdWlyZShpbXBvcnQubWV0YS51cmwpCmltcG9ydCBmb28gPSByZXF1aXJlKCJmb28iKTsKZm9vOw==",
+            "utf8_sha256": "ca6ab7b8b9945476c6c7c348d25aa885d035051a8375684c63a22a7ade6495f0",
+            "utf8_bytes": 130
+          },
+          {
+            "unit": 0,
+            "path": "/.src/package.json",
+            "utf8_base64": "ewogICAgInR5cGUiOiAibW9kdWxlIgp9",
+            "utf8_sha256": "4c075cc9db695324371c18cff3fa4f380d774cde4b5d531101700aa049e39d0c",
+            "utf8_bytes": 24
+          },
+          {
+            "unit": 1,
+            "path": "/.src/mod.d.ts",
+            "utf8_base64": "ZGVjbGFyZSBtb2R1bGUgImZvbyI7",
+            "utf8_sha256": "7bf4371a627c1996a8db602f22c13cc484903ddd41f79e93c8404c6a938af9a6",
+            "utf8_bytes": 21
+          }
+        ]
+      },
+      "files": [
+        {
+          "unit": 1,
+          "path": "/.src/mod.d.ts",
+          "script_kind": "TS",
+          "declaration_file": true,
+          "emit_eligible": false,
+          "implied_module_format": "ESModule",
+          "emit_module_format": 99,
+          "feature_roots": [],
+          "parse_diagnostic_codes": [],
+          "max_ast_depth": 3,
+          "import_attributes": false,
+          "advanced_comment_placement": false,
+          "text_sha256": "7bf4371a627c1996a8db602f22c13cc484903ddd41f79e93c8404c6a938af9a6"
+        },
+        {
+          "unit": 2,
+          "path": "/.src/index.ts",
+          "script_kind": "TS",
+          "declaration_file": false,
+          "emit_eligible": true,
+          "implied_module_format": "ESModule",
+          "emit_module_format": 99,
+          "feature_roots": [
+            {
+              "feature": "import-equals",
+              "start": 97,
+              "end": 125,
+              "kind": "ImportEqualsDeclaration"
+            }
+          ],
+          "parse_diagnostic_codes": [],
+          "max_ast_depth": 4,
+          "import_attributes": false,
+          "advanced_comment_placement": false,
+          "text_sha256": "ca6ab7b8b9945476c6c7c348d25aa885d035051a8375684c63a22a7ade6495f0"
+        }
+      ],
+      "owner_reachability": [
+        "transform-es-module",
+        "transform-module",
+        "transform-typescript"
+      ],
+      "disposition": "admitted-for-execution",
+      "required_slices": [],
+      "diagnostic_disposition": {
+        "state": "exact-required"
+      },
+      "typescript_runs": [
+        {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/.src/index.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "aW1wb3J0IHsgY3JlYXRlUmVxdWlyZSBhcyBfY3JlYXRlUmVxdWlyZSB9IGZyb20gIm1vZHVsZSI7DQpjb25zdCBfX3JlcXVpcmUgPSBfY3JlYXRlUmVxdWlyZShpbXBvcnQubWV0YS51cmwpOw0KLy8vIDxyZWZlcmVuY2UgcGF0aD0iLi9tb2QuZC50cyIgLz4NCi8vIFRoaXMgc2hvdWxkIGVtaXQgYSBjYWxsIHRvIGNyZWF0ZVJlcXVpcmUoaW1wb3J0Lm1ldGEudXJsKQ0KY29uc3QgZm9vID0gX19yZXF1aXJlKCJmb28iKTsNCmZvbzsNCg==",
+              "callback_utf8_sha256": "72f93d612347a35267c1db51f8b39a3303f0094a291a5a87de9c733ef543b68b",
+              "callback_utf8_bytes": 247,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "72f93d612347a35267c1db51f8b39a3303f0094a291a5a87de9c733ef543b68b",
+              "materialized_utf8_bytes": 247,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/index.ts"
+              ]
+            }
+          ],
+          "reported_diagnostics": [],
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 0,
+          "run_fingerprint_sha256": "c8630479fe708487826bd5809931d34361e8288325378fb94fb0323a4f092819"
+        },
+        {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/.src/index.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "aW1wb3J0IHsgY3JlYXRlUmVxdWlyZSBhcyBfY3JlYXRlUmVxdWlyZSB9IGZyb20gIm1vZHVsZSI7DQpjb25zdCBfX3JlcXVpcmUgPSBfY3JlYXRlUmVxdWlyZShpbXBvcnQubWV0YS51cmwpOw0KLy8vIDxyZWZlcmVuY2UgcGF0aD0iLi9tb2QuZC50cyIgLz4NCi8vIFRoaXMgc2hvdWxkIGVtaXQgYSBjYWxsIHRvIGNyZWF0ZVJlcXVpcmUoaW1wb3J0Lm1ldGEudXJsKQ0KY29uc3QgZm9vID0gX19yZXF1aXJlKCJmb28iKTsNCmZvbzsNCg==",
+              "callback_utf8_sha256": "72f93d612347a35267c1db51f8b39a3303f0094a291a5a87de9c733ef543b68b",
+              "callback_utf8_bytes": 247,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "72f93d612347a35267c1db51f8b39a3303f0094a291a5a87de9c733ef543b68b",
+              "materialized_utf8_bytes": 247,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/index.ts"
+              ]
+            }
+          ],
+          "reported_diagnostics": [],
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 0,
+          "run_fingerprint_sha256": "c8630479fe708487826bd5809931d34361e8288325378fb94fb0323a4f092819"
+        }
+      ],
+      "rust_expectation": "two-deterministic-exact-runs",
+      "case_fingerprint_sha256": "3c1e66c8906eb7640f4b61a138788aebc7fc608339893cbf92dd655ce010ebc7"
+    },
+    {
+      "suite": "conformance",
+      "case_id": "typescript-6.0.3/conformance/classes/propertyMemberDeclarations/autoAccessorDisallowedModifiers.ts#target%3Desnext",
+      "expansion_case": 868,
+      "source": {
+        "path": "classes/propertyMemberDeclarations/autoAccessorDisallowedModifiers.ts",
+        "bytes": 943,
+        "sha256": "68a53aead3cc2733148493039ead854548aec709f7be52bdcc248290a54454d6",
+        "git_blob_sha1": "c40816c14c0865f3bfd5bfef5c463ba8a40defa8"
+      },
+      "module_state": "absent-effective-ESNext",
+      "input": {
+        "current_directory": "/.src",
+        "roots": [
+          "/.src/autoAccessorDisallowedModifiers.ts"
+        ],
+        "settings": [
+          {
+            "name": "target",
+            "value": "esnext"
+          },
+          {
+            "name": "noTypesAndSymbols",
+            "value": "true"
+          }
+        ],
+        "virtual_config": null,
+        "files": [
+          {
+            "unit": 0,
+            "path": "/.src/autoAccessorDisallowedModifiers.ts",
+            "utf8_base64": "YWJzdHJhY3QgY2xhc3MgQzEgewogICAgYWNjZXNzb3IgYWNjZXNzb3IgYTogYW55OwogICAgcmVhZG9ubHkgYWNjZXNzb3IgYjogYW55OwogICAgZGVjbGFyZSBhY2Nlc3NvciBjOiBhbnk7CiAgICBhY2Nlc3NvciBwdWJsaWMgZDogYW55OwogICAgYWNjZXNzb3IgcHJpdmF0ZSBlOiBhbnk7CiAgICBhY2Nlc3NvciBwcm90ZWN0ZWQgZjogYW55OwogICAgYWNjZXNzb3IgYWJzdHJhY3QgZzogYW55OwogICAgYWNjZXNzb3Igc3RhdGljIGg6IGFueTsKICAgIGFjY2Vzc29yIGkoKSB7fQogICAgYWNjZXNzb3IgZ2V0IGooKSB7IHJldHVybiBmYWxzZTsgfQogICAgYWNjZXNzb3Igc2V0IGsodjogYW55KSB7fQogICAgYWNjZXNzb3IgY29uc3RydWN0b3IoKSB7fQogICAgYWNjZXNzb3IgbD86IGFueTsKICAgIGFjY2Vzc29yIHJlYWRvbmx5IG06IGFueTsKICAgIGFjY2Vzc29yIGRlY2xhcmUgbjogYW55Owp9CgpjbGFzcyBDMiBleHRlbmRzIEMxIHsKICAgIGFjY2Vzc29yIG92ZXJyaWRlIGc6IGFueTsKfQoKaW50ZXJmYWNlIEkxIHsKICAgIGFjY2Vzc29yIGE6IG51bWJlcjsKfQoKYWNjZXNzb3IgY2xhc3MgQzMge30KYWNjZXNzb3IgaW50ZXJmYWNlIEkyIHt9CmFjY2Vzc29yIG5hbWVzcGFjZSBOMSB7fQphY2Nlc3NvciBlbnVtIEUxIHt9CmFjY2Vzc29yIHZhciBWMTogYW55OwphY2Nlc3NvciB0eXBlIFQxID0gbmV2ZXI7CmFjY2Vzc29yIGZ1bmN0aW9uIEYxKCkge30KYWNjZXNzb3IgaW1wb3J0ICJ4IjsKYWNjZXNzb3IgaW1wb3J0IHt9IGZyb20gIngiOwphY2Nlc3NvciBleHBvcnQgeyBWMSB9OwphY2Nlc3NvciBleHBvcnQgZGVmYXVsdCBWMTsKYWNjZXNzb3IgaW1wb3J0IE4yID0gTjE7Cg==",
+            "utf8_sha256": "1133ff1d45617b710d19aead1e41e95c3299c48c7b6ea0c1d7accc585588e96a",
+            "utf8_bytes": 847
+          }
+        ]
+      },
+      "files": [
+        {
+          "unit": 0,
+          "path": "/.src/autoAccessorDisallowedModifiers.ts",
+          "script_kind": "TS",
+          "declaration_file": false,
+          "emit_eligible": true,
+          "implied_module_format": "None",
+          "emit_module_format": 99,
+          "feature_roots": [
+            {
+              "feature": "runtime-namespaces",
+              "start": 601,
+              "end": 625,
+              "kind": "ModuleDeclaration"
+            },
+            {
+              "feature": "runtime-enums",
+              "start": 626,
+              "end": 645,
+              "kind": "EnumDeclaration"
+            },
+            {
+              "feature": "import-equals",
+              "start": 822,
+              "end": 846,
+              "kind": "ImportEqualsDeclaration"
+            }
+          ],
+          "parse_diagnostic_codes": [],
+          "max_ast_depth": 6,
+          "import_attributes": false,
+          "advanced_comment_placement": false,
+          "text_sha256": "1133ff1d45617b710d19aead1e41e95c3299c48c7b6ea0c1d7accc585588e96a"
+        }
+      ],
+      "owner_reachability": [
+        "transform-es-module",
+        "transform-module",
+        "transform-typescript"
+      ],
+      "disposition": "admitted-for-execution",
+      "required_slices": [],
+      "diagnostic_disposition": {
+        "state": "exact-required"
+      },
+      "typescript_runs": [
+        {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/.src/autoAccessorDisallowedModifiers.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "Y2xhc3MgQzEgew0KICAgIGFjY2Vzc29yIGFjY2Vzc29yIGE7DQogICAgYWNjZXNzb3IgYjsNCiAgICBhY2Nlc3NvciBkOw0KICAgIGFjY2Vzc29yIGU7DQogICAgYWNjZXNzb3IgZjsNCiAgICBhY2Nlc3NvciBzdGF0aWMgaDsNCiAgICBhY2Nlc3NvciBpKCkgeyB9DQogICAgYWNjZXNzb3IgZ2V0IGooKSB7IHJldHVybiBmYWxzZTsgfQ0KICAgIGFjY2Vzc29yIHNldCBrKHYpIHsgfQ0KICAgIGNvbnN0cnVjdG9yKCkgeyB9DQogICAgYWNjZXNzb3IgbDsNCiAgICBhY2Nlc3NvciBtOw0KfQ0KY2xhc3MgQzIgZXh0ZW5kcyBDMSB7DQogICAgYWNjZXNzb3IgZzsNCn0NCmFjY2Vzc29yIGNsYXNzIEMzIHsNCn0NCmFjY2Vzc29yIHZhciBFMTsNCihmdW5jdGlvbiAoRTEpIHsNCn0pKEUxIHx8IChFMSA9IHt9KSk7DQphY2Nlc3NvciB2YXIgVjE7DQphY2Nlc3NvciBmdW5jdGlvbiBGMSgpIHsgfQ0KYWNjZXNzb3IgaW1wb3J0ICJ4IjsNCmV4cG9ydCB7IFYxIH07DQpleHBvcnQgZGVmYXVsdCBWMTsNCg==",
+              "callback_utf8_sha256": "799de9872e8a970603423fc7df899e3c7a8fd9c20f8f52838244544692265e69",
+              "callback_utf8_bytes": 508,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "799de9872e8a970603423fc7df899e3c7a8fd9c20f8f52838244544692265e69",
+              "materialized_utf8_bytes": 508,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/autoAccessorDisallowedModifiers.ts"
+              ]
+            }
+          ],
+          "reported_diagnostics": [
+            {
+              "code": 1030,
+              "category": "Error",
+              "file": "/.src/autoAccessorDisallowedModifiers.ts",
+              "start": 33,
+              "length": 8,
+              "message": "'accessor' modifier already seen."
+            },
+            {
+              "code": 1243,
+              "category": "Error",
+              "file": "/.src/autoAccessorDisallowedModifiers.ts",
+              "start": 63,
+              "length": 8,
+              "message": "'accessor' modifier cannot be used with 'readonly' modifier."
+            },
+            {
+              "code": 1243,
+              "category": "Error",
+              "file": "/.src/autoAccessorDisallowedModifiers.ts",
+              "start": 92,
+              "length": 8,
+              "message": "'accessor' modifier cannot be used with 'declare' modifier."
+            },
+            {
+              "code": 1029,
+              "category": "Error",
+              "file": "/.src/autoAccessorDisallowedModifiers.ts",
+              "start": 122,
+              "length": 6,
+              "message": "'public' modifier must precede 'accessor' modifier."
+            },
+            {
+              "code": 1029,
+              "category": "Error",
+              "file": "/.src/autoAccessorDisallowedModifiers.ts",
+              "start": 150,
+              "length": 7,
+              "message": "'private' modifier must precede 'accessor' modifier."
+            },
+            {
+              "code": 1029,
+              "category": "Error",
+              "file": "/.src/autoAccessorDisallowedModifiers.ts",
+              "start": 179,
+              "length": 9,
+              "message": "'protected' modifier must precede 'accessor' modifier."
+            },
+            {
+              "code": 1029,
+              "category": "Error",
+              "file": "/.src/autoAccessorDisallowedModifiers.ts",
+              "start": 210,
+              "length": 8,
+              "message": "'abstract' modifier must precede 'accessor' modifier."
+            },
+            {
+              "code": 1029,
+              "category": "Error",
+              "file": "/.src/autoAccessorDisallowedModifiers.ts",
+              "start": 240,
+              "length": 6,
+              "message": "'static' modifier must precede 'accessor' modifier."
+            },
+            {
+              "code": 1275,
+              "category": "Error",
+              "file": "/.src/autoAccessorDisallowedModifiers.ts",
+              "start": 259,
+              "length": 8,
+              "message": "'accessor' modifier can only appear on a property declaration."
+            },
+            {
+              "code": 1275,
+              "category": "Error",
+              "file": "/.src/autoAccessorDisallowedModifiers.ts",
+              "start": 279,
+              "length": 8,
+              "message": "'accessor' modifier can only appear on a property declaration."
+            },
+            {
+              "code": 1275,
+              "category": "Error",
+              "file": "/.src/autoAccessorDisallowedModifiers.ts",
+              "start": 318,
+              "length": 8,
+              "message": "'accessor' modifier can only appear on a property declaration."
+            },
+            {
+              "code": 1275,
+              "category": "Error",
+              "file": "/.src/autoAccessorDisallowedModifiers.ts",
+              "start": 348,
+              "length": 8,
+              "message": "'accessor' modifier can only appear on a property declaration."
+            },
+            {
+              "code": 1276,
+              "category": "Error",
+              "file": "/.src/autoAccessorDisallowedModifiers.ts",
+              "start": 388,
+              "length": 1,
+              "message": "An 'accessor' property cannot be declared optional."
+            },
+            {
+              "code": 1243,
+              "category": "Error",
+              "file": "/.src/autoAccessorDisallowedModifiers.ts",
+              "start": 409,
+              "length": 8,
+              "message": "'readonly' modifier cannot be used with 'accessor' modifier."
+            },
+            {
+              "code": 1243,
+              "category": "Error",
+              "file": "/.src/autoAccessorDisallowedModifiers.ts",
+              "start": 439,
+              "length": 7,
+              "message": "'declare' modifier cannot be used with 'accessor' modifier."
+            },
+            {
+              "code": 1029,
+              "category": "Error",
+              "file": "/.src/autoAccessorDisallowedModifiers.ts",
+              "start": 493,
+              "length": 8,
+              "message": "'override' modifier must precede 'accessor' modifier."
+            },
+            {
+              "code": 1070,
+              "category": "Error",
+              "file": "/.src/autoAccessorDisallowedModifiers.ts",
+              "start": 532,
+              "length": 8,
+              "message": "'accessor' modifier cannot appear on a type member."
+            },
+            {
+              "code": 1275,
+              "category": "Error",
+              "file": "/.src/autoAccessorDisallowedModifiers.ts",
+              "start": 555,
+              "length": 8,
+              "message": "'accessor' modifier can only appear on a property declaration."
+            },
+            {
+              "code": 1275,
+              "category": "Error",
+              "file": "/.src/autoAccessorDisallowedModifiers.ts",
+              "start": 576,
+              "length": 8,
+              "message": "'accessor' modifier can only appear on a property declaration."
+            },
+            {
+              "code": 1275,
+              "category": "Error",
+              "file": "/.src/autoAccessorDisallowedModifiers.ts",
+              "start": 601,
+              "length": 8,
+              "message": "'accessor' modifier can only appear on a property declaration."
+            },
+            {
+              "code": 1275,
+              "category": "Error",
+              "file": "/.src/autoAccessorDisallowedModifiers.ts",
+              "start": 626,
+              "length": 8,
+              "message": "'accessor' modifier can only appear on a property declaration."
+            },
+            {
+              "code": 1275,
+              "category": "Error",
+              "file": "/.src/autoAccessorDisallowedModifiers.ts",
+              "start": 646,
+              "length": 8,
+              "message": "'accessor' modifier can only appear on a property declaration."
+            },
+            {
+              "code": 1275,
+              "category": "Error",
+              "file": "/.src/autoAccessorDisallowedModifiers.ts",
+              "start": 668,
+              "length": 8,
+              "message": "'accessor' modifier can only appear on a property declaration."
+            },
+            {
+              "code": 1275,
+              "category": "Error",
+              "file": "/.src/autoAccessorDisallowedModifiers.ts",
+              "start": 694,
+              "length": 8,
+              "message": "'accessor' modifier can only appear on a property declaration."
+            },
+            {
+              "code": 1275,
+              "category": "Error",
+              "file": "/.src/autoAccessorDisallowedModifiers.ts",
+              "start": 720,
+              "length": 8,
+              "message": "'accessor' modifier can only appear on a property declaration."
+            },
+            {
+              "code": 2882,
+              "category": "Error",
+              "file": "/.src/autoAccessorDisallowedModifiers.ts",
+              "start": 736,
+              "length": 3,
+              "message": "Cannot find module or type declarations for side-effect import of 'x'."
+            },
+            {
+              "code": 1275,
+              "category": "Error",
+              "file": "/.src/autoAccessorDisallowedModifiers.ts",
+              "start": 741,
+              "length": 8,
+              "message": "'accessor' modifier can only appear on a property declaration."
+            },
+            {
+              "code": 2307,
+              "category": "Error",
+              "file": "/.src/autoAccessorDisallowedModifiers.ts",
+              "start": 765,
+              "length": 3,
+              "message": "Cannot find module 'x' or its corresponding type declarations."
+            },
+            {
+              "code": 1275,
+              "category": "Error",
+              "file": "/.src/autoAccessorDisallowedModifiers.ts",
+              "start": 770,
+              "length": 8,
+              "message": "'accessor' modifier can only appear on a property declaration."
+            },
+            {
+              "code": 1275,
+              "category": "Error",
+              "file": "/.src/autoAccessorDisallowedModifiers.ts",
+              "start": 794,
+              "length": 8,
+              "message": "'accessor' modifier can only appear on a property declaration."
+            },
+            {
+              "code": 1275,
+              "category": "Error",
+              "file": "/.src/autoAccessorDisallowedModifiers.ts",
+              "start": 822,
+              "length": 8,
+              "message": "'accessor' modifier can only appear on a property declaration."
+            }
+          ],
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 2,
+          "run_fingerprint_sha256": "94096af022a5561b2a081ecb8cfd1e9e1153a13ad992a6842a3f9e114c8aa2e2"
+        },
+        {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/.src/autoAccessorDisallowedModifiers.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "Y2xhc3MgQzEgew0KICAgIGFjY2Vzc29yIGFjY2Vzc29yIGE7DQogICAgYWNjZXNzb3IgYjsNCiAgICBhY2Nlc3NvciBkOw0KICAgIGFjY2Vzc29yIGU7DQogICAgYWNjZXNzb3IgZjsNCiAgICBhY2Nlc3NvciBzdGF0aWMgaDsNCiAgICBhY2Nlc3NvciBpKCkgeyB9DQogICAgYWNjZXNzb3IgZ2V0IGooKSB7IHJldHVybiBmYWxzZTsgfQ0KICAgIGFjY2Vzc29yIHNldCBrKHYpIHsgfQ0KICAgIGNvbnN0cnVjdG9yKCkgeyB9DQogICAgYWNjZXNzb3IgbDsNCiAgICBhY2Nlc3NvciBtOw0KfQ0KY2xhc3MgQzIgZXh0ZW5kcyBDMSB7DQogICAgYWNjZXNzb3IgZzsNCn0NCmFjY2Vzc29yIGNsYXNzIEMzIHsNCn0NCmFjY2Vzc29yIHZhciBFMTsNCihmdW5jdGlvbiAoRTEpIHsNCn0pKEUxIHx8IChFMSA9IHt9KSk7DQphY2Nlc3NvciB2YXIgVjE7DQphY2Nlc3NvciBmdW5jdGlvbiBGMSgpIHsgfQ0KYWNjZXNzb3IgaW1wb3J0ICJ4IjsNCmV4cG9ydCB7IFYxIH07DQpleHBvcnQgZGVmYXVsdCBWMTsNCg==",
+              "callback_utf8_sha256": "799de9872e8a970603423fc7df899e3c7a8fd9c20f8f52838244544692265e69",
+              "callback_utf8_bytes": 508,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "799de9872e8a970603423fc7df899e3c7a8fd9c20f8f52838244544692265e69",
+              "materialized_utf8_bytes": 508,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/autoAccessorDisallowedModifiers.ts"
+              ]
+            }
+          ],
+          "reported_diagnostics": [
+            {
+              "code": 1030,
+              "category": "Error",
+              "file": "/.src/autoAccessorDisallowedModifiers.ts",
+              "start": 33,
+              "length": 8,
+              "message": "'accessor' modifier already seen."
+            },
+            {
+              "code": 1243,
+              "category": "Error",
+              "file": "/.src/autoAccessorDisallowedModifiers.ts",
+              "start": 63,
+              "length": 8,
+              "message": "'accessor' modifier cannot be used with 'readonly' modifier."
+            },
+            {
+              "code": 1243,
+              "category": "Error",
+              "file": "/.src/autoAccessorDisallowedModifiers.ts",
+              "start": 92,
+              "length": 8,
+              "message": "'accessor' modifier cannot be used with 'declare' modifier."
+            },
+            {
+              "code": 1029,
+              "category": "Error",
+              "file": "/.src/autoAccessorDisallowedModifiers.ts",
+              "start": 122,
+              "length": 6,
+              "message": "'public' modifier must precede 'accessor' modifier."
+            },
+            {
+              "code": 1029,
+              "category": "Error",
+              "file": "/.src/autoAccessorDisallowedModifiers.ts",
+              "start": 150,
+              "length": 7,
+              "message": "'private' modifier must precede 'accessor' modifier."
+            },
+            {
+              "code": 1029,
+              "category": "Error",
+              "file": "/.src/autoAccessorDisallowedModifiers.ts",
+              "start": 179,
+              "length": 9,
+              "message": "'protected' modifier must precede 'accessor' modifier."
+            },
+            {
+              "code": 1029,
+              "category": "Error",
+              "file": "/.src/autoAccessorDisallowedModifiers.ts",
+              "start": 210,
+              "length": 8,
+              "message": "'abstract' modifier must precede 'accessor' modifier."
+            },
+            {
+              "code": 1029,
+              "category": "Error",
+              "file": "/.src/autoAccessorDisallowedModifiers.ts",
+              "start": 240,
+              "length": 6,
+              "message": "'static' modifier must precede 'accessor' modifier."
+            },
+            {
+              "code": 1275,
+              "category": "Error",
+              "file": "/.src/autoAccessorDisallowedModifiers.ts",
+              "start": 259,
+              "length": 8,
+              "message": "'accessor' modifier can only appear on a property declaration."
+            },
+            {
+              "code": 1275,
+              "category": "Error",
+              "file": "/.src/autoAccessorDisallowedModifiers.ts",
+              "start": 279,
+              "length": 8,
+              "message": "'accessor' modifier can only appear on a property declaration."
+            },
+            {
+              "code": 1275,
+              "category": "Error",
+              "file": "/.src/autoAccessorDisallowedModifiers.ts",
+              "start": 318,
+              "length": 8,
+              "message": "'accessor' modifier can only appear on a property declaration."
+            },
+            {
+              "code": 1275,
+              "category": "Error",
+              "file": "/.src/autoAccessorDisallowedModifiers.ts",
+              "start": 348,
+              "length": 8,
+              "message": "'accessor' modifier can only appear on a property declaration."
+            },
+            {
+              "code": 1276,
+              "category": "Error",
+              "file": "/.src/autoAccessorDisallowedModifiers.ts",
+              "start": 388,
+              "length": 1,
+              "message": "An 'accessor' property cannot be declared optional."
+            },
+            {
+              "code": 1243,
+              "category": "Error",
+              "file": "/.src/autoAccessorDisallowedModifiers.ts",
+              "start": 409,
+              "length": 8,
+              "message": "'readonly' modifier cannot be used with 'accessor' modifier."
+            },
+            {
+              "code": 1243,
+              "category": "Error",
+              "file": "/.src/autoAccessorDisallowedModifiers.ts",
+              "start": 439,
+              "length": 7,
+              "message": "'declare' modifier cannot be used with 'accessor' modifier."
+            },
+            {
+              "code": 1029,
+              "category": "Error",
+              "file": "/.src/autoAccessorDisallowedModifiers.ts",
+              "start": 493,
+              "length": 8,
+              "message": "'override' modifier must precede 'accessor' modifier."
+            },
+            {
+              "code": 1070,
+              "category": "Error",
+              "file": "/.src/autoAccessorDisallowedModifiers.ts",
+              "start": 532,
+              "length": 8,
+              "message": "'accessor' modifier cannot appear on a type member."
+            },
+            {
+              "code": 1275,
+              "category": "Error",
+              "file": "/.src/autoAccessorDisallowedModifiers.ts",
+              "start": 555,
+              "length": 8,
+              "message": "'accessor' modifier can only appear on a property declaration."
+            },
+            {
+              "code": 1275,
+              "category": "Error",
+              "file": "/.src/autoAccessorDisallowedModifiers.ts",
+              "start": 576,
+              "length": 8,
+              "message": "'accessor' modifier can only appear on a property declaration."
+            },
+            {
+              "code": 1275,
+              "category": "Error",
+              "file": "/.src/autoAccessorDisallowedModifiers.ts",
+              "start": 601,
+              "length": 8,
+              "message": "'accessor' modifier can only appear on a property declaration."
+            },
+            {
+              "code": 1275,
+              "category": "Error",
+              "file": "/.src/autoAccessorDisallowedModifiers.ts",
+              "start": 626,
+              "length": 8,
+              "message": "'accessor' modifier can only appear on a property declaration."
+            },
+            {
+              "code": 1275,
+              "category": "Error",
+              "file": "/.src/autoAccessorDisallowedModifiers.ts",
+              "start": 646,
+              "length": 8,
+              "message": "'accessor' modifier can only appear on a property declaration."
+            },
+            {
+              "code": 1275,
+              "category": "Error",
+              "file": "/.src/autoAccessorDisallowedModifiers.ts",
+              "start": 668,
+              "length": 8,
+              "message": "'accessor' modifier can only appear on a property declaration."
+            },
+            {
+              "code": 1275,
+              "category": "Error",
+              "file": "/.src/autoAccessorDisallowedModifiers.ts",
+              "start": 694,
+              "length": 8,
+              "message": "'accessor' modifier can only appear on a property declaration."
+            },
+            {
+              "code": 1275,
+              "category": "Error",
+              "file": "/.src/autoAccessorDisallowedModifiers.ts",
+              "start": 720,
+              "length": 8,
+              "message": "'accessor' modifier can only appear on a property declaration."
+            },
+            {
+              "code": 2882,
+              "category": "Error",
+              "file": "/.src/autoAccessorDisallowedModifiers.ts",
+              "start": 736,
+              "length": 3,
+              "message": "Cannot find module or type declarations for side-effect import of 'x'."
+            },
+            {
+              "code": 1275,
+              "category": "Error",
+              "file": "/.src/autoAccessorDisallowedModifiers.ts",
+              "start": 741,
+              "length": 8,
+              "message": "'accessor' modifier can only appear on a property declaration."
+            },
+            {
+              "code": 2307,
+              "category": "Error",
+              "file": "/.src/autoAccessorDisallowedModifiers.ts",
+              "start": 765,
+              "length": 3,
+              "message": "Cannot find module 'x' or its corresponding type declarations."
+            },
+            {
+              "code": 1275,
+              "category": "Error",
+              "file": "/.src/autoAccessorDisallowedModifiers.ts",
+              "start": 770,
+              "length": 8,
+              "message": "'accessor' modifier can only appear on a property declaration."
+            },
+            {
+              "code": 1275,
+              "category": "Error",
+              "file": "/.src/autoAccessorDisallowedModifiers.ts",
+              "start": 794,
+              "length": 8,
+              "message": "'accessor' modifier can only appear on a property declaration."
+            },
+            {
+              "code": 1275,
+              "category": "Error",
+              "file": "/.src/autoAccessorDisallowedModifiers.ts",
+              "start": 822,
+              "length": 8,
+              "message": "'accessor' modifier can only appear on a property declaration."
+            }
+          ],
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 2,
+          "run_fingerprint_sha256": "94096af022a5561b2a081ecb8cfd1e9e1153a13ad992a6842a3f9e114c8aa2e2"
+        }
+      ],
+      "rust_expectation": "two-deterministic-exact-runs",
+      "case_fingerprint_sha256": "4cad46f32d4f1a058c7d107a69a87d59f6dc3ab19c4921ae358e575484bce0bc"
+    },
+    {
+      "suite": "conformance",
+      "case_id": "typescript-6.0.3/conformance/dynamicImport/importCallExpressionInExportEqualsAMD.ts#default",
+      "expansion_case": 1232,
+      "source": {
+        "path": "dynamicImport/importCallExpressionInExportEqualsAMD.ts",
+        "bytes": 188,
+        "sha256": "d03be729b2a46bf619ebfd4aa57de5ec1cb06203ff8aae6e61a0465f003a506b",
+        "git_blob_sha1": "77f348bd3fa11f0c3ae5f1d850534d071485e68a"
+      },
+      "module_state": "AMD(2)",
+      "input": {
+        "current_directory": "/.src",
+        "roots": [
+          "/.src/something.ts",
+          "/.src/index.ts"
+        ],
+        "settings": [
+          {
+            "name": "module",
+            "value": "amd"
+          },
+          {
+            "name": "target",
+            "value": "esnext"
+          },
+          {
+            "name": "filename",
+            "value": "index.ts"
+          }
+        ],
+        "virtual_config": null,
+        "files": [
+          {
+            "unit": 0,
+            "path": "/.src/something.ts",
+            "utf8_base64": "ZXhwb3J0ID0gNDI7Cg==",
+            "utf8_sha256": "e1ca82f7bf32ca37a2d54fb76b8c73b68dc734183deb5507503fd0d3c7153ccf",
+            "utf8_bytes": 13
+          },
+          {
+            "unit": 1,
+            "path": "/.src/index.ts",
+            "utf8_base64": "ZXhwb3J0ID0gYXN5bmMgZnVuY3Rpb24oKSB7CiAgICBjb25zdCBzb21ldGhpbmcgPSBhd2FpdCBpbXBvcnQoIi4vc29tZXRoaW5nIik7Cn07",
+            "utf8_sha256": "6edb8424544c98afba321df6a0f72a0e6aecafbb6aa9d0f17636dabed082941e",
+            "utf8_bytes": 81
+          }
+        ]
+      },
+      "files": [
+        {
+          "unit": 0,
+          "path": "/.src/something.ts",
+          "script_kind": "TS",
+          "declaration_file": false,
+          "emit_eligible": true,
+          "implied_module_format": "None",
+          "emit_module_format": 2,
+          "feature_roots": [
+            {
+              "feature": "export-equals",
+              "start": 0,
+              "end": 12,
+              "kind": "ExportAssignment"
+            }
+          ],
+          "parse_diagnostic_codes": [],
+          "max_ast_depth": 3,
+          "import_attributes": false,
+          "advanced_comment_placement": false,
+          "text_sha256": "e1ca82f7bf32ca37a2d54fb76b8c73b68dc734183deb5507503fd0d3c7153ccf"
+        },
+        {
+          "unit": 1,
+          "path": "/.src/index.ts",
+          "script_kind": "TS",
+          "declaration_file": false,
+          "emit_eligible": true,
+          "implied_module_format": "None",
+          "emit_module_format": 2,
+          "feature_roots": [
+            {
+              "feature": "export-equals",
+              "start": 0,
+              "end": 81,
+              "kind": "ExportAssignment"
+            }
+          ],
+          "parse_diagnostic_codes": [],
+          "max_ast_depth": 10,
+          "import_attributes": false,
+          "advanced_comment_placement": false,
+          "text_sha256": "6edb8424544c98afba321df6a0f72a0e6aecafbb6aa9d0f17636dabed082941e"
+        }
+      ],
+      "owner_reachability": [
+        "transform-es-module",
+        "transform-module",
+        "transform-typescript"
+      ],
+      "disposition": "admitted-for-execution",
+      "required_slices": [],
+      "diagnostic_disposition": {
+        "state": "exact-required"
+      },
+      "typescript_runs": [
+        {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/.src/something.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "ZGVmaW5lKFsicmVxdWlyZSIsICJleHBvcnRzIl0sIGZ1bmN0aW9uIChyZXF1aXJlLCBleHBvcnRzKSB7DQogICAgInVzZSBzdHJpY3QiOw0KICAgIHJldHVybiA0MjsNCn0pOw0K",
+              "callback_utf8_sha256": "1f34bb007e264e77983c8403c4bd44403bd53e1d47499cc513f4103eb75ac6e6",
+              "callback_utf8_bytes": 102,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "1f34bb007e264e77983c8403c4bd44403bd53e1d47499cc513f4103eb75ac6e6",
+              "materialized_utf8_bytes": 102,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/something.ts"
+              ]
+            },
+            {
+              "index": 1,
+              "path": "/.src/index.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "dmFyIF9fY3JlYXRlQmluZGluZyA9ICh0aGlzICYmIHRoaXMuX19jcmVhdGVCaW5kaW5nKSB8fCAoT2JqZWN0LmNyZWF0ZSA/IChmdW5jdGlvbihvLCBtLCBrLCBrMikgew0KICAgIGlmIChrMiA9PT0gdW5kZWZpbmVkKSBrMiA9IGs7DQogICAgdmFyIGRlc2MgPSBPYmplY3QuZ2V0T3duUHJvcGVydHlEZXNjcmlwdG9yKG0sIGspOw0KICAgIGlmICghZGVzYyB8fCAoImdldCIgaW4gZGVzYyA/ICFtLl9fZXNNb2R1bGUgOiBkZXNjLndyaXRhYmxlIHx8IGRlc2MuY29uZmlndXJhYmxlKSkgew0KICAgICAgZGVzYyA9IHsgZW51bWVyYWJsZTogdHJ1ZSwgZ2V0OiBmdW5jdGlvbigpIHsgcmV0dXJuIG1ba107IH0gfTsNCiAgICB9DQogICAgT2JqZWN0LmRlZmluZVByb3BlcnR5KG8sIGsyLCBkZXNjKTsNCn0pIDogKGZ1bmN0aW9uKG8sIG0sIGssIGsyKSB7DQogICAgaWYgKGsyID09PSB1bmRlZmluZWQpIGsyID0gazsNCiAgICBvW2syXSA9IG1ba107DQp9KSk7DQp2YXIgX19zZXRNb2R1bGVEZWZhdWx0ID0gKHRoaXMgJiYgdGhpcy5fX3NldE1vZHVsZURlZmF1bHQpIHx8IChPYmplY3QuY3JlYXRlID8gKGZ1bmN0aW9uKG8sIHYpIHsNCiAgICBPYmplY3QuZGVmaW5lUHJvcGVydHkobywgImRlZmF1bHQiLCB7IGVudW1lcmFibGU6IHRydWUsIHZhbHVlOiB2IH0pOw0KfSkgOiBmdW5jdGlvbihvLCB2KSB7DQogICAgb1siZGVmYXVsdCJdID0gdjsNCn0pOw0KdmFyIF9faW1wb3J0U3RhciA9ICh0aGlzICYmIHRoaXMuX19pbXBvcnRTdGFyKSB8fCAoZnVuY3Rpb24gKCkgew0KICAgIHZhciBvd25LZXlzID0gZnVuY3Rpb24obykgew0KICAgICAgICBvd25LZXlzID0gT2JqZWN0LmdldE93blByb3BlcnR5TmFtZXMgfHwgZnVuY3Rpb24gKG8pIHsNCiAgICAgICAgICAgIHZhciBhciA9IFtdOw0KICAgICAgICAgICAgZm9yICh2YXIgayBpbiBvKSBpZiAoT2JqZWN0LnByb3RvdHlwZS5oYXNPd25Qcm9wZXJ0eS5jYWxsKG8sIGspKSBhclthci5sZW5ndGhdID0gazsNCiAgICAgICAgICAgIHJldHVybiBhcjsNCiAgICAgICAgfTsNCiAgICAgICAgcmV0dXJuIG93bktleXMobyk7DQogICAgfTsNCiAgICByZXR1cm4gZnVuY3Rpb24gKG1vZCkgew0KICAgICAgICBpZiAobW9kICYmIG1vZC5fX2VzTW9kdWxlKSByZXR1cm4gbW9kOw0KICAgICAgICB2YXIgcmVzdWx0ID0ge307DQogICAgICAgIGlmIChtb2QgIT0gbnVsbCkgZm9yICh2YXIgayA9IG93bktleXMobW9kKSwgaSA9IDA7IGkgPCBrLmxlbmd0aDsgaSsrKSBpZiAoa1tpXSAhPT0gImRlZmF1bHQiKSBfX2NyZWF0ZUJpbmRpbmcocmVzdWx0LCBtb2QsIGtbaV0pOw0KICAgICAgICBfX3NldE1vZHVsZURlZmF1bHQocmVzdWx0LCBtb2QpOw0KICAgICAgICByZXR1cm4gcmVzdWx0Ow0KICAgIH07DQp9KSgpOw0KZGVmaW5lKFsicmVxdWlyZSIsICJleHBvcnRzIl0sIGZ1bmN0aW9uIChyZXF1aXJlLCBleHBvcnRzKSB7DQogICAgInVzZSBzdHJpY3QiOw0KICAgIHJldHVybiBhc3luYyBmdW5jdGlvbiAoKSB7DQogICAgICAgIGNvbnN0IHNvbWV0aGluZyA9IGF3YWl0IG5ldyBQcm9taXNlKChyZXNvbHZlXzEsIHJlamVjdF8xKSA9PiB7IHJlcXVpcmUoWyIuL3NvbWV0aGluZyJdLCByZXNvbHZlXzEsIHJlamVjdF8xKTsgfSkudGhlbihfX2ltcG9ydFN0YXIpOw0KICAgIH07DQp9KTsNCg==",
+              "callback_utf8_sha256": "87c435ea66cfb29e349e4a72d06da07704424442f42081fc6713bfd790414cf5",
+              "callback_utf8_bytes": 1660,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "87c435ea66cfb29e349e4a72d06da07704424442f42081fc6713bfd790414cf5",
+              "materialized_utf8_bytes": 1660,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/index.ts"
+              ]
+            }
+          ],
+          "reported_diagnostics": [
+            {
+              "code": 5107,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Option 'module=AMD' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error."
+            }
+          ],
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 2,
+          "run_fingerprint_sha256": "1795af16f9f282a0c23e93a47b16b24eefbe9b6ca22e4be042e5e0ab9f86b4d7"
+        },
+        {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/.src/something.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "ZGVmaW5lKFsicmVxdWlyZSIsICJleHBvcnRzIl0sIGZ1bmN0aW9uIChyZXF1aXJlLCBleHBvcnRzKSB7DQogICAgInVzZSBzdHJpY3QiOw0KICAgIHJldHVybiA0MjsNCn0pOw0K",
+              "callback_utf8_sha256": "1f34bb007e264e77983c8403c4bd44403bd53e1d47499cc513f4103eb75ac6e6",
+              "callback_utf8_bytes": 102,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "1f34bb007e264e77983c8403c4bd44403bd53e1d47499cc513f4103eb75ac6e6",
+              "materialized_utf8_bytes": 102,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/something.ts"
+              ]
+            },
+            {
+              "index": 1,
+              "path": "/.src/index.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "dmFyIF9fY3JlYXRlQmluZGluZyA9ICh0aGlzICYmIHRoaXMuX19jcmVhdGVCaW5kaW5nKSB8fCAoT2JqZWN0LmNyZWF0ZSA/IChmdW5jdGlvbihvLCBtLCBrLCBrMikgew0KICAgIGlmIChrMiA9PT0gdW5kZWZpbmVkKSBrMiA9IGs7DQogICAgdmFyIGRlc2MgPSBPYmplY3QuZ2V0T3duUHJvcGVydHlEZXNjcmlwdG9yKG0sIGspOw0KICAgIGlmICghZGVzYyB8fCAoImdldCIgaW4gZGVzYyA/ICFtLl9fZXNNb2R1bGUgOiBkZXNjLndyaXRhYmxlIHx8IGRlc2MuY29uZmlndXJhYmxlKSkgew0KICAgICAgZGVzYyA9IHsgZW51bWVyYWJsZTogdHJ1ZSwgZ2V0OiBmdW5jdGlvbigpIHsgcmV0dXJuIG1ba107IH0gfTsNCiAgICB9DQogICAgT2JqZWN0LmRlZmluZVByb3BlcnR5KG8sIGsyLCBkZXNjKTsNCn0pIDogKGZ1bmN0aW9uKG8sIG0sIGssIGsyKSB7DQogICAgaWYgKGsyID09PSB1bmRlZmluZWQpIGsyID0gazsNCiAgICBvW2syXSA9IG1ba107DQp9KSk7DQp2YXIgX19zZXRNb2R1bGVEZWZhdWx0ID0gKHRoaXMgJiYgdGhpcy5fX3NldE1vZHVsZURlZmF1bHQpIHx8IChPYmplY3QuY3JlYXRlID8gKGZ1bmN0aW9uKG8sIHYpIHsNCiAgICBPYmplY3QuZGVmaW5lUHJvcGVydHkobywgImRlZmF1bHQiLCB7IGVudW1lcmFibGU6IHRydWUsIHZhbHVlOiB2IH0pOw0KfSkgOiBmdW5jdGlvbihvLCB2KSB7DQogICAgb1siZGVmYXVsdCJdID0gdjsNCn0pOw0KdmFyIF9faW1wb3J0U3RhciA9ICh0aGlzICYmIHRoaXMuX19pbXBvcnRTdGFyKSB8fCAoZnVuY3Rpb24gKCkgew0KICAgIHZhciBvd25LZXlzID0gZnVuY3Rpb24obykgew0KICAgICAgICBvd25LZXlzID0gT2JqZWN0LmdldE93blByb3BlcnR5TmFtZXMgfHwgZnVuY3Rpb24gKG8pIHsNCiAgICAgICAgICAgIHZhciBhciA9IFtdOw0KICAgICAgICAgICAgZm9yICh2YXIgayBpbiBvKSBpZiAoT2JqZWN0LnByb3RvdHlwZS5oYXNPd25Qcm9wZXJ0eS5jYWxsKG8sIGspKSBhclthci5sZW5ndGhdID0gazsNCiAgICAgICAgICAgIHJldHVybiBhcjsNCiAgICAgICAgfTsNCiAgICAgICAgcmV0dXJuIG93bktleXMobyk7DQogICAgfTsNCiAgICByZXR1cm4gZnVuY3Rpb24gKG1vZCkgew0KICAgICAgICBpZiAobW9kICYmIG1vZC5fX2VzTW9kdWxlKSByZXR1cm4gbW9kOw0KICAgICAgICB2YXIgcmVzdWx0ID0ge307DQogICAgICAgIGlmIChtb2QgIT0gbnVsbCkgZm9yICh2YXIgayA9IG93bktleXMobW9kKSwgaSA9IDA7IGkgPCBrLmxlbmd0aDsgaSsrKSBpZiAoa1tpXSAhPT0gImRlZmF1bHQiKSBfX2NyZWF0ZUJpbmRpbmcocmVzdWx0LCBtb2QsIGtbaV0pOw0KICAgICAgICBfX3NldE1vZHVsZURlZmF1bHQocmVzdWx0LCBtb2QpOw0KICAgICAgICByZXR1cm4gcmVzdWx0Ow0KICAgIH07DQp9KSgpOw0KZGVmaW5lKFsicmVxdWlyZSIsICJleHBvcnRzIl0sIGZ1bmN0aW9uIChyZXF1aXJlLCBleHBvcnRzKSB7DQogICAgInVzZSBzdHJpY3QiOw0KICAgIHJldHVybiBhc3luYyBmdW5jdGlvbiAoKSB7DQogICAgICAgIGNvbnN0IHNvbWV0aGluZyA9IGF3YWl0IG5ldyBQcm9taXNlKChyZXNvbHZlXzEsIHJlamVjdF8xKSA9PiB7IHJlcXVpcmUoWyIuL3NvbWV0aGluZyJdLCByZXNvbHZlXzEsIHJlamVjdF8xKTsgfSkudGhlbihfX2ltcG9ydFN0YXIpOw0KICAgIH07DQp9KTsNCg==",
+              "callback_utf8_sha256": "87c435ea66cfb29e349e4a72d06da07704424442f42081fc6713bfd790414cf5",
+              "callback_utf8_bytes": 1660,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "87c435ea66cfb29e349e4a72d06da07704424442f42081fc6713bfd790414cf5",
+              "materialized_utf8_bytes": 1660,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/index.ts"
+              ]
+            }
+          ],
+          "reported_diagnostics": [
+            {
+              "code": 5107,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Option 'module=AMD' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error."
+            }
+          ],
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 2,
+          "run_fingerprint_sha256": "1795af16f9f282a0c23e93a47b16b24eefbe9b6ca22e4be042e5e0ab9f86b4d7"
+        }
+      ],
+      "rust_expectation": "two-deterministic-exact-runs",
+      "case_fingerprint_sha256": "7b130a0b324bb5c998a27e90a3668f0baa1b3050921832f5616ac384434f83d8"
+    },
+    {
+      "suite": "conformance",
+      "case_id": "typescript-6.0.3/conformance/dynamicImport/importCallExpressionInExportEqualsCJS.ts#default",
+      "expansion_case": 1233,
+      "source": {
+        "path": "dynamicImport/importCallExpressionInExportEqualsCJS.ts",
+        "bytes": 193,
+        "sha256": "171ff180d14da91ef90af918fc5086c47a7c8bfc3e3a075f612e05caf91184ff",
+        "git_blob_sha1": "efda80d4995db8ab5625cbd7e8fc007e6009d80f"
+      },
+      "module_state": "CommonJS(1)",
+      "input": {
+        "current_directory": "/.src",
+        "roots": [
+          "/.src/something.ts",
+          "/.src/index.ts"
+        ],
+        "settings": [
+          {
+            "name": "module",
+            "value": "commonjs"
+          },
+          {
+            "name": "target",
+            "value": "esnext"
+          },
+          {
+            "name": "filename",
+            "value": "index.ts"
+          }
+        ],
+        "virtual_config": null,
+        "files": [
+          {
+            "unit": 0,
+            "path": "/.src/something.ts",
+            "utf8_base64": "ZXhwb3J0ID0gNDI7Cg==",
+            "utf8_sha256": "e1ca82f7bf32ca37a2d54fb76b8c73b68dc734183deb5507503fd0d3c7153ccf",
+            "utf8_bytes": 13
+          },
+          {
+            "unit": 1,
+            "path": "/.src/index.ts",
+            "utf8_base64": "ZXhwb3J0ID0gYXN5bmMgZnVuY3Rpb24oKSB7CiAgICBjb25zdCBzb21ldGhpbmcgPSBhd2FpdCBpbXBvcnQoIi4vc29tZXRoaW5nIik7Cn07",
+            "utf8_sha256": "6edb8424544c98afba321df6a0f72a0e6aecafbb6aa9d0f17636dabed082941e",
+            "utf8_bytes": 81
+          }
+        ]
+      },
+      "files": [
+        {
+          "unit": 0,
+          "path": "/.src/something.ts",
+          "script_kind": "TS",
+          "declaration_file": false,
+          "emit_eligible": true,
+          "implied_module_format": "None",
+          "emit_module_format": 1,
+          "feature_roots": [
+            {
+              "feature": "export-equals",
+              "start": 0,
+              "end": 12,
+              "kind": "ExportAssignment"
+            }
+          ],
+          "parse_diagnostic_codes": [],
+          "max_ast_depth": 3,
+          "import_attributes": false,
+          "advanced_comment_placement": false,
+          "text_sha256": "e1ca82f7bf32ca37a2d54fb76b8c73b68dc734183deb5507503fd0d3c7153ccf"
+        },
+        {
+          "unit": 1,
+          "path": "/.src/index.ts",
+          "script_kind": "TS",
+          "declaration_file": false,
+          "emit_eligible": true,
+          "implied_module_format": "None",
+          "emit_module_format": 1,
+          "feature_roots": [
+            {
+              "feature": "export-equals",
+              "start": 0,
+              "end": 81,
+              "kind": "ExportAssignment"
+            }
+          ],
+          "parse_diagnostic_codes": [],
+          "max_ast_depth": 10,
+          "import_attributes": false,
+          "advanced_comment_placement": false,
+          "text_sha256": "6edb8424544c98afba321df6a0f72a0e6aecafbb6aa9d0f17636dabed082941e"
+        }
+      ],
+      "owner_reachability": [
+        "transform-es-module",
+        "transform-module",
+        "transform-typescript"
+      ],
+      "disposition": "admitted-for-execution",
+      "required_slices": [],
+      "diagnostic_disposition": {
+        "state": "exact-required"
+      },
+      "typescript_runs": [
+        {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/.src/something.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KbW9kdWxlLmV4cG9ydHMgPSA0MjsNCg==",
+              "callback_utf8_sha256": "d183dad3d2d9381cf29d0aa56774b9472b10230a96d5031422c5b6861b20ccbf",
+              "callback_utf8_bytes": 37,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "d183dad3d2d9381cf29d0aa56774b9472b10230a96d5031422c5b6861b20ccbf",
+              "materialized_utf8_bytes": 37,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/something.ts"
+              ]
+            },
+            {
+              "index": 1,
+              "path": "/.src/index.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIF9fY3JlYXRlQmluZGluZyA9ICh0aGlzICYmIHRoaXMuX19jcmVhdGVCaW5kaW5nKSB8fCAoT2JqZWN0LmNyZWF0ZSA/IChmdW5jdGlvbihvLCBtLCBrLCBrMikgew0KICAgIGlmIChrMiA9PT0gdW5kZWZpbmVkKSBrMiA9IGs7DQogICAgdmFyIGRlc2MgPSBPYmplY3QuZ2V0T3duUHJvcGVydHlEZXNjcmlwdG9yKG0sIGspOw0KICAgIGlmICghZGVzYyB8fCAoImdldCIgaW4gZGVzYyA/ICFtLl9fZXNNb2R1bGUgOiBkZXNjLndyaXRhYmxlIHx8IGRlc2MuY29uZmlndXJhYmxlKSkgew0KICAgICAgZGVzYyA9IHsgZW51bWVyYWJsZTogdHJ1ZSwgZ2V0OiBmdW5jdGlvbigpIHsgcmV0dXJuIG1ba107IH0gfTsNCiAgICB9DQogICAgT2JqZWN0LmRlZmluZVByb3BlcnR5KG8sIGsyLCBkZXNjKTsNCn0pIDogKGZ1bmN0aW9uKG8sIG0sIGssIGsyKSB7DQogICAgaWYgKGsyID09PSB1bmRlZmluZWQpIGsyID0gazsNCiAgICBvW2syXSA9IG1ba107DQp9KSk7DQp2YXIgX19zZXRNb2R1bGVEZWZhdWx0ID0gKHRoaXMgJiYgdGhpcy5fX3NldE1vZHVsZURlZmF1bHQpIHx8IChPYmplY3QuY3JlYXRlID8gKGZ1bmN0aW9uKG8sIHYpIHsNCiAgICBPYmplY3QuZGVmaW5lUHJvcGVydHkobywgImRlZmF1bHQiLCB7IGVudW1lcmFibGU6IHRydWUsIHZhbHVlOiB2IH0pOw0KfSkgOiBmdW5jdGlvbihvLCB2KSB7DQogICAgb1siZGVmYXVsdCJdID0gdjsNCn0pOw0KdmFyIF9faW1wb3J0U3RhciA9ICh0aGlzICYmIHRoaXMuX19pbXBvcnRTdGFyKSB8fCAoZnVuY3Rpb24gKCkgew0KICAgIHZhciBvd25LZXlzID0gZnVuY3Rpb24obykgew0KICAgICAgICBvd25LZXlzID0gT2JqZWN0LmdldE93blByb3BlcnR5TmFtZXMgfHwgZnVuY3Rpb24gKG8pIHsNCiAgICAgICAgICAgIHZhciBhciA9IFtdOw0KICAgICAgICAgICAgZm9yICh2YXIgayBpbiBvKSBpZiAoT2JqZWN0LnByb3RvdHlwZS5oYXNPd25Qcm9wZXJ0eS5jYWxsKG8sIGspKSBhclthci5sZW5ndGhdID0gazsNCiAgICAgICAgICAgIHJldHVybiBhcjsNCiAgICAgICAgfTsNCiAgICAgICAgcmV0dXJuIG93bktleXMobyk7DQogICAgfTsNCiAgICByZXR1cm4gZnVuY3Rpb24gKG1vZCkgew0KICAgICAgICBpZiAobW9kICYmIG1vZC5fX2VzTW9kdWxlKSByZXR1cm4gbW9kOw0KICAgICAgICB2YXIgcmVzdWx0ID0ge307DQogICAgICAgIGlmIChtb2QgIT0gbnVsbCkgZm9yICh2YXIgayA9IG93bktleXMobW9kKSwgaSA9IDA7IGkgPCBrLmxlbmd0aDsgaSsrKSBpZiAoa1tpXSAhPT0gImRlZmF1bHQiKSBfX2NyZWF0ZUJpbmRpbmcocmVzdWx0LCBtb2QsIGtbaV0pOw0KICAgICAgICBfX3NldE1vZHVsZURlZmF1bHQocmVzdWx0LCBtb2QpOw0KICAgICAgICByZXR1cm4gcmVzdWx0Ow0KICAgIH07DQp9KSgpOw0KbW9kdWxlLmV4cG9ydHMgPSBhc3luYyBmdW5jdGlvbiAoKSB7DQogICAgY29uc3Qgc29tZXRoaW5nID0gYXdhaXQgUHJvbWlzZS5yZXNvbHZlKCkudGhlbigoKSA9PiBfX2ltcG9ydFN0YXIocmVxdWlyZSgiLi9zb21ldGhpbmciKSkpOw0KfTsNCg==",
+              "callback_utf8_sha256": "fdadd21553e0ebf61a9c1fd9e4675af2977c6b4a7302e8fb4d953bad12d4c717",
+              "callback_utf8_bytes": 1546,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "fdadd21553e0ebf61a9c1fd9e4675af2977c6b4a7302e8fb4d953bad12d4c717",
+              "materialized_utf8_bytes": 1546,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/index.ts"
+              ]
+            }
+          ],
+          "reported_diagnostics": [],
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 0,
+          "run_fingerprint_sha256": "9dfb3d0e1551cdc849da71b227a2697f7d78ab1d13d7787a3137cc8f37a2f743"
+        },
+        {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/.src/something.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KbW9kdWxlLmV4cG9ydHMgPSA0MjsNCg==",
+              "callback_utf8_sha256": "d183dad3d2d9381cf29d0aa56774b9472b10230a96d5031422c5b6861b20ccbf",
+              "callback_utf8_bytes": 37,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "d183dad3d2d9381cf29d0aa56774b9472b10230a96d5031422c5b6861b20ccbf",
+              "materialized_utf8_bytes": 37,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/something.ts"
+              ]
+            },
+            {
+              "index": 1,
+              "path": "/.src/index.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIF9fY3JlYXRlQmluZGluZyA9ICh0aGlzICYmIHRoaXMuX19jcmVhdGVCaW5kaW5nKSB8fCAoT2JqZWN0LmNyZWF0ZSA/IChmdW5jdGlvbihvLCBtLCBrLCBrMikgew0KICAgIGlmIChrMiA9PT0gdW5kZWZpbmVkKSBrMiA9IGs7DQogICAgdmFyIGRlc2MgPSBPYmplY3QuZ2V0T3duUHJvcGVydHlEZXNjcmlwdG9yKG0sIGspOw0KICAgIGlmICghZGVzYyB8fCAoImdldCIgaW4gZGVzYyA/ICFtLl9fZXNNb2R1bGUgOiBkZXNjLndyaXRhYmxlIHx8IGRlc2MuY29uZmlndXJhYmxlKSkgew0KICAgICAgZGVzYyA9IHsgZW51bWVyYWJsZTogdHJ1ZSwgZ2V0OiBmdW5jdGlvbigpIHsgcmV0dXJuIG1ba107IH0gfTsNCiAgICB9DQogICAgT2JqZWN0LmRlZmluZVByb3BlcnR5KG8sIGsyLCBkZXNjKTsNCn0pIDogKGZ1bmN0aW9uKG8sIG0sIGssIGsyKSB7DQogICAgaWYgKGsyID09PSB1bmRlZmluZWQpIGsyID0gazsNCiAgICBvW2syXSA9IG1ba107DQp9KSk7DQp2YXIgX19zZXRNb2R1bGVEZWZhdWx0ID0gKHRoaXMgJiYgdGhpcy5fX3NldE1vZHVsZURlZmF1bHQpIHx8IChPYmplY3QuY3JlYXRlID8gKGZ1bmN0aW9uKG8sIHYpIHsNCiAgICBPYmplY3QuZGVmaW5lUHJvcGVydHkobywgImRlZmF1bHQiLCB7IGVudW1lcmFibGU6IHRydWUsIHZhbHVlOiB2IH0pOw0KfSkgOiBmdW5jdGlvbihvLCB2KSB7DQogICAgb1siZGVmYXVsdCJdID0gdjsNCn0pOw0KdmFyIF9faW1wb3J0U3RhciA9ICh0aGlzICYmIHRoaXMuX19pbXBvcnRTdGFyKSB8fCAoZnVuY3Rpb24gKCkgew0KICAgIHZhciBvd25LZXlzID0gZnVuY3Rpb24obykgew0KICAgICAgICBvd25LZXlzID0gT2JqZWN0LmdldE93blByb3BlcnR5TmFtZXMgfHwgZnVuY3Rpb24gKG8pIHsNCiAgICAgICAgICAgIHZhciBhciA9IFtdOw0KICAgICAgICAgICAgZm9yICh2YXIgayBpbiBvKSBpZiAoT2JqZWN0LnByb3RvdHlwZS5oYXNPd25Qcm9wZXJ0eS5jYWxsKG8sIGspKSBhclthci5sZW5ndGhdID0gazsNCiAgICAgICAgICAgIHJldHVybiBhcjsNCiAgICAgICAgfTsNCiAgICAgICAgcmV0dXJuIG93bktleXMobyk7DQogICAgfTsNCiAgICByZXR1cm4gZnVuY3Rpb24gKG1vZCkgew0KICAgICAgICBpZiAobW9kICYmIG1vZC5fX2VzTW9kdWxlKSByZXR1cm4gbW9kOw0KICAgICAgICB2YXIgcmVzdWx0ID0ge307DQogICAgICAgIGlmIChtb2QgIT0gbnVsbCkgZm9yICh2YXIgayA9IG93bktleXMobW9kKSwgaSA9IDA7IGkgPCBrLmxlbmd0aDsgaSsrKSBpZiAoa1tpXSAhPT0gImRlZmF1bHQiKSBfX2NyZWF0ZUJpbmRpbmcocmVzdWx0LCBtb2QsIGtbaV0pOw0KICAgICAgICBfX3NldE1vZHVsZURlZmF1bHQocmVzdWx0LCBtb2QpOw0KICAgICAgICByZXR1cm4gcmVzdWx0Ow0KICAgIH07DQp9KSgpOw0KbW9kdWxlLmV4cG9ydHMgPSBhc3luYyBmdW5jdGlvbiAoKSB7DQogICAgY29uc3Qgc29tZXRoaW5nID0gYXdhaXQgUHJvbWlzZS5yZXNvbHZlKCkudGhlbigoKSA9PiBfX2ltcG9ydFN0YXIocmVxdWlyZSgiLi9zb21ldGhpbmciKSkpOw0KfTsNCg==",
+              "callback_utf8_sha256": "fdadd21553e0ebf61a9c1fd9e4675af2977c6b4a7302e8fb4d953bad12d4c717",
+              "callback_utf8_bytes": 1546,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "fdadd21553e0ebf61a9c1fd9e4675af2977c6b4a7302e8fb4d953bad12d4c717",
+              "materialized_utf8_bytes": 1546,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/index.ts"
+              ]
+            }
+          ],
+          "reported_diagnostics": [],
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 0,
+          "run_fingerprint_sha256": "9dfb3d0e1551cdc849da71b227a2697f7d78ab1d13d7787a3137cc8f37a2f743"
+        }
+      ],
+      "rust_expectation": "two-deterministic-exact-runs",
+      "case_fingerprint_sha256": "1fd30b0ffd4843864a0381c764c470dd704ffb1486d333f9490d112a5a437d16"
+    },
+    {
+      "suite": "conformance",
+      "case_id": "typescript-6.0.3/conformance/dynamicImport/importCallExpressionInExportEqualsUMD.ts#default",
+      "expansion_case": 1234,
+      "source": {
+        "path": "dynamicImport/importCallExpressionInExportEqualsUMD.ts",
+        "bytes": 188,
+        "sha256": "c7d2453780b128b0ca1b719119d66622b6bb3d02d3e296942ea3a50f6e57cbfa",
+        "git_blob_sha1": "fc0865914fbd0180b05532805814a5757f744c61"
+      },
+      "module_state": "UMD(3)",
+      "input": {
+        "current_directory": "/.src",
+        "roots": [
+          "/.src/something.ts",
+          "/.src/index.ts"
+        ],
+        "settings": [
+          {
+            "name": "module",
+            "value": "umd"
+          },
+          {
+            "name": "target",
+            "value": "esnext"
+          },
+          {
+            "name": "filename",
+            "value": "index.ts"
+          }
+        ],
+        "virtual_config": null,
+        "files": [
+          {
+            "unit": 0,
+            "path": "/.src/something.ts",
+            "utf8_base64": "ZXhwb3J0ID0gNDI7Cg==",
+            "utf8_sha256": "e1ca82f7bf32ca37a2d54fb76b8c73b68dc734183deb5507503fd0d3c7153ccf",
+            "utf8_bytes": 13
+          },
+          {
+            "unit": 1,
+            "path": "/.src/index.ts",
+            "utf8_base64": "ZXhwb3J0ID0gYXN5bmMgZnVuY3Rpb24oKSB7CiAgICBjb25zdCBzb21ldGhpbmcgPSBhd2FpdCBpbXBvcnQoIi4vc29tZXRoaW5nIik7Cn07",
+            "utf8_sha256": "6edb8424544c98afba321df6a0f72a0e6aecafbb6aa9d0f17636dabed082941e",
+            "utf8_bytes": 81
+          }
+        ]
+      },
+      "files": [
+        {
+          "unit": 0,
+          "path": "/.src/something.ts",
+          "script_kind": "TS",
+          "declaration_file": false,
+          "emit_eligible": true,
+          "implied_module_format": "None",
+          "emit_module_format": 3,
+          "feature_roots": [
+            {
+              "feature": "export-equals",
+              "start": 0,
+              "end": 12,
+              "kind": "ExportAssignment"
+            }
+          ],
+          "parse_diagnostic_codes": [],
+          "max_ast_depth": 3,
+          "import_attributes": false,
+          "advanced_comment_placement": false,
+          "text_sha256": "e1ca82f7bf32ca37a2d54fb76b8c73b68dc734183deb5507503fd0d3c7153ccf"
+        },
+        {
+          "unit": 1,
+          "path": "/.src/index.ts",
+          "script_kind": "TS",
+          "declaration_file": false,
+          "emit_eligible": true,
+          "implied_module_format": "None",
+          "emit_module_format": 3,
+          "feature_roots": [
+            {
+              "feature": "export-equals",
+              "start": 0,
+              "end": 81,
+              "kind": "ExportAssignment"
+            }
+          ],
+          "parse_diagnostic_codes": [],
+          "max_ast_depth": 10,
+          "import_attributes": false,
+          "advanced_comment_placement": false,
+          "text_sha256": "6edb8424544c98afba321df6a0f72a0e6aecafbb6aa9d0f17636dabed082941e"
+        }
+      ],
+      "owner_reachability": [
+        "transform-es-module",
+        "transform-module",
+        "transform-typescript"
+      ],
+      "disposition": "admitted-for-execution",
+      "required_slices": [],
+      "diagnostic_disposition": {
+        "state": "exact-required"
+      },
+      "typescript_runs": [
+        {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/.src/something.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "KGZ1bmN0aW9uIChmYWN0b3J5KSB7DQogICAgaWYgKHR5cGVvZiBtb2R1bGUgPT09ICJvYmplY3QiICYmIHR5cGVvZiBtb2R1bGUuZXhwb3J0cyA9PT0gIm9iamVjdCIpIHsNCiAgICAgICAgdmFyIHYgPSBmYWN0b3J5KHJlcXVpcmUsIGV4cG9ydHMpOw0KICAgICAgICBpZiAodiAhPT0gdW5kZWZpbmVkKSBtb2R1bGUuZXhwb3J0cyA9IHY7DQogICAgfQ0KICAgIGVsc2UgaWYgKHR5cGVvZiBkZWZpbmUgPT09ICJmdW5jdGlvbiIgJiYgZGVmaW5lLmFtZCkgew0KICAgICAgICBkZWZpbmUoWyJyZXF1aXJlIiwgImV4cG9ydHMiXSwgZmFjdG9yeSk7DQogICAgfQ0KfSkoZnVuY3Rpb24gKHJlcXVpcmUsIGV4cG9ydHMpIHsNCiAgICAidXNlIHN0cmljdCI7DQogICAgcmV0dXJuIDQyOw0KfSk7DQo=",
+              "callback_utf8_sha256": "e934c540d3b5e5fc6e999b4bcf8988490e69e7a53ee9f8876b6a03a077be34da",
+              "callback_utf8_bytes": 392,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "e934c540d3b5e5fc6e999b4bcf8988490e69e7a53ee9f8876b6a03a077be34da",
+              "materialized_utf8_bytes": 392,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/something.ts"
+              ]
+            },
+            {
+              "index": 1,
+              "path": "/.src/index.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "dmFyIF9fY3JlYXRlQmluZGluZyA9ICh0aGlzICYmIHRoaXMuX19jcmVhdGVCaW5kaW5nKSB8fCAoT2JqZWN0LmNyZWF0ZSA/IChmdW5jdGlvbihvLCBtLCBrLCBrMikgew0KICAgIGlmIChrMiA9PT0gdW5kZWZpbmVkKSBrMiA9IGs7DQogICAgdmFyIGRlc2MgPSBPYmplY3QuZ2V0T3duUHJvcGVydHlEZXNjcmlwdG9yKG0sIGspOw0KICAgIGlmICghZGVzYyB8fCAoImdldCIgaW4gZGVzYyA/ICFtLl9fZXNNb2R1bGUgOiBkZXNjLndyaXRhYmxlIHx8IGRlc2MuY29uZmlndXJhYmxlKSkgew0KICAgICAgZGVzYyA9IHsgZW51bWVyYWJsZTogdHJ1ZSwgZ2V0OiBmdW5jdGlvbigpIHsgcmV0dXJuIG1ba107IH0gfTsNCiAgICB9DQogICAgT2JqZWN0LmRlZmluZVByb3BlcnR5KG8sIGsyLCBkZXNjKTsNCn0pIDogKGZ1bmN0aW9uKG8sIG0sIGssIGsyKSB7DQogICAgaWYgKGsyID09PSB1bmRlZmluZWQpIGsyID0gazsNCiAgICBvW2syXSA9IG1ba107DQp9KSk7DQp2YXIgX19zZXRNb2R1bGVEZWZhdWx0ID0gKHRoaXMgJiYgdGhpcy5fX3NldE1vZHVsZURlZmF1bHQpIHx8IChPYmplY3QuY3JlYXRlID8gKGZ1bmN0aW9uKG8sIHYpIHsNCiAgICBPYmplY3QuZGVmaW5lUHJvcGVydHkobywgImRlZmF1bHQiLCB7IGVudW1lcmFibGU6IHRydWUsIHZhbHVlOiB2IH0pOw0KfSkgOiBmdW5jdGlvbihvLCB2KSB7DQogICAgb1siZGVmYXVsdCJdID0gdjsNCn0pOw0KdmFyIF9faW1wb3J0U3RhciA9ICh0aGlzICYmIHRoaXMuX19pbXBvcnRTdGFyKSB8fCAoZnVuY3Rpb24gKCkgew0KICAgIHZhciBvd25LZXlzID0gZnVuY3Rpb24obykgew0KICAgICAgICBvd25LZXlzID0gT2JqZWN0LmdldE93blByb3BlcnR5TmFtZXMgfHwgZnVuY3Rpb24gKG8pIHsNCiAgICAgICAgICAgIHZhciBhciA9IFtdOw0KICAgICAgICAgICAgZm9yICh2YXIgayBpbiBvKSBpZiAoT2JqZWN0LnByb3RvdHlwZS5oYXNPd25Qcm9wZXJ0eS5jYWxsKG8sIGspKSBhclthci5sZW5ndGhdID0gazsNCiAgICAgICAgICAgIHJldHVybiBhcjsNCiAgICAgICAgfTsNCiAgICAgICAgcmV0dXJuIG93bktleXMobyk7DQogICAgfTsNCiAgICByZXR1cm4gZnVuY3Rpb24gKG1vZCkgew0KICAgICAgICBpZiAobW9kICYmIG1vZC5fX2VzTW9kdWxlKSByZXR1cm4gbW9kOw0KICAgICAgICB2YXIgcmVzdWx0ID0ge307DQogICAgICAgIGlmIChtb2QgIT0gbnVsbCkgZm9yICh2YXIgayA9IG93bktleXMobW9kKSwgaSA9IDA7IGkgPCBrLmxlbmd0aDsgaSsrKSBpZiAoa1tpXSAhPT0gImRlZmF1bHQiKSBfX2NyZWF0ZUJpbmRpbmcocmVzdWx0LCBtb2QsIGtbaV0pOw0KICAgICAgICBfX3NldE1vZHVsZURlZmF1bHQocmVzdWx0LCBtb2QpOw0KICAgICAgICByZXR1cm4gcmVzdWx0Ow0KICAgIH07DQp9KSgpOw0KKGZ1bmN0aW9uIChmYWN0b3J5KSB7DQogICAgaWYgKHR5cGVvZiBtb2R1bGUgPT09ICJvYmplY3QiICYmIHR5cGVvZiBtb2R1bGUuZXhwb3J0cyA9PT0gIm9iamVjdCIpIHsNCiAgICAgICAgdmFyIHYgPSBmYWN0b3J5KHJlcXVpcmUsIGV4cG9ydHMpOw0KICAgICAgICBpZiAodiAhPT0gdW5kZWZpbmVkKSBtb2R1bGUuZXhwb3J0cyA9IHY7DQogICAgfQ0KICAgIGVsc2UgaWYgKHR5cGVvZiBkZWZpbmUgPT09ICJmdW5jdGlvbiIgJiYgZGVmaW5lLmFtZCkgew0KICAgICAgICBkZWZpbmUoWyJyZXF1aXJlIiwgImV4cG9ydHMiXSwgZmFjdG9yeSk7DQogICAgfQ0KfSkoZnVuY3Rpb24gKHJlcXVpcmUsIGV4cG9ydHMpIHsNCiAgICAidXNlIHN0cmljdCI7DQogICAgdmFyIF9fc3luY1JlcXVpcmUgPSB0eXBlb2YgbW9kdWxlID09PSAib2JqZWN0IiAmJiB0eXBlb2YgbW9kdWxlLmV4cG9ydHMgPT09ICJvYmplY3QiOw0KICAgIHJldHVybiBhc3luYyBmdW5jdGlvbiAoKSB7DQogICAgICAgIGNvbnN0IHNvbWV0aGluZyA9IGF3YWl0IChfX3N5bmNSZXF1aXJlID8gUHJvbWlzZS5yZXNvbHZlKCkudGhlbigoKSA9PiBfX2ltcG9ydFN0YXIocmVxdWlyZSgiLi9zb21ldGhpbmciKSkpIDogbmV3IFByb21pc2UoKHJlc29sdmVfMSwgcmVqZWN0XzEpID0+IHsgcmVxdWlyZShbIi4vc29tZXRoaW5nIl0sIHJlc29sdmVfMSwgcmVqZWN0XzEpOyB9KS50aGVuKF9faW1wb3J0U3RhcikpOw0KICAgIH07DQp9KTsNCg==",
+              "callback_utf8_sha256": "e541fb22aa0c8932b10975ef2450af79e9d8ebce53fdd54ecedb42066db879bd",
+              "callback_utf8_bytes": 2128,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "e541fb22aa0c8932b10975ef2450af79e9d8ebce53fdd54ecedb42066db879bd",
+              "materialized_utf8_bytes": 2128,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/index.ts"
+              ]
+            }
+          ],
+          "reported_diagnostics": [
+            {
+              "code": 5107,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Option 'module=UMD' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error."
+            }
+          ],
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 2,
+          "run_fingerprint_sha256": "8458f9cd4b500ec63448b7d69e5bce8ed3eeea5787d2ad1ab52d4fcddb9b90ec"
+        },
+        {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/.src/something.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "KGZ1bmN0aW9uIChmYWN0b3J5KSB7DQogICAgaWYgKHR5cGVvZiBtb2R1bGUgPT09ICJvYmplY3QiICYmIHR5cGVvZiBtb2R1bGUuZXhwb3J0cyA9PT0gIm9iamVjdCIpIHsNCiAgICAgICAgdmFyIHYgPSBmYWN0b3J5KHJlcXVpcmUsIGV4cG9ydHMpOw0KICAgICAgICBpZiAodiAhPT0gdW5kZWZpbmVkKSBtb2R1bGUuZXhwb3J0cyA9IHY7DQogICAgfQ0KICAgIGVsc2UgaWYgKHR5cGVvZiBkZWZpbmUgPT09ICJmdW5jdGlvbiIgJiYgZGVmaW5lLmFtZCkgew0KICAgICAgICBkZWZpbmUoWyJyZXF1aXJlIiwgImV4cG9ydHMiXSwgZmFjdG9yeSk7DQogICAgfQ0KfSkoZnVuY3Rpb24gKHJlcXVpcmUsIGV4cG9ydHMpIHsNCiAgICAidXNlIHN0cmljdCI7DQogICAgcmV0dXJuIDQyOw0KfSk7DQo=",
+              "callback_utf8_sha256": "e934c540d3b5e5fc6e999b4bcf8988490e69e7a53ee9f8876b6a03a077be34da",
+              "callback_utf8_bytes": 392,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "e934c540d3b5e5fc6e999b4bcf8988490e69e7a53ee9f8876b6a03a077be34da",
+              "materialized_utf8_bytes": 392,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/something.ts"
+              ]
+            },
+            {
+              "index": 1,
+              "path": "/.src/index.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "dmFyIF9fY3JlYXRlQmluZGluZyA9ICh0aGlzICYmIHRoaXMuX19jcmVhdGVCaW5kaW5nKSB8fCAoT2JqZWN0LmNyZWF0ZSA/IChmdW5jdGlvbihvLCBtLCBrLCBrMikgew0KICAgIGlmIChrMiA9PT0gdW5kZWZpbmVkKSBrMiA9IGs7DQogICAgdmFyIGRlc2MgPSBPYmplY3QuZ2V0T3duUHJvcGVydHlEZXNjcmlwdG9yKG0sIGspOw0KICAgIGlmICghZGVzYyB8fCAoImdldCIgaW4gZGVzYyA/ICFtLl9fZXNNb2R1bGUgOiBkZXNjLndyaXRhYmxlIHx8IGRlc2MuY29uZmlndXJhYmxlKSkgew0KICAgICAgZGVzYyA9IHsgZW51bWVyYWJsZTogdHJ1ZSwgZ2V0OiBmdW5jdGlvbigpIHsgcmV0dXJuIG1ba107IH0gfTsNCiAgICB9DQogICAgT2JqZWN0LmRlZmluZVByb3BlcnR5KG8sIGsyLCBkZXNjKTsNCn0pIDogKGZ1bmN0aW9uKG8sIG0sIGssIGsyKSB7DQogICAgaWYgKGsyID09PSB1bmRlZmluZWQpIGsyID0gazsNCiAgICBvW2syXSA9IG1ba107DQp9KSk7DQp2YXIgX19zZXRNb2R1bGVEZWZhdWx0ID0gKHRoaXMgJiYgdGhpcy5fX3NldE1vZHVsZURlZmF1bHQpIHx8IChPYmplY3QuY3JlYXRlID8gKGZ1bmN0aW9uKG8sIHYpIHsNCiAgICBPYmplY3QuZGVmaW5lUHJvcGVydHkobywgImRlZmF1bHQiLCB7IGVudW1lcmFibGU6IHRydWUsIHZhbHVlOiB2IH0pOw0KfSkgOiBmdW5jdGlvbihvLCB2KSB7DQogICAgb1siZGVmYXVsdCJdID0gdjsNCn0pOw0KdmFyIF9faW1wb3J0U3RhciA9ICh0aGlzICYmIHRoaXMuX19pbXBvcnRTdGFyKSB8fCAoZnVuY3Rpb24gKCkgew0KICAgIHZhciBvd25LZXlzID0gZnVuY3Rpb24obykgew0KICAgICAgICBvd25LZXlzID0gT2JqZWN0LmdldE93blByb3BlcnR5TmFtZXMgfHwgZnVuY3Rpb24gKG8pIHsNCiAgICAgICAgICAgIHZhciBhciA9IFtdOw0KICAgICAgICAgICAgZm9yICh2YXIgayBpbiBvKSBpZiAoT2JqZWN0LnByb3RvdHlwZS5oYXNPd25Qcm9wZXJ0eS5jYWxsKG8sIGspKSBhclthci5sZW5ndGhdID0gazsNCiAgICAgICAgICAgIHJldHVybiBhcjsNCiAgICAgICAgfTsNCiAgICAgICAgcmV0dXJuIG93bktleXMobyk7DQogICAgfTsNCiAgICByZXR1cm4gZnVuY3Rpb24gKG1vZCkgew0KICAgICAgICBpZiAobW9kICYmIG1vZC5fX2VzTW9kdWxlKSByZXR1cm4gbW9kOw0KICAgICAgICB2YXIgcmVzdWx0ID0ge307DQogICAgICAgIGlmIChtb2QgIT0gbnVsbCkgZm9yICh2YXIgayA9IG93bktleXMobW9kKSwgaSA9IDA7IGkgPCBrLmxlbmd0aDsgaSsrKSBpZiAoa1tpXSAhPT0gImRlZmF1bHQiKSBfX2NyZWF0ZUJpbmRpbmcocmVzdWx0LCBtb2QsIGtbaV0pOw0KICAgICAgICBfX3NldE1vZHVsZURlZmF1bHQocmVzdWx0LCBtb2QpOw0KICAgICAgICByZXR1cm4gcmVzdWx0Ow0KICAgIH07DQp9KSgpOw0KKGZ1bmN0aW9uIChmYWN0b3J5KSB7DQogICAgaWYgKHR5cGVvZiBtb2R1bGUgPT09ICJvYmplY3QiICYmIHR5cGVvZiBtb2R1bGUuZXhwb3J0cyA9PT0gIm9iamVjdCIpIHsNCiAgICAgICAgdmFyIHYgPSBmYWN0b3J5KHJlcXVpcmUsIGV4cG9ydHMpOw0KICAgICAgICBpZiAodiAhPT0gdW5kZWZpbmVkKSBtb2R1bGUuZXhwb3J0cyA9IHY7DQogICAgfQ0KICAgIGVsc2UgaWYgKHR5cGVvZiBkZWZpbmUgPT09ICJmdW5jdGlvbiIgJiYgZGVmaW5lLmFtZCkgew0KICAgICAgICBkZWZpbmUoWyJyZXF1aXJlIiwgImV4cG9ydHMiXSwgZmFjdG9yeSk7DQogICAgfQ0KfSkoZnVuY3Rpb24gKHJlcXVpcmUsIGV4cG9ydHMpIHsNCiAgICAidXNlIHN0cmljdCI7DQogICAgdmFyIF9fc3luY1JlcXVpcmUgPSB0eXBlb2YgbW9kdWxlID09PSAib2JqZWN0IiAmJiB0eXBlb2YgbW9kdWxlLmV4cG9ydHMgPT09ICJvYmplY3QiOw0KICAgIHJldHVybiBhc3luYyBmdW5jdGlvbiAoKSB7DQogICAgICAgIGNvbnN0IHNvbWV0aGluZyA9IGF3YWl0IChfX3N5bmNSZXF1aXJlID8gUHJvbWlzZS5yZXNvbHZlKCkudGhlbigoKSA9PiBfX2ltcG9ydFN0YXIocmVxdWlyZSgiLi9zb21ldGhpbmciKSkpIDogbmV3IFByb21pc2UoKHJlc29sdmVfMSwgcmVqZWN0XzEpID0+IHsgcmVxdWlyZShbIi4vc29tZXRoaW5nIl0sIHJlc29sdmVfMSwgcmVqZWN0XzEpOyB9KS50aGVuKF9faW1wb3J0U3RhcikpOw0KICAgIH07DQp9KTsNCg==",
+              "callback_utf8_sha256": "e541fb22aa0c8932b10975ef2450af79e9d8ebce53fdd54ecedb42066db879bd",
+              "callback_utf8_bytes": 2128,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "e541fb22aa0c8932b10975ef2450af79e9d8ebce53fdd54ecedb42066db879bd",
+              "materialized_utf8_bytes": 2128,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/index.ts"
+              ]
+            }
+          ],
+          "reported_diagnostics": [
+            {
+              "code": 5107,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Option 'module=UMD' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error."
+            }
+          ],
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 2,
+          "run_fingerprint_sha256": "8458f9cd4b500ec63448b7d69e5bce8ed3eeea5787d2ad1ab52d4fcddb9b90ec"
+        }
+      ],
+      "rust_expectation": "two-deterministic-exact-runs",
+      "case_fingerprint_sha256": "71d15219f7e2c5ff5ac1c6e5d0baae25a305e40ff27d76a68ec7829f8b541ef4"
+    },
+    {
+      "suite": "conformance",
+      "case_id": "typescript-6.0.3/conformance/externalModules/topLevelAwait.2.ts#module%3Desnext",
+      "expansion_case": 3653,
+      "source": {
+        "path": "externalModules/topLevelAwait.2.ts",
+        "bytes": 198,
+        "sha256": "3775a9d0232c42a64bae41f01dfc5d14d36989edb9e1466ab20c40d73e702b4d",
+        "git_blob_sha1": "8b652343dcdf5530936cddadc6b98a8b17e44e09"
+      },
+      "module_state": "ESNext(99)",
+      "input": {
+        "current_directory": "/.src",
+        "roots": [
+          "/.src/topLevelAwait.2.ts"
+        ],
+        "settings": [
+          {
+            "name": "strict",
+            "value": "false"
+          },
+          {
+            "name": "target",
+            "value": "esnext"
+          },
+          {
+            "name": "module",
+            "value": "esnext"
+          }
+        ],
+        "virtual_config": null,
+        "files": [
+          {
+            "unit": 0,
+            "path": "/.src/topLevelAwait.2.ts",
+            "utf8_base64": "ZGVjbGFyZSBuYW1lc3BhY2UgZm9vIHsgY29uc3QgYXdhaXQ6IGFueTsgfQoKLy8gYXdhaXQgYWxsb3dlZCBpbiBpbXBvcnQ9bmFtZXNwYWNlIHdoZW4gbm90IGEgbW9kdWxlCmltcG9ydCBhd2FpdCA9IGZvby5hd2FpdDsK",
+            "utf8_sha256": "d4e273d0e4a65aab1f375d073e74d496e41a1c8dab1f5f350eb815cb53bcad32",
+            "utf8_bytes": 126
+          }
+        ]
+      },
+      "files": [
+        {
+          "unit": 0,
+          "path": "/.src/topLevelAwait.2.ts",
+          "script_kind": "TS",
+          "declaration_file": false,
+          "emit_eligible": true,
+          "implied_module_format": "None",
+          "emit_module_format": 99,
+          "feature_roots": [
+            {
+              "feature": "import-equals",
+              "start": 100,
+              "end": 125,
+              "kind": "ImportEqualsDeclaration"
+            }
+          ],
+          "parse_diagnostic_codes": [],
+          "max_ast_depth": 7,
+          "import_attributes": false,
+          "advanced_comment_placement": false,
+          "text_sha256": "d4e273d0e4a65aab1f375d073e74d496e41a1c8dab1f5f350eb815cb53bcad32"
+        }
+      ],
+      "owner_reachability": [
+        "transform-es-module",
+        "transform-module",
+        "transform-typescript"
+      ],
+      "disposition": "admitted-for-execution",
+      "required_slices": [],
+      "diagnostic_disposition": {
+        "state": "exact-required"
+      },
+      "typescript_runs": [
+        {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/.src/topLevelAwait.2.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KLy8gYXdhaXQgYWxsb3dlZCBpbiBpbXBvcnQ9bmFtZXNwYWNlIHdoZW4gbm90IGEgbW9kdWxlDQp2YXIgYXdhaXQgPSBmb28uYXdhaXQ7DQo=",
+              "callback_utf8_sha256": "0a680590c2f4946da3b01db9561a74fde5a531f2ca28e94faae352b2b5d7b437",
+              "callback_utf8_bytes": 95,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "0a680590c2f4946da3b01db9561a74fde5a531f2ca28e94faae352b2b5d7b437",
+              "materialized_utf8_bytes": 95,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/topLevelAwait.2.ts"
+              ]
+            }
+          ],
+          "reported_diagnostics": [],
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 0,
+          "run_fingerprint_sha256": "579ec5c9ea9cc3235f139ec9dbf14126d383c47221ca1a1db4d73b195248bccd"
+        },
+        {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/.src/topLevelAwait.2.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KLy8gYXdhaXQgYWxsb3dlZCBpbiBpbXBvcnQ9bmFtZXNwYWNlIHdoZW4gbm90IGEgbW9kdWxlDQp2YXIgYXdhaXQgPSBmb28uYXdhaXQ7DQo=",
+              "callback_utf8_sha256": "0a680590c2f4946da3b01db9561a74fde5a531f2ca28e94faae352b2b5d7b437",
+              "callback_utf8_bytes": 95,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "0a680590c2f4946da3b01db9561a74fde5a531f2ca28e94faae352b2b5d7b437",
+              "materialized_utf8_bytes": 95,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/topLevelAwait.2.ts"
+              ]
+            }
+          ],
+          "reported_diagnostics": [],
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 0,
+          "run_fingerprint_sha256": "579ec5c9ea9cc3235f139ec9dbf14126d383c47221ca1a1db4d73b195248bccd"
+        }
+      ],
+      "rust_expectation": "two-deterministic-exact-runs",
+      "case_fingerprint_sha256": "c4cc9f47c6e458cb306cec83cd7fd9e6fe6652ceec597a2489629862365d93da"
+    },
+    {
+      "suite": "conformance",
+      "case_id": "typescript-6.0.3/conformance/externalModules/topLevelAwaitErrors.11.ts#default",
+      "expansion_case": 3660,
+      "source": {
+        "path": "externalModules/topLevelAwaitErrors.11.ts",
+        "bytes": 265,
+        "sha256": "3ab20e2176e2bebbfcc9813b80d7f56669f6290e96d3826a00045a7a97c13056",
+        "git_blob_sha1": "b8465398597f1047a5a3dfd9edfb9cf865099a68"
+      },
+      "module_state": "CommonJS(1)",
+      "input": {
+        "current_directory": "/.src",
+        "roots": [
+          "/.src/index.ts",
+          "/.src/other.ts"
+        ],
+        "settings": [
+          {
+            "name": "strict",
+            "value": "false"
+          },
+          {
+            "name": "target",
+            "value": "esnext"
+          },
+          {
+            "name": "module",
+            "value": "commonjs"
+          },
+          {
+            "name": "filename",
+            "value": "other.ts"
+          }
+        ],
+        "virtual_config": null,
+        "files": [
+          {
+            "unit": 0,
+            "path": "/.src/index.ts",
+            "utf8_base64": "Ly8gYXdhaXQgZGlzYWxsb3dlZCBpbiBpbXBvcnQ9CmRlY2xhcmUgdmFyIHJlcXVpcmU6IGFueTsKaW1wb3J0IGF3YWl0ID0gcmVxdWlyZSgiLi9vdGhlciIpOwo=",
+            "utf8_sha256": "2226f5a27846fcb8610ceb73bf9eed32ca403461c8ab4fd531d4ba1f9b0f399d",
+            "utf8_bytes": 92
+          },
+          {
+            "unit": 1,
+            "path": "/.src/other.ts",
+            "utf8_base64": "ZGVjbGFyZSBjb25zdCBfYXdhaXQ6IGFueTsKZXhwb3J0IHsgX2F3YWl0IGFzIGF3YWl0IH07Cg==",
+            "utf8_sha256": "62439416b37f8255a6c71799dc12702ee98ced649001388f144d413406892bef",
+            "utf8_bytes": 55
+          }
+        ]
+      },
+      "files": [
+        {
+          "unit": 1,
+          "path": "/.src/other.ts",
+          "script_kind": "TS",
+          "declaration_file": false,
+          "emit_eligible": true,
+          "implied_module_format": "None",
+          "emit_module_format": 1,
+          "feature_roots": [],
+          "parse_diagnostic_codes": [],
+          "max_ast_depth": 5,
+          "import_attributes": false,
+          "advanced_comment_placement": false,
+          "text_sha256": "62439416b37f8255a6c71799dc12702ee98ced649001388f144d413406892bef"
+        },
+        {
+          "unit": 0,
+          "path": "/.src/index.ts",
+          "script_kind": "TS",
+          "declaration_file": false,
+          "emit_eligible": true,
+          "implied_module_format": "None",
+          "emit_module_format": 1,
+          "feature_roots": [
+            {
+              "feature": "import-equals",
+              "start": 57,
+              "end": 91,
+              "kind": "ImportEqualsDeclaration"
+            }
+          ],
+          "parse_diagnostic_codes": [],
+          "max_ast_depth": 5,
+          "import_attributes": false,
+          "advanced_comment_placement": false,
+          "text_sha256": "2226f5a27846fcb8610ceb73bf9eed32ca403461c8ab4fd531d4ba1f9b0f399d"
+        }
+      ],
+      "owner_reachability": [
+        "transform-es-module",
+        "transform-module",
+        "transform-typescript"
+      ],
+      "disposition": "admitted-for-execution",
+      "required_slices": [],
+      "diagnostic_disposition": {
+        "state": "exact-required"
+      },
+      "typescript_runs": [
+        {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/.src/other.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYXdhaXQgPSB2b2lkIDA7DQo=",
+              "callback_utf8_sha256": "697df77b26df7515f8c69aa22a7947939245278f1f1c6f62d8b668dd0c1bfa4c",
+              "callback_utf8_bytes": 104,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "697df77b26df7515f8c69aa22a7947939245278f1f1c6f62d8b668dd0c1bfa4c",
+              "materialized_utf8_bytes": 104,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/other.ts"
+              ]
+            },
+            {
+              "index": 1,
+              "path": "/.src/index.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCg==",
+              "callback_utf8_sha256": "ef1f170ad28f2d870a474d2f96ae353d770fff5f20e642cd8f9b6f1d7742df13",
+              "callback_utf8_bytes": 79,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "ef1f170ad28f2d870a474d2f96ae353d770fff5f20e642cd8f9b6f1d7742df13",
+              "materialized_utf8_bytes": 79,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/index.ts"
+              ]
+            }
+          ],
+          "reported_diagnostics": [
+            {
+              "code": 1262,
+              "category": "Error",
+              "file": "/.src/index.ts",
+              "start": 64,
+              "length": 5,
+              "message": "Identifier expected. 'await' is a reserved word at the top-level of a module."
+            }
+          ],
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 2,
+          "run_fingerprint_sha256": "bee01f039ba5fd78716db55bb1b140f9ecf48d540ad97b3866e38add886fa702"
+        },
+        {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/.src/other.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYXdhaXQgPSB2b2lkIDA7DQo=",
+              "callback_utf8_sha256": "697df77b26df7515f8c69aa22a7947939245278f1f1c6f62d8b668dd0c1bfa4c",
+              "callback_utf8_bytes": 104,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "697df77b26df7515f8c69aa22a7947939245278f1f1c6f62d8b668dd0c1bfa4c",
+              "materialized_utf8_bytes": 104,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/other.ts"
+              ]
+            },
+            {
+              "index": 1,
+              "path": "/.src/index.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCg==",
+              "callback_utf8_sha256": "ef1f170ad28f2d870a474d2f96ae353d770fff5f20e642cd8f9b6f1d7742df13",
+              "callback_utf8_bytes": 79,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "ef1f170ad28f2d870a474d2f96ae353d770fff5f20e642cd8f9b6f1d7742df13",
+              "materialized_utf8_bytes": 79,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/index.ts"
+              ]
+            }
+          ],
+          "reported_diagnostics": [
+            {
+              "code": 1262,
+              "category": "Error",
+              "file": "/.src/index.ts",
+              "start": 64,
+              "length": 5,
+              "message": "Identifier expected. 'await' is a reserved word at the top-level of a module."
+            }
+          ],
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 2,
+          "run_fingerprint_sha256": "bee01f039ba5fd78716db55bb1b140f9ecf48d540ad97b3866e38add886fa702"
+        }
+      ],
+      "rust_expectation": "two-deterministic-exact-runs",
+      "case_fingerprint_sha256": "74816ab931bd99741aef380a6785c8c74a8da31d2090238139066908ae01d001"
+    },
+    {
+      "suite": "conformance",
+      "case_id": "typescript-6.0.3/conformance/externalModules/topLevelAwaitErrors.12.ts#module%3Desnext",
+      "expansion_case": 3662,
+      "source": {
+        "path": "externalModules/topLevelAwaitErrors.12.ts",
+        "bytes": 212,
+        "sha256": "295fb4d4bb97a7ca5e483c41720b8831809d5905764af90efdf284eeba436ebd",
+        "git_blob_sha1": "122ad32c5eeb13f9884e66033e5de08016ee56fa"
+      },
+      "module_state": "ESNext(99)",
+      "input": {
+        "current_directory": "/.src",
+        "roots": [
+          "/.src/topLevelAwaitErrors.12.ts"
+        ],
+        "settings": [
+          {
+            "name": "strict",
+            "value": "false"
+          },
+          {
+            "name": "target",
+            "value": "esnext"
+          },
+          {
+            "name": "module",
+            "value": "esnext"
+          }
+        ],
+        "virtual_config": null,
+        "files": [
+          {
+            "unit": 0,
+            "path": "/.src/topLevelAwaitErrors.12.ts",
+            "utf8_base64": "ZXhwb3J0IHt9OwpkZWNsYXJlIG5hbWVzcGFjZSBmb28geyBjb25zdCBhd2FpdDogYW55OyB9CgovLyBhd2FpdCBkaXNhbGxvd2VkIGluIGltcG9ydD1uYW1lc3BhY2Ugd2hlbiBpbiBhIG1vZHVsZQppbXBvcnQgYXdhaXQgPSBmb28uYXdhaXQ7Cg==",
+            "utf8_sha256": "8b4162e9d624d1798d5071a5cb5dc602f02c7cbbcb5e5a42417e5e0f92d91a99",
+            "utf8_bytes": 139
+          }
+        ]
+      },
+      "files": [
+        {
+          "unit": 0,
+          "path": "/.src/topLevelAwaitErrors.12.ts",
+          "script_kind": "TS",
+          "declaration_file": false,
+          "emit_eligible": true,
+          "implied_module_format": "None",
+          "emit_module_format": 99,
+          "feature_roots": [
+            {
+              "feature": "import-equals",
+              "start": 113,
+              "end": 138,
+              "kind": "ImportEqualsDeclaration"
+            }
+          ],
+          "parse_diagnostic_codes": [],
+          "max_ast_depth": 7,
+          "import_attributes": false,
+          "advanced_comment_placement": false,
+          "text_sha256": "8b4162e9d624d1798d5071a5cb5dc602f02c7cbbcb5e5a42417e5e0f92d91a99"
+        }
+      ],
+      "owner_reachability": [
+        "transform-es-module",
+        "transform-module",
+        "transform-typescript"
+      ],
+      "disposition": "admitted-for-execution",
+      "required_slices": [],
+      "diagnostic_disposition": {
+        "state": "exact-required"
+      },
+      "typescript_runs": [
+        {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/.src/topLevelAwaitErrors.12.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "ZXhwb3J0IHt9Ow0K",
+              "callback_utf8_sha256": "f761c91419d0a89422a0004ef1a92929dd4d2d5e5c16758654d8b0467d1998c6",
+              "callback_utf8_bytes": 12,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "f761c91419d0a89422a0004ef1a92929dd4d2d5e5c16758654d8b0467d1998c6",
+              "materialized_utf8_bytes": 12,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/topLevelAwaitErrors.12.ts"
+              ]
+            }
+          ],
+          "reported_diagnostics": [
+            {
+              "code": 1262,
+              "category": "Error",
+              "file": "/.src/topLevelAwaitErrors.12.ts",
+              "start": 120,
+              "length": 5,
+              "message": "Identifier expected. 'await' is a reserved word at the top-level of a module."
+            }
+          ],
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 2,
+          "run_fingerprint_sha256": "15d15eb87ef36d066a661eaa779f17cc4dac6aa99c48f02d4098c610277b4693"
+        },
+        {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/.src/topLevelAwaitErrors.12.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "ZXhwb3J0IHt9Ow0K",
+              "callback_utf8_sha256": "f761c91419d0a89422a0004ef1a92929dd4d2d5e5c16758654d8b0467d1998c6",
+              "callback_utf8_bytes": 12,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "f761c91419d0a89422a0004ef1a92929dd4d2d5e5c16758654d8b0467d1998c6",
+              "materialized_utf8_bytes": 12,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/topLevelAwaitErrors.12.ts"
+              ]
+            }
+          ],
+          "reported_diagnostics": [
+            {
+              "code": 1262,
+              "category": "Error",
+              "file": "/.src/topLevelAwaitErrors.12.ts",
+              "start": 120,
+              "length": 5,
+              "message": "Identifier expected. 'await' is a reserved word at the top-level of a module."
+            }
+          ],
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 2,
+          "run_fingerprint_sha256": "15d15eb87ef36d066a661eaa779f17cc4dac6aa99c48f02d4098c610277b4693"
+        }
+      ],
+      "rust_expectation": "two-deterministic-exact-runs",
+      "case_fingerprint_sha256": "5f4bdacdf99f8958abf490d011152ed13788c91e04338a66a3cf8a3c8ee62172"
+    }
+  ],
+  "summary": {
+    "candidates": 9,
+    "compiler_candidates": 2,
+    "conformance_candidates": 7,
+    "admitted_cases": 9,
+    "deferred_cases": 0,
+    "diagnostic_deferred_output_control_cases": 0,
+    "source_deferred_cases": 0,
+    "no_emit_control_cases": 0,
+    "module_states": [
+      {
+        "value": "CommonJS(1)",
+        "cases": 3
+      },
+      {
+        "value": "ESNext(99)",
+        "cases": 2
+      },
+      {
+        "value": "absent-effective-ESNext",
+        "cases": 1
+      },
+      {
+        "value": "AMD(2)",
+        "cases": 1
+      },
+      {
+        "value": "NodeNext(199)",
+        "cases": 1
+      },
+      {
+        "value": "UMD(3)",
+        "cases": 1
+      }
+    ],
+    "dispositions": [
+      {
+        "value": "admitted-for-execution",
+        "cases": 9
+      }
+    ],
+    "first_deferred_slices": [],
+    "typescript_runs": 18,
+    "deterministic_typescript_cases": 9,
+    "admitted_typescript_writes": 13,
+    "diagnostic_control_typescript_writes": 0,
+    "admitted_typescript_diagnostics": 36,
+    "unexecuted_candidates": 0,
+    "undispositioned_candidates": 0
+  },
+  "qualification_fingerprint_sha256": "0e90c03fd2d1468b6bb8b884710f1f8cb9f91e8beb3ae93ab3681eaa60e03340"
+}

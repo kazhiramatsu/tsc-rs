@@ -89,7 +89,7 @@ fn h2_2a_runtime_and_const_enum_outputs_are_exact() {
 }
 
 #[test]
-fn h2_2a_later_owner_controls_remain_source_deferred() {
+fn h2_2a_later_owner_controls_are_joined_to_exact_promotions() {
     let workspace = workspace();
     let artifact: serde_json::Value = serde_json::from_slice(
         &fs::read(workspace.join(super::QUALIFICATION_RELATIVE_PATH))
@@ -101,6 +101,14 @@ fn h2_2a_later_owner_controls_remain_source_deferred() {
             .expect("read H2.2b qualification"),
     )
     .expect("parse H2.2b qualification");
+    let h2_2d_artifact: serde_json::Value = serde_json::from_slice(
+        &fs::read(workspace.join(super::H2_2D_QUALIFICATION_RELATIVE_PATH))
+            .expect("read H2.2d qualification"),
+    )
+    .expect("parse H2.2d qualification");
+    let h2_2d_cases = h2_2d_artifact["cases"]
+        .as_array()
+        .expect("H2.2d qualification cases");
     let deferred = artifact["cases"]
         .as_array()
         .expect("qualification cases")
@@ -129,8 +137,12 @@ fn h2_2a_later_owner_controls_remain_source_deferred() {
         } else {
             still_deferred += 1;
             assert_eq!(h2_2b_case["required_slices"], serde_json::json!(["H2.2d"]));
-            super::execute_deferred(&workspace, case)
-                .unwrap_or_else(|error| panic!("{}: {error}", case["case_id"]));
+            assert!(
+                crate::h2_2d_acceptance::promotes_historical_case(case, h2_2d_cases)
+                    .unwrap_or_else(|error| panic!("{}: {error}", case["case_id"])),
+                "{}: missing H2.2d exact promotion",
+                case["case_id"]
+            );
         }
     }
     assert_eq!((promoted, still_deferred), (4, 1));
