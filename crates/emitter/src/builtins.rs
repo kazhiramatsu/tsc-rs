@@ -79,7 +79,7 @@ pub fn get_script_transformers<'resolver>(
     options: &CompilerOptions,
     resolver: &'resolver dyn EmitResolver,
 ) -> Result<Vec<Box<dyn Transformer + 'resolver>>, TransformError> {
-    let mut activity = H2ActivityCanary::h2_2b_profile();
+    let mut activity = H2ActivityCanary::h2_2c_profile();
     get_script_transformers_with_optional_host(options, resolver, None, &mut activity)
 }
 
@@ -164,6 +164,12 @@ fn get_script_transformers_with_optional_host<'transformers>(
             .is_some_and(source_contains_runtime_namespace)
         {
             activity.observe_runtime_slice(H2RuntimeSlice::H2_2b);
+        }
+        if source_record
+            .and_then(crate::EmitSource::syntax)
+            .is_some_and(source_contains_parameter_property)
+        {
+            activity.observe_runtime_slice(H2RuntimeSlice::H2_2c);
         }
     }
 
@@ -1542,6 +1548,21 @@ fn source_contains_runtime_namespace(source: &tsc_syntax::SourceFile) -> bool {
             {
                 return true;
             }
+        }
+        for_each_child(&source.arena, record, |child| {
+            stack.push(child);
+            false
+        });
+    }
+    false
+}
+
+fn source_contains_parameter_property(source: &tsc_syntax::SourceFile) -> bool {
+    let mut stack = vec![source.root];
+    while let Some(id) = stack.pop() {
+        let record = source.arena.node(id);
+        if parameter_has_property_modifier(source, record) {
+            return true;
         }
         for_each_child(&source.arena, record, |child| {
             stack.push(child);
@@ -4431,11 +4452,13 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
                         None
                     } else {
                         data.type_parameters = None;
+                        data.members = self.prepend_parameter_property_members(data.members)?;
                         Some(self.update_generic(original, NodeData::ClassDeclaration(data))?)
                     }
                 }
                 NodeData::ClassExpression(mut data) => {
                     data.type_parameters = None;
+                    data.members = self.prepend_parameter_property_members(data.members)?;
                     Some(self.update_generic(original, NodeData::ClassExpression(data))?)
                 }
                 NodeData::PropertyDeclaration(mut data) => {
@@ -4454,6 +4477,11 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
                     if data.body.is_none() {
                         None
                     } else {
+                        let parameter_properties = self.parameter_properties(data.parameters)?;
+                        data.body = Some(self.transform_constructor_body(
+                            data.body.expect("constructor body checked"),
+                            &parameter_properties,
+                        )?);
                         data.type_parameters = None;
                         data.r#type = None;
                         data.modifiers = None;
@@ -4531,6 +4559,434 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
         };
         self.nodes.insert(id, transformed);
         Ok(transformed)
+    }
+
+    /// tsc-port: transformClassMembers @6.0.3
+    /// tsc-hash: 306e5388a9a5c510a3594d97b7fbe7bf945415e4f4601770e266d55ce28765f8
+    /// tsc-span: _tsc.js:94564-94598
+    fn prepend_parameter_property_members(
+        &mut self,
+        members: Option<NodeArrayId>,
+    ) -> Result<Option<NodeArrayId>, TransformError> {
+        let Some(members) = members else {
+            return Ok(None);
+        };
+        let original = self.array(members);
+        let member_ids = self.context.arena().node_array(original)?.nodes.clone();
+        let mut parameters = Vec::new();
+        for member in &member_ids {
+            let record = self.context.arena().node(self.node(*member))?;
+            let NodeData::Constructor(data) = &record.data else {
+                continue;
+            };
+            if data.body.is_some() {
+                parameters = self.parameter_properties(data.parameters)?;
+                break;
+            }
+        }
+        if parameters.is_empty() {
+            return Ok(Some(members));
+        }
+        let mut projected = Vec::with_capacity(parameters.len() + member_ids.len());
+        for parameter in parameters {
+            if let Some(property) = self.create_parameter_property_declaration(parameter)? {
+                projected.push(property);
+            }
+        }
+        projected.extend(member_ids.into_iter().map(|member| self.node(member)));
+        Ok(Some(
+            self.context
+                .factory()?
+                .update_node_array(original, projected)?
+                .array(),
+        ))
+    }
+
+    fn parameter_properties(
+        &self,
+        parameters: Option<NodeArrayId>,
+    ) -> Result<Vec<NodeId>, TransformError> {
+        let Some(parameters) = parameters else {
+            return Ok(Vec::new());
+        };
+        let parameters = self.array(parameters);
+        let mut properties = Vec::new();
+        for parameter in &self.context.arena().node_array(parameters)?.nodes {
+            let node = self.node(*parameter);
+            let NodeData::Parameter(data) = &self.context.arena().node(node)?.data else {
+                continue;
+            };
+            if self.has_parameter_property_modifier(data.modifiers)? {
+                properties.push(*parameter);
+            }
+        }
+        Ok(properties)
+    }
+
+    fn has_parameter_property_modifier(
+        &self,
+        modifiers: Option<NodeArrayId>,
+    ) -> Result<bool, TransformError> {
+        for kind in [
+            SyntaxKind::PublicKeyword,
+            SyntaxKind::PrivateKeyword,
+            SyntaxKind::ProtectedKeyword,
+            SyntaxKind::ReadonlyKeyword,
+            SyntaxKind::OverrideKeyword,
+        ] {
+            if self.has_modifier(modifiers, kind)? {
+                return Ok(true);
+            }
+        }
+        Ok(false)
+    }
+
+    fn create_parameter_property_declaration(
+        &mut self,
+        parameter: NodeId,
+    ) -> Result<Option<TransformNode>, TransformError> {
+        let parameter_node = self.node(parameter);
+        let NodeData::Parameter(data) = self.context.arena().node(parameter_node)?.data.clone()
+        else {
+            return Ok(None);
+        };
+        let Some(name) = data.name else {
+            return Ok(None);
+        };
+        if self.context.arena().node(self.node(name))?.kind != SyntaxKind::Identifier {
+            return Ok(None);
+        }
+        let property = self.context.factory()?.create_node(
+            self.source,
+            NodeData::PropertyDeclaration(tsc_syntax::nodes::PropertyDeclarationData {
+                name: Some(name),
+                modifiers: None,
+                question_token: None,
+                exclamation_token: None,
+                r#type: None,
+                initializer: None,
+            }),
+            TransformFlags::CONTAINS_CLASS_FIELDS,
+        )?;
+        self.context
+            .arena_mut()?
+            .set_original_node(property, Some(parameter_node))?;
+        Ok(Some(property))
+    }
+
+    /// tsc-port: visitConstructor/transformConstructorBody/transformParameterWithPropertyAssignment @6.0.3
+    /// tsc-hash: 15f80bca2c25edda0aa73938af0a680178e485e0628ab3143280bf481b2cb3ad
+    /// tsc-span: _tsc.js:94793-94910
+    fn transform_constructor_body(
+        &mut self,
+        body: NodeId,
+        parameters: &[NodeId],
+    ) -> Result<NodeId, TransformError> {
+        if parameters.is_empty() {
+            return Ok(body);
+        }
+        let mut assignments = Vec::with_capacity(parameters.len());
+        for parameter in parameters {
+            if let Some(assignment) = self.create_parameter_property_assignment(*parameter)? {
+                assignments.push(assignment);
+            }
+        }
+        if assignments.is_empty() {
+            return Ok(body);
+        }
+        let body_node = self.node(body);
+        let NodeData::Block(data) = self.context.arena().node(body_node)?.data.clone() else {
+            return Err(TransformError::RequiredChildRemoved {
+                parent: SyntaxKind::Constructor,
+                field: "body block",
+            });
+        };
+        let statements = data
+            .statements
+            .and_then(|statements| self.context.arena().node_array_ref(self.source, statements));
+        let statement_ids = statements
+            .map(|statements| {
+                self.context
+                    .arena()
+                    .node_array(statements)
+                    .map(|array| array.nodes.clone())
+            })
+            .transpose()?
+            .unwrap_or_default();
+        let mut prologue_count = 0usize;
+        while prologue_count < statement_ids.len()
+            && is_prologue_statement(
+                self.context.arena(),
+                self.node(statement_ids[prologue_count]),
+            )?
+        {
+            prologue_count += 1;
+        }
+        let super_path = self.find_super_statement_path(&statement_ids, prologue_count)?;
+        let updated = if super_path.is_empty() {
+            let mut output = Vec::with_capacity(statement_ids.len() + assignments.len());
+            output.extend(
+                statement_ids[..prologue_count]
+                    .iter()
+                    .copied()
+                    .map(|statement| self.node(statement)),
+            );
+            output.extend(assignments);
+            output.extend(
+                statement_ids[prologue_count..]
+                    .iter()
+                    .copied()
+                    .map(|statement| self.node(statement)),
+            );
+            self.update_block_statements(body_node, data.statements, output)?
+        } else {
+            self.inject_after_super(body_node, &super_path, &assignments)?
+        };
+        self.context.factory()?.set_multi_line(updated, true)?;
+        Ok(updated.node())
+    }
+
+    fn create_parameter_property_assignment(
+        &mut self,
+        parameter: NodeId,
+    ) -> Result<Option<TransformNode>, TransformError> {
+        let parameter_node = self.node(parameter);
+        let NodeData::Parameter(data) = self.context.arena().node(parameter_node)?.data.clone()
+        else {
+            return Ok(None);
+        };
+        let Some(name) = data.name else {
+            return Ok(None);
+        };
+        let name_node = self.node(name);
+        let NodeData::Identifier(identifier) = self.context.arena().node(name_node)?.data.clone()
+        else {
+            return Ok(None);
+        };
+        let property_name = self.context.factory()?.clone_node(name_node)?;
+        self.context
+            .factory()?
+            .set_text_range(property_name, name_node)?;
+        self.context
+            .arena_mut()?
+            .metadata_mut(property_name)
+            .add_flags(EmitFlags::NO_COMMENTS | EmitFlags::NO_SOURCE_MAP);
+        let this = self.context.factory()?.create_token(
+            self.source,
+            SyntaxKind::ThisKeyword,
+            TransformFlags::CONTAINS_LEXICAL_THIS,
+        )?;
+        let access = self.context.factory()?.create_node(
+            self.source,
+            NodeData::PropertyAccessExpression(tsc_syntax::nodes::PropertyAccessExpressionData {
+                name: Some(property_name.node()),
+                expression: Some(this.node()),
+                question_dot_token: None,
+            }),
+            TransformFlags::CONTAINS_LEXICAL_THIS,
+        )?;
+        self.context.factory()?.set_text_range(access, name_node)?;
+        let local_name = self.create_identifier_with_original(&identifier.text, name_node)?;
+        self.context
+            .factory()?
+            .set_text_range(local_name, name_node)?;
+        self.context
+            .arena_mut()?
+            .metadata_mut(local_name)
+            .add_flags(EmitFlags::NO_COMMENTS);
+        let assignment = self.create_assignment(access, local_name)?;
+        let statement = self.create_expression_statement(assignment)?;
+        self.context
+            .arena_mut()?
+            .set_original_node(statement, Some(parameter_node))?;
+        self.context
+            .factory()?
+            .set_text_range(statement, parameter_node)?;
+        let metadata = self.context.arena_mut()?.metadata_mut(statement);
+        metadata.add_flags(EmitFlags::NO_COMMENTS);
+        metadata.set_starts_on_new_line(true);
+        Ok(Some(statement))
+    }
+
+    fn find_super_statement_path(
+        &self,
+        statements: &[NodeId],
+        start: usize,
+    ) -> Result<Vec<usize>, TransformError> {
+        for (index, statement) in statements.iter().enumerate().skip(start) {
+            let statement_node = self.node(*statement);
+            if self.statement_is_super_call(statement_node)? {
+                return Ok(vec![index]);
+            }
+            let NodeData::TryStatement(data) =
+                self.context.arena().node(statement_node)?.data.clone()
+            else {
+                continue;
+            };
+            let Some(try_block) = data.try_block else {
+                continue;
+            };
+            let NodeData::Block(block) = self
+                .context
+                .arena()
+                .node(self.node(try_block))?
+                .data
+                .clone()
+            else {
+                continue;
+            };
+            let nested = block
+                .statements
+                .and_then(|statements| self.context.arena().node_array_ref(self.source, statements))
+                .map(|statements| {
+                    self.context
+                        .arena()
+                        .node_array(statements)
+                        .map(|array| array.nodes.clone())
+                })
+                .transpose()?
+                .unwrap_or_default();
+            let mut path = self.find_super_statement_path(&nested, 0)?;
+            if !path.is_empty() {
+                path.insert(0, index);
+                return Ok(path);
+            }
+        }
+        Ok(Vec::new())
+    }
+
+    fn statement_is_super_call(&self, statement: TransformNode) -> Result<bool, TransformError> {
+        let NodeData::ExpressionStatement(data) = &self.context.arena().node(statement)?.data
+        else {
+            return Ok(false);
+        };
+        let Some(mut expression) = data
+            .expression
+            .and_then(|expression| self.context.arena().node_ref(self.source, expression))
+        else {
+            return Ok(false);
+        };
+        loop {
+            let NodeData::ParenthesizedExpression(data) =
+                self.context.arena().node(expression)?.data.clone()
+            else {
+                break;
+            };
+            let Some(inner) = data
+                .expression
+                .and_then(|inner| self.context.arena().node_ref(self.source, inner))
+            else {
+                return Ok(false);
+            };
+            expression = inner;
+        }
+        let NodeData::CallExpression(data) = &self.context.arena().node(expression)?.data else {
+            return Ok(false);
+        };
+        Ok(data
+            .expression
+            .and_then(|callee| self.context.arena().node_ref(self.source, callee))
+            .and_then(|callee| self.context.arena().node(callee).ok())
+            .is_some_and(|callee| callee.kind == SyntaxKind::SuperKeyword))
+    }
+
+    fn inject_after_super(
+        &mut self,
+        block: TransformNode,
+        path: &[usize],
+        assignments: &[TransformNode],
+    ) -> Result<TransformNode, TransformError> {
+        let NodeData::Block(data) = self.context.arena().node(block)?.data.clone() else {
+            return Err(TransformError::RequiredChildRemoved {
+                parent: SyntaxKind::TryStatement,
+                field: "try block",
+            });
+        };
+        let statements = data
+            .statements
+            .and_then(|statements| self.context.arena().node_array_ref(self.source, statements));
+        let mut statement_ids = statements
+            .map(|statements| {
+                self.context
+                    .arena()
+                    .node_array(statements)
+                    .map(|array| array.nodes.clone())
+            })
+            .transpose()?
+            .unwrap_or_default();
+        let index = path[0];
+        if path.len() == 1 {
+            let mut output = Vec::with_capacity(statement_ids.len() + assignments.len());
+            output.extend(
+                statement_ids[..=index]
+                    .iter()
+                    .copied()
+                    .map(|statement| self.node(statement)),
+            );
+            output.extend(assignments.iter().copied());
+            output.extend(
+                statement_ids[index + 1..]
+                    .iter()
+                    .copied()
+                    .map(|statement| self.node(statement)),
+            );
+            let updated = self.update_block_statements(block, data.statements, output)?;
+            return self.context.factory()?.set_multi_line(updated, true);
+        }
+        let statement = self.node(statement_ids[index]);
+        let NodeData::TryStatement(mut try_data) =
+            self.context.arena().node(statement)?.data.clone()
+        else {
+            return Err(TransformError::RequiredChildRemoved {
+                parent: SyntaxKind::TryStatement,
+                field: "super path",
+            });
+        };
+        let try_block = try_data
+            .try_block
+            .ok_or(TransformError::RequiredChildRemoved {
+                parent: SyntaxKind::TryStatement,
+                field: "try block",
+            })?;
+        let updated_try_block =
+            self.inject_after_super(self.node(try_block), &path[1..], assignments)?;
+        try_data.try_block = Some(updated_try_block.node());
+        let try_node_data = NodeData::TryStatement(try_data);
+        let flags = flags_after_update(self.context.arena(), statement, &try_node_data)?;
+        let updated_try = self
+            .context
+            .factory()?
+            .update_node(statement, try_node_data, flags)?;
+        statement_ids[index] = updated_try.node();
+        let output = statement_ids
+            .into_iter()
+            .map(|statement| self.node(statement))
+            .collect();
+        self.update_block_statements(block, data.statements, output)
+    }
+
+    fn update_block_statements(
+        &mut self,
+        block: TransformNode,
+        original_statements: Option<NodeArrayId>,
+        statements: Vec<TransformNode>,
+    ) -> Result<TransformNode, TransformError> {
+        let statements = if let Some(original) = original_statements
+            .and_then(|statements| self.context.arena().node_array_ref(self.source, statements))
+        {
+            self.context
+                .factory()?
+                .update_node_array(original, statements)?
+        } else {
+            self.context
+                .factory()?
+                .create_node_array(self.source, statements)?
+        };
+        let data = NodeData::Block(tsc_syntax::nodes::BlockData {
+            statements: Some(statements.array()),
+        });
+        let flags = flags_after_update(self.context.arena(), block, &data)?;
+        self.context.factory()?.update_node(block, data, flags)
     }
 
     /// tsc-port: visitModuleDeclaration/transformModuleBody @6.0.3
@@ -5085,6 +5541,12 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
     ) -> Result<Option<NodeId>, TransformError> {
         let updated = self.update_generic(original, data)?;
         if self.isolated_modules {
+            return Ok(Some(updated));
+        }
+        if self.context.arena().get_original_node(original) == original
+            && NodeFlags::from_bits(self.context.arena().node(original)?.flags)
+                .contains(NodeFlags::SYNTHESIZED)
+        {
             return Ok(Some(updated));
         }
         let Some(value) = self
@@ -6109,9 +6571,6 @@ fn preflight_source(
                 ) =>
             {
                 Some(UnsupportedTransformFeature::ExportEquals)
-            }
-            SyntaxKind::Parameter if parameter_has_property_modifier(syntax, node) => {
-                Some(UnsupportedTransformFeature::ParameterProperties)
             }
             _ => None,
         };

@@ -351,7 +351,10 @@ fn frozen_adjacent_controls_remain_rejected_or_are_exactly_promoted() {
         assert_eq!(case["input"]["classification"], "adjacent-unsupported");
         if matches!(
             id,
-            "mts-output-control" | "runtime-enum-control" | "runtime-namespace-control"
+            "mts-output-control"
+                | "runtime-enum-control"
+                | "runtime-namespace-control"
+                | "parameter-property-control"
         ) {
             let mut sink = MemoryOutputSink::new();
             let outcome = ProgramSession::new(prepared_control(
@@ -378,6 +381,7 @@ fn frozen_adjacent_controls_remain_rejected_or_are_exactly_promoted() {
                 "mts-output-control" => H2RuntimeSlice::H2_1e,
                 "runtime-enum-control" => H2RuntimeSlice::H2_2a,
                 "runtime-namespace-control" => H2RuntimeSlice::H2_2b,
+                "parameter-property-control" => H2RuntimeSlice::H2_2c,
                 _ => unreachable!("promoted adjacent control"),
             };
             assert_eq!(

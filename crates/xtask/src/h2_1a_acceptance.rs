@@ -20,6 +20,7 @@ const QUALIFICATION_RELATIVE_PATH: &str = "ratchets/h2-1a-qualification.v1.json"
 const H2_1E_QUALIFICATION_RELATIVE_PATH: &str = "ratchets/h2-1e-qualification.v1.json";
 const H2_2A_QUALIFICATION_RELATIVE_PATH: &str = "ratchets/h2-2a-qualification.v1.json";
 const H2_2B_QUALIFICATION_RELATIVE_PATH: &str = "ratchets/h2-2b-qualification.v1.json";
+const H2_2C_QUALIFICATION_RELATIVE_PATH: &str = "ratchets/h2-2c-qualification.v1.json";
 
 fn failure(message: impl Into<String>) -> Box<dyn Error> {
     std::io::Error::other(message.into()).into()
@@ -480,11 +481,40 @@ fn promoted_to_h2_2b(case: &Value, h2_2b_cases: &[Value]) -> Result<bool, Box<dy
     }
 }
 
+fn promoted_to_h2_2c(case: &Value, h2_2c_cases: &[Value]) -> Result<bool, Box<dyn Error>> {
+    if !array(case, "required_slices")?
+        .iter()
+        .any(|slice| slice.as_str() == Some("H2.2c"))
+    {
+        return Ok(false);
+    }
+    let case_id = string(case, "case_id")?;
+    let candidate = h2_2c_cases
+        .iter()
+        .find(|candidate| candidate["case_id"].as_str() == Some(case_id))
+        .ok_or_else(|| failure(format!("{case_id}: H2.2c disposition is not recorded")))?;
+    match candidate["disposition"].as_str() {
+        Some("admitted-for-execution")
+            if candidate["diagnostic_disposition"]["state"] == "exact-required" =>
+        {
+            Ok(true)
+        }
+        Some("deferred-to-slices")
+            if candidate["diagnostic_disposition"]["state"] == "not-observed-source-deferred" =>
+        {
+            Ok(false)
+        }
+        _ => Err(failure(format!(
+            "{case_id}: H2.2c disposition is not closed"
+        ))),
+    }
+}
+
 /// Validate all 295 historical H2.1a dispositions. Fully admitted rows compare
 /// every TypeScript observable twice, five trusted-base diagnostic controls
 /// retain exact output but no compatibility admission, and still-deferred rows
 /// prove deterministic typed failure before the first sink callback twice.
-/// Rows promoted by H2.1e, H2.2a, or H2.2b are joined to those exact qualifications
+/// Rows promoted by H2.1e, H2.2a, H2.2b, or H2.2c are joined to those exact qualifications
 /// and executed by their acceptance gates later in the same hosted command.
 pub fn run(workspace: &Path) -> Result<(), Box<dyn Error>> {
     let artifact: Value =
@@ -501,6 +531,10 @@ pub fn run(workspace: &Path) -> Result<(), Box<dyn Error>> {
         workspace.join(H2_2B_QUALIFICATION_RELATIVE_PATH),
     )?)?;
     let h2_2b_cases = array(&h2_2b_artifact, "cases")?;
+    let h2_2c_artifact: Value = serde_json::from_slice(&fs::read(
+        workspace.join(H2_2C_QUALIFICATION_RELATIVE_PATH),
+    )?)?;
+    let h2_2c_cases = array(&h2_2c_artifact, "cases")?;
     if artifact["schema"] != 1
         || artifact["status"] != "qualified-typescript-oracle"
         || artifact["phase"] != "H2.1a-implied-esm-source-and-emit"
@@ -551,6 +585,7 @@ pub fn run(workspace: &Path) -> Result<(), Box<dyn Error>> {
                 if !promoted_to_h2_1e(case, h2_1e_cases)?
                     && !promoted_to_h2_2a(case, h2_2a_cases)?
                     && !promoted_to_h2_2b(case, h2_2b_cases)?
+                    && !promoted_to_h2_2c(case, h2_2c_cases)?
                 {
                     execute_deferred(workspace, case)?;
                 }

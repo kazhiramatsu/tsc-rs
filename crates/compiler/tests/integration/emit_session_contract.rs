@@ -667,18 +667,22 @@ fn a_later_unsupported_source_cannot_leave_an_earlier_partial_write() {
             ("/project/first.ts", "export const first: number = 1;\n"),
             (
                 "/project/second.ts",
-                "export class Runtime { constructor(public value: number) {} }\n",
+                concat!(
+                    "namespace Runtime { export const value = 1; }\n",
+                    "import value = Runtime.value;\n",
+                    "export { value };\n",
+                ),
             ),
         ],
     );
     let mut sink = CountingSink::default();
     let error = ProgramSession::new(prepared)
         .emit(&mut sink)
-        .expect_err("parameter properties remain owned by H2.2c");
-    assert!(matches!(
-        error,
-        DriverError::Emit(EmitFailure::Transform(_))
-    ));
+        .expect_err("import-equals remains owned by H2.2d");
+    assert!(
+        matches!(error, DriverError::Emit(EmitFailure::Transform(_))),
+        "unexpected later-source failure: {error:?}"
+    );
     assert_eq!(sink.writes, 0);
 }
 
@@ -915,6 +919,76 @@ fn h2_2b_runtime_namespace_emit_matches_typescript_shapes() {
         assert_eq!(sink.writes()[0].callback_text(), expected);
         assert_eq!(
             outcome.h2_activity().runtime_slice(H2RuntimeSlice::H2_2b),
+            1
+        );
+    }
+}
+
+#[test]
+fn h2_2c_parameter_property_emit_matches_typescript_shapes() {
+    let cases = [
+        (
+            concat!(
+                "export class Service {\n",
+                "    constructor(public value: number) {}\n",
+                "}\n",
+            ),
+            concat!(
+                "export class Service {\n",
+                "    value;\n",
+                "    constructor(value) {\n",
+                "        this.value = value;\n",
+                "    }\n",
+                "}\n",
+            ),
+        ),
+        (
+            concat!(
+                "class Base {}\n",
+                "class Derived extends Base {\n",
+                "    constructor(public value: number) {\n",
+                "        try { super(); } finally {}\n",
+                "    }\n",
+                "}\n",
+            ),
+            concat!(
+                "\"use strict\";\n",
+                "class Base {\n",
+                "}\n",
+                "class Derived extends Base {\n",
+                "    value;\n",
+                "    constructor(value) {\n",
+                "        try {\n",
+                "            super();\n",
+                "            this.value = value;\n",
+                "        }\n",
+                "        finally { }\n",
+                "    }\n",
+                "}\n",
+            ),
+        ),
+    ];
+
+    for (source, expected) in cases {
+        let prepared = prepared_with_sources(
+            CompilerOptions {
+                no_emit: Some(false),
+                target: Some(99),
+                module: Some(99),
+                use_define_for_class_fields: Some(true),
+                ..CompilerOptions::default()
+            },
+            &[("/project/input.ts", source)],
+        );
+        let mut sink = MemoryOutputSink::new();
+        let outcome = ProgramSession::new(prepared)
+            .emit(&mut sink)
+            .expect("H2.2c parameter-property emit");
+        assert!(outcome.diagnostics().is_empty());
+        assert_eq!(sink.writes().len(), 1);
+        assert_eq!(sink.writes()[0].callback_text(), expected);
+        assert_eq!(
+            outcome.h2_activity().runtime_slice(H2RuntimeSlice::H2_2c),
             1
         );
     }

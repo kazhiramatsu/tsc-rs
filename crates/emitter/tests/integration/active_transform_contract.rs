@@ -190,18 +190,11 @@ fn exact_bootstrap_transformer_order_erases_the_frozen_typescript_tree() {
 
 #[test]
 fn rejected_feature_roots_fail_before_a_partial_transform_is_returned() {
-    let cases = [
-        (
-            "parameter-property.ts",
-            "class Service { constructor(public value: number) {} }\n",
-            UnsupportedTransformFeature::ParameterProperties,
-        ),
-        (
-            "import-equals.ts",
-            "import value = require('./value');\n",
-            UnsupportedTransformFeature::ImportEquals,
-        ),
-    ];
+    let cases = [(
+        "import-equals.ts",
+        "import value = require('./value');\n",
+        UnsupportedTransformFeature::ImportEquals,
+    )];
     for (file_name, text, expected) in cases {
         let parsed = parse_source_file(file_name, text, Default::default(), None);
         let mut arena = TransformArena::new();
