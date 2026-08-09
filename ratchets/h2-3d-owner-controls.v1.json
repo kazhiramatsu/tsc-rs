@@ -1,0 +1,771 @@
+{
+  "schema": 1,
+  "phase": "H2.3d-json-source-owner-controls",
+  "status": "qualified",
+  "typescript": {
+    "version": "6.0.3",
+    "source_commit": "050880ce59e30b356b686bd3144efe24f875ebc8",
+    "bundle": {
+      "path": "vendor/typescript-6.0.3/lib/typescript.js",
+      "sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39"
+    },
+    "implementation": {
+      "path": "vendor/typescript-6.0.3/lib/_tsc.js",
+      "sha256": "1c59e77a54b186ec43fa7f3e0d3c4bb15ca5eb5ba43e96b1d3a267139eddd3e3"
+    }
+  },
+  "generator": {
+    "path": "crates/oracle/h2-3d-owner-controls.mjs",
+    "sha256": "a0f873c6cc7827f83b16eaf3cb74b19e58c4900f57753cce6995e1eb53e59e5c"
+  },
+  "contract": {
+    "path": ".github/ci/contracts/h2-3d-owner-controls.schema.json",
+    "sha256": "fbbd9cd3c906303315a828daad000c810818435267520b63847665eb28569a60"
+  },
+  "controls": [
+    {
+      "control_id": "multiline-lf-formatting-and-trailing-comma-rules",
+      "input": {
+        "current_directory": "/project",
+        "roots": [
+          "/project/data.json"
+        ],
+        "files": [
+          {
+            "path": "/project/data.json",
+            "root": true,
+            "utf8_base64": "ewogICJhIjoxLAogICJzYW1lIjogW3RydWUseyJlbW9qaSI6IvCfmIAifSxdLAp9Cg==",
+            "utf8_sha256": "eda42853f999e9fb219fe3052023d9799ee38267b818a5d15c198c8d57e19198",
+            "utf8_bytes": 49
+          }
+        ],
+        "compiler_options": {
+          "ignoreDeprecations": "6.0",
+          "module": 200,
+          "moduleResolution": 100,
+          "newLine": 1,
+          "outDir": "/project/dist",
+          "resolveJsonModule": true,
+          "target": 99
+        }
+      },
+      "repetitions": 2,
+      "observation": {
+        "reported_diagnostics": [],
+        "emit_diagnostics": [],
+        "emit_skipped": false,
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/dist/data.json",
+            "kind": "json",
+            "callback_utf8_base64": "ewogICAgImEiOiAxLAogICAgInNhbWUiOiBbdHJ1ZSwgeyAiZW1vamkiOiAi8J+YgCIgfSxdCn0K",
+            "callback_utf8_sha256": "76249cd45e6230e65460aab4f7f6ee252f29bbe8182b696434946a678fb8ad00",
+            "callback_utf8_bytes": 57,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "76249cd45e6230e65460aab4f7f6ee252f29bbe8182b696434946a678fb8ad00",
+            "materialized_utf8_bytes": 57,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/data.json"
+            ]
+          }
+        ],
+        "run_fingerprint_sha256": "887b1d5d8fb40024a795bff54d8fd208a08e6f9d35402a545c75abbade2254dc"
+      },
+      "control_fingerprint_sha256": "1c3247bd9d82699e94dba4de7481f2e89f34b8987d095ac353c4f99e16d82cbf"
+    },
+    {
+      "control_id": "crlf-input-bom-output-and-object-trailing-comma",
+      "input": {
+        "current_directory": "/project",
+        "roots": [
+          "/project/bom.json"
+        ],
+        "files": [
+          {
+            "path": "/project/bom.json",
+            "root": true,
+            "utf8_base64": "77u/ew0KCSJhIjoxLA0KfQ0K",
+            "utf8_sha256": "95316bce543c7d820427ad3a9ba4832b634d2828885ad883d8cd3e3525447153",
+            "utf8_bytes": 18
+          }
+        ],
+        "compiler_options": {
+          "emitBOM": true,
+          "ignoreDeprecations": "6.0",
+          "module": 1,
+          "moduleResolution": 2,
+          "newLine": 0,
+          "outDir": "/project/dist",
+          "resolveJsonModule": true,
+          "target": 99
+        }
+      },
+      "repetitions": 2,
+      "observation": {
+        "reported_diagnostics": [],
+        "emit_diagnostics": [],
+        "emit_skipped": false,
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/dist/bom.json",
+            "kind": "json",
+            "callback_utf8_base64": "ew0KICAgICJhIjogMQ0KfQ0K",
+            "callback_utf8_sha256": "d95ca88d5ec4cf45798041b378495db59880d1efa7fb69cba699f9c16bed4bb8",
+            "callback_utf8_bytes": 18,
+            "write_byte_order_mark": true,
+            "materialized_utf8_sha256": "b420251b8536e752b88f6d69331d696f9d0425352e02baf21d0a8940f641e182",
+            "materialized_utf8_bytes": 21,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/bom.json"
+            ]
+          }
+        ],
+        "run_fingerprint_sha256": "cdc6e2c3ed9c3691ea847f1b2392d58e1796853c7f12f9f10aaeaa1a515ab037"
+      },
+      "control_fingerprint_sha256": "f9158ed44e7e3bada53a9ec80280e2c5f4d9fd4efc2eae142bd516d9d9825f33"
+    },
+    {
+      "control_id": "compact-text-escapes-and-nested-values",
+      "input": {
+        "current_directory": "/project",
+        "roots": [
+          "/project/compact.json"
+        ],
+        "files": [
+          {
+            "path": "/project/compact.json",
+            "root": true,
+            "utf8_base64": "eyJlc2NhcGVkIjoieFx1MDA0MSIsIm5lc3RlZCI6WzEseyJvayI6dHJ1ZX1dfQ==",
+            "utf8_sha256": "833a937720adfc9d9963e5bd48fae6585b10bd0a5e8429d4d0992258c1d2f4ce",
+            "utf8_bytes": 46
+          }
+        ],
+        "compiler_options": {
+          "ignoreDeprecations": "6.0",
+          "module": 99,
+          "moduleResolution": 100,
+          "newLine": 1,
+          "outDir": "/project/dist",
+          "resolveJsonModule": true,
+          "target": 99
+        }
+      },
+      "repetitions": 2,
+      "observation": {
+        "reported_diagnostics": [],
+        "emit_diagnostics": [],
+        "emit_skipped": false,
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/dist/compact.json",
+            "kind": "json",
+            "callback_utf8_base64": "eyAiZXNjYXBlZCI6ICJ4XHUwMDQxIiwgIm5lc3RlZCI6IFsxLCB7ICJvayI6IHRydWUgfV0gfQo=",
+            "callback_utf8_sha256": "3618d38c56e3b8a8129130596f4423551d12076ca4e812730e4cf4157c7228f3",
+            "callback_utf8_bytes": 56,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "3618d38c56e3b8a8129130596f4423551d12076ca4e812730e4cf4157c7228f3",
+            "materialized_utf8_bytes": 56,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/compact.json"
+            ]
+          }
+        ],
+        "run_fingerprint_sha256": "326e94b7f6880bd1a5a3a158b20887a5e15da79bc89cfc581f6e3f58d913cab0"
+      },
+      "control_fingerprint_sha256": "046a087021827890446a860a3425d62b46c93a7d7cacf3413f8b2ad1b340dc73"
+    },
+    {
+      "control_id": "amd-copy-is-module-invariant",
+      "input": {
+        "current_directory": "/project",
+        "roots": [
+          "/project/format.json"
+        ],
+        "files": [
+          {
+            "path": "/project/format.json",
+            "root": true,
+            "utf8_base64": "eyJmb3JtYXQiOiJzdGFibGUiLCJpdGVtcyI6WzEsdHJ1ZSxudWxsXX0=",
+            "utf8_sha256": "8c6a37fbd52df5534df6f1ad0fce2af633ec9cf4351d681935ae601066cab271",
+            "utf8_bytes": 41
+          }
+        ],
+        "compiler_options": {
+          "ignoreDeprecations": "6.0",
+          "module": 2,
+          "moduleResolution": 2,
+          "newLine": 1,
+          "outDir": "/project/dist",
+          "resolveJsonModule": true,
+          "target": 99
+        }
+      },
+      "repetitions": 2,
+      "observation": {
+        "reported_diagnostics": [],
+        "emit_diagnostics": [],
+        "emit_skipped": false,
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/dist/format.json",
+            "kind": "json",
+            "callback_utf8_base64": "eyAiZm9ybWF0IjogInN0YWJsZSIsICJpdGVtcyI6IFsxLCB0cnVlLCBudWxsXSB9Cg==",
+            "callback_utf8_sha256": "523c55cfc3d91fef72ed2d10ff2a0b8e623860b156c108d903b217cbbf1dd634",
+            "callback_utf8_bytes": 49,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "523c55cfc3d91fef72ed2d10ff2a0b8e623860b156c108d903b217cbbf1dd634",
+            "materialized_utf8_bytes": 49,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/format.json"
+            ]
+          }
+        ],
+        "run_fingerprint_sha256": "a2eebef3fb0e3288cda08be4f8fd3d67e1bfb62a57dbd5dfea416c94d94e1223"
+      },
+      "control_fingerprint_sha256": "a0635556ea660406adead451f5d5775e31b42e89738b736a096ef926eed5ca53"
+    },
+    {
+      "control_id": "umd-copy-is-module-invariant",
+      "input": {
+        "current_directory": "/project",
+        "roots": [
+          "/project/format.json"
+        ],
+        "files": [
+          {
+            "path": "/project/format.json",
+            "root": true,
+            "utf8_base64": "eyJmb3JtYXQiOiJzdGFibGUiLCJpdGVtcyI6WzEsdHJ1ZSxudWxsXX0=",
+            "utf8_sha256": "8c6a37fbd52df5534df6f1ad0fce2af633ec9cf4351d681935ae601066cab271",
+            "utf8_bytes": 41
+          }
+        ],
+        "compiler_options": {
+          "ignoreDeprecations": "6.0",
+          "module": 3,
+          "moduleResolution": 2,
+          "newLine": 1,
+          "outDir": "/project/dist",
+          "resolveJsonModule": true,
+          "target": 99
+        }
+      },
+      "repetitions": 2,
+      "observation": {
+        "reported_diagnostics": [
+          {
+            "code": 5071,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option '--resolveJsonModule' cannot be specified when 'module' is set to 'none', 'system', or 'umd'."
+          }
+        ],
+        "emit_diagnostics": [],
+        "emit_skipped": false,
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/dist/format.json",
+            "kind": "json",
+            "callback_utf8_base64": "eyAiZm9ybWF0IjogInN0YWJsZSIsICJpdGVtcyI6IFsxLCB0cnVlLCBudWxsXSB9Cg==",
+            "callback_utf8_sha256": "523c55cfc3d91fef72ed2d10ff2a0b8e623860b156c108d903b217cbbf1dd634",
+            "callback_utf8_bytes": 49,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "523c55cfc3d91fef72ed2d10ff2a0b8e623860b156c108d903b217cbbf1dd634",
+            "materialized_utf8_bytes": 49,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/format.json"
+            ]
+          }
+        ],
+        "run_fingerprint_sha256": "0b8de68dd07a1380966d02df8d5d2f37f72c9f4d731f837d820c47c3d87ade65"
+      },
+      "control_fingerprint_sha256": "8d3ab50ed3083c87680b4fc8c9a875b1608a2cd6668f69e44cd1687c87727c42"
+    },
+    {
+      "control_id": "system-copy-is-module-invariant",
+      "input": {
+        "current_directory": "/project",
+        "roots": [
+          "/project/format.json"
+        ],
+        "files": [
+          {
+            "path": "/project/format.json",
+            "root": true,
+            "utf8_base64": "eyJmb3JtYXQiOiJzdGFibGUiLCJpdGVtcyI6WzEsdHJ1ZSxudWxsXX0=",
+            "utf8_sha256": "8c6a37fbd52df5534df6f1ad0fce2af633ec9cf4351d681935ae601066cab271",
+            "utf8_bytes": 41
+          }
+        ],
+        "compiler_options": {
+          "ignoreDeprecations": "6.0",
+          "module": 4,
+          "moduleResolution": 2,
+          "newLine": 1,
+          "outDir": "/project/dist",
+          "resolveJsonModule": true,
+          "target": 99
+        }
+      },
+      "repetitions": 2,
+      "observation": {
+        "reported_diagnostics": [
+          {
+            "code": 5071,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option '--resolveJsonModule' cannot be specified when 'module' is set to 'none', 'system', or 'umd'."
+          }
+        ],
+        "emit_diagnostics": [],
+        "emit_skipped": false,
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/dist/format.json",
+            "kind": "json",
+            "callback_utf8_base64": "eyAiZm9ybWF0IjogInN0YWJsZSIsICJpdGVtcyI6IFsxLCB0cnVlLCBudWxsXSB9Cg==",
+            "callback_utf8_sha256": "523c55cfc3d91fef72ed2d10ff2a0b8e623860b156c108d903b217cbbf1dd634",
+            "callback_utf8_bytes": 49,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "523c55cfc3d91fef72ed2d10ff2a0b8e623860b156c108d903b217cbbf1dd634",
+            "materialized_utf8_bytes": 49,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/format.json"
+            ]
+          }
+        ],
+        "run_fingerprint_sha256": "0b8de68dd07a1380966d02df8d5d2f37f72c9f4d731f837d820c47c3d87ade65"
+      },
+      "control_fingerprint_sha256": "ceb8d4397d6490b75612039f0ac58c5330da0de325714f09b43cacd4cc34395e"
+    },
+    {
+      "control_id": "node16-copy-is-module-invariant",
+      "input": {
+        "current_directory": "/project",
+        "roots": [
+          "/project/format.json"
+        ],
+        "files": [
+          {
+            "path": "/project/format.json",
+            "root": true,
+            "utf8_base64": "eyJmb3JtYXQiOiJzdGFibGUiLCJpdGVtcyI6WzEsdHJ1ZSxudWxsXX0=",
+            "utf8_sha256": "8c6a37fbd52df5534df6f1ad0fce2af633ec9cf4351d681935ae601066cab271",
+            "utf8_bytes": 41
+          }
+        ],
+        "compiler_options": {
+          "ignoreDeprecations": "6.0",
+          "module": 100,
+          "moduleResolution": 3,
+          "newLine": 1,
+          "outDir": "/project/dist",
+          "resolveJsonModule": true,
+          "target": 99
+        }
+      },
+      "repetitions": 2,
+      "observation": {
+        "reported_diagnostics": [],
+        "emit_diagnostics": [],
+        "emit_skipped": false,
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/dist/format.json",
+            "kind": "json",
+            "callback_utf8_base64": "eyAiZm9ybWF0IjogInN0YWJsZSIsICJpdGVtcyI6IFsxLCB0cnVlLCBudWxsXSB9Cg==",
+            "callback_utf8_sha256": "523c55cfc3d91fef72ed2d10ff2a0b8e623860b156c108d903b217cbbf1dd634",
+            "callback_utf8_bytes": 49,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "523c55cfc3d91fef72ed2d10ff2a0b8e623860b156c108d903b217cbbf1dd634",
+            "materialized_utf8_bytes": 49,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/format.json"
+            ]
+          }
+        ],
+        "run_fingerprint_sha256": "a2eebef3fb0e3288cda08be4f8fd3d67e1bfb62a57dbd5dfea416c94d94e1223"
+      },
+      "control_fingerprint_sha256": "f28eda20a55df70e7c0e34138d8c26284cc98089b8f6a4d96d314e4161b78a7e"
+    },
+    {
+      "control_id": "node18-copy-is-module-invariant",
+      "input": {
+        "current_directory": "/project",
+        "roots": [
+          "/project/format.json"
+        ],
+        "files": [
+          {
+            "path": "/project/format.json",
+            "root": true,
+            "utf8_base64": "eyJmb3JtYXQiOiJzdGFibGUiLCJpdGVtcyI6WzEsdHJ1ZSxudWxsXX0=",
+            "utf8_sha256": "8c6a37fbd52df5534df6f1ad0fce2af633ec9cf4351d681935ae601066cab271",
+            "utf8_bytes": 41
+          }
+        ],
+        "compiler_options": {
+          "ignoreDeprecations": "6.0",
+          "module": 101,
+          "moduleResolution": 99,
+          "newLine": 1,
+          "outDir": "/project/dist",
+          "resolveJsonModule": true,
+          "target": 99
+        }
+      },
+      "repetitions": 2,
+      "observation": {
+        "reported_diagnostics": [],
+        "emit_diagnostics": [],
+        "emit_skipped": false,
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/dist/format.json",
+            "kind": "json",
+            "callback_utf8_base64": "eyAiZm9ybWF0IjogInN0YWJsZSIsICJpdGVtcyI6IFsxLCB0cnVlLCBudWxsXSB9Cg==",
+            "callback_utf8_sha256": "523c55cfc3d91fef72ed2d10ff2a0b8e623860b156c108d903b217cbbf1dd634",
+            "callback_utf8_bytes": 49,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "523c55cfc3d91fef72ed2d10ff2a0b8e623860b156c108d903b217cbbf1dd634",
+            "materialized_utf8_bytes": 49,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/format.json"
+            ]
+          }
+        ],
+        "run_fingerprint_sha256": "a2eebef3fb0e3288cda08be4f8fd3d67e1bfb62a57dbd5dfea416c94d94e1223"
+      },
+      "control_fingerprint_sha256": "49f8de0beefce43d80fb98a95d7fe950494eebe7c53ba9872e7bc3ef16c71e14"
+    },
+    {
+      "control_id": "node20-copy-is-module-invariant",
+      "input": {
+        "current_directory": "/project",
+        "roots": [
+          "/project/format.json"
+        ],
+        "files": [
+          {
+            "path": "/project/format.json",
+            "root": true,
+            "utf8_base64": "eyJmb3JtYXQiOiJzdGFibGUiLCJpdGVtcyI6WzEsdHJ1ZSxudWxsXX0=",
+            "utf8_sha256": "8c6a37fbd52df5534df6f1ad0fce2af633ec9cf4351d681935ae601066cab271",
+            "utf8_bytes": 41
+          }
+        ],
+        "compiler_options": {
+          "ignoreDeprecations": "6.0",
+          "module": 102,
+          "moduleResolution": 99,
+          "newLine": 1,
+          "outDir": "/project/dist",
+          "resolveJsonModule": true,
+          "target": 99
+        }
+      },
+      "repetitions": 2,
+      "observation": {
+        "reported_diagnostics": [],
+        "emit_diagnostics": [],
+        "emit_skipped": false,
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/dist/format.json",
+            "kind": "json",
+            "callback_utf8_base64": "eyAiZm9ybWF0IjogInN0YWJsZSIsICJpdGVtcyI6IFsxLCB0cnVlLCBudWxsXSB9Cg==",
+            "callback_utf8_sha256": "523c55cfc3d91fef72ed2d10ff2a0b8e623860b156c108d903b217cbbf1dd634",
+            "callback_utf8_bytes": 49,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "523c55cfc3d91fef72ed2d10ff2a0b8e623860b156c108d903b217cbbf1dd634",
+            "materialized_utf8_bytes": 49,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/format.json"
+            ]
+          }
+        ],
+        "run_fingerprint_sha256": "a2eebef3fb0e3288cda08be4f8fd3d67e1bfb62a57dbd5dfea416c94d94e1223"
+      },
+      "control_fingerprint_sha256": "9cfe2e8e9e46ddb39e555ed45008711e61e55d8058ca2ed742eb1c9988a7e242"
+    },
+    {
+      "control_id": "nodenext-copy-is-module-invariant",
+      "input": {
+        "current_directory": "/project",
+        "roots": [
+          "/project/format.json"
+        ],
+        "files": [
+          {
+            "path": "/project/format.json",
+            "root": true,
+            "utf8_base64": "eyJmb3JtYXQiOiJzdGFibGUiLCJpdGVtcyI6WzEsdHJ1ZSxudWxsXX0=",
+            "utf8_sha256": "8c6a37fbd52df5534df6f1ad0fce2af633ec9cf4351d681935ae601066cab271",
+            "utf8_bytes": 41
+          }
+        ],
+        "compiler_options": {
+          "ignoreDeprecations": "6.0",
+          "module": 199,
+          "moduleResolution": 99,
+          "newLine": 1,
+          "outDir": "/project/dist",
+          "resolveJsonModule": true,
+          "target": 99
+        }
+      },
+      "repetitions": 2,
+      "observation": {
+        "reported_diagnostics": [],
+        "emit_diagnostics": [],
+        "emit_skipped": false,
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/dist/format.json",
+            "kind": "json",
+            "callback_utf8_base64": "eyAiZm9ybWF0IjogInN0YWJsZSIsICJpdGVtcyI6IFsxLCB0cnVlLCBudWxsXSB9Cg==",
+            "callback_utf8_sha256": "523c55cfc3d91fef72ed2d10ff2a0b8e623860b156c108d903b217cbbf1dd634",
+            "callback_utf8_bytes": 49,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "523c55cfc3d91fef72ed2d10ff2a0b8e623860b156c108d903b217cbbf1dd634",
+            "materialized_utf8_bytes": 49,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/format.json"
+            ]
+          }
+        ],
+        "run_fingerprint_sha256": "a2eebef3fb0e3288cda08be4f8fd3d67e1bfb62a57dbd5dfea416c94d94e1223"
+      },
+      "control_fingerprint_sha256": "b48d67e4353067877f5483aa715c03d6449e6b990140dfb42d4fcba1bc64ac77"
+    },
+    {
+      "control_id": "json-without-outdir-is-not-emit-eligible",
+      "input": {
+        "current_directory": "/project",
+        "roots": [
+          "/project/data.json"
+        ],
+        "files": [
+          {
+            "path": "/project/data.json",
+            "root": true,
+            "utf8_base64": "eyJmb3JtYXQiOiJzdGFibGUiLCJpdGVtcyI6WzEsdHJ1ZSxudWxsXX0=",
+            "utf8_sha256": "8c6a37fbd52df5534df6f1ad0fce2af633ec9cf4351d681935ae601066cab271",
+            "utf8_bytes": 41
+          }
+        ],
+        "compiler_options": {
+          "ignoreDeprecations": "6.0",
+          "module": 200,
+          "moduleResolution": 100,
+          "newLine": 1,
+          "resolveJsonModule": true,
+          "target": 99
+        }
+      },
+      "repetitions": 2,
+      "observation": {
+        "reported_diagnostics": [],
+        "emit_diagnostics": [],
+        "emit_skipped": false,
+        "writes": [],
+        "run_fingerprint_sha256": "f0caba831db411a041d94c40465ab722e0f4d306b8e4ea511ad01e8ca9e83e94"
+      },
+      "control_fingerprint_sha256": "b099cc578ed81667fe4182980748615fccad7b07ea8ac6f3e91ecdca06e2dc07"
+    },
+    {
+      "control_id": "same-location-json-output-is-suppressed",
+      "input": {
+        "current_directory": "/project",
+        "roots": [
+          "/project/data.json"
+        ],
+        "files": [
+          {
+            "path": "/project/data.json",
+            "root": true,
+            "utf8_base64": "eyJmb3JtYXQiOiJzdGFibGUiLCJpdGVtcyI6WzEsdHJ1ZSxudWxsXX0=",
+            "utf8_sha256": "8c6a37fbd52df5534df6f1ad0fce2af633ec9cf4351d681935ae601066cab271",
+            "utf8_bytes": 41
+          }
+        ],
+        "compiler_options": {
+          "ignoreDeprecations": "6.0",
+          "module": 200,
+          "moduleResolution": 100,
+          "newLine": 1,
+          "outDir": "/project",
+          "resolveJsonModule": true,
+          "target": 99
+        }
+      },
+      "repetitions": 2,
+      "observation": {
+        "reported_diagnostics": [],
+        "emit_diagnostics": [],
+        "emit_skipped": false,
+        "writes": [],
+        "run_fingerprint_sha256": "f0caba831db411a041d94c40465ab722e0f4d306b8e4ea511ad01e8ca9e83e94"
+      },
+      "control_fingerprint_sha256": "fd475087bb3c19f0bec84e67492cd929188ef70b939727cde98f16be2122a2de"
+    },
+    {
+      "control_id": "empty-json-emits-empty-callback",
+      "input": {
+        "current_directory": "/project",
+        "roots": [
+          "/project/empty.json"
+        ],
+        "files": [
+          {
+            "path": "/project/empty.json",
+            "root": true,
+            "utf8_base64": "",
+            "utf8_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "utf8_bytes": 0
+          }
+        ],
+        "compiler_options": {
+          "ignoreDeprecations": "6.0",
+          "module": 200,
+          "moduleResolution": 100,
+          "newLine": 1,
+          "outDir": "/project/dist",
+          "resolveJsonModule": true,
+          "target": 99
+        }
+      },
+      "repetitions": 2,
+      "observation": {
+        "reported_diagnostics": [],
+        "emit_diagnostics": [],
+        "emit_skipped": false,
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/dist/empty.json",
+            "kind": "json",
+            "callback_utf8_base64": "",
+            "callback_utf8_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "callback_utf8_bytes": 0,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "materialized_utf8_bytes": 0,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/empty.json"
+            ]
+          }
+        ],
+        "run_fingerprint_sha256": "54dc8f97b725f0b969a948734f5f64a3448d320b7c3a52c0524e839ec401fc0d"
+      },
+      "control_fingerprint_sha256": "b95501f6a276a6382b1f9e8c335d5109773ca3d8d66f3ed712dc15bf448580e6"
+    },
+    {
+      "control_id": "mixed-typescript-json-relocation-and-write-order",
+      "input": {
+        "current_directory": "/project",
+        "roots": [
+          "/project/data.json",
+          "/project/main.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/data.json",
+            "root": true,
+            "utf8_base64": "eyJ2YWx1ZSI6MX0=",
+            "utf8_sha256": "48208f9428d64634bd8e28ff345bf0eab60d53c18fa2fbdb0b9bc1e84df2b5f6",
+            "utf8_bytes": 11
+          },
+          {
+            "path": "/project/main.ts",
+            "root": true,
+            "utf8_base64": "ZXhwb3J0IGNvbnN0IG1hcmtlcjogbnVtYmVyID0gMTsK",
+            "utf8_sha256": "0283b808a4142a52f102c527ae50837394e83f5051e7c64b1fb1d18ff10889fc",
+            "utf8_bytes": 33
+          }
+        ],
+        "compiler_options": {
+          "ignoreDeprecations": "6.0",
+          "module": 200,
+          "moduleResolution": 100,
+          "newLine": 1,
+          "outDir": "/project/dist",
+          "resolveJsonModule": true,
+          "target": 99
+        }
+      },
+      "repetitions": 2,
+      "observation": {
+        "reported_diagnostics": [],
+        "emit_diagnostics": [],
+        "emit_skipped": false,
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/dist/data.json",
+            "kind": "json",
+            "callback_utf8_base64": "eyAidmFsdWUiOiAxIH0K",
+            "callback_utf8_sha256": "1de7373fbc76a139180c90b3f93ad384eb0e303fda437620e717dc7097abf341",
+            "callback_utf8_bytes": 15,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "1de7373fbc76a139180c90b3f93ad384eb0e303fda437620e717dc7097abf341",
+            "materialized_utf8_bytes": 15,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/data.json"
+            ]
+          },
+          {
+            "index": 1,
+            "path": "/project/dist/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "ZXhwb3J0IGNvbnN0IG1hcmtlciA9IDE7Cg==",
+            "callback_utf8_sha256": "ef280989753e6ce8d488fd8e81e077df1fca6b24554e08da4f964fcf2b3378f1",
+            "callback_utf8_bytes": 25,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "ef280989753e6ce8d488fd8e81e077df1fca6b24554e08da4f964fcf2b3378f1",
+            "materialized_utf8_bytes": 25,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ]
+          }
+        ],
+        "run_fingerprint_sha256": "ead0fa83abbebe7c476b78c74ba5475578f9a10fb011c0466e4aa662538b5810"
+      },
+      "control_fingerprint_sha256": "60248603ce577b4f720b5857325acb5b158c953cf569809ad85a60f3d770f5ac"
+    }
+  ],
+  "summary": {
+    "controls": 14,
+    "exact_outputs": 13,
+    "typescript_runs": 28,
+    "reported_diagnostics": 2
+  },
+  "controls_fingerprint_sha256": "a911f394f1607ebb0d196ed7b21803339d82fa6ae3e3d6048b6005bb96030670"
+}

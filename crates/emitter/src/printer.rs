@@ -7,8 +7,8 @@ use tsc_types::NodeFlags;
 use crate::{
     create_text_writer, EmitFlags, EmitHelper, EmitHint, GeneratedUtf16Location, NewLineKind,
     SourceBytePosition, SourceByteRange, SourceMapRange, SourcePositionError, SourceRange,
-    SyntheticComment, SyntheticCommentKind, TextWriter, TransformBundle, TransformError,
-    TransformNode, TransformNodeArray, TransformSourceId, TransformationResult,
+    SourceUtf16Location, SyntheticComment, SyntheticCommentKind, TextWriter, TransformBundle,
+    TransformError, TransformNode, TransformNodeArray, TransformSourceId, TransformationResult,
     UnsupportedEmitFeature,
 };
 
@@ -218,6 +218,16 @@ impl Printer {
         }
 
         let root = transformation.arena().root(source_id)?;
+        if transformation
+            .arena()
+            .source(source_id)?
+            .syntax()
+            .file_name
+            .to_ascii_lowercase()
+            .ends_with(".json")
+        {
+            return self.print_json_source_file(transformation, source_id, root, recorder);
+        }
         let (text, language_variant, statements, token_spans) = {
             let source = transformation.arena().source(source_id)?.syntax();
             let root_record = source.arena.node(root.node());
@@ -340,6 +350,91 @@ impl Printer {
             cursor,
             u32::try_from(text.len()).expect("source text exceeds u32"),
         )?;
+        transformation.after_emit_node(EmitHint::SourceFile, root)?;
+        Ok(PrintedText {
+            text: writer.text().to_owned(),
+            end: writer.location(),
+        })
+    }
+
+    /// tsc-port: emitExpressionStatement @6.0.3
+    /// tsc-hash: 2735e6c85cd4ac9311765eef71de22d5fd8e247cfc4f67ed4e04cc688fe3f2a2
+    /// tsc-span: _tsc.js:118623-118628
+    ///
+    /// JSON SourceFiles deliberately bypass the whole-source identity arm:
+    /// TypeScript prints their single value as an expression, omits the
+    /// statement semicolon, normalizes whitespace/newlines, and lets the
+    /// write callback own BOM materialization.
+    fn print_json_source_file(
+        &self,
+        transformation: &mut TransformationResult<'_>,
+        source_id: TransformSourceId,
+        root: TransformNode,
+        _recorder: &mut dyn SourceMapRecorder,
+    ) -> Result<PrintedText, PrinterError> {
+        transformation.before_emit_node(EmitHint::SourceFile, root)?;
+        let emitted_root = transformation.substitute_node(EmitHint::SourceFile, root)?;
+        if emitted_root != root {
+            transformation.after_emit_node(EmitHint::SourceFile, root)?;
+            return Err(PrinterError::TransformedNodeWorkerUnavailable(emitted_root));
+        }
+
+        let statements = match &transformation.arena().node(root)?.data {
+            NodeData::SourceFile(data) => data
+                .statements
+                .and_then(|array| transformation.arena().node_array_ref(source_id, array))
+                .map(|array| transformation.arena().node_array(array))
+                .transpose()?
+                .map(|array| array.nodes.clone())
+                .unwrap_or_default(),
+            _ => return Err(PrinterError::RootIsNotSourceFile(root)),
+        };
+        let mut writer = create_text_writer(self.options.new_line);
+        if let Some(statement_id) = statements.first().copied() {
+            if statements.len() != 1 {
+                transformation.after_emit_node(EmitHint::SourceFile, root)?;
+                return Err(PrinterError::UnsupportedTransformedSyntax {
+                    node: root,
+                    kind: SyntaxKind::SourceFile,
+                });
+            }
+            let statement = transformation
+                .arena()
+                .node_ref(source_id, statement_id)
+                .ok_or(PrinterError::UnknownStatement(statement_id.0))?;
+            let expression = match &transformation.arena().node(statement)?.data {
+                NodeData::ExpressionStatement(data) => {
+                    data.expression
+                        .ok_or(PrinterError::MissingTransformedChild {
+                            parent: SyntaxKind::ExpressionStatement,
+                            field: "expression",
+                        })?
+                }
+                _ => {
+                    let kind = transformation.arena().node(statement)?.kind;
+                    transformation.after_emit_node(EmitHint::SourceFile, root)?;
+                    return Err(PrinterError::UnsupportedTransformedSyntax {
+                        node: statement,
+                        kind,
+                    });
+                }
+            };
+            transformation.before_emit_node(EmitHint::Unspecified, statement)?;
+            let emitted_statement =
+                transformation.substitute_node(EmitHint::Unspecified, statement)?;
+            if emitted_statement != statement {
+                transformation.after_emit_node(EmitHint::Unspecified, statement)?;
+                transformation.after_emit_node(EmitHint::SourceFile, root)?;
+                return Err(PrinterError::TransformedNodeWorkerUnavailable(
+                    emitted_statement,
+                ));
+            }
+            self.emit_leading_comments_for_node(transformation, statement, &mut writer)?;
+            self.emit_node_id(transformation, source_id, expression, &mut writer)?;
+            self.emit_trailing_comments_for_node(transformation, statement, &mut writer)?;
+            transformation.after_emit_node(EmitHint::Unspecified, statement)?;
+            writer.write_line(false);
+        }
         transformation.after_emit_node(EmitHint::SourceFile, root)?;
         Ok(PrintedText {
             text: writer.text().to_owned(),
@@ -504,6 +599,13 @@ impl Printer {
             .is_some()
             || NodeFlags::from_bits(record.flags).contains(NodeFlags::SYNTHESIZED);
         let multi_line = record.multi_line == Some(true);
+        let json_source = transformation
+            .arena()
+            .source(node.source())?
+            .syntax()
+            .file_name
+            .to_ascii_lowercase()
+            .ends_with(".json");
 
         match record.data {
             NodeData::Token if record.kind == SyntaxKind::JsxOpeningFragment => {
@@ -1158,6 +1260,17 @@ impl Printer {
                 }
                 Ok(())
             }
+            NodeData::ArrayLiteralExpression(data) if json_source => self
+                .emit_json_delimited_expression_list(
+                    transformation,
+                    node,
+                    data.elements,
+                    "[",
+                    "]",
+                    multi_line,
+                    true,
+                    writer,
+                ),
             NodeData::ArrayLiteralExpression(data) => self.emit_delimited_expression_list(
                 transformation,
                 node.source(),
@@ -1341,6 +1454,17 @@ impl Printer {
                 }
                 Ok(())
             }
+            NodeData::ObjectLiteralExpression(data) if json_source => self
+                .emit_json_delimited_expression_list(
+                    transformation,
+                    node,
+                    data.properties,
+                    "{",
+                    "}",
+                    multi_line,
+                    false,
+                    writer,
+                ),
             NodeData::ObjectLiteralExpression(data) => self.emit_delimited_expression_list(
                 transformation,
                 node.source(),
@@ -2592,6 +2716,141 @@ impl Printer {
         }
         writer.write_punctuation(close);
         Ok(())
+    }
+
+    /// tsc-port: emitNodeListItems @6.0.3
+    /// tsc-hash: 8b9d9ba40ccad81aa5e0a79b002bc7be89f4a18456ebba923d01aefdfb315901
+    /// tsc-span: _tsc.js:120068-120360
+    ///
+    /// This is the JSON subset of the `PreserveLines | Indented` list
+    /// formats used by array and object literals. Object trailing commas are
+    /// suppressed for a JSON SourceFile; array trailing commas remain the
+    /// upstream parser/printer behavior.
+    #[allow(clippy::too_many_arguments)]
+    fn emit_json_delimited_expression_list(
+        &self,
+        transformation: &mut TransformationResult<'_>,
+        parent: TransformNode,
+        elements: Option<tsc_syntax::NodeArrayId>,
+        open: &str,
+        close: &str,
+        prefer_new_line: bool,
+        allow_trailing_comma: bool,
+        writer: &mut TextWriter,
+    ) -> Result<(), PrinterError> {
+        writer.write_punctuation(open);
+        let array =
+            elements.and_then(|id| transformation.arena().node_array_ref(parent.source(), id));
+        let (ids, trailing_comma) = if let Some(array) = array {
+            let record = transformation.arena().node_array(array)?;
+            (record.nodes.clone(), record.has_trailing_comma)
+        } else {
+            (Vec::new(), false)
+        };
+        if ids.is_empty() {
+            writer.write_punctuation(close);
+            return Ok(());
+        }
+
+        let first = transformation
+            .arena()
+            .node_ref(parent.source(), ids[0])
+            .ok_or(PrinterError::UnknownStatement(ids[0].0))?;
+        let leading_line = prefer_new_line
+            || self.json_node_start_line(transformation, parent)?
+                != self.json_node_start_line(transformation, first)?;
+        if leading_line {
+            writer.write_line(false);
+        } else if open == "{" {
+            writer.write_space(" ");
+        }
+        writer.increase_indent();
+
+        for (index, id) in ids.iter().copied().enumerate() {
+            let child = transformation
+                .arena()
+                .node_ref(parent.source(), id)
+                .ok_or(PrinterError::UnknownStatement(id.0))?;
+            if index == 0 {
+                self.emit_leading_comments_for_node(transformation, child, writer)?;
+            } else {
+                self.emit_leading_comments_for_node_after_sibling(transformation, child, writer)?;
+            }
+            self.emit_node_id(transformation, parent.source(), id, writer)?;
+
+            let has_next = index + 1 < ids.len();
+            if has_next || trailing_comma && allow_trailing_comma {
+                writer.write_punctuation(",");
+            }
+            self.emit_delimited_trailing_comments_for_node(transformation, child, writer)?;
+            if has_next {
+                let next = transformation
+                    .arena()
+                    .node_ref(parent.source(), ids[index + 1])
+                    .ok_or(PrinterError::UnknownStatement(ids[index + 1].0))?;
+                if self.json_node_end_line(transformation, child)?
+                    != self.json_node_start_line(transformation, next)?
+                {
+                    writer.write_line(false);
+                } else {
+                    writer.write_space(" ");
+                }
+            }
+        }
+
+        let last = transformation
+            .arena()
+            .node_ref(parent.source(), *ids.last().expect("nonempty JSON list"))
+            .expect("validated JSON list child");
+        let closing_line = prefer_new_line
+            || self.json_node_end_line(transformation, parent)?
+                != self.json_node_end_line(transformation, last)?;
+        writer.decrease_indent();
+        if closing_line {
+            writer.write_line(false);
+        } else if open == "{" {
+            writer.write_space(" ");
+        }
+        writer.write_punctuation(close);
+        Ok(())
+    }
+
+    fn json_node_start_line(
+        &self,
+        transformation: &TransformationResult<'_>,
+        node: TransformNode,
+    ) -> Result<u32, PrinterError> {
+        let original = transformation.arena().get_original_node(node);
+        let source = transformation.arena().source(original.source())?.syntax();
+        let record = transformation.arena().node(original)?;
+        let SourceRange::Original(range) =
+            SourceRange::from_raw(record.pos, record.end, source.positions())?
+        else {
+            return Err(PrinterError::SyntheticNodeWorkerUnavailable(node));
+        };
+        let start = u32::try_from(skip_trivia(source.text(), range.start().value() as usize))
+            .expect("JSON source position exceeds u32");
+        Ok(SourceUtf16Location::from_byte(
+            SourceBytePosition::new(start, source.positions())?,
+            source.positions(),
+        )?
+        .line())
+    }
+
+    fn json_node_end_line(
+        &self,
+        transformation: &TransformationResult<'_>,
+        node: TransformNode,
+    ) -> Result<u32, PrinterError> {
+        let original = transformation.arena().get_original_node(node);
+        let source = transformation.arena().source(original.source())?.syntax();
+        let record = transformation.arena().node(original)?;
+        let SourceRange::Original(range) =
+            SourceRange::from_raw(record.pos, record.end, source.positions())?
+        else {
+            return Err(PrinterError::SyntheticNodeWorkerUnavailable(node));
+        };
+        Ok(SourceUtf16Location::from_byte(range.end(), source.positions())?.line())
     }
 
     fn emit_embedded_statement(

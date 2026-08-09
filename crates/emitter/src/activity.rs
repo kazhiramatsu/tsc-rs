@@ -348,6 +348,16 @@ impl H2ActivityCanary {
         profile
     }
 
+    /// Construct the current production admission profile. H2.3d activates
+    /// JSON source eligibility, relocated `.json` output, and JSON-specific
+    /// printer formatting under effective `resolveJsonModule`.
+    #[doc(hidden)]
+    pub const fn h2_3d_profile() -> Self {
+        let mut profile = Self::h2_3c_profile();
+        profile.admitted_runtime_slices |= 1_u64 << H2RuntimeSlice::H2_3d.index();
+        profile
+    }
+
     pub const fn counters(&self) -> H2ActivityCounters {
         self.counters
     }

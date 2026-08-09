@@ -1,0 +1,177 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/kazhiramatsu/tsc-rs/.github/ci/contracts/h2-3d-qualification.schema.json",
+  "title": "tsc-rs H2.3d JSON source qualification",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "phase",
+    "status",
+    "typescript",
+    "generator",
+    "contract",
+    "origin",
+    "inputs",
+    "selection_contract",
+    "future_dependency_groups",
+    "cases",
+    "summary",
+    "qualification_fingerprint_sha256"
+  ],
+  "properties": {
+    "schema": { "const": 1 },
+    "phase": { "const": "H2.3d-json-source-output" },
+    "status": { "const": "qualified-typescript-oracle" },
+    "typescript": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["version", "source_commit", "bundle", "implementation"],
+      "properties": {
+        "version": { "const": "6.0.3" },
+        "source_commit": { "$ref": "#/$defs/sha1" },
+        "bundle": { "$ref": "#/$defs/path_hash" },
+        "implementation": { "$ref": "#/$defs/path_hash" }
+      }
+    },
+    "generator": { "$ref": "#/$defs/path_hash" },
+    "contract": { "$ref": "#/$defs/path_hash" },
+    "origin": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["trusted_base_commit"],
+      "properties": {
+        "trusted_base_commit": { "$ref": "#/$defs/sha1" }
+      }
+    },
+    "inputs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "candidate_dispositions",
+        "h2_3c_qualification",
+        "h2_3c_profile",
+        "h2_3c_owner_controls"
+      ],
+      "properties": {
+        "candidate_dispositions": { "$ref": "#/$defs/path_hash" },
+        "h2_3c_qualification": { "$ref": "#/$defs/path_hash" },
+        "h2_3c_profile": { "$ref": "#/$defs/path_hash" },
+        "h2_3c_owner_controls": { "$ref": "#/$defs/path_hash" }
+      }
+    },
+    "selection_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "global_h2_3d_rows",
+        "closed_slices_before_h2_3d",
+        "candidate_definition",
+        "candidate_denominator",
+        "future_deferred_definition",
+        "future_deferred_rows"
+      ],
+      "properties": {
+        "global_h2_3d_rows": { "const": 695 },
+        "closed_slices_before_h2_3d": {
+          "type": "array",
+          "minItems": 12,
+          "maxItems": 12,
+          "prefixItems": [
+            { "const": "H2.1a" },
+            { "const": "H2.1b" },
+            { "const": "H2.1c" },
+            { "const": "H2.1d" },
+            { "const": "H2.1e" },
+            { "const": "H2.2a" },
+            { "const": "H2.2b" },
+            { "const": "H2.2c" },
+            { "const": "H2.2d" },
+            { "const": "H2.3a" },
+            { "const": "H2.3b" },
+            { "const": "H2.3c" }
+          ],
+          "items": false
+        },
+        "candidate_definition": { "type": "string", "minLength": 1 },
+        "candidate_denominator": { "const": 0 },
+        "future_deferred_definition": { "type": "string", "minLength": 1 },
+        "future_deferred_rows": { "const": 695 }
+      }
+    },
+    "future_dependency_groups": {
+      "type": "array",
+      "minItems": 30,
+      "maxItems": 30,
+      "items": { "$ref": "#/$defs/future_group" }
+    },
+    "cases": { "const": [] },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "global_h2_3d_rows",
+        "future_deferred_rows",
+        "future_dependency_groups",
+        "candidates",
+        "admitted_cases",
+        "deferred_cases",
+        "source_deferred_cases",
+        "typescript_runs",
+        "admitted_typescript_writes",
+        "admitted_typescript_diagnostics",
+        "unexecuted_candidates",
+        "undispositioned_candidates"
+      ],
+      "properties": {
+        "global_h2_3d_rows": { "const": 695 },
+        "future_deferred_rows": { "const": 695 },
+        "future_dependency_groups": { "const": 30 },
+        "candidates": { "const": 0 },
+        "admitted_cases": { "const": 0 },
+        "deferred_cases": { "const": 0 },
+        "source_deferred_cases": { "const": 0 },
+        "typescript_runs": { "const": 0 },
+        "admitted_typescript_writes": { "const": 0 },
+        "admitted_typescript_diagnostics": { "const": 0 },
+        "unexecuted_candidates": { "const": 0 },
+        "undispositioned_candidates": { "const": 0 }
+      }
+    },
+    "qualification_fingerprint_sha256": { "$ref": "#/$defs/sha256" }
+  },
+  "$defs": {
+    "sha1": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "path_hash": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256"],
+      "properties": {
+        "path": { "type": "string", "minLength": 1 },
+        "sha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "future_group": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["required_slices", "cases"],
+      "properties": {
+        "required_slices": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 5,
+          "items": {
+            "enum": [
+              "H2.4a", "H2.4b", "H2.5a", "H2.5b", "H2.5c", "H2.5d",
+              "H2.5e", "H2.5f", "H2.5g", "H2.5h", "H2.6a", "H2.6b",
+              "H2.6c", "H2.7a", "H2.7b", "H2.7c", "H2.7d", "H2.7e",
+              "H2.8a", "H2.8b", "H2.8c", "H2.8d", "H2.8e", "H2.9"
+            ]
+          }
+        },
+        "cases": { "type": "integer", "minimum": 1, "maximum": 695 }
+      }
+    }
+  }
+}

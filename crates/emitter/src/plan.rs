@@ -269,7 +269,7 @@ pub fn get_source_files_to_emit(
     candidates
         .into_iter()
         .filter_map(|id| match host.source_file(id) {
-            Some(source) if source_file_may_be_emitted(source) => Some(Ok(id)),
+            Some(source) if source_file_may_be_emitted_for_host(source, host) => Some(Ok(id)),
             Some(_) => None,
             None => Some(Err(EmitFailure::Contract(
                 EmitContractViolation::PlannedSourceMissing(id),
@@ -283,6 +283,25 @@ pub fn get_source_files_to_emit(
 /// tsc-span: _tsc.js:16617-16634
 pub fn source_file_may_be_emitted(source: EmitSource<'_>) -> bool {
     source.may_be_emitted() && !is_declaration_file_name(source.path())
+}
+
+/// The Program retains source-side eligibility. JSON additionally depends on
+/// the emit request having somewhere distinct to copy the source, matching
+/// the option-dependent arm of TypeScript's `sourceFileMayBeEmitted`.
+pub(crate) fn source_file_may_be_emitted_for_host(
+    source: EmitSource<'_>,
+    host: &dyn EmitHost,
+) -> bool {
+    if !source_file_may_be_emitted(source) {
+        return false;
+    }
+    !source
+        .path()
+        .to_string_lossy()
+        .to_ascii_lowercase()
+        .ends_with(".json")
+        || host.compiler_options().out_dir.is_some()
+        || host.compiler_options().out_file.is_some()
 }
 
 /// tsc-port: getOutputPathsFor @6.0.3
@@ -365,7 +384,14 @@ pub fn for_each_emitted_file(
             EmitContractViolation::PlannedSourceMissing(source_file),
         ))?;
         let paths = get_output_paths_for(source, host)?;
-        action(&paths, &EmitRoot::SourceFile(source_file));
+        if paths.javascript_path().is_some()
+            || paths.javascript_map_path().is_some()
+            || paths.declaration_path().is_some()
+            || paths.declaration_map_path().is_some()
+            || paths.build_info_path().is_some()
+        {
+            action(&paths, &EmitRoot::SourceFile(source_file));
+        }
     }
     Ok(())
 }
@@ -398,6 +424,19 @@ pub fn preflight_emit(
     let mut emitted_paths = BTreeSet::new();
     let mut blocked_outputs = BTreeSet::new();
     let mut diagnostics = Vec::new();
+    let options = host.compiler_options();
+    if options.resolve_json_module == Some(true) {
+        if options.emit_module_resolution_kind() == 1 {
+            diagnostics.push(option_diagnostic(
+                &gen::Option_resolveJsonModule_cannot_be_specified_when_moduleResolution_is_set_to_classic,
+            ));
+        }
+        if matches!(options.emit_module_kind(), 0 | 3 | 4) {
+            diagnostics.push(option_diagnostic(
+                &gen::Option_resolveJsonModule_cannot_be_specified_when_module_is_set_to_none_system_or_umd,
+            ));
+        }
+    }
     for unit in plan.units() {
         for path in [
             unit.paths().javascript_path(),
@@ -554,6 +593,10 @@ fn compiler_diagnostic(
         None,
         MessageChain::new(message, &[path.to_string_lossy().into_owned()]),
     )
+}
+
+fn option_diagnostic(message: &'static tsc_diagnostics::DiagnosticMessage) -> Diagnostic {
+    Diagnostic::new(None, None, None, MessageChain::new(message, &[]))
 }
 
 fn overwrite_input_diagnostic(host: &dyn EmitHost, path: &Path) -> Diagnostic {

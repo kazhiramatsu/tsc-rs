@@ -109,10 +109,6 @@ pub fn validate_bootstrap_emit_options(options: &CompilerOptions) -> Result<(), 
             options.allow_importing_ts_extensions == Some(true),
             "allowImportingTsExtensions",
         ),
-        (
-            options.resolve_json_module == Some(true),
-            "resolveJsonModule",
-        ),
         (options.remove_comments == Some(true), "removeComments"),
         (
             options.no_implicit_use_strict == Some(true),
@@ -186,11 +182,12 @@ pub fn validate_bootstrap_emit_request(host: &dyn EmitHost) -> Result<(), EmitFa
     validate_bootstrap_emit_options(options)?;
     let mut emit_eligible_sources = 0usize;
     let mut javascript_sources = 0usize;
+    let mut json_sources = 0usize;
     for source_id in host.source_file_ids() {
         let source = host.source_file(*source_id).ok_or(EmitFailure::Contract(
             EmitContractViolation::PlannedSourceMissing(*source_id),
         ))?;
-        if !crate::source_file_may_be_emitted(source) {
+        if !crate::plan::source_file_may_be_emitted_for_host(source, host) {
             continue;
         }
         emit_eligible_sources += 1;
@@ -204,7 +201,11 @@ pub fn validate_bootstrap_emit_request(host: &dyn EmitHost) -> Result<(), EmitFa
                 || name.ends_with(".mjs")
                 || name.ends_with(".cjs")
                 || name.ends_with(".jsx"));
-        if !(is_typescript || is_javascript)
+        let is_json = name.ends_with(".json");
+        if is_json && !options.resolve_json_module_effective() {
+            return unsupported("resolveJsonModule");
+        }
+        if !(is_typescript || is_javascript || is_json)
             || name.ends_with(".d.ts")
             || name.ends_with(".d.mts")
             || name.ends_with(".d.cts")
@@ -214,27 +215,29 @@ pub fn validate_bootstrap_emit_request(host: &dyn EmitHost) -> Result<(), EmitFa
             });
         }
         javascript_sources += usize::from(is_javascript);
+        json_sources += usize::from(is_json);
     }
     if let Some(out_dir) = options.out_dir.as_deref() {
-        // H2.3a owns only the relocation needed to materialize an admitted
-        // JavaScript-family artifact. H2.8a retains the general outDir/rootDir
-        // and common-source-directory matrix.
-        if javascript_sources == 0
-            || javascript_sources != emit_eligible_sources
-            || !std::path::Path::new(out_dir).is_absolute()
-        {
+        // H2.3a owns JavaScript-only relocation. H2.3d additionally owns the
+        // narrow mixed source set needed to materialize an admitted JSON
+        // artifact. H2.8a retains outDir without either source family and the
+        // general rootDir/common-source-directory matrix.
+        let javascript_only =
+            javascript_sources != 0 && javascript_sources == emit_eligible_sources;
+        let json_relocation = json_sources != 0;
+        if !(javascript_only || json_relocation) || !std::path::Path::new(out_dir).is_absolute() {
             return unsupported("outDir");
         }
     }
     Ok(())
 }
 
-fn observe_javascript_source_routing(host: &dyn EmitHost, activity: &mut H2ActivityCanary) {
+fn observe_source_routing(host: &dyn EmitHost, activity: &mut H2ActivityCanary) {
     for source_id in host.source_file_ids() {
         let Some(source) = host.source_file(*source_id) else {
             continue;
         };
-        if !crate::source_file_may_be_emitted(source) {
+        if !crate::plan::source_file_may_be_emitted_for_host(source, host) {
             continue;
         }
         let name = source.path().to_string_lossy().to_ascii_lowercase();
@@ -256,6 +259,9 @@ fn observe_javascript_source_routing(host: &dyn EmitHost, activity: &mut H2Activ
             }) {
                 activity.observe_runtime_slice(H2RuntimeSlice::H2_3c);
             }
+        }
+        if name.ends_with(".json") {
+            activity.observe_runtime_slice(H2RuntimeSlice::H2_3d);
         }
     }
 }
@@ -280,7 +286,7 @@ pub fn emit_files(
     diagnostic_gate: &EmitDiagnosticGate,
     sink: &mut dyn OutputSink,
 ) -> Result<EmitOutcome, EmitFailure> {
-    let mut activity = H2ActivityCanary::h2_3c_profile();
+    let mut activity = H2ActivityCanary::h2_3d_profile();
     activity.construct_emit_session();
     activity.construct_output_plan();
     if !preflight.plan().units().is_empty() {
@@ -310,7 +316,7 @@ pub fn emit_files_with_activity(
     activity: &mut H2ActivityCanary,
 ) -> Result<EmitOutcome, EmitFailure> {
     validate_bootstrap_emit_request(host)?;
-    observe_javascript_source_routing(host, activity);
+    observe_source_routing(host, activity);
     preflight.plan().validate_bootstrap_shape()?;
     if preflight.plan().selection() != selection {
         return Err(EmitFailure::Unsupported(

@@ -1270,6 +1270,149 @@ fn h2_3a_narrow_out_dir_and_source_family_boundary_fails_closed() {
 }
 
 #[test]
+fn h2_3d_json_text_paths_bom_newlines_and_module_invariance_match_typescript() {
+    const SOURCE: &str = concat!(
+        "{\n",
+        "  \"a\":1,\n",
+        "  \"same\": [true,{\"emoji\":\"😀\"},],\n",
+        "}\n",
+    );
+    const EXPECTED: &str = concat!(
+        "{\n",
+        "    \"a\": 1,\n",
+        "    \"same\": [true, { \"emoji\": \"😀\" },]\n",
+        "}\n",
+    );
+    for module in [200, 99, 1, 2, 3, 4, 100, 101, 102, 199] {
+        let prepared = prepared_with_sources(
+            CompilerOptions {
+                no_emit: Some(false),
+                target: Some(99),
+                module: Some(module),
+                resolve_json_module: Some(true),
+                out_dir: Some("/project/dist".to_owned()),
+                new_line: Some(1),
+                ignore_deprecations: Some("6.0".to_owned()),
+                ..CompilerOptions::default()
+            },
+            &[("/project/data.json", SOURCE)],
+        );
+        let mut sink = MemoryOutputSink::new();
+        let outcome = ProgramSession::new(prepared)
+            .emit(&mut sink)
+            .unwrap_or_else(|error| panic!("module={module} JSON emit failed: {error}"));
+        assert!(!outcome.emit_skipped(), "module={module}");
+        assert_eq!(sink.writes().len(), 1, "module={module}");
+        assert_eq!(
+            sink.writes()[0].path(),
+            Path::new("/project/dist/data.json"),
+            "module={module}"
+        );
+        assert_eq!(
+            sink.writes()[0].callback_text(),
+            EXPECTED,
+            "module={module}"
+        );
+        assert!(!sink.writes()[0].write_byte_order_mark(), "module={module}");
+        assert_eq!(
+            outcome.h2_activity().runtime_slice(H2RuntimeSlice::H2_3d),
+            1,
+            "module={module}"
+        );
+    }
+
+    let prepared = prepared_with_sources(
+        CompilerOptions {
+            no_emit: Some(false),
+            target: Some(99),
+            module: Some(1),
+            resolve_json_module: Some(true),
+            out_dir: Some("/project/dist".to_owned()),
+            new_line: Some(0),
+            emit_bom: Some(true),
+            ..CompilerOptions::default()
+        },
+        &[("/project/bom.json", "\u{feff}{\r\n\t\"a\":1,\r\n}\r\n")],
+    );
+    let mut sink = MemoryOutputSink::new();
+    ProgramSession::new(prepared)
+        .emit(&mut sink)
+        .expect("JSON CRLF/BOM emit");
+    assert_eq!(
+        sink.writes()[0].callback_text(),
+        "{\r\n    \"a\": 1\r\n}\r\n"
+    );
+    assert!(sink.writes()[0].write_byte_order_mark());
+    assert!(sink.writes()[0]
+        .materialized_bytes()
+        .starts_with(&[0xef, 0xbb, 0xbf]));
+}
+
+#[test]
+fn h2_3d_json_without_distinct_output_location_is_not_written() {
+    for out_dir in [None, Some("/project".to_owned())] {
+        let prepared = prepared_with_sources(
+            CompilerOptions {
+                no_emit: Some(false),
+                target: Some(99),
+                module: Some(200),
+                resolve_json_module: Some(true),
+                out_dir,
+                ..CompilerOptions::default()
+            },
+            &[("/project/data.json", "{\"value\":1}")],
+        );
+        let mut sink = MemoryOutputSink::new();
+        let outcome = ProgramSession::new(prepared)
+            .emit(&mut sink)
+            .expect("same-location JSON emit suppression");
+        assert!(!outcome.emit_skipped());
+        assert!(sink.writes().is_empty());
+    }
+}
+
+#[test]
+fn h2_3d_resolve_json_module_option_diagnostics_match_typescript_and_gate_no_emit_on_error() {
+    for (module, module_resolution, expected_code) in [(200, 1, 5070), (3, 2, 5071), (4, 2, 5071)] {
+        for no_emit_on_error in [false, true] {
+            let prepared = prepared_with_sources_and_minimal_lib(
+                CompilerOptions {
+                    no_emit: Some(false),
+                    no_emit_on_error: Some(no_emit_on_error),
+                    target: Some(99),
+                    module: Some(module),
+                    module_resolution: Some(module_resolution),
+                    resolve_json_module: Some(true),
+                    out_dir: Some("/project/dist".to_owned()),
+                    ignore_deprecations: Some("6.0".to_owned()),
+                    ..CompilerOptions::default()
+                },
+                &[("/project/data.json", "{\"value\":1}")],
+            );
+            let mut sink = MemoryOutputSink::new();
+            let (outcome, diagnostics) = ProgramSession::new(prepared)
+                .emit_with_reported_diagnostics_for_harness(&mut sink)
+                .expect("resolveJsonModule option diagnostic emit");
+
+            assert_eq!(
+                diagnostics
+                    .iter()
+                    .map(|diagnostic| diagnostic.code())
+                    .collect::<Vec<_>>(),
+                [expected_code],
+                "module={module} moduleResolution={module_resolution} noEmitOnError={no_emit_on_error}"
+            );
+            assert_eq!(outcome.emit_skipped(), no_emit_on_error);
+            assert_eq!(sink.writes().len(), usize::from(!no_emit_on_error));
+            assert_eq!(
+                outcome.h2_activity().runtime_slice(H2RuntimeSlice::H2_3d),
+                1
+            );
+        }
+    }
+}
+
+#[test]
 fn a_later_unsupported_source_cannot_leave_an_earlier_partial_write() {
     let prepared = prepared_with_sources(
         CompilerOptions {
