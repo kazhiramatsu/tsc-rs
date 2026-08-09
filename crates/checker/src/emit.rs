@@ -138,6 +138,14 @@ impl EmitResolver for CheckerSession<'_> {
         })
     }
 
+    fn is_instantiated_module(&self, node: EmitResolverNode) -> Result<bool, EmitResolverError> {
+        self.with_resolver_node(
+            EmitResolverMethod::IsInstantiatedModule,
+            node,
+            |state, node| Ok(state.is_instantiated_module(node)),
+        )
+    }
+
     fn is_referenced_alias_declaration(
         &self,
         node: EmitResolverNode,

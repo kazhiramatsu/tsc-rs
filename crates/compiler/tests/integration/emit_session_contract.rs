@@ -667,14 +667,14 @@ fn a_later_unsupported_source_cannot_leave_an_earlier_partial_write() {
             ("/project/first.ts", "export const first: number = 1;\n"),
             (
                 "/project/second.ts",
-                "export namespace Runtime { export const value = 1; }\n",
+                "export class Runtime { constructor(public value: number) {} }\n",
             ),
         ],
     );
     let mut sink = CountingSink::default();
     let error = ProgramSession::new(prepared)
         .emit(&mut sink)
-        .expect_err("runtime namespace is outside the current syntax profile");
+        .expect_err("parameter properties remain owned by H2.2c");
     assert!(matches!(
         error,
         DriverError::Emit(EmitFailure::Transform(_))
@@ -839,6 +839,82 @@ fn h2_2a_runtime_and_const_enum_emit_matches_typescript_shapes() {
         assert_eq!(sink.writes()[0].callback_text(), expected);
         assert_eq!(
             outcome.h2_activity().runtime_slice(H2RuntimeSlice::H2_2a),
+            1
+        );
+    }
+}
+
+#[test]
+fn h2_2b_runtime_namespace_emit_matches_typescript_shapes() {
+    let cases = [
+        (
+            CompilerOptions {
+                no_emit: Some(false),
+                target: Some(99),
+                module: Some(99),
+                ..CompilerOptions::default()
+            },
+            concat!(
+                "export namespace Foo {\n",
+                "    export const key = Symbol();\n",
+                "}\n",
+                "export class C {\n",
+                "    [Foo.key]: string;\n",
+                "    constructor() { this[Foo.key] = \"hello\"; }\n",
+                "}\n",
+            ),
+            concat!(
+                "export var Foo;\n",
+                "(function (Foo) {\n",
+                "    Foo.key = Symbol();\n",
+                "})(Foo || (Foo = {}));\n",
+                "export class C {\n",
+                "    [Foo.key];\n",
+                "    constructor() { this[Foo.key] = \"hello\"; }\n",
+                "}\n",
+            ),
+        ),
+        (
+            CompilerOptions {
+                no_emit: Some(false),
+                target: Some(99),
+                module: Some(99),
+                ..CompilerOptions::default()
+            },
+            concat!(
+                "export namespace ns {\n",
+                "    export namespace undefined {\n",
+                "        export const s = Symbol();\n",
+                "    };\n",
+                "    export function x(p: undefined): undefined { return p; }\n",
+                "}\n",
+            ),
+            concat!(
+                "export var ns;\n",
+                "(function (ns) {\n",
+                "    let undefined;\n",
+                "    (function (undefined) {\n",
+                "        undefined.s = Symbol();\n",
+                "    })(undefined = ns.undefined || (ns.undefined = {}));\n",
+                "    ;\n",
+                "    function x(p) { return p; }\n",
+                "    ns.x = x;\n",
+                "})(ns || (ns = {}));\n",
+            ),
+        ),
+    ];
+
+    for (options, source, expected) in cases {
+        let prepared = prepared_with_sources(options, &[("/project/input.ts", source)]);
+        let mut sink = MemoryOutputSink::new();
+        let outcome = ProgramSession::new(prepared)
+            .emit(&mut sink)
+            .expect("H2.2b namespace emit");
+        assert!(outcome.diagnostics().is_empty());
+        assert_eq!(sink.writes().len(), 1);
+        assert_eq!(sink.writes()[0].callback_text(), expected);
+        assert_eq!(
+            outcome.h2_activity().runtime_slice(H2RuntimeSlice::H2_2b),
             1
         );
     }

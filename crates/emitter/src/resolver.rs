@@ -44,6 +44,7 @@ pub enum EmitResolverMethod {
     GetReferencedImportDeclaration,
     GetReferencedValueDeclaration,
     HasNodeCheckFlag,
+    IsInstantiatedModule,
     IsReferencedAliasDeclaration,
     IsTopLevelValueImportEqualsWithEntityName,
     IsValueAliasDeclaration,
@@ -58,6 +59,7 @@ impl EmitResolverMethod {
             Self::GetReferencedImportDeclaration => "getReferencedImportDeclaration",
             Self::GetReferencedValueDeclaration => "getReferencedValueDeclaration",
             Self::HasNodeCheckFlag => "hasNodeCheckFlag",
+            Self::IsInstantiatedModule => "isInstantiatedModule",
             Self::IsReferencedAliasDeclaration => "isReferencedAliasDeclaration",
             Self::IsTopLevelValueImportEqualsWithEntityName => {
                 "isTopLevelValueImportEqualsWithEntityName"
@@ -201,6 +203,10 @@ pub trait EmitResolver {
         _flag: u32,
     ) -> Result<bool, EmitResolverError> {
         Err(unavailable(EmitResolverMethod::HasNodeCheckFlag, node))
+    }
+
+    fn is_instantiated_module(&self, node: EmitResolverNode) -> Result<bool, EmitResolverError> {
+        Err(unavailable(EmitResolverMethod::IsInstantiatedModule, node))
     }
 
     fn is_referenced_alias_declaration(
