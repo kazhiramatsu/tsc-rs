@@ -37,6 +37,54 @@ fn source_file_stores_default_explicit_and_json_language_versions() {
 }
 
 #[test]
+fn amd_pragmas_are_source_owned_and_duplicate_module_names_report_exactly() {
+    let source = parse_with_target(
+        concat!(
+            "/// <amd-module name=\"first\" />\n",
+            "/// <amd-dependency path=\"dep-a\" />\n",
+            "/// <amd-dependency name=\"alias\" path=\"dep-b\" />\n",
+            "/// <amd-module name=\"second\" />\n",
+            "export {};\n",
+        ),
+        ScriptTarget::ES_NEXT,
+    );
+
+    assert_eq!(source.module_name.as_deref(), Some("second"));
+    assert_eq!(
+        source.amd_dependencies,
+        [
+            crate::AmdDependency {
+                path: "dep-a".to_owned(),
+                name: None,
+            },
+            crate::AmdDependency {
+                path: "dep-b".to_owned(),
+                name: Some("alias".to_owned()),
+            },
+        ]
+    );
+    assert_eq!(
+        source
+            .parse_diagnostics
+            .iter()
+            .map(tsc_diagnostics::Diagnostic::code)
+            .collect::<Vec<_>>(),
+        [2458]
+    );
+
+    let missing_required_attributes = parse_with_target(
+        concat!(
+            "/// <amd-module />\n",
+            "/// <amd-dependency name=\"alias\" />\n",
+            "export {};\n",
+        ),
+        ScriptTarget::ES_NEXT,
+    );
+    assert_eq!(missing_required_attributes.module_name, None);
+    assert!(missing_required_attributes.amd_dependencies.is_empty());
+}
+
+#[test]
 fn numeric_literals_retain_the_scanner_flags_used_by_the_printer() {
     let source = parse_with_target("0x10; 1e2; 1;", ScriptTarget::ES2015);
     let literals = nodes_of_kind(&source, SyntaxKind::NumericLiteral);

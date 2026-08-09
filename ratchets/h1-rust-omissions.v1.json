@@ -17,7 +17,7 @@
   "authorities": {
     "compatibility_residual": {
       "path": "docs/design/greenfield/compiler-compatibility-residual.md",
-      "sha256": "346e7a5273a648e8918396d67448d87a8cf5d150ef568a1131655d348f47fa1b"
+      "sha256": "74afd495fe25ea0710d39e442541d0d229b522337ef0e18872aa604cb1bd1b86"
     },
     "h1_execution": {
       "path": "docs/design/greenfield/h1-emit.md",
@@ -39,11 +39,11 @@
       "crates/*/Cargo.toml",
       "crates/*/src/**/*.rs"
     ],
-    "file_count": 201,
-    "rust_source_files": 186,
+    "file_count": 202,
+    "rust_source_files": 187,
     "cargo_manifests": 15,
-    "bytes": 12933888,
-    "tree_sha256": "e96aa31daaa65e1761dff3eb250127878ba1530f03ad80b14d756966de1630a5"
+    "bytes": 12985354,
+    "tree_sha256": "748b08bc3ce432eadd0b5055a2aa1306cc741296e7c21bfb127ff306562466b9"
   },
   "summary": {
     "production_boundary_omissions": 0,
@@ -505,7 +505,7 @@
         "column": 1,
         "text": "pub const fn create_printer(options: PrinterOptions) -> Printer {",
         "text_sha256": "ad5575a93d7bc5976768228967001d7add6871a47da1b0316d75313def10d0f8",
-        "file_sha256": "a86b51ff78efc5c3be936868a679b51269253418f6bc94f0ad4d37104f3ea82c"
+        "file_sha256": "810f1f10b4cc79933175ae08bfc2a5d1d1e3cce3e8f680e6809dbe12f3f10a79"
       },
       {
         "id": "emitter-position-domains",
@@ -523,7 +523,7 @@
         "column": 1,
         "text": "pub trait SourceMapRecorder {",
         "text_sha256": "76298cd03affa09442e1ee73bff9ba404f8ce719406bc4d5d1c45e0461acd461",
-        "file_sha256": "a86b51ff78efc5c3be936868a679b51269253418f6bc94f0ad4d37104f3ea82c"
+        "file_sha256": "810f1f10b4cc79933175ae08bfc2a5d1d1e3cce3e8f680e6809dbe12f3f10a79"
       },
       {
         "id": "emitter-resolver-protocol",
@@ -537,38 +537,38 @@
       {
         "id": "emitter-script-transformer-selection",
         "path": "crates/emitter/src/builtins.rs",
-        "line": 61,
+        "line": 63,
         "column": 1,
         "text": "pub fn get_script_transformers<'resolver>(",
         "text_sha256": "88f607a40f2d43018feaa22538fc6ccec9553ddedee9f5c57b5d53482625ad1b",
-        "file_sha256": "781b870efe282130c789fd5cfdb70b6b5ecfcfa3a3f8b830a25fba33aa74cd85"
+        "file_sha256": "30f53004b0d8c469f05b9242fbe662985c6ec59e76b08da4011d69fe836c793c"
       },
       {
         "id": "emitter-transform-typescript",
         "path": "crates/emitter/src/builtins.rs",
-        "line": 142,
+        "line": 145,
         "column": 1,
         "text": "pub fn transform_type_script<'resolver>(",
         "text_sha256": "848a2eea9bbbb33aa08e7d3a84951a26791e61eeeea736dba1b7370193ffeee5",
-        "file_sha256": "781b870efe282130c789fd5cfdb70b6b5ecfcfa3a3f8b830a25fba33aa74cd85"
+        "file_sha256": "30f53004b0d8c469f05b9242fbe662985c6ec59e76b08da4011d69fe836c793c"
       },
       {
         "id": "emitter-transform-class-fields",
         "path": "crates/emitter/src/builtins.rs",
-        "line": 156,
+        "line": 159,
         "column": 1,
         "text": "pub fn transform_class_fields(options: &CompilerOptions) -> Box<dyn Transformer> {",
         "text_sha256": "091e93ad2cf17e2bf673c697c9a9c220a659359c35eef49cf7d84f78c7894311",
-        "file_sha256": "781b870efe282130c789fd5cfdb70b6b5ecfcfa3a3f8b830a25fba33aa74cd85"
+        "file_sha256": "30f53004b0d8c469f05b9242fbe662985c6ec59e76b08da4011d69fe836c793c"
       },
       {
         "id": "emitter-transform-ecmascript-module",
         "path": "crates/emitter/src/builtins.rs",
-        "line": 166,
+        "line": 169,
         "column": 1,
         "text": "pub fn transform_ecmascript_module(options: &CompilerOptions) -> Box<dyn Transformer> {",
         "text_sha256": "29640dfc9438abcb5ec228a2ef9199a2afcacc2b58bf8f5adc8adafd45f57e40",
-        "file_sha256": "781b870efe282130c789fd5cfdb70b6b5ecfcfa3a3f8b830a25fba33aa74cd85"
+        "file_sha256": "30f53004b0d8c469f05b9242fbe662985c6ec59e76b08da4011d69fe836c793c"
       },
       {
         "id": "emitter-changed-import-printer",
@@ -577,7 +577,7 @@
         "column": 13,
         "text": "NodeData::ImportDeclaration(data) => {",
         "text_sha256": "910b2dd1f1b5eca67b7b7108c10a13a7a1793b32c1991a3434bd545954e7ce8b",
-        "file_sha256": "a86b51ff78efc5c3be936868a679b51269253418f6bc94f0ad4d37104f3ea82c"
+        "file_sha256": "810f1f10b4cc79933175ae08bfc2a5d1d1e3cce3e8f680e6809dbe12f3f10a79"
       },
       {
         "id": "checker-scoped-emit-session",
@@ -627,11 +627,11 @@
       {
         "id": "prepared-program-emitting-builder",
         "path": "crates/program/src/prepared.rs",
-        "line": 1055,
+        "line": 1069,
         "column": 5,
         "text": "pub fn emitting_builder(\n        path_context: PathContext,\n        compiler_options: CompilerOptions,\n    ) -> PreparedProgramBuilder {",
         "text_sha256": "deac2532e1f03c9f92934b1c3b401a65c77cb1e75d0b9c8e96ed353bbc7e6c16",
-        "file_sha256": "29878e3cc1f0bcc843d0bbf81331cf3ef3a72c64da603ea8164ff65da1e11e05"
+        "file_sha256": "387ba069235066fcec609f323fc7c28387ebf642a6bbf0a681ae5790cdb7a5ac"
       },
       {
         "id": "program-session-owner",
@@ -640,7 +640,7 @@
         "column": 1,
         "text": "pub struct ProgramSession {\n    prepared: PreparedProgram,\n}",
         "text_sha256": "665e8cc79aa3899b9439120a02ffdfe34c92d54b8953b9eb431f216af633981a",
-        "file_sha256": "954c52adc923e79c841b7c03b44717efda482d63ec0552bb36c407fbc31584c6"
+        "file_sha256": "a9f050910daf5561db61d5485c12ef9eadd2eb8e9335c95064abb299d46e8832"
       },
       {
         "id": "program-session-run",
@@ -649,7 +649,7 @@
         "column": 5,
         "text": "pub fn run(self) -> Result<NoEmitOutcome, DriverError> {\n        self.require_mode(PreparedProgramMode::NoEmit)?;\n        let mut no_emit_canary = no_emit_canary::NoEmitCanary::new();\n        self.run_with_no_emit_canary(false, &mut no_emit_canary)\n    }",
         "text_sha256": "86127c4bedf713e3a340c844b3a95f20427c4d559f0762c433c114252388fc90",
-        "file_sha256": "954c52adc923e79c841b7c03b44717efda482d63ec0552bb36c407fbc31584c6"
+        "file_sha256": "a9f050910daf5561db61d5485c12ef9eadd2eb8e9335c95064abb299d46e8832"
       },
       {
         "id": "program-session-emit",
@@ -658,7 +658,7 @@
         "column": 5,
         "text": "pub fn emit(self, sink: &mut dyn OutputSink) -> Result<EmitOutcome, DriverError> {",
         "text_sha256": "07a8bfeb7192441ea0205e51647ae2e065d5268e4e32d1f6183a039cbd2faa0a",
-        "file_sha256": "954c52adc923e79c841b7c03b44717efda482d63ec0552bb36c407fbc31584c6"
+        "file_sha256": "a9f050910daf5561db61d5485c12ef9eadd2eb8e9335c95064abb299d46e8832"
       },
       {
         "id": "program-session-memory-emit",
@@ -667,7 +667,7 @@
         "column": 9,
         "text": "let preflight = preflight_emit(&emit_host, selection).map_err(DriverError::Emit)?;",
         "text_sha256": "1523dcd4656d6ced2296771c8c2485ca7bae7b4ece4ae479d17f923938690fd9",
-        "file_sha256": "954c52adc923e79c841b7c03b44717efda482d63ec0552bb36c407fbc31584c6"
+        "file_sha256": "a9f050910daf5561db61d5485c12ef9eadd2eb8e9335c95064abb299d46e8832"
       },
       {
         "id": "emitter-host-protocol",
@@ -690,11 +690,11 @@
       {
         "id": "emitter-emit-files",
         "path": "crates/emitter/src/execute.rs",
-        "line": 205,
+        "line": 207,
         "column": 1,
         "text": "pub fn emit_files(",
         "text_sha256": "06f4b40f5c04f28c09e441a13bd303ec30f299622d68d6270a7987525e7558e1",
-        "file_sha256": "30667d591aac67848e1a167a15416e98c43cc9198b32241cf41be1e945770bf6"
+        "file_sha256": "8cc661c9a58ff6b7500cfb451b3aac84499a9e4335702b2feeb7fba43569e8e8"
       },
       {
         "id": "checker-live-emit-callback",
@@ -753,11 +753,11 @@
       {
         "id": "prepared-program-current-shape",
         "path": "crates/program/src/prepared.rs",
-        "line": 1028,
+        "line": 1042,
         "column": 1,
         "text": "pub struct PreparedProgram {\n    mode: PreparedProgramMode,\n    path_context: PathContext,\n    compiler_options: CompilerOptions,\n    program_options: ProgramOptions,",
         "text_sha256": "7154a3ed2670d5958b7d02d684d1bd43295530a7de7f26ad0a1b6540d9c2a706",
-        "file_sha256": "29878e3cc1f0bcc843d0bbf81331cf3ef3a72c64da603ea8164ff65da1e11e05"
+        "file_sha256": "387ba069235066fcec609f323fc7c28387ebf642a6bbf0a681ae5790cdb7a5ac"
       },
       {
         "id": "prepared-source-emit-facts",
@@ -766,7 +766,7 @@
         "column": 5,
         "text": "may_be_emitted: bool,\n    implied_node_format: Option<ResolutionMode>,\n    implied_node_format_for_emit: Option<ResolutionMode>,",
         "text_sha256": "1aba6224a8c27a73e287ac96e80f1a36afde25124d316b52a7acff589ad67538",
-        "file_sha256": "29878e3cc1f0bcc843d0bbf81331cf3ef3a72c64da603ea8164ff65da1e11e05"
+        "file_sha256": "387ba069235066fcec609f323fc7c28387ebf642a6bbf0a681ae5790cdb7a5ac"
       },
       {
         "id": "checker-authoritative-emit-facts",
@@ -1185,5 +1185,5 @@
       }
     ]
   },
-  "inventory_fingerprint_sha256": "c2db9d3abe3b406ec3af03affc8e292030873de6288e569cab2c6060b58348b4"
+  "inventory_fingerprint_sha256": "609a5c61a891a93409792900b22eae4166554f27e9661053bf4e2d318f27e417"
 }

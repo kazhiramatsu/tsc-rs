@@ -870,20 +870,39 @@ impl Printer {
             NodeData::AwaitExpression(data) => {
                 writer.write_keyword("await");
                 writer.write_space(" ");
-                if let Some(expression) = data
+                let expression = data
                     .expression
-                    .and_then(|id| transformation.arena().node_ref(node.source(), id))
-                {
+                    .and_then(|id| transformation.arena().node_ref(node.source(), id));
+                if let Some(expression) = expression {
                     self.emit_leading_comments_for_node(transformation, expression, writer)?;
                 }
-                self.emit_required_node(
-                    transformation,
-                    node.source(),
-                    data.expression,
-                    SyntaxKind::AwaitExpression,
-                    "expression",
-                    writer,
-                )
+                if expression.is_some_and(|expression| {
+                    transformation
+                        .arena()
+                        .node(expression)
+                        .is_ok_and(|record| record.kind == SyntaxKind::ConditionalExpression)
+                }) {
+                    writer.write_punctuation("(");
+                    self.emit_required_node(
+                        transformation,
+                        node.source(),
+                        data.expression,
+                        SyntaxKind::AwaitExpression,
+                        "expression",
+                        writer,
+                    )?;
+                    writer.write_punctuation(")");
+                    Ok(())
+                } else {
+                    self.emit_required_node(
+                        transformation,
+                        node.source(),
+                        data.expression,
+                        SyntaxKind::AwaitExpression,
+                        "expression",
+                        writer,
+                    )
+                }
             }
             NodeData::VoidExpression(data) => {
                 writer.write_keyword("void");
@@ -893,6 +912,18 @@ impl Printer {
                     node.source(),
                     data.expression,
                     SyntaxKind::VoidExpression,
+                    "expression",
+                    writer,
+                )
+            }
+            NodeData::TypeOfExpression(data) => {
+                writer.write_keyword("typeof");
+                writer.write_space(" ");
+                self.emit_required_node(
+                    transformation,
+                    node.source(),
+                    data.expression,
+                    SyntaxKind::TypeOfExpression,
                     "expression",
                     writer,
                 )
@@ -1829,19 +1860,35 @@ impl Printer {
                     writer.write_line(false);
                     writer.increase_indent();
                     let last_statement = statements.last().copied();
-                    for (index, statement) in statements.into_iter().enumerate() {
+                    let mut has_previous_original_statement = false;
+                    for statement in statements {
                         let statement = transformation
                             .arena()
                             .node_ref(node.source(), statement)
                             .ok_or(PrinterError::UnknownStatement(statement.0))?;
-                        if index == 0 {
-                            self.emit_leading_comments_for_node(transformation, statement, writer)?;
-                        } else {
+                        let original = transformation.arena().get_original_node(statement);
+                        let original_source =
+                            transformation.arena().source(original.source())?.syntax();
+                        let original_record = transformation.arena().node(original)?;
+                        let has_original_range = matches!(
+                            SourceRange::from_raw(
+                                original_record.pos,
+                                original_record.end,
+                                original_source.positions(),
+                            )?,
+                            SourceRange::Original(_)
+                        );
+                        if has_previous_original_statement && has_original_range {
                             self.emit_leading_comments_for_node_after_sibling(
                                 transformation,
                                 statement,
                                 writer,
                             )?;
+                        } else {
+                            self.emit_leading_comments_for_node(transformation, statement, writer)?;
+                        }
+                        if has_original_range {
+                            has_previous_original_statement = true;
                         }
                         self.emit_node_id(transformation, node.source(), statement.node(), writer)?;
                         self.emit_trailing_comments_for_node(transformation, statement, writer)?;
@@ -2128,7 +2175,11 @@ impl Printer {
             .arena()
             .node_ref(source, statement)
             .ok_or(PrinterError::UnknownStatement(statement.0))?;
-        if transformation.arena().node(statement_node)?.kind == SyntaxKind::Block {
+        let metadata = transformation.arena().metadata(statement_node).cloned();
+        if transformation.arena().node(statement_node)?.kind == SyntaxKind::Block
+            || metadata
+                .is_some_and(|metadata| metadata.flags().contains(crate::EmitFlags::SINGLE_LINE))
+        {
             writer.write_space(" ");
             self.emit_node_id(transformation, source, statement, writer)
         } else {

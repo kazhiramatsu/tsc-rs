@@ -83,6 +83,15 @@ pub struct TypeReferenceDirective {
     pub preserve: bool,
 }
 
+/// Exact source-owned `amd-dependency` pragma observation.
+///
+/// TypeScript ignores the pragma when its required `path` attribute is absent.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct AmdDependency {
+    pub path: String,
+    pub name: Option<String>,
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct SourceFile {
     pub file_name: String,
@@ -108,6 +117,10 @@ pub struct SourceFile {
     pub type_reference_directives: Vec<TypeReferenceDirective>,
     /// tsc SourceFile.libReferenceDirectives, in leading pragma order.
     pub lib_reference_directives: Vec<FileReference>,
+    /// tsc SourceFile.amdDependencies, in leading pragma order.
+    pub amd_dependencies: Vec<AmdDependency>,
+    /// tsc SourceFile.moduleName from the final `amd-module` pragma.
+    pub module_name: Option<String>,
     /// Whether leading multiline comments contain a recognized
     /// `@jsxImportSource` pragma.
     pub has_jsx_import_source_pragma: bool,

@@ -235,7 +235,7 @@
         "storage": "Arc<TextSnapshot>",
         "path": "crates/program/src/prepared.rs",
         "line": 92,
-        "source_sha256": "29878e3cc1f0bcc843d0bbf81331cf3ef3a72c64da603ea8164ff65da1e11e05",
+        "source_sha256": "387ba069235066fcec609f323fc7c28387ebf642a6bbf0a681ae5790cdb7a5ac",
         "evidence": "pub struct PreparedSourceFile {"
       },
       {
@@ -251,8 +251,8 @@
         "storage": "Arc<TextSnapshot>",
         "authority": "parsed-document-single-snapshot-authority",
         "path": "crates/syntax/src/lib.rs",
-        "line": 87,
-        "source_sha256": "fc2ace98e4136882b0d2524f3e81664a40b1e91d937a311da5908aebf188bc50",
+        "line": 96,
+        "source_sha256": "b8e2204a7e430e557aef2cad2de3dfa0ae5929f0c95662b331975d684a94fbd3",
         "evidence": "pub struct SourceFile {"
       },
       {
@@ -268,7 +268,7 @@
         "storage": "Arc<TextSnapshot>",
         "path": "crates/program/src/prepared.rs",
         "line": 687,
-        "source_sha256": "29878e3cc1f0bcc843d0bbf81331cf3ef3a72c64da603ea8164ff65da1e11e05",
+        "source_sha256": "387ba069235066fcec609f323fc7c28387ebf642a6bbf0a681ae5790cdb7a5ac",
         "evidence": "pub struct ProgramConfigFile {"
       },
       {
@@ -276,7 +276,7 @@
         "storage": "Arc<TextSnapshot>",
         "path": "crates/program/src/prepared.rs",
         "line": 296,
-        "source_sha256": "29878e3cc1f0bcc843d0bbf81331cf3ef3a72c64da603ea8164ff65da1e11e05",
+        "source_sha256": "387ba069235066fcec609f323fc7c28387ebf642a6bbf0a681ae5790cdb7a5ac",
         "evidence": "pub struct PreparedAuxiliaryFile {"
       },
       {
@@ -284,7 +284,7 @@
         "storage": "Arc<TextSnapshot>",
         "path": "crates/program/src/prepared.rs",
         "line": 418,
-        "source_sha256": "29878e3cc1f0bcc843d0bbf81331cf3ef3a72c64da603ea8164ff65da1e11e05",
+        "source_sha256": "387ba069235066fcec609f323fc7c28387ebf642a6bbf0a681ae5790cdb7a5ac",
         "evidence": "pub struct PackageMetadata {"
       }
     ],
@@ -294,7 +294,7 @@
         "to": "InputFile.snapshot",
         "path": "crates/compiler/src/lib.rs",
         "line": 1284,
-        "source_sha256": "954c52adc923e79c841b7c03b44717efda482d63ec0552bb36c407fbc31584c6",
+        "source_sha256": "a9f050910daf5561db61d5485c12ef9eadd2eb8e9335c95064abb299d46e8832",
         "evidence": "        InputFile::from_snapshot(name, Arc::clone(source.snapshot())),"
       },
       {
@@ -352,7 +352,7 @@
     "zero_copy_counter_contract": {
       "path": "crates/compiler/tests/integration/program_session_contract.rs",
       "line": 228,
-      "source_sha256": "4d01a1d23b0724705f3350eb5637b7575882e5cb1a0e20453fa5efdb3d4c0a7f",
+      "source_sha256": "ecfd60ac4633e79931d6b3b00c91d1591ed16cf86da886557b57902e0ab7cc22",
       "evidence": "fn l0_work_counters_and_sorted_batch_syntax_diagnostics() {"
     },
     "position_index": {
@@ -417,8 +417,8 @@
       "generated_syntax_relocation": {
         "source": "nodes.schema.json field model",
         "path": "crates/xtask/src/main.rs",
-        "line": 11460,
-        "source_sha256": "2aac0e82b80ef488ac7e70237c0cd2da3bf5375f6d58827d32bd1c4a375bb22c",
+        "line": 11490,
+        "source_sha256": "2e620713bd06130fac4b9dce5df8b802f014fa7a3bc68e6096180b9d07ac5828",
         "evidence": "fn render_relocate_rs(schemas: &[NodeSchema])"
       },
       "bind_owner": {

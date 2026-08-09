@@ -15,6 +15,8 @@ use crate::{
 };
 
 const MODULE_COMMON_JS: i32 = 1;
+const MODULE_AMD: i32 = 2;
+const MODULE_UMD: i32 = 3;
 const MODULE_ES_NEXT: i32 = 99;
 const MODULE_PRESERVE: i32 = 200;
 
@@ -62,7 +64,7 @@ pub fn get_script_transformers<'resolver>(
     options: &CompilerOptions,
     resolver: &'resolver dyn EmitResolver,
 ) -> Result<Vec<Box<dyn Transformer + 'resolver>>, TransformError> {
-    let mut activity = H2ActivityCanary::h2_1b_profile();
+    let mut activity = H2ActivityCanary::h2_1c_profile();
     get_script_transformers_with_optional_host(options, resolver, None, &mut activity)
 }
 
@@ -90,11 +92,11 @@ fn get_script_transformers_with_optional_host<'transformers>(
     }
     if !matches!(
         options.emit_module_kind(),
-        MODULE_PRESERVE | MODULE_ES_NEXT | MODULE_COMMON_JS
+        MODULE_PRESERVE | MODULE_ES_NEXT | MODULE_COMMON_JS | MODULE_AMD | MODULE_UMD
     ) {
         return Err(TransformError::UnsupportedCompilerOption {
             option: "module",
-            detail: "the current transformer list requires Preserve, ESNext, or CommonJS",
+            detail: "the current transformer list requires Preserve, ESNext, CommonJS, AMD, or UMD",
         });
     }
     if !options.use_define_for_class_fields_effective() {
@@ -121,11 +123,12 @@ fn get_script_transformers_with_optional_host<'transformers>(
     } else {
         let (host, source) = host.ok_or(TransformError::EmitHostRequiredForImpliedModuleFormat)?;
         activity.observe_runtime_slice(H2RuntimeSlice::H2_1a);
-        if host
-            .get_emit_module_format_of_file(source)
-            .is_some_and(|format| format < 5)
-        {
+        let emit_format = host.get_emit_module_format_of_file(source);
+        if emit_format.is_some_and(|format| format < 5) {
             activity.observe_runtime_slice(H2RuntimeSlice::H2_1b);
+        }
+        if emit_format.is_some_and(|format| matches!(format, MODULE_AMD | MODULE_UMD)) {
+            activity.observe_runtime_slice(H2RuntimeSlice::H2_1c);
         }
         transform_implied_node_format_dependent_module(options, resolver, host, activity)
     };
@@ -711,6 +714,7 @@ fn transform_module<'resolver>(
 ) -> Box<dyn Transformer + 'resolver> {
     Box::new(CommonJsModuleTransformer {
         resolver,
+        module_kind: options.emit_module_kind(),
         always_strict: options.always_strict_effective(),
         es_module_interop: options.es_module_interop_effective(),
     })
@@ -718,6 +722,7 @@ fn transform_module<'resolver>(
 
 struct CommonJsModuleTransformer<'resolver> {
     resolver: &'resolver dyn EmitResolver,
+    module_kind: i32,
     always_strict: bool,
     es_module_interop: bool,
 }
@@ -765,7 +770,8 @@ impl Transformer for CommonJsModuleTransformer<'_> {
         if !is_external && !has_dynamic_import {
             return Ok(TransformRoot::SourceFile(source));
         }
-        if self.always_strict || is_external {
+        if matches!(self.module_kind, MODULE_AMD | MODULE_UMD) || self.always_strict || is_external
+        {
             let strict_root = context.arena().root(source)?;
             let strict_root = ensure_use_strict_prologue(context, source, strict_root)?;
             context.arena_mut()?.replace_root(source, strict_root)?;
@@ -784,11 +790,18 @@ impl Transformer for CommonJsModuleTransformer<'_> {
             context,
             source,
             self.resolver,
-            self.es_module_interop,
+            CommonJsVisitorOptions {
+                module_kind: self.module_kind,
+                es_module_interop: self.es_module_interop,
+                has_dynamic_import,
+            },
             info,
             referenced_declarations,
         );
-        let updated = visitor.transform_source_file(current_root)?;
+        let mut updated = visitor.transform_source_file(current_root)?;
+        if matches!(self.module_kind, MODULE_AMD | MODULE_UMD) {
+            updated = visitor.wrap_asynchronous_module(updated)?;
+        }
         visitor.context.arena_mut()?.replace_root(source, updated)?;
         Ok(TransformRoot::SourceFile(source))
     }
@@ -816,6 +829,8 @@ enum ImportHelperKind {
 #[derive(Clone, Debug)]
 struct ImportPlan {
     generated_name: Box<str>,
+    module_specifier: Box<str>,
+    has_import_clause: bool,
     helper: ImportHelperKind,
 }
 
@@ -829,6 +844,7 @@ struct ImportBinding {
 struct CommonJsModuleInfo {
     is_external: bool,
     imports: BTreeMap<NodeId, ImportPlan>,
+    external_imports: Vec<NodeId>,
     import_bindings: BTreeMap<NodeId, ImportBinding>,
     exports_by_local: BTreeMap<Box<str>, Vec<Box<str>>>,
     exported_names: Vec<Box<str>>,
@@ -851,6 +867,7 @@ impl CommonJsModuleInfo {
         let mut info = Self {
             is_external,
             imports: BTreeMap::new(),
+            external_imports: Vec::new(),
             import_bindings: BTreeMap::new(),
             exports_by_local: BTreeMap::new(),
             exported_names: Vec::new(),
@@ -873,7 +890,7 @@ impl CommonJsModuleInfo {
                     let base = generated_module_name(module_text);
                     let ordinal = generated_names.entry(base.clone()).or_insert(0);
                     *ordinal += 1;
-                    let generated_name = format!("{base}_{}", *ordinal).into_boxed_str();
+                    let mut generated_name = format!("{base}_{}", *ordinal).into_boxed_str();
                     let mut helper = ImportHelperKind::None;
                     if let Some(clause) =
                         data.import_clause.and_then(|id| arena.node_ref(source, id))
@@ -911,7 +928,25 @@ impl CommonJsModuleInfo {
                                 .and_then(|id| arena.node_ref(source, id))
                             {
                                 match &arena.node(bindings)?.data {
-                                    NodeData::NamespaceImport(_) => {
+                                    NodeData::NamespaceImport(namespace) => {
+                                        if let Some(namespace_name) = namespace
+                                            .name
+                                            .and_then(|id| arena.node_ref(source, id))
+                                            .and_then(|name| {
+                                                identifier_or_literal_text(arena, name).ok()
+                                            })
+                                        {
+                                            generated_name = namespace_name.into_boxed_str();
+                                            if clause_data.name.is_some() {
+                                                info.import_bindings.insert(
+                                                    arena.get_original_node(clause).node(),
+                                                    ImportBinding {
+                                                        generated_name: generated_name.clone(),
+                                                        property: Some("default".into()),
+                                                    },
+                                                );
+                                            }
+                                        }
                                         info.import_bindings.insert(
                                             arena.get_original_node(bindings).node(),
                                             ImportBinding {
@@ -955,9 +990,13 @@ impl CommonJsModuleInfo {
                         arena.get_original_node(*statement).node(),
                         ImportPlan {
                             generated_name,
+                            module_specifier: module_text.to_owned().into_boxed_str(),
+                            has_import_clause: data.import_clause.is_some(),
                             helper,
                         },
                     );
+                    info.external_imports
+                        .push(arena.get_original_node(*statement).node());
                 }
                 NodeData::FunctionDeclaration(data)
                     if has_modifier(arena, source, data.modifiers, SyntaxKind::ExportKeyword)? =>
@@ -1405,15 +1444,31 @@ fn is_identifier_export_name(name: &str) -> bool {
         })
 }
 
+#[derive(Clone, Copy)]
+struct CommonJsVisitorOptions {
+    module_kind: i32,
+    es_module_interop: bool,
+    has_dynamic_import: bool,
+}
+
+struct AsynchronousDependencies {
+    aliased: Vec<String>,
+    unaliased: Vec<String>,
+    parameters: Vec<String>,
+}
+
 struct CommonJsVisitor<'context, 'resolver> {
     context: &'context mut TransformationContext,
     source: TransformSourceId,
     resolver: &'resolver dyn EmitResolver,
+    module_kind: i32,
     es_module_interop: bool,
+    has_dynamic_import: bool,
     info: CommonJsModuleInfo,
     referenced_declarations: BTreeSet<NodeId>,
     nodes: BTreeMap<NodeId, NodeId>,
     arrays: BTreeMap<NodeArrayId, NodeArrayId>,
+    dynamic_import_ordinal: usize,
 }
 
 impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
@@ -1421,7 +1476,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         context: &'context mut TransformationContext,
         source: TransformSourceId,
         resolver: &'resolver dyn EmitResolver,
-        es_module_interop: bool,
+        options: CommonJsVisitorOptions,
         info: CommonJsModuleInfo,
         referenced_declarations: BTreeSet<NodeId>,
     ) -> Self {
@@ -1429,11 +1484,14 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
             context,
             source,
             resolver,
-            es_module_interop,
+            module_kind: options.module_kind,
+            es_module_interop: options.es_module_interop,
+            has_dynamic_import: options.has_dynamic_import,
             info,
             referenced_declarations,
             nodes: BTreeMap::new(),
             arrays: BTreeMap::new(),
+            dynamic_import_ordinal: 0,
         }
     }
 
@@ -1461,6 +1519,9 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
             offset += 1;
         }
 
+        if self.module_kind == MODULE_UMD && self.has_dynamic_import {
+            output.push(self.create_sync_require_declaration()?);
+        }
         if self.info.is_external {
             output.push(self.create_es_module_marker()?);
         }
@@ -1491,6 +1552,10 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
             output.push(self.create_expression_statement(assignment)?);
         }
 
+        if self.module_kind == MODULE_AMD {
+            output.extend(self.create_amd_import_initializers()?);
+        }
+
         for statement in input.into_iter().skip(offset) {
             output.extend(self.visit_top_level_statement(statement)?);
         }
@@ -1512,6 +1577,260 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
             .update_node(root, NodeData::SourceFile(source_data), flags)
     }
 
+    fn create_amd_import_initializers(&mut self) -> Result<Vec<TransformNode>, TransformError> {
+        let plans = self
+            .info
+            .external_imports
+            .iter()
+            .filter_map(|key| self.info.imports.get(key).cloned())
+            .collect::<Vec<_>>();
+        let mut statements = Vec::new();
+        for plan in plans {
+            if !plan.has_import_clause || !self.es_module_interop {
+                continue;
+            }
+            let helper_name = match plan.helper {
+                ImportHelperKind::Star => "__importStar",
+                ImportHelperKind::Default => "__importDefault",
+                ImportHelperKind::None => continue,
+            };
+            match plan.helper {
+                ImportHelperKind::Star => self.request_import_star_helper()?,
+                ImportHelperKind::Default => self.request_import_default_helper()?,
+                ImportHelperKind::None => {}
+            }
+            let target = self.create_identifier(&plan.generated_name)?;
+            let helper = self.create_identifier(helper_name)?;
+            let argument = self.create_identifier(&plan.generated_name)?;
+            let value = self.create_call(helper, vec![argument])?;
+            let assignment = self.create_assignment(target, value)?;
+            statements.push(self.create_expression_statement(assignment)?);
+        }
+        Ok(statements)
+    }
+
+    fn create_sync_require_declaration(&mut self) -> Result<TransformNode, TransformError> {
+        let module = self.create_identifier("module")?;
+        let module_type = self.create_typeof(module)?;
+        let object = self.create_string_literal("object")?;
+        let module_is_object =
+            self.create_binary(module_type, SyntaxKind::EqualsEqualsEqualsToken, object)?;
+
+        let module = self.create_identifier("module")?;
+        let module_exports = self.create_property_access(module, "exports")?;
+        let exports_type = self.create_typeof(module_exports)?;
+        let object = self.create_string_literal("object")?;
+        let exports_is_object =
+            self.create_binary(exports_type, SyntaxKind::EqualsEqualsEqualsToken, object)?;
+        let condition = self.create_binary(
+            module_is_object,
+            SyntaxKind::AmpersandAmpersandToken,
+            exports_is_object,
+        )?;
+        let declaration = self.create_variable_declaration("__syncRequire", condition)?;
+        self.create_variable_statement(vec![declaration], NodeFlags::NONE)
+    }
+
+    fn asynchronous_dependencies(&self) -> Result<AsynchronousDependencies, TransformError> {
+        let source = self.context.arena().source(self.source)?.syntax();
+        let amd_dependencies = source.amd_dependencies.clone();
+        let import_plans = self
+            .info
+            .external_imports
+            .iter()
+            .filter_map(|key| self.info.imports.get(key).cloned())
+            .collect::<Vec<_>>();
+        let mut aliased = Vec::new();
+        let mut unaliased = Vec::new();
+        let mut parameters = Vec::new();
+        for dependency in amd_dependencies {
+            let path = dependency.path;
+            if let Some(name) = dependency.name {
+                aliased.push(path);
+                parameters.push(name);
+            } else {
+                unaliased.push(path);
+            }
+        }
+        for plan in import_plans {
+            if self.module_kind == MODULE_AMD && plan.has_import_clause {
+                aliased.push(plan.module_specifier.to_string());
+                parameters.push(plan.generated_name.to_string());
+            } else {
+                unaliased.push(plan.module_specifier.to_string());
+            }
+        }
+        Ok(AsynchronousDependencies {
+            aliased,
+            unaliased,
+            parameters,
+        })
+    }
+
+    fn wrap_asynchronous_module(
+        &mut self,
+        root: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        let (mut source_data, original_array) = match self.context.arena().node(root)?.data.clone()
+        {
+            NodeData::SourceFile(data) => {
+                let statements = data.statements;
+                (data, statements)
+            }
+            _ => {
+                return Err(TransformError::RootKindExpected {
+                    actual: self.context.arena().node(root)?.kind,
+                })
+            }
+        };
+        let body_statements =
+            node_array_nodes(self.context.arena(), self.source, source_data.statements)?;
+        let body = self.create_block_from_array(body_statements, original_array, true)?;
+        let asynchronous_dependencies = self.asynchronous_dependencies()?;
+
+        let mut body_parameters = vec![
+            self.create_parameter("require")?,
+            self.create_parameter("exports")?,
+        ];
+        for parameter in asynchronous_dependencies.parameters {
+            body_parameters.push(self.create_parameter(&parameter)?);
+        }
+        let body_function = self.create_function_expression(body_parameters, body)?;
+        let mut dependency_elements = vec![
+            self.create_string_literal("require")?,
+            self.create_string_literal("exports")?,
+        ];
+        for dependency in asynchronous_dependencies
+            .aliased
+            .into_iter()
+            .chain(asynchronous_dependencies.unaliased)
+        {
+            dependency_elements.push(self.create_string_literal(&dependency)?);
+        }
+        let dependencies = self.create_array_literal(dependency_elements)?;
+        let module_name = self
+            .context
+            .arena()
+            .source(self.source)?
+            .syntax()
+            .module_name
+            .clone();
+
+        let wrapper = if self.module_kind == MODULE_AMD {
+            let define = self.create_identifier("define")?;
+            let mut arguments = Vec::new();
+            if let Some(module_name) = module_name {
+                arguments.push(self.create_string_literal(&module_name)?);
+            }
+            arguments.push(dependencies);
+            arguments.push(body_function);
+            let call = self.create_call(define, arguments)?;
+            self.create_expression_statement(call)?
+        } else {
+            self.create_umd_wrapper(module_name.as_deref(), dependencies, body_function)?
+        };
+
+        let statements = if let Some(original_array) =
+            original_array.and_then(|array| self.context.arena().node_array_ref(self.source, array))
+        {
+            self.context
+                .factory()?
+                .update_node_array(original_array, vec![wrapper])?
+        } else {
+            self.context
+                .factory()?
+                .create_node_array(self.source, vec![wrapper])?
+        };
+        source_data.statements = Some(statements.array());
+        let flags = self.context.arena().transform_flags(root);
+        self.context
+            .factory()?
+            .update_node(root, NodeData::SourceFile(source_data), flags)
+    }
+
+    fn create_umd_wrapper(
+        &mut self,
+        module_name: Option<&str>,
+        dependencies: TransformNode,
+        body_function: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        let module = self.create_identifier("module")?;
+        let module_type = self.create_typeof(module)?;
+        let object = self.create_string_literal("object")?;
+        let module_is_object =
+            self.create_binary(module_type, SyntaxKind::EqualsEqualsEqualsToken, object)?;
+        let module = self.create_identifier("module")?;
+        let module_exports = self.create_property_access(module, "exports")?;
+        let exports_type = self.create_typeof(module_exports)?;
+        let object = self.create_string_literal("object")?;
+        let exports_is_object =
+            self.create_binary(exports_type, SyntaxKind::EqualsEqualsEqualsToken, object)?;
+        let common_js_condition = self.create_binary(
+            module_is_object,
+            SyntaxKind::AmpersandAmpersandToken,
+            exports_is_object,
+        )?;
+
+        let factory = self.create_identifier("factory")?;
+        let require = self.create_identifier("require")?;
+        let exports = self.create_identifier("exports")?;
+        let factory_call = self.create_call(factory, vec![require, exports])?;
+        let value_declaration = self.create_variable_declaration("v", factory_call)?;
+        let value_statement =
+            self.create_variable_statement(vec![value_declaration], NodeFlags::NONE)?;
+        let value = self.create_identifier("v")?;
+        let undefined = self.create_identifier("undefined")?;
+        let value_present =
+            self.create_binary(value, SyntaxKind::ExclamationEqualsEqualsToken, undefined)?;
+        let module = self.create_identifier("module")?;
+        let module_exports = self.create_property_access(module, "exports")?;
+        let value = self.create_identifier("v")?;
+        let assignment = self.create_assignment(module_exports, value)?;
+        let assignment = self.create_expression_statement(assignment)?;
+        self.context
+            .arena_mut()?
+            .metadata_mut(assignment)
+            .add_flags(crate::EmitFlags::SINGLE_LINE);
+        let value_if = self.create_if_statement(value_present, assignment, None)?;
+        self.context
+            .arena_mut()?
+            .metadata_mut(value_if)
+            .add_flags(crate::EmitFlags::SINGLE_LINE);
+        let common_js_block = self.create_block(vec![value_statement, value_if], true)?;
+
+        let define = self.create_identifier("define")?;
+        let define_type = self.create_typeof(define)?;
+        let function = self.create_string_literal("function")?;
+        let define_is_function =
+            self.create_binary(define_type, SyntaxKind::EqualsEqualsEqualsToken, function)?;
+        let define = self.create_identifier("define")?;
+        let define_amd = self.create_property_access(define, "amd")?;
+        let amd_condition = self.create_binary(
+            define_is_function,
+            SyntaxKind::AmpersandAmpersandToken,
+            define_amd,
+        )?;
+        let define = self.create_identifier("define")?;
+        let mut define_arguments = Vec::new();
+        if let Some(module_name) = module_name {
+            define_arguments.push(self.create_string_literal(module_name)?);
+        }
+        define_arguments.push(dependencies);
+        define_arguments.push(self.create_identifier("factory")?);
+        let define_call = self.create_call(define, define_arguments)?;
+        let define_statement = self.create_expression_statement(define_call)?;
+        let amd_block = self.create_block(vec![define_statement], true)?;
+        let amd_if = self.create_if_statement(amd_condition, amd_block, None)?;
+        let outer_if =
+            self.create_if_statement(common_js_condition, common_js_block, Some(amd_if))?;
+        let header_body = self.create_block(vec![outer_if], true)?;
+        let factory_parameter = self.create_parameter("factory")?;
+        let header = self.create_function_expression(vec![factory_parameter], header_body)?;
+        let header = self.create_parenthesized(header)?;
+        let call = self.create_call(header, vec![body_function])?;
+        self.create_expression_statement(call)
+    }
+
     fn visit_top_level_statement(
         &mut self,
         statement: TransformNode,
@@ -1523,7 +1842,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
             NodeData::ExportAssignment(data) => {
                 if data.is_export_equals == Some(true) {
                     return Err(TransformError::DeferredModuleFormat {
-                        format: MODULE_COMMON_JS,
+                        format: self.module_kind,
                         owner_slice: "H2.2d",
                     });
                 }
@@ -1606,6 +1925,9 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                 parent: SyntaxKind::ImportDeclaration,
                 field: "module_specifier",
             })?;
+        if self.module_kind == MODULE_AMD {
+            return Ok(Vec::new());
+        }
         let require = self.create_require_call(module_specifier)?;
         if data.import_clause.is_none() {
             let statement = self.create_expression_statement(require)?;
@@ -1657,7 +1979,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
             return Ok(vec![statement]);
         }
         Err(TransformError::DeferredModuleFormat {
-            format: MODULE_COMMON_JS,
+            format: self.module_kind,
             owner_slice: "H2.2d",
         })
     }
@@ -2359,6 +2681,16 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                 });
             };
             let argument = self.visit(argument.node())?;
+            if self.module_kind == MODULE_AMD {
+                let transformed = self.create_amd_dynamic_import(argument)?;
+                self.set_original_and_range(transformed, original)?;
+                return Ok(transformed);
+            }
+            if self.module_kind == MODULE_UMD {
+                let transformed = self.create_umd_dynamic_import(argument)?;
+                self.set_original_and_range(transformed, original)?;
+                return Ok(transformed);
+            }
             let require = self.create_require_call(argument)?;
             let loaded = if self.es_module_interop {
                 self.request_import_star_helper()?;
@@ -2443,6 +2775,67 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
             data.expression = Some(parenthesized.node());
         }
         self.update_generic_without_visit(original, NodeData::CallExpression(data))
+    }
+
+    fn create_common_js_dynamic_import_value(
+        &mut self,
+        argument: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        let require = self.create_require_call(argument)?;
+        let loaded = if self.es_module_interop {
+            self.request_import_star_helper()?;
+            let helper = self.create_identifier("__importStar")?;
+            self.create_call(helper, vec![require])?
+        } else {
+            require
+        };
+        let arrow = self.create_arrow_function(Vec::new(), loaded)?;
+        let promise = self.create_identifier("Promise")?;
+        let resolve = self.create_property_access(promise, "resolve")?;
+        let resolved = self.create_call(resolve, Vec::new())?;
+        let then = self.create_property_access(resolved, "then")?;
+        self.create_call(then, vec![arrow])
+    }
+
+    fn create_amd_dynamic_import(
+        &mut self,
+        argument: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        self.dynamic_import_ordinal += 1;
+        let resolve_name = format!("resolve_{}", self.dynamic_import_ordinal);
+        let reject_name = format!("reject_{}", self.dynamic_import_ordinal);
+        let resolve_parameter = self.create_parameter(&resolve_name)?;
+        let reject_parameter = self.create_parameter(&reject_name)?;
+        let dependency = self.create_array_literal(vec![argument])?;
+        let require = self.create_identifier("require")?;
+        let resolve = self.create_identifier(&resolve_name)?;
+        let reject = self.create_identifier(&reject_name)?;
+        let require_call = self.create_call(require, vec![dependency, resolve, reject])?;
+        let require_statement = self.create_expression_statement(require_call)?;
+        let body = self.create_block(vec![require_statement], false)?;
+        let executor =
+            self.create_arrow_function(vec![resolve_parameter, reject_parameter], body)?;
+        let promise = self.create_identifier("Promise")?;
+        let loaded = self.create_new(promise, vec![executor])?;
+        if self.es_module_interop {
+            self.request_import_star_helper()?;
+            let then = self.create_property_access(loaded, "then")?;
+            let helper = self.create_identifier("__importStar")?;
+            self.create_call(then, vec![helper])
+        } else {
+            Ok(loaded)
+        }
+    }
+
+    fn create_umd_dynamic_import(
+        &mut self,
+        argument: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        let asynchronous_argument = self.context.factory()?.clone_node(argument)?;
+        let common_js = self.create_common_js_dynamic_import_value(argument)?;
+        let amd = self.create_amd_dynamic_import(asynchronous_argument)?;
+        let condition = self.create_identifier("__syncRequire")?;
+        self.create_conditional(condition, common_js, amd)
     }
 
     fn substitute_import_identifier(
@@ -2563,6 +2956,205 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
             NodeData::StringLiteral(tsc_syntax::nodes::StringLiteralData {
                 text: text.to_owned(),
                 has_extended_unicode_escape: None,
+            }),
+            TransformFlags::NONE,
+        )
+    }
+
+    fn create_array_literal(
+        &mut self,
+        elements: Vec<TransformNode>,
+    ) -> Result<TransformNode, TransformError> {
+        let elements = self
+            .context
+            .factory()?
+            .create_node_array(self.source, elements)?;
+        self.context.factory()?.create_node(
+            self.source,
+            NodeData::ArrayLiteralExpression(tsc_syntax::nodes::ArrayLiteralExpressionData {
+                elements: Some(elements.array()),
+            }),
+            TransformFlags::NONE,
+        )
+    }
+
+    fn create_parameter(&mut self, name: &str) -> Result<TransformNode, TransformError> {
+        let name = self.create_identifier(name)?;
+        self.context.factory()?.create_node(
+            self.source,
+            NodeData::Parameter(tsc_syntax::nodes::ParameterData {
+                name: Some(name.node()),
+                modifiers: None,
+                dot_dot_dot_token: None,
+                question_token: None,
+                r#type: None,
+                initializer: None,
+            }),
+            TransformFlags::NONE,
+        )
+    }
+
+    fn create_function_expression(
+        &mut self,
+        parameters: Vec<TransformNode>,
+        body: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        let parameters = self
+            .context
+            .factory()?
+            .create_node_array(self.source, parameters)?;
+        self.context.factory()?.create_node(
+            self.source,
+            NodeData::FunctionExpression(tsc_syntax::nodes::FunctionExpressionData {
+                name: None,
+                type_parameters: None,
+                parameters: Some(parameters.array()),
+                r#type: None,
+                asterisk_token: None,
+                body: Some(body.node()),
+                modifiers: None,
+            }),
+            TransformFlags::NONE,
+        )
+    }
+
+    fn create_arrow_function(
+        &mut self,
+        parameters: Vec<TransformNode>,
+        body: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        let parameters = self
+            .context
+            .factory()?
+            .create_node_array(self.source, parameters)?;
+        let arrow = self.context.factory()?.create_token(
+            self.source,
+            SyntaxKind::EqualsGreaterThanToken,
+            TransformFlags::NONE,
+        )?;
+        self.context.factory()?.create_node(
+            self.source,
+            NodeData::ArrowFunction(tsc_syntax::nodes::ArrowFunctionData {
+                type_parameters: None,
+                parameters: Some(parameters.array()),
+                r#type: None,
+                body: Some(body.node()),
+                modifiers: None,
+                equals_greater_than_token: Some(arrow.node()),
+            }),
+            TransformFlags::NONE,
+        )
+    }
+
+    fn create_new(
+        &mut self,
+        expression: TransformNode,
+        arguments: Vec<TransformNode>,
+    ) -> Result<TransformNode, TransformError> {
+        let arguments = self
+            .context
+            .factory()?
+            .create_node_array(self.source, arguments)?;
+        self.context.factory()?.create_node(
+            self.source,
+            NodeData::NewExpression(tsc_syntax::nodes::NewExpressionData {
+                expression: Some(expression.node()),
+                type_arguments: None,
+                arguments: Some(arguments.array()),
+                question_dot_token: None,
+            }),
+            TransformFlags::NONE,
+        )
+    }
+
+    fn create_typeof(
+        &mut self,
+        expression: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        self.context.factory()?.create_node(
+            self.source,
+            NodeData::TypeOfExpression(tsc_syntax::nodes::TypeOfExpressionData {
+                expression: Some(expression.node()),
+            }),
+            TransformFlags::NONE,
+        )
+    }
+
+    fn create_parenthesized(
+        &mut self,
+        expression: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        self.context.factory()?.create_node(
+            self.source,
+            NodeData::ParenthesizedExpression(tsc_syntax::nodes::ParenthesizedExpressionData {
+                expression: Some(expression.node()),
+            }),
+            TransformFlags::NONE,
+        )
+    }
+
+    fn create_binary(
+        &mut self,
+        left: TransformNode,
+        operator: SyntaxKind,
+        right: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        let operator =
+            self.context
+                .factory()?
+                .create_token(self.source, operator, TransformFlags::NONE)?;
+        self.context.factory()?.create_node(
+            self.source,
+            NodeData::BinaryExpression(tsc_syntax::nodes::BinaryExpressionData {
+                left: Some(left.node()),
+                operator_token: Some(operator.node()),
+                right: Some(right.node()),
+            }),
+            TransformFlags::NONE,
+        )
+    }
+
+    fn create_conditional(
+        &mut self,
+        condition: TransformNode,
+        when_true: TransformNode,
+        when_false: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        let question = self.context.factory()?.create_token(
+            self.source,
+            SyntaxKind::QuestionToken,
+            TransformFlags::NONE,
+        )?;
+        let colon = self.context.factory()?.create_token(
+            self.source,
+            SyntaxKind::ColonToken,
+            TransformFlags::NONE,
+        )?;
+        self.context.factory()?.create_node(
+            self.source,
+            NodeData::ConditionalExpression(tsc_syntax::nodes::ConditionalExpressionData {
+                condition: Some(condition.node()),
+                question_token: Some(question.node()),
+                when_true: Some(when_true.node()),
+                colon_token: Some(colon.node()),
+                when_false: Some(when_false.node()),
+            }),
+            TransformFlags::NONE,
+        )
+    }
+
+    fn create_if_statement(
+        &mut self,
+        expression: TransformNode,
+        then_statement: TransformNode,
+        else_statement: Option<TransformNode>,
+    ) -> Result<TransformNode, TransformError> {
+        self.context.factory()?.create_node(
+            self.source,
+            NodeData::IfStatement(tsc_syntax::nodes::IfStatementData {
+                expression: Some(expression.node()),
+                then_statement: Some(then_statement.node()),
+                else_statement: else_statement.map(TransformNode::node),
             }),
             TransformFlags::NONE,
         )
@@ -2773,6 +3365,33 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
             .context
             .factory()?
             .create_node_array(self.source, statements)?;
+        let block = self.context.factory()?.create_node(
+            self.source,
+            NodeData::Block(tsc_syntax::nodes::BlockData {
+                statements: Some(statements.array()),
+            }),
+            TransformFlags::NONE,
+        )?;
+        self.context.factory()?.set_multi_line(block, multi_line)
+    }
+
+    fn create_block_from_array(
+        &mut self,
+        statements: Vec<TransformNode>,
+        original_array: Option<NodeArrayId>,
+        multi_line: bool,
+    ) -> Result<TransformNode, TransformError> {
+        let statements = if let Some(original) =
+            original_array.and_then(|array| self.context.arena().node_array_ref(self.source, array))
+        {
+            self.context
+                .factory()?
+                .update_node_array(original, statements)?
+        } else {
+            self.context
+                .factory()?
+                .create_node_array(self.source, statements)?
+        };
         let block = self.context.factory()?.create_node(
             self.source,
             NodeData::Block(tsc_syntax::nodes::BlockData {

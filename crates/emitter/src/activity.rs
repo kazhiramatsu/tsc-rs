@@ -249,6 +249,15 @@ impl H2ActivityCanary {
         profile
     }
 
+    /// Construct the current production admission profile. H2.1c activates
+    /// the AMD and UMD delegates that share transformModule's H2.1b core.
+    #[doc(hidden)]
+    pub const fn h2_1c_profile() -> Self {
+        let mut profile = Self::h2_1b_profile();
+        profile.admitted_runtime_slices |= 1_u64 << H2RuntimeSlice::H2_1c.index();
+        profile
+    }
+
     pub const fn counters(&self) -> H2ActivityCounters {
         self.counters
     }

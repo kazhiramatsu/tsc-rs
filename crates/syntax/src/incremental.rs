@@ -312,6 +312,8 @@ pub fn source_files_structurally_equal(left: &SourceFile, right: &SourceFile) ->
         && left.referenced_files == right.referenced_files
         && left.type_reference_directives == right.type_reference_directives
         && left.lib_reference_directives == right.lib_reference_directives
+        && left.amd_dependencies == right.amd_dependencies
+        && left.module_name == right.module_name
         && left.has_jsx_import_source_pragma == right.has_jsx_import_source_pragma
         && left.jsx_import_source_pragma == right.jsx_import_source_pragma
         && left.has_jsx_runtime_pragma == right.has_jsx_runtime_pragma

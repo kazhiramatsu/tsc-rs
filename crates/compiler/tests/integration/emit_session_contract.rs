@@ -1,12 +1,24 @@
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
+use base64::Engine;
+use serde_json::Value;
+use sha2::{Digest, Sha256};
 use tsc_compiler::{
     DriverError, EmitArtifact, EmitFailure, EmitFileSystem, EmitIoError, EmitWriteDisposition,
     FsOutputSink, H2ActivityCounters, H2RuntimeSlice, MemoryOutputSink, OutputSink, ProgramSession,
 };
 use tsc_program::ResolutionMode;
-use tsc_program::{CompilerOptions, PathContext, PreparedProgram, PreparedSourceFile, ProgramPath};
+use tsc_program::{
+    CompilerOptions, ModuleExtension, ModuleResolution, PathContext, PreparedProgram,
+    PreparedSourceFile, ProgramPath, ResolutionKey, ResolvedModule, ResolvedModuleTarget,
+    SourceFileId,
+};
+
+const H2_1C_OWNER_CONTROLS: &[u8] = include_bytes!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../../ratchets/h2-1c-owner-controls.v1.json"
+));
 
 #[derive(Default)]
 struct CountingSink {
@@ -52,6 +64,21 @@ fn path(value: &str) -> ProgramPath {
     ProgramPath::from_trusted_parts(value, value).expect("trusted test path")
 }
 
+fn oracle_text(record: &Value) -> String {
+    let bytes = base64::engine::general_purpose::STANDARD
+        .decode(record["utf8_base64"].as_str().expect("base64 text"))
+        .expect("decode oracle text");
+    assert_eq!(
+        bytes.len() as u64,
+        record["utf8_bytes"].as_u64().expect("oracle byte count")
+    );
+    assert_eq!(
+        format!("{:x}", Sha256::digest(&bytes)),
+        record["utf8_sha256"].as_str().expect("oracle text hash")
+    );
+    String::from_utf8(bytes).expect("oracle UTF-8")
+}
+
 fn prepared_for_emit() -> PreparedProgram {
     prepared_with_sources(
         CompilerOptions {
@@ -87,6 +114,20 @@ fn prepared_with_owned_sources(
         builder.add_root_file(source).expect("add root");
     }
     builder.build().expect("prepared program")
+}
+
+fn source_resolution(
+    source: SourceFileId,
+    resolved_file: &str,
+    extension: ModuleExtension,
+) -> ModuleResolution {
+    ModuleResolution::resolved(ResolvedModule::new(
+        ResolvedModuleTarget::Source {
+            source,
+            resolved_file: path(resolved_file),
+        },
+        extension,
+    ))
 }
 
 fn empty_no_emit_program() -> PreparedProgram {
@@ -263,6 +304,145 @@ fn h2_1b_explicit_and_implied_commonjs_select_the_exact_path() {
 }
 
 #[test]
+fn h2_1c_amd_and_umd_wrappers_match_the_pinned_transform() {
+    let cases = [
+        (
+            2,
+            concat!(
+                "define([\"require\", \"exports\"], function (require, exports) {\n",
+                "    \"use strict\";\n",
+                "    Object.defineProperty(exports, \"__esModule\", { value: true });\n",
+                "    exports.value = void 0;\n",
+                "    exports.value = 1;\n",
+                "});\n",
+            ),
+        ),
+        (
+            3,
+            concat!(
+                "(function (factory) {\n",
+                "    if (typeof module === \"object\" && typeof module.exports === \"object\") {\n",
+                "        var v = factory(require, exports);\n",
+                "        if (v !== undefined) module.exports = v;\n",
+                "    }\n",
+                "    else if (typeof define === \"function\" && define.amd) {\n",
+                "        define([\"require\", \"exports\"], factory);\n",
+                "    }\n",
+                "})(function (require, exports) {\n",
+                "    \"use strict\";\n",
+                "    Object.defineProperty(exports, \"__esModule\", { value: true });\n",
+                "    exports.value = void 0;\n",
+                "    exports.value = 1;\n",
+                "});\n",
+            ),
+        ),
+    ];
+    for (module, expected) in cases {
+        let prepared = prepared_with_sources(
+            CompilerOptions {
+                no_emit: Some(false),
+                target: Some(99),
+                module: Some(module),
+                ..CompilerOptions::default()
+            },
+            &[("/project/input.ts", "export const value: number = 1;\n")],
+        );
+        let mut sink = MemoryOutputSink::new();
+        let outcome = ProgramSession::new(prepared)
+            .emit(&mut sink)
+            .expect("H2.1c asynchronous module emit");
+        assert!(outcome.diagnostics().is_empty());
+        assert_eq!(sink.writes().len(), 1);
+        assert_eq!(sink.writes()[0].callback_text(), expected);
+        for slice in [
+            H2RuntimeSlice::H2_1a,
+            H2RuntimeSlice::H2_1b,
+            H2RuntimeSlice::H2_1c,
+        ] {
+            assert_eq!(outcome.h2_activity().runtime_slice(slice), 1);
+        }
+    }
+}
+
+#[test]
+fn h2_1c_amd_pragmas_and_static_dependency_order_match_the_pinned_transform() {
+    let artifact: Value =
+        serde_json::from_slice(H2_1C_OWNER_CONTROLS).expect("H2.1c owner controls JSON");
+    assert_eq!(artifact["phase"], "H2.1c-amd-umd-owner-controls");
+    assert_eq!(artifact["status"], "qualified");
+    assert_eq!(artifact["summary"]["exact_outputs"], 2);
+    let control = &artifact["controls"][0];
+    assert_eq!(
+        control["control_id"],
+        "amd-module-dependency-and-static-import-order"
+    );
+
+    for run in control["runs"].as_array().expect("owner-control runs") {
+        let module = run["module_value"].as_i64().expect("module value") as i32;
+        let expected = oracle_text(&run["output"]);
+        let mut builder = PreparedProgram::emitting_builder(
+            PathContext::new(path("/project"), true),
+            CompilerOptions {
+                no_emit: Some(false),
+                target: Some(99),
+                module: Some(module),
+                ignore_deprecations: Some("6.0".to_owned()),
+                es_module_interop: Some(true),
+                ..CompilerOptions::default()
+            },
+        );
+        let mut source_ids = BTreeMap::new();
+        for file in control["input"]["files"]
+            .as_array()
+            .expect("owner-control files")
+        {
+            let file_name = file["path"].as_str().expect("owner-control path");
+            let text = oracle_text(file);
+            let source = PreparedSourceFile::new(path(file_name), text)
+                .with_may_be_emitted(file["emit_eligible"].as_bool().expect("emit eligibility"));
+            let source_id = builder.add_source_file(source).expect("add control source");
+            source_ids.insert(file_name.to_owned(), source_id);
+        }
+        let root = control["input"]["root"].as_str().expect("control root");
+        builder
+            .add_root_file(source_ids[root])
+            .expect("add control root");
+        for resolution in control["input"]["module_resolutions"]
+            .as_array()
+            .expect("module resolutions")
+        {
+            let origin = resolution["origin"].as_str().expect("resolution origin");
+            let specifier = resolution["specifier"]
+                .as_str()
+                .expect("resolution specifier");
+            let resolved_file = resolution["target"].as_str().expect("resolution target");
+            builder
+                .add_module_resolution(
+                    ResolutionKey::new(
+                        path(origin).canonical().clone(),
+                        specifier,
+                        ResolutionMode::Unspecified,
+                    ),
+                    Ok(source_resolution(
+                        source_ids[resolved_file],
+                        resolved_file,
+                        ModuleExtension::Ts,
+                    )),
+                )
+                .expect("add authoritative source resolution");
+        }
+        let prepared = builder.build().expect("prepared named module program");
+        let mut sink = MemoryOutputSink::new();
+        let outcome = ProgramSession::new(prepared)
+            .emit(&mut sink)
+            .expect("H2.1c named asynchronous module emit");
+        assert!(outcome.diagnostics().is_empty());
+        assert_eq!(sink.writes().len(), 1);
+        assert_eq!(sink.writes()[0].callback_text(), expected.as_str());
+    }
+}
+
+#[test]
 fn empty_emit_program_preserves_present_empty_observations_without_a_resolver() {
     let mut sink = MemoryOutputSink::new();
     let outcome = ProgramSession::new(empty_emit_program())
@@ -328,6 +508,37 @@ fn unsupported_options_and_extensions_fail_before_the_first_sink_call() {
     );
     assert_eq!(sink.writes, 0);
 
+    let mut out_file = base();
+    out_file.module = Some(2);
+    out_file.out_file = Some("/project/bundle.js".to_owned());
+    let mut sink = CountingSink::default();
+    let error = ProgramSession::new(prepared_with_sources(
+        out_file,
+        &[("/project/bundled.ts", "export const bundled = true;\n")],
+    ))
+    .emit(&mut sink)
+    .expect_err("AMD outFile remains owned by a later bundle slice");
+    assert_eq!(
+        error,
+        DriverError::Emit(EmitFailure::UnsupportedCompilerOption { option: "outFile" })
+    );
+    assert_eq!(sink.writes, 0);
+
+    let mut system = base();
+    system.module = Some(4);
+    let mut sink = CountingSink::default();
+    let error = ProgramSession::new(prepared_with_sources(
+        system,
+        &[("/project/system.ts", "export const system = true;\n")],
+    ))
+    .emit(&mut sink)
+    .expect_err("System remains owned by H2.1d");
+    assert_eq!(
+        error,
+        DriverError::Emit(EmitFailure::UnsupportedCompilerOption { option: "module" })
+    );
+    assert_eq!(sink.writes, 0);
+
     let mut sink = CountingSink::default();
     let error = ProgramSession::new(prepared_with_sources(
         base(),
@@ -384,6 +595,20 @@ fn h2_1b_commonjs_filesystem_failure_preserves_partial_set_continuation_and_acti
         1,
         &[(H2RuntimeSlice::H2_1a, 2), (H2RuntimeSlice::H2_1b, 2)],
     );
+}
+
+#[test]
+fn h2_1c_amd_umd_filesystem_failure_preserves_partial_set_continuation_and_activity() {
+    for module in [2, 3] {
+        assert_filesystem_failure_at_each_write_index(
+            module,
+            &[
+                (H2RuntimeSlice::H2_1a, 2),
+                (H2RuntimeSlice::H2_1b, 2),
+                (H2RuntimeSlice::H2_1c, 2),
+            ],
+        );
+    }
 }
 
 fn assert_filesystem_failure_at_each_write_index(
