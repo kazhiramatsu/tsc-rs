@@ -25,6 +25,7 @@ const MODULE_NODE20: i32 = 102;
 const MODULE_NODE_NEXT: i32 = 199;
 const MODULE_PRESERVE: i32 = 200;
 
+mod jsx;
 mod system;
 
 const CREATE_BINDING_HELPER_TEXT: &str = r#"var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
@@ -79,7 +80,7 @@ pub fn get_script_transformers<'resolver>(
     options: &CompilerOptions,
     resolver: &'resolver dyn EmitResolver,
 ) -> Result<Vec<Box<dyn Transformer + 'resolver>>, TransformError> {
-    let mut activity = H2ActivityCanary::h2_3a_profile();
+    let mut activity = H2ActivityCanary::h2_3b_profile();
     get_script_transformers_with_optional_host(options, resolver, None, &mut activity)
 }
 
@@ -182,6 +183,7 @@ fn get_script_transformers_with_optional_host<'transformers>(
     activity.construct_script_transformer_list();
     activity.construct_transform_typescript();
     let transform_typescript = transform_type_script(options, resolver);
+    let transform_jsx = (options.jsx == Some(2)).then(|| jsx::transform_jsx(options, resolver));
     activity.construct_transform_class_fields();
     let transform_class_fields = transform_class_fields(options);
     let module_transformer = if options.emit_module_kind() == MODULE_PRESERVE {
@@ -202,11 +204,13 @@ fn get_script_transformers_with_optional_host<'transformers>(
         }
         transform_implied_node_format_dependent_module(options, resolver, host, activity)
     };
-    Ok(vec![
-        transform_typescript,
-        transform_class_fields,
-        module_transformer,
-    ])
+    let mut transformers = vec![transform_typescript];
+    if let Some(transform_jsx) = transform_jsx {
+        transformers.push(transform_jsx);
+    }
+    transformers.push(transform_class_fields);
+    transformers.push(module_transformer);
+    Ok(transformers)
 }
 
 /// tsc-port: transformTypeScript @6.0.3
@@ -224,6 +228,7 @@ pub fn transform_type_script<'resolver>(
         isolated_modules: options.isolated_modules == Some(true)
             || options.verbatim_module_syntax == Some(true),
         remove_comments: options.remove_comments == Some(true),
+        allow_jsx: matches!(options.jsx, None | Some(1..=3)),
     })
 }
 
@@ -277,6 +282,7 @@ struct TypeScriptTransformer<'resolver> {
     preserve_const_enums: bool,
     isolated_modules: bool,
     remove_comments: bool,
+    allow_jsx: bool,
 }
 
 impl Transformer for TypeScriptTransformer<'_> {
@@ -313,7 +319,12 @@ impl Transformer for TypeScriptTransformer<'_> {
                 && !(syntax.external_module_indicator.is_some() && self.module_kind >= 5)
                 && !syntax.file_name.to_ascii_lowercase().ends_with(".json")
         };
-        preflight_source(context.arena(), source, self.module_kind == MODULE_SYSTEM)?;
+        preflight_source(
+            context.arena(),
+            source,
+            self.module_kind == MODULE_SYSTEM,
+            self.allow_jsx,
+        )?;
         initialize_transform_flags(context.arena_mut()?, source)?;
         let root_node = context.arena().root(source)?;
         let mut visitor = TypeScriptVisitor::new(
@@ -4204,6 +4215,25 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         &self,
         node: TransformNode,
     ) -> Result<Option<ImportBinding>, TransformError> {
+        if let Some(declaration) = self
+            .context
+            .arena()
+            .metadata(node)
+            .and_then(crate::EmitMetadata::referenced_import_declaration)
+        {
+            if let Some(export) = self
+                .info
+                .imports
+                .get(&declaration.node())
+                .and_then(|plan| plan.import_equals_export.clone())
+            {
+                return Ok(Some(ImportBinding {
+                    generated_name: "exports".into(),
+                    property: Some(export),
+                }));
+            }
+            return Ok(self.info.import_bindings.get(&declaration.node()).cloned());
+        }
         let original = self.context.arena().get_original_node(node);
         if original == node
             && NodeFlags::from_bits(self.context.arena().node(node)?.flags)
@@ -7315,6 +7345,7 @@ fn preflight_source(
     arena: &TransformArena,
     source: TransformSourceId,
     _allow_ambient_module_erasure: bool,
+    allow_jsx: bool,
 ) -> Result<(), TransformError> {
     let syntax = arena.source(source)?.syntax();
     if !syntax.parse_diagnostics.is_empty() {
@@ -7340,7 +7371,7 @@ fn preflight_source(
         let node = syntax.arena.node(id);
         let feature = match node.kind {
             SyntaxKind::Decorator => Some(UnsupportedTransformFeature::Decorators),
-            kind if is_jsx_kind(kind) => Some(UnsupportedTransformFeature::Jsx),
+            kind if is_jsx_kind(kind) && !allow_jsx => Some(UnsupportedTransformFeature::Jsx),
             _ => None,
         };
         if let Some(feature) = feature {
@@ -7477,8 +7508,11 @@ fn parameter_has_property_modifier(source: &tsc_syntax::SourceFile, node: &Node)
 }
 
 const fn is_jsx_kind(kind: SyntaxKind) -> bool {
-    kind as u16 >= SyntaxKind::JsxElement as u16
-        && kind as u16 <= SyntaxKind::JsxNamespacedName as u16
+    matches!(
+        kind,
+        SyntaxKind::JsxText | SyntaxKind::JsxTextAllWhiteSpaces
+    ) || (kind as u16 >= SyntaxKind::JsxElement as u16
+        && kind as u16 <= SyntaxKind::JsxNamespacedName as u16)
 }
 
 const fn is_type_node(kind: SyntaxKind) -> bool {
@@ -7608,6 +7642,9 @@ fn local_contains_typescript(node: &Node) -> bool {
 fn local_transform_flags(node: &Node) -> TransformFlags {
     let kind = node.kind;
     let mut flags = TransformFlags::NONE;
+    if is_jsx_kind(kind) {
+        flags |= TransformFlags::CONTAINS_JSX;
+    }
     if is_type_node(kind)
         || is_typescript_modifier(kind)
         || matches!(

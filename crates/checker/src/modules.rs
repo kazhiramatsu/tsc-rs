@@ -240,6 +240,35 @@ impl<'a> CheckerState<'a> {
         Ok(self.get_declaration_of_alias_symbol(symbol))
     }
 
+    /// tsrs-native: projects the synthetic classic-JSX factory parent through
+    /// TypeScript's getReferencedImportDeclaration lexical-alias contract.
+    /// Ownership projection for the parse-tree parent installed by
+    /// `createReactNamespace`/`createJsxFactoryExpressionFromEntityName`.
+    /// Resolving by name at the JSX node preserves lexical shadowing while
+    /// returning the declaration identity consumed by transformModule.
+    pub(crate) fn emit_get_jsx_factory_import_declaration(
+        &mut self,
+        location: NodeId,
+        name: &str,
+    ) -> CheckResult<Option<NodeId>> {
+        let symbol = self.resolve_name(
+            Some(location),
+            name,
+            SymbolFlags::VALUE,
+            /*name_not_found_message*/ None,
+            /*is_use*/ false,
+            /*exclude_globals*/ false,
+        )?;
+        if !self.is_non_local_alias(symbol, SymbolFlags::VALUE) {
+            return Ok(None);
+        }
+        let symbol = symbol.expect("non-local JSX factory alias is present");
+        if self.get_type_only_alias_declaration(symbol)?.is_some() {
+            return Ok(None);
+        }
+        Ok(self.get_declaration_of_alias_symbol(symbol))
+    }
+
     /// tsc-port: getReferencedValueDeclaration @6.0.3
     /// tsc-hash: 8d55ebde21486405455e3f86f963264ce4f2a664c66adf8b5de80874ea957798
     /// tsc-span: _tsc.js:88450-88460

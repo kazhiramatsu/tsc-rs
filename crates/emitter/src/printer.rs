@@ -506,6 +506,14 @@ impl Printer {
         let multi_line = record.multi_line == Some(true);
 
         match record.data {
+            NodeData::Token if record.kind == SyntaxKind::JsxOpeningFragment => {
+                writer.write_punctuation("<>");
+                Ok(())
+            }
+            NodeData::Token if record.kind == SyntaxKind::JsxClosingFragment => {
+                writer.write_punctuation("</>");
+                Ok(())
+            }
             NodeData::Token if changed => {
                 let text = tsc_syntax::tokens::token_to_string(record.kind).ok_or(
                     PrinterError::UnsupportedTransformedSyntax {
@@ -549,15 +557,235 @@ impl Printer {
                 if !changed {
                     self.write_original_without_leading_trivia(transformation, node, writer)
                 } else {
-                    let quoted = transformation
-                        .arena()
-                        .metadata(node)
+                    let metadata = transformation.arena().metadata(node);
+                    let single_quote = metadata
+                        .and_then(crate::EmitMetadata::string_literal_single_quote)
+                        .unwrap_or(false);
+                    let no_ascii_escaping = metadata.is_some_and(|metadata| {
+                        metadata.flags().contains(EmitFlags::NO_ASCII_ESCAPING)
+                    });
+                    let quoted = metadata
                         .and_then(crate::EmitMetadata::javascript_string_value)
-                        .map(|value| quote_javascript_string(value.code_units()))
-                        .unwrap_or_else(|| quote_string_literal(&data.text));
+                        .map(|value| {
+                            quote_javascript_string(
+                                value.code_units(),
+                                single_quote,
+                                no_ascii_escaping,
+                            )
+                        })
+                        .unwrap_or_else(|| {
+                            quote_string_literal(&data.text, single_quote, no_ascii_escaping)
+                        });
                     writer.write_string_literal(&quoted);
                     Ok(())
                 }
+            }
+            NodeData::JsxElement(data) => {
+                self.emit_required_node(
+                    transformation,
+                    node.source(),
+                    data.opening_element,
+                    SyntaxKind::JsxElement,
+                    "opening_element",
+                    writer,
+                )?;
+                self.emit_node_array(transformation, node.source(), data.children, "", writer)?;
+                self.emit_required_node(
+                    transformation,
+                    node.source(),
+                    data.closing_element,
+                    SyntaxKind::JsxElement,
+                    "closing_element",
+                    writer,
+                )
+            }
+            NodeData::JsxSelfClosingElement(data) => {
+                writer.write_punctuation("<");
+                self.emit_required_node(
+                    transformation,
+                    node.source(),
+                    data.tag_name,
+                    SyntaxKind::JsxSelfClosingElement,
+                    "tag_name",
+                    writer,
+                )?;
+                self.emit_node_array(
+                    transformation,
+                    node.source(),
+                    data.type_arguments,
+                    ", ",
+                    writer,
+                )?;
+                writer.write_space(" ");
+                self.emit_required_node(
+                    transformation,
+                    node.source(),
+                    data.attributes,
+                    SyntaxKind::JsxSelfClosingElement,
+                    "attributes",
+                    writer,
+                )?;
+                writer.write_punctuation("/>");
+                Ok(())
+            }
+            NodeData::JsxFragment(data) => {
+                self.emit_required_node(
+                    transformation,
+                    node.source(),
+                    data.opening_fragment,
+                    SyntaxKind::JsxFragment,
+                    "opening_fragment",
+                    writer,
+                )?;
+                self.emit_node_array(transformation, node.source(), data.children, "", writer)?;
+                self.emit_required_node(
+                    transformation,
+                    node.source(),
+                    data.closing_fragment,
+                    SyntaxKind::JsxFragment,
+                    "closing_fragment",
+                    writer,
+                )
+            }
+            NodeData::JsxOpeningElement(data) => {
+                writer.write_punctuation("<");
+                self.emit_required_node(
+                    transformation,
+                    node.source(),
+                    data.tag_name,
+                    SyntaxKind::JsxOpeningElement,
+                    "tag_name",
+                    writer,
+                )?;
+                self.emit_node_array(
+                    transformation,
+                    node.source(),
+                    data.type_arguments,
+                    ", ",
+                    writer,
+                )?;
+                let has_attributes = data
+                    .attributes
+                    .and_then(|id| transformation.arena().node_ref(node.source(), id))
+                    .and_then(|attributes| transformation.arena().node(attributes).ok())
+                    .and_then(|attributes| attributes.data.as_jsx_attributes())
+                    .and_then(|attributes| attributes.properties)
+                    .and_then(|id| transformation.arena().node_array_ref(node.source(), id))
+                    .is_some_and(|array| {
+                        transformation
+                            .arena()
+                            .node_array(array)
+                            .is_ok_and(|array| !array.nodes.is_empty())
+                    });
+                if has_attributes {
+                    writer.write_space(" ");
+                }
+                self.emit_required_node(
+                    transformation,
+                    node.source(),
+                    data.attributes,
+                    SyntaxKind::JsxOpeningElement,
+                    "attributes",
+                    writer,
+                )?;
+                writer.write_punctuation(">");
+                Ok(())
+            }
+            NodeData::JsxClosingElement(data) => {
+                writer.write_punctuation("</");
+                self.emit_required_node(
+                    transformation,
+                    node.source(),
+                    data.tag_name,
+                    SyntaxKind::JsxClosingElement,
+                    "tag_name",
+                    writer,
+                )?;
+                writer.write_punctuation(">");
+                Ok(())
+            }
+            NodeData::JsxAttributes(data) => {
+                self.emit_node_array(transformation, node.source(), data.properties, " ", writer)
+            }
+            NodeData::JsxAttribute(data) => {
+                self.emit_required_node(
+                    transformation,
+                    node.source(),
+                    data.name,
+                    SyntaxKind::JsxAttribute,
+                    "name",
+                    writer,
+                )?;
+                if let Some(initializer) = data.initializer {
+                    writer.write_punctuation("=");
+                    self.emit_node_id(transformation, node.source(), initializer, writer)?;
+                }
+                Ok(())
+            }
+            NodeData::JsxSpreadAttribute(data) => {
+                writer.write_punctuation("{...");
+                self.emit_required_node(
+                    transformation,
+                    node.source(),
+                    data.expression,
+                    SyntaxKind::JsxSpreadAttribute,
+                    "expression",
+                    writer,
+                )?;
+                writer.write_punctuation("}");
+                Ok(())
+            }
+            NodeData::JsxExpression(data) => {
+                let Some(expression) = data.expression else {
+                    let source = transformation.arena().source(node.source())?.syntax();
+                    let record = transformation.arena().node(node)?;
+                    let has_comment = if record.pos <= record.end
+                        && record.end != u32::MAX
+                        && (record.end as usize) <= source.text().len()
+                    {
+                        source
+                            .text()
+                            .get(record.pos as usize..record.end as usize)
+                            .is_some_and(|text| text.contains("/*") || text.contains("//"))
+                    } else {
+                        false
+                    };
+                    return if has_comment {
+                        self.write_original_without_leading_trivia(transformation, node, writer)
+                    } else {
+                        Ok(())
+                    };
+                };
+                writer.write_punctuation("{");
+                if let Some(dot_dot_dot) = data.dot_dot_dot_token {
+                    self.emit_node_id(transformation, node.source(), dot_dot_dot, writer)?;
+                }
+                self.emit_node_id(transformation, node.source(), expression, writer)?;
+                writer.write_punctuation("}");
+                Ok(())
+            }
+            NodeData::JsxNamespacedName(data) => {
+                self.emit_required_node(
+                    transformation,
+                    node.source(),
+                    data.namespace,
+                    SyntaxKind::JsxNamespacedName,
+                    "namespace",
+                    writer,
+                )?;
+                writer.write_punctuation(":");
+                self.emit_required_node(
+                    transformation,
+                    node.source(),
+                    data.name,
+                    SyntaxKind::JsxNamespacedName,
+                    "name",
+                    writer,
+                )
+            }
+            NodeData::JsxText(data) => {
+                writer.write_literal(&data.text);
+                Ok(())
             }
             NodeData::NoSubstitutionTemplateLiteral(_) | NodeData::TemplateExpression(_)
                 if !changed =>
@@ -1798,7 +2026,42 @@ impl Printer {
                     writer.write_punctuation("?.");
                 }
                 writer.write_punctuation("(");
-                self.emit_node_array(transformation, node.source(), data.arguments, ", ", writer)?;
+                if multi_line {
+                    let ids = data
+                        .arguments
+                        .and_then(|id| transformation.arena().node_array_ref(node.source(), id))
+                        .map(|array| transformation.arena().node_array(array))
+                        .transpose()?
+                        .map(|array| array.nodes.clone())
+                        .unwrap_or_default();
+                    let mut increased_indent = false;
+                    for (index, id) in ids.into_iter().enumerate() {
+                        if index != 0 {
+                            writer.write_punctuation(",");
+                            if index >= 2 {
+                                writer.write_line(false);
+                                if index == 2 {
+                                    writer.increase_indent();
+                                    increased_indent = true;
+                                }
+                            } else {
+                                writer.write_space(" ");
+                            }
+                        }
+                        self.emit_node_id(transformation, node.source(), id, writer)?;
+                    }
+                    if increased_indent {
+                        writer.decrease_indent();
+                    }
+                } else {
+                    self.emit_node_array(
+                        transformation,
+                        node.source(),
+                        data.arguments,
+                        ", ",
+                        writer,
+                    )?;
+                }
                 writer.write_punctuation(")");
                 Ok(())
             }
@@ -3598,38 +3861,23 @@ fn normalize_new_lines(text: &str, new_line: &str) -> String {
     }
 }
 
-fn quote_string_literal(text: &str) -> String {
-    let mut quoted = String::with_capacity(text.len() + 2);
-    quoted.push('"');
-    for character in text.chars() {
-        match character {
-            '"' => quoted.push_str("\\\""),
-            '\\' => quoted.push_str("\\\\"),
-            '\n' => quoted.push_str("\\n"),
-            '\r' => quoted.push_str("\\r"),
-            '\t' => quoted.push_str("\\t"),
-            '\u{0008}' => quoted.push_str("\\b"),
-            '\u{000c}' => quoted.push_str("\\f"),
-            '\u{2028}' => quoted.push_str("\\u2028"),
-            '\u{2029}' => quoted.push_str("\\u2029"),
-            character if character < '\u{0020}' => {
-                use std::fmt::Write;
-                let _ = write!(quoted, "\\u{:04x}", character as u32);
-            }
-            character => quoted.push(character),
-        }
-    }
-    quoted.push('"');
-    quoted
+fn quote_string_literal(text: &str, single_quote: bool, no_ascii_escaping: bool) -> String {
+    quote_javascript_string(
+        &text.encode_utf16().collect::<Vec<_>>(),
+        single_quote,
+        no_ascii_escaping,
+    )
 }
 
-fn quote_javascript_string(units: &[u16]) -> String {
+fn quote_javascript_string(units: &[u16], single_quote: bool, no_ascii_escaping: bool) -> String {
+    let quote = if single_quote { '\'' } else { '"' };
     let mut quoted = String::with_capacity(units.len() + 2);
-    quoted.push('"');
+    quoted.push(quote);
     let mut index = 0usize;
     while index < units.len() {
         let unit = units[index];
-        if (0xd800..=0xdbff).contains(&unit)
+        if no_ascii_escaping
+            && (0xd800..=0xdbff).contains(&unit)
             && units
                 .get(index + 1)
                 .is_some_and(|next| (0xdc00..=0xdfff).contains(next))
@@ -3637,29 +3885,37 @@ fn quote_javascript_string(units: &[u16]) -> String {
             let next = units[index + 1];
             let scalar = 0x10000 + (((unit - 0xd800) as u32) << 10) + (next - 0xdc00) as u32;
             if let Some(character) = char::from_u32(scalar) {
-                push_quoted_character(&mut quoted, character);
+                push_quoted_character(&mut quoted, character, quote, false);
             }
             index += 2;
             continue;
         }
-        if (0xd800..=0xdfff).contains(&unit) {
+        if !no_ascii_escaping && unit > 0x7f || (0xd800..=0xdfff).contains(&unit) {
             use std::fmt::Write;
-            let _ = write!(quoted, "\\u{unit:04x}");
+            let _ = write!(quoted, "\\u{unit:04X}");
             index += 1;
             continue;
         }
         if let Some(character) = char::from_u32(unit as u32) {
-            push_quoted_character(&mut quoted, character);
+            push_quoted_character(&mut quoted, character, quote, !no_ascii_escaping);
         }
         index += 1;
     }
-    quoted.push('"');
+    quoted.push(quote);
     quoted
 }
 
-fn push_quoted_character(quoted: &mut String, character: char) {
+fn push_quoted_character(
+    quoted: &mut String,
+    character: char,
+    quote: char,
+    escape_non_ascii: bool,
+) {
     match character {
-        '"' => quoted.push_str("\\\""),
+        character if character == quote => {
+            quoted.push('\\');
+            quoted.push(character);
+        }
         '\\' => quoted.push_str("\\\\"),
         '\n' => quoted.push_str("\\n"),
         '\r' => quoted.push_str("\\r"),
@@ -3670,7 +3926,13 @@ fn push_quoted_character(quoted: &mut String, character: char) {
         '\u{2029}' => quoted.push_str("\\u2029"),
         character if character < '\u{0020}' => {
             use std::fmt::Write;
-            let _ = write!(quoted, "\\u{:04x}", character as u32);
+            let _ = write!(quoted, "\\u{:04X}", character as u32);
+        }
+        character if escape_non_ascii && !character.is_ascii() => {
+            for unit in character.encode_utf16(&mut [0; 2]) {
+                use std::fmt::Write;
+                let _ = write!(quoted, "\\u{unit:04X}");
+            }
         }
         character => quoted.push(character),
     }

@@ -1,0 +1,461 @@
+{
+  "schema": 1,
+  "phase": "H2.3b-classic-jsx-owner-controls",
+  "status": "qualified",
+  "typescript": {
+    "version": "6.0.3",
+    "source_commit": "050880ce59e30b356b686bd3144efe24f875ebc8",
+    "bundle": {
+      "path": "vendor/typescript-6.0.3/lib/typescript.js",
+      "sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39"
+    },
+    "implementation": {
+      "path": "vendor/typescript-6.0.3/lib/_tsc.js",
+      "sha256": "1c59e77a54b186ec43fa7f3e0d3c4bb15ca5eb5ba43e96b1d3a267139eddd3e3"
+    }
+  },
+  "generator": {
+    "path": "crates/oracle/h2-3b-owner-controls.mjs",
+    "sha256": "d2bee6c116d2f98a31e4bf67b0601d80384236f9db8e851a82d72fc8bec283de"
+  },
+  "contract": {
+    "path": ".github/ci/contracts/h2-3b-owner-controls.schema.json",
+    "sha256": "fb1f709a9c0b468b1c1849f2a6c4268e94729869d7bc5a91f742101c486b3f12"
+  },
+  "controls": [
+    {
+      "control_id": "classic-default-entities-namespaces-spreads-and-utf16",
+      "input": {
+        "current_directory": "/project",
+        "roots": [
+          "/project/emoji-😀.tsx"
+        ],
+        "files": [
+          {
+            "path": "/project/emoji-😀.tsx",
+            "root": true,
+            "utf8_base64": "ZGVjbGFyZSBjb25zdCBSZWFjdDogYW55LCBDb21wOiBhbnksIHZhbHVlOiBhbnksIHByb3BzOiBhbnksIGl0ZW1zOiBhbnlbXTsKY29uc3QgcHJlZml4ID0gIvCfmIAiOwpjb25zdCB2aWV3ID0gPGRpdiB0aXRsZT0iJkFscGhhOyZoZWFydHM7JiN4MUY2MDA7IiBkaXNhYmxlZCBkYXRhLWlkPSJ4IiB7Li4ucHJvcHN9PiAgaGVsbG8KICB3b3JsZCB7dmFsdWUgYXMgc3RyaW5nfTxDb21wLk1lbWJlciB4PXsxfSAvPnsuLi5pdGVtc308L2Rpdj47CmNvbnN0IGZyYWdtZW50ID0gPD54PHNwYW4gLz57dmFsdWV9PC8+Owpjb25zdCBuYW1lc3BhY2VkID0gPHN2ZzpwYXRoIHhtbDpsYW5nPSdhJmFtcDtiJyAvPjsKY29uc3QgcHJvdG8gPSA8ZGl2IHsuLi57IF9fcHJvdG9fXzogbnVsbCwgZGlyOiAncnRsJyB9fSAvPjsK",
+            "utf8_sha256": "37dbec6d685b2c7d3fd92334114f95814e77b3d5264455190247aef6a46e2862",
+            "utf8_bytes": 405
+          }
+        ],
+        "compiler_options": {
+          "alwaysStrict": false,
+          "ignoreDeprecations": "6.0",
+          "jsx": 2,
+          "module": 200,
+          "newLine": 1,
+          "strict": false,
+          "target": 99
+        }
+      },
+      "repetitions": 2,
+      "observation": {
+        "reported_diagnostics": [],
+        "emit_diagnostics": [],
+        "emit_skipped": false,
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/emoji-😀.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "Y29uc3QgcHJlZml4ID0gIvCfmIAiOwpjb25zdCB2aWV3ID0gUmVhY3QuY3JlYXRlRWxlbWVudCgiZGl2IiwgeyB0aXRsZTogIlx1MDM5MVx1MjY2NVx1RDgzRFx1REUwMCIsIGRpc2FibGVkOiB0cnVlLCAiZGF0YS1pZCI6ICJ4IiwgLi4ucHJvcHMgfSwKICAgICIgIGhlbGxvIHdvcmxkICIsCiAgICB2YWx1ZSwKICAgIFJlYWN0LmNyZWF0ZUVsZW1lbnQoQ29tcC5NZW1iZXIsIHsgeDogMSB9KSwKICAgIC4uLml0ZW1zKTsKY29uc3QgZnJhZ21lbnQgPSBSZWFjdC5jcmVhdGVFbGVtZW50KFJlYWN0LkZyYWdtZW50LCBudWxsLAogICAgIngiLAogICAgUmVhY3QuY3JlYXRlRWxlbWVudCgic3BhbiIsIG51bGwpLAogICAgdmFsdWUpOwpjb25zdCBuYW1lc3BhY2VkID0gUmVhY3QuY3JlYXRlRWxlbWVudCgic3ZnOnBhdGgiLCB7ICJ4bWw6bGFuZyI6ICdhJmInIH0pOwpjb25zdCBwcm90byA9IFJlYWN0LmNyZWF0ZUVsZW1lbnQoImRpdiIsIHsgLi4ueyBfX3Byb3RvX186IG51bGwsIGRpcjogJ3J0bCcgfSB9KTsK",
+            "callback_utf8_sha256": "da1b1b517dc5bb93d335fa57996ab0133d7dbe6f9db7d905faa0441436524ae7",
+            "callback_utf8_bytes": 516,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "da1b1b517dc5bb93d335fa57996ab0133d7dbe6f9db7d905faa0441436524ae7",
+            "materialized_utf8_bytes": 516,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/emoji-😀.tsx"
+            ]
+          }
+        ],
+        "run_fingerprint_sha256": "17b55c51723f7898042e18a10472ef951e0c623a22890a7e03989044a45d05cb"
+      },
+      "control_fingerprint_sha256": "cc63e2fabc19553cf29965773e40613cffe769f88ec7ff668eb4afed022f59f2"
+    },
+    {
+      "control_id": "classic-option-factory-and-fragment",
+      "input": {
+        "current_directory": "/project",
+        "roots": [
+          "/project/options.tsx"
+        ],
+        "files": [
+          {
+            "path": "/project/options.tsx",
+            "root": true,
+            "utf8_base64": "ZGVjbGFyZSBjb25zdCBPcHRpb25zOiBhbnksIFdpZGdldDogYW55Owpjb25zdCB2aWV3ID0gPD48V2lkZ2V0IGZvby1iYXI9IngiIC8+PHgtd2lkZ2V0IC8+PC8+Owo=",
+            "utf8_sha256": "211ca0cff565bf7ba0aeb710471d31a1a8e53880a0b6f72ab15d0dbc608f5931",
+            "utf8_bytes": 95
+          }
+        ],
+        "compiler_options": {
+          "alwaysStrict": false,
+          "ignoreDeprecations": "6.0",
+          "jsx": 2,
+          "jsxFactory": "Options.h",
+          "jsxFragmentFactory": "Options.Fragment",
+          "module": 200,
+          "newLine": 1,
+          "strict": false,
+          "target": 99
+        }
+      },
+      "repetitions": 2,
+      "observation": {
+        "reported_diagnostics": [],
+        "emit_diagnostics": [],
+        "emit_skipped": false,
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/options.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "Y29uc3QgdmlldyA9IE9wdGlvbnMuaChPcHRpb25zLkZyYWdtZW50LCBudWxsLAogICAgT3B0aW9ucy5oKFdpZGdldCwgeyAiZm9vLWJhciI6ICJ4IiB9KSwKICAgIE9wdGlvbnMuaCgieC13aWRnZXQiLCBudWxsKSk7Cg==",
+            "callback_utf8_sha256": "e60f5a559a9c3f0d975c44bbaacecb18e813ee45bc71bd69543b10e293218e54",
+            "callback_utf8_bytes": 124,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "e60f5a559a9c3f0d975c44bbaacecb18e813ee45bc71bd69543b10e293218e54",
+            "materialized_utf8_bytes": 124,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/options.tsx"
+            ]
+          }
+        ],
+        "run_fingerprint_sha256": "2db591cb4f6bffa70528a5a6860e6000f56142dc149a53bdc3432a98db16e4ee"
+      },
+      "control_fingerprint_sha256": "364a87f3ad001004b975198ec4e7f69f13df308948def38d43348c903cad4aea"
+    },
+    {
+      "control_id": "classic-leading-pragma-first-value-precedence",
+      "input": {
+        "current_directory": "/project",
+        "roots": [
+          "/project/pragma.tsx"
+        ],
+        "files": [
+          {
+            "path": "/project/pragma.tsx",
+            "root": true,
+            "utf8_base64": "LyoqIEBqc3ggTG9jYWwuaCAqLwovKiogQGpzeCBJZ25vcmVkLmggKi8KLyoqIEBqc3hGcmFnIExvY2FsLkZyYWdtZW50ICovCmRlY2xhcmUgY29uc3QgTG9jYWw6IGFueTsKY29uc3QgdmlldyA9IDw+PHNlY3Rpb24+cHJhZ21hPC9zZWN0aW9uPjwvPjsK",
+            "utf8_sha256": "56a0c40aa4b957be1e67d1b47e618cd041eb54010a38e2a79e07ac19ec4ec5dd",
+            "utf8_bytes": 144
+          }
+        ],
+        "compiler_options": {
+          "alwaysStrict": false,
+          "ignoreDeprecations": "6.0",
+          "jsx": 2,
+          "jsxFactory": "Options.h",
+          "jsxFragmentFactory": "Options.Fragment",
+          "module": 200,
+          "newLine": 1,
+          "strict": false,
+          "target": 99
+        }
+      },
+      "repetitions": 2,
+      "observation": {
+        "reported_diagnostics": [],
+        "emit_diagnostics": [],
+        "emit_skipped": false,
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/pragma.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "Y29uc3QgdmlldyA9IExvY2FsLmgoTG9jYWwuRnJhZ21lbnQsIG51bGwsCiAgICBMb2NhbC5oKCJzZWN0aW9uIiwgbnVsbCwgInByYWdtYSIpKTsK",
+            "callback_utf8_sha256": "b42a31c39b066238a116ac6a3bb27b665fb317bc9df80b177d87a7af6a28f72e",
+            "callback_utf8_bytes": 84,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "b42a31c39b066238a116ac6a3bb27b665fb317bc9df80b177d87a7af6a28f72e",
+            "materialized_utf8_bytes": 84,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/pragma.tsx"
+            ]
+          }
+        ],
+        "run_fingerprint_sha256": "1c69b03bb5664d3d796203d9e52c5e8f4cd04bed551b5c1d9ada76a89c71c7b3"
+      },
+      "control_fingerprint_sha256": "a4e39490254cafc81be6c914cb8054276de8e740bac3f3dd48b809a82b7f1160"
+    },
+    {
+      "control_id": "classic-react-namespace-factory-and-fragment",
+      "input": {
+        "current_directory": "/project",
+        "roots": [
+          "/project/namespace.tsx"
+        ],
+        "files": [
+          {
+            "path": "/project/namespace.tsx",
+            "root": true,
+            "utf8_base64": "ZGVjbGFyZSBjb25zdCBOYW1lc3BhY2U6IGFueTsKY29uc3QgdmlldyA9IDw+PG1haW4gLz48Lz47Cg==",
+            "utf8_sha256": "3e727f76b141b84b172f108997c6d608bd4003471235a28cdb27597ba4886078",
+            "utf8_bytes": 58
+          }
+        ],
+        "compiler_options": {
+          "alwaysStrict": false,
+          "ignoreDeprecations": "6.0",
+          "jsx": 2,
+          "module": 200,
+          "newLine": 1,
+          "reactNamespace": "Namespace",
+          "strict": false,
+          "target": 99
+        }
+      },
+      "repetitions": 2,
+      "observation": {
+        "reported_diagnostics": [],
+        "emit_diagnostics": [],
+        "emit_skipped": false,
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/namespace.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "Y29uc3QgdmlldyA9IE5hbWVzcGFjZS5jcmVhdGVFbGVtZW50KE5hbWVzcGFjZS5GcmFnbWVudCwgbnVsbCwKICAgIE5hbWVzcGFjZS5jcmVhdGVFbGVtZW50KCJtYWluIiwgbnVsbCkpOwo=",
+            "callback_utf8_sha256": "6c49c1e24a649892cab714cfcecd35f6ea19430073c2dcfd4675966724f778ea",
+            "callback_utf8_bytes": 107,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "6c49c1e24a649892cab714cfcecd35f6ea19430073c2dcfd4675966724f778ea",
+            "materialized_utf8_bytes": 107,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/namespace.tsx"
+            ]
+          }
+        ],
+        "run_fingerprint_sha256": "342e4598423ff093d0348e3bb885dd2964afddba6064c1fd4dcbf9bc948dd1ab"
+      },
+      "control_fingerprint_sha256": "bc9a21440ac4158eb63397c7e07c7341cba80f6da0482b31a916b12c0a2e0dc4"
+    },
+    {
+      "control_id": "preserve-tsx-erases-types-and-keeps-jsx-comments",
+      "input": {
+        "current_directory": "/project",
+        "roots": [
+          "/project/preserve.tsx"
+        ],
+        "files": [
+          {
+            "path": "/project/preserve.tsx",
+            "root": true,
+            "utf8_base64": "ZGVjbGFyZSBjb25zdCBCb3g6IGFueSwgYW5zd2VyOiBhbnk7CmNvbnN0IHZpZXc6IHVua25vd24gPSA8Qm94IHZhbHVlPXthbnN3ZXIgYXMgbnVtYmVyfT57Lyoga2VwdCAqL308c3BhbiAvPjwvQm94PjsK",
+            "utf8_sha256": "edaee726cd912b9ee1cbbf0e0ba808c033c823a5d26dfaa264371fe2b27bb8a1",
+            "utf8_bytes": 117
+          }
+        ],
+        "compiler_options": {
+          "alwaysStrict": false,
+          "ignoreDeprecations": "6.0",
+          "jsx": 1,
+          "module": 200,
+          "newLine": 1,
+          "strict": false,
+          "target": 99
+        }
+      },
+      "repetitions": 2,
+      "observation": {
+        "reported_diagnostics": [],
+        "emit_diagnostics": [],
+        "emit_skipped": false,
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/preserve.jsx",
+            "kind": "jsx",
+            "callback_utf8_base64": "Y29uc3QgdmlldyA9IDxCb3ggdmFsdWU9e2Fuc3dlcn0+ey8qIGtlcHQgKi99PHNwYW4gLz48L0JveD47Cg==",
+            "callback_utf8_sha256": "7b1ad3642430f949129dd76f372bab796ec099aed347cc167e2bc633f8d57ea4",
+            "callback_utf8_bytes": 61,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "7b1ad3642430f949129dd76f372bab796ec099aed347cc167e2bc633f8d57ea4",
+            "materialized_utf8_bytes": 61,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/preserve.tsx"
+            ]
+          }
+        ],
+        "run_fingerprint_sha256": "fa009b78c99981cac9b4ce8dfdbb06e438c86403d2c5f86236c2ee7b3319ba7d"
+      },
+      "control_fingerprint_sha256": "91e3d7babdd3ef9c16a274e00b31a385b3a6c90c4f6064d97e8f160cd7f576ba"
+    },
+    {
+      "control_id": "react-native-tsx-erases-types-and-keeps-jsx",
+      "input": {
+        "current_directory": "/project",
+        "roots": [
+          "/project/native.tsx"
+        ],
+        "files": [
+          {
+            "path": "/project/native.tsx",
+            "root": true,
+            "utf8_base64": "ZGVjbGFyZSBjb25zdCBCb3g6IGFueSwgYW5zd2VyOiBhbnk7CmNvbnN0IHZpZXc6IHVua25vd24gPSA8Qm94IHZhbHVlPXthbnN3ZXIgYXMgbnVtYmVyfT57Lyoga2VwdCAqL308c3BhbiAvPjwvQm94PjsK",
+            "utf8_sha256": "edaee726cd912b9ee1cbbf0e0ba808c033c823a5d26dfaa264371fe2b27bb8a1",
+            "utf8_bytes": 117
+          }
+        ],
+        "compiler_options": {
+          "alwaysStrict": false,
+          "ignoreDeprecations": "6.0",
+          "jsx": 3,
+          "module": 200,
+          "newLine": 1,
+          "strict": false,
+          "target": 99
+        }
+      },
+      "repetitions": 2,
+      "observation": {
+        "reported_diagnostics": [],
+        "emit_diagnostics": [],
+        "emit_skipped": false,
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/native.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "Y29uc3QgdmlldyA9IDxCb3ggdmFsdWU9e2Fuc3dlcn0+ey8qIGtlcHQgKi99PHNwYW4gLz48L0JveD47Cg==",
+            "callback_utf8_sha256": "7b1ad3642430f949129dd76f372bab796ec099aed347cc167e2bc633f8d57ea4",
+            "callback_utf8_bytes": 61,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "7b1ad3642430f949129dd76f372bab796ec099aed347cc167e2bc633f8d57ea4",
+            "materialized_utf8_bytes": 61,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/native.tsx"
+            ]
+          }
+        ],
+        "run_fingerprint_sha256": "8c97b25babd5944c1f489a1f3958bf68ebf83855d10af35a1cc440adb7d671d4"
+      },
+      "control_fingerprint_sha256": "6b470c8463b2b66c7361bda2d4ae938dae2d12fae3a7d43628513c741b3210e5"
+    },
+    {
+      "control_id": "jsx-input-preserve-output-extension",
+      "input": {
+        "current_directory": "/project",
+        "roots": [
+          "/project/input.jsx"
+        ],
+        "files": [
+          {
+            "path": "/project/input.jsx",
+            "root": true,
+            "utf8_base64": "Y29uc3QgUmVhY3QgPSB7IGNyZWF0ZUVsZW1lbnQoKSB7fSB9Owpjb25zdCB2aWV3ID0gPGRpdiBkYXRhLXg9IiZhbXA7Ij54PC9kaXY+Owo=",
+            "utf8_sha256": "530c19a36be0c30f150edc5eafc9c70e1dc6cc937113ec6a8554f2b5b0e5c3bb",
+            "utf8_bytes": 80
+          }
+        ],
+        "compiler_options": {
+          "allowJs": true,
+          "alwaysStrict": false,
+          "checkJs": false,
+          "ignoreDeprecations": "6.0",
+          "jsx": 1,
+          "module": 200,
+          "newLine": 1,
+          "outDir": "/project/dist-preserve",
+          "strict": false,
+          "target": 99
+        }
+      },
+      "repetitions": 2,
+      "observation": {
+        "reported_diagnostics": [],
+        "emit_diagnostics": [],
+        "emit_skipped": false,
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/dist-preserve/input.jsx",
+            "kind": "jsx",
+            "callback_utf8_base64": "Y29uc3QgUmVhY3QgPSB7IGNyZWF0ZUVsZW1lbnQoKSB7IH0gfTsKY29uc3QgdmlldyA9IDxkaXYgZGF0YS14PSImYW1wOyI+eDwvZGl2PjsK",
+            "callback_utf8_sha256": "51755d46c783ea71ec6d25561ec65837bf8f41520c0f7ecff87f733633c06ed0",
+            "callback_utf8_bytes": 81,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "51755d46c783ea71ec6d25561ec65837bf8f41520c0f7ecff87f733633c06ed0",
+            "materialized_utf8_bytes": 81,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/input.jsx"
+            ]
+          }
+        ],
+        "run_fingerprint_sha256": "c9bba1aaaa4bdd46be948971401f22bf3226d84e1ff35ce841e533d33bd21de5"
+      },
+      "control_fingerprint_sha256": "7907697ba74e4b57856ef90ecc542b0d6a98a9c71a1b4015ef7a1a8eda707246"
+    },
+    {
+      "control_id": "jsx-input-classic-output-extension",
+      "input": {
+        "current_directory": "/project",
+        "roots": [
+          "/project/input.jsx"
+        ],
+        "files": [
+          {
+            "path": "/project/input.jsx",
+            "root": true,
+            "utf8_base64": "Y29uc3QgUmVhY3QgPSB7IGNyZWF0ZUVsZW1lbnQoKSB7fSB9Owpjb25zdCB2aWV3ID0gPGRpdiBkYXRhLXg9IiZhbXA7Ij54PC9kaXY+Owo=",
+            "utf8_sha256": "530c19a36be0c30f150edc5eafc9c70e1dc6cc937113ec6a8554f2b5b0e5c3bb",
+            "utf8_bytes": 80
+          }
+        ],
+        "compiler_options": {
+          "allowJs": true,
+          "alwaysStrict": false,
+          "checkJs": false,
+          "ignoreDeprecations": "6.0",
+          "jsx": 2,
+          "module": 200,
+          "newLine": 1,
+          "outDir": "/project/dist-classic",
+          "strict": false,
+          "target": 99
+        }
+      },
+      "repetitions": 2,
+      "observation": {
+        "reported_diagnostics": [],
+        "emit_diagnostics": [],
+        "emit_skipped": false,
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/dist-classic/input.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "Y29uc3QgUmVhY3QgPSB7IGNyZWF0ZUVsZW1lbnQoKSB7IH0gfTsKY29uc3QgdmlldyA9IFJlYWN0LmNyZWF0ZUVsZW1lbnQoImRpdiIsIHsgImRhdGEteCI6ICImIiB9LCAieCIpOwo=",
+            "callback_utf8_sha256": "fbcc9bb3589761194f6b8aa8af7c0e2c6ff9dd9aab2402223706c46324771e07",
+            "callback_utf8_bytes": 104,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "fbcc9bb3589761194f6b8aa8af7c0e2c6ff9dd9aab2402223706c46324771e07",
+            "materialized_utf8_bytes": 104,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/input.jsx"
+            ]
+          }
+        ],
+        "run_fingerprint_sha256": "f5a593edf5d6bda5973255a821382ff9715a4a62a408824f7b9cf61913223dc5"
+      },
+      "control_fingerprint_sha256": "d48e5a43f242a4a8b70a55564c1233919301a38dc1393421e73a05a2033668fe"
+    }
+  ],
+  "summary": {
+    "controls": 8,
+    "exact_outputs": 8,
+    "typescript_runs": 16,
+    "reported_diagnostics": 0
+  },
+  "controls_fingerprint_sha256": "dfac4fccc3812d700b814cf4b04630f6f5153d58dd72afbcfc6804c395a77b72"
+}

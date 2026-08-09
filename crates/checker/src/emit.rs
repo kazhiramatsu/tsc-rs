@@ -124,6 +124,21 @@ impl EmitResolver for CheckerSession<'_> {
         })
     }
 
+    fn get_jsx_factory_import_declaration(
+        &self,
+        node: EmitResolverNode,
+        name: &str,
+    ) -> Result<Option<EmitResolverNode>, EmitResolverError> {
+        self.with_resolver_node(
+            EmitResolverMethod::GetJsxFactoryImportDeclaration,
+            node,
+            |state, location| state.emit_get_jsx_factory_import_declaration(location, name),
+        )
+        .map(|declaration| {
+            declaration.map(|declaration| EmitResolverNode::new(node.source(), declaration))
+        })
+    }
+
     fn get_referenced_value_declaration(
         &self,
         node: EmitResolverNode,

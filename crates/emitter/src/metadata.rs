@@ -265,6 +265,14 @@ pub struct EmitMetadata {
     /// value may contain an unpaired UTF-16 surrogate. Original raw source
     /// remains authoritative whenever the printer can copy it unchanged.
     pub(crate) javascript_string_value: Option<JavaScriptString>,
+    /// TypeScript's synthetic `StringLiteral.singleQuote` preference. JSX
+    /// attribute lowering preserves the source delimiter after decoding
+    /// entities, so the cooked value and quote choice must travel together.
+    pub(crate) string_literal_single_quote: Option<bool>,
+    /// Parsed import declaration selected for the root of a synthesized
+    /// classic JSX factory expression. This is the Rust ownership analogue
+    /// of TypeScript parenting that expression at the JSX parse tree node.
+    pub(crate) referenced_import_declaration: Option<TransformNode>,
 }
 
 impl EmitMetadata {
@@ -308,6 +316,14 @@ impl EmitMetadata {
         self.javascript_string_value.as_ref()
     }
 
+    pub const fn string_literal_single_quote(&self) -> Option<bool> {
+        self.string_literal_single_quote
+    }
+
+    pub const fn referenced_import_declaration(&self) -> Option<TransformNode> {
+        self.referenced_import_declaration
+    }
+
     pub fn set_flags(&mut self, flags: EmitFlags) {
         self.flags = flags;
     }
@@ -346,6 +362,14 @@ impl EmitMetadata {
 
     pub fn set_javascript_string_value(&mut self, value: JavaScriptString) {
         self.javascript_string_value = Some(value);
+    }
+
+    pub fn set_string_literal_single_quote(&mut self, value: bool) {
+        self.string_literal_single_quote = Some(value);
+    }
+
+    pub fn set_referenced_import_declaration(&mut self, value: TransformNode) {
+        self.referenced_import_declaration = Some(value);
     }
 
     /// tsc-port: mergeEmitNode @6.0.3
@@ -401,6 +425,12 @@ impl EmitMetadata {
         }
         if source.javascript_string_value.is_some() {
             self.javascript_string_value = source.javascript_string_value.clone();
+        }
+        if source.string_literal_single_quote.is_some() {
+            self.string_literal_single_quote = source.string_literal_single_quote;
+        }
+        if source.referenced_import_declaration.is_some() {
+            self.referenced_import_declaration = source.referenced_import_declaration;
         }
     }
 }

@@ -327,6 +327,17 @@ impl H2ActivityCanary {
         profile
     }
 
+    /// Construct the current production admission profile. H2.3b activates
+    /// classic JSX/TSX preservation and React-factory lowering, including
+    /// `.jsx` output selection. Automatic JSX runtimes remain fail-closed for
+    /// H2.3c.
+    #[doc(hidden)]
+    pub const fn h2_3b_profile() -> Self {
+        let mut profile = Self::h2_3a_profile();
+        profile.admitted_runtime_slices |= 1_u64 << H2RuntimeSlice::H2_3b.index();
+        profile
+    }
+
     pub const fn counters(&self) -> H2ActivityCounters {
         self.counters
     }

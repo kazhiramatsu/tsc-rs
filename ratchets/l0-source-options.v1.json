@@ -294,7 +294,7 @@
         "to": "InputFile.snapshot",
         "path": "crates/compiler/src/lib.rs",
         "line": 1284,
-        "source_sha256": "e92f1db7247738fd685c730428699f3d453b2f0ecc1ebf146dc26c9ac94a6f21",
+        "source_sha256": "f1e9e551e153b766abe6f07214fa907a01ea3ba4ef326fa56683e849c214329d",
         "evidence": "        InputFile::from_snapshot(name, Arc::clone(source.snapshot())),"
       },
       {
@@ -417,8 +417,8 @@
       "generated_syntax_relocation": {
         "source": "nodes.schema.json field model",
         "path": "crates/xtask/src/main.rs",
-        "line": 11758,
-        "source_sha256": "0692c9be24c221aa6a01039fcda50b97dc1f9f0180b72d91b56a0ed1f72d8634",
+        "line": 11788,
+        "source_sha256": "9d4e2a2634a95c19dafbd8c891f70b74c8fdc5b26509ee5cedcba1c2316cb5bc",
         "evidence": "fn render_relocate_rs(schemas: &[NodeSchema])"
       },
       "bind_owner": {

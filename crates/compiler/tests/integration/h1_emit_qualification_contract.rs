@@ -355,6 +355,7 @@ fn frozen_adjacent_controls_remain_rejected_or_are_exactly_promoted() {
                 | "runtime-enum-control"
                 | "runtime-namespace-control"
                 | "parameter-property-control"
+                | "jsx-control"
         ) {
             let mut sink = MemoryOutputSink::new();
             let outcome = ProgramSession::new(prepared_control(
@@ -382,6 +383,7 @@ fn frozen_adjacent_controls_remain_rejected_or_are_exactly_promoted() {
                 "runtime-enum-control" => H2RuntimeSlice::H2_2a,
                 "runtime-namespace-control" => H2RuntimeSlice::H2_2b,
                 "parameter-property-control" => H2RuntimeSlice::H2_2c,
+                "jsx-control" => H2RuntimeSlice::H2_3b,
                 _ => unreachable!("promoted adjacent control"),
             };
             assert_eq!(
