@@ -1,7 +1,7 @@
 # Post-H1 TypeScript 6.0.3 completion slices
 
 Status: execution schedule approved on 2026-08-08. H0, L0/L1, H1, H2.0a,
-H2.0b, H2.1a, H2.1b, and H2.1c are complete. **H2.1d is the next slice.**
+H2.0b, and H2.1a-H2.1d are complete. **H2.1e is the next slice.**
 
 This document turns the audited post-H1 residual into branch-sized execution
 slices. It owns post-H1 slice IDs, dependency order, and slice-specific
@@ -204,8 +204,8 @@ production and the complete regression gate remain local qualification work.
 | H2.1a — complete | Port `transformImpliedNodeFormatDependentModule`, `getEmitModuleFormatOfFile`, and both ESM/CJS constructor and hook-composition closures. Admit only files proven to select the already-closed ESM path; an incomplete CJS selection fails before the first sink call. | H2.0b. All 295 candidates execute twice: 241 complete observations are exact, 5 output-exact diagnostic controls remain deferred to H2.9, and 49 source-deferred rows fail before the first sink callback. |
 | H2.1b — complete | Close `transformModule` for CommonJS, including prologues, interop, substitutions/notifications, helpers, resolver facts, and printer/output dependencies. | H2.1a. All 15 CommonJS-only candidates execute twice: 10 complete observations are exact and 5 source-deferred rows retain typed pre-write failures; multi-file ordering, helper de-duplication, workers, and sink-failure parity are exact. |
 | H2.1c — complete | Activate AMD and UMD branches that reuse `transformModule`, including dependency arrays, wrappers, names, and option interactions. | H2.1b. All 8 AMD/UMD-only candidates execute twice: 6 complete observations are exact and 2 `export =` rows retain typed pre-write failures; pinned owner controls close static dependencies and AMD names, while System and bundle-only paths remain controls. |
-| **H2.1d — next** | Port and qualify `transformSystemModule` and its resolver/helper/output closure. | H2.1c. System-specific execute/setter/export ordering and diagnostics are exact. |
-| H2.1e | Close Node16/18/20/Next implied-format behavior, package type, `.mts`/`.cts` output extensions, import attributes, and relative-extension rewriting. | H2.1a-H2.1d plus the required host facts. Mixed-format projects prove per-file dispatch, per-run package-format separation, path casing, and fresh-run behavior after package changes; persistent invalidation remains L2. |
+| H2.1d — complete | Port and qualify `transformSystemModule` and its resolver/helper/output closure. | H2.1c. All 6 System-only candidates execute twice: 5 complete observations are exact and one enum/namespace row retains a typed pre-write failure; pinned owner controls close execute/setter/export ordering, dynamic import, and `import.meta`. |
+| **H2.1e — next** | Close Node16/18/20/Next implied-format behavior, package type, `.mts`/`.cts` output extensions, import attributes, and relative-extension rewriting. | H2.1a-H2.1d plus the required host facts. Mixed-format projects prove per-file dispatch, per-run package-format separation, path casing, and fresh-run behavior after package changes; persistent invalidation remains L2. |
 
 H2.1a closed on 2026-08-08. The
 [qualification](../../../ratchets/h2-1a-qualification.v1.json) starts from all
@@ -295,19 +295,63 @@ attribute filtering, exact duplicate-name TS2458 behavior, and fresh-equal
 incremental edits. System remains a typed H2.1d control, and `outFile`/bundle
 selection remains a typed H2.7d control; neither can reach a sink write.
 
-The [current runtime profile](../../../ratchets/h2-1c-profile.v1.json) and its
+The [H2.1c runtime profile](../../../ratchets/h2-1c-profile.v1.json) and its
 [strict schema](../../../.github/ci/contracts/h2-1c-profile.schema.json)
 content-address the production, acceptance, qualification, and owner-control
 inputs. It preserves the complete H2.1b profile and qualification as immutable
 lineage, marks H2.1a through H2.1c active, and names H2.1d as next. The
 monotonic profile now has 257 exact cases, 507 exact reported diagnostics, 278
 exact writes, 5 unchanged H2.9 diagnostic controls, and 33 source-deferred
-rows. Freshness is checked with:
+rows. After H2.1d admission it is immutable historical lineage: the first two
+artifacts remain reproducible, while the profile generator is syntax-checked
+and its independent Rust contract validates the recorded bytes and authority
+hashes without reinterpreting current runtime inputs:
 
 ```text
 node crates/oracle/h2-1c-qualification.mjs --check
 node crates/oracle/h2-1c-owner-controls.mjs --check
-node crates/oracle/h2-1c-profile.mjs --check
+node --check crates/oracle/h2-1c-profile.mjs
+```
+
+H2.1d closed on 2026-08-09. The
+[qualification](../../../ratchets/h2-1d-qualification.v1.json) selects all 6
+System-only option-level blockers and records every pinned TypeScript
+observation twice:
+
+- 5 rows are complete exact admissions, covering 5 reported diagnostics and
+  11 byte-, path-, order-, BOM-, provenance-, result-, exit-, and
+  activity-exact writes;
+- the dedicated `transformSystemModule` path emits exact `System.register`
+  dependency setters and execute bodies, including import/re-export binding,
+  exported-value updates, top-level `var` hoisting, dynamic `import()`, and
+  `import.meta` rewrites;
+- one runtime enum/namespace row remains explicitly source-deferred to H2.2a
+  and H2.2b and returns a deterministic typed failure before the first sink
+  callback on both Rust executions; and
+- exact multi-file output order, two-worker isolation, both System sink-failure
+  positions, the earlier ESM/CommonJS/AMD/UMD paths, and every inactive H2
+  counter retain their owned boundaries.
+
+The separate
+[owner control](../../../ratchets/h2-1d-owner-controls.v1.json) is generated
+twice by pinned TypeScript 6.0.3. Its exact output closes default, named,
+namespace, and side-effect imports; named and star re-exports; exported-value
+updates; exported functions and default classes; dynamic import; and
+`import.meta` within one dependency-ordered witness.
+
+The [current runtime profile](../../../ratchets/h2-1d-profile.v1.json) and its
+[strict schema](../../../.github/ci/contracts/h2-1d-profile.schema.json)
+content-address the production, acceptance, qualification, owner-control, and
+incremental source-fact inputs. It preserves all H2.1c authorities byte for
+byte as immutable lineage, marks H2.1a through H2.1d active, and names H2.1e
+as next. The monotonic profile now has 262 exact cases, 512 exact reported
+diagnostics, 289 exact writes, 5 unchanged H2.9 diagnostic controls, and 28
+source-deferred rows. Freshness is checked with:
+
+```text
+node crates/oracle/h2-1d-qualification.mjs --check
+node crates/oracle/h2-1d-owner-controls.mjs --check
+node crates/oracle/h2-1d-profile.mjs --check
 ```
 
 The ordinary hosted boundary remains only `cargo xtask acceptance`; source

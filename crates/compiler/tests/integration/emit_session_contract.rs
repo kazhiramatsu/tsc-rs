@@ -19,6 +19,10 @@ const H2_1C_OWNER_CONTROLS: &[u8] = include_bytes!(concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/../../ratchets/h2-1c-owner-controls.v1.json"
 ));
+const H2_1D_OWNER_CONTROLS: &[u8] = include_bytes!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../../ratchets/h2-1d-owner-controls.v1.json"
+));
 
 #[derive(Default)]
 struct CountingSink {
@@ -365,6 +369,117 @@ fn h2_1c_amd_and_umd_wrappers_match_the_pinned_transform() {
 }
 
 #[test]
+fn h2_1d_system_wrapper_matches_the_pinned_transform() {
+    let prepared = prepared_with_sources(
+        CompilerOptions {
+            no_emit: Some(false),
+            target: Some(99),
+            module: Some(4),
+            ..CompilerOptions::default()
+        },
+        &[("/project/input.ts", "export const value: number = 1;\n")],
+    );
+    let mut sink = MemoryOutputSink::new();
+    let outcome = ProgramSession::new(prepared)
+        .emit(&mut sink)
+        .expect("H2.1d System emit");
+    assert!(outcome.diagnostics().is_empty());
+    assert_eq!(sink.writes().len(), 1);
+    assert_eq!(
+        sink.writes()[0].callback_text(),
+        concat!(
+            "System.register([], function (exports_1, context_1) {\n",
+            "    \"use strict\";\n",
+            "    var value;\n",
+            "    var __moduleName = context_1 && context_1.id;\n",
+            "    return {\n",
+            "        setters: [],\n",
+            "        execute: function () {\n",
+            "            exports_1(\"value\", value = 1);\n",
+            "        }\n",
+            "    };\n",
+            "});\n",
+        )
+    );
+    for slice in H2RuntimeSlice::ALL {
+        let expected = u64::from(slice == H2RuntimeSlice::H2_1d);
+        assert_eq!(outcome.h2_activity().runtime_slice(slice), expected);
+    }
+}
+
+#[test]
+fn h2_1d_system_owner_closure_matches_the_pinned_transform() {
+    let artifact: Value =
+        serde_json::from_slice(H2_1D_OWNER_CONTROLS).expect("H2.1d owner controls JSON");
+    assert_eq!(artifact["phase"], "H2.1d-system-owner-controls");
+    assert_eq!(artifact["status"], "qualified");
+    assert_eq!(artifact["summary"]["exact_outputs"], 1);
+    let control = &artifact["controls"][0];
+    assert_eq!(control["control_id"], "system-register-owner-closure");
+
+    let mut builder = PreparedProgram::emitting_builder(
+        PathContext::new(path("/project"), true),
+        CompilerOptions {
+            no_emit: Some(false),
+            target: Some(99),
+            module: Some(4),
+            ignore_deprecations: Some("6.0".to_owned()),
+            es_module_interop: Some(true),
+            ..CompilerOptions::default()
+        },
+    );
+    let mut source_ids = BTreeMap::new();
+    for file in control["input"]["files"]
+        .as_array()
+        .expect("owner-control files")
+    {
+        let file_name = file["path"].as_str().expect("owner-control path");
+        let text = oracle_text(file);
+        let source = PreparedSourceFile::new(path(file_name), text)
+            .with_may_be_emitted(file["emit_eligible"].as_bool().expect("emit eligibility"));
+        let source_id = builder.add_source_file(source).expect("add control source");
+        source_ids.insert(file_name.to_owned(), source_id);
+    }
+    let root = control["input"]["root"].as_str().expect("control root");
+    builder
+        .add_root_file(source_ids[root])
+        .expect("add control root");
+    for resolution in control["input"]["module_resolutions"]
+        .as_array()
+        .expect("module resolutions")
+    {
+        let origin = resolution["origin"].as_str().expect("resolution origin");
+        let specifier = resolution["specifier"]
+            .as_str()
+            .expect("resolution specifier");
+        let resolved_file = resolution["target"].as_str().expect("resolution target");
+        builder
+            .add_module_resolution(
+                ResolutionKey::new(
+                    path(origin).canonical().clone(),
+                    specifier,
+                    ResolutionMode::Unspecified,
+                ),
+                Ok(source_resolution(
+                    source_ids[resolved_file],
+                    resolved_file,
+                    ModuleExtension::Ts,
+                )),
+            )
+            .expect("add authoritative source resolution");
+    }
+    let prepared = builder.build().expect("prepared System owner program");
+    let mut sink = MemoryOutputSink::new();
+    let outcome = ProgramSession::new(prepared)
+        .emit(&mut sink)
+        .expect("H2.1d System owner emit");
+    assert!(outcome.diagnostics().is_empty());
+    assert_eq!(sink.writes().len(), 1);
+    let expected = oracle_text(&control["runs"][0]["output"]);
+    assert_eq!(sink.writes()[0].callback_text(), expected.as_str());
+}
+
+#[test]
 fn h2_1c_amd_pragmas_and_static_dependency_order_match_the_pinned_transform() {
     let artifact: Value =
         serde_json::from_slice(H2_1C_OWNER_CONTROLS).expect("H2.1c owner controls JSON");
@@ -524,21 +639,6 @@ fn unsupported_options_and_extensions_fail_before_the_first_sink_call() {
     );
     assert_eq!(sink.writes, 0);
 
-    let mut system = base();
-    system.module = Some(4);
-    let mut sink = CountingSink::default();
-    let error = ProgramSession::new(prepared_with_sources(
-        system,
-        &[("/project/system.ts", "export const system = true;\n")],
-    ))
-    .emit(&mut sink)
-    .expect_err("System remains owned by H2.1d");
-    assert_eq!(
-        error,
-        DriverError::Emit(EmitFailure::UnsupportedCompilerOption { option: "module" })
-    );
-    assert_eq!(sink.writes, 0);
-
     let mut sink = CountingSink::default();
     let error = ProgramSession::new(prepared_with_sources(
         base(),
@@ -609,6 +709,11 @@ fn h2_1c_amd_umd_filesystem_failure_preserves_partial_set_continuation_and_activ
             ],
         );
     }
+}
+
+#[test]
+fn h2_1d_system_filesystem_failure_preserves_partial_set_continuation_and_activity() {
+    assert_filesystem_failure_at_each_write_index(4, &[(H2RuntimeSlice::H2_1d, 2)]);
 }
 
 fn assert_filesystem_failure_at_each_write_index(
@@ -684,7 +789,10 @@ fn assert_filesystem_failure_at_each_write_index(
         assert_eq!(activity.script_transformer_list_constructions(), 2);
         assert_eq!(activity.transform_typescript_constructions(), 2);
         assert_eq!(activity.transform_class_fields_constructions(), 2);
-        assert_eq!(activity.transform_ecmascript_module_constructions(), 2);
+        assert_eq!(
+            activity.transform_ecmascript_module_constructions(),
+            if module == 4 { 0 } else { 2 }
+        );
         assert_eq!(activity.transform_context_constructions(), 2);
         assert_eq!(activity.printer_constructions(), 1);
         assert_eq!(activity.javascript_artifact_creations(), 2);

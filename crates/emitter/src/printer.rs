@@ -1709,6 +1709,41 @@ impl Printer {
                 writer.write_punctuation(")");
                 Ok(())
             }
+            NodeData::PrefixUnaryExpression(data) => {
+                let operator = tsc_syntax::tokens::token_to_string(data.operator).ok_or(
+                    PrinterError::UnsupportedTransformedSyntax {
+                        node,
+                        kind: record.kind,
+                    },
+                )?;
+                writer.write_operator(operator);
+                self.emit_required_node(
+                    transformation,
+                    node.source(),
+                    data.operand,
+                    SyntaxKind::PrefixUnaryExpression,
+                    "operand",
+                    writer,
+                )
+            }
+            NodeData::PostfixUnaryExpression(data) => {
+                self.emit_required_node(
+                    transformation,
+                    node.source(),
+                    data.operand,
+                    SyntaxKind::PostfixUnaryExpression,
+                    "operand",
+                    writer,
+                )?;
+                let operator = tsc_syntax::tokens::token_to_string(data.operator).ok_or(
+                    PrinterError::UnsupportedTransformedSyntax {
+                        node,
+                        kind: record.kind,
+                    },
+                )?;
+                writer.write_operator(operator);
+                Ok(())
+            }
             NodeData::PropertyAccessExpression(data) => {
                 let expression = data
                     .expression

@@ -17,8 +17,11 @@ use crate::{
 const MODULE_COMMON_JS: i32 = 1;
 const MODULE_AMD: i32 = 2;
 const MODULE_UMD: i32 = 3;
+const MODULE_SYSTEM: i32 = 4;
 const MODULE_ES_NEXT: i32 = 99;
 const MODULE_PRESERVE: i32 = 200;
+
+mod system;
 
 const CREATE_BINDING_HELPER_TEXT: &str = r#"var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
@@ -64,7 +67,7 @@ pub fn get_script_transformers<'resolver>(
     options: &CompilerOptions,
     resolver: &'resolver dyn EmitResolver,
 ) -> Result<Vec<Box<dyn Transformer + 'resolver>>, TransformError> {
-    let mut activity = H2ActivityCanary::h2_1c_profile();
+    let mut activity = H2ActivityCanary::h2_1d_profile();
     get_script_transformers_with_optional_host(options, resolver, None, &mut activity)
 }
 
@@ -92,11 +95,16 @@ fn get_script_transformers_with_optional_host<'transformers>(
     }
     if !matches!(
         options.emit_module_kind(),
-        MODULE_PRESERVE | MODULE_ES_NEXT | MODULE_COMMON_JS | MODULE_AMD | MODULE_UMD
+        MODULE_PRESERVE
+            | MODULE_ES_NEXT
+            | MODULE_COMMON_JS
+            | MODULE_AMD
+            | MODULE_UMD
+            | MODULE_SYSTEM
     ) {
         return Err(TransformError::UnsupportedCompilerOption {
             option: "module",
-            detail: "the current transformer list requires Preserve, ESNext, CommonJS, AMD, or UMD",
+            detail: "the current transformer list requires Preserve, ESNext, CommonJS, AMD, UMD, or System",
         });
     }
     if !options.use_define_for_class_fields_effective() {
@@ -120,6 +128,9 @@ fn get_script_transformers_with_optional_host<'transformers>(
     let module_transformer = if options.emit_module_kind() == MODULE_PRESERVE {
         activity.construct_transform_ecmascript_module();
         transform_ecmascript_module(options)
+    } else if options.emit_module_kind() == MODULE_SYSTEM {
+        activity.observe_runtime_slice(H2RuntimeSlice::H2_1d);
+        system::transform_system_module(options, resolver)
     } else {
         let (host, source) = host.ok_or(TransformError::EmitHostRequiredForImpliedModuleFormat)?;
         activity.observe_runtime_slice(H2RuntimeSlice::H2_1a);
@@ -236,7 +247,7 @@ impl Transformer for TypeScriptTransformer<'_> {
                 && !(syntax.external_module_indicator.is_some() && self.module_kind >= 5)
                 && !syntax.file_name.to_ascii_lowercase().ends_with(".json")
         };
-        preflight_source(context.arena(), source)?;
+        preflight_source(context.arena(), source, self.module_kind == MODULE_SYSTEM)?;
         initialize_transform_flags(context.arena_mut()?, source)?;
         let root_node = context.arena().root(source)?;
         let mut visitor = TypeScriptVisitor::new(context, source, self.resolver);
@@ -3544,6 +3555,10 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
 
         let transformed = if is_type_node(kind)
             || is_typescript_modifier(kind)
+            || (matches!(
+                kind,
+                SyntaxKind::EnumDeclaration | SyntaxKind::ModuleDeclaration
+            ) && NodeFlags::from_bits(record.flags).contains(NodeFlags::AMBIENT))
             || matches!(
                 kind,
                 SyntaxKind::InterfaceDeclaration
@@ -4046,6 +4061,7 @@ impl NodeDataChildVisitor for TypeScriptVisitor<'_, '_> {
 fn preflight_source(
     arena: &TransformArena,
     source: TransformSourceId,
+    allow_ambient_enum_and_module_erasure: bool,
 ) -> Result<(), TransformError> {
     let syntax = arena.source(source)?.syntax();
     if !syntax.parse_diagnostics.is_empty() {
@@ -4083,8 +4099,18 @@ fn preflight_source(
         let feature = match node.kind {
             SyntaxKind::Decorator => Some(UnsupportedTransformFeature::Decorators),
             SyntaxKind::ImportEqualsDeclaration => Some(UnsupportedTransformFeature::ImportEquals),
-            SyntaxKind::EnumDeclaration => Some(UnsupportedTransformFeature::RuntimeEnums),
-            SyntaxKind::ModuleDeclaration => Some(UnsupportedTransformFeature::RuntimeNamespaces),
+            SyntaxKind::EnumDeclaration
+                if !allow_ambient_enum_and_module_erasure
+                    || !NodeFlags::from_bits(node.flags).contains(NodeFlags::AMBIENT) =>
+            {
+                Some(UnsupportedTransformFeature::RuntimeEnums)
+            }
+            SyntaxKind::ModuleDeclaration
+                if !allow_ambient_enum_and_module_erasure
+                    || !NodeFlags::from_bits(node.flags).contains(NodeFlags::AMBIENT) =>
+            {
+                Some(UnsupportedTransformFeature::RuntimeNamespaces)
+            }
             kind if is_jsx_kind(kind) => Some(UnsupportedTransformFeature::Jsx),
             SyntaxKind::ExportAssignment
                 if matches!(

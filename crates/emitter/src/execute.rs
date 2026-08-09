@@ -12,6 +12,7 @@ use crate::{
 const MODULE_COMMON_JS: i32 = 1;
 const MODULE_AMD: i32 = 2;
 const MODULE_UMD: i32 = 3;
+const MODULE_SYSTEM: i32 = 4;
 const MODULE_ES_NEXT: i32 = 99;
 const MODULE_PRESERVE: i32 = 200;
 
@@ -64,7 +65,12 @@ pub fn validate_bootstrap_emit_options(options: &CompilerOptions) -> Result<(), 
     }
     if !matches!(
         options.emit_module_kind(),
-        MODULE_PRESERVE | MODULE_ES_NEXT | MODULE_COMMON_JS | MODULE_AMD | MODULE_UMD
+        MODULE_PRESERVE
+            | MODULE_ES_NEXT
+            | MODULE_COMMON_JS
+            | MODULE_AMD
+            | MODULE_UMD
+            | MODULE_SYSTEM
     ) {
         return unsupported("module");
     }
@@ -212,7 +218,7 @@ pub fn emit_files(
     diagnostic_gate: &EmitDiagnosticGate,
     sink: &mut dyn OutputSink,
 ) -> Result<EmitOutcome, EmitFailure> {
-    let mut activity = H2ActivityCanary::h2_1c_profile();
+    let mut activity = H2ActivityCanary::h2_1d_profile();
     activity.construct_emit_session();
     activity.construct_output_plan();
     if !preflight.plan().units().is_empty() {

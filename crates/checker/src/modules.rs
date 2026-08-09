@@ -151,6 +151,61 @@ impl<'a> CheckerState<'a> {
     // §9 alias protocol (resolveAlias family)
     // ================================================================
 
+    /// tsc-port: getReferencedExportContainer @6.0.3
+    /// tsc-hash: 64fe010400264ccd927bf7b73511da7c480cf87f60b40ed5c8f43c8090aea8eb
+    /// tsc-span: _tsc.js:87870-87899
+    ///
+    /// H2.1d consumes only the SourceFile result. Runtime enum and namespace
+    /// containers remain unreachable behind transformTypeScript's typed
+    /// feature boundary until H2.2a/H2.2b.
+    pub(crate) fn emit_get_referenced_export_container(
+        &mut self,
+        node: NodeId,
+    ) -> CheckResult<Option<NodeId>> {
+        if self.kind_of(node) != SyntaxKind::Identifier {
+            return Ok(None);
+        }
+        let Some(mut symbol) = self.get_resolved_symbol(node)? else {
+            return Ok(None);
+        };
+        if self
+            .binder
+            .symbol(symbol)
+            .flags
+            .intersects(SymbolFlags::EXPORT_VALUE)
+        {
+            let export_symbol = self
+                .binder
+                .symbol(symbol)
+                .export_symbol
+                .map(|symbol| self.get_merged_symbol(symbol))
+                .unwrap_or(symbol);
+            let export_flags = self.binder.symbol(export_symbol).flags;
+            if export_flags.intersects(SymbolFlags::EXPORT_HAS_LOCAL)
+                && !export_flags.intersects(SymbolFlags::VARIABLE)
+            {
+                return Ok(None);
+            }
+            symbol = export_symbol;
+        }
+        let Some(parent) = self.get_parent_of_symbol(symbol) else {
+            return Ok(None);
+        };
+        let parent = self.binder.symbol(parent);
+        if !parent.flags.intersects(SymbolFlags::VALUE_MODULE) {
+            return Ok(None);
+        }
+        let Some(container) = parent.value_declaration else {
+            return Ok(None);
+        };
+        if self.kind_of(container) != SyntaxKind::SourceFile
+            || self.binder.source_of_node(container).root != self.binder.source_of_node(node).root
+        {
+            return Ok(None);
+        }
+        Ok(Some(container))
+    }
+
     /// tsc-port: getReferencedImportDeclaration @6.0.3
     /// tsc-hash: 340da277e95c697ff52f213006bacc361d4c71bf18eff9f1c28dc29531b79624
     /// tsc-span: _tsc.js:87900-87918

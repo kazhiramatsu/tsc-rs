@@ -1,0 +1,1357 @@
+{
+  "schema": 1,
+  "status": "qualified-typescript-oracle",
+  "phase": "H2.1d-system-source-and-emit",
+  "typescript": {
+    "version": "6.0.3",
+    "source_commit": "050880ce59e30b356b686bd3144efe24f875ebc8",
+    "bundle": {
+      "path": "vendor/typescript-6.0.3/lib/typescript.js",
+      "sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39"
+    },
+    "implementation": {
+      "path": "vendor/typescript-6.0.3/lib/_tsc.js",
+      "sha256": "1c59e77a54b186ec43fa7f3e0d3c4bb15ca5eb5ba43e96b1d3a267139eddd3e3"
+    }
+  },
+  "generator": {
+    "path": "crates/oracle/h2-1d-qualification.mjs",
+    "sha256": "8da87f23add9e044f1c8504789abccb3784e6b8c62806e332440df17e6c8ddbb"
+  },
+  "contract": {
+    "path": ".github/ci/contracts/h2-1d-qualification.schema.json",
+    "sha256": "6a7ca902431fa0149eb852e66badf21e2fb0ef9183c1e663310325547968539f"
+  },
+  "origin": {
+    "h2_1c_merge": "533caca4df1ebcf9e9f2ec5fd13b9c73a3ee2786",
+    "h2_1c_profile": {
+      "path": "ratchets/h2-1c-profile.v1.json",
+      "sha256": "54650263555d944047e5d58bbd42a16d9e897589024f08cf5f09d0f6cb24afe6"
+    }
+  },
+  "inputs": {
+    "compiler_classification": {
+      "path": "vendor/typescript-6.0.3/compiler-profile-classification.v1.json",
+      "sha256": "3c3cbcb3c29a5254c145dc2665ca21683a1bd94f5271841320f061e82b614603"
+    },
+    "conformance_classification": {
+      "path": "vendor/typescript-6.0.3/conformance-profile-classification.v1.json",
+      "sha256": "d54b51d44da91836ad1b7be3be4b7de19c6892e6cb1fe9605fda06cdda5a67eb"
+    },
+    "compiler_expansion": {
+      "path": "vendor/typescript-6.0.3/test-suite-expansion.v1.json",
+      "sha256": "9c6e991103b571f7a8800dc5e1ef66088017689f3769de8fcdb408b2dc125188"
+    },
+    "conformance_expansion": {
+      "path": "vendor/typescript-6.0.3/conformance-suite-expansion.v1.json",
+      "sha256": "924d4007b3ac93a3ee57032ea6089b649bab2902e30ee64cff02f4c9404b7bbd"
+    },
+    "owner_inventory": {
+      "path": "ratchets/h2-owner-inventory.v1.json",
+      "sha256": "1f3d666d107247bef7b5e18d6e9506ff51d281277c136bf70112a863b6dfa98d"
+    }
+  },
+  "execution_contract": {
+    "source_reachability": "fixture VFS roots plus module-resolved fixture dependencies in a vendored TypeScript Program",
+    "module_selection": "Program.getEmitModuleFormatOfFile for every reached fixture SourceFile",
+    "admission": "every emit-eligible source is .ts, selects System, has no parse diagnostics, has AST depth <= 256, reaches no deferred transform root, and has exact diagnostics and writes; declaration/package/config inputs remain non-emitted controls",
+    "typescript_repetitions": 2,
+    "rust_repetitions": 2,
+    "normalization": "none",
+    "deferred_boundary": "typed failure before first sink write"
+  },
+  "owner_closure": [
+    {
+      "key": "transform-system-module",
+      "declaration": {
+        "id": "h2:389192e4a710adb49358145d51cca538ee6d58e2cf1bd47c3bc923ca049b0df6",
+        "source": "vendor/typescript-6.0.3/lib/_tsc.js",
+        "name": "transformSystemModule",
+        "kind": "FunctionDeclaration",
+        "lexical_path": "<bundle>/transformSystemModule@112050:1",
+        "source_range": {
+          "start": {
+            "offset": 5277992,
+            "line": 112050,
+            "character": 1
+          },
+          "end": {
+            "offset": 5326214,
+            "line": 113366,
+            "character": 2
+          }
+        },
+        "declaration_sha256": "5b1f2a780212e534aef2a1f2e64cb9b1d25c6c214831e665ad6e4deae3d35e2b",
+        "body_sha256": "c634a7250aeb79fd19656edbee829838c0504f41662d27ca18b5e521da0fc009",
+        "ledger_slice_sha256": "a548f0ab50ad264de2d5783dfe3ef9247dac0d001492465e794fdacda03e48af"
+      },
+      "disposition_before_h2_1d": "deferred-h2"
+    }
+  ],
+  "cases": [
+    {
+      "suite": "compiler",
+      "case_id": "typescript-6.0.3/compiler/exportDeclarationForModuleOrEnumWithMemberOfSameName.ts#module%3Dsystem",
+      "expansion_case": 2866,
+      "source": {
+        "path": "exportDeclarationForModuleOrEnumWithMemberOfSameName.ts",
+        "bytes": 234,
+        "sha256": "ea997d079acfbec114ef827687024fd344433ff8c3eccf4623e3b44636970980",
+        "git_blob_sha1": "bf7129d220ef16101f5a6236b3b8f5d0969bc2d7"
+      },
+      "module_state": "System(4)",
+      "input": {
+        "current_directory": "/.src",
+        "roots": [
+          "/.src/exportDeclarationForModuleOrEnumWithMemberOfSameName.ts"
+        ],
+        "settings": [
+          {
+            "name": "target",
+            "value": "esnext"
+          },
+          {
+            "name": "module",
+            "value": "system"
+          },
+          {
+            "name": "noTypesAndSymbols",
+            "value": "true"
+          }
+        ],
+        "virtual_config": null,
+        "files": [
+          {
+            "unit": 0,
+            "path": "/.src/exportDeclarationForModuleOrEnumWithMemberOfSameName.ts",
+            "utf8_base64": "Ly8gaHR0cHM6Ly9naXRodWIuY29tL21pY3Jvc29mdC9UeXBlU2NyaXB0L2lzc3Vlcy81NTAzOAoKbmFtZXNwYWNlIEEgewogICAgZXhwb3J0IGNvbnN0IEEgPSAwOwp9CgpleHBvcnQgeyBBIH0KCmVudW0gQiB7CiAgICBCCn0KCmV4cG9ydCB7IEIgfQo=",
+            "utf8_sha256": "20b1b6368d48c120524550a58aebb235faf3d28f3b29e81090fbaa0f76249bf2",
+            "utf8_bytes": 143
+          }
+        ]
+      },
+      "files": [
+        {
+          "unit": 0,
+          "path": "/.src/exportDeclarationForModuleOrEnumWithMemberOfSameName.ts",
+          "script_kind": "TS",
+          "declaration_file": false,
+          "emit_eligible": true,
+          "implied_module_format": "None",
+          "emit_module_format": 4,
+          "feature_roots": [
+            {
+              "feature": "runtime-namespaces",
+              "start": 57,
+              "end": 96,
+              "kind": "ModuleDeclaration"
+            },
+            {
+              "feature": "runtime-enums",
+              "start": 112,
+              "end": 128,
+              "kind": "EnumDeclaration"
+            }
+          ],
+          "parse_diagnostic_codes": [],
+          "max_ast_depth": 7,
+          "import_attributes": false,
+          "advanced_comment_placement": false,
+          "text_sha256": "20b1b6368d48c120524550a58aebb235faf3d28f3b29e81090fbaa0f76249bf2"
+        }
+      ],
+      "owner_reachability": [
+        "transform-system-module"
+      ],
+      "disposition": "deferred-to-slices",
+      "required_slices": [
+        "H2.2a",
+        "H2.2b"
+      ],
+      "diagnostic_disposition": {
+        "state": "not-observed-source-deferred"
+      },
+      "typescript_runs": [
+        {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/.src/exportDeclarationForModuleOrEnumWithMemberOfSameName.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "Ly8gaHR0cHM6Ly9naXRodWIuY29tL21pY3Jvc29mdC9UeXBlU2NyaXB0L2lzc3Vlcy81NTAzOA0KU3lzdGVtLnJlZ2lzdGVyKFtdLCBmdW5jdGlvbiAoZXhwb3J0c18xLCBjb250ZXh0XzEpIHsNCiAgICAidXNlIHN0cmljdCI7DQogICAgdmFyIEEsIEI7DQogICAgdmFyIF9fbW9kdWxlTmFtZSA9IGNvbnRleHRfMSAmJiBjb250ZXh0XzEuaWQ7DQogICAgcmV0dXJuIHsNCiAgICAgICAgc2V0dGVyczogW10sDQogICAgICAgIGV4ZWN1dGU6IGZ1bmN0aW9uICgpIHsNCiAgICAgICAgICAgIChmdW5jdGlvbiAoQV8xKSB7DQogICAgICAgICAgICAgICAgQV8xLkEgPSAwOw0KICAgICAgICAgICAgfSkoQSB8fCAoZXhwb3J0c18xKCJBIiwgQSA9IHt9KSkpOw0KICAgICAgICAgICAgKGZ1bmN0aW9uIChCKSB7DQogICAgICAgICAgICAgICAgQltCWyJCIl0gPSAwXSA9ICJCIjsNCiAgICAgICAgICAgIH0pKEIgfHwgKGV4cG9ydHNfMSgiQiIsIEIgPSB7fSkpKTsNCiAgICAgICAgfQ0KICAgIH07DQp9KTsNCg==",
+              "callback_utf8_sha256": "06ec4e12c88311976d0410c134e5641b58ae85641a367076477744bbe5569d09",
+              "callback_utf8_bytes": 511,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "06ec4e12c88311976d0410c134e5641b58ae85641a367076477744bbe5569d09",
+              "materialized_utf8_bytes": 511,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/exportDeclarationForModuleOrEnumWithMemberOfSameName.ts"
+              ]
+            }
+          ],
+          "reported_diagnostics": [
+            {
+              "code": 5107,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Option 'module=System' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error."
+            }
+          ],
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 2,
+          "run_fingerprint_sha256": "897756d8579a00cf5ac2094ac6a98ccb8ce66038219e6f2cf7f61319861e4499"
+        },
+        {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/.src/exportDeclarationForModuleOrEnumWithMemberOfSameName.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "Ly8gaHR0cHM6Ly9naXRodWIuY29tL21pY3Jvc29mdC9UeXBlU2NyaXB0L2lzc3Vlcy81NTAzOA0KU3lzdGVtLnJlZ2lzdGVyKFtdLCBmdW5jdGlvbiAoZXhwb3J0c18xLCBjb250ZXh0XzEpIHsNCiAgICAidXNlIHN0cmljdCI7DQogICAgdmFyIEEsIEI7DQogICAgdmFyIF9fbW9kdWxlTmFtZSA9IGNvbnRleHRfMSAmJiBjb250ZXh0XzEuaWQ7DQogICAgcmV0dXJuIHsNCiAgICAgICAgc2V0dGVyczogW10sDQogICAgICAgIGV4ZWN1dGU6IGZ1bmN0aW9uICgpIHsNCiAgICAgICAgICAgIChmdW5jdGlvbiAoQV8xKSB7DQogICAgICAgICAgICAgICAgQV8xLkEgPSAwOw0KICAgICAgICAgICAgfSkoQSB8fCAoZXhwb3J0c18xKCJBIiwgQSA9IHt9KSkpOw0KICAgICAgICAgICAgKGZ1bmN0aW9uIChCKSB7DQogICAgICAgICAgICAgICAgQltCWyJCIl0gPSAwXSA9ICJCIjsNCiAgICAgICAgICAgIH0pKEIgfHwgKGV4cG9ydHNfMSgiQiIsIEIgPSB7fSkpKTsNCiAgICAgICAgfQ0KICAgIH07DQp9KTsNCg==",
+              "callback_utf8_sha256": "06ec4e12c88311976d0410c134e5641b58ae85641a367076477744bbe5569d09",
+              "callback_utf8_bytes": 511,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "06ec4e12c88311976d0410c134e5641b58ae85641a367076477744bbe5569d09",
+              "materialized_utf8_bytes": 511,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/exportDeclarationForModuleOrEnumWithMemberOfSameName.ts"
+              ]
+            }
+          ],
+          "reported_diagnostics": [
+            {
+              "code": 5107,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Option 'module=System' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error."
+            }
+          ],
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 2,
+          "run_fingerprint_sha256": "897756d8579a00cf5ac2094ac6a98ccb8ce66038219e6f2cf7f61319861e4499"
+        }
+      ],
+      "rust_expectation": "typed-failure-before-first-sink-write",
+      "case_fingerprint_sha256": "d983b135c35d37c9429d514719c4ef7836c1dbc857607ed85f2e7ec992b1b58a"
+    },
+    {
+      "suite": "conformance",
+      "case_id": "typescript-6.0.3/conformance/dynamicImport/importCallExpressionInSystem1.ts#default",
+      "expansion_case": 1237,
+      "source": {
+        "path": "dynamicImport/importCallExpressionInSystem1.ts",
+        "bytes": 301,
+        "sha256": "6432ba0c3963c6ec074a3eb2c0dee9d7f0fe4c9cb413d844250b5a2eca93cf7c",
+        "git_blob_sha1": "bbc265bc13f82eb363b74091bc32b3a5d0b0046a"
+      },
+      "module_state": "System(4)",
+      "input": {
+        "current_directory": "/.src",
+        "roots": [
+          "/.src/0.ts",
+          "/.src/1.ts"
+        ],
+        "settings": [
+          {
+            "name": "module",
+            "value": "system"
+          },
+          {
+            "name": "target",
+            "value": "esnext"
+          },
+          {
+            "name": "filename",
+            "value": "1.ts"
+          }
+        ],
+        "virtual_config": null,
+        "files": [
+          {
+            "unit": 0,
+            "path": "/.src/0.ts",
+            "utf8_base64": "ZXhwb3J0IGZ1bmN0aW9uIGZvbygpIHsgcmV0dXJuICJmb28iOyB9Cg==",
+            "utf8_sha256": "a1078818bd8ee76cd8e25aba03d8df68b230136d049df980fb04f9bbb26a1df6",
+            "utf8_bytes": 40
+          },
+          {
+            "unit": 1,
+            "path": "/.src/1.ts",
+            "utf8_base64": "aW1wb3J0KCIuLzAiKTsKdmFyIHAxID0gaW1wb3J0KCIuLzAiKTsKcDEudGhlbih6ZXJvID0+IHsKICAgIHJldHVybiB6ZXJvLmZvbygpOwp9KTsKCmV4cG9ydCB2YXIgcDIgPSBpbXBvcnQoIi4vMCIpOwoKZnVuY3Rpb24gZm9vKCkgewogICAgY29uc3QgcDIgPSBpbXBvcnQoIi4vMCIpOwp9",
+            "utf8_sha256": "e7f49310f72d8711acc9a1966483ead2a75257a7a54ed09988d611eb1497bd35",
+            "utf8_bytes": 165
+          }
+        ]
+      },
+      "files": [
+        {
+          "unit": 0,
+          "path": "/.src/0.ts",
+          "script_kind": "TS",
+          "declaration_file": false,
+          "emit_eligible": true,
+          "implied_module_format": "None",
+          "emit_module_format": 4,
+          "feature_roots": [],
+          "parse_diagnostic_codes": [],
+          "max_ast_depth": 5,
+          "import_attributes": false,
+          "advanced_comment_placement": false,
+          "text_sha256": "a1078818bd8ee76cd8e25aba03d8df68b230136d049df980fb04f9bbb26a1df6"
+        },
+        {
+          "unit": 1,
+          "path": "/.src/1.ts",
+          "script_kind": "TS",
+          "declaration_file": false,
+          "emit_eligible": true,
+          "implied_module_format": "None",
+          "emit_module_format": 4,
+          "feature_roots": [],
+          "parse_diagnostic_codes": [],
+          "max_ast_depth": 9,
+          "import_attributes": false,
+          "advanced_comment_placement": false,
+          "text_sha256": "e7f49310f72d8711acc9a1966483ead2a75257a7a54ed09988d611eb1497bd35"
+        }
+      ],
+      "owner_reachability": [
+        "transform-system-module"
+      ],
+      "disposition": "admitted-for-execution",
+      "required_slices": [],
+      "diagnostic_disposition": {
+        "state": "exact-required"
+      },
+      "typescript_runs": [
+        {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/.src/0.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "U3lzdGVtLnJlZ2lzdGVyKFtdLCBmdW5jdGlvbiAoZXhwb3J0c18xLCBjb250ZXh0XzEpIHsNCiAgICAidXNlIHN0cmljdCI7DQogICAgdmFyIF9fbW9kdWxlTmFtZSA9IGNvbnRleHRfMSAmJiBjb250ZXh0XzEuaWQ7DQogICAgZnVuY3Rpb24gZm9vKCkgeyByZXR1cm4gImZvbyI7IH0NCiAgICBleHBvcnRzXzEoImZvbyIsIGZvbyk7DQogICAgcmV0dXJuIHsNCiAgICAgICAgc2V0dGVyczogW10sDQogICAgICAgIGV4ZWN1dGU6IGZ1bmN0aW9uICgpIHsNCiAgICAgICAgfQ0KICAgIH07DQp9KTsNCg==",
+              "callback_utf8_sha256": "47b70c51bd299df6ed3016d1c99885f4da657183517f4ee0d6fc328d2346f116",
+              "callback_utf8_bytes": 283,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "47b70c51bd299df6ed3016d1c99885f4da657183517f4ee0d6fc328d2346f116",
+              "materialized_utf8_bytes": 283,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/0.ts"
+              ]
+            },
+            {
+              "index": 1,
+              "path": "/.src/1.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "U3lzdGVtLnJlZ2lzdGVyKFtdLCBmdW5jdGlvbiAoZXhwb3J0c18xLCBjb250ZXh0XzEpIHsNCiAgICAidXNlIHN0cmljdCI7DQogICAgdmFyIHAxLCBwMjsNCiAgICB2YXIgX19tb2R1bGVOYW1lID0gY29udGV4dF8xICYmIGNvbnRleHRfMS5pZDsNCiAgICBmdW5jdGlvbiBmb28oKSB7DQogICAgICAgIGNvbnN0IHAyID0gY29udGV4dF8xLmltcG9ydCgiLi8wIik7DQogICAgfQ0KICAgIHJldHVybiB7DQogICAgICAgIHNldHRlcnM6IFtdLA0KICAgICAgICBleGVjdXRlOiBmdW5jdGlvbiAoKSB7DQogICAgICAgICAgICBjb250ZXh0XzEuaW1wb3J0KCIuLzAiKTsNCiAgICAgICAgICAgIHAxID0gY29udGV4dF8xLmltcG9ydCgiLi8wIik7DQogICAgICAgICAgICBwMS50aGVuKHplcm8gPT4gew0KICAgICAgICAgICAgICAgIHJldHVybiB6ZXJvLmZvbygpOw0KICAgICAgICAgICAgfSk7DQogICAgICAgICAgICBleHBvcnRzXzEoInAyIiwgcDIgPSBjb250ZXh0XzEuaW1wb3J0KCIuLzAiKSk7DQogICAgICAgIH0NCiAgICB9Ow0KfSk7DQo=",
+              "callback_utf8_sha256": "c091949159e6d901bc1d345959e0b7c48271faafa7adf323f775f5ba87be451e",
+              "callback_utf8_bytes": 533,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "c091949159e6d901bc1d345959e0b7c48271faafa7adf323f775f5ba87be451e",
+              "materialized_utf8_bytes": 533,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/1.ts"
+              ]
+            }
+          ],
+          "reported_diagnostics": [
+            {
+              "code": 5107,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Option 'module=System' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error."
+            }
+          ],
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 2,
+          "run_fingerprint_sha256": "6efa8942e7c821d846762cecce7cd787d9315345c78057ce76c9c2f64220eb05"
+        },
+        {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/.src/0.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "U3lzdGVtLnJlZ2lzdGVyKFtdLCBmdW5jdGlvbiAoZXhwb3J0c18xLCBjb250ZXh0XzEpIHsNCiAgICAidXNlIHN0cmljdCI7DQogICAgdmFyIF9fbW9kdWxlTmFtZSA9IGNvbnRleHRfMSAmJiBjb250ZXh0XzEuaWQ7DQogICAgZnVuY3Rpb24gZm9vKCkgeyByZXR1cm4gImZvbyI7IH0NCiAgICBleHBvcnRzXzEoImZvbyIsIGZvbyk7DQogICAgcmV0dXJuIHsNCiAgICAgICAgc2V0dGVyczogW10sDQogICAgICAgIGV4ZWN1dGU6IGZ1bmN0aW9uICgpIHsNCiAgICAgICAgfQ0KICAgIH07DQp9KTsNCg==",
+              "callback_utf8_sha256": "47b70c51bd299df6ed3016d1c99885f4da657183517f4ee0d6fc328d2346f116",
+              "callback_utf8_bytes": 283,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "47b70c51bd299df6ed3016d1c99885f4da657183517f4ee0d6fc328d2346f116",
+              "materialized_utf8_bytes": 283,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/0.ts"
+              ]
+            },
+            {
+              "index": 1,
+              "path": "/.src/1.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "U3lzdGVtLnJlZ2lzdGVyKFtdLCBmdW5jdGlvbiAoZXhwb3J0c18xLCBjb250ZXh0XzEpIHsNCiAgICAidXNlIHN0cmljdCI7DQogICAgdmFyIHAxLCBwMjsNCiAgICB2YXIgX19tb2R1bGVOYW1lID0gY29udGV4dF8xICYmIGNvbnRleHRfMS5pZDsNCiAgICBmdW5jdGlvbiBmb28oKSB7DQogICAgICAgIGNvbnN0IHAyID0gY29udGV4dF8xLmltcG9ydCgiLi8wIik7DQogICAgfQ0KICAgIHJldHVybiB7DQogICAgICAgIHNldHRlcnM6IFtdLA0KICAgICAgICBleGVjdXRlOiBmdW5jdGlvbiAoKSB7DQogICAgICAgICAgICBjb250ZXh0XzEuaW1wb3J0KCIuLzAiKTsNCiAgICAgICAgICAgIHAxID0gY29udGV4dF8xLmltcG9ydCgiLi8wIik7DQogICAgICAgICAgICBwMS50aGVuKHplcm8gPT4gew0KICAgICAgICAgICAgICAgIHJldHVybiB6ZXJvLmZvbygpOw0KICAgICAgICAgICAgfSk7DQogICAgICAgICAgICBleHBvcnRzXzEoInAyIiwgcDIgPSBjb250ZXh0XzEuaW1wb3J0KCIuLzAiKSk7DQogICAgICAgIH0NCiAgICB9Ow0KfSk7DQo=",
+              "callback_utf8_sha256": "c091949159e6d901bc1d345959e0b7c48271faafa7adf323f775f5ba87be451e",
+              "callback_utf8_bytes": 533,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "c091949159e6d901bc1d345959e0b7c48271faafa7adf323f775f5ba87be451e",
+              "materialized_utf8_bytes": 533,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/1.ts"
+              ]
+            }
+          ],
+          "reported_diagnostics": [
+            {
+              "code": 5107,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Option 'module=System' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error."
+            }
+          ],
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 2,
+          "run_fingerprint_sha256": "6efa8942e7c821d846762cecce7cd787d9315345c78057ce76c9c2f64220eb05"
+        }
+      ],
+      "rust_expectation": "two-deterministic-exact-runs",
+      "case_fingerprint_sha256": "9abfdddc0e2279392ef5a8c29a7f1a0f8bed709686cbe9a7f9c011bd0a65522b"
+    },
+    {
+      "suite": "conformance",
+      "case_id": "typescript-6.0.3/conformance/dynamicImport/importCallExpressionInSystem2.ts#default",
+      "expansion_case": 1238,
+      "source": {
+        "path": "dynamicImport/importCallExpressionInSystem2.ts",
+        "bytes": 363,
+        "sha256": "a8f27c25d4a76f4af0a44d7b15bc053c9014ba73ce128e5764a91627568a72b1",
+        "git_blob_sha1": "c6fac3683ee2f7848cf71ac2b6244778616f1c20"
+      },
+      "module_state": "System(4)",
+      "input": {
+        "current_directory": "/.src",
+        "roots": [
+          "/.src/0.ts",
+          "/.src/2.ts"
+        ],
+        "settings": [
+          {
+            "name": "module",
+            "value": "system"
+          },
+          {
+            "name": "target",
+            "value": "esnext"
+          },
+          {
+            "name": "filename",
+            "value": "2.ts"
+          }
+        ],
+        "virtual_config": null,
+        "files": [
+          {
+            "unit": 0,
+            "path": "/.src/0.ts",
+            "utf8_base64": "ZXhwb3J0IGNsYXNzIEIgewogICAgcHJpbnQoKSB7IHJldHVybiAiSSBhbSBCIn0KfQo=",
+            "utf8_sha256": "3b56dfe62d62893f196cc455483054fd6b03084a5a230aa0370bedf31915c67c",
+            "utf8_bytes": 50
+          },
+          {
+            "unit": 1,
+            "path": "/.src/2.ts",
+            "utf8_base64": "Ly8gV2UgdXNlIFByb21pc2U8YW55PiBmb3Igbm93IGFzIHRoZXJlIGlzIG5vIHdheSB0byBzcGVjaWZ5IHNoYXBlIG9mIG1vZHVsZSBvYmplY3QKZnVuY3Rpb24gZm9vKHg6IFByb21pc2U8YW55PikgewogICAgeC50aGVuKHZhbHVlID0+IHsKICAgICAgICBsZXQgYiA9IG5ldyB2YWx1ZS5CKCk7CiAgICAgICAgYi5wcmludCgpOwogICAgfSkKfQoKZm9vKGltcG9ydCgiLi8wIikpOw==",
+            "utf8_sha256": "a1c1bbe6ad99b233dc0e5ff79d4761f69b679f77c7fb7f3db8c4d8aca00b6804",
+            "utf8_bytes": 217
+          }
+        ]
+      },
+      "files": [
+        {
+          "unit": 0,
+          "path": "/.src/0.ts",
+          "script_kind": "TS",
+          "declaration_file": false,
+          "emit_eligible": true,
+          "implied_module_format": "None",
+          "emit_module_format": 4,
+          "feature_roots": [],
+          "parse_diagnostic_codes": [],
+          "max_ast_depth": 6,
+          "import_attributes": false,
+          "advanced_comment_placement": false,
+          "text_sha256": "3b56dfe62d62893f196cc455483054fd6b03084a5a230aa0370bedf31915c67c"
+        },
+        {
+          "unit": 1,
+          "path": "/.src/2.ts",
+          "script_kind": "TS",
+          "declaration_file": false,
+          "emit_eligible": true,
+          "implied_module_format": "None",
+          "emit_module_format": 4,
+          "feature_roots": [],
+          "parse_diagnostic_codes": [],
+          "max_ast_depth": 13,
+          "import_attributes": false,
+          "advanced_comment_placement": false,
+          "text_sha256": "a1c1bbe6ad99b233dc0e5ff79d4761f69b679f77c7fb7f3db8c4d8aca00b6804"
+        }
+      ],
+      "owner_reachability": [
+        "transform-system-module"
+      ],
+      "disposition": "admitted-for-execution",
+      "required_slices": [],
+      "diagnostic_disposition": {
+        "state": "exact-required"
+      },
+      "typescript_runs": [
+        {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/.src/0.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "U3lzdGVtLnJlZ2lzdGVyKFtdLCBmdW5jdGlvbiAoZXhwb3J0c18xLCBjb250ZXh0XzEpIHsNCiAgICAidXNlIHN0cmljdCI7DQogICAgdmFyIEI7DQogICAgdmFyIF9fbW9kdWxlTmFtZSA9IGNvbnRleHRfMSAmJiBjb250ZXh0XzEuaWQ7DQogICAgcmV0dXJuIHsNCiAgICAgICAgc2V0dGVyczogW10sDQogICAgICAgIGV4ZWN1dGU6IGZ1bmN0aW9uICgpIHsNCiAgICAgICAgICAgIEIgPSBjbGFzcyBCIHsNCiAgICAgICAgICAgICAgICBwcmludCgpIHsgcmV0dXJuICJJIGFtIEIiOyB9DQogICAgICAgICAgICB9Ow0KICAgICAgICAgICAgZXhwb3J0c18xKCJCIiwgQik7DQogICAgICAgIH0NCiAgICB9Ow0KfSk7DQo=",
+              "callback_utf8_sha256": "20a0c070ece91e1116fcdab6bd1f0af1bf200bd8459fc56302b3eff20f3ee1ce",
+              "callback_utf8_bytes": 350,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "20a0c070ece91e1116fcdab6bd1f0af1bf200bd8459fc56302b3eff20f3ee1ce",
+              "materialized_utf8_bytes": 350,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/0.ts"
+              ]
+            },
+            {
+              "index": 1,
+              "path": "/.src/2.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "U3lzdGVtLnJlZ2lzdGVyKFtdLCBmdW5jdGlvbiAoZXhwb3J0c18xLCBjb250ZXh0XzEpIHsNCiAgICAidXNlIHN0cmljdCI7DQogICAgdmFyIF9fbW9kdWxlTmFtZSA9IGNvbnRleHRfMSAmJiBjb250ZXh0XzEuaWQ7DQogICAgLy8gV2UgdXNlIFByb21pc2U8YW55PiBmb3Igbm93IGFzIHRoZXJlIGlzIG5vIHdheSB0byBzcGVjaWZ5IHNoYXBlIG9mIG1vZHVsZSBvYmplY3QNCiAgICBmdW5jdGlvbiBmb28oeCkgew0KICAgICAgICB4LnRoZW4odmFsdWUgPT4gew0KICAgICAgICAgICAgbGV0IGIgPSBuZXcgdmFsdWUuQigpOw0KICAgICAgICAgICAgYi5wcmludCgpOw0KICAgICAgICB9KTsNCiAgICB9DQogICAgcmV0dXJuIHsNCiAgICAgICAgc2V0dGVyczogW10sDQogICAgICAgIGV4ZWN1dGU6IGZ1bmN0aW9uICgpIHsNCiAgICAgICAgICAgIGZvbyhjb250ZXh0XzEuaW1wb3J0KCIuLzAiKSk7DQogICAgICAgIH0NCiAgICB9Ow0KfSk7DQo=",
+              "callback_utf8_sha256": "b5230adf9fc206ab504078bb25102e253693d88f01a3d25fba8f9dbe497a5837",
+              "callback_utf8_bytes": 479,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "b5230adf9fc206ab504078bb25102e253693d88f01a3d25fba8f9dbe497a5837",
+              "materialized_utf8_bytes": 479,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/2.ts"
+              ]
+            }
+          ],
+          "reported_diagnostics": [
+            {
+              "code": 5107,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Option 'module=System' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error."
+            }
+          ],
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 2,
+          "run_fingerprint_sha256": "9cb15ef779057112965c3548d2292f5f7ad40539703892e33906db4e862ab517"
+        },
+        {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/.src/0.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "U3lzdGVtLnJlZ2lzdGVyKFtdLCBmdW5jdGlvbiAoZXhwb3J0c18xLCBjb250ZXh0XzEpIHsNCiAgICAidXNlIHN0cmljdCI7DQogICAgdmFyIEI7DQogICAgdmFyIF9fbW9kdWxlTmFtZSA9IGNvbnRleHRfMSAmJiBjb250ZXh0XzEuaWQ7DQogICAgcmV0dXJuIHsNCiAgICAgICAgc2V0dGVyczogW10sDQogICAgICAgIGV4ZWN1dGU6IGZ1bmN0aW9uICgpIHsNCiAgICAgICAgICAgIEIgPSBjbGFzcyBCIHsNCiAgICAgICAgICAgICAgICBwcmludCgpIHsgcmV0dXJuICJJIGFtIEIiOyB9DQogICAgICAgICAgICB9Ow0KICAgICAgICAgICAgZXhwb3J0c18xKCJCIiwgQik7DQogICAgICAgIH0NCiAgICB9Ow0KfSk7DQo=",
+              "callback_utf8_sha256": "20a0c070ece91e1116fcdab6bd1f0af1bf200bd8459fc56302b3eff20f3ee1ce",
+              "callback_utf8_bytes": 350,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "20a0c070ece91e1116fcdab6bd1f0af1bf200bd8459fc56302b3eff20f3ee1ce",
+              "materialized_utf8_bytes": 350,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/0.ts"
+              ]
+            },
+            {
+              "index": 1,
+              "path": "/.src/2.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "U3lzdGVtLnJlZ2lzdGVyKFtdLCBmdW5jdGlvbiAoZXhwb3J0c18xLCBjb250ZXh0XzEpIHsNCiAgICAidXNlIHN0cmljdCI7DQogICAgdmFyIF9fbW9kdWxlTmFtZSA9IGNvbnRleHRfMSAmJiBjb250ZXh0XzEuaWQ7DQogICAgLy8gV2UgdXNlIFByb21pc2U8YW55PiBmb3Igbm93IGFzIHRoZXJlIGlzIG5vIHdheSB0byBzcGVjaWZ5IHNoYXBlIG9mIG1vZHVsZSBvYmplY3QNCiAgICBmdW5jdGlvbiBmb28oeCkgew0KICAgICAgICB4LnRoZW4odmFsdWUgPT4gew0KICAgICAgICAgICAgbGV0IGIgPSBuZXcgdmFsdWUuQigpOw0KICAgICAgICAgICAgYi5wcmludCgpOw0KICAgICAgICB9KTsNCiAgICB9DQogICAgcmV0dXJuIHsNCiAgICAgICAgc2V0dGVyczogW10sDQogICAgICAgIGV4ZWN1dGU6IGZ1bmN0aW9uICgpIHsNCiAgICAgICAgICAgIGZvbyhjb250ZXh0XzEuaW1wb3J0KCIuLzAiKSk7DQogICAgICAgIH0NCiAgICB9Ow0KfSk7DQo=",
+              "callback_utf8_sha256": "b5230adf9fc206ab504078bb25102e253693d88f01a3d25fba8f9dbe497a5837",
+              "callback_utf8_bytes": 479,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "b5230adf9fc206ab504078bb25102e253693d88f01a3d25fba8f9dbe497a5837",
+              "materialized_utf8_bytes": 479,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/2.ts"
+              ]
+            }
+          ],
+          "reported_diagnostics": [
+            {
+              "code": 5107,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Option 'module=System' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error."
+            }
+          ],
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 2,
+          "run_fingerprint_sha256": "9cb15ef779057112965c3548d2292f5f7ad40539703892e33906db4e862ab517"
+        }
+      ],
+      "rust_expectation": "two-deterministic-exact-runs",
+      "case_fingerprint_sha256": "a554ced1c1f35273300cbb64adf8bf06307040a88e599530208be9039a8db4e7"
+    },
+    {
+      "suite": "conformance",
+      "case_id": "typescript-6.0.3/conformance/dynamicImport/importCallExpressionInSystem3.ts#default",
+      "expansion_case": 1239,
+      "source": {
+        "path": "dynamicImport/importCallExpressionInSystem3.ts",
+        "bytes": 257,
+        "sha256": "387edd27ce83d43954da3f6bbca7f2b378786c53fc21a73ab451bf04284c3ea2",
+        "git_blob_sha1": "7f4485d896299a30c07a99b1ec03298ef67817e7"
+      },
+      "module_state": "System(4)",
+      "input": {
+        "current_directory": "/.src",
+        "roots": [
+          "/.src/0.ts",
+          "/.src/2.ts"
+        ],
+        "settings": [
+          {
+            "name": "module",
+            "value": "system"
+          },
+          {
+            "name": "target",
+            "value": "esnext"
+          },
+          {
+            "name": "filename",
+            "value": "2.ts"
+          }
+        ],
+        "virtual_config": null,
+        "files": [
+          {
+            "unit": 0,
+            "path": "/.src/0.ts",
+            "utf8_base64": "ZXhwb3J0IGNsYXNzIEIgewogICAgcHJpbnQoKSB7IHJldHVybiAiSSBhbSBCIn0KfQo=",
+            "utf8_sha256": "3b56dfe62d62893f196cc455483054fd6b03084a5a230aa0370bedf31915c67c",
+            "utf8_bytes": 50
+          },
+          {
+            "unit": 1,
+            "path": "/.src/2.ts",
+            "utf8_base64": "YXN5bmMgZnVuY3Rpb24gZm9vKCkgewogICAgY2xhc3MgQyBleHRlbmRzIChhd2FpdCBpbXBvcnQoIi4vMCIpKS5CIHt9CiAgICB2YXIgYyA9IG5ldyBDKCk7CiAgICBjLnByaW50KCk7Cn0KZm9vKCk7",
+            "utf8_sha256": "5fb2424075e5c23eedf5b0839d445746bbf1423733d775aa5e782fa747b43552",
+            "utf8_bytes": 114
+          }
+        ]
+      },
+      "files": [
+        {
+          "unit": 0,
+          "path": "/.src/0.ts",
+          "script_kind": "TS",
+          "declaration_file": false,
+          "emit_eligible": true,
+          "implied_module_format": "None",
+          "emit_module_format": 4,
+          "feature_roots": [],
+          "parse_diagnostic_codes": [],
+          "max_ast_depth": 6,
+          "import_attributes": false,
+          "advanced_comment_placement": false,
+          "text_sha256": "3b56dfe62d62893f196cc455483054fd6b03084a5a230aa0370bedf31915c67c"
+        },
+        {
+          "unit": 1,
+          "path": "/.src/2.ts",
+          "script_kind": "TS",
+          "declaration_file": false,
+          "emit_eligible": true,
+          "implied_module_format": "None",
+          "emit_module_format": 4,
+          "feature_roots": [],
+          "parse_diagnostic_codes": [],
+          "max_ast_depth": 11,
+          "import_attributes": false,
+          "advanced_comment_placement": false,
+          "text_sha256": "5fb2424075e5c23eedf5b0839d445746bbf1423733d775aa5e782fa747b43552"
+        }
+      ],
+      "owner_reachability": [
+        "transform-system-module"
+      ],
+      "disposition": "admitted-for-execution",
+      "required_slices": [],
+      "diagnostic_disposition": {
+        "state": "exact-required"
+      },
+      "typescript_runs": [
+        {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/.src/0.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "U3lzdGVtLnJlZ2lzdGVyKFtdLCBmdW5jdGlvbiAoZXhwb3J0c18xLCBjb250ZXh0XzEpIHsNCiAgICAidXNlIHN0cmljdCI7DQogICAgdmFyIEI7DQogICAgdmFyIF9fbW9kdWxlTmFtZSA9IGNvbnRleHRfMSAmJiBjb250ZXh0XzEuaWQ7DQogICAgcmV0dXJuIHsNCiAgICAgICAgc2V0dGVyczogW10sDQogICAgICAgIGV4ZWN1dGU6IGZ1bmN0aW9uICgpIHsNCiAgICAgICAgICAgIEIgPSBjbGFzcyBCIHsNCiAgICAgICAgICAgICAgICBwcmludCgpIHsgcmV0dXJuICJJIGFtIEIiOyB9DQogICAgICAgICAgICB9Ow0KICAgICAgICAgICAgZXhwb3J0c18xKCJCIiwgQik7DQogICAgICAgIH0NCiAgICB9Ow0KfSk7DQo=",
+              "callback_utf8_sha256": "20a0c070ece91e1116fcdab6bd1f0af1bf200bd8459fc56302b3eff20f3ee1ce",
+              "callback_utf8_bytes": 350,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "20a0c070ece91e1116fcdab6bd1f0af1bf200bd8459fc56302b3eff20f3ee1ce",
+              "materialized_utf8_bytes": 350,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/0.ts"
+              ]
+            },
+            {
+              "index": 1,
+              "path": "/.src/2.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "U3lzdGVtLnJlZ2lzdGVyKFtdLCBmdW5jdGlvbiAoZXhwb3J0c18xLCBjb250ZXh0XzEpIHsNCiAgICAidXNlIHN0cmljdCI7DQogICAgdmFyIF9fbW9kdWxlTmFtZSA9IGNvbnRleHRfMSAmJiBjb250ZXh0XzEuaWQ7DQogICAgYXN5bmMgZnVuY3Rpb24gZm9vKCkgew0KICAgICAgICBjbGFzcyBDIGV4dGVuZHMgKGF3YWl0IGNvbnRleHRfMS5pbXBvcnQoIi4vMCIpKS5CIHsNCiAgICAgICAgfQ0KICAgICAgICB2YXIgYyA9IG5ldyBDKCk7DQogICAgICAgIGMucHJpbnQoKTsNCiAgICB9DQogICAgcmV0dXJuIHsNCiAgICAgICAgc2V0dGVyczogW10sDQogICAgICAgIGV4ZWN1dGU6IGZ1bmN0aW9uICgpIHsNCiAgICAgICAgICAgIGZvbygpOw0KICAgICAgICB9DQogICAgfTsNCn0pOw0K",
+              "callback_utf8_sha256": "f7f2535b7731c92ee4914371d0fa7a348a29cf86bd79b0bc5cbcd6adab3fede7",
+              "callback_utf8_bytes": 390,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "f7f2535b7731c92ee4914371d0fa7a348a29cf86bd79b0bc5cbcd6adab3fede7",
+              "materialized_utf8_bytes": 390,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/2.ts"
+              ]
+            }
+          ],
+          "reported_diagnostics": [
+            {
+              "code": 5107,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Option 'module=System' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error."
+            }
+          ],
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 2,
+          "run_fingerprint_sha256": "1feffdc4219142a932e2c939184c71a8fdba3ce47d1beebe38440b8cf6b12d9d"
+        },
+        {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/.src/0.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "U3lzdGVtLnJlZ2lzdGVyKFtdLCBmdW5jdGlvbiAoZXhwb3J0c18xLCBjb250ZXh0XzEpIHsNCiAgICAidXNlIHN0cmljdCI7DQogICAgdmFyIEI7DQogICAgdmFyIF9fbW9kdWxlTmFtZSA9IGNvbnRleHRfMSAmJiBjb250ZXh0XzEuaWQ7DQogICAgcmV0dXJuIHsNCiAgICAgICAgc2V0dGVyczogW10sDQogICAgICAgIGV4ZWN1dGU6IGZ1bmN0aW9uICgpIHsNCiAgICAgICAgICAgIEIgPSBjbGFzcyBCIHsNCiAgICAgICAgICAgICAgICBwcmludCgpIHsgcmV0dXJuICJJIGFtIEIiOyB9DQogICAgICAgICAgICB9Ow0KICAgICAgICAgICAgZXhwb3J0c18xKCJCIiwgQik7DQogICAgICAgIH0NCiAgICB9Ow0KfSk7DQo=",
+              "callback_utf8_sha256": "20a0c070ece91e1116fcdab6bd1f0af1bf200bd8459fc56302b3eff20f3ee1ce",
+              "callback_utf8_bytes": 350,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "20a0c070ece91e1116fcdab6bd1f0af1bf200bd8459fc56302b3eff20f3ee1ce",
+              "materialized_utf8_bytes": 350,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/0.ts"
+              ]
+            },
+            {
+              "index": 1,
+              "path": "/.src/2.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "U3lzdGVtLnJlZ2lzdGVyKFtdLCBmdW5jdGlvbiAoZXhwb3J0c18xLCBjb250ZXh0XzEpIHsNCiAgICAidXNlIHN0cmljdCI7DQogICAgdmFyIF9fbW9kdWxlTmFtZSA9IGNvbnRleHRfMSAmJiBjb250ZXh0XzEuaWQ7DQogICAgYXN5bmMgZnVuY3Rpb24gZm9vKCkgew0KICAgICAgICBjbGFzcyBDIGV4dGVuZHMgKGF3YWl0IGNvbnRleHRfMS5pbXBvcnQoIi4vMCIpKS5CIHsNCiAgICAgICAgfQ0KICAgICAgICB2YXIgYyA9IG5ldyBDKCk7DQogICAgICAgIGMucHJpbnQoKTsNCiAgICB9DQogICAgcmV0dXJuIHsNCiAgICAgICAgc2V0dGVyczogW10sDQogICAgICAgIGV4ZWN1dGU6IGZ1bmN0aW9uICgpIHsNCiAgICAgICAgICAgIGZvbygpOw0KICAgICAgICB9DQogICAgfTsNCn0pOw0K",
+              "callback_utf8_sha256": "f7f2535b7731c92ee4914371d0fa7a348a29cf86bd79b0bc5cbcd6adab3fede7",
+              "callback_utf8_bytes": 390,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "f7f2535b7731c92ee4914371d0fa7a348a29cf86bd79b0bc5cbcd6adab3fede7",
+              "materialized_utf8_bytes": 390,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/2.ts"
+              ]
+            }
+          ],
+          "reported_diagnostics": [
+            {
+              "code": 5107,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Option 'module=System' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error."
+            }
+          ],
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 2,
+          "run_fingerprint_sha256": "1feffdc4219142a932e2c939184c71a8fdba3ce47d1beebe38440b8cf6b12d9d"
+        }
+      ],
+      "rust_expectation": "two-deterministic-exact-runs",
+      "case_fingerprint_sha256": "8d4b97e34d4eb6744e94a19c42362c11bd6ac4cce61517222d3061a43a6119db"
+    },
+    {
+      "suite": "conformance",
+      "case_id": "typescript-6.0.3/conformance/es2019/importMeta/importMeta.ts#module%3Dsystem%2Ctarget%3Desnext",
+      "expansion_case": 1342,
+      "source": {
+        "path": "es2019/importMeta/importMeta.ts",
+        "bytes": 1229,
+        "sha256": "a2a2f3a5902c734743d885be23fd1f63fc1eee7dfd1fdfead2cb2c85dafff0fe",
+        "git_blob_sha1": "30185c14c76cd41dd215e68529ca34078180b621"
+      },
+      "module_state": "System(4)",
+      "input": {
+        "current_directory": "/.src",
+        "roots": [
+          "/.src/example.ts",
+          "/.src/moduleLookingFile01.ts",
+          "/.src/scriptLookingFile01.ts",
+          "/.src/assignmentTargets.ts"
+        ],
+        "settings": [
+          {
+            "name": "target",
+            "value": "esnext"
+          },
+          {
+            "name": "module",
+            "value": "system"
+          },
+          {
+            "name": "lib",
+            "value": "es5,dom"
+          },
+          {
+            "name": "Filename",
+            "value": "assignmentTargets.ts"
+          }
+        ],
+        "virtual_config": null,
+        "files": [
+          {
+            "unit": 0,
+            "path": "/.src/example.ts",
+            "utf8_base64": "Ly8gQWRhcHRlZCBmcm9tIGh0dHBzOi8vZ2l0aHViLmNvbS90YzM5L3Byb3Bvc2FsLWltcG9ydC1tZXRhL3RyZWUvYzM5MDJhOWZmZTJlNjlhN2FjNDJjMTlkN2VhNzRjYmRjZWE5YjdmYiNleGFtcGxlCihhc3luYyAoKSA9PiB7CiAgY29uc3QgcmVzcG9uc2UgPSBhd2FpdCBmZXRjaChuZXcgVVJMKCIuLi9oYW1zdGVycy5qcGciLCBpbXBvcnQubWV0YS51cmwpLnRvU3RyaW5nKCkpOwogIGNvbnN0IGJsb2IgPSBhd2FpdCByZXNwb25zZS5ibG9iKCk7CgogIGNvbnN0IHNpemUgPSBpbXBvcnQubWV0YS5zY3JpcHRFbGVtZW50LmRhdGFzZXQuc2l6ZSB8fCAzMDA7CgogIGNvbnN0IGltYWdlID0gbmV3IEltYWdlKCk7CiAgaW1hZ2Uuc3JjID0gVVJMLmNyZWF0ZU9iamVjdFVSTChibG9iKTsKICBpbWFnZS53aWR0aCA9IGltYWdlLmhlaWdodCA9IHNpemU7CgogIGRvY3VtZW50LmJvZHkuYXBwZW5kQ2hpbGQoaW1hZ2UpOwp9KSgpOwo=",
+            "utf8_sha256": "af3c4cdc93d38d5b1530011f5099cafc5b9054436e22784ad3eb3e818658eaa4",
+            "utf8_bytes": 470
+          },
+          {
+            "unit": 1,
+            "path": "/.src/moduleLookingFile01.ts",
+            "utf8_base64": "ZXhwb3J0IGxldCB4ID0gaW1wb3J0Lm1ldGE7CmV4cG9ydCBsZXQgeSA9IGltcG9ydC5tZXRhbDsKZXhwb3J0IGxldCB6ID0gaW1wb3J0LmltcG9ydC5pbXBvcnQubWFsa292aWNoOwo=",
+            "utf8_sha256": "c477f84d2614f5bbf42e6eae160c8d70b4eb3cb8b6b83c74552c1df632b79dbf",
+            "utf8_bytes": 104
+          },
+          {
+            "unit": 2,
+            "path": "/.src/scriptLookingFile01.ts",
+            "utf8_base64": "bGV0IGdsb2JhbEEgPSBpbXBvcnQubWV0YTsKbGV0IGdsb2JhbEIgPSBpbXBvcnQubWV0YWw7CmxldCBnbG9iYWxDID0gaW1wb3J0LmltcG9ydC5pbXBvcnQubWFsa292aWNoOwo=",
+            "utf8_sha256": "5ca903ea915ff3bd4c94ec28a8f76cd25cf576768d1fa58e9b0b69a7f1aabc45",
+            "utf8_bytes": 101
+          },
+          {
+            "unit": 3,
+            "path": "/.src/assignmentTargets.ts",
+            "utf8_base64": "ZXhwb3J0IGNvbnN0IGZvbzogSW1wb3J0TWV0YSA9IGltcG9ydC5tZXRhLmJsYWggPSBpbXBvcnQubWV0YS5ibHVlID0gaW1wb3J0Lm1ldGE7CmltcG9ydC5tZXRhID0gZm9vOwoKLy8gQEZpbGVuYW1lIGF1Z21lbnRhdGlvbnMudHMKZGVjbGFyZSBnbG9iYWwgewogIGludGVyZmFjZSBJbXBvcnRNZXRhIHsKICAgIHdlbGxLbm93blByb3BlcnR5OiB7IGE6IG51bWJlciwgYjogc3RyaW5nLCBjOiBib29sZWFuIH07CiAgfQp9Cgpjb25zdCB7IGEsIGIsIGMgfSA9IGltcG9ydC5tZXRhLndlbGxLbm93blByb3BlcnR5Ow==",
+            "utf8_sha256": "f2a1e2c584b39e285d604891bf4356550e7977ffd1288a1cb12b4d7afd0b85f3",
+            "utf8_bytes": 292
+          }
+        ]
+      },
+      "files": [
+        {
+          "unit": 0,
+          "path": "/.src/example.ts",
+          "script_kind": "TS",
+          "declaration_file": false,
+          "emit_eligible": true,
+          "implied_module_format": "None",
+          "emit_module_format": 4,
+          "feature_roots": [],
+          "parse_diagnostic_codes": [],
+          "max_ast_depth": 17,
+          "import_attributes": false,
+          "advanced_comment_placement": false,
+          "text_sha256": "af3c4cdc93d38d5b1530011f5099cafc5b9054436e22784ad3eb3e818658eaa4"
+        },
+        {
+          "unit": 1,
+          "path": "/.src/moduleLookingFile01.ts",
+          "script_kind": "TS",
+          "declaration_file": false,
+          "emit_eligible": true,
+          "implied_module_format": "None",
+          "emit_module_format": 4,
+          "feature_roots": [],
+          "parse_diagnostic_codes": [],
+          "max_ast_depth": 8,
+          "import_attributes": false,
+          "advanced_comment_placement": false,
+          "text_sha256": "c477f84d2614f5bbf42e6eae160c8d70b4eb3cb8b6b83c74552c1df632b79dbf"
+        },
+        {
+          "unit": 2,
+          "path": "/.src/scriptLookingFile01.ts",
+          "script_kind": "TS",
+          "declaration_file": false,
+          "emit_eligible": true,
+          "implied_module_format": "None",
+          "emit_module_format": 4,
+          "feature_roots": [],
+          "parse_diagnostic_codes": [],
+          "max_ast_depth": 8,
+          "import_attributes": false,
+          "advanced_comment_placement": false,
+          "text_sha256": "5ca903ea915ff3bd4c94ec28a8f76cd25cf576768d1fa58e9b0b69a7f1aabc45"
+        },
+        {
+          "unit": 3,
+          "path": "/.src/assignmentTargets.ts",
+          "script_kind": "TS",
+          "declaration_file": false,
+          "emit_eligible": true,
+          "implied_module_format": "None",
+          "emit_module_format": 4,
+          "feature_roots": [],
+          "parse_diagnostic_codes": [],
+          "max_ast_depth": 9,
+          "import_attributes": false,
+          "advanced_comment_placement": false,
+          "text_sha256": "f2a1e2c584b39e285d604891bf4356550e7977ffd1288a1cb12b4d7afd0b85f3"
+        }
+      ],
+      "owner_reachability": [
+        "transform-system-module"
+      ],
+      "disposition": "admitted-for-execution",
+      "required_slices": [],
+      "diagnostic_disposition": {
+        "state": "exact-required"
+      },
+      "typescript_runs": [
+        {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/.src/example.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "U3lzdGVtLnJlZ2lzdGVyKFtdLCBmdW5jdGlvbiAoZXhwb3J0c18xLCBjb250ZXh0XzEpIHsNCiAgICAidXNlIHN0cmljdCI7DQogICAgdmFyIF9fbW9kdWxlTmFtZSA9IGNvbnRleHRfMSAmJiBjb250ZXh0XzEuaWQ7DQogICAgcmV0dXJuIHsNCiAgICAgICAgc2V0dGVyczogW10sDQogICAgICAgIGV4ZWN1dGU6IGZ1bmN0aW9uICgpIHsNCiAgICAgICAgICAgIC8vIEFkYXB0ZWQgZnJvbSBodHRwczovL2dpdGh1Yi5jb20vdGMzOS9wcm9wb3NhbC1pbXBvcnQtbWV0YS90cmVlL2MzOTAyYTlmZmUyZTY5YTdhYzQyYzE5ZDdlYTc0Y2JkY2VhOWI3ZmIjZXhhbXBsZQ0KICAgICAgICAgICAgKGFzeW5jICgpID0+IHsNCiAgICAgICAgICAgICAgICBjb25zdCByZXNwb25zZSA9IGF3YWl0IGZldGNoKG5ldyBVUkwoIi4uL2hhbXN0ZXJzLmpwZyIsIGNvbnRleHRfMS5tZXRhLnVybCkudG9TdHJpbmcoKSk7DQogICAgICAgICAgICAgICAgY29uc3QgYmxvYiA9IGF3YWl0IHJlc3BvbnNlLmJsb2IoKTsNCiAgICAgICAgICAgICAgICBjb25zdCBzaXplID0gY29udGV4dF8xLm1ldGEuc2NyaXB0RWxlbWVudC5kYXRhc2V0LnNpemUgfHwgMzAwOw0KICAgICAgICAgICAgICAgIGNvbnN0IGltYWdlID0gbmV3IEltYWdlKCk7DQogICAgICAgICAgICAgICAgaW1hZ2Uuc3JjID0gVVJMLmNyZWF0ZU9iamVjdFVSTChibG9iKTsNCiAgICAgICAgICAgICAgICBpbWFnZS53aWR0aCA9IGltYWdlLmhlaWdodCA9IHNpemU7DQogICAgICAgICAgICAgICAgZG9jdW1lbnQuYm9keS5hcHBlbmRDaGlsZChpbWFnZSk7DQogICAgICAgICAgICB9KSgpOw0KICAgICAgICB9DQogICAgfTsNCn0pOw0K",
+              "callback_utf8_sha256": "06962dc2dccef07f62276a56fc6a404f8b63b2a073255a9fd94a4bc7dd971563",
+              "callback_utf8_bytes": 834,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "06962dc2dccef07f62276a56fc6a404f8b63b2a073255a9fd94a4bc7dd971563",
+              "materialized_utf8_bytes": 834,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/example.ts"
+              ]
+            },
+            {
+              "index": 1,
+              "path": "/.src/moduleLookingFile01.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "U3lzdGVtLnJlZ2lzdGVyKFtdLCBmdW5jdGlvbiAoZXhwb3J0c18xLCBjb250ZXh0XzEpIHsNCiAgICAidXNlIHN0cmljdCI7DQogICAgdmFyIHgsIHksIHo7DQogICAgdmFyIF9fbW9kdWxlTmFtZSA9IGNvbnRleHRfMSAmJiBjb250ZXh0XzEuaWQ7DQogICAgcmV0dXJuIHsNCiAgICAgICAgc2V0dGVyczogW10sDQogICAgICAgIGV4ZWN1dGU6IGZ1bmN0aW9uICgpIHsNCiAgICAgICAgICAgIGV4cG9ydHNfMSgieCIsIHggPSBjb250ZXh0XzEubWV0YSk7DQogICAgICAgICAgICBleHBvcnRzXzEoInkiLCB5ID0gaW1wb3J0Lm1ldGFsKTsNCiAgICAgICAgICAgIGV4cG9ydHNfMSgieiIsIHogPSBpbXBvcnQuaW1wb3J0LmltcG9ydC5tYWxrb3ZpY2gpOw0KICAgICAgICB9DQogICAgfTsNCn0pOw0K",
+              "callback_utf8_sha256": "ee5f6b22e127a268625950fb61d5c5b2fc7b176664fd1aed7aa9f143b07bc3b1",
+              "callback_utf8_bytes": 396,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "ee5f6b22e127a268625950fb61d5c5b2fc7b176664fd1aed7aa9f143b07bc3b1",
+              "materialized_utf8_bytes": 396,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/moduleLookingFile01.ts"
+              ]
+            },
+            {
+              "index": 2,
+              "path": "/.src/scriptLookingFile01.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "U3lzdGVtLnJlZ2lzdGVyKFtdLCBmdW5jdGlvbiAoZXhwb3J0c18xLCBjb250ZXh0XzEpIHsNCiAgICAidXNlIHN0cmljdCI7DQogICAgdmFyIGdsb2JhbEEsIGdsb2JhbEIsIGdsb2JhbEM7DQogICAgdmFyIF9fbW9kdWxlTmFtZSA9IGNvbnRleHRfMSAmJiBjb250ZXh0XzEuaWQ7DQogICAgcmV0dXJuIHsNCiAgICAgICAgc2V0dGVyczogW10sDQogICAgICAgIGV4ZWN1dGU6IGZ1bmN0aW9uICgpIHsNCiAgICAgICAgICAgIGdsb2JhbEEgPSBjb250ZXh0XzEubWV0YTsNCiAgICAgICAgICAgIGdsb2JhbEIgPSBpbXBvcnQubWV0YWw7DQogICAgICAgICAgICBnbG9iYWxDID0gaW1wb3J0LmltcG9ydC5pbXBvcnQubWFsa292aWNoOw0KICAgICAgICB9DQogICAgfTsNCn0pOw0K",
+              "callback_utf8_sha256": "d050558840a0d286e324a9640cad0d807137a8f49dacb1f3416fde558e255fdb",
+              "callback_utf8_bytes": 384,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "d050558840a0d286e324a9640cad0d807137a8f49dacb1f3416fde558e255fdb",
+              "materialized_utf8_bytes": 384,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/scriptLookingFile01.ts"
+              ]
+            },
+            {
+              "index": 3,
+              "path": "/.src/assignmentTargets.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "U3lzdGVtLnJlZ2lzdGVyKFtdLCBmdW5jdGlvbiAoZXhwb3J0c18xLCBjb250ZXh0XzEpIHsNCiAgICAidXNlIHN0cmljdCI7DQogICAgdmFyIGZvbywgX2EsIGEsIGIsIGM7DQogICAgdmFyIF9fbW9kdWxlTmFtZSA9IGNvbnRleHRfMSAmJiBjb250ZXh0XzEuaWQ7DQogICAgcmV0dXJuIHsNCiAgICAgICAgc2V0dGVyczogW10sDQogICAgICAgIGV4ZWN1dGU6IGZ1bmN0aW9uICgpIHsNCiAgICAgICAgICAgIGV4cG9ydHNfMSgiZm9vIiwgZm9vID0gY29udGV4dF8xLm1ldGEuYmxhaCA9IGNvbnRleHRfMS5tZXRhLmJsdWUgPSBjb250ZXh0XzEubWV0YSk7DQogICAgICAgICAgICBjb250ZXh0XzEubWV0YSA9IGZvbzsNCiAgICAgICAgICAgIF9hID0gY29udGV4dF8xLm1ldGEud2VsbEtub3duUHJvcGVydHksIGEgPSBfYS5hLCBiID0gX2EuYiwgYyA9IF9hLmM7DQogICAgICAgIH0NCiAgICB9Ow0KfSk7DQo=",
+              "callback_utf8_sha256": "0c000313bab0801fd7a69d6afbd9258a8340c14f5e5832c3b6fae28fa86bcdbe",
+              "callback_utf8_bytes": 458,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "0c000313bab0801fd7a69d6afbd9258a8340c14f5e5832c3b6fae28fa86bcdbe",
+              "materialized_utf8_bytes": 458,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/assignmentTargets.ts"
+              ]
+            }
+          ],
+          "reported_diagnostics": [
+            {
+              "code": 5107,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Option 'module=System' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error."
+            }
+          ],
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 2,
+          "run_fingerprint_sha256": "c456a88597351a1247107a799e6ee4b9457ccbab725daaf7b5c8b2ee429bf970"
+        },
+        {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/.src/example.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "U3lzdGVtLnJlZ2lzdGVyKFtdLCBmdW5jdGlvbiAoZXhwb3J0c18xLCBjb250ZXh0XzEpIHsNCiAgICAidXNlIHN0cmljdCI7DQogICAgdmFyIF9fbW9kdWxlTmFtZSA9IGNvbnRleHRfMSAmJiBjb250ZXh0XzEuaWQ7DQogICAgcmV0dXJuIHsNCiAgICAgICAgc2V0dGVyczogW10sDQogICAgICAgIGV4ZWN1dGU6IGZ1bmN0aW9uICgpIHsNCiAgICAgICAgICAgIC8vIEFkYXB0ZWQgZnJvbSBodHRwczovL2dpdGh1Yi5jb20vdGMzOS9wcm9wb3NhbC1pbXBvcnQtbWV0YS90cmVlL2MzOTAyYTlmZmUyZTY5YTdhYzQyYzE5ZDdlYTc0Y2JkY2VhOWI3ZmIjZXhhbXBsZQ0KICAgICAgICAgICAgKGFzeW5jICgpID0+IHsNCiAgICAgICAgICAgICAgICBjb25zdCByZXNwb25zZSA9IGF3YWl0IGZldGNoKG5ldyBVUkwoIi4uL2hhbXN0ZXJzLmpwZyIsIGNvbnRleHRfMS5tZXRhLnVybCkudG9TdHJpbmcoKSk7DQogICAgICAgICAgICAgICAgY29uc3QgYmxvYiA9IGF3YWl0IHJlc3BvbnNlLmJsb2IoKTsNCiAgICAgICAgICAgICAgICBjb25zdCBzaXplID0gY29udGV4dF8xLm1ldGEuc2NyaXB0RWxlbWVudC5kYXRhc2V0LnNpemUgfHwgMzAwOw0KICAgICAgICAgICAgICAgIGNvbnN0IGltYWdlID0gbmV3IEltYWdlKCk7DQogICAgICAgICAgICAgICAgaW1hZ2Uuc3JjID0gVVJMLmNyZWF0ZU9iamVjdFVSTChibG9iKTsNCiAgICAgICAgICAgICAgICBpbWFnZS53aWR0aCA9IGltYWdlLmhlaWdodCA9IHNpemU7DQogICAgICAgICAgICAgICAgZG9jdW1lbnQuYm9keS5hcHBlbmRDaGlsZChpbWFnZSk7DQogICAgICAgICAgICB9KSgpOw0KICAgICAgICB9DQogICAgfTsNCn0pOw0K",
+              "callback_utf8_sha256": "06962dc2dccef07f62276a56fc6a404f8b63b2a073255a9fd94a4bc7dd971563",
+              "callback_utf8_bytes": 834,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "06962dc2dccef07f62276a56fc6a404f8b63b2a073255a9fd94a4bc7dd971563",
+              "materialized_utf8_bytes": 834,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/example.ts"
+              ]
+            },
+            {
+              "index": 1,
+              "path": "/.src/moduleLookingFile01.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "U3lzdGVtLnJlZ2lzdGVyKFtdLCBmdW5jdGlvbiAoZXhwb3J0c18xLCBjb250ZXh0XzEpIHsNCiAgICAidXNlIHN0cmljdCI7DQogICAgdmFyIHgsIHksIHo7DQogICAgdmFyIF9fbW9kdWxlTmFtZSA9IGNvbnRleHRfMSAmJiBjb250ZXh0XzEuaWQ7DQogICAgcmV0dXJuIHsNCiAgICAgICAgc2V0dGVyczogW10sDQogICAgICAgIGV4ZWN1dGU6IGZ1bmN0aW9uICgpIHsNCiAgICAgICAgICAgIGV4cG9ydHNfMSgieCIsIHggPSBjb250ZXh0XzEubWV0YSk7DQogICAgICAgICAgICBleHBvcnRzXzEoInkiLCB5ID0gaW1wb3J0Lm1ldGFsKTsNCiAgICAgICAgICAgIGV4cG9ydHNfMSgieiIsIHogPSBpbXBvcnQuaW1wb3J0LmltcG9ydC5tYWxrb3ZpY2gpOw0KICAgICAgICB9DQogICAgfTsNCn0pOw0K",
+              "callback_utf8_sha256": "ee5f6b22e127a268625950fb61d5c5b2fc7b176664fd1aed7aa9f143b07bc3b1",
+              "callback_utf8_bytes": 396,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "ee5f6b22e127a268625950fb61d5c5b2fc7b176664fd1aed7aa9f143b07bc3b1",
+              "materialized_utf8_bytes": 396,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/moduleLookingFile01.ts"
+              ]
+            },
+            {
+              "index": 2,
+              "path": "/.src/scriptLookingFile01.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "U3lzdGVtLnJlZ2lzdGVyKFtdLCBmdW5jdGlvbiAoZXhwb3J0c18xLCBjb250ZXh0XzEpIHsNCiAgICAidXNlIHN0cmljdCI7DQogICAgdmFyIGdsb2JhbEEsIGdsb2JhbEIsIGdsb2JhbEM7DQogICAgdmFyIF9fbW9kdWxlTmFtZSA9IGNvbnRleHRfMSAmJiBjb250ZXh0XzEuaWQ7DQogICAgcmV0dXJuIHsNCiAgICAgICAgc2V0dGVyczogW10sDQogICAgICAgIGV4ZWN1dGU6IGZ1bmN0aW9uICgpIHsNCiAgICAgICAgICAgIGdsb2JhbEEgPSBjb250ZXh0XzEubWV0YTsNCiAgICAgICAgICAgIGdsb2JhbEIgPSBpbXBvcnQubWV0YWw7DQogICAgICAgICAgICBnbG9iYWxDID0gaW1wb3J0LmltcG9ydC5pbXBvcnQubWFsa292aWNoOw0KICAgICAgICB9DQogICAgfTsNCn0pOw0K",
+              "callback_utf8_sha256": "d050558840a0d286e324a9640cad0d807137a8f49dacb1f3416fde558e255fdb",
+              "callback_utf8_bytes": 384,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "d050558840a0d286e324a9640cad0d807137a8f49dacb1f3416fde558e255fdb",
+              "materialized_utf8_bytes": 384,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/scriptLookingFile01.ts"
+              ]
+            },
+            {
+              "index": 3,
+              "path": "/.src/assignmentTargets.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "U3lzdGVtLnJlZ2lzdGVyKFtdLCBmdW5jdGlvbiAoZXhwb3J0c18xLCBjb250ZXh0XzEpIHsNCiAgICAidXNlIHN0cmljdCI7DQogICAgdmFyIGZvbywgX2EsIGEsIGIsIGM7DQogICAgdmFyIF9fbW9kdWxlTmFtZSA9IGNvbnRleHRfMSAmJiBjb250ZXh0XzEuaWQ7DQogICAgcmV0dXJuIHsNCiAgICAgICAgc2V0dGVyczogW10sDQogICAgICAgIGV4ZWN1dGU6IGZ1bmN0aW9uICgpIHsNCiAgICAgICAgICAgIGV4cG9ydHNfMSgiZm9vIiwgZm9vID0gY29udGV4dF8xLm1ldGEuYmxhaCA9IGNvbnRleHRfMS5tZXRhLmJsdWUgPSBjb250ZXh0XzEubWV0YSk7DQogICAgICAgICAgICBjb250ZXh0XzEubWV0YSA9IGZvbzsNCiAgICAgICAgICAgIF9hID0gY29udGV4dF8xLm1ldGEud2VsbEtub3duUHJvcGVydHksIGEgPSBfYS5hLCBiID0gX2EuYiwgYyA9IF9hLmM7DQogICAgICAgIH0NCiAgICB9Ow0KfSk7DQo=",
+              "callback_utf8_sha256": "0c000313bab0801fd7a69d6afbd9258a8340c14f5e5832c3b6fae28fa86bcdbe",
+              "callback_utf8_bytes": 458,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "0c000313bab0801fd7a69d6afbd9258a8340c14f5e5832c3b6fae28fa86bcdbe",
+              "materialized_utf8_bytes": 458,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/assignmentTargets.ts"
+              ]
+            }
+          ],
+          "reported_diagnostics": [
+            {
+              "code": 5107,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Option 'module=System' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error."
+            }
+          ],
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 2,
+          "run_fingerprint_sha256": "c456a88597351a1247107a799e6ee4b9457ccbab725daaf7b5c8b2ee429bf970"
+        }
+      ],
+      "rust_expectation": "two-deterministic-exact-runs",
+      "case_fingerprint_sha256": "ee249082418ca2bb6ad5906e07b3266811e4b47ad35d00dcaef337919038dd1b"
+    },
+    {
+      "suite": "conformance",
+      "case_id": "typescript-6.0.3/conformance/es6/moduleExportsSystem/topLevelVarHoistingSystem.ts#default",
+      "expansion_case": 2218,
+      "source": {
+        "path": "es6/moduleExportsSystem/topLevelVarHoistingSystem.ts",
+        "bytes": 178,
+        "sha256": "b7569d8b28c6c78db1796c39e2b98ad42eca9e3ce5486a1d40c210e48120559f",
+        "git_blob_sha1": "8a193e187a58c2277f05b9c9c32742f657a740e0"
+      },
+      "module_state": "System(4)",
+      "input": {
+        "current_directory": "/.src",
+        "roots": [
+          "/.src/topLevelVarHoistingSystem.ts"
+        ],
+        "settings": [
+          {
+            "name": "strict",
+            "value": "false"
+          },
+          {
+            "name": "target",
+            "value": "esnext"
+          },
+          {
+            "name": "module",
+            "value": "system"
+          },
+          {
+            "name": "noTypesAndSymbols",
+            "value": "true"
+          }
+        ],
+        "virtual_config": null,
+        "files": [
+          {
+            "unit": 0,
+            "path": "/.src/topLevelVarHoistingSystem.ts",
+            "utf8_base64": "aWYgKGZhbHNlKSB7CiAgICB2YXIgeSA9IDE7Cn0KCmZ1bmN0aW9uIGYoKSB7CiAgICBjb25zb2xlLmxvZyh5KTsKfQoKZXhwb3J0IHsgeSB9Ow==",
+            "utf8_sha256": "4c815881c3e24570b4efb1872519cce3e86470cf974c0862d4101187dda58d84",
+            "utf8_bytes": 82
+          }
+        ]
+      },
+      "files": [
+        {
+          "unit": 0,
+          "path": "/.src/topLevelVarHoistingSystem.ts",
+          "script_kind": "TS",
+          "declaration_file": false,
+          "emit_eligible": true,
+          "implied_module_format": "None",
+          "emit_module_format": 4,
+          "feature_roots": [],
+          "parse_diagnostic_codes": [],
+          "max_ast_depth": 7,
+          "import_attributes": false,
+          "advanced_comment_placement": false,
+          "text_sha256": "4c815881c3e24570b4efb1872519cce3e86470cf974c0862d4101187dda58d84"
+        }
+      ],
+      "owner_reachability": [
+        "transform-system-module"
+      ],
+      "disposition": "admitted-for-execution",
+      "required_slices": [],
+      "diagnostic_disposition": {
+        "state": "exact-required"
+      },
+      "typescript_runs": [
+        {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/.src/topLevelVarHoistingSystem.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "U3lzdGVtLnJlZ2lzdGVyKFtdLCBmdW5jdGlvbiAoZXhwb3J0c18xLCBjb250ZXh0XzEpIHsNCiAgICAidXNlIHN0cmljdCI7DQogICAgdmFyIHk7DQogICAgdmFyIF9fbW9kdWxlTmFtZSA9IGNvbnRleHRfMSAmJiBjb250ZXh0XzEuaWQ7DQogICAgZnVuY3Rpb24gZigpIHsNCiAgICAgICAgY29uc29sZS5sb2coeSk7DQogICAgfQ0KICAgIHJldHVybiB7DQogICAgICAgIHNldHRlcnM6IFtdLA0KICAgICAgICBleGVjdXRlOiBmdW5jdGlvbiAoKSB7DQogICAgICAgICAgICBpZiAoZmFsc2UpIHsNCiAgICAgICAgICAgICAgICB5ID0gMTsNCiAgICAgICAgICAgICAgICBleHBvcnRzXzEoInkiLCB5KTsNCiAgICAgICAgICAgIH0NCiAgICAgICAgfQ0KICAgIH07DQp9KTsNCg==",
+              "callback_utf8_sha256": "491e4fc95621d5e64d1dc542231db78eae08726408803436816622fe20948cc9",
+              "callback_utf8_bytes": 382,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "491e4fc95621d5e64d1dc542231db78eae08726408803436816622fe20948cc9",
+              "materialized_utf8_bytes": 382,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/topLevelVarHoistingSystem.ts"
+              ]
+            }
+          ],
+          "reported_diagnostics": [
+            {
+              "code": 5107,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Option 'module=System' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error."
+            }
+          ],
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 2,
+          "run_fingerprint_sha256": "3baa598c8bd20a416bbd8c6c43dc0579efdf8677e49ee58421ada9e5decc90dd"
+        },
+        {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/.src/topLevelVarHoistingSystem.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "U3lzdGVtLnJlZ2lzdGVyKFtdLCBmdW5jdGlvbiAoZXhwb3J0c18xLCBjb250ZXh0XzEpIHsNCiAgICAidXNlIHN0cmljdCI7DQogICAgdmFyIHk7DQogICAgdmFyIF9fbW9kdWxlTmFtZSA9IGNvbnRleHRfMSAmJiBjb250ZXh0XzEuaWQ7DQogICAgZnVuY3Rpb24gZigpIHsNCiAgICAgICAgY29uc29sZS5sb2coeSk7DQogICAgfQ0KICAgIHJldHVybiB7DQogICAgICAgIHNldHRlcnM6IFtdLA0KICAgICAgICBleGVjdXRlOiBmdW5jdGlvbiAoKSB7DQogICAgICAgICAgICBpZiAoZmFsc2UpIHsNCiAgICAgICAgICAgICAgICB5ID0gMTsNCiAgICAgICAgICAgICAgICBleHBvcnRzXzEoInkiLCB5KTsNCiAgICAgICAgICAgIH0NCiAgICAgICAgfQ0KICAgIH07DQp9KTsNCg==",
+              "callback_utf8_sha256": "491e4fc95621d5e64d1dc542231db78eae08726408803436816622fe20948cc9",
+              "callback_utf8_bytes": 382,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "491e4fc95621d5e64d1dc542231db78eae08726408803436816622fe20948cc9",
+              "materialized_utf8_bytes": 382,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/topLevelVarHoistingSystem.ts"
+              ]
+            }
+          ],
+          "reported_diagnostics": [
+            {
+              "code": 5107,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Option 'module=System' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error."
+            }
+          ],
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 2,
+          "run_fingerprint_sha256": "3baa598c8bd20a416bbd8c6c43dc0579efdf8677e49ee58421ada9e5decc90dd"
+        }
+      ],
+      "rust_expectation": "two-deterministic-exact-runs",
+      "case_fingerprint_sha256": "114b2fc2f64fb535a1d2d67fba90833d574cfde4440b4428571577d1a4e35f02"
+    }
+  ],
+  "summary": {
+    "candidates": 6,
+    "compiler_candidates": 1,
+    "conformance_candidates": 5,
+    "admitted_cases": 5,
+    "deferred_cases": 1,
+    "diagnostic_deferred_output_control_cases": 0,
+    "source_deferred_cases": 1,
+    "no_emit_control_cases": 0,
+    "module_states": [
+      {
+        "value": "System(4)",
+        "cases": 6
+      }
+    ],
+    "dispositions": [
+      {
+        "value": "admitted-for-execution",
+        "cases": 5
+      },
+      {
+        "value": "deferred-to-slices",
+        "cases": 1
+      }
+    ],
+    "first_deferred_slices": [
+      {
+        "value": "H2.2a",
+        "cases": 1
+      }
+    ],
+    "typescript_runs": 12,
+    "deterministic_typescript_cases": 6,
+    "admitted_typescript_writes": 11,
+    "diagnostic_control_typescript_writes": 0,
+    "admitted_typescript_diagnostics": 5,
+    "unexecuted_candidates": 0,
+    "undispositioned_candidates": 0
+  },
+  "qualification_fingerprint_sha256": "d2fbc3e467f234ae7cc08f4e0c97234500b43dd6f649258db0c46ed9bc973e20"
+}

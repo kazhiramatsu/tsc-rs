@@ -1,0 +1,143 @@
+{
+  "schema": 1,
+  "phase": "H2.1d-system-owner-controls",
+  "status": "qualified",
+  "typescript": {
+    "version": "6.0.3",
+    "source_commit": "050880ce59e30b356b686bd3144efe24f875ebc8",
+    "bundle": {
+      "path": "vendor/typescript-6.0.3/lib/typescript.js",
+      "sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39"
+    },
+    "implementation": {
+      "path": "vendor/typescript-6.0.3/lib/_tsc.js",
+      "sha256": "1c59e77a54b186ec43fa7f3e0d3c4bb15ca5eb5ba43e96b1d3a267139eddd3e3"
+    }
+  },
+  "generator": {
+    "path": "crates/oracle/h2-1d-owner-controls.mjs",
+    "sha256": "1b2e2abdd44dc4cf394a55a3b90c28deae27d801576bf5597de71485fe31437b"
+  },
+  "contract": {
+    "path": ".github/ci/contracts/h2-1d-owner-controls.schema.json",
+    "sha256": "cc203640d70cc4427cd3dc2a9491a91b53a5c898308b61c4101d87d32d8c095d"
+  },
+  "controls": [
+    {
+      "control_id": "system-register-owner-closure",
+      "input": {
+        "current_directory": "/project",
+        "root": "/project/input.ts",
+        "files": [
+          {
+            "path": "/project/input.ts",
+            "emit_eligible": true,
+            "utf8_base64": "aW1wb3J0IGRlZiwgeyB2YWx1ZSBhcyByZW5hbWVkIH0gZnJvbSAiLi9kZXAiOwppbXBvcnQgKiBhcyBucyBmcm9tICIuL25zIjsKaW1wb3J0ICIuL3NpZGUiOwpleHBvcnQgeyByZW1vdGUgYXMgYWxpYXMgfSBmcm9tICIuL3JlbW90ZSI7CmV4cG9ydCAqIGZyb20gIi4vc3RhciI7CmV4cG9ydCBsZXQgY291bnRlciA9IGRlZiArIHJlbmFtZWQgKyBucy52YWx1ZTsKY291bnRlcisrOwpjb3VudGVyICs9IDI7CmV4cG9ydCBmdW5jdGlvbiBmbigpIHsgcmV0dXJuIGNvdW50ZXI7IH0KZXhwb3J0IGRlZmF1bHQgY2xhc3MgTmFtZWQge30KZXhwb3J0IGFzeW5jIGZ1bmN0aW9uIGxvYWQoKSB7IHJldHVybiBpbXBvcnQoIi4vbGF6eSIpOyB9CmV4cG9ydCBjb25zdCB1cmwgPSBpbXBvcnQubWV0YS51cmw7Cg==",
+            "utf8_sha256": "c21c3f4763731631c878f79c8d9168c79028359e126a0d8a481cbd23be6c9619",
+            "utf8_bytes": 397
+          },
+          {
+            "path": "/project/dep.ts",
+            "emit_eligible": false,
+            "utf8_base64": "ZXhwb3J0IGRlZmF1bHQgMTsKZXhwb3J0IGNvbnN0IHZhbHVlID0gMjsK",
+            "utf8_sha256": "522002a37954760744e8287f302a48d6d9add1a173267550ddf1c0b25d4a7e52",
+            "utf8_bytes": 42
+          },
+          {
+            "path": "/project/ns.ts",
+            "emit_eligible": false,
+            "utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gMzsK",
+            "utf8_sha256": "0c5dc25e91a87f3cd310be8a7a255e3278ac202fa73339db4b4aecb4120b4228",
+            "utf8_bytes": 24
+          },
+          {
+            "path": "/project/side.ts",
+            "emit_eligible": false,
+            "utf8_base64": "ZXhwb3J0IHt9Owo=",
+            "utf8_sha256": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881",
+            "utf8_bytes": 11
+          },
+          {
+            "path": "/project/remote.ts",
+            "emit_eligible": false,
+            "utf8_base64": "ZXhwb3J0IGNvbnN0IHJlbW90ZSA9IDQ7Cg==",
+            "utf8_sha256": "56e116f75667551639974ba422481831500e4eff2cf2d431bc4985dbd05291ac",
+            "utf8_bytes": 25
+          },
+          {
+            "path": "/project/star.ts",
+            "emit_eligible": false,
+            "utf8_base64": "ZXhwb3J0IGNvbnN0IGV4dHJhID0gNTsK",
+            "utf8_sha256": "b878457dce4ee4e57a83d1b6ecc7ab2b4c2f728c0554667c8cb2ea2df5e6130b",
+            "utf8_bytes": 24
+          },
+          {
+            "path": "/project/lazy.ts",
+            "emit_eligible": false,
+            "utf8_base64": "ZXhwb3J0IGNvbnN0IGxhenkgPSA2Owo=",
+            "utf8_sha256": "dd449afa889d57bd8ef72f534c9562c08ff1bdc64c2ce4248f140e24aa534a25",
+            "utf8_bytes": 23
+          }
+        ],
+        "module_resolutions": [
+          {
+            "origin": "/project/input.ts",
+            "specifier": "./dep",
+            "target": "/project/dep.ts"
+          },
+          {
+            "origin": "/project/input.ts",
+            "specifier": "./ns",
+            "target": "/project/ns.ts"
+          },
+          {
+            "origin": "/project/input.ts",
+            "specifier": "./side",
+            "target": "/project/side.ts"
+          },
+          {
+            "origin": "/project/input.ts",
+            "specifier": "./remote",
+            "target": "/project/remote.ts"
+          },
+          {
+            "origin": "/project/input.ts",
+            "specifier": "./star",
+            "target": "/project/star.ts"
+          },
+          {
+            "origin": "/project/input.ts",
+            "specifier": "./lazy",
+            "target": "/project/lazy.ts"
+          }
+        ],
+        "target": "ESNext(99)",
+        "module": "System(4)",
+        "ignore_deprecations": "6.0",
+        "es_module_interop": true
+      },
+      "runs": [
+        {
+          "module_state": "System(4)",
+          "module_value": 4,
+          "repetitions": 2,
+          "diagnostic_codes": [],
+          "output": {
+            "utf8_base64": "U3lzdGVtLnJlZ2lzdGVyKFsiLi9kZXAiLCAiLi9ucyIsICIuL3NpZGUiLCAiLi9yZW1vdGUiLCAiLi9zdGFyIl0sIGZ1bmN0aW9uIChleHBvcnRzXzEsIGNvbnRleHRfMSkgewogICAgInVzZSBzdHJpY3QiOwogICAgdmFyIGRlcF8xLCBucywgY291bnRlciwgTmFtZWQsIHVybDsKICAgIHZhciBfX21vZHVsZU5hbWUgPSBjb250ZXh0XzEgJiYgY29udGV4dF8xLmlkOwogICAgZnVuY3Rpb24gZm4oKSB7IHJldHVybiBjb3VudGVyOyB9CiAgICBleHBvcnRzXzEoImZuIiwgZm4pOwogICAgYXN5bmMgZnVuY3Rpb24gbG9hZCgpIHsgcmV0dXJuIGNvbnRleHRfMS5pbXBvcnQoIi4vbGF6eSIpOyB9CiAgICBleHBvcnRzXzEoImxvYWQiLCBsb2FkKTsKICAgIHZhciBleHBvcnRlZE5hbWVzXzEgPSB7CiAgICAgICAgImFsaWFzIjogdHJ1ZSwKICAgICAgICAiY291bnRlciI6IHRydWUsCiAgICAgICAgInVybCI6IHRydWUsCiAgICAgICAgImZuIjogdHJ1ZSwKICAgICAgICAibG9hZCI6IHRydWUKICAgIH07CiAgICBmdW5jdGlvbiBleHBvcnRTdGFyXzEobSkgewogICAgICAgIHZhciBleHBvcnRzID0ge307CiAgICAgICAgZm9yICh2YXIgbiBpbiBtKSB7CiAgICAgICAgICAgIGlmIChuICE9PSAiZGVmYXVsdCIgJiYgIWV4cG9ydGVkTmFtZXNfMS5oYXNPd25Qcm9wZXJ0eShuKSkgZXhwb3J0c1tuXSA9IG1bbl07CiAgICAgICAgfQogICAgICAgIGV4cG9ydHNfMShleHBvcnRzKTsKICAgIH0KICAgIHJldHVybiB7CiAgICAgICAgc2V0dGVyczogWwogICAgICAgICAgICBmdW5jdGlvbiAoZGVwXzFfMSkgewogICAgICAgICAgICAgICAgZGVwXzEgPSBkZXBfMV8xOwogICAgICAgICAgICB9LAogICAgICAgICAgICBmdW5jdGlvbiAobnNfMSkgewogICAgICAgICAgICAgICAgbnMgPSBuc18xOwogICAgICAgICAgICB9LAogICAgICAgICAgICBmdW5jdGlvbiAoXzEpIHsKICAgICAgICAgICAgfSwKICAgICAgICAgICAgZnVuY3Rpb24gKHJlbW90ZV8xXzEpIHsKICAgICAgICAgICAgICAgIGV4cG9ydHNfMSh7CiAgICAgICAgICAgICAgICAgICAgImFsaWFzIjogcmVtb3RlXzFfMVsicmVtb3RlIl0KICAgICAgICAgICAgICAgIH0pOwogICAgICAgICAgICB9LAogICAgICAgICAgICBmdW5jdGlvbiAoc3Rhcl8xXzEpIHsKICAgICAgICAgICAgICAgIGV4cG9ydFN0YXJfMShzdGFyXzFfMSk7CiAgICAgICAgICAgIH0KICAgICAgICBdLAogICAgICAgIGV4ZWN1dGU6IGZ1bmN0aW9uICgpIHsKICAgICAgICAgICAgZXhwb3J0c18xKCJjb3VudGVyIiwgY291bnRlciA9IGRlcF8xLmRlZmF1bHQgKyBkZXBfMS52YWx1ZSArIG5zLnZhbHVlKTsKICAgICAgICAgICAgZXhwb3J0c18xKCJjb3VudGVyIiwgKGNvdW50ZXIrKywgY291bnRlcikpOwogICAgICAgICAgICBleHBvcnRzXzEoImNvdW50ZXIiLCBjb3VudGVyICs9IDIpOwogICAgICAgICAgICBOYW1lZCA9IGNsYXNzIE5hbWVkIHsKICAgICAgICAgICAgfTsKICAgICAgICAgICAgZXhwb3J0c18xKCJkZWZhdWx0IiwgTmFtZWQpOwogICAgICAgICAgICBleHBvcnRzXzEoInVybCIsIHVybCA9IGNvbnRleHRfMS5tZXRhLnVybCk7CiAgICAgICAgfQogICAgfTsKfSk7Cg==",
+            "utf8_sha256": "46db63551afb70e9c46c1ed33d2bec3ec72b9ce944427f11c8c551efccec6393",
+            "utf8_bytes": 1591
+          },
+          "run_fingerprint_sha256": "bbb65a5d0c7c7195672b24b43ccc413a52043715b628ec27c86b38801fd1f823"
+        }
+      ],
+      "control_fingerprint_sha256": "ceb875cc68f80d5945640d349aecdb667b1857a9db42506875b01226db14b864"
+    }
+  ],
+  "summary": {
+    "controls": 1,
+    "exact_outputs": 1,
+    "typescript_runs": 2,
+    "diagnostics": 0
+  },
+  "controls_fingerprint_sha256": "56181c4ffb0dd1b84c74c40204fe9c617ec8ccd676e1df4cfe2f167002b9c8d2"
+}

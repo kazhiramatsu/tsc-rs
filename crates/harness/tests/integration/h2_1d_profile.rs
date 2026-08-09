@@ -1,17 +1,19 @@
 use std::collections::BTreeSet;
+use std::fs;
+use std::path::{Path, PathBuf};
 
 use serde_json::{Map, Value};
 use sha2::{Digest, Sha256};
 
 const RECORDED: &[u8] = include_bytes!(concat!(
     env!("CARGO_MANIFEST_DIR"),
-    "/../../ratchets/h2-1c-profile.v1.json"
+    "/../../ratchets/h2-1d-profile.v1.json"
 ));
 const CONTRACT: &[u8] = include_bytes!(concat!(
     env!("CARGO_MANIFEST_DIR"),
-    "/../../.github/ci/contracts/h2-1c-profile.schema.json"
+    "/../../.github/ci/contracts/h2-1d-profile.schema.json"
 ));
-const RUNTIME_INPUTS: [&str; 26] = [
+const RUNTIME_INPUTS: [&str; 29] = [
     "crates/checker/src/emit.rs",
     "crates/checker/src/modules.rs",
     "crates/compiler/src/lib.rs",
@@ -21,6 +23,7 @@ const RUNTIME_INPUTS: [&str; 26] = [
     "crates/diagnostics/src/gen.rs",
     "crates/emitter/src/activity.rs",
     "crates/emitter/src/builtins.rs",
+    "crates/emitter/src/builtins/system.rs",
     "crates/emitter/src/execute.rs",
     "crates/emitter/src/factory.rs",
     "crates/emitter/src/host.rs",
@@ -36,9 +39,18 @@ const RUNTIME_INPUTS: [&str; 26] = [
     "crates/syntax/tests/unit/incremental/tests.rs",
     "crates/syntax/tests/unit/parser/tests.rs",
     "crates/xtask/src/h2_1c_acceptance.rs",
+    "crates/xtask/src/h2_1d_acceptance.rs",
     "crates/xtask/src/main.rs",
     "crates/xtask/tests/unit/h2_1c_acceptance/tests.rs",
+    "crates/xtask/tests/unit/h2_1d_acceptance/tests.rs",
 ];
+
+fn workspace() -> PathBuf {
+    Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../..")
+        .canonicalize()
+        .expect("canonical workspace")
+}
 
 fn sha256(bytes: impl AsRef<[u8]>) -> String {
     format!("{:x}", Sha256::digest(bytes.as_ref()))
@@ -90,14 +102,12 @@ fn canonical(value: &Value) -> String {
     }
 }
 
-fn assert_recorded_path_hash(record: &Value, expected_path: &str) {
+fn assert_path_hash(workspace: &Path, record: &Value, expected_path: &str) {
     assert_eq!(record["path"], expected_path);
-    assert_eq!(string(&record["sha256"], "path hash").len(), 64);
-}
-
-fn assert_recorded_exact(record: &Value, expected_path: &str, expected_hash: &str) {
-    assert_recorded_path_hash(record, expected_path);
-    assert_eq!(record["sha256"], expected_hash);
+    assert_eq!(
+        string(&record["sha256"], "path hash"),
+        sha256(fs::read(workspace.join(expected_path)).expect("read content-addressed input"))
+    );
 }
 
 fn assert_strict_object_schemas(value: &Value, path: &str) {
@@ -124,83 +134,80 @@ fn assert_strict_object_schemas(value: &Value, path: &str) {
 }
 
 #[test]
-fn h2_1c_profile_is_content_addressed_and_closes_the_transition() {
-    let artifact: Value = serde_json::from_slice(RECORDED).expect("H2.1c profile JSON");
-    assert_eq!(
-        sha256(RECORDED),
-        "54650263555d944047e5d58bbd42a16d9e897589024f08cf5f09d0f6cb24afe6"
-    );
+fn h2_1d_profile_is_content_addressed_and_closes_the_transition() {
+    let workspace = workspace();
+    let artifact: Value = serde_json::from_slice(RECORDED).expect("H2.1d profile JSON");
     assert_eq!(artifact["schema"], 1);
     assert_eq!(artifact["kind"], "h2-runtime-profile");
     assert_eq!(artifact["status"], "qualified");
-    assert_eq!(artifact["phase"], "H2.1c");
+    assert_eq!(artifact["phase"], "H2.1d");
     assert_eq!(
-        artifact["origin"]["trusted_h2_1b_merge"],
-        "53a5509cc6a3f295744a7286a0bbc4b7c6096fcb"
+        artifact["origin"]["trusted_h2_1c_merge"],
+        "533caca4df1ebcf9e9f2ec5fd13b9c73a3ee2786"
     );
-    assert_eq!(artifact["transition"]["completed_slice"], "H2.1c");
-    assert_eq!(artifact["transition"]["next_slice"], "H2.1d");
+    assert_eq!(artifact["transition"]["completed_slice"], "H2.1d");
+    assert_eq!(artifact["transition"]["next_slice"], "H2.1e");
     assert_eq!(
         artifact["transition"]["active_runtime_slices"],
-        serde_json::json!(["H2.1a", "H2.1b", "H2.1c"])
+        serde_json::json!(["H2.1a", "H2.1b", "H2.1c", "H2.1d"])
     );
-    assert_eq!(artifact["admitted_profile"]["exact_cases"], 257);
-    assert_eq!(artifact["admitted_profile"]["h2_1c_exact_cases"], 6);
+    assert_eq!(artifact["admitted_profile"]["exact_cases"], 262);
+    assert_eq!(artifact["admitted_profile"]["h2_1d_exact_cases"], 5);
     assert_eq!(
         artifact["admitted_profile"]["exact_reported_diagnostics"],
-        507
+        512
     );
-    assert_eq!(artifact["admitted_profile"]["exact_writes"], 278);
-    assert_eq!(artifact["admitted_profile"]["source_deferred_cases"], 33);
-    assert_eq!(artifact["summary"]["h2_1c_executed_candidates"], 8);
+    assert_eq!(artifact["admitted_profile"]["exact_writes"], 289);
+    assert_eq!(artifact["admitted_profile"]["source_deferred_cases"], 28);
+    assert_eq!(artifact["summary"]["h2_1d_executed_candidates"], 6);
     assert_eq!(artifact["summary"]["historical_artifacts_reinterpreted"], 0);
 
-    assert_recorded_exact(
+    assert_path_hash(
+        &workspace,
         &artifact["generator"],
-        "crates/oracle/h2-1c-profile.mjs",
-        "b5584b51da4aac1e47cb6926001e8a73a16cf7a3c07b7eea0ae5797481ca2764",
+        "crates/oracle/h2-1d-profile.mjs",
     );
-    assert_recorded_exact(
+    assert_path_hash(
+        &workspace,
         &artifact["contract"],
-        ".github/ci/contracts/h2-1c-profile.schema.json",
-        "23fad428ca467c2af1d821081dd58e26d3d637125e5d9a1295af3e7b9f6f4cdd",
+        ".github/ci/contracts/h2-1d-profile.schema.json",
     );
-    assert_recorded_exact(
+    assert_path_hash(
+        &workspace,
         &artifact["qualification"],
-        "ratchets/h2-1c-qualification.v1.json",
-        "97e5200a9e1d1c017246780aeee69ab52e310c1515be2c1eb9f1d09877407605",
+        "ratchets/h2-1d-qualification.v1.json",
     );
-    assert_recorded_exact(
+    assert_path_hash(
+        &workspace,
         &artifact["evidence"]["owner_controls"]["artifact"],
-        "ratchets/h2-1c-owner-controls.v1.json",
-        "6aa502734a38a0905d5e996dd3d1a61ce20617c9d1ffa4f7b72d689fd95596de",
+        "ratchets/h2-1d-owner-controls.v1.json",
     );
-    assert_recorded_exact(
+    assert_path_hash(
+        &workspace,
         &artifact["evidence"]["owner_controls"]["generator"],
-        "crates/oracle/h2-1c-owner-controls.mjs",
-        "d6e7a70b8ec85a82b0f68c7884bdf9c2b15b0f41d0dfffa82cfca2f6a0ed0362",
+        "crates/oracle/h2-1d-owner-controls.mjs",
     );
-    assert_recorded_exact(
+    assert_path_hash(
+        &workspace,
         &artifact["evidence"]["owner_controls"]["contract"],
-        ".github/ci/contracts/h2-1c-owner-controls.schema.json",
-        "9c25aade0699776dcf7d9d1d7ad42389e6c8df20d978a219247e6ebda01425bc",
+        ".github/ci/contracts/h2-1d-owner-controls.schema.json",
     );
     let inputs = array(&artifact["runtime_inputs"], "runtime inputs");
     assert_eq!(inputs.len(), RUNTIME_INPUTS.len());
     for (record, expected) in inputs.iter().zip(RUNTIME_INPUTS) {
-        assert_recorded_path_hash(record, expected);
+        assert_path_hash(&workspace, record, expected);
     }
 
     for (field, expected_path, expected_hash) in [
         (
             "profile",
-            "ratchets/h2-1b-profile.v1.json",
-            "711a1f1d325cc53ec97c79aff7169d1ce4b6e512bb5624bc7a67a53121c6146f",
+            "ratchets/h2-1c-profile.v1.json",
+            "54650263555d944047e5d58bbd42a16d9e897589024f08cf5f09d0f6cb24afe6",
         ),
         (
             "qualification",
-            "ratchets/h2-1b-qualification.v1.json",
-            "ec6429d753ce32a2709c91533ee14fbe52224c80852ed82cd9676ed98bc07f03",
+            "ratchets/h2-1c-qualification.v1.json",
+            "97e5200a9e1d1c017246780aeee69ab52e310c1515be2c1eb9f1d09877407605",
         ),
     ] {
         let record = &artifact["origin"]["historical"][field];
@@ -221,8 +228,8 @@ fn h2_1c_profile_is_content_addressed_and_closes_the_transition() {
 }
 
 #[test]
-fn h2_1c_profile_schema_is_strict_at_every_object_boundary() {
-    let schema: Value = serde_json::from_slice(CONTRACT).expect("H2.1c profile schema JSON");
+fn h2_1d_profile_schema_is_strict_at_every_object_boundary() {
+    let schema: Value = serde_json::from_slice(CONTRACT).expect("H2.1d profile schema JSON");
     assert_eq!(
         schema["$schema"],
         "https://json-schema.org/draft/2020-12/schema"
@@ -232,7 +239,7 @@ fn h2_1c_profile_schema_is_strict_at_every_object_boundary() {
         .iter()
         .map(|value| string(value, "required field"))
         .collect::<BTreeSet<_>>();
-    let artifact: Value = serde_json::from_slice(RECORDED).expect("H2.1c profile JSON");
+    let artifact: Value = serde_json::from_slice(RECORDED).expect("H2.1d profile JSON");
     let artifact_keys = object(&artifact, "artifact")
         .keys()
         .map(String::as_str)
