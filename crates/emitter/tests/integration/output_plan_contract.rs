@@ -275,6 +275,40 @@ fn case_insensitive_planning_preserves_callback_visible_source_spelling() {
 }
 
 #[test]
+fn h2_3a_javascript_families_keep_their_runtime_extensions_when_relocated() {
+    let host = TestEmitHost::new(
+        CompilerOptions {
+            allow_js: true,
+            out_dir: Some("/project/dist".to_owned()),
+            ..CompilerOptions::default()
+        },
+        "/project/src",
+        true,
+        &[
+            ("/project/src/plain.js", true),
+            ("/project/src/module.mjs", true),
+            ("/project/src/common.cjs", true),
+        ],
+    );
+
+    let preflight = preflight_emit(&host, EmitSelection::WholeProgram).unwrap();
+    assert_eq!(
+        preflight
+            .plan()
+            .units()
+            .iter()
+            .map(|unit| unit.paths().javascript_path().unwrap().to_path_buf())
+            .collect::<Vec<_>>(),
+        [
+            PathBuf::from("/project/dist/plain.js"),
+            PathBuf::from("/project/dist/module.mjs"),
+            PathBuf::from("/project/dist/common.cjs"),
+        ]
+    );
+    assert!(preflight.diagnostics().is_empty());
+}
+
+#[test]
 fn overwrite_and_case_aware_duplicate_outputs_are_blocked_before_writes() {
     let overwrite = TestEmitHost::new(
         CompilerOptions::default(),

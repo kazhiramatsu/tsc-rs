@@ -8,7 +8,10 @@ use tsc_emitter::{
     UnsupportedTransformFeature,
 };
 use tsc_program::SourceFileId;
-use tsc_syntax::{for_each_child, parse_source_file, NodeData, SyntaxKind};
+use tsc_syntax::{
+    for_each_child, parse_source_file, JSDocParsingMode, LanguageVariant, NodeData, ParseOptions,
+    SyntaxKind,
+};
 use tsc_types::{CompilerOptions, ScriptTarget};
 
 const EMIT_ORACLE: &[u8] = include_bytes!(concat!(
@@ -350,5 +353,49 @@ fn runtime_in_operator_remains_a_javascript_token() {
             &mut DisabledSourceMapRecorder,
         )
         .expect("identity JavaScript print");
+    assert_eq!(printed.text(), text);
+}
+
+#[test]
+fn h2_3a_javascript_print_preserves_shebang_directive_and_attached_comments() {
+    let text = concat!(
+        "#!/usr/bin/env node\n",
+        "\"use strict\";\n",
+        "/** retained JSDoc */\n",
+        "// retained leading comment\n",
+        "const answer = 42; // retained trailing comment\n",
+    );
+    let parsed = parse_source_file(
+        "input.js",
+        text,
+        ParseOptions {
+            script_target: ScriptTarget::ES_NEXT,
+            language_variant: LanguageVariant::Jsx,
+            javascript_file: true,
+            js_doc_parsing_mode: JSDocParsingMode::ParseAll,
+            ..ParseOptions::default()
+        },
+        None,
+    );
+    let resolver = UnavailableEmitResolver;
+    let mut arena = TransformArena::new();
+    let source = arena.add_source(&parsed, Some(SourceFileId::from_raw(0)));
+    let mut options = bootstrap_options();
+    options.allow_js = true;
+    let mut result = transform_nodes(
+        arena,
+        vec![TransformRoot::SourceFile(source)],
+        get_script_transformers(&options, &resolver).unwrap(),
+        false,
+    )
+    .expect("H2.3a JavaScript transform");
+    let printed = create_printer(PrinterOptions::new(NewLineKind::LineFeed))
+        .print(
+            &mut result,
+            PrintRequest::SourceFile(source),
+            &mut DisabledSourceMapRecorder,
+        )
+        .expect("H2.3a JavaScript print");
+
     assert_eq!(printed.text(), text);
 }

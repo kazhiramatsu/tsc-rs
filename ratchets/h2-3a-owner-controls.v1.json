@@ -1,0 +1,263 @@
+{
+  "schema": 1,
+  "phase": "H2.3a-javascript-source-owner-controls",
+  "status": "qualified",
+  "typescript": {
+    "version": "6.0.3",
+    "source_commit": "050880ce59e30b356b686bd3144efe24f875ebc8",
+    "bundle": {
+      "path": "vendor/typescript-6.0.3/lib/typescript.js",
+      "sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39"
+    },
+    "implementation": {
+      "path": "vendor/typescript-6.0.3/lib/_tsc.js",
+      "sha256": "1c59e77a54b186ec43fa7f3e0d3c4bb15ca5eb5ba43e96b1d3a267139eddd3e3"
+    }
+  },
+  "generator": {
+    "path": "crates/oracle/h2-3a-owner-controls.mjs",
+    "sha256": "535fc11cd834a061ccc28b914e423ec984d484dd3411a2d6d985ec61f6674beb"
+  },
+  "contract": {
+    "path": ".github/ci/contracts/h2-3a-owner-controls.schema.json",
+    "sha256": "ea587f45ae303e20dd2f6ca8e630bbe8c8f8250984e38861be36535b6b73e4d7"
+  },
+  "controls": [
+    {
+      "control_id": "javascript-family-relocation-and-checking",
+      "input": {
+        "current_directory": "/project",
+        "roots": [
+          "/project/plain.js",
+          "/project/module.mjs",
+          "/project/common.cjs"
+        ],
+        "files": [
+          {
+            "path": "/project/plain.js",
+            "root": true,
+            "utf8_base64": "IyEvdXNyL2Jpbi9lbnYgbm9kZQoidXNlIHN0cmljdCI7Ci8qKiBAdHlwZSB7bnVtYmVyfSAqLwovLyByZXRhaW5lZCBsZWFkaW5nIGNvbW1lbnQKY29uc3QgYW5zd2VyID0gNDI7IC8vIHJldGFpbmVkIHRyYWlsaW5nIGNvbW1lbnQKZnVuY3Rpb24gY2hlY2tlZCgpIHsgcmV0dXJuIDUgfHwgdHJ1ZTsgfQo=",
+            "utf8_sha256": "f2291d541c813797356d4dddcb9e8054253f8e8e6e677109554ee6ec62525fb7",
+            "utf8_bytes": 173
+          },
+          {
+            "path": "/project/module.mjs",
+            "root": true,
+            "utf8_base64": "ZXhwb3J0IGNvbnN0IG1vZHVsZVZhbHVlID0gMTsK",
+            "utf8_sha256": "b522f09d8f50528d70ebf04d3868302392d5efe6ed00241d37589623295fcbc4",
+            "utf8_bytes": 30
+          },
+          {
+            "path": "/project/common.cjs",
+            "root": true,
+            "utf8_base64": "bW9kdWxlLmV4cG9ydHMgPSB7IHZhbHVlOiAyIH07Cg==",
+            "utf8_sha256": "fb3c701e50c2523013ef5af8f503f30fa30fb4ae42cf7ce848e0b29f44f2b628",
+            "utf8_bytes": 31
+          }
+        ],
+        "target": "ESNext(99)",
+        "module": "Preserve(200)",
+        "out_dir": "/project/dist",
+        "allow_js": true,
+        "check_js_states": [
+          "absent",
+          "false",
+          "true"
+        ],
+        "new_line": "LF(1)",
+        "ignore_deprecations": "6.0"
+      },
+      "variants": [
+        {
+          "check_js_state": "absent",
+          "repetitions": 2,
+          "observation": {
+            "reported_diagnostics": [],
+            "emit_diagnostics": [],
+            "emit_skipped": false,
+            "writes": [
+              {
+                "index": 0,
+                "path": "/project/dist/plain.js",
+                "kind": "javascript",
+                "callback_utf8_base64": "IyEvdXNyL2Jpbi9lbnYgbm9kZQoidXNlIHN0cmljdCI7Ci8qKiBAdHlwZSB7bnVtYmVyfSAqLwovLyByZXRhaW5lZCBsZWFkaW5nIGNvbW1lbnQKY29uc3QgYW5zd2VyID0gNDI7IC8vIHJldGFpbmVkIHRyYWlsaW5nIGNvbW1lbnQKZnVuY3Rpb24gY2hlY2tlZCgpIHsgcmV0dXJuIDUgfHwgdHJ1ZTsgfQo=",
+                "callback_utf8_sha256": "f2291d541c813797356d4dddcb9e8054253f8e8e6e677109554ee6ec62525fb7",
+                "callback_utf8_bytes": 173,
+                "write_byte_order_mark": false,
+                "materialized_utf8_sha256": "f2291d541c813797356d4dddcb9e8054253f8e8e6e677109554ee6ec62525fb7",
+                "materialized_utf8_bytes": 173,
+                "on_error_callback_present": true,
+                "source_files": [
+                  "/project/plain.js"
+                ]
+              },
+              {
+                "index": 1,
+                "path": "/project/dist/module.mjs",
+                "kind": "mjs",
+                "callback_utf8_base64": "ZXhwb3J0IGNvbnN0IG1vZHVsZVZhbHVlID0gMTsK",
+                "callback_utf8_sha256": "b522f09d8f50528d70ebf04d3868302392d5efe6ed00241d37589623295fcbc4",
+                "callback_utf8_bytes": 30,
+                "write_byte_order_mark": false,
+                "materialized_utf8_sha256": "b522f09d8f50528d70ebf04d3868302392d5efe6ed00241d37589623295fcbc4",
+                "materialized_utf8_bytes": 30,
+                "on_error_callback_present": true,
+                "source_files": [
+                  "/project/module.mjs"
+                ]
+              },
+              {
+                "index": 2,
+                "path": "/project/dist/common.cjs",
+                "kind": "cjs",
+                "callback_utf8_base64": "bW9kdWxlLmV4cG9ydHMgPSB7IHZhbHVlOiAyIH07Cg==",
+                "callback_utf8_sha256": "fb3c701e50c2523013ef5af8f503f30fa30fb4ae42cf7ce848e0b29f44f2b628",
+                "callback_utf8_bytes": 31,
+                "write_byte_order_mark": false,
+                "materialized_utf8_sha256": "fb3c701e50c2523013ef5af8f503f30fa30fb4ae42cf7ce848e0b29f44f2b628",
+                "materialized_utf8_bytes": 31,
+                "on_error_callback_present": true,
+                "source_files": [
+                  "/project/common.cjs"
+                ]
+              }
+            ],
+            "run_fingerprint_sha256": "48297d5f8a3e33a61d3372c305568d89132f517d65ce0af290d62baf5c47b373"
+          }
+        },
+        {
+          "check_js_state": "false",
+          "repetitions": 2,
+          "observation": {
+            "reported_diagnostics": [],
+            "emit_diagnostics": [],
+            "emit_skipped": false,
+            "writes": [
+              {
+                "index": 0,
+                "path": "/project/dist/plain.js",
+                "kind": "javascript",
+                "callback_utf8_base64": "IyEvdXNyL2Jpbi9lbnYgbm9kZQoidXNlIHN0cmljdCI7Ci8qKiBAdHlwZSB7bnVtYmVyfSAqLwovLyByZXRhaW5lZCBsZWFkaW5nIGNvbW1lbnQKY29uc3QgYW5zd2VyID0gNDI7IC8vIHJldGFpbmVkIHRyYWlsaW5nIGNvbW1lbnQKZnVuY3Rpb24gY2hlY2tlZCgpIHsgcmV0dXJuIDUgfHwgdHJ1ZTsgfQo=",
+                "callback_utf8_sha256": "f2291d541c813797356d4dddcb9e8054253f8e8e6e677109554ee6ec62525fb7",
+                "callback_utf8_bytes": 173,
+                "write_byte_order_mark": false,
+                "materialized_utf8_sha256": "f2291d541c813797356d4dddcb9e8054253f8e8e6e677109554ee6ec62525fb7",
+                "materialized_utf8_bytes": 173,
+                "on_error_callback_present": true,
+                "source_files": [
+                  "/project/plain.js"
+                ]
+              },
+              {
+                "index": 1,
+                "path": "/project/dist/module.mjs",
+                "kind": "mjs",
+                "callback_utf8_base64": "ZXhwb3J0IGNvbnN0IG1vZHVsZVZhbHVlID0gMTsK",
+                "callback_utf8_sha256": "b522f09d8f50528d70ebf04d3868302392d5efe6ed00241d37589623295fcbc4",
+                "callback_utf8_bytes": 30,
+                "write_byte_order_mark": false,
+                "materialized_utf8_sha256": "b522f09d8f50528d70ebf04d3868302392d5efe6ed00241d37589623295fcbc4",
+                "materialized_utf8_bytes": 30,
+                "on_error_callback_present": true,
+                "source_files": [
+                  "/project/module.mjs"
+                ]
+              },
+              {
+                "index": 2,
+                "path": "/project/dist/common.cjs",
+                "kind": "cjs",
+                "callback_utf8_base64": "bW9kdWxlLmV4cG9ydHMgPSB7IHZhbHVlOiAyIH07Cg==",
+                "callback_utf8_sha256": "fb3c701e50c2523013ef5af8f503f30fa30fb4ae42cf7ce848e0b29f44f2b628",
+                "callback_utf8_bytes": 31,
+                "write_byte_order_mark": false,
+                "materialized_utf8_sha256": "fb3c701e50c2523013ef5af8f503f30fa30fb4ae42cf7ce848e0b29f44f2b628",
+                "materialized_utf8_bytes": 31,
+                "on_error_callback_present": true,
+                "source_files": [
+                  "/project/common.cjs"
+                ]
+              }
+            ],
+            "run_fingerprint_sha256": "48297d5f8a3e33a61d3372c305568d89132f517d65ce0af290d62baf5c47b373"
+          }
+        },
+        {
+          "check_js_state": "true",
+          "repetitions": 2,
+          "observation": {
+            "reported_diagnostics": [
+              {
+                "code": 2872,
+                "category": "Error",
+                "file": "/project/plain.js",
+                "start": 160,
+                "length": 1,
+                "message": "This kind of expression is always truthy."
+              }
+            ],
+            "emit_diagnostics": [],
+            "emit_skipped": false,
+            "writes": [
+              {
+                "index": 0,
+                "path": "/project/dist/plain.js",
+                "kind": "javascript",
+                "callback_utf8_base64": "IyEvdXNyL2Jpbi9lbnYgbm9kZQoidXNlIHN0cmljdCI7Ci8qKiBAdHlwZSB7bnVtYmVyfSAqLwovLyByZXRhaW5lZCBsZWFkaW5nIGNvbW1lbnQKY29uc3QgYW5zd2VyID0gNDI7IC8vIHJldGFpbmVkIHRyYWlsaW5nIGNvbW1lbnQKZnVuY3Rpb24gY2hlY2tlZCgpIHsgcmV0dXJuIDUgfHwgdHJ1ZTsgfQo=",
+                "callback_utf8_sha256": "f2291d541c813797356d4dddcb9e8054253f8e8e6e677109554ee6ec62525fb7",
+                "callback_utf8_bytes": 173,
+                "write_byte_order_mark": false,
+                "materialized_utf8_sha256": "f2291d541c813797356d4dddcb9e8054253f8e8e6e677109554ee6ec62525fb7",
+                "materialized_utf8_bytes": 173,
+                "on_error_callback_present": true,
+                "source_files": [
+                  "/project/plain.js"
+                ]
+              },
+              {
+                "index": 1,
+                "path": "/project/dist/module.mjs",
+                "kind": "mjs",
+                "callback_utf8_base64": "ZXhwb3J0IGNvbnN0IG1vZHVsZVZhbHVlID0gMTsK",
+                "callback_utf8_sha256": "b522f09d8f50528d70ebf04d3868302392d5efe6ed00241d37589623295fcbc4",
+                "callback_utf8_bytes": 30,
+                "write_byte_order_mark": false,
+                "materialized_utf8_sha256": "b522f09d8f50528d70ebf04d3868302392d5efe6ed00241d37589623295fcbc4",
+                "materialized_utf8_bytes": 30,
+                "on_error_callback_present": true,
+                "source_files": [
+                  "/project/module.mjs"
+                ]
+              },
+              {
+                "index": 2,
+                "path": "/project/dist/common.cjs",
+                "kind": "cjs",
+                "callback_utf8_base64": "bW9kdWxlLmV4cG9ydHMgPSB7IHZhbHVlOiAyIH07Cg==",
+                "callback_utf8_sha256": "fb3c701e50c2523013ef5af8f503f30fa30fb4ae42cf7ce848e0b29f44f2b628",
+                "callback_utf8_bytes": 31,
+                "write_byte_order_mark": false,
+                "materialized_utf8_sha256": "fb3c701e50c2523013ef5af8f503f30fa30fb4ae42cf7ce848e0b29f44f2b628",
+                "materialized_utf8_bytes": 31,
+                "on_error_callback_present": true,
+                "source_files": [
+                  "/project/common.cjs"
+                ]
+              }
+            ],
+            "run_fingerprint_sha256": "a6d1ebc0fe14d728f08bafa072ee4d49412d571f441b58ea252b22ae0e8c5d98"
+          }
+        }
+      ],
+      "control_fingerprint_sha256": "0aa9799d6a0c419b4c83cd73a5228264f8037804b982ad96308b27736ca1336f"
+    }
+  ],
+  "summary": {
+    "controls": 1,
+    "variants": 3,
+    "exact_outputs": 9,
+    "typescript_runs": 6,
+    "reported_diagnostics": 1
+  },
+  "controls_fingerprint_sha256": "2d754d74961137c50891b6f22a625522b7de9e41decd5064b0ee64db16693368"
+}

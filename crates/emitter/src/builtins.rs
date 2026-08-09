@@ -79,7 +79,7 @@ pub fn get_script_transformers<'resolver>(
     options: &CompilerOptions,
     resolver: &'resolver dyn EmitResolver,
 ) -> Result<Vec<Box<dyn Transformer + 'resolver>>, TransformError> {
-    let mut activity = H2ActivityCanary::h2_2d_profile();
+    let mut activity = H2ActivityCanary::h2_3a_profile();
     get_script_transformers_with_optional_host(options, resolver, None, &mut activity)
 }
 

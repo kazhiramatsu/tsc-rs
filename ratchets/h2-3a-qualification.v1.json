@@ -1,0 +1,447 @@
+{
+  "schema": 1,
+  "status": "qualified-typescript-oracle",
+  "phase": "H2.3a-javascript-source-output",
+  "typescript": {
+    "version": "6.0.3",
+    "source_commit": "050880ce59e30b356b686bd3144efe24f875ebc8",
+    "bundle": {
+      "path": "vendor/typescript-6.0.3/lib/typescript.js",
+      "sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39"
+    },
+    "implementation": {
+      "path": "vendor/typescript-6.0.3/lib/_tsc.js",
+      "sha256": "1c59e77a54b186ec43fa7f3e0d3c4bb15ca5eb5ba43e96b1d3a267139eddd3e3"
+    }
+  },
+  "generator": {
+    "path": "crates/oracle/h2-3a-qualification.mjs",
+    "sha256": "2b0381f53fe62c18ad77c11bfeea785bb234d6709ab41095207646993e0786cc"
+  },
+  "contract": {
+    "path": ".github/ci/contracts/h2-3a-qualification.schema.json",
+    "sha256": "81644212fe112a9f721f8073aacdd3ab78938a2d893a0191c719b1601daeb48e"
+  },
+  "origin": {
+    "trusted_base_commit": "03bbbe9dde5df1e5491a8a0568998fa2865600b5",
+    "h2_2d_profile": {
+      "path": "ratchets/h2-2d-profile.v1.json",
+      "sha256": "3d7f2e8589abf3aaf3f8367baf84560eca28dfeb9853cf7a7cf2bcff48a71660"
+    }
+  },
+  "inputs": {
+    "compiler_classification": {
+      "path": "vendor/typescript-6.0.3/compiler-profile-classification.v1.json",
+      "sha256": "3c3cbcb3c29a5254c145dc2665ca21683a1bd94f5271841320f061e82b614603"
+    },
+    "conformance_classification": {
+      "path": "vendor/typescript-6.0.3/conformance-profile-classification.v1.json",
+      "sha256": "d54b51d44da91836ad1b7be3be4b7de19c6892e6cb1fe9605fda06cdda5a67eb"
+    },
+    "compiler_expansion": {
+      "path": "vendor/typescript-6.0.3/test-suite-expansion.v1.json",
+      "sha256": "9c6e991103b571f7a8800dc5e1ef66088017689f3769de8fcdb408b2dc125188"
+    },
+    "conformance_expansion": {
+      "path": "vendor/typescript-6.0.3/conformance-suite-expansion.v1.json",
+      "sha256": "924d4007b3ac93a3ee57032ea6089b649bab2902e30ee64cff02f4c9404b7bbd"
+    },
+    "owner_inventory": {
+      "path": "ratchets/h2-owner-inventory.v1.json",
+      "sha256": "1f3d666d107247bef7b5e18d6e9506ff51d281277c136bf70112a863b6dfa98d"
+    },
+    "candidate_dispositions": {
+      "path": "ratchets/h2-candidate-dispositions.v1.json",
+      "sha256": "6930d377041d755579e6dbcc1f5551ba84b8ebac29535e4b05e46b386e29b53a"
+    }
+  },
+  "execution_contract": {
+    "source_reachability": "fixture VFS roots plus module-resolved fixture dependencies in a vendored TypeScript Program",
+    "module_selection": "Program.getEmitModuleFormatOfFile for every reached fixture SourceFile",
+    "admission": "the dependency-closed compiler/conformance row has effective allowJs, target ESNext, only .js/.ts emit sources, no parse diagnostics, AST depth <= 256, reaches H2.3a JavaScript source/output routing and no later transform root, and has exact diagnostics and writes",
+    "typescript_repetitions": 2,
+    "rust_repetitions": 2,
+    "normalization": "none",
+    "deferred_boundary": "typed failure before first sink write"
+  },
+  "owner_closure": [
+    {
+      "key": "source-file-may-emit",
+      "declaration": {
+        "id": "h2:c5e154ba33255823c5a1f179a59cec2c7ca46ca4f905ff612d9b07c163a98174",
+        "source": "vendor/typescript-6.0.3/lib/_tsc.js",
+        "name": "sourceFileMayBeEmitted",
+        "kind": "FunctionDeclaration",
+        "lexical_path": "<bundle>/sourceFileMayBeEmitted@16617:1",
+        "source_range": {
+          "start": {
+            "offset": 1088075,
+            "line": 16617,
+            "character": 1
+          },
+          "end": {
+            "offset": 1089252,
+            "line": 16634,
+            "character": 2
+          }
+        },
+        "declaration_sha256": "690c9dc87ed5045e0abbd1ce604b5de515248569d9f8c25d476c3a9a54589095",
+        "body_sha256": "670a5d1398bde34a723a3b52187f3265a5ea45e60d10e6f6c33a3e030dda7f8a",
+        "ledger_slice_sha256": "333fcd249758d38eb80146910286d7cabdbbf6f1ea0787f8f1a2c85e9535ecb2"
+      },
+      "owner_slice": "H2.8a",
+      "disposition_before_h2_3a": "partial-h1-residual"
+    },
+    {
+      "key": "source-output-paths",
+      "declaration": {
+        "id": "h2:2b8d0b6a5cca80969431fa598f6b18efee8531771c2395f0df64d4507f022c8b",
+        "source": "vendor/typescript-6.0.3/lib/_tsc.js",
+        "name": "getOutputPathsFor",
+        "kind": "FunctionDeclaration",
+        "lexical_path": "<bundle>/getOutputPathsFor@116373:1",
+        "source_range": {
+          "start": {
+            "offset": 5465676,
+            "line": 116373,
+            "character": 1
+          },
+          "end": {
+            "offset": 5466907,
+            "line": 116387,
+            "character": 2
+          }
+        },
+        "declaration_sha256": "779ffeea2c3a08b826f4ec76c59446785080b38a4ddb06b27ee3fc7d0dda52da",
+        "body_sha256": "be94599c57dbdf08bcef7a5880eedfd02e2cf7c942d6a53d5bc7f946e00e59db",
+        "ledger_slice_sha256": "f3ef9e378ec2b224d2f434b49f6ffd2a9597e7cc102f504653c9027a49c5ebd2"
+      },
+      "owner_slice": "H2.8a",
+      "disposition_before_h2_3a": "partial-h1-residual"
+    },
+    {
+      "key": "output-extension",
+      "declaration": {
+        "id": "h2:1a5f479d87ea548edb2bfc7ce9ca0320b9b1181758e899c20bffc79d4a72a6c3",
+        "source": "vendor/typescript-6.0.3/lib/_tsc.js",
+        "name": "getOutputExtension",
+        "kind": "FunctionDeclaration",
+        "lexical_path": "<bundle>/getOutputExtension@116391:1",
+        "source_range": {
+          "start": {
+            "offset": 5467050,
+            "line": 116391,
+            "character": 1
+          },
+          "end": {
+            "offset": 5467500,
+            "line": 116393,
+            "character": 2
+          }
+        },
+        "declaration_sha256": "3eb03f07797abeb2d2a2c42e88e53d1c9e0504485d0fd39c9d92d283013d0400",
+        "body_sha256": "88cdf1defe26630e60cd0ba490f7b1f4da070f5bd7f625fa646bcd12e33bffe4",
+        "ledger_slice_sha256": "cf61157be90d2652413f6d8ee13d05b2e76048b1f4ee38f8b620691af40632ce"
+      },
+      "owner_slice": "H2.8a",
+      "disposition_before_h2_3a": "partial-h1-residual"
+    },
+    {
+      "key": "script-transformer-selection",
+      "declaration": {
+        "id": "h2:c8d3b67a2db39b117304a4b141c5d1fb1472a1de9ed491d7cc16900089000cab",
+        "source": "vendor/typescript-6.0.3/lib/_tsc.js",
+        "name": "getScriptTransformers",
+        "kind": "FunctionDeclaration",
+        "lexical_path": "<bundle>/getScriptTransformers@115903:1",
+        "source_range": {
+          "start": {
+            "offset": 5445190,
+            "line": 115903,
+            "character": 1
+          },
+          "end": {
+            "offset": 5447006,
+            "line": 115949,
+            "character": 2
+          }
+        },
+        "declaration_sha256": "823ab32cb344404e263bb874a0df5fa7254c76bb0022f1db754505592a0e716f",
+        "body_sha256": "9fe8b2695f9ce03ca2d10368e46dde501438c53362e52995a24654d753cfceb4",
+        "ledger_slice_sha256": "69bdc65a0c428ad5819419fabd0ecd483bb661350434c5ad0ea0bdec15096fd0"
+      },
+      "owner_slice": "H2.1a",
+      "disposition_before_h2_3a": "partial-h1-residual"
+    },
+    {
+      "key": "transform-typescript",
+      "declaration": {
+        "id": "h2:5060c2118ae6adb02ce51f3d5fbe31d2255c21ca0cb4f5f82fdfecac71b984f4",
+        "source": "vendor/typescript-6.0.3/lib/_tsc.js",
+        "name": "transformTypeScript",
+        "kind": "FunctionDeclaration",
+        "lexical_path": "<bundle>/transformTypeScript@94036:1",
+        "source_range": {
+          "start": {
+            "offset": 4588731,
+            "line": 94036,
+            "character": 1
+          },
+          "end": {
+            "offset": 4656191,
+            "line": 95849,
+            "character": 2
+          }
+        },
+        "declaration_sha256": "547f9cfdb2cdda74d76a5b22479ea9df8c56e6be19790021466a3c1cd6af9d0a",
+        "body_sha256": "b273aa05b75da7c7637fad04ed313f54d4a81c7cd2890e22a346bc7539fa0aa3",
+        "ledger_slice_sha256": "08e4305bdbb440c9e05fb551bd3a1988f4edf67ccc0119b2642f7a3dd2258e79"
+      },
+      "owner_slice": "H2.2a",
+      "disposition_before_h2_3a": "partial-h1-residual"
+    },
+    {
+      "key": "printer",
+      "declaration": {
+        "id": "h2:f85bb949b7574e4de1d14a429a67cd4aa4a5a4d1671421c10dc04340c3b8d6e9",
+        "source": "vendor/typescript-6.0.3/lib/_tsc.js",
+        "name": "createPrinter",
+        "kind": "FunctionDeclaration",
+        "lexical_path": "<bundle>/createPrinter@116912:1",
+        "source_range": {
+          "start": {
+            "offset": 5490441,
+            "line": 116912,
+            "character": 1
+          },
+          "end": {
+            "offset": 5650994,
+            "line": 121378,
+            "character": 2
+          }
+        },
+        "declaration_sha256": "02bbb9a6adb27a9df01eac9337e374e10459018b17689cc315efd25135fa81ff",
+        "body_sha256": "c1ca84c9b6e0fd047ed1c89b6585be47d6bdfc44ab5e2e527411386695cd7e20",
+        "ledger_slice_sha256": "b227b66a85178f81faf58d6de65ed31fe2a87de1448ec6ec61e535fd36194697"
+      },
+      "owner_slice": "H2.1a",
+      "disposition_before_h2_3a": "partial-h1-residual"
+    }
+  ],
+  "cases": [
+    {
+      "suite": "conformance",
+      "case_id": "typescript-6.0.3/conformance/jsdoc/jsdocTypeTag.ts#default",
+      "expansion_case": 4367,
+      "source": {
+        "path": "jsdoc/jsdocTypeTag.ts",
+        "bytes": 1459,
+        "sha256": "5f9e0141fdd85ea1b502125b657c8affe419327cad3ee2d1b9f0686f51b22f89",
+        "git_blob_sha1": "2bf326acd740d9bcb3ff475022b257960fd53365"
+      },
+      "module_state": "absent-effective-ESNext",
+      "input": {
+        "current_directory": "/.src",
+        "roots": [
+          "/.src/a.js",
+          "/.src/b.ts"
+        ],
+        "settings": [
+          {
+            "name": "allowJS",
+            "value": "true"
+          },
+          {
+            "name": "target",
+            "value": "esnext"
+          },
+          {
+            "name": "suppressOutputPathCheck",
+            "value": "true"
+          },
+          {
+            "name": "strictNullChecks",
+            "value": "true"
+          },
+          {
+            "name": "filename",
+            "value": "b.ts"
+          }
+        ],
+        "virtual_config": null,
+        "files": [
+          {
+            "unit": 0,
+            "path": "/.src/a.js",
+            "utf8_base64": "LyoqIEB0eXBlIHtTdHJpbmd9ICovCnZhciBTOwoKLyoqIEB0eXBlIHtzdHJpbmd9ICovCnZhciBzOwoKLyoqIEB0eXBlIHtOdW1iZXJ9ICovCnZhciBOOwoKLyoqIEB0eXBlIHtudW1iZXJ9ICovCnZhciBuOwoKLyoqIEB0eXBlIHtCaWdJbnR9ICovCnZhciBCSTsKCi8qKiBAdHlwZSB7YmlnaW50fSAqLwp2YXIgYmk7CgovKiogQHR5cGUge0Jvb2xlYW59ICovCnZhciBCOwoKLyoqIEB0eXBlIHtib29sZWFufSAqLwp2YXIgYjsKCi8qKiBAdHlwZSB7Vm9pZH0gKi8KdmFyIFY7CgovKiogQHR5cGUge3ZvaWR9ICovCnZhciB2OwoKLyoqIEB0eXBlIHtVbmRlZmluZWR9ICovCnZhciBVOwoKLyoqIEB0eXBlIHt1bmRlZmluZWR9ICovCnZhciB1OwoKLyoqIEB0eXBlIHtOdWxsfSAqLwp2YXIgTmw7CgovKiogQHR5cGUge251bGx9ICovCnZhciBubDsKCi8qKiBAdHlwZSB7QXJyYXl9ICovCnZhciBBOwoKLyoqIEB0eXBlIHthcnJheX0gKi8KdmFyIGE7CgovKiogQHR5cGUge1Byb21pc2V9ICovCnZhciBQOwoKLyoqIEB0eXBlIHtwcm9taXNlfSAqLwp2YXIgcDsKCi8qKiBAdHlwZSB7P251bWJlcn0gKi8KdmFyIG51bGxhYmxlOwoKLyoqIEB0eXBlIHtPYmplY3R9ICovCnZhciBPYmo7CgovKiogQHR5cGUge29iamVjdH0gKi8KdmFyIG9iajsKCi8qKiBAdHlwZSB7RnVuY3Rpb259ICovCnZhciBGdW5jOwoKLyoqIEB0eXBlIHsoczogc3RyaW5nKSA9PiBudW1iZXJ9ICovCnZhciBmOwoKLyoqIEB0eXBlIHtuZXcgKHM6IHN0cmluZykgPT4geyBzOiBzdHJpbmcgfX0gKi8KdmFyIGN0b3I7Cg==",
+            "utf8_sha256": "c7a67be0be367dab84ade82aa2be4935ad75773d3173bcd9cd527a5bb4446899",
+            "utf8_bytes": 784
+          },
+          {
+            "unit": 1,
+            "path": "/.src/b.ts",
+            "utf8_base64": "dmFyIFM6IHN0cmluZzsKdmFyIHM6IHN0cmluZzsKdmFyIE46IG51bWJlcjsKdmFyIG46IG51bWJlcgp2YXIgQjogYm9vbGVhbjsKdmFyIGI6IGJvb2xlYW47CnZhciBCSTogYmlnaW50Owp2YXIgYmk6IGJpZ2ludDsKdmFyIFYgOnZvaWQ7CnZhciB2OiB2b2lkOwp2YXIgVTogdW5kZWZpbmVkOwp2YXIgdTogdW5kZWZpbmVkOwp2YXIgTmw6IG51bGw7CnZhciBubDogbnVsbDsKdmFyIEE6IGFueVtdOwp2YXIgYTogYW55W107CnZhciBQOiBQcm9taXNlPGFueT47CnZhciBwOiBQcm9taXNlPGFueT47CnZhciBudWxsYWJsZTogbnVtYmVyIHwgbnVsbDsKdmFyIE9iajogYW55Owp2YXIgb2JqOiBhbnk7CnZhciBGdW5jOiBGdW5jdGlvbjsKdmFyIGY6IChzOiBzdHJpbmcpID0+IG51bWJlcjsKdmFyIGN0b3I6IG5ldyAoczogc3RyaW5nKSA9PiB7IHM6IHN0cmluZyB9Owo=",
+            "utf8_sha256": "9bc6b20ed6cffc6b80bd22ff8140ffbdcfdb647707a1f1bf993cde0ca60d2a90",
+            "utf8_bytes": 434
+          }
+        ]
+      },
+      "files": [
+        {
+          "unit": 0,
+          "path": "/.src/a.js",
+          "script_kind": "JS",
+          "declaration_file": false,
+          "emit_eligible": true,
+          "implied_module_format": "None",
+          "emit_module_format": 99,
+          "feature_roots": [],
+          "parse_diagnostic_codes": [],
+          "max_ast_depth": 5,
+          "import_attributes": false,
+          "advanced_comment_placement": false,
+          "text_sha256": "c7a67be0be367dab84ade82aa2be4935ad75773d3173bcd9cd527a5bb4446899"
+        },
+        {
+          "unit": 1,
+          "path": "/.src/b.ts",
+          "script_kind": "TS",
+          "declaration_file": false,
+          "emit_eligible": true,
+          "implied_module_format": "None",
+          "emit_module_format": 99,
+          "feature_roots": [],
+          "parse_diagnostic_codes": [],
+          "max_ast_depth": 8,
+          "import_attributes": false,
+          "advanced_comment_placement": false,
+          "text_sha256": "9bc6b20ed6cffc6b80bd22ff8140ffbdcfdb647707a1f1bf993cde0ca60d2a90"
+        }
+      ],
+      "owner_reachability": [
+        "source-file-may-emit",
+        "source-output-paths",
+        "output-extension",
+        "script-transformer-selection",
+        "transform-typescript",
+        "printer"
+      ],
+      "disposition": "admitted-for-execution",
+      "required_slices": [],
+      "diagnostic_disposition": {
+        "state": "exact-required"
+      },
+      "typescript_runs": [
+        {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/.src/b.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIFM7DQp2YXIgczsNCnZhciBOOw0KdmFyIG47DQp2YXIgQjsNCnZhciBiOw0KdmFyIEJJOw0KdmFyIGJpOw0KdmFyIFY7DQp2YXIgdjsNCnZhciBVOw0KdmFyIHU7DQp2YXIgTmw7DQp2YXIgbmw7DQp2YXIgQTsNCnZhciBhOw0KdmFyIFA7DQp2YXIgcDsNCnZhciBudWxsYWJsZTsNCnZhciBPYmo7DQp2YXIgb2JqOw0KdmFyIEZ1bmM7DQp2YXIgZjsNCnZhciBjdG9yOw0K",
+              "callback_utf8_sha256": "5d71bd0b30915e943bc6dc934085322030728d04c89ff4808d10216ffc355b2f",
+              "callback_utf8_bytes": 228,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "5d71bd0b30915e943bc6dc934085322030728d04c89ff4808d10216ffc355b2f",
+              "materialized_utf8_bytes": 228,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/b.ts"
+              ]
+            }
+          ],
+          "reported_diagnostics": [
+            {
+              "code": 5055,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Cannot write file '/.src/a.js' because it would overwrite input file.\n  Adding a tsconfig.json file will help organize projects that contain both TypeScript and JavaScript files. Learn more at https://aka.ms/tsconfig."
+            }
+          ],
+          "emit_result": {
+            "emit_skipped": true,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 1,
+          "run_fingerprint_sha256": "3093b3bb8b97ea484193ed530a9634b6640c4ebc5a5e0ebfb7571fb592ce35e3"
+        },
+        {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/.src/b.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIFM7DQp2YXIgczsNCnZhciBOOw0KdmFyIG47DQp2YXIgQjsNCnZhciBiOw0KdmFyIEJJOw0KdmFyIGJpOw0KdmFyIFY7DQp2YXIgdjsNCnZhciBVOw0KdmFyIHU7DQp2YXIgTmw7DQp2YXIgbmw7DQp2YXIgQTsNCnZhciBhOw0KdmFyIFA7DQp2YXIgcDsNCnZhciBudWxsYWJsZTsNCnZhciBPYmo7DQp2YXIgb2JqOw0KdmFyIEZ1bmM7DQp2YXIgZjsNCnZhciBjdG9yOw0K",
+              "callback_utf8_sha256": "5d71bd0b30915e943bc6dc934085322030728d04c89ff4808d10216ffc355b2f",
+              "callback_utf8_bytes": 228,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "5d71bd0b30915e943bc6dc934085322030728d04c89ff4808d10216ffc355b2f",
+              "materialized_utf8_bytes": 228,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/b.ts"
+              ]
+            }
+          ],
+          "reported_diagnostics": [
+            {
+              "code": 5055,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Cannot write file '/.src/a.js' because it would overwrite input file.\n  Adding a tsconfig.json file will help organize projects that contain both TypeScript and JavaScript files. Learn more at https://aka.ms/tsconfig."
+            }
+          ],
+          "emit_result": {
+            "emit_skipped": true,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 1,
+          "run_fingerprint_sha256": "3093b3bb8b97ea484193ed530a9634b6640c4ebc5a5e0ebfb7571fb592ce35e3"
+        }
+      ],
+      "rust_expectation": "two-deterministic-exact-runs",
+      "case_fingerprint_sha256": "629b8871e68c9514f91c2996886f14600a565e85280c34322a5fdecb8a2fe6d1"
+    }
+  ],
+  "summary": {
+    "candidates": 1,
+    "compiler_candidates": 0,
+    "conformance_candidates": 1,
+    "admitted_cases": 1,
+    "deferred_cases": 0,
+    "diagnostic_deferred_output_control_cases": 0,
+    "source_deferred_cases": 0,
+    "no_emit_control_cases": 0,
+    "module_states": [
+      {
+        "value": "absent-effective-ESNext",
+        "cases": 1
+      }
+    ],
+    "dispositions": [
+      {
+        "value": "admitted-for-execution",
+        "cases": 1
+      }
+    ],
+    "first_deferred_slices": [],
+    "typescript_runs": 2,
+    "deterministic_typescript_cases": 1,
+    "admitted_typescript_writes": 1,
+    "diagnostic_control_typescript_writes": 0,
+    "admitted_typescript_diagnostics": 1,
+    "unexecuted_candidates": 0,
+    "undispositioned_candidates": 0
+  },
+  "qualification_fingerprint_sha256": "7bd39b34d4b37f73f32031e2739f50d995ebf10e27a75810f40299f022b21a4a"
+}

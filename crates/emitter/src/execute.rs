@@ -5,8 +5,9 @@ use crate::builtins::get_script_transformers_with_activity;
 use crate::{
     create_printer, transform_nodes, DisabledSourceMapRecorder, EmitArtifact,
     EmitContractViolation, EmitFailure, EmitHost, EmitOutcome, EmitPreflight, EmitResolver,
-    EmitRoot, EmitSelection, EmitTextMetadata, EmitWriteDisposition, H2ActivityCanary, NewLineKind,
-    OutputSink, PrintRequest, PrinterOptions, TransformArena, TransformRoot,
+    EmitRoot, EmitSelection, EmitTextMetadata, EmitWriteDisposition, H2ActivityCanary,
+    H2RuntimeSlice, NewLineKind, OutputSink, PrintRequest, PrinterOptions, TransformArena,
+    TransformRoot,
 };
 
 const MODULE_COMMON_JS: i32 = 1;
@@ -91,7 +92,6 @@ pub fn validate_bootstrap_emit_options(options: &CompilerOptions) -> Result<(), 
 
     for (active, name) in [
         (options.no_emit == Some(true), "noEmit"),
-        (options.allow_js, "allowJs"),
         (options.experimental_decorators, "experimentalDecorators"),
         (options.import_helpers == Some(true), "importHelpers"),
         (options.no_emit_helpers == Some(true), "noEmitHelpers"),
@@ -157,7 +157,6 @@ pub fn validate_bootstrap_emit_options(options: &CompilerOptions) -> Result<(), 
     }
     for (present, name) in [
         (options.jsx.is_some(), "jsx"),
-        (options.out_dir.is_some(), "outDir"),
         (options.root_dir.is_some(), "rootDir"),
         (options.source_root.is_some(), "sourceRoot"),
         (options.map_root.is_some(), "mapRoot"),
@@ -177,10 +176,14 @@ pub fn validate_bootstrap_emit_options(options: &CompilerOptions) -> Result<(), 
     Ok(())
 }
 
-/// Validate the option profile and the admitted `.ts` source family before
+/// Validate the option profile and the admitted TypeScript/JavaScript source
+/// families before
 /// the checker constructs an emit resolver.
 pub fn validate_bootstrap_emit_request(host: &dyn EmitHost) -> Result<(), EmitFailure> {
-    validate_bootstrap_emit_options(host.compiler_options())?;
+    let options = host.compiler_options();
+    validate_bootstrap_emit_options(options)?;
+    let mut emit_eligible_sources = 0usize;
+    let mut javascript_sources = 0usize;
     for source_id in host.source_file_ids() {
         let source = host.source_file(*source_id).ok_or(EmitFailure::Contract(
             EmitContractViolation::PlannedSourceMissing(*source_id),
@@ -188,8 +191,13 @@ pub fn validate_bootstrap_emit_request(host: &dyn EmitHost) -> Result<(), EmitFa
         if !crate::source_file_may_be_emitted(source) {
             continue;
         }
+        emit_eligible_sources += 1;
         let name = source.path().to_string_lossy().to_ascii_lowercase();
-        if !(name.ends_with(".ts") || name.ends_with(".mts") || name.ends_with(".cts"))
+        let is_typescript =
+            name.ends_with(".ts") || name.ends_with(".mts") || name.ends_with(".cts");
+        let is_javascript = options.allow_js
+            && (name.ends_with(".js") || name.ends_with(".mjs") || name.ends_with(".cjs"));
+        if !(is_typescript || is_javascript)
             || name.ends_with(".d.ts")
             || name.ends_with(".d.mts")
             || name.ends_with(".d.cts")
@@ -198,8 +206,35 @@ pub fn validate_bootstrap_emit_request(host: &dyn EmitHost) -> Result<(), EmitFa
                 path: source.path().to_path_buf(),
             });
         }
+        javascript_sources += usize::from(is_javascript);
+    }
+    if let Some(out_dir) = options.out_dir.as_deref() {
+        // H2.3a owns only the relocation needed to materialize an admitted
+        // JavaScript-family artifact. H2.8a retains the general outDir/rootDir
+        // and common-source-directory matrix.
+        if javascript_sources == 0
+            || javascript_sources != emit_eligible_sources
+            || !std::path::Path::new(out_dir).is_absolute()
+        {
+            return unsupported("outDir");
+        }
     }
     Ok(())
+}
+
+fn observe_javascript_source_routing(host: &dyn EmitHost, activity: &mut H2ActivityCanary) {
+    for source_id in host.source_file_ids() {
+        let Some(source) = host.source_file(*source_id) else {
+            continue;
+        };
+        if !crate::source_file_may_be_emitted(source) {
+            continue;
+        }
+        let name = source.path().to_string_lossy().to_ascii_lowercase();
+        if name.ends_with(".js") || name.ends_with(".mjs") || name.ends_with(".cjs") {
+            activity.observe_runtime_slice(H2RuntimeSlice::H2_3a);
+        }
+    }
 }
 
 fn unsupported<T>(option: &'static str) -> Result<T, EmitFailure> {
@@ -222,7 +257,7 @@ pub fn emit_files(
     diagnostic_gate: &EmitDiagnosticGate,
     sink: &mut dyn OutputSink,
 ) -> Result<EmitOutcome, EmitFailure> {
-    let mut activity = H2ActivityCanary::h2_2d_profile();
+    let mut activity = H2ActivityCanary::h2_3a_profile();
     activity.construct_emit_session();
     activity.construct_output_plan();
     if !preflight.plan().units().is_empty() {
@@ -252,6 +287,7 @@ pub fn emit_files_with_activity(
     activity: &mut H2ActivityCanary,
 ) -> Result<EmitOutcome, EmitFailure> {
     validate_bootstrap_emit_request(host)?;
+    observe_javascript_source_routing(host, activity);
     preflight.plan().validate_bootstrap_shape()?;
     if preflight.plan().selection() != selection {
         return Err(EmitFailure::Unsupported(
