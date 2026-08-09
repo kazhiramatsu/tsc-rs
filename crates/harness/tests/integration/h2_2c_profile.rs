@@ -143,7 +143,7 @@ fn h2_2c_profile_is_content_addressed_and_closes_the_transition() {
     let artifact: Value = serde_json::from_slice(RECORDED).expect("H2.2c profile JSON");
     assert_eq!(
         sha256(RECORDED),
-        "884752efeb21f9965946992cae58094dae28f9f4c638e8aecc301ae139e50fd5"
+        "94e50a70b124cdaaf45f96f3ae376ddee8a5f8ebbbe64e1ebccfe3b48114f0c6"
     );
     assert_eq!(artifact["schema"], 1);
     assert_eq!(artifact["kind"], "h2-runtime-profile");
