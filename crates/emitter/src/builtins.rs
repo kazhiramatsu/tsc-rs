@@ -80,7 +80,7 @@ pub fn get_script_transformers<'resolver>(
     options: &CompilerOptions,
     resolver: &'resolver dyn EmitResolver,
 ) -> Result<Vec<Box<dyn Transformer + 'resolver>>, TransformError> {
-    let mut activity = H2ActivityCanary::h2_3b_profile();
+    let mut activity = H2ActivityCanary::h2_3c_profile();
     get_script_transformers_with_optional_host(options, resolver, None, &mut activity)
 }
 
@@ -183,7 +183,8 @@ fn get_script_transformers_with_optional_host<'transformers>(
     activity.construct_script_transformer_list();
     activity.construct_transform_typescript();
     let transform_typescript = transform_type_script(options, resolver);
-    let transform_jsx = (options.jsx == Some(2)).then(|| jsx::transform_jsx(options, resolver));
+    let transform_jsx =
+        matches!(options.jsx, Some(2 | 4 | 5)).then(|| jsx::transform_jsx(options, resolver));
     activity.construct_transform_class_fields();
     let transform_class_fields = transform_class_fields(options);
     let module_transformer = if options.emit_module_kind() == MODULE_PRESERVE {
@@ -228,7 +229,7 @@ pub fn transform_type_script<'resolver>(
         isolated_modules: options.isolated_modules == Some(true)
             || options.verbatim_module_syntax == Some(true),
         remove_comments: options.remove_comments == Some(true),
-        allow_jsx: matches!(options.jsx, None | Some(1..=3)),
+        allow_jsx: matches!(options.jsx, None | Some(1..=5)),
     })
 }
 

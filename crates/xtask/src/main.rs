@@ -32,6 +32,7 @@ mod h2_2c_acceptance;
 mod h2_2d_acceptance;
 mod h2_3a_acceptance;
 mod h2_3b_acceptance;
+mod h2_3c_acceptance;
 mod host_resolution;
 mod invariant_attestation;
 mod l0_identity_stress;
@@ -4291,7 +4292,8 @@ fn acceptance(mut args: impl Iterator<Item = String>) -> Result<(), Box<dyn Erro
     h2_2c_acceptance::run(&workspace)?;
     h2_2d_acceptance::run(&workspace)?;
     h2_3a_acceptance::run(&workspace)?;
-    h2_3b_acceptance::run(&workspace)
+    h2_3b_acceptance::run(&workspace)?;
+    h2_3c_acceptance::run(&workspace)
 }
 
 fn conformance(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
@@ -8060,19 +8062,13 @@ fn ci_oracle_gates(workspace: &Path) -> Result<(), Box<dyn Error>> {
     )?;
     let h2_3a_profile = workspace.join("crates/oracle/h2-3a-profile.mjs");
     run_command(Command::new("node").arg("--check").arg(&h2_3a_profile))?;
-    // H2.3a is immutable lineage now that H2.3b owns current runtime
-    // freshness. Its Rust contract pins the exact recorded authority bytes.
+    // H2.3a and H2.3b are immutable lineage now that H2.3c owns current
+    // runtime freshness. Their Rust contracts pin the exact recorded bytes.
     let h2_3b_qualification = workspace.join("crates/oracle/h2-3b-qualification.mjs");
     run_command(
         Command::new("node")
             .arg("--check")
             .arg(&h2_3b_qualification),
-    )?;
-    run_command(
-        Command::new("node")
-            .current_dir(workspace)
-            .arg(&h2_3b_qualification)
-            .arg("--check"),
     )?;
     let h2_3b_owner_controls = workspace.join("crates/oracle/h2-3b-owner-controls.mjs");
     run_command(
@@ -8080,18 +8076,38 @@ fn ci_oracle_gates(workspace: &Path) -> Result<(), Box<dyn Error>> {
             .arg("--check")
             .arg(&h2_3b_owner_controls),
     )?;
-    run_command(
-        Command::new("node")
-            .current_dir(workspace)
-            .arg(&h2_3b_owner_controls)
-            .arg("--check"),
-    )?;
     let h2_3b_profile = workspace.join("crates/oracle/h2-3b-profile.mjs");
     run_command(Command::new("node").arg("--check").arg(&h2_3b_profile))?;
+    let h2_3c_qualification = workspace.join("crates/oracle/h2-3c-qualification.mjs");
+    run_command(
+        Command::new("node")
+            .arg("--check")
+            .arg(&h2_3c_qualification),
+    )?;
     run_command(
         Command::new("node")
             .current_dir(workspace)
-            .arg(&h2_3b_profile)
+            .arg(&h2_3c_qualification)
+            .arg("--check"),
+    )?;
+    let h2_3c_owner_controls = workspace.join("crates/oracle/h2-3c-owner-controls.mjs");
+    run_command(
+        Command::new("node")
+            .arg("--check")
+            .arg(&h2_3c_owner_controls),
+    )?;
+    run_command(
+        Command::new("node")
+            .current_dir(workspace)
+            .arg(&h2_3c_owner_controls)
+            .arg("--check"),
+    )?;
+    let h2_3c_profile = workspace.join("crates/oracle/h2-3c-profile.mjs");
+    run_command(Command::new("node").arg("--check").arg(&h2_3c_profile))?;
+    run_command(
+        Command::new("node")
+            .current_dir(workspace)
+            .arg(&h2_3c_profile)
             .arg("--check"),
     )?;
     let h1_rust_omissions = workspace.join("crates/oracle/h1-rust-omission-inventory.mjs");

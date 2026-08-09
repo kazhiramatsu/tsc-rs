@@ -1282,6 +1282,19 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
         &self,
         node: TransformNode,
     ) -> Result<Option<ImportBinding>, TransformError> {
+        if let Some(declaration) = self
+            .context
+            .arena()
+            .metadata(node)
+            .and_then(crate::EmitMetadata::referenced_import_declaration)
+        {
+            return Ok(self
+                .info
+                .common
+                .import_bindings
+                .get(&declaration.node())
+                .cloned());
+        }
         let original = self.context.arena().get_original_node(node);
         if original == node
             && NodeFlags::from_bits(self.context.arena().node(node)?.flags)

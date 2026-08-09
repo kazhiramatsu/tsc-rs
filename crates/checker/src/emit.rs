@@ -153,6 +153,20 @@ impl EmitResolver for CheckerSession<'_> {
         })
     }
 
+    /// tsc-port: isExternalOrCommonJsModule @6.0.3
+    /// tsc-hash: e395fd4c4d5df1373eb3cc17bc653dfcd8f2e41b9e32d949b3063633dc02c07d
+    /// tsc-span: _tsc.js:14119-14121
+    fn is_external_or_common_js_module(
+        &self,
+        node: EmitResolverNode,
+    ) -> Result<bool, EmitResolverError> {
+        self.with_resolver_node(
+            EmitResolverMethod::IsExternalOrCommonJsModule,
+            node,
+            |state, node| Ok(state.binder.is_external_or_common_js_module_of_node(node)),
+        )
+    }
+
     fn is_instantiated_module(&self, node: EmitResolverNode) -> Result<bool, EmitResolverError> {
         self.with_resolver_node(
             EmitResolverMethod::IsInstantiatedModule,
