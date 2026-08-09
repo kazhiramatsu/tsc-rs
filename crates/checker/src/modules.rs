@@ -351,7 +351,7 @@ impl<'a> CheckerState<'a> {
     }
 
     /// tsc-port: isTopLevelValueImportEqualsWithEntityName @6.0.3
-    /// tsc-hash: 36151203180ec64c4b2d13103b540cf730e36ffca5bb214c50fcac4a7aff0a03
+    /// tsc-hash: e596d80729b35f9b4c9ee48ab8c60ae798d7fee1e89836ad352619a27fea856e
     /// tsc-span: _tsc.js:88008-88014
     pub(crate) fn emit_is_top_level_value_import_equals_with_entity_name(
         &mut self,

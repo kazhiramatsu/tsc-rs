@@ -68,7 +68,7 @@
     },
     {
       "path": "crates/checker/src/modules.rs",
-      "sha256": "dc91e28c20132ccd1a6bfaff399b37d40565bee1af55d22a137ba7168028b20b"
+      "sha256": "6192204bf419d121ab08940783460a9d70450d7254437675010e6e09e4feb18c"
     },
     {
       "path": "crates/compiler/src/lib.rs",
@@ -96,7 +96,7 @@
     },
     {
       "path": "crates/emitter/src/builtins.rs",
-      "sha256": "c39fb6c79ef44c563240e4e18032928e1e9fe9adf8b327102a27c32c89a9edb6"
+      "sha256": "a7023b72a525378e9284b52e07495733a404e3509d16438e5db126a38c0fb214"
     },
     {
       "path": "crates/emitter/src/builtins/system.rs",
@@ -311,7 +311,7 @@
     },
     "h1_authority": {
       "path": "ratchets/h1-emit-qualification.v1.json",
-      "sha256": "e3eb8a99ccb44d10ab89d4fefec538c2a365700aa54f2be69634e8f4e18d3f69"
+      "sha256": "92394dbe9ae4c4f64b5629c90c9516bda39685bdfe2dd12eb6eb71af92354857"
     },
     "l1_authority": {
       "path": "ratchets/l1-incremental-parser-performance.v1.json",
@@ -335,5 +335,5 @@
     "undispositioned_candidates": 0,
     "historical_artifacts_reinterpreted": 0
   },
-  "profile_fingerprint_sha256": "bc7bc5bd1df7be6e7546703363e95ed678846837c0df23038187fabe99a50aad"
+  "profile_fingerprint_sha256": "cab1f9f3e50a73d6346637cdcd6e95a51746a11ee0836c876b3bd61303e1ad1a"
 }

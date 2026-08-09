@@ -2661,7 +2661,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
     }
 
     /// tsc-port: addExportEqualsIfNeeded @6.0.3
-    /// tsc-hash: a06040cb1b4be15762c19ca2be5e3e99f74b93c489a44ebee3e6a94ca64a5eca
+    /// tsc-hash: d04181926d998191c370e6a96184e7700d2a60a17d62275755ef3fdcaa9ac74d
     /// tsc-span: _tsc.js:110535-110562
     fn create_export_equals_statement(
         &mut self,
@@ -6777,7 +6777,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
     }
 
     /// tsc-port: visitImportEqualsDeclaration @6.0.3
-    /// tsc-hash: 7e79398c3e0f47a2d5a926bbfa1af15fc3974e584c42c26efb725b831d2fc416
+    /// tsc-hash: 5ef8a385c17d4f71d34bdb72046973d6ddc5012c9e4c705883c5263d5629c703
     /// tsc-span: _tsc.js:95600-95644
     fn visit_import_equals_declaration(
         &mut self,
