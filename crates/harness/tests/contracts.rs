@@ -24,6 +24,8 @@ mod h2_1d_profile;
 mod h2_1e_profile;
 #[path = "integration/h2_2a_profile.rs"]
 mod h2_2a_profile;
+#[path = "integration/h2_2b_profile.rs"]
+mod h2_2b_profile;
 #[path = "integration/h2_baseline.rs"]
 mod h2_baseline;
 #[path = "integration/h2_transition.rs"]

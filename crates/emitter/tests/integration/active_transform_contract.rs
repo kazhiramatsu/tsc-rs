@@ -192,11 +192,6 @@ fn exact_bootstrap_transformer_order_erases_the_frozen_typescript_tree() {
 fn rejected_feature_roots_fail_before_a_partial_transform_is_returned() {
     let cases = [
         (
-            "namespace.ts",
-            "namespace Runtime { export const value: number = 1; }\n",
-            UnsupportedTransformFeature::RuntimeNamespaces,
-        ),
-        (
             "parameter-property.ts",
             "class Service { constructor(public value: number) {} }\n",
             UnsupportedTransformFeature::ParameterProperties,

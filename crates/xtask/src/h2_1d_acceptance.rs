@@ -17,6 +17,7 @@ use tsc_harness::upstream_suites::execution::load_qualified_compiler_emit;
 use tsc_program::ProgramLoadLimits;
 
 const QUALIFICATION_RELATIVE_PATH: &str = "ratchets/h2-1d-qualification.v1.json";
+const H2_2B_QUALIFICATION_RELATIVE_PATH: &str = "ratchets/h2-2b-qualification.v1.json";
 
 fn failure(message: impl Into<String>) -> Box<dyn Error> {
     std::io::Error::other(message.into()).into()
@@ -369,12 +370,45 @@ fn execute_deferred(workspace: &Path, case: &Value) -> Result<(), Box<dyn Error>
     Ok(())
 }
 
+fn promoted_to_h2_2b(case: &Value, h2_2b_cases: &[Value]) -> Result<bool, Box<dyn Error>> {
+    if !array(case, "required_slices")?
+        .iter()
+        .any(|slice| slice.as_str() == Some("H2.2b"))
+    {
+        return Ok(false);
+    }
+    let case_id = string(case, "case_id")?;
+    let candidate = h2_2b_cases
+        .iter()
+        .find(|candidate| candidate["case_id"].as_str() == Some(case_id))
+        .ok_or_else(|| failure(format!("{case_id}: H2.2b disposition is not recorded")))?;
+    match candidate["disposition"].as_str() {
+        Some("admitted-for-execution")
+            if candidate["diagnostic_disposition"]["state"] == "exact-required" =>
+        {
+            Ok(true)
+        }
+        Some("deferred-to-slices")
+            if candidate["diagnostic_disposition"]["state"] == "not-observed-source-deferred" =>
+        {
+            Ok(false)
+        }
+        _ => Err(failure(format!(
+            "{case_id}: H2.2b disposition is not closed"
+        ))),
+    }
+}
+
 /// Execute all 6 H2.1d candidates. Fully admitted rows compare every
 /// TypeScript observable twice, and source-deferred rows
 /// prove deterministic typed failure before the first sink callback twice.
 pub fn run(workspace: &Path) -> Result<(), Box<dyn Error>> {
     let artifact: Value =
         serde_json::from_slice(&fs::read(workspace.join(QUALIFICATION_RELATIVE_PATH))?)?;
+    let h2_2b_artifact: Value = serde_json::from_slice(&fs::read(
+        workspace.join(H2_2B_QUALIFICATION_RELATIVE_PATH),
+    )?)?;
+    let h2_2b_cases = array(&h2_2b_artifact, "cases")?;
     if artifact["schema"] != 1
         || artifact["status"] != "qualified-typescript-oracle"
         || artifact["phase"] != "H2.1d-system-source-and-emit"
@@ -412,7 +446,9 @@ pub fn run(workspace: &Path) -> Result<(), Box<dyn Error>> {
                         string(case, "case_id")?
                     )));
                 }
-                execute_deferred(workspace, case)?;
+                if !promoted_to_h2_2b(case, h2_2b_cases)? {
+                    execute_deferred(workspace, case)?;
+                }
             }
             disposition => return Err(failure(format!("unknown H2.1d disposition {disposition}"))),
         }

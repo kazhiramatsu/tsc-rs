@@ -96,6 +96,11 @@ fn h2_2a_later_owner_controls_remain_source_deferred() {
             .expect("read H2.2a qualification"),
     )
     .expect("parse H2.2a qualification");
+    let h2_2b_artifact: serde_json::Value = serde_json::from_slice(
+        &fs::read(workspace.join(super::H2_2B_QUALIFICATION_RELATIVE_PATH))
+            .expect("read H2.2b qualification"),
+    )
+    .expect("parse H2.2b qualification");
     let deferred = artifact["cases"]
         .as_array()
         .expect("qualification cases")
@@ -103,9 +108,30 @@ fn h2_2a_later_owner_controls_remain_source_deferred() {
         .filter(|case| case["disposition"] == "deferred-to-slices")
         .collect::<Vec<_>>();
     assert_eq!(deferred.len(), 5);
+    let mut promoted = 0;
+    let mut still_deferred = 0;
     for case in deferred {
         assert_eq!(case["required_slices"][0], "H2.2b");
-        super::execute_deferred(&workspace, case)
-            .unwrap_or_else(|error| panic!("{}: {error}", case["case_id"]));
+        let h2_2b_case = h2_2b_artifact["cases"]
+            .as_array()
+            .and_then(|cases| {
+                cases
+                    .iter()
+                    .find(|candidate| candidate["case_id"] == case["case_id"])
+            })
+            .unwrap_or_else(|| panic!("missing H2.2b disposition for {}", case["case_id"]));
+        if h2_2b_case["disposition"] == "admitted-for-execution" {
+            promoted += 1;
+            assert_eq!(
+                h2_2b_case["diagnostic_disposition"]["state"],
+                "exact-required"
+            );
+        } else {
+            still_deferred += 1;
+            assert_eq!(h2_2b_case["required_slices"], serde_json::json!(["H2.2d"]));
+            super::execute_deferred(&workspace, case)
+                .unwrap_or_else(|error| panic!("{}: {error}", case["case_id"]));
+        }
     }
+    assert_eq!((promoted, still_deferred), (4, 1));
 }

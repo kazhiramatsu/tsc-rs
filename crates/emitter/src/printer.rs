@@ -2367,6 +2367,20 @@ impl Printer {
         expression: bool,
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
+        let anonymous_default_declaration = !expression
+            && modifiers
+                .and_then(|array| transformation.arena().node_array_ref(source, array))
+                .map(|array| transformation.arena().node_array(array))
+                .transpose()?
+                .is_some_and(|array| {
+                    array.nodes.iter().any(|id| {
+                        transformation
+                            .arena()
+                            .node_ref(source, *id)
+                            .and_then(|modifier| transformation.arena().node(modifier).ok())
+                            .is_some_and(|modifier| modifier.kind == SyntaxKind::DefaultKeyword)
+                    })
+                });
         if self.emit_modifiers(transformation, source, modifiers, writer)? {
             writer.write_space(" ");
         }
@@ -2374,7 +2388,7 @@ impl Printer {
         if let Some(name) = name {
             writer.write_space(" ");
             self.emit_node_id(transformation, source, name, writer)?;
-        } else if !expression {
+        } else if !expression && !anonymous_default_declaration {
             return Err(PrinterError::MissingTransformedChild {
                 parent: SyntaxKind::ClassDeclaration,
                 field: "name",

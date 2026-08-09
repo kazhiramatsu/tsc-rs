@@ -12,8 +12,8 @@ use crate::{
 };
 
 use super::{
-    flags_after_update, generated_module_name, has_modifier, identifier_or_literal_text,
-    is_identifier_export_name, is_prologue_statement, node_array_nodes,
+    first_runtime_declaration_original, flags_after_update, generated_module_name, has_modifier,
+    identifier_or_literal_text, is_identifier_export_name, is_prologue_statement, node_array_nodes,
     source_contains_dynamic_import, source_file_statement_nodes, string_literal_text,
     variable_declarations, CommonJsModuleInfo, ImportBinding, MODULE_SYSTEM,
 };
@@ -447,6 +447,15 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
         arguments.push(body_function);
         let call = self.create_call(register, arguments)?;
         let wrapper = self.create_expression_statement(call)?;
+        if let Some(first) =
+            first_runtime_declaration_original(self.context.arena(), self.source, original_array)?
+        {
+            self.set_original_and_range(wrapper, first)?;
+            self.context
+                .arena_mut()?
+                .metadata_mut(wrapper)
+                .add_flags(crate::EmitFlags::NO_TRAILING_COMMENTS);
+        }
 
         let statements = if let Some(original) =
             original_array.and_then(|id| self.context.arena().node_array_ref(self.source, id))
@@ -1279,12 +1288,28 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
         if self.context.arena().node(node)?.kind != SyntaxKind::Identifier {
             return Ok(Vec::new());
         }
+        let original = self.context.arena().get_original_node(node);
+        if self.context.arena().node(original)?.pos == u32::MAX {
+            return Ok(Vec::new());
+        }
         let resolver_node = self.resolver_node(node)?;
-        if self
+        let exported_from_source = self
             .resolver
             .get_referenced_export_container(resolver_node)?
-            .is_none()
-        {
+            .is_some();
+        let exported_synthetic_declaration = if exported_from_source {
+            false
+        } else {
+            self.resolver
+                .get_referenced_value_declaration(resolver_node)?
+                .is_some_and(|declaration| {
+                    self.info
+                        .common
+                        .exported_variable_declarations
+                        .contains(&declaration.node())
+                })
+        };
+        if !exported_from_source && !exported_synthetic_declaration {
             return Ok(Vec::new());
         }
         let name = identifier_or_literal_text(self.context.arena(), node)?;

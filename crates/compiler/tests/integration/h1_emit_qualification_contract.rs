@@ -349,7 +349,10 @@ fn frozen_adjacent_controls_remain_rejected_or_are_exactly_promoted() {
             .find(|case| case["input"]["id"] == id)
             .unwrap_or_else(|| panic!("callback oracle is missing {id}"));
         assert_eq!(case["input"]["classification"], "adjacent-unsupported");
-        if matches!(id, "mts-output-control" | "runtime-enum-control") {
+        if matches!(
+            id,
+            "mts-output-control" | "runtime-enum-control" | "runtime-namespace-control"
+        ) {
             let mut sink = MemoryOutputSink::new();
             let outcome = ProgramSession::new(prepared_control(
                 case,
@@ -371,10 +374,11 @@ fn frozen_adjacent_controls_remain_rejected_or_are_exactly_promoted() {
                     .expect("expected write text"),
                 "{id}: exact promoted output text",
             );
-            let owner = if id == "mts-output-control" {
-                H2RuntimeSlice::H2_1e
-            } else {
-                H2RuntimeSlice::H2_2a
+            let owner = match id {
+                "mts-output-control" => H2RuntimeSlice::H2_1e,
+                "runtime-enum-control" => H2RuntimeSlice::H2_2a,
+                "runtime-namespace-control" => H2RuntimeSlice::H2_2b,
+                _ => unreachable!("promoted adjacent control"),
             };
             assert_eq!(
                 outcome.h2_activity().runtime_slice(owner),
