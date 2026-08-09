@@ -338,6 +338,16 @@ impl H2ActivityCanary {
         profile
     }
 
+    /// Construct the current production admission profile. H2.3c activates
+    /// automatic/development JSX runtimes, implicit helper imports, import
+    /// source precedence, and automatic-runtime file-kind interactions.
+    #[doc(hidden)]
+    pub const fn h2_3c_profile() -> Self {
+        let mut profile = Self::h2_3b_profile();
+        profile.admitted_runtime_slices |= 1_u64 << H2RuntimeSlice::H2_3c.index();
+        profile
+    }
+
     pub const fn counters(&self) -> H2ActivityCounters {
         self.counters
     }

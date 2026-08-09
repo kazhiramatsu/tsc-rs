@@ -1,10 +1,10 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use tsc_syntax::{
     for_each_child, skip_trivia, try_visit_each_child, NodeArrayId, NodeData, NodeDataChildVisitor,
     NodeId, SyntaxKind,
 };
-use tsc_types::CompilerOptions;
+use tsc_types::{CompilerOptions, NodeFlags};
 
 use crate::{
     EmitResolver, EmitResolverNode, JavaScriptString, TransformError, TransformFlags,
@@ -16,9 +16,8 @@ use crate::{
 /// tsc-hash: 0c30b9970bbf613a28df95fd5c016cf34879d50284ab1470a4cbd9885dfa4f19
 /// tsc-span: _tsc.js:103845-104388
 ///
-/// H2.3b owns the classic `React.createElement` path. The automatic-runtime
-/// import state in the same upstream transformer remains fail-closed for
-/// H2.3c at request validation.
+/// H2.3b owns the classic `React.createElement` path. H2.3c owns the automatic
+/// `jsx`/`jsxs` and development `jsxDEV` paths plus their implicit imports.
 pub(super) fn transform_jsx<'resolver>(
     options: &CompilerOptions,
     resolver: &'resolver dyn EmitResolver,
@@ -27,6 +26,8 @@ pub(super) fn transform_jsx<'resolver>(
         resolver,
         jsx_factory: options.jsx_factory.clone(),
         jsx_fragment_factory: options.jsx_fragment_factory.clone(),
+        jsx_import_source: options.jsx_import_source.clone(),
+        jsx_mode: options.jsx.unwrap_or(2),
         react_namespace: options.react_namespace.clone(),
     })
 }
@@ -35,6 +36,8 @@ struct JsxTransformer<'resolver> {
     resolver: &'resolver dyn EmitResolver,
     jsx_factory: Option<String>,
     jsx_fragment_factory: Option<String>,
+    jsx_import_source: Option<String>,
+    jsx_mode: i32,
     react_namespace: Option<String>,
 }
 
@@ -56,17 +59,49 @@ impl Transformer for JsxTransformer<'_> {
         if context.arena().source(source)?.syntax().is_declaration_file {
             return Ok(TransformRoot::SourceFile(source));
         }
-        let text = context.arena().source(source)?.syntax().text().to_owned();
+        let syntax = context.arena().source(source)?.syntax();
+        let text = syntax.text().to_owned();
+        let file_name = syntax.file_name.clone();
+        let source_runtime = syntax.jsx_runtime_pragma.clone();
+        let source_import = syntax.jsx_import_source_pragma.clone();
+        let is_external_module = syntax.external_module_indicator.is_some();
         let pragmas = leading_jsx_pragmas(&text);
         let root = context.arena().root(source)?;
+        let import_base = jsx_implicit_import_base(
+            self.jsx_mode,
+            self.jsx_import_source.as_deref(),
+            source_import.as_deref(),
+            source_runtime.as_deref(),
+        );
+        let is_external_or_common_js_module = if import_base.is_none() || is_external_module {
+            is_external_module
+        } else {
+            let program_source = context
+                .arena()
+                .source(source)?
+                .program_source()
+                .ok_or(TransformError::MissingProgramSource(root))?;
+            self.resolver
+                .is_external_or_common_js_module(EmitResolverNode::new(
+                    program_source,
+                    root.node(),
+                ))?
+        };
         let mut visitor = JsxVisitor::new(
             context,
             source,
             self.resolver,
-            pragmas,
-            self.jsx_factory.as_deref(),
-            self.jsx_fragment_factory.as_deref(),
-            self.react_namespace.as_deref(),
+            JsxVisitorSettings {
+                pragmas,
+                jsx_mode: self.jsx_mode,
+                import_base,
+                file_name,
+                is_external_module,
+                is_external_or_common_js_module,
+                jsx_factory: self.jsx_factory.as_deref(),
+                jsx_fragment_factory: self.jsx_fragment_factory.as_deref(),
+                react_namespace: self.react_namespace.as_deref(),
+            },
         );
         let transformed =
             visitor
@@ -75,7 +110,7 @@ impl Transformer for JsxTransformer<'_> {
                     parent: SyntaxKind::SourceFile,
                     field: "root",
                 })?;
-        let transformed = visitor.node(transformed);
+        let transformed = visitor.finish_source_file(visitor.node(transformed))?;
         visitor
             .context
             .arena_mut()?
@@ -88,6 +123,33 @@ impl Transformer for JsxTransformer<'_> {
 struct JsxPragmaSettings {
     factory: Option<String>,
     fragment_factory: Option<String>,
+}
+
+/// tsc-port: getJSXImplicitImportBase/getJSXRuntimeImport @6.0.3
+/// tsc-hash: eb7474face65e4978dcd8aca37dba525c4a2b0027decbad5f4e87e2a5d5cc9e5
+/// tsc-span: _tsc.js:18305-18316
+fn jsx_implicit_import_base(
+    jsx_mode: i32,
+    option_import_source: Option<&str>,
+    pragma_import_source: Option<&str>,
+    pragma_runtime: Option<&str>,
+) -> Option<String> {
+    if pragma_runtime == Some("classic") {
+        return None;
+    }
+    if !matches!(jsx_mode, 4 | 5)
+        && option_import_source.is_none()
+        && pragma_import_source.is_none()
+        && pragma_runtime != Some("automatic")
+    {
+        return None;
+    }
+    Some(
+        pragma_import_source
+            .or(option_import_source)
+            .unwrap_or("react")
+            .to_owned(),
+    )
 }
 
 /// TypeScript's JSX pragmas are collected only from leading multiline
@@ -157,8 +219,47 @@ struct JsxVisitor<'context> {
     resolver: &'context dyn EmitResolver,
     factory_entity: Vec<String>,
     fragment_entity: Vec<String>,
+    jsx_mode: i32,
+    import_base: Option<String>,
+    file_name: String,
+    is_external_module: bool,
+    is_external_or_common_js_module: bool,
+    used_names: BTreeSet<String>,
+    implicit_imports: Vec<ImplicitImportGroup>,
+    filename_declaration: Option<TransformNode>,
     nodes: BTreeMap<NodeId, Option<NodeId>>,
     arrays: BTreeMap<NodeArrayId, Option<NodeArrayId>>,
+}
+
+struct JsxVisitorSettings<'settings> {
+    pragmas: JsxPragmaSettings,
+    jsx_mode: i32,
+    import_base: Option<String>,
+    file_name: String,
+    is_external_module: bool,
+    is_external_or_common_js_module: bool,
+    jsx_factory: Option<&'settings str>,
+    jsx_fragment_factory: Option<&'settings str>,
+    react_namespace: Option<&'settings str>,
+}
+
+#[derive(Clone, Copy)]
+struct ElementCallFormatting {
+    multi_line: bool,
+    is_child: bool,
+}
+
+#[derive(Clone, Debug)]
+struct ImplicitImport {
+    exported_name: String,
+    local_name: String,
+    specifier: TransformNode,
+}
+
+#[derive(Clone, Debug)]
+struct ImplicitImportGroup {
+    module_specifier: String,
+    imports: Vec<ImplicitImport>,
 }
 
 impl<'context> JsxVisitor<'context> {
@@ -166,11 +267,19 @@ impl<'context> JsxVisitor<'context> {
         context: &'context mut TransformationContext,
         source: TransformSourceId,
         resolver: &'context dyn EmitResolver,
-        pragmas: JsxPragmaSettings,
-        jsx_factory: Option<&str>,
-        jsx_fragment_factory: Option<&str>,
-        react_namespace: Option<&str>,
+        settings: JsxVisitorSettings<'_>,
     ) -> Self {
+        let JsxVisitorSettings {
+            pragmas,
+            jsx_mode,
+            import_base,
+            file_name,
+            is_external_module,
+            is_external_or_common_js_module,
+            jsx_factory,
+            jsx_fragment_factory,
+            react_namespace,
+        } = settings;
         let namespace = parse_entity_name(react_namespace.unwrap_or("React"))
             .unwrap_or_else(|| vec!["React".to_owned()]);
         let mut default_factory = namespace.clone();
@@ -191,12 +300,21 @@ impl<'context> JsxVisitor<'context> {
                 .unwrap_or(default_fragment),
         };
 
+        let used_names = super::system::collect_identifier_texts(context.arena(), source);
         Self {
             context,
             source,
             resolver,
             factory_entity,
             fragment_entity,
+            jsx_mode,
+            import_base,
+            file_name,
+            is_external_module,
+            is_external_or_common_js_module,
+            used_names,
+            implicit_imports: Vec::new(),
+            filename_declaration: None,
             nodes: BTreeMap::new(),
             arrays: BTreeMap::new(),
         }
@@ -279,6 +397,20 @@ impl<'context> JsxVisitor<'context> {
         data: tsc_syntax::nodes::JsxFragmentData,
         is_child: bool,
     ) -> Result<TransformNode, TransformError> {
+        if self.import_base.is_some() {
+            let (children, _) = self.transform_jsx_children(data.children)?;
+            let static_children = self.children_are_static(&children)?;
+            let props = self.create_automatic_props(Vec::new(), children.clone())?;
+            let tag = self.get_implicit_import_for_name("Fragment")?;
+            return self.create_automatic_call(
+                original,
+                tag,
+                props,
+                None,
+                static_children,
+                is_child,
+            );
+        }
         let tag = self.create_entity_expression(self.fragment_entity.clone(), original)?;
         let props = self.create_token(SyntaxKind::NullKeyword)?;
         let (children, multi_line) = self.transform_jsx_children(data.children)?;
@@ -298,9 +430,36 @@ impl<'context> JsxVisitor<'context> {
             field: "tag_name",
         })?;
         let tag = self.transform_tag_name(tag_name)?;
-        let props = self.transform_attributes(attributes)?;
-        let (children, multi_line) = self.transform_jsx_children(children)?;
-        self.create_element_call(original, tag, props, children, multi_line, is_child)
+        if self.import_base.is_none() || self.has_key_after_props_spread(attributes)? {
+            let props = self.transform_attributes(attributes)?;
+            let (children, multi_line) = self.transform_jsx_children(children)?;
+            let callee = if self.import_base.is_some() {
+                self.get_implicit_import_for_name("createElement")?
+            } else {
+                self.create_entity_expression(self.factory_entity.clone(), original)?
+            };
+            return self.create_element_call_with_callee(
+                original,
+                callee,
+                tag,
+                props,
+                children,
+                ElementCallFormatting {
+                    multi_line,
+                    is_child,
+                },
+            );
+        }
+
+        let (children, _) = self.transform_jsx_children(children)?;
+        let static_children = self.children_are_static(&children)?;
+        let key = self.find_key_attribute(attributes)?;
+        let properties = self.transform_attribute_properties(attributes, key)?;
+        let props = self.create_automatic_props(properties, children)?;
+        let key = key
+            .map(|key| self.transform_key_attribute(key))
+            .transpose()?;
+        self.create_automatic_call(original, tag, props, key, static_children, is_child)
     }
 
     fn transform_tag_name(&mut self, id: NodeId) -> Result<TransformNode, TransformError> {
@@ -326,24 +485,24 @@ impl<'context> JsxVisitor<'context> {
         &mut self,
         attributes: Option<NodeId>,
     ) -> Result<TransformNode, TransformError> {
-        let Some(attributes) = attributes else {
-            return self.create_token(SyntaxKind::NullKeyword);
-        };
-        let attributes_node = self.node(attributes);
-        let NodeData::JsxAttributes(data) =
-            self.context.arena().node(attributes_node)?.data.clone()
-        else {
-            return Err(TransformError::RequiredChildRemoved {
-                parent: SyntaxKind::JsxOpeningElement,
-                field: "attributes",
-            });
-        };
-        let ids = self.array_nodes(data.properties)?;
-        if ids.is_empty() {
+        let properties = self.transform_attribute_properties(attributes, None)?;
+        if properties.is_empty() {
             return self.create_token(SyntaxKind::NullKeyword);
         }
+        self.create_object_literal(properties)
+    }
+
+    fn transform_attribute_properties(
+        &mut self,
+        attributes: Option<NodeId>,
+        excluded: Option<NodeId>,
+    ) -> Result<Vec<TransformNode>, TransformError> {
+        let ids = self.attribute_nodes(attributes)?;
         let mut properties = Vec::new();
         for id in ids {
+            if excluded == Some(id) {
+                continue;
+            }
             let attribute = self.node(id);
             match self.context.arena().node(attribute)?.data.clone() {
                 NodeData::JsxAttribute(data) => {
@@ -360,7 +519,108 @@ impl<'context> JsxVisitor<'context> {
                 }
             }
         }
-        self.create_object_literal(properties)
+        Ok(properties)
+    }
+
+    fn attribute_nodes(&self, attributes: Option<NodeId>) -> Result<Vec<NodeId>, TransformError> {
+        let Some(attributes) = attributes else {
+            return Ok(Vec::new());
+        };
+        let attributes_node = self.node(attributes);
+        let NodeData::JsxAttributes(data) =
+            self.context.arena().node(attributes_node)?.data.clone()
+        else {
+            return Err(TransformError::RequiredChildRemoved {
+                parent: SyntaxKind::JsxOpeningElement,
+                field: "attributes",
+            });
+        };
+        self.array_nodes(data.properties)
+    }
+
+    fn find_key_attribute(
+        &self,
+        attributes: Option<NodeId>,
+    ) -> Result<Option<NodeId>, TransformError> {
+        for id in self.attribute_nodes(attributes)? {
+            let NodeData::JsxAttribute(attribute) = &self.context.arena().node(self.node(id))?.data
+            else {
+                continue;
+            };
+            let Some(name) = attribute.name else {
+                continue;
+            };
+            if matches!(
+                &self.context.arena().node(self.node(name))?.data,
+                NodeData::Identifier(data) if data.text == "key"
+            ) {
+                return Ok(Some(id));
+            }
+        }
+        Ok(None)
+    }
+
+    /// tsc-port: hasKeyAfterPropsSpread @6.0.3
+    /// tsc-hash: c12878f424d9b345c85312351cbdfbe5e6a5d986ff140daaad024cb83e86d3c1
+    /// tsc-span: _tsc.js:104052-104062
+    fn has_key_after_props_spread(
+        &self,
+        attributes: Option<NodeId>,
+    ) -> Result<bool, TransformError> {
+        let mut saw_unflattened_spread = false;
+        for id in self.attribute_nodes(attributes)? {
+            match &self.context.arena().node(self.node(id))?.data {
+                NodeData::JsxSpreadAttribute(spread) => {
+                    let flattenable = spread
+                        .expression
+                        .and_then(|id| self.context.arena().node_ref(self.source, id))
+                        .and_then(|expression| {
+                            let NodeData::ObjectLiteralExpression(object) =
+                                &self.context.arena().node(expression).ok()?.data
+                            else {
+                                return None;
+                            };
+                            Some(object)
+                        })
+                        .is_some_and(|object| {
+                            self.array_nodes(object.properties).is_ok_and(|properties| {
+                                properties.into_iter().all(|property| {
+                                    !matches!(
+                                        self.context.arena().node(self.node(property)),
+                                        Ok(record) if matches!(record.data, NodeData::SpreadAssignment(_))
+                                    )
+                                })
+                            })
+                        });
+                    saw_unflattened_spread |= !flattenable;
+                }
+                NodeData::JsxAttribute(attribute) if saw_unflattened_spread => {
+                    let is_key = attribute.name.is_some_and(|name| {
+                        matches!(
+                            self.context.arena().node(self.node(name)),
+                            Ok(record) if matches!(&record.data, NodeData::Identifier(data) if data.text == "key")
+                        )
+                    });
+                    if is_key {
+                        return Ok(true);
+                    }
+                }
+                _ => {}
+            }
+        }
+        Ok(false)
+    }
+
+    fn transform_key_attribute(&mut self, id: NodeId) -> Result<TransformNode, TransformError> {
+        let attribute = self.node(id);
+        let NodeData::JsxAttribute(data) = self.context.arena().node(attribute)?.data.clone()
+        else {
+            return Err(TransformError::RequiredChildRemoved {
+                parent: SyntaxKind::JsxOpeningElement,
+                field: "key",
+            });
+        };
+        self.transform_attribute_initializer(data.initializer)
     }
 
     fn transform_attribute(
@@ -574,6 +834,212 @@ impl<'context> JsxVisitor<'context> {
         self.create_string_literal(units, false).map(Some)
     }
 
+    fn children_are_static(&self, children: &[TransformNode]) -> Result<bool, TransformError> {
+        Ok(children.len() > 1
+            || children.first().is_some_and(|child| {
+                self.context
+                    .arena()
+                    .node(*child)
+                    .is_ok_and(|record| record.kind == SyntaxKind::SpreadElement)
+            }))
+    }
+
+    fn create_automatic_props(
+        &mut self,
+        mut properties: Vec<TransformNode>,
+        mut children: Vec<TransformNode>,
+    ) -> Result<TransformNode, TransformError> {
+        if !children.is_empty() {
+            let initializer = if children.len() == 1
+                && self.context.arena().node(children[0])?.kind != SyntaxKind::SpreadElement
+            {
+                children.remove(0)
+            } else {
+                let elements = self
+                    .context
+                    .factory()?
+                    .create_node_array(self.source, children)?;
+                self.context.factory()?.create_node(
+                    self.source,
+                    NodeData::ArrayLiteralExpression(
+                        tsc_syntax::nodes::ArrayLiteralExpressionData {
+                            elements: Some(elements.array()),
+                        },
+                    ),
+                    TransformFlags::NONE,
+                )?
+            };
+            properties.push(self.create_property_assignment("children", initializer)?);
+        }
+        self.create_object_literal(properties)
+    }
+
+    fn create_property_assignment(
+        &mut self,
+        name: &str,
+        initializer: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        let name = self.create_identifier(name)?;
+        self.context.factory()?.create_node(
+            self.source,
+            NodeData::PropertyAssignment(tsc_syntax::nodes::PropertyAssignmentData {
+                name: Some(name.node()),
+                initializer: Some(initializer.node()),
+                modifiers: None,
+                question_token: None,
+                exclamation_token: None,
+            }),
+            TransformFlags::NONE,
+        )
+    }
+
+    /// tsc-port: visitJsxOpeningLikeElementOrFragmentJSX @6.0.3
+    /// tsc-hash: cc719ed9da86526b78a2fbfecb9e1151a2aa179d94ff0afe1df43b7e6326b42b
+    /// tsc-span: _tsc.js:104125-104162
+    fn create_automatic_call(
+        &mut self,
+        original: TransformNode,
+        tag: TransformNode,
+        props: TransformNode,
+        key: Option<TransformNode>,
+        static_children: bool,
+        is_child: bool,
+    ) -> Result<TransformNode, TransformError> {
+        let mut arguments = vec![tag, props];
+        if let Some(key) = key {
+            arguments.push(key);
+        }
+        if self.jsx_mode == 5 {
+            if arguments.len() == 2 {
+                arguments.push(self.create_void_zero()?);
+            }
+            arguments.push(self.create_token(if static_children {
+                SyntaxKind::TrueKeyword
+            } else {
+                SyntaxKind::FalseKeyword
+            })?);
+            arguments.push(self.create_jsx_source_object(original)?);
+            arguments.push(self.create_token(SyntaxKind::ThisKeyword)?);
+        }
+        let helper = if self.jsx_mode == 5 {
+            "jsxDEV"
+        } else if static_children {
+            "jsxs"
+        } else {
+            "jsx"
+        };
+        let callee = self.get_implicit_import_for_name(helper)?;
+        let arguments = self
+            .context
+            .factory()?
+            .create_node_array(self.source, arguments)?;
+        let call = self.context.factory()?.create_node(
+            self.source,
+            NodeData::CallExpression(tsc_syntax::nodes::CallExpressionData {
+                expression: Some(callee.node()),
+                question_dot_token: None,
+                type_arguments: None,
+                arguments: Some(arguments.array()),
+            }),
+            TransformFlags::NONE,
+        )?;
+        self.set_original_and_range(call, original)?;
+        if is_child {
+            self.context
+                .arena_mut()?
+                .metadata_mut(call)
+                .set_starts_on_new_line(true);
+        }
+        Ok(call)
+    }
+
+    fn create_jsx_source_object(
+        &mut self,
+        original: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        let record = self.context.arena().node(original)?.clone();
+        let syntax = self.context.arena().source(self.source)?.syntax();
+        let start = if record.pos == u32::MAX {
+            0
+        } else {
+            skip_trivia(syntax.text(), record.pos as usize)
+        };
+        let utf16 = syntax
+            .positions()
+            .byte_to_utf16(u32::try_from(start).unwrap_or(u32::MAX))
+            .ok_or(TransformError::RequiredChildRemoved {
+                parent: record.kind,
+                field: "source position",
+            })?;
+        let location = syntax.positions().line_and_character_utf16(utf16).ok_or(
+            TransformError::RequiredChildRemoved {
+                parent: record.kind,
+                field: "source location",
+            },
+        )?;
+        let file_name = self.current_file_name_expression()?;
+        let line = self.create_numeric_literal(location.line + 1)?;
+        let column = self.create_numeric_literal(location.character + 1)?;
+        let properties = vec![
+            self.create_property_assignment("fileName", file_name)?,
+            self.create_property_assignment("lineNumber", line)?,
+            self.create_property_assignment("columnNumber", column)?,
+        ];
+        self.create_object_literal(properties)
+    }
+
+    fn current_file_name_expression(&mut self) -> Result<TransformNode, TransformError> {
+        if let Some(declaration) = self.filename_declaration {
+            let NodeData::VariableDeclaration(data) =
+                self.context.arena().node(declaration)?.data.clone()
+            else {
+                return Err(TransformError::RequiredChildRemoved {
+                    parent: SyntaxKind::VariableDeclaration,
+                    field: "name",
+                });
+            };
+            let name = self.identifier_text(data.name, SyntaxKind::VariableDeclaration)?;
+            return self.create_identifier(&name);
+        }
+        let name = self.fresh_name("_jsxFileName");
+        let declaration_name = self.create_identifier(&name)?;
+        let file_name = self.file_name.clone();
+        let initializer = self.create_string_literal(file_name.encode_utf16().collect(), false)?;
+        let declaration = self.context.factory()?.create_node(
+            self.source,
+            NodeData::VariableDeclaration(tsc_syntax::nodes::VariableDeclarationData {
+                name: Some(declaration_name.node()),
+                exclamation_token: None,
+                r#type: None,
+                initializer: Some(initializer.node()),
+            }),
+            TransformFlags::NONE,
+        )?;
+        self.filename_declaration = Some(declaration);
+        self.create_identifier(&name)
+    }
+
+    fn create_numeric_literal(&mut self, value: u32) -> Result<TransformNode, TransformError> {
+        self.context.factory()?.create_node(
+            self.source,
+            NodeData::NumericLiteral(tsc_syntax::nodes::NumericLiteralData {
+                text: value.to_string(),
+            }),
+            TransformFlags::NONE,
+        )
+    }
+
+    fn create_void_zero(&mut self) -> Result<TransformNode, TransformError> {
+        let zero = self.create_numeric_literal(0)?;
+        self.context.factory()?.create_node(
+            self.source,
+            NodeData::VoidExpression(tsc_syntax::nodes::VoidExpressionData {
+                expression: Some(zero.node()),
+            }),
+            TransformFlags::NONE,
+        )
+    }
+
     fn create_element_call(
         &mut self,
         original: TransformNode,
@@ -584,6 +1050,28 @@ impl<'context> JsxVisitor<'context> {
         is_child: bool,
     ) -> Result<TransformNode, TransformError> {
         let callee = self.create_entity_expression(self.factory_entity.clone(), original)?;
+        self.create_element_call_with_callee(
+            original,
+            callee,
+            tag,
+            props,
+            children,
+            ElementCallFormatting {
+                multi_line,
+                is_child,
+            },
+        )
+    }
+
+    fn create_element_call_with_callee(
+        &mut self,
+        original: TransformNode,
+        callee: TransformNode,
+        tag: TransformNode,
+        props: TransformNode,
+        children: Vec<TransformNode>,
+        formatting: ElementCallFormatting,
+    ) -> Result<TransformNode, TransformError> {
         let mut arguments = Vec::with_capacity(children.len() + 2);
         arguments.push(tag);
         arguments.push(props);
@@ -602,17 +1090,314 @@ impl<'context> JsxVisitor<'context> {
             }),
             TransformFlags::NONE,
         )?;
-        if multi_line {
+        if formatting.multi_line {
             self.context.factory()?.set_multi_line(call, true)?;
         }
         self.set_original_and_range(call, original)?;
-        if is_child {
+        if formatting.is_child {
             self.context
                 .arena_mut()?
                 .metadata_mut(call)
                 .set_starts_on_new_line(true);
         }
         Ok(call)
+    }
+
+    /// tsc-port: getImplicitImportForName/transformSourceFile @6.0.3
+    /// tsc-hash: 7412f5e98f419ccb7f04ab8501f14c08136428c68a94c0be6391f0dd23672350
+    /// tsc-span: _tsc.js:103879-103984
+    fn get_implicit_import_for_name(
+        &mut self,
+        exported_name: &str,
+    ) -> Result<TransformNode, TransformError> {
+        let base =
+            self.import_base
+                .as_deref()
+                .ok_or(TransformError::UnsupportedCompilerOption {
+                    option: "jsx",
+                    detail: "automatic JSX helper requested without an implicit import base",
+                })?;
+        let module_specifier = if exported_name == "createElement" {
+            base.to_owned()
+        } else {
+            format!(
+                "{base}/{}",
+                if self.jsx_mode == 5 {
+                    "jsx-dev-runtime"
+                } else {
+                    "jsx-runtime"
+                }
+            )
+        };
+
+        if let Some(existing) = self
+            .implicit_imports
+            .iter()
+            .find(|group| group.module_specifier == module_specifier)
+            .and_then(|group| {
+                group
+                    .imports
+                    .iter()
+                    .find(|import| import.exported_name == exported_name)
+            })
+            .cloned()
+        {
+            return self.create_implicit_import_reference(&existing);
+        }
+
+        let local_name = self.fresh_name(&format!("_{exported_name}"));
+        let property = self.create_identifier(exported_name)?;
+        let local = self.create_identifier(&local_name)?;
+        let specifier = self.context.factory()?.create_node(
+            self.source,
+            NodeData::ImportSpecifier(tsc_syntax::nodes::ImportSpecifierData {
+                name: Some(local.node()),
+                property_name: Some(property.node()),
+                is_type_only: false,
+            }),
+            TransformFlags::NONE,
+        )?;
+        let import = ImplicitImport {
+            exported_name: exported_name.to_owned(),
+            local_name,
+            specifier,
+        };
+        if let Some(group) = self
+            .implicit_imports
+            .iter_mut()
+            .find(|group| group.module_specifier == module_specifier)
+        {
+            group.imports.push(import.clone());
+        } else {
+            self.implicit_imports.push(ImplicitImportGroup {
+                module_specifier,
+                imports: vec![import.clone()],
+            });
+        }
+        self.create_implicit_import_reference(&import)
+    }
+
+    fn create_implicit_import_reference(
+        &mut self,
+        import: &ImplicitImport,
+    ) -> Result<TransformNode, TransformError> {
+        let reference = self.create_identifier(&import.local_name)?;
+        self.context
+            .arena_mut()?
+            .metadata_mut(reference)
+            .set_referenced_import_declaration(import.specifier);
+        Ok(reference)
+    }
+
+    fn fresh_name(&mut self, base: &str) -> String {
+        if self.used_names.insert(base.to_owned()) {
+            return base.to_owned();
+        }
+        let mut ordinal = 1usize;
+        loop {
+            let candidate = format!("{base}_{ordinal}");
+            if self.used_names.insert(candidate.clone()) {
+                return candidate;
+            }
+            ordinal += 1;
+        }
+    }
+
+    fn finish_source_file(&mut self, root: TransformNode) -> Result<TransformNode, TransformError> {
+        if self.filename_declaration.is_none() && self.implicit_imports.is_empty() {
+            return Ok(root);
+        }
+        let (mut data, original_statements) = match self.context.arena().node(root)?.data.clone() {
+            NodeData::SourceFile(data) => {
+                let statements = data.statements;
+                (data, statements)
+            }
+            _ => {
+                return Err(TransformError::RootKindExpected {
+                    actual: self.context.arena().node(root)?.kind,
+                });
+            }
+        };
+        let mut statements = self.array_nodes(original_statements)?;
+        let prologue_count = statements
+            .iter()
+            .take_while(|statement| {
+                super::is_prologue_statement(self.context.arena(), self.node(**statement))
+                    .unwrap_or(false)
+            })
+            .count();
+        let mut insertions = Vec::new();
+        for group in self.implicit_imports.clone().into_iter().rev() {
+            if self.is_external_module {
+                insertions.push(self.create_implicit_import_statement(&group)?);
+            } else if self.is_external_or_common_js_module {
+                insertions.push(self.create_implicit_require_statement(&group)?);
+            }
+        }
+        if let Some(declaration) = self.filename_declaration {
+            insertions.push(self.create_filename_statement(declaration)?);
+        }
+        statements.splice(
+            prologue_count..prologue_count,
+            insertions.into_iter().map(TransformNode::node),
+        );
+        let statements = statements
+            .into_iter()
+            .map(|id| self.node(id))
+            .collect::<Vec<_>>();
+        let statements = if let Some(original) = original_statements
+            .and_then(|array| self.context.arena().node_array_ref(self.source, array))
+        {
+            self.context
+                .factory()?
+                .update_node_array(original, statements)?
+        } else {
+            self.context
+                .factory()?
+                .create_node_array(self.source, statements)?
+        };
+        data.statements = Some(statements.array());
+        let flags = self.context.arena().transform_flags(root);
+        self.context
+            .factory()?
+            .update_node(root, NodeData::SourceFile(data), flags)
+    }
+
+    fn create_implicit_import_statement(
+        &mut self,
+        group: &ImplicitImportGroup,
+    ) -> Result<TransformNode, TransformError> {
+        let elements = self.context.factory()?.create_node_array(
+            self.source,
+            group
+                .imports
+                .iter()
+                .map(|import| import.specifier)
+                .collect(),
+        )?;
+        let named = self.context.factory()?.create_node(
+            self.source,
+            NodeData::NamedImports(tsc_syntax::nodes::NamedImportsData {
+                elements: Some(elements.array()),
+            }),
+            TransformFlags::NONE,
+        )?;
+        let clause = self.context.factory()?.create_node(
+            self.source,
+            NodeData::ImportClause(tsc_syntax::nodes::ImportClauseData {
+                name: None,
+                is_type_only: false,
+                phase_modifier: None,
+                named_bindings: Some(named.node()),
+            }),
+            TransformFlags::NONE,
+        )?;
+        let module =
+            self.create_string_literal(group.module_specifier.encode_utf16().collect(), false)?;
+        self.context.factory()?.create_node(
+            self.source,
+            NodeData::ImportDeclaration(tsc_syntax::nodes::ImportDeclarationData {
+                modifiers: None,
+                import_clause: Some(clause.node()),
+                module_specifier: Some(module.node()),
+                attributes: None,
+            }),
+            TransformFlags::NONE,
+        )
+    }
+
+    fn create_implicit_require_statement(
+        &mut self,
+        group: &ImplicitImportGroup,
+    ) -> Result<TransformNode, TransformError> {
+        let mut bindings = Vec::with_capacity(group.imports.len());
+        for import in &group.imports {
+            let property = self.create_identifier(&import.exported_name)?;
+            let name = self.create_identifier(&import.local_name)?;
+            bindings.push(self.context.factory()?.create_node(
+                self.source,
+                NodeData::BindingElement(tsc_syntax::nodes::BindingElementData {
+                    name: Some(name.node()),
+                    property_name: Some(property.node()),
+                    dot_dot_dot_token: None,
+                    initializer: None,
+                }),
+                TransformFlags::NONE,
+            )?);
+        }
+        let bindings = self
+            .context
+            .factory()?
+            .create_node_array(self.source, bindings)?;
+        let pattern = self.context.factory()?.create_node(
+            self.source,
+            NodeData::ObjectBindingPattern(tsc_syntax::nodes::ObjectBindingPatternData {
+                elements: Some(bindings.array()),
+            }),
+            TransformFlags::CONTAINS_BINDING_PATTERN,
+        )?;
+        let require = self.create_identifier("require")?;
+        let module =
+            self.create_string_literal(group.module_specifier.encode_utf16().collect(), false)?;
+        let arguments = self
+            .context
+            .factory()?
+            .create_node_array(self.source, vec![module])?;
+        let call = self.context.factory()?.create_node(
+            self.source,
+            NodeData::CallExpression(tsc_syntax::nodes::CallExpressionData {
+                expression: Some(require.node()),
+                question_dot_token: None,
+                type_arguments: None,
+                arguments: Some(arguments.array()),
+            }),
+            TransformFlags::NONE,
+        )?;
+        let declaration = self.context.factory()?.create_node(
+            self.source,
+            NodeData::VariableDeclaration(tsc_syntax::nodes::VariableDeclarationData {
+                name: Some(pattern.node()),
+                exclamation_token: None,
+                r#type: None,
+                initializer: Some(call.node()),
+            }),
+            TransformFlags::NONE,
+        )?;
+        self.create_variable_statement(vec![declaration], NodeFlags::CONST)
+    }
+
+    fn create_filename_statement(
+        &mut self,
+        declaration: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        self.create_variable_statement(vec![declaration], NodeFlags::CONST)
+    }
+
+    fn create_variable_statement(
+        &mut self,
+        declarations: Vec<TransformNode>,
+        flags: NodeFlags,
+    ) -> Result<TransformNode, TransformError> {
+        let declarations = self
+            .context
+            .factory()?
+            .create_node_array(self.source, declarations)?;
+        let list = self.context.factory()?.create_node(
+            self.source,
+            NodeData::VariableDeclarationList(tsc_syntax::nodes::VariableDeclarationListData {
+                declarations: Some(declarations.array()),
+            }),
+            TransformFlags::NONE,
+        )?;
+        self.context.factory()?.set_node_flags(list, flags)?;
+        self.context.factory()?.create_node(
+            self.source,
+            NodeData::VariableStatement(tsc_syntax::nodes::VariableStatementData {
+                modifiers: None,
+                declaration_list: Some(list.node()),
+            }),
+            TransformFlags::NONE,
+        )
     }
 
     fn create_entity_expression(

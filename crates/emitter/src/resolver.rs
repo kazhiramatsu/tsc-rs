@@ -45,6 +45,7 @@ pub enum EmitResolverMethod {
     GetJsxFactoryImportDeclaration,
     GetReferencedValueDeclaration,
     HasNodeCheckFlag,
+    IsExternalOrCommonJsModule,
     IsInstantiatedModule,
     IsReferencedAliasDeclaration,
     IsTopLevelValueImportEqualsWithEntityName,
@@ -61,6 +62,7 @@ impl EmitResolverMethod {
             Self::GetJsxFactoryImportDeclaration => "getJsxFactoryImportDeclaration",
             Self::GetReferencedValueDeclaration => "getReferencedValueDeclaration",
             Self::HasNodeCheckFlag => "hasNodeCheckFlag",
+            Self::IsExternalOrCommonJsModule => "isExternalOrCommonJsModule",
             Self::IsInstantiatedModule => "isInstantiatedModule",
             Self::IsReferencedAliasDeclaration => "isReferencedAliasDeclaration",
             Self::IsTopLevelValueImportEqualsWithEntityName => {
@@ -221,6 +223,23 @@ pub trait EmitResolver {
         _flag: u32,
     ) -> Result<bool, EmitResolverError> {
         Err(unavailable(EmitResolverMethod::HasNodeCheckFlag, node))
+    }
+
+    /// Whether the source owning `node` is an external ES module or has a
+    /// CommonJS indicator. The automatic JSX transformer needs this only to
+    /// choose between a synthetic `import` and a direct destructuring
+    /// `require` for implicit runtime helpers.
+    /// tsc-port: isExternalOrCommonJsModule @6.0.3
+    /// tsc-hash: e395fd4c4d5df1373eb3cc17bc653dfcd8f2e41b9e32d949b3063633dc02c07d
+    /// tsc-span: _tsc.js:14119-14121
+    fn is_external_or_common_js_module(
+        &self,
+        node: EmitResolverNode,
+    ) -> Result<bool, EmitResolverError> {
+        Err(unavailable(
+            EmitResolverMethod::IsExternalOrCommonJsModule,
+            node,
+        ))
     }
 
     fn is_instantiated_module(&self, node: EmitResolverNode) -> Result<bool, EmitResolverError> {

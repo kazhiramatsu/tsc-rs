@@ -155,11 +155,10 @@ pub fn validate_bootstrap_emit_options(options: &CompilerOptions) -> Result<(), 
             return unsupported(name);
         }
     }
-    if !matches!(options.jsx, None | Some(1..=3)) {
+    if !matches!(options.jsx, None | Some(1..=5)) {
         return unsupported("jsx");
     }
     for (present, name) in [
-        (options.jsx_import_source.is_some(), "jsxImportSource"),
         (options.root_dir.is_some(), "rootDir"),
         (options.source_root.is_some(), "sourceRoot"),
         (options.map_root.is_some(), "mapRoot"),
@@ -214,16 +213,6 @@ pub fn validate_bootstrap_emit_request(host: &dyn EmitHost) -> Result<(), EmitFa
                 path: source.path().to_path_buf(),
             });
         }
-        if (name.ends_with(".tsx") || name.ends_with(".jsx"))
-            && (source
-                .syntax()
-                .is_some_and(|syntax| syntax.has_jsx_import_source_pragma)
-                || source.syntax().is_some_and(|syntax| {
-                    syntax.jsx_runtime_pragma.as_deref() == Some("automatic")
-                }))
-        {
-            return unsupported("jsxImportSource");
-        }
         javascript_sources += usize::from(is_javascript);
     }
     if let Some(out_dir) = options.out_dir.as_deref() {
@@ -258,6 +247,15 @@ fn observe_javascript_source_routing(host: &dyn EmitHost, activity: &mut H2Activ
         }
         if name.ends_with(".tsx") || name.ends_with(".jsx") {
             activity.observe_runtime_slice(H2RuntimeSlice::H2_3b);
+            if source.syntax().is_some_and(|syntax| {
+                syntax.jsx_runtime_pragma.as_deref() != Some("classic")
+                    && (matches!(host.compiler_options().jsx, Some(4 | 5))
+                        || host.compiler_options().jsx_import_source.is_some()
+                        || syntax.has_jsx_import_source_pragma
+                        || syntax.jsx_runtime_pragma.as_deref() == Some("automatic"))
+            }) {
+                activity.observe_runtime_slice(H2RuntimeSlice::H2_3c);
+            }
         }
     }
 }
@@ -282,7 +280,7 @@ pub fn emit_files(
     diagnostic_gate: &EmitDiagnosticGate,
     sink: &mut dyn OutputSink,
 ) -> Result<EmitOutcome, EmitFailure> {
-    let mut activity = H2ActivityCanary::h2_3b_profile();
+    let mut activity = H2ActivityCanary::h2_3c_profile();
     activity.construct_emit_session();
     activity.construct_output_plan();
     if !preflight.plan().units().is_empty() {

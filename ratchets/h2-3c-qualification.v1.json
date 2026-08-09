@@ -1,0 +1,1609 @@
+{
+  "schema": 1,
+  "phase": "H2.3c-automatic-jsx-runtime",
+  "status": "qualified-typescript-oracle",
+  "typescript": {
+    "version": "6.0.3",
+    "source_commit": "050880ce59e30b356b686bd3144efe24f875ebc8",
+    "bundle": {
+      "path": "vendor/typescript-6.0.3/lib/typescript.js",
+      "sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39"
+    },
+    "implementation": {
+      "path": "vendor/typescript-6.0.3/lib/_tsc.js",
+      "sha256": "1c59e77a54b186ec43fa7f3e0d3c4bb15ca5eb5ba43e96b1d3a267139eddd3e3"
+    }
+  },
+  "generator": {
+    "path": "crates/oracle/h2-3c-qualification.mjs",
+    "sha256": "58c0ff5974467e2ac060c844022c364a6b9389a8979d07c929034a2de71d08dc"
+  },
+  "contract": {
+    "path": ".github/ci/contracts/h2-3c-qualification.schema.json",
+    "sha256": "be3e00a3cf132b4c8d991a7fbfd0c853247a96b6ca9c6d36e49f7092352ab49e"
+  },
+  "origin": {
+    "trusted_base_commit": "7aaaa414133d630180931dd79cd9169d43e54121",
+    "h2_3b_profile": {
+      "path": "ratchets/h2-3b-profile.v1.json",
+      "sha256": "b7dd128fd3795ef85c8e140419b52bb370eddd505f4016bf564465f6eb947353"
+    }
+  },
+  "inputs": {
+    "compiler_classification": {
+      "path": "vendor/typescript-6.0.3/compiler-profile-classification.v1.json",
+      "sha256": "3c3cbcb3c29a5254c145dc2665ca21683a1bd94f5271841320f061e82b614603"
+    },
+    "conformance_classification": {
+      "path": "vendor/typescript-6.0.3/conformance-profile-classification.v1.json",
+      "sha256": "d54b51d44da91836ad1b7be3be4b7de19c6892e6cb1fe9605fda06cdda5a67eb"
+    },
+    "compiler_expansion": {
+      "path": "vendor/typescript-6.0.3/test-suite-expansion.v1.json",
+      "sha256": "9c6e991103b571f7a8800dc5e1ef66088017689f3769de8fcdb408b2dc125188"
+    },
+    "conformance_expansion": {
+      "path": "vendor/typescript-6.0.3/conformance-suite-expansion.v1.json",
+      "sha256": "924d4007b3ac93a3ee57032ea6089b649bab2902e30ee64cff02f4c9404b7bbd"
+    },
+    "owner_inventory": {
+      "path": "ratchets/h2-owner-inventory.v1.json",
+      "sha256": "1f3d666d107247bef7b5e18d6e9506ff51d281277c136bf70112a863b6dfa98d"
+    },
+    "candidate_dispositions": {
+      "path": "ratchets/h2-candidate-dispositions.v1.json",
+      "sha256": "6930d377041d755579e6dbcc1f5551ba84b8ebac29535e4b05e46b386e29b53a"
+    },
+    "h2_3b_qualification": {
+      "path": "ratchets/h2-3b-qualification.v1.json",
+      "sha256": "80d21f94276287d707c3de52cb4c94fa83d9bc7f4765a867fbd3232a76582f50"
+    }
+  },
+  "execution_contract": {
+    "source_reachability": "the four immutable H2.3b source-deferred automatic-runtime rows",
+    "module_selection": "the already recorded TypeScript Program.getEmitModuleFormatOfFile observation",
+    "admission": "all 4 H2.3b carry-forward rows are H2.3c-owned and exact; 0 new global candidate-disposition rows remain after H2.3b closure",
+    "typescript_repetitions": 2,
+    "rust_repetitions": 2,
+    "normalization": "none",
+    "deferred_boundary": "none; every H2.3c candidate is admitted"
+  },
+  "owner_closure": [
+    {
+      "key": "source-file-may-emit",
+      "declaration": {
+        "id": "h2:c5e154ba33255823c5a1f179a59cec2c7ca46ca4f905ff612d9b07c163a98174",
+        "source": "vendor/typescript-6.0.3/lib/_tsc.js",
+        "name": "sourceFileMayBeEmitted",
+        "kind": "FunctionDeclaration",
+        "lexical_path": "<bundle>/sourceFileMayBeEmitted@16617:1",
+        "source_range": {
+          "start": {
+            "offset": 1088075,
+            "line": 16617,
+            "character": 1
+          },
+          "end": {
+            "offset": 1089252,
+            "line": 16634,
+            "character": 2
+          }
+        },
+        "declaration_sha256": "690c9dc87ed5045e0abbd1ce604b5de515248569d9f8c25d476c3a9a54589095",
+        "body_sha256": "670a5d1398bde34a723a3b52187f3265a5ea45e60d10e6f6c33a3e030dda7f8a",
+        "ledger_slice_sha256": "333fcd249758d38eb80146910286d7cabdbbf6f1ea0787f8f1a2c85e9535ecb2"
+      },
+      "owner_slice": "H2.8a",
+      "disposition_before_h2_3b": "partial-h1-residual"
+    },
+    {
+      "key": "source-output-paths",
+      "declaration": {
+        "id": "h2:2b8d0b6a5cca80969431fa598f6b18efee8531771c2395f0df64d4507f022c8b",
+        "source": "vendor/typescript-6.0.3/lib/_tsc.js",
+        "name": "getOutputPathsFor",
+        "kind": "FunctionDeclaration",
+        "lexical_path": "<bundle>/getOutputPathsFor@116373:1",
+        "source_range": {
+          "start": {
+            "offset": 5465676,
+            "line": 116373,
+            "character": 1
+          },
+          "end": {
+            "offset": 5466907,
+            "line": 116387,
+            "character": 2
+          }
+        },
+        "declaration_sha256": "779ffeea2c3a08b826f4ec76c59446785080b38a4ddb06b27ee3fc7d0dda52da",
+        "body_sha256": "be94599c57dbdf08bcef7a5880eedfd02e2cf7c942d6a53d5bc7f946e00e59db",
+        "ledger_slice_sha256": "f3ef9e378ec2b224d2f434b49f6ffd2a9597e7cc102f504653c9027a49c5ebd2"
+      },
+      "owner_slice": "H2.8a",
+      "disposition_before_h2_3b": "partial-h1-residual"
+    },
+    {
+      "key": "output-extension",
+      "declaration": {
+        "id": "h2:1a5f479d87ea548edb2bfc7ce9ca0320b9b1181758e899c20bffc79d4a72a6c3",
+        "source": "vendor/typescript-6.0.3/lib/_tsc.js",
+        "name": "getOutputExtension",
+        "kind": "FunctionDeclaration",
+        "lexical_path": "<bundle>/getOutputExtension@116391:1",
+        "source_range": {
+          "start": {
+            "offset": 5467050,
+            "line": 116391,
+            "character": 1
+          },
+          "end": {
+            "offset": 5467500,
+            "line": 116393,
+            "character": 2
+          }
+        },
+        "declaration_sha256": "3eb03f07797abeb2d2a2c42e88e53d1c9e0504485d0fd39c9d92d283013d0400",
+        "body_sha256": "88cdf1defe26630e60cd0ba490f7b1f4da070f5bd7f625fa646bcd12e33bffe4",
+        "ledger_slice_sha256": "cf61157be90d2652413f6d8ee13d05b2e76048b1f4ee38f8b620691af40632ce"
+      },
+      "owner_slice": "H2.8a",
+      "disposition_before_h2_3b": "partial-h1-residual"
+    },
+    {
+      "key": "script-transformer-selection",
+      "declaration": {
+        "id": "h2:c8d3b67a2db39b117304a4b141c5d1fb1472a1de9ed491d7cc16900089000cab",
+        "source": "vendor/typescript-6.0.3/lib/_tsc.js",
+        "name": "getScriptTransformers",
+        "kind": "FunctionDeclaration",
+        "lexical_path": "<bundle>/getScriptTransformers@115903:1",
+        "source_range": {
+          "start": {
+            "offset": 5445190,
+            "line": 115903,
+            "character": 1
+          },
+          "end": {
+            "offset": 5447006,
+            "line": 115949,
+            "character": 2
+          }
+        },
+        "declaration_sha256": "823ab32cb344404e263bb874a0df5fa7254c76bb0022f1db754505592a0e716f",
+        "body_sha256": "9fe8b2695f9ce03ca2d10368e46dde501438c53362e52995a24654d753cfceb4",
+        "ledger_slice_sha256": "69bdc65a0c428ad5819419fabd0ecd483bb661350434c5ad0ea0bdec15096fd0"
+      },
+      "owner_slice": "H2.1a",
+      "disposition_before_h2_3b": "partial-h1-residual"
+    },
+    {
+      "key": "transform-typescript",
+      "declaration": {
+        "id": "h2:5060c2118ae6adb02ce51f3d5fbe31d2255c21ca0cb4f5f82fdfecac71b984f4",
+        "source": "vendor/typescript-6.0.3/lib/_tsc.js",
+        "name": "transformTypeScript",
+        "kind": "FunctionDeclaration",
+        "lexical_path": "<bundle>/transformTypeScript@94036:1",
+        "source_range": {
+          "start": {
+            "offset": 4588731,
+            "line": 94036,
+            "character": 1
+          },
+          "end": {
+            "offset": 4656191,
+            "line": 95849,
+            "character": 2
+          }
+        },
+        "declaration_sha256": "547f9cfdb2cdda74d76a5b22479ea9df8c56e6be19790021466a3c1cd6af9d0a",
+        "body_sha256": "b273aa05b75da7c7637fad04ed313f54d4a81c7cd2890e22a346bc7539fa0aa3",
+        "ledger_slice_sha256": "08e4305bdbb440c9e05fb551bd3a1988f4edf67ccc0119b2642f7a3dd2258e79"
+      },
+      "owner_slice": "H2.2a",
+      "disposition_before_h2_3b": "partial-h1-residual"
+    },
+    {
+      "key": "transform-jsx",
+      "declaration": {
+        "id": "h2:86dc1c031420f95e93b6d3e5f51616f5a98b4c66a1a6bb7e0d091d664764e59f",
+        "source": "vendor/typescript-6.0.3/lib/_tsc.js",
+        "name": "transformJsx",
+        "kind": "FunctionDeclaration",
+        "lexical_path": "<bundle>/transformJsx@103845:1",
+        "source_range": {
+          "start": {
+            "offset": 4982708,
+            "line": 103845,
+            "character": 1
+          },
+          "end": {
+            "offset": 5003553,
+            "line": 104388,
+            "character": 2
+          }
+        },
+        "declaration_sha256": "46bb9f37e1aa9798cc02f2e51f5eed7b74a58bc6d2f91736c3154431c5c4bede",
+        "body_sha256": "9c554f9f2812bd91bcb4dda1cfc6a9e8b86cd87606e08e2aa6034769d7af1a68",
+        "ledger_slice_sha256": "0c30b9970bbf613a28df95fd5c016cf34879d50284ab1470a4cbd9885dfa4f19"
+      },
+      "owner_slice": "H2.3b",
+      "disposition_before_h2_3b": "deferred-h2"
+    },
+    {
+      "key": "printer",
+      "declaration": {
+        "id": "h2:f85bb949b7574e4de1d14a429a67cd4aa4a5a4d1671421c10dc04340c3b8d6e9",
+        "source": "vendor/typescript-6.0.3/lib/_tsc.js",
+        "name": "createPrinter",
+        "kind": "FunctionDeclaration",
+        "lexical_path": "<bundle>/createPrinter@116912:1",
+        "source_range": {
+          "start": {
+            "offset": 5490441,
+            "line": 116912,
+            "character": 1
+          },
+          "end": {
+            "offset": 5650994,
+            "line": 121378,
+            "character": 2
+          }
+        },
+        "declaration_sha256": "02bbb9a6adb27a9df01eac9337e374e10459018b17689cc315efd25135fa81ff",
+        "body_sha256": "c1ca84c9b6e0fd047ed1c89b6585be47d6bdfc44ab5e2e527411386695cd7e20",
+        "ledger_slice_sha256": "b227b66a85178f81faf58d6de65ed31fe2a87de1448ec6ec61e535fd36194697"
+      },
+      "owner_slice": "H2.1a",
+      "disposition_before_h2_3b": "partial-h1-residual"
+    }
+  ],
+  "cases": [
+    {
+      "suite": "compiler",
+      "case_id": "typescript-6.0.3/compiler/jsxNamespacedNameNotComparedToNonMatchingIndexSignature.tsx#default",
+      "expansion_case": 4432,
+      "source": {
+        "path": "jsxNamespacedNameNotComparedToNonMatchingIndexSignature.tsx",
+        "bytes": 263,
+        "sha256": "c1305dc6d1323ed498ff44a0a68758cb95c860937441efc2860ba077eb583341",
+        "git_blob_sha1": "7e840d2a1963a541f68ab6075f00bdd61fc296be"
+      },
+      "module_state": "absent-effective-ESNext",
+      "input": {
+        "current_directory": "/.src",
+        "roots": [
+          "/.src/jsxNamespacedNameNotComparedToNonMatchingIndexSignature.tsx"
+        ],
+        "settings": [
+          {
+            "name": "jsx",
+            "value": "react-jsx"
+          },
+          {
+            "name": "target",
+            "value": "esnext"
+          }
+        ],
+        "virtual_config": null,
+        "files": [
+          {
+            "unit": 0,
+            "path": "/.src/jsxNamespacedNameNotComparedToNonMatchingIndexSignature.tsx",
+            "utf8_base64": "Ly8vIDxyZWZlcmVuY2UgcGF0aD0iLy5saWIvcmVhY3QxNi5kLnRzIiAvPgoKZGVjbGFyZSBtb2R1bGUgInJlYWN0IiB7CiAgICBpbnRlcmZhY2UgQXR0cmlidXRlcyB7CiAgICAgICAgW2tleTogYGRvLSR7c3RyaW5nfWBdOiBGdW5jdGlvbjsKICAgICAgICAibnM6dGhpbmciPzogc3RyaW5nOwogICAgfQp9CgpleHBvcnQgY29uc3QgdGFnID0gPGRpdiBuczp0aGluZz0iYSIvPg==",
+            "utf8_sha256": "0f01d44e49c2a9d5227262dfc6a4e65c59f22f8f4192f76b8a3803fd5dfa79e7",
+            "utf8_bytes": 214
+          }
+        ]
+      },
+      "files": [
+        {
+          "unit": 0,
+          "path": "/.src/jsxNamespacedNameNotComparedToNonMatchingIndexSignature.tsx",
+          "script_kind": "TSX",
+          "declaration_file": false,
+          "emit_eligible": true,
+          "implied_module_format": "None",
+          "emit_module_format": 99,
+          "feature_roots": [
+            {
+              "feature": "jsx",
+              "start": 195,
+              "end": 214,
+              "kind": "JsxSelfClosingElement"
+            }
+          ],
+          "parse_diagnostic_codes": [],
+          "max_ast_depth": 9,
+          "import_attributes": false,
+          "advanced_comment_placement": false,
+          "text_sha256": "0f01d44e49c2a9d5227262dfc6a4e65c59f22f8f4192f76b8a3803fd5dfa79e7"
+        }
+      ],
+      "owner_reachability": [
+        "source-file-may-emit",
+        "source-output-paths",
+        "output-extension",
+        "script-transformer-selection",
+        "transform-typescript",
+        "transform-jsx",
+        "printer"
+      ],
+      "disposition": "admitted-for-execution",
+      "required_slices": [],
+      "diagnostic_disposition": {
+        "state": "exact-required"
+      },
+      "typescript_runs": [
+        {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/.src/jsxNamespacedNameNotComparedToNonMatchingIndexSignature.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "aW1wb3J0IHsganN4IGFzIF9qc3ggfSBmcm9tICJyZWFjdC9qc3gtcnVudGltZSI7DQovLy8gPHJlZmVyZW5jZSBwYXRoPSIvLmxpYi9yZWFjdDE2LmQudHMiIC8+DQpleHBvcnQgY29uc3QgdGFnID0gX2pzeCgiZGl2IiwgeyAibnM6dGhpbmciOiAiYSIgfSk7DQo=",
+              "callback_utf8_sha256": "d338260a9a75484a96be61df98c82a1a6ea90e7a639a525556704dcee541c5f7",
+              "callback_utf8_bytes": 149,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "d338260a9a75484a96be61df98c82a1a6ea90e7a639a525556704dcee541c5f7",
+              "materialized_utf8_bytes": 149,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/jsxNamespacedNameNotComparedToNonMatchingIndexSignature.tsx"
+              ]
+            }
+          ],
+          "reported_diagnostics": [
+            {
+              "code": 6053,
+              "category": "Error",
+              "file": "/.src/jsxNamespacedNameNotComparedToNonMatchingIndexSignature.tsx",
+              "start": 21,
+              "length": 18,
+              "message": "File '/.lib/react16.d.ts' not found."
+            },
+            {
+              "code": 2664,
+              "category": "Error",
+              "file": "/.src/jsxNamespacedNameNotComparedToNonMatchingIndexSignature.tsx",
+              "start": 60,
+              "length": 7,
+              "message": "Invalid module name in augmentation, module 'react' cannot be found."
+            },
+            {
+              "code": 2875,
+              "category": "Error",
+              "file": "/.src/jsxNamespacedNameNotComparedToNonMatchingIndexSignature.tsx",
+              "start": 195,
+              "length": 19,
+              "message": "This JSX tag requires the module path 'react/jsx-runtime' to exist, but none could be found. Make sure you have types for the appropriate package installed."
+            },
+            {
+              "code": 7026,
+              "category": "Error",
+              "file": "/.src/jsxNamespacedNameNotComparedToNonMatchingIndexSignature.tsx",
+              "start": 195,
+              "length": 19,
+              "message": "JSX element implicitly has type 'any' because no interface 'JSX.IntrinsicElements' exists."
+            }
+          ],
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 2,
+          "run_fingerprint_sha256": "2c0412168cdc1323a410385176965d01b839aeb93e92c581d0e0194deff01901"
+        },
+        {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/.src/jsxNamespacedNameNotComparedToNonMatchingIndexSignature.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "aW1wb3J0IHsganN4IGFzIF9qc3ggfSBmcm9tICJyZWFjdC9qc3gtcnVudGltZSI7DQovLy8gPHJlZmVyZW5jZSBwYXRoPSIvLmxpYi9yZWFjdDE2LmQudHMiIC8+DQpleHBvcnQgY29uc3QgdGFnID0gX2pzeCgiZGl2IiwgeyAibnM6dGhpbmciOiAiYSIgfSk7DQo=",
+              "callback_utf8_sha256": "d338260a9a75484a96be61df98c82a1a6ea90e7a639a525556704dcee541c5f7",
+              "callback_utf8_bytes": 149,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "d338260a9a75484a96be61df98c82a1a6ea90e7a639a525556704dcee541c5f7",
+              "materialized_utf8_bytes": 149,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/jsxNamespacedNameNotComparedToNonMatchingIndexSignature.tsx"
+              ]
+            }
+          ],
+          "reported_diagnostics": [
+            {
+              "code": 6053,
+              "category": "Error",
+              "file": "/.src/jsxNamespacedNameNotComparedToNonMatchingIndexSignature.tsx",
+              "start": 21,
+              "length": 18,
+              "message": "File '/.lib/react16.d.ts' not found."
+            },
+            {
+              "code": 2664,
+              "category": "Error",
+              "file": "/.src/jsxNamespacedNameNotComparedToNonMatchingIndexSignature.tsx",
+              "start": 60,
+              "length": 7,
+              "message": "Invalid module name in augmentation, module 'react' cannot be found."
+            },
+            {
+              "code": 2875,
+              "category": "Error",
+              "file": "/.src/jsxNamespacedNameNotComparedToNonMatchingIndexSignature.tsx",
+              "start": 195,
+              "length": 19,
+              "message": "This JSX tag requires the module path 'react/jsx-runtime' to exist, but none could be found. Make sure you have types for the appropriate package installed."
+            },
+            {
+              "code": 7026,
+              "category": "Error",
+              "file": "/.src/jsxNamespacedNameNotComparedToNonMatchingIndexSignature.tsx",
+              "start": 195,
+              "length": 19,
+              "message": "JSX element implicitly has type 'any' because no interface 'JSX.IntrinsicElements' exists."
+            }
+          ],
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 2,
+          "run_fingerprint_sha256": "2c0412168cdc1323a410385176965d01b839aeb93e92c581d0e0194deff01901"
+        }
+      ],
+      "rust_expectation": "two-deterministic-exact-runs",
+      "case_fingerprint_sha256": "01b2cc796e17f4fb4080334d32e64df483d49d95fc4e85406f12aed9608c382a"
+    },
+    {
+      "suite": "conformance",
+      "case_id": "typescript-6.0.3/conformance/jsx/tsxReactEmit8.tsx#jsx%3Dreact-jsx",
+      "expansion_case": 4600,
+      "source": {
+        "path": "jsx/tsxReactEmit8.tsx",
+        "bytes": 141,
+        "sha256": "bf20619023bc6f7a832fa82021ae78854f99b8683c04221b4561fb1221a01d27",
+        "git_blob_sha1": "23bd2e4c5a220ea631bea27a09b15be4b8268a3a"
+      },
+      "module_state": "absent-effective-ESNext",
+      "input": {
+        "current_directory": "/.src",
+        "roots": [
+          "/.src/tsxReactEmit8.tsx"
+        ],
+        "settings": [
+          {
+            "name": "jsx",
+            "value": "react-jsx"
+          },
+          {
+            "name": "target",
+            "value": "esnext"
+          }
+        ],
+        "virtual_config": null,
+        "files": [
+          {
+            "unit": 0,
+            "path": "/.src/tsxReactEmit8.tsx",
+            "utf8_base64": "Ly8vIDxyZWZlcmVuY2UgcGF0aD0iLy5saWIvcmVhY3QxNi5kLnRzIiAvPgoKPGRpdj4xPC9kaXY+Owo8ZGl2IGtleT17ImtleS1hdHRyIn0+MjwvZGl2PjsK",
+            "utf8_sha256": "967cc8891f1c16773315e663765bcfddad49d0d8b4773d2e4cdd3f4c914295c4",
+            "utf8_bytes": 90
+          }
+        ]
+      },
+      "files": [
+        {
+          "unit": 0,
+          "path": "/.src/tsxReactEmit8.tsx",
+          "script_kind": "TSX",
+          "declaration_file": false,
+          "emit_eligible": true,
+          "implied_module_format": "None",
+          "emit_module_format": 99,
+          "feature_roots": [
+            {
+              "feature": "jsx",
+              "start": 45,
+              "end": 57,
+              "kind": "JsxElement"
+            },
+            {
+              "feature": "jsx",
+              "start": 59,
+              "end": 88,
+              "kind": "JsxElement"
+            }
+          ],
+          "parse_diagnostic_codes": [],
+          "max_ast_depth": 8,
+          "import_attributes": false,
+          "advanced_comment_placement": false,
+          "text_sha256": "967cc8891f1c16773315e663765bcfddad49d0d8b4773d2e4cdd3f4c914295c4"
+        }
+      ],
+      "owner_reachability": [
+        "source-file-may-emit",
+        "source-output-paths",
+        "output-extension",
+        "script-transformer-selection",
+        "transform-typescript",
+        "transform-jsx",
+        "printer"
+      ],
+      "disposition": "admitted-for-execution",
+      "required_slices": [],
+      "diagnostic_disposition": {
+        "state": "exact-required"
+      },
+      "typescript_runs": [
+        {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/.src/tsxReactEmit8.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "aW1wb3J0IHsganN4IGFzIF9qc3ggfSBmcm9tICJyZWFjdC9qc3gtcnVudGltZSI7DQovLy8gPHJlZmVyZW5jZSBwYXRoPSIvLmxpYi9yZWFjdDE2LmQudHMiIC8+DQpfanN4KCJkaXYiLCB7IGNoaWxkcmVuOiAiMSIgfSk7DQpfanN4KCJkaXYiLCB7IGNoaWxkcmVuOiAiMiIgfSwgImtleS1hdHRyIik7DQo=",
+              "callback_utf8_sha256": "6e7061027c83a3da9127540df44942e8ddb1bb30ce2009104e2c6f0939baefe9",
+              "callback_utf8_bytes": 173,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "6e7061027c83a3da9127540df44942e8ddb1bb30ce2009104e2c6f0939baefe9",
+              "materialized_utf8_bytes": 173,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/tsxReactEmit8.tsx"
+              ]
+            }
+          ],
+          "reported_diagnostics": [
+            {
+              "code": 6053,
+              "category": "Error",
+              "file": "/.src/tsxReactEmit8.tsx",
+              "start": 21,
+              "length": 18,
+              "message": "File '/.lib/react16.d.ts' not found."
+            },
+            {
+              "code": 7026,
+              "category": "Error",
+              "file": "/.src/tsxReactEmit8.tsx",
+              "start": 45,
+              "length": 5,
+              "message": "JSX element implicitly has type 'any' because no interface 'JSX.IntrinsicElements' exists."
+            },
+            {
+              "code": 2875,
+              "category": "Error",
+              "file": "/.src/tsxReactEmit8.tsx",
+              "start": 45,
+              "length": 12,
+              "message": "This JSX tag requires the module path 'react/jsx-runtime' to exist, but none could be found. Make sure you have types for the appropriate package installed."
+            },
+            {
+              "code": 7026,
+              "category": "Error",
+              "file": "/.src/tsxReactEmit8.tsx",
+              "start": 51,
+              "length": 6,
+              "message": "JSX element implicitly has type 'any' because no interface 'JSX.IntrinsicElements' exists."
+            },
+            {
+              "code": 7026,
+              "category": "Error",
+              "file": "/.src/tsxReactEmit8.tsx",
+              "start": 59,
+              "length": 22,
+              "message": "JSX element implicitly has type 'any' because no interface 'JSX.IntrinsicElements' exists."
+            },
+            {
+              "code": 7026,
+              "category": "Error",
+              "file": "/.src/tsxReactEmit8.tsx",
+              "start": 82,
+              "length": 6,
+              "message": "JSX element implicitly has type 'any' because no interface 'JSX.IntrinsicElements' exists."
+            }
+          ],
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 2,
+          "run_fingerprint_sha256": "139270d7f8e8db27e02f1019eaa8e1656c1be12daad1b86161126138f5bb6c1f"
+        },
+        {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/.src/tsxReactEmit8.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "aW1wb3J0IHsganN4IGFzIF9qc3ggfSBmcm9tICJyZWFjdC9qc3gtcnVudGltZSI7DQovLy8gPHJlZmVyZW5jZSBwYXRoPSIvLmxpYi9yZWFjdDE2LmQudHMiIC8+DQpfanN4KCJkaXYiLCB7IGNoaWxkcmVuOiAiMSIgfSk7DQpfanN4KCJkaXYiLCB7IGNoaWxkcmVuOiAiMiIgfSwgImtleS1hdHRyIik7DQo=",
+              "callback_utf8_sha256": "6e7061027c83a3da9127540df44942e8ddb1bb30ce2009104e2c6f0939baefe9",
+              "callback_utf8_bytes": 173,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "6e7061027c83a3da9127540df44942e8ddb1bb30ce2009104e2c6f0939baefe9",
+              "materialized_utf8_bytes": 173,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/tsxReactEmit8.tsx"
+              ]
+            }
+          ],
+          "reported_diagnostics": [
+            {
+              "code": 6053,
+              "category": "Error",
+              "file": "/.src/tsxReactEmit8.tsx",
+              "start": 21,
+              "length": 18,
+              "message": "File '/.lib/react16.d.ts' not found."
+            },
+            {
+              "code": 7026,
+              "category": "Error",
+              "file": "/.src/tsxReactEmit8.tsx",
+              "start": 45,
+              "length": 5,
+              "message": "JSX element implicitly has type 'any' because no interface 'JSX.IntrinsicElements' exists."
+            },
+            {
+              "code": 2875,
+              "category": "Error",
+              "file": "/.src/tsxReactEmit8.tsx",
+              "start": 45,
+              "length": 12,
+              "message": "This JSX tag requires the module path 'react/jsx-runtime' to exist, but none could be found. Make sure you have types for the appropriate package installed."
+            },
+            {
+              "code": 7026,
+              "category": "Error",
+              "file": "/.src/tsxReactEmit8.tsx",
+              "start": 51,
+              "length": 6,
+              "message": "JSX element implicitly has type 'any' because no interface 'JSX.IntrinsicElements' exists."
+            },
+            {
+              "code": 7026,
+              "category": "Error",
+              "file": "/.src/tsxReactEmit8.tsx",
+              "start": 59,
+              "length": 22,
+              "message": "JSX element implicitly has type 'any' because no interface 'JSX.IntrinsicElements' exists."
+            },
+            {
+              "code": 7026,
+              "category": "Error",
+              "file": "/.src/tsxReactEmit8.tsx",
+              "start": 82,
+              "length": 6,
+              "message": "JSX element implicitly has type 'any' because no interface 'JSX.IntrinsicElements' exists."
+            }
+          ],
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 2,
+          "run_fingerprint_sha256": "139270d7f8e8db27e02f1019eaa8e1656c1be12daad1b86161126138f5bb6c1f"
+        }
+      ],
+      "rust_expectation": "two-deterministic-exact-runs",
+      "case_fingerprint_sha256": "1441d363deeec71dcb9f1b24bb4cde0084300209469bddd47ff9b67f5b37bc4c"
+    },
+    {
+      "suite": "conformance",
+      "case_id": "typescript-6.0.3/conformance/jsx/tsxReactEmit8.tsx#jsx%3Dreact-jsxdev",
+      "expansion_case": 4601,
+      "source": {
+        "path": "jsx/tsxReactEmit8.tsx",
+        "bytes": 141,
+        "sha256": "bf20619023bc6f7a832fa82021ae78854f99b8683c04221b4561fb1221a01d27",
+        "git_blob_sha1": "23bd2e4c5a220ea631bea27a09b15be4b8268a3a"
+      },
+      "module_state": "absent-effective-ESNext",
+      "input": {
+        "current_directory": "/.src",
+        "roots": [
+          "/.src/tsxReactEmit8.tsx"
+        ],
+        "settings": [
+          {
+            "name": "jsx",
+            "value": "react-jsxdev"
+          },
+          {
+            "name": "target",
+            "value": "esnext"
+          }
+        ],
+        "virtual_config": null,
+        "files": [
+          {
+            "unit": 0,
+            "path": "/.src/tsxReactEmit8.tsx",
+            "utf8_base64": "Ly8vIDxyZWZlcmVuY2UgcGF0aD0iLy5saWIvcmVhY3QxNi5kLnRzIiAvPgoKPGRpdj4xPC9kaXY+Owo8ZGl2IGtleT17ImtleS1hdHRyIn0+MjwvZGl2PjsK",
+            "utf8_sha256": "967cc8891f1c16773315e663765bcfddad49d0d8b4773d2e4cdd3f4c914295c4",
+            "utf8_bytes": 90
+          }
+        ]
+      },
+      "files": [
+        {
+          "unit": 0,
+          "path": "/.src/tsxReactEmit8.tsx",
+          "script_kind": "TSX",
+          "declaration_file": false,
+          "emit_eligible": true,
+          "implied_module_format": "None",
+          "emit_module_format": 99,
+          "feature_roots": [
+            {
+              "feature": "jsx",
+              "start": 45,
+              "end": 57,
+              "kind": "JsxElement"
+            },
+            {
+              "feature": "jsx",
+              "start": 59,
+              "end": 88,
+              "kind": "JsxElement"
+            }
+          ],
+          "parse_diagnostic_codes": [],
+          "max_ast_depth": 8,
+          "import_attributes": false,
+          "advanced_comment_placement": false,
+          "text_sha256": "967cc8891f1c16773315e663765bcfddad49d0d8b4773d2e4cdd3f4c914295c4"
+        }
+      ],
+      "owner_reachability": [
+        "source-file-may-emit",
+        "source-output-paths",
+        "output-extension",
+        "script-transformer-selection",
+        "transform-typescript",
+        "transform-jsx",
+        "printer"
+      ],
+      "disposition": "admitted-for-execution",
+      "required_slices": [],
+      "diagnostic_disposition": {
+        "state": "exact-required"
+      },
+      "typescript_runs": [
+        {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/.src/tsxReactEmit8.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "aW1wb3J0IHsganN4REVWIGFzIF9qc3hERVYgfSBmcm9tICJyZWFjdC9qc3gtZGV2LXJ1bnRpbWUiOw0KY29uc3QgX2pzeEZpbGVOYW1lID0gIi8uc3JjL3RzeFJlYWN0RW1pdDgudHN4IjsNCi8vLyA8cmVmZXJlbmNlIHBhdGg9Ii8ubGliL3JlYWN0MTYuZC50cyIgLz4NCl9qc3hERVYoImRpdiIsIHsgY2hpbGRyZW46ICIxIiB9LCB2b2lkIDAsIGZhbHNlLCB7IGZpbGVOYW1lOiBfanN4RmlsZU5hbWUsIGxpbmVOdW1iZXI6IDMsIGNvbHVtbk51bWJlcjogMSB9LCB0aGlzKTsNCl9qc3hERVYoImRpdiIsIHsgY2hpbGRyZW46ICIyIiB9LCAia2V5LWF0dHIiLCBmYWxzZSwgeyBmaWxlTmFtZTogX2pzeEZpbGVOYW1lLCBsaW5lTnVtYmVyOiA0LCBjb2x1bW5OdW1iZXI6IDEgfSwgdGhpcyk7DQo=",
+              "callback_utf8_sha256": "1468fce5cc03b247e53fba5402c9bd72828e7a3ff4d3cc45007d130b814270ed",
+              "callback_utf8_bytes": 392,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "1468fce5cc03b247e53fba5402c9bd72828e7a3ff4d3cc45007d130b814270ed",
+              "materialized_utf8_bytes": 392,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/tsxReactEmit8.tsx"
+              ]
+            }
+          ],
+          "reported_diagnostics": [
+            {
+              "code": 6053,
+              "category": "Error",
+              "file": "/.src/tsxReactEmit8.tsx",
+              "start": 21,
+              "length": 18,
+              "message": "File '/.lib/react16.d.ts' not found."
+            },
+            {
+              "code": 7026,
+              "category": "Error",
+              "file": "/.src/tsxReactEmit8.tsx",
+              "start": 45,
+              "length": 5,
+              "message": "JSX element implicitly has type 'any' because no interface 'JSX.IntrinsicElements' exists."
+            },
+            {
+              "code": 2875,
+              "category": "Error",
+              "file": "/.src/tsxReactEmit8.tsx",
+              "start": 45,
+              "length": 12,
+              "message": "This JSX tag requires the module path 'react/jsx-dev-runtime' to exist, but none could be found. Make sure you have types for the appropriate package installed."
+            },
+            {
+              "code": 7026,
+              "category": "Error",
+              "file": "/.src/tsxReactEmit8.tsx",
+              "start": 51,
+              "length": 6,
+              "message": "JSX element implicitly has type 'any' because no interface 'JSX.IntrinsicElements' exists."
+            },
+            {
+              "code": 7026,
+              "category": "Error",
+              "file": "/.src/tsxReactEmit8.tsx",
+              "start": 59,
+              "length": 22,
+              "message": "JSX element implicitly has type 'any' because no interface 'JSX.IntrinsicElements' exists."
+            },
+            {
+              "code": 7026,
+              "category": "Error",
+              "file": "/.src/tsxReactEmit8.tsx",
+              "start": 82,
+              "length": 6,
+              "message": "JSX element implicitly has type 'any' because no interface 'JSX.IntrinsicElements' exists."
+            }
+          ],
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 2,
+          "run_fingerprint_sha256": "0f7ec7929dcbd29c9675785017729502860755bd8de8d8fbe7efbf4cea371571"
+        },
+        {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/.src/tsxReactEmit8.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "aW1wb3J0IHsganN4REVWIGFzIF9qc3hERVYgfSBmcm9tICJyZWFjdC9qc3gtZGV2LXJ1bnRpbWUiOw0KY29uc3QgX2pzeEZpbGVOYW1lID0gIi8uc3JjL3RzeFJlYWN0RW1pdDgudHN4IjsNCi8vLyA8cmVmZXJlbmNlIHBhdGg9Ii8ubGliL3JlYWN0MTYuZC50cyIgLz4NCl9qc3hERVYoImRpdiIsIHsgY2hpbGRyZW46ICIxIiB9LCB2b2lkIDAsIGZhbHNlLCB7IGZpbGVOYW1lOiBfanN4RmlsZU5hbWUsIGxpbmVOdW1iZXI6IDMsIGNvbHVtbk51bWJlcjogMSB9LCB0aGlzKTsNCl9qc3hERVYoImRpdiIsIHsgY2hpbGRyZW46ICIyIiB9LCAia2V5LWF0dHIiLCBmYWxzZSwgeyBmaWxlTmFtZTogX2pzeEZpbGVOYW1lLCBsaW5lTnVtYmVyOiA0LCBjb2x1bW5OdW1iZXI6IDEgfSwgdGhpcyk7DQo=",
+              "callback_utf8_sha256": "1468fce5cc03b247e53fba5402c9bd72828e7a3ff4d3cc45007d130b814270ed",
+              "callback_utf8_bytes": 392,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "1468fce5cc03b247e53fba5402c9bd72828e7a3ff4d3cc45007d130b814270ed",
+              "materialized_utf8_bytes": 392,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/tsxReactEmit8.tsx"
+              ]
+            }
+          ],
+          "reported_diagnostics": [
+            {
+              "code": 6053,
+              "category": "Error",
+              "file": "/.src/tsxReactEmit8.tsx",
+              "start": 21,
+              "length": 18,
+              "message": "File '/.lib/react16.d.ts' not found."
+            },
+            {
+              "code": 7026,
+              "category": "Error",
+              "file": "/.src/tsxReactEmit8.tsx",
+              "start": 45,
+              "length": 5,
+              "message": "JSX element implicitly has type 'any' because no interface 'JSX.IntrinsicElements' exists."
+            },
+            {
+              "code": 2875,
+              "category": "Error",
+              "file": "/.src/tsxReactEmit8.tsx",
+              "start": 45,
+              "length": 12,
+              "message": "This JSX tag requires the module path 'react/jsx-dev-runtime' to exist, but none could be found. Make sure you have types for the appropriate package installed."
+            },
+            {
+              "code": 7026,
+              "category": "Error",
+              "file": "/.src/tsxReactEmit8.tsx",
+              "start": 51,
+              "length": 6,
+              "message": "JSX element implicitly has type 'any' because no interface 'JSX.IntrinsicElements' exists."
+            },
+            {
+              "code": 7026,
+              "category": "Error",
+              "file": "/.src/tsxReactEmit8.tsx",
+              "start": 59,
+              "length": 22,
+              "message": "JSX element implicitly has type 'any' because no interface 'JSX.IntrinsicElements' exists."
+            },
+            {
+              "code": 7026,
+              "category": "Error",
+              "file": "/.src/tsxReactEmit8.tsx",
+              "start": 82,
+              "length": 6,
+              "message": "JSX element implicitly has type 'any' because no interface 'JSX.IntrinsicElements' exists."
+            }
+          ],
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 2,
+          "run_fingerprint_sha256": "0f7ec7929dcbd29c9675785017729502860755bd8de8d8fbe7efbf4cea371571"
+        }
+      ],
+      "rust_expectation": "two-deterministic-exact-runs",
+      "case_fingerprint_sha256": "2de79fdc62f42b8c2c7984a9e523df0ff641a5ad5ba5deaf2ad6f5667f4756fb"
+    },
+    {
+      "suite": "conformance",
+      "case_id": "typescript-6.0.3/conformance/jsx/tsxReactEmitSpreadAttribute.ts#target%3Desnext",
+      "expansion_case": 4606,
+      "source": {
+        "path": "jsx/tsxReactEmitSpreadAttribute.ts",
+        "bytes": 1553,
+        "sha256": "bc51bea5e8ef3e53913a6d3bc98eda00c7485c40cb9419883a4f0292388ccf1f",
+        "git_blob_sha1": "87973e47848373a47246f2b1a0509a76c34e0fdb"
+      },
+      "module_state": "absent-effective-ESNext",
+      "input": {
+        "current_directory": "/.src",
+        "roots": [
+          "/.src/test.tsx"
+        ],
+        "settings": [
+          {
+            "name": "jsx",
+            "value": "react-jsx"
+          },
+          {
+            "name": "target",
+            "value": "esnext"
+          },
+          {
+            "name": "filename",
+            "value": "test.tsx"
+          }
+        ],
+        "virtual_config": null,
+        "files": [
+          {
+            "unit": 0,
+            "path": "/.src/test.tsx",
+            "utf8_base64": "Ly8vIDxyZWZlcmVuY2UgcGF0aD0iLy5saWIvcmVhY3QxNi5kLnRzIiAvPgoKZXhwb3J0IGZ1bmN0aW9uIFQxKGE6IGFueSkgewogICAgcmV0dXJuIDxkaXYgY2xhc3NOYW1lPXsiVDEifSB7IC4uLmEgfT5UMTwvZGl2PjsKfQoKZXhwb3J0IGZ1bmN0aW9uIFQyKGE6IGFueSwgYjogYW55KSB7CiAgICByZXR1cm4gPGRpdiBjbGFzc05hbWU9eyJUMiJ9IHsgLi4uYSB9IHsgLi4uYiB9PlQyPC9kaXY+Owp9CgpleHBvcnQgZnVuY3Rpb24gVDMoYTogYW55LCBiOiBhbnkpIHsKICAgIHJldHVybiA8ZGl2IHsgLi4uYSB9IGNsYXNzTmFtZT17IlQzIn0geyAuLi5iIH0+VDM8L2Rpdj47Cn0KCmV4cG9ydCBmdW5jdGlvbiBUNChhOiBhbnksIGI6IGFueSkgewogICAgcmV0dXJuIDxkaXYgY2xhc3NOYW1lPXsiVDQifSB7IC4uLnsgLi4uYSwgLi4uYiB9IH0+VDQ8L2Rpdj47Cn0KCmV4cG9ydCBmdW5jdGlvbiBUNShhOiBhbnksIGI6IGFueSwgYzogYW55LCBkOiBhbnkpIHsKICAgIHJldHVybiA8ZGl2IGNsYXNzTmFtZT17IlQ1In0geyAuLi57IC4uLmEsIC4uLmIsIC4uLnsgYywgZCB9IH0gfT5UNTwvZGl2PjsKfQoKZXhwb3J0IGZ1bmN0aW9uIFQ2KGE6IGFueSwgYjogYW55LCBjOiBhbnksIGQ6IGFueSkgewogICAgcmV0dXJuIDxkaXYgY2xhc3NOYW1lPXsiVDYifSB7IC4uLnsgLi4uYSwgLi4uYiwgLi4ueyAuLi5jLCAuLi5kIH0gfSB9PlQ2PC9kaXY+Owp9CgpleHBvcnQgZnVuY3Rpb24gVDcoYTogYW55LCBiOiBhbnksIGM6IGFueSwgZDogYW55KSB7CiAgICByZXR1cm4gPGRpdj5UNzwvZGl2PjsKfQoKZXhwb3J0IGZ1bmN0aW9uIFQ4KGE6IGFueSwgYjogYW55LCBjOiBhbnksIGQ6IGFueSkgewogICAgcmV0dXJuIDxkaXYgY2xhc3NOYW1lPXsiVDgifSB7IC4uLnsgX19wcm90b19fOiBudWxsLCBkaXI6ICdydGwnIH0gfT5UODwvZGl2PjsKfQoKZXhwb3J0IGZ1bmN0aW9uIFQ5KGE6IGFueSwgYjogYW55LCBjOiBhbnksIGQ6IGFueSkgewogICAgcmV0dXJuIDxkaXYgY2xhc3NOYW1lPXsiVDkifSB7IC4uLnsgIl9fcHJvdG9fXyI6IG51bGwgfSB9PlQ5PC9kaXY+Owp9CgpkZWNsYXJlIGNvbnN0IF9fcHJvdG9fXzogc3RyaW5nOwoKZXhwb3J0IGZ1bmN0aW9uIFQxMChhOiBhbnksIGI6IGFueSwgYzogYW55LCBkOiBhbnkpIHsKICAgIHJldHVybiA8ZGl2IGNsYXNzTmFtZT17IlQxMCJ9IHsgLi4ueyBbX19wcm90b19fXTogbnVsbCB9IH0+VDEwPC9kaXY+Owp9CgpleHBvcnQgZnVuY3Rpb24gVDExKGE6IGFueSwgYjogYW55LCBjOiBhbnksIGQ6IGFueSkgewogICAgcmV0dXJuIDxkaXYgY2xhc3NOYW1lPXsiVDExIn0geyAuLi57IFsiX19wcm90b19fIl06IG51bGwgfSB9PlQxMTwvZGl2PjsKfQoKZXhwb3J0IGZ1bmN0aW9uIFQxMihhOiBhbnksIGI6IGFueSwgYzogYW55LCBkOiBhbnkpIHsKICAgIHJldHVybiA8ZGl2IGNsYXNzTmFtZT17IlQxMiJ9IHsgLi4ueyBfX3Byb3RvX18gfSB9PlQxMjwvZGl2PjsKfQo=",
+            "utf8_sha256": "af77bc65274c76d2e51ff7599fbb902fad157b2bb8e7276079d6d8464abdc8d0",
+            "utf8_bytes": 1478
+          }
+        ]
+      },
+      "files": [
+        {
+          "unit": 0,
+          "path": "/.src/test.tsx",
+          "script_kind": "TSX",
+          "declaration_file": false,
+          "emit_eligible": true,
+          "implied_module_format": "None",
+          "emit_module_format": 99,
+          "feature_roots": [
+            {
+              "feature": "jsx",
+              "start": 85,
+              "end": 124,
+              "kind": "JsxElement"
+            },
+            {
+              "feature": "jsx",
+              "start": 177,
+              "end": 225,
+              "kind": "JsxElement"
+            },
+            {
+              "feature": "jsx",
+              "start": 278,
+              "end": 326,
+              "kind": "JsxElement"
+            },
+            {
+              "feature": "jsx",
+              "start": 379,
+              "end": 431,
+              "kind": "JsxElement"
+            },
+            {
+              "feature": "jsx",
+              "start": 500,
+              "end": 565,
+              "kind": "JsxElement"
+            },
+            {
+              "feature": "jsx",
+              "start": 634,
+              "end": 705,
+              "kind": "JsxElement"
+            },
+            {
+              "feature": "jsx",
+              "start": 774,
+              "end": 787,
+              "kind": "JsxElement"
+            },
+            {
+              "feature": "jsx",
+              "start": 856,
+              "end": 925,
+              "kind": "JsxElement"
+            },
+            {
+              "feature": "jsx",
+              "start": 994,
+              "end": 1053,
+              "kind": "JsxElement"
+            },
+            {
+              "feature": "jsx",
+              "start": 1157,
+              "end": 1218,
+              "kind": "JsxElement"
+            },
+            {
+              "feature": "jsx",
+              "start": 1288,
+              "end": 1351,
+              "kind": "JsxElement"
+            },
+            {
+              "feature": "jsx",
+              "start": 1421,
+              "end": 1474,
+              "kind": "JsxElement"
+            }
+          ],
+          "parse_diagnostic_codes": [],
+          "max_ast_depth": 13,
+          "import_attributes": false,
+          "advanced_comment_placement": false,
+          "text_sha256": "af77bc65274c76d2e51ff7599fbb902fad157b2bb8e7276079d6d8464abdc8d0"
+        }
+      ],
+      "owner_reachability": [
+        "source-file-may-emit",
+        "source-output-paths",
+        "output-extension",
+        "script-transformer-selection",
+        "transform-typescript",
+        "transform-jsx",
+        "printer"
+      ],
+      "disposition": "admitted-for-execution",
+      "required_slices": [],
+      "diagnostic_disposition": {
+        "state": "exact-required"
+      },
+      "typescript_runs": [
+        {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/.src/test.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "aW1wb3J0IHsganN4IGFzIF9qc3ggfSBmcm9tICJyZWFjdC9qc3gtcnVudGltZSI7DQovLy8gPHJlZmVyZW5jZSBwYXRoPSIvLmxpYi9yZWFjdDE2LmQudHMiIC8+DQpleHBvcnQgZnVuY3Rpb24gVDEoYSkgew0KICAgIHJldHVybiBfanN4KCJkaXYiLCB7IGNsYXNzTmFtZTogIlQxIiwgLi4uYSwgY2hpbGRyZW46ICJUMSIgfSk7DQp9DQpleHBvcnQgZnVuY3Rpb24gVDIoYSwgYikgew0KICAgIHJldHVybiBfanN4KCJkaXYiLCB7IGNsYXNzTmFtZTogIlQyIiwgLi4uYSwgLi4uYiwgY2hpbGRyZW46ICJUMiIgfSk7DQp9DQpleHBvcnQgZnVuY3Rpb24gVDMoYSwgYikgew0KICAgIHJldHVybiBfanN4KCJkaXYiLCB7IC4uLmEsIGNsYXNzTmFtZTogIlQzIiwgLi4uYiwgY2hpbGRyZW46ICJUMyIgfSk7DQp9DQpleHBvcnQgZnVuY3Rpb24gVDQoYSwgYikgew0KICAgIHJldHVybiBfanN4KCJkaXYiLCB7IGNsYXNzTmFtZTogIlQ0IiwgLi4uYSwgLi4uYiwgY2hpbGRyZW46ICJUNCIgfSk7DQp9DQpleHBvcnQgZnVuY3Rpb24gVDUoYSwgYiwgYywgZCkgew0KICAgIHJldHVybiBfanN4KCJkaXYiLCB7IGNsYXNzTmFtZTogIlQ1IiwgLi4uYSwgLi4uYiwgLi4ueyBjLCBkIH0sIGNoaWxkcmVuOiAiVDUiIH0pOw0KfQ0KZXhwb3J0IGZ1bmN0aW9uIFQ2KGEsIGIsIGMsIGQpIHsNCiAgICByZXR1cm4gX2pzeCgiZGl2IiwgeyBjbGFzc05hbWU6ICJUNiIsIC4uLmEsIC4uLmIsIC4uLnsgLi4uYywgLi4uZCB9LCBjaGlsZHJlbjogIlQ2IiB9KTsNCn0NCmV4cG9ydCBmdW5jdGlvbiBUNyhhLCBiLCBjLCBkKSB7DQogICAgcmV0dXJuIF9qc3goImRpdiIsIHsgY2hpbGRyZW46ICJUNyIgfSk7DQp9DQpleHBvcnQgZnVuY3Rpb24gVDgoYSwgYiwgYywgZCkgew0KICAgIHJldHVybiBfanN4KCJkaXYiLCB7IGNsYXNzTmFtZTogIlQ4IiwgLi4ueyBfX3Byb3RvX186IG51bGwsIGRpcjogJ3J0bCcgfSwgY2hpbGRyZW46ICJUOCIgfSk7DQp9DQpleHBvcnQgZnVuY3Rpb24gVDkoYSwgYiwgYywgZCkgew0KICAgIHJldHVybiBfanN4KCJkaXYiLCB7IGNsYXNzTmFtZTogIlQ5IiwgLi4ueyAiX19wcm90b19fIjogbnVsbCB9LCBjaGlsZHJlbjogIlQ5IiB9KTsNCn0NCmV4cG9ydCBmdW5jdGlvbiBUMTAoYSwgYiwgYywgZCkgew0KICAgIHJldHVybiBfanN4KCJkaXYiLCB7IGNsYXNzTmFtZTogIlQxMCIsIFtfX3Byb3RvX19dOiBudWxsLCBjaGlsZHJlbjogIlQxMCIgfSk7DQp9DQpleHBvcnQgZnVuY3Rpb24gVDExKGEsIGIsIGMsIGQpIHsNCiAgICByZXR1cm4gX2pzeCgiZGl2IiwgeyBjbGFzc05hbWU6ICJUMTEiLCBbIl9fcHJvdG9fXyJdOiBudWxsLCBjaGlsZHJlbjogIlQxMSIgfSk7DQp9DQpleHBvcnQgZnVuY3Rpb24gVDEyKGEsIGIsIGMsIGQpIHsNCiAgICByZXR1cm4gX2pzeCgiZGl2IiwgeyBjbGFzc05hbWU6ICJUMTIiLCBfX3Byb3RvX18sIGNoaWxkcmVuOiAiVDEyIiB9KTsNCn0NCg==",
+              "callback_utf8_sha256": "757fde79685fd6b4bff4e3e2b51a55d8af99d322f73e47235e55c5d4d8ccebcc",
+              "callback_utf8_bytes": 1459,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "757fde79685fd6b4bff4e3e2b51a55d8af99d322f73e47235e55c5d4d8ccebcc",
+              "materialized_utf8_bytes": 1459,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/test.tsx"
+              ]
+            }
+          ],
+          "reported_diagnostics": [
+            {
+              "code": 6053,
+              "category": "Error",
+              "file": "/.src/test.tsx",
+              "start": 21,
+              "length": 18,
+              "message": "File '/.lib/react16.d.ts' not found."
+            },
+            {
+              "code": 7026,
+              "category": "Error",
+              "file": "/.src/test.tsx",
+              "start": 85,
+              "length": 31,
+              "message": "JSX element implicitly has type 'any' because no interface 'JSX.IntrinsicElements' exists."
+            },
+            {
+              "code": 2875,
+              "category": "Error",
+              "file": "/.src/test.tsx",
+              "start": 85,
+              "length": 39,
+              "message": "This JSX tag requires the module path 'react/jsx-runtime' to exist, but none could be found. Make sure you have types for the appropriate package installed."
+            },
+            {
+              "code": 7026,
+              "category": "Error",
+              "file": "/.src/test.tsx",
+              "start": 118,
+              "length": 6,
+              "message": "JSX element implicitly has type 'any' because no interface 'JSX.IntrinsicElements' exists."
+            },
+            {
+              "code": 7026,
+              "category": "Error",
+              "file": "/.src/test.tsx",
+              "start": 177,
+              "length": 40,
+              "message": "JSX element implicitly has type 'any' because no interface 'JSX.IntrinsicElements' exists."
+            },
+            {
+              "code": 7026,
+              "category": "Error",
+              "file": "/.src/test.tsx",
+              "start": 219,
+              "length": 6,
+              "message": "JSX element implicitly has type 'any' because no interface 'JSX.IntrinsicElements' exists."
+            },
+            {
+              "code": 7026,
+              "category": "Error",
+              "file": "/.src/test.tsx",
+              "start": 278,
+              "length": 40,
+              "message": "JSX element implicitly has type 'any' because no interface 'JSX.IntrinsicElements' exists."
+            },
+            {
+              "code": 7026,
+              "category": "Error",
+              "file": "/.src/test.tsx",
+              "start": 320,
+              "length": 6,
+              "message": "JSX element implicitly has type 'any' because no interface 'JSX.IntrinsicElements' exists."
+            },
+            {
+              "code": 7026,
+              "category": "Error",
+              "file": "/.src/test.tsx",
+              "start": 379,
+              "length": 44,
+              "message": "JSX element implicitly has type 'any' because no interface 'JSX.IntrinsicElements' exists."
+            },
+            {
+              "code": 7026,
+              "category": "Error",
+              "file": "/.src/test.tsx",
+              "start": 425,
+              "length": 6,
+              "message": "JSX element implicitly has type 'any' because no interface 'JSX.IntrinsicElements' exists."
+            },
+            {
+              "code": 7026,
+              "category": "Error",
+              "file": "/.src/test.tsx",
+              "start": 500,
+              "length": 57,
+              "message": "JSX element implicitly has type 'any' because no interface 'JSX.IntrinsicElements' exists."
+            },
+            {
+              "code": 7026,
+              "category": "Error",
+              "file": "/.src/test.tsx",
+              "start": 559,
+              "length": 6,
+              "message": "JSX element implicitly has type 'any' because no interface 'JSX.IntrinsicElements' exists."
+            },
+            {
+              "code": 7026,
+              "category": "Error",
+              "file": "/.src/test.tsx",
+              "start": 634,
+              "length": 63,
+              "message": "JSX element implicitly has type 'any' because no interface 'JSX.IntrinsicElements' exists."
+            },
+            {
+              "code": 7026,
+              "category": "Error",
+              "file": "/.src/test.tsx",
+              "start": 699,
+              "length": 6,
+              "message": "JSX element implicitly has type 'any' because no interface 'JSX.IntrinsicElements' exists."
+            },
+            {
+              "code": 7026,
+              "category": "Error",
+              "file": "/.src/test.tsx",
+              "start": 774,
+              "length": 5,
+              "message": "JSX element implicitly has type 'any' because no interface 'JSX.IntrinsicElements' exists."
+            },
+            {
+              "code": 7026,
+              "category": "Error",
+              "file": "/.src/test.tsx",
+              "start": 781,
+              "length": 6,
+              "message": "JSX element implicitly has type 'any' because no interface 'JSX.IntrinsicElements' exists."
+            },
+            {
+              "code": 7026,
+              "category": "Error",
+              "file": "/.src/test.tsx",
+              "start": 856,
+              "length": 61,
+              "message": "JSX element implicitly has type 'any' because no interface 'JSX.IntrinsicElements' exists."
+            },
+            {
+              "code": 7026,
+              "category": "Error",
+              "file": "/.src/test.tsx",
+              "start": 919,
+              "length": 6,
+              "message": "JSX element implicitly has type 'any' because no interface 'JSX.IntrinsicElements' exists."
+            },
+            {
+              "code": 7026,
+              "category": "Error",
+              "file": "/.src/test.tsx",
+              "start": 994,
+              "length": 51,
+              "message": "JSX element implicitly has type 'any' because no interface 'JSX.IntrinsicElements' exists."
+            },
+            {
+              "code": 7026,
+              "category": "Error",
+              "file": "/.src/test.tsx",
+              "start": 1047,
+              "length": 6,
+              "message": "JSX element implicitly has type 'any' because no interface 'JSX.IntrinsicElements' exists."
+            },
+            {
+              "code": 7026,
+              "category": "Error",
+              "file": "/.src/test.tsx",
+              "start": 1157,
+              "length": 52,
+              "message": "JSX element implicitly has type 'any' because no interface 'JSX.IntrinsicElements' exists."
+            },
+            {
+              "code": 7026,
+              "category": "Error",
+              "file": "/.src/test.tsx",
+              "start": 1212,
+              "length": 6,
+              "message": "JSX element implicitly has type 'any' because no interface 'JSX.IntrinsicElements' exists."
+            },
+            {
+              "code": 7026,
+              "category": "Error",
+              "file": "/.src/test.tsx",
+              "start": 1288,
+              "length": 54,
+              "message": "JSX element implicitly has type 'any' because no interface 'JSX.IntrinsicElements' exists."
+            },
+            {
+              "code": 7026,
+              "category": "Error",
+              "file": "/.src/test.tsx",
+              "start": 1345,
+              "length": 6,
+              "message": "JSX element implicitly has type 'any' because no interface 'JSX.IntrinsicElements' exists."
+            },
+            {
+              "code": 7026,
+              "category": "Error",
+              "file": "/.src/test.tsx",
+              "start": 1421,
+              "length": 44,
+              "message": "JSX element implicitly has type 'any' because no interface 'JSX.IntrinsicElements' exists."
+            },
+            {
+              "code": 7026,
+              "category": "Error",
+              "file": "/.src/test.tsx",
+              "start": 1468,
+              "length": 6,
+              "message": "JSX element implicitly has type 'any' because no interface 'JSX.IntrinsicElements' exists."
+            }
+          ],
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 2,
+          "run_fingerprint_sha256": "43ca57fdfe2c23f2826eaebfc603ea9edb7cafb63b133c252a56afc29f706c98"
+        },
+        {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/.src/test.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "aW1wb3J0IHsganN4IGFzIF9qc3ggfSBmcm9tICJyZWFjdC9qc3gtcnVudGltZSI7DQovLy8gPHJlZmVyZW5jZSBwYXRoPSIvLmxpYi9yZWFjdDE2LmQudHMiIC8+DQpleHBvcnQgZnVuY3Rpb24gVDEoYSkgew0KICAgIHJldHVybiBfanN4KCJkaXYiLCB7IGNsYXNzTmFtZTogIlQxIiwgLi4uYSwgY2hpbGRyZW46ICJUMSIgfSk7DQp9DQpleHBvcnQgZnVuY3Rpb24gVDIoYSwgYikgew0KICAgIHJldHVybiBfanN4KCJkaXYiLCB7IGNsYXNzTmFtZTogIlQyIiwgLi4uYSwgLi4uYiwgY2hpbGRyZW46ICJUMiIgfSk7DQp9DQpleHBvcnQgZnVuY3Rpb24gVDMoYSwgYikgew0KICAgIHJldHVybiBfanN4KCJkaXYiLCB7IC4uLmEsIGNsYXNzTmFtZTogIlQzIiwgLi4uYiwgY2hpbGRyZW46ICJUMyIgfSk7DQp9DQpleHBvcnQgZnVuY3Rpb24gVDQoYSwgYikgew0KICAgIHJldHVybiBfanN4KCJkaXYiLCB7IGNsYXNzTmFtZTogIlQ0IiwgLi4uYSwgLi4uYiwgY2hpbGRyZW46ICJUNCIgfSk7DQp9DQpleHBvcnQgZnVuY3Rpb24gVDUoYSwgYiwgYywgZCkgew0KICAgIHJldHVybiBfanN4KCJkaXYiLCB7IGNsYXNzTmFtZTogIlQ1IiwgLi4uYSwgLi4uYiwgLi4ueyBjLCBkIH0sIGNoaWxkcmVuOiAiVDUiIH0pOw0KfQ0KZXhwb3J0IGZ1bmN0aW9uIFQ2KGEsIGIsIGMsIGQpIHsNCiAgICByZXR1cm4gX2pzeCgiZGl2IiwgeyBjbGFzc05hbWU6ICJUNiIsIC4uLmEsIC4uLmIsIC4uLnsgLi4uYywgLi4uZCB9LCBjaGlsZHJlbjogIlQ2IiB9KTsNCn0NCmV4cG9ydCBmdW5jdGlvbiBUNyhhLCBiLCBjLCBkKSB7DQogICAgcmV0dXJuIF9qc3goImRpdiIsIHsgY2hpbGRyZW46ICJUNyIgfSk7DQp9DQpleHBvcnQgZnVuY3Rpb24gVDgoYSwgYiwgYywgZCkgew0KICAgIHJldHVybiBfanN4KCJkaXYiLCB7IGNsYXNzTmFtZTogIlQ4IiwgLi4ueyBfX3Byb3RvX186IG51bGwsIGRpcjogJ3J0bCcgfSwgY2hpbGRyZW46ICJUOCIgfSk7DQp9DQpleHBvcnQgZnVuY3Rpb24gVDkoYSwgYiwgYywgZCkgew0KICAgIHJldHVybiBfanN4KCJkaXYiLCB7IGNsYXNzTmFtZTogIlQ5IiwgLi4ueyAiX19wcm90b19fIjogbnVsbCB9LCBjaGlsZHJlbjogIlQ5IiB9KTsNCn0NCmV4cG9ydCBmdW5jdGlvbiBUMTAoYSwgYiwgYywgZCkgew0KICAgIHJldHVybiBfanN4KCJkaXYiLCB7IGNsYXNzTmFtZTogIlQxMCIsIFtfX3Byb3RvX19dOiBudWxsLCBjaGlsZHJlbjogIlQxMCIgfSk7DQp9DQpleHBvcnQgZnVuY3Rpb24gVDExKGEsIGIsIGMsIGQpIHsNCiAgICByZXR1cm4gX2pzeCgiZGl2IiwgeyBjbGFzc05hbWU6ICJUMTEiLCBbIl9fcHJvdG9fXyJdOiBudWxsLCBjaGlsZHJlbjogIlQxMSIgfSk7DQp9DQpleHBvcnQgZnVuY3Rpb24gVDEyKGEsIGIsIGMsIGQpIHsNCiAgICByZXR1cm4gX2pzeCgiZGl2IiwgeyBjbGFzc05hbWU6ICJUMTIiLCBfX3Byb3RvX18sIGNoaWxkcmVuOiAiVDEyIiB9KTsNCn0NCg==",
+              "callback_utf8_sha256": "757fde79685fd6b4bff4e3e2b51a55d8af99d322f73e47235e55c5d4d8ccebcc",
+              "callback_utf8_bytes": 1459,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "757fde79685fd6b4bff4e3e2b51a55d8af99d322f73e47235e55c5d4d8ccebcc",
+              "materialized_utf8_bytes": 1459,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/test.tsx"
+              ]
+            }
+          ],
+          "reported_diagnostics": [
+            {
+              "code": 6053,
+              "category": "Error",
+              "file": "/.src/test.tsx",
+              "start": 21,
+              "length": 18,
+              "message": "File '/.lib/react16.d.ts' not found."
+            },
+            {
+              "code": 7026,
+              "category": "Error",
+              "file": "/.src/test.tsx",
+              "start": 85,
+              "length": 31,
+              "message": "JSX element implicitly has type 'any' because no interface 'JSX.IntrinsicElements' exists."
+            },
+            {
+              "code": 2875,
+              "category": "Error",
+              "file": "/.src/test.tsx",
+              "start": 85,
+              "length": 39,
+              "message": "This JSX tag requires the module path 'react/jsx-runtime' to exist, but none could be found. Make sure you have types for the appropriate package installed."
+            },
+            {
+              "code": 7026,
+              "category": "Error",
+              "file": "/.src/test.tsx",
+              "start": 118,
+              "length": 6,
+              "message": "JSX element implicitly has type 'any' because no interface 'JSX.IntrinsicElements' exists."
+            },
+            {
+              "code": 7026,
+              "category": "Error",
+              "file": "/.src/test.tsx",
+              "start": 177,
+              "length": 40,
+              "message": "JSX element implicitly has type 'any' because no interface 'JSX.IntrinsicElements' exists."
+            },
+            {
+              "code": 7026,
+              "category": "Error",
+              "file": "/.src/test.tsx",
+              "start": 219,
+              "length": 6,
+              "message": "JSX element implicitly has type 'any' because no interface 'JSX.IntrinsicElements' exists."
+            },
+            {
+              "code": 7026,
+              "category": "Error",
+              "file": "/.src/test.tsx",
+              "start": 278,
+              "length": 40,
+              "message": "JSX element implicitly has type 'any' because no interface 'JSX.IntrinsicElements' exists."
+            },
+            {
+              "code": 7026,
+              "category": "Error",
+              "file": "/.src/test.tsx",
+              "start": 320,
+              "length": 6,
+              "message": "JSX element implicitly has type 'any' because no interface 'JSX.IntrinsicElements' exists."
+            },
+            {
+              "code": 7026,
+              "category": "Error",
+              "file": "/.src/test.tsx",
+              "start": 379,
+              "length": 44,
+              "message": "JSX element implicitly has type 'any' because no interface 'JSX.IntrinsicElements' exists."
+            },
+            {
+              "code": 7026,
+              "category": "Error",
+              "file": "/.src/test.tsx",
+              "start": 425,
+              "length": 6,
+              "message": "JSX element implicitly has type 'any' because no interface 'JSX.IntrinsicElements' exists."
+            },
+            {
+              "code": 7026,
+              "category": "Error",
+              "file": "/.src/test.tsx",
+              "start": 500,
+              "length": 57,
+              "message": "JSX element implicitly has type 'any' because no interface 'JSX.IntrinsicElements' exists."
+            },
+            {
+              "code": 7026,
+              "category": "Error",
+              "file": "/.src/test.tsx",
+              "start": 559,
+              "length": 6,
+              "message": "JSX element implicitly has type 'any' because no interface 'JSX.IntrinsicElements' exists."
+            },
+            {
+              "code": 7026,
+              "category": "Error",
+              "file": "/.src/test.tsx",
+              "start": 634,
+              "length": 63,
+              "message": "JSX element implicitly has type 'any' because no interface 'JSX.IntrinsicElements' exists."
+            },
+            {
+              "code": 7026,
+              "category": "Error",
+              "file": "/.src/test.tsx",
+              "start": 699,
+              "length": 6,
+              "message": "JSX element implicitly has type 'any' because no interface 'JSX.IntrinsicElements' exists."
+            },
+            {
+              "code": 7026,
+              "category": "Error",
+              "file": "/.src/test.tsx",
+              "start": 774,
+              "length": 5,
+              "message": "JSX element implicitly has type 'any' because no interface 'JSX.IntrinsicElements' exists."
+            },
+            {
+              "code": 7026,
+              "category": "Error",
+              "file": "/.src/test.tsx",
+              "start": 781,
+              "length": 6,
+              "message": "JSX element implicitly has type 'any' because no interface 'JSX.IntrinsicElements' exists."
+            },
+            {
+              "code": 7026,
+              "category": "Error",
+              "file": "/.src/test.tsx",
+              "start": 856,
+              "length": 61,
+              "message": "JSX element implicitly has type 'any' because no interface 'JSX.IntrinsicElements' exists."
+            },
+            {
+              "code": 7026,
+              "category": "Error",
+              "file": "/.src/test.tsx",
+              "start": 919,
+              "length": 6,
+              "message": "JSX element implicitly has type 'any' because no interface 'JSX.IntrinsicElements' exists."
+            },
+            {
+              "code": 7026,
+              "category": "Error",
+              "file": "/.src/test.tsx",
+              "start": 994,
+              "length": 51,
+              "message": "JSX element implicitly has type 'any' because no interface 'JSX.IntrinsicElements' exists."
+            },
+            {
+              "code": 7026,
+              "category": "Error",
+              "file": "/.src/test.tsx",
+              "start": 1047,
+              "length": 6,
+              "message": "JSX element implicitly has type 'any' because no interface 'JSX.IntrinsicElements' exists."
+            },
+            {
+              "code": 7026,
+              "category": "Error",
+              "file": "/.src/test.tsx",
+              "start": 1157,
+              "length": 52,
+              "message": "JSX element implicitly has type 'any' because no interface 'JSX.IntrinsicElements' exists."
+            },
+            {
+              "code": 7026,
+              "category": "Error",
+              "file": "/.src/test.tsx",
+              "start": 1212,
+              "length": 6,
+              "message": "JSX element implicitly has type 'any' because no interface 'JSX.IntrinsicElements' exists."
+            },
+            {
+              "code": 7026,
+              "category": "Error",
+              "file": "/.src/test.tsx",
+              "start": 1288,
+              "length": 54,
+              "message": "JSX element implicitly has type 'any' because no interface 'JSX.IntrinsicElements' exists."
+            },
+            {
+              "code": 7026,
+              "category": "Error",
+              "file": "/.src/test.tsx",
+              "start": 1345,
+              "length": 6,
+              "message": "JSX element implicitly has type 'any' because no interface 'JSX.IntrinsicElements' exists."
+            },
+            {
+              "code": 7026,
+              "category": "Error",
+              "file": "/.src/test.tsx",
+              "start": 1421,
+              "length": 44,
+              "message": "JSX element implicitly has type 'any' because no interface 'JSX.IntrinsicElements' exists."
+            },
+            {
+              "code": 7026,
+              "category": "Error",
+              "file": "/.src/test.tsx",
+              "start": 1468,
+              "length": 6,
+              "message": "JSX element implicitly has type 'any' because no interface 'JSX.IntrinsicElements' exists."
+            }
+          ],
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 2,
+          "run_fingerprint_sha256": "43ca57fdfe2c23f2826eaebfc603ea9edb7cafb63b133c252a56afc29f706c98"
+        }
+      ],
+      "rust_expectation": "two-deterministic-exact-runs",
+      "case_fingerprint_sha256": "b2bd8c69f29539a76f5ee98ec050da6fba91875c7a1ea3dc57b828fc5bac1b4e"
+    }
+  ],
+  "summary": {
+    "candidates": 4,
+    "compiler_candidates": 1,
+    "conformance_candidates": 3,
+    "admitted_cases": 4,
+    "deferred_cases": 0,
+    "diagnostic_deferred_output_control_cases": 0,
+    "source_deferred_cases": 0,
+    "no_emit_control_cases": 0,
+    "module_states": [
+      {
+        "value": "absent-effective-ESNext",
+        "cases": 4
+      }
+    ],
+    "dispositions": [
+      {
+        "value": "admitted-for-execution",
+        "cases": 4
+      }
+    ],
+    "first_deferred_slices": [],
+    "typescript_runs": 8,
+    "deterministic_typescript_cases": 4,
+    "admitted_typescript_writes": 4,
+    "diagnostic_control_typescript_writes": 0,
+    "admitted_typescript_diagnostics": 42,
+    "unexecuted_candidates": 0,
+    "undispositioned_candidates": 0
+  },
+  "qualification_fingerprint_sha256": "a30193b0eb16e44c956fc7b0501b1af4449ca19b16005a399573a3859e1f66c9"
+}

@@ -1,4 +1,4 @@
-//! Hosted H2.3b acceptance for classic JSX/TSX output and its pinned owner controls.
+//! Hosted H2.3c acceptance for automatic/development JSX runtimes and pinned owner controls.
 
 use std::error::Error;
 use std::fs;
@@ -7,10 +7,7 @@ use std::path::{Path, PathBuf};
 use base64::Engine;
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
-use tsc_compiler::{
-    DriverError, EmitArtifact, EmitFailure, EmitIoError, EmitWriteDisposition, H2RuntimeSlice,
-    MemoryOutputSink, OutputSink, ProgramSession,
-};
+use tsc_compiler::{H2RuntimeSlice, MemoryOutputSink, ProgramSession};
 use tsc_diagnostics::{Diagnostic, DiagnosticCategory, MessageChain};
 use tsc_harness::upstream_suites::execution::load_qualified_compiler_emit;
 use tsc_program::{
@@ -18,9 +15,8 @@ use tsc_program::{
     ProgramPath,
 };
 
-const QUALIFICATION_RELATIVE_PATH: &str = "ratchets/h2-3b-qualification.v1.json";
-const OWNER_CONTROLS_RELATIVE_PATH: &str = "ratchets/h2-3b-owner-controls.v1.json";
-const H2_3C_QUALIFICATION_RELATIVE_PATH: &str = "ratchets/h2-3c-qualification.v1.json";
+const QUALIFICATION_RELATIVE_PATH: &str = "ratchets/h2-3c-qualification.v1.json";
+const OWNER_CONTROLS_RELATIVE_PATH: &str = "ratchets/h2-3c-owner-controls.v1.json";
 
 const MINIMAL_GLOBALS: &str = r#"
 interface IArguments { length: number; callee: Function; }
@@ -50,18 +46,18 @@ fn sha256(bytes: impl AsRef<[u8]>) -> String {
 fn string<'a>(value: &'a Value, field: &str) -> Result<&'a str, Box<dyn Error>> {
     value[field]
         .as_str()
-        .ok_or_else(|| failure(format!("H2.3b field {field} is not a string")))
+        .ok_or_else(|| failure(format!("H2.3c field {field} is not a string")))
 }
 
 fn array<'a>(value: &'a Value, field: &str) -> Result<&'a [Value], Box<dyn Error>> {
     value[field]
         .as_array()
         .map(Vec::as_slice)
-        .ok_or_else(|| failure(format!("H2.3b field {field} is not an array")))
+        .ok_or_else(|| failure(format!("H2.3c field {field} is not an array")))
 }
 
 fn path(value: &str) -> ProgramPath {
-    ProgramPath::from_trusted_parts(value, value).expect("trusted H2.3b acceptance path")
+    ProgramPath::from_trusted_parts(value, value).expect("trusted H2.3c acceptance path")
 }
 
 fn case_input(workspace: &Path, case: &Value) -> Result<PreparedProgram, Box<dyn Error>> {
@@ -104,7 +100,7 @@ fn case_input(workspace: &Path, case: &Value) -> Result<PreparedProgram, Box<dyn
         .map(|root| {
             root.as_str()
                 .map(PathBuf::from)
-                .ok_or_else(|| failure("H2.3b root is not a string"))
+                .ok_or_else(|| failure("H2.3c root is not a string"))
         })
         .collect::<Result<Vec<_>, _>>()?;
     let settings = array(input, "settings")?
@@ -273,6 +269,7 @@ fn expected_activity_for_case(
             H2RuntimeSlice::H2_1a => typescript_sources,
             H2RuntimeSlice::H2_3a => javascript_sources,
             H2RuntimeSlice::H2_3b => jsx_sources,
+            H2RuntimeSlice::H2_3c => jsx_sources,
             _ => 0,
         };
         if activity.runtime_slice(slice) != expected {
@@ -339,40 +336,33 @@ fn execute_exact_case(workspace: &Path, case: &Value) -> Result<(usize, usize), 
     Ok((first_sink.writes().len(), first_reported.len()))
 }
 
-#[derive(Default)]
-struct CountingSink {
-    writes: usize,
-}
-
-impl OutputSink for CountingSink {
-    fn write(&mut self, _artifact: EmitArtifact) -> Result<EmitWriteDisposition, EmitIoError> {
-        self.writes += 1;
-        Ok(EmitWriteDisposition::Written)
+/// Join a historically source-deferred row to the exact H2.3c admission that
+/// supersedes its old fail-closed runtime expectation. Historical evidence
+/// remains immutable; only the current acceptance view recognizes the later
+/// exact owner.
+pub(crate) fn promotes_historical_case(
+    case: &Value,
+    h2_3c_cases: &[Value],
+) -> Result<bool, Box<dyn Error>> {
+    if !array(case, "required_slices")?
+        .iter()
+        .any(|slice| slice.as_str() == Some("H2.3c"))
+    {
+        return Ok(false);
     }
-}
-
-fn assert_deferred_case(workspace: &Path, case: &Value) -> Result<(), Box<dyn Error>> {
     let case_id = string(case, "case_id")?;
-    if array(case, "required_slices")? != [json!("H2.3c")]
-        || case["diagnostic_disposition"]["state"] != "not-observed-source-deferred"
+    let promoted = h2_3c_cases
+        .iter()
+        .find(|candidate| candidate["case_id"].as_str() == Some(case_id))
+        .ok_or_else(|| failure(format!("{case_id}: H2.3c promotion is not recorded")))?;
+    if promoted["disposition"] != "admitted-for-execution"
+        || promoted["diagnostic_disposition"]["state"] != "exact-required"
     {
         return Err(failure(format!(
-            "{case_id}: automatic-runtime deferral changed"
+            "{case_id}: H2.3c promotion is not an exact admission"
         )));
     }
-    let mut sink = CountingSink::default();
-    let error = ProgramSession::new(case_input(workspace, case)?)
-        .emit(&mut sink)
-        .expect_err("H2.3c case must fail closed");
-    if error != DriverError::Emit(EmitFailure::UnsupportedCompilerOption { option: "jsx" })
-        || sink.writes != 0
-    {
-        return Err(failure(format!(
-            "{case_id}: H2.3c boundary differs: error={error:?} writes={}",
-            sink.writes
-        )));
-    }
-    Ok(())
+    Ok(true)
 }
 
 fn owner_options(value: &Value) -> Result<CompilerOptions, Box<dyn Error>> {
@@ -393,7 +383,9 @@ fn owner_options(value: &Value) -> Result<CompilerOptions, Box<dyn Error>> {
         jsx: optional_i32("jsx")?,
         jsx_factory: optional_string("jsxFactory"),
         jsx_fragment_factory: optional_string("jsxFragmentFactory"),
+        jsx_import_source: optional_string("jsxImportSource"),
         module: optional_i32("module")?,
+        module_detection: optional_i32("moduleDetection")?,
         new_line: optional_i32("newLine")?,
         out_dir: optional_string("outDir"),
         react_namespace: optional_string("reactNamespace"),
@@ -448,13 +440,37 @@ fn expected_owner_activity(
     control: &Value,
     outcome: &tsc_compiler::EmitOutcome,
 ) -> Result<(), Box<dyn Error>> {
-    let source = &array(&control["input"], "files")?[0];
-    let file_name = string(source, "path")?.to_ascii_lowercase();
-    let javascript = u64::from(file_name.ends_with(".jsx"));
+    let input = &control["input"];
+    let options = &input["compiler_options"];
+    let module = options["module"].as_i64().unwrap_or(200);
+    let jsx_mode = options["jsx"].as_i64();
+    let mut javascript = 0_u64;
+    let mut jsx = 0_u64;
+    let mut automatic = 0_u64;
+    for source in array(input, "files")? {
+        let file_name = string(source, "path")?.to_ascii_lowercase();
+        if !file_name.ends_with(".tsx") && !file_name.ends_with(".jsx") {
+            continue;
+        }
+        jsx += 1;
+        javascript += u64::from(file_name.ends_with(".jsx"));
+        let text = String::from_utf8(
+            base64::engine::general_purpose::STANDARD.decode(string(source, "utf8_base64")?)?,
+        )?;
+        automatic += u64::from(
+            !text.contains("@jsxRuntime classic")
+                && (matches!(jsx_mode, Some(4 | 5))
+                    || options["jsxImportSource"].is_string()
+                    || text.contains("@jsxImportSource")
+                    || text.contains("@jsxRuntime automatic")),
+        );
+    }
     for slice in H2RuntimeSlice::ALL {
         let expected = match slice {
+            H2RuntimeSlice::H2_1a | H2RuntimeSlice::H2_1b if module == 1 => jsx,
             H2RuntimeSlice::H2_3a => javascript,
-            H2RuntimeSlice::H2_3b => 1,
+            H2RuntimeSlice::H2_3b => jsx,
+            H2RuntimeSlice::H2_3c => automatic,
             _ => 0,
         };
         if outcome.h2_activity().runtime_slice(slice) != expected {
@@ -504,25 +520,20 @@ fn execute_owner_control(control: &Value) -> Result<usize, Box<dyn Error>> {
 pub fn run(workspace: &Path) -> Result<(), Box<dyn Error>> {
     let qualification: Value =
         serde_json::from_slice(&fs::read(workspace.join(QUALIFICATION_RELATIVE_PATH))?)?;
-    let h2_3c_qualification: Value = serde_json::from_slice(&fs::read(
-        workspace.join(H2_3C_QUALIFICATION_RELATIVE_PATH),
-    )?)?;
-    let h2_3c_cases = array(&h2_3c_qualification, "cases")?;
     if qualification["schema"] != 1
         || qualification["status"] != "qualified-typescript-oracle"
-        || qualification["phase"] != "H2.3b-classic-jsx-tsx"
-        || qualification["summary"]["candidates"] != 6
-        || qualification["summary"]["admitted_cases"] != 2
-        || qualification["summary"]["deferred_cases"] != 4
-        || qualification["summary"]["source_deferred_cases"] != 4
+        || qualification["phase"] != "H2.3c-automatic-jsx-runtime"
+        || qualification["summary"]["candidates"] != 4
+        || qualification["summary"]["admitted_cases"] != 4
+        || qualification["summary"]["deferred_cases"] != 0
+        || qualification["summary"]["source_deferred_cases"] != 0
         || qualification["summary"]["unexecuted_candidates"] != 0
         || qualification["summary"]["undispositioned_candidates"] != 0
     {
-        return Err(failure("H2.3b qualification header is not closed"));
+        return Err(failure("H2.3c qualification header is not closed"));
     }
 
     let mut exact = 0;
-    let mut deferred = 0;
     let mut writes = 0;
     let mut diagnostics = 0;
     for case in array(&qualification, "cases")? {
@@ -533,14 +544,8 @@ pub fn run(workspace: &Path) -> Result<(), Box<dyn Error>> {
                 writes += case_writes;
                 diagnostics += case_diagnostics;
             }
-            "deferred-to-slices" => {
-                deferred += 1;
-                if !crate::h2_3c_acceptance::promotes_historical_case(case, h2_3c_cases)? {
-                    assert_deferred_case(workspace, case)?;
-                }
-            }
             disposition => {
-                return Err(failure(format!("unknown H2.3b disposition {disposition}")));
+                return Err(failure(format!("unknown H2.3c disposition {disposition}")));
             }
         }
     }
@@ -548,31 +553,31 @@ pub fn run(workspace: &Path) -> Result<(), Box<dyn Error>> {
     let owner_controls: Value =
         serde_json::from_slice(&fs::read(workspace.join(OWNER_CONTROLS_RELATIVE_PATH))?)?;
     if owner_controls["schema"] != 1
-        || owner_controls["phase"] != "H2.3b-classic-jsx-owner-controls"
+        || owner_controls["phase"] != "H2.3c-automatic-jsx-owner-controls"
         || owner_controls["status"] != "qualified"
-        || owner_controls["summary"]["controls"] != 8
-        || owner_controls["summary"]["exact_outputs"] != 8
-        || owner_controls["summary"]["typescript_runs"] != 16
+        || owner_controls["summary"]["controls"] != 9
+        || owner_controls["summary"]["exact_outputs"] != 9
+        || owner_controls["summary"]["typescript_runs"] != 18
         || owner_controls["summary"]["reported_diagnostics"] != 0
     {
-        return Err(failure("H2.3b owner-control header is not closed"));
+        return Err(failure("H2.3c owner-control header is not closed"));
     }
     let mut owner_writes = 0;
     for control in array(&owner_controls, "controls")? {
         owner_writes += execute_owner_control(control)?;
     }
 
-    if exact != 2 || deferred != 4 || writes != 2 || diagnostics != 4 || owner_writes != 8 {
+    if exact != 4 || writes != 4 || diagnostics != 42 || owner_writes != 9 {
         return Err(failure(format!(
-            "H2.3b totals differ: exact={exact} deferred={deferred} writes={writes} diagnostics={diagnostics} owner_writes={owner_writes}"
+            "H2.3c totals differ: exact={exact} writes={writes} diagnostics={diagnostics} owner_writes={owner_writes}"
         )));
     }
     println!(
-        "H2.3b emit acceptance: candidates=6 exact=2 source_deferred=4 exact_diagnostics=4 exact_writes=2 owner_controls=8 owner_writes=8 repetitions=2"
+        "H2.3c emit acceptance: candidates=4 exact=4 source_deferred=0 exact_diagnostics=42 exact_writes=4 owner_controls=9 owner_writes=9 repetitions=2"
     );
     Ok(())
 }
 
 #[cfg(test)]
-#[path = "../tests/unit/h2_3b_acceptance/tests.rs"]
+#[path = "../tests/unit/h2_3c_acceptance/tests.rs"]
 mod tests;

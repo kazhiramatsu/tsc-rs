@@ -1,0 +1,238 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/kazhiramatsu/tsc-rs/.github/ci/contracts/h2-3c-owner-controls.schema.json",
+  "title": "tsc-rs H2.3c automatic JSX owner controls",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "phase",
+    "status",
+    "typescript",
+    "generator",
+    "contract",
+    "controls",
+    "summary",
+    "controls_fingerprint_sha256"
+  ],
+  "properties": {
+    "schema": { "const": 1 },
+    "phase": { "const": "H2.3c-automatic-jsx-owner-controls" },
+    "status": { "const": "qualified" },
+    "typescript": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["version", "source_commit", "bundle", "implementation"],
+      "properties": {
+        "version": { "const": "6.0.3" },
+        "source_commit": { "$ref": "#/$defs/sha1" },
+        "bundle": { "$ref": "#/$defs/path_hash" },
+        "implementation": { "$ref": "#/$defs/path_hash" }
+      }
+    },
+    "generator": { "$ref": "#/$defs/path_hash" },
+    "contract": { "$ref": "#/$defs/path_hash" },
+    "controls": {
+      "type": "array",
+      "minItems": 9,
+      "maxItems": 9,
+      "items": { "$ref": "#/$defs/control" }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "controls",
+        "exact_outputs",
+        "typescript_runs",
+        "reported_diagnostics"
+      ],
+      "properties": {
+        "controls": { "const": 9 },
+        "exact_outputs": { "const": 9 },
+        "typescript_runs": { "const": 18 },
+        "reported_diagnostics": { "const": 0 }
+      }
+    },
+    "controls_fingerprint_sha256": { "$ref": "#/$defs/sha256" }
+  },
+  "$defs": {
+    "sha1": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "path_hash": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256"],
+      "properties": {
+        "path": { "type": "string", "minLength": 1 },
+        "sha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "file": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "root", "utf8_base64", "utf8_sha256", "utf8_bytes"],
+      "properties": {
+        "path": {
+          "pattern": "^/project/.+\\.(d\\.ts|tsx|jsx)$"
+        },
+        "root": { "const": true },
+        "utf8_base64": { "type": "string" },
+        "utf8_sha256": { "$ref": "#/$defs/sha256" },
+        "utf8_bytes": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "compiler_options": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "alwaysStrict",
+        "ignoreDeprecations",
+        "jsx",
+        "module",
+        "newLine",
+        "strict",
+        "target"
+      ],
+      "properties": {
+        "allowJs": { "const": true },
+        "alwaysStrict": { "const": false },
+        "checkJs": { "const": false },
+        "ignoreDeprecations": { "const": "6.0" },
+        "jsx": { "enum": [2, 4, 5] },
+        "jsxFactory": { "type": "string", "minLength": 1 },
+        "jsxFragmentFactory": { "type": "string", "minLength": 1 },
+        "jsxImportSource": { "enum": ["preact"] },
+        "module": { "enum": [1, 200] },
+        "moduleDetection": { "const": 1 },
+        "newLine": { "const": 1 },
+        "outDir": { "const": "/project/dist" },
+        "reactNamespace": { "type": "string", "minLength": 1 },
+        "strict": { "const": false },
+        "target": { "const": 99 }
+      }
+    },
+    "input": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["current_directory", "roots", "files", "compiler_options"],
+      "properties": {
+        "current_directory": { "const": "/project" },
+        "roots": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "items": { "type": "string", "pattern": "^/project/.+\\.(d\\.ts|tsx|jsx)$" }
+        },
+        "files": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "items": { "$ref": "#/$defs/file" }
+        },
+        "compiler_options": { "$ref": "#/$defs/compiler_options" }
+      }
+    },
+    "diagnostic": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["code", "category", "file", "start", "length", "message"],
+      "properties": {
+        "code": { "type": "integer", "minimum": 1 },
+        "category": { "enum": ["Warning", "Error", "Suggestion", "Message"] },
+        "file": { "type": ["string", "null"] },
+        "start": { "type": ["integer", "null"], "minimum": 0 },
+        "length": { "type": ["integer", "null"], "minimum": 0 },
+        "message": { "type": "string" }
+      }
+    },
+    "write": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "index",
+        "path",
+        "kind",
+        "callback_utf8_base64",
+        "callback_utf8_sha256",
+        "callback_utf8_bytes",
+        "write_byte_order_mark",
+        "materialized_utf8_sha256",
+        "materialized_utf8_bytes",
+        "on_error_callback_present",
+        "source_files"
+      ],
+      "properties": {
+        "index": { "const": 0 },
+        "path": { "type": "string", "pattern": "^/project/(dist/)?[^/]+\\.js$" },
+        "kind": { "const": "javascript" },
+        "callback_utf8_base64": { "type": "string" },
+        "callback_utf8_sha256": { "$ref": "#/$defs/sha256" },
+        "callback_utf8_bytes": { "type": "integer", "minimum": 1 },
+        "write_byte_order_mark": { "const": false },
+        "materialized_utf8_sha256": { "$ref": "#/$defs/sha256" },
+        "materialized_utf8_bytes": { "type": "integer", "minimum": 1 },
+        "on_error_callback_present": { "type": "boolean" },
+        "source_files": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 1,
+          "items": { "type": "string", "pattern": "^/project/.+\\.(tsx|jsx)$" }
+        }
+      }
+    },
+    "observation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "reported_diagnostics",
+        "emit_diagnostics",
+        "emit_skipped",
+        "writes",
+        "run_fingerprint_sha256"
+      ],
+      "properties": {
+        "reported_diagnostics": { "const": [] },
+        "emit_diagnostics": { "const": [] },
+        "emit_skipped": { "const": false },
+        "writes": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 1,
+          "items": { "$ref": "#/$defs/write" }
+        },
+        "run_fingerprint_sha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "control": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "control_id",
+        "input",
+        "repetitions",
+        "observation",
+        "control_fingerprint_sha256"
+      ],
+      "properties": {
+        "control_id": {
+          "enum": [
+            "automatic-esm-helper-dedup-order-fragment-and-static-children",
+            "development-runtime-source-metadata-utf16-and-name-collisions",
+            "automatic-jsx-input-option-import-source-and-js-output",
+            "leading-import-source-pragma-overrides-option",
+            "classic-runtime-pragma-overrides-automatic-mode",
+            "key-extraction-spread-fallback-and-import-order",
+            "commonjs-module-lowers-synthetic-runtime-import-reference",
+            "commonjs-indicator-uses-direct-destructuring-require",
+            "automatic-runtime-pragma-activates-under-classic-jsx-option"
+          ]
+        },
+        "input": { "$ref": "#/$defs/input" },
+        "repetitions": { "const": 2 },
+        "observation": { "$ref": "#/$defs/observation" },
+        "control_fingerprint_sha256": { "$ref": "#/$defs/sha256" }
+      }
+    }
+  }
+}
