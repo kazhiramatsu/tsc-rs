@@ -200,7 +200,7 @@
     },
     {
       "path": "crates/xtask/src/main.rs",
-      "sha256": "d4b4c6f1a04018dee50af8eebeec9aaf402b7c7449e3f1f990219c529bfdd6b1"
+      "sha256": "86a7eb4efe9212daf9db0e3afe33dd8f91d4478372c9e382ca94215f02a64e9d"
     },
     {
       "path": "crates/xtask/tests/unit/h2_1d_acceptance/tests.rs",
@@ -295,7 +295,7 @@
     },
     "h1_authority": {
       "path": "ratchets/h1-emit-qualification.v1.json",
-      "sha256": "ecc88dcc749c514614c14e2ff343aceaa9064c3cb7c162c8156640b9e527a1b0"
+      "sha256": "ca414b872e06a3e27e3fe91d939c9327833378e66d8c59c598c0ffeda013bd67"
     },
     "l1_authority": {
       "path": "ratchets/l1-incremental-parser-performance.v1.json",
@@ -319,5 +319,5 @@
     "undispositioned_candidates": 0,
     "historical_artifacts_reinterpreted": 0
   },
-  "profile_fingerprint_sha256": "7fc33220367f55b7ccb62bfb6db2515d9837e6115338681195cdff826ace9317"
+  "profile_fingerprint_sha256": "e6e6d61e3cda384e4a6cde203c594b91b133aeb8b77695172fdaa9d9ba8732ff"
 }

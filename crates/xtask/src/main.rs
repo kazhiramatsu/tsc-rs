@@ -34,6 +34,7 @@ mod invariant_attestation;
 mod l0_identity_stress;
 mod l0_text_stress;
 mod l1_incremental_stress;
+mod local_ci_resume;
 mod m8_evidence;
 mod m8_plan;
 mod m8_trace;
@@ -7251,6 +7252,15 @@ impl CiLane {
             },
         }
     }
+
+    fn label(self) -> &'static str {
+        match self {
+            Self::All => "all",
+            Self::Rust => "rust",
+            Self::Semantic => "semantic",
+            Self::Hosted => "hosted",
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -7264,12 +7274,14 @@ struct CiArgs {
     baseline: String,
     lane: CiLane,
     history_sensitive: bool,
+    fresh: bool,
 }
 
 fn parse_ci_args(args: impl Iterator<Item = String>) -> Result<CiArgs, Box<dyn Error>> {
     let mut baseline = "origin/main".to_owned();
     let mut lane = CiLane::All;
     let mut history_sensitive = false;
+    let mut fresh = false;
     let mut args = args.peekable();
     while let Some(arg) = args.next() {
         match arg.as_str() {
@@ -7285,6 +7297,12 @@ fn parse_ci_args(args: impl Iterator<Item = String>) -> Result<CiArgs, Box<dyn E
                 }
                 history_sensitive = true;
             }
+            "--fresh" => {
+                if fresh {
+                    return Err("duplicate ci --fresh".into());
+                }
+                fresh = true;
+            }
             _ => return Err(format!("unexpected ci argument: {arg}").into()),
         }
     }
@@ -7295,31 +7313,111 @@ fn parse_ci_args(args: impl Iterator<Item = String>) -> Result<CiArgs, Box<dyn E
         baseline,
         lane,
         history_sensitive,
+        fresh,
     })
 }
 
 fn ci(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
     let args = parse_ci_args(args)?;
-    workspace_maintenance::audit(&find_workspace_root()?)?;
+    let workspace = find_workspace_root()?;
     let plan = args.lane.plan();
+    let resolved_baseline = if plan.semantic || (plan.hosted && args.history_sensitive) {
+        Some(resolve_ci_baseline(&workspace, &args.baseline)?)
+    } else {
+        None
+    };
+    let invocation = format!(
+        "lane={}\nhistory-sensitive={}\nbaseline-ref={}\nbaseline-commit={}",
+        args.lane.label(),
+        args.history_sensitive,
+        args.baseline,
+        resolved_baseline.as_deref().unwrap_or("unused")
+    );
+    let mut resume = local_ci_resume::LocalCiResume::open(&workspace, invocation, args.fresh)?;
+    let result = ci_with_resume(&args, plan, &workspace, &mut resume);
+    if let Err(error) = result {
+        resume.failure_hint();
+        return Err(error);
+    }
+    resume.finish()
+}
+
+fn ci_with_resume(
+    args: &CiArgs,
+    plan: CiPlan,
+    workspace: &Path,
+    resume: &mut local_ci_resume::LocalCiResume,
+) -> Result<(), Box<dyn Error>> {
+    resume.run_phase(
+        "workspace-audit",
+        local_ci_resume::InputScope::All,
+        "",
+        &[],
+        || workspace_maintenance::audit(workspace),
+    )?;
     if plan.rust {
-        ci_rust_gates()?;
+        ci_rust_gates(resume)?;
     }
     if plan.semantic {
-        ci_semantic_gates(&args.baseline)?;
+        ci_semantic_gates(&args.baseline, resume)?;
     }
     if plan.hosted {
-        ci_hosted_gates(&args.baseline, args.history_sensitive)?;
+        resume.run_phase(
+            "hosted-diagnostic",
+            local_ci_resume::InputScope::Verification,
+            &args.baseline,
+            &[],
+            || ci_hosted_gates(&args.baseline, args.history_sensitive),
+        )?;
     }
     Ok(())
 }
 
-fn ci_rust_gates() -> Result<(), Box<dyn Error>> {
+fn resolve_ci_baseline(workspace: &Path, baseline: &str) -> Result<String, Box<dyn Error>> {
+    let output = m8_git_output(
+        workspace,
+        ["rev-parse", "--verify", &format!("{baseline}^{{commit}}")],
+    )?;
+    if !output.status.success() {
+        return Err(format!(
+            "cannot resolve local CI baseline {baseline}: {}",
+            String::from_utf8_lossy(&output.stderr).trim()
+        )
+        .into());
+    }
+    Ok(String::from_utf8(output.stdout)?.trim().to_owned())
+}
+
+fn ci_rust_gates(resume: &mut local_ci_resume::LocalCiResume) -> Result<(), Box<dyn Error>> {
     let workspace = find_workspace_root()?;
-    ci_format_gate(&workspace)?;
-    ci_clippy_gate(&workspace)?;
-    ci_workspace_tests(&workspace)?;
-    ci_oracle_gates(&workspace)?;
+    resume.run_phase(
+        "rustfmt",
+        local_ci_resume::InputScope::RustFormat,
+        "",
+        &[],
+        || ci_format_gate(&workspace),
+    )?;
+    resume.run_phase(
+        "clippy",
+        local_ci_resume::InputScope::Verification,
+        "",
+        &[],
+        || ci_clippy_gate(&workspace),
+    )?;
+    resume.run_phase(
+        "workspace-tests",
+        local_ci_resume::InputScope::Verification,
+        "",
+        &[],
+        || ci_workspace_tests(&workspace),
+    )?;
+    resume.run_phase(
+        "oracle",
+        local_ci_resume::InputScope::Verification,
+        "",
+        &[],
+        || ci_oracle_gates(&workspace),
+    )?;
     Ok(())
 }
 
@@ -7997,9 +8095,45 @@ fn ci_oracle_gates(workspace: &Path) -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-fn ci_semantic_gates(baseline: &str) -> Result<(), Box<dyn Error>> {
+fn ci_semantic_gates(
+    baseline: &str,
+    resume: &mut local_ci_resume::LocalCiResume,
+) -> Result<(), Box<dyn Error>> {
     let workspace = find_workspace_root()?;
     let semantic_started = std::time::Instant::now();
+    resume.run_phase(
+        "semantic-preflight",
+        local_ci_resume::InputScope::Verification,
+        baseline,
+        &[],
+        || ci_semantic_preflight(&workspace, baseline),
+    )?;
+    resume.run_phase(
+        "semantic-evidence",
+        local_ci_resume::InputScope::Verification,
+        baseline,
+        &["target/m8/readiness.json"],
+        || ci_semantic_evidence(&workspace, baseline),
+    )?;
+    // E2 current-documentation gate: readiness above produces the
+    // same-workspace report consumed by the generated README block. Bind that
+    // report again so an interrupted run cannot reuse the final check after
+    // the target artifact has been removed or replaced.
+    resume.run_phase(
+        "readme-status",
+        local_ci_resume::InputScope::All,
+        baseline,
+        &["target/m8/readiness.json"],
+        || readme_status(["--check"].into_iter().map(str::to_owned)),
+    )?;
+    println!(
+        "semantic CI lane ok: elapsed={:.3}s",
+        semantic_started.elapsed().as_secs_f64()
+    );
+    Ok(())
+}
+
+fn ci_semantic_preflight(workspace: &Path, baseline: &str) -> Result<(), Box<dyn Error>> {
     // Keep the reusable checker/conformance phases in-process. The
     // history-heavy trusted audits below use this already-built binary
     // as one short-lived child so its allocator pages cannot overlap
@@ -8023,7 +8157,7 @@ fn ci_semantic_gates(baseline: &str) -> Result<(), Box<dyn Error>> {
     let executable = std::env::current_exe()?;
     run_command(
         Command::new(&executable)
-            .current_dir(&workspace)
+            .current_dir(workspace)
             .args(["semantic-history", "--baseline"])
             .arg(baseline),
     )?;
@@ -8042,6 +8176,10 @@ fn ci_semantic_gates(baseline: &str) -> Result<(), Box<dyn Error>> {
         ]
         .into_iter(),
     )?;
+    Ok(())
+}
+
+fn ci_semantic_evidence(workspace: &Path, baseline: &str) -> Result<(), Box<dyn Error>> {
     // E1 topology (evidence-and-steady-state.md §5): verify/reuse an
     // exact-fingerprint B2 artifact or produce it, then produce B3-B4
     // after their A1/A2/A5 inputs verify but BEFORE full-corpus
@@ -8063,7 +8201,7 @@ fn ci_semantic_gates(baseline: &str) -> Result<(), Box<dyn Error>> {
     // retired. The census itself reads its fixed ranges from the manifest, so
     // full recovery trees, exact syntactic diagnostics, and minimal fixtures
     // remain gated without a duplicate corpus run or a live checker escape.
-    recovery_census::check_with_summary(&workspace, summaries.two_xxx.as_summary())?;
+    recovery_census::check_with_summary(workspace, summaries.two_xxx.as_summary())?;
     // The permanent syntactic gate (convergence invariant 3) is one
     // of the independently graded fixed views above.
     // Completion row 10 runs exactly once in the semantic lane, after
@@ -8089,15 +8227,6 @@ fn ci_semantic_gates(baseline: &str) -> Result<(), Box<dyn Error>> {
         true,
         Some(baseline),
     )?;
-    // E2 current-documentation gate: readiness above produces the
-    // same-workspace report consumed by the generated README block.
-    // A semantic ratchet or readiness-row change may not leave the
-    // public status pointing at an older milestone.
-    readme_status(["--check"].into_iter().map(str::to_owned))?;
-    println!(
-        "semantic CI lane ok: elapsed={:.3}s",
-        semantic_started.elapsed().as_secs_f64()
-    );
     Ok(())
 }
 

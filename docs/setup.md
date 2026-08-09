@@ -24,6 +24,7 @@ All gates run from the repository root:
 
 ```sh
 cargo xtask ci                      # full merge-gate suite (must be green on main)
+cargo xtask ci --fresh              # discard a failed-run journal and run every phase
 cargo xtask acceptance              # fixed GitHub `ts-tests` acceptance boundary
 cargo xtask conformance             # conformance sweep (optionally --band 2xxx)
 cargo xtask conformance --syntactic-only
@@ -40,7 +41,7 @@ cargo xtask m8 trace --program-json target/probe/program.json --code 8020 \
 
 The local Rust phase of `cargo xtask ci` compiles
 `cargo test --workspace --all-targets --no-run`
-once, then launches 24 discovered test executables through an ordered
+once, then launches 29 discovered test executables through an ordered
 two-process pipeline. Broad integration contracts are grouped into one target
 per crate; the two focused Windows canaries remain independent targets. The
 conformance library uses two harness threads while sharing the pipeline with
@@ -59,6 +60,26 @@ separate `cargo build --workspace` pass is intentionally omitted because
 all-target Clippy type-checks every target and the test compile performs
 codegen. Test binaries omit debug information to reduce link and startup I/O;
 ordinary dev-profile binaries retain their debugging profile.
+
+The full local gate checkpoints these fail-fast boundaries:
+`workspace-audit`, `rustfmt`, `clippy`, `workspace-tests`, `oracle`,
+`semantic-preflight`, `semantic-evidence`, and `readme-status`. A failed or
+interrupted invocation leaves a local journal under
+`target/local-ci-resume/v1/`. Rerunning the same lane, baseline, and history
+mode rehashes the non-ignored worktree, the running xtask executable, pinned
+and launched tools, and CI-affecting environment. A successful phase is
+skipped only when its declared input scope and every bound output are exact.
+Rust formatting has its own narrow source scope; expensive executable phases
+exclude Markdown in accordance with the documentation-only rule below, while
+the workspace audit and README gate still see it.
+
+`semantic-evidence` remains one atomic phase: B2-B4 production, the move-only
+conformance receipt, recovery, full-corpus invariants, and readiness still run
+and consume evidence in one process. Only the completed phase's readiness
+output can be reused, and its hash is checked again before `readme-status`.
+The journal is never uploaded or shared with Actions. It is deleted after a
+green command, making the next independent `cargo xtask ci` a full execution;
+pass `--fresh` at any time to discard it explicitly.
 
 Private unit-test bodies live under each crate's `tests/unit/` tree and are
 included from `src` through `#[path]` modules, so they retain private-item

@@ -465,6 +465,16 @@ union and never substitutes the smaller hosted plan. B4 production and its
 move-only conformance receipt, all evidence producer/consumer pairs, and the
 A1/A2/H0/A5 ordering therefore remain in one local process/workspace.
 
+The local command may resume a failed invocation at coarse phase boundaries.
+Each successful phase is journaled only under the ignored `target/` tree and
+is reusable solely for the same lane/baseline identity when its exact scoped
+repository fingerprint, running xtask/tool/environment identity, and bound
+outputs still verify. `semantic-evidence` is indivisible for this purpose, so
+its B2-B4 move-only receipt never crosses a process boundary. Completing the
+command deletes the journal; `--fresh` deletes it before execution. Thus this
+is fail-fast retry state, not a persistent substitute for a later full gate or
+an evidence transport.
+
 Pull-request runs do not restore or write Cargo/compiler caches for local-only
 validation. Readiness, B2-B4, fuzz, and other internal semantic evidence
 artifacts never cross the local/Actions boundary. Hosted conformance publishes

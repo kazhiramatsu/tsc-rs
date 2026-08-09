@@ -27,6 +27,20 @@ fn defaults_to_the_full_local_gate() {
     assert_eq!(args.baseline, "origin/main");
     assert_eq!(args.lane, CiLane::All);
     assert!(!args.history_sensitive);
+    assert!(!args.fresh);
+}
+
+#[test]
+fn fresh_discards_only_the_failed_run_resume_journal() {
+    let args = parse_ci_args(
+        ["--fresh", "--baseline", "base-sha"]
+            .into_iter()
+            .map(str::to_owned),
+    )
+    .unwrap();
+    assert!(args.fresh);
+    assert_eq!(args.baseline, "base-sha");
+    assert!(parse_ci_args(["--fresh", "--fresh"].into_iter().map(str::to_owned)).is_err());
 }
 
 #[test]
