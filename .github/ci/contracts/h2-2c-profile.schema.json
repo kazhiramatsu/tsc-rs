@@ -1,0 +1,250 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/kazhiramatsu/tsc-rs/.github/ci/contracts/h2-2c-profile.schema.json",
+  "title": "tsc-rs H2.2c runtime profile transition",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "kind",
+    "status",
+    "phase",
+    "typescript",
+    "generator",
+    "contract",
+    "origin",
+    "qualification",
+    "runtime_inputs",
+    "admitted_profile",
+    "transition",
+    "evidence",
+    "summary",
+    "profile_fingerprint_sha256"
+  ],
+  "properties": {
+    "schema": { "const": 1 },
+    "kind": { "const": "h2-runtime-profile" },
+    "status": { "const": "qualified" },
+    "phase": { "const": "H2.2c" },
+    "typescript": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["version", "source_commit", "bundle", "implementation"],
+      "properties": {
+        "version": { "const": "6.0.3" },
+        "source_commit": { "$ref": "#/$defs/sha1" },
+        "bundle": { "$ref": "#/$defs/path_hash" },
+        "implementation": { "$ref": "#/$defs/path_hash" }
+      }
+    },
+    "generator": { "$ref": "#/$defs/path_hash" },
+    "contract": { "$ref": "#/$defs/path_hash" },
+    "origin": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["trusted_h2_2b_merge", "historical", "interpretation"],
+      "properties": {
+        "trusted_h2_2b_merge": { "$ref": "#/$defs/sha1" },
+        "historical": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "profile",
+            "qualification",
+            "profile_generator",
+            "qualification_generator",
+            "profile_contract",
+            "qualification_contract"
+          ],
+          "properties": {
+            "profile": { "$ref": "#/$defs/path_hash" },
+            "qualification": { "$ref": "#/$defs/path_hash" },
+            "profile_generator": { "$ref": "#/$defs/path_hash" },
+            "qualification_generator": { "$ref": "#/$defs/path_hash" },
+            "profile_contract": { "$ref": "#/$defs/path_hash" },
+            "qualification_contract": { "$ref": "#/$defs/path_hash" }
+          }
+        },
+        "interpretation": {
+          "const": "H2.2b artifacts remain immutable lineage; current runtime ownership transfers to this H2.2c profile"
+        }
+      }
+    },
+    "qualification": { "$ref": "#/$defs/path_hash" },
+    "runtime_inputs": {
+      "type": "array",
+      "minItems": 41,
+      "maxItems": 41,
+      "items": { "$ref": "#/$defs/path_hash" }
+    },
+    "admitted_profile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "execution",
+        "target",
+        "module_states",
+        "source_kinds",
+        "products",
+        "exact_cases",
+        "h2_2c_exact_cases",
+        "exact_reported_diagnostics",
+        "exact_writes",
+        "diagnostic_deferred_output_controls",
+        "diagnostic_control_writes",
+        "source_deferred_cases",
+        "candidate_denominator",
+        "h2_2c_candidate_denominator"
+      ],
+      "properties": {
+        "execution": { "const": "single-project-one-shot-whole-program" },
+        "target": { "const": "ESNext(99)" },
+        "module_states": {
+          "const": [
+            "absent-effective-ESNext",
+            "ESNext(99)",
+            "CommonJS(1)",
+            "AMD(2)",
+            "UMD(3)",
+            "System(4)",
+            "Node16(100)",
+            "Node18(101)",
+            "Node20(102)",
+            "NodeNext(199)"
+          ]
+        },
+        "source_kinds": { "const": [".ts", ".mts", ".cts"] },
+        "products": { "const": ["javascript"] },
+        "exact_cases": { "const": 293 },
+        "h2_2c_exact_cases": { "const": 6 },
+        "exact_reported_diagnostics": { "const": 597 },
+        "exact_writes": { "const": 384 },
+        "diagnostic_deferred_output_controls": { "const": 5 },
+        "diagnostic_control_writes": { "const": 5 },
+        "source_deferred_cases": { "const": 0 },
+        "candidate_denominator": { "const": 295 },
+        "h2_2c_candidate_denominator": { "const": 6 }
+      }
+    },
+    "transition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "completed_slice",
+        "next_slice",
+        "active_runtime_slices",
+        "inactive_runtime_slice_count",
+        "runtime_enum_owner",
+        "namespace_owner",
+        "parameter_property_owner",
+        "import_equals_owner",
+        "h2_2c_deferred_slices",
+        "h2_2c_deferred_cases",
+        "inherited_h2_2b_residual_slices",
+        "inherited_h2_2b_residual_cases",
+        "deferred_failure_boundary"
+      ],
+      "properties": {
+        "completed_slice": { "const": "H2.2c" },
+        "next_slice": { "const": "H2.2d" },
+        "active_runtime_slices": {
+          "const": ["H2.1a", "H2.1b", "H2.1c", "H2.1d", "H2.1e", "H2.2a", "H2.2b", "H2.2c"]
+        },
+        "inactive_runtime_slice_count": { "const": 29 },
+        "runtime_enum_owner": { "const": "complete" },
+        "namespace_owner": { "const": "complete" },
+        "parameter_property_owner": { "const": "complete" },
+        "import_equals_owner": { "const": "H2.2d" },
+        "h2_2c_deferred_slices": { "const": [] },
+        "h2_2c_deferred_cases": { "const": 0 },
+        "inherited_h2_2b_residual_slices": { "const": ["H2.2d"] },
+        "inherited_h2_2b_residual_cases": { "const": 3 },
+        "deferred_failure_boundary": {
+          "const": "typed failure before first sink write"
+        }
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "typescript_repetitions",
+        "rust_repetitions",
+        "legal_worker_control",
+        "parameter_property_control",
+        "integration_shape_control",
+        "historical_residual_control",
+        "h0_authority",
+        "h1_authority",
+        "l1_authority",
+        "historical_h2_2b_profile",
+        "local_full_gate",
+        "hosted_gate",
+        "hosted_gate_scope"
+      ],
+      "properties": {
+        "typescript_repetitions": { "const": 2 },
+        "rust_repetitions": { "const": 2 },
+        "legal_worker_control": {
+          "const": "h2_2c_two_worker_execution_is_exact_and_isolated"
+        },
+        "parameter_property_control": {
+          "const": "h2_2c_parameter_property_outputs_are_exact"
+        },
+        "integration_shape_control": {
+          "const": "h2_2c_parameter_property_emit_matches_typescript_shapes"
+        },
+        "historical_residual_control": {
+          "const": "h2_2b_later_owner_controls_remain_source_deferred"
+        },
+        "h0_authority": { "$ref": "#/$defs/path_hash" },
+        "h1_authority": { "$ref": "#/$defs/path_hash" },
+        "l1_authority": { "$ref": "#/$defs/path_hash" },
+        "historical_h2_2b_profile": { "$ref": "#/$defs/path_hash" },
+        "local_full_gate": {
+          "const": "cargo xtask ci --baseline cb450995d1d0e72f34b774dc3feb9a32384e6068"
+        },
+        "hosted_gate": { "const": "cargo xtask acceptance" },
+        "hosted_gate_scope": { "const": "fixed-unsplit-ts-tests-only" }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "completed_runtime_slices",
+        "next_runtime_slices",
+        "runtime_admissions",
+        "executed_candidates",
+        "h2_2c_executed_candidates",
+        "unexecuted_candidates",
+        "undispositioned_candidates",
+        "historical_artifacts_reinterpreted"
+      ],
+      "properties": {
+        "completed_runtime_slices": { "const": 8 },
+        "next_runtime_slices": { "const": 1 },
+        "runtime_admissions": { "const": 293 },
+        "executed_candidates": { "const": 295 },
+        "h2_2c_executed_candidates": { "const": 6 },
+        "unexecuted_candidates": { "const": 0 },
+        "undispositioned_candidates": { "const": 0 },
+        "historical_artifacts_reinterpreted": { "const": 0 }
+      }
+    },
+    "profile_fingerprint_sha256": { "$ref": "#/$defs/sha256" }
+  },
+  "$defs": {
+    "sha1": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "path_hash": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256"],
+      "properties": {
+        "path": { "type": "string", "minLength": 1 },
+        "sha256": { "$ref": "#/$defs/sha256" }
+      }
+    }
+  }
+}

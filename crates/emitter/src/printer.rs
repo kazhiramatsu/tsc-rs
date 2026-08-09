@@ -1333,6 +1333,15 @@ impl Printer {
                     writer.write_operator("=");
                     writer.write_space(" ");
                     self.emit_node_id(transformation, node.source(), initializer, writer)?;
+                    if let Some(initializer) =
+                        transformation.arena().node_ref(node.source(), initializer)
+                    {
+                        self.emit_trailing_block_comments_before_semicolon(
+                            transformation,
+                            initializer,
+                            writer,
+                        )?;
+                    }
                 }
                 writer.write_trailing_semicolon(";");
                 Ok(())
@@ -2901,6 +2910,37 @@ impl Printer {
         Ok(())
     }
 
+    fn emit_trailing_block_comments_before_semicolon(
+        &self,
+        transformation: &TransformationResult<'_>,
+        node: TransformNode,
+        writer: &mut TextWriter,
+    ) -> Result<(), PrinterError> {
+        if self.options.remove_comments
+            || transformation
+                .arena()
+                .metadata(node)
+                .is_some_and(|metadata| {
+                    metadata.flags().intersects(EmitFlags::NO_TRAILING_COMMENTS)
+                })
+        {
+            return Ok(());
+        }
+        let original = transformation.arena().get_original_node(node);
+        let source = transformation.arena().source(original.source())?.syntax();
+        let record = transformation.arena().node(original)?;
+        let SourceRange::Original(range) =
+            SourceRange::from_raw(record.pos, record.end, source.positions())?
+        else {
+            return Ok(());
+        };
+        emit_same_line_trailing_block_comments(
+            &source.text()[range.end().value() as usize..],
+            writer,
+        );
+        Ok(())
+    }
+
     fn emit_synthetic_leading_comments_for_node(
         &self,
         transformation: &TransformationResult<'_>,
@@ -3388,6 +3428,29 @@ fn emit_same_line_trailing_comments(rest: &str, writer: &mut TextWriter) {
         if line_comment {
             return;
         }
+    }
+}
+
+fn emit_same_line_trailing_block_comments(rest: &str, writer: &mut TextWriter) {
+    let bytes = rest.as_bytes();
+    let mut cursor = 0usize;
+    loop {
+        while cursor < bytes.len() && matches!(bytes[cursor], b' ' | b'\t') {
+            cursor += 1;
+        }
+        if bytes.get(cursor..cursor + 2) != Some(b"/*") {
+            return;
+        }
+        let start = cursor;
+        cursor += 2;
+        while cursor + 1 < bytes.len() && &bytes[cursor..cursor + 2] != b"*/" {
+            cursor += 1;
+        }
+        cursor = (cursor + 2).min(bytes.len());
+        if !writer.has_trailing_whitespace() {
+            writer.write_space(" ");
+        }
+        write_comment_with_normalized_newlines(&rest[start..cursor], writer);
     }
 }
 

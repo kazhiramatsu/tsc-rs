@@ -1,0 +1,1154 @@
+{
+  "schema": 1,
+  "status": "qualified-typescript-oracle",
+  "phase": "H2.2c-parameter-properties",
+  "typescript": {
+    "version": "6.0.3",
+    "source_commit": "050880ce59e30b356b686bd3144efe24f875ebc8",
+    "bundle": {
+      "path": "vendor/typescript-6.0.3/lib/typescript.js",
+      "sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39"
+    },
+    "implementation": {
+      "path": "vendor/typescript-6.0.3/lib/_tsc.js",
+      "sha256": "1c59e77a54b186ec43fa7f3e0d3c4bb15ca5eb5ba43e96b1d3a267139eddd3e3"
+    }
+  },
+  "generator": {
+    "path": "crates/oracle/h2-2c-qualification.mjs",
+    "sha256": "ecac0f30d73fa64f4345391a4e279a261a7de0f364d9ba13544ddc6f6c351314"
+  },
+  "contract": {
+    "path": ".github/ci/contracts/h2-2c-qualification.schema.json",
+    "sha256": "dcf9bf8f52afc62497aadd0b07041f2ed9f9d448a2cf1510546411fd3577aa65"
+  },
+  "origin": {
+    "h2_2b_merge": "cb450995d1d0e72f34b774dc3feb9a32384e6068",
+    "h2_2b_profile": {
+      "path": "ratchets/h2-2b-profile.v1.json",
+      "sha256": "bd0d829acf3959b113992cfd9972774a7a9a115b21ccb2f3a0ad9f0d7384c95e"
+    }
+  },
+  "inputs": {
+    "compiler_classification": {
+      "path": "vendor/typescript-6.0.3/compiler-profile-classification.v1.json",
+      "sha256": "3c3cbcb3c29a5254c145dc2665ca21683a1bd94f5271841320f061e82b614603"
+    },
+    "conformance_classification": {
+      "path": "vendor/typescript-6.0.3/conformance-profile-classification.v1.json",
+      "sha256": "d54b51d44da91836ad1b7be3be4b7de19c6892e6cb1fe9605fda06cdda5a67eb"
+    },
+    "compiler_expansion": {
+      "path": "vendor/typescript-6.0.3/test-suite-expansion.v1.json",
+      "sha256": "9c6e991103b571f7a8800dc5e1ef66088017689f3769de8fcdb408b2dc125188"
+    },
+    "conformance_expansion": {
+      "path": "vendor/typescript-6.0.3/conformance-suite-expansion.v1.json",
+      "sha256": "924d4007b3ac93a3ee57032ea6089b649bab2902e30ee64cff02f4c9404b7bbd"
+    },
+    "owner_inventory": {
+      "path": "ratchets/h2-owner-inventory.v1.json",
+      "sha256": "1f3d666d107247bef7b5e18d6e9506ff51d281277c136bf70112a863b6dfa98d"
+    },
+    "h2_1a_qualification": {
+      "path": "ratchets/h2-1a-qualification.v1.json",
+      "sha256": "1a1dbd0bd51768f054c1fed51300df8de5211af7e4978f838efe93926bd527e3"
+    }
+  },
+  "execution_contract": {
+    "source_reachability": "fixture VFS roots plus module-resolved fixture dependencies in a vendored TypeScript Program",
+    "module_selection": "Program.getEmitModuleFormatOfFile for every reached fixture SourceFile",
+    "admission": "every emit-eligible source is .ts, has target ESNext, has no parse diagnostics, has AST depth <= 256, reaches the now-closed H2.2c parameter-property transform and no later transform root, and has exact diagnostics and writes; declaration/package/config inputs remain non-emitted controls",
+    "typescript_repetitions": 2,
+    "rust_repetitions": 2,
+    "normalization": "none",
+    "deferred_boundary": "typed failure before first sink write"
+  },
+  "owner_closure": [
+    {
+      "key": "transform-typescript",
+      "declaration": {
+        "id": "h2:5060c2118ae6adb02ce51f3d5fbe31d2255c21ca0cb4f5f82fdfecac71b984f4",
+        "source": "vendor/typescript-6.0.3/lib/_tsc.js",
+        "name": "transformTypeScript",
+        "kind": "FunctionDeclaration",
+        "lexical_path": "<bundle>/transformTypeScript@94036:1",
+        "source_range": {
+          "start": {
+            "offset": 4588731,
+            "line": 94036,
+            "character": 1
+          },
+          "end": {
+            "offset": 4656191,
+            "line": 95849,
+            "character": 2
+          }
+        },
+        "declaration_sha256": "547f9cfdb2cdda74d76a5b22479ea9df8c56e6be19790021466a3c1cd6af9d0a",
+        "body_sha256": "b273aa05b75da7c7637fad04ed313f54d4a81c7cd2890e22a346bc7539fa0aa3",
+        "ledger_slice_sha256": "08e4305bdbb440c9e05fb551bd3a1988f4edf67ccc0119b2642f7a3dd2258e79"
+      },
+      "disposition_before_h2_2c": "partial-h1-residual"
+    }
+  ],
+  "cases": [
+    {
+      "suite": "conformance",
+      "case_id": "typescript-6.0.3/conformance/classes/members/instanceAndStaticMembers/typeOfThisInStaticMembers5.ts#target%3Desnext",
+      "expansion_case": 618,
+      "source": {
+        "path": "classes/members/instanceAndStaticMembers/typeOfThisInStaticMembers5.ts",
+        "bytes": 149,
+        "sha256": "4551f6665f45ea17f1fc381f7e5054f9c487d5eebb2ea092142af97712b1517e",
+        "git_blob_sha1": "a6f035176492ec0540589c0920b70b29fe6c5b91"
+      },
+      "module_state": "absent-effective-ESNext",
+      "input": {
+        "current_directory": "/.src",
+        "roots": [
+          "/.src/typeOfThisInStaticMembers5.ts"
+        ],
+        "settings": [
+          {
+            "name": "target",
+            "value": "esnext"
+          }
+        ],
+        "virtual_config": null,
+        "files": [
+          {
+            "unit": 0,
+            "path": "/.src/typeOfThisInStaticMembers5.ts",
+            "utf8_base64": "Y2xhc3MgQyB7CiAgICBzdGF0aWMgY3JlYXRlID0gKCkgPT4gbmV3IHRoaXMoInllcCIpCgogICAgY29uc3RydWN0b3IgKHByaXZhdGUgZm9vOiBzdHJpbmcpIHsKCiAgICB9Cn0K",
+            "utf8_sha256": "0c4b645b65cef7afe7e51d3f8e694824bc0d498bc560349995abe8d8790a01d7",
+            "utf8_bytes": 102
+          }
+        ]
+      },
+      "files": [
+        {
+          "unit": 0,
+          "path": "/.src/typeOfThisInStaticMembers5.ts",
+          "script_kind": "TS",
+          "declaration_file": false,
+          "emit_eligible": true,
+          "implied_module_format": "None",
+          "emit_module_format": 99,
+          "feature_roots": [
+            {
+              "feature": "parameter-properties",
+              "start": 70,
+              "end": 89,
+              "kind": "Parameter"
+            }
+          ],
+          "parse_diagnostic_codes": [],
+          "max_ast_depth": 6,
+          "import_attributes": false,
+          "advanced_comment_placement": false,
+          "text_sha256": "0c4b645b65cef7afe7e51d3f8e694824bc0d498bc560349995abe8d8790a01d7"
+        }
+      ],
+      "owner_reachability": [
+        "transform-typescript"
+      ],
+      "disposition": "admitted-for-execution",
+      "required_slices": [],
+      "diagnostic_disposition": {
+        "state": "exact-required"
+      },
+      "typescript_runs": [
+        {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/.src/typeOfThisInStaticMembers5.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KY2xhc3MgQyB7DQogICAgZm9vOw0KICAgIHN0YXRpYyBjcmVhdGUgPSAoKSA9PiBuZXcgdGhpcygieWVwIik7DQogICAgY29uc3RydWN0b3IoZm9vKSB7DQogICAgICAgIHRoaXMuZm9vID0gZm9vOw0KICAgIH0NCn0NCg==",
+              "callback_utf8_sha256": "48a8180c0624adbbdc06706956af9eeb82a0291551e49055aa33cb3e97ffe178",
+              "callback_utf8_bytes": 139,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "48a8180c0624adbbdc06706956af9eeb82a0291551e49055aa33cb3e97ffe178",
+              "materialized_utf8_bytes": 139,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/typeOfThisInStaticMembers5.ts"
+              ]
+            }
+          ],
+          "reported_diagnostics": [],
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 0,
+          "run_fingerprint_sha256": "47c2e8b48aae54903c133c068136ec3315c22139e5a8ba05cb57c60f2a095223"
+        },
+        {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/.src/typeOfThisInStaticMembers5.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KY2xhc3MgQyB7DQogICAgZm9vOw0KICAgIHN0YXRpYyBjcmVhdGUgPSAoKSA9PiBuZXcgdGhpcygieWVwIik7DQogICAgY29uc3RydWN0b3IoZm9vKSB7DQogICAgICAgIHRoaXMuZm9vID0gZm9vOw0KICAgIH0NCn0NCg==",
+              "callback_utf8_sha256": "48a8180c0624adbbdc06706956af9eeb82a0291551e49055aa33cb3e97ffe178",
+              "callback_utf8_bytes": 139,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "48a8180c0624adbbdc06706956af9eeb82a0291551e49055aa33cb3e97ffe178",
+              "materialized_utf8_bytes": 139,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/typeOfThisInStaticMembers5.ts"
+              ]
+            }
+          ],
+          "reported_diagnostics": [],
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 0,
+          "run_fingerprint_sha256": "47c2e8b48aae54903c133c068136ec3315c22139e5a8ba05cb57c60f2a095223"
+        }
+      ],
+      "rust_expectation": "two-deterministic-exact-runs",
+      "case_fingerprint_sha256": "2b58b4807e556c52e69b960563c9513eeedb3a493860d479c3012aa618c5bd4c"
+    },
+    {
+      "suite": "conformance",
+      "case_id": "typescript-6.0.3/conformance/classes/propertyMemberDeclarations/assignParameterPropertyToPropertyDeclarationESNext.ts#default",
+      "expansion_case": 831,
+      "source": {
+        "path": "classes/propertyMemberDeclarations/assignParameterPropertyToPropertyDeclarationESNext.ts",
+        "bytes": 966,
+        "sha256": "e3ec037708115ebdffacdc490532e966551d0bd21eb3d70fb17cd1e5c50afbfb",
+        "git_blob_sha1": "9604ba4dfe02391989609ae18b4c06315a8c9bdb"
+      },
+      "module_state": "absent-effective-ESNext",
+      "input": {
+        "current_directory": "/.src",
+        "roots": [
+          "/.src/assignParameterPropertyToPropertyDeclarationESNext.ts"
+        ],
+        "settings": [
+          {
+            "name": "useDefineForClassFields",
+            "value": "true"
+          },
+          {
+            "name": "target",
+            "value": "esnext"
+          }
+        ],
+        "virtual_config": null,
+        "files": [
+          {
+            "unit": 0,
+            "path": "/.src/assignParameterPropertyToPropertyDeclarationESNext.ts",
+            "utf8_base64": "Y2xhc3MgQyB7CiAgICBxdXggPSB0aGlzLmJhciAvLyBzaG91bGQgZXJyb3IKICAgIGJhciA9IHRoaXMuZm9vIC8vIHNob3VsZCBlcnJvcgogICAgcXVpeiA9IHRoaXMuYmFyIC8vIG9rCiAgICBxdWVuY2ggPSB0aGlzLm0xKCkgLy8gb2sKICAgIHF1YW5jaCA9IHRoaXMubTMoKSAvLyBzaG91bGQgZXJyb3IKICAgIG0xKCkgewogICAgICAgIHRoaXMuZm9vIC8vIG9rCiAgICB9CiAgICBtMyA9IGZ1bmN0aW9uKCkgeyB9CiAgICBjb25zdHJ1Y3RvcihwdWJsaWMgZm9vOiBzdHJpbmcpIHt9CiAgICBxdWltID0gdGhpcy5iYXogLy8gc2hvdWxkIGVycm9yCiAgICBiYXogPSB0aGlzLmZvbzsgLy8gc2hvdWxkIGVycm9yCiAgICBxdWlkID0gdGhpcy5iYXogLy8gb2sKICAgIG0yKCkgewogICAgICAgIHRoaXMuZm9vIC8vIG9rCiAgICB9Cn0KCmNsYXNzIEQgZXh0ZW5kcyBDIHsKICAgIHF1aWxsID0gdGhpcy5mb28gLy8gb2sKfQoKY2xhc3MgRSB7CiAgICBiYXIgPSAoKSA9PiB0aGlzLmZvbzEgKyB0aGlzLmZvbzI7IC8vIGJvdGggb2sKICAgIGZvbzEgPSAnJzsKICAgIGNvbnN0cnVjdG9yKHB1YmxpYyBmb28yOiBzdHJpbmcpIHt9Cn0KCmNsYXNzIEYgewogICAgSW5uZXIgPSBjbGFzcyBleHRlbmRzIEYgewogICAgICAgIHAyID0gdGhpcy5wMQogICAgfQogICAgcDEgPSAwCn0KY2xhc3MgRyB7CiAgICBJbm5lciA9IGNsYXNzIGV4dGVuZHMgRyB7CiAgICAgICAgcDIgPSB0aGlzLnAxCiAgICB9CiAgICBjb25zdHJ1Y3RvcihwdWJsaWMgcDE6IG51bWJlcikge30KfQpjbGFzcyBIIHsKICAgIGNvbnN0cnVjdG9yKHB1YmxpYyBwMTogQykge30KCiAgICBwdWJsaWMgcDIgPSAoKSA9PiB7CiAgICAgICAgcmV0dXJuIHRoaXMucDEuZm9vOwogICAgfQoKICAgIHB1YmxpYyBwMyA9ICgpID0+IHRoaXMucDEuZm9vOwp9Cg==",
+            "utf8_sha256": "fa1c8140500df7732a468a657129006fd582db20a18022f066fdac0d2f6e3621",
+            "utf8_bytes": 913
+          }
+        ]
+      },
+      "files": [
+        {
+          "unit": 0,
+          "path": "/.src/assignParameterPropertyToPropertyDeclarationESNext.ts",
+          "script_kind": "TS",
+          "declaration_file": false,
+          "emit_eligible": true,
+          "implied_module_format": "None",
+          "emit_module_format": 99,
+          "feature_roots": [
+            {
+              "feature": "parameter-properties",
+              "start": 254,
+              "end": 272,
+              "kind": "Parameter"
+            },
+            {
+              "feature": "parameter-properties",
+              "start": 559,
+              "end": 578,
+              "kind": "Parameter"
+            },
+            {
+              "feature": "parameter-properties",
+              "start": 749,
+              "end": 766,
+              "kind": "Parameter"
+            },
+            {
+              "feature": "parameter-properties",
+              "start": 799,
+              "end": 811,
+              "kind": "Parameter"
+            }
+          ],
+          "parse_diagnostic_codes": [],
+          "max_ast_depth": 9,
+          "import_attributes": false,
+          "advanced_comment_placement": false,
+          "text_sha256": "fa1c8140500df7732a468a657129006fd582db20a18022f066fdac0d2f6e3621"
+        }
+      ],
+      "owner_reachability": [
+        "transform-typescript"
+      ],
+      "disposition": "admitted-for-execution",
+      "required_slices": [],
+      "diagnostic_disposition": {
+        "state": "exact-required"
+      },
+      "typescript_runs": [
+        {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/.src/assignParameterPropertyToPropertyDeclarationESNext.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KY2xhc3MgQyB7DQogICAgZm9vOw0KICAgIHF1eCA9IHRoaXMuYmFyOyAvLyBzaG91bGQgZXJyb3INCiAgICBiYXIgPSB0aGlzLmZvbzsgLy8gc2hvdWxkIGVycm9yDQogICAgcXVpeiA9IHRoaXMuYmFyOyAvLyBvaw0KICAgIHF1ZW5jaCA9IHRoaXMubTEoKTsgLy8gb2sNCiAgICBxdWFuY2ggPSB0aGlzLm0zKCk7IC8vIHNob3VsZCBlcnJvcg0KICAgIG0xKCkgew0KICAgICAgICB0aGlzLmZvbzsgLy8gb2sNCiAgICB9DQogICAgbTMgPSBmdW5jdGlvbiAoKSB7IH07DQogICAgY29uc3RydWN0b3IoZm9vKSB7DQogICAgICAgIHRoaXMuZm9vID0gZm9vOw0KICAgIH0NCiAgICBxdWltID0gdGhpcy5iYXo7IC8vIHNob3VsZCBlcnJvcg0KICAgIGJheiA9IHRoaXMuZm9vOyAvLyBzaG91bGQgZXJyb3INCiAgICBxdWlkID0gdGhpcy5iYXo7IC8vIG9rDQogICAgbTIoKSB7DQogICAgICAgIHRoaXMuZm9vOyAvLyBvaw0KICAgIH0NCn0NCmNsYXNzIEQgZXh0ZW5kcyBDIHsNCiAgICBxdWlsbCA9IHRoaXMuZm9vOyAvLyBvaw0KfQ0KY2xhc3MgRSB7DQogICAgZm9vMjsNCiAgICBiYXIgPSAoKSA9PiB0aGlzLmZvbzEgKyB0aGlzLmZvbzI7IC8vIGJvdGggb2sNCiAgICBmb28xID0gJyc7DQogICAgY29uc3RydWN0b3IoZm9vMikgew0KICAgICAgICB0aGlzLmZvbzIgPSBmb28yOw0KICAgIH0NCn0NCmNsYXNzIEYgew0KICAgIElubmVyID0gY2xhc3MgZXh0ZW5kcyBGIHsNCiAgICAgICAgcDIgPSB0aGlzLnAxOw0KICAgIH07DQogICAgcDEgPSAwOw0KfQ0KY2xhc3MgRyB7DQogICAgcDE7DQogICAgSW5uZXIgPSBjbGFzcyBleHRlbmRzIEcgew0KICAgICAgICBwMiA9IHRoaXMucDE7DQogICAgfTsNCiAgICBjb25zdHJ1Y3RvcihwMSkgew0KICAgICAgICB0aGlzLnAxID0gcDE7DQogICAgfQ0KfQ0KY2xhc3MgSCB7DQogICAgcDE7DQogICAgY29uc3RydWN0b3IocDEpIHsNCiAgICAgICAgdGhpcy5wMSA9IHAxOw0KICAgIH0NCiAgICBwMiA9ICgpID0+IHsNCiAgICAgICAgcmV0dXJuIHRoaXMucDEuZm9vOw0KICAgIH07DQogICAgcDMgPSAoKSA9PiB0aGlzLnAxLmZvbzsNCn0NCg==",
+              "callback_utf8_sha256": "392ca795ea7903ec246f17aa09ef351720b9afe168d644ee16c2c0d1bd5bf1b0",
+              "callback_utf8_bytes": 1078,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "392ca795ea7903ec246f17aa09ef351720b9afe168d644ee16c2c0d1bd5bf1b0",
+              "materialized_utf8_bytes": 1078,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/assignParameterPropertyToPropertyDeclarationESNext.ts"
+              ]
+            }
+          ],
+          "reported_diagnostics": [
+            {
+              "code": 2729,
+              "category": "Error",
+              "file": "/.src/assignParameterPropertyToPropertyDeclarationESNext.ts",
+              "start": 25,
+              "length": 3,
+              "message": "Property 'bar' is used before its initialization."
+            },
+            {
+              "code": 2729,
+              "category": "Error",
+              "file": "/.src/assignParameterPropertyToPropertyDeclarationESNext.ts",
+              "start": 60,
+              "length": 3,
+              "message": "Property 'foo' is used before its initialization."
+            },
+            {
+              "code": 2729,
+              "category": "Error",
+              "file": "/.src/assignParameterPropertyToPropertyDeclarationESNext.ts",
+              "start": 153,
+              "length": 2,
+              "message": "Property 'm3' is used before its initialization."
+            },
+            {
+              "code": 2729,
+              "category": "Error",
+              "file": "/.src/assignParameterPropertyToPropertyDeclarationESNext.ts",
+              "start": 293,
+              "length": 3,
+              "message": "Property 'baz' is used before its initialization."
+            },
+            {
+              "code": 2729,
+              "category": "Error",
+              "file": "/.src/assignParameterPropertyToPropertyDeclarationESNext.ts",
+              "start": 328,
+              "length": 3,
+              "message": "Property 'foo' is used before its initialization."
+            }
+          ],
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 2,
+          "run_fingerprint_sha256": "2a8119ae7459526f4fd8abe7d173fb391c29328c89f954d5181b10baa9ac34c8"
+        },
+        {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/.src/assignParameterPropertyToPropertyDeclarationESNext.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KY2xhc3MgQyB7DQogICAgZm9vOw0KICAgIHF1eCA9IHRoaXMuYmFyOyAvLyBzaG91bGQgZXJyb3INCiAgICBiYXIgPSB0aGlzLmZvbzsgLy8gc2hvdWxkIGVycm9yDQogICAgcXVpeiA9IHRoaXMuYmFyOyAvLyBvaw0KICAgIHF1ZW5jaCA9IHRoaXMubTEoKTsgLy8gb2sNCiAgICBxdWFuY2ggPSB0aGlzLm0zKCk7IC8vIHNob3VsZCBlcnJvcg0KICAgIG0xKCkgew0KICAgICAgICB0aGlzLmZvbzsgLy8gb2sNCiAgICB9DQogICAgbTMgPSBmdW5jdGlvbiAoKSB7IH07DQogICAgY29uc3RydWN0b3IoZm9vKSB7DQogICAgICAgIHRoaXMuZm9vID0gZm9vOw0KICAgIH0NCiAgICBxdWltID0gdGhpcy5iYXo7IC8vIHNob3VsZCBlcnJvcg0KICAgIGJheiA9IHRoaXMuZm9vOyAvLyBzaG91bGQgZXJyb3INCiAgICBxdWlkID0gdGhpcy5iYXo7IC8vIG9rDQogICAgbTIoKSB7DQogICAgICAgIHRoaXMuZm9vOyAvLyBvaw0KICAgIH0NCn0NCmNsYXNzIEQgZXh0ZW5kcyBDIHsNCiAgICBxdWlsbCA9IHRoaXMuZm9vOyAvLyBvaw0KfQ0KY2xhc3MgRSB7DQogICAgZm9vMjsNCiAgICBiYXIgPSAoKSA9PiB0aGlzLmZvbzEgKyB0aGlzLmZvbzI7IC8vIGJvdGggb2sNCiAgICBmb28xID0gJyc7DQogICAgY29uc3RydWN0b3IoZm9vMikgew0KICAgICAgICB0aGlzLmZvbzIgPSBmb28yOw0KICAgIH0NCn0NCmNsYXNzIEYgew0KICAgIElubmVyID0gY2xhc3MgZXh0ZW5kcyBGIHsNCiAgICAgICAgcDIgPSB0aGlzLnAxOw0KICAgIH07DQogICAgcDEgPSAwOw0KfQ0KY2xhc3MgRyB7DQogICAgcDE7DQogICAgSW5uZXIgPSBjbGFzcyBleHRlbmRzIEcgew0KICAgICAgICBwMiA9IHRoaXMucDE7DQogICAgfTsNCiAgICBjb25zdHJ1Y3RvcihwMSkgew0KICAgICAgICB0aGlzLnAxID0gcDE7DQogICAgfQ0KfQ0KY2xhc3MgSCB7DQogICAgcDE7DQogICAgY29uc3RydWN0b3IocDEpIHsNCiAgICAgICAgdGhpcy5wMSA9IHAxOw0KICAgIH0NCiAgICBwMiA9ICgpID0+IHsNCiAgICAgICAgcmV0dXJuIHRoaXMucDEuZm9vOw0KICAgIH07DQogICAgcDMgPSAoKSA9PiB0aGlzLnAxLmZvbzsNCn0NCg==",
+              "callback_utf8_sha256": "392ca795ea7903ec246f17aa09ef351720b9afe168d644ee16c2c0d1bd5bf1b0",
+              "callback_utf8_bytes": 1078,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "392ca795ea7903ec246f17aa09ef351720b9afe168d644ee16c2c0d1bd5bf1b0",
+              "materialized_utf8_bytes": 1078,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/assignParameterPropertyToPropertyDeclarationESNext.ts"
+              ]
+            }
+          ],
+          "reported_diagnostics": [
+            {
+              "code": 2729,
+              "category": "Error",
+              "file": "/.src/assignParameterPropertyToPropertyDeclarationESNext.ts",
+              "start": 25,
+              "length": 3,
+              "message": "Property 'bar' is used before its initialization."
+            },
+            {
+              "code": 2729,
+              "category": "Error",
+              "file": "/.src/assignParameterPropertyToPropertyDeclarationESNext.ts",
+              "start": 60,
+              "length": 3,
+              "message": "Property 'foo' is used before its initialization."
+            },
+            {
+              "code": 2729,
+              "category": "Error",
+              "file": "/.src/assignParameterPropertyToPropertyDeclarationESNext.ts",
+              "start": 153,
+              "length": 2,
+              "message": "Property 'm3' is used before its initialization."
+            },
+            {
+              "code": 2729,
+              "category": "Error",
+              "file": "/.src/assignParameterPropertyToPropertyDeclarationESNext.ts",
+              "start": 293,
+              "length": 3,
+              "message": "Property 'baz' is used before its initialization."
+            },
+            {
+              "code": 2729,
+              "category": "Error",
+              "file": "/.src/assignParameterPropertyToPropertyDeclarationESNext.ts",
+              "start": 328,
+              "length": 3,
+              "message": "Property 'foo' is used before its initialization."
+            }
+          ],
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 2,
+          "run_fingerprint_sha256": "2a8119ae7459526f4fd8abe7d173fb391c29328c89f954d5181b10baa9ac34c8"
+        }
+      ],
+      "rust_expectation": "two-deterministic-exact-runs",
+      "case_fingerprint_sha256": "c175559a43ea5c917f64716f4988738b130a8017609025ea798ec8fd7227cb6f"
+    },
+    {
+      "suite": "conformance",
+      "case_id": "typescript-6.0.3/conformance/classes/propertyMemberDeclarations/defineProperty.ts#target%3Desnext",
+      "expansion_case": 878,
+      "source": {
+        "path": "classes/propertyMemberDeclarations/defineProperty.ts",
+        "bytes": 436,
+        "sha256": "4abb9c4ef0ec5d1bb0180928230f56f4f22a10a6afec479a54171f178d2b16a8",
+        "git_blob_sha1": "3ab2acb61c15de8b71b1831297cecebf9e75c4c3"
+      },
+      "module_state": "absent-effective-ESNext",
+      "input": {
+        "current_directory": "/.src",
+        "roots": [
+          "/.src/defineProperty.ts"
+        ],
+        "settings": [
+          {
+            "name": "strict",
+            "value": "false"
+          },
+          {
+            "name": "target",
+            "value": "esnext"
+          },
+          {
+            "name": "useDefineForClassFields",
+            "value": "true"
+          }
+        ],
+        "virtual_config": null,
+        "files": [
+          {
+            "unit": 0,
+            "path": "/.src/defineProperty.ts",
+            "utf8_base64": "dmFyIHg6ICJwIiA9ICJwIgpjbGFzcyBBIHsKICAgIGEgPSB0aGlzLnkKICAgIGIKICAgIHB1YmxpYyBjOwogICAgWyJjb21wdXRlZCJdID0gMTMKICAgIDtbeF0gPSAxNAogICAgbSgpIHsgfQogICAgY29uc3RydWN0b3IocHVibGljIHJlYWRvbmx5IHk6IG51bWJlcikgeyB9CiAgICB6ID0gdGhpcy55CiAgICBkZWNsYXJlIG5vdEVtaXR0ZWQ7Cn0KY2xhc3MgQiB7CiAgICBwdWJsaWMgYTsKfQpjbGFzcyBDIGV4dGVuZHMgQiB7CiAgICBkZWNsYXJlIHB1YmxpYyBhOwogICAgeiA9IHRoaXMua2EKICAgIGNvbnN0cnVjdG9yKHB1YmxpYyBrYTogbnVtYmVyKSB7CiAgICAgICAgc3VwZXIoKQogICAgfQogICAga2kgPSB0aGlzLmthCn0K",
+            "utf8_sha256": "98e1a65985d5dbbff5534b2fb9a34e81d70f21b15f7bfdcab0c653ba2c359471",
+            "utf8_bytes": 360
+          }
+        ]
+      },
+      "files": [
+        {
+          "unit": 0,
+          "path": "/.src/defineProperty.ts",
+          "script_kind": "TS",
+          "declaration_file": false,
+          "emit_eligible": true,
+          "implied_module_format": "None",
+          "emit_module_format": 99,
+          "feature_roots": [
+            {
+              "feature": "parameter-properties",
+              "start": 126,
+              "end": 151,
+              "kind": "Parameter"
+            },
+            {
+              "feature": "parameter-properties",
+              "start": 298,
+              "end": 315,
+              "kind": "Parameter"
+            }
+          ],
+          "parse_diagnostic_codes": [],
+          "max_ast_depth": 7,
+          "import_attributes": false,
+          "advanced_comment_placement": false,
+          "text_sha256": "98e1a65985d5dbbff5534b2fb9a34e81d70f21b15f7bfdcab0c653ba2c359471"
+        }
+      ],
+      "owner_reachability": [
+        "transform-typescript"
+      ],
+      "disposition": "admitted-for-execution",
+      "required_slices": [],
+      "diagnostic_disposition": {
+        "state": "exact-required"
+      },
+      "typescript_runs": [
+        {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/.src/defineProperty.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIHggPSAicCI7DQpjbGFzcyBBIHsNCiAgICB5Ow0KICAgIGEgPSB0aGlzLnk7DQogICAgYjsNCiAgICBjOw0KICAgIFsiY29tcHV0ZWQiXSA9IDEzOw0KICAgIFt4XSA9IDE0Ow0KICAgIG0oKSB7IH0NCiAgICBjb25zdHJ1Y3Rvcih5KSB7DQogICAgICAgIHRoaXMueSA9IHk7DQogICAgfQ0KICAgIHogPSB0aGlzLnk7DQp9DQpjbGFzcyBCIHsNCiAgICBhOw0KfQ0KY2xhc3MgQyBleHRlbmRzIEIgew0KICAgIGthOw0KICAgIHogPSB0aGlzLmthOw0KICAgIGNvbnN0cnVjdG9yKGthKSB7DQogICAgICAgIHN1cGVyKCk7DQogICAgICAgIHRoaXMua2EgPSBrYTsNCiAgICB9DQogICAga2kgPSB0aGlzLmthOw0KfQ0K",
+              "callback_utf8_sha256": "64f03b49194d1b74cbdd01f9edd787af6cb8c24a2131379b12568ad922ec7d76",
+              "callback_utf8_bytes": 366,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "64f03b49194d1b74cbdd01f9edd787af6cb8c24a2131379b12568ad922ec7d76",
+              "materialized_utf8_bytes": 366,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/defineProperty.ts"
+              ]
+            }
+          ],
+          "reported_diagnostics": [
+            {
+              "code": 2729,
+              "category": "Error",
+              "file": "/.src/defineProperty.ts",
+              "start": 40,
+              "length": 1,
+              "message": "Property 'y' is used before its initialization."
+            },
+            {
+              "code": 2729,
+              "category": "Error",
+              "file": "/.src/defineProperty.ts",
+              "start": 170,
+              "length": 1,
+              "message": "Property 'y' is used before its initialization."
+            },
+            {
+              "code": 2729,
+              "category": "Error",
+              "file": "/.src/defineProperty.ts",
+              "start": 279,
+              "length": 2,
+              "message": "Property 'ka' is used before its initialization."
+            },
+            {
+              "code": 2729,
+              "category": "Error",
+              "file": "/.src/defineProperty.ts",
+              "start": 355,
+              "length": 2,
+              "message": "Property 'ka' is used before its initialization."
+            }
+          ],
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 2,
+          "run_fingerprint_sha256": "f74b10465d262481033f8947c6aa90f8d76e41eb02cf15ffd3c0f8740ca5f993"
+        },
+        {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/.src/defineProperty.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIHggPSAicCI7DQpjbGFzcyBBIHsNCiAgICB5Ow0KICAgIGEgPSB0aGlzLnk7DQogICAgYjsNCiAgICBjOw0KICAgIFsiY29tcHV0ZWQiXSA9IDEzOw0KICAgIFt4XSA9IDE0Ow0KICAgIG0oKSB7IH0NCiAgICBjb25zdHJ1Y3Rvcih5KSB7DQogICAgICAgIHRoaXMueSA9IHk7DQogICAgfQ0KICAgIHogPSB0aGlzLnk7DQp9DQpjbGFzcyBCIHsNCiAgICBhOw0KfQ0KY2xhc3MgQyBleHRlbmRzIEIgew0KICAgIGthOw0KICAgIHogPSB0aGlzLmthOw0KICAgIGNvbnN0cnVjdG9yKGthKSB7DQogICAgICAgIHN1cGVyKCk7DQogICAgICAgIHRoaXMua2EgPSBrYTsNCiAgICB9DQogICAga2kgPSB0aGlzLmthOw0KfQ0K",
+              "callback_utf8_sha256": "64f03b49194d1b74cbdd01f9edd787af6cb8c24a2131379b12568ad922ec7d76",
+              "callback_utf8_bytes": 366,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "64f03b49194d1b74cbdd01f9edd787af6cb8c24a2131379b12568ad922ec7d76",
+              "materialized_utf8_bytes": 366,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/defineProperty.ts"
+              ]
+            }
+          ],
+          "reported_diagnostics": [
+            {
+              "code": 2729,
+              "category": "Error",
+              "file": "/.src/defineProperty.ts",
+              "start": 40,
+              "length": 1,
+              "message": "Property 'y' is used before its initialization."
+            },
+            {
+              "code": 2729,
+              "category": "Error",
+              "file": "/.src/defineProperty.ts",
+              "start": 170,
+              "length": 1,
+              "message": "Property 'y' is used before its initialization."
+            },
+            {
+              "code": 2729,
+              "category": "Error",
+              "file": "/.src/defineProperty.ts",
+              "start": 279,
+              "length": 2,
+              "message": "Property 'ka' is used before its initialization."
+            },
+            {
+              "code": 2729,
+              "category": "Error",
+              "file": "/.src/defineProperty.ts",
+              "start": 355,
+              "length": 2,
+              "message": "Property 'ka' is used before its initialization."
+            }
+          ],
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 2,
+          "run_fingerprint_sha256": "f74b10465d262481033f8947c6aa90f8d76e41eb02cf15ffd3c0f8740ca5f993"
+        }
+      ],
+      "rust_expectation": "two-deterministic-exact-runs",
+      "case_fingerprint_sha256": "960a2c517ec9bc37f8ad6648814f0a26f0f56b2a6439111e91bf6177644ab28b"
+    },
+    {
+      "suite": "conformance",
+      "case_id": "typescript-6.0.3/conformance/classes/propertyMemberDeclarations/initializationOrdering1.ts#target%3Desnext%2Cusedefineforclassfields%3Dtrue",
+      "expansion_case": 880,
+      "source": {
+        "path": "classes/propertyMemberDeclarations/initializationOrdering1.ts",
+        "bytes": 320,
+        "sha256": "74a13d242fa4d6be63c4fc6933ac1462950ca72d0a061d28e7b3cf15de23519c",
+        "git_blob_sha1": "fe8afae2d66e29d7bef1f085dd0fe9bb17f38950"
+      },
+      "module_state": "absent-effective-ESNext",
+      "input": {
+        "current_directory": "/.src",
+        "roots": [
+          "/.src/initializationOrdering1.ts"
+        ],
+        "settings": [
+          {
+            "name": "target",
+            "value": "esnext"
+          },
+          {
+            "name": "useDefineForClassFields",
+            "value": "true"
+          }
+        ],
+        "virtual_config": null,
+        "files": [
+          {
+            "unit": 0,
+            "path": "/.src/initializationOrdering1.ts",
+            "utf8_base64": "Y2xhc3MgSGVscGVyIHsKICAgIGNyZWF0ZSgpOiBib29sZWFuIHsKICAgICAgICByZXR1cm4gdHJ1ZQogICAgfQp9CgpleHBvcnQgY2xhc3MgQnJva2VuIHsKICAgIGNvbnN0cnVjdG9yKHJlYWRvbmx5IGZhY2FkZTogSGVscGVyKSB7CiAgICAgICAgY29uc29sZS5sb2codGhpcy5idWcpCiAgICB9CiAgICBidWcgPSB0aGlzLmZhY2FkZS5jcmVhdGUoKQoKfQoKbmV3IEJyb2tlbihuZXcgSGVscGVyKQ==",
+            "utf8_sha256": "061f3eda01acd9e81058addea814867377a6e1fa4af6575874ed986739e8f19b",
+            "utf8_bytes": 226
+          }
+        ]
+      },
+      "files": [
+        {
+          "unit": 0,
+          "path": "/.src/initializationOrdering1.ts",
+          "script_kind": "TS",
+          "declaration_file": false,
+          "emit_eligible": true,
+          "implied_module_format": "None",
+          "emit_module_format": 99,
+          "feature_roots": [
+            {
+              "feature": "parameter-properties",
+              "start": 106,
+              "end": 129,
+              "kind": "Parameter"
+            }
+          ],
+          "parse_diagnostic_codes": [],
+          "max_ast_depth": 8,
+          "import_attributes": false,
+          "advanced_comment_placement": false,
+          "text_sha256": "061f3eda01acd9e81058addea814867377a6e1fa4af6575874ed986739e8f19b"
+        }
+      ],
+      "owner_reachability": [
+        "transform-typescript"
+      ],
+      "disposition": "admitted-for-execution",
+      "required_slices": [],
+      "diagnostic_disposition": {
+        "state": "exact-required"
+      },
+      "typescript_runs": [
+        {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/.src/initializationOrdering1.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "Y2xhc3MgSGVscGVyIHsNCiAgICBjcmVhdGUoKSB7DQogICAgICAgIHJldHVybiB0cnVlOw0KICAgIH0NCn0NCmV4cG9ydCBjbGFzcyBCcm9rZW4gew0KICAgIGZhY2FkZTsNCiAgICBjb25zdHJ1Y3RvcihmYWNhZGUpIHsNCiAgICAgICAgdGhpcy5mYWNhZGUgPSBmYWNhZGU7DQogICAgICAgIGNvbnNvbGUubG9nKHRoaXMuYnVnKTsNCiAgICB9DQogICAgYnVnID0gdGhpcy5mYWNhZGUuY3JlYXRlKCk7DQp9DQpuZXcgQnJva2VuKG5ldyBIZWxwZXIpOw0K",
+              "callback_utf8_sha256": "673de289338ce94b3daf696a5dac338677c2894ed3be7f95c38d3ff0acf03448",
+              "callback_utf8_bytes": 258,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "673de289338ce94b3daf696a5dac338677c2894ed3be7f95c38d3ff0acf03448",
+              "materialized_utf8_bytes": 258,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/initializationOrdering1.ts"
+              ]
+            }
+          ],
+          "reported_diagnostics": [
+            {
+              "code": 2729,
+              "category": "Error",
+              "file": "/.src/initializationOrdering1.ts",
+              "start": 184,
+              "length": 6,
+              "message": "Property 'facade' is used before its initialization."
+            }
+          ],
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 2,
+          "run_fingerprint_sha256": "e03848226c15283edff7ba14dae6482040ae96e73253e0f22b1ed9cdfaee7446"
+        },
+        {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/.src/initializationOrdering1.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "Y2xhc3MgSGVscGVyIHsNCiAgICBjcmVhdGUoKSB7DQogICAgICAgIHJldHVybiB0cnVlOw0KICAgIH0NCn0NCmV4cG9ydCBjbGFzcyBCcm9rZW4gew0KICAgIGZhY2FkZTsNCiAgICBjb25zdHJ1Y3RvcihmYWNhZGUpIHsNCiAgICAgICAgdGhpcy5mYWNhZGUgPSBmYWNhZGU7DQogICAgICAgIGNvbnNvbGUubG9nKHRoaXMuYnVnKTsNCiAgICB9DQogICAgYnVnID0gdGhpcy5mYWNhZGUuY3JlYXRlKCk7DQp9DQpuZXcgQnJva2VuKG5ldyBIZWxwZXIpOw0K",
+              "callback_utf8_sha256": "673de289338ce94b3daf696a5dac338677c2894ed3be7f95c38d3ff0acf03448",
+              "callback_utf8_bytes": 258,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "673de289338ce94b3daf696a5dac338677c2894ed3be7f95c38d3ff0acf03448",
+              "materialized_utf8_bytes": 258,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/initializationOrdering1.ts"
+              ]
+            }
+          ],
+          "reported_diagnostics": [
+            {
+              "code": 2729,
+              "category": "Error",
+              "file": "/.src/initializationOrdering1.ts",
+              "start": 184,
+              "length": 6,
+              "message": "Property 'facade' is used before its initialization."
+            }
+          ],
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 2,
+          "run_fingerprint_sha256": "e03848226c15283edff7ba14dae6482040ae96e73253e0f22b1ed9cdfaee7446"
+        }
+      ],
+      "rust_expectation": "two-deterministic-exact-runs",
+      "case_fingerprint_sha256": "69f26d9a9fd71ae9c15420fa895157ccd5988644ae5fa59f9cd5085dafc074ea"
+    },
+    {
+      "suite": "conformance",
+      "case_id": "typescript-6.0.3/conformance/classes/propertyMemberDeclarations/propertyOverridesAccessors5.ts#default",
+      "expansion_case": 920,
+      "source": {
+        "path": "classes/propertyMemberDeclarations/propertyOverridesAccessors5.ts",
+        "bytes": 176,
+        "sha256": "87aad622f54f6a982e687018fbc734fc55e2582c9c51001272aae010e1f50041",
+        "git_blob_sha1": "7f2947805013aded5e4daf2b17af55a935a6ff6f"
+      },
+      "module_state": "absent-effective-ESNext",
+      "input": {
+        "current_directory": "/.src",
+        "roots": [
+          "/.src/propertyOverridesAccessors5.ts"
+        ],
+        "settings": [
+          {
+            "name": "target",
+            "value": "esnext"
+          },
+          {
+            "name": "useDefineForClassFields",
+            "value": "true"
+          }
+        ],
+        "virtual_config": null,
+        "files": [
+          {
+            "unit": 0,
+            "path": "/.src/propertyOverridesAccessors5.ts",
+            "utf8_base64": "Y2xhc3MgQSB7CiAgICBnZXQgcCgpIHsgcmV0dXJuICdvaCBubycgfQp9CmNsYXNzIEIgZXh0ZW5kcyBBIHsKICAgIGNvbnN0cnVjdG9yKHB1YmxpYyBwOiBzdHJpbmcpIHsKICAgICAgICBzdXBlcigpCiAgICB9Cn0K",
+            "utf8_sha256": "f92bc9818eb3f64b3a71002e2e14ea0c51b7b922f476c2318f1f1366973e5840",
+            "utf8_bytes": 123
+          }
+        ]
+      },
+      "files": [
+        {
+          "unit": 0,
+          "path": "/.src/propertyOverridesAccessors5.ts",
+          "script_kind": "TS",
+          "declaration_file": false,
+          "emit_eligible": true,
+          "implied_module_format": "None",
+          "emit_module_format": 99,
+          "feature_roots": [
+            {
+              "feature": "parameter-properties",
+              "start": 79,
+              "end": 95,
+              "kind": "Parameter"
+            }
+          ],
+          "parse_diagnostic_codes": [],
+          "max_ast_depth": 7,
+          "import_attributes": false,
+          "advanced_comment_placement": false,
+          "text_sha256": "f92bc9818eb3f64b3a71002e2e14ea0c51b7b922f476c2318f1f1366973e5840"
+        }
+      ],
+      "owner_reachability": [
+        "transform-typescript"
+      ],
+      "disposition": "admitted-for-execution",
+      "required_slices": [],
+      "diagnostic_disposition": {
+        "state": "exact-required"
+      },
+      "typescript_runs": [
+        {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/.src/propertyOverridesAccessors5.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KY2xhc3MgQSB7DQogICAgZ2V0IHAoKSB7IHJldHVybiAnb2ggbm8nOyB9DQp9DQpjbGFzcyBCIGV4dGVuZHMgQSB7DQogICAgcDsNCiAgICBjb25zdHJ1Y3RvcihwKSB7DQogICAgICAgIHN1cGVyKCk7DQogICAgICAgIHRoaXMucCA9IHA7DQogICAgfQ0KfQ0K",
+              "callback_utf8_sha256": "7ace24c8b9bdbb9b86b0a62b8cc55df78b247167b10ba0425ef699dedbba4a1f",
+              "callback_utf8_bytes": 162,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "7ace24c8b9bdbb9b86b0a62b8cc55df78b247167b10ba0425ef699dedbba4a1f",
+              "materialized_utf8_bytes": 162,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/propertyOverridesAccessors5.ts"
+              ]
+            }
+          ],
+          "reported_diagnostics": [
+            {
+              "code": 2610,
+              "category": "Error",
+              "file": "/.src/propertyOverridesAccessors5.ts",
+              "start": 86,
+              "length": 1,
+              "message": "'p' is defined as an accessor in class 'A', but is overridden here in 'B' as an instance property."
+            }
+          ],
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 2,
+          "run_fingerprint_sha256": "a22abd92a27d097f38c1f1449709c6c65b90fd6ae322cab140928d7b27e030d4"
+        },
+        {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/.src/propertyOverridesAccessors5.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KY2xhc3MgQSB7DQogICAgZ2V0IHAoKSB7IHJldHVybiAnb2ggbm8nOyB9DQp9DQpjbGFzcyBCIGV4dGVuZHMgQSB7DQogICAgcDsNCiAgICBjb25zdHJ1Y3RvcihwKSB7DQogICAgICAgIHN1cGVyKCk7DQogICAgICAgIHRoaXMucCA9IHA7DQogICAgfQ0KfQ0K",
+              "callback_utf8_sha256": "7ace24c8b9bdbb9b86b0a62b8cc55df78b247167b10ba0425ef699dedbba4a1f",
+              "callback_utf8_bytes": 162,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "7ace24c8b9bdbb9b86b0a62b8cc55df78b247167b10ba0425ef699dedbba4a1f",
+              "materialized_utf8_bytes": 162,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/propertyOverridesAccessors5.ts"
+              ]
+            }
+          ],
+          "reported_diagnostics": [
+            {
+              "code": 2610,
+              "category": "Error",
+              "file": "/.src/propertyOverridesAccessors5.ts",
+              "start": 86,
+              "length": 1,
+              "message": "'p' is defined as an accessor in class 'A', but is overridden here in 'B' as an instance property."
+            }
+          ],
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 2,
+          "run_fingerprint_sha256": "a22abd92a27d097f38c1f1449709c6c65b90fd6ae322cab140928d7b27e030d4"
+        }
+      ],
+      "rust_expectation": "two-deterministic-exact-runs",
+      "case_fingerprint_sha256": "83ed987f2f64e39d8339619f6bf0f37d961a95b6fdc864dc81be7f109557a2ce"
+    },
+    {
+      "suite": "conformance",
+      "case_id": "typescript-6.0.3/conformance/classes/propertyMemberDeclarations/redefinedPararameterProperty.ts#default",
+      "expansion_case": 924,
+      "source": {
+        "path": "classes/propertyMemberDeclarations/redefinedPararameterProperty.ts",
+        "bytes": 268,
+        "sha256": "50b5cbb0ef35d27b494f7040297f47f02ecb3ee47f9105635f6e998e93d460fc",
+        "git_blob_sha1": "02eabfbfcfabdc3230cadcdc2b995383b4c2f8cd"
+      },
+      "module_state": "absent-effective-ESNext",
+      "input": {
+        "current_directory": "/.src",
+        "roots": [
+          "/.src/redefinedPararameterProperty.ts"
+        ],
+        "settings": [
+          {
+            "name": "noTypesAndSymbols",
+            "value": "true"
+          },
+          {
+            "name": "strictNullChecks",
+            "value": "true"
+          },
+          {
+            "name": "target",
+            "value": "esnext"
+          },
+          {
+            "name": "useDefineForClassFields",
+            "value": "true"
+          }
+        ],
+        "virtual_config": null,
+        "files": [
+          {
+            "unit": 0,
+            "path": "/.src/redefinedPararameterProperty.ts",
+            "utf8_base64": "Y2xhc3MgQmFzZSB7CiAgICBhID0gMTsKICB9CiAgCiAgY2xhc3MgRGVyaXZlZCBleHRlbmRzIEJhc2UgewogICAgYiA9IHRoaXMuYSAvKnVuZGVmaW5lZCovOwogIAogICAgY29uc3RydWN0b3IocHVibGljIGE6IG51bWJlcikgewogICAgICAgIHN1cGVyKCk7CiAgICB9CiAgfQogIA==",
+            "utf8_sha256": "a3b063c5034dca3e4a74d7e36db4c42b8b76b8438e4860e3df5022071d8a988c",
+            "utf8_bytes": 160
+          }
+        ]
+      },
+      "files": [
+        {
+          "unit": 0,
+          "path": "/.src/redefinedPararameterProperty.ts",
+          "script_kind": "TS",
+          "declaration_file": false,
+          "emit_eligible": true,
+          "implied_module_format": "None",
+          "emit_module_format": 99,
+          "feature_roots": [
+            {
+              "feature": "parameter-properties",
+              "start": 111,
+              "end": 127,
+              "kind": "Parameter"
+            }
+          ],
+          "parse_diagnostic_codes": [],
+          "max_ast_depth": 7,
+          "import_attributes": false,
+          "advanced_comment_placement": false,
+          "text_sha256": "a3b063c5034dca3e4a74d7e36db4c42b8b76b8438e4860e3df5022071d8a988c"
+        }
+      ],
+      "owner_reachability": [
+        "transform-typescript"
+      ],
+      "disposition": "admitted-for-execution",
+      "required_slices": [],
+      "diagnostic_disposition": {
+        "state": "exact-required"
+      },
+      "typescript_runs": [
+        {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/.src/redefinedPararameterProperty.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KY2xhc3MgQmFzZSB7DQogICAgYSA9IDE7DQp9DQpjbGFzcyBEZXJpdmVkIGV4dGVuZHMgQmFzZSB7DQogICAgYTsNCiAgICBiID0gdGhpcy5hIC8qdW5kZWZpbmVkKi87DQogICAgY29uc3RydWN0b3IoYSkgew0KICAgICAgICBzdXBlcigpOw0KICAgICAgICB0aGlzLmEgPSBhOw0KICAgIH0NCn0NCg==",
+              "callback_utf8_sha256": "bd1d8c633fec2ba3f5d1e3b16ed4822786e55d5e23a7dcb75bbe3a65cc9650ee",
+              "callback_utf8_bytes": 184,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "bd1d8c633fec2ba3f5d1e3b16ed4822786e55d5e23a7dcb75bbe3a65cc9650ee",
+              "materialized_utf8_bytes": 184,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/redefinedPararameterProperty.ts"
+              ]
+            }
+          ],
+          "reported_diagnostics": [
+            {
+              "code": 2729,
+              "category": "Error",
+              "file": "/.src/redefinedPararameterProperty.ts",
+              "start": 75,
+              "length": 1,
+              "message": "Property 'a' is used before its initialization."
+            }
+          ],
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 2,
+          "run_fingerprint_sha256": "489b58d9e8fd10df1dbab4f0010dafb03fb6ed2ad2d12ba8d40ab2693f18ebfb"
+        },
+        {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/.src/redefinedPararameterProperty.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KY2xhc3MgQmFzZSB7DQogICAgYSA9IDE7DQp9DQpjbGFzcyBEZXJpdmVkIGV4dGVuZHMgQmFzZSB7DQogICAgYTsNCiAgICBiID0gdGhpcy5hIC8qdW5kZWZpbmVkKi87DQogICAgY29uc3RydWN0b3IoYSkgew0KICAgICAgICBzdXBlcigpOw0KICAgICAgICB0aGlzLmEgPSBhOw0KICAgIH0NCn0NCg==",
+              "callback_utf8_sha256": "bd1d8c633fec2ba3f5d1e3b16ed4822786e55d5e23a7dcb75bbe3a65cc9650ee",
+              "callback_utf8_bytes": 184,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "bd1d8c633fec2ba3f5d1e3b16ed4822786e55d5e23a7dcb75bbe3a65cc9650ee",
+              "materialized_utf8_bytes": 184,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/redefinedPararameterProperty.ts"
+              ]
+            }
+          ],
+          "reported_diagnostics": [
+            {
+              "code": 2729,
+              "category": "Error",
+              "file": "/.src/redefinedPararameterProperty.ts",
+              "start": 75,
+              "length": 1,
+              "message": "Property 'a' is used before its initialization."
+            }
+          ],
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 2,
+          "run_fingerprint_sha256": "489b58d9e8fd10df1dbab4f0010dafb03fb6ed2ad2d12ba8d40ab2693f18ebfb"
+        }
+      ],
+      "rust_expectation": "two-deterministic-exact-runs",
+      "case_fingerprint_sha256": "226d9147fa2122bd94d0d1e2039feb6b667c80f5bd2e44dcfe4073a74951b128"
+    }
+  ],
+  "summary": {
+    "candidates": 6,
+    "compiler_candidates": 0,
+    "conformance_candidates": 6,
+    "admitted_cases": 6,
+    "deferred_cases": 0,
+    "diagnostic_deferred_output_control_cases": 0,
+    "source_deferred_cases": 0,
+    "no_emit_control_cases": 0,
+    "module_states": [
+      {
+        "value": "absent-effective-ESNext",
+        "cases": 6
+      }
+    ],
+    "dispositions": [
+      {
+        "value": "admitted-for-execution",
+        "cases": 6
+      }
+    ],
+    "first_deferred_slices": [],
+    "typescript_runs": 12,
+    "deterministic_typescript_cases": 6,
+    "admitted_typescript_writes": 6,
+    "diagnostic_control_typescript_writes": 0,
+    "admitted_typescript_diagnostics": 12,
+    "unexecuted_candidates": 0,
+    "undispositioned_candidates": 0
+  },
+  "qualification_fingerprint_sha256": "b1524ed308ae36e5f952e3943453196a668032ac9c8821fc3f8b26e7d45e80a9"
+}
