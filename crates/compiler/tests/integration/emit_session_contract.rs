@@ -665,13 +665,16 @@ fn a_later_unsupported_source_cannot_leave_an_earlier_partial_write() {
         },
         &[
             ("/project/first.ts", "export const first: number = 1;\n"),
-            ("/project/second.ts", "export enum Direction { Up, Down }\n"),
+            (
+                "/project/second.ts",
+                "export namespace Runtime { export const value = 1; }\n",
+            ),
         ],
     );
     let mut sink = CountingSink::default();
     let error = ProgramSession::new(prepared)
         .emit(&mut sink)
-        .expect_err("runtime enum is outside the bootstrap syntax profile");
+        .expect_err("runtime namespace is outside the current syntax profile");
     assert!(matches!(
         error,
         DriverError::Emit(EmitFailure::Transform(_))
@@ -762,6 +765,83 @@ fn h2_1e_dynamic_import_attributes_are_observed_on_the_esnext_path() {
         outcome.h2_activity().runtime_slice(H2RuntimeSlice::H2_1e),
         1
     );
+}
+
+#[test]
+fn h2_2a_runtime_and_const_enum_emit_matches_typescript_shapes() {
+    let cases = [
+        (
+            CompilerOptions {
+                no_emit: Some(false),
+                target: Some(99),
+                module: Some(99),
+                ..CompilerOptions::default()
+            },
+            "const BAR = 2..toFixed(0);\n\
+             enum Foo {\n\
+                 A = `${BAR}`,\n\
+                 B = \"2\" + BAR,\n\
+                 F = BAR,\n\
+                 H = A,\n\
+             }\n",
+            concat!(
+                "\"use strict\";\n",
+                "const BAR = 2..toFixed(0);\n",
+                "var Foo;\n",
+                "(function (Foo) {\n",
+                "    Foo[\"A\"] = `${BAR}`;\n",
+                "    Foo[\"B\"] = \"2\" + BAR;\n",
+                "    Foo[Foo[\"F\"] = BAR] = \"F\";\n",
+                "    Foo[\"H\"] = Foo.A;\n",
+                "})(Foo || (Foo = {}));\n",
+            ),
+        ),
+        (
+            CompilerOptions {
+                no_emit: Some(false),
+                target: Some(99),
+                module: Some(99),
+                ..CompilerOptions::default()
+            },
+            "const enum Props { k = 'k' }\n\
+             declare const foo: { [key: string]: string[] };\n\
+             foo[Props.k] = ['foo'];\n",
+            "\"use strict\";\nfoo[\"k\" /* Props.k */] = ['foo'];\n",
+        ),
+        (
+            CompilerOptions {
+                no_emit: Some(false),
+                target: Some(99),
+                module: Some(99),
+                preserve_const_enums: Some(true),
+                ..CompilerOptions::default()
+            },
+            "const enum A { Foo };\nexport { A };\n",
+            concat!(
+                "var A;\n",
+                "(function (A) {\n",
+                "    A[A[\"Foo\"] = 0] = \"Foo\";\n",
+                "})(A || (A = {}));\n",
+                ";\n",
+                "export { A };\n",
+            ),
+        ),
+    ];
+
+    for (options, source, expected) in cases {
+        let prepared = prepared_with_sources(options, &[("/project/input.ts", source)]);
+        let mut sink = MemoryOutputSink::new();
+        let outcome = ProgramSession::new(prepared)
+            .emit(&mut sink)
+            .expect("H2.2a enum emit");
+        assert!(outcome.diagnostics().is_empty());
+        assert_eq!(sink.writes().len(), 1);
+        assert_eq!(sink.writes()[0].callback_text(), expected);
+        assert_eq!(
+            outcome.h2_activity().runtime_slice(H2RuntimeSlice::H2_2a),
+            1
+        );
+    }
 }
 
 fn assert_filesystem_failure_at_each_write_index(

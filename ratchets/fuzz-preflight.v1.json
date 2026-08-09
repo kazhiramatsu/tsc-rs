@@ -8,7 +8,7 @@
     },
     {
       "path": "ratchets/fuzz-oracle-deviations.v1.json",
-      "sha256": "43c72dc6379873bed5f64ce8fd5db22ce327a6cf56810cf6e44a74f39a90c695"
+      "sha256": "80067a8bd62547111e628cad4ff22d7cd85cc5805eaaefcbac0654fe88fe9e96"
     },
     {
       "path": "m8-evidence.json",

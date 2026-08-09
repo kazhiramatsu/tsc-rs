@@ -4,7 +4,7 @@ use std::fmt;
 use tsc_program::SourceFileId;
 use tsc_syntax::NodeId;
 
-use crate::EmitConstantValue;
+use crate::{EmitConstantValue, EmitEnumMemberValue};
 
 /// Stable source/node identity passed from the emitter back into the live
 /// checker. Synthetic nodes are never valid resolver inputs; transforms first
@@ -161,7 +161,7 @@ pub trait EmitResolver {
     fn get_enum_member_value(
         &self,
         node: EmitResolverNode,
-    ) -> Result<Option<EmitConstantValue>, EmitResolverError> {
+    ) -> Result<Option<EmitEnumMemberValue>, EmitResolverError> {
         Err(unavailable(EmitResolverMethod::GetEnumMemberValue, node))
     }
 

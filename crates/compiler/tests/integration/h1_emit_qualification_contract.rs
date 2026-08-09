@@ -349,14 +349,14 @@ fn frozen_adjacent_controls_remain_rejected_or_are_exactly_promoted() {
             .find(|case| case["input"]["id"] == id)
             .unwrap_or_else(|| panic!("callback oracle is missing {id}"));
         assert_eq!(case["input"]["classification"], "adjacent-unsupported");
-        if id == "mts-output-control" {
+        if matches!(id, "mts-output-control" | "runtime-enum-control") {
             let mut sink = MemoryOutputSink::new();
             let outcome = ProgramSession::new(prepared_control(
                 case,
                 &oracle["oracle_environment"]["library"],
             ))
             .emit(&mut sink)
-            .expect("H2.1e promotes the frozen .mts adjacent control");
+            .expect("later H2 slices promote the frozen adjacent control");
             let expected = &case["observation"]["writes"][0];
             assert_eq!(sink.writes().len(), 1, "{id}: exact promoted write count");
             assert_eq!(
@@ -371,10 +371,15 @@ fn frozen_adjacent_controls_remain_rejected_or_are_exactly_promoted() {
                     .expect("expected write text"),
                 "{id}: exact promoted output text",
             );
+            let owner = if id == "mts-output-control" {
+                H2RuntimeSlice::H2_1e
+            } else {
+                H2RuntimeSlice::H2_2a
+            };
             assert_eq!(
-                outcome.h2_activity().runtime_slice(H2RuntimeSlice::H2_1e),
+                outcome.h2_activity().runtime_slice(owner),
                 1,
-                "{id}: H2.1e owns the promotion",
+                "{id}: later H2 slice owns the promotion",
             );
             continue;
         }

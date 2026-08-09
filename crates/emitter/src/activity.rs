@@ -277,6 +277,16 @@ impl H2ActivityCanary {
         profile
     }
 
+    /// Construct the current production admission profile. H2.2a activates
+    /// runtime enum emission and const-enum preservation/inlining inside
+    /// `transformTypeScript`.
+    #[doc(hidden)]
+    pub const fn h2_2a_profile() -> Self {
+        let mut profile = Self::h2_1e_profile();
+        profile.admitted_runtime_slices |= 1_u64 << H2RuntimeSlice::H2_2a.index();
+        profile
+    }
+
     pub const fn counters(&self) -> H2ActivityCounters {
         self.counters
     }

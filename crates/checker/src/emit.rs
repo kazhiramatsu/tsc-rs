@@ -3,10 +3,13 @@
 
 use std::cell::RefCell;
 
-use tsc_emitter::{EmitResolver, EmitResolverError, EmitResolverMethod, EmitResolverNode};
+use tsc_emitter::{
+    EmitConstantValue, EmitEnumMemberValue, EmitResolver, EmitResolverError, EmitResolverMethod,
+    EmitResolverNode, JavaScriptNumber, JavaScriptString,
+};
 
 use crate::state::{CheckResult, CheckerState};
-use crate::{AuthoritativeSourceToken, ProgramSnapshot};
+use crate::{evaluate::EvalValue, AuthoritativeSourceToken, ProgramSnapshot};
 use tsc_types::CompilerOptions;
 
 /// One fresh checker whose semantic links and transient arenas remain alive
@@ -69,10 +72,32 @@ impl<'program> CheckerSession<'program> {
 /// tsc-hash: 56a0d47f897fcf258d6e316a00f9dc5e7d18a3ed1936033ab7c9350f623b3df2
 /// tsc-span: _tsc.js:88545-88718
 ///
-/// H1.3 exposes only the two resolver producers reachable from its first
-/// erasable-TypeScript slice. Every other consumer-owned method retains the
-/// trait's typed unavailable default until its transformer branch is admitted.
+/// Resolver producers are exposed only as their consuming transform slices
+/// become live. H2.2a adds constant and enum-member values while later
+/// consumer-owned methods retain the trait's typed unavailable default.
 impl EmitResolver for CheckerSession<'_> {
+    fn get_constant_value(
+        &self,
+        node: EmitResolverNode,
+    ) -> Result<Option<EmitConstantValue>, EmitResolverError> {
+        self.with_resolver_node(
+            EmitResolverMethod::GetConstantValue,
+            node,
+            CheckerState::emit_get_constant_value,
+        )
+    }
+
+    fn get_enum_member_value(
+        &self,
+        node: EmitResolverNode,
+    ) -> Result<Option<EmitEnumMemberValue>, EmitResolverError> {
+        self.with_resolver_node(
+            EmitResolverMethod::GetEnumMemberValue,
+            node,
+            CheckerState::emit_get_enum_member_value,
+        )
+    }
+
     fn get_referenced_export_container(
         &self,
         node: EmitResolverNode,
@@ -133,6 +158,35 @@ impl EmitResolver for CheckerSession<'_> {
             node,
             CheckerState::emit_is_value_alias_declaration,
         )
+    }
+}
+
+impl CheckerState<'_> {
+    fn emit_get_constant_value(
+        &mut self,
+        node: tsc_syntax::NodeId,
+    ) -> CheckResult<Option<EmitConstantValue>> {
+        self.get_constant_value_for_emit(node)
+            .map(|value| value.map(project_constant_value))
+    }
+
+    fn emit_get_enum_member_value(
+        &mut self,
+        node: tsc_syntax::NodeId,
+    ) -> CheckResult<Option<EmitEnumMemberValue>> {
+        self.get_enum_member_value(node).map(|result| {
+            Some(EmitEnumMemberValue::new(
+                result.value.map(project_constant_value),
+                result.is_syntactically_string,
+            ))
+        })
+    }
+}
+
+fn project_constant_value(value: EvalValue) -> EmitConstantValue {
+    match value {
+        EvalValue::Str(value) => EmitConstantValue::String(JavaScriptString::from_rust_str(&value)),
+        EvalValue::Num(value) => EmitConstantValue::Number(JavaScriptNumber::from_f64(value)),
     }
 }
 

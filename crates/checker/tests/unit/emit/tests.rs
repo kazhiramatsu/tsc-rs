@@ -106,7 +106,7 @@ fn checked_alias_session() -> (ProgramSnapshot, CompilerOptions, Vec<NodeId>, Ve
 }
 
 #[test]
-fn scoped_emit_resolver_reads_live_alias_links_and_fails_closed_elsewhere() {
+fn scoped_emit_resolver_reads_live_alias_and_constant_links_and_fails_closed_elsewhere() {
     let (snapshot, options, import_aliases, export_aliases) = checked_alias_session();
     assert_eq!(import_aliases.len(), 3);
     assert_eq!(export_aliases.len(), 2);
@@ -135,13 +135,12 @@ fn scoped_emit_resolver_reads_live_alias_links_and_fails_closed_elsewhere() {
             .is_value_alias_declaration(node(export_aliases[1]))
             .expect("type export value"));
 
-        assert!(matches!(
-            resolver.get_constant_value(node(export_aliases[0])),
-            Err(EmitResolverError::Unavailable {
-                method: EmitResolverMethod::GetConstantValue,
-                ..
-            })
-        ));
+        assert_eq!(
+            resolver
+                .get_constant_value(node(export_aliases[0]))
+                .expect("non-enum value query"),
+            None
+        );
         assert!(matches!(
             resolver.is_value_alias_declaration(EmitResolverNode::from_raw_source(
                 99,

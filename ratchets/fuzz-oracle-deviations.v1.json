@@ -8,7 +8,7 @@
     },
     {
       "path": "crates/checker/src/evaluate.rs",
-      "sha256": "8ccd67cc82ead5ce4d275d6bc79663b1147795397fd74e15f6424cfa2b2f9612"
+      "sha256": "cc1a9bce3dad48ee321593be957768d9cb961f4855d20138e0b7ffc75f28681c"
     },
     {
       "path": "crates/checker/src/inference.rs",
@@ -31,7 +31,7 @@
       "blocks": [],
       "evidence": [
         "crates/checker/src/iterate.rs:986-998",
-        "crates/checker/src/evaluate.rs:957-970",
+        "crates/checker/src/evaluate.rs:1001-1014",
         "crates/checker/src/inference.rs:3418-3445",
         "crates/checker/src/check.rs:6465-6479"
       ]
@@ -123,9 +123,9 @@
       ],
       "evidence": [
         "M8 readiness recorded crash deviation row 3",
-        "crates/checker/src/evaluate.rs:957-970"
+        "crates/checker/src/evaluate.rs:1001-1014"
       ],
-      "source_contract": "M8 crash row 3: the class static-block strictPropertyInitialization probe with strictNullChecks=false reaches TypeScript 6.0.3 getOptionalType and Debug-asserts. tsrs keeps the pre-swap declared-type reduction only for that regime. See crates/checker/src/evaluate.rs:957-970."
+      "source_contract": "M8 crash row 3: the class static-block strictPropertyInitialization probe with strictNullChecks=false reaches TypeScript 6.0.3 getOptionalType and Debug-asserts. tsrs keeps the pre-swap declared-type reduction only for that regime. See crates/checker/src/evaluate.rs:1001-1014."
     },
     {
       "id": "oracle-crash.tuple-inference-empty-middle-slice-type-variable-rest",

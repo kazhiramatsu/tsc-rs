@@ -185,13 +185,63 @@ impl JavaScriptString {
     }
 }
 
+/// Bit-exact JavaScript number carried across the checker/emitter seam.
+/// Keeping the IEEE-754 representation preserves `-0` and avoids imposing
+/// Rust's non-`Eq` floating-point semantics on session metadata.
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub struct JavaScriptNumber(u64);
+
+impl JavaScriptNumber {
+    pub const fn from_bits(bits: u64) -> Self {
+        Self(bits)
+    }
+
+    pub fn from_f64(value: f64) -> Self {
+        Self(value.to_bits())
+    }
+
+    pub const fn bits(self) -> u64 {
+        self.0
+    }
+
+    pub fn as_f64(self) -> f64 {
+        f64::from_bits(self.0)
+    }
+}
+
 /// Constant values consumed by printer folds without narrowing JavaScript
 /// strings to Unicode scalar values.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum EmitConstantValue {
     String(JavaScriptString),
-    Integer(i64),
+    Number(JavaScriptNumber),
     Boolean(bool),
+}
+
+/// Full `getEnumMemberValue` observation. A member whose value is not
+/// statically known can still be syntactically string-valued, which controls
+/// whether the runtime transform emits a numeric reverse mapping.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct EmitEnumMemberValue {
+    value: Option<EmitConstantValue>,
+    is_syntactically_string: bool,
+}
+
+impl EmitEnumMemberValue {
+    pub const fn new(value: Option<EmitConstantValue>, is_syntactically_string: bool) -> Self {
+        Self {
+            value,
+            is_syntactically_string,
+        }
+    }
+
+    pub const fn value(&self) -> Option<&EmitConstantValue> {
+        self.value.as_ref()
+    }
+
+    pub const fn is_syntactically_string(&self) -> bool {
+        self.is_syntactically_string
+    }
 }
 
 /// Session-owned `emitNode` equivalent. Parsed nodes remain unchanged.
