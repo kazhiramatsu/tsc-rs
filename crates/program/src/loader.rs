@@ -1769,7 +1769,12 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
             implied_node_format_for_emit(file_name, package_scope.as_ref(), self.compiler_options);
         let mut prepared = PreparedSourceFile::new(path.clone(), text)
             .with_implied_node_formats(implied, implied_for_emit);
-        if is_json_source(path.canonical()) {
+        if is_json_source(path.canonical())
+            && self.compiler_options.out_dir.is_none()
+            && self.compiler_options.out_file.is_none()
+        {
+            // tsc sourceFileMayBeEmitted: a JSON source is copied only when a
+            // distinct output location (or a future bundle output) exists.
             prepared = prepared.with_may_be_emitted(false);
         }
         if let Some(package_scope) = package_scope {

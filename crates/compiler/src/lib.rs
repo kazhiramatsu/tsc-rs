@@ -95,6 +95,7 @@ impl CliEmitSessionOutcome {
             }
         }
         diagnostics.extend(self.emit.diagnostics().iter().cloned());
+        sort_and_dedupe_diagnostics(&mut diagnostics);
         (self.emit, diagnostics, self.work_counters)
     }
 }
@@ -686,7 +687,7 @@ impl ProgramSession {
     ) -> Result<CliEmitSessionOutcome, DriverError> {
         self.require_mode(PreparedProgramMode::Emit)?;
         let prepared = self.prepared;
-        let mut h2_activity = H2ActivityCanary::h2_3c_profile();
+        let mut h2_activity = H2ActivityCanary::h2_3d_profile();
         h2_activity.construct_emit_session();
         let emit_host = PreparedEmitHost::new(&prepared)?;
         validate_bootstrap_emit_request(&emit_host).map_err(DriverError::Emit)?;

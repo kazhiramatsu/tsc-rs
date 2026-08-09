@@ -1,7 +1,7 @@
 # Post-H1 TypeScript 6.0.3 completion slices
 
 Status: execution schedule approved on 2026-08-08. H0, L0/L1, H1, H2.0a,
-H2.0b, H2.1a-H2.1e, H2.2a-H2.2d, and H2.3a-H2.3c are complete. **H2.3d is the next slice.**
+H2.0b, H2.1a-H2.1e, H2.2a-H2.2d, and H2.3a-H2.3d are complete. **H2.4a is the next slice.**
 
 This document turns the audited post-H1 residual into branch-sized execution
 slices. It owns post-H1 slice IDs, dependency order, and slice-specific
@@ -673,7 +673,7 @@ undispositioned candidate.
   automatic-runtime JSX-family source is reached; every later slice remains
   fail-closed.
 
-The [current runtime profile](../../../ratchets/h2-3c-profile.v1.json) and its
+The [H2.3c runtime profile](../../../ratchets/h2-3c-profile.v1.json) and its
 [strict schema](../../../.github/ci/contracts/h2-3c-profile.schema.json)
 preserve every H2.3b authority byte for byte, mark H2.1a through H2.3c active,
 and name H2.3d as next. The monotonic profile has 309 exact cases, 680 exact
@@ -684,6 +684,56 @@ and zero source-deferred rows. Freshness is checked with:
 node crates/oracle/h2-3c-qualification.mjs --check
 node crates/oracle/h2-3c-owner-controls.mjs --check
 node crates/oracle/h2-3c-profile.mjs --check
+```
+
+The ordinary hosted boundary remains only `cargo xtask acceptance`; profile
+generation, schema checks, focused controls, and the complete H0/H1/L1
+regression gate remain local.
+
+H2.3d closed on 2026-08-09. Its
+[qualification](../../../ratchets/h2-3d-qualification.v1.json) applies the
+dependency-closed selection rule to the immutable global candidate
+dispositions. All 695 rows that mention H2.3d retain at least one later owner
+after H2.1a-H2.3d closure, across 30 exact future-dependency groups. The
+executable H2.3d denominator is therefore zero—not an unexamined or silently
+skipped set—and there are no deferred, source-deferred, unexecuted, or
+undispositioned H2.3d candidates.
+
+- JSON roots become emit-eligible only with a distinct output location (or a
+  future bundle owner), use `.json` output paths under `outDir`, suppress a
+  same-location overwrite, emit no declarations or source maps, and preserve
+  mixed TypeScript/JSON write order;
+- JSON output follows TypeScript's AST printer rather than a raw byte copy:
+  multiline indentation, compact spacing, escapes, object-versus-array
+  trailing commas, empty input, UTF-8 BOM callback metadata, and LF/CRLF are
+  exact. Separate-file output is invariant across Preserve, ESNext,
+  CommonJS, AMD, UMD, System, Node16/18/20, and NodeNext; and
+- explicit `resolveJsonModule` now reports the exact file-less 5070/5071
+  option diagnostics. Emit continues normally unless `noEmitOnError` is set,
+  in which case the diagnostic joins the pre-write gate exactly once.
+
+The separate
+[owner controls](../../../ratchets/h2-3d-owner-controls.v1.json) run pinned
+TypeScript 6.0.3 twenty-eight times and freeze 14 controls, 13 exact writes,
+and the two expected UMD/System 5071 diagnostics. They cover formatted,
+compact, BOM/CRLF, empty, no-`outDir`, same-location, all module-format, and
+mixed-source cases. Each Rust control runs twice through a fresh Program and
+matches diagnostics, callback bytes, materialized bytes, paths, order, BOM,
+provenance, result state, and H2 activity.
+
+The [current runtime profile](../../../ratchets/h2-3d-profile.v1.json) and its
+[strict schema](../../../.github/ci/contracts/h2-3d-profile.schema.json)
+preserve every H2.3c authority byte for byte, mark H2.1a through H2.3d active,
+and name H2.4a as next. The monotonic corpus profile remains 309 exact cases,
+680 exact reported diagnostics, 404 exact writes, 5 unchanged H2.9 diagnostic
+controls, and zero source-deferred rows; JSON closure is carried by the 14
+owner controls because its dependency-closed corpus denominator is zero.
+Freshness is checked with:
+
+```text
+node crates/oracle/h2-3d-qualification.mjs --check
+node crates/oracle/h2-3d-owner-controls.mjs --check
+node crates/oracle/h2-3d-profile.mjs --check
 ```
 
 The ordinary hosted boundary remains only `cargo xtask acceptance`; profile
@@ -701,7 +751,7 @@ regression gate remain local.
 | H2.3a — complete | `.js`/`.mjs`/`.cjs` input and output families, `allowJs`/`checkJs` emit routing, shebang/directive/comment preservation, and extension planning. | H2.1e. Checked and unchecked JavaScript emit uses the production Program without a JS-only AST; the general output-directory matrix remains explicitly H2.8a-owned. |
 | H2.3b — complete | Classic JSX/TSX transform, factory/fragment facts, pragmas, namespaces, and `.jsx` output. | H2.3a. Classic React/Preserve/ReactNative observations and UTF-16/source-range controls are exact; automatic-runtime rows remain explicitly H2.3c-owned. |
 | H2.3c — complete | Automatic and development JSX runtimes, import source, helper imports, and file-kind interactions. | H2.3b and H2.1b. Runtime import de-duplication/order, pragma precedence, key/spread fallback, UTF-16 development metadata, and ESM/CommonJS/System projections are exact. |
-| H2.3d | JSON source eligibility/copying and `resolveJsonModule` output/path behavior. | H2.3a. Text/BOM/newline, collision, and module-format controls are exact. |
+| H2.3d — complete | JSON source eligibility/copying and `resolveJsonModule` output/path behavior. | H2.3a. AST-formatted text, BOM/newline, empty/same-location paths, mixed writes, 5070/5071, and module-format controls are exact; all 695 global rows retain explicit later dependencies. |
 | H2.4a | Legacy decorators plus decorator metadata and referenced-value/check-flag resolver facts. | H2.2c. Evaluation order, metadata helpers, class/member cases, and failure behavior are exact. |
 | H2.4b | Standard decorators, `transformClassFields`, `useDefineForClassFields` modes, private/static elements, and their shared helpers. | H2.4a. ESNext and first-downlevel reachability is closed before lowering the target. |
 

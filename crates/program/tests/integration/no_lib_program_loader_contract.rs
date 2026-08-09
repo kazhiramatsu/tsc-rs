@@ -1088,6 +1088,23 @@ fn root_extension_preflight_handles_json_unknown_and_extensionless_boundaries() 
     assert!(!enabled.source_files()[0].may_be_emitted());
     assert_eq!(enabled.resolutions().module_len(), 0);
 
+    let enabled_with_out_dir = load_with_options(
+        &enabled_host,
+        &["/work/data.json"],
+        CompilerOptions {
+            module: Some(1),
+            module_resolution: Some(2),
+            resolve_json_module: Some(true),
+            out_dir: Some("/work/dist".to_owned()),
+            ..compiler_options()
+        },
+        program_options(),
+        generous_limits(),
+    )
+    .expect("outDir makes an admitted JSON root emit-eligible");
+    assert!(enabled_with_out_dir.source_files()[0].may_be_emitted());
+    assert_eq!(enabled_with_out_dir.resolutions().module_len(), 0);
+
     let extensionless_host = MemoryCompilerHost::builder("/work")
         .file("/work/root.ts", b"export {};".to_vec())
         .build()

@@ -17,7 +17,7 @@
   "authorities": {
     "compatibility_residual": {
       "path": "docs/design/greenfield/compiler-compatibility-residual.md",
-      "sha256": "3a30fb1bc3e7225b46e51b849b11600d89e1eeab9b8875a377e6f7732d55c480"
+      "sha256": "cae40bd678a008c8766633b68c4f990717020f5874c238d7e955f4367e73ffcf"
     },
     "h1_execution": {
       "path": "docs/design/greenfield/h1-emit.md",
@@ -39,11 +39,11 @@
       "crates/*/Cargo.toml",
       "crates/*/src/**/*.rs"
     ],
-    "file_count": 214,
-    "rust_source_files": 199,
+    "file_count": 215,
+    "rust_source_files": 200,
     "cargo_manifests": 15,
-    "bytes": 13548986,
-    "tree_sha256": "83a80968efba6fc6d4364b7521a660496ca5604ba787bd516be631cc88eef618"
+    "bytes": 13577652,
+    "tree_sha256": "57e78166eaad87b1a1ab0fe7529bc8c7c51cfb790417cedb6e85b495bde93e3f"
   },
   "summary": {
     "production_boundary_omissions": 0,
@@ -388,7 +388,7 @@
         "column": 1,
         "text": "pub struct EmitOutputPaths {\n    javascript: Option<PathBuf>,\n    javascript_map: Option<PathBuf>,\n    declaration: Option<PathBuf>,\n    declaration_map: Option<PathBuf>,\n    build_info: Option<PathBuf>,\n}",
         "text_sha256": "7b9332f2f24bd1e1ac1a7a6c7379f51b9b5161b02ba290af1eb9fd8b98d86f70",
-        "file_sha256": "e8ca03e1c607c38a296fc78b0689ae5243792a63e6630ab414c78494046ca23e"
+        "file_sha256": "3ae9ff46faf3289f765ada85b17726df23ce00ce17217999c165211ce484ee20"
       },
       {
         "id": "emitter-output-sink-protocol",
@@ -505,7 +505,7 @@
         "column": 1,
         "text": "pub const fn create_printer(options: PrinterOptions) -> Printer {",
         "text_sha256": "ad5575a93d7bc5976768228967001d7add6871a47da1b0316d75313def10d0f8",
-        "file_sha256": "db58bcf6d1ebd7d8fcdaa43d3cc4a68dd05eb7245bd5fecb76ab06936bd376ab"
+        "file_sha256": "3c952995c92d0906d2603c2d4ea0dcb562fc39f7d2d192ba1dd18c5b8c8918f9"
       },
       {
         "id": "emitter-position-domains",
@@ -523,7 +523,7 @@
         "column": 1,
         "text": "pub trait SourceMapRecorder {",
         "text_sha256": "76298cd03affa09442e1ee73bff9ba404f8ce719406bc4d5d1c45e0461acd461",
-        "file_sha256": "db58bcf6d1ebd7d8fcdaa43d3cc4a68dd05eb7245bd5fecb76ab06936bd376ab"
+        "file_sha256": "3c952995c92d0906d2603c2d4ea0dcb562fc39f7d2d192ba1dd18c5b8c8918f9"
       },
       {
         "id": "emitter-resolver-protocol",
@@ -573,11 +573,11 @@
       {
         "id": "emitter-changed-import-printer",
         "path": "crates/emitter/src/printer.rs",
-        "line": 848,
+        "line": 950,
         "column": 13,
         "text": "NodeData::ImportDeclaration(data) => {",
         "text_sha256": "910b2dd1f1b5eca67b7b7108c10a13a7a1793b32c1991a3434bd545954e7ce8b",
-        "file_sha256": "db58bcf6d1ebd7d8fcdaa43d3cc4a68dd05eb7245bd5fecb76ab06936bd376ab"
+        "file_sha256": "3c952995c92d0906d2603c2d4ea0dcb562fc39f7d2d192ba1dd18c5b8c8918f9"
       },
       {
         "id": "checker-scoped-emit-session",
@@ -640,34 +640,34 @@
         "column": 1,
         "text": "pub struct ProgramSession {\n    prepared: PreparedProgram,\n}",
         "text_sha256": "665e8cc79aa3899b9439120a02ffdfe34c92d54b8953b9eb431f216af633981a",
-        "file_sha256": "933b6e7d07e964a22cae983fc08fa3afbbbc1b86fe915ffda255a9be0f064e8a"
+        "file_sha256": "017e01853a7173b1ff3785185225e119382d019b0fb8426d59e310f09b08314e"
       },
       {
         "id": "program-session-run",
         "path": "crates/compiler/src/lib.rs",
-        "line": 647,
+        "line": 648,
         "column": 5,
         "text": "pub fn run(self) -> Result<NoEmitOutcome, DriverError> {\n        self.require_mode(PreparedProgramMode::NoEmit)?;\n        let mut no_emit_canary = no_emit_canary::NoEmitCanary::new();\n        self.run_with_no_emit_canary(false, &mut no_emit_canary)\n    }",
         "text_sha256": "86127c4bedf713e3a340c844b3a95f20427c4d559f0762c433c114252388fc90",
-        "file_sha256": "933b6e7d07e964a22cae983fc08fa3afbbbc1b86fe915ffda255a9be0f064e8a"
+        "file_sha256": "017e01853a7173b1ff3785185225e119382d019b0fb8426d59e310f09b08314e"
       },
       {
         "id": "program-session-emit",
         "path": "crates/compiler/src/lib.rs",
-        "line": 654,
+        "line": 655,
         "column": 5,
         "text": "pub fn emit(self, sink: &mut dyn OutputSink) -> Result<EmitOutcome, DriverError> {",
         "text_sha256": "07a8bfeb7192441ea0205e51647ae2e065d5268e4e32d1f6183a039cbd2faa0a",
-        "file_sha256": "933b6e7d07e964a22cae983fc08fa3afbbbc1b86fe915ffda255a9be0f064e8a"
+        "file_sha256": "017e01853a7173b1ff3785185225e119382d019b0fb8426d59e310f09b08314e"
       },
       {
         "id": "program-session-memory-emit",
         "path": "crates/compiler/src/lib.rs",
-        "line": 695,
+        "line": 696,
         "column": 9,
         "text": "let preflight = preflight_emit(&emit_host, selection).map_err(DriverError::Emit)?;",
         "text_sha256": "1523dcd4656d6ced2296771c8c2485ca7bae7b4ece4ae479d17f923938690fd9",
-        "file_sha256": "933b6e7d07e964a22cae983fc08fa3afbbbc1b86fe915ffda255a9be0f064e8a"
+        "file_sha256": "017e01853a7173b1ff3785185225e119382d019b0fb8426d59e310f09b08314e"
       },
       {
         "id": "emitter-host-protocol",
@@ -681,20 +681,20 @@
       {
         "id": "emitter-output-preflight",
         "path": "crates/emitter/src/plan.rs",
-        "line": 375,
+        "line": 401,
         "column": 1,
         "text": "pub fn preflight_emit(",
         "text_sha256": "cadeaacab2c6b8cff7f06e8ac04d677e927e8404ce878894cec000b93eb46be0",
-        "file_sha256": "e8ca03e1c607c38a296fc78b0689ae5243792a63e6630ab414c78494046ca23e"
+        "file_sha256": "3ae9ff46faf3289f765ada85b17726df23ce00ce17217999c165211ce484ee20"
       },
       {
         "id": "emitter-emit-files",
         "path": "crates/emitter/src/execute.rs",
-        "line": 275,
+        "line": 281,
         "column": 1,
         "text": "pub fn emit_files(",
         "text_sha256": "06f4b40f5c04f28c09e441a13bd303ec30f299622d68d6270a7987525e7558e1",
-        "file_sha256": "1e7d8a29773b9ec7c502777bf170fa4827e04f93081276644513dc7a86e1d423"
+        "file_sha256": "d149f10c833c3fac788672715d7b3dac6bd9bec23e67da742d6f8110013c2f79"
       },
       {
         "id": "checker-live-emit-callback",
@@ -865,7 +865,7 @@
         "column": 9,
         "text": "PreparedProgramMode::NoEmit if compiler_options.no_emit != Some(true) => {\n            return Err(reject_input(\n                \"compilerOptions.noEmit must be explicitly true\",\n            ));\n        }",
         "text_sha256": "ea56a5c792b675777b5e1504ab6d537ba08735cd18d681b5dde6fc83d6e62858",
-        "file_sha256": "b9186b74e6e0ea32c95b0bdadf0dfbb2b32c40479da113de68767ea221358fa2"
+        "file_sha256": "ba00eb5bcf179c4ac8f84bba49dd66bf5e3163f082f5b6bcd904f232609d7f7a"
       },
       {
         "id": "loader-emitting-entry",
@@ -874,7 +874,7 @@
         "column": 1,
         "text": "pub fn load_emitting_program(\n    host: &dyn CompilerHost,",
         "text_sha256": "847811760d5f9d4a072ca20e85e75e66fd13772d36606ca8e6e71925e3c86120",
-        "file_sha256": "b9186b74e6e0ea32c95b0bdadf0dfbb2b32c40479da113de68767ea221358fa2"
+        "file_sha256": "ba00eb5bcf179c4ac8f84bba49dd66bf5e3163f082f5b6bcd904f232609d7f7a"
       },
       {
         "id": "config-emitting-entry",
@@ -1185,5 +1185,5 @@
       }
     ]
   },
-  "inventory_fingerprint_sha256": "7b996840bcd476903bb0edc311b2aad3518c186229fd4dea591f2aa3ca0784ee"
+  "inventory_fingerprint_sha256": "c079e6223a83b3b6c0141af97323467e2a3580e148d17488e5dfaed57f85d5de"
 }

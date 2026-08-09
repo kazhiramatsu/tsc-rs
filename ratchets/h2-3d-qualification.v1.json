@@ -1,0 +1,314 @@
+{
+  "schema": 1,
+  "phase": "H2.3d-json-source-output",
+  "status": "qualified-typescript-oracle",
+  "typescript": {
+    "version": "6.0.3",
+    "source_commit": "050880ce59e30b356b686bd3144efe24f875ebc8",
+    "bundle": {
+      "path": "vendor/typescript-6.0.3/lib/typescript.js",
+      "sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39"
+    },
+    "implementation": {
+      "path": "vendor/typescript-6.0.3/lib/_tsc.js",
+      "sha256": "1c59e77a54b186ec43fa7f3e0d3c4bb15ca5eb5ba43e96b1d3a267139eddd3e3"
+    }
+  },
+  "generator": {
+    "path": "crates/oracle/h2-3d-qualification.mjs",
+    "sha256": "90bd8dec97ca847b412ae9e68dbdfe1def8db87d4b48665fb94d45f21dbdb95e"
+  },
+  "contract": {
+    "path": ".github/ci/contracts/h2-3d-qualification.schema.json",
+    "sha256": "c91f8d3333029375598b0a11063eba73ea7951112612624129b27cfebd9f5c27"
+  },
+  "origin": {
+    "trusted_base_commit": "9bc22c84a6c09149f31b9daa100e302d3730e6b2"
+  },
+  "inputs": {
+    "candidate_dispositions": {
+      "path": "ratchets/h2-candidate-dispositions.v1.json",
+      "sha256": "6930d377041d755579e6dbcc1f5551ba84b8ebac29535e4b05e46b386e29b53a"
+    },
+    "h2_3c_qualification": {
+      "path": "ratchets/h2-3c-qualification.v1.json",
+      "sha256": "16c7aa9acfc66a2f41dee720137005fa22a2ab3792d54a4803b482dcf6f07744"
+    },
+    "h2_3c_profile": {
+      "path": "ratchets/h2-3c-profile.v1.json",
+      "sha256": "50423a666c77404d5636f2a1b522101ffcd3536e768ac01ea4ccc3bf0391fe2d"
+    },
+    "h2_3c_owner_controls": {
+      "path": "ratchets/h2-3c-owner-controls.v1.json",
+      "sha256": "7e158b0311f5c3a6b3fcb60dcfbbebb5cd418d603502022382473ac3ac7b916b"
+    }
+  },
+  "selection_contract": {
+    "global_h2_3d_rows": 695,
+    "closed_slices_before_h2_3d": [
+      "H2.1a",
+      "H2.1b",
+      "H2.1c",
+      "H2.1d",
+      "H2.1e",
+      "H2.2a",
+      "H2.2b",
+      "H2.2c",
+      "H2.2d",
+      "H2.3a",
+      "H2.3b",
+      "H2.3c"
+    ],
+    "candidate_definition": "after removing H2.1a through H2.3c, required_slices is exactly [H2.3d]",
+    "candidate_denominator": 0,
+    "future_deferred_definition": "a global H2.3d row that retains at least one post-H2.3d dependency",
+    "future_deferred_rows": 695
+  },
+  "future_dependency_groups": [
+    {
+      "required_slices": [
+        "H2.4a",
+        "H2.5h",
+        "H2.8c"
+      ],
+      "cases": 8
+    },
+    {
+      "required_slices": [
+        "H2.4a",
+        "H2.5h"
+      ],
+      "cases": 2
+    },
+    {
+      "required_slices": [
+        "H2.5a",
+        "H2.7b",
+        "H2.8a"
+      ],
+      "cases": 4
+    },
+    {
+      "required_slices": [
+        "H2.5a",
+        "H2.9"
+      ],
+      "cases": 4
+    },
+    {
+      "required_slices": [
+        "H2.5a"
+      ],
+      "cases": 11
+    },
+    {
+      "required_slices": [
+        "H2.5e",
+        "H2.8a"
+      ],
+      "cases": 1
+    },
+    {
+      "required_slices": [
+        "H2.5g",
+        "H2.6a",
+        "H2.8a"
+      ],
+      "cases": 1
+    },
+    {
+      "required_slices": [
+        "H2.5g",
+        "H2.7b",
+        "H2.8a"
+      ],
+      "cases": 4
+    },
+    {
+      "required_slices": [
+        "H2.5g",
+        "H2.7d"
+      ],
+      "cases": 1
+    },
+    {
+      "required_slices": [
+        "H2.5g",
+        "H2.8a",
+        "H2.8c"
+      ],
+      "cases": 1
+    },
+    {
+      "required_slices": [
+        "H2.5g",
+        "H2.8a"
+      ],
+      "cases": 27
+    },
+    {
+      "required_slices": [
+        "H2.5g",
+        "H2.8c"
+      ],
+      "cases": 1
+    },
+    {
+      "required_slices": [
+        "H2.5g",
+        "H2.9"
+      ],
+      "cases": 1
+    },
+    {
+      "required_slices": [
+        "H2.5g"
+      ],
+      "cases": 2
+    },
+    {
+      "required_slices": [
+        "H2.5h",
+        "H2.6a",
+        "H2.7b",
+        "H2.7d",
+        "H2.8a"
+      ],
+      "cases": 16
+    },
+    {
+      "required_slices": [
+        "H2.5h",
+        "H2.6a",
+        "H2.7b",
+        "H2.7d"
+      ],
+      "cases": 128
+    },
+    {
+      "required_slices": [
+        "H2.5h",
+        "H2.6a",
+        "H2.7b",
+        "H2.8a"
+      ],
+      "cases": 130
+    },
+    {
+      "required_slices": [
+        "H2.5h",
+        "H2.6a",
+        "H2.7b"
+      ],
+      "cases": 128
+    },
+    {
+      "required_slices": [
+        "H2.5h",
+        "H2.6a",
+        "H2.8a"
+      ],
+      "cases": 2
+    },
+    {
+      "required_slices": [
+        "H2.5h",
+        "H2.7b",
+        "H2.7c",
+        "H2.7d"
+      ],
+      "cases": 2
+    },
+    {
+      "required_slices": [
+        "H2.5h",
+        "H2.7b",
+        "H2.7c",
+        "H2.8a"
+      ],
+      "cases": 2
+    },
+    {
+      "required_slices": [
+        "H2.5h",
+        "H2.7b",
+        "H2.7c"
+      ],
+      "cases": 2
+    },
+    {
+      "required_slices": [
+        "H2.5h",
+        "H2.7b",
+        "H2.7d",
+        "H2.8a"
+      ],
+      "cases": 2
+    },
+    {
+      "required_slices": [
+        "H2.5h",
+        "H2.7b",
+        "H2.7d"
+      ],
+      "cases": 24
+    },
+    {
+      "required_slices": [
+        "H2.5h",
+        "H2.7b",
+        "H2.8a"
+      ],
+      "cases": 28
+    },
+    {
+      "required_slices": [
+        "H2.5h",
+        "H2.7b"
+      ],
+      "cases": 68
+    },
+    {
+      "required_slices": [
+        "H2.5h",
+        "H2.7d"
+      ],
+      "cases": 2
+    },
+    {
+      "required_slices": [
+        "H2.5h",
+        "H2.8a"
+      ],
+      "cases": 12
+    },
+    {
+      "required_slices": [
+        "H2.5h"
+      ],
+      "cases": 80
+    },
+    {
+      "required_slices": [
+        "H2.9"
+      ],
+      "cases": 1
+    }
+  ],
+  "cases": [],
+  "summary": {
+    "global_h2_3d_rows": 695,
+    "future_deferred_rows": 695,
+    "future_dependency_groups": 30,
+    "candidates": 0,
+    "admitted_cases": 0,
+    "deferred_cases": 0,
+    "source_deferred_cases": 0,
+    "typescript_runs": 0,
+    "admitted_typescript_writes": 0,
+    "admitted_typescript_diagnostics": 0,
+    "unexecuted_candidates": 0,
+    "undispositioned_candidates": 0
+  },
+  "qualification_fingerprint_sha256": "1aa8c4d1008925e6bb37965b34453ddeaf75783fdd183fab7e4a14dd9e90d5e0"
+}
