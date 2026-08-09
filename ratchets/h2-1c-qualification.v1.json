@@ -1,0 +1,1769 @@
+{
+  "schema": 1,
+  "status": "qualified-typescript-oracle",
+  "phase": "H2.1c-amd-umd-source-and-emit",
+  "typescript": {
+    "version": "6.0.3",
+    "source_commit": "050880ce59e30b356b686bd3144efe24f875ebc8",
+    "bundle": {
+      "path": "vendor/typescript-6.0.3/lib/typescript.js",
+      "sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39"
+    },
+    "implementation": {
+      "path": "vendor/typescript-6.0.3/lib/_tsc.js",
+      "sha256": "1c59e77a54b186ec43fa7f3e0d3c4bb15ca5eb5ba43e96b1d3a267139eddd3e3"
+    }
+  },
+  "generator": {
+    "path": "crates/oracle/h2-1c-qualification.mjs",
+    "sha256": "bedfa00d3a0fee818d888179b735bacdbb0d051992d1f3fee5ed86c252e42705"
+  },
+  "contract": {
+    "path": ".github/ci/contracts/h2-1c-qualification.schema.json",
+    "sha256": "982d4c268399746b9e04f98154c38dc687971999cddd321796d5645201dcd554"
+  },
+  "origin": {
+    "h2_1b_merge": "53a5509cc6a3f295744a7286a0bbc4b7c6096fcb",
+    "h2_1b_profile": {
+      "path": "ratchets/h2-1b-profile.v1.json",
+      "sha256": "711a1f1d325cc53ec97c79aff7169d1ce4b6e512bb5624bc7a67a53121c6146f"
+    }
+  },
+  "inputs": {
+    "compiler_classification": {
+      "path": "vendor/typescript-6.0.3/compiler-profile-classification.v1.json",
+      "sha256": "3c3cbcb3c29a5254c145dc2665ca21683a1bd94f5271841320f061e82b614603"
+    },
+    "conformance_classification": {
+      "path": "vendor/typescript-6.0.3/conformance-profile-classification.v1.json",
+      "sha256": "d54b51d44da91836ad1b7be3be4b7de19c6892e6cb1fe9605fda06cdda5a67eb"
+    },
+    "compiler_expansion": {
+      "path": "vendor/typescript-6.0.3/test-suite-expansion.v1.json",
+      "sha256": "9c6e991103b571f7a8800dc5e1ef66088017689f3769de8fcdb408b2dc125188"
+    },
+    "conformance_expansion": {
+      "path": "vendor/typescript-6.0.3/conformance-suite-expansion.v1.json",
+      "sha256": "924d4007b3ac93a3ee57032ea6089b649bab2902e30ee64cff02f4c9404b7bbd"
+    },
+    "owner_inventory": {
+      "path": "ratchets/h2-owner-inventory.v1.json",
+      "sha256": "1f3d666d107247bef7b5e18d6e9506ff51d281277c136bf70112a863b6dfa98d"
+    }
+  },
+  "execution_contract": {
+    "source_reachability": "fixture VFS roots plus module-resolved fixture dependencies in a vendored TypeScript Program",
+    "module_selection": "Program.getEmitModuleFormatOfFile for every reached fixture SourceFile",
+    "admission": "every emit-eligible source is .ts, selects AMD or UMD, has no parse diagnostics, has AST depth <= 256, reaches no deferred transform root, and has exact diagnostics and writes; declaration/package/config inputs remain non-emitted controls",
+    "typescript_repetitions": 2,
+    "rust_repetitions": 2,
+    "normalization": "none",
+    "deferred_boundary": "typed failure before first sink write"
+  },
+  "owner_closure": [
+    {
+      "key": "transform-module",
+      "declaration": {
+        "id": "h2:68d487a70b5c472d084f83eedd2e99e679ceb7309249527b729f15fa501a2e12",
+        "source": "vendor/typescript-6.0.3/lib/_tsc.js",
+        "name": "transformModule",
+        "kind": "FunctionDeclaration",
+        "lexical_path": "<bundle>/transformModule@110090:1",
+        "source_range": {
+          "start": {
+            "offset": 5206624,
+            "line": 110090,
+            "character": 1
+          },
+          "end": {
+            "offset": 5277736,
+            "line": 112041,
+            "character": 2
+          }
+        },
+        "declaration_sha256": "cf26f2e399146deae9ff23867f341893cd9ce8cade79acb93c146ea129b7907f",
+        "body_sha256": "25bdaa6ab240df508a422da5134e48d18b5d9cb9859e408892288c1bc9ef175a",
+        "ledger_slice_sha256": "3d54d8672774bc47f161ad1b4747b2d39a9a04f3da0a7cdab4c8b5ea125ca3eb"
+      },
+      "disposition_before_h2_1c": "deferred-h2"
+    }
+  ],
+  "cases": [
+    {
+      "suite": "conformance",
+      "case_id": "typescript-6.0.3/conformance/dynamicImport/importCallExpressionInAMD1.ts#default",
+      "expansion_case": 1223,
+      "source": {
+        "path": "dynamicImport/importCallExpressionInAMD1.ts",
+        "bytes": 298,
+        "sha256": "9b17c344c1dd51429d26dd269263f36ed5e53a77e6e938c315525bf8fe2c5bfd",
+        "git_blob_sha1": "7aafc5294ffd456db90e2169215087b9e2e5ad2a"
+      },
+      "module_state": "AMD(2)",
+      "input": {
+        "current_directory": "/.src",
+        "roots": [
+          "/.src/0.ts",
+          "/.src/1.ts"
+        ],
+        "settings": [
+          {
+            "name": "module",
+            "value": "amd"
+          },
+          {
+            "name": "target",
+            "value": "esnext"
+          },
+          {
+            "name": "filename",
+            "value": "1.ts"
+          }
+        ],
+        "virtual_config": null,
+        "files": [
+          {
+            "unit": 0,
+            "path": "/.src/0.ts",
+            "utf8_base64": "ZXhwb3J0IGZ1bmN0aW9uIGZvbygpIHsgcmV0dXJuICJmb28iOyB9Cg==",
+            "utf8_sha256": "a1078818bd8ee76cd8e25aba03d8df68b230136d049df980fb04f9bbb26a1df6",
+            "utf8_bytes": 40
+          },
+          {
+            "unit": 1,
+            "path": "/.src/1.ts",
+            "utf8_base64": "aW1wb3J0KCIuLzAiKTsKdmFyIHAxID0gaW1wb3J0KCIuLzAiKTsKcDEudGhlbih6ZXJvID0+IHsKICAgIHJldHVybiB6ZXJvLmZvbygpOwp9KTsKCmV4cG9ydCB2YXIgcDIgPSBpbXBvcnQoIi4vMCIpOwoKZnVuY3Rpb24gZm9vKCkgewogICAgY29uc3QgcDIgPSBpbXBvcnQoIi4vMCIpOwp9",
+            "utf8_sha256": "e7f49310f72d8711acc9a1966483ead2a75257a7a54ed09988d611eb1497bd35",
+            "utf8_bytes": 165
+          }
+        ]
+      },
+      "files": [
+        {
+          "unit": 0,
+          "path": "/.src/0.ts",
+          "script_kind": "TS",
+          "declaration_file": false,
+          "emit_eligible": true,
+          "implied_module_format": "None",
+          "emit_module_format": 2,
+          "feature_roots": [],
+          "parse_diagnostic_codes": [],
+          "max_ast_depth": 5,
+          "import_attributes": false,
+          "advanced_comment_placement": false,
+          "text_sha256": "a1078818bd8ee76cd8e25aba03d8df68b230136d049df980fb04f9bbb26a1df6"
+        },
+        {
+          "unit": 1,
+          "path": "/.src/1.ts",
+          "script_kind": "TS",
+          "declaration_file": false,
+          "emit_eligible": true,
+          "implied_module_format": "None",
+          "emit_module_format": 2,
+          "feature_roots": [],
+          "parse_diagnostic_codes": [],
+          "max_ast_depth": 9,
+          "import_attributes": false,
+          "advanced_comment_placement": false,
+          "text_sha256": "e7f49310f72d8711acc9a1966483ead2a75257a7a54ed09988d611eb1497bd35"
+        }
+      ],
+      "owner_reachability": [
+        "transform-module"
+      ],
+      "disposition": "admitted-for-execution",
+      "required_slices": [],
+      "diagnostic_disposition": {
+        "state": "exact-required"
+      },
+      "typescript_runs": [
+        {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/.src/0.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "ZGVmaW5lKFsicmVxdWlyZSIsICJleHBvcnRzIl0sIGZ1bmN0aW9uIChyZXF1aXJlLCBleHBvcnRzKSB7DQogICAgInVzZSBzdHJpY3QiOw0KICAgIE9iamVjdC5kZWZpbmVQcm9wZXJ0eShleHBvcnRzLCAiX19lc01vZHVsZSIsIHsgdmFsdWU6IHRydWUgfSk7DQogICAgZXhwb3J0cy5mb28gPSBmb287DQogICAgZnVuY3Rpb24gZm9vKCkgeyByZXR1cm4gImZvbyI7IH0NCn0pOw0K",
+              "callback_utf8_sha256": "1799dcfd46bf57fe53ab2ea3010fff0bc76501d54b843363ed60ea68f54d38a7",
+              "callback_utf8_bytes": 216,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "1799dcfd46bf57fe53ab2ea3010fff0bc76501d54b843363ed60ea68f54d38a7",
+              "materialized_utf8_bytes": 216,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/0.ts"
+              ]
+            },
+            {
+              "index": 1,
+              "path": "/.src/1.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "dmFyIF9fY3JlYXRlQmluZGluZyA9ICh0aGlzICYmIHRoaXMuX19jcmVhdGVCaW5kaW5nKSB8fCAoT2JqZWN0LmNyZWF0ZSA/IChmdW5jdGlvbihvLCBtLCBrLCBrMikgew0KICAgIGlmIChrMiA9PT0gdW5kZWZpbmVkKSBrMiA9IGs7DQogICAgdmFyIGRlc2MgPSBPYmplY3QuZ2V0T3duUHJvcGVydHlEZXNjcmlwdG9yKG0sIGspOw0KICAgIGlmICghZGVzYyB8fCAoImdldCIgaW4gZGVzYyA/ICFtLl9fZXNNb2R1bGUgOiBkZXNjLndyaXRhYmxlIHx8IGRlc2MuY29uZmlndXJhYmxlKSkgew0KICAgICAgZGVzYyA9IHsgZW51bWVyYWJsZTogdHJ1ZSwgZ2V0OiBmdW5jdGlvbigpIHsgcmV0dXJuIG1ba107IH0gfTsNCiAgICB9DQogICAgT2JqZWN0LmRlZmluZVByb3BlcnR5KG8sIGsyLCBkZXNjKTsNCn0pIDogKGZ1bmN0aW9uKG8sIG0sIGssIGsyKSB7DQogICAgaWYgKGsyID09PSB1bmRlZmluZWQpIGsyID0gazsNCiAgICBvW2syXSA9IG1ba107DQp9KSk7DQp2YXIgX19zZXRNb2R1bGVEZWZhdWx0ID0gKHRoaXMgJiYgdGhpcy5fX3NldE1vZHVsZURlZmF1bHQpIHx8IChPYmplY3QuY3JlYXRlID8gKGZ1bmN0aW9uKG8sIHYpIHsNCiAgICBPYmplY3QuZGVmaW5lUHJvcGVydHkobywgImRlZmF1bHQiLCB7IGVudW1lcmFibGU6IHRydWUsIHZhbHVlOiB2IH0pOw0KfSkgOiBmdW5jdGlvbihvLCB2KSB7DQogICAgb1siZGVmYXVsdCJdID0gdjsNCn0pOw0KdmFyIF9faW1wb3J0U3RhciA9ICh0aGlzICYmIHRoaXMuX19pbXBvcnRTdGFyKSB8fCAoZnVuY3Rpb24gKCkgew0KICAgIHZhciBvd25LZXlzID0gZnVuY3Rpb24obykgew0KICAgICAgICBvd25LZXlzID0gT2JqZWN0LmdldE93blByb3BlcnR5TmFtZXMgfHwgZnVuY3Rpb24gKG8pIHsNCiAgICAgICAgICAgIHZhciBhciA9IFtdOw0KICAgICAgICAgICAgZm9yICh2YXIgayBpbiBvKSBpZiAoT2JqZWN0LnByb3RvdHlwZS5oYXNPd25Qcm9wZXJ0eS5jYWxsKG8sIGspKSBhclthci5sZW5ndGhdID0gazsNCiAgICAgICAgICAgIHJldHVybiBhcjsNCiAgICAgICAgfTsNCiAgICAgICAgcmV0dXJuIG93bktleXMobyk7DQogICAgfTsNCiAgICByZXR1cm4gZnVuY3Rpb24gKG1vZCkgew0KICAgICAgICBpZiAobW9kICYmIG1vZC5fX2VzTW9kdWxlKSByZXR1cm4gbW9kOw0KICAgICAgICB2YXIgcmVzdWx0ID0ge307DQogICAgICAgIGlmIChtb2QgIT0gbnVsbCkgZm9yICh2YXIgayA9IG93bktleXMobW9kKSwgaSA9IDA7IGkgPCBrLmxlbmd0aDsgaSsrKSBpZiAoa1tpXSAhPT0gImRlZmF1bHQiKSBfX2NyZWF0ZUJpbmRpbmcocmVzdWx0LCBtb2QsIGtbaV0pOw0KICAgICAgICBfX3NldE1vZHVsZURlZmF1bHQocmVzdWx0LCBtb2QpOw0KICAgICAgICByZXR1cm4gcmVzdWx0Ow0KICAgIH07DQp9KSgpOw0KZGVmaW5lKFsicmVxdWlyZSIsICJleHBvcnRzIl0sIGZ1bmN0aW9uIChyZXF1aXJlLCBleHBvcnRzKSB7DQogICAgInVzZSBzdHJpY3QiOw0KICAgIE9iamVjdC5kZWZpbmVQcm9wZXJ0eShleHBvcnRzLCAiX19lc01vZHVsZSIsIHsgdmFsdWU6IHRydWUgfSk7DQogICAgZXhwb3J0cy5wMiA9IHZvaWQgMDsNCiAgICBuZXcgUHJvbWlzZSgocmVzb2x2ZV8xLCByZWplY3RfMSkgPT4geyByZXF1aXJlKFsiLi8wIl0sIHJlc29sdmVfMSwgcmVqZWN0XzEpOyB9KS50aGVuKF9faW1wb3J0U3Rhcik7DQogICAgdmFyIHAxID0gbmV3IFByb21pc2UoKHJlc29sdmVfMiwgcmVqZWN0XzIpID0+IHsgcmVxdWlyZShbIi4vMCJdLCByZXNvbHZlXzIsIHJlamVjdF8yKTsgfSkudGhlbihfX2ltcG9ydFN0YXIpOw0KICAgIHAxLnRoZW4oemVybyA9PiB7DQogICAgICAgIHJldHVybiB6ZXJvLmZvbygpOw0KICAgIH0pOw0KICAgIGV4cG9ydHMucDIgPSBuZXcgUHJvbWlzZSgocmVzb2x2ZV8zLCByZWplY3RfMykgPT4geyByZXF1aXJlKFsiLi8wIl0sIHJlc29sdmVfMywgcmVqZWN0XzMpOyB9KS50aGVuKF9faW1wb3J0U3Rhcik7DQogICAgZnVuY3Rpb24gZm9vKCkgew0KICAgICAgICBjb25zdCBwMiA9IG5ldyBQcm9taXNlKChyZXNvbHZlXzQsIHJlamVjdF80KSA9PiB7IHJlcXVpcmUoWyIuLzAiXSwgcmVzb2x2ZV80LCByZWplY3RfNCk7IH0pLnRoZW4oX19pbXBvcnRTdGFyKTsNCiAgICB9DQp9KTsNCg==",
+              "callback_utf8_sha256": "2a7ac0ec424cda7343e83ade950fa053dc67b390e8d4d2e22eabbfd2a02e294c",
+              "callback_utf8_bytes": 2122,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "2a7ac0ec424cda7343e83ade950fa053dc67b390e8d4d2e22eabbfd2a02e294c",
+              "materialized_utf8_bytes": 2122,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/1.ts"
+              ]
+            }
+          ],
+          "reported_diagnostics": [
+            {
+              "code": 5107,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Option 'module=AMD' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error."
+            }
+          ],
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 2,
+          "run_fingerprint_sha256": "fcc6b2ac70186cb96de5081ea613dc0f22a6fa865ac90ea6c3e08e128ed95457"
+        },
+        {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/.src/0.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "ZGVmaW5lKFsicmVxdWlyZSIsICJleHBvcnRzIl0sIGZ1bmN0aW9uIChyZXF1aXJlLCBleHBvcnRzKSB7DQogICAgInVzZSBzdHJpY3QiOw0KICAgIE9iamVjdC5kZWZpbmVQcm9wZXJ0eShleHBvcnRzLCAiX19lc01vZHVsZSIsIHsgdmFsdWU6IHRydWUgfSk7DQogICAgZXhwb3J0cy5mb28gPSBmb287DQogICAgZnVuY3Rpb24gZm9vKCkgeyByZXR1cm4gImZvbyI7IH0NCn0pOw0K",
+              "callback_utf8_sha256": "1799dcfd46bf57fe53ab2ea3010fff0bc76501d54b843363ed60ea68f54d38a7",
+              "callback_utf8_bytes": 216,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "1799dcfd46bf57fe53ab2ea3010fff0bc76501d54b843363ed60ea68f54d38a7",
+              "materialized_utf8_bytes": 216,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/0.ts"
+              ]
+            },
+            {
+              "index": 1,
+              "path": "/.src/1.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "dmFyIF9fY3JlYXRlQmluZGluZyA9ICh0aGlzICYmIHRoaXMuX19jcmVhdGVCaW5kaW5nKSB8fCAoT2JqZWN0LmNyZWF0ZSA/IChmdW5jdGlvbihvLCBtLCBrLCBrMikgew0KICAgIGlmIChrMiA9PT0gdW5kZWZpbmVkKSBrMiA9IGs7DQogICAgdmFyIGRlc2MgPSBPYmplY3QuZ2V0T3duUHJvcGVydHlEZXNjcmlwdG9yKG0sIGspOw0KICAgIGlmICghZGVzYyB8fCAoImdldCIgaW4gZGVzYyA/ICFtLl9fZXNNb2R1bGUgOiBkZXNjLndyaXRhYmxlIHx8IGRlc2MuY29uZmlndXJhYmxlKSkgew0KICAgICAgZGVzYyA9IHsgZW51bWVyYWJsZTogdHJ1ZSwgZ2V0OiBmdW5jdGlvbigpIHsgcmV0dXJuIG1ba107IH0gfTsNCiAgICB9DQogICAgT2JqZWN0LmRlZmluZVByb3BlcnR5KG8sIGsyLCBkZXNjKTsNCn0pIDogKGZ1bmN0aW9uKG8sIG0sIGssIGsyKSB7DQogICAgaWYgKGsyID09PSB1bmRlZmluZWQpIGsyID0gazsNCiAgICBvW2syXSA9IG1ba107DQp9KSk7DQp2YXIgX19zZXRNb2R1bGVEZWZhdWx0ID0gKHRoaXMgJiYgdGhpcy5fX3NldE1vZHVsZURlZmF1bHQpIHx8IChPYmplY3QuY3JlYXRlID8gKGZ1bmN0aW9uKG8sIHYpIHsNCiAgICBPYmplY3QuZGVmaW5lUHJvcGVydHkobywgImRlZmF1bHQiLCB7IGVudW1lcmFibGU6IHRydWUsIHZhbHVlOiB2IH0pOw0KfSkgOiBmdW5jdGlvbihvLCB2KSB7DQogICAgb1siZGVmYXVsdCJdID0gdjsNCn0pOw0KdmFyIF9faW1wb3J0U3RhciA9ICh0aGlzICYmIHRoaXMuX19pbXBvcnRTdGFyKSB8fCAoZnVuY3Rpb24gKCkgew0KICAgIHZhciBvd25LZXlzID0gZnVuY3Rpb24obykgew0KICAgICAgICBvd25LZXlzID0gT2JqZWN0LmdldE93blByb3BlcnR5TmFtZXMgfHwgZnVuY3Rpb24gKG8pIHsNCiAgICAgICAgICAgIHZhciBhciA9IFtdOw0KICAgICAgICAgICAgZm9yICh2YXIgayBpbiBvKSBpZiAoT2JqZWN0LnByb3RvdHlwZS5oYXNPd25Qcm9wZXJ0eS5jYWxsKG8sIGspKSBhclthci5sZW5ndGhdID0gazsNCiAgICAgICAgICAgIHJldHVybiBhcjsNCiAgICAgICAgfTsNCiAgICAgICAgcmV0dXJuIG93bktleXMobyk7DQogICAgfTsNCiAgICByZXR1cm4gZnVuY3Rpb24gKG1vZCkgew0KICAgICAgICBpZiAobW9kICYmIG1vZC5fX2VzTW9kdWxlKSByZXR1cm4gbW9kOw0KICAgICAgICB2YXIgcmVzdWx0ID0ge307DQogICAgICAgIGlmIChtb2QgIT0gbnVsbCkgZm9yICh2YXIgayA9IG93bktleXMobW9kKSwgaSA9IDA7IGkgPCBrLmxlbmd0aDsgaSsrKSBpZiAoa1tpXSAhPT0gImRlZmF1bHQiKSBfX2NyZWF0ZUJpbmRpbmcocmVzdWx0LCBtb2QsIGtbaV0pOw0KICAgICAgICBfX3NldE1vZHVsZURlZmF1bHQocmVzdWx0LCBtb2QpOw0KICAgICAgICByZXR1cm4gcmVzdWx0Ow0KICAgIH07DQp9KSgpOw0KZGVmaW5lKFsicmVxdWlyZSIsICJleHBvcnRzIl0sIGZ1bmN0aW9uIChyZXF1aXJlLCBleHBvcnRzKSB7DQogICAgInVzZSBzdHJpY3QiOw0KICAgIE9iamVjdC5kZWZpbmVQcm9wZXJ0eShleHBvcnRzLCAiX19lc01vZHVsZSIsIHsgdmFsdWU6IHRydWUgfSk7DQogICAgZXhwb3J0cy5wMiA9IHZvaWQgMDsNCiAgICBuZXcgUHJvbWlzZSgocmVzb2x2ZV8xLCByZWplY3RfMSkgPT4geyByZXF1aXJlKFsiLi8wIl0sIHJlc29sdmVfMSwgcmVqZWN0XzEpOyB9KS50aGVuKF9faW1wb3J0U3Rhcik7DQogICAgdmFyIHAxID0gbmV3IFByb21pc2UoKHJlc29sdmVfMiwgcmVqZWN0XzIpID0+IHsgcmVxdWlyZShbIi4vMCJdLCByZXNvbHZlXzIsIHJlamVjdF8yKTsgfSkudGhlbihfX2ltcG9ydFN0YXIpOw0KICAgIHAxLnRoZW4oemVybyA9PiB7DQogICAgICAgIHJldHVybiB6ZXJvLmZvbygpOw0KICAgIH0pOw0KICAgIGV4cG9ydHMucDIgPSBuZXcgUHJvbWlzZSgocmVzb2x2ZV8zLCByZWplY3RfMykgPT4geyByZXF1aXJlKFsiLi8wIl0sIHJlc29sdmVfMywgcmVqZWN0XzMpOyB9KS50aGVuKF9faW1wb3J0U3Rhcik7DQogICAgZnVuY3Rpb24gZm9vKCkgew0KICAgICAgICBjb25zdCBwMiA9IG5ldyBQcm9taXNlKChyZXNvbHZlXzQsIHJlamVjdF80KSA9PiB7IHJlcXVpcmUoWyIuLzAiXSwgcmVzb2x2ZV80LCByZWplY3RfNCk7IH0pLnRoZW4oX19pbXBvcnRTdGFyKTsNCiAgICB9DQp9KTsNCg==",
+              "callback_utf8_sha256": "2a7ac0ec424cda7343e83ade950fa053dc67b390e8d4d2e22eabbfd2a02e294c",
+              "callback_utf8_bytes": 2122,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "2a7ac0ec424cda7343e83ade950fa053dc67b390e8d4d2e22eabbfd2a02e294c",
+              "materialized_utf8_bytes": 2122,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/1.ts"
+              ]
+            }
+          ],
+          "reported_diagnostics": [
+            {
+              "code": 5107,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Option 'module=AMD' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error."
+            }
+          ],
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 2,
+          "run_fingerprint_sha256": "fcc6b2ac70186cb96de5081ea613dc0f22a6fa865ac90ea6c3e08e128ed95457"
+        }
+      ],
+      "rust_expectation": "two-deterministic-exact-runs",
+      "case_fingerprint_sha256": "edaf30b0a63cd4d4ba259ed4d54e55ccbd44b679c0e383389bd3eab7767557b3"
+    },
+    {
+      "suite": "conformance",
+      "case_id": "typescript-6.0.3/conformance/dynamicImport/importCallExpressionInAMD2.ts#default",
+      "expansion_case": 1224,
+      "source": {
+        "path": "dynamicImport/importCallExpressionInAMD2.ts",
+        "bytes": 360,
+        "sha256": "69a92f34507be5d8d9e0a031286d52332ef346648d4063b24ecadfaa39f37611",
+        "git_blob_sha1": "96b2fd4ceff65c3d7db705f9736f4bbf4d642347"
+      },
+      "module_state": "AMD(2)",
+      "input": {
+        "current_directory": "/.src",
+        "roots": [
+          "/.src/0.ts",
+          "/.src/2.ts"
+        ],
+        "settings": [
+          {
+            "name": "module",
+            "value": "amd"
+          },
+          {
+            "name": "target",
+            "value": "esnext"
+          },
+          {
+            "name": "filename",
+            "value": "2.ts"
+          }
+        ],
+        "virtual_config": null,
+        "files": [
+          {
+            "unit": 0,
+            "path": "/.src/0.ts",
+            "utf8_base64": "ZXhwb3J0IGNsYXNzIEIgewogICAgcHJpbnQoKSB7IHJldHVybiAiSSBhbSBCIn0KfQo=",
+            "utf8_sha256": "3b56dfe62d62893f196cc455483054fd6b03084a5a230aa0370bedf31915c67c",
+            "utf8_bytes": 50
+          },
+          {
+            "unit": 1,
+            "path": "/.src/2.ts",
+            "utf8_base64": "Ly8gV2UgdXNlIFByb21pc2U8YW55PiBmb3Igbm93IGFzIHRoZXJlIGlzIG5vIHdheSB0byBzcGVjaWZ5IHNoYXBlIG9mIG1vZHVsZSBvYmplY3QKZnVuY3Rpb24gZm9vKHg6IFByb21pc2U8YW55PikgewogICAgeC50aGVuKHZhbHVlID0+IHsKICAgICAgICBsZXQgYiA9IG5ldyB2YWx1ZS5CKCk7CiAgICAgICAgYi5wcmludCgpOwogICAgfSkKfQoKZm9vKGltcG9ydCgiLi8wIikpOw==",
+            "utf8_sha256": "a1c1bbe6ad99b233dc0e5ff79d4761f69b679f77c7fb7f3db8c4d8aca00b6804",
+            "utf8_bytes": 217
+          }
+        ]
+      },
+      "files": [
+        {
+          "unit": 0,
+          "path": "/.src/0.ts",
+          "script_kind": "TS",
+          "declaration_file": false,
+          "emit_eligible": true,
+          "implied_module_format": "None",
+          "emit_module_format": 2,
+          "feature_roots": [],
+          "parse_diagnostic_codes": [],
+          "max_ast_depth": 6,
+          "import_attributes": false,
+          "advanced_comment_placement": false,
+          "text_sha256": "3b56dfe62d62893f196cc455483054fd6b03084a5a230aa0370bedf31915c67c"
+        },
+        {
+          "unit": 1,
+          "path": "/.src/2.ts",
+          "script_kind": "TS",
+          "declaration_file": false,
+          "emit_eligible": true,
+          "implied_module_format": "None",
+          "emit_module_format": 2,
+          "feature_roots": [],
+          "parse_diagnostic_codes": [],
+          "max_ast_depth": 13,
+          "import_attributes": false,
+          "advanced_comment_placement": false,
+          "text_sha256": "a1c1bbe6ad99b233dc0e5ff79d4761f69b679f77c7fb7f3db8c4d8aca00b6804"
+        }
+      ],
+      "owner_reachability": [
+        "transform-module"
+      ],
+      "disposition": "admitted-for-execution",
+      "required_slices": [],
+      "diagnostic_disposition": {
+        "state": "exact-required"
+      },
+      "typescript_runs": [
+        {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/.src/0.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "ZGVmaW5lKFsicmVxdWlyZSIsICJleHBvcnRzIl0sIGZ1bmN0aW9uIChyZXF1aXJlLCBleHBvcnRzKSB7DQogICAgInVzZSBzdHJpY3QiOw0KICAgIE9iamVjdC5kZWZpbmVQcm9wZXJ0eShleHBvcnRzLCAiX19lc01vZHVsZSIsIHsgdmFsdWU6IHRydWUgfSk7DQogICAgZXhwb3J0cy5CID0gdm9pZCAwOw0KICAgIGNsYXNzIEIgew0KICAgICAgICBwcmludCgpIHsgcmV0dXJuICJJIGFtIEIiOyB9DQogICAgfQ0KICAgIGV4cG9ydHMuQiA9IEI7DQp9KTsNCg==",
+              "callback_utf8_sha256": "8a09085900b7fb12e72cc1d4eb4fff8fe262134eb7535e92d4261327978b377d",
+              "callback_utf8_bytes": 259,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "8a09085900b7fb12e72cc1d4eb4fff8fe262134eb7535e92d4261327978b377d",
+              "materialized_utf8_bytes": 259,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/0.ts"
+              ]
+            },
+            {
+              "index": 1,
+              "path": "/.src/2.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "dmFyIF9fY3JlYXRlQmluZGluZyA9ICh0aGlzICYmIHRoaXMuX19jcmVhdGVCaW5kaW5nKSB8fCAoT2JqZWN0LmNyZWF0ZSA/IChmdW5jdGlvbihvLCBtLCBrLCBrMikgew0KICAgIGlmIChrMiA9PT0gdW5kZWZpbmVkKSBrMiA9IGs7DQogICAgdmFyIGRlc2MgPSBPYmplY3QuZ2V0T3duUHJvcGVydHlEZXNjcmlwdG9yKG0sIGspOw0KICAgIGlmICghZGVzYyB8fCAoImdldCIgaW4gZGVzYyA/ICFtLl9fZXNNb2R1bGUgOiBkZXNjLndyaXRhYmxlIHx8IGRlc2MuY29uZmlndXJhYmxlKSkgew0KICAgICAgZGVzYyA9IHsgZW51bWVyYWJsZTogdHJ1ZSwgZ2V0OiBmdW5jdGlvbigpIHsgcmV0dXJuIG1ba107IH0gfTsNCiAgICB9DQogICAgT2JqZWN0LmRlZmluZVByb3BlcnR5KG8sIGsyLCBkZXNjKTsNCn0pIDogKGZ1bmN0aW9uKG8sIG0sIGssIGsyKSB7DQogICAgaWYgKGsyID09PSB1bmRlZmluZWQpIGsyID0gazsNCiAgICBvW2syXSA9IG1ba107DQp9KSk7DQp2YXIgX19zZXRNb2R1bGVEZWZhdWx0ID0gKHRoaXMgJiYgdGhpcy5fX3NldE1vZHVsZURlZmF1bHQpIHx8IChPYmplY3QuY3JlYXRlID8gKGZ1bmN0aW9uKG8sIHYpIHsNCiAgICBPYmplY3QuZGVmaW5lUHJvcGVydHkobywgImRlZmF1bHQiLCB7IGVudW1lcmFibGU6IHRydWUsIHZhbHVlOiB2IH0pOw0KfSkgOiBmdW5jdGlvbihvLCB2KSB7DQogICAgb1siZGVmYXVsdCJdID0gdjsNCn0pOw0KdmFyIF9faW1wb3J0U3RhciA9ICh0aGlzICYmIHRoaXMuX19pbXBvcnRTdGFyKSB8fCAoZnVuY3Rpb24gKCkgew0KICAgIHZhciBvd25LZXlzID0gZnVuY3Rpb24obykgew0KICAgICAgICBvd25LZXlzID0gT2JqZWN0LmdldE93blByb3BlcnR5TmFtZXMgfHwgZnVuY3Rpb24gKG8pIHsNCiAgICAgICAgICAgIHZhciBhciA9IFtdOw0KICAgICAgICAgICAgZm9yICh2YXIgayBpbiBvKSBpZiAoT2JqZWN0LnByb3RvdHlwZS5oYXNPd25Qcm9wZXJ0eS5jYWxsKG8sIGspKSBhclthci5sZW5ndGhdID0gazsNCiAgICAgICAgICAgIHJldHVybiBhcjsNCiAgICAgICAgfTsNCiAgICAgICAgcmV0dXJuIG93bktleXMobyk7DQogICAgfTsNCiAgICByZXR1cm4gZnVuY3Rpb24gKG1vZCkgew0KICAgICAgICBpZiAobW9kICYmIG1vZC5fX2VzTW9kdWxlKSByZXR1cm4gbW9kOw0KICAgICAgICB2YXIgcmVzdWx0ID0ge307DQogICAgICAgIGlmIChtb2QgIT0gbnVsbCkgZm9yICh2YXIgayA9IG93bktleXMobW9kKSwgaSA9IDA7IGkgPCBrLmxlbmd0aDsgaSsrKSBpZiAoa1tpXSAhPT0gImRlZmF1bHQiKSBfX2NyZWF0ZUJpbmRpbmcocmVzdWx0LCBtb2QsIGtbaV0pOw0KICAgICAgICBfX3NldE1vZHVsZURlZmF1bHQocmVzdWx0LCBtb2QpOw0KICAgICAgICByZXR1cm4gcmVzdWx0Ow0KICAgIH07DQp9KSgpOw0KZGVmaW5lKFsicmVxdWlyZSIsICJleHBvcnRzIl0sIGZ1bmN0aW9uIChyZXF1aXJlLCBleHBvcnRzKSB7DQogICAgInVzZSBzdHJpY3QiOw0KICAgIC8vIFdlIHVzZSBQcm9taXNlPGFueT4gZm9yIG5vdyBhcyB0aGVyZSBpcyBubyB3YXkgdG8gc3BlY2lmeSBzaGFwZSBvZiBtb2R1bGUgb2JqZWN0DQogICAgZnVuY3Rpb24gZm9vKHgpIHsNCiAgICAgICAgeC50aGVuKHZhbHVlID0+IHsNCiAgICAgICAgICAgIGxldCBiID0gbmV3IHZhbHVlLkIoKTsNCiAgICAgICAgICAgIGIucHJpbnQoKTsNCiAgICAgICAgfSk7DQogICAgfQ0KICAgIGZvbyhuZXcgUHJvbWlzZSgocmVzb2x2ZV8xLCByZWplY3RfMSkgPT4geyByZXF1aXJlKFsiLi8wIl0sIHJlc29sdmVfMSwgcmVqZWN0XzEpOyB9KS50aGVuKF9faW1wb3J0U3RhcikpOw0KfSk7DQo=",
+              "callback_utf8_sha256": "b6e9c181873e8c52d16c6767ff8e25568a1ad33f7f87a4427ffaf3773341fd85",
+              "callback_utf8_bytes": 1808,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "b6e9c181873e8c52d16c6767ff8e25568a1ad33f7f87a4427ffaf3773341fd85",
+              "materialized_utf8_bytes": 1808,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/2.ts"
+              ]
+            }
+          ],
+          "reported_diagnostics": [
+            {
+              "code": 5107,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Option 'module=AMD' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error."
+            }
+          ],
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 2,
+          "run_fingerprint_sha256": "7d7869af0539a4d515ff6b8f10d525dc37b08de2a83b87443c5fa4d56e3f63cd"
+        },
+        {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/.src/0.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "ZGVmaW5lKFsicmVxdWlyZSIsICJleHBvcnRzIl0sIGZ1bmN0aW9uIChyZXF1aXJlLCBleHBvcnRzKSB7DQogICAgInVzZSBzdHJpY3QiOw0KICAgIE9iamVjdC5kZWZpbmVQcm9wZXJ0eShleHBvcnRzLCAiX19lc01vZHVsZSIsIHsgdmFsdWU6IHRydWUgfSk7DQogICAgZXhwb3J0cy5CID0gdm9pZCAwOw0KICAgIGNsYXNzIEIgew0KICAgICAgICBwcmludCgpIHsgcmV0dXJuICJJIGFtIEIiOyB9DQogICAgfQ0KICAgIGV4cG9ydHMuQiA9IEI7DQp9KTsNCg==",
+              "callback_utf8_sha256": "8a09085900b7fb12e72cc1d4eb4fff8fe262134eb7535e92d4261327978b377d",
+              "callback_utf8_bytes": 259,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "8a09085900b7fb12e72cc1d4eb4fff8fe262134eb7535e92d4261327978b377d",
+              "materialized_utf8_bytes": 259,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/0.ts"
+              ]
+            },
+            {
+              "index": 1,
+              "path": "/.src/2.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "dmFyIF9fY3JlYXRlQmluZGluZyA9ICh0aGlzICYmIHRoaXMuX19jcmVhdGVCaW5kaW5nKSB8fCAoT2JqZWN0LmNyZWF0ZSA/IChmdW5jdGlvbihvLCBtLCBrLCBrMikgew0KICAgIGlmIChrMiA9PT0gdW5kZWZpbmVkKSBrMiA9IGs7DQogICAgdmFyIGRlc2MgPSBPYmplY3QuZ2V0T3duUHJvcGVydHlEZXNjcmlwdG9yKG0sIGspOw0KICAgIGlmICghZGVzYyB8fCAoImdldCIgaW4gZGVzYyA/ICFtLl9fZXNNb2R1bGUgOiBkZXNjLndyaXRhYmxlIHx8IGRlc2MuY29uZmlndXJhYmxlKSkgew0KICAgICAgZGVzYyA9IHsgZW51bWVyYWJsZTogdHJ1ZSwgZ2V0OiBmdW5jdGlvbigpIHsgcmV0dXJuIG1ba107IH0gfTsNCiAgICB9DQogICAgT2JqZWN0LmRlZmluZVByb3BlcnR5KG8sIGsyLCBkZXNjKTsNCn0pIDogKGZ1bmN0aW9uKG8sIG0sIGssIGsyKSB7DQogICAgaWYgKGsyID09PSB1bmRlZmluZWQpIGsyID0gazsNCiAgICBvW2syXSA9IG1ba107DQp9KSk7DQp2YXIgX19zZXRNb2R1bGVEZWZhdWx0ID0gKHRoaXMgJiYgdGhpcy5fX3NldE1vZHVsZURlZmF1bHQpIHx8IChPYmplY3QuY3JlYXRlID8gKGZ1bmN0aW9uKG8sIHYpIHsNCiAgICBPYmplY3QuZGVmaW5lUHJvcGVydHkobywgImRlZmF1bHQiLCB7IGVudW1lcmFibGU6IHRydWUsIHZhbHVlOiB2IH0pOw0KfSkgOiBmdW5jdGlvbihvLCB2KSB7DQogICAgb1siZGVmYXVsdCJdID0gdjsNCn0pOw0KdmFyIF9faW1wb3J0U3RhciA9ICh0aGlzICYmIHRoaXMuX19pbXBvcnRTdGFyKSB8fCAoZnVuY3Rpb24gKCkgew0KICAgIHZhciBvd25LZXlzID0gZnVuY3Rpb24obykgew0KICAgICAgICBvd25LZXlzID0gT2JqZWN0LmdldE93blByb3BlcnR5TmFtZXMgfHwgZnVuY3Rpb24gKG8pIHsNCiAgICAgICAgICAgIHZhciBhciA9IFtdOw0KICAgICAgICAgICAgZm9yICh2YXIgayBpbiBvKSBpZiAoT2JqZWN0LnByb3RvdHlwZS5oYXNPd25Qcm9wZXJ0eS5jYWxsKG8sIGspKSBhclthci5sZW5ndGhdID0gazsNCiAgICAgICAgICAgIHJldHVybiBhcjsNCiAgICAgICAgfTsNCiAgICAgICAgcmV0dXJuIG93bktleXMobyk7DQogICAgfTsNCiAgICByZXR1cm4gZnVuY3Rpb24gKG1vZCkgew0KICAgICAgICBpZiAobW9kICYmIG1vZC5fX2VzTW9kdWxlKSByZXR1cm4gbW9kOw0KICAgICAgICB2YXIgcmVzdWx0ID0ge307DQogICAgICAgIGlmIChtb2QgIT0gbnVsbCkgZm9yICh2YXIgayA9IG93bktleXMobW9kKSwgaSA9IDA7IGkgPCBrLmxlbmd0aDsgaSsrKSBpZiAoa1tpXSAhPT0gImRlZmF1bHQiKSBfX2NyZWF0ZUJpbmRpbmcocmVzdWx0LCBtb2QsIGtbaV0pOw0KICAgICAgICBfX3NldE1vZHVsZURlZmF1bHQocmVzdWx0LCBtb2QpOw0KICAgICAgICByZXR1cm4gcmVzdWx0Ow0KICAgIH07DQp9KSgpOw0KZGVmaW5lKFsicmVxdWlyZSIsICJleHBvcnRzIl0sIGZ1bmN0aW9uIChyZXF1aXJlLCBleHBvcnRzKSB7DQogICAgInVzZSBzdHJpY3QiOw0KICAgIC8vIFdlIHVzZSBQcm9taXNlPGFueT4gZm9yIG5vdyBhcyB0aGVyZSBpcyBubyB3YXkgdG8gc3BlY2lmeSBzaGFwZSBvZiBtb2R1bGUgb2JqZWN0DQogICAgZnVuY3Rpb24gZm9vKHgpIHsNCiAgICAgICAgeC50aGVuKHZhbHVlID0+IHsNCiAgICAgICAgICAgIGxldCBiID0gbmV3IHZhbHVlLkIoKTsNCiAgICAgICAgICAgIGIucHJpbnQoKTsNCiAgICAgICAgfSk7DQogICAgfQ0KICAgIGZvbyhuZXcgUHJvbWlzZSgocmVzb2x2ZV8xLCByZWplY3RfMSkgPT4geyByZXF1aXJlKFsiLi8wIl0sIHJlc29sdmVfMSwgcmVqZWN0XzEpOyB9KS50aGVuKF9faW1wb3J0U3RhcikpOw0KfSk7DQo=",
+              "callback_utf8_sha256": "b6e9c181873e8c52d16c6767ff8e25568a1ad33f7f87a4427ffaf3773341fd85",
+              "callback_utf8_bytes": 1808,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "b6e9c181873e8c52d16c6767ff8e25568a1ad33f7f87a4427ffaf3773341fd85",
+              "materialized_utf8_bytes": 1808,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/2.ts"
+              ]
+            }
+          ],
+          "reported_diagnostics": [
+            {
+              "code": 5107,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Option 'module=AMD' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error."
+            }
+          ],
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 2,
+          "run_fingerprint_sha256": "7d7869af0539a4d515ff6b8f10d525dc37b08de2a83b87443c5fa4d56e3f63cd"
+        }
+      ],
+      "rust_expectation": "two-deterministic-exact-runs",
+      "case_fingerprint_sha256": "ca39bf9378c8ed1559f75aac0ea2f229c85430d2344374b21243fe31ec8700f1"
+    },
+    {
+      "suite": "conformance",
+      "case_id": "typescript-6.0.3/conformance/dynamicImport/importCallExpressionInAMD3.ts#default",
+      "expansion_case": 1225,
+      "source": {
+        "path": "dynamicImport/importCallExpressionInAMD3.ts",
+        "bytes": 254,
+        "sha256": "a8e2e992c01e6dc68926ed65d1e20314f92c35940faeb58b08b88b7edcd74205",
+        "git_blob_sha1": "a2b287b4d9590e5c0333b094c1957aa1b76e16be"
+      },
+      "module_state": "AMD(2)",
+      "input": {
+        "current_directory": "/.src",
+        "roots": [
+          "/.src/0.ts",
+          "/.src/2.ts"
+        ],
+        "settings": [
+          {
+            "name": "module",
+            "value": "amd"
+          },
+          {
+            "name": "target",
+            "value": "esnext"
+          },
+          {
+            "name": "filename",
+            "value": "2.ts"
+          }
+        ],
+        "virtual_config": null,
+        "files": [
+          {
+            "unit": 0,
+            "path": "/.src/0.ts",
+            "utf8_base64": "ZXhwb3J0IGNsYXNzIEIgewogICAgcHJpbnQoKSB7IHJldHVybiAiSSBhbSBCIn0KfQo=",
+            "utf8_sha256": "3b56dfe62d62893f196cc455483054fd6b03084a5a230aa0370bedf31915c67c",
+            "utf8_bytes": 50
+          },
+          {
+            "unit": 1,
+            "path": "/.src/2.ts",
+            "utf8_base64": "YXN5bmMgZnVuY3Rpb24gZm9vKCkgewogICAgY2xhc3MgQyBleHRlbmRzIChhd2FpdCBpbXBvcnQoIi4vMCIpKS5CIHt9CiAgICB2YXIgYyA9IG5ldyBDKCk7CiAgICBjLnByaW50KCk7Cn0KZm9vKCk7",
+            "utf8_sha256": "5fb2424075e5c23eedf5b0839d445746bbf1423733d775aa5e782fa747b43552",
+            "utf8_bytes": 114
+          }
+        ]
+      },
+      "files": [
+        {
+          "unit": 0,
+          "path": "/.src/0.ts",
+          "script_kind": "TS",
+          "declaration_file": false,
+          "emit_eligible": true,
+          "implied_module_format": "None",
+          "emit_module_format": 2,
+          "feature_roots": [],
+          "parse_diagnostic_codes": [],
+          "max_ast_depth": 6,
+          "import_attributes": false,
+          "advanced_comment_placement": false,
+          "text_sha256": "3b56dfe62d62893f196cc455483054fd6b03084a5a230aa0370bedf31915c67c"
+        },
+        {
+          "unit": 1,
+          "path": "/.src/2.ts",
+          "script_kind": "TS",
+          "declaration_file": false,
+          "emit_eligible": true,
+          "implied_module_format": "None",
+          "emit_module_format": 2,
+          "feature_roots": [],
+          "parse_diagnostic_codes": [],
+          "max_ast_depth": 11,
+          "import_attributes": false,
+          "advanced_comment_placement": false,
+          "text_sha256": "5fb2424075e5c23eedf5b0839d445746bbf1423733d775aa5e782fa747b43552"
+        }
+      ],
+      "owner_reachability": [
+        "transform-module"
+      ],
+      "disposition": "admitted-for-execution",
+      "required_slices": [],
+      "diagnostic_disposition": {
+        "state": "exact-required"
+      },
+      "typescript_runs": [
+        {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/.src/0.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "ZGVmaW5lKFsicmVxdWlyZSIsICJleHBvcnRzIl0sIGZ1bmN0aW9uIChyZXF1aXJlLCBleHBvcnRzKSB7DQogICAgInVzZSBzdHJpY3QiOw0KICAgIE9iamVjdC5kZWZpbmVQcm9wZXJ0eShleHBvcnRzLCAiX19lc01vZHVsZSIsIHsgdmFsdWU6IHRydWUgfSk7DQogICAgZXhwb3J0cy5CID0gdm9pZCAwOw0KICAgIGNsYXNzIEIgew0KICAgICAgICBwcmludCgpIHsgcmV0dXJuICJJIGFtIEIiOyB9DQogICAgfQ0KICAgIGV4cG9ydHMuQiA9IEI7DQp9KTsNCg==",
+              "callback_utf8_sha256": "8a09085900b7fb12e72cc1d4eb4fff8fe262134eb7535e92d4261327978b377d",
+              "callback_utf8_bytes": 259,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "8a09085900b7fb12e72cc1d4eb4fff8fe262134eb7535e92d4261327978b377d",
+              "materialized_utf8_bytes": 259,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/0.ts"
+              ]
+            },
+            {
+              "index": 1,
+              "path": "/.src/2.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "dmFyIF9fY3JlYXRlQmluZGluZyA9ICh0aGlzICYmIHRoaXMuX19jcmVhdGVCaW5kaW5nKSB8fCAoT2JqZWN0LmNyZWF0ZSA/IChmdW5jdGlvbihvLCBtLCBrLCBrMikgew0KICAgIGlmIChrMiA9PT0gdW5kZWZpbmVkKSBrMiA9IGs7DQogICAgdmFyIGRlc2MgPSBPYmplY3QuZ2V0T3duUHJvcGVydHlEZXNjcmlwdG9yKG0sIGspOw0KICAgIGlmICghZGVzYyB8fCAoImdldCIgaW4gZGVzYyA/ICFtLl9fZXNNb2R1bGUgOiBkZXNjLndyaXRhYmxlIHx8IGRlc2MuY29uZmlndXJhYmxlKSkgew0KICAgICAgZGVzYyA9IHsgZW51bWVyYWJsZTogdHJ1ZSwgZ2V0OiBmdW5jdGlvbigpIHsgcmV0dXJuIG1ba107IH0gfTsNCiAgICB9DQogICAgT2JqZWN0LmRlZmluZVByb3BlcnR5KG8sIGsyLCBkZXNjKTsNCn0pIDogKGZ1bmN0aW9uKG8sIG0sIGssIGsyKSB7DQogICAgaWYgKGsyID09PSB1bmRlZmluZWQpIGsyID0gazsNCiAgICBvW2syXSA9IG1ba107DQp9KSk7DQp2YXIgX19zZXRNb2R1bGVEZWZhdWx0ID0gKHRoaXMgJiYgdGhpcy5fX3NldE1vZHVsZURlZmF1bHQpIHx8IChPYmplY3QuY3JlYXRlID8gKGZ1bmN0aW9uKG8sIHYpIHsNCiAgICBPYmplY3QuZGVmaW5lUHJvcGVydHkobywgImRlZmF1bHQiLCB7IGVudW1lcmFibGU6IHRydWUsIHZhbHVlOiB2IH0pOw0KfSkgOiBmdW5jdGlvbihvLCB2KSB7DQogICAgb1siZGVmYXVsdCJdID0gdjsNCn0pOw0KdmFyIF9faW1wb3J0U3RhciA9ICh0aGlzICYmIHRoaXMuX19pbXBvcnRTdGFyKSB8fCAoZnVuY3Rpb24gKCkgew0KICAgIHZhciBvd25LZXlzID0gZnVuY3Rpb24obykgew0KICAgICAgICBvd25LZXlzID0gT2JqZWN0LmdldE93blByb3BlcnR5TmFtZXMgfHwgZnVuY3Rpb24gKG8pIHsNCiAgICAgICAgICAgIHZhciBhciA9IFtdOw0KICAgICAgICAgICAgZm9yICh2YXIgayBpbiBvKSBpZiAoT2JqZWN0LnByb3RvdHlwZS5oYXNPd25Qcm9wZXJ0eS5jYWxsKG8sIGspKSBhclthci5sZW5ndGhdID0gazsNCiAgICAgICAgICAgIHJldHVybiBhcjsNCiAgICAgICAgfTsNCiAgICAgICAgcmV0dXJuIG93bktleXMobyk7DQogICAgfTsNCiAgICByZXR1cm4gZnVuY3Rpb24gKG1vZCkgew0KICAgICAgICBpZiAobW9kICYmIG1vZC5fX2VzTW9kdWxlKSByZXR1cm4gbW9kOw0KICAgICAgICB2YXIgcmVzdWx0ID0ge307DQogICAgICAgIGlmIChtb2QgIT0gbnVsbCkgZm9yICh2YXIgayA9IG93bktleXMobW9kKSwgaSA9IDA7IGkgPCBrLmxlbmd0aDsgaSsrKSBpZiAoa1tpXSAhPT0gImRlZmF1bHQiKSBfX2NyZWF0ZUJpbmRpbmcocmVzdWx0LCBtb2QsIGtbaV0pOw0KICAgICAgICBfX3NldE1vZHVsZURlZmF1bHQocmVzdWx0LCBtb2QpOw0KICAgICAgICByZXR1cm4gcmVzdWx0Ow0KICAgIH07DQp9KSgpOw0KZGVmaW5lKFsicmVxdWlyZSIsICJleHBvcnRzIl0sIGZ1bmN0aW9uIChyZXF1aXJlLCBleHBvcnRzKSB7DQogICAgInVzZSBzdHJpY3QiOw0KICAgIGFzeW5jIGZ1bmN0aW9uIGZvbygpIHsNCiAgICAgICAgY2xhc3MgQyBleHRlbmRzIChhd2FpdCBuZXcgUHJvbWlzZSgocmVzb2x2ZV8xLCByZWplY3RfMSkgPT4geyByZXF1aXJlKFsiLi8wIl0sIHJlc29sdmVfMSwgcmVqZWN0XzEpOyB9KS50aGVuKF9faW1wb3J0U3RhcikpLkIgew0KICAgICAgICB9DQogICAgICAgIHZhciBjID0gbmV3IEMoKTsNCiAgICAgICAgYy5wcmludCgpOw0KICAgIH0NCiAgICBmb28oKTsNCn0pOw0K",
+              "callback_utf8_sha256": "240e63b43ea57f1c6a060d721dad34ec3c32eff3f3b4a5f7de258588d66a26cc",
+              "callback_utf8_bytes": 1719,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "240e63b43ea57f1c6a060d721dad34ec3c32eff3f3b4a5f7de258588d66a26cc",
+              "materialized_utf8_bytes": 1719,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/2.ts"
+              ]
+            }
+          ],
+          "reported_diagnostics": [
+            {
+              "code": 5107,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Option 'module=AMD' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error."
+            }
+          ],
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 2,
+          "run_fingerprint_sha256": "bbd390238644b6ff24b48e8a104b44a89488921fed619f72e44bb98fa0fa41e6"
+        },
+        {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/.src/0.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "ZGVmaW5lKFsicmVxdWlyZSIsICJleHBvcnRzIl0sIGZ1bmN0aW9uIChyZXF1aXJlLCBleHBvcnRzKSB7DQogICAgInVzZSBzdHJpY3QiOw0KICAgIE9iamVjdC5kZWZpbmVQcm9wZXJ0eShleHBvcnRzLCAiX19lc01vZHVsZSIsIHsgdmFsdWU6IHRydWUgfSk7DQogICAgZXhwb3J0cy5CID0gdm9pZCAwOw0KICAgIGNsYXNzIEIgew0KICAgICAgICBwcmludCgpIHsgcmV0dXJuICJJIGFtIEIiOyB9DQogICAgfQ0KICAgIGV4cG9ydHMuQiA9IEI7DQp9KTsNCg==",
+              "callback_utf8_sha256": "8a09085900b7fb12e72cc1d4eb4fff8fe262134eb7535e92d4261327978b377d",
+              "callback_utf8_bytes": 259,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "8a09085900b7fb12e72cc1d4eb4fff8fe262134eb7535e92d4261327978b377d",
+              "materialized_utf8_bytes": 259,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/0.ts"
+              ]
+            },
+            {
+              "index": 1,
+              "path": "/.src/2.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "dmFyIF9fY3JlYXRlQmluZGluZyA9ICh0aGlzICYmIHRoaXMuX19jcmVhdGVCaW5kaW5nKSB8fCAoT2JqZWN0LmNyZWF0ZSA/IChmdW5jdGlvbihvLCBtLCBrLCBrMikgew0KICAgIGlmIChrMiA9PT0gdW5kZWZpbmVkKSBrMiA9IGs7DQogICAgdmFyIGRlc2MgPSBPYmplY3QuZ2V0T3duUHJvcGVydHlEZXNjcmlwdG9yKG0sIGspOw0KICAgIGlmICghZGVzYyB8fCAoImdldCIgaW4gZGVzYyA/ICFtLl9fZXNNb2R1bGUgOiBkZXNjLndyaXRhYmxlIHx8IGRlc2MuY29uZmlndXJhYmxlKSkgew0KICAgICAgZGVzYyA9IHsgZW51bWVyYWJsZTogdHJ1ZSwgZ2V0OiBmdW5jdGlvbigpIHsgcmV0dXJuIG1ba107IH0gfTsNCiAgICB9DQogICAgT2JqZWN0LmRlZmluZVByb3BlcnR5KG8sIGsyLCBkZXNjKTsNCn0pIDogKGZ1bmN0aW9uKG8sIG0sIGssIGsyKSB7DQogICAgaWYgKGsyID09PSB1bmRlZmluZWQpIGsyID0gazsNCiAgICBvW2syXSA9IG1ba107DQp9KSk7DQp2YXIgX19zZXRNb2R1bGVEZWZhdWx0ID0gKHRoaXMgJiYgdGhpcy5fX3NldE1vZHVsZURlZmF1bHQpIHx8IChPYmplY3QuY3JlYXRlID8gKGZ1bmN0aW9uKG8sIHYpIHsNCiAgICBPYmplY3QuZGVmaW5lUHJvcGVydHkobywgImRlZmF1bHQiLCB7IGVudW1lcmFibGU6IHRydWUsIHZhbHVlOiB2IH0pOw0KfSkgOiBmdW5jdGlvbihvLCB2KSB7DQogICAgb1siZGVmYXVsdCJdID0gdjsNCn0pOw0KdmFyIF9faW1wb3J0U3RhciA9ICh0aGlzICYmIHRoaXMuX19pbXBvcnRTdGFyKSB8fCAoZnVuY3Rpb24gKCkgew0KICAgIHZhciBvd25LZXlzID0gZnVuY3Rpb24obykgew0KICAgICAgICBvd25LZXlzID0gT2JqZWN0LmdldE93blByb3BlcnR5TmFtZXMgfHwgZnVuY3Rpb24gKG8pIHsNCiAgICAgICAgICAgIHZhciBhciA9IFtdOw0KICAgICAgICAgICAgZm9yICh2YXIgayBpbiBvKSBpZiAoT2JqZWN0LnByb3RvdHlwZS5oYXNPd25Qcm9wZXJ0eS5jYWxsKG8sIGspKSBhclthci5sZW5ndGhdID0gazsNCiAgICAgICAgICAgIHJldHVybiBhcjsNCiAgICAgICAgfTsNCiAgICAgICAgcmV0dXJuIG93bktleXMobyk7DQogICAgfTsNCiAgICByZXR1cm4gZnVuY3Rpb24gKG1vZCkgew0KICAgICAgICBpZiAobW9kICYmIG1vZC5fX2VzTW9kdWxlKSByZXR1cm4gbW9kOw0KICAgICAgICB2YXIgcmVzdWx0ID0ge307DQogICAgICAgIGlmIChtb2QgIT0gbnVsbCkgZm9yICh2YXIgayA9IG93bktleXMobW9kKSwgaSA9IDA7IGkgPCBrLmxlbmd0aDsgaSsrKSBpZiAoa1tpXSAhPT0gImRlZmF1bHQiKSBfX2NyZWF0ZUJpbmRpbmcocmVzdWx0LCBtb2QsIGtbaV0pOw0KICAgICAgICBfX3NldE1vZHVsZURlZmF1bHQocmVzdWx0LCBtb2QpOw0KICAgICAgICByZXR1cm4gcmVzdWx0Ow0KICAgIH07DQp9KSgpOw0KZGVmaW5lKFsicmVxdWlyZSIsICJleHBvcnRzIl0sIGZ1bmN0aW9uIChyZXF1aXJlLCBleHBvcnRzKSB7DQogICAgInVzZSBzdHJpY3QiOw0KICAgIGFzeW5jIGZ1bmN0aW9uIGZvbygpIHsNCiAgICAgICAgY2xhc3MgQyBleHRlbmRzIChhd2FpdCBuZXcgUHJvbWlzZSgocmVzb2x2ZV8xLCByZWplY3RfMSkgPT4geyByZXF1aXJlKFsiLi8wIl0sIHJlc29sdmVfMSwgcmVqZWN0XzEpOyB9KS50aGVuKF9faW1wb3J0U3RhcikpLkIgew0KICAgICAgICB9DQogICAgICAgIHZhciBjID0gbmV3IEMoKTsNCiAgICAgICAgYy5wcmludCgpOw0KICAgIH0NCiAgICBmb28oKTsNCn0pOw0K",
+              "callback_utf8_sha256": "240e63b43ea57f1c6a060d721dad34ec3c32eff3f3b4a5f7de258588d66a26cc",
+              "callback_utf8_bytes": 1719,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "240e63b43ea57f1c6a060d721dad34ec3c32eff3f3b4a5f7de258588d66a26cc",
+              "materialized_utf8_bytes": 1719,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/2.ts"
+              ]
+            }
+          ],
+          "reported_diagnostics": [
+            {
+              "code": 5107,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Option 'module=AMD' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error."
+            }
+          ],
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 2,
+          "run_fingerprint_sha256": "bbd390238644b6ff24b48e8a104b44a89488921fed619f72e44bb98fa0fa41e6"
+        }
+      ],
+      "rust_expectation": "two-deterministic-exact-runs",
+      "case_fingerprint_sha256": "54cbf07e8ae9b861c6da15c238fac9d7bda53e66c96270bf57b913ac33e146da"
+    },
+    {
+      "suite": "conformance",
+      "case_id": "typescript-6.0.3/conformance/dynamicImport/importCallExpressionInExportEqualsAMD.ts#default",
+      "expansion_case": 1232,
+      "source": {
+        "path": "dynamicImport/importCallExpressionInExportEqualsAMD.ts",
+        "bytes": 188,
+        "sha256": "d03be729b2a46bf619ebfd4aa57de5ec1cb06203ff8aae6e61a0465f003a506b",
+        "git_blob_sha1": "77f348bd3fa11f0c3ae5f1d850534d071485e68a"
+      },
+      "module_state": "AMD(2)",
+      "input": {
+        "current_directory": "/.src",
+        "roots": [
+          "/.src/something.ts",
+          "/.src/index.ts"
+        ],
+        "settings": [
+          {
+            "name": "module",
+            "value": "amd"
+          },
+          {
+            "name": "target",
+            "value": "esnext"
+          },
+          {
+            "name": "filename",
+            "value": "index.ts"
+          }
+        ],
+        "virtual_config": null,
+        "files": [
+          {
+            "unit": 0,
+            "path": "/.src/something.ts",
+            "utf8_base64": "ZXhwb3J0ID0gNDI7Cg==",
+            "utf8_sha256": "e1ca82f7bf32ca37a2d54fb76b8c73b68dc734183deb5507503fd0d3c7153ccf",
+            "utf8_bytes": 13
+          },
+          {
+            "unit": 1,
+            "path": "/.src/index.ts",
+            "utf8_base64": "ZXhwb3J0ID0gYXN5bmMgZnVuY3Rpb24oKSB7CiAgICBjb25zdCBzb21ldGhpbmcgPSBhd2FpdCBpbXBvcnQoIi4vc29tZXRoaW5nIik7Cn07",
+            "utf8_sha256": "6edb8424544c98afba321df6a0f72a0e6aecafbb6aa9d0f17636dabed082941e",
+            "utf8_bytes": 81
+          }
+        ]
+      },
+      "files": [
+        {
+          "unit": 0,
+          "path": "/.src/something.ts",
+          "script_kind": "TS",
+          "declaration_file": false,
+          "emit_eligible": true,
+          "implied_module_format": "None",
+          "emit_module_format": 2,
+          "feature_roots": [
+            {
+              "feature": "export-equals",
+              "start": 0,
+              "end": 12,
+              "kind": "ExportAssignment"
+            }
+          ],
+          "parse_diagnostic_codes": [],
+          "max_ast_depth": 3,
+          "import_attributes": false,
+          "advanced_comment_placement": false,
+          "text_sha256": "e1ca82f7bf32ca37a2d54fb76b8c73b68dc734183deb5507503fd0d3c7153ccf"
+        },
+        {
+          "unit": 1,
+          "path": "/.src/index.ts",
+          "script_kind": "TS",
+          "declaration_file": false,
+          "emit_eligible": true,
+          "implied_module_format": "None",
+          "emit_module_format": 2,
+          "feature_roots": [
+            {
+              "feature": "export-equals",
+              "start": 0,
+              "end": 81,
+              "kind": "ExportAssignment"
+            }
+          ],
+          "parse_diagnostic_codes": [],
+          "max_ast_depth": 10,
+          "import_attributes": false,
+          "advanced_comment_placement": false,
+          "text_sha256": "6edb8424544c98afba321df6a0f72a0e6aecafbb6aa9d0f17636dabed082941e"
+        }
+      ],
+      "owner_reachability": [
+        "transform-module"
+      ],
+      "disposition": "deferred-to-slices",
+      "required_slices": [
+        "H2.2d"
+      ],
+      "diagnostic_disposition": {
+        "state": "not-observed-source-deferred"
+      },
+      "typescript_runs": [
+        {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/.src/something.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "ZGVmaW5lKFsicmVxdWlyZSIsICJleHBvcnRzIl0sIGZ1bmN0aW9uIChyZXF1aXJlLCBleHBvcnRzKSB7DQogICAgInVzZSBzdHJpY3QiOw0KICAgIHJldHVybiA0MjsNCn0pOw0K",
+              "callback_utf8_sha256": "1f34bb007e264e77983c8403c4bd44403bd53e1d47499cc513f4103eb75ac6e6",
+              "callback_utf8_bytes": 102,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "1f34bb007e264e77983c8403c4bd44403bd53e1d47499cc513f4103eb75ac6e6",
+              "materialized_utf8_bytes": 102,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/something.ts"
+              ]
+            },
+            {
+              "index": 1,
+              "path": "/.src/index.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "dmFyIF9fY3JlYXRlQmluZGluZyA9ICh0aGlzICYmIHRoaXMuX19jcmVhdGVCaW5kaW5nKSB8fCAoT2JqZWN0LmNyZWF0ZSA/IChmdW5jdGlvbihvLCBtLCBrLCBrMikgew0KICAgIGlmIChrMiA9PT0gdW5kZWZpbmVkKSBrMiA9IGs7DQogICAgdmFyIGRlc2MgPSBPYmplY3QuZ2V0T3duUHJvcGVydHlEZXNjcmlwdG9yKG0sIGspOw0KICAgIGlmICghZGVzYyB8fCAoImdldCIgaW4gZGVzYyA/ICFtLl9fZXNNb2R1bGUgOiBkZXNjLndyaXRhYmxlIHx8IGRlc2MuY29uZmlndXJhYmxlKSkgew0KICAgICAgZGVzYyA9IHsgZW51bWVyYWJsZTogdHJ1ZSwgZ2V0OiBmdW5jdGlvbigpIHsgcmV0dXJuIG1ba107IH0gfTsNCiAgICB9DQogICAgT2JqZWN0LmRlZmluZVByb3BlcnR5KG8sIGsyLCBkZXNjKTsNCn0pIDogKGZ1bmN0aW9uKG8sIG0sIGssIGsyKSB7DQogICAgaWYgKGsyID09PSB1bmRlZmluZWQpIGsyID0gazsNCiAgICBvW2syXSA9IG1ba107DQp9KSk7DQp2YXIgX19zZXRNb2R1bGVEZWZhdWx0ID0gKHRoaXMgJiYgdGhpcy5fX3NldE1vZHVsZURlZmF1bHQpIHx8IChPYmplY3QuY3JlYXRlID8gKGZ1bmN0aW9uKG8sIHYpIHsNCiAgICBPYmplY3QuZGVmaW5lUHJvcGVydHkobywgImRlZmF1bHQiLCB7IGVudW1lcmFibGU6IHRydWUsIHZhbHVlOiB2IH0pOw0KfSkgOiBmdW5jdGlvbihvLCB2KSB7DQogICAgb1siZGVmYXVsdCJdID0gdjsNCn0pOw0KdmFyIF9faW1wb3J0U3RhciA9ICh0aGlzICYmIHRoaXMuX19pbXBvcnRTdGFyKSB8fCAoZnVuY3Rpb24gKCkgew0KICAgIHZhciBvd25LZXlzID0gZnVuY3Rpb24obykgew0KICAgICAgICBvd25LZXlzID0gT2JqZWN0LmdldE93blByb3BlcnR5TmFtZXMgfHwgZnVuY3Rpb24gKG8pIHsNCiAgICAgICAgICAgIHZhciBhciA9IFtdOw0KICAgICAgICAgICAgZm9yICh2YXIgayBpbiBvKSBpZiAoT2JqZWN0LnByb3RvdHlwZS5oYXNPd25Qcm9wZXJ0eS5jYWxsKG8sIGspKSBhclthci5sZW5ndGhdID0gazsNCiAgICAgICAgICAgIHJldHVybiBhcjsNCiAgICAgICAgfTsNCiAgICAgICAgcmV0dXJuIG93bktleXMobyk7DQogICAgfTsNCiAgICByZXR1cm4gZnVuY3Rpb24gKG1vZCkgew0KICAgICAgICBpZiAobW9kICYmIG1vZC5fX2VzTW9kdWxlKSByZXR1cm4gbW9kOw0KICAgICAgICB2YXIgcmVzdWx0ID0ge307DQogICAgICAgIGlmIChtb2QgIT0gbnVsbCkgZm9yICh2YXIgayA9IG93bktleXMobW9kKSwgaSA9IDA7IGkgPCBrLmxlbmd0aDsgaSsrKSBpZiAoa1tpXSAhPT0gImRlZmF1bHQiKSBfX2NyZWF0ZUJpbmRpbmcocmVzdWx0LCBtb2QsIGtbaV0pOw0KICAgICAgICBfX3NldE1vZHVsZURlZmF1bHQocmVzdWx0LCBtb2QpOw0KICAgICAgICByZXR1cm4gcmVzdWx0Ow0KICAgIH07DQp9KSgpOw0KZGVmaW5lKFsicmVxdWlyZSIsICJleHBvcnRzIl0sIGZ1bmN0aW9uIChyZXF1aXJlLCBleHBvcnRzKSB7DQogICAgInVzZSBzdHJpY3QiOw0KICAgIHJldHVybiBhc3luYyBmdW5jdGlvbiAoKSB7DQogICAgICAgIGNvbnN0IHNvbWV0aGluZyA9IGF3YWl0IG5ldyBQcm9taXNlKChyZXNvbHZlXzEsIHJlamVjdF8xKSA9PiB7IHJlcXVpcmUoWyIuL3NvbWV0aGluZyJdLCByZXNvbHZlXzEsIHJlamVjdF8xKTsgfSkudGhlbihfX2ltcG9ydFN0YXIpOw0KICAgIH07DQp9KTsNCg==",
+              "callback_utf8_sha256": "87c435ea66cfb29e349e4a72d06da07704424442f42081fc6713bfd790414cf5",
+              "callback_utf8_bytes": 1660,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "87c435ea66cfb29e349e4a72d06da07704424442f42081fc6713bfd790414cf5",
+              "materialized_utf8_bytes": 1660,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/index.ts"
+              ]
+            }
+          ],
+          "reported_diagnostics": [
+            {
+              "code": 5107,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Option 'module=AMD' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error."
+            }
+          ],
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 2,
+          "run_fingerprint_sha256": "1795af16f9f282a0c23e93a47b16b24eefbe9b6ca22e4be042e5e0ab9f86b4d7"
+        },
+        {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/.src/something.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "ZGVmaW5lKFsicmVxdWlyZSIsICJleHBvcnRzIl0sIGZ1bmN0aW9uIChyZXF1aXJlLCBleHBvcnRzKSB7DQogICAgInVzZSBzdHJpY3QiOw0KICAgIHJldHVybiA0MjsNCn0pOw0K",
+              "callback_utf8_sha256": "1f34bb007e264e77983c8403c4bd44403bd53e1d47499cc513f4103eb75ac6e6",
+              "callback_utf8_bytes": 102,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "1f34bb007e264e77983c8403c4bd44403bd53e1d47499cc513f4103eb75ac6e6",
+              "materialized_utf8_bytes": 102,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/something.ts"
+              ]
+            },
+            {
+              "index": 1,
+              "path": "/.src/index.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "dmFyIF9fY3JlYXRlQmluZGluZyA9ICh0aGlzICYmIHRoaXMuX19jcmVhdGVCaW5kaW5nKSB8fCAoT2JqZWN0LmNyZWF0ZSA/IChmdW5jdGlvbihvLCBtLCBrLCBrMikgew0KICAgIGlmIChrMiA9PT0gdW5kZWZpbmVkKSBrMiA9IGs7DQogICAgdmFyIGRlc2MgPSBPYmplY3QuZ2V0T3duUHJvcGVydHlEZXNjcmlwdG9yKG0sIGspOw0KICAgIGlmICghZGVzYyB8fCAoImdldCIgaW4gZGVzYyA/ICFtLl9fZXNNb2R1bGUgOiBkZXNjLndyaXRhYmxlIHx8IGRlc2MuY29uZmlndXJhYmxlKSkgew0KICAgICAgZGVzYyA9IHsgZW51bWVyYWJsZTogdHJ1ZSwgZ2V0OiBmdW5jdGlvbigpIHsgcmV0dXJuIG1ba107IH0gfTsNCiAgICB9DQogICAgT2JqZWN0LmRlZmluZVByb3BlcnR5KG8sIGsyLCBkZXNjKTsNCn0pIDogKGZ1bmN0aW9uKG8sIG0sIGssIGsyKSB7DQogICAgaWYgKGsyID09PSB1bmRlZmluZWQpIGsyID0gazsNCiAgICBvW2syXSA9IG1ba107DQp9KSk7DQp2YXIgX19zZXRNb2R1bGVEZWZhdWx0ID0gKHRoaXMgJiYgdGhpcy5fX3NldE1vZHVsZURlZmF1bHQpIHx8IChPYmplY3QuY3JlYXRlID8gKGZ1bmN0aW9uKG8sIHYpIHsNCiAgICBPYmplY3QuZGVmaW5lUHJvcGVydHkobywgImRlZmF1bHQiLCB7IGVudW1lcmFibGU6IHRydWUsIHZhbHVlOiB2IH0pOw0KfSkgOiBmdW5jdGlvbihvLCB2KSB7DQogICAgb1siZGVmYXVsdCJdID0gdjsNCn0pOw0KdmFyIF9faW1wb3J0U3RhciA9ICh0aGlzICYmIHRoaXMuX19pbXBvcnRTdGFyKSB8fCAoZnVuY3Rpb24gKCkgew0KICAgIHZhciBvd25LZXlzID0gZnVuY3Rpb24obykgew0KICAgICAgICBvd25LZXlzID0gT2JqZWN0LmdldE93blByb3BlcnR5TmFtZXMgfHwgZnVuY3Rpb24gKG8pIHsNCiAgICAgICAgICAgIHZhciBhciA9IFtdOw0KICAgICAgICAgICAgZm9yICh2YXIgayBpbiBvKSBpZiAoT2JqZWN0LnByb3RvdHlwZS5oYXNPd25Qcm9wZXJ0eS5jYWxsKG8sIGspKSBhclthci5sZW5ndGhdID0gazsNCiAgICAgICAgICAgIHJldHVybiBhcjsNCiAgICAgICAgfTsNCiAgICAgICAgcmV0dXJuIG93bktleXMobyk7DQogICAgfTsNCiAgICByZXR1cm4gZnVuY3Rpb24gKG1vZCkgew0KICAgICAgICBpZiAobW9kICYmIG1vZC5fX2VzTW9kdWxlKSByZXR1cm4gbW9kOw0KICAgICAgICB2YXIgcmVzdWx0ID0ge307DQogICAgICAgIGlmIChtb2QgIT0gbnVsbCkgZm9yICh2YXIgayA9IG93bktleXMobW9kKSwgaSA9IDA7IGkgPCBrLmxlbmd0aDsgaSsrKSBpZiAoa1tpXSAhPT0gImRlZmF1bHQiKSBfX2NyZWF0ZUJpbmRpbmcocmVzdWx0LCBtb2QsIGtbaV0pOw0KICAgICAgICBfX3NldE1vZHVsZURlZmF1bHQocmVzdWx0LCBtb2QpOw0KICAgICAgICByZXR1cm4gcmVzdWx0Ow0KICAgIH07DQp9KSgpOw0KZGVmaW5lKFsicmVxdWlyZSIsICJleHBvcnRzIl0sIGZ1bmN0aW9uIChyZXF1aXJlLCBleHBvcnRzKSB7DQogICAgInVzZSBzdHJpY3QiOw0KICAgIHJldHVybiBhc3luYyBmdW5jdGlvbiAoKSB7DQogICAgICAgIGNvbnN0IHNvbWV0aGluZyA9IGF3YWl0IG5ldyBQcm9taXNlKChyZXNvbHZlXzEsIHJlamVjdF8xKSA9PiB7IHJlcXVpcmUoWyIuL3NvbWV0aGluZyJdLCByZXNvbHZlXzEsIHJlamVjdF8xKTsgfSkudGhlbihfX2ltcG9ydFN0YXIpOw0KICAgIH07DQp9KTsNCg==",
+              "callback_utf8_sha256": "87c435ea66cfb29e349e4a72d06da07704424442f42081fc6713bfd790414cf5",
+              "callback_utf8_bytes": 1660,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "87c435ea66cfb29e349e4a72d06da07704424442f42081fc6713bfd790414cf5",
+              "materialized_utf8_bytes": 1660,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/index.ts"
+              ]
+            }
+          ],
+          "reported_diagnostics": [
+            {
+              "code": 5107,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Option 'module=AMD' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error."
+            }
+          ],
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 2,
+          "run_fingerprint_sha256": "1795af16f9f282a0c23e93a47b16b24eefbe9b6ca22e4be042e5e0ab9f86b4d7"
+        }
+      ],
+      "rust_expectation": "typed-failure-before-first-sink-write",
+      "case_fingerprint_sha256": "55ea2947a30c9226aa55cb69dc9ec024929823b0f2feac439dc345a6d41ae5e7"
+    },
+    {
+      "suite": "conformance",
+      "case_id": "typescript-6.0.3/conformance/dynamicImport/importCallExpressionInExportEqualsUMD.ts#default",
+      "expansion_case": 1234,
+      "source": {
+        "path": "dynamicImport/importCallExpressionInExportEqualsUMD.ts",
+        "bytes": 188,
+        "sha256": "c7d2453780b128b0ca1b719119d66622b6bb3d02d3e296942ea3a50f6e57cbfa",
+        "git_blob_sha1": "fc0865914fbd0180b05532805814a5757f744c61"
+      },
+      "module_state": "UMD(3)",
+      "input": {
+        "current_directory": "/.src",
+        "roots": [
+          "/.src/something.ts",
+          "/.src/index.ts"
+        ],
+        "settings": [
+          {
+            "name": "module",
+            "value": "umd"
+          },
+          {
+            "name": "target",
+            "value": "esnext"
+          },
+          {
+            "name": "filename",
+            "value": "index.ts"
+          }
+        ],
+        "virtual_config": null,
+        "files": [
+          {
+            "unit": 0,
+            "path": "/.src/something.ts",
+            "utf8_base64": "ZXhwb3J0ID0gNDI7Cg==",
+            "utf8_sha256": "e1ca82f7bf32ca37a2d54fb76b8c73b68dc734183deb5507503fd0d3c7153ccf",
+            "utf8_bytes": 13
+          },
+          {
+            "unit": 1,
+            "path": "/.src/index.ts",
+            "utf8_base64": "ZXhwb3J0ID0gYXN5bmMgZnVuY3Rpb24oKSB7CiAgICBjb25zdCBzb21ldGhpbmcgPSBhd2FpdCBpbXBvcnQoIi4vc29tZXRoaW5nIik7Cn07",
+            "utf8_sha256": "6edb8424544c98afba321df6a0f72a0e6aecafbb6aa9d0f17636dabed082941e",
+            "utf8_bytes": 81
+          }
+        ]
+      },
+      "files": [
+        {
+          "unit": 0,
+          "path": "/.src/something.ts",
+          "script_kind": "TS",
+          "declaration_file": false,
+          "emit_eligible": true,
+          "implied_module_format": "None",
+          "emit_module_format": 3,
+          "feature_roots": [
+            {
+              "feature": "export-equals",
+              "start": 0,
+              "end": 12,
+              "kind": "ExportAssignment"
+            }
+          ],
+          "parse_diagnostic_codes": [],
+          "max_ast_depth": 3,
+          "import_attributes": false,
+          "advanced_comment_placement": false,
+          "text_sha256": "e1ca82f7bf32ca37a2d54fb76b8c73b68dc734183deb5507503fd0d3c7153ccf"
+        },
+        {
+          "unit": 1,
+          "path": "/.src/index.ts",
+          "script_kind": "TS",
+          "declaration_file": false,
+          "emit_eligible": true,
+          "implied_module_format": "None",
+          "emit_module_format": 3,
+          "feature_roots": [
+            {
+              "feature": "export-equals",
+              "start": 0,
+              "end": 81,
+              "kind": "ExportAssignment"
+            }
+          ],
+          "parse_diagnostic_codes": [],
+          "max_ast_depth": 10,
+          "import_attributes": false,
+          "advanced_comment_placement": false,
+          "text_sha256": "6edb8424544c98afba321df6a0f72a0e6aecafbb6aa9d0f17636dabed082941e"
+        }
+      ],
+      "owner_reachability": [
+        "transform-module"
+      ],
+      "disposition": "deferred-to-slices",
+      "required_slices": [
+        "H2.2d"
+      ],
+      "diagnostic_disposition": {
+        "state": "not-observed-source-deferred"
+      },
+      "typescript_runs": [
+        {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/.src/something.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "KGZ1bmN0aW9uIChmYWN0b3J5KSB7DQogICAgaWYgKHR5cGVvZiBtb2R1bGUgPT09ICJvYmplY3QiICYmIHR5cGVvZiBtb2R1bGUuZXhwb3J0cyA9PT0gIm9iamVjdCIpIHsNCiAgICAgICAgdmFyIHYgPSBmYWN0b3J5KHJlcXVpcmUsIGV4cG9ydHMpOw0KICAgICAgICBpZiAodiAhPT0gdW5kZWZpbmVkKSBtb2R1bGUuZXhwb3J0cyA9IHY7DQogICAgfQ0KICAgIGVsc2UgaWYgKHR5cGVvZiBkZWZpbmUgPT09ICJmdW5jdGlvbiIgJiYgZGVmaW5lLmFtZCkgew0KICAgICAgICBkZWZpbmUoWyJyZXF1aXJlIiwgImV4cG9ydHMiXSwgZmFjdG9yeSk7DQogICAgfQ0KfSkoZnVuY3Rpb24gKHJlcXVpcmUsIGV4cG9ydHMpIHsNCiAgICAidXNlIHN0cmljdCI7DQogICAgcmV0dXJuIDQyOw0KfSk7DQo=",
+              "callback_utf8_sha256": "e934c540d3b5e5fc6e999b4bcf8988490e69e7a53ee9f8876b6a03a077be34da",
+              "callback_utf8_bytes": 392,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "e934c540d3b5e5fc6e999b4bcf8988490e69e7a53ee9f8876b6a03a077be34da",
+              "materialized_utf8_bytes": 392,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/something.ts"
+              ]
+            },
+            {
+              "index": 1,
+              "path": "/.src/index.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "dmFyIF9fY3JlYXRlQmluZGluZyA9ICh0aGlzICYmIHRoaXMuX19jcmVhdGVCaW5kaW5nKSB8fCAoT2JqZWN0LmNyZWF0ZSA/IChmdW5jdGlvbihvLCBtLCBrLCBrMikgew0KICAgIGlmIChrMiA9PT0gdW5kZWZpbmVkKSBrMiA9IGs7DQogICAgdmFyIGRlc2MgPSBPYmplY3QuZ2V0T3duUHJvcGVydHlEZXNjcmlwdG9yKG0sIGspOw0KICAgIGlmICghZGVzYyB8fCAoImdldCIgaW4gZGVzYyA/ICFtLl9fZXNNb2R1bGUgOiBkZXNjLndyaXRhYmxlIHx8IGRlc2MuY29uZmlndXJhYmxlKSkgew0KICAgICAgZGVzYyA9IHsgZW51bWVyYWJsZTogdHJ1ZSwgZ2V0OiBmdW5jdGlvbigpIHsgcmV0dXJuIG1ba107IH0gfTsNCiAgICB9DQogICAgT2JqZWN0LmRlZmluZVByb3BlcnR5KG8sIGsyLCBkZXNjKTsNCn0pIDogKGZ1bmN0aW9uKG8sIG0sIGssIGsyKSB7DQogICAgaWYgKGsyID09PSB1bmRlZmluZWQpIGsyID0gazsNCiAgICBvW2syXSA9IG1ba107DQp9KSk7DQp2YXIgX19zZXRNb2R1bGVEZWZhdWx0ID0gKHRoaXMgJiYgdGhpcy5fX3NldE1vZHVsZURlZmF1bHQpIHx8IChPYmplY3QuY3JlYXRlID8gKGZ1bmN0aW9uKG8sIHYpIHsNCiAgICBPYmplY3QuZGVmaW5lUHJvcGVydHkobywgImRlZmF1bHQiLCB7IGVudW1lcmFibGU6IHRydWUsIHZhbHVlOiB2IH0pOw0KfSkgOiBmdW5jdGlvbihvLCB2KSB7DQogICAgb1siZGVmYXVsdCJdID0gdjsNCn0pOw0KdmFyIF9faW1wb3J0U3RhciA9ICh0aGlzICYmIHRoaXMuX19pbXBvcnRTdGFyKSB8fCAoZnVuY3Rpb24gKCkgew0KICAgIHZhciBvd25LZXlzID0gZnVuY3Rpb24obykgew0KICAgICAgICBvd25LZXlzID0gT2JqZWN0LmdldE93blByb3BlcnR5TmFtZXMgfHwgZnVuY3Rpb24gKG8pIHsNCiAgICAgICAgICAgIHZhciBhciA9IFtdOw0KICAgICAgICAgICAgZm9yICh2YXIgayBpbiBvKSBpZiAoT2JqZWN0LnByb3RvdHlwZS5oYXNPd25Qcm9wZXJ0eS5jYWxsKG8sIGspKSBhclthci5sZW5ndGhdID0gazsNCiAgICAgICAgICAgIHJldHVybiBhcjsNCiAgICAgICAgfTsNCiAgICAgICAgcmV0dXJuIG93bktleXMobyk7DQogICAgfTsNCiAgICByZXR1cm4gZnVuY3Rpb24gKG1vZCkgew0KICAgICAgICBpZiAobW9kICYmIG1vZC5fX2VzTW9kdWxlKSByZXR1cm4gbW9kOw0KICAgICAgICB2YXIgcmVzdWx0ID0ge307DQogICAgICAgIGlmIChtb2QgIT0gbnVsbCkgZm9yICh2YXIgayA9IG93bktleXMobW9kKSwgaSA9IDA7IGkgPCBrLmxlbmd0aDsgaSsrKSBpZiAoa1tpXSAhPT0gImRlZmF1bHQiKSBfX2NyZWF0ZUJpbmRpbmcocmVzdWx0LCBtb2QsIGtbaV0pOw0KICAgICAgICBfX3NldE1vZHVsZURlZmF1bHQocmVzdWx0LCBtb2QpOw0KICAgICAgICByZXR1cm4gcmVzdWx0Ow0KICAgIH07DQp9KSgpOw0KKGZ1bmN0aW9uIChmYWN0b3J5KSB7DQogICAgaWYgKHR5cGVvZiBtb2R1bGUgPT09ICJvYmplY3QiICYmIHR5cGVvZiBtb2R1bGUuZXhwb3J0cyA9PT0gIm9iamVjdCIpIHsNCiAgICAgICAgdmFyIHYgPSBmYWN0b3J5KHJlcXVpcmUsIGV4cG9ydHMpOw0KICAgICAgICBpZiAodiAhPT0gdW5kZWZpbmVkKSBtb2R1bGUuZXhwb3J0cyA9IHY7DQogICAgfQ0KICAgIGVsc2UgaWYgKHR5cGVvZiBkZWZpbmUgPT09ICJmdW5jdGlvbiIgJiYgZGVmaW5lLmFtZCkgew0KICAgICAgICBkZWZpbmUoWyJyZXF1aXJlIiwgImV4cG9ydHMiXSwgZmFjdG9yeSk7DQogICAgfQ0KfSkoZnVuY3Rpb24gKHJlcXVpcmUsIGV4cG9ydHMpIHsNCiAgICAidXNlIHN0cmljdCI7DQogICAgdmFyIF9fc3luY1JlcXVpcmUgPSB0eXBlb2YgbW9kdWxlID09PSAib2JqZWN0IiAmJiB0eXBlb2YgbW9kdWxlLmV4cG9ydHMgPT09ICJvYmplY3QiOw0KICAgIHJldHVybiBhc3luYyBmdW5jdGlvbiAoKSB7DQogICAgICAgIGNvbnN0IHNvbWV0aGluZyA9IGF3YWl0IChfX3N5bmNSZXF1aXJlID8gUHJvbWlzZS5yZXNvbHZlKCkudGhlbigoKSA9PiBfX2ltcG9ydFN0YXIocmVxdWlyZSgiLi9zb21ldGhpbmciKSkpIDogbmV3IFByb21pc2UoKHJlc29sdmVfMSwgcmVqZWN0XzEpID0+IHsgcmVxdWlyZShbIi4vc29tZXRoaW5nIl0sIHJlc29sdmVfMSwgcmVqZWN0XzEpOyB9KS50aGVuKF9faW1wb3J0U3RhcikpOw0KICAgIH07DQp9KTsNCg==",
+              "callback_utf8_sha256": "e541fb22aa0c8932b10975ef2450af79e9d8ebce53fdd54ecedb42066db879bd",
+              "callback_utf8_bytes": 2128,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "e541fb22aa0c8932b10975ef2450af79e9d8ebce53fdd54ecedb42066db879bd",
+              "materialized_utf8_bytes": 2128,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/index.ts"
+              ]
+            }
+          ],
+          "reported_diagnostics": [
+            {
+              "code": 5107,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Option 'module=UMD' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error."
+            }
+          ],
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 2,
+          "run_fingerprint_sha256": "8458f9cd4b500ec63448b7d69e5bce8ed3eeea5787d2ad1ab52d4fcddb9b90ec"
+        },
+        {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/.src/something.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "KGZ1bmN0aW9uIChmYWN0b3J5KSB7DQogICAgaWYgKHR5cGVvZiBtb2R1bGUgPT09ICJvYmplY3QiICYmIHR5cGVvZiBtb2R1bGUuZXhwb3J0cyA9PT0gIm9iamVjdCIpIHsNCiAgICAgICAgdmFyIHYgPSBmYWN0b3J5KHJlcXVpcmUsIGV4cG9ydHMpOw0KICAgICAgICBpZiAodiAhPT0gdW5kZWZpbmVkKSBtb2R1bGUuZXhwb3J0cyA9IHY7DQogICAgfQ0KICAgIGVsc2UgaWYgKHR5cGVvZiBkZWZpbmUgPT09ICJmdW5jdGlvbiIgJiYgZGVmaW5lLmFtZCkgew0KICAgICAgICBkZWZpbmUoWyJyZXF1aXJlIiwgImV4cG9ydHMiXSwgZmFjdG9yeSk7DQogICAgfQ0KfSkoZnVuY3Rpb24gKHJlcXVpcmUsIGV4cG9ydHMpIHsNCiAgICAidXNlIHN0cmljdCI7DQogICAgcmV0dXJuIDQyOw0KfSk7DQo=",
+              "callback_utf8_sha256": "e934c540d3b5e5fc6e999b4bcf8988490e69e7a53ee9f8876b6a03a077be34da",
+              "callback_utf8_bytes": 392,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "e934c540d3b5e5fc6e999b4bcf8988490e69e7a53ee9f8876b6a03a077be34da",
+              "materialized_utf8_bytes": 392,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/something.ts"
+              ]
+            },
+            {
+              "index": 1,
+              "path": "/.src/index.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "dmFyIF9fY3JlYXRlQmluZGluZyA9ICh0aGlzICYmIHRoaXMuX19jcmVhdGVCaW5kaW5nKSB8fCAoT2JqZWN0LmNyZWF0ZSA/IChmdW5jdGlvbihvLCBtLCBrLCBrMikgew0KICAgIGlmIChrMiA9PT0gdW5kZWZpbmVkKSBrMiA9IGs7DQogICAgdmFyIGRlc2MgPSBPYmplY3QuZ2V0T3duUHJvcGVydHlEZXNjcmlwdG9yKG0sIGspOw0KICAgIGlmICghZGVzYyB8fCAoImdldCIgaW4gZGVzYyA/ICFtLl9fZXNNb2R1bGUgOiBkZXNjLndyaXRhYmxlIHx8IGRlc2MuY29uZmlndXJhYmxlKSkgew0KICAgICAgZGVzYyA9IHsgZW51bWVyYWJsZTogdHJ1ZSwgZ2V0OiBmdW5jdGlvbigpIHsgcmV0dXJuIG1ba107IH0gfTsNCiAgICB9DQogICAgT2JqZWN0LmRlZmluZVByb3BlcnR5KG8sIGsyLCBkZXNjKTsNCn0pIDogKGZ1bmN0aW9uKG8sIG0sIGssIGsyKSB7DQogICAgaWYgKGsyID09PSB1bmRlZmluZWQpIGsyID0gazsNCiAgICBvW2syXSA9IG1ba107DQp9KSk7DQp2YXIgX19zZXRNb2R1bGVEZWZhdWx0ID0gKHRoaXMgJiYgdGhpcy5fX3NldE1vZHVsZURlZmF1bHQpIHx8IChPYmplY3QuY3JlYXRlID8gKGZ1bmN0aW9uKG8sIHYpIHsNCiAgICBPYmplY3QuZGVmaW5lUHJvcGVydHkobywgImRlZmF1bHQiLCB7IGVudW1lcmFibGU6IHRydWUsIHZhbHVlOiB2IH0pOw0KfSkgOiBmdW5jdGlvbihvLCB2KSB7DQogICAgb1siZGVmYXVsdCJdID0gdjsNCn0pOw0KdmFyIF9faW1wb3J0U3RhciA9ICh0aGlzICYmIHRoaXMuX19pbXBvcnRTdGFyKSB8fCAoZnVuY3Rpb24gKCkgew0KICAgIHZhciBvd25LZXlzID0gZnVuY3Rpb24obykgew0KICAgICAgICBvd25LZXlzID0gT2JqZWN0LmdldE93blByb3BlcnR5TmFtZXMgfHwgZnVuY3Rpb24gKG8pIHsNCiAgICAgICAgICAgIHZhciBhciA9IFtdOw0KICAgICAgICAgICAgZm9yICh2YXIgayBpbiBvKSBpZiAoT2JqZWN0LnByb3RvdHlwZS5oYXNPd25Qcm9wZXJ0eS5jYWxsKG8sIGspKSBhclthci5sZW5ndGhdID0gazsNCiAgICAgICAgICAgIHJldHVybiBhcjsNCiAgICAgICAgfTsNCiAgICAgICAgcmV0dXJuIG93bktleXMobyk7DQogICAgfTsNCiAgICByZXR1cm4gZnVuY3Rpb24gKG1vZCkgew0KICAgICAgICBpZiAobW9kICYmIG1vZC5fX2VzTW9kdWxlKSByZXR1cm4gbW9kOw0KICAgICAgICB2YXIgcmVzdWx0ID0ge307DQogICAgICAgIGlmIChtb2QgIT0gbnVsbCkgZm9yICh2YXIgayA9IG93bktleXMobW9kKSwgaSA9IDA7IGkgPCBrLmxlbmd0aDsgaSsrKSBpZiAoa1tpXSAhPT0gImRlZmF1bHQiKSBfX2NyZWF0ZUJpbmRpbmcocmVzdWx0LCBtb2QsIGtbaV0pOw0KICAgICAgICBfX3NldE1vZHVsZURlZmF1bHQocmVzdWx0LCBtb2QpOw0KICAgICAgICByZXR1cm4gcmVzdWx0Ow0KICAgIH07DQp9KSgpOw0KKGZ1bmN0aW9uIChmYWN0b3J5KSB7DQogICAgaWYgKHR5cGVvZiBtb2R1bGUgPT09ICJvYmplY3QiICYmIHR5cGVvZiBtb2R1bGUuZXhwb3J0cyA9PT0gIm9iamVjdCIpIHsNCiAgICAgICAgdmFyIHYgPSBmYWN0b3J5KHJlcXVpcmUsIGV4cG9ydHMpOw0KICAgICAgICBpZiAodiAhPT0gdW5kZWZpbmVkKSBtb2R1bGUuZXhwb3J0cyA9IHY7DQogICAgfQ0KICAgIGVsc2UgaWYgKHR5cGVvZiBkZWZpbmUgPT09ICJmdW5jdGlvbiIgJiYgZGVmaW5lLmFtZCkgew0KICAgICAgICBkZWZpbmUoWyJyZXF1aXJlIiwgImV4cG9ydHMiXSwgZmFjdG9yeSk7DQogICAgfQ0KfSkoZnVuY3Rpb24gKHJlcXVpcmUsIGV4cG9ydHMpIHsNCiAgICAidXNlIHN0cmljdCI7DQogICAgdmFyIF9fc3luY1JlcXVpcmUgPSB0eXBlb2YgbW9kdWxlID09PSAib2JqZWN0IiAmJiB0eXBlb2YgbW9kdWxlLmV4cG9ydHMgPT09ICJvYmplY3QiOw0KICAgIHJldHVybiBhc3luYyBmdW5jdGlvbiAoKSB7DQogICAgICAgIGNvbnN0IHNvbWV0aGluZyA9IGF3YWl0IChfX3N5bmNSZXF1aXJlID8gUHJvbWlzZS5yZXNvbHZlKCkudGhlbigoKSA9PiBfX2ltcG9ydFN0YXIocmVxdWlyZSgiLi9zb21ldGhpbmciKSkpIDogbmV3IFByb21pc2UoKHJlc29sdmVfMSwgcmVqZWN0XzEpID0+IHsgcmVxdWlyZShbIi4vc29tZXRoaW5nIl0sIHJlc29sdmVfMSwgcmVqZWN0XzEpOyB9KS50aGVuKF9faW1wb3J0U3RhcikpOw0KICAgIH07DQp9KTsNCg==",
+              "callback_utf8_sha256": "e541fb22aa0c8932b10975ef2450af79e9d8ebce53fdd54ecedb42066db879bd",
+              "callback_utf8_bytes": 2128,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "e541fb22aa0c8932b10975ef2450af79e9d8ebce53fdd54ecedb42066db879bd",
+              "materialized_utf8_bytes": 2128,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/index.ts"
+              ]
+            }
+          ],
+          "reported_diagnostics": [
+            {
+              "code": 5107,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Option 'module=UMD' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error."
+            }
+          ],
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 2,
+          "run_fingerprint_sha256": "8458f9cd4b500ec63448b7d69e5bce8ed3eeea5787d2ad1ab52d4fcddb9b90ec"
+        }
+      ],
+      "rust_expectation": "typed-failure-before-first-sink-write",
+      "case_fingerprint_sha256": "23e44b8e21aaff875e13ccc84e96d9c1ab885bdf723c226b24f5c07552ac35c6"
+    },
+    {
+      "suite": "conformance",
+      "case_id": "typescript-6.0.3/conformance/dynamicImport/importCallExpressionInUMD1.ts#default",
+      "expansion_case": 1241,
+      "source": {
+        "path": "dynamicImport/importCallExpressionInUMD1.ts",
+        "bytes": 298,
+        "sha256": "25972abee4ed05fa3301e7fa73e4c4e38a184df7fa54ff8e5c7f5b9a6fa04172",
+        "git_blob_sha1": "b273d1594b3267f69813cab9e8257fe86e6287bd"
+      },
+      "module_state": "UMD(3)",
+      "input": {
+        "current_directory": "/.src",
+        "roots": [
+          "/.src/0.ts",
+          "/.src/1.ts"
+        ],
+        "settings": [
+          {
+            "name": "module",
+            "value": "umd"
+          },
+          {
+            "name": "target",
+            "value": "esnext"
+          },
+          {
+            "name": "filename",
+            "value": "1.ts"
+          }
+        ],
+        "virtual_config": null,
+        "files": [
+          {
+            "unit": 0,
+            "path": "/.src/0.ts",
+            "utf8_base64": "ZXhwb3J0IGZ1bmN0aW9uIGZvbygpIHsgcmV0dXJuICJmb28iOyB9Cg==",
+            "utf8_sha256": "a1078818bd8ee76cd8e25aba03d8df68b230136d049df980fb04f9bbb26a1df6",
+            "utf8_bytes": 40
+          },
+          {
+            "unit": 1,
+            "path": "/.src/1.ts",
+            "utf8_base64": "aW1wb3J0KCIuLzAiKTsKdmFyIHAxID0gaW1wb3J0KCIuLzAiKTsKcDEudGhlbih6ZXJvID0+IHsKICAgIHJldHVybiB6ZXJvLmZvbygpOwp9KTsKCmV4cG9ydCB2YXIgcDIgPSBpbXBvcnQoIi4vMCIpOwoKZnVuY3Rpb24gZm9vKCkgewogICAgY29uc3QgcDIgPSBpbXBvcnQoIi4vMCIpOwp9",
+            "utf8_sha256": "e7f49310f72d8711acc9a1966483ead2a75257a7a54ed09988d611eb1497bd35",
+            "utf8_bytes": 165
+          }
+        ]
+      },
+      "files": [
+        {
+          "unit": 0,
+          "path": "/.src/0.ts",
+          "script_kind": "TS",
+          "declaration_file": false,
+          "emit_eligible": true,
+          "implied_module_format": "None",
+          "emit_module_format": 3,
+          "feature_roots": [],
+          "parse_diagnostic_codes": [],
+          "max_ast_depth": 5,
+          "import_attributes": false,
+          "advanced_comment_placement": false,
+          "text_sha256": "a1078818bd8ee76cd8e25aba03d8df68b230136d049df980fb04f9bbb26a1df6"
+        },
+        {
+          "unit": 1,
+          "path": "/.src/1.ts",
+          "script_kind": "TS",
+          "declaration_file": false,
+          "emit_eligible": true,
+          "implied_module_format": "None",
+          "emit_module_format": 3,
+          "feature_roots": [],
+          "parse_diagnostic_codes": [],
+          "max_ast_depth": 9,
+          "import_attributes": false,
+          "advanced_comment_placement": false,
+          "text_sha256": "e7f49310f72d8711acc9a1966483ead2a75257a7a54ed09988d611eb1497bd35"
+        }
+      ],
+      "owner_reachability": [
+        "transform-module"
+      ],
+      "disposition": "admitted-for-execution",
+      "required_slices": [],
+      "diagnostic_disposition": {
+        "state": "exact-required"
+      },
+      "typescript_runs": [
+        {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/.src/0.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "KGZ1bmN0aW9uIChmYWN0b3J5KSB7DQogICAgaWYgKHR5cGVvZiBtb2R1bGUgPT09ICJvYmplY3QiICYmIHR5cGVvZiBtb2R1bGUuZXhwb3J0cyA9PT0gIm9iamVjdCIpIHsNCiAgICAgICAgdmFyIHYgPSBmYWN0b3J5KHJlcXVpcmUsIGV4cG9ydHMpOw0KICAgICAgICBpZiAodiAhPT0gdW5kZWZpbmVkKSBtb2R1bGUuZXhwb3J0cyA9IHY7DQogICAgfQ0KICAgIGVsc2UgaWYgKHR5cGVvZiBkZWZpbmUgPT09ICJmdW5jdGlvbiIgJiYgZGVmaW5lLmFtZCkgew0KICAgICAgICBkZWZpbmUoWyJyZXF1aXJlIiwgImV4cG9ydHMiXSwgZmFjdG9yeSk7DQogICAgfQ0KfSkoZnVuY3Rpb24gKHJlcXVpcmUsIGV4cG9ydHMpIHsNCiAgICAidXNlIHN0cmljdCI7DQogICAgT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCiAgICBleHBvcnRzLmZvbyA9IGZvbzsNCiAgICBmdW5jdGlvbiBmb28oKSB7IHJldHVybiAiZm9vIjsgfQ0KfSk7DQo=",
+              "callback_utf8_sha256": "05e05085e9588efe7756b28862f71d5f313cfb79d6d26fb2ffd2cace894c438b",
+              "callback_utf8_bytes": 506,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "05e05085e9588efe7756b28862f71d5f313cfb79d6d26fb2ffd2cace894c438b",
+              "materialized_utf8_bytes": 506,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/0.ts"
+              ]
+            },
+            {
+              "index": 1,
+              "path": "/.src/1.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "dmFyIF9fY3JlYXRlQmluZGluZyA9ICh0aGlzICYmIHRoaXMuX19jcmVhdGVCaW5kaW5nKSB8fCAoT2JqZWN0LmNyZWF0ZSA/IChmdW5jdGlvbihvLCBtLCBrLCBrMikgew0KICAgIGlmIChrMiA9PT0gdW5kZWZpbmVkKSBrMiA9IGs7DQogICAgdmFyIGRlc2MgPSBPYmplY3QuZ2V0T3duUHJvcGVydHlEZXNjcmlwdG9yKG0sIGspOw0KICAgIGlmICghZGVzYyB8fCAoImdldCIgaW4gZGVzYyA/ICFtLl9fZXNNb2R1bGUgOiBkZXNjLndyaXRhYmxlIHx8IGRlc2MuY29uZmlndXJhYmxlKSkgew0KICAgICAgZGVzYyA9IHsgZW51bWVyYWJsZTogdHJ1ZSwgZ2V0OiBmdW5jdGlvbigpIHsgcmV0dXJuIG1ba107IH0gfTsNCiAgICB9DQogICAgT2JqZWN0LmRlZmluZVByb3BlcnR5KG8sIGsyLCBkZXNjKTsNCn0pIDogKGZ1bmN0aW9uKG8sIG0sIGssIGsyKSB7DQogICAgaWYgKGsyID09PSB1bmRlZmluZWQpIGsyID0gazsNCiAgICBvW2syXSA9IG1ba107DQp9KSk7DQp2YXIgX19zZXRNb2R1bGVEZWZhdWx0ID0gKHRoaXMgJiYgdGhpcy5fX3NldE1vZHVsZURlZmF1bHQpIHx8IChPYmplY3QuY3JlYXRlID8gKGZ1bmN0aW9uKG8sIHYpIHsNCiAgICBPYmplY3QuZGVmaW5lUHJvcGVydHkobywgImRlZmF1bHQiLCB7IGVudW1lcmFibGU6IHRydWUsIHZhbHVlOiB2IH0pOw0KfSkgOiBmdW5jdGlvbihvLCB2KSB7DQogICAgb1siZGVmYXVsdCJdID0gdjsNCn0pOw0KdmFyIF9faW1wb3J0U3RhciA9ICh0aGlzICYmIHRoaXMuX19pbXBvcnRTdGFyKSB8fCAoZnVuY3Rpb24gKCkgew0KICAgIHZhciBvd25LZXlzID0gZnVuY3Rpb24obykgew0KICAgICAgICBvd25LZXlzID0gT2JqZWN0LmdldE93blByb3BlcnR5TmFtZXMgfHwgZnVuY3Rpb24gKG8pIHsNCiAgICAgICAgICAgIHZhciBhciA9IFtdOw0KICAgICAgICAgICAgZm9yICh2YXIgayBpbiBvKSBpZiAoT2JqZWN0LnByb3RvdHlwZS5oYXNPd25Qcm9wZXJ0eS5jYWxsKG8sIGspKSBhclthci5sZW5ndGhdID0gazsNCiAgICAgICAgICAgIHJldHVybiBhcjsNCiAgICAgICAgfTsNCiAgICAgICAgcmV0dXJuIG93bktleXMobyk7DQogICAgfTsNCiAgICByZXR1cm4gZnVuY3Rpb24gKG1vZCkgew0KICAgICAgICBpZiAobW9kICYmIG1vZC5fX2VzTW9kdWxlKSByZXR1cm4gbW9kOw0KICAgICAgICB2YXIgcmVzdWx0ID0ge307DQogICAgICAgIGlmIChtb2QgIT0gbnVsbCkgZm9yICh2YXIgayA9IG93bktleXMobW9kKSwgaSA9IDA7IGkgPCBrLmxlbmd0aDsgaSsrKSBpZiAoa1tpXSAhPT0gImRlZmF1bHQiKSBfX2NyZWF0ZUJpbmRpbmcocmVzdWx0LCBtb2QsIGtbaV0pOw0KICAgICAgICBfX3NldE1vZHVsZURlZmF1bHQocmVzdWx0LCBtb2QpOw0KICAgICAgICByZXR1cm4gcmVzdWx0Ow0KICAgIH07DQp9KSgpOw0KKGZ1bmN0aW9uIChmYWN0b3J5KSB7DQogICAgaWYgKHR5cGVvZiBtb2R1bGUgPT09ICJvYmplY3QiICYmIHR5cGVvZiBtb2R1bGUuZXhwb3J0cyA9PT0gIm9iamVjdCIpIHsNCiAgICAgICAgdmFyIHYgPSBmYWN0b3J5KHJlcXVpcmUsIGV4cG9ydHMpOw0KICAgICAgICBpZiAodiAhPT0gdW5kZWZpbmVkKSBtb2R1bGUuZXhwb3J0cyA9IHY7DQogICAgfQ0KICAgIGVsc2UgaWYgKHR5cGVvZiBkZWZpbmUgPT09ICJmdW5jdGlvbiIgJiYgZGVmaW5lLmFtZCkgew0KICAgICAgICBkZWZpbmUoWyJyZXF1aXJlIiwgImV4cG9ydHMiXSwgZmFjdG9yeSk7DQogICAgfQ0KfSkoZnVuY3Rpb24gKHJlcXVpcmUsIGV4cG9ydHMpIHsNCiAgICAidXNlIHN0cmljdCI7DQogICAgdmFyIF9fc3luY1JlcXVpcmUgPSB0eXBlb2YgbW9kdWxlID09PSAib2JqZWN0IiAmJiB0eXBlb2YgbW9kdWxlLmV4cG9ydHMgPT09ICJvYmplY3QiOw0KICAgIE9iamVjdC5kZWZpbmVQcm9wZXJ0eShleHBvcnRzLCAiX19lc01vZHVsZSIsIHsgdmFsdWU6IHRydWUgfSk7DQogICAgZXhwb3J0cy5wMiA9IHZvaWQgMDsNCiAgICBfX3N5bmNSZXF1aXJlID8gUHJvbWlzZS5yZXNvbHZlKCkudGhlbigoKSA9PiBfX2ltcG9ydFN0YXIocmVxdWlyZSgiLi8wIikpKSA6IG5ldyBQcm9taXNlKChyZXNvbHZlXzEsIHJlamVjdF8xKSA9PiB7IHJlcXVpcmUoWyIuLzAiXSwgcmVzb2x2ZV8xLCByZWplY3RfMSk7IH0pLnRoZW4oX19pbXBvcnRTdGFyKTsNCiAgICB2YXIgcDEgPSBfX3N5bmNSZXF1aXJlID8gUHJvbWlzZS5yZXNvbHZlKCkudGhlbigoKSA9PiBfX2ltcG9ydFN0YXIocmVxdWlyZSgiLi8wIikpKSA6IG5ldyBQcm9taXNlKChyZXNvbHZlXzIsIHJlamVjdF8yKSA9PiB7IHJlcXVpcmUoWyIuLzAiXSwgcmVzb2x2ZV8yLCByZWplY3RfMik7IH0pLnRoZW4oX19pbXBvcnRTdGFyKTsNCiAgICBwMS50aGVuKHplcm8gPT4gew0KICAgICAgICByZXR1cm4gemVyby5mb28oKTsNCiAgICB9KTsNCiAgICBleHBvcnRzLnAyID0gX19zeW5jUmVxdWlyZSA/IFByb21pc2UucmVzb2x2ZSgpLnRoZW4oKCkgPT4gX19pbXBvcnRTdGFyKHJlcXVpcmUoIi4vMCIpKSkgOiBuZXcgUHJvbWlzZSgocmVzb2x2ZV8zLCByZWplY3RfMykgPT4geyByZXF1aXJlKFsiLi8wIl0sIHJlc29sdmVfMywgcmVqZWN0XzMpOyB9KS50aGVuKF9faW1wb3J0U3Rhcik7DQogICAgZnVuY3Rpb24gZm9vKCkgew0KICAgICAgICBjb25zdCBwMiA9IF9fc3luY1JlcXVpcmUgPyBQcm9taXNlLnJlc29sdmUoKS50aGVuKCgpID0+IF9faW1wb3J0U3RhcihyZXF1aXJlKCIuLzAiKSkpIDogbmV3IFByb21pc2UoKHJlc29sdmVfNCwgcmVqZWN0XzQpID0+IHsgcmVxdWlyZShbIi4vMCJdLCByZXNvbHZlXzQsIHJlamVjdF80KTsgfSkudGhlbihfX2ltcG9ydFN0YXIpOw0KICAgIH0NCn0pOw0K",
+              "callback_utf8_sha256": "3187bd3521adfea2ce4ecebd63013b22ed707e04b4c0c069653013f87a25fbab",
+              "callback_utf8_bytes": 2811,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "3187bd3521adfea2ce4ecebd63013b22ed707e04b4c0c069653013f87a25fbab",
+              "materialized_utf8_bytes": 2811,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/1.ts"
+              ]
+            }
+          ],
+          "reported_diagnostics": [
+            {
+              "code": 5107,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Option 'module=UMD' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error."
+            }
+          ],
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 2,
+          "run_fingerprint_sha256": "6210a1c9c5bffcd2722d93e7bbf3fd8b79275aaf8302e6bef998973dc30a72e7"
+        },
+        {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/.src/0.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "KGZ1bmN0aW9uIChmYWN0b3J5KSB7DQogICAgaWYgKHR5cGVvZiBtb2R1bGUgPT09ICJvYmplY3QiICYmIHR5cGVvZiBtb2R1bGUuZXhwb3J0cyA9PT0gIm9iamVjdCIpIHsNCiAgICAgICAgdmFyIHYgPSBmYWN0b3J5KHJlcXVpcmUsIGV4cG9ydHMpOw0KICAgICAgICBpZiAodiAhPT0gdW5kZWZpbmVkKSBtb2R1bGUuZXhwb3J0cyA9IHY7DQogICAgfQ0KICAgIGVsc2UgaWYgKHR5cGVvZiBkZWZpbmUgPT09ICJmdW5jdGlvbiIgJiYgZGVmaW5lLmFtZCkgew0KICAgICAgICBkZWZpbmUoWyJyZXF1aXJlIiwgImV4cG9ydHMiXSwgZmFjdG9yeSk7DQogICAgfQ0KfSkoZnVuY3Rpb24gKHJlcXVpcmUsIGV4cG9ydHMpIHsNCiAgICAidXNlIHN0cmljdCI7DQogICAgT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCiAgICBleHBvcnRzLmZvbyA9IGZvbzsNCiAgICBmdW5jdGlvbiBmb28oKSB7IHJldHVybiAiZm9vIjsgfQ0KfSk7DQo=",
+              "callback_utf8_sha256": "05e05085e9588efe7756b28862f71d5f313cfb79d6d26fb2ffd2cace894c438b",
+              "callback_utf8_bytes": 506,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "05e05085e9588efe7756b28862f71d5f313cfb79d6d26fb2ffd2cace894c438b",
+              "materialized_utf8_bytes": 506,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/0.ts"
+              ]
+            },
+            {
+              "index": 1,
+              "path": "/.src/1.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "dmFyIF9fY3JlYXRlQmluZGluZyA9ICh0aGlzICYmIHRoaXMuX19jcmVhdGVCaW5kaW5nKSB8fCAoT2JqZWN0LmNyZWF0ZSA/IChmdW5jdGlvbihvLCBtLCBrLCBrMikgew0KICAgIGlmIChrMiA9PT0gdW5kZWZpbmVkKSBrMiA9IGs7DQogICAgdmFyIGRlc2MgPSBPYmplY3QuZ2V0T3duUHJvcGVydHlEZXNjcmlwdG9yKG0sIGspOw0KICAgIGlmICghZGVzYyB8fCAoImdldCIgaW4gZGVzYyA/ICFtLl9fZXNNb2R1bGUgOiBkZXNjLndyaXRhYmxlIHx8IGRlc2MuY29uZmlndXJhYmxlKSkgew0KICAgICAgZGVzYyA9IHsgZW51bWVyYWJsZTogdHJ1ZSwgZ2V0OiBmdW5jdGlvbigpIHsgcmV0dXJuIG1ba107IH0gfTsNCiAgICB9DQogICAgT2JqZWN0LmRlZmluZVByb3BlcnR5KG8sIGsyLCBkZXNjKTsNCn0pIDogKGZ1bmN0aW9uKG8sIG0sIGssIGsyKSB7DQogICAgaWYgKGsyID09PSB1bmRlZmluZWQpIGsyID0gazsNCiAgICBvW2syXSA9IG1ba107DQp9KSk7DQp2YXIgX19zZXRNb2R1bGVEZWZhdWx0ID0gKHRoaXMgJiYgdGhpcy5fX3NldE1vZHVsZURlZmF1bHQpIHx8IChPYmplY3QuY3JlYXRlID8gKGZ1bmN0aW9uKG8sIHYpIHsNCiAgICBPYmplY3QuZGVmaW5lUHJvcGVydHkobywgImRlZmF1bHQiLCB7IGVudW1lcmFibGU6IHRydWUsIHZhbHVlOiB2IH0pOw0KfSkgOiBmdW5jdGlvbihvLCB2KSB7DQogICAgb1siZGVmYXVsdCJdID0gdjsNCn0pOw0KdmFyIF9faW1wb3J0U3RhciA9ICh0aGlzICYmIHRoaXMuX19pbXBvcnRTdGFyKSB8fCAoZnVuY3Rpb24gKCkgew0KICAgIHZhciBvd25LZXlzID0gZnVuY3Rpb24obykgew0KICAgICAgICBvd25LZXlzID0gT2JqZWN0LmdldE93blByb3BlcnR5TmFtZXMgfHwgZnVuY3Rpb24gKG8pIHsNCiAgICAgICAgICAgIHZhciBhciA9IFtdOw0KICAgICAgICAgICAgZm9yICh2YXIgayBpbiBvKSBpZiAoT2JqZWN0LnByb3RvdHlwZS5oYXNPd25Qcm9wZXJ0eS5jYWxsKG8sIGspKSBhclthci5sZW5ndGhdID0gazsNCiAgICAgICAgICAgIHJldHVybiBhcjsNCiAgICAgICAgfTsNCiAgICAgICAgcmV0dXJuIG93bktleXMobyk7DQogICAgfTsNCiAgICByZXR1cm4gZnVuY3Rpb24gKG1vZCkgew0KICAgICAgICBpZiAobW9kICYmIG1vZC5fX2VzTW9kdWxlKSByZXR1cm4gbW9kOw0KICAgICAgICB2YXIgcmVzdWx0ID0ge307DQogICAgICAgIGlmIChtb2QgIT0gbnVsbCkgZm9yICh2YXIgayA9IG93bktleXMobW9kKSwgaSA9IDA7IGkgPCBrLmxlbmd0aDsgaSsrKSBpZiAoa1tpXSAhPT0gImRlZmF1bHQiKSBfX2NyZWF0ZUJpbmRpbmcocmVzdWx0LCBtb2QsIGtbaV0pOw0KICAgICAgICBfX3NldE1vZHVsZURlZmF1bHQocmVzdWx0LCBtb2QpOw0KICAgICAgICByZXR1cm4gcmVzdWx0Ow0KICAgIH07DQp9KSgpOw0KKGZ1bmN0aW9uIChmYWN0b3J5KSB7DQogICAgaWYgKHR5cGVvZiBtb2R1bGUgPT09ICJvYmplY3QiICYmIHR5cGVvZiBtb2R1bGUuZXhwb3J0cyA9PT0gIm9iamVjdCIpIHsNCiAgICAgICAgdmFyIHYgPSBmYWN0b3J5KHJlcXVpcmUsIGV4cG9ydHMpOw0KICAgICAgICBpZiAodiAhPT0gdW5kZWZpbmVkKSBtb2R1bGUuZXhwb3J0cyA9IHY7DQogICAgfQ0KICAgIGVsc2UgaWYgKHR5cGVvZiBkZWZpbmUgPT09ICJmdW5jdGlvbiIgJiYgZGVmaW5lLmFtZCkgew0KICAgICAgICBkZWZpbmUoWyJyZXF1aXJlIiwgImV4cG9ydHMiXSwgZmFjdG9yeSk7DQogICAgfQ0KfSkoZnVuY3Rpb24gKHJlcXVpcmUsIGV4cG9ydHMpIHsNCiAgICAidXNlIHN0cmljdCI7DQogICAgdmFyIF9fc3luY1JlcXVpcmUgPSB0eXBlb2YgbW9kdWxlID09PSAib2JqZWN0IiAmJiB0eXBlb2YgbW9kdWxlLmV4cG9ydHMgPT09ICJvYmplY3QiOw0KICAgIE9iamVjdC5kZWZpbmVQcm9wZXJ0eShleHBvcnRzLCAiX19lc01vZHVsZSIsIHsgdmFsdWU6IHRydWUgfSk7DQogICAgZXhwb3J0cy5wMiA9IHZvaWQgMDsNCiAgICBfX3N5bmNSZXF1aXJlID8gUHJvbWlzZS5yZXNvbHZlKCkudGhlbigoKSA9PiBfX2ltcG9ydFN0YXIocmVxdWlyZSgiLi8wIikpKSA6IG5ldyBQcm9taXNlKChyZXNvbHZlXzEsIHJlamVjdF8xKSA9PiB7IHJlcXVpcmUoWyIuLzAiXSwgcmVzb2x2ZV8xLCByZWplY3RfMSk7IH0pLnRoZW4oX19pbXBvcnRTdGFyKTsNCiAgICB2YXIgcDEgPSBfX3N5bmNSZXF1aXJlID8gUHJvbWlzZS5yZXNvbHZlKCkudGhlbigoKSA9PiBfX2ltcG9ydFN0YXIocmVxdWlyZSgiLi8wIikpKSA6IG5ldyBQcm9taXNlKChyZXNvbHZlXzIsIHJlamVjdF8yKSA9PiB7IHJlcXVpcmUoWyIuLzAiXSwgcmVzb2x2ZV8yLCByZWplY3RfMik7IH0pLnRoZW4oX19pbXBvcnRTdGFyKTsNCiAgICBwMS50aGVuKHplcm8gPT4gew0KICAgICAgICByZXR1cm4gemVyby5mb28oKTsNCiAgICB9KTsNCiAgICBleHBvcnRzLnAyID0gX19zeW5jUmVxdWlyZSA/IFByb21pc2UucmVzb2x2ZSgpLnRoZW4oKCkgPT4gX19pbXBvcnRTdGFyKHJlcXVpcmUoIi4vMCIpKSkgOiBuZXcgUHJvbWlzZSgocmVzb2x2ZV8zLCByZWplY3RfMykgPT4geyByZXF1aXJlKFsiLi8wIl0sIHJlc29sdmVfMywgcmVqZWN0XzMpOyB9KS50aGVuKF9faW1wb3J0U3Rhcik7DQogICAgZnVuY3Rpb24gZm9vKCkgew0KICAgICAgICBjb25zdCBwMiA9IF9fc3luY1JlcXVpcmUgPyBQcm9taXNlLnJlc29sdmUoKS50aGVuKCgpID0+IF9faW1wb3J0U3RhcihyZXF1aXJlKCIuLzAiKSkpIDogbmV3IFByb21pc2UoKHJlc29sdmVfNCwgcmVqZWN0XzQpID0+IHsgcmVxdWlyZShbIi4vMCJdLCByZXNvbHZlXzQsIHJlamVjdF80KTsgfSkudGhlbihfX2ltcG9ydFN0YXIpOw0KICAgIH0NCn0pOw0K",
+              "callback_utf8_sha256": "3187bd3521adfea2ce4ecebd63013b22ed707e04b4c0c069653013f87a25fbab",
+              "callback_utf8_bytes": 2811,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "3187bd3521adfea2ce4ecebd63013b22ed707e04b4c0c069653013f87a25fbab",
+              "materialized_utf8_bytes": 2811,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/1.ts"
+              ]
+            }
+          ],
+          "reported_diagnostics": [
+            {
+              "code": 5107,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Option 'module=UMD' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error."
+            }
+          ],
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 2,
+          "run_fingerprint_sha256": "6210a1c9c5bffcd2722d93e7bbf3fd8b79275aaf8302e6bef998973dc30a72e7"
+        }
+      ],
+      "rust_expectation": "two-deterministic-exact-runs",
+      "case_fingerprint_sha256": "f9195901ea5bbe0aba1275fb6e097f5217cdf997ee0d93cd17b21f4817e8e6ed"
+    },
+    {
+      "suite": "conformance",
+      "case_id": "typescript-6.0.3/conformance/dynamicImport/importCallExpressionInUMD2.ts#default",
+      "expansion_case": 1242,
+      "source": {
+        "path": "dynamicImport/importCallExpressionInUMD2.ts",
+        "bytes": 360,
+        "sha256": "132004e44785cc8a297379a8ee3b2371cb50a6617a316ceb5af69db1425c26ba",
+        "git_blob_sha1": "2f76d0aa2678e6ad4adece0c5c9edae1525b4a93"
+      },
+      "module_state": "UMD(3)",
+      "input": {
+        "current_directory": "/.src",
+        "roots": [
+          "/.src/0.ts",
+          "/.src/2.ts"
+        ],
+        "settings": [
+          {
+            "name": "module",
+            "value": "umd"
+          },
+          {
+            "name": "target",
+            "value": "esnext"
+          },
+          {
+            "name": "filename",
+            "value": "2.ts"
+          }
+        ],
+        "virtual_config": null,
+        "files": [
+          {
+            "unit": 0,
+            "path": "/.src/0.ts",
+            "utf8_base64": "ZXhwb3J0IGNsYXNzIEIgewogICAgcHJpbnQoKSB7IHJldHVybiAiSSBhbSBCIn0KfQo=",
+            "utf8_sha256": "3b56dfe62d62893f196cc455483054fd6b03084a5a230aa0370bedf31915c67c",
+            "utf8_bytes": 50
+          },
+          {
+            "unit": 1,
+            "path": "/.src/2.ts",
+            "utf8_base64": "Ly8gV2UgdXNlIFByb21pc2U8YW55PiBmb3Igbm93IGFzIHRoZXJlIGlzIG5vIHdheSB0byBzcGVjaWZ5IHNoYXBlIG9mIG1vZHVsZSBvYmplY3QKZnVuY3Rpb24gZm9vKHg6IFByb21pc2U8YW55PikgewogICAgeC50aGVuKHZhbHVlID0+IHsKICAgICAgICBsZXQgYiA9IG5ldyB2YWx1ZS5CKCk7CiAgICAgICAgYi5wcmludCgpOwogICAgfSkKfQoKZm9vKGltcG9ydCgiLi8wIikpOw==",
+            "utf8_sha256": "a1c1bbe6ad99b233dc0e5ff79d4761f69b679f77c7fb7f3db8c4d8aca00b6804",
+            "utf8_bytes": 217
+          }
+        ]
+      },
+      "files": [
+        {
+          "unit": 0,
+          "path": "/.src/0.ts",
+          "script_kind": "TS",
+          "declaration_file": false,
+          "emit_eligible": true,
+          "implied_module_format": "None",
+          "emit_module_format": 3,
+          "feature_roots": [],
+          "parse_diagnostic_codes": [],
+          "max_ast_depth": 6,
+          "import_attributes": false,
+          "advanced_comment_placement": false,
+          "text_sha256": "3b56dfe62d62893f196cc455483054fd6b03084a5a230aa0370bedf31915c67c"
+        },
+        {
+          "unit": 1,
+          "path": "/.src/2.ts",
+          "script_kind": "TS",
+          "declaration_file": false,
+          "emit_eligible": true,
+          "implied_module_format": "None",
+          "emit_module_format": 3,
+          "feature_roots": [],
+          "parse_diagnostic_codes": [],
+          "max_ast_depth": 13,
+          "import_attributes": false,
+          "advanced_comment_placement": false,
+          "text_sha256": "a1c1bbe6ad99b233dc0e5ff79d4761f69b679f77c7fb7f3db8c4d8aca00b6804"
+        }
+      ],
+      "owner_reachability": [
+        "transform-module"
+      ],
+      "disposition": "admitted-for-execution",
+      "required_slices": [],
+      "diagnostic_disposition": {
+        "state": "exact-required"
+      },
+      "typescript_runs": [
+        {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/.src/0.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "KGZ1bmN0aW9uIChmYWN0b3J5KSB7DQogICAgaWYgKHR5cGVvZiBtb2R1bGUgPT09ICJvYmplY3QiICYmIHR5cGVvZiBtb2R1bGUuZXhwb3J0cyA9PT0gIm9iamVjdCIpIHsNCiAgICAgICAgdmFyIHYgPSBmYWN0b3J5KHJlcXVpcmUsIGV4cG9ydHMpOw0KICAgICAgICBpZiAodiAhPT0gdW5kZWZpbmVkKSBtb2R1bGUuZXhwb3J0cyA9IHY7DQogICAgfQ0KICAgIGVsc2UgaWYgKHR5cGVvZiBkZWZpbmUgPT09ICJmdW5jdGlvbiIgJiYgZGVmaW5lLmFtZCkgew0KICAgICAgICBkZWZpbmUoWyJyZXF1aXJlIiwgImV4cG9ydHMiXSwgZmFjdG9yeSk7DQogICAgfQ0KfSkoZnVuY3Rpb24gKHJlcXVpcmUsIGV4cG9ydHMpIHsNCiAgICAidXNlIHN0cmljdCI7DQogICAgT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCiAgICBleHBvcnRzLkIgPSB2b2lkIDA7DQogICAgY2xhc3MgQiB7DQogICAgICAgIHByaW50KCkgeyByZXR1cm4gIkkgYW0gQiI7IH0NCiAgICB9DQogICAgZXhwb3J0cy5CID0gQjsNCn0pOw0K",
+              "callback_utf8_sha256": "b2c6ec4ebeaa5e27cdff9b20592222ea4cd7929b52d586ac82dd15598b777d92",
+              "callback_utf8_bytes": 549,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "b2c6ec4ebeaa5e27cdff9b20592222ea4cd7929b52d586ac82dd15598b777d92",
+              "materialized_utf8_bytes": 549,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/0.ts"
+              ]
+            },
+            {
+              "index": 1,
+              "path": "/.src/2.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "dmFyIF9fY3JlYXRlQmluZGluZyA9ICh0aGlzICYmIHRoaXMuX19jcmVhdGVCaW5kaW5nKSB8fCAoT2JqZWN0LmNyZWF0ZSA/IChmdW5jdGlvbihvLCBtLCBrLCBrMikgew0KICAgIGlmIChrMiA9PT0gdW5kZWZpbmVkKSBrMiA9IGs7DQogICAgdmFyIGRlc2MgPSBPYmplY3QuZ2V0T3duUHJvcGVydHlEZXNjcmlwdG9yKG0sIGspOw0KICAgIGlmICghZGVzYyB8fCAoImdldCIgaW4gZGVzYyA/ICFtLl9fZXNNb2R1bGUgOiBkZXNjLndyaXRhYmxlIHx8IGRlc2MuY29uZmlndXJhYmxlKSkgew0KICAgICAgZGVzYyA9IHsgZW51bWVyYWJsZTogdHJ1ZSwgZ2V0OiBmdW5jdGlvbigpIHsgcmV0dXJuIG1ba107IH0gfTsNCiAgICB9DQogICAgT2JqZWN0LmRlZmluZVByb3BlcnR5KG8sIGsyLCBkZXNjKTsNCn0pIDogKGZ1bmN0aW9uKG8sIG0sIGssIGsyKSB7DQogICAgaWYgKGsyID09PSB1bmRlZmluZWQpIGsyID0gazsNCiAgICBvW2syXSA9IG1ba107DQp9KSk7DQp2YXIgX19zZXRNb2R1bGVEZWZhdWx0ID0gKHRoaXMgJiYgdGhpcy5fX3NldE1vZHVsZURlZmF1bHQpIHx8IChPYmplY3QuY3JlYXRlID8gKGZ1bmN0aW9uKG8sIHYpIHsNCiAgICBPYmplY3QuZGVmaW5lUHJvcGVydHkobywgImRlZmF1bHQiLCB7IGVudW1lcmFibGU6IHRydWUsIHZhbHVlOiB2IH0pOw0KfSkgOiBmdW5jdGlvbihvLCB2KSB7DQogICAgb1siZGVmYXVsdCJdID0gdjsNCn0pOw0KdmFyIF9faW1wb3J0U3RhciA9ICh0aGlzICYmIHRoaXMuX19pbXBvcnRTdGFyKSB8fCAoZnVuY3Rpb24gKCkgew0KICAgIHZhciBvd25LZXlzID0gZnVuY3Rpb24obykgew0KICAgICAgICBvd25LZXlzID0gT2JqZWN0LmdldE93blByb3BlcnR5TmFtZXMgfHwgZnVuY3Rpb24gKG8pIHsNCiAgICAgICAgICAgIHZhciBhciA9IFtdOw0KICAgICAgICAgICAgZm9yICh2YXIgayBpbiBvKSBpZiAoT2JqZWN0LnByb3RvdHlwZS5oYXNPd25Qcm9wZXJ0eS5jYWxsKG8sIGspKSBhclthci5sZW5ndGhdID0gazsNCiAgICAgICAgICAgIHJldHVybiBhcjsNCiAgICAgICAgfTsNCiAgICAgICAgcmV0dXJuIG93bktleXMobyk7DQogICAgfTsNCiAgICByZXR1cm4gZnVuY3Rpb24gKG1vZCkgew0KICAgICAgICBpZiAobW9kICYmIG1vZC5fX2VzTW9kdWxlKSByZXR1cm4gbW9kOw0KICAgICAgICB2YXIgcmVzdWx0ID0ge307DQogICAgICAgIGlmIChtb2QgIT0gbnVsbCkgZm9yICh2YXIgayA9IG93bktleXMobW9kKSwgaSA9IDA7IGkgPCBrLmxlbmd0aDsgaSsrKSBpZiAoa1tpXSAhPT0gImRlZmF1bHQiKSBfX2NyZWF0ZUJpbmRpbmcocmVzdWx0LCBtb2QsIGtbaV0pOw0KICAgICAgICBfX3NldE1vZHVsZURlZmF1bHQocmVzdWx0LCBtb2QpOw0KICAgICAgICByZXR1cm4gcmVzdWx0Ow0KICAgIH07DQp9KSgpOw0KKGZ1bmN0aW9uIChmYWN0b3J5KSB7DQogICAgaWYgKHR5cGVvZiBtb2R1bGUgPT09ICJvYmplY3QiICYmIHR5cGVvZiBtb2R1bGUuZXhwb3J0cyA9PT0gIm9iamVjdCIpIHsNCiAgICAgICAgdmFyIHYgPSBmYWN0b3J5KHJlcXVpcmUsIGV4cG9ydHMpOw0KICAgICAgICBpZiAodiAhPT0gdW5kZWZpbmVkKSBtb2R1bGUuZXhwb3J0cyA9IHY7DQogICAgfQ0KICAgIGVsc2UgaWYgKHR5cGVvZiBkZWZpbmUgPT09ICJmdW5jdGlvbiIgJiYgZGVmaW5lLmFtZCkgew0KICAgICAgICBkZWZpbmUoWyJyZXF1aXJlIiwgImV4cG9ydHMiXSwgZmFjdG9yeSk7DQogICAgfQ0KfSkoZnVuY3Rpb24gKHJlcXVpcmUsIGV4cG9ydHMpIHsNCiAgICAidXNlIHN0cmljdCI7DQogICAgdmFyIF9fc3luY1JlcXVpcmUgPSB0eXBlb2YgbW9kdWxlID09PSAib2JqZWN0IiAmJiB0eXBlb2YgbW9kdWxlLmV4cG9ydHMgPT09ICJvYmplY3QiOw0KICAgIC8vIFdlIHVzZSBQcm9taXNlPGFueT4gZm9yIG5vdyBhcyB0aGVyZSBpcyBubyB3YXkgdG8gc3BlY2lmeSBzaGFwZSBvZiBtb2R1bGUgb2JqZWN0DQogICAgZnVuY3Rpb24gZm9vKHgpIHsNCiAgICAgICAgeC50aGVuKHZhbHVlID0+IHsNCiAgICAgICAgICAgIGxldCBiID0gbmV3IHZhbHVlLkIoKTsNCiAgICAgICAgICAgIGIucHJpbnQoKTsNCiAgICAgICAgfSk7DQogICAgfQ0KICAgIGZvbyhfX3N5bmNSZXF1aXJlID8gUHJvbWlzZS5yZXNvbHZlKCkudGhlbigoKSA9PiBfX2ltcG9ydFN0YXIocmVxdWlyZSgiLi8wIikpKSA6IG5ldyBQcm9taXNlKChyZXNvbHZlXzEsIHJlamVjdF8xKSA9PiB7IHJlcXVpcmUoWyIuLzAiXSwgcmVzb2x2ZV8xLCByZWplY3RfMSk7IH0pLnRoZW4oX19pbXBvcnRTdGFyKSk7DQp9KTsNCg==",
+              "callback_utf8_sha256": "252c9b6ba5c75f4e22955cf614867cea461799284c78586d71fcd9d0413c6c77",
+              "callback_utf8_bytes": 2266,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "252c9b6ba5c75f4e22955cf614867cea461799284c78586d71fcd9d0413c6c77",
+              "materialized_utf8_bytes": 2266,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/2.ts"
+              ]
+            }
+          ],
+          "reported_diagnostics": [
+            {
+              "code": 5107,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Option 'module=UMD' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error."
+            }
+          ],
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 2,
+          "run_fingerprint_sha256": "8a703156b9dac18e38177d7dbc263e3f1d9f5e29a324c5b6df5ae22996742c83"
+        },
+        {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/.src/0.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "KGZ1bmN0aW9uIChmYWN0b3J5KSB7DQogICAgaWYgKHR5cGVvZiBtb2R1bGUgPT09ICJvYmplY3QiICYmIHR5cGVvZiBtb2R1bGUuZXhwb3J0cyA9PT0gIm9iamVjdCIpIHsNCiAgICAgICAgdmFyIHYgPSBmYWN0b3J5KHJlcXVpcmUsIGV4cG9ydHMpOw0KICAgICAgICBpZiAodiAhPT0gdW5kZWZpbmVkKSBtb2R1bGUuZXhwb3J0cyA9IHY7DQogICAgfQ0KICAgIGVsc2UgaWYgKHR5cGVvZiBkZWZpbmUgPT09ICJmdW5jdGlvbiIgJiYgZGVmaW5lLmFtZCkgew0KICAgICAgICBkZWZpbmUoWyJyZXF1aXJlIiwgImV4cG9ydHMiXSwgZmFjdG9yeSk7DQogICAgfQ0KfSkoZnVuY3Rpb24gKHJlcXVpcmUsIGV4cG9ydHMpIHsNCiAgICAidXNlIHN0cmljdCI7DQogICAgT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCiAgICBleHBvcnRzLkIgPSB2b2lkIDA7DQogICAgY2xhc3MgQiB7DQogICAgICAgIHByaW50KCkgeyByZXR1cm4gIkkgYW0gQiI7IH0NCiAgICB9DQogICAgZXhwb3J0cy5CID0gQjsNCn0pOw0K",
+              "callback_utf8_sha256": "b2c6ec4ebeaa5e27cdff9b20592222ea4cd7929b52d586ac82dd15598b777d92",
+              "callback_utf8_bytes": 549,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "b2c6ec4ebeaa5e27cdff9b20592222ea4cd7929b52d586ac82dd15598b777d92",
+              "materialized_utf8_bytes": 549,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/0.ts"
+              ]
+            },
+            {
+              "index": 1,
+              "path": "/.src/2.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "dmFyIF9fY3JlYXRlQmluZGluZyA9ICh0aGlzICYmIHRoaXMuX19jcmVhdGVCaW5kaW5nKSB8fCAoT2JqZWN0LmNyZWF0ZSA/IChmdW5jdGlvbihvLCBtLCBrLCBrMikgew0KICAgIGlmIChrMiA9PT0gdW5kZWZpbmVkKSBrMiA9IGs7DQogICAgdmFyIGRlc2MgPSBPYmplY3QuZ2V0T3duUHJvcGVydHlEZXNjcmlwdG9yKG0sIGspOw0KICAgIGlmICghZGVzYyB8fCAoImdldCIgaW4gZGVzYyA/ICFtLl9fZXNNb2R1bGUgOiBkZXNjLndyaXRhYmxlIHx8IGRlc2MuY29uZmlndXJhYmxlKSkgew0KICAgICAgZGVzYyA9IHsgZW51bWVyYWJsZTogdHJ1ZSwgZ2V0OiBmdW5jdGlvbigpIHsgcmV0dXJuIG1ba107IH0gfTsNCiAgICB9DQogICAgT2JqZWN0LmRlZmluZVByb3BlcnR5KG8sIGsyLCBkZXNjKTsNCn0pIDogKGZ1bmN0aW9uKG8sIG0sIGssIGsyKSB7DQogICAgaWYgKGsyID09PSB1bmRlZmluZWQpIGsyID0gazsNCiAgICBvW2syXSA9IG1ba107DQp9KSk7DQp2YXIgX19zZXRNb2R1bGVEZWZhdWx0ID0gKHRoaXMgJiYgdGhpcy5fX3NldE1vZHVsZURlZmF1bHQpIHx8IChPYmplY3QuY3JlYXRlID8gKGZ1bmN0aW9uKG8sIHYpIHsNCiAgICBPYmplY3QuZGVmaW5lUHJvcGVydHkobywgImRlZmF1bHQiLCB7IGVudW1lcmFibGU6IHRydWUsIHZhbHVlOiB2IH0pOw0KfSkgOiBmdW5jdGlvbihvLCB2KSB7DQogICAgb1siZGVmYXVsdCJdID0gdjsNCn0pOw0KdmFyIF9faW1wb3J0U3RhciA9ICh0aGlzICYmIHRoaXMuX19pbXBvcnRTdGFyKSB8fCAoZnVuY3Rpb24gKCkgew0KICAgIHZhciBvd25LZXlzID0gZnVuY3Rpb24obykgew0KICAgICAgICBvd25LZXlzID0gT2JqZWN0LmdldE93blByb3BlcnR5TmFtZXMgfHwgZnVuY3Rpb24gKG8pIHsNCiAgICAgICAgICAgIHZhciBhciA9IFtdOw0KICAgICAgICAgICAgZm9yICh2YXIgayBpbiBvKSBpZiAoT2JqZWN0LnByb3RvdHlwZS5oYXNPd25Qcm9wZXJ0eS5jYWxsKG8sIGspKSBhclthci5sZW5ndGhdID0gazsNCiAgICAgICAgICAgIHJldHVybiBhcjsNCiAgICAgICAgfTsNCiAgICAgICAgcmV0dXJuIG93bktleXMobyk7DQogICAgfTsNCiAgICByZXR1cm4gZnVuY3Rpb24gKG1vZCkgew0KICAgICAgICBpZiAobW9kICYmIG1vZC5fX2VzTW9kdWxlKSByZXR1cm4gbW9kOw0KICAgICAgICB2YXIgcmVzdWx0ID0ge307DQogICAgICAgIGlmIChtb2QgIT0gbnVsbCkgZm9yICh2YXIgayA9IG93bktleXMobW9kKSwgaSA9IDA7IGkgPCBrLmxlbmd0aDsgaSsrKSBpZiAoa1tpXSAhPT0gImRlZmF1bHQiKSBfX2NyZWF0ZUJpbmRpbmcocmVzdWx0LCBtb2QsIGtbaV0pOw0KICAgICAgICBfX3NldE1vZHVsZURlZmF1bHQocmVzdWx0LCBtb2QpOw0KICAgICAgICByZXR1cm4gcmVzdWx0Ow0KICAgIH07DQp9KSgpOw0KKGZ1bmN0aW9uIChmYWN0b3J5KSB7DQogICAgaWYgKHR5cGVvZiBtb2R1bGUgPT09ICJvYmplY3QiICYmIHR5cGVvZiBtb2R1bGUuZXhwb3J0cyA9PT0gIm9iamVjdCIpIHsNCiAgICAgICAgdmFyIHYgPSBmYWN0b3J5KHJlcXVpcmUsIGV4cG9ydHMpOw0KICAgICAgICBpZiAodiAhPT0gdW5kZWZpbmVkKSBtb2R1bGUuZXhwb3J0cyA9IHY7DQogICAgfQ0KICAgIGVsc2UgaWYgKHR5cGVvZiBkZWZpbmUgPT09ICJmdW5jdGlvbiIgJiYgZGVmaW5lLmFtZCkgew0KICAgICAgICBkZWZpbmUoWyJyZXF1aXJlIiwgImV4cG9ydHMiXSwgZmFjdG9yeSk7DQogICAgfQ0KfSkoZnVuY3Rpb24gKHJlcXVpcmUsIGV4cG9ydHMpIHsNCiAgICAidXNlIHN0cmljdCI7DQogICAgdmFyIF9fc3luY1JlcXVpcmUgPSB0eXBlb2YgbW9kdWxlID09PSAib2JqZWN0IiAmJiB0eXBlb2YgbW9kdWxlLmV4cG9ydHMgPT09ICJvYmplY3QiOw0KICAgIC8vIFdlIHVzZSBQcm9taXNlPGFueT4gZm9yIG5vdyBhcyB0aGVyZSBpcyBubyB3YXkgdG8gc3BlY2lmeSBzaGFwZSBvZiBtb2R1bGUgb2JqZWN0DQogICAgZnVuY3Rpb24gZm9vKHgpIHsNCiAgICAgICAgeC50aGVuKHZhbHVlID0+IHsNCiAgICAgICAgICAgIGxldCBiID0gbmV3IHZhbHVlLkIoKTsNCiAgICAgICAgICAgIGIucHJpbnQoKTsNCiAgICAgICAgfSk7DQogICAgfQ0KICAgIGZvbyhfX3N5bmNSZXF1aXJlID8gUHJvbWlzZS5yZXNvbHZlKCkudGhlbigoKSA9PiBfX2ltcG9ydFN0YXIocmVxdWlyZSgiLi8wIikpKSA6IG5ldyBQcm9taXNlKChyZXNvbHZlXzEsIHJlamVjdF8xKSA9PiB7IHJlcXVpcmUoWyIuLzAiXSwgcmVzb2x2ZV8xLCByZWplY3RfMSk7IH0pLnRoZW4oX19pbXBvcnRTdGFyKSk7DQp9KTsNCg==",
+              "callback_utf8_sha256": "252c9b6ba5c75f4e22955cf614867cea461799284c78586d71fcd9d0413c6c77",
+              "callback_utf8_bytes": 2266,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "252c9b6ba5c75f4e22955cf614867cea461799284c78586d71fcd9d0413c6c77",
+              "materialized_utf8_bytes": 2266,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/2.ts"
+              ]
+            }
+          ],
+          "reported_diagnostics": [
+            {
+              "code": 5107,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Option 'module=UMD' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error."
+            }
+          ],
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 2,
+          "run_fingerprint_sha256": "8a703156b9dac18e38177d7dbc263e3f1d9f5e29a324c5b6df5ae22996742c83"
+        }
+      ],
+      "rust_expectation": "two-deterministic-exact-runs",
+      "case_fingerprint_sha256": "376f02708282507e26c2357f393a677ed3110a3c6b7716e7bc86079ebe4fd0fd"
+    },
+    {
+      "suite": "conformance",
+      "case_id": "typescript-6.0.3/conformance/dynamicImport/importCallExpressionInUMD3.ts#default",
+      "expansion_case": 1243,
+      "source": {
+        "path": "dynamicImport/importCallExpressionInUMD3.ts",
+        "bytes": 254,
+        "sha256": "44fe1928e66b347e4d92fe58fc4d106409d8ec6e047c671c1128fecbcc01ff93",
+        "git_blob_sha1": "58d21ee52d0a56d3559b7fd88e972e32241fda4f"
+      },
+      "module_state": "UMD(3)",
+      "input": {
+        "current_directory": "/.src",
+        "roots": [
+          "/.src/0.ts",
+          "/.src/2.ts"
+        ],
+        "settings": [
+          {
+            "name": "module",
+            "value": "umd"
+          },
+          {
+            "name": "target",
+            "value": "esnext"
+          },
+          {
+            "name": "filename",
+            "value": "2.ts"
+          }
+        ],
+        "virtual_config": null,
+        "files": [
+          {
+            "unit": 0,
+            "path": "/.src/0.ts",
+            "utf8_base64": "ZXhwb3J0IGNsYXNzIEIgewogICAgcHJpbnQoKSB7IHJldHVybiAiSSBhbSBCIn0KfQo=",
+            "utf8_sha256": "3b56dfe62d62893f196cc455483054fd6b03084a5a230aa0370bedf31915c67c",
+            "utf8_bytes": 50
+          },
+          {
+            "unit": 1,
+            "path": "/.src/2.ts",
+            "utf8_base64": "YXN5bmMgZnVuY3Rpb24gZm9vKCkgewogICAgY2xhc3MgQyBleHRlbmRzIChhd2FpdCBpbXBvcnQoIi4vMCIpKS5CIHt9CiAgICB2YXIgYyA9IG5ldyBDKCk7CiAgICBjLnByaW50KCk7Cn0KZm9vKCk7",
+            "utf8_sha256": "5fb2424075e5c23eedf5b0839d445746bbf1423733d775aa5e782fa747b43552",
+            "utf8_bytes": 114
+          }
+        ]
+      },
+      "files": [
+        {
+          "unit": 0,
+          "path": "/.src/0.ts",
+          "script_kind": "TS",
+          "declaration_file": false,
+          "emit_eligible": true,
+          "implied_module_format": "None",
+          "emit_module_format": 3,
+          "feature_roots": [],
+          "parse_diagnostic_codes": [],
+          "max_ast_depth": 6,
+          "import_attributes": false,
+          "advanced_comment_placement": false,
+          "text_sha256": "3b56dfe62d62893f196cc455483054fd6b03084a5a230aa0370bedf31915c67c"
+        },
+        {
+          "unit": 1,
+          "path": "/.src/2.ts",
+          "script_kind": "TS",
+          "declaration_file": false,
+          "emit_eligible": true,
+          "implied_module_format": "None",
+          "emit_module_format": 3,
+          "feature_roots": [],
+          "parse_diagnostic_codes": [],
+          "max_ast_depth": 11,
+          "import_attributes": false,
+          "advanced_comment_placement": false,
+          "text_sha256": "5fb2424075e5c23eedf5b0839d445746bbf1423733d775aa5e782fa747b43552"
+        }
+      ],
+      "owner_reachability": [
+        "transform-module"
+      ],
+      "disposition": "admitted-for-execution",
+      "required_slices": [],
+      "diagnostic_disposition": {
+        "state": "exact-required"
+      },
+      "typescript_runs": [
+        {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/.src/0.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "KGZ1bmN0aW9uIChmYWN0b3J5KSB7DQogICAgaWYgKHR5cGVvZiBtb2R1bGUgPT09ICJvYmplY3QiICYmIHR5cGVvZiBtb2R1bGUuZXhwb3J0cyA9PT0gIm9iamVjdCIpIHsNCiAgICAgICAgdmFyIHYgPSBmYWN0b3J5KHJlcXVpcmUsIGV4cG9ydHMpOw0KICAgICAgICBpZiAodiAhPT0gdW5kZWZpbmVkKSBtb2R1bGUuZXhwb3J0cyA9IHY7DQogICAgfQ0KICAgIGVsc2UgaWYgKHR5cGVvZiBkZWZpbmUgPT09ICJmdW5jdGlvbiIgJiYgZGVmaW5lLmFtZCkgew0KICAgICAgICBkZWZpbmUoWyJyZXF1aXJlIiwgImV4cG9ydHMiXSwgZmFjdG9yeSk7DQogICAgfQ0KfSkoZnVuY3Rpb24gKHJlcXVpcmUsIGV4cG9ydHMpIHsNCiAgICAidXNlIHN0cmljdCI7DQogICAgT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCiAgICBleHBvcnRzLkIgPSB2b2lkIDA7DQogICAgY2xhc3MgQiB7DQogICAgICAgIHByaW50KCkgeyByZXR1cm4gIkkgYW0gQiI7IH0NCiAgICB9DQogICAgZXhwb3J0cy5CID0gQjsNCn0pOw0K",
+              "callback_utf8_sha256": "b2c6ec4ebeaa5e27cdff9b20592222ea4cd7929b52d586ac82dd15598b777d92",
+              "callback_utf8_bytes": 549,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "b2c6ec4ebeaa5e27cdff9b20592222ea4cd7929b52d586ac82dd15598b777d92",
+              "materialized_utf8_bytes": 549,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/0.ts"
+              ]
+            },
+            {
+              "index": 1,
+              "path": "/.src/2.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "dmFyIF9fY3JlYXRlQmluZGluZyA9ICh0aGlzICYmIHRoaXMuX19jcmVhdGVCaW5kaW5nKSB8fCAoT2JqZWN0LmNyZWF0ZSA/IChmdW5jdGlvbihvLCBtLCBrLCBrMikgew0KICAgIGlmIChrMiA9PT0gdW5kZWZpbmVkKSBrMiA9IGs7DQogICAgdmFyIGRlc2MgPSBPYmplY3QuZ2V0T3duUHJvcGVydHlEZXNjcmlwdG9yKG0sIGspOw0KICAgIGlmICghZGVzYyB8fCAoImdldCIgaW4gZGVzYyA/ICFtLl9fZXNNb2R1bGUgOiBkZXNjLndyaXRhYmxlIHx8IGRlc2MuY29uZmlndXJhYmxlKSkgew0KICAgICAgZGVzYyA9IHsgZW51bWVyYWJsZTogdHJ1ZSwgZ2V0OiBmdW5jdGlvbigpIHsgcmV0dXJuIG1ba107IH0gfTsNCiAgICB9DQogICAgT2JqZWN0LmRlZmluZVByb3BlcnR5KG8sIGsyLCBkZXNjKTsNCn0pIDogKGZ1bmN0aW9uKG8sIG0sIGssIGsyKSB7DQogICAgaWYgKGsyID09PSB1bmRlZmluZWQpIGsyID0gazsNCiAgICBvW2syXSA9IG1ba107DQp9KSk7DQp2YXIgX19zZXRNb2R1bGVEZWZhdWx0ID0gKHRoaXMgJiYgdGhpcy5fX3NldE1vZHVsZURlZmF1bHQpIHx8IChPYmplY3QuY3JlYXRlID8gKGZ1bmN0aW9uKG8sIHYpIHsNCiAgICBPYmplY3QuZGVmaW5lUHJvcGVydHkobywgImRlZmF1bHQiLCB7IGVudW1lcmFibGU6IHRydWUsIHZhbHVlOiB2IH0pOw0KfSkgOiBmdW5jdGlvbihvLCB2KSB7DQogICAgb1siZGVmYXVsdCJdID0gdjsNCn0pOw0KdmFyIF9faW1wb3J0U3RhciA9ICh0aGlzICYmIHRoaXMuX19pbXBvcnRTdGFyKSB8fCAoZnVuY3Rpb24gKCkgew0KICAgIHZhciBvd25LZXlzID0gZnVuY3Rpb24obykgew0KICAgICAgICBvd25LZXlzID0gT2JqZWN0LmdldE93blByb3BlcnR5TmFtZXMgfHwgZnVuY3Rpb24gKG8pIHsNCiAgICAgICAgICAgIHZhciBhciA9IFtdOw0KICAgICAgICAgICAgZm9yICh2YXIgayBpbiBvKSBpZiAoT2JqZWN0LnByb3RvdHlwZS5oYXNPd25Qcm9wZXJ0eS5jYWxsKG8sIGspKSBhclthci5sZW5ndGhdID0gazsNCiAgICAgICAgICAgIHJldHVybiBhcjsNCiAgICAgICAgfTsNCiAgICAgICAgcmV0dXJuIG93bktleXMobyk7DQogICAgfTsNCiAgICByZXR1cm4gZnVuY3Rpb24gKG1vZCkgew0KICAgICAgICBpZiAobW9kICYmIG1vZC5fX2VzTW9kdWxlKSByZXR1cm4gbW9kOw0KICAgICAgICB2YXIgcmVzdWx0ID0ge307DQogICAgICAgIGlmIChtb2QgIT0gbnVsbCkgZm9yICh2YXIgayA9IG93bktleXMobW9kKSwgaSA9IDA7IGkgPCBrLmxlbmd0aDsgaSsrKSBpZiAoa1tpXSAhPT0gImRlZmF1bHQiKSBfX2NyZWF0ZUJpbmRpbmcocmVzdWx0LCBtb2QsIGtbaV0pOw0KICAgICAgICBfX3NldE1vZHVsZURlZmF1bHQocmVzdWx0LCBtb2QpOw0KICAgICAgICByZXR1cm4gcmVzdWx0Ow0KICAgIH07DQp9KSgpOw0KKGZ1bmN0aW9uIChmYWN0b3J5KSB7DQogICAgaWYgKHR5cGVvZiBtb2R1bGUgPT09ICJvYmplY3QiICYmIHR5cGVvZiBtb2R1bGUuZXhwb3J0cyA9PT0gIm9iamVjdCIpIHsNCiAgICAgICAgdmFyIHYgPSBmYWN0b3J5KHJlcXVpcmUsIGV4cG9ydHMpOw0KICAgICAgICBpZiAodiAhPT0gdW5kZWZpbmVkKSBtb2R1bGUuZXhwb3J0cyA9IHY7DQogICAgfQ0KICAgIGVsc2UgaWYgKHR5cGVvZiBkZWZpbmUgPT09ICJmdW5jdGlvbiIgJiYgZGVmaW5lLmFtZCkgew0KICAgICAgICBkZWZpbmUoWyJyZXF1aXJlIiwgImV4cG9ydHMiXSwgZmFjdG9yeSk7DQogICAgfQ0KfSkoZnVuY3Rpb24gKHJlcXVpcmUsIGV4cG9ydHMpIHsNCiAgICAidXNlIHN0cmljdCI7DQogICAgdmFyIF9fc3luY1JlcXVpcmUgPSB0eXBlb2YgbW9kdWxlID09PSAib2JqZWN0IiAmJiB0eXBlb2YgbW9kdWxlLmV4cG9ydHMgPT09ICJvYmplY3QiOw0KICAgIGFzeW5jIGZ1bmN0aW9uIGZvbygpIHsNCiAgICAgICAgY2xhc3MgQyBleHRlbmRzIChhd2FpdCAoX19zeW5jUmVxdWlyZSA/IFByb21pc2UucmVzb2x2ZSgpLnRoZW4oKCkgPT4gX19pbXBvcnRTdGFyKHJlcXVpcmUoIi4vMCIpKSkgOiBuZXcgUHJvbWlzZSgocmVzb2x2ZV8xLCByZWplY3RfMSkgPT4geyByZXF1aXJlKFsiLi8wIl0sIHJlc29sdmVfMSwgcmVqZWN0XzEpOyB9KS50aGVuKF9faW1wb3J0U3RhcikpKS5CIHsNCiAgICAgICAgfQ0KICAgICAgICB2YXIgYyA9IG5ldyBDKCk7DQogICAgICAgIGMucHJpbnQoKTsNCiAgICB9DQogICAgZm9vKCk7DQp9KTsNCg==",
+              "callback_utf8_sha256": "a98877fc91adfa2ebfdc9b054c01069e28e585b355ea57813f44f47e894ea8d0",
+              "callback_utf8_bytes": 2179,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "a98877fc91adfa2ebfdc9b054c01069e28e585b355ea57813f44f47e894ea8d0",
+              "materialized_utf8_bytes": 2179,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/2.ts"
+              ]
+            }
+          ],
+          "reported_diagnostics": [
+            {
+              "code": 5107,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Option 'module=UMD' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error."
+            }
+          ],
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 2,
+          "run_fingerprint_sha256": "50364fd446e32c135b1a44983cccec1ec6c8fdc83a5047a23de73c75b79dd5c2"
+        },
+        {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/.src/0.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "KGZ1bmN0aW9uIChmYWN0b3J5KSB7DQogICAgaWYgKHR5cGVvZiBtb2R1bGUgPT09ICJvYmplY3QiICYmIHR5cGVvZiBtb2R1bGUuZXhwb3J0cyA9PT0gIm9iamVjdCIpIHsNCiAgICAgICAgdmFyIHYgPSBmYWN0b3J5KHJlcXVpcmUsIGV4cG9ydHMpOw0KICAgICAgICBpZiAodiAhPT0gdW5kZWZpbmVkKSBtb2R1bGUuZXhwb3J0cyA9IHY7DQogICAgfQ0KICAgIGVsc2UgaWYgKHR5cGVvZiBkZWZpbmUgPT09ICJmdW5jdGlvbiIgJiYgZGVmaW5lLmFtZCkgew0KICAgICAgICBkZWZpbmUoWyJyZXF1aXJlIiwgImV4cG9ydHMiXSwgZmFjdG9yeSk7DQogICAgfQ0KfSkoZnVuY3Rpb24gKHJlcXVpcmUsIGV4cG9ydHMpIHsNCiAgICAidXNlIHN0cmljdCI7DQogICAgT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCiAgICBleHBvcnRzLkIgPSB2b2lkIDA7DQogICAgY2xhc3MgQiB7DQogICAgICAgIHByaW50KCkgeyByZXR1cm4gIkkgYW0gQiI7IH0NCiAgICB9DQogICAgZXhwb3J0cy5CID0gQjsNCn0pOw0K",
+              "callback_utf8_sha256": "b2c6ec4ebeaa5e27cdff9b20592222ea4cd7929b52d586ac82dd15598b777d92",
+              "callback_utf8_bytes": 549,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "b2c6ec4ebeaa5e27cdff9b20592222ea4cd7929b52d586ac82dd15598b777d92",
+              "materialized_utf8_bytes": 549,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/0.ts"
+              ]
+            },
+            {
+              "index": 1,
+              "path": "/.src/2.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "dmFyIF9fY3JlYXRlQmluZGluZyA9ICh0aGlzICYmIHRoaXMuX19jcmVhdGVCaW5kaW5nKSB8fCAoT2JqZWN0LmNyZWF0ZSA/IChmdW5jdGlvbihvLCBtLCBrLCBrMikgew0KICAgIGlmIChrMiA9PT0gdW5kZWZpbmVkKSBrMiA9IGs7DQogICAgdmFyIGRlc2MgPSBPYmplY3QuZ2V0T3duUHJvcGVydHlEZXNjcmlwdG9yKG0sIGspOw0KICAgIGlmICghZGVzYyB8fCAoImdldCIgaW4gZGVzYyA/ICFtLl9fZXNNb2R1bGUgOiBkZXNjLndyaXRhYmxlIHx8IGRlc2MuY29uZmlndXJhYmxlKSkgew0KICAgICAgZGVzYyA9IHsgZW51bWVyYWJsZTogdHJ1ZSwgZ2V0OiBmdW5jdGlvbigpIHsgcmV0dXJuIG1ba107IH0gfTsNCiAgICB9DQogICAgT2JqZWN0LmRlZmluZVByb3BlcnR5KG8sIGsyLCBkZXNjKTsNCn0pIDogKGZ1bmN0aW9uKG8sIG0sIGssIGsyKSB7DQogICAgaWYgKGsyID09PSB1bmRlZmluZWQpIGsyID0gazsNCiAgICBvW2syXSA9IG1ba107DQp9KSk7DQp2YXIgX19zZXRNb2R1bGVEZWZhdWx0ID0gKHRoaXMgJiYgdGhpcy5fX3NldE1vZHVsZURlZmF1bHQpIHx8IChPYmplY3QuY3JlYXRlID8gKGZ1bmN0aW9uKG8sIHYpIHsNCiAgICBPYmplY3QuZGVmaW5lUHJvcGVydHkobywgImRlZmF1bHQiLCB7IGVudW1lcmFibGU6IHRydWUsIHZhbHVlOiB2IH0pOw0KfSkgOiBmdW5jdGlvbihvLCB2KSB7DQogICAgb1siZGVmYXVsdCJdID0gdjsNCn0pOw0KdmFyIF9faW1wb3J0U3RhciA9ICh0aGlzICYmIHRoaXMuX19pbXBvcnRTdGFyKSB8fCAoZnVuY3Rpb24gKCkgew0KICAgIHZhciBvd25LZXlzID0gZnVuY3Rpb24obykgew0KICAgICAgICBvd25LZXlzID0gT2JqZWN0LmdldE93blByb3BlcnR5TmFtZXMgfHwgZnVuY3Rpb24gKG8pIHsNCiAgICAgICAgICAgIHZhciBhciA9IFtdOw0KICAgICAgICAgICAgZm9yICh2YXIgayBpbiBvKSBpZiAoT2JqZWN0LnByb3RvdHlwZS5oYXNPd25Qcm9wZXJ0eS5jYWxsKG8sIGspKSBhclthci5sZW5ndGhdID0gazsNCiAgICAgICAgICAgIHJldHVybiBhcjsNCiAgICAgICAgfTsNCiAgICAgICAgcmV0dXJuIG93bktleXMobyk7DQogICAgfTsNCiAgICByZXR1cm4gZnVuY3Rpb24gKG1vZCkgew0KICAgICAgICBpZiAobW9kICYmIG1vZC5fX2VzTW9kdWxlKSByZXR1cm4gbW9kOw0KICAgICAgICB2YXIgcmVzdWx0ID0ge307DQogICAgICAgIGlmIChtb2QgIT0gbnVsbCkgZm9yICh2YXIgayA9IG93bktleXMobW9kKSwgaSA9IDA7IGkgPCBrLmxlbmd0aDsgaSsrKSBpZiAoa1tpXSAhPT0gImRlZmF1bHQiKSBfX2NyZWF0ZUJpbmRpbmcocmVzdWx0LCBtb2QsIGtbaV0pOw0KICAgICAgICBfX3NldE1vZHVsZURlZmF1bHQocmVzdWx0LCBtb2QpOw0KICAgICAgICByZXR1cm4gcmVzdWx0Ow0KICAgIH07DQp9KSgpOw0KKGZ1bmN0aW9uIChmYWN0b3J5KSB7DQogICAgaWYgKHR5cGVvZiBtb2R1bGUgPT09ICJvYmplY3QiICYmIHR5cGVvZiBtb2R1bGUuZXhwb3J0cyA9PT0gIm9iamVjdCIpIHsNCiAgICAgICAgdmFyIHYgPSBmYWN0b3J5KHJlcXVpcmUsIGV4cG9ydHMpOw0KICAgICAgICBpZiAodiAhPT0gdW5kZWZpbmVkKSBtb2R1bGUuZXhwb3J0cyA9IHY7DQogICAgfQ0KICAgIGVsc2UgaWYgKHR5cGVvZiBkZWZpbmUgPT09ICJmdW5jdGlvbiIgJiYgZGVmaW5lLmFtZCkgew0KICAgICAgICBkZWZpbmUoWyJyZXF1aXJlIiwgImV4cG9ydHMiXSwgZmFjdG9yeSk7DQogICAgfQ0KfSkoZnVuY3Rpb24gKHJlcXVpcmUsIGV4cG9ydHMpIHsNCiAgICAidXNlIHN0cmljdCI7DQogICAgdmFyIF9fc3luY1JlcXVpcmUgPSB0eXBlb2YgbW9kdWxlID09PSAib2JqZWN0IiAmJiB0eXBlb2YgbW9kdWxlLmV4cG9ydHMgPT09ICJvYmplY3QiOw0KICAgIGFzeW5jIGZ1bmN0aW9uIGZvbygpIHsNCiAgICAgICAgY2xhc3MgQyBleHRlbmRzIChhd2FpdCAoX19zeW5jUmVxdWlyZSA/IFByb21pc2UucmVzb2x2ZSgpLnRoZW4oKCkgPT4gX19pbXBvcnRTdGFyKHJlcXVpcmUoIi4vMCIpKSkgOiBuZXcgUHJvbWlzZSgocmVzb2x2ZV8xLCByZWplY3RfMSkgPT4geyByZXF1aXJlKFsiLi8wIl0sIHJlc29sdmVfMSwgcmVqZWN0XzEpOyB9KS50aGVuKF9faW1wb3J0U3RhcikpKS5CIHsNCiAgICAgICAgfQ0KICAgICAgICB2YXIgYyA9IG5ldyBDKCk7DQogICAgICAgIGMucHJpbnQoKTsNCiAgICB9DQogICAgZm9vKCk7DQp9KTsNCg==",
+              "callback_utf8_sha256": "a98877fc91adfa2ebfdc9b054c01069e28e585b355ea57813f44f47e894ea8d0",
+              "callback_utf8_bytes": 2179,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "a98877fc91adfa2ebfdc9b054c01069e28e585b355ea57813f44f47e894ea8d0",
+              "materialized_utf8_bytes": 2179,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/2.ts"
+              ]
+            }
+          ],
+          "reported_diagnostics": [
+            {
+              "code": 5107,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Option 'module=UMD' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error."
+            }
+          ],
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 2,
+          "run_fingerprint_sha256": "50364fd446e32c135b1a44983cccec1ec6c8fdc83a5047a23de73c75b79dd5c2"
+        }
+      ],
+      "rust_expectation": "two-deterministic-exact-runs",
+      "case_fingerprint_sha256": "2a9f7150053ee13e2bb13ad71d5c43e3f8023263166d7bc9c1465e07f0430210"
+    }
+  ],
+  "summary": {
+    "candidates": 8,
+    "compiler_candidates": 0,
+    "conformance_candidates": 8,
+    "admitted_cases": 6,
+    "deferred_cases": 2,
+    "diagnostic_deferred_output_control_cases": 0,
+    "source_deferred_cases": 2,
+    "no_emit_control_cases": 0,
+    "module_states": [
+      {
+        "value": "AMD(2)",
+        "cases": 4
+      },
+      {
+        "value": "UMD(3)",
+        "cases": 4
+      }
+    ],
+    "dispositions": [
+      {
+        "value": "admitted-for-execution",
+        "cases": 6
+      },
+      {
+        "value": "deferred-to-slices",
+        "cases": 2
+      }
+    ],
+    "first_deferred_slices": [
+      {
+        "value": "H2.2d",
+        "cases": 2
+      }
+    ],
+    "typescript_runs": 16,
+    "deterministic_typescript_cases": 8,
+    "admitted_typescript_writes": 12,
+    "diagnostic_control_typescript_writes": 0,
+    "admitted_typescript_diagnostics": 6,
+    "unexecuted_candidates": 0,
+    "undispositioned_candidates": 0
+  },
+  "qualification_fingerprint_sha256": "94d3cd35d4339b51e182ddbc781697bd3916862315954a40787d3b0655d2c6b9"
+}

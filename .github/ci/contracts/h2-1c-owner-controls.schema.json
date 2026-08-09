@@ -1,0 +1,184 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/kazhiramatsu/tsc-rs/.github/ci/contracts/h2-1c-owner-controls.schema.json",
+  "title": "tsc-rs H2.1c AMD/UMD owner controls",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "phase",
+    "status",
+    "typescript",
+    "generator",
+    "contract",
+    "controls",
+    "summary",
+    "controls_fingerprint_sha256"
+  ],
+  "properties": {
+    "schema": { "const": 1 },
+    "phase": { "const": "H2.1c-amd-umd-owner-controls" },
+    "status": { "const": "qualified" },
+    "typescript": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["version", "source_commit", "bundle", "implementation"],
+      "properties": {
+        "version": { "const": "6.0.3" },
+        "source_commit": { "$ref": "#/$defs/sha1" },
+        "bundle": { "$ref": "#/$defs/path_hash" },
+        "implementation": { "$ref": "#/$defs/path_hash" }
+      }
+    },
+    "generator": { "$ref": "#/$defs/path_hash" },
+    "contract": { "$ref": "#/$defs/path_hash" },
+    "controls": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "control_id",
+          "input",
+          "runs",
+          "control_fingerprint_sha256"
+        ],
+        "properties": {
+          "control_id": {
+            "const": "amd-module-dependency-and-static-import-order"
+          },
+          "input": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "current_directory",
+              "root",
+              "files",
+              "module_resolutions",
+              "target",
+              "ignore_deprecations",
+              "es_module_interop"
+            ],
+            "properties": {
+              "current_directory": { "const": "/project" },
+              "root": { "const": "/project/input.ts" },
+              "files": {
+                "type": "array",
+                "minItems": 5,
+                "maxItems": 5,
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "path",
+                    "emit_eligible",
+                    "utf8_base64",
+                    "utf8_sha256",
+                    "utf8_bytes"
+                  ],
+                  "properties": {
+                    "path": { "type": "string", "minLength": 1 },
+                    "emit_eligible": { "type": "boolean" },
+                    "utf8_base64": { "type": "string" },
+                    "utf8_sha256": { "$ref": "#/$defs/sha256" },
+                    "utf8_bytes": { "type": "integer", "minimum": 0 }
+                  }
+                }
+              },
+              "module_resolutions": {
+                "type": "array",
+                "minItems": 4,
+                "maxItems": 4,
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["origin", "specifier", "target"],
+                  "properties": {
+                    "origin": { "const": "/project/input.ts" },
+                    "specifier": {
+                      "enum": ["./dep", "./ns", "./side", "./lazy"]
+                    },
+                    "target": {
+                      "enum": [
+                        "/project/dep.ts",
+                        "/project/ns.ts",
+                        "/project/side.ts",
+                        "/project/lazy.ts"
+                      ]
+                    }
+                  }
+                }
+              },
+              "target": { "const": "ESNext(99)" },
+              "ignore_deprecations": { "const": "6.0" },
+              "es_module_interop": { "const": true }
+            }
+          },
+          "runs": {
+            "type": "array",
+            "minItems": 2,
+            "maxItems": 2,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "module_state",
+                "module_value",
+                "repetitions",
+                "diagnostic_codes",
+                "output",
+                "run_fingerprint_sha256"
+              ],
+              "properties": {
+                "module_state": { "enum": ["AMD(2)", "UMD(3)"] },
+                "module_value": { "enum": [2, 3] },
+                "repetitions": { "const": 2 },
+                "diagnostic_codes": { "const": [] },
+                "output": { "$ref": "#/$defs/bytes_record" },
+                "run_fingerprint_sha256": { "$ref": "#/$defs/sha256" }
+              }
+            }
+          },
+          "control_fingerprint_sha256": { "$ref": "#/$defs/sha256" }
+        }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["controls", "exact_outputs", "typescript_runs", "diagnostics"],
+      "properties": {
+        "controls": { "const": 1 },
+        "exact_outputs": { "const": 2 },
+        "typescript_runs": { "const": 4 },
+        "diagnostics": { "const": 0 }
+      }
+    },
+    "controls_fingerprint_sha256": { "$ref": "#/$defs/sha256" }
+  },
+  "$defs": {
+    "sha1": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "path_hash": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256"],
+      "properties": {
+        "path": { "type": "string", "minLength": 1 },
+        "sha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "bytes_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["utf8_base64", "utf8_sha256", "utf8_bytes"],
+      "properties": {
+        "utf8_base64": { "type": "string" },
+        "utf8_sha256": { "$ref": "#/$defs/sha256" },
+        "utf8_bytes": { "type": "integer", "minimum": 0 }
+      }
+    }
+  }
+}

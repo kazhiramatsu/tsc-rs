@@ -259,6 +259,8 @@ struct FinishedParse {
     referenced_files: Vec<crate::FileReference>,
     type_reference_directives: Vec<TypeReferenceDirective>,
     lib_reference_directives: Vec<crate::FileReference>,
+    amd_dependencies: Vec<crate::AmdDependency>,
+    module_name: Option<String>,
     has_jsx_import_source_pragma: bool,
     jsx_import_source_pragma: Option<String>,
     has_jsx_runtime_pragma: bool,
@@ -271,6 +273,8 @@ struct ProcessedReferenceDirectives {
     paths: Vec<crate::FileReference>,
     types: Vec<TypeReferenceDirective>,
     libs: Vec<crate::FileReference>,
+    amd_dependencies: Vec<crate::AmdDependency>,
+    module_name: Option<String>,
     has_jsx_import_source_pragma: bool,
     jsx_import_source_pragma: Option<String>,
     has_jsx_runtime_pragma: bool,
@@ -564,6 +568,8 @@ struct RawReferenceDirectives {
     paths: Vec<RawFileReference>,
     types: Vec<RawTypeReferenceDirective>,
     libs: Vec<RawFileReference>,
+    amd_dependencies: Vec<crate::AmdDependency>,
+    module_name: Option<String>,
     errors: Vec<(usize, usize, &'static tsc_diagnostics::DiagnosticMessage)>,
     has_jsx_import_source_pragma: bool,
     jsx_import_source_pragma: Option<String>,
@@ -660,6 +666,8 @@ fn leading_reference_directives(text: &str) -> RawReferenceDirectives {
         Path(RawFileReference),
         Type(RawTypeReferenceDirective),
         Lib(RawFileReference),
+        AmdDependency(crate::AmdDependency),
+        AmdModule(String),
         Invalid,
     }
 
@@ -671,9 +679,29 @@ fn leading_reference_directives(text: &str) -> RawReferenceDirectives {
         let after_space = after_slashes.trim_start_matches(is_js_whitespace);
         let after_open = after_space.strip_prefix('<')?;
         let name_end = after_open.find(is_js_whitespace)?;
-        if !after_open[..name_end].eq_ignore_ascii_case("reference")
-            || !after_open[name_end..].contains("/>")
-        {
+        let pragma_name = &after_open[..name_end];
+        if !after_open[name_end..].contains("/>") {
+            return None;
+        }
+        if pragma_name.eq_ignore_ascii_case("amd-dependency") {
+            let path = named_pragma_attribute(comment, comment_start, "path")?;
+            return Some((
+                RawReferenceDirective::AmdDependency(crate::AmdDependency {
+                    path: path.value.to_owned(),
+                    name: named_pragma_attribute(comment, comment_start, "name")
+                        .map(|attribute| attribute.value.to_owned()),
+                }),
+                None,
+            ));
+        }
+        if pragma_name.eq_ignore_ascii_case("amd-module") {
+            let name = named_pragma_attribute(comment, comment_start, "name")?;
+            return Some((
+                RawReferenceDirective::AmdModule(name.value.to_owned()),
+                None,
+            ));
+        }
+        if !pragma_name.eq_ignore_ascii_case("reference") {
             return None;
         }
         if named_pragma_attribute(comment, comment_start, "no-default-lib")
@@ -752,6 +780,23 @@ fn leading_reference_directives(text: &str) -> RawReferenceDirectives {
                     RawReferenceDirective::Path(reference) => directives.paths.push(reference),
                     RawReferenceDirective::Type(reference) => directives.types.push(reference),
                     RawReferenceDirective::Lib(reference) => directives.libs.push(reference),
+                    RawReferenceDirective::AmdDependency(dependency) => {
+                        directives.amd_dependencies.push(dependency);
+                    }
+                    RawReferenceDirective::AmdModule(name) => {
+                        if directives
+                            .module_name
+                            .as_deref()
+                            .is_some_and(|name| !name.is_empty())
+                        {
+                            directives.errors.push((
+                                offset,
+                                length,
+                                &gen::An_AMD_module_cannot_have_multiple_name_assignments,
+                            ));
+                        }
+                        directives.module_name = Some(name);
+                    }
                     RawReferenceDirective::Invalid => directives.errors.push((
                         offset,
                         length,
@@ -9605,6 +9650,8 @@ impl<'text> Parser<'text> {
                 paths: Vec::new(),
                 types: Vec::new(),
                 libs: Vec::new(),
+                amd_dependencies: Vec::new(),
+                module_name: None,
                 has_jsx_import_source_pragma: false,
                 jsx_import_source_pragma: None,
                 has_jsx_runtime_pragma: false,
@@ -9631,6 +9678,8 @@ impl<'text> Parser<'text> {
             referenced_files: directives.paths,
             type_reference_directives: directives.types,
             lib_reference_directives: directives.libs,
+            amd_dependencies: directives.amd_dependencies,
+            module_name: directives.module_name,
             has_jsx_import_source_pragma: directives.has_jsx_import_source_pragma,
             jsx_import_source_pragma: directives.jsx_import_source_pragma,
             has_jsx_runtime_pragma: directives.has_jsx_runtime_pragma,
@@ -9680,6 +9729,8 @@ impl<'text> Parser<'text> {
             paths,
             types,
             libs,
+            amd_dependencies: directives.amd_dependencies,
+            module_name: directives.module_name,
             has_jsx_import_source_pragma: directives.has_jsx_import_source_pragma,
             jsx_import_source_pragma: directives.jsx_import_source_pragma,
             has_jsx_runtime_pragma: directives.has_jsx_runtime_pragma,
@@ -9875,6 +9926,8 @@ fn parse_source_file_from_snapshot_worker(
         referenced_files: finished.referenced_files,
         type_reference_directives: finished.type_reference_directives,
         lib_reference_directives: finished.lib_reference_directives,
+        amd_dependencies: finished.amd_dependencies,
+        module_name: finished.module_name,
         has_jsx_import_source_pragma: finished.has_jsx_import_source_pragma,
         jsx_import_source_pragma: finished.jsx_import_source_pragma,
         has_jsx_runtime_pragma: finished.has_jsx_runtime_pragma,
@@ -10009,6 +10062,8 @@ pub fn parse_json_text_from_snapshot_with_bases(
         referenced_files: finished.referenced_files,
         type_reference_directives: finished.type_reference_directives,
         lib_reference_directives: finished.lib_reference_directives,
+        amd_dependencies: finished.amd_dependencies,
+        module_name: finished.module_name,
         has_jsx_import_source_pragma: finished.has_jsx_import_source_pragma,
         jsx_import_source_pragma: finished.jsx_import_source_pragma,
         has_jsx_runtime_pragma: finished.has_jsx_runtime_pragma,

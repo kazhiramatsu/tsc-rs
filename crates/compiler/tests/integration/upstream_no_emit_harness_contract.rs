@@ -261,8 +261,8 @@ fn project_session_runs_focused_node_modules_search_programs() {
             .as_array()
             .expect("project oracle diagnostics is an array")
             .iter()
-            // Project option deprecations are retained on ConfigRootPlan;
-            // ProgramSession owns source/global diagnostics only.
+            // Project option deprecations are retained on ConfigRootPlan and
+            // do not belong to this source-owned checker comparison.
             .filter(|diagnostic| diagnostic["code"] != 5107)
             .collect::<Vec<_>>();
         let actual_diagnostics = outcome.diagnostics().collect::<Vec<_>>();

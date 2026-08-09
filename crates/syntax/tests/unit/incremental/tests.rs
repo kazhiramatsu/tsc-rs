@@ -203,11 +203,32 @@ fn compare_incremental_with_options(
         fresh.lib_reference_directives,
         incremental.source.lib_reference_directives
     );
+    assert_eq!(fresh.amd_dependencies, incremental.source.amd_dependencies);
+    assert_eq!(fresh.module_name, incremental.source.module_name);
     assert_eq!(
         fresh.comment_directives,
         incremental.source.comment_directives
     );
     incremental.stats
+}
+
+#[test]
+fn amd_pragma_edits_are_fresh_equivalent() {
+    let before = concat!(
+        "/// <amd-module name=\"before\" />\n",
+        "/// <amd-dependency path=\"dep-a\" />\n",
+        "export {};\n",
+    );
+    let start = before.find("before").expect("module name");
+    compare_incremental(before, start, "before".len(), "after");
+
+    let insertion = before.find("export").expect("export statement");
+    compare_incremental(
+        before,
+        insertion,
+        0,
+        "/// <amd-dependency path=\"dep-b\" name=\"alias\" />\n",
+    );
 }
 
 #[test]

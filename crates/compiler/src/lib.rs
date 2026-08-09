@@ -686,7 +686,7 @@ impl ProgramSession {
     ) -> Result<CliEmitSessionOutcome, DriverError> {
         self.require_mode(PreparedProgramMode::Emit)?;
         let prepared = self.prepared;
-        let mut h2_activity = H2ActivityCanary::h2_1b_profile();
+        let mut h2_activity = H2ActivityCanary::h2_1c_profile();
         h2_activity.construct_emit_session();
         let emit_host = PreparedEmitHost::new(&prepared)?;
         validate_bootstrap_emit_request(&emit_host).map_err(DriverError::Emit)?;
@@ -1353,25 +1353,55 @@ fn emit_session_diagnostics(
 fn programmatic_option_diagnostics(prepared: &PreparedProgram) -> DiagnosticList {
     let options = prepared.compiler_options();
     if prepared.program_options().config_file_path().is_some()
-        || options.base_url.is_none()
+        || prepared
+            .program_options()
+            .external_config_option_diagnostics()
         || options.ignore_deprecations.as_deref() == Some("6.0")
     {
         return Vec::new();
     }
 
-    vec![Diagnostic::new(
-        None,
-        None,
-        None,
-        MessageChain::new(
-            &gen::Option_0_is_deprecated_and_will_stop_functioning_in_TypeScript_1_Specify_compilerOption_ignoreDeprecations_2_to_silence_this_error,
-            &["baseUrl".to_owned(), "7.0".to_owned(), "6.0".to_owned()],
-        )
-        .with_next(vec![MessageChain::new(
-            &gen::Visit_https_aka_ms_ts6_for_migration_information,
-            &[],
-        )]),
-    )]
+    let mut diagnostics = Vec::new();
+    if options.base_url.is_some() {
+        diagnostics.push(Diagnostic::new(
+            None,
+            None,
+            None,
+            MessageChain::new(
+                &gen::Option_0_is_deprecated_and_will_stop_functioning_in_TypeScript_1_Specify_compilerOption_ignoreDeprecations_2_to_silence_this_error,
+                &["baseUrl".to_owned(), "7.0".to_owned(), "6.0".to_owned()],
+            )
+            .with_next(vec![MessageChain::new(
+                &gen::Visit_https_aka_ms_ts6_for_migration_information,
+                &[],
+            )]),
+        ));
+    }
+    let module_name = match options.module {
+        Some(0) => Some("None"),
+        Some(2) => Some("AMD"),
+        Some(3) => Some("UMD"),
+        Some(4) => Some("System"),
+        _ => None,
+    };
+    if let Some(module_name) = module_name {
+        diagnostics.push(Diagnostic::new(
+            None,
+            None,
+            None,
+            MessageChain::new(
+                &gen::Option_0_1_is_deprecated_and_will_stop_functioning_in_TypeScript_2_Specify_compilerOption_ignoreDeprecations_3_to_silence_this_error,
+                &[
+                    "module".to_owned(),
+                    module_name.to_owned(),
+                    "7.0".to_owned(),
+                    "6.0".to_owned(),
+                ],
+            ),
+        ));
+    }
+    sort_and_dedupe_diagnostics(&mut diagnostics);
+    diagnostics
 }
 
 fn check_work_counters(checked: &CheckResult) -> NoEmitWorkCounters {

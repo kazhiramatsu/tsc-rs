@@ -284,6 +284,40 @@ fn programmatic_base_url_deprecation_is_fileless_and_suppressible() {
 }
 
 #[test]
+fn programmatic_amd_and_umd_deprecations_are_fileless_and_suppressible() {
+    for (module, name) in [(2, "AMD"), (3, "UMD")] {
+        let deprecated = consume(ProgramSession::new(with_minimal_lib(
+            &[("main.ts", "export {};\n")],
+            PreparationDiagnostics::default(),
+            |options| options.module = Some(module),
+        )));
+        let [diagnostic] = deprecated.options_diagnostics() else {
+            panic!("expected one module={name} option diagnostic");
+        };
+        assert_eq!(diagnostic.code(), 5107);
+        assert_eq!(diagnostic.file_name, None);
+        assert_eq!(diagnostic.start, None);
+        assert_eq!(diagnostic.length, None);
+        assert_eq!(
+            diagnostic.message_text(),
+            format!(
+                "Option 'module={name}' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error."
+            )
+        );
+
+        let silenced = consume(ProgramSession::new(with_minimal_lib(
+            &[("main.ts", "export {};\n")],
+            PreparationDiagnostics::default(),
+            |options| {
+                options.module = Some(module);
+                options.ignore_deprecations = Some("6.0".to_owned());
+            },
+        )));
+        assert!(silenced.options_diagnostics().is_empty());
+    }
+}
+
+#[test]
 fn located_program_diagnostics_route_by_text_owner() {
     let mut builder = PreparedProgram::builder(
         PathContext::new(current_directory(), true),

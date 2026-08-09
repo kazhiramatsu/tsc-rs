@@ -129,6 +129,7 @@ pub fn load_project_no_emit(
                 .program_options()
                 .clone()
                 .without_config_file_path()
+                .with_external_config_option_diagnostics()
                 .with_default_library_file_name(PROJECT_RUNNER_DEFAULT_LIBRARY);
             (
                 Some(config_root_plan),
@@ -161,6 +162,7 @@ pub fn load_project_no_emit(
                 .program_options()
                 .clone()
                 .without_config_file_path()
+                .with_external_config_option_diagnostics()
                 .with_default_library_file_name(PROJECT_RUNNER_DEFAULT_LIBRARY);
             (
                 Some(config_root_plan),

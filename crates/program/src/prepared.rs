@@ -795,6 +795,9 @@ pub struct ProgramOptions {
     type_roots: Option<Vec<ProgramPath>>,
     config_file_path: Option<ProgramPath>,
     config_file: Option<ProgramConfigFile>,
+    /// An embedding config parser owns option diagnostics even though it did
+    /// not pass TypeScript's optional config-file identity into createProgram.
+    external_config_option_diagnostics: bool,
     /// Host-selected default library basename. TypeScript's test project host
     /// deliberately returns `lib.es5.d.ts` independently of `target`; keeping
     /// that host fact here avoids pretending that `compilerOptions.lib` was
@@ -848,6 +851,13 @@ impl ProgramOptions {
     pub fn without_config_file_path(mut self) -> Self {
         self.config_file_path = None;
         self.config_file = None;
+        self
+    }
+
+    /// Keep programmatic option verification from duplicating diagnostics
+    /// already retained by an embedding [`crate::ConfigRootPlan`].
+    pub fn with_external_config_option_diagnostics(mut self) -> Self {
+        self.external_config_option_diagnostics = true;
         self
     }
 
@@ -913,6 +923,10 @@ impl ProgramOptions {
 
     pub fn config_file(&self) -> Option<&ProgramConfigFile> {
         self.config_file.as_ref()
+    }
+
+    pub const fn external_config_option_diagnostics(&self) -> bool {
+        self.external_config_option_diagnostics
     }
 
     pub fn default_library_file_name(&self) -> Option<&str> {
