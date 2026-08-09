@@ -80,6 +80,20 @@ fn expanded_plan_includes_export_from_and_literal_dynamic_imports() {
 }
 
 #[test]
+fn dynamic_import_attributes_retain_the_first_literal_resolution_request() {
+    let source = source(
+        "const loaded = import(\"./data.cts\", { with: { type: \"javascript\" } });\n",
+        ResolutionMode::EsNext,
+    );
+    let plan = plan_source_requests(&source, &node_options())
+        .expect("plan dynamic import with attributes");
+    assert_eq!(plan.module_requests().len(), 1);
+    assert_eq!(plan.module_requests()[0].specifier(), "./data.cts");
+    assert_eq!(plan.module_requests()[0].mode(), ResolutionMode::EsNext);
+    assert_eq!(plan.observed_request_occurrence_count(), 1);
+}
+
+#[test]
 fn expanded_plan_includes_external_import_equals_as_common_js() {
     let source = source(
         concat!(

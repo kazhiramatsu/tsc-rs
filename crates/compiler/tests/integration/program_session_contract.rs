@@ -318,6 +318,36 @@ fn programmatic_amd_and_umd_deprecations_are_fileless_and_suppressible() {
 }
 
 #[test]
+fn programmatic_node_module_resolution_relationships_keep_exact_module_names() {
+    for (module, resolution, expected) in [
+        (100, "Node16", "Node16"),
+        (101, "Node16", "Node18"),
+        (102, "Node16", "Node20"),
+        (199, "NodeNext", "NodeNext"),
+    ] {
+        let outcome = consume(ProgramSession::new(with_minimal_lib(
+            &[("main.ts", "export {};\n")],
+            PreparationDiagnostics::default(),
+            |options| {
+                options.module = Some(module);
+                options.module_resolution = Some(1);
+                options.ignore_deprecations = Some("6.0".to_owned());
+            },
+        )));
+        let [diagnostic] = outcome.options_diagnostics() else {
+            panic!("expected one module/moduleResolution relationship diagnostic");
+        };
+        assert_eq!(diagnostic.code(), 5109);
+        assert_eq!(
+            diagnostic.message_text(),
+            format!(
+                "Option 'moduleResolution' must be set to '{resolution}' (or left unspecified) when option 'module' is set to '{expected}'."
+            )
+        );
+    }
+}
+
+#[test]
 fn located_program_diagnostics_route_by_text_owner() {
     let mut builder = PreparedProgram::builder(
         PathContext::new(current_directory(), true),

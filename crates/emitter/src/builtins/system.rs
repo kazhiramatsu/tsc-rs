@@ -2058,7 +2058,10 @@ impl NodeDataChildVisitor for SystemVisitor<'_, '_> {
     }
 }
 
-fn collect_identifier_texts(arena: &TransformArena, source: TransformSourceId) -> BTreeSet<String> {
+pub(super) fn collect_identifier_texts(
+    arena: &TransformArena,
+    source: TransformSourceId,
+) -> BTreeSet<String> {
     let syntax = match arena.source(source) {
         Ok(source) => source.syntax(),
         Err(_) => return BTreeSet::new(),

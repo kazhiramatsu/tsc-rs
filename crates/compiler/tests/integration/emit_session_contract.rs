@@ -598,7 +598,7 @@ fn session_entries_reject_the_opposite_prepared_program_mode() {
 }
 
 #[test]
-fn unsupported_options_and_extensions_fail_before_the_first_sink_call() {
+fn unsupported_options_and_unadmitted_extensions_fail_before_the_first_sink_call() {
     let base = || CompilerOptions {
         no_emit: Some(false),
         target: Some(99),
@@ -642,10 +642,10 @@ fn unsupported_options_and_extensions_fail_before_the_first_sink_call() {
     let mut sink = CountingSink::default();
     let error = ProgramSession::new(prepared_with_sources(
         base(),
-        &[("/project/module.mts", "export const value = true;\n")],
+        &[("/project/module.tsx", "export const value = true;\n")],
     ))
     .emit(&mut sink)
-    .expect_err("mts output is outside H1");
+    .expect_err("tsx output remains owned by H2.3b");
     assert!(matches!(
         error,
         DriverError::Emit(EmitFailure::UnsupportedSourceExtension { .. })
@@ -714,6 +714,54 @@ fn h2_1c_amd_umd_filesystem_failure_preserves_partial_set_continuation_and_activ
 #[test]
 fn h2_1d_system_filesystem_failure_preserves_partial_set_continuation_and_activity() {
     assert_filesystem_failure_at_each_write_index(4, &[(H2RuntimeSlice::H2_1d, 2)]);
+}
+
+#[test]
+fn h2_1e_node_format_filesystem_failure_preserves_partial_set_continuation_and_activity() {
+    assert_filesystem_failure_at_each_write_index(
+        199,
+        &[(H2RuntimeSlice::H2_1a, 2), (H2RuntimeSlice::H2_1e, 2)],
+    );
+}
+
+#[test]
+fn h2_1e_dynamic_import_attributes_are_observed_on_the_esnext_path() {
+    let prepared = prepared_with_sources(
+        CompilerOptions {
+            no_emit: Some(false),
+            target: Some(99),
+            module: Some(99),
+            list_emitted_files: Some(true),
+            ..CompilerOptions::default()
+        },
+        &[(
+            "/project/input.ts",
+            concat!(
+                "const specifier = \"./runtime.cts\";\n",
+                "export const loaded = import(specifier, { with: { type: \"javascript\" } });\n",
+            ),
+        )],
+    );
+    let mut sink = MemoryOutputSink::new();
+    let outcome = ProgramSession::new(prepared)
+        .emit(&mut sink)
+        .expect("dynamic import attributes emit");
+    assert_eq!(sink.writes().len(), 1);
+    assert_eq!(
+        sink.writes()[0].callback_text(),
+        concat!(
+            "const specifier = \"./runtime.cts\";\n",
+            "export const loaded = import(specifier, { with: { type: \"javascript\" } });\n",
+        )
+    );
+    assert_eq!(
+        outcome.h2_activity().runtime_slice(H2RuntimeSlice::H2_1a),
+        1
+    );
+    assert_eq!(
+        outcome.h2_activity().runtime_slice(H2RuntimeSlice::H2_1e),
+        1
+    );
 }
 
 fn assert_filesystem_failure_at_each_write_index(

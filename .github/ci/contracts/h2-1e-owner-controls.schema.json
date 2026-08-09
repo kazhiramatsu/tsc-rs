@@ -1,0 +1,459 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/kazhiramatsu/tsc-rs/.github/ci/contracts/h2-1e-owner-controls.schema.json",
+  "title": "tsc-rs H2.1e Node-format and relative-extension owner controls",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "phase",
+    "status",
+    "typescript",
+    "generator",
+    "contract",
+    "controls",
+    "summary",
+    "controls_fingerprint_sha256"
+  ],
+  "properties": {
+    "schema": { "const": 1 },
+    "phase": { "const": "H2.1e-node-format-owner-controls" },
+    "status": { "const": "qualified" },
+    "typescript": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["version", "source_commit", "bundle", "implementation"],
+      "properties": {
+        "version": { "const": "6.0.3" },
+        "source_commit": { "$ref": "#/$defs/sha1" },
+        "bundle": { "$ref": "#/$defs/path_hash" },
+        "implementation": { "$ref": "#/$defs/path_hash" }
+      }
+    },
+    "generator": { "$ref": "#/$defs/path_hash" },
+    "contract": { "$ref": "#/$defs/path_hash" },
+    "controls": {
+      "type": "array",
+      "minItems": 4,
+      "maxItems": 4,
+      "prefixItems": [
+        { "$ref": "#/$defs/mixed_control" },
+        { "$ref": "#/$defs/attribute_control" },
+        { "$ref": "#/$defs/fresh_control" },
+        { "$ref": "#/$defs/existing_module_rewrite_control" }
+      ],
+      "items": false
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["controls", "exact_outputs", "typescript_runs", "diagnostics"],
+      "properties": {
+        "controls": { "const": 4 },
+        "exact_outputs": { "const": 56 },
+        "typescript_runs": { "const": 30 },
+        "diagnostics": { "const": 0 }
+      }
+    },
+    "controls_fingerprint_sha256": { "$ref": "#/$defs/sha256" }
+  },
+  "$defs": {
+    "sha1": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "path_hash": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256"],
+      "properties": {
+        "path": { "type": "string", "minLength": 1 },
+        "sha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "bytes_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["utf8_base64", "utf8_sha256", "utf8_bytes"],
+      "properties": {
+        "utf8_base64": { "type": "string" },
+        "utf8_sha256": { "$ref": "#/$defs/sha256" },
+        "utf8_bytes": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "file": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "root", "utf8_base64", "utf8_sha256", "utf8_bytes"],
+      "properties": {
+        "path": { "type": "string", "minLength": 1 },
+        "root": { "type": "boolean" },
+        "utf8_base64": { "type": "string" },
+        "utf8_sha256": { "$ref": "#/$defs/sha256" },
+        "utf8_bytes": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "diagnostic": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["code", "category", "file", "start", "length", "message"],
+      "properties": {
+        "code": { "type": "integer", "minimum": 0 },
+        "category": { "type": "string", "minLength": 1 },
+        "file": { "type": ["string", "null"] },
+        "start": { "type": ["integer", "null"], "minimum": 0 },
+        "length": { "type": ["integer", "null"], "minimum": 0 },
+        "message": { "type": "string" }
+      }
+    },
+    "root_fact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "implied_module_format", "emit_module_format"],
+      "properties": {
+        "path": { "type": "string", "minLength": 1 },
+        "implied_module_format": {
+          "enum": ["None", "ESModule(99)", "CommonJS(1)"]
+        },
+        "emit_module_format": { "enum": [1, 2, 3, 4, 99, 200] }
+      }
+    },
+    "write": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "index",
+        "path",
+        "kind",
+        "callback_utf8_base64",
+        "callback_utf8_sha256",
+        "callback_utf8_bytes",
+        "write_byte_order_mark",
+        "materialized_utf8_sha256",
+        "materialized_utf8_bytes",
+        "on_error_callback_present",
+        "source_files"
+      ],
+      "properties": {
+        "index": { "type": "integer", "minimum": 0 },
+        "path": { "type": "string", "minLength": 1 },
+        "kind": { "enum": ["javascript", "mjs", "cjs", "source-map", "other"] },
+        "callback_utf8_base64": { "type": "string" },
+        "callback_utf8_sha256": { "$ref": "#/$defs/sha256" },
+        "callback_utf8_bytes": { "type": "integer", "minimum": 0 },
+        "write_byte_order_mark": { "type": "boolean" },
+        "materialized_utf8_sha256": { "$ref": "#/$defs/sha256" },
+        "materialized_utf8_bytes": { "type": "integer", "minimum": 0 },
+        "on_error_callback_present": { "type": "boolean" },
+        "source_files": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "observation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "root_facts",
+        "diagnostics",
+        "emit_diagnostics",
+        "emit_skipped",
+        "writes",
+        "run_fingerprint_sha256"
+      ],
+      "properties": {
+        "root_facts": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/root_fact" }
+        },
+        "diagnostics": {
+          "type": "array",
+          "maxItems": 0,
+          "items": { "$ref": "#/$defs/diagnostic" }
+        },
+        "emit_diagnostics": {
+          "type": "array",
+          "maxItems": 0,
+          "items": { "$ref": "#/$defs/diagnostic" }
+        },
+        "emit_skipped": { "const": false },
+        "writes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/write" }
+        },
+        "run_fingerprint_sha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "module_run": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "module_state",
+        "module_value",
+        "repetitions",
+        "observation"
+      ],
+      "properties": {
+        "module_state": {
+          "enum": ["Node16(100)", "Node18(101)", "Node20(102)", "NodeNext(199)"]
+        },
+        "module_value": { "enum": [100, 101, 102, 199] },
+        "repetitions": { "const": 2 },
+        "observation": { "$ref": "#/$defs/observation" }
+      }
+    },
+    "project_input": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "current_directory",
+        "roots",
+        "files",
+        "target",
+        "modules",
+        "rewrite_relative_import_extensions",
+        "ignore_deprecations"
+      ],
+      "properties": {
+        "current_directory": { "type": "string", "minLength": 1 },
+        "roots": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "files": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/file" }
+        },
+        "target": { "const": "ESNext(99)" },
+        "modules": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 4,
+          "uniqueItems": true,
+          "items": {
+            "enum": ["Node16(100)", "Node18(101)", "Node20(102)", "NodeNext(199)"]
+          }
+        },
+        "node16_disposition": { "type": "string", "minLength": 1 },
+        "rewrite_relative_import_extensions": { "const": true },
+        "ignore_deprecations": { "const": "6.0" }
+      }
+    },
+    "mixed_control": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["control_id", "input", "runs", "control_fingerprint_sha256"],
+      "properties": {
+        "control_id": { "const": "node-format-mixed-project-owner-closure" },
+        "input": { "$ref": "#/$defs/project_input" },
+        "runs": {
+          "type": "array",
+          "minItems": 4,
+          "maxItems": 4,
+          "items": { "$ref": "#/$defs/module_run" }
+        },
+        "control_fingerprint_sha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "attribute_input": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "current_directory",
+        "roots",
+        "files",
+        "target",
+        "modules",
+        "node16_disposition",
+        "rewrite_relative_import_extensions",
+        "ignore_deprecations"
+      ],
+      "properties": {
+        "current_directory": { "const": "/attributes" },
+        "roots": {
+          "type": "array",
+          "minItems": 4,
+          "maxItems": 4,
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "files": {
+          "type": "array",
+          "minItems": 5,
+          "maxItems": 5,
+          "items": { "$ref": "#/$defs/file" }
+        },
+        "target": { "const": "ESNext(99)" },
+        "modules": {
+          "const": ["Node18(101)", "Node20(102)", "NodeNext(199)"]
+        },
+        "node16_disposition": {
+          "const": "diagnostic-2823-not-an-emission-owner-control"
+        },
+        "rewrite_relative_import_extensions": { "const": true },
+        "ignore_deprecations": { "const": "6.0" }
+      }
+    },
+    "attribute_control": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["control_id", "input", "runs", "control_fingerprint_sha256"],
+      "properties": {
+        "control_id": { "const": "node-format-import-attributes-owner-closure" },
+        "input": { "$ref": "#/$defs/attribute_input" },
+        "runs": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 3,
+          "items": { "$ref": "#/$defs/module_run" }
+        },
+        "control_fingerprint_sha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "fresh_input": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "current_directory",
+        "root",
+        "source",
+        "target",
+        "module",
+        "rewrite_relative_import_extensions",
+        "ignore_deprecations"
+      ],
+      "properties": {
+        "current_directory": { "const": "/Fresh" },
+        "root": { "const": "/Fresh/Entry.ts" },
+        "source": { "$ref": "#/$defs/bytes_record" },
+        "target": { "const": "ESNext(99)" },
+        "module": { "const": "NodeNext(199)" },
+        "rewrite_relative_import_extensions": { "const": true },
+        "ignore_deprecations": { "const": "6.0" }
+      }
+    },
+    "fresh_variant": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "package_type",
+        "package_json",
+        "expected_implied_module_format",
+        "repetitions",
+        "observation"
+      ],
+      "properties": {
+        "package_type": { "enum": ["module", "commonjs"] },
+        "package_json": { "$ref": "#/$defs/bytes_record" },
+        "expected_implied_module_format": {
+          "enum": ["ESModule(99)", "CommonJS(1)"]
+        },
+        "repetitions": { "const": 2 },
+        "observation": { "$ref": "#/$defs/observation" }
+      }
+    },
+    "fresh_control": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["control_id", "input", "variants", "control_fingerprint_sha256"],
+      "properties": {
+        "control_id": { "const": "node-format-fresh-package-and-path-casing" },
+        "input": { "$ref": "#/$defs/fresh_input" },
+        "variants": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "items": { "$ref": "#/$defs/fresh_variant" }
+        },
+        "control_fingerprint_sha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "existing_module_run": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "module_state",
+        "module_value",
+        "repetitions",
+        "observation"
+      ],
+      "properties": {
+        "module_state": {
+          "enum": [
+            "CommonJS(1)",
+            "AMD(2)",
+            "UMD(3)",
+            "System(4)",
+            "ESNext(99)",
+            "Preserve(200)"
+          ]
+        },
+        "module_value": { "enum": [1, 2, 3, 4, 99, 200] },
+        "repetitions": { "const": 2 },
+        "observation": { "$ref": "#/$defs/observation" }
+      }
+    },
+    "existing_module_rewrite_input": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "current_directory",
+        "roots",
+        "files",
+        "target",
+        "modules",
+        "system_disposition",
+        "rewrite_relative_import_extensions",
+        "ignore_deprecations"
+      ],
+      "properties": {
+        "current_directory": { "const": "/rewrite" },
+        "roots": { "const": ["/rewrite/input.ts"] },
+        "files": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 1,
+          "items": { "$ref": "#/$defs/file" }
+        },
+        "target": { "const": "ESNext(99)" },
+        "modules": {
+          "const": [
+            "CommonJS(1)",
+            "AMD(2)",
+            "UMD(3)",
+            "System(4)",
+            "ESNext(99)",
+            "Preserve(200)"
+          ]
+        },
+        "system_disposition": {
+          "const": "typescript-does-not-rewrite-system-module-imports"
+        },
+        "rewrite_relative_import_extensions": { "const": true },
+        "ignore_deprecations": { "const": "6.0" }
+      }
+    },
+    "existing_module_rewrite_control": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["control_id", "input", "runs", "control_fingerprint_sha256"],
+      "properties": {
+        "control_id": {
+          "const": "relative-extension-existing-module-owner-closure"
+        },
+        "input": { "$ref": "#/$defs/existing_module_rewrite_input" },
+        "runs": {
+          "type": "array",
+          "minItems": 6,
+          "maxItems": 6,
+          "items": { "$ref": "#/$defs/existing_module_run" }
+        },
+        "control_fingerprint_sha256": { "$ref": "#/$defs/sha256" }
+      }
+    }
+  }
+}

@@ -686,7 +686,7 @@ impl ProgramSession {
     ) -> Result<CliEmitSessionOutcome, DriverError> {
         self.require_mode(PreparedProgramMode::Emit)?;
         let prepared = self.prepared;
-        let mut h2_activity = H2ActivityCanary::h2_1d_profile();
+        let mut h2_activity = H2ActivityCanary::h2_1e_profile();
         h2_activity.construct_emit_session();
         let emit_host = PreparedEmitHost::new(&prepared)?;
         validate_bootstrap_emit_request(&emit_host).map_err(DriverError::Emit)?;
@@ -1347,6 +1347,10 @@ fn emit_session_diagnostics(
 /// diagnostics remain owned by `ConfigRootPlan`, where their exact source
 /// locations are available.
 ///
+/// tsc-port: verifyCompilerOptions @6.0.3 (module/moduleResolution arms)
+/// tsc-hash: 27def76917aef23a76e4b9d8b2036c28d04e47b44ef525ac578c6a1d48518e2d
+/// tsc-span: _tsc.js:125007-125017
+///
 /// tsc-port: verifyDeprecatedCompilerOptions @6.0.3 (baseUrl arm)
 /// tsc-hash: 2565bc5d5347775444bdbd8c11a3cc1ff2411d066648ec1f7786a231ec23a112
 /// tsc-span: _tsc.js:125087-125250
@@ -1356,13 +1360,73 @@ fn programmatic_option_diagnostics(prepared: &PreparedProgram) -> DiagnosticList
         || prepared
             .program_options()
             .external_config_option_diagnostics()
-        || options.ignore_deprecations.as_deref() == Some("6.0")
     {
         return Vec::new();
     }
 
     let mut diagnostics = Vec::new();
-    if options.base_url.is_some() {
+    let module_kind = options.emit_module_kind();
+    let module_resolution = options.emit_module_resolution_kind();
+    if module_resolution == 100 && !matches!(module_kind, 1 | 5..=99 | 200) {
+        diagnostics.push(Diagnostic::new(
+            None,
+            None,
+            None,
+            MessageChain::new(
+                &gen::Option_0_can_only_be_used_when_module_is_set_to_preserve_commonjs_or_es2015_or_later,
+                &["bundler".to_owned()],
+            ),
+        ));
+    }
+    if (3..=99).contains(&module_resolution) && !(100..=199).contains(&module_kind) {
+        let module_resolution_name = if module_resolution == 99 {
+            "NodeNext"
+        } else {
+            "Node16"
+        };
+        diagnostics.push(Diagnostic::new(
+            None,
+            None,
+            None,
+            MessageChain::new(
+                &gen::Option_module_must_be_set_to_0_when_option_moduleResolution_is_set_to_1,
+                &[
+                    module_resolution_name.to_owned(),
+                    module_resolution_name.to_owned(),
+                ],
+            ),
+        ));
+    } else if (100..=199).contains(&module_kind)
+        && options.module_resolution.is_some()
+        && !(3..=99).contains(&module_resolution)
+    {
+        let module_kind_name = match module_kind {
+            100 => "Node16",
+            101 => "Node18",
+            102 => "Node20",
+            199 => "NodeNext",
+            _ => "Node16",
+        };
+        let module_resolution_name = if module_kind == 199 {
+            "NodeNext"
+        } else {
+            "Node16"
+        };
+        diagnostics.push(Diagnostic::new(
+            None,
+            None,
+            None,
+            MessageChain::new(
+                &gen::Option_moduleResolution_must_be_set_to_0_or_left_unspecified_when_option_module_is_set_to_1,
+                &[
+                    module_resolution_name.to_owned(),
+                    module_kind_name.to_owned(),
+                ],
+            ),
+        ));
+    }
+
+    if options.ignore_deprecations.as_deref() != Some("6.0") && options.base_url.is_some() {
         diagnostics.push(Diagnostic::new(
             None,
             None,
@@ -1384,21 +1448,23 @@ fn programmatic_option_diagnostics(prepared: &PreparedProgram) -> DiagnosticList
         Some(4) => Some("System"),
         _ => None,
     };
-    if let Some(module_name) = module_name {
-        diagnostics.push(Diagnostic::new(
-            None,
-            None,
-            None,
-            MessageChain::new(
-                &gen::Option_0_1_is_deprecated_and_will_stop_functioning_in_TypeScript_2_Specify_compilerOption_ignoreDeprecations_3_to_silence_this_error,
-                &[
-                    "module".to_owned(),
-                    module_name.to_owned(),
-                    "7.0".to_owned(),
-                    "6.0".to_owned(),
-                ],
-            ),
-        ));
+    if options.ignore_deprecations.as_deref() != Some("6.0") {
+        if let Some(module_name) = module_name {
+            diagnostics.push(Diagnostic::new(
+                None,
+                None,
+                None,
+                MessageChain::new(
+                    &gen::Option_0_1_is_deprecated_and_will_stop_functioning_in_TypeScript_2_Specify_compilerOption_ignoreDeprecations_3_to_silence_this_error,
+                    &[
+                        "module".to_owned(),
+                        module_name.to_owned(),
+                        "7.0".to_owned(),
+                        "6.0".to_owned(),
+                    ],
+                ),
+            ));
+        }
     }
     sort_and_dedupe_diagnostics(&mut diagnostics);
     diagnostics

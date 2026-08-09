@@ -363,6 +363,9 @@ export function validatePolicy(policy) {
     "h2-1d-owner-controls",
     "h2-1d-qualification",
     "h2-1d-profile",
+    "h2-1e-owner-controls",
+    "h2-1e-qualification",
+    "h2-1e-profile",
     "h2-source-reachability",
     "h2-emit-observation",
   ]) {

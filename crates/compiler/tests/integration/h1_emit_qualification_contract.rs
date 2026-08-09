@@ -9,8 +9,8 @@ use base64::Engine;
 use serde_json::Value;
 use sha2::{Digest, Sha256};
 use tsc_compiler::{
-    DriverError, EmitArtifact, EmitFailure, EmitWriteDisposition, MemoryOutputSink, OutputSink,
-    ProgramSession,
+    DriverError, EmitArtifact, EmitFailure, EmitWriteDisposition, H2RuntimeSlice, MemoryOutputSink,
+    OutputSink, ProgramSession,
 };
 use tsc_emitter::{TransformError, UnsupportedTransformFeature};
 use tsc_harness::upstream_suites::execution::{
@@ -334,7 +334,7 @@ fn expected_cli_stdout(case: &Value) -> String {
 }
 
 #[test]
-fn all_frozen_adjacent_controls_fail_before_the_first_sink_write() {
+fn frozen_adjacent_controls_remain_rejected_or_are_exactly_promoted() {
     let qualification = qualification();
     let oracle = callback_oracle();
     let controls = qualification["adjacent_controls"]
@@ -349,6 +349,35 @@ fn all_frozen_adjacent_controls_fail_before_the_first_sink_write() {
             .find(|case| case["input"]["id"] == id)
             .unwrap_or_else(|| panic!("callback oracle is missing {id}"));
         assert_eq!(case["input"]["classification"], "adjacent-unsupported");
+        if id == "mts-output-control" {
+            let mut sink = MemoryOutputSink::new();
+            let outcome = ProgramSession::new(prepared_control(
+                case,
+                &oracle["oracle_environment"]["library"],
+            ))
+            .emit(&mut sink)
+            .expect("H2.1e promotes the frozen .mts adjacent control");
+            let expected = &case["observation"]["writes"][0];
+            assert_eq!(sink.writes().len(), 1, "{id}: exact promoted write count");
+            assert_eq!(
+                sink.writes()[0].path(),
+                Path::new(expected["path"].as_str().expect("expected write path")),
+                "{id}: exact promoted output path",
+            );
+            assert_eq!(
+                sink.writes()[0].callback_text(),
+                expected["callback_text"]
+                    .as_str()
+                    .expect("expected write text"),
+                "{id}: exact promoted output text",
+            );
+            assert_eq!(
+                outcome.h2_activity().runtime_slice(H2RuntimeSlice::H2_1e),
+                1,
+                "{id}: H2.1e owns the promotion",
+            );
+            continue;
+        }
         let mut sink = CountingSink::default();
         let error = ProgramSession::new(prepared_control(
             case,

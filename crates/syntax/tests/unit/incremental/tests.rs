@@ -245,6 +245,21 @@ fn dynamic_import_and_import_meta_edits_are_fresh_equivalent() {
 }
 
 #[test]
+fn import_attribute_and_typescript_extension_edits_are_fresh_equivalent() {
+    let before = concat!(
+        "import value from \"./data.ts\" with { type: \"javascript\" };\n",
+        "export const load = () => import(\"./lazy.cts\", { with: { type: \"javascript\" } });\n",
+    );
+    let extension = before.find("data.ts").expect("static TypeScript extension");
+    compare_incremental(before, extension, "data.ts".len(), "data.mts");
+
+    let attribute = before
+        .rfind("javascript")
+        .expect("dynamic import attribute");
+    compare_incremental(before, attribute, "javascript".len(), "json");
+}
+
+#[test]
 fn pinned_incremental_parser_core_cases_are_fresh_equivalent() {
     let cases = [
         (

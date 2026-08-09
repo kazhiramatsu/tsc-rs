@@ -294,7 +294,7 @@
         "to": "InputFile.snapshot",
         "path": "crates/compiler/src/lib.rs",
         "line": 1284,
-        "source_sha256": "92211389171d412770a38c4d8ec00ff89e57165e2a591cf1e2ed7e95b1b3023f",
+        "source_sha256": "e13b18340e4ef0c88bc893d45a05ee1b17ca8b991866db7bcf60a7260e513453",
         "evidence": "        InputFile::from_snapshot(name, Arc::clone(source.snapshot())),"
       },
       {
@@ -320,7 +320,7 @@
         "to": "module-request SourceFile.snapshot",
         "path": "crates/program/src/module_requests.rs",
         "line": 304,
-        "source_sha256": "d09de400d3353e46048fd3703547ff69ec2c5481f8088dfadd62a305065d8a86",
+        "source_sha256": "d705dd0b8c321ab1116bab03b6339fce0202915936a1616071d80866e3714c07",
         "evidence": "    let parsed = parse_source_file_from_snapshot("
       },
       {
@@ -352,7 +352,7 @@
     "zero_copy_counter_contract": {
       "path": "crates/compiler/tests/integration/program_session_contract.rs",
       "line": 228,
-      "source_sha256": "ecfd60ac4633e79931d6b3b00c91d1591ed16cf86da886557b57902e0ab7cc22",
+      "source_sha256": "38c4df2511aac96ecfc30612cb95549cb8cd2367f6ebe3d35c46048b2fd5da74",
       "evidence": "fn l0_work_counters_and_sorted_batch_syntax_diagnostics() {"
     },
     "position_index": {
@@ -417,8 +417,8 @@
       "generated_syntax_relocation": {
         "source": "nodes.schema.json field model",
         "path": "crates/xtask/src/main.rs",
-        "line": 11520,
-        "source_sha256": "e41b8c4fa0bc2e3e071b9443dda7170d2470d1c754ae6386d02ae90f77849350",
+        "line": 11539,
+        "source_sha256": "f24738fcbe22adbab8e0087f83d6756a69fee334cee7cb8054ec6b0eee7b9b93",
         "evidence": "fn render_relocate_rs(schemas: &[NodeSchema])"
       },
       "bind_owner": {

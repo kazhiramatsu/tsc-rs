@@ -19,6 +19,10 @@ const MODULE_AMD: i32 = 2;
 const MODULE_UMD: i32 = 3;
 const MODULE_SYSTEM: i32 = 4;
 const MODULE_ES_NEXT: i32 = 99;
+const MODULE_NODE16: i32 = 100;
+const MODULE_NODE18: i32 = 101;
+const MODULE_NODE20: i32 = 102;
+const MODULE_NODE_NEXT: i32 = 199;
 const MODULE_PRESERVE: i32 = 200;
 
 mod system;
@@ -59,6 +63,14 @@ const IMPORT_STAR_HELPER_TEXT: &str = r#"var __importStar = (this && this.__impo
 const IMPORT_DEFAULT_HELPER_TEXT: &str = r#"var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };"#;
+const REWRITE_RELATIVE_IMPORT_EXTENSIONS_HELPER_TEXT: &str = r#"var __rewriteRelativeImportExtension = (this && this.__rewriteRelativeImportExtension) || function (path, preserveJsx) {
+    if (typeof path === "string" && /^\.\.?\//.test(path)) {
+        return path.replace(/\.(tsx)$|((?:\.d)?)((?:\.[^./]+?)?)\.([cm]?)ts$/i, function (m, tsx, d, ext, cm) {
+            return tsx ? preserveJsx ? ".jsx" : ".js" : d && (!ext || !cm) ? m : (d + ext + "." + cm.toLowerCase() + "js");
+        });
+    }
+    return path;
+};"#;
 
 /// tsc-port: getScriptTransformers @6.0.3
 /// tsc-hash: 69bdc65a0c428ad5819419fabd0ecd483bb661350434c5ad0ea0bdec15096fd0
@@ -67,7 +79,7 @@ pub fn get_script_transformers<'resolver>(
     options: &CompilerOptions,
     resolver: &'resolver dyn EmitResolver,
 ) -> Result<Vec<Box<dyn Transformer + 'resolver>>, TransformError> {
-    let mut activity = H2ActivityCanary::h2_1d_profile();
+    let mut activity = H2ActivityCanary::h2_1e_profile();
     get_script_transformers_with_optional_host(options, resolver, None, &mut activity)
 }
 
@@ -101,10 +113,14 @@ fn get_script_transformers_with_optional_host<'transformers>(
             | MODULE_AMD
             | MODULE_UMD
             | MODULE_SYSTEM
+            | MODULE_NODE16
+            | MODULE_NODE18
+            | MODULE_NODE20
+            | MODULE_NODE_NEXT
     ) {
         return Err(TransformError::UnsupportedCompilerOption {
             option: "module",
-            detail: "the current transformer list requires Preserve, ESNext, CommonJS, AMD, UMD, or System",
+            detail: "the current transformer list requires Preserve, ESNext, CommonJS, AMD, UMD, System, Node16, Node18, Node20, or NodeNext",
         });
     }
     if !options.use_define_for_class_fields_effective() {
@@ -118,6 +134,25 @@ fn get_script_transformers_with_optional_host<'transformers>(
             option: "experimentalDecorators",
             detail: "legacy decorator transformation is outside the H1 bootstrap profile",
         });
+    }
+
+    if let Some((host, source)) = host {
+        let source_record = host.source_file(source);
+        let source_name = source_record
+            .map(|record| record.path().to_string_lossy().to_ascii_lowercase())
+            .unwrap_or_default();
+        let owns_node_format = matches!(
+            options.emit_module_kind(),
+            MODULE_NODE16 | MODULE_NODE18 | MODULE_NODE20 | MODULE_NODE_NEXT
+        ) || options.rewrite_relative_import_extensions == Some(true)
+            || source_name.ends_with(".mts")
+            || source_name.ends_with(".cts")
+            || source_record
+                .and_then(crate::EmitSource::syntax)
+                .is_some_and(source_contains_import_attributes);
+        if owns_node_format {
+            activity.observe_runtime_slice(H2RuntimeSlice::H2_1e);
+        }
     }
 
     activity.construct_script_transformer_list();
@@ -424,12 +459,6 @@ impl Transformer for EcmaScriptModuleTransformer {
     }
 
     fn initialize(&mut self, context: &mut TransformationContext) -> Result<(), TransformError> {
-        if self.rewrite_relative_import_extensions {
-            return Err(TransformError::UnsupportedCompilerOption {
-                option: "module transform",
-                detail: "relative-extension rewriting is outside the active module transform",
-            });
-        }
         context.enable_emit_notification(SyntaxKind::SourceFile)?;
         context.enable_substitution(SyntaxKind::Identifier)?;
         Ok(())
@@ -451,6 +480,15 @@ impl Transformer for EcmaScriptModuleTransformer {
             .syntax()
             .external_module_indicator
             .is_some();
+        if was_external && self.rewrite_relative_import_extensions {
+            let current_root = context.arena().root(source)?;
+            let mut visitor = RelativeModuleSpecifierVisitor::new(context, source);
+            let rewritten = visitor.visit(current_root.node())?;
+            visitor
+                .context
+                .arena_mut()?
+                .replace_root(source, rewritten)?;
+        }
         if self.module_kind != MODULE_PRESERVE {
             let current_root = context.arena().root(source)?;
             if context
@@ -552,6 +590,204 @@ impl Transformer for EcmaScriptModuleTransformer {
         node: TransformNode,
     ) -> Result<TransformNode, TransformError> {
         Ok(node)
+    }
+}
+
+struct RelativeModuleSpecifierVisitor<'context> {
+    context: &'context mut TransformationContext,
+    source: TransformSourceId,
+    nodes: BTreeMap<NodeId, NodeId>,
+    arrays: BTreeMap<NodeArrayId, NodeArrayId>,
+}
+
+impl<'context> RelativeModuleSpecifierVisitor<'context> {
+    fn new(context: &'context mut TransformationContext, source: TransformSourceId) -> Self {
+        Self {
+            context,
+            source,
+            nodes: BTreeMap::new(),
+            arrays: BTreeMap::new(),
+        }
+    }
+
+    fn visit(&mut self, id: NodeId) -> Result<TransformNode, TransformError> {
+        if let Some(mapped) = self.nodes.get(&id) {
+            return Ok(self.node(*mapped));
+        }
+        let original = self
+            .context
+            .arena()
+            .node_ref(self.source, id)
+            .ok_or_else(|| TransformError::UnknownNode(self.node(id)))?;
+        let mut data = self.context.arena().node(original)?.data.clone();
+        if matches!(data, NodeData::Token) {
+            self.nodes.insert(id, original.node());
+            return Ok(original);
+        }
+        try_visit_each_child(&mut data, self)?;
+        match &mut data {
+            NodeData::ImportDeclaration(declaration) => {
+                declaration.module_specifier = declaration
+                    .module_specifier
+                    .map(|specifier| self.rewrite_literal(specifier).map(TransformNode::node))
+                    .transpose()?;
+            }
+            NodeData::ExportDeclaration(declaration) => {
+                declaration.module_specifier = declaration
+                    .module_specifier
+                    .map(|specifier| self.rewrite_literal(specifier).map(TransformNode::node))
+                    .transpose()?;
+            }
+            NodeData::CallExpression(call) if self.is_dynamic_import(call.expression) => {
+                if let Some(arguments) = call
+                    .arguments
+                    .and_then(|array| self.context.arena().node_array_ref(self.source, array))
+                {
+                    let original_array = arguments;
+                    let mut arguments = self
+                        .context
+                        .arena()
+                        .node_array(original_array)?
+                        .nodes
+                        .iter()
+                        .filter_map(|id| self.context.arena().node_ref(self.source, *id))
+                        .collect::<Vec<_>>();
+                    if let Some(first) = arguments.first_mut() {
+                        *first = self.rewrite_dynamic_argument(*first)?;
+                    }
+                    call.arguments = Some(
+                        self.context
+                            .factory()?
+                            .update_node_array(original_array, arguments)?
+                            .array(),
+                    );
+                }
+            }
+            _ => {}
+        }
+        let flags = flags_after_update(self.context.arena(), original, &data)?;
+        let updated = self.context.factory()?.update_node(original, data, flags)?;
+        self.nodes.insert(id, updated.node());
+        Ok(updated)
+    }
+
+    fn rewrite_literal(&mut self, id: NodeId) -> Result<TransformNode, TransformError> {
+        let original = self.node(id);
+        let NodeData::StringLiteral(literal) = self.context.arena().node(original)?.data.clone()
+        else {
+            return Ok(original);
+        };
+        let Some(text) = rewrite_relative_module_specifier(&literal.text) else {
+            return Ok(original);
+        };
+        let flags = self.context.arena().transform_flags(original);
+        self.context.factory()?.update_node(
+            original,
+            NodeData::StringLiteral(tsc_syntax::nodes::StringLiteralData {
+                text,
+                has_extended_unicode_escape: literal.has_extended_unicode_escape,
+            }),
+            flags,
+        )
+    }
+
+    fn rewrite_dynamic_argument(
+        &mut self,
+        argument: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        if matches!(
+            self.context.arena().node(argument)?.data,
+            NodeData::StringLiteral(_)
+        ) {
+            return self.rewrite_literal(argument.node());
+        }
+        self.request_rewrite_helper()?;
+        let helper = self.context.factory()?.create_node(
+            self.source,
+            NodeData::Identifier(tsc_syntax::nodes::IdentifierData {
+                escaped_text: "__rewriteRelativeImportExtension".to_owned(),
+                text: "__rewriteRelativeImportExtension".to_owned(),
+            }),
+            TransformFlags::NONE,
+        )?;
+        let arguments = self
+            .context
+            .factory()?
+            .create_node_array(self.source, vec![argument])?;
+        self.context.factory()?.create_node(
+            self.source,
+            NodeData::CallExpression(tsc_syntax::nodes::CallExpressionData {
+                expression: Some(helper.node()),
+                question_dot_token: None,
+                type_arguments: None,
+                arguments: Some(arguments.array()),
+            }),
+            TransformFlags::NONE,
+        )
+    }
+
+    fn request_rewrite_helper(&mut self) -> Result<(), TransformError> {
+        self.context
+            .request_emit_helper(crate::EmitHelper::with_text(
+                "typescript:rewriteRelativeImportExtensions",
+                false,
+                REWRITE_RELATIVE_IMPORT_EXTENSIONS_HELPER_TEXT,
+                3,
+                Vec::new(),
+            ))
+    }
+
+    fn is_dynamic_import(&self, expression: Option<NodeId>) -> bool {
+        expression
+            .and_then(|id| self.context.arena().node_ref(self.source, id))
+            .is_some_and(|expression| {
+                self.context
+                    .arena()
+                    .node(expression)
+                    .is_ok_and(|node| node.kind == SyntaxKind::ImportKeyword)
+            })
+    }
+
+    const fn node(&self, id: NodeId) -> TransformNode {
+        TransformNode::new(self.source, id)
+    }
+}
+
+impl NodeDataChildVisitor for RelativeModuleSpecifierVisitor<'_> {
+    type Error = TransformError;
+
+    fn node_kind(&self, id: NodeId) -> SyntaxKind {
+        self.context
+            .arena()
+            .node(self.node(id))
+            .expect("relative-module child belongs to its transform source")
+            .kind
+    }
+
+    fn visit_node(&mut self, id: NodeId) -> Result<Option<NodeId>, Self::Error> {
+        self.visit(id).map(|node| Some(node.node()))
+    }
+
+    fn visit_nodes(&mut self, id: NodeArrayId) -> Result<Option<NodeArrayId>, Self::Error> {
+        if let Some(mapped) = self.arrays.get(&id) {
+            return Ok(Some(*mapped));
+        }
+        let original = TransformNodeArray::new(self.source, id);
+        let nodes = self.context.arena().node_array(original)?.nodes.clone();
+        let mut visited = Vec::with_capacity(nodes.len());
+        for node in nodes {
+            visited.push(self.visit(node)?);
+        }
+        let updated = self
+            .context
+            .factory()?
+            .update_node_array(original, visited)?;
+        self.arrays.insert(id, updated.array());
+        Ok(Some(updated.array()))
+    }
+
+    fn required_child_removed(&mut self, parent: SyntaxKind, field: &'static str) -> Self::Error {
+        TransformError::RequiredChildRemoved { parent, field }
     }
 }
 
@@ -728,6 +964,9 @@ fn transform_module<'resolver>(
         module_kind: options.emit_module_kind(),
         always_strict: options.always_strict_effective(),
         es_module_interop: options.es_module_interop_effective(),
+        rewrite_relative_import_extensions: options
+            .rewrite_relative_import_extensions
+            .unwrap_or(false),
     })
 }
 
@@ -736,6 +975,7 @@ struct CommonJsModuleTransformer<'resolver> {
     module_kind: i32,
     always_strict: bool,
     es_module_interop: bool,
+    rewrite_relative_import_extensions: bool,
 }
 
 impl Transformer for CommonJsModuleTransformer<'_> {
@@ -805,6 +1045,7 @@ impl Transformer for CommonJsModuleTransformer<'_> {
                 module_kind: self.module_kind,
                 es_module_interop: self.es_module_interop,
                 has_dynamic_import,
+                rewrite_relative_import_extensions: self.rewrite_relative_import_extensions,
             },
             info,
             referenced_declarations,
@@ -1197,6 +1438,41 @@ fn source_contains_dynamic_import(
     Ok(false)
 }
 
+fn source_contains_import_attributes(source: &tsc_syntax::SourceFile) -> bool {
+    let mut stack = vec![source.root];
+    while let Some(id) = stack.pop() {
+        let record = source.arena.node(id);
+        let static_attributes = matches!(
+            &record.data,
+            NodeData::ImportDeclaration(data) if data.attributes.is_some()
+        ) || matches!(
+            &record.data,
+            NodeData::ExportDeclaration(data) if data.attributes.is_some()
+        );
+        let dynamic_attributes = match &record.data {
+            NodeData::CallExpression(data) => {
+                let is_dynamic_import = data.expression.is_some_and(|expression| {
+                    source.arena.node(expression).kind == SyntaxKind::ImportKeyword
+                });
+                let argument_count = data
+                    .arguments
+                    .map(|arguments| source.arena.node_array(arguments).nodes.len())
+                    .unwrap_or(0);
+                is_dynamic_import && argument_count > 1
+            }
+            _ => false,
+        };
+        if static_attributes || dynamic_attributes {
+            return true;
+        }
+        for_each_child(&source.arena, record, |child| {
+            stack.push(child);
+            false
+        });
+    }
+    false
+}
+
 fn string_literal_text(
     arena: &TransformArena,
     node: TransformNode,
@@ -1208,6 +1484,42 @@ fn string_literal_text(
             field: "string module_specifier",
         }),
     }
+}
+
+/// tsc-port: shouldRewriteModuleSpecifier @6.0.3
+/// tsc-hash: a93fcbefd630ae756d3a55367bf8884b7835c8836f7a8c12fec4e489872dfff3
+/// tsc-span: _tsc.js:15250-15252
+///
+/// tsc-port: rewriteModuleSpecifier @6.0.3
+/// tsc-hash: f922e640861acb3c4f3e223a052ecf480ebdc989e9c1d4b545efca742e40aace
+/// tsc-span: _tsc.js:93242-93248
+pub(crate) fn rewrite_relative_module_specifier(text: &str) -> Option<String> {
+    if !(text.starts_with("./") || text.starts_with("../")) {
+        return None;
+    }
+    let base = text.rsplit('/').next().unwrap_or(text);
+    if base.ends_with(".d.ts")
+        || base.ends_with(".d.mts")
+        || base.ends_with(".d.cts")
+        || base.contains(".d.") && base.ends_with(".ts")
+    {
+        return None;
+    }
+    let (suffix_len, output) = if text.ends_with(".mts") {
+        (4, ".mjs")
+    } else if text.ends_with(".cts") {
+        (4, ".cjs")
+    } else if text.ends_with(".tsx") {
+        (4, ".js")
+    } else if text.ends_with(".ts") {
+        (3, ".js")
+    } else {
+        return None;
+    };
+    let mut rewritten = String::with_capacity(text.len() - suffix_len + output.len());
+    rewritten.push_str(&text[..text.len() - suffix_len]);
+    rewritten.push_str(output);
+    Some(rewritten)
 }
 
 fn identifier_or_literal_text(
@@ -1228,10 +1540,7 @@ fn generated_module_name(module_specifier: &str) -> String {
     let segment = module_specifier
         .rsplit('/')
         .next()
-        .unwrap_or(module_specifier)
-        .split('.')
-        .next()
-        .unwrap_or("module");
+        .unwrap_or(module_specifier);
     let mut generated = segment
         .chars()
         .map(|character| {
@@ -1460,6 +1769,7 @@ struct CommonJsVisitorOptions {
     module_kind: i32,
     es_module_interop: bool,
     has_dynamic_import: bool,
+    rewrite_relative_import_extensions: bool,
 }
 
 struct AsynchronousDependencies {
@@ -1475,11 +1785,15 @@ struct CommonJsVisitor<'context, 'resolver> {
     module_kind: i32,
     es_module_interop: bool,
     has_dynamic_import: bool,
+    rewrite_relative_import_extensions: bool,
     info: CommonJsModuleInfo,
     referenced_declarations: BTreeSet<NodeId>,
     nodes: BTreeMap<NodeId, NodeId>,
     arrays: BTreeMap<NodeArrayId, NodeArrayId>,
     dynamic_import_ordinal: usize,
+    used_names: BTreeSet<String>,
+    hoisted_temp_names: Vec<String>,
+    temp_ordinal: usize,
 }
 
 impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
@@ -1491,6 +1805,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         info: CommonJsModuleInfo,
         referenced_declarations: BTreeSet<NodeId>,
     ) -> Self {
+        let used_names = system::collect_identifier_texts(context.arena(), source);
         Self {
             context,
             source,
@@ -1498,11 +1813,15 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
             module_kind: options.module_kind,
             es_module_interop: options.es_module_interop,
             has_dynamic_import: options.has_dynamic_import,
+            rewrite_relative_import_extensions: options.rewrite_relative_import_extensions,
             info,
             referenced_declarations,
             nodes: BTreeMap::new(),
             arrays: BTreeMap::new(),
             dynamic_import_ordinal: 0,
+            used_names,
+            hoisted_temp_names: Vec::new(),
+            temp_ordinal: 0,
         }
     }
 
@@ -1533,6 +1852,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         if self.module_kind == MODULE_UMD && self.has_dynamic_import {
             output.push(self.create_sync_require_declaration()?);
         }
+        let temp_insertion = output.len();
         if self.info.is_external {
             output.push(self.create_es_module_marker()?);
         }
@@ -1569,6 +1889,14 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
 
         for statement in input.into_iter().skip(offset) {
             output.extend(self.visit_top_level_statement(statement)?);
+        }
+        if !self.hoisted_temp_names.is_empty() {
+            let mut declarations = Vec::with_capacity(self.hoisted_temp_names.len());
+            for name in self.hoisted_temp_names.clone() {
+                declarations.push(self.create_uninitialized_variable_declaration(&name)?);
+            }
+            let statement = self.create_variable_statement(declarations, NodeFlags::NONE)?;
+            output.insert(temp_insertion, statement);
         }
         let statements = if let Some(original_array) =
             original_array.and_then(|array| self.context.arena().node_array_ref(self.source, array))
@@ -1664,11 +1992,17 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
             }
         }
         for plan in import_plans {
+            let module_specifier = if self.rewrite_relative_import_extensions {
+                rewrite_relative_module_specifier(&plan.module_specifier)
+                    .unwrap_or_else(|| plan.module_specifier.to_string())
+            } else {
+                plan.module_specifier.to_string()
+            };
             if self.module_kind == MODULE_AMD && plan.has_import_clause {
-                aliased.push(plan.module_specifier.to_string());
+                aliased.push(module_specifier);
                 parameters.push(plan.generated_name.to_string());
             } else {
-                unaliased.push(plan.module_specifier.to_string());
+                unaliased.push(module_specifier);
             }
         }
         Ok(AsynchronousDependencies {
@@ -2672,7 +3006,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
     fn visit_call_expression(
         &mut self,
         original: TransformNode,
-        data: tsc_syntax::nodes::CallExpressionData,
+        mut data: tsc_syntax::nodes::CallExpressionData,
     ) -> Result<TransformNode, TransformError> {
         let is_dynamic_import = data
             .expression
@@ -2692,7 +3026,33 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                 });
             };
             let argument = self.visit(argument.node())?;
+            if matches!(
+                self.module_kind,
+                MODULE_NODE16 | MODULE_NODE18 | MODULE_NODE20 | MODULE_NODE_NEXT
+            ) {
+                let original_array = data
+                    .arguments
+                    .and_then(|array| self.context.arena().node_array_ref(self.source, array))
+                    .ok_or(TransformError::RequiredChildRemoved {
+                        parent: SyntaxKind::CallExpression,
+                        field: "arguments",
+                    })?;
+                let mut visited = Vec::with_capacity(arguments.len());
+                for argument in arguments {
+                    visited.push(self.visit(argument.node())?);
+                }
+                visited[0] = self.rewrite_import_argument(argument)?;
+                data.arguments = Some(
+                    self.context
+                        .factory()?
+                        .update_node_array(original_array, visited)?
+                        .array(),
+                );
+                data.type_arguments = None;
+                return self.update_generic_without_visit(original, NodeData::CallExpression(data));
+            }
             if self.module_kind == MODULE_AMD {
+                let argument = self.rewrite_import_argument(argument)?;
                 let transformed = self.create_amd_dynamic_import(argument)?;
                 self.set_original_and_range(transformed, original)?;
                 return Ok(transformed);
@@ -2702,41 +3062,8 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                 self.set_original_and_range(transformed, original)?;
                 return Ok(transformed);
             }
-            let require = self.create_require_call(argument)?;
-            let loaded = if self.es_module_interop {
-                self.request_import_star_helper()?;
-                let helper = self.create_identifier("__importStar")?;
-                self.create_call(helper, vec![require])?
-            } else {
-                require
-            };
-            let body = loaded;
-            let parameters = self
-                .context
-                .factory()?
-                .create_node_array(self.source, Vec::new())?;
-            let arrow_token = self.context.factory()?.create_token(
-                self.source,
-                SyntaxKind::EqualsGreaterThanToken,
-                TransformFlags::NONE,
-            )?;
-            let arrow = self.context.factory()?.create_node(
-                self.source,
-                NodeData::ArrowFunction(tsc_syntax::nodes::ArrowFunctionData {
-                    type_parameters: None,
-                    parameters: Some(parameters.array()),
-                    r#type: None,
-                    body: Some(body.node()),
-                    modifiers: None,
-                    equals_greater_than_token: Some(arrow_token.node()),
-                }),
-                TransformFlags::NONE,
-            )?;
-            let promise = self.create_identifier("Promise")?;
-            let resolve = self.create_property_access(promise, "resolve")?;
-            let resolved = self.create_call(resolve, Vec::new())?;
-            let then = self.create_property_access(resolved, "then")?;
-            let transformed = self.create_call(then, vec![arrow])?;
+            let argument = self.rewrite_import_argument(argument)?;
+            let transformed = self.create_common_js_dynamic_import_value(argument, false)?;
             self.set_original_and_range(transformed, original)?;
             return Ok(transformed);
         }
@@ -2791,8 +3118,21 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
     fn create_common_js_dynamic_import_value(
         &mut self,
         argument: TransformNode,
+        is_inlineable: bool,
     ) -> Result<TransformNode, TransformError> {
-        let require = self.create_require_call(argument)?;
+        let need_sync_eval = !self.is_simple_inlineable_expression(argument)? && !is_inlineable;
+        let (resolve_arguments, require_argument, parameters) = if need_sync_eval {
+            let template = self.create_string_coercion_template(argument)?;
+            let parameter = self.create_parameter("s")?;
+            (
+                vec![template],
+                self.create_identifier("s")?,
+                vec![parameter],
+            )
+        } else {
+            (Vec::new(), argument, Vec::new())
+        };
+        let require = self.create_raw_require_call(require_argument)?;
         let loaded = if self.es_module_interop {
             self.request_import_star_helper()?;
             let helper = self.create_identifier("__importStar")?;
@@ -2800,10 +3140,10 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         } else {
             require
         };
-        let arrow = self.create_arrow_function(Vec::new(), loaded)?;
+        let arrow = self.create_arrow_function(parameters, loaded)?;
         let promise = self.create_identifier("Promise")?;
         let resolve = self.create_property_access(promise, "resolve")?;
-        let resolved = self.create_call(resolve, Vec::new())?;
+        let resolved = self.create_call(resolve, resolve_arguments)?;
         let then = self.create_property_access(resolved, "then")?;
         self.create_call(then, vec![arrow])
     }
@@ -2842,11 +3182,109 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         &mut self,
         argument: TransformNode,
     ) -> Result<TransformNode, TransformError> {
-        let asynchronous_argument = self.context.factory()?.clone_node(argument)?;
-        let common_js = self.create_common_js_dynamic_import_value(argument)?;
+        let argument = self.rewrite_import_argument(argument)?;
+        if self.is_simple_copiable_expression(argument)? {
+            let asynchronous_argument = self.context.factory()?.clone_node(argument)?;
+            let common_js = self.create_common_js_dynamic_import_value(argument, false)?;
+            let amd = self.create_amd_dynamic_import(asynchronous_argument)?;
+            let condition = self.create_identifier("__syncRequire")?;
+            return self.create_conditional(condition, common_js, amd);
+        }
+
+        let temp_name = self.next_temp_name();
+        let temp = self.create_identifier(&temp_name)?;
+        let assignment = self.create_assignment(temp, argument)?;
+        let common_argument = self.create_identifier(&temp_name)?;
+        let common_js = self.create_common_js_dynamic_import_value(common_argument, true)?;
+        let asynchronous_argument = self.create_identifier(&temp_name)?;
         let amd = self.create_amd_dynamic_import(asynchronous_argument)?;
         let condition = self.create_identifier("__syncRequire")?;
-        self.create_conditional(condition, common_js, amd)
+        let conditional = self.create_conditional(condition, common_js, amd)?;
+        let comma = self.create_binary(assignment, SyntaxKind::CommaToken, conditional)?;
+        self.create_parenthesized(comma)
+    }
+
+    fn is_simple_copiable_expression(
+        &self,
+        expression: TransformNode,
+    ) -> Result<bool, TransformError> {
+        let kind = self.context.arena().node(expression)?.kind;
+        Ok(matches!(
+            kind,
+            SyntaxKind::StringLiteral
+                | SyntaxKind::NoSubstitutionTemplateLiteral
+                | SyntaxKind::NumericLiteral
+                | SyntaxKind::Identifier
+        ) || kind.value() >= SyntaxKind::FirstKeyword.value()
+            && kind.value() <= SyntaxKind::LastKeyword.value())
+    }
+
+    fn is_simple_inlineable_expression(
+        &self,
+        expression: TransformNode,
+    ) -> Result<bool, TransformError> {
+        Ok(
+            self.context.arena().node(expression)?.kind != SyntaxKind::Identifier
+                && self.is_simple_copiable_expression(expression)?,
+        )
+    }
+
+    fn create_string_coercion_template(
+        &mut self,
+        expression: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        let head = self.context.factory()?.create_node(
+            self.source,
+            NodeData::TemplateHead(tsc_syntax::nodes::TemplateHeadData {
+                text: String::new(),
+                raw_text: Some(String::new()),
+            }),
+            TransformFlags::NONE,
+        )?;
+        let tail = self.context.factory()?.create_node(
+            self.source,
+            NodeData::TemplateTail(tsc_syntax::nodes::TemplateTailData {
+                text: String::new(),
+                raw_text: Some(String::new()),
+            }),
+            TransformFlags::NONE,
+        )?;
+        let span = self.context.factory()?.create_node(
+            self.source,
+            NodeData::TemplateSpan(tsc_syntax::nodes::TemplateSpanData {
+                expression: Some(expression.node()),
+                literal: Some(tail.node()),
+            }),
+            TransformFlags::NONE,
+        )?;
+        let spans = self
+            .context
+            .factory()?
+            .create_node_array(self.source, vec![span])?;
+        self.context.factory()?.create_node(
+            self.source,
+            NodeData::TemplateExpression(tsc_syntax::nodes::TemplateExpressionData {
+                head: Some(head.node()),
+                template_spans: Some(spans.array()),
+            }),
+            TransformFlags::NONE,
+        )
+    }
+
+    fn next_temp_name(&mut self) -> String {
+        loop {
+            let ordinal = self.temp_ordinal;
+            self.temp_ordinal += 1;
+            let candidate = if ordinal < 26 {
+                format!("_{}", (b'a' + ordinal as u8) as char)
+            } else {
+                format!("_{}", ordinal - 26)
+            };
+            if self.used_names.insert(candidate.clone()) {
+                self.hoisted_temp_names.push(candidate.clone());
+                return candidate;
+            }
+        }
     }
 
     fn substitute_import_identifier(
@@ -3213,8 +3651,43 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         &mut self,
         module_specifier: TransformNode,
     ) -> Result<TransformNode, TransformError> {
+        let module_specifier = self.rewrite_import_argument(module_specifier)?;
+        self.create_raw_require_call(module_specifier)
+    }
+
+    fn create_raw_require_call(
+        &mut self,
+        module_specifier: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
         let require = self.create_identifier("require")?;
         self.create_call(require, vec![module_specifier])
+    }
+
+    fn rewrite_import_argument(
+        &mut self,
+        argument: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        if !self.rewrite_relative_import_extensions {
+            return Ok(argument);
+        }
+        if let NodeData::StringLiteral(literal) = self.context.arena().node(argument)?.data.clone()
+        {
+            let Some(text) = rewrite_relative_module_specifier(&literal.text) else {
+                return Ok(argument);
+            };
+            let flags = self.context.arena().transform_flags(argument);
+            return self.context.factory()?.update_node(
+                argument,
+                NodeData::StringLiteral(tsc_syntax::nodes::StringLiteralData {
+                    text,
+                    has_extended_unicode_escape: literal.has_extended_unicode_escape,
+                }),
+                flags,
+            );
+        }
+        self.request_rewrite_relative_import_extensions_helper()?;
+        let helper = self.create_identifier("__rewriteRelativeImportExtension")?;
+        self.create_call(helper, vec![argument])
     }
 
     fn create_assignment(
@@ -3340,6 +3813,23 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         )
     }
 
+    fn create_uninitialized_variable_declaration(
+        &mut self,
+        name: &str,
+    ) -> Result<TransformNode, TransformError> {
+        let name = self.create_identifier(name)?;
+        self.context.factory()?.create_node(
+            self.source,
+            NodeData::VariableDeclaration(tsc_syntax::nodes::VariableDeclarationData {
+                name: Some(name.node()),
+                exclamation_token: None,
+                r#type: None,
+                initializer: None,
+            }),
+            TransformFlags::NONE,
+        )
+    }
+
     fn create_variable_statement(
         &mut self,
         declarations: Vec<TransformNode>,
@@ -3445,6 +3935,17 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                 false,
                 IMPORT_DEFAULT_HELPER_TEXT,
                 1,
+                Vec::new(),
+            ))
+    }
+
+    fn request_rewrite_relative_import_extensions_helper(&mut self) -> Result<(), TransformError> {
+        self.context
+            .request_emit_helper(crate::EmitHelper::with_text(
+                "typescript:rewriteRelativeImportExtensions",
+                false,
+                REWRITE_RELATIVE_IMPORT_EXTENSIONS_HELPER_TEXT,
+                3,
                 Vec::new(),
             ))
     }
@@ -4085,17 +4586,6 @@ fn preflight_source(
             });
         }
         let node = syntax.arena.node(id);
-        if matches!(
-            &node.data,
-            NodeData::ImportDeclaration(data) if data.attributes.is_some()
-        ) || matches!(
-            &node.data,
-            NodeData::ExportDeclaration(data) if data.attributes.is_some()
-        ) {
-            return Err(TransformError::ImportAttributesDeferred {
-                owner_slice: "H2.1e",
-            });
-        }
         let feature = match node.kind {
             SyntaxKind::Decorator => Some(UnsupportedTransformFeature::Decorators),
             SyntaxKind::ImportEqualsDeclaration => Some(UnsupportedTransformFeature::ImportEquals),

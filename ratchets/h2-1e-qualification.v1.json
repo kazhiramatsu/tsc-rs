@@ -1,0 +1,1656 @@
+{
+  "schema": 1,
+  "status": "qualified-typescript-oracle",
+  "phase": "H2.1e-node-formats-source-and-emit",
+  "typescript": {
+    "version": "6.0.3",
+    "source_commit": "050880ce59e30b356b686bd3144efe24f875ebc8",
+    "bundle": {
+      "path": "vendor/typescript-6.0.3/lib/typescript.js",
+      "sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39"
+    },
+    "implementation": {
+      "path": "vendor/typescript-6.0.3/lib/_tsc.js",
+      "sha256": "1c59e77a54b186ec43fa7f3e0d3c4bb15ca5eb5ba43e96b1d3a267139eddd3e3"
+    }
+  },
+  "generator": {
+    "path": "crates/oracle/h2-1e-qualification.mjs",
+    "sha256": "fa061043594342c274385efd54a092ea52916ee9f18bae62eb3fd33959820689"
+  },
+  "contract": {
+    "path": ".github/ci/contracts/h2-1e-qualification.schema.json",
+    "sha256": "a9e72293589f1915c6e33f00487fc1c9d84025a81731cce9f8377f61c6e84fcc"
+  },
+  "origin": {
+    "h2_1d_merge": "3cfa24fd7ef3bdd8dab97d4adf860306fac75782",
+    "h2_1d_profile": {
+      "path": "ratchets/h2-1d-profile.v1.json",
+      "sha256": "ed62dee8bb23f7f1ff982db7e1d0c28e38431c911c51d9fa050710836ceb53e4"
+    }
+  },
+  "inputs": {
+    "compiler_classification": {
+      "path": "vendor/typescript-6.0.3/compiler-profile-classification.v1.json",
+      "sha256": "3c3cbcb3c29a5254c145dc2665ca21683a1bd94f5271841320f061e82b614603"
+    },
+    "conformance_classification": {
+      "path": "vendor/typescript-6.0.3/conformance-profile-classification.v1.json",
+      "sha256": "d54b51d44da91836ad1b7be3be4b7de19c6892e6cb1fe9605fda06cdda5a67eb"
+    },
+    "compiler_expansion": {
+      "path": "vendor/typescript-6.0.3/test-suite-expansion.v1.json",
+      "sha256": "9c6e991103b571f7a8800dc5e1ef66088017689f3769de8fcdb408b2dc125188"
+    },
+    "conformance_expansion": {
+      "path": "vendor/typescript-6.0.3/conformance-suite-expansion.v1.json",
+      "sha256": "924d4007b3ac93a3ee57032ea6089b649bab2902e30ee64cff02f4c9404b7bbd"
+    },
+    "owner_inventory": {
+      "path": "ratchets/h2-owner-inventory.v1.json",
+      "sha256": "1f3d666d107247bef7b5e18d6e9506ff51d281277c136bf70112a863b6dfa98d"
+    },
+    "h2_1a_qualification": {
+      "path": "ratchets/h2-1a-qualification.v1.json",
+      "sha256": "1a1dbd0bd51768f054c1fed51300df8de5211af7e4978f838efe93926bd527e3"
+    }
+  },
+  "execution_contract": {
+    "source_reachability": "fixture VFS roots plus module-resolved fixture dependencies in a vendored TypeScript Program",
+    "module_selection": "Program.getEmitModuleFormatOfFile for every reached fixture SourceFile",
+    "admission": "every emit-eligible source is .ts or .mts, selects the exact ESNext/CommonJS branch from ESNext or Node module options, has no parse diagnostics, has AST depth <= 256, reaches no post-H2.1e transform root, and has exact diagnostics and writes; declaration/package/config inputs remain non-emitted controls",
+    "typescript_repetitions": 2,
+    "rust_repetitions": 2,
+    "normalization": "none",
+    "deferred_boundary": "typed failure before first sink write"
+  },
+  "owner_closure": [
+    {
+      "key": "implied-node-format",
+      "declaration": {
+        "id": "h2:1a8cad0f547173b23bed8864f7429e3fdca195d237e23f6dadb4e7e4a6271161",
+        "source": "vendor/typescript-6.0.3/lib/_tsc.js",
+        "name": "getImpliedNodeFormatForEmitWorker",
+        "kind": "FunctionDeclaration",
+        "lexical_path": "<bundle>/getImpliedNodeFormatForEmitWorker@125496:1",
+        "source_range": {
+          "start": {
+            "offset": 5843707,
+            "line": 125496,
+            "character": 1
+          },
+          "end": {
+            "offset": 5844545,
+            "line": 125509,
+            "character": 2
+          }
+        },
+        "declaration_sha256": "15c5dc4a97ef2c95e422cc70b52f9cb14526acf8dbbba48ecfc5eb2ce07268a9",
+        "body_sha256": "7d30ebc766b7399860322ae5dfdcb394a395f69306d2651447b222b5406b321e",
+        "ledger_slice_sha256": "765b9d66f854668f6f9326de2a8e3659af532be224d3a2546fdec84855bbe69c"
+      },
+      "disposition_before_h2_1e": "deferred-h2"
+    }
+  ],
+  "cases": [
+    {
+      "suite": "compiler",
+      "case_id": "typescript-6.0.3/compiler/esmModeDeclarationFileWithExportAssignment.ts#default",
+      "expansion_case": 2793,
+      "source": {
+        "path": "esmModeDeclarationFileWithExportAssignment.ts",
+        "bytes": 250,
+        "sha256": "32dc99af04c7e5b3d2b6fdbf57a0eff358b9266fa216bbc30fefe0a3420e88e5",
+        "git_blob_sha1": "c1ec93d99418360edb45e5576d7d64172afff687"
+      },
+      "module_state": "NodeNext(199)",
+      "input": {
+        "current_directory": "/.src",
+        "roots": [
+          "/.src/other.d.mts",
+          "/.src/main.mts"
+        ],
+        "settings": [
+          {
+            "name": "target",
+            "value": "esnext"
+          },
+          {
+            "name": "module",
+            "value": "nodenext"
+          },
+          {
+            "name": "allowSyntheticDefaultImports",
+            "value": "true"
+          },
+          {
+            "name": "strict",
+            "value": "true"
+          },
+          {
+            "name": "filename",
+            "value": "main.mts"
+          }
+        ],
+        "virtual_config": null,
+        "files": [
+          {
+            "unit": 0,
+            "path": "/.src/other.d.mts",
+            "utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiBleGFtcGxlKCk6IDU7CmV4cG9ydCA9IGV4YW1wbGU7Cg==",
+            "utf8_sha256": "622ccd576d2404c690735c0c0c73f8a630c6c44215f6c32dd28c85293fc1c8d0",
+            "utf8_bytes": 49
+          },
+          {
+            "unit": 1,
+            "path": "/.src/main.mts",
+            "utf8_base64": "aW1wb3J0IGV4YW1wbGUgZnJvbSAiLi9vdGhlci5tanMiOwpleGFtcGxlKCk7",
+            "utf8_sha256": "7a8f9fce4a352cba80dfa4a4b0e40970c53dc133f19e0e11798ab4ed996cd933",
+            "utf8_bytes": 45
+          }
+        ]
+      },
+      "files": [
+        {
+          "unit": 0,
+          "path": "/.src/other.d.mts",
+          "script_kind": "TS",
+          "declaration_file": true,
+          "emit_eligible": false,
+          "implied_module_format": "ESModule",
+          "emit_module_format": 99,
+          "feature_roots": [
+            {
+              "feature": "export-equals",
+              "start": 31,
+              "end": 48,
+              "kind": "ExportAssignment"
+            }
+          ],
+          "parse_diagnostic_codes": [],
+          "max_ast_depth": 4,
+          "import_attributes": false,
+          "advanced_comment_placement": false,
+          "text_sha256": "622ccd576d2404c690735c0c0c73f8a630c6c44215f6c32dd28c85293fc1c8d0"
+        },
+        {
+          "unit": 1,
+          "path": "/.src/main.mts",
+          "script_kind": "TS",
+          "declaration_file": false,
+          "emit_eligible": true,
+          "implied_module_format": "ESModule",
+          "emit_module_format": 99,
+          "feature_roots": [],
+          "parse_diagnostic_codes": [],
+          "max_ast_depth": 4,
+          "import_attributes": false,
+          "advanced_comment_placement": false,
+          "text_sha256": "7a8f9fce4a352cba80dfa4a4b0e40970c53dc133f19e0e11798ab4ed996cd933"
+        }
+      ],
+      "owner_reachability": [
+        "implied-node-format"
+      ],
+      "disposition": "admitted-for-execution",
+      "required_slices": [],
+      "diagnostic_disposition": {
+        "state": "exact-required"
+      },
+      "typescript_runs": [
+        {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/.src/main.mjs",
+              "kind": "mjs",
+              "callback_utf8_base64": "aW1wb3J0IGV4YW1wbGUgZnJvbSAiLi9vdGhlci5tanMiOw0KZXhhbXBsZSgpOw0K",
+              "callback_utf8_sha256": "756a1d800a5588b39eca973b11f1328dd2e40e0fe51a87b7d181200b55741746",
+              "callback_utf8_bytes": 48,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "756a1d800a5588b39eca973b11f1328dd2e40e0fe51a87b7d181200b55741746",
+              "materialized_utf8_bytes": 48,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/main.mts"
+              ]
+            }
+          ],
+          "reported_diagnostics": [
+            {
+              "code": 1192,
+              "category": "Error",
+              "file": "/.src/main.mts",
+              "start": 7,
+              "length": 7,
+              "message": "Module '\"/.src/other\"' has no default export."
+            },
+            {
+              "code": 1203,
+              "category": "Error",
+              "file": "/.src/other.d.mts",
+              "start": 31,
+              "length": 17,
+              "message": "Export assignment cannot be used when targeting ECMAScript modules. Consider using 'export default' or another module format instead."
+            }
+          ],
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 2,
+          "run_fingerprint_sha256": "e1ea829ed19d178f1768d8f383c68905262a2db6ac65e67b4804368d7b6e2e27"
+        },
+        {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/.src/main.mjs",
+              "kind": "mjs",
+              "callback_utf8_base64": "aW1wb3J0IGV4YW1wbGUgZnJvbSAiLi9vdGhlci5tanMiOw0KZXhhbXBsZSgpOw0K",
+              "callback_utf8_sha256": "756a1d800a5588b39eca973b11f1328dd2e40e0fe51a87b7d181200b55741746",
+              "callback_utf8_bytes": 48,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "756a1d800a5588b39eca973b11f1328dd2e40e0fe51a87b7d181200b55741746",
+              "materialized_utf8_bytes": 48,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/main.mts"
+              ]
+            }
+          ],
+          "reported_diagnostics": [
+            {
+              "code": 1192,
+              "category": "Error",
+              "file": "/.src/main.mts",
+              "start": 7,
+              "length": 7,
+              "message": "Module '\"/.src/other\"' has no default export."
+            },
+            {
+              "code": 1203,
+              "category": "Error",
+              "file": "/.src/other.d.mts",
+              "start": 31,
+              "length": 17,
+              "message": "Export assignment cannot be used when targeting ECMAScript modules. Consider using 'export default' or another module format instead."
+            }
+          ],
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 2,
+          "run_fingerprint_sha256": "e1ea829ed19d178f1768d8f383c68905262a2db6ac65e67b4804368d7b6e2e27"
+        }
+      ],
+      "rust_expectation": "two-deterministic-exact-runs",
+      "case_fingerprint_sha256": "bec989a0cd809b7a49bf9d2de4f82ee52552450eb436d7c501e8c73c3b35736a"
+    },
+    {
+      "suite": "compiler",
+      "case_id": "typescript-6.0.3/compiler/importAssertionsDeprecated.ts#default",
+      "expansion_case": 3558,
+      "source": {
+        "path": "importAssertionsDeprecated.ts",
+        "bytes": 416,
+        "sha256": "26d677fa52745a7e8c14d41becd31705367c0eb88a58fa56cc8652aaf2d8c839",
+        "git_blob_sha1": "cc16c0f2b0d609474023a5be68ca3f8600a20f93"
+      },
+      "module_state": "ESNext(99)",
+      "input": {
+        "current_directory": "/.src",
+        "roots": [
+          "/a.ts",
+          "/b.ts",
+          "/c.ts"
+        ],
+        "settings": [
+          {
+            "name": "target",
+            "value": "esnext"
+          },
+          {
+            "name": "module",
+            "value": "esnext"
+          },
+          {
+            "name": "noTypesAndSymbols",
+            "value": "true"
+          },
+          {
+            "name": "Filename",
+            "value": "/config.json"
+          }
+        ],
+        "virtual_config": null,
+        "files": [
+          {
+            "unit": 0,
+            "path": "/a.ts",
+            "utf8_base64": "aW1wb3J0IGpzb24gZnJvbSAiLi9wYWNrYWdlLmpzb24iIGFzc2VydCB7IHR5cGU6ICJqc29uIiB9Owo=",
+            "utf8_sha256": "cddb64079364e5054ff221b27748179efba2213400bbbf63d4d7703f46c72044",
+            "utf8_bytes": 59
+          },
+          {
+            "unit": 1,
+            "path": "/b.ts",
+            "utf8_base64": "aW1wb3J0ICogYXMgZGF0YSBmcm9tICIuL2RhdGEuanNvbiIgYXNzZXJ0IHsgdHlwZTogImpzb24iIH07Cg==",
+            "utf8_sha256": "08ab1d9155b7fa3d76f0dcf31b82975dfcde403b5456679c11a1b634fc3f3705",
+            "utf8_bytes": 61
+          },
+          {
+            "unit": 2,
+            "path": "/c.ts",
+            "utf8_base64": "ZXhwb3J0IHsgZGVmYXVsdCBhcyBjb25maWcgfSBmcm9tICIuL2NvbmZpZy5qc29uIiBhc3NlcnQgeyB0eXBlOiAianNvbiIgfTsK",
+            "utf8_sha256": "fecbe18ad104ad1cb60b3fdd22c404c41c626e2a7a6e4c001189fd4a4b4b631d",
+            "utf8_bytes": 75
+          },
+          {
+            "unit": 3,
+            "path": "/package.json",
+            "utf8_base64": "e30K",
+            "utf8_sha256": "ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356",
+            "utf8_bytes": 3
+          },
+          {
+            "unit": 4,
+            "path": "/data.json",
+            "utf8_base64": "e30K",
+            "utf8_sha256": "ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356",
+            "utf8_bytes": 3
+          },
+          {
+            "unit": 5,
+            "path": "/config.json",
+            "utf8_base64": "e30K",
+            "utf8_sha256": "ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356",
+            "utf8_bytes": 3
+          }
+        ]
+      },
+      "files": [
+        {
+          "unit": 3,
+          "path": "/package.json",
+          "script_kind": "JSON",
+          "declaration_file": false,
+          "emit_eligible": false,
+          "implied_module_format": "None",
+          "emit_module_format": 99,
+          "feature_roots": [],
+          "parse_diagnostic_codes": [],
+          "max_ast_depth": 3,
+          "import_attributes": false,
+          "advanced_comment_placement": false,
+          "text_sha256": "ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356"
+        },
+        {
+          "unit": 0,
+          "path": "/a.ts",
+          "script_kind": "TS",
+          "declaration_file": false,
+          "emit_eligible": true,
+          "implied_module_format": "None",
+          "emit_module_format": 99,
+          "feature_roots": [],
+          "parse_diagnostic_codes": [],
+          "max_ast_depth": 5,
+          "import_attributes": true,
+          "advanced_comment_placement": false,
+          "text_sha256": "cddb64079364e5054ff221b27748179efba2213400bbbf63d4d7703f46c72044"
+        },
+        {
+          "unit": 4,
+          "path": "/data.json",
+          "script_kind": "JSON",
+          "declaration_file": false,
+          "emit_eligible": false,
+          "implied_module_format": "None",
+          "emit_module_format": 99,
+          "feature_roots": [],
+          "parse_diagnostic_codes": [],
+          "max_ast_depth": 3,
+          "import_attributes": false,
+          "advanced_comment_placement": false,
+          "text_sha256": "ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356"
+        },
+        {
+          "unit": 1,
+          "path": "/b.ts",
+          "script_kind": "TS",
+          "declaration_file": false,
+          "emit_eligible": true,
+          "implied_module_format": "None",
+          "emit_module_format": 99,
+          "feature_roots": [],
+          "parse_diagnostic_codes": [],
+          "max_ast_depth": 5,
+          "import_attributes": true,
+          "advanced_comment_placement": false,
+          "text_sha256": "08ab1d9155b7fa3d76f0dcf31b82975dfcde403b5456679c11a1b634fc3f3705"
+        },
+        {
+          "unit": 5,
+          "path": "/config.json",
+          "script_kind": "JSON",
+          "declaration_file": false,
+          "emit_eligible": false,
+          "implied_module_format": "None",
+          "emit_module_format": 99,
+          "feature_roots": [],
+          "parse_diagnostic_codes": [],
+          "max_ast_depth": 3,
+          "import_attributes": false,
+          "advanced_comment_placement": false,
+          "text_sha256": "ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356"
+        },
+        {
+          "unit": 2,
+          "path": "/c.ts",
+          "script_kind": "TS",
+          "declaration_file": false,
+          "emit_eligible": true,
+          "implied_module_format": "None",
+          "emit_module_format": 99,
+          "feature_roots": [],
+          "parse_diagnostic_codes": [],
+          "max_ast_depth": 5,
+          "import_attributes": true,
+          "advanced_comment_placement": false,
+          "text_sha256": "fecbe18ad104ad1cb60b3fdd22c404c41c626e2a7a6e4c001189fd4a4b4b631d"
+        }
+      ],
+      "owner_reachability": [
+        "implied-node-format"
+      ],
+      "disposition": "admitted-for-execution",
+      "required_slices": [],
+      "diagnostic_disposition": {
+        "state": "exact-required"
+      },
+      "typescript_runs": [
+        {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/a.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "ZXhwb3J0IHt9Ow0K",
+              "callback_utf8_sha256": "f761c91419d0a89422a0004ef1a92929dd4d2d5e5c16758654d8b0467d1998c6",
+              "callback_utf8_bytes": 12,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "f761c91419d0a89422a0004ef1a92929dd4d2d5e5c16758654d8b0467d1998c6",
+              "materialized_utf8_bytes": 12,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/a.ts"
+              ]
+            },
+            {
+              "index": 1,
+              "path": "/b.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "ZXhwb3J0IHt9Ow0K",
+              "callback_utf8_sha256": "f761c91419d0a89422a0004ef1a92929dd4d2d5e5c16758654d8b0467d1998c6",
+              "callback_utf8_bytes": 12,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "f761c91419d0a89422a0004ef1a92929dd4d2d5e5c16758654d8b0467d1998c6",
+              "materialized_utf8_bytes": 12,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/b.ts"
+              ]
+            },
+            {
+              "index": 2,
+              "path": "/c.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "ZXhwb3J0IHsgZGVmYXVsdCBhcyBjb25maWcgfSBmcm9tICIuL2NvbmZpZy5qc29uIiBhc3NlcnQgeyB0eXBlOiAianNvbiIgfTsNCg==",
+              "callback_utf8_sha256": "629c10d030193d32716c78a18203342316f4a4e4a4e8c3d1a4c3e52d9a95df86",
+              "callback_utf8_bytes": 76,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "629c10d030193d32716c78a18203342316f4a4e4a4e8c3d1a4c3e52d9a95df86",
+              "materialized_utf8_bytes": 76,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/c.ts"
+              ]
+            }
+          ],
+          "reported_diagnostics": [
+            {
+              "code": 2880,
+              "category": "Error",
+              "file": "/a.ts",
+              "start": 34,
+              "length": 6,
+              "message": "Import assertions have been replaced by import attributes. Use 'with' instead of 'assert'."
+            },
+            {
+              "code": 2880,
+              "category": "Error",
+              "file": "/b.ts",
+              "start": 36,
+              "length": 6,
+              "message": "Import assertions have been replaced by import attributes. Use 'with' instead of 'assert'."
+            },
+            {
+              "code": 2880,
+              "category": "Error",
+              "file": "/c.ts",
+              "start": 50,
+              "length": 6,
+              "message": "Import assertions have been replaced by import attributes. Use 'with' instead of 'assert'."
+            }
+          ],
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 2,
+          "run_fingerprint_sha256": "1fb15244f12212b03b30ad9ba35dc8e7ceba6bb5730413e30a31fb2438b5ca64"
+        },
+        {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/a.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "ZXhwb3J0IHt9Ow0K",
+              "callback_utf8_sha256": "f761c91419d0a89422a0004ef1a92929dd4d2d5e5c16758654d8b0467d1998c6",
+              "callback_utf8_bytes": 12,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "f761c91419d0a89422a0004ef1a92929dd4d2d5e5c16758654d8b0467d1998c6",
+              "materialized_utf8_bytes": 12,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/a.ts"
+              ]
+            },
+            {
+              "index": 1,
+              "path": "/b.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "ZXhwb3J0IHt9Ow0K",
+              "callback_utf8_sha256": "f761c91419d0a89422a0004ef1a92929dd4d2d5e5c16758654d8b0467d1998c6",
+              "callback_utf8_bytes": 12,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "f761c91419d0a89422a0004ef1a92929dd4d2d5e5c16758654d8b0467d1998c6",
+              "materialized_utf8_bytes": 12,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/b.ts"
+              ]
+            },
+            {
+              "index": 2,
+              "path": "/c.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "ZXhwb3J0IHsgZGVmYXVsdCBhcyBjb25maWcgfSBmcm9tICIuL2NvbmZpZy5qc29uIiBhc3NlcnQgeyB0eXBlOiAianNvbiIgfTsNCg==",
+              "callback_utf8_sha256": "629c10d030193d32716c78a18203342316f4a4e4a4e8c3d1a4c3e52d9a95df86",
+              "callback_utf8_bytes": 76,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "629c10d030193d32716c78a18203342316f4a4e4a4e8c3d1a4c3e52d9a95df86",
+              "materialized_utf8_bytes": 76,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/c.ts"
+              ]
+            }
+          ],
+          "reported_diagnostics": [
+            {
+              "code": 2880,
+              "category": "Error",
+              "file": "/a.ts",
+              "start": 34,
+              "length": 6,
+              "message": "Import assertions have been replaced by import attributes. Use 'with' instead of 'assert'."
+            },
+            {
+              "code": 2880,
+              "category": "Error",
+              "file": "/b.ts",
+              "start": 36,
+              "length": 6,
+              "message": "Import assertions have been replaced by import attributes. Use 'with' instead of 'assert'."
+            },
+            {
+              "code": 2880,
+              "category": "Error",
+              "file": "/c.ts",
+              "start": 50,
+              "length": 6,
+              "message": "Import assertions have been replaced by import attributes. Use 'with' instead of 'assert'."
+            }
+          ],
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 2,
+          "run_fingerprint_sha256": "1fb15244f12212b03b30ad9ba35dc8e7ceba6bb5730413e30a31fb2438b5ca64"
+        }
+      ],
+      "rust_expectation": "two-deterministic-exact-runs",
+      "case_fingerprint_sha256": "e5b4b6c1a39fa2cae8a99b256aa819c2d9df76659de3428d19f8dc9a75afcd2b"
+    },
+    {
+      "suite": "compiler",
+      "case_id": "typescript-6.0.3/compiler/importAssertionsDeprecatedIgnored.ts#default",
+      "expansion_case": 3559,
+      "source": {
+        "path": "importAssertionsDeprecatedIgnored.ts",
+        "bytes": 537,
+        "sha256": "d2257b5de883276e2b9add7068ed12e63ec053293aeae0d7c4b7c9917a25bcf1",
+        "git_blob_sha1": "121dbf2d746033378a349e70c3e2f3ef0333056a"
+      },
+      "module_state": "ESNext(99)",
+      "input": {
+        "current_directory": "/.src",
+        "roots": [
+          "/a.ts",
+          "/b.ts",
+          "/c.ts"
+        ],
+        "settings": [
+          {
+            "name": "target",
+            "value": "esnext"
+          },
+          {
+            "name": "module",
+            "value": "esnext"
+          },
+          {
+            "name": "ignoreDeprecations",
+            "value": "6.0"
+          },
+          {
+            "name": "noTypesAndSymbols",
+            "value": "true"
+          },
+          {
+            "name": "Filename",
+            "value": "/config.json"
+          }
+        ],
+        "virtual_config": null,
+        "files": [
+          {
+            "unit": 0,
+            "path": "/a.ts",
+            "utf8_base64": "Ly8gV2l0aCBpZ25vcmVEZXByZWNhdGlvbnM6ICI2LjAiLCBpbXBvcnQgYXNzZXJ0aW9ucyBzaG91bGQgbm90IHByb2R1Y2UgYSBkZXByZWNhdGlvbiBlcnJvci4KaW1wb3J0IGpzb24gZnJvbSAiLi9wYWNrYWdlLmpzb24iIGFzc2VydCB7IHR5cGU6ICJqc29uIiB9Owo=",
+            "utf8_sha256": "0fe19a905b202cec0f2ca46a830c884d4b9ceb54850239cb446612ca994f0f75",
+            "utf8_bytes": 152
+          },
+          {
+            "unit": 1,
+            "path": "/b.ts",
+            "utf8_base64": "aW1wb3J0ICogYXMgZGF0YSBmcm9tICIuL2RhdGEuanNvbiIgYXNzZXJ0IHsgdHlwZTogImpzb24iIH07Cg==",
+            "utf8_sha256": "08ab1d9155b7fa3d76f0dcf31b82975dfcde403b5456679c11a1b634fc3f3705",
+            "utf8_bytes": 61
+          },
+          {
+            "unit": 2,
+            "path": "/c.ts",
+            "utf8_base64": "ZXhwb3J0IHsgZGVmYXVsdCBhcyBjb25maWcgfSBmcm9tICIuL2NvbmZpZy5qc29uIiBhc3NlcnQgeyB0eXBlOiAianNvbiIgfTsK",
+            "utf8_sha256": "fecbe18ad104ad1cb60b3fdd22c404c41c626e2a7a6e4c001189fd4a4b4b631d",
+            "utf8_bytes": 75
+          },
+          {
+            "unit": 3,
+            "path": "/package.json",
+            "utf8_base64": "e30K",
+            "utf8_sha256": "ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356",
+            "utf8_bytes": 3
+          },
+          {
+            "unit": 4,
+            "path": "/data.json",
+            "utf8_base64": "e30K",
+            "utf8_sha256": "ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356",
+            "utf8_bytes": 3
+          },
+          {
+            "unit": 5,
+            "path": "/config.json",
+            "utf8_base64": "e30K",
+            "utf8_sha256": "ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356",
+            "utf8_bytes": 3
+          }
+        ]
+      },
+      "files": [
+        {
+          "unit": 3,
+          "path": "/package.json",
+          "script_kind": "JSON",
+          "declaration_file": false,
+          "emit_eligible": false,
+          "implied_module_format": "None",
+          "emit_module_format": 99,
+          "feature_roots": [],
+          "parse_diagnostic_codes": [],
+          "max_ast_depth": 3,
+          "import_attributes": false,
+          "advanced_comment_placement": false,
+          "text_sha256": "ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356"
+        },
+        {
+          "unit": 0,
+          "path": "/a.ts",
+          "script_kind": "TS",
+          "declaration_file": false,
+          "emit_eligible": true,
+          "implied_module_format": "None",
+          "emit_module_format": 99,
+          "feature_roots": [],
+          "parse_diagnostic_codes": [],
+          "max_ast_depth": 5,
+          "import_attributes": true,
+          "advanced_comment_placement": false,
+          "text_sha256": "0fe19a905b202cec0f2ca46a830c884d4b9ceb54850239cb446612ca994f0f75"
+        },
+        {
+          "unit": 4,
+          "path": "/data.json",
+          "script_kind": "JSON",
+          "declaration_file": false,
+          "emit_eligible": false,
+          "implied_module_format": "None",
+          "emit_module_format": 99,
+          "feature_roots": [],
+          "parse_diagnostic_codes": [],
+          "max_ast_depth": 3,
+          "import_attributes": false,
+          "advanced_comment_placement": false,
+          "text_sha256": "ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356"
+        },
+        {
+          "unit": 1,
+          "path": "/b.ts",
+          "script_kind": "TS",
+          "declaration_file": false,
+          "emit_eligible": true,
+          "implied_module_format": "None",
+          "emit_module_format": 99,
+          "feature_roots": [],
+          "parse_diagnostic_codes": [],
+          "max_ast_depth": 5,
+          "import_attributes": true,
+          "advanced_comment_placement": false,
+          "text_sha256": "08ab1d9155b7fa3d76f0dcf31b82975dfcde403b5456679c11a1b634fc3f3705"
+        },
+        {
+          "unit": 5,
+          "path": "/config.json",
+          "script_kind": "JSON",
+          "declaration_file": false,
+          "emit_eligible": false,
+          "implied_module_format": "None",
+          "emit_module_format": 99,
+          "feature_roots": [],
+          "parse_diagnostic_codes": [],
+          "max_ast_depth": 3,
+          "import_attributes": false,
+          "advanced_comment_placement": false,
+          "text_sha256": "ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356"
+        },
+        {
+          "unit": 2,
+          "path": "/c.ts",
+          "script_kind": "TS",
+          "declaration_file": false,
+          "emit_eligible": true,
+          "implied_module_format": "None",
+          "emit_module_format": 99,
+          "feature_roots": [],
+          "parse_diagnostic_codes": [],
+          "max_ast_depth": 5,
+          "import_attributes": true,
+          "advanced_comment_placement": false,
+          "text_sha256": "fecbe18ad104ad1cb60b3fdd22c404c41c626e2a7a6e4c001189fd4a4b4b631d"
+        }
+      ],
+      "owner_reachability": [
+        "implied-node-format"
+      ],
+      "disposition": "admitted-for-execution",
+      "required_slices": [],
+      "diagnostic_disposition": {
+        "state": "exact-required"
+      },
+      "typescript_runs": [
+        {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/a.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "ZXhwb3J0IHt9Ow0K",
+              "callback_utf8_sha256": "f761c91419d0a89422a0004ef1a92929dd4d2d5e5c16758654d8b0467d1998c6",
+              "callback_utf8_bytes": 12,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "f761c91419d0a89422a0004ef1a92929dd4d2d5e5c16758654d8b0467d1998c6",
+              "materialized_utf8_bytes": 12,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/a.ts"
+              ]
+            },
+            {
+              "index": 1,
+              "path": "/b.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "ZXhwb3J0IHt9Ow0K",
+              "callback_utf8_sha256": "f761c91419d0a89422a0004ef1a92929dd4d2d5e5c16758654d8b0467d1998c6",
+              "callback_utf8_bytes": 12,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "f761c91419d0a89422a0004ef1a92929dd4d2d5e5c16758654d8b0467d1998c6",
+              "materialized_utf8_bytes": 12,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/b.ts"
+              ]
+            },
+            {
+              "index": 2,
+              "path": "/c.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "ZXhwb3J0IHsgZGVmYXVsdCBhcyBjb25maWcgfSBmcm9tICIuL2NvbmZpZy5qc29uIiBhc3NlcnQgeyB0eXBlOiAianNvbiIgfTsNCg==",
+              "callback_utf8_sha256": "629c10d030193d32716c78a18203342316f4a4e4a4e8c3d1a4c3e52d9a95df86",
+              "callback_utf8_bytes": 76,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "629c10d030193d32716c78a18203342316f4a4e4a4e8c3d1a4c3e52d9a95df86",
+              "materialized_utf8_bytes": 76,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/c.ts"
+              ]
+            }
+          ],
+          "reported_diagnostics": [],
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 0,
+          "run_fingerprint_sha256": "d78901541400f1e6cf677f379caacd8aaf98adebfdaeeeb631c0fae95a698960"
+        },
+        {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/a.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "ZXhwb3J0IHt9Ow0K",
+              "callback_utf8_sha256": "f761c91419d0a89422a0004ef1a92929dd4d2d5e5c16758654d8b0467d1998c6",
+              "callback_utf8_bytes": 12,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "f761c91419d0a89422a0004ef1a92929dd4d2d5e5c16758654d8b0467d1998c6",
+              "materialized_utf8_bytes": 12,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/a.ts"
+              ]
+            },
+            {
+              "index": 1,
+              "path": "/b.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "ZXhwb3J0IHt9Ow0K",
+              "callback_utf8_sha256": "f761c91419d0a89422a0004ef1a92929dd4d2d5e5c16758654d8b0467d1998c6",
+              "callback_utf8_bytes": 12,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "f761c91419d0a89422a0004ef1a92929dd4d2d5e5c16758654d8b0467d1998c6",
+              "materialized_utf8_bytes": 12,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/b.ts"
+              ]
+            },
+            {
+              "index": 2,
+              "path": "/c.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "ZXhwb3J0IHsgZGVmYXVsdCBhcyBjb25maWcgfSBmcm9tICIuL2NvbmZpZy5qc29uIiBhc3NlcnQgeyB0eXBlOiAianNvbiIgfTsNCg==",
+              "callback_utf8_sha256": "629c10d030193d32716c78a18203342316f4a4e4a4e8c3d1a4c3e52d9a95df86",
+              "callback_utf8_bytes": 76,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "629c10d030193d32716c78a18203342316f4a4e4a4e8c3d1a4c3e52d9a95df86",
+              "materialized_utf8_bytes": 76,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/c.ts"
+              ]
+            }
+          ],
+          "reported_diagnostics": [],
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 0,
+          "run_fingerprint_sha256": "d78901541400f1e6cf677f379caacd8aaf98adebfdaeeeb631c0fae95a698960"
+        }
+      ],
+      "rust_expectation": "two-deterministic-exact-runs",
+      "case_fingerprint_sha256": "d614dd73b4c6031cd3d20eb934d48054904a19059b0b1c97fa14001043b85bd0"
+    },
+    {
+      "suite": "compiler",
+      "case_id": "typescript-6.0.3/compiler/moduleExportNonStructured.ts#default",
+      "expansion_case": 4793,
+      "source": {
+        "path": "moduleExportNonStructured.ts",
+        "bytes": 843,
+        "sha256": "05c757e0b25bb1ba494ba665146b353dd6ef1b4027d2f745bbcdf739f9e5c98d",
+        "git_blob_sha1": "756f948570a869969f2c5d19ec64db76436e0cbd"
+      },
+      "module_state": "ESNext(99)",
+      "input": {
+        "current_directory": "/.src",
+        "roots": [
+          "/.src/index.mts",
+          "/.src/exportAny.d.cts",
+          "/.src/exportUnknown.d.cts",
+          "/.src/exportSymbol.d.cts"
+        ],
+        "settings": [
+          {
+            "name": "target",
+            "value": "ESNext"
+          },
+          {
+            "name": "module",
+            "value": "ESNext"
+          },
+          {
+            "name": "moduleResolution",
+            "value": "NodeNext"
+          },
+          {
+            "name": "strict",
+            "value": "true"
+          },
+          {
+            "name": "filename",
+            "value": "exportSymbol.d.cts"
+          }
+        ],
+        "virtual_config": null,
+        "files": [
+          {
+            "unit": 0,
+            "path": "/.src/package.json",
+            "utf8_base64": "ewogICAgIm5hbWUiOiAidGVzdCIsCiAgICAidmVyc2lvbiI6ICIxLjAuMCIsCiAgICAiZGVzY3JpcHRpb24iOiAiIiwKICAgICJ0eXBlIjogIm1vZHVsZSIsCiAgICAibW9kdWxlIjogImluZGV4Lm1qcyIKfQo=",
+            "utf8_sha256": "243a72ce752d1d39025e44a02767dec4731ed1080d3670bea9d64cc20bdb0a61",
+            "utf8_bytes": 119
+          },
+          {
+            "unit": 1,
+            "path": "/.src/index.mts",
+            "utf8_base64": "aW1wb3J0ICogYXMgZXhwb3J0QW55IGZyb20gIi4vZXhwb3J0QW55LmNqcyI7CmltcG9ydCAqIGFzIGV4cG9ydFVua25vd24gZnJvbSAiLi9leHBvcnRVbmtub3duLmNqcyI7CmltcG9ydCAqIGFzIGV4cG9ydFN5bWJvbCBmcm9tICIuL2V4cG9ydFN5bWJvbC5janMiOwoKaW1wb3J0IHR5cGUgKiBhcyBleHBvcnRBbnlUeXBlIGZyb20gIi4vZXhwb3J0QW55LmNqcyI7CmltcG9ydCB0eXBlICogYXMgZXhwb3J0VW5rbm93blR5cGUgZnJvbSAiLi9leHBvcnRVbmtub3duLmNqcyI7CmltcG9ydCB0eXBlICogYXMgZXhwb3J0U3ltYm9sVHlwZSBmcm9tICIuL2V4cG9ydFN5bWJvbC5janMiOwo=",
+            "utf8_sha256": "5395b6db7119eb097638428e5b05574b2705ef8d9d15c1638cef41d4790619e5",
+            "utf8_bytes": 332
+          },
+          {
+            "unit": 2,
+            "path": "/.src/exportAny.d.cts",
+            "utf8_base64": "ZGVjbGFyZSBjb25zdCBfXzogYW55OwpleHBvcnQgPSBfXzsKCg==",
+            "utf8_sha256": "d9a1b3cf61a12921112b9ac38f48c90527c69a975eb32619ea5748da594d411b",
+            "utf8_bytes": 37
+          },
+          {
+            "unit": 3,
+            "path": "/.src/exportUnknown.d.cts",
+            "utf8_base64": "ZGVjbGFyZSBjb25zdCBfXzogdW5rbm93bjsKZXhwb3J0ID0gX187Cgo=",
+            "utf8_sha256": "cd44ee3c192c200c754a53f48325b831316903016761f22c848a631fc30ec7b6",
+            "utf8_bytes": 41
+          },
+          {
+            "unit": 4,
+            "path": "/.src/exportSymbol.d.cts",
+            "utf8_base64": "ZGVjbGFyZSBjb25zdCBfXzogc3ltYm9sOwpleHBvcnQgPSBfXzsK",
+            "utf8_sha256": "7aa1bd73844760e57d78aa5a06970804052690067ab8988dbe14a629317e812e",
+            "utf8_bytes": 39
+          }
+        ]
+      },
+      "files": [
+        {
+          "unit": 2,
+          "path": "/.src/exportAny.d.cts",
+          "script_kind": "TS",
+          "declaration_file": true,
+          "emit_eligible": false,
+          "implied_module_format": "CommonJS",
+          "emit_module_format": 1,
+          "feature_roots": [
+            {
+              "feature": "export-equals",
+              "start": 23,
+              "end": 35,
+              "kind": "ExportAssignment"
+            }
+          ],
+          "parse_diagnostic_codes": [],
+          "max_ast_depth": 5,
+          "import_attributes": false,
+          "advanced_comment_placement": false,
+          "text_sha256": "d9a1b3cf61a12921112b9ac38f48c90527c69a975eb32619ea5748da594d411b"
+        },
+        {
+          "unit": 3,
+          "path": "/.src/exportUnknown.d.cts",
+          "script_kind": "TS",
+          "declaration_file": true,
+          "emit_eligible": false,
+          "implied_module_format": "CommonJS",
+          "emit_module_format": 1,
+          "feature_roots": [
+            {
+              "feature": "export-equals",
+              "start": 27,
+              "end": 39,
+              "kind": "ExportAssignment"
+            }
+          ],
+          "parse_diagnostic_codes": [],
+          "max_ast_depth": 5,
+          "import_attributes": false,
+          "advanced_comment_placement": false,
+          "text_sha256": "cd44ee3c192c200c754a53f48325b831316903016761f22c848a631fc30ec7b6"
+        },
+        {
+          "unit": 4,
+          "path": "/.src/exportSymbol.d.cts",
+          "script_kind": "TS",
+          "declaration_file": true,
+          "emit_eligible": false,
+          "implied_module_format": "CommonJS",
+          "emit_module_format": 1,
+          "feature_roots": [
+            {
+              "feature": "export-equals",
+              "start": 26,
+              "end": 38,
+              "kind": "ExportAssignment"
+            }
+          ],
+          "parse_diagnostic_codes": [],
+          "max_ast_depth": 5,
+          "import_attributes": false,
+          "advanced_comment_placement": false,
+          "text_sha256": "7aa1bd73844760e57d78aa5a06970804052690067ab8988dbe14a629317e812e"
+        },
+        {
+          "unit": 1,
+          "path": "/.src/index.mts",
+          "script_kind": "TS",
+          "declaration_file": false,
+          "emit_eligible": true,
+          "implied_module_format": "ESModule",
+          "emit_module_format": 99,
+          "feature_roots": [],
+          "parse_diagnostic_codes": [],
+          "max_ast_depth": 5,
+          "import_attributes": false,
+          "advanced_comment_placement": false,
+          "text_sha256": "5395b6db7119eb097638428e5b05574b2705ef8d9d15c1638cef41d4790619e5"
+        }
+      ],
+      "owner_reachability": [
+        "implied-node-format"
+      ],
+      "disposition": "admitted-for-execution",
+      "required_slices": [],
+      "diagnostic_disposition": {
+        "state": "exact-required"
+      },
+      "typescript_runs": [
+        {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/.src/index.mjs",
+              "kind": "mjs",
+              "callback_utf8_base64": "ZXhwb3J0IHt9Ow0K",
+              "callback_utf8_sha256": "f761c91419d0a89422a0004ef1a92929dd4d2d5e5c16758654d8b0467d1998c6",
+              "callback_utf8_bytes": 12,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "f761c91419d0a89422a0004ef1a92929dd4d2d5e5c16758654d8b0467d1998c6",
+              "materialized_utf8_bytes": 12,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/index.mts"
+              ]
+            }
+          ],
+          "reported_diagnostics": [
+            {
+              "code": 5110,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Option 'module' must be set to 'NodeNext' when option 'moduleResolution' is set to 'NodeNext'."
+            }
+          ],
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 2,
+          "run_fingerprint_sha256": "16a0838637eae5ba81e0ad19adb185e86543ef2a7b39a4cc90425fc1fd82c730"
+        },
+        {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/.src/index.mjs",
+              "kind": "mjs",
+              "callback_utf8_base64": "ZXhwb3J0IHt9Ow0K",
+              "callback_utf8_sha256": "f761c91419d0a89422a0004ef1a92929dd4d2d5e5c16758654d8b0467d1998c6",
+              "callback_utf8_bytes": 12,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "f761c91419d0a89422a0004ef1a92929dd4d2d5e5c16758654d8b0467d1998c6",
+              "materialized_utf8_bytes": 12,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/index.mts"
+              ]
+            }
+          ],
+          "reported_diagnostics": [
+            {
+              "code": 5110,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Option 'module' must be set to 'NodeNext' when option 'moduleResolution' is set to 'NodeNext'."
+            }
+          ],
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 2,
+          "run_fingerprint_sha256": "16a0838637eae5ba81e0ad19adb185e86543ef2a7b39a4cc90425fc1fd82c730"
+        }
+      ],
+      "rust_expectation": "two-deterministic-exact-runs",
+      "case_fingerprint_sha256": "6f457da31e59b9d83c22119574022f608d163ccacf1e2133f6fd13c2b4f79a65"
+    },
+    {
+      "suite": "compiler",
+      "case_id": "typescript-6.0.3/compiler/moduleNodeImportRequireEmit.ts#target%3Desnext",
+      "expansion_case": 4818,
+      "source": {
+        "path": "moduleNodeImportRequireEmit.ts",
+        "bytes": 320,
+        "sha256": "adf860d67a15a82ab534e4fca281d212ce6cd6d86221835a778b1276b3e73a7f",
+        "git_blob_sha1": "8687a9db8fd1ffa8607dd2668768c8ae549d16a9"
+      },
+      "module_state": "NodeNext(199)",
+      "input": {
+        "current_directory": "/.src",
+        "roots": [
+          "/.src/index.ts"
+        ],
+        "settings": [
+          {
+            "name": "target",
+            "value": "esnext"
+          },
+          {
+            "name": "module",
+            "value": "nodenext"
+          },
+          {
+            "name": "filename",
+            "value": "index.ts"
+          }
+        ],
+        "virtual_config": null,
+        "files": [
+          {
+            "unit": 2,
+            "path": "/.src/index.ts",
+            "utf8_base64": "Ly8vIDxyZWZlcmVuY2UgcGF0aD0iLi9tb2QuZC50cyIgLz4KLy8gVGhpcyBzaG91bGQgZW1pdCBhIGNhbGwgdG8gY3JlYXRlUmVxdWlyZShpbXBvcnQubWV0YS51cmwpCmltcG9ydCBmb28gPSByZXF1aXJlKCJmb28iKTsKZm9vOw==",
+            "utf8_sha256": "ca6ab7b8b9945476c6c7c348d25aa885d035051a8375684c63a22a7ade6495f0",
+            "utf8_bytes": 130
+          },
+          {
+            "unit": 0,
+            "path": "/.src/package.json",
+            "utf8_base64": "ewogICAgInR5cGUiOiAibW9kdWxlIgp9",
+            "utf8_sha256": "4c075cc9db695324371c18cff3fa4f380d774cde4b5d531101700aa049e39d0c",
+            "utf8_bytes": 24
+          },
+          {
+            "unit": 1,
+            "path": "/.src/mod.d.ts",
+            "utf8_base64": "ZGVjbGFyZSBtb2R1bGUgImZvbyI7",
+            "utf8_sha256": "7bf4371a627c1996a8db602f22c13cc484903ddd41f79e93c8404c6a938af9a6",
+            "utf8_bytes": 21
+          }
+        ]
+      },
+      "files": [
+        {
+          "unit": 1,
+          "path": "/.src/mod.d.ts",
+          "script_kind": "TS",
+          "declaration_file": true,
+          "emit_eligible": false,
+          "implied_module_format": "ESModule",
+          "emit_module_format": 99,
+          "feature_roots": [],
+          "parse_diagnostic_codes": [],
+          "max_ast_depth": 3,
+          "import_attributes": false,
+          "advanced_comment_placement": false,
+          "text_sha256": "7bf4371a627c1996a8db602f22c13cc484903ddd41f79e93c8404c6a938af9a6"
+        },
+        {
+          "unit": 2,
+          "path": "/.src/index.ts",
+          "script_kind": "TS",
+          "declaration_file": false,
+          "emit_eligible": true,
+          "implied_module_format": "ESModule",
+          "emit_module_format": 99,
+          "feature_roots": [
+            {
+              "feature": "import-equals",
+              "start": 97,
+              "end": 125,
+              "kind": "ImportEqualsDeclaration"
+            }
+          ],
+          "parse_diagnostic_codes": [],
+          "max_ast_depth": 4,
+          "import_attributes": false,
+          "advanced_comment_placement": false,
+          "text_sha256": "ca6ab7b8b9945476c6c7c348d25aa885d035051a8375684c63a22a7ade6495f0"
+        }
+      ],
+      "owner_reachability": [
+        "implied-node-format"
+      ],
+      "disposition": "deferred-to-slices",
+      "required_slices": [
+        "H2.2d"
+      ],
+      "diagnostic_disposition": {
+        "state": "not-observed-source-deferred"
+      },
+      "typescript_runs": [
+        {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/.src/index.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "aW1wb3J0IHsgY3JlYXRlUmVxdWlyZSBhcyBfY3JlYXRlUmVxdWlyZSB9IGZyb20gIm1vZHVsZSI7DQpjb25zdCBfX3JlcXVpcmUgPSBfY3JlYXRlUmVxdWlyZShpbXBvcnQubWV0YS51cmwpOw0KLy8vIDxyZWZlcmVuY2UgcGF0aD0iLi9tb2QuZC50cyIgLz4NCi8vIFRoaXMgc2hvdWxkIGVtaXQgYSBjYWxsIHRvIGNyZWF0ZVJlcXVpcmUoaW1wb3J0Lm1ldGEudXJsKQ0KY29uc3QgZm9vID0gX19yZXF1aXJlKCJmb28iKTsNCmZvbzsNCg==",
+              "callback_utf8_sha256": "72f93d612347a35267c1db51f8b39a3303f0094a291a5a87de9c733ef543b68b",
+              "callback_utf8_bytes": 247,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "72f93d612347a35267c1db51f8b39a3303f0094a291a5a87de9c733ef543b68b",
+              "materialized_utf8_bytes": 247,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/index.ts"
+              ]
+            }
+          ],
+          "reported_diagnostics": [],
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 0,
+          "run_fingerprint_sha256": "c8630479fe708487826bd5809931d34361e8288325378fb94fb0323a4f092819"
+        },
+        {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/.src/index.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "aW1wb3J0IHsgY3JlYXRlUmVxdWlyZSBhcyBfY3JlYXRlUmVxdWlyZSB9IGZyb20gIm1vZHVsZSI7DQpjb25zdCBfX3JlcXVpcmUgPSBfY3JlYXRlUmVxdWlyZShpbXBvcnQubWV0YS51cmwpOw0KLy8vIDxyZWZlcmVuY2UgcGF0aD0iLi9tb2QuZC50cyIgLz4NCi8vIFRoaXMgc2hvdWxkIGVtaXQgYSBjYWxsIHRvIGNyZWF0ZVJlcXVpcmUoaW1wb3J0Lm1ldGEudXJsKQ0KY29uc3QgZm9vID0gX19yZXF1aXJlKCJmb28iKTsNCmZvbzsNCg==",
+              "callback_utf8_sha256": "72f93d612347a35267c1db51f8b39a3303f0094a291a5a87de9c733ef543b68b",
+              "callback_utf8_bytes": 247,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "72f93d612347a35267c1db51f8b39a3303f0094a291a5a87de9c733ef543b68b",
+              "materialized_utf8_bytes": 247,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/index.ts"
+              ]
+            }
+          ],
+          "reported_diagnostics": [],
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 0,
+          "run_fingerprint_sha256": "c8630479fe708487826bd5809931d34361e8288325378fb94fb0323a4f092819"
+        }
+      ],
+      "rust_expectation": "typed-failure-before-first-sink-write",
+      "case_fingerprint_sha256": "5bdf8d02c5eb004860ab2116f7a6baec444112dc4f1cf93367e91662fe127def"
+    },
+    {
+      "suite": "conformance",
+      "case_id": "typescript-6.0.3/conformance/importAttributes/importAttributes10.ts#default",
+      "expansion_case": 3848,
+      "source": {
+        "path": "importAttributes/importAttributes10.ts",
+        "bytes": 556,
+        "sha256": "d7a496a8b93344497a7326d0440397c5588bf5eb5aa207868b8526b3c4db9c3a",
+        "git_blob_sha1": "d359816eb76478444a90052e12308a5b0f55b6cf"
+      },
+      "module_state": "NodeNext(199)",
+      "input": {
+        "current_directory": "/.src",
+        "roots": [
+          "/.src/b.ts"
+        ],
+        "settings": [
+          {
+            "name": "module",
+            "value": "nodenext"
+          },
+          {
+            "name": "target",
+            "value": "esnext"
+          },
+          {
+            "name": "moduleResolution",
+            "value": "nodenext"
+          },
+          {
+            "name": "filename",
+            "value": "./b.ts"
+          }
+        ],
+        "virtual_config": null,
+        "files": [
+          {
+            "unit": 0,
+            "path": "/.src/a.json",
+            "utf8_base64": "eyAia2V5IjogInZhbHVlIiB9Cg==",
+            "utf8_sha256": "4b62535130112385645094ffd8fe8714453bc3639d48bd8acad45b3cacd2e7aa",
+            "utf8_bytes": 19
+          },
+          {
+            "unit": 1,
+            "path": "/.src/b.ts",
+            "utf8_base64": "ZGVjbGFyZSBnbG9iYWwgewogICAgaW50ZXJmYWNlIEltcG9ydEF0dHJpYnV0ZXMgewogICAgICAgIHR5cGU6ICJqc29uIgogICAgfQp9CgpleHBvcnQgdHlwZSBUZXN0MSA9IHR5cGVvZiBpbXBvcnQoIi4vYS5qc29uIiwgewogIHdpdGg6IHsKICAgIHR5cGU6ICJqc29uIgogIH0sCn0pOwoKZXhwb3J0IHR5cGUgVGVzdDIgPSB0eXBlb2YgaW1wb3J0KCIuL2EuanNvbiIsIHsKICB3aXRoOiB7CiAgICB0eXBlOiAianNvbiIsCiAgfQp9KTsKCmV4cG9ydCB0eXBlIFRlc3QzID0gdHlwZW9mIGltcG9ydCgiLi9hLmpzb24iLCB7CiAgd2l0aDogewogICAgdHlwZTogImpzb24iCiAgfSwsCn0pOwoKZXhwb3J0IHR5cGUgVGVzdDQgPSB0eXBlb2YgaW1wb3J0KCIuL2EuanNvbiIsIHsKICB3aXRoOiB7CiAgICB0eXBlOiAianNvbiIsLAogIH0KfSk7Cg==",
+            "utf8_sha256": "1d88b464bafb4e6f6f11098b2cc2bb9c92b9211cd01882a585f88cfc9e33f4b8",
+            "utf8_bytes": 421
+          }
+        ]
+      },
+      "files": [
+        {
+          "unit": 0,
+          "path": "/.src/a.json",
+          "script_kind": "JSON",
+          "declaration_file": false,
+          "emit_eligible": false,
+          "implied_module_format": "None",
+          "emit_module_format": 199,
+          "feature_roots": [],
+          "parse_diagnostic_codes": [],
+          "max_ast_depth": 5,
+          "import_attributes": false,
+          "advanced_comment_placement": false,
+          "text_sha256": "4b62535130112385645094ffd8fe8714453bc3639d48bd8acad45b3cacd2e7aa"
+        },
+        {
+          "unit": 1,
+          "path": "/.src/b.ts",
+          "script_kind": "TS",
+          "declaration_file": false,
+          "emit_eligible": true,
+          "implied_module_format": "CommonJS",
+          "emit_module_format": 1,
+          "feature_roots": [],
+          "parse_diagnostic_codes": [
+            1005,
+            1128,
+            1478
+          ],
+          "max_ast_depth": 7,
+          "import_attributes": false,
+          "advanced_comment_placement": false,
+          "text_sha256": "1d88b464bafb4e6f6f11098b2cc2bb9c92b9211cd01882a585f88cfc9e33f4b8"
+        }
+      ],
+      "owner_reachability": [
+        "implied-node-format"
+      ],
+      "disposition": "deferred-to-slices",
+      "required_slices": [
+        "H2.9"
+      ],
+      "diagnostic_disposition": {
+        "state": "not-observed-source-deferred"
+      },
+      "typescript_runs": [
+        {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/.src/b.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCjsNCg==",
+              "callback_utf8_sha256": "4bc7046f863342852cd31203c6d867417acf6da9b4e473dbba73d9b6afa0e4da",
+              "callback_utf8_bytes": 82,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "4bc7046f863342852cd31203c6d867417acf6da9b4e473dbba73d9b6afa0e4da",
+              "materialized_utf8_bytes": 82,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/b.ts"
+              ]
+            }
+          ],
+          "reported_diagnostics": [
+            {
+              "code": 1005,
+              "category": "Error",
+              "file": "/.src/b.ts",
+              "start": 329,
+              "length": 1,
+              "message": "'}' expected."
+            },
+            {
+              "code": 1128,
+              "category": "Error",
+              "file": "/.src/b.ts",
+              "start": 331,
+              "length": 1,
+              "message": "Declaration or statement expected."
+            },
+            {
+              "code": 1128,
+              "category": "Error",
+              "file": "/.src/b.ts",
+              "start": 332,
+              "length": 1,
+              "message": "Declaration or statement expected."
+            },
+            {
+              "code": 1478,
+              "category": "Error",
+              "file": "/.src/b.ts",
+              "start": 411,
+              "length": 1,
+              "message": "Identifier or string literal expected."
+            }
+          ],
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 2,
+          "run_fingerprint_sha256": "5695a7095f5f233a1b7082a83620964184edf5a5e49d09cae399e8598d9ac130"
+        },
+        {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/.src/b.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCjsNCg==",
+              "callback_utf8_sha256": "4bc7046f863342852cd31203c6d867417acf6da9b4e473dbba73d9b6afa0e4da",
+              "callback_utf8_bytes": 82,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "4bc7046f863342852cd31203c6d867417acf6da9b4e473dbba73d9b6afa0e4da",
+              "materialized_utf8_bytes": 82,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/b.ts"
+              ]
+            }
+          ],
+          "reported_diagnostics": [
+            {
+              "code": 1005,
+              "category": "Error",
+              "file": "/.src/b.ts",
+              "start": 329,
+              "length": 1,
+              "message": "'}' expected."
+            },
+            {
+              "code": 1128,
+              "category": "Error",
+              "file": "/.src/b.ts",
+              "start": 331,
+              "length": 1,
+              "message": "Declaration or statement expected."
+            },
+            {
+              "code": 1128,
+              "category": "Error",
+              "file": "/.src/b.ts",
+              "start": 332,
+              "length": 1,
+              "message": "Declaration or statement expected."
+            },
+            {
+              "code": 1478,
+              "category": "Error",
+              "file": "/.src/b.ts",
+              "start": 411,
+              "length": 1,
+              "message": "Identifier or string literal expected."
+            }
+          ],
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 2,
+          "run_fingerprint_sha256": "5695a7095f5f233a1b7082a83620964184edf5a5e49d09cae399e8598d9ac130"
+        }
+      ],
+      "rust_expectation": "typed-failure-before-first-sink-write",
+      "case_fingerprint_sha256": "1b674cd533666c06b4ab9de79e9274638da8843fc8d3a01a548de102feab1aa8"
+    }
+  ],
+  "summary": {
+    "candidates": 6,
+    "compiler_candidates": 5,
+    "conformance_candidates": 1,
+    "admitted_cases": 4,
+    "deferred_cases": 2,
+    "diagnostic_deferred_output_control_cases": 0,
+    "source_deferred_cases": 2,
+    "no_emit_control_cases": 0,
+    "module_states": [
+      {
+        "value": "ESNext(99)",
+        "cases": 3
+      },
+      {
+        "value": "NodeNext(199)",
+        "cases": 3
+      }
+    ],
+    "dispositions": [
+      {
+        "value": "admitted-for-execution",
+        "cases": 4
+      },
+      {
+        "value": "deferred-to-slices",
+        "cases": 2
+      }
+    ],
+    "first_deferred_slices": [
+      {
+        "value": "H2.2d",
+        "cases": 1
+      },
+      {
+        "value": "H2.9",
+        "cases": 1
+      }
+    ],
+    "typescript_runs": 12,
+    "deterministic_typescript_cases": 6,
+    "admitted_typescript_writes": 8,
+    "diagnostic_control_typescript_writes": 0,
+    "admitted_typescript_diagnostics": 6,
+    "unexecuted_candidates": 0,
+    "undispositioned_candidates": 0
+  },
+  "qualification_fingerprint_sha256": "1b334f1d2c151e9700c86c5788a4351f11667f91f8ca4c1768d1aa1bfff6a57d"
+}
