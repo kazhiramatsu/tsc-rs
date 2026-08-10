@@ -33,7 +33,7 @@ const PARAM_HELPER_TEXT: &str = r#"var __param = (this && this.__param) || funct
 };"#;
 
 /// tsc-port: transformLegacyDecorators @6.0.3
-/// tsc-hash: 53edcf53fff8187874600e2823d9a99c018f4ecaf10b688648985794f199c722
+/// tsc-hash: a189529b3222643cfd792a2698fc5adcc51c91ef8de4ce775a4b866bad3c839c
 /// tsc-span: _tsc.js:98430-98943
 pub(super) fn transform_legacy_decorators<'resolver>(
     options: &CompilerOptions,

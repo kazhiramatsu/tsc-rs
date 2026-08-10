@@ -148,7 +148,10 @@ If that local command fails, rerunning the exact command automatically reuses
 only successful phases whose repository inputs, toolchain, environment,
 baseline, and required outputs still match. `--fresh` discards the failed-run
 journal. A green run deletes the journal, so the next independent invocation
-is a full gate again.
+is a full gate again. Generated-evidence freshness runs before the expensive
+workspace-test phase, and unrelated ratchet/corpus edits do not invalidate the
+workspace-layout audit. Rust tests still fail closed on verification inputs
+because several test targets consume checked-in ratchets and schemas directly.
 
 GitHub Actions deliberately runs only `cargo xtask acceptance`. That stable
 entrypoint consumes the checked-in `ts-tests` acceptance corpus and currently

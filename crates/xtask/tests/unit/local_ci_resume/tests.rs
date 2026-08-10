@@ -64,6 +64,11 @@ fn scopes_invalidate_only_on_declared_inputs() {
         ("crates/checker/src/lib.rs", "rust-b"),
         ("ratchets/profile.json", "ratchet-a"),
     ]);
+    let ratchet_edit = snapshot(&[
+        ("README.md", "readme-a"),
+        ("crates/checker/src/lib.rs", "rust-a"),
+        ("ratchets/profile.json", "ratchet-b"),
+    ]);
 
     assert_ne!(
         fingerprint(&original, InputScope::All),
@@ -80,6 +85,18 @@ fn scopes_invalidate_only_on_declared_inputs() {
     assert_ne!(
         fingerprint(&original, InputScope::RustFormat),
         fingerprint(&rust_edit, InputScope::RustFormat)
+    );
+    assert_eq!(
+        fingerprint(&original, InputScope::WorkspaceAudit),
+        fingerprint(&ratchet_edit, InputScope::WorkspaceAudit)
+    );
+    assert_ne!(
+        fingerprint(&original, InputScope::WorkspaceAudit),
+        fingerprint(&rust_edit, InputScope::WorkspaceAudit)
+    );
+    assert_ne!(
+        fingerprint(&original, InputScope::Verification),
+        fingerprint(&ratchet_edit, InputScope::Verification)
     );
 }
 

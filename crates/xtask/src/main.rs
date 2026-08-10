@@ -7362,7 +7362,7 @@ fn ci_with_resume(
 ) -> Result<(), Box<dyn Error>> {
     resume.run_phase(
         "workspace-audit",
-        local_ci_resume::InputScope::All,
+        local_ci_resume::InputScope::WorkspaceAudit,
         "",
         &[],
         || workspace_maintenance::audit(workspace),
@@ -7417,18 +7417,18 @@ fn ci_rust_gates(resume: &mut local_ci_resume::LocalCiResume) -> Result<(), Box<
         || ci_clippy_gate(&workspace),
     )?;
     resume.run_phase(
-        "workspace-tests",
-        local_ci_resume::InputScope::Verification,
-        "",
-        &[],
-        || ci_workspace_tests(&workspace),
-    )?;
-    resume.run_phase(
         "oracle",
         local_ci_resume::InputScope::Verification,
         "",
         &[],
         || ci_oracle_gates(&workspace),
+    )?;
+    resume.run_phase(
+        "workspace-tests",
+        local_ci_resume::InputScope::Verification,
+        "",
+        &[],
+        || ci_workspace_tests(&workspace),
     )?;
     Ok(())
 }
@@ -8123,12 +8123,9 @@ fn ci_oracle_gates(workspace: &Path) -> Result<(), Box<dyn Error>> {
     )?;
     let h2_3d_profile = workspace.join("crates/oracle/h2-3d-profile.mjs");
     run_command(Command::new("node").arg("--check").arg(&h2_3d_profile))?;
-    run_command(
-        Command::new("node")
-            .current_dir(workspace)
-            .arg(&h2_3d_profile)
-            .arg("--check"),
-    )?;
+    // H2.3d is immutable lineage now that H2.4a owns current runtime
+    // freshness. The H2.4a qualification/profile pin its exact authority
+    // bytes; regenerating it would reinterpret the reviewed parent slice.
     let h2_4a_qualification = workspace.join("crates/oracle/h2-4a-qualification.mjs");
     run_command(
         Command::new("node")
@@ -8279,6 +8276,11 @@ fn ci_semantic_gates(
 }
 
 fn ci_semantic_preflight(workspace: &Path, baseline: &str) -> Result<(), Box<dyn Error>> {
+    // Fail on cheap source-ledger and escape expiry drift before allocating
+    // any history or full-corpus evidence workers.
+    ledger_check()?;
+    let stage = fs::read_to_string(workspace.join("STAGE"))?;
+    escapes(["--stale", stage.trim()].into_iter().map(str::to_owned))?;
     // Keep the reusable checker/conformance phases in-process. The
     // history-heavy trusted audits below use this already-built binary
     // as one short-lived child so its allocator pages cannot overlap
@@ -8358,13 +8360,8 @@ fn ci_semantic_evidence(workspace: &Path, baseline: &str) -> Result<(), Box<dyn 
             .into_iter()
             .map(str::to_owned),
     )?;
-    ledger_check()?;
-    // The expiry audit: escapes whose owner stage (per the STAGE
-    // marker file) has passed must be implemented or re-marked.
-    let stage = fs::read_to_string(workspace.join("STAGE"))?;
-    escapes(["--stale", stage.trim()].into_iter().map(str::to_owned))?;
     // Consume the B2-B4 artifacts in this same workspace/job. Reuse
-    // the all-band summary and the already-run inventory/ledger checks
+    // the all-band summary and the preflight inventory/ledger checks
     // instead of launching another full-corpus checker pass.
     m8_readiness_inner(
         false,
