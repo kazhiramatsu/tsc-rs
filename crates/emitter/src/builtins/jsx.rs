@@ -4,7 +4,7 @@ use tsc_syntax::{
     for_each_child, skip_trivia, try_visit_each_child, NodeArrayId, NodeData, NodeDataChildVisitor,
     NodeId, SyntaxKind,
 };
-use tsc_types::{CompilerOptions, NodeFlags};
+use tsc_types::{CompilerOptions, NodeFlags, ScriptTarget};
 
 use crate::{
     EmitResolver, EmitResolverNode, JavaScriptString, TransformError, TransformFlags,
@@ -29,6 +29,7 @@ pub(super) fn transform_jsx<'resolver>(
         jsx_import_source: options.jsx_import_source.clone(),
         jsx_mode: options.jsx.unwrap_or(2),
         react_namespace: options.react_namespace.clone(),
+        target: options.emit_script_target(),
     })
 }
 
@@ -39,6 +40,7 @@ struct JsxTransformer<'resolver> {
     jsx_import_source: Option<String>,
     jsx_mode: i32,
     react_namespace: Option<String>,
+    target: ScriptTarget,
 }
 
 impl Transformer for JsxTransformer<'_> {
@@ -101,6 +103,7 @@ impl Transformer for JsxTransformer<'_> {
                 jsx_factory: self.jsx_factory.as_deref(),
                 jsx_fragment_factory: self.jsx_fragment_factory.as_deref(),
                 react_namespace: self.react_namespace.as_deref(),
+                target: self.target,
             },
         );
         let transformed =
@@ -224,6 +227,7 @@ struct JsxVisitor<'context> {
     file_name: String,
     is_external_module: bool,
     is_external_or_common_js_module: bool,
+    target: ScriptTarget,
     used_names: BTreeSet<String>,
     implicit_imports: Vec<ImplicitImportGroup>,
     filename_declaration: Option<TransformNode>,
@@ -241,6 +245,7 @@ struct JsxVisitorSettings<'settings> {
     jsx_factory: Option<&'settings str>,
     jsx_fragment_factory: Option<&'settings str>,
     react_namespace: Option<&'settings str>,
+    target: ScriptTarget,
 }
 
 #[derive(Clone, Copy)]
@@ -279,6 +284,7 @@ impl<'context> JsxVisitor<'context> {
             jsx_factory,
             jsx_fragment_factory,
             react_namespace,
+            target,
         } = settings;
         let namespace = parse_entity_name(react_namespace.unwrap_or("React"))
             .unwrap_or_else(|| vec!["React".to_owned()]);
@@ -312,6 +318,7 @@ impl<'context> JsxVisitor<'context> {
             file_name,
             is_external_module,
             is_external_or_common_js_module,
+            target,
             used_names,
             implicit_imports: Vec::new(),
             filename_declaration: None,
@@ -489,7 +496,7 @@ impl<'context> JsxVisitor<'context> {
         if properties.is_empty() {
             return self.create_token(SyntaxKind::NullKeyword);
         }
-        self.create_object_literal(properties)
+        self.create_props_expression(properties)
     }
 
     fn transform_attribute_properties(
@@ -871,7 +878,77 @@ impl<'context> JsxVisitor<'context> {
             };
             properties.push(self.create_property_assignment("children", initializer)?);
         }
-        self.create_object_literal(properties)
+        self.create_props_expression(properties)
+    }
+
+    fn create_props_expression(
+        &mut self,
+        properties: Vec<TransformNode>,
+    ) -> Result<TransformNode, TransformError> {
+        if self.target >= ScriptTarget::ES2018 {
+            return self.create_object_literal(properties);
+        }
+
+        let mut operands = Vec::new();
+        let mut chunk = Vec::new();
+        for property in properties {
+            let spread = match &self.context.arena().node(property)?.data {
+                NodeData::SpreadAssignment(data) => data.expression.map(|id| self.node(id)),
+                _ => None,
+            };
+            if let Some(spread) = spread {
+                if !chunk.is_empty() {
+                    operands.push(self.create_object_literal(std::mem::take(&mut chunk))?);
+                }
+                operands.push(spread);
+            } else {
+                chunk.push(property);
+            }
+        }
+        if !chunk.is_empty() {
+            operands.push(self.create_object_literal(chunk)?);
+        }
+        if operands.is_empty() {
+            return self.create_object_literal(Vec::new());
+        }
+        if self.context.arena().node(operands[0])?.kind != SyntaxKind::ObjectLiteralExpression {
+            operands.insert(0, self.create_object_literal(Vec::new())?);
+        }
+        if operands.len() == 1 {
+            return Ok(operands[0]);
+        }
+        self.create_object_assign(operands)
+    }
+
+    fn create_object_assign(
+        &mut self,
+        operands: Vec<TransformNode>,
+    ) -> Result<TransformNode, TransformError> {
+        let object = self.create_identifier("Object")?;
+        let assign = self.create_identifier("assign")?;
+        let callee = self.context.factory()?.create_node(
+            self.source,
+            NodeData::PropertyAccessExpression(tsc_syntax::nodes::PropertyAccessExpressionData {
+                expression: Some(object.node()),
+                question_dot_token: None,
+                name: Some(assign.node()),
+            }),
+            TransformFlags::NONE,
+        )?;
+        let arguments = self
+            .context
+            .factory()?
+            .create_node_array(self.source, operands)?;
+        self.context.factory()?.create_node(
+            self.source,
+            NodeData::CallExpression(tsc_syntax::nodes::CallExpressionData {
+                expression: Some(callee.node()),
+                question_dot_token: None,
+                type_arguments: None,
+                arguments: Some(arguments.array()),
+            }),
+            TransformFlags::NONE,
+        )
     }
 
     fn create_property_assignment(

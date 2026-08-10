@@ -126,6 +126,14 @@ impl EmitResolver for NoConstantValueResolver {
     ) -> Result<Option<EmitConstantValue>, EmitResolverError> {
         Ok(None)
     }
+
+    fn has_node_check_flag(
+        &self,
+        _node: EmitResolverNode,
+        _flag: u32,
+    ) -> Result<bool, EmitResolverError> {
+        Ok(false)
+    }
 }
 
 struct UnresolvedDecoratorResolver;
@@ -143,6 +151,14 @@ impl EmitResolver for UnresolvedDecoratorResolver {
         _node: EmitResolverNode,
     ) -> Result<Option<EmitResolverNode>, EmitResolverError> {
         Ok(None)
+    }
+
+    fn has_node_check_flag(
+        &self,
+        _node: EmitResolverNode,
+        _flag: u32,
+    ) -> Result<bool, EmitResolverError> {
+        Ok(false)
     }
 }
 

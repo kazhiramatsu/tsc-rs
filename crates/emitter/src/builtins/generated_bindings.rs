@@ -21,6 +21,7 @@ struct GeneratedBindingScope {
     owner: GeneratedBindingOwner,
     parent: Option<GeneratedBindingScopeId>,
     names: Vec<String>,
+    names_reserved_in_descendants: Vec<String>,
     bindings: Vec<String>,
     next_temp_ordinal: usize,
 }
@@ -67,6 +68,7 @@ impl GeneratedBindingScopes {
                 owner: GeneratedBindingOwner::Source,
                 parent: None,
                 names: Vec::new(),
+                names_reserved_in_descendants: Vec::new(),
                 bindings: Vec::new(),
                 next_temp_ordinal: 0,
             }],
@@ -84,6 +86,7 @@ impl GeneratedBindingScopes {
             owner,
             parent: Some(previous),
             names: Vec::new(),
+            names_reserved_in_descendants: Vec::new(),
             bindings: Vec::new(),
             next_temp_ordinal: 0,
         });
@@ -117,7 +120,20 @@ impl GeneratedBindingScopes {
             let Some(candidate) = Self::temp_candidate(ordinal) else {
                 continue;
             };
-            if self.reserve_in_current(candidate.clone(), true) {
+            if self.reserve_in_current(candidate.clone(), true, false) {
+                return candidate;
+            }
+        }
+    }
+
+    pub(super) fn allocate_temp_with_policy(&mut self, reserve_in_nested_scopes: bool) -> String {
+        loop {
+            let ordinal = self.scopes[self.current.0].next_temp_ordinal;
+            self.scopes[self.current.0].next_temp_ordinal += 1;
+            let Some(candidate) = Self::temp_candidate(ordinal) else {
+                continue;
+            };
+            if self.reserve_in_current(candidate.clone(), true, reserve_in_nested_scopes) {
                 return candidate;
             }
         }
@@ -130,45 +146,196 @@ impl GeneratedBindingScopes {
             let Some(candidate) = Self::temp_candidate(ordinal) else {
                 continue;
             };
-            if self.reserve_in_current(candidate.clone(), false) {
+            if self.reserve_in_current(candidate.clone(), false, false) {
                 return candidate;
             }
         }
     }
 
     pub(super) fn allocate_preferred(&mut self, preferred: String) -> String {
-        if self.reserve_in_current(preferred.clone(), true) {
+        if self.reserve_in_current(preferred.clone(), true, false) {
             return preferred;
         }
         let mut suffix = 1usize;
         loop {
             let candidate = format!("{preferred}_{suffix}");
-            if self.reserve_in_current(candidate.clone(), true) {
+            if self.reserve_in_current(candidate.clone(), true, false) {
                 return candidate;
             }
             suffix += 1;
         }
     }
 
-    fn reserve_in_current(&mut self, candidate: String, binding: bool) -> bool {
+    pub(super) fn allocate_local_preferred_with_policy(
+        &mut self,
+        preferred: String,
+        reserve_in_nested_scopes: bool,
+    ) -> String {
+        if self.reserve_in_current(preferred.clone(), false, reserve_in_nested_scopes) {
+            return preferred;
+        }
+        let mut suffix = 1usize;
+        loop {
+            let candidate = format!("{preferred}_{suffix}");
+            if self.reserve_in_current(candidate.clone(), false, reserve_in_nested_scopes) {
+                return candidate;
+            }
+            suffix += 1;
+        }
+    }
+
+    pub(super) fn allocate_numbered(&mut self, source_name: &str) -> String {
+        let mut suffix = 1usize;
+        loop {
+            let candidate = format!("{source_name}_{suffix}");
+            if self.reserve_in_current(candidate.clone(), true, false) {
+                return candidate;
+            }
+            suffix += 1;
+        }
+    }
+
+    /// Allocates the numbered form used when a generated declaration derives
+    /// its identity from a parsed node (`name_1`, `name_2`, ...). Unlike a
+    /// preferred name collision, the ordinal belongs to the source name and
+    /// must therefore advance as a unit rather than produce `name_1_1`.
+    pub(super) fn allocate_local_numbered(&mut self, source_name: &str) -> String {
+        let mut suffix = 1usize;
+        loop {
+            let candidate = format!("{source_name}_{suffix}");
+            if self.reserve_in_current(candidate.clone(), false, false) {
+                return candidate;
+            }
+            suffix += 1;
+        }
+    }
+
+    /// Reconciles an eagerly planned source-derived name with bindings added
+    /// by later transforms. The planned ordinal is retained when available;
+    /// on collision the same source-name sequence advances (`e_1` -> `e_2`)
+    /// instead of treating the full spelling as a new preferred base.
+    pub(super) fn allocate_source_planned_numbered(
+        &mut self,
+        source_name: &str,
+        planned: String,
+    ) -> String {
+        self.allocate_source_planned_numbered_with_policy(source_name, planned, false)
+    }
+
+    pub(super) fn allocate_source_planned_numbered_with_policy(
+        &mut self,
+        source_name: &str,
+        planned: String,
+        reserve_in_nested_scopes: bool,
+    ) -> String {
+        if self.reserve_in_source(planned.clone()) {
+            if reserve_in_nested_scopes {
+                self.scopes[0]
+                    .names_reserved_in_descendants
+                    .push(planned.clone());
+            }
+            return planned;
+        }
+        let prefix = format!("{source_name}_");
+        let mut suffix = planned
+            .strip_prefix(&prefix)
+            .and_then(|suffix| suffix.parse::<usize>().ok())
+            .map_or(1, |suffix| suffix + 1);
+        loop {
+            let candidate = format!("{source_name}_{suffix}");
+            if self.reserve_in_source(candidate.clone()) {
+                if reserve_in_nested_scopes {
+                    self.scopes[0]
+                        .names_reserved_in_descendants
+                        .push(candidate.clone());
+                }
+                return candidate;
+            }
+            suffix += 1;
+        }
+    }
+
+    /// Reconciles a scoped optimistic name such as `_super` with bindings
+    /// introduced by another target pass. Unlike source-derived numbered
+    /// bindings, preferred names are owned by the current function scope and
+    /// may therefore be reused by sibling functions.
+    pub(super) fn allocate_planned_preferred_with_policy(
+        &mut self,
+        preferred: &str,
+        planned: String,
+        reserve_in_nested_scopes: bool,
+    ) -> String {
+        if self.reserve_in_current(planned.clone(), true, reserve_in_nested_scopes) {
+            return planned;
+        }
+        let prefix = format!("{preferred}_");
+        let mut suffix = planned
+            .strip_prefix(&prefix)
+            .and_then(|suffix| suffix.parse::<usize>().ok())
+            .map_or(1, |suffix| suffix + 1);
+        loop {
+            let candidate = format!("{preferred}_{suffix}");
+            if self.reserve_in_current(candidate.clone(), true, reserve_in_nested_scopes) {
+                return candidate;
+            }
+            suffix += 1;
+        }
+    }
+
+    fn reserve_in_current(
+        &mut self,
+        candidate: String,
+        binding: bool,
+        reserve_in_nested_scopes: bool,
+    ) -> bool {
         if self.reserved_source_names.contains(&candidate)
-            || self.ancestor_policy == AncestorBindingPolicy::Reserve
-                && self.active_scope_contains(&candidate)
+            || self.current_scope_contains(&candidate)
+            || self.ancestor_scope_contains(
+                &candidate,
+                self.ancestor_policy == AncestorBindingPolicy::Reserve,
+            )
         {
             return false;
         }
         self.scopes[self.current.0].names.push(candidate.clone());
+        if reserve_in_nested_scopes {
+            self.scopes[self.current.0]
+                .names_reserved_in_descendants
+                .push(candidate.clone());
+        }
         if binding {
             self.scopes[self.current.0].bindings.push(candidate);
         }
         true
     }
 
-    fn active_scope_contains(&self, candidate: &str) -> bool {
-        let mut scope = Some(self.current);
+    fn reserve_in_source(&mut self, candidate: String) -> bool {
+        if self.reserved_source_names.contains(&candidate)
+            || self.scopes[0].names.iter().any(|name| name == &candidate)
+        {
+            return false;
+        }
+        self.scopes[0].names.push(candidate);
+        true
+    }
+
+    fn current_scope_contains(&self, candidate: &str) -> bool {
+        self.scopes[self.current.0]
+            .names
+            .iter()
+            .any(|name| name == candidate)
+    }
+
+    fn ancestor_scope_contains(&self, candidate: &str, include_all_names: bool) -> bool {
+        let mut scope = self.scopes[self.current.0].parent;
         while let Some(current) = scope {
             let current = &self.scopes[current.0];
-            if current.names.iter().any(|name| name == candidate) {
+            if current
+                .names_reserved_in_descendants
+                .iter()
+                .any(|name| name == candidate)
+                || include_all_names && current.names.iter().any(|name| name == candidate)
+            {
                 return true;
             }
             scope = current.parent;
@@ -191,3 +358,7 @@ impl GeneratedBindingScopes {
         })
     }
 }
+
+#[cfg(test)]
+#[path = "../../tests/unit/generated_bindings/tests.rs"]
+mod tests;

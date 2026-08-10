@@ -76,7 +76,7 @@ impl Transformer for StandardDecoratorTransformer {
     }
 
     fn initialize(&mut self, _context: &mut TransformationContext) -> Result<(), TransformError> {
-        if self.target < ScriptTarget::ES2018
+        if self.target < ScriptTarget::ES2017
             || self.target > ScriptTarget::ES_NEXT
             || (self.target == ScriptTarget::ES_NEXT && self.use_define_for_class_fields)
         {
@@ -145,6 +145,16 @@ struct ClassDecorationPlan {
     class_this_name: String,
     reference_name: String,
     has_static_initializers: bool,
+}
+
+#[derive(Clone)]
+enum StaticAccessorReceiver {
+    GeneratedBinding(String),
+    ClassReference {
+        text: String,
+        original_name: TransformNode,
+        class_owner: TransformNode,
+    },
 }
 
 impl PropertyPlan {
@@ -548,6 +558,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
         let enclosing_temp_ordinal = self.computed_temp_ordinal;
         self.computed_temp_ordinal = 0;
         let class_decorators = self.decorator_expressions(data.modifiers)?;
+        let explicit_class_name_node = data.name.map(|name| self.node(name));
         let explicit_class_name = if let Some(name) = data.name {
             self.identifier_text(self.node(name))?.map(str::to_owned)
         } else {
@@ -560,7 +571,14 @@ impl<'context> StandardDecoratorVisitor<'context> {
         let class_name = explicit_class_name
             .clone()
             .or_else(|| assigned_class_name.clone());
-        let needs_set_function_name = explicit_class_name.is_none() && class_name.is_some();
+        // A decorated named class still receives its name from the direct
+        // variable initializer while native static blocks survive. Below
+        // ES2022, class-field lowering extracts the `_classThis = this`
+        // block and makes the anonymous class the right side of another
+        // assignment, so that named-evaluation position no longer survives.
+        let emitted_binding_infers_name = explicit_class_name.is_some()
+            && (class_decorators.is_empty() || self.target >= ScriptTarget::ES2022);
+        let needs_set_function_name = !emitted_binding_infers_name && class_name.is_some();
         let mut class_decoration = if class_decorators.is_empty() {
             None
         } else {
@@ -911,10 +929,23 @@ impl<'context> StandardDecoratorVisitor<'context> {
             };
             let static_accessor_receiver = if plan.is_static && self.target < ScriptTarget::ES_NEXT
             {
-                class_decoration
-                    .as_ref()
-                    .map(|class_plan| class_plan.class_this_name.as_str())
-                    .or(class_name.as_deref())
+                if let Some(class_plan) = class_decoration.as_ref() {
+                    Some(StaticAccessorReceiver::GeneratedBinding(
+                        class_plan.class_this_name.clone(),
+                    ))
+                } else if let (Some(text), Some(original_name)) =
+                    (explicit_class_name.as_ref(), explicit_class_name_node)
+                {
+                    Some(StaticAccessorReceiver::ClassReference {
+                        text: text.clone(),
+                        original_name,
+                        class_owner: original,
+                    })
+                } else {
+                    class_name
+                        .as_ref()
+                        .map(|name| StaticAccessorReceiver::GeneratedBinding(name.clone()))
+                }
             } else {
                 None
             };
@@ -932,7 +963,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
                     &plan,
                     backing_name,
                     initializer,
-                    static_accessor_receiver,
+                    static_accessor_receiver.as_ref(),
                 )?);
             } else {
                 transformed_members.push(self.update_decorated_property(&plan, initializer)?);
@@ -2205,7 +2236,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
         plan: &PropertyPlan,
         backing_name: &str,
         initializer: TransformNode,
-        static_receiver: Option<&str>,
+        static_receiver: Option<&StaticAccessorReceiver>,
     ) -> Result<Vec<TransformNode>, TransformError> {
         let backing = self.create_private_identifier(backing_name)?;
         let modifiers = self.filter_modifiers(plan.data.modifiers, |kind| {
@@ -2228,6 +2259,12 @@ impl<'context> StandardDecoratorVisitor<'context> {
             .arena_mut()?
             .metadata_mut(field)
             .add_flags(EmitFlags::NO_COMMENTS);
+        if plan.is_static {
+            self.context
+                .arena_mut()?
+                .metadata_mut(field)
+                .class_field_initializer_comment_source = Some(plan.original);
+        }
         let name = plan.data.name.ok_or(TransformError::RequiredChildRemoved {
             parent: SyntaxKind::PropertyDeclaration,
             field: "name",
@@ -2266,7 +2303,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
         backing: NodeId,
         modifiers: Option<NodeArrayId>,
         descriptor_name: Option<&str>,
-        static_receiver: Option<&str>,
+        static_receiver: Option<&StaticAccessorReceiver>,
     ) -> Result<TransformNode, TransformError> {
         let access = if let Some(descriptor_name) = descriptor_name {
             let descriptor = self.create_identifier(descriptor_name)?;
@@ -2276,7 +2313,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
             self.create_call(call, vec![this])?
         } else {
             let receiver = if let Some(receiver) = static_receiver {
-                self.create_identifier(receiver)?
+                self.create_static_accessor_receiver(receiver)?
             } else {
                 self.create_this()?
             };
@@ -2308,7 +2345,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
         backing: NodeId,
         modifiers: Option<NodeArrayId>,
         descriptor_name: Option<&str>,
-        static_receiver: Option<&str>,
+        static_receiver: Option<&StaticAccessorReceiver>,
     ) -> Result<TransformNode, TransformError> {
         let parameter = self.create_parameter("value")?;
         let parameters = self
@@ -2325,7 +2362,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
             self.create_return_statement(call)?
         } else {
             let receiver = if let Some(receiver) = static_receiver {
-                self.create_identifier(receiver)?
+                self.create_static_accessor_receiver(receiver)?
             } else {
                 self.create_this()?
             };
@@ -2346,6 +2383,28 @@ impl<'context> StandardDecoratorVisitor<'context> {
             }),
             TransformFlags::NONE,
         )
+    }
+
+    fn create_static_accessor_receiver(
+        &mut self,
+        receiver: &StaticAccessorReceiver,
+    ) -> Result<TransformNode, TransformError> {
+        match receiver {
+            StaticAccessorReceiver::GeneratedBinding(text) => self.create_identifier(text),
+            StaticAccessorReceiver::ClassReference {
+                text,
+                original_name,
+                class_owner,
+            } => {
+                let identifier = self.create_identifier(text)?;
+                let identifier = self.set_original_and_range(identifier, *original_name)?;
+                self.context
+                    .arena_mut()?
+                    .metadata_mut(identifier)
+                    .class_constructor_reference = Some(*class_owner);
+                Ok(identifier)
+            }
+        }
     }
 
     fn create_class_this_assignment_block(

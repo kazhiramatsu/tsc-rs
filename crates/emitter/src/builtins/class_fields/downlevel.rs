@@ -570,6 +570,9 @@ impl<'context, 'aliases> DownlevelClassVisitor<'context, 'aliases> {
             class_name.as_deref(),
             preferred_class_alias,
         )?;
+        if let Some(alias) = private_environment.class_alias.as_deref() {
+            self.register_class_alias(original, alias)?;
+        }
         let super_alias = private_environment.super_alias.clone();
         self.private_environments.push(private_environment);
         data.name = self.visit_optional_node(data.name)?;
@@ -578,6 +581,7 @@ impl<'context, 'aliases> DownlevelClassVisitor<'context, 'aliases> {
         data.heritage_clauses =
             self.capture_super_base(data.heritage_clauses, super_alias.as_deref())?;
         data.modifiers = self.visit_optional_nodes(data.modifiers)?;
+        data.modifiers = self.filter_modifier(data.modifiers, SyntaxKind::AccessorKeyword)?;
 
         let operations = self.plan_members(data.members)?;
         let mut retained = operations.retained_members;
@@ -661,6 +665,7 @@ impl<'context, 'aliases> DownlevelClassVisitor<'context, 'aliases> {
         data.heritage_clauses =
             self.capture_super_base(data.heritage_clauses, super_alias.as_deref())?;
         data.modifiers = self.visit_optional_nodes(data.modifiers)?;
+        data.modifiers = self.filter_modifier(data.modifiers, SyntaxKind::AccessorKeyword)?;
         self.private_environments.push(private_environment);
         let operations = self.plan_members(data.members)?;
         let needs_expression_binding = private_expression_binding.is_some()
@@ -1100,7 +1105,7 @@ impl<'context, 'aliases> DownlevelClassVisitor<'context, 'aliases> {
             self.set_original_and_range(setter, member)?;
             self.context
                 .arena_mut()?
-                .metadata_mut(getter)
+                .metadata_mut(backing)
                 .add_flags(EmitFlags::NO_COMMENTS);
             self.context
                 .arena_mut()?
@@ -2260,23 +2265,72 @@ impl<'context, 'aliases> DownlevelClassVisitor<'context, 'aliases> {
                     });
                 }
                 data => {
+                    let data = self.strip_accessor_modifier_from_class_member(data)?;
                     let updated = if self
                         .generated_static_auto_accessors
                         .contains(&member.node())
                     {
                         self.with_static_bindings(|visitor| visitor.update_generic(member, data))?
                     } else {
-                        self.visit(member.node())?
-                            .ok_or(TransformError::RequiredChildRemoved {
-                                parent: self.context.arena().node(member)?.kind,
-                                field: "retained class member",
-                            })?
+                        self.visit_retained_class_member(member, data)?
                     };
                     operations.retained_members.push(self.node(updated));
                 }
             }
         }
         Ok(operations)
+    }
+
+    fn strip_accessor_modifier_from_class_member(
+        &mut self,
+        mut data: NodeData,
+    ) -> Result<NodeData, TransformError> {
+        match &mut data {
+            NodeData::PropertyDeclaration(data) => {
+                data.modifiers =
+                    self.filter_modifier(data.modifiers, SyntaxKind::AccessorKeyword)?;
+            }
+            NodeData::MethodDeclaration(data) => {
+                data.modifiers =
+                    self.filter_modifier(data.modifiers, SyntaxKind::AccessorKeyword)?;
+            }
+            NodeData::GetAccessor(data) => {
+                data.modifiers =
+                    self.filter_modifier(data.modifiers, SyntaxKind::AccessorKeyword)?;
+            }
+            NodeData::SetAccessor(data) => {
+                data.modifiers =
+                    self.filter_modifier(data.modifiers, SyntaxKind::AccessorKeyword)?;
+            }
+            NodeData::Constructor(data) => {
+                data.modifiers =
+                    self.filter_modifier(data.modifiers, SyntaxKind::AccessorKeyword)?;
+            }
+            _ => {}
+        }
+        Ok(data)
+    }
+
+    fn visit_retained_class_member(
+        &mut self,
+        original: TransformNode,
+        data: NodeData,
+    ) -> Result<NodeId, TransformError> {
+        match data {
+            NodeData::MethodDeclaration(data) => {
+                self.visit_function_scope(original, NodeData::MethodDeclaration(data), false)
+            }
+            NodeData::GetAccessor(data) => {
+                self.visit_function_scope(original, NodeData::GetAccessor(data), false)
+            }
+            NodeData::SetAccessor(data) => {
+                self.visit_function_scope(original, NodeData::SetAccessor(data), false)
+            }
+            NodeData::Constructor(data) => {
+                self.visit_function_scope(original, NodeData::Constructor(data), false)
+            }
+            data => self.update_generic(original, data),
+        }
     }
 
     fn create_private_method_function(
@@ -2779,7 +2833,19 @@ impl<'context, 'aliases> DownlevelClassVisitor<'context, 'aliases> {
             .unwrap_or(self.create_void_zero()?);
         let value = self.create_property_assignment("value", initializer)?;
         let descriptor = self.create_object_literal(vec![value], false)?;
-        let assignment = self.create_assignment(storage, descriptor)?;
+        let mut assignment = self.create_assignment(storage, descriptor)?;
+        if let Some(comment_source) = self
+            .context
+            .arena()
+            .metadata(operation.original)
+            .and_then(|metadata| metadata.class_field_initializer_comment_source)
+        {
+            assignment = self.set_original_and_range(assignment, comment_source)?;
+            self.context
+                .arena_mut()?
+                .metadata_mut(assignment)
+                .class_field_initializer_comment_source = Some(comment_source);
+        }
         let statement = self.create_expression_statement(assignment)?;
         self.set_original_and_range(statement, operation.original)?;
         Ok(statement)

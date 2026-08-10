@@ -29,6 +29,7 @@ const MODULE_NODE_NEXT: i32 = 199;
 const MODULE_PRESERVE: i32 = 200;
 
 mod class_fields;
+mod es2018;
 mod es2021;
 mod es_next;
 mod generated_bindings;
@@ -37,6 +38,7 @@ mod jsx;
 mod legacy_decorators;
 mod standard_decorators;
 mod system;
+mod target_bindings;
 
 const CREATE_BINDING_HELPER_TEXT: &str = r#"var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
@@ -90,7 +92,7 @@ pub fn get_script_transformers<'resolver>(
     options: &CompilerOptions,
     resolver: &'resolver dyn EmitResolver,
 ) -> Result<Vec<Box<dyn Transformer + 'resolver>>, TransformError> {
-    let mut activity = H2ActivityCanary::h2_5d_profile();
+    let mut activity = H2ActivityCanary::h2_5e_profile();
     get_script_transformers_with_optional_host(options, resolver, None, &mut activity)
 }
 
@@ -111,10 +113,10 @@ fn get_script_transformers_with_optional_host<'transformers>(
     activity: &mut H2ActivityCanary,
 ) -> Result<Vec<Box<dyn Transformer + 'transformers>>, TransformError> {
     let target = options.emit_script_target();
-    if target < ScriptTarget::ES2018 || target > ScriptTarget::ES_NEXT {
+    if target < ScriptTarget::ES2017 || target > ScriptTarget::ES_NEXT {
         return Err(TransformError::UnsupportedCompilerOption {
             option: "target",
-            detail: "H2.5d admits ES2018 through ESNext; older targets belong to later target-ladder slices",
+            detail: "H2.5e admits ES2017 through ESNext; older targets belong to later target-ladder slices",
         });
     }
     if !matches!(
@@ -206,6 +208,9 @@ fn get_script_transformers_with_optional_host<'transformers>(
         if target < ScriptTarget::ES2019 {
             activity.observe_runtime_slice(H2RuntimeSlice::H2_5d);
         }
+        if target < ScriptTarget::ES2018 {
+            activity.observe_runtime_slice(H2RuntimeSlice::H2_5e);
+        }
     }
 
     activity.construct_script_transformer_list();
@@ -229,6 +234,8 @@ fn get_script_transformers_with_optional_host<'transformers>(
         (target < ScriptTarget::ES2020).then(|| es2021::transform_es2020(options));
     let transform_es2019 =
         (target < ScriptTarget::ES2019).then(|| es2021::transform_es2019(options));
+    let transform_es2018 =
+        (target < ScriptTarget::ES2018).then(|| es2018::transform_es2018(options));
     let module_transformer = if options.emit_module_kind() == MODULE_PRESERVE {
         activity.construct_transform_ecmascript_module();
         transform_ecmascript_module(options)
@@ -270,6 +277,9 @@ fn get_script_transformers_with_optional_host<'transformers>(
     if let Some(transform_es2019) = transform_es2019 {
         transformers.push(transform_es2019);
     }
+    if let Some(transform_es2018) = transform_es2018 {
+        transformers.push(transform_es2018);
+    }
     transformers.push(module_transformer);
     Ok(transformers)
 }
@@ -284,6 +294,7 @@ pub fn transform_type_script<'resolver>(
     Box::new(TypeScriptTransformer {
         resolver,
         always_strict: options.always_strict_effective(),
+        downlevels_es2018: options.emit_script_target() < ScriptTarget::ES2018,
         module_kind: options.emit_module_kind(),
         preserve_const_enums: options.should_preserve_const_enums(),
         isolated_modules: options.isolated_modules == Some(true)
@@ -344,6 +355,7 @@ fn transform_implied_node_format_dependent_module<'dependencies>(
 struct TypeScriptTransformer<'resolver> {
     resolver: &'resolver dyn EmitResolver,
     always_strict: bool,
+    downlevels_es2018: bool,
     module_kind: i32,
     preserve_const_enums: bool,
     isolated_modules: bool,
@@ -400,6 +412,7 @@ impl Transformer for TypeScriptTransformer<'_> {
             self.module_kind == MODULE_SYSTEM,
             self.allow_jsx,
             self.allow_legacy_decorators,
+            self.downlevels_es2018,
         )?;
         initialize_transform_flags(context.arena_mut()?, source)?;
         let root_node = context.arena().root(source)?;
@@ -7711,6 +7724,7 @@ fn preflight_source(
     _allow_ambient_module_erasure: bool,
     allow_jsx: bool,
     allow_legacy_decorators: bool,
+    downlevels_es2018: bool,
 ) -> Result<(), TransformError> {
     let syntax = arena.source(source)?.syntax();
     if !syntax.parse_diagnostics.is_empty() {
@@ -7719,7 +7733,7 @@ fn preflight_source(
             owner_slice: "H2.9",
         });
     }
-    if has_advanced_comment_placement(syntax.text()) {
+    if has_advanced_comment_placement(syntax.text(), downlevels_es2018) {
         return Err(TransformError::AdvancedCommentPlacementDeferred {
             owner_slice: "H2.8a",
         });
@@ -7757,8 +7771,8 @@ fn preflight_source(
     Ok(())
 }
 
-fn has_advanced_comment_placement(text: &str) -> bool {
-    has_comment_after_ellipsis(text)
+fn has_advanced_comment_placement(text: &str, downlevels_es2018: bool) -> bool {
+    (!downlevels_es2018 && has_comment_after_ellipsis(text))
         || has_comment_between_private_name_and_in(text)
         || has_commented_optional_chain_type_assertion(text)
 }
@@ -7912,10 +7926,11 @@ fn flags_after_update(
     let recomputed = TransformFlags::CONTAINS_TYPE_SCRIPT
         | TransformFlags::CONTAINS_ES_2021
         | TransformFlags::CONTAINS_ES_2020
-        | TransformFlags::CONTAINS_ES_2019;
+        | TransformFlags::CONTAINS_ES_2019
+        | TransformFlags::CONTAINS_ES_2018;
     let mut flags = old & !recomputed;
     flags |= local_transform_flags(&probe)
-        | local_binary_target_flags(arena, original.source(), &probe)?;
+        | local_contextual_target_flags(arena, original.source(), &probe)?;
     let source = arena.source(original.source())?.syntax();
     for_each_child(&source.arena, &probe, |child| {
         if let Some(child) = arena.node_ref(original.source(), child) {
@@ -7993,7 +8008,7 @@ fn compute_transform_flags(
     }
 
     let mut flags =
-        local_transform_flags(&record) | local_binary_target_flags(arena, source, &record)?;
+        local_transform_flags(&record) | local_contextual_target_flags(arena, source, &record)?;
     for child in children {
         let child = arena
             .node_ref(source, child)
@@ -8042,6 +8057,10 @@ fn local_transform_flags(node: &Node) -> TransformFlags {
     }
     match &node.data {
         NodeData::Token => match kind {
+            SyntaxKind::AsyncKeyword => {
+                flags |= TransformFlags::CONTAINS_ES_2017;
+                flags |= TransformFlags::CONTAINS_ES_2018;
+            }
             SyntaxKind::ThisKeyword => flags |= TransformFlags::CONTAINS_LEXICAL_THIS,
             SyntaxKind::SuperKeyword => {
                 flags |= TransformFlags::CONTAINS_ES_2015;
@@ -8055,6 +8074,9 @@ fn local_transform_flags(node: &Node) -> TransformFlags {
             }
             if data.dot_dot_dot_token.is_some() || data.initializer.is_some() {
                 flags |= TransformFlags::CONTAINS_ES_2015;
+            }
+            if data.dot_dot_dot_token.is_some() {
+                flags |= TransformFlags::CONTAINS_REST_OR_SPREAD;
             }
         }
         NodeData::PropertyDeclaration(data) => {
@@ -8134,6 +8156,40 @@ fn local_transform_flags(node: &Node) -> TransformFlags {
             flags |= TransformFlags::CONTAINS_ES_2018;
             flags |= TransformFlags::CONTAINS_HOISTED_DECLARATION_OR_COMPLETION;
         }
+        NodeData::AwaitExpression(_) => {
+            flags |= TransformFlags::CONTAINS_ES_2017;
+            flags |= TransformFlags::CONTAINS_ES_2018;
+            flags |= TransformFlags::CONTAINS_AWAIT;
+        }
+        NodeData::YieldExpression(_) => {
+            flags |= TransformFlags::CONTAINS_ES_2015;
+            flags |= TransformFlags::CONTAINS_ES_2018;
+            flags |= TransformFlags::CONTAINS_YIELD;
+        }
+        NodeData::BindingElement(data) => {
+            flags |= TransformFlags::CONTAINS_ES_2015;
+            if data.dot_dot_dot_token.is_some() {
+                flags |= TransformFlags::CONTAINS_REST_OR_SPREAD;
+            }
+        }
+        NodeData::ObjectBindingPattern(_) | NodeData::ArrayBindingPattern(_) => {
+            flags |= TransformFlags::CONTAINS_ES_2015;
+            flags |= TransformFlags::CONTAINS_BINDING_PATTERN;
+        }
+        NodeData::SpreadAssignment(_) => {
+            flags |= TransformFlags::CONTAINS_ES_2018;
+            flags |= TransformFlags::CONTAINS_OBJECT_REST_OR_SPREAD;
+        }
+        NodeData::SpreadElement(_) => {
+            flags |= TransformFlags::CONTAINS_ES_2015;
+            flags |= TransformFlags::CONTAINS_REST_OR_SPREAD;
+        }
+        NodeData::ForOfStatement(data) => {
+            flags |= TransformFlags::CONTAINS_ES_2015;
+            if data.await_modifier.is_some() {
+                flags |= TransformFlags::CONTAINS_ES_2018;
+            }
+        }
         NodeData::CatchClause(data) => {
             if data.variable_declaration.is_none() {
                 flags |= TransformFlags::CONTAINS_ES_2019;
@@ -8174,25 +8230,93 @@ fn local_transform_flags(node: &Node) -> TransformFlags {
     flags
 }
 
-fn local_binary_target_flags(
+fn local_contextual_target_flags(
     arena: &TransformArena,
     source: TransformSourceId,
     node: &Node,
 ) -> Result<TransformFlags, TransformError> {
-    let NodeData::BinaryExpression(data) = &node.data else {
+    match &node.data {
+        NodeData::BinaryExpression(data) => {
+            let Some(operator) = data.operator_token else {
+                return Ok(TransformFlags::NONE);
+            };
+            let operator = arena
+                .node_ref(source, operator)
+                .ok_or_else(|| TransformError::UnknownNode(TransformNode::new(source, operator)))?;
+            let operator = arena.node(operator)?.kind;
+            let mut flags = match operator {
+                SyntaxKind::BarBarEqualsToken
+                | SyntaxKind::AmpersandAmpersandEqualsToken
+                | SyntaxKind::QuestionQuestionEqualsToken => TransformFlags::CONTAINS_ES_2021,
+                SyntaxKind::QuestionQuestionToken => TransformFlags::CONTAINS_ES_2020,
+                _ => TransformFlags::NONE,
+            };
+            if operator == SyntaxKind::EqualsToken {
+                if let Some(left) = data.left.and_then(|left| arena.node_ref(source, left)) {
+                    if arena.node(left)?.kind == SyntaxKind::ObjectLiteralExpression {
+                        flags |= TransformFlags::CONTAINS_ES_2018;
+                        flags |= TransformFlags::CONTAINS_DESTRUCTURING_ASSIGNMENT;
+                        if arena
+                            .transform_flags(left)
+                            .contains(TransformFlags::CONTAINS_OBJECT_REST_OR_SPREAD)
+                        {
+                            flags |= TransformFlags::CONTAINS_OBJECT_REST_OR_SPREAD;
+                        }
+                    }
+                }
+            }
+            Ok(flags)
+        }
+        NodeData::ObjectBindingPattern(data) => {
+            let contains_rest = data
+                .elements
+                .and_then(|elements| arena.node_array_ref(source, elements))
+                .is_some_and(|elements| {
+                    arena.node_array(elements).is_ok_and(|elements| {
+                        elements.nodes.iter().any(|element| {
+                            arena
+                                .node_ref(source, *element)
+                                .and_then(|element| arena.node(element).ok())
+                                .is_some_and(|element| {
+                                    matches!(
+                                        &element.data,
+                                        NodeData::BindingElement(element)
+                                            if element.dot_dot_dot_token.is_some()
+                                    )
+                                })
+                        })
+                    })
+                });
+            Ok(if contains_rest {
+                TransformFlags::CONTAINS_ES_2018 | TransformFlags::CONTAINS_OBJECT_REST_OR_SPREAD
+            } else {
+                TransformFlags::NONE
+            })
+        }
+        NodeData::PropertyAccessExpression(data) => {
+            super_access_target_flags(arena, source, data.expression)
+        }
+        NodeData::ElementAccessExpression(data) => {
+            super_access_target_flags(arena, source, data.expression)
+        }
+        _ => Ok(TransformFlags::NONE),
+    }
+}
+
+fn super_access_target_flags(
+    arena: &TransformArena,
+    source: TransformSourceId,
+    expression: Option<NodeId>,
+) -> Result<TransformFlags, TransformError> {
+    let Some(expression) = expression.and_then(|expression| arena.node_ref(source, expression))
+    else {
         return Ok(TransformFlags::NONE);
     };
-    let Some(operator) = data.operator_token else {
-        return Ok(TransformFlags::NONE);
-    };
-    let operator = arena
-        .node_ref(source, operator)
-        .ok_or_else(|| TransformError::UnknownNode(TransformNode::new(source, operator)))?;
-    Ok(match arena.node(operator)?.kind {
-        SyntaxKind::BarBarEqualsToken
-        | SyntaxKind::AmpersandAmpersandEqualsToken
-        | SyntaxKind::QuestionQuestionEqualsToken => TransformFlags::CONTAINS_ES_2021,
-        SyntaxKind::QuestionQuestionToken => TransformFlags::CONTAINS_ES_2020,
-        _ => TransformFlags::NONE,
-    })
+    Ok(
+        if arena.node(expression)?.kind == SyntaxKind::SuperKeyword {
+            TransformFlags::CONTAINS_ES_2017 | TransformFlags::CONTAINS_ES_2018
+        } else {
+            TransformFlags::NONE
+        },
+    )
 }

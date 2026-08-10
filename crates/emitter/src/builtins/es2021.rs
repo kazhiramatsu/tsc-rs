@@ -5,7 +5,7 @@
 //! synthetic-reference, access-stabilization, and lexical-scope plans rather
 //! than mirroring TypeScript's nested closures or synthetic internal nodes.
 
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeMap;
 
 use tsc_syntax::{
     for_each_child, try_visit_each_child, NodeArrayId, NodeData, NodeDataChildVisitor, NodeId,
@@ -14,9 +14,9 @@ use tsc_syntax::{
 use tsc_types::{CompilerOptions, NodeFlags, ScriptTarget};
 
 use crate::{
-    transform::GeneratedBindingId, EmitFlags, LexicalEnvironment, LexicalEnvironmentFlags,
-    TransformArena, TransformError, TransformFlags, TransformNode, TransformNodeArray,
-    TransformRoot, TransformSourceId, TransformationContext, Transformer,
+    EmitFlags, LexicalEnvironment, LexicalEnvironmentFlags, TransformError, TransformFlags,
+    TransformNode, TransformNodeArray, TransformRoot, TransformSourceId, TransformationContext,
+    Transformer,
 };
 
 use super::{
@@ -25,6 +25,10 @@ use super::{
         AncestorBindingPolicy, GeneratedBindingOwner, GeneratedBindingScopes, GeneratedBindings,
     },
     initialize_transform_flags,
+    target_bindings::{
+        collect_untagged_identifier_texts, finalize_generated_binding_names,
+        is_function_scope_kind, TargetBinding,
+    },
 };
 
 /// tsc-port: transformES2021 @6.0.3
@@ -119,7 +123,7 @@ impl Transformer for TargetTransformer {
     }
 
     fn initialize(&mut self, _context: &mut TransformationContext) -> Result<(), TransformError> {
-        if self.target < ScriptTarget::ES2018 || self.target >= self.pass.upper_target() {
+        if self.target < ScriptTarget::ES2017 || self.target >= self.pass.upper_target() {
             return Err(TransformError::UnsupportedCompilerOption {
                 option: self.pass.name(),
                 detail: self.pass.unsupported_detail(),
@@ -163,7 +167,7 @@ impl Transformer for TargetTransformer {
         let transformed = visitor
             .merge_source_lexical_environment(visitor.node(transformed), lexical_environment)?;
         if self.pass.is_final_for_target(self.target) {
-            visitor.finalize_generated_binding_names(transformed)?;
+            finalize_generated_binding_names(visitor.context, source, transformed)?;
         }
         visitor
             .context
@@ -176,22 +180,6 @@ impl Transformer for TargetTransformer {
 #[derive(Clone, Debug)]
 struct ParameterHoistPlan {
     binding_aliases: Vec<Option<TargetBinding>>,
-}
-
-#[derive(Clone, Debug)]
-struct TargetBinding {
-    id: GeneratedBindingId,
-    provisional_name: String,
-}
-
-#[derive(Clone, Copy, Debug)]
-enum BindingNameEvent {
-    EnterFunction,
-    Identifier {
-        node: TransformNode,
-        binding: GeneratedBindingId,
-    },
-    ExitFunction,
 }
 
 /// A call target that carries the receiver required by JavaScript's method
@@ -1211,7 +1199,7 @@ impl<'context> TargetVisitor<'context> {
         root: bool,
     ) -> Result<bool, TransformError> {
         let record = self.context.arena().node(node)?.clone();
-        if !root && Self::is_function_scope_kind(record.kind) {
+        if !root && is_function_scope_kind(record.kind) {
             return Ok(false);
         }
         match self.pass {
@@ -1650,74 +1638,16 @@ impl<'context> TargetVisitor<'context> {
         Ok(Some(updated.array()))
     }
 
-    fn finalize_generated_binding_names(
-        &mut self,
-        root: TransformNode,
-    ) -> Result<(), TransformError> {
-        let mut events = Vec::new();
-        collect_binding_name_events(self.context.arena(), self.source, root, true, &mut events)?;
-        if events.is_empty() {
-            return Ok(());
-        }
-
-        let reserved = collect_untagged_identifier_texts(self.context.arena(), self.source, root)?;
-        let mut scopes = GeneratedBindingScopes::new(reserved, AncestorBindingPolicy::AllowShadow);
-        let mut scope_stack = Vec::new();
-        let mut assigned = BTreeMap::<GeneratedBindingId, String>::new();
-        let mut node_names = BTreeMap::<TransformNode, String>::new();
-        for event in events {
-            match event {
-                BindingNameEvent::EnterFunction => {
-                    scope_stack.push(scopes.enter(GeneratedBindingOwner::FunctionBody));
-                }
-                BindingNameEvent::Identifier { node, binding } => {
-                    let name = assigned
-                        .entry(binding)
-                        .or_insert_with(|| scopes.allocate_temp())
-                        .clone();
-                    node_names.insert(node, name);
-                }
-                BindingNameEvent::ExitFunction => {
-                    let (previous, completed) =
-                        scope_stack
-                            .pop()
-                            .ok_or(TransformError::RequiredChildRemoved {
-                                parent: SyntaxKind::FunctionDeclaration,
-                                field: "generated-binding function scope",
-                            })?;
-                    let _ = scopes.exit(previous, completed);
-                }
-            }
-        }
-        if !scope_stack.is_empty() {
-            return Err(TransformError::RequiredChildRemoved {
-                parent: SyntaxKind::SourceFile,
-                field: "balanced generated-binding scopes",
-            });
-        }
-        let _ = scopes.source_bindings();
-        let arena = self.context.arena_mut()?;
-        for (node, name) in node_names {
-            arena.set_generated_identifier_text(node, &name)?;
-        }
-        Ok(())
-    }
-
     fn allocate_hoisted_temp(&mut self) -> Result<TargetBinding, TransformError> {
-        let binding = TargetBinding {
-            id: self.context.allocate_generated_binding_id()?,
-            provisional_name: self.generated_bindings.allocate_temp(),
-        };
+        let binding =
+            TargetBinding::allocate(self.context, self.generated_bindings.allocate_temp())?;
         let declaration = self.create_generated_identifier(&binding)?;
         self.context.hoist_variable_declaration(declaration)?;
         Ok(binding)
     }
 
     fn allocate_local_binding(&mut self) -> Result<TargetBinding, TransformError> {
-        Ok(TargetBinding {
-            id: self.context.allocate_generated_binding_id()?,
-            provisional_name: self.generated_bindings.allocate_local_temp(),
-        })
+        TargetBinding::allocate(self.context, self.generated_bindings.allocate_local_temp())
     }
 
     fn assert_binding_plan(
@@ -1856,19 +1786,6 @@ impl<'context> TargetVisitor<'context> {
         }
     }
 
-    const fn is_function_scope_kind(kind: SyntaxKind) -> bool {
-        matches!(
-            kind,
-            SyntaxKind::ArrowFunction
-                | SyntaxKind::Constructor
-                | SyntaxKind::FunctionDeclaration
-                | SyntaxKind::FunctionExpression
-                | SyntaxKind::GetAccessor
-                | SyntaxKind::MethodDeclaration
-                | SyntaxKind::SetAccessor
-        )
-    }
-
     fn create_identifier(&mut self, text: &str) -> Result<TransformNode, TransformError> {
         self.context.factory()?.create_node(
             self.source,
@@ -1884,11 +1801,29 @@ impl<'context> TargetVisitor<'context> {
         &mut self,
         binding: &TargetBinding,
     ) -> Result<TransformNode, TransformError> {
-        let identifier = self.create_identifier(&binding.provisional_name)?;
+        let identifier = self.create_identifier(binding.provisional_name())?;
         self.context
             .arena_mut()?
             .metadata_mut(identifier)
-            .set_generated_binding_id(binding.id);
+            .set_generated_binding_id(binding.id());
+        if let Some(base) = binding.numbered_base() {
+            self.context
+                .arena_mut()?
+                .metadata_mut(identifier)
+                .set_generated_binding_base(base);
+        }
+        if let Some(base) = binding.preferred_base() {
+            self.context
+                .arena_mut()?
+                .metadata_mut(identifier)
+                .set_generated_binding_preferred_base(base);
+        }
+        if binding.reserve_in_nested_scopes() {
+            self.context
+                .arena_mut()?
+                .metadata_mut(identifier)
+                .reserve_generated_binding_in_nested_scopes();
+        }
         Ok(identifier)
     }
 
@@ -2479,77 +2414,6 @@ impl<'context> TargetVisitor<'context> {
     const fn array(&self, id: NodeArrayId) -> TransformNodeArray {
         TransformNodeArray::new(self.source, id)
     }
-}
-
-fn collect_untagged_identifier_texts(
-    arena: &TransformArena,
-    source: TransformSourceId,
-    root: TransformNode,
-) -> Result<BTreeSet<String>, TransformError> {
-    let syntax = arena.source(source)?.syntax();
-    let mut names = BTreeSet::new();
-    let mut stack = vec![root.node()];
-    let mut seen = BTreeSet::new();
-    while let Some(id) = stack.pop() {
-        if !seen.insert(id) {
-            continue;
-        }
-        let node = TransformNode::new(source, id);
-        let record = arena.node(node)?;
-        if arena
-            .metadata(node)
-            .and_then(|metadata| metadata.generated_binding_id())
-            .is_none()
-        {
-            if let NodeData::Identifier(data) = &record.data {
-                names.insert(data.text.clone());
-            }
-        }
-        for_each_child(&syntax.arena, record, |child| {
-            stack.push(child);
-            false
-        });
-    }
-    Ok(names)
-}
-
-fn collect_binding_name_events(
-    arena: &TransformArena,
-    source: TransformSourceId,
-    node: TransformNode,
-    scope_root: bool,
-    events: &mut Vec<BindingNameEvent>,
-) -> Result<(), TransformError> {
-    let record = arena.node(node)?.clone();
-    let enters_function = !scope_root && TargetVisitor::is_function_scope_kind(record.kind);
-    if enters_function {
-        events.push(BindingNameEvent::EnterFunction);
-    }
-    if let Some(binding) = arena
-        .metadata(node)
-        .and_then(|metadata| metadata.generated_binding_id())
-    {
-        events.push(BindingNameEvent::Identifier { node, binding });
-    }
-    let syntax = arena.source(source)?.syntax();
-    let mut children = Vec::new();
-    for_each_child(&syntax.arena, &record, |child| {
-        children.push(child);
-        false
-    });
-    for child in children {
-        collect_binding_name_events(
-            arena,
-            source,
-            TransformNode::new(source, child),
-            false,
-            events,
-        )?;
-    }
-    if enters_function {
-        events.push(BindingNameEvent::ExitFunction);
-    }
-    Ok(())
 }
 
 #[derive(Clone, Copy)]

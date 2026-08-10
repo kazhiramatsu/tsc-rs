@@ -64,6 +64,17 @@ struct DetachedSourcePrefix {
     byte_len: usize,
 }
 
+/// Identifies which emitter boundary owns trivia immediately before a node.
+/// Delimited-list starts must retain comments after `{`/`[`, while ordinary
+/// nodes and later siblings suppress trivia already owned by their container
+/// or predecessor.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum LeadingCommentContext {
+    Normal,
+    AfterSibling,
+    DelimitedListStart,
+}
+
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 enum ExpressionEmissionContext {
     #[default]
@@ -771,7 +782,11 @@ impl Printer {
                 self.emit_leading_comments_for_node_worker(
                     transformation,
                     emitted,
-                    had_previous_original_statement && emitted_has_original_range,
+                    if had_previous_original_statement && emitted_has_original_range {
+                        LeadingCommentContext::AfterSibling
+                    } else {
+                        LeadingCommentContext::Normal
+                    },
                     detached_prefix_len,
                     &mut writer,
                 )?;
@@ -1029,6 +1044,21 @@ impl Printer {
                         writer,
                     )?;
                 }
+                writer.write_trailing_semicolon(";");
+                Ok(())
+            }
+            NodeData::ThrowStatement(data) => {
+                writer.write_keyword("throw");
+                writer.write_space(" ");
+                self.emit_required_node_with_context(
+                    transformation,
+                    node.source(),
+                    data.expression,
+                    SyntaxKind::ThrowStatement,
+                    "expression",
+                    ExpressionEmissionContext::NoAsi,
+                    writer,
+                )?;
                 writer.write_trailing_semicolon(";");
                 Ok(())
             }
@@ -1907,6 +1937,26 @@ impl Printer {
                     "initializer",
                     writer,
                 )
+            }
+            NodeData::ShorthandPropertyAssignment(data) => {
+                if self.emit_modifiers(transformation, node.source(), data.modifiers, writer)? {
+                    writer.write_space(" ");
+                }
+                self.emit_required_identifier_name(
+                    transformation,
+                    node.source(),
+                    data.name,
+                    SyntaxKind::ShorthandPropertyAssignment,
+                    "name",
+                    writer,
+                )?;
+                if let Some(initializer) = data.object_assignment_initializer {
+                    writer.write_space(" ");
+                    writer.write_operator("=");
+                    writer.write_space(" ");
+                    self.emit_node_id(transformation, node.source(), initializer, writer)?;
+                }
+                Ok(())
             }
             NodeData::HeritageClause(data) => {
                 let keyword = match data.token {
@@ -2885,20 +2935,39 @@ impl Printer {
                         self.emit_comment_after_open_brace(transformation, node, writer)?;
                     }
                     writer.write_space(" ");
+                    let mut forced_line_indent = false;
                     for (index, statement) in statements.into_iter().enumerate() {
-                        if index != 0 {
-                            writer.write_space(" ");
-                        }
                         let statement_node = transformation
                             .arena()
                             .node_ref(node.source(), statement)
                             .ok_or(PrinterError::UnknownStatement(statement.0))?;
+                        let starts_on_new_line = transformation
+                            .arena()
+                            .metadata(statement_node)
+                            .and_then(crate::EmitMetadata::starts_on_new_line)
+                            == Some(true);
+                        // tsc applies `startsOnNewLine` as a separator between
+                        // synthesized siblings. It does not turn the first
+                        // statement of an otherwise single-line block into a
+                        // multi-line block.
+                        if index != 0 && starts_on_new_line {
+                            writer.write_line(false);
+                            if !forced_line_indent {
+                                writer.increase_indent();
+                                forced_line_indent = true;
+                            }
+                        } else if index != 0 {
+                            writer.write_space(" ");
+                        }
                         self.emit_node_id(transformation, node.source(), statement, writer)?;
                         self.emit_trailing_comments_for_node(
                             transformation,
                             statement_node,
                             writer,
                         )?;
+                    }
+                    if forced_line_indent {
+                        writer.decrease_indent();
                     }
                     writer.write_space(" ");
                 } else {
@@ -3223,7 +3292,11 @@ impl Printer {
                     .node_ref(source, id)
                     .ok_or(PrinterError::UnknownStatement(id.0))?;
                 if index == 0 {
-                    self.emit_leading_comments_for_node(transformation, child, writer)?;
+                    self.emit_leading_comments_for_delimited_list_start(
+                        transformation,
+                        child,
+                        writer,
+                    )?;
                 } else {
                     self.emit_leading_comments_for_node_after_sibling(
                         transformation,
@@ -3245,14 +3318,39 @@ impl Printer {
                 writer.write_space(" ");
             }
             let count = ids.len();
+            let mut previous = None;
             for (index, id) in ids.into_iter().enumerate() {
-                if index != 0 {
+                let child = transformation
+                    .arena()
+                    .node_ref(source, id)
+                    .ok_or(PrinterError::UnknownStatement(id.0))?;
+                if index == 0 {
+                    self.emit_leading_comments_for_delimited_list_start(
+                        transformation,
+                        child,
+                        writer,
+                    )?;
+                } else {
                     writer.write_punctuation(",");
+                    self.emit_delimited_trailing_comments_for_node(
+                        transformation,
+                        previous.expect("non-first delimited item has a predecessor"),
+                        writer,
+                    )?;
                     writer.write_space(" ");
+                    self.emit_leading_comments_for_node_after_sibling(
+                        transformation,
+                        child,
+                        writer,
+                    )?;
                 }
                 self.emit_node_id(transformation, source, id, writer)?;
+                previous = Some(child);
                 if index + 1 == count && trailing_comma {
                     writer.write_punctuation(",");
+                }
+                if index + 1 == count {
+                    self.emit_delimited_trailing_comments_for_node(transformation, child, writer)?;
                 }
             }
             if space_between_braces {
@@ -3976,6 +4074,13 @@ impl Printer {
     ) -> Result<(), PrinterError> {
         let substituted = transformation.substitute_node(hint, node)?;
         self.emit_synthetic_leading_comments_for_node(transformation, substituted, writer)?;
+        if let Some(comment_source) = transformation
+            .arena()
+            .metadata(substituted)
+            .and_then(|metadata| metadata.class_field_initializer_comment_source)
+        {
+            self.emit_leading_comments_for_node(transformation, comment_source, writer)?;
+        }
         self.emit_transformed_node(transformation, substituted, expression_context, writer)?;
         self.emit_synthetic_trailing_comments_for_node(transformation, substituted, writer)
     }
@@ -4112,7 +4217,13 @@ impl Printer {
         node: TransformNode,
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
-        self.emit_leading_comments_for_node_worker(transformation, node, false, 0, writer)
+        self.emit_leading_comments_for_node_worker(
+            transformation,
+            node,
+            LeadingCommentContext::Normal,
+            0,
+            writer,
+        )
     }
 
     fn emit_leading_comments_for_node_after_sibling(
@@ -4121,14 +4232,35 @@ impl Printer {
         node: TransformNode,
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
-        self.emit_leading_comments_for_node_worker(transformation, node, true, 0, writer)
+        self.emit_leading_comments_for_node_worker(
+            transformation,
+            node,
+            LeadingCommentContext::AfterSibling,
+            0,
+            writer,
+        )
+    }
+
+    fn emit_leading_comments_for_delimited_list_start(
+        &self,
+        transformation: &TransformationResult<'_>,
+        node: TransformNode,
+        writer: &mut TextWriter,
+    ) -> Result<(), PrinterError> {
+        self.emit_leading_comments_for_node_worker(
+            transformation,
+            node,
+            LeadingCommentContext::DelimitedListStart,
+            0,
+            writer,
+        )
     }
 
     fn emit_leading_comments_for_node_worker(
         &self,
         transformation: &TransformationResult<'_>,
         node: TransformNode,
-        after_sibling: bool,
+        context: LeadingCommentContext,
         skipped_prefix_bytes: usize,
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
@@ -4159,8 +4291,9 @@ impl Printer {
                         start: u32::try_from(start + skipped_prefix_bytes).unwrap_or(u32::MAX),
                         end: u32::try_from(code_start).unwrap_or(u32::MAX),
                     })?;
-            if after_sibling
-                || start > 0
+            if context == LeadingCommentContext::AfterSibling
+                || context == LeadingCommentContext::Normal
+                    && start > 0
                     && matches!(
                         source.text().as_bytes()[start - 1],
                         b';' | b',' | b'{' | b'}' | b')'

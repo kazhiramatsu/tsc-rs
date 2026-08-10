@@ -17,7 +17,7 @@ use crate::{
     TransformNodeArray, TransformRoot, TransformSourceId, TransformationContext, Transformer,
 };
 
-use super::{flags_after_update, system::collect_identifier_texts};
+use super::{flags_after_update, system::collect_identifier_texts, target_bindings::TargetBinding};
 
 const ADD_DISPOSABLE_RESOURCE_HELPER_TEXT: &str = r#"var __addDisposableResource = (this && this.__addDisposableResource) || function (env, value, async) {
     if (value !== null && value !== void 0) {
@@ -92,7 +92,7 @@ impl Transformer for EsNextTransformer {
     }
 
     fn initialize(&mut self, _context: &mut TransformationContext) -> Result<(), TransformError> {
-        if self.target < ScriptTarget::ES2018 || self.target >= ScriptTarget::ES_NEXT {
+        if self.target < ScriptTarget::ES2017 || self.target >= ScriptTarget::ES_NEXT {
             return Err(TransformError::UnsupportedCompilerOption {
                 option: "ESNext transform",
                 detail: "transformESNext is admitted only for the closed target band below ESNext",
@@ -155,9 +155,9 @@ impl DisposalMode {
 
 #[derive(Clone)]
 struct DisposalScope {
-    environment_name: String,
-    catch_name: String,
-    result_name: Option<String>,
+    environment: TargetBinding,
+    catch: TargetBinding,
+    result: Option<TargetBinding>,
     mode: DisposalMode,
 }
 
@@ -235,6 +235,27 @@ impl<'context> EsNextVisitor<'context> {
     fn plan_name_generation_scope(&mut self, root: TransformNode) -> Result<(), TransformError> {
         let mut nested_scopes = Vec::new();
         self.plan_node_in_name_scope(root, true, &mut nested_scopes)?;
+        if matches!(
+            self.context.arena().node(root)?.kind,
+            SyntaxKind::ClassDeclaration | SyntaxKind::ClassExpression
+        ) {
+            // Class-field lowering subsequently moves instance initializers
+            // into the constructor and static blocks behind retained members.
+            // Plan names in that runtime ownership order so eager ESNext
+            // bindings remain stable after the ownership tree is rewritten.
+            nested_scopes.sort_by_key(|scope| {
+                self.context
+                    .arena()
+                    .node(*scope)
+                    .map(|node| match node.kind {
+                        SyntaxKind::Constructor => 0,
+                        SyntaxKind::ArrowFunction | SyntaxKind::FunctionExpression => 1,
+                        SyntaxKind::ClassStaticBlockDeclaration => 3,
+                        _ => 2,
+                    })
+                    .unwrap_or(2)
+            });
+        }
         for nested_scope in nested_scopes {
             self.plan_name_generation_scope(nested_scope)?;
         }
@@ -269,21 +290,24 @@ impl<'context> EsNextVisitor<'context> {
             _ => None,
         };
 
-        let environment_name = mode.map(|_| self.allocate_generated_name("env"));
+        let environment = mode
+            .map(|_| self.allocate_generated_binding("env"))
+            .transpose()?;
         for child in self.direct_children(record.data)? {
             self.plan_node_in_name_scope(child, false, nested_scopes)?;
         }
-        if let (Some(mode), Some(environment_name)) = (mode, environment_name) {
-            let catch_name = self.allocate_generated_name("e");
-            let result_name = mode
+        if let (Some(mode), Some(environment)) = (mode, environment) {
+            let catch = self.allocate_generated_binding("e")?;
+            let result = mode
                 .is_async()
-                .then(|| self.allocate_generated_name("result"));
+                .then(|| self.allocate_generated_binding("result"))
+                .transpose()?;
             self.disposal_scopes.insert(
                 node.node(),
                 DisposalScope {
-                    environment_name,
-                    catch_name,
-                    result_name,
+                    environment,
+                    catch,
+                    result,
                     mode,
                 },
             );
@@ -355,11 +379,12 @@ impl<'context> EsNextVisitor<'context> {
         // Synthetic blocks created while lowering `for (using ...)` have no
         // parsed identity to pre-plan. They still own a complete typed scope.
         Ok(DisposalScope {
-            environment_name: self.allocate_generated_name("env"),
-            catch_name: self.allocate_generated_name("e"),
-            result_name: mode
+            environment: self.allocate_generated_binding("env")?,
+            catch: self.allocate_generated_binding("e")?,
+            result: mode
                 .is_async()
-                .then(|| self.allocate_generated_name("result")),
+                .then(|| self.allocate_generated_binding("result"))
+                .transpose()?,
             mode,
         })
     }
@@ -593,8 +618,8 @@ impl<'context> EsNextVisitor<'context> {
         let base = binding_name
             .and_then(|name| self.identifier_text(self.node(name)).map(str::to_owned))
             .unwrap_or_else(|| "value".to_owned());
-        let temp_name = self.allocate_generated_name(&base);
-        let temp = self.create_identifier(&temp_name)?;
+        let temp_binding = self.allocate_generated_binding(&base)?;
+        let temp = self.create_generated_identifier(&temp_binding)?;
         let loop_declaration = self.create_variable_declaration(temp, None)?;
         data.initializer = Some(
             self.create_variable_declaration_list(vec![loop_declaration], NodeFlags::CONST)?
@@ -732,7 +757,7 @@ impl<'context> EsNextVisitor<'context> {
                 .unwrap_or_default());
         }
 
-        let environment = self.create_identifier(&scope.environment_name)?;
+        let environment = self.create_generated_identifier(&scope.environment)?;
         let mut lowered = Vec::with_capacity(declarations.len());
         for declaration in declarations {
             let NodeData::VariableDeclaration(mut data) =
@@ -798,7 +823,7 @@ impl<'context> EsNextVisitor<'context> {
         body: Vec<TransformNode>,
         scope: &DisposalScope,
     ) -> Result<Vec<TransformNode>, TransformError> {
-        let environment = self.create_identifier(&scope.environment_name)?;
+        let environment = self.create_generated_identifier(&scope.environment)?;
         let empty_stack = self.create_array_literal(Vec::new())?;
         let stack = self.create_property_assignment("stack", empty_stack)?;
         let void_zero = self.create_void_zero()?;
@@ -815,14 +840,14 @@ impl<'context> EsNextVisitor<'context> {
         )?;
 
         let try_block = self.create_block(body, true)?;
-        let catch_identifier = self.create_identifier(&scope.catch_name)?;
+        let catch_identifier = self.create_generated_identifier(&scope.catch)?;
         let catch_declaration = self.create_variable_declaration(catch_identifier, None)?;
-        let environment_for_error = self.create_identifier(&scope.environment_name)?;
+        let environment_for_error = self.create_generated_identifier(&scope.environment)?;
         let error_target = self.create_property_access(environment_for_error, "error")?;
-        let error_value = self.create_identifier(&scope.catch_name)?;
+        let error_value = self.create_generated_identifier(&scope.catch)?;
         let error_assignment = self.create_assignment(error_target, error_value)?;
         let set_error = self.create_expression_statement(error_assignment)?;
-        let environment_for_flag = self.create_identifier(&scope.environment_name)?;
+        let environment_for_flag = self.create_generated_identifier(&scope.environment)?;
         let flag_target = self.create_property_access(environment_for_flag, "hasError")?;
         let true_value = self.create_boolean(true)?;
         let flag_assignment = self.create_assignment(flag_target, true_value)?;
@@ -837,48 +862,48 @@ impl<'context> EsNextVisitor<'context> {
             TransformFlags::NONE,
         )?;
 
-        let dispose_environment = self.create_identifier(&scope.environment_name)?;
+        let dispose_environment = self.create_generated_identifier(&scope.environment)?;
         let dispose = self.create_dispose_resources_call(dispose_environment)?;
-        let finally_statements =
-            match scope.mode {
-                DisposalMode::Sync => vec![self.create_expression_statement(dispose)?],
-                DisposalMode::Async => {
-                    let result_name = scope.result_name.as_deref().ok_or(
-                        TransformError::RequiredChildRemoved {
-                            parent: SyntaxKind::Block,
-                            field: "async disposal result binding",
-                        },
-                    )?;
-                    let result_identifier = self.create_identifier(result_name)?;
-                    let declaration =
-                        self.create_variable_declaration(result_identifier, Some(dispose))?;
-                    let statement = self.create_variable_statement_from_declarations(
-                        vec![declaration],
-                        NodeFlags::CONST,
-                        None,
-                    )?;
-                    let condition = self.create_identifier(result_name)?;
-                    let awaited_identifier = self.create_identifier(result_name)?;
-                    let awaited = self.context.factory()?.create_node(
-                        self.source,
-                        NodeData::AwaitExpression(tsc_syntax::nodes::AwaitExpressionData {
-                            expression: Some(awaited_identifier.node()),
-                        }),
-                        TransformFlags::CONTAINS_AWAIT,
-                    )?;
-                    let awaited = self.create_expression_statement(awaited)?;
-                    let if_statement = self.context.factory()?.create_node(
-                        self.source,
-                        NodeData::IfStatement(tsc_syntax::nodes::IfStatementData {
-                            expression: Some(condition.node()),
-                            then_statement: Some(awaited.node()),
-                            else_statement: None,
-                        }),
-                        TransformFlags::CONTAINS_AWAIT,
-                    )?;
-                    vec![statement, if_statement]
-                }
-            };
+        let finally_statements = match scope.mode {
+            DisposalMode::Sync => vec![self.create_expression_statement(dispose)?],
+            DisposalMode::Async => {
+                let result = scope
+                    .result
+                    .as_ref()
+                    .ok_or(TransformError::RequiredChildRemoved {
+                        parent: SyntaxKind::Block,
+                        field: "async disposal result binding",
+                    })?;
+                let result_identifier = self.create_generated_identifier(result)?;
+                let declaration =
+                    self.create_variable_declaration(result_identifier, Some(dispose))?;
+                let statement = self.create_variable_statement_from_declarations(
+                    vec![declaration],
+                    NodeFlags::CONST,
+                    None,
+                )?;
+                let condition = self.create_generated_identifier(result)?;
+                let awaited_identifier = self.create_generated_identifier(result)?;
+                let awaited = self.context.factory()?.create_node(
+                    self.source,
+                    NodeData::AwaitExpression(tsc_syntax::nodes::AwaitExpressionData {
+                        expression: Some(awaited_identifier.node()),
+                    }),
+                    TransformFlags::CONTAINS_AWAIT,
+                )?;
+                let awaited = self.create_expression_statement(awaited)?;
+                let if_statement = self.context.factory()?.create_node(
+                    self.source,
+                    NodeData::IfStatement(tsc_syntax::nodes::IfStatementData {
+                        expression: Some(condition.node()),
+                        then_statement: Some(awaited.node()),
+                        else_statement: None,
+                    }),
+                    TransformFlags::CONTAINS_AWAIT,
+                )?;
+                vec![statement, if_statement]
+            }
+        };
         let finally_block = self.create_block(finally_statements, true)?;
         let try_statement = self.context.factory()?.create_node(
             self.source,
@@ -1331,6 +1356,11 @@ impl<'context> EsNextVisitor<'context> {
         }
     }
 
+    fn allocate_generated_binding(&mut self, base: &str) -> Result<TargetBinding, TransformError> {
+        let provisional_name = self.allocate_generated_name(base);
+        TargetBinding::allocate_numbered(self.context, base.to_owned(), provisional_name)
+    }
+
     fn create_add_disposable_resource_call(
         &mut self,
         environment: TransformNode,
@@ -1373,6 +1403,25 @@ impl<'context> EsNextVisitor<'context> {
             }),
             TransformFlags::NONE,
         )
+    }
+
+    fn create_generated_identifier(
+        &mut self,
+        binding: &TargetBinding,
+    ) -> Result<TransformNode, TransformError> {
+        let identifier = self.create_identifier(binding.provisional_name())?;
+        let metadata = self.context.arena_mut()?.metadata_mut(identifier);
+        metadata.set_generated_binding_id(binding.id());
+        if let Some(base) = binding.numbered_base() {
+            metadata.set_generated_binding_base(base);
+        }
+        if let Some(base) = binding.preferred_base() {
+            metadata.set_generated_binding_preferred_base(base);
+        }
+        if binding.reserve_in_nested_scopes() {
+            metadata.reserve_generated_binding_in_nested_scopes();
+        }
+        Ok(identifier)
     }
 
     fn create_string_literal(&mut self, text: &str) -> Result<TransformNode, TransformError> {

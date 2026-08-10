@@ -2,7 +2,7 @@
 
 Status: execution schedule approved on 2026-08-08. H0, L0/L1, H1, H2.0a,
 H2.0b, H2.1a-H2.1e, H2.2a-H2.2d, H2.3a-H2.3d, H2.4a-H2.4b, and
-H2.5a-H2.5d are complete. **H2.5e is the next slice.**
+H2.5a-H2.5e are complete. **H2.5f is the next slice.**
 
 This document turns the audited post-H1 residual into branch-sized execution
 slices. It owns post-H1 slice IDs, dependency order, and slice-specific
@@ -1067,6 +1067,65 @@ checked with:
 node crates/oracle/h2-5d-qualification.mjs --check
 node crates/oracle/h2-5d-owner-controls.mjs --check
 node crates/oracle/h2-5d-profile.mjs --check
+```
+
+The ordinary hosted boundary remains only `cargo xtask acceptance`; profile
+generation, schema checks, focused controls, and the complete H0/H1/L1
+regression gate remain local.
+
+H2.5e closed on 2026-08-10. Its
+[qualification](../../../ratchets/h2-5e-qualification.v1.json) applies the
+same dependency-closed rule after H2.5d. Of 163 global rows that mention
+H2.5e, 41 have every required slice closed through H2.5e; the other 122 remain
+future-owned and are outside this denominator. Rust runs 40 admitted rows
+twice with 88 exact reported diagnostics and 46 exact writes. The remaining
+candidate is explicitly owned by H2.9 and fails closed before the first sink
+callback. There are no unexecuted or undispositioned candidates.
+
+- `transformES2018` lowers object spread/rest in literals, bindings,
+  assignments, parameters, catch clauses, and iteration heads; `for await`
+  retains abrupt-completion semantics; and async generators preserve await,
+  yield, delegation, return, and helper order;
+- target transforms allocate stable generated-binding identities and finalize
+  printable names from the composed ownership tree. Outer forwarding
+  parameters, inner generator parameters, helper temporaries, and sibling
+  function reuse are represented by typed Rust plans instead of tsc's nested
+  mutable name-generator closures;
+- async-generator `super` property and computed accesses, calls, reads,
+  writes, updates, lexical arrows, and nested super containers use explicit
+  capture facts. Scoped `_super` and `_superIndex` bindings retain tsc's getter,
+  setter, cache, and receiver behavior without printer-time hidden state;
+- delimited-list comment ownership keeps comments attached to the first
+  surviving rest/spread element, and concise arrows become function blocks
+  only when a generated parameter prologue requires one; and
+- ES2018 preserves the syntax while ES2017 activates the pass. Using disposal,
+  standard decorators, class fields, JSX, CommonJS, diagnostics, generated-name
+  collisions, and `noEmitOnError` compose exactly.
+
+The separate
+[owner controls](../../../ratchets/h2-5e-owner-controls.v1.json) run pinned
+TypeScript 6.0.3 sixty times and freeze 30 controls, 29 exact writes, one exact
+reported diagnostic, and one exact emitted diagnostic. They cover object
+spread/rest evaluation and comments, parameters and concise arrows, catch and
+loop bindings, `for await`, async generators and delegation, property and
+computed `super` reads/writes/calls, outer/inner generated-binding identity,
+adjacent ES2018 preservation, using/decorator/class-field/JSX composition,
+CommonJS, and `noEmitOnError`. Each Rust control runs twice through a fresh
+Program and matches diagnostics, callback and materialized bytes, paths,
+order, BOM, provenance, result state, and every active H2 counter.
+
+The [current runtime profile](../../../ratchets/h2-5e-profile.v1.json) and its
+[strict schema](../../../.github/ci/contracts/h2-5e-profile.schema.json)
+preserve every H2.5d authority byte for byte, mark H2.1a through H2.5e active,
+and name H2.5f as next. The monotonic corpus profile now has 672 exact cases,
+1,375 exact reported diagnostics, 966 exact writes, 5 unchanged output-exact
+diagnostic controls, and fifteen explicit source deferrals. Freshness is
+checked with:
+
+```text
+node crates/oracle/h2-5e-qualification.mjs --check
+node crates/oracle/h2-5e-owner-controls.mjs --check
+node crates/oracle/h2-5e-profile.mjs --check
 ```
 
 The ordinary hosted boundary remains only `cargo xtask acceptance`; profile

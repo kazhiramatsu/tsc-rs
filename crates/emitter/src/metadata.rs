@@ -264,6 +264,14 @@ pub struct EmitMetadata {
     pub(crate) snippet_element: Option<Box<str>>,
     pub(crate) class_this: Option<TransformNode>,
     pub(crate) assigned_name: Option<TransformNode>,
+    /// Owning class for a synthesized identifier that semantically denotes
+    /// that class constructor. Later class lowering can resolve the reference
+    /// without guessing from its printable text.
+    pub(crate) class_constructor_reference: Option<TransformNode>,
+    /// Source node whose leading trivia is intentionally re-emitted by a
+    /// lowered class-field initializer. Decorated static auto-accessors own
+    /// this in addition to the generated getter's normal comment range.
+    pub(crate) class_field_initializer_comment_source: Option<TransformNode>,
     /// Lossless cooked text for parsed or synthetic nodes whose JavaScript
     /// value may contain an unpaired UTF-16 surrogate. Original raw source
     /// remains authoritative whenever the printer can copy it unchanged.
@@ -280,6 +288,19 @@ pub struct EmitMetadata {
     /// generated lexical binding. The printable spelling is finalized after
     /// target-pass composition has fixed declaration order.
     pub(crate) generated_binding_id: Option<GeneratedBindingId>,
+    /// Source-derived base for generated names such as `env_1` or `e_2`.
+    /// Absence denotes the target ladder's ordinal temporary class (`_a`,
+    /// `_b`, ...).
+    pub(crate) generated_binding_base: Option<Box<str>>,
+    /// Function-scoped optimistic base for generated names such as `_super`.
+    /// Preferred names differ from source-derived numbered names because
+    /// sibling functions may reuse them.
+    pub(crate) generated_binding_preferred_base: Option<Box<str>>,
+    /// Whether this generated binding's printable name must remain reserved
+    /// in descendant function scopes. Async-generator forwarding parameters
+    /// use this to keep the outer alias distinct from the inner generator's
+    /// parameter aliases.
+    pub(crate) generated_binding_reserved_in_nested_scopes: bool,
 }
 
 impl EmitMetadata {
@@ -335,6 +356,18 @@ impl EmitMetadata {
         self.generated_binding_id
     }
 
+    pub(crate) fn generated_binding_base(&self) -> Option<&str> {
+        self.generated_binding_base.as_deref()
+    }
+
+    pub(crate) fn generated_binding_preferred_base(&self) -> Option<&str> {
+        self.generated_binding_preferred_base.as_deref()
+    }
+
+    pub(crate) const fn generated_binding_reserved_in_nested_scopes(&self) -> bool {
+        self.generated_binding_reserved_in_nested_scopes
+    }
+
     pub fn set_flags(&mut self, flags: EmitFlags) {
         self.flags = flags;
     }
@@ -385,6 +418,18 @@ impl EmitMetadata {
 
     pub(crate) fn set_generated_binding_id(&mut self, value: GeneratedBindingId) {
         self.generated_binding_id = Some(value);
+    }
+
+    pub(crate) fn set_generated_binding_base(&mut self, value: &str) {
+        self.generated_binding_base = Some(value.into());
+    }
+
+    pub(crate) fn set_generated_binding_preferred_base(&mut self, value: &str) {
+        self.generated_binding_preferred_base = Some(value.into());
+    }
+
+    pub(crate) fn reserve_generated_binding_in_nested_scopes(&mut self) {
+        self.generated_binding_reserved_in_nested_scopes = true;
     }
 
     /// tsc-port: mergeEmitNode @6.0.3
@@ -438,9 +483,24 @@ impl EmitMetadata {
         if source.assigned_name.is_some() {
             self.assigned_name = source.assigned_name;
         }
+        if source.class_constructor_reference.is_some() {
+            self.class_constructor_reference = source.class_constructor_reference;
+        }
+        if source.class_field_initializer_comment_source.is_some() {
+            self.class_field_initializer_comment_source =
+                source.class_field_initializer_comment_source;
+        }
         if source.generated_binding_id.is_some() {
             self.generated_binding_id = source.generated_binding_id;
         }
+        if source.generated_binding_base.is_some() {
+            self.generated_binding_base = source.generated_binding_base.clone();
+        }
+        if source.generated_binding_preferred_base.is_some() {
+            self.generated_binding_preferred_base = source.generated_binding_preferred_base.clone();
+        }
+        self.generated_binding_reserved_in_nested_scopes |=
+            source.generated_binding_reserved_in_nested_scopes;
         if source.javascript_string_value.is_some() {
             self.javascript_string_value = source.javascript_string_value.clone();
         }

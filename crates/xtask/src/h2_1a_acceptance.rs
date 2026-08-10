@@ -369,9 +369,15 @@ fn deferred_failure(workspace: &Path, case: &Value) -> Result<String, Box<dyn Er
         Err(error) => return Ok(format!("load:{error}")),
     };
     let mut sink = CountingSink::default();
-    let error = ProgramSession::new(prepared)
-        .emit(&mut sink)
-        .expect_err("source-deferred H2.1a case must fail closed");
+    let error = match ProgramSession::new(prepared).emit(&mut sink) {
+        Err(error) => error,
+        Ok(outcome) => {
+            let message = format!(
+                "{case_id}: source-deferred H2.1a case emitted instead of failing closed: {outcome:?}"
+            );
+            return Err(failure(message));
+        }
+    };
     if sink.writes != 0 {
         return Err(failure(format!(
             "{case_id}: deferred case wrote {} artifacts",

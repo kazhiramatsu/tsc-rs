@@ -4,7 +4,7 @@ use tsc_syntax::{
     for_each_child, try_visit_each_child, NodeArrayId, NodeData, NodeDataChildVisitor, NodeId,
     SyntaxKind,
 };
-use tsc_types::{CompilerOptions, NodeFlags, ScriptTarget};
+use tsc_types::{CompilerOptions, NodeCheckFlags, NodeFlags, ScriptTarget};
 
 use crate::{
     EmitFlags, EmitHint, EmitResolver, EmitResolverNode, InternalEmitFlags, TransformError,
@@ -46,11 +46,11 @@ impl Transformer for ClassFieldsTransformer<'_> {
     }
 
     fn initialize(&mut self, context: &mut TransformationContext) -> Result<(), TransformError> {
-        if self.target < ScriptTarget::ES2018 || self.target > ScriptTarget::ES_NEXT {
+        if self.target < ScriptTarget::ES2017 || self.target > ScriptTarget::ES_NEXT {
             return Err(TransformError::UnsupportedCompilerOption {
                 option: "class-field transform",
                 detail:
-                    "the closed target band admits ES2018 through ESNext class-field reachability",
+                    "the closed target band admits ES2017 through ESNext class-field reachability",
             });
         }
         context.enable_substitution(SyntaxKind::Identifier)?;
@@ -113,29 +113,44 @@ impl Transformer for ClassFieldsTransformer<'_> {
         {
             return Ok(node);
         }
-        let original = context.arena().get_original_node(node);
-        if context.arena().node(original)?.pos == u32::MAX {
-            return Ok(node);
-        }
-        let program_source = context
+        let generated_owner = context
             .arena()
-            .source(original.source())?
-            .program_source()
-            .ok_or(TransformError::MissingProgramSource(original))?;
-        let Some(declaration) =
-            self.resolver
-                .get_referenced_value_declaration(EmitResolverNode::new(
-                    program_source,
-                    original.node(),
-                ))?
-        else {
-            return Ok(node);
+            .metadata(node)
+            .and_then(|metadata| metadata.class_constructor_reference);
+        let alias_key = if let Some(owner) = generated_owner {
+            let owner = context.arena().get_original_node(owner);
+            let program_source = context
+                .arena()
+                .source(owner.source())?
+                .program_source()
+                .ok_or(TransformError::MissingProgramSource(owner))?;
+            (program_source.raw(), owner.node().0)
+        } else {
+            let original = context.arena().get_original_node(node);
+            if context.arena().node(original)?.pos == u32::MAX {
+                return Ok(node);
+            }
+            let program_source = context
+                .arena()
+                .source(original.source())?
+                .program_source()
+                .ok_or(TransformError::MissingProgramSource(original))?;
+            let resolver_node = EmitResolverNode::new(program_source, original.node());
+            if !self.resolver.has_node_check_flag(
+                resolver_node,
+                NodeCheckFlags::CONSTRUCTOR_REFERENCE.bits() as u32,
+            )? {
+                return Ok(node);
+            }
+            let Some(declaration) = self
+                .resolver
+                .get_referenced_value_declaration(resolver_node)?
+            else {
+                return Ok(node);
+            };
+            (declaration.source().raw(), declaration.node().0)
         };
-        let Some(alias) = self
-            .class_aliases
-            .get(&(declaration.source().raw(), declaration.node().0))
-            .cloned()
-        else {
+        let Some(alias) = self.class_aliases.get(&alias_key).cloned() else {
             return Ok(node);
         };
         let replacement = {

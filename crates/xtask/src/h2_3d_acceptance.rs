@@ -19,6 +19,7 @@ const H2_5A_OWNER_CONTROLS_RELATIVE_PATH: &str = "ratchets/h2-5a-owner-controls.
 const H2_5B_OWNER_CONTROLS_RELATIVE_PATH: &str = "ratchets/h2-5b-owner-controls.v1.json";
 const H2_5C_OWNER_CONTROLS_RELATIVE_PATH: &str = "ratchets/h2-5c-owner-controls.v1.json";
 const H2_5D_OWNER_CONTROLS_RELATIVE_PATH: &str = "ratchets/h2-5d-owner-controls.v1.json";
+const H2_5E_OWNER_CONTROLS_RELATIVE_PATH: &str = "ratchets/h2-5e-owner-controls.v1.json";
 
 const MINIMAL_GLOBALS: &str = r#"
 interface IArguments { length: number; callee: Function; }
@@ -83,6 +84,7 @@ fn owner_options(value: &Value) -> Result<CompilerOptions, Box<dyn Error>> {
         resolve_json_module: optional_bool("resolveJsonModule"),
         target: optional_i32("target")?,
         use_define_for_class_fields: optional_bool("useDefineForClassFields"),
+        use_unknown_in_catch_variables: optional_bool("useUnknownInCatchVariables"),
         no_emit: Some(false),
         ..CompilerOptions::default()
     })
@@ -385,6 +387,52 @@ fn expected_h2_5d_owner_activity(
 
 fn execute_h2_5d_owner_control(control: &Value) -> Result<(usize, usize), Box<dyn Error>> {
     execute_h2_owner_control(control, "H2.5d", expected_h2_5d_owner_activity)
+}
+
+fn expected_h2_5e_owner_activity(
+    control: &Value,
+    outcome: &tsc_compiler::EmitOutcome,
+) -> Result<(), Box<dyn Error>> {
+    let input = &control["input"];
+    let module = input["compiler_options"]["module"].as_i64().unwrap_or(200);
+    let output_units = array(&control["observation"], "writes")?.len() as u64;
+    let runtime = &control["runtime_expectation"];
+    let expected_sources = |name: &str| {
+        runtime[name]
+            .as_u64()
+            .ok_or_else(|| failure(format!("H2.5e owner control lacks {name}")))
+    };
+    for slice in H2RuntimeSlice::ALL {
+        let expected = match slice {
+            H2RuntimeSlice::H2_1a if module != 4 && module != 200 => output_units,
+            H2RuntimeSlice::H2_1b if matches!(module, 1..=3) => output_units,
+            H2RuntimeSlice::H2_1d if module == 4 => output_units,
+            H2RuntimeSlice::H2_2a => expected_sources("h2_2a_sources")?,
+            H2RuntimeSlice::H2_2b => expected_sources("h2_2b_sources")?,
+            H2RuntimeSlice::H2_2c => expected_sources("h2_2c_sources")?,
+            H2RuntimeSlice::H2_4a => expected_sources("h2_4a_sources")?,
+            H2RuntimeSlice::H2_4b => expected_sources("h2_4b_sources")?,
+            H2RuntimeSlice::H2_5a => expected_sources("h2_5a_sources")?,
+            H2RuntimeSlice::H2_5b => expected_sources("h2_5b_sources")?,
+            H2RuntimeSlice::H2_5c => expected_sources("h2_5c_sources")?,
+            H2RuntimeSlice::H2_5d => expected_sources("h2_5d_sources")?,
+            H2RuntimeSlice::H2_5e => expected_sources("h2_5e_sources")?,
+            _ => 0,
+        };
+        if outcome.h2_activity().runtime_slice(slice) != expected {
+            return Err(failure(format!(
+                "{}: {} owner activity expected {expected}, observed {}",
+                string(control, "control_id")?,
+                slice.name(),
+                outcome.h2_activity().runtime_slice(slice),
+            )));
+        }
+    }
+    Ok(())
+}
+
+fn execute_h2_5e_owner_control(control: &Value) -> Result<(usize, usize), Box<dyn Error>> {
+    execute_h2_owner_control(control, "H2.5e", expected_h2_5e_owner_activity)
 }
 
 fn owner_input(control: &Value) -> Result<PreparedProgram, Box<dyn Error>> {
@@ -937,6 +985,63 @@ pub fn run_h2_5d_owner_controls(workspace: &Path) -> Result<(), Box<dyn Error>> 
     }
     println!(
         "H2.5d owner controls: controls=20 exact_writes={writes} reported_diagnostics={diagnostics} repetitions=2"
+    );
+    Ok(())
+}
+
+pub fn run_h2_5e_owner_controls(workspace: &Path) -> Result<(), Box<dyn Error>> {
+    let artifact: Value = serde_json::from_slice(&fs::read(
+        workspace.join(H2_5E_OWNER_CONTROLS_RELATIVE_PATH),
+    )?)?;
+    if artifact["schema"] != 1
+        || artifact["phase"] != "H2.5e-es2018-target-owner-controls"
+        || artifact["status"] != "qualified"
+        || artifact["summary"]["controls"] != 30
+        || artifact["summary"]["exact_outputs"] != 29
+        || artifact["summary"]["typescript_runs"] != 60
+        || artifact["summary"]["reported_diagnostics"] != 1
+        || artifact["summary"]["emit_diagnostics"] != 1
+        || artifact["summary"]["no_emit_on_error_controls"] != 1
+        || artifact["summary"]["es2017_controls"] != 29
+        || artifact["summary"]["es2018_controls"] != 1
+        || artifact["summary"]["object_spread_controls"] != 19
+        || artifact["summary"]["object_rest_controls"] != 15
+        || artifact["summary"]["for_await_controls"] != 4
+        || artifact["summary"]["async_generator_controls"] != 9
+        || artifact["summary"]["yield_star_controls"] != 2
+        || artifact["summary"]["generated_name_composition_controls"] != 6
+        || artifact["summary"]["parameter_controls"] != 5
+        || artifact["summary"]["comment_controls"] != 1
+        || artifact["summary"]["using_controls"] != 2
+        || artifact["summary"]["standard_decorator_controls"] != 1
+        || artifact["summary"]["class_composition_controls"] != 7
+        || artifact["summary"]["commonjs_controls"] != 1
+        || artifact["summary"]["h2_5a_active_controls"] != 29
+        || artifact["summary"]["h2_5b_active_controls"] != 29
+        || artifact["summary"]["h2_5c_active_controls"] != 29
+        || artifact["summary"]["h2_5d_active_controls"] != 29
+        || artifact["summary"]["h2_5e_active_controls"] != 28
+    {
+        return Err(failure("H2.5e owner-control header is not closed"));
+    }
+    let controls = array(&artifact, "controls")?;
+    if controls.len() != 30 {
+        return Err(failure("H2.5e owner-control denominator changed"));
+    }
+    let mut writes = 0;
+    let mut diagnostics = 0;
+    for control in controls {
+        let (control_writes, control_diagnostics) = execute_h2_5e_owner_control(control)?;
+        writes += control_writes;
+        diagnostics += control_diagnostics;
+    }
+    if writes != 29 || diagnostics != 1 {
+        return Err(failure(format!(
+            "H2.5e owner totals differ: writes={writes} diagnostics={diagnostics}"
+        )));
+    }
+    println!(
+        "H2.5e owner controls: controls=30 exact_writes={writes} reported_diagnostics={diagnostics} repetitions=2"
     );
     Ok(())
 }
