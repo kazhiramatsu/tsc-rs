@@ -51,11 +51,6 @@ const RUN_INITIALIZERS_HELPER_TEXT: &str = r#"var __runInitializers = (this && t
     return useValue ? value : void 0;
 };"#;
 
-const SET_FUNCTION_NAME_HELPER_TEXT: &str = r#"var __setFunctionName = (this && this.__setFunctionName) || function (f, name, prefix) {
-    if (typeof name === "symbol") name = name.description ? "[".concat(name.description, "]") : "";
-    return Object.defineProperty(f, "name", { configurable: true, value: prefix ? "".concat(prefix, " ", name) : name });
-};"#;
-
 const PROP_KEY_HELPER_TEXT: &str = r#"var __propKey = (this && this.__propKey) || function (x) {
     return typeof x === "symbol" ? x : "".concat(x);
 };"#;
@@ -81,7 +76,7 @@ impl Transformer for StandardDecoratorTransformer {
     }
 
     fn initialize(&mut self, _context: &mut TransformationContext) -> Result<(), TransformError> {
-        if self.target < ScriptTarget::ES2019
+        if self.target < ScriptTarget::ES2018
             || self.target > ScriptTarget::ES_NEXT
             || (self.target == ScriptTarget::ES_NEXT && self.use_define_for_class_fields)
         {
@@ -463,7 +458,17 @@ impl<'context> StandardDecoratorVisitor<'context> {
     ) -> Result<bool, TransformError> {
         for member in self.array_nodes(members)? {
             match &self.context.arena().node(member)?.data {
-                NodeData::ClassStaticBlockDeclaration(_) => return Ok(true),
+                NodeData::ClassStaticBlockDeclaration(_)
+                    if self
+                        .context
+                        .arena()
+                        .metadata(member)
+                        .is_none_or(|metadata| {
+                            metadata.assigned_name.is_none() && metadata.class_this.is_none()
+                        }) =>
+                {
+                    return Ok(true);
+                }
                 NodeData::PropertyDeclaration(data)
                     if self.has_modifier(data.modifiers, SyntaxKind::StaticKeyword)?
                         && (data.initializer.is_some()
@@ -548,7 +553,10 @@ impl<'context> StandardDecoratorVisitor<'context> {
         } else {
             None
         };
-        let assigned_class_name = self.inferred_class_names.get(&original.node()).cloned();
+        let explicitly_assigned_name = self.explicitly_assigned_class_name(original)?;
+        let assigned_class_name = explicitly_assigned_name
+            .clone()
+            .or_else(|| self.inferred_class_names.get(&original.node()).cloned());
         let class_name = explicit_class_name
             .clone()
             .or_else(|| assigned_class_name.clone());
@@ -783,16 +791,35 @@ impl<'context> StandardDecoratorVisitor<'context> {
             }
         }
 
+        let named_evaluation_member = original_members.iter().copied().find(|member| {
+            self.context
+                .arena()
+                .metadata(*member)
+                .and_then(|metadata| metadata.assigned_name)
+                .is_some()
+        });
         let mut transformed_members = Vec::new();
         if let Some(class_plan) = class_decoration.as_ref() {
             transformed_members
                 .push(self.create_class_this_assignment_block(&class_plan.class_this_name)?);
         }
-        if let Some(class_name) = class_name.as_deref().filter(|_| needs_set_function_name) {
+        if let Some(class_name) = class_name
+            .as_deref()
+            .filter(|_| needs_set_function_name && explicitly_assigned_name.is_none())
+        {
             let target = class_decoration
                 .as_ref()
                 .map(|plan| plan.class_this_name.as_str());
             transformed_members.push(self.create_set_function_name_block(class_name, target)?);
+        }
+        if let Some(member) = named_evaluation_member {
+            let visited =
+                self.visit(member.node())?
+                    .ok_or(TransformError::RequiredChildRemoved {
+                        parent: SyntaxKind::ClassExpression,
+                        field: "named-evaluation helper block",
+                    })?;
+            transformed_members.push(self.node(visited));
         }
         if let Some(block) = computed_name_block {
             transformed_members.push(block);
@@ -823,6 +850,9 @@ impl<'context> StandardDecoratorVisitor<'context> {
         let mut pending_static = static_method_extra.filter(|_| has_static_initializers);
         let mut constructor_index = None;
         for member in original_members {
+            if Some(member) == named_evaluation_member {
+                continue;
+            }
             let planned_static_property = plans_by_node
                 .get(&member.node())
                 .is_some_and(|index| plans[*index].is_static);
@@ -954,6 +984,18 @@ impl<'context> StandardDecoratorVisitor<'context> {
         data.type_parameters = None;
         data.heritage_clauses = self.visit_optional_nodes(data.heritage_clauses)?;
         data.modifiers = self.strip_decorators(data.modifiers)?;
+        let class_this_metadata = transformed_members.iter().find_map(|member| {
+            self.context
+                .arena()
+                .metadata(*member)
+                .and_then(|metadata| metadata.class_this)
+        });
+        let assigned_name_metadata = transformed_members.iter().find_map(|member| {
+            self.context
+                .arena()
+                .metadata(*member)
+                .and_then(|metadata| metadata.assigned_name)
+        });
         let members = self
             .context
             .factory()?
@@ -969,6 +1011,12 @@ impl<'context> StandardDecoratorVisitor<'context> {
             NodeData::ClassExpression(data),
             flags,
         )?;
+        if let Some(class_this) = class_this_metadata {
+            self.context.arena_mut()?.metadata_mut(class).class_this = Some(class_this);
+        }
+        if let Some(assigned_name) = assigned_name_metadata {
+            self.context.arena_mut()?.metadata_mut(class).assigned_name = Some(assigned_name);
+        }
         if let Some(class_plan) = class_decoration.as_ref() {
             let declaration =
                 self.create_variable_declaration(&class_plan.reference_name, Some(class))?;
@@ -2308,7 +2356,9 @@ impl<'context> StandardDecoratorVisitor<'context> {
         let this = self.create_this()?;
         let assignment = self.create_assignment(class_this, this)?;
         let statement = self.create_expression_statement(assignment)?;
-        self.create_static_block(vec![statement], false)
+        let block = self.create_static_block(vec![statement], false)?;
+        self.context.arena_mut()?.metadata_mut(block).class_this = Some(class_this);
+        Ok(block)
     }
 
     fn create_set_function_name_block(
@@ -2325,7 +2375,9 @@ impl<'context> StandardDecoratorVisitor<'context> {
         let name = self.create_string_literal(class_name)?;
         let call = self.create_call(helper, vec![target, name])?;
         let statement = self.create_expression_statement(call)?;
-        self.create_static_block(vec![statement], false)
+        let block = self.create_static_block(vec![statement], false)?;
+        self.context.arena_mut()?.metadata_mut(block).assigned_name = Some(name);
+        Ok(block)
     }
 
     fn create_run_initializers(
@@ -2540,20 +2592,15 @@ impl<'context> StandardDecoratorVisitor<'context> {
             "typescript:esDecorate",
             false,
             ES_DECORATE_HELPER_TEXT,
-            2,
+            Some(2),
             Vec::new(),
         ))?;
         if !run_initializers_first {
             self.request_run_initializers_helper()?;
         }
         if set_function_name {
-            self.context.request_emit_helper(EmitHelper::with_text(
-                "typescript:setFunctionName",
-                false,
-                SET_FUNCTION_NAME_HELPER_TEXT,
-                2,
-                Vec::new(),
-            ))?;
+            self.context
+                .request_emit_helper(super::helpers::set_function_name())?;
         }
         Ok(())
     }
@@ -2563,7 +2610,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
             "typescript:runInitializers",
             false,
             RUN_INITIALIZERS_HELPER_TEXT,
-            2,
+            Some(2),
             Vec::new(),
         ))
     }
@@ -2573,7 +2620,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
             "typescript:propKey",
             false,
             PROP_KEY_HELPER_TEXT,
-            2,
+            None,
             Vec::new(),
         ))
     }
@@ -3257,6 +3304,26 @@ impl<'context> StandardDecoratorVisitor<'context> {
     fn identifier_text(&self, node: TransformNode) -> Result<Option<&str>, TransformError> {
         Ok(match &self.context.arena().node(node)?.data {
             NodeData::Identifier(data) => Some(data.text.as_str()),
+            _ => None,
+        })
+    }
+
+    fn explicitly_assigned_class_name(
+        &self,
+        class: TransformNode,
+    ) -> Result<Option<String>, TransformError> {
+        let Some(assigned_name) = self
+            .context
+            .arena()
+            .metadata(class)
+            .and_then(|metadata| metadata.assigned_name)
+        else {
+            return Ok(None);
+        };
+        Ok(match &self.context.arena().node(assigned_name)?.data {
+            NodeData::Identifier(data) => Some(data.text.clone()),
+            NodeData::StringLiteral(data) => Some(data.text.clone()),
+            NodeData::NumericLiteral(data) => Some(data.text.clone()),
             _ => None,
         })
     }

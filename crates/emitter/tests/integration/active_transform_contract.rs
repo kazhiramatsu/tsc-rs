@@ -72,17 +72,24 @@ fn bootstrap_options() -> CompilerOptions {
 }
 
 fn transform_and_print_at_target(source_text: &str, target: ScriptTarget) -> String {
+    transform_and_print_at_target_with_resolver(source_text, target, &NoConstantValueResolver)
+}
+
+fn transform_and_print_at_target_with_resolver(
+    source_text: &str,
+    target: ScriptTarget,
+    resolver: &dyn EmitResolver,
+) -> String {
     let parsed = parse_source_file("target.ts", source_text, Default::default(), None);
     let mut arena = TransformArena::new();
     let source = arena.add_source(&parsed, Some(SourceFileId::from_raw(0)));
-    let resolver = NoConstantValueResolver;
     let mut options = bootstrap_options();
     options.target = Some(target.bits());
     options.always_strict = Some(false);
     let mut result = transform_nodes(
         arena,
         vec![TransformRoot::SourceFile(source)],
-        get_script_transformers(&options, &resolver).unwrap(),
+        get_script_transformers(&options, resolver).unwrap(),
         false,
     )
     .expect("target transform");
@@ -117,6 +124,24 @@ impl EmitResolver for NoConstantValueResolver {
         &self,
         _node: EmitResolverNode,
     ) -> Result<Option<EmitConstantValue>, EmitResolverError> {
+        Ok(None)
+    }
+}
+
+struct UnresolvedDecoratorResolver;
+
+impl EmitResolver for UnresolvedDecoratorResolver {
+    fn get_constant_value(
+        &self,
+        _node: EmitResolverNode,
+    ) -> Result<Option<EmitConstantValue>, EmitResolverError> {
+        Ok(None)
+    }
+
+    fn get_referenced_value_declaration(
+        &self,
+        _node: EmitResolverNode,
+    ) -> Result<Option<EmitResolverNode>, EmitResolverError> {
         Ok(None)
     }
 }
@@ -320,6 +345,72 @@ fn es2020_parameter_hoists_move_defaults_into_typed_function_prologues() {
             "const g = (_a) => { var _b, _c; var { value } = _a === void 0 ? ((_b = getObj())[_c = getKey()] ?? (_b[_c] = rhs())) : _a; return value; };\n",
         ),
     );
+}
+
+#[test]
+fn es2018_optional_catch_bindings_use_scoped_generated_names() {
+    assert_eq!(
+        transform_and_print_at_target(
+            concat!(
+                "let _a;\n",
+                "try { get()?.x; } catch { let _b; get2()?.y; }\n",
+                "function f(){ try{}catch{} }\n",
+                "function g(){ try{}catch(e){} try{}catch{} }\n",
+            ),
+            ScriptTarget::ES2018,
+        ),
+        concat!(
+            "var _c, _d;\n",
+            "let _a;\n",
+            "try {\n",
+            "    (_c = get()) === null || _c === void 0 ? void 0 : _c.x;\n",
+            "}\n",
+            "catch (_e) {\n",
+            "    let _b;\n",
+            "    (_d = get2()) === null || _d === void 0 ? void 0 : _d.y;\n",
+            "}\n",
+            "function f() { try { }\n",
+            "catch (_c) { } }\n",
+            "function g() { try { }\n",
+            "catch (e) { } try { }\n",
+            "catch (_c) { } }\n",
+        ),
+    );
+}
+
+#[test]
+fn es2018_optional_catch_bindings_preserve_original_token_comments() {
+    assert_eq!(
+        transform_and_print_at_target(
+            "try { work(); } /* before catch */ catch /* before body */ { /* in body */ recover(); }\n",
+            ScriptTarget::ES2018,
+        ),
+        concat!(
+            "try {\n",
+            "    work();\n",
+            "} /* before catch */\n",
+            "catch /* before body */ ( /* in body */_a) { /* in body */\n",
+            "    recover();\n",
+            "}\n",
+        ),
+    );
+}
+
+#[test]
+fn es2018_using_named_evaluation_restores_erased_outer_expressions() {
+    let output = transform_and_print_at_target_with_resolver(
+        "declare const dec: any; using Value = (@dec class {}) as any;\n",
+        ScriptTarget::ES2018,
+        &UnresolvedDecoratorResolver,
+    );
+    let set_function_name_helper = output
+        .find("var __setFunctionName")
+        .expect("named evaluation requests the setFunctionName helper");
+    let disposable_helper = output
+        .find("var __addDisposableResource")
+        .expect("using requests the disposable helper");
+    assert!(set_function_name_helper < disposable_helper);
+    assert!(output.contains("__setFunctionName(_classThis, \"Value\");"));
 }
 
 #[test]

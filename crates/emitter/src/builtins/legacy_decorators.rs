@@ -1769,7 +1769,7 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
             "typescript:decorate",
             false,
             DECORATE_HELPER_TEXT,
-            2,
+            Some(2),
             Vec::new(),
         ))?;
         let decorators = self.create_array_literal(decorators, true)?;
@@ -1793,7 +1793,7 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
             "typescript:metadata",
             false,
             METADATA_HELPER_TEXT,
-            3,
+            Some(3),
             Vec::new(),
         ))?;
         let helper = self.create_identifier("__metadata")?;
@@ -1810,7 +1810,7 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
             "typescript:param",
             false,
             PARAM_HELPER_TEXT,
-            4,
+            Some(4),
             Vec::new(),
         ))?;
         let helper = self.create_identifier("__param")?;

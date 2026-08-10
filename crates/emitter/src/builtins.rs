@@ -32,6 +32,7 @@ mod class_fields;
 mod es2021;
 mod es_next;
 mod generated_bindings;
+mod helpers;
 mod jsx;
 mod legacy_decorators;
 mod standard_decorators;
@@ -89,7 +90,7 @@ pub fn get_script_transformers<'resolver>(
     options: &CompilerOptions,
     resolver: &'resolver dyn EmitResolver,
 ) -> Result<Vec<Box<dyn Transformer + 'resolver>>, TransformError> {
-    let mut activity = H2ActivityCanary::h2_5c_profile();
+    let mut activity = H2ActivityCanary::h2_5d_profile();
     get_script_transformers_with_optional_host(options, resolver, None, &mut activity)
 }
 
@@ -110,10 +111,10 @@ fn get_script_transformers_with_optional_host<'transformers>(
     activity: &mut H2ActivityCanary,
 ) -> Result<Vec<Box<dyn Transformer + 'transformers>>, TransformError> {
     let target = options.emit_script_target();
-    if target < ScriptTarget::ES2019 || target > ScriptTarget::ES_NEXT {
+    if target < ScriptTarget::ES2018 || target > ScriptTarget::ES_NEXT {
         return Err(TransformError::UnsupportedCompilerOption {
             option: "target",
-            detail: "H2.5c admits ES2019 through ESNext; older targets belong to later target-ladder slices",
+            detail: "H2.5d admits ES2018 through ESNext; older targets belong to later target-ladder slices",
         });
     }
     if !matches!(
@@ -202,6 +203,9 @@ fn get_script_transformers_with_optional_host<'transformers>(
         if target < ScriptTarget::ES2020 {
             activity.observe_runtime_slice(H2RuntimeSlice::H2_5c);
         }
+        if target < ScriptTarget::ES2019 {
+            activity.observe_runtime_slice(H2RuntimeSlice::H2_5d);
+        }
     }
 
     activity.construct_script_transformer_list();
@@ -223,6 +227,8 @@ fn get_script_transformers_with_optional_host<'transformers>(
         (target < ScriptTarget::ES2021).then(|| es2021::transform_es2021(options));
     let transform_es2020 =
         (target < ScriptTarget::ES2020).then(|| es2021::transform_es2020(options));
+    let transform_es2019 =
+        (target < ScriptTarget::ES2019).then(|| es2021::transform_es2019(options));
     let module_transformer = if options.emit_module_kind() == MODULE_PRESERVE {
         activity.construct_transform_ecmascript_module();
         transform_ecmascript_module(options)
@@ -260,6 +266,9 @@ fn get_script_transformers_with_optional_host<'transformers>(
     }
     if let Some(transform_es2020) = transform_es2020 {
         transformers.push(transform_es2020);
+    }
+    if let Some(transform_es2019) = transform_es2019 {
+        transformers.push(transform_es2019);
     }
     transformers.push(module_transformer);
     Ok(transformers)
@@ -1497,7 +1506,7 @@ impl<'context> RelativeModuleSpecifierVisitor<'context> {
                 "typescript:rewriteRelativeImportExtensions",
                 false,
                 REWRITE_RELATIVE_IMPORT_EXTENSIONS_HELPER_TEXT,
-                3,
+                None,
                 Vec::new(),
             ))
     }
@@ -5147,14 +5156,14 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
             "typescript:commonjscreatebinding",
             false,
             CREATE_BINDING_HELPER_TEXT,
-            1,
+            Some(1),
             Vec::new(),
         );
         let set_default = crate::EmitHelper::with_text(
             "typescript:commonjscreatevalue",
             false,
             SET_MODULE_DEFAULT_HELPER_TEXT,
-            1,
+            Some(1),
             Vec::new(),
         );
         self.context
@@ -5162,7 +5171,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                 "typescript:commonjsimportstar",
                 false,
                 IMPORT_STAR_HELPER_TEXT,
-                2,
+                Some(2),
                 vec![create_binding, set_default],
             ))
     }
@@ -5173,7 +5182,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                 "typescript:commonjsimportdefault",
                 false,
                 IMPORT_DEFAULT_HELPER_TEXT,
-                1,
+                None,
                 Vec::new(),
             ))
     }
@@ -5184,7 +5193,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                 "typescript:rewriteRelativeImportExtensions",
                 false,
                 REWRITE_RELATIVE_IMPORT_EXTENSIONS_HELPER_TEXT,
-                3,
+                None,
                 Vec::new(),
             ))
     }
@@ -7902,7 +7911,8 @@ fn flags_after_update(
     probe.data = data.clone();
     let recomputed = TransformFlags::CONTAINS_TYPE_SCRIPT
         | TransformFlags::CONTAINS_ES_2021
-        | TransformFlags::CONTAINS_ES_2020;
+        | TransformFlags::CONTAINS_ES_2020
+        | TransformFlags::CONTAINS_ES_2019;
     let mut flags = old & !recomputed;
     flags |= local_transform_flags(&probe)
         | local_binary_target_flags(arena, original.source(), &probe)?;
@@ -8123,6 +8133,11 @@ fn local_transform_flags(node: &Node) -> TransformFlags {
         NodeData::ReturnStatement(_) => {
             flags |= TransformFlags::CONTAINS_ES_2018;
             flags |= TransformFlags::CONTAINS_HOISTED_DECLARATION_OR_COMPLETION;
+        }
+        NodeData::CatchClause(data) => {
+            if data.variable_declaration.is_none() {
+                flags |= TransformFlags::CONTAINS_ES_2019;
+            }
         }
         NodeData::AsExpression(_)
         | NodeData::SatisfiesExpression(_)

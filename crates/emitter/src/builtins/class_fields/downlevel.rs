@@ -176,6 +176,10 @@ enum InstanceOperation {
 enum StaticOperation {
     Field(FieldOperation),
     PrivateField(PrivateFieldOperation),
+    NamedEvaluation {
+        original: TransformNode,
+        expression: TransformNode,
+    },
     Block {
         original: TransformNode,
         body: TransformNode,
@@ -226,6 +230,9 @@ struct ClassOperations {
     setup: ClassSetup,
     static_: Vec<StaticOperation>,
 }
+
+#[derive(Debug)]
+struct SuperStatementPath(Vec<usize>);
 
 struct StabilizedReceiver {
     read: TransformNode,
@@ -298,6 +305,9 @@ enum InlineSequencePlacement {
     ExistingListContext,
     RequiresParentheses,
 }
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+struct StatementExpansionOwner(NodeId);
 
 pub(super) fn transform_source(
     context: &mut TransformationContext,
@@ -554,8 +564,12 @@ impl<'context, 'aliases> DownlevelClassVisitor<'context, 'aliases> {
         let class_name = data
             .name
             .and_then(|name| self.identifier_text(self.node(name)).map(str::to_owned));
-        let private_environment =
-            self.prepare_private_environment(data.members, class_name.as_deref())?;
+        let preferred_class_alias = self.class_this_binding(original);
+        let private_environment = self.prepare_private_environment(
+            data.members,
+            class_name.as_deref(),
+            preferred_class_alias,
+        )?;
         let super_alias = private_environment.super_alias.clone();
         self.private_environments.push(private_environment);
         data.name = self.visit_optional_node(data.name)?;
@@ -633,8 +647,12 @@ impl<'context, 'aliases> DownlevelClassVisitor<'context, 'aliases> {
             .name
             .and_then(|name| self.identifier_text(self.node(name)).map(str::to_owned))
             .or(self.assigned_class_expression_name(original)?);
-        let private_environment =
-            self.prepare_private_environment(data.members, class_name.as_deref())?;
+        let preferred_class_alias = self.class_this_binding(original);
+        let private_environment = self.prepare_private_environment(
+            data.members,
+            class_name.as_deref(),
+            preferred_class_alias,
+        )?;
         let private_expression_binding = private_environment.class_alias.clone();
         let super_alias = private_environment.super_alias.clone();
         data.name = self.visit_optional_node(data.name)?;
@@ -701,6 +719,29 @@ impl<'context, 'aliases> DownlevelClassVisitor<'context, 'aliases> {
         // static operation, then yields the class binding.
         let target = self.create_identifier(&binding)?;
         let assign_class = self.create_assignment(target, class)?;
+        if self.class_this_binding(original).is_some() {
+            if let Some(owner) = self.variable_statement_expansion_owner(original)? {
+                let mut initializer_expressions = operations.key_evaluations;
+                initializer_expressions.push(assign_class);
+                let initializer = if initializer_expressions.len() == 1 {
+                    self.set_original_and_range(initializer_expressions[0], original)?
+                } else {
+                    self.inline_class_expression(initializer_expressions, class, original)?
+                };
+                let trailing = self.materialize_static_operations(
+                    &binding,
+                    operations.setup,
+                    operations.static_,
+                    &private_environment,
+                    false,
+                )?;
+                self.expanded_statements
+                    .entry(owner.0)
+                    .or_default()
+                    .extend(trailing.into_iter().map(TransformNode::node));
+                return Ok(initializer.node());
+            }
+        }
         let mut expressions = vec![assign_class];
         expressions.extend(operations.key_evaluations);
         for statement in self.materialize_static_operations(
@@ -849,6 +890,75 @@ impl<'context, 'aliases> DownlevelClassVisitor<'context, 'aliases> {
                 .expression
                 .and_then(|name| self.assigned_name_text(name)),
             _ => None,
+        }
+    }
+
+    fn class_this_binding(&self, class: TransformNode) -> Option<String> {
+        let class_this = self
+            .context
+            .arena()
+            .metadata(class)
+            .and_then(|metadata| metadata.class_this)?;
+        self.identifier_text(class_this).map(str::to_owned)
+    }
+
+    fn variable_statement_expansion_owner(
+        &self,
+        class: TransformNode,
+    ) -> Result<Option<StatementExpansionOwner>, TransformError> {
+        let mut current = class.node();
+        loop {
+            let Some(parent) = self.tree_ownership.unique_parent(current) else {
+                return Ok(None);
+            };
+            let parent_node = self
+                .context
+                .arena()
+                .node_ref(self.source, parent)
+                .ok_or_else(|| TransformError::UnknownNode(self.node(parent)))?;
+            let record = self.context.arena().node(parent_node)?;
+            let outer_child = match &record.data {
+                NodeData::ParenthesizedExpression(data) => data.expression,
+                NodeData::PartiallyEmittedExpression(data) => data.expression,
+                NodeData::TypeAssertionExpression(data) => data.expression,
+                NodeData::AsExpression(data) => data.expression,
+                NodeData::SatisfiesExpression(data) => data.expression,
+                NodeData::NonNullExpression(data) => data.expression,
+                NodeData::ExpressionWithTypeArguments(data) => data.expression,
+                _ => None,
+            };
+            if outer_child == Some(current) {
+                current = parent;
+                continue;
+            }
+            let NodeData::VariableDeclaration(data) = &record.data else {
+                return Ok(None);
+            };
+            if data.initializer != Some(current) {
+                return Ok(None);
+            }
+            let Some(list) = self.tree_ownership.unique_parent(parent) else {
+                return Ok(None);
+            };
+            let list_node = self
+                .context
+                .arena()
+                .node_ref(self.source, list)
+                .ok_or_else(|| TransformError::UnknownNode(self.node(list)))?;
+            if self.context.arena().node(list_node)?.kind != SyntaxKind::VariableDeclarationList {
+                return Ok(None);
+            }
+            let Some(statement) = self.tree_ownership.unique_parent(list) else {
+                return Ok(None);
+            };
+            let statement_node = self
+                .context
+                .arena()
+                .node_ref(self.source, statement)
+                .ok_or_else(|| TransformError::UnknownNode(self.node(statement)))?;
+            return Ok((self.context.arena().node(statement_node)?.kind
+                == SyntaxKind::VariableStatement)
+                .then_some(StatementExpansionOwner(statement)));
         }
     }
 
@@ -1147,6 +1257,7 @@ impl<'context, 'aliases> DownlevelClassVisitor<'context, 'aliases> {
         &mut self,
         members: Option<NodeArrayId>,
         class_name: Option<&str>,
+        preferred_class_alias: Option<String>,
     ) -> Result<PrivateEnvironment, TransformError> {
         let static_facts = self.static_lexical_facts(members)?;
         let mut declarations = Vec::<PrivateDeclaration>::new();
@@ -1236,7 +1347,11 @@ impl<'context, 'aliases> DownlevelClassVisitor<'context, 'aliases> {
         let needs_class_alias = declarations.iter().any(|declaration| declaration.is_static)
             || static_facts.contains_this
             || static_facts.contains_super;
-        let class_alias = needs_class_alias.then(|| self.allocate_temp_name());
+        let class_alias = if needs_class_alias {
+            Some(preferred_class_alias.unwrap_or_else(|| self.allocate_temp_name()))
+        } else {
+            None
+        };
         let super_alias = static_facts
             .contains_super
             .then(|| self.allocate_temp_name());
@@ -2069,6 +2184,66 @@ impl<'context, 'aliases> DownlevelClassVisitor<'context, 'aliases> {
                             parent: SyntaxKind::ClassStaticBlockDeclaration,
                             field: "body",
                         })?;
+                    if self
+                        .context
+                        .arena()
+                        .metadata(member)
+                        .and_then(|metadata| metadata.class_this)
+                        .is_some()
+                    {
+                        // The surrounding class assignment initializes this
+                        // explicit constructor binding. The synthetic block
+                        // only transports that ownership across passes.
+                        continue;
+                    }
+                    if self
+                        .context
+                        .arena()
+                        .metadata(member)
+                        .and_then(|metadata| metadata.assigned_name)
+                        .is_some()
+                    {
+                        let NodeData::Block(body_data) =
+                            self.context.arena().node(body)?.data.clone()
+                        else {
+                            return Err(TransformError::RequiredChildRemoved {
+                                parent: SyntaxKind::ClassStaticBlockDeclaration,
+                                field: "named-evaluation block body",
+                            });
+                        };
+                        let statements = self.array_nodes(body_data.statements)?;
+                        let [statement] = statements.as_slice() else {
+                            return Err(TransformError::RequiredChildRemoved {
+                                parent: SyntaxKind::ClassStaticBlockDeclaration,
+                                field: "named-evaluation statement",
+                            });
+                        };
+                        let NodeData::ExpressionStatement(statement_data) =
+                            self.context.arena().node(*statement)?.data.clone()
+                        else {
+                            return Err(TransformError::RequiredChildRemoved {
+                                parent: SyntaxKind::ClassStaticBlockDeclaration,
+                                field: "named-evaluation expression statement",
+                            });
+                        };
+                        let expression = statement_data.expression.ok_or(
+                            TransformError::RequiredChildRemoved {
+                                parent: SyntaxKind::ExpressionStatement,
+                                field: "named-evaluation expression",
+                            },
+                        )?;
+                        let expression = self.visit_static_node(expression)?.ok_or(
+                            TransformError::RequiredChildRemoved {
+                                parent: SyntaxKind::ExpressionStatement,
+                                field: "visited named-evaluation expression",
+                            },
+                        )?;
+                        operations.static_.push(StaticOperation::NamedEvaluation {
+                            original: member,
+                            expression,
+                        });
+                        continue;
+                    }
                     let (visited, bindings) = self.with_new_generated_scope(
                         GeneratedBindingOwner::StaticEvaluation,
                         |visitor| visitor.visit_static_node(body.node()),
@@ -2336,6 +2511,14 @@ impl<'context, 'aliases> DownlevelClassVisitor<'context, 'aliases> {
                 }
                 StaticOperation::PrivateField(operation) => {
                     self.materialize_private_static_field(&operation)?
+                }
+                StaticOperation::NamedEvaluation {
+                    original,
+                    expression,
+                } => {
+                    let statement = self.create_expression_statement(expression)?;
+                    self.set_original_and_range(statement, original)?;
+                    statement
                 }
                 StaticOperation::Block { original, body } => {
                     let body = self.context.factory()?.set_multi_line(body, true)?;
@@ -2611,7 +2794,7 @@ impl<'context, 'aliases> DownlevelClassVisitor<'context, 'aliases> {
             "typescript:classPrivateFieldGet",
             false,
             CLASS_PRIVATE_FIELD_GET_HELPER_TEXT,
-            0,
+            None,
             Vec::new(),
         ))?;
         // tsc moves the receiver's comment range start to the synthetic
@@ -2643,7 +2826,7 @@ impl<'context, 'aliases> DownlevelClassVisitor<'context, 'aliases> {
             "typescript:classPrivateFieldSet",
             false,
             CLASS_PRIVATE_FIELD_SET_HELPER_TEXT,
-            0,
+            None,
             Vec::new(),
         ))?;
         self.context
@@ -2669,7 +2852,7 @@ impl<'context, 'aliases> DownlevelClassVisitor<'context, 'aliases> {
             "typescript:classPrivateFieldIn",
             false,
             CLASS_PRIVATE_FIELD_IN_HELPER_TEXT,
-            0,
+            None,
             Vec::new(),
         ))?;
         let helper = self.create_identifier("__classPrivateFieldIn")?;
@@ -2802,37 +2985,40 @@ impl<'context, 'aliases> DownlevelClassVisitor<'context, 'aliases> {
                 parent: SyntaxKind::Constructor,
                 field: "body",
             })?;
-        let NodeData::Block(mut block) = self.context.arena().node(body)?.data.clone() else {
+        let body_record = self.context.arena().node(body)?.clone();
+        let original_multi_line = body_record.multi_line;
+        let NodeData::Block(mut block) = body_record.data else {
             return Err(TransformError::RequiredChildRemoved {
                 parent: SyntaxKind::Constructor,
                 field: "body block",
             });
         };
         let mut statements = self.array_nodes(block.statements)?;
+        let original_statement_count = statements.len();
         let mut insertion = 0usize;
         while insertion < statements.len() && self.is_prologue_statement(statements[insertion])? {
-            insertion += 1;
-        }
-        if let Some(super_index) = statements[insertion..]
-            .iter()
-            .position(|statement| self.statement_is_super_call(*statement).unwrap_or(false))
-        {
-            insertion += super_index + 1;
-        }
-        let parameter_start = insertion;
-        while insertion < statements.len()
-            && self.original_kind(statements[insertion]) == Some(SyntaxKind::Parameter)
-        {
             insertion += 1;
         }
         let replaces_parameter_properties = initializers
             .iter()
             .any(|initializer| self.original_kind(*initializer) == Some(SyntaxKind::Parameter));
-        if replaces_parameter_properties {
-            statements.drain(parameter_start..insertion);
-            insertion = parameter_start;
+        if let Some(path) = self.find_super_statement_path(&statements, insertion)? {
+            self.inject_initializers_at_super_path(
+                &mut statements,
+                &path.0,
+                initializers,
+                replaces_parameter_properties,
+            )?;
+        } else {
+            Self::insert_constructor_initializers(
+                self.context.arena(),
+                &mut statements,
+                insertion,
+                initializers,
+                replaces_parameter_properties,
+            );
         }
-        statements.splice(insertion..insertion, initializers.iter().copied());
+        let transformed_statement_count = statements.len();
         let array = self
             .context
             .factory()?
@@ -2844,7 +3030,12 @@ impl<'context, 'aliases> DownlevelClassVisitor<'context, 'aliases> {
             .context
             .factory()?
             .update_node(body, NodeData::Block(block), flags)?;
-        self.context.factory()?.set_multi_line(body, true)?;
+        let multi_line = if original_statement_count >= transformed_statement_count {
+            original_multi_line.unwrap_or(transformed_statement_count != 0)
+        } else {
+            transformed_statement_count != 0
+        };
+        self.context.factory()?.set_multi_line(body, multi_line)?;
         data.body = Some(body.node());
         let flags = flags_after_update(
             self.context.arena(),
@@ -2854,6 +3045,152 @@ impl<'context, 'aliases> DownlevelClassVisitor<'context, 'aliases> {
         self.context
             .factory()?
             .update_node(constructor, NodeData::Constructor(data), flags)
+    }
+
+    fn find_super_statement_path(
+        &self,
+        statements: &[TransformNode],
+        start: usize,
+    ) -> Result<Option<SuperStatementPath>, TransformError> {
+        for (index, statement) in statements.iter().enumerate().skip(start) {
+            if self.statement_is_super_call(*statement)? {
+                return Ok(Some(SuperStatementPath(vec![index])));
+            }
+            let NodeData::TryStatement(data) = &self.context.arena().node(*statement)?.data else {
+                continue;
+            };
+            let Some(try_block) = data
+                .try_block
+                .and_then(|block| self.context.arena().node_ref(self.source, block))
+            else {
+                continue;
+            };
+            let NodeData::Block(block) = &self.context.arena().node(try_block)?.data else {
+                continue;
+            };
+            let nested = self.array_nodes(block.statements)?;
+            if let Some(SuperStatementPath(mut path)) =
+                self.find_super_statement_path(&nested, 0)?
+            {
+                path.insert(0, index);
+                return Ok(Some(SuperStatementPath(path)));
+            }
+        }
+        Ok(None)
+    }
+
+    fn inject_initializers_at_super_path(
+        &mut self,
+        statements: &mut Vec<TransformNode>,
+        path: &[usize],
+        initializers: &[TransformNode],
+        replaces_parameter_properties: bool,
+    ) -> Result<(), TransformError> {
+        let (&index, remaining) =
+            path.split_first()
+                .ok_or(TransformError::RequiredChildRemoved {
+                    parent: SyntaxKind::Constructor,
+                    field: "super statement path",
+                })?;
+        if remaining.is_empty() {
+            Self::insert_constructor_initializers(
+                self.context.arena(),
+                statements,
+                index + 1,
+                initializers,
+                replaces_parameter_properties,
+            );
+            return Ok(());
+        }
+
+        let statement = *statements
+            .get(index)
+            .ok_or(TransformError::RequiredChildRemoved {
+                parent: SyntaxKind::Constructor,
+                field: "super statement path index",
+            })?;
+        let NodeData::TryStatement(mut try_statement) =
+            self.context.arena().node(statement)?.data.clone()
+        else {
+            return Err(TransformError::RequiredChildRemoved {
+                parent: SyntaxKind::Constructor,
+                field: "try statement on super path",
+            });
+        };
+        let try_block = try_statement
+            .try_block
+            .and_then(|block| self.context.arena().node_ref(self.source, block))
+            .ok_or(TransformError::RequiredChildRemoved {
+                parent: SyntaxKind::TryStatement,
+                field: "try_block on super path",
+            })?;
+        let NodeData::Block(mut block) = self.context.arena().node(try_block)?.data.clone() else {
+            return Err(TransformError::RequiredChildRemoved {
+                parent: SyntaxKind::TryStatement,
+                field: "try block on super path",
+            });
+        };
+        let mut nested = self.array_nodes(block.statements)?;
+        self.inject_initializers_at_super_path(
+            &mut nested,
+            remaining,
+            initializers,
+            replaces_parameter_properties,
+        )?;
+        let nested = if let Some(original) = block.statements.map(|array| self.array(array)) {
+            self.context
+                .factory()?
+                .update_node_array(original, nested)?
+        } else {
+            self.context
+                .factory()?
+                .create_node_array(self.source, nested)?
+        };
+        block.statements = Some(nested.array());
+        let flags = flags_after_update(
+            self.context.arena(),
+            try_block,
+            &NodeData::Block(block.clone()),
+        )?;
+        let try_block =
+            self.context
+                .factory()?
+                .update_node(try_block, NodeData::Block(block), flags)?;
+        try_statement.try_block = Some(try_block.node());
+        let flags = flags_after_update(
+            self.context.arena(),
+            statement,
+            &NodeData::TryStatement(try_statement.clone()),
+        )?;
+        statements[index] = self.context.factory()?.update_node(
+            statement,
+            NodeData::TryStatement(try_statement),
+            flags,
+        )?;
+        Ok(())
+    }
+
+    fn insert_constructor_initializers(
+        arena: &TransformArena,
+        statements: &mut Vec<TransformNode>,
+        insertion: usize,
+        initializers: &[TransformNode],
+        replaces_parameter_properties: bool,
+    ) {
+        let parameter_end = statements[insertion..]
+            .iter()
+            .take_while(|statement| {
+                let original = arena.get_original_node(**statement);
+                arena
+                    .node(original)
+                    .is_ok_and(|node| node.kind == SyntaxKind::Parameter)
+            })
+            .count()
+            + insertion;
+        if replaces_parameter_properties {
+            statements.drain(insertion..parameter_end);
+        }
+        statements.splice(insertion..insertion, initializers.iter().copied());
     }
 
     fn create_synthetic_constructor(
@@ -3653,10 +3990,15 @@ impl NodeDataChildVisitor for DownlevelClassVisitor<'_, '_> {
         let original = self.array(id);
         let nodes = self.context.arena().node_array(original)?.nodes.clone();
         let mut visited = Vec::with_capacity(nodes.len());
-        for node in nodes {
-            if let Some(node) = self.visit(node)? {
+        for original_node in nodes {
+            if let Some(node) = self.visit(original_node)? {
                 visited.push(self.node(node));
-                if let Some(expanded) = self.expanded_statements.get(&node).cloned() {
+                let expanded = self
+                    .expanded_statements
+                    .get(&node)
+                    .or_else(|| self.expanded_statements.get(&original_node))
+                    .cloned();
+                if let Some(expanded) = expanded {
                     visited.extend(expanded.into_iter().map(|node| self.node(node)));
                 }
             }

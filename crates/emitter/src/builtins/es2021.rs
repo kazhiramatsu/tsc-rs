@@ -1,4 +1,4 @@
-//! H2.5 target-ladder lowering shared by the ES2021 and ES2020 passes.
+//! H2.5 target-ladder lowering shared by the ES2021, ES2020, and ES2019 passes.
 //!
 //! The pinned TypeScript transformer defines evaluation order and observable
 //! output. Rust owns that behavior through explicit pass, optional-chain,
@@ -47,10 +47,21 @@ pub(super) fn transform_es2020(options: &CompilerOptions) -> Box<dyn Transformer
     })
 }
 
+/// tsc-port: transformES2019 @6.0.3
+/// tsc-hash: 929becb4a2bc7973a7c0750516971f7a655363890cdddd825d00b53f37ee1e56
+/// tsc-span: _tsc.js:102907-102940
+pub(super) fn transform_es2019(options: &CompilerOptions) -> Box<dyn Transformer> {
+    Box::new(TargetTransformer {
+        target: options.emit_script_target(),
+        pass: TargetPass::Es2019,
+    })
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum TargetPass {
     Es2021,
     Es2020,
+    Es2019,
 }
 
 impl TargetPass {
@@ -58,6 +69,7 @@ impl TargetPass {
         match self {
             Self::Es2021 => "transformES2021",
             Self::Es2020 => "transformES2020",
+            Self::Es2019 => "transformES2019",
         }
     }
 
@@ -65,6 +77,7 @@ impl TargetPass {
         match self {
             Self::Es2021 => TransformFlags::CONTAINS_ES_2021,
             Self::Es2020 => TransformFlags::CONTAINS_ES_2020,
+            Self::Es2019 => TransformFlags::CONTAINS_ES_2019,
         }
     }
 
@@ -72,6 +85,7 @@ impl TargetPass {
         match self {
             Self::Es2021 => ScriptTarget::ES2021,
             Self::Es2020 => ScriptTarget::ES2020,
+            Self::Es2019 => ScriptTarget::ES2019,
         }
     }
 
@@ -81,13 +95,15 @@ impl TargetPass {
                 "H2.5b/H2.5c admit transformES2021 for the ES2019 and ES2020 target boundaries"
             }
             Self::Es2020 => "H2.5c admits transformES2020 for the ES2019 target boundary",
+            Self::Es2019 => "H2.5d admits transformES2019 for the ES2018 target boundary",
         }
     }
 
     fn is_final_for_target(self, target: ScriptTarget) -> bool {
         match self {
             Self::Es2021 => target >= ScriptTarget::ES2020,
-            Self::Es2020 => target < ScriptTarget::ES2020,
+            Self::Es2020 => target >= ScriptTarget::ES2019,
+            Self::Es2019 => target >= ScriptTarget::ES2018,
         }
     }
 }
@@ -103,7 +119,7 @@ impl Transformer for TargetTransformer {
     }
 
     fn initialize(&mut self, _context: &mut TransformationContext) -> Result<(), TransformError> {
-        if self.target < ScriptTarget::ES2019 || self.target >= self.pass.upper_target() {
+        if self.target < ScriptTarget::ES2018 || self.target >= self.pass.upper_target() {
             return Err(TransformError::UnsupportedCompilerOption {
                 option: self.pass.name(),
                 detail: self.pass.unsupported_detail(),
@@ -340,6 +356,9 @@ impl<'context> TargetVisitor<'context> {
             NodeData::DeleteExpression(data) if self.pass == TargetPass::Es2020 => {
                 Some(self.visit_delete_expression(original, data)?)
             }
+            NodeData::CatchClause(data) if self.pass == TargetPass::Es2019 => {
+                Some(self.visit_catch_clause(original, data)?)
+            }
             NodeData::FunctionDeclaration(data) => {
                 Some(self.visit_function_declaration(original, data)?)
             }
@@ -451,6 +470,22 @@ impl<'context> TargetVisitor<'context> {
         let result =
             self.create_binary(left, Self::non_assignment_operator(operator), assignment)?;
         Ok(self.set_original_and_range(result, original)?.node())
+    }
+
+    fn visit_catch_clause(
+        &mut self,
+        original: TransformNode,
+        mut data: tsc_syntax::nodes::CatchClauseData,
+    ) -> Result<NodeId, TransformError> {
+        data.variable_declaration = if let Some(variable) = data.variable_declaration {
+            self.visit(variable)?
+        } else {
+            let binding = self.allocate_local_binding()?;
+            let name = self.create_generated_identifier(&binding)?;
+            Some(self.create_variable_declaration(name, None)?.node())
+        };
+        data.block = self.visit_optional_node(data.block)?;
+        self.update_without_visit(original, NodeData::CatchClause(data))
     }
 
     fn stabilize_access_operand(
@@ -1179,65 +1214,71 @@ impl<'context> TargetVisitor<'context> {
         if !root && Self::is_function_scope_kind(record.kind) {
             return Ok(false);
         }
-        if self.pass == TargetPass::Es2020 {
-            if self.es2020_node_requires_hoisted_temp(node, &record)? {
-                return Ok(true);
-            }
-        } else if let NodeData::BinaryExpression(data) = &record.data {
-            let operator = data
-                .operator_token
-                .map(|operator| {
-                    self.context
-                        .arena()
-                        .node(self.node(operator))
-                        .map(|node| node.kind)
-                })
-                .transpose()?;
-            if operator.is_some_and(Self::is_logical_assignment) {
-                let left = data.left.map(|left| self.node(left)).ok_or(
-                    TransformError::RequiredChildRemoved {
-                        parent: SyntaxKind::BinaryExpression,
-                        field: "left",
-                    },
-                )?;
-                let left = self.skip_parentheses(left)?;
-                match &self.context.arena().node(left)?.data {
-                    NodeData::PropertyAccessExpression(access) => {
-                        let receiver = access
-                            .expression
-                            .map(|receiver| self.node(receiver))
-                            .ok_or(TransformError::RequiredChildRemoved {
-                                parent: SyntaxKind::PropertyAccessExpression,
-                                field: "expression",
-                            })?;
-                        if !self.is_simple_copiable_expression(receiver)? {
-                            return Ok(true);
-                        }
-                    }
-                    NodeData::ElementAccessExpression(access) => {
-                        let receiver = access
-                            .expression
-                            .map(|receiver| self.node(receiver))
-                            .ok_or(TransformError::RequiredChildRemoved {
-                                parent: SyntaxKind::ElementAccessExpression,
-                                field: "expression",
-                            })?;
-                        let argument = access
-                            .argument_expression
-                            .map(|argument| self.node(argument))
-                            .ok_or(TransformError::RequiredChildRemoved {
-                                parent: SyntaxKind::ElementAccessExpression,
-                                field: "argument_expression",
-                            })?;
-                        if !self.is_simple_copiable_expression(receiver)?
-                            || !self.is_simple_copiable_expression(argument)?
-                        {
-                            return Ok(true);
-                        }
-                    }
-                    _ => {}
+        match self.pass {
+            TargetPass::Es2020 => {
+                if self.es2020_node_requires_hoisted_temp(node, &record)? {
+                    return Ok(true);
                 }
             }
+            TargetPass::Es2021 => {
+                if let NodeData::BinaryExpression(data) = &record.data {
+                    let operator = data
+                        .operator_token
+                        .map(|operator| {
+                            self.context
+                                .arena()
+                                .node(self.node(operator))
+                                .map(|node| node.kind)
+                        })
+                        .transpose()?;
+                    if operator.is_some_and(Self::is_logical_assignment) {
+                        let left = data.left.map(|left| self.node(left)).ok_or(
+                            TransformError::RequiredChildRemoved {
+                                parent: SyntaxKind::BinaryExpression,
+                                field: "left",
+                            },
+                        )?;
+                        let left = self.skip_parentheses(left)?;
+                        match &self.context.arena().node(left)?.data {
+                            NodeData::PropertyAccessExpression(access) => {
+                                let receiver = access
+                                    .expression
+                                    .map(|receiver| self.node(receiver))
+                                    .ok_or(TransformError::RequiredChildRemoved {
+                                        parent: SyntaxKind::PropertyAccessExpression,
+                                        field: "expression",
+                                    })?;
+                                if !self.is_simple_copiable_expression(receiver)? {
+                                    return Ok(true);
+                                }
+                            }
+                            NodeData::ElementAccessExpression(access) => {
+                                let receiver = access
+                                    .expression
+                                    .map(|receiver| self.node(receiver))
+                                    .ok_or(TransformError::RequiredChildRemoved {
+                                        parent: SyntaxKind::ElementAccessExpression,
+                                        field: "expression",
+                                    })?;
+                                let argument = access
+                                    .argument_expression
+                                    .map(|argument| self.node(argument))
+                                    .ok_or(TransformError::RequiredChildRemoved {
+                                        parent: SyntaxKind::ElementAccessExpression,
+                                        field: "argument_expression",
+                                    })?;
+                                if !self.is_simple_copiable_expression(receiver)?
+                                    || !self.is_simple_copiable_expression(argument)?
+                                {
+                                    return Ok(true);
+                                }
+                            }
+                            _ => {}
+                        }
+                    }
+                }
+            }
+            TargetPass::Es2019 => {}
         }
         let syntax = self.context.arena().source(self.source)?.syntax();
         let mut children = Vec::new();

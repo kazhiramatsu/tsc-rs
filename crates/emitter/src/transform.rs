@@ -256,7 +256,7 @@ pub struct EmitHelper {
     name: Box<str>,
     scoped: bool,
     text: Option<Box<str>>,
-    priority: u8,
+    priority: Option<u8>,
     dependencies: Box<[EmitHelper]>,
 }
 
@@ -266,7 +266,7 @@ impl EmitHelper {
             name: name.into(),
             scoped,
             text: None,
-            priority: 0,
+            priority: None,
             dependencies: dependencies.into_boxed_slice(),
         }
     }
@@ -275,7 +275,7 @@ impl EmitHelper {
         name: impl Into<Box<str>>,
         scoped: bool,
         text: impl Into<Box<str>>,
-        priority: u8,
+        priority: Option<u8>,
         dependencies: Vec<EmitHelper>,
     ) -> Self {
         Self {
@@ -299,7 +299,7 @@ impl EmitHelper {
         self.text.as_deref()
     }
 
-    pub const fn priority(&self) -> u8 {
+    pub const fn priority(&self) -> Option<u8> {
         self.priority
     }
 

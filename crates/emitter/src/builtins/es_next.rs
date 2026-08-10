@@ -92,7 +92,7 @@ impl Transformer for EsNextTransformer {
     }
 
     fn initialize(&mut self, _context: &mut TransformationContext) -> Result<(), TransformError> {
-        if self.target < ScriptTarget::ES2019 || self.target >= ScriptTarget::ES_NEXT {
+        if self.target < ScriptTarget::ES2018 || self.target >= ScriptTarget::ES_NEXT {
             return Err(TransformError::UnsupportedCompilerOption {
                 option: "ESNext transform",
                 detail: "transformESNext is admitted only for the closed target band below ESNext",
@@ -170,6 +170,28 @@ struct TopLevelPlan {
     exported_variables: Vec<TransformNode>,
     export_equals: Option<TransformNode>,
     default_export_name: Option<String>,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+struct NamedEvaluationOutcome {
+    expression: TransformNode,
+    applied: bool,
+}
+
+impl NamedEvaluationOutcome {
+    const fn unchanged(expression: TransformNode) -> Self {
+        Self {
+            expression,
+            applied: false,
+        }
+    }
+
+    const fn applied(expression: TransformNode) -> Self {
+        Self {
+            expression,
+            applied: true,
+        }
+    }
 }
 
 struct EsNextVisitor<'context> {
@@ -1099,38 +1121,137 @@ impl<'context> EsNextVisitor<'context> {
         let Some(binding) = binding else {
             return Ok(initializer);
         };
-        if self.context.arena().node(self.node(binding))?.kind != SyntaxKind::Identifier {
+        let binding = self.node(binding);
+        let NodeData::Identifier(binding_data) = &self.context.arena().node(binding)?.data else {
             return Ok(initializer);
-        }
-        match self.context.arena().node(initializer)?.data.clone() {
-            NodeData::ClassExpression(mut data) if data.name.is_none() => {
-                data.name = Some(binding);
+        };
+        let assigned_name_text = binding_data.text.clone();
+        Ok(self
+            .apply_named_evaluation(initializer, &assigned_name_text)?
+            .expression)
+    }
+
+    fn apply_named_evaluation(
+        &mut self,
+        expression: TransformNode,
+        assigned_name_text: &str,
+    ) -> Result<NamedEvaluationOutcome, TransformError> {
+        match self.context.arena().node(expression)?.data.clone() {
+            NodeData::ParenthesizedExpression(mut data) => {
+                let inner = data
+                    .expression
+                    .and_then(|inner| self.context.arena().node_ref(self.source, inner))
+                    .ok_or(TransformError::RequiredChildRemoved {
+                        parent: SyntaxKind::ParenthesizedExpression,
+                        field: "expression",
+                    })?;
+                let outcome = self.apply_named_evaluation(inner, assigned_name_text)?;
+                if !outcome.applied {
+                    return Ok(NamedEvaluationOutcome::unchanged(expression));
+                }
+                data.expression = Some(outcome.expression.node());
+                let updated = self.update_named_evaluation_outer(
+                    expression,
+                    NodeData::ParenthesizedExpression(data),
+                )?;
+                Ok(NamedEvaluationOutcome::applied(updated))
+            }
+            NodeData::PartiallyEmittedExpression(mut data) => {
+                let inner = data
+                    .expression
+                    .and_then(|inner| self.context.arena().node_ref(self.source, inner))
+                    .ok_or(TransformError::RequiredChildRemoved {
+                        parent: SyntaxKind::PartiallyEmittedExpression,
+                        field: "expression",
+                    })?;
+                let outcome = self.apply_named_evaluation(inner, assigned_name_text)?;
+                if !outcome.applied {
+                    return Ok(NamedEvaluationOutcome::unchanged(expression));
+                }
+                data.expression = Some(outcome.expression.node());
+                let updated = self.update_named_evaluation_outer(
+                    expression,
+                    NodeData::PartiallyEmittedExpression(data),
+                )?;
+                Ok(NamedEvaluationOutcome::applied(updated))
+            }
+            NodeData::ClassExpression(mut data)
+                if data.name.is_none()
+                    && self
+                        .context
+                        .arena()
+                        .metadata(expression)
+                        .is_none_or(|metadata| metadata.assigned_name.is_none()) =>
+            {
+                let assigned_name = self.create_string_literal(assigned_name_text)?;
+                let this = self.create_this()?;
+                let call = self.create_set_function_name_call(this, assigned_name)?;
+                let statement = self.create_expression_statement(call)?;
+                let body = self.create_block(vec![statement], false)?;
+                let block = self.context.factory()?.create_node(
+                    self.source,
+                    NodeData::ClassStaticBlockDeclaration(
+                        tsc_syntax::nodes::ClassStaticBlockDeclarationData {
+                            body: Some(body.node()),
+                            modifiers: None,
+                        },
+                    ),
+                    TransformFlags::NONE,
+                )?;
+                self.context.arena_mut()?.metadata_mut(block).assigned_name = Some(assigned_name);
+                let mut members = self.array_nodes(data.members)?;
+                members.insert(0, block);
+                data.members = Some(
+                    self.context
+                        .factory()?
+                        .create_node_array(self.source, members)?
+                        .array(),
+                );
                 let flags = flags_after_update(
                     self.context.arena(),
-                    initializer,
+                    expression,
                     &NodeData::ClassExpression(data.clone()),
                 )?;
-                self.context.factory()?.update_node(
-                    initializer,
+                let class = self.context.factory()?.update_node(
+                    expression,
                     NodeData::ClassExpression(data),
                     flags,
-                )
-            }
-            NodeData::FunctionExpression(mut data) if data.name.is_none() => {
-                data.name = Some(binding);
-                let flags = flags_after_update(
-                    self.context.arena(),
-                    initializer,
-                    &NodeData::FunctionExpression(data.clone()),
                 )?;
-                self.context.factory()?.update_node(
-                    initializer,
-                    NodeData::FunctionExpression(data),
-                    flags,
-                )
+                self.context.arena_mut()?.metadata_mut(class).assigned_name = Some(assigned_name);
+                Ok(NamedEvaluationOutcome::applied(class))
             }
-            _ => Ok(initializer),
+            NodeData::FunctionExpression(data) if data.name.is_none() => {
+                let assigned_name = self.create_string_literal(assigned_name_text)?;
+                let call = self.create_set_function_name_call(expression, assigned_name)?;
+                Ok(NamedEvaluationOutcome::applied(call))
+            }
+            NodeData::ArrowFunction(_) => {
+                let assigned_name = self.create_string_literal(assigned_name_text)?;
+                let call = self.create_set_function_name_call(expression, assigned_name)?;
+                Ok(NamedEvaluationOutcome::applied(call))
+            }
+            _ => Ok(NamedEvaluationOutcome::unchanged(expression)),
         }
+    }
+
+    fn update_named_evaluation_outer(
+        &mut self,
+        original: TransformNode,
+        data: NodeData,
+    ) -> Result<TransformNode, TransformError> {
+        let flags = flags_after_update(self.context.arena(), original, &data)?;
+        self.context.factory()?.update_node(original, data, flags)
+    }
+
+    fn create_set_function_name_call(
+        &mut self,
+        value: TransformNode,
+        assigned_name: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        self.context
+            .request_emit_helper(super::helpers::set_function_name())?;
+        let helper = self.create_identifier("__setFunctionName")?;
+        self.create_call(helper, vec![value, assigned_name])
     }
 
     fn statements_mode(
@@ -1220,7 +1341,7 @@ impl<'context> EsNextVisitor<'context> {
             "typescript:addDisposableResource",
             false,
             ADD_DISPOSABLE_RESOURCE_HELPER_TEXT,
-            2,
+            None,
             Vec::new(),
         ))?;
         let helper = self.create_identifier("__addDisposableResource")?;
@@ -1236,7 +1357,7 @@ impl<'context> EsNextVisitor<'context> {
             "typescript:disposeResources",
             false,
             DISPOSE_RESOURCES_HELPER_TEXT,
-            2,
+            None,
             Vec::new(),
         ))?;
         let helper = self.create_identifier("__disposeResources")?;
@@ -1251,6 +1372,25 @@ impl<'context> EsNextVisitor<'context> {
                 text: text.to_owned(),
             }),
             TransformFlags::NONE,
+        )
+    }
+
+    fn create_string_literal(&mut self, text: &str) -> Result<TransformNode, TransformError> {
+        self.context.factory()?.create_node(
+            self.source,
+            NodeData::StringLiteral(tsc_syntax::nodes::StringLiteralData {
+                text: text.to_owned(),
+                has_extended_unicode_escape: None,
+            }),
+            TransformFlags::NONE,
+        )
+    }
+
+    fn create_this(&mut self) -> Result<TransformNode, TransformError> {
+        self.context.factory()?.create_token(
+            self.source,
+            SyntaxKind::ThisKeyword,
+            TransformFlags::CONTAINS_LEXICAL_THIS,
         )
     }
 

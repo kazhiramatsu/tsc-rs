@@ -263,12 +263,31 @@ impl<'a> CheckerState<'a> {
         crate::is_js_file_name(&self.binder.source_of_node(node).file_name)
     }
 
-    /// tsc resolveSymbol (49943) — the merge path's alias hop. Alias
-    /// resolution is resolveAlias (M4 5.1); until it lands, an alias
-    /// symbol resolves to itself. Constructible divergence: an
-    /// `import x = require(...)` alias in a SCRIPT file colliding with
-    /// another file's global — 5.1 replaces this identity hop.
+    /// tsc resolveSymbol (49943) — the merge path's declaration-local
+    /// alias hop. A namespace-export alias resolves to its source-file
+    /// module symbol without consulting the module-resolution host. This
+    /// matters while initializeTypeChecker is still assembling globals:
+    /// the module face carries ValueModule exclusions that make a later
+    /// `declare global` block-scoped declaration report the same conflict
+    /// as tsc.
     fn resolve_symbol_for_merge(&self, symbol: SymbolId) -> SymbolId {
+        if self
+            .binder
+            .symbol(symbol)
+            .flags
+            .intersects(SymbolFlags::ALIAS)
+        {
+            for &declaration in &self.binder.symbol(symbol).declarations {
+                if self.kind_of(declaration) != SyntaxKind::NamespaceExportDeclaration {
+                    continue;
+                }
+                if let Some(source_file) = self.parent_of(declaration) {
+                    if let Some(module_symbol) = self.binder.node_symbol(source_file) {
+                        return self.get_merged_symbol(module_symbol);
+                    }
+                }
+            }
+        }
         symbol
     }
 

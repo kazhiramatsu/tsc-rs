@@ -41,6 +41,20 @@ struct ParenthesizedNoAsiExpression {
     comment_anchor: TransformNode,
 }
 
+/// Parsed token boundaries retained by an optional-catch-binding rewrite.
+///
+/// ES2019 inserts a synthetic parenthesized binding between the parsed
+/// `catch` token and the parsed block. tsc advances that synthetic `(` from
+/// the end of `catch` through the original block's `{`, so comments attached
+/// to both token boundaries remain observable. Keeping those locations as a
+/// typed printer input avoids teaching the target transformer about trivia.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+struct OptionalCatchBindingTokenBoundaries {
+    source: TransformSourceId,
+    catch_keyword_end: u32,
+    block_open_brace_end: u32,
+}
+
 /// Source-leading comments separated from the first statement by a blank
 /// line are owned by the source-file boundary, not by whichever transformed
 /// statement eventually retains that source range.
@@ -655,7 +669,11 @@ impl Printer {
             Vec::new()
         } else {
             let mut helpers = transformation.emit_helpers().to_vec();
-            helpers.sort_by_key(|helper| helper.priority());
+            helpers.sort_by_key(|helper| {
+                helper
+                    .priority()
+                    .map_or((true, 0), |priority| (false, priority))
+            });
             helpers
         };
         let system_scoped_helpers = !helpers.is_empty()
@@ -2384,11 +2402,13 @@ impl Printer {
                     writer,
                 )?;
                 writer.write_punctuation(":");
-                self.emit_embedded_statement(
+                writer.write_space(" ");
+                self.emit_required_node(
                     transformation,
                     node.source(),
                     data.statement,
                     SyntaxKind::LabeledStatement,
+                    "statement",
                     writer,
                 )
             }
@@ -2495,17 +2515,37 @@ impl Printer {
             NodeData::TryStatement(data) => {
                 writer.write_keyword("try");
                 writer.write_space(" ");
+                let try_block = data
+                    .try_block
+                    .ok_or(PrinterError::MissingTransformedChild {
+                        parent: SyntaxKind::TryStatement,
+                        field: "try_block",
+                    })?;
                 self.emit_required_node(
                     transformation,
                     node.source(),
-                    data.try_block,
+                    Some(try_block),
                     SyntaxKind::TryStatement,
                     "try_block",
                     writer,
                 )?;
+                if data.catch_clause.is_some() || data.finally_block.is_some() {
+                    let try_block = transformation
+                        .arena()
+                        .node_ref(node.source(), try_block)
+                        .ok_or(PrinterError::UnknownStatement(try_block.0))?;
+                    self.emit_trailing_comments_for_node(transformation, try_block, writer)?;
+                }
                 if let Some(catch_clause) = data.catch_clause {
                     writer.write_line(false);
                     self.emit_node_id(transformation, node.source(), catch_clause, writer)?;
+                    if data.finally_block.is_some() {
+                        let catch_clause = transformation
+                            .arena()
+                            .node_ref(node.source(), catch_clause)
+                            .ok_or(PrinterError::UnknownStatement(catch_clause.0))?;
+                        self.emit_trailing_comments_for_node(transformation, catch_clause, writer)?;
+                    }
                 }
                 if let Some(finally_block) = data.finally_block {
                     writer.write_line(false);
@@ -2516,10 +2556,28 @@ impl Printer {
                 Ok(())
             }
             NodeData::CatchClause(data) => {
+                let optional_binding_boundaries =
+                    self.optional_catch_binding_token_boundaries(transformation, node, &data)?;
                 writer.write_keyword("catch");
+                if let Some(boundaries) = optional_binding_boundaries {
+                    self.emit_same_line_trailing_comments_at(
+                        transformation,
+                        boundaries.source,
+                        boundaries.catch_keyword_end,
+                        writer,
+                    )?;
+                }
                 writer.write_space(" ");
                 if let Some(variable) = data.variable_declaration {
                     writer.write_punctuation("(");
+                    if let Some(boundaries) = optional_binding_boundaries {
+                        self.emit_same_line_trailing_comments_at(
+                            transformation,
+                            boundaries.source,
+                            boundaries.block_open_brace_end,
+                            writer,
+                        )?;
+                    }
                     self.emit_node_id(transformation, node.source(), variable, writer)?;
                     writer.write_punctuation(")");
                     writer.write_space(" ");
@@ -2806,6 +2864,9 @@ impl Printer {
                     .transpose()?
                     .map(|array| array.nodes.clone())
                     .unwrap_or_default();
+                let multi_line = multi_line
+                    || (!statements.is_empty()
+                        && self.is_try_or_catch_body_block(transformation, node)?);
                 if statements.is_empty() {
                     let emitted_comments = self.emit_empty_block_comments(
                         transformation,
@@ -4239,6 +4300,104 @@ impl Printer {
         Ok(())
     }
 
+    fn optional_catch_binding_token_boundaries(
+        &self,
+        transformation: &TransformationResult<'_>,
+        node: TransformNode,
+        emitted: &tsc_syntax::nodes::CatchClauseData,
+    ) -> Result<Option<OptionalCatchBindingTokenBoundaries>, PrinterError> {
+        if emitted.variable_declaration.is_none() {
+            return Ok(None);
+        }
+        let original = transformation.arena().get_original_node(node);
+        let original_record = transformation.arena().node(original)?;
+        let NodeData::CatchClause(original_data) = &original_record.data else {
+            return Ok(None);
+        };
+        if original_data.variable_declaration.is_some() {
+            return Ok(None);
+        }
+        let Some(block) = original_data
+            .block
+            .and_then(|block| transformation.arena().node_ref(original.source(), block))
+        else {
+            return Ok(None);
+        };
+        let source = transformation.arena().source(original.source())?.syntax();
+        let SourceRange::Original(catch_range) =
+            SourceRange::from_raw(original_record.pos, original_record.end, source.positions())?
+        else {
+            return Ok(None);
+        };
+        let block_record = transformation.arena().node(block)?;
+        let SourceRange::Original(block_range) =
+            SourceRange::from_raw(block_record.pos, block_record.end, source.positions())?
+        else {
+            return Ok(None);
+        };
+
+        let mut catch_keyword_end = None;
+        let mut block_open_brace_end = None;
+        for token in scan_tokens(source.text(), source.language_variant) {
+            let start = source.positions().utf16_to_byte(token.start).ok_or(
+                PrinterError::TokenPositionNotScalarBoundary {
+                    position: token.start,
+                },
+            )?;
+            let end = source.positions().utf16_to_byte(token.end).ok_or(
+                PrinterError::TokenPositionNotScalarBoundary {
+                    position: token.end,
+                },
+            )?;
+            if catch_keyword_end.is_none()
+                && token.kind == SyntaxKind::CatchKeyword
+                && start >= catch_range.start().value()
+                && end <= catch_range.end().value()
+            {
+                catch_keyword_end = Some(end);
+            }
+            if block_open_brace_end.is_none()
+                && token.kind == SyntaxKind::OpenBraceToken
+                && start >= block_range.start().value()
+                && end <= block_range.end().value()
+            {
+                block_open_brace_end = Some(end);
+            }
+            if catch_keyword_end.is_some() && block_open_brace_end.is_some() {
+                break;
+            }
+        }
+
+        Ok(catch_keyword_end.zip(block_open_brace_end).map(
+            |(catch_keyword_end, block_open_brace_end)| OptionalCatchBindingTokenBoundaries {
+                source: original.source(),
+                catch_keyword_end,
+                block_open_brace_end,
+            },
+        ))
+    }
+
+    fn emit_same_line_trailing_comments_at(
+        &self,
+        transformation: &TransformationResult<'_>,
+        source: TransformSourceId,
+        position: u32,
+        writer: &mut TextWriter,
+    ) -> Result<(), PrinterError> {
+        if self.options.remove_comments {
+            return Ok(());
+        }
+        let text = transformation.arena().source(source)?.syntax().text();
+        let rest = text
+            .get(position as usize..)
+            .ok_or(PrinterError::InvalidTextSlice {
+                start: position,
+                end: u32::try_from(text.len()).unwrap_or(u32::MAX),
+            })?;
+        emit_same_line_trailing_comments(rest, writer);
+        Ok(())
+    }
+
     fn emit_trailing_block_comments_before_semicolon(
         &self,
         transformation: &TransformationResult<'_>,
@@ -4461,6 +4620,25 @@ impl Printer {
                 | SyntaxKind::SetAccessor
                 | SyntaxKind::Constructor
                 | SyntaxKind::ClassStaticBlockDeclaration
+        ))
+    }
+
+    fn is_try_or_catch_body_block(
+        &self,
+        transformation: &TransformationResult<'_>,
+        node: TransformNode,
+    ) -> Result<bool, PrinterError> {
+        let original = transformation.arena().get_original_node(node);
+        let Some(parent) = transformation.arena().node(original)?.parent else {
+            return Ok(false);
+        };
+        let parent = transformation
+            .arena()
+            .node_ref(original.source(), parent)
+            .ok_or(PrinterError::UnknownStatement(parent.0))?;
+        Ok(matches!(
+            transformation.arena().node(parent)?.kind,
+            SyntaxKind::TryStatement | SyntaxKind::CatchClause
         ))
     }
 

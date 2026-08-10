@@ -19,6 +19,7 @@ const H2_4B_QUALIFICATION_RELATIVE_PATH: &str = "ratchets/h2-4b-qualification.v1
 const H2_5A_QUALIFICATION_RELATIVE_PATH: &str = "ratchets/h2-5a-qualification.v1.json";
 const H2_5B_QUALIFICATION_RELATIVE_PATH: &str = "ratchets/h2-5b-qualification.v1.json";
 const H2_5C_QUALIFICATION_RELATIVE_PATH: &str = "ratchets/h2-5c-qualification.v1.json";
+const H2_5D_QUALIFICATION_RELATIVE_PATH: &str = "ratchets/h2-5d-qualification.v1.json";
 
 #[derive(Clone, Copy)]
 enum AcceptanceSlice {
@@ -28,6 +29,7 @@ enum AcceptanceSlice {
     H2_5a,
     H2_5b,
     H2_5c,
+    H2_5d,
 }
 
 impl AcceptanceSlice {
@@ -39,6 +41,7 @@ impl AcceptanceSlice {
             Self::H2_5a => "H2.5a",
             Self::H2_5b => "H2.5b",
             Self::H2_5c => "H2.5c",
+            Self::H2_5d => "H2.5d",
         }
     }
 }
@@ -450,7 +453,7 @@ fn execute_slice_observed(
         .map(|value| value.eq_ignore_ascii_case("false"))
         .unwrap_or(matches!(
             case["target_state"].as_str(),
-            Some("ES2019(6)" | "ES2020(7)" | "ES2021(8)")
+            Some("ES2018(5)" | "ES2019(6)" | "ES2020(7)" | "ES2021(8)")
         ));
     let javascript_sources = case["files"]
         .as_array()
@@ -565,6 +568,7 @@ fn execute_slice_observed(
                     | AcceptanceSlice::H2_5a
                     | AcceptanceSlice::H2_5b
                     | AcceptanceSlice::H2_5c
+                    | AcceptanceSlice::H2_5d
             ) {
                 legacy_decorator_sources
             } else {
@@ -579,12 +583,17 @@ fn execute_slice_observed(
                 AcceptanceSlice::H2_5b => standard_decorator_sources,
                 AcceptanceSlice::H2_5c if assignment_field_mode => reached_sources,
                 AcceptanceSlice::H2_5c => standard_decorator_sources,
+                AcceptanceSlice::H2_5d if assignment_field_mode => reached_sources,
+                AcceptanceSlice::H2_5d => standard_decorator_sources,
                 AcceptanceSlice::H2_2c | AcceptanceSlice::H2_4a => 0,
             }
         || activity.runtime_slice(H2RuntimeSlice::H2_5a)
             != if matches!(
                 accepted_slice,
-                AcceptanceSlice::H2_5a | AcceptanceSlice::H2_5b | AcceptanceSlice::H2_5c
+                AcceptanceSlice::H2_5a
+                    | AcceptanceSlice::H2_5b
+                    | AcceptanceSlice::H2_5c
+                    | AcceptanceSlice::H2_5d
             ) {
                 reached_sources
             } else {
@@ -593,21 +602,30 @@ fn execute_slice_observed(
         || activity.runtime_slice(H2RuntimeSlice::H2_5b)
             != if matches!(
                 accepted_slice,
-                AcceptanceSlice::H2_5b | AcceptanceSlice::H2_5c
+                AcceptanceSlice::H2_5b | AcceptanceSlice::H2_5c | AcceptanceSlice::H2_5d
             ) {
                 reached_sources
             } else {
                 0
             }
         || activity.runtime_slice(H2RuntimeSlice::H2_5c)
-            != if matches!(accepted_slice, AcceptanceSlice::H2_5c) {
+            != if matches!(
+                accepted_slice,
+                AcceptanceSlice::H2_5c | AcceptanceSlice::H2_5d
+            ) {
+                reached_sources
+            } else {
+                0
+            }
+        || activity.runtime_slice(H2RuntimeSlice::H2_5d)
+            != if matches!(accepted_slice, AcceptanceSlice::H2_5d) {
                 reached_sources
             } else {
                 0
             }
     {
         return Err(failure(format!(
-            "{case_id}: {} activity does not match {reached_sources} reached, {preserve_sources} preserve, {node_format_sources} node-format, {enum_sources} enum, {namespace_sources} namespace, {parameter_property_sources} parameter-property, {import_export_equals_sources} import/export-equals, {javascript_sources} JavaScript, {jsx_sources} JSX, {automatic_jsx_sources} automatic-JSX, {json_sources} JSON, and {decorator_sources} decorator sources: actual H2.1a={} H2.1b={} H2.1c={} H2.1d={} H2.1e={} H2.2a={} H2.2b={} H2.2c={} H2.2d={} H2.3a={} H2.3b={} H2.3c={} H2.3d={} H2.4a={} H2.4b={} H2.5a={} H2.5b={} H2.5c={}",
+            "{case_id}: {} activity does not match {reached_sources} reached, {preserve_sources} preserve, {node_format_sources} node-format, {enum_sources} enum, {namespace_sources} namespace, {parameter_property_sources} parameter-property, {import_export_equals_sources} import/export-equals, {javascript_sources} JavaScript, {jsx_sources} JSX, {automatic_jsx_sources} automatic-JSX, {json_sources} JSON, and {decorator_sources} decorator sources: actual H2.1a={} H2.1b={} H2.1c={} H2.1d={} H2.1e={} H2.2a={} H2.2b={} H2.2c={} H2.2d={} H2.3a={} H2.3b={} H2.3c={} H2.3d={} H2.4a={} H2.4b={} H2.5a={} H2.5b={} H2.5c={} H2.5d={}",
             accepted_slice.label(),
             activity.runtime_slice(H2RuntimeSlice::H2_1a),
             activity.runtime_slice(H2RuntimeSlice::H2_1b),
@@ -627,6 +645,7 @@ fn execute_slice_observed(
             activity.runtime_slice(H2RuntimeSlice::H2_5a),
             activity.runtime_slice(H2RuntimeSlice::H2_5b),
             activity.runtime_slice(H2RuntimeSlice::H2_5c),
+            activity.runtime_slice(H2RuntimeSlice::H2_5d),
         )));
     }
     for slice in H2RuntimeSlice::ALL {
@@ -650,6 +669,7 @@ fn execute_slice_observed(
                 | H2RuntimeSlice::H2_5a
                 | H2RuntimeSlice::H2_5b
                 | H2RuntimeSlice::H2_5c
+                | H2RuntimeSlice::H2_5d
         ) && activity.runtime_slice(slice) != 0
         {
             return Err(failure(format!(
@@ -698,6 +718,13 @@ fn execute_h2_5c_observed(
     case: &Value,
 ) -> Result<(usize, usize), Box<dyn Error>> {
     execute_slice_observed(workspace, case, AcceptanceSlice::H2_5c)
+}
+
+fn execute_h2_5d_observed(
+    workspace: &Path,
+    case: &Value,
+) -> Result<(usize, usize), Box<dyn Error>> {
+    execute_slice_observed(workspace, case, AcceptanceSlice::H2_5d)
 }
 
 fn expected_node_format_sources(case: &Value) -> Result<u64, Box<dyn Error>> {
@@ -1154,6 +1181,77 @@ pub fn run_h2_5c(workspace: &Path) -> Result<(), Box<dyn Error>> {
     }
     println!(
         "H2.5c emit acceptance: candidates=15 exact={admitted} h2_9_deferred={h2_9_deferred} exact_diagnostics={diagnostics} exact_writes={writes} repetitions=2"
+    );
+    Ok(())
+}
+
+/// Execute every dependency-closed H2.5d ES2018 target row twice and retain
+/// only the explicitly owned parser/recovery deferral.
+pub fn run_h2_5d(workspace: &Path) -> Result<(), Box<dyn Error>> {
+    let artifact: Value = serde_json::from_slice(&fs::read(
+        workspace.join(H2_5D_QUALIFICATION_RELATIVE_PATH),
+    )?)?;
+    if artifact["schema"] != 1
+        || artifact["status"] != "qualified-typescript-oracle"
+        || artifact["phase"] != "H2.5d-es2019-target"
+        || artifact["selection_contract"]["global_h2_5d_rows"] != 45
+        || artifact["selection_contract"]["global_candidate_denominator"] != 24
+        || artifact["selection_contract"]["candidate_denominator"] != 24
+        || artifact["selection_contract"]["future_deferred_rows"] != 21
+        || artifact["summary"]["candidates"] != 24
+        || artifact["summary"]["admitted_cases"] != 23
+        || artifact["summary"]["deferred_cases"] != 1
+        || artifact["summary"]["source_deferred_cases"] != 1
+        || artifact["summary"]["admitted_typescript_writes"] != 57
+        || artifact["summary"]["admitted_typescript_diagnostics"] != 47
+        || artifact["summary"]["unexecuted_candidates"] != 0
+        || artifact["summary"]["undispositioned_candidates"] != 0
+        || artifact["owner_closure"]
+            .as_array()
+            .is_none_or(|owners| owners.len() != 1 || owners[0]["key"] != "transform-es2019")
+    {
+        return Err(failure("H2.5d qualification header is not closed"));
+    }
+    let cases = array(&artifact, "cases")?;
+    if cases.len() != 24 {
+        return Err(failure("H2.5d qualification case denominator changed"));
+    }
+    let mut admitted = 0;
+    let mut h2_9_deferred = 0;
+    let mut writes = 0;
+    let mut diagnostics = 0;
+    for case in cases {
+        match string(case, "disposition")? {
+            "admitted-for-execution" => {
+                admitted += 1;
+                let (case_writes, case_diagnostics) = execute_h2_5d_observed(workspace, case)?;
+                writes += case_writes;
+                diagnostics += case_diagnostics;
+            }
+            "deferred-to-slices"
+                if case["required_slices"]
+                    .as_array()
+                    .is_some_and(|slices| slices.len() == 1 && slices[0] == "H2.9")
+                    && case["diagnostic_disposition"]["state"]
+                        == "not-observed-source-deferred" =>
+            {
+                h2_9_deferred += 1;
+            }
+            disposition => {
+                return Err(failure(format!(
+                    "unknown H2.5d disposition {disposition} for {}",
+                    string(case, "case_id")?,
+                )))
+            }
+        }
+    }
+    if admitted != 23 || h2_9_deferred != 1 || writes != 57 || diagnostics != 47 {
+        return Err(failure(format!(
+            "H2.5d execution totals differ: admitted={admitted} h2_9_deferred={h2_9_deferred} writes={writes} diagnostics={diagnostics}"
+        )));
+    }
+    println!(
+        "H2.5d emit acceptance: candidates=24 exact={admitted} h2_9_deferred={h2_9_deferred} exact_diagnostics={diagnostics} exact_writes={writes} repetitions=2"
     );
     Ok(())
 }
