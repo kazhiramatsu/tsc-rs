@@ -16,12 +16,14 @@ use tsc_program::ProgramLoadLimits;
 const QUALIFICATION_RELATIVE_PATH: &str = "ratchets/h2-2c-qualification.v1.json";
 const H2_4A_QUALIFICATION_RELATIVE_PATH: &str = "ratchets/h2-4a-qualification.v1.json";
 const H2_4B_QUALIFICATION_RELATIVE_PATH: &str = "ratchets/h2-4b-qualification.v1.json";
+const H2_5A_QUALIFICATION_RELATIVE_PATH: &str = "ratchets/h2-5a-qualification.v1.json";
 
 #[derive(Clone, Copy)]
 enum AcceptanceSlice {
     H2_2c,
     H2_4a,
     H2_4b,
+    H2_5a,
 }
 
 impl AcceptanceSlice {
@@ -30,6 +32,7 @@ impl AcceptanceSlice {
             Self::H2_2c => "H2.2c",
             Self::H2_4a => "H2.4a",
             Self::H2_4b => "H2.4b",
+            Self::H2_5a => "H2.5a",
         }
     }
 }
@@ -366,6 +369,25 @@ fn execute_slice_observed(
                 .count() as u64
         })
         .unwrap_or(0);
+    let import_export_equals_sources = case["files"]
+        .as_array()
+        .map(|files| {
+            files
+                .iter()
+                .filter(|file| {
+                    file["emit_eligible"] == true
+                        && file["feature_roots"].as_array().is_some_and(|roots| {
+                            roots.iter().any(|root| {
+                                matches!(
+                                    root["feature"].as_str(),
+                                    Some("import-equals" | "export-equals")
+                                )
+                            })
+                        })
+                })
+                .count() as u64
+        })
+        .unwrap_or(0);
     let decorator_sources = case["files"]
         .as_array()
         .map(|files| {
@@ -392,6 +414,65 @@ fn execute_slice_observed(
     } else {
         0
     };
+    let standard_decorator_sources = decorator_sources - legacy_decorator_sources;
+    let assignment_field_mode = array(&case["input"], "settings")?
+        .iter()
+        .find(|setting| {
+            setting["name"]
+                .as_str()
+                .is_some_and(|name| name.eq_ignore_ascii_case("useDefineForClassFields"))
+        })
+        .and_then(|setting| setting["value"].as_str())
+        .map(|value| value.eq_ignore_ascii_case("false"))
+        .unwrap_or(case["target_state"] == "ES2021(8)");
+    let javascript_sources = case["files"]
+        .as_array()
+        .map(|files| {
+            files
+                .iter()
+                .filter(|file| {
+                    file["emit_eligible"] == true
+                        && matches!(file["script_kind"].as_str(), Some("JS" | "JSX"))
+                })
+                .count() as u64
+        })
+        .unwrap_or(0);
+    let jsx_sources = case["files"]
+        .as_array()
+        .map(|files| {
+            files
+                .iter()
+                .filter(|file| {
+                    file["emit_eligible"] == true
+                        && matches!(file["script_kind"].as_str(), Some("TSX" | "JSX"))
+                })
+                .count() as u64
+        })
+        .unwrap_or(0);
+    let automatic_jsx_sources = if array(&case["input"], "settings")?.iter().any(|setting| {
+        setting["name"]
+            .as_str()
+            .is_some_and(|name| name.eq_ignore_ascii_case("jsx"))
+            && setting["value"].as_str().is_some_and(|value| {
+                matches!(
+                    value.to_ascii_lowercase().as_str(),
+                    "react-jsx" | "react-jsxdev"
+                )
+            })
+    }) {
+        jsx_sources
+    } else {
+        0
+    };
+    let json_sources = case["files"]
+        .as_array()
+        .map(|files| {
+            files
+                .iter()
+                .filter(|file| file["emit_eligible"] == true && file["script_kind"] == "JSON")
+                .count() as u64
+        })
+        .unwrap_or(0);
     let transform_module_sources = case["files"]
         .as_array()
         .map(|files| {
@@ -434,24 +515,36 @@ fn execute_slice_observed(
         || activity.runtime_slice(H2RuntimeSlice::H2_2a) != enum_sources
         || activity.runtime_slice(H2RuntimeSlice::H2_2b) != namespace_sources
         || activity.runtime_slice(H2RuntimeSlice::H2_2c) != parameter_property_sources
+        || activity.runtime_slice(H2RuntimeSlice::H2_2d) != import_export_equals_sources
+        || activity.runtime_slice(H2RuntimeSlice::H2_3a) != javascript_sources
+        || activity.runtime_slice(H2RuntimeSlice::H2_3b) != jsx_sources
+        || activity.runtime_slice(H2RuntimeSlice::H2_3c) != automatic_jsx_sources
+        || activity.runtime_slice(H2RuntimeSlice::H2_3d) != json_sources
         || activity.runtime_slice(H2RuntimeSlice::H2_4a)
             != if matches!(
                 accepted_slice,
-                AcceptanceSlice::H2_4a | AcceptanceSlice::H2_4b
+                AcceptanceSlice::H2_4a | AcceptanceSlice::H2_4b | AcceptanceSlice::H2_5a
             ) {
                 legacy_decorator_sources
             } else {
                 0
             }
         || activity.runtime_slice(H2RuntimeSlice::H2_4b)
-            != if matches!(accepted_slice, AcceptanceSlice::H2_4b) {
+            != match accepted_slice {
+                AcceptanceSlice::H2_4b => reached_sources,
+                AcceptanceSlice::H2_5a if assignment_field_mode => reached_sources,
+                AcceptanceSlice::H2_5a => standard_decorator_sources,
+                AcceptanceSlice::H2_2c | AcceptanceSlice::H2_4a => 0,
+            }
+        || activity.runtime_slice(H2RuntimeSlice::H2_5a)
+            != if matches!(accepted_slice, AcceptanceSlice::H2_5a) {
                 reached_sources
             } else {
                 0
             }
     {
         return Err(failure(format!(
-            "{case_id}: {} activity does not match {reached_sources} reached, {node_format_sources} node-format, {enum_sources} enum, {namespace_sources} namespace, {parameter_property_sources} parameter-property, and {decorator_sources} decorator sources: actual H2.1a={} H2.1b={} H2.1c={} H2.1d={} H2.1e={} H2.2a={} H2.2b={} H2.2c={} H2.4a={} H2.4b={}",
+            "{case_id}: {} activity does not match {reached_sources} reached, {node_format_sources} node-format, {enum_sources} enum, {namespace_sources} namespace, {parameter_property_sources} parameter-property, {import_export_equals_sources} import/export-equals, {javascript_sources} JavaScript, {jsx_sources} JSX, {automatic_jsx_sources} automatic-JSX, {json_sources} JSON, and {decorator_sources} decorator sources: actual H2.1a={} H2.1b={} H2.1c={} H2.1d={} H2.1e={} H2.2a={} H2.2b={} H2.2c={} H2.2d={} H2.3a={} H2.3b={} H2.3c={} H2.3d={} H2.4a={} H2.4b={} H2.5a={}",
             accepted_slice.label(),
             activity.runtime_slice(H2RuntimeSlice::H2_1a),
             activity.runtime_slice(H2RuntimeSlice::H2_1b),
@@ -461,8 +554,14 @@ fn execute_slice_observed(
             activity.runtime_slice(H2RuntimeSlice::H2_2a),
             activity.runtime_slice(H2RuntimeSlice::H2_2b),
             activity.runtime_slice(H2RuntimeSlice::H2_2c),
+            activity.runtime_slice(H2RuntimeSlice::H2_2d),
+            activity.runtime_slice(H2RuntimeSlice::H2_3a),
+            activity.runtime_slice(H2RuntimeSlice::H2_3b),
+            activity.runtime_slice(H2RuntimeSlice::H2_3c),
+            activity.runtime_slice(H2RuntimeSlice::H2_3d),
             activity.runtime_slice(H2RuntimeSlice::H2_4a),
             activity.runtime_slice(H2RuntimeSlice::H2_4b),
+            activity.runtime_slice(H2RuntimeSlice::H2_5a),
         )));
     }
     for slice in H2RuntimeSlice::ALL {
@@ -476,8 +575,14 @@ fn execute_slice_observed(
                 | H2RuntimeSlice::H2_2a
                 | H2RuntimeSlice::H2_2b
                 | H2RuntimeSlice::H2_2c
+                | H2RuntimeSlice::H2_2d
+                | H2RuntimeSlice::H2_3a
+                | H2RuntimeSlice::H2_3b
+                | H2RuntimeSlice::H2_3c
+                | H2RuntimeSlice::H2_3d
                 | H2RuntimeSlice::H2_4a
                 | H2RuntimeSlice::H2_4b
+                | H2RuntimeSlice::H2_5a
         ) && activity.runtime_slice(slice) != 0
         {
             return Err(failure(format!(
@@ -505,6 +610,13 @@ fn execute_h2_4b_observed(
     case: &Value,
 ) -> Result<(usize, usize), Box<dyn Error>> {
     execute_slice_observed(workspace, case, AcceptanceSlice::H2_4b)
+}
+
+fn execute_h2_5a_observed(
+    workspace: &Path,
+    case: &Value,
+) -> Result<(usize, usize), Box<dyn Error>> {
+    execute_slice_observed(workspace, case, AcceptanceSlice::H2_5a)
 }
 
 fn expected_node_format_sources(case: &Value) -> Result<u64, Box<dyn Error>> {
@@ -733,6 +845,92 @@ pub fn run_h2_4b(workspace: &Path) -> Result<(), Box<dyn Error>> {
     }
     println!(
         "H2.4b emit acceptance: candidates=44 exact={admitted} source_deferred={source_deferred} exact_diagnostics={diagnostics} exact_writes={writes} repetitions=2"
+    );
+    Ok(())
+}
+
+/// Execute every dependency-closed H2.5a target row twice and retain only the
+/// explicitly owned parser/recovery and general comment-placement deferrals.
+pub fn run_h2_5a(workspace: &Path) -> Result<(), Box<dyn Error>> {
+    let artifact: Value = serde_json::from_slice(&fs::read(
+        workspace.join(H2_5A_QUALIFICATION_RELATIVE_PATH),
+    )?)?;
+    if artifact["schema"] != 1
+        || artifact["status"] != "qualified-typescript-oracle"
+        || artifact["phase"] != "H2.5a-esnext-target"
+        || artifact["selection_contract"]["global_h2_5a_rows"] != 634
+        || artifact["selection_contract"]["global_candidate_denominator"] != 172
+        || artifact["selection_contract"]["candidate_denominator"] != 172
+        || artifact["selection_contract"]["future_deferred_rows"] != 462
+        || artifact["summary"]["candidates"] != 172
+        || artifact["summary"]["admitted_cases"] != 167
+        || artifact["summary"]["deferred_cases"] != 5
+        || artifact["summary"]["source_deferred_cases"] != 5
+        || artifact["summary"]["admitted_typescript_writes"] != 287
+        || artifact["summary"]["admitted_typescript_diagnostics"] != 335
+        || artifact["summary"]["unexecuted_candidates"] != 0
+        || artifact["summary"]["undispositioned_candidates"] != 0
+        || artifact["owner_closure"]
+            .as_array()
+            .is_none_or(|owners| owners.len() != 1 || owners[0]["key"] != "transform-esnext")
+    {
+        return Err(failure("H2.5a qualification header is not closed"));
+    }
+    let cases = array(&artifact, "cases")?;
+    if cases.len() != 172 {
+        return Err(failure("H2.5a qualification case denominator changed"));
+    }
+    let mut admitted = 0;
+    let mut h2_8a_deferred = 0;
+    let mut h2_9_deferred = 0;
+    let mut writes = 0;
+    let mut diagnostics = 0;
+    for case in cases {
+        match string(case, "disposition")? {
+            "admitted-for-execution" => {
+                admitted += 1;
+                let (case_writes, case_diagnostics) = execute_h2_5a_observed(workspace, case)?;
+                writes += case_writes;
+                diagnostics += case_diagnostics;
+            }
+            "deferred-to-slices"
+                if case["required_slices"]
+                    .as_array()
+                    .is_some_and(|slices| slices.len() == 1)
+                    && case["diagnostic_disposition"]["state"]
+                        == "not-observed-source-deferred" =>
+            {
+                match case["required_slices"][0].as_str() {
+                    Some("H2.8a") => h2_8a_deferred += 1,
+                    Some("H2.9") => h2_9_deferred += 1,
+                    _ => {
+                        return Err(failure(format!(
+                            "unknown H2.5a deferred owner for {}",
+                            string(case, "case_id")?,
+                        )))
+                    }
+                }
+            }
+            disposition => {
+                return Err(failure(format!(
+                    "unknown H2.5a disposition {disposition} for {}",
+                    string(case, "case_id")?,
+                )))
+            }
+        }
+    }
+    if admitted != 167
+        || h2_8a_deferred != 1
+        || h2_9_deferred != 4
+        || writes != 287
+        || diagnostics != 335
+    {
+        return Err(failure(format!(
+            "H2.5a execution totals differ: admitted={admitted} h2_8a_deferred={h2_8a_deferred} h2_9_deferred={h2_9_deferred} writes={writes} diagnostics={diagnostics}"
+        )));
+    }
+    println!(
+        "H2.5a emit acceptance: candidates=172 exact={admitted} h2_8a_deferred={h2_8a_deferred} h2_9_deferred={h2_9_deferred} exact_diagnostics={diagnostics} exact_writes={writes} repetitions=2"
     );
     Ok(())
 }

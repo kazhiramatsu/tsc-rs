@@ -72,6 +72,8 @@ fn main() {
         Some("oracle-refresh") => run_or_exit(oracle_refresh(args)),
         Some("goldens-diff") => run_or_exit(goldens_diff(args)),
         Some("acceptance") => run_or_exit(acceptance(args)),
+        Some("h2-5a-acceptance") => run_or_exit(h2_5a_acceptance(args)),
+        Some("h2-5a-owner-controls") => run_or_exit(h2_5a_owner_controls(args)),
         Some("conformance") => run_or_exit(conformance(args)),
         Some("conformance-diff") => run_or_exit(conformance_diff(args)),
         Some("slice-evidence") => run_or_exit(slice_evidence::run(args)),
@@ -4299,7 +4301,25 @@ fn acceptance(mut args: impl Iterator<Item = String>) -> Result<(), Box<dyn Erro
     h2_2c_acceptance::run_h2_4a(&workspace)?;
     h2_3d_acceptance::run_h2_4a_owner_controls(&workspace)?;
     h2_2c_acceptance::run_h2_4b(&workspace)?;
-    h2_3d_acceptance::run_h2_4b_owner_controls(&workspace)
+    h2_3d_acceptance::run_h2_4b_owner_controls(&workspace)?;
+    h2_2c_acceptance::run_h2_5a(&workspace)?;
+    h2_3d_acceptance::run_h2_5a_owner_controls(&workspace)
+}
+
+fn h2_5a_acceptance(mut args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
+    if let Some(argument) = args.next() {
+        return Err(format!("unexpected h2-5a-acceptance argument: {argument}").into());
+    }
+    let workspace = find_workspace_root()?;
+    h2_2c_acceptance::run_h2_5a(&workspace)?;
+    h2_3d_acceptance::run_h2_5a_owner_controls(&workspace)
+}
+
+fn h2_5a_owner_controls(mut args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
+    if let Some(argument) = args.next() {
+        return Err(format!("unexpected h2-5a-owner-controls argument: {argument}").into());
+    }
+    h2_3d_acceptance::run_h2_5a_owner_controls(&find_workspace_root()?)
 }
 
 fn conformance(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
@@ -8125,8 +8145,8 @@ fn ci_oracle_gates(workspace: &Path) -> Result<(), Box<dyn Error>> {
     )?;
     let h2_3d_profile = workspace.join("crates/oracle/h2-3d-profile.mjs");
     run_command(Command::new("node").arg("--check").arg(&h2_3d_profile))?;
-    // H2.3d and H2.4a are immutable lineage now that H2.4b owns current
-    // runtime freshness. The H2.4b qualification/profile pin their exact
+    // H2.3d through H2.4b are immutable lineage now that H2.5a owns current
+    // runtime freshness. The H2.5a qualification/profile pin their exact
     // authority bytes; regenerating them would reinterpret reviewed slices.
     let h2_4a_qualification = workspace.join("crates/oracle/h2-4a-qualification.mjs");
     run_command(
@@ -8148,30 +8168,44 @@ fn ci_oracle_gates(workspace: &Path) -> Result<(), Box<dyn Error>> {
             .arg("--check")
             .arg(&h2_4b_qualification),
     )?;
-    run_command(
-        Command::new("node")
-            .current_dir(workspace)
-            .arg(&h2_4b_qualification)
-            .arg("--check"),
-    )?;
     let h2_4b_owner_controls = workspace.join("crates/oracle/h2-4b-owner-controls.mjs");
     run_command(
         Command::new("node")
             .arg("--check")
             .arg(&h2_4b_owner_controls),
     )?;
-    run_command(
-        Command::new("node")
-            .current_dir(workspace)
-            .arg(&h2_4b_owner_controls)
-            .arg("--check"),
-    )?;
     let h2_4b_profile = workspace.join("crates/oracle/h2-4b-profile.mjs");
     run_command(Command::new("node").arg("--check").arg(&h2_4b_profile))?;
+    let h2_5a_qualification = workspace.join("crates/oracle/h2-5a-qualification.mjs");
+    run_command(
+        Command::new("node")
+            .arg("--check")
+            .arg(&h2_5a_qualification),
+    )?;
     run_command(
         Command::new("node")
             .current_dir(workspace)
-            .arg(&h2_4b_profile)
+            .arg(&h2_5a_qualification)
+            .arg("--check"),
+    )?;
+    let h2_5a_owner_controls = workspace.join("crates/oracle/h2-5a-owner-controls.mjs");
+    run_command(
+        Command::new("node")
+            .arg("--check")
+            .arg(&h2_5a_owner_controls),
+    )?;
+    run_command(
+        Command::new("node")
+            .current_dir(workspace)
+            .arg(&h2_5a_owner_controls)
+            .arg("--check"),
+    )?;
+    let h2_5a_profile = workspace.join("crates/oracle/h2-5a-profile.mjs");
+    run_command(Command::new("node").arg("--check").arg(&h2_5a_profile))?;
+    run_command(
+        Command::new("node")
+            .current_dir(workspace)
+            .arg(&h2_5a_profile)
             .arg("--check"),
     )?;
     let h1_rust_omissions = workspace.join("crates/oracle/h1-rust-omission-inventory.mjs");

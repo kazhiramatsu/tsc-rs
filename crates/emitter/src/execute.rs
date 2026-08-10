@@ -14,6 +14,9 @@ const MODULE_COMMON_JS: i32 = 1;
 const MODULE_AMD: i32 = 2;
 const MODULE_UMD: i32 = 3;
 const MODULE_SYSTEM: i32 = 4;
+const MODULE_ES2015: i32 = 5;
+const MODULE_ES2020: i32 = 6;
+const MODULE_ES2022: i32 = 7;
 const MODULE_ES_NEXT: i32 = 99;
 const MODULE_NODE16: i32 = 100;
 const MODULE_NODE18: i32 = 101;
@@ -65,7 +68,8 @@ impl EmitDiagnosticGate {
 /// Reject every effective option outside the frozen JavaScript-only bootstrap
 /// before output planning, checker-to-emitter borrowing, or sink dispatch.
 pub fn validate_bootstrap_emit_options(options: &CompilerOptions) -> Result<(), EmitFailure> {
-    if options.emit_script_target() != ScriptTarget::ES_NEXT {
+    let target = options.emit_script_target();
+    if target < ScriptTarget::ES2021 || target > ScriptTarget::ES_NEXT {
         return unsupported("target");
     }
     if !matches!(
@@ -76,6 +80,9 @@ pub fn validate_bootstrap_emit_options(options: &CompilerOptions) -> Result<(), 
             | MODULE_AMD
             | MODULE_UMD
             | MODULE_SYSTEM
+            | MODULE_ES2015
+            | MODULE_ES2020
+            | MODULE_ES2022
             | MODULE_NODE16
             | MODULE_NODE18
             | MODULE_NODE20
@@ -281,7 +288,7 @@ pub fn emit_files(
     diagnostic_gate: &EmitDiagnosticGate,
     sink: &mut dyn OutputSink,
 ) -> Result<EmitOutcome, EmitFailure> {
-    let mut activity = H2ActivityCanary::h2_4b_profile();
+    let mut activity = H2ActivityCanary::h2_5a_profile();
     activity.construct_emit_session();
     activity.construct_output_plan();
     if !preflight.plan().units().is_empty() {

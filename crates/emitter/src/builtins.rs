@@ -18,6 +18,9 @@ const MODULE_COMMON_JS: i32 = 1;
 const MODULE_AMD: i32 = 2;
 const MODULE_UMD: i32 = 3;
 const MODULE_SYSTEM: i32 = 4;
+const MODULE_ES2015: i32 = 5;
+const MODULE_ES2020: i32 = 6;
+const MODULE_ES2022: i32 = 7;
 const MODULE_ES_NEXT: i32 = 99;
 const MODULE_NODE16: i32 = 100;
 const MODULE_NODE18: i32 = 101;
@@ -26,6 +29,7 @@ const MODULE_NODE_NEXT: i32 = 199;
 const MODULE_PRESERVE: i32 = 200;
 
 mod class_fields;
+mod es_next;
 mod jsx;
 mod legacy_decorators;
 mod standard_decorators;
@@ -83,7 +87,7 @@ pub fn get_script_transformers<'resolver>(
     options: &CompilerOptions,
     resolver: &'resolver dyn EmitResolver,
 ) -> Result<Vec<Box<dyn Transformer + 'resolver>>, TransformError> {
-    let mut activity = H2ActivityCanary::h2_4b_profile();
+    let mut activity = H2ActivityCanary::h2_5a_profile();
     get_script_transformers_with_optional_host(options, resolver, None, &mut activity)
 }
 
@@ -103,10 +107,11 @@ fn get_script_transformers_with_optional_host<'transformers>(
     host: Option<(&'transformers dyn EmitHost, SourceFileId)>,
     activity: &mut H2ActivityCanary,
 ) -> Result<Vec<Box<dyn Transformer + 'transformers>>, TransformError> {
-    if options.emit_script_target() != ScriptTarget::ES_NEXT {
+    let target = options.emit_script_target();
+    if target < ScriptTarget::ES2021 || target > ScriptTarget::ES_NEXT {
         return Err(TransformError::UnsupportedCompilerOption {
             option: "target",
-            detail: "the H1 bootstrap transformer list requires ESNext",
+            detail: "H2.5a admits ES2021 through ESNext; older targets belong to later target-ladder slices",
         });
     }
     if !matches!(
@@ -117,6 +122,9 @@ fn get_script_transformers_with_optional_host<'transformers>(
             | MODULE_AMD
             | MODULE_UMD
             | MODULE_SYSTEM
+            | MODULE_ES2015
+            | MODULE_ES2020
+            | MODULE_ES2022
             | MODULE_NODE16
             | MODULE_NODE18
             | MODULE_NODE20
@@ -124,7 +132,7 @@ fn get_script_transformers_with_optional_host<'transformers>(
     ) {
         return Err(TransformError::UnsupportedCompilerOption {
             option: "module",
-            detail: "the current transformer list requires Preserve, ESNext, CommonJS, AMD, UMD, System, Node16, Node18, Node20, or NodeNext",
+            detail: "the current transformer list requires Preserve, ES2015, ES2020, ES2022, ESNext, CommonJS, AMD, UMD, System, Node16, Node18, Node20, or NodeNext",
         });
     }
     if let Some((host, source)) = host {
@@ -183,6 +191,9 @@ fn get_script_transformers_with_optional_host<'transformers>(
         {
             activity.observe_runtime_slice(H2RuntimeSlice::H2_4b);
         }
+        if target < ScriptTarget::ES_NEXT {
+            activity.observe_runtime_slice(H2RuntimeSlice::H2_5a);
+        }
     }
 
     activity.construct_script_transformer_list();
@@ -191,11 +202,13 @@ fn get_script_transformers_with_optional_host<'transformers>(
     let transform_legacy_decorators = options
         .experimental_decorators
         .then(|| legacy_decorators::transform_legacy_decorators(options, resolver));
-    let transform_standard_decorators = (!options.experimental_decorators
-        && !options.use_define_for_class_fields_effective())
-    .then(|| standard_decorators::transform_standard_decorators(options));
     let transform_jsx =
         matches!(options.jsx, Some(2 | 4 | 5)).then(|| jsx::transform_jsx(options, resolver));
+    let transform_es_next =
+        (target < ScriptTarget::ES_NEXT).then(|| es_next::transform_es_next(options));
+    let transform_standard_decorators = (!options.experimental_decorators
+        && (target < ScriptTarget::ES_NEXT || !options.use_define_for_class_fields_effective()))
+    .then(|| standard_decorators::transform_standard_decorators(options));
     activity.construct_transform_class_fields();
     let transform_class_fields = transform_class_fields(options);
     let module_transformer = if options.emit_module_kind() == MODULE_PRESERVE {
@@ -220,11 +233,14 @@ fn get_script_transformers_with_optional_host<'transformers>(
     if let Some(transform_legacy_decorators) = transform_legacy_decorators {
         transformers.push(transform_legacy_decorators);
     }
-    if let Some(transform_standard_decorators) = transform_standard_decorators {
-        transformers.push(transform_standard_decorators);
-    }
     if let Some(transform_jsx) = transform_jsx {
         transformers.push(transform_jsx);
+    }
+    if let Some(transform_es_next) = transform_es_next {
+        transformers.push(transform_es_next);
+    }
+    if let Some(transform_standard_decorators) = transform_standard_decorators {
+        transformers.push(transform_standard_decorators);
     }
     transformers.push(transform_class_fields);
     transformers.push(module_transformer);
@@ -248,6 +264,8 @@ pub fn transform_type_script<'resolver>(
         remove_comments: options.remove_comments == Some(true),
         allow_jsx: matches!(options.jsx, None | Some(1..=5)),
         allow_legacy_decorators: true,
+        project_parameter_properties_for_class_fields: options
+            .use_define_for_class_fields_effective(),
     })
 }
 
@@ -300,6 +318,7 @@ struct TypeScriptTransformer<'resolver> {
     remove_comments: bool,
     allow_jsx: bool,
     allow_legacy_decorators: bool,
+    project_parameter_properties_for_class_fields: bool,
 }
 
 impl Transformer for TypeScriptTransformer<'_> {
@@ -352,6 +371,7 @@ impl Transformer for TypeScriptTransformer<'_> {
             self.preserve_const_enums,
             self.isolated_modules,
             self.remove_comments,
+            self.project_parameter_properties_for_class_fields,
         );
         let transformed =
             visitor
@@ -4988,6 +5008,7 @@ struct TypeScriptVisitor<'context, 'resolver> {
     preserve_const_enums: bool,
     isolated_modules: bool,
     remove_comments: bool,
+    project_parameter_properties_for_class_fields: bool,
     nodes: BTreeMap<NodeId, Option<NodeId>>,
     arrays: BTreeMap<NodeArrayId, Option<NodeArrayId>>,
     expanded_enums: BTreeMap<NodeId, Vec<NodeId>>,
@@ -5011,6 +5032,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
         preserve_const_enums: bool,
         isolated_modules: bool,
         remove_comments: bool,
+        project_parameter_properties_for_class_fields: bool,
     ) -> Self {
         Self {
             context,
@@ -5019,6 +5041,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
             preserve_const_enums,
             isolated_modules,
             remove_comments,
+            project_parameter_properties_for_class_fields,
             nodes: BTreeMap::new(),
             arrays: BTreeMap::new(),
             expanded_enums: BTreeMap::new(),
@@ -5164,13 +5187,17 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
                         None
                     } else {
                         data.type_parameters = None;
-                        data.members = self.prepend_parameter_property_members(data.members)?;
+                        if self.project_parameter_properties_for_class_fields {
+                            data.members = self.prepend_parameter_property_members(data.members)?;
+                        }
                         Some(self.update_generic(original, NodeData::ClassDeclaration(data))?)
                     }
                 }
                 NodeData::ClassExpression(mut data) => {
                     data.type_parameters = None;
-                    data.members = self.prepend_parameter_property_members(data.members)?;
+                    if self.project_parameter_properties_for_class_fields {
+                        data.members = self.prepend_parameter_property_members(data.members)?;
+                    }
                     Some(self.update_generic(original, NodeData::ClassExpression(data))?)
                 }
                 NodeData::PropertyDeclaration(mut data) => {
@@ -7811,6 +7838,12 @@ fn local_transform_flags(node: &Node) -> TransformFlags {
         NodeData::VariableDeclarationList(_) => {
             flags |= TransformFlags::CONTAINS_HOISTED_DECLARATION_OR_COMPLETION;
             let node_flags = NodeFlags::from_bits(node.flags);
+            if matches!(
+                node_flags & NodeFlags::BLOCK_SCOPED,
+                NodeFlags::USING | NodeFlags::AWAIT_USING
+            ) {
+                flags |= TransformFlags::CONTAINS_ES_NEXT;
+            }
             if node_flags.intersects(NodeFlags::BLOCK_SCOPED) {
                 flags |= TransformFlags::CONTAINS_ES_2015;
                 flags |= TransformFlags::CONTAINS_BLOCK_SCOPED_BINDING;

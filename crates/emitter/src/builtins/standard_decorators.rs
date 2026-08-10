@@ -81,10 +81,13 @@ impl Transformer for StandardDecoratorTransformer {
     }
 
     fn initialize(&mut self, _context: &mut TransformationContext) -> Result<(), TransformError> {
-        if self.target != ScriptTarget::ES_NEXT || self.use_define_for_class_fields {
+        if self.target < ScriptTarget::ES2021
+            || self.target > ScriptTarget::ES_NEXT
+            || (self.target == ScriptTarget::ES_NEXT && self.use_define_for_class_fields)
+        {
             return Err(TransformError::UnsupportedCompilerOption {
                 option: "standard-decorator transform",
-                detail: "H2.4b currently reaches transformESDecorators through ESNext plus useDefineForClassFields=false",
+                detail: "the transform is reached below ESNext or by ESNext assignment-mode class fields",
             });
         }
         Ok(())
@@ -104,7 +107,7 @@ impl Transformer for StandardDecoratorTransformer {
             return Ok(root);
         }
         let current_root = context.arena().root(source)?;
-        let mut visitor = StandardDecoratorVisitor::new(context, source);
+        let mut visitor = StandardDecoratorVisitor::new(context, source, self.target);
         let transformed =
             visitor
                 .visit(current_root.node())?
@@ -211,9 +214,35 @@ struct DecorationBlockInputs<'a> {
     has_static_initializers: bool,
 }
 
+/// Bindings whose lifetime is the class-definition wrapper rather than the
+/// class body. Keeping the declaration plan separate from expression rewriting
+/// makes it impossible to create a cached receiver without also declaring it.
+#[derive(Default)]
+struct DecoratorDefinitionBindings {
+    temporary_names: Vec<String>,
+    outer_this_name: Option<String>,
+}
+
+impl DecoratorDefinitionBindings {
+    fn record_temporary(&mut self, name: String) {
+        self.temporary_names.push(name);
+    }
+}
+
+/// Rewrites only lexical `this` references evaluated while defining a class.
+/// Ordinary functions and nested classes establish their own `this` boundary;
+/// arrows intentionally do not.
+struct DecoratorLexicalThisRewriter<'visitor, 'context> {
+    visitor: &'visitor mut StandardDecoratorVisitor<'context>,
+    bindings: &'visitor mut DecoratorDefinitionBindings,
+    nodes: BTreeMap<NodeId, NodeId>,
+    arrays: BTreeMap<NodeArrayId, NodeArrayId>,
+}
+
 struct StandardDecoratorVisitor<'context> {
     context: &'context mut TransformationContext,
     source: TransformSourceId,
+    target: ScriptTarget,
     nodes: BTreeMap<NodeId, Option<NodeId>>,
     arrays: BTreeMap<NodeArrayId, Option<NodeArrayId>>,
     inferred_class_names: BTreeMap<NodeId, String>,
@@ -224,11 +253,16 @@ struct StandardDecoratorVisitor<'context> {
 }
 
 impl<'context> StandardDecoratorVisitor<'context> {
-    fn new(context: &'context mut TransformationContext, source: TransformSourceId) -> Self {
+    fn new(
+        context: &'context mut TransformationContext,
+        source: TransformSourceId,
+        target: ScriptTarget,
+    ) -> Self {
         let used_names = collect_identifier_texts(context.arena(), source);
         Self {
             context,
             source,
+            target,
             nodes: BTreeMap::new(),
             arrays: BTreeMap::new(),
             inferred_class_names: BTreeMap::new(),
@@ -636,7 +670,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
             }
         }
         let class_super = self.prepare_class_super(&mut data.heritage_clauses)?;
-        let (class_local_temp_names, computed_name_block) = self
+        let (class_definition_bindings, computed_name_block) = self
             .prepare_decorators_and_computed_names(
                 class_decoration.as_mut(),
                 &mut plans,
@@ -668,9 +702,14 @@ impl<'context> StandardDecoratorVisitor<'context> {
 
         let metadata_name = self.allocate_name("_metadata");
         let mut definitions = Vec::new();
-        if !class_local_temp_names.is_empty() {
-            let mut declarations = Vec::with_capacity(class_local_temp_names.len());
-            for name in &class_local_temp_names {
+        if let Some(name) = class_definition_bindings.outer_this_name.as_deref() {
+            let initializer = self.create_this()?;
+            definitions.push(self.create_let(name, Some(initializer))?);
+        }
+        if !class_definition_bindings.temporary_names.is_empty() {
+            let mut declarations =
+                Vec::with_capacity(class_definition_bindings.temporary_names.len());
+            for name in &class_definition_bindings.temporary_names {
                 declarations.push(self.create_variable_declaration(name, None)?);
             }
             definitions.push(
@@ -840,6 +879,15 @@ impl<'context> StandardDecoratorVisitor<'context> {
             } else {
                 None
             };
+            let static_accessor_receiver = if plan.is_static && self.target < ScriptTarget::ES_NEXT
+            {
+                class_decoration
+                    .as_ref()
+                    .map(|class_plan| class_plan.class_this_name.as_str())
+                    .or(class_name.as_deref())
+            } else {
+                None
+            };
             let initializer =
                 self.create_decorated_initializer(&plan, pending.as_deref(), static_target)?;
             if plan.is_accessor {
@@ -854,6 +902,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
                     &plan,
                     backing_name,
                     initializer,
+                    static_accessor_receiver,
                 )?);
             } else {
                 transformed_members.push(self.update_decorated_property(&plan, initializer)?);
@@ -1152,11 +1201,11 @@ impl<'context> StandardDecoratorVisitor<'context> {
         class_plan: Option<&mut ClassDecorationPlan>,
         plans: &mut [PropertyPlan],
         method_plans: &mut [MethodPlan],
-    ) -> Result<(Vec<String>, Option<TransformNode>), TransformError> {
-        let mut temporary_names = Vec::new();
+    ) -> Result<(DecoratorDefinitionBindings, Option<TransformNode>), TransformError> {
+        let mut bindings = DecoratorDefinitionBindings::default();
         if let Some(class_plan) = class_plan {
             class_plan.decorators =
-                self.transform_decorator_expressions(&class_plan.decorators, &mut temporary_names)?;
+                self.transform_decorator_expressions(&class_plan.decorators, &mut bindings)?;
         }
 
         let mut order = Vec::with_capacity(plans.len() + method_plans.len());
@@ -1173,11 +1222,11 @@ impl<'context> StandardDecoratorVisitor<'context> {
             if is_method {
                 let decorators = method_plans[index].decorators.clone();
                 method_plans[index].decorators =
-                    self.transform_decorator_expressions(&decorators, &mut temporary_names)?;
+                    self.transform_decorator_expressions(&decorators, &mut bindings)?;
             } else {
                 let decorators = plans[index].decorators.clone();
                 plans[index].decorators =
-                    self.transform_decorator_expressions(&decorators, &mut temporary_names)?;
+                    self.transform_decorator_expressions(&decorators, &mut bindings)?;
             }
 
             let (expression, decorators, decorators_name, survives) = if is_method {
@@ -1201,7 +1250,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
                 continue;
             };
             let temporary_name = self.allocate_computed_temp_name();
-            temporary_names.push(temporary_name.clone());
+            bindings.record_temporary(temporary_name.clone());
             if is_method {
                 method_plans[index].computed_temp_name = Some(temporary_name.clone());
             } else {
@@ -1252,13 +1301,13 @@ impl<'context> StandardDecoratorVisitor<'context> {
             let statement = self.create_expression_statement(expression)?;
             Some(self.create_static_block(vec![statement], false)?)
         };
-        Ok((temporary_names, block))
+        Ok((bindings, block))
     }
 
     fn transform_decorator_expressions(
         &mut self,
         decorators: &[TransformNode],
-        temporary_names: &mut Vec<String>,
+        bindings: &mut DecoratorDefinitionBindings,
     ) -> Result<Vec<TransformNode>, TransformError> {
         let mut output = Vec::with_capacity(decorators.len());
         for decorator in decorators {
@@ -1269,7 +1318,8 @@ impl<'context> StandardDecoratorVisitor<'context> {
                     parent: SyntaxKind::Decorator,
                     field: "expression",
                 })?;
-            output.push(self.bind_decorator_expression(visited, temporary_names)?);
+            let bound = self.bind_decorator_expression(visited, bindings)?;
+            output.push(self.rewrite_decorator_lexical_this(bound, bindings)?);
         }
         Ok(output)
     }
@@ -1277,10 +1327,38 @@ impl<'context> StandardDecoratorVisitor<'context> {
     fn bind_decorator_expression(
         &mut self,
         expression: TransformNode,
-        temporary_names: &mut Vec<String>,
+        bindings: &mut DecoratorDefinitionBindings,
     ) -> Result<TransformNode, TransformError> {
         let data = self.context.arena().node(expression)?.data.clone();
-        let (receiver_name, target) = match data {
+        let (target, receiver) = match data {
+            NodeData::ParenthesizedExpression(mut data) => {
+                let inner = data
+                    .expression
+                    .ok_or(TransformError::RequiredChildRemoved {
+                        parent: SyntaxKind::ParenthesizedExpression,
+                        field: "expression",
+                    })?;
+                let bound = self.bind_decorator_expression(self.node(inner), bindings)?;
+                data.expression = Some(bound.node());
+                return self.update_decorator_outer_expression(
+                    expression,
+                    NodeData::ParenthesizedExpression(data),
+                );
+            }
+            NodeData::PartiallyEmittedExpression(mut data) => {
+                let inner = data
+                    .expression
+                    .ok_or(TransformError::RequiredChildRemoved {
+                        parent: SyntaxKind::PartiallyEmittedExpression,
+                        field: "expression",
+                    })?;
+                let bound = self.bind_decorator_expression(self.node(inner), bindings)?;
+                data.expression = Some(bound.node());
+                return self.update_decorator_outer_expression(
+                    expression,
+                    NodeData::PartiallyEmittedExpression(data),
+                );
+            }
             NodeData::PropertyAccessExpression(mut data) => {
                 let receiver = data
                     .expression
@@ -1288,12 +1366,10 @@ impl<'context> StandardDecoratorVisitor<'context> {
                         parent: SyntaxKind::PropertyAccessExpression,
                         field: "expression",
                     })?;
-                let receiver_name = self.allocate_computed_temp_name();
-                temporary_names.push(receiver_name.clone());
-                let temporary = self.create_identifier(&receiver_name)?;
-                let assignment = self.create_assignment(temporary, self.node(receiver))?;
-                let assignment = self.create_parenthesized(assignment)?;
-                data.expression = Some(assignment.node());
+                let receiver = self.node(receiver);
+                let (bound_receiver, this_arg) =
+                    self.bind_decorator_receiver(receiver, bindings)?;
+                data.expression = Some(bound_receiver.node());
                 let flags = flags_after_update(
                     self.context.arena(),
                     expression,
@@ -1304,7 +1380,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
                     NodeData::PropertyAccessExpression(data),
                     flags,
                 )?;
-                (receiver_name, target)
+                (target, this_arg)
             }
             NodeData::ElementAccessExpression(mut data) => {
                 let receiver = data
@@ -1313,12 +1389,10 @@ impl<'context> StandardDecoratorVisitor<'context> {
                         parent: SyntaxKind::ElementAccessExpression,
                         field: "expression",
                     })?;
-                let receiver_name = self.allocate_computed_temp_name();
-                temporary_names.push(receiver_name.clone());
-                let temporary = self.create_identifier(&receiver_name)?;
-                let assignment = self.create_assignment(temporary, self.node(receiver))?;
-                let assignment = self.create_parenthesized(assignment)?;
-                data.expression = Some(assignment.node());
+                let receiver = self.node(receiver);
+                let (bound_receiver, this_arg) =
+                    self.bind_decorator_receiver(receiver, bindings)?;
+                data.expression = Some(bound_receiver.node());
                 let flags = flags_after_update(
                     self.context.arena(),
                     expression,
@@ -1329,13 +1403,119 @@ impl<'context> StandardDecoratorVisitor<'context> {
                     NodeData::ElementAccessExpression(data),
                     flags,
                 )?;
-                (receiver_name, target)
+                (target, this_arg)
             }
             _ => return Ok(expression),
         };
         let bind = self.create_property_access(target, "bind")?;
-        let receiver = self.create_identifier(&receiver_name)?;
         self.create_call(bind, vec![receiver])
+    }
+
+    fn update_decorator_outer_expression(
+        &mut self,
+        original: TransformNode,
+        data: NodeData,
+    ) -> Result<TransformNode, TransformError> {
+        let flags = flags_after_update(self.context.arena(), original, &data)?;
+        self.context.factory()?.update_node(original, data, flags)
+    }
+
+    fn bind_decorator_receiver(
+        &mut self,
+        receiver: TransformNode,
+        bindings: &mut DecoratorDefinitionBindings,
+    ) -> Result<(TransformNode, TransformNode), TransformError> {
+        if self.decorator_receiver_is_super(receiver)? {
+            return Ok((receiver, self.create_this()?));
+        }
+        if !self.decorator_receiver_needs_cache(receiver)? {
+            return Ok((receiver, receiver));
+        }
+
+        let receiver_name = self.allocate_computed_temp_name();
+        bindings.record_temporary(receiver_name.clone());
+        let temporary = self.create_identifier(&receiver_name)?;
+        let assignment = self.create_assignment(temporary, receiver)?;
+        let assignment = self.create_parenthesized(assignment)?;
+        let this_arg = self.create_identifier(&receiver_name)?;
+        Ok((assignment, this_arg))
+    }
+
+    fn decorator_receiver_is_super(&self, receiver: TransformNode) -> Result<bool, TransformError> {
+        let receiver = self.skip_parenthesized_expression(receiver)?;
+        Ok(self.context.arena().node(receiver)?.kind == SyntaxKind::SuperKeyword)
+    }
+
+    fn decorator_receiver_needs_cache(
+        &self,
+        receiver: TransformNode,
+    ) -> Result<bool, TransformError> {
+        let receiver = self.skip_parenthesized_expression(receiver)?;
+        let record = self.context.arena().node(receiver)?;
+        Ok(match &record.data {
+            // Decorator references deliberately cache identifiers. This is the
+            // observable distinction from ordinary call binding in tsc.
+            NodeData::Identifier(_) => true,
+            NodeData::Token
+                if matches!(
+                    record.kind,
+                    SyntaxKind::ThisKeyword
+                        | SyntaxKind::NumericLiteral
+                        | SyntaxKind::BigIntLiteral
+                        | SyntaxKind::StringLiteral
+                ) =>
+            {
+                false
+            }
+            NodeData::NumericLiteral(_)
+            | NodeData::BigIntLiteral(_)
+            | NodeData::StringLiteral(_) => false,
+            NodeData::ArrayLiteralExpression(data) => !self.node_array_is_empty(data.elements)?,
+            NodeData::ObjectLiteralExpression(data) => {
+                !self.node_array_is_empty(data.properties)?
+            }
+            _ => true,
+        })
+    }
+
+    fn skip_parenthesized_expression(
+        &self,
+        mut expression: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        loop {
+            let NodeData::ParenthesizedExpression(data) =
+                &self.context.arena().node(expression)?.data
+            else {
+                return Ok(expression);
+            };
+            let inner = data
+                .expression
+                .ok_or(TransformError::RequiredChildRemoved {
+                    parent: SyntaxKind::ParenthesizedExpression,
+                    field: "expression",
+                })?;
+            expression = self.node(inner);
+        }
+    }
+
+    fn node_array_is_empty(&self, array: Option<NodeArrayId>) -> Result<bool, TransformError> {
+        let Some(array) = array else {
+            return Ok(true);
+        };
+        Ok(self
+            .context
+            .arena()
+            .node_array(self.array(array))?
+            .nodes
+            .is_empty())
+    }
+
+    fn rewrite_decorator_lexical_this(
+        &mut self,
+        expression: TransformNode,
+        bindings: &mut DecoratorDefinitionBindings,
+    ) -> Result<TransformNode, TransformError> {
+        DecoratorLexicalThisRewriter::new(self, bindings).rewrite(expression)
     }
 
     fn create_decorator_array(
@@ -1977,6 +2157,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
         plan: &PropertyPlan,
         backing_name: &str,
         initializer: TransformNode,
+        static_receiver: Option<&str>,
     ) -> Result<Vec<TransformNode>, TransformError> {
         let backing = self.create_private_identifier(backing_name)?;
         let modifiers = self.filter_modifiers(plan.data.modifiers, |kind| {
@@ -1994,6 +2175,11 @@ impl<'context> StandardDecoratorVisitor<'context> {
             }),
             TransformFlags::CONTAINS_CLASS_FIELDS,
         )?;
+        self.set_original_and_range(field, plan.original)?;
+        self.context
+            .arena_mut()?
+            .metadata_mut(field)
+            .add_flags(EmitFlags::NO_COMMENTS);
         let name = plan.data.name.ok_or(TransformError::RequiredChildRemoved {
             parent: SyntaxKind::PropertyDeclaration,
             field: "name",
@@ -2009,13 +2195,20 @@ impl<'context> StandardDecoratorVisitor<'context> {
             backing.node(),
             modifiers,
             plan.descriptor_name.as_deref(),
+            static_receiver,
         )?;
         let setter = self.create_set_accessor(
             setter_name,
             backing.node(),
             modifiers,
             plan.descriptor_name.as_deref(),
+            static_receiver,
         )?;
+        self.set_original_and_range(getter, plan.original)?;
+        self.context
+            .arena_mut()?
+            .metadata_mut(setter)
+            .add_flags(EmitFlags::NO_COMMENTS);
         Ok(vec![field, getter, setter])
     }
 
@@ -2025,6 +2218,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
         backing: NodeId,
         modifiers: Option<NodeArrayId>,
         descriptor_name: Option<&str>,
+        static_receiver: Option<&str>,
     ) -> Result<TransformNode, TransformError> {
         let access = if let Some(descriptor_name) = descriptor_name {
             let descriptor = self.create_identifier(descriptor_name)?;
@@ -2033,8 +2227,12 @@ impl<'context> StandardDecoratorVisitor<'context> {
             let this = self.create_this()?;
             self.create_call(call, vec![this])?
         } else {
-            let this = self.create_this()?;
-            self.create_property_access_node(this, self.node(backing))?
+            let receiver = if let Some(receiver) = static_receiver {
+                self.create_identifier(receiver)?
+            } else {
+                self.create_this()?
+            };
+            self.create_property_access_node(receiver, self.node(backing))?
         };
         let statement = self.create_return_statement(access)?;
         let body = self.create_block(vec![statement], false)?;
@@ -2062,6 +2260,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
         backing: NodeId,
         modifiers: Option<NodeArrayId>,
         descriptor_name: Option<&str>,
+        static_receiver: Option<&str>,
     ) -> Result<TransformNode, TransformError> {
         let parameter = self.create_parameter("value")?;
         let parameters = self
@@ -2077,8 +2276,12 @@ impl<'context> StandardDecoratorVisitor<'context> {
             let call = self.create_call(call, vec![this, value])?;
             self.create_return_statement(call)?
         } else {
-            let this = self.create_this()?;
-            let target = self.create_property_access_node(this, self.node(backing))?;
+            let receiver = if let Some(receiver) = static_receiver {
+                self.create_identifier(receiver)?
+            } else {
+                self.create_this()?
+            };
+            let target = self.create_property_access_node(receiver, self.node(backing))?;
             let assignment = self.create_assignment(target, value)?;
             self.create_expression_statement(assignment)?
         };
@@ -3221,6 +3424,131 @@ impl<'context> StandardDecoratorVisitor<'context> {
 
     const fn array(&self, id: NodeArrayId) -> TransformNodeArray {
         TransformNodeArray::new(self.source, id)
+    }
+}
+
+impl<'visitor, 'context> DecoratorLexicalThisRewriter<'visitor, 'context> {
+    fn new(
+        visitor: &'visitor mut StandardDecoratorVisitor<'context>,
+        bindings: &'visitor mut DecoratorDefinitionBindings,
+    ) -> Self {
+        Self {
+            visitor,
+            bindings,
+            nodes: BTreeMap::new(),
+            arrays: BTreeMap::new(),
+        }
+    }
+
+    fn rewrite(mut self, expression: TransformNode) -> Result<TransformNode, TransformError> {
+        let rewritten =
+            self.rewrite_node(expression.node())?
+                .ok_or(TransformError::RequiredChildRemoved {
+                    parent: SyntaxKind::Decorator,
+                    field: "lexical this expression",
+                })?;
+        Ok(self.visitor.node(rewritten))
+    }
+
+    fn rewrite_node(&mut self, id: NodeId) -> Result<Option<NodeId>, TransformError> {
+        if let Some(rewritten) = self.nodes.get(&id) {
+            return Ok(Some(*rewritten));
+        }
+        let original = self.visitor.node(id);
+        let record = self.visitor.context.arena().node(original)?.clone();
+        let rewritten = if record.kind == SyntaxKind::ThisKeyword {
+            let name = match self.bindings.outer_this_name.as_ref() {
+                Some(name) => name.clone(),
+                None => {
+                    let name = self.visitor.allocate_name("_outerThis");
+                    self.bindings.outer_this_name = Some(name.clone());
+                    name
+                }
+            };
+            self.visitor.create_identifier(&name)?.node()
+        } else if matches!(&record.data, NodeData::Token)
+            || Self::establishes_this_boundary(record.kind)
+        {
+            original.node()
+        } else {
+            let mut data = record.data;
+            try_visit_each_child(&mut data, self)?;
+            let flags = flags_after_update(self.visitor.context.arena(), original, &data)?;
+            self.visitor
+                .context
+                .factory()?
+                .update_node(original, data, flags)?
+                .node()
+        };
+        self.nodes.insert(id, rewritten);
+        Ok(Some(rewritten))
+    }
+
+    const fn establishes_this_boundary(kind: SyntaxKind) -> bool {
+        matches!(
+            kind,
+            SyntaxKind::ClassDeclaration
+                | SyntaxKind::ClassExpression
+                | SyntaxKind::Constructor
+                | SyntaxKind::FunctionDeclaration
+                | SyntaxKind::FunctionExpression
+                | SyntaxKind::GetAccessor
+                | SyntaxKind::MethodDeclaration
+                | SyntaxKind::SetAccessor
+        )
+    }
+
+    fn rewrite_nodes(&mut self, id: NodeArrayId) -> Result<Option<NodeArrayId>, TransformError> {
+        if let Some(rewritten) = self.arrays.get(&id) {
+            return Ok(Some(*rewritten));
+        }
+        let original = self.visitor.array(id);
+        let nodes = self
+            .visitor
+            .context
+            .arena()
+            .node_array(original)?
+            .nodes
+            .clone();
+        let mut rewritten_nodes = Vec::with_capacity(nodes.len());
+        for node in nodes {
+            if let Some(rewritten) = self.rewrite_node(node)? {
+                rewritten_nodes.push(self.visitor.node(rewritten));
+            }
+        }
+        let rewritten = self
+            .visitor
+            .context
+            .factory()?
+            .update_node_array(original, rewritten_nodes)?
+            .array();
+        self.arrays.insert(id, rewritten);
+        Ok(Some(rewritten))
+    }
+}
+
+impl NodeDataChildVisitor for DecoratorLexicalThisRewriter<'_, '_> {
+    type Error = TransformError;
+
+    fn node_kind(&self, id: NodeId) -> SyntaxKind {
+        self.visitor
+            .context
+            .arena()
+            .node(self.visitor.node(id))
+            .expect("decorator expression child belongs to the current transform source")
+            .kind
+    }
+
+    fn visit_node(&mut self, id: NodeId) -> Result<Option<NodeId>, Self::Error> {
+        self.rewrite_node(id)
+    }
+
+    fn visit_nodes(&mut self, id: NodeArrayId) -> Result<Option<NodeArrayId>, Self::Error> {
+        self.rewrite_nodes(id)
+    }
+
+    fn required_child_removed(&mut self, parent: SyntaxKind, field: &'static str) -> Self::Error {
+        TransformError::RequiredChildRemoved { parent, field }
     }
 }
 

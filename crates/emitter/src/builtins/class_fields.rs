@@ -15,6 +15,8 @@ use super::{
     is_prologue_statement as is_prologue_statement_node, system::collect_identifier_texts,
 };
 
+mod downlevel;
+
 /// tsc-port: transformClassFields @6.0.3
 /// tsc-hash: 65cacc85f81402ff4468cf65c7636dbd5a0ce9eb6c3248f060aa5193c3af8304
 /// tsc-span: _tsc.js:95852-98038
@@ -36,10 +38,10 @@ impl Transformer for ClassFieldsTransformer {
     }
 
     fn initialize(&mut self, _context: &mut TransformationContext) -> Result<(), TransformError> {
-        if self.target != ScriptTarget::ES_NEXT {
+        if self.target < ScriptTarget::ES2021 || self.target > ScriptTarget::ES_NEXT {
             return Err(TransformError::UnsupportedCompilerOption {
                 option: "class-field transform",
-                detail: "target lowering remains owned by H2.5",
+                detail: "H2.5a admits ES2021 through ESNext class-field reachability",
             });
         }
         Ok(())
@@ -50,7 +52,7 @@ impl Transformer for ClassFieldsTransformer {
         context: &mut TransformationContext,
         root: TransformRoot,
     ) -> Result<TransformRoot, TransformError> {
-        if self.use_define_for_class_fields {
+        if self.target == ScriptTarget::ES_NEXT && self.use_define_for_class_fields {
             return Ok(root);
         }
         let TransformRoot::SourceFile(source) = root else {
@@ -58,8 +60,17 @@ impl Transformer for ClassFieldsTransformer {
                 crate::UnsupportedEmitFeature::BundleRoot,
             ));
         };
+        if self.target < ScriptTarget::ES2022 {
+            downlevel::transform_source(context, source, self.use_define_for_class_fields)?;
+            return Ok(TransformRoot::SourceFile(source));
+        }
         let root = context.arena().root(source)?;
-        let mut visitor = ClassFieldsVisitor::new(context, source);
+        let mut visitor = ClassFieldsVisitor::new(
+            context,
+            source,
+            self.target,
+            self.use_define_for_class_fields,
+        );
         let transformed =
             visitor
                 .visit(root.node())?
@@ -84,10 +95,18 @@ struct ClassFieldsVisitor<'context> {
     used_names: BTreeSet<String>,
     hoisted_names: Vec<String>,
     next_temp_name: usize,
+    private_name_scopes: Vec<BTreeSet<String>>,
+    target: ScriptTarget,
+    use_define_for_class_fields: bool,
 }
 
 impl<'context> ClassFieldsVisitor<'context> {
-    fn new(context: &'context mut TransformationContext, source: TransformSourceId) -> Self {
+    fn new(
+        context: &'context mut TransformationContext,
+        source: TransformSourceId,
+        target: ScriptTarget,
+        use_define_for_class_fields: bool,
+    ) -> Self {
         let used_names = collect_identifier_texts(context.arena(), source);
         Self {
             context,
@@ -97,6 +116,9 @@ impl<'context> ClassFieldsVisitor<'context> {
             used_names,
             hoisted_names: Vec::new(),
             next_temp_name: 0,
+            private_name_scopes: Vec::new(),
+            target,
+            use_define_for_class_fields,
         }
     }
 
@@ -119,8 +141,25 @@ impl<'context> ClassFieldsVisitor<'context> {
     fn visit_class_declaration(
         &mut self,
         original: TransformNode,
+        data: tsc_syntax::nodes::ClassDeclarationData,
+    ) -> Result<NodeId, TransformError> {
+        let private_names = self.declared_private_names(data.members)?;
+        self.private_name_scopes.push(private_names);
+        let result = self.visit_class_declaration_in_scope(original, data);
+        self.private_name_scopes
+            .pop()
+            .expect("class private-name scope remains balanced");
+        result
+    }
+
+    fn visit_class_declaration_in_scope(
+        &mut self,
+        original: TransformNode,
         mut data: tsc_syntax::nodes::ClassDeclarationData,
     ) -> Result<NodeId, TransformError> {
+        if !self.class_members_require_transform(data.members)? {
+            return self.update_generic(original, NodeData::ClassDeclaration(data));
+        }
         let (members, prologue) = self.rewrite_computed_names_with_lexical_this(data.members)?;
         if prologue.is_some() {
             return Err(TransformError::UnsupportedSyntax {
@@ -129,15 +168,15 @@ impl<'context> ClassFieldsVisitor<'context> {
             });
         }
         data.members = members;
-        if !self.class_members_require_transform(data.members)? {
-            return self.update_generic(original, NodeData::ClassDeclaration(data));
-        }
+        let class_receiver = data
+            .name
+            .and_then(|name| self.identifier_text(self.node(name)).map(str::to_owned));
         data.name = self.visit_optional_node(data.name)?;
         data.type_parameters = self.visit_optional_nodes(data.type_parameters)?;
         data.heritage_clauses = self.visit_optional_nodes(data.heritage_clauses)?;
         data.modifiers = self.visit_optional_nodes(data.modifiers)?;
         let derived = self.has_extends_clause(data.heritage_clauses)?;
-        data.members = self.transform_members(data.members, derived)?;
+        data.members = self.transform_members(data.members, derived, class_receiver.as_deref())?;
         let flags = super::flags_after_update(
             self.context.arena(),
             original,
@@ -153,20 +192,36 @@ impl<'context> ClassFieldsVisitor<'context> {
     fn visit_class_expression(
         &mut self,
         original: TransformNode,
+        data: tsc_syntax::nodes::ClassExpressionData,
+    ) -> Result<NodeId, TransformError> {
+        let private_names = self.declared_private_names(data.members)?;
+        self.private_name_scopes.push(private_names);
+        let result = self.visit_class_expression_in_scope(original, data);
+        self.private_name_scopes
+            .pop()
+            .expect("class private-name scope remains balanced");
+        result
+    }
+
+    fn visit_class_expression_in_scope(
+        &mut self,
+        original: TransformNode,
         mut data: tsc_syntax::nodes::ClassExpressionData,
     ) -> Result<NodeId, TransformError> {
+        if !self.class_members_require_transform(data.members)? {
+            return self.update_generic(original, NodeData::ClassExpression(data));
+        }
         let (members, prologue) = self.rewrite_computed_names_with_lexical_this(data.members)?;
         data.members = members;
-        if !self.class_members_require_transform(data.members)? {
-            let class = self.update_generic(original, NodeData::ClassExpression(data))?;
-            return self.wrap_class_expression_prologue(self.node(class), prologue);
-        }
+        let class_receiver = data
+            .name
+            .and_then(|name| self.identifier_text(self.node(name)).map(str::to_owned));
         data.name = self.visit_optional_node(data.name)?;
         data.type_parameters = self.visit_optional_nodes(data.type_parameters)?;
         data.heritage_clauses = self.visit_optional_nodes(data.heritage_clauses)?;
         data.modifiers = self.visit_optional_nodes(data.modifiers)?;
         let derived = self.has_extends_clause(data.heritage_clauses)?;
-        data.members = self.transform_members(data.members, derived)?;
+        data.members = self.transform_members(data.members, derived, class_receiver.as_deref())?;
         let flags = super::flags_after_update(
             self.context.arena(),
             original,
@@ -209,6 +264,14 @@ impl<'context> ClassFieldsVisitor<'context> {
                 output.push(member_node);
                 continue;
             };
+            if self.has_modifier(data.modifiers, SyntaxKind::AccessorKeyword)? {
+                // Auto-accessors own a paired getter/setter name plan. A
+                // non-inlineable computed key is evaluated by the getter's
+                // name and reused by the setter, not moved to a class
+                // prologue with ordinary computed fields.
+                output.push(member_node);
+                continue;
+            }
             let name_node = self.node(name);
             let NodeData::ComputedPropertyName(computed) =
                 self.context.arena().node(name_node)?.data.clone()
@@ -420,10 +483,125 @@ impl<'context> ClassFieldsVisitor<'context> {
         Ok(self.context.arena().node(expression)?.kind == SyntaxKind::Identifier)
     }
 
+    fn declared_private_names(
+        &self,
+        members: Option<NodeArrayId>,
+    ) -> Result<BTreeSet<String>, TransformError> {
+        let mut names = BTreeSet::new();
+        for member in self.array_nodes(members)? {
+            let name = match &self.context.arena().node(member)?.data {
+                NodeData::PropertyDeclaration(data) => data.name,
+                NodeData::MethodDeclaration(data) => data.name,
+                NodeData::GetAccessor(data) => data.name,
+                NodeData::SetAccessor(data) => data.name,
+                _ => None,
+            };
+            let Some(name) = name else {
+                continue;
+            };
+            if let NodeData::PrivateIdentifier(data) =
+                &self.context.arena().node(self.node(name))?.data
+            {
+                names.insert(data.text.clone());
+            }
+        }
+        Ok(names)
+    }
+
+    fn allocate_private_storage_name(&mut self, base: &str) -> String {
+        let mut ordinal = 0usize;
+        loop {
+            let candidate = if ordinal == 0 {
+                format!("#{base}_accessor_storage")
+            } else {
+                format!("#{base}_{ordinal}_accessor_storage")
+            };
+            let visible = self
+                .private_name_scopes
+                .iter()
+                .any(|scope| scope.contains(&candidate));
+            if !visible {
+                self.private_name_scopes
+                    .last_mut()
+                    .expect("auto-accessor belongs to a class private-name scope")
+                    .insert(candidate.clone());
+                return candidate;
+            }
+            ordinal += 1;
+        }
+    }
+
+    fn allocate_anonymous_private_storage_name(&mut self) -> String {
+        let mut ordinal = 0usize;
+        loop {
+            let stem = if ordinal < 26 {
+                format!("_{}", char::from(b'a' + ordinal as u8))
+            } else {
+                format!("_{}", ordinal - 26)
+            };
+            let candidate = format!("#{stem}_accessor_storage");
+            let visible = self
+                .private_name_scopes
+                .iter()
+                .any(|scope| scope.contains(&candidate));
+            if !visible {
+                self.private_name_scopes
+                    .last_mut()
+                    .expect("auto-accessor belongs to a class private-name scope")
+                    .insert(candidate.clone());
+                return candidate;
+            }
+            ordinal += 1;
+        }
+    }
+
+    fn auto_accessor_names(&mut self, name: NodeId) -> Result<(NodeId, NodeId), TransformError> {
+        let name_node = self.node(name);
+        let NodeData::ComputedPropertyName(data) =
+            self.context.arena().node(name_node)?.data.clone()
+        else {
+            return Ok((name, name));
+        };
+        let expression = data
+            .expression
+            .and_then(|expression| self.context.arena().node_ref(self.source, expression))
+            .ok_or(TransformError::RequiredChildRemoved {
+                parent: SyntaxKind::ComputedPropertyName,
+                field: "auto-accessor name expression",
+            })?;
+        if self.is_simple_inlineable_expression(expression)? {
+            return Ok((name, name));
+        }
+
+        let temporary_name = self.allocate_temp_name();
+        let temporary = self.create_identifier(&temporary_name)?;
+        let assignment = self.create_assignment(temporary, expression)?;
+        let getter_name = self.context.factory()?.create_node(
+            self.source,
+            NodeData::ComputedPropertyName(tsc_syntax::nodes::ComputedPropertyNameData {
+                expression: Some(assignment.node()),
+            }),
+            TransformFlags::CONTAINS_COMPUTED_PROPERTY_NAME,
+        )?;
+        self.set_original_and_range(getter_name, name_node)?;
+
+        let temporary = self.create_identifier(&temporary_name)?;
+        let setter_name = self.context.factory()?.create_node(
+            self.source,
+            NodeData::ComputedPropertyName(tsc_syntax::nodes::ComputedPropertyNameData {
+                expression: Some(temporary.node()),
+            }),
+            TransformFlags::CONTAINS_COMPUTED_PROPERTY_NAME,
+        )?;
+        self.set_original_and_range(setter_name, name_node)?;
+        Ok((getter_name.node(), setter_name.node()))
+    }
+
     fn transform_members(
         &mut self,
         members: Option<NodeArrayId>,
         derived: bool,
+        class_receiver: Option<&str>,
     ) -> Result<Option<NodeArrayId>, TransformError> {
         let Some(members_id) = members else {
             return Ok(None);
@@ -435,38 +613,45 @@ impl<'context> ClassFieldsVisitor<'context> {
             .node_array(original_array)?
             .nodes
             .clone();
-        let move_instance_initializers = original_members.iter().try_fold(
-            false,
-            |found, member| -> Result<bool, TransformError> {
-                if found {
-                    return Ok(true);
-                }
-                let NodeData::PropertyDeclaration(data) =
-                    &self.context.arena().node(self.node(*member))?.data
-                else {
-                    return Ok(false);
-                };
-                Ok(data.initializer.is_some()
-                    && !self.has_modifier(data.modifiers, SyntaxKind::StaticKeyword)?
-                    && !self.has_modifier(data.modifiers, SyntaxKind::AccessorKeyword)?
-                    && !self.name_is_private(data.name)?)
-            },
-        )?;
-
-        let mut used_private_names = BTreeSet::new();
-        for member in &original_members {
-            let NodeData::PropertyDeclaration(data) =
-                &self.context.arena().node(self.node(*member))?.data
-            else {
-                continue;
-            };
-            if let Some(name) = data.name {
-                if let NodeData::PrivateIdentifier(name) =
-                    &self.context.arena().node(self.node(name))?.data
-                {
-                    used_private_names.insert(name.text.clone());
-                }
-            }
+        let mut move_instance_initializers = if self.use_define_for_class_fields {
+            false
+        } else {
+            original_members.iter().try_fold(
+                false,
+                |found, member| -> Result<bool, TransformError> {
+                    if found {
+                        return Ok(true);
+                    }
+                    let NodeData::PropertyDeclaration(data) =
+                        &self.context.arena().node(self.node(*member))?.data
+                    else {
+                        return Ok(false);
+                    };
+                    Ok(data.initializer.is_some()
+                        && !self.has_modifier(data.modifiers, SyntaxKind::StaticKeyword)?
+                        && !self.has_modifier(data.modifiers, SyntaxKind::AccessorKeyword)?
+                        && !self.name_is_private(data.name)?)
+                },
+            )?
+        };
+        if self.target < ScriptTarget::ES_NEXT && !self.use_define_for_class_fields {
+            move_instance_initializers |= original_members.iter().try_fold(
+                false,
+                |found, member| -> Result<bool, TransformError> {
+                    if found {
+                        return Ok(true);
+                    }
+                    let NodeData::PropertyDeclaration(data) =
+                        &self.context.arena().node(self.node(*member))?.data
+                    else {
+                        return Ok(false);
+                    };
+                    Ok(
+                        self.has_modifier(data.modifiers, SyntaxKind::AccessorKeyword)?
+                            && !self.has_modifier(data.modifiers, SyntaxKind::StaticKeyword)?,
+                    )
+                },
+            )?;
         }
 
         let mut output = Vec::with_capacity(original_members.len() + 3);
@@ -487,12 +672,16 @@ impl<'context> ClassFieldsVisitor<'context> {
                         self.has_modifier(data.modifiers, SyntaxKind::AccessorKeyword)?;
                     let private = self.name_is_private(data.name)?;
                     if accessor {
-                        if move_instance_initializers && !static_ {
-                            let transformed = self.transform_auto_accessor(
+                        if self.target < ScriptTarget::ES_NEXT
+                            && self.target >= ScriptTarget::ES2022
+                        {
+                            output.extend(self.transform_native_auto_accessor(
                                 member_node,
                                 data,
-                                &mut used_private_names,
-                            )?;
+                                class_receiver,
+                            )?);
+                        } else if move_instance_initializers && !static_ {
+                            let transformed = self.transform_auto_accessor(member_node, data)?;
                             instance_initializers.push(transformed.initializer);
                             output.extend(transformed.members);
                         } else {
@@ -509,6 +698,10 @@ impl<'context> ClassFieldsVisitor<'context> {
                                 )?,
                             );
                         }
+                        output.push(self.update_property(member_node, data)?);
+                    } else if self.use_define_for_class_fields
+                        && self.target >= ScriptTarget::ES2022
+                    {
                         output.push(self.update_property(member_node, data)?);
                     } else if static_ {
                         if let Some(initializer) = data.initializer {
@@ -564,9 +757,24 @@ impl<'context> ClassFieldsVisitor<'context> {
         for member in self.array_nodes(members)? {
             let NodeData::PropertyDeclaration(data) = &self.context.arena().node(member)?.data
             else {
+                if self.target < ScriptTarget::ES2022
+                    && self.context.arena().node(member)?.kind
+                        == SyntaxKind::ClassStaticBlockDeclaration
+                {
+                    return Ok(true);
+                }
                 continue;
             };
-            if !self.name_is_private(data.name)?
+            if self.target < ScriptTarget::ES2022 {
+                return Ok(true);
+            }
+            if self.target < ScriptTarget::ES_NEXT
+                && self.has_modifier(data.modifiers, SyntaxKind::AccessorKeyword)?
+            {
+                return Ok(true);
+            }
+            if !self.use_define_for_class_fields
+                && !self.name_is_private(data.name)?
                 && !self.has_modifier(data.modifiers, SyntaxKind::AccessorKeyword)?
             {
                 return Ok(true);
@@ -579,23 +787,20 @@ impl<'context> ClassFieldsVisitor<'context> {
         &mut self,
         original: TransformNode,
         data: tsc_syntax::nodes::PropertyDeclarationData,
-        used_private_names: &mut BTreeSet<String>,
     ) -> Result<TransformedAccessor, TransformError> {
         let name = data.name.ok_or(TransformError::RequiredChildRemoved {
             parent: SyntaxKind::PropertyDeclaration,
             field: "name",
         })?;
-        let base = match &self.context.arena().node(self.node(name))?.data {
-            NodeData::Identifier(data) => data.text.trim_start_matches('#').to_owned(),
-            NodeData::PrivateIdentifier(data) => data.text.trim_start_matches('#').to_owned(),
-            _ => "accessor".to_owned(),
+        let storage_base = match &self.context.arena().node(self.node(name))?.data {
+            NodeData::Identifier(data) => Some(data.text.trim_start_matches('#').to_owned()),
+            NodeData::PrivateIdentifier(data) => Some(data.text.trim_start_matches('#').to_owned()),
+            _ => None,
         };
-        let mut storage = format!("#{base}_accessor_storage");
-        let mut ordinal = 1usize;
-        while !used_private_names.insert(storage.clone()) {
-            storage = format!("#{base}_{ordinal}_accessor_storage");
-            ordinal += 1;
-        }
+        let storage = match storage_base {
+            Some(base) => self.allocate_private_storage_name(&base),
+            None => self.allocate_anonymous_private_storage_name(),
+        };
         let storage_name = self.create_private_identifier(&storage)?;
         let backing = self.context.factory()?.create_node(
             self.source,
@@ -612,8 +817,10 @@ impl<'context> ClassFieldsVisitor<'context> {
         self.set_original_and_range(backing, original)?;
 
         let modifiers = self.filter_modifier(data.modifiers, SyntaxKind::AccessorKeyword)?;
-        let getter = self.create_get_accessor(name, storage_name.node(), modifiers)?;
-        let setter = self.create_set_accessor(name, storage_name.node(), modifiers)?;
+        let (getter_name, setter_name) = self.auto_accessor_names(name)?;
+        let getter = self.create_get_accessor(getter_name, storage_name.node(), modifiers, None)?;
+        let setter = self.create_set_accessor(setter_name, storage_name.node(), modifiers, None)?;
+        self.set_original_and_range(getter, original)?;
         let initializer = data
             .initializer
             .unwrap_or(self.create_identifier("undefined")?.node());
@@ -624,7 +831,7 @@ impl<'context> ClassFieldsVisitor<'context> {
         )?;
         self.context
             .arena_mut()?
-            .metadata_mut(getter)
+            .metadata_mut(backing)
             .add_flags(EmitFlags::NO_COMMENTS);
         self.context
             .arena_mut()?
@@ -636,13 +843,67 @@ impl<'context> ClassFieldsVisitor<'context> {
         })
     }
 
+    fn transform_native_auto_accessor(
+        &mut self,
+        original: TransformNode,
+        data: tsc_syntax::nodes::PropertyDeclarationData,
+        class_receiver: Option<&str>,
+    ) -> Result<Vec<TransformNode>, TransformError> {
+        let name = data.name.ok_or(TransformError::RequiredChildRemoved {
+            parent: SyntaxKind::PropertyDeclaration,
+            field: "name",
+        })?;
+        let storage_base = match &self.context.arena().node(self.node(name))?.data {
+            NodeData::Identifier(data) => Some(data.text.trim_start_matches('#').to_owned()),
+            NodeData::PrivateIdentifier(data) => Some(data.text.trim_start_matches('#').to_owned()),
+            _ => None,
+        };
+        let storage = match storage_base {
+            Some(base) => self.allocate_private_storage_name(&base),
+            None => self.allocate_anonymous_private_storage_name(),
+        };
+        let storage_name = self.create_private_identifier(&storage)?;
+        let modifiers = self.filter_modifier(data.modifiers, SyntaxKind::AccessorKeyword)?;
+        let backing = self.context.factory()?.create_node(
+            self.source,
+            NodeData::PropertyDeclaration(tsc_syntax::nodes::PropertyDeclarationData {
+                name: Some(storage_name.node()),
+                modifiers,
+                question_token: None,
+                exclamation_token: None,
+                r#type: None,
+                initializer: data.initializer,
+            }),
+            TransformFlags::CONTAINS_CLASS_FIELDS,
+        )?;
+        self.set_original_and_range(backing, original)?;
+        let static_ = self.has_modifier(modifiers, SyntaxKind::StaticKeyword)?;
+        let receiver = static_.then_some(class_receiver).flatten();
+        let (getter_name, setter_name) = self.auto_accessor_names(name)?;
+        let getter =
+            self.create_get_accessor(getter_name, storage_name.node(), modifiers, receiver)?;
+        let setter =
+            self.create_set_accessor(setter_name, storage_name.node(), modifiers, receiver)?;
+        self.set_original_and_range(getter, original)?;
+        self.context
+            .arena_mut()?
+            .metadata_mut(backing)
+            .add_flags(EmitFlags::NO_COMMENTS);
+        self.context
+            .arena_mut()?
+            .metadata_mut(setter)
+            .add_flags(EmitFlags::NO_COMMENTS);
+        Ok(vec![backing, getter, setter])
+    }
+
     fn create_get_accessor(
         &mut self,
         name: NodeId,
         storage: NodeId,
         modifiers: Option<NodeArrayId>,
+        receiver: Option<&str>,
     ) -> Result<TransformNode, TransformError> {
-        let access = self.create_this_access(Some(storage))?;
+        let access = self.create_receiver_access(Some(storage), receiver)?;
         let return_statement = self.context.factory()?.create_node(
             self.source,
             NodeData::ReturnStatement(tsc_syntax::nodes::ReturnStatementData {
@@ -674,6 +935,7 @@ impl<'context> ClassFieldsVisitor<'context> {
         name: NodeId,
         storage: NodeId,
         modifiers: Option<NodeArrayId>,
+        receiver: Option<&str>,
     ) -> Result<TransformNode, TransformError> {
         let value = self.create_identifier("value")?;
         let parameter = self.context.factory()?.create_node(
@@ -692,7 +954,7 @@ impl<'context> ClassFieldsVisitor<'context> {
             .context
             .factory()?
             .create_node_array(self.source, vec![parameter])?;
-        let access = self.create_this_access(Some(storage))?;
+        let access = self.create_receiver_access(Some(storage), receiver)?;
         let assignment = self.create_assignment(access, value)?;
         let statement = self.create_expression_statement(assignment)?;
         let body = self.create_block(vec![statement], false)?;
@@ -756,22 +1018,33 @@ impl<'context> ClassFieldsVisitor<'context> {
         &mut self,
         name: Option<NodeId>,
     ) -> Result<TransformNode, TransformError> {
+        self.create_receiver_access(name, None)
+    }
+
+    fn create_receiver_access(
+        &mut self,
+        name: Option<NodeId>,
+        receiver_name: Option<&str>,
+    ) -> Result<TransformNode, TransformError> {
         let name = name.ok_or(TransformError::RequiredChildRemoved {
             parent: SyntaxKind::PropertyDeclaration,
             field: "name",
         })?;
-        let this = self.context.factory()?.create_token(
-            self.source,
-            SyntaxKind::ThisKeyword,
-            TransformFlags::CONTAINS_LEXICAL_THIS,
-        )?;
+        let receiver = match receiver_name {
+            Some(receiver) => self.create_identifier(receiver)?,
+            None => self.context.factory()?.create_token(
+                self.source,
+                SyntaxKind::ThisKeyword,
+                TransformFlags::CONTAINS_LEXICAL_THIS,
+            )?,
+        };
         match self.context.arena().node(self.node(name))?.data.clone() {
             NodeData::Identifier(_) | NodeData::PrivateIdentifier(_) => {
                 self.context.factory()?.create_node(
                     self.source,
                     NodeData::PropertyAccessExpression(
                         tsc_syntax::nodes::PropertyAccessExpressionData {
-                            expression: Some(this.node()),
+                            expression: Some(receiver.node()),
                             question_dot_token: None,
                             name: Some(name),
                         },
@@ -782,7 +1055,7 @@ impl<'context> ClassFieldsVisitor<'context> {
             NodeData::ComputedPropertyName(data) => self.context.factory()?.create_node(
                 self.source,
                 NodeData::ElementAccessExpression(tsc_syntax::nodes::ElementAccessExpressionData {
-                    expression: Some(this.node()),
+                    expression: Some(receiver.node()),
                     question_dot_token: None,
                     argument_expression: data.expression,
                 }),
@@ -791,7 +1064,7 @@ impl<'context> ClassFieldsVisitor<'context> {
             _ => self.context.factory()?.create_node(
                 self.source,
                 NodeData::ElementAccessExpression(tsc_syntax::nodes::ElementAccessExpressionData {
-                    expression: Some(this.node()),
+                    expression: Some(receiver.node()),
                     question_dot_token: None,
                     argument_expression: Some(name),
                 }),
@@ -1220,6 +1493,9 @@ impl<'context> ClassFieldsVisitor<'context> {
             }),
             TransformFlags::NONE,
         )?;
+        let original_statements = data
+            .statements
+            .and_then(|array| self.context.arena().node_array_ref(self.source, array));
         let mut statements = self.array_nodes(data.statements)?;
         let mut position = 0;
         while position < statements.len()
@@ -1228,12 +1504,16 @@ impl<'context> ClassFieldsVisitor<'context> {
             position += 1;
         }
         statements.insert(position, statement);
-        data.statements = Some(
+        let statements = if let Some(original) = original_statements {
+            self.context
+                .factory()?
+                .update_node_array(original, statements)?
+        } else {
             self.context
                 .factory()?
                 .create_node_array(self.source, statements)?
-                .array(),
-        );
+        };
+        data.statements = Some(statements.array());
         let flags = self.context.arena().transform_flags(root);
         self.context
             .factory()?
@@ -1299,6 +1579,13 @@ impl<'context> ClassFieldsVisitor<'context> {
                 .node(self.node(name))
                 .is_ok_and(|node| node.kind == SyntaxKind::PrivateIdentifier)
         }))
+    }
+
+    fn identifier_text(&self, node: TransformNode) -> Option<&str> {
+        match &self.context.arena().node(node).ok()?.data {
+            NodeData::Identifier(data) => Some(&data.text),
+            _ => None,
+        }
     }
 
     fn visit_optional_node(

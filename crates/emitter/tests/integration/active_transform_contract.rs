@@ -80,6 +80,21 @@ impl EmitResolver for NoConstantValueResolver {
     }
 }
 
+struct InstantiatedModuleResolver;
+
+impl EmitResolver for InstantiatedModuleResolver {
+    fn get_constant_value(
+        &self,
+        _node: EmitResolverNode,
+    ) -> Result<Option<EmitConstantValue>, EmitResolverError> {
+        Ok(None)
+    }
+
+    fn is_instantiated_module(&self, _node: EmitResolverNode) -> Result<bool, EmitResolverError> {
+        Ok(true)
+    }
+}
+
 #[test]
 fn exact_bootstrap_transformer_order_erases_the_frozen_typescript_tree() {
     let parsed = parse_source_file("main.ts", ERASABLE_TYPESCRIPT, Default::default(), None);
@@ -218,6 +233,731 @@ fn native_standard_decorator_root_is_owned_after_typescript_erasure() {
         )
         .expect("print native standard decorator syntax");
     assert_eq!(printed.text(), "@dec\nclass Value {\n    field;\n}\n");
+}
+
+#[test]
+fn es2022_using_scope_is_lowered_through_typed_disposal_state() {
+    let parsed = parse_source_file(
+        "using.ts",
+        "{\n    using value = acquire();\n}\n",
+        Default::default(),
+        None,
+    );
+    let mut arena = TransformArena::new();
+    let source = arena.add_source(&parsed, Some(SourceFileId::from_raw(0)));
+    let resolver = UnavailableEmitResolver;
+    let mut options = bootstrap_options();
+    options.target = Some(ScriptTarget::ES2022.bits());
+    options.always_strict = Some(false);
+    let transformers = get_script_transformers(&options, &resolver).unwrap();
+    assert_eq!(
+        transformers
+            .iter()
+            .map(|transformer| transformer.name())
+            .collect::<Vec<_>>(),
+        [
+            "transformTypeScript",
+            "transformESNext",
+            "transformESDecorators",
+            "transformClassFields",
+            "transformECMAScriptModule",
+        ]
+    );
+    let mut result = transform_nodes(
+        arena,
+        vec![TransformRoot::SourceFile(source)],
+        transformers,
+        false,
+    )
+    .expect("ES2022 using transform");
+    let printed = create_printer(PrinterOptions::new(NewLineKind::LineFeed))
+        .print(
+            &mut result,
+            PrintRequest::SourceFile(source),
+            &mut DisabledSourceMapRecorder,
+        )
+        .expect("print lowered using scope");
+    assert!(printed.text().starts_with("var __addDisposableResource ="));
+    assert!(printed.text().contains("var __disposeResources ="));
+    assert!(printed.text().ends_with(concat!(
+        "{\n",
+        "    const env_1 = { stack: [], error: void 0, hasError: false };\n",
+        "    try {\n",
+        "        const value = __addDisposableResource(env_1, acquire(), false);\n",
+        "    }\n",
+        "    catch (e_1) {\n",
+        "        env_1.error = e_1;\n",
+        "        env_1.hasError = true;\n",
+        "    }\n",
+        "    finally {\n",
+        "        __disposeResources(env_1);\n",
+        "    }\n",
+        "}\n",
+    )));
+}
+
+#[test]
+fn es2022_disposal_names_follow_output_scope_ownership() {
+    let parsed = parse_source_file(
+        "using-scopes.ts",
+        concat!(
+            "using root = acquire();\n",
+            "function nested() { using inner = acquire(); }\n",
+            "{ using block = acquire(); }\n",
+            "namespace N { using member = acquire(); }\n",
+        ),
+        Default::default(),
+        None,
+    );
+    let mut arena = TransformArena::new();
+    let source = arena.add_source(&parsed, Some(SourceFileId::from_raw(0)));
+    let resolver = InstantiatedModuleResolver;
+    let mut options = bootstrap_options();
+    options.target = Some(ScriptTarget::ES2022.bits());
+    options.always_strict = Some(false);
+    let mut result = transform_nodes(
+        arena,
+        vec![TransformRoot::SourceFile(source)],
+        get_script_transformers(&options, &resolver).unwrap(),
+        false,
+    )
+    .expect("ES2022 nested using transforms");
+    let printed = create_printer(PrinterOptions::new(NewLineKind::LineFeed))
+        .print(
+            &mut result,
+            PrintRequest::SourceFile(source),
+            &mut DisabledSourceMapRecorder,
+        )
+        .expect("print nested using scopes");
+    let text = printed.text();
+
+    let source_env = text.find("const env_1 =").expect("source disposal scope");
+    let block_env = text.find("const env_2 =").expect("block disposal scope");
+    let function_env = text
+        .find("const env_3 =")
+        .unwrap_or_else(|| panic!("function disposal scope missing from:\n{text}"));
+    let namespace_env = text
+        .find("const env_4 =")
+        .expect("namespace disposal scope");
+    assert!(function_env < source_env);
+    assert!(source_env < block_env && block_env < namespace_env);
+    for (catch_name, env_name) in [
+        ("e_1", "env_2"),
+        ("e_2", "env_1"),
+        ("e_3", "env_3"),
+        ("e_4", "env_4"),
+    ] {
+        assert!(text.contains(&format!("catch ({catch_name})")));
+        assert!(text.contains(&format!("{env_name}.error = {catch_name};")));
+    }
+    assert!(!text.contains("using "));
+}
+
+#[test]
+fn es2022_decorator_call_bindings_preserve_receivers_and_lexical_super() {
+    let parsed = parse_source_file(
+        "decorator-this.ts",
+        concat!(
+            "declare class DecoratorProvider {\n",
+            "    decorate<T>(this: DecoratorProvider, value: T, context: DecoratorContext): T;\n",
+            "}\n",
+            "declare const instance: DecoratorProvider;\n",
+            "class C {\n",
+            "    @instance.decorate method1() {}\n",
+            "    @(instance[\"decorate\"]) method2() {}\n",
+            "    @((instance.decorate)) method3() {}\n",
+            "}\n",
+            "class D extends DecoratorProvider {\n",
+            "    method() {\n",
+            "        class Nested {\n",
+            "            @(super.decorate) method1() {}\n",
+            "            @(super[\"decorate\"]) method2() {}\n",
+            "            @((super.decorate)) method3() {}\n",
+            "        }\n",
+            "    }\n",
+            "}\n",
+        ),
+        Default::default(),
+        None,
+    );
+    let mut arena = TransformArena::new();
+    let source = arena.add_source(&parsed, Some(SourceFileId::from_raw(0)));
+    let resolver = NoConstantValueResolver;
+    let mut options = bootstrap_options();
+    options.target = Some(ScriptTarget::ES2022.bits());
+    options.always_strict = Some(false);
+    let mut result = transform_nodes(
+        arena,
+        vec![TransformRoot::SourceFile(source)],
+        get_script_transformers(&options, &resolver).unwrap(),
+        false,
+    )
+    .expect("ES2022 standard decorator call bindings");
+    let printed = create_printer(PrinterOptions::new(NewLineKind::LineFeed))
+        .print(
+            &mut result,
+            PrintRequest::SourceFile(source),
+            &mut DisabledSourceMapRecorder,
+        )
+        .expect("print standard decorator call bindings");
+    let text = printed.text();
+
+    assert!(
+        text.contains("(_a = instance).decorate.bind(_a)"),
+        "direct receiver binding missing from:\n{text}"
+    );
+    assert!(
+        text.contains("((_b = instance)[\"decorate\"].bind(_b))"),
+        "element receiver binding missing from:\n{text}"
+    );
+    assert!(
+        text.contains("(((_c = instance).decorate.bind(_c)))"),
+        "parenthesized receiver binding missing from:\n{text}"
+    );
+    assert_eq!(text.matches("let _outerThis = this;").count(), 1);
+    assert!(text.contains("super.decorate.bind(_outerThis)"));
+    assert!(text.contains("super[\"decorate\"].bind(_outerThis)"));
+    assert!(text.contains("((super.decorate.bind(_outerThis)))"));
+}
+
+#[test]
+fn detached_source_prefix_stays_before_standard_decorator_helpers() {
+    let parsed = parse_source_file(
+        "decorator-comment.ts",
+        "// detached source comment\n\n@dec\nclass C {}\n",
+        Default::default(),
+        None,
+    );
+    let mut arena = TransformArena::new();
+    let source = arena.add_source(&parsed, Some(SourceFileId::from_raw(0)));
+    let resolver = NoConstantValueResolver;
+    let mut options = bootstrap_options();
+    options.target = Some(ScriptTarget::ES2022.bits());
+    options.always_strict = Some(false);
+    let mut result = transform_nodes(
+        arena,
+        vec![TransformRoot::SourceFile(source)],
+        get_script_transformers(&options, &resolver).unwrap(),
+        false,
+    )
+    .expect("standard decorator transform with detached source trivia");
+    let printed = create_printer(PrinterOptions::new(NewLineKind::LineFeed))
+        .print(
+            &mut result,
+            PrintRequest::SourceFile(source),
+            &mut DisabledSourceMapRecorder,
+        )
+        .expect("print standard decorator with detached source trivia");
+    let text = printed.text();
+
+    assert_eq!(text.matches("// detached source comment").count(), 1);
+    assert!(
+        text.find("// detached source comment").unwrap() < text.find("var __esDecorate =").unwrap(),
+        "source-owned detached trivia must precede source helpers:\n{text}"
+    );
+}
+
+#[test]
+fn esnext_assignment_mode_static_auto_accessor_keeps_dynamic_this_receiver() {
+    let parsed = parse_source_file(
+        "decorator-static-accessor.ts",
+        concat!(
+            "const dec = (_value, _context) => {};\n",
+            "class C { @dec static accessor value = 1; }\n",
+        ),
+        Default::default(),
+        None,
+    );
+    let mut arena = TransformArena::new();
+    let source = arena.add_source(&parsed, Some(SourceFileId::from_raw(0)));
+    let resolver = NoConstantValueResolver;
+    let mut options = bootstrap_options();
+    options.use_define_for_class_fields = Some(false);
+    options.always_strict = Some(false);
+    let mut result = transform_nodes(
+        arena,
+        vec![TransformRoot::SourceFile(source)],
+        get_script_transformers(&options, &resolver).unwrap(),
+        false,
+    )
+    .expect("ESNext assignment-mode decorated static auto-accessor");
+    let printed = create_printer(PrinterOptions::new(NewLineKind::LineFeed))
+        .print(
+            &mut result,
+            PrintRequest::SourceFile(source),
+            &mut DisabledSourceMapRecorder,
+        )
+        .expect("print ESNext assignment-mode decorated static auto-accessor");
+    let text = printed.text();
+
+    assert!(text.contains("static get value() { return this.#value_accessor_storage; }"));
+    assert!(text.contains("static set value(value) { this.#value_accessor_storage = value; }"));
+    assert!(!text.contains("return C.#value_accessor_storage"));
+}
+
+#[test]
+fn synthesized_jsx_import_owns_position_before_detached_source_prefix() {
+    let parsed = parse_source_file(
+        "jsx-comment.tsx",
+        concat!(
+            "/// <reference path=\"/.lib/react16.d.ts\" />\n",
+            "\n",
+            "export const tag = <div />;\n",
+        ),
+        ParseOptions {
+            script_target: ScriptTarget::ES_NEXT,
+            language_variant: LanguageVariant::Jsx,
+            ..ParseOptions::default()
+        },
+        None,
+    );
+    let mut arena = TransformArena::new();
+    let source = arena.add_source(&parsed, Some(SourceFileId::from_raw(0)));
+    let resolver = NoConstantValueResolver;
+    let mut options = bootstrap_options();
+    options.jsx = Some(4);
+    options.always_strict = Some(false);
+    let mut result = transform_nodes(
+        arena,
+        vec![TransformRoot::SourceFile(source)],
+        get_script_transformers(&options, &resolver).unwrap(),
+        false,
+    )
+    .expect("automatic JSX transform with detached source trivia");
+    let root = result.arena().root(source).unwrap();
+    let NodeData::SourceFile(data) = &result.arena().node(root).unwrap().data else {
+        unreachable!();
+    };
+    let statements = result
+        .arena()
+        .node_array(
+            result
+                .arena()
+                .node_array_ref(source, data.statements.unwrap())
+                .unwrap(),
+        )
+        .unwrap();
+    assert_eq!((statements.pos, statements.end), (u32::MAX, u32::MAX));
+
+    let printed = create_printer(PrinterOptions::new(NewLineKind::LineFeed))
+        .print(
+            &mut result,
+            PrintRequest::SourceFile(source),
+            &mut DisabledSourceMapRecorder,
+        )
+        .expect("print automatic JSX with detached source trivia");
+    let text = printed.text();
+    let import = text.find("import { jsx as _jsx }").unwrap();
+    let reference = text.find("/// <reference path=").unwrap();
+    let export = text.find("export const tag").unwrap();
+    assert!(
+        import < reference && reference < export,
+        "unexpected order:\n{text}"
+    );
+}
+
+#[test]
+fn synthesized_disposal_body_keeps_detached_prefix_inside_the_try() {
+    let parsed = parse_source_file(
+        "using-comment.ts",
+        concat!(
+            "/// <reference path=\"/resource.d.ts\" />\n",
+            "\n",
+            "using resource = acquire();\n",
+        ),
+        Default::default(),
+        None,
+    );
+    let mut arena = TransformArena::new();
+    let source = arena.add_source(&parsed, Some(SourceFileId::from_raw(0)));
+    let resolver = NoConstantValueResolver;
+    let mut options = bootstrap_options();
+    options.target = Some(ScriptTarget::ES2022.bits());
+    options.always_strict = Some(false);
+    let mut result = transform_nodes(
+        arena,
+        vec![TransformRoot::SourceFile(source)],
+        get_script_transformers(&options, &resolver).unwrap(),
+        false,
+    )
+    .expect("using transform with detached source trivia");
+    let printed = create_printer(PrinterOptions::new(NewLineKind::LineFeed))
+        .print(
+            &mut result,
+            PrintRequest::SourceFile(source),
+            &mut DisabledSourceMapRecorder,
+        )
+        .expect("print using transform with detached source trivia");
+    let text = printed.text();
+
+    assert_eq!(text.matches("/// <reference path=").count(), 1);
+    assert!(
+        text.find("var __disposeResources =").unwrap() < text.find("/// <reference path=").unwrap()
+    );
+    assert!(text.contains("try {\n    /// <reference path=\"/resource.d.ts\" />\n"));
+}
+
+#[test]
+fn es2022_auto_accessor_lowers_while_native_fields_remain_owned() {
+    let parsed = parse_source_file(
+        "accessor.ts",
+        "class C { field = 1; accessor item = 3; #native = 4; static accessor total = 5; }\n",
+        Default::default(),
+        None,
+    );
+    let mut arena = TransformArena::new();
+    let source = arena.add_source(&parsed, Some(SourceFileId::from_raw(0)));
+    let resolver = UnavailableEmitResolver;
+    let mut options = bootstrap_options();
+    options.target = Some(ScriptTarget::ES2022.bits());
+    options.always_strict = Some(false);
+    let mut result = transform_nodes(
+        arena,
+        vec![TransformRoot::SourceFile(source)],
+        get_script_transformers(&options, &resolver).unwrap(),
+        false,
+    )
+    .expect("ES2022 auto-accessor transform");
+    let printed = create_printer(PrinterOptions::new(NewLineKind::LineFeed))
+        .print(
+            &mut result,
+            PrintRequest::SourceFile(source),
+            &mut DisabledSourceMapRecorder,
+        )
+        .expect("print ES2022 auto accessor");
+    assert_eq!(
+        printed.text(),
+        concat!(
+            "class C {\n",
+            "    field = 1;\n",
+            "    #item_accessor_storage = 3;\n",
+            "    get item() { return this.#item_accessor_storage; }\n",
+            "    set item(value) { this.#item_accessor_storage = value; }\n",
+            "    #native = 4;\n",
+            "    static #total_accessor_storage = 5;\n",
+            "    static get total() { return C.#total_accessor_storage; }\n",
+            "    static set total(value) { C.#total_accessor_storage = value; }\n",
+            "}\n",
+        )
+    );
+}
+
+#[test]
+fn es2021_public_fields_use_typed_assignment_and_define_policies() {
+    let source_text =
+        "class Base {}\nclass C extends Base { field = 1; empty; static total = 2; }\n";
+    let expected = [
+        (
+            false,
+            concat!(
+                "class Base {\n}\n",
+                "class C extends Base {\n",
+                "    constructor() {\n",
+                "        super(...arguments);\n",
+                "        this.field = 1;\n",
+                "    }\n",
+                "}\n",
+                "C.total = 2;\n",
+            ),
+        ),
+        (
+            true,
+            concat!(
+                "class Base {\n}\n",
+                "class C extends Base {\n",
+                "    constructor() {\n",
+                "        super(...arguments);\n",
+                "        Object.defineProperty(this, \"field\", {\n",
+                "            enumerable: true,\n",
+                "            configurable: true,\n",
+                "            writable: true,\n",
+                "            value: 1\n",
+                "        });\n",
+                "        Object.defineProperty(this, \"empty\", {\n",
+                "            enumerable: true,\n",
+                "            configurable: true,\n",
+                "            writable: true,\n",
+                "            value: void 0\n",
+                "        });\n",
+                "    }\n",
+                "}\n",
+                "Object.defineProperty(C, \"total\", {\n",
+                "    enumerable: true,\n",
+                "    configurable: true,\n",
+                "    writable: true,\n",
+                "    value: 2\n",
+                "});\n",
+            ),
+        ),
+    ];
+    for (use_define, expected) in expected {
+        let parsed = parse_source_file("fields.ts", source_text, Default::default(), None);
+        let mut arena = TransformArena::new();
+        let source = arena.add_source(&parsed, Some(SourceFileId::from_raw(0)));
+        let resolver = UnavailableEmitResolver;
+        let mut options = bootstrap_options();
+        options.target = Some(ScriptTarget::ES2021.bits());
+        options.always_strict = Some(false);
+        options.use_define_for_class_fields = Some(use_define);
+        let mut result = transform_nodes(
+            arena,
+            vec![TransformRoot::SourceFile(source)],
+            get_script_transformers(&options, &resolver).unwrap(),
+            false,
+        )
+        .expect("ES2021 public-field transform");
+        let printed = create_printer(PrinterOptions::new(NewLineKind::LineFeed))
+            .print(
+                &mut result,
+                PrintRequest::SourceFile(source),
+                &mut DisabledSourceMapRecorder,
+            )
+            .expect("print ES2021 public fields");
+        assert_eq!(
+            printed.text(),
+            expected,
+            "useDefineForClassFields={use_define}"
+        );
+    }
+}
+
+#[test]
+fn es2021_private_fields_use_owned_slots_and_helper_operations() {
+    let parsed = parse_source_file(
+        "private.ts",
+        "class Cls { #x; m(){ this.#x ??= false ? neverThis() : 20; } }\n",
+        Default::default(),
+        None,
+    );
+    let mut arena = TransformArena::new();
+    let source = arena.add_source(&parsed, Some(SourceFileId::from_raw(0)));
+    let resolver = NoConstantValueResolver;
+    let mut options = bootstrap_options();
+    options.target = Some(ScriptTarget::ES2021.bits());
+    options.always_strict = Some(false);
+    let mut result = transform_nodes(
+        arena,
+        vec![TransformRoot::SourceFile(source)],
+        get_script_transformers(&options, &resolver).unwrap(),
+        false,
+    )
+    .expect("ES2021 private-field transform");
+    let printed = create_printer(PrinterOptions::new(NewLineKind::LineFeed))
+        .print(
+            &mut result,
+            PrintRequest::SourceFile(source),
+            &mut DisabledSourceMapRecorder,
+        )
+        .expect("print ES2021 private fields");
+    assert_eq!(
+        printed.text(),
+        concat!(
+            "var __classPrivateFieldGet = (this && this.__classPrivateFieldGet) || function (receiver, state, kind, f) {\n",
+            "    if (kind === \"a\" && !f) throw new TypeError(\"Private accessor was defined without a getter\");\n",
+            "    if (typeof state === \"function\" ? receiver !== state || !f : !state.has(receiver)) throw new TypeError(\"Cannot read private member from an object whose class did not declare it\");\n",
+            "    return kind === \"m\" ? f : kind === \"a\" ? f.call(receiver) : f ? f.value : state.get(receiver);\n",
+            "};\n",
+            "var __classPrivateFieldSet = (this && this.__classPrivateFieldSet) || function (receiver, state, value, kind, f) {\n",
+            "    if (kind === \"m\") throw new TypeError(\"Private method is not writable\");\n",
+            "    if (kind === \"a\" && !f) throw new TypeError(\"Private accessor was defined without a setter\");\n",
+            "    if (typeof state === \"function\" ? receiver !== state || !f : !state.has(receiver)) throw new TypeError(\"Cannot write private member to an object whose class did not declare it\");\n",
+            "    return (kind === \"a\" ? f.call(receiver, value) : f ? f.value = value : state.set(receiver, value)), value;\n",
+            "};\n",
+            "var _Cls_x;\n",
+            "class Cls {\n",
+            "    constructor() {\n",
+            "        _Cls_x.set(this, void 0);\n",
+            "    }\n",
+            "    m() { __classPrivateFieldSet(this, _Cls_x, __classPrivateFieldGet(this, _Cls_x, \"f\") ?? (false ? neverThis() : 20), \"f\"); }\n",
+            "}\n",
+            "_Cls_x = new WeakMap();\n",
+        )
+    );
+}
+
+#[test]
+fn es2021_private_behavior_uses_a_shared_brand_and_named_functions() {
+    let parsed = parse_source_file(
+        "private-behavior.ts",
+        concat!(
+            "class C { #x=1; #m(){ return this.#x; } ",
+            "get #a(){return this.#x;} set #a(v){this.#x=v;} ",
+            "invoke(){ return this.#m() + this.#a; } }\n",
+        ),
+        Default::default(),
+        None,
+    );
+    let mut arena = TransformArena::new();
+    let source = arena.add_source(&parsed, Some(SourceFileId::from_raw(0)));
+    let resolver = NoConstantValueResolver;
+    let mut options = bootstrap_options();
+    options.target = Some(ScriptTarget::ES2021.bits());
+    options.always_strict = Some(false);
+    let mut result = transform_nodes(
+        arena,
+        vec![TransformRoot::SourceFile(source)],
+        get_script_transformers(&options, &resolver).unwrap(),
+        false,
+    )
+    .expect("ES2021 private method/accessor transform");
+    let printed = create_printer(PrinterOptions::new(NewLineKind::LineFeed))
+        .print(
+            &mut result,
+            PrintRequest::SourceFile(source),
+            &mut DisabledSourceMapRecorder,
+        )
+        .expect("print ES2021 private behavior");
+    assert!(printed.text().starts_with("var __classPrivateFieldGet ="));
+    assert!(printed.text().contains("var __classPrivateFieldSet ="));
+    assert!(printed.text().ends_with(concat!(
+        "var _C_instances, _C_x, _C_m, _C_a_get, _C_a_set;\n",
+        "class C {\n",
+        "    constructor() {\n",
+        "        _C_instances.add(this);\n",
+        "        _C_x.set(this, 1);\n",
+        "    }\n",
+        "    invoke() { return __classPrivateFieldGet(this, _C_instances, \"m\", _C_m).call(this) + __classPrivateFieldGet(this, _C_instances, \"a\", _C_a_get); }\n",
+        "}\n",
+        "_C_x = new WeakMap(), _C_instances = new WeakSet(), _C_m = function _C_m() { return __classPrivateFieldGet(this, _C_x, \"f\"); }, _C_a_get = function _C_a_get() { return __classPrivateFieldGet(this, _C_x, \"f\"); }, _C_a_set = function _C_a_set(v) { __classPrivateFieldSet(this, _C_x, v, \"f\"); };\n",
+    )));
+}
+
+#[test]
+fn es2021_static_initializers_own_lexical_this_and_super_bindings() {
+    let parsed = parse_source_file(
+        "static-super.ts",
+        "class C extends B { static x=super.y; static { super.m(); this.z=1; } }\n",
+        Default::default(),
+        None,
+    );
+    let mut arena = TransformArena::new();
+    let source = arena.add_source(&parsed, Some(SourceFileId::from_raw(0)));
+    let resolver = NoConstantValueResolver;
+    let mut options = bootstrap_options();
+    options.target = Some(ScriptTarget::ES2021.bits());
+    options.always_strict = Some(false);
+    let mut result = transform_nodes(
+        arena,
+        vec![TransformRoot::SourceFile(source)],
+        get_script_transformers(&options, &resolver).unwrap(),
+        false,
+    )
+    .expect("ES2021 static lexical transform");
+    let printed = create_printer(PrinterOptions::new(NewLineKind::LineFeed))
+        .print(
+            &mut result,
+            PrintRequest::SourceFile(source),
+            &mut DisabledSourceMapRecorder,
+        )
+        .expect("print ES2021 static lexical bindings");
+    assert_eq!(
+        printed.text(),
+        concat!(
+            "var _a, _b;\n",
+            "class C extends (_b = B) {\n",
+            "}\n",
+            "_a = C;\n",
+            "Object.defineProperty(C, \"x\", {\n",
+            "    enumerable: true,\n",
+            "    configurable: true,\n",
+            "    writable: true,\n",
+            "    value: Reflect.get(_b, \"y\", _a)\n",
+            "});\n",
+            "(() => {\n",
+            "    Reflect.get(_b, \"m\", _a).call(_a);\n",
+            "    _a.z = 1;\n",
+            "})();\n",
+        )
+    );
+}
+
+#[test]
+fn es2021_auto_accessors_expand_into_downlevel_private_storage() {
+    let parsed = parse_source_file(
+        "auto-accessor.ts",
+        "class C { accessor x=1; static accessor y=2; }\n",
+        Default::default(),
+        None,
+    );
+    let mut arena = TransformArena::new();
+    let source = arena.add_source(&parsed, Some(SourceFileId::from_raw(0)));
+    let resolver = NoConstantValueResolver;
+    let mut options = bootstrap_options();
+    options.target = Some(ScriptTarget::ES2021.bits());
+    options.always_strict = Some(false);
+    let mut result = transform_nodes(
+        arena,
+        vec![TransformRoot::SourceFile(source)],
+        get_script_transformers(&options, &resolver).unwrap(),
+        false,
+    )
+    .expect("ES2021 auto-accessor transform");
+    let printed = create_printer(PrinterOptions::new(NewLineKind::LineFeed))
+        .print(
+            &mut result,
+            PrintRequest::SourceFile(source),
+            &mut DisabledSourceMapRecorder,
+        )
+        .expect("print ES2021 auto accessors");
+    assert!(printed.text().starts_with("var __classPrivateFieldGet ="));
+    assert!(printed.text().contains("var __classPrivateFieldSet ="));
+    assert!(printed.text().ends_with(concat!(
+        "var _a, _C_x_accessor_storage, _C_y_accessor_storage;\n",
+        "class C {\n",
+        "    constructor() {\n",
+        "        _C_x_accessor_storage.set(this, 1);\n",
+        "    }\n",
+        "    get x() { return __classPrivateFieldGet(this, _C_x_accessor_storage, \"f\"); }\n",
+        "    set x(value) { __classPrivateFieldSet(this, _C_x_accessor_storage, value, \"f\"); }\n",
+        "    static get y() { return __classPrivateFieldGet(_a, _a, \"f\", _C_y_accessor_storage); }\n",
+        "    static set y(value) { __classPrivateFieldSet(_a, _a, value, \"f\", _C_y_accessor_storage); }\n",
+        "}\n",
+        "_a = C, _C_x_accessor_storage = new WeakMap();\n",
+        "_C_y_accessor_storage = { value: 2 };\n",
+    )));
+}
+
+#[test]
+fn es2021_private_auto_accessor_keeps_logical_and_backing_slots_distinct() {
+    let parsed = parse_source_file(
+        "private-auto-accessor.ts",
+        "class C { accessor #x=1; m(){return this.#x;} }\n",
+        Default::default(),
+        None,
+    );
+    let mut arena = TransformArena::new();
+    let source = arena.add_source(&parsed, Some(SourceFileId::from_raw(0)));
+    let resolver = NoConstantValueResolver;
+    let mut options = bootstrap_options();
+    options.target = Some(ScriptTarget::ES2021.bits());
+    options.always_strict = Some(false);
+    let mut result = transform_nodes(
+        arena,
+        vec![TransformRoot::SourceFile(source)],
+        get_script_transformers(&options, &resolver).unwrap(),
+        false,
+    )
+    .expect("ES2021 private auto-accessor transform");
+    let printed = create_printer(PrinterOptions::new(NewLineKind::LineFeed))
+        .print(
+            &mut result,
+            PrintRequest::SourceFile(source),
+            &mut DisabledSourceMapRecorder,
+        )
+        .expect("print ES2021 private auto accessor");
+    assert!(printed.text().starts_with("var __classPrivateFieldGet ="));
+    assert!(printed.text().contains("var __classPrivateFieldSet ="));
+    assert!(printed.text().ends_with(concat!(
+        "var _C_instances, _C_x_get, _C_x_set, _C_x_accessor_storage;\n",
+        "class C {\n",
+        "    constructor() {\n",
+        "        _C_instances.add(this);\n",
+        "        _C_x_accessor_storage.set(this, 1);\n",
+        "    }\n",
+        "    m() { return __classPrivateFieldGet(this, _C_instances, \"a\", _C_x_get); }\n",
+        "}\n",
+        "_C_instances = new WeakSet(), _C_x_accessor_storage = new WeakMap(), _C_x_get = function _C_x_get() { return __classPrivateFieldGet(this, _C_x_accessor_storage, \"f\"); }, _C_x_set = function _C_x_set(value) { __classPrivateFieldSet(this, _C_x_accessor_storage, value, \"f\"); };\n",
+    )));
 }
 
 #[derive(Default)]

@@ -1,8 +1,8 @@
 # Post-H1 TypeScript 6.0.3 completion slices
 
 Status: execution schedule approved on 2026-08-08. H0, L0/L1, H1, H2.0a,
-H2.0b, H2.1a-H2.1e, H2.2a-H2.2d, H2.3a-H2.3d, and H2.4a-H2.4b are
-complete. **H2.5a is the next slice.**
+H2.0b, H2.1a-H2.1e, H2.2a-H2.2d, H2.3a-H2.3d, H2.4a-H2.4b, and H2.5a are
+complete. **H2.5b is the next slice.**
 
 This document turns the audited post-H1 residual into branch-sized execution
 slices. It owns post-H1 slice IDs, dependency order, and slice-specific
@@ -858,12 +858,72 @@ The ordinary hosted boundary remains only `cargo xtask acceptance`; profile
 generation, schema checks, focused controls, and the complete H0/H1/L1
 regression gate remain local.
 
+H2.5a closed on 2026-08-10. Its
+[qualification](../../../ratchets/h2-5a-qualification.v1.json) applies the
+dependency-closed selection rule after H2.4b. Of 634 global rows that mention
+H2.5a, 462 retain a later owner and 172 form the exact denominator. Rust runs
+167 admitted rows twice with 335 exact reported diagnostics and 287 exact
+writes. Five source rows fail closed before the first sink callback: four are
+owned by H2.9 and one output-path case by H2.8a. There are no unexecuted or
+undispositioned candidates.
+
+- `transformESNext` lowers synchronous and asynchronous explicit resource
+  management at source, block, function, loop, namespace, and module
+  boundaries with exact helper policy and disposal order;
+- generated `env`, `e`, and `result` bindings are preplanned by typed output
+  scope ownership. Parsed function-body layout, ordinary transformed blocks,
+  synthesized loops, and names introduced by earlier transforms retain tsc's
+  observable ordering without adopting its closure graph;
+- ES2021 and ES2022 class-field, private-name, auto-accessor, static-block,
+  parameter-property, and standard-decorator boundaries compose exactly with
+  the new target pass. Decorator receiver caching and lexical `super` use
+  explicit Rust state; and
+- ES2021 through ES2025 target selection, the adjacent ESNext preservation
+  boundary, ESNext/CommonJS projection, helper suppression, diagnostics,
+  repeated execution, and `noEmitOnError` pre-write behavior are exact.
+
+The separate
+[owner controls](../../../ratchets/h2-5a-owner-controls.v1.json) run pinned
+TypeScript 6.0.3 forty times and freeze 20 controls, 19 exact writes, one exact
+reported/emitted diagnostic, four ES2021 controls, twelve ES2022 controls,
+three later-standard controls, and one adjacent ESNext control. Each Rust
+control runs twice through a fresh Program and matches diagnostics, callback
+and materialized bytes, paths, order, BOM, provenance, result state, and all
+active H2 counters.
+
+The [current runtime profile](../../../ratchets/h2-5a-profile.v1.json) and its
+[strict schema](../../../.github/ci/contracts/h2-5a-profile.schema.json)
+preserve every H2.4b authority byte for byte, mark H2.1a through H2.5a active,
+and name H2.5b as next. The monotonic corpus profile now has 527 exact cases,
+1,173 exact reported diagnostics, 756 exact writes, 5 unchanged output-exact
+diagnostic controls, and eight explicit source deferrals. Freshness is checked
+with:
+
+```text
+node crates/oracle/h2-5a-qualification.mjs --check
+node crates/oracle/h2-5a-owner-controls.mjs --check
+node crates/oracle/h2-5a-profile.mjs --check
+```
+
+The ordinary hosted boundary remains only `cargo xtask acceptance`; profile
+generation, schema checks, focused controls, and the complete H0/H1/L1
+regression gate remain local.
+
 ### 4.4 Target ladder
 
 The target profile moves newest to oldest. A row activates only after all
 transformers above it in `getScriptTransformers` are closed. Each row is a
 separate runtime slice even when a corpus fixture exercises several already
 closed transforms.
+
+The pinned TypeScript implementation is the behavioral oracle for transformer
+selection, evaluation order, helper semantics, diagnostics, and emitted bytes;
+it is not the Rust module architecture. Target transforms must model their
+state with ownership-safe arenas, exhaustive enums, typed scope/operation
+plans, and explicit `Result` boundaries. A `tsc-port` ledger edge records the
+semantic correspondence, but line-for-line transplantation of TypeScript's
+nested closures, mutable sentinel values, or incidental function boundaries is
+not an implementation goal and is not accepted as slice completion.
 
 | Slice | Newly closed owner | Dependencies |
 | --- | --- | --- |

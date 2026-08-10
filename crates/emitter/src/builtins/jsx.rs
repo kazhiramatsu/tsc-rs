@@ -1245,17 +1245,15 @@ impl<'context> JsxVisitor<'context> {
             .into_iter()
             .map(|id| self.node(id))
             .collect::<Vec<_>>();
-        let statements = if let Some(original) = original_statements
-            .and_then(|array| self.context.arena().node_array_ref(self.source, array))
-        {
-            self.context
-                .factory()?
-                .update_node_array(original, statements)?
-        } else {
-            self.context
-                .factory()?
-                .create_node_array(self.source, statements)?
-        };
+        // `insertStatementAfterCustomPrologue(statements.slice(), ...)` hands
+        // tsc's updated SourceFile a fresh, synthesized statement array. Keep
+        // that ownership boundary: source-leading detached trivia must then
+        // follow the synthesized JSX runtime import instead of moving ahead
+        // of it as source-file-owned trivia.
+        let statements = self
+            .context
+            .factory()?
+            .create_node_array(self.source, statements)?;
         data.statements = Some(statements.array());
         let flags = self.context.arena().transform_flags(root);
         self.context

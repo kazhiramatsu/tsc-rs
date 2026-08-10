@@ -40,6 +40,15 @@ struct ParenthesizedNoAsiExpression {
     comment_anchor: TransformNode,
 }
 
+/// Source-leading comments separated from the first statement by a blank
+/// line are owned by the source-file boundary, not by whichever transformed
+/// statement eventually retains that source range.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+struct DetachedSourcePrefix {
+    anchor: TransformNode,
+    byte_len: usize,
+}
+
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 enum ExpressionEmissionContext {
     #[default]
@@ -263,7 +272,7 @@ impl Printer {
         {
             return self.print_json_source_file(transformation, source_id, root, recorder);
         }
-        let (text, language_variant, statements, token_spans) = {
+        let (text, language_variant, statement_array, statements, token_spans) = {
             let source = transformation.arena().source(source_id)?.syntax();
             let root_record = source.arena.node(root.node());
             let statement_array = match &root_record.data {
@@ -296,6 +305,7 @@ impl Printer {
             (
                 source.text().to_owned(),
                 source.language_variant,
+                statement_array.map(|array| TransformNodeArray::new(source_id, array)),
                 statements,
                 token_spans,
             )
@@ -312,6 +322,7 @@ impl Printer {
                 transformation,
                 source_id,
                 root,
+                statement_array,
                 statements,
                 recorder,
             );
@@ -482,6 +493,7 @@ impl Printer {
         transformation: &mut TransformationResult<'_>,
         source_id: TransformSourceId,
         root: TransformNode,
+        statement_array: Option<TransformNodeArray>,
         statements: Vec<tsc_syntax::NodeId>,
         recorder: &mut dyn SourceMapRecorder,
     ) -> Result<PrintedText, PrinterError> {
@@ -543,13 +555,38 @@ impl Printer {
                     .is_some_and(|statement| self.is_prologue_statement(transformation, statement))
             })
             .count();
-        let mut emitted_original_prefix_comments = false;
+        let detached_source_prefix = original_first_statement
+            .map(|first| self.detached_source_prefix(transformation, first))
+            .transpose()?
+            .flatten();
+        let source_owned_detached_prefix = self
+            .source_file_owns_detached_prefix(
+                transformation,
+                statement_array,
+                statements.first().copied(),
+            )?
+            .then_some(detached_source_prefix)
+            .flatten();
+        let mut emitted_detached_source_prefix = false;
+        let mut accounted_for_original_prefix = source_owned_detached_prefix.is_some();
         let mut last_original_statement = None;
         if statements.is_empty() {
+            self.emit_detached_source_prefix(
+                transformation,
+                source_owned_detached_prefix,
+                &mut writer,
+            )?;
+            emitted_detached_source_prefix = source_owned_detached_prefix.is_some();
             self.emit_helpers(source_helpers, &mut writer)?;
         }
         for (statement_index, raw_statement) in statements.into_iter().enumerate() {
             if statement_index == helper_offset {
+                self.emit_detached_source_prefix(
+                    transformation,
+                    source_owned_detached_prefix,
+                    &mut writer,
+                )?;
+                emitted_detached_source_prefix = source_owned_detached_prefix.is_some();
                 self.emit_helpers(source_helpers, &mut writer)?;
             }
             let statement = transformation
@@ -573,23 +610,28 @@ impl Printer {
             if emitted_has_original_range {
                 last_original_statement = Some(original);
             }
-            if !emitted_original_prefix_comments {
-                if let SourceRange::Original(_) = SourceRange::from_raw(
-                    original_record.pos,
-                    original_record.end,
-                    original_source.positions(),
-                )? {
-                    if original_first_statement.is_some_and(|first| first != original) {
-                        self.emit_detached_leading_comments_for_node(
-                            transformation,
-                            original_first_statement.expect("checked first statement"),
-                            &mut writer,
-                        )?;
-                    }
-                    emitted_original_prefix_comments = true;
+            if !accounted_for_original_prefix && emitted_has_original_range {
+                if original_first_statement.is_some_and(|first| first != original) {
+                    self.emit_detached_source_prefix(
+                        transformation,
+                        detached_source_prefix,
+                        &mut writer,
+                    )?;
                 }
+                accounted_for_original_prefix = true;
             }
-            if had_previous_original_statement && emitted_has_original_range {
+            let detached_prefix_len = source_owned_detached_prefix
+                .filter(|prefix| emitted_detached_source_prefix && prefix.anchor == original)
+                .map_or(0, |prefix| prefix.byte_len);
+            if detached_prefix_len != 0 {
+                self.emit_leading_comments_for_node_worker(
+                    transformation,
+                    emitted,
+                    had_previous_original_statement && emitted_has_original_range,
+                    detached_prefix_len,
+                    &mut writer,
+                )?;
+            } else if had_previous_original_statement && emitted_has_original_range {
                 self.emit_leading_comments_for_node_after_sibling(
                     transformation,
                     emitted,
@@ -3794,7 +3836,7 @@ impl Printer {
         node: TransformNode,
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
-        self.emit_leading_comments_for_node_worker(transformation, node, false, writer)
+        self.emit_leading_comments_for_node_worker(transformation, node, false, 0, writer)
     }
 
     fn emit_leading_comments_for_node_after_sibling(
@@ -3803,7 +3845,7 @@ impl Printer {
         node: TransformNode,
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
-        self.emit_leading_comments_for_node_worker(transformation, node, true, writer)
+        self.emit_leading_comments_for_node_worker(transformation, node, true, 0, writer)
     }
 
     fn emit_leading_comments_for_node_worker(
@@ -3811,6 +3853,7 @@ impl Printer {
         transformation: &TransformationResult<'_>,
         node: TransformNode,
         after_sibling: bool,
+        skipped_prefix_bytes: usize,
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
         if self.options.remove_comments
@@ -3832,7 +3875,14 @@ impl Printer {
         let start = range.start().value() as usize;
         let code_start = skip_trivia(source.text(), start);
         if code_start > start {
-            let mut trivia = &source.text()[start..code_start];
+            let trivia = &source.text()[start..code_start];
+            let mut trivia =
+                trivia
+                    .get(skipped_prefix_bytes..)
+                    .ok_or(PrinterError::InvalidTextSlice {
+                        start: u32::try_from(start + skipped_prefix_bytes).unwrap_or(u32::MAX),
+                        end: u32::try_from(code_start).unwrap_or(u32::MAX),
+                    })?;
             if after_sibling
                 || start > 0
                     && matches!(
@@ -3847,14 +3897,13 @@ impl Printer {
         Ok(())
     }
 
-    fn emit_detached_leading_comments_for_node(
+    fn detached_source_prefix(
         &self,
         transformation: &TransformationResult<'_>,
         node: TransformNode,
-        writer: &mut TextWriter,
-    ) -> Result<(), PrinterError> {
+    ) -> Result<Option<DetachedSourcePrefix>, PrinterError> {
         if self.options.remove_comments {
-            return Ok(());
+            return Ok(None);
         }
         let original = transformation.arena().get_original_node(node);
         let source = transformation.arena().source(original.source())?.syntax();
@@ -3862,13 +3911,88 @@ impl Printer {
         let SourceRange::Original(range) =
             SourceRange::from_raw(record.pos, record.end, source.positions())?
         else {
-            return Ok(());
+            return Ok(None);
         };
         let start = range.start().value() as usize;
         let code_start = skip_trivia(source.text(), start);
-        if let Some(detached) = detached_leading_trivia(&source.text()[start..code_start]) {
-            emit_leading_comments(detached, writer);
+        Ok(
+            detached_leading_trivia(&source.text()[start..code_start]).map(|detached| {
+                DetachedSourcePrefix {
+                    anchor: original,
+                    byte_len: detached.len(),
+                }
+            }),
+        )
+    }
+
+    /// Mirrors the source-file branch of tsc's
+    /// `emitBodyWithDetachedComments`: the transformed statement array owns
+    /// the detached prefix only while it still has a parsed range. A parsed
+    /// leading directive owns its own comments; a synthesized directive lets
+    /// the source-file body own them after the directive has been emitted.
+    fn source_file_owns_detached_prefix(
+        &self,
+        transformation: &TransformationResult<'_>,
+        statements: Option<TransformNodeArray>,
+        first_statement: Option<NodeId>,
+    ) -> Result<bool, PrinterError> {
+        let Some(statements) = statements else {
+            return Ok(false);
+        };
+        let source = transformation.arena().source(statements.source())?.syntax();
+        let statement_array = transformation.arena().node_array(statements)?;
+        if !matches!(
+            SourceRange::from_raw(statement_array.pos, statement_array.end, source.positions())?,
+            SourceRange::Original(_)
+        ) {
+            return Ok(false);
         }
+        let Some(first_statement) = first_statement.and_then(|statement| {
+            transformation
+                .arena()
+                .node_ref(statements.source(), statement)
+        }) else {
+            return Ok(true);
+        };
+        if !self.is_prologue_statement(transformation, first_statement) {
+            return Ok(true);
+        }
+        let first = transformation.arena().node(first_statement)?;
+        Ok(matches!(
+            SourceRange::from_raw(first.pos, first.end, source.positions())?,
+            SourceRange::Synthesized
+        ))
+    }
+
+    fn emit_detached_source_prefix(
+        &self,
+        transformation: &TransformationResult<'_>,
+        prefix: Option<DetachedSourcePrefix>,
+        writer: &mut TextWriter,
+    ) -> Result<(), PrinterError> {
+        let Some(prefix) = prefix else {
+            return Ok(());
+        };
+        let source = transformation
+            .arena()
+            .source(prefix.anchor.source())?
+            .syntax();
+        let record = transformation.arena().node(prefix.anchor)?;
+        let SourceRange::Original(range) =
+            SourceRange::from_raw(record.pos, record.end, source.positions())?
+        else {
+            return Ok(());
+        };
+        let start = range.start().value() as usize;
+        let end = start.saturating_add(prefix.byte_len);
+        let detached = source
+            .text()
+            .get(start..end)
+            .ok_or(PrinterError::InvalidTextSlice {
+                start: u32::try_from(start).unwrap_or(u32::MAX),
+                end: u32::try_from(end).unwrap_or(u32::MAX),
+            })?;
+        emit_leading_comments(detached, writer);
         Ok(())
     }
 
