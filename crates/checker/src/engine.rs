@@ -1766,6 +1766,16 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 &diagnostics::The_Object_type_is_assignable_to_very_few_other_types_Did_you_mean_to_use_the_any_type_instead,
                 vec![],
             )?;
+        } else if let Some(mut elaboration) =
+            self.st.elaborate_never_intersection_row(original_target)?
+        {
+            if let Some(existing) = self.error_state.error_info.take() {
+                elaboration.next_present = true;
+                elaboration.next.push(existing);
+            }
+            self.error_state.error_info = Some(elaboration);
+            self.error_state.error_info_revision =
+                self.error_state.error_info_revision.wrapping_add(1);
         }
         if head_message.is_none() && maybe_suppress {
             let saved_error_state = self.capture_error_calculation_state();

@@ -36,3 +36,9 @@ fn pinned_h2_4a_owner_controls_are_exact() {
     let workspace = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
     run_h2_4a_owner_controls(&workspace).unwrap();
 }
+
+#[test]
+fn pinned_h2_4b_owner_controls_are_exact() {
+    let workspace = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+    run_h2_4b_owner_controls(&workspace).unwrap();
+}

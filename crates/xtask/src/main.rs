@@ -4297,7 +4297,9 @@ fn acceptance(mut args: impl Iterator<Item = String>) -> Result<(), Box<dyn Erro
     h2_3c_acceptance::run(&workspace)?;
     h2_3d_acceptance::run(&workspace)?;
     h2_2c_acceptance::run_h2_4a(&workspace)?;
-    h2_3d_acceptance::run_h2_4a_owner_controls(&workspace)
+    h2_3d_acceptance::run_h2_4a_owner_controls(&workspace)?;
+    h2_2c_acceptance::run_h2_4b(&workspace)?;
+    h2_3d_acceptance::run_h2_4b_owner_controls(&workspace)
 }
 
 fn conformance(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
@@ -8123,20 +8125,14 @@ fn ci_oracle_gates(workspace: &Path) -> Result<(), Box<dyn Error>> {
     )?;
     let h2_3d_profile = workspace.join("crates/oracle/h2-3d-profile.mjs");
     run_command(Command::new("node").arg("--check").arg(&h2_3d_profile))?;
-    // H2.3d is immutable lineage now that H2.4a owns current runtime
-    // freshness. The H2.4a qualification/profile pin its exact authority
-    // bytes; regenerating it would reinterpret the reviewed parent slice.
+    // H2.3d and H2.4a are immutable lineage now that H2.4b owns current
+    // runtime freshness. The H2.4b qualification/profile pin their exact
+    // authority bytes; regenerating them would reinterpret reviewed slices.
     let h2_4a_qualification = workspace.join("crates/oracle/h2-4a-qualification.mjs");
     run_command(
         Command::new("node")
             .arg("--check")
             .arg(&h2_4a_qualification),
-    )?;
-    run_command(
-        Command::new("node")
-            .current_dir(workspace)
-            .arg(&h2_4a_qualification)
-            .arg("--check"),
     )?;
     let h2_4a_owner_controls = workspace.join("crates/oracle/h2-4a-owner-controls.mjs");
     run_command(
@@ -8144,18 +8140,38 @@ fn ci_oracle_gates(workspace: &Path) -> Result<(), Box<dyn Error>> {
             .arg("--check")
             .arg(&h2_4a_owner_controls),
     )?;
-    run_command(
-        Command::new("node")
-            .current_dir(workspace)
-            .arg(&h2_4a_owner_controls)
-            .arg("--check"),
-    )?;
     let h2_4a_profile = workspace.join("crates/oracle/h2-4a-profile.mjs");
     run_command(Command::new("node").arg("--check").arg(&h2_4a_profile))?;
+    let h2_4b_qualification = workspace.join("crates/oracle/h2-4b-qualification.mjs");
+    run_command(
+        Command::new("node")
+            .arg("--check")
+            .arg(&h2_4b_qualification),
+    )?;
     run_command(
         Command::new("node")
             .current_dir(workspace)
-            .arg(&h2_4a_profile)
+            .arg(&h2_4b_qualification)
+            .arg("--check"),
+    )?;
+    let h2_4b_owner_controls = workspace.join("crates/oracle/h2-4b-owner-controls.mjs");
+    run_command(
+        Command::new("node")
+            .arg("--check")
+            .arg(&h2_4b_owner_controls),
+    )?;
+    run_command(
+        Command::new("node")
+            .current_dir(workspace)
+            .arg(&h2_4b_owner_controls)
+            .arg("--check"),
+    )?;
+    let h2_4b_profile = workspace.join("crates/oracle/h2-4b-profile.mjs");
+    run_command(Command::new("node").arg("--check").arg(&h2_4b_profile))?;
+    run_command(
+        Command::new("node")
+            .current_dir(workspace)
+            .arg(&h2_4b_profile)
             .arg("--check"),
     )?;
     let h1_rust_omissions = workspace.join("crates/oracle/h1-rust-omission-inventory.mjs");

@@ -5,7 +5,6 @@ use tsc_emitter::{
     create_printer, get_script_transformers, transform_nodes, DisabledSourceMapRecorder,
     EmitConstantValue, EmitResolver, EmitResolverError, EmitResolverNode, NewLineKind,
     PrintRequest, PrinterOptions, TransformArena, TransformRoot, UnavailableEmitResolver,
-    UnsupportedTransformFeature,
 };
 use tsc_program::SourceFileId;
 use tsc_syntax::{
@@ -192,31 +191,33 @@ fn exact_bootstrap_transformer_order_erases_the_frozen_typescript_tree() {
 }
 
 #[test]
-fn rejected_feature_roots_fail_before_a_partial_transform_is_returned() {
-    let cases = [(
+fn native_standard_decorator_root_is_owned_after_typescript_erasure() {
+    let parsed = parse_source_file(
         "decorator.ts",
-        "@dec class Value {}\n",
-        UnsupportedTransformFeature::Decorators,
-    )];
-    for (file_name, text, expected) in cases {
-        let parsed = parse_source_file(file_name, text, Default::default(), None);
-        let mut arena = TransformArena::new();
-        let source = arena.add_source(&parsed, Some(SourceFileId::from_raw(0)));
-        let resolver = UnavailableEmitResolver;
-        let error = transform_nodes(
-            arena,
-            vec![TransformRoot::SourceFile(source)],
-            get_script_transformers(&bootstrap_options(), &resolver).unwrap(),
-            false,
+        "@dec class Value { field: number; }\n",
+        Default::default(),
+        None,
+    );
+    let mut arena = TransformArena::new();
+    let source = arena.add_source(&parsed, Some(SourceFileId::from_raw(0)));
+    let resolver = UnavailableEmitResolver;
+    let mut options = bootstrap_options();
+    options.always_strict = Some(false);
+    let mut result = transform_nodes(
+        arena,
+        vec![TransformRoot::SourceFile(source)],
+        get_script_transformers(&options, &resolver).unwrap(),
+        false,
+    )
+    .expect("native standard decorator syntax is owned by H2.4b");
+    let printed = create_printer(PrinterOptions::new(NewLineKind::LineFeed))
+        .print(
+            &mut result,
+            PrintRequest::SourceFile(source),
+            &mut DisabledSourceMapRecorder,
         )
-        .err()
-        .expect("profile control must fail closed");
-        assert!(matches!(
-            error,
-            tsc_emitter::TransformError::UnsupportedSyntax { feature, .. }
-                if feature == expected
-        ));
-    }
+        .expect("print native standard decorator syntax");
+    assert_eq!(printed.text(), "@dec\nclass Value {\n    field;\n}\n");
 }
 
 #[derive(Default)]

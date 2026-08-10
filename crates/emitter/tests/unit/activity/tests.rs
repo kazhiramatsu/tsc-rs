@@ -477,3 +477,19 @@ fn h2_4a_profile_admits_only_the_fourteen_completed_runtime_slices() {
         }
     }
 }
+
+#[test]
+fn h2_4b_profile_admits_only_the_fifteen_completed_runtime_slices() {
+    let mut canary = H2ActivityCanary::h2_4b_profile();
+    for slice in H2RuntimeSlice::ALL {
+        if slice <= H2RuntimeSlice::H2_4b {
+            canary.observe_runtime_slice(slice);
+            assert_eq!(canary.counters().runtime_slice(slice), 1);
+        } else {
+            let result = std::panic::catch_unwind(|| {
+                H2ActivityCanary::h2_4b_profile().observe_runtime_slice(slice)
+            });
+            assert!(result.is_err(), "{} did not fail closed", slice.name());
+        }
+    }
+}

@@ -1,7 +1,7 @@
 use std::error::Error;
 use std::fmt;
 
-use tsc_syntax::{scan_tokens, skip_trivia, NodeData, SyntaxKind};
+use tsc_syntax::{scan_tokens, skip_trivia, NodeData, NodeId, SyntaxKind};
 use tsc_types::NodeFlags;
 
 use crate::{
@@ -11,6 +11,41 @@ use crate::{
     TransformError, TransformNode, TransformNodeArray, TransformSourceId, TransformationResult,
     UnsupportedEmitFeature,
 };
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum ModifierListItemKind {
+    Decorator,
+    Modifier,
+}
+
+impl ModifierListItemKind {
+    const fn from_syntax_kind(kind: SyntaxKind) -> Self {
+        if matches!(kind, SyntaxKind::Decorator) {
+            Self::Decorator
+        } else {
+            Self::Modifier
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+struct ModifierListItem {
+    node: NodeId,
+    kind: ModifierListItemKind,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+struct ParenthesizedNoAsiExpression {
+    inner: NodeId,
+    comment_anchor: TransformNode,
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+enum ExpressionEmissionContext {
+    #[default]
+    Normal,
+    NoAsi,
+}
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct PrinterOptions {
@@ -570,7 +605,12 @@ impl Printer {
                 emitted,
                 &writer,
             )?;
-            self.emit_transformed_node(transformation, emitted, &mut writer)?;
+            self.emit_transformed_node(
+                transformation,
+                emitted,
+                ExpressionEmissionContext::Normal,
+                &mut writer,
+            )?;
             self.emit_trailing_comments_for_node(transformation, emitted, &mut writer)?;
             self.record_node_hook(
                 transformation,
@@ -697,6 +737,7 @@ impl Printer {
         &self,
         transformation: &mut TransformationResult<'_>,
         node: TransformNode,
+        expression_context: ExpressionEmissionContext,
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
         let record = transformation.arena().node(node)?.clone();
@@ -714,6 +755,22 @@ impl Printer {
             .file_name
             .to_ascii_lowercase()
             .ends_with(".json");
+
+        if expression_context == ExpressionEmissionContext::NoAsi {
+            if let Some(parenthesized) =
+                self.parenthesized_no_asi_expression(transformation, node)?
+            {
+                writer.write_punctuation("(");
+                self.emit_leading_comments_for_node(
+                    transformation,
+                    parenthesized.comment_anchor,
+                    writer,
+                )?;
+                self.emit_node_id(transformation, node.source(), parenthesized.inner, writer)?;
+                writer.write_punctuation(")");
+                return Ok(());
+            }
+        }
 
         match record.data {
             NodeData::Token if record.kind == SyntaxKind::JsxOpeningFragment => {
@@ -738,9 +795,24 @@ impl Printer {
                 writer.write_symbol(&data.text);
                 Ok(())
             }
+            NodeData::PrivateIdentifier(data) if changed => {
+                writer.write_symbol(&data.text);
+                Ok(())
+            }
             NodeData::NumericLiteral(data) if changed => {
                 writer.write_literal(&data.text);
                 Ok(())
+            }
+            NodeData::Decorator(data) => {
+                writer.write_punctuation("@");
+                self.emit_required_node(
+                    transformation,
+                    node.source(),
+                    data.expression,
+                    SyntaxKind::Decorator,
+                    "expression",
+                    writer,
+                )
             }
             NodeData::ExpressionStatement(data) => {
                 self.emit_required_node(
@@ -758,7 +830,13 @@ impl Printer {
                 writer.write_keyword("return");
                 if let Some(expression) = data.expression {
                     writer.write_space(" ");
-                    self.emit_node_id(transformation, node.source(), expression, writer)?;
+                    self.emit_node_id_with_context(
+                        transformation,
+                        node.source(),
+                        expression,
+                        ExpressionEmissionContext::NoAsi,
+                        writer,
+                    )?;
                 }
                 writer.write_trailing_semicolon(";");
                 Ok(())
@@ -1506,12 +1584,13 @@ impl Printer {
                 )
             }
             NodeData::ConditionalExpression(data) => {
-                self.emit_required_node(
+                self.emit_required_node_with_context(
                     transformation,
                     node.source(),
                     data.condition,
                     SyntaxKind::ConditionalExpression,
                     "condition",
+                    expression_context,
                     writer,
                 )?;
                 writer.write_space(" ");
@@ -1558,7 +1637,13 @@ impl Printer {
                 }
                 if let Some(expression) = data.expression {
                     writer.write_space(" ");
-                    self.emit_node_id(transformation, node.source(), expression, writer)?;
+                    self.emit_node_id_with_context(
+                        transformation,
+                        node.source(),
+                        expression,
+                        ExpressionEmissionContext::NoAsi,
+                        writer,
+                    )?;
                 }
                 Ok(())
             }
@@ -1743,6 +1828,7 @@ impl Printer {
             }
             NodeData::ClassDeclaration(data) => self.emit_class(
                 transformation,
+                node,
                 node.source(),
                 data.modifiers,
                 data.name,
@@ -1753,6 +1839,7 @@ impl Printer {
             ),
             NodeData::ClassExpression(data) => self.emit_class(
                 transformation,
+                node,
                 node.source(),
                 data.modifiers,
                 data.name,
@@ -2126,12 +2213,13 @@ impl Printer {
                     writer,
                 )
             }
-            NodeData::PartiallyEmittedExpression(data) => self.emit_required_node(
+            NodeData::PartiallyEmittedExpression(data) => self.emit_required_node_with_context(
                 transformation,
                 node.source(),
                 data.expression,
                 SyntaxKind::PartiallyEmittedExpression,
                 "expression",
+                expression_context,
                 writer,
             ),
             NodeData::NewExpression(data) => {
@@ -2147,11 +2235,11 @@ impl Printer {
                 )?;
                 if data.arguments.is_some() {
                     writer.write_punctuation("(");
-                    self.emit_node_array(
+                    self.emit_call_arguments(
                         transformation,
                         node.source(),
                         data.arguments,
-                        ", ",
+                        multi_line,
                         writer,
                     )?;
                     writer.write_punctuation(")");
@@ -2246,54 +2334,26 @@ impl Printer {
                 )
             }
             NodeData::CallExpression(data) => {
-                self.emit_required_node(
+                self.emit_required_node_with_context(
                     transformation,
                     node.source(),
                     data.expression,
                     SyntaxKind::CallExpression,
                     "expression",
+                    expression_context,
                     writer,
                 )?;
                 if data.question_dot_token.is_some() {
                     writer.write_punctuation("?.");
                 }
                 writer.write_punctuation("(");
-                if multi_line {
-                    let ids = data
-                        .arguments
-                        .and_then(|id| transformation.arena().node_array_ref(node.source(), id))
-                        .map(|array| transformation.arena().node_array(array))
-                        .transpose()?
-                        .map(|array| array.nodes.clone())
-                        .unwrap_or_default();
-                    let mut increased_indent = false;
-                    for (index, id) in ids.into_iter().enumerate() {
-                        if index != 0 {
-                            writer.write_punctuation(",");
-                            if index >= 2 {
-                                writer.write_line(false);
-                                if index == 2 {
-                                    writer.increase_indent();
-                                    increased_indent = true;
-                                }
-                            } else {
-                                writer.write_space(" ");
-                            }
-                        }
-                        self.emit_node_id(transformation, node.source(), id, writer)?;
-                    }
-                    if increased_indent {
-                        writer.decrease_indent();
-                    }
-                } else {
-                    self.emit_node_array(
-                        transformation,
-                        node.source(),
-                        data.arguments,
-                        ", ",
-                        writer,
-                    )?;
-                }
+                self.emit_call_arguments(
+                    transformation,
+                    node.source(),
+                    data.arguments,
+                    multi_line,
+                    writer,
+                )?;
                 writer.write_punctuation(")");
                 Ok(())
             }
@@ -2304,12 +2364,13 @@ impl Printer {
                         kind: record.kind,
                     });
                 }
-                self.emit_required_node(
+                self.emit_required_node_with_context(
                     transformation,
                     node.source(),
                     data.tag,
                     SyntaxKind::TaggedTemplateExpression,
                     "tag",
+                    expression_context,
                     writer,
                 )?;
                 writer.write_space(" ");
@@ -2359,12 +2420,13 @@ impl Printer {
                 )
             }
             NodeData::PostfixUnaryExpression(data) => {
-                self.emit_required_node(
+                self.emit_required_node_with_context(
                     transformation,
                     node.source(),
                     data.operand,
                     SyntaxKind::PostfixUnaryExpression,
                     "operand",
+                    expression_context,
                     writer,
                 )?;
                 let operator = tsc_syntax::tokens::token_to_string(data.operator).ok_or(
@@ -2387,7 +2449,13 @@ impl Printer {
                     parent: SyntaxKind::PropertyAccessExpression,
                     field: "name",
                 })?;
-                self.emit_node_id(transformation, node.source(), expression, writer)?;
+                self.emit_node_id_with_context(
+                    transformation,
+                    node.source(),
+                    expression,
+                    expression_context,
+                    writer,
+                )?;
                 let break_before_name = self.source_gap_has_line_break(
                     transformation,
                     node.source(),
@@ -2410,12 +2478,13 @@ impl Printer {
                 Ok(())
             }
             NodeData::ElementAccessExpression(data) => {
-                self.emit_required_node(
+                self.emit_required_node_with_context(
                     transformation,
                     node.source(),
                     data.expression,
                     SyntaxKind::ElementAccessExpression,
                     "expression",
+                    expression_context,
                     writer,
                 )?;
                 if data.question_dot_token.is_some() {
@@ -2440,12 +2509,46 @@ impl Printer {
                 Ok(())
             }
             NodeData::BinaryExpression(data) => {
-                self.emit_required_node(
+                let left_node = data
+                    .left
+                    .and_then(|id| transformation.arena().node_ref(node.source(), id));
+                let operator_node = data
+                    .operator_token
+                    .and_then(|id| transformation.arena().node_ref(node.source(), id));
+                let right_node = data
+                    .right
+                    .and_then(|id| transformation.arena().node_ref(node.source(), id));
+                let line_before_operator = match (left_node, operator_node) {
+                    (Some(left), Some(operator)) => !self
+                        .source_node_end_and_node_start_are_on_same_line(
+                            transformation,
+                            left,
+                            operator,
+                        )?,
+                    _ => false,
+                };
+                let line_after_operator = match (operator_node, right_node) {
+                    (Some(operator), Some(right)) => {
+                        transformation
+                            .arena()
+                            .metadata(right)
+                            .and_then(|metadata| metadata.starts_on_new_line())
+                            == Some(true)
+                            || !self.source_node_end_and_node_start_are_on_same_line(
+                                transformation,
+                                operator,
+                                right,
+                            )?
+                    }
+                    _ => false,
+                };
+                self.emit_required_node_with_context(
                     transformation,
                     node.source(),
                     data.left,
                     SyntaxKind::BinaryExpression,
                     "left",
+                    expression_context,
                     writer,
                 )?;
                 let operator = data
@@ -2454,7 +2557,10 @@ impl Printer {
                     .map(|operator| transformation.arena().node(operator))
                     .transpose()?
                     .map(|operator| operator.kind);
-                if operator != Some(SyntaxKind::CommaToken) {
+                if line_before_operator {
+                    writer.write_line(false);
+                    writer.increase_indent();
+                } else if operator != Some(SyntaxKind::CommaToken) {
                     writer.write_space(" ");
                 }
                 self.emit_required_node(
@@ -2465,15 +2571,26 @@ impl Printer {
                     "operator_token",
                     writer,
                 )?;
-                writer.write_space(" ");
-                self.emit_required_node(
+                if line_after_operator {
+                    writer.write_line(false);
+                    if !line_before_operator {
+                        writer.increase_indent();
+                    }
+                } else {
+                    writer.write_space(" ");
+                }
+                let result = self.emit_required_node(
                     transformation,
                     node.source(),
                     data.right,
                     SyntaxKind::BinaryExpression,
                     "right",
                     writer,
-                )
+                );
+                if line_before_operator || line_after_operator {
+                    writer.decrease_indent();
+                }
+                result
             }
             NodeData::Block(data) => {
                 writer.write_punctuation("{");
@@ -2658,7 +2775,33 @@ impl Printer {
                     )?;
                 }
                 self.emit_node_id(transformation, source, clause.node(), writer)?;
-                self.emit_trailing_comments_for_node(transformation, clause, writer)?;
+                let clause_has_statements = match &transformation.arena().node(clause)?.data {
+                    NodeData::CaseClause(data) => data.statements.is_some_and(|statements| {
+                        transformation
+                            .arena()
+                            .node_array_ref(source, statements)
+                            .and_then(|statements| {
+                                transformation.arena().node_array(statements).ok()
+                            })
+                            .is_some_and(|statements| !statements.nodes.is_empty())
+                    }),
+                    NodeData::DefaultClause(data) => data.statements.is_some_and(|statements| {
+                        transformation
+                            .arena()
+                            .node_array_ref(source, statements)
+                            .and_then(|statements| {
+                                transformation.arena().node_array(statements).ok()
+                            })
+                            .is_some_and(|statements| !statements.nodes.is_empty())
+                    }),
+                    _ => false,
+                };
+                // The final statement already owns the clause's same-line
+                // trailing comment. Emitting the clause range again duplicates
+                // that comment immediately before the next case/default arm.
+                if !clause_has_statements {
+                    self.emit_trailing_comments_for_node(transformation, clause, writer)?;
+                }
                 writer.write_line(false);
             }
             writer.decrease_indent();
@@ -2748,6 +2891,36 @@ impl Printer {
             return Ok(false);
         }
         Ok(!source.text()[left_start..right_start]
+            .bytes()
+            .any(|byte| matches!(byte, b'\r' | b'\n')))
+    }
+
+    fn source_node_end_and_node_start_are_on_same_line(
+        &self,
+        transformation: &TransformationResult<'_>,
+        left: TransformNode,
+        right: TransformNode,
+    ) -> Result<bool, PrinterError> {
+        let left = transformation.arena().get_original_node(left);
+        let right = transformation.arena().get_original_node(right);
+        if left.source() != right.source() {
+            return Ok(true);
+        }
+        let source = transformation.arena().source(left.source())?.syntax();
+        let left_record = transformation.arena().node(left)?;
+        let right_record = transformation.arena().node(right)?;
+        let (SourceRange::Original(left_range), SourceRange::Original(right_range)) = (
+            SourceRange::from_raw(left_record.pos, left_record.end, source.positions())?,
+            SourceRange::from_raw(right_record.pos, right_record.end, source.positions())?,
+        ) else {
+            return Ok(true);
+        };
+        let left_end = left_range.end().value() as usize;
+        let right_start = skip_trivia(source.text(), right_range.start().value() as usize);
+        if left_end > right_start || right_start > source.text().len() {
+            return Ok(true);
+        }
+        Ok(!source.text()[left_end..right_start]
             .bytes()
             .any(|byte| matches!(byte, b'\r' | b'\n')))
     }
@@ -2998,6 +3171,7 @@ impl Printer {
     fn emit_class(
         &self,
         transformation: &mut TransformationResult<'_>,
+        class_node: TransformNode,
         source: TransformSourceId,
         modifiers: Option<tsc_syntax::NodeArrayId>,
         name: Option<tsc_syntax::NodeId>,
@@ -3032,6 +3206,13 @@ impl Printer {
                 parent: SyntaxKind::ClassDeclaration,
                 field: "name",
             });
+        }
+        let indented = transformation
+            .arena()
+            .metadata(class_node)
+            .is_some_and(|metadata| metadata.flags().contains(crate::EmitFlags::INDENTED));
+        if indented {
+            writer.increase_indent();
         }
         let has_heritage_clauses = heritage_clauses
             .and_then(|id| transformation.arena().node_array_ref(source, id))
@@ -3080,6 +3261,9 @@ impl Printer {
             writer.write_line(false);
         }
         writer.write_punctuation("}");
+        if indented {
+            writer.decrease_indent();
+        }
         Ok(())
     }
 
@@ -3238,16 +3422,109 @@ impl Printer {
         modifiers: Option<tsc_syntax::NodeArrayId>,
         writer: &mut TextWriter,
     ) -> Result<bool, PrinterError> {
-        let present = modifiers
-            .and_then(|id| transformation.arena().node_array_ref(source, id))
-            .is_some_and(|array| {
-                transformation
+        let Some(array) =
+            modifiers.and_then(|id| transformation.arena().node_array_ref(source, id))
+        else {
+            return Ok(false);
+        };
+        let items = transformation
+            .arena()
+            .node_array(array)?
+            .nodes
+            .iter()
+            .copied()
+            .map(|node| {
+                let kind = transformation
                     .arena()
-                    .node_array(array)
-                    .is_ok_and(|array| !array.nodes.is_empty())
-            });
-        self.emit_node_array(transformation, source, modifiers, " ", writer)?;
-        Ok(present)
+                    .node(TransformNode::new(source, node))?
+                    .kind;
+                Ok(ModifierListItem {
+                    node,
+                    kind: ModifierListItemKind::from_syntax_kind(kind),
+                })
+            })
+            .collect::<Result<Vec<_>, TransformError>>()?;
+
+        for (index, item) in items.iter().enumerate() {
+            match item.kind {
+                ModifierListItemKind::Decorator => {
+                    writer.write_line(false);
+                    self.emit_node_id(transformation, source, item.node, writer)?;
+                    writer.write_line(false);
+                }
+                ModifierListItemKind::Modifier => {
+                    if index != 0 && items[index - 1].kind == ModifierListItemKind::Modifier {
+                        writer.write_space(" ");
+                    }
+                    self.emit_node_id(transformation, source, item.node, writer)?;
+                    if items
+                        .get(index + 1)
+                        .is_some_and(|next| next.kind == ModifierListItemKind::Decorator)
+                    {
+                        writer.write_space(" ");
+                    }
+                }
+            }
+        }
+
+        Ok(items
+            .last()
+            .is_some_and(|item| item.kind == ModifierListItemKind::Modifier))
+    }
+
+    fn parenthesized_no_asi_expression(
+        &self,
+        transformation: &TransformationResult<'_>,
+        expression: TransformNode,
+    ) -> Result<Option<ParenthesizedNoAsiExpression>, PrinterError> {
+        let NodeData::PartiallyEmittedExpression(data) =
+            &transformation.arena().node(expression)?.data
+        else {
+            return Ok(None);
+        };
+        let Some(inner) = data.expression else {
+            return Ok(None);
+        };
+        let original = transformation
+            .arena()
+            .metadata(expression)
+            .and_then(crate::EmitMetadata::original)
+            .unwrap_or_else(|| transformation.arena().get_original_node(expression));
+        if transformation.arena().node(original)?.kind != SyntaxKind::ParenthesizedExpression {
+            return Ok(None);
+        }
+
+        let comment_anchor = TransformNode::new(expression.source(), inner);
+        let original_anchor = transformation
+            .arena()
+            .metadata(comment_anchor)
+            .and_then(crate::EmitMetadata::original)
+            .unwrap_or_else(|| transformation.arena().get_original_node(comment_anchor));
+        let source = transformation
+            .arena()
+            .source(original_anchor.source())?
+            .syntax();
+        let record = transformation.arena().node(original_anchor)?;
+        let SourceRange::Original(range) =
+            SourceRange::from_raw(record.pos, record.end, source.positions())?
+        else {
+            return Ok(None);
+        };
+        let start = range.start().value() as usize;
+        let code_start = skip_trivia(source.text(), start);
+        let leading = &source.text()[start..code_start];
+        if !leading
+            .as_bytes()
+            .windows(2)
+            .any(|pair| pair == b"/*" || pair == b"//")
+        {
+            return Ok(None);
+        }
+
+        Ok(Some(ParenthesizedNoAsiExpression {
+            inner,
+            comment_anchor,
+        }))
     }
 
     fn emit_node_array(
@@ -3272,6 +3549,50 @@ impl Printer {
         Ok(())
     }
 
+    fn emit_call_arguments(
+        &self,
+        transformation: &mut TransformationResult<'_>,
+        source: TransformSourceId,
+        arguments: Option<tsc_syntax::NodeArrayId>,
+        multi_line: bool,
+        writer: &mut TextWriter,
+    ) -> Result<(), PrinterError> {
+        let ids = arguments
+            .and_then(|id| transformation.arena().node_array_ref(source, id))
+            .map(|array| transformation.arena().node_array(array))
+            .transpose()?
+            .map(|array| array.nodes.clone())
+            .unwrap_or_default();
+        let mut increased_indent = false;
+        for (index, id) in ids.iter().copied().enumerate() {
+            let node = TransformNode::new(source, id);
+            if index == 0 {
+                self.emit_leading_comments_for_node(transformation, node, writer)?;
+            } else {
+                writer.write_punctuation(",");
+                self.emit_delimited_trailing_comments_for_node(
+                    transformation,
+                    TransformNode::new(source, ids[index - 1]),
+                    writer,
+                )?;
+                if multi_line && index >= 2 {
+                    writer.write_line(false);
+                    if index == 2 {
+                        writer.increase_indent();
+                        increased_indent = true;
+                    }
+                } else {
+                    writer.write_space(" ");
+                }
+            }
+            self.emit_node_id(transformation, source, id, writer)?;
+        }
+        if increased_indent {
+            writer.decrease_indent();
+        }
+        Ok(())
+    }
+
     fn emit_required_node(
         &self,
         transformation: &mut TransformationResult<'_>,
@@ -3281,8 +3602,30 @@ impl Printer {
         field: &'static str,
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
+        self.emit_required_node_with_context(
+            transformation,
+            source,
+            id,
+            parent,
+            field,
+            ExpressionEmissionContext::Normal,
+            writer,
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn emit_required_node_with_context(
+        &self,
+        transformation: &mut TransformationResult<'_>,
+        source: TransformSourceId,
+        id: Option<NodeId>,
+        parent: SyntaxKind,
+        field: &'static str,
+        expression_context: ExpressionEmissionContext,
+        writer: &mut TextWriter,
+    ) -> Result<(), PrinterError> {
         let id = id.ok_or(PrinterError::MissingTransformedChild { parent, field })?;
-        self.emit_node_id(transformation, source, id, writer)
+        self.emit_node_id_with_context(transformation, source, id, expression_context, writer)
     }
 
     fn emit_node_id(
@@ -3292,13 +3635,30 @@ impl Printer {
         id: tsc_syntax::NodeId,
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
+        self.emit_node_id_with_context(
+            transformation,
+            source,
+            id,
+            ExpressionEmissionContext::Normal,
+            writer,
+        )
+    }
+
+    fn emit_node_id_with_context(
+        &self,
+        transformation: &mut TransformationResult<'_>,
+        source: TransformSourceId,
+        id: NodeId,
+        expression_context: ExpressionEmissionContext,
+        writer: &mut TextWriter,
+    ) -> Result<(), PrinterError> {
         let node = transformation
             .arena()
             .node_ref(source, id)
             .ok_or(PrinterError::UnknownStatement(id.0))?;
         let substituted = transformation.substitute_node(EmitHint::Unspecified, node)?;
         self.emit_synthetic_leading_comments_for_node(transformation, substituted, writer)?;
-        self.emit_transformed_node(transformation, substituted, writer)?;
+        self.emit_transformed_node(transformation, substituted, expression_context, writer)?;
         self.emit_synthetic_trailing_comments_for_node(transformation, substituted, writer)
     }
 

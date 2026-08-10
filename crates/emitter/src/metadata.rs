@@ -86,6 +86,9 @@ impl InternalEmitFlags {
     pub const IGNORE_SOURCE_NEWLINES: Self = Self(4);
     pub const IMMUTABLE: Self = Self(8);
     pub const TRANSFORM_PRIVATE_STATIC_ELEMENTS: Self = Self(32);
+    /// The computed property name already carries the cache selected by an
+    /// earlier transformer (the local equivalent of tsc's generated-name link).
+    pub const GENERATED_COMPUTED_PROPERTY_NAME: Self = Self(64);
 
     pub const fn from_bits(bits: u32) -> Self {
         Self(bits)

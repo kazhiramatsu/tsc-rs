@@ -1011,9 +1011,9 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:48096-48110
     ///
     /// The checkAndReportErrorForMissingPrefix alternate is a
-    /// suggestion-family row (M8). In H1's frozen profile,
-    /// useDefineForClassFields is true, so getEmitStandardClassFields reduces
-    /// exactly to target >= ES2022.
+    /// suggestion-family row (M8). H2.4b admits an explicit
+    /// `useDefineForClassFields=false` at ESNext, so this must use the exact
+    /// computed emitStandardClassFields predicate rather than target alone.
     fn check_and_report_error_for_invalid_initializer(
         &mut self,
         error_location: Option<NodeId>,
@@ -1021,7 +1021,7 @@ impl<'a> CheckerState<'a> {
         property: NodeId,
         result: Option<SymbolId>,
     ) -> bool {
-        if self.options.emit_script_target() >= ScriptTarget::ES2022 {
+        if self.options.emit_standard_class_fields() {
             return false;
         }
         // 48098: an UNRESOLVED name first probes the missing-prefix

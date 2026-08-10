@@ -83,9 +83,6 @@ pub fn validate_bootstrap_emit_options(options: &CompilerOptions) -> Result<(), 
     ) {
         return unsupported("module");
     }
-    if options.use_define_for_class_fields == Some(false) {
-        return unsupported("useDefineForClassFields");
-    }
     if !matches!(options.new_line, None | Some(0 | 1)) {
         return unsupported("newLine");
     }
@@ -284,7 +281,7 @@ pub fn emit_files(
     diagnostic_gate: &EmitDiagnosticGate,
     sink: &mut dyn OutputSink,
 ) -> Result<EmitOutcome, EmitFailure> {
-    let mut activity = H2ActivityCanary::h2_4a_profile();
+    let mut activity = H2ActivityCanary::h2_4b_profile();
     activity.construct_emit_session();
     activity.construct_output_plan();
     if !preflight.plan().units().is_empty() {

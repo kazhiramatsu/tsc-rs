@@ -25,8 +25,10 @@ const MODULE_NODE20: i32 = 102;
 const MODULE_NODE_NEXT: i32 = 199;
 const MODULE_PRESERVE: i32 = 200;
 
+mod class_fields;
 mod jsx;
 mod legacy_decorators;
+mod standard_decorators;
 mod system;
 
 const CREATE_BINDING_HELPER_TEXT: &str = r#"var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
@@ -81,7 +83,7 @@ pub fn get_script_transformers<'resolver>(
     options: &CompilerOptions,
     resolver: &'resolver dyn EmitResolver,
 ) -> Result<Vec<Box<dyn Transformer + 'resolver>>, TransformError> {
-    let mut activity = H2ActivityCanary::h2_4a_profile();
+    let mut activity = H2ActivityCanary::h2_4b_profile();
     get_script_transformers_with_optional_host(options, resolver, None, &mut activity)
 }
 
@@ -123,12 +125,6 @@ fn get_script_transformers_with_optional_host<'transformers>(
         return Err(TransformError::UnsupportedCompilerOption {
             option: "module",
             detail: "the current transformer list requires Preserve, ESNext, CommonJS, AMD, UMD, System, Node16, Node18, Node20, or NodeNext",
-        });
-    }
-    if !options.use_define_for_class_fields_effective() {
-        return Err(TransformError::UnsupportedCompilerOption {
-            option: "useDefineForClassFields",
-            detail: "the H1 bootstrap profile requires absent or true",
         });
     }
     if let Some((host, source)) = host {
@@ -179,6 +175,14 @@ fn get_script_transformers_with_optional_host<'transformers>(
         {
             activity.observe_runtime_slice(H2RuntimeSlice::H2_4a);
         }
+        if !options.use_define_for_class_fields_effective()
+            || (!options.experimental_decorators
+                && source_record
+                    .and_then(crate::EmitSource::syntax)
+                    .is_some_and(source_contains_decorator))
+        {
+            activity.observe_runtime_slice(H2RuntimeSlice::H2_4b);
+        }
     }
 
     activity.construct_script_transformer_list();
@@ -187,6 +191,9 @@ fn get_script_transformers_with_optional_host<'transformers>(
     let transform_legacy_decorators = options
         .experimental_decorators
         .then(|| legacy_decorators::transform_legacy_decorators(options, resolver));
+    let transform_standard_decorators = (!options.experimental_decorators
+        && !options.use_define_for_class_fields_effective())
+    .then(|| standard_decorators::transform_standard_decorators(options));
     let transform_jsx =
         matches!(options.jsx, Some(2 | 4 | 5)).then(|| jsx::transform_jsx(options, resolver));
     activity.construct_transform_class_fields();
@@ -213,6 +220,9 @@ fn get_script_transformers_with_optional_host<'transformers>(
     if let Some(transform_legacy_decorators) = transform_legacy_decorators {
         transformers.push(transform_legacy_decorators);
     }
+    if let Some(transform_standard_decorators) = transform_standard_decorators {
+        transformers.push(transform_standard_decorators);
+    }
     if let Some(transform_jsx) = transform_jsx {
         transformers.push(transform_jsx);
     }
@@ -237,7 +247,7 @@ pub fn transform_type_script<'resolver>(
             || options.verbatim_module_syntax == Some(true),
         remove_comments: options.remove_comments == Some(true),
         allow_jsx: matches!(options.jsx, None | Some(1..=5)),
-        allow_legacy_decorators: options.experimental_decorators,
+        allow_legacy_decorators: true,
     })
 }
 
@@ -245,10 +255,7 @@ pub fn transform_type_script<'resolver>(
 /// tsc-hash: 65cacc85f81402ff4468cf65c7636dbd5a0ce9eb6c3248f060aa5193c3af8304
 /// tsc-span: _tsc.js:95852-98038
 pub fn transform_class_fields(options: &CompilerOptions) -> Box<dyn Transformer> {
-    Box::new(ClassFieldsTransformer {
-        target: options.emit_script_target(),
-        use_define_for_class_fields: options.use_define_for_class_fields_effective(),
-    })
+    class_fields::transform_class_fields(options)
 }
 
 /// tsc-port: transformECMAScriptModule @6.0.3
@@ -485,27 +492,6 @@ fn source_file_has_use_strict_prologue(
         }
     }
     Ok(false)
-}
-
-struct ClassFieldsTransformer {
-    target: ScriptTarget,
-    use_define_for_class_fields: bool,
-}
-
-impl Transformer for ClassFieldsTransformer {
-    fn name(&self) -> &'static str {
-        "transformClassFields"
-    }
-
-    fn initialize(&mut self, _context: &mut TransformationContext) -> Result<(), TransformError> {
-        if self.target != ScriptTarget::ES_NEXT || !self.use_define_for_class_fields {
-            return Err(TransformError::UnsupportedCompilerOption {
-                option: "class-field transform",
-                detail: "downlevel class-field branches are inactive in the H1 bootstrap profile",
-            });
-        }
-        Ok(())
-    }
 }
 
 struct EcmaScriptModuleTransformer {
@@ -4274,9 +4260,8 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
             return Ok(self.info.import_bindings.get(&declaration.node()).cloned());
         }
         let original = self.context.arena().get_original_node(node);
-        if original == node
-            && NodeFlags::from_bits(self.context.arena().node(node)?.flags)
-                .contains(NodeFlags::SYNTHESIZED)
+        if NodeFlags::from_bits(self.context.arena().node(original)?.flags)
+            .contains(NodeFlags::SYNTHESIZED)
         {
             return Ok(None);
         }
@@ -5090,6 +5075,9 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
                 }
                 NodeData::NonNullExpression(data) => {
                     self.visit_partially_emitted(original, data.expression)?
+                }
+                NodeData::ParenthesizedExpression(data) => {
+                    self.visit_parenthesized_expression(original, data)?
                 }
                 NodeData::PropertyAccessExpression(data) => {
                     self.visit_constant_access(original, NodeData::PropertyAccessExpression(data))?
@@ -6809,6 +6797,46 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
             .arena_mut()?
             .set_original_node(created, Some(original))?;
         Ok(Some(created.node()))
+    }
+
+    fn visit_parenthesized_expression(
+        &mut self,
+        original: TransformNode,
+        data: tsc_syntax::nodes::ParenthesizedExpressionData,
+    ) -> Result<Option<NodeId>, TransformError> {
+        if self.parentheses_wrap_type_assertion(data.expression)? {
+            return self.visit_partially_emitted(original, data.expression);
+        }
+        Ok(Some(self.update_generic(
+            original,
+            NodeData::ParenthesizedExpression(data),
+        )?))
+    }
+
+    fn parentheses_wrap_type_assertion(
+        &self,
+        expression: Option<NodeId>,
+    ) -> Result<bool, TransformError> {
+        let Some(mut expression) = expression else {
+            return Ok(false);
+        };
+        loop {
+            let record = self.context.arena().node(self.node(expression))?;
+            expression = match &record.data {
+                NodeData::ParenthesizedExpression(data) => match data.expression {
+                    Some(expression) => expression,
+                    None => return Ok(false),
+                },
+                NodeData::PartiallyEmittedExpression(data) => match data.expression {
+                    Some(expression) => expression,
+                    None => return Ok(false),
+                },
+                NodeData::AsExpression(_)
+                | NodeData::TypeAssertionExpression(_)
+                | NodeData::SatisfiesExpression(_) => return Ok(true),
+                _ => return Ok(false),
+            };
+        }
     }
 
     fn visit_import_declaration(

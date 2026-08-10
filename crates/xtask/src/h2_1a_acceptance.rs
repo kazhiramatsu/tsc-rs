@@ -22,6 +22,7 @@ const H2_2A_QUALIFICATION_RELATIVE_PATH: &str = "ratchets/h2-2a-qualification.v1
 const H2_2B_QUALIFICATION_RELATIVE_PATH: &str = "ratchets/h2-2b-qualification.v1.json";
 const H2_2C_QUALIFICATION_RELATIVE_PATH: &str = "ratchets/h2-2c-qualification.v1.json";
 const H2_2D_QUALIFICATION_RELATIVE_PATH: &str = "ratchets/h2-2d-qualification.v1.json";
+const H2_4B_QUALIFICATION_RELATIVE_PATH: &str = "ratchets/h2-4b-qualification.v1.json";
 
 fn failure(message: impl Into<String>) -> Box<dyn Error> {
     std::io::Error::other(message.into()).into()
@@ -511,11 +512,30 @@ fn promoted_to_h2_2c(case: &Value, h2_2c_cases: &[Value]) -> Result<bool, Box<dy
     }
 }
 
+fn promoted_to_h2_4b(case: &Value, h2_4b_cases: &[Value]) -> Result<bool, Box<dyn Error>> {
+    let case_id = string(case, "case_id")?;
+    let Some(candidate) = h2_4b_cases
+        .iter()
+        .find(|candidate| candidate["case_id"].as_str() == Some(case_id))
+    else {
+        return Ok(false);
+    };
+    if candidate["selection_origin"] != "h2-1a-source-deferred-promotion"
+        || candidate["disposition"] != "admitted-for-execution"
+        || candidate["diagnostic_disposition"]["state"] != "exact-required"
+    {
+        return Err(failure(format!(
+            "{case_id}: H2.4b historical promotion is not an exact admission"
+        )));
+    }
+    Ok(true)
+}
+
 /// Validate all 295 historical H2.1a dispositions. Fully admitted rows compare
 /// every TypeScript observable twice, five trusted-base diagnostic controls
 /// retain exact output but no compatibility admission, and still-deferred rows
 /// prove deterministic typed failure before the first sink callback twice.
-/// Rows promoted by H2.1e or H2.2a-H2.2d are joined to those exact
+/// Rows promoted by H2.1e, H2.2a-H2.2d, or H2.4b are joined to those exact
 /// qualifications and executed by their acceptance gates later in the same
 /// hosted command.
 pub fn run(workspace: &Path) -> Result<(), Box<dyn Error>> {
@@ -541,6 +561,10 @@ pub fn run(workspace: &Path) -> Result<(), Box<dyn Error>> {
         workspace.join(H2_2D_QUALIFICATION_RELATIVE_PATH),
     )?)?;
     let h2_2d_cases = array(&h2_2d_artifact, "cases")?;
+    let h2_4b_artifact: Value = serde_json::from_slice(&fs::read(
+        workspace.join(H2_4B_QUALIFICATION_RELATIVE_PATH),
+    )?)?;
+    let h2_4b_cases = array(&h2_4b_artifact, "cases")?;
     if artifact["schema"] != 1
         || artifact["status"] != "qualified-typescript-oracle"
         || artifact["phase"] != "H2.1a-implied-esm-source-and-emit"
@@ -593,6 +617,7 @@ pub fn run(workspace: &Path) -> Result<(), Box<dyn Error>> {
                     && !promoted_to_h2_2b(case, h2_2b_cases)?
                     && !promoted_to_h2_2c(case, h2_2c_cases)?
                     && !crate::h2_2d_acceptance::promotes_historical_case(case, h2_2d_cases)?
+                    && !promoted_to_h2_4b(case, h2_4b_cases)?
                 {
                     execute_deferred(workspace, case)?;
                 }

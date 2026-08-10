@@ -1413,7 +1413,7 @@ fn h2_3d_resolve_json_module_option_diagnostics_match_typescript_and_gate_no_emi
 }
 
 #[test]
-fn a_later_standard_decorator_source_cannot_leave_an_earlier_partial_write() {
+fn h2_4b_standard_decorator_source_joins_the_atomic_multi_source_emit() {
     let prepared = prepared_with_sources(
         CompilerOptions {
             no_emit: Some(false),
@@ -1428,14 +1428,15 @@ fn a_later_standard_decorator_source_cannot_leave_an_earlier_partial_write() {
         ],
     );
     let mut sink = CountingSink::default();
-    let error = ProgramSession::new(prepared)
+    let outcome = ProgramSession::new(prepared)
         .emit(&mut sink)
-        .expect_err("standard decorators remain owned by H2.4b");
-    assert!(
-        matches!(error, DriverError::Emit(EmitFailure::Transform(_))),
-        "unexpected later-source failure: {error:?}"
+        .expect("standard decorators are admitted by H2.4b");
+    assert!(!outcome.emit_skipped());
+    assert_eq!(sink.writes, 2);
+    assert_eq!(
+        outcome.h2_activity().runtime_slice(H2RuntimeSlice::H2_4b),
+        1
     );
-    assert_eq!(sink.writes, 0);
 }
 
 #[test]

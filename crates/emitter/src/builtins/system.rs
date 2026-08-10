@@ -1296,9 +1296,8 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
                 .cloned());
         }
         let original = self.context.arena().get_original_node(node);
-        if original == node
-            && NodeFlags::from_bits(self.context.arena().node(node)?.flags)
-                .contains(NodeFlags::SYNTHESIZED)
+        if NodeFlags::from_bits(self.context.arena().node(original)?.flags)
+            .contains(NodeFlags::SYNTHESIZED)
         {
             return Ok(None);
         }
@@ -1320,7 +1319,10 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
             return Ok(Vec::new());
         }
         let original = self.context.arena().get_original_node(node);
-        if self.context.arena().node(original)?.pos == u32::MAX {
+        if self.context.arena().node(original)?.pos == u32::MAX
+            || NodeFlags::from_bits(self.context.arena().node(original)?.flags)
+                .contains(NodeFlags::SYNTHESIZED)
+        {
             return Ok(Vec::new());
         }
         let resolver_node = self.resolver_node(node)?;
