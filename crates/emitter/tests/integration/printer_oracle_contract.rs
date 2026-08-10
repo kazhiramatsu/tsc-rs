@@ -182,7 +182,7 @@ fn whole_source_printer_and_token_hook_coordinates_match_vendored_printer() {
             false,
         )
         .expect("identity transformation");
-        let printer = create_printer(PrinterOptions::new(new_line(text(case, "new_line"))));
+        let mut printer = create_printer(PrinterOptions::new(new_line(text(case, "new_line"))));
         let mut recorder = HookRecorder::default();
         let printed = printer
             .print(&mut result, PrintRequest::SourceFile(source), &mut recorder)

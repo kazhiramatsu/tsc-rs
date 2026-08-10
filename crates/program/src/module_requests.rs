@@ -652,8 +652,8 @@ fn plan_module_requests_worker(
                 continue;
             }
             NodeData::CallExpression(call) => {
-                let callee = call.expression.map(|id| parsed.arena.node(id));
-                if callee.is_some_and(|callee| callee.kind == SyntaxKind::ImportKeyword) {
+                let callee = call.expression;
+                if callee.is_some_and(|callee| is_import_call_callee(&parsed, callee)) {
                     if !expanded {
                         return Err(unsupported_at(
                             source,
@@ -687,7 +687,7 @@ fn plan_module_requests_worker(
                 }
                 let is_require = callee.is_some_and(|callee| {
                     matches!(
-                        &callee.data,
+                        &parsed.arena.node(callee).data,
                         NodeData::Identifier(identifier) if identifier.escaped_text == "require"
                     )
                 });
@@ -1142,6 +1142,23 @@ fn dynamic_import_mode(
             source,
             format!("file emit module kind {other} has no owned dynamic-import resolution mode"),
         )),
+    }
+}
+
+/// tsc `isImportCall`: both `import(...)` and the TS 6 deferred form
+/// `import.defer(...)` publish the first literal argument as a dynamic module
+/// request. `keyword_token` keeps this structural, so `new.defer(...)` and an
+/// arbitrary `object.defer(...)` cannot be mistaken for an import call.
+fn is_import_call_callee(source: &SourceFile, callee: NodeId) -> bool {
+    match &source.arena.node(callee).data {
+        NodeData::Token if source.arena.node(callee).kind == SyntaxKind::ImportKeyword => true,
+        NodeData::MetaProperty(meta) if meta.keyword_token == SyntaxKind::ImportKeyword => {
+            meta.name.is_some_and(|name| {
+                matches!(&source.arena.node(name).data,
+                NodeData::Identifier(identifier) if identifier.escaped_text == "defer")
+            })
+        }
+        _ => false,
     }
 }
 

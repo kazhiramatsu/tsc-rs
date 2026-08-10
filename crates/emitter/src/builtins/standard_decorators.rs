@@ -81,7 +81,7 @@ impl Transformer for StandardDecoratorTransformer {
     }
 
     fn initialize(&mut self, _context: &mut TransformationContext) -> Result<(), TransformError> {
-        if self.target < ScriptTarget::ES2021
+        if self.target < ScriptTarget::ES2020
             || self.target > ScriptTarget::ES_NEXT
             || (self.target == ScriptTarget::ES_NEXT && self.use_define_for_class_fields)
         {

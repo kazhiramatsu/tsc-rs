@@ -1,7 +1,7 @@
 use tsc_emitter::{
     create_printer, transform_nodes, DisabledSourceMapRecorder, NewLineKind, PrintRequest,
-    PrinterError, PrinterOptions, SourceMapHookEvent, SourceMapHookPhase, SourceMapRecorder,
-    TransformArena, TransformBundle, TransformRoot, UnsupportedEmitFeature,
+    PrinterError, PrinterOptions, SourceFileTextMode, SourceMapHookEvent, SourceMapHookPhase,
+    SourceMapRecorder, TransformArena, TransformBundle, TransformRoot, UnsupportedEmitFeature,
 };
 use tsc_syntax::{parse_source_file, NodeData};
 
@@ -43,7 +43,7 @@ fn transformed(
 fn whole_source_pipeline_preserves_text_and_observes_typed_map_hook_phases() {
     let text = "const astral = \"😀\";\nconst combining = \"e\u{301}\";\n";
     let (mut result, source) = transformed(text);
-    let printer = create_printer(PrinterOptions::new(NewLineKind::LineFeed));
+    let mut printer = create_printer(PrinterOptions::new(NewLineKind::LineFeed));
     let mut recorder = RecordingSourceMapHooks::default();
     let printed = printer
         .print(&mut result, PrintRequest::SourceFile(source), &mut recorder)
@@ -79,10 +79,54 @@ fn whole_source_pipeline_preserves_text_and_observes_typed_map_hook_phases() {
 }
 
 #[test]
+fn canonical_source_file_mode_walks_an_unchanged_tree() {
+    let text = "export function foo() {\n  console.log(\"foo\");\n}\n";
+    let (mut result, source) = transformed(text);
+    let mut printer = create_printer(
+        PrinterOptions::new(NewLineKind::CarriageReturnLineFeed)
+            .with_source_file_text_mode(SourceFileTextMode::Canonical),
+    );
+    let printed = printer
+        .print(
+            &mut result,
+            PrintRequest::SourceFile(source),
+            &mut DisabledSourceMapRecorder,
+        )
+        .expect("canonical source-file print");
+
+    assert_eq!(
+        printed.text(),
+        "export function foo() {\r\n    console.log(\"foo\");\r\n}\r\n"
+    );
+}
+
+#[test]
+fn canonical_source_file_mode_emits_deferred_import_phase() {
+    let (mut result, source) =
+        transformed("import defer * as namespace from \"./dependency.js\";\nnamespace.run();\n");
+    let mut printer = create_printer(
+        PrinterOptions::new(NewLineKind::LineFeed)
+            .with_source_file_text_mode(SourceFileTextMode::Canonical),
+    );
+    let printed = printer
+        .print(
+            &mut result,
+            PrintRequest::SourceFile(source),
+            &mut DisabledSourceMapRecorder,
+        )
+        .expect("deferred import print");
+
+    assert_eq!(
+        printed.text(),
+        "import defer * as namespace from \"./dependency.js\";\nnamespace.run();\n"
+    );
+}
+
+#[test]
 fn disabled_recorder_uses_the_same_pipeline_and_dormant_roots_fail_typed() {
     let text = "export const value = 1;\n";
     let (mut result, source) = transformed(text);
-    let printer = create_printer(PrinterOptions::default());
+    let mut printer = create_printer(PrinterOptions::default());
     let mut disabled = DisabledSourceMapRecorder;
     assert_eq!(
         printer

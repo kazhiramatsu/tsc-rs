@@ -13,11 +13,17 @@ use tsc_syntax::{
 use tsc_types::NodeFlags;
 
 use crate::{
-    EmitFlags, EmitHelper, TransformError, TransformFlags, TransformNode, TransformNodeArray,
-    TransformSourceId, TransformationContext,
+    EmitFlags, EmitHelper, TransformArena, TransformError, TransformFlags, TransformNode,
+    TransformNodeArray, TransformSourceId, TransformationContext,
 };
 
-use super::super::{flags_after_update, system::collect_identifier_texts};
+use super::super::{
+    flags_after_update,
+    generated_bindings::{
+        AncestorBindingPolicy, GeneratedBindingOwner, GeneratedBindingScopes, GeneratedBindings,
+    },
+    system::collect_identifier_texts,
+};
 
 const CLASS_PRIVATE_FIELD_GET_HELPER_TEXT: &str = r#"var __classPrivateFieldGet = (this && this.__classPrivateFieldGet) || function (receiver, state, kind, f) {
     if (kind === "a" && !f) throw new TypeError("Private accessor was defined without a getter");
@@ -221,147 +227,77 @@ struct StabilizedReceiver {
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-struct GeneratedBindingScopeId(usize);
+enum ParentOwnership {
+    Unique(NodeId),
+    Shared,
+}
+
+/// Parent links on synthesized nodes are intentionally absent. This snapshot
+/// reconstructs ownership from the transform tree at the class-pass boundary,
+/// keeping contextual decisions independent from mutable parser parent links.
+#[derive(Debug, Default)]
+struct OriginalTreeOwnership {
+    parents: BTreeMap<NodeId, ParentOwnership>,
+}
+
+impl OriginalTreeOwnership {
+    fn collect(
+        arena: &TransformArena,
+        source: TransformSourceId,
+        root: NodeId,
+    ) -> Result<Self, TransformError> {
+        let mut ownership = Self::default();
+        let mut pending = vec![root];
+        let mut visited = BTreeSet::new();
+        while let Some(parent) = pending.pop() {
+            if !visited.insert(parent) {
+                continue;
+            }
+            let parent_node = arena
+                .node_ref(source, parent)
+                .ok_or_else(|| TransformError::UnknownNode(TransformNode::new(source, parent)))?;
+            let record = arena.node(parent_node)?.clone();
+            let syntax = arena.source(source)?.syntax();
+            let mut children = Vec::new();
+            for_each_child(&syntax.arena, &record, |child| {
+                children.push(child);
+                false
+            });
+            for child in children {
+                ownership
+                    .parents
+                    .entry(child)
+                    .and_modify(|owner| {
+                        if *owner != ParentOwnership::Unique(parent) {
+                            *owner = ParentOwnership::Shared;
+                        }
+                    })
+                    .or_insert(ParentOwnership::Unique(parent));
+                pending.push(child);
+            }
+        }
+        Ok(ownership)
+    }
+
+    fn unique_parent(&self, node: NodeId) -> Option<NodeId> {
+        match self.parents.get(&node) {
+            Some(ParentOwnership::Unique(parent)) => Some(*parent),
+            Some(ParentOwnership::Shared) | None => None,
+        }
+    }
+}
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-enum GeneratedBindingOwner {
-    Source,
-    FunctionBody,
-    StaticEvaluation,
-}
-
-#[derive(Debug)]
-struct GeneratedBindingScope {
-    owner: GeneratedBindingOwner,
-    parent: Option<GeneratedBindingScopeId>,
-    bindings: Vec<String>,
-    next_temp_ordinal: usize,
-}
-
-#[derive(Debug, Default)]
-struct GeneratedBindings(Vec<String>);
-
-impl GeneratedBindings {
-    fn is_empty(&self) -> bool {
-        self.0.is_empty()
-    }
-}
-
-/// Owns generated names by the runtime scope in which their declarations and
-/// initializations execute. Original identifiers are reserved for the whole
-/// source, while generated names may be reused by sibling function scopes.
-/// An active ancestor's generated names remain reserved in descendants.
-#[derive(Debug)]
-struct GeneratedBindingScopes {
-    reserved_source_names: BTreeSet<String>,
-    scopes: Vec<GeneratedBindingScope>,
-    current: GeneratedBindingScopeId,
-}
-
-impl GeneratedBindingScopes {
-    fn new(reserved_source_names: BTreeSet<String>) -> Self {
-        Self {
-            reserved_source_names,
-            scopes: vec![GeneratedBindingScope {
-                owner: GeneratedBindingOwner::Source,
-                parent: None,
-                bindings: Vec::new(),
-                next_temp_ordinal: 0,
-            }],
-            current: GeneratedBindingScopeId(0),
-        }
-    }
-
-    fn enter(
-        &mut self,
-        owner: GeneratedBindingOwner,
-    ) -> (GeneratedBindingScopeId, GeneratedBindingScopeId) {
-        let previous = self.current;
-        let scope = GeneratedBindingScopeId(self.scopes.len());
-        self.scopes.push(GeneratedBindingScope {
-            owner,
-            parent: Some(previous),
-            bindings: Vec::new(),
-            next_temp_ordinal: 0,
-        });
-        self.current = scope;
-        (previous, scope)
-    }
-
-    fn exit(
-        &mut self,
-        previous: GeneratedBindingScopeId,
-        completed: GeneratedBindingScopeId,
-    ) -> GeneratedBindings {
-        debug_assert_eq!(self.current, completed);
-        debug_assert_ne!(
-            self.scopes[completed.0].owner,
-            GeneratedBindingOwner::Source
-        );
-        self.current = previous;
-        GeneratedBindings(std::mem::take(&mut self.scopes[completed.0].bindings))
-    }
-
-    fn source_bindings(&mut self) -> GeneratedBindings {
-        debug_assert_eq!(self.current, GeneratedBindingScopeId(0));
-        GeneratedBindings(std::mem::take(&mut self.scopes[0].bindings))
-    }
-
-    fn allocate_temp(&mut self) -> String {
-        loop {
-            let ordinal = self.scopes[self.current.0].next_temp_ordinal;
-            self.scopes[self.current.0].next_temp_ordinal += 1;
-            let candidate = if ordinal < 26 {
-                format!("_{}", char::from(b'a' + ordinal as u8))
-            } else {
-                format!("_{}", ordinal - 26)
-            };
-            if self.reserve_in_current(candidate.clone()) {
-                return candidate;
-            }
-        }
-    }
-
-    fn allocate_preferred(&mut self, preferred: String) -> String {
-        if self.reserve_in_current(preferred.clone()) {
-            return preferred;
-        }
-        let mut suffix = 1usize;
-        loop {
-            let candidate = format!("{preferred}_{suffix}");
-            if self.reserve_in_current(candidate.clone()) {
-                return candidate;
-            }
-            suffix += 1;
-        }
-    }
-
-    fn reserve_in_current(&mut self, candidate: String) -> bool {
-        if self.reserved_source_names.contains(&candidate) || self.active_scope_contains(&candidate)
-        {
-            return false;
-        }
-        self.scopes[self.current.0].bindings.push(candidate);
-        true
-    }
-
-    fn active_scope_contains(&self, candidate: &str) -> bool {
-        let mut scope = Some(self.current);
-        while let Some(current) = scope {
-            let current = &self.scopes[current.0];
-            if current.bindings.iter().any(|binding| binding == candidate) {
-                return true;
-            }
-            scope = current.parent;
-        }
-        false
-    }
+enum InlineSequencePlacement {
+    ExistingListContext,
+    RequiresParentheses,
 }
 
 pub(super) fn transform_source(
     context: &mut TransformationContext,
     source: TransformSourceId,
     use_define_for_class_fields: bool,
+    class_aliases: &mut BTreeMap<(u32, u32), Box<str>>,
 ) -> Result<(), TransformError> {
     let root = context.arena().root(source)?;
     let mode = if use_define_for_class_fields {
@@ -369,7 +305,9 @@ pub(super) fn transform_source(
     } else {
         PublicFieldMode::Assignment
     };
-    let mut visitor = DownlevelClassVisitor::new(context, source, mode);
+    let tree_ownership = OriginalTreeOwnership::collect(context.arena(), source, root.node())?;
+    let mut visitor =
+        DownlevelClassVisitor::new(context, source, mode, tree_ownership, class_aliases);
     let transformed = visitor
         .visit(root.node())?
         .ok_or(TransformError::RequiredChildRemoved {
@@ -386,7 +324,7 @@ pub(super) fn transform_source(
     Ok(())
 }
 
-struct DownlevelClassVisitor<'context> {
+struct DownlevelClassVisitor<'context, 'aliases> {
     context: &'context mut TransformationContext,
     source: TransformSourceId,
     mode: PublicFieldMode,
@@ -398,19 +336,23 @@ struct DownlevelClassVisitor<'context> {
     active_static_bindings: Option<StaticBindings>,
     generated_static_auto_accessors: BTreeSet<NodeId>,
     generated_auto_accessor_backings: BTreeSet<NodeId>,
+    tree_ownership: OriginalTreeOwnership,
+    class_aliases: &'aliases mut BTreeMap<(u32, u32), Box<str>>,
 }
 
-impl<'context> DownlevelClassVisitor<'context> {
+impl<'context, 'aliases> DownlevelClassVisitor<'context, 'aliases> {
     fn new(
         context: &'context mut TransformationContext,
         source: TransformSourceId,
         mode: PublicFieldMode,
+        tree_ownership: OriginalTreeOwnership,
+        class_aliases: &'aliases mut BTreeMap<(u32, u32), Box<str>>,
     ) -> Self {
         Self {
-            generated_bindings: GeneratedBindingScopes::new(collect_identifier_texts(
-                context.arena(),
-                source,
-            )),
+            generated_bindings: GeneratedBindingScopes::new(
+                collect_identifier_texts(context.arena(), source),
+                AncestorBindingPolicy::Reserve,
+            ),
             context,
             source,
             mode,
@@ -421,6 +363,8 @@ impl<'context> DownlevelClassVisitor<'context> {
             active_static_bindings: None,
             generated_static_auto_accessors: BTreeSet::new(),
             generated_auto_accessor_backings: BTreeSet::new(),
+            tree_ownership,
+            class_aliases,
         }
     }
 
@@ -730,6 +674,7 @@ impl<'context> DownlevelClassVisitor<'context> {
             parent: SyntaxKind::ClassExpression,
             field: "lowered class expression binding",
         })?;
+        self.register_class_alias(original, &binding)?;
 
         // Class expressions cannot expand their containing statement.  A
         // comma expression owns the temporary class value and every ordered
@@ -759,6 +704,25 @@ impl<'context> DownlevelClassVisitor<'context> {
         expressions.push(self.create_identifier(&binding)?);
         let expression = self.inline_class_expression(expressions, class, original)?;
         Ok(expression.node())
+    }
+
+    fn register_class_alias(
+        &mut self,
+        declaration: TransformNode,
+        alias: &str,
+    ) -> Result<(), TransformError> {
+        let declaration = self.context.arena().get_original_node(declaration);
+        let program_source = self
+            .context
+            .arena()
+            .source(declaration.source())?
+            .program_source()
+            .ok_or(TransformError::MissingProgramSource(declaration))?;
+        self.class_aliases.insert(
+            (program_source.raw(), declaration.node().0),
+            alias.to_owned().into_boxed_str(),
+        );
+        Ok(())
     }
 
     fn class_expression_requires_binding(
@@ -808,27 +772,53 @@ impl<'context> DownlevelClassVisitor<'context> {
                 .set_starts_on_new_line(true);
         }
         let expression = self.inline_expressions(expressions)?;
-        let original_parent = self
-            .context
-            .arena()
-            .node(original)?
-            .parent
-            .and_then(|parent| self.context.arena().node_ref(self.source, parent))
-            .map(|parent| self.context.arena().node(parent).map(|node| node.kind))
-            .transpose()?;
-        if matches!(
-            original_parent,
-            Some(
-                SyntaxKind::ParenthesizedExpression
-                    | SyntaxKind::ReturnStatement
-                    | SyntaxKind::ArrowFunction
-            )
-        ) {
+        if self.inline_sequence_placement(original)? == InlineSequencePlacement::ExistingListContext
+        {
             self.set_original_and_range(expression, original)
         } else {
             let parenthesized = self.create_parenthesized(expression)?;
             self.set_original_and_range(parenthesized, original)
         }
+    }
+
+    fn inline_sequence_placement(
+        &self,
+        original: TransformNode,
+    ) -> Result<InlineSequencePlacement, TransformError> {
+        let mut current = original.node();
+        while let Some(parent) = self.tree_ownership.unique_parent(current) {
+            let parent_node = self
+                .context
+                .arena()
+                .node_ref(self.source, parent)
+                .ok_or_else(|| TransformError::UnknownNode(self.node(parent)))?;
+            let record = self.context.arena().node(parent_node)?;
+            match &record.data {
+                NodeData::ParenthesizedExpression(_)
+                | NodeData::ReturnStatement(_)
+                | NodeData::ArrowFunction(_) => {
+                    return Ok(InlineSequencePlacement::ExistingListContext);
+                }
+                NodeData::PartiallyEmittedExpression(_) => current = parent,
+                NodeData::BinaryExpression(data) => {
+                    let operator = data
+                        .operator_token
+                        .and_then(|operator| self.context.arena().node_ref(self.source, operator))
+                        .map(|operator| self.context.arena().node(operator).map(|node| node.kind))
+                        .transpose()?;
+                    if matches!(
+                        operator,
+                        Some(SyntaxKind::EqualsToken | SyntaxKind::CommaToken)
+                    ) {
+                        current = parent;
+                    } else {
+                        return Ok(InlineSequencePlacement::RequiresParentheses);
+                    }
+                }
+                _ => return Ok(InlineSequencePlacement::RequiresParentheses),
+            }
+        }
+        Ok(InlineSequencePlacement::RequiresParentheses)
     }
 
     fn expand_auto_accessors(
@@ -1789,11 +1779,13 @@ impl<'context> DownlevelClassVisitor<'context> {
                         field: "private name",
                     })?;
                     let slot = self.private_slot(self.node(private_name))?.clone();
-                    data.initializer = if slot.is_static() {
-                        self.visit_optional_static_node(data.initializer)?
-                    } else {
-                        self.visit_optional_node(data.initializer)?
-                    };
+                    // Instance initializers execute in the constructor. Their
+                    // nested generated names must therefore be allocated in
+                    // the constructor scope when the operation is
+                    // materialized, not while the class-level plan is built.
+                    if slot.is_static() {
+                        data.initializer = self.visit_optional_static_node(data.initializer)?;
+                    }
                     let operation = PrivateFieldOperation {
                         original: member,
                         slot: slot.clone(),
@@ -1918,12 +1910,9 @@ impl<'context> DownlevelClassVisitor<'context> {
                             FieldReceiver::Instance
                         };
                     data.name = self.visit_optional_node(data.name)?;
-                    data.initializer = match receiver {
-                        FieldReceiver::Instance => self.visit_optional_node(data.initializer)?,
-                        FieldReceiver::Static => {
-                            self.visit_optional_static_node(data.initializer)?
-                        }
-                    };
+                    if receiver == FieldReceiver::Static {
+                        data.initializer = self.visit_optional_static_node(data.initializer)?;
+                    }
                     if data.initializer.is_none()
                         && self.mode == PublicFieldMode::DefineProperty
                         && receiver == FieldReceiver::Instance
@@ -1993,7 +1982,11 @@ impl<'context> DownlevelClassVisitor<'context> {
                     {
                         self.with_static_bindings(|visitor| visitor.update_generic(member, data))?
                     } else {
-                        self.update_generic(member, data)?
+                        self.visit(member.node())?
+                            .ok_or(TransformError::RequiredChildRemoved {
+                                parent: self.context.arena().node(member)?.kind,
+                                field: "retained class member",
+                            })?
                     };
                     operations.retained_members.push(self.node(updated));
                 }
@@ -2126,29 +2119,59 @@ impl<'context> DownlevelClassVisitor<'context> {
         derived: bool,
         class_name: Option<&str>,
     ) -> Result<(), TransformError> {
-        let mut statements = Vec::with_capacity(operations.len());
-        for operation in operations {
-            statements.push(match operation {
-                InstanceOperation::PrivateBrand(brand) => self.materialize_private_brand(brand)?,
-                InstanceOperation::Public(operation) => {
-                    self.materialize_field_operation(operation, class_name)?
+        let (statements, bindings) =
+            self.with_new_generated_scope(GeneratedBindingOwner::FunctionBody, |visitor| {
+                let mut statements = Vec::with_capacity(operations.len());
+                for operation in operations {
+                    statements.push(match operation {
+                        InstanceOperation::PrivateBrand(brand) => {
+                            visitor.materialize_private_brand(brand)?
+                        }
+                        InstanceOperation::Public(operation) => {
+                            let mut operation = operation.clone();
+                            operation.initializer =
+                                visitor.visit_optional_node(operation.initializer)?;
+                            visitor.materialize_field_operation(&operation, class_name)?
+                        }
+                        InstanceOperation::PrivateField(operation) => {
+                            let mut operation = operation.clone();
+                            operation.initializer =
+                                visitor.visit_optional_node(operation.initializer)?;
+                            visitor.materialize_private_instance_field(&operation)?
+                        }
+                    });
                 }
-                InstanceOperation::PrivateField(operation) => {
-                    self.materialize_private_instance_field(operation)?
-                }
-            });
-        }
+                Ok(statements)
+            })?;
         let constructor = members.iter().position(|member| {
             self.context
                 .arena()
                 .node(*member)
                 .is_ok_and(|member| member.kind == SyntaxKind::Constructor)
         });
-        if let Some(index) = constructor {
-            members[index] = self.inject_into_constructor(members[index], &statements)?;
+        let constructor = if let Some(index) = constructor {
+            let constructor = self.inject_into_constructor(members[index], &statements)?;
+            members[index] = constructor;
+            constructor
         } else {
-            members.insert(0, self.create_synthetic_constructor(derived, statements)?);
-        }
+            let constructor = self.create_synthetic_constructor(derived, statements)?;
+            members.insert(0, constructor);
+            constructor
+        };
+        let constructor = self.install_function_bindings(constructor, bindings)?;
+        let index = members
+            .iter()
+            .position(|member| *member == constructor)
+            .or_else(|| {
+                members.iter().position(|member| {
+                    self.context
+                        .arena()
+                        .node(*member)
+                        .is_ok_and(|member| member.kind == SyntaxKind::Constructor)
+                })
+            })
+            .expect("instance operations always own a constructor");
+        members[index] = constructor;
         Ok(())
     }
 
@@ -2355,6 +2378,15 @@ impl<'context> DownlevelClassVisitor<'context> {
             0,
             Vec::new(),
         ))?;
+        // tsc moves the receiver's comment range start to the synthetic
+        // sentinel before placing it in the helper argument list. Rust's
+        // range type intentionally rejects mixed synthetic/original ranges,
+        // so encode the same ownership directly: the containing access owns
+        // leading trivia, while the receiver retains its source range.
+        self.context
+            .arena_mut()?
+            .metadata_mut(receiver)
+            .add_flags(EmitFlags::NO_LEADING_COMMENTS);
         let helper = self.create_identifier("__classPrivateFieldGet")?;
         let brand = self.create_identifier(slot.brand_name())?;
         let kind = self.create_string_literal(slot.access_kind())?;
@@ -2378,6 +2410,10 @@ impl<'context> DownlevelClassVisitor<'context> {
             0,
             Vec::new(),
         ))?;
+        self.context
+            .arena_mut()?
+            .metadata_mut(receiver)
+            .add_flags(EmitFlags::NO_LEADING_COMMENTS);
         let helper = self.create_identifier("__classPrivateFieldSet")?;
         let brand = self.create_identifier(slot.brand_name())?;
         let kind = self.create_string_literal(slot.access_kind())?;
@@ -2713,12 +2749,17 @@ impl<'context> DownlevelClassVisitor<'context> {
         &mut self,
         bindings: &GeneratedBindings,
     ) -> Result<TransformNode, TransformError> {
-        let mut declarations = Vec::with_capacity(bindings.0.len());
-        for name in &bindings.0 {
+        let mut declarations = Vec::with_capacity(bindings.names().len());
+        for name in bindings.names() {
             let name = self.create_identifier(name)?;
             declarations.push(self.create_variable_declaration(name, None)?);
         }
-        self.create_variable_statement(declarations, NodeFlags::NONE)
+        let statement = self.create_variable_statement(declarations, NodeFlags::NONE)?;
+        self.context
+            .arena_mut()?
+            .metadata_mut(statement)
+            .add_flags(EmitFlags::CUSTOM_PROLOGUE);
+        Ok(statement)
     }
 
     fn allocate_temp_name(&mut self) -> String {
@@ -3354,7 +3395,7 @@ impl<'context> DownlevelClassVisitor<'context> {
     }
 }
 
-impl NodeDataChildVisitor for DownlevelClassVisitor<'_> {
+impl NodeDataChildVisitor for DownlevelClassVisitor<'_, '_> {
     type Error = TransformError;
 
     fn node_kind(&self, id: NodeId) -> SyntaxKind {

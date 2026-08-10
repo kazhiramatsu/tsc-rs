@@ -1,8 +1,9 @@
+use std::collections::{BTreeMap, BTreeSet};
 use std::error::Error;
 use std::fmt;
 
-use tsc_syntax::{scan_tokens, skip_trivia, NodeData, NodeId, SyntaxKind};
-use tsc_types::NodeFlags;
+use tsc_syntax::{for_each_child, scan_tokens, skip_trivia, NodeData, NodeId, SyntaxKind};
+use tsc_types::{NodeFlags, ScriptTarget, TokenFlags};
 
 use crate::{
     create_text_writer, EmitFlags, EmitHelper, EmitHint, GeneratedUtf16Location, NewLineKind,
@@ -56,12 +57,26 @@ enum ExpressionEmissionContext {
     NoAsi,
 }
 
+/// Selects whether an unchanged source-file root is a text-preserving printer
+/// request or a compiler JavaScript emit. The standalone printer keeps H1's
+/// exact identity contract by default; compiler emit always walks the AST,
+/// matching tsc's `emitSourceFileWorker` even when no transformer cloned the
+/// root.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub enum SourceFileTextMode {
+    #[default]
+    PreserveUnchanged,
+    Canonical,
+}
+
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct PrinterOptions {
     new_line: NewLineKind,
     remove_comments: bool,
     no_implicit_use_strict: bool,
     no_emit_helpers: bool,
+    target: Option<ScriptTarget>,
+    source_file_text_mode: SourceFileTextMode,
 }
 
 impl PrinterOptions {
@@ -71,6 +86,8 @@ impl PrinterOptions {
             remove_comments: false,
             no_implicit_use_strict: false,
             no_emit_helpers: false,
+            target: None,
+            source_file_text_mode: SourceFileTextMode::PreserveUnchanged,
         }
     }
 
@@ -89,6 +106,16 @@ impl PrinterOptions {
         self
     }
 
+    pub const fn with_target(mut self, target: ScriptTarget) -> Self {
+        self.target = Some(target);
+        self
+    }
+
+    pub const fn with_source_file_text_mode(mut self, mode: SourceFileTextMode) -> Self {
+        self.source_file_text_mode = mode;
+        self
+    }
+
     pub const fn new_line(self) -> NewLineKind {
         self.new_line
     }
@@ -103,6 +130,14 @@ impl PrinterOptions {
 
     pub const fn no_emit_helpers(self) -> bool {
         self.no_emit_helpers
+    }
+
+    pub const fn target(self) -> Option<ScriptTarget> {
+        self.target
+    }
+
+    pub const fn source_file_text_mode(self) -> SourceFileTextMode {
+        self.source_file_text_mode
     }
 }
 
@@ -196,9 +231,20 @@ impl SourceMapRecorder for DisabledSourceMapRecorder {
     fn record(&mut self, _event: SourceMapHookEvent) {}
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Printer {
     options: PrinterOptions,
+    literal_emission_plan: LiteralEmissionPlan,
+}
+
+/// Nodes on a path to a literal whose original token text cannot be reused.
+///
+/// This is built once per print request. Keeping the decision in the printer
+/// mirrors tsc's `canUseOriginalText` boundary without forcing target-specific
+/// spelling changes into an ECMAScript tree transformer.
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+struct LiteralEmissionPlan {
+    structured_nodes: BTreeSet<TransformNode>,
 }
 
 /// tsc-port: createPrinter @6.0.3
@@ -206,20 +252,92 @@ pub struct Printer {
 /// tsc-span: _tsc.js:116912-121378
 ///
 /// H1.2 implements the pipeline foundation and whole-source identity arm.
-pub const fn create_printer(options: PrinterOptions) -> Printer {
-    Printer { options }
+pub fn create_printer(options: PrinterOptions) -> Printer {
+    Printer {
+        options,
+        literal_emission_plan: LiteralEmissionPlan::default(),
+    }
 }
 
 impl Printer {
-    pub const fn options(self) -> PrinterOptions {
+    pub const fn options(&self) -> PrinterOptions {
         self.options
+    }
+
+    fn prepare_literal_emission_plan(
+        &mut self,
+        transformation: &TransformationResult<'_>,
+        root: TransformNode,
+    ) -> Result<(), PrinterError> {
+        let mut structured_nodes = BTreeSet::new();
+        let mut memo = BTreeMap::new();
+        Self::collect_literal_emission_path(
+            transformation,
+            root,
+            self.options.target,
+            &mut memo,
+            &mut structured_nodes,
+        )?;
+        self.literal_emission_plan = LiteralEmissionPlan { structured_nodes };
+        Ok(())
+    }
+
+    fn collect_literal_emission_path(
+        transformation: &TransformationResult<'_>,
+        node: TransformNode,
+        target: Option<ScriptTarget>,
+        memo: &mut BTreeMap<TransformNode, bool>,
+        structured_nodes: &mut BTreeSet<TransformNode>,
+    ) -> Result<bool, PrinterError> {
+        if let Some(requires_structured_emit) = memo.get(&node) {
+            return Ok(*requires_structured_emit);
+        }
+
+        let record = transformation.arena().node(node)?;
+        let requires_literal_rewrite = match &record.data {
+            NodeData::NumericLiteral(_) => {
+                let flags = TokenFlags::from_bits(record.numeric_literal_flags);
+                flags.intersects(TokenFlags::IS_INVALID)
+                    || flags.contains(TokenFlags::CONTAINS_SEPARATOR)
+                        && target.is_none_or(|target| target < ScriptTarget::ES2021)
+            }
+            // tsc's canUseOriginalText always rejects BigIntLiteral nodes.
+            NodeData::BigIntLiteral(_) => true,
+            _ => false,
+        };
+        let mut children = Vec::new();
+        let source = transformation.arena().source(node.source())?.syntax();
+        for_each_child(&source.arena, record, |child| {
+            children.push(child);
+            false
+        });
+
+        let mut requires_structured_emit = requires_literal_rewrite;
+        for child in children {
+            let child = transformation
+                .arena()
+                .node_ref(node.source(), child)
+                .ok_or(PrinterError::UnknownStatement(child.0))?;
+            requires_structured_emit |= Self::collect_literal_emission_path(
+                transformation,
+                child,
+                target,
+                memo,
+                structured_nodes,
+            )?;
+        }
+        if requires_structured_emit {
+            structured_nodes.insert(node);
+        }
+        memo.insert(node, requires_structured_emit);
+        Ok(requires_structured_emit)
     }
 
     /// The generic H1 printer surface. H1.2 established the exact whole-source
     /// identity arm; H1.3 adds the bounded changed-node JavaScript workers
     /// while the remaining request/product axes stay typed controls.
     pub fn print(
-        &self,
+        &mut self,
         transformation: &mut TransformationResult<'_>,
         request: PrintRequest,
         recorder: &mut dyn SourceMapRecorder,
@@ -250,7 +368,7 @@ impl Printer {
     }
 
     fn print_source_file(
-        &self,
+        &mut self,
         transformation: &mut TransformationResult<'_>,
         source_id: TransformSourceId,
         recorder: &mut dyn SourceMapRecorder,
@@ -262,6 +380,7 @@ impl Printer {
         }
 
         let root = transformation.arena().root(source_id)?;
+        self.prepare_literal_emission_plan(transformation, root)?;
         if transformation
             .arena()
             .source(source_id)?
@@ -317,6 +436,8 @@ impl Printer {
             .metadata(root)
             .and_then(crate::EmitMetadata::original)
             .is_some()
+            || self.literal_emission_plan.structured_nodes.contains(&root)
+            || self.options.source_file_text_mode == SourceFileTextMode::Canonical
         {
             return self.print_transformed_source_file(
                 transformation,
@@ -525,6 +646,11 @@ impl Printer {
             }
         };
         let mut writer = create_text_writer(self.options.new_line);
+        let source_text = transformation.arena().source(source_id)?.syntax().text();
+        if let Some(shebang) = source_shebang(source_text) {
+            writer.write_comment(shebang);
+            writer.write_line(false);
+        }
         let helpers = if self.options.no_emit_helpers {
             Vec::new()
         } else {
@@ -788,7 +914,8 @@ impl Printer {
             .metadata(node)
             .and_then(crate::EmitMetadata::original)
             .is_some()
-            || NodeFlags::from_bits(record.flags).contains(NodeFlags::SYNTHESIZED);
+            || NodeFlags::from_bits(record.flags).contains(NodeFlags::SYNTHESIZED)
+            || self.literal_emission_plan.structured_nodes.contains(&node);
         let multi_line = record.multi_line == Some(true);
         let json_source = transformation
             .arena()
@@ -842,6 +969,10 @@ impl Printer {
                 Ok(())
             }
             NodeData::NumericLiteral(data) if changed => {
+                writer.write_literal(&data.text);
+                Ok(())
+            }
+            NodeData::BigIntLiteral(data) => {
                 writer.write_literal(&data.text);
                 Ok(())
             }
@@ -931,7 +1062,7 @@ impl Printer {
             }
             NodeData::JsxSelfClosingElement(data) => {
                 writer.write_punctuation("<");
-                self.emit_required_node(
+                self.emit_required_identifier_name(
                     transformation,
                     node.source(),
                     data.tag_name,
@@ -979,7 +1110,7 @@ impl Printer {
             }
             NodeData::JsxOpeningElement(data) => {
                 writer.write_punctuation("<");
-                self.emit_required_node(
+                self.emit_required_identifier_name(
                     transformation,
                     node.source(),
                     data.tag_name,
@@ -1023,7 +1154,7 @@ impl Printer {
             }
             NodeData::JsxClosingElement(data) => {
                 writer.write_punctuation("</");
-                self.emit_required_node(
+                self.emit_required_identifier_name(
                     transformation,
                     node.source(),
                     data.tag_name,
@@ -1038,7 +1169,7 @@ impl Printer {
                 self.emit_node_array(transformation, node.source(), data.properties, " ", writer)
             }
             NodeData::JsxAttribute(data) => {
-                self.emit_required_node(
+                self.emit_required_identifier_name(
                     transformation,
                     node.source(),
                     data.name,
@@ -1095,7 +1226,7 @@ impl Printer {
                 Ok(())
             }
             NodeData::JsxNamespacedName(data) => {
-                self.emit_required_node(
+                self.emit_required_identifier_name(
                     transformation,
                     node.source(),
                     data.namespace,
@@ -1104,7 +1235,7 @@ impl Printer {
                     writer,
                 )?;
                 writer.write_punctuation(":");
-                self.emit_required_node(
+                self.emit_required_identifier_name(
                     transformation,
                     node.source(),
                     data.name,
@@ -1209,14 +1340,24 @@ impl Printer {
                 Ok(())
             }
             NodeData::ImportClause(data) => {
-                if data.is_type_only || data.phase_modifier.is_some() {
+                if data.is_type_only || data.phase_modifier == Some(SyntaxKind::TypeKeyword) {
                     return Err(PrinterError::UnsupportedTransformedSyntax {
                         node,
                         kind: record.kind,
                     });
                 }
+                if let Some(phase_modifier) = data.phase_modifier {
+                    if phase_modifier != SyntaxKind::DeferKeyword {
+                        return Err(PrinterError::UnsupportedTransformedSyntax {
+                            node,
+                            kind: record.kind,
+                        });
+                    }
+                    writer.write_keyword("defer");
+                    writer.write_space(" ");
+                }
                 if let Some(name) = data.name {
-                    self.emit_node_id(transformation, node.source(), name, writer)?;
+                    self.emit_identifier_name(transformation, node.source(), name, writer)?;
                     if data.named_bindings.is_some() {
                         writer.write_punctuation(",");
                         writer.write_space(" ");
@@ -1232,7 +1373,7 @@ impl Printer {
                 writer.write_space(" ");
                 writer.write_keyword("as");
                 writer.write_space(" ");
-                self.emit_required_node(
+                self.emit_required_identifier_name(
                     transformation,
                     node.source(),
                     data.name,
@@ -1346,7 +1487,7 @@ impl Printer {
                 Ok(())
             }
             NodeData::ImportAttribute(data) => {
-                self.emit_required_node(
+                self.emit_required_identifier_name(
                     transformation,
                     node.source(),
                     data.name,
@@ -1376,7 +1517,7 @@ impl Printer {
                 writer.write_space(" ");
                 writer.write_keyword("as");
                 writer.write_space(" ");
-                self.emit_required_node(
+                self.emit_required_identifier_name(
                     transformation,
                     node.source(),
                     data.name,
@@ -1472,7 +1613,7 @@ impl Printer {
                 )
             }
             NodeData::VariableDeclaration(data) => {
-                self.emit_required_node(
+                self.emit_required_identifier_name(
                     transformation,
                     node.source(),
                     data.name,
@@ -1531,11 +1672,16 @@ impl Printer {
                     self.emit_node_id(transformation, node.source(), dot_dot_dot, writer)?;
                 }
                 if let Some(property_name) = data.property_name {
-                    self.emit_node_id(transformation, node.source(), property_name, writer)?;
+                    self.emit_identifier_name(
+                        transformation,
+                        node.source(),
+                        property_name,
+                        writer,
+                    )?;
                     writer.write_punctuation(":");
                     writer.write_space(" ");
                 }
-                self.emit_required_node(
+                self.emit_required_identifier_name(
                     transformation,
                     node.source(),
                     data.name,
@@ -1713,7 +1859,7 @@ impl Printer {
                 if self.emit_modifiers(transformation, node.source(), data.modifiers, writer)? {
                     writer.write_space(" ");
                 }
-                self.emit_required_node(
+                self.emit_required_identifier_name(
                     transformation,
                     node.source(),
                     data.name,
@@ -1787,7 +1933,7 @@ impl Printer {
                 }
                 if let Some(name) = data.name {
                     writer.write_space(" ");
-                    self.emit_node_id(transformation, node.source(), name, writer)?;
+                    self.emit_identifier_name(transformation, node.source(), name, writer)?;
                 } else {
                     writer.write_space(" ");
                 }
@@ -1808,7 +1954,7 @@ impl Printer {
                 }
                 if let Some(name) = data.name {
                     writer.write_space(" ");
-                    self.emit_node_id(transformation, node.source(), name, writer)?;
+                    self.emit_identifier_name(transformation, node.source(), name, writer)?;
                 } else {
                     writer.write_space(" ");
                 }
@@ -1852,7 +1998,7 @@ impl Printer {
                 if let Some(rest) = data.dot_dot_dot_token {
                     self.emit_node_id(transformation, node.source(), rest, writer)?;
                 }
-                self.emit_required_node(
+                self.emit_required_identifier_name(
                     transformation,
                     node.source(),
                     data.name,
@@ -1909,7 +2055,7 @@ impl Printer {
                 if self.emit_modifiers(transformation, node.source(), data.modifiers, writer)? {
                     writer.write_space(" ");
                 }
-                self.emit_required_node(
+                self.emit_required_identifier_name(
                     transformation,
                     node.source(),
                     data.name,
@@ -1951,7 +2097,7 @@ impl Printer {
                 if let Some(asterisk) = data.asterisk_token {
                     self.emit_node_id(transformation, node.source(), asterisk, writer)?;
                 }
-                self.emit_required_node(
+                self.emit_required_identifier_name(
                     transformation,
                     node.source(),
                     data.name,
@@ -1972,7 +2118,7 @@ impl Printer {
                 }
                 writer.write_keyword("get");
                 writer.write_space(" ");
-                self.emit_required_node(
+                self.emit_required_identifier_name(
                     transformation,
                     node.source(),
                     data.name,
@@ -1993,7 +2139,7 @@ impl Printer {
                 }
                 writer.write_keyword("set");
                 writer.write_space(" ");
-                self.emit_required_node(
+                self.emit_required_identifier_name(
                     transformation,
                     node.source(),
                     data.name,
@@ -2211,13 +2357,13 @@ impl Printer {
                 writer.write_keyword("break");
                 if let Some(label) = data.label {
                     writer.write_space(" ");
-                    self.emit_node_id(transformation, node.source(), label, writer)?;
+                    self.emit_identifier_name(transformation, node.source(), label, writer)?;
                 }
                 writer.write_trailing_semicolon(";");
                 Ok(())
             }
             NodeData::LabeledStatement(data) => {
-                self.emit_required_node(
+                self.emit_required_identifier_name(
                     transformation,
                     node.source(),
                     data.label,
@@ -2427,10 +2573,10 @@ impl Printer {
             }
             NodeData::ParenthesizedExpression(data) => {
                 writer.write_punctuation("(");
-                if let Some(expression) = data
+                let expression = data
                     .expression
-                    .and_then(|id| transformation.arena().node_ref(node.source(), id))
-                {
+                    .and_then(|id| transformation.arena().node_ref(node.source(), id));
+                if let Some(expression) = expression {
                     self.emit_leading_comments_for_node(transformation, expression, writer)?;
                 }
                 self.emit_required_node(
@@ -2441,6 +2587,9 @@ impl Printer {
                     "expression",
                     writer,
                 )?;
+                if let Some(expression) = expression {
+                    self.emit_trailing_comments_for_node(transformation, expression, writer)?;
+                }
                 writer.write_punctuation(")");
                 Ok(())
             }
@@ -2513,7 +2662,7 @@ impl Printer {
                 } else {
                     "."
                 });
-                self.emit_node_id(transformation, node.source(), name, writer)?;
+                self.emit_identifier_name(transformation, node.source(), name, writer)?;
                 if break_before_name {
                     writer.decrease_indent();
                 }
@@ -3242,7 +3391,7 @@ impl Printer {
         writer.write_keyword("class");
         if let Some(name) = name {
             writer.write_space(" ");
-            self.emit_node_id(transformation, source, name, writer)?;
+            self.emit_identifier_name(transformation, source, name, writer)?;
         } else if !expression && !anonymous_default_declaration {
             return Err(PrinterError::MissingTransformedChild {
                 parent: SyntaxKind::ClassDeclaration,
@@ -3449,12 +3598,12 @@ impl Printer {
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
         if let Some(property_name) = property_name {
-            self.emit_node_id(transformation, source, property_name, writer)?;
+            self.emit_identifier_name(transformation, source, property_name, writer)?;
             writer.write_space(" ");
             writer.write_keyword("as");
             writer.write_space(" ");
         }
-        self.emit_required_node(transformation, source, name, parent, "name", writer)
+        self.emit_required_identifier_name(transformation, source, name, parent, "name", writer)
     }
 
     fn emit_modifiers(
@@ -3655,6 +3804,19 @@ impl Printer {
         )
     }
 
+    fn emit_required_identifier_name(
+        &self,
+        transformation: &mut TransformationResult<'_>,
+        source: TransformSourceId,
+        id: Option<NodeId>,
+        parent: SyntaxKind,
+        field: &'static str,
+        writer: &mut TextWriter,
+    ) -> Result<(), PrinterError> {
+        let id = id.ok_or(PrinterError::MissingTransformedChild { parent, field })?;
+        self.emit_identifier_name(transformation, source, id, writer)
+    }
+
     #[allow(clippy::too_many_arguments)]
     fn emit_required_node_with_context(
         &self,
@@ -3698,7 +3860,48 @@ impl Printer {
             .arena()
             .node_ref(source, id)
             .ok_or(PrinterError::UnknownStatement(id.0))?;
-        let substituted = transformation.substitute_node(EmitHint::Unspecified, node)?;
+        let hint = if transformation.arena().node(node)?.kind == SyntaxKind::Identifier {
+            EmitHint::Expression
+        } else {
+            EmitHint::Unspecified
+        };
+        self.emit_node_with_hint(transformation, node, hint, expression_context, writer)
+    }
+
+    fn emit_identifier_name(
+        &self,
+        transformation: &mut TransformationResult<'_>,
+        source: TransformSourceId,
+        id: NodeId,
+        writer: &mut TextWriter,
+    ) -> Result<(), PrinterError> {
+        let node = transformation
+            .arena()
+            .node_ref(source, id)
+            .ok_or(PrinterError::UnknownStatement(id.0))?;
+        let hint = if transformation.arena().node(node)?.kind == SyntaxKind::Identifier {
+            EmitHint::IdentifierName
+        } else {
+            EmitHint::Unspecified
+        };
+        self.emit_node_with_hint(
+            transformation,
+            node,
+            hint,
+            ExpressionEmissionContext::Normal,
+            writer,
+        )
+    }
+
+    fn emit_node_with_hint(
+        &self,
+        transformation: &mut TransformationResult<'_>,
+        node: TransformNode,
+        hint: EmitHint,
+        expression_context: ExpressionEmissionContext,
+        writer: &mut TextWriter,
+    ) -> Result<(), PrinterError> {
+        let substituted = transformation.substitute_node(hint, node)?;
         self.emit_synthetic_leading_comments_for_node(transformation, substituted, writer)?;
         self.emit_transformed_node(transformation, substituted, expression_context, writer)?;
         self.emit_synthetic_trailing_comments_for_node(transformation, substituted, writer)
@@ -4635,6 +4838,17 @@ fn detached_leading_trivia(trivia: &str) -> Option<&str> {
         previous_line_end = Some(cursor);
     }
     None
+}
+
+/// tsc's `emitShebangIfNeeded` writes the source-file shebang before helpers,
+/// prologue directives, and comments. It is not governed by removeComments.
+fn source_shebang(text: &str) -> Option<&str> {
+    text.strip_prefix("#!").map(|rest| {
+        let end = rest
+            .find(['\r', '\n', '\u{2028}', '\u{2029}'])
+            .unwrap_or(rest.len());
+        &text[..end + 2]
+    })
 }
 
 fn emit_leading_comments(trivia: &str, writer: &mut TextWriter) {

@@ -6601,7 +6601,7 @@ impl<'a> CheckerState<'a> {
     /// Getter return annotation / setter first-parameter annotation /
     /// auto-accessor property annotation (the PropertyDeclaration arm
     /// asserts the accessor modifier like tsc).
-    fn annotated_accessor_type_node(&self, accessor: Option<NodeId>) -> Option<NodeId> {
+    pub(crate) fn annotated_accessor_type_node(&self, accessor: Option<NodeId>) -> Option<NodeId> {
         let accessor = accessor?;
         match self.data_of(accessor) {
             NodeData::GetAccessor(_) => self.effective_return_type_node(accessor),

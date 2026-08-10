@@ -878,7 +878,10 @@ fn h2_3a_check_js_changes_diagnostics_without_changing_source_routing() {
             sink.writes()[0].path(),
             Path::new("/project/dist/checked.js")
         );
-        assert_eq!(sink.writes()[0].callback_text(), SOURCE);
+        assert_eq!(
+            sink.writes()[0].callback_text(),
+            format!("\"use strict\";\n{SOURCE}")
+        );
         assert!(!outcome.emit_skipped());
     }
 }

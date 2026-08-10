@@ -94,6 +94,45 @@ fn dynamic_import_attributes_retain_the_first_literal_resolution_request() {
 }
 
 #[test]
+fn deferred_dynamic_import_uses_the_same_authoritative_mode_as_import_call() {
+    let source = source_at(
+        "/b.ts",
+        concat!(
+            "import.defer(\"./a.js\");\n",
+            "import(\"./ordinary.js\");\n",
+            "new.defer(\"./not-an-import.js\");\n",
+        ),
+        None,
+    );
+
+    for (module, expected_mode) in [
+        (1, ResolutionMode::CommonJs),
+        (99, ResolutionMode::EsNext),
+        (200, ResolutionMode::EsNext),
+    ] {
+        let options = CompilerOptions {
+            module: Some(module),
+            ..CompilerOptions::default()
+        };
+        let plan = plan_source_requests(&source, &options)
+            .unwrap_or_else(|error| panic!("plan import.defer for module {module}: {error}"));
+        assert_eq!(
+            plan.module_requests()
+                .iter()
+                .map(|request| (request.specifier(), request.mode()))
+                .collect::<Vec<_>>(),
+            [("./a.js", expected_mode), ("./ordinary.js", expected_mode),],
+            "module {module}"
+        );
+        assert_eq!(
+            plan.observed_request_occurrence_count(),
+            2,
+            "module {module}"
+        );
+    }
+}
+
+#[test]
 fn expanded_plan_includes_external_import_equals_as_common_js() {
     let source = source(
         concat!(

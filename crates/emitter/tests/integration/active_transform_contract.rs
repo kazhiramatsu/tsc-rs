@@ -4,7 +4,8 @@ use serde_json::Value;
 use tsc_emitter::{
     create_printer, get_script_transformers, transform_nodes, DisabledSourceMapRecorder,
     EmitConstantValue, EmitResolver, EmitResolverError, EmitResolverNode, NewLineKind,
-    PrintRequest, PrinterOptions, TransformArena, TransformRoot, UnavailableEmitResolver,
+    PrintRequest, PrinterOptions, SourceFileTextMode, TransformArena, TransformRoot,
+    UnavailableEmitResolver,
 };
 use tsc_program::SourceFileId;
 use tsc_syntax::{
@@ -65,8 +66,48 @@ fn bootstrap_options() -> CompilerOptions {
         target: Some(ScriptTarget::ES_NEXT.bits()),
         module: Some(200),
         use_define_for_class_fields: Some(true),
+        always_strict: Some(false),
         ..CompilerOptions::default()
     }
+}
+
+fn transform_and_print_at_target(source_text: &str, target: ScriptTarget) -> String {
+    let parsed = parse_source_file("target.ts", source_text, Default::default(), None);
+    let mut arena = TransformArena::new();
+    let source = arena.add_source(&parsed, Some(SourceFileId::from_raw(0)));
+    let resolver = NoConstantValueResolver;
+    let mut options = bootstrap_options();
+    options.target = Some(target.bits());
+    options.always_strict = Some(false);
+    let mut result = transform_nodes(
+        arena,
+        vec![TransformRoot::SourceFile(source)],
+        get_script_transformers(&options, &resolver).unwrap(),
+        false,
+    )
+    .expect("target transform");
+    create_printer(PrinterOptions::new(NewLineKind::LineFeed).with_target(target))
+        .print(
+            &mut result,
+            PrintRequest::SourceFile(source),
+            &mut DisabledSourceMapRecorder,
+        )
+        .expect("print target transform")
+        .text()
+        .to_owned()
+}
+
+#[test]
+fn numeric_literal_source_text_is_reused_only_when_the_target_allows_it() {
+    let source = "const timestamp = 1_553_993_100_000; const fraction = 1_000.0;\n";
+    assert_eq!(
+        transform_and_print_at_target(source, ScriptTarget::ES2020),
+        "const timestamp = 1553993100000;\nconst fraction = 1000;\n",
+    );
+    assert_eq!(
+        transform_and_print_at_target(source, ScriptTarget::ES2021),
+        source,
+    );
 }
 
 struct NoConstantValueResolver;
@@ -202,6 +243,82 @@ fn exact_bootstrap_transformer_order_erases_the_frozen_typescript_tree() {
     assert_eq!(
         printed.text(),
         emit_oracle_callback_text("erasable-typescript", "/project/src/main.js")
+    );
+}
+
+#[test]
+fn es2020_logical_assignments_stabilize_each_access_operand_once() {
+    assert_eq!(
+        transform_and_print_at_target(
+            "let a, b; a ||= b; a &&= b; a ??= b;\n",
+            ScriptTarget::ES2020,
+        ),
+        concat!(
+            "let a, b;\n",
+            "a || (a = b);\n",
+            "a && (a = b);\n",
+            "a ?? (a = b);\n",
+        ),
+    );
+    assert_eq!(
+        transform_and_print_at_target(
+            "getObj().prop ||= rhs();\ngetObj()[getKey()] ??= rhs();\n",
+            ScriptTarget::ES2020,
+        ),
+        concat!(
+            "var _a, _b, _c;\n",
+            "(_a = getObj()).prop || (_a.prop = rhs());\n",
+            "(_b = getObj())[_c = getKey()] ?? (_b[_c] = rhs());\n",
+        ),
+    );
+    assert_eq!(
+        transform_and_print_at_target(
+            "let _a, _b; getObj()[getKey()] ||= rhs();\n",
+            ScriptTarget::ES2020,
+        ),
+        concat!(
+            "var _c, _d;\n",
+            "let _a, _b;\n",
+            "(_c = getObj())[_d = getKey()] || (_c[_d] = rhs());\n",
+        ),
+    );
+}
+
+#[test]
+fn es2020_logical_assignment_hoists_are_owned_by_each_function_scope() {
+    assert_eq!(
+        transform_and_print_at_target(
+            concat!(
+                "function f() { getObj()[getKey()] &&= rhs(); }\n",
+                "const arrow = () => getObj()[getKey()] ||= rhs();\n",
+                "class C extends B { m() { super.x ||= rhs(); super[getKey()] ??= rhs(); } }\n",
+            ),
+            ScriptTarget::ES2020,
+        ),
+        concat!(
+            "function f() { var _a, _b; (_a = getObj())[_b = getKey()] && (_a[_b] = rhs()); }\n",
+            "const arrow = () => { var _a, _b; return (_a = getObj())[_b = getKey()] || (_a[_b] = rhs()); };\n",
+            "class C extends B {\n",
+            "    m() { var _a; super.x || (super.x = rhs()); super[_a = getKey()] ?? (super[_a] = rhs()); }\n",
+            "}\n",
+        ),
+    );
+}
+
+#[test]
+fn es2020_parameter_hoists_move_defaults_into_typed_function_prologues() {
+    assert_eq!(
+        transform_and_print_at_target(
+            concat!(
+                "function f(x = getObj()[getKey()] ||= rhs()) { return x; }\n",
+                "const g = ({value} = (getObj()[getKey()] ??= rhs())) => value;\n",
+            ),
+            ScriptTarget::ES2020,
+        ),
+        concat!(
+            "function f(x) { var _a, _b; if (x === void 0) { x = (_a = getObj())[_b = getKey()] || (_a[_b] = rhs()); } return x; }\n",
+            "const g = (_a) => { var _b, _c; var { value } = _a === void 0 ? ((_b = getObj())[_c = getKey()] ?? (_b[_c] = rhs())) : _a; return value; };\n",
+        ),
     );
 }
 
@@ -1130,13 +1247,16 @@ fn h2_3a_javascript_print_preserves_shebang_directive_and_attached_comments() {
         false,
     )
     .expect("H2.3a JavaScript transform");
-    let printed = create_printer(PrinterOptions::new(NewLineKind::LineFeed))
-        .print(
-            &mut result,
-            PrintRequest::SourceFile(source),
-            &mut DisabledSourceMapRecorder,
-        )
-        .expect("H2.3a JavaScript print");
+    let printed = create_printer(
+        PrinterOptions::new(NewLineKind::LineFeed)
+            .with_source_file_text_mode(SourceFileTextMode::Canonical),
+    )
+    .print(
+        &mut result,
+        PrintRequest::SourceFile(source),
+        &mut DisabledSourceMapRecorder,
+    )
+    .expect("H2.3a JavaScript print");
 
     assert_eq!(printed.text(), text);
 }

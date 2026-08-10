@@ -1,0 +1,1249 @@
+{
+  "schema": 1,
+  "phase": "H2.5b-es2021-target-owner-controls",
+  "status": "qualified",
+  "typescript": {
+    "version": "6.0.3",
+    "source_commit": "050880ce59e30b356b686bd3144efe24f875ebc8",
+    "bundle": {
+      "path": "vendor/typescript-6.0.3/lib/typescript.js",
+      "sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39"
+    },
+    "implementation": {
+      "path": "vendor/typescript-6.0.3/lib/_tsc.js",
+      "sha256": "1c59e77a54b186ec43fa7f3e0d3c4bb15ca5eb5ba43e96b1d3a267139eddd3e3"
+    }
+  },
+  "generator": {
+    "path": "crates/oracle/h2-5b-owner-controls.mjs",
+    "sha256": "219bf083f0205eb8f947317c923c5e6abc00099c8dc25ae63bdf5110b156d724"
+  },
+  "contract": {
+    "path": ".github/ci/contracts/h2-5b-owner-controls.schema.json",
+    "sha256": "a87789ed2cea90c932736b7c71b7192e7271ea7f4fad2b3a3008b1c4ce619188"
+  },
+  "controls": [
+    {
+      "control_id": "identifier-logical-assignments",
+      "input": {
+        "current_directory": "/project",
+        "roots": [
+          "/project/input.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/input.ts",
+            "root": true,
+            "utf8_base64": "ZGVjbGFyZSBsZXQgdmFsdWU6IGFueTsgZGVjbGFyZSBjb25zdCBmYWxsYmFjazogYW55Owp2YWx1ZSB8fD0gZmFsbGJhY2s7IHZhbHVlICYmPSBmYWxsYmFjazsgdmFsdWUgPz89IGZhbGxiYWNrOwo=",
+            "utf8_sha256": "2b4e019ca342a3e19c3282b399cfd6ea6fa6221b1b6250759b0478e9983ef3f9",
+            "utf8_bytes": 113
+          }
+        ],
+        "compiler_options": {
+          "alwaysStrict": true,
+          "ignoreDeprecations": "6.0",
+          "module": 99,
+          "newLine": 1,
+          "target": 7,
+          "useDefineForClassFields": true
+        }
+      },
+      "runtime_expectation": {
+        "h2_2a_sources": 0,
+        "h2_2b_sources": 0,
+        "h2_2c_sources": 0,
+        "h2_4a_sources": 0,
+        "h2_4b_sources": 0,
+        "h2_5a_sources": 1,
+        "h2_5b_sources": 1
+      },
+      "repetitions": 2,
+      "observation": {
+        "reported_diagnostics": [],
+        "emit_diagnostics": [],
+        "emit_skipped": false,
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/input.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOwp2YWx1ZSB8fCAodmFsdWUgPSBmYWxsYmFjayk7CnZhbHVlICYmICh2YWx1ZSA9IGZhbGxiYWNrKTsKdmFsdWUgPz8gKHZhbHVlID0gZmFsbGJhY2spOwo=",
+            "callback_utf8_sha256": "0142a5a21a5b5de3b9a42d1f77e5e6efe51d1a0d0be1494902edec560520d26b",
+            "callback_utf8_bytes": 101,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "0142a5a21a5b5de3b9a42d1f77e5e6efe51d1a0d0be1494902edec560520d26b",
+            "materialized_utf8_bytes": 101,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/input.ts"
+            ]
+          }
+        ],
+        "run_fingerprint_sha256": "bb06181f3481724bc3823c5df8a8a04edc1379cf301539a47b91c412fc52d16b"
+      },
+      "control_fingerprint_sha256": "aa6a8d18b053c5d938725862501bfd5a4d1a2961a4105ade03d509a8b684d3dd"
+    },
+    {
+      "control_id": "effectful-property-and-element-evaluation-order",
+      "input": {
+        "current_directory": "/project",
+        "roots": [
+          "/project/input.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/input.ts",
+            "root": true,
+            "utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiBnZXRPYmplY3QoKTogYW55OyBkZWNsYXJlIGZ1bmN0aW9uIGdldEtleSgpOiBhbnk7IGRlY2xhcmUgZnVuY3Rpb24gcmhzKCk6IGFueTsKZ2V0T2JqZWN0KCkudmFsdWUgfHw9IHJocygpOwpnZXRPYmplY3QoKVtnZXRLZXkoKV0gPz89IHJocygpOwo=",
+            "utf8_sha256": "f9a2f4e71653d891fecb9883daecee3d2f04d79906f45c2c119f37f2fa2da1a0",
+            "utf8_bytes": 158
+          }
+        ],
+        "compiler_options": {
+          "alwaysStrict": true,
+          "ignoreDeprecations": "6.0",
+          "module": 99,
+          "newLine": 1,
+          "target": 7,
+          "useDefineForClassFields": true
+        }
+      },
+      "runtime_expectation": {
+        "h2_2a_sources": 0,
+        "h2_2b_sources": 0,
+        "h2_2c_sources": 0,
+        "h2_4a_sources": 0,
+        "h2_4b_sources": 0,
+        "h2_5a_sources": 1,
+        "h2_5b_sources": 1
+      },
+      "repetitions": 2,
+      "observation": {
+        "reported_diagnostics": [],
+        "emit_diagnostics": [],
+        "emit_skipped": false,
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/input.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOwp2YXIgX2EsIF9iLCBfYzsKKF9hID0gZ2V0T2JqZWN0KCkpLnZhbHVlIHx8IChfYS52YWx1ZSA9IHJocygpKTsKKF9iID0gZ2V0T2JqZWN0KCkpW19jID0gZ2V0S2V5KCldID8/IChfYltfY10gPSByaHMoKSk7Cg==",
+            "callback_utf8_sha256": "efbf8beca17584bd0b4d6f66e5a89fe1cbd54f45886f606ca02a683777d54e33",
+            "callback_utf8_bytes": 133,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "efbf8beca17584bd0b4d6f66e5a89fe1cbd54f45886f606ca02a683777d54e33",
+            "materialized_utf8_bytes": 133,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/input.ts"
+            ]
+          }
+        ],
+        "run_fingerprint_sha256": "5105a6a303f32ea503ea9308db0b1fc11eaa70d8e74b531f1bd17cc83ab4d52c"
+      },
+      "control_fingerprint_sha256": "9814ce8158c787b63c521730932a61c8e91b73993a8d4ea5f8c166f86b6b4203"
+    },
+    {
+      "control_id": "generated-name-collisions",
+      "input": {
+        "current_directory": "/project",
+        "roots": [
+          "/project/input.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/input.ts",
+            "root": true,
+            "utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiBnZXRPYmplY3QoKTogYW55OyBkZWNsYXJlIGZ1bmN0aW9uIGdldEtleSgpOiBhbnk7IGRlY2xhcmUgZnVuY3Rpb24gcmhzKCk6IGFueTsKbGV0IF9hID0gMSwgX2IgPSAyOwpnZXRPYmplY3QoKVtnZXRLZXkoKV0gJiY9IHJocygpOwo=",
+            "utf8_sha256": "94d3e448013fd1a8995b03ae5e47935836f3d44d06b145ea02a845b7420abda0",
+            "utf8_bytes": 149
+          }
+        ],
+        "compiler_options": {
+          "alwaysStrict": true,
+          "ignoreDeprecations": "6.0",
+          "module": 99,
+          "newLine": 1,
+          "target": 7,
+          "useDefineForClassFields": true
+        }
+      },
+      "runtime_expectation": {
+        "h2_2a_sources": 0,
+        "h2_2b_sources": 0,
+        "h2_2c_sources": 0,
+        "h2_4a_sources": 0,
+        "h2_4b_sources": 0,
+        "h2_5a_sources": 1,
+        "h2_5b_sources": 1
+      },
+      "repetitions": 2,
+      "observation": {
+        "reported_diagnostics": [],
+        "emit_diagnostics": [],
+        "emit_skipped": false,
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/input.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOwp2YXIgX2MsIF9kOwpsZXQgX2EgPSAxLCBfYiA9IDI7CihfYyA9IGdldE9iamVjdCgpKVtfZCA9IGdldEtleSgpXSAmJiAoX2NbX2RdID0gcmhzKCkpOwo=",
+            "callback_utf8_sha256": "42188d79bbd119a8edeaf080af6a8f5af3f91db83e7373d6d2364efc2aed0073",
+            "callback_utf8_bytes": 101,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "42188d79bbd119a8edeaf080af6a8f5af3f91db83e7373d6d2364efc2aed0073",
+            "materialized_utf8_bytes": 101,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/input.ts"
+            ]
+          }
+        ],
+        "run_fingerprint_sha256": "76fc212ac1a0a6b978d7926a594142509f1d8552e6c0506d4ef59286972ca369"
+      },
+      "control_fingerprint_sha256": "67e34ba15ec205047e66889ef03ea7e759aac1dcadccb44514aa1c4cc6aab87c"
+    },
+    {
+      "control_id": "source-and-function-scope-temp-reuse",
+      "input": {
+        "current_directory": "/project",
+        "roots": [
+          "/project/input.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/input.ts",
+            "root": true,
+            "utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiBnZXRPYmplY3QoKTogYW55OyBkZWNsYXJlIGZ1bmN0aW9uIGdldEtleSgpOiBhbnk7IGRlY2xhcmUgZnVuY3Rpb24gcmhzKCk6IGFueTsKZ2V0T2JqZWN0KClbZ2V0S2V5KCldIHx8PSByaHMoKTsKZnVuY3Rpb24gZmlyc3QoKSB7IGdldE9iamVjdCgpW2dldEtleSgpXSAmJj0gcmhzKCk7IH0KZnVuY3Rpb24gc2Vjb25kKCkgeyBnZXRPYmplY3QoKVtnZXRLZXkoKV0gPz89IHJocygpOyB9Cg==",
+            "utf8_sha256": "83bfd11ad986f6956a0b287ff860f2e4245ca436b573e3464f5894b90ae716e2",
+            "utf8_bytes": 238
+          }
+        ],
+        "compiler_options": {
+          "alwaysStrict": true,
+          "ignoreDeprecations": "6.0",
+          "module": 99,
+          "newLine": 1,
+          "target": 7,
+          "useDefineForClassFields": true
+        }
+      },
+      "runtime_expectation": {
+        "h2_2a_sources": 0,
+        "h2_2b_sources": 0,
+        "h2_2c_sources": 0,
+        "h2_4a_sources": 0,
+        "h2_4b_sources": 0,
+        "h2_5a_sources": 1,
+        "h2_5b_sources": 1
+      },
+      "repetitions": 2,
+      "observation": {
+        "reported_diagnostics": [],
+        "emit_diagnostics": [],
+        "emit_skipped": false,
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/input.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOwp2YXIgX2EsIF9iOwooX2EgPSBnZXRPYmplY3QoKSlbX2IgPSBnZXRLZXkoKV0gfHwgKF9hW19iXSA9IHJocygpKTsKZnVuY3Rpb24gZmlyc3QoKSB7IHZhciBfYSwgX2I7IChfYSA9IGdldE9iamVjdCgpKVtfYiA9IGdldEtleSgpXSAmJiAoX2FbX2JdID0gcmhzKCkpOyB9CmZ1bmN0aW9uIHNlY29uZCgpIHsgdmFyIF9hLCBfYjsgKF9hID0gZ2V0T2JqZWN0KCkpW19iID0gZ2V0S2V5KCldID8/IChfYVtfYl0gPSByaHMoKSk7IH0K",
+            "callback_utf8_sha256": "fa9e26654bb5d9bcf902d5547ac802ff5a5c3d9c46c084ed835cb9438562e7f6",
+            "callback_utf8_bytes": 258,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "fa9e26654bb5d9bcf902d5547ac802ff5a5c3d9c46c084ed835cb9438562e7f6",
+            "materialized_utf8_bytes": 258,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/input.ts"
+            ]
+          }
+        ],
+        "run_fingerprint_sha256": "38fb42a27f85db25c2904748147211113273b68c8edf0b03eb1c9b97b13b5486"
+      },
+      "control_fingerprint_sha256": "2e3c67fd112e38bd02fdfbddeed87262524c905426d73685a00fec2f098245e6"
+    },
+    {
+      "control_id": "concise-arrow-function-hoist",
+      "input": {
+        "current_directory": "/project",
+        "roots": [
+          "/project/input.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/input.ts",
+            "root": true,
+            "utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiBnZXRPYmplY3QoKTogYW55OyBkZWNsYXJlIGZ1bmN0aW9uIGdldEtleSgpOiBhbnk7IGRlY2xhcmUgZnVuY3Rpb24gcmhzKCk6IGFueTsKY29uc3QgdXBkYXRlID0gKCkgPT4gZ2V0T2JqZWN0KClbZ2V0S2V5KCldIHx8PSByaHMoKTsK",
+            "utf8_sha256": "627205a99d91b1bfbddda467edd55748fccff81563ab839a9d89f343b50b9979",
+            "utf8_bytes": 150
+          }
+        ],
+        "compiler_options": {
+          "alwaysStrict": true,
+          "ignoreDeprecations": "6.0",
+          "module": 99,
+          "newLine": 1,
+          "target": 7,
+          "useDefineForClassFields": true
+        }
+      },
+      "runtime_expectation": {
+        "h2_2a_sources": 0,
+        "h2_2b_sources": 0,
+        "h2_2c_sources": 0,
+        "h2_4a_sources": 0,
+        "h2_4b_sources": 0,
+        "h2_5a_sources": 1,
+        "h2_5b_sources": 1
+      },
+      "repetitions": 2,
+      "observation": {
+        "reported_diagnostics": [],
+        "emit_diagnostics": [],
+        "emit_skipped": false,
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/input.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOwpjb25zdCB1cGRhdGUgPSAoKSA9PiB7IHZhciBfYSwgX2I7IHJldHVybiAoX2EgPSBnZXRPYmplY3QoKSlbX2IgPSBnZXRLZXkoKV0gfHwgKF9hW19iXSA9IHJocygpKTsgfTsK",
+            "callback_utf8_sha256": "62109730aa244f563a0250dd1311e654067825fccc68da1c96c8644f1c35f0be",
+            "callback_utf8_bytes": 114,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "62109730aa244f563a0250dd1311e654067825fccc68da1c96c8644f1c35f0be",
+            "materialized_utf8_bytes": 114,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/input.ts"
+            ]
+          }
+        ],
+        "run_fingerprint_sha256": "25ed2a63937239c90c8c4121dde637c16ee3d8c4ac1d7c275301ddbd079eb107"
+      },
+      "control_fingerprint_sha256": "539af09b904a6a33dc09fa721d06dea8d1f9a9c4fc59cb609ef1a7e0114824c1"
+    },
+    {
+      "control_id": "identifier-and-binding-pattern-parameter-hoists",
+      "input": {
+        "current_directory": "/project",
+        "roots": [
+          "/project/input.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/input.ts",
+            "root": true,
+            "utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiBnZXRPYmplY3QoKTogYW55OyBkZWNsYXJlIGZ1bmN0aW9uIGdldEtleSgpOiBhbnk7IGRlY2xhcmUgZnVuY3Rpb24gcmhzKCk6IGFueTsKZnVuY3Rpb24gZmlyc3QodmFsdWUgPSBnZXRPYmplY3QoKVtnZXRLZXkoKV0gfHw9IHJocygpKSB7IHJldHVybiB2YWx1ZTsgfQpjb25zdCBzZWNvbmQgPSAoeyB2YWx1ZSB9ID0gKGdldE9iamVjdCgpW2dldEtleSgpXSA/Pz0gcmhzKCkpKSA9PiB2YWx1ZTsK",
+            "utf8_sha256": "7eb012eebbc3be90608a8def17d97c57bb7c5ff0116b3209db6aab61aac70090",
+            "utf8_bytes": 243
+          }
+        ],
+        "compiler_options": {
+          "alwaysStrict": true,
+          "ignoreDeprecations": "6.0",
+          "module": 99,
+          "newLine": 1,
+          "target": 7,
+          "useDefineForClassFields": true
+        }
+      },
+      "runtime_expectation": {
+        "h2_2a_sources": 0,
+        "h2_2b_sources": 0,
+        "h2_2c_sources": 0,
+        "h2_4a_sources": 0,
+        "h2_4b_sources": 0,
+        "h2_5a_sources": 1,
+        "h2_5b_sources": 1
+      },
+      "repetitions": 2,
+      "observation": {
+        "reported_diagnostics": [],
+        "emit_diagnostics": [],
+        "emit_skipped": false,
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/input.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOwpmdW5jdGlvbiBmaXJzdCh2YWx1ZSkgeyB2YXIgX2EsIF9iOyBpZiAodmFsdWUgPT09IHZvaWQgMCkgeyB2YWx1ZSA9IChfYSA9IGdldE9iamVjdCgpKVtfYiA9IGdldEtleSgpXSB8fCAoX2FbX2JdID0gcmhzKCkpOyB9IHJldHVybiB2YWx1ZTsgfQpjb25zdCBzZWNvbmQgPSAoX2EpID0+IHsgdmFyIF9iLCBfYzsgdmFyIHsgdmFsdWUgfSA9IF9hID09PSB2b2lkIDAgPyAoKF9iID0gZ2V0T2JqZWN0KCkpW19jID0gZ2V0S2V5KCldID8/IChfYltfY10gPSByaHMoKSkpIDogX2E7IHJldHVybiB2YWx1ZTsgfTsK",
+            "callback_utf8_sha256": "bee085c6daf0e2c08d8693b2fa9c09c04f6e0101e3d42239e5e69a9d71d35952",
+            "callback_utf8_bytes": 303,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "bee085c6daf0e2c08d8693b2fa9c09c04f6e0101e3d42239e5e69a9d71d35952",
+            "materialized_utf8_bytes": 303,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/input.ts"
+            ]
+          }
+        ],
+        "run_fingerprint_sha256": "42af9cf97eeda2a8fc4a8a575b87f87a54614c522a3a02d28d29a1c77eb6dbc2"
+      },
+      "control_fingerprint_sha256": "9ddcbafc49bff6b6dc8c38e0c3d490b81ceef552a2b9b1145bea82e70c0a5710"
+    },
+    {
+      "control_id": "nested-binding-default-owns-function-temps",
+      "input": {
+        "current_directory": "/project",
+        "roots": [
+          "/project/input.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/input.ts",
+            "root": true,
+            "utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiBnZXRPYmplY3QoKTogYW55OyBkZWNsYXJlIGZ1bmN0aW9uIGdldEtleSgpOiBhbnk7IGRlY2xhcmUgZnVuY3Rpb24gcmhzKCk6IGFueTsKZnVuY3Rpb24gcmVhZCh7IHZhbHVlID0gZ2V0T2JqZWN0KClbZ2V0S2V5KCldIHx8PSByaHMoKSB9KSB7IHJldHVybiB2YWx1ZTsgfQo=",
+            "utf8_sha256": "2f97ca9f7e1492dd06ad558a6b0e65677389c237e5d99bdf00f5fdda5999740d",
+            "utf8_bytes": 173
+          }
+        ],
+        "compiler_options": {
+          "alwaysStrict": true,
+          "ignoreDeprecations": "6.0",
+          "module": 99,
+          "newLine": 1,
+          "target": 7,
+          "useDefineForClassFields": true
+        }
+      },
+      "runtime_expectation": {
+        "h2_2a_sources": 0,
+        "h2_2b_sources": 0,
+        "h2_2c_sources": 0,
+        "h2_4a_sources": 0,
+        "h2_4b_sources": 0,
+        "h2_5a_sources": 1,
+        "h2_5b_sources": 1
+      },
+      "repetitions": 2,
+      "observation": {
+        "reported_diagnostics": [],
+        "emit_diagnostics": [],
+        "emit_skipped": false,
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/input.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOwpmdW5jdGlvbiByZWFkKF9hKSB7IHZhciBfYiwgX2M7IHZhciB7IHZhbHVlID0gKF9iID0gZ2V0T2JqZWN0KCkpW19jID0gZ2V0S2V5KCldIHx8IChfYltfY10gPSByaHMoKSkgfSA9IF9hOyByZXR1cm4gdmFsdWU7IH0K",
+            "callback_utf8_sha256": "06fcf31ac4f64abc57d10e934abfb1eced9cc1434b0a21dd4fff1cbdd1ec5ad0",
+            "callback_utf8_bytes": 138,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "06fcf31ac4f64abc57d10e934abfb1eced9cc1434b0a21dd4fff1cbdd1ec5ad0",
+            "materialized_utf8_bytes": 138,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/input.ts"
+            ]
+          }
+        ],
+        "run_fingerprint_sha256": "d365585d485c5d371ff34e079a3aa04b2e8e3060a98f50727002e81473a17f31"
+      },
+      "control_fingerprint_sha256": "6fe42275bbc4cd48a18833a2acf3f0862421c7959e23f0230267e1914c9edc2d"
+    },
+    {
+      "control_id": "nested-function-in-parameter-keeps-outer-default",
+      "input": {
+        "current_directory": "/project",
+        "roots": [
+          "/project/input.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/input.ts",
+            "root": true,
+            "utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiBnZXRPYmplY3QoKTogYW55OyBkZWNsYXJlIGZ1bmN0aW9uIGdldEtleSgpOiBhbnk7IGRlY2xhcmUgZnVuY3Rpb24gcmhzKCk6IGFueTsKZnVuY3Rpb24gcmVhZCh2YWx1ZSA9ICgoKSA9PiBnZXRPYmplY3QoKVtnZXRLZXkoKV0gfHw9IHJocygpKSgpKSB7IHJldHVybiB2YWx1ZTsgfQo=",
+            "utf8_sha256": "917350ee00cd92439aae151e9820c93765011edf40098008dc9d5d9d6d6d140b",
+            "utf8_bytes": 179
+          }
+        ],
+        "compiler_options": {
+          "alwaysStrict": true,
+          "ignoreDeprecations": "6.0",
+          "module": 99,
+          "newLine": 1,
+          "target": 7,
+          "useDefineForClassFields": true
+        }
+      },
+      "runtime_expectation": {
+        "h2_2a_sources": 0,
+        "h2_2b_sources": 0,
+        "h2_2c_sources": 0,
+        "h2_4a_sources": 0,
+        "h2_4b_sources": 0,
+        "h2_5a_sources": 1,
+        "h2_5b_sources": 1
+      },
+      "repetitions": 2,
+      "observation": {
+        "reported_diagnostics": [],
+        "emit_diagnostics": [],
+        "emit_skipped": false,
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/input.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOwpmdW5jdGlvbiByZWFkKHZhbHVlID0gKCgpID0+IHsgdmFyIF9hLCBfYjsgcmV0dXJuIChfYSA9IGdldE9iamVjdCgpKVtfYiA9IGdldEtleSgpXSB8fCAoX2FbX2JdID0gcmhzKCkpOyB9KSgpKSB7IHJldHVybiB2YWx1ZTsgfQo=",
+            "callback_utf8_sha256": "81132e720fc93ea949aa61917a503f481194b2d21ac960299e3c2e9ee2e7eb2c",
+            "callback_utf8_bytes": 143,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "81132e720fc93ea949aa61917a503f481194b2d21ac960299e3c2e9ee2e7eb2c",
+            "materialized_utf8_bytes": 143,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/input.ts"
+            ]
+          }
+        ],
+        "run_fingerprint_sha256": "ff0e91d44139d62dbfc670a2db8fdaa5acd4c78b01b63b7ab0870a71ad72932f"
+      },
+      "control_fingerprint_sha256": "4d5cd5642c99adf4b7b1366cc57a22ec88ce83f87f3c47cd352f912a6fdc0ad7"
+    },
+    {
+      "control_id": "super-property-and-element-access",
+      "input": {
+        "current_directory": "/project",
+        "roots": [
+          "/project/input.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/input.ts",
+            "root": true,
+            "utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiBnZXRLZXkoKTogc3RyaW5nOyBkZWNsYXJlIGZ1bmN0aW9uIHJocygpOiBhbnk7CmNsYXNzIEJhc2UgeyBba2V5OiBzdHJpbmddOiBhbnk7IGdldCB2YWx1ZSgpOiBhbnkgeyByZXR1cm4gMDsgfSBzZXQgdmFsdWUobmV4dDogYW55KSB7fSB9CmNsYXNzIERlcml2ZWQgZXh0ZW5kcyBCYXNlIHsgdXBkYXRlKCkgeyBzdXBlci52YWx1ZSB8fD0gcmhzKCk7IHN1cGVyW2dldEtleSgpXSA/Pz0gcmhzKCk7IH0gfQo=",
+            "utf8_sha256": "4c389e3ccd6fdb57b69e0a7d5857a6c22c98da97309cf26f68bf4cf75936db68",
+            "utf8_bytes": 248
+          }
+        ],
+        "compiler_options": {
+          "alwaysStrict": true,
+          "ignoreDeprecations": "6.0",
+          "module": 99,
+          "newLine": 1,
+          "target": 7,
+          "useDefineForClassFields": true
+        }
+      },
+      "runtime_expectation": {
+        "h2_2a_sources": 0,
+        "h2_2b_sources": 0,
+        "h2_2c_sources": 0,
+        "h2_4a_sources": 0,
+        "h2_4b_sources": 0,
+        "h2_5a_sources": 1,
+        "h2_5b_sources": 1
+      },
+      "repetitions": 2,
+      "observation": {
+        "reported_diagnostics": [],
+        "emit_diagnostics": [],
+        "emit_skipped": false,
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/input.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOwpjbGFzcyBCYXNlIHsKICAgIGdldCB2YWx1ZSgpIHsgcmV0dXJuIDA7IH0KICAgIHNldCB2YWx1ZShuZXh0KSB7IH0KfQpjbGFzcyBEZXJpdmVkIGV4dGVuZHMgQmFzZSB7CiAgICB1cGRhdGUoKSB7IHZhciBfYTsgc3VwZXIudmFsdWUgfHwgKHN1cGVyLnZhbHVlID0gcmhzKCkpOyBzdXBlcltfYSA9IGdldEtleSgpXSA/PyAoc3VwZXJbX2FdID0gcmhzKCkpOyB9Cn0K",
+            "callback_utf8_sha256": "bb160f837951adb8eb3b10e5e28a86053b172abe9f3f8cd2593cec576ecce7bc",
+            "callback_utf8_bytes": 222,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "bb160f837951adb8eb3b10e5e28a86053b172abe9f3f8cd2593cec576ecce7bc",
+            "materialized_utf8_bytes": 222,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/input.ts"
+            ]
+          }
+        ],
+        "run_fingerprint_sha256": "0e0804acf21227e327acda6d0a2ffd17d43c526c592da915d35f06ccc619f04d"
+      },
+      "control_fingerprint_sha256": "6505b463bc4b064fe593d96039ff4cb52ff4f31291781d49ded4312e16e1b5df"
+    },
+    {
+      "control_id": "nested-logical-assignment-temp-order",
+      "input": {
+        "current_directory": "/project",
+        "roots": [
+          "/project/input.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/input.ts",
+            "root": true,
+            "utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiBnZXRPYmplY3QoKTogYW55OyBkZWNsYXJlIGZ1bmN0aW9uIGdldEtleSgpOiBhbnk7IGRlY2xhcmUgZnVuY3Rpb24gcmhzKCk6IGFueTsKZ2V0T2JqZWN0KClbZ2V0S2V5KCldIHx8PSBnZXRPYmplY3QoKVtnZXRLZXkoKV0gPz89IHJocygpOwo=",
+            "utf8_sha256": "a6426267ee33ebf7de830e766cc7d756090db5458c18fde3bcdb567bf424a1a2",
+            "utf8_bytes": 155
+          }
+        ],
+        "compiler_options": {
+          "alwaysStrict": true,
+          "ignoreDeprecations": "6.0",
+          "module": 99,
+          "newLine": 1,
+          "target": 7,
+          "useDefineForClassFields": true
+        }
+      },
+      "runtime_expectation": {
+        "h2_2a_sources": 0,
+        "h2_2b_sources": 0,
+        "h2_2c_sources": 0,
+        "h2_4a_sources": 0,
+        "h2_4b_sources": 0,
+        "h2_5a_sources": 1,
+        "h2_5b_sources": 1
+      },
+      "repetitions": 2,
+      "observation": {
+        "reported_diagnostics": [],
+        "emit_diagnostics": [],
+        "emit_skipped": false,
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/input.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOwp2YXIgX2EsIF9iLCBfYywgX2Q7CihfYyA9IGdldE9iamVjdCgpKVtfZCA9IGdldEtleSgpXSB8fCAoX2NbX2RdID0gKF9hID0gZ2V0T2JqZWN0KCkpW19iID0gZ2V0S2V5KCldID8/IChfYVtfYl0gPSByaHMoKSkpOwo=",
+            "callback_utf8_sha256": "ec77ebd5b8a9494085503323e1275f075f3fb0db52d5222fadc0730ade980dc2",
+            "callback_utf8_bytes": 137,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "ec77ebd5b8a9494085503323e1275f075f3fb0db52d5222fadc0730ade980dc2",
+            "materialized_utf8_bytes": 137,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/input.ts"
+            ]
+          }
+        ],
+        "run_fingerprint_sha256": "686982c12708f201f1ef71866fbc08d7ee820ff72eaf2e8a952f916fcaa2791c"
+      },
+      "control_fingerprint_sha256": "5bd72c6619d5e2658bf15d0048c9a72b878cdb0f642f137bb859a8ec51c4d47f"
+    },
+    {
+      "control_id": "class-field-and-method-composition",
+      "input": {
+        "current_directory": "/project",
+        "roots": [
+          "/project/input.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/input.ts",
+            "root": true,
+            "utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiBnZXRPYmplY3QoKTogYW55OyBkZWNsYXJlIGZ1bmN0aW9uIGdldEtleSgpOiBhbnk7IGRlY2xhcmUgZnVuY3Rpb24gcmhzKCk6IGFueTsKY2xhc3MgVmFsdWUgeyBmaWVsZCA9IGdldE9iamVjdCgpW2dldEtleSgpXSB8fD0gcmhzKCk7IHVwZGF0ZSgpIHsgdGhpcy5maWVsZCA/Pz0gcmhzKCk7IH0gfQo=",
+            "utf8_sha256": "5af5f71b22584c60e21f813e3d28cf3b6984c8656aed9500c5eec4c5d1a06fbd",
+            "utf8_bytes": 188
+          }
+        ],
+        "compiler_options": {
+          "alwaysStrict": true,
+          "ignoreDeprecations": "6.0",
+          "module": 99,
+          "newLine": 1,
+          "target": 7,
+          "useDefineForClassFields": true
+        }
+      },
+      "runtime_expectation": {
+        "h2_2a_sources": 0,
+        "h2_2b_sources": 0,
+        "h2_2c_sources": 0,
+        "h2_4a_sources": 0,
+        "h2_4b_sources": 0,
+        "h2_5a_sources": 1,
+        "h2_5b_sources": 1
+      },
+      "repetitions": 2,
+      "observation": {
+        "reported_diagnostics": [],
+        "emit_diagnostics": [],
+        "emit_skipped": false,
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/input.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOwpjbGFzcyBWYWx1ZSB7CiAgICBjb25zdHJ1Y3RvcigpIHsKICAgICAgICB2YXIgX2EsIF9iOwogICAgICAgIE9iamVjdC5kZWZpbmVQcm9wZXJ0eSh0aGlzLCAiZmllbGQiLCB7CiAgICAgICAgICAgIGVudW1lcmFibGU6IHRydWUsCiAgICAgICAgICAgIGNvbmZpZ3VyYWJsZTogdHJ1ZSwKICAgICAgICAgICAgd3JpdGFibGU6IHRydWUsCiAgICAgICAgICAgIHZhbHVlOiAoX2EgPSBnZXRPYmplY3QoKSlbX2IgPSBnZXRLZXkoKV0gfHwgKF9hW19iXSA9IHJocygpKQogICAgICAgIH0pOwogICAgfQogICAgdXBkYXRlKCkgeyB0aGlzLmZpZWxkID8/ICh0aGlzLmZpZWxkID0gcmhzKCkpOyB9Cn0K",
+            "callback_utf8_sha256": "2fdcc8c8315792ccf014c2a8e36d2b1356b0a968693a1300906352b3261cc725",
+            "callback_utf8_bytes": 351,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "2fdcc8c8315792ccf014c2a8e36d2b1356b0a968693a1300906352b3261cc725",
+            "materialized_utf8_bytes": 351,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/input.ts"
+            ]
+          }
+        ],
+        "run_fingerprint_sha256": "0a4bc0557405916cc0b2cf9b86609dd66b9b417992704e1f4787cde5da4023f0"
+      },
+      "control_fingerprint_sha256": "e43d70a4510f80b177e1f615608da0eabcda2c0de69e0d0ad83f63f487582655"
+    },
+    {
+      "control_id": "private-field-composition",
+      "input": {
+        "current_directory": "/project",
+        "roots": [
+          "/project/input.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/input.ts",
+            "root": true,
+            "utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiByaHMoKTogYW55OwpjbGFzcyBWYWx1ZSB7ICNmaWVsZDogYW55OyB1cGRhdGUoKSB7IHRoaXMuI2ZpZWxkID8/PSByaHMoKTsgfSB9Cg==",
+            "utf8_sha256": "5d345302ed2b3a63da2a60fcafda8bf5d9cf7836968928c4df3e2f7c32fd408c",
+            "utf8_bytes": 94
+          }
+        ],
+        "compiler_options": {
+          "alwaysStrict": true,
+          "ignoreDeprecations": "6.0",
+          "module": 99,
+          "newLine": 1,
+          "target": 7,
+          "useDefineForClassFields": true
+        }
+      },
+      "runtime_expectation": {
+        "h2_2a_sources": 0,
+        "h2_2b_sources": 0,
+        "h2_2c_sources": 0,
+        "h2_4a_sources": 0,
+        "h2_4b_sources": 0,
+        "h2_5a_sources": 1,
+        "h2_5b_sources": 1
+      },
+      "repetitions": 2,
+      "observation": {
+        "reported_diagnostics": [],
+        "emit_diagnostics": [],
+        "emit_skipped": false,
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/input.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOwp2YXIgX19jbGFzc1ByaXZhdGVGaWVsZEdldCA9ICh0aGlzICYmIHRoaXMuX19jbGFzc1ByaXZhdGVGaWVsZEdldCkgfHwgZnVuY3Rpb24gKHJlY2VpdmVyLCBzdGF0ZSwga2luZCwgZikgewogICAgaWYgKGtpbmQgPT09ICJhIiAmJiAhZikgdGhyb3cgbmV3IFR5cGVFcnJvcigiUHJpdmF0ZSBhY2Nlc3NvciB3YXMgZGVmaW5lZCB3aXRob3V0IGEgZ2V0dGVyIik7CiAgICBpZiAodHlwZW9mIHN0YXRlID09PSAiZnVuY3Rpb24iID8gcmVjZWl2ZXIgIT09IHN0YXRlIHx8ICFmIDogIXN0YXRlLmhhcyhyZWNlaXZlcikpIHRocm93IG5ldyBUeXBlRXJyb3IoIkNhbm5vdCByZWFkIHByaXZhdGUgbWVtYmVyIGZyb20gYW4gb2JqZWN0IHdob3NlIGNsYXNzIGRpZCBub3QgZGVjbGFyZSBpdCIpOwogICAgcmV0dXJuIGtpbmQgPT09ICJtIiA/IGYgOiBraW5kID09PSAiYSIgPyBmLmNhbGwocmVjZWl2ZXIpIDogZiA/IGYudmFsdWUgOiBzdGF0ZS5nZXQocmVjZWl2ZXIpOwp9Owp2YXIgX19jbGFzc1ByaXZhdGVGaWVsZFNldCA9ICh0aGlzICYmIHRoaXMuX19jbGFzc1ByaXZhdGVGaWVsZFNldCkgfHwgZnVuY3Rpb24gKHJlY2VpdmVyLCBzdGF0ZSwgdmFsdWUsIGtpbmQsIGYpIHsKICAgIGlmIChraW5kID09PSAibSIpIHRocm93IG5ldyBUeXBlRXJyb3IoIlByaXZhdGUgbWV0aG9kIGlzIG5vdCB3cml0YWJsZSIpOwogICAgaWYgKGtpbmQgPT09ICJhIiAmJiAhZikgdGhyb3cgbmV3IFR5cGVFcnJvcigiUHJpdmF0ZSBhY2Nlc3NvciB3YXMgZGVmaW5lZCB3aXRob3V0IGEgc2V0dGVyIik7CiAgICBpZiAodHlwZW9mIHN0YXRlID09PSAiZnVuY3Rpb24iID8gcmVjZWl2ZXIgIT09IHN0YXRlIHx8ICFmIDogIXN0YXRlLmhhcyhyZWNlaXZlcikpIHRocm93IG5ldyBUeXBlRXJyb3IoIkNhbm5vdCB3cml0ZSBwcml2YXRlIG1lbWJlciB0byBhbiBvYmplY3Qgd2hvc2UgY2xhc3MgZGlkIG5vdCBkZWNsYXJlIGl0Iik7CiAgICByZXR1cm4gKGtpbmQgPT09ICJhIiA/IGYuY2FsbChyZWNlaXZlciwgdmFsdWUpIDogZiA/IGYudmFsdWUgPSB2YWx1ZSA6IHN0YXRlLnNldChyZWNlaXZlciwgdmFsdWUpKSwgdmFsdWU7Cn07CnZhciBfVmFsdWVfZmllbGQ7CmNsYXNzIFZhbHVlIHsKICAgIGNvbnN0cnVjdG9yKCkgewogICAgICAgIF9WYWx1ZV9maWVsZC5zZXQodGhpcywgdm9pZCAwKTsKICAgIH0KICAgIHVwZGF0ZSgpIHsgX19jbGFzc1ByaXZhdGVGaWVsZFNldCh0aGlzLCBfVmFsdWVfZmllbGQsIF9fY2xhc3NQcml2YXRlRmllbGRHZXQodGhpcywgX1ZhbHVlX2ZpZWxkLCAiZiIpID8/IHJocygpLCAiZiIpOyB9Cn0KX1ZhbHVlX2ZpZWxkID0gbmV3IFdlYWtNYXAoKTsK",
+            "callback_utf8_sha256": "e9646dea8b5c9663bcfab63a5446c4713e270b5ba003a1fc14e78c26dd3a97d1",
+            "callback_utf8_bytes": 1347,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "e9646dea8b5c9663bcfab63a5446c4713e270b5ba003a1fc14e78c26dd3a97d1",
+            "materialized_utf8_bytes": 1347,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/input.ts"
+            ]
+          }
+        ],
+        "run_fingerprint_sha256": "36f374351f94980627f050c2a385c4e5b620fa2c05735d8441d1b365bde19459"
+      },
+      "control_fingerprint_sha256": "c1e3659c118bed006d3405d5f84a4be59647804a3c99a8984d97c1fb63f90597"
+    },
+    {
+      "control_id": "standard-decorator-and-field-composition",
+      "input": {
+        "current_directory": "/project",
+        "roots": [
+          "/project/input.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/input.ts",
+            "root": true,
+            "utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiBkZWNvcmF0ZSh2YWx1ZTogYW55LCBjb250ZXh0OiBhbnkpOiBhbnk7IGRlY2xhcmUgZnVuY3Rpb24gZ2V0T2JqZWN0KCk6IGFueTsgZGVjbGFyZSBmdW5jdGlvbiBnZXRLZXkoKTogYW55OyBkZWNsYXJlIGZ1bmN0aW9uIHJocygpOiBhbnk7CmNsYXNzIFZhbHVlIHsgQGRlY29yYXRlIGZpZWxkID0gZ2V0T2JqZWN0KClbZ2V0S2V5KCldIHx8PSByaHMoKTsgfQo=",
+            "utf8_sha256": "73a8f683bbda78ed72f4925ee53fc60e0dd4dcd4ef9c48e5f973583f45cb6f0d",
+            "utf8_bytes": 221
+          }
+        ],
+        "compiler_options": {
+          "alwaysStrict": true,
+          "ignoreDeprecations": "6.0",
+          "module": 99,
+          "newLine": 1,
+          "target": 7,
+          "useDefineForClassFields": true
+        }
+      },
+      "runtime_expectation": {
+        "h2_2a_sources": 0,
+        "h2_2b_sources": 0,
+        "h2_2c_sources": 0,
+        "h2_4a_sources": 0,
+        "h2_4b_sources": 1,
+        "h2_5a_sources": 1,
+        "h2_5b_sources": 1
+      },
+      "repetitions": 2,
+      "observation": {
+        "reported_diagnostics": [],
+        "emit_diagnostics": [],
+        "emit_skipped": false,
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/input.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOwp2YXIgX19lc0RlY29yYXRlID0gKHRoaXMgJiYgdGhpcy5fX2VzRGVjb3JhdGUpIHx8IGZ1bmN0aW9uIChjdG9yLCBkZXNjcmlwdG9ySW4sIGRlY29yYXRvcnMsIGNvbnRleHRJbiwgaW5pdGlhbGl6ZXJzLCBleHRyYUluaXRpYWxpemVycykgewogICAgZnVuY3Rpb24gYWNjZXB0KGYpIHsgaWYgKGYgIT09IHZvaWQgMCAmJiB0eXBlb2YgZiAhPT0gImZ1bmN0aW9uIikgdGhyb3cgbmV3IFR5cGVFcnJvcigiRnVuY3Rpb24gZXhwZWN0ZWQiKTsgcmV0dXJuIGY7IH0KICAgIHZhciBraW5kID0gY29udGV4dEluLmtpbmQsIGtleSA9IGtpbmQgPT09ICJnZXR0ZXIiID8gImdldCIgOiBraW5kID09PSAic2V0dGVyIiA/ICJzZXQiIDogInZhbHVlIjsKICAgIHZhciB0YXJnZXQgPSAhZGVzY3JpcHRvckluICYmIGN0b3IgPyBjb250ZXh0SW5bInN0YXRpYyJdID8gY3RvciA6IGN0b3IucHJvdG90eXBlIDogbnVsbDsKICAgIHZhciBkZXNjcmlwdG9yID0gZGVzY3JpcHRvckluIHx8ICh0YXJnZXQgPyBPYmplY3QuZ2V0T3duUHJvcGVydHlEZXNjcmlwdG9yKHRhcmdldCwgY29udGV4dEluLm5hbWUpIDoge30pOwogICAgdmFyIF8sIGRvbmUgPSBmYWxzZTsKICAgIGZvciAodmFyIGkgPSBkZWNvcmF0b3JzLmxlbmd0aCAtIDE7IGkgPj0gMDsgaS0tKSB7CiAgICAgICAgdmFyIGNvbnRleHQgPSB7fTsKICAgICAgICBmb3IgKHZhciBwIGluIGNvbnRleHRJbikgY29udGV4dFtwXSA9IHAgPT09ICJhY2Nlc3MiID8ge30gOiBjb250ZXh0SW5bcF07CiAgICAgICAgZm9yICh2YXIgcCBpbiBjb250ZXh0SW4uYWNjZXNzKSBjb250ZXh0LmFjY2Vzc1twXSA9IGNvbnRleHRJbi5hY2Nlc3NbcF07CiAgICAgICAgY29udGV4dC5hZGRJbml0aWFsaXplciA9IGZ1bmN0aW9uIChmKSB7IGlmIChkb25lKSB0aHJvdyBuZXcgVHlwZUVycm9yKCJDYW5ub3QgYWRkIGluaXRpYWxpemVycyBhZnRlciBkZWNvcmF0aW9uIGhhcyBjb21wbGV0ZWQiKTsgZXh0cmFJbml0aWFsaXplcnMucHVzaChhY2NlcHQoZiB8fCBudWxsKSk7IH07CiAgICAgICAgdmFyIHJlc3VsdCA9ICgwLCBkZWNvcmF0b3JzW2ldKShraW5kID09PSAiYWNjZXNzb3IiID8geyBnZXQ6IGRlc2NyaXB0b3IuZ2V0LCBzZXQ6IGRlc2NyaXB0b3Iuc2V0IH0gOiBkZXNjcmlwdG9yW2tleV0sIGNvbnRleHQpOwogICAgICAgIGlmIChraW5kID09PSAiYWNjZXNzb3IiKSB7CiAgICAgICAgICAgIGlmIChyZXN1bHQgPT09IHZvaWQgMCkgY29udGludWU7CiAgICAgICAgICAgIGlmIChyZXN1bHQgPT09IG51bGwgfHwgdHlwZW9mIHJlc3VsdCAhPT0gIm9iamVjdCIpIHRocm93IG5ldyBUeXBlRXJyb3IoIk9iamVjdCBleHBlY3RlZCIpOwogICAgICAgICAgICBpZiAoXyA9IGFjY2VwdChyZXN1bHQuZ2V0KSkgZGVzY3JpcHRvci5nZXQgPSBfOwogICAgICAgICAgICBpZiAoXyA9IGFjY2VwdChyZXN1bHQuc2V0KSkgZGVzY3JpcHRvci5zZXQgPSBfOwogICAgICAgICAgICBpZiAoXyA9IGFjY2VwdChyZXN1bHQuaW5pdCkpIGluaXRpYWxpemVycy51bnNoaWZ0KF8pOwogICAgICAgIH0KICAgICAgICBlbHNlIGlmIChfID0gYWNjZXB0KHJlc3VsdCkpIHsKICAgICAgICAgICAgaWYgKGtpbmQgPT09ICJmaWVsZCIpIGluaXRpYWxpemVycy51bnNoaWZ0KF8pOwogICAgICAgICAgICBlbHNlIGRlc2NyaXB0b3Jba2V5XSA9IF87CiAgICAgICAgfQogICAgfQogICAgaWYgKHRhcmdldCkgT2JqZWN0LmRlZmluZVByb3BlcnR5KHRhcmdldCwgY29udGV4dEluLm5hbWUsIGRlc2NyaXB0b3IpOwogICAgZG9uZSA9IHRydWU7Cn07CnZhciBfX3J1bkluaXRpYWxpemVycyA9ICh0aGlzICYmIHRoaXMuX19ydW5Jbml0aWFsaXplcnMpIHx8IGZ1bmN0aW9uICh0aGlzQXJnLCBpbml0aWFsaXplcnMsIHZhbHVlKSB7CiAgICB2YXIgdXNlVmFsdWUgPSBhcmd1bWVudHMubGVuZ3RoID4gMjsKICAgIGZvciAodmFyIGkgPSAwOyBpIDwgaW5pdGlhbGl6ZXJzLmxlbmd0aDsgaSsrKSB7CiAgICAgICAgdmFsdWUgPSB1c2VWYWx1ZSA/IGluaXRpYWxpemVyc1tpXS5jYWxsKHRoaXNBcmcsIHZhbHVlKSA6IGluaXRpYWxpemVyc1tpXS5jYWxsKHRoaXNBcmcpOwogICAgfQogICAgcmV0dXJuIHVzZVZhbHVlID8gdmFsdWUgOiB2b2lkIDA7Cn07CmxldCBWYWx1ZSA9ICgoKSA9PiB7CiAgICB2YXIgX2E7CiAgICBsZXQgX2ZpZWxkX2RlY29yYXRvcnM7CiAgICBsZXQgX2ZpZWxkX2luaXRpYWxpemVycyA9IFtdOwogICAgbGV0IF9maWVsZF9leHRyYUluaXRpYWxpemVycyA9IFtdOwogICAgcmV0dXJuIF9hID0gY2xhc3MgVmFsdWUgewogICAgICAgICAgICBjb25zdHJ1Y3RvcigpIHsKICAgICAgICAgICAgICAgIHZhciBfYiwgX2M7CiAgICAgICAgICAgICAgICBPYmplY3QuZGVmaW5lUHJvcGVydHkodGhpcywgImZpZWxkIiwgewogICAgICAgICAgICAgICAgICAgIGVudW1lcmFibGU6IHRydWUsCiAgICAgICAgICAgICAgICAgICAgY29uZmlndXJhYmxlOiB0cnVlLAogICAgICAgICAgICAgICAgICAgIHdyaXRhYmxlOiB0cnVlLAogICAgICAgICAgICAgICAgICAgIHZhbHVlOiBfX3J1bkluaXRpYWxpemVycyh0aGlzLCBfZmllbGRfaW5pdGlhbGl6ZXJzLCAoX2IgPSBnZXRPYmplY3QoKSlbX2MgPSBnZXRLZXkoKV0gfHwgKF9iW19jXSA9IHJocygpKSkKICAgICAgICAgICAgICAgIH0pOwogICAgICAgICAgICAgICAgX19ydW5Jbml0aWFsaXplcnModGhpcywgX2ZpZWxkX2V4dHJhSW5pdGlhbGl6ZXJzKTsKICAgICAgICAgICAgfQogICAgICAgIH0sCiAgICAgICAgKCgpID0+IHsKICAgICAgICAgICAgY29uc3QgX21ldGFkYXRhID0gdHlwZW9mIFN5bWJvbCA9PT0gImZ1bmN0aW9uIiAmJiBTeW1ib2wubWV0YWRhdGEgPyBPYmplY3QuY3JlYXRlKG51bGwpIDogdm9pZCAwOwogICAgICAgICAgICBfZmllbGRfZGVjb3JhdG9ycyA9IFtkZWNvcmF0ZV07CiAgICAgICAgICAgIF9fZXNEZWNvcmF0ZShudWxsLCBudWxsLCBfZmllbGRfZGVjb3JhdG9ycywgeyBraW5kOiAiZmllbGQiLCBuYW1lOiAiZmllbGQiLCBzdGF0aWM6IGZhbHNlLCBwcml2YXRlOiBmYWxzZSwgYWNjZXNzOiB7IGhhczogb2JqID0+ICJmaWVsZCIgaW4gb2JqLCBnZXQ6IG9iaiA9PiBvYmouZmllbGQsIHNldDogKG9iaiwgdmFsdWUpID0+IHsgb2JqLmZpZWxkID0gdmFsdWU7IH0gfSwgbWV0YWRhdGE6IF9tZXRhZGF0YSB9LCBfZmllbGRfaW5pdGlhbGl6ZXJzLCBfZmllbGRfZXh0cmFJbml0aWFsaXplcnMpOwogICAgICAgICAgICBpZiAoX21ldGFkYXRhKSBPYmplY3QuZGVmaW5lUHJvcGVydHkoX2EsIFN5bWJvbC5tZXRhZGF0YSwgeyBlbnVtZXJhYmxlOiB0cnVlLCBjb25maWd1cmFibGU6IHRydWUsIHdyaXRhYmxlOiB0cnVlLCB2YWx1ZTogX21ldGFkYXRhIH0pOwogICAgICAgIH0pKCksCiAgICAgICAgX2E7Cn0pKCk7Cg==",
+            "callback_utf8_sha256": "8c9b34eaa1e41bbf61b6681c0998ec9f603b2f26c30d2a9fcd89b3b4027e5694",
+            "callback_utf8_bytes": 3409,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "8c9b34eaa1e41bbf61b6681c0998ec9f603b2f26c30d2a9fcd89b3b4027e5694",
+            "materialized_utf8_bytes": 3409,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/input.ts"
+            ]
+          }
+        ],
+        "run_fingerprint_sha256": "81301fc4c7cd83ce3914da476755d385c8fd8a84b4e2a8d4f1e6cb86b02b79c0"
+      },
+      "control_fingerprint_sha256": "aa452c2c60c7d3082cc58ccd6b037119c979583a805fd7e99d9c846398da4f3f"
+    },
+    {
+      "control_id": "legacy-decorator-and-field-composition",
+      "input": {
+        "current_directory": "/project",
+        "roots": [
+          "/project/input.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/input.ts",
+            "root": true,
+            "utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiBkZWNvcmF0ZSguLi52YWx1ZXM6IGFueVtdKTogYW55OyBkZWNsYXJlIGZ1bmN0aW9uIGdldE9iamVjdCgpOiBhbnk7IGRlY2xhcmUgZnVuY3Rpb24gZ2V0S2V5KCk6IGFueTsgZGVjbGFyZSBmdW5jdGlvbiByaHMoKTogYW55OwpAZGVjb3JhdGUgY2xhc3MgVmFsdWUgeyBAZGVjb3JhdGUgZmllbGQgPSBnZXRPYmplY3QoKVtnZXRLZXkoKV0gfHw9IHJocygpOyB9Cg==",
+            "utf8_sha256": "09f72e8d6968f6e8d3f80587ce650be5f8751df43bd1126a7e1beeeaa53edd76",
+            "utf8_bytes": 223
+          }
+        ],
+        "compiler_options": {
+          "alwaysStrict": true,
+          "experimentalDecorators": true,
+          "ignoreDeprecations": "6.0",
+          "module": 99,
+          "newLine": 1,
+          "target": 7,
+          "useDefineForClassFields": true
+        }
+      },
+      "runtime_expectation": {
+        "h2_2a_sources": 0,
+        "h2_2b_sources": 0,
+        "h2_2c_sources": 0,
+        "h2_4a_sources": 1,
+        "h2_4b_sources": 0,
+        "h2_5a_sources": 1,
+        "h2_5b_sources": 1
+      },
+      "repetitions": 2,
+      "observation": {
+        "reported_diagnostics": [],
+        "emit_diagnostics": [],
+        "emit_skipped": false,
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/input.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOwp2YXIgX19kZWNvcmF0ZSA9ICh0aGlzICYmIHRoaXMuX19kZWNvcmF0ZSkgfHwgZnVuY3Rpb24gKGRlY29yYXRvcnMsIHRhcmdldCwga2V5LCBkZXNjKSB7CiAgICB2YXIgYyA9IGFyZ3VtZW50cy5sZW5ndGgsIHIgPSBjIDwgMyA/IHRhcmdldCA6IGRlc2MgPT09IG51bGwgPyBkZXNjID0gT2JqZWN0LmdldE93blByb3BlcnR5RGVzY3JpcHRvcih0YXJnZXQsIGtleSkgOiBkZXNjLCBkOwogICAgaWYgKHR5cGVvZiBSZWZsZWN0ID09PSAib2JqZWN0IiAmJiB0eXBlb2YgUmVmbGVjdC5kZWNvcmF0ZSA9PT0gImZ1bmN0aW9uIikgciA9IFJlZmxlY3QuZGVjb3JhdGUoZGVjb3JhdG9ycywgdGFyZ2V0LCBrZXksIGRlc2MpOwogICAgZWxzZSBmb3IgKHZhciBpID0gZGVjb3JhdG9ycy5sZW5ndGggLSAxOyBpID49IDA7IGktLSkgaWYgKGQgPSBkZWNvcmF0b3JzW2ldKSByID0gKGMgPCAzID8gZChyKSA6IGMgPiAzID8gZCh0YXJnZXQsIGtleSwgcikgOiBkKHRhcmdldCwga2V5KSkgfHwgcjsKICAgIHJldHVybiBjID4gMyAmJiByICYmIE9iamVjdC5kZWZpbmVQcm9wZXJ0eSh0YXJnZXQsIGtleSwgciksIHI7Cn07CmxldCBWYWx1ZSA9IGNsYXNzIFZhbHVlIHsKICAgIGNvbnN0cnVjdG9yKCkgewogICAgICAgIHZhciBfYSwgX2I7CiAgICAgICAgT2JqZWN0LmRlZmluZVByb3BlcnR5KHRoaXMsICJmaWVsZCIsIHsKICAgICAgICAgICAgZW51bWVyYWJsZTogdHJ1ZSwKICAgICAgICAgICAgY29uZmlndXJhYmxlOiB0cnVlLAogICAgICAgICAgICB3cml0YWJsZTogdHJ1ZSwKICAgICAgICAgICAgdmFsdWU6IChfYSA9IGdldE9iamVjdCgpKVtfYiA9IGdldEtleSgpXSB8fCAoX2FbX2JdID0gcmhzKCkpCiAgICAgICAgfSk7CiAgICB9Cn07Cl9fZGVjb3JhdGUoWwogICAgZGVjb3JhdGUKXSwgVmFsdWUucHJvdG90eXBlLCAiZmllbGQiLCB2b2lkIDApOwpWYWx1ZSA9IF9fZGVjb3JhdGUoWwogICAgZGVjb3JhdGUKXSwgVmFsdWUpOwo=",
+            "callback_utf8_sha256": "5a20bc8833bfe82437418aca0394bb5f9d0eaa99794cbb3aa248f70320451e0e",
+            "callback_utf8_bytes": 992,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "5a20bc8833bfe82437418aca0394bb5f9d0eaa99794cbb3aa248f70320451e0e",
+            "materialized_utf8_bytes": 992,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/input.ts"
+            ]
+          }
+        ],
+        "run_fingerprint_sha256": "7fbd29d9e7c01916fe3bf10bedd57098dab56000c309fe1c046dfcd13200a613"
+      },
+      "control_fingerprint_sha256": "422a64aa2e04b6b0d0169ab021ab2fe25334ef4d12721630322c769b755cbf5a"
+    },
+    {
+      "control_id": "enum-namespace-and-parameter-property-composition",
+      "input": {
+        "current_directory": "/project",
+        "roots": [
+          "/project/input.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/input.ts",
+            "root": true,
+            "utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiBnZXRPYmplY3QoKTogYW55OyBkZWNsYXJlIGZ1bmN0aW9uIGdldEtleSgpOiBhbnk7IGRlY2xhcmUgZnVuY3Rpb24gcmhzKCk6IGFueTsKZW51bSBLaW5kIHsgRmlyc3QgfQpuYW1lc3BhY2UgU3RhdGUgeyBleHBvcnQgbGV0IHZhbHVlOiBhbnk7IHZhbHVlIHx8PSByaHMoKTsgfQpjbGFzcyBWYWx1ZSB7IGNvbnN0cnVjdG9yKHB1YmxpYyBmaWVsZCA9IGdldE9iamVjdCgpW2dldEtleSgpXSA/Pz0gcmhzKCkpIHt9IH0K",
+            "utf8_sha256": "f6897f1b45b14ec1913429498b81f0419e74585b3803e9af93d02b55f378c697",
+            "utf8_bytes": 255
+          }
+        ],
+        "compiler_options": {
+          "alwaysStrict": true,
+          "ignoreDeprecations": "6.0",
+          "module": 99,
+          "newLine": 1,
+          "target": 7,
+          "useDefineForClassFields": true
+        }
+      },
+      "runtime_expectation": {
+        "h2_2a_sources": 1,
+        "h2_2b_sources": 1,
+        "h2_2c_sources": 1,
+        "h2_4a_sources": 0,
+        "h2_4b_sources": 0,
+        "h2_5a_sources": 1,
+        "h2_5b_sources": 1
+      },
+      "repetitions": 2,
+      "observation": {
+        "reported_diagnostics": [],
+        "emit_diagnostics": [],
+        "emit_skipped": false,
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/input.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOwp2YXIgS2luZDsKKGZ1bmN0aW9uIChLaW5kKSB7CiAgICBLaW5kW0tpbmRbIkZpcnN0Il0gPSAwXSA9ICJGaXJzdCI7Cn0pKEtpbmQgfHwgKEtpbmQgPSB7fSkpOwp2YXIgU3RhdGU7CihmdW5jdGlvbiAoU3RhdGUpIHsKICAgIFN0YXRlLnZhbHVlIHx8IChTdGF0ZS52YWx1ZSA9IHJocygpKTsKfSkoU3RhdGUgfHwgKFN0YXRlID0ge30pKTsKY2xhc3MgVmFsdWUgewogICAgY29uc3RydWN0b3IoZmllbGQpIHsKICAgICAgICB2YXIgX2EsIF9iOwogICAgICAgIGlmIChmaWVsZCA9PT0gdm9pZCAwKSB7IGZpZWxkID0gKF9hID0gZ2V0T2JqZWN0KCkpW19iID0gZ2V0S2V5KCldID8/IChfYVtfYl0gPSByaHMoKSk7IH0KICAgICAgICBPYmplY3QuZGVmaW5lUHJvcGVydHkodGhpcywgImZpZWxkIiwgewogICAgICAgICAgICBlbnVtZXJhYmxlOiB0cnVlLAogICAgICAgICAgICBjb25maWd1cmFibGU6IHRydWUsCiAgICAgICAgICAgIHdyaXRhYmxlOiB0cnVlLAogICAgICAgICAgICB2YWx1ZTogZmllbGQKICAgICAgICB9KTsKICAgIH0KfQo=",
+            "callback_utf8_sha256": "3847a092d5e19288020e11af99d19501ec8cd9ff825abcadb018d3e535765d84",
+            "callback_utf8_bytes": 545,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "3847a092d5e19288020e11af99d19501ec8cd9ff825abcadb018d3e535765d84",
+            "materialized_utf8_bytes": 545,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/input.ts"
+            ]
+          }
+        ],
+        "run_fingerprint_sha256": "16701196955f20a24705904579225180f4b9dbfb3add8a3340c4f6844a621504"
+      },
+      "control_fingerprint_sha256": "f925fc5e83f2a7c63417bfebfdc39da8e70f52933ab25d5f25ead217e6ec4370"
+    },
+    {
+      "control_id": "commonjs-export-composition",
+      "input": {
+        "current_directory": "/project",
+        "roots": [
+          "/project/input.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/input.ts",
+            "root": true,
+            "utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiBnZXRPYmplY3QoKTogYW55OyBkZWNsYXJlIGZ1bmN0aW9uIGdldEtleSgpOiBhbnk7IGRlY2xhcmUgZnVuY3Rpb24gcmhzKCk6IGFueTsKZXhwb3J0IGxldCB2YWx1ZTogYW55Owp2YWx1ZSB8fD0gcmhzKCk7CmV4cG9ydCBmdW5jdGlvbiB1cGRhdGUoKSB7IHJldHVybiBnZXRPYmplY3QoKVtnZXRLZXkoKV0gPz89IHJocygpOyB9Cg==",
+            "utf8_sha256": "f300919d8700cd9cf3f237645df279e7cd4eadd1b4127987c5b4b7753e69a5e6",
+            "utf8_bytes": 205
+          }
+        ],
+        "compiler_options": {
+          "alwaysStrict": true,
+          "ignoreDeprecations": "6.0",
+          "module": 1,
+          "newLine": 1,
+          "target": 7,
+          "useDefineForClassFields": true
+        }
+      },
+      "runtime_expectation": {
+        "h2_2a_sources": 0,
+        "h2_2b_sources": 0,
+        "h2_2c_sources": 0,
+        "h2_4a_sources": 0,
+        "h2_4b_sources": 0,
+        "h2_5a_sources": 1,
+        "h2_5b_sources": 1
+      },
+      "repetitions": 2,
+      "observation": {
+        "reported_diagnostics": [],
+        "emit_diagnostics": [],
+        "emit_skipped": false,
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/input.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOwpPYmplY3QuZGVmaW5lUHJvcGVydHkoZXhwb3J0cywgIl9fZXNNb2R1bGUiLCB7IHZhbHVlOiB0cnVlIH0pOwpleHBvcnRzLnZhbHVlID0gdm9pZCAwOwpleHBvcnRzLnVwZGF0ZSA9IHVwZGF0ZTsKZXhwb3J0cy52YWx1ZSB8fCAoZXhwb3J0cy52YWx1ZSA9IHJocygpKTsKZnVuY3Rpb24gdXBkYXRlKCkgeyB2YXIgX2EsIF9iOyByZXR1cm4gKF9hID0gZ2V0T2JqZWN0KCkpW19iID0gZ2V0S2V5KCldID8/IChfYVtfYl0gPSByaHMoKSk7IH0K",
+            "callback_utf8_sha256": "52f096bdab149cebb815930e27a1ae61bfa504201df44d0a557ea255d1b5d66f",
+            "callback_utf8_bytes": 264,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "52f096bdab149cebb815930e27a1ae61bfa504201df44d0a557ea255d1b5d66f",
+            "materialized_utf8_bytes": 264,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/input.ts"
+            ]
+          }
+        ],
+        "run_fingerprint_sha256": "a075b42b1a580657c4f7a2bfe893e17a7cab508ec614031bab7dd240e12e1980"
+      },
+      "control_fingerprint_sha256": "4af7452b9eed8e0ed4b011a18ef8066bcb9da4c408a2d2b04544ea7d6d025f23"
+    },
+    {
+      "control_id": "parenthesized-and-commented-access",
+      "input": {
+        "current_directory": "/project",
+        "roots": [
+          "/project/input.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/input.ts",
+            "root": true,
+            "utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiBnZXRPYmplY3QoKTogYW55OyBkZWNsYXJlIGZ1bmN0aW9uIGdldEtleSgpOiBhbnk7IGRlY2xhcmUgZnVuY3Rpb24gcmhzKCk6IGFueTsKKChnZXRPYmplY3QoKSAvKiByZWNlaXZlciAqLykpLnZhbHVlIHx8PSByaHMoKTsKZ2V0T2JqZWN0KClbLyoga2V5ICovIGdldEtleSgpXSAmJj0gcmhzKCk7Cg==",
+            "utf8_sha256": "8ccaba29934d1b0cdf8804faad7441608aa2897c668f1bf6733ae01834b18a9d",
+            "utf8_bytes": 187
+          }
+        ],
+        "compiler_options": {
+          "alwaysStrict": true,
+          "ignoreDeprecations": "6.0",
+          "module": 99,
+          "newLine": 1,
+          "target": 7,
+          "useDefineForClassFields": true
+        }
+      },
+      "runtime_expectation": {
+        "h2_2a_sources": 0,
+        "h2_2b_sources": 0,
+        "h2_2c_sources": 0,
+        "h2_4a_sources": 0,
+        "h2_4b_sources": 0,
+        "h2_5a_sources": 1,
+        "h2_5b_sources": 1
+      },
+      "repetitions": 2,
+      "observation": {
+        "reported_diagnostics": [],
+        "emit_diagnostics": [],
+        "emit_skipped": false,
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/input.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOwp2YXIgX2EsIF9iLCBfYzsKKF9hID0gKChnZXRPYmplY3QoKSAvKiByZWNlaXZlciAqLykpKS52YWx1ZSB8fCAoX2EudmFsdWUgPSByaHMoKSk7CihfYiA9IGdldE9iamVjdCgpKVtfYyA9IGdldEtleSgpXSAmJiAoX2JbX2NdID0gcmhzKCkpOwo=",
+            "callback_utf8_sha256": "a80fe3eb06406a04a8546e88ea332a72c85a794b9b28253914368c0cbfeae17f",
+            "callback_utf8_bytes": 152,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "a80fe3eb06406a04a8546e88ea332a72c85a794b9b28253914368c0cbfeae17f",
+            "materialized_utf8_bytes": 152,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/input.ts"
+            ]
+          }
+        ],
+        "run_fingerprint_sha256": "e4a63bf0b98808e1f487cf6a18044b37b076183c8a337c34a88d88a624cb9833"
+      },
+      "control_fingerprint_sha256": "6bdc8d2eb656e0e13bb94c6f3e8496ec5c5308d4d0363eb54398305794ab214c"
+    },
+    {
+      "control_id": "adjacent-es2021-preserves-logical-assignment",
+      "input": {
+        "current_directory": "/project",
+        "roots": [
+          "/project/input.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/input.ts",
+            "root": true,
+            "utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiBnZXRPYmplY3QoKTogYW55OyBkZWNsYXJlIGZ1bmN0aW9uIGdldEtleSgpOiBhbnk7IGRlY2xhcmUgZnVuY3Rpb24gcmhzKCk6IGFueTsKZ2V0T2JqZWN0KClbZ2V0S2V5KCldIHx8PSByaHMoKTsK",
+            "utf8_sha256": "7183f2d1fdac360fd9422ceb8ee6ab416d53cca90baa65314f32fe75b6a864e2",
+            "utf8_bytes": 129
+          }
+        ],
+        "compiler_options": {
+          "alwaysStrict": true,
+          "ignoreDeprecations": "6.0",
+          "module": 99,
+          "newLine": 1,
+          "target": 8,
+          "useDefineForClassFields": true
+        }
+      },
+      "runtime_expectation": {
+        "h2_2a_sources": 0,
+        "h2_2b_sources": 0,
+        "h2_2c_sources": 0,
+        "h2_4a_sources": 0,
+        "h2_4b_sources": 0,
+        "h2_5a_sources": 1,
+        "h2_5b_sources": 0
+      },
+      "repetitions": 2,
+      "observation": {
+        "reported_diagnostics": [],
+        "emit_diagnostics": [],
+        "emit_skipped": false,
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/input.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOwpnZXRPYmplY3QoKVtnZXRLZXkoKV0gfHw9IHJocygpOwo=",
+            "callback_utf8_sha256": "4d4440bc6f913b778e2e5f59b4f46a1e9258fe81d548d1a78f9687fba4dc1544",
+            "callback_utf8_bytes": 47,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "4d4440bc6f913b778e2e5f59b4f46a1e9258fe81d548d1a78f9687fba4dc1544",
+            "materialized_utf8_bytes": 47,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/input.ts"
+            ]
+          }
+        ],
+        "run_fingerprint_sha256": "f1ea4c62a25b866e4240a62b5847e44dcd5e96af9e3cc34326ec378c31d1ed70"
+      },
+      "control_fingerprint_sha256": "0338182cd5ab96ef54be11c39c7220369618c335be45cd4d41553f7825552622"
+    },
+    {
+      "control_id": "ordinary-es2020-source-is-stable",
+      "input": {
+        "current_directory": "/project",
+        "roots": [
+          "/project/input.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/input.ts",
+            "root": true,
+            "utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gMTsK",
+            "utf8_sha256": "5d8f65d2774e206bc9f7a7a4ad39ca2dc563b5c31e46ab57ef4874961237ce29",
+            "utf8_bytes": 24
+          }
+        ],
+        "compiler_options": {
+          "alwaysStrict": true,
+          "ignoreDeprecations": "6.0",
+          "module": 99,
+          "newLine": 1,
+          "target": 7,
+          "useDefineForClassFields": true
+        }
+      },
+      "runtime_expectation": {
+        "h2_2a_sources": 0,
+        "h2_2b_sources": 0,
+        "h2_2c_sources": 0,
+        "h2_4a_sources": 0,
+        "h2_4b_sources": 0,
+        "h2_5a_sources": 1,
+        "h2_5b_sources": 1
+      },
+      "repetitions": 2,
+      "observation": {
+        "reported_diagnostics": [],
+        "emit_diagnostics": [],
+        "emit_skipped": false,
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/input.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gMTsK",
+            "callback_utf8_sha256": "5d8f65d2774e206bc9f7a7a4ad39ca2dc563b5c31e46ab57ef4874961237ce29",
+            "callback_utf8_bytes": 24,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "5d8f65d2774e206bc9f7a7a4ad39ca2dc563b5c31e46ab57ef4874961237ce29",
+            "materialized_utf8_bytes": 24,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/input.ts"
+            ]
+          }
+        ],
+        "run_fingerprint_sha256": "58afb46d3a6355da7c05b5c24a4f9f5f829540217bcf28dc43fcade5a3628b0b"
+      },
+      "control_fingerprint_sha256": "12babf42a1bd58c7e654bcf953a11745cd31847c981df7a4fd52dde62e245170"
+    },
+    {
+      "control_id": "no-emit-on-error-stops-before-write",
+      "input": {
+        "current_directory": "/project",
+        "roots": [
+          "/project/input.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/input.ts",
+            "root": true,
+            "utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiByaHMoKTogYW55OwptaXNzaW5nLnZhbHVlIHx8PSByaHMoKTsK",
+            "utf8_sha256": "be9ea6fbdf30e55a1c0e80facdb216a7bb31f02bbc520fe3a7304a64f86db4e2",
+            "utf8_bytes": 54
+          }
+        ],
+        "compiler_options": {
+          "alwaysStrict": true,
+          "ignoreDeprecations": "6.0",
+          "module": 99,
+          "newLine": 1,
+          "noEmitOnError": true,
+          "target": 7,
+          "useDefineForClassFields": true
+        }
+      },
+      "runtime_expectation": {
+        "h2_2a_sources": 0,
+        "h2_2b_sources": 0,
+        "h2_2c_sources": 0,
+        "h2_4a_sources": 0,
+        "h2_4b_sources": 0,
+        "h2_5a_sources": 0,
+        "h2_5b_sources": 0
+      },
+      "repetitions": 2,
+      "observation": {
+        "reported_diagnostics": [
+          {
+            "code": 2304,
+            "category": "Error",
+            "file": "/project/input.ts",
+            "start": 29,
+            "length": 7,
+            "message": "Cannot find name 'missing'."
+          }
+        ],
+        "emit_diagnostics": [
+          {
+            "code": 2304,
+            "category": "Error",
+            "file": "/project/input.ts",
+            "start": 29,
+            "length": 7,
+            "message": "Cannot find name 'missing'."
+          }
+        ],
+        "emit_skipped": true,
+        "writes": [],
+        "run_fingerprint_sha256": "eb498fc72765bd379cf88f7803e46579d685ee98df4af1775ba330343a34a748"
+      },
+      "control_fingerprint_sha256": "533e6f0baaa3e7b2e0f594f2e9fe47a55258e71259cfc3c5cd50f7a73595d2d1"
+    }
+  ],
+  "summary": {
+    "controls": 20,
+    "exact_outputs": 19,
+    "typescript_runs": 40,
+    "reported_diagnostics": 1,
+    "emit_diagnostics": 1,
+    "no_emit_on_error_controls": 1,
+    "es2020_controls": 19,
+    "es2021_controls": 1,
+    "logical_assignment_controls": 19,
+    "parameter_hoist_controls": 3,
+    "standard_decorator_controls": 1,
+    "legacy_decorator_controls": 1,
+    "commonjs_controls": 1,
+    "h2_5a_active_controls": 19,
+    "h2_5b_active_controls": 18
+  },
+  "controls_fingerprint_sha256": "d68a8c571d0c4fe4e27dd638ac1eb458da1b6d57c36a7d74d1cb16f4124e8d55"
+}

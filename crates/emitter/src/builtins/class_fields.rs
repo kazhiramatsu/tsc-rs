@@ -7,8 +7,9 @@ use tsc_syntax::{
 use tsc_types::{CompilerOptions, NodeFlags, ScriptTarget};
 
 use crate::{
-    EmitFlags, InternalEmitFlags, TransformError, TransformFlags, TransformNode,
-    TransformNodeArray, TransformRoot, TransformSourceId, TransformationContext, Transformer,
+    EmitFlags, EmitHint, EmitResolver, EmitResolverNode, InternalEmitFlags, TransformError,
+    TransformFlags, TransformNode, TransformNodeArray, TransformRoot, TransformSourceId,
+    TransformationContext, Transformer,
 };
 
 use super::{
@@ -20,30 +21,39 @@ mod downlevel;
 /// tsc-port: transformClassFields @6.0.3
 /// tsc-hash: 65cacc85f81402ff4468cf65c7636dbd5a0ce9eb6c3248f060aa5193c3af8304
 /// tsc-span: _tsc.js:95852-98038
-pub(super) fn transform_class_fields(options: &CompilerOptions) -> Box<dyn Transformer> {
+pub(super) fn transform_class_fields<'resolver>(
+    options: &CompilerOptions,
+    resolver: &'resolver dyn EmitResolver,
+) -> Box<dyn Transformer + 'resolver> {
     Box::new(ClassFieldsTransformer {
+        resolver,
         target: options.emit_script_target(),
         use_define_for_class_fields: options.use_define_for_class_fields_effective(),
+        class_aliases: BTreeMap::new(),
     })
 }
 
-struct ClassFieldsTransformer {
+struct ClassFieldsTransformer<'resolver> {
+    resolver: &'resolver dyn EmitResolver,
     target: ScriptTarget,
     use_define_for_class_fields: bool,
+    class_aliases: BTreeMap<(u32, u32), Box<str>>,
 }
 
-impl Transformer for ClassFieldsTransformer {
+impl Transformer for ClassFieldsTransformer<'_> {
     fn name(&self) -> &'static str {
         "transformClassFields"
     }
 
-    fn initialize(&mut self, _context: &mut TransformationContext) -> Result<(), TransformError> {
-        if self.target < ScriptTarget::ES2021 || self.target > ScriptTarget::ES_NEXT {
+    fn initialize(&mut self, context: &mut TransformationContext) -> Result<(), TransformError> {
+        if self.target < ScriptTarget::ES2020 || self.target > ScriptTarget::ES_NEXT {
             return Err(TransformError::UnsupportedCompilerOption {
                 option: "class-field transform",
-                detail: "H2.5a admits ES2021 through ESNext class-field reachability",
+                detail:
+                    "the closed target band admits ES2020 through ESNext class-field reachability",
             });
         }
+        context.enable_substitution(SyntaxKind::Identifier)?;
         Ok(())
     }
 
@@ -61,7 +71,12 @@ impl Transformer for ClassFieldsTransformer {
             ));
         };
         if self.target < ScriptTarget::ES2022 {
-            downlevel::transform_source(context, source, self.use_define_for_class_fields)?;
+            downlevel::transform_source(
+                context,
+                source,
+                self.use_define_for_class_fields,
+                &mut self.class_aliases,
+            )?;
             return Ok(TransformRoot::SourceFile(source));
         }
         let root = context.arena().root(source)?;
@@ -84,6 +99,70 @@ impl Transformer for ClassFieldsTransformer {
             .arena_mut()?
             .replace_root(source, transformed)?;
         Ok(TransformRoot::SourceFile(source))
+    }
+
+    fn substitute_node(
+        &mut self,
+        context: &mut TransformationContext,
+        hint: EmitHint,
+        node: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        if self.class_aliases.is_empty()
+            || hint != EmitHint::Expression
+            || !matches!(context.arena().node(node)?.data, NodeData::Identifier(_))
+        {
+            return Ok(node);
+        }
+        let original = context.arena().get_original_node(node);
+        if context.arena().node(original)?.pos == u32::MAX {
+            return Ok(node);
+        }
+        let program_source = context
+            .arena()
+            .source(original.source())?
+            .program_source()
+            .ok_or(TransformError::MissingProgramSource(original))?;
+        let Some(declaration) =
+            self.resolver
+                .get_referenced_value_declaration(EmitResolverNode::new(
+                    program_source,
+                    original.node(),
+                ))?
+        else {
+            return Ok(node);
+        };
+        let Some(alias) = self
+            .class_aliases
+            .get(&(declaration.source().raw(), declaration.node().0))
+            .cloned()
+        else {
+            return Ok(node);
+        };
+        let replacement = {
+            let mut factory = context.substitution_factory()?;
+            let replacement = factory.create_node(
+                node.source(),
+                NodeData::Identifier(tsc_syntax::nodes::IdentifierData {
+                    escaped_text: alias.to_string(),
+                    text: alias.to_string(),
+                }),
+                TransformFlags::NONE,
+            )?;
+            factory.set_text_range(replacement, node)?;
+            replacement
+        };
+        context
+            .arena_mut()?
+            .set_original_node(replacement, Some(node))?;
+        context
+            .arena_mut()?
+            .metadata_mut(replacement)
+            .add_flags(EmitFlags::NO_SUBSTITUTION);
+        Ok(replacement)
+    }
+
+    fn dispose(&mut self) {
+        self.class_aliases.clear();
     }
 }
 

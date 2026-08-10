@@ -61,7 +61,7 @@ pub use position::{
 };
 pub use printer::{
     create_printer, DisabledSourceMapRecorder, PrintRequest, PrintedText, Printer, PrinterError,
-    PrinterOptions, SourceMapHookEvent, SourceMapHookPhase, SourceMapRecorder,
+    PrinterOptions, SourceFileTextMode, SourceMapHookEvent, SourceMapHookPhase, SourceMapRecorder,
 };
 pub use resolver::{
     EmitResolver, EmitResolverError, EmitResolverMethod, EmitResolverNode,

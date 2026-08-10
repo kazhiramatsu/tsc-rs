@@ -6,8 +6,8 @@ use crate::{
     create_printer, transform_nodes, DisabledSourceMapRecorder, EmitArtifact,
     EmitContractViolation, EmitFailure, EmitHost, EmitOutcome, EmitPreflight, EmitResolver,
     EmitRoot, EmitSelection, EmitTextMetadata, EmitWriteDisposition, H2ActivityCanary,
-    H2RuntimeSlice, NewLineKind, OutputSink, PrintRequest, PrinterOptions, TransformArena,
-    TransformRoot,
+    H2RuntimeSlice, NewLineKind, OutputSink, PrintRequest, PrinterOptions, SourceFileTextMode,
+    TransformArena, TransformRoot,
 };
 
 const MODULE_COMMON_JS: i32 = 1;
@@ -69,7 +69,7 @@ impl EmitDiagnosticGate {
 /// before output planning, checker-to-emitter borrowing, or sink dispatch.
 pub fn validate_bootstrap_emit_options(options: &CompilerOptions) -> Result<(), EmitFailure> {
     let target = options.emit_script_target();
-    if target < ScriptTarget::ES2021 || target > ScriptTarget::ES_NEXT {
+    if target < ScriptTarget::ES2020 || target > ScriptTarget::ES_NEXT {
         return unsupported("target");
     }
     if !matches!(
@@ -288,7 +288,7 @@ pub fn emit_files(
     diagnostic_gate: &EmitDiagnosticGate,
     sink: &mut dyn OutputSink,
 ) -> Result<EmitOutcome, EmitFailure> {
-    let mut activity = H2ActivityCanary::h2_5a_profile();
+    let mut activity = H2ActivityCanary::h2_5b_profile();
     activity.construct_emit_session();
     activity.construct_output_plan();
     if !preflight.plan().units().is_empty() {
@@ -347,11 +347,13 @@ pub fn emit_files_with_activity(
         Some(_) => return unsupported("newLine"),
     };
     activity.construct_printer();
-    let printer = create_printer(
+    let mut printer = create_printer(
         PrinterOptions::new(new_line)
             .with_remove_comments(options.remove_comments == Some(true))
             .with_no_implicit_use_strict(options.no_implicit_use_strict == Some(true))
-            .with_no_emit_helpers(options.no_emit_helpers == Some(true)),
+            .with_no_emit_helpers(options.no_emit_helpers == Some(true))
+            .with_target(options.emit_script_target())
+            .with_source_file_text_mode(SourceFileTextMode::Canonical),
     );
 
     let mut artifacts = Vec::with_capacity(preflight.plan().units().len());

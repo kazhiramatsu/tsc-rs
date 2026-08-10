@@ -1191,7 +1191,10 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
         node: TransformNode,
     ) -> Result<TransformNode, TransformError> {
         match self.context.arena().node(node)?.data.clone() {
-            NodeData::Identifier(data) => self.create_identifier(&data.text),
+            NodeData::Identifier(data) => {
+                let expression = self.create_identifier(&data.text)?;
+                self.set_original_and_range(expression, node)
+            }
             NodeData::QualifiedName(data) => {
                 let left = data
                     .left
@@ -1209,7 +1212,8 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
                     })?;
                 let right = self.identifier_text(right.node())?.to_owned();
                 let left = self.entity_name_expression(left)?;
-                self.create_property_access(left, &right)
+                let expression = self.create_property_access(left, &right)?;
+                self.set_original_and_range(expression, node)
             }
             _ => self.create_identifier("Object"),
         }

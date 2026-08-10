@@ -432,7 +432,10 @@ impl<'a> CheckerState<'a> {
         false
     }
 
-    fn is_const_enum_or_const_enum_only_module_symbol(&self, symbol: SymbolId) -> bool {
+    /// tsc-port: isConstEnumOrConstEnumOnlyModule @6.0.3
+    /// tsc-hash: f3466b3d983aa63d7c7e0a12ff746e82e9984de653f32d7d5dc7441ae51ca1f0
+    /// tsc-span: _tsc.js:88034-88036
+    pub(crate) fn is_const_enum_or_const_enum_only_module_symbol(&self, symbol: SymbolId) -> bool {
         let symbol = self.binder.symbol(symbol);
         symbol.flags.intersects(SymbolFlags::CONST_ENUM)
             || symbol.const_enum_only_module == Some(true)

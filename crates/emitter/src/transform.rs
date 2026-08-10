@@ -414,6 +414,18 @@ impl TransformationContext {
         Ok(NodeFactory::new(&mut self.arena))
     }
 
+    /// Constructs nodes owned by an emit-time substitution.
+    ///
+    /// TypeScript's substitution hooks may synthesize a replacement after the
+    /// transform pipeline has completed. Keeping that capability separate from
+    /// [`Self::factory`] makes the lifecycle distinction explicit: ordinary
+    /// transforms cannot be resumed during printing, while a substitution may
+    /// still append immutable replacement nodes to the session arena.
+    pub fn substitution_factory(&mut self) -> Result<NodeFactory<'_>, TransformError> {
+        self.require_before_disposed("construct an emit substitution")?;
+        Ok(NodeFactory::new(&mut self.arena))
+    }
+
     pub fn enable_substitution(&mut self, kind: SyntaxKind) -> Result<(), TransformError> {
         self.require_before_completed("enable substitution")?;
         self.enabled_syntax_features[kind as usize] |= 1;
@@ -683,7 +695,7 @@ pub trait Transformer {
 
     fn substitute_node(
         &mut self,
-        _context: &TransformationContext,
+        _context: &mut TransformationContext,
         _hint: EmitHint,
         node: TransformNode,
     ) -> Result<TransformNode, TransformError> {
@@ -747,7 +759,7 @@ impl TransformationResult<'_> {
             return Ok(node);
         }
         for transformer in &mut self.transformers {
-            node = transformer.substitute_node(&self.context, hint, node)?;
+            node = transformer.substitute_node(&mut self.context, hint, node)?;
             self.context.arena.node(node)?;
         }
         Ok(node)

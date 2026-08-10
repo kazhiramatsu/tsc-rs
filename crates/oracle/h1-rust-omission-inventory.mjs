@@ -219,7 +219,7 @@ const anchorSpecs = [
   [
     "emitter-printer-factory",
     "crates/emitter/src/printer.rs",
-    "pub const fn create_printer(options: PrinterOptions) -> Printer {",
+    "pub fn create_printer(options: PrinterOptions) -> Printer {",
   ],
   [
     "emitter-position-domains",
@@ -249,7 +249,7 @@ const anchorSpecs = [
   [
     "emitter-transform-class-fields",
     "crates/emitter/src/builtins.rs",
-    "pub fn transform_class_fields(options: &CompilerOptions) -> Box<dyn Transformer> {",
+    "pub fn transform_class_fields<'resolver>(",
   ],
   [
     "emitter-transform-ecmascript-module",

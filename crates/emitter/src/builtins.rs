@@ -29,7 +29,9 @@ const MODULE_NODE_NEXT: i32 = 199;
 const MODULE_PRESERVE: i32 = 200;
 
 mod class_fields;
+mod es2021;
 mod es_next;
+mod generated_bindings;
 mod jsx;
 mod legacy_decorators;
 mod standard_decorators;
@@ -87,7 +89,7 @@ pub fn get_script_transformers<'resolver>(
     options: &CompilerOptions,
     resolver: &'resolver dyn EmitResolver,
 ) -> Result<Vec<Box<dyn Transformer + 'resolver>>, TransformError> {
-    let mut activity = H2ActivityCanary::h2_5a_profile();
+    let mut activity = H2ActivityCanary::h2_5b_profile();
     get_script_transformers_with_optional_host(options, resolver, None, &mut activity)
 }
 
@@ -108,10 +110,10 @@ fn get_script_transformers_with_optional_host<'transformers>(
     activity: &mut H2ActivityCanary,
 ) -> Result<Vec<Box<dyn Transformer + 'transformers>>, TransformError> {
     let target = options.emit_script_target();
-    if target < ScriptTarget::ES2021 || target > ScriptTarget::ES_NEXT {
+    if target < ScriptTarget::ES2020 || target > ScriptTarget::ES_NEXT {
         return Err(TransformError::UnsupportedCompilerOption {
             option: "target",
-            detail: "H2.5a admits ES2021 through ESNext; older targets belong to later target-ladder slices",
+            detail: "H2.5b admits ES2020 through ESNext; older targets belong to later target-ladder slices",
         });
     }
     if !matches!(
@@ -194,6 +196,9 @@ fn get_script_transformers_with_optional_host<'transformers>(
         if target < ScriptTarget::ES_NEXT {
             activity.observe_runtime_slice(H2RuntimeSlice::H2_5a);
         }
+        if target < ScriptTarget::ES2021 {
+            activity.observe_runtime_slice(H2RuntimeSlice::H2_5b);
+        }
     }
 
     activity.construct_script_transformer_list();
@@ -210,7 +215,9 @@ fn get_script_transformers_with_optional_host<'transformers>(
         && (target < ScriptTarget::ES_NEXT || !options.use_define_for_class_fields_effective()))
     .then(|| standard_decorators::transform_standard_decorators(options));
     activity.construct_transform_class_fields();
-    let transform_class_fields = transform_class_fields(options);
+    let transform_class_fields = transform_class_fields(options, resolver);
+    let transform_es2021 =
+        (target < ScriptTarget::ES2021).then(|| es2021::transform_es2021(options));
     let module_transformer = if options.emit_module_kind() == MODULE_PRESERVE {
         activity.construct_transform_ecmascript_module();
         transform_ecmascript_module(options)
@@ -243,6 +250,9 @@ fn get_script_transformers_with_optional_host<'transformers>(
         transformers.push(transform_standard_decorators);
     }
     transformers.push(transform_class_fields);
+    if let Some(transform_es2021) = transform_es2021 {
+        transformers.push(transform_es2021);
+    }
     transformers.push(module_transformer);
     Ok(transformers)
 }
@@ -266,14 +276,19 @@ pub fn transform_type_script<'resolver>(
         allow_legacy_decorators: true,
         project_parameter_properties_for_class_fields: options
             .use_define_for_class_fields_effective(),
+        namespace_container_names: BTreeMap::new(),
+        active_namespace_emit_depth: 0,
     })
 }
 
 /// tsc-port: transformClassFields @6.0.3
 /// tsc-hash: 65cacc85f81402ff4468cf65c7636dbd5a0ce9eb6c3248f060aa5193c3af8304
 /// tsc-span: _tsc.js:95852-98038
-pub fn transform_class_fields(options: &CompilerOptions) -> Box<dyn Transformer> {
-    class_fields::transform_class_fields(options)
+pub fn transform_class_fields<'resolver>(
+    options: &CompilerOptions,
+    resolver: &'resolver dyn EmitResolver,
+) -> Box<dyn Transformer + 'resolver> {
+    class_fields::transform_class_fields(options, resolver)
 }
 
 /// tsc-port: transformECMAScriptModule @6.0.3
@@ -319,6 +334,8 @@ struct TypeScriptTransformer<'resolver> {
     allow_jsx: bool,
     allow_legacy_decorators: bool,
     project_parameter_properties_for_class_fields: bool,
+    namespace_container_names: BTreeMap<TransformNode, Box<str>>,
+    active_namespace_emit_depth: usize,
 }
 
 impl Transformer for TypeScriptTransformer<'_> {
@@ -327,8 +344,14 @@ impl Transformer for TypeScriptTransformer<'_> {
     }
 
     fn initialize(&mut self, context: &mut TransformationContext) -> Result<(), TransformError> {
-        context.enable_substitution(SyntaxKind::PropertyAccessExpression)?;
-        context.enable_substitution(SyntaxKind::ElementAccessExpression)?;
+        for kind in [
+            SyntaxKind::Identifier,
+            SyntaxKind::ShorthandPropertyAssignment,
+            SyntaxKind::PropertyAccessExpression,
+            SyntaxKind::ElementAccessExpression,
+        ] {
+            context.enable_substitution(kind)?;
+        }
         Ok(())
     }
 
@@ -347,11 +370,10 @@ impl Transformer for TypeScriptTransformer<'_> {
         }
         let ensure_use_strict = {
             let syntax = context.arena().source(source)?.syntax();
-            // Preserve is the frozen H1 transformer profile. H2.1a expands
-            // only omitted/ESNext module selection, so its newly reachable
-            // strict-prologue behavior must not reinterpret H1 outputs.
-            self.module_kind != MODULE_PRESERVE
-                && self.always_strict
+            // tsc's TS 6 alwaysStrict default also applies to Preserve-mode
+            // scripts. Files already classified as external ESM retain their
+            // module strictness without a synthetic directive.
+            self.always_strict
                 && !(syntax.external_module_indicator.is_some() && self.module_kind >= 5)
                 && !syntax.file_name.to_ascii_lowercase().ends_with(".json")
         };
@@ -392,7 +414,215 @@ impl Transformer for TypeScriptTransformer<'_> {
             .context
             .arena_mut()?
             .replace_root(source, transformed)?;
+        let namespace_container_names = std::mem::take(&mut visitor.namespace_container_names);
+        self.namespace_container_names.extend(
+            namespace_container_names
+                .into_iter()
+                .map(|(declaration, name)| (TransformNode::new(source, declaration), name)),
+        );
         Ok(TransformRoot::SourceFile(source))
+    }
+
+    fn substitute_node(
+        &mut self,
+        context: &mut TransformationContext,
+        hint: EmitHint,
+        node: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        if self.active_namespace_emit_depth == 0 {
+            return Ok(node);
+        }
+        match context.arena().node(node)?.data.clone() {
+            NodeData::Identifier(_) if hint == EmitHint::Expression => self
+                .try_substitute_namespace_exported_name(context, node)
+                .map(|substitute| substitute.unwrap_or(node)),
+            NodeData::ShorthandPropertyAssignment(data) => {
+                self.substitute_namespace_shorthand(context, node, data)
+            }
+            _ => Ok(node),
+        }
+    }
+
+    fn before_emit_node(
+        &mut self,
+        context: &TransformationContext,
+        _hint: EmitHint,
+        node: TransformNode,
+    ) -> Result<(), TransformError> {
+        let original = context.arena().get_original_node(node);
+        if self.namespace_container_names.contains_key(&original) {
+            self.active_namespace_emit_depth += 1;
+        }
+        Ok(())
+    }
+
+    fn after_emit_node(
+        &mut self,
+        context: &TransformationContext,
+        _hint: EmitHint,
+        node: TransformNode,
+    ) -> Result<(), TransformError> {
+        let original = context.arena().get_original_node(node);
+        if self.namespace_container_names.contains_key(&original) {
+            self.active_namespace_emit_depth = self
+                .active_namespace_emit_depth
+                .checked_sub(1)
+                .expect("namespace emit notifications are balanced");
+        }
+        Ok(())
+    }
+
+    fn dispose(&mut self) {
+        self.namespace_container_names.clear();
+        self.active_namespace_emit_depth = 0;
+    }
+}
+
+impl TypeScriptTransformer<'_> {
+    fn try_substitute_namespace_exported_name(
+        &self,
+        context: &mut TransformationContext,
+        node: TransformNode,
+    ) -> Result<Option<TransformNode>, TransformError> {
+        if context
+            .arena()
+            .metadata(node)
+            .is_some_and(|metadata| metadata.flags().contains(EmitFlags::LOCAL_NAME))
+        {
+            return Ok(None);
+        }
+        let original = context.arena().get_original_node(node);
+        if context.arena().node(original)?.pos == u32::MAX {
+            return Ok(None);
+        }
+        let program_source = context
+            .arena()
+            .source(original.source())?
+            .program_source()
+            .ok_or(TransformError::MissingProgramSource(original))?;
+        let Some(container) =
+            self.resolver
+                .get_referenced_export_container(EmitResolverNode::new(
+                    program_source,
+                    original.node(),
+                ))?
+        else {
+            return Ok(None);
+        };
+        let Some(container_name) = self
+            .namespace_container_names
+            .get(&TransformNode::new(node.source(), container.node()))
+            .cloned()
+        else {
+            return Ok(None);
+        };
+        let NodeData::Identifier(identifier) = context.arena().node(node)?.data.clone() else {
+            return Ok(None);
+        };
+        let source = node.source();
+        let (container, name, access) = {
+            let mut factory = context.substitution_factory()?;
+            let container = factory.create_node(
+                source,
+                NodeData::Identifier(tsc_syntax::nodes::IdentifierData {
+                    escaped_text: container_name.to_string(),
+                    text: container_name.to_string(),
+                }),
+                TransformFlags::NONE,
+            )?;
+            let name = factory.create_node(
+                source,
+                NodeData::Identifier(identifier),
+                TransformFlags::NONE,
+            )?;
+            let access = factory.create_node(
+                source,
+                NodeData::PropertyAccessExpression(
+                    tsc_syntax::nodes::PropertyAccessExpressionData {
+                        name: Some(name.node()),
+                        expression: Some(container.node()),
+                        question_dot_token: None,
+                    },
+                ),
+                TransformFlags::NONE,
+            )?;
+            factory.set_text_range(access, node)?;
+            (container, name, access)
+        };
+        context.arena_mut()?.set_original_node(access, Some(node))?;
+        for generated in [container, name] {
+            context
+                .arena_mut()?
+                .metadata_mut(generated)
+                .add_flags(EmitFlags::NO_SUBSTITUTION);
+        }
+        Ok(Some(access))
+    }
+
+    fn substitute_namespace_shorthand(
+        &self,
+        context: &mut TransformationContext,
+        original: TransformNode,
+        data: tsc_syntax::nodes::ShorthandPropertyAssignmentData,
+    ) -> Result<TransformNode, TransformError> {
+        let Some(name) = data
+            .name
+            .and_then(|name| context.arena().node_ref(original.source(), name))
+        else {
+            return Ok(original);
+        };
+        let Some(exported_name) = self.try_substitute_namespace_exported_name(context, name)?
+        else {
+            return Ok(original);
+        };
+        let initializer = if let Some(default_value) = data.object_assignment_initializer {
+            let default_value = context
+                .arena()
+                .node_ref(original.source(), default_value)
+                .ok_or_else(|| {
+                    TransformError::UnknownNode(TransformNode::new(
+                        original.source(),
+                        default_value,
+                    ))
+                })?;
+            let mut factory = context.substitution_factory()?;
+            let operator = factory.create_token(
+                original.source(),
+                SyntaxKind::EqualsToken,
+                TransformFlags::NONE,
+            )?;
+            factory.create_node(
+                original.source(),
+                NodeData::BinaryExpression(tsc_syntax::nodes::BinaryExpressionData {
+                    left: Some(exported_name.node()),
+                    operator_token: Some(operator.node()),
+                    right: Some(default_value.node()),
+                }),
+                TransformFlags::NONE,
+            )?
+        } else {
+            exported_name
+        };
+        let property = {
+            let mut factory = context.substitution_factory()?;
+            let property = factory.create_node(
+                original.source(),
+                NodeData::PropertyAssignment(tsc_syntax::nodes::PropertyAssignmentData {
+                    name: Some(name.node()),
+                    initializer: Some(initializer.node()),
+                    modifiers: None,
+                    question_token: None,
+                    exclamation_token: None,
+                }),
+                TransformFlags::NONE,
+            )?;
+            factory.set_text_range(property, original)?;
+            property
+        };
+        context
+            .arena_mut()?
+            .set_original_node(property, Some(original))?;
+        Ok(property)
     }
 }
 
@@ -663,7 +893,7 @@ impl Transformer for EcmaScriptModuleTransformer {
 
     fn substitute_node(
         &mut self,
-        _context: &TransformationContext,
+        _context: &mut TransformationContext,
         _hint: EmitHint,
         node: TransformNode,
     ) -> Result<TransformNode, TransformError> {
@@ -1441,7 +1671,7 @@ impl Transformer for ImpliedNodeFormatDependentModuleTransformer<'_> {
 
     fn substitute_node(
         &mut self,
-        context: &TransformationContext,
+        context: &mut TransformationContext,
         hint: EmitHint,
         node: TransformNode,
     ) -> Result<TransformNode, TransformError> {
@@ -1587,7 +1817,7 @@ impl Transformer for CommonJsModuleTransformer<'_> {
 
     fn substitute_node(
         &mut self,
-        _context: &TransformationContext,
+        _context: &mut TransformationContext,
         _hint: EmitHint,
         node: TransformNode,
     ) -> Result<TransformNode, TransformError> {
@@ -4633,6 +4863,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         &mut self,
         module_specifier: TransformNode,
     ) -> Result<TransformNode, TransformError> {
+        let module_specifier = self.context.factory()?.clone_node(module_specifier)?;
         let module_specifier = self.rewrite_import_argument(module_specifier)?;
         self.create_raw_require_call(module_specifier)
     }
@@ -5016,6 +5247,7 @@ struct TypeScriptVisitor<'context, 'resolver> {
     emitted_declarations: BTreeSet<(Option<NodeId>, String)>,
     current_enum_container: Option<NodeId>,
     namespace_stack: Vec<NamespaceContext>,
+    namespace_container_names: BTreeMap<NodeId, Box<str>>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -5049,6 +5281,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
             emitted_declarations: BTreeSet::new(),
             current_enum_container: None,
             namespace_stack: Vec::new(),
+            namespace_container_names: BTreeMap::new(),
         }
     }
 
@@ -5871,6 +6104,8 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
         body: Option<NodeId>,
         container_name: &str,
     ) -> Result<TransformNode, TransformError> {
+        self.namespace_container_names
+            .insert(declaration, container_name.into());
         self.namespace_stack.push(NamespaceContext {
             declaration,
             container_name: container_name.to_owned(),
@@ -7639,15 +7874,17 @@ fn flags_after_update(
     let record = arena.node(original)?;
     let mut probe = record.clone();
     probe.data = data.clone();
-    let mut flags = old & !TransformFlags::CONTAINS_TYPE_SCRIPT;
-    if local_contains_typescript(&probe) {
-        flags |= TransformFlags::CONTAINS_TYPE_SCRIPT;
-    }
+    let recomputed = TransformFlags::CONTAINS_TYPE_SCRIPT
+        | TransformFlags::CONTAINS_ES_2021
+        | TransformFlags::CONTAINS_ES_2020;
+    let mut flags = old & !recomputed;
+    flags |= local_transform_flags(&probe)
+        | local_binary_target_flags(arena, original.source(), &probe)?;
     let source = arena.source(original.source())?.syntax();
     for_each_child(&source.arena, &probe, |child| {
         if let Some(child) = arena.node_ref(original.source(), child) {
             if let Ok(child_flags) = arena.propagate_child_flags(child) {
-                flags |= child_flags & TransformFlags::CONTAINS_TYPE_SCRIPT;
+                flags |= child_flags & recomputed;
             }
         }
         false
@@ -7719,7 +7956,8 @@ fn compute_transform_flags(
         arena.set_array_transform_flags(array_ref, flags);
     }
 
-    let mut flags = local_transform_flags(&record);
+    let mut flags =
+        local_transform_flags(&record) | local_binary_target_flags(arena, source, &record)?;
     for child in children {
         let child = arena
             .node_ref(source, child)
@@ -7730,10 +7968,6 @@ fn compute_transform_flags(
     visiting.remove(&id);
     complete.insert(id);
     Ok(flags)
-}
-
-fn local_contains_typescript(node: &Node) -> bool {
-    local_transform_flags(node).contains(TransformFlags::CONTAINS_TYPE_SCRIPT)
 }
 
 fn local_transform_flags(node: &Node) -> TransformFlags {
@@ -7886,4 +8120,27 @@ fn local_transform_flags(node: &Node) -> TransformFlags {
         _ => {}
     }
     flags
+}
+
+fn local_binary_target_flags(
+    arena: &TransformArena,
+    source: TransformSourceId,
+    node: &Node,
+) -> Result<TransformFlags, TransformError> {
+    let NodeData::BinaryExpression(data) = &node.data else {
+        return Ok(TransformFlags::NONE);
+    };
+    let Some(operator) = data.operator_token else {
+        return Ok(TransformFlags::NONE);
+    };
+    let operator = arena
+        .node_ref(source, operator)
+        .ok_or_else(|| TransformError::UnknownNode(TransformNode::new(source, operator)))?;
+    Ok(match arena.node(operator)?.kind {
+        SyntaxKind::BarBarEqualsToken
+        | SyntaxKind::AmpersandAmpersandEqualsToken
+        | SyntaxKind::QuestionQuestionEqualsToken => TransformFlags::CONTAINS_ES_2021,
+        SyntaxKind::QuestionQuestionToken => TransformFlags::CONTAINS_ES_2020,
+        _ => TransformFlags::NONE,
+    })
 }

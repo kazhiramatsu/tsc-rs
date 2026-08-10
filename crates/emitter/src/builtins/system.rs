@@ -91,7 +91,7 @@ impl Transformer for SystemModuleTransformer<'_> {
 
     fn substitute_node(
         &mut self,
-        _context: &TransformationContext,
+        _context: &mut TransformationContext,
         _hint: EmitHint,
         node: TransformNode,
     ) -> Result<TransformNode, TransformError> {

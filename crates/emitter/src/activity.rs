@@ -388,6 +388,15 @@ impl H2ActivityCanary {
         profile
     }
 
+    /// Construct the current production admission profile. H2.5b admits the
+    /// ES2020 target boundary and its scoped logical-assignment lowering.
+    #[doc(hidden)]
+    pub const fn h2_5b_profile() -> Self {
+        let mut profile = Self::h2_5a_profile();
+        profile.admitted_runtime_slices |= 1_u64 << H2RuntimeSlice::H2_5b.index();
+        profile
+    }
+
     pub const fn counters(&self) -> H2ActivityCounters {
         self.counters
     }
