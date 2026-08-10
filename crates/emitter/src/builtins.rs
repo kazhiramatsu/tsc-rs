@@ -89,7 +89,7 @@ pub fn get_script_transformers<'resolver>(
     options: &CompilerOptions,
     resolver: &'resolver dyn EmitResolver,
 ) -> Result<Vec<Box<dyn Transformer + 'resolver>>, TransformError> {
-    let mut activity = H2ActivityCanary::h2_5b_profile();
+    let mut activity = H2ActivityCanary::h2_5c_profile();
     get_script_transformers_with_optional_host(options, resolver, None, &mut activity)
 }
 
@@ -110,10 +110,10 @@ fn get_script_transformers_with_optional_host<'transformers>(
     activity: &mut H2ActivityCanary,
 ) -> Result<Vec<Box<dyn Transformer + 'transformers>>, TransformError> {
     let target = options.emit_script_target();
-    if target < ScriptTarget::ES2020 || target > ScriptTarget::ES_NEXT {
+    if target < ScriptTarget::ES2019 || target > ScriptTarget::ES_NEXT {
         return Err(TransformError::UnsupportedCompilerOption {
             option: "target",
-            detail: "H2.5b admits ES2020 through ESNext; older targets belong to later target-ladder slices",
+            detail: "H2.5c admits ES2019 through ESNext; older targets belong to later target-ladder slices",
         });
     }
     if !matches!(
@@ -199,6 +199,9 @@ fn get_script_transformers_with_optional_host<'transformers>(
         if target < ScriptTarget::ES2021 {
             activity.observe_runtime_slice(H2RuntimeSlice::H2_5b);
         }
+        if target < ScriptTarget::ES2020 {
+            activity.observe_runtime_slice(H2RuntimeSlice::H2_5c);
+        }
     }
 
     activity.construct_script_transformer_list();
@@ -218,6 +221,8 @@ fn get_script_transformers_with_optional_host<'transformers>(
     let transform_class_fields = transform_class_fields(options, resolver);
     let transform_es2021 =
         (target < ScriptTarget::ES2021).then(|| es2021::transform_es2021(options));
+    let transform_es2020 =
+        (target < ScriptTarget::ES2020).then(|| es2021::transform_es2020(options));
     let module_transformer = if options.emit_module_kind() == MODULE_PRESERVE {
         activity.construct_transform_ecmascript_module();
         transform_ecmascript_module(options)
@@ -252,6 +257,9 @@ fn get_script_transformers_with_optional_host<'transformers>(
     transformers.push(transform_class_fields);
     if let Some(transform_es2021) = transform_es2021 {
         transformers.push(transform_es2021);
+    }
+    if let Some(transform_es2020) = transform_es2020 {
+        transformers.push(transform_es2020);
     }
     transformers.push(module_transformer);
     Ok(transformers)
@@ -2789,6 +2797,16 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
             output.push(self.visit(input[offset].node())?);
             offset += 1;
         }
+        while offset < input.len()
+            && self
+                .context
+                .arena()
+                .metadata(input[offset])
+                .is_some_and(|metadata| metadata.flags().contains(EmitFlags::CUSTOM_PROLOGUE))
+        {
+            output.push(self.visit(input[offset].node())?);
+            offset += 1;
+        }
 
         if self.module_kind == MODULE_UMD && self.has_dynamic_import {
             output.push(self.create_sync_require_declaration()?);
@@ -4450,6 +4468,14 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         &mut self,
         original: TransformNode,
     ) -> Result<TransformNode, TransformError> {
+        if self
+            .context
+            .arena()
+            .metadata(original)
+            .is_some_and(|metadata| metadata.flags().contains(EmitFlags::NO_SUBSTITUTION))
+        {
+            return Ok(original);
+        }
         if !self.is_local_name(original) {
             let parsed = self.context.arena().get_original_node(original);
             if self.context.arena().node(parsed)?.pos != u32::MAX {
@@ -7973,6 +7999,17 @@ fn compute_transform_flags(
 fn local_transform_flags(node: &Node) -> TransformFlags {
     let kind = node.kind;
     let mut flags = TransformFlags::NONE;
+    if NodeFlags::from_bits(node.flags).contains(NodeFlags::OPTIONAL_CHAIN)
+        && matches!(
+            kind,
+            SyntaxKind::PropertyAccessExpression
+                | SyntaxKind::ElementAccessExpression
+                | SyntaxKind::CallExpression
+                | SyntaxKind::NonNullExpression
+        )
+    {
+        flags |= TransformFlags::CONTAINS_ES_2020;
+    }
     if is_jsx_kind(kind) {
         flags |= TransformFlags::CONTAINS_JSX;
     }

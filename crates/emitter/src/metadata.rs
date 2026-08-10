@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 
 use tsc_syntax::SyntaxKind;
 
-use crate::{SourceRange, TransformNode, TransformSourceId};
+use crate::{transform::GeneratedBindingId, SourceRange, TransformNode, TransformSourceId};
 
 /// Emitter-only node flags. They live in a sparse session table and never
 /// enlarge persistent parsed nodes.
@@ -276,6 +276,10 @@ pub struct EmitMetadata {
     /// classic JSX factory expression. This is the Rust ownership analogue
     /// of TypeScript parenting that expression at the JSX parse tree node.
     pub(crate) referenced_import_declaration: Option<TransformNode>,
+    /// Stable identity shared by every synthesized identifier that denotes one
+    /// generated lexical binding. The printable spelling is finalized after
+    /// target-pass composition has fixed declaration order.
+    pub(crate) generated_binding_id: Option<GeneratedBindingId>,
 }
 
 impl EmitMetadata {
@@ -327,6 +331,10 @@ impl EmitMetadata {
         self.referenced_import_declaration
     }
 
+    pub(crate) const fn generated_binding_id(&self) -> Option<GeneratedBindingId> {
+        self.generated_binding_id
+    }
+
     pub fn set_flags(&mut self, flags: EmitFlags) {
         self.flags = flags;
     }
@@ -373,6 +381,10 @@ impl EmitMetadata {
 
     pub fn set_referenced_import_declaration(&mut self, value: TransformNode) {
         self.referenced_import_declaration = Some(value);
+    }
+
+    pub(crate) fn set_generated_binding_id(&mut self, value: GeneratedBindingId) {
+        self.generated_binding_id = Some(value);
     }
 
     /// tsc-port: mergeEmitNode @6.0.3
@@ -425,6 +437,9 @@ impl EmitMetadata {
         }
         if source.assigned_name.is_some() {
             self.assigned_name = source.assigned_name;
+        }
+        if source.generated_binding_id.is_some() {
+            self.generated_binding_id = source.generated_binding_id;
         }
         if source.javascript_string_value.is_some() {
             self.javascript_string_value = source.javascript_string_value.clone();

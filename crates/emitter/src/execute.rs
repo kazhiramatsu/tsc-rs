@@ -69,7 +69,7 @@ impl EmitDiagnosticGate {
 /// before output planning, checker-to-emitter borrowing, or sink dispatch.
 pub fn validate_bootstrap_emit_options(options: &CompilerOptions) -> Result<(), EmitFailure> {
     let target = options.emit_script_target();
-    if target < ScriptTarget::ES2020 || target > ScriptTarget::ES_NEXT {
+    if target < ScriptTarget::ES2019 || target > ScriptTarget::ES_NEXT {
         return unsupported("target");
     }
     if !matches!(
@@ -288,7 +288,7 @@ pub fn emit_files(
     diagnostic_gate: &EmitDiagnosticGate,
     sink: &mut dyn OutputSink,
 ) -> Result<EmitOutcome, EmitFailure> {
-    let mut activity = H2ActivityCanary::h2_5b_profile();
+    let mut activity = H2ActivityCanary::h2_5c_profile();
     activity.construct_emit_session();
     activity.construct_output_plan();
     if !preflight.plan().units().is_empty() {

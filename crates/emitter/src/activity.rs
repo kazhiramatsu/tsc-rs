@@ -397,6 +397,15 @@ impl H2ActivityCanary {
         profile
     }
 
+    /// Construct the current production admission profile. H2.5c admits the
+    /// ES2019 target boundary and its optional-chain/nullish lowering.
+    #[doc(hidden)]
+    pub const fn h2_5c_profile() -> Self {
+        let mut profile = Self::h2_5b_profile();
+        profile.admitted_runtime_slices |= 1_u64 << H2RuntimeSlice::H2_5c.index();
+        profile
+    }
+
     pub const fn counters(&self) -> H2ActivityCounters {
         self.counters
     }

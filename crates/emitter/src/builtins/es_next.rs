@@ -92,7 +92,7 @@ impl Transformer for EsNextTransformer {
     }
 
     fn initialize(&mut self, _context: &mut TransformationContext) -> Result<(), TransformError> {
-        if self.target < ScriptTarget::ES2020 || self.target >= ScriptTarget::ES_NEXT {
+        if self.target < ScriptTarget::ES2019 || self.target >= ScriptTarget::ES_NEXT {
             return Err(TransformError::UnsupportedCompilerOption {
                 option: "ESNext transform",
                 detail: "transformESNext is admitted only for the closed target band below ESNext",

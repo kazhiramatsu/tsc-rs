@@ -323,6 +323,160 @@ fn es2020_parameter_hoists_move_defaults_into_typed_function_prologues() {
 }
 
 #[test]
+fn es2019_optional_chains_and_nullish_coalescing_preserve_evaluation_order() {
+    assert_eq!(
+        transform_and_print_at_target(
+            concat!(
+                "let x = a?.b;\n",
+                "let y = f()?.[key()];\n",
+                "let z = value ?? fallback();\n",
+                "let w = compute() ?? fallback();\n",
+            ),
+            ScriptTarget::ES2019,
+        ),
+        concat!(
+            "var _a, _b;\n",
+            "let x = a === null || a === void 0 ? void 0 : a.b;\n",
+            "let y = (_a = f()) === null || _a === void 0 ? void 0 : _a[key()];\n",
+            "let z = value !== null && value !== void 0 ? value : fallback();\n",
+            "let w = (_b = compute()) !== null && _b !== void 0 ? _b : fallback();\n",
+        ),
+    );
+}
+
+#[test]
+fn es2019_optional_calls_keep_the_exact_javascript_receiver() {
+    assert_eq!(
+        transform_and_print_at_target(
+            concat!(
+                "let a = obj.method?.(arg());\n",
+                "let b = getObj().method?.();\n",
+                "let c = obj?.method();\n",
+                "let d = (obj?.method)();\n",
+                "let e = delete obj?.[key()];\n",
+            ),
+            ScriptTarget::ES2019,
+        ),
+        concat!(
+            "var _a, _b, _c;\n",
+            "let a = (_a = obj.method) === null || _a === void 0 ? void 0 : _a.call(obj, arg());\n",
+            "let b = (_c = (_b = getObj()).method) === null || _c === void 0 ? void 0 : _c.call(_b);\n",
+            "let c = obj === null || obj === void 0 ? void 0 : obj.method();\n",
+            "let d = (obj === null || obj === void 0 ? void 0 : obj.method).call(obj);\n",
+            "let e = obj === null || obj === void 0 ? true : delete obj[key()];\n",
+        ),
+    );
+}
+
+#[test]
+fn es2019_parameter_hoists_share_the_typed_function_scope_plan() {
+    assert_eq!(
+        transform_and_print_at_target(
+            concat!(
+                "function f({x}=foo()?.bar, y=g() ?? z) { return q()?.r; }\n",
+                "const g = (x = (a?.b.c)()) => x;\n",
+            ),
+            ScriptTarget::ES2019,
+        ),
+        concat!(
+            "function f(_a, y) { var _b, _c, _d; var { x } = _a === void 0 ? (_b = foo()) === null || _b === void 0 ? void 0 : _b.bar : _a; if (y === void 0) { y = (_c = g()) !== null && _c !== void 0 ? _c : z; } return (_d = q()) === null || _d === void 0 ? void 0 : _d.r; }\n",
+            "const g = (x) => { var _a; if (x === void 0) { x = (a === null || a === void 0 ? void 0 : (_a = a.b).c).call(_a); } return x; };\n",
+        ),
+    );
+}
+
+#[test]
+fn es2019_optional_chains_restore_erased_typescript_outer_expressions() {
+    assert_eq!(
+        transform_and_print_at_target(
+            "let a = (value as Box)?.member;\nlet b = value!?.method?.();\n",
+            ScriptTarget::ES2019,
+        ),
+        concat!(
+            "var _a;\n",
+            "let a = value === null || value === void 0 ? void 0 : value.member;\n",
+            "let b = (_a = value === null || value === void 0 ? void 0 : value.method) === null || _a === void 0 ? void 0 : _a.call(value);\n",
+        ),
+    );
+}
+
+#[test]
+fn es2019_optional_call_preserves_erased_instantiation_grammar_boundary() {
+    assert_eq!(
+        transform_and_print_at_target(
+            "declare const value: any;\ntype Box = unknown;\nvalue<Box>?.();\n",
+            ScriptTarget::ES2019,
+        ),
+        concat!(
+            "var _a;\n",
+            "(_a = (value)) === null || _a === void 0 ? void 0 : _a();\n",
+        ),
+    );
+}
+
+#[test]
+fn es2019_optional_chain_composition_matches_the_pinned_transform() {
+    let source = concat!(
+        "declare let o: any, fn: any, key: any, fallback: any;\n",
+        "declare function get(): any;\n",
+        "o?.a.b;\n",
+        "o.a?.b;\n",
+        "o?.[key()].b;\n",
+        "o[key()]?.b;\n",
+        "o?.m();\n",
+        "o.m?.();\n",
+        "o[key()]?.();\n",
+        "get().m?.();\n",
+        "o?.m?.();\n",
+        "o?.m().n?.();\n",
+        "(o?.m)();\n",
+        "(o?.m.n)();\n",
+        "delete (o?.a.b);\n",
+        "delete o.a?.[key()];\n",
+        "(o.m as any)?.();\n",
+        "o!?.m?.();\n",
+        "(get() ?? fallback).m;\n",
+        "o?.a ?? get();\n",
+        "class B { m?(): any {} }\n",
+        "class D extends B { f() { return super.m?.(); } }\n",
+        "function p(x = o?.a, {y}: any = get()?.v, z = (o?.m.n)()) { return x; }\n",
+        "function q(x = (() => get()?.a)()) { return x; }\n",
+    );
+    assert_eq!(
+        transform_and_print_at_target(source, ScriptTarget::ES2019),
+        concat!(
+            "var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q;\n",
+            "o === null || o === void 0 ? void 0 : o.a.b;\n",
+            "(_a = o.a) === null || _a === void 0 ? void 0 : _a.b;\n",
+            "o === null || o === void 0 ? void 0 : o[key()].b;\n",
+            "(_b = o[key()]) === null || _b === void 0 ? void 0 : _b.b;\n",
+            "o === null || o === void 0 ? void 0 : o.m();\n",
+            "(_c = o.m) === null || _c === void 0 ? void 0 : _c.call(o);\n",
+            "(_d = o[key()]) === null || _d === void 0 ? void 0 : _d.call(o);\n",
+            "(_f = (_e = get()).m) === null || _f === void 0 ? void 0 : _f.call(_e);\n",
+            "(_g = o === null || o === void 0 ? void 0 : o.m) === null || _g === void 0 ? void 0 : _g.call(o);\n",
+            "(_j = o === null || o === void 0 ? void 0 : (_h = o.m()).n) === null || _j === void 0 ? void 0 : _j.call(_h);\n",
+            "(o === null || o === void 0 ? void 0 : o.m).call(o);\n",
+            "(o === null || o === void 0 ? void 0 : (_k = o.m).n).call(_k);\n",
+            "(o === null || o === void 0 ? true : delete o.a.b);\n",
+            "(_l = o.a) === null || _l === void 0 ? true : delete _l[key()];\n",
+            "(_m = o.m) === null || _m === void 0 ? void 0 : _m.call(o);\n",
+            "(_o = o === null || o === void 0 ? void 0 : o.m) === null || _o === void 0 ? void 0 : _o.call(o);\n",
+            "((_p = get()) !== null && _p !== void 0 ? _p : fallback).m;\n",
+            "(_q = o === null || o === void 0 ? void 0 : o.a) !== null && _q !== void 0 ? _q : get();\n",
+            "class B {\n",
+            "    m() { }\n",
+            "}\n",
+            "class D extends B {\n",
+            "    f() { var _a; return (_a = super.m) === null || _a === void 0 ? void 0 : _a.call(this); }\n",
+            "}\n",
+            "function p(x, _a, z) { var _b, _c; if (x === void 0) { x = o === null || o === void 0 ? void 0 : o.a; } var { y } = _a === void 0 ? (_b = get()) === null || _b === void 0 ? void 0 : _b.v : _a; if (z === void 0) { z = (o === null || o === void 0 ? void 0 : (_c = o.m).n).call(_c); } return x; }\n",
+            "function q(x = (() => { var _a; return (_a = get()) === null || _a === void 0 ? void 0 : _a.a; })()) { return x; }\n",
+        ),
+    );
+}
+
+#[test]
 fn native_standard_decorator_root_is_owned_after_typescript_erasure() {
     let parsed = parse_source_file(
         "decorator.ts",

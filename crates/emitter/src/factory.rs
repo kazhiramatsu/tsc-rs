@@ -166,6 +166,28 @@ impl TransformArena {
         Ok(source.source.arena.node(node.node))
     }
 
+    pub(crate) fn set_generated_identifier_text(
+        &mut self,
+        node: TransformNode,
+        text: &str,
+    ) -> Result<(), TransformError> {
+        let record = self
+            .source_mut(node.source)?
+            .source
+            .arena
+            .node_mut(node.node);
+        let NodeData::Identifier(data) = &mut record.data else {
+            return Err(TransformError::FactoryKindMismatch {
+                expected: SyntaxKind::Identifier,
+                actual: record.kind,
+            });
+        };
+        data.escaped_text = tsc_syntax::escape_leading_underscores(text);
+        data.text.clear();
+        data.text.push_str(text);
+        Ok(())
+    }
+
     pub fn node_array(&self, array: TransformNodeArray) -> Result<&NodeArray, TransformError> {
         let source = self.source(array.source)?;
         if array.array.0 < source.source.arena.array_base()

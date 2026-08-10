@@ -13,8 +13,8 @@ use tsc_syntax::{
 use tsc_types::NodeFlags;
 
 use crate::{
-    EmitFlags, EmitHelper, TransformArena, TransformError, TransformFlags, TransformNode,
-    TransformNodeArray, TransformSourceId, TransformationContext,
+    EmitFlags, EmitHelper, InternalEmitFlags, TransformArena, TransformError, TransformFlags,
+    TransformNode, TransformNodeArray, TransformSourceId, TransformationContext,
 };
 
 use super::super::{
@@ -61,6 +61,11 @@ struct FieldOperation {
     receiver: FieldReceiver,
     name: NodeId,
     initializer: Option<NodeId>,
+}
+
+struct PlannedPropertyName {
+    name: NodeId,
+    evaluation: Option<TransformNode>,
 }
 
 #[derive(Clone)]
@@ -215,6 +220,7 @@ impl ClassSetup {
 
 #[derive(Default)]
 struct ClassOperations {
+    key_evaluations: Vec<TransformNode>,
     retained_members: Vec<TransformNode>,
     instance: Vec<InstanceOperation>,
     setup: ClassSetup,
@@ -592,16 +598,23 @@ impl<'context, 'aliases> DownlevelClassVisitor<'context, 'aliases> {
 
         if !operations.setup.is_empty()
             || !operations.static_.is_empty()
+            || !operations.key_evaluations.is_empty()
             || private_environment.class_alias.is_some()
         {
             let binding = class_name.unwrap_or_else(|| self.allocate_temp_name());
-            let trailing = self.materialize_static_operations(
+            let mut trailing = Vec::new();
+            if let Some(evaluations) =
+                self.materialize_class_key_evaluations(operations.key_evaluations)?
+            {
+                trailing.push(evaluations);
+            }
+            trailing.extend(self.materialize_static_operations(
                 &binding,
                 operations.setup,
                 operations.static_,
                 &private_environment,
                 true,
-            )?;
+            )?);
             self.expanded_statements.insert(
                 class.node(),
                 trailing.into_iter().map(TransformNode::node).collect(),
@@ -618,15 +631,11 @@ impl<'context, 'aliases> DownlevelClassVisitor<'context, 'aliases> {
         data.members = self.expand_auto_accessors(data.members)?;
         let class_name = data
             .name
-            .and_then(|name| self.identifier_text(self.node(name)).map(str::to_owned));
+            .and_then(|name| self.identifier_text(self.node(name)).map(str::to_owned))
+            .or(self.assigned_class_expression_name(original)?);
         let private_environment =
             self.prepare_private_environment(data.members, class_name.as_deref())?;
-        let needs_expression_binding = private_environment.class_alias.is_some()
-            || self.class_expression_requires_binding(data.members)?;
-        let expression_binding = private_environment
-            .class_alias
-            .clone()
-            .or_else(|| needs_expression_binding.then(|| self.allocate_temp_name()));
+        let private_expression_binding = private_environment.class_alias.clone();
         let super_alias = private_environment.super_alias.clone();
         data.name = self.visit_optional_node(data.name)?;
         data.type_parameters = self.visit_optional_nodes(data.type_parameters)?;
@@ -636,6 +645,16 @@ impl<'context, 'aliases> DownlevelClassVisitor<'context, 'aliases> {
         data.modifiers = self.visit_optional_nodes(data.modifiers)?;
         self.private_environments.push(private_environment);
         let operations = self.plan_members(data.members)?;
+        let needs_expression_binding = private_expression_binding.is_some()
+            || !operations.key_evaluations.is_empty()
+            || !operations.setup.is_empty()
+            || !operations.static_.is_empty();
+        // tsc allocates computed-key captures while visiting class members and
+        // allocates the class-expression receiver afterwards. Keeping that
+        // order here makes the binding plan stable without encoding names in
+        // the operation representation.
+        let expression_binding = private_expression_binding
+            .or_else(|| needs_expression_binding.then(|| self.allocate_temp_name()));
         let mut retained = operations.retained_members;
         if !operations.instance.is_empty() {
             self.install_instance_operations(
@@ -666,6 +685,7 @@ impl<'context, 'aliases> DownlevelClassVisitor<'context, 'aliases> {
             .expect("class private environment remains balanced");
         if operations.setup.is_empty()
             && operations.static_.is_empty()
+            && operations.key_evaluations.is_empty()
             && private_environment.class_alias.is_none()
         {
             return Ok(class.node());
@@ -682,6 +702,7 @@ impl<'context, 'aliases> DownlevelClassVisitor<'context, 'aliases> {
         let target = self.create_identifier(&binding)?;
         let assign_class = self.create_assignment(target, class)?;
         let mut expressions = vec![assign_class];
+        expressions.extend(operations.key_evaluations);
         for statement in self.materialize_static_operations(
             &binding,
             operations.setup,
@@ -725,34 +746,110 @@ impl<'context, 'aliases> DownlevelClassVisitor<'context, 'aliases> {
         Ok(())
     }
 
-    fn class_expression_requires_binding(
+    /// Resolve the named-evaluation identity of an anonymous class expression
+    /// from the current transform tree. This is deliberately derived from the
+    /// pass-owned ownership index rather than parser parent pointers, which
+    /// may be stale after earlier transforms.
+    fn assigned_class_expression_name(
         &self,
-        members: Option<NodeArrayId>,
-    ) -> Result<bool, TransformError> {
-        for member in self.array_nodes(members)? {
-            match &self.context.arena().node(member)?.data {
-                NodeData::ClassStaticBlockDeclaration(_) => return Ok(true),
-                NodeData::PropertyDeclaration(data) => {
-                    if self.name_is_private(data.name)? {
-                        return Ok(true);
-                    }
-                    if self.has_modifier(data.modifiers, SyntaxKind::StaticKeyword)?
-                        && !self.has_modifier(data.modifiers, SyntaxKind::AccessorKeyword)?
-                        && (self.mode == PublicFieldMode::DefineProperty
-                            || data.initializer.is_some())
-                    {
-                        return Ok(true);
-                    }
-                }
-                NodeData::MethodDeclaration(data) if self.name_is_private(data.name)? => {
-                    return Ok(true);
-                }
-                NodeData::GetAccessor(data) if self.name_is_private(data.name)? => return Ok(true),
-                NodeData::SetAccessor(data) if self.name_is_private(data.name)? => return Ok(true),
-                _ => {}
+        class: TransformNode,
+    ) -> Result<Option<String>, TransformError> {
+        let mut current = class.node();
+        while let Some(parent) = self.tree_ownership.unique_parent(current) {
+            let parent = self
+                .context
+                .arena()
+                .node_ref(self.source, parent)
+                .ok_or_else(|| TransformError::UnknownNode(self.node(parent)))?;
+            let record = self.context.arena().node(parent)?;
+            let outer_child = match &record.data {
+                NodeData::ParenthesizedExpression(data) => data.expression,
+                NodeData::PartiallyEmittedExpression(data) => data.expression,
+                NodeData::TypeAssertionExpression(data) => data.expression,
+                NodeData::AsExpression(data) => data.expression,
+                NodeData::SatisfiesExpression(data) => data.expression,
+                NodeData::NonNullExpression(data) => data.expression,
+                NodeData::ExpressionWithTypeArguments(data) => data.expression,
+                _ => None,
+            };
+            if outer_child == Some(current) {
+                current = parent.node();
+                continue;
             }
+
+            let assigned = match &record.data {
+                NodeData::VariableDeclaration(data) if data.initializer == Some(current) => {
+                    data.name.and_then(|name| self.assigned_name_text(name))
+                }
+                NodeData::Parameter(data) if data.initializer == Some(current) => {
+                    data.name.and_then(|name| self.assigned_name_text(name))
+                }
+                NodeData::BindingElement(data) if data.initializer == Some(current) => {
+                    data.name.and_then(|name| self.assigned_name_text(name))
+                }
+                NodeData::PropertyDeclaration(data) if data.initializer == Some(current) => {
+                    data.name.and_then(|name| self.assigned_name_text(name))
+                }
+                NodeData::PropertyAssignment(data) if data.initializer == Some(current) => {
+                    data.name.and_then(|name| self.assigned_name_text(name))
+                }
+                NodeData::ShorthandPropertyAssignment(data)
+                    if data.object_assignment_initializer == Some(current) =>
+                {
+                    data.name.and_then(|name| self.assigned_name_text(name))
+                }
+                NodeData::BinaryExpression(data) if data.right == Some(current) => {
+                    let assignment = data
+                        .operator_token
+                        .and_then(|operator| self.context.arena().node_ref(self.source, operator))
+                        .is_some_and(|operator| {
+                            self.context.arena().node(operator).is_ok_and(|operator| {
+                                matches!(
+                                    operator.kind,
+                                    SyntaxKind::EqualsToken
+                                        | SyntaxKind::AmpersandAmpersandEqualsToken
+                                        | SyntaxKind::BarBarEqualsToken
+                                        | SyntaxKind::QuestionQuestionEqualsToken
+                                )
+                            })
+                        });
+                    assignment
+                        .then(|| data.left.and_then(|left| self.assignment_target_name(left)))
+                        .flatten()
+                }
+                NodeData::ExportAssignment(data) if data.expression == Some(current) => {
+                    Some("default".to_owned())
+                }
+                _ => None,
+            };
+            return Ok(assigned);
         }
-        Ok(false)
+        Ok(None)
+    }
+
+    fn assignment_target_name(&self, target: NodeId) -> Option<String> {
+        match &self.context.arena().node(self.node(target)).ok()?.data {
+            NodeData::Identifier(data) => Some(data.text.clone()),
+            NodeData::PropertyAccessExpression(data) => {
+                data.name.and_then(|name| self.assigned_name_text(name))
+            }
+            NodeData::ElementAccessExpression(data) => data
+                .argument_expression
+                .and_then(|name| self.assigned_name_text(name)),
+            _ => None,
+        }
+    }
+
+    fn assigned_name_text(&self, name: NodeId) -> Option<String> {
+        match &self.context.arena().node(self.node(name)).ok()?.data {
+            NodeData::Identifier(data) => Some(data.text.clone()),
+            NodeData::StringLiteral(data) => Some(data.text.clone()),
+            NodeData::NumericLiteral(data) => Some(data.text.clone()),
+            NodeData::ComputedPropertyName(data) => data
+                .expression
+                .and_then(|name| self.assigned_name_text(name)),
+            _ => None,
+        }
     }
 
     fn inline_class_expression(
@@ -1909,7 +2006,19 @@ impl<'context, 'aliases> DownlevelClassVisitor<'context, 'aliases> {
                         } else {
                             FieldReceiver::Instance
                         };
-                    data.name = self.visit_optional_node(data.name)?;
+                    let should_capture_key =
+                        data.initializer.is_some() || self.mode == PublicFieldMode::DefineProperty;
+                    let planned_name = self.plan_public_field_name(
+                        data.name.ok_or(TransformError::RequiredChildRemoved {
+                            parent: SyntaxKind::PropertyDeclaration,
+                            field: "name",
+                        })?,
+                        should_capture_key,
+                    )?;
+                    data.name = Some(planned_name.name);
+                    if let Some(evaluation) = planned_name.evaluation {
+                        operations.key_evaluations.push(evaluation);
+                    }
                     if receiver == FieldReceiver::Static {
                         data.initializer = self.visit_optional_static_node(data.initializer)?;
                     }
@@ -2211,8 +2320,14 @@ impl<'context, 'aliases> DownlevelClassVisitor<'context, 'aliases> {
             setup_expressions.push(assignment);
         }
         if !setup_expressions.is_empty() {
-            let setup = self.inline_expressions(setup_expressions)?;
-            statements.push(self.create_expression_statement(setup)?);
+            if assign_private_alias {
+                let setup = self.inline_expressions(setup_expressions)?;
+                statements.push(self.create_expression_statement(setup)?);
+            } else {
+                for setup in setup_expressions {
+                    statements.push(self.create_expression_statement(setup)?);
+                }
+            }
         }
         for operation in operations {
             let statement = match operation {
@@ -2235,6 +2350,127 @@ impl<'context, 'aliases> DownlevelClassVisitor<'context, 'aliases> {
             statements.push(statement);
         }
         Ok(statements)
+    }
+
+    fn materialize_class_key_evaluations(
+        &mut self,
+        evaluations: Vec<TransformNode>,
+    ) -> Result<Option<TransformNode>, TransformError> {
+        if evaluations.is_empty() {
+            return Ok(None);
+        }
+        let evaluations = self.inline_expressions(evaluations)?;
+        self.create_expression_statement(evaluations).map(Some)
+    }
+
+    /// Plan the class-definition-time evaluation of an ordinary field key.
+    /// A non-inlineable key used by an emitted initializer is captured once
+    /// in the containing lexical scope; erased uninitialized fields still
+    /// retain side effects from complex computed keys.
+    fn plan_public_field_name(
+        &mut self,
+        name: NodeId,
+        should_capture: bool,
+    ) -> Result<PlannedPropertyName, TransformError> {
+        let original = self.node(name);
+        let NodeData::ComputedPropertyName(mut data) =
+            self.context.arena().node(original)?.data.clone()
+        else {
+            let name = self.visit_required(Some(name), SyntaxKind::PropertyDeclaration, "name")?;
+            return Ok(PlannedPropertyName {
+                name: name.node(),
+                evaluation: None,
+            });
+        };
+        let expression = self.visit_required(
+            data.expression,
+            SyntaxKind::ComputedPropertyName,
+            "expression",
+        )?;
+
+        if self
+            .context
+            .arena()
+            .metadata(original)
+            .is_some_and(|metadata| {
+                metadata
+                    .internal_flags()
+                    .contains(InternalEmitFlags::GENERATED_COMPUTED_PROPERTY_NAME)
+            })
+        {
+            data.expression = Some(expression.node());
+            let name = self.update_computed_property_name(original, data)?;
+            return Ok(PlannedPropertyName {
+                name,
+                evaluation: None,
+            });
+        }
+
+        let inner = self.skip_partially_emitted_expressions(expression)?;
+        let inlineable = self.is_simple_inlineable_expression(inner)?;
+        let identifier = self.context.arena().node(inner)?.kind == SyntaxKind::Identifier;
+        let (key_expression, evaluation) = if should_capture && !inlineable {
+            let temporary_name = self.allocate_temp_name();
+            let target = self.create_identifier(&temporary_name)?;
+            let evaluation = self.create_assignment(target, expression)?;
+            let read = self.create_identifier(&temporary_name)?;
+            (read, Some(evaluation))
+        } else {
+            let evaluation = (!inlineable && !identifier)
+                .then(|| self.context.factory()?.clone_node(expression))
+                .transpose()?;
+            (expression, evaluation)
+        };
+        data.expression = Some(key_expression.node());
+        let name = self.update_computed_property_name(original, data)?;
+        Ok(PlannedPropertyName { name, evaluation })
+    }
+
+    fn update_computed_property_name(
+        &mut self,
+        original: TransformNode,
+        data: tsc_syntax::nodes::ComputedPropertyNameData,
+    ) -> Result<NodeId, TransformError> {
+        let node_data = NodeData::ComputedPropertyName(data);
+        let flags = flags_after_update(self.context.arena(), original, &node_data)?;
+        self.context
+            .factory()?
+            .update_node(original, node_data, flags)
+            .map(TransformNode::node)
+    }
+
+    fn skip_partially_emitted_expressions(
+        &self,
+        mut expression: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        loop {
+            let NodeData::PartiallyEmittedExpression(data) =
+                &self.context.arena().node(expression)?.data
+            else {
+                return Ok(expression);
+            };
+            expression = data
+                .expression
+                .map(|expression| self.node(expression))
+                .ok_or(TransformError::RequiredChildRemoved {
+                    parent: SyntaxKind::PartiallyEmittedExpression,
+                    field: "expression",
+                })?;
+        }
+    }
+
+    fn is_simple_inlineable_expression(
+        &self,
+        expression: TransformNode,
+    ) -> Result<bool, TransformError> {
+        let kind = self.context.arena().node(expression)?.kind;
+        Ok(matches!(
+            kind,
+            SyntaxKind::StringLiteral
+                | SyntaxKind::NoSubstitutionTemplateLiteral
+                | SyntaxKind::NumericLiteral
+        ) || kind.value() >= SyntaxKind::FirstKeyword.value()
+            && kind.value() <= SyntaxKind::LastKeyword.value())
     }
 
     fn materialize_field_operation(

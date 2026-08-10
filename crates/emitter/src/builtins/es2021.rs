@@ -1,10 +1,11 @@
-//! H2.5b ES2021 logical-assignment lowering.
+//! H2.5 target-ladder lowering shared by the ES2021 and ES2020 passes.
 //!
 //! The pinned TypeScript transformer defines evaluation order and observable
-//! output. Rust owns that behavior through explicit access-stabilization and
-//! lexical-scope plans rather than mirroring TypeScript's nested closures.
+//! output. Rust owns that behavior through explicit pass, optional-chain,
+//! synthetic-reference, access-stabilization, and lexical-scope plans rather
+//! than mirroring TypeScript's nested closures or synthetic internal nodes.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use tsc_syntax::{
     for_each_child, try_visit_each_child, NodeArrayId, NodeData, NodeDataChildVisitor, NodeId,
@@ -13,9 +14,9 @@ use tsc_syntax::{
 use tsc_types::{CompilerOptions, NodeFlags, ScriptTarget};
 
 use crate::{
-    EmitFlags, LexicalEnvironment, LexicalEnvironmentFlags, TransformError, TransformFlags,
-    TransformNode, TransformNodeArray, TransformRoot, TransformSourceId, TransformationContext,
-    Transformer,
+    transform::GeneratedBindingId, EmitFlags, LexicalEnvironment, LexicalEnvironmentFlags,
+    TransformArena, TransformError, TransformFlags, TransformNode, TransformNodeArray,
+    TransformRoot, TransformSourceId, TransformationContext, Transformer,
 };
 
 use super::{
@@ -24,32 +25,88 @@ use super::{
         AncestorBindingPolicy, GeneratedBindingOwner, GeneratedBindingScopes, GeneratedBindings,
     },
     initialize_transform_flags,
-    system::collect_identifier_texts,
 };
 
 /// tsc-port: transformES2021 @6.0.3
 /// tsc-hash: 9f18d49525c22011f2b39fd966d1d6bb59ebe1fb9b2099d72314a94fbddf8e1c
 /// tsc-span: _tsc.js:103205-103275
 pub(super) fn transform_es2021(options: &CompilerOptions) -> Box<dyn Transformer> {
-    Box::new(Es2021Transformer {
+    Box::new(TargetTransformer {
         target: options.emit_script_target(),
+        pass: TargetPass::Es2021,
     })
 }
 
-struct Es2021Transformer {
-    target: ScriptTarget,
+/// tsc-port: transformES2020 @6.0.3
+/// tsc-hash: d4fd052da60bf3b0c5743c0994e4afe4ac556af672203c828734f67325124c7d
+/// tsc-span: _tsc.js:102943-103202
+pub(super) fn transform_es2020(options: &CompilerOptions) -> Box<dyn Transformer> {
+    Box::new(TargetTransformer {
+        target: options.emit_script_target(),
+        pass: TargetPass::Es2020,
+    })
 }
 
-impl Transformer for Es2021Transformer {
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum TargetPass {
+    Es2021,
+    Es2020,
+}
+
+impl TargetPass {
+    const fn name(self) -> &'static str {
+        match self {
+            Self::Es2021 => "transformES2021",
+            Self::Es2020 => "transformES2020",
+        }
+    }
+
+    const fn feature_flag(self) -> TransformFlags {
+        match self {
+            Self::Es2021 => TransformFlags::CONTAINS_ES_2021,
+            Self::Es2020 => TransformFlags::CONTAINS_ES_2020,
+        }
+    }
+
+    const fn upper_target(self) -> ScriptTarget {
+        match self {
+            Self::Es2021 => ScriptTarget::ES2021,
+            Self::Es2020 => ScriptTarget::ES2020,
+        }
+    }
+
+    const fn unsupported_detail(self) -> &'static str {
+        match self {
+            Self::Es2021 => {
+                "H2.5b/H2.5c admit transformES2021 for the ES2019 and ES2020 target boundaries"
+            }
+            Self::Es2020 => "H2.5c admits transformES2020 for the ES2019 target boundary",
+        }
+    }
+
+    fn is_final_for_target(self, target: ScriptTarget) -> bool {
+        match self {
+            Self::Es2021 => target >= ScriptTarget::ES2020,
+            Self::Es2020 => target < ScriptTarget::ES2020,
+        }
+    }
+}
+
+struct TargetTransformer {
+    target: ScriptTarget,
+    pass: TargetPass,
+}
+
+impl Transformer for TargetTransformer {
     fn name(&self) -> &'static str {
-        "transformES2021"
+        self.pass.name()
     }
 
     fn initialize(&mut self, _context: &mut TransformationContext) -> Result<(), TransformError> {
-        if self.target < ScriptTarget::ES2020 || self.target >= ScriptTarget::ES2021 {
+        if self.target < ScriptTarget::ES2019 || self.target >= self.pass.upper_target() {
             return Err(TransformError::UnsupportedCompilerOption {
-                option: "ES2021 transform",
-                detail: "H2.5b admits transformES2021 for the ES2020 target boundary",
+                option: self.pass.name(),
+                detail: self.pass.unsupported_detail(),
             });
         }
         Ok(())
@@ -76,7 +133,7 @@ impl Transformer for Es2021Transformer {
         initialize_transform_flags(context.arena_mut()?, source)?;
         context.start_lexical_environment()?;
         let current_root = context.arena().root(source)?;
-        let mut visitor = Es2021Visitor::new(context, source);
+        let mut visitor = TargetVisitor::new(context, source, self.pass, current_root)?;
         let visited = visitor.visit(current_root.node());
         let lexical_environment = visitor.context.end_lexical_environment();
         let generated_bindings = visitor.generated_bindings.source_bindings();
@@ -89,6 +146,9 @@ impl Transformer for Es2021Transformer {
         visitor.assert_binding_plan(&generated_bindings, &lexical_environment);
         let transformed = visitor
             .merge_source_lexical_environment(visitor.node(transformed), lexical_environment)?;
+        if self.pass.is_final_for_target(self.target) {
+            visitor.finalize_generated_binding_names(transformed)?;
+        }
         visitor
             .context
             .arena_mut()?
@@ -99,29 +159,139 @@ impl Transformer for Es2021Transformer {
 
 #[derive(Clone, Debug)]
 struct ParameterHoistPlan {
-    binding_aliases: Vec<Option<String>>,
+    binding_aliases: Vec<Option<TargetBinding>>,
 }
 
-struct Es2021Visitor<'context> {
+#[derive(Clone, Debug)]
+struct TargetBinding {
+    id: GeneratedBindingId,
+    provisional_name: String,
+}
+
+#[derive(Clone, Copy, Debug)]
+enum BindingNameEvent {
+    EnterFunction,
+    Identifier {
+        node: TransformNode,
+        binding: GeneratedBindingId,
+    },
+    ExitFunction,
+}
+
+/// A call target that carries the receiver required by JavaScript's method
+/// call semantics. TypeScript models this with a synthetic AST node that is
+/// never printed; Rust keeps the transient state outside the syntax arena.
+#[derive(Clone, Copy, Debug)]
+struct SyntheticReference {
+    expression: TransformNode,
+    receiver: CallReceiver,
+}
+
+#[derive(Clone, Copy, Debug)]
+enum CallReceiver {
+    Source(TransformNode),
+    Generated(TransformNode),
+}
+
+#[derive(Clone, Copy, Debug)]
+enum VisitedExpression {
+    Value(TransformNode),
+    Reference(SyntheticReference),
+}
+
+impl VisitedExpression {
+    fn into_value(self, field: &'static str) -> Result<TransformNode, TransformError> {
+        match self {
+            Self::Value(expression) => Ok(expression),
+            Self::Reference(_) => Err(TransformError::RequiredChildRemoved {
+                parent: SyntaxKind::SyntheticReferenceExpression,
+                field,
+            }),
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
+struct OptionalChainPlan {
+    base: TransformNode,
+    segments: Vec<OptionalChainSegment>,
+}
+
+#[derive(Clone, Copy, Debug)]
+enum OptionalChainSegment {
+    Property {
+        original: TransformNode,
+        name: NodeId,
+    },
+    Element {
+        original: TransformNode,
+        argument: NodeId,
+    },
+    Call {
+        original: TransformNode,
+        arguments: Option<NodeArrayId>,
+    },
+}
+
+#[derive(Clone, Debug)]
+enum AccessExpression {
+    Property(tsc_syntax::nodes::PropertyAccessExpressionData),
+    Element(tsc_syntax::nodes::ElementAccessExpressionData),
+}
+
+impl AccessExpression {
+    const fn kind(&self) -> SyntaxKind {
+        match self {
+            Self::Property(_) => SyntaxKind::PropertyAccessExpression,
+            Self::Element(_) => SyntaxKind::ElementAccessExpression,
+        }
+    }
+
+    const fn expression(&self) -> Option<NodeId> {
+        match self {
+            Self::Property(data) => data.expression,
+            Self::Element(data) => data.expression,
+        }
+    }
+}
+
+impl OptionalChainSegment {
+    const fn original(self) -> TransformNode {
+        match self {
+            Self::Property { original, .. }
+            | Self::Element { original, .. }
+            | Self::Call { original, .. } => original,
+        }
+    }
+}
+
+struct TargetVisitor<'context> {
     context: &'context mut TransformationContext,
     source: TransformSourceId,
+    pass: TargetPass,
     nodes: BTreeMap<NodeId, Option<NodeId>>,
     arrays: BTreeMap<NodeArrayId, Option<NodeArrayId>>,
     generated_bindings: GeneratedBindingScopes,
 }
 
-impl<'context> Es2021Visitor<'context> {
-    fn new(context: &'context mut TransformationContext, source: TransformSourceId) -> Self {
-        Self {
+impl<'context> TargetVisitor<'context> {
+    fn new(
+        context: &'context mut TransformationContext,
+        source: TransformSourceId,
+        pass: TargetPass,
+        root: TransformNode,
+    ) -> Result<Self, TransformError> {
+        Ok(Self {
             generated_bindings: GeneratedBindingScopes::new(
-                collect_identifier_texts(context.arena(), source),
+                collect_untagged_identifier_texts(context.arena(), source, root)?,
                 AncestorBindingPolicy::AllowShadow,
             ),
             context,
             source,
+            pass,
             nodes: BTreeMap::new(),
             arrays: BTreeMap::new(),
-        }
+        })
     }
 
     fn visit(&mut self, id: NodeId) -> Result<Option<NodeId>, TransformError> {
@@ -133,7 +303,7 @@ impl<'context> Es2021Visitor<'context> {
             .context
             .arena()
             .transform_flags(original)
-            .contains(TransformFlags::CONTAINS_ES_2021)
+            .contains(self.pass.feature_flag())
         {
             self.nodes.insert(id, Some(id));
             return Ok(Some(id));
@@ -142,6 +312,34 @@ impl<'context> Es2021Visitor<'context> {
         let record = self.context.arena().node(original)?.clone();
         let transformed = match record.data {
             NodeData::BinaryExpression(data) => Some(self.visit_binary_expression(original, data)?),
+            NodeData::CallExpression(data) if self.pass == TargetPass::Es2020 => Some(
+                self.visit_non_optional_call_expression(original, data, false)?
+                    .into_value("top-level ES2020 call")?
+                    .node(),
+            ),
+            NodeData::PropertyAccessExpression(data) if self.pass == TargetPass::Es2020 => Some(
+                self.visit_non_optional_property_or_element_access_expression(
+                    original,
+                    AccessExpression::Property(data),
+                    false,
+                    false,
+                )?
+                .into_value("top-level ES2020 property access")?
+                .node(),
+            ),
+            NodeData::ElementAccessExpression(data) if self.pass == TargetPass::Es2020 => Some(
+                self.visit_non_optional_property_or_element_access_expression(
+                    original,
+                    AccessExpression::Element(data),
+                    false,
+                    false,
+                )?
+                .into_value("top-level ES2020 element access")?
+                .node(),
+            ),
+            NodeData::DeleteExpression(data) if self.pass == TargetPass::Es2020 => {
+                Some(self.visit_delete_expression(original, data)?)
+            }
             NodeData::FunctionDeclaration(data) => {
                 Some(self.visit_function_declaration(original, data)?)
             }
@@ -176,6 +374,12 @@ impl<'context> Es2021Visitor<'context> {
                     .map(|node| node.kind)
             })
             .transpose()?;
+        if self.pass == TargetPass::Es2020 && operator == Some(SyntaxKind::QuestionQuestionToken) {
+            return self.transform_nullish_coalescing_expression(original, data);
+        }
+        if self.pass != TargetPass::Es2021 {
+            return self.update_generic(original, NodeData::BinaryExpression(data));
+        }
         let Some(operator) = operator.filter(|operator| Self::is_logical_assignment(*operator))
         else {
             return self.update_generic(original, NodeData::BinaryExpression(data));
@@ -256,14 +460,543 @@ impl<'context> Es2021Visitor<'context> {
         if self.is_simple_copiable_expression(operand)? {
             return Ok(StabilizedAccessOperand::Copied(operand));
         }
-        let name = self.allocate_hoisted_temp()?;
-        let read = self.create_identifier(&name)?;
-        let initialized = self.create_identifier(&name)?;
+        let binding = self.allocate_hoisted_temp()?;
+        let read = self.create_generated_identifier(&binding)?;
+        let initialized = self.create_generated_identifier(&binding)?;
         let initialization = self.create_assignment(initialized, operand)?;
         Ok(StabilizedAccessOperand::Hoisted {
             read,
             initialization,
         })
+    }
+
+    fn transform_nullish_coalescing_expression(
+        &mut self,
+        original: TransformNode,
+        data: tsc_syntax::nodes::BinaryExpressionData,
+    ) -> Result<NodeId, TransformError> {
+        let visited_left = self.visit_required(
+            data.left,
+            SyntaxKind::BinaryExpression,
+            "left of nullish coalescing expression",
+        )?;
+        let (left, repeated_left) = if self.is_simple_copiable_expression(visited_left)? {
+            (visited_left, visited_left)
+        } else {
+            let temporary = self.allocate_hoisted_temp()?;
+            let assignment_target = self.create_generated_identifier(&temporary)?;
+            let repeated_left = self.create_generated_identifier(&temporary)?;
+            let assignment = self.create_assignment(assignment_target, visited_left)?;
+            (self.create_parenthesized(assignment)?, repeated_left)
+        };
+        let condition = self.create_not_null_condition(left, repeated_left, false)?;
+        let when_true = repeated_left;
+        let when_false = self.visit_required(
+            data.right,
+            SyntaxKind::BinaryExpression,
+            "right of nullish coalescing expression",
+        )?;
+        let result = self.create_conditional(condition, when_true, when_false)?;
+        Ok(self.set_original_and_range(result, original)?.node())
+    }
+
+    fn visit_delete_expression(
+        &mut self,
+        original: TransformNode,
+        mut data: tsc_syntax::nodes::DeleteExpressionData,
+    ) -> Result<NodeId, TransformError> {
+        let expression = data
+            .expression
+            .map(|expression| self.node(expression))
+            .ok_or(TransformError::RequiredChildRemoved {
+                parent: SyntaxKind::DeleteExpression,
+                field: "expression",
+            })?;
+        let unwrapped = self.skip_parentheses(expression)?;
+        if self.is_optional_chain(unwrapped)? {
+            let transformed = self
+                .visit_non_optional_expression(expression, false, true)?
+                .into_value("delete optional-chain result")?;
+            self.context
+                .arena_mut()?
+                .set_original_node(transformed, Some(original))?;
+            return Ok(transformed.node());
+        }
+        data.expression = Some(
+            self.visit_required(data.expression, SyntaxKind::DeleteExpression, "expression")?
+                .node(),
+        );
+        self.update_without_visit(original, NodeData::DeleteExpression(data))
+    }
+
+    fn visit_non_optional_expression(
+        &mut self,
+        original: TransformNode,
+        capture_receiver: bool,
+        is_delete: bool,
+    ) -> Result<VisitedExpression, TransformError> {
+        let record = self.context.arena().node(original)?.clone();
+        match record.data {
+            NodeData::ParenthesizedExpression(data) => self
+                .visit_non_optional_parenthesized_expression(
+                    original,
+                    data,
+                    capture_receiver,
+                    is_delete,
+                ),
+            NodeData::PropertyAccessExpression(data) => self
+                .visit_non_optional_property_or_element_access_expression(
+                    original,
+                    AccessExpression::Property(data),
+                    capture_receiver,
+                    is_delete,
+                ),
+            NodeData::ElementAccessExpression(data) => self
+                .visit_non_optional_property_or_element_access_expression(
+                    original,
+                    AccessExpression::Element(data),
+                    capture_receiver,
+                    is_delete,
+                ),
+            NodeData::CallExpression(data) => {
+                self.visit_non_optional_call_expression(original, data, capture_receiver)
+            }
+            _ => self
+                .visit(original.node())?
+                .map(|node| VisitedExpression::Value(self.node(node)))
+                .ok_or(TransformError::RequiredChildRemoved {
+                    parent: record.kind,
+                    field: "ES2020 expression",
+                }),
+        }
+    }
+
+    fn visit_non_optional_parenthesized_expression(
+        &mut self,
+        original: TransformNode,
+        mut data: tsc_syntax::nodes::ParenthesizedExpressionData,
+        capture_receiver: bool,
+        is_delete: bool,
+    ) -> Result<VisitedExpression, TransformError> {
+        let expression = data
+            .expression
+            .map(|expression| self.node(expression))
+            .ok_or(TransformError::RequiredChildRemoved {
+                parent: SyntaxKind::ParenthesizedExpression,
+                field: "expression",
+            })?;
+        match self.visit_non_optional_expression(expression, capture_receiver, is_delete)? {
+            VisitedExpression::Value(expression) => {
+                data.expression = Some(expression.node());
+                let updated =
+                    self.update_without_visit(original, NodeData::ParenthesizedExpression(data))?;
+                Ok(VisitedExpression::Value(self.node(updated)))
+            }
+            VisitedExpression::Reference(reference) => {
+                data.expression = Some(reference.expression.node());
+                let updated =
+                    self.update_without_visit(original, NodeData::ParenthesizedExpression(data))?;
+                Ok(VisitedExpression::Reference(SyntheticReference {
+                    expression: self.node(updated),
+                    receiver: reference.receiver,
+                }))
+            }
+        }
+    }
+
+    fn visit_non_optional_property_or_element_access_expression(
+        &mut self,
+        original: TransformNode,
+        access: AccessExpression,
+        capture_receiver: bool,
+        is_delete: bool,
+    ) -> Result<VisitedExpression, TransformError> {
+        if self.is_optional_chain(original)? {
+            return self.visit_optional_expression(original, capture_receiver, is_delete);
+        }
+
+        let receiver = access.expression().map(|id| self.node(id)).ok_or(
+            TransformError::RequiredChildRemoved {
+                parent: access.kind(),
+                field: "expression",
+            },
+        )?;
+        let mut receiver = self
+            .visit(receiver.node())?
+            .map(|node| self.node(node))
+            .ok_or(TransformError::RequiredChildRemoved {
+                parent: access.kind(),
+                field: "expression",
+            })?;
+        let call_receiver = if capture_receiver {
+            if self.is_simple_copiable_expression(receiver)? {
+                Some(CallReceiver::Source(receiver))
+            } else {
+                let temporary = self.allocate_hoisted_temp()?;
+                let assignment_target = self.create_generated_identifier(&temporary)?;
+                let receiver_read = self.create_generated_identifier(&temporary)?;
+                let assignment = self.create_assignment(assignment_target, receiver)?;
+                receiver = self.create_parenthesized(assignment)?;
+                Some(CallReceiver::Generated(receiver_read))
+            }
+        } else {
+            None
+        };
+        let receiver = if self.requires_left_side_parentheses(receiver)? {
+            self.create_parenthesized(receiver)?
+        } else {
+            receiver
+        };
+
+        let expression = match access {
+            AccessExpression::Property(mut data) => {
+                data.expression = Some(receiver.node());
+                data.name = Some(
+                    self.visit_required(data.name, SyntaxKind::PropertyAccessExpression, "name")?
+                        .node(),
+                );
+                let updated =
+                    self.update_without_visit(original, NodeData::PropertyAccessExpression(data))?;
+                self.node(updated)
+            }
+            AccessExpression::Element(mut data) => {
+                data.expression = Some(receiver.node());
+                data.argument_expression = Some(
+                    self.visit_required(
+                        data.argument_expression,
+                        SyntaxKind::ElementAccessExpression,
+                        "argument_expression",
+                    )?
+                    .node(),
+                );
+                let updated =
+                    self.update_without_visit(original, NodeData::ElementAccessExpression(data))?;
+                self.node(updated)
+            }
+        };
+        Ok(match call_receiver {
+            Some(receiver) => VisitedExpression::Reference(SyntheticReference {
+                expression,
+                receiver,
+            }),
+            None => VisitedExpression::Value(expression),
+        })
+    }
+
+    fn visit_non_optional_call_expression(
+        &mut self,
+        original: TransformNode,
+        mut data: tsc_syntax::nodes::CallExpressionData,
+        capture_receiver: bool,
+    ) -> Result<VisitedExpression, TransformError> {
+        if self.is_optional_chain(original)? {
+            return self.visit_optional_expression(original, capture_receiver, false);
+        }
+        let callee = data
+            .expression
+            .map(|expression| self.node(expression))
+            .ok_or(TransformError::RequiredChildRemoved {
+                parent: SyntaxKind::CallExpression,
+                field: "expression",
+            })?;
+        let parenthesized_optional_chain = self.context.arena().node(callee)?.kind
+            == SyntaxKind::ParenthesizedExpression
+            && self.is_optional_chain(self.skip_parentheses(callee)?)?;
+        if !parenthesized_optional_chain {
+            let updated = self.update_generic(original, NodeData::CallExpression(data))?;
+            return Ok(VisitedExpression::Value(self.node(updated)));
+        }
+
+        let callee = self.visit_non_optional_expression(callee, true, false)?;
+        data.arguments = self.visit_optional_nodes(data.arguments)?;
+        data.type_arguments = None;
+        match callee {
+            VisitedExpression::Reference(reference) => {
+                let receiver = self.prepare_call_receiver(reference.receiver)?;
+                let call =
+                    self.create_function_call_call(reference.expression, receiver, data.arguments)?;
+                let call = self.context.factory()?.set_text_range(call, original)?;
+                Ok(VisitedExpression::Value(call))
+            }
+            VisitedExpression::Value(callee) => {
+                data.expression = Some(callee.node());
+                let updated =
+                    self.update_without_visit(original, NodeData::CallExpression(data))?;
+                Ok(VisitedExpression::Value(self.node(updated)))
+            }
+        }
+    }
+
+    fn visit_optional_expression(
+        &mut self,
+        original: TransformNode,
+        capture_receiver: bool,
+        is_delete: bool,
+    ) -> Result<VisitedExpression, TransformError> {
+        let plan = self.flatten_optional_chain(original)?;
+        let base = self.skip_partially_emitted_expressions(plan.base)?;
+        let first_is_call = matches!(
+            plan.segments.first(),
+            Some(OptionalChainSegment::Call { .. })
+        );
+        let visited_base = self.visit_non_optional_expression(base, first_is_call, false)?;
+        let (captured_base, left_receiver) = match visited_base {
+            VisitedExpression::Value(expression) => (expression, None),
+            VisitedExpression::Reference(reference) => {
+                (reference.expression, Some(reference.receiver))
+            }
+        };
+        let mut left_expression =
+            self.restore_partially_emitted_expressions(plan.base, captured_base)?;
+        let captured_base = if self.is_simple_copiable_expression(captured_base)? {
+            captured_base
+        } else {
+            let temporary = self.allocate_hoisted_temp()?;
+            let assignment_target = self.create_generated_identifier(&temporary)?;
+            let captured_base = self.create_generated_identifier(&temporary)?;
+            let assignment = self.create_assignment(assignment_target, left_expression)?;
+            left_expression = self.create_parenthesized(assignment)?;
+            captured_base
+        };
+
+        let mut right_expression = captured_base;
+        let mut result_receiver = None;
+        let last = plan.segments.len().saturating_sub(1);
+        for (index, segment) in plan.segments.into_iter().enumerate() {
+            match segment {
+                OptionalChainSegment::Property { name, .. } => {
+                    if index == last && capture_receiver {
+                        let (initialized, receiver) =
+                            self.capture_optional_result_receiver(right_expression)?;
+                        right_expression = initialized;
+                        result_receiver = Some(receiver);
+                    }
+                    let name = self.visit_required(
+                        Some(name),
+                        SyntaxKind::PropertyAccessExpression,
+                        "name",
+                    )?;
+                    right_expression = self.create_property_access(right_expression, name)?;
+                }
+                OptionalChainSegment::Element { argument, .. } => {
+                    if index == last && capture_receiver {
+                        let (initialized, receiver) =
+                            self.capture_optional_result_receiver(right_expression)?;
+                        right_expression = initialized;
+                        result_receiver = Some(receiver);
+                    }
+                    let argument = self.visit_required(
+                        Some(argument),
+                        SyntaxKind::ElementAccessExpression,
+                        "argument_expression",
+                    )?;
+                    self.context
+                        .arena_mut()?
+                        .metadata_mut(argument)
+                        .add_flags(EmitFlags::NO_LEADING_COMMENTS);
+                    right_expression = self.create_element_access(right_expression, argument)?;
+                }
+                OptionalChainSegment::Call { arguments, .. } => {
+                    let arguments = self.visit_optional_nodes(arguments)?;
+                    right_expression = if index == 0 {
+                        if let Some(receiver) = left_receiver {
+                            let receiver = self.prepare_call_receiver(receiver)?;
+                            self.create_function_call_call(right_expression, receiver, arguments)?
+                        } else {
+                            self.create_call(right_expression, arguments)?
+                        }
+                    } else {
+                        self.create_call(right_expression, arguments)?
+                    };
+                }
+            }
+            self.context
+                .arena_mut()?
+                .set_original_node(right_expression, Some(segment.original()))?;
+        }
+
+        let condition = self.create_not_null_condition(left_expression, captured_base, true)?;
+        let target = if is_delete {
+            let when_true = self.create_true()?;
+            let when_false = self.create_delete(right_expression)?;
+            self.create_conditional(condition, when_true, when_false)?
+        } else {
+            let when_true = self.create_void_zero()?;
+            self.create_conditional(condition, when_true, right_expression)?
+        };
+        let target = self.context.factory()?.set_text_range(target, original)?;
+        Ok(match result_receiver {
+            Some(receiver) => VisitedExpression::Reference(SyntheticReference {
+                expression: target,
+                receiver,
+            }),
+            None => VisitedExpression::Value(target),
+        })
+    }
+
+    fn flatten_optional_chain(
+        &self,
+        original: TransformNode,
+    ) -> Result<OptionalChainPlan, TransformError> {
+        let mut current = original;
+        let mut segments = Vec::new();
+        loop {
+            let record = self.context.arena().node(current)?;
+            let (segment, expression, has_question_dot) = match &record.data {
+                NodeData::PropertyAccessExpression(data) => (
+                    OptionalChainSegment::Property {
+                        original: current,
+                        name: data.name.ok_or(TransformError::RequiredChildRemoved {
+                            parent: SyntaxKind::PropertyAccessExpression,
+                            field: "name",
+                        })?,
+                    },
+                    data.expression,
+                    data.question_dot_token.is_some(),
+                ),
+                NodeData::ElementAccessExpression(data) => (
+                    OptionalChainSegment::Element {
+                        original: current,
+                        argument: data.argument_expression.ok_or(
+                            TransformError::RequiredChildRemoved {
+                                parent: SyntaxKind::ElementAccessExpression,
+                                field: "argument_expression",
+                            },
+                        )?,
+                    },
+                    data.expression,
+                    data.question_dot_token.is_some(),
+                ),
+                NodeData::CallExpression(data) => (
+                    OptionalChainSegment::Call {
+                        original: current,
+                        arguments: data.arguments,
+                    },
+                    data.expression,
+                    data.question_dot_token.is_some(),
+                ),
+                _ => {
+                    return Err(TransformError::RequiredChildRemoved {
+                        parent: record.kind,
+                        field: "optional-chain segment",
+                    })
+                }
+            };
+            segments.push(segment);
+            let expression = expression.map(|expression| self.node(expression)).ok_or(
+                TransformError::RequiredChildRemoved {
+                    parent: record.kind,
+                    field: "expression",
+                },
+            )?;
+            if has_question_dot {
+                segments.reverse();
+                return Ok(OptionalChainPlan {
+                    base: expression,
+                    segments,
+                });
+            }
+            current = self.skip_partially_emitted_expressions(expression)?;
+            if !self.is_optional_chain(current)? {
+                return Err(TransformError::RequiredChildRemoved {
+                    parent: record.kind,
+                    field: "optional-chain root",
+                });
+            }
+        }
+    }
+
+    fn capture_optional_result_receiver(
+        &mut self,
+        expression: TransformNode,
+    ) -> Result<(TransformNode, CallReceiver), TransformError> {
+        if self.is_simple_copiable_expression(expression)? {
+            return Ok((expression, CallReceiver::Source(expression)));
+        }
+        let temporary = self.allocate_hoisted_temp()?;
+        let assignment_target = self.create_generated_identifier(&temporary)?;
+        let receiver = self.create_generated_identifier(&temporary)?;
+        let assignment = self.create_assignment(assignment_target, expression)?;
+        Ok((
+            self.create_parenthesized(assignment)?,
+            CallReceiver::Generated(receiver),
+        ))
+    }
+
+    fn prepare_call_receiver(
+        &mut self,
+        receiver: CallReceiver,
+    ) -> Result<TransformNode, TransformError> {
+        let receiver = match receiver {
+            CallReceiver::Generated(receiver) => receiver,
+            CallReceiver::Source(receiver) => {
+                let clone = self.context.factory()?.clone_node(receiver)?;
+                self.context
+                    .arena_mut()?
+                    .metadata_mut(clone)
+                    .add_flags(EmitFlags::NO_COMMENTS);
+                clone
+            }
+        };
+        if self.context.arena().node(receiver)?.kind == SyntaxKind::SuperKeyword {
+            self.create_this()
+        } else {
+            Ok(receiver)
+        }
+    }
+
+    fn skip_partially_emitted_expressions(
+        &self,
+        mut expression: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        loop {
+            let NodeData::PartiallyEmittedExpression(data) =
+                &self.context.arena().node(expression)?.data
+            else {
+                return Ok(expression);
+            };
+            expression = data
+                .expression
+                .map(|expression| self.node(expression))
+                .ok_or(TransformError::RequiredChildRemoved {
+                    parent: SyntaxKind::PartiallyEmittedExpression,
+                    field: "expression",
+                })?;
+        }
+    }
+
+    fn restore_partially_emitted_expressions(
+        &mut self,
+        original: TransformNode,
+        replacement: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        let mut wrappers = Vec::new();
+        let mut current = original;
+        loop {
+            let NodeData::PartiallyEmittedExpression(data) =
+                &self.context.arena().node(current)?.data
+            else {
+                break;
+            };
+            wrappers.push(current);
+            current = data
+                .expression
+                .map(|expression| self.node(expression))
+                .ok_or(TransformError::RequiredChildRemoved {
+                    parent: SyntaxKind::PartiallyEmittedExpression,
+                    field: "expression",
+                })?;
+        }
+        wrappers
+            .into_iter()
+            .rev()
+            .try_fold(replacement, |inner, wrapper| {
+                let data = tsc_syntax::nodes::PartiallyEmittedExpressionData {
+                    expression: Some(inner.node()),
+                };
+                self.update_without_visit(wrapper, NodeData::PartiallyEmittedExpression(data))
+                    .map(|node| self.node(node))
+            })
     }
 
     fn visit_function_declaration(
@@ -428,7 +1161,7 @@ impl<'context> Es2021Visitor<'context> {
         let mut binding_aliases = Vec::with_capacity(nodes.len());
         for parameter in nodes {
             let alias = if requires_hoist && self.parameter_has_binding_pattern(parameter)? {
-                Some(self.generated_bindings.allocate_local_temp())
+                Some(self.allocate_local_binding()?)
             } else {
                 None
             };
@@ -446,7 +1179,11 @@ impl<'context> Es2021Visitor<'context> {
         if !root && Self::is_function_scope_kind(record.kind) {
             return Ok(false);
         }
-        if let NodeData::BinaryExpression(data) = &record.data {
+        if self.pass == TargetPass::Es2020 {
+            if self.es2020_node_requires_hoisted_temp(node, &record)? {
+                return Ok(true);
+            }
+        } else if let NodeData::BinaryExpression(data) = &record.data {
             let operator = data
                 .operator_token
                 .map(|operator| {
@@ -516,6 +1253,69 @@ impl<'context> Es2021Visitor<'context> {
         Ok(false)
     }
 
+    fn es2020_node_requires_hoisted_temp(
+        &self,
+        node: TransformNode,
+        record: &tsc_syntax::Node,
+    ) -> Result<bool, TransformError> {
+        if self.is_optional_chain(node)? {
+            return self.optional_chain_requires_hoisted_temp(node, false);
+        }
+        match &record.data {
+            NodeData::BinaryExpression(data) => {
+                let operator = data
+                    .operator_token
+                    .map(|operator| {
+                        self.context
+                            .arena()
+                            .node(self.node(operator))
+                            .map(|operator| operator.kind)
+                    })
+                    .transpose()?;
+                if operator == Some(SyntaxKind::QuestionQuestionToken) {
+                    let left = data.left.map(|left| self.node(left)).ok_or(
+                        TransformError::RequiredChildRemoved {
+                            parent: SyntaxKind::BinaryExpression,
+                            field: "left",
+                        },
+                    )?;
+                    return Ok(!self.is_simple_copiable_expression(left)?);
+                }
+            }
+            NodeData::CallExpression(data) => {
+                let Some(callee) = data.expression.map(|callee| self.node(callee)) else {
+                    return Ok(false);
+                };
+                if self.context.arena().node(callee)?.kind == SyntaxKind::ParenthesizedExpression {
+                    let inner = self.skip_parentheses(callee)?;
+                    if self.is_optional_chain(inner)? {
+                        return self.optional_chain_requires_hoisted_temp(inner, true);
+                    }
+                }
+            }
+            _ => {}
+        }
+        Ok(false)
+    }
+
+    fn optional_chain_requires_hoisted_temp(
+        &self,
+        chain: TransformNode,
+        capture_receiver: bool,
+    ) -> Result<bool, TransformError> {
+        let plan = self.flatten_optional_chain(chain)?;
+        let base = self.skip_partially_emitted_expressions(plan.base)?;
+        if !self.is_simple_copiable_expression(base)? {
+            return Ok(true);
+        }
+        Ok(capture_receiver
+            && plan.segments.len() > 1
+            && matches!(
+                plan.segments.last(),
+                Some(OptionalChainSegment::Property { .. } | OptionalChainSegment::Element { .. })
+            ))
+    }
+
     fn visit_parameter_list(
         &mut self,
         parameters: Option<NodeArrayId>,
@@ -548,7 +1348,7 @@ impl<'context> Es2021Visitor<'context> {
             .contains(LexicalEnvironmentFlags::VARIABLES_HOISTED_IN_PARAMETERS)
         {
             for (parameter, alias) in visited.iter_mut().zip(&plan.binding_aliases) {
-                *parameter = self.lower_parameter_default(*parameter, alias.as_deref())?;
+                *parameter = self.lower_parameter_default(*parameter, alias.as_ref())?;
             }
         }
         let updated = self
@@ -562,7 +1362,7 @@ impl<'context> Es2021Visitor<'context> {
     fn lower_parameter_default(
         &mut self,
         parameter: TransformNode,
-        binding_alias: Option<&str>,
+        binding_alias: Option<&TargetBinding>,
     ) -> Result<TransformNode, TransformError> {
         let NodeData::Parameter(mut data) = self.context.arena().node(parameter)?.data.clone()
         else {
@@ -592,17 +1392,17 @@ impl<'context> Es2021Visitor<'context> {
                 field: "planned binding-pattern alias",
             })?;
             let value = if let Some(initializer) = data.initializer.map(|id| self.node(id)) {
-                let condition_name = self.create_identifier(alias)?;
+                let condition_name = self.create_generated_identifier(alias)?;
                 let condition = self.create_strict_undefined_check(condition_name)?;
-                let fallback_name = self.create_identifier(alias)?;
+                let fallback_name = self.create_generated_identifier(alias)?;
                 self.create_conditional(condition, initializer, fallback_name)?
             } else {
-                self.create_identifier(alias)?
+                self.create_generated_identifier(alias)?
             };
             let declaration = self.create_variable_declaration(name, Some(value))?;
             let statement = self.create_variable_statement(vec![declaration])?;
             self.context.add_initialization_statement(statement)?;
-            let alias_name = self.create_identifier(alias)?;
+            let alias_name = self.create_generated_identifier(alias)?;
             data.name = Some(alias_name.node());
             data.initializer = None;
         } else if let Some(initializer) = data.initializer.map(|id| self.node(id)) {
@@ -809,11 +1609,74 @@ impl<'context> Es2021Visitor<'context> {
         Ok(Some(updated.array()))
     }
 
-    fn allocate_hoisted_temp(&mut self) -> Result<String, TransformError> {
-        let name = self.generated_bindings.allocate_temp();
-        let declaration = self.create_identifier(&name)?;
+    fn finalize_generated_binding_names(
+        &mut self,
+        root: TransformNode,
+    ) -> Result<(), TransformError> {
+        let mut events = Vec::new();
+        collect_binding_name_events(self.context.arena(), self.source, root, true, &mut events)?;
+        if events.is_empty() {
+            return Ok(());
+        }
+
+        let reserved = collect_untagged_identifier_texts(self.context.arena(), self.source, root)?;
+        let mut scopes = GeneratedBindingScopes::new(reserved, AncestorBindingPolicy::AllowShadow);
+        let mut scope_stack = Vec::new();
+        let mut assigned = BTreeMap::<GeneratedBindingId, String>::new();
+        let mut node_names = BTreeMap::<TransformNode, String>::new();
+        for event in events {
+            match event {
+                BindingNameEvent::EnterFunction => {
+                    scope_stack.push(scopes.enter(GeneratedBindingOwner::FunctionBody));
+                }
+                BindingNameEvent::Identifier { node, binding } => {
+                    let name = assigned
+                        .entry(binding)
+                        .or_insert_with(|| scopes.allocate_temp())
+                        .clone();
+                    node_names.insert(node, name);
+                }
+                BindingNameEvent::ExitFunction => {
+                    let (previous, completed) =
+                        scope_stack
+                            .pop()
+                            .ok_or(TransformError::RequiredChildRemoved {
+                                parent: SyntaxKind::FunctionDeclaration,
+                                field: "generated-binding function scope",
+                            })?;
+                    let _ = scopes.exit(previous, completed);
+                }
+            }
+        }
+        if !scope_stack.is_empty() {
+            return Err(TransformError::RequiredChildRemoved {
+                parent: SyntaxKind::SourceFile,
+                field: "balanced generated-binding scopes",
+            });
+        }
+        let _ = scopes.source_bindings();
+        let arena = self.context.arena_mut()?;
+        for (node, name) in node_names {
+            arena.set_generated_identifier_text(node, &name)?;
+        }
+        Ok(())
+    }
+
+    fn allocate_hoisted_temp(&mut self) -> Result<TargetBinding, TransformError> {
+        let binding = TargetBinding {
+            id: self.context.allocate_generated_binding_id()?,
+            provisional_name: self.generated_bindings.allocate_temp(),
+        };
+        let declaration = self.create_generated_identifier(&binding)?;
         self.context.hoist_variable_declaration(declaration)?;
-        Ok(name)
+        Ok(binding)
+    }
+
+    fn allocate_local_binding(&mut self) -> Result<TargetBinding, TransformError> {
+        Ok(TargetBinding {
+            id: self.context.allocate_generated_binding_id()?,
+            provisional_name: self.generated_bindings.allocate_local_temp(),
+        })
     }
 
     fn assert_binding_plan(
@@ -879,6 +1742,61 @@ impl<'context> Es2021Visitor<'context> {
         }
     }
 
+    fn is_optional_chain(&self, expression: TransformNode) -> Result<bool, TransformError> {
+        let record = self.context.arena().node(expression)?;
+        Ok(
+            NodeFlags::from_bits(record.flags).contains(NodeFlags::OPTIONAL_CHAIN)
+                && matches!(
+                    record.kind,
+                    SyntaxKind::PropertyAccessExpression
+                        | SyntaxKind::ElementAccessExpression
+                        | SyntaxKind::CallExpression
+                        | SyntaxKind::NonNullExpression
+                ),
+        )
+    }
+
+    fn requires_left_side_parentheses(
+        &self,
+        mut expression: TransformNode,
+    ) -> Result<bool, TransformError> {
+        loop {
+            let record = self.context.arena().node(expression)?;
+            if let NodeData::PartiallyEmittedExpression(data) = &record.data {
+                expression = data
+                    .expression
+                    .map(|expression| self.node(expression))
+                    .ok_or(TransformError::RequiredChildRemoved {
+                        parent: SyntaxKind::PartiallyEmittedExpression,
+                        field: "expression",
+                    })?;
+                continue;
+            }
+            return Ok(!matches!(
+                record.kind,
+                SyntaxKind::ArrayLiteralExpression
+                    | SyntaxKind::ObjectLiteralExpression
+                    | SyntaxKind::ClassExpression
+                    | SyntaxKind::FunctionExpression
+                    | SyntaxKind::Identifier
+                    | SyntaxKind::StringLiteral
+                    | SyntaxKind::NumericLiteral
+                    | SyntaxKind::BigIntLiteral
+                    | SyntaxKind::RegularExpressionLiteral
+                    | SyntaxKind::NoSubstitutionTemplateLiteral
+                    | SyntaxKind::ThisKeyword
+                    | SyntaxKind::SuperKeyword
+                    | SyntaxKind::ParenthesizedExpression
+                    | SyntaxKind::PropertyAccessExpression
+                    | SyntaxKind::ElementAccessExpression
+                    | SyntaxKind::CallExpression
+                    | SyntaxKind::NewExpression
+                    | SyntaxKind::TaggedTemplateExpression
+                    | SyntaxKind::MetaProperty
+            ));
+        }
+    }
+
     const fn is_logical_assignment(operator: SyntaxKind) -> bool {
         matches!(
             operator,
@@ -921,11 +1839,27 @@ impl<'context> Es2021Visitor<'context> {
         )
     }
 
+    fn create_generated_identifier(
+        &mut self,
+        binding: &TargetBinding,
+    ) -> Result<TransformNode, TransformError> {
+        let identifier = self.create_identifier(&binding.provisional_name)?;
+        self.context
+            .arena_mut()?
+            .metadata_mut(identifier)
+            .set_generated_binding_id(binding.id);
+        Ok(identifier)
+    }
+
     fn create_property_access(
         &mut self,
         expression: TransformNode,
         name: TransformNode,
     ) -> Result<TransformNode, TransformError> {
+        self.context
+            .arena_mut()?
+            .metadata_mut(name)
+            .add_flags(EmitFlags::NO_SUBSTITUTION);
         let flags = self.child_flags(&[expression, name])?;
         self.context.factory()?.create_node(
             self.source,
@@ -955,12 +1889,71 @@ impl<'context> Es2021Visitor<'context> {
         )
     }
 
+    fn create_call(
+        &mut self,
+        expression: TransformNode,
+        arguments: Option<NodeArrayId>,
+    ) -> Result<TransformNode, TransformError> {
+        let mut flags = self.child_flags(&[expression])?;
+        if let Some(arguments) = arguments {
+            flags |= self
+                .context
+                .arena()
+                .array_transform_flags(self.array(arguments));
+        }
+        self.context.factory()?.create_node(
+            self.source,
+            NodeData::CallExpression(tsc_syntax::nodes::CallExpressionData {
+                expression: Some(expression.node()),
+                question_dot_token: None,
+                type_arguments: None,
+                arguments,
+            }),
+            flags,
+        )
+    }
+
+    fn create_function_call_call(
+        &mut self,
+        expression: TransformNode,
+        receiver: TransformNode,
+        arguments: Option<NodeArrayId>,
+    ) -> Result<TransformNode, TransformError> {
+        let call_name = self.create_identifier("call")?;
+        let call_access = self.create_property_access(expression, call_name)?;
+        let mut nodes = Vec::new();
+        nodes.push(receiver);
+        if let Some(arguments) = arguments {
+            let arguments = self.context.arena().node_array(self.array(arguments))?;
+            nodes.extend(arguments.nodes.iter().map(|argument| self.node(*argument)));
+        }
+        let arguments = self
+            .context
+            .factory()?
+            .create_node_array(self.source, nodes)?;
+        self.create_call(call_access, Some(arguments.array()))
+    }
+
+    fn create_delete(
+        &mut self,
+        expression: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        let flags = self.child_flags(&[expression])?;
+        self.context.factory()?.create_node(
+            self.source,
+            NodeData::DeleteExpression(tsc_syntax::nodes::DeleteExpressionData {
+                expression: Some(expression.node()),
+            }),
+            flags,
+        )
+    }
+
     fn create_assignment(
         &mut self,
         left: TransformNode,
         right: TransformNode,
     ) -> Result<TransformNode, TransformError> {
-        let right = if self.is_comma_sequence(right)? {
+        let right = if self.assignment_rhs_requires_parentheses(right)? {
             self.create_parenthesized(right)?
         } else {
             right
@@ -968,21 +1961,45 @@ impl<'context> Es2021Visitor<'context> {
         self.create_binary(left, SyntaxKind::EqualsToken, right)
     }
 
-    fn is_comma_sequence(&self, expression: TransformNode) -> Result<bool, TransformError> {
-        let record = self.context.arena().node(expression)?;
-        Ok(match &record.data {
-            NodeData::CommaListExpression(_) => true,
-            NodeData::BinaryExpression(data) => data
-                .operator_token
-                .and_then(|operator| self.context.arena().node_ref(self.source, operator))
-                .is_some_and(|operator| {
-                    self.context
-                        .arena()
-                        .node(operator)
-                        .is_ok_and(|operator| operator.kind == SyntaxKind::CommaToken)
-                }),
-            _ => false,
-        })
+    /// Apply the observable part of tsc's assignment-RHS parenthesizer at the
+    /// target-transform construction boundary. In particular, the TypeScript
+    /// pass retains an `ExpressionWithTypeArguments` node after erasing its
+    /// type arguments so later passes can preserve the grammar boundary as
+    /// `(expression)` instead of silently treating it as a plain identifier.
+    fn assignment_rhs_requires_parentheses(
+        &self,
+        mut expression: TransformNode,
+    ) -> Result<bool, TransformError> {
+        loop {
+            let record = self.context.arena().node(expression)?;
+            match &record.data {
+                NodeData::PartiallyEmittedExpression(data) => {
+                    expression = data
+                        .expression
+                        .map(|expression| self.node(expression))
+                        .ok_or(TransformError::RequiredChildRemoved {
+                            parent: SyntaxKind::PartiallyEmittedExpression,
+                            field: "assignment operand",
+                        })?;
+                }
+                NodeData::ParenthesizedExpression(_) => return Ok(false),
+                NodeData::ExpressionWithTypeArguments(_) | NodeData::CommaListExpression(_) => {
+                    return Ok(true);
+                }
+                NodeData::BinaryExpression(data) => {
+                    return Ok(data
+                        .operator_token
+                        .and_then(|operator| self.context.arena().node_ref(self.source, operator))
+                        .is_some_and(|operator| {
+                            self.context
+                                .arena()
+                                .node(operator)
+                                .is_ok_and(|operator| operator.kind == SyntaxKind::CommaToken)
+                        }));
+                }
+                _ => return Ok(false),
+            }
+        }
     }
 
     fn create_binary(
@@ -1048,6 +2065,67 @@ impl<'context> Es2021Visitor<'context> {
     ) -> Result<TransformNode, TransformError> {
         let undefined = self.create_void_zero()?;
         self.create_binary(expression, SyntaxKind::EqualsEqualsEqualsToken, undefined)
+    }
+
+    fn create_not_null_condition(
+        &mut self,
+        left: TransformNode,
+        right: TransformNode,
+        invert: bool,
+    ) -> Result<TransformNode, TransformError> {
+        let null = self.create_null()?;
+        let left = self.create_binary(
+            left,
+            if invert {
+                SyntaxKind::EqualsEqualsEqualsToken
+            } else {
+                SyntaxKind::ExclamationEqualsEqualsToken
+            },
+            null,
+        )?;
+        let undefined = self.create_void_zero()?;
+        let right = self.create_binary(
+            right,
+            if invert {
+                SyntaxKind::EqualsEqualsEqualsToken
+            } else {
+                SyntaxKind::ExclamationEqualsEqualsToken
+            },
+            undefined,
+        )?;
+        self.create_binary(
+            left,
+            if invert {
+                SyntaxKind::BarBarToken
+            } else {
+                SyntaxKind::AmpersandAmpersandToken
+            },
+            right,
+        )
+    }
+
+    fn create_null(&mut self) -> Result<TransformNode, TransformError> {
+        self.context.factory()?.create_token(
+            self.source,
+            SyntaxKind::NullKeyword,
+            TransformFlags::NONE,
+        )
+    }
+
+    fn create_true(&mut self) -> Result<TransformNode, TransformError> {
+        self.context.factory()?.create_token(
+            self.source,
+            SyntaxKind::TrueKeyword,
+            TransformFlags::NONE,
+        )
+    }
+
+    fn create_this(&mut self) -> Result<TransformNode, TransformError> {
+        self.context.factory()?.create_token(
+            self.source,
+            SyntaxKind::ThisKeyword,
+            TransformFlags::CONTAINS_LEXICAL_THIS,
+        )
     }
 
     fn create_void_zero(&mut self) -> Result<TransformNode, TransformError> {
@@ -1362,6 +2440,77 @@ impl<'context> Es2021Visitor<'context> {
     }
 }
 
+fn collect_untagged_identifier_texts(
+    arena: &TransformArena,
+    source: TransformSourceId,
+    root: TransformNode,
+) -> Result<BTreeSet<String>, TransformError> {
+    let syntax = arena.source(source)?.syntax();
+    let mut names = BTreeSet::new();
+    let mut stack = vec![root.node()];
+    let mut seen = BTreeSet::new();
+    while let Some(id) = stack.pop() {
+        if !seen.insert(id) {
+            continue;
+        }
+        let node = TransformNode::new(source, id);
+        let record = arena.node(node)?;
+        if arena
+            .metadata(node)
+            .and_then(|metadata| metadata.generated_binding_id())
+            .is_none()
+        {
+            if let NodeData::Identifier(data) = &record.data {
+                names.insert(data.text.clone());
+            }
+        }
+        for_each_child(&syntax.arena, record, |child| {
+            stack.push(child);
+            false
+        });
+    }
+    Ok(names)
+}
+
+fn collect_binding_name_events(
+    arena: &TransformArena,
+    source: TransformSourceId,
+    node: TransformNode,
+    scope_root: bool,
+    events: &mut Vec<BindingNameEvent>,
+) -> Result<(), TransformError> {
+    let record = arena.node(node)?.clone();
+    let enters_function = !scope_root && TargetVisitor::is_function_scope_kind(record.kind);
+    if enters_function {
+        events.push(BindingNameEvent::EnterFunction);
+    }
+    if let Some(binding) = arena
+        .metadata(node)
+        .and_then(|metadata| metadata.generated_binding_id())
+    {
+        events.push(BindingNameEvent::Identifier { node, binding });
+    }
+    let syntax = arena.source(source)?.syntax();
+    let mut children = Vec::new();
+    for_each_child(&syntax.arena, &record, |child| {
+        children.push(child);
+        false
+    });
+    for child in children {
+        collect_binding_name_events(
+            arena,
+            source,
+            TransformNode::new(source, child),
+            false,
+            events,
+        )?;
+    }
+    if enters_function {
+        events.push(BindingNameEvent::ExitFunction);
+    }
+    Ok(())
+}
+
 #[derive(Clone, Copy)]
 enum StabilizedAccessOperand {
     Copied(TransformNode),
@@ -1389,14 +2538,14 @@ impl StabilizedAccessOperand {
     }
 }
 
-impl NodeDataChildVisitor for Es2021Visitor<'_> {
+impl NodeDataChildVisitor for TargetVisitor<'_> {
     type Error = TransformError;
 
     fn node_kind(&self, id: NodeId) -> SyntaxKind {
         self.context
             .arena()
             .node(self.node(id))
-            .expect("ES2021 child belongs to the current transform source")
+            .expect("target-pass child belongs to the current transform source")
             .kind
     }
 

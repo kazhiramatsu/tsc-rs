@@ -114,10 +114,8 @@ impl GeneratedBindingScopes {
         loop {
             let ordinal = self.scopes[self.current.0].next_temp_ordinal;
             self.scopes[self.current.0].next_temp_ordinal += 1;
-            let candidate = if ordinal < 26 {
-                format!("_{}", char::from(b'a' + ordinal as u8))
-            } else {
-                format!("_{}", ordinal - 26)
+            let Some(candidate) = Self::temp_candidate(ordinal) else {
+                continue;
             };
             if self.reserve_in_current(candidate.clone(), true) {
                 return candidate;
@@ -129,10 +127,8 @@ impl GeneratedBindingScopes {
         loop {
             let ordinal = self.scopes[self.current.0].next_temp_ordinal;
             self.scopes[self.current.0].next_temp_ordinal += 1;
-            let candidate = if ordinal < 26 {
-                format!("_{}", char::from(b'a' + ordinal as u8))
-            } else {
-                format!("_{}", ordinal - 26)
+            let Some(candidate) = Self::temp_candidate(ordinal) else {
+                continue;
             };
             if self.reserve_in_current(candidate.clone(), false) {
                 return candidate;
@@ -178,5 +174,20 @@ impl GeneratedBindingScopes {
             scope = current.parent;
         }
         false
+    }
+
+    /// tsc reserves `_i` and `_n` for its loop-variable name classes. The
+    /// target ladder does not allocate loop variables yet, but ordinary temp
+    /// ordinals must still leave those slots untouched so later names remain
+    /// byte-for-byte compatible with the shared TypeScript name generator.
+    fn temp_candidate(ordinal: usize) -> Option<String> {
+        if matches!(ordinal, 8 | 13) {
+            return None;
+        }
+        Some(if ordinal < 26 {
+            format!("_{}", char::from(b'a' + ordinal as u8))
+        } else {
+            format!("_{}", ordinal - 26)
+        })
     }
 }

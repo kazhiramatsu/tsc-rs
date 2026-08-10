@@ -1759,6 +1759,18 @@ impl Printer {
                     writer,
                 )
             }
+            NodeData::DeleteExpression(data) => {
+                writer.write_keyword("delete");
+                writer.write_space(" ");
+                self.emit_required_node(
+                    transformation,
+                    node.source(),
+                    data.expression,
+                    SyntaxKind::DeleteExpression,
+                    "expression",
+                    writer,
+                )
+            }
             NodeData::TypeOfExpression(data) => {
                 writer.write_keyword("typeof");
                 writer.write_space(" ");

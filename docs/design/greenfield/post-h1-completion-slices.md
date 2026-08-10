@@ -1,8 +1,8 @@
 # Post-H1 TypeScript 6.0.3 completion slices
 
 Status: execution schedule approved on 2026-08-08. H0, L0/L1, H1, H2.0a,
-H2.0b, H2.1a-H2.1e, H2.2a-H2.2d, H2.3a-H2.3d, H2.4a-H2.4b, H2.5a, and
-H2.5b are complete. **H2.5c is the next slice.**
+H2.0b, H2.1a-H2.1e, H2.2a-H2.2d, H2.3a-H2.3d, H2.4a-H2.4b, and
+H2.5a-H2.5c are complete. **H2.5d is the next slice.**
 
 This document turns the audited post-H1 residual into branch-sized execution
 slices. It owns post-H1 slice IDs, dependency order, and slice-specific
@@ -956,6 +956,61 @@ checked with:
 node crates/oracle/h2-5b-qualification.mjs --check
 node crates/oracle/h2-5b-owner-controls.mjs --check
 node crates/oracle/h2-5b-profile.mjs --check
+```
+
+The ordinary hosted boundary remains only `cargo xtask acceptance`; profile
+generation, schema checks, focused controls, and the complete H0/H1/L1
+regression gate remain local.
+
+H2.5c closed on 2026-08-10. Its
+[qualification](../../../ratchets/h2-5c-qualification.v1.json) applies the
+same dependency-closed rule after H2.5b. Of 16 global rows that mention
+H2.5c, one retains a later owner and 15 form the exact denominator. Rust runs
+14 admitted rows twice with 19 exact reported diagnostics and 14 exact
+writes. The remaining source row is explicitly owned by H2.9 and fails closed
+before the first sink callback. There are no unexecuted or undispositioned
+candidates.
+
+- `transformES2020` lowers optional property, element, and call chains,
+  optional `delete`, and nullish coalescing with exact receiver binding,
+  short-circuiting, and once-only evaluation;
+- the shared target-ladder pass represents chain segments, synthetic
+  references, call receivers, and visited values with Rust enums. A
+  session-unique generated-binding identity is finalized from the composed
+  tree, so ES2021 and ES2020 temporaries retain tsc declaration order across
+  source, function, and parameter-hoist scopes without copying its mutable
+  closure graph;
+- erased TypeScript outer expressions retain their grammar boundary, and
+  class-field composition evaluates computed keys once at class definition
+  time. Anonymous class assigned names own stable private helper prefixes;
+  CommonJS substitution and custom-prologue ordering remain exact; and
+- ES2019 activates the pass while ES2020 preserves the syntax. Standard and
+  legacy decorators, public/private fields, `super`, nested and parenthesized
+  chains, comments, diagnostics, and `noEmitOnError` behavior compose exactly.
+
+The separate
+[owner controls](../../../ratchets/h2-5c-owner-controls.v1.json) run pinned
+TypeScript 6.0.3 fifty-two times and freeze 26 controls, 25 exact writes, and
+one exact reported/emitted diagnostic. They cover optional-chain receiver and
+evaluation order, nullish coalescing, source/function/parameter hoists,
+adjacent ES2020 preservation, class-field and decorator composition, CommonJS
+projection, generated-name collisions, and `noEmitOnError`. Each Rust control
+runs twice through a fresh Program and matches diagnostics, callback and
+materialized bytes, paths, order, BOM, provenance, result state, and all
+active H2 counters.
+
+The [current runtime profile](../../../ratchets/h2-5c-profile.v1.json) and its
+[strict schema](../../../.github/ci/contracts/h2-5c-profile.schema.json)
+preserve every H2.5b authority byte for byte, mark H2.1a through H2.5c active,
+and name H2.5d as next. The monotonic corpus profile now has 609 exact cases,
+1,240 exact reported diagnostics, 863 exact writes, 5 unchanged output-exact
+diagnostic controls, and thirteen explicit source deferrals. Freshness is
+checked with:
+
+```text
+node crates/oracle/h2-5c-qualification.mjs --check
+node crates/oracle/h2-5c-owner-controls.mjs --check
+node crates/oracle/h2-5c-profile.mjs --check
 ```
 
 The ordinary hosted boundary remains only `cargo xtask acceptance`; profile
