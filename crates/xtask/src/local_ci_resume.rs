@@ -18,6 +18,10 @@ const JOURNAL_RELATIVE_PATH: &str = "target/local-ci-resume/v1/journal.json";
 pub(crate) enum InputScope {
     /// Every tracked or non-ignored untracked repository file.
     All,
+    /// Workspace manifests, Rust target layout, and repository automation.
+    /// Generated evidence and corpus data cannot affect the name-sensitive
+    /// workspace audit, so changing those files must not discard its receipt.
+    WorkspaceAudit,
     /// Executable verification inputs. Markdown is covered by the cheap
     /// workspace/readme phases and is deliberately excluded from expensive
     /// compiler, oracle, and corpus phases.
@@ -30,6 +34,7 @@ impl InputScope {
     fn label(self) -> &'static str {
         match self {
             Self::All => "all",
+            Self::WorkspaceAudit => "workspace-audit",
             Self::Verification => "verification",
             Self::RustFormat => "rust-format",
         }
@@ -38,6 +43,17 @@ impl InputScope {
     fn includes(self, relative: &str) -> bool {
         match self {
             Self::All => true,
+            Self::WorkspaceAudit => {
+                relative.ends_with(".rs")
+                    || relative == "Cargo.toml"
+                    || relative == "Cargo.lock"
+                    || relative == ".gitignore"
+                    || relative.starts_with("crates/") && relative.ends_with("/Cargo.toml")
+                    || relative.starts_with(".cargo/")
+                    || relative.starts_with(".github/workflows/")
+                    || relative.starts_with(".github/actions/")
+                    || relative.starts_with("scripts/")
+            }
             Self::Verification => !relative
                 .rsplit_once('.')
                 .is_some_and(|(_, extension)| extension.eq_ignore_ascii_case("md")),

@@ -1,0 +1,1763 @@
+{
+  "schema": 1,
+  "status": "qualified-typescript-oracle",
+  "phase": "H2.4a-legacy-decorators",
+  "typescript": {
+    "version": "6.0.3",
+    "source_commit": "050880ce59e30b356b686bd3144efe24f875ebc8",
+    "bundle": {
+      "path": "vendor/typescript-6.0.3/lib/typescript.js",
+      "sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39"
+    },
+    "implementation": {
+      "path": "vendor/typescript-6.0.3/lib/_tsc.js",
+      "sha256": "1c59e77a54b186ec43fa7f3e0d3c4bb15ca5eb5ba43e96b1d3a267139eddd3e3"
+    }
+  },
+  "generator": {
+    "path": "crates/oracle/h2-4a-qualification.mjs",
+    "sha256": "c9426fbc2dc21e4fdf52e88645f1764981006cdd1b15d442d562c690837b6a67"
+  },
+  "contract": {
+    "path": ".github/ci/contracts/h2-4a-qualification.schema.json",
+    "sha256": "a13f94baacbf3eb4cde79be778e34fdf1b0f4108d058e015d9e1f9e27af15cb3"
+  },
+  "origin": {
+    "h2_3d_merge": "1e15c7bede0444499ed8b70a873c23d0e3a50c56",
+    "h2_3d_profile": {
+      "path": "ratchets/h2-3d-profile.v1.json",
+      "sha256": "8f0f8153fb60061f681135aa0a397b7cd4d906fc6624e9460fc7a2b6e24b6203"
+    }
+  },
+  "selection_contract": {
+    "global_h2_4a_rows": 418,
+    "candidate_definition": "after removing H2.1a through H2.3d, required_slices is exactly [H2.4a]",
+    "candidate_denominator": 10,
+    "future_deferred_rows": 408
+  },
+  "inputs": {
+    "compiler_classification": {
+      "path": "vendor/typescript-6.0.3/compiler-profile-classification.v1.json",
+      "sha256": "3c3cbcb3c29a5254c145dc2665ca21683a1bd94f5271841320f061e82b614603"
+    },
+    "conformance_classification": {
+      "path": "vendor/typescript-6.0.3/conformance-profile-classification.v1.json",
+      "sha256": "d54b51d44da91836ad1b7be3be4b7de19c6892e6cb1fe9605fda06cdda5a67eb"
+    },
+    "compiler_expansion": {
+      "path": "vendor/typescript-6.0.3/test-suite-expansion.v1.json",
+      "sha256": "9c6e991103b571f7a8800dc5e1ef66088017689f3769de8fcdb408b2dc125188"
+    },
+    "conformance_expansion": {
+      "path": "vendor/typescript-6.0.3/conformance-suite-expansion.v1.json",
+      "sha256": "924d4007b3ac93a3ee57032ea6089b649bab2902e30ee64cff02f4c9404b7bbd"
+    },
+    "owner_inventory": {
+      "path": "ratchets/h2-owner-inventory.v1.json",
+      "sha256": "1f3d666d107247bef7b5e18d6e9506ff51d281277c136bf70112a863b6dfa98d"
+    },
+    "global_candidate_dispositions": {
+      "path": "ratchets/h2-candidate-dispositions.v1.json",
+      "sha256": "6930d377041d755579e6dbcc1f5551ba84b8ebac29535e4b05e46b386e29b53a"
+    }
+  },
+  "execution_contract": {
+    "source_reachability": "fixture VFS roots plus module-resolved fixture dependencies in a vendored TypeScript Program",
+    "module_selection": "Program.getEmitModuleFormatOfFile for every reached fixture SourceFile",
+    "admission": "every emit-eligible source is .ts, targets ESNext, has no parse diagnostics, has AST depth <= 256, reaches the now-closed H2.4a legacy-decorator transform and no later transform root, and has exact diagnostics and writes; declaration/package/config inputs remain non-emitted controls",
+    "typescript_repetitions": 2,
+    "rust_repetitions": 2,
+    "normalization": "none",
+    "deferred_boundary": "typed failure before first sink write"
+  },
+  "owner_closure": [
+    {
+      "key": "transform-legacy-decorators",
+      "declaration": {
+        "id": "h2:f9462683cdf3210a1e4c920f52187afb2c2ebf3ad8d69c44e6afb209c33c7980",
+        "source": "vendor/typescript-6.0.3/lib/_tsc.js",
+        "name": "transformLegacyDecorators",
+        "kind": "FunctionDeclaration",
+        "lexical_path": "<bundle>/transformLegacyDecorators@98430:1",
+        "source_range": {
+          "start": {
+            "offset": 4769508,
+            "line": 98430,
+            "character": 1
+          },
+          "end": {
+            "offset": 4788061,
+            "line": 98943,
+            "character": 2
+          }
+        },
+        "declaration_sha256": "53edcf53fff8187874600e2823d9a99c018f4ecaf10b688648985794f199c722",
+        "body_sha256": "3f2a6445115957d09cf480daf41e4bfdd06cac686adaccfb209b06616638502a",
+        "ledger_slice_sha256": "a189529b3222643cfd792a2698fc5adcc51c91ef8de4ce775a4b866bad3c839c"
+      },
+      "disposition_before_h2_4a": "deferred-h2"
+    }
+  ],
+  "cases": [
+    {
+      "suite": "conformance",
+      "case_id": "typescript-6.0.3/conformance/classes/members/instanceAndStaticMembers/typeOfThisInStaticMembers11.ts#target%3Desnext",
+      "expansion_case": 597,
+      "source": {
+        "path": "classes/members/instanceAndStaticMembers/typeOfThisInStaticMembers11.ts",
+        "bytes": 1013,
+        "sha256": "5a8df1e99fe1fe09922b712e294abe3cef75f7fa10eea7b768f5cfda593ce95d",
+        "git_blob_sha1": "0cac84a08b8fc0bdcee722555b55d41b1d035006"
+      },
+      "module_state": "absent-effective-ESNext",
+      "input": {
+        "current_directory": "/.src",
+        "roots": [
+          "/.src/typeOfThisInStaticMembers11.ts"
+        ],
+        "settings": [
+          {
+            "name": "target",
+            "value": "esnext"
+          },
+          {
+            "name": "experimentalDecorators",
+            "value": "true"
+          },
+          {
+            "name": "useDefineForClassFields",
+            "value": "true"
+          }
+        ],
+        "virtual_config": null,
+        "files": [
+          {
+            "unit": 0,
+            "path": "/.src/typeOfThisInStaticMembers11.ts",
+            "utf8_base64": "ZGVjbGFyZSBjb25zdCBmb286IGFueTsKCkBmb28KY2xhc3MgQyB7CiAgICBzdGF0aWMgYSA9IDE7CiAgICBzdGF0aWMgYiA9IHRoaXMuYSArIDE7Cn0KCkBmb28KY2xhc3MgRCBleHRlbmRzIEMgewogICAgc3RhdGljIGMgPSAyOwogICAgc3RhdGljIGQgPSB0aGlzLmMgKyAxOwogICAgc3RhdGljIGUgPSBzdXBlci5hICsgdGhpcy5jICsgMTsKICAgIHN0YXRpYyBmID0gKCkgPT4gdGhpcy5jICsgMTsKICAgIHN0YXRpYyBmZiA9IGZ1bmN0aW9uICgpIHsgdGhpcy5jICsgMSB9CiAgICBzdGF0aWMgZm9vICgpIHsKICAgICAgICByZXR1cm4gdGhpcy5jICsgMTsKICAgIH0KICAgIHN0YXRpYyBnZXQgZmEgKCkgewogICAgICAgIHJldHVybiB0aGlzLmMgKyAxOwogICAgfQogICAgc3RhdGljIHNldCBmYSAodjogbnVtYmVyKSB7CiAgICAgICAgdGhpcy5jID0gdiArIDE7CiAgICB9Cn0KCmNsYXNzIENDIHsKICAgIHN0YXRpYyBhID0gMTsKICAgIHN0YXRpYyBiID0gdGhpcy5hICsgMTsKfQoKY2xhc3MgREQgZXh0ZW5kcyBDQyB7CiAgICBzdGF0aWMgYyA9IDI7CiAgICBzdGF0aWMgZCA9IHRoaXMuYyArIDE7CiAgICBzdGF0aWMgZSA9IHN1cGVyLmEgKyB0aGlzLmMgKyAxOwogICAgc3RhdGljIGYgPSAoKSA9PiB0aGlzLmMgKyAxOwogICAgc3RhdGljIGZmID0gZnVuY3Rpb24gKCkgeyB0aGlzLmMgKyAxIH0KICAgIHN0YXRpYyBmb28gKCkgewogICAgICAgIHJldHVybiB0aGlzLmMgKyAxOwogICAgfQogICAgc3RhdGljIGdldCBmYSAoKSB7CiAgICAgICAgcmV0dXJuIHRoaXMuYyArIDE7CiAgICB9CiAgICBzdGF0aWMgc2V0IGZhICh2OiBudW1iZXIpIHsKICAgICAgICB0aGlzLmMgPSB2ICsgMTsKICAgIH0KfQo=",
+            "utf8_sha256": "8f91890fc1367703ede96f52ae06e7dcdbb6a01fdb96cfcdc5603e39446ffbef",
+            "utf8_bytes": 857
+          }
+        ]
+      },
+      "files": [
+        {
+          "unit": 0,
+          "path": "/.src/typeOfThisInStaticMembers11.ts",
+          "script_kind": "TS",
+          "declaration_file": false,
+          "emit_eligible": true,
+          "implied_module_format": "None",
+          "emit_module_format": 99,
+          "feature_roots": [
+            {
+              "feature": "decorators",
+              "start": 25,
+              "end": 86,
+              "kind": "ClassDeclaration"
+            },
+            {
+              "feature": "decorators",
+              "start": 88,
+              "end": 443,
+              "kind": "ClassDeclaration"
+            }
+          ],
+          "parse_diagnostic_codes": [],
+          "max_ast_depth": 9,
+          "import_attributes": false,
+          "advanced_comment_placement": false,
+          "text_sha256": "8f91890fc1367703ede96f52ae06e7dcdbb6a01fdb96cfcdc5603e39446ffbef"
+        }
+      ],
+      "owner_reachability": [
+        "transform-legacy-decorators"
+      ],
+      "disposition": "admitted-for-execution",
+      "required_slices": [],
+      "diagnostic_disposition": {
+        "state": "exact-required"
+      },
+      "typescript_runs": [
+        {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/.src/typeOfThisInStaticMembers11.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIF9fZGVjb3JhdGUgPSAodGhpcyAmJiB0aGlzLl9fZGVjb3JhdGUpIHx8IGZ1bmN0aW9uIChkZWNvcmF0b3JzLCB0YXJnZXQsIGtleSwgZGVzYykgew0KICAgIHZhciBjID0gYXJndW1lbnRzLmxlbmd0aCwgciA9IGMgPCAzID8gdGFyZ2V0IDogZGVzYyA9PT0gbnVsbCA/IGRlc2MgPSBPYmplY3QuZ2V0T3duUHJvcGVydHlEZXNjcmlwdG9yKHRhcmdldCwga2V5KSA6IGRlc2MsIGQ7DQogICAgaWYgKHR5cGVvZiBSZWZsZWN0ID09PSAib2JqZWN0IiAmJiB0eXBlb2YgUmVmbGVjdC5kZWNvcmF0ZSA9PT0gImZ1bmN0aW9uIikgciA9IFJlZmxlY3QuZGVjb3JhdGUoZGVjb3JhdG9ycywgdGFyZ2V0LCBrZXksIGRlc2MpOw0KICAgIGVsc2UgZm9yICh2YXIgaSA9IGRlY29yYXRvcnMubGVuZ3RoIC0gMTsgaSA+PSAwOyBpLS0pIGlmIChkID0gZGVjb3JhdG9yc1tpXSkgciA9IChjIDwgMyA/IGQocikgOiBjID4gMyA/IGQodGFyZ2V0LCBrZXksIHIpIDogZCh0YXJnZXQsIGtleSkpIHx8IHI7DQogICAgcmV0dXJuIGMgPiAzICYmIHIgJiYgT2JqZWN0LmRlZmluZVByb3BlcnR5KHRhcmdldCwga2V5LCByKSwgcjsNCn07DQpsZXQgQyA9IGNsYXNzIEMgew0KICAgIHN0YXRpYyBhID0gMTsNCiAgICBzdGF0aWMgYiA9IHRoaXMuYSArIDE7DQp9Ow0KQyA9IF9fZGVjb3JhdGUoWw0KICAgIGZvbw0KXSwgQyk7DQpsZXQgRCA9IGNsYXNzIEQgZXh0ZW5kcyBDIHsNCiAgICBzdGF0aWMgYyA9IDI7DQogICAgc3RhdGljIGQgPSB0aGlzLmMgKyAxOw0KICAgIHN0YXRpYyBlID0gc3VwZXIuYSArIHRoaXMuYyArIDE7DQogICAgc3RhdGljIGYgPSAoKSA9PiB0aGlzLmMgKyAxOw0KICAgIHN0YXRpYyBmZiA9IGZ1bmN0aW9uICgpIHsgdGhpcy5jICsgMTsgfTsNCiAgICBzdGF0aWMgZm9vKCkgew0KICAgICAgICByZXR1cm4gdGhpcy5jICsgMTsNCiAgICB9DQogICAgc3RhdGljIGdldCBmYSgpIHsNCiAgICAgICAgcmV0dXJuIHRoaXMuYyArIDE7DQogICAgfQ0KICAgIHN0YXRpYyBzZXQgZmEodikgew0KICAgICAgICB0aGlzLmMgPSB2ICsgMTsNCiAgICB9DQp9Ow0KRCA9IF9fZGVjb3JhdGUoWw0KICAgIGZvbw0KXSwgRCk7DQpjbGFzcyBDQyB7DQogICAgc3RhdGljIGEgPSAxOw0KICAgIHN0YXRpYyBiID0gdGhpcy5hICsgMTsNCn0NCmNsYXNzIEREIGV4dGVuZHMgQ0Mgew0KICAgIHN0YXRpYyBjID0gMjsNCiAgICBzdGF0aWMgZCA9IHRoaXMuYyArIDE7DQogICAgc3RhdGljIGUgPSBzdXBlci5hICsgdGhpcy5jICsgMTsNCiAgICBzdGF0aWMgZiA9ICgpID0+IHRoaXMuYyArIDE7DQogICAgc3RhdGljIGZmID0gZnVuY3Rpb24gKCkgeyB0aGlzLmMgKyAxOyB9Ow0KICAgIHN0YXRpYyBmb28oKSB7DQogICAgICAgIHJldHVybiB0aGlzLmMgKyAxOw0KICAgIH0NCiAgICBzdGF0aWMgZ2V0IGZhKCkgew0KICAgICAgICByZXR1cm4gdGhpcy5jICsgMTsNCiAgICB9DQogICAgc3RhdGljIHNldCBmYSh2KSB7DQogICAgICAgIHRoaXMuYyA9IHYgKyAxOw0KICAgIH0NCn0NCg==",
+              "callback_utf8_sha256": "ee936b6573712f3b1f2af57d7aaa7b34f3d5446fbd973f97e1f59d09cba2cef6",
+              "callback_utf8_bytes": 1522,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "ee936b6573712f3b1f2af57d7aaa7b34f3d5446fbd973f97e1f59d09cba2cef6",
+              "materialized_utf8_bytes": 1522,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/typeOfThisInStaticMembers11.ts"
+              ]
+            }
+          ],
+          "reported_diagnostics": [
+            {
+              "code": 2816,
+              "category": "Error",
+              "file": "/.src/typeOfThisInStaticMembers11.ts",
+              "start": 73,
+              "length": 4,
+              "message": "Cannot use 'this' in a static property initializer of a decorated class."
+            },
+            {
+              "code": 2816,
+              "category": "Error",
+              "file": "/.src/typeOfThisInStaticMembers11.ts",
+              "start": 146,
+              "length": 4,
+              "message": "Cannot use 'this' in a static property initializer of a decorated class."
+            },
+            {
+              "code": 2816,
+              "category": "Error",
+              "file": "/.src/typeOfThisInStaticMembers11.ts",
+              "start": 183,
+              "length": 4,
+              "message": "Cannot use 'this' in a static property initializer of a decorated class."
+            },
+            {
+              "code": 2816,
+              "category": "Error",
+              "file": "/.src/typeOfThisInStaticMembers11.ts",
+              "start": 216,
+              "length": 4,
+              "message": "Cannot use 'this' in a static property initializer of a decorated class."
+            },
+            {
+              "code": 2683,
+              "category": "Error",
+              "file": "/.src/typeOfThisInStaticMembers11.ts",
+              "start": 258,
+              "length": 4,
+              "message": "'this' implicitly has type 'any' because it does not have a type annotation."
+            },
+            {
+              "code": 2683,
+              "category": "Error",
+              "file": "/.src/typeOfThisInStaticMembers11.ts",
+              "start": 671,
+              "length": 4,
+              "message": "'this' implicitly has type 'any' because it does not have a type annotation."
+            }
+          ],
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 2,
+          "run_fingerprint_sha256": "ebffefaa01680f4fd1264bdb94c76cf1d3c1fbca0f5b3a895483e22d78a3f322"
+        },
+        {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/.src/typeOfThisInStaticMembers11.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIF9fZGVjb3JhdGUgPSAodGhpcyAmJiB0aGlzLl9fZGVjb3JhdGUpIHx8IGZ1bmN0aW9uIChkZWNvcmF0b3JzLCB0YXJnZXQsIGtleSwgZGVzYykgew0KICAgIHZhciBjID0gYXJndW1lbnRzLmxlbmd0aCwgciA9IGMgPCAzID8gdGFyZ2V0IDogZGVzYyA9PT0gbnVsbCA/IGRlc2MgPSBPYmplY3QuZ2V0T3duUHJvcGVydHlEZXNjcmlwdG9yKHRhcmdldCwga2V5KSA6IGRlc2MsIGQ7DQogICAgaWYgKHR5cGVvZiBSZWZsZWN0ID09PSAib2JqZWN0IiAmJiB0eXBlb2YgUmVmbGVjdC5kZWNvcmF0ZSA9PT0gImZ1bmN0aW9uIikgciA9IFJlZmxlY3QuZGVjb3JhdGUoZGVjb3JhdG9ycywgdGFyZ2V0LCBrZXksIGRlc2MpOw0KICAgIGVsc2UgZm9yICh2YXIgaSA9IGRlY29yYXRvcnMubGVuZ3RoIC0gMTsgaSA+PSAwOyBpLS0pIGlmIChkID0gZGVjb3JhdG9yc1tpXSkgciA9IChjIDwgMyA/IGQocikgOiBjID4gMyA/IGQodGFyZ2V0LCBrZXksIHIpIDogZCh0YXJnZXQsIGtleSkpIHx8IHI7DQogICAgcmV0dXJuIGMgPiAzICYmIHIgJiYgT2JqZWN0LmRlZmluZVByb3BlcnR5KHRhcmdldCwga2V5LCByKSwgcjsNCn07DQpsZXQgQyA9IGNsYXNzIEMgew0KICAgIHN0YXRpYyBhID0gMTsNCiAgICBzdGF0aWMgYiA9IHRoaXMuYSArIDE7DQp9Ow0KQyA9IF9fZGVjb3JhdGUoWw0KICAgIGZvbw0KXSwgQyk7DQpsZXQgRCA9IGNsYXNzIEQgZXh0ZW5kcyBDIHsNCiAgICBzdGF0aWMgYyA9IDI7DQogICAgc3RhdGljIGQgPSB0aGlzLmMgKyAxOw0KICAgIHN0YXRpYyBlID0gc3VwZXIuYSArIHRoaXMuYyArIDE7DQogICAgc3RhdGljIGYgPSAoKSA9PiB0aGlzLmMgKyAxOw0KICAgIHN0YXRpYyBmZiA9IGZ1bmN0aW9uICgpIHsgdGhpcy5jICsgMTsgfTsNCiAgICBzdGF0aWMgZm9vKCkgew0KICAgICAgICByZXR1cm4gdGhpcy5jICsgMTsNCiAgICB9DQogICAgc3RhdGljIGdldCBmYSgpIHsNCiAgICAgICAgcmV0dXJuIHRoaXMuYyArIDE7DQogICAgfQ0KICAgIHN0YXRpYyBzZXQgZmEodikgew0KICAgICAgICB0aGlzLmMgPSB2ICsgMTsNCiAgICB9DQp9Ow0KRCA9IF9fZGVjb3JhdGUoWw0KICAgIGZvbw0KXSwgRCk7DQpjbGFzcyBDQyB7DQogICAgc3RhdGljIGEgPSAxOw0KICAgIHN0YXRpYyBiID0gdGhpcy5hICsgMTsNCn0NCmNsYXNzIEREIGV4dGVuZHMgQ0Mgew0KICAgIHN0YXRpYyBjID0gMjsNCiAgICBzdGF0aWMgZCA9IHRoaXMuYyArIDE7DQogICAgc3RhdGljIGUgPSBzdXBlci5hICsgdGhpcy5jICsgMTsNCiAgICBzdGF0aWMgZiA9ICgpID0+IHRoaXMuYyArIDE7DQogICAgc3RhdGljIGZmID0gZnVuY3Rpb24gKCkgeyB0aGlzLmMgKyAxOyB9Ow0KICAgIHN0YXRpYyBmb28oKSB7DQogICAgICAgIHJldHVybiB0aGlzLmMgKyAxOw0KICAgIH0NCiAgICBzdGF0aWMgZ2V0IGZhKCkgew0KICAgICAgICByZXR1cm4gdGhpcy5jICsgMTsNCiAgICB9DQogICAgc3RhdGljIHNldCBmYSh2KSB7DQogICAgICAgIHRoaXMuYyA9IHYgKyAxOw0KICAgIH0NCn0NCg==",
+              "callback_utf8_sha256": "ee936b6573712f3b1f2af57d7aaa7b34f3d5446fbd973f97e1f59d09cba2cef6",
+              "callback_utf8_bytes": 1522,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "ee936b6573712f3b1f2af57d7aaa7b34f3d5446fbd973f97e1f59d09cba2cef6",
+              "materialized_utf8_bytes": 1522,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/typeOfThisInStaticMembers11.ts"
+              ]
+            }
+          ],
+          "reported_diagnostics": [
+            {
+              "code": 2816,
+              "category": "Error",
+              "file": "/.src/typeOfThisInStaticMembers11.ts",
+              "start": 73,
+              "length": 4,
+              "message": "Cannot use 'this' in a static property initializer of a decorated class."
+            },
+            {
+              "code": 2816,
+              "category": "Error",
+              "file": "/.src/typeOfThisInStaticMembers11.ts",
+              "start": 146,
+              "length": 4,
+              "message": "Cannot use 'this' in a static property initializer of a decorated class."
+            },
+            {
+              "code": 2816,
+              "category": "Error",
+              "file": "/.src/typeOfThisInStaticMembers11.ts",
+              "start": 183,
+              "length": 4,
+              "message": "Cannot use 'this' in a static property initializer of a decorated class."
+            },
+            {
+              "code": 2816,
+              "category": "Error",
+              "file": "/.src/typeOfThisInStaticMembers11.ts",
+              "start": 216,
+              "length": 4,
+              "message": "Cannot use 'this' in a static property initializer of a decorated class."
+            },
+            {
+              "code": 2683,
+              "category": "Error",
+              "file": "/.src/typeOfThisInStaticMembers11.ts",
+              "start": 258,
+              "length": 4,
+              "message": "'this' implicitly has type 'any' because it does not have a type annotation."
+            },
+            {
+              "code": 2683,
+              "category": "Error",
+              "file": "/.src/typeOfThisInStaticMembers11.ts",
+              "start": 671,
+              "length": 4,
+              "message": "'this' implicitly has type 'any' because it does not have a type annotation."
+            }
+          ],
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 2,
+          "run_fingerprint_sha256": "ebffefaa01680f4fd1264bdb94c76cf1d3c1fbca0f5b3a895483e22d78a3f322"
+        }
+      ],
+      "rust_expectation": "two-deterministic-exact-runs",
+      "case_fingerprint_sha256": "a338bb12790e157e0cd07e14d0ff1009bdd2bb70727bbf2b58cf30058f2fc74d"
+    },
+    {
+      "suite": "conformance",
+      "case_id": "typescript-6.0.3/conformance/classes/propertyMemberDeclarations/autoAccessorExperimentalDecorators.ts#target%3Desnext",
+      "expansion_case": 870,
+      "source": {
+        "path": "classes/propertyMemberDeclarations/autoAccessorExperimentalDecorators.ts",
+        "bytes": 339,
+        "sha256": "d9337d1c24a04b3eb6631d9838d95345bc3162d43ba4e01202b02223cd9b3121",
+        "git_blob_sha1": "525beec0d4b3393c1b622c601866c329a05f955a"
+      },
+      "module_state": "absent-effective-ESNext",
+      "input": {
+        "current_directory": "/.src",
+        "roots": [
+          "/.src/autoAccessorExperimentalDecorators.ts"
+        ],
+        "settings": [
+          {
+            "name": "target",
+            "value": "esnext"
+          },
+          {
+            "name": "experimentalDecorators",
+            "value": "true"
+          }
+        ],
+        "virtual_config": null,
+        "files": [
+          {
+            "unit": 0,
+            "path": "/.src/autoAccessorExperimentalDecorators.ts",
+            "utf8_base64": "ZGVjbGFyZSB2YXIgZGVjOiAodGFyZ2V0OiBhbnksIGtleTogUHJvcGVydHlLZXksIGRlc2M6IFByb3BlcnR5RGVzY3JpcHRvcikgPT4gdm9pZDsKCmNsYXNzIEMxIHsKICAgIEBkZWMKICAgIGFjY2Vzc29yIGE6IGFueTsKCiAgICBAZGVjCiAgICBzdGF0aWMgYWNjZXNzb3IgYjogYW55Owp9CgpjbGFzcyBDMiB7CiAgICBAZGVjCiAgICBhY2Nlc3NvciAjYTogYW55OwoKICAgIEBkZWMKICAgIHN0YXRpYyBhY2Nlc3NvciAjYjogYW55Owp9Cg==",
+            "utf8_sha256": "1a83df6354a8b103f2e463e0b5934b2747fd322e6fc0f49cef504e243f43088f",
+            "utf8_bytes": 250
+          }
+        ]
+      },
+      "files": [
+        {
+          "unit": 0,
+          "path": "/.src/autoAccessorExperimentalDecorators.ts",
+          "script_kind": "TS",
+          "declaration_file": false,
+          "emit_eligible": true,
+          "implied_module_format": "None",
+          "emit_module_format": 99,
+          "feature_roots": [
+            {
+              "feature": "decorators",
+              "start": 100,
+              "end": 125,
+              "kind": "PropertyDeclaration"
+            },
+            {
+              "feature": "decorators",
+              "start": 131,
+              "end": 163,
+              "kind": "PropertyDeclaration"
+            },
+            {
+              "feature": "decorators",
+              "start": 182,
+              "end": 208,
+              "kind": "PropertyDeclaration"
+            },
+            {
+              "feature": "decorators",
+              "start": 214,
+              "end": 247,
+              "kind": "PropertyDeclaration"
+            }
+          ],
+          "parse_diagnostic_codes": [],
+          "max_ast_depth": 8,
+          "import_attributes": false,
+          "advanced_comment_placement": false,
+          "text_sha256": "1a83df6354a8b103f2e463e0b5934b2747fd322e6fc0f49cef504e243f43088f"
+        }
+      ],
+      "owner_reachability": [
+        "transform-legacy-decorators"
+      ],
+      "disposition": "admitted-for-execution",
+      "required_slices": [],
+      "diagnostic_disposition": {
+        "state": "exact-required"
+      },
+      "typescript_runs": [
+        {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/.src/autoAccessorExperimentalDecorators.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIF9fZGVjb3JhdGUgPSAodGhpcyAmJiB0aGlzLl9fZGVjb3JhdGUpIHx8IGZ1bmN0aW9uIChkZWNvcmF0b3JzLCB0YXJnZXQsIGtleSwgZGVzYykgew0KICAgIHZhciBjID0gYXJndW1lbnRzLmxlbmd0aCwgciA9IGMgPCAzID8gdGFyZ2V0IDogZGVzYyA9PT0gbnVsbCA/IGRlc2MgPSBPYmplY3QuZ2V0T3duUHJvcGVydHlEZXNjcmlwdG9yKHRhcmdldCwga2V5KSA6IGRlc2MsIGQ7DQogICAgaWYgKHR5cGVvZiBSZWZsZWN0ID09PSAib2JqZWN0IiAmJiB0eXBlb2YgUmVmbGVjdC5kZWNvcmF0ZSA9PT0gImZ1bmN0aW9uIikgciA9IFJlZmxlY3QuZGVjb3JhdGUoZGVjb3JhdG9ycywgdGFyZ2V0LCBrZXksIGRlc2MpOw0KICAgIGVsc2UgZm9yICh2YXIgaSA9IGRlY29yYXRvcnMubGVuZ3RoIC0gMTsgaSA+PSAwOyBpLS0pIGlmIChkID0gZGVjb3JhdG9yc1tpXSkgciA9IChjIDwgMyA/IGQocikgOiBjID4gMyA/IGQodGFyZ2V0LCBrZXksIHIpIDogZCh0YXJnZXQsIGtleSkpIHx8IHI7DQogICAgcmV0dXJuIGMgPiAzICYmIHIgJiYgT2JqZWN0LmRlZmluZVByb3BlcnR5KHRhcmdldCwga2V5LCByKSwgcjsNCn07DQpjbGFzcyBDMSB7DQogICAgYWNjZXNzb3IgYTsNCiAgICBzdGF0aWMgYWNjZXNzb3IgYjsNCn0NCl9fZGVjb3JhdGUoWw0KICAgIGRlYw0KXSwgQzEucHJvdG90eXBlLCAiYSIsIG51bGwpOw0KX19kZWNvcmF0ZShbDQogICAgZGVjDQpdLCBDMSwgImIiLCBudWxsKTsNCmNsYXNzIEMyIHsNCiAgICBhY2Nlc3NvciAjYTsNCiAgICBzdGF0aWMgYWNjZXNzb3IgI2I7DQp9DQo=",
+              "callback_utf8_sha256": "bfeac76cd3a7f0268a4a2ea29861230c55cdde57ecdac49c1d1c0d6bc1d892e9",
+              "callback_utf8_bytes": 803,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "bfeac76cd3a7f0268a4a2ea29861230c55cdde57ecdac49c1d1c0d6bc1d892e9",
+              "materialized_utf8_bytes": 803,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/autoAccessorExperimentalDecorators.ts"
+              ]
+            }
+          ],
+          "reported_diagnostics": [
+            {
+              "code": 1206,
+              "category": "Error",
+              "file": "/.src/autoAccessorExperimentalDecorators.ts",
+              "start": 182,
+              "length": 1,
+              "message": "Decorators are not valid here."
+            },
+            {
+              "code": 1206,
+              "category": "Error",
+              "file": "/.src/autoAccessorExperimentalDecorators.ts",
+              "start": 214,
+              "length": 1,
+              "message": "Decorators are not valid here."
+            }
+          ],
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 2,
+          "run_fingerprint_sha256": "7df7c090b83ba0e1242f03646a806f250eafa490f3139896df2bed8f78c122ba"
+        },
+        {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/.src/autoAccessorExperimentalDecorators.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIF9fZGVjb3JhdGUgPSAodGhpcyAmJiB0aGlzLl9fZGVjb3JhdGUpIHx8IGZ1bmN0aW9uIChkZWNvcmF0b3JzLCB0YXJnZXQsIGtleSwgZGVzYykgew0KICAgIHZhciBjID0gYXJndW1lbnRzLmxlbmd0aCwgciA9IGMgPCAzID8gdGFyZ2V0IDogZGVzYyA9PT0gbnVsbCA/IGRlc2MgPSBPYmplY3QuZ2V0T3duUHJvcGVydHlEZXNjcmlwdG9yKHRhcmdldCwga2V5KSA6IGRlc2MsIGQ7DQogICAgaWYgKHR5cGVvZiBSZWZsZWN0ID09PSAib2JqZWN0IiAmJiB0eXBlb2YgUmVmbGVjdC5kZWNvcmF0ZSA9PT0gImZ1bmN0aW9uIikgciA9IFJlZmxlY3QuZGVjb3JhdGUoZGVjb3JhdG9ycywgdGFyZ2V0LCBrZXksIGRlc2MpOw0KICAgIGVsc2UgZm9yICh2YXIgaSA9IGRlY29yYXRvcnMubGVuZ3RoIC0gMTsgaSA+PSAwOyBpLS0pIGlmIChkID0gZGVjb3JhdG9yc1tpXSkgciA9IChjIDwgMyA/IGQocikgOiBjID4gMyA/IGQodGFyZ2V0LCBrZXksIHIpIDogZCh0YXJnZXQsIGtleSkpIHx8IHI7DQogICAgcmV0dXJuIGMgPiAzICYmIHIgJiYgT2JqZWN0LmRlZmluZVByb3BlcnR5KHRhcmdldCwga2V5LCByKSwgcjsNCn07DQpjbGFzcyBDMSB7DQogICAgYWNjZXNzb3IgYTsNCiAgICBzdGF0aWMgYWNjZXNzb3IgYjsNCn0NCl9fZGVjb3JhdGUoWw0KICAgIGRlYw0KXSwgQzEucHJvdG90eXBlLCAiYSIsIG51bGwpOw0KX19kZWNvcmF0ZShbDQogICAgZGVjDQpdLCBDMSwgImIiLCBudWxsKTsNCmNsYXNzIEMyIHsNCiAgICBhY2Nlc3NvciAjYTsNCiAgICBzdGF0aWMgYWNjZXNzb3IgI2I7DQp9DQo=",
+              "callback_utf8_sha256": "bfeac76cd3a7f0268a4a2ea29861230c55cdde57ecdac49c1d1c0d6bc1d892e9",
+              "callback_utf8_bytes": 803,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "bfeac76cd3a7f0268a4a2ea29861230c55cdde57ecdac49c1d1c0d6bc1d892e9",
+              "materialized_utf8_bytes": 803,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/autoAccessorExperimentalDecorators.ts"
+              ]
+            }
+          ],
+          "reported_diagnostics": [
+            {
+              "code": 1206,
+              "category": "Error",
+              "file": "/.src/autoAccessorExperimentalDecorators.ts",
+              "start": 182,
+              "length": 1,
+              "message": "Decorators are not valid here."
+            },
+            {
+              "code": 1206,
+              "category": "Error",
+              "file": "/.src/autoAccessorExperimentalDecorators.ts",
+              "start": 214,
+              "length": 1,
+              "message": "Decorators are not valid here."
+            }
+          ],
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 2,
+          "run_fingerprint_sha256": "7df7c090b83ba0e1242f03646a806f250eafa490f3139896df2bed8f78c122ba"
+        }
+      ],
+      "rust_expectation": "two-deterministic-exact-runs",
+      "case_fingerprint_sha256": "8005c60268612bbc02194927ab96fb61e67f6b4b8329c7add44d220c21dee0b9"
+    },
+    {
+      "suite": "conformance",
+      "case_id": "typescript-6.0.3/conformance/decorators/class/method/decoratorOnClassMethod14.ts#default",
+      "expansion_case": 1108,
+      "source": {
+        "path": "decorators/class/method/decoratorOnClassMethod14.ts",
+        "bytes": 229,
+        "sha256": "ba15f0184ca1de5e9ee79346be05e7af84d9592e8c4e1e792e3e4fc71dd34b0c",
+        "git_blob_sha1": "18f3df79bce0a18a06baa43957841e57ace6fc71"
+      },
+      "module_state": "absent-effective-ESNext",
+      "input": {
+        "current_directory": "/.src",
+        "roots": [
+          "/.src/decoratorOnClassMethod14.ts"
+        ],
+        "settings": [
+          {
+            "name": "target",
+            "value": "esnext"
+          },
+          {
+            "name": "experimentaldecorators",
+            "value": "true"
+          },
+          {
+            "name": "emitdecoratormetadata",
+            "value": "true"
+          }
+        ],
+        "virtual_config": null,
+        "files": [
+          {
+            "unit": 0,
+            "path": "/.src/decoratorOnClassMethod14.ts",
+            "utf8_base64": "ZGVjbGFyZSB2YXIgZGVjb3JhdG9yOiBhbnk7CgpjbGFzcyBGb28gewogICAgcHJpdmF0ZSBwcm9wID0gKCkgPT4gewogICAgICAgIHJldHVybiAwOwogICAgfQogICAgQGRlY29yYXRvcgogICAgZm9vKCkgewogICAgICAgIHJldHVybiAwOwogICAgfQp9Cg==",
+            "utf8_sha256": "1c112f76cc2bb962a6098c91dd012ed60d3fa872bbbe58dc254cec9f72b82a92",
+            "utf8_bytes": 145
+          }
+        ]
+      },
+      "files": [
+        {
+          "unit": 0,
+          "path": "/.src/decoratorOnClassMethod14.ts",
+          "script_kind": "TS",
+          "declaration_file": false,
+          "emit_eligible": true,
+          "implied_module_format": "None",
+          "emit_module_format": 99,
+          "feature_roots": [
+            {
+              "feature": "decorators",
+              "start": 96,
+              "end": 142,
+              "kind": "MethodDeclaration"
+            }
+          ],
+          "parse_diagnostic_codes": [],
+          "max_ast_depth": 7,
+          "import_attributes": false,
+          "advanced_comment_placement": false,
+          "text_sha256": "1c112f76cc2bb962a6098c91dd012ed60d3fa872bbbe58dc254cec9f72b82a92"
+        }
+      ],
+      "owner_reachability": [
+        "transform-legacy-decorators"
+      ],
+      "disposition": "admitted-for-execution",
+      "required_slices": [],
+      "diagnostic_disposition": {
+        "state": "exact-required"
+      },
+      "typescript_runs": [
+        {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/.src/decoratorOnClassMethod14.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIF9fZGVjb3JhdGUgPSAodGhpcyAmJiB0aGlzLl9fZGVjb3JhdGUpIHx8IGZ1bmN0aW9uIChkZWNvcmF0b3JzLCB0YXJnZXQsIGtleSwgZGVzYykgew0KICAgIHZhciBjID0gYXJndW1lbnRzLmxlbmd0aCwgciA9IGMgPCAzID8gdGFyZ2V0IDogZGVzYyA9PT0gbnVsbCA/IGRlc2MgPSBPYmplY3QuZ2V0T3duUHJvcGVydHlEZXNjcmlwdG9yKHRhcmdldCwga2V5KSA6IGRlc2MsIGQ7DQogICAgaWYgKHR5cGVvZiBSZWZsZWN0ID09PSAib2JqZWN0IiAmJiB0eXBlb2YgUmVmbGVjdC5kZWNvcmF0ZSA9PT0gImZ1bmN0aW9uIikgciA9IFJlZmxlY3QuZGVjb3JhdGUoZGVjb3JhdG9ycywgdGFyZ2V0LCBrZXksIGRlc2MpOw0KICAgIGVsc2UgZm9yICh2YXIgaSA9IGRlY29yYXRvcnMubGVuZ3RoIC0gMTsgaSA+PSAwOyBpLS0pIGlmIChkID0gZGVjb3JhdG9yc1tpXSkgciA9IChjIDwgMyA/IGQocikgOiBjID4gMyA/IGQodGFyZ2V0LCBrZXksIHIpIDogZCh0YXJnZXQsIGtleSkpIHx8IHI7DQogICAgcmV0dXJuIGMgPiAzICYmIHIgJiYgT2JqZWN0LmRlZmluZVByb3BlcnR5KHRhcmdldCwga2V5LCByKSwgcjsNCn07DQp2YXIgX19tZXRhZGF0YSA9ICh0aGlzICYmIHRoaXMuX19tZXRhZGF0YSkgfHwgZnVuY3Rpb24gKGssIHYpIHsNCiAgICBpZiAodHlwZW9mIFJlZmxlY3QgPT09ICJvYmplY3QiICYmIHR5cGVvZiBSZWZsZWN0Lm1ldGFkYXRhID09PSAiZnVuY3Rpb24iKSByZXR1cm4gUmVmbGVjdC5tZXRhZGF0YShrLCB2KTsNCn07DQpjbGFzcyBGb28gew0KICAgIHByb3AgPSAoKSA9PiB7DQogICAgICAgIHJldHVybiAwOw0KICAgIH07DQogICAgZm9vKCkgew0KICAgICAgICByZXR1cm4gMDsNCiAgICB9DQp9DQpfX2RlY29yYXRlKFsNCiAgICBkZWNvcmF0b3IsDQogICAgX19tZXRhZGF0YSgiZGVzaWduOnR5cGUiLCBGdW5jdGlvbiksDQogICAgX19tZXRhZGF0YSgiZGVzaWduOnBhcmFtdHlwZXMiLCBbXSksDQogICAgX19tZXRhZGF0YSgiZGVzaWduOnJldHVybnR5cGUiLCB2b2lkIDApDQpdLCBGb28ucHJvdG90eXBlLCAiZm9vIiwgbnVsbCk7DQo=",
+              "callback_utf8_sha256": "4aa4b960a6cf88e10b3138c70eb9604c5ffe2007507f218f426fd898921e66db",
+              "callback_utf8_bytes": 1067,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "4aa4b960a6cf88e10b3138c70eb9604c5ffe2007507f218f426fd898921e66db",
+              "materialized_utf8_bytes": 1067,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/decoratorOnClassMethod14.ts"
+              ]
+            }
+          ],
+          "reported_diagnostics": [],
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 0,
+          "run_fingerprint_sha256": "4954133f6ca10634f261943ccb8565ddd99b32ef4211be92b4365e3670172857"
+        },
+        {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/.src/decoratorOnClassMethod14.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIF9fZGVjb3JhdGUgPSAodGhpcyAmJiB0aGlzLl9fZGVjb3JhdGUpIHx8IGZ1bmN0aW9uIChkZWNvcmF0b3JzLCB0YXJnZXQsIGtleSwgZGVzYykgew0KICAgIHZhciBjID0gYXJndW1lbnRzLmxlbmd0aCwgciA9IGMgPCAzID8gdGFyZ2V0IDogZGVzYyA9PT0gbnVsbCA/IGRlc2MgPSBPYmplY3QuZ2V0T3duUHJvcGVydHlEZXNjcmlwdG9yKHRhcmdldCwga2V5KSA6IGRlc2MsIGQ7DQogICAgaWYgKHR5cGVvZiBSZWZsZWN0ID09PSAib2JqZWN0IiAmJiB0eXBlb2YgUmVmbGVjdC5kZWNvcmF0ZSA9PT0gImZ1bmN0aW9uIikgciA9IFJlZmxlY3QuZGVjb3JhdGUoZGVjb3JhdG9ycywgdGFyZ2V0LCBrZXksIGRlc2MpOw0KICAgIGVsc2UgZm9yICh2YXIgaSA9IGRlY29yYXRvcnMubGVuZ3RoIC0gMTsgaSA+PSAwOyBpLS0pIGlmIChkID0gZGVjb3JhdG9yc1tpXSkgciA9IChjIDwgMyA/IGQocikgOiBjID4gMyA/IGQodGFyZ2V0LCBrZXksIHIpIDogZCh0YXJnZXQsIGtleSkpIHx8IHI7DQogICAgcmV0dXJuIGMgPiAzICYmIHIgJiYgT2JqZWN0LmRlZmluZVByb3BlcnR5KHRhcmdldCwga2V5LCByKSwgcjsNCn07DQp2YXIgX19tZXRhZGF0YSA9ICh0aGlzICYmIHRoaXMuX19tZXRhZGF0YSkgfHwgZnVuY3Rpb24gKGssIHYpIHsNCiAgICBpZiAodHlwZW9mIFJlZmxlY3QgPT09ICJvYmplY3QiICYmIHR5cGVvZiBSZWZsZWN0Lm1ldGFkYXRhID09PSAiZnVuY3Rpb24iKSByZXR1cm4gUmVmbGVjdC5tZXRhZGF0YShrLCB2KTsNCn07DQpjbGFzcyBGb28gew0KICAgIHByb3AgPSAoKSA9PiB7DQogICAgICAgIHJldHVybiAwOw0KICAgIH07DQogICAgZm9vKCkgew0KICAgICAgICByZXR1cm4gMDsNCiAgICB9DQp9DQpfX2RlY29yYXRlKFsNCiAgICBkZWNvcmF0b3IsDQogICAgX19tZXRhZGF0YSgiZGVzaWduOnR5cGUiLCBGdW5jdGlvbiksDQogICAgX19tZXRhZGF0YSgiZGVzaWduOnBhcmFtdHlwZXMiLCBbXSksDQogICAgX19tZXRhZGF0YSgiZGVzaWduOnJldHVybnR5cGUiLCB2b2lkIDApDQpdLCBGb28ucHJvdG90eXBlLCAiZm9vIiwgbnVsbCk7DQo=",
+              "callback_utf8_sha256": "4aa4b960a6cf88e10b3138c70eb9604c5ffe2007507f218f426fd898921e66db",
+              "callback_utf8_bytes": 1067,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "4aa4b960a6cf88e10b3138c70eb9604c5ffe2007507f218f426fd898921e66db",
+              "materialized_utf8_bytes": 1067,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/decoratorOnClassMethod14.ts"
+              ]
+            }
+          ],
+          "reported_diagnostics": [],
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 0,
+          "run_fingerprint_sha256": "4954133f6ca10634f261943ccb8565ddd99b32ef4211be92b4365e3670172857"
+        }
+      ],
+      "rust_expectation": "two-deterministic-exact-runs",
+      "case_fingerprint_sha256": "fc1773d450598a74ee51ee3cf1e35b48af1fbcf4aa020ad1de7947d5dcfafdc7"
+    },
+    {
+      "suite": "conformance",
+      "case_id": "typescript-6.0.3/conformance/decorators/class/method/decoratorOnClassMethod15.ts#default",
+      "expansion_case": 1109,
+      "source": {
+        "path": "decorators/class/method/decoratorOnClassMethod15.ts",
+        "bytes": 199,
+        "sha256": "ce620fa1c7998b68d2ff9a4a68349321455b5f74f0ba57ce53c71721f90c621e",
+        "git_blob_sha1": "70f86b1bbe3344d5a2372187e80eaf780f098d4b"
+      },
+      "module_state": "absent-effective-ESNext",
+      "input": {
+        "current_directory": "/.src",
+        "roots": [
+          "/.src/decoratorOnClassMethod15.ts"
+        ],
+        "settings": [
+          {
+            "name": "target",
+            "value": "esnext"
+          },
+          {
+            "name": "experimentaldecorators",
+            "value": "true"
+          },
+          {
+            "name": "emitdecoratormetadata",
+            "value": "true"
+          }
+        ],
+        "virtual_config": null,
+        "files": [
+          {
+            "unit": 0,
+            "path": "/.src/decoratorOnClassMethod15.ts",
+            "utf8_base64": "ZGVjbGFyZSB2YXIgZGVjb3JhdG9yOiBhbnk7CgpjbGFzcyBGb28gewogICAgcHJpdmF0ZSBwcm9wID0gMQogICAgQGRlY29yYXRvcgogICAgZm9vKCkgewogICAgICAgIHJldHVybiAwOwogICAgfQp9Cg==",
+            "utf8_sha256": "201814ed890b4e38850889c05d935bf168d0047d06e513d401aae8499fca61f6",
+            "utf8_bytes": 115
+          }
+        ]
+      },
+      "files": [
+        {
+          "unit": 0,
+          "path": "/.src/decoratorOnClassMethod15.ts",
+          "script_kind": "TS",
+          "declaration_file": false,
+          "emit_eligible": true,
+          "implied_module_format": "None",
+          "emit_module_format": 99,
+          "feature_roots": [
+            {
+              "feature": "decorators",
+              "start": 66,
+              "end": 112,
+              "kind": "MethodDeclaration"
+            }
+          ],
+          "parse_diagnostic_codes": [],
+          "max_ast_depth": 6,
+          "import_attributes": false,
+          "advanced_comment_placement": false,
+          "text_sha256": "201814ed890b4e38850889c05d935bf168d0047d06e513d401aae8499fca61f6"
+        }
+      ],
+      "owner_reachability": [
+        "transform-legacy-decorators"
+      ],
+      "disposition": "admitted-for-execution",
+      "required_slices": [],
+      "diagnostic_disposition": {
+        "state": "exact-required"
+      },
+      "typescript_runs": [
+        {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/.src/decoratorOnClassMethod15.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIF9fZGVjb3JhdGUgPSAodGhpcyAmJiB0aGlzLl9fZGVjb3JhdGUpIHx8IGZ1bmN0aW9uIChkZWNvcmF0b3JzLCB0YXJnZXQsIGtleSwgZGVzYykgew0KICAgIHZhciBjID0gYXJndW1lbnRzLmxlbmd0aCwgciA9IGMgPCAzID8gdGFyZ2V0IDogZGVzYyA9PT0gbnVsbCA/IGRlc2MgPSBPYmplY3QuZ2V0T3duUHJvcGVydHlEZXNjcmlwdG9yKHRhcmdldCwga2V5KSA6IGRlc2MsIGQ7DQogICAgaWYgKHR5cGVvZiBSZWZsZWN0ID09PSAib2JqZWN0IiAmJiB0eXBlb2YgUmVmbGVjdC5kZWNvcmF0ZSA9PT0gImZ1bmN0aW9uIikgciA9IFJlZmxlY3QuZGVjb3JhdGUoZGVjb3JhdG9ycywgdGFyZ2V0LCBrZXksIGRlc2MpOw0KICAgIGVsc2UgZm9yICh2YXIgaSA9IGRlY29yYXRvcnMubGVuZ3RoIC0gMTsgaSA+PSAwOyBpLS0pIGlmIChkID0gZGVjb3JhdG9yc1tpXSkgciA9IChjIDwgMyA/IGQocikgOiBjID4gMyA/IGQodGFyZ2V0LCBrZXksIHIpIDogZCh0YXJnZXQsIGtleSkpIHx8IHI7DQogICAgcmV0dXJuIGMgPiAzICYmIHIgJiYgT2JqZWN0LmRlZmluZVByb3BlcnR5KHRhcmdldCwga2V5LCByKSwgcjsNCn07DQp2YXIgX19tZXRhZGF0YSA9ICh0aGlzICYmIHRoaXMuX19tZXRhZGF0YSkgfHwgZnVuY3Rpb24gKGssIHYpIHsNCiAgICBpZiAodHlwZW9mIFJlZmxlY3QgPT09ICJvYmplY3QiICYmIHR5cGVvZiBSZWZsZWN0Lm1ldGFkYXRhID09PSAiZnVuY3Rpb24iKSByZXR1cm4gUmVmbGVjdC5tZXRhZGF0YShrLCB2KTsNCn07DQpjbGFzcyBGb28gew0KICAgIHByb3AgPSAxOw0KICAgIGZvbygpIHsNCiAgICAgICAgcmV0dXJuIDA7DQogICAgfQ0KfQ0KX19kZWNvcmF0ZShbDQogICAgZGVjb3JhdG9yLA0KICAgIF9fbWV0YWRhdGEoImRlc2lnbjp0eXBlIiwgRnVuY3Rpb24pLA0KICAgIF9fbWV0YWRhdGEoImRlc2lnbjpwYXJhbXR5cGVzIiwgW10pLA0KICAgIF9fbWV0YWRhdGEoImRlc2lnbjpyZXR1cm50eXBlIiwgdm9pZCAwKQ0KXSwgRm9vLnByb3RvdHlwZSwgImZvbyIsIG51bGwpOw0K",
+              "callback_utf8_sha256": "8b4fb158f4c038b01cfa340a6d0bbdfdccc29e23f28e5e6faed999f00b0caa52",
+              "callback_utf8_bytes": 1035,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "8b4fb158f4c038b01cfa340a6d0bbdfdccc29e23f28e5e6faed999f00b0caa52",
+              "materialized_utf8_bytes": 1035,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/decoratorOnClassMethod15.ts"
+              ]
+            }
+          ],
+          "reported_diagnostics": [],
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 0,
+          "run_fingerprint_sha256": "118c50d1328f7774a189db7944cddb3799d2c2bebecf24d9e730d1f902bd0b18"
+        },
+        {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/.src/decoratorOnClassMethod15.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIF9fZGVjb3JhdGUgPSAodGhpcyAmJiB0aGlzLl9fZGVjb3JhdGUpIHx8IGZ1bmN0aW9uIChkZWNvcmF0b3JzLCB0YXJnZXQsIGtleSwgZGVzYykgew0KICAgIHZhciBjID0gYXJndW1lbnRzLmxlbmd0aCwgciA9IGMgPCAzID8gdGFyZ2V0IDogZGVzYyA9PT0gbnVsbCA/IGRlc2MgPSBPYmplY3QuZ2V0T3duUHJvcGVydHlEZXNjcmlwdG9yKHRhcmdldCwga2V5KSA6IGRlc2MsIGQ7DQogICAgaWYgKHR5cGVvZiBSZWZsZWN0ID09PSAib2JqZWN0IiAmJiB0eXBlb2YgUmVmbGVjdC5kZWNvcmF0ZSA9PT0gImZ1bmN0aW9uIikgciA9IFJlZmxlY3QuZGVjb3JhdGUoZGVjb3JhdG9ycywgdGFyZ2V0LCBrZXksIGRlc2MpOw0KICAgIGVsc2UgZm9yICh2YXIgaSA9IGRlY29yYXRvcnMubGVuZ3RoIC0gMTsgaSA+PSAwOyBpLS0pIGlmIChkID0gZGVjb3JhdG9yc1tpXSkgciA9IChjIDwgMyA/IGQocikgOiBjID4gMyA/IGQodGFyZ2V0LCBrZXksIHIpIDogZCh0YXJnZXQsIGtleSkpIHx8IHI7DQogICAgcmV0dXJuIGMgPiAzICYmIHIgJiYgT2JqZWN0LmRlZmluZVByb3BlcnR5KHRhcmdldCwga2V5LCByKSwgcjsNCn07DQp2YXIgX19tZXRhZGF0YSA9ICh0aGlzICYmIHRoaXMuX19tZXRhZGF0YSkgfHwgZnVuY3Rpb24gKGssIHYpIHsNCiAgICBpZiAodHlwZW9mIFJlZmxlY3QgPT09ICJvYmplY3QiICYmIHR5cGVvZiBSZWZsZWN0Lm1ldGFkYXRhID09PSAiZnVuY3Rpb24iKSByZXR1cm4gUmVmbGVjdC5tZXRhZGF0YShrLCB2KTsNCn07DQpjbGFzcyBGb28gew0KICAgIHByb3AgPSAxOw0KICAgIGZvbygpIHsNCiAgICAgICAgcmV0dXJuIDA7DQogICAgfQ0KfQ0KX19kZWNvcmF0ZShbDQogICAgZGVjb3JhdG9yLA0KICAgIF9fbWV0YWRhdGEoImRlc2lnbjp0eXBlIiwgRnVuY3Rpb24pLA0KICAgIF9fbWV0YWRhdGEoImRlc2lnbjpwYXJhbXR5cGVzIiwgW10pLA0KICAgIF9fbWV0YWRhdGEoImRlc2lnbjpyZXR1cm50eXBlIiwgdm9pZCAwKQ0KXSwgRm9vLnByb3RvdHlwZSwgImZvbyIsIG51bGwpOw0K",
+              "callback_utf8_sha256": "8b4fb158f4c038b01cfa340a6d0bbdfdccc29e23f28e5e6faed999f00b0caa52",
+              "callback_utf8_bytes": 1035,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "8b4fb158f4c038b01cfa340a6d0bbdfdccc29e23f28e5e6faed999f00b0caa52",
+              "materialized_utf8_bytes": 1035,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/decoratorOnClassMethod15.ts"
+              ]
+            }
+          ],
+          "reported_diagnostics": [],
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 0,
+          "run_fingerprint_sha256": "118c50d1328f7774a189db7944cddb3799d2c2bebecf24d9e730d1f902bd0b18"
+        }
+      ],
+      "rust_expectation": "two-deterministic-exact-runs",
+      "case_fingerprint_sha256": "d5ba4267c092e5470be6de539fee5cfae7d02cc3773a3b70c433c2a8a239a9ec"
+    },
+    {
+      "suite": "conformance",
+      "case_id": "typescript-6.0.3/conformance/decorators/class/method/decoratorOnClassMethod16.ts#default",
+      "expansion_case": 1110,
+      "source": {
+        "path": "decorators/class/method/decoratorOnClassMethod16.ts",
+        "bytes": 213,
+        "sha256": "cd136115c87e442c56e9e90acc9d6c0a7d09b29a4a63e66149c32fe8ee3283a0",
+        "git_blob_sha1": "8d0a4b82a591826e96d6cb3142bc21370edb4235"
+      },
+      "module_state": "absent-effective-ESNext",
+      "input": {
+        "current_directory": "/.src",
+        "roots": [
+          "/.src/decoratorOnClassMethod16.ts"
+        ],
+        "settings": [
+          {
+            "name": "strict",
+            "value": "false"
+          },
+          {
+            "name": "target",
+            "value": "esnext"
+          },
+          {
+            "name": "experimentaldecorators",
+            "value": "true"
+          },
+          {
+            "name": "emitdecoratormetadata",
+            "value": "true"
+          }
+        ],
+        "virtual_config": null,
+        "files": [
+          {
+            "unit": 0,
+            "path": "/.src/decoratorOnClassMethod16.ts",
+            "utf8_base64": "ZGVjbGFyZSB2YXIgZGVjb3JhdG9yOiBhbnk7CgpjbGFzcyBGb28gewogICAgcHJpdmF0ZSBwcm9wCiAgICBAZGVjb3JhdG9yCiAgICBmb28oKSB7CiAgICAgICAgcmV0dXJuIDA7CiAgICB9Cn0K",
+            "utf8_sha256": "594f32e8d117b49c0e8c4d7cbce230c216c6d5e4ff348795e2b1120576ebaa86",
+            "utf8_bytes": 111
+          }
+        ]
+      },
+      "files": [
+        {
+          "unit": 0,
+          "path": "/.src/decoratorOnClassMethod16.ts",
+          "script_kind": "TS",
+          "declaration_file": false,
+          "emit_eligible": true,
+          "implied_module_format": "None",
+          "emit_module_format": 99,
+          "feature_roots": [
+            {
+              "feature": "decorators",
+              "start": 62,
+              "end": 108,
+              "kind": "MethodDeclaration"
+            }
+          ],
+          "parse_diagnostic_codes": [],
+          "max_ast_depth": 6,
+          "import_attributes": false,
+          "advanced_comment_placement": false,
+          "text_sha256": "594f32e8d117b49c0e8c4d7cbce230c216c6d5e4ff348795e2b1120576ebaa86"
+        }
+      ],
+      "owner_reachability": [
+        "transform-legacy-decorators"
+      ],
+      "disposition": "admitted-for-execution",
+      "required_slices": [],
+      "diagnostic_disposition": {
+        "state": "exact-required"
+      },
+      "typescript_runs": [
+        {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/.src/decoratorOnClassMethod16.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIF9fZGVjb3JhdGUgPSAodGhpcyAmJiB0aGlzLl9fZGVjb3JhdGUpIHx8IGZ1bmN0aW9uIChkZWNvcmF0b3JzLCB0YXJnZXQsIGtleSwgZGVzYykgew0KICAgIHZhciBjID0gYXJndW1lbnRzLmxlbmd0aCwgciA9IGMgPCAzID8gdGFyZ2V0IDogZGVzYyA9PT0gbnVsbCA/IGRlc2MgPSBPYmplY3QuZ2V0T3duUHJvcGVydHlEZXNjcmlwdG9yKHRhcmdldCwga2V5KSA6IGRlc2MsIGQ7DQogICAgaWYgKHR5cGVvZiBSZWZsZWN0ID09PSAib2JqZWN0IiAmJiB0eXBlb2YgUmVmbGVjdC5kZWNvcmF0ZSA9PT0gImZ1bmN0aW9uIikgciA9IFJlZmxlY3QuZGVjb3JhdGUoZGVjb3JhdG9ycywgdGFyZ2V0LCBrZXksIGRlc2MpOw0KICAgIGVsc2UgZm9yICh2YXIgaSA9IGRlY29yYXRvcnMubGVuZ3RoIC0gMTsgaSA+PSAwOyBpLS0pIGlmIChkID0gZGVjb3JhdG9yc1tpXSkgciA9IChjIDwgMyA/IGQocikgOiBjID4gMyA/IGQodGFyZ2V0LCBrZXksIHIpIDogZCh0YXJnZXQsIGtleSkpIHx8IHI7DQogICAgcmV0dXJuIGMgPiAzICYmIHIgJiYgT2JqZWN0LmRlZmluZVByb3BlcnR5KHRhcmdldCwga2V5LCByKSwgcjsNCn07DQp2YXIgX19tZXRhZGF0YSA9ICh0aGlzICYmIHRoaXMuX19tZXRhZGF0YSkgfHwgZnVuY3Rpb24gKGssIHYpIHsNCiAgICBpZiAodHlwZW9mIFJlZmxlY3QgPT09ICJvYmplY3QiICYmIHR5cGVvZiBSZWZsZWN0Lm1ldGFkYXRhID09PSAiZnVuY3Rpb24iKSByZXR1cm4gUmVmbGVjdC5tZXRhZGF0YShrLCB2KTsNCn07DQpjbGFzcyBGb28gew0KICAgIHByb3A7DQogICAgZm9vKCkgew0KICAgICAgICByZXR1cm4gMDsNCiAgICB9DQp9DQpfX2RlY29yYXRlKFsNCiAgICBkZWNvcmF0b3IsDQogICAgX19tZXRhZGF0YSgiZGVzaWduOnR5cGUiLCBGdW5jdGlvbiksDQogICAgX19tZXRhZGF0YSgiZGVzaWduOnBhcmFtdHlwZXMiLCBbXSksDQogICAgX19tZXRhZGF0YSgiZGVzaWduOnJldHVybnR5cGUiLCB2b2lkIDApDQpdLCBGb28ucHJvdG90eXBlLCAiZm9vIiwgbnVsbCk7DQo=",
+              "callback_utf8_sha256": "ab2730fd561bb34f976af48ddf899ecee6ab1e1a3bfc4ef821334f7380b50aa9",
+              "callback_utf8_bytes": 1031,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "ab2730fd561bb34f976af48ddf899ecee6ab1e1a3bfc4ef821334f7380b50aa9",
+              "materialized_utf8_bytes": 1031,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/decoratorOnClassMethod16.ts"
+              ]
+            }
+          ],
+          "reported_diagnostics": [],
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 0,
+          "run_fingerprint_sha256": "a0034baec5828c409e7ea6c088218652d576c2049a97b379404d8722e7218c78"
+        },
+        {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/.src/decoratorOnClassMethod16.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIF9fZGVjb3JhdGUgPSAodGhpcyAmJiB0aGlzLl9fZGVjb3JhdGUpIHx8IGZ1bmN0aW9uIChkZWNvcmF0b3JzLCB0YXJnZXQsIGtleSwgZGVzYykgew0KICAgIHZhciBjID0gYXJndW1lbnRzLmxlbmd0aCwgciA9IGMgPCAzID8gdGFyZ2V0IDogZGVzYyA9PT0gbnVsbCA/IGRlc2MgPSBPYmplY3QuZ2V0T3duUHJvcGVydHlEZXNjcmlwdG9yKHRhcmdldCwga2V5KSA6IGRlc2MsIGQ7DQogICAgaWYgKHR5cGVvZiBSZWZsZWN0ID09PSAib2JqZWN0IiAmJiB0eXBlb2YgUmVmbGVjdC5kZWNvcmF0ZSA9PT0gImZ1bmN0aW9uIikgciA9IFJlZmxlY3QuZGVjb3JhdGUoZGVjb3JhdG9ycywgdGFyZ2V0LCBrZXksIGRlc2MpOw0KICAgIGVsc2UgZm9yICh2YXIgaSA9IGRlY29yYXRvcnMubGVuZ3RoIC0gMTsgaSA+PSAwOyBpLS0pIGlmIChkID0gZGVjb3JhdG9yc1tpXSkgciA9IChjIDwgMyA/IGQocikgOiBjID4gMyA/IGQodGFyZ2V0LCBrZXksIHIpIDogZCh0YXJnZXQsIGtleSkpIHx8IHI7DQogICAgcmV0dXJuIGMgPiAzICYmIHIgJiYgT2JqZWN0LmRlZmluZVByb3BlcnR5KHRhcmdldCwga2V5LCByKSwgcjsNCn07DQp2YXIgX19tZXRhZGF0YSA9ICh0aGlzICYmIHRoaXMuX19tZXRhZGF0YSkgfHwgZnVuY3Rpb24gKGssIHYpIHsNCiAgICBpZiAodHlwZW9mIFJlZmxlY3QgPT09ICJvYmplY3QiICYmIHR5cGVvZiBSZWZsZWN0Lm1ldGFkYXRhID09PSAiZnVuY3Rpb24iKSByZXR1cm4gUmVmbGVjdC5tZXRhZGF0YShrLCB2KTsNCn07DQpjbGFzcyBGb28gew0KICAgIHByb3A7DQogICAgZm9vKCkgew0KICAgICAgICByZXR1cm4gMDsNCiAgICB9DQp9DQpfX2RlY29yYXRlKFsNCiAgICBkZWNvcmF0b3IsDQogICAgX19tZXRhZGF0YSgiZGVzaWduOnR5cGUiLCBGdW5jdGlvbiksDQogICAgX19tZXRhZGF0YSgiZGVzaWduOnBhcmFtdHlwZXMiLCBbXSksDQogICAgX19tZXRhZGF0YSgiZGVzaWduOnJldHVybnR5cGUiLCB2b2lkIDApDQpdLCBGb28ucHJvdG90eXBlLCAiZm9vIiwgbnVsbCk7DQo=",
+              "callback_utf8_sha256": "ab2730fd561bb34f976af48ddf899ecee6ab1e1a3bfc4ef821334f7380b50aa9",
+              "callback_utf8_bytes": 1031,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "ab2730fd561bb34f976af48ddf899ecee6ab1e1a3bfc4ef821334f7380b50aa9",
+              "materialized_utf8_bytes": 1031,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/decoratorOnClassMethod16.ts"
+              ]
+            }
+          ],
+          "reported_diagnostics": [],
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 0,
+          "run_fingerprint_sha256": "a0034baec5828c409e7ea6c088218652d576c2049a97b379404d8722e7218c78"
+        }
+      ],
+      "rust_expectation": "two-deterministic-exact-runs",
+      "case_fingerprint_sha256": "ff1fe231530b866fcd6763e3444fa42361f666117fe090658e8039ae9428b22b"
+    },
+    {
+      "suite": "conformance",
+      "case_id": "typescript-6.0.3/conformance/decorators/class/method/decoratorOnClassMethod17.ts#default",
+      "expansion_case": 1111,
+      "source": {
+        "path": "decorators/class/method/decoratorOnClassMethod17.ts",
+        "bytes": 209,
+        "sha256": "f8a7612b76f391bf1037fff1b77d17eb32a65cca37cfc6710e10989d49bfc92f",
+        "git_blob_sha1": "0e2a4620e2590976b1bf6fc3add22eb3e2e4c206"
+      },
+      "module_state": "absent-effective-ESNext",
+      "input": {
+        "current_directory": "/.src",
+        "roots": [
+          "/.src/decoratorOnClassMethod17.ts"
+        ],
+        "settings": [
+          {
+            "name": "strict",
+            "value": "false"
+          },
+          {
+            "name": "target",
+            "value": "esnext"
+          },
+          {
+            "name": "experimentaldecorators",
+            "value": "true"
+          },
+          {
+            "name": "emitdecoratormetadata",
+            "value": "true"
+          }
+        ],
+        "virtual_config": null,
+        "files": [
+          {
+            "unit": 0,
+            "path": "/.src/decoratorOnClassMethod17.ts",
+            "utf8_base64": "ZGVjbGFyZSB2YXIgZGVjb3JhdG9yOiBhbnk7CgpjbGFzcyBGb28gewogICAgcHJpdmF0ZSBwcm9wIEBkZWNvcmF0b3IKICAgIGZvbygpIHsKICAgICAgICByZXR1cm4gMDsKICAgIH0KfQo=",
+            "utf8_sha256": "bf378ecb93c2022daa4e962b0687331a04ab76c066886f6f8846d2d8bfb900db",
+            "utf8_bytes": 107
+          }
+        ]
+      },
+      "files": [
+        {
+          "unit": 0,
+          "path": "/.src/decoratorOnClassMethod17.ts",
+          "script_kind": "TS",
+          "declaration_file": false,
+          "emit_eligible": true,
+          "implied_module_format": "None",
+          "emit_module_format": 99,
+          "feature_roots": [
+            {
+              "feature": "decorators",
+              "start": 58,
+              "end": 104,
+              "kind": "MethodDeclaration"
+            }
+          ],
+          "parse_diagnostic_codes": [
+            1436
+          ],
+          "max_ast_depth": 6,
+          "import_attributes": false,
+          "advanced_comment_placement": false,
+          "text_sha256": "bf378ecb93c2022daa4e962b0687331a04ab76c066886f6f8846d2d8bfb900db"
+        }
+      ],
+      "owner_reachability": [
+        "transform-legacy-decorators"
+      ],
+      "disposition": "deferred-to-slices",
+      "required_slices": [
+        "H2.9"
+      ],
+      "diagnostic_disposition": {
+        "state": "not-observed-source-deferred"
+      },
+      "typescript_runs": [
+        {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/.src/decoratorOnClassMethod17.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIF9fZGVjb3JhdGUgPSAodGhpcyAmJiB0aGlzLl9fZGVjb3JhdGUpIHx8IGZ1bmN0aW9uIChkZWNvcmF0b3JzLCB0YXJnZXQsIGtleSwgZGVzYykgew0KICAgIHZhciBjID0gYXJndW1lbnRzLmxlbmd0aCwgciA9IGMgPCAzID8gdGFyZ2V0IDogZGVzYyA9PT0gbnVsbCA/IGRlc2MgPSBPYmplY3QuZ2V0T3duUHJvcGVydHlEZXNjcmlwdG9yKHRhcmdldCwga2V5KSA6IGRlc2MsIGQ7DQogICAgaWYgKHR5cGVvZiBSZWZsZWN0ID09PSAib2JqZWN0IiAmJiB0eXBlb2YgUmVmbGVjdC5kZWNvcmF0ZSA9PT0gImZ1bmN0aW9uIikgciA9IFJlZmxlY3QuZGVjb3JhdGUoZGVjb3JhdG9ycywgdGFyZ2V0LCBrZXksIGRlc2MpOw0KICAgIGVsc2UgZm9yICh2YXIgaSA9IGRlY29yYXRvcnMubGVuZ3RoIC0gMTsgaSA+PSAwOyBpLS0pIGlmIChkID0gZGVjb3JhdG9yc1tpXSkgciA9IChjIDwgMyA/IGQocikgOiBjID4gMyA/IGQodGFyZ2V0LCBrZXksIHIpIDogZCh0YXJnZXQsIGtleSkpIHx8IHI7DQogICAgcmV0dXJuIGMgPiAzICYmIHIgJiYgT2JqZWN0LmRlZmluZVByb3BlcnR5KHRhcmdldCwga2V5LCByKSwgcjsNCn07DQp2YXIgX19tZXRhZGF0YSA9ICh0aGlzICYmIHRoaXMuX19tZXRhZGF0YSkgfHwgZnVuY3Rpb24gKGssIHYpIHsNCiAgICBpZiAodHlwZW9mIFJlZmxlY3QgPT09ICJvYmplY3QiICYmIHR5cGVvZiBSZWZsZWN0Lm1ldGFkYXRhID09PSAiZnVuY3Rpb24iKSByZXR1cm4gUmVmbGVjdC5tZXRhZGF0YShrLCB2KTsNCn07DQpjbGFzcyBGb28gew0KICAgIHByb3A7DQogICAgZm9vKCkgew0KICAgICAgICByZXR1cm4gMDsNCiAgICB9DQp9DQpfX2RlY29yYXRlKFsNCiAgICBkZWNvcmF0b3IsDQogICAgX19tZXRhZGF0YSgiZGVzaWduOnR5cGUiLCBGdW5jdGlvbiksDQogICAgX19tZXRhZGF0YSgiZGVzaWduOnBhcmFtdHlwZXMiLCBbXSksDQogICAgX19tZXRhZGF0YSgiZGVzaWduOnJldHVybnR5cGUiLCB2b2lkIDApDQpdLCBGb28ucHJvdG90eXBlLCAiZm9vIiwgbnVsbCk7DQo=",
+              "callback_utf8_sha256": "ab2730fd561bb34f976af48ddf899ecee6ab1e1a3bfc4ef821334f7380b50aa9",
+              "callback_utf8_bytes": 1031,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "ab2730fd561bb34f976af48ddf899ecee6ab1e1a3bfc4ef821334f7380b50aa9",
+              "materialized_utf8_bytes": 1031,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/decoratorOnClassMethod17.ts"
+              ]
+            }
+          ],
+          "reported_diagnostics": [
+            {
+              "code": 1436,
+              "category": "Error",
+              "file": "/.src/decoratorOnClassMethod17.ts",
+              "start": 58,
+              "length": 1,
+              "message": "Decorators must precede the name and all keywords of property declarations."
+            }
+          ],
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 2,
+          "run_fingerprint_sha256": "8cdd084f17986830f3ba50b5e96d9c6e1bc3a4d7cb150b5fcd2074d3a9a3e4d0"
+        },
+        {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/.src/decoratorOnClassMethod17.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIF9fZGVjb3JhdGUgPSAodGhpcyAmJiB0aGlzLl9fZGVjb3JhdGUpIHx8IGZ1bmN0aW9uIChkZWNvcmF0b3JzLCB0YXJnZXQsIGtleSwgZGVzYykgew0KICAgIHZhciBjID0gYXJndW1lbnRzLmxlbmd0aCwgciA9IGMgPCAzID8gdGFyZ2V0IDogZGVzYyA9PT0gbnVsbCA/IGRlc2MgPSBPYmplY3QuZ2V0T3duUHJvcGVydHlEZXNjcmlwdG9yKHRhcmdldCwga2V5KSA6IGRlc2MsIGQ7DQogICAgaWYgKHR5cGVvZiBSZWZsZWN0ID09PSAib2JqZWN0IiAmJiB0eXBlb2YgUmVmbGVjdC5kZWNvcmF0ZSA9PT0gImZ1bmN0aW9uIikgciA9IFJlZmxlY3QuZGVjb3JhdGUoZGVjb3JhdG9ycywgdGFyZ2V0LCBrZXksIGRlc2MpOw0KICAgIGVsc2UgZm9yICh2YXIgaSA9IGRlY29yYXRvcnMubGVuZ3RoIC0gMTsgaSA+PSAwOyBpLS0pIGlmIChkID0gZGVjb3JhdG9yc1tpXSkgciA9IChjIDwgMyA/IGQocikgOiBjID4gMyA/IGQodGFyZ2V0LCBrZXksIHIpIDogZCh0YXJnZXQsIGtleSkpIHx8IHI7DQogICAgcmV0dXJuIGMgPiAzICYmIHIgJiYgT2JqZWN0LmRlZmluZVByb3BlcnR5KHRhcmdldCwga2V5LCByKSwgcjsNCn07DQp2YXIgX19tZXRhZGF0YSA9ICh0aGlzICYmIHRoaXMuX19tZXRhZGF0YSkgfHwgZnVuY3Rpb24gKGssIHYpIHsNCiAgICBpZiAodHlwZW9mIFJlZmxlY3QgPT09ICJvYmplY3QiICYmIHR5cGVvZiBSZWZsZWN0Lm1ldGFkYXRhID09PSAiZnVuY3Rpb24iKSByZXR1cm4gUmVmbGVjdC5tZXRhZGF0YShrLCB2KTsNCn07DQpjbGFzcyBGb28gew0KICAgIHByb3A7DQogICAgZm9vKCkgew0KICAgICAgICByZXR1cm4gMDsNCiAgICB9DQp9DQpfX2RlY29yYXRlKFsNCiAgICBkZWNvcmF0b3IsDQogICAgX19tZXRhZGF0YSgiZGVzaWduOnR5cGUiLCBGdW5jdGlvbiksDQogICAgX19tZXRhZGF0YSgiZGVzaWduOnBhcmFtdHlwZXMiLCBbXSksDQogICAgX19tZXRhZGF0YSgiZGVzaWduOnJldHVybnR5cGUiLCB2b2lkIDApDQpdLCBGb28ucHJvdG90eXBlLCAiZm9vIiwgbnVsbCk7DQo=",
+              "callback_utf8_sha256": "ab2730fd561bb34f976af48ddf899ecee6ab1e1a3bfc4ef821334f7380b50aa9",
+              "callback_utf8_bytes": 1031,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "ab2730fd561bb34f976af48ddf899ecee6ab1e1a3bfc4ef821334f7380b50aa9",
+              "materialized_utf8_bytes": 1031,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/decoratorOnClassMethod17.ts"
+              ]
+            }
+          ],
+          "reported_diagnostics": [
+            {
+              "code": 1436,
+              "category": "Error",
+              "file": "/.src/decoratorOnClassMethod17.ts",
+              "start": 58,
+              "length": 1,
+              "message": "Decorators must precede the name and all keywords of property declarations."
+            }
+          ],
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 2,
+          "run_fingerprint_sha256": "8cdd084f17986830f3ba50b5e96d9c6e1bc3a4d7cb150b5fcd2074d3a9a3e4d0"
+        }
+      ],
+      "rust_expectation": "typed-failure-before-first-sink-write",
+      "case_fingerprint_sha256": "947a6ed6b1f6b5e724d4205833ab766c538c6fb965f879b997458af2fb50a928"
+    },
+    {
+      "suite": "conformance",
+      "case_id": "typescript-6.0.3/conformance/decorators/class/method/decoratorOnClassMethod18.ts#default",
+      "expansion_case": 1112,
+      "source": {
+        "path": "decorators/class/method/decoratorOnClassMethod18.ts",
+        "bytes": 178,
+        "sha256": "7ef519de37f937fb3a26df41ccbe7095f1253f3280db0898c06d7c6019fd1d86",
+        "git_blob_sha1": "eac6295a4991a6a503d25127430e118ff725243d"
+      },
+      "module_state": "absent-effective-ESNext",
+      "input": {
+        "current_directory": "/.src",
+        "roots": [
+          "/.src/decoratorOnClassMethod18.ts"
+        ],
+        "settings": [
+          {
+            "name": "strict",
+            "value": "false"
+          },
+          {
+            "name": "target",
+            "value": "esnext"
+          },
+          {
+            "name": "experimentaldecorators",
+            "value": "true"
+          },
+          {
+            "name": "emitdecoratormetadata",
+            "value": "true"
+          }
+        ],
+        "virtual_config": null,
+        "files": [
+          {
+            "unit": 0,
+            "path": "/.src/decoratorOnClassMethod18.ts",
+            "utf8_base64": "ZGVjbGFyZSB2YXIgZGVjb3JhdG9yOiBhbnk7CgpjbGFzcyBGb28gewogICAgcDEKCiAgICBAZGVjb3JhdG9yKCkKICAgIHAyOwp9Cg==",
+            "utf8_sha256": "a5c668cd829462f50ba20b0bd0aa84162de43a3b0be003a26a683e145b2590ce",
+            "utf8_bytes": 76
+          }
+        ]
+      },
+      "files": [
+        {
+          "unit": 0,
+          "path": "/.src/decoratorOnClassMethod18.ts",
+          "script_kind": "TS",
+          "declaration_file": false,
+          "emit_eligible": true,
+          "implied_module_format": "None",
+          "emit_module_format": 99,
+          "feature_roots": [
+            {
+              "feature": "decorators",
+              "start": 53,
+              "end": 73,
+              "kind": "PropertyDeclaration"
+            }
+          ],
+          "parse_diagnostic_codes": [],
+          "max_ast_depth": 6,
+          "import_attributes": false,
+          "advanced_comment_placement": false,
+          "text_sha256": "a5c668cd829462f50ba20b0bd0aa84162de43a3b0be003a26a683e145b2590ce"
+        }
+      ],
+      "owner_reachability": [
+        "transform-legacy-decorators"
+      ],
+      "disposition": "admitted-for-execution",
+      "required_slices": [],
+      "diagnostic_disposition": {
+        "state": "exact-required"
+      },
+      "typescript_runs": [
+        {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/.src/decoratorOnClassMethod18.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIF9fZGVjb3JhdGUgPSAodGhpcyAmJiB0aGlzLl9fZGVjb3JhdGUpIHx8IGZ1bmN0aW9uIChkZWNvcmF0b3JzLCB0YXJnZXQsIGtleSwgZGVzYykgew0KICAgIHZhciBjID0gYXJndW1lbnRzLmxlbmd0aCwgciA9IGMgPCAzID8gdGFyZ2V0IDogZGVzYyA9PT0gbnVsbCA/IGRlc2MgPSBPYmplY3QuZ2V0T3duUHJvcGVydHlEZXNjcmlwdG9yKHRhcmdldCwga2V5KSA6IGRlc2MsIGQ7DQogICAgaWYgKHR5cGVvZiBSZWZsZWN0ID09PSAib2JqZWN0IiAmJiB0eXBlb2YgUmVmbGVjdC5kZWNvcmF0ZSA9PT0gImZ1bmN0aW9uIikgciA9IFJlZmxlY3QuZGVjb3JhdGUoZGVjb3JhdG9ycywgdGFyZ2V0LCBrZXksIGRlc2MpOw0KICAgIGVsc2UgZm9yICh2YXIgaSA9IGRlY29yYXRvcnMubGVuZ3RoIC0gMTsgaSA+PSAwOyBpLS0pIGlmIChkID0gZGVjb3JhdG9yc1tpXSkgciA9IChjIDwgMyA/IGQocikgOiBjID4gMyA/IGQodGFyZ2V0LCBrZXksIHIpIDogZCh0YXJnZXQsIGtleSkpIHx8IHI7DQogICAgcmV0dXJuIGMgPiAzICYmIHIgJiYgT2JqZWN0LmRlZmluZVByb3BlcnR5KHRhcmdldCwga2V5LCByKSwgcjsNCn07DQp2YXIgX19tZXRhZGF0YSA9ICh0aGlzICYmIHRoaXMuX19tZXRhZGF0YSkgfHwgZnVuY3Rpb24gKGssIHYpIHsNCiAgICBpZiAodHlwZW9mIFJlZmxlY3QgPT09ICJvYmplY3QiICYmIHR5cGVvZiBSZWZsZWN0Lm1ldGFkYXRhID09PSAiZnVuY3Rpb24iKSByZXR1cm4gUmVmbGVjdC5tZXRhZGF0YShrLCB2KTsNCn07DQpjbGFzcyBGb28gew0KICAgIHAxOw0KICAgIHAyOw0KfQ0KX19kZWNvcmF0ZShbDQogICAgZGVjb3JhdG9yKCksDQogICAgX19tZXRhZGF0YSgiZGVzaWduOnR5cGUiLCBPYmplY3QpDQpdLCBGb28ucHJvdG90eXBlLCAicDIiLCB2b2lkIDApOw0K",
+              "callback_utf8_sha256": "22b2c251b6f856c4435f5d3001eb64c82dab5fbe314714e3db161ce2a6e04001",
+              "callback_utf8_bytes": 912,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "22b2c251b6f856c4435f5d3001eb64c82dab5fbe314714e3db161ce2a6e04001",
+              "materialized_utf8_bytes": 912,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/decoratorOnClassMethod18.ts"
+              ]
+            }
+          ],
+          "reported_diagnostics": [],
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 0,
+          "run_fingerprint_sha256": "f0c5b6b4928117ef5d2816d4ce750712766d61f82d6a463158d1b809d23d6bd5"
+        },
+        {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/.src/decoratorOnClassMethod18.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIF9fZGVjb3JhdGUgPSAodGhpcyAmJiB0aGlzLl9fZGVjb3JhdGUpIHx8IGZ1bmN0aW9uIChkZWNvcmF0b3JzLCB0YXJnZXQsIGtleSwgZGVzYykgew0KICAgIHZhciBjID0gYXJndW1lbnRzLmxlbmd0aCwgciA9IGMgPCAzID8gdGFyZ2V0IDogZGVzYyA9PT0gbnVsbCA/IGRlc2MgPSBPYmplY3QuZ2V0T3duUHJvcGVydHlEZXNjcmlwdG9yKHRhcmdldCwga2V5KSA6IGRlc2MsIGQ7DQogICAgaWYgKHR5cGVvZiBSZWZsZWN0ID09PSAib2JqZWN0IiAmJiB0eXBlb2YgUmVmbGVjdC5kZWNvcmF0ZSA9PT0gImZ1bmN0aW9uIikgciA9IFJlZmxlY3QuZGVjb3JhdGUoZGVjb3JhdG9ycywgdGFyZ2V0LCBrZXksIGRlc2MpOw0KICAgIGVsc2UgZm9yICh2YXIgaSA9IGRlY29yYXRvcnMubGVuZ3RoIC0gMTsgaSA+PSAwOyBpLS0pIGlmIChkID0gZGVjb3JhdG9yc1tpXSkgciA9IChjIDwgMyA/IGQocikgOiBjID4gMyA/IGQodGFyZ2V0LCBrZXksIHIpIDogZCh0YXJnZXQsIGtleSkpIHx8IHI7DQogICAgcmV0dXJuIGMgPiAzICYmIHIgJiYgT2JqZWN0LmRlZmluZVByb3BlcnR5KHRhcmdldCwga2V5LCByKSwgcjsNCn07DQp2YXIgX19tZXRhZGF0YSA9ICh0aGlzICYmIHRoaXMuX19tZXRhZGF0YSkgfHwgZnVuY3Rpb24gKGssIHYpIHsNCiAgICBpZiAodHlwZW9mIFJlZmxlY3QgPT09ICJvYmplY3QiICYmIHR5cGVvZiBSZWZsZWN0Lm1ldGFkYXRhID09PSAiZnVuY3Rpb24iKSByZXR1cm4gUmVmbGVjdC5tZXRhZGF0YShrLCB2KTsNCn07DQpjbGFzcyBGb28gew0KICAgIHAxOw0KICAgIHAyOw0KfQ0KX19kZWNvcmF0ZShbDQogICAgZGVjb3JhdG9yKCksDQogICAgX19tZXRhZGF0YSgiZGVzaWduOnR5cGUiLCBPYmplY3QpDQpdLCBGb28ucHJvdG90eXBlLCAicDIiLCB2b2lkIDApOw0K",
+              "callback_utf8_sha256": "22b2c251b6f856c4435f5d3001eb64c82dab5fbe314714e3db161ce2a6e04001",
+              "callback_utf8_bytes": 912,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "22b2c251b6f856c4435f5d3001eb64c82dab5fbe314714e3db161ce2a6e04001",
+              "materialized_utf8_bytes": 912,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/decoratorOnClassMethod18.ts"
+              ]
+            }
+          ],
+          "reported_diagnostics": [],
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 0,
+          "run_fingerprint_sha256": "f0c5b6b4928117ef5d2816d4ce750712766d61f82d6a463158d1b809d23d6bd5"
+        }
+      ],
+      "rust_expectation": "two-deterministic-exact-runs",
+      "case_fingerprint_sha256": "610d46e12103efabce4f7ee92a08836c85ec566ef65c9efca0d9ba50e18449eb"
+    },
+    {
+      "suite": "conformance",
+      "case_id": "typescript-6.0.3/conformance/decorators/class/method/decoratorOnClassMethod19.ts#target%3Desnext",
+      "expansion_case": 1113,
+      "source": {
+        "path": "decorators/class/method/decoratorOnClassMethod19.ts",
+        "bytes": 330,
+        "sha256": "ec162752150f5b572b5ab809261893863d42a6e6cc05c2299a4f124ac3c3eb2f",
+        "git_blob_sha1": "e42d8876c6f2ee2eb357ff671f5a352a3d958f9d"
+      },
+      "module_state": "absent-effective-ESNext",
+      "input": {
+        "current_directory": "/.src",
+        "roots": [
+          "/.src/decoratorOnClassMethod19.ts"
+        ],
+        "settings": [
+          {
+            "name": "strict",
+            "value": "false"
+          },
+          {
+            "name": "target",
+            "value": "esnext"
+          },
+          {
+            "name": "experimentaldecorators",
+            "value": "true"
+          },
+          {
+            "name": "emitdecoratormetadata",
+            "value": "true"
+          }
+        ],
+        "virtual_config": null,
+        "files": [
+          {
+            "unit": 0,
+            "path": "/.src/decoratorOnClassMethod19.ts",
+            "utf8_base64": "Ly8gaHR0cHM6Ly9naXRodWIuY29tL21pY3Jvc29mdC9UeXBlU2NyaXB0L2lzc3Vlcy80ODUxNQpkZWNsYXJlIHZhciBkZWNvcmF0b3I6IGFueTsKCmNsYXNzIEMxIHsKICAgICN4CgogICAgQGRlY29yYXRvcigoeDogQzEpID0+IHguI3gpCiAgICB5KCkge30KfQoKY2xhc3MgQzIgewogICAgI3gKCiAgICB5KEBkZWNvcmF0b3IoKHg6IEMyKSA9PiB4LiN4KSBwKSB7fQp9Cg==",
+            "utf8_sha256": "64bb5bb65625d9bc9a95125b39ee40da955c33e322085850c281dd71adebeea4",
+            "utf8_bytes": 211
+          }
+        ]
+      },
+      "files": [
+        {
+          "unit": 0,
+          "path": "/.src/decoratorOnClassMethod19.ts",
+          "script_kind": "TS",
+          "declaration_file": false,
+          "emit_eligible": true,
+          "implied_module_format": "None",
+          "emit_module_format": 99,
+          "feature_roots": [
+            {
+              "feature": "decorators",
+              "start": 108,
+              "end": 146,
+              "kind": "MethodDeclaration"
+            },
+            {
+              "feature": "decorators",
+              "start": 175,
+              "end": 204,
+              "kind": "Parameter"
+            }
+          ],
+          "parse_diagnostic_codes": [],
+          "max_ast_depth": 10,
+          "import_attributes": false,
+          "advanced_comment_placement": false,
+          "text_sha256": "64bb5bb65625d9bc9a95125b39ee40da955c33e322085850c281dd71adebeea4"
+        }
+      ],
+      "owner_reachability": [
+        "transform-legacy-decorators"
+      ],
+      "disposition": "admitted-for-execution",
+      "required_slices": [],
+      "diagnostic_disposition": {
+        "state": "exact-required"
+      },
+      "typescript_runs": [
+        {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/.src/decoratorOnClassMethod19.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIF9fZGVjb3JhdGUgPSAodGhpcyAmJiB0aGlzLl9fZGVjb3JhdGUpIHx8IGZ1bmN0aW9uIChkZWNvcmF0b3JzLCB0YXJnZXQsIGtleSwgZGVzYykgew0KICAgIHZhciBjID0gYXJndW1lbnRzLmxlbmd0aCwgciA9IGMgPCAzID8gdGFyZ2V0IDogZGVzYyA9PT0gbnVsbCA/IGRlc2MgPSBPYmplY3QuZ2V0T3duUHJvcGVydHlEZXNjcmlwdG9yKHRhcmdldCwga2V5KSA6IGRlc2MsIGQ7DQogICAgaWYgKHR5cGVvZiBSZWZsZWN0ID09PSAib2JqZWN0IiAmJiB0eXBlb2YgUmVmbGVjdC5kZWNvcmF0ZSA9PT0gImZ1bmN0aW9uIikgciA9IFJlZmxlY3QuZGVjb3JhdGUoZGVjb3JhdG9ycywgdGFyZ2V0LCBrZXksIGRlc2MpOw0KICAgIGVsc2UgZm9yICh2YXIgaSA9IGRlY29yYXRvcnMubGVuZ3RoIC0gMTsgaSA+PSAwOyBpLS0pIGlmIChkID0gZGVjb3JhdG9yc1tpXSkgciA9IChjIDwgMyA/IGQocikgOiBjID4gMyA/IGQodGFyZ2V0LCBrZXksIHIpIDogZCh0YXJnZXQsIGtleSkpIHx8IHI7DQogICAgcmV0dXJuIGMgPiAzICYmIHIgJiYgT2JqZWN0LmRlZmluZVByb3BlcnR5KHRhcmdldCwga2V5LCByKSwgcjsNCn07DQp2YXIgX19tZXRhZGF0YSA9ICh0aGlzICYmIHRoaXMuX19tZXRhZGF0YSkgfHwgZnVuY3Rpb24gKGssIHYpIHsNCiAgICBpZiAodHlwZW9mIFJlZmxlY3QgPT09ICJvYmplY3QiICYmIHR5cGVvZiBSZWZsZWN0Lm1ldGFkYXRhID09PSAiZnVuY3Rpb24iKSByZXR1cm4gUmVmbGVjdC5tZXRhZGF0YShrLCB2KTsNCn07DQp2YXIgX19wYXJhbSA9ICh0aGlzICYmIHRoaXMuX19wYXJhbSkgfHwgZnVuY3Rpb24gKHBhcmFtSW5kZXgsIGRlY29yYXRvcikgew0KICAgIHJldHVybiBmdW5jdGlvbiAodGFyZ2V0LCBrZXkpIHsgZGVjb3JhdG9yKHRhcmdldCwga2V5LCBwYXJhbUluZGV4KTsgfQ0KfTsNCmNsYXNzIEMxIHsNCiAgICAjeDsNCiAgICB5KCkgeyB9DQogICAgc3RhdGljIHsNCiAgICAgICAgX19kZWNvcmF0ZShbDQogICAgICAgICAgICBkZWNvcmF0b3IoKHgpID0+IHguI3gpLA0KICAgICAgICAgICAgX19tZXRhZGF0YSgiZGVzaWduOnR5cGUiLCBGdW5jdGlvbiksDQogICAgICAgICAgICBfX21ldGFkYXRhKCJkZXNpZ246cGFyYW10eXBlcyIsIFtdKSwNCiAgICAgICAgICAgIF9fbWV0YWRhdGEoImRlc2lnbjpyZXR1cm50eXBlIiwgdm9pZCAwKQ0KICAgICAgICBdLCBDMS5wcm90b3R5cGUsICJ5IiwgbnVsbCk7DQogICAgfQ0KfQ0KY2xhc3MgQzIgew0KICAgICN4Ow0KICAgIHkocCkgeyB9DQogICAgc3RhdGljIHsNCiAgICAgICAgX19kZWNvcmF0ZShbDQogICAgICAgICAgICBfX3BhcmFtKDAsIGRlY29yYXRvcigoeCkgPT4geC4jeCkpLA0KICAgICAgICAgICAgX19tZXRhZGF0YSgiZGVzaWduOnR5cGUiLCBGdW5jdGlvbiksDQogICAgICAgICAgICBfX21ldGFkYXRhKCJkZXNpZ246cGFyYW10eXBlcyIsIFtPYmplY3RdKSwNCiAgICAgICAgICAgIF9fbWV0YWRhdGEoImRlc2lnbjpyZXR1cm50eXBlIiwgdm9pZCAwKQ0KICAgICAgICBdLCBDMi5wcm90b3R5cGUsICJ5IiwgbnVsbCk7DQogICAgfQ0KfQ0K",
+              "callback_utf8_sha256": "5d54ec427ddd112ea962d609d9b842e4890e2b7213ef20ce25b4076f31f5ac51",
+              "callback_utf8_bytes": 1563,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "5d54ec427ddd112ea962d609d9b842e4890e2b7213ef20ce25b4076f31f5ac51",
+              "materialized_utf8_bytes": 1563,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/decoratorOnClassMethod19.ts"
+              ]
+            }
+          ],
+          "reported_diagnostics": [],
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 0,
+          "run_fingerprint_sha256": "8fc69154ff330d6e1e1c70a5934160a4dbc43bc6ad8a6b9a43955286d3aa64cc"
+        },
+        {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/.src/decoratorOnClassMethod19.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIF9fZGVjb3JhdGUgPSAodGhpcyAmJiB0aGlzLl9fZGVjb3JhdGUpIHx8IGZ1bmN0aW9uIChkZWNvcmF0b3JzLCB0YXJnZXQsIGtleSwgZGVzYykgew0KICAgIHZhciBjID0gYXJndW1lbnRzLmxlbmd0aCwgciA9IGMgPCAzID8gdGFyZ2V0IDogZGVzYyA9PT0gbnVsbCA/IGRlc2MgPSBPYmplY3QuZ2V0T3duUHJvcGVydHlEZXNjcmlwdG9yKHRhcmdldCwga2V5KSA6IGRlc2MsIGQ7DQogICAgaWYgKHR5cGVvZiBSZWZsZWN0ID09PSAib2JqZWN0IiAmJiB0eXBlb2YgUmVmbGVjdC5kZWNvcmF0ZSA9PT0gImZ1bmN0aW9uIikgciA9IFJlZmxlY3QuZGVjb3JhdGUoZGVjb3JhdG9ycywgdGFyZ2V0LCBrZXksIGRlc2MpOw0KICAgIGVsc2UgZm9yICh2YXIgaSA9IGRlY29yYXRvcnMubGVuZ3RoIC0gMTsgaSA+PSAwOyBpLS0pIGlmIChkID0gZGVjb3JhdG9yc1tpXSkgciA9IChjIDwgMyA/IGQocikgOiBjID4gMyA/IGQodGFyZ2V0LCBrZXksIHIpIDogZCh0YXJnZXQsIGtleSkpIHx8IHI7DQogICAgcmV0dXJuIGMgPiAzICYmIHIgJiYgT2JqZWN0LmRlZmluZVByb3BlcnR5KHRhcmdldCwga2V5LCByKSwgcjsNCn07DQp2YXIgX19tZXRhZGF0YSA9ICh0aGlzICYmIHRoaXMuX19tZXRhZGF0YSkgfHwgZnVuY3Rpb24gKGssIHYpIHsNCiAgICBpZiAodHlwZW9mIFJlZmxlY3QgPT09ICJvYmplY3QiICYmIHR5cGVvZiBSZWZsZWN0Lm1ldGFkYXRhID09PSAiZnVuY3Rpb24iKSByZXR1cm4gUmVmbGVjdC5tZXRhZGF0YShrLCB2KTsNCn07DQp2YXIgX19wYXJhbSA9ICh0aGlzICYmIHRoaXMuX19wYXJhbSkgfHwgZnVuY3Rpb24gKHBhcmFtSW5kZXgsIGRlY29yYXRvcikgew0KICAgIHJldHVybiBmdW5jdGlvbiAodGFyZ2V0LCBrZXkpIHsgZGVjb3JhdG9yKHRhcmdldCwga2V5LCBwYXJhbUluZGV4KTsgfQ0KfTsNCmNsYXNzIEMxIHsNCiAgICAjeDsNCiAgICB5KCkgeyB9DQogICAgc3RhdGljIHsNCiAgICAgICAgX19kZWNvcmF0ZShbDQogICAgICAgICAgICBkZWNvcmF0b3IoKHgpID0+IHguI3gpLA0KICAgICAgICAgICAgX19tZXRhZGF0YSgiZGVzaWduOnR5cGUiLCBGdW5jdGlvbiksDQogICAgICAgICAgICBfX21ldGFkYXRhKCJkZXNpZ246cGFyYW10eXBlcyIsIFtdKSwNCiAgICAgICAgICAgIF9fbWV0YWRhdGEoImRlc2lnbjpyZXR1cm50eXBlIiwgdm9pZCAwKQ0KICAgICAgICBdLCBDMS5wcm90b3R5cGUsICJ5IiwgbnVsbCk7DQogICAgfQ0KfQ0KY2xhc3MgQzIgew0KICAgICN4Ow0KICAgIHkocCkgeyB9DQogICAgc3RhdGljIHsNCiAgICAgICAgX19kZWNvcmF0ZShbDQogICAgICAgICAgICBfX3BhcmFtKDAsIGRlY29yYXRvcigoeCkgPT4geC4jeCkpLA0KICAgICAgICAgICAgX19tZXRhZGF0YSgiZGVzaWduOnR5cGUiLCBGdW5jdGlvbiksDQogICAgICAgICAgICBfX21ldGFkYXRhKCJkZXNpZ246cGFyYW10eXBlcyIsIFtPYmplY3RdKSwNCiAgICAgICAgICAgIF9fbWV0YWRhdGEoImRlc2lnbjpyZXR1cm50eXBlIiwgdm9pZCAwKQ0KICAgICAgICBdLCBDMi5wcm90b3R5cGUsICJ5IiwgbnVsbCk7DQogICAgfQ0KfQ0K",
+              "callback_utf8_sha256": "5d54ec427ddd112ea962d609d9b842e4890e2b7213ef20ce25b4076f31f5ac51",
+              "callback_utf8_bytes": 1563,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "5d54ec427ddd112ea962d609d9b842e4890e2b7213ef20ce25b4076f31f5ac51",
+              "materialized_utf8_bytes": 1563,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/decoratorOnClassMethod19.ts"
+              ]
+            }
+          ],
+          "reported_diagnostics": [],
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 0,
+          "run_fingerprint_sha256": "8fc69154ff330d6e1e1c70a5934160a4dbc43bc6ad8a6b9a43955286d3aa64cc"
+        }
+      ],
+      "rust_expectation": "two-deterministic-exact-runs",
+      "case_fingerprint_sha256": "b2000b634087041454898a2825ef87b1d675adb55e6dbaf452d7f0a51a4f1bed"
+    },
+    {
+      "suite": "conformance",
+      "case_id": "typescript-6.0.3/conformance/decorators/decoratorInAmbientContext.ts#default",
+      "expansion_case": 1155,
+      "source": {
+        "path": "decorators/decoratorInAmbientContext.ts",
+        "bytes": 227,
+        "sha256": "242aa6df28237465c9f1737a37e4a9334af938399d7384c36cd6619226f307e3",
+        "git_blob_sha1": "19fce20a5b42b6b122a5eded1e15653e8ee03344"
+      },
+      "module_state": "absent-effective-ESNext",
+      "input": {
+        "current_directory": "/.src",
+        "roots": [
+          "/.src/decoratorInAmbientContext.ts"
+        ],
+        "settings": [
+          {
+            "name": "target",
+            "value": "esnext"
+          },
+          {
+            "name": "experimentalDecorators",
+            "value": "true"
+          }
+        ],
+        "virtual_config": null,
+        "files": [
+          {
+            "unit": 0,
+            "path": "/.src/decoratorInAmbientContext.ts",
+            "utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiBkZWNvcmF0b3IodGFyZ2V0OiBhbnksIGtleTogYW55KTogYW55OwoKY29uc3QgYiA9IFN5bWJvbCgnYicpOwpjbGFzcyBGb28gewogICAgQGRlY29yYXRvciBkZWNsYXJlIGE6IG51bWJlcjsKICAgIEBkZWNvcmF0b3IgZGVjbGFyZSBbYl06IG51bWJlcjsKfQo=",
+            "utf8_sha256": "dca07222049ceeddecb59a4f96fb3b86af19c6cde9dc216fcf175c808230114c",
+            "utf8_bytes": 164
+          }
+        ]
+      },
+      "files": [
+        {
+          "unit": 0,
+          "path": "/.src/decoratorInAmbientContext.ts",
+          "script_kind": "TS",
+          "declaration_file": false,
+          "emit_eligible": true,
+          "implied_module_format": "None",
+          "emit_module_format": 99,
+          "feature_roots": [
+            {
+              "feature": "decorators",
+              "start": 96,
+              "end": 125,
+              "kind": "PropertyDeclaration"
+            },
+            {
+              "feature": "decorators",
+              "start": 130,
+              "end": 161,
+              "kind": "PropertyDeclaration"
+            }
+          ],
+          "parse_diagnostic_codes": [],
+          "max_ast_depth": 6,
+          "import_attributes": false,
+          "advanced_comment_placement": false,
+          "text_sha256": "dca07222049ceeddecb59a4f96fb3b86af19c6cde9dc216fcf175c808230114c"
+        }
+      ],
+      "owner_reachability": [
+        "transform-legacy-decorators"
+      ],
+      "disposition": "admitted-for-execution",
+      "required_slices": [],
+      "diagnostic_disposition": {
+        "state": "exact-required"
+      },
+      "typescript_runs": [
+        {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/.src/decoratorInAmbientContext.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIF9fZGVjb3JhdGUgPSAodGhpcyAmJiB0aGlzLl9fZGVjb3JhdGUpIHx8IGZ1bmN0aW9uIChkZWNvcmF0b3JzLCB0YXJnZXQsIGtleSwgZGVzYykgew0KICAgIHZhciBjID0gYXJndW1lbnRzLmxlbmd0aCwgciA9IGMgPCAzID8gdGFyZ2V0IDogZGVzYyA9PT0gbnVsbCA/IGRlc2MgPSBPYmplY3QuZ2V0T3duUHJvcGVydHlEZXNjcmlwdG9yKHRhcmdldCwga2V5KSA6IGRlc2MsIGQ7DQogICAgaWYgKHR5cGVvZiBSZWZsZWN0ID09PSAib2JqZWN0IiAmJiB0eXBlb2YgUmVmbGVjdC5kZWNvcmF0ZSA9PT0gImZ1bmN0aW9uIikgciA9IFJlZmxlY3QuZGVjb3JhdGUoZGVjb3JhdG9ycywgdGFyZ2V0LCBrZXksIGRlc2MpOw0KICAgIGVsc2UgZm9yICh2YXIgaSA9IGRlY29yYXRvcnMubGVuZ3RoIC0gMTsgaSA+PSAwOyBpLS0pIGlmIChkID0gZGVjb3JhdG9yc1tpXSkgciA9IChjIDwgMyA/IGQocikgOiBjID4gMyA/IGQodGFyZ2V0LCBrZXksIHIpIDogZCh0YXJnZXQsIGtleSkpIHx8IHI7DQogICAgcmV0dXJuIGMgPiAzICYmIHIgJiYgT2JqZWN0LmRlZmluZVByb3BlcnR5KHRhcmdldCwga2V5LCByKSwgcjsNCn07DQpjb25zdCBiID0gU3ltYm9sKCdiJyk7DQpjbGFzcyBGb28gew0KfQ0KX19kZWNvcmF0ZShbDQogICAgZGVjb3JhdG9yDQpdLCBGb28ucHJvdG90eXBlLCAiYSIsIHZvaWQgMCk7DQpfX2RlY29yYXRlKFsNCiAgICBkZWNvcmF0b3INCl0sIEZvby5wcm90b3R5cGUsIGIsIHZvaWQgMCk7DQo=",
+              "callback_utf8_sha256": "720396b6c9593de241a7abf4ac880fa11f5abca62712459338ce9e87c1c255d3",
+              "callback_utf8_bytes": 755,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "720396b6c9593de241a7abf4ac880fa11f5abca62712459338ce9e87c1c255d3",
+              "materialized_utf8_bytes": 755,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/decoratorInAmbientContext.ts"
+              ]
+            }
+          ],
+          "reported_diagnostics": [],
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 0,
+          "run_fingerprint_sha256": "bce97e63b1cdc17b3d3d8010ac92076fe17cdd4e8a0c80270c7de61f03c8cf12"
+        },
+        {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/.src/decoratorInAmbientContext.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIF9fZGVjb3JhdGUgPSAodGhpcyAmJiB0aGlzLl9fZGVjb3JhdGUpIHx8IGZ1bmN0aW9uIChkZWNvcmF0b3JzLCB0YXJnZXQsIGtleSwgZGVzYykgew0KICAgIHZhciBjID0gYXJndW1lbnRzLmxlbmd0aCwgciA9IGMgPCAzID8gdGFyZ2V0IDogZGVzYyA9PT0gbnVsbCA/IGRlc2MgPSBPYmplY3QuZ2V0T3duUHJvcGVydHlEZXNjcmlwdG9yKHRhcmdldCwga2V5KSA6IGRlc2MsIGQ7DQogICAgaWYgKHR5cGVvZiBSZWZsZWN0ID09PSAib2JqZWN0IiAmJiB0eXBlb2YgUmVmbGVjdC5kZWNvcmF0ZSA9PT0gImZ1bmN0aW9uIikgciA9IFJlZmxlY3QuZGVjb3JhdGUoZGVjb3JhdG9ycywgdGFyZ2V0LCBrZXksIGRlc2MpOw0KICAgIGVsc2UgZm9yICh2YXIgaSA9IGRlY29yYXRvcnMubGVuZ3RoIC0gMTsgaSA+PSAwOyBpLS0pIGlmIChkID0gZGVjb3JhdG9yc1tpXSkgciA9IChjIDwgMyA/IGQocikgOiBjID4gMyA/IGQodGFyZ2V0LCBrZXksIHIpIDogZCh0YXJnZXQsIGtleSkpIHx8IHI7DQogICAgcmV0dXJuIGMgPiAzICYmIHIgJiYgT2JqZWN0LmRlZmluZVByb3BlcnR5KHRhcmdldCwga2V5LCByKSwgcjsNCn07DQpjb25zdCBiID0gU3ltYm9sKCdiJyk7DQpjbGFzcyBGb28gew0KfQ0KX19kZWNvcmF0ZShbDQogICAgZGVjb3JhdG9yDQpdLCBGb28ucHJvdG90eXBlLCAiYSIsIHZvaWQgMCk7DQpfX2RlY29yYXRlKFsNCiAgICBkZWNvcmF0b3INCl0sIEZvby5wcm90b3R5cGUsIGIsIHZvaWQgMCk7DQo=",
+              "callback_utf8_sha256": "720396b6c9593de241a7abf4ac880fa11f5abca62712459338ce9e87c1c255d3",
+              "callback_utf8_bytes": 755,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "720396b6c9593de241a7abf4ac880fa11f5abca62712459338ce9e87c1c255d3",
+              "materialized_utf8_bytes": 755,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/decoratorInAmbientContext.ts"
+              ]
+            }
+          ],
+          "reported_diagnostics": [],
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 0,
+          "run_fingerprint_sha256": "bce97e63b1cdc17b3d3d8010ac92076fe17cdd4e8a0c80270c7de61f03c8cf12"
+        }
+      ],
+      "rust_expectation": "two-deterministic-exact-runs",
+      "case_fingerprint_sha256": "4962dcfee86cdb2b855cfdf8dc695ffed4ba954d6c2e619bb27fbcf0f3a67615"
+    },
+    {
+      "suite": "conformance",
+      "case_id": "typescript-6.0.3/conformance/decorators/legacyDecorators-contextualTypes.ts#default",
+      "expansion_case": 1177,
+      "source": {
+        "path": "decorators/legacyDecorators-contextualTypes.ts",
+        "bytes": 646,
+        "sha256": "47bb17157ec6bcaf485b5dedaa3de5c617c11245b6e7cafb44a69813e5956c4c",
+        "git_blob_sha1": "b669e306e1efcecc2037e30cb3f7bc77471932a1"
+      },
+      "module_state": "absent-effective-ESNext",
+      "input": {
+        "current_directory": "/.src",
+        "roots": [
+          "/.src/legacyDecorators-contextualTypes.ts"
+        ],
+        "settings": [
+          {
+            "name": "target",
+            "value": "esnext"
+          },
+          {
+            "name": "experimentalDecorators",
+            "value": "true"
+          }
+        ],
+        "virtual_config": null,
+        "files": [
+          {
+            "unit": 0,
+            "path": "/.src/legacyDecorators-contextualTypes.ts",
+            "utf8_base64": "QCgodCkgPT4geyB9KQpjbGFzcyBDIHsKICAgIGNvbnN0cnVjdG9yKEAoKHQsIGssIGkpID0+IHt9KSBwOiBhbnkpIHt9CgogICAgQCgodCwgaywgZCkgPT4geyB9KQogICAgc3RhdGljIGYoKSB7fQoKICAgIEAoKHQsIGssIGQpID0+IHsgfSkKICAgIHN0YXRpYyBnZXQgeCgpIHsgcmV0dXJuIDE7IH0KICAgIHN0YXRpYyBzZXQgeCh2YWx1ZSkgeyB9CgogICAgQCgodCwgaywgZCkgPT4geyB9KQogICAgc3RhdGljIGFjY2Vzc29yIHkgPSAxOwoKICAgIEAoKHQsIGspID0+IHsgfSkKICAgIHN0YXRpYyB6ID0gMTsKCiAgICBAKCh0LCBrLCBkKSA9PiB7IH0pCiAgICBnKCkge30KCiAgICBAKCh0LCBrLCBkKSA9PiB7IH0pCiAgICBnZXQgYSgpIHsgcmV0dXJuIDE7IH0KICAgIHNldCBhKHZhbHVlKSB7IH0KCiAgICBAKCh0LCBrLCBkKSA9PiB7IH0pCiAgICBhY2Nlc3NvciBiID0gMTsKCiAgICBAKCh0LCBrKSA9PiB7IH0pCiAgICBjID0gMTsKCiAgICBzdGF0aWMgaChAKCh0LCBrLCBpKSA9PiB7fSkgcDogYW55KSB7fQogICAgaChAKCh0LCBrLCBpKSA9PiB7fSkgcDogYW55KSB7fQp9",
+            "utf8_sha256": "54629f280320941446cad99aaa145a787963c0793b06c610b0f507b152c1e828",
+            "utf8_bytes": 558
+          }
+        ]
+      },
+      "files": [
+        {
+          "unit": 0,
+          "path": "/.src/legacyDecorators-contextualTypes.ts",
+          "script_kind": "TS",
+          "declaration_file": false,
+          "emit_eligible": true,
+          "implied_module_format": "None",
+          "emit_module_format": 99,
+          "feature_roots": [
+            {
+              "feature": "decorators",
+              "start": 0,
+              "end": 558,
+              "kind": "ClassDeclaration"
+            },
+            {
+              "feature": "decorators",
+              "start": 40,
+              "end": 65,
+              "kind": "Parameter"
+            },
+            {
+              "feature": "decorators",
+              "start": 75,
+              "end": 112,
+              "kind": "MethodDeclaration"
+            },
+            {
+              "feature": "decorators",
+              "start": 118,
+              "end": 170,
+              "kind": "GetAccessor"
+            },
+            {
+              "feature": "decorators",
+              "start": 204,
+              "end": 250,
+              "kind": "PropertyDeclaration"
+            },
+            {
+              "feature": "decorators",
+              "start": 256,
+              "end": 290,
+              "kind": "PropertyDeclaration"
+            },
+            {
+              "feature": "decorators",
+              "start": 296,
+              "end": 326,
+              "kind": "MethodDeclaration"
+            },
+            {
+              "feature": "decorators",
+              "start": 332,
+              "end": 377,
+              "kind": "GetAccessor"
+            },
+            {
+              "feature": "decorators",
+              "start": 404,
+              "end": 443,
+              "kind": "PropertyDeclaration"
+            },
+            {
+              "feature": "decorators",
+              "start": 449,
+              "end": 476,
+              "kind": "PropertyDeclaration"
+            },
+            {
+              "feature": "decorators",
+              "start": 491,
+              "end": 516,
+              "kind": "Parameter"
+            },
+            {
+              "feature": "decorators",
+              "start": 527,
+              "end": 552,
+              "kind": "Parameter"
+            }
+          ],
+          "parse_diagnostic_codes": [],
+          "max_ast_depth": 9,
+          "import_attributes": false,
+          "advanced_comment_placement": false,
+          "text_sha256": "54629f280320941446cad99aaa145a787963c0793b06c610b0f507b152c1e828"
+        }
+      ],
+      "owner_reachability": [
+        "transform-legacy-decorators"
+      ],
+      "disposition": "admitted-for-execution",
+      "required_slices": [],
+      "diagnostic_disposition": {
+        "state": "exact-required"
+      },
+      "typescript_runs": [
+        {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/.src/legacyDecorators-contextualTypes.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIF9fZGVjb3JhdGUgPSAodGhpcyAmJiB0aGlzLl9fZGVjb3JhdGUpIHx8IGZ1bmN0aW9uIChkZWNvcmF0b3JzLCB0YXJnZXQsIGtleSwgZGVzYykgew0KICAgIHZhciBjID0gYXJndW1lbnRzLmxlbmd0aCwgciA9IGMgPCAzID8gdGFyZ2V0IDogZGVzYyA9PT0gbnVsbCA/IGRlc2MgPSBPYmplY3QuZ2V0T3duUHJvcGVydHlEZXNjcmlwdG9yKHRhcmdldCwga2V5KSA6IGRlc2MsIGQ7DQogICAgaWYgKHR5cGVvZiBSZWZsZWN0ID09PSAib2JqZWN0IiAmJiB0eXBlb2YgUmVmbGVjdC5kZWNvcmF0ZSA9PT0gImZ1bmN0aW9uIikgciA9IFJlZmxlY3QuZGVjb3JhdGUoZGVjb3JhdG9ycywgdGFyZ2V0LCBrZXksIGRlc2MpOw0KICAgIGVsc2UgZm9yICh2YXIgaSA9IGRlY29yYXRvcnMubGVuZ3RoIC0gMTsgaSA+PSAwOyBpLS0pIGlmIChkID0gZGVjb3JhdG9yc1tpXSkgciA9IChjIDwgMyA/IGQocikgOiBjID4gMyA/IGQodGFyZ2V0LCBrZXksIHIpIDogZCh0YXJnZXQsIGtleSkpIHx8IHI7DQogICAgcmV0dXJuIGMgPiAzICYmIHIgJiYgT2JqZWN0LmRlZmluZVByb3BlcnR5KHRhcmdldCwga2V5LCByKSwgcjsNCn07DQp2YXIgX19wYXJhbSA9ICh0aGlzICYmIHRoaXMuX19wYXJhbSkgfHwgZnVuY3Rpb24gKHBhcmFtSW5kZXgsIGRlY29yYXRvcikgew0KICAgIHJldHVybiBmdW5jdGlvbiAodGFyZ2V0LCBrZXkpIHsgZGVjb3JhdG9yKHRhcmdldCwga2V5LCBwYXJhbUluZGV4KTsgfQ0KfTsNCmxldCBDID0gY2xhc3MgQyB7DQogICAgY29uc3RydWN0b3IocCkgeyB9DQogICAgc3RhdGljIGYoKSB7IH0NCiAgICBzdGF0aWMgZ2V0IHgoKSB7IHJldHVybiAxOyB9DQogICAgc3RhdGljIHNldCB4KHZhbHVlKSB7IH0NCiAgICBzdGF0aWMgYWNjZXNzb3IgeSA9IDE7DQogICAgc3RhdGljIHogPSAxOw0KICAgIGcoKSB7IH0NCiAgICBnZXQgYSgpIHsgcmV0dXJuIDE7IH0NCiAgICBzZXQgYSh2YWx1ZSkgeyB9DQogICAgYWNjZXNzb3IgYiA9IDE7DQogICAgYyA9IDE7DQogICAgc3RhdGljIGgocCkgeyB9DQogICAgaChwKSB7IH0NCn07DQpfX2RlY29yYXRlKFsNCiAgICAoKHQsIGssIGQpID0+IHsgfSkNCl0sIEMucHJvdG90eXBlLCAiZyIsIG51bGwpOw0KX19kZWNvcmF0ZShbDQogICAgKCh0LCBrLCBkKSA9PiB7IH0pDQpdLCBDLnByb3RvdHlwZSwgImEiLCBudWxsKTsNCl9fZGVjb3JhdGUoWw0KICAgICgodCwgaywgZCkgPT4geyB9KQ0KXSwgQy5wcm90b3R5cGUsICJiIiwgbnVsbCk7DQpfX2RlY29yYXRlKFsNCiAgICAoKHQsIGspID0+IHsgfSkNCl0sIEMucHJvdG90eXBlLCAiYyIsIHZvaWQgMCk7DQpfX2RlY29yYXRlKFsNCiAgICBfX3BhcmFtKDAsICgodCwgaywgaSkgPT4geyB9KSkNCl0sIEMucHJvdG90eXBlLCAiaCIsIG51bGwpOw0KX19kZWNvcmF0ZShbDQogICAgKCh0LCBrLCBkKSA9PiB7IH0pDQpdLCBDLCAiZiIsIG51bGwpOw0KX19kZWNvcmF0ZShbDQogICAgKCh0LCBrLCBkKSA9PiB7IH0pDQpdLCBDLCAieCIsIG51bGwpOw0KX19kZWNvcmF0ZShbDQogICAgKCh0LCBrLCBkKSA9PiB7IH0pDQpdLCBDLCAieSIsIG51bGwpOw0KX19kZWNvcmF0ZShbDQogICAgKCh0LCBrKSA9PiB7IH0pDQpdLCBDLCAieiIsIHZvaWQgMCk7DQpfX2RlY29yYXRlKFsNCiAgICBfX3BhcmFtKDAsICgodCwgaywgaSkgPT4geyB9KSkNCl0sIEMsICJoIiwgbnVsbCk7DQpDID0gX19kZWNvcmF0ZShbDQogICAgKCh0KSA9PiB7IH0pLA0KICAgIF9fcGFyYW0oMCwgKCh0LCBrLCBpKSA9PiB7IH0pKQ0KXSwgQyk7DQo=",
+              "callback_utf8_sha256": "2c6f8c435a9a8b90b02fec56f252e42210a92c909e51f6786326dad7ad47a66c",
+              "callback_utf8_bytes": 1778,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "2c6f8c435a9a8b90b02fec56f252e42210a92c909e51f6786326dad7ad47a66c",
+              "materialized_utf8_bytes": 1778,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/legacyDecorators-contextualTypes.ts"
+              ]
+            }
+          ],
+          "reported_diagnostics": [],
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 0,
+          "run_fingerprint_sha256": "5463d9a08a7f5bdf2813b0d6f2a07449f1e04eb1dad8dea53b35d22c16628077"
+        },
+        {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/.src/legacyDecorators-contextualTypes.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIF9fZGVjb3JhdGUgPSAodGhpcyAmJiB0aGlzLl9fZGVjb3JhdGUpIHx8IGZ1bmN0aW9uIChkZWNvcmF0b3JzLCB0YXJnZXQsIGtleSwgZGVzYykgew0KICAgIHZhciBjID0gYXJndW1lbnRzLmxlbmd0aCwgciA9IGMgPCAzID8gdGFyZ2V0IDogZGVzYyA9PT0gbnVsbCA/IGRlc2MgPSBPYmplY3QuZ2V0T3duUHJvcGVydHlEZXNjcmlwdG9yKHRhcmdldCwga2V5KSA6IGRlc2MsIGQ7DQogICAgaWYgKHR5cGVvZiBSZWZsZWN0ID09PSAib2JqZWN0IiAmJiB0eXBlb2YgUmVmbGVjdC5kZWNvcmF0ZSA9PT0gImZ1bmN0aW9uIikgciA9IFJlZmxlY3QuZGVjb3JhdGUoZGVjb3JhdG9ycywgdGFyZ2V0LCBrZXksIGRlc2MpOw0KICAgIGVsc2UgZm9yICh2YXIgaSA9IGRlY29yYXRvcnMubGVuZ3RoIC0gMTsgaSA+PSAwOyBpLS0pIGlmIChkID0gZGVjb3JhdG9yc1tpXSkgciA9IChjIDwgMyA/IGQocikgOiBjID4gMyA/IGQodGFyZ2V0LCBrZXksIHIpIDogZCh0YXJnZXQsIGtleSkpIHx8IHI7DQogICAgcmV0dXJuIGMgPiAzICYmIHIgJiYgT2JqZWN0LmRlZmluZVByb3BlcnR5KHRhcmdldCwga2V5LCByKSwgcjsNCn07DQp2YXIgX19wYXJhbSA9ICh0aGlzICYmIHRoaXMuX19wYXJhbSkgfHwgZnVuY3Rpb24gKHBhcmFtSW5kZXgsIGRlY29yYXRvcikgew0KICAgIHJldHVybiBmdW5jdGlvbiAodGFyZ2V0LCBrZXkpIHsgZGVjb3JhdG9yKHRhcmdldCwga2V5LCBwYXJhbUluZGV4KTsgfQ0KfTsNCmxldCBDID0gY2xhc3MgQyB7DQogICAgY29uc3RydWN0b3IocCkgeyB9DQogICAgc3RhdGljIGYoKSB7IH0NCiAgICBzdGF0aWMgZ2V0IHgoKSB7IHJldHVybiAxOyB9DQogICAgc3RhdGljIHNldCB4KHZhbHVlKSB7IH0NCiAgICBzdGF0aWMgYWNjZXNzb3IgeSA9IDE7DQogICAgc3RhdGljIHogPSAxOw0KICAgIGcoKSB7IH0NCiAgICBnZXQgYSgpIHsgcmV0dXJuIDE7IH0NCiAgICBzZXQgYSh2YWx1ZSkgeyB9DQogICAgYWNjZXNzb3IgYiA9IDE7DQogICAgYyA9IDE7DQogICAgc3RhdGljIGgocCkgeyB9DQogICAgaChwKSB7IH0NCn07DQpfX2RlY29yYXRlKFsNCiAgICAoKHQsIGssIGQpID0+IHsgfSkNCl0sIEMucHJvdG90eXBlLCAiZyIsIG51bGwpOw0KX19kZWNvcmF0ZShbDQogICAgKCh0LCBrLCBkKSA9PiB7IH0pDQpdLCBDLnByb3RvdHlwZSwgImEiLCBudWxsKTsNCl9fZGVjb3JhdGUoWw0KICAgICgodCwgaywgZCkgPT4geyB9KQ0KXSwgQy5wcm90b3R5cGUsICJiIiwgbnVsbCk7DQpfX2RlY29yYXRlKFsNCiAgICAoKHQsIGspID0+IHsgfSkNCl0sIEMucHJvdG90eXBlLCAiYyIsIHZvaWQgMCk7DQpfX2RlY29yYXRlKFsNCiAgICBfX3BhcmFtKDAsICgodCwgaywgaSkgPT4geyB9KSkNCl0sIEMucHJvdG90eXBlLCAiaCIsIG51bGwpOw0KX19kZWNvcmF0ZShbDQogICAgKCh0LCBrLCBkKSA9PiB7IH0pDQpdLCBDLCAiZiIsIG51bGwpOw0KX19kZWNvcmF0ZShbDQogICAgKCh0LCBrLCBkKSA9PiB7IH0pDQpdLCBDLCAieCIsIG51bGwpOw0KX19kZWNvcmF0ZShbDQogICAgKCh0LCBrLCBkKSA9PiB7IH0pDQpdLCBDLCAieSIsIG51bGwpOw0KX19kZWNvcmF0ZShbDQogICAgKCh0LCBrKSA9PiB7IH0pDQpdLCBDLCAieiIsIHZvaWQgMCk7DQpfX2RlY29yYXRlKFsNCiAgICBfX3BhcmFtKDAsICgodCwgaywgaSkgPT4geyB9KSkNCl0sIEMsICJoIiwgbnVsbCk7DQpDID0gX19kZWNvcmF0ZShbDQogICAgKCh0KSA9PiB7IH0pLA0KICAgIF9fcGFyYW0oMCwgKCh0LCBrLCBpKSA9PiB7IH0pKQ0KXSwgQyk7DQo=",
+              "callback_utf8_sha256": "2c6f8c435a9a8b90b02fec56f252e42210a92c909e51f6786326dad7ad47a66c",
+              "callback_utf8_bytes": 1778,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "2c6f8c435a9a8b90b02fec56f252e42210a92c909e51f6786326dad7ad47a66c",
+              "materialized_utf8_bytes": 1778,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/legacyDecorators-contextualTypes.ts"
+              ]
+            }
+          ],
+          "reported_diagnostics": [],
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 0,
+          "run_fingerprint_sha256": "5463d9a08a7f5bdf2813b0d6f2a07449f1e04eb1dad8dea53b35d22c16628077"
+        }
+      ],
+      "rust_expectation": "two-deterministic-exact-runs",
+      "case_fingerprint_sha256": "b8cd23882d6c2f25d7e66ad52a433fea30709d5108f29f12c3ba6513064d781c"
+    }
+  ],
+  "summary": {
+    "candidates": 10,
+    "compiler_candidates": 0,
+    "conformance_candidates": 10,
+    "admitted_cases": 9,
+    "deferred_cases": 1,
+    "diagnostic_deferred_output_control_cases": 0,
+    "source_deferred_cases": 1,
+    "no_emit_control_cases": 0,
+    "module_states": [
+      {
+        "value": "absent-effective-ESNext",
+        "cases": 10
+      }
+    ],
+    "dispositions": [
+      {
+        "value": "admitted-for-execution",
+        "cases": 9
+      },
+      {
+        "value": "deferred-to-slices",
+        "cases": 1
+      }
+    ],
+    "first_deferred_slices": [
+      {
+        "value": "H2.9",
+        "cases": 1
+      }
+    ],
+    "typescript_runs": 20,
+    "deterministic_typescript_cases": 10,
+    "admitted_typescript_writes": 9,
+    "diagnostic_control_typescript_writes": 0,
+    "admitted_typescript_diagnostics": 8,
+    "unexecuted_candidates": 0,
+    "undispositioned_candidates": 0
+  },
+  "qualification_fingerprint_sha256": "c7fbf7f87d3a6fa54657e00b187e800e73af09f4a48b9011df3e20902b973bda"
+}

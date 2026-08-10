@@ -14,6 +14,11 @@ fn all_h2_2c_candidate_dispositions_execute() {
 }
 
 #[test]
+fn all_h2_4a_candidate_dispositions_execute_or_are_source_deferred() {
+    super::run_h2_4a(&workspace()).expect("H2.4a acceptance");
+}
+
+#[test]
 fn h2_2c_two_worker_execution_is_exact_and_isolated() {
     const CASE_IDS: [&str; 2] = [
         "typescript-6.0.3/conformance/classes/members/instanceAndStaticMembers/typeOfThisInStaticMembers5.ts#target%3Desnext",

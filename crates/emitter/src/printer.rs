@@ -485,6 +485,20 @@ impl Printer {
             helpers.sort_by_key(|helper| helper.priority());
             helpers
         };
+        let system_scoped_helpers = !helpers.is_empty()
+            && statements.first().is_some_and(|statement| {
+                transformation
+                    .arena()
+                    .node_ref(source_id, *statement)
+                    .is_some_and(|statement| {
+                        self.is_system_register_statement(transformation, statement)
+                    })
+            });
+        let source_helpers = if system_scoped_helpers {
+            &[][..]
+        } else {
+            helpers.as_slice()
+        };
         let helper_offset = statements
             .iter()
             .take_while(|statement| {
@@ -497,11 +511,11 @@ impl Printer {
         let mut emitted_original_prefix_comments = false;
         let mut last_original_statement = None;
         if statements.is_empty() {
-            self.emit_helpers(&helpers, &mut writer)?;
+            self.emit_helpers(source_helpers, &mut writer)?;
         }
         for (statement_index, raw_statement) in statements.into_iter().enumerate() {
             if statement_index == helper_offset {
-                self.emit_helpers(&helpers, &mut writer)?;
+                self.emit_helpers(source_helpers, &mut writer)?;
             }
             let statement = transformation
                 .arena()
@@ -579,10 +593,104 @@ impl Printer {
             )?;
         }
         transformation.after_emit_node(EmitHint::SourceFile, root)?;
-        Ok(PrintedText {
-            text: writer.text().to_owned(),
-            end: writer.location(),
+        let text = if system_scoped_helpers {
+            self.insert_system_scoped_helpers(writer.text(), &helpers)?
+        } else {
+            writer.text().to_owned()
+        };
+        let end = if system_scoped_helpers {
+            let mut measured = create_text_writer(self.options.new_line);
+            measured.raw_write(&text);
+            measured.location()
+        } else {
+            writer.location()
+        };
+        Ok(PrintedText { text, end })
+    }
+
+    fn is_system_register_statement(
+        &self,
+        transformation: &TransformationResult<'_>,
+        statement: TransformNode,
+    ) -> bool {
+        let Ok(statement_record) = transformation.arena().node(statement) else {
+            return false;
+        };
+        let Some(call) = (match &statement_record.data {
+            NodeData::ExpressionStatement(data) => data.expression,
+            _ => None,
         })
+        .and_then(|expression| {
+            transformation
+                .arena()
+                .node_ref(statement.source(), expression)
+        }) else {
+            return false;
+        };
+        let Ok(call_record) = transformation.arena().node(call) else {
+            return false;
+        };
+        let Some(access) = (match &call_record.data {
+            NodeData::CallExpression(data) => data.expression,
+            _ => None,
+        })
+        .and_then(|expression| {
+            transformation
+                .arena()
+                .node_ref(statement.source(), expression)
+        }) else {
+            return false;
+        };
+        let Ok(access_record) = transformation.arena().node(access) else {
+            return false;
+        };
+        let NodeData::PropertyAccessExpression(data) = &access_record.data else {
+            return false;
+        };
+        let expression = data.expression.and_then(|expression| {
+            transformation
+                .arena()
+                .node_ref(statement.source(), expression)
+        });
+        let name = data
+            .name
+            .and_then(|name| transformation.arena().node_ref(statement.source(), name));
+        expression
+            .and_then(|node| transformation.arena().node(node).ok())
+            .is_some_and(
+                |node| matches!(&node.data, NodeData::Identifier(data) if data.text == "System"),
+            )
+            && name
+                .and_then(|node| transformation.arena().node(node).ok())
+                .is_some_and(
+                    |node| matches!(&node.data, NodeData::Identifier(data) if data.text == "register"),
+                )
+    }
+
+    fn insert_system_scoped_helpers(
+        &self,
+        text: &str,
+        helpers: &[EmitHelper],
+    ) -> Result<String, PrinterError> {
+        let new_line = self.options.new_line.text();
+        let first_line_end = text
+            .find(new_line)
+            .map(|offset| offset + new_line.len())
+            .unwrap_or(0);
+        let strict = format!("    \"use strict\";{new_line}");
+        let insertion_offset = if text[first_line_end..].starts_with(&strict) {
+            first_line_end + strict.len()
+        } else {
+            first_line_end
+        };
+        let mut helper_writer = create_text_writer(self.options.new_line);
+        helper_writer.increase_indent();
+        self.emit_helpers(helpers, &mut helper_writer)?;
+        let mut output = String::with_capacity(text.len() + helper_writer.text().len());
+        output.push_str(&text[..insertion_offset]);
+        output.push_str(helper_writer.text());
+        output.push_str(&text[insertion_offset..]);
+        Ok(output)
     }
 
     fn emit_transformed_node(

@@ -1413,7 +1413,7 @@ fn h2_3d_resolve_json_module_option_diagnostics_match_typescript_and_gate_no_emi
 }
 
 #[test]
-fn a_later_unsupported_source_cannot_leave_an_earlier_partial_write() {
+fn a_later_standard_decorator_source_cannot_leave_an_earlier_partial_write() {
     let prepared = prepared_with_sources(
         CompilerOptions {
             no_emit: Some(false),
@@ -1430,7 +1430,7 @@ fn a_later_unsupported_source_cannot_leave_an_earlier_partial_write() {
     let mut sink = CountingSink::default();
     let error = ProgramSession::new(prepared)
         .emit(&mut sink)
-        .expect_err("decorators remain owned by H2.4a");
+        .expect_err("standard decorators remain owned by H2.4b");
     assert!(
         matches!(error, DriverError::Emit(EmitFailure::Transform(_))),
         "unexpected later-source failure: {error:?}"

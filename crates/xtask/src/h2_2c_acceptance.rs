@@ -14,6 +14,22 @@ use tsc_harness::upstream_suites::execution::load_qualified_compiler_emit;
 use tsc_program::ProgramLoadLimits;
 
 const QUALIFICATION_RELATIVE_PATH: &str = "ratchets/h2-2c-qualification.v1.json";
+const H2_4A_QUALIFICATION_RELATIVE_PATH: &str = "ratchets/h2-4a-qualification.v1.json";
+
+#[derive(Clone, Copy)]
+enum AcceptanceSlice {
+    H2_2c,
+    H2_4a,
+}
+
+impl AcceptanceSlice {
+    const fn label(self) -> &'static str {
+        match self {
+            Self::H2_2c => "H2.2c",
+            Self::H2_4a => "H2.4a",
+        }
+    }
+}
 
 fn failure(message: impl Into<String>) -> Box<dyn Error> {
     std::io::Error::other(message.into()).into()
@@ -239,7 +255,11 @@ fn assert_reported_diagnostics(
     Ok(())
 }
 
-fn execute_observed(workspace: &Path, case: &Value) -> Result<(usize, usize), Box<dyn Error>> {
+fn execute_slice_observed(
+    workspace: &Path,
+    case: &Value,
+    accepted_slice: AcceptanceSlice,
+) -> Result<(usize, usize), Box<dyn Error>> {
     let case_id = string(case, "case_id")?;
     let mut first_sink = MemoryOutputSink::new();
     let (first, first_reported) = ProgramSession::new(case_input(workspace, case)?)
@@ -343,6 +363,20 @@ fn execute_observed(workspace: &Path, case: &Value) -> Result<(usize, usize), Bo
                 .count() as u64
         })
         .unwrap_or(0);
+    let decorator_sources = case["files"]
+        .as_array()
+        .map(|files| {
+            files
+                .iter()
+                .filter(|file| {
+                    file["emit_eligible"] == true
+                        && file["feature_roots"].as_array().is_some_and(|roots| {
+                            roots.iter().any(|root| root["feature"] == "decorators")
+                        })
+                })
+                .count() as u64
+        })
+        .unwrap_or(0);
     let commonjs_sources = case["files"]
         .as_array()
         .map(|files| {
@@ -370,9 +404,16 @@ fn execute_observed(workspace: &Path, case: &Value) -> Result<(usize, usize), Bo
         || activity.runtime_slice(H2RuntimeSlice::H2_2a) != enum_sources
         || activity.runtime_slice(H2RuntimeSlice::H2_2b) != namespace_sources
         || activity.runtime_slice(H2RuntimeSlice::H2_2c) != parameter_property_sources
+        || activity.runtime_slice(H2RuntimeSlice::H2_4a)
+            != if matches!(accepted_slice, AcceptanceSlice::H2_4a) {
+                decorator_sources
+            } else {
+                0
+            }
     {
         return Err(failure(format!(
-            "{case_id}: H2.2c activity does not match {reached_sources} reached, {node_format_sources} node-format, {enum_sources} enum, {namespace_sources} namespace, and {parameter_property_sources} parameter-property sources: actual H2.1a={} H2.1b={} H2.1d={} H2.1e={} H2.2a={} H2.2b={} H2.2c={}",
+            "{case_id}: {} activity does not match {reached_sources} reached, {node_format_sources} node-format, {enum_sources} enum, {namespace_sources} namespace, {parameter_property_sources} parameter-property, and {decorator_sources} decorator sources: actual H2.1a={} H2.1b={} H2.1d={} H2.1e={} H2.2a={} H2.2b={} H2.2c={} H2.4a={}",
+            accepted_slice.label(),
             activity.runtime_slice(H2RuntimeSlice::H2_1a),
             activity.runtime_slice(H2RuntimeSlice::H2_1b),
             activity.runtime_slice(H2RuntimeSlice::H2_1d),
@@ -380,6 +421,7 @@ fn execute_observed(workspace: &Path, case: &Value) -> Result<(usize, usize), Bo
             activity.runtime_slice(H2RuntimeSlice::H2_2a),
             activity.runtime_slice(H2RuntimeSlice::H2_2b),
             activity.runtime_slice(H2RuntimeSlice::H2_2c),
+            activity.runtime_slice(H2RuntimeSlice::H2_4a),
         )));
     }
     for slice in H2RuntimeSlice::ALL {
@@ -392,6 +434,7 @@ fn execute_observed(workspace: &Path, case: &Value) -> Result<(usize, usize), Bo
                 | H2RuntimeSlice::H2_2a
                 | H2RuntimeSlice::H2_2b
                 | H2RuntimeSlice::H2_2c
+                | H2RuntimeSlice::H2_4a
         ) && activity.runtime_slice(slice) != 0
         {
             return Err(failure(format!(
@@ -401,6 +444,17 @@ fn execute_observed(workspace: &Path, case: &Value) -> Result<(usize, usize), Bo
         }
     }
     Ok((first_sink.writes().len(), first_reported.len()))
+}
+
+fn execute_observed(workspace: &Path, case: &Value) -> Result<(usize, usize), Box<dyn Error>> {
+    execute_slice_observed(workspace, case, AcceptanceSlice::H2_2c)
+}
+
+fn execute_h2_4a_observed(
+    workspace: &Path,
+    case: &Value,
+) -> Result<(usize, usize), Box<dyn Error>> {
+    execute_slice_observed(workspace, case, AcceptanceSlice::H2_4a)
 }
 
 fn expected_node_format_sources(case: &Value) -> Result<u64, Box<dyn Error>> {
@@ -496,6 +550,71 @@ pub fn run(workspace: &Path) -> Result<(), Box<dyn Error>> {
     }
     println!(
         "H2.2c emit acceptance: candidates=6 exact={admitted} source_deferred=0 exact_diagnostics={diagnostics} exact_writes={writes} repetitions=2"
+    );
+    Ok(())
+}
+
+/// Execute the nine admitted H2.4a legacy-decorator candidates and retain the
+/// one parser-owned source deferral as an explicit H2.9 boundary.
+pub fn run_h2_4a(workspace: &Path) -> Result<(), Box<dyn Error>> {
+    let artifact: Value = serde_json::from_slice(&fs::read(
+        workspace.join(H2_4A_QUALIFICATION_RELATIVE_PATH),
+    )?)?;
+    if artifact["schema"] != 1
+        || artifact["status"] != "qualified-typescript-oracle"
+        || artifact["phase"] != "H2.4a-legacy-decorators"
+        || artifact["selection_contract"]["global_h2_4a_rows"] != 418
+        || artifact["selection_contract"]["candidate_denominator"] != 10
+        || artifact["selection_contract"]["future_deferred_rows"] != 408
+        || artifact["summary"]["candidates"] != 10
+        || artifact["summary"]["admitted_cases"] != 9
+        || artifact["summary"]["deferred_cases"] != 1
+        || artifact["summary"]["source_deferred_cases"] != 1
+        || artifact["summary"]["unexecuted_candidates"] != 0
+        || artifact["summary"]["undispositioned_candidates"] != 0
+    {
+        return Err(failure("H2.4a qualification header is not closed"));
+    }
+    let cases = array(&artifact, "cases")?;
+    if cases.len() != 10 {
+        return Err(failure("H2.4a qualification case denominator changed"));
+    }
+    let mut admitted = 0;
+    let mut source_deferred = 0;
+    let mut writes = 0;
+    let mut diagnostics = 0;
+    for case in cases {
+        match string(case, "disposition")? {
+            "admitted-for-execution" => {
+                admitted += 1;
+                let (case_writes, case_diagnostics) = execute_h2_4a_observed(workspace, case)?;
+                writes += case_writes;
+                diagnostics += case_diagnostics;
+            }
+            "deferred-to-slices"
+                if case["required_slices"]
+                    .as_array()
+                    .is_some_and(|slices| slices.len() == 1 && slices[0] == "H2.9")
+                    && case["diagnostic_disposition"]["state"]
+                        == "not-observed-source-deferred" =>
+            {
+                source_deferred += 1;
+            }
+            disposition => {
+                return Err(failure(format!(
+                    "unknown H2.4a disposition {disposition} for {}",
+                    string(case, "case_id")?,
+                )))
+            }
+        }
+    }
+    if admitted != 9 || source_deferred != 1 || writes != 9 || diagnostics != 8 {
+        return Err(failure(format!(
+            "H2.4a execution totals differ: admitted={admitted} source_deferred={source_deferred} writes={writes} diagnostics={diagnostics}"
+        )));
+    }
+    println!(
+        "H2.4a emit acceptance: candidates=10 exact={admitted} source_deferred={source_deferred} exact_diagnostics={diagnostics} exact_writes={writes} repetitions=2"
     );
     Ok(())
 }

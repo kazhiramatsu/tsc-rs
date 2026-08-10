@@ -467,6 +467,9 @@ fn apply_compiler_setting(
         "experimentalDecorators" | "experimentaldecorators" => {
             compiler_options.experimental_decorators = boolean()?
         }
+        "emitDecoratorMetadata" | "emitdecoratormetadata" => {
+            compiler_options.emit_decorator_metadata = Some(boolean()?)
+        }
         "target" => compiler_options.target = Some(parse_target(value)?),
         "module" => compiler_options.module = Some(parse_module(value)?),
         "moduleResolution" => {
@@ -622,8 +625,6 @@ fn apply_compiler_setting(
         | "isolatedDeclarations"
         | "erasableSyntaxOnly"
         | "libReplacement"
-        | "emitDecoratorMetadata"
-        | "emitdecoratormetadata"
         | "skipDefaultLibCheck"
         | "stripInternal"
         | "disableSizeLimit"

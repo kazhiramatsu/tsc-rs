@@ -30,3 +30,9 @@ fn pinned_h2_3d_acceptance_is_exact() {
     let workspace = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
     run(&workspace).unwrap();
 }
+
+#[test]
+fn pinned_h2_4a_owner_controls_are_exact() {
+    let workspace = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+    run_h2_4a_owner_controls(&workspace).unwrap();
+}

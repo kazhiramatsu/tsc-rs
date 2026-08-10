@@ -5,7 +5,7 @@ use std::cell::RefCell;
 
 use tsc_emitter::{
     EmitConstantValue, EmitEnumMemberValue, EmitResolver, EmitResolverError, EmitResolverMethod,
-    EmitResolverNode, JavaScriptNumber, JavaScriptString,
+    EmitResolverNode, EmitTypeReferenceSerializationKind, JavaScriptNumber, JavaScriptString,
 };
 
 use crate::state::{CheckResult, CheckerState};
@@ -150,6 +150,31 @@ impl EmitResolver for CheckerSession<'_> {
         )
         .map(|declaration| {
             declaration.map(|declaration| EmitResolverNode::new(node.source(), declaration))
+        })
+    }
+
+    fn get_type_reference_serialization_kind(
+        &self,
+        node: EmitResolverNode,
+    ) -> Result<EmitTypeReferenceSerializationKind, EmitResolverError> {
+        self.with_resolver_node(
+            EmitResolverMethod::GetTypeReferenceSerializationKind,
+            node,
+            CheckerState::emit_get_type_reference_serialization_kind,
+        )
+    }
+
+    fn has_node_check_flag(
+        &self,
+        node: EmitResolverNode,
+        flag: u32,
+    ) -> Result<bool, EmitResolverError> {
+        self.with_resolver_node(EmitResolverMethod::HasNodeCheckFlag, node, |state, node| {
+            Ok(state
+                .links
+                .node(node)
+                .check_flags
+                .intersects(tsc_types::NodeCheckFlags::from_bits(flag as i32)))
         })
     }
 

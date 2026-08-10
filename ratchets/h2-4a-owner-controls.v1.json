@@ -1,0 +1,1027 @@
+{
+  "schema": 1,
+  "phase": "H2.4a-legacy-decorator-owner-controls",
+  "status": "qualified",
+  "typescript": {
+    "version": "6.0.3",
+    "source_commit": "050880ce59e30b356b686bd3144efe24f875ebc8",
+    "bundle": {
+      "path": "vendor/typescript-6.0.3/lib/typescript.js",
+      "sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39"
+    },
+    "implementation": {
+      "path": "vendor/typescript-6.0.3/lib/_tsc.js",
+      "sha256": "1c59e77a54b186ec43fa7f3e0d3c4bb15ca5eb5ba43e96b1d3a267139eddd3e3"
+    }
+  },
+  "generator": {
+    "path": "crates/oracle/h2-4a-owner-controls.mjs",
+    "sha256": "5bc3e108cd33c4f0d4027162b42e667f9ea502cce0fcd598a6b7457494ac5645"
+  },
+  "contract": {
+    "path": ".github/ci/contracts/h2-4a-owner-controls.schema.json",
+    "sha256": "9e3a5e077e5220a11ae473bbef996419e2c3fcc93694276393f62d4f819e734d"
+  },
+  "controls": [
+    {
+      "control_id": "named-exported-decorated-class",
+      "input": {
+        "current_directory": "/project",
+        "roots": [
+          "/project/input.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/input.ts",
+            "root": true,
+            "utf8_base64": "ZGVjbGFyZSBjb25zdCBkZWM6IGFueTsKQGRlYyBleHBvcnQgY2xhc3MgQyB7fQo=",
+            "utf8_sha256": "848635cb29673b77d635407eae6adf3166497f021aff4bd592c6d0767a998dc4",
+            "utf8_bytes": 47
+          }
+        ],
+        "compiler_options": {
+          "alwaysStrict": true,
+          "experimentalDecorators": true,
+          "ignoreDeprecations": "6.0",
+          "module": 99,
+          "newLine": 1,
+          "target": 99
+        }
+      },
+      "repetitions": 2,
+      "observation": {
+        "reported_diagnostics": [],
+        "emit_diagnostics": [],
+        "emit_skipped": false,
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/input.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "dmFyIF9fZGVjb3JhdGUgPSAodGhpcyAmJiB0aGlzLl9fZGVjb3JhdGUpIHx8IGZ1bmN0aW9uIChkZWNvcmF0b3JzLCB0YXJnZXQsIGtleSwgZGVzYykgewogICAgdmFyIGMgPSBhcmd1bWVudHMubGVuZ3RoLCByID0gYyA8IDMgPyB0YXJnZXQgOiBkZXNjID09PSBudWxsID8gZGVzYyA9IE9iamVjdC5nZXRPd25Qcm9wZXJ0eURlc2NyaXB0b3IodGFyZ2V0LCBrZXkpIDogZGVzYywgZDsKICAgIGlmICh0eXBlb2YgUmVmbGVjdCA9PT0gIm9iamVjdCIgJiYgdHlwZW9mIFJlZmxlY3QuZGVjb3JhdGUgPT09ICJmdW5jdGlvbiIpIHIgPSBSZWZsZWN0LmRlY29yYXRlKGRlY29yYXRvcnMsIHRhcmdldCwga2V5LCBkZXNjKTsKICAgIGVsc2UgZm9yICh2YXIgaSA9IGRlY29yYXRvcnMubGVuZ3RoIC0gMTsgaSA+PSAwOyBpLS0pIGlmIChkID0gZGVjb3JhdG9yc1tpXSkgciA9IChjIDwgMyA/IGQocikgOiBjID4gMyA/IGQodGFyZ2V0LCBrZXksIHIpIDogZCh0YXJnZXQsIGtleSkpIHx8IHI7CiAgICByZXR1cm4gYyA+IDMgJiYgciAmJiBPYmplY3QuZGVmaW5lUHJvcGVydHkodGFyZ2V0LCBrZXksIHIpLCByOwp9OwpsZXQgQyA9IGNsYXNzIEMgewp9OwpDID0gX19kZWNvcmF0ZShbCiAgICBkZWMKXSwgQyk7CmV4cG9ydCB7IEMgfTsK",
+            "callback_utf8_sha256": "7f360bb66e0f607151daaf90b310eddb6568881a629d11c2f93851acfb52b89b",
+            "callback_utf8_bytes": 639,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "7f360bb66e0f607151daaf90b310eddb6568881a629d11c2f93851acfb52b89b",
+            "materialized_utf8_bytes": 639,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/input.ts"
+            ]
+          }
+        ],
+        "run_fingerprint_sha256": "ba2371e45d29237ad5440f3d8ab15a5d62b978d746098584e92cf30ecc17feaf"
+      },
+      "control_fingerprint_sha256": "e74f2fa1fd94ae6730aee18164bec3d62a43daacf21d676cf8e309562ec26d7b"
+    },
+    {
+      "control_id": "default-exported-decorated-class",
+      "input": {
+        "current_directory": "/project",
+        "roots": [
+          "/project/input.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/input.ts",
+            "root": true,
+            "utf8_base64": "ZGVjbGFyZSBjb25zdCBkZWM6IGFueTsKQGRlYyBleHBvcnQgZGVmYXVsdCBjbGFzcyBDIHt9Cg==",
+            "utf8_sha256": "2b5bebadccd812dd31af8e9b13eba5b1ffb8a9beec9f65a1de3836b549da17a3",
+            "utf8_bytes": 55
+          }
+        ],
+        "compiler_options": {
+          "alwaysStrict": true,
+          "experimentalDecorators": true,
+          "ignoreDeprecations": "6.0",
+          "module": 99,
+          "newLine": 1,
+          "target": 99
+        }
+      },
+      "repetitions": 2,
+      "observation": {
+        "reported_diagnostics": [],
+        "emit_diagnostics": [],
+        "emit_skipped": false,
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/input.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "dmFyIF9fZGVjb3JhdGUgPSAodGhpcyAmJiB0aGlzLl9fZGVjb3JhdGUpIHx8IGZ1bmN0aW9uIChkZWNvcmF0b3JzLCB0YXJnZXQsIGtleSwgZGVzYykgewogICAgdmFyIGMgPSBhcmd1bWVudHMubGVuZ3RoLCByID0gYyA8IDMgPyB0YXJnZXQgOiBkZXNjID09PSBudWxsID8gZGVzYyA9IE9iamVjdC5nZXRPd25Qcm9wZXJ0eURlc2NyaXB0b3IodGFyZ2V0LCBrZXkpIDogZGVzYywgZDsKICAgIGlmICh0eXBlb2YgUmVmbGVjdCA9PT0gIm9iamVjdCIgJiYgdHlwZW9mIFJlZmxlY3QuZGVjb3JhdGUgPT09ICJmdW5jdGlvbiIpIHIgPSBSZWZsZWN0LmRlY29yYXRlKGRlY29yYXRvcnMsIHRhcmdldCwga2V5LCBkZXNjKTsKICAgIGVsc2UgZm9yICh2YXIgaSA9IGRlY29yYXRvcnMubGVuZ3RoIC0gMTsgaSA+PSAwOyBpLS0pIGlmIChkID0gZGVjb3JhdG9yc1tpXSkgciA9IChjIDwgMyA/IGQocikgOiBjID4gMyA/IGQodGFyZ2V0LCBrZXksIHIpIDogZCh0YXJnZXQsIGtleSkpIHx8IHI7CiAgICByZXR1cm4gYyA+IDMgJiYgciAmJiBPYmplY3QuZGVmaW5lUHJvcGVydHkodGFyZ2V0LCBrZXksIHIpLCByOwp9OwpsZXQgQyA9IGNsYXNzIEMgewp9OwpDID0gX19kZWNvcmF0ZShbCiAgICBkZWMKXSwgQyk7CmV4cG9ydCBkZWZhdWx0IEM7Cg==",
+            "callback_utf8_sha256": "a1c54b939558aa0a6a4d3f6845e912de0b7b8d0acd236ee08d58ad699f52315f",
+            "callback_utf8_bytes": 643,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "a1c54b939558aa0a6a4d3f6845e912de0b7b8d0acd236ee08d58ad699f52315f",
+            "materialized_utf8_bytes": 643,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/input.ts"
+            ]
+          }
+        ],
+        "run_fingerprint_sha256": "33c3b284a54fe5993b61efa8f25f058d9d2c7f011e0834a0b3a8c6c156543b43"
+      },
+      "control_fingerprint_sha256": "aeee1ba2c3e75c26c4d6e3b5523ab031b7f7778eee41f4942d6d7a04793c9999"
+    },
+    {
+      "control_id": "anonymous-default-exported-decorated-class",
+      "input": {
+        "current_directory": "/project",
+        "roots": [
+          "/project/input.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/input.ts",
+            "root": true,
+            "utf8_base64": "ZGVjbGFyZSBjb25zdCBkZWM6IGFueTsKQGRlYyBleHBvcnQgZGVmYXVsdCBjbGFzcyB7fQo=",
+            "utf8_sha256": "5fbcafa78964c5cc0a9a8510049620647b49e0513a39823edf3af4729062f2f3",
+            "utf8_bytes": 53
+          }
+        ],
+        "compiler_options": {
+          "alwaysStrict": true,
+          "experimentalDecorators": true,
+          "ignoreDeprecations": "6.0",
+          "module": 99,
+          "newLine": 1,
+          "target": 99
+        }
+      },
+      "repetitions": 2,
+      "observation": {
+        "reported_diagnostics": [],
+        "emit_diagnostics": [],
+        "emit_skipped": false,
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/input.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "dmFyIF9fZGVjb3JhdGUgPSAodGhpcyAmJiB0aGlzLl9fZGVjb3JhdGUpIHx8IGZ1bmN0aW9uIChkZWNvcmF0b3JzLCB0YXJnZXQsIGtleSwgZGVzYykgewogICAgdmFyIGMgPSBhcmd1bWVudHMubGVuZ3RoLCByID0gYyA8IDMgPyB0YXJnZXQgOiBkZXNjID09PSBudWxsID8gZGVzYyA9IE9iamVjdC5nZXRPd25Qcm9wZXJ0eURlc2NyaXB0b3IodGFyZ2V0LCBrZXkpIDogZGVzYywgZDsKICAgIGlmICh0eXBlb2YgUmVmbGVjdCA9PT0gIm9iamVjdCIgJiYgdHlwZW9mIFJlZmxlY3QuZGVjb3JhdGUgPT09ICJmdW5jdGlvbiIpIHIgPSBSZWZsZWN0LmRlY29yYXRlKGRlY29yYXRvcnMsIHRhcmdldCwga2V5LCBkZXNjKTsKICAgIGVsc2UgZm9yICh2YXIgaSA9IGRlY29yYXRvcnMubGVuZ3RoIC0gMTsgaSA+PSAwOyBpLS0pIGlmIChkID0gZGVjb3JhdG9yc1tpXSkgciA9IChjIDwgMyA/IGQocikgOiBjID4gMyA/IGQodGFyZ2V0LCBrZXksIHIpIDogZCh0YXJnZXQsIGtleSkpIHx8IHI7CiAgICByZXR1cm4gYyA+IDMgJiYgciAmJiBPYmplY3QuZGVmaW5lUHJvcGVydHkodGFyZ2V0LCBrZXksIHIpLCByOwp9OwpsZXQgZGVmYXVsdF8xID0gY2xhc3Mgewp9OwpkZWZhdWx0XzEgPSBfX2RlY29yYXRlKFsKICAgIGRlYwpdLCBkZWZhdWx0XzEpOwpleHBvcnQgZGVmYXVsdCBkZWZhdWx0XzE7Cg==",
+            "callback_utf8_sha256": "30422a781476822a4caf884b6175f82f6310d834e248d8c7a61d50786fd536e9",
+            "callback_utf8_bytes": 673,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "30422a781476822a4caf884b6175f82f6310d834e248d8c7a61d50786fd536e9",
+            "materialized_utf8_bytes": 673,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/input.ts"
+            ]
+          }
+        ],
+        "run_fingerprint_sha256": "7026848d8ec5815eebe61e72a0e7937f41a85b296a2f4ae9a81da35faa8690bb"
+      },
+      "control_fingerprint_sha256": "b578d4cca454e89ae0d2d53965b6d89923994d9c857f336ba2644b6a7fa6bd9f"
+    },
+    {
+      "control_id": "anonymous-default-exported-member-decoration",
+      "input": {
+        "current_directory": "/project",
+        "roots": [
+          "/project/input.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/input.ts",
+            "root": true,
+            "utf8_base64": "ZGVjbGFyZSBjb25zdCBkZWM6IGFueTsKZXhwb3J0IGRlZmF1bHQgY2xhc3MgeyBAZGVjIG1ldGhvZCgpIHt9IH0K",
+            "utf8_sha256": "a2cfe8a12661b256bfc82da643a2b2cbc4b4db2e6708e4d187c4bcf6e5b2df2c",
+            "utf8_bytes": 66
+          }
+        ],
+        "compiler_options": {
+          "alwaysStrict": true,
+          "experimentalDecorators": true,
+          "ignoreDeprecations": "6.0",
+          "module": 99,
+          "newLine": 1,
+          "target": 99
+        }
+      },
+      "repetitions": 2,
+      "observation": {
+        "reported_diagnostics": [],
+        "emit_diagnostics": [],
+        "emit_skipped": false,
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/input.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "dmFyIF9fZGVjb3JhdGUgPSAodGhpcyAmJiB0aGlzLl9fZGVjb3JhdGUpIHx8IGZ1bmN0aW9uIChkZWNvcmF0b3JzLCB0YXJnZXQsIGtleSwgZGVzYykgewogICAgdmFyIGMgPSBhcmd1bWVudHMubGVuZ3RoLCByID0gYyA8IDMgPyB0YXJnZXQgOiBkZXNjID09PSBudWxsID8gZGVzYyA9IE9iamVjdC5nZXRPd25Qcm9wZXJ0eURlc2NyaXB0b3IodGFyZ2V0LCBrZXkpIDogZGVzYywgZDsKICAgIGlmICh0eXBlb2YgUmVmbGVjdCA9PT0gIm9iamVjdCIgJiYgdHlwZW9mIFJlZmxlY3QuZGVjb3JhdGUgPT09ICJmdW5jdGlvbiIpIHIgPSBSZWZsZWN0LmRlY29yYXRlKGRlY29yYXRvcnMsIHRhcmdldCwga2V5LCBkZXNjKTsKICAgIGVsc2UgZm9yICh2YXIgaSA9IGRlY29yYXRvcnMubGVuZ3RoIC0gMTsgaSA+PSAwOyBpLS0pIGlmIChkID0gZGVjb3JhdG9yc1tpXSkgciA9IChjIDwgMyA/IGQocikgOiBjID4gMyA/IGQodGFyZ2V0LCBrZXksIHIpIDogZCh0YXJnZXQsIGtleSkpIHx8IHI7CiAgICByZXR1cm4gYyA+IDMgJiYgciAmJiBPYmplY3QuZGVmaW5lUHJvcGVydHkodGFyZ2V0LCBrZXksIHIpLCByOwp9OwpleHBvcnQgZGVmYXVsdCBjbGFzcyBkZWZhdWx0XzEgewogICAgbWV0aG9kKCkgeyB9Cn0KX19kZWNvcmF0ZShbCiAgICBkZWMKXSwgZGVmYXVsdF8xLnByb3RvdHlwZSwgIm1ldGhvZCIsIG51bGwpOwo=",
+            "callback_utf8_sha256": "dab2fed7e4bdabd98cce59c79561f89827a3389cccea2165e66b4ec70f4f379f",
+            "callback_utf8_bytes": 686,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "dab2fed7e4bdabd98cce59c79561f89827a3389cccea2165e66b4ec70f4f379f",
+            "materialized_utf8_bytes": 686,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/input.ts"
+            ]
+          }
+        ],
+        "run_fingerprint_sha256": "b89407aaea7de726fccb9195d076f97f73c4cd5e7a890352396723a552d2e383"
+      },
+      "control_fingerprint_sha256": "648d681373ed75b55af246aab625dc67ddf025b13a1f7f4c079723eebb39351f"
+    },
+    {
+      "control_id": "constructor-reference-static-initializer",
+      "input": {
+        "current_directory": "/project",
+        "roots": [
+          "/project/input.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/input.ts",
+            "root": true,
+            "utf8_base64": "ZGVjbGFyZSBjb25zdCBkZWM6IGFueTsKQGRlYyBjbGFzcyBDIHsgc3RhdGljIHZhbHVlID0gQzsgfQo=",
+            "utf8_sha256": "e7a5158f5cc36c0ff4db74d4c4f09c91508675980ff4e6b15c6cec755eb9b59e",
+            "utf8_bytes": 59
+          }
+        ],
+        "compiler_options": {
+          "alwaysStrict": true,
+          "experimentalDecorators": true,
+          "ignoreDeprecations": "6.0",
+          "module": 99,
+          "newLine": 1,
+          "target": 99
+        }
+      },
+      "repetitions": 2,
+      "observation": {
+        "reported_diagnostics": [],
+        "emit_diagnostics": [],
+        "emit_skipped": false,
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/input.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOwp2YXIgX19kZWNvcmF0ZSA9ICh0aGlzICYmIHRoaXMuX19kZWNvcmF0ZSkgfHwgZnVuY3Rpb24gKGRlY29yYXRvcnMsIHRhcmdldCwga2V5LCBkZXNjKSB7CiAgICB2YXIgYyA9IGFyZ3VtZW50cy5sZW5ndGgsIHIgPSBjIDwgMyA/IHRhcmdldCA6IGRlc2MgPT09IG51bGwgPyBkZXNjID0gT2JqZWN0LmdldE93blByb3BlcnR5RGVzY3JpcHRvcih0YXJnZXQsIGtleSkgOiBkZXNjLCBkOwogICAgaWYgKHR5cGVvZiBSZWZsZWN0ID09PSAib2JqZWN0IiAmJiB0eXBlb2YgUmVmbGVjdC5kZWNvcmF0ZSA9PT0gImZ1bmN0aW9uIikgciA9IFJlZmxlY3QuZGVjb3JhdGUoZGVjb3JhdG9ycywgdGFyZ2V0LCBrZXksIGRlc2MpOwogICAgZWxzZSBmb3IgKHZhciBpID0gZGVjb3JhdG9ycy5sZW5ndGggLSAxOyBpID49IDA7IGktLSkgaWYgKGQgPSBkZWNvcmF0b3JzW2ldKSByID0gKGMgPCAzID8gZChyKSA6IGMgPiAzID8gZCh0YXJnZXQsIGtleSwgcikgOiBkKHRhcmdldCwga2V5KSkgfHwgcjsKICAgIHJldHVybiBjID4gMyAmJiByICYmIE9iamVjdC5kZWZpbmVQcm9wZXJ0eSh0YXJnZXQsIGtleSwgciksIHI7Cn07CnZhciBDXzE7CmxldCBDID0gY2xhc3MgQyB7CiAgICBzdGF0aWMgeyBDXzEgPSB0aGlzOyB9CiAgICBzdGF0aWMgdmFsdWUgPSBDXzE7Cn07CkMgPSBDXzEgPSBfX2RlY29yYXRlKFsKICAgIGRlYwpdLCBDKTsK",
+            "callback_utf8_sha256": "cf2c8f26f032fa61abbacbd63d6f92b8d67b4644777910d021b55f9df8debdf5",
+            "callback_utf8_bytes": 705,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "cf2c8f26f032fa61abbacbd63d6f92b8d67b4644777910d021b55f9df8debdf5",
+            "materialized_utf8_bytes": 705,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/input.ts"
+            ]
+          }
+        ],
+        "run_fingerprint_sha256": "dd688de247f0b50c790f86b55e1d62407db82d39ccc4a0b37b2e500f2294615c"
+      },
+      "control_fingerprint_sha256": "aea1ad8bf3684a96de9dbd654ed74315fbe83e52ef7913bd4357e03b165c453c"
+    },
+    {
+      "control_id": "computed-name-evaluated-once",
+      "input": {
+        "current_directory": "/project",
+        "roots": [
+          "/project/input.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/input.ts",
+            "root": true,
+            "utf8_base64": "ZGVjbGFyZSBjb25zdCBkZWM6IGFueTsKZGVjbGFyZSBmdW5jdGlvbiBtYWtlKCk6IHN0cmluZzsKY2xhc3MgQyB7IEBkZWMgW21ha2UoKV0oKSB7fSB9Cg==",
+            "utf8_sha256": "7f51cf2732690c789b92cbf20c7629503371c9218538f4e2ef33e781fb850f32",
+            "utf8_bytes": 88
+          }
+        ],
+        "compiler_options": {
+          "alwaysStrict": true,
+          "emitDecoratorMetadata": true,
+          "experimentalDecorators": true,
+          "ignoreDeprecations": "6.0",
+          "module": 99,
+          "newLine": 1,
+          "target": 99
+        }
+      },
+      "repetitions": 2,
+      "observation": {
+        "reported_diagnostics": [],
+        "emit_diagnostics": [],
+        "emit_skipped": false,
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/input.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOwp2YXIgX19kZWNvcmF0ZSA9ICh0aGlzICYmIHRoaXMuX19kZWNvcmF0ZSkgfHwgZnVuY3Rpb24gKGRlY29yYXRvcnMsIHRhcmdldCwga2V5LCBkZXNjKSB7CiAgICB2YXIgYyA9IGFyZ3VtZW50cy5sZW5ndGgsIHIgPSBjIDwgMyA/IHRhcmdldCA6IGRlc2MgPT09IG51bGwgPyBkZXNjID0gT2JqZWN0LmdldE93blByb3BlcnR5RGVzY3JpcHRvcih0YXJnZXQsIGtleSkgOiBkZXNjLCBkOwogICAgaWYgKHR5cGVvZiBSZWZsZWN0ID09PSAib2JqZWN0IiAmJiB0eXBlb2YgUmVmbGVjdC5kZWNvcmF0ZSA9PT0gImZ1bmN0aW9uIikgciA9IFJlZmxlY3QuZGVjb3JhdGUoZGVjb3JhdG9ycywgdGFyZ2V0LCBrZXksIGRlc2MpOwogICAgZWxzZSBmb3IgKHZhciBpID0gZGVjb3JhdG9ycy5sZW5ndGggLSAxOyBpID49IDA7IGktLSkgaWYgKGQgPSBkZWNvcmF0b3JzW2ldKSByID0gKGMgPCAzID8gZChyKSA6IGMgPiAzID8gZCh0YXJnZXQsIGtleSwgcikgOiBkKHRhcmdldCwga2V5KSkgfHwgcjsKICAgIHJldHVybiBjID4gMyAmJiByICYmIE9iamVjdC5kZWZpbmVQcm9wZXJ0eSh0YXJnZXQsIGtleSwgciksIHI7Cn07CnZhciBfX21ldGFkYXRhID0gKHRoaXMgJiYgdGhpcy5fX21ldGFkYXRhKSB8fCBmdW5jdGlvbiAoaywgdikgewogICAgaWYgKHR5cGVvZiBSZWZsZWN0ID09PSAib2JqZWN0IiAmJiB0eXBlb2YgUmVmbGVjdC5tZXRhZGF0YSA9PT0gImZ1bmN0aW9uIikgcmV0dXJuIFJlZmxlY3QubWV0YWRhdGEoaywgdik7Cn07CnZhciBfYTsKY2xhc3MgQyB7CiAgICBbX2EgPSBtYWtlKCldKCkgeyB9Cn0KX19kZWNvcmF0ZShbCiAgICBkZWMsCiAgICBfX21ldGFkYXRhKCJkZXNpZ246dHlwZSIsIEZ1bmN0aW9uKSwKICAgIF9fbWV0YWRhdGEoImRlc2lnbjpwYXJhbXR5cGVzIiwgW10pLAogICAgX19tZXRhZGF0YSgiZGVzaWduOnJldHVybnR5cGUiLCB2b2lkIDApCl0sIEMucHJvdG90eXBlLCBfYSwgbnVsbCk7Cg==",
+            "callback_utf8_sha256": "e27bea08fa174fb4cc4d33f15e673ba6e9cb581c26994a76d6040c9284861e57",
+            "callback_utf8_bytes": 982,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "e27bea08fa174fb4cc4d33f15e673ba6e9cb581c26994a76d6040c9284861e57",
+            "materialized_utf8_bytes": 982,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/input.ts"
+            ]
+          }
+        ],
+        "run_fingerprint_sha256": "3fc391ab2904b5d212bd58b425875bd0e82fe9671a8a1a4de64ad0a9d4bccde0"
+      },
+      "control_fingerprint_sha256": "539532032a9287bd33b0d505938d5827f4d4bdef12393e5fba31c8391acdc79d"
+    },
+    {
+      "control_id": "primitive-metadata-matrix",
+      "input": {
+        "current_directory": "/project",
+        "roots": [
+          "/project/input.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/input.ts",
+            "root": true,
+            "utf8_base64": "ZGVjbGFyZSBjb25zdCBkZWM6IGFueTsKY2xhc3MgQyB7IEBkZWMgYSE6IHN0cmluZzsgQGRlYyBiITogbnVtYmVyOyBAZGVjIGMhOiBib29sZWFuOyBAZGVjIGQhOiBhbnlbXTsgQGRlYyBlITogKCgpID0+IHZvaWQpOyB9Cg==",
+            "utf8_sha256": "1bab4675339b8bd55468c696842e7b81439bcbada3cd8ea87b19aa0edfac1332",
+            "utf8_bytes": 127
+          }
+        ],
+        "compiler_options": {
+          "alwaysStrict": true,
+          "emitDecoratorMetadata": true,
+          "experimentalDecorators": true,
+          "ignoreDeprecations": "6.0",
+          "module": 99,
+          "newLine": 1,
+          "target": 99
+        }
+      },
+      "repetitions": 2,
+      "observation": {
+        "reported_diagnostics": [],
+        "emit_diagnostics": [],
+        "emit_skipped": false,
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/input.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOwp2YXIgX19kZWNvcmF0ZSA9ICh0aGlzICYmIHRoaXMuX19kZWNvcmF0ZSkgfHwgZnVuY3Rpb24gKGRlY29yYXRvcnMsIHRhcmdldCwga2V5LCBkZXNjKSB7CiAgICB2YXIgYyA9IGFyZ3VtZW50cy5sZW5ndGgsIHIgPSBjIDwgMyA/IHRhcmdldCA6IGRlc2MgPT09IG51bGwgPyBkZXNjID0gT2JqZWN0LmdldE93blByb3BlcnR5RGVzY3JpcHRvcih0YXJnZXQsIGtleSkgOiBkZXNjLCBkOwogICAgaWYgKHR5cGVvZiBSZWZsZWN0ID09PSAib2JqZWN0IiAmJiB0eXBlb2YgUmVmbGVjdC5kZWNvcmF0ZSA9PT0gImZ1bmN0aW9uIikgciA9IFJlZmxlY3QuZGVjb3JhdGUoZGVjb3JhdG9ycywgdGFyZ2V0LCBrZXksIGRlc2MpOwogICAgZWxzZSBmb3IgKHZhciBpID0gZGVjb3JhdG9ycy5sZW5ndGggLSAxOyBpID49IDA7IGktLSkgaWYgKGQgPSBkZWNvcmF0b3JzW2ldKSByID0gKGMgPCAzID8gZChyKSA6IGMgPiAzID8gZCh0YXJnZXQsIGtleSwgcikgOiBkKHRhcmdldCwga2V5KSkgfHwgcjsKICAgIHJldHVybiBjID4gMyAmJiByICYmIE9iamVjdC5kZWZpbmVQcm9wZXJ0eSh0YXJnZXQsIGtleSwgciksIHI7Cn07CnZhciBfX21ldGFkYXRhID0gKHRoaXMgJiYgdGhpcy5fX21ldGFkYXRhKSB8fCBmdW5jdGlvbiAoaywgdikgewogICAgaWYgKHR5cGVvZiBSZWZsZWN0ID09PSAib2JqZWN0IiAmJiB0eXBlb2YgUmVmbGVjdC5tZXRhZGF0YSA9PT0gImZ1bmN0aW9uIikgcmV0dXJuIFJlZmxlY3QubWV0YWRhdGEoaywgdik7Cn07CmNsYXNzIEMgewogICAgYTsKICAgIGI7CiAgICBjOwogICAgZDsKICAgIGU7Cn0KX19kZWNvcmF0ZShbCiAgICBkZWMsCiAgICBfX21ldGFkYXRhKCJkZXNpZ246dHlwZSIsIFN0cmluZykKXSwgQy5wcm90b3R5cGUsICJhIiwgdm9pZCAwKTsKX19kZWNvcmF0ZShbCiAgICBkZWMsCiAgICBfX21ldGFkYXRhKCJkZXNpZ246dHlwZSIsIE51bWJlcikKXSwgQy5wcm90b3R5cGUsICJiIiwgdm9pZCAwKTsKX19kZWNvcmF0ZShbCiAgICBkZWMsCiAgICBfX21ldGFkYXRhKCJkZXNpZ246dHlwZSIsIEJvb2xlYW4pCl0sIEMucHJvdG90eXBlLCAiYyIsIHZvaWQgMCk7Cl9fZGVjb3JhdGUoWwogICAgZGVjLAogICAgX19tZXRhZGF0YSgiZGVzaWduOnR5cGUiLCBBcnJheSkKXSwgQy5wcm90b3R5cGUsICJkIiwgdm9pZCAwKTsKX19kZWNvcmF0ZShbCiAgICBkZWMsCiAgICBfX21ldGFkYXRhKCJkZXNpZ246dHlwZSIsIEZ1bmN0aW9uKQpdLCBDLnByb3RvdHlwZSwgImUiLCB2b2lkIDApOwo=",
+            "callback_utf8_sha256": "7b6342da30110cd0daca27425dc400ce5dff175957bbbe11e678dd7cf5d05ca0",
+            "callback_utf8_bytes": 1262,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "7b6342da30110cd0daca27425dc400ce5dff175957bbbe11e678dd7cf5d05ca0",
+            "materialized_utf8_bytes": 1262,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/input.ts"
+            ]
+          }
+        ],
+        "run_fingerprint_sha256": "9aa3a8ae8ea8388463609ebeb487dc4b7c89c9930fd0bf260ad8ca8d1c54ac61"
+      },
+      "control_fingerprint_sha256": "cffea3a1203616eb85d27988c200eb4b8f59f8612cdbf28437cc29937343f6a2"
+    },
+    {
+      "control_id": "constructor-method-and-accessor-metadata",
+      "input": {
+        "current_directory": "/project",
+        "roots": [
+          "/project/input.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/input.ts",
+            "root": true,
+            "utf8_base64": "ZGVjbGFyZSBjb25zdCBkZWM6IGFueSwgcGFyYW1EZWM6IGFueTsKQGRlYyBjbGFzcyBDIHsgY29uc3RydWN0b3IodmFsdWU6IHN0cmluZywgY291bnQ6IG51bWJlcikge30gQGRlYyBtZXRob2QoZmxhZzogYm9vbGVhbik6IHN0cmluZyB7IHJldHVybiAiIjsgfSBAZGVjIGdldCBpdGVtKCk6IG51bWJlciB7IHJldHVybiAwOyB9IHNldCBpdGVtKEBwYXJhbURlYyB2YWx1ZTogbnVtYmVyKSB7fSB9Cg==",
+            "utf8_sha256": "bab99f69aaec7c823f11e869a125dab843dcad450c3ca58fcef9cf660346d2da",
+            "utf8_bytes": 226
+          }
+        ],
+        "compiler_options": {
+          "alwaysStrict": true,
+          "emitDecoratorMetadata": true,
+          "experimentalDecorators": true,
+          "ignoreDeprecations": "6.0",
+          "module": 99,
+          "newLine": 1,
+          "target": 99
+        }
+      },
+      "repetitions": 2,
+      "observation": {
+        "reported_diagnostics": [],
+        "emit_diagnostics": [],
+        "emit_skipped": false,
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/input.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOwp2YXIgX19kZWNvcmF0ZSA9ICh0aGlzICYmIHRoaXMuX19kZWNvcmF0ZSkgfHwgZnVuY3Rpb24gKGRlY29yYXRvcnMsIHRhcmdldCwga2V5LCBkZXNjKSB7CiAgICB2YXIgYyA9IGFyZ3VtZW50cy5sZW5ndGgsIHIgPSBjIDwgMyA/IHRhcmdldCA6IGRlc2MgPT09IG51bGwgPyBkZXNjID0gT2JqZWN0LmdldE93blByb3BlcnR5RGVzY3JpcHRvcih0YXJnZXQsIGtleSkgOiBkZXNjLCBkOwogICAgaWYgKHR5cGVvZiBSZWZsZWN0ID09PSAib2JqZWN0IiAmJiB0eXBlb2YgUmVmbGVjdC5kZWNvcmF0ZSA9PT0gImZ1bmN0aW9uIikgciA9IFJlZmxlY3QuZGVjb3JhdGUoZGVjb3JhdG9ycywgdGFyZ2V0LCBrZXksIGRlc2MpOwogICAgZWxzZSBmb3IgKHZhciBpID0gZGVjb3JhdG9ycy5sZW5ndGggLSAxOyBpID49IDA7IGktLSkgaWYgKGQgPSBkZWNvcmF0b3JzW2ldKSByID0gKGMgPCAzID8gZChyKSA6IGMgPiAzID8gZCh0YXJnZXQsIGtleSwgcikgOiBkKHRhcmdldCwga2V5KSkgfHwgcjsKICAgIHJldHVybiBjID4gMyAmJiByICYmIE9iamVjdC5kZWZpbmVQcm9wZXJ0eSh0YXJnZXQsIGtleSwgciksIHI7Cn07CnZhciBfX21ldGFkYXRhID0gKHRoaXMgJiYgdGhpcy5fX21ldGFkYXRhKSB8fCBmdW5jdGlvbiAoaywgdikgewogICAgaWYgKHR5cGVvZiBSZWZsZWN0ID09PSAib2JqZWN0IiAmJiB0eXBlb2YgUmVmbGVjdC5tZXRhZGF0YSA9PT0gImZ1bmN0aW9uIikgcmV0dXJuIFJlZmxlY3QubWV0YWRhdGEoaywgdik7Cn07CnZhciBfX3BhcmFtID0gKHRoaXMgJiYgdGhpcy5fX3BhcmFtKSB8fCBmdW5jdGlvbiAocGFyYW1JbmRleCwgZGVjb3JhdG9yKSB7CiAgICByZXR1cm4gZnVuY3Rpb24gKHRhcmdldCwga2V5KSB7IGRlY29yYXRvcih0YXJnZXQsIGtleSwgcGFyYW1JbmRleCk7IH0KfTsKbGV0IEMgPSBjbGFzcyBDIHsKICAgIGNvbnN0cnVjdG9yKHZhbHVlLCBjb3VudCkgeyB9CiAgICBtZXRob2QoZmxhZykgeyByZXR1cm4gIiI7IH0KICAgIGdldCBpdGVtKCkgeyByZXR1cm4gMDsgfQogICAgc2V0IGl0ZW0odmFsdWUpIHsgfQp9OwpfX2RlY29yYXRlKFsKICAgIGRlYywKICAgIF9fbWV0YWRhdGEoImRlc2lnbjp0eXBlIiwgRnVuY3Rpb24pLAogICAgX19tZXRhZGF0YSgiZGVzaWduOnBhcmFtdHlwZXMiLCBbQm9vbGVhbl0pLAogICAgX19tZXRhZGF0YSgiZGVzaWduOnJldHVybnR5cGUiLCBTdHJpbmcpCl0sIEMucHJvdG90eXBlLCAibWV0aG9kIiwgbnVsbCk7Cl9fZGVjb3JhdGUoWwogICAgZGVjLAogICAgX19wYXJhbSgwLCBwYXJhbURlYyksCiAgICBfX21ldGFkYXRhKCJkZXNpZ246dHlwZSIsIE51bWJlciksCiAgICBfX21ldGFkYXRhKCJkZXNpZ246cGFyYW10eXBlcyIsIFtOdW1iZXJdKQpdLCBDLnByb3RvdHlwZSwgIml0ZW0iLCBudWxsKTsKQyA9IF9fZGVjb3JhdGUoWwogICAgZGVjLAogICAgX19tZXRhZGF0YSgiZGVzaWduOnBhcmFtdHlwZXMiLCBbU3RyaW5nLCBOdW1iZXJdKQpdLCBDKTsK",
+            "callback_utf8_sha256": "8c49d54409855b20521654a6c2362fa5738e17ad50083259ef67ed97c71e759f",
+            "callback_utf8_bytes": 1494,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "8c49d54409855b20521654a6c2362fa5738e17ad50083259ef67ed97c71e759f",
+            "materialized_utf8_bytes": 1494,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/input.ts"
+            ]
+          }
+        ],
+        "run_fingerprint_sha256": "9e7023240f9fb94dd6eac1ed0d7bf47ce520ac0218802a0225f40feb0b61ccb5"
+      },
+      "control_fingerprint_sha256": "ff7053c440f27c5ec34430b33c95f6dcff26f8186115a03502b9aa9a5ec916be"
+    },
+    {
+      "control_id": "type-alias-metadata-kinds",
+      "input": {
+        "current_directory": "/project",
+        "roots": [
+          "/project/input.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/input.ts",
+            "root": true,
+            "utf8_base64": "ZGVjbGFyZSBjb25zdCBkZWM6IGFueTsKdHlwZSBBbGlhc1N0cmluZyA9IHN0cmluZzsgdHlwZSBBbGlhc051bWJlciA9IG51bWJlcjsgdHlwZSBBbGlhc0Jvb2xlYW4gPSBib29sZWFuOyB0eXBlIEFsaWFzQXJyYXkgPSB1bmtub3duW107IHR5cGUgQWxpYXNGdW5jdGlvbiA9ICgpID0+IHZvaWQ7CmNsYXNzIEMgeyBAZGVjIHRleHQhOiBBbGlhc1N0cmluZzsgQGRlYyBjb3VudCE6IEFsaWFzTnVtYmVyOyBAZGVjIGZsYWchOiBBbGlhc0Jvb2xlYW47IEBkZWMgdmFsdWVzITogQWxpYXNBcnJheTsgQGRlYyBjYWxsYmFjayE6IEFsaWFzRnVuY3Rpb247IH0K",
+            "utf8_sha256": "5c395a5537772a84ced6218904431f7c87384e9e581a3fe8e057d66050415f2b",
+            "utf8_bytes": 315
+          }
+        ],
+        "compiler_options": {
+          "alwaysStrict": true,
+          "emitDecoratorMetadata": true,
+          "experimentalDecorators": true,
+          "ignoreDeprecations": "6.0",
+          "module": 99,
+          "newLine": 1,
+          "target": 99
+        }
+      },
+      "repetitions": 2,
+      "observation": {
+        "reported_diagnostics": [],
+        "emit_diagnostics": [],
+        "emit_skipped": false,
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/input.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOwp2YXIgX19kZWNvcmF0ZSA9ICh0aGlzICYmIHRoaXMuX19kZWNvcmF0ZSkgfHwgZnVuY3Rpb24gKGRlY29yYXRvcnMsIHRhcmdldCwga2V5LCBkZXNjKSB7CiAgICB2YXIgYyA9IGFyZ3VtZW50cy5sZW5ndGgsIHIgPSBjIDwgMyA/IHRhcmdldCA6IGRlc2MgPT09IG51bGwgPyBkZXNjID0gT2JqZWN0LmdldE93blByb3BlcnR5RGVzY3JpcHRvcih0YXJnZXQsIGtleSkgOiBkZXNjLCBkOwogICAgaWYgKHR5cGVvZiBSZWZsZWN0ID09PSAib2JqZWN0IiAmJiB0eXBlb2YgUmVmbGVjdC5kZWNvcmF0ZSA9PT0gImZ1bmN0aW9uIikgciA9IFJlZmxlY3QuZGVjb3JhdGUoZGVjb3JhdG9ycywgdGFyZ2V0LCBrZXksIGRlc2MpOwogICAgZWxzZSBmb3IgKHZhciBpID0gZGVjb3JhdG9ycy5sZW5ndGggLSAxOyBpID49IDA7IGktLSkgaWYgKGQgPSBkZWNvcmF0b3JzW2ldKSByID0gKGMgPCAzID8gZChyKSA6IGMgPiAzID8gZCh0YXJnZXQsIGtleSwgcikgOiBkKHRhcmdldCwga2V5KSkgfHwgcjsKICAgIHJldHVybiBjID4gMyAmJiByICYmIE9iamVjdC5kZWZpbmVQcm9wZXJ0eSh0YXJnZXQsIGtleSwgciksIHI7Cn07CnZhciBfX21ldGFkYXRhID0gKHRoaXMgJiYgdGhpcy5fX21ldGFkYXRhKSB8fCBmdW5jdGlvbiAoaywgdikgewogICAgaWYgKHR5cGVvZiBSZWZsZWN0ID09PSAib2JqZWN0IiAmJiB0eXBlb2YgUmVmbGVjdC5tZXRhZGF0YSA9PT0gImZ1bmN0aW9uIikgcmV0dXJuIFJlZmxlY3QubWV0YWRhdGEoaywgdik7Cn07CmNsYXNzIEMgewogICAgdGV4dDsKICAgIGNvdW50OwogICAgZmxhZzsKICAgIHZhbHVlczsKICAgIGNhbGxiYWNrOwp9Cl9fZGVjb3JhdGUoWwogICAgZGVjLAogICAgX19tZXRhZGF0YSgiZGVzaWduOnR5cGUiLCBTdHJpbmcpCl0sIEMucHJvdG90eXBlLCAidGV4dCIsIHZvaWQgMCk7Cl9fZGVjb3JhdGUoWwogICAgZGVjLAogICAgX19tZXRhZGF0YSgiZGVzaWduOnR5cGUiLCBOdW1iZXIpCl0sIEMucHJvdG90eXBlLCAiY291bnQiLCB2b2lkIDApOwpfX2RlY29yYXRlKFsKICAgIGRlYywKICAgIF9fbWV0YWRhdGEoImRlc2lnbjp0eXBlIiwgQm9vbGVhbikKXSwgQy5wcm90b3R5cGUsICJmbGFnIiwgdm9pZCAwKTsKX19kZWNvcmF0ZShbCiAgICBkZWMsCiAgICBfX21ldGFkYXRhKCJkZXNpZ246dHlwZSIsIEFycmF5KQpdLCBDLnByb3RvdHlwZSwgInZhbHVlcyIsIHZvaWQgMCk7Cl9fZGVjb3JhdGUoWwogICAgZGVjLAogICAgX19tZXRhZGF0YSgiZGVzaWduOnR5cGUiLCBGdW5jdGlvbikKXSwgQy5wcm90b3R5cGUsICJjYWxsYmFjayIsIHZvaWQgMCk7Cg==",
+            "callback_utf8_sha256": "a1fce3990c9e31a613eb6119d4bda349a62d138fe0b107efbb0b6b9221accd48",
+            "callback_utf8_bytes": 1306,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "a1fce3990c9e31a613eb6119d4bda349a62d138fe0b107efbb0b6b9221accd48",
+            "materialized_utf8_bytes": 1306,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/input.ts"
+            ]
+          }
+        ],
+        "run_fingerprint_sha256": "3721a0c68ef5ef63ddd6956c1cf6f8676b8b86147268bad1cccbd59904cbe653"
+      },
+      "control_fingerprint_sha256": "2847a4650e287039ee7d343089b008c3e1653b96f778b2f318c98e36d8027e1c"
+    },
+    {
+      "control_id": "unknown-type-reference-metadata-fallback",
+      "input": {
+        "current_directory": "/project",
+        "roots": [
+          "/project/input.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/input.ts",
+            "root": true,
+            "utf8_base64": "ZGVjbGFyZSBjb25zdCBkZWM6IGFueTsKY2xhc3MgQyB7IEBkZWMgdmFsdWUhOiBNaXNzaW5nOyB9Cg==",
+            "utf8_sha256": "60cfcb65eeea869206020beb3583776c6179d77107eddeb9d1841f65639210d8",
+            "utf8_bytes": 58
+          }
+        ],
+        "compiler_options": {
+          "alwaysStrict": true,
+          "emitDecoratorMetadata": true,
+          "experimentalDecorators": true,
+          "ignoreDeprecations": "6.0",
+          "module": 99,
+          "newLine": 1,
+          "target": 99
+        }
+      },
+      "repetitions": 2,
+      "observation": {
+        "reported_diagnostics": [
+          {
+            "code": 2304,
+            "category": "Error",
+            "file": "/project/input.ts",
+            "start": 47,
+            "length": 7,
+            "message": "Cannot find name 'Missing'."
+          }
+        ],
+        "emit_diagnostics": [],
+        "emit_skipped": false,
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/input.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOwp2YXIgX19kZWNvcmF0ZSA9ICh0aGlzICYmIHRoaXMuX19kZWNvcmF0ZSkgfHwgZnVuY3Rpb24gKGRlY29yYXRvcnMsIHRhcmdldCwga2V5LCBkZXNjKSB7CiAgICB2YXIgYyA9IGFyZ3VtZW50cy5sZW5ndGgsIHIgPSBjIDwgMyA/IHRhcmdldCA6IGRlc2MgPT09IG51bGwgPyBkZXNjID0gT2JqZWN0LmdldE93blByb3BlcnR5RGVzY3JpcHRvcih0YXJnZXQsIGtleSkgOiBkZXNjLCBkOwogICAgaWYgKHR5cGVvZiBSZWZsZWN0ID09PSAib2JqZWN0IiAmJiB0eXBlb2YgUmVmbGVjdC5kZWNvcmF0ZSA9PT0gImZ1bmN0aW9uIikgciA9IFJlZmxlY3QuZGVjb3JhdGUoZGVjb3JhdG9ycywgdGFyZ2V0LCBrZXksIGRlc2MpOwogICAgZWxzZSBmb3IgKHZhciBpID0gZGVjb3JhdG9ycy5sZW5ndGggLSAxOyBpID49IDA7IGktLSkgaWYgKGQgPSBkZWNvcmF0b3JzW2ldKSByID0gKGMgPCAzID8gZChyKSA6IGMgPiAzID8gZCh0YXJnZXQsIGtleSwgcikgOiBkKHRhcmdldCwga2V5KSkgfHwgcjsKICAgIHJldHVybiBjID4gMyAmJiByICYmIE9iamVjdC5kZWZpbmVQcm9wZXJ0eSh0YXJnZXQsIGtleSwgciksIHI7Cn07CnZhciBfX21ldGFkYXRhID0gKHRoaXMgJiYgdGhpcy5fX21ldGFkYXRhKSB8fCBmdW5jdGlvbiAoaywgdikgewogICAgaWYgKHR5cGVvZiBSZWZsZWN0ID09PSAib2JqZWN0IiAmJiB0eXBlb2YgUmVmbGVjdC5tZXRhZGF0YSA9PT0gImZ1bmN0aW9uIikgcmV0dXJuIFJlZmxlY3QubWV0YWRhdGEoaywgdik7Cn07CnZhciBfYTsKY2xhc3MgQyB7CiAgICB2YWx1ZTsKfQpfX2RlY29yYXRlKFsKICAgIGRlYywKICAgIF9fbWV0YWRhdGEoImRlc2lnbjp0eXBlIiwgdHlwZW9mIChfYSA9IHR5cGVvZiBNaXNzaW5nICE9PSAidW5kZWZpbmVkIiAmJiBNaXNzaW5nKSA9PT0gImZ1bmN0aW9uIiA/IF9hIDogT2JqZWN0KQpdLCBDLnByb3RvdHlwZSwgInZhbHVlIiwgdm9pZCAwKTsK",
+            "callback_utf8_sha256": "21a4f4cd22b0ff6ac27535cbe121cedf4f88ea94ea5a229f58f5a37acad1f684",
+            "callback_utf8_bytes": 966,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "21a4f4cd22b0ff6ac27535cbe121cedf4f88ea94ea5a229f58f5a37acad1f684",
+            "materialized_utf8_bytes": 966,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/input.ts"
+            ]
+          }
+        ],
+        "run_fingerprint_sha256": "0bca0f6ef3520c9e0fe84d2eaf6e5fa2069f8c9746f46968cf9d8835cb4b4fc2"
+      },
+      "control_fingerprint_sha256": "2ae0c3f7e921a68ed8998dccf1d6baec8f6b88778986229c5efb1d6a06d22db0"
+    },
+    {
+      "control_id": "metadata-serializer-edge-kinds",
+      "input": {
+        "current_directory": "/project",
+        "roots": [
+          "/project/input.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/input.ts",
+            "root": true,
+            "utf8_base64": "ZGVjbGFyZSBjb25zdCBkZWM6IGFueTsKY2xhc3MgQyB7IEBkZWMgc2FtZSE6IHN0cmluZyB8IGB4YDsgQGRlYyBtaXhlZCE6IHN0cmluZyB8IG51bWJlcjsgQGRlYyBsaXRlcmFsITogMTsgQGRlYyB0ZW1wbGF0ZSE6IGB4JHtzdHJpbmd9YDsgQGRlYyByZWFkb25seVZhbHVlcyE6IHJlYWRvbmx5IHN0cmluZ1tdOyBAZGVjIG1ldGhvZCh0aGlzOiBDLCAuLi5hcmdzOiBzdHJpbmdbXSk6IHZvaWQge30gQGRlYyBhc3luYyBhc3luY01ldGhvZCgpIHt9IH0K",
+            "utf8_sha256": "83005daab2c03fbf8dea39dfbbd5a7f0b04ce6dc45a7790d89a55558a7154d2e",
+            "utf8_bytes": 258
+          }
+        ],
+        "compiler_options": {
+          "alwaysStrict": true,
+          "emitDecoratorMetadata": true,
+          "experimentalDecorators": true,
+          "ignoreDeprecations": "6.0",
+          "module": 99,
+          "newLine": 1,
+          "target": 99
+        }
+      },
+      "repetitions": 2,
+      "observation": {
+        "reported_diagnostics": [],
+        "emit_diagnostics": [],
+        "emit_skipped": false,
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/input.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOwp2YXIgX19kZWNvcmF0ZSA9ICh0aGlzICYmIHRoaXMuX19kZWNvcmF0ZSkgfHwgZnVuY3Rpb24gKGRlY29yYXRvcnMsIHRhcmdldCwga2V5LCBkZXNjKSB7CiAgICB2YXIgYyA9IGFyZ3VtZW50cy5sZW5ndGgsIHIgPSBjIDwgMyA/IHRhcmdldCA6IGRlc2MgPT09IG51bGwgPyBkZXNjID0gT2JqZWN0LmdldE93blByb3BlcnR5RGVzY3JpcHRvcih0YXJnZXQsIGtleSkgOiBkZXNjLCBkOwogICAgaWYgKHR5cGVvZiBSZWZsZWN0ID09PSAib2JqZWN0IiAmJiB0eXBlb2YgUmVmbGVjdC5kZWNvcmF0ZSA9PT0gImZ1bmN0aW9uIikgciA9IFJlZmxlY3QuZGVjb3JhdGUoZGVjb3JhdG9ycywgdGFyZ2V0LCBrZXksIGRlc2MpOwogICAgZWxzZSBmb3IgKHZhciBpID0gZGVjb3JhdG9ycy5sZW5ndGggLSAxOyBpID49IDA7IGktLSkgaWYgKGQgPSBkZWNvcmF0b3JzW2ldKSByID0gKGMgPCAzID8gZChyKSA6IGMgPiAzID8gZCh0YXJnZXQsIGtleSwgcikgOiBkKHRhcmdldCwga2V5KSkgfHwgcjsKICAgIHJldHVybiBjID4gMyAmJiByICYmIE9iamVjdC5kZWZpbmVQcm9wZXJ0eSh0YXJnZXQsIGtleSwgciksIHI7Cn07CnZhciBfX21ldGFkYXRhID0gKHRoaXMgJiYgdGhpcy5fX21ldGFkYXRhKSB8fCBmdW5jdGlvbiAoaywgdikgewogICAgaWYgKHR5cGVvZiBSZWZsZWN0ID09PSAib2JqZWN0IiAmJiB0eXBlb2YgUmVmbGVjdC5tZXRhZGF0YSA9PT0gImZ1bmN0aW9uIikgcmV0dXJuIFJlZmxlY3QubWV0YWRhdGEoaywgdik7Cn07CmNsYXNzIEMgewogICAgc2FtZTsKICAgIG1peGVkOwogICAgbGl0ZXJhbDsKICAgIHRlbXBsYXRlOwogICAgcmVhZG9ubHlWYWx1ZXM7CiAgICBtZXRob2QoLi4uYXJncykgeyB9CiAgICBhc3luYyBhc3luY01ldGhvZCgpIHsgfQp9Cl9fZGVjb3JhdGUoWwogICAgZGVjLAogICAgX19tZXRhZGF0YSgiZGVzaWduOnR5cGUiLCBTdHJpbmcpCl0sIEMucHJvdG90eXBlLCAic2FtZSIsIHZvaWQgMCk7Cl9fZGVjb3JhdGUoWwogICAgZGVjLAogICAgX19tZXRhZGF0YSgiZGVzaWduOnR5cGUiLCBPYmplY3QpCl0sIEMucHJvdG90eXBlLCAibWl4ZWQiLCB2b2lkIDApOwpfX2RlY29yYXRlKFsKICAgIGRlYywKICAgIF9fbWV0YWRhdGEoImRlc2lnbjp0eXBlIiwgTnVtYmVyKQpdLCBDLnByb3RvdHlwZSwgImxpdGVyYWwiLCB2b2lkIDApOwpfX2RlY29yYXRlKFsKICAgIGRlYywKICAgIF9fbWV0YWRhdGEoImRlc2lnbjp0eXBlIiwgU3RyaW5nKQpdLCBDLnByb3RvdHlwZSwgInRlbXBsYXRlIiwgdm9pZCAwKTsKX19kZWNvcmF0ZShbCiAgICBkZWMsCiAgICBfX21ldGFkYXRhKCJkZXNpZ246dHlwZSIsIEFycmF5KQpdLCBDLnByb3RvdHlwZSwgInJlYWRvbmx5VmFsdWVzIiwgdm9pZCAwKTsKX19kZWNvcmF0ZShbCiAgICBkZWMsCiAgICBfX21ldGFkYXRhKCJkZXNpZ246dHlwZSIsIEZ1bmN0aW9uKSwKICAgIF9fbWV0YWRhdGEoImRlc2lnbjpwYXJhbXR5cGVzIiwgW1N0cmluZ10pLAogICAgX19tZXRhZGF0YSgiZGVzaWduOnJldHVybnR5cGUiLCB2b2lkIDApCl0sIEMucHJvdG90eXBlLCAibWV0aG9kIiwgbnVsbCk7Cl9fZGVjb3JhdGUoWwogICAgZGVjLAogICAgX19tZXRhZGF0YSgiZGVzaWduOnR5cGUiLCBGdW5jdGlvbiksCiAgICBfX21ldGFkYXRhKCJkZXNpZ246cGFyYW10eXBlcyIsIFtdKSwKICAgIF9fbWV0YWRhdGEoImRlc2lnbjpyZXR1cm50eXBlIiwgUHJvbWlzZSkKXSwgQy5wcm90b3R5cGUsICJhc3luY01ldGhvZCIsIG51bGwpOwo=",
+            "callback_utf8_sha256": "a285d52a5655c15af29739119283d53562a22a48c9fcbd76f2b34d86cff7385a",
+            "callback_utf8_bytes": 1751,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "a285d52a5655c15af29739119283d53562a22a48c9fcbd76f2b34d86cff7385a",
+            "materialized_utf8_bytes": 1751,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/input.ts"
+            ]
+          }
+        ],
+        "run_fingerprint_sha256": "4833cc3e92e79c6a08463b889e47eb076916bed72e5ed33a5b0a44ecd0cfad25"
+      },
+      "control_fingerprint_sha256": "e9cc761e46af67a9f3b660767c78853cfed5953a367a69c2e9014075a76024d1"
+    },
+    {
+      "control_id": "class-value-reference-metadata",
+      "input": {
+        "current_directory": "/project",
+        "roots": [
+          "/project/input.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/input.ts",
+            "root": true,
+            "utf8_base64": "ZGVjbGFyZSBjb25zdCBkZWM6IGFueTsKY2xhc3MgVmFsdWUge30KY2xhc3MgQyB7IEBkZWMgdmFsdWUhOiBWYWx1ZTsgfQo=",
+            "utf8_sha256": "5b7cea468706851e6782bff0d2314ecff31bf51be3243e324e42e0658cab4249",
+            "utf8_bytes": 71
+          }
+        ],
+        "compiler_options": {
+          "alwaysStrict": true,
+          "emitDecoratorMetadata": true,
+          "experimentalDecorators": true,
+          "ignoreDeprecations": "6.0",
+          "module": 99,
+          "newLine": 1,
+          "target": 99
+        }
+      },
+      "repetitions": 2,
+      "observation": {
+        "reported_diagnostics": [],
+        "emit_diagnostics": [],
+        "emit_skipped": false,
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/input.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOwp2YXIgX19kZWNvcmF0ZSA9ICh0aGlzICYmIHRoaXMuX19kZWNvcmF0ZSkgfHwgZnVuY3Rpb24gKGRlY29yYXRvcnMsIHRhcmdldCwga2V5LCBkZXNjKSB7CiAgICB2YXIgYyA9IGFyZ3VtZW50cy5sZW5ndGgsIHIgPSBjIDwgMyA/IHRhcmdldCA6IGRlc2MgPT09IG51bGwgPyBkZXNjID0gT2JqZWN0LmdldE93blByb3BlcnR5RGVzY3JpcHRvcih0YXJnZXQsIGtleSkgOiBkZXNjLCBkOwogICAgaWYgKHR5cGVvZiBSZWZsZWN0ID09PSAib2JqZWN0IiAmJiB0eXBlb2YgUmVmbGVjdC5kZWNvcmF0ZSA9PT0gImZ1bmN0aW9uIikgciA9IFJlZmxlY3QuZGVjb3JhdGUoZGVjb3JhdG9ycywgdGFyZ2V0LCBrZXksIGRlc2MpOwogICAgZWxzZSBmb3IgKHZhciBpID0gZGVjb3JhdG9ycy5sZW5ndGggLSAxOyBpID49IDA7IGktLSkgaWYgKGQgPSBkZWNvcmF0b3JzW2ldKSByID0gKGMgPCAzID8gZChyKSA6IGMgPiAzID8gZCh0YXJnZXQsIGtleSwgcikgOiBkKHRhcmdldCwga2V5KSkgfHwgcjsKICAgIHJldHVybiBjID4gMyAmJiByICYmIE9iamVjdC5kZWZpbmVQcm9wZXJ0eSh0YXJnZXQsIGtleSwgciksIHI7Cn07CnZhciBfX21ldGFkYXRhID0gKHRoaXMgJiYgdGhpcy5fX21ldGFkYXRhKSB8fCBmdW5jdGlvbiAoaywgdikgewogICAgaWYgKHR5cGVvZiBSZWZsZWN0ID09PSAib2JqZWN0IiAmJiB0eXBlb2YgUmVmbGVjdC5tZXRhZGF0YSA9PT0gImZ1bmN0aW9uIikgcmV0dXJuIFJlZmxlY3QubWV0YWRhdGEoaywgdik7Cn07CmNsYXNzIFZhbHVlIHsKfQpjbGFzcyBDIHsKICAgIHZhbHVlOwp9Cl9fZGVjb3JhdGUoWwogICAgZGVjLAogICAgX19tZXRhZGF0YSgiZGVzaWduOnR5cGUiLCBWYWx1ZSkKXSwgQy5wcm90b3R5cGUsICJ2YWx1ZSIsIHZvaWQgMCk7Cg==",
+            "callback_utf8_sha256": "d0d5418cd500032f8dcd7200b9c13c0b8543ab8c9380bdeea67dd773747b2ff8",
+            "callback_utf8_bytes": 895,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "d0d5418cd500032f8dcd7200b9c13c0b8543ab8c9380bdeea67dd773747b2ff8",
+            "materialized_utf8_bytes": 895,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/input.ts"
+            ]
+          }
+        ],
+        "run_fingerprint_sha256": "694b6ed2b5d1869703addb6cc2be846e12fc4ca14cee024edcc59ae4a2119595"
+      },
+      "control_fingerprint_sha256": "45aa48e1956574ad8c8795865353b60862d7097f8bbf4d4b97e33eee391de04d"
+    },
+    {
+      "control_id": "qualified-value-reference-metadata",
+      "input": {
+        "current_directory": "/project",
+        "roots": [
+          "/project/input.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/input.ts",
+            "root": true,
+            "utf8_base64": "ZGVjbGFyZSBjb25zdCBkZWM6IGFueTsKbmFtZXNwYWNlIE4geyBleHBvcnQgY2xhc3MgVmFsdWUge30gfQpjbGFzcyBDIHsgQGRlYyB2YWx1ZSE6IE4uVmFsdWU7IH0K",
+            "utf8_sha256": "3f174a0edfe98ccc3d5ebd50c3d4063d2aaebe86cdd41fbd5b7490e5eab944c6",
+            "utf8_bytes": 96
+          }
+        ],
+        "compiler_options": {
+          "alwaysStrict": true,
+          "emitDecoratorMetadata": true,
+          "experimentalDecorators": true,
+          "ignoreDeprecations": "6.0",
+          "module": 99,
+          "newLine": 1,
+          "target": 99
+        }
+      },
+      "repetitions": 2,
+      "observation": {
+        "reported_diagnostics": [],
+        "emit_diagnostics": [],
+        "emit_skipped": false,
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/input.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOwp2YXIgX19kZWNvcmF0ZSA9ICh0aGlzICYmIHRoaXMuX19kZWNvcmF0ZSkgfHwgZnVuY3Rpb24gKGRlY29yYXRvcnMsIHRhcmdldCwga2V5LCBkZXNjKSB7CiAgICB2YXIgYyA9IGFyZ3VtZW50cy5sZW5ndGgsIHIgPSBjIDwgMyA/IHRhcmdldCA6IGRlc2MgPT09IG51bGwgPyBkZXNjID0gT2JqZWN0LmdldE93blByb3BlcnR5RGVzY3JpcHRvcih0YXJnZXQsIGtleSkgOiBkZXNjLCBkOwogICAgaWYgKHR5cGVvZiBSZWZsZWN0ID09PSAib2JqZWN0IiAmJiB0eXBlb2YgUmVmbGVjdC5kZWNvcmF0ZSA9PT0gImZ1bmN0aW9uIikgciA9IFJlZmxlY3QuZGVjb3JhdGUoZGVjb3JhdG9ycywgdGFyZ2V0LCBrZXksIGRlc2MpOwogICAgZWxzZSBmb3IgKHZhciBpID0gZGVjb3JhdG9ycy5sZW5ndGggLSAxOyBpID49IDA7IGktLSkgaWYgKGQgPSBkZWNvcmF0b3JzW2ldKSByID0gKGMgPCAzID8gZChyKSA6IGMgPiAzID8gZCh0YXJnZXQsIGtleSwgcikgOiBkKHRhcmdldCwga2V5KSkgfHwgcjsKICAgIHJldHVybiBjID4gMyAmJiByICYmIE9iamVjdC5kZWZpbmVQcm9wZXJ0eSh0YXJnZXQsIGtleSwgciksIHI7Cn07CnZhciBfX21ldGFkYXRhID0gKHRoaXMgJiYgdGhpcy5fX21ldGFkYXRhKSB8fCBmdW5jdGlvbiAoaywgdikgewogICAgaWYgKHR5cGVvZiBSZWZsZWN0ID09PSAib2JqZWN0IiAmJiB0eXBlb2YgUmVmbGVjdC5tZXRhZGF0YSA9PT0gImZ1bmN0aW9uIikgcmV0dXJuIFJlZmxlY3QubWV0YWRhdGEoaywgdik7Cn07CnZhciBOOwooZnVuY3Rpb24gKE4pIHsKICAgIGNsYXNzIFZhbHVlIHsKICAgIH0KICAgIE4uVmFsdWUgPSBWYWx1ZTsKfSkoTiB8fCAoTiA9IHt9KSk7CmNsYXNzIEMgewogICAgdmFsdWU7Cn0KX19kZWNvcmF0ZShbCiAgICBkZWMsCiAgICBfX21ldGFkYXRhKCJkZXNpZ246dHlwZSIsIE4uVmFsdWUpCl0sIEMucHJvdG90eXBlLCAidmFsdWUiLCB2b2lkIDApOwo=",
+            "callback_utf8_sha256": "46e6e6739b29091cf9042915ae57ce1926c541307b0120e93469caddd3890ec8",
+            "callback_utf8_bytes": 968,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "46e6e6739b29091cf9042915ae57ce1926c541307b0120e93469caddd3890ec8",
+            "materialized_utf8_bytes": 968,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/input.ts"
+            ]
+          }
+        ],
+        "run_fingerprint_sha256": "8accc0870950d8d71c7e8c8c4c53647c7d36669e6225102a27abca14b792f2a2"
+      },
+      "control_fingerprint_sha256": "d1d95c8717986adcc4a96d87fa4cf7d1f9c0654c700247ae7299b53b89ecdf81"
+    },
+    {
+      "control_id": "type-only-reference-metadata-fallback",
+      "input": {
+        "current_directory": "/project",
+        "roots": [
+          "/project/input.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/input.ts",
+            "root": true,
+            "utf8_base64": "ZGVjbGFyZSBjb25zdCBkZWM6IGFueTsKaW50ZXJmYWNlIFNoYXBlIHsgdmFsdWU6IG51bWJlcjsgfQpjbGFzcyBDIHsgQGRlYyB2YWx1ZSE6IFNoYXBlOyB9Cg==",
+            "utf8_sha256": "5e5b940047dd465e8daa7c7eb9227fccf8e2869d2cde001fd87ad4032773d054",
+            "utf8_bytes": 91
+          }
+        ],
+        "compiler_options": {
+          "alwaysStrict": true,
+          "emitDecoratorMetadata": true,
+          "experimentalDecorators": true,
+          "ignoreDeprecations": "6.0",
+          "module": 99,
+          "newLine": 1,
+          "target": 99
+        }
+      },
+      "repetitions": 2,
+      "observation": {
+        "reported_diagnostics": [],
+        "emit_diagnostics": [],
+        "emit_skipped": false,
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/input.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOwp2YXIgX19kZWNvcmF0ZSA9ICh0aGlzICYmIHRoaXMuX19kZWNvcmF0ZSkgfHwgZnVuY3Rpb24gKGRlY29yYXRvcnMsIHRhcmdldCwga2V5LCBkZXNjKSB7CiAgICB2YXIgYyA9IGFyZ3VtZW50cy5sZW5ndGgsIHIgPSBjIDwgMyA/IHRhcmdldCA6IGRlc2MgPT09IG51bGwgPyBkZXNjID0gT2JqZWN0LmdldE93blByb3BlcnR5RGVzY3JpcHRvcih0YXJnZXQsIGtleSkgOiBkZXNjLCBkOwogICAgaWYgKHR5cGVvZiBSZWZsZWN0ID09PSAib2JqZWN0IiAmJiB0eXBlb2YgUmVmbGVjdC5kZWNvcmF0ZSA9PT0gImZ1bmN0aW9uIikgciA9IFJlZmxlY3QuZGVjb3JhdGUoZGVjb3JhdG9ycywgdGFyZ2V0LCBrZXksIGRlc2MpOwogICAgZWxzZSBmb3IgKHZhciBpID0gZGVjb3JhdG9ycy5sZW5ndGggLSAxOyBpID49IDA7IGktLSkgaWYgKGQgPSBkZWNvcmF0b3JzW2ldKSByID0gKGMgPCAzID8gZChyKSA6IGMgPiAzID8gZCh0YXJnZXQsIGtleSwgcikgOiBkKHRhcmdldCwga2V5KSkgfHwgcjsKICAgIHJldHVybiBjID4gMyAmJiByICYmIE9iamVjdC5kZWZpbmVQcm9wZXJ0eSh0YXJnZXQsIGtleSwgciksIHI7Cn07CnZhciBfX21ldGFkYXRhID0gKHRoaXMgJiYgdGhpcy5fX21ldGFkYXRhKSB8fCBmdW5jdGlvbiAoaywgdikgewogICAgaWYgKHR5cGVvZiBSZWZsZWN0ID09PSAib2JqZWN0IiAmJiB0eXBlb2YgUmVmbGVjdC5tZXRhZGF0YSA9PT0gImZ1bmN0aW9uIikgcmV0dXJuIFJlZmxlY3QubWV0YWRhdGEoaywgdik7Cn07CmNsYXNzIEMgewogICAgdmFsdWU7Cn0KX19kZWNvcmF0ZShbCiAgICBkZWMsCiAgICBfX21ldGFkYXRhKCJkZXNpZ246dHlwZSIsIE9iamVjdCkKXSwgQy5wcm90b3R5cGUsICJ2YWx1ZSIsIHZvaWQgMCk7Cg==",
+            "callback_utf8_sha256": "7b15b0db66a04e89d708e26c522f4acd46c9ebae7dcf73793684118f42e8f8e7",
+            "callback_utf8_bytes": 880,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "7b15b0db66a04e89d708e26c522f4acd46c9ebae7dcf73793684118f42e8f8e7",
+            "materialized_utf8_bytes": 880,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/input.ts"
+            ]
+          }
+        ],
+        "run_fingerprint_sha256": "2130a30291ab918a532d89bd47eb788cb85ede48b6e43397b6861f6c0f13ce95"
+      },
+      "control_fingerprint_sha256": "5f3bb57b9a4f1685527eb5ad4430e3b02c7be5889b9a845b75d98946add316eb"
+    },
+    {
+      "control_id": "no-emit-helpers-retains-helper-calls",
+      "input": {
+        "current_directory": "/project",
+        "roots": [
+          "/project/input.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/input.ts",
+            "root": true,
+            "utf8_base64": "ZGVjbGFyZSBjb25zdCBkZWM6IGFueTsKQGRlYyBjbGFzcyBDIHt9Cg==",
+            "utf8_sha256": "adacc93b326972226c74f02e4bc86e19fc6717576253c29178008f4345eec77a",
+            "utf8_bytes": 40
+          }
+        ],
+        "compiler_options": {
+          "alwaysStrict": true,
+          "experimentalDecorators": true,
+          "ignoreDeprecations": "6.0",
+          "module": 99,
+          "newLine": 1,
+          "noEmitHelpers": true,
+          "target": 99
+        }
+      },
+      "repetitions": 2,
+      "observation": {
+        "reported_diagnostics": [],
+        "emit_diagnostics": [],
+        "emit_skipped": false,
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/input.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOwpsZXQgQyA9IGNsYXNzIEMgewp9OwpDID0gX19kZWNvcmF0ZShbCiAgICBkZWMKXSwgQyk7Cg==",
+            "callback_utf8_sha256": "ff5663e6b9ec0668a185bfe5e3761bfa35d1b325e5147284705129a0e337208d",
+            "callback_utf8_bytes": 67,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "ff5663e6b9ec0668a185bfe5e3761bfa35d1b325e5147284705129a0e337208d",
+            "materialized_utf8_bytes": 67,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/input.ts"
+            ]
+          }
+        ],
+        "run_fingerprint_sha256": "bed93ef8f0b992a96322b0bbb4419c8fc3d5c1f4d0ebe9b2006fd0a3dce5f88c"
+      },
+      "control_fingerprint_sha256": "04068bf99c1b44a3b6337fe7f20de944ecfb3807df7063e03b09f69938a54105"
+    },
+    {
+      "control_id": "helper-deduplication-and-member-before-class-order",
+      "input": {
+        "current_directory": "/project",
+        "roots": [
+          "/project/input.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/input.ts",
+            "root": true,
+            "utf8_base64": "ZGVjbGFyZSBjb25zdCBkZWM6IGFueTsKQGRlYyBjbGFzcyBBIHsgQGRlYyBtZXRob2QoKSB7fSB9CkBkZWMgY2xhc3MgQiB7IEBkZWMgZmllbGQgPSAxOyB9Cg==",
+            "utf8_sha256": "bda62c444ca4a648b40c6eaa16e2886442e45845193226cf4b0b6866ea4adcc2",
+            "utf8_bytes": 91
+          }
+        ],
+        "compiler_options": {
+          "alwaysStrict": true,
+          "experimentalDecorators": true,
+          "ignoreDeprecations": "6.0",
+          "module": 99,
+          "newLine": 1,
+          "target": 99
+        }
+      },
+      "repetitions": 2,
+      "observation": {
+        "reported_diagnostics": [],
+        "emit_diagnostics": [],
+        "emit_skipped": false,
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/input.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOwp2YXIgX19kZWNvcmF0ZSA9ICh0aGlzICYmIHRoaXMuX19kZWNvcmF0ZSkgfHwgZnVuY3Rpb24gKGRlY29yYXRvcnMsIHRhcmdldCwga2V5LCBkZXNjKSB7CiAgICB2YXIgYyA9IGFyZ3VtZW50cy5sZW5ndGgsIHIgPSBjIDwgMyA/IHRhcmdldCA6IGRlc2MgPT09IG51bGwgPyBkZXNjID0gT2JqZWN0LmdldE93blByb3BlcnR5RGVzY3JpcHRvcih0YXJnZXQsIGtleSkgOiBkZXNjLCBkOwogICAgaWYgKHR5cGVvZiBSZWZsZWN0ID09PSAib2JqZWN0IiAmJiB0eXBlb2YgUmVmbGVjdC5kZWNvcmF0ZSA9PT0gImZ1bmN0aW9uIikgciA9IFJlZmxlY3QuZGVjb3JhdGUoZGVjb3JhdG9ycywgdGFyZ2V0LCBrZXksIGRlc2MpOwogICAgZWxzZSBmb3IgKHZhciBpID0gZGVjb3JhdG9ycy5sZW5ndGggLSAxOyBpID49IDA7IGktLSkgaWYgKGQgPSBkZWNvcmF0b3JzW2ldKSByID0gKGMgPCAzID8gZChyKSA6IGMgPiAzID8gZCh0YXJnZXQsIGtleSwgcikgOiBkKHRhcmdldCwga2V5KSkgfHwgcjsKICAgIHJldHVybiBjID4gMyAmJiByICYmIE9iamVjdC5kZWZpbmVQcm9wZXJ0eSh0YXJnZXQsIGtleSwgciksIHI7Cn07CmxldCBBID0gY2xhc3MgQSB7CiAgICBtZXRob2QoKSB7IH0KfTsKX19kZWNvcmF0ZShbCiAgICBkZWMKXSwgQS5wcm90b3R5cGUsICJtZXRob2QiLCBudWxsKTsKQSA9IF9fZGVjb3JhdGUoWwogICAgZGVjCl0sIEEpOwpsZXQgQiA9IGNsYXNzIEIgewogICAgZmllbGQgPSAxOwp9OwpfX2RlY29yYXRlKFsKICAgIGRlYwpdLCBCLnByb3RvdHlwZSwgImZpZWxkIiwgdm9pZCAwKTsKQiA9IF9fZGVjb3JhdGUoWwogICAgZGVjCl0sIEIpOwo=",
+            "callback_utf8_sha256": "6afaaa2dbf2f0a38573056c5b3bc0085e7e3ff6ba260f7c445c57268dc0b0afc",
+            "callback_utf8_bytes": 833,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "6afaaa2dbf2f0a38573056c5b3bc0085e7e3ff6ba260f7c445c57268dc0b0afc",
+            "materialized_utf8_bytes": 833,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/input.ts"
+            ]
+          }
+        ],
+        "run_fingerprint_sha256": "25cf804bba781e1e0b5d7a8d475b31bcda99f9204f0f3c6935ac836d4c1ed6c0"
+      },
+      "control_fingerprint_sha256": "6e6630b44454531cf603f051e8d98b986c01b76fc2665a136471fec33984dce7"
+    },
+    {
+      "control_id": "commonjs-exported-decorated-class",
+      "input": {
+        "current_directory": "/project",
+        "roots": [
+          "/project/input.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/input.ts",
+            "root": true,
+            "utf8_base64": "ZGVjbGFyZSBjb25zdCBkZWM6IGFueTsKQGRlYyBleHBvcnQgY2xhc3MgQyB7fQo=",
+            "utf8_sha256": "848635cb29673b77d635407eae6adf3166497f021aff4bd592c6d0767a998dc4",
+            "utf8_bytes": 47
+          }
+        ],
+        "compiler_options": {
+          "alwaysStrict": true,
+          "experimentalDecorators": true,
+          "ignoreDeprecations": "6.0",
+          "module": 1,
+          "newLine": 1,
+          "target": 99
+        }
+      },
+      "repetitions": 2,
+      "observation": {
+        "reported_diagnostics": [],
+        "emit_diagnostics": [],
+        "emit_skipped": false,
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/input.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOwp2YXIgX19kZWNvcmF0ZSA9ICh0aGlzICYmIHRoaXMuX19kZWNvcmF0ZSkgfHwgZnVuY3Rpb24gKGRlY29yYXRvcnMsIHRhcmdldCwga2V5LCBkZXNjKSB7CiAgICB2YXIgYyA9IGFyZ3VtZW50cy5sZW5ndGgsIHIgPSBjIDwgMyA/IHRhcmdldCA6IGRlc2MgPT09IG51bGwgPyBkZXNjID0gT2JqZWN0LmdldE93blByb3BlcnR5RGVzY3JpcHRvcih0YXJnZXQsIGtleSkgOiBkZXNjLCBkOwogICAgaWYgKHR5cGVvZiBSZWZsZWN0ID09PSAib2JqZWN0IiAmJiB0eXBlb2YgUmVmbGVjdC5kZWNvcmF0ZSA9PT0gImZ1bmN0aW9uIikgciA9IFJlZmxlY3QuZGVjb3JhdGUoZGVjb3JhdG9ycywgdGFyZ2V0LCBrZXksIGRlc2MpOwogICAgZWxzZSBmb3IgKHZhciBpID0gZGVjb3JhdG9ycy5sZW5ndGggLSAxOyBpID49IDA7IGktLSkgaWYgKGQgPSBkZWNvcmF0b3JzW2ldKSByID0gKGMgPCAzID8gZChyKSA6IGMgPiAzID8gZCh0YXJnZXQsIGtleSwgcikgOiBkKHRhcmdldCwga2V5KSkgfHwgcjsKICAgIHJldHVybiBjID4gMyAmJiByICYmIE9iamVjdC5kZWZpbmVQcm9wZXJ0eSh0YXJnZXQsIGtleSwgciksIHI7Cn07Ck9iamVjdC5kZWZpbmVQcm9wZXJ0eShleHBvcnRzLCAiX19lc01vZHVsZSIsIHsgdmFsdWU6IHRydWUgfSk7CmV4cG9ydHMuQyA9IHZvaWQgMDsKbGV0IEMgPSBjbGFzcyBDIHsKfTsKZXhwb3J0cy5DID0gQzsKZXhwb3J0cy5DID0gQyA9IF9fZGVjb3JhdGUoWwogICAgZGVjCl0sIEMpOwo=",
+            "callback_utf8_sha256": "b04d618394f3fb0cb9ccc5e77903cbb60a1859374af8f0e1142efdd2f7a70252",
+            "callback_utf8_bytes": 749,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "b04d618394f3fb0cb9ccc5e77903cbb60a1859374af8f0e1142efdd2f7a70252",
+            "materialized_utf8_bytes": 749,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/input.ts"
+            ]
+          }
+        ],
+        "run_fingerprint_sha256": "9dde6603897067cfb33e8e5c965a6934128c6dc5e9a04a3aa8c179113daf4e3e"
+      },
+      "control_fingerprint_sha256": "ddd082ac54c5269017eb9570658de685d019bfd3dc8a4dd7b0812f31275458ad"
+    },
+    {
+      "control_id": "system-exported-decorated-class",
+      "input": {
+        "current_directory": "/project",
+        "roots": [
+          "/project/input.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/input.ts",
+            "root": true,
+            "utf8_base64": "ZGVjbGFyZSBjb25zdCBkZWM6IGFueTsKQGRlYyBleHBvcnQgY2xhc3MgQyB7fQo=",
+            "utf8_sha256": "848635cb29673b77d635407eae6adf3166497f021aff4bd592c6d0767a998dc4",
+            "utf8_bytes": 47
+          }
+        ],
+        "compiler_options": {
+          "alwaysStrict": true,
+          "experimentalDecorators": true,
+          "ignoreDeprecations": "6.0",
+          "module": 4,
+          "newLine": 1,
+          "target": 99
+        }
+      },
+      "repetitions": 2,
+      "observation": {
+        "reported_diagnostics": [],
+        "emit_diagnostics": [],
+        "emit_skipped": false,
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/input.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "U3lzdGVtLnJlZ2lzdGVyKFtdLCBmdW5jdGlvbiAoZXhwb3J0c18xLCBjb250ZXh0XzEpIHsKICAgICJ1c2Ugc3RyaWN0IjsKICAgIHZhciBfX2RlY29yYXRlID0gKHRoaXMgJiYgdGhpcy5fX2RlY29yYXRlKSB8fCBmdW5jdGlvbiAoZGVjb3JhdG9ycywgdGFyZ2V0LCBrZXksIGRlc2MpIHsKICAgICAgICB2YXIgYyA9IGFyZ3VtZW50cy5sZW5ndGgsIHIgPSBjIDwgMyA/IHRhcmdldCA6IGRlc2MgPT09IG51bGwgPyBkZXNjID0gT2JqZWN0LmdldE93blByb3BlcnR5RGVzY3JpcHRvcih0YXJnZXQsIGtleSkgOiBkZXNjLCBkOwogICAgICAgIGlmICh0eXBlb2YgUmVmbGVjdCA9PT0gIm9iamVjdCIgJiYgdHlwZW9mIFJlZmxlY3QuZGVjb3JhdGUgPT09ICJmdW5jdGlvbiIpIHIgPSBSZWZsZWN0LmRlY29yYXRlKGRlY29yYXRvcnMsIHRhcmdldCwga2V5LCBkZXNjKTsKICAgICAgICBlbHNlIGZvciAodmFyIGkgPSBkZWNvcmF0b3JzLmxlbmd0aCAtIDE7IGkgPj0gMDsgaS0tKSBpZiAoZCA9IGRlY29yYXRvcnNbaV0pIHIgPSAoYyA8IDMgPyBkKHIpIDogYyA+IDMgPyBkKHRhcmdldCwga2V5LCByKSA6IGQodGFyZ2V0LCBrZXkpKSB8fCByOwogICAgICAgIHJldHVybiBjID4gMyAmJiByICYmIE9iamVjdC5kZWZpbmVQcm9wZXJ0eSh0YXJnZXQsIGtleSwgciksIHI7CiAgICB9OwogICAgdmFyIEM7CiAgICB2YXIgX19tb2R1bGVOYW1lID0gY29udGV4dF8xICYmIGNvbnRleHRfMS5pZDsKICAgIHJldHVybiB7CiAgICAgICAgc2V0dGVyczogW10sCiAgICAgICAgZXhlY3V0ZTogZnVuY3Rpb24gKCkgewogICAgICAgICAgICBDID0gY2xhc3MgQyB7CiAgICAgICAgICAgIH07CiAgICAgICAgICAgIGV4cG9ydHNfMSgiQyIsIEMpOwogICAgICAgICAgICBleHBvcnRzXzEoIkMiLCBDID0gX19kZWNvcmF0ZShbCiAgICAgICAgICAgICAgICBkZWMKICAgICAgICAgICAgXSwgQykpOwogICAgICAgIH0KICAgIH07Cn0pOwo=",
+            "callback_utf8_sha256": "f493077c498316275e072aa8ba7d0bb5815fba57c7377f06346d6c18e84c2c58",
+            "callback_utf8_bytes": 971,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "f493077c498316275e072aa8ba7d0bb5815fba57c7377f06346d6c18e84c2c58",
+            "materialized_utf8_bytes": 971,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/input.ts"
+            ]
+          }
+        ],
+        "run_fingerprint_sha256": "f0b536b54f064ce1fb197f3905a5a6686aafd49fcd92654a9f44a4801951d2dd"
+      },
+      "control_fingerprint_sha256": "7256e5bfb120fb9bd013ebf1b35dbda7ec08a508b8c17848f431eea860332c1a"
+    },
+    {
+      "control_id": "no-emit-on-error-stops-before-write",
+      "input": {
+        "current_directory": "/project",
+        "roots": [
+          "/project/input.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/input.ts",
+            "root": true,
+            "utf8_base64": "ZGVjbGFyZSBjb25zdCBkZWM6IGFueTsKQGRlYyBjbGFzcyBDIHsgc3RhdGljIHZhbHVlID0gdGhpczsgfQo=",
+            "utf8_sha256": "a364310f77f7d75d553e1916d252dbe1792662a9ed49927dd282dc44c4809583",
+            "utf8_bytes": 62
+          }
+        ],
+        "compiler_options": {
+          "alwaysStrict": true,
+          "experimentalDecorators": true,
+          "ignoreDeprecations": "6.0",
+          "module": 99,
+          "newLine": 1,
+          "noEmitOnError": true,
+          "target": 99
+        }
+      },
+      "repetitions": 2,
+      "observation": {
+        "reported_diagnostics": [
+          {
+            "code": 2816,
+            "category": "Error",
+            "file": "/project/input.ts",
+            "start": 54,
+            "length": 4,
+            "message": "Cannot use 'this' in a static property initializer of a decorated class."
+          }
+        ],
+        "emit_diagnostics": [
+          {
+            "code": 2816,
+            "category": "Error",
+            "file": "/project/input.ts",
+            "start": 54,
+            "length": 4,
+            "message": "Cannot use 'this' in a static property initializer of a decorated class."
+          }
+        ],
+        "emit_skipped": true,
+        "writes": [],
+        "run_fingerprint_sha256": "1826bf81c68c514fcd7f344ed01dc36a6787ba2fdca72be0b0ebd13e96b09a82"
+      },
+      "control_fingerprint_sha256": "e863ba3f8502a1f4ccad32c0ce6899915d312fe9cb1cb1366ca8aff06effadd4"
+    }
+  ],
+  "summary": {
+    "controls": 19,
+    "exact_outputs": 18,
+    "typescript_runs": 38,
+    "reported_diagnostics": 2,
+    "emit_diagnostics": 1,
+    "no_emit_on_error_controls": 1
+  },
+  "controls_fingerprint_sha256": "5804a7fa12e17193ec3a0335cc2ae5aa36604be556d6d31742a1c760b606398b"
+}
