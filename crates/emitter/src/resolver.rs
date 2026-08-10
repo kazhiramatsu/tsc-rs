@@ -15,6 +15,24 @@ pub struct EmitResolverNode {
     node: NodeId,
 }
 
+/// Runtime constructor category selected by TypeScript's checker for a type
+/// reference used by `emitDecoratorMetadata`.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum EmitTypeReferenceSerializationKind {
+    Unknown,
+    TypeWithConstructSignatureAndValue,
+    VoidNullableOrNeverType,
+    NumberLikeType,
+    BigIntLikeType,
+    StringLikeType,
+    BooleanType,
+    ArrayLikeType,
+    ESSymbolType,
+    Promise,
+    TypeWithCallSignature,
+    ObjectType,
+}
+
 impl EmitResolverNode {
     pub const fn new(source: SourceFileId, node: NodeId) -> Self {
         Self { source, node }
@@ -44,6 +62,7 @@ pub enum EmitResolverMethod {
     GetReferencedImportDeclaration,
     GetJsxFactoryImportDeclaration,
     GetReferencedValueDeclaration,
+    GetTypeReferenceSerializationKind,
     HasNodeCheckFlag,
     IsExternalOrCommonJsModule,
     IsInstantiatedModule,
@@ -61,6 +80,7 @@ impl EmitResolverMethod {
             Self::GetReferencedImportDeclaration => "getReferencedImportDeclaration",
             Self::GetJsxFactoryImportDeclaration => "getJsxFactoryImportDeclaration",
             Self::GetReferencedValueDeclaration => "getReferencedValueDeclaration",
+            Self::GetTypeReferenceSerializationKind => "getTypeReferenceSerializationKind",
             Self::HasNodeCheckFlag => "hasNodeCheckFlag",
             Self::IsExternalOrCommonJsModule => "isExternalOrCommonJsModule",
             Self::IsInstantiatedModule => "isInstantiatedModule",
@@ -213,6 +233,16 @@ pub trait EmitResolver {
     ) -> Result<Option<EmitResolverNode>, EmitResolverError> {
         Err(unavailable(
             EmitResolverMethod::GetReferencedValueDeclaration,
+            node,
+        ))
+    }
+
+    fn get_type_reference_serialization_kind(
+        &self,
+        node: EmitResolverNode,
+    ) -> Result<EmitTypeReferenceSerializationKind, EmitResolverError> {
+        Err(unavailable(
+            EmitResolverMethod::GetTypeReferenceSerializationKind,
             node,
         ))
     }

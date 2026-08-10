@@ -286,6 +286,130 @@ impl<'a> CheckerState<'a> {
         Ok(self.binder.symbol(symbol).value_declaration)
     }
 
+    /// tsc-port: getTypeReferenceSerializationKind @6.0.3
+    /// tsc-hash: 3a0898fddcdc3e14c787750ae33d7c2893409a3ff3a08dbf600a8b417fc52a78
+    /// tsc-span: _tsc.js:88271-88343
+    pub(crate) fn emit_get_type_reference_serialization_kind(
+        &mut self,
+        type_name: NodeId,
+    ) -> CheckResult<tsc_emitter::EmitTypeReferenceSerializationKind> {
+        use tsc_emitter::EmitTypeReferenceSerializationKind as Kind;
+
+        let mut is_type_only = false;
+        if self.kind_of(type_name) == SyntaxKind::QualifiedName {
+            let root = self.first_identifier(type_name);
+            if let Some(root_symbol) =
+                self.resolve_entity_name_ex(root, SymbolFlags::VALUE, true, None, true)?
+            {
+                let declarations = &self.binder.symbol(root_symbol).declarations;
+                is_type_only = !declarations.is_empty()
+                    && declarations.iter().all(|declaration| {
+                        self.is_type_only_import_or_export_declaration(*declaration)
+                    });
+            }
+        }
+
+        let value_symbol =
+            self.resolve_entity_name_ex(type_name, SymbolFlags::VALUE, true, None, true)?;
+        let resolved_value_symbol = if let Some(symbol) = value_symbol {
+            if self.symbol_flags(symbol).intersects(SymbolFlags::ALIAS) {
+                Some(self.resolve_alias(symbol)?)
+            } else {
+                Some(symbol)
+            }
+        } else {
+            None
+        };
+        if let Some(symbol) = value_symbol {
+            is_type_only |= self.get_type_only_alias_declaration(symbol)?.is_some();
+        }
+
+        let type_symbol =
+            self.resolve_entity_name_ex(type_name, SymbolFlags::TYPE, true, None, true)?;
+        let resolved_type_symbol = if let Some(symbol) = type_symbol {
+            if self.symbol_flags(symbol).intersects(SymbolFlags::ALIAS) {
+                Some(self.resolve_alias(symbol)?)
+            } else {
+                Some(symbol)
+            }
+        } else {
+            None
+        };
+        if value_symbol.is_none() {
+            if let Some(symbol) = type_symbol {
+                is_type_only |= self.get_type_only_alias_declaration(symbol)?.is_some();
+            }
+        }
+
+        if let (Some(value), Some(type_)) = (resolved_value_symbol, resolved_type_symbol) {
+            if value == type_ {
+                if self.get_global_promise_constructor_symbol(false)? == Some(value) {
+                    return Ok(Kind::Promise);
+                }
+                let constructor_type = self.get_type_of_symbol(value)?;
+                if self.is_constructor_type(constructor_type)? {
+                    return Ok(if is_type_only {
+                        Kind::TypeWithCallSignature
+                    } else {
+                        Kind::TypeWithConstructSignatureAndValue
+                    });
+                }
+            }
+        }
+
+        let Some(type_symbol) = resolved_type_symbol else {
+            return Ok(if is_type_only {
+                Kind::ObjectType
+            } else {
+                Kind::Unknown
+            });
+        };
+        let ty = self.get_declared_type_of_symbol_slice(type_symbol)?;
+        if self.tables.is_error_type(ty) {
+            return Ok(if is_type_only {
+                Kind::ObjectType
+            } else {
+                Kind::Unknown
+            });
+        }
+        let flags = self.tables.flags_of(ty);
+        if flags.intersects(TypeFlags::ANY_OR_UNKNOWN) {
+            return Ok(Kind::ObjectType);
+        }
+        if self.is_type_assignable_to_kind(
+            ty,
+            TypeFlags::VOID | TypeFlags::NULLABLE | TypeFlags::NEVER,
+            false,
+        )? {
+            return Ok(Kind::VoidNullableOrNeverType);
+        }
+        if self.is_type_assignable_to_kind(ty, TypeFlags::BOOLEAN_LIKE, false)? {
+            return Ok(Kind::BooleanType);
+        }
+        if self.is_type_assignable_to_kind(ty, TypeFlags::NUMBER_LIKE, false)? {
+            return Ok(Kind::NumberLikeType);
+        }
+        if self.is_type_assignable_to_kind(ty, TypeFlags::BIG_INT_LIKE, false)? {
+            return Ok(Kind::BigIntLikeType);
+        }
+        if self.is_type_assignable_to_kind(ty, TypeFlags::STRING_LIKE, false)? {
+            return Ok(Kind::StringLikeType);
+        }
+        if self.tables.is_tuple_type(ty) {
+            return Ok(Kind::ArrayLikeType);
+        }
+        if self.is_type_assignable_to_kind(ty, TypeFlags::ES_SYMBOL_LIKE, false)? {
+            return Ok(Kind::ESSymbolType);
+        }
+        if self.is_function_type(ty)? {
+            return Ok(Kind::TypeWithCallSignature);
+        }
+        if self.is_array_type(ty)? {
+            return Ok(Kind::ArrayLikeType);
+        }
+        Ok(Kind::ObjectType)
+    }
+
     /// tsc-port: isExportOrExportExpression @6.0.3
     /// tsc-hash: cea0c3dcc402c1d015329d558f5758763d1a1697f9010e21458c0aa7496bcc50
     /// tsc-span: _tsc.js:71647-71661

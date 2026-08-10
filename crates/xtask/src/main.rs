@@ -4295,7 +4295,9 @@ fn acceptance(mut args: impl Iterator<Item = String>) -> Result<(), Box<dyn Erro
     h2_3a_acceptance::run(&workspace)?;
     h2_3b_acceptance::run(&workspace)?;
     h2_3c_acceptance::run(&workspace)?;
-    h2_3d_acceptance::run(&workspace)
+    h2_3d_acceptance::run(&workspace)?;
+    h2_2c_acceptance::run_h2_4a(&workspace)?;
+    h2_3d_acceptance::run_h2_4a_owner_controls(&workspace)
 }
 
 fn conformance(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
@@ -8125,6 +8127,38 @@ fn ci_oracle_gates(workspace: &Path) -> Result<(), Box<dyn Error>> {
         Command::new("node")
             .current_dir(workspace)
             .arg(&h2_3d_profile)
+            .arg("--check"),
+    )?;
+    let h2_4a_qualification = workspace.join("crates/oracle/h2-4a-qualification.mjs");
+    run_command(
+        Command::new("node")
+            .arg("--check")
+            .arg(&h2_4a_qualification),
+    )?;
+    run_command(
+        Command::new("node")
+            .current_dir(workspace)
+            .arg(&h2_4a_qualification)
+            .arg("--check"),
+    )?;
+    let h2_4a_owner_controls = workspace.join("crates/oracle/h2-4a-owner-controls.mjs");
+    run_command(
+        Command::new("node")
+            .arg("--check")
+            .arg(&h2_4a_owner_controls),
+    )?;
+    run_command(
+        Command::new("node")
+            .current_dir(workspace)
+            .arg(&h2_4a_owner_controls)
+            .arg("--check"),
+    )?;
+    let h2_4a_profile = workspace.join("crates/oracle/h2-4a-profile.mjs");
+    run_command(Command::new("node").arg("--check").arg(&h2_4a_profile))?;
+    run_command(
+        Command::new("node")
+            .current_dir(workspace)
+            .arg(&h2_4a_profile)
             .arg("--check"),
     )?;
     let h1_rust_omissions = workspace.join("crates/oracle/h1-rust-omission-inventory.mjs");

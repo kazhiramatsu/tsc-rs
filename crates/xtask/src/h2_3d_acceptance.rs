@@ -13,6 +13,7 @@ use tsc_program::{CompilerOptions, PathContext, PreparedProgram, PreparedSourceF
 
 const QUALIFICATION_RELATIVE_PATH: &str = "ratchets/h2-3d-qualification.v1.json";
 const OWNER_CONTROLS_RELATIVE_PATH: &str = "ratchets/h2-3d-owner-controls.v1.json";
+const H2_4A_OWNER_CONTROLS_RELATIVE_PATH: &str = "ratchets/h2-4a-owner-controls.v1.json";
 
 const MINIMAL_GLOBALS: &str = r#"
 interface IArguments { length: number; callee: Function; }
@@ -63,17 +64,100 @@ fn owner_options(value: &Value) -> Result<CompilerOptions, Box<dyn Error>> {
     };
     let optional_string = |name: &str| value[name].as_str().map(str::to_owned);
     Ok(CompilerOptions {
+        always_strict: optional_bool("alwaysStrict"),
+        emit_decorator_metadata: optional_bool("emitDecoratorMetadata"),
         emit_bom: optional_bool("emitBOM"),
+        experimental_decorators: optional_bool("experimentalDecorators").unwrap_or(false),
         ignore_deprecations: optional_string("ignoreDeprecations"),
         module: optional_i32("module")?,
         module_resolution: optional_i32("moduleResolution")?,
         new_line: optional_i32("newLine")?,
+        no_emit_helpers: optional_bool("noEmitHelpers"),
+        no_emit_on_error: optional_bool("noEmitOnError"),
         out_dir: optional_string("outDir"),
         resolve_json_module: optional_bool("resolveJsonModule"),
         target: optional_i32("target")?,
         no_emit: Some(false),
         ..CompilerOptions::default()
     })
+}
+
+fn expected_h2_4a_owner_activity(
+    control: &Value,
+    outcome: &tsc_compiler::EmitOutcome,
+) -> Result<(), Box<dyn Error>> {
+    let input = &control["input"];
+    let module = input["compiler_options"]["module"].as_i64().unwrap_or(200);
+    let output_units = array(&control["observation"], "writes")?.len() as u64;
+    let namespace_sources = if string(control, "control_id")?
+        == "qualified-value-reference-metadata"
+        && output_units != 0
+    {
+        1
+    } else {
+        0
+    };
+    for slice in H2RuntimeSlice::ALL {
+        let expected = match slice {
+            H2RuntimeSlice::H2_1a if module != 4 && module != 200 => output_units,
+            H2RuntimeSlice::H2_1b if matches!(module, 1..=3) => output_units,
+            H2RuntimeSlice::H2_1d if module == 4 => output_units,
+            H2RuntimeSlice::H2_2b => namespace_sources,
+            H2RuntimeSlice::H2_4a => output_units,
+            _ => 0,
+        };
+        if outcome.h2_activity().runtime_slice(slice) != expected {
+            return Err(failure(format!(
+                "{}: {} owner activity expected {expected}, observed {}",
+                string(control, "control_id")?,
+                slice.name(),
+                outcome.h2_activity().runtime_slice(slice),
+            )));
+        }
+    }
+    Ok(())
+}
+
+fn execute_h2_4a_owner_control(control: &Value) -> Result<(usize, usize), Box<dyn Error>> {
+    let id = string(control, "control_id")?;
+    let mut first_sink = MemoryOutputSink::new();
+    let (first, first_reported) = ProgramSession::new(owner_input(control)?)
+        .emit_with_reported_diagnostics_for_harness(&mut first_sink)
+        .map_err(|error| failure(format!("{id}: first H2.4a owner emit failed: {error}")))?;
+    let mut second_sink = MemoryOutputSink::new();
+    let (second, second_reported) = ProgramSession::new(owner_input(control)?)
+        .emit_with_reported_diagnostics_for_harness(&mut second_sink)
+        .map_err(|error| failure(format!("{id}: second H2.4a owner emit failed: {error}")))?;
+    if first != second || first_sink != second_sink || first_reported != second_reported {
+        return Err(failure(format!(
+            "{id}: repeated H2.4a owner emit is not deterministic"
+        )));
+    }
+    let expected = &control["observation"];
+    assert_reported_diagnostics(
+        id,
+        array(expected, "reported_diagnostics")?,
+        &first_reported,
+    )?;
+    let actual_emit_diagnostics = first
+        .diagnostics()
+        .iter()
+        .map(normalize_diagnostic)
+        .collect::<Vec<_>>();
+    if actual_emit_diagnostics != array(expected, "emit_diagnostics")?
+        || first.emit_skipped() != expected["emit_skipped"].as_bool().unwrap_or(true)
+        || first.emitted_files().is_some()
+        || first.source_maps().is_some()
+    {
+        return Err(failure(format!(
+            "{id}: H2.4a owner emit result differs\nexpected={}\nactual={}",
+            serde_json::to_string_pretty(expected)?,
+            serde_json::to_string_pretty(&actual_emit_diagnostics)?,
+        )));
+    }
+    assert_exact_writes(id, array(expected, "writes")?, &first_sink)?;
+    expected_h2_4a_owner_activity(control, &first)?;
+    Ok((first_sink.writes().len(), first_reported.len()))
 }
 
 fn owner_input(control: &Value) -> Result<PreparedProgram, Box<dyn Error>> {
@@ -352,6 +436,44 @@ pub fn run(workspace: &Path) -> Result<(), Box<dyn Error>> {
     }
     println!(
         "H2.3d emit acceptance: candidates=0 exact=0 future_deferred=695 source_deferred=0 owner_controls=14 owner_diagnostics=2 owner_writes=13 repetitions=2"
+    );
+    Ok(())
+}
+
+pub fn run_h2_4a_owner_controls(workspace: &Path) -> Result<(), Box<dyn Error>> {
+    let artifact: Value = serde_json::from_slice(&fs::read(
+        workspace.join(H2_4A_OWNER_CONTROLS_RELATIVE_PATH),
+    )?)?;
+    if artifact["schema"] != 1
+        || artifact["phase"] != "H2.4a-legacy-decorator-owner-controls"
+        || artifact["status"] != "qualified"
+        || artifact["summary"]["controls"] != 19
+        || artifact["summary"]["exact_outputs"] != 18
+        || artifact["summary"]["typescript_runs"] != 38
+        || artifact["summary"]["reported_diagnostics"] != 2
+        || artifact["summary"]["emit_diagnostics"] != 1
+        || artifact["summary"]["no_emit_on_error_controls"] != 1
+    {
+        return Err(failure("H2.4a owner-control header is not closed"));
+    }
+    let controls = array(&artifact, "controls")?;
+    if controls.len() != 19 {
+        return Err(failure("H2.4a owner-control denominator changed"));
+    }
+    let mut writes = 0;
+    let mut diagnostics = 0;
+    for control in controls {
+        let (control_writes, control_diagnostics) = execute_h2_4a_owner_control(control)?;
+        writes += control_writes;
+        diagnostics += control_diagnostics;
+    }
+    if writes != 18 || diagnostics != 2 {
+        return Err(failure(format!(
+            "H2.4a owner totals differ: writes={writes} diagnostics={diagnostics}"
+        )));
+    }
+    println!(
+        "H2.4a owner controls: controls=19 exact_writes={writes} reported_diagnostics={diagnostics} repetitions=2"
     );
     Ok(())
 }

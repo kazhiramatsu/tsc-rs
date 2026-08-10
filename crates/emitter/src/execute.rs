@@ -92,9 +92,7 @@ pub fn validate_bootstrap_emit_options(options: &CompilerOptions) -> Result<(), 
 
     for (active, name) in [
         (options.no_emit == Some(true), "noEmit"),
-        (options.experimental_decorators, "experimentalDecorators"),
         (options.import_helpers == Some(true), "importHelpers"),
-        (options.no_emit_helpers == Some(true), "noEmitHelpers"),
         (options.no_check == Some(true), "noCheck"),
         (
             options.erasable_syntax_only == Some(true),
@@ -143,7 +141,7 @@ pub fn validate_bootstrap_emit_options(options: &CompilerOptions) -> Result<(), 
             "preserveValueImports",
         ),
         (
-            options.emit_decorator_metadata == Some(true),
+            options.emit_decorator_metadata == Some(true) && !options.experimental_decorators,
             "emitDecoratorMetadata",
         ),
     ] {
@@ -286,7 +284,7 @@ pub fn emit_files(
     diagnostic_gate: &EmitDiagnosticGate,
     sink: &mut dyn OutputSink,
 ) -> Result<EmitOutcome, EmitFailure> {
-    let mut activity = H2ActivityCanary::h2_3d_profile();
+    let mut activity = H2ActivityCanary::h2_4a_profile();
     activity.construct_emit_session();
     activity.construct_output_plan();
     if !preflight.plan().units().is_empty() {

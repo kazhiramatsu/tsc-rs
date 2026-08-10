@@ -358,6 +358,16 @@ impl H2ActivityCanary {
         profile
     }
 
+    /// Construct the current production admission profile. H2.4a activates
+    /// legacy decorator lowering, decorator metadata, and the checker-owned
+    /// referenced-value/check-flag facts consumed by that transformer.
+    #[doc(hidden)]
+    pub const fn h2_4a_profile() -> Self {
+        let mut profile = Self::h2_3d_profile();
+        profile.admitted_runtime_slices |= 1_u64 << H2RuntimeSlice::H2_4a.index();
+        profile
+    }
+
     pub const fn counters(&self) -> H2ActivityCounters {
         self.counters
     }

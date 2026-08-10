@@ -64,7 +64,8 @@ pub use printer::{
     PrinterOptions, SourceMapHookEvent, SourceMapHookPhase, SourceMapRecorder,
 };
 pub use resolver::{
-    EmitResolver, EmitResolverError, EmitResolverMethod, EmitResolverNode, UnavailableEmitResolver,
+    EmitResolver, EmitResolverError, EmitResolverMethod, EmitResolverNode,
+    EmitTypeReferenceSerializationKind, UnavailableEmitResolver,
 };
 pub use sink::{EmitFileSystem, EmitWriteDisposition, FsOutputSink, MemoryOutputSink, OutputSink};
 pub use transform::{

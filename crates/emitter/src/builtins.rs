@@ -26,6 +26,7 @@ const MODULE_NODE_NEXT: i32 = 199;
 const MODULE_PRESERVE: i32 = 200;
 
 mod jsx;
+mod legacy_decorators;
 mod system;
 
 const CREATE_BINDING_HELPER_TEXT: &str = r#"var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
@@ -80,7 +81,7 @@ pub fn get_script_transformers<'resolver>(
     options: &CompilerOptions,
     resolver: &'resolver dyn EmitResolver,
 ) -> Result<Vec<Box<dyn Transformer + 'resolver>>, TransformError> {
-    let mut activity = H2ActivityCanary::h2_3c_profile();
+    let mut activity = H2ActivityCanary::h2_4a_profile();
     get_script_transformers_with_optional_host(options, resolver, None, &mut activity)
 }
 
@@ -130,13 +131,6 @@ fn get_script_transformers_with_optional_host<'transformers>(
             detail: "the H1 bootstrap profile requires absent or true",
         });
     }
-    if options.experimental_decorators {
-        return Err(TransformError::UnsupportedCompilerOption {
-            option: "experimentalDecorators",
-            detail: "legacy decorator transformation is outside the H1 bootstrap profile",
-        });
-    }
-
     if let Some((host, source)) = host {
         let source_record = host.source_file(source);
         let source_name = source_record
@@ -178,11 +172,21 @@ fn get_script_transformers_with_optional_host<'transformers>(
         {
             activity.observe_runtime_slice(H2RuntimeSlice::H2_2d);
         }
+        if options.experimental_decorators
+            && source_record
+                .and_then(crate::EmitSource::syntax)
+                .is_some_and(source_contains_decorator)
+        {
+            activity.observe_runtime_slice(H2RuntimeSlice::H2_4a);
+        }
     }
 
     activity.construct_script_transformer_list();
     activity.construct_transform_typescript();
     let transform_typescript = transform_type_script(options, resolver);
+    let transform_legacy_decorators = options
+        .experimental_decorators
+        .then(|| legacy_decorators::transform_legacy_decorators(options, resolver));
     let transform_jsx =
         matches!(options.jsx, Some(2 | 4 | 5)).then(|| jsx::transform_jsx(options, resolver));
     activity.construct_transform_class_fields();
@@ -206,6 +210,9 @@ fn get_script_transformers_with_optional_host<'transformers>(
         transform_implied_node_format_dependent_module(options, resolver, host, activity)
     };
     let mut transformers = vec![transform_typescript];
+    if let Some(transform_legacy_decorators) = transform_legacy_decorators {
+        transformers.push(transform_legacy_decorators);
+    }
     if let Some(transform_jsx) = transform_jsx {
         transformers.push(transform_jsx);
     }
@@ -230,6 +237,7 @@ pub fn transform_type_script<'resolver>(
             || options.verbatim_module_syntax == Some(true),
         remove_comments: options.remove_comments == Some(true),
         allow_jsx: matches!(options.jsx, None | Some(1..=5)),
+        allow_legacy_decorators: options.experimental_decorators,
     })
 }
 
@@ -284,6 +292,7 @@ struct TypeScriptTransformer<'resolver> {
     isolated_modules: bool,
     remove_comments: bool,
     allow_jsx: bool,
+    allow_legacy_decorators: bool,
 }
 
 impl Transformer for TypeScriptTransformer<'_> {
@@ -325,6 +334,7 @@ impl Transformer for TypeScriptTransformer<'_> {
             source,
             self.module_kind == MODULE_SYSTEM,
             self.allow_jsx,
+            self.allow_legacy_decorators,
         )?;
         initialize_transform_flags(context.arena_mut()?, source)?;
         let root_node = context.arena().root(source)?;
@@ -2126,6 +2136,21 @@ fn source_contains_import_or_export_equals(source: &tsc_syntax::SourceFile) -> b
     false
 }
 
+fn source_contains_decorator(source: &tsc_syntax::SourceFile) -> bool {
+    let mut stack = vec![source.root];
+    while let Some(id) = stack.pop() {
+        let record = source.arena.node(id);
+        if record.kind == SyntaxKind::Decorator {
+            return true;
+        }
+        for_each_child(&source.arena, record, |child| {
+            stack.push(child);
+            false
+        });
+    }
+    false
+}
+
 fn string_literal_text(
     arena: &TransformArena,
     node: TransformNode,
@@ -3842,12 +3867,25 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         let NodeData::Identifier(identifier) = &self.context.arena().node(left)?.data else {
             return Ok(Vec::new());
         };
-        if !self.is_local_name(left)
+        let is_local_name = self.is_local_name(left);
+        let is_direct_export = self
+            .info
+            .direct_exported_variable_names
+            .contains(identifier.text.as_str());
+        if is_local_name
             && self
                 .info
-                .direct_exported_variable_names
-                .contains(identifier.text.as_str())
+                .exports_by_local
+                .contains_key(identifier.text.as_str())
         {
+            return Ok(self
+                .info
+                .exports_by_local
+                .get(identifier.text.as_str())
+                .cloned()
+                .unwrap_or_default());
+        }
+        if !is_local_name && is_direct_export {
             return Ok(Vec::new());
         }
         let original = self.context.arena().get_original_node(left);
@@ -7347,6 +7385,7 @@ fn preflight_source(
     source: TransformSourceId,
     _allow_ambient_module_erasure: bool,
     allow_jsx: bool,
+    allow_legacy_decorators: bool,
 ) -> Result<(), TransformError> {
     let syntax = arena.source(source)?.syntax();
     if !syntax.parse_diagnostics.is_empty() {
@@ -7371,7 +7410,9 @@ fn preflight_source(
         }
         let node = syntax.arena.node(id);
         let feature = match node.kind {
-            SyntaxKind::Decorator => Some(UnsupportedTransformFeature::Decorators),
+            SyntaxKind::Decorator if !allow_legacy_decorators => {
+                Some(UnsupportedTransformFeature::Decorators)
+            }
             kind if is_jsx_kind(kind) && !allow_jsx => Some(UnsupportedTransformFeature::Jsx),
             _ => None,
         };
