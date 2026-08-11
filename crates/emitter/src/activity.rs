@@ -425,6 +425,15 @@ impl H2ActivityCanary {
         profile
     }
 
+    /// Construct the current production admission profile. H2.5f admits the
+    /// ES2016 target boundary and async-function lowering.
+    #[doc(hidden)]
+    pub const fn h2_5f_profile() -> Self {
+        let mut profile = Self::h2_5e_profile();
+        profile.admitted_runtime_slices |= 1_u64 << H2RuntimeSlice::H2_5f.index();
+        profile
+    }
+
     pub const fn counters(&self) -> H2ActivityCounters {
         self.counters
     }

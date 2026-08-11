@@ -21,6 +21,7 @@ const H2_5B_QUALIFICATION_RELATIVE_PATH: &str = "ratchets/h2-5b-qualification.v1
 const H2_5C_QUALIFICATION_RELATIVE_PATH: &str = "ratchets/h2-5c-qualification.v1.json";
 const H2_5D_QUALIFICATION_RELATIVE_PATH: &str = "ratchets/h2-5d-qualification.v1.json";
 const H2_5E_QUALIFICATION_RELATIVE_PATH: &str = "ratchets/h2-5e-qualification.v1.json";
+const H2_5F_QUALIFICATION_RELATIVE_PATH: &str = "ratchets/h2-5f-qualification.v1.json";
 
 #[derive(Clone, Copy)]
 enum AcceptanceSlice {
@@ -32,6 +33,7 @@ enum AcceptanceSlice {
     H2_5c,
     H2_5d,
     H2_5e,
+    H2_5f,
 }
 
 impl AcceptanceSlice {
@@ -45,6 +47,7 @@ impl AcceptanceSlice {
             Self::H2_5c => "H2.5c",
             Self::H2_5d => "H2.5d",
             Self::H2_5e => "H2.5e",
+            Self::H2_5f => "H2.5f",
         }
     }
 }
@@ -456,7 +459,7 @@ fn execute_slice_observed(
         .map(|value| value.eq_ignore_ascii_case("false"))
         .unwrap_or(matches!(
             case["target_state"].as_str(),
-            Some("ES2017(4)" | "ES2018(5)" | "ES2019(6)" | "ES2020(7)" | "ES2021(8)")
+            Some("ES2016(3)" | "ES2017(4)" | "ES2018(5)" | "ES2019(6)" | "ES2020(7)" | "ES2021(8)")
         ));
     let javascript_sources = case["files"]
         .as_array()
@@ -573,6 +576,7 @@ fn execute_slice_observed(
                     | AcceptanceSlice::H2_5c
                     | AcceptanceSlice::H2_5d
                     | AcceptanceSlice::H2_5e
+                    | AcceptanceSlice::H2_5f
             ) {
                 legacy_decorator_sources
             } else {
@@ -591,6 +595,8 @@ fn execute_slice_observed(
                 AcceptanceSlice::H2_5d => standard_decorator_sources,
                 AcceptanceSlice::H2_5e if assignment_field_mode => reached_sources,
                 AcceptanceSlice::H2_5e => standard_decorator_sources,
+                AcceptanceSlice::H2_5f if assignment_field_mode => reached_sources,
+                AcceptanceSlice::H2_5f => standard_decorator_sources,
                 AcceptanceSlice::H2_2c | AcceptanceSlice::H2_4a => 0,
             }
         || activity.runtime_slice(H2RuntimeSlice::H2_5a)
@@ -601,6 +607,7 @@ fn execute_slice_observed(
                     | AcceptanceSlice::H2_5c
                     | AcceptanceSlice::H2_5d
                     | AcceptanceSlice::H2_5e
+                    | AcceptanceSlice::H2_5f
             ) {
                 reached_sources
             } else {
@@ -613,6 +620,7 @@ fn execute_slice_observed(
                     | AcceptanceSlice::H2_5c
                     | AcceptanceSlice::H2_5d
                     | AcceptanceSlice::H2_5e
+                    | AcceptanceSlice::H2_5f
             ) {
                 reached_sources
             } else {
@@ -621,7 +629,10 @@ fn execute_slice_observed(
         || activity.runtime_slice(H2RuntimeSlice::H2_5c)
             != if matches!(
                 accepted_slice,
-                AcceptanceSlice::H2_5c | AcceptanceSlice::H2_5d | AcceptanceSlice::H2_5e
+                AcceptanceSlice::H2_5c
+                    | AcceptanceSlice::H2_5d
+                    | AcceptanceSlice::H2_5e
+                    | AcceptanceSlice::H2_5f
             ) {
                 reached_sources
             } else {
@@ -630,21 +641,30 @@ fn execute_slice_observed(
         || activity.runtime_slice(H2RuntimeSlice::H2_5d)
             != if matches!(
                 accepted_slice,
-                AcceptanceSlice::H2_5d | AcceptanceSlice::H2_5e
+                AcceptanceSlice::H2_5d | AcceptanceSlice::H2_5e | AcceptanceSlice::H2_5f
             ) {
                 reached_sources
             } else {
                 0
             }
         || activity.runtime_slice(H2RuntimeSlice::H2_5e)
-            != if matches!(accepted_slice, AcceptanceSlice::H2_5e) {
+            != if matches!(
+                accepted_slice,
+                AcceptanceSlice::H2_5e | AcceptanceSlice::H2_5f
+            ) {
+                reached_sources
+            } else {
+                0
+            }
+        || activity.runtime_slice(H2RuntimeSlice::H2_5f)
+            != if matches!(accepted_slice, AcceptanceSlice::H2_5f) {
                 reached_sources
             } else {
                 0
             }
     {
         return Err(failure(format!(
-            "{case_id}: {} activity does not match {reached_sources} reached, {preserve_sources} preserve, {node_format_sources} node-format, {enum_sources} enum, {namespace_sources} namespace, {parameter_property_sources} parameter-property, {import_export_equals_sources} import/export-equals, {javascript_sources} JavaScript, {jsx_sources} JSX, {automatic_jsx_sources} automatic-JSX, {json_sources} JSON, and {decorator_sources} decorator sources: actual H2.1a={} H2.1b={} H2.1c={} H2.1d={} H2.1e={} H2.2a={} H2.2b={} H2.2c={} H2.2d={} H2.3a={} H2.3b={} H2.3c={} H2.3d={} H2.4a={} H2.4b={} H2.5a={} H2.5b={} H2.5c={} H2.5d={} H2.5e={}",
+            "{case_id}: {} activity does not match {reached_sources} reached, {preserve_sources} preserve, {node_format_sources} node-format, {enum_sources} enum, {namespace_sources} namespace, {parameter_property_sources} parameter-property, {import_export_equals_sources} import/export-equals, {javascript_sources} JavaScript, {jsx_sources} JSX, {automatic_jsx_sources} automatic-JSX, {json_sources} JSON, and {decorator_sources} decorator sources: actual H2.1a={} H2.1b={} H2.1c={} H2.1d={} H2.1e={} H2.2a={} H2.2b={} H2.2c={} H2.2d={} H2.3a={} H2.3b={} H2.3c={} H2.3d={} H2.4a={} H2.4b={} H2.5a={} H2.5b={} H2.5c={} H2.5d={} H2.5e={} H2.5f={}",
             accepted_slice.label(),
             activity.runtime_slice(H2RuntimeSlice::H2_1a),
             activity.runtime_slice(H2RuntimeSlice::H2_1b),
@@ -666,6 +686,7 @@ fn execute_slice_observed(
             activity.runtime_slice(H2RuntimeSlice::H2_5c),
             activity.runtime_slice(H2RuntimeSlice::H2_5d),
             activity.runtime_slice(H2RuntimeSlice::H2_5e),
+            activity.runtime_slice(H2RuntimeSlice::H2_5f),
         )));
     }
     for slice in H2RuntimeSlice::ALL {
@@ -691,6 +712,7 @@ fn execute_slice_observed(
                 | H2RuntimeSlice::H2_5c
                 | H2RuntimeSlice::H2_5d
                 | H2RuntimeSlice::H2_5e
+                | H2RuntimeSlice::H2_5f
         ) && activity.runtime_slice(slice) != 0
         {
             return Err(failure(format!(
@@ -753,6 +775,13 @@ fn execute_h2_5e_observed(
     case: &Value,
 ) -> Result<(usize, usize), Box<dyn Error>> {
     execute_slice_observed(workspace, case, AcceptanceSlice::H2_5e)
+}
+
+fn execute_h2_5f_observed(
+    workspace: &Path,
+    case: &Value,
+) -> Result<(usize, usize), Box<dyn Error>> {
+    execute_slice_observed(workspace, case, AcceptanceSlice::H2_5f)
 }
 
 fn expected_node_format_sources(case: &Value) -> Result<u64, Box<dyn Error>> {
@@ -1351,6 +1380,63 @@ pub fn run_h2_5e(workspace: &Path) -> Result<(), Box<dyn Error>> {
     }
     println!(
         "H2.5e emit acceptance: candidates=41 exact={admitted} h2_9_deferred={h2_9_deferred} exact_diagnostics={diagnostics} exact_writes={writes} repetitions=2"
+    );
+    Ok(())
+}
+
+/// Execute every dependency-closed H2.5f ES2016 target row twice.
+pub fn run_h2_5f(workspace: &Path) -> Result<(), Box<dyn Error>> {
+    let artifact: Value = serde_json::from_slice(&fs::read(
+        workspace.join(H2_5F_QUALIFICATION_RELATIVE_PATH),
+    )?)?;
+    if artifact["schema"] != 1
+        || artifact["status"] != "qualified-typescript-oracle"
+        || artifact["phase"] != "H2.5f-es2017-target"
+        || artifact["selection_contract"]["global_h2_5f_rows"] != 9
+        || artifact["selection_contract"]["global_candidate_denominator"] != 8
+        || artifact["selection_contract"]["candidate_denominator"] != 8
+        || artifact["selection_contract"]["future_deferred_rows"] != 1
+        || artifact["summary"]["candidates"] != 8
+        || artifact["summary"]["admitted_cases"] != 8
+        || artifact["summary"]["deferred_cases"] != 0
+        || artifact["summary"]["source_deferred_cases"] != 0
+        || artifact["summary"]["admitted_typescript_writes"] != 8
+        || artifact["summary"]["admitted_typescript_diagnostics"] != 20
+        || artifact["summary"]["unexecuted_candidates"] != 0
+        || artifact["summary"]["undispositioned_candidates"] != 0
+        || artifact["owner_closure"]
+            .as_array()
+            .is_none_or(|owners| owners.len() != 1 || owners[0]["key"] != "transform-es2017")
+    {
+        return Err(failure("H2.5f qualification header is not closed"));
+    }
+    let cases = array(&artifact, "cases")?;
+    if cases.len() != 8 {
+        return Err(failure("H2.5f qualification case denominator changed"));
+    }
+    let mut writes = 0;
+    let mut diagnostics = 0;
+    for case in cases {
+        if string(case, "disposition")? != "admitted-for-execution" {
+            return Err(failure(format!(
+                "unknown H2.5f disposition {} for {}",
+                string(case, "disposition")?,
+                string(case, "case_id")?,
+            )));
+        }
+        let (case_writes, case_diagnostics) = execute_h2_5f_observed(workspace, case)?;
+        writes += case_writes;
+        diagnostics += case_diagnostics;
+    }
+    if writes != 8 || diagnostics != 20 {
+        return Err(failure(format!(
+            "H2.5f execution totals differ: admitted={} writes={writes} diagnostics={diagnostics}",
+            cases.len(),
+        )));
+    }
+    println!(
+        "H2.5f emit acceptance: candidates=8 exact={} exact_diagnostics={diagnostics} exact_writes={writes} repetitions=2",
+        cases.len(),
     );
     Ok(())
 }

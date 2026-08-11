@@ -178,6 +178,17 @@ impl EmitResolver for CheckerSession<'_> {
         })
     }
 
+    fn is_arguments_local_binding(
+        &self,
+        node: EmitResolverNode,
+    ) -> Result<bool, EmitResolverError> {
+        self.with_resolver_node(
+            EmitResolverMethod::IsArgumentsLocalBinding,
+            node,
+            CheckerState::emit_is_arguments_local_binding,
+        )
+    }
+
     /// tsc-port: isExternalOrCommonJsModule @6.0.3
     /// tsc-hash: e395fd4c4d5df1373eb3cc17bc653dfcd8f2e41b9e32d949b3063633dc02c07d
     /// tsc-span: _tsc.js:14119-14121

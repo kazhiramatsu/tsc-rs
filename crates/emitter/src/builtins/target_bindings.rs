@@ -240,6 +240,9 @@ pub(super) fn finalize_generated_binding_names(
         });
     }
     let _ = scopes.source_bindings();
+    for (binding, name) in &assigned {
+        context.record_generated_binding_name(*binding, name);
+    }
     let arena = context.arena_mut()?;
     for (node, name) in node_names {
         arena.set_generated_identifier_text(node, &name)?;

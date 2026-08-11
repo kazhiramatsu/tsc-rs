@@ -79,11 +79,14 @@ const DISPOSE_RESOURCES_HELPER_TEXT: &str = r#"var __disposeResources = (this &&
 pub(super) fn transform_es_next(options: &CompilerOptions) -> Box<dyn Transformer> {
     Box::new(EsNextTransformer {
         target: options.emit_script_target(),
+        moves_class_initializers: options.emit_script_target() < ScriptTarget::ES2022
+            || !options.use_define_for_class_fields_effective(),
     })
 }
 
 struct EsNextTransformer {
     target: ScriptTarget,
+    moves_class_initializers: bool,
 }
 
 impl Transformer for EsNextTransformer {
@@ -92,7 +95,7 @@ impl Transformer for EsNextTransformer {
     }
 
     fn initialize(&mut self, _context: &mut TransformationContext) -> Result<(), TransformError> {
-        if self.target < ScriptTarget::ES2017 || self.target >= ScriptTarget::ES_NEXT {
+        if self.target < ScriptTarget::ES2016 || self.target >= ScriptTarget::ES_NEXT {
             return Err(TransformError::UnsupportedCompilerOption {
                 option: "ESNext transform",
                 detail: "transformESNext is admitted only for the closed target band below ESNext",
@@ -115,7 +118,7 @@ impl Transformer for EsNextTransformer {
             return Ok(root);
         }
         let current_root = context.arena().root(source)?;
-        let mut visitor = EsNextVisitor::new(context, source);
+        let mut visitor = EsNextVisitor::new(context, source, self.moves_class_initializers);
         visitor.plan_disposal_scopes(current_root)?;
         let transformed =
             visitor
@@ -203,6 +206,7 @@ struct EsNextVisitor<'context> {
     generated_ordinals: BTreeMap<String, usize>,
     disposal_scopes: BTreeMap<NodeId, DisposalScope>,
     function_body_blocks: BTreeSet<NodeId>,
+    moves_class_initializers: bool,
 }
 
 struct DirectChildCollector<'arena> {
@@ -212,7 +216,11 @@ struct DirectChildCollector<'arena> {
 }
 
 impl<'context> EsNextVisitor<'context> {
-    fn new(context: &'context mut TransformationContext, source: TransformSourceId) -> Self {
+    fn new(
+        context: &'context mut TransformationContext,
+        source: TransformSourceId,
+        moves_class_initializers: bool,
+    ) -> Self {
         Self {
             used_names: collect_identifier_texts(context.arena(), source),
             context,
@@ -222,12 +230,16 @@ impl<'context> EsNextVisitor<'context> {
             generated_ordinals: BTreeMap::new(),
             disposal_scopes: BTreeMap::new(),
             function_body_blocks: BTreeSet::new(),
+            moves_class_initializers,
         }
     }
 
     /// TypeScript assigns generated names when printing a name-generation
     /// scope, before printing nested scopes. Plan disposal bindings in that
     /// order so eager Rust-owned identifiers retain the same observable names.
+    /// tsc-port: pushNameGenerationScope/generateNames @6.0.3
+    /// tsc-hash: f239cdd756ed9b0bea9db0fbbfe0101907185b8100950833d1e9b18ae02e7329
+    /// tsc-span: _tsc.js:120490-120665
     fn plan_disposal_scopes(&mut self, root: TransformNode) -> Result<(), TransformError> {
         self.plan_name_generation_scope(root)
     }
@@ -235,10 +247,12 @@ impl<'context> EsNextVisitor<'context> {
     fn plan_name_generation_scope(&mut self, root: TransformNode) -> Result<(), TransformError> {
         let mut nested_scopes = Vec::new();
         self.plan_node_in_name_scope(root, true, &mut nested_scopes)?;
-        if matches!(
-            self.context.arena().node(root)?.kind,
-            SyntaxKind::ClassDeclaration | SyntaxKind::ClassExpression
-        ) {
+        if self.moves_class_initializers
+            && matches!(
+                self.context.arena().node(root)?.kind,
+                SyntaxKind::ClassDeclaration | SyntaxKind::ClassExpression
+            )
+        {
             // Class-field lowering subsequently moves instance initializers
             // into the constructor and static blocks behind retained members.
             // Plan names in that runtime ownership order so eager ESNext

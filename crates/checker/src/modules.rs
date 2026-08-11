@@ -147,6 +147,24 @@ enum ResolutionModeOverrideParse {
 }
 
 impl<'a> CheckerState<'a> {
+    /// tsc-port: isArgumentsLocalBinding @6.0.3
+    /// tsc-hash: a4a009d67ec8efa73e0542bd8df80114b6fd459181e410f12afba35cec6b4056
+    /// tsc-span: _tsc.js:87858-87866
+    pub(crate) fn emit_is_arguments_local_binding(&mut self, node: NodeId) -> CheckResult<bool> {
+        if !matches!(self.data_of(node), NodeData::Identifier(_)) {
+            return Ok(false);
+        }
+        let Some(parent) = self.parent_of(node) else {
+            return Ok(false);
+        };
+        let is_property_name = match self.data_of(parent) {
+            NodeData::PropertyAccessExpression(data) => data.name == Some(node),
+            NodeData::PropertyAssignment(data) => data.name == Some(node),
+            _ => false,
+        };
+        Ok(!is_property_name && self.get_resolved_symbol(node)? == Some(self.arguments_symbol))
+    }
+
     // ================================================================
     // §9 alias protocol (resolveAlias family)
     // ================================================================

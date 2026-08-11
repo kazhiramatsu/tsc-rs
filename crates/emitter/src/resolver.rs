@@ -64,6 +64,7 @@ pub enum EmitResolverMethod {
     GetReferencedValueDeclaration,
     GetTypeReferenceSerializationKind,
     HasNodeCheckFlag,
+    IsArgumentsLocalBinding,
     IsExternalOrCommonJsModule,
     IsInstantiatedModule,
     IsReferencedAliasDeclaration,
@@ -82,6 +83,7 @@ impl EmitResolverMethod {
             Self::GetReferencedValueDeclaration => "getReferencedValueDeclaration",
             Self::GetTypeReferenceSerializationKind => "getTypeReferenceSerializationKind",
             Self::HasNodeCheckFlag => "hasNodeCheckFlag",
+            Self::IsArgumentsLocalBinding => "isArgumentsLocalBinding",
             Self::IsExternalOrCommonJsModule => "isExternalOrCommonJsModule",
             Self::IsInstantiatedModule => "isInstantiatedModule",
             Self::IsReferencedAliasDeclaration => "isReferencedAliasDeclaration",
@@ -253,6 +255,20 @@ pub trait EmitResolver {
         _flag: u32,
     ) -> Result<bool, EmitResolverError> {
         Err(unavailable(EmitResolverMethod::HasNodeCheckFlag, node))
+    }
+
+    /// Whether an identifier resolves to the checker-owned lexical
+    /// `arguments` binding rather than a user declaration or property name.
+    /// Async lowering uses this to capture only references whose binding
+    /// would otherwise change inside the synthesized generator function.
+    fn is_arguments_local_binding(
+        &self,
+        node: EmitResolverNode,
+    ) -> Result<bool, EmitResolverError> {
+        Err(unavailable(
+            EmitResolverMethod::IsArgumentsLocalBinding,
+            node,
+        ))
     }
 
     /// Whether the source owning `node` is an external ES module or has a

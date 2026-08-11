@@ -697,6 +697,10 @@ fn parse_inline_boolean(argument: &str) -> Result<bool, CliError> {
 
 fn parse_target(value: &str) -> Result<i32, CliError> {
     match value.to_ascii_lowercase().as_str() {
+        "es2016" => Ok(3),
+        "es2017" => Ok(4),
+        "es2018" => Ok(5),
+        "es2019" => Ok(6),
         "es2020" => Ok(7),
         "es2021" => Ok(8),
         "es2022" => Ok(9),
@@ -705,7 +709,7 @@ fn parse_target(value: &str) -> Result<i32, CliError> {
         "es2025" => Ok(12),
         "esnext" | "latest" => Ok(99),
         _ => Err(CliError::Usage(format!(
-            "--target currently admits es2020 through es2025, esnext, and latest; got {value:?}"
+            "--target currently admits es2016 through es2025, esnext, and latest; got {value:?}"
         ))),
     }
 }

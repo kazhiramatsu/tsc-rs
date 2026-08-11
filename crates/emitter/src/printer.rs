@@ -259,17 +259,17 @@ impl SourceMapRecorder for DisabledSourceMapRecorder {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Printer {
     options: PrinterOptions,
-    literal_emission_plan: LiteralEmissionPlan,
+    emission_plan: EmissionPlan,
 }
 
-/// Nodes on a path to a literal whose original token text cannot be reused.
-///
-/// This is built once per print request. Keeping the decision in the printer
-/// mirrors tsc's `canUseOriginalText` boundary without forcing target-specific
-/// spelling changes into an ECMAScript tree transformer.
+/// Immutable structural decisions derived once from the final transformed
+/// tree. Keeping these in the printer avoids rebuilding parent links on
+/// session-owned synthetic nodes and keeps target-specific spelling out of
+/// ECMAScript transformers.
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
-struct LiteralEmissionPlan {
+struct EmissionPlan {
     structured_nodes: BTreeSet<TransformNode>,
+    function_body_blocks: BTreeSet<TransformNode>,
 }
 
 /// tsc-port: createPrinter @6.0.3
@@ -280,7 +280,7 @@ struct LiteralEmissionPlan {
 pub fn create_printer(options: PrinterOptions) -> Printer {
     Printer {
         options,
-        literal_emission_plan: LiteralEmissionPlan::default(),
+        emission_plan: EmissionPlan::default(),
     }
 }
 
@@ -289,36 +289,64 @@ impl Printer {
         self.options
     }
 
-    fn prepare_literal_emission_plan(
+    fn prepare_emission_plan(
         &mut self,
         transformation: &TransformationResult<'_>,
         root: TransformNode,
     ) -> Result<(), PrinterError> {
         let mut structured_nodes = BTreeSet::new();
+        let mut function_body_blocks = BTreeSet::new();
         let mut memo = BTreeMap::new();
-        Self::collect_literal_emission_path(
+        Self::collect_emission_plan(
             transformation,
             root,
             self.options.target,
             &mut memo,
             &mut structured_nodes,
+            &mut function_body_blocks,
         )?;
-        self.literal_emission_plan = LiteralEmissionPlan { structured_nodes };
+        self.emission_plan = EmissionPlan {
+            structured_nodes,
+            function_body_blocks,
+        };
         Ok(())
     }
 
-    fn collect_literal_emission_path(
+    fn collect_emission_plan(
         transformation: &TransformationResult<'_>,
         node: TransformNode,
         target: Option<ScriptTarget>,
         memo: &mut BTreeMap<TransformNode, bool>,
         structured_nodes: &mut BTreeSet<TransformNode>,
+        function_body_blocks: &mut BTreeSet<TransformNode>,
     ) -> Result<bool, PrinterError> {
         if let Some(requires_structured_emit) = memo.get(&node) {
             return Ok(*requires_structured_emit);
         }
 
         let record = transformation.arena().node(node)?;
+        let function_body = match &record.data {
+            NodeData::FunctionDeclaration(data) => data.body,
+            NodeData::FunctionExpression(data) => data.body,
+            NodeData::ArrowFunction(data) => data.body,
+            NodeData::MethodDeclaration(data) => data.body,
+            NodeData::GetAccessor(data) => data.body,
+            NodeData::SetAccessor(data) => data.body,
+            NodeData::Constructor(data) => data.body,
+            NodeData::ClassStaticBlockDeclaration(data) => data.body,
+            _ => None,
+        };
+        if let Some(body) = function_body
+            .and_then(|body| transformation.arena().node_ref(node.source(), body))
+            .filter(|body| {
+                transformation
+                    .arena()
+                    .node(*body)
+                    .is_ok_and(|body| body.kind == SyntaxKind::Block)
+            })
+        {
+            function_body_blocks.insert(body);
+        }
         let requires_literal_rewrite = match &record.data {
             NodeData::NumericLiteral(_) => {
                 let flags = TokenFlags::from_bits(record.numeric_literal_flags);
@@ -343,12 +371,13 @@ impl Printer {
                 .arena()
                 .node_ref(node.source(), child)
                 .ok_or(PrinterError::UnknownStatement(child.0))?;
-            requires_structured_emit |= Self::collect_literal_emission_path(
+            requires_structured_emit |= Self::collect_emission_plan(
                 transformation,
                 child,
                 target,
                 memo,
                 structured_nodes,
+                function_body_blocks,
             )?;
         }
         if requires_structured_emit {
@@ -405,7 +434,7 @@ impl Printer {
         }
 
         let root = transformation.arena().root(source_id)?;
-        self.prepare_literal_emission_plan(transformation, root)?;
+        self.prepare_emission_plan(transformation, root)?;
         if transformation
             .arena()
             .source(source_id)?
@@ -461,7 +490,7 @@ impl Printer {
             .metadata(root)
             .and_then(crate::EmitMetadata::original)
             .is_some()
-            || self.literal_emission_plan.structured_nodes.contains(&root)
+            || self.emission_plan.structured_nodes.contains(&root)
             || self.options.source_file_text_mode == SourceFileTextMode::Canonical
         {
             return self.print_transformed_source_file(
@@ -948,7 +977,7 @@ impl Printer {
             .and_then(crate::EmitMetadata::original)
             .is_some()
             || NodeFlags::from_bits(record.flags).contains(NodeFlags::SYNTHESIZED)
-            || self.literal_emission_plan.structured_nodes.contains(&node);
+            || self.emission_plan.structured_nodes.contains(&node);
         let multi_line = record.multi_line == Some(true);
         let json_source = transformation
             .arena()
@@ -2906,6 +2935,13 @@ impl Printer {
             NodeData::Block(data) => {
                 writer.write_punctuation("{");
                 let function_body = self.is_function_body_block(transformation, node)?;
+                // tsc-port: shouldEmitBlockFunctionBodyOnSingleLine @6.0.3
+                // tsc-hash: f1644748bb2314796a601992b80c26925e740f7bd10b23e23300df3614367b1a
+                // tsc-span: _tsc.js:118999-119020
+                let force_single_line = transformation
+                    .arena()
+                    .metadata(node)
+                    .is_some_and(|metadata| metadata.flags().contains(EmitFlags::SINGLE_LINE));
                 let array = data
                     .statements
                     .and_then(|id| transformation.arena().node_array_ref(node.source(), id));
@@ -2914,9 +2950,24 @@ impl Printer {
                     .transpose()?
                     .map(|array| array.nodes.clone())
                     .unwrap_or_default();
-                let multi_line = multi_line
-                    || (!statements.is_empty()
-                        && self.is_try_or_catch_body_block(transformation, node)?);
+                let multi_line = !force_single_line
+                    && (multi_line
+                        || function_body
+                            && !self.source_node_range_is_on_single_line(transformation, node)?);
+                // tsc-port: emitBlock/emitBlockStatements @6.0.3
+                // tsc-hash: 9c296db81136b7d3b5fb7f0e5d47f750926728a1146ec273677021fd6249e90a
+                // tsc-span: _tsc.js:118579-118601
+                //
+                // A regular non-empty block always uses the multi-line list
+                // format. Function bodies have their own single-line
+                // eligibility rules and retain the parser/factory decision.
+                let multi_line = if force_single_line {
+                    false
+                } else if function_body {
+                    multi_line
+                } else {
+                    multi_line || !statements.is_empty()
+                };
                 if statements.is_empty() {
                     let emitted_comments = self.emit_empty_block_comments(
                         transformation,
@@ -3224,6 +3275,29 @@ impl Printer {
             return Ok(false);
         }
         Ok(!source.text()[left_start..right_start]
+            .bytes()
+            .any(|byte| matches!(byte, b'\r' | b'\n')))
+    }
+
+    fn source_node_range_is_on_single_line(
+        &self,
+        transformation: &TransformationResult<'_>,
+        node: TransformNode,
+    ) -> Result<bool, PrinterError> {
+        let original = transformation.arena().get_original_node(node);
+        let source = transformation.arena().source(original.source())?.syntax();
+        let record = transformation.arena().node(original)?;
+        let SourceRange::Original(range) =
+            SourceRange::from_raw(record.pos, record.end, source.positions())?
+        else {
+            return Ok(true);
+        };
+        let start = range.start().value() as usize;
+        let end = range.end().value() as usize;
+        if start > end || end > source.text().len() {
+            return Ok(true);
+        }
+        Ok(!source.text()[start..end]
             .bytes()
             .any(|byte| matches!(byte, b'\r' | b'\n')))
     }
@@ -4735,6 +4809,9 @@ impl Printer {
         transformation: &TransformationResult<'_>,
         node: TransformNode,
     ) -> Result<bool, PrinterError> {
+        if self.emission_plan.function_body_blocks.contains(&node) {
+            return Ok(true);
+        }
         let original = transformation.arena().get_original_node(node);
         let Some(parent) = transformation.arena().node(original)?.parent else {
             return Ok(false);
@@ -4753,25 +4830,6 @@ impl Printer {
                 | SyntaxKind::SetAccessor
                 | SyntaxKind::Constructor
                 | SyntaxKind::ClassStaticBlockDeclaration
-        ))
-    }
-
-    fn is_try_or_catch_body_block(
-        &self,
-        transformation: &TransformationResult<'_>,
-        node: TransformNode,
-    ) -> Result<bool, PrinterError> {
-        let original = transformation.arena().get_original_node(node);
-        let Some(parent) = transformation.arena().node(original)?.parent else {
-            return Ok(false);
-        };
-        let parent = transformation
-            .arena()
-            .node_ref(original.source(), parent)
-            .ok_or(PrinterError::UnknownStatement(parent.0))?;
-        Ok(matches!(
-            transformation.arena().node(parent)?.kind,
-            SyntaxKind::TryStatement | SyntaxKind::CatchClause
         ))
     }
 

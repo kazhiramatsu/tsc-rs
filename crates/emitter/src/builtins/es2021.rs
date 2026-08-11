@@ -123,7 +123,7 @@ impl Transformer for TargetTransformer {
     }
 
     fn initialize(&mut self, _context: &mut TransformationContext) -> Result<(), TransformError> {
-        if self.target < ScriptTarget::ES2017 || self.target >= self.pass.upper_target() {
+        if self.target < ScriptTarget::ES2016 || self.target >= self.pass.upper_target() {
             return Err(TransformError::UnsupportedCompilerOption {
                 option: self.pass.name(),
                 detail: self.pass.unsupported_detail(),

@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::error::Error;
 use std::fmt;
 
@@ -390,6 +391,7 @@ pub struct TransformationContext {
     emit_helpers: Vec<EmitHelper>,
     diagnostics: DiagnosticList,
     next_generated_binding_id: u64,
+    generated_binding_names: BTreeMap<GeneratedBindingId, Box<str>>,
 }
 
 impl TransformationContext {
@@ -407,6 +409,7 @@ impl TransformationContext {
             emit_helpers: Vec::new(),
             diagnostics: Vec::new(),
             next_generated_binding_id: 0,
+            generated_binding_names: BTreeMap::new(),
         }
     }
 
@@ -438,6 +441,20 @@ impl TransformationContext {
             .checked_add(1)
             .expect("generated binding identity overflow");
         Ok(id)
+    }
+
+    pub(crate) fn record_generated_binding_name(
+        &mut self,
+        binding: GeneratedBindingId,
+        name: &str,
+    ) {
+        self.generated_binding_names.insert(binding, name.into());
+    }
+
+    pub(crate) fn generated_binding_name(&self, binding: GeneratedBindingId) -> Option<&str> {
+        self.generated_binding_names
+            .get(&binding)
+            .map(AsRef::as_ref)
     }
 
     /// Constructs nodes owned by an emit-time substitution.
@@ -697,6 +714,7 @@ impl TransformationContext {
         self.block_scoped_variables.clear();
         self.block_scope_stack.clear();
         self.emit_helpers.clear();
+        self.generated_binding_names.clear();
         self.arena.clear_session_metadata();
         self.state = TransformationState::Disposed;
     }

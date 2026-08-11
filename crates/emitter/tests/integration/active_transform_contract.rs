@@ -732,6 +732,118 @@ fn es2022_disposal_names_follow_output_scope_ownership() {
 }
 
 #[test]
+fn es2022_disposal_names_follow_retained_class_member_order() {
+    let text = transform_and_print_at_target(
+        concat!(
+            "class C {\n",
+            "    field = () => { using fieldResource = acquire(); };\n",
+            "    constructor() { using constructorResource = acquire(); }\n",
+            "}\n",
+        ),
+        ScriptTarget::ES2022,
+    );
+
+    let field_scope = text
+        .find("field = () => { const env_1 =")
+        .unwrap_or_else(|| panic!("retained field disposal scope missing from:\n{text}"));
+    let constructor_scope = text
+        .find("constructor() { const env_2 =")
+        .unwrap_or_else(|| panic!("constructor disposal scope missing from:\n{text}"));
+    assert!(field_scope < constructor_scope);
+}
+
+#[test]
+fn es2021_class_lowering_finalizes_outer_bindings_before_nested_static_evaluation() {
+    let text = transform_and_print_at_target(
+        concat!(
+            "(class Reflect {\n",
+            "    static { class C extends B { static value = super.w(); } }\n",
+            "});\n",
+        ),
+        ScriptTarget::ES2021,
+    );
+
+    assert!(
+        text.starts_with("var _a;\n"),
+        "outer class binding missing from:\n{text}"
+    );
+    assert!(
+        text.contains("(() => {\n        var _b, _c;"),
+        "nested static bindings did not reserve the outer identity:\n{text}"
+    );
+    assert!(!text.contains("(() => {\n        var _a, _b;"));
+}
+
+#[test]
+fn assignment_mode_parameter_properties_precede_field_initializers() {
+    let parsed = parse_source_file(
+        "parameter-property.ts",
+        concat!(
+            "class Helper { create() { return true; } }\n",
+            "class Broken {\n",
+            "    constructor(readonly facade: Helper) { use(this.bug); }\n",
+            "    bug = this.facade.create();\n",
+            "}\n",
+        ),
+        Default::default(),
+        None,
+    );
+    let mut arena = TransformArena::new();
+    let source = arena.add_source(&parsed, Some(SourceFileId::from_raw(0)));
+    let resolver = NoConstantValueResolver;
+    let mut options = bootstrap_options();
+    options.target = Some(ScriptTarget::ES2021.bits());
+    options.use_define_for_class_fields = Some(false);
+    let mut result = transform_nodes(
+        arena,
+        vec![TransformRoot::SourceFile(source)],
+        get_script_transformers(&options, &resolver).unwrap(),
+        false,
+    )
+    .expect("assignment-mode parameter-property transform");
+    let text = create_printer(PrinterOptions::new(NewLineKind::LineFeed))
+        .print(
+            &mut result,
+            PrintRequest::SourceFile(source),
+            &mut DisabledSourceMapRecorder,
+        )
+        .expect("print assignment-mode parameter property")
+        .text()
+        .to_owned();
+
+    let parameter_property = text
+        .find("this.facade = facade;")
+        .unwrap_or_else(|| panic!("parameter-property assignment missing from:\n{text}"));
+    let field_initializer = text
+        .find("this.bug = this.facade.create();")
+        .unwrap_or_else(|| panic!("field initializer missing from:\n{text}"));
+    assert!(parameter_property < field_initializer);
+}
+
+#[test]
+fn es2022_decorated_auto_accessor_comment_belongs_to_getter_only() {
+    let text = transform_and_print_at_target(
+        concat!(
+            "const dec = (_value, _context) => {};\n",
+            "class C {\n",
+            "    // accessor comment\n",
+            "    @dec static accessor value = 1;\n",
+            "}\n",
+        ),
+        ScriptTarget::ES2022,
+    );
+
+    assert_eq!(text.matches("// accessor comment").count(), 1);
+    let comment = text.find("// accessor comment").unwrap();
+    let backing = text.find("static #value_accessor_storage").unwrap();
+    let getter = text.find("static get value()").unwrap();
+    assert!(
+        backing < comment && comment < getter,
+        "unexpected comment owner:\n{text}"
+    );
+}
+
+#[test]
 fn es2022_decorator_call_bindings_preserve_receivers_and_lexical_super() {
     let parsed = parse_source_file(
         "decorator-this.ts",

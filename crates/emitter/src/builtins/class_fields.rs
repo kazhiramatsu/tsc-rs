@@ -37,7 +37,7 @@ struct ClassFieldsTransformer<'resolver> {
     resolver: &'resolver dyn EmitResolver,
     target: ScriptTarget,
     use_define_for_class_fields: bool,
-    class_aliases: BTreeMap<(u32, u32), Box<str>>,
+    class_aliases: BTreeMap<(u32, u32), downlevel::ClassBinding>,
 }
 
 impl Transformer for ClassFieldsTransformer<'_> {
@@ -46,11 +46,11 @@ impl Transformer for ClassFieldsTransformer<'_> {
     }
 
     fn initialize(&mut self, context: &mut TransformationContext) -> Result<(), TransformError> {
-        if self.target < ScriptTarget::ES2017 || self.target > ScriptTarget::ES_NEXT {
+        if self.target < ScriptTarget::ES2016 || self.target > ScriptTarget::ES_NEXT {
             return Err(TransformError::UnsupportedCompilerOption {
                 option: "class-field transform",
                 detail:
-                    "the closed target band admits ES2017 through ESNext class-field reachability",
+                    "the closed target band admits ES2016 through ESNext class-field reachability",
             });
         }
         context.enable_substitution(SyntaxKind::Identifier)?;
@@ -75,6 +75,7 @@ impl Transformer for ClassFieldsTransformer<'_> {
                 context,
                 source,
                 self.use_define_for_class_fields,
+                self.target == ScriptTarget::ES2021,
                 &mut self.class_aliases,
             )?;
             return Ok(TransformRoot::SourceFile(source));
@@ -153,13 +154,14 @@ impl Transformer for ClassFieldsTransformer<'_> {
         let Some(alias) = self.class_aliases.get(&alias_key).cloned() else {
             return Ok(node);
         };
+        let alias_text = alias.printable_text(context).to_owned();
         let replacement = {
             let mut factory = context.substitution_factory()?;
             let replacement = factory.create_node(
                 node.source(),
                 NodeData::Identifier(tsc_syntax::nodes::IdentifierData {
-                    escaped_text: alias.to_string(),
-                    text: alias.to_string(),
+                    escaped_text: tsc_syntax::escape_leading_underscores(&alias_text),
+                    text: alias_text,
                 }),
                 TransformFlags::NONE,
             )?;
@@ -169,6 +171,7 @@ impl Transformer for ClassFieldsTransformer<'_> {
         context
             .arena_mut()?
             .set_original_node(replacement, Some(node))?;
+        alias.write_generated_metadata(context.arena_mut()?, replacement);
         context
             .arena_mut()?
             .metadata_mut(replacement)

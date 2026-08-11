@@ -23,6 +23,7 @@ use super::super::{
         AncestorBindingPolicy, GeneratedBindingOwner, GeneratedBindingScopes, GeneratedBindings,
     },
     system::collect_identifier_texts,
+    target_bindings::{finalize_generated_binding_names, TargetBinding},
 };
 
 const CLASS_PRIVATE_FIELD_GET_HELPER_TEXT: &str = r#"var __classPrivateFieldGet = (this && this.__classPrivateFieldGet) || function (receiver, state, kind, f) {
@@ -49,6 +50,74 @@ enum PublicFieldMode {
     DefineProperty,
 }
 
+/// tsc-port: pushNameGenerationScope/generateNames @6.0.3
+/// tsc-hash: f239cdd756ed9b0bea9db0fbbfe0101907185b8100950833d1e9b18ae02e7329
+/// tsc-span: _tsc.js:120490-120665
+#[derive(Clone, Debug)]
+pub(super) enum ClassBinding {
+    Existing(String),
+    Generated(TargetBinding),
+}
+
+impl ClassBinding {
+    fn existing(text: impl Into<String>) -> Self {
+        Self::Existing(text.into())
+    }
+
+    fn planned_text(&self) -> &str {
+        match self {
+            Self::Existing(text) => text,
+            Self::Generated(binding) => binding.provisional_name(),
+        }
+    }
+
+    pub(super) fn printable_text<'context>(
+        &'context self,
+        context: &'context TransformationContext,
+    ) -> &'context str {
+        match self {
+            Self::Existing(text) => text,
+            Self::Generated(binding) => context
+                .generated_binding_name(binding.id())
+                .unwrap_or_else(|| binding.provisional_name()),
+        }
+    }
+
+    pub(super) fn write_generated_metadata(
+        &self,
+        arena: &mut TransformArena,
+        identifier: TransformNode,
+    ) {
+        let Self::Generated(binding) = self else {
+            return;
+        };
+        let metadata = arena.metadata_mut(identifier);
+        metadata.set_generated_binding_id(binding.id());
+        if let Some(base) = binding.numbered_base() {
+            metadata.set_generated_binding_base(base);
+        }
+        if let Some(base) = binding.preferred_base() {
+            metadata.set_generated_binding_preferred_base(base);
+        }
+        if binding.reserve_in_nested_scopes() {
+            metadata.reserve_generated_binding_in_nested_scopes();
+        }
+    }
+}
+
+#[derive(Debug, Default)]
+struct ClassGeneratedBindings(Vec<TargetBinding>);
+
+impl ClassGeneratedBindings {
+    fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+
+    fn bindings(&self) -> &[TargetBinding] {
+        &self.0
+    }
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum FieldReceiver {
     Instance,
@@ -61,6 +130,7 @@ struct FieldOperation {
     receiver: FieldReceiver,
     name: NodeId,
     initializer: Option<NodeId>,
+    is_parameter_property: bool,
 }
 
 struct PlannedPropertyName {
@@ -76,21 +146,21 @@ struct PrivateSlot {
 
 #[derive(Clone)]
 enum PrivatePlacement {
-    Instance { brand_name: String },
-    Static { class_alias: String },
+    Instance { brand_name: ClassBinding },
+    Static { class_alias: ClassBinding },
 }
 
 #[derive(Clone)]
 enum PrivateElement {
     Field {
-        value_name: String,
+        value_name: ClassBinding,
     },
     Method {
-        method_name: String,
+        method_name: ClassBinding,
     },
     Accessor {
-        getter_name: Option<String>,
-        setter_name: Option<String>,
+        getter_name: Option<ClassBinding>,
+        setter_name: Option<ClassBinding>,
     },
 }
 
@@ -99,7 +169,7 @@ impl PrivateSlot {
         matches!(self.placement, PrivatePlacement::Static { .. })
     }
 
-    fn brand_name(&self) -> &str {
+    fn brand_name(&self) -> &ClassBinding {
         match &self.placement {
             PrivatePlacement::Instance { brand_name } => brand_name,
             PrivatePlacement::Static { class_alias } => class_alias,
@@ -114,23 +184,23 @@ impl PrivateSlot {
         }
     }
 
-    fn getter_descriptor_name(&self) -> Option<&str> {
+    fn getter_descriptor_name(&self) -> Option<&ClassBinding> {
         match &self.element {
             PrivateElement::Field { value_name } => self.is_static().then_some(value_name),
             PrivateElement::Method { method_name } => Some(method_name),
-            PrivateElement::Accessor { getter_name, .. } => getter_name.as_deref(),
+            PrivateElement::Accessor { getter_name, .. } => getter_name.as_ref(),
         }
     }
 
-    fn setter_descriptor_name(&self) -> Option<&str> {
+    fn setter_descriptor_name(&self) -> Option<&ClassBinding> {
         match &self.element {
             PrivateElement::Field { value_name } => self.is_static().then_some(value_name),
             PrivateElement::Method { .. } => None,
-            PrivateElement::Accessor { setter_name, .. } => setter_name.as_deref(),
+            PrivateElement::Accessor { setter_name, .. } => setter_name.as_ref(),
         }
     }
 
-    fn field_value_name(&self) -> Option<&str> {
+    fn field_value_name(&self) -> Option<&ClassBinding> {
         match &self.element {
             PrivateElement::Field { value_name } => Some(value_name),
             _ => None,
@@ -141,15 +211,15 @@ impl PrivateSlot {
 #[derive(Clone, Default)]
 struct PrivateEnvironment {
     slots: BTreeMap<String, PrivateSlot>,
-    class_alias: Option<String>,
-    instance_brand: Option<String>,
-    super_alias: Option<String>,
+    class_alias: Option<ClassBinding>,
+    instance_brand: Option<ClassBinding>,
+    super_alias: Option<ClassBinding>,
 }
 
 #[derive(Clone)]
 struct StaticBindings {
-    class_alias: String,
-    super_alias: Option<String>,
+    class_alias: ClassBinding,
+    super_alias: Option<ClassBinding>,
 }
 
 #[derive(Clone, Copy, Default)]
@@ -167,7 +237,7 @@ struct PrivateFieldOperation {
 
 #[derive(Clone)]
 enum InstanceOperation {
-    PrivateBrand(String),
+    PrivateBrand(ClassBinding),
     Public(FieldOperation),
     PrivateField(PrivateFieldOperation),
 }
@@ -175,7 +245,7 @@ enum InstanceOperation {
 #[derive(Clone)]
 enum StaticOperation {
     Field(FieldOperation),
-    PrivateField(PrivateFieldOperation),
+    PrivateField(Box<PrivateFieldOperation>),
     NamedEvaluation {
         original: TransformNode,
         expression: TransformNode,
@@ -189,7 +259,7 @@ enum StaticOperation {
 #[derive(Clone)]
 struct PrivateDefinition {
     original: TransformNode,
-    name: String,
+    name: ClassBinding,
     function: TransformNode,
 }
 
@@ -208,7 +278,7 @@ struct PrivateDeclaration {
 #[derive(Default)]
 struct ClassSetup {
     field_storages: Vec<PrivateSlot>,
-    instance_brand: Option<String>,
+    instance_brand: Option<ClassBinding>,
     auto_accessor_storages: Vec<PrivateSlot>,
     definitions: Vec<PrivateDefinition>,
 }
@@ -313,7 +383,8 @@ pub(super) fn transform_source(
     context: &mut TransformationContext,
     source: TransformSourceId,
     use_define_for_class_fields: bool,
-    class_aliases: &mut BTreeMap<(u32, u32), Box<str>>,
+    finalize_names: bool,
+    class_aliases: &mut BTreeMap<(u32, u32), ClassBinding>,
 ) -> Result<(), TransformError> {
     let root = context.arena().root(source)?;
     let mode = if use_define_for_class_fields {
@@ -330,9 +401,19 @@ pub(super) fn transform_source(
             parent: SyntaxKind::SourceFile,
             field: "root",
         })?;
-    let source_bindings = visitor.generated_bindings.source_bindings();
+    let planned_source_bindings = visitor.generated_bindings.source_bindings();
+    let source_bindings = ClassGeneratedBindings(
+        visitor
+            .generated_binding_frames
+            .pop()
+            .expect("class lowering owns one source binding frame"),
+    );
+    visitor.assert_generated_binding_plan(&planned_source_bindings, &source_bindings);
     let transformed = visitor
         .prepend_generated_declarations_to_source(visitor.node(transformed), source_bindings)?;
+    if finalize_names {
+        finalize_generated_binding_names(visitor.context, source, transformed)?;
+    }
     visitor
         .context
         .arena_mut()?
@@ -348,12 +429,13 @@ struct DownlevelClassVisitor<'context, 'aliases> {
     arrays: BTreeMap<NodeArrayId, Option<NodeArrayId>>,
     expanded_statements: BTreeMap<NodeId, Vec<NodeId>>,
     generated_bindings: GeneratedBindingScopes,
+    generated_binding_frames: Vec<Vec<TargetBinding>>,
     private_environments: Vec<PrivateEnvironment>,
     active_static_bindings: Option<StaticBindings>,
     generated_static_auto_accessors: BTreeSet<NodeId>,
     generated_auto_accessor_backings: BTreeSet<NodeId>,
     tree_ownership: OriginalTreeOwnership,
-    class_aliases: &'aliases mut BTreeMap<(u32, u32), Box<str>>,
+    class_aliases: &'aliases mut BTreeMap<(u32, u32), ClassBinding>,
 }
 
 impl<'context, 'aliases> DownlevelClassVisitor<'context, 'aliases> {
@@ -362,13 +444,14 @@ impl<'context, 'aliases> DownlevelClassVisitor<'context, 'aliases> {
         source: TransformSourceId,
         mode: PublicFieldMode,
         tree_ownership: OriginalTreeOwnership,
-        class_aliases: &'aliases mut BTreeMap<(u32, u32), Box<str>>,
+        class_aliases: &'aliases mut BTreeMap<(u32, u32), ClassBinding>,
     ) -> Self {
         Self {
             generated_bindings: GeneratedBindingScopes::new(
                 collect_identifier_texts(context.arena(), source),
                 AncestorBindingPolicy::Reserve,
             ),
+            generated_binding_frames: vec![Vec::new()],
             context,
             source,
             mode,
@@ -438,7 +521,7 @@ impl<'context, 'aliases> DownlevelClassVisitor<'context, 'aliases> {
                     .expect("guarded static bindings")
                     .class_alias
                     .clone();
-                Some(self.create_identifier(&alias)?.node())
+                Some(self.create_binding_identifier(&alias)?.node())
             }
             NodeData::Token => Some(id),
             data => Some(self.update_generic(original, data)?),
@@ -471,17 +554,24 @@ impl<'context, 'aliases> DownlevelClassVisitor<'context, 'aliases> {
         &mut self,
         owner: GeneratedBindingOwner,
         operation: impl FnOnce(&mut Self) -> Result<T, TransformError>,
-    ) -> Result<(T, GeneratedBindings), TransformError> {
+    ) -> Result<(T, ClassGeneratedBindings), TransformError> {
         let (previous, scope) = self.generated_bindings.enter(owner);
+        self.generated_binding_frames.push(Vec::new());
         let result = operation(self);
-        let bindings = self.generated_bindings.exit(previous, scope);
+        let planned_bindings = self.generated_bindings.exit(previous, scope);
+        let bindings = ClassGeneratedBindings(
+            self.generated_binding_frames
+                .pop()
+                .expect("nested class binding frame remains balanced"),
+        );
+        self.assert_generated_binding_plan(&planned_bindings, &bindings);
         result.map(|value| (value, bindings))
     }
 
     fn install_function_bindings(
         &mut self,
         function: TransformNode,
-        bindings: GeneratedBindings,
+        bindings: ClassGeneratedBindings,
     ) -> Result<TransformNode, TransformError> {
         if bindings.is_empty() {
             return Ok(function);
@@ -570,7 +660,7 @@ impl<'context, 'aliases> DownlevelClassVisitor<'context, 'aliases> {
             class_name.as_deref(),
             preferred_class_alias,
         )?;
-        if let Some(alias) = private_environment.class_alias.as_deref() {
+        if let Some(alias) = private_environment.class_alias.as_ref() {
             self.register_class_alias(original, alias)?;
         }
         let super_alias = private_environment.super_alias.clone();
@@ -579,7 +669,7 @@ impl<'context, 'aliases> DownlevelClassVisitor<'context, 'aliases> {
         data.type_parameters = self.visit_optional_nodes(data.type_parameters)?;
         data.heritage_clauses = self.visit_optional_nodes(data.heritage_clauses)?;
         data.heritage_clauses =
-            self.capture_super_base(data.heritage_clauses, super_alias.as_deref())?;
+            self.capture_super_base(data.heritage_clauses, super_alias.as_ref())?;
         data.modifiers = self.visit_optional_nodes(data.modifiers)?;
         data.modifiers = self.filter_modifier(data.modifiers, SyntaxKind::AccessorKeyword)?;
 
@@ -619,7 +709,10 @@ impl<'context, 'aliases> DownlevelClassVisitor<'context, 'aliases> {
             || !operations.key_evaluations.is_empty()
             || private_environment.class_alias.is_some()
         {
-            let binding = class_name.unwrap_or_else(|| self.allocate_temp_name());
+            let binding = match &class_name {
+                Some(class_name) => ClassBinding::existing(class_name.clone()),
+                None => self.allocate_temp_name()?,
+            };
             let mut trailing = Vec::new();
             if let Some(evaluations) =
                 self.materialize_class_key_evaluations(operations.key_evaluations)?
@@ -663,7 +756,7 @@ impl<'context, 'aliases> DownlevelClassVisitor<'context, 'aliases> {
         data.type_parameters = self.visit_optional_nodes(data.type_parameters)?;
         data.heritage_clauses = self.visit_optional_nodes(data.heritage_clauses)?;
         data.heritage_clauses =
-            self.capture_super_base(data.heritage_clauses, super_alias.as_deref())?;
+            self.capture_super_base(data.heritage_clauses, super_alias.as_ref())?;
         data.modifiers = self.visit_optional_nodes(data.modifiers)?;
         data.modifiers = self.filter_modifier(data.modifiers, SyntaxKind::AccessorKeyword)?;
         self.private_environments.push(private_environment);
@@ -672,12 +765,15 @@ impl<'context, 'aliases> DownlevelClassVisitor<'context, 'aliases> {
             || !operations.key_evaluations.is_empty()
             || !operations.setup.is_empty()
             || !operations.static_.is_empty();
-        // tsc allocates computed-key captures while visiting class members and
-        // allocates the class-expression receiver afterwards. Keeping that
-        // order here makes the binding plan stable without encoding names in
-        // the operation representation.
-        let expression_binding = private_expression_binding
-            .or_else(|| needs_expression_binding.then(|| self.allocate_temp_name()));
+        // Binding identities follow transform ownership, while printable
+        // names are assigned from the completed tree. This preserves tsc's
+        // declaration/printing order even when a nested static evaluation is
+        // transformed before its containing class receiver is materialized.
+        let expression_binding = match private_expression_binding {
+            Some(binding) => Some(binding),
+            None if needs_expression_binding => Some(self.allocate_temp_name()?),
+            None => None,
+        };
         let mut retained = operations.retained_members;
         if !operations.instance.is_empty() {
             self.install_instance_operations(
@@ -722,7 +818,7 @@ impl<'context, 'aliases> DownlevelClassVisitor<'context, 'aliases> {
         // Class expressions cannot expand their containing statement.  A
         // comma expression owns the temporary class value and every ordered
         // static operation, then yields the class binding.
-        let target = self.create_identifier(&binding)?;
+        let target = self.create_binding_identifier(&binding)?;
         let assign_class = self.create_assignment(target, class)?;
         if self.class_this_binding(original).is_some() {
             if let Some(owner) = self.variable_statement_expansion_owner(original)? {
@@ -768,7 +864,7 @@ impl<'context, 'aliases> DownlevelClassVisitor<'context, 'aliases> {
                 expressions.push(self.node(expression));
             }
         }
-        expressions.push(self.create_identifier(&binding)?);
+        expressions.push(self.create_binding_identifier(&binding)?);
         let expression = self.inline_class_expression(expressions, class, original)?;
         Ok(expression.node())
     }
@@ -776,7 +872,7 @@ impl<'context, 'aliases> DownlevelClassVisitor<'context, 'aliases> {
     fn register_class_alias(
         &mut self,
         declaration: TransformNode,
-        alias: &str,
+        alias: &ClassBinding,
     ) -> Result<(), TransformError> {
         let declaration = self.context.arena().get_original_node(declaration);
         let program_source = self
@@ -785,10 +881,8 @@ impl<'context, 'aliases> DownlevelClassVisitor<'context, 'aliases> {
             .source(declaration.source())?
             .program_source()
             .ok_or(TransformError::MissingProgramSource(declaration))?;
-        self.class_aliases.insert(
-            (program_source.raw(), declaration.node().0),
-            alias.to_owned().into_boxed_str(),
-        );
+        self.class_aliases
+            .insert((program_source.raw(), declaration.node().0), alias.clone());
         Ok(())
     }
 
@@ -1341,25 +1435,29 @@ impl<'context, 'aliases> DownlevelClassVisitor<'context, 'aliases> {
         }
         declarations.extend(auto_accessor_backings);
 
-        let instance_brand = declarations
-            .iter()
-            .any(|declaration| {
-                !declaration.is_static && !matches!(declaration.kind, PrivateDeclarationKind::Field)
-            })
-            .then(|| {
-                self.allocate_hoisted_name(self.private_generated_name(class_name, "instances"))
-            });
+        let instance_brand = if declarations.iter().any(|declaration| {
+            !declaration.is_static && !matches!(declaration.kind, PrivateDeclarationKind::Field)
+        }) {
+            Some(self.allocate_hoisted_name(self.private_generated_name(class_name, "instances"))?)
+        } else {
+            None
+        };
         let needs_class_alias = declarations.iter().any(|declaration| declaration.is_static)
             || static_facts.contains_this
             || static_facts.contains_super;
         let class_alias = if needs_class_alias {
-            Some(preferred_class_alias.unwrap_or_else(|| self.allocate_temp_name()))
+            Some(match preferred_class_alias {
+                Some(alias) => ClassBinding::existing(alias),
+                None => self.allocate_temp_name()?,
+            })
         } else {
             None
         };
-        let super_alias = static_facts
-            .contains_super
-            .then(|| self.allocate_temp_name());
+        let super_alias = if static_facts.contains_super {
+            Some(self.allocate_temp_name()?)
+        } else {
+            None
+        };
         let mut environment = PrivateEnvironment {
             slots: BTreeMap::new(),
             class_alias: class_alias.clone(),
@@ -1370,19 +1468,21 @@ impl<'context, 'aliases> DownlevelClassVisitor<'context, 'aliases> {
             let base_name = self.private_generated_name(class_name, &declaration.name);
             let element = match declaration.kind {
                 PrivateDeclarationKind::Field => PrivateElement::Field {
-                    value_name: self.allocate_hoisted_name(base_name),
+                    value_name: self.allocate_hoisted_name(base_name)?,
                 },
                 PrivateDeclarationKind::Method => PrivateElement::Method {
-                    method_name: self.allocate_hoisted_name(base_name),
+                    method_name: self.allocate_hoisted_name(base_name)?,
                 },
                 PrivateDeclarationKind::Accessor {
                     has_getter,
                     has_setter,
                 } => PrivateElement::Accessor {
                     getter_name: has_getter
-                        .then(|| self.allocate_hoisted_name(format!("{base_name}_get"))),
+                        .then(|| self.allocate_hoisted_name(format!("{base_name}_get")))
+                        .transpose()?,
                     setter_name: has_setter
-                        .then(|| self.allocate_hoisted_name(format!("{base_name}_set"))),
+                        .then(|| self.allocate_hoisted_name(format!("{base_name}_set")))
+                        .transpose()?,
                 },
             };
             let placement = if declaration.is_static {
@@ -1682,7 +1782,7 @@ impl<'context, 'aliases> DownlevelClassVisitor<'context, 'aliases> {
                         field: "expression",
                     })?;
                 let call = self.create_property_access(target, "call")?;
-                let mut arguments = vec![self.create_identifier(&bindings.class_alias)?];
+                let mut arguments = vec![self.create_binding_identifier(&bindings.class_alias)?];
                 arguments.extend(self.visit_node_array(data.arguments)?);
                 data.expression = Some(call.node());
                 data.type_arguments = self.visit_optional_nodes(data.type_arguments)?;
@@ -2011,7 +2111,7 @@ impl<'context, 'aliases> DownlevelClassVisitor<'context, 'aliases> {
                     if slot.is_static() {
                         operations
                             .static_
-                            .push(StaticOperation::PrivateField(operation));
+                            .push(StaticOperation::PrivateField(Box::new(operation)));
                     } else {
                         operations
                             .instance
@@ -2060,7 +2160,7 @@ impl<'context, 'aliases> DownlevelClassVisitor<'context, 'aliases> {
                     };
                     let function_name =
                         getter_name
-                            .as_deref()
+                            .as_ref()
                             .ok_or(TransformError::RequiredChildRemoved {
                                 parent: SyntaxKind::GetAccessor,
                                 field: "private getter binding",
@@ -2077,7 +2177,7 @@ impl<'context, 'aliases> DownlevelClassVisitor<'context, 'aliases> {
                     };
                     operations.setup.definitions.push(PrivateDefinition {
                         original: member,
-                        name: function_name.to_owned(),
+                        name: function_name.clone(),
                         function,
                     });
                 }
@@ -2095,7 +2195,7 @@ impl<'context, 'aliases> DownlevelClassVisitor<'context, 'aliases> {
                     };
                     let function_name =
                         setter_name
-                            .as_deref()
+                            .as_ref()
                             .ok_or(TransformError::RequiredChildRemoved {
                                 parent: SyntaxKind::SetAccessor,
                                 field: "private setter binding",
@@ -2112,7 +2212,7 @@ impl<'context, 'aliases> DownlevelClassVisitor<'context, 'aliases> {
                     };
                     operations.setup.definitions.push(PrivateDefinition {
                         original: member,
-                        name: function_name.to_owned(),
+                        name: function_name.clone(),
                         function,
                     });
                 }
@@ -2142,12 +2242,14 @@ impl<'context, 'aliases> DownlevelClassVisitor<'context, 'aliases> {
                     if receiver == FieldReceiver::Static {
                         data.initializer = self.visit_optional_static_node(data.initializer)?;
                     }
-                    if data.initializer.is_none()
-                        && self.mode == PublicFieldMode::DefineProperty
-                        && receiver == FieldReceiver::Instance
-                    {
-                        if let Some(local_name) = self.parameter_property_local_name(member)? {
-                            data.initializer = Some(self.create_identifier(&local_name)?.node());
+                    let parameter_property_local = if receiver == FieldReceiver::Instance {
+                        self.parameter_property_local_name(member)?
+                    } else {
+                        None
+                    };
+                    if data.initializer.is_none() && receiver == FieldReceiver::Instance {
+                        if let Some(local_name) = &parameter_property_local {
+                            data.initializer = Some(self.create_identifier(local_name)?.node());
                         }
                     }
                     let name = data.name.ok_or(TransformError::RequiredChildRemoved {
@@ -2159,6 +2261,7 @@ impl<'context, 'aliases> DownlevelClassVisitor<'context, 'aliases> {
                         receiver,
                         name,
                         initializer: data.initializer,
+                        is_parameter_property: parameter_property_local.is_some(),
                     };
                     match receiver {
                         FieldReceiver::Instance => {
@@ -2337,7 +2440,7 @@ impl<'context, 'aliases> DownlevelClassVisitor<'context, 'aliases> {
         &mut self,
         original: TransformNode,
         data: tsc_syntax::nodes::MethodDeclarationData,
-        function_name: &str,
+        function_name: &ClassBinding,
     ) -> Result<TransformNode, TransformError> {
         self.create_private_function(
             original,
@@ -2355,7 +2458,7 @@ impl<'context, 'aliases> DownlevelClassVisitor<'context, 'aliases> {
         &mut self,
         original: TransformNode,
         data: tsc_syntax::nodes::GetAccessorData,
-        function_name: &str,
+        function_name: &ClassBinding,
     ) -> Result<TransformNode, TransformError> {
         self.create_private_function(
             original,
@@ -2373,7 +2476,7 @@ impl<'context, 'aliases> DownlevelClassVisitor<'context, 'aliases> {
         &mut self,
         original: TransformNode,
         data: tsc_syntax::nodes::SetAccessorData,
-        function_name: &str,
+        function_name: &ClassBinding,
     ) -> Result<TransformNode, TransformError> {
         self.create_private_function(
             original,
@@ -2391,7 +2494,7 @@ impl<'context, 'aliases> DownlevelClassVisitor<'context, 'aliases> {
     fn create_private_function(
         &mut self,
         original: TransformNode,
-        function_name: &str,
+        function_name: &ClassBinding,
         type_parameters: Option<NodeArrayId>,
         parameters: Option<NodeArrayId>,
         r#type: Option<NodeId>,
@@ -2399,7 +2502,7 @@ impl<'context, 'aliases> DownlevelClassVisitor<'context, 'aliases> {
         body: Option<NodeId>,
         modifiers: Option<NodeArrayId>,
     ) -> Result<TransformNode, TransformError> {
-        let name = self.create_identifier(function_name)?;
+        let name = self.create_binding_identifier(function_name)?;
         let type_parameters = self.visit_optional_nodes(type_parameters)?;
         let parameters = self.visit_optional_nodes(parameters)?;
         let r#type = self.visit_optional_node(r#type)?;
@@ -2457,10 +2560,35 @@ impl<'context, 'aliases> DownlevelClassVisitor<'context, 'aliases> {
         derived: bool,
         class_name: Option<&str>,
     ) -> Result<(), TransformError> {
+        // tsc-port: transformConstructorBody @6.0.3
+        // tsc-hash: ed62e2b9ac66528ca42730f1e550c81010c83d3b99a605bf1a1d66a4ed64667d
+        // tsc-span: _tsc.js:97329-97365
+        // Private-brand setup precedes parameter properties, and parameter
+        // properties precede ordinary field initializers regardless of the
+        // synthetic member order produced by transformTypeScript.
+        let is_parameter_property = |operation: &&InstanceOperation| {
+            matches!(
+                operation,
+                InstanceOperation::Public(operation)
+                    if operation.is_parameter_property
+            )
+        };
+        let mut ordered_operations = Vec::with_capacity(operations.len());
+        ordered_operations.extend(
+            operations
+                .iter()
+                .filter(|operation| matches!(operation, InstanceOperation::PrivateBrand(_))),
+        );
+        ordered_operations.extend(operations.iter().filter(is_parameter_property));
+        ordered_operations.extend(operations.iter().filter(|operation| {
+            !matches!(operation, InstanceOperation::PrivateBrand(_))
+                && !is_parameter_property(operation)
+        }));
+        let class_binding = class_name.map(ClassBinding::existing);
         let (statements, bindings) =
             self.with_new_generated_scope(GeneratedBindingOwner::FunctionBody, |visitor| {
-                let mut statements = Vec::with_capacity(operations.len());
-                for operation in operations {
+                let mut statements = Vec::with_capacity(ordered_operations.len());
+                for operation in ordered_operations {
                     statements.push(match operation {
                         InstanceOperation::PrivateBrand(brand) => {
                             visitor.materialize_private_brand(brand)?
@@ -2469,7 +2597,8 @@ impl<'context, 'aliases> DownlevelClassVisitor<'context, 'aliases> {
                             let mut operation = operation.clone();
                             operation.initializer =
                                 visitor.visit_optional_node(operation.initializer)?;
-                            visitor.materialize_field_operation(&operation, class_name)?
+                            visitor
+                                .materialize_field_operation(&operation, class_binding.as_ref())?
                         }
                         InstanceOperation::PrivateField(operation) => {
                             let mut operation = operation.clone();
@@ -2515,7 +2644,7 @@ impl<'context, 'aliases> DownlevelClassVisitor<'context, 'aliases> {
 
     fn materialize_static_operations(
         &mut self,
-        class_name: &str,
+        class_name: &ClassBinding,
         setup: ClassSetup,
         operations: Vec<StaticOperation>,
         private_environment: &PrivateEnvironment,
@@ -2525,8 +2654,8 @@ impl<'context, 'aliases> DownlevelClassVisitor<'context, 'aliases> {
         let mut setup_expressions = Vec::new();
         if assign_private_alias {
             if let Some(alias) = &private_environment.class_alias {
-                let alias = self.create_identifier(alias)?;
-                let class = self.create_identifier(class_name)?;
+                let alias = self.create_binding_identifier(alias)?;
+                let class = self.create_binding_identifier(class_name)?;
                 setup_expressions.push(self.create_assignment(alias, class)?);
             }
         }
@@ -2534,7 +2663,7 @@ impl<'context, 'aliases> DownlevelClassVisitor<'context, 'aliases> {
             setup_expressions.push(self.materialize_private_storage(&slot)?);
         }
         if let Some(brand) = setup.instance_brand {
-            let brand = self.create_identifier(&brand)?;
+            let brand = self.create_binding_identifier(&brand)?;
             let weak_set = self.create_identifier("WeakSet")?;
             let weak_set = self.create_new(weak_set, Vec::new())?;
             setup_expressions.push(self.create_assignment(brand, weak_set)?);
@@ -2543,7 +2672,7 @@ impl<'context, 'aliases> DownlevelClassVisitor<'context, 'aliases> {
             setup_expressions.push(self.materialize_private_storage(&slot)?);
         }
         for definition in setup.definitions {
-            let name = self.create_identifier(&definition.name)?;
+            let name = self.create_binding_identifier(&definition.name)?;
             let assignment = self.create_assignment(name, definition.function)?;
             self.set_original_and_range(assignment, definition.original)?;
             setup_expressions.push(assignment);
@@ -2647,10 +2776,10 @@ impl<'context, 'aliases> DownlevelClassVisitor<'context, 'aliases> {
         let inlineable = self.is_simple_inlineable_expression(inner)?;
         let identifier = self.context.arena().node(inner)?.kind == SyntaxKind::Identifier;
         let (key_expression, evaluation) = if should_capture && !inlineable {
-            let temporary_name = self.allocate_temp_name();
-            let target = self.create_identifier(&temporary_name)?;
+            let temporary_name = self.allocate_temp_name()?;
+            let target = self.create_binding_identifier(&temporary_name)?;
             let evaluation = self.create_assignment(target, expression)?;
-            let read = self.create_identifier(&temporary_name)?;
+            let read = self.create_binding_identifier(&temporary_name)?;
             (read, Some(evaluation))
         } else {
             let evaluation = (!inlineable && !identifier)
@@ -2713,7 +2842,7 @@ impl<'context, 'aliases> DownlevelClassVisitor<'context, 'aliases> {
     fn materialize_field_operation(
         &mut self,
         operation: &FieldOperation,
-        class_name: Option<&str>,
+        class_name: Option<&ClassBinding>,
     ) -> Result<TransformNode, TransformError> {
         let receiver = match operation.receiver {
             FieldReceiver::Instance => self.context.factory()?.create_token(
@@ -2721,12 +2850,12 @@ impl<'context, 'aliases> DownlevelClassVisitor<'context, 'aliases> {
                 SyntaxKind::ThisKeyword,
                 TransformFlags::CONTAINS_LEXICAL_THIS,
             )?,
-            FieldReceiver::Static => {
-                self.create_identifier(class_name.ok_or(TransformError::RequiredChildRemoved {
+            FieldReceiver::Static => self.create_binding_identifier(class_name.ok_or(
+                TransformError::RequiredChildRemoved {
                     parent: SyntaxKind::ClassDeclaration,
                     field: "static class binding",
-                })?)?
-            }
+                },
+            )?)?,
         };
         let initializer = operation
             .initializer
@@ -2752,9 +2881,9 @@ impl<'context, 'aliases> DownlevelClassVisitor<'context, 'aliases> {
 
     fn materialize_private_brand(
         &mut self,
-        brand_name: &str,
+        brand_name: &ClassBinding,
     ) -> Result<TransformNode, TransformError> {
-        let brand = self.create_identifier(brand_name)?;
+        let brand = self.create_binding_identifier(brand_name)?;
         let add = self.create_property_access(brand, "add")?;
         let receiver = self.context.factory()?.create_token(
             self.source,
@@ -2777,7 +2906,7 @@ impl<'context, 'aliases> DownlevelClassVisitor<'context, 'aliases> {
                     parent: SyntaxKind::PropertyDeclaration,
                     field: "private field storage",
                 })?;
-        let storage = self.create_identifier(storage_name)?;
+        let storage = self.create_binding_identifier(storage_name)?;
         let set = self.create_property_access(storage, "set")?;
         let receiver = self.context.factory()?.create_token(
             self.source,
@@ -2808,7 +2937,7 @@ impl<'context, 'aliases> DownlevelClassVisitor<'context, 'aliases> {
                 parent: SyntaxKind::PropertyDeclaration,
                 field: "private field storage",
             })?;
-        let storage = self.create_identifier(storage_name)?;
+        let storage = self.create_binding_identifier(storage_name)?;
         let weak_map = self.create_identifier("WeakMap")?;
         let weak_map = self.create_new(weak_map, Vec::new())?;
         self.create_assignment(storage, weak_map)
@@ -2826,7 +2955,7 @@ impl<'context, 'aliases> DownlevelClassVisitor<'context, 'aliases> {
                     parent: SyntaxKind::PropertyDeclaration,
                     field: "private static field storage",
                 })?;
-        let storage = self.create_identifier(storage_name)?;
+        let storage = self.create_binding_identifier(storage_name)?;
         let initializer = operation
             .initializer
             .map(|initializer| self.node(initializer))
@@ -2873,11 +3002,11 @@ impl<'context, 'aliases> DownlevelClassVisitor<'context, 'aliases> {
             .metadata_mut(receiver)
             .add_flags(EmitFlags::NO_LEADING_COMMENTS);
         let helper = self.create_identifier("__classPrivateFieldGet")?;
-        let brand = self.create_identifier(slot.brand_name())?;
+        let brand = self.create_binding_identifier(slot.brand_name())?;
         let kind = self.create_string_literal(slot.access_kind())?;
         let mut arguments = vec![receiver, brand, kind];
         if let Some(descriptor) = slot.getter_descriptor_name() {
-            arguments.push(self.create_identifier(descriptor)?);
+            arguments.push(self.create_binding_identifier(descriptor)?);
         }
         self.create_call(helper, arguments)
     }
@@ -2900,11 +3029,11 @@ impl<'context, 'aliases> DownlevelClassVisitor<'context, 'aliases> {
             .metadata_mut(receiver)
             .add_flags(EmitFlags::NO_LEADING_COMMENTS);
         let helper = self.create_identifier("__classPrivateFieldSet")?;
-        let brand = self.create_identifier(slot.brand_name())?;
+        let brand = self.create_binding_identifier(slot.brand_name())?;
         let kind = self.create_string_literal(slot.access_kind())?;
         let mut arguments = vec![receiver, brand, value, kind];
         if let Some(descriptor) = slot.setter_descriptor_name() {
-            arguments.push(self.create_identifier(descriptor)?);
+            arguments.push(self.create_binding_identifier(descriptor)?);
         }
         self.create_call(helper, arguments)
     }
@@ -2922,7 +3051,7 @@ impl<'context, 'aliases> DownlevelClassVisitor<'context, 'aliases> {
             Vec::new(),
         ))?;
         let helper = self.create_identifier("__classPrivateFieldIn")?;
-        let brand = self.create_identifier(slot.brand_name())?;
+        let brand = self.create_binding_identifier(slot.brand_name())?;
         self.create_call(helper, vec![brand, receiver])
     }
 
@@ -2939,9 +3068,9 @@ impl<'context, 'aliases> DownlevelClassVisitor<'context, 'aliases> {
                 initialized: None,
             });
         }
-        let temporary = self.allocate_temp_name();
-        let read = self.create_identifier(&temporary)?;
-        let target = self.create_identifier(&temporary)?;
+        let temporary = self.allocate_temp_name()?;
+        let read = self.create_binding_identifier(&temporary)?;
+        let target = self.create_binding_identifier(&temporary)?;
         let initialized = self.create_assignment(target, receiver)?;
         Ok(StabilizedReceiver {
             read,
@@ -3255,8 +3384,10 @@ impl<'context, 'aliases> DownlevelClassVisitor<'context, 'aliases> {
             + insertion;
         if replaces_parameter_properties {
             statements.drain(insertion..parameter_end);
+            statements.splice(insertion..insertion, initializers.iter().copied());
+        } else {
+            statements.splice(parameter_end..parameter_end, initializers.iter().copied());
         }
-        statements.splice(insertion..insertion, initializers.iter().copied());
     }
 
     fn create_synthetic_constructor(
@@ -3303,7 +3434,7 @@ impl<'context, 'aliases> DownlevelClassVisitor<'context, 'aliases> {
     fn prepend_generated_declarations_to_source(
         &mut self,
         root: TransformNode,
-        bindings: GeneratedBindings,
+        bindings: ClassGeneratedBindings,
     ) -> Result<TransformNode, TransformError> {
         if bindings.is_empty() {
             return Ok(root);
@@ -3346,7 +3477,7 @@ impl<'context, 'aliases> DownlevelClassVisitor<'context, 'aliases> {
     fn prepend_generated_declarations_to_block(
         &mut self,
         block: TransformNode,
-        bindings: GeneratedBindings,
+        bindings: ClassGeneratedBindings,
     ) -> Result<TransformNode, TransformError> {
         if bindings.is_empty() {
             return Ok(block);
@@ -3386,11 +3517,11 @@ impl<'context, 'aliases> DownlevelClassVisitor<'context, 'aliases> {
 
     fn create_generated_variable_statement(
         &mut self,
-        bindings: &GeneratedBindings,
+        bindings: &ClassGeneratedBindings,
     ) -> Result<TransformNode, TransformError> {
-        let mut declarations = Vec::with_capacity(bindings.names().len());
-        for name in bindings.names() {
-            let name = self.create_identifier(name)?;
+        let mut declarations = Vec::with_capacity(bindings.bindings().len());
+        for binding in bindings.bindings() {
+            let name = self.create_binding_identifier(&ClassBinding::Generated(binding.clone()))?;
             declarations.push(self.create_variable_declaration(name, None)?);
         }
         let statement = self.create_variable_statement(declarations, NodeFlags::NONE)?;
@@ -3401,18 +3532,50 @@ impl<'context, 'aliases> DownlevelClassVisitor<'context, 'aliases> {
         Ok(statement)
     }
 
-    fn allocate_temp_name(&mut self) -> String {
-        self.generated_bindings.allocate_temp()
+    fn allocate_temp_name(&mut self) -> Result<ClassBinding, TransformError> {
+        let provisional = self.generated_bindings.allocate_temp();
+        let binding = TargetBinding::allocate_reserved_in_nested_scopes(self.context, provisional)?;
+        self.generated_binding_frames
+            .last_mut()
+            .expect("class lowering owns an active binding frame")
+            .push(binding.clone());
+        Ok(ClassBinding::Generated(binding))
     }
 
-    fn allocate_hoisted_name(&mut self, preferred: String) -> String {
-        self.generated_bindings.allocate_preferred(preferred)
+    fn allocate_hoisted_name(&mut self, preferred: String) -> Result<ClassBinding, TransformError> {
+        let provisional = self
+            .generated_bindings
+            .allocate_preferred(preferred.clone());
+        let binding = TargetBinding::allocate_preferred_reserved_in_nested_scopes(
+            self.context,
+            preferred,
+            provisional,
+        )?;
+        self.generated_binding_frames
+            .last_mut()
+            .expect("class lowering owns an active binding frame")
+            .push(binding.clone());
+        Ok(ClassBinding::Generated(binding))
+    }
+
+    fn assert_generated_binding_plan(
+        &self,
+        planned: &GeneratedBindings,
+        identities: &ClassGeneratedBindings,
+    ) {
+        debug_assert_eq!(planned.is_empty(), identities.is_empty());
+        debug_assert_eq!(planned.names().len(), identities.bindings().len());
+        debug_assert!(planned
+            .names()
+            .iter()
+            .zip(identities.bindings())
+            .all(|(planned, binding)| planned == binding.provisional_name()));
     }
 
     fn capture_super_base(
         &mut self,
         heritage: Option<NodeArrayId>,
-        super_alias: Option<&str>,
+        super_alias: Option<&ClassBinding>,
     ) -> Result<Option<NodeArrayId>, TransformError> {
         let (Some(heritage), Some(super_alias)) = (heritage, super_alias) else {
             return Ok(heritage);
@@ -3448,7 +3611,7 @@ impl<'context, 'aliases> DownlevelClassVisitor<'context, 'aliases> {
                     parent: SyntaxKind::ExpressionWithTypeArguments,
                     field: "expression",
                 })?;
-            let alias = self.create_identifier(super_alias)?;
+            let alias = self.create_binding_identifier(super_alias)?;
             let assignment = self.create_assignment(alias, expression)?;
             let assignment = self.create_parenthesized(assignment)?;
             type_data.expression = Some(assignment.node());
@@ -3589,6 +3752,15 @@ impl<'context, 'aliases> DownlevelClassVisitor<'context, 'aliases> {
         )
     }
 
+    fn create_binding_identifier(
+        &mut self,
+        binding: &ClassBinding,
+    ) -> Result<TransformNode, TransformError> {
+        let identifier = self.create_identifier(binding.planned_text())?;
+        binding.write_generated_metadata(self.context.arena_mut()?, identifier);
+        Ok(identifier)
+    }
+
     fn create_string_literal(&mut self, text: &str) -> Result<TransformNode, TransformError> {
         self.context.factory()?.create_node(
             self.source,
@@ -3648,14 +3820,14 @@ impl<'context, 'aliases> DownlevelClassVisitor<'context, 'aliases> {
 
     fn create_reflect_get(
         &mut self,
-        super_alias: &str,
+        super_alias: &ClassBinding,
         key: TransformNode,
-        class_alias: &str,
+        class_alias: &ClassBinding,
     ) -> Result<TransformNode, TransformError> {
         let reflect = self.create_identifier("Reflect")?;
         let get = self.create_property_access(reflect, "get")?;
-        let super_alias = self.create_identifier(super_alias)?;
-        let class_alias = self.create_identifier(class_alias)?;
+        let super_alias = self.create_binding_identifier(super_alias)?;
+        let class_alias = self.create_binding_identifier(class_alias)?;
         self.create_call(get, vec![super_alias, key, class_alias])
     }
 

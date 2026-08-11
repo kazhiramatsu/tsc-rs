@@ -76,7 +76,7 @@ impl Transformer for StandardDecoratorTransformer {
     }
 
     fn initialize(&mut self, _context: &mut TransformationContext) -> Result<(), TransformError> {
-        if self.target < ScriptTarget::ES2017
+        if self.target < ScriptTarget::ES2016
             || self.target > ScriptTarget::ES_NEXT
             || (self.target == ScriptTarget::ES_NEXT && self.use_define_for_class_fields)
         {
@@ -2259,7 +2259,10 @@ impl<'context> StandardDecoratorVisitor<'context> {
             .arena_mut()?
             .metadata_mut(field)
             .add_flags(EmitFlags::NO_COMMENTS);
-        if plan.is_static {
+        // tsc-port: decorated auto-accessor expansion @6.0.3
+        // tsc-hash: a36d5d1d9f385cf80a5379c53a98ff9936ace13b998d268a79af1aaa7b791850
+        // tsc-span: _tsc.js:100115-100150
+        if plan.is_static && self.target < ScriptTarget::ES2022 {
             self.context
                 .arena_mut()?
                 .metadata_mut(field)

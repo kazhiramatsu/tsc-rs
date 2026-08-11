@@ -20,9 +20,10 @@ const H2_5B_OWNER_CONTROLS_RELATIVE_PATH: &str = "ratchets/h2-5b-owner-controls.
 const H2_5C_OWNER_CONTROLS_RELATIVE_PATH: &str = "ratchets/h2-5c-owner-controls.v1.json";
 const H2_5D_OWNER_CONTROLS_RELATIVE_PATH: &str = "ratchets/h2-5d-owner-controls.v1.json";
 const H2_5E_OWNER_CONTROLS_RELATIVE_PATH: &str = "ratchets/h2-5e-owner-controls.v1.json";
+const H2_5F_OWNER_CONTROLS_RELATIVE_PATH: &str = "ratchets/h2-5f-owner-controls.v1.json";
 
 const MINIMAL_GLOBALS: &str = r#"
-interface IArguments { length: number; callee: Function; }
+interface IArguments { length: number; callee: Function; [index: number]: any; }
 interface Array<T> { length: number; [index: number]: T; }
 interface Object {}
 interface Function {}
@@ -433,6 +434,53 @@ fn expected_h2_5e_owner_activity(
 
 fn execute_h2_5e_owner_control(control: &Value) -> Result<(usize, usize), Box<dyn Error>> {
     execute_h2_owner_control(control, "H2.5e", expected_h2_5e_owner_activity)
+}
+
+fn expected_h2_5f_owner_activity(
+    control: &Value,
+    outcome: &tsc_compiler::EmitOutcome,
+) -> Result<(), Box<dyn Error>> {
+    let input = &control["input"];
+    let module = input["compiler_options"]["module"].as_i64().unwrap_or(200);
+    let output_units = array(&control["observation"], "writes")?.len() as u64;
+    let runtime = &control["runtime_expectation"];
+    let expected_sources = |name: &str| {
+        runtime[name]
+            .as_u64()
+            .ok_or_else(|| failure(format!("H2.5f owner control lacks {name}")))
+    };
+    for slice in H2RuntimeSlice::ALL {
+        let expected = match slice {
+            H2RuntimeSlice::H2_1a if module != 4 && module != 200 => output_units,
+            H2RuntimeSlice::H2_1b if matches!(module, 1..=3) => output_units,
+            H2RuntimeSlice::H2_1d if module == 4 => output_units,
+            H2RuntimeSlice::H2_2a => expected_sources("h2_2a_sources")?,
+            H2RuntimeSlice::H2_2b => expected_sources("h2_2b_sources")?,
+            H2RuntimeSlice::H2_2c => expected_sources("h2_2c_sources")?,
+            H2RuntimeSlice::H2_4a => expected_sources("h2_4a_sources")?,
+            H2RuntimeSlice::H2_4b => expected_sources("h2_4b_sources")?,
+            H2RuntimeSlice::H2_5a => expected_sources("h2_5a_sources")?,
+            H2RuntimeSlice::H2_5b => expected_sources("h2_5b_sources")?,
+            H2RuntimeSlice::H2_5c => expected_sources("h2_5c_sources")?,
+            H2RuntimeSlice::H2_5d => expected_sources("h2_5d_sources")?,
+            H2RuntimeSlice::H2_5e => expected_sources("h2_5e_sources")?,
+            H2RuntimeSlice::H2_5f => expected_sources("h2_5f_sources")?,
+            _ => 0,
+        };
+        if outcome.h2_activity().runtime_slice(slice) != expected {
+            return Err(failure(format!(
+                "{}: {} owner activity expected {expected}, observed {}",
+                string(control, "control_id")?,
+                slice.name(),
+                outcome.h2_activity().runtime_slice(slice),
+            )));
+        }
+    }
+    Ok(())
+}
+
+fn execute_h2_5f_owner_control(control: &Value) -> Result<(usize, usize), Box<dyn Error>> {
+    execute_h2_owner_control(control, "H2.5f", expected_h2_5f_owner_activity)
 }
 
 fn owner_input(control: &Value) -> Result<PreparedProgram, Box<dyn Error>> {
@@ -1042,6 +1090,63 @@ pub fn run_h2_5e_owner_controls(workspace: &Path) -> Result<(), Box<dyn Error>> 
     }
     println!(
         "H2.5e owner controls: controls=30 exact_writes={writes} reported_diagnostics={diagnostics} repetitions=2"
+    );
+    Ok(())
+}
+
+pub fn run_h2_5f_owner_controls(workspace: &Path) -> Result<(), Box<dyn Error>> {
+    let artifact: Value = serde_json::from_slice(&fs::read(
+        workspace.join(H2_5F_OWNER_CONTROLS_RELATIVE_PATH),
+    )?)?;
+    let summary = &artifact["summary"];
+    if artifact["schema"] != 1
+        || artifact["phase"] != "H2.5f-es2017-target-owner-controls"
+        || artifact["status"] != "qualified"
+        || summary["controls"] != 21
+        || summary["exact_outputs"] != 20
+        || summary["typescript_runs"] != 42
+        || summary["reported_diagnostics"] != 2
+        || summary["emit_diagnostics"] != 1
+        || summary["no_emit_on_error_controls"] != 1
+        || summary["es2016_controls"] != 20
+        || summary["es2017_controls"] != 1
+        || summary["async_function_controls"] != 21
+        || summary["await_controls"] != 21
+        || summary["parameter_controls"] != 4
+        || summary["collision_controls"] != 3
+        || summary["lexical_arguments_controls"] != 2
+        || summary["super_controls"] != 3
+        || summary["precedence_controls"] != 1
+        || summary["comment_controls"] != 1
+        || summary["class_composition_controls"] != 5
+        || summary["commonjs_controls"] != 1
+        || summary["h2_5a_active_controls"] != 20
+        || summary["h2_5b_active_controls"] != 20
+        || summary["h2_5c_active_controls"] != 20
+        || summary["h2_5d_active_controls"] != 20
+        || summary["h2_5e_active_controls"] != 20
+        || summary["h2_5f_active_controls"] != 19
+    {
+        return Err(failure("H2.5f owner-control header is not closed"));
+    }
+    let controls = array(&artifact, "controls")?;
+    if controls.len() != 21 {
+        return Err(failure("H2.5f owner-control denominator changed"));
+    }
+    let mut writes = 0;
+    let mut diagnostics = 0;
+    for control in controls {
+        let (control_writes, control_diagnostics) = execute_h2_5f_owner_control(control)?;
+        writes += control_writes;
+        diagnostics += control_diagnostics;
+    }
+    if writes != 20 || diagnostics != 2 {
+        return Err(failure(format!(
+            "H2.5f owner totals differ: writes={writes} diagnostics={diagnostics}"
+        )));
+    }
+    println!(
+        "H2.5f owner controls: controls=21 exact_writes={writes} reported_diagnostics={diagnostics} repetitions=2"
     );
     Ok(())
 }

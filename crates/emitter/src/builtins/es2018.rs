@@ -233,10 +233,10 @@ impl Transformer for Es2018Transformer {
     }
 
     fn initialize(&mut self, _context: &mut TransformationContext) -> Result<(), TransformError> {
-        if self.target != ScriptTarget::ES2017 {
+        if self.target < ScriptTarget::ES2016 || self.target > ScriptTarget::ES2017 {
             return Err(TransformError::UnsupportedCompilerOption {
                 option: "transformES2018",
-                detail: "H2.5e admits transformES2018 at the ES2017 target boundary",
+                detail: "H2.5f composes transformES2018 for ES2016 and ES2017 targets",
             });
         }
         Ok(())
@@ -2107,7 +2107,7 @@ impl<'context> Es2018Visitor<'context> {
                     .node(name)
                     .is_ok_and(|name| name.kind == SyntaxKind::Identifier)
             });
-            if data.initializer.is_some() || !simple_name {
+            if data.initializer.is_some() || data.dot_dot_dot_token.is_some() || !simple_name {
                 return Ok(false);
             }
         }

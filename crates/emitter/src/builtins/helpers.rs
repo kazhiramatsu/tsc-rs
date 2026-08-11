@@ -53,6 +53,16 @@ const ASYNC_VALUES_HELPER_TEXT: &str = r#"var __asyncValues = (this && this.__as
     function settle(resolve, reject, d, v) { Promise.resolve(v).then(function(v) { resolve({ value: v, done: d }); }, reject); }
 };"#;
 
+const AWAITER_HELPER_TEXT: &str = r#"var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};"#;
+
 pub(super) fn set_function_name() -> EmitHelper {
     EmitHelper::with_text(
         "typescript:setFunctionName",
@@ -103,6 +113,16 @@ pub(super) fn async_values() -> EmitHelper {
         false,
         ASYNC_VALUES_HELPER_TEXT,
         None,
+        Vec::new(),
+    )
+}
+
+pub(super) fn awaiter() -> EmitHelper {
+    EmitHelper::with_text(
+        "typescript:awaiter",
+        false,
+        AWAITER_HELPER_TEXT,
+        Some(5),
         Vec::new(),
     )
 }

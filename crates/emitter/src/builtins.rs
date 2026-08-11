@@ -29,6 +29,7 @@ const MODULE_NODE_NEXT: i32 = 199;
 const MODULE_PRESERVE: i32 = 200;
 
 mod class_fields;
+mod es2017;
 mod es2018;
 mod es2021;
 mod es_next;
@@ -92,7 +93,7 @@ pub fn get_script_transformers<'resolver>(
     options: &CompilerOptions,
     resolver: &'resolver dyn EmitResolver,
 ) -> Result<Vec<Box<dyn Transformer + 'resolver>>, TransformError> {
-    let mut activity = H2ActivityCanary::h2_5e_profile();
+    let mut activity = H2ActivityCanary::h2_5f_profile();
     get_script_transformers_with_optional_host(options, resolver, None, &mut activity)
 }
 
@@ -113,10 +114,10 @@ fn get_script_transformers_with_optional_host<'transformers>(
     activity: &mut H2ActivityCanary,
 ) -> Result<Vec<Box<dyn Transformer + 'transformers>>, TransformError> {
     let target = options.emit_script_target();
-    if target < ScriptTarget::ES2017 || target > ScriptTarget::ES_NEXT {
+    if target < ScriptTarget::ES2016 || target > ScriptTarget::ES_NEXT {
         return Err(TransformError::UnsupportedCompilerOption {
             option: "target",
-            detail: "H2.5e admits ES2017 through ESNext; older targets belong to later target-ladder slices",
+            detail: "H2.5f admits ES2016 through ESNext; older targets belong to later target-ladder slices",
         });
     }
     if !matches!(
@@ -211,6 +212,9 @@ fn get_script_transformers_with_optional_host<'transformers>(
         if target < ScriptTarget::ES2018 {
             activity.observe_runtime_slice(H2RuntimeSlice::H2_5e);
         }
+        if target < ScriptTarget::ES2017 {
+            activity.observe_runtime_slice(H2RuntimeSlice::H2_5f);
+        }
     }
 
     activity.construct_script_transformer_list();
@@ -236,6 +240,8 @@ fn get_script_transformers_with_optional_host<'transformers>(
         (target < ScriptTarget::ES2019).then(|| es2021::transform_es2019(options));
     let transform_es2018 =
         (target < ScriptTarget::ES2018).then(|| es2018::transform_es2018(options));
+    let transform_es2017 =
+        (target < ScriptTarget::ES2017).then(|| es2017::transform_es2017(options, resolver));
     let module_transformer = if options.emit_module_kind() == MODULE_PRESERVE {
         activity.construct_transform_ecmascript_module();
         transform_ecmascript_module(options)
@@ -279,6 +285,9 @@ fn get_script_transformers_with_optional_host<'transformers>(
     }
     if let Some(transform_es2018) = transform_es2018 {
         transformers.push(transform_es2018);
+    }
+    if let Some(transform_es2017) = transform_es2017 {
+        transformers.push(transform_es2017);
     }
     transformers.push(module_transformer);
     Ok(transformers)
