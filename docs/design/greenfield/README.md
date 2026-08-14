@@ -33,11 +33,21 @@ sections that packet names. A packet with a stale architecture reference,
 unresolved item, or unstated implementation choice is not ready for production
 edits.
 
+After H2.5g closes, the schedule inserts the
+[Functional CI evidence architecture](functional-ci-evidence.md) before
+H2.5h-a. It defines an independent reusable framework: pure generic `ci-core`,
+bounded-effect generic `ci-runner`, and repository-owned adapters that inject
+namespace and semantics. Follow its FCI dependency stages only through exact
+ready packets in the slice-packet index; the architecture or stage table alone
+does not authorize production work.
+
 These roles stay separate:
 
 - **Active authority/current route:** pinned tsc semantics → current emitter
   architecture → post-H1 schedule → selected ready packet. The schedule alone
-  owns live slice status.
+  owns live slice status. During the post-H2.5g interlock, the Functional-CI
+  architecture owns framework invariants while the schedule/index still own
+  ordering and packet authorization.
 - **Frozen contract/evidence:** ratchets, schemas, generators, and tests prove
   only the completed profile named by their owning close record.
 - **History/reference:** completed M-stage/H0/H1 designs and older emitter
@@ -256,6 +266,7 @@ each stage is one commit.
 | L0/L1 persistent source + incremental parser — complete and performance-qualified | [persistent Program design](lsp-and-incremental.md) | shared text/position snapshots, domain-scoped identity leases, generated relocation, non-contiguous ownership, owned bind/Program snapshots, immutable incremental parse/rebind, exact fresh equivalence, reclamation stress, and approved large-edit evidence |
 | H1 JavaScript emit — H1.0a through H1.6 complete and qualified | [H1 execution](h1-emit.md) | zero-open-row owner closure, exact callback/transform/upstream qualification, all 15,680 pinned cases dispositioned, the sole compatible compiler case executed exactly, filesystem/CLI and sink-fault parity, standalone binary proof, frozen H0 `--noEmit` canaries, and approved-runner no-emit/emit resource evidence; broader transforms, options, and file kinds are the next separately qualified expansion |
 | H2 broad one-shot compiler — active; see the linked status authority | [post-H1 slices](post-h1-completion-slices.md) + [current emitter architecture](emitter-architecture.md) | dependency-closed TypeScript runtime, source-kind, JSX/decorator, target, map, declaration, output/config/System, CLI, and full upstream-runner qualification slices; no duplicated status in this index |
+| FCI reusable functional-CI framework — mandatory interlock after H2.5g and before H2.5h-a | [Functional-CI architecture](functional-ci-evidence.md) + [packet index](slices/README.md) | repository-independent pure core and bounded runner proven by typed H2-shaped and shard-free adapters; complete local-full shadow/activation; separate exact-key authenticated ts-tests-only hosted shadow/activation; deterministic no-impact process-count-zero and bounded CPU/RSS evidence |
 | L2 shared Program/resolution reuse — planned after H2 | [post-H1 slices](post-h1-completion-slices.md) | full registry, `isProgramUptoDate`, structure reuse, dependency-tracked caches/invalidation, publication/release/cancellation, multi-generation fresh equality, and bounded resources |
 | BLD1/W1 builder, project references, and watch — planned after L2 core | [post-H1 slices](post-h1-completion-slices.md) | deterministic affected queues/signatures/build info/restarts, solution build, virtual-clock watch traces, fault/cancellation behavior, and long-running qualification |
 | API1/L3-L5 public API and interactive products — planned | [post-H1 slices](post-h1-completion-slices.md) | explicit public ownership/identity contract, Language Service, tsserver Project Service/protocol, then independent LSP capability/protocol/resource qualification |

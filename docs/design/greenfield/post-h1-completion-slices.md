@@ -21,6 +21,12 @@ product finish lines and never rewrites the M8 denominator.
 The [current emitter architecture](emitter-architecture.md) owns validated
 Rust emitter types, ownership, integration seams, and their lifecycle; this
 schedule does not duplicate that implementation map.
+The [functional CI evidence architecture](functional-ci-evidence.md) owns the
+post-H2.5g migration to a demand-driven typed impact graph, adapter-owned
+deterministic plans and optional bundle interiors (H2 uses fixed shards),
+content-addressed verified roots, complete local-full projection, and exact-key
+hosted cache consumption. It does not amend or replace the current H2.5g
+closure commands.
 
 The target is the pinned TypeScript 6.0.3 compiler and tooling surface. LSP is
 listed because it is an intended Rust-native product, but it is not an
@@ -56,6 +62,12 @@ PR, and one reviewable before/after result. Every slice:
    final runtime candidate and records the result in the PR; and
 9. lets ordinary GitHub Actions run only the fixed, unsplit
    `cargo xtask acceptance` boundary sourced from `ts-tests`.
+
+After the separately reviewed functional-CI activation, that same hosted
+command may consume an exact-key remote cache only through the Rust
+`HostedVerifiedRoot` contract. The command and ts-tests-only case scope remain
+unchanged, and owner controls remain excluded. Before that activation, the
+current workflow and H2.5g closure route remain unchanged.
 
 H2.5g is the sole non-retroactive exception to the implementation-ready packet
 format because its production work began before that gate was adopted. The
@@ -248,6 +260,43 @@ a new final validation ref and a rerun of the applicable gates. The first
 required application of the full implementation-ready design gate is the
 post-H2.5g roadmap review; every remaining H2 slice must be rewritten to that
 format before its implementation phase begins.
+
+### 1.3 Functional-CI interlock after H2.5g
+
+The post-merge review does not proceed directly to H2.5h-a. It freezes the
+shared packet checker/schema and the first exact ready Functional-CI packet;
+subsequent short-lived packet branches then advance one indexed packet at a
+time through
+[the architecture's stage table](functional-ci-evidence.md#14-migration-stages-and-packets)
+and this hard gate:
+
+```text
+H2.5g close
+  -> post-merge roadmap review + versioned packet freeze
+  -> FCI-1 through FCI-8 complete shadow
+  -> FCI-9a local-full activation
+  -> FCI-9b hosted ts-tests-only activation
+  -> FCI-10 cleanup
+  -> H2.5h-a
+```
+
+Within a stage, lettered packets run in lexical order unless a packet records
+an earlier dependency explicitly. A stage closes only when all of its packets
+and immutable proofs close. FCI-8b is read-only protected-host/bootstrap
+research and FCI-8c is read-only hosted-provider research; bootstrap/provider
+code is forbidden until its respective packet freezes every workflow,
+attestation, atomicity, authority, scope, limit, retention, recovery, and
+failure decision. FCI-8d implements protected N+1 engine promotion, FCI-8e the
+provider backend, and FCI-8f the complete hosted shadow. FCI-8a/FCI-9a own
+complete `local-full` shadow/activation; FCI-8f/FCI-9b separately own the
+unchanged unsplit ts-tests-only hosted boundary.
+
+Read-only architecture work, graph/inventory capture, fixtures, and provider
+research may overlap when indexed packets give them disjoint files and inputs.
+A stage row is not production authorization: the exact packet must be linked
+from the slice-packet index, contain no unresolved implementation choice, and
+be machine-checked `ready` before its production files change. H2.5h-a remains
+blocked through FCI-10 even if its own inventory or design research runs early.
 
 ## 2. Additional contracts required after H1
 
@@ -1409,7 +1458,7 @@ novelty by itself is not.
 | H2.5e | `transformES2018` | H2.5d |
 | H2.5f | `transformES2017` | H2.5e |
 | H2.5g | `transformES2016` | H2.5f |
-| H2.5h-a | Architecture validation, complete `transformES2015`/`transformGenerators` owner graph and local-gap matrix, Rust mapping, and oracle-fixture freeze. It may propose dormant foundation children but activates no transformer and admits no candidate. | H2.5g |
+| H2.5h-a | Architecture validation, complete `transformES2015`/`transformGenerators` owner graph and local-gap matrix, Rust mapping, and oracle-fixture freeze. It may propose dormant foundation children but activates no transformer and admits no candidate. | H2.5g closure and merge lineage, post-merge packet freeze, and FCI-1 through FCI-10 |
 | H2.5h-b+ | Runtime owner slices cut by H2.5h-a. `transformES2015` and `transformGenerators` activate together only for a dependency cluster whose pinned owner graph proves joint activation; independent SCCs receive further suffixes before implementation. | H2.5h-a and every foundation child it names |
 
 Every target row closes its exact syntax gates, helper graph, generated-name
@@ -1422,8 +1471,9 @@ The concrete next entry is
 the H2.5g profile is frozen at its final validation ref, the merge ref is
 recorded as containing that ref with identical profile-bound inputs, and the
 post-merge roadmap review adds the versioned readiness manifest and checker
-named there. No agent may infer a runtime implementation task from the
-target-ladder summary.
+named there. It remains blocked after that review until every FCI-1 through
+FCI-10 packet and activation gate is complete. No agent may infer a runtime
+implementation task from the target-ladder summary.
 
 ### 4.5 Maps, declarations, output/config, and broad qualification
 

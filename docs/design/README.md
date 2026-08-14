@@ -14,7 +14,7 @@ Do not infer authority from detail or file age. Follow this order:
 | Class | Owns | Examples |
 | --- | --- | --- |
 | Pinned upstream authority | TypeScript semantics and observable phase behavior | vendored TypeScript 6.0.3 declarations/bodies pinned by each slice |
-| Active architecture | Current validated Rust ownership, types, invariants, and integration seams | core designs below; [current emitter architecture](greenfield/emitter-architecture.md) |
+| Active architecture | Current validated Rust ownership, types, invariants, and integration seams | core designs below; [current emitter architecture](greenfield/emitter-architecture.md); [reusable Functional-CI evidence architecture](greenfield/functional-ci-evidence.md) |
 | Execution schedule | Dependency order, slice boundaries, and readiness/close gates | [post-H1 completion slices](greenfield/post-h1-completion-slices.md) |
 | Slice packet | Exact bounded change, current symbols, commands, and expected results | the [slice-packet index](greenfield/slices/README.md) and active linked packet; H2.5g uses the indexed sole legacy-closure exception |
 | Frozen contract/evidence | A predecessor claim and its immutable observations | [H1 emit](greenfield/h1-emit.md), ratchets, schemas, tests |
@@ -90,6 +90,12 @@ instead of retroactively creating a packet; this exception ends with H2.5g.
   slice gate after H2.5g. It links bounded work to current architecture and
   pinned tsc owners without duplicating either; H2.5g's sole non-retroactive
   exception is confined to the existing-contract closure route above.
+- [greenfield/functional-ci-evidence.md](greenfield/functional-ci-evidence.md):
+  the normative post-H2.5g architecture for a reusable functional-CI
+  framework: repository-independent pure core, bounded effect runner, typed
+  repository adapters, deterministic evidence/CAS, complete local-full, and a
+  separate exact-key ts-tests-only hosted route. Its FCI rows are dependency
+  stages; only the schedule and indexed machine-ready packets authorize work.
 - [greenfield/compiler-compatibility-residual.md](greenfield/compiler-compatibility-residual.md):
   an audited surface/owner inventory and historical gap analysis. Recompute
   implementation-state gaps from current code before using it in a slice.

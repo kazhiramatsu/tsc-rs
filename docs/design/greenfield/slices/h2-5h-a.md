@@ -2,18 +2,21 @@
 
 Readiness: **blocked**
 
-This is the concrete handoff for the first post-H2.5g design-gated work. It is
-not an implementation specification yet and authorizes no production edit.
+This is the concrete handoff for the first post-FCI emitter/H2 design-gated
+work. It is not an implementation specification yet and authorizes no
+production edit.
 Its readiness and active-slice status are owned by the
 [slice-packet index](README.md) and the
 [post-H1 schedule](../post-h1-completion-slices.md), not by this draft in
 isolation.
 
-The block is intentional and mechanically fail-closed: the required final
-H2.5g profile and architecture freeze at an immutable final validation ref,
-recorded merge-ref lineage, versioned slice-readiness
+The block is intentional and mechanically fail-closed: H2.5g must first close
+and merge; the post-merge review must freeze the shared checker/schema and the
+first exact ready FCI packet; subsequent short-lived packet branches must
+advance the interlock one authorized packet at a time through FCI-10; and only
+then may the required final H2.5g/FCI architecture lineage, versioned slice-readiness
 manifest/schema/checker, complete owner/local-gap inventories, Rust mapping,
-and frozen witnesses do not yet coexist.
+and frozen H2.5h witnesses authorize this slice.
 
 For the future packet, vendored TypeScript 6.0.3 owns semantics. The current
 code and tests plus freshly revalidated rows in
@@ -23,7 +26,14 @@ or history only; they are not implementation instructions.
 
 ## Prerequisite transition
 
-The post-H2.5g roadmap-review branch performs these steps in order:
+The post-H2.5g roadmap-review branch creates the shared packet checker/schema
+and freezes the first exact ready FCI packet. Separate short-lived packet
+branches then advance the Functional-CI interlock one indexed packet at a time
+through FCI-10 exactly as owned by the schedule/index. H2.5h-a research may
+overlap only when a separate indexed research packet explicitly authorizes its
+read-only files and commands; an early inventory is never readiness or
+production authority. After FCI-10 closes, a new H2.5h-a design branch performs
+these steps in order:
 
 1. verify that every qualified H2.5g row in
    [the current emitter architecture](../emitter-architecture.md) names the
@@ -38,28 +48,39 @@ The post-H2.5g roadmap-review branch performs these steps in order:
 3. generate the current Rust local-gap matrix without editing production code;
 4. decide owner SCC boundaries and amend H2.5h-a/H2.5h-b suffixes before
    assigning implementation files;
-5. add the shared versioned slice-readiness schema and checker, then replace
-   this blocked handoff with the complete packet required by
+5. use the already frozen shared slice-readiness schema/checker to add the
+   H2.5h-a manifest and replace this blocked handoff with the complete exact
+   packet required by
    [the mandatory design gate](../post-h1-completion-slices.md#11-mandatory-implementation-ready-design-gate);
+   if that shared contract itself must change, stop and close a separate
+   amendment packet before creating the H2.5h-a packet;
 6. freeze oracle-produced positive, adjacent-negative, composition, and fault
    witnesses; and
-7. run the packet checker. Production work begins only when it reports fresh
-   hashes, zero undispositioned rows, zero unresolved rows, full
-   architecture/upstream/local-gap/step/test coverage, and legal lifecycle
-   transitions.
+7. run the packet checker. Production work begins only when FCI-10 is recorded
+   complete in the owning index and the checker reports fresh hashes, zero
+   undispositioned rows, zero unresolved rows, full architecture/upstream/
+   local-gap/step/test coverage, and legal lifecycle transitions.
 
 If the ready packet adds an H2.5h ts-tests runner to hosted acceptance, it must
-also specify the reviewed change to the canonical `acceptance` body and the raw
-source SHA-256 pins in `.github/ci/qualification-policy.v2.json`. It must prove
-that no owner-control runner became reachable there; owner controls stay in
-the complete local gate. Updating a pin without the corresponding reviewed
-source/entry transition is not evidence.
+also preserve the single unsplit `cargo xtask acceptance` command and update
+the complete hosted action union, protected engine adapter/profile registry,
+fallback plan, and raw source SHA-256 pins in
+`.github/ci/qualification-policy.v2.json`. Engine/verifier/profile changes use
+the Functional-CI N+1 promotion route; candidate code cannot approve itself.
+Before activation, the changed complete union must pass the disabled hosted
+shadow with exact fresh/mixed/rejected equivalence and every protected
+bootstrap/transition proof. It must prove that no owner-control or
+`NonReusable` action became reachable there; owner controls stay in the
+complete local gate. Updating a pin without the corresponding reviewed
+source/entry, protected promotion, complete-membership, and shadow transition
+is not evidence.
 
 The readiness checker command and expected counts/hashes are deliberately not
 invented here: they are outputs of the versioned post-merge research/design
 slice. Their present absence is itself the blocking condition. An agent that
-encounters this page before that transition stops after read-only inventory;
-it does not create ES2015 or Generator runtime code.
+encounters this page before that transition performs no inventory unless an
+indexed research packet authorizes it, and never creates ES2015 or Generator
+runtime code.
 
 ## Mandatory architecture inputs
 
@@ -94,7 +115,7 @@ sub-rows as reachable inputs unless the pinned research supplies a
 - `E-NAMES-BASE`, `E-NAMES-CLASS-G`, and `E-NAMES-H`;
 - `E-HELPERS-BASE`, `E-HELPERS-PROVENANCE-G`, and `E-HELPERS-H`;
 - `E-PRINTER-BASE` and `E-PRINTER-G`;
-- `E-COMMENTS-G` and `E-COMMENTS-H`; and
+- `E-COMMENTS-G`, `E-COMMENT-SCOPE-H`, and `E-COMMENTS-H`; and
 - `E-POSITIONS` and `E-STRINGS`.
 
 The complete packet must also disposition:
@@ -111,3 +132,71 @@ The complete packet must also disposition:
 No `TBD`, implied repository search, remembered tsc behavior, data-model
 choice, unnamed file edit, or hand-authored expected output is permitted in
 the ready packet.
+
+## First mandatory design packet: global comment scope
+
+Before the ES2015 or Generators owner graph may authorize production work, the
+slice must close `E-COMMENT-SCOPE-H`. This is an architecture prerequisite,
+not an opportunistic printer fix. The pinned tsc study must trace the set,
+save/restore, and read sites for all three independent scoped values:
+`containerPos`, `containerEnd`, and `declarationListContainerEnd`. It must then
+map their meaning to Rust without copying tsc's mutable closure structure.
+
+The preferred Rust candidate for the packet to prove is immutable value
+threading:
+
+```rust
+#[must_use]
+struct CommentEmissionScope {
+    container_pos: Option<CommentCursor>,
+    container_end: Option<CommentCursor>,
+    declaration_list_container_end: Option<CommentCursor>,
+}
+
+#[must_use]
+struct EmitContext {
+    comments: CommentEmissionScope,
+    syntax: ExpressionSyntaxContext,
+}
+```
+
+The names are not pre-approved API, but the semantics are mandatory. A child
+operation preserves the complete comment scope while replacing only its
+edge-specific syntax context. There is no `Default` nested scope. A private
+root constructor creates the initial scope, while every nested node, list,
+token, comment, transformed-node, and notification/substitution route accepts
+an explicit context. The packet must name the root boundary and every old
+contextless API that will be deleted or made root-only; leaving two callable
+nested pipelines is not an allowed intermediate completion state.
+
+The frozen oracle set starts with this known counterexample and its
+remove-comments and adjacent-negative controls:
+
+```text
+source: x /*TAIL*/\n
+transform: replace the outer statement with synthetic `() => { originalStmt }`
+tsc output: () => { x; }; /*TAIL*/\n
+```
+
+It then covers direct children, ordinary and declaration lists, synthetic
+wrappers, statements, declarations, classes, JSX, parameters, token/comment
+scanners, source changes, zero-width ranges, and errors during nested emit.
+Expected bytes are captured from the pinned oracle; they are never transcribed
+from this example into tests.
+
+The implementation plan must be split into independently reviewable packets:
+
+1. freeze the direct/list/wrapper/declaration-list witnesses and the complete
+   tsc scope graph;
+2. introduce the triple scope at the root and core pipeline;
+3. migrate expression and list routes, including Call, New, Array, Object, and
+   Spread;
+4. migrate statements, declarations, classes, JSX, parameters, transformed
+   nodes, substitution, and notification;
+5. migrate token/comment scanners and delete every contextless or dual nested
+   API; and
+6. run the focused fixtures, complete emitter suite, owner controls, inventory,
+   and a zero-contextless-use audit in that order.
+
+No ES2015/Generators implementation packet may assume comment relocation is
+safe until this sequence is approved and its final gate is green.
