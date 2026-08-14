@@ -14,6 +14,7 @@
     "contract",
     "origin",
     "qualification",
+    "current_exact_promotions",
     "runtime_inputs",
     "admitted_profile",
     "transition",
@@ -42,10 +43,84 @@
       }
     },
     "qualification": { "$ref": "#/$defs/path_hash" },
+    "current_exact_promotions": {
+      "const": [
+        {
+          "source_phase": "H2.1a",
+          "case_id": "typescript-6.0.3/compiler/arrayFromAsync.ts#default",
+          "historical_case_fingerprint_sha256": "9f63ee4777950bf7023052d1eef2c48a0fea492820217a9e4ff49cdc86da19aa",
+          "historical_disposition": "diagnostic-deferred-output-control",
+          "historical_diagnostic_state": "deferred-to-H2.9",
+          "current_disposition": "exact-required",
+          "exact_reported_diagnostics": 0,
+          "exact_writes": 1,
+          "historical_qualification": {
+            "path": "ratchets/h2-1a-qualification.v1.json",
+            "sha256": "1a1dbd0bd51768f054c1fed51300df8de5211af7e4978f838efe93926bd527e3"
+          }
+        },
+        {
+          "source_phase": "H2.1a",
+          "case_id": "typescript-6.0.3/compiler/arrayIterationLibES5TargetDifferent.ts#nolib%3Dtrue%2Ctarget%3Desnext",
+          "historical_case_fingerprint_sha256": "7d155578b5fa4353d81d2798cdc36d4d55bd5c892e2eec1b5580ad8d89f82292",
+          "historical_disposition": "diagnostic-deferred-output-control",
+          "historical_diagnostic_state": "deferred-to-H2.9",
+          "current_disposition": "exact-required",
+          "exact_reported_diagnostics": 11,
+          "exact_writes": 1,
+          "historical_qualification": {
+            "path": "ratchets/h2-1a-qualification.v1.json",
+            "sha256": "1a1dbd0bd51768f054c1fed51300df8de5211af7e4978f838efe93926bd527e3"
+          }
+        },
+        {
+          "source_phase": "H2.1a",
+          "case_id": "typescript-6.0.3/compiler/mapGroupBy.ts#default",
+          "historical_case_fingerprint_sha256": "f0bcdec1d79c70a608fcbbd5ae0629dc5637866d306c5fb1e5ba4a8e8fd371a5",
+          "historical_disposition": "diagnostic-deferred-output-control",
+          "historical_diagnostic_state": "deferred-to-H2.9",
+          "current_disposition": "exact-required",
+          "exact_reported_diagnostics": 0,
+          "exact_writes": 1,
+          "historical_qualification": {
+            "path": "ratchets/h2-1a-qualification.v1.json",
+            "sha256": "1a1dbd0bd51768f054c1fed51300df8de5211af7e4978f838efe93926bd527e3"
+          }
+        },
+        {
+          "source_phase": "H2.1a",
+          "case_id": "typescript-6.0.3/compiler/objectGroupBy.ts#default",
+          "historical_case_fingerprint_sha256": "5d4213b87de2c690084a684f590df4e2f4dd16f54789073916e347cd01f13d13",
+          "historical_disposition": "diagnostic-deferred-output-control",
+          "historical_diagnostic_state": "deferred-to-H2.9",
+          "current_disposition": "exact-required",
+          "exact_reported_diagnostics": 1,
+          "exact_writes": 1,
+          "historical_qualification": {
+            "path": "ratchets/h2-1a-qualification.v1.json",
+            "sha256": "1a1dbd0bd51768f054c1fed51300df8de5211af7e4978f838efe93926bd527e3"
+          }
+        },
+        {
+          "source_phase": "H2.1a",
+          "case_id": "typescript-6.0.3/compiler/regularExpressionScanning.ts#target%3Desnext",
+          "historical_case_fingerprint_sha256": "991c35eaee4cb7fd5a92b60fd696b3bc1046a36bab6bf25af873dae39ae6a428",
+          "historical_disposition": "diagnostic-deferred-output-control",
+          "historical_diagnostic_state": "deferred-to-H2.9",
+          "current_disposition": "exact-required",
+          "exact_reported_diagnostics": 193,
+          "exact_writes": 1,
+          "historical_qualification": {
+            "path": "ratchets/h2-1a-qualification.v1.json",
+            "sha256": "1a1dbd0bd51768f054c1fed51300df8de5211af7e4978f838efe93926bd527e3"
+          }
+        }
+      ]
+    },
     "runtime_inputs": {
       "type": "array",
-      "minItems": 174,
-      "maxItems": 174,
+      "minItems": 176,
+      "maxItems": 176,
       "items": { "$ref": "#/$defs/path_hash" }
     },
     "admitted_profile": {
@@ -72,12 +147,12 @@
         "jsx_modes": ["Preserve(1)", "React(2)", "ReactNative(3)", "ReactJSX(4)", "ReactJSXDev(5)"],
         "source_kinds": [".ts", ".mts", ".cts", ".tsx", ".js", ".mjs", ".cjs", ".jsx", ".json"],
         "products": ["javascript", "mjs", "cjs", "jsx", "json"],
-        "exact_cases": 9191,
+        "exact_cases": 9196,
         "h2_5g_exact_cases": 8511,
-        "exact_reported_diagnostics": 28210,
-        "exact_writes": 10440,
-        "diagnostic_deferred_output_controls": 5,
-        "diagnostic_control_writes": 5,
+        "exact_reported_diagnostics": 28415,
+        "exact_writes": 10445,
+        "diagnostic_deferred_output_controls": 0,
+        "diagnostic_control_writes": 0,
         "source_deferred_cases": 531,
         "candidate_denominator": 9715,
         "h2_5g_candidate_denominator": 9027,
@@ -191,7 +266,7 @@
       "const": {
         "completed_runtime_slices": 22,
         "next_slice_runtime_slice_delta": 0,
-        "runtime_admissions": 9191,
+        "runtime_admissions": 9196,
         "executed_candidates": 9715,
         "h2_5g_executed_candidates": 9027,
         "h2_5g_global_future_rows": 2883,

@@ -14,7 +14,7 @@ use tsc_syntax::{
     for_each_child,
     nodes::{
         ArrowFunctionData, ExportAssignmentData, ExpressionStatementData, IdentifierData,
-        SourceFileData, ThrowStatementData,
+        PartiallyEmittedExpressionData, ReturnStatementData, SourceFileData, ThrowStatementData,
     },
     parse_source_file, parse_source_file_from_snapshot_in_identity_domain, NodeData, ParseOptions,
     SyntaxKind,
@@ -639,6 +639,197 @@ fn explicit_arrow_comment_range_orders_source_and_synthetic_comments() {
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum NoAsiPartialOriginal {
+    ParsedParentheses,
+    WholeExpression,
+}
+
+struct NoAsiPartialExpressionTransformer {
+    original: NoAsiPartialOriginal,
+}
+
+impl Transformer for NoAsiPartialExpressionTransformer {
+    fn name(&self) -> &'static str {
+        "no-asi-partial-expression"
+    }
+
+    fn transform_root(
+        &mut self,
+        context: &mut TransformationContext,
+        root: TransformRoot,
+    ) -> Result<TransformRoot, TransformError> {
+        let source = match root {
+            TransformRoot::SourceFile(source) => source,
+            other => return Ok(other),
+        };
+        let root_node = context.arena().root(source)?;
+        let (statements, end_of_file_token) = match &context.arena().node(root_node)?.data {
+            NodeData::SourceFile(data) => (
+                data.statements
+                    .and_then(|statements| context.arena().node_array_ref(source, statements))
+                    .expect("fixture source file has a statement list"),
+                data.end_of_file_token,
+            ),
+            _ => unreachable!("transform root is a source file"),
+        };
+        let statement = context
+            .arena()
+            .node_array(statements)?
+            .nodes
+            .first()
+            .and_then(|statement| context.arena().node_ref(source, *statement))
+            .expect("fixture starts with a return statement");
+        let expression = match &context.arena().node(statement)?.data {
+            NodeData::ReturnStatement(data) => data
+                .expression
+                .and_then(|expression| context.arena().node_ref(source, expression))
+                .expect("fixture return statement has an expression"),
+            _ => panic!("fixture starts with a return statement"),
+        };
+        let inner = match self.original {
+            NoAsiPartialOriginal::ParsedParentheses => {
+                match &context.arena().node(expression)?.data {
+                    NodeData::ParenthesizedExpression(data) => data
+                        .expression
+                        .and_then(|inner| context.arena().node_ref(source, inner))
+                        .expect("fixture parentheses have an expression"),
+                    _ => panic!("fixture return expression is parenthesized"),
+                }
+            }
+            NoAsiPartialOriginal::WholeExpression => expression,
+        };
+
+        let wrapper_flags =
+            context.arena().propagate_child_flags(inner)? | TransformFlags::CONTAINS_TYPE_SCRIPT;
+        let wrapper = context.factory()?.create_node(
+            source,
+            NodeData::PartiallyEmittedExpression(PartiallyEmittedExpressionData {
+                expression: Some(inner.node()),
+            }),
+            wrapper_flags,
+        )?;
+        context.factory()?.set_text_range(wrapper, expression)?;
+        context
+            .arena_mut()?
+            .set_original_node(wrapper, Some(expression))?;
+        {
+            let metadata = context.arena_mut()?.metadata_mut(wrapper);
+            metadata.add_leading_comment(SyntheticComment::new(
+                SyntheticCommentKind::MultiLine,
+                "wrapper-leading",
+                false,
+                true,
+            ));
+            metadata.add_trailing_comment(SyntheticComment::new(
+                SyntheticCommentKind::MultiLine,
+                "wrapper-trailing",
+                false,
+                false,
+            ));
+        }
+
+        let statement_flags = context.arena().transform_flags(statement);
+        let updated_statement = context.factory()?.update_node(
+            statement,
+            NodeData::ReturnStatement(ReturnStatementData {
+                expression: Some(wrapper.node()),
+            }),
+            statement_flags,
+        )?;
+        let statements = context
+            .factory()?
+            .update_node_array(statements, vec![updated_statement])?;
+        let root_flags = context.arena().transform_flags(root_node);
+        let updated_root = context.factory()?.update_node(
+            root_node,
+            NodeData::SourceFile(SourceFileData {
+                statements: Some(statements.array()),
+                end_of_file_token,
+            }),
+            root_flags,
+        )?;
+        context.arena_mut()?.replace_root(source, updated_root)?;
+        Ok(TransformRoot::SourceFile(source))
+    }
+}
+
+fn print_no_asi_partial_expression(
+    source_text: &str,
+    original: NoAsiPartialOriginal,
+    remove_comments: bool,
+) -> String {
+    let parsed = parse_source_file("no-asi-partial.ts", source_text, Default::default(), None);
+    let mut arena = TransformArena::new();
+    let source = arena.add_source(&parsed, None);
+    let mut result = transform_nodes(
+        arena,
+        vec![TransformRoot::SourceFile(source)],
+        vec![Box::new(NoAsiPartialExpressionTransformer { original })],
+        false,
+    )
+    .expect("no-ASI partial-expression transform");
+    create_printer(
+        PrinterOptions::new(NewLineKind::LineFeed)
+            .with_remove_comments(remove_comments)
+            .with_source_file_text_mode(SourceFileTextMode::Canonical),
+    )
+    .print(
+        &mut result,
+        PrintRequest::SourceFile(source),
+        &mut DisabledSourceMapRecorder,
+    )
+    .expect("no-ASI partial-expression print")
+    .text()
+    .to_owned()
+}
+
+#[test]
+fn no_asi_parsed_parentheses_place_wrapper_comments_outside_source_delimiters() {
+    assert_eq!(
+        print_no_asi_partial_expression(
+            "return (/*open*/ value /*close*/);\n",
+            NoAsiPartialOriginal::ParsedParentheses,
+            false,
+        ),
+        concat!(
+            "return /*wrapper-leading*/\n",
+            "( /*open*/value /*close*/) /*wrapper-trailing*/;\n",
+        ),
+    );
+}
+
+#[test]
+fn no_asi_whole_partial_expression_keeps_wrapper_comments_inside_synthetic_delimiters() {
+    assert_eq!(
+        print_no_asi_partial_expression(
+            "return value;\n",
+            NoAsiPartialOriginal::WholeExpression,
+            false,
+        ),
+        concat!(
+            "return (/*wrapper-leading*/\n",
+            "value /*wrapper-trailing*/);\n",
+        ),
+    );
+}
+
+#[test]
+fn no_asi_partial_parenthesization_is_disabled_when_comments_are_removed() {
+    for (source, original) in [
+        (
+            "return (/*open*/ value /*close*/);\n",
+            NoAsiPartialOriginal::ParsedParentheses,
+        ),
+        ("return value;\n", NoAsiPartialOriginal::WholeExpression),
+    ] {
+        assert_eq!(
+            print_no_asi_partial_expression(source, original, true),
+            "return value;\n",
+        );
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum ArrowTokenHookMode {
     Both,
     SubstitutionOnly,
@@ -1010,6 +1201,7 @@ struct ResolverProjectionNodes {
     synthetic: TransformNode,
     ranged_synthetic: TransformNode,
     parsed_clone: TransformNode,
+    synthetic_terminal: TransformNode,
 }
 
 struct ResolverProjectionTransformer {
@@ -1050,10 +1242,22 @@ impl Transformer for ResolverProjectionTransformer {
             .factory()?
             .set_text_range(ranged_synthetic, parsed_root)?;
         let parsed_clone = context.factory()?.clone_node(parsed_root)?;
+        let synthetic_terminal = context.factory()?.create_node(
+            source,
+            NodeData::Identifier(IdentifierData {
+                escaped_text: "terminal".to_owned(),
+                text: "terminal".to_owned(),
+            }),
+            TransformFlags::NONE,
+        )?;
+        context
+            .arena_mut()?
+            .set_original_node(parsed_root, Some(synthetic_terminal))?;
         *self.nodes.borrow_mut() = Some(ResolverProjectionNodes {
             synthetic,
             ranged_synthetic,
             parsed_clone,
+            synthetic_terminal,
         });
         Ok(root)
     }
@@ -1126,7 +1330,11 @@ fn resolver_projection_rejects_synthetic_ids_that_alias_the_next_program_source(
     );
     assert_eq!(
         result.arena().get_original_node(nodes.parsed_clone),
-        parsed_root
+        nodes.synthetic_terminal
+    );
+    assert_eq!(
+        result.arena().get_original_node(parsed_root),
+        nodes.synthetic_terminal
     );
     assert_eq!(
         result
@@ -1134,5 +1342,19 @@ fn resolver_projection_rejects_synthetic_ids_that_alias_the_next_program_source(
             .parse_tree_resolver_node(nodes.parsed_clone)
             .unwrap(),
         Some(EmitResolverNode::new(program_source, parsed.root))
+    );
+    assert_eq!(
+        result
+            .arena()
+            .parse_tree_resolver_node(parsed_root)
+            .unwrap(),
+        Some(EmitResolverNode::new(program_source, parsed.root))
+    );
+    assert_eq!(
+        result
+            .arena()
+            .parse_tree_resolver_node(nodes.synthetic_terminal)
+            .unwrap(),
+        None
     );
 }

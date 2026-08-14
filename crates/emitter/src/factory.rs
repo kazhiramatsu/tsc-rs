@@ -264,20 +264,10 @@ impl TransformArena {
         &self,
         node: TransformNode,
     ) -> Result<Option<EmitResolverNode>, TransformError> {
-        let original = self.get_original_node(node);
-        let source = self.source(original.source())?;
-        let record = self.node(original)?;
-        let range = SourceRange::from_raw(record.pos, record.end, source.syntax().positions())
-            .map_err(|error| TransformError::InvalidSourceRange {
-                node: original,
-                error,
-            })?;
-        if !source.contains_parsed_node(original.node())
-            || NodeFlags::from_bits(record.flags).contains(NodeFlags::SYNTHESIZED)
-            || matches!(range, SourceRange::Synthesized)
-        {
+        let Some(original) = self.parse_tree_node(node)? else {
             return Ok(None);
-        }
+        };
+        let source = self.source(original.source())?;
         let program_source = source
             .program_source()
             .ok_or(TransformError::MissingProgramSource(original))?;
@@ -431,6 +421,43 @@ impl TransformArena {
             remaining -= 1;
         }
         node
+    }
+
+    /// Return the first immutable parse-tree identity in an original-node
+    /// chain. This is deliberately different from `get_original_node`, which
+    /// follows the chain to its semantic endpoint: tsc's `getParseTreeNode`
+    /// stops as soon as it reaches a parsed node, even when that node itself
+    /// carries emit-session metadata.
+    ///
+    /// tsc-port: getParseTreeNode @6.0.3
+    /// tsc-hash: b035994937956a4423ea3e73cac6618339c610416a4740d68e02560b96b3422d
+    /// tsc-span: _tsc.js:11423-11435
+    pub(crate) fn parse_tree_node(
+        &self,
+        mut node: TransformNode,
+    ) -> Result<Option<TransformNode>, TransformError> {
+        let mut remaining = self.metadata.len().saturating_add(1);
+        loop {
+            let source = self.source(node.source())?;
+            let record = self.node(node)?;
+            let range = SourceRange::from_raw(record.pos, record.end, source.syntax().positions())
+                .map_err(|error| TransformError::InvalidSourceRange { node, error })?;
+            if source.contains_parsed_node(node.node())
+                && !NodeFlags::from_bits(record.flags).contains(NodeFlags::SYNTHESIZED)
+                && matches!(range, SourceRange::Original(_))
+            {
+                return Ok(Some(node));
+            }
+
+            let Some(original) = self.metadata.get(&node).and_then(EmitMetadata::original) else {
+                return Ok(None);
+            };
+            if remaining == 0 || original == node {
+                return Ok(None);
+            }
+            node = original;
+            remaining -= 1;
+        }
     }
 
     /// tsc-port: setOriginalNode @6.0.3

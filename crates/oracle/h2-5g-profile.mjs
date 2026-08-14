@@ -12,6 +12,68 @@ const CONTRACT_RELATIVE_PATH = ".github/ci/contracts/h2-5g-profile.schema.json";
 const QUALIFICATION_RELATIVE_PATH = "ratchets/h2-5g-qualification.v1.json";
 const OWNER_CONTROLS_RELATIVE_PATH = "ratchets/h2-5g-owner-controls.v1.json";
 const PARENT_PROFILE_RELATIVE_PATH = "ratchets/h2-5f-profile.v1.json";
+const H2_1A_QUALIFICATION_RELATIVE_PATH = "ratchets/h2-1a-qualification.v1.json";
+const H2_1A_QUALIFICATION_SHA256 =
+  "1a1dbd0bd51768f054c1fed51300df8de5211af7e4978f838efe93926bd527e3";
+const H2_1A_CURRENT_EXACT_PROMOTIONS = Object.freeze([
+  Object.freeze({
+    source_phase: "H2.1a",
+    case_id: "typescript-6.0.3/compiler/arrayFromAsync.ts#default",
+    historical_case_fingerprint_sha256:
+      "9f63ee4777950bf7023052d1eef2c48a0fea492820217a9e4ff49cdc86da19aa",
+    historical_disposition: "diagnostic-deferred-output-control",
+    historical_diagnostic_state: "deferred-to-H2.9",
+    current_disposition: "exact-required",
+    exact_reported_diagnostics: 0,
+    exact_writes: 1,
+  }),
+  Object.freeze({
+    source_phase: "H2.1a",
+    case_id:
+      "typescript-6.0.3/compiler/arrayIterationLibES5TargetDifferent.ts#nolib%3Dtrue%2Ctarget%3Desnext",
+    historical_case_fingerprint_sha256:
+      "7d155578b5fa4353d81d2798cdc36d4d55bd5c892e2eec1b5580ad8d89f82292",
+    historical_disposition: "diagnostic-deferred-output-control",
+    historical_diagnostic_state: "deferred-to-H2.9",
+    current_disposition: "exact-required",
+    exact_reported_diagnostics: 11,
+    exact_writes: 1,
+  }),
+  Object.freeze({
+    source_phase: "H2.1a",
+    case_id: "typescript-6.0.3/compiler/mapGroupBy.ts#default",
+    historical_case_fingerprint_sha256:
+      "f0bcdec1d79c70a608fcbbd5ae0629dc5637866d306c5fb1e5ba4a8e8fd371a5",
+    historical_disposition: "diagnostic-deferred-output-control",
+    historical_diagnostic_state: "deferred-to-H2.9",
+    current_disposition: "exact-required",
+    exact_reported_diagnostics: 0,
+    exact_writes: 1,
+  }),
+  Object.freeze({
+    source_phase: "H2.1a",
+    case_id: "typescript-6.0.3/compiler/objectGroupBy.ts#default",
+    historical_case_fingerprint_sha256:
+      "5d4213b87de2c690084a684f590df4e2f4dd16f54789073916e347cd01f13d13",
+    historical_disposition: "diagnostic-deferred-output-control",
+    historical_diagnostic_state: "deferred-to-H2.9",
+    current_disposition: "exact-required",
+    exact_reported_diagnostics: 1,
+    exact_writes: 1,
+  }),
+  Object.freeze({
+    source_phase: "H2.1a",
+    case_id:
+      "typescript-6.0.3/compiler/regularExpressionScanning.ts#target%3Desnext",
+    historical_case_fingerprint_sha256:
+      "991c35eaee4cb7fd5a92b60fd696b3bc1046a36bab6bf25af873dae39ae6a428",
+    historical_disposition: "diagnostic-deferred-output-control",
+    historical_diagnostic_state: "deferred-to-H2.9",
+    current_disposition: "exact-required",
+    exact_reported_diagnostics: 193,
+    exact_writes: 1,
+  }),
+]);
 const TRUSTED_BASE = "11f5d0abb93fed4b109bdb1dc552721ceb05e707";
 
 const HISTORICAL_AUTHORITIES = Object.freeze([
@@ -90,6 +152,7 @@ const NEW_RUNTIME_INPUTS = Object.freeze([
   "crates/emitter/tests/contracts.rs",
   "crates/emitter/tests/integration/token_cursor_contract.rs",
   "crates/emitter/tests/integration/writer_position_contract.rs",
+  "crates/emitter/tests/source_comment_topology_contract.rs",
   "crates/emitter/tests/tsx_type_argument_transform_contract.rs",
   "crates/emitter/tests/unit/builtins/tests.rs",
   "crates/emitter/tests/unit/lib/tests.rs",
@@ -118,6 +181,7 @@ const NEW_RUNTIME_INPUTS = Object.freeze([
   "crates/syntax/src/scanner.rs",
   "crates/syntax/tests/unit/regex/tests.rs",
   "crates/syntax/tests/unit/scanner/tests.rs",
+  "crates/xtask/tests/unit/h2_1a_acceptance/tests.rs",
   "crates/types/src/flags.rs",
 ]);
 
@@ -197,6 +261,7 @@ function buildArtifact() {
   const qualification = readJson(QUALIFICATION_RELATIVE_PATH);
   const ownerControls = readJson(OWNER_CONTROLS_RELATIVE_PATH);
   const parentProfile = readJson(PARENT_PROFILE_RELATIVE_PATH);
+  const h2_1aQualification = readJson(H2_1A_QUALIFICATION_RELATIVE_PATH);
   requireCondition(
     qualification.schema === 1 &&
       qualification.phase === "H2.5g-es2016-target" &&
@@ -288,6 +353,49 @@ function buildArtifact() {
       return [key, record];
     }),
   );
+  const h2_1aQualificationRecord = pathHash(H2_1A_QUALIFICATION_RELATIVE_PATH);
+  requireCondition(
+    h2_1aQualificationRecord.sha256 === H2_1A_QUALIFICATION_SHA256,
+    `${H2_1A_QUALIFICATION_RELATIVE_PATH} historical bytes changed`,
+  );
+  const h2_1aHistoricalControls = h2_1aQualification.cases?.filter(
+    (candidate) => candidate.disposition === "diagnostic-deferred-output-control",
+  );
+  requireCondition(
+    h2_1aHistoricalControls?.length === H2_1A_CURRENT_EXACT_PROMOTIONS.length &&
+      h2_1aHistoricalControls.every((candidate) =>
+        H2_1A_CURRENT_EXACT_PROMOTIONS.some(
+          (promotion) => promotion.case_id === candidate.case_id,
+        ),
+      ),
+    "H2.1a current exact promotion denominator changed",
+  );
+  const h2_1aCurrentExactPromotions = H2_1A_CURRENT_EXACT_PROMOTIONS.map(
+    (promotion) => {
+      const candidate = h2_1aHistoricalControls.find(
+        (candidate) => candidate.case_id === promotion.case_id,
+      );
+      requireCondition(
+        candidate?.case_fingerprint_sha256 ===
+            promotion.historical_case_fingerprint_sha256 &&
+          candidate.disposition === promotion.historical_disposition &&
+          candidate.diagnostic_disposition?.state ===
+            promotion.historical_diagnostic_state &&
+          candidate.typescript_runs?.length === 2 &&
+          candidate.typescript_runs.every(
+            (run) =>
+              run.reported_diagnostics?.length ===
+                promotion.exact_reported_diagnostics &&
+              run.writes?.length === promotion.exact_writes,
+          ),
+        `${promotion.case_id} current exact promotion evidence changed`,
+      );
+      return {
+        ...promotion,
+        historical_qualification: h2_1aQualificationRecord,
+      };
+    },
+  );
   const runtimeInputPaths = [
     ...parentProfile.runtime_inputs.map((record) => record.path),
     ...NEW_RUNTIME_INPUTS,
@@ -314,7 +422,7 @@ function buildArtifact() {
     `H2.5g new runtime inputs are stale ${staleNewRuntimeInputs.join(", ")}`,
   );
   requireCondition(
-    runtimeInputSet.size === 174,
+    runtimeInputSet.size === 176,
     "H2.5g runtime input identity changed",
   );
 
@@ -334,6 +442,7 @@ function buildArtifact() {
           "H2.5f artifacts remain immutable lineage; current runtime ownership transfers to this H2.5g profile",
       },
       qualification: pathHash(QUALIFICATION_RELATIVE_PATH),
+      current_exact_promotions: h2_1aCurrentExactPromotions,
       runtime_inputs: runtimeInputPaths.map(pathHash),
       admitted_profile: {
         execution: "single-project-one-shot-whole-program",
@@ -355,12 +464,12 @@ function buildArtifact() {
           ".ts", ".mts", ".cts", ".tsx", ".js", ".mjs", ".cjs", ".jsx", ".json",
         ],
         products: ["javascript", "mjs", "cjs", "jsx", "json"],
-        exact_cases: 9_191,
+        exact_cases: 9_196,
         h2_5g_exact_cases: 8_511,
-        exact_reported_diagnostics: 28_210,
-        exact_writes: 10_440,
-        diagnostic_deferred_output_controls: 5,
-        diagnostic_control_writes: 5,
+        exact_reported_diagnostics: 28_415,
+        exact_writes: 10_445,
+        diagnostic_deferred_output_controls: 0,
+        diagnostic_control_writes: 0,
         source_deferred_cases: 531,
         candidate_denominator: 9_715,
         h2_5g_candidate_denominator: 9_027,
@@ -433,7 +542,7 @@ function buildArtifact() {
       summary: {
         completed_runtime_slices: 22,
         next_slice_runtime_slice_delta: 0,
-        runtime_admissions: 9_191,
+        runtime_admissions: 9_196,
         executed_candidates: 9_715,
         h2_5g_executed_candidates: 9_027,
         h2_5g_global_future_rows: 2_883,

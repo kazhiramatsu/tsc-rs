@@ -161,8 +161,7 @@ fn module_token_positions_preserve_unicode_comments_once() {
             "comment ownership changed for {marker}:\n{output}",
         );
     }
-    assert!(output.contains("import"), "{output}");
-    assert!(output.contains("export"), "{output}");
+    assert_eq!(output, COMMENTED_MODULES);
 }
 
 #[test]
@@ -315,6 +314,7 @@ fn keyword_expression_tokens_resume_into_their_operands() {
         "/*1*/ typeof /*typeof operand*/ Array /*3*/;\n",
         "/*1*/ void /*void operand*/ Array /*3*/;\n",
         "/*1*/ delete /*delete operand*/ Array.toString /*3*/;\n",
+        "async function awaitValue() { await /*await operand*/ Array /*3*/; }\n",
     );
 
     let output = canonical_identity(
@@ -329,10 +329,57 @@ fn keyword_expression_tokens_resume_into_their_operands() {
         "typeof operand",
         "void operand",
         "delete operand",
+        "await operand",
     ] {
         assert_eq!(output.matches(marker).count(), 1, "{marker}:\n{output}");
     }
     assert_eq!(output, source);
+}
+
+#[test]
+fn await_keyword_owns_the_frozen_inner_comment_boundary() {
+    let source = concat!(
+        "async function foo() {\n",
+        "    /*comment1*/ await 1;\n",
+        "    await /*comment2*/ 2;\n",
+        "    await 3 /*comment3*/\n",
+        "}\n",
+    );
+    let output = canonical_identity(
+        "awaitExpressionInnerCommentEmit.ts",
+        source,
+        LanguageVariant::Standard,
+        false,
+    );
+
+    assert_eq!(
+        output,
+        concat!(
+            "async function foo() {\n",
+            "    /*comment1*/ await 1;\n",
+            "    await /*comment2*/ 2;\n",
+            "    await 3; /*comment3*/\n",
+            "}\n",
+        )
+    );
+    for marker in ["comment1", "comment2", "comment3"] {
+        assert_eq!(output.matches(marker).count(), 1, "{marker}:\n{output}");
+    }
+}
+
+#[test]
+fn nested_await_comments_resume_once_and_remove_cleanly() {
+    let source = "async function f() { await /*outer*/ await /*inner*/ 0; }\n";
+    let output = canonical_identity("nested-await.ts", source, LanguageVariant::Standard, false);
+
+    assert_eq!(output, source);
+    for marker in ["outer", "inner"] {
+        assert_eq!(output.matches(marker).count(), 1, "{marker}:\n{output}");
+    }
+    assert_eq!(
+        canonical_identity("nested-await.ts", source, LanguageVariant::Standard, true,),
+        "async function f() { await await 0; }\n"
+    );
 }
 
 #[test]

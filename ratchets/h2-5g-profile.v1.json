@@ -17,11 +17,11 @@
   },
   "generator": {
     "path": "crates/oracle/h2-5g-profile.mjs",
-    "sha256": "de720b6c436bb33317340abdb5faef4352c5869dadf366739d5d88eb2126d95b"
+    "sha256": "6e77798474bca2f39c4f6cfcc17222eb39591fea488e017e21b4802c73ee1af5"
   },
   "contract": {
     "path": ".github/ci/contracts/h2-5g-profile.schema.json",
-    "sha256": "9514f2d323d32c723de22e499a2aa80dc9a94e14a872da9b944b8b0b2ffa6380"
+    "sha256": "43278dcdcc4070a7291f621355e8c0c304d7b6482bfbae69e268aa4ec1e47062"
   },
   "origin": {
     "trusted_h2_5f_merge": "11f5d0abb93fed4b109bdb1dc552721ceb05e707",
@@ -69,6 +69,78 @@
     "path": "ratchets/h2-5g-qualification.v1.json",
     "sha256": "cc8f39605bc09bc28a2a3c7af8b562a11328ff6aafb01d27e7c19dfe0af319ec"
   },
+  "current_exact_promotions": [
+    {
+      "source_phase": "H2.1a",
+      "case_id": "typescript-6.0.3/compiler/arrayFromAsync.ts#default",
+      "historical_case_fingerprint_sha256": "9f63ee4777950bf7023052d1eef2c48a0fea492820217a9e4ff49cdc86da19aa",
+      "historical_disposition": "diagnostic-deferred-output-control",
+      "historical_diagnostic_state": "deferred-to-H2.9",
+      "current_disposition": "exact-required",
+      "exact_reported_diagnostics": 0,
+      "exact_writes": 1,
+      "historical_qualification": {
+        "path": "ratchets/h2-1a-qualification.v1.json",
+        "sha256": "1a1dbd0bd51768f054c1fed51300df8de5211af7e4978f838efe93926bd527e3"
+      }
+    },
+    {
+      "source_phase": "H2.1a",
+      "case_id": "typescript-6.0.3/compiler/arrayIterationLibES5TargetDifferent.ts#nolib%3Dtrue%2Ctarget%3Desnext",
+      "historical_case_fingerprint_sha256": "7d155578b5fa4353d81d2798cdc36d4d55bd5c892e2eec1b5580ad8d89f82292",
+      "historical_disposition": "diagnostic-deferred-output-control",
+      "historical_diagnostic_state": "deferred-to-H2.9",
+      "current_disposition": "exact-required",
+      "exact_reported_diagnostics": 11,
+      "exact_writes": 1,
+      "historical_qualification": {
+        "path": "ratchets/h2-1a-qualification.v1.json",
+        "sha256": "1a1dbd0bd51768f054c1fed51300df8de5211af7e4978f838efe93926bd527e3"
+      }
+    },
+    {
+      "source_phase": "H2.1a",
+      "case_id": "typescript-6.0.3/compiler/mapGroupBy.ts#default",
+      "historical_case_fingerprint_sha256": "f0bcdec1d79c70a608fcbbd5ae0629dc5637866d306c5fb1e5ba4a8e8fd371a5",
+      "historical_disposition": "diagnostic-deferred-output-control",
+      "historical_diagnostic_state": "deferred-to-H2.9",
+      "current_disposition": "exact-required",
+      "exact_reported_diagnostics": 0,
+      "exact_writes": 1,
+      "historical_qualification": {
+        "path": "ratchets/h2-1a-qualification.v1.json",
+        "sha256": "1a1dbd0bd51768f054c1fed51300df8de5211af7e4978f838efe93926bd527e3"
+      }
+    },
+    {
+      "source_phase": "H2.1a",
+      "case_id": "typescript-6.0.3/compiler/objectGroupBy.ts#default",
+      "historical_case_fingerprint_sha256": "5d4213b87de2c690084a684f590df4e2f4dd16f54789073916e347cd01f13d13",
+      "historical_disposition": "diagnostic-deferred-output-control",
+      "historical_diagnostic_state": "deferred-to-H2.9",
+      "current_disposition": "exact-required",
+      "exact_reported_diagnostics": 1,
+      "exact_writes": 1,
+      "historical_qualification": {
+        "path": "ratchets/h2-1a-qualification.v1.json",
+        "sha256": "1a1dbd0bd51768f054c1fed51300df8de5211af7e4978f838efe93926bd527e3"
+      }
+    },
+    {
+      "source_phase": "H2.1a",
+      "case_id": "typescript-6.0.3/compiler/regularExpressionScanning.ts#target%3Desnext",
+      "historical_case_fingerprint_sha256": "991c35eaee4cb7fd5a92b60fd696b3bc1046a36bab6bf25af873dae39ae6a428",
+      "historical_disposition": "diagnostic-deferred-output-control",
+      "historical_diagnostic_state": "deferred-to-H2.9",
+      "current_disposition": "exact-required",
+      "exact_reported_diagnostics": 193,
+      "exact_writes": 1,
+      "historical_qualification": {
+        "path": "ratchets/h2-1a-qualification.v1.json",
+        "sha256": "1a1dbd0bd51768f054c1fed51300df8de5211af7e4978f838efe93926bd527e3"
+      }
+    }
+  ],
   "runtime_inputs": [
     {
       "path": "crates/checker/src/emit.rs",
@@ -132,7 +204,7 @@
     },
     {
       "path": "crates/emitter/src/factory.rs",
-      "sha256": "1967ed18e3fa376e91ca765751d9999be0f66e4e5703e8188445470ae63bbb74"
+      "sha256": "a831c0489ed432e9dd121bc3b77c11b21b9f0d0eb9b11e6f4fc644819287a382"
     },
     {
       "path": "crates/emitter/src/host.rs",
@@ -152,7 +224,7 @@
     },
     {
       "path": "crates/emitter/src/printer.rs",
-      "sha256": "7350d83f7a63713ff20155ad6f449302c5e3c072c50efce39636cbcde28fb944"
+      "sha256": "2a88d4de9e1fa3948e0f0ab43ec34e06e2867f6efa4ff3a0679a983e91cbef3b"
     },
     {
       "path": "crates/emitter/src/resolver.rs",
@@ -164,7 +236,7 @@
     },
     {
       "path": "crates/emitter/tests/integration/active_transform_contract.rs",
-      "sha256": "2d4ae4e2c0bf7e3590e37b94c2ebe1f84c403ee64f96ac4337a37d2363274991"
+      "sha256": "7f2b7889b56e686571f2f9b2e6e7f5db78db2d23ad27640da7a5f31fdd8ed667"
     },
     {
       "path": "crates/emitter/tests/integration/output_plan_contract.rs",
@@ -220,7 +292,7 @@
     },
     {
       "path": "crates/xtask/src/h2_1a_acceptance.rs",
-      "sha256": "bfaebf6cfcaa67c5f0f357311121b12d5014fc3f6e224333046949c93f881123"
+      "sha256": "f3897a488fd058eb1abf0303ad62df593bc696308a4f11bd5200a9d29f332546"
     },
     {
       "path": "crates/xtask/src/h2_1b_acceptance.rs",
@@ -376,7 +448,7 @@
     },
     {
       "path": "crates/emitter/tests/integration/factory_transform_contract.rs",
-      "sha256": "64610095b10e65c88f0299b1b5382f015de3c0d9c71db7222dbff5b18980a795"
+      "sha256": "11c186ccc23cee5f703e27ecf80e54fc2c83cf6e12509d4445f44f0c58f630ab"
     },
     {
       "path": "crates/emitter/tests/integration/printer_foundation_contract.rs",
@@ -644,11 +716,15 @@
     },
     {
       "path": "crates/emitter/tests/integration/token_cursor_contract.rs",
-      "sha256": "25df8b51b89cf1794ea4092da79cd8fde6b7a4ccfacbdce57093a43f2fafaafc"
+      "sha256": "33ae71b7439dcece3d1512437e586dabd33262f7fa5f7ed79dc5f7566de8977a"
     },
     {
       "path": "crates/emitter/tests/integration/writer_position_contract.rs",
       "sha256": "cabbf95b98915988589754ad79a0f4ea32db590d019b7eda85670bb422750b7b"
+    },
+    {
+      "path": "crates/emitter/tests/source_comment_topology_contract.rs",
+      "sha256": "dd2de3682bd069ca30494cd38cbccafb86326a4a6af95c95810d3d5cab6f99f4"
     },
     {
       "path": "crates/emitter/tests/tsx_type_argument_transform_contract.rs",
@@ -763,6 +839,10 @@
       "sha256": "7696f0ec129dbcd41ae775b83e89149a17cb7676fd12979c62bc39b03b89bc07"
     },
     {
+      "path": "crates/xtask/tests/unit/h2_1a_acceptance/tests.rs",
+      "sha256": "7aed443f78c2c566fe00ae577cddbd9bde7e8388dabe6549e6176c0ac8b839a8"
+    },
+    {
       "path": "crates/types/src/flags.rs",
       "sha256": "cbd7915f38c2715d426f3d53cd9a5dd6483f4cfb287a14f0b2f37d830bc96d7a"
     }
@@ -825,12 +905,12 @@
       "jsx",
       "json"
     ],
-    "exact_cases": 9191,
+    "exact_cases": 9196,
     "h2_5g_exact_cases": 8511,
-    "exact_reported_diagnostics": 28210,
-    "exact_writes": 10440,
-    "diagnostic_deferred_output_controls": 5,
-    "diagnostic_control_writes": 5,
+    "exact_reported_diagnostics": 28415,
+    "exact_writes": 10445,
+    "diagnostic_deferred_output_controls": 0,
+    "diagnostic_control_writes": 0,
     "source_deferred_cases": 531,
     "candidate_denominator": 9715,
     "h2_5g_candidate_denominator": 9027,
@@ -942,7 +1022,7 @@
   "summary": {
     "completed_runtime_slices": 22,
     "next_slice_runtime_slice_delta": 0,
-    "runtime_admissions": 9191,
+    "runtime_admissions": 9196,
     "executed_candidates": 9715,
     "h2_5g_executed_candidates": 9027,
     "h2_5g_global_future_rows": 2883,
@@ -950,5 +1030,5 @@
     "undispositioned_candidates": 0,
     "historical_artifacts_reinterpreted": 0
   },
-  "profile_fingerprint_sha256": "f7fd05118050a8d860c6cc1155d0e0194458fbe208dfd74363dbca936226286e"
+  "profile_fingerprint_sha256": "3028c4cc380cfc028e1d444ce0c4123b1929c3cbecd9990e1749118994be7c8d"
 }

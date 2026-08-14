@@ -24,6 +24,52 @@ const H2_2C_QUALIFICATION_RELATIVE_PATH: &str = "ratchets/h2-2c-qualification.v1
 const H2_2D_QUALIFICATION_RELATIVE_PATH: &str = "ratchets/h2-2d-qualification.v1.json";
 const H2_4B_QUALIFICATION_RELATIVE_PATH: &str = "ratchets/h2-4b-qualification.v1.json";
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+struct CurrentExactDiagnosticPromotion {
+    case_id: &'static str,
+    case_fingerprint_sha256: &'static str,
+    expected_reported_diagnostics: usize,
+    expected_writes: usize,
+}
+
+static CURRENT_EXACT_DIAGNOSTIC_PROMOTIONS: &[CurrentExactDiagnosticPromotion] = &[
+    CurrentExactDiagnosticPromotion {
+        case_id: "typescript-6.0.3/compiler/arrayFromAsync.ts#default",
+        case_fingerprint_sha256:
+            "9f63ee4777950bf7023052d1eef2c48a0fea492820217a9e4ff49cdc86da19aa",
+        expected_reported_diagnostics: 0,
+        expected_writes: 1,
+    },
+    CurrentExactDiagnosticPromotion {
+        case_id: "typescript-6.0.3/compiler/arrayIterationLibES5TargetDifferent.ts#nolib%3Dtrue%2Ctarget%3Desnext",
+        case_fingerprint_sha256:
+            "7d155578b5fa4353d81d2798cdc36d4d55bd5c892e2eec1b5580ad8d89f82292",
+        expected_reported_diagnostics: 11,
+        expected_writes: 1,
+    },
+    CurrentExactDiagnosticPromotion {
+        case_id: "typescript-6.0.3/compiler/mapGroupBy.ts#default",
+        case_fingerprint_sha256:
+            "f0bcdec1d79c70a608fcbbd5ae0629dc5637866d306c5fb1e5ba4a8e8fd371a5",
+        expected_reported_diagnostics: 0,
+        expected_writes: 1,
+    },
+    CurrentExactDiagnosticPromotion {
+        case_id: "typescript-6.0.3/compiler/objectGroupBy.ts#default",
+        case_fingerprint_sha256:
+            "5d4213b87de2c690084a684f590df4e2f4dd16f54789073916e347cd01f13d13",
+        expected_reported_diagnostics: 1,
+        expected_writes: 1,
+    },
+    CurrentExactDiagnosticPromotion {
+        case_id: "typescript-6.0.3/compiler/regularExpressionScanning.ts#target%3Desnext",
+        case_fingerprint_sha256:
+            "991c35eaee4cb7fd5a92b60fd696b3bc1046a36bab6bf25af873dae39ae6a428",
+        expected_reported_diagnostics: 193,
+        expected_writes: 1,
+    },
+];
+
 fn failure(message: impl Into<String>) -> Box<dyn Error> {
     std::io::Error::other(message.into()).into()
 }
@@ -260,10 +306,55 @@ fn assert_base_diagnostic_control(
     Ok(())
 }
 
+fn current_exact_diagnostic_promotion(
+    case: &Value,
+) -> Result<Option<&'static CurrentExactDiagnosticPromotion>, Box<dyn Error>> {
+    let case_id = string(case, "case_id")?;
+    let Some(promotion) = CURRENT_EXACT_DIAGNOSTIC_PROMOTIONS
+        .iter()
+        .find(|promotion| promotion.case_id == case_id)
+    else {
+        return Ok(None);
+    };
+    if case["case_fingerprint_sha256"] != promotion.case_fingerprint_sha256
+        || case["disposition"] != "diagnostic-deferred-output-control"
+        || case["diagnostic_disposition"]["state"] != "deferred-to-H2.9"
+        || array(case, "typescript_runs")?.len() != 2
+        || array(case, "typescript_runs")?.iter().any(|run| {
+            run["reported_diagnostics"]
+                .as_array()
+                .is_none_or(|diagnostics| {
+                    diagnostics.len() != promotion.expected_reported_diagnostics
+                })
+                || run["writes"]
+                    .as_array()
+                    .is_none_or(|writes| writes.len() != promotion.expected_writes)
+        })
+    {
+        return Err(failure(format!(
+            "{case_id}: current exact diagnostic promotion identity changed"
+        )));
+    }
+    Ok(Some(promotion))
+}
+
+#[derive(Clone, Copy)]
+enum DiagnosticExpectation {
+    Exact,
+    HistoricalBaseControl,
+    CurrentExactPromotion,
+}
+
+impl DiagnosticExpectation {
+    fn is_exact(self) -> bool {
+        !matches!(self, Self::HistoricalBaseControl)
+    }
+}
+
 fn execute_observed(
     workspace: &Path,
     case: &Value,
-    exact_diagnostics: bool,
+    diagnostic_expectation: DiagnosticExpectation,
 ) -> Result<(usize, usize), Box<dyn Error>> {
     let case_id = string(case, "case_id")?;
     let mut first_sink = MemoryOutputSink::new();
@@ -281,21 +372,33 @@ fn execute_observed(
     }
     let expected = &array(case, "typescript_runs")?[0];
     let expected_reported = array(expected, "reported_diagnostics")?;
-    if exact_diagnostics {
-        if case["diagnostic_disposition"]["state"] != "exact-required" {
-            return Err(failure(format!(
-                "{case_id}: exact case lacks its diagnostic disposition"
-            )));
+    match diagnostic_expectation {
+        DiagnosticExpectation::Exact => {
+            if case["diagnostic_disposition"]["state"] != "exact-required" {
+                return Err(failure(format!(
+                    "{case_id}: exact case lacks its diagnostic disposition"
+                )));
+            }
+            assert_reported_diagnostics(case_id, expected_reported, &first_reported)?;
         }
-        assert_reported_diagnostics(case_id, expected_reported, &first_reported)?;
-    } else {
-        if case["diagnostic_disposition"]["state"] != "deferred-to-H2.9" {
-            return Err(failure(format!(
-                "{case_id}: output control lacks its diagnostic disposition"
-            )));
+        DiagnosticExpectation::HistoricalBaseControl => {
+            if case["diagnostic_disposition"]["state"] != "deferred-to-H2.9" {
+                return Err(failure(format!(
+                    "{case_id}: output control lacks its diagnostic disposition"
+                )));
+            }
+            assert_base_diagnostic_control(case_id, case, expected_reported, &first_reported)?;
         }
-        assert_base_diagnostic_control(case_id, case, expected_reported, &first_reported)?;
+        DiagnosticExpectation::CurrentExactPromotion => {
+            if current_exact_diagnostic_promotion(case)?.is_none() {
+                return Err(failure(format!(
+                    "{case_id}: exact diagnostic promotion is not recorded"
+                )));
+            }
+            assert_reported_diagnostics(case_id, expected_reported, &first_reported)?;
+        }
     }
+    let exact_diagnostics = diagnostic_expectation.is_exact();
     let actual_exit_code = if first.emit_skipped() && !first_reported.is_empty() {
         1
     } else if !first_reported.is_empty() {
@@ -538,9 +641,10 @@ fn promoted_to_h2_4b(case: &Value, h2_4b_cases: &[Value]) -> Result<bool, Box<dy
 }
 
 /// Validate all 295 historical H2.1a dispositions. Fully admitted rows compare
-/// every TypeScript observable twice, five trusted-base diagnostic controls
-/// retain exact output but no compatibility admission, and still-deferred rows
-/// prove deterministic typed failure before the first sink callback twice.
+/// every TypeScript observable twice. The frozen artifact retains five
+/// trusted-base diagnostic controls; the current acceptance view promotes all
+/// five reviewed closures to exact. Still-deferred rows prove deterministic
+/// typed failure before the first sink callback twice.
 /// Rows promoted by H2.1e, H2.2a-H2.2d, or H2.4b are joined to those exact
 /// qualifications and executed by their acceptance gates later in the same
 /// hosted command.
@@ -598,16 +702,32 @@ pub fn run(workspace: &Path) -> Result<(), Box<dyn Error>> {
         match string(case, "disposition")? {
             "admitted-for-execution" => {
                 admitted += 1;
-                let (case_writes, case_diagnostics) = execute_observed(workspace, case, true)?;
+                let (case_writes, case_diagnostics) =
+                    execute_observed(workspace, case, DiagnosticExpectation::Exact)?;
                 writes += case_writes;
                 diagnostics += case_diagnostics;
             }
             "diagnostic-deferred-output-control" => {
-                output_controls += 1;
-                let (case_writes, case_diagnostics) = execute_observed(workspace, case, false)?;
-                control_writes += case_writes;
-                if case_diagnostics != 0 {
-                    return Err(failure("diagnostic output control counted as exact"));
+                if current_exact_diagnostic_promotion(case)?.is_some() {
+                    admitted += 1;
+                    let (case_writes, case_diagnostics) = execute_observed(
+                        workspace,
+                        case,
+                        DiagnosticExpectation::CurrentExactPromotion,
+                    )?;
+                    writes += case_writes;
+                    diagnostics += case_diagnostics;
+                } else {
+                    output_controls += 1;
+                    let (case_writes, case_diagnostics) = execute_observed(
+                        workspace,
+                        case,
+                        DiagnosticExpectation::HistoricalBaseControl,
+                    )?;
+                    control_writes += case_writes;
+                    if case_diagnostics != 0 {
+                        return Err(failure("diagnostic output control counted as exact"));
+                    }
                 }
             }
             "deferred-to-slices" => {
@@ -631,12 +751,12 @@ pub fn run(workspace: &Path) -> Result<(), Box<dyn Error>> {
             disposition => return Err(failure(format!("unknown H2.1a disposition {disposition}"))),
         }
     }
-    if admitted != 241
-        || output_controls != 5
+    if admitted != 246
+        || output_controls != 0
         || source_deferred != 49
-        || writes != 251
-        || control_writes != 5
-        || diagnostics != 499
+        || writes != 256
+        || control_writes != 0
+        || diagnostics != 704
     {
         return Err(failure(format!(
             "H2.1a execution totals differ: admitted={admitted} output_controls={output_controls} source_deferred={source_deferred} writes={writes} control_writes={control_writes} diagnostics={diagnostics}"

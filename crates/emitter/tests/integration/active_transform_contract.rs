@@ -2878,6 +2878,97 @@ fn erased_parenthesized_arrow_body_preserves_its_no_asi_comment() {
 }
 
 #[test]
+fn no_asi_projection_preserves_parsed_parenthesis_token_comments() {
+    let source = concat!(
+        "function open(a: any) { return (//open\n a as any); }\n",
+        "function both(a: any) { return (/*open-block*/\n//lead\n a as any /*close*/); }\n",
+    );
+
+    assert_eq!(
+        transform_and_print_canonical_at_target(source, ScriptTarget::ES_NEXT),
+        concat!(
+            "function open(a) {\n",
+            "    return ( //open\n",
+            "    a);\n",
+            "}\n",
+            "function both(a) {\n",
+            "    return ( /*open-block*/\n",
+            "    //lead\n",
+            "    a /*close*/);\n",
+            "}\n",
+        ),
+    );
+}
+
+#[test]
+fn return_and_yield_no_asi_parentheses_follow_erased_left_edges() {
+    let source = concat!(
+        "function returns(a: any, b: any, c: any, k: any) {\n",
+        "    return (\n        // r-direct\n        a as any);\n",
+        "    return (\n        // r-property\n        a as any).b;\n",
+        "    return (\n        // r-element\n        a as any)[k];\n",
+        "    return (\n        // r-call\n        a as any)();\n",
+        "    return (\n        // r-tagged\n        a as any)`x`;\n",
+        "    return (\n        // r-binary\n        a as any) + b;\n",
+        "    return (\n        // r-conditional\n        a as any) ? b : c;\n",
+        "    return (\n        // r-nested-as\n        a as any) as unknown;\n",
+        "    return (\n        // r-satisfies\n        a as any) satisfies unknown;\n",
+        "    return (\n        // r-non-null\n        a as any)!;\n",
+        "    return (/* r-block */ a as any).b;\n",
+        "    return (\n        /* r-newline-block */\n        a as any).b;\n",
+        "}\n",
+        "function* yields(a: any, b: any, c: any, k: any) {\n",
+        "    yield (\n        // y-direct\n        a as any);\n",
+        "    yield (\n        // y-property\n        a as any).b;\n",
+        "    yield (\n        // y-element\n        a as any)[k];\n",
+        "    yield (\n        // y-call\n        a as any)();\n",
+        "    yield (\n        // y-tagged\n        a as any)`x`;\n",
+        "    yield (\n        // y-binary\n        a as any) + b;\n",
+        "    yield (\n        // y-conditional\n        a as any) ? b : c;\n",
+        "    yield (\n        // y-nested-as\n        a as any) as unknown;\n",
+        "    yield (\n        // y-satisfies\n        a as any) satisfies unknown;\n",
+        "    yield (\n        // y-non-null\n        a as any)!;\n",
+        "    yield (/* y-block */ a as any).b;\n",
+        "    yield (\n        /* y-newline-block */\n        a as any).b;\n",
+        "}\n",
+    );
+
+    assert_eq!(
+        transform_and_print_canonical_at_target(source, ScriptTarget::ES_NEXT),
+        concat!(
+            "function returns(a, b, c, k) {\n",
+            "    return (\n    // r-direct\n    a);\n",
+            "    return (\n    // r-property\n    a).b;\n",
+            "    return (\n    // r-element\n    a)[k];\n",
+            "    return (\n    // r-call\n    a)();\n",
+            "    return (\n    // r-tagged\n    a) `x`;\n",
+            "    return (\n    // r-binary\n    a) + b;\n",
+            "    return (\n    // r-conditional\n    a) ? b : c;\n",
+            "    return (\n    // r-nested-as\n    a);\n",
+            "    return (\n    // r-satisfies\n    a);\n",
+            "    return (\n    // r-non-null\n    a);\n",
+            "    return /* r-block */ a.b;\n",
+            "    return (\n    /* r-newline-block */\n    a).b;\n",
+            "}\n",
+            "function* yields(a, b, c, k) {\n",
+            "    yield (\n    // y-direct\n    a);\n",
+            "    yield (\n    // y-property\n    a).b;\n",
+            "    yield (\n    // y-element\n    a)[k];\n",
+            "    yield (\n    // y-call\n    a)();\n",
+            "    yield (\n    // y-tagged\n    a) `x`;\n",
+            "    yield (\n    // y-binary\n    a) + b;\n",
+            "    yield (\n    // y-conditional\n    a) ? b : c;\n",
+            "    yield (\n    // y-nested-as\n    a);\n",
+            "    yield (\n    // y-satisfies\n    a);\n",
+            "    yield (\n    // y-non-null\n    a);\n",
+            "    yield /* y-block */ a.b;\n",
+            "    yield (\n    /* y-newline-block */\n    a).b;\n",
+            "}\n",
+        ),
+    );
+}
+
+#[test]
 fn partially_emitted_satisfies_wrappers_preserve_inner_comments() {
     assert_eq!(
         transform_and_print_canonical_at_target(
@@ -4680,6 +4771,49 @@ fn es2015_class_bindings_created_in_parameters_move_defaults_to_the_body() {
     assert!(declaration < value_default && value_default < later_default);
     assert!(output.contains("__setFunctionName(_a, \"value\")"));
     assert!(!output.contains("function f(value ="));
+}
+
+#[test]
+fn esnext_accesses_and_calls_distinguish_optional_chain_continuations_from_chain_breaks() {
+    assert_eq!(
+        transform_and_print_canonical_at_target(
+            concat!(
+                "const key = \"x\";\n",
+                "const propertyAfterPropertyContinuation = this?.x.y;\n",
+                "const elementAfterPropertyContinuation = this?.x[key];\n",
+                "const propertyAfterElementContinuation = this?.[key].y;\n",
+                "const elementAfterElementContinuation = this?.[key][key];\n",
+                "const propertyContinuation = this?.x();\n",
+                "const elementContinuation = this?.[key]();\n",
+                "const optionalCall = this.x?.();\n",
+                "const explicitPropertyAccessBreak = (this?.x).y;\n",
+                "const explicitElementAccessBreak = (this?.x)[key];\n",
+                "const explicitPropertyBreak = (this?.x)();\n",
+                "const explicitElementBreak = (this?.[key])();\n",
+                "const generatedPropertyAccessBreak = (this?.x as any).y;\n",
+                "const generatedElementAccessBreak = (this?.[key] as any)[key];\n",
+                "const generatedOrdinaryCall = (this?.x as any)();\n",
+            ),
+            ScriptTarget::ES_NEXT,
+        ),
+        concat!(
+            "const key = \"x\";\n",
+            "const propertyAfterPropertyContinuation = this?.x.y;\n",
+            "const elementAfterPropertyContinuation = this?.x[key];\n",
+            "const propertyAfterElementContinuation = this?.[key].y;\n",
+            "const elementAfterElementContinuation = this?.[key][key];\n",
+            "const propertyContinuation = this?.x();\n",
+            "const elementContinuation = this?.[key]();\n",
+            "const optionalCall = this.x?.();\n",
+            "const explicitPropertyAccessBreak = (this?.x).y;\n",
+            "const explicitElementAccessBreak = (this?.x)[key];\n",
+            "const explicitPropertyBreak = (this?.x)();\n",
+            "const explicitElementBreak = (this?.[key])();\n",
+            "const generatedPropertyAccessBreak = (this?.x).y;\n",
+            "const generatedElementAccessBreak = (this?.[key])[key];\n",
+            "const generatedOrdinaryCall = (this?.x)();\n",
+        ),
+    );
 }
 
 #[test]
