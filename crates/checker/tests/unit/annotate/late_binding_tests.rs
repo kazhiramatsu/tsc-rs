@@ -96,6 +96,25 @@ fn triple_duplicate_late_bound_member_reports_against_the_first() {
 }
 
 #[test]
+fn class_self_reference_in_computed_names_keeps_early_static_members_visible() {
+    // During resolvedExports late binding, checking `[A.p1]` re-enters the
+    // constructor type. The parked early export table must already expose
+    // p1/p2, so the only diagnostics are the class-TDZ reports on `A`.
+    let text = "class A {\n\
+                static readonly p1 = \"x\";\n\
+                static readonly p2 = \"y\";\n\
+                static readonly [A.p1] = 0;\n\
+                static [A.p2]() { return 0 };\n\
+                [A.p1]() {}\n\
+                [A.p2] = 0;\n\
+            }";
+    assert_eq!(
+        checked_rows(text),
+        [(2449, 79, 1), (2449, 98, 1), (2449, 121, 1), (2449, 133, 1)]
+    );
+}
+
+#[test]
 fn late_bound_index_info_includes_sibling_property_types() {
     let text = "declare const k: string;\n\
                 type T = { [k]: number; x: string };\n\

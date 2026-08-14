@@ -150,6 +150,86 @@ fn validates_groups_backreferences_and_subpattern_modifiers() {
 }
 
 #[test]
+fn validates_control_escape_boundaries_and_recovery() {
+    assert!(
+        diagnostics_for("/\\cA\\cz[\\cB\\cy]/u", ScriptTarget::ES_NEXT).is_empty(),
+        "ASCII letters are valid control-escape operands"
+    );
+
+    assert_eq!(
+        diagnostics_for("/\\c0\\c_\\c/u", ScriptTarget::ES_NEXT)
+            .iter()
+            .map(|diagnostic| (
+                diagnostic.message.code,
+                diagnostic.start_utf16,
+                diagnostic.length_utf16,
+            ))
+            .collect::<Vec<_>>(),
+        vec![
+            (
+                diagnostics::c_must_be_followed_by_an_ASCII_letter.code,
+                1,
+                2
+            ),
+            (
+                diagnostics::c_must_be_followed_by_an_ASCII_letter.code,
+                4,
+                2
+            ),
+            (
+                diagnostics::c_must_be_followed_by_an_ASCII_letter.code,
+                7,
+                2
+            ),
+        ]
+    );
+
+    for (literal, control_start, identity_start) in [("/\\c\\`/u", 1, 3), ("/[\\c\\`]/u", 2, 4)] {
+        assert_eq!(
+            diagnostics_for(literal, ScriptTarget::ES_NEXT)
+                .iter()
+                .map(|diagnostic| (
+                    diagnostic.message.code,
+                    diagnostic.start_utf16,
+                    diagnostic.length_utf16,
+                ))
+                .collect::<Vec<_>>(),
+            vec![
+                (
+                    diagnostics::c_must_be_followed_by_an_ASCII_letter.code,
+                    control_start,
+                    2,
+                ),
+                (
+                    diagnostics::This_character_cannot_be_escaped_in_a_regular_expression.code,
+                    identity_start,
+                    2,
+                ),
+            ],
+            "the invalid control escape must not consume its backslash follower: {literal}"
+        );
+    }
+
+    assert!(diagnostics_for("/\\c\\`/", ScriptTarget::ES_NEXT).is_empty());
+    assert!(diagnostics_for("/[\\c\\`]/", ScriptTarget::ES_NEXT).is_empty());
+}
+
+#[test]
+fn rejects_all_identity_escapes_in_unicode_modes() {
+    for literal in ["/\\`/u", "/\\`/v"] {
+        let actual = diagnostics_for(literal, ScriptTarget::ES_NEXT);
+        assert_eq!(actual.len(), 1, "{literal}");
+        assert_eq!(
+            actual[0].message,
+            &diagnostics::This_character_cannot_be_escaped_in_a_regular_expression
+        );
+        assert_eq!((actual[0].start_utf16, actual[0].length_utf16), (1, 2));
+    }
+
+    assert!(diagnostics_for("/\\`/", ScriptTarget::ES_NEXT).is_empty());
+}
+
+#[test]
 fn validates_classes_sets_and_unicode_properties() {
     assert_eq!(
         codes("/[z-a]/u", ScriptTarget::ES_NEXT),

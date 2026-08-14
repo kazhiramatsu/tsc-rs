@@ -1,4 +1,4 @@
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(super) struct GeneratedBindingScopeId(usize);
@@ -24,16 +24,15 @@ struct GeneratedBindingScope {
     names_reserved_in_descendants: Vec<String>,
     bindings: Vec<String>,
     next_temp_ordinal: usize,
+    private_names: Vec<String>,
+    private_names_reserved_in_descendants: Vec<String>,
+    private_temp_ordinals: BTreeMap<String, usize>,
 }
 
 #[derive(Debug, Default)]
 pub(super) struct GeneratedBindings(Vec<String>);
 
 impl GeneratedBindings {
-    pub(super) fn is_empty(&self) -> bool {
-        self.0.is_empty()
-    }
-
     pub(super) fn names(&self) -> &[String] {
         &self.0
     }
@@ -71,6 +70,9 @@ impl GeneratedBindingScopes {
                 names_reserved_in_descendants: Vec::new(),
                 bindings: Vec::new(),
                 next_temp_ordinal: 0,
+                private_names: Vec::new(),
+                private_names_reserved_in_descendants: Vec::new(),
+                private_temp_ordinals: BTreeMap::new(),
             }],
             current: GeneratedBindingScopeId(0),
         }
@@ -89,6 +91,9 @@ impl GeneratedBindingScopes {
             names_reserved_in_descendants: Vec::new(),
             bindings: Vec::new(),
             next_temp_ordinal: 0,
+            private_names: Vec::new(),
+            private_names_reserved_in_descendants: Vec::new(),
+            private_temp_ordinals: BTreeMap::new(),
         });
         self.current = scope;
         (previous, scope)
@@ -152,17 +157,84 @@ impl GeneratedBindingScopes {
         }
     }
 
-    pub(super) fn allocate_preferred(&mut self, preferred: String) -> String {
-        if self.reserve_in_current(preferred.clone(), true, false) {
-            return preferred;
+    /// Allocates the generated private name used for a source-named role such
+    /// as an auto-accessor backing field. Private generated names have their
+    /// own collision namespace in tsc; the collision ordinal belongs to the
+    /// source name and is inserted before the role suffix.
+    pub(super) fn allocate_private_preferred_with_role_suffix(
+        &mut self,
+        preferred: &str,
+        role_suffix: &str,
+        locally_reserved: &BTreeSet<String>,
+    ) -> String {
+        let preferred = preferred.trim_start_matches('#');
+        let candidate = format!("{preferred}{role_suffix}");
+        if !locally_reserved.contains(&candidate)
+            && self.reserve_private_in_current(candidate.clone())
+        {
+            return candidate;
         }
-        let mut suffix = 1usize;
+        let mut ordinal = 1usize;
         loop {
-            let candidate = format!("{preferred}_{suffix}");
-            if self.reserve_in_current(candidate.clone(), true, false) {
+            let candidate = format!("{preferred}_{ordinal}{role_suffix}");
+            if !locally_reserved.contains(&candidate)
+                && self.reserve_private_in_current(candidate.clone())
+            {
                 return candidate;
             }
-            suffix += 1;
+            ordinal += 1;
+        }
+    }
+
+    /// Allocates a formatted private temp (`_a`, `_b`, ...) for a generated
+    /// role suffix. tsc tracks a separate temp sequence for each formatted
+    /// prefix/suffix pair, so these names do not consume ordinary `_a` temps.
+    pub(super) fn allocate_private_temp_with_role_suffix(
+        &mut self,
+        role_suffix: &str,
+        locally_reserved: &BTreeSet<String>,
+    ) -> String {
+        loop {
+            let ordinal = {
+                let next = self.scopes[self.current.0]
+                    .private_temp_ordinals
+                    .entry(role_suffix.to_owned())
+                    .or_default();
+                let ordinal = *next;
+                *next += 1;
+                ordinal
+            };
+            let Some(temp) = Self::temp_candidate(ordinal) else {
+                continue;
+            };
+            let candidate = format!("{temp}{role_suffix}");
+            if !locally_reserved.contains(&candidate)
+                && self.reserve_private_in_current(candidate.clone())
+            {
+                return candidate;
+            }
+        }
+    }
+
+    /// Allocates a source-derived generated name whose semantic role is a
+    /// suffix (`_get`, `_set`, ...). The collision ordinal belongs to the
+    /// source name and is therefore inserted before that role suffix.
+    pub(super) fn allocate_preferred_with_role_suffix(
+        &mut self,
+        preferred: &str,
+        role_suffix: &str,
+    ) -> String {
+        let candidate = format!("{preferred}{role_suffix}");
+        if self.reserve_in_current(candidate.clone(), true, true) {
+            return candidate;
+        }
+        let mut ordinal = 1usize;
+        loop {
+            let candidate = format!("{preferred}_{ordinal}{role_suffix}");
+            if self.reserve_in_current(candidate.clone(), true, true) {
+                return candidate;
+            }
+            ordinal += 1;
         }
     }
 
@@ -282,6 +354,35 @@ impl GeneratedBindingScopes {
         }
     }
 
+    pub(super) fn allocate_planned_preferred_with_role_suffix_with_policy(
+        &mut self,
+        preferred: &str,
+        role_suffix: &str,
+        planned: String,
+        reserve_in_nested_scopes: bool,
+    ) -> String {
+        if self.reserve_in_current(planned.clone(), true, reserve_in_nested_scopes) {
+            return planned;
+        }
+        let unsuffixed = format!("{preferred}{role_suffix}");
+        let stem = planned.strip_suffix(role_suffix).unwrap_or(&planned);
+        let prefix = format!("{preferred}_");
+        let mut ordinal = if planned == unsuffixed {
+            1
+        } else {
+            stem.strip_prefix(&prefix)
+                .and_then(|suffix| suffix.parse::<usize>().ok())
+                .map_or(1, |suffix| suffix + 1)
+        };
+        loop {
+            let candidate = format!("{preferred}_{ordinal}{role_suffix}");
+            if self.reserve_in_current(candidate.clone(), true, reserve_in_nested_scopes) {
+                return candidate;
+            }
+            ordinal += 1;
+        }
+    }
+
     fn reserve_in_current(
         &mut self,
         candidate: String,
@@ -319,6 +420,22 @@ impl GeneratedBindingScopes {
         true
     }
 
+    fn reserve_private_in_current(&mut self, candidate: String) -> bool {
+        if self.current_private_scope_contains(&candidate)
+            || self.ancestor_private_scope_contains(&candidate)
+        {
+            return false;
+        }
+        let current = &mut self.scopes[self.current.0];
+        current.private_names.push(candidate.clone());
+        // Generated private names are reserved in nested name-generation
+        // scopes even when ordinary generated bindings may shadow ancestors.
+        current
+            .private_names_reserved_in_descendants
+            .push(candidate);
+        true
+    }
+
     fn current_scope_contains(&self, candidate: &str) -> bool {
         self.scopes[self.current.0]
             .names
@@ -335,6 +452,29 @@ impl GeneratedBindingScopes {
                 .iter()
                 .any(|name| name == candidate)
                 || include_all_names && current.names.iter().any(|name| name == candidate)
+            {
+                return true;
+            }
+            scope = current.parent;
+        }
+        false
+    }
+
+    fn current_private_scope_contains(&self, candidate: &str) -> bool {
+        self.scopes[self.current.0]
+            .private_names
+            .iter()
+            .any(|name| name == candidate)
+    }
+
+    fn ancestor_private_scope_contains(&self, candidate: &str) -> bool {
+        let mut scope = self.scopes[self.current.0].parent;
+        while let Some(current) = scope {
+            let current = &self.scopes[current.0];
+            if current
+                .private_names_reserved_in_descendants
+                .iter()
+                .any(|name| name == candidate)
             {
                 return true;
             }

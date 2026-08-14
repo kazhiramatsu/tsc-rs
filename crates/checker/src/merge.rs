@@ -263,32 +263,25 @@ impl<'a> CheckerState<'a> {
         crate::is_js_file_name(&self.binder.source_of_node(node).file_name)
     }
 
-    /// tsc resolveSymbol (49943) — the merge path's declaration-local
-    /// alias hop. A namespace-export alias resolves to its source-file
-    /// module symbol without consulting the module-resolution host. This
-    /// matters while initializeTypeChecker is still assembling globals:
-    /// the module face carries ValueModule exclusions that make a later
-    /// `declare global` block-scoped declaration report the same conflict
-    /// as tsc.
-    fn resolve_symbol_for_merge(&self, symbol: SymbolId) -> SymbolId {
-        if self
-            .binder
-            .symbol(symbol)
-            .flags
-            .intersects(SymbolFlags::ALIAS)
-        {
-            for &declaration in &self.binder.symbol(symbol).declarations {
-                if self.kind_of(declaration) != SyntaxKind::NamespaceExportDeclaration {
-                    continue;
+    /// tsc resolveSymbol (49113) on mergeSymbol's immutable-target arm.
+    ///
+    /// Alias identity is not the merge meaning. For example an exported
+    /// import-equals alias that resolves to a type alias must conflict with
+    /// another type alias when two `declare global` namespaces are merged.
+    /// Keep the Rust-only abort boundary here: mergeSymbol itself has no
+    /// fallible counterpart in tsc, while alias resolution may cross one of
+    /// this checker's typed oracle-crash boundaries.
+    fn resolve_symbol_for_merge(&mut self, symbol: SymbolId) -> SymbolId {
+        match self.resolve_symbol_ex(Some(symbol), /*dont_resolve_alias*/ false) {
+            Ok(Some(resolved)) => resolved,
+            Ok(None) => symbol,
+            Err(abort) => {
+                if let Some(&declaration) = self.binder.symbol(symbol).declarations.first() {
+                    self.mark_oracle_crash_range(declaration, abort);
                 }
-                if let Some(source_file) = self.parent_of(declaration) {
-                    if let Some(module_symbol) = self.binder.node_symbol(source_file) {
-                        return self.get_merged_symbol(module_symbol);
-                    }
-                }
+                self.unknown_symbol
             }
         }
-        symbol
     }
 
     /// tsc-port: mergeSymbol @6.0.3
@@ -720,6 +713,23 @@ impl<'a> CheckerState<'a> {
         }
     }
 
+    /// Merge into the checker-owned globals table without moving that table
+    /// out of `self`. `mergeSymbol` may resolve an existing alias while it
+    /// combines a colliding declaration; that resolution must observe every
+    /// global published earlier in this same merge, just as it does through
+    /// tsc's shared `Map` identity. Looking up and inserting one entry at a
+    /// time keeps the borrow local while preserving that visibility.
+    fn merge_into_globals(&mut self, source: &SymbolTable, unidirectional: bool) {
+        for (id, &source_symbol) in source {
+            let target_symbol = self.globals.get(id).copied();
+            let merged = match target_symbol {
+                Some(existing) => self.merge_symbol(existing, source_symbol, unidirectional),
+                None => self.get_merged_symbol(source_symbol),
+            };
+            self.globals.insert(id.clone(), merged);
+        }
+    }
+
     /// tsc-port: addUndefinedToGlobalsOrErrorOnRedeclaration @6.0.3
     /// tsc-hash: 441bb0403861850ce1c4a8190e56d54ee70bfccfb47b247bd784ae08bc8af46c
     /// tsc-span: _tsc.js:47882-47894
@@ -784,9 +794,7 @@ impl<'a> CheckerState<'a> {
                             self.diagnostics.push(diagnostic);
                         }
                     }
-                    let mut globals = std::mem::take(&mut self.globals);
-                    self.merge_symbol_table(&mut globals, &locals, false, None);
-                    self.globals = globals;
+                    self.merge_into_globals(&locals, false);
                 }
             }
             // file.jsGlobalAugmentations (88751-88753): top-level
@@ -794,14 +802,7 @@ impl<'a> CheckerState<'a> {
             // the same globals table as declarations from script files.
             let js_global_augmentations = self.binder.file(index).js_global_augmentations.clone();
             if !js_global_augmentations.is_empty() {
-                let mut globals = std::mem::take(&mut self.globals);
-                self.merge_symbol_table(
-                    &mut globals,
-                    &js_global_augmentations,
-                    /*unidirectional*/ false,
-                    None,
-                );
-                self.globals = globals;
+                self.merge_into_globals(&js_global_augmentations, /*unidirectional*/ false);
             }
             // file.patternAmbientModules concatenation (88754-88756).
             let pattern_modules = self.binder.file(index).pattern_ambient_modules.clone();
@@ -854,11 +855,12 @@ impl<'a> CheckerState<'a> {
     /// Both initializeTypeChecker augmentation passes (88769-88776
     /// global-scope first, 88874-88881 external-module second), driven
     /// from the program layer AFTER the resolver's host view exists —
-    /// pass 2 resolves module names. The collector walks each file's
-    /// TOP-LEVEL statements (tsc file.moduleAugmentations also carries
-    /// augmentations nested in ambient external modules — .d.ts
-    /// bundle shapes; ledger). A per-augmentation CheckAbort is
-    /// contained like the check_source_element boundary.
+    /// pass 2 resolves module names. The collector mirrors
+    /// collectModuleReferences: top-level ambient declarations in a global
+    /// script are traversed so their non-relative nested declarations join
+    /// file.moduleAugmentations, while an external-module augmentation is a
+    /// boundary and its body is not traversed. A per-augmentation CheckAbort
+    /// is contained like the check_source_element boundary.
     pub fn merge_module_augmentations(&mut self) {
         let file_count = self.binder.file_count();
         let mut global_augmentations: Vec<NodeId> = Vec::new();
@@ -872,41 +874,13 @@ impl<'a> CheckerState<'a> {
             let Some(statements) = data.statements else {
                 continue;
             };
-            for &statement in &source.arena.node_array(statements).nodes {
-                if source.arena.node(statement).kind != tsc_syntax::SyntaxKind::ModuleDeclaration {
-                    continue;
-                }
-                if !tsc_binder::node_util::is_ambient_module(source, statement) {
-                    continue;
-                }
-                // collectModuleReferences' augmentation gate: only
-                // `declare`-modified declarations (or declaration
-                // files) register as augmentations — a bare
-                // `module "x" {}` in a .ts module is NOT collected
-                // (oracle pin: no 2664 for module_keyword_and_quoted_
-                // name_rows).
-                if !self
-                    .binder
-                    .flags_of(statement)
-                    .intersects(tsc_types::NodeFlags::AMBIENT)
-                    && !source.is_declaration_file
-                {
-                    continue;
-                }
-                if tsc_binder::node_util::is_global_scope_augmentation(source, statement) {
-                    // collectModuleReferences 124144: a top-level
-                    // augmentation registers only from an EXTERNAL
-                    // MODULE file — a script-file `declare global`
-                    // is a plain ambient declaration (tsc reports
-                    // 2669 and never merges it into globals; A9).
-                    if source.external_module_indicator.is_some() {
-                        global_augmentations.push(statement);
-                    }
-                } else if tsc_binder::node_util::is_module_augmentation_external(source, statement)
-                {
-                    module_augmentations.push(statement);
-                }
-            }
+            self.collect_module_augmentations(
+                source,
+                &source.arena.node_array(statements).nodes,
+                /*in_ambient_module*/ false,
+                &mut global_augmentations,
+                &mut module_augmentations,
+            );
         }
         // Pass 1: global-scope augmentations merge into globals
         // (mergeSymbolTable(globals, augmentation.symbol.exports)).
@@ -920,9 +894,7 @@ impl<'a> CheckerState<'a> {
                 continue;
             }
             let exports = self.binder.symbol(symbol).exports.clone();
-            let mut globals = std::mem::take(&mut self.globals);
-            self.merge_symbol_table(&mut globals, &exports, false, None);
-            self.globals = globals;
+            self.merge_into_globals(&exports, false);
         }
         // Pass 2: external-module augmentations resolve + merge.
         for augmentation in module_augmentations {
@@ -937,6 +909,74 @@ impl<'a> CheckerState<'a> {
         // goes dead (None) and later cross-file conflicts report
         // immediately (A8).
         self.flush_amalgamated_duplicates();
+    }
+
+    /// collectModuleReferences' ModuleDeclaration arm
+    /// (_tsc.js:124139-124160), projected to the augmentation list consumed by
+    /// initializeTypeChecker. This deliberately follows only module bodies;
+    /// arbitrary namespace descendants are not part of that collector.
+    fn collect_module_augmentations(
+        &self,
+        source: &tsc_syntax::SourceFile,
+        statements: &[NodeId],
+        in_ambient_module: bool,
+        global_augmentations: &mut Vec<NodeId>,
+        module_augmentations: &mut Vec<NodeId>,
+    ) {
+        let is_external_module_file = source.external_module_indicator.is_some();
+        for &statement in statements {
+            if self.kind_of(statement) != SyntaxKind::ModuleDeclaration
+                || !tsc_binder::node_util::is_ambient_module(source, statement)
+                || !(in_ambient_module
+                    || tsc_binder::node_util::has_syntactic_modifier(
+                        source,
+                        statement,
+                        tsc_types::ModifierFlags::AMBIENT,
+                    )
+                    || source.is_declaration_file)
+            {
+                continue;
+            }
+            let name = match self.data_of(statement) {
+                NodeData::ModuleDeclaration(data) => data.name,
+                _ => None,
+            };
+            let name_text = name
+                .and_then(|name| {
+                    tsc_binder::node_util::get_text_of_identifier_or_literal(source, name)
+                })
+                .unwrap_or_default();
+            if is_external_module_file
+                || (in_ambient_module && !Self::is_external_module_name_relative(&name_text))
+            {
+                if tsc_binder::node_util::is_global_scope_augmentation(source, statement) {
+                    global_augmentations.push(statement);
+                } else {
+                    module_augmentations.push(statement);
+                }
+                continue;
+            }
+            if in_ambient_module {
+                continue;
+            }
+            let body = match self.data_of(statement) {
+                NodeData::ModuleDeclaration(data) => data.body,
+                _ => None,
+            };
+            let Some(body) = body else {
+                continue;
+            };
+            let Some(nested) = tsc_binder::node_util::statements_of(source, body) else {
+                continue;
+            };
+            self.collect_module_augmentations(
+                source,
+                &source.arena.node_array(nested).nodes,
+                /*in_ambient_module*/ true,
+                global_augmentations,
+                module_augmentations,
+            );
+        }
     }
 
     fn merge_one_module_augmentation(&mut self, augmentation: NodeId) -> CheckResult<()> {

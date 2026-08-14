@@ -188,6 +188,16 @@ fn spreading_never_and_unknown_report_2698() {
 }
 
 #[test]
+fn destructuring_from_union_spread_reports_missing_constituent_property() {
+    assert_eq!(
+        checked_rows(
+            "interface A { a: string }\ninterface B { b: number }\n\ndeclare const x: A | B;\nconst { a } = { ...x };\n"
+        ),
+        [(2339, 85, 1)]
+    );
+}
+
+#[test]
 fn spreading_a_nullable_object_union_is_silent() {
     // THE risk-#4-adjacent verdict pin: removeDefinitelyFalsyTypes
     // strips `null` from the union before the validity test — an

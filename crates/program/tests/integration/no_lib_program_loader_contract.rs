@@ -438,6 +438,82 @@ fn root_dirs_admit_alternate_sources_in_dependency_postorder() {
     );
     assert_eq!(resolved.original_path(), None);
     assert!(!resolved.is_external_library_import());
+    for source in program.source_files() {
+        assert!(
+            source.may_be_emitted(),
+            "non-external rootDirs source must remain emit-eligible: {}",
+            source.path().display().display()
+        );
+    }
+}
+
+#[test]
+fn windows_root_dirs_dependencies_retain_emit_eligibility() {
+    let host = MemoryCompilerHost::builder("/.src")
+        .case_sensitive(true)
+        .file(
+            "c:/root/src/file1.ts",
+            b"import {x} from './project/file3';\nuse(x);\n".to_vec(),
+        )
+        .file(
+            "c:/root/src/file2.d.ts",
+            b"export let x: number;\n".to_vec(),
+        )
+        .file(
+            "c:/root/generated/src/project/file3.ts",
+            b"export {x} from '../file2';\n".to_vec(),
+        )
+        .build()
+        .expect("build Windows rootDirs source graph");
+    let root_dirs = ["c:/root/src", "c:/root/generated/src"]
+        .into_iter()
+        .map(|path| {
+            ProgramPath::from_trusted_parts(path, path)
+                .expect("construct case-sensitive Windows rootDirs path")
+        })
+        .collect();
+    let program = load_with_options(
+        &host,
+        &["c:/root/src/file1.ts", "c:/root/src/file2.d.ts"],
+        CompilerOptions {
+            module: Some(2),
+            module_resolution: Some(1),
+            ..compiler_options()
+        },
+        program_options().with_root_dirs(root_dirs),
+        generous_limits(),
+    )
+    .expect("load Windows rootDirs source graph");
+
+    assert_eq!(
+        source_paths(&program),
+        [
+            Path::new("c:/root/src/file2.d.ts"),
+            Path::new("c:/root/generated/src/project/file3.ts"),
+            Path::new("c:/root/src/file1.ts"),
+        ]
+    );
+    let eligibility = program
+        .source_files()
+        .iter()
+        .map(|source| {
+            (
+                source.path().display().to_path_buf(),
+                source.may_be_emitted(),
+            )
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(
+        eligibility,
+        [
+            (PathBuf::from("c:/root/src/file2.d.ts"), false),
+            (
+                PathBuf::from("c:/root/generated/src/project/file3.ts"),
+                true,
+            ),
+            (PathBuf::from("c:/root/src/file1.ts"), true),
+        ]
+    );
 }
 
 #[test]
@@ -2493,15 +2569,18 @@ fn arbitrary_declaration_twins_follow_the_resolution_diagnostic_admission_bounda
 }
 
 #[test]
-fn jsx_without_mode_stays_unloaded_and_gates_local_and_package_reads() {
-    let local_path = "/work/dependency.jsx";
+fn jsx_without_mode_stays_unloaded_and_gates_tsx_jsx_and_package_reads() {
+    let local_tsx_path = "/work/dependency.tsx";
+    let local_jsx_path = "/work/dependency-jsx.jsx";
     let package_path = "/work/node_modules/pkg/index.jsx";
     let host = MemoryCompilerHost::builder("/work")
         .file(
             "/work/root.ts",
-            b"import './dependency.jsx';\nimport 'pkg';\nexport {};\n".to_vec(),
+            b"import './dependency.tsx';\nimport './dependency-jsx.jsx';\nimport 'pkg';\nexport {};\n"
+                .to_vec(),
         )
-        .file(local_path, b"export const local = 1;\n".to_vec())
+        .file(local_tsx_path, b"export const tsx = 1;\n".to_vec())
+        .file(local_jsx_path, b"export const jsx = 1;\n".to_vec())
         .file(
             "/work/node_modules/pkg/package.json",
             br#"{"name":"pkg","version":"1.0.0","main":"index.jsx"}"#.to_vec(),
@@ -2510,7 +2589,13 @@ fn jsx_without_mode_stays_unloaded_and_gates_local_and_package_reads() {
         .failure(HostError::new(
             HostErrorKind::Other,
             HostOperation::ReadFile,
-            Some(PathBuf::from(local_path)),
+            Some(PathBuf::from(local_tsx_path)),
+            "TS6142 must gate the local TSX read",
+        ))
+        .failure(HostError::new(
+            HostErrorKind::Other,
+            HostOperation::ReadFile,
+            Some(PathBuf::from(local_jsx_path)),
             "TS6142 must gate the local JSX read",
         ))
         .failure(HostError::new(
@@ -2538,7 +2623,8 @@ fn jsx_without_mode_stays_unloaded_and_gates_local_and_package_reads() {
     assert_eq!(source_paths(&program), [Path::new("/work/root.ts")]);
     assert!(program.diagnostics().program().is_empty());
     for (specifier, expected_path, external) in [
-        ("./dependency.jsx", local_path, false),
+        ("./dependency.tsx", local_tsx_path, false),
+        ("./dependency-jsx.jsx", local_jsx_path, false),
         ("pkg", package_path, true),
     ] {
         let resolution = program
@@ -4645,6 +4731,28 @@ fn windows_and_unc_root_spellings_use_typescript_lexical_normalization() {
         unreachable!("kind identifies the unsupported variant");
     };
     assert_eq!(feature, "windows-path-form");
+}
+
+#[test]
+fn rooted_windows_path_reference_is_not_rebased_under_its_containing_directory() {
+    let root_text = "/// <reference path=\"C:\\a\\b\\c.ts\" />\nconst y = x + 3;";
+    // The qualification VFS has a POSIX virtual current directory, while
+    // TypeScript's getNormalizedAbsolutePath keeps drive-rooted fixture names
+    // at `C:/...` instead of composing `/.src/C:/...`.
+    let host = MemoryCompilerHost::builder("/.src")
+        .file("C:/a/b/c.ts", b"const x = 5;".to_vec())
+        .file("C:/a/b/d.ts", root_text.as_bytes().to_vec())
+        .build()
+        .expect("build rooted Windows path-reference host");
+
+    let program = load(&host, &["C:/a/b/d.ts"], generous_limits())
+        .expect("load a rooted Windows triple-slash reference");
+
+    assert_eq!(
+        source_paths(&program),
+        [Path::new("C:/a/b/c.ts"), Path::new("C:/a/b/d.ts")]
+    );
+    assert!(program.diagnostics().program().is_empty());
 }
 
 #[test]

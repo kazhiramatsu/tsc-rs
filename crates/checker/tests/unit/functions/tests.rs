@@ -1,4 +1,5 @@
-use tsc_types::CompilerOptions;
+use tsc_syntax::SyntaxKind;
+use tsc_types::{CompilerOptions, NodeCheckFlags, ScriptTarget};
 
 use crate::state::test_support::with_program_state;
 use crate::{check_program, InputFile};
@@ -48,6 +49,57 @@ fn checked_rows_with(text: &str, options: &CompilerOptions) -> Vec<(u32, u32, u3
             })
             .collect()
     })
+}
+
+#[test]
+fn private_names_in_a_loop_class_expression_publish_emit_placement_flags() {
+    let options = CompilerOptions {
+        target: Some(ScriptTarget::ES2015.bits()),
+        ..CompilerOptions::default()
+    };
+    with_program_state(
+        &[(
+            "a.ts",
+            concat!(
+                "for (let i = 0; i < 2; i++) {\n",
+                "    void class { #field = i; #method() {} };\n",
+                "}\n",
+            ),
+        )],
+        &options,
+        |state| {
+            state.check_source_file(0);
+            let source = state.binder.source(0);
+            let private_names = source
+                .arena
+                .node_ids()
+                .filter(|node| source.arena.node(*node).kind == SyntaxKind::PrivateIdentifier)
+                .collect::<Vec<_>>();
+            let iteration = source
+                .arena
+                .node_ids()
+                .find(|node| source.arena.node(*node).kind == SyntaxKind::ForStatement)
+                .expect("loop statement");
+            assert_eq!(private_names.len(), 2);
+            for name in private_names {
+                assert!(state
+                    .links
+                    .node(name)
+                    .check_flags
+                    .intersects(NodeCheckFlags::BLOCK_SCOPED_BINDING_IN_LOOP));
+            }
+            assert!(state
+                .links
+                .node(iteration)
+                .check_flags
+                .intersects(NodeCheckFlags::LOOP_WITH_CAPTURED_BLOCK_SCOPED_BINDING));
+        },
+    );
+}
+
+#[test]
+fn assigned_arrow_return_cycle_reports_named_7023() {
+    assert_eq!(checked_rows("const pick = () => pick();\n"), [(7023, 6, 4)]);
 }
 
 fn checked_program_rows_with_file(

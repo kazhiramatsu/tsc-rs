@@ -1390,6 +1390,7 @@ pub(crate) fn relocate_node_data(
             }
             Ok(())
         }
+        NodeData::NotEmittedStatement(_data) => Ok(()),
         NodeData::NumericLiteral(_data) => Ok(()),
         NodeData::ObjectBindingPattern(data) => {
             if let Some(id) = &mut data.elements {
@@ -3135,6 +3136,7 @@ pub(crate) fn collect_node_data_ids(
                 nodes.push(id);
             }
         }
+        NodeData::NotEmittedStatement(_data) => {}
         NodeData::NumericLiteral(_data) => {}
         NodeData::ObjectBindingPattern(data) => {
             if let Some(id) = data.elements {
@@ -4832,6 +4834,7 @@ where
                 *id = node(*id);
             }
         }
+        NodeData::NotEmittedStatement(_data) => {}
         NodeData::NumericLiteral(_data) => {}
         NodeData::ObjectBindingPattern(data) => {
             if let Some(id) = &mut data.elements {
@@ -6082,6 +6085,7 @@ where
         (NodeData::NonNullExpression(left), NodeData::NonNullExpression(right)) => {
             optional_node_equal(left.expression, right.expression, &mut node)
         }
+        (NodeData::NotEmittedStatement(_), NodeData::NotEmittedStatement(_)) => true,
         (NodeData::NumericLiteral(left), NodeData::NumericLiteral(right)) => {
             left.text == right.text
         }

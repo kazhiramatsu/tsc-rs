@@ -6,9 +6,11 @@ owns members under `crates/`, each member has its own `src/`, and no
 top-level `src/` exists. The paused v1 codebase was removed from the working
 tree and is preserved at tag `v1-final`
 (check out that tag to resume it; `scripts/bootstrap.sh` there rebuilds
-its corpus/oracle). Design docs under `docs/design/greenfield/` are
-authoritative; implementers start from the stage step docs referenced
-there.
+its corpus/oracle). Start active work at `docs/design/README.md`, which defines
+document roles and precedence. Post-H1 emitter work then follows the current
+emitter architecture, the post-H1 schedule, and the selected slice packet in
+that order. The retained greenfield M-stage guides are historical lineage, not
+current H2 implementation maps.
 
 ## Branch workflow (trunk-based)
 

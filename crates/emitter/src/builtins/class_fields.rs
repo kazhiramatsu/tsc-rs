@@ -7,12 +7,13 @@ use tsc_syntax::{
 use tsc_types::{CompilerOptions, NodeCheckFlags, NodeFlags, ScriptTarget};
 
 use crate::{
-    EmitFlags, EmitHint, EmitResolver, EmitResolverNode, InternalEmitFlags, TransformError,
-    TransformFlags, TransformNode, TransformNodeArray, TransformRoot, TransformSourceId,
-    TransformationContext, Transformer,
+    EmitFlags, EmitHint, EmitResolver, InternalEmitFlags, TransformError, TransformFlags,
+    TransformNode, TransformNodeArray, TransformRoot, TransformSourceId, TransformationContext,
+    Transformer,
 };
 
 use super::{
+    constructor_prologue, initialize_transform_flags,
     is_prologue_statement as is_prologue_statement_node, system::collect_identifier_texts,
 };
 
@@ -46,11 +47,11 @@ impl Transformer for ClassFieldsTransformer<'_> {
     }
 
     fn initialize(&mut self, context: &mut TransformationContext) -> Result<(), TransformError> {
-        if self.target < ScriptTarget::ES2016 || self.target > ScriptTarget::ES_NEXT {
+        if self.target < ScriptTarget::ES2015 || self.target > ScriptTarget::ES_NEXT {
             return Err(TransformError::UnsupportedCompilerOption {
                 option: "class-field transform",
                 detail:
-                    "the closed target band admits ES2016 through ESNext class-field reachability",
+                    "the closed target band admits ES2015 through ESNext class-field reachability",
             });
         }
         context.enable_substitution(SyntaxKind::Identifier)?;
@@ -70,10 +71,18 @@ impl Transformer for ClassFieldsTransformer<'_> {
                 crate::UnsupportedEmitFeature::BundleRoot,
             ));
         };
+        // Earlier transforms synthesize class elements whose local flags are
+        // distributed across their completed child tree. Reclassify that tree
+        // at this pass boundary so static lexical `this`/`super` ownership is
+        // derived from the current arena, just as tsc's factory-propagated
+        // transform flags are when transformClassFields begins.
+        initialize_transform_flags(context.arena_mut()?, source)?;
         if self.target < ScriptTarget::ES2022 {
             downlevel::transform_source(
                 context,
                 source,
+                self.resolver,
+                self.target,
                 self.use_define_for_class_fields,
                 self.target == ScriptTarget::ES2021,
                 &mut self.class_aliases,
@@ -119,24 +128,12 @@ impl Transformer for ClassFieldsTransformer<'_> {
             .metadata(node)
             .and_then(|metadata| metadata.class_constructor_reference);
         let alias_key = if let Some(owner) = generated_owner {
-            let owner = context.arena().get_original_node(owner);
-            let program_source = context
-                .arena()
-                .source(owner.source())?
-                .program_source()
-                .ok_or(TransformError::MissingProgramSource(owner))?;
-            (program_source.raw(), owner.node().0)
+            let owner = context.arena().require_parse_tree_resolver_node(owner)?;
+            (owner.source().raw(), owner.node().0)
         } else {
-            let original = context.arena().get_original_node(node);
-            if context.arena().node(original)?.pos == u32::MAX {
+            let Some(resolver_node) = context.arena().parse_tree_resolver_node(node)? else {
                 return Ok(node);
-            }
-            let program_source = context
-                .arena()
-                .source(original.source())?
-                .program_source()
-                .ok_or(TransformError::MissingProgramSource(original))?;
-            let resolver_node = EmitResolverNode::new(program_source, original.node());
+            };
             if !self.resolver.has_node_check_flag(
                 resolver_node,
                 NodeCheckFlags::CONSTRUCTOR_REFERENCE.bits() as u32,
@@ -196,6 +193,44 @@ struct ClassFieldsVisitor<'context> {
     target: ScriptTarget,
     use_define_for_class_fields: bool,
 }
+
+enum MovedInstanceInitializerPlan {
+    Statement(TransformNode),
+    Field(MovedFieldInitializerPlan),
+}
+
+struct MovedFieldInitializerPlan {
+    original: TransformNode,
+    name: Option<NodeId>,
+    value: MovedFieldValuePlan,
+}
+
+enum MovedFieldValuePlan {
+    Declared(NodeId),
+    ParameterProperty {
+        prefix: Option<NodeId>,
+        local: ParameterPropertyLocal,
+    },
+}
+
+struct ParameterPropertyLocal {
+    emitted_name: TransformNode,
+    source_name: TransformNode,
+}
+
+#[derive(Clone, Copy, Eq, PartialEq)]
+enum ParameterPropertyAssignmentPolicy {
+    Preserve,
+    Replace,
+}
+
+struct MovedInstanceInitializers {
+    statements: Vec<TransformNode>,
+    parameter_assignments: ParameterPropertyAssignmentPolicy,
+}
+
+#[derive(Debug)]
+struct SuperStatementPath(Vec<usize>);
 
 impl<'context> ClassFieldsVisitor<'context> {
     fn new(
@@ -752,7 +787,7 @@ impl<'context> ClassFieldsVisitor<'context> {
         }
 
         let mut output = Vec::with_capacity(original_members.len() + 3);
-        let mut instance_initializers = Vec::new();
+        let mut instance_initializer_plans = Vec::new();
         let mut constructor_index = None;
         for member in original_members {
             let member_node = self.node(member);
@@ -779,7 +814,9 @@ impl<'context> ClassFieldsVisitor<'context> {
                             )?);
                         } else if move_instance_initializers && !static_ {
                             let transformed = self.transform_auto_accessor(member_node, data)?;
-                            instance_initializers.push(transformed.initializer);
+                            instance_initializer_plans.push(
+                                MovedInstanceInitializerPlan::Statement(transformed.initializer),
+                            );
                             output.extend(transformed.members);
                         } else {
                             output.push(self.update_property(member_node, data)?);
@@ -787,12 +824,14 @@ impl<'context> ClassFieldsVisitor<'context> {
                     } else if private {
                         if move_instance_initializers && !static_ && data.initializer.is_some() {
                             let initializer = data.initializer.take().expect("initializer checked");
-                            instance_initializers.push(
-                                self.create_property_initializer_statement(
-                                    member_node,
-                                    data.name,
-                                    initializer,
-                                )?,
+                            instance_initializer_plans.push(
+                                MovedInstanceInitializerPlan::Statement(
+                                    self.create_property_initializer_statement(
+                                        member_node,
+                                        data.name,
+                                        initializer,
+                                    )?,
+                                ),
                             );
                         }
                         output.push(self.update_property(member_node, data)?);
@@ -808,12 +847,29 @@ impl<'context> ClassFieldsVisitor<'context> {
                                 initializer,
                             )?);
                         }
+                    } else if let Some(local) = move_instance_initializers
+                        .then(|| self.parameter_property_local(member_node, data.name))
+                        .transpose()?
+                        .flatten()
+                    {
+                        instance_initializer_plans.push(MovedInstanceInitializerPlan::Field(
+                            MovedFieldInitializerPlan {
+                                original: member_node,
+                                name: data.name,
+                                value: MovedFieldValuePlan::ParameterProperty {
+                                    prefix: data.initializer,
+                                    local,
+                                },
+                            },
+                        ));
                     } else if let Some(initializer) = data.initializer {
-                        instance_initializers.push(self.create_property_initializer_statement(
-                            member_node,
-                            data.name,
-                            initializer,
-                        )?);
+                        instance_initializer_plans.push(MovedInstanceInitializerPlan::Field(
+                            MovedFieldInitializerPlan {
+                                original: member_node,
+                                name: data.name,
+                                value: MovedFieldValuePlan::Declared(initializer),
+                            },
+                        ));
                     }
                 }
                 NodeData::Constructor(data) => {
@@ -829,14 +885,16 @@ impl<'context> ClassFieldsVisitor<'context> {
             }
         }
 
-        if !instance_initializers.is_empty() {
+        let instance_initializers =
+            self.materialize_moved_instance_initializers(instance_initializer_plans)?;
+        if !instance_initializers.statements.is_empty() {
             if let Some(index) = constructor_index {
                 output[index] = self
                     .inject_initializers_into_constructor(output[index], &instance_initializers)?;
             } else {
                 output.insert(
                     0,
-                    self.create_synthetic_constructor(derived, instance_initializers)?,
+                    self.create_synthetic_constructor(derived, instance_initializers.statements)?,
                 );
             }
         }
@@ -845,6 +903,57 @@ impl<'context> ClassFieldsVisitor<'context> {
             .factory()?
             .update_node_array(original_array, output)?;
         Ok(Some(updated.array()))
+    }
+
+    /// tsc-port: transformPropertyWorker @6.0.3
+    /// tsc-hash: fb5e7b8fdfc4fab54f8fdd4ea6f48902c80207af52647e23cb47491f0ce46edd
+    /// tsc-span: _tsc.js:97501-97575
+    fn materialize_moved_instance_initializers(
+        &mut self,
+        plans: Vec<MovedInstanceInitializerPlan>,
+    ) -> Result<MovedInstanceInitializers, TransformError> {
+        let mut statements = Vec::with_capacity(plans.len());
+        let mut parameter_assignments = ParameterPropertyAssignmentPolicy::Preserve;
+        for plan in plans {
+            match plan {
+                MovedInstanceInitializerPlan::Statement(statement) => statements.push(statement),
+                MovedInstanceInitializerPlan::Field(plan) => {
+                    let initializer = match plan.value {
+                        MovedFieldValuePlan::Declared(initializer) => self.node(initializer),
+                        MovedFieldValuePlan::ParameterProperty { prefix, local } => {
+                            parameter_assignments = ParameterPropertyAssignmentPolicy::Replace;
+                            let local_name =
+                                self.context.factory()?.clone_node(local.emitted_name)?;
+                            self.context
+                                .factory()?
+                                .set_text_range(local_name, local.source_name)?;
+                            self.context
+                                .arena_mut()?
+                                .metadata_mut(local_name)
+                                .add_flags(EmitFlags::NO_COMMENTS);
+                            if let Some(prefix) = prefix {
+                                self.create_binary(
+                                    self.node(prefix),
+                                    SyntaxKind::CommaToken,
+                                    local_name,
+                                )?
+                            } else {
+                                local_name
+                            }
+                        }
+                    };
+                    statements.push(self.create_property_initializer_statement(
+                        plan.original,
+                        plan.name,
+                        initializer.node(),
+                    )?);
+                }
+            }
+        }
+        Ok(MovedInstanceInitializers {
+            statements,
+            parameter_assignments,
+        })
     }
 
     fn class_members_require_transform(
@@ -1076,6 +1185,15 @@ impl<'context> ClassFieldsVisitor<'context> {
         initializer: NodeId,
     ) -> Result<TransformNode, TransformError> {
         let target = self.create_this_access(name)?;
+        // The relocated statement owns the property's leading comments. The
+        // parsed name remains a child of this synthetic access so its spelling
+        // and source-map range survive, but it must not re-emit the same
+        // comment between `this.` and the name. This is tsc's
+        // NoLeadingComments boundary on createMemberAccessForPropertyName.
+        self.context
+            .arena_mut()?
+            .metadata_mut(target)
+            .add_flags(EmitFlags::NO_LEADING_COMMENTS);
         let assignment = self.create_assignment(target, self.node(initializer))?;
         let statement = self.create_expression_statement(assignment)?;
         self.set_original_and_range(statement, original)?;
@@ -1135,45 +1253,73 @@ impl<'context> ClassFieldsVisitor<'context> {
                 TransformFlags::CONTAINS_LEXICAL_THIS,
             )?,
         };
-        match self.context.arena().node(self.node(name))?.data.clone() {
-            NodeData::Identifier(_) | NodeData::PrivateIdentifier(_) => {
-                self.context.factory()?.create_node(
-                    self.source,
-                    NodeData::PropertyAccessExpression(
-                        tsc_syntax::nodes::PropertyAccessExpressionData {
-                            expression: Some(receiver.node()),
-                            question_dot_token: None,
-                            name: Some(name),
-                        },
-                    ),
-                    TransformFlags::CONTAINS_LEXICAL_THIS,
-                )
-            }
-            NodeData::ComputedPropertyName(data) => self.context.factory()?.create_node(
-                self.source,
-                NodeData::ElementAccessExpression(tsc_syntax::nodes::ElementAccessExpressionData {
-                    expression: Some(receiver.node()),
-                    question_dot_token: None,
-                    argument_expression: data.expression,
-                }),
-                TransformFlags::CONTAINS_LEXICAL_THIS,
-            ),
-            _ => self.context.factory()?.create_node(
-                self.source,
-                NodeData::ElementAccessExpression(tsc_syntax::nodes::ElementAccessExpressionData {
-                    expression: Some(receiver.node()),
-                    question_dot_token: None,
-                    argument_expression: Some(name),
-                }),
-                TransformFlags::CONTAINS_LEXICAL_THIS,
-            ),
+        let name_node = self.node(name);
+        let (access, no_nested_source_maps) =
+            match self.context.arena().node(name_node)?.data.clone() {
+                NodeData::Identifier(_) | NodeData::PrivateIdentifier(_) => (
+                    self.context.factory()?.create_node(
+                        self.source,
+                        NodeData::PropertyAccessExpression(
+                            tsc_syntax::nodes::PropertyAccessExpressionData {
+                                expression: Some(receiver.node()),
+                                question_dot_token: None,
+                                name: Some(name),
+                            },
+                        ),
+                        TransformFlags::CONTAINS_LEXICAL_THIS,
+                    )?,
+                    true,
+                ),
+                NodeData::ComputedPropertyName(data) => (
+                    self.context.factory()?.create_node(
+                        self.source,
+                        NodeData::ElementAccessExpression(
+                            tsc_syntax::nodes::ElementAccessExpressionData {
+                                expression: Some(receiver.node()),
+                                question_dot_token: None,
+                                argument_expression: data.expression,
+                            },
+                        ),
+                        TransformFlags::CONTAINS_LEXICAL_THIS,
+                    )?,
+                    false,
+                ),
+                _ => (
+                    self.context.factory()?.create_node(
+                        self.source,
+                        NodeData::ElementAccessExpression(
+                            tsc_syntax::nodes::ElementAccessExpressionData {
+                                expression: Some(receiver.node()),
+                                question_dot_token: None,
+                                argument_expression: Some(name),
+                            },
+                        ),
+                        TransformFlags::CONTAINS_LEXICAL_THIS,
+                    )?,
+                    true,
+                ),
+            };
+        // createMemberAccessForPropertyName positions the generated access at
+        // the source member name. Besides preserving its outer source-map
+        // span, that range is the comment-container boundary established by
+        // NoLeadingComments when this access is relocated into a constructor.
+        self.context.factory()?.set_text_range(access, name_node)?;
+        if no_nested_source_maps {
+            self.context
+                .arena_mut()?
+                .metadata_mut(access)
+                .add_flags(EmitFlags::NO_NESTED_SOURCE_MAPS);
         }
+        Ok(access)
     }
 
+    /// tsc-port: transformConstructorBody @6.0.3
+    /// tsc-hash: 6ab03601cab55c7af832a1cec8e17a822e21aa330f32a65b2b79637c4765c9f3
+    /// tsc-span: _tsc.js:97329-97431
     fn inject_initializers_into_constructor(
         &mut self,
         constructor: TransformNode,
-        initializers: &[TransformNode],
+        initializers: &MovedInstanceInitializers,
     ) -> Result<TransformNode, TransformError> {
         let NodeData::Constructor(mut data) = self.context.arena().node(constructor)?.data.clone()
         else {
@@ -1196,22 +1342,12 @@ impl<'context> ClassFieldsVisitor<'context> {
             });
         };
         let mut statements = self.array_nodes(block.statements)?;
-        let mut insertion = 0usize;
-        while insertion < statements.len() && self.is_prologue_statement(statements[insertion])? {
-            insertion += 1;
+        let insertion = constructor_prologue(self.context.arena(), &statements)?.body_start();
+        if let Some(path) = self.find_super_statement_path(&statements, insertion)? {
+            self.inject_initializers_at_super_path(&mut statements, &path.0, initializers)?;
+        } else {
+            self.insert_constructor_initializers(&mut statements, insertion, initializers);
         }
-        if let Some(super_index) = statements[insertion..]
-            .iter()
-            .position(|statement| self.statement_is_super_call(*statement).unwrap_or(false))
-        {
-            insertion += super_index + 1;
-        }
-        while insertion < statements.len()
-            && self.original_kind(statements[insertion]) == Some(SyntaxKind::Parameter)
-        {
-            insertion += 1;
-        }
-        statements.splice(insertion..insertion, initializers.iter().copied());
         let statement_array = if let Some(original) = block
             .statements
             .and_then(|array| self.context.arena().node_array_ref(self.source, array))
@@ -1241,6 +1377,145 @@ impl<'context> ClassFieldsVisitor<'context> {
         self.context
             .factory()?
             .update_node(constructor, NodeData::Constructor(data), flags)
+    }
+
+    fn find_super_statement_path(
+        &self,
+        statements: &[TransformNode],
+        start: usize,
+    ) -> Result<Option<SuperStatementPath>, TransformError> {
+        for (index, statement) in statements.iter().enumerate().skip(start) {
+            if self.statement_is_super_call(*statement)? {
+                return Ok(Some(SuperStatementPath(vec![index])));
+            }
+            let NodeData::TryStatement(data) = &self.context.arena().node(*statement)?.data else {
+                continue;
+            };
+            let Some(try_block) = data
+                .try_block
+                .and_then(|block| self.context.arena().node_ref(self.source, block))
+            else {
+                continue;
+            };
+            let NodeData::Block(block) = &self.context.arena().node(try_block)?.data else {
+                continue;
+            };
+            let nested = self.array_nodes(block.statements)?;
+            if let Some(SuperStatementPath(mut path)) =
+                self.find_super_statement_path(&nested, 0)?
+            {
+                path.insert(0, index);
+                return Ok(Some(SuperStatementPath(path)));
+            }
+        }
+        Ok(None)
+    }
+
+    /// tsc-port: transformConstructorBodyWorker @6.0.3
+    /// tsc-hash: 37e090fcc937a5c99a0fce3410f7d5a67fd9612316d31ef64b3dba2d7212ad4a
+    /// tsc-span: _tsc.js:97290-97328
+    fn inject_initializers_at_super_path(
+        &mut self,
+        statements: &mut Vec<TransformNode>,
+        path: &[usize],
+        initializers: &MovedInstanceInitializers,
+    ) -> Result<(), TransformError> {
+        let (&index, remaining) =
+            path.split_first()
+                .ok_or(TransformError::RequiredChildRemoved {
+                    parent: SyntaxKind::Constructor,
+                    field: "super statement path",
+                })?;
+        if remaining.is_empty() {
+            self.insert_constructor_initializers(statements, index + 1, initializers);
+            return Ok(());
+        }
+
+        let statement = *statements
+            .get(index)
+            .ok_or(TransformError::RequiredChildRemoved {
+                parent: SyntaxKind::Constructor,
+                field: "super statement path index",
+            })?;
+        let NodeData::TryStatement(mut try_statement) =
+            self.context.arena().node(statement)?.data.clone()
+        else {
+            return Err(TransformError::RequiredChildRemoved {
+                parent: SyntaxKind::Constructor,
+                field: "try statement on super path",
+            });
+        };
+        let try_block = try_statement
+            .try_block
+            .and_then(|block| self.context.arena().node_ref(self.source, block))
+            .ok_or(TransformError::RequiredChildRemoved {
+                parent: SyntaxKind::TryStatement,
+                field: "try_block on super path",
+            })?;
+        let NodeData::Block(mut block) = self.context.arena().node(try_block)?.data.clone() else {
+            return Err(TransformError::RequiredChildRemoved {
+                parent: SyntaxKind::TryStatement,
+                field: "try block on super path",
+            });
+        };
+        let mut nested = self.array_nodes(block.statements)?;
+        self.inject_initializers_at_super_path(&mut nested, remaining, initializers)?;
+        let nested = if let Some(original) = block.statements.map(|array| self.array(array)) {
+            self.context
+                .factory()?
+                .update_node_array(original, nested)?
+        } else {
+            self.context
+                .factory()?
+                .create_node_array(self.source, nested)?
+        };
+        block.statements = Some(nested.array());
+        let flags = super::flags_after_update(
+            self.context.arena(),
+            try_block,
+            &NodeData::Block(block.clone()),
+        )?;
+        let try_block =
+            self.context
+                .factory()?
+                .update_node(try_block, NodeData::Block(block), flags)?;
+        try_statement.try_block = Some(try_block.node());
+        let flags = super::flags_after_update(
+            self.context.arena(),
+            statement,
+            &NodeData::TryStatement(try_statement.clone()),
+        )?;
+        statements[index] = self.context.factory()?.update_node(
+            statement,
+            NodeData::TryStatement(try_statement),
+            flags,
+        )?;
+        Ok(())
+    }
+
+    fn insert_constructor_initializers(
+        &self,
+        statements: &mut Vec<TransformNode>,
+        insertion: usize,
+        initializers: &MovedInstanceInitializers,
+    ) {
+        let parameter_end = statements[insertion..]
+            .iter()
+            .take_while(|statement| self.original_kind(**statement) == Some(SyntaxKind::Parameter))
+            .count()
+            + insertion;
+        if initializers.parameter_assignments == ParameterPropertyAssignmentPolicy::Replace {
+            statements.drain(insertion..parameter_end);
+            statements.splice(
+                insertion..insertion,
+                initializers.statements.iter().copied(),
+            );
+        } else {
+            statements.splice(
+                parameter_end..parameter_end,
+                initializers.statements.iter().copied(),
+            );
+        }
     }
 
     fn create_synthetic_constructor(
@@ -1305,9 +1580,8 @@ impl<'context> ClassFieldsVisitor<'context> {
         let Some(expression) = data.expression else {
             return Ok(false);
         };
-        let NodeData::CallExpression(data) =
-            &self.context.arena().node(self.node(expression))?.data
-        else {
+        let expression = self.skip_parenthesized_expression(self.node(expression))?;
+        let NodeData::CallExpression(data) = &self.context.arena().node(expression)?.data else {
             return Ok(false);
         };
         Ok(data.expression.is_some_and(|expression| {
@@ -1318,17 +1592,27 @@ impl<'context> ClassFieldsVisitor<'context> {
         }))
     }
 
-    fn is_prologue_statement(&self, statement: TransformNode) -> Result<bool, TransformError> {
-        let NodeData::ExpressionStatement(data) = &self.context.arena().node(statement)?.data
-        else {
-            return Ok(false);
-        };
-        Ok(data.expression.is_some_and(|expression| {
-            self.context
-                .arena()
-                .node(self.node(expression))
-                .is_ok_and(|node| node.kind == SyntaxKind::StringLiteral)
-        }))
+    /// `getSuperCallFromStatement` in tsc applies `skipParentheses` before
+    /// testing for a direct `super()` call. Only parentheses are transparent
+    /// here: comma expressions and other wrappers remain evaluation boundaries.
+    fn skip_parenthesized_expression(
+        &self,
+        mut expression: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        loop {
+            let NodeData::ParenthesizedExpression(data) =
+                &self.context.arena().node(expression)?.data
+            else {
+                return Ok(expression);
+            };
+            let inner = data
+                .expression
+                .ok_or(TransformError::RequiredChildRemoved {
+                    parent: SyntaxKind::ParenthesizedExpression,
+                    field: "expression",
+                })?;
+            expression = self.node(inner);
+        }
     }
 
     fn original_kind(&self, node: TransformNode) -> Option<SyntaxKind> {
@@ -1338,6 +1622,36 @@ impl<'context> ClassFieldsVisitor<'context> {
             .node(original)
             .ok()
             .map(|node| node.kind)
+    }
+
+    /// tsc-port: transformClassMembers.parameterPropertyProjection @6.0.3
+    /// tsc-hash: 306e5388a9a5c510a3594d97b7fbe7bf945415e4f4601770e266d55ce28765f8
+    /// tsc-span: _tsc.js:94564-94598
+    fn parameter_property_local(
+        &self,
+        property: TransformNode,
+        emitted_name: Option<NodeId>,
+    ) -> Result<Option<ParameterPropertyLocal>, TransformError> {
+        let original = self.context.arena().get_original_node(property);
+        let NodeData::Parameter(data) = &self.context.arena().node(original)?.data else {
+            return Ok(None);
+        };
+        let Some(source_name) = data.name else {
+            return Ok(None);
+        };
+        let source_name = TransformNode::new(original.source(), source_name);
+        let Some(emitted_name) = emitted_name.map(|name| self.node(name)) else {
+            return Ok(None);
+        };
+        if self.context.arena().node(source_name)?.kind != SyntaxKind::Identifier
+            || self.context.arena().node(emitted_name)?.kind != SyntaxKind::Identifier
+        {
+            return Ok(None);
+        }
+        Ok(Some(ParameterPropertyLocal {
+            emitted_name,
+            source_name,
+        }))
     }
 
     fn has_extends_clause(

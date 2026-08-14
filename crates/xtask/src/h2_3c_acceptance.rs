@@ -550,6 +550,20 @@ pub fn run(workspace: &Path) -> Result<(), Box<dyn Error>> {
         }
     }
 
+    if exact != 4 || writes != 4 || diagnostics != 42 {
+        return Err(failure(format!(
+            "H2.3c totals differ: exact={exact} writes={writes} diagnostics={diagnostics}"
+        )));
+    }
+    println!(
+        "H2.3c emit acceptance: candidates=4 exact=4 source_deferred=0 exact_diagnostics=42 exact_writes=4 repetitions=2"
+    );
+    Ok(())
+}
+
+/// Execute the synthetic automatic-JSX controls outside the hosted ts-tests
+/// boundary. These remain part of the complete, resumable local gate.
+pub fn run_owner_controls(workspace: &Path) -> Result<(), Box<dyn Error>> {
     let owner_controls: Value =
         serde_json::from_slice(&fs::read(workspace.join(OWNER_CONTROLS_RELATIVE_PATH))?)?;
     if owner_controls["schema"] != 1
@@ -566,15 +580,12 @@ pub fn run(workspace: &Path) -> Result<(), Box<dyn Error>> {
     for control in array(&owner_controls, "controls")? {
         owner_writes += execute_owner_control(control)?;
     }
-
-    if exact != 4 || writes != 4 || diagnostics != 42 || owner_writes != 9 {
+    if owner_writes != 9 {
         return Err(failure(format!(
-            "H2.3c totals differ: exact={exact} writes={writes} diagnostics={diagnostics} owner_writes={owner_writes}"
+            "H2.3c owner totals differ: owner_writes={owner_writes}"
         )));
     }
-    println!(
-        "H2.3c emit acceptance: candidates=4 exact=4 source_deferred=0 exact_diagnostics=42 exact_writes=4 owner_controls=9 owner_writes=9 repetitions=2"
-    );
+    println!("H2.3c owner controls: controls=9 owner_writes=9 repetitions=2");
     Ok(())
 }
 

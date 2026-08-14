@@ -2774,8 +2774,13 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         let target_text = self.st.type_to_string_slice(target)?;
         // 66757/66759: multi-property lists use the default
         // symbolToString face (no WriteComputedProps).
-        let mut displayed_names = Vec::with_capacity(properties.len().min(4));
-        for &property in properties.iter().take(4) {
+        let displayed_property_count = if properties.len() > 5 {
+            4
+        } else {
+            properties.len()
+        };
+        let mut displayed_names = Vec::with_capacity(displayed_property_count);
+        for &property in properties.iter().take(displayed_property_count) {
             displayed_names.push(self.st.missing_property_display_name(property, false)?);
         }
         let names = displayed_names.join(", ");
@@ -2790,11 +2795,6 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 ],
             )?;
         } else {
-            let names = properties
-                .iter()
-                .map(|&property| self.st.binder.symbol(property).escaped_name.clone())
-                .collect::<Vec<_>>()
-                .join(", ");
             self.report_error(
                 &tsc_diagnostics::gen::Type_0_is_missing_the_following_properties_from_type_1_2,
                 vec![source_text, target_text, names],
@@ -3095,15 +3095,50 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             }
         } else if source_signatures.len() == 1 && target_signatures.len() == 1 {
             let erase_generics = self.relation == RelationKind::Comparable;
+            let source_signature = source_signatures[0];
+            let target_signature = target_signatures[0];
             let related = self.signature_related_to(
-                source_signatures[0],
-                target_signatures[0],
+                source_signature,
+                target_signature,
                 erase_generics,
                 kind,
                 report_errors,
                 intersection_state,
             )?;
             if !is_true(related) {
+                let constructor_declaration = |signature: SignatureId| {
+                    self.st
+                        .signature_of(signature)
+                        .declaration
+                        .is_some_and(|declaration| {
+                            self.st.kind_of(declaration) == SyntaxKind::Constructor
+                        })
+                };
+                if report_errors
+                    && kind == SignatureKind::Construct
+                    && source_object_flags.intersects(target_object_flags)
+                    && (constructor_declaration(target_signature)
+                        || constructor_declaration(source_signature))
+                {
+                    let source_text = self
+                        .st
+                        .signature_to_string_slice_for_construct_assignment_error(
+                            source_signature,
+                        )?;
+                    let target_text = self
+                        .st
+                        .signature_to_string_slice_for_construct_assignment_error(
+                            target_signature,
+                        )?;
+                    self.report_error(
+                        &tsc_diagnostics::gen::Type_0_is_not_assignable_to_type_1,
+                        vec![source_text, target_text],
+                    )?;
+                    self.report_error(
+                        &tsc_diagnostics::gen::Types_of_construct_signatures_are_incompatible,
+                        vec![],
+                    )?;
+                }
                 return Ok(Ternary::FALSE);
             }
             result = related;
@@ -3847,11 +3882,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             }
         }
         if check_mode & check_mode::IGNORE_RETURN_TYPES == 0 {
-            let target_resolving = self
-                .st
-                .signature_of(target)
-                .resolved_return_type
-                .is_resolving();
+            let target_resolving = self.st.is_resolving_return_type_of_signature(target);
             let target_return_type = if target_resolving {
                 self.st.tables.intrinsics.any
             } else if let Some(symbol) = self
@@ -3871,11 +3902,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             {
                 return Ok(result);
             }
-            let source_resolving = self
-                .st
-                .signature_of(source)
-                .resolved_return_type
-                .is_resolving();
+            let source_resolving = self.st.is_resolving_return_type_of_signature(source);
             let source_return_type = if source_resolving {
                 self.st.tables.intrinsics.any
             } else if let Some(symbol) = self
@@ -5109,12 +5136,10 @@ impl<'a> CheckerState<'a> {
     /// Full port (A5 closed the M3-slice residue: per-member modifier
     /// folding into ContainsPublic/Protected/Private/Static, the
     /// identical-instantiation clone, accessor propFlags tracking,
-    /// writeTypes and nameType propagation). One documented
-    /// divergence stands: the DeferredType branch (over two
-    /// constituents, 59231-59235) computes eagerly — semantics
-    /// identical, the deferral is a perf cache — so
-    /// deferralConstituents/deferralWriteConstituents have no port
-    /// fields.
+    /// writeTypes and nameType propagation), including tsc's DeferredType
+    /// recipe for properties with more than two constituents. Deferral is
+    /// observable: normalization can report TS2590 at the eventual read
+    /// site, so eagerly combining here is not semantically equivalent.
     fn create_union_or_intersection_property(
         &mut self,
         containing_type: TypeId,
@@ -5277,7 +5302,12 @@ impl<'a> CheckerState<'a> {
                     } else {
                         index_info.value_type
                     });
-                } else if self.is_object_literal_type(ty) {
+                } else if self.is_object_literal_type(ty)
+                    && !self
+                        .tables
+                        .object_flags_of(ty)
+                        .intersects(ObjectFlags::CONTAINS_SPREAD)
+                {
                     check_flags |= CheckFlags::WRITE_PARTIAL.bits();
                     index_types.push(self.tables.intrinsics.undefined);
                 } else {
@@ -5416,33 +5446,45 @@ impl<'a> CheckerState<'a> {
                 }
             }
         }
-        // Eager equivalent of the DeferredType branch (59228-59239):
-        // both combined types compute before any links write.
-        let combined = if is_union {
-            self.get_union_type_ex(&prop_types, UnionReduction::Literal)?
+        let synthetic_check_flags = CheckFlags::from_bits(syntactic_flag.bits() | check_flags);
+        if prop_types.len() > 2 {
+            // 59231-59235: preserve the recipe without forcing either
+            // combined type. getTypeOfSymbol/getWriteTypeOfSymbol publish
+            // the corresponding cache at the eventual observation site.
+            self.links.set_symbol_synthetic_deferred(
+                result,
+                synthetic_check_flags,
+                containing_type,
+                prop_types,
+                write_types,
+            );
         } else {
-            self.get_intersection_type(&prop_types, tsc_types::IntersectionFlags::NONE)?
-        };
-        let combined_write = match &write_types {
-            Some(write_types) => Some(if is_union {
-                self.get_union_type_ex(write_types, UnionReduction::Literal)?
+            let combined = if is_union {
+                self.get_union_type_ex(&prop_types, UnionReduction::Literal)?
             } else {
-                self.get_intersection_type(write_types, tsc_types::IntersectionFlags::NONE)?
-            }),
-            None => None,
-        };
-        self.links.set_symbol_synthetic(
-            self.speculation_depth,
-            result,
-            CheckFlags::from_bits(syntactic_flag.bits() | check_flags),
-            containing_type,
-            combined,
-        );
+                self.get_intersection_type(&prop_types, tsc_types::IntersectionFlags::NONE)?
+            };
+            let combined_write = match &write_types {
+                Some(write_types) => Some(if is_union {
+                    self.get_union_type_ex(write_types, UnionReduction::Literal)?
+                } else {
+                    self.get_intersection_type(write_types, tsc_types::IntersectionFlags::NONE)?
+                }),
+                None => None,
+            };
+            self.links.set_symbol_synthetic(
+                self.speculation_depth,
+                result,
+                synthetic_check_flags,
+                containing_type,
+                combined,
+            );
+            if let Some(write_type) = combined_write {
+                self.links.set_fresh_symbol_write_type(result, write_type);
+            }
+        }
         self.links
             .set_symbol_name_type(self.speculation_depth, result, name_type);
-        if let Some(write_type) = combined_write {
-            self.links.set_fresh_symbol_write_type(result, write_type);
-        }
         Ok(Some(result))
     }
 
@@ -7274,19 +7316,133 @@ impl<'a> CheckerState<'a> {
         let reduced = self.get_reduced_apparent_type(ty)?;
         // getSignaturesOfStructuredType: unions and intersections
         // resolve through their member synthesis (5.3d) like objects.
-        if !self
+        let result = if !self
             .tables
             .flags_of(reduced)
             .intersects(TypeFlags::STRUCTURED_TYPE)
         {
-            return Ok(Vec::new());
+            Vec::new()
+        } else {
+            let members = self.resolve_structured_type_members(reduced)?;
+            let resolved = self.members_of(members);
+            match kind {
+                SignatureKind::Call => resolved.call_signatures.clone(),
+                SignatureKind::Construct => resolved.construct_signatures.clone(),
+            }
+        };
+
+        // A union such as `Fizz[] | Buzz[]` has a union of incompatible
+        // method objects at `.filter`/`.reduce`.  tsc does not try to
+        // combine those method signatures directly.  When every member
+        // came from the same Array/ReadonlyArray property, it remaps the
+        // array element parameter through each method type's mapper,
+        // builds `(Fizz | Buzz)[]`, and asks that property's signatures.
+        if kind != SignatureKind::Call
+            || !result.is_empty()
+            || !self.tables.flags_of(ty).intersects(TypeFlags::UNION)
+        {
+            return Ok(result);
         }
-        let members = self.resolve_structured_type_members(reduced)?;
-        let resolved = self.members_of(members);
-        Ok(match kind {
-            SignatureKind::Call => resolved.call_signatures.clone(),
-            SignatureKind::Construct => resolved.construct_signatures.clone(),
-        })
+        if let Some(cached) = self.links.ty(ty).array_fallback_signatures.resolved() {
+            return Ok(cached.into_vec());
+        }
+
+        let TypeData::Union { types, .. } = &self.tables.type_of(ty).data else {
+            unreachable!("union flag implies union data");
+        };
+        let constituents = types.to_vec();
+        let global_array = self.global_array_type()?;
+        let global_readonly_array = self.global_readonly_array_type()?;
+        let array_symbol = self.tables.type_of(global_array).symbol;
+        let readonly_array_symbol = self.tables.type_of(global_readonly_array).symbol;
+        let mut member_name: Option<String> = None;
+        let mut element_types = Vec::with_capacity(constituents.len());
+        let mut has_readonly_array = false;
+        let mut eligible = array_symbol.is_some() && readonly_array_symbol.is_some();
+
+        for constituent in constituents {
+            if !eligible {
+                break;
+            }
+            let Some(symbol) = self.tables.type_of(constituent).symbol else {
+                eligible = false;
+                break;
+            };
+            let Some(parent) = self.binder.symbol(symbol).parent else {
+                eligible = false;
+                break;
+            };
+            let is_array = self
+                .get_symbol_if_same_reference(parent, array_symbol.expect("checked above"))?
+                .is_some();
+            let is_readonly = self
+                .get_symbol_if_same_reference(
+                    parent,
+                    readonly_array_symbol.expect("checked above"),
+                )?
+                .is_some();
+            if !is_array && !is_readonly {
+                eligible = false;
+                break;
+            }
+
+            let name = self.binder.symbol(symbol).escaped_name.clone();
+            if member_name.as_ref().is_some_and(|current| current != &name) {
+                eligible = false;
+                break;
+            }
+            member_name.get_or_insert(name);
+
+            let Some(mapper) = self.links.ty(constituent).instantiated_mapper else {
+                eligible = false;
+                break;
+            };
+            let array_target = if is_readonly {
+                global_readonly_array
+            } else {
+                global_array
+            };
+            let array_target = self.tables.reference_target(array_target);
+            let TypeData::GenericType {
+                type_parameters, ..
+            } = &self.tables.type_of(array_target).data
+            else {
+                eligible = false;
+                break;
+            };
+            let Some(&element_parameter) = type_parameters.first() else {
+                eligible = false;
+                break;
+            };
+            element_types.push(self.get_mapped_type(element_parameter, mapper)?);
+            has_readonly_array |= is_readonly;
+        }
+
+        let fallback = if eligible {
+            let element_type =
+                self.get_union_type_ex(&element_types, tsc_types::UnionReduction::Literal)?;
+            let array_type = self.create_array_type(element_type, has_readonly_array)?;
+            let property_type = self.get_type_of_property_of_type(
+                array_type,
+                member_name
+                    .as_deref()
+                    .expect("eligible union has a member name"),
+            )?;
+            match property_type {
+                Some(property_type) => {
+                    self.get_signatures_of_type(property_type, SignatureKind::Call)?
+                }
+                None => Vec::new(),
+            }
+        } else {
+            result
+        };
+        self.links.set_type_array_fallback_signatures(
+            self.speculation_depth,
+            ty,
+            fallback.clone().into_boxed_slice(),
+        );
+        Ok(fallback)
     }
 
     /// tsc-port: getThisTypeOfSignature @6.0.3

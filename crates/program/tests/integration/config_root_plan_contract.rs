@@ -171,6 +171,26 @@ fn explicit_jsconfig_options_override_defaults() {
 }
 
 #[test]
+fn lib_replacement_is_retained_on_the_typed_program_option_snapshot() {
+    let plan = parse_config_root_plan(
+        &MemoryConfigHost::default(),
+        request(
+            "/project/tsconfig.json",
+            r#"{"compilerOptions":{"libReplacement":true},"files":["index.ts"]}"#,
+        ),
+    )
+    .expect("libReplacement config root plan");
+
+    assert!(plan.errors().is_empty());
+    assert_eq!(
+        plan.module_resolution_options()
+            .compiler_options()
+            .lib_replacement,
+        Some(true)
+    );
+}
+
+#[test]
 fn parsed_commandline_project_references_and_wildcard_directories_are_retained() {
     let host = MemoryConfigHost::default()
         .with_directory_files(&["/project/src/main.ts", "/project/src/nested/helper.ts"]);

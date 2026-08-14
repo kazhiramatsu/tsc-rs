@@ -5,10 +5,11 @@ repository. Active development targets the repository-root virtual Cargo
 workspace produced by the greenfield rewrite; the paused v1 codebase is
 preserved at tag `v1-final`.
 
-- [design/](design/README.md): the design set. Durable architecture
-  docs plus `design/greenfield/` — the authoritative milestone step
-  guides and convergence plan for the active rebuild. **Start any
-  handoff at `design/greenfield/README.md`.**
+- [design/](design/README.md): the design set and the authority/precedence
+  index. **Start every handoff there.** Post-H1 emitter work follows the
+  current emitter architecture, post-H1 schedule, and selected slice packet;
+  retained greenfield M-stage guides and the convergence plan are historical
+  lineage rather than current H2 implementation instructions.
 - [setup.md](setup.md): requirements (pinned Rust/Node toolchains) and
   the verification commands.
 - [NOTES-m1.md](NOTES-m1.md): M1 final-gate triage — the one-line

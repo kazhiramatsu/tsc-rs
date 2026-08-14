@@ -893,9 +893,10 @@ fn module_body_requests_follow_collect_module_references_boundaries() {
             "external augmentation",
             "/augmentation.ts",
             "export {}; declare module \"foo\" { import \"bar\"; }\n",
-            // The augmentation target is kept as a resolution-only row, and
-            // its body still contributes real imports to the checker table.
-            &["bar", "foo"][..],
+            // collectModuleReferences records the augmentation name but owns
+            // the declaration as a boundary; body imports are not file-level
+            // host requests.
+            &["foo"][..],
         ),
         (
             "script ambient non-relative import",
@@ -921,6 +922,119 @@ fn module_body_requests_follow_collect_module_references_boundaries() {
             "{label}"
         );
     }
+}
+
+#[test]
+fn external_augmentation_body_module_requests_never_escape_to_the_source_plan() {
+    let source = source_at(
+        "/augmentation.ts",
+        concat!(
+            "export {};\n",
+            "declare module \"./target\" {\n",
+            "  import * as all from \"./dependency\";\n",
+            "  export * from \"./dependency\";\n",
+            "}\n",
+            "import \"./outside\";\n",
+        ),
+        None,
+    );
+    let options = CompilerOptions {
+        module: Some(1),
+        module_resolution: Some(100),
+        ..CompilerOptions::default()
+    };
+
+    let plan = plan_source_requests(&source, &options)
+        .expect("plan external augmentation collection boundary");
+    assert_eq!(
+        plan.module_requests()
+            .iter()
+            .map(|request| request.specifier())
+            .collect::<Vec<_>>(),
+        ["./outside", "./target"]
+    );
+    assert_eq!(
+        plan.module_request_loads_source(&plan.module_requests()[0]),
+        Some(true)
+    );
+    assert_eq!(
+        plan.module_request_loads_source(&plan.module_requests()[1]),
+        Some(false)
+    );
+    assert_eq!(
+        plan.unpreprocessed_module_requests()
+            .map(|request| request.specifier())
+            .collect::<Vec<_>>(),
+        ["./dependency"]
+    );
+}
+
+#[test]
+fn ordinary_namespace_import_equals_requests_are_authoritative_unpreprocessed_misses() {
+    let source = source_at(
+        "/nested.ts",
+        concat!(
+            "export namespace outer {\n",
+            "  import first = require(\"first-missing\");\n",
+            "  namespace middle.inner {\n",
+            "    export import second = require(\"second-missing\");\n",
+            "  }\n",
+            "}\n",
+        ),
+        None,
+    );
+    let options = CompilerOptions {
+        module: Some(1),
+        module_resolution: Some(100),
+        ..CompilerOptions::default()
+    };
+
+    let plan =
+        plan_source_requests(&source, &options).expect("plan namespace preprocessing boundary");
+    assert!(plan.module_requests().is_empty());
+    assert_eq!(
+        plan.unpreprocessed_module_requests()
+            .map(|request| (request.specifier(), request.mode()))
+            .collect::<Vec<_>>(),
+        [
+            ("first-missing", ResolutionMode::CommonJs),
+            ("second-missing", ResolutionMode::CommonJs),
+        ]
+    );
+    assert_eq!(plan.observed_request_occurrence_count(), 0);
+}
+
+#[test]
+fn nested_ambient_module_declarations_are_resolution_only_augmentations() {
+    let source = source_at(
+        "/ambient.d.ts",
+        concat!(
+            "declare module \"base\" { export class Value {} }\n",
+            "declare module \"container\" {\n",
+            "  module \"base\" { interface Value { added(): void; } }\n",
+            "}\n",
+        ),
+        None,
+    );
+    let options = CompilerOptions {
+        module: Some(1),
+        module_resolution: Some(100),
+        ..CompilerOptions::default()
+    };
+
+    let plan =
+        plan_source_requests(&source, &options).expect("plan nested ambient module augmentation");
+    assert_eq!(
+        plan.module_requests()
+            .iter()
+            .map(|request| request.specifier())
+            .collect::<Vec<_>>(),
+        ["base"]
+    );
+    assert_eq!(
+        plan.module_request_loads_source(&plan.module_requests()[0]),
+        Some(false)
+    );
 }
 
 #[test]

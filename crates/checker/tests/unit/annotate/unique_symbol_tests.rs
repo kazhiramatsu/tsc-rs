@@ -18,6 +18,7 @@ fn unique_symbol_types_are_per_declaration_memoized_and_widen() {
             let sym = |state: &mut crate::state::CheckerState, name: &str| {
                 state
                     .get_global_symbol(name, SymbolFlags::VALUE, None)
+                    .expect("global lookup succeeds")
                     .expect("fixture declares the name")
             };
             let u = sym(state, "u");

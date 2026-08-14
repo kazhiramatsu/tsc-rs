@@ -3,9 +3,9 @@ use std::path::{Path, PathBuf};
 
 use tsc_host::{CompilerHost, HostError, HostErrorKind, HostOperation, MemoryCompilerHost};
 use tsc_program::{
-    CompilerOptions, HostResolvedModule, ModuleExtension, ModuleResolver, PackageId,
-    PackageJsonType, PathMapping, ProgramOptions, ProgramPath, ResolutionError, ResolutionMode,
-    ResolutionOutcome, ResolvedModuleTarget, SourceFileId,
+    validate_paths_option_diagnostics, CompilerOptions, HostResolvedModule, ModuleExtension,
+    ModuleResolver, PackageId, PackageJsonType, PathMapping, ProgramOptions, ProgramPath,
+    ResolutionError, ResolutionMode, ResolutionOutcome, ResolvedModuleTarget, SourceFileId,
 };
 
 const INNER_PACKAGE_JSON: &str = r#"{
@@ -2517,6 +2517,14 @@ fn optional_settings_preserve_each_observable_parent_directory_latch() {
         "pkg",
         vec!["base/pkg.ts".to_owned()],
     )]);
+    assert_eq!(
+        validate_paths_option_diagnostics(&options, &program_options)
+            .into_iter()
+            .map(|diagnostic| diagnostic.code())
+            .collect::<Vec<_>>(),
+        vec![5090],
+        "option validation must not perform resolver probes"
+    );
     let mut resolver = ModuleResolver::new_with_program_options(&host, &options, &program_options)
         .expect("create exact paths shortcut resolver");
     assert_eq!(
@@ -8931,6 +8939,36 @@ fn relative_directory_spellings_skip_direct_files_for_modules_and_type_reference
         Path::new("/work/dir/index.d.ts")
     );
     assert!(!reference.primary());
+}
+
+#[test]
+fn current_directory_specifier_resolves_its_manifestless_index() {
+    let host = MemoryCompilerHost::builder("/.src")
+        .file("/.src/data1.ts", b"import './';".to_vec())
+        .file("/.src/index.ts", b"export {};".to_vec())
+        .directory("/.src/")
+        .build()
+        .expect("build current-directory module host");
+    for resolution_kind in [2, 100] {
+        let options = CompilerOptions {
+            module: Some(1),
+            module_resolution: Some(resolution_kind),
+            ..CompilerOptions::default()
+        };
+        let mut resolver = ModuleResolver::new(&host, &options).expect("create module resolver");
+        for mode in [ResolutionMode::Unspecified, ResolutionMode::CommonJs] {
+            let module = resolved(
+                resolver
+                    .resolve(Path::new("/.src/data1.ts"), "./", mode)
+                    .expect("resolve the containing directory index"),
+            );
+            assert_eq!(
+                module.resolved_file().display(),
+                Path::new("/.src/index.ts"),
+                "moduleResolution={resolution_kind}, mode={mode:?}"
+            );
+        }
+    }
 }
 
 #[test]

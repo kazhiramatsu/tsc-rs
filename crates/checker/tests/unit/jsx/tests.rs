@@ -3,6 +3,13 @@ use tsc_types::CompilerOptions;
 use super::leading_jsx_pragmas;
 use crate::state::test_support::with_program_state;
 
+// `with_program_state` does not load the default library.  JSX child
+// cardinality follows tsc's `isArrayOrTupleLikeType`, whose fallback needs the
+// real Array/ReadonlyArray globals in order not to classify every object type
+// (including call signatures) as array-like.
+const JSX_ARRAY_GLOBALS: &str = "interface Array<T> { readonly length: number; [n: number]: T; }\n\
+     interface ReadonlyArray<T> { readonly length: number; [n: number]: T; }\n";
+
 /// Driver-level fixture check — oracle-pinned rows (tsc 6.0.3,
 /// noLib, .tsx, options per test) — scratchpad j*.tsx probes,
 /// 2026-07-13.
@@ -145,6 +152,65 @@ fn multiple_jsx_children_elaborate_one_row_per_child() {
 }
 
 #[test]
+fn jsx_children_cardinality_selects_the_arity_specific_diagnostics() {
+    let source = [
+        JSX_ARRAY_GLOBALS,
+        "declare namespace JSX { interface Element {} interface ElementChildrenAttribute { children: {} } interface IntrinsicElements { scalar: { children: () => 'ok' }; many: { children: (() => 'ok')[] } } }\n\
+         (<scalar>{() => 'ok'}{() => 'ok'}</scalar>);\n\
+         (<many>{() => 'ok'}</many>);\n",
+    ]
+    .concat();
+    let scalar_tag = source.find("<scalar>").expect("scalar opening tag") as u32 + 1;
+    let many_tag = source.find("<many>").expect("many opening tag") as u32 + 1;
+    let rows = checked_rows_with(&source, &jsx(1));
+    assert_eq!(
+        rows.into_iter()
+            .filter(|row| matches!(row.0, 2745 | 2746))
+            .collect::<Vec<_>>(),
+        [(2746, scalar_tag, 6), (2745, many_tag, 4)]
+    );
+}
+
+#[test]
+fn single_jsx_child_elaborates_an_arrow_return_at_the_inner_expression() {
+    let source = [
+        JSX_ARRAY_GLOBALS,
+        "declare namespace JSX { interface Element {} interface ElementChildrenAttribute { children: {} } interface IntrinsicElements { leaf: { children: (x: number) => 'ok' } } }\n\
+         (<leaf>{x => 'bad'}</leaf>);\n",
+    ]
+    .concat();
+    let bad_literal = source.find("'bad'").expect("bad arrow return") as u32;
+    let rows = checked_rows_with(&source, &jsx(1));
+    assert_eq!(
+        rows.into_iter()
+            .filter(|row| row.0 == 2322)
+            .collect::<Vec<_>>(),
+        [(2322, bad_literal, 5)]
+    );
+}
+
+#[test]
+fn single_scalar_child_without_a_children_container_keeps_the_missing_property_head() {
+    let source = [
+        JSX_ARRAY_GLOBALS,
+        "declare namespace JSX { interface Element {} interface IntrinsicElements { leaf: { children: () => string } } }\n\
+         (<leaf>{() => 'ok'}</leaf>);\n",
+    ]
+    .concat();
+    let rows = checked_rows_with(&source, &jsx(1));
+    let filtered = rows
+        .iter()
+        .filter(|row| matches!(row.0, 2741 | 2745 | 2746))
+        .map(|row| row.0)
+        .collect::<Vec<_>>();
+    assert_eq!(
+        filtered,
+        [2741],
+        "unexpected full diagnostic rows: {rows:?}"
+    );
+}
+
+#[test]
 fn required_intrinsic_attribute_selects_the_missing_property_head() {
     assert_eq!(
         checked_rows_with(
@@ -207,6 +273,24 @@ fn jsx_factory_option_selects_its_namespace() {
 }
 
 #[test]
+fn jsx_factory_option_uses_the_escaped_key_for_a_double_underscore_global() {
+    let rows = checked_rows_with(
+        "declare global {\n\
+             function __make(params: object): any;\n\
+         }\n\
+         declare var __foot: any;\n\
+         const thing = <__foot />;\n\
+         export {};\n",
+        &CompilerOptions {
+            jsx: Some(2),
+            jsx_factory: Some("__make".to_owned()),
+            ..CompilerOptions::default()
+        },
+    );
+    assert!(!rows.iter().any(|row| row.0 == 2874), "{rows:?}");
+}
+
+#[test]
 fn invalid_jsx_factory_option_falls_back_to_react_namespace() {
     let rows = checked_rows_with(
         "declare namespace React { namespace JSX { interface Element {} interface IntrinsicElements { div: { id: string } } } }\n\
@@ -256,6 +340,44 @@ fn automatic_jsx_runtime_uses_exported_jsx_namespace() {
     );
     assert!(!rows.iter().any(|row| row.0 == 2875), "{rows:?}");
     assert!(rows.iter().any(|row| row.0 == 2322), "{rows:?}");
+}
+
+#[test]
+fn global_import_equals_jsx_alias_uses_target_namespace_flags() {
+    let source = "export {};\n\
+                  declare namespace JSXInternal { interface Element {} interface IntrinsicElements { div: {} } }\n\
+                  declare global { export import JSX = JSXInternal; }\n\
+                  (<div />);\n";
+    let rows = checked_rows_with(source, &jsx(1));
+    assert!(
+        !rows.iter().any(|row| row.0 == 7026),
+        "alias-backed global JSX namespace must expose IntrinsicElements: {rows:?}"
+    );
+}
+
+#[test]
+fn namespaced_jsx_attribute_suggestion_uses_symbol_to_string_face() {
+    let source = "declare namespace JSX {\n\
+                    interface Element {}\n\
+                    interface IntrinsicElements { \"ns:element\": { \"ns:attribute\": string } }\n\
+                  }\n\
+                  declare var React: any;\n\
+                  (<ns:element attribute=\"x\" />);\n";
+    with_program_state(&[("a.tsx", source)], &jsx(1), |state| {
+        state.check_source_file(0);
+        let diagnostic = state
+            .diagnostics
+            .iter()
+            .find(|diagnostic| diagnostic.file_name.is_some() && diagnostic.code() == 2322)
+            .expect("namespaced JSX attribute mismatch");
+        assert!(
+            diagnostic
+                .message_text()
+                .contains("Did you mean '\"ns:attribute\"'?"),
+            "{}",
+            diagnostic.message_text()
+        );
+    });
 }
 
 #[test]
@@ -606,6 +728,31 @@ fn jsx_attribute_callback_is_contextually_typed() {
         ),
         [(2339, 183, 3)]
     );
+}
+
+#[test]
+fn rejected_jsx_overload_keeps_an_implicit_any_from_its_completed_contextual_check() {
+    let source = "declare namespace JSX { interface Element {} }\n\
+         interface ButtonProps { onClick: any; }\n\
+         interface LinkProps { to: string; }\n\
+         declare function MainButton(props: ButtonProps): JSX.Element;\n\
+         declare function MainButton(props: LinkProps): JSX.Element;\n\
+         (<MainButton to=\"/some/path\" onClick={e => {}} />);\n";
+    let tag = source.find("<MainButton").expect("JSX opening tag") as u32 + 1;
+    let parameter = source.find("e =>").expect("arrow parameter") as u32;
+    let mut rows = checked_rows_with(
+        source,
+        &CompilerOptions {
+            jsx: Some(1),
+            no_implicit_any: Some(true),
+            ..CompilerOptions::default()
+        },
+    )
+    .into_iter()
+    .filter(|row| matches!(row.0, 2769 | 7006))
+    .collect::<Vec<_>>();
+    rows.sort_by_key(|row| row.1);
+    assert_eq!(rows, [(2769, tag, 10), (7006, parameter, 1)]);
 }
 
 #[test]

@@ -20,6 +20,51 @@ pub struct TokenRecord {
     pub preceding_line_break: bool,
 }
 
+/// A scanner token range in the parser's native UTF-8 byte domain.
+///
+/// Unlike [`TokenRecord`], this representation does not require constructing
+/// a complete UTF-16 offset map. It is intended for consumers which can walk
+/// a source file once in lexical order, such as identity-source-map emission.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct ByteTokenRecord {
+    pub kind: SyntaxKind,
+    pub start: u32,
+    pub end: u32,
+    pub preceding_line_break: bool,
+}
+
+/// A single-pass, allocation-free token stream in UTF-8 byte space.
+///
+/// This is deliberately a stream rather than a reusable token cache. Creating
+/// a new stream restarts at the beginning of `text`; callers that process a
+/// complete source file should retain and advance one instance.
+pub struct ByteTokenIter<'text> {
+    scanner: Scanner<'text>,
+    finished: bool,
+}
+
+impl Iterator for ByteTokenIter<'_> {
+    type Item = ByteTokenRecord;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.finished {
+            return None;
+        }
+        let kind = self.scanner.scan();
+        if kind == SyntaxKind::EndOfFileToken {
+            self.finished = true;
+            return None;
+        }
+        Some(ByteTokenRecord {
+            kind,
+            start: u32::try_from(self.scanner.token_start())
+                .expect("source token start exceeds u32"),
+            end: u32::try_from(self.scanner.pos()).expect("source token end exceeds u32"),
+            preceding_line_break: self.scanner.has_preceding_line_break(),
+        })
+    }
+}
+
 /// tsc CommentDirectiveType (8199): the two comment directives the
 /// scanner recognizes, `@ts-expect-error` and `@ts-ignore`.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -2363,6 +2408,15 @@ pub fn scan_tokens(text: &str, variant: LanguageVariant) -> Vec<TokenRecord> {
     }
 
     tokens
+}
+
+/// Scan source tokens lazily in UTF-8 byte space without materializing token
+/// records or a UTF-16 offset map.
+pub fn scan_byte_tokens(text: &str, variant: LanguageVariant) -> ByteTokenIter<'_> {
+    ByteTokenIter {
+        scanner: Scanner::new(text, variant),
+        finished: false,
+    }
 }
 
 /// Scan token kinds lazily, without materializing [`TokenRecord`] values or

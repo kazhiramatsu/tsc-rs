@@ -16,8 +16,8 @@ use tsc_binder::node_util;
 use tsc_diagnostics::DiagnosticCategory;
 use tsc_syntax::{NodeData, NodeId, SyntaxKind};
 use tsc_types::{
-    CheckMode, MappedTypeModifiers, ModifierFlags, NodeFlags, SymbolFlags, SymbolId, TypeFacts,
-    TypeFlags, TypeId, UnionReduction,
+    CheckMode, IntersectionFlags, MappedTypeModifiers, ModifierFlags, NodeFlags, SymbolFlags,
+    SymbolId, TypeFacts, TypeFlags, TypeId, UnionReduction,
 };
 
 use crate::state::{CheckResult, CheckerState, SignatureId};
@@ -1679,7 +1679,13 @@ impl<'a> CheckerState<'a> {
         }
     }
 
-    fn property_access_or_identifier_to_string(&self, expression: NodeId) -> Option<String> {
+    /// tsc-port: tryGetPropertyAccessOrIdentifierToString @6.0.3
+    /// tsc-hash: a410a1452fdc82a5a73c62cd5eb5f45610d9fe85dde708d23ea0dd134d4120e5
+    /// tsc-span: _tsc.js:17153-17168
+    pub(crate) fn property_access_or_identifier_to_string(
+        &self,
+        expression: NodeId,
+    ) -> Option<String> {
         match self.data_of(expression) {
             NodeData::PropertyAccessExpression(data) => {
                 let base = self.property_access_or_identifier_to_string(data.expression?)?;
@@ -2343,15 +2349,14 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn get_write_type_of_symbol(&mut self, symbol: SymbolId) -> CheckResult<TypeId> {
         let check_flags = self.get_check_flags(symbol);
         if check_flags.intersects(tsc_types::CheckFlags::SYNTHETIC_PROPERTY) {
-            // tsc's DeferredType arm (getWriteTypeOfSymbolWithDeferredType,
-            // 56920-56928) is ELIDED as a documented divergence (m6
-            // close): the port's createUnionOrIntersectionProperty
-            // computes eagerly — the deferral is a perf cache with
-            // identical semantics (structural.rs decision) — so
-            // CheckFlags::DEFERRED_TYPE has no writer anywhere
-            // (grep-provable) and deferralWriteConstituents have no
-            // port fields. If a writer ever lands, restore the arm
-            // (guard note at the flag's definition).
+            if check_flags.intersects(tsc_types::CheckFlags::DEFERRED_TYPE) {
+                if let Some(write_type) =
+                    self.get_write_type_of_symbol_with_deferred_type(symbol)?
+                {
+                    return Ok(write_type);
+                }
+                return self.get_type_of_symbol_with_deferred_type(symbol);
+            }
             if let crate::links::LinkSlot::Resolved(write_type) =
                 self.links.symbol(symbol).write_type
             {
@@ -2394,6 +2399,33 @@ impl<'a> CheckerState<'a> {
             return self.get_write_type_of_accessors(symbol);
         }
         self.get_type_of_symbol(symbol)
+    }
+
+    /// tsc-port: getWriteTypeOfSymbolWithDeferredType @6.0.3
+    /// tsc-hash: d43c4e4427d8208bf00d55480c2a86df05d60e8e31b476191404bf2ba35db5a1
+    /// tsc-span: _tsc.js:56920-56928
+    fn get_write_type_of_symbol_with_deferred_type(
+        &mut self,
+        symbol: SymbolId,
+    ) -> CheckResult<Option<TypeId>> {
+        let links = self.links.symbol(symbol);
+        if let crate::links::LinkSlot::Resolved(ty) = links.write_type {
+            return Ok(Some(ty));
+        }
+        let Some(constituents) = links.deferral_write_constituents else {
+            return Ok(None);
+        };
+        let parent = links
+            .deferral_parent
+            .expect("DeferredType implies links.deferral_parent");
+        let ty = if self.tables.flags_of(parent).intersects(TypeFlags::UNION) {
+            self.get_union_type_ex(&constituents, UnionReduction::Literal)?
+        } else {
+            self.get_intersection_type(&constituents, IntersectionFlags::NONE)?
+        };
+        self.links
+            .set_symbol_write_type(self.speculation_depth, symbol, ty);
+        Ok(Some(ty))
     }
 
     /// tsc-port: getFlowTypeOfAccessExpression @6.0.3
@@ -3562,17 +3594,10 @@ impl<'a> CheckerState<'a> {
             return Ok(false);
         }
         // everyContainedType(t => symbol name matches the DOM shape).
-        let constituents: Vec<TypeId> = if self
-            .tables
-            .flags_of(containing_type)
-            .intersects(TypeFlags::UNION)
-        {
-            match &self.tables.type_of(containing_type).data {
-                tsc_types::TypeData::Union { types, .. } => types.to_vec(),
-                _ => unreachable!("union flag implies union data"),
-            }
-        } else {
-            vec![containing_type]
+        let constituents: Vec<TypeId> = match &self.tables.type_of(containing_type).data {
+            tsc_types::TypeData::Union { types, .. }
+            | tsc_types::TypeData::Intersection { types } => types.to_vec(),
+            _ => vec![containing_type],
         };
         let dom_shape = |name: &str| {
             name == "EventTarget"

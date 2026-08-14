@@ -1120,7 +1120,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         symbol_name: &str,
     ) -> CheckResult<String> {
-        let ctor = self.get_global_symbol("Symbol", SymbolFlags::VALUE, None);
+        let ctor = self.get_global_symbol("Symbol", SymbolFlags::VALUE, None)?;
         if let Some(ctor) = ctor {
             let ctor_type = self.get_type_of_symbol(ctor)?;
             let unique_type = self.get_type_of_property_of_type(ctor_type, symbol_name)?;
@@ -1884,7 +1884,7 @@ impl<'a> CheckerState<'a> {
         {
             return Ok(false);
         }
-        let global_nan = self.get_global_symbol("NaN", SymbolFlags::VALUE, None);
+        let global_nan = self.get_global_symbol("NaN", SymbolFlags::VALUE, None)?;
         let Some(global_nan) = global_nan else {
             return Ok(false);
         };
@@ -2491,9 +2491,9 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 9e116ec9fcef81cb8897434648907a824839cd020365db6116b40e0a92a7b435
     /// tsc-span: _tsc.js:77863-77876
     ///
-    /// The erasableSyntaxOnly 1294 row is unmodeled (no harness
-    /// directive sets the option, so the arm is unreachable in every
-    /// gate).
+    /// The erasableSyntaxOnly diagnostic owns only the angle-bracket
+    /// assertion prefix. The asserted expression remains outside the
+    /// range, matching createFileDiagnostic in tsc.
     pub(crate) fn check_assertion(
         &mut self,
         node: NodeId,
@@ -2506,6 +2506,30 @@ impl<'a> CheckerState<'a> {
                     node,
                     &tsc_diagnostics::gen::This_syntax_is_reserved_in_files_with_the_mts_or_cts_extension_Use_an_as_expression_instead,
                     &[],
+                );
+            }
+            if self.options.erasable_syntax_only == Some(true) {
+                let source = self.binder.source_of_node(node);
+                let raw = source.arena.node(node);
+                let start = tsc_syntax::skip_trivia(source.text(), raw.pos as usize);
+                let end = match self.data_of(node) {
+                    NodeData::TypeAssertionExpression(data) => data
+                        .expression
+                        .map(|expression| {
+                            self.binder
+                                .source_of_node(expression)
+                                .arena
+                                .node(expression)
+                                .pos as usize
+                        })
+                        .unwrap_or(raw.end as usize),
+                    _ => raw.end as usize,
+                };
+                self.error_at_byte_range(
+                    node,
+                    start,
+                    end,
+                    &tsc_diagnostics::gen::This_syntax_is_not_allowed_when_erasableSyntaxOnly_is_enabled,
                 );
             }
         }
@@ -2723,8 +2747,7 @@ impl<'a> CheckerState<'a> {
         self.check_grammar_expression_with_type_arguments(node);
         let (expression, type_arguments) = match self.data_of(node) {
             NodeData::ExpressionWithTypeArguments(data) => (data.expression, data.type_arguments),
-            // The TypeQuery flavor (`typeof f<number>`) routes through
-            // getTypeFromTypeNode, not this arm.
+            NodeData::TypeQuery(data) => (data.expr_name, data.type_arguments),
             _ => (None, None),
         };
         let Some(expression) = expression else {
@@ -2753,7 +2776,12 @@ impl<'a> CheckerState<'a> {
                 }
             }
         }
-        let expr_type = self.check_expression(expression, CheckMode::NORMAL)?;
+        let expr_type =
+            if self.kind_of(node) == SyntaxKind::TypeQuery && self.is_this_identifier(expression) {
+                self.check_this_expression(expression)?
+            } else {
+                self.check_expression(expression, CheckMode::NORMAL)?
+            };
         self.get_instantiation_expression_type(expr_type, node, type_arguments)
     }
 

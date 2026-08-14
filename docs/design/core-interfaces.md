@@ -1,11 +1,19 @@
 # Core interfaces: the data contracts
 
-The authoritative reference for the objects every phase reads and
-writes. greenfield.md §4 gives the DESIGN rationale (identity,
-interning, links); the other docs give ALGORITHMS. This doc is the
-CONTRACT: the actual tsc interface definitions (public fields from
-`typescript.d.ts`, internal fields from `_tsc.js` usage), each with its
-Rust mapping and which fields are load-bearing for parity.
+Document role: **M-track core-interface design lineage**. Its Node, Symbol,
+Type, Signature, flow, and diagnostic invariants remain useful inputs, but
+individual layouts and the batch-only Program/options sections may lag the
+current workspace. Validate a cited fact against current Rust symbols before
+using it in a new slice. Emitter-specific ownership and types are owned by the
+[current emitter architecture](greenfield/emitter-architecture.md).
+
+For the historical M-track design, this is the reference for the objects each
+phase was intended to read and write. `greenfield.md` §4 gives that design's
+rationale (identity, interning, links); the other M-track documents give its
+algorithms. This document records the corresponding tsc interface definitions
+(public fields from `typescript.d.ts`, internal fields inferred from `_tsc.js`
+usage), their then-planned Rust mappings, and which fields are load-bearing for
+parity. It is not an authority for current Rust symbol names or ownership.
 
 Rule of thumb: a field is load-bearing (must match tsc) if it is
 OBSERVABLE — it affects a diagnostic's code/span/message, or it changes

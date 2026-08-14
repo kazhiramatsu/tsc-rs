@@ -1,4 +1,11 @@
-# Execution guide for implementing agents (READ FIRST, FOLLOW EXACTLY)
+# Historical v1 execution guide
+
+Document role: **historical v1 operating procedure**. Do not use its paths,
+commands, branch rules, test counts, or revert instructions in the current
+workspace. Current work starts at the
+[greenfield execution index](greenfield/README.md), then follows the active
+architecture, post-H1 design gate, and current slice packet. This file remains
+only for interpreting v1-era notes.
 
 This guide assumes you are an automated agent implementing one of the
 designs in this directory. It is written so that you never need to make

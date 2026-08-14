@@ -23,11 +23,11 @@ fn argument_parser_selects_emit_and_the_admitted_target_ladder() {
         Err(CliError::Usage(_))
     ));
     assert_eq!(
-        parse_arguments(&["--target=es2016".to_owned()])
+        parse_arguments(&["--target=es2015".to_owned()])
             .expect("the current H2 downlevel target is admitted")
             .compiler_options
             .target,
-        Some(3)
+        Some(2)
     );
     assert_eq!(
         parse_arguments(&["--target=latest".to_owned()])
@@ -37,8 +37,8 @@ fn argument_parser_selects_emit_and_the_admitted_target_ladder() {
         Some(99)
     );
     assert!(matches!(
-        parse_arguments(&["--target=es2015".to_owned()]),
-        Err(CliError::Usage(message)) if message.contains("es2016 through es2025")
+        parse_arguments(&["--target=es5".to_owned()]),
+        Err(CliError::Usage(message)) if message.contains("es2015 through es2025")
     ));
 }
 

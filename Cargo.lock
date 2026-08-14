@@ -328,6 +328,7 @@ dependencies = [
  "tsc-rs-binder",
  "tsc-rs-diagnostics",
  "tsc-rs-emitter",
+ "tsc-rs-program",
  "tsc-rs-syntax",
  "tsc-rs-types",
 ]

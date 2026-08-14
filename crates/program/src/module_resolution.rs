@@ -7145,7 +7145,15 @@ pub(crate) fn normalize_absolute_path(
     normalize_absolute_path_worker(path, base, true)
 }
 
-pub(crate) fn normalize_absolute_path_lexical(
+/// Normalize a lexical path against an optional rooted base using
+/// TypeScript's host-independent disk/URL root grammar.
+///
+/// Unlike [`normalize_absolute_path`], this form deliberately permits NUL in
+/// the lexical string. Callers that will issue host operations must use the
+/// validating variant; compiler layers that only compare already-admitted
+/// program identities can reuse this function without duplicating tsc's
+/// POSIX, drive, UNC, and URL root handling.
+pub fn normalize_absolute_path_lexical(
     path: &Path,
     base: Option<&str>,
 ) -> Result<String, ResolutionError> {

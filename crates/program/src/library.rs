@@ -5,6 +5,31 @@ use tsc_types::CompilerOptions;
 
 use crate::config_options::{typescript_6_0_3_libraries, typescript_6_0_3_library_value};
 
+/// Translate one catalog basename into the package request used by
+/// TypeScript's library-replacement resolver.
+///
+/// The first component after `lib.` is the package name. A following
+/// component is a package subpath and any remaining components are joined to
+/// that subpath with hyphens. The terminal `.d.ts` is not part of the request.
+///
+/// tsc-port: getLibraryNameFromLibFileName @6.0.3
+/// tsc-hash: 71a708e558b00692b01d4eff568ffc5dfa83b3d657ead9dc395086665a85a8c5
+/// tsc-span: _tsc.js:122402-122411
+pub(crate) fn replacement_package_name(lib_file_name: &str) -> String {
+    let mut components = lib_file_name.split('.').skip(1);
+    let mut path = components.next().unwrap_or_default().to_owned();
+    let mut first_subpath = true;
+    for component in components {
+        if component == "d" {
+            break;
+        }
+        path.push(if first_subpath { '/' } else { '-' });
+        path.push_str(component);
+        first_subpath = false;
+    }
+    format!("@typescript/lib-{path}")
+}
+
 /// An injected, version-pinned TypeScript standard-library catalog.
 ///
 /// The catalog owns metadata only. Library bytes still come from the caller's
@@ -104,17 +129,14 @@ impl LibraryCatalog {
         }
     }
 
+    /// Return the stable default-library order for a logical catalog
+    /// basename, independently of the physical file selected by lib
+    /// replacement.
+    ///
     /// tsc-port: getDefaultLibFilePriority @6.0.3
     /// tsc-hash: 76ba34e95562034f7cf2bde179f09ddac57adf36e403e26a589c8575d3759ae5
     /// tsc-span: _tsc.js:123124-123138
-    pub(crate) fn priority(&self, directory: &Path, file_name: &Path) -> usize {
-        if !file_name.starts_with(directory) {
-            return typescript_6_0_3_libraries().len() + 2;
-        }
-        let basename = file_name
-            .file_name()
-            .and_then(|name| name.to_str())
-            .unwrap_or_default();
+    pub(crate) fn file_name_priority(&self, basename: &str) -> usize {
         if matches!(basename, "lib.d.ts" | "lib.es6.d.ts") {
             return 0;
         }

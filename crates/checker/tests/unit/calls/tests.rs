@@ -94,6 +94,74 @@ fn infer_type_arguments_two_pass_contextual_return() {
 }
 
 #[test]
+fn argument_inference_replaces_lower_priority_contextual_return_candidate() {
+    let text = "interface Array<T> { [index: number]: T; length: number; }\n\
+                interface Iterable<T> { next(): T; }\n\
+                interface ArrayLike<T> { readonly [index: number]: T; length: number; }\n\
+                interface Iter<T> { next(): T; extra: boolean; }\n\
+                interface A { a: string; }\n\
+                interface B { b: string; }\n\
+                declare function from<T>(input: Iterable<T> | ArrayLike<T>): T[];\n\
+                declare const input: Iter<A>;\n\
+                const result: B[] = from(input);\n";
+    let rows = checked_rows(text);
+    assert_eq!(rows.len(), 1);
+    assert_eq!(rows[0].0, 2322);
+    assert_eq!(rows[0].1, text.find("result").unwrap() as u32);
+}
+
+#[test]
+fn argument_inference_follows_a_shared_unique_symbol_property() {
+    let text = "interface SymbolConstructor { readonly iterator: unique symbol; }\n\
+                declare const Symbol: SymbolConstructor;\n\
+                interface Array<T> { [index: number]: T; length: number; }\n\
+                interface Iterator<T> { next(): T; }\n\
+                interface Iterable<T> { [Symbol.iterator](): Iterator<T>; }\n\
+                interface Iter<T> { [Symbol.iterator](): Iterator<T>; }\n\
+                interface A { a: string; }\n\
+                interface B { b: string; }\n\
+                declare function from<T>(input: Iterable<T>): T[];\n\
+                declare const input: Iter<A>;\n\
+                const result: B[] = from(input);\n";
+    let rows = checked_rows(text);
+    assert_eq!(rows.len(), 1, "{rows:?}");
+    assert_eq!(rows[0].0, 2322);
+    assert_eq!(rows[0].1, text.find("result").unwrap() as u32);
+}
+
+#[test]
+fn overload_speculation_keeps_generic_alias_declaration_shape() {
+    let declarations = "interface Array<T> { [index: number]: T; length: number; }\n\
+                        interface Yield<T> { done?: false; value: T; }\n\
+                        interface Returned<R> { done: true; value: R; }\n\
+                        type Result<T, R = any> = Yield<T> | Returned<R>;\n\
+                        interface Iterable<T> { read(): Result<T>; }\n\
+                        interface Source<T> { read(): Result<T>; }\n\
+                        interface ArrayLike<T> { readonly [index: number]: T; readonly length: number; }\n\
+                        declare function from<T>(input: Iterable<T> | ArrayLike<T>): T[];\n\
+                        declare function from<T>(input: ArrayLike<T>): T[];\n";
+    let source = "interface A { a: string; }\n\
+                  interface B { b: string; }\n\
+                  declare const input: Source<A>;\n\
+                  const first: A[] = from(input);\n\
+                  const result: B[] = from(input);\n";
+    let actual = with_program_state(
+        &[("lib.d.ts", declarations), ("a.ts", source)],
+        &CompilerOptions::default(),
+        |state| {
+            // Keep the declaration file lazy: the first overload trial
+            // forces Result<T>, then its instantiated member graph escapes
+            // the transaction and is reused by the second call.
+            state.check_source_file(1);
+            rows(state)
+        },
+    );
+    assert_eq!(actual.len(), 1, "{actual:?}");
+    assert_eq!(actual[0].0, 2322);
+    assert_eq!(actual[0].1, source.find("result").unwrap() as u32);
+}
+
+#[test]
 fn infer_type_arguments_implied_arity_write() {
     with_program_state(
             &[(
@@ -162,6 +230,159 @@ fn infer_type_arguments_binding_pattern_skips_first_pass() {
             // ...while the a2 returnContext still derives the
             // returnMapper from the pattern type.
             assert!(state.inference_context(ctx).return_mapper.is_some());
+        },
+    );
+}
+
+#[test]
+fn binding_pattern_return_mapper_contextualizes_later_empty_array_argument() {
+    let text = "interface Array<T> {\n\
+                    reduce(callbackfn: (previousValue: T, currentValue: T) => T, initialValue: T): T;\n\
+                    reduce<U>(callbackfn: (previousValue: U, currentValue: T) => U, initialValue: U): U;\n\
+                }\n\
+                declare const values: number[];\n\
+                const [value] = values.reduce((accu, element) => accu, []);\n";
+    with_program_state(
+        &[("a.ts", text)],
+        &CompilerOptions {
+            strict: Some(true),
+            ..CompilerOptions::default()
+        },
+        |state| {
+            let call = {
+                let source = state.binder.source(0);
+                source
+                    .arena
+                    .node_ids()
+                    .find(|&id| {
+                        let NodeData::CallExpression(ref data) = source.arena.node(id).data else {
+                            return false;
+                        };
+                        data.expression.is_some_and(|expression| {
+                            matches!(
+                                source.arena.node(expression).data,
+                                NodeData::PropertyAccessExpression(ref data)
+                                    if data.name.is_some_and(|name| {
+                                        matches!(
+                                            &source.arena.node(name).data,
+                                            NodeData::Identifier(identifier)
+                                                if identifier.text == "reduce"
+                                        )
+                                    })
+                            )
+                        })
+                    })
+                    .expect("reduce call")
+            };
+            let expression = match state.data_of(call) {
+                NodeData::CallExpression(data) => data.expression.expect("call expression"),
+                _ => unreachable!(),
+            };
+            let callee_type = state
+                .check_expression(expression, CheckMode::NORMAL)
+                .expect("callee type");
+            let generic = state
+                .get_signatures_of_type(callee_type, SignatureKind::Call)
+                .expect("reduce signatures")
+                .into_iter()
+                .find(|&signature| state.signature_of(signature).type_parameters.is_some())
+                .expect("generic reduce overload");
+            let args = state.get_effective_call_arguments(call).expect("arguments");
+            let type_parameters = state
+                .signature_of(generic)
+                .type_parameters
+                .clone()
+                .expect("generic overload");
+            let context = state.create_inference_context(
+                &type_parameters,
+                Some(generic),
+                InferenceFlags::NONE,
+                None,
+            );
+            let inferred = state
+                .infer_type_arguments(
+                    call,
+                    generic,
+                    &args,
+                    CheckMode::SKIP_CONTEXT_SENSITIVE | CheckMode::SKIP_GENERIC_FUNCTIONS,
+                    context,
+                )
+                .expect("inference completes");
+
+            let return_mapper = state
+                .inference_context(context)
+                .return_mapper
+                .expect("binding-pattern return mapper");
+            let mapped_return = state
+                .instantiate_type(type_parameters[0], Some(return_mapper))
+                .expect("mapped return type");
+            assert_eq!(
+                state
+                    .type_to_string_slice(mapped_return)
+                    .expect("mapped return renders"),
+                "[any]"
+            );
+            assert_eq!(inferred.len(), 1);
+            assert!(state.tables.is_tuple_type(inferred[0]));
+            assert!(state.get_type_arguments(inferred[0]).unwrap().is_empty());
+        },
+    );
+}
+
+#[test]
+fn rejected_reduce_overloads_keep_tsc_contextual_state_and_failure_return_type() {
+    let text = "interface Array<T> {\n\
+                    concat(...items: T[]): T[];\n\
+                    reduce(callbackfn: (previousValue: T, currentValue: T) => T): T;\n\
+                    reduce(callbackfn: (previousValue: T, currentValue: T) => T, initialValue: T): T;\n\
+                    reduce<U>(callbackfn: (previousValue: U, currentValue: T) => U, initialValue: U): U;\n\
+                }\n\
+                declare const values: number[];\n\
+                const [value] = values.reduce((accu, element) => accu.concat(element), []);\n";
+    with_program_state(
+        &[("a.ts", text)],
+        &CompilerOptions {
+            strict: Some(true),
+            ..CompilerOptions::default()
+        },
+        |state| {
+            let call = {
+                let source = state.binder.source(0);
+                source
+                    .arena
+                    .node_ids()
+                    .find(|&id| {
+                        let NodeData::CallExpression(ref data) = source.arena.node(id).data else {
+                            return false;
+                        };
+                        data.expression.is_some_and(|expression| {
+                            matches!(
+                                source.arena.node(expression).data,
+                                NodeData::PropertyAccessExpression(ref data)
+                                    if data.name.is_some_and(|name| {
+                                        matches!(
+                                            &source.arena.node(name).data,
+                                            NodeData::Identifier(identifier)
+                                                if identifier.text == "reduce"
+                                        )
+                                    })
+                            )
+                        })
+                    })
+                    .expect("reduce call")
+            };
+            let signature = state
+                .get_resolved_signature(call, CheckMode::NORMAL)
+                .expect("failure signature");
+            let return_type = state
+                .get_return_type_of_signature(signature)
+                .expect("return type");
+            assert_eq!(
+                state
+                    .type_to_string_slice(return_type)
+                    .expect("return type renders"),
+                "number"
+            );
         },
     );
 }
@@ -1165,7 +1386,42 @@ fn untupled_spread_reports_2556_at_the_spread_arg() {
                 "declare function sp(a: number, b: number): void;\ndeclare const xs: number[];\nsp(...xs);\n"
             ),
             [(2556, 80, 5)]
-        );
+    );
+}
+
+#[test]
+fn mapped_destructuring_context_keeps_rest_parameters_as_tuples() {
+    let text = "type ParametersOf<T extends (...args: any) => any> =\n\
+                    T extends (...args: infer P) => any ? P : never;\n\
+                type Dispatch<A = { type: any; [extraProps: string]: any }> =\n\
+                    { <T extends A>(action: T): T };\n\
+                type IFuncs = { readonly [key: string]: (...p: any) => void };\n\
+                type IDestructuring<T extends IFuncs> =\n\
+                    { readonly [key in keyof T]?: (...p: ParametersOf<T[key]>) => void };\n\
+                type Destructuring<T extends IFuncs, U extends IDestructuring<T>> =\n\
+                    (dispatch: Dispatch<any>, funcs: T) => U;\n\
+                const funcs1 = {\n\
+                    funcA: (a: boolean): void => {},\n\
+                    funcB: (b: string, bb: string): void => {},\n\
+                    funcC: (c: number, cc: number, ccc: boolean): void => {},\n\
+                };\n\
+                type TFuncs1 = typeof funcs1;\n\
+                declare function useReduxDispatch1<T extends IDestructuring<TFuncs1>>(\n\
+                    destructuring: Destructuring<TFuncs1, T>\n\
+                ): T;\n\
+                const {} = useReduxDispatch1(\n\
+                    (d, f) => ({\n\
+                        funcA: (...p) => d(f.funcA(...p)),\n\
+                        funcB: (...p) => d(f.funcB(...p)),\n\
+                        funcC: (...p) => d(f.funcC(...p)),\n\
+                    })\n\
+                );\n";
+    assert!(
+        checked_rows(text)
+            .into_iter()
+            .all(|(code, _, _)| code != 2556),
+        "the selected contextual signature must retain tuple rest parameters"
+    );
 }
 
 // ---- overload failure chains (2769 band) ----
@@ -1218,6 +1474,28 @@ fn union_with_uncallable_constituent_reports_one_2349_row() {
     assert_eq!(
         checked_rows("declare const u: { (): void } | { n: number };\nu();\n"),
         [(2349, 47, 1)]
+    );
+}
+
+#[test]
+fn matching_array_union_members_use_the_combined_element_signature() {
+    let text = "interface Object {}\n\
+                interface Function {}\n\
+                interface Array<T> { filter(predicate: (value: T) => unknown): T[]; }\n\
+                interface ReadonlyArray<T> { filter(predicate: (value: T) => unknown): T[]; }\n\
+                interface Fizz { id: number; fizz: string; }\n\
+                interface Buzz { id: number; buzz: string; }\n\
+                declare const values: Fizz[] | Buzz[];\n\
+                values.filter(item => item.id < 5);\n";
+    assert_eq!(
+        checked_rows_with(
+            text,
+            &CompilerOptions {
+                strict: Some(true),
+                ..CompilerOptions::default()
+            },
+        ),
+        []
     );
 }
 

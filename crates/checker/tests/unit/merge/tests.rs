@@ -78,6 +78,52 @@ fn augmentation_conflicts_survive_to_the_post_pass_flush() {
 }
 
 #[test]
+fn global_namespace_merge_resolves_alias_meaning_before_conflict_detection() {
+    // checkerInitializationCrash.ts: the exported import-equals symbol is
+    // syntactically an Alias, but resolveSymbol exposes its TypeAlias target
+    // before mergeSymbol applies the incoming type alias's exclusions. The
+    // conflict is therefore owned by the augmentation merge (2300 on both
+    // names), not by the later checkAliasSymbol fallback (2440).
+    with_program_state(
+        &[
+            (
+                "a.d.ts",
+                "declare namespace react { type ReactNode = string; }\n\
+                 declare global { namespace FullCalendarVDom { export import VNode = react.ReactNode; } }\n\
+                 export {};\n",
+            ),
+            (
+                "b.d.ts",
+                "declare global { namespace FullCalendarVDom { type VNode = number; } }\n\
+                 export {};\n",
+            ),
+        ],
+        &CompilerOptions::default(),
+        |state| {
+            state.check_source_file(0);
+            state.check_source_file(1);
+            let mut pins = state
+                .diagnostics
+                .iter()
+                .map(|diagnostic| {
+                    (
+                        diagnostic.code(),
+                        diagnostic.file_name.as_deref().unwrap_or_default(),
+                        diagnostic.start.unwrap_or(u32::MAX),
+                        diagnostic.length.unwrap_or(u32::MAX),
+                    )
+                })
+                .collect::<Vec<_>>();
+            pins.sort_unstable();
+            assert_eq!(
+                pins,
+                [(2300, "a.d.ts", 113, 5), (2300, "b.d.ts", 51, 5)]
+            );
+        },
+    );
+}
+
+#[test]
 fn global_augmentation_conflicts_with_an_earlier_umd_global_export() {
     with_program_state(
         &[

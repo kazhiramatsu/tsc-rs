@@ -143,6 +143,56 @@ fn enum_relation_short_circuits_on_symbol_identity() {
 }
 
 #[test]
+fn reporting_enum_relations_replay_cached_failures_with_typed_details() {
+    let text = concat!(
+        "namespace Target { export enum E { a, b, c } }\n",
+        "namespace Extra { export enum E { a, b, c, d } }\n",
+        "namespace Different { export enum E { a, b, c = 3 } }\n",
+        "declare let target: Target.E;\n",
+        "declare let extra: Extra.E;\n",
+        "declare let different: Different.E;\n",
+        "target = extra;\n",
+        "target = different;\n",
+    );
+    crate::state::test_support::with_program_state(
+        &[("a.ts", text)],
+        &CompilerOptions::default(),
+        |state| {
+            state.check_source_file(0);
+            let chains = state
+                .diagnostics
+                .iter()
+                .filter(|diagnostic| diagnostic.file_name.is_some())
+                .map(|diagnostic| {
+                    (
+                        diagnostic.message.text.clone(),
+                        diagnostic
+                            .message
+                            .next
+                            .iter()
+                            .map(|detail| detail.text.clone())
+                            .collect::<Vec<_>>(),
+                    )
+                })
+                .collect::<Vec<_>>();
+            assert_eq!(
+                chains,
+                [
+                    (
+                        "Type 'Extra.E' is not assignable to type 'Target.E'.".to_owned(),
+                        vec!["Property 'd' is missing in type 'Target.E'.".to_owned()],
+                    ),
+                    (
+                        "Type 'Different.E' is not assignable to type 'Target.E'.".to_owned(),
+                        vec!["Each declaration of 'E.c' differs in its value, where '2' was expected but '3' was given.".to_owned()],
+                    ),
+                ]
+            );
+        },
+    );
+}
+
+#[test]
 fn constrained_type_parameters_do_not_share_backref_keys() {
     // m4-review A1: isUnconstrainedTypeParameter must FORCE
     // getConstraintOfTypeParameter (declared parameters keep the
@@ -171,6 +221,95 @@ fn constrained_type_parameters_do_not_share_backref_keys() {
                 })
                 .collect();
             assert_eq!(rows, [(2322, 151, 3)]);
+        },
+    );
+}
+
+#[test]
+fn relation_error_suggests_nearby_string_literal_union_member() {
+    let text = "type T1 = \"string\" | \"number\" | \"boolean\";\n\
+                type T2 = T1 & (\"number\" | \"boolean\");\n\
+                type T3 = T1 & (\"string\" | \"boolean\");\n\
+                const t1: T1 = \"strong\";\n\
+                const t2: T2 = \"strong\";\n\
+                const t3: T3 = \"strong\";\n";
+    crate::state::test_support::with_program_state(
+        &[("a.ts", text)],
+        &CompilerOptions::default(),
+        |state| {
+            state.check_source_file(0);
+            let diagnostics = state
+                .diagnostics
+                .iter()
+                .filter(|diagnostic| diagnostic.file_name.is_some())
+                .map(|diagnostic| (diagnostic.code(), diagnostic.message_text().to_owned()))
+                .collect::<Vec<_>>();
+            assert_eq!(
+                diagnostics,
+                [
+                    (
+                        2820,
+                        "Type '\"strong\"' is not assignable to type 'T1'. Did you mean '\"string\"'?"
+                            .to_owned(),
+                    ),
+                    (
+                        2322,
+                        "Type '\"strong\"' is not assignable to type '\"number\" | \"boolean\"'."
+                            .to_owned(),
+                    ),
+                    (
+                        2820,
+                        "Type '\"strong\"' is not assignable to type '\"string\" | \"boolean\"'. Did you mean '\"string\"'?"
+                            .to_owned(),
+                    ),
+                ]
+            );
+        },
+    );
+}
+
+#[test]
+fn reporting_relation_retains_nested_no_common_properties_leaf() {
+    crate::state::test_support::with_program_state(
+        &[(
+            "a.ts",
+            "declare let source: { c: string };\n\
+             declare let target: { a?: string } & { b?: string };\n",
+        )],
+        &CompilerOptions {
+            strict: Some(true),
+            ..CompilerOptions::default()
+        },
+        |state| {
+            let source_node =
+                crate::relpin::find_probe_annotation(state.binder.source(0), "source")
+                    .expect("source annotation");
+            let target_node =
+                crate::relpin::find_probe_annotation(state.binder.source(0), "target")
+                    .expect("target annotation");
+            let source = state
+                .get_type_from_type_node(source_node)
+                .expect("source type");
+            let target = state
+                .get_type_from_type_node(target_node)
+                .expect("target type");
+            let output = state
+                .relation_error_output_with_context(
+                    source,
+                    target,
+                    RelationKind::Assignable,
+                    None,
+                    None,
+                )
+                .expect("relation succeeds")
+                .expect("weak target is unrelated");
+
+            assert_eq!(output.message.code, 2559);
+            assert_eq!(
+                output.message.text,
+                "Type '{ c: string; }' has no properties in common with type '{ a?: string | undefined; } & { b?: string | undefined; }'."
+            );
+            assert!(output.message.next.is_empty());
         },
     );
 }

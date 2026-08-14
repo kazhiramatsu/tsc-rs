@@ -1,8 +1,8 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use tsc_syntax::{
-    for_each_child, skip_trivia, try_visit_each_child, NodeArrayId, NodeData, NodeDataChildVisitor,
-    NodeId, SyntaxKind,
+    for_each_child, is_identifier_text_for_target, skip_trivia, try_visit_each_child, NodeArrayId,
+    NodeData, NodeDataChildVisitor, NodeId, SyntaxKind,
 };
 use tsc_types::{CompilerOptions, NodeFlags, ScriptTarget};
 
@@ -78,16 +78,9 @@ impl Transformer for JsxTransformer<'_> {
         let is_external_or_common_js_module = if import_base.is_none() || is_external_module {
             is_external_module
         } else {
-            let program_source = context
-                .arena()
-                .source(source)?
-                .program_source()
-                .ok_or(TransformError::MissingProgramSource(root))?;
-            self.resolver
-                .is_external_or_common_js_module(EmitResolverNode::new(
-                    program_source,
-                    root.node(),
-                ))?
+            self.resolver.is_external_or_common_js_module(
+                context.arena().require_parse_tree_resolver_node(root)?,
+            )?
         };
         let mut visitor = JsxVisitor::new(
             context,
@@ -254,6 +247,14 @@ struct ElementCallFormatting {
     is_child: bool,
 }
 
+/// Parse-tree location that owns resolution of a classic JSX factory root.
+///
+/// This is deliberately distinct from the outer element used as the emitted
+/// call's text range: upstream parents `createReactNamespace` at the opening
+/// element/fragment so checker lookup occurs in the correct lexical scope.
+#[derive(Clone, Copy)]
+struct JsxFactoryResolverLocation(TransformNode);
+
 #[derive(Clone, Debug)]
 struct ImplicitImport {
     exported_name: String,
@@ -286,8 +287,14 @@ impl<'context> JsxVisitor<'context> {
             react_namespace,
             target,
         } = settings;
-        let namespace = parse_entity_name(react_namespace.unwrap_or("React"))
-            .unwrap_or_else(|| vec!["React".to_owned()]);
+        // `reactNamespace` is diagnosed as an option value, but diagnostics do
+        // not rewrite the value used by emit. tsc deliberately creates an
+        // Identifier from the raw spelling even when it is not lexically a
+        // valid identifier (for example `my-React-Lib`), so recovery output
+        // retains that spelling instead of silently falling back to `React`.
+        // Qualified-name parsing applies to `jsxFactory`, not to this legacy
+        // single-identifier option.
+        let namespace = vec![react_namespace.unwrap_or("React").to_owned()];
         let mut default_factory = namespace.clone();
         default_factory.push("createElement".to_owned());
         let factory_entity = pragmas
@@ -373,7 +380,8 @@ impl<'context> JsxVisitor<'context> {
                 parent: SyntaxKind::JsxElement,
                 field: "opening_element",
             })?;
-        let NodeData::JsxOpeningElement(opening) = self.context.arena().node(opening)?.data.clone()
+        let NodeData::JsxOpeningElement(opening_data) =
+            self.context.arena().node(opening)?.data.clone()
         else {
             return Err(TransformError::RequiredChildRemoved {
                 parent: SyntaxKind::JsxElement,
@@ -382,8 +390,9 @@ impl<'context> JsxVisitor<'context> {
         };
         self.visit_jsx_opening_like(
             original,
-            opening.tag_name,
-            opening.attributes,
+            JsxFactoryResolverLocation(opening),
+            opening_data.tag_name,
+            opening_data.attributes,
             data.children,
             is_child,
         )
@@ -395,7 +404,14 @@ impl<'context> JsxVisitor<'context> {
         data: tsc_syntax::nodes::JsxSelfClosingElementData,
         is_child: bool,
     ) -> Result<TransformNode, TransformError> {
-        self.visit_jsx_opening_like(original, data.tag_name, data.attributes, None, is_child)
+        self.visit_jsx_opening_like(
+            original,
+            JsxFactoryResolverLocation(original),
+            data.tag_name,
+            data.attributes,
+            None,
+            is_child,
+        )
     }
 
     fn visit_jsx_fragment(
@@ -418,15 +434,32 @@ impl<'context> JsxVisitor<'context> {
                 is_child,
             );
         }
-        let tag = self.create_entity_expression(self.fragment_entity.clone(), original)?;
+        let factory_reference = JsxFactoryResolverLocation(
+            data.opening_fragment
+                .and_then(|id| self.context.arena().node_ref(self.source, id))
+                .ok_or(TransformError::RequiredChildRemoved {
+                    parent: SyntaxKind::JsxFragment,
+                    field: "opening_fragment",
+                })?,
+        );
+        let tag = self.create_entity_expression(self.fragment_entity.clone(), factory_reference)?;
         let props = self.create_token(SyntaxKind::NullKeyword)?;
         let (children, multi_line) = self.transform_jsx_children(data.children)?;
-        self.create_element_call(original, tag, props, children, multi_line, is_child)
+        self.create_element_call(
+            original,
+            factory_reference,
+            tag,
+            props,
+            children,
+            multi_line,
+            is_child,
+        )
     }
 
     fn visit_jsx_opening_like(
         &mut self,
         original: TransformNode,
+        factory_reference: JsxFactoryResolverLocation,
         tag_name: Option<NodeId>,
         attributes: Option<NodeId>,
         children: Option<NodeArrayId>,
@@ -443,7 +476,7 @@ impl<'context> JsxVisitor<'context> {
             let callee = if self.import_base.is_some() {
                 self.get_implicit_import_for_name("createElement")?
             } else {
-                self.create_entity_expression(self.factory_entity.clone(), original)?
+                self.create_entity_expression(self.factory_entity.clone(), factory_reference)?
             };
             return self.create_element_call_with_callee(
                 original,
@@ -513,10 +546,10 @@ impl<'context> JsxVisitor<'context> {
             let attribute = self.node(id);
             match self.context.arena().node(attribute)?.data.clone() {
                 NodeData::JsxAttribute(data) => {
-                    properties.push(self.transform_attribute(attribute, data)?);
+                    properties.push(self.transform_attribute(data)?);
                 }
                 NodeData::JsxSpreadAttribute(data) => {
-                    properties.extend(self.transform_spread_attribute(attribute, data)?);
+                    properties.extend(self.transform_spread_attribute(data)?);
                 }
                 _ => {
                     return Err(TransformError::RequiredChildRemoved {
@@ -632,7 +665,6 @@ impl<'context> JsxVisitor<'context> {
 
     fn transform_attribute(
         &mut self,
-        original: TransformNode,
         data: tsc_syntax::nodes::JsxAttributeData,
     ) -> Result<TransformNode, TransformError> {
         let name_id = data.name.ok_or(TransformError::RequiredChildRemoved {
@@ -675,7 +707,12 @@ impl<'context> JsxVisitor<'context> {
             }),
             TransformFlags::NONE,
         )?;
-        self.set_original_and_range(property, original)
+        // `transformJsxAttributeToObjectLiteralElement` creates a synthetic
+        // property rather than making it the source attribute's replacement.
+        // The visited initializer retains its own source cursor, while trivia
+        // after the attribute belongs to the erased JSX wrapper and must not
+        // become trailing trivia of the generated object-literal member.
+        Ok(property)
     }
 
     fn transform_attribute_initializer(
@@ -711,7 +748,6 @@ impl<'context> JsxVisitor<'context> {
 
     fn transform_spread_attribute(
         &mut self,
-        original: TransformNode,
         data: tsc_syntax::nodes::JsxSpreadAttributeData,
     ) -> Result<Vec<TransformNode>, TransformError> {
         let expression = data
@@ -743,7 +779,10 @@ impl<'context> JsxVisitor<'context> {
             }),
             TransformFlags::CONTAINS_OBJECT_REST_OR_SPREAD,
         )?;
-        Ok(vec![self.set_original_and_range(spread, original)?])
+        // As with a normal JSX attribute, only the visited expression keeps
+        // source ownership. The generated spread member has no corresponding
+        // JavaScript node in the JSX source and therefore remains synthetic.
+        Ok(vec![spread])
     }
 
     fn object_literal_has_proto(
@@ -1120,13 +1159,15 @@ impl<'context> JsxVisitor<'context> {
     fn create_element_call(
         &mut self,
         original: TransformNode,
+        factory_reference: JsxFactoryResolverLocation,
         tag: TransformNode,
         props: TransformNode,
         children: Vec<TransformNode>,
         multi_line: bool,
         is_child: bool,
     ) -> Result<TransformNode, TransformError> {
-        let callee = self.create_entity_expression(self.factory_entity.clone(), original)?;
+        let callee =
+            self.create_entity_expression(self.factory_entity.clone(), factory_reference)?;
         self.create_element_call_with_callee(
             original,
             callee,
@@ -1262,7 +1303,7 @@ impl<'context> JsxVisitor<'context> {
         self.context
             .arena_mut()?
             .metadata_mut(reference)
-            .set_referenced_import_declaration(import.specifier);
+            .set_generated_import_reference(import.specifier);
         Ok(reference)
     }
 
@@ -1478,27 +1519,53 @@ impl<'context> JsxVisitor<'context> {
     fn create_entity_expression(
         &mut self,
         parts: Vec<String>,
-        reference: TransformNode,
+        reference: JsxFactoryResolverLocation,
     ) -> Result<TransformNode, TransformError> {
         let mut parts = parts.into_iter();
         let first = parts.next().unwrap_or_else(|| "React".to_owned());
         let mut expression = self.create_identifier(&first)?;
-        let resolver_node = self.resolver_node(reference)?;
-        if let Some(declaration) = self
-            .resolver
-            .get_jsx_factory_import_declaration(resolver_node, &first)?
-        {
+        // TypeScript retains an invalid `reactNamespace` spelling in recovery
+        // emit, but such a spelling cannot name a lexical import binding. Its
+        // synthetic Identifier therefore has no import declaration for a
+        // module transformer to substitute. Keep the typed resolver boundary
+        // for valid factory roots, while avoiding an impossible semantic query
+        // for recovery-only identifiers.
+        if is_identifier_text_for_target(&first, self.target) {
+            let resolver_node = self.resolver_node(reference.0)?;
+            let import_declaration = self
+                .resolver
+                .get_jsx_factory_import_declaration(resolver_node, &first)?;
+            let export_container = self
+                .resolver
+                .get_jsx_factory_export_container(resolver_node, &first)?;
             let current_source = self.context.arena().source(self.source)?.program_source();
-            if current_source == Some(declaration.source()) {
-                let declaration = self
-                    .context
-                    .arena()
-                    .node_ref(self.source, declaration.node())
-                    .ok_or_else(|| TransformError::UnknownNode(self.node(declaration.node())))?;
-                self.context
-                    .arena_mut()?
-                    .metadata_mut(expression)
-                    .set_referenced_import_declaration(declaration);
+            if let Some(declaration) = import_declaration {
+                if current_source == Some(declaration.source()) {
+                    let declaration = self
+                        .context
+                        .arena()
+                        .node_ref(self.source, declaration.node())
+                        .ok_or_else(|| {
+                            TransformError::UnknownNode(self.node(declaration.node()))
+                        })?;
+                    self.context
+                        .arena_mut()?
+                        .metadata_mut(expression)
+                        .set_referenced_import_declaration(declaration);
+                }
+            }
+            if let Some(container) = export_container {
+                if current_source == Some(container.source()) {
+                    let container = self
+                        .context
+                        .arena()
+                        .node_ref(self.source, container.node())
+                        .ok_or_else(|| TransformError::UnknownNode(self.node(container.node())))?;
+                    self.context
+                        .arena_mut()?
+                        .metadata_mut(expression)
+                        .set_referenced_export_container(container);
+                }
             }
         }
         for part in parts {
@@ -1519,14 +1586,7 @@ impl<'context> JsxVisitor<'context> {
     }
 
     fn resolver_node(&self, node: TransformNode) -> Result<EmitResolverNode, TransformError> {
-        let original = self.context.arena().get_original_node(node);
-        let source = self
-            .context
-            .arena()
-            .source(original.source())?
-            .program_source()
-            .ok_or(TransformError::MissingProgramSource(original))?;
-        Ok(EmitResolverNode::new(source, original.node()))
+        self.context.arena().require_parse_tree_resolver_node(node)
     }
 
     fn create_identifier(&mut self, text: &str) -> Result<TransformNode, TransformError> {
@@ -1753,6 +1813,28 @@ fn is_identifier_attribute_name(name: &str) -> bool {
         && bytes.all(|byte| byte.is_ascii_alphanumeric() || byte == b'_')
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum JsxTextLineKind {
+    Only,
+    First,
+    Middle,
+    Last,
+}
+
+impl JsxTextLineKind {
+    const fn classify(first_line: bool, ended_by_line_break: bool) -> Self {
+        match (first_line, ended_by_line_break) {
+            (true, false) => Self::Only,
+            (true, true) => Self::First,
+            (false, true) => Self::Middle,
+            (false, false) => Self::Last,
+        }
+    }
+}
+
+/// tsc-port: fixupWhitespaceAndDecodeEntities/addLineOfJsxText @6.0.3
+/// tsc-hash: 3a1ced4529e27da4ba4cdf98bff0753181417c6543699308f3211026dece47c8
+/// tsc-span: _tsc.js:104322-104345
 fn fixup_whitespace_and_decode_entities(text: &str) -> Option<Vec<u16>> {
     let mut lines = Vec::new();
     let mut start = 0usize;
@@ -1762,14 +1844,16 @@ fn fixup_whitespace_and_decode_entities(text: &str) -> Option<Vec<u16>> {
             continue;
         }
         let line = &text[start..index];
-        if let Some(line) = trim_jsx_line(line, first_line, true) {
+        let kind = JsxTextLineKind::classify(first_line, true);
+        if let Some(line) = normalize_jsx_text_line(line, kind) {
             lines.push(line);
         }
         first_line = false;
         start = index + character.len_utf8();
     }
     let tail = &text[start..];
-    if let Some(line) = trim_jsx_line(tail, first_line, false) {
+    let kind = JsxTextLineKind::classify(first_line, false);
+    if let Some(line) = normalize_jsx_text_line(tail, kind) {
         lines.push(line);
     }
     if lines.is_empty() {
@@ -1785,30 +1869,37 @@ fn fixup_whitespace_and_decode_entities(text: &str) -> Option<Vec<u16>> {
     Some(result)
 }
 
-fn trim_jsx_line(line: &str, first_line: bool, ended_by_line_break: bool) -> Option<&str> {
+fn normalize_jsx_text_line(line: &str, kind: JsxTextLineKind) -> Option<&str> {
+    if kind == JsxTextLineKind::Only {
+        return Some(line);
+    }
     if !line
         .chars()
         .any(|character| !is_single_line_whitespace(character))
     {
         return None;
     }
-    let line = if first_line {
-        line
-    } else {
-        line.trim_start_matches(is_single_line_whitespace)
-    };
-    Some(if ended_by_line_break {
-        line.trim_end_matches(is_single_line_whitespace)
-    } else {
-        line
+    Some(match kind {
+        JsxTextLineKind::Only => line,
+        JsxTextLineKind::First => line.trim_end_matches(is_single_line_whitespace),
+        JsxTextLineKind::Middle => line
+            .trim_start_matches(is_single_line_whitespace)
+            .trim_end_matches(is_single_line_whitespace),
+        JsxTextLineKind::Last => line.trim_start_matches(is_single_line_whitespace),
     })
 }
 
 fn is_single_line_whitespace(character: char) -> bool {
     matches!(
         character,
-        '\u{0009}' | '\u{000b}' | '\u{000c}' | '\u{0020}' | '\u{00a0}' | '\u{1680}' | '\u{2000}'
-            ..='\u{200a}' | '\u{202f}' | '\u{205f}' | '\u{3000}' | '\u{feff}'
+        '\u{0009}'
+            | '\u{000b}'
+            | '\u{000c}'
+            | '\u{0020}'
+            | '\u{0085}'
+            | '\u{00a0}'
+            | '\u{1680}'
+            | '\u{2000}'..='\u{200b}' | '\u{202f}' | '\u{205f}' | '\u{3000}' | '\u{feff}'
     )
 }
 
@@ -2119,4 +2210,28 @@ fn named_entity(name: &str) -> Option<u32> {
         "diams" => 9830,
         _ => return None,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::fixup_whitespace_and_decode_entities;
+
+    fn utf16(text: &str) -> Vec<u16> {
+        text.encode_utf16().collect()
+    }
+
+    #[test]
+    fn jsx_text_normalizer_classifies_only_first_middle_and_last_lines() {
+        assert_eq!(
+            fixup_whitespace_and_decode_entities("   "),
+            Some(utf16("   "))
+        );
+        assert_eq!(fixup_whitespace_and_decode_entities(" \n \t"), None);
+        assert_eq!(
+            fixup_whitespace_and_decode_entities(
+                "  first  \r\n \u{0085}&nbsp; middle\u{200b}\n  last  ",
+            ),
+            Some(utf16("  first \u{00a0} middle last  "))
+        );
+    }
 }

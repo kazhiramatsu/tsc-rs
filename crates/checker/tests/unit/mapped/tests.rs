@@ -1,6 +1,7 @@
 use tsc_syntax::NodeData;
 use tsc_types::{
-    CompilerOptions, ElementFlags, IndexFlags, SymbolFlags, TypeData, TypeFlags, TypeId,
+    CompilerOptions, ElementFlags, IndexFlags, ScriptTarget, SymbolFlags, TypeData, TypeFlags,
+    TypeId,
 };
 
 use crate::relpin::find_probe_annotation;
@@ -359,6 +360,58 @@ fn mapped_circularity_preserves_quoted_property_name() {
             assert_eq!(
                 diagnostic.message_text(),
                 "Type of property '\"each\"' circularly references itself in mapped type '{ [P in keyof ListWidget]: undefined extends ListWidget[P] ? never : P; }'."
+            );
+        },
+    );
+}
+
+#[test]
+fn recursively_expanding_union_defers_generic_mapped_indexed_access() {
+    let options = CompilerOptions {
+        target: Some(ScriptTarget::ES2015.bits()),
+        ..CompilerOptions::default()
+    };
+    with_program_state(
+        &[(
+            "recursivelyExpandingUnionNoStackoverflow.ts",
+            "type N<T, K extends string> = T | { [P in K]: N<T, K> }[K];\n\n\
+             type M = N<number, \"M\">;\n",
+        )],
+        &options,
+        |state| {
+            state.check_source_file(0);
+            let diagnostics: Vec<_> = state
+                .diagnostics
+                .iter()
+                .map(|diagnostic| {
+                    (
+                        diagnostic.code(),
+                        diagnostic.start,
+                        diagnostic.length,
+                        diagnostic.message_text(),
+                    )
+                })
+                .collect();
+            assert_eq!(
+                diagnostics,
+                [
+                    (
+                        2589,
+                        Some(70),
+                        Some(14),
+                        "Type instantiation is excessively deep and possibly infinite.",
+                    ),
+                    (
+                        2615,
+                        Some(70),
+                        Some(14),
+                        "Type of property 'M' circularly references itself in mapped type '{ [P in \"M\"]: any; }'.",
+                    ),
+                ]
+            );
+            assert!(
+                state.mapped_types_in_progress.is_empty(),
+                "mapped shell frames must balance after recursive resolution"
             );
         },
     );

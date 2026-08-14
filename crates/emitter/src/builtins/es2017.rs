@@ -1,4 +1,4 @@
-//! H2.5f ES2017-to-ES2016 lowering.
+//! H2.5f ES2017 lowering for the ES2015 and ES2016 target boundaries.
 //!
 //! The observable contract follows `transformES2017`: async functions become
 //! `__awaiter` calls whose continuation is a generator, while top-level await
@@ -15,9 +15,9 @@ use tsc_syntax::{
 use tsc_types::{CompilerOptions, NodeCheckFlags, NodeFlags, ScriptTarget};
 
 use crate::{
-    EmitFlags, EmitResolver, EmitResolverNode, LexicalEnvironment, TransformError, TransformFlags,
-    TransformNode, TransformNodeArray, TransformRoot, TransformSourceId, TransformationContext,
-    Transformer,
+    factory::EmitHelperName, EmitFlags, EmitResolver, EmitResolverNode, LexicalEnvironment,
+    TransformError, TransformFlags, TransformNode, TransformNodeArray, TransformRoot,
+    TransformSourceId, TransformationContext, Transformer,
 };
 
 use super::{
@@ -37,7 +37,6 @@ enum FunctionShape {
 
 #[derive(Debug)]
 struct FunctionFrame {
-    lowers_await: bool,
     colliding_parameter_names: Option<BTreeSet<String>>,
 }
 
@@ -45,6 +44,35 @@ struct FunctionFrame {
 enum ForwardedArgument {
     Direct(TargetBinding),
     Spread(TargetBinding),
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum AsyncParameterFact {
+    PlainIdentifier,
+    RestIdentifier,
+    RequiresInnerScope,
+}
+
+impl AsyncParameterFact {
+    const fn is_simple(self) -> bool {
+        matches!(self, Self::PlainIdentifier | Self::RestIdentifier)
+    }
+}
+
+#[derive(Clone, Debug)]
+enum AsyncLexicalArgumentsPlan {
+    Unused,
+    Inherited,
+    Capture(TargetBinding),
+}
+
+impl AsyncLexicalArgumentsPlan {
+    fn capture_binding(&self) -> Option<&TargetBinding> {
+        match self {
+            Self::Capture(binding) => Some(binding),
+            Self::Unused | Self::Inherited => None,
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -102,10 +130,10 @@ impl Transformer for Es2017Transformer<'_> {
     }
 
     fn initialize(&mut self, _context: &mut TransformationContext) -> Result<(), TransformError> {
-        if self.target != ScriptTarget::ES2016 {
+        if self.target < ScriptTarget::ES2015 || self.target > ScriptTarget::ES2016 {
             return Err(TransformError::UnsupportedCompilerOption {
                 option: "transformES2017",
-                detail: "H2.5f admits transformES2017 at the ES2016 target boundary",
+                detail: "H2.5g composes transformES2017 at the ES2015 and ES2016 target boundaries",
             });
         }
         Ok(())
@@ -143,7 +171,9 @@ impl Transformer for Es2017Transformer<'_> {
                     field: "root",
                 })?;
         let transformed = visitor.node(transformed);
-        finalize_generated_binding_names(visitor.context, source, transformed)?;
+        if self.target >= ScriptTarget::ES2016 {
+            finalize_generated_binding_names(visitor.context, source, transformed)?;
+        }
         visitor
             .context
             .arena_mut()?
@@ -201,6 +231,7 @@ struct Es2017Visitor<'context, 'resolver> {
     arrays: BTreeMap<NodeArrayId, Option<NodeArrayId>>,
     generated_bindings: GeneratedBindingScopes,
     frames: Vec<FunctionFrame>,
+    non_top_level_depth: usize,
     has_lexical_this: bool,
     lexical_arguments_binding: Option<TargetBinding>,
     super_captures: Vec<Option<AsyncSuperCapture>>,
@@ -225,6 +256,7 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
             nodes: BTreeMap::new(),
             arrays: BTreeMap::new(),
             frames: Vec::new(),
+            non_top_level_depth: 0,
             has_lexical_this,
             lexical_arguments_binding: None,
             super_captures: Vec::new(),
@@ -284,7 +316,7 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
             {
                 Some(self.visit_captured_super_element(original, data)?.node())
             }
-            NodeData::AwaitExpression(data) if self.current_frame_lowers_await() => {
+            NodeData::AwaitExpression(data) if self.in_non_top_level_context() => {
                 Some(self.visit_await_expression(original, data)?)
             }
             NodeData::VariableStatement(data) if self.variable_statement_collides(&data)? => {
@@ -307,23 +339,43 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
                 Some(self.visit_shadowing_catch_clause(original, data)?)
             }
             NodeData::FunctionDeclaration(data) => {
-                Some(self.visit_function_declaration(original, data)?)
+                Some(self.with_non_top_level_context(|visitor| {
+                    visitor.visit_function_declaration(original, data)
+                })?)
             }
             NodeData::FunctionExpression(data) => {
-                Some(self.visit_function_expression(original, data)?)
+                Some(self.with_non_top_level_context(|visitor| {
+                    visitor.visit_function_expression(original, data)
+                })?)
             }
-            NodeData::ArrowFunction(data) => Some(self.visit_arrow_function(original, data)?),
+            NodeData::ArrowFunction(data) => Some(self.with_non_top_level_context(|visitor| {
+                visitor.visit_arrow_function(original, data)
+            })?),
             NodeData::MethodDeclaration(data) => {
-                Some(self.visit_method_declaration(original, data)?)
+                Some(self.with_non_top_level_context(|visitor| {
+                    visitor.visit_method_declaration(original, data)
+                })?)
             }
-            NodeData::GetAccessor(data) => Some(self.visit_get_accessor(original, data)?),
-            NodeData::SetAccessor(data) => Some(self.visit_set_accessor(original, data)?),
-            NodeData::Constructor(data) => Some(self.visit_constructor(original, data)?),
+            NodeData::GetAccessor(data) => Some(self.with_non_top_level_context(|visitor| {
+                visitor.visit_get_accessor(original, data)
+            })?),
+            NodeData::SetAccessor(data) => Some(self.with_non_top_level_context(|visitor| {
+                visitor.visit_set_accessor(original, data)
+            })?),
+            NodeData::Constructor(data) => {
+                Some(self.with_non_top_level_context(|visitor| {
+                    visitor.visit_constructor(original, data)
+                })?)
+            }
             NodeData::ClassDeclaration(data) => {
-                Some(self.visit_class_boundary(original, NodeData::ClassDeclaration(data))?)
+                Some(self.with_non_top_level_context(|visitor| {
+                    visitor.visit_class_boundary(original, NodeData::ClassDeclaration(data))
+                })?)
             }
             NodeData::ClassExpression(data) => {
-                Some(self.visit_class_boundary(original, NodeData::ClassExpression(data))?)
+                Some(self.with_non_top_level_context(|visitor| {
+                    visitor.visit_class_boundary(original, NodeData::ClassExpression(data))
+                })?)
             }
             NodeData::Token if record.kind == SyntaxKind::AsyncKeyword => None,
             NodeData::Token => Some(id),
@@ -333,8 +385,25 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
         Ok(transformed)
     }
 
-    fn current_frame_lowers_await(&self) -> bool {
-        self.frames.last().is_some_and(|frame| frame.lowers_await)
+    fn in_non_top_level_context(&self) -> bool {
+        self.non_top_level_depth != 0
+    }
+
+    /// tsc's ES2017 transform lowers every AwaitExpression reached under its
+    /// NonTopLevel context flag, including syntactically invalid awaits in a
+    /// non-async function. Diagnostics remain checker-owned; emit must still
+    /// follow the same recovery shape.
+    fn with_non_top_level_context<T>(
+        &mut self,
+        operation: impl FnOnce(&mut Self) -> Result<T, TransformError>,
+    ) -> Result<T, TransformError> {
+        self.non_top_level_depth = self
+            .non_top_level_depth
+            .checked_add(1)
+            .expect("ES2017 non-top-level context depth overflowed");
+        let result = operation(self);
+        self.non_top_level_depth -= 1;
+        result
     }
 
     fn super_capture_is_active(&self) -> bool {
@@ -731,13 +800,48 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
         Ok(false)
     }
 
+    /// A synthetic variable declaration produced by an earlier target pass
+    /// can already carry a generated-binding identity. ES2017 must preserve
+    /// that identity when it hoists or rewrites a colliding `var`; recreating
+    /// a plain identifier loses the shared name-generator scope used by the
+    /// nested __awaiter generator.
+    fn generated_binding_for_identifier(&self, name: TransformNode) -> Option<TargetBinding> {
+        let metadata = self.context.arena().metadata(name)?;
+        let id = metadata.generated_binding_id()?;
+        let NodeData::Identifier(identifier) = &self.context.arena().node(name).ok()?.data else {
+            return None;
+        };
+        Some(TargetBinding::from_existing(
+            id,
+            identifier.text.clone(),
+            metadata.generated_binding_base().map(str::to_owned),
+            metadata
+                .generated_binding_preferred_base()
+                .map(str::to_owned),
+            metadata.generated_binding_role_suffix().map(str::to_owned),
+            metadata.generated_binding_reserved_in_nested_scopes(),
+        ))
+    }
+
     fn binding_name_intersects(
         &self,
         name: TransformNode,
         names: &BTreeSet<String>,
     ) -> Result<bool, TransformError> {
         match &self.context.arena().node(name)?.data {
-            NodeData::Identifier(identifier) => Ok(names.contains(&identifier.text)),
+            NodeData::Identifier(identifier) => {
+                // getGeneratedNameForNode retains the source identifier's
+                // escapedText for collision checks even though the printer
+                // renders a numbered spelling. TargetBinding records that
+                // source identity explicitly as numbered_base.
+                let collision_name = self
+                    .context
+                    .arena()
+                    .metadata(name)
+                    .and_then(|metadata| metadata.generated_binding_base())
+                    .unwrap_or(&identifier.text);
+                Ok(names.contains(collision_name))
+            }
             NodeData::ObjectBindingPattern(data) => {
                 for element in self.array_nodes(data.elements)? {
                     if let NodeData::BindingElement(element) =
@@ -925,6 +1029,11 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
     }
 
     fn hoist_binding_name(&mut self, name: TransformNode) -> Result<(), TransformError> {
+        if let Some(binding) = self.generated_binding_for_identifier(name) {
+            let name = self.create_generated_identifier(&binding)?;
+            self.context.hoist_variable_declaration(name)?;
+            return Ok(());
+        }
         let mut names = BTreeSet::new();
         self.collect_binding_names(name, &mut names)?;
         for name in names {
@@ -938,6 +1047,9 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
         &mut self,
         name: TransformNode,
     ) -> Result<TransformNode, TransformError> {
+        if let Some(binding) = self.generated_binding_for_identifier(name) {
+            return self.create_generated_identifier(&binding);
+        }
         match self.context.arena().node(name)?.data.clone() {
             NodeData::Identifier(identifier) => self.create_identifier(&identifier.text),
             // Binding-pattern conversion is structural. Keeping it here makes
@@ -1303,7 +1415,6 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
             self.transform_async_function(original, kind, shape, modifiers, parameters, body)
         } else {
             self.frames.push(FunctionFrame {
-                lowers_await: false,
                 colliding_parameter_names: None,
             });
             let modifiers = self.visit_optional_nodes(modifiers);
@@ -1340,23 +1451,17 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
         body: Option<NodeId>,
     ) -> Result<TransformedFunction, TransformError> {
         let parameter_plan = self.plan_async_parameters(shape, parameters)?;
-        let colliding_parameter_names = parameter_plan
-            .inner
-            .is_some()
-            .then(|| self.collect_parameter_names(parameters))
-            .transpose()?;
+        // transformAsyncFunctionBody always installs the complete original
+        // parameter-name set before walking the body (101398-101403). This is
+        // needed even for a simple parameter list: a preceding target pass
+        // can synthesize a `var` whose generated-name source collides with a
+        // parameter (for-await's `c_1` derived from parameter `c`).
+        let colliding_parameter_names = Some(self.collect_parameter_names(parameters)?);
 
-        let capture_arguments = self.resolver.has_node_check_flag(
-            self.resolver_node(original)?,
-            NodeCheckFlags::CAPTURE_ARGUMENTS.bits() as u32,
-        )? && self.lexical_arguments_binding.is_none();
-        if capture_arguments {
-            self.lexical_arguments_binding = Some(self.allocate_numbered_binding("arguments")?);
-        }
+        let lexical_arguments = self.plan_async_lexical_arguments(original)?;
 
         self.context.start_lexical_environment()?;
         self.frames.push(FunctionFrame {
-            lowers_await: true,
             colliding_parameter_names,
         });
         let inner_body = self.visit_async_body(body, kind);
@@ -1379,26 +1484,27 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
             parameter_plan.inner,
             inner_body,
         )?;
-        let outer_body = if shape == FunctionShape::Arrow && !capture_arguments {
-            awaiter
-        } else {
-            let mut statements = if shape == FunctionShape::Ordinary {
-                self.super_captures
-                    .last()
-                    .and_then(Option::as_ref)
-                    .cloned()
-                    .map(|capture| self.create_async_super_statements(capture))
-                    .transpose()?
-                    .unwrap_or_default()
+        let outer_body =
+            if shape == FunctionShape::Arrow && lexical_arguments.capture_binding().is_none() {
+                awaiter
             } else {
-                Vec::new()
+                let mut statements = if shape == FunctionShape::Ordinary {
+                    self.super_captures
+                        .last()
+                        .and_then(Option::as_ref)
+                        .cloned()
+                        .map(|capture| self.create_async_super_statements(capture))
+                        .transpose()?
+                        .unwrap_or_default()
+                } else {
+                    Vec::new()
+                };
+                if let Some(binding) = lexical_arguments.capture_binding() {
+                    statements.push(self.create_capture_arguments_statement(binding)?);
+                }
+                statements.push(self.create_return_statement(Some(awaiter))?);
+                self.create_block(statements, true)?
             };
-            if capture_arguments {
-                statements.push(self.create_capture_arguments_statement()?);
-            }
-            statements.push(self.create_return_statement(Some(awaiter))?);
-            self.create_block(statements, true)?
-        };
         if let Some(original_body) = body.map(|body| self.node(body)) {
             self.context
                 .factory()?
@@ -1412,6 +1518,9 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
         })
     }
 
+    /// tsc-port: transformAsyncFunctionParameterList/transformAsyncFunctionBody @6.0.3
+    /// tsc-hash: d30d6713a38b765219ff9c4248c5c8c749bf478885903c2ea517186fdd701ec7
+    /// tsc-span: _tsc.js:101284-101347
     fn plan_async_parameters(
         &mut self,
         shape: FunctionShape,
@@ -1480,23 +1589,66 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
         parameters: Option<NodeArrayId>,
     ) -> Result<bool, TransformError> {
         for parameter in self.array_nodes(parameters)? {
-            let NodeData::Parameter(data) = &self.context.arena().node(parameter)?.data else {
-                return Err(TransformError::RequiredChildRemoved {
-                    parent: SyntaxKind::Parameter,
-                    field: "parameter",
-                });
-            };
-            let identifier = data.name.map(|name| self.node(name)).is_some_and(|name| {
-                self.context
-                    .arena()
-                    .node(name)
-                    .is_ok_and(|name| name.kind == SyntaxKind::Identifier)
-            });
-            if !identifier || data.initializer.is_some() || data.dot_dot_dot_token.is_some() {
+            if !self.async_parameter_fact(parameter)?.is_simple() {
                 return Ok(false);
             }
         }
         Ok(true)
+    }
+
+    /// tsc-port: isSimpleParameter/isSimpleParameterList @6.0.3
+    /// tsc-hash: 0774a70cea3e7f3f20e799ad82504bce1fbaf781ca4089715c44187bdfb56e54
+    /// tsc-span: _tsc.js:93236-93242
+    ///
+    /// tsc deliberately ignores the rest token. At an
+    /// ES2015 target, `...args` can stay on the async wrapper and be closed
+    /// over by the generator; only an initializer or binding pattern needs a
+    /// separate inner parameter scope.
+    fn async_parameter_fact(
+        &self,
+        parameter: TransformNode,
+    ) -> Result<AsyncParameterFact, TransformError> {
+        let NodeData::Parameter(data) = &self.context.arena().node(parameter)?.data else {
+            return Err(TransformError::RequiredChildRemoved {
+                parent: SyntaxKind::Parameter,
+                field: "parameter",
+            });
+        };
+        let identifier = data.name.map(|name| self.node(name)).is_some_and(|name| {
+            self.context
+                .arena()
+                .node(name)
+                .is_ok_and(|name| name.kind == SyntaxKind::Identifier)
+        });
+        Ok(if data.initializer.is_some() || !identifier {
+            AsyncParameterFact::RequiresInnerScope
+        } else if data.dot_dot_dot_token.is_some() {
+            AsyncParameterFact::RestIdentifier
+        } else {
+            AsyncParameterFact::PlainIdentifier
+        })
+    }
+
+    /// tsc-port: transformAsyncFunctionBody @6.0.3 (CaptureArguments planning)
+    /// tsc-hash: b28cef3793943b5703d941ce3a52182b72134cf3fa0e1bf8c577db0de7882489
+    /// tsc-span: _tsc.js:101315-101330
+    fn plan_async_lexical_arguments(
+        &mut self,
+        original: TransformNode,
+    ) -> Result<AsyncLexicalArgumentsPlan, TransformError> {
+        let uses_lexical_arguments = self.resolver.has_node_check_flag(
+            self.resolver_node(original)?,
+            NodeCheckFlags::CAPTURE_ARGUMENTS.bits() as u32,
+        )?;
+        if !uses_lexical_arguments {
+            return Ok(AsyncLexicalArgumentsPlan::Unused);
+        }
+        if self.lexical_arguments_binding.is_some() {
+            return Ok(AsyncLexicalArgumentsPlan::Inherited);
+        }
+        let binding = self.allocate_numbered_binding("arguments")?;
+        self.lexical_arguments_binding = Some(binding.clone());
+        Ok(AsyncLexicalArgumentsPlan::Capture(binding))
     }
 
     fn collect_parameter_names(
@@ -1621,7 +1773,10 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
             .arena_mut()?
             .metadata_mut(generator)
             .add_flags(EmitFlags::ASYNC_FUNCTION_BODY | EmitFlags::REUSE_TEMP_VARIABLE_SCOPE);
-        let helper = self.create_identifier("__awaiter")?;
+        let helper = self
+            .context
+            .factory()?
+            .create_unscoped_helper_identifier(self.source, EmitHelperName::Awaiter)?;
         let this_arg = if has_lexical_this {
             self.context.factory()?.create_token(
                 self.source,
@@ -1702,15 +1857,11 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
         )
     }
 
-    fn create_capture_arguments_statement(&mut self) -> Result<TransformNode, TransformError> {
-        let binding =
-            self.lexical_arguments_binding
-                .clone()
-                .ok_or(TransformError::RequiredChildRemoved {
-                    parent: SyntaxKind::ArrowFunction,
-                    field: "lexical arguments binding",
-                })?;
-        let name = self.create_generated_identifier(&binding)?;
+    fn create_capture_arguments_statement(
+        &mut self,
+        binding: &TargetBinding,
+    ) -> Result<TransformNode, TransformError> {
+        let name = self.create_generated_identifier(binding)?;
         let arguments = self.create_identifier("arguments")?;
         let declaration = self.create_variable_declaration(name, Some(arguments))?;
         let list = self.create_variable_declaration_list(vec![declaration], NodeFlags::NONE)?;
@@ -2618,14 +2769,7 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
     }
 
     fn resolver_node(&self, node: TransformNode) -> Result<EmitResolverNode, TransformError> {
-        let original = self.context.arena().get_original_node(node);
-        let source = self
-            .context
-            .arena()
-            .source(original.source())?
-            .program_source()
-            .ok_or(TransformError::MissingProgramSource(original))?;
-        Ok(EmitResolverNode::new(source, original.node()))
+        self.context.arena().require_parse_tree_resolver_node(node)
     }
 
     fn identifier_text(&self, node: TransformNode) -> Result<&str, TransformError> {

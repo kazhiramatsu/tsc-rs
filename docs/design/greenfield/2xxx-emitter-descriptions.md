@@ -1,5 +1,11 @@
 # 2XXX emitter descriptions — what each emitting function implements
 
+Document role: **historical M-track diagnostic-emission companion**. Here,
+"emitting function" means a tsc function that reports a 2000–2999 diagnostic;
+this file does not describe the current JavaScript emitter architecture.
+Follow [emitter-architecture.md](emitter-architecture.md) for current emit
+work.
+
 HAND-AUDITED COMPANION (2026-07-08, tsc 6.0.3 pin) to the generated
 [2xxx-emitter-inventory.md](2xxx-emitter-inventory.md): the same 246
 functions in the same line order, each with a description of what the

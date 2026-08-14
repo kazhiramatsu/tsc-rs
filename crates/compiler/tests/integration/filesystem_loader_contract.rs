@@ -933,14 +933,16 @@ fn jsx_without_mode_flows_from_both_loaders_to_exact_ts6142_diagnostics() {
     fs::create_dir_all(tree.path("node_modules/pkg")).expect("create JSX package directory");
     let root = concat!(
         "/// <reference path=\"./globals.d.ts\" />\n",
-        "import './dependency.jsx';\n",
+        "import './dependency.tsx';\n",
+        "import './dependency-jsx.jsx';\n",
         "import 'pkg';\n",
         "export {};\n",
     );
     let files = [
         ("root.ts", root.as_bytes()),
         ("globals.d.ts", MINIMAL_GLOBALS.as_bytes()),
-        ("dependency.jsx", b"export const local = 1;".as_slice()),
+        ("dependency.tsx", b"export const typed = 1;".as_slice()),
+        ("dependency-jsx.jsx", b"export const local = 1;".as_slice()),
         (
             "node_modules/pkg/package.json",
             br#"{"name":"pkg","version":"1.0.0","main":"index.jsx"}"#.as_slice(),
@@ -1036,7 +1038,7 @@ fn jsx_without_mode_flows_from_both_loaders_to_exact_ts6142_diagnostics() {
             .iter()
             .map(|diagnostic| diagnostic.code())
             .collect::<Vec<_>>(),
-        [6142, 6142]
+        [6142, 6142, 6142]
     );
 }
 

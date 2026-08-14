@@ -467,6 +467,38 @@ fn union_chain_names_first_lacking_constituent() {
 }
 
 #[test]
+fn empty_dom_intersection_gets_the_missing_dom_library_hint() {
+    // everyContainedType includes intersections as well as unions.  Both
+    // empty DOM-shaped constituents must therefore retain the specialized
+    // 2812 diagnostic instead of falling back to the ordinary 2339 row.
+    let text = "interface EventTarget {}\n\
+                interface HTMLInputElement {}\n\
+                declare const input: EventTarget & HTMLInputElement;\n\
+                input.value;\n";
+    with_program_state(
+        &[("a.ts", text)],
+        &CompilerOptions {
+            lib: Some(vec!["es6".to_owned()]),
+            ..CompilerOptions::default()
+        },
+        |state| {
+            state.check_source_file(0);
+            let diagnostics = state
+                .diagnostics
+                .iter()
+                .filter(|diagnostic| diagnostic.file_name.is_some())
+                .collect::<Vec<_>>();
+            assert_eq!(diagnostics.len(), 1, "{diagnostics:#?}");
+            assert_eq!(diagnostics[0].code(), 2812);
+            assert_eq!(
+                diagnostics[0].message_text(),
+                "Property 'value' does not exist on type 'EventTarget & HTMLInputElement'. Try changing the 'lib' compiler option to include 'dom'."
+            );
+        },
+    );
+}
+
+#[test]
 fn static_member_suggestion_reports_2576() {
     assert_eq!(
         checked_rows("class C { static s = 1; }\ndeclare const c: C;\nc.s;\n"),
@@ -602,6 +634,28 @@ fn element_get_method_probe_reports_7052() {
         assert!(diag
             .message_text()
             .ends_with("Did you mean to call 'o.get'?"));
+    });
+}
+
+#[test]
+fn element_set_method_probe_omits_non_entity_receiver_text() {
+    let text = "({ get: (key: string) => '', set: (key: string, value: string) => {} })['hello'] = 'modified';\n";
+    with_program_state(&[("a.ts", text)], &CompilerOptions::default(), |state| {
+        state.check_source_file(0);
+        let diagnostic = state
+            .diagnostics
+            .iter()
+            .find(|diagnostic| diagnostic.file_name.is_some())
+            .expect("nonexistent index signature diagnostic");
+
+        assert_eq!(diagnostic.code(), 7052);
+        assert!(
+            diagnostic
+                .message_text()
+                .ends_with("Did you mean to call 'set'?"),
+            "{}",
+            diagnostic.message_text(),
+        );
     });
 }
 

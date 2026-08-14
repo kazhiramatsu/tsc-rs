@@ -52,6 +52,25 @@ impl<'a> CheckerState<'a> {
         let Some(&symbol) = table.get(name) else {
             return Ok(None);
         };
+        self.get_symbol_with_meaning(symbol, meaning)
+    }
+
+    /// tsrs-native: borrow-splitting worker for the pinned `getSymbol` port;
+    /// it accepts an already retrieved symbol so Rust table borrows end before
+    /// fallible alias resolution.
+    ///
+    /// The symbol half of `getSymbol`: merge first, then test the symbol's
+    /// own flags and finally the resolved alias chain. Keeping this separate
+    /// from the table borrow lets globals and lexical tables share the exact
+    /// same meaning filter without cloning either table.
+    pub(crate) fn get_symbol_with_meaning(
+        &mut self,
+        symbol: SymbolId,
+        meaning: SymbolFlags,
+    ) -> CheckResult<Option<SymbolId>> {
+        if meaning.is_empty() {
+            return Ok(None);
+        }
         let symbol = self.get_merged_symbol(symbol);
         let flags = self.binder.symbol(symbol).flags;
         if flags.intersects(meaning) {
@@ -2324,47 +2343,85 @@ impl<'a> CheckerState<'a> {
                             return Ok(None);
                         }
                         // The qualified-name typeof alternate
-                        // (49353-49364): prove that the whole
-                        // containing qualified name resolves as a
-                        // value before replacing the missing member
-                        // report with 2749.
-                        if exports.get(&right_text).is_some() {
-                            let mut containing = name;
-                            while let Some(parent) = self.parent_of(containing) {
-                                let NodeData::QualifiedName(parent_data) = self.data_of(parent)
-                                else {
-                                    break;
-                                };
-                                if parent_data.left != Some(containing) {
-                                    break;
+                        // (49353-49364) is a value-property traversal,
+                        // not a second entity-name/export lookup. That
+                        // distinction is observable for chains such as
+                        // `Color.Red.toString`: `toString` belongs to the
+                        // enum member's value type rather than to the enum
+                        // member symbol's exports.
+                        let containing =
+                            (self.kind_of(name) == SyntaxKind::QualifiedName).then(|| {
+                                let mut containing = name;
+                                while let Some(parent) = self.parent_of(containing) {
+                                    let NodeData::QualifiedName(parent_data) = self.data_of(parent)
+                                    else {
+                                        break;
+                                    };
+                                    if parent_data.left != Some(containing) {
+                                        break;
+                                    }
+                                    containing = parent;
                                 }
-                                containing = parent;
-                            }
-                            let in_type_query = self.parent_of(containing).is_some_and(|parent| {
-                                self.kind_of(parent) == SyntaxKind::TypeQuery
+                                containing
                             });
-                            if meaning.intersects(SymbolFlags::TYPE)
-                                && self.kind_of(name) == SyntaxKind::QualifiedName
-                                && !in_type_query
-                                && self.globals.get("Object").is_some()
-                                && self
-                                    .resolve_entity_name_ex(
-                                        containing,
-                                        SymbolFlags::VALUE,
-                                        true,
-                                        location,
-                                        false,
-                                    )?
-                                    .is_some()
-                            {
-                                let display = self.entity_name_to_string(containing)?;
-                                self.error_at(
-                                    Some(containing),
-                                    &diagnostics::_0_refers_to_a_value_but_is_being_used_as_a_type_here_Did_you_mean_typeof_0,
-                                    &[&display],
-                                );
+                        let in_type_query = containing.is_some_and(|containing| {
+                            self.parent_of(containing)
+                                .is_some_and(|parent| self.kind_of(parent) == SyntaxKind::TypeQuery)
+                        });
+                        let can_suggest_typeof = if meaning.intersects(SymbolFlags::TYPE)
+                            && !in_type_query
+                            && self.globals.get("Object").is_some()
+                        {
+                            match containing {
+                                Some(containing) => {
+                                    self.try_get_qualified_name_as_value(containing)?.is_some()
+                                }
+                                None => false,
                             }
+                        } else {
+                            false
+                        };
+                        if can_suggest_typeof {
+                            let containing = containing.expect("guarded qualified name");
+                            let display = self.entity_name_to_string(containing)?;
+                            self.error_at(
+                                Some(containing),
+                                &diagnostics::_0_refers_to_a_value_but_is_being_used_as_a_type_here_Did_you_mean_typeof_0,
+                                &[&display],
+                            );
                             return Ok(None);
+                        }
+                        if meaning.intersects(SymbolFlags::NAMESPACE) {
+                            if let Some(parent) = self.parent_of(name) {
+                                if let NodeData::QualifiedName(parent_data) = self.data_of(parent) {
+                                    if parent_data.left == Some(name) {
+                                        let exported_type = self
+                                            .get_symbol_in_table(
+                                                &exports,
+                                                &right_text,
+                                                SymbolFlags::TYPE,
+                                            )?
+                                            .map(|symbol| self.get_merged_symbol(symbol));
+                                        if let (Some(exported_type), Some(property)) =
+                                            (exported_type, parent_data.right)
+                                        {
+                                            let symbol_name =
+                                                self.symbol_display_name(exported_type);
+                                            let property_name =
+                                                node_util::declaration_name_to_string(
+                                                    self.binder.source_of_node(property),
+                                                    Some(property),
+                                                );
+                                            self.error_at(
+                                                Some(property),
+                                                &diagnostics::Cannot_access_0_1_because_0_is_a_type_but_not_a_namespace_Did_you_mean_to_retrieve_the_type_of_the_property_1_in_0_with_0_1,
+                                                &[&symbol_name, &property_name],
+                                            );
+                                            return Ok(None);
+                                        }
+                                    }
+                                }
+                            }
                         }
                         self.error_at(
                             Some(right),
@@ -2408,6 +2465,60 @@ impl<'a> CheckerState<'a> {
         } else {
             Ok(Some(self.resolve_alias(symbol)?))
         }
+    }
+
+    /// tsc-port: tryGetQualifiedNameAsValue @6.0.3
+    /// tsc-hash: 16e585859fc851283219148364337b294d658ebb9a6b38c828b8feb8d15daa4c
+    /// tsc-span: _tsc.js:49268-49291
+    ///
+    /// Resolve the root under value meaning, then follow each qualified
+    /// segment through the preceding symbol's value type. Entity-name
+    /// resolution cannot substitute for this walk because ordinary value
+    /// properties are not namespace exports.
+    fn try_get_qualified_name_as_value(&mut self, node: NodeId) -> CheckResult<Option<SymbolId>> {
+        let mut left = node;
+        while let NodeData::QualifiedName(data) = self.data_of(left) {
+            let Some(next) = data.left else {
+                return Ok(None);
+            };
+            left = next;
+        }
+        let Some(root_name) = self.identifier_text_of(left).map(str::to_owned) else {
+            return Ok(None);
+        };
+        let Some(mut symbol) = self.resolve_name(
+            Some(left),
+            &root_name,
+            SymbolFlags::VALUE,
+            None,
+            true,
+            false,
+        )?
+        else {
+            return Ok(None);
+        };
+
+        while let Some(parent) = self.parent_of(left) {
+            let NodeData::QualifiedName(data) = self.data_of(parent) else {
+                break;
+            };
+            if data.left != Some(left) {
+                break;
+            }
+            let Some(right) = data.right else {
+                return Ok(None);
+            };
+            let Some(property_name) = self.identifier_text_of(right).map(str::to_owned) else {
+                return Ok(None);
+            };
+            let ty = self.get_type_of_symbol(symbol)?;
+            let Some(property) = self.get_property_of_type_full(ty, &property_name)? else {
+                return Ok(None);
+            };
+            symbol = property;
+            left = parent;
+        }
+        Ok(Some(symbol))
     }
 
     /// tsc-port: resolveEntityNameFromAssignmentDeclaration @6.0.3

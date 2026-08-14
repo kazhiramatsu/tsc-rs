@@ -145,7 +145,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getInferredTypeParameterConstraint @6.0.3
     /// tsc-hash: cb1b6ef1fcbf111aaed4d2c1d88e86b0f4e4c47c190977efda64b8d79aaed43c
     /// tsc-span: _tsc.js:60059-60102
-    fn get_inferred_type_parameter_constraint(
+    pub(crate) fn get_inferred_type_parameter_constraint(
         &mut self,
         type_parameter: TypeId,
         omit_type_references: bool,

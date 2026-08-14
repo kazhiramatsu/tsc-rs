@@ -8,12 +8,14 @@ use tsc_syntax::{
 use tsc_types::{CompilerOptions, NodeFlags, ScriptTarget};
 
 use crate::{
-    EmitFlags, EmitHelper, InternalEmitFlags, TransformError, TransformFlags, TransformNode,
-    TransformNodeArray, TransformRoot, TransformSourceId, TransformationContext, Transformer,
-    UnsupportedTransformFeature,
+    factory::EmitHelperName, EmitFlags, EmitHelper, InternalEmitFlags, TransformError,
+    TransformFlags, TransformNode, TransformNodeArray, TransformRoot, TransformSourceId,
+    TransformationContext, Transformer, UnsupportedTransformFeature,
 };
 
-use super::{flags_after_update, system::collect_identifier_texts};
+use super::{
+    constructor_prologue, flags_after_update, system::collect_identifier_texts, ConstructorPrologue,
+};
 
 const ES_DECORATE_HELPER_TEXT: &str = r#"var __esDecorate = (this && this.__esDecorate) || function (ctor, descriptorIn, decorators, contextIn, initializers, extraInitializers) {
     function accept(f) { if (f !== void 0 && typeof f !== "function") throw new TypeError("Function expected"); return f; }
@@ -51,10 +53,6 @@ const RUN_INITIALIZERS_HELPER_TEXT: &str = r#"var __runInitializers = (this && t
     return useValue ? value : void 0;
 };"#;
 
-const PROP_KEY_HELPER_TEXT: &str = r#"var __propKey = (this && this.__propKey) || function (x) {
-    return typeof x === "symbol" ? x : "".concat(x);
-};"#;
-
 /// tsc-port: transformESDecorators @6.0.3
 /// tsc-hash: 620f5815a8ddc5aa6c3143eb97180f9ca852fa847501dc4e326c97bec7724358
 /// tsc-span: _tsc.js:98946-100807
@@ -70,13 +68,27 @@ struct StandardDecoratorTransformer {
     use_define_for_class_fields: bool,
 }
 
+/// A child admitted through tsc's `fallbackVisitor` array boundary.
+///
+/// Decorators are modifier-list markers rather than JavaScript runtime
+/// nodes. Invalid placements are still represented by the recovery AST so
+/// the checker can report TS1206, but `transformESDecorators` removes the
+/// marker while preserving and visiting its owning declaration. Keeping the
+/// recovery variant separate means a decorator that somehow reaches the
+/// primary visitor still fails closed below, matching tsc's `Debug.fail`.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum StandardDecoratorFallbackChild {
+    Runtime(TransformNode),
+    ErasedDecorator,
+}
+
 impl Transformer for StandardDecoratorTransformer {
     fn name(&self) -> &'static str {
         "transformESDecorators"
     }
 
     fn initialize(&mut self, _context: &mut TransformationContext) -> Result<(), TransformError> {
-        if self.target < ScriptTarget::ES2016
+        if self.target < ScriptTarget::ES2015
             || self.target > ScriptTarget::ES_NEXT
             || (self.target == ScriptTarget::ES_NEXT && self.use_define_for_class_fields)
         {
@@ -216,7 +228,134 @@ struct DecorationBlockInputs<'a> {
     class_plan: Option<&'a ClassDecorationPlan>,
     class_super_name: Option<&'a str>,
     metadata_name: &'a str,
-    has_static_initializers: bool,
+    leading_static_initializers: PendingDecoratorInitializerBatch,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum DecoratorInitializerPlacement {
+    Instance,
+    Static,
+}
+
+#[derive(Clone, Debug)]
+enum DecoratorInitializerReceiver {
+    LexicalThis,
+    ClassBinding(String),
+}
+
+#[derive(Clone, Debug)]
+enum PendingDecoratorInitializer {
+    MethodExtra { initializers_name: String },
+    FieldExtra { initializers_name: String },
+}
+
+impl PendingDecoratorInitializer {
+    fn initializers_name(&self) -> &str {
+        match self {
+            Self::MethodExtra { initializers_name } | Self::FieldExtra { initializers_name } => {
+                initializers_name
+            }
+        }
+    }
+}
+
+struct PendingDecoratorInitializerBatch {
+    receiver: DecoratorInitializerReceiver,
+    initializers: Vec<PendingDecoratorInitializer>,
+}
+
+impl PendingDecoratorInitializerBatch {
+    fn empty(receiver: DecoratorInitializerReceiver) -> Self {
+        Self {
+            receiver,
+            initializers: Vec::new(),
+        }
+    }
+
+    fn is_empty(&self) -> bool {
+        self.initializers.is_empty()
+    }
+}
+
+/// Statement indices from a constructor body through nested `try` blocks to
+/// the statement that owns the first reachable `super()` call.
+#[derive(Debug)]
+struct DecoratorConstructorSuperPath {
+    statement_indices: Vec<usize>,
+}
+
+/// Upstream gives the constructor's two terminal-initializer paths different
+/// statement-list shapes. A reachable `super()` keeps the copied prologue
+/// once and inserts on its typed path. The fallback first copies the prologue,
+/// then appends the initializer and the complete original body, replaying the
+/// prefix. Keeping that distinction in the plan prevents an insertion index
+/// from erasing the observable replay.
+enum DecoratorConstructorInitializerPlacement {
+    AfterSuper(DecoratorConstructorSuperPath),
+    ReplayPrologueThenBody(ConstructorPrologue),
+}
+
+/// Ordered per-class ownership of standard-decorator initializer effects.
+///
+/// Method extras seed the placement queue before source-member traversal.
+/// Every property drains its queue before a decorated field appends its own
+/// extras. A static block and the constructor/trailing static block are the
+/// remaining placement-specific consumers.
+///
+/// tsc-port: createClassInfo @6.0.3
+/// tsc-hash: 2457b6249522b8b9349b000eff2caf2d626295f98eedc6ce759c1291f8004185
+/// tsc-span: _tsc.js:99241-99318
+struct ClassPendingDecoratorInitializers {
+    instance: Vec<PendingDecoratorInitializer>,
+    static_: Vec<PendingDecoratorInitializer>,
+    static_receiver: DecoratorInitializerReceiver,
+}
+
+impl ClassPendingDecoratorInitializers {
+    fn new(static_receiver: DecoratorInitializerReceiver) -> Self {
+        Self {
+            instance: Vec::new(),
+            static_: Vec::new(),
+            static_receiver,
+        }
+    }
+
+    fn receiver(&self, placement: DecoratorInitializerPlacement) -> DecoratorInitializerReceiver {
+        match placement {
+            DecoratorInitializerPlacement::Instance => DecoratorInitializerReceiver::LexicalThis,
+            DecoratorInitializerPlacement::Static => self.static_receiver.clone(),
+        }
+    }
+
+    fn enqueue(
+        &mut self,
+        placement: DecoratorInitializerPlacement,
+        initializer: PendingDecoratorInitializer,
+    ) {
+        self.queue_mut(placement).push(initializer);
+    }
+
+    fn drain(
+        &mut self,
+        placement: DecoratorInitializerPlacement,
+    ) -> PendingDecoratorInitializerBatch {
+        let receiver = self.receiver(placement);
+        let initializers = std::mem::take(self.queue_mut(placement));
+        PendingDecoratorInitializerBatch {
+            receiver,
+            initializers,
+        }
+    }
+
+    fn queue_mut(
+        &mut self,
+        placement: DecoratorInitializerPlacement,
+    ) -> &mut Vec<PendingDecoratorInitializer> {
+        match placement {
+            DecoratorInitializerPlacement::Instance => &mut self.instance,
+            DecoratorInitializerPlacement::Static => &mut self.static_,
+        }
+    }
 }
 
 /// Bindings whose lifetime is the class-definition wrapper rather than the
@@ -490,20 +629,6 @@ impl<'context> StandardDecoratorVisitor<'context> {
             }
         }
         Ok(false)
-    }
-
-    fn member_starts_static_initialization(
-        &self,
-        member: TransformNode,
-    ) -> Result<bool, TransformError> {
-        Ok(match &self.context.arena().node(member)?.data {
-            NodeData::ClassStaticBlockDeclaration(_) => true,
-            NodeData::PropertyDeclaration(data) => {
-                self.has_modifier(data.modifiers, SyntaxKind::StaticKeyword)?
-                    && data.initializer.is_some()
-            }
-            _ => false,
-        })
     }
 
     fn collect_method_plan(
@@ -843,16 +968,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
             transformed_members.push(block);
         }
         let has_static_initializers = self.class_has_static_initializers(data.members)?;
-        transformed_members.push(self.create_decoration_block(DecorationBlockInputs {
-            plans: &plans,
-            method_plans: &method_plans,
-            static_method_extra: static_method_extra.as_deref(),
-            instance_method_extra: instance_method_extra.as_deref(),
-            class_plan: class_decoration.as_ref(),
-            class_super_name: class_super.as_ref().map(|(name, _)| name.as_str()),
-            metadata_name: &metadata_name,
-            has_static_initializers,
-        })?);
+        let decoration_block_index = transformed_members.len();
 
         let plans_by_node = plans
             .iter()
@@ -864,33 +980,142 @@ impl<'context> StandardDecoratorVisitor<'context> {
             .enumerate()
             .map(|(index, plan)| (plan.original.node(), index))
             .collect::<BTreeMap<_, _>>();
-        let mut pending_instance = instance_method_extra;
-        let mut pending_static = static_method_extra.filter(|_| has_static_initializers);
+        let static_initializer_receiver = class_decoration
+            .as_ref()
+            .map_or(DecoratorInitializerReceiver::LexicalThis, |plan| {
+                DecoratorInitializerReceiver::ClassBinding(plan.class_this_name.clone())
+            });
+        let mut pending_initializers =
+            ClassPendingDecoratorInitializers::new(static_initializer_receiver);
+        if let Some(initializers_name) = static_method_extra.as_ref() {
+            pending_initializers.enqueue(
+                DecoratorInitializerPlacement::Static,
+                PendingDecoratorInitializer::MethodExtra {
+                    initializers_name: initializers_name.clone(),
+                },
+            );
+        }
+        if let Some(initializers_name) = instance_method_extra.as_ref() {
+            pending_initializers.enqueue(
+                DecoratorInitializerPlacement::Instance,
+                PendingDecoratorInitializer::MethodExtra {
+                    initializers_name: initializers_name.clone(),
+                },
+            );
+        }
+
+        // tsc-port: transformClassLike @6.0.3
+        // tsc-hash: 7199607733dc27e3d53faa0e8e37a065b7ec4ae8f2fdf154d925291fa23f61df
+        // tsc-span: _tsc.js:99319-99616
         let mut constructor_index = None;
         for member in original_members {
             if Some(member) == named_evaluation_member {
                 continue;
             }
-            let planned_static_property = plans_by_node
-                .get(&member.node())
-                .is_some_and(|index| plans[*index].is_static);
-            if !planned_static_property
-                && self.member_starts_static_initialization(member)?
-                && pending_static.is_some()
-            {
-                let extra = pending_static
-                    .take()
-                    .expect("pending static initializer checked");
-                let statement = if let Some(class_plan) = class_decoration.as_ref() {
-                    self.create_run_initializers_statement_with_target(
-                        &class_plan.class_this_name,
-                        &extra,
-                    )?
-                } else {
-                    self.create_run_initializers_statement(&extra)?
-                };
-                transformed_members.push(self.create_static_block(vec![statement], true)?);
+
+            let member_data = self.context.arena().node(member)?.data.clone();
+            if matches!(&member_data, NodeData::ClassStaticBlockDeclaration(_)) {
+                let is_runtime_static_block =
+                    self.context
+                        .arena()
+                        .metadata(member)
+                        .is_none_or(|metadata| {
+                            metadata.assigned_name.is_none() && metadata.class_this.is_none()
+                        });
+                if is_runtime_static_block {
+                    let pending = pending_initializers.drain(DecoratorInitializerPlacement::Static);
+                    let statements = self.materialize_pending_initializer_statements(pending)?;
+                    if !statements.is_empty() {
+                        transformed_members.push(self.create_static_block(statements, true)?);
+                    }
+                }
+                let visited =
+                    self.visit(member.node())?
+                        .ok_or(TransformError::RequiredChildRemoved {
+                            parent: SyntaxKind::ClassExpression,
+                            field: "static block",
+                        })?;
+                transformed_members.push(self.node(visited));
+                continue;
             }
+
+            if let NodeData::PropertyDeclaration(member_data) = member_data {
+                let placement =
+                    if self.has_modifier(member_data.modifiers, SyntaxKind::StaticKeyword)? {
+                        DecoratorInitializerPlacement::Static
+                    } else {
+                        DecoratorInitializerPlacement::Instance
+                    };
+                let pending = pending_initializers.drain(placement);
+                if let Some(index) = plans_by_node.get(&member.node()).copied() {
+                    let plan = plans[index].clone();
+                    let own_initializer =
+                        self.create_decorated_initializer(&plan, &pending.receiver)?;
+                    let initializer = self
+                        .inject_pending_initializer_expression(pending, Some(own_initializer))?
+                        .ok_or(TransformError::RequiredChildRemoved {
+                            parent: SyntaxKind::PropertyDeclaration,
+                            field: "decorated initializer",
+                        })?;
+                    let static_accessor_receiver =
+                        if plan.is_static && self.target < ScriptTarget::ES_NEXT {
+                            if let Some(class_plan) = class_decoration.as_ref() {
+                                Some(StaticAccessorReceiver::GeneratedBinding(
+                                    class_plan.class_this_name.clone(),
+                                ))
+                            } else if let (Some(text), Some(original_name)) =
+                                (explicit_class_name.as_ref(), explicit_class_name_node)
+                            {
+                                Some(StaticAccessorReceiver::ClassReference {
+                                    text: text.clone(),
+                                    original_name,
+                                    class_owner: original,
+                                })
+                            } else {
+                                class_name.as_ref().map(|name| {
+                                    StaticAccessorReceiver::GeneratedBinding(name.clone())
+                                })
+                            }
+                        } else {
+                            None
+                        };
+                    if plan.is_accessor {
+                        let backing_name = plan.backing_name.as_deref().ok_or(
+                            TransformError::RequiredChildRemoved {
+                                parent: SyntaxKind::PropertyDeclaration,
+                                field: "auto-accessor backing name",
+                            },
+                        )?;
+                        transformed_members.extend(self.create_auto_accessor_members(
+                            &plan,
+                            backing_name,
+                            initializer,
+                            static_accessor_receiver.as_ref(),
+                        )?);
+                    } else {
+                        transformed_members
+                            .push(self.update_decorated_property(&plan, initializer)?);
+                    }
+                    pending_initializers.enqueue(
+                        placement,
+                        PendingDecoratorInitializer::FieldExtra {
+                            initializers_name: plan.extra_initializers_name.clone(),
+                        },
+                    );
+                } else {
+                    let visited =
+                        self.visit(member.node())?
+                            .ok_or(TransformError::RequiredChildRemoved {
+                                parent: SyntaxKind::ClassExpression,
+                                field: "property",
+                            })?;
+                    let property = self
+                        .inject_pending_initializers_into_property(self.node(visited), pending)?;
+                    transformed_members.push(property);
+                }
+                continue;
+            }
+
             if let Some(index) = method_plans_by_node.get(&member.node()).copied() {
                 let plan = method_plans[index].clone();
                 let transformed = if plan.is_private {
@@ -901,82 +1126,21 @@ impl<'context> StandardDecoratorVisitor<'context> {
                 transformed_members.push(transformed);
                 continue;
             }
-            let Some(index) = plans_by_node.get(&member.node()).copied() else {
-                let visited =
-                    self.visit(member.node())?
-                        .ok_or(TransformError::RequiredChildRemoved {
-                            parent: SyntaxKind::ClassExpression,
-                            field: "member",
-                        })?;
-                if self.context.arena().node(self.node(visited))?.kind == SyntaxKind::Constructor {
-                    constructor_index = Some(transformed_members.len());
-                }
-                transformed_members.push(self.node(visited));
-                continue;
-            };
-            let plan = plans[index].clone();
-            let pending = if plan.is_static {
-                pending_static.take()
-            } else {
-                pending_instance.take()
-            };
-            let static_target = if plan.is_static {
-                class_decoration
-                    .as_ref()
-                    .map(|class_plan| class_plan.class_this_name.as_str())
-            } else {
-                None
-            };
-            let static_accessor_receiver = if plan.is_static && self.target < ScriptTarget::ES_NEXT
-            {
-                if let Some(class_plan) = class_decoration.as_ref() {
-                    Some(StaticAccessorReceiver::GeneratedBinding(
-                        class_plan.class_this_name.clone(),
-                    ))
-                } else if let (Some(text), Some(original_name)) =
-                    (explicit_class_name.as_ref(), explicit_class_name_node)
-                {
-                    Some(StaticAccessorReceiver::ClassReference {
-                        text: text.clone(),
-                        original_name,
-                        class_owner: original,
-                    })
-                } else {
-                    class_name
-                        .as_ref()
-                        .map(|name| StaticAccessorReceiver::GeneratedBinding(name.clone()))
-                }
-            } else {
-                None
-            };
-            let initializer =
-                self.create_decorated_initializer(&plan, pending.as_deref(), static_target)?;
-            if plan.is_accessor {
-                let backing_name =
-                    plan.backing_name
-                        .as_deref()
-                        .ok_or(TransformError::RequiredChildRemoved {
-                            parent: SyntaxKind::PropertyDeclaration,
-                            field: "auto-accessor backing name",
-                        })?;
-                transformed_members.extend(self.create_auto_accessor_members(
-                    &plan,
-                    backing_name,
-                    initializer,
-                    static_accessor_receiver.as_ref(),
-                )?);
-            } else {
-                transformed_members.push(self.update_decorated_property(&plan, initializer)?);
+
+            let visited =
+                self.visit(member.node())?
+                    .ok_or(TransformError::RequiredChildRemoved {
+                        parent: SyntaxKind::ClassExpression,
+                        field: "member",
+                    })?;
+            if self.context.arena().node(self.node(visited))?.kind == SyntaxKind::Constructor {
+                constructor_index = Some(transformed_members.len());
             }
-            if plan.is_static {
-                pending_static = Some(plan.extra_initializers_name.clone());
-            } else {
-                pending_instance = Some(plan.extra_initializers_name.clone());
-            }
+            transformed_members.push(self.node(visited));
         }
 
-        if let Some(extra) = pending_instance {
-            let statement = self.create_run_initializers_statement(&extra)?;
+        let pending_instance = pending_initializers.drain(DecoratorInitializerPlacement::Instance);
+        if let Some(statement) = self.materialize_pending_initializer_statement(pending_instance)? {
             if let Some(index) = constructor_index {
                 transformed_members[index] =
                     self.inject_constructor_statement(transformed_members[index], statement)?;
@@ -985,17 +1149,35 @@ impl<'context> StandardDecoratorVisitor<'context> {
                     .push(self.create_constructor(vec![statement], class_super.is_some())?);
             }
         }
-        if let Some(extra) = pending_static {
-            let statement = if let Some(class_plan) = class_decoration.as_ref() {
-                self.create_run_initializers_statement_with_target(
-                    &class_plan.class_this_name,
-                    &extra,
-                )?
-            } else {
-                self.create_run_initializers_statement(&extra)?
-            };
-            transformed_members.push(self.create_static_block(vec![statement], true)?);
-        }
+
+        let pending_static = pending_initializers.drain(DecoratorInitializerPlacement::Static);
+        let static_receiver = pending_static.receiver.clone();
+        let (leading_static_initializers, trailing_static_initializers) = if has_static_initializers
+        {
+            (
+                PendingDecoratorInitializerBatch::empty(static_receiver),
+                pending_static,
+            )
+        } else {
+            (
+                pending_static,
+                PendingDecoratorInitializerBatch::empty(static_receiver),
+            )
+        };
+        let decoration_block = self.create_decoration_block(DecorationBlockInputs {
+            plans: &plans,
+            method_plans: &method_plans,
+            static_method_extra: static_method_extra.as_deref(),
+            instance_method_extra: instance_method_extra.as_deref(),
+            class_plan: class_decoration.as_ref(),
+            class_super_name: class_super.as_ref().map(|(name, _)| name.as_str()),
+            metadata_name: &metadata_name,
+            leading_static_initializers,
+        })?;
+        transformed_members.insert(decoration_block_index, decoration_block);
+
+        let mut trailing_static_statements =
+            self.materialize_pending_initializer_statements(trailing_static_initializers)?;
         if let Some(class_plan) = class_decoration
             .as_ref()
             .filter(|plan| plan.has_static_initializers)
@@ -1004,7 +1186,10 @@ impl<'context> StandardDecoratorVisitor<'context> {
                 &class_plan.class_this_name,
                 &class_plan.extra_initializers_name,
             )?;
-            transformed_members.push(self.create_static_block(vec![statement], true)?);
+            trailing_static_statements.push(statement);
+        }
+        if !trailing_static_statements.is_empty() {
+            transformed_members.push(self.create_static_block(trailing_static_statements, true)?);
         }
 
         data.name = if class_decoration.is_some() {
@@ -1086,7 +1271,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
             class_plan,
             class_super_name,
             metadata_name,
-            has_static_initializers,
+            leading_static_initializers,
         } = inputs;
         let mut statements = Vec::new();
         let metadata = self.create_metadata_initializer(class_super_name)?;
@@ -1175,17 +1360,8 @@ impl<'context> StandardDecoratorVisitor<'context> {
             metadata_name,
             class_plan.map(|plan| plan.class_this_name.as_str()),
         )?);
-        if let Some(static_method_extra) = static_method_extra.filter(|_| !has_static_initializers)
-        {
-            statements.push(if let Some(class_plan) = class_plan {
-                self.create_run_initializers_statement_with_target(
-                    &class_plan.class_this_name,
-                    static_method_extra,
-                )?
-            } else {
-                self.create_run_initializers_statement(static_method_extra)?
-            });
-        }
+        statements
+            .extend(self.materialize_pending_initializer_statements(leading_static_initializers)?);
         if let Some(class_plan) = class_plan.filter(|plan| !plan.has_static_initializers) {
             statements.push(self.create_run_initializers_statement_with_target(
                 &class_plan.class_this_name,
@@ -1347,7 +1523,10 @@ impl<'context> StandardDecoratorVisitor<'context> {
                     parent: SyntaxKind::ComputedPropertyName,
                     field: "expression",
                 })?;
-            let helper = self.create_identifier("__propKey")?;
+            let helper = self
+                .context
+                .factory()?
+                .create_unscoped_helper_identifier(self.source, EmitHelperName::PropKey)?;
             let key = self.create_call(helper, vec![expression])?;
             let temporary = self.create_identifier(&temporary_name)?;
             pending.push(self.create_assignment(temporary, key)?);
@@ -1681,12 +1860,8 @@ impl<'context> StandardDecoratorVisitor<'context> {
         let descriptor = self.create_object_literal(properties, false)?;
         let call = self.create_call(define, vec![target, symbol_metadata, descriptor])?;
         let statement = self.create_expression_statement(call)?;
-        self.context
-            .arena_mut()?
-            .metadata_mut(statement)
-            .add_flags(EmitFlags::SINGLE_LINE);
         let condition = self.create_identifier(metadata_name)?;
-        self.context.factory()?.create_node(
+        let if_statement = self.context.factory()?.create_node(
             self.source,
             NodeData::IfStatement(tsc_syntax::nodes::IfStatementData {
                 expression: Some(condition.node()),
@@ -1694,7 +1869,12 @@ impl<'context> StandardDecoratorVisitor<'context> {
                 else_statement: None,
             }),
             TransformFlags::NONE,
-        )
+        )?;
+        self.context
+            .arena_mut()?
+            .metadata_mut(if_statement)
+            .add_flags(EmitFlags::SINGLE_LINE);
+        Ok(if_statement)
     }
 
     fn create_es_decorate_statement(
@@ -1702,7 +1882,10 @@ impl<'context> StandardDecoratorVisitor<'context> {
         plan: &PropertyPlan,
         metadata_name: &str,
     ) -> Result<TransformNode, TransformError> {
-        let helper = self.create_identifier("__esDecorate")?;
+        let helper = self
+            .context
+            .factory()?
+            .create_unscoped_helper_identifier(self.source, EmitHelperName::EsDecorate)?;
         let ctor = if plan.is_accessor {
             self.create_this()?
         } else {
@@ -1732,7 +1915,10 @@ impl<'context> StandardDecoratorVisitor<'context> {
         metadata_name: &str,
         extra_initializers_name: &str,
     ) -> Result<TransformNode, TransformError> {
-        let helper = self.create_identifier("__esDecorate")?;
+        let helper = self
+            .context
+            .factory()?
+            .create_unscoped_helper_identifier(self.source, EmitHelperName::EsDecorate)?;
         let ctor = self.create_this()?;
         let descriptor = if let Some(descriptor_name) = plan.descriptor_name.as_deref() {
             let descriptor = self.create_private_method_descriptor(plan)?;
@@ -1860,7 +2046,10 @@ impl<'context> StandardDecoratorVisitor<'context> {
         name: &str,
         prefix: Option<&str>,
     ) -> Result<TransformNode, TransformError> {
-        let helper = self.create_identifier("__setFunctionName")?;
+        let helper = self
+            .context
+            .factory()?
+            .create_unscoped_helper_identifier(self.source, EmitHelperName::SetFunctionName)?;
         let name = self.create_string_literal(name)?;
         let mut arguments = vec![function, name];
         if let Some(prefix) = prefix {
@@ -1997,7 +2186,10 @@ impl<'context> StandardDecoratorVisitor<'context> {
         plan: &ClassDecorationPlan,
         metadata_name: &str,
     ) -> Result<TransformNode, TransformError> {
-        let helper = self.create_identifier("__esDecorate")?;
+        let helper = self
+            .context
+            .factory()?
+            .create_unscoped_helper_identifier(self.source, EmitHelperName::EsDecorate)?;
         let ctor = self.create_null()?;
         let class_this = self.create_identifier(&plan.class_this_name)?;
         let value = self.create_property("value", class_this)?;
@@ -2179,11 +2371,13 @@ impl<'context> StandardDecoratorVisitor<'context> {
         self.create_object_literal(properties, false)
     }
 
+    /// tsc-port: partialTransformClassElement @6.0.3
+    /// tsc-hash: 46d06f1175b4bfd01fe5b4df1893f5f1164b80e7a9c94f3340604e4a6b06b912
+    /// tsc-span: _tsc.js:99831-99944
     fn create_decorated_initializer(
         &mut self,
         plan: &PropertyPlan,
-        pending_extra: Option<&str>,
-        target_name: Option<&str>,
+        receiver: &DecoratorInitializerReceiver,
     ) -> Result<TransformNode, TransformError> {
         let initializer = if let Some(initializer) = plan.data.initializer {
             let visited = self
@@ -2196,20 +2390,167 @@ impl<'context> StandardDecoratorVisitor<'context> {
         } else {
             self.create_void_zero()?
         };
-        let run = self.create_run_initializers_with_target(
+        self.create_run_initializers_for_receiver(
             &plan.initializers_name,
             Some(initializer),
-            target_name,
-        )?;
-        let Some(pending_extra) = pending_extra else {
-            return Ok(run);
-        };
-        let previous =
-            self.create_run_initializers_with_target(pending_extra, None, target_name)?;
-        let comma = self.create_binary(previous, SyntaxKind::CommaToken, run)?;
-        self.create_parenthesized(comma)
+            receiver,
+        )
     }
 
+    fn create_run_initializers_for_receiver(
+        &mut self,
+        initializers_name: &str,
+        value: Option<TransformNode>,
+        receiver: &DecoratorInitializerReceiver,
+    ) -> Result<TransformNode, TransformError> {
+        match receiver {
+            DecoratorInitializerReceiver::LexicalThis => {
+                self.create_run_initializers(initializers_name, value)
+            }
+            DecoratorInitializerReceiver::ClassBinding(target_name) => self
+                .create_run_initializers_with_target(initializers_name, value, Some(target_name)),
+        }
+    }
+
+    fn materialize_pending_initializer_expressions(
+        &mut self,
+        pending: PendingDecoratorInitializerBatch,
+    ) -> Result<Vec<TransformNode>, TransformError> {
+        let PendingDecoratorInitializerBatch {
+            receiver,
+            initializers,
+        } = pending;
+        let mut expressions = Vec::with_capacity(initializers.len());
+        for initializer in initializers {
+            expressions.push(self.create_run_initializers_for_receiver(
+                initializer.initializers_name(),
+                None,
+                &receiver,
+            )?);
+        }
+        Ok(expressions)
+    }
+
+    /// Injects placement-owned effects ahead of the property's own value while
+    /// retaining an existing parenthesized expression as the range owner.
+    ///
+    /// tsc-port: visitPropertyDeclaration @6.0.3
+    /// tsc-hash: 32896629db3e477cdb54934eeefadb12c80ac10d8909d811eb7a90e2de4b164d
+    /// tsc-span: _tsc.js:100041-100150
+    /// tsc-port: injectPendingExpressionsCommon @6.0.3
+    /// tsc-hash: 0409cc30806f5998022df21eceb6369af27f21778e795597936eddc5350f379b
+    /// tsc-span: _tsc.js:100511-100526
+    /// tsc-port: injectPendingInitializers @6.0.3
+    /// tsc-hash: dee2ea62ca9186b228bf257a5bf9a171193f1b637d16426df8d8b7713e7cd8d5
+    /// tsc-span: _tsc.js:100535-100545
+    fn inject_pending_initializer_expression(
+        &mut self,
+        pending: PendingDecoratorInitializerBatch,
+        expression: Option<TransformNode>,
+    ) -> Result<Option<TransformNode>, TransformError> {
+        if pending.is_empty() {
+            return Ok(expression);
+        }
+        let mut expressions = self.materialize_pending_initializer_expressions(pending)?;
+        if let Some(expression) = expression {
+            if let NodeData::ParenthesizedExpression(mut data) =
+                self.context.arena().node(expression)?.data.clone()
+            {
+                let inner = data
+                    .expression
+                    .and_then(|inner| self.context.arena().node_ref(self.source, inner))
+                    .ok_or(TransformError::RequiredChildRemoved {
+                        parent: SyntaxKind::ParenthesizedExpression,
+                        field: "expression",
+                    })?;
+                expressions.push(inner);
+                let inline = self.inline_expressions(expressions)?;
+                data.expression = Some(inline.node());
+                let flags = flags_after_update(
+                    self.context.arena(),
+                    expression,
+                    &NodeData::ParenthesizedExpression(data.clone()),
+                )?;
+                let updated = self.context.factory()?.update_node(
+                    expression,
+                    NodeData::ParenthesizedExpression(data),
+                    flags,
+                )?;
+                return Ok(Some(updated));
+            }
+            expressions.push(expression);
+        }
+        Ok(Some(self.inline_expressions(expressions)?))
+    }
+
+    fn inject_pending_initializers_into_property(
+        &mut self,
+        property: TransformNode,
+        pending: PendingDecoratorInitializerBatch,
+    ) -> Result<TransformNode, TransformError> {
+        if pending.is_empty() {
+            return Ok(property);
+        }
+        let NodeData::PropertyDeclaration(mut data) =
+            self.context.arena().node(property)?.data.clone()
+        else {
+            return Err(TransformError::RequiredChildRemoved {
+                parent: SyntaxKind::ClassExpression,
+                field: "property",
+            });
+        };
+        let initializer = data
+            .initializer
+            .and_then(|initializer| self.context.arena().node_ref(self.source, initializer));
+        data.initializer = self
+            .inject_pending_initializer_expression(pending, initializer)?
+            .map(TransformNode::node);
+        let flags = flags_after_update(
+            self.context.arena(),
+            property,
+            &NodeData::PropertyDeclaration(data.clone()),
+        )?;
+        // Use the visited property as the immediate original. In particular,
+        // this keeps a synthetic parameter-property's Property -> Parameter
+        // ownership chain available to the class-fields transform.
+        self.context
+            .factory()?
+            .update_node(property, NodeData::PropertyDeclaration(data), flags)
+    }
+
+    /// tsc-port: visitClassStaticBlockDeclaration @6.0.3
+    /// tsc-hash: 5ba6f2d5e5b218a418e3ca67a6714022b5a77e460c16e042d950b765f0a6504a
+    /// tsc-span: _tsc.js:100005-100040
+    fn materialize_pending_initializer_statements(
+        &mut self,
+        pending: PendingDecoratorInitializerBatch,
+    ) -> Result<Vec<TransformNode>, TransformError> {
+        let expressions = self.materialize_pending_initializer_expressions(pending)?;
+        let mut statements = Vec::with_capacity(expressions.len());
+        for expression in expressions {
+            statements.push(self.create_expression_statement(expression)?);
+        }
+        Ok(statements)
+    }
+
+    /// tsc-port: prepareConstructor @6.0.3
+    /// tsc-hash: 2a79ab99613abecdfd7e854650bbaac5f5b831bde37c6c0a45fd71d923d79954
+    /// tsc-span: _tsc.js:99747-99758
+    fn materialize_pending_initializer_statement(
+        &mut self,
+        pending: PendingDecoratorInitializerBatch,
+    ) -> Result<Option<TransformNode>, TransformError> {
+        let expressions = self.materialize_pending_initializer_expressions(pending)?;
+        if expressions.is_empty() {
+            return Ok(None);
+        }
+        let inline = self.inline_expressions(expressions)?;
+        Ok(Some(self.create_expression_statement(inline)?))
+    }
+
+    /// tsc-port: finishClassElement @6.0.3
+    /// tsc-hash: 277a54cd03b69044d9781c73b5c6c417dcfc495d3fda96ca0e49a3466b4e4d01
+    /// tsc-span: _tsc.js:99824-99830
     fn update_decorated_property(
         &mut self,
         plan: &PropertyPlan,
@@ -2428,7 +2769,10 @@ impl<'context> StandardDecoratorVisitor<'context> {
         class_name: &str,
         target_name: Option<&str>,
     ) -> Result<TransformNode, TransformError> {
-        let helper = self.create_identifier("__setFunctionName")?;
+        let helper = self
+            .context
+            .factory()?
+            .create_unscoped_helper_identifier(self.source, EmitHelperName::SetFunctionName)?;
         let target = if let Some(target_name) = target_name {
             self.create_identifier(target_name)?
         } else {
@@ -2450,13 +2794,19 @@ impl<'context> StandardDecoratorVisitor<'context> {
         self.create_run_initializers_with_target(initializers_name, value, None)
     }
 
+    /// tsc-port: createRunInitializersHelper @6.0.3
+    /// tsc-hash: ac7241f25e6f4d82e533ae048fbe9de24149093224ff8713b1483e39c8798e68
+    /// tsc-span: _tsc.js:25715-25723
     fn create_run_initializers_with_target(
         &mut self,
         initializers_name: &str,
         value: Option<TransformNode>,
         target_name: Option<&str>,
     ) -> Result<TransformNode, TransformError> {
-        let helper = self.create_identifier("__runInitializers")?;
+        let helper = self
+            .context
+            .factory()?
+            .create_unscoped_helper_identifier(self.source, EmitHelperName::RunInitializers)?;
         let this = if let Some(target_name) = target_name {
             self.create_identifier(target_name)?
         } else {
@@ -2470,20 +2820,18 @@ impl<'context> StandardDecoratorVisitor<'context> {
         self.create_call(helper, arguments)
     }
 
-    fn create_run_initializers_statement(
-        &mut self,
-        name: &str,
-    ) -> Result<TransformNode, TransformError> {
-        let run = self.create_run_initializers(name, None)?;
-        self.create_expression_statement(run)
-    }
-
+    /// tsc-port: createRunInitializersHelper @6.0.3
+    /// tsc-hash: ac7241f25e6f4d82e533ae048fbe9de24149093224ff8713b1483e39c8798e68
+    /// tsc-span: _tsc.js:25715-25723
     fn create_run_initializers_statement_with_target(
         &mut self,
         target_name: &str,
         initializers_name: &str,
     ) -> Result<TransformNode, TransformError> {
-        let helper = self.create_identifier("__runInitializers")?;
+        let helper = self
+            .context
+            .factory()?
+            .create_unscoped_helper_identifier(self.source, EmitHelperName::RunInitializers)?;
         let target = self.create_identifier(target_name)?;
         let initializers = self.create_identifier(initializers_name)?;
         let run = self.create_call(helper, vec![target, initializers])?;
@@ -2549,6 +2897,17 @@ impl<'context> StandardDecoratorVisitor<'context> {
         )
     }
 
+    /// The constructor subtree has already passed through this transform's
+    /// visitor before the residual initializer queue is known. This is the
+    /// Rust ownership split for tsc's single-pass constructor visitor: a
+    /// reachable `super()` updates only its typed block path, while the
+    /// no-super fallback replays the already-visited prologue node identities
+    /// before the initializer and complete visited body. The visitor itself is
+    /// never run twice.
+    ///
+    /// tsc-port: visitConstructorDeclaration @6.0.3
+    /// tsc-hash: c5fbc638b5cdc3d6b829a1354f0c0eaafd8821813e4634bc9ca8c45426b49c61
+    /// tsc-span: _tsc.js:99788-99823
     fn inject_constructor_statement(
         &mut self,
         constructor: TransformNode,
@@ -2575,21 +2934,45 @@ impl<'context> StandardDecoratorVisitor<'context> {
             });
         };
         let mut statements = self.array_nodes(block.statements)?;
-        let mut insertion = 0usize;
-        while insertion < statements.len() && self.is_prologue_statement(statements[insertion])? {
-            insertion += 1;
+        let prologue = constructor_prologue(self.context.arena(), &statements)?;
+        let placement = self
+            .find_constructor_super_path(&statements, prologue.body_start())?
+            .map_or(
+                DecoratorConstructorInitializerPlacement::ReplayPrologueThenBody(prologue),
+                DecoratorConstructorInitializerPlacement::AfterSuper,
+            );
+        match placement {
+            DecoratorConstructorInitializerPlacement::AfterSuper(path) => {
+                self.inject_constructor_statement_at_super_path(
+                    &mut statements,
+                    &path.statement_indices,
+                    statement,
+                )?;
+            }
+            DecoratorConstructorInitializerPlacement::ReplayPrologueThenBody(prologue) => {
+                let mut replayed = Vec::with_capacity(
+                    prologue
+                        .body_start()
+                        .saturating_add(statements.len())
+                        .saturating_add(1),
+                );
+                replayed.extend_from_slice(&statements[..prologue.standard_end()]);
+                replayed
+                    .extend_from_slice(&statements[prologue.standard_end()..prologue.custom_end()]);
+                replayed.push(statement);
+                replayed.append(&mut statements);
+                statements = replayed;
+            }
         }
-        if let Some(super_index) = statements[insertion..]
-            .iter()
-            .position(|statement| self.statement_is_super_call(*statement).unwrap_or(false))
-        {
-            insertion += super_index + 1;
-        }
-        statements.insert(insertion, statement);
-        let statements = self
-            .context
-            .factory()?
-            .create_node_array(self.source, statements)?;
+        let statements = if let Some(original) = block.statements.map(|array| self.array(array)) {
+            self.context
+                .factory()?
+                .update_node_array(original, statements)?
+        } else {
+            self.context
+                .factory()?
+                .create_node_array(self.source, statements)?
+        };
         block.statements = Some(statements.array());
         let flags =
             flags_after_update(self.context.arena(), body, &NodeData::Block(block.clone()))?;
@@ -2608,6 +2991,131 @@ impl<'context> StandardDecoratorVisitor<'context> {
             .update_node(constructor, NodeData::Constructor(data), flags)
     }
 
+    fn find_constructor_super_path(
+        &self,
+        statements: &[TransformNode],
+        start: usize,
+    ) -> Result<Option<DecoratorConstructorSuperPath>, TransformError> {
+        for (index, statement) in statements.iter().enumerate().skip(start) {
+            if self.statement_is_super_call(*statement)? {
+                return Ok(Some(DecoratorConstructorSuperPath {
+                    statement_indices: vec![index],
+                }));
+            }
+            let NodeData::TryStatement(data) = &self.context.arena().node(*statement)?.data else {
+                continue;
+            };
+            let Some(try_block) = data
+                .try_block
+                .and_then(|block| self.context.arena().node_ref(self.source, block))
+            else {
+                continue;
+            };
+            let NodeData::Block(block) = &self.context.arena().node(try_block)?.data else {
+                continue;
+            };
+            let nested_statements = self.array_nodes(block.statements)?;
+            if let Some(mut nested_path) =
+                self.find_constructor_super_path(&nested_statements, 0)?
+            {
+                nested_path.statement_indices.insert(0, index);
+                return Ok(Some(nested_path));
+            }
+        }
+        Ok(None)
+    }
+
+    /// Updates the already-visited nodes along the typed `try`/`super()` path
+    /// and places the residual instance initializer immediately after the
+    /// `super()` statement.
+    ///
+    /// tsc-port: transformConstructorBodyWorker @6.0.3
+    /// tsc-hash: aaf0c5324b33bbc52730bda4f4a77db2c952a35f0f18f78dafe9750923fd9c12
+    /// tsc-span: _tsc.js:99759-99787
+    fn inject_constructor_statement_at_super_path(
+        &mut self,
+        statements: &mut Vec<TransformNode>,
+        path: &[usize],
+        initializer: TransformNode,
+    ) -> Result<(), TransformError> {
+        let (&index, remaining) =
+            path.split_first()
+                .ok_or(TransformError::RequiredChildRemoved {
+                    parent: SyntaxKind::Constructor,
+                    field: "super statement path",
+                })?;
+        if remaining.is_empty() {
+            statements.insert(index + 1, initializer);
+            return Ok(());
+        }
+
+        let statement = *statements
+            .get(index)
+            .ok_or(TransformError::RequiredChildRemoved {
+                parent: SyntaxKind::Constructor,
+                field: "super statement path index",
+            })?;
+        let NodeData::TryStatement(mut try_statement) =
+            self.context.arena().node(statement)?.data.clone()
+        else {
+            return Err(TransformError::RequiredChildRemoved {
+                parent: SyntaxKind::Constructor,
+                field: "try statement on super path",
+            });
+        };
+        let try_block = try_statement
+            .try_block
+            .and_then(|block| self.context.arena().node_ref(self.source, block))
+            .ok_or(TransformError::RequiredChildRemoved {
+                parent: SyntaxKind::TryStatement,
+                field: "try_block on super path",
+            })?;
+        let NodeData::Block(mut block) = self.context.arena().node(try_block)?.data.clone() else {
+            return Err(TransformError::RequiredChildRemoved {
+                parent: SyntaxKind::TryStatement,
+                field: "try block on super path",
+            });
+        };
+        let mut nested_statements = self.array_nodes(block.statements)?;
+        self.inject_constructor_statement_at_super_path(
+            &mut nested_statements,
+            remaining,
+            initializer,
+        )?;
+        let nested_statements =
+            if let Some(original) = block.statements.map(|array| self.array(array)) {
+                self.context
+                    .factory()?
+                    .update_node_array(original, nested_statements)?
+            } else {
+                self.context
+                    .factory()?
+                    .create_node_array(self.source, nested_statements)?
+            };
+        block.statements = Some(nested_statements.array());
+        let flags = flags_after_update(
+            self.context.arena(),
+            try_block,
+            &NodeData::Block(block.clone()),
+        )?;
+        let try_block =
+            self.context
+                .factory()?
+                .update_node(try_block, NodeData::Block(block), flags)?;
+        try_statement.try_block = Some(try_block.node());
+        let flags = flags_after_update(
+            self.context.arena(),
+            statement,
+            &NodeData::TryStatement(try_statement.clone()),
+        )?;
+        statements[index] = self.context.factory()?.update_node(
+            statement,
+            NodeData::TryStatement(try_statement),
+            flags,
+        )?;
+        Ok(())
+    }
+
     fn statement_is_super_call(&self, statement: TransformNode) -> Result<bool, TransformError> {
         let NodeData::ExpressionStatement(data) = &self.context.arena().node(statement)?.data
         else {
@@ -2616,9 +3124,8 @@ impl<'context> StandardDecoratorVisitor<'context> {
         let Some(expression) = data.expression else {
             return Ok(false);
         };
-        let NodeData::CallExpression(data) =
-            &self.context.arena().node(self.node(expression))?.data
-        else {
+        let expression = self.skip_parenthesized_expression(self.node(expression))?;
+        let NodeData::CallExpression(data) = &self.context.arena().node(expression)?.data else {
             return Ok(false);
         };
         Ok(data.expression.is_some_and(|expression| {
@@ -2626,19 +3133,6 @@ impl<'context> StandardDecoratorVisitor<'context> {
                 .arena()
                 .node(self.node(expression))
                 .is_ok_and(|node| node.kind == SyntaxKind::SuperKeyword)
-        }))
-    }
-
-    fn is_prologue_statement(&self, statement: TransformNode) -> Result<bool, TransformError> {
-        let NodeData::ExpressionStatement(data) = &self.context.arena().node(statement)?.data
-        else {
-            return Ok(false);
-        };
-        Ok(data.expression.is_some_and(|expression| {
-            self.context
-                .arena()
-                .node(self.node(expression))
-                .is_ok_and(|node| node.kind == SyntaxKind::StringLiteral)
         }))
     }
 
@@ -2678,13 +3172,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
     }
 
     fn request_prop_key_helper(&mut self) -> Result<(), TransformError> {
-        self.context.request_emit_helper(EmitHelper::with_text(
-            "typescript:propKey",
-            false,
-            PROP_KEY_HELPER_TEXT,
-            None,
-            Vec::new(),
-        ))
+        self.context.request_emit_helper(super::helpers::prop_key())
     }
 
     fn create_let(
@@ -3706,6 +4194,18 @@ impl NodeDataChildVisitor for StandardDecoratorVisitor<'_> {
 }
 
 impl StandardDecoratorVisitor<'_> {
+    fn classify_fallback_child(
+        &self,
+        id: NodeId,
+    ) -> Result<StandardDecoratorFallbackChild, TransformError> {
+        let node = self.node(id);
+        if self.context.arena().node(node)?.kind == SyntaxKind::Decorator {
+            Ok(StandardDecoratorFallbackChild::ErasedDecorator)
+        } else {
+            Ok(StandardDecoratorFallbackChild::Runtime(node))
+        }
+    }
+
     fn visit_nodes(&mut self, id: NodeArrayId) -> Result<Option<NodeArrayId>, TransformError> {
         if let Some(mapped) = self.arrays.get(&id) {
             return Ok(*mapped);
@@ -3714,10 +4214,18 @@ impl StandardDecoratorVisitor<'_> {
         let nodes = self.context.arena().node_array(original)?.nodes.clone();
         let mut visited = Vec::with_capacity(nodes.len());
         for node in nodes {
-            if self.context.arena().node(self.node(node))?.kind == SyntaxKind::ClassDeclaration {
-                visited.extend(self.visit_class_declaration(node)?);
-            } else if let Some(node) = self.visit(node)? {
-                visited.push(self.node(node));
+            match self.classify_fallback_child(node)? {
+                StandardDecoratorFallbackChild::ErasedDecorator => {}
+                StandardDecoratorFallbackChild::Runtime(node)
+                    if self.context.arena().node(node)?.kind == SyntaxKind::ClassDeclaration =>
+                {
+                    visited.extend(self.visit_class_declaration(node.node())?);
+                }
+                StandardDecoratorFallbackChild::Runtime(node) => {
+                    if let Some(node) = self.visit(node.node())? {
+                        visited.push(self.node(node));
+                    }
+                }
             }
         }
         let updated = self

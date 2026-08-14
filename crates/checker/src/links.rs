@@ -188,6 +188,13 @@ pub struct SymbolLinks {
     pub check_flags: tsc_types::CheckFlags,
     /// tsc links.containingType for synthetic properties.
     pub containing_type: Option<TypeId>,
+    /// tsc links.deferralParent / deferralConstituents /
+    /// deferralWriteConstituents. Union/intersection properties with more
+    /// than two constituent properties retain their recipe and combine it
+    /// only when the read or write type is first observed.
+    pub deferral_parent: Option<TypeId>,
+    pub deferral_constituents: Option<Vec<TypeId>>,
+    pub deferral_write_constituents: Option<Vec<TypeId>>,
     /// tsc links.isDiscriminantProperty cache (isDiscriminantProperty
     /// 69562).
     pub is_discriminant_property: Option<bool>,
@@ -318,6 +325,11 @@ pub struct SymbolLinks {
 #[derive(Clone, Debug, Default)]
 pub struct TypeLinks {
     pub resolved_members: LinkSlot<crate::state::MembersId>,
+    /// tsc unionType.arrayFallbackSignatures (getSignaturesOfType
+    /// 59397-59413): the synthesized call signatures for a union of
+    /// matching Array/ReadonlyArray members.  A resolved empty slice is
+    /// the negative-cache sentinel.
+    pub array_fallback_signatures: LinkSlot<Box<[SignatureId]>>,
     /// tsc unionOrIntersection type.resolvedProperties
     /// (getPropertiesOfUnionOrIntersectionType 58721).
     pub resolved_properties: LinkSlot<Box<[SymbolId]>>,
@@ -501,6 +513,28 @@ struct SpeculativeConditionalCacheSnapshot {
 type SpeculativeSymbolVarianceWrite = (u32, SymbolId, LinkSlot<Box<[tsc_types::VarianceFlags]>>);
 type SpeculativeTypeOnlyAliasWrite = (u32, SymbolId, Option<Option<NodeId>>, Option<String>);
 
+/// Whether a speculative symbol-type write is merely a candidate-local
+/// cache publication or semantic state selected by overload resolution.
+///
+/// Contextual parameter types are completed once-results of the function
+/// expression: tsc leaves both the parameter type and `ContextChecked` in
+/// place after a selected OR rejected candidate. Other lazy symbol-type
+/// publications remain transaction-local and are discarded at either
+/// boundary.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum SpeculativeSymbolTypeDisposition {
+    Temporary,
+    ContextualOnceResult,
+}
+
+#[derive(Clone, Debug)]
+struct SpeculativeSymbolTypeWrite {
+    depth: u32,
+    symbol: SymbolId,
+    previous: LinkSlot<TypeId>,
+    disposition: SpeculativeSymbolTypeDisposition,
+}
+
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct SpeculativeLinksMarks {
     resolved_signatures: usize,
@@ -515,7 +549,6 @@ pub(crate) struct SpeculativeLinksMarks {
     unique_es_symbol_types: usize,
     late_symbols: usize,
     symbol_variances: usize,
-    symbol_type_parameters: usize,
     alias_targets: usize,
     type_only_aliases: usize,
     alias_instantiations: usize,
@@ -539,8 +572,8 @@ pub struct LinksTables {
     speculative_resolved_signature_writes: Vec<(u32, NodeId, LinkSlot<crate::state::SignatureId>)>,
     /// Declaration-site getSignatureFromDeclaration publications.
     /// These must be visible throughout a candidate so every member
-    /// view shares one SignatureId. Rejection restores them; selection
-    /// commits them (and a nested commit promotes the entry snapshot).
+    /// view shares one SignatureId. Completed candidates retain them
+    /// (and a nested retain promotes the entry snapshot).
     speculative_declaration_signature_writes:
         Vec<(u32, NodeId, LinkSlot<crate::state::SignatureId>)>,
     /// Trial-local type-node resolution publications. A candidate
@@ -555,16 +588,18 @@ pub struct LinksTables {
     /// may force an enum for the first time; the flag must be visible to
     /// re-entrant reads in that trial and restored at either boundary.
     speculative_enum_values_computed_writes: Vec<(u32, NodeId, bool)>,
-    /// Trial-local ContextChecked once-flags. Contextual parameter
-    /// types use the symbol-type journal; restoring both lets a later
-    /// candidate perform its own first contextual check.
+    /// Trial-local ContextChecked once-flags. Completed candidates retain
+    /// them and promote their rollback snapshot to an enclosing
+    /// transaction; only explicit rollback/CheckAbort restores them.
     speculative_context_checked_writes: Vec<(u32, NodeId, tsc_types::NodeCheckFlags)>,
     /// Trial-local declared-type publications for symbols first forced
     /// by candidate checking.
     speculative_symbol_declared_type_writes: Vec<(u32, SymbolId, LinkSlot<TypeId>)>,
     /// Trial-local value-type publications for symbols first forced by
-    /// candidate checking.
-    speculative_symbol_type_writes: Vec<(u32, SymbolId, LinkSlot<TypeId>)>,
+    /// candidate checking. The disposition distinguishes reproducible
+    /// cache state from contextual parameter types owned by the selected
+    /// candidate.
+    speculative_symbol_type_writes: Vec<SpeculativeSymbolTypeWrite>,
     /// Trial-local accessor/instantiated-property write-type caches.
     speculative_symbol_write_type_writes: Vec<(u32, SymbolId, LinkSlot<TypeId>)>,
     /// Trial-local unique-symbol type publications.
@@ -574,8 +609,6 @@ pub struct LinksTables {
     speculative_late_symbol_writes: Vec<(u32, SymbolId, Option<SymbolId>)>,
     /// Trial-local variance measurement publications.
     speculative_symbol_variance_writes: Vec<SpeculativeSymbolVarianceWrite>,
-    /// Trial-local type-parameter list publications for generic aliases.
-    speculative_symbol_type_parameter_writes: Vec<(u32, SymbolId, Option<Vec<TypeId>>)>,
     /// Trial-local alias-resolution sentinel/final slots.
     speculative_alias_target_writes: Vec<(u32, SymbolId, LinkSlot<SymbolId>)>,
     /// Trial-local type-only alias protocol state. The declaration
@@ -836,16 +869,24 @@ impl LinksTables {
             .push((speculation_depth, id, snapshot));
     }
 
-    fn journal_symbol_type(&mut self, speculation_depth: u32, id: SymbolId) {
+    fn journal_symbol_type(
+        &mut self,
+        speculation_depth: u32,
+        id: SymbolId,
+        disposition: SpeculativeSymbolTypeDisposition,
+    ) {
         if speculation_depth == 0 {
             Self::assert_writable(speculation_depth);
             return;
         }
-        if self
+        if let Some(existing) = self
             .speculative_symbol_type_writes
-            .iter()
-            .any(|(depth, symbol, _)| *depth == speculation_depth && *symbol == id)
+            .iter_mut()
+            .find(|write| write.depth == speculation_depth && write.symbol == id)
         {
+            if disposition == SpeculativeSymbolTypeDisposition::ContextualOnceResult {
+                existing.disposition = disposition;
+            }
             return;
         }
         let previous = self
@@ -854,7 +895,12 @@ impl LinksTables {
             .map(|links| links.type_of_symbol.clone())
             .unwrap_or_default();
         self.speculative_symbol_type_writes
-            .push((speculation_depth, id, previous));
+            .push(SpeculativeSymbolTypeWrite {
+                depth: speculation_depth,
+                symbol: id,
+                previous,
+                disposition,
+            });
     }
 
     fn journal_symbol_write_type(&mut self, speculation_depth: u32, id: SymbolId) {
@@ -1043,7 +1089,11 @@ impl LinksTables {
         id: SymbolId,
         value: TypeId,
     ) {
-        self.journal_symbol_type(speculation_depth, id);
+        self.journal_symbol_type(
+            speculation_depth,
+            id,
+            SpeculativeSymbolTypeDisposition::Temporary,
+        );
         let links = self.symbol.entry(id).or_default();
         note_resolving_transition(links.type_of_symbol.is_resolving(), false);
         links.type_of_symbol = LinkSlot::Resolved(value);
@@ -1397,11 +1447,6 @@ impl LinksTables {
         self.speculative_symbol_variance_writes.len()
     }
 
-    /// tsrs-native: capture the alias type-parameter journal position.
-    pub fn speculative_symbol_type_parameter_mark(&self) -> usize {
-        self.speculative_symbol_type_parameter_writes.len()
-    }
-
     /// tsrs-native: capture the alias-target protocol journal position.
     pub fn speculative_alias_target_mark(&self) -> usize {
         self.speculative_alias_target_writes.len()
@@ -1459,7 +1504,6 @@ impl LinksTables {
             unique_es_symbol_types: self.speculative_unique_es_symbol_type_mark(),
             late_symbols: self.speculative_late_symbol_mark(),
             symbol_variances: self.speculative_symbol_variance_mark(),
-            symbol_type_parameters: self.speculative_symbol_type_parameter_mark(),
             alias_targets: self.speculative_alias_target_mark(),
             type_only_aliases: self.speculative_type_only_alias_mark(),
             alias_instantiations: self.speculative_alias_instantiation_mark(),
@@ -1476,9 +1520,10 @@ impl LinksTables {
     /// Discard candidate-local protocols and lazy cache publications.
     /// Semantic objects constructed during the candidate initialize
     /// their owned fields through the `set_fresh_*` setters instead.
-    /// Declaration signatures are the exception: a selected
-    /// contextual function must keep one stable SignatureId for its
-    /// later deferred body check.
+    /// Declaration signatures, contextual-check flags, and contextual
+    /// parameter types are the exceptions: a completed contextual function
+    /// must keep that semantic state for later candidates and its deferred
+    /// body check.
     pub(crate) fn commit_speculative_writes(
         &mut self,
         marks: SpeculativeLinksMarks,
@@ -1489,14 +1534,13 @@ impl LinksTables {
         self.restore_speculative_resolved_types(marks.resolved_types);
         self.restore_speculative_decorator_signatures(marks.decorator_signatures);
         self.restore_speculative_enum_values_computed(marks.enum_values_computed);
-        self.restore_speculative_context_checked(marks.context_checked);
+        self.commit_speculative_context_checked(marks.context_checked, parent_depth);
         self.restore_speculative_symbol_declared_types(marks.symbol_declared_types);
-        self.restore_speculative_symbol_types(marks.symbol_types);
+        self.commit_speculative_symbol_types(marks.symbol_types, parent_depth);
         self.restore_speculative_symbol_write_types(marks.symbol_write_types);
         self.restore_speculative_unique_es_symbol_types(marks.unique_es_symbol_types);
         self.restore_speculative_late_symbols(marks.late_symbols);
-        self.restore_speculative_symbol_variances(marks.symbol_variances);
-        self.restore_speculative_symbol_type_parameters(marks.symbol_type_parameters);
+        self.commit_speculative_symbol_variances(marks.symbol_variances, parent_depth);
         self.restore_speculative_alias_targets(marks.alias_targets);
         self.restore_speculative_type_only_aliases(marks.type_only_aliases);
         self.restore_speculative_alias_instantiations(marks.alias_instantiations);
@@ -1521,7 +1565,6 @@ impl LinksTables {
         self.restore_speculative_unique_es_symbol_types(marks.unique_es_symbol_types);
         self.restore_speculative_late_symbols(marks.late_symbols);
         self.restore_speculative_symbol_variances(marks.symbol_variances);
-        self.restore_speculative_symbol_type_parameters(marks.symbol_type_parameters);
         self.restore_speculative_alias_targets(marks.alias_targets);
         self.restore_speculative_type_only_aliases(marks.type_only_aliases);
         self.restore_speculative_alias_instantiations(marks.alias_instantiations);
@@ -1632,6 +1675,29 @@ impl LinksTables {
         }
     }
 
+    /// Keep `ContextChecked` for a completed candidate. A nested candidate
+    /// transfers its entry snapshot to the parent transaction so an explicit
+    /// outer rollback or CheckAbort can still restore the AST state.
+    fn commit_speculative_context_checked(&mut self, mark: usize, parent_depth: u32) {
+        let committed: Vec<_> = self
+            .speculative_context_checked_writes
+            .drain(mark..)
+            .collect();
+        if parent_depth == 0 {
+            return;
+        }
+        for (_, node, previous) in committed {
+            if !self
+                .speculative_context_checked_writes
+                .iter()
+                .any(|(depth, existing, _)| *depth == parent_depth && *existing == node)
+            {
+                self.speculative_context_checked_writes
+                    .push((parent_depth, node, previous));
+            }
+        }
+    }
+
     /// tsrs-native: speculation-transaction unwind for ContextChecked
     /// once-flags.
     pub fn restore_speculative_context_checked(&mut self, mark: usize) {
@@ -1658,17 +1724,52 @@ impl LinksTables {
         }
     }
 
+    /// Retain only completed contextual parameter types.
+    /// Lazy value-type cache entries are restored exactly as on rollback.
+    /// Nested contextual writes promote their original snapshot to the
+    /// parent transaction, mirroring declaration-signature ownership.
+    fn commit_speculative_symbol_types(&mut self, mark: usize, parent_depth: u32) {
+        let committed: Vec<_> = self.speculative_symbol_type_writes.drain(mark..).collect();
+        for write in committed {
+            match write.disposition {
+                SpeculativeSymbolTypeDisposition::Temporary => {
+                    let slot = &mut self.symbol.entry(write.symbol).or_default().type_of_symbol;
+                    note_resolving_transition(slot.is_resolving(), write.previous.is_resolving());
+                    *slot = write.previous;
+                }
+                SpeculativeSymbolTypeDisposition::ContextualOnceResult if parent_depth == 0 => {}
+                SpeculativeSymbolTypeDisposition::ContextualOnceResult => {
+                    if let Some(parent) =
+                        self.speculative_symbol_type_writes
+                            .iter_mut()
+                            .find(|parent| {
+                                parent.depth == parent_depth && parent.symbol == write.symbol
+                            })
+                    {
+                        parent.disposition = SpeculativeSymbolTypeDisposition::ContextualOnceResult;
+                    } else {
+                        self.speculative_symbol_type_writes
+                            .push(SpeculativeSymbolTypeWrite {
+                                depth: parent_depth,
+                                ..write
+                            });
+                    }
+                }
+            }
+        }
+    }
+
     /// tsrs-native: speculation-transaction unwind for symbol
     /// value-type caches.
     pub fn restore_speculative_symbol_types(&mut self, mark: usize) {
         while self.speculative_symbol_type_writes.len() > mark {
-            let (_, symbol, previous) = self
+            let write = self
                 .speculative_symbol_type_writes
                 .pop()
                 .expect("length checked");
-            let slot = &mut self.symbol.entry(symbol).or_default().type_of_symbol;
-            note_resolving_transition(slot.is_resolving(), previous.is_resolving());
-            *slot = previous;
+            let slot = &mut self.symbol.entry(write.symbol).or_default().type_of_symbol;
+            note_resolving_transition(slot.is_resolving(), write.previous.is_resolving());
+            *slot = write.previous;
         }
     }
 
@@ -1710,6 +1811,29 @@ impl LinksTables {
         }
     }
 
+    /// Retain completed variance measurements. A nested candidate moves
+    /// its entry snapshot to the parent transaction so an explicit outer
+    /// rollback can still restore the cache to its original state.
+    fn commit_speculative_symbol_variances(&mut self, mark: usize, parent_depth: u32) {
+        let committed: Vec<_> = self
+            .speculative_symbol_variance_writes
+            .drain(mark..)
+            .collect();
+        if parent_depth == 0 {
+            return;
+        }
+        for (_, symbol, previous) in committed {
+            if !self
+                .speculative_symbol_variance_writes
+                .iter()
+                .any(|(depth, existing, _)| *depth == parent_depth && *existing == symbol)
+            {
+                self.speculative_symbol_variance_writes
+                    .push((parent_depth, symbol, previous));
+            }
+        }
+    }
+
     /// tsrs-native: speculation-transaction unwind for variance caches.
     pub fn restore_speculative_symbol_variances(&mut self, mark: usize) {
         while self.speculative_symbol_variance_writes.len() > mark {
@@ -1720,18 +1844,6 @@ impl LinksTables {
             let slot = &mut self.symbol.entry(symbol).or_default().variances;
             note_resolving_transition(slot.is_resolving(), previous.is_resolving());
             *slot = previous;
-        }
-    }
-
-    /// tsrs-native: speculation-transaction unwind for generic-alias
-    /// type-parameter lists.
-    pub fn restore_speculative_symbol_type_parameters(&mut self, mark: usize) {
-        while self.speculative_symbol_type_parameter_writes.len() > mark {
-            let (_, symbol, previous) = self
-                .speculative_symbol_type_parameter_writes
-                .pop()
-                .expect("length checked");
-            self.symbol.entry(symbol).or_default().type_parameters = previous;
         }
     }
 
@@ -2173,6 +2285,27 @@ impl LinksTables {
         Self::write_slot(&mut self.symbol.entry(id).or_default().declared_type, value);
     }
 
+    /// tsrs-native: publish a class or interface declared-type identity
+    /// monotonically across Rust overload-candidate transactions.
+    ///
+    /// Publish the declaration-owned identity of a class or interface.
+    ///
+    /// This is deliberately monotone across candidate speculation. A
+    /// selected or rejected overload can retain a TypeId that points at
+    /// the declared type through a signature or structurally interned
+    /// reference. Rolling the symbol slot back would let the same symbol
+    /// mint a second declared TypeId, splitting recursive relation keys.
+    /// The class/interface constructor is diagnostic-free and completes
+    /// before this publication, so no candidate-dependent result crosses
+    /// the boundary.
+    pub fn set_declaration_owned_symbol_declared_type(
+        &mut self,
+        id: SymbolId,
+        value: LinkSlot<TypeId>,
+    ) {
+        Self::write_slot(&mut self.symbol.entry(id).or_default().declared_type, value);
+    }
+
     /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
     /// links-field access; no standalone tsc function.
     pub fn set_symbol_type(
@@ -2181,7 +2314,11 @@ impl LinksTables {
         id: SymbolId,
         value: LinkSlot<TypeId>,
     ) {
-        self.journal_symbol_type(speculation_depth, id);
+        self.journal_symbol_type(
+            speculation_depth,
+            id,
+            SpeculativeSymbolTypeDisposition::Temporary,
+        );
         Self::write_slot(
             &mut self.symbol.entry(id).or_default().type_of_symbol,
             value,
@@ -2190,18 +2327,22 @@ impl LinksTables {
 
     /// tsrs-native: candidate-local contextual symbol initialization.
     ///
-    /// The parameter type must remain stable while a candidate is
-    /// checked. Rejection restores it with the ContextChecked flag;
-    /// selection commits both, matching tsc's contextual pin. The
-    /// plain assignment also preserves tsc's `unknown` binding-pattern
-    /// replacement.
+    /// The parameter type must remain stable while a candidate is checked.
+    /// A completed candidate retains it with the ContextChecked flag,
+    /// matching tsc's cross-candidate contextual pin; explicit rollback and
+    /// CheckAbort restore both. The plain assignment also preserves tsc's
+    /// `unknown` binding-pattern replacement.
     pub fn set_symbol_type_contextual(
         &mut self,
         speculation_depth: u32,
         id: SymbolId,
         value: LinkSlot<TypeId>,
     ) {
-        self.journal_symbol_type(speculation_depth, id);
+        self.journal_symbol_type(
+            speculation_depth,
+            id,
+            SpeculativeSymbolTypeDisposition::ContextualOnceResult,
+        );
         let slot = &mut self.symbol.entry(id).or_default().type_of_symbol;
         note_resolving_transition(slot.is_resolving(), value.is_resolving());
         *slot = value;
@@ -2232,7 +2373,11 @@ impl LinksTables {
         id: SymbolId,
         value: TypeId,
     ) {
-        self.journal_symbol_type(speculation_depth, id);
+        self.journal_symbol_type(
+            speculation_depth,
+            id,
+            SpeculativeSymbolTypeDisposition::Temporary,
+        );
         self.symbol.entry(id).or_default().type_of_symbol = LinkSlot::Resolved(value);
     }
 
@@ -2254,6 +2399,30 @@ impl LinksTables {
             &mut links.type_of_symbol,
             LinkSlot::Resolved(type_of_symbol),
         );
+    }
+
+    /// tsrs-native: group tsc's direct DeferredType symbol-link writes into
+    /// one initialization of a freshly synthesized Rust symbol entry.
+    ///
+    /// Initialize tsc's DeferredType recipe on a freshly synthesized
+    /// union/intersection property. The result slots intentionally remain
+    /// vacant until getTypeOfSymbol/getWriteTypeOfSymbol observes them.
+    pub fn set_symbol_synthetic_deferred(
+        &mut self,
+        id: SymbolId,
+        check_flags: tsc_types::CheckFlags,
+        containing_type: TypeId,
+        constituents: Vec<TypeId>,
+        write_constituents: Option<Vec<TypeId>>,
+    ) {
+        let links = self.symbol.entry(id).or_default();
+        links.check_flags = tsc_types::CheckFlags::from_bits(
+            check_flags.bits() | tsc_types::CheckFlags::DEFERRED_TYPE.bits(),
+        );
+        links.containing_type = Some(containing_type);
+        links.deferral_parent = Some(containing_type);
+        links.deferral_constituents = Some(constituents);
+        links.deferral_write_constituents = write_constituents;
     }
 
     /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
@@ -2651,6 +2820,27 @@ impl LinksTables {
         Self::assert_writable(speculation_depth);
         Self::write_slot(
             &mut self.ty.entry(id).or_default().resolved_properties,
+            LinkSlot::Resolved(value),
+        );
+    }
+
+    /// tsrs-native: publish getSignaturesOfType's Array/ReadonlyArray
+    /// fallback cache through the Rust Links table's non-speculative setter.
+    ///
+    /// getSignaturesOfType's Array/ReadonlyArray union-member fallback
+    /// cache (59397-59413).
+    pub fn set_type_array_fallback_signatures(
+        &mut self,
+        speculation_depth: u32,
+        id: TypeId,
+        value: Box<[SignatureId]>,
+    ) {
+        if speculation_depth != 0 {
+            return;
+        }
+        Self::assert_writable(speculation_depth);
+        Self::write_slot(
+            &mut self.ty.entry(id).or_default().array_fallback_signatures,
             LinkSlot::Resolved(value),
         );
     }
@@ -3866,51 +4056,50 @@ impl LinksTables {
         links.type_parameter_mapper = Some(mapper);
     }
 
-    /// getDeclaredTypeOfTypeAlias's typeParameters stamp (57416),
-    /// written once when a generic alias's declared type resolves.
-    /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
-    /// links-field access; no standalone tsc function.
+    /// getDeclaredTypeOfTypeAlias's typeParameters stamp (57416).
+    ///
+    /// The list is immutable declaration shape, not candidate-local
+    /// contextual state. A type alias instantiated while an overload
+    /// candidate is being checked can immediately become part of a
+    /// freshly allocated semantic type that survives the candidate
+    /// transaction. Keep the parameter identities with that escaped
+    /// type graph, just as `set_fresh_symbol_declared_type` keeps each
+    /// parameter singleton. A later re-force after the surrounding
+    /// declared-type cache was rolled back is an idempotent publication
+    /// of the same list.
+    /// tsrs-native: durable declaration-shape publication corresponding
+    /// to tsc's ordinary links.typeParameters write.
     pub fn set_symbol_type_parameters(
         &mut self,
-        speculation_depth: u32,
+        _speculation_depth: u32,
         id: SymbolId,
         type_parameters: Vec<TypeId>,
     ) {
-        if speculation_depth != 0
-            && !self
-                .speculative_symbol_type_parameter_writes
-                .iter()
-                .any(|(depth, symbol, _)| *depth == speculation_depth && *symbol == id)
-        {
-            let previous = self
-                .symbol
-                .get(&id)
-                .and_then(|links| links.type_parameters.clone());
-            self.speculative_symbol_type_parameter_writes
-                .push((speculation_depth, id, previous));
-        } else if speculation_depth == 0 {
-            Self::assert_writable(speculation_depth);
-        }
         let links = self.symbol.entry(id).or_default();
-        assert!(
-            links.type_parameters.is_none(),
-            "alias type parameters written twice for {id:?}"
-        );
-        links.type_parameters = Some(type_parameters);
+        match &links.type_parameters {
+            Some(existing) => assert_eq!(
+                existing, &type_parameters,
+                "alias type parameters changed for {id:?}"
+            ),
+            None => links.type_parameters = Some(type_parameters),
+        }
     }
 
     /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
     /// links-field access; no standalone tsc function.
+    ///
+    /// This is a durable pure memo, even while an overload candidate is
+    /// speculative. `TypeId`s and their semantic inputs are immutable and
+    /// append-only, so `keyof T` cannot acquire a candidate-dependent
+    /// answer. Keeping the singleton also preserves tsc's object identity
+    /// contract when the same index type is reached through two mappers
+    /// (notably limited reverse-mapped constraints).
     pub fn set_type_resolved_index_type(
         &mut self,
-        speculation_depth: u32,
+        _speculation_depth: u32,
         id: TypeId,
         value: TypeId,
     ) {
-        if speculation_depth != 0 {
-            return;
-        }
-        Self::assert_writable(speculation_depth);
         Self::write_slot(
             &mut self.ty.entry(id).or_default().resolved_index_type,
             LinkSlot::Resolved(value),
@@ -3918,17 +4107,15 @@ impl LinksTables {
     }
 
     /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
-    /// links-field access; no standalone tsc function.
+    /// links-field access; no standalone tsc function. Like the ordinary
+    /// index-type slot above, this is a durable memo over an immutable
+    /// `TypeId`, not candidate-owned semantic state.
     pub fn set_type_resolved_string_index_type(
         &mut self,
-        speculation_depth: u32,
+        _speculation_depth: u32,
         id: TypeId,
         value: TypeId,
     ) {
-        if speculation_depth != 0 {
-            return;
-        }
-        Self::assert_writable(speculation_depth);
         Self::write_slot(
             &mut self.ty.entry(id).or_default().resolved_string_index_type,
             LinkSlot::Resolved(value),

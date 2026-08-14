@@ -63,7 +63,8 @@ use crate::emit::CheckerSession;
 pub use crate::program::{
     BoundDocument, DocumentAddress, DocumentLease, DocumentRegistry, DocumentRegistryError,
     DocumentScriptKind, EphemeralDocumentStore, EphemeralDocumentStoreError,
-    IncrementalDocumentOptions, IncrementalDocumentUpdate, ParsedDocument, ProgramSnapshot,
+    IncrementalDocumentOptions, IncrementalDocumentUpdate, ParsedDocument, ProgramFileFacts,
+    ProgramFileId, ProgramSnapshot,
 };
 
 pub use tsc_types::CompilerOptions;
@@ -186,9 +187,8 @@ pub struct AuthoritativeResolvedModule {
     pub package_bundles_types: bool,
 }
 
-/// A successfully resolved target that was deliberately not loaded into the
-/// source program, together with the exact facts needed by the TS7016,
-/// unloaded-JSX TS6142, and arbitrary-extension TS6263 branches.
+/// A successfully resolved untyped implementation that was deliberately not
+/// loaded into the source program, together with the exact TS7016 facts.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct AuthoritativeUntypedModule {
     pub resolved_file_name: String,
@@ -196,13 +196,21 @@ pub struct AuthoritativeUntypedModule {
     pub alternate_result: Option<String>,
     pub types_package_exists: bool,
     pub package_bundles_types: bool,
-    pub resolution_diagnostic: Option<AuthoritativeModuleResolutionDiagnostic>,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum AuthoritativeModuleResolutionDiagnostic {
     JsxWithoutJsxOption,
     ArbitraryExtensionWithoutOption,
+}
+
+/// A successful resolution kept only for its resolution diagnostic. The
+/// target is intentionally absent from source membership, so this cannot be
+/// represented as either a loaded module or an untyped implementation.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct AuthoritativeResolutionDiagnosticModule {
+    pub resolved_file_name: String,
+    pub diagnostic: AuthoritativeModuleResolutionDiagnostic,
 }
 
 /// An unsuccessful authoritative lookup together with host facts that remain
@@ -216,6 +224,7 @@ pub struct AuthoritativeNotFoundModule {
 pub enum AuthoritativeModuleResolution {
     Resolved(AuthoritativeResolvedModule),
     Untyped(AuthoritativeUntypedModule),
+    ResolutionDiagnostic(AuthoritativeResolutionDiagnosticModule),
     NotFound(AuthoritativeNotFoundModule),
 }
 
@@ -326,6 +335,18 @@ pub struct CheckResult {
     /// `program.getSemanticDiagnostics(sourceFile)`, flattened in
     /// fixture-file ordinal order.
     pub semantic_diagnostics: DiagnosticList,
+    /// `program.getSemanticDiagnostics(undefined)` for production Program
+    /// sessions. This is distinct from [`Self::semantic_diagnostics`]: the
+    /// source-file getter surface intentionally does not query default
+    /// libraries, while the whole-Program getter does (subject to
+    /// `skipDefaultLibCheck`, `skipLibCheck`, and the remaining
+    /// `skipTypeCheckingWorker` policy).
+    ///
+    /// Legacy fixture-only adapters leave this as `None`; authoritative
+    /// compiler sessions always publish `Some`, including for an empty
+    /// diagnostic list. Keeping availability explicit prevents a compiler
+    /// consumer from accidentally falling back to the fixture projection.
+    pub program_semantic_diagnostics: Option<DiagnosticList>,
     /// `program.getGlobalDiagnostics()` for the owned no-emit entry.
     ///
     /// The legacy conformance entry observes only per-file getters and keeps
@@ -358,6 +379,7 @@ impl PartialEq for CheckResult {
         self.diagnostics == other.diagnostics
             && self.syntactic_diagnostics == other.syntactic_diagnostics
             && self.semantic_diagnostics == other.semantic_diagnostics
+            && self.program_semantic_diagnostics == other.program_semantic_diagnostics
             && self.global_diagnostics == other.global_diagnostics
             && self.suggestion_diagnostics == other.suggestion_diagnostics
             && self.file_diagnostics == other.file_diagnostics
@@ -544,6 +566,31 @@ fn can_include_bind_and_check_diagnostics(
         Some(CheckDirective::Check) => true,
         None => !javascript_file || options.check_js != Some(false),
     }
+}
+
+/// tsc-port: skipTypeCheckingWorker @6.0.3
+/// tsc-hash: 1c3be6d0ff15f3752237bd0bd2d0ee0543b4cfd10c150652d0c6e94b2890f103
+/// tsc-span: _tsc.js:18895-18897
+///
+/// One Program-aware implementation of tsc's `skipTypeCheckingWorker` policy.
+///
+/// Default-library status is supplied by the Program builder rather than
+/// inferred from a path or stored on a reusable document. Project-reference
+/// redirects are not yet represented by this Program model; when they are,
+/// they belong in [`ProgramFileFacts`] beside the default-library bit.
+pub(crate) fn should_skip_type_checking_file(
+    source: &tsc_syntax::SourceFile,
+    facts: ProgramFileFacts,
+    options: &CompilerOptions,
+) -> bool {
+    options.skip_lib_check == Some(true) && source.is_declaration_file
+        || options.skip_default_lib_check == Some(true) && facts.is_default_library()
+        || options.no_check == Some(true)
+        || !can_include_bind_and_check_diagnostics(
+            is_js_file_name(&source.file_name),
+            check_directive(source.text()),
+            options,
+        )
 }
 
 /// tsc isPlainJsFile (12876): a JS/JSX file is "plain" only when
@@ -1406,6 +1453,12 @@ fn check_program_with_prebound_libs_at_observed(
     emit_operation: Option<&mut CheckedEmitOperation<'_>>,
 ) -> CheckExecution {
     let mut file_diagnostics = Vec::new();
+    // An authoritative Program session exposes the whole-Program semantic
+    // getter even when root filtering produces no SourceFiles (for example a
+    // lone `.js` root with `allowJs` disabled). The observable getter result
+    // is an empty list, not an absent capability; emit relies on that typed
+    // distinction to execute the empty output plan without a checker state.
+    let mut program_semantic_diagnostics = authoritative_run.is_some().then(Vec::new);
     let mut partial_checks = Vec::new();
     let mut global_diagnostics = Vec::new();
     let mut authoritative_failure = None;
@@ -1480,14 +1533,6 @@ fn check_program_with_prebound_libs_at_observed(
             )
             .expect("JSON source identity allocation failed");
             work_counters.record_parse(file.text().len());
-            let mut syntactic = source_file.parse_diagnostics.clone();
-            tsc_diagnostics::sort_and_dedupe_diagnostics(&mut syntactic);
-            file_diagnostics.push(FileDiagnosticPasses {
-                file_name: source_file.file_name.clone(),
-                syntactic,
-                semantic: Vec::new(),
-                suggestion: Vec::new(),
-            });
             program_sources.push(Arc::new(source_file));
             continue;
         }
@@ -1583,23 +1628,6 @@ fn check_program_with_prebound_libs_at_observed(
         )
         .expect("source identity allocation failed");
         work_counters.record_parse(file.text().len());
-        // tsc getSyntacticDiagnosticsForFile: JS files prepend the
-        // TypeScript-only-syntax walker output to their parse diagnostics.
-        let mut syntactic = if is_js_file_name(&file.name) {
-            js_grammar::get_js_syntactic_diagnostics(&source_file, options.experimental_decorators)
-        } else {
-            Vec::new()
-        };
-        syntactic.extend(source_file.parse_diagnostics.iter().cloned());
-        // program.getSyntacticDiagnostics(sourceFile) passes the raw
-        // JS-grammar + parser stream through getDiagnosticsHelper.
-        tsc_diagnostics::sort_and_dedupe_diagnostics(&mut syntactic);
-        file_diagnostics.push(FileDiagnosticPasses {
-            file_name: source_file.file_name.clone(),
-            syntactic,
-            semantic: Vec::new(),
-            suggestion: Vec::new(),
-        });
         program_sources.push(Arc::new(source_file));
     }
 
@@ -1625,16 +1653,8 @@ fn check_program_with_prebound_libs_at_observed(
 
     // Fixture bind pass: each completed binder owns exact persistent-symbol
     // and private-name-serial leases in the source's identity domain.
-    // Parse the per-file check directive (ts-check/ts-nocheck pragma)
-    // ONCE; @ts-ignore/@ts-expect-error ride on each SourceFile's
-    // scanner-collected comment_directives.
     observe_phase(CheckPhase::Bind);
 
-    let check_directives: std::collections::HashMap<&str, Option<CheckDirective>> = program_sources
-        .iter()
-        .map(|source| (source.file_name.as_str(), check_directive(source.text())))
-        .collect();
-    let mut bind_diagnostics_by_file = Vec::with_capacity(program_sources.len());
     for source_file in &program_sources {
         let binder = tsc_binder::Binder::bind_in_identity_domain(
             source_file.as_ref(),
@@ -1643,20 +1663,18 @@ fn check_program_with_prebound_libs_at_observed(
         )
         .expect("bind identity allocation failed");
         work_counters.record_bind();
-        bind_diagnostics_by_file.push(binder.bind_diagnostics.clone());
         document_store
             .publish(Arc::clone(source_file), binder.into_bind_data())
             .expect("completed bind must belong to the ephemeral document domain");
     }
 
     // Checker-state construction (M4 5.0) + the check driver (M4 5.4):
-    // the initializeTypeChecker slice runs in from_program (globals
-    // merge across non-module files — lib prefix first — plus the
-    // cross-file duplicate reporting), then FIXTURE files check IN
-    // PROGRAM ORDER (tsc getSemanticDiagnostics per file over one
-    // checker; lib files are never asked for). Options diagnostics
-    // (bad option combos, core-interfaces §8) would gate ahead of this
-    // block — none are modeled yet, so the gate is vacuously open.
+    // initializeTypeChecker merges globals in Program order (default
+    // libraries first), then the oracle-facing adapter requests diagnostics
+    // for each FIXTURE source in Program order. Library documents remain
+    // first-class Program members, but the oracle driver never calls
+    // getSemanticDiagnostics(libSourceFile), so this adapter must not publish
+    // their file diagnostics implicitly.
     observe_phase(CheckPhase::Check);
 
     if lib_documents.is_empty() && program_sources.is_empty() && collect_global_diagnostics {
@@ -1667,9 +1685,40 @@ fn check_program_with_prebound_libs_at_observed(
         // ownership. This is the one-shot H0 adapter: dropping the consumed
         // ProgramSession drops the complete store and cannot leave a process
         // cache behind.
+        let mut file_facts = vec![ProgramFileFacts::DEFAULT_LIBRARY; lib_count];
+        file_facts.resize(
+            lib_count + program_sources.len(),
+            ProgramFileFacts::ORDINARY,
+        );
         let snapshot = document_store
-            .into_snapshot(lib_count)
+            .into_snapshot_with_file_facts(file_facts)
             .expect("program snapshot identity allocation failed");
+        file_diagnostics = snapshot
+            .documents()
+            .iter()
+            .skip(lib_count)
+            .map(|document| {
+                let source = document.source();
+                // tsc getSyntacticDiagnosticsForFile: JS files prepend the
+                // TypeScript-only-syntax walker output to parser diagnostics.
+                let mut syntactic = if is_js_file_name(&source.file_name) {
+                    js_grammar::get_js_syntactic_diagnostics(
+                        source,
+                        options.experimental_decorators,
+                    )
+                } else {
+                    Vec::new()
+                };
+                syntactic.extend(source.parse_diagnostics.iter().cloned());
+                tsc_diagnostics::sort_and_dedupe_diagnostics(&mut syntactic);
+                FileDiagnosticPasses {
+                    file_name: source.file_name.clone(),
+                    syntactic,
+                    semantic: Vec::new(),
+                    suggestion: Vec::new(),
+                }
+            })
+            .collect();
         let mut state = state::CheckerState::from_snapshot(&snapshot, options);
         if let Some(run) = authoritative_run {
             let mut metadata = run.lib_metadata.clone();
@@ -1727,51 +1776,46 @@ fn check_program_with_prebound_libs_at_observed(
         // run here — AFTER the resolver's host view exists (pass 2
         // resolves module names), BEFORE any file checks.
         state.merge_module_augmentations();
+        // Type construction is unconditional in tsc. In particular, the
+        // eager array singleton roots establish the type-id order consumed by
+        // getUnionType when stableTypeOrdering is off. Requesting the public
+        // global-diagnostics bucket controls only observation of the rows.
+        state.materialize_init_global_diagnostics();
         if collect_global_diagnostics {
-            state.materialize_init_global_diagnostics();
             global_diagnostics = state.visible_global_diagnostics.clone();
             tsc_diagnostics::sort_and_dedupe_diagnostics(&mut global_diagnostics);
         }
         // getDiagnosticsWorker snapshots global diagnostics around each
         // requested source. Only newly-published file-less rows are
-        // prepended to that source's checker diagnostics.
-        let mut global_checker_diagnostics_by_file = vec![Vec::new(); program_sources.len()];
-        for (source_index, index) in (lib_count..state.binder.file_count()).enumerate() {
-            let source = state.binder.source(index);
-            let javascript_file = is_js_file_name(&source.file_name);
-            let directive = check_directives
-                .get(source.file_name.as_str())
-                .copied()
-                .flatten();
-            let skip = options.skip_lib_check == Some(true) && source.is_declaration_file
-                || !can_include_bind_and_check_diagnostics(javascript_file, directive, options);
-            if !skip {
-                let global_start = state.visible_global_diagnostics.len();
-                state.check_source_file(index);
-                global_checker_diagnostics_by_file[source_index].extend(
-                    state.visible_global_diagnostics[global_start..]
-                        .iter()
-                        .cloned(),
-                );
+        // prepended to that source's checker diagnostics. `program_file_ids`
+        // models the exact source-file getter calls made by driver.mjs; the
+        // library prefix participates in binding and global merge but is not
+        // itself queried. A future arbitrary-query API can schedule any
+        // ProgramFileId and use the same Program-aware skip policy.
+        let program_file_ids = state.binder.file_ids().skip(lib_count).collect::<Vec<_>>();
+        let mut global_checker_diagnostics_by_file = vec![Vec::new(); state.binder.file_count()];
+        for &file in &program_file_ids {
+            if state.skip_type_checking_file(file) {
+                continue;
             }
+            let global_start = state.visible_global_diagnostics.len();
+            state.check_source_file(file.index());
+            global_checker_diagnostics_by_file[file.index()].extend(
+                state.visible_global_diagnostics[global_start..]
+                    .iter()
+                    .cloned(),
+            );
         }
 
         // Public per-file getter assembly. This deliberately does not
-        // use a name-sorted map: the outer observation order is the
-        // CaseSpec/program fixture ordinal.
-        for (source_index, source) in program_sources.iter().enumerate() {
-            let javascript_file = is_js_file_name(&source.file_name);
-            let directive = check_directives
-                .get(source.file_name.as_str())
-                .copied()
-                .flatten();
-            let skip = options.skip_lib_check == Some(true) && source.is_declaration_file
-                || !can_include_bind_and_check_diagnostics(javascript_file, directive, options);
-            if skip {
+        // use a name-sorted map: the outer observation order is Program order.
+        for &file in &program_file_ids {
+            if state.skip_type_checking_file(file) {
                 continue;
             }
-
-            let plain_js = is_plain_js_file(javascript_file, directive, options);
+            let source_index = file.index();
+            let result_index = source_index - lib_count;
+            let source = state.binder.source(source_index);
             let checker_for_file = state.diagnostics.iter().filter(|diagnostic| {
                 diagnostic.file_name.as_deref() == Some(source.file_name.as_str())
             });
@@ -1780,85 +1824,72 @@ fn check_program_with_prebound_libs_at_observed(
             // collection and does not pass through
             // getDiagnosticsHelper. Preserve its collection order and
             // multiplicity exactly.
-            file_diagnostics[source_index].suggestion.extend(
+            file_diagnostics[result_index].suggestion.extend(
                 checker_for_file
                     .clone()
                     .filter(|diagnostic| diagnostic.category() == DiagnosticCategory::Suggestion)
                     .cloned(),
             );
+            file_diagnostics[result_index].semantic = semantic_diagnostics_for_program_file(
+                &state,
+                source_index,
+                &global_checker_diagnostics_by_file[source_index],
+                &program_diagnostics,
+                options,
+            );
+        }
 
-            // getBindAndCheckDiagnosticsForFileNoCache:
-            // bind -> check (new globals first) -> checked-JS JSDoc.
-            let mut bind_and_check = Vec::new();
-            bind_and_check.extend(bind_diagnostics_by_file[source_index].iter().cloned());
-            bind_and_check.extend(
-                global_checker_diagnostics_by_file[source_index]
-                    .iter()
-                    .filter(|diagnostic| diagnostic.category() != DiagnosticCategory::Suggestion)
-                    .cloned(),
-            );
-            bind_and_check.extend(
-                checker_for_file
-                    .filter(|diagnostic| diagnostic.category() != DiagnosticCategory::Suggestion)
-                    .cloned(),
-            );
-            if javascript_file && !plain_js {
-                bind_and_check.extend(source.js_doc_diagnostics.iter().cloned());
+        // emitFilesAndReportErrors requests
+        // program.getSemanticDiagnostics(undefined), which maps the same
+        // per-file getter over *all* Program sources. The fixture projections
+        // above remain the legacy oracle-driver observation. Production
+        // authoritative sessions additionally complete the library prefix,
+        // honoring the Program-owned default-library facts rather than
+        // inferring ownership from a path or declaration suffix.
+        if authoritative_run.is_some() {
+            // Program.getSourceFiles() order is the ProgramBinder order:
+            // default-library prefix first, followed by fixture sources.
+            // Revisit the complete sequence rather than only the library
+            // prefix. check_source_file is TypeChecked-guarded, so fixture
+            // files already observed above are cached no-ops, while a
+            // library check may still publish a diagnostic owned by a
+            // declaration in a merged fixture symbol.
+            let all_program_file_ids = state.binder.file_ids().collect::<Vec<_>>();
+            for &file in &all_program_file_ids {
+                if state.skip_type_checking_file(file) {
+                    continue;
+                }
+                let global_start = state.visible_global_diagnostics.len();
+                state.check_source_file(file.index());
+                global_checker_diagnostics_by_file[file.index()].extend(
+                    state.visible_global_diagnostics[global_start..]
+                        .iter()
+                        .cloned(),
+                );
             }
 
-            if plain_js {
-                bind_and_check
-                    .retain(|diagnostic| plain_js_errors::is_plain_js_error(diagnostic.code()));
-            } else {
-                let mut used_directive_lines = std::collections::HashSet::new();
-                bind_and_check = filter_by_comment_directives_and_mark_used(
-                    source,
-                    bind_and_check.into_iter(),
-                    Some(&mut used_directive_lines),
-                );
-                if let Some(partial_ranges) = state
-                    .partially_checked_ranges
-                    .get(&(lib_count + source_index))
-                {
-                    mark_comment_directives_for_partial_ranges(
-                        source,
-                        partial_ranges,
-                        &mut used_directive_lines,
-                    );
+            let mut diagnostics = Vec::new();
+            // Reassemble every file from the completed diagnostic ledger.
+            // Reusing the earlier fixture projection here would miss rows
+            // added to a fixture-owned declaration while checking the
+            // canonical declaration in an earlier library file (for example,
+            // a merged interface's duplicate index signatures).
+            for &file in &all_program_file_ids {
+                if state.skip_type_checking_file(file) {
+                    continue;
                 }
-                bind_and_check.extend(unused_expect_error_diagnostics(
-                    source,
-                    &used_directive_lines,
+                diagnostics.extend(semantic_diagnostics_for_program_file(
+                    &state,
+                    file.index(),
+                    &global_checker_diagnostics_by_file[file.index()],
+                    &program_diagnostics,
+                    options,
                 ));
             }
-
-            // filterSemanticDiagnostics applies only to the
-            // bind/check half, before getProgramDiagnostics is
-            // concatenated.
-            filter_semantic_diagnostics(&mut bind_and_check, options);
-
-            let mut program_for_file = program_diagnostics
-                .iter()
-                .filter(|diagnostic| {
-                    diagnostic.file_name.as_deref() == Some(source.file_name.as_str())
-                })
-                .cloned()
-                .collect::<Vec<_>>();
-            if !source.comment_directives.is_empty() {
-                // getProgramDiagnostics owns a fresh directive map;
-                // use in bind/check does not consume this one.
-                program_for_file = filter_by_comment_directives_and_mark_used(
-                    source,
-                    program_for_file.into_iter(),
-                    None,
-                );
-            }
-            bind_and_check.extend(program_for_file);
-
-            // program.getSemanticDiagnostics(sourceFile) uses
-            // getDiagnosticsHelper; suggestion intentionally does not.
-            tsc_diagnostics::sort_and_dedupe_diagnostics(&mut bind_and_check);
-            file_diagnostics[source_index].semantic = bind_and_check;
+            // getDiagnosticsHelper's sourceFile === undefined arm performs
+            // one stable whole-result sort/dedup after flattening.
+            tsc_diagnostics::sort_and_dedupe_diagnostics(&mut diagnostics);
+            program_semantic_diagnostics = Some(diagnostics);
         }
         partial_checks = state.partial_check_records.clone();
         authoritative_failure = state.take_authoritative_module_failure();
@@ -1866,6 +1897,7 @@ fn check_program_with_prebound_libs_at_observed(
             if let Some(operation) = emit_operation {
                 let checked = assemble_check_result(
                     &file_diagnostics,
+                    program_semantic_diagnostics.as_deref(),
                     &global_diagnostics,
                     &partial_checks,
                     work_counters,
@@ -1882,6 +1914,7 @@ fn check_program_with_prebound_libs_at_observed(
     CheckExecution {
         result: assemble_check_result(
             &file_diagnostics,
+            program_semantic_diagnostics.as_deref(),
             &global_diagnostics,
             &partial_checks,
             work_counters,
@@ -1890,8 +1923,99 @@ fn check_program_with_prebound_libs_at_observed(
     }
 }
 
+/// Assemble one `getSemanticDiagnosticsForFile` result after its checker pass
+/// has run. Both the fixture getter projection and the all-Program getter use
+/// this path so comment directives, plain-JS filtering, and semantic
+/// filtering cannot drift between the two public observations.
+fn semantic_diagnostics_for_program_file(
+    state: &state::CheckerState<'_>,
+    source_index: usize,
+    global_checker_diagnostics: &[Diagnostic],
+    program_diagnostics: &[Diagnostic],
+    options: &CompilerOptions,
+) -> DiagnosticList {
+    let source = state.binder.source(source_index);
+    let javascript_file = is_js_file_name(&source.file_name);
+    let directive = check_directive(source.text());
+    let plain_js = is_plain_js_file(javascript_file, directive, options);
+    let checker_for_file = state
+        .diagnostics
+        .iter()
+        .filter(|diagnostic| diagnostic.file_name.as_deref() == Some(source.file_name.as_str()));
+
+    // getBindAndCheckDiagnosticsForFileNoCache:
+    // bind -> check (new globals first) -> checked-JS JSDoc.
+    let mut bind_and_check = Vec::new();
+    bind_and_check.extend(
+        state
+            .binder
+            .file(source_index)
+            .bind_diagnostics
+            .iter()
+            .cloned(),
+    );
+    bind_and_check.extend(
+        global_checker_diagnostics
+            .iter()
+            .filter(|diagnostic| diagnostic.category() != DiagnosticCategory::Suggestion)
+            .cloned(),
+    );
+    bind_and_check.extend(
+        checker_for_file
+            .filter(|diagnostic| diagnostic.category() != DiagnosticCategory::Suggestion)
+            .cloned(),
+    );
+    if javascript_file && !plain_js {
+        bind_and_check.extend(source.js_doc_diagnostics.iter().cloned());
+    }
+
+    if plain_js {
+        bind_and_check.retain(|diagnostic| plain_js_errors::is_plain_js_error(diagnostic.code()));
+    } else {
+        let mut used_directive_lines = std::collections::HashSet::new();
+        bind_and_check = filter_by_comment_directives_and_mark_used(
+            source,
+            bind_and_check.into_iter(),
+            Some(&mut used_directive_lines),
+        );
+        if let Some(partial_ranges) = state.partially_checked_ranges.get(&source_index) {
+            mark_comment_directives_for_partial_ranges(
+                source,
+                partial_ranges,
+                &mut used_directive_lines,
+            );
+        }
+        bind_and_check.extend(unused_expect_error_diagnostics(
+            source,
+            &used_directive_lines,
+        ));
+    }
+
+    // filterSemanticDiagnostics applies only to the bind/check half, before
+    // getProgramDiagnostics is concatenated.
+    filter_semantic_diagnostics(&mut bind_and_check, options);
+
+    let mut program_for_file = program_diagnostics
+        .iter()
+        .filter(|diagnostic| diagnostic.file_name.as_deref() == Some(source.file_name.as_str()))
+        .cloned()
+        .collect::<Vec<_>>();
+    if !source.comment_directives.is_empty() {
+        // getProgramDiagnostics owns a fresh directive map; use in
+        // bind/check does not consume this one.
+        program_for_file =
+            filter_by_comment_directives_and_mark_used(source, program_for_file.into_iter(), None);
+    }
+    bind_and_check.extend(program_for_file);
+
+    // program.getSemanticDiagnostics(sourceFile) uses getDiagnosticsHelper.
+    tsc_diagnostics::sort_and_dedupe_diagnostics(&mut bind_and_check);
+    bind_and_check
+}
+
 fn assemble_check_result(
     file_diagnostics: &[FileDiagnosticPasses],
+    program_semantic_diagnostics: Option<&[Diagnostic]>,
     global_diagnostics: &[Diagnostic],
     partial_checks: &[PartialCheck],
     work_counters: CheckWorkCounters,
@@ -1927,6 +2051,7 @@ fn assemble_check_result(
         diagnostics,
         syntactic_diagnostics,
         semantic_diagnostics,
+        program_semantic_diagnostics: program_semantic_diagnostics.map(|rows| rows.to_vec()),
         global_diagnostics: global_diagnostics.to_vec(),
         suggestion_diagnostics,
         file_diagnostics: file_diagnostics.to_vec(),

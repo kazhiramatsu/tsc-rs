@@ -13,8 +13,9 @@ use tsc_syntax::{
 use tsc_types::{CompilerOptions, NodeFlags, ScriptTarget};
 
 use crate::{
-    EmitFlags, EmitHelper, TransformArena, TransformError, TransformFlags, TransformNode,
-    TransformNodeArray, TransformRoot, TransformSourceId, TransformationContext, Transformer,
+    factory::EmitHelperName, EmitFlags, EmitHelper, TransformArena, TransformError, TransformFlags,
+    TransformNode, TransformNodeArray, TransformRoot, TransformSourceId, TransformationContext,
+    Transformer,
 };
 
 use super::{flags_after_update, system::collect_identifier_texts, target_bindings::TargetBinding};
@@ -95,7 +96,7 @@ impl Transformer for EsNextTransformer {
     }
 
     fn initialize(&mut self, _context: &mut TransformationContext) -> Result<(), TransformError> {
-        if self.target < ScriptTarget::ES2016 || self.target >= ScriptTarget::ES_NEXT {
+        if self.target < ScriptTarget::ES2015 || self.target >= ScriptTarget::ES_NEXT {
             return Err(TransformError::UnsupportedCompilerOption {
                 option: "ESNext transform",
                 detail: "transformESNext is admitted only for the closed target band below ESNext",
@@ -1289,7 +1290,10 @@ impl<'context> EsNextVisitor<'context> {
     ) -> Result<TransformNode, TransformError> {
         self.context
             .request_emit_helper(super::helpers::set_function_name())?;
-        let helper = self.create_identifier("__setFunctionName")?;
+        let helper = self
+            .context
+            .factory()?
+            .create_unscoped_helper_identifier(self.source, EmitHelperName::SetFunctionName)?;
         self.create_call(helper, vec![value, assigned_name])
     }
 
@@ -1388,7 +1392,10 @@ impl<'context> EsNextVisitor<'context> {
             None,
             Vec::new(),
         ))?;
-        let helper = self.create_identifier("__addDisposableResource")?;
+        let helper = self.context.factory()?.create_unscoped_helper_identifier(
+            self.source,
+            EmitHelperName::AddDisposableResource,
+        )?;
         let asynchronous = self.create_boolean(asynchronous)?;
         self.create_call(helper, vec![environment, value, asynchronous])
     }
@@ -1404,7 +1411,10 @@ impl<'context> EsNextVisitor<'context> {
             None,
             Vec::new(),
         ))?;
-        let helper = self.create_identifier("__disposeResources")?;
+        let helper = self
+            .context
+            .factory()?
+            .create_unscoped_helper_identifier(self.source, EmitHelperName::DisposeResources)?;
         self.create_call(helper, vec![environment])
     }
 

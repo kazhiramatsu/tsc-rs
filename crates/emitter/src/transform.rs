@@ -6,8 +6,8 @@ use tsc_diagnostics::{Diagnostic, DiagnosticList};
 use tsc_syntax::SyntaxKind;
 
 use crate::{
-    EmitFlags, EmitResolverError, NodeFactory, TransformArena, TransformNode, TransformNodeArray,
-    TransformSourceId, UnsupportedEmitFeature,
+    EmitFlags, EmitResolverError, NodeFactory, SourcePositionError, TransformArena, TransformNode,
+    TransformNodeArray, TransformSourceId, UnsupportedEmitFeature,
 };
 
 /// Session-unique identity for a generated lexical binding. Target passes use
@@ -773,6 +773,32 @@ pub struct TransformationResult<'transformers> {
     transformers: Vec<Box<dyn Transformer + 'transformers>>,
 }
 
+/// Emit-time hooks enabled for one node after applying its per-node flags.
+///
+/// Most printer workers can enter the ordinary notification/substitution
+/// pipeline directly. A worker that must wrap that pipeline with additional
+/// source-comment ownership needs this explicit capability check so a later
+/// transformer cannot silently change the required phase order.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) struct EmitPipelineHooks {
+    substitution: bool,
+    notification: bool,
+}
+
+impl EmitPipelineHooks {
+    pub(crate) const fn is_empty(self) -> bool {
+        !self.substitution && !self.notification
+    }
+
+    pub(crate) const fn substitution(self) -> bool {
+        self.substitution
+    }
+
+    pub(crate) const fn notification(self) -> bool {
+        self.notification
+    }
+}
+
 impl TransformationResult<'_> {
     pub const fn state(&self) -> TransformationState {
         self.context.state()
@@ -792,6 +818,16 @@ impl TransformationResult<'_> {
 
     pub(crate) fn emit_helpers(&self) -> &[EmitHelper] {
         &self.context.emit_helpers
+    }
+
+    pub(crate) fn emit_pipeline_hooks(
+        &self,
+        node: TransformNode,
+    ) -> Result<EmitPipelineHooks, TransformError> {
+        Ok(EmitPipelineHooks {
+            substitution: self.context.is_substitution_enabled(node)?,
+            notification: self.context.is_emit_notification_enabled(node)?,
+        })
     }
 
     pub fn substitute_node(
@@ -942,6 +978,11 @@ pub enum TransformError {
         field: &'static str,
     },
     MissingProgramSource(TransformNode),
+    ResolverNodeNotInParseTree(TransformNode),
+    InvalidSourceRange {
+        node: TransformNode,
+        error: SourcePositionError,
+    },
     MissingProgramSourceForModuleFormat(TransformSourceId),
     EmitHostRequiredForImpliedModuleFormat,
     DeferredModuleFormat {
@@ -1033,6 +1074,18 @@ impl fmt::Display for TransformError {
             Self::MissingProgramSource(node) => write!(
                 formatter,
                 "transform node {}:{} has no Program source for an emit-resolver query",
+                node.source().raw(),
+                node.node().0
+            ),
+            Self::ResolverNodeNotInParseTree(node) => write!(
+                formatter,
+                "transform node {}:{} has no parse-tree identity for an emit-resolver query",
+                node.source().raw(),
+                node.node().0
+            ),
+            Self::InvalidSourceRange { node, error } => write!(
+                formatter,
+                "transform node {}:{} has an invalid source range: {error}",
                 node.source().raw(),
                 node.node().0
             ),

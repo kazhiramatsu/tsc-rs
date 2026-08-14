@@ -14,6 +14,7 @@
 //! the tuple rest-window — skip the string-literal-vs-template
 //! reduction until the constructors move checker-side with M4.
 
+use tsc_diagnostics::gen as diagnostics;
 use tsc_types::{TypeData, TypeFlags, TypeId, UnionReduction};
 
 use crate::relate::RelationKind;
@@ -330,16 +331,10 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 9508e141ff54bc861e94ce761bb80ab314208438926a55dd5e018d722da6929a
     /// tsc-span: _tsc.js:61368-61421
     ///
-    /// Returns None on the complexity overflow (the caller yields
-    /// errorType; the 2799-family diagnostic is deferred with error
-    /// reporting). KNOWN-GAP since M4 (m4-review B5) — silently
-    /// absent, not escaped: the TypeParameter-with-union-constraint
-    /// arm (61386: probe source against the union of the others) and
-    /// the class-derivation exception on the removal guard (61411:
-    /// two Class targets only reduce via isTypeDerivedFrom). Class
-    /// references and constrained type parameters are constructible
-    /// since M4 — the old "never fire" justification is false — so
-    /// Subtype-reduced union composition diverges on those shapes.
+    /// Returns None on the complexity overflow after reporting TS2590 at
+    /// `currentNode`; the caller then yields `errorType`. Constrained type
+    /// parameters compare once against the union of all other candidates,
+    /// while two class targets reduce only along an actual derivation chain.
     fn remove_subtypes(
         &mut self,
         mut types: Vec<TypeId>,
@@ -379,9 +374,34 @@ impl<'a> CheckerState<'a> {
             let source = types[i];
             let source_flags = self.tables.flags_of(source);
             if has_empty_object || source_flags.intersects(TypeFlags::STRUCTURED_OR_INSTANTIABLE) {
-                // Type-parameter sources run the plain subtype probes
-                // (the M3-era escape expired at 5.3b when bare
-                // type-parameter relations landed).
+                let source_has_union_constraint =
+                    if source_flags.intersects(TypeFlags::TYPE_PARAMETER) {
+                        let constraint = self.get_base_constraint_or_type(source)?;
+                        self.tables
+                            .flags_of(constraint)
+                            .intersects(TypeFlags::UNION)
+                    } else {
+                        false
+                    };
+                if source_has_union_constraint {
+                    let other_types = types
+                        .iter()
+                        .copied()
+                        .map(|candidate| {
+                            if candidate == source {
+                                self.tables.intrinsics.never
+                            } else {
+                                candidate
+                            }
+                        })
+                        .collect::<Vec<_>>();
+                    let other_union =
+                        self.get_union_type_ex(&other_types, UnionReduction::Literal)?;
+                    if self.is_type_strict_subtype_of(source, other_union)? {
+                        types.remove(i);
+                    }
+                    continue;
+                }
                 // The key-property fast filter (61389-61391).
                 let key_property = if source_flags.intersects(TypeFlags::from_bits(
                     TypeFlags::OBJECT.bits()
@@ -410,6 +430,11 @@ impl<'a> CheckerState<'a> {
                     if count == 100_000 {
                         let estimated = count / (len - i) * len;
                         if estimated > 1_000_000 {
+                            self.error_at(
+                                self.current_node,
+                                &diagnostics::Expression_produces_a_union_type_that_is_too_complex_to_represent,
+                                &[],
+                            );
                             return Ok(None);
                         }
                     }
@@ -433,12 +458,19 @@ impl<'a> CheckerState<'a> {
                             }
                         }
                     }
-                    if self.is_type_strict_subtype_of(source, target)? {
-                        // KNOWN-GAP (m4-review B5): tsc 61411 also
-                        // requires `!(Class source) || !(Class target)
-                        // || isTypeDerivedFrom` before removing —
-                        // class references exist since M4 and this
-                        // unguarded removal over-reduces them.
+                    let source_is_class = self
+                        .tables
+                        .object_flags_of(self.get_target_type(source))
+                        .intersects(tsc_types::ObjectFlags::CLASS);
+                    let target_is_class = self
+                        .tables
+                        .object_flags_of(self.get_target_type(target))
+                        .intersects(tsc_types::ObjectFlags::CLASS);
+                    if self.is_type_strict_subtype_of(source, target)?
+                        && (!source_is_class
+                            || !target_is_class
+                            || self.is_type_derived_from(source, target)?)
+                    {
                         types.remove(i);
                         break;
                     }

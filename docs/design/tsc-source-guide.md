@@ -1,5 +1,10 @@
 # Reading the vendored tsc source (oracle/node_modules/typescript/lib/_tsc.js)
 
+Document role: **historical navigation reference**. Reuse the search and
+reading techniques, not the recorded line numbers or function index as current
+authority. Every active slice pins its exact vendored TypeScript 6.0.3 path,
+declaration span, and hash in its own design packet.
+
 The vendored build is **tsc 6.0.3**, a single bundled file (~8MB). It
 is the source of truth for every semantics question the oracle probe
 can't settle structurally. This guide makes it navigable for an agent

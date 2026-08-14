@@ -55,6 +55,26 @@ fn token_after_trivia_gets_preceding_line_break_flag() {
 }
 
 #[test]
+fn byte_token_stream_is_lazy_and_uses_parser_positions() {
+    let text = "/* 😀 */\nconst 才能 = 1;";
+    let mut tokens = scan_byte_tokens(text, LanguageVariant::Standard);
+
+    let first = tokens.next().expect("const token");
+    assert_eq!(first.kind, SyntaxKind::ConstKeyword);
+    assert_eq!(first.start as usize, text.find("const").unwrap());
+    assert_eq!(first.end as usize, text.find("const").unwrap() + 5);
+    assert!(first.preceding_line_break);
+
+    let identifier = tokens.next().expect("identifier token");
+    assert_eq!(identifier.kind, SyntaxKind::Identifier);
+    assert_eq!(
+        &text[identifier.start as usize..identifier.end as usize],
+        "才能"
+    );
+    assert_eq!(tokens.count(), 3);
+}
+
+#[test]
 fn jsdoc_scanner_preserves_comment_text_and_tag_boundaries() {
     let text = "hello mail@host {@link X} @foo-bar";
     let mut scanner = Scanner::new(text, LanguageVariant::Standard);

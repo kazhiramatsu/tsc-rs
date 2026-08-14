@@ -1,13 +1,22 @@
 # TypeScript 6.0.3 compiler compatibility residual
 
-Status: audited design input, updated 2026-08-08 with L0.4 and L1 complete and
-qualified, H1.1's typed execution spine, H1.2's factory/transform/printer
-foundation, and H1.3's active transformer/scoped resolver slice complete, the
-H1.0a report-only owner graph fully dispositioned with zero
-unresolved calls, and the current
-Rust emit omissions frozen in a generated baseline, with the complete upstream
-transpile source tree content-addressed in additive suite pin v2 and its exact
-37-row runner matrix classified without execution or baseline comparison, plus
+Document role: **audited surface/owner inventory and historical gap input**.
+Its TypeScript owner analysis remains useful, but prose describing the current
+Rust implementation can become stale as H2 lands. It is not the current
+emitter architecture or execution schedule. Before a slice uses a gap from
+this page, regenerate a local gap matrix against the
+[current emitter architecture](emitter-architecture.md) and current code; use
+the [post-H1 completion slices](post-h1-completion-slices.md) for order and
+readiness.
+
+Status: **historical audit snapshot**, updated 2026-08-08 with L0.4 and L1
+complete and qualified, H1.1's typed execution spine, H1.2's factory/transform/
+printer foundation, and H1.3's active transformer/scoped resolver slice
+complete, the H1.0a report-only owner graph fully dispositioned with zero
+unresolved calls, and the then-current Rust emit omissions frozen in a generated
+baseline, with the complete upstream transpile source tree content-addressed in
+additive suite pin v2 and its exact 37-row runner matrix classified without
+execution or baseline comparison, plus
 the exact 38-file FourSlash batch-emit witness projection pinned in additive
 suite pin v3, and the complete 5,908-file conformance tree pinned in additive
 suite pin v4 plus its separate exact 5,907-fixture/7,697-case runner expansion
@@ -17,20 +26,23 @@ retaining every row `not-run`, plus exact effective-option and reached-source
 classification of all 7,276 compiler rows that retains one bootstrap candidate
 while keeping every row `not-run`, plus exact root and effective-option
 classification of all 632 project rows that proves zero admissions while
-keeping every row `not-run`. This page records the
-current Rust implementation boundary, the work required to finish bounded H1
-JavaScript emit, and the remaining work after H1
-for broader TypeScript 6.0.3 compiler and tooling compatibility. It is not an
-implementation-complete claim and it does not authorize a broader H1 profile.
+keeping every row `not-run`. This paragraph records the Rust implementation
+boundary at that audit, the work then required to finish bounded H1 JavaScript
+emit, and the remaining work after H1 for broader TypeScript 6.0.3 compiler and
+tooling compatibility. It is not an
+implementation-complete claim, a current H2 progress report, or authority for
+a broader H1 profile.
 
 The persistent-source audit found one dependency-order correction: the L0
 ownership/identity foundation and L1 incremental-parser proof had to complete
-before H1 runtime implementation and now have, although incremental behavior
-remains outside H1's product claim. Full old-Program/resolution reuse, Language
-Service, tsserver, and LSP remain later products.
+before H1 runtime implementation and had done so by this audit, although
+incremental behavior remained outside H1's product claim. Full old-Program/
+resolution reuse, Language Service, tsserver, and LSP were later products in
+this snapshot.
 
-Source authority: the current Rust workspace; vendored `_tsc.js` for the
-command-line compiler, Program, builder, solution-builder, and watch
+Source authority for this snapshot: the Rust workspace as audited on the date
+above; vendored `_tsc.js` for the command-line compiler, Program, builder,
+solution-builder, and watch
 implementation; vendored `typescript.js` for the public compiler API,
 Language Service, Project Service, and server implementation; and vendored
 `typescript.d.ts` for their public observable shape. Upstream runner sources
@@ -46,14 +58,16 @@ catalogs, or executable package layout. A track that consumes one of those
 surfaces must add it through a reviewed, content-addressed pin transition;
 fetching an unpinned current upstream file during qualification is forbidden.
 
-The active execution contract remains [H1 emit](h1-emit.md). The existing
-[definition of done](definition-of-done.md) remains normative for the
-batch-diagnostics project and currently has only M9 steady-state evidence
-pending. “Complete compiler” on this page means a broader follow-on target;
+The frozen predecessor contract is [H1 emit](h1-emit.md); the active execution
+schedule is [post-H1 completion slices](post-h1-completion-slices.md). The
+referenced [definition of done](definition-of-done.md) is normative for the
+frozen batch-diagnostics claim and, at this audit, had only M9 steady-state
+evidence pending. “Complete compiler” on this page means a broader follow-on
+target;
 it must not be used to rewrite that historical denominator or to claim that
 H1 includes build, watch, LSP, or public API compatibility.
 
-## Audit closure record
+## Audit-time closure record
 
 The final review crossed the residual against these independent roots:
 
@@ -70,9 +84,9 @@ The final review crossed the residual against these independent roots:
 - the pinned upstream compiler, projects, conformance, transpile, and FourSlash
   inputs, runner entry points, and their reference-baseline roles.
 
-That review fixes the current evidence boundary as follows:
+That review fixed the snapshot's evidence boundary as follows:
 
-| Evidence | Current fact | What it does not prove |
+| Evidence | Fact recorded at the audit | What it does not prove |
 | --- | --- | --- |
 | M8 diagnostic scope | `m8-scope.json` has **0 live exclusions** and 600 resolved tombstones | Emit/declaration/build/API paths that were not part of the frozen batch entry |
 | H0 host closure | 241/241 historical host-resolution rows are closed | Emitted outputs, project references, watch, or public host callbacks |
@@ -100,12 +114,12 @@ optional callbacks, mutation/identity, cancellation, and error behavior.
 
 There is no single honest “100%” number spanning these surfaces:
 
-| Finish line | Current state | What remains |
+| Finish line | Recorded state (historical unless explicitly frozen) | What remains at that record |
 | --- | --- | --- |
 | Frozen batch-diagnostics implementation | M0-M8 complete | M9.1c-M9.7 confidence production, burn-in, freeze, and qualification |
 | Frozen filesystem `--noEmit` compiler | H0 complete | Preserve behavior and cost; do not route it through emitter setup |
 | Bounded one-shot JavaScript emit | H1.0-H1.6 complete and qualified | Preserve the frozen profile while broader one-shot emit expands under new evidence |
-| Broad one-shot `tsc` compilation | H2.0a/H2.0b/H2.1a-H2.1e/H2.2a-H2.2d/H2.3a-H2.3d/H2.4a-H2.4b/H2.5a-H2.5f complete; 680 exact corpus admissions plus exact JSON, decorator/class-field, ESNext, ES2021, ES2020, ES2019, ES2018, and ES2017 transform controls; H2.5g next | ES2016-and-earlier target lowering and the remaining transform matrix, declarations, maps, output/config/CLI matrix, and complete emit suites |
+| Broad one-shot `tsc` compilation | Historical progress snapshot only; do not infer the active slice or current counts here | Follow the [post-H1 status authority](post-h1-completion-slices.md) and its current slice packet |
 | Build/watch/project references | BLD1/W1 sliced after L2; preliminary seams only | Builder state, `.tsbuildinfo`, graph reuse, solution orchestration, watchers, and their suites |
 | Compiler API/custom transforms | API1 sliced after stable compiler/build contracts; not exposed | Stable AST/factory/printer/Program/TypeChecker contracts and callback lifetimes |
 | Persistent source + incremental parser | L0.4 and L1 complete and qualified; L2 sliced after H2 | Preserve fresh exactness and the large-edit budget; complete old-Program/resolution reuse |
@@ -119,11 +133,18 @@ an implementation prerequisite but remains a separate compatibility claim;
 the broader rows reuse the resulting L0/L1 and H1 seams and require their own
 profile, oracle, performance policy, and definition of done.
 
-## 2. Audited Rust entry state
+## 2. Rust entry-state snapshot at the 2026-08-08 audit
+
+Sections 2 through 10 preserve implementation-state and gap findings from that
+audit. They are not a current symbol inventory: revalidate them against the
+[current emitter architecture](emitter-architecture.md) and current code, and
+take activation/order only from the
+[post-H1 schedule](post-h1-completion-slices.md).
 
 ### 2.1 Reusable implementation
 
-The following work is real input to an emitter and should not be rebuilt:
+The following work was real input to an emitter at that audit and was not to be
+rebuilt by H1:
 
 - `crates/syntax` has a broad generated AST arena, parent links, source text,
   byte-domain node and array ranges, exact literal values/raw template text,
@@ -155,7 +176,7 @@ The following work is real input to an emitter and should not be rebuilt:
 
 ### 2.2 Production boundary closure
 
-The audit now finds oracle-exact transformed JavaScript through both ordered
+The H1.6 audit recorded oracle-exact transformed JavaScript through both ordered
 `MemoryOutputSink` dispatch and the production filesystem/CLI route. H1.1
 closed the typed workspace/session seam, H1.2 closed the session-owned
 factory/transform/writer/printer foundation, H1.3 closed the first active
@@ -172,9 +193,9 @@ Zero production boundary omissions, zero emit-option projection omissions,
 and every explicit checker-side emit elision/control row (24 at H1.6) are
 machine-frozen in
 [`h1-rust-omissions.v1.json`](../../../ratchets/h1-rust-omissions.v1.json).
-Its producer scans every workspace crate `src` tree plus all Cargo manifests,
-hashes that complete production scope, and fails when a missing declaration or
-owner anchor changes. Existing prerequisites such as `ProgramSnapshot`,
+At H1.6, its producer scanned every workspace crate `src` tree plus all Cargo
+manifests, hashed that then-complete production scope, and failed when a missing
+declaration or owner anchor changed. Prerequisites such as `ProgramSnapshot`,
 `may_be_emitted`, implied module format, semantic helper checks, and the
 completed H1.1 typed execution spine, H1.2 foundation, and H1.3 active
 transformer/scoped-resolver slice are listed separately
@@ -189,13 +210,13 @@ production printer or use their strings as oracle output.
 
 ### 2.3 The central lifetime refactor
 
-`check_program_with_prebound_libs_at_observed` currently owns, in one stack
-frame, `program_sources`, per-file binders, binder references, and a mutable
-`CheckerState`. It checks files, copies diagnostics into `CheckResult`, and
-drops all semantic state. Returning those objects as one ordinary Rust struct
+At the pre-L0 audit, `check_program_with_prebound_libs_at_observed` owned, in one
+stack frame, `program_sources`, per-file binders, binder references, and a
+mutable `CheckerState`. It checked files, copied diagnostics into `CheckResult`,
+and dropped all semantic state. Returning those objects as one ordinary Rust struct
 would create self-references because binders borrow sources and
-`CheckerState` owns a `ProgramBinder` borrowing binders. That current shape is
-also unable to cache an unchanged parsed/bound file across Program versions.
+`CheckerState` owns a `ProgramBinder` borrowing binders. That audit-time shape
+was also unable to cache an unchanged parsed/bound file across Program versions.
 
 L0 resolves the durable half before H1: `ParsedDocument` and `BoundDocument`
 are owned immutable records, `BinderWorker<'a>` is temporary, and a
@@ -211,15 +232,19 @@ ProgramSnapshot owns parsed/bound documents
   -> checker/emit state drops; the snapshot follows its caller's lifetime
 ```
 
-The existing `check_program... -> CheckResult` functions remain adapters over
-that worker for H0 and harness callers. H0 uses an ephemeral document store
-and retains no cache after invocation. Production emit must not use the
-process-lifetime harness library cache and must not parse, bind, or check a
-second time after diagnostics.
+The H1 plan retained the existing `check_program... -> CheckResult` functions
+as adapters over that worker for H0 and harness callers. H0 used an ephemeral
+document store and retained no cache after invocation. The plan prohibited
+production emit from using the process-lifetime harness library cache or from
+parsing, binding, or checking a second time after diagnostics.
 
 ## 3. Load-bearing findings from the vendored emit graph
 
-### 3.1 The bootstrap transform list has three owners
+### 3.1 The frozen H1 bootstrap transform list has three owners
+
+This subsection describes only the H1 bootstrap profile. Use
+[section 5 of the current emitter architecture](emitter-architecture.md#5-current-pass-order)
+for the current H2 transformer order.
 
 For explicit `target: ESNext`, explicit `module: Preserve`, absent/true
 `useDefineForClassFields`, no JSX, and no decorators,
@@ -265,8 +290,8 @@ is not the default because it would charge memory and cache traffic to
 ### 3.3 Option recognition is not option availability
 
 The full config declaration table prevents misspelling and conversion drift,
-but the effective `CompilerOptions` snapshot still contains only the subset
-used by H0. In particular, output paths and formatting choices are currently
+but at the audit the effective `CompilerOptions` snapshot contained only the
+subset used by H0. In particular, output paths and formatting choices were
 discarded or retained only transiently for source discovery. The existence of
 an entry in `COMPILER_OPTION_DECLARATIONS` must never be treated as proof that
 the checker, emitter host, or CLI can observe its effective value.
@@ -275,22 +300,23 @@ the checker, emitter host, or CLI can observe its effective value.
 
 The printer's `isFileLevelUniqueName` (`12907`) rejects a candidate when the
 current `SourceFile.identifiers` contains it or the resolver's
-`hasGlobalName` reports it. Rust exposes only an identifier count, not the
-tsc identifier map, and has no `hasGlobalName` emit query. H1 may build the
-source identifier set once in the emitting session from the parsed tree, but
+`hasGlobalName` reports it. At the audit, Rust exposed only an identifier
+count, not the tsc identifier map, and had no `hasGlobalName` emit query. H1
+could build the source identifier set once in the emitting session from the
+parsed tree, but
 must prove it equals tsc's parser-interned set, including escaped identifiers,
 private identifiers, and JS/JSDoc cases admitted later. Synthetic generated
 names remain a separate session set. H1 must not guess uniqueness from binder
 locals alone.
 
-## 4. H1 blocking packages in dependency order
+## 4. Historical H1 blocking packages in dependency order
 
-These are implementation packages, not permission to combine them into one
-large slice. Each package closes only after exact owner, oracle, adjacent
-control, and no-emit evidence exist.
+These were the H1 implementation packages, not permission to combine them into
+one large slice. Their close records remain frozen; they are not instructions
+for current H2 work.
 
-The L0/L1 prerequisite for package 4.2 is now complete and qualified in
-[the persistent Program design](lsp-and-incremental.md). The post-L0/L1 H0
+The L0/L1 prerequisite for package 4.2 was complete and qualified by this audit
+in [the persistent Program design](lsp-and-incremental.md). The post-L0/L1 H0
 route is the baseline used by the remaining packages.
 
 ### 4.1 Inventory, profile, and evidence freeze
@@ -327,8 +353,8 @@ that reviewed graph.
 - Add the acyclic emitter protocol owner described by H1: artifact kinds,
   output-path slots, sink disposition, errors, outcomes, emit host, resolver,
   transform roots, and dormant map/declaration/bundle/build-info axes.
-- Freeze where effective emit options live. The current
-  `PreparedProgram` has no `outDir`, `rootDir`, formatting, map, declaration,
+- Freeze where effective emit options live. The audit-time
+  `PreparedProgram` had no `outDir`, `rootDir`, formatting, map, declaration,
   or build-info snapshot. Re-reading raw config text inside the emitter is
   forbidden.
 - Prefer a typed optional emit projection or emitting prepared wrapper so H0
@@ -340,8 +366,8 @@ that reviewed graph.
 ### 4.3 Separate emitting loader and preflight
 
 - Add config and explicit-root loading entries that admit the frozen emit
-  profile without weakening `validate_admitted_options`, which currently
-  requires `noEmit == true`.
+  profile without weakening `validate_admitted_options`, which at the audit
+  required `noEmit == true`.
 - Preserve `outDir`/`rootDir`/config-path facts through preparation and port
   the exact common-source-directory and output-extension rules.
 - Run all reached `verifyCompilerOptions` and `verifyEmitFilePath` checks,
@@ -446,7 +472,7 @@ that reviewed graph.
 - Publish H1 only with zero open in-profile owner row and zero H0 behavioral
   or performance regression.
 
-## 5. Resolver inventory and current checker reuse
+## 5. Resolver inventory and checker reuse at the audit
 
 ### 5.1 H1 bootstrap consumers
 
@@ -462,12 +488,12 @@ final dependency graph.
 | `transformECMAScriptModule` | No direct resolver calls | Still consumes emit host, helper factory, original nodes, substitutions, names, and module syntax |
 | `emitFiles` fast paths | `markLinkedReferences`, and declaration-only `collectLinkedAliases` | `noCheck`, declaration, and force-dts routes are rejected in H1 |
 
-The checker already has reusable enum evaluation, many type/symbol queries,
-and many `NodeCheckFlags` producers. It does not expose the resolver methods
-above, and several underlying side effects are explicitly marked in code as
-emit-only omissions. Examples include computed-property loop-capture lists
-and some collision/capture producers. Existing primitives reduce port size;
-they do not make the resolver complete.
+At the audit, the checker had reusable enum evaluation, many type/symbol
+queries, and many `NodeCheckFlags` producers. It did not expose the resolver
+methods above, and several underlying side effects were explicitly marked in
+code as emit-only omissions. Examples included computed-property loop-capture
+lists and some collision/capture producers. Those audit-time primitives reduced
+the H1 port size; they did not make its resolver complete.
 
 ### 5.2 Full resolver surface after H1
 
@@ -491,9 +517,9 @@ Full declaration emission reaches almost all of the last two groups. Full
 downlevel JavaScript reaches more of the first three. They must be scheduled
 by consuming transformer, not implemented as an untested bulk trait fill.
 
-## 6. Syntax and source-file fact gaps
+## 6. Syntax and source-file fact-gap snapshot
 
-| Fact | Current Rust state | Required treatment |
+| Fact | Rust state at the audit | Required treatment recorded at the audit |
 | --- | --- | --- |
 | Source text representation | Files are retained as Rust UTF-8 `String` values | L0 shares an `Arc<str>` snapshot without projection copies while preserving H0 decoding; broader UTF-16-file inputs and JavaScript API/snapshots must audit lone-surrogate behavior and use a lossless code-unit model or declare a narrower profile |
 | Parsed ranges | Node/array byte offsets; reference directive spans are already UTF-16 observations | Keep typed domains; convert only at diagnostics/map/API boundaries |
@@ -514,9 +540,9 @@ The H1.0 AST audit must be generated from every property read in the reached
 factory/transform/printer graph. A hand-maintained list is useful for review
 but cannot be the completeness authority.
 
-## 7. Emit option, config, and CLI residual
+## 7. Emit option, config, and CLI gap snapshot
 
-### 7.1 Already projected into `CompilerOptions`
+### 7.1 Projected into `CompilerOptions` at the audit
 
 Useful existing fields include `target`, `module`, `moduleDetection`, `jsx`,
 `experimentalDecorators`, `useDefineForClassFields`, `importHelpers`,
@@ -525,7 +551,7 @@ Useful existing fields include `target`, `module`, `moduleDetection`, `jsx`,
 `rewriteRelativeImportExtensions`, JSX factory/import-source options, and
 `noEmit`.
 
-### 7.2 Recognized but not available to the emitter
+### 7.2 Recognized but unavailable to the emitter at the audit
 
 Direct reads in the vendored transform/emitter/program spine expose at least
 the following missing effective values:
@@ -545,9 +571,9 @@ the following missing effective values:
 - reporting: `listEmittedFiles`, `listFiles`, `explainFiles`, diagnostics/
   tracing switches, and internal output-path suppression used by tsc APIs.
 
-Some names are already converted by `ConfigOptionBag`, and `outDir` plus
-`declarationDir` are temporarily used to exclude generated directories from
-config discovery. They still do not survive as an effective emit snapshot on
+At the audit, some names were already converted by `ConfigOptionBag`, and
+`outDir` plus `declarationDir` were temporarily used to exclude generated
+directories from config discovery. They did not survive as an effective emit snapshot on
 `PreparedProgram`.
 
 ### 7.3 H1 policy
@@ -558,9 +584,9 @@ and path slots. Default-valued choices such as newline, BOM, comments, and
 helper policy are explicit in the machine profile rather than assumed by the
 printer.
 
-The command parser is currently a small H0 parser: explicit files require
-`--noEmit`, config loading requires effective `noEmit`, and only a narrow
-selection surface is accepted. Emitting CLI support therefore requires a
+At the audit, the command parser was a small H0 parser: explicit files required
+`--noEmit`, config loading required effective `noEmit`, and only a narrow
+selection surface was accepted. Emitting CLI support therefore required a
 separate argument/config dispatch; removing those H0 guards in place is a
 stop condition.
 
@@ -577,9 +603,9 @@ exit-status variants. Recognizing their spellings is not implementation.
 Full config compatibility is wider than the compiler-option declaration
 catalog. `ParsedCommandLine` also publishes `fileNames`, raw config,
 `projectReferences`, `watchOptions`, `typeAcquisition`, wildcard directories,
-`compileOnSave`, and ordered parse diagnostics. The current H0 plan preserves
-several of those fields specifically so they are not lost, while deliberately
-rejecting the behaviors that would consume them.
+`compileOnSave`, and ordered parse diagnostics. The audit-time H0 plan preserved
+several of those fields specifically so they would not be lost, while
+deliberately rejecting the behaviors that would consume them.
 
 The later owners are distinct:
 
@@ -656,10 +682,17 @@ JSON copying, JS/JSX/TSX behavior, MTS/CTS/MJS/CJS extension matrix,
 decorator metadata, JSX classic/automatic runtimes, all targets/modules, and
 every option combination that makes a branch reachable.
 
-Each expansion slice must add one transformer plus its factory, helper, host,
-resolver, printer, option, and test closure. A transformer whose top-level
-visitor compiles is not complete if one of those dependencies still returns a
-placeholder.
+This historical audit grouped expansion around a one-transformer-per-slice
+assumption in which the transformer's factory, helper, host, resolver,
+printer, option, and test closure traveled with it. That is not a current
+instruction for choosing slice boundaries. The active route derives them from
+the pinned upstream owner graph and its strongly connected components; follow
+the [current emitter architecture](emitter-architecture.md), the
+[post-H1 schedule](post-h1-completion-slices.md), and its selected
+[slice packet](slices/README.md). A ready owner-SCC packet may keep coupled
+transformers together or separate research/design from implementation, but it
+still cannot call a transformer complete while a reachable dependency returns
+a placeholder.
 
 ## 9. Non-JavaScript output tracks after H1
 
@@ -703,9 +736,9 @@ printer mode. It requires:
   partial/suppressed writes, and builder signature output; and
 - declaration maps after the source-map generator is complete.
 
-The current checker has diagnostic-oriented node-builder/display slices and
-some declaration semantic primitives. Those are inputs to the closure, not a
-complete declaration emitter.
+At the audit, the checker had diagnostic-oriented node-builder/display slices
+and some declaration semantic primitives. Those were inputs to the closure,
+not a complete declaration emitter.
 
 ### 9.3 Bundle and `outFile`
 
@@ -724,7 +757,7 @@ signature emit, project-reference state, and tsc's special behavior where
 build info can be written under option combinations that otherwise suppress
 ordinary output.
 
-## 10. Compiler and tooling residual outside ordinary emit
+## 10. Compiler and tooling gap snapshot outside ordinary emit
 
 ### 10.1 `noCheck`, transpilation, and targeted emit
 
@@ -742,7 +775,7 @@ internal discriminants but exposes none publicly.
 
 ### 10.2 Project references and solution build
 
-The current program is one prepared project. Full `--build` needs config
+At the audit, the program was one prepared project. Full `--build` needs config
 reference parsing, graph ordering/cycle diagnostics, prepend/reference output
 selection, redirect behavior, up-to-date checks, clean/dry/force/verbose
 modes, status reporting, cross-project output collision checks, and solution
@@ -802,10 +835,11 @@ layers whose schedules differ:
 
 The earlier empty `SyntaxCursor`, Program-order-dependent node/symbol bases,
 borrowed binder result, full-text copies, and consuming `ProgramSession` were
-not sufficient for a Language Service. L0/L1 now replace those seams and the
-copy-on-reuse benchmark passes; L2 still owns complete old-Program/resolution
-reuse, watchers, and service eviction. L0/L1 remain outside H1's observable
-compatibility scope, and the checker remains fresh per Program version.
+not sufficient for a Language Service. At the audit, L0/L1 had replaced those
+seams and the copy-on-reuse benchmark passed; L2 still owned complete old-
+Program/resolution reuse, watchers, and service eviction. L0/L1 remained
+outside H1's observable compatibility scope, and the checker remained fresh
+per Program version.
 
 ### 10.5 Public compiler API and custom transformers
 
@@ -828,8 +862,8 @@ project-reference results, and a long-lived `TypeChecker`. The module also
 publishes scanner/parser/update helpers, config and module-resolution helpers,
 factory/visitor/transform/printer APIs, formatting and diagnostic utilities,
 transpile APIs, builder/watch/solution constructors, and enums/flags whose
-numeric values are observable. The current internal checker API and arena IDs
-do not satisfy those contracts by existing under similar names.
+numeric values are observable. The audit-time internal checker API and arena
+IDs did not satisfy those contracts by existing under similar names.
 
 H1 only stabilizes internal architecture. A public Rust API requires its own
 semver, ownership, thread-safety, cancellation, and observable-error policy.
@@ -890,8 +924,8 @@ package metadata, and reproducible artifacts.
 
 Locale selection is a real output surface: diagnostic catalogs, locale
 validation/fallback, help/error rendering, and package layout must be pinned.
-The current vendor snapshot has the English diagnostic catalog but no locale
-directories, so localized CLI compatibility is unimplemented rather than an
+The vendor snapshot audited here had the English diagnostic catalog but no
+locale directories, so localized CLI compatibility was unimplemented rather than an
 available option spelling.
 
 Supporting another TypeScript release requires a new source/lib/locale/package
@@ -909,13 +943,13 @@ compatibility transition. It is not routine dependency updating.
 | `tests/cases/conformance` | Feature and transform matrices | Run compatible JS emit rows alongside existing diagnostics | Full target/module/JSX/decorator/declaration/map matrix |
 | `tests/cases/project` and `projects` | Config roots, output topology, multi-file order, project behavior | Compatible single-project JS cases | Declarations, bundles, references, build/watch |
 | `tests/cases/transpile` | `transpileModule`/transformer component behavior | Classify all 37 rows; use the 14 JavaScript rows as focused factory/transform/printer controls | Complete transpile and no-check APIs |
-| `tests/cases/fourslash` | Language Service and per-file emit operations | Inventory and classify batch-relevant witnesses; the current 38 are all deferred targeted emits | Full FourSlash runner and L-track qualification |
+| `tests/cases/fourslash` | Language Service and per-file emit operations | Inventory and classify batch-relevant witnesses; the 38 audited here are all deferred targeted emits | Full FourSlash runner and L-track qualification |
 | `tests/baselines/reference` plus runner code | Exact expected diagnostics, traces, JS/d.ts/maps, source-map records, type/symbol views, project, service, and server observations | Pin only reached H1 products | Required; input inventory alone is insufficient |
 | `src/testRunner/unittests` watch/build/incremental/public-API/tsserver owners | Long-lived, cache, callback, protocol, and builder behavior | Inventory only | Required by their corresponding tracks |
 | `APISample_*` compiler cases | Public compiler, watch, linter, transform API examples | Classification controls | Public API compatibility |
 
-The checked-in `ts-tests` snapshot currently contains compiler, conformance,
-project, projects, all 22 transpile inputs, and exactly 38 FourSlash emit
+The checked-in `ts-tests` snapshot audited here contained compiler,
+conformance, project, projects, all 22 transpile inputs, and exactly 38 FourSlash emit
 witnesses, but not the other 6,530 FourSlash files or checked-in upstream
 output baselines. Suite pin v2 preserves the exact transpile source commit,
 paths, blob hashes, and `transpileRunner` identity while binding the unchanged
@@ -1047,16 +1081,19 @@ equality.
 - every track: exact source pin, owner hashes, supported/unsupported manifest,
   and zero silent fallback.
 
-### 11.4 Cross-track CI and qualification topology
+### 11.4 Cross-track CI and qualification topology at the audit
 
-Ordinary GitHub CI is deliberately acceptance-only. One stable `gates` job
-runs one fixed command, `cargo xtask acceptance`, and that command may consume
-only cases sourced from `ts-tests` plus their pinned baselines. It currently
-runs the complete diagnostic conformance corpus. H1, build/watch, and later
-service products extend this same acceptance entrypoint with compatible
-upstream suites; they do not add phase-specific Actions jobs.
+The audit fixed ordinary GitHub CI as acceptance-only. One stable `gates` job
+ran one fixed command, `cargo xtask acceptance`, and that command could consume
+only cases sourced from `ts-tests` plus their pinned baselines. At this audit it
+ran the complete diagnostic conformance corpus; later membership is not
+maintained in this historical inventory. Follow the
+[post-H1 schedule](post-h1-completion-slices.md), its current slice packet, and
+the checked-in CI policy for current membership. The audit required later
+products to extend the same entrypoint rather than add phase-specific Actions
+jobs.
 
-The shared topology is:
+The topology recorded by the audit was:
 
 | Layer | Required role | Authority and boundary |
 | --- | --- | --- |
@@ -1064,32 +1101,32 @@ The shared topology is:
 | Local full gate | `cargo xtask ci --baseline <trusted-base>` | Required before PR and merge; owns formatting, Clippy, workspace tests, history, all semantic bands, recovery/invariants, stress, and evidence production/consumption |
 | Approved performance/release | Alternating baseline/candidate measurements on a frozen runner, explicitly dispatched | May mint performance ratchets and release claims; moving `*-latest` images may not relax them |
 
-The local full-gate result, trusted base, conformance counts, FP/FN state, and
-test/escape result are recorded in the PR body. This reviewable record is not
-reconstructed in Actions, and a green hosted acceptance job is never a
-substitute for the local command. Retained exact-result, receipt, and bounded
-failure-artifact schemas remain local evidence utilities; they are not an
-authorization to restore fine-grained hosted lanes.
+The audit required the local full-gate result, trusted base, conformance counts,
+FP/FN state, and test/escape result to be recorded in the PR body. That
+reviewable record was not reconstructed in Actions, and a green hosted
+acceptance job was not a substitute for the local command. Retained exact-
+result, receipt, and bounded failure-artifact schemas were local evidence
+utilities, not authorization to restore fine-grained hosted lanes.
 
 Long randomized edit scripts, reclamation, broad emit determinism, sink-fault
-injection, fuzz, memory/resource checks, and platform-specific contracts run
-inside the complete local gate or through an explicit manual qualification
-workflow. They do not run on a protected-main schedule. Third-party Actions
-are pinned to reviewed full commit SHAs, the hosted Cargo build is capped at
-two jobs, and the workflow uses least privilege, bounded timeouts, and
-stale-candidate cancellation.
+injection, fuzz, memory/resource checks, and platform-specific contracts were
+assigned to the complete local gate or an explicit manual qualification
+workflow, not a protected-main schedule. The audit also required third-party
+Actions pinned to reviewed full commit SHAs, a two-job hosted Cargo cap, least
+privilege, bounded timeouts, and stale-candidate cancellation.
 
-## 12. Dependency order toward broader compatibility
+## 12. Historical dependency-order snapshot toward broader compatibility
 
-The branch-sized schedule is now owned by the
+The current branch-sized schedule is owned by the
 [post-H1 completion slices](post-h1-completion-slices.md). That document turns
 this residual inventory into explicit H2, L2, BLD1/W1, API1, L3-L5, and
 release rows with dependencies and per-slice evidence. These IDs deliberately
-avoid the existing A1-A5 and B1-B4 evidence-contract namespaces. This section
-records only the cross-track critical path.
+avoid the existing A1-A5 and B1-B4 evidence-contract namespaces. The numbered
+list below records only the critical path as seen at this audit; it is not a
+current progress report or implementation queue.
 
-The completed prerequisites are H0, L0/L1, and H1. The remaining runtime order
-is:
+At the audit, the completed prerequisites were H0, L0/L1, and H1. The recorded
+remaining runtime order was:
 
 1. **Complete — H2.0a:** the full post-H1 50-root owner/converse inventory,
    39-row profile transition, oracle schemas, and all 15,642 compiler,
@@ -1098,11 +1135,13 @@ is:
 2. **Complete — H2.0b:** the post-H1 no-emit, H1 emit, L1 edit,
    binary/startup, output-fault, and resource baselines plus H2
    constructor/activity canaries are frozen with zero H2 runtime admissions;
-3. **Complete — H2.1a; next — H2.1b:** the 295 implied-format/ESM candidates
+3. **Historical close record — H2.1a:** the 295 implied-format/ESM candidates
    are source-dispositioned and executed twice: 241 complete observations are
    exact, 5 output-exact controls retain trusted-base diagnostic divergences
    for H2.9, and 49 source-deferred rows fail before their first sink write.
-   Continue broad one-shot compiler behavior through dependency-closed
+   At this audit point H2.1b followed. Later H2 progress is intentionally not
+   maintained in this historical inventory; the linked current schedule
+   governs subsequent broad one-shot compiler behavior through dependency-closed
    CommonJS and remaining module, TypeScript runtime, source-kind,
    JSX/decorator, target, map, declaration,
    output/config/System, and CLI slices, then qualify H2 over every applicable
@@ -1120,11 +1159,10 @@ is:
 9. begin a post-6.0.3 transition only under a separately approved evidence
    contract.
 
-Read-only owner, suite, public-signature, protocol, locale/package, and platform
-inventories may proceed early. Source-map implementation may proceed alongside
-JavaScript transformer expansion, and declaration owner/NodeBuilder inventory
-may proceed alongside both. Runtime publication and compatibility claims still
-wait for the dependency rows in the execution schedule.
+The audit allowed read-only owner, suite, public-signature, protocol,
+locale/package, and platform inventories to proceed early. Current
+authorization and runtime publication still wait for the dependency rows in
+the [post-H1 execution schedule](post-h1-completion-slices.md).
 
 The M9 producer fingerprint must freeze only after the final shared checker
 producer changes are stable. Freezing it first would cause later emit-resolver,
@@ -1157,8 +1195,8 @@ A later broad CLI claim additionally requires:
   diagnostic state; and
 - no unsupported operation hidden behind a successful exit or partial file.
 
-Build/watch, Language Service, public API, and later TypeScript versions still
-remain separate claims unless explicitly included by that future contract.
+This audit kept build/watch, Language Service, public API, and later TypeScript
+versions as separate claims unless explicitly included by a future contract.
 
 ### 13.3 Full TypeScript tooling surface
 
@@ -1167,9 +1205,15 @@ incremental parser/program, public compiler API/custom transformer, Language
 Service, tsserver, any separately claimed LSP adapter, localization/platform,
 package, and version-specific contracts could support a “complete TypeScript
 tooling” statement. Each layer needs its own upstream runner/protocol result
-and long-running evidence. No current milestone makes that claim.
+and long-running evidence. This audit snapshot made no such milestone claim;
+current claims and finish lines are owned by the
+[post-H1 schedule](post-h1-completion-slices.md).
 
-## 14. Stop conditions
+## 14. Historical audit stop conditions
+
+These stop signals governed the audited H1/residual plan. Current work uses the
+stop and re-slice conditions in the
+[post-H1 schedule](post-h1-completion-slices.md) and its active packet.
 
 Stop and amend the relevant design if:
 

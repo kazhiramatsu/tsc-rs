@@ -83,6 +83,38 @@ fn declared_type_parameter_identity_survives_candidate_rollback() {
 }
 
 #[test]
+fn class_interface_identity_survives_candidate_rollback() {
+    with_program_state(
+        &[(
+            "a.ts",
+            "interface Box<T> { value: T; }\nvar v: Box<string>;\n",
+        )],
+        &CompilerOptions::default(),
+        |state| {
+            let annotation = annotation_of_var(state, "v");
+            let checkpoint = state.begin_speculation();
+            let inside_candidate = state
+                .get_type_from_type_node(annotation)
+                .expect("candidate reference resolves");
+            state.rollback_speculation(checkpoint);
+
+            let after_candidate = state
+                .get_type_from_type_node(annotation)
+                .expect("reference resolves after rollback");
+            assert_eq!(
+                after_candidate, inside_candidate,
+                "declaration-owned reference identity must outlive candidate rollback"
+            );
+            assert_eq!(
+                state.tables.reference_target(after_candidate),
+                state.tables.reference_target(inside_candidate),
+                "the class/interface target cannot be reminted after rollback"
+            );
+        },
+    );
+}
+
+#[test]
 fn intersection_with_disjoint_primitive_collapses_to_never() {
     with_program_state(
         &[(

@@ -60,16 +60,39 @@ pub enum EmitResolverMethod {
     GetEnumMemberValue,
     GetReferencedExportContainer,
     GetReferencedImportDeclaration,
+    GetReferencedImportDeclarationAtLocation,
     GetJsxFactoryImportDeclaration,
+    GetJsxFactoryExportContainer,
     GetReferencedValueDeclaration,
+    GetReferencedValueDeclarations,
     GetTypeReferenceSerializationKind,
     HasNodeCheckFlag,
     IsArgumentsLocalBinding,
     IsExternalOrCommonJsModule,
     IsInstantiatedModule,
+    IsUniqueLocalName,
     IsReferencedAliasDeclaration,
     IsTopLevelValueImportEqualsWithEntityName,
     IsValueAliasDeclaration,
+}
+
+/// Selects the checker view used by `getReferencedExportContainer`.
+///
+/// Ordinary references and names created by TypeScript's
+/// `getDeclarationName` retain a merged declaration's local binding. Names
+/// created by `getExportName` set `prefixLocals`, allowing the module
+/// transformer to address the owning export even when that symbol also has a
+/// local declaration.
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub enum EmitExportContainerMode {
+    Reference,
+    ExportName,
+}
+
+impl EmitExportContainerMode {
+    pub const fn prefixes_locals(self) -> bool {
+        matches!(self, Self::ExportName)
+    }
 }
 
 impl EmitResolverMethod {
@@ -79,13 +102,19 @@ impl EmitResolverMethod {
             Self::GetEnumMemberValue => "getEnumMemberValue",
             Self::GetReferencedExportContainer => "getReferencedExportContainer",
             Self::GetReferencedImportDeclaration => "getReferencedImportDeclaration",
+            Self::GetReferencedImportDeclarationAtLocation => {
+                "getReferencedImportDeclarationAtLocation"
+            }
             Self::GetJsxFactoryImportDeclaration => "getJsxFactoryImportDeclaration",
+            Self::GetJsxFactoryExportContainer => "getJsxFactoryExportContainer",
             Self::GetReferencedValueDeclaration => "getReferencedValueDeclaration",
+            Self::GetReferencedValueDeclarations => "getReferencedValueDeclarations",
             Self::GetTypeReferenceSerializationKind => "getTypeReferenceSerializationKind",
             Self::HasNodeCheckFlag => "hasNodeCheckFlag",
             Self::IsArgumentsLocalBinding => "isArgumentsLocalBinding",
             Self::IsExternalOrCommonJsModule => "isExternalOrCommonJsModule",
             Self::IsInstantiatedModule => "isInstantiatedModule",
+            Self::IsUniqueLocalName => "isUniqueLocalName",
             Self::IsReferencedAliasDeclaration => "isReferencedAliasDeclaration",
             Self::IsTopLevelValueImportEqualsWithEntityName => {
                 "isTopLevelValueImportEqualsWithEntityName"
@@ -196,7 +225,9 @@ pub trait EmitResolver {
     fn get_referenced_export_container(
         &self,
         node: EmitResolverNode,
+        mode: EmitExportContainerMode,
     ) -> Result<Option<EmitResolverNode>, EmitResolverError> {
+        let _ = mode;
         Err(unavailable(
             EmitResolverMethod::GetReferencedExportContainer,
             node,
@@ -209,6 +240,22 @@ pub trait EmitResolver {
     ) -> Result<Option<EmitResolverNode>, EmitResolverError> {
         Err(unavailable(
             EmitResolverMethod::GetReferencedImportDeclaration,
+            node,
+        ))
+    }
+
+    /// Resolve an entity-name root as if it were parented by `location`.
+    /// `emitDecoratorMetadata` clones a type name and reparents that clone to
+    /// the class/name scope before the module transform asks for its import
+    /// declaration. Rust's immutable syntax ownership carries that operation
+    /// explicitly instead of mutating a parse-tree parent.
+    fn get_referenced_import_declaration_at_location(
+        &self,
+        node: EmitResolverNode,
+        _location: EmitResolverNode,
+    ) -> Result<Option<EmitResolverNode>, EmitResolverError> {
+        Err(unavailable(
+            EmitResolverMethod::GetReferencedImportDeclarationAtLocation,
             node,
         ))
     }
@@ -229,6 +276,21 @@ pub trait EmitResolver {
         ))
     }
 
+    /// Resolve the first identifier of a classic JSX factory/fragment entity
+    /// at the JSX location to its enclosing namespace or enum. This is the
+    /// immutable typed equivalent of the parse-tree parent installed by
+    /// upstream's `createReactNamespace` before TypeScript substitution.
+    fn get_jsx_factory_export_container(
+        &self,
+        node: EmitResolverNode,
+        _name: &str,
+    ) -> Result<Option<EmitResolverNode>, EmitResolverError> {
+        Err(unavailable(
+            EmitResolverMethod::GetJsxFactoryExportContainer,
+            node,
+        ))
+    }
+
     fn get_referenced_value_declaration(
         &self,
         node: EmitResolverNode,
@@ -239,9 +301,27 @@ pub trait EmitResolver {
         ))
     }
 
+    /// All runtime declarations owned by the referenced merged symbol.
+    /// Module assignment substitution needs the full set because the export
+    /// binding can belong to a namespace/enum merge declaration other than
+    /// the symbol's primary `valueDeclaration`.
+    fn get_referenced_value_declarations(
+        &self,
+        node: EmitResolverNode,
+    ) -> Result<Vec<EmitResolverNode>, EmitResolverError> {
+        Ok(self
+            .get_referenced_value_declaration(node)?
+            .into_iter()
+            .collect())
+    }
+
+    /// Classify a metadata type name at the lexical/name scope that will own
+    /// the emitted decorator. `location` prevents a constructor parameter
+    /// with the same spelling from shadowing an imported runtime class.
     fn get_type_reference_serialization_kind(
         &self,
         node: EmitResolverNode,
+        _location: EmitResolverNode,
     ) -> Result<EmitTypeReferenceSerializationKind, EmitResolverError> {
         Err(unavailable(
             EmitResolverMethod::GetTypeReferenceSerializationKind,
@@ -290,6 +370,18 @@ pub trait EmitResolver {
 
     fn is_instantiated_module(&self, node: EmitResolverNode) -> Result<bool, EmitResolverError> {
         Err(unavailable(EmitResolverMethod::IsInstantiatedModule, node))
+    }
+
+    /// Whether `name` is absent from the value/alias locals owned by a
+    /// namespace declaration and every descendant binder container in its
+    /// `nextContainer` segment. The TypeScript printer uses this semantic
+    /// scope query when materializing a generated module/enum name.
+    fn is_unique_local_name(
+        &self,
+        node: EmitResolverNode,
+        _name: &str,
+    ) -> Result<bool, EmitResolverError> {
+        Err(unavailable(EmitResolverMethod::IsUniqueLocalName, node))
     }
 
     fn is_referenced_alias_declaration(

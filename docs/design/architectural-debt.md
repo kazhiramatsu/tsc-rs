@@ -1,5 +1,11 @@
 # Design: architectural-debt items (implement only when a workstream needs them)
 
+Document role: **v1 historical debt record**, not the current backlog. A new
+slice may use it as rationale only after reproducing the issue in current code.
+Current emitter constraints live in the
+[emitter architecture](greenfield/emitter-architecture.md) and name their
+owning future slice explicitly.
+
 Each item here blocks a small number of diagnostics TODAY but sits on an
 architectural divergence from tsc. They are documented so an
 implementer hits them prepared, not so they get scheduled eagerly —

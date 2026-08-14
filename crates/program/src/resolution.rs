@@ -367,7 +367,8 @@ pub enum UnloadedModuleReason {
     /// The request participates in resolution but does not load a source,
     /// such as an external-module augmentation.
     ResolutionOnly,
-    /// A `.jsx` resolution was rejected because no JSX mode is active.
+    /// A JSX-syntax-bearing `.tsx` or `.jsx` resolution produced TS6142 and
+    /// was therefore rejected from dependency source membership.
     JsxWithoutJsxOption,
     /// JSON was resolved while `resolveJsonModule` was not effective.
     JsonWithoutResolveJsonModule,

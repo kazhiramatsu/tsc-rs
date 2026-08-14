@@ -1,12 +1,16 @@
 use tsc_binder::flow::FlowId;
 use tsc_diagnostics::{gen as diagnostics, RelatedInfo};
-use tsc_types::{CompilerOptions, SymbolFlags, TypeData, TypeFlags, TypeSystemPropertyName};
+use tsc_types::{
+    CompilerOptions, NodeCheckFlags, SymbolFlags, TypeData, TypeFlags, TypeSystemPropertyName,
+};
 
 use super::SpeculationOutcome;
 use crate::flow::FlowType;
 use crate::links::LinkSlot;
 use crate::state::test_support::with_program_state;
-use crate::state::{CheckAbort, CheckerState, ResolvedMembers, SignatureKind};
+use crate::state::{
+    CheckAbort, CheckerState, InProgressMappedType, ResolvedMembers, SignatureKind,
+};
 
 fn with_state<R>(run: impl FnOnce(&mut CheckerState) -> R) -> R {
     with_program_state(
@@ -38,6 +42,10 @@ fn mutate_everything(state: &mut CheckerState) {
     state
         .active_type_mappers_caches
         .push(std::collections::HashMap::new());
+    state.mapped_types_in_progress.push(InProgressMappedType {
+        node: root,
+        ty: string,
+    });
     state.flow_loop_start += 3;
     state.shared_flow.push((FlowId(0), FlowType::Type(string)));
     state
@@ -85,6 +93,7 @@ struct Observed {
     inference_contexts: usize,
     awaited_type_stack: usize,
     active_type_mappers_caches: usize,
+    mapped_types_in_progress: usize,
     flow_loop_start: u32,
     shared_flow: usize,
     reduce_label_overrides: usize,
@@ -121,6 +130,7 @@ fn observe(state: &CheckerState) -> Observed {
         inference_contexts: state.inference_contexts.len(),
         awaited_type_stack: state.awaited_type_stack.len(),
         active_type_mappers_caches: state.active_type_mappers_caches.len(),
+        mapped_types_in_progress: state.mapped_types_in_progress.len(),
         flow_loop_start: state.flow_loop_start,
         shared_flow: state.shared_flow.len(),
         reduce_label_overrides: state.reduce_label_overrides.len(),
@@ -369,6 +379,165 @@ fn declaration_signatures_commit_and_nested_rollback_restores() {
             assert_eq!(state.links.speculative_declaration_signature_mark(), 0);
         },
     );
+}
+
+#[test]
+fn selected_context_state_commits_and_nested_rollback_restores() {
+    with_state(|state| {
+        let mut nodes = state.binder.source(0).arena.node_ids();
+        let committed_node = nodes.next().expect("fixture root");
+        let nested_node = nodes.next().expect("fixture declaration");
+        let committed_symbol = state
+            .binder
+            .create_symbol(SymbolFlags::FUNCTION_SCOPED_VARIABLE, "x".to_owned());
+        let nested_symbol = state
+            .binder
+            .create_symbol(SymbolFlags::FUNCTION_SCOPED_VARIABLE, "y".to_owned());
+
+        let selected = state.begin_speculation();
+        state.links.or_node_check_flags(
+            state.speculation_depth,
+            committed_node,
+            NodeCheckFlags::CONTEXT_CHECKED,
+        );
+        state.links.set_symbol_type_contextual(
+            state.speculation_depth,
+            committed_symbol,
+            LinkSlot::Resolved(state.tables.intrinsics.string),
+        );
+        state.commit_speculation(selected);
+
+        assert!(state
+            .links
+            .node(committed_node)
+            .check_flags
+            .intersects(NodeCheckFlags::CONTEXT_CHECKED));
+        assert_eq!(
+            state
+                .links
+                .symbol(committed_symbol)
+                .type_of_symbol
+                .resolved(),
+            Some(state.tables.intrinsics.string)
+        );
+        assert_eq!(state.links.speculative_context_checked_mark(), 0);
+        assert_eq!(state.links.speculative_symbol_type_mark(), 0);
+
+        let outer = state.begin_speculation();
+        let inner = state.begin_speculation();
+        state.links.or_node_check_flags(
+            state.speculation_depth,
+            nested_node,
+            NodeCheckFlags::CONTEXT_CHECKED,
+        );
+        state.links.set_symbol_type_contextual(
+            state.speculation_depth,
+            nested_symbol,
+            LinkSlot::Resolved(state.tables.intrinsics.number),
+        );
+        state.commit_speculation(inner);
+        assert!(state
+            .links
+            .node(nested_node)
+            .check_flags
+            .intersects(NodeCheckFlags::CONTEXT_CHECKED));
+        assert_eq!(
+            state.links.symbol(nested_symbol).type_of_symbol.resolved(),
+            Some(state.tables.intrinsics.number)
+        );
+
+        state.rollback_speculation(outer);
+        assert!(!state
+            .links
+            .node(nested_node)
+            .check_flags
+            .intersects(NodeCheckFlags::CONTEXT_CHECKED));
+        assert!(matches!(
+            state.links.symbol(nested_symbol).type_of_symbol,
+            LinkSlot::Vacant
+        ));
+        assert_eq!(state.links.speculative_context_checked_mark(), 0);
+        assert_eq!(state.links.speculative_symbol_type_mark(), 0);
+    });
+}
+
+#[test]
+fn rejected_candidate_retains_completed_context_state_and_its_diagnostics() {
+    with_state(|state| {
+        let node = state.binder.source(0).root;
+        let contextual_symbol = state.binder.create_symbol(
+            SymbolFlags::FUNCTION_SCOPED_VARIABLE,
+            "contextual".to_owned(),
+        );
+        let temporary_symbol = state.binder.create_symbol(
+            SymbolFlags::FUNCTION_SCOPED_VARIABLE,
+            "temporary".to_owned(),
+        );
+        let diagnostics_before = state.diagnostics.len();
+
+        let result = state
+            .speculate(|state| {
+                state.links.or_node_check_flags(
+                    state.speculation_depth,
+                    node,
+                    NodeCheckFlags::CONTEXT_CHECKED,
+                );
+                state.links.set_symbol_type_contextual(
+                    state.speculation_depth,
+                    contextual_symbol,
+                    LinkSlot::Resolved(state.tables.intrinsics.string),
+                );
+                state.links.set_symbol_type(
+                    state.speculation_depth,
+                    temporary_symbol,
+                    LinkSlot::Resolved(state.tables.intrinsics.number),
+                );
+                let contextual_diagnostics_start = state.diagnostics.len();
+                let contextual_diagnostic =
+                    state.create_error(None, &diagnostics::Cannot_find_name_0, &["contextual"]);
+                state.push_error_diagnostic(contextual_diagnostic);
+                state.record_completed_contextual_diagnostics_since(
+                    contextual_diagnostics_start,
+                    state.visible_global_diagnostics.len(),
+                );
+                let diagnostic =
+                    state.create_error(None, &diagnostics::Cannot_find_name_0, &["trial"]);
+                state.push_error_diagnostic(diagnostic);
+                Ok(SpeculationOutcome::Reject(7))
+            })
+            .expect("candidate rejection completes");
+
+        assert_eq!(result, 7);
+        assert!(state
+            .links
+            .node(node)
+            .check_flags
+            .intersects(NodeCheckFlags::CONTEXT_CHECKED));
+        assert_eq!(
+            state
+                .links
+                .symbol(contextual_symbol)
+                .type_of_symbol
+                .resolved(),
+            Some(state.tables.intrinsics.string)
+        );
+        assert!(matches!(
+            state.links.symbol(temporary_symbol).type_of_symbol,
+            LinkSlot::Vacant
+        ));
+        assert_eq!(state.diagnostics.len(), diagnostics_before + 1);
+        assert_eq!(
+            state.diagnostics.last().unwrap().message_text(),
+            "Cannot find name 'contextual'."
+        );
+        assert_eq!(state.links.speculative_context_checked_mark(), 0);
+        assert_eq!(state.links.speculative_symbol_type_mark(), 0);
+        assert!(state.completed_contextual_diagnostics.is_empty());
+        assert!(state
+            .completed_contextual_visible_global_diagnostics
+            .is_empty());
+        assert_eq!(state.speculation_depth, 0);
+    });
 }
 
 #[test]

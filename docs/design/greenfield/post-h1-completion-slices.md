@@ -2,7 +2,11 @@
 
 Status: execution schedule approved on 2026-08-08. H0, L0/L1, H1, H2.0a,
 H2.0b, H2.1a-H2.1e, H2.2a-H2.2d, H2.3a-H2.3d, H2.4a-H2.4b, and
-H2.5a-H2.5f are complete. **H2.5g is the next slice.**
+H2.5a-H2.5f are complete. **H2.5g is in progress and not yet qualified.**
+This status header is the single current progress authority. A summary table
+elsewhere may mirror the live phase label, but counts and compatibility claims
+there remain at the last completed-slice freeze until this header records the
+next completed freeze.
 
 This document turns the audited post-H1 residual into branch-sized execution
 slices. It owns post-H1 slice IDs, dependency order, and slice-specific
@@ -10,8 +14,13 @@ acceptance. The
 [compiler compatibility residual](compiler-compatibility-residual.md) owns the
 surface inventory, [H1](h1-emit.md) remains the frozen bounded-emit contract,
 and the [incremental/LSP design](lsp-and-incremental.md) owns the L2-L5 data and
-lifetime architecture. The project-wide
-[definition of done](definition-of-done.md) still wins on completion claims.
+lifetime architecture. The
+[definition of done](definition-of-done.md) remains authoritative for the
+frozen M8 batch-diagnostics claim. This document owns the separate follow-on
+product finish lines and never rewrites the M8 denominator.
+The [current emitter architecture](emitter-architecture.md) owns validated
+Rust emitter types, ownership, integration seams, and their lifecycle; this
+schedule does not duplicate that implementation map.
 
 The target is the pinned TypeScript 6.0.3 compiler and tooling surface. LSP is
 listed because it is an intended Rust-native product, but it is not an
@@ -35,8 +44,9 @@ PR, and one reviewable before/after result. Every slice:
    failed, and adjacent-control dispositions;
 4. captures positive, adjacent-negative, and applicable fault-injection oracle
    witnesses before implementing behavior;
-5. ports the pinned TypeScript control flow and adds `tsc-port`, `tsc-span`,
-   and `tsc-hash` ledger entries at port time;
+5. models the pinned TypeScript semantics, ownership, call order, and control
+   flow in Rust and adds `tsc-port`, `tsc-span`, and `tsc-hash` ledger entries
+   at implementation time;
 6. compares every applicable observable exactly: diagnostics, text bytes,
    output paths and order, callback metadata, result presence, status, and
    failure boundary;
@@ -46,6 +56,14 @@ PR, and one reviewable before/after result. Every slice:
    final runtime candidate and records the result in the PR; and
 9. lets ordinary GitHub Actions run only the fixed, unsplit
    `cargo xtask acceptance` boundary sourced from `ts-tests`.
+
+H2.5g is the sole non-retroactive exception to the implementation-ready packet
+format because its production work began before that gate was adopted. The
+exception waives only the new packet/readiness-manifest format. It does not
+waive exact Rust execution, the exhaustive zero-difference inventory, owner
+controls, hosted acceptance, the complete local gate, immutable evidence, or
+current-architecture revalidation. It cannot authorize H2.5h-a or any later
+production edit.
 
 Each scheduled row is an upper bound, not permission for a mega-PR. Its
 inventory slice must add suffixes before runtime work when it finds multiple
@@ -65,6 +83,171 @@ Runtime slices that can affect diagnostic accepted state continue to use the
 repository `slice-evidence snapshot`/`verify` protocol. Track-specific emit,
 state, build, service, or protocol observations supplement that evidence; they
 do not replace its FP/loss checks or the complete local gate.
+
+### 1.1 Mandatory implementation-ready design gate
+
+Every slice whose production work starts after H2.5g must pass a documented
+design gate before a production file is edited. The design packet must be
+mechanically executable by an implementation agent that has no unstated
+repository or TypeScript knowledge. Phrases such as "follow tsc", "implement
+the remaining branches", or "add the necessary tests" are not executable
+instructions and do not pass this gate.
+
+The authority order is fixed:
+
+1. pinned TypeScript 6.0.3 defines semantics, state ownership, call order,
+   branch behavior, helper algorithms, and externally observable results;
+2. fresh `active-qualified` rows in the current tsc-rs architecture define
+   frozen integration boundaries; `active-unqualified`, `dormant`, and
+   `planned` rows are research inputs or targets, never inherited premises;
+   and
+3. Rust defines the representation: exhaustive enums, newtypes, arenas plus
+   side tables where identity requires them, explicit provenance and
+   lifetimes, typed state transitions, and `Result` failure boundaries.
+
+This order requires reading tsc before designing the Rust change. It neither
+permits a speculative greenfield model that omits upstream behavior nor a
+line-for-line transplant of TypeScript closures, mutable sentinels, object
+shapes, or incidental function boundaries. The intended result preserves the
+tsc structure that carries meaning while expressing that structure with
+Rust-owned data and invariants.
+
+Before implementation, the owning slice document must contain all of the
+following:
+
+- **Identity, purpose, and boundary:** slice ID and kind (`inventory`,
+  `foundation`, `runtime`, `evidence`, or `documentation`), purpose, explicit
+  non-goals, prerequisites, trusted base, activation state before and after,
+  next owner, and hashes of every authority artifact.
+- **Required-reference table:** every applicable architecture concern/sub-row
+  and open architecture-gap ID, including `active-qualified`,
+  `active-unqualified`, `dormant`, and `planned` rows; its validation ref/date,
+  exact current Rust symbol and visibility; every pinned tsc declaration and
+  hash; every frozen predecessor contract; its lifecycle before and after;
+  and any historical document used only as rationale. A historical design
+  statement is never cited as current implementation fact.
+- **Pinned upstream map:** vendored file, declaration/body line spans,
+  `tsc-hash` identity, callers, callees, call order, branch predicates, helper
+  graph, and observable failure order. Function names alone are not stable
+  identities.
+- **Rust semantic map:** a table mapping every relevant tsc object, field,
+  sentinel, and state transition to a concrete Rust type and module. Each row
+  names its producer, owner, updater, consumer, lifetime, invalidation rule,
+  and whether identity or provenance is observable.
+- **Current local-gap matrix:** every reachable semantic row mapped to its
+  current Rust symbol and classified `already-exact`, `missing`,
+  `partial-or-stale`, `obsolete`, or `shared-prerequisite`, with evidence. The
+  matrix is generated before Rust design; the post-implementation runtime
+  inventory is a separate gate.
+- **Implementation sequence:** allowed and forbidden files, function-level
+  edits in dependency order, inputs and outputs, preconditions and
+  postconditions, error behavior, and transform/pass composition rules. Every
+  step has one unambiguous next action and one observable completion check.
+- **Frozen witnesses:** focused input fixtures and oracle-produced exact
+  outputs for positive branches, adjacent negative branches, composition
+  boundaries, and applicable sink/host/cancellation faults. The document lists
+  the exact commands for reproducing each witness.
+- **Acceptance:** focused tests, complete inventory command, local regression
+  command, expected counts/hashes, fail-closed behavior, and the precise
+  condition that permits the slice to be called complete.
+- **Traceability and resources:** a row for every upstream owner or invariant
+  linking it to its Rust type/function, focused test, and ratchet/schema/ledger
+  evidence; CPU and worker ceilings for heavy commands; resumable checkpoints;
+  and a single write owner for every file shared by parallel tasks.
+- **Prohibitions:** no fixture/case-ID or path-specific branches, output text
+  substitution, hand-authored expected output, generic fallback that converts
+  an unknown branch into success, or inheritance of stale flags/state without
+  a pinned upstream justification.
+- **Unresolved items:** every open semantic, ownership, composition, or oracle
+  question with an owner and resolution command. Any unresolved item blocks
+  production implementation; it may not be delegated as an implicit judgment
+  call.
+
+The packet also records a readiness summary: authority hashes, reachable
+upstream rows, local-gap rows, Rust-map rows, witness rows, architecture
+concerns/gaps, lifecycle transitions, undispositioned rows, and unresolved
+rows, plus the exact command that checks it. Every architecture impact is
+classified `premise-unchanged`, `modified-requalify`, `activate`,
+`future-owned-fail-closed`, or `proven-unreachable`. Readiness requires fresh
+hashes, full row-to-step/test traceability, no missing/duplicate/stale
+architecture reference, no illegal lifecycle transition,
+`undispositioned = 0`, and `unresolved = 0`; prose approval alone is
+insufficient.
+
+Only a fresh `active-qualified` concern may be used as a frozen implementation
+premise. `active-unqualified` is research input, `dormant` is a non-compatible
+seam, and `planned` is a design target. A modified qualified concern becomes
+`active-unqualified` for the candidate and returns to `active-qualified` only
+after its exact profile is frozen at an immutable final validation ref. A
+concern with mixed behavior is split into sub-rows so one lifecycle never
+hides another.
+
+In the local-gap matrix, `missing` and `partial-or-stale` are ready only when
+each maps to a concrete implementation step and focused test.
+`shared-prerequisite` is ready only when that dependency is closed or is a
+legal deferred row. `obsolete` names the replacement/removal proof and all
+former consumers. `already-exact` names current exact evidence. No other
+classification is accepted.
+
+`deferred` is not a synonym for unknown. A deferred row is legal only when it
+is outside the admitted scope, names its earliest owner slice, has an explicit
+reachability guard, and has a typed fail-closed or adjacent-negative control.
+Anything else is unresolved and blocks production work. If implementation
+reveals a new owner, data-model decision, observable, or required file, stop,
+amend the design packet, rerun its readiness check, and only then resume.
+Inherited deferrals are not grandfathered: every new packet revalidates their
+guard, earliest owner, typed failure boundary, and negative control.
+
+Emitter and transformer packets must additionally specify transform-flag
+propagation and full recomputation points; parsed/current/synthetic node
+provenance; comment owner and resume-cursor transitions; lexical receiver and
+captured-binding ownership; printer expression context; generated-binding
+scope; and ordering/composition with every already-active pass. These are
+semantic inputs, not cleanup concerns.
+
+Large rows are split into explicit, ordered sub-slices:
+`research -> Rust design -> fixture freeze -> implementation -> full inventory
+-> profile freeze`. Research, design, and fixture work may run in parallel
+when their inputs are independent. Production implementation starts only when
+the first three are complete, contains no unresolved item, and names
+non-overlapping file ownership for any parallel implementation tasks. If that
+cannot be done without architectural judgment, the row is re-sliced before
+code is changed.
+
+A dormant foundation slice proves its internal semantics with direct controls
+and proves zero activation, zero candidate execution, and zero admission. It
+must not execute future-owned corpus rows or count structural availability as
+compatibility. Its consuming runtime slice later supplies the end-to-end
+oracle observations. Durable Rust architecture is itself a completion
+condition for both foundation and runtime slices; fitting work into the
+current slice is not permission to add a throwaway API or local workaround.
+
+### 1.2 H2.5g legacy closing protocol
+
+H2.5g may finish under its already-established in-progress contract; that does
+not call its current worktree, checked-in candidate artifacts, or candidate
+counts qualified. Its exact closure commands and required results are indexed
+in [the H2.5g legacy closure route](slices/README.md#h25g-legacy-closure-route).
+
+Closure uses two immutable refs rather than an impossible self-reference:
+
+1. commit the final production code, tests, qualification/owner/profile
+   artifacts, schemas, and generators, then run every required runtime gate
+   from that clean immutable commit. Once they pass, that
+   implementation/evidence commit is the **final validation ref**;
+2. in a following documentation-only commit, cite that ref in the
+   current-architecture freeze, bind the exact profile bytes contained by that
+   ref, and promote only the validated rows to `active-qualified`. After the PR
+   merges, the roadmap-review documentation records the actual merge ref as
+   delivery lineage, verifies that it contains the final validation ref, and
+   proves that all profile-bound runtime/evidence inputs remain byte-identical.
+
+The documentation commit cannot cite its own hash, and a predicted merge hash
+is not evidence. Any change to runtime or evidence inputs after step 1 requires
+a new final validation ref and a rerun of the applicable gates. The first
+required application of the full implementation-ready design gate is the
+post-H2.5g roadmap review; every remaining H2 slice must be rewritten to that
+format before its implementation phase begins.
 
 ## 2. Additional contracts required after H1
 
@@ -1213,8 +1396,9 @@ nested closures, mutable sentinel values, or incidental function boundaries is
 not an implementation goal and is not accepted as slice completion. This is
 not a prohibition on using tsc to finish difficult behavior: when closure
 stalls, its control flow and helper algorithms are the authoritative reference,
-then are expressed through Rust-owned types and state. Completion and exact
-compatibility take precedence over architectural novelty.
+then are expressed through Rust-owned types and state. Exact compatibility and
+a durable Rust architecture are both completion conditions; architectural
+novelty by itself is not.
 
 | Slice | Newly closed owner | Dependencies |
 | --- | --- | --- |
@@ -1225,12 +1409,21 @@ compatibility take precedence over architectural novelty.
 | H2.5e | `transformES2018` | H2.5d |
 | H2.5f | `transformES2017` | H2.5e |
 | H2.5g | `transformES2016` | H2.5f |
-| H2.5h | `transformES2015` plus `transformGenerators`, which activate together | H2.5g |
+| H2.5h-a | Architecture validation, complete `transformES2015`/`transformGenerators` owner graph and local-gap matrix, Rust mapping, and oracle-fixture freeze. It may propose dormant foundation children but activates no transformer and admits no candidate. | H2.5g |
+| H2.5h-b+ | Runtime owner slices cut by H2.5h-a. `transformES2015` and `transformGenerators` activate together only for a dependency cluster whose pinned owner graph proves joint activation; independent SCCs receive further suffixes before implementation. | H2.5h-a and every foundation child it names |
 
 Every target row closes its exact syntax gates, helper graph, generated-name
 collisions, substitution/notification composition, resolver calls, source-map
 ranges when that track is available, and the newly admitted upstream runner
 observations. Merely accepting the target enum is forbidden.
+
+The concrete next entry is
+[`slices/h2-5h-a.md`](slices/h2-5h-a.md). It remains explicitly blocked until
+the H2.5g profile is frozen at its final validation ref, the merge ref is
+recorded as containing that ref with identical profile-bound inputs, and the
+post-merge roadmap review adds the versioned readiness manifest and checker
+named there. No agent may infer a runtime implementation task from the
+target-ladder summary.
 
 ### 4.5 Maps, declarations, output/config, and broad qualification
 
@@ -1342,8 +1535,18 @@ not silently merge them in an implementation PR.
 
 ## 8. Opening and closing a slice
 
+The sole H2.5g legacy exception skips only the first packet-readiness bullet
+below because implementation was already in progress when that gate was
+adopted. It follows the closing protocol in section 1.2 and every applicable
+before-merge requirement below. H2.5h-a and every later slice receive no such
+exception.
+
 Before implementation:
 
+- freeze the complete
+  [implementation-ready design packet](#11-mandatory-implementation-ready-design-gate),
+  with no `TBD`, unresolved item, implicit judgment call, or unowned shared-file
+  seam;
 - confirm every dependency row is closed on `main`;
 - create a fresh branch named for exactly one slice;
 - record the trusted base and immutable before evidence outside the worktree;
@@ -1355,6 +1558,9 @@ Before implementation:
 Before merge:
 
 - every in-slice owner and observation is closed or explicitly dispositioned;
+- every affected active-architecture concern records the final validation
+  ref/date, exact Rust symbols and visibility, tsc identities, focused
+  tests/ratchets, and post-freeze lifecycle; no candidate marker remains;
 - all new outputs/state transitions match the correct upstream or protocol
   oracle exactly, including failures and cancellation;
 - frozen earlier profiles and resource gates remain green;
@@ -1368,6 +1574,15 @@ Before merge:
 
 Stop and amend this plan before implementation continues if:
 
+- a mandatory architecture reference or tsc hash is missing/stale, its Rust
+  symbol no longer resolves, a non-qualified concern is used as a frozen
+  premise, or an architecture concern/gap has no impact disposition;
+- the next step requires guessing an upstream owner, Rust integration seam,
+  expected observable, verification command/result, or deferral owner that the
+  implementation-ready design packet does not state;
+- finishing the row would require a fixture/case-specific branch, text-based
+  semantic substitution, throwaway slice API, or other local shortcut instead
+  of its final architectural owner;
 - a row needs two unrelated transformer/query/protocol owner groups;
 - an admitted branch needs a resolver, host, helper, printer, map, declaration,
   cache, or schema owner assigned to another unfinished row;

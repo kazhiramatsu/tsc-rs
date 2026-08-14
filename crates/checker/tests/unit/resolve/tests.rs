@@ -344,6 +344,65 @@ fn value_only_namespace_roots_fall_through_to_2503() {
 }
 
 #[test]
+fn empty_internal_namespaces_resolve_through_cross_file_alias_collisions() {
+    let result = check_program(
+        &[
+            InputFile::new(
+                "a.ts".to_owned(),
+                "namespace P { }\nimport p = P;\nvar q;\n".to_owned(),
+            ),
+            InputFile::new(
+                "b.ts".to_owned(),
+                "namespace Q { }\nimport q = Q;\nvar p;\n".to_owned(),
+            ),
+        ],
+        &CompilerOptions::default(),
+    );
+    assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+}
+
+#[test]
+fn empty_internal_namespace_resolves_for_a_same_file_alias() {
+    let result = check_program(
+        &[InputFile::new(
+            "a.ts".to_owned(),
+            "namespace P { }\nimport p = P;\n".to_owned(),
+        )],
+        &CompilerOptions::default(),
+    );
+    assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+}
+
+#[test]
+fn internal_import_equals_qualified_name_uses_namespace_meaning_without_a_value_error() {
+    let source = concat!(
+        "namespace x {\n",
+        "    interface c {\n",
+        "    }\n",
+        "}\n",
+        "declare export import a = x.c;\n",
+        "var b: a;\n",
+    );
+    let result = check_program(
+        &[InputFile::new("/main.ts".to_owned(), source.to_owned())],
+        &CompilerOptions::default(),
+    );
+    assert_eq!(
+        result
+            .diagnostics
+            .iter()
+            .filter(|diagnostic| matches!(diagnostic.code(), 1029 | 2694 | 2708))
+            .map(|diagnostic| (
+                diagnostic.code(),
+                diagnostic.start.unwrap_or(u32::MAX),
+                diagnostic.length.unwrap_or(u32::MAX),
+            ))
+            .collect::<Vec<_>>(),
+        [(1029, 48, 6), (2694, 68, 1)]
+    );
+}
+
+#[test]
 fn namespace_used_directly_reports_value_and_type_alternates() {
     let result = check_program(
         &[InputFile::new(
@@ -507,6 +566,39 @@ fn qualified_value_only_symbol_reports_2749_for_the_full_name() {
             ))
             .collect::<Vec<_>>(),
         [(2749, 96, 7)]
+    );
+}
+
+#[test]
+fn qualified_enum_value_property_reports_2749_via_its_value_type() {
+    let text = "interface Object { toString(): string }\n\
+                enum Color { Red }\n\
+                type Bad = Color.Red.toString;\n\
+                type Good = typeof Color.Red.toString;\n";
+    let result = check_program(
+        &[InputFile::new("a.ts".to_owned(), text.to_owned())],
+        &CompilerOptions::default(),
+    );
+    let diagnostics = result
+        .diagnostics
+        .iter()
+        .filter(|diagnostic| diagnostic.code() == 2749)
+        .map(|diagnostic| {
+            (
+                diagnostic.start.unwrap_or(u32::MAX),
+                diagnostic.length.unwrap_or(u32::MAX),
+                diagnostic.message_text().to_owned(),
+            )
+        })
+        .collect::<Vec<_>>();
+    let start = text.find("Color.Red.toString;").expect("bad type name") as u32;
+    assert_eq!(
+        diagnostics,
+        [(
+            start,
+            "Color.Red.toString".len() as u32,
+            "'Color.Red.toString' refers to a value, but is being used as a type here. Did you mean 'typeof Color.Red.toString'?".to_owned(),
+        )]
     );
 }
 

@@ -105,6 +105,99 @@ fn checked_chain_codes(text: &str) -> Vec<Vec<u32>> {
 }
 
 #[test]
+fn captured_relation_diagnostic_is_owned_independently_of_the_program_sink() {
+    with_program_state(
+        &[("a.ts", "const marker = 0;")],
+        &CompilerOptions::default(),
+        |state| {
+            let error_node = state.binder.source(0).root;
+            let source = state.tables.intrinsics.number;
+            let target = state.tables.intrinsics.string;
+            let (related, first) = state
+                .capture_type_assignable_to_diagnostic(
+                    source,
+                    target,
+                    error_node,
+                    &tsc_diagnostics::gen::Type_0_is_not_assignable_to_type_1,
+                )
+                .expect("primitive relation report");
+            assert!(!related);
+            let first = first.expect("failed reporting relation owns a diagnostic");
+
+            state.push_error_diagnostic(first.clone());
+            let program_count = state.diagnostics.len();
+            let (related, captured) = state
+                .capture_type_assignable_to_diagnostic(
+                    source,
+                    target,
+                    error_node,
+                    &tsc_diagnostics::gen::Type_0_is_not_assignable_to_type_1,
+                )
+                .expect("cached failed relation is replayable for reporting");
+
+            assert!(!related);
+            assert_eq!(captured.as_ref(), Some(&first));
+            assert_eq!(state.diagnostics.len(), program_count);
+        },
+    );
+}
+
+#[test]
+fn erasable_syntax_only_reports_each_runtime_syntax_at_its_owner_span() {
+    let text = "class C {\n\
+                    constructor(public x: string) {}\n\
+                }\n\
+                namespace Runtime {\n\
+                    export const x = 1;\n\
+                }\n\
+                namespace Erased {\n\
+                    export interface Shape {}\n\
+                }\n\
+                enum E { A }\n\
+                declare enum AmbientEnum { A }\n\
+                import Alias = E.A;\n\
+                declare namespace Ambient {\n\
+                    import Fine = AmbientEnum.A;\n\
+                }\n\
+                const value = 0;\n\
+                export = value;\n\
+                const angle = <number>value;\n\
+                const asExpression = value as number;\n";
+    let options = CompilerOptions {
+        erasable_syntax_only: Some(true),
+        ..CompilerOptions::default()
+    };
+    let rows = checked_diags_with(text, &options)
+        .into_iter()
+        .filter(|row| row.0 == 1294)
+        .collect::<Vec<_>>();
+    let start = |needle: &str| text.find(needle).expect("fixture token") as u32;
+    let enum_start = start("enum E") + "enum ".len() as u32;
+    let message = "This syntax is not allowed when 'erasableSyntaxOnly' is enabled.";
+    let row = |start: u32, length: u32| (1294, start, length, message.to_owned());
+
+    assert_eq!(
+        rows,
+        [
+            row(start("public x: string"), "public x: string".len() as u32),
+            row(start("Runtime"), "Runtime".len() as u32),
+            row(enum_start, 1),
+            row(
+                start("import Alias = E.A;"),
+                "import Alias = E.A;".len() as u32,
+            ),
+            row(start("export = value;"), "export = value;".len() as u32),
+            row(start("<number>"), "<number>".len() as u32),
+        ]
+    );
+
+    assert!(
+        checked_diags(text).iter().all(|row| row.0 != 1294),
+        "the option must be the sole gate"
+    );
+}
+
+#[test]
 fn eager_unused_callback_precedes_source_file_collision_drains() {
     let text = "export {}; const WeakMap = 1; class C { #x = 1; }";
     let options = CompilerOptions {
@@ -3944,6 +4037,25 @@ fn reused_nested_type_predicate_uses_the_signature_scope() {
 }
 
 #[test]
+fn deferred_conditional_target_renders_root_infer_parameters_as_declarations() {
+    let text = "function f<T>() {\n  const o = { a: 1, b: 2 };\n  const o2: [T] extends [[infer U]] ? U : { b: number } = o;\n}\n";
+    let rows = checked_diags(text)
+        .into_iter()
+        .filter(|row| row.0 == 2322)
+        .collect::<Vec<_>>();
+    assert_eq!(
+        rows,
+        [(
+            2322,
+            text.find("o2:").expect("failing declaration") as u32,
+            2,
+            "Type '{ a: number; b: number; }' is not assignable to type '[T] extends [[infer U]] ? U : { b: number; }'."
+                .to_owned(),
+        )]
+    );
+}
+
+#[test]
 fn reused_simple_type_nodes_recover_at_indexed_access_and_keyof_boundaries() {
     let indexed = "const c = class Hidden { static p = 1; \
                        m = (x: (typeof Hidden)[\"p\"] | any) => {}; }; \
@@ -5618,6 +5730,44 @@ fn expando_template_key_records_like_string_literal() {
 }
 
 #[test]
+fn recursive_non_local_function_return_displays_as_typeof_symbol() {
+    let options = CompilerOptions {
+        strict_null_checks: Some(true),
+        no_error_truncation: Some(true),
+        target: Some(ScriptTarget::ES2015.bits()),
+        ..CompilerOptions::default()
+    };
+    assert_eq!(
+        checked_diags_with(
+            concat!(
+                "class C { private x = 1; }\n",
+                "class D extends C {}\n",
+                "function foo(x: \"hi\", item: string): typeof foo;\n",
+                "function foo(x: string, item: string): typeof foo { return null; }\n",
+                "var a: D = foo(\"hi\", \"\");\n",
+            ),
+            &options,
+        ),
+        [
+            (
+                2322,
+                149,
+                6,
+                "Type 'null' is not assignable to type '(x: \"hi\", item: string) => typeof foo'."
+                    .to_owned(),
+            ),
+            (
+                2322,
+                168,
+                1,
+                "Type '(x: \"hi\", item: string) => typeof foo' is not assignable to type 'D'."
+                    .to_owned(),
+            ),
+        ]
+    );
+}
+
+#[test]
 fn union_target_member_elaborates_through_best_match() {
     // getBestMatchIndexedAccessTypeOrUndefined's union leg: the
     // member row lands on `m` (the head suppresses), method and
@@ -5991,6 +6141,72 @@ fn excess_property_with_spelling_suggestion_reports_2561() {
 }
 
 #[test]
+fn excess_property_suggestion_uses_the_written_string_literal_name() {
+    assert_eq!(
+        checked_diags(
+            "declare let value: { \"ns:attribute\": string };\nvalue = { attribute: \"x\" };\n",
+        ),
+        [(
+            2561,
+            57,
+            9,
+            "Object literal may only specify known properties, but 'attribute' does not exist \
+                 in type '{ \"ns:attribute\": string; }'. Did you mean to write '\"ns:attribute\"'?"
+                .to_owned()
+        )]
+    );
+}
+
+#[test]
+fn global_augmentation_namespace_diagnostic_hides_the_internal_symbol_name() {
+    let diagnostics =
+        checked_diags("export {};\ndeclare global { namespace JSX { type T = JSX.Missing; } }\n");
+    let missing = diagnostics
+        .iter()
+        .find(|diagnostic| diagnostic.0 == 2694)
+        .expect("missing global JSX member diagnostic");
+    assert_eq!(
+        missing.3,
+        "Namespace 'global.JSX' has no exported member 'Missing'."
+    );
+}
+
+#[test]
+fn global_object_union_accepts_unknown_object_literal_properties() {
+    assert_eq!(
+        checked_diags_with(
+            "interface Object {}\nconst x: Object | string = { x: 0 };\nconst y: Object | undefined = { x: 0 };\n",
+            &CompilerOptions {
+                strict_null_checks: Some(true),
+                ..CompilerOptions::default()
+            },
+        ),
+        []
+    );
+}
+
+#[test]
+fn relation_head_reports_exact_optional_property_mismatch() {
+    let text = "interface Source { index?: number; groups?: { value: string } }\n\
+                interface Target { index: number; groups?: { value: string } }\n\
+                declare let source: Source;\n\
+                let target: Target = source;\n";
+    let diagnostics = checked_diags_with(
+        text,
+        &CompilerOptions {
+            strict_null_checks: Some(true),
+            exact_optional_property_types: Some(true),
+            ..CompilerOptions::default()
+        },
+    );
+    assert_eq!(diagnostics.len(), 1, "{diagnostics:?}");
+    assert_eq!(diagnostics[0].0, 2375);
+    assert!(diagnostics[0]
+        .3
+        .contains("with 'exactOptionalPropertyTypes: true'"));
+}
+
+#[test]
 fn aliased_union_type_variables_keep_the_normalized_intersection_verdict() {
     // oracle (vendored 6.0.3, strict, noLib, 2026-07-23): clean.
     // The origin's instantiable constituents hide inside the named
@@ -6286,6 +6502,35 @@ fn late_bound_multi_missing_list_prints_source_verbatim() {
                  [B.sym]: number; }': other, [ B . sym ]"
                 .to_owned()
         )]
+    );
+}
+
+#[test]
+fn five_missing_properties_are_all_named_but_six_use_the_summary_form() {
+    let text = "interface Five { a: 1; b: 2; c: 3; d: 4; e: 5 }\n\
+                interface Six { a: 1; b: 2; c: 3; d: 4; e: 5; f: 6 }\n\
+                declare const source: {};\n\
+                const five: Five = source;\n\
+                const six: Six = source;\n";
+    let rows = checked_diags(text)
+        .into_iter()
+        .filter(|row| matches!(row.0, 2739 | 2740))
+        .map(|row| (row.0, row.3))
+        .collect::<Vec<_>>();
+    assert_eq!(
+        rows,
+        [
+            (
+                2739,
+                "Type '{}' is missing the following properties from type 'Five': a, b, c, d, e"
+                    .to_owned(),
+            ),
+            (
+                2740,
+                "Type '{}' is missing the following properties from type 'Six': a, b, c, d, and 2 more."
+                    .to_owned(),
+            ),
+        ]
     );
 }
 
@@ -7537,6 +7782,114 @@ fn inherited_signature_type_parameter_collision_keeps_the_2719_chain() {
 }
 
 #[test]
+fn recursive_generic_interface_error_reaches_the_first_non_recursive_property() {
+    fn flatten(chain: &tsc_diagnostics::MessageChain, texts: &mut Vec<String>) {
+        texts.push(chain.text.clone());
+        for child in &chain.next {
+            flatten(child, texts);
+        }
+    }
+
+    let options = CompilerOptions {
+        strict_null_checks: Some(true),
+        ..CompilerOptions::default()
+    };
+    let texts = with_program_state(
+        &[(
+            "a.ts",
+            "interface Collection<K, V> {\n\
+                 map<M>(mapper: (value: V, key: K, iter: this) => M): Collection<K, M>;\n\
+                 filter<F extends V>(predicate: (value: V, key: K, iter: this) => value is F): Collection<K, F>;\n\
+                 filter(predicate: (value: V, key: K, iter: this) => any): this;\n\
+                 readonly size: number;\n\
+             }\n\
+             interface Seq<K, V> extends Collection<K, V> {\n\
+                 readonly size: number | undefined;\n\
+                 map<M>(mapper: (value: V, key: K, iter: this) => M): Seq<K, M>;\n\
+                 filter<F extends V>(predicate: (value: V, key: K, iter: this) => value is F): Seq<K, F>;\n\
+                 filter(predicate: (value: V, key: K, iter: this) => any): this;\n\
+             }\n",
+        )],
+        &options,
+        |state| {
+            state.check_source_file(0);
+            let diagnostic = state
+                .diagnostics
+                .iter()
+                .find(|diagnostic| diagnostic.code() == 2430)
+                .expect("recursive interface inheritance reports 2430");
+            let mut texts = Vec::new();
+            flatten(&diagnostic.message, &mut texts);
+            texts
+        },
+    );
+
+    assert_eq!(
+        texts,
+        [
+            "Interface 'Seq<K, V>' incorrectly extends interface 'Collection<K, V>'.",
+            "The types of 'map(...).size' are incompatible between these types.",
+            "Type 'number | undefined' is not assignable to type 'number'.",
+            "Type 'undefined' is not assignable to type 'number'.",
+        ]
+    );
+}
+
+#[test]
+fn incompatible_constructor_return_path_parenthesizes_before_property_access() {
+    fn flatten(chain: &tsc_diagnostics::MessageChain, texts: &mut Vec<String>) {
+        texts.push(chain.text.clone());
+        for child in &chain.next {
+            flatten(child, texts);
+        }
+    }
+
+    let texts = with_program_state(
+        &[(
+            "a.ts",
+            concat!(
+                "class A { g!: string; }\n",
+                "class B { g!: number; }\n",
+                "declare let x: { f: typeof A };\n",
+                "declare let y: { f: typeof B };\n",
+                "x = y;\n",
+            ),
+        )],
+        &CompilerOptions::default(),
+        |state| {
+            state.check_source_file(0);
+            let diagnostic = state
+                .diagnostics
+                .iter()
+                .find(|diagnostic| diagnostic.code() == 2322)
+                .expect("constructor-return incompatibility");
+            let mut texts = Vec::new();
+            flatten(&diagnostic.message, &mut texts);
+            texts
+        },
+    );
+
+    assert!(
+        texts
+            .iter()
+            .any(|text| text == "The types of '(new f()).g' are incompatible between these types."),
+        "{texts:?}",
+    );
+}
+
+#[test]
+fn function_type_initializer_renders_parameter_as_optional() {
+    let diagnostics = checked_diags("var y = <(a: string = \"\") => any>(undefined);\n");
+    let message = diagnostics
+        .iter()
+        .find_map(|(code, _, _, message)| (*code == 2352).then_some(message))
+        .expect("invalid conversion diagnostic");
+
+    assert!(message.contains("type '(a?: string) => any'"), "{message}");
+    assert!(!message.contains("(a: string | undefined)"), "{message}");
+}
+
+#[test]
 fn source_file_specifier_roots_at_the_program_cwd() {
     // The oracle host absolutizes every fileName against the
     // ProgramJson cwd (program-host.mjs absoluteProgramFileName),
@@ -7997,10 +8350,9 @@ fn unique_symbol_member_name_renders_the_computed_face() {
 
 #[test]
 fn instantiation_expression_type_renders_structurally() {
-    // 51755-51770: the error path falls through the
-    // InstantiationExpressionType arm to the ordinary structural
-    // walk (the TypeQuery reuse leg needs an enclosing-armed
-    // context and the placeholder is the recursion guard).
+    // 51755-51770: 2635 renders the original expression type, not
+    // the filtered InstantiationExpressionType result. It therefore
+    // keeps the ordinary structural face.
     assert_eq!(
             checked_diags(
                 "declare const f: { (): number; g<U>(): U; };\nconst h = f<number>;\n"
@@ -8013,6 +8365,25 @@ fn instantiation_expression_type_renders_structurally() {
                     .to_owned()
             )]
         );
+}
+
+#[test]
+fn failed_type_query_instantiation_reuses_its_exact_syntax_in_constraint_errors() {
+    let text = "type Return<T extends (...args: any) => any> = T;\n\
+                declare function f<A, B>(value: A): B;\n\
+                type Result<Q> = Return<typeof f<Q>>;\n";
+    let diagnostics = checked_diags(text);
+    let constraint = diagnostics
+        .iter()
+        .find(|diagnostic| diagnostic.0 == 2344)
+        .expect("constraint diagnostic");
+    assert!(
+        constraint.3.starts_with(
+            "Type 'typeof f<Q>' does not satisfy the constraint '(...args: any) => any'."
+        ),
+        "{}",
+        constraint.3,
+    );
 }
 
 #[test]

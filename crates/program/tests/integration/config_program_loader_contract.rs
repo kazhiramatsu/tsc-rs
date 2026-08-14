@@ -744,14 +744,14 @@ fn config_plan_retains_h1_printer_options_without_broadening_h0_loader() {
     let plan = parse_config_root_plan(
         &adapter,
         request(
-            r#"{"compilerOptions":{"noEmit":true,"noLib":true,"newLine":"crlf","removeComments":true,"noImplicitUseStrict":true,"noEmitHelpers":true},"files":["main.ts"]}"#,
+            r#"{"compilerOptions":{"noEmit":true,"noLib":true,"newLine":"crlf","removeComments":true,"noImplicitUseStrict":false,"noEmitHelpers":true},"files":["main.ts"]}"#,
         ),
     )
     .expect("parse H1 printer option projection plan");
 
     assert_eq!(plan.compiler_options().new_line, Some(0));
     assert_eq!(plan.compiler_options().remove_comments, Some(true));
-    assert_eq!(plan.compiler_options().no_implicit_use_strict, Some(true));
+    assert_eq!(plan.compiler_options().no_implicit_use_strict, Some(false));
     assert_eq!(plan.compiler_options().no_emit_helpers, Some(true));
 
     let error = load_config_program(
@@ -1207,6 +1207,53 @@ fn ts6_option_deprecations_are_reported_without_blocking_no_emit_loading() {
 }
 
 #[test]
+fn root_config_retains_option_syntax_for_effective_program_diagnostics() {
+    let host = host();
+    let adapter = ConfigHostAdapter::new(&host);
+    let text = r#"{
+        "compilerOptions": {
+            "module": "amd",
+            "target": "ES3",
+            "noImplicitUseStrict": true
+        },
+        "files": ["main.ts"]
+    }"#;
+    let plan = parse_config_root_plan(&adapter, request(text)).expect("parse config provenance");
+    let options = plan.program_options();
+    assert!(options.external_config_option_diagnostics());
+    let config = options.config_file().expect("retained root config");
+
+    let span = |needle: &str| {
+        let start = u32::try_from(text.find(needle).expect("syntax needle")).expect("UTF-16 start");
+        (start, u32::try_from(needle.len()).expect("UTF-16 length"))
+    };
+    let module_name = span("\"module\"");
+    let module_value = span("\"amd\"");
+    let removed_name = span("\"noImplicitUseStrict\"");
+    assert_eq!(
+        config.compiler_option_name_locations("module"),
+        [tsc_program::ProgramConfigSpan::new(
+            module_name.0,
+            module_name.1
+        )]
+    );
+    assert_eq!(
+        config.compiler_option_value_locations("module"),
+        [tsc_program::ProgramConfigSpan::new(
+            module_value.0,
+            module_value.1
+        )]
+    );
+    assert_eq!(
+        config.compiler_option_name_locations("noImplicitUseStrict"),
+        [tsc_program::ProgramConfigSpan::new(
+            removed_name.0,
+            removed_name.1
+        )]
+    );
+}
+
+#[test]
 fn ts6_module_option_relationship_diagnostics_match_the_effective_kinds() {
     let host = host();
     let adapter = ConfigHostAdapter::new(&host);
@@ -1245,6 +1292,70 @@ fn ts6_module_option_relationship_diagnostics_match_the_effective_kinds() {
     assert_eq!(
         codes(r#""verbatimModuleSyntax":true,"module":"amd""#),
         [5105, 5107]
+    );
+}
+
+#[test]
+fn compiler_option_relationship_diagnostics_use_tsc_config_spans() {
+    let host = host();
+    let adapter = ConfigHostAdapter::new(&host);
+    let cases = [
+        (
+            r#"{"compilerOptions":{"noEmit":true,"noLib":true,"strict":false,"exactOptionalPropertyTypes":true},"files":["main.ts"]}"#,
+            "\"exactOptionalPropertyTypes\"",
+            5052,
+            "Option 'exactOptionalPropertyTypes' cannot be specified without specifying option 'strictNullChecks'.",
+        ),
+        (
+            r#"{"compilerOptions":{"noEmit":true,"noLib":true,"jsxFactory":"Element.createElement="},"files":["main.ts"]}"#,
+            "\"Element.createElement=\"",
+            5067,
+            "Invalid value for 'jsxFactory'. 'Element.createElement=' is not a valid identifier or qualified-name.",
+        ),
+    ];
+
+    for (text, located_text, expected_code, expected_message) in cases {
+        let plan = parse_config_root_plan(&adapter, request(text))
+            .expect("parse compiler option relationship plan");
+        let [diagnostic] = plan.option_diagnostics() else {
+            panic!(
+                "expected one option diagnostic for {located_text}, got {:#?}",
+                plan.option_diagnostics()
+            );
+        };
+        let start = u32::try_from(text.find(located_text).expect("located option syntax"))
+            .expect("config offset fits u32");
+
+        assert_eq!(diagnostic.code(), expected_code);
+        assert_eq!(diagnostic.message_text(), expected_message);
+        assert_eq!(
+            diagnostic.file_name.as_deref(),
+            Some("/project/tsconfig.json")
+        );
+        assert_eq!(diagnostic.start, Some(start));
+        assert_eq!(diagnostic.length, Some(located_text.len() as u32));
+    }
+
+    let text = r#"{"compilerOptions":{"noEmit":true,"noLib":true,"strictNullChecks":false,"exactOptionalPropertyTypes":true},"files":["main.ts"]}"#;
+    let plan = parse_config_root_plan(&adapter, request(text))
+        .expect("parse two-location compiler option relationship plan");
+    let diagnostics = plan.option_diagnostics();
+    assert_eq!(
+        diagnostics
+            .iter()
+            .map(|diagnostic| diagnostic.code())
+            .collect::<Vec<_>>(),
+        [5052, 5052]
+    );
+    assert_eq!(
+        diagnostics
+            .iter()
+            .map(|diagnostic| diagnostic.start)
+            .collect::<Vec<_>>(),
+        [
+            Some(text.find("\"strictNullChecks\"").unwrap() as u32),
+            Some(text.find("\"exactOptionalPropertyTypes\"").unwrap() as u32),
+        ]
     );
 }
 

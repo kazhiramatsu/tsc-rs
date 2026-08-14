@@ -75,3 +75,25 @@ fn source_positions_reject_byte_utf16_and_synthetic_confusion() {
         Err(SourcePositionError::MixedSyntheticRange { .. })
     ));
 }
+
+#[test]
+fn leading_trivia_removal_is_bounded_by_the_source_range() {
+    let text = "throw\na;";
+    let positions = PositionIndex::new_static(text);
+
+    let recovery = SourceByteRange::new(5, 5, &positions).unwrap();
+    let recovery = recovery.without_leading_trivia(text, &positions).unwrap();
+    assert_eq!((recovery.start().value(), recovery.end().value()), (5, 5));
+
+    let following_identifier = SourceByteRange::new(5, 7, &positions).unwrap();
+    let following_identifier = following_identifier
+        .without_leading_trivia(text, &positions)
+        .unwrap();
+    assert_eq!(
+        (
+            following_identifier.start().value(),
+            following_identifier.end().value(),
+        ),
+        (6, 7),
+    );
+}

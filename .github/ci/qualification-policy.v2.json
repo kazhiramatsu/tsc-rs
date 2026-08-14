@@ -11,7 +11,24 @@
     "authority_job": "gates",
     "test_root": "ts-tests/",
     "authoritative_command": ["cargo", "xtask", "acceptance"],
-    "only_acceptance_tests": true
+    "only_acceptance_tests": true,
+    "rust_source_sha256": {
+      "crates/xtask/src/main.rs": "95306c05e97c9caa58a5b058ce328714c54ffeaa5884b1d7695e9d5716e97381",
+      "crates/xtask/src/h1_emit_acceptance.rs": "cbae2669320c23532d517c20957731327e46969fc668057b2514501face379a8",
+      "crates/xtask/src/h2_1a_acceptance.rs": "bfaebf6cfcaa67c5f0f357311121b12d5014fc3f6e224333046949c93f881123",
+      "crates/xtask/src/h2_1b_acceptance.rs": "a6ea8943cb7ecafc63b58ebffae6ec32a6bc707a300a0935fccc67daf3cdbb3e",
+      "crates/xtask/src/h2_1c_acceptance.rs": "7fd7481703f0d67ad72aa04d6dd4c5d9194ffd636556df32b7cc1d1925254bf3",
+      "crates/xtask/src/h2_1d_acceptance.rs": "bd0b544aeca97d82f903f8c7a8a469d64215fcdf84b7daaea03062c239f33e2e",
+      "crates/xtask/src/h2_1e_acceptance.rs": "bf4ae2f49ddfb8a50d2b214758578c87aa890ede4e2eb68bbd259e677c7e287f",
+      "crates/xtask/src/h2_2a_acceptance.rs": "fd9a51e7ea084fae1aea3094662d2ff12561c098adc8c09eeb3d4eb8aee054ad",
+      "crates/xtask/src/h2_2b_acceptance.rs": "c1fa3def3ebd5f77863f6d4d0a718af4f417f0dd8fff57d1e6d7cd3cfe01f018",
+      "crates/xtask/src/h2_2c_acceptance.rs": "58ed8360c1793e74a71793493b904d80351045ea5ce94711c026cf49ef0466db",
+      "crates/xtask/src/h2_2d_acceptance.rs": "1b5a99f4229c5bb0b49408b16985042b58d12dd1ae87e5186e101039c6a60be0",
+      "crates/xtask/src/h2_3a_acceptance.rs": "0b3de4989b8400123ef72030c800440222d124d110b8f7c9bdb2a57067a2bc77",
+      "crates/xtask/src/h2_3b_acceptance.rs": "69c37e52a934dcadbace502ccfa8a7524036b92ddf7e4a92eae194270cb163cc",
+      "crates/xtask/src/h2_3c_acceptance.rs": "b119c79e9384eda83af661bf7b93edbe1c6b8d963a91d8ae7a72c790318622f6",
+      "crates/xtask/src/h2_3d_acceptance.rs": "f968c8c9fc033109318e38f49f40633d0a2bacaadb9637dc7c419d9b68ccc980"
+    }
   },
   "local_full_gate": {
     "authoritative_command": ["cargo", "xtask", "ci", "--baseline", "<trusted-base>"],

@@ -25,10 +25,29 @@ pub(super) struct TargetBinding {
     provisional_name: String,
     numbered_base: Option<String>,
     preferred_base: Option<String>,
+    preferred_role_suffix: Option<String>,
     reserve_in_nested_scopes: bool,
 }
 
 impl TargetBinding {
+    pub(super) fn from_existing(
+        id: GeneratedBindingId,
+        provisional_name: String,
+        numbered_base: Option<String>,
+        preferred_base: Option<String>,
+        preferred_role_suffix: Option<String>,
+        reserve_in_nested_scopes: bool,
+    ) -> Self {
+        Self {
+            id,
+            provisional_name,
+            numbered_base,
+            preferred_base,
+            preferred_role_suffix,
+            reserve_in_nested_scopes,
+        }
+    }
+
     pub(super) fn allocate(
         context: &mut TransformationContext,
         provisional_name: String,
@@ -38,6 +57,7 @@ impl TargetBinding {
             provisional_name,
             numbered_base: None,
             preferred_base: None,
+            preferred_role_suffix: None,
             reserve_in_nested_scopes: false,
         })
     }
@@ -51,6 +71,7 @@ impl TargetBinding {
             provisional_name,
             numbered_base: None,
             preferred_base: None,
+            preferred_role_suffix: None,
             reserve_in_nested_scopes: true,
         })
     }
@@ -65,6 +86,7 @@ impl TargetBinding {
             provisional_name,
             numbered_base: Some(numbered_base),
             preferred_base: None,
+            preferred_role_suffix: None,
             reserve_in_nested_scopes: false,
         })
     }
@@ -79,6 +101,7 @@ impl TargetBinding {
             provisional_name,
             numbered_base: Some(numbered_base),
             preferred_base: None,
+            preferred_role_suffix: None,
             reserve_in_nested_scopes: true,
         })
     }
@@ -93,6 +116,23 @@ impl TargetBinding {
             provisional_name,
             numbered_base: None,
             preferred_base: Some(preferred_base),
+            preferred_role_suffix: None,
+            reserve_in_nested_scopes: true,
+        })
+    }
+
+    pub(super) fn allocate_preferred_with_role_suffix_reserved_in_nested_scopes(
+        context: &mut TransformationContext,
+        preferred_base: String,
+        preferred_role_suffix: String,
+        provisional_name: String,
+    ) -> Result<Self, TransformError> {
+        Ok(Self {
+            id: context.allocate_generated_binding_id()?,
+            provisional_name,
+            numbered_base: None,
+            preferred_base: Some(preferred_base),
+            preferred_role_suffix: Some(preferred_role_suffix),
             reserve_in_nested_scopes: true,
         })
     }
@@ -113,8 +153,42 @@ impl TargetBinding {
         self.preferred_base.as_deref()
     }
 
+    pub(super) fn preferred_role_suffix(&self) -> Option<&str> {
+        self.preferred_role_suffix.as_deref()
+    }
+
     pub(super) const fn reserve_in_nested_scopes(&self) -> bool {
         self.reserve_in_nested_scopes
+    }
+
+    pub(super) fn printable_text<'context>(
+        &'context self,
+        context: &'context TransformationContext,
+    ) -> &'context str {
+        context
+            .generated_binding_name(self.id)
+            .unwrap_or(&self.provisional_name)
+    }
+
+    pub(super) fn write_generated_metadata(
+        &self,
+        arena: &mut TransformArena,
+        identifier: TransformNode,
+    ) {
+        let metadata = arena.metadata_mut(identifier);
+        metadata.set_generated_binding_id(self.id);
+        if let Some(base) = &self.numbered_base {
+            metadata.set_generated_binding_base(base);
+        }
+        if let Some(base) = &self.preferred_base {
+            metadata.set_generated_binding_preferred_base(base);
+        }
+        if let Some(suffix) = &self.preferred_role_suffix {
+            metadata.set_generated_binding_role_suffix(suffix);
+        }
+        if self.reserve_in_nested_scopes {
+            metadata.reserve_generated_binding_in_nested_scopes();
+        }
     }
 }
 
@@ -126,6 +200,7 @@ enum BindingNameEvent {
         binding: GeneratedBindingId,
         numbered_base: Option<String>,
         preferred_base: Option<String>,
+        preferred_role_suffix: Option<String>,
         planned_name: String,
         reserve_in_nested_scopes: bool,
     },
@@ -190,32 +265,50 @@ pub(super) fn finalize_generated_binding_names(
                 binding,
                 numbered_base,
                 preferred_base,
+                preferred_role_suffix,
                 planned_name,
                 reserve_in_nested_scopes,
             } => {
                 let name = assigned
                     .entry(binding)
-                    .or_insert_with(|| match (numbered_base, preferred_base) {
-                        (None, Some(base)) => scopes.allocate_planned_preferred_with_policy(
-                            &base,
-                            planned_name,
-                            reserve_in_nested_scopes,
-                        ),
-                        (Some(base), None) if reserve_in_nested_scopes => scopes
-                            .allocate_source_planned_numbered_with_policy(
-                                &base,
-                                planned_name,
-                                true,
-                            ),
-                        (Some(base), None) => {
-                            scopes.allocate_source_planned_numbered(&base, planned_name)
-                        }
-                        (None, None) if reserve_in_nested_scopes => {
-                            scopes.allocate_temp_with_policy(true)
-                        }
-                        (None, None) => scopes.allocate_temp(),
-                        (Some(_), Some(_)) => {
-                            unreachable!("a target binding cannot be both numbered and preferred")
+                    .or_insert_with(|| {
+                        match (numbered_base, preferred_base, preferred_role_suffix) {
+                            (None, Some(base), Some(role_suffix)) => scopes
+                                .allocate_planned_preferred_with_role_suffix_with_policy(
+                                    &base,
+                                    &role_suffix,
+                                    planned_name,
+                                    reserve_in_nested_scopes,
+                                ),
+                            (None, Some(base), None) => scopes
+                                .allocate_planned_preferred_with_policy(
+                                    &base,
+                                    planned_name,
+                                    reserve_in_nested_scopes,
+                                ),
+                            (Some(base), None, None) if reserve_in_nested_scopes => scopes
+                                .allocate_source_planned_numbered_with_policy(
+                                    &base,
+                                    planned_name,
+                                    true,
+                                ),
+                            (Some(base), None, None) => {
+                                scopes.allocate_source_planned_numbered(&base, planned_name)
+                            }
+                            (None, None, None) if reserve_in_nested_scopes => {
+                                scopes.allocate_temp_with_policy(true)
+                            }
+                            (None, None, None) => scopes.allocate_temp(),
+                            (Some(_), Some(_), _) | (Some(_), None, Some(_)) => {
+                                unreachable!(
+                                    "a target binding cannot be both numbered and preferred"
+                                )
+                            }
+                            (None, None, Some(_)) => {
+                                unreachable!(
+                                    "a generated-name role suffix requires a preferred base"
+                                )
+                            }
                         }
                     })
                     .clone();
@@ -287,6 +380,10 @@ fn collect_binding_name_events(
             .metadata(node)
             .and_then(|metadata| metadata.generated_binding_preferred_base())
             .map(str::to_owned);
+        let preferred_role_suffix = arena
+            .metadata(node)
+            .and_then(|metadata| metadata.generated_binding_role_suffix())
+            .map(str::to_owned);
         let reserve_in_nested_scopes = arena
             .metadata(node)
             .is_some_and(|metadata| metadata.generated_binding_reserved_in_nested_scopes());
@@ -304,6 +401,7 @@ fn collect_binding_name_events(
             binding,
             numbered_base,
             preferred_base,
+            preferred_role_suffix,
             planned_name,
             reserve_in_nested_scopes,
         });

@@ -18,6 +18,7 @@ serde_json = { version = "1.0", features = ["preserve_order"] }
 tsc-binder.workspace = true
 tsc-diagnostics.workspace = true
 tsc-emitter.workspace = true
+tsc-program.workspace = true
 tsc-syntax.workspace = true
 tsc-types.workspace = true
 

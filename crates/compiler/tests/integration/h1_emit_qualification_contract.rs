@@ -262,6 +262,80 @@ fn emit_candidate(
     Ok((outcome, sink))
 }
 
+#[test]
+fn dependency_sources_selected_by_root_dirs_and_paths_are_emitted() {
+    const CASES: [(&str, &[&str]); 3] = [
+        (
+            "typescript-6.0.3/compiler/pathMappingBasedModuleResolution6_classic.ts#default",
+            &[
+                "c:/root/generated/src/project/file3.js",
+                "c:/root/src/file1.js",
+            ],
+        ),
+        (
+            "typescript-6.0.3/compiler/pathMappingBasedModuleResolution7_classic.ts#default",
+            &[
+                "c:/root/generated/src/templates/module2.js",
+                "c:/root/generated/src/project/file2.js",
+                "c:/root/src/file1.js",
+            ],
+        ),
+        (
+            "typescript-6.0.3/compiler/pathMappingBasedModuleResolution7_node.ts#default",
+            &[
+                "c:/root/generated/src/templates/module2.js",
+                "c:/root/generated/src/project/file2.js",
+                "c:/root/src/file1.js",
+            ],
+        ),
+    ];
+    let workspace = workspace_root();
+    let corpus = load_recorded_execution_plans(&workspace).expect("load upstream plans");
+
+    for (case_id, expected_paths) in CASES {
+        let recorded = corpus
+            .plans
+            .iter()
+            .find(|plan| plan.provenance.case_id.as_ref() == case_id)
+            .unwrap_or_else(|| panic!("missing recorded plan for {case_id}"));
+        let UpstreamExecutionInput::Compiler(plan) = &recorded.input else {
+            panic!("{case_id} is not a compiler plan");
+        };
+        let prepared =
+            load_compiler_emit(&workspace, plan, limits()).expect("load compiler emit program");
+        let emit_eligible = prepared
+            .source_files()
+            .iter()
+            .filter(|source| source.may_be_emitted())
+            .map(|source| source.path().display().to_path_buf())
+            .collect::<Vec<_>>();
+        assert_eq!(
+            emit_eligible.len(),
+            expected_paths.len(),
+            "{case_id}: program eligibility"
+        );
+
+        let mut sink = MemoryOutputSink::new();
+        ProgramSession::new(prepared)
+            .emit(&mut sink)
+            .unwrap_or_else(|error| panic!("{case_id}: emit failed: {error}"));
+        let actual_paths = sink
+            .writes()
+            .iter()
+            .map(|artifact| artifact.path())
+            .collect::<Vec<_>>();
+        assert_eq!(
+            actual_paths,
+            expected_paths
+                .iter()
+                .copied()
+                .map(Path::new)
+                .collect::<Vec<_>>(),
+            "{case_id}: ordered write paths"
+        );
+    }
+}
+
 fn materialize_cli_projection(case: &Value, tree: &TempTree) {
     for file in case["virtual_files"]
         .as_array()

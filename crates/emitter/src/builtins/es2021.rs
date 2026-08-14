@@ -1,4 +1,5 @@
-//! H2.5 target-ladder lowering shared by the ES2021, ES2020, and ES2019 passes.
+//! H2.5 target-ladder lowering shared by the ES2021, ES2020, ES2019, and
+//! ES2016 passes.
 //!
 //! The pinned TypeScript transformer defines evaluation order and observable
 //! output. Rust owns that behavior through explicit pass, optional-chain,
@@ -61,11 +62,22 @@ pub(super) fn transform_es2019(options: &CompilerOptions) -> Box<dyn Transformer
     })
 }
 
+/// tsc-port: transformES2016 @6.0.3
+/// tsc-hash: e3a4492d31709c7da2af13a74bdc6e6de2a764a8d5278f525b2eacf167e9db56
+/// tsc-span: _tsc.js:104646-104734
+pub(super) fn transform_es2016(options: &CompilerOptions) -> Box<dyn Transformer> {
+    Box::new(TargetTransformer {
+        target: options.emit_script_target(),
+        pass: TargetPass::Es2016,
+    })
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum TargetPass {
     Es2021,
     Es2020,
     Es2019,
+    Es2016,
 }
 
 impl TargetPass {
@@ -74,6 +86,7 @@ impl TargetPass {
             Self::Es2021 => "transformES2021",
             Self::Es2020 => "transformES2020",
             Self::Es2019 => "transformES2019",
+            Self::Es2016 => "transformES2016",
         }
     }
 
@@ -82,6 +95,7 @@ impl TargetPass {
             Self::Es2021 => TransformFlags::CONTAINS_ES_2021,
             Self::Es2020 => TransformFlags::CONTAINS_ES_2020,
             Self::Es2019 => TransformFlags::CONTAINS_ES_2019,
+            Self::Es2016 => TransformFlags::CONTAINS_ES_2016,
         }
     }
 
@@ -90,6 +104,7 @@ impl TargetPass {
             Self::Es2021 => ScriptTarget::ES2021,
             Self::Es2020 => ScriptTarget::ES2020,
             Self::Es2019 => ScriptTarget::ES2019,
+            Self::Es2016 => ScriptTarget::ES2016,
         }
     }
 
@@ -100,7 +115,12 @@ impl TargetPass {
             }
             Self::Es2020 => "H2.5c admits transformES2020 for the ES2019 target boundary",
             Self::Es2019 => "H2.5d admits transformES2019 for the ES2018 target boundary",
+            Self::Es2016 => "H2.5g admits transformES2016 for the ES2015 target boundary",
         }
+    }
+
+    const fn lower_target(self) -> ScriptTarget {
+        ScriptTarget::ES2015
     }
 
     fn is_final_for_target(self, target: ScriptTarget) -> bool {
@@ -108,6 +128,7 @@ impl TargetPass {
             Self::Es2021 => target >= ScriptTarget::ES2020,
             Self::Es2020 => target >= ScriptTarget::ES2019,
             Self::Es2019 => target >= ScriptTarget::ES2018,
+            Self::Es2016 => target >= ScriptTarget::ES2015,
         }
     }
 }
@@ -123,7 +144,7 @@ impl Transformer for TargetTransformer {
     }
 
     fn initialize(&mut self, _context: &mut TransformationContext) -> Result<(), TransformError> {
-        if self.target < ScriptTarget::ES2016 || self.target >= self.pass.upper_target() {
+        if self.target < self.pass.lower_target() || self.target >= self.pass.upper_target() {
             return Err(TransformError::UnsupportedCompilerOption {
                 option: self.pass.name(),
                 detail: self.pass.unsupported_detail(),
@@ -384,6 +405,17 @@ impl<'context> TargetVisitor<'context> {
         if self.pass == TargetPass::Es2020 && operator == Some(SyntaxKind::QuestionQuestionToken) {
             return self.transform_nullish_coalescing_expression(original, data);
         }
+        if self.pass == TargetPass::Es2016 {
+            return match operator {
+                Some(SyntaxKind::AsteriskAsteriskEqualsToken) => {
+                    self.transform_exponentiation_assignment(original, data)
+                }
+                Some(SyntaxKind::AsteriskAsteriskToken) => {
+                    self.transform_exponentiation(original, data)
+                }
+                _ => self.update_generic(original, NodeData::BinaryExpression(data)),
+            };
+        }
         if self.pass != TargetPass::Es2021 {
             return self.update_generic(original, NodeData::BinaryExpression(data));
         }
@@ -458,6 +490,107 @@ impl<'context> TargetVisitor<'context> {
         let result =
             self.create_binary(left, Self::non_assignment_operator(operator), assignment)?;
         Ok(self.set_original_and_range(result, original)?.node())
+    }
+
+    fn transform_exponentiation_assignment(
+        &mut self,
+        original: TransformNode,
+        data: tsc_syntax::nodes::BinaryExpressionData,
+    ) -> Result<NodeId, TransformError> {
+        let left = self.visit_required(data.left, SyntaxKind::BinaryExpression, "left")?;
+        let right = self.visit_required(data.right, SyntaxKind::BinaryExpression, "right")?;
+        let (target, value) = match self.context.arena().node(left)?.data.clone() {
+            NodeData::ElementAccessExpression(access) => {
+                let receiver = access
+                    .expression
+                    .map(|receiver| self.node(receiver))
+                    .ok_or(TransformError::RequiredChildRemoved {
+                        parent: SyntaxKind::ElementAccessExpression,
+                        field: "expression",
+                    })?;
+                let argument = access
+                    .argument_expression
+                    .map(|argument| self.node(argument))
+                    .ok_or(TransformError::RequiredChildRemoved {
+                        parent: SyntaxKind::ElementAccessExpression,
+                        field: "argument_expression",
+                    })?;
+                let receiver_binding = self.allocate_hoisted_temp()?;
+                let argument_binding = self.allocate_hoisted_temp()?;
+                let receiver_target = self.create_generated_identifier(&receiver_binding)?;
+                let receiver_read = self.create_generated_identifier(&receiver_binding)?;
+                let argument_target = self.create_generated_identifier(&argument_binding)?;
+                let argument_read = self.create_generated_identifier(&argument_binding)?;
+                let receiver_initialization = self.create_assignment(receiver_target, receiver)?;
+                self.context
+                    .factory()?
+                    .set_text_range(receiver_initialization, receiver)?;
+                let receiver_initialization = self.create_parenthesized(receiver_initialization)?;
+                let argument_initialization = self.create_assignment(argument_target, argument)?;
+                self.context
+                    .factory()?
+                    .set_text_range(argument_initialization, argument)?;
+                let target =
+                    self.create_element_access(receiver_initialization, argument_initialization)?;
+                self.context.factory()?.set_text_range(target, left)?;
+                let value = self.create_element_access(receiver_read, argument_read)?;
+                self.context.factory()?.set_text_range(value, left)?;
+                (target, value)
+            }
+            NodeData::PropertyAccessExpression(access) => {
+                let receiver = access
+                    .expression
+                    .map(|receiver| self.node(receiver))
+                    .ok_or(TransformError::RequiredChildRemoved {
+                        parent: SyntaxKind::PropertyAccessExpression,
+                        field: "expression",
+                    })?;
+                let name = access.name.map(|name| self.node(name)).ok_or(
+                    TransformError::RequiredChildRemoved {
+                        parent: SyntaxKind::PropertyAccessExpression,
+                        field: "name",
+                    },
+                )?;
+                let receiver_binding = self.allocate_hoisted_temp()?;
+                let receiver_target = self.create_generated_identifier(&receiver_binding)?;
+                let receiver_read = self.create_generated_identifier(&receiver_binding)?;
+                let receiver_initialization = self.create_assignment(receiver_target, receiver)?;
+                self.context
+                    .factory()?
+                    .set_text_range(receiver_initialization, receiver)?;
+                let receiver_initialization = self.create_parenthesized(receiver_initialization)?;
+                let target = self.create_property_access(receiver_initialization, name)?;
+                self.context.factory()?.set_text_range(target, left)?;
+                let value = self.create_property_access(receiver_read, name)?;
+                self.context.factory()?.set_text_range(value, left)?;
+                (target, value)
+            }
+            _ => (left, left),
+        };
+        let power = self.create_math_pow(value, right)?;
+        self.context.factory()?.set_text_range(power, original)?;
+        let assignment = self.create_assignment(target, power)?;
+        self.context
+            .factory()?
+            .set_text_range(assignment, original)?;
+        Ok(assignment.node())
+    }
+
+    fn transform_exponentiation(
+        &mut self,
+        original: TransformNode,
+        data: tsc_syntax::nodes::BinaryExpressionData,
+    ) -> Result<NodeId, TransformError> {
+        let left = self.visit_required(data.left, SyntaxKind::BinaryExpression, "left")?;
+        let right = self.visit_required(data.right, SyntaxKind::BinaryExpression, "right")?;
+        let power = self.create_math_pow(left, right)?;
+        // tsc's transformES2016 uses setTextRange here, not setOriginalNode.
+        // The containing expression statement already owns comments before
+        // the source binary expression. Giving the synthetic call a second
+        // original-node edge would let its first argument rediscover that
+        // same leading source interval through list-comment projection.
+        self.context.factory()?.set_text_range(power, original)?;
+        Ok(power.node())
     }
 
     fn visit_catch_clause(
@@ -813,10 +946,6 @@ impl<'context> TargetVisitor<'context> {
                         SyntaxKind::ElementAccessExpression,
                         "argument_expression",
                     )?;
-                    self.context
-                        .arena_mut()?
-                        .metadata_mut(argument)
-                        .add_flags(EmitFlags::NO_LEADING_COMMENTS);
                     right_expression = self.create_element_access(right_expression, argument)?;
                 }
                 OptionalChainSegment::Call { arguments, .. } => {
@@ -1266,6 +1395,11 @@ impl<'context> TargetVisitor<'context> {
                     }
                 }
             }
+            TargetPass::Es2016 => {
+                if self.es2016_node_requires_hoisted_temp(&record)? {
+                    return Ok(true);
+                }
+            }
             TargetPass::Es2019 => {}
         }
         let syntax = self.context.arena().source(self.source)?.syntax();
@@ -1280,6 +1414,39 @@ impl<'context> TargetVisitor<'context> {
             }
         }
         Ok(false)
+    }
+
+    fn es2016_node_requires_hoisted_temp(
+        &self,
+        record: &tsc_syntax::Node,
+    ) -> Result<bool, TransformError> {
+        let NodeData::BinaryExpression(data) = &record.data else {
+            return Ok(false);
+        };
+        let operator = data
+            .operator_token
+            .map(|operator| {
+                self.context
+                    .arena()
+                    .node(self.node(operator))
+                    .map(|operator| operator.kind)
+            })
+            .transpose()?;
+        if operator != Some(SyntaxKind::AsteriskAsteriskEqualsToken) {
+            return Ok(false);
+        }
+        let left =
+            data.left
+                .map(|left| self.node(left))
+                .ok_or(TransformError::RequiredChildRemoved {
+                    parent: SyntaxKind::BinaryExpression,
+                    field: "left",
+                })?;
+        let left = self.skip_parentheses(left)?;
+        Ok(matches!(
+            self.context.arena().node(left)?.kind,
+            SyntaxKind::PropertyAccessExpression | SyntaxKind::ElementAccessExpression
+        ))
     }
 
     fn es2020_node_requires_hoisted_temp(
@@ -1887,6 +2054,21 @@ impl<'context> TargetVisitor<'context> {
             }),
             flags,
         )
+    }
+
+    fn create_math_pow(
+        &mut self,
+        left: TransformNode,
+        right: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        let math = self.create_identifier("Math")?;
+        let pow = self.create_identifier("pow")?;
+        let callee = self.create_property_access(math, pow)?;
+        let arguments = self
+            .context
+            .factory()?
+            .create_node_array(self.source, vec![left, right])?;
+        self.create_call(callee, Some(arguments.array()))
     }
 
     fn create_function_call_call(

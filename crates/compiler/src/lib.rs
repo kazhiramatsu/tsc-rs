@@ -22,9 +22,9 @@ use tsc_checker::{
     check_program_with_authoritative_modules_at_harness_cached, AuthoritativeModuleFailure,
     AuthoritativeModuleLookupFailure, AuthoritativeModuleProvider, AuthoritativeModuleRequest,
     AuthoritativeModuleResolution, AuthoritativeModuleResolutionDiagnostic,
-    AuthoritativeNotFoundModule, AuthoritativePackageId, AuthoritativeResolutionMode,
-    AuthoritativeResolvedModule, AuthoritativeSourceMetadata, AuthoritativeSourceToken,
-    AuthoritativeUntypedModule, CheckResult, InputFile, ProgramSnapshot,
+    AuthoritativeNotFoundModule, AuthoritativePackageId, AuthoritativeResolutionDiagnosticModule,
+    AuthoritativeResolutionMode, AuthoritativeResolvedModule, AuthoritativeSourceMetadata,
+    AuthoritativeSourceToken, AuthoritativeUntypedModule, CheckResult, InputFile, ProgramSnapshot,
     UnsupportedAuthoritativeResolution,
 };
 use tsc_diagnostics::{gen, sort_and_dedupe_diagnostics, Diagnostic, DiagnosticList, MessageChain};
@@ -42,7 +42,8 @@ pub use tsc_emitter::{
 };
 pub use tsc_program::PreparedProgramMode;
 use tsc_program::{
-    plan_source_requests, CompilerOptions, MissingResolutionError, ModuleExtension,
+    plan_source_requests, validate_compiler_options, validate_paths_option_diagnostics,
+    CompilerOptionValidationLocation, CompilerOptions, MissingResolutionError, ModuleExtension,
     PreparedProgram, PreparedSourceFile, ResolutionKey, ResolutionMode, ResolutionOutcome,
     ResolvedModuleTarget, SourceFileId, SourceRequestPlan, UnloadedModuleReason,
 };
@@ -312,6 +313,26 @@ fn path_starts_with(path: &Path, prefix: &Path, case_sensitive: bool) -> bool {
 }
 
 impl PreparedModuleProvider<'_> {
+    fn source_request_plan(
+        &self,
+        source_file: SourceFileId,
+        source: &PreparedSourceFile,
+    ) -> Result<SourceRequestPlan, AuthoritativeModuleLookupFailure> {
+        if let Some(plan) = self.request_plans.borrow().get(&source_file) {
+            return Ok(plan.clone());
+        }
+        let plan =
+            plan_source_requests(source, self.prepared.compiler_options()).map_err(|_| {
+                AuthoritativeModuleLookupFailure::Unsupported(
+                    UnsupportedAuthoritativeResolution::UnloadedTargetAdmission,
+                )
+            })?;
+        self.request_plans
+            .borrow_mut()
+            .insert(source_file, plan.clone());
+        Ok(plan)
+    }
+
     fn module_request_loads_source(
         &self,
         source_file: SourceFileId,
@@ -329,18 +350,12 @@ impl PreparedModuleProvider<'_> {
         // Only sources that actually reach an unloaded row pay for this
         // second plan. Cache the exact aggregate request loadability so a
         // reason cannot turn a normal import into a resolution-only lookup.
-        let plan =
-            plan_source_requests(source, self.prepared.compiler_options()).map_err(|_| {
-                AuthoritativeModuleLookupFailure::Unsupported(
-                    UnsupportedAuthoritativeResolution::UnloadedTargetAdmission,
-                )
-            })?;
+        let plan = self.source_request_plan(source_file, source)?;
         let loads_source = plan.module_request_loads_source(key).ok_or(
             AuthoritativeModuleLookupFailure::Unsupported(
                 UnsupportedAuthoritativeResolution::UnloadedTargetAdmission,
             ),
         )?;
-        self.request_plans.borrow_mut().insert(source_file, plan);
         Ok(loads_source)
     }
 }
@@ -359,11 +374,23 @@ impl AuthoritativeModuleProvider for PreparedModuleProvider<'_> {
             request.specifier,
             program_resolution_mode(request.mode),
         );
-        let resolution = self
-            .prepared
-            .resolutions()
-            .require_module(&key)
-            .map_err(|_| AuthoritativeModuleLookupFailure::Missing)?;
+        let resolution = match self.prepared.resolutions().require_module(&key) {
+            Ok(resolution) => resolution,
+            Err(_) => {
+                let plan = self.source_request_plan(source_file, source)?;
+                if plan
+                    .unpreprocessed_module_requests()
+                    .any(|unpreprocessed| unpreprocessed == &key)
+                {
+                    return Ok(AuthoritativeModuleResolution::NotFound(
+                        AuthoritativeNotFoundModule {
+                            alternate_result: None,
+                        },
+                    ));
+                }
+                return Err(AuthoritativeModuleLookupFailure::Missing);
+            }
+        };
         if !resolution.diagnostics().is_empty() {
             return Err(AuthoritativeModuleLookupFailure::Unsupported(
                 UnsupportedAuthoritativeResolution::ResolutionDiagnostics,
@@ -394,7 +421,12 @@ impl AuthoritativeModuleProvider for PreparedModuleProvider<'_> {
                 ModuleExtension::Arbitrary(extension)
                     if extension.starts_with(".d.") && extension.ends_with(".ts")
             );
+            let jsx_syntax_extension = matches!(
+                module.extension(),
+                ModuleExtension::Tsx | ModuleExtension::Jsx
+            );
             if !module.extension().is_javascript()
+                && !jsx_syntax_extension
                 && !arbitrary_declaration
                 && !matches!(reason, UnloadedModuleReason::NoResolve)
             {
@@ -402,7 +434,7 @@ impl AuthoritativeModuleProvider for PreparedModuleProvider<'_> {
                     UnsupportedAuthoritativeResolution::UnloadedTargetExtension,
                 ));
             }
-            if matches!(module.extension(), ModuleExtension::Jsx)
+            if jsx_syntax_extension
                 && self.prepared.compiler_options().jsx.unwrap_or(0) == 0
                 && !matches!(reason, UnloadedModuleReason::JsxWithoutJsxOption)
             {
@@ -455,7 +487,7 @@ impl AuthoritativeModuleProvider for PreparedModuleProvider<'_> {
                     None
                 }
                 UnloadedModuleReason::JsxWithoutJsxOption
-                    if matches!(module.extension(), ModuleExtension::Jsx)
+                    if jsx_syntax_extension
                         && self.prepared.compiler_options().jsx.unwrap_or(0) == 0 =>
                 {
                     Some(AuthoritativeModuleResolutionDiagnostic::JsxWithoutJsxOption)
@@ -514,6 +546,14 @@ impl AuthoritativeModuleProvider for PreparedModuleProvider<'_> {
                     )
                 })
                 .transpose()?;
+            if let Some(diagnostic) = resolution_diagnostic {
+                return Ok(AuthoritativeModuleResolution::ResolutionDiagnostic(
+                    AuthoritativeResolutionDiagnosticModule {
+                        resolved_file_name,
+                        diagnostic,
+                    },
+                ));
+            }
             return Ok(AuthoritativeModuleResolution::Untyped(
                 AuthoritativeUntypedModule {
                     resolved_file_name,
@@ -523,7 +563,6 @@ impl AuthoritativeModuleProvider for PreparedModuleProvider<'_> {
                     alternate_result,
                     types_package_exists: resolution.types_package_exists(),
                     package_bundles_types: resolution.package_bundles_types(),
-                    resolution_diagnostic,
                 },
             ));
         }
@@ -687,7 +726,7 @@ impl ProgramSession {
     ) -> Result<CliEmitSessionOutcome, DriverError> {
         self.require_mode(PreparedProgramMode::Emit)?;
         let prepared = self.prepared;
-        let mut h2_activity = H2ActivityCanary::h2_5f_profile();
+        let mut h2_activity = H2ActivityCanary::h2_5g_profile();
         h2_activity.construct_emit_session();
         let emit_host = PreparedEmitHost::new(&prepared)?;
         validate_bootstrap_emit_request(&emit_host).map_err(DriverError::Emit)?;
@@ -869,7 +908,9 @@ impl ProgramSession {
         // combined result.
         let mut available_options = preparation.options().to_vec();
         available_options.extend(programmatic_option_diagnostics(&self.prepared));
-        let mut available_semantic = checked.semantic_diagnostics;
+        let mut available_semantic = checked
+            .program_semantic_diagnostics
+            .expect("authoritative checker sessions publish whole-Program semantic diagnostics");
         let program_diagnostics = self
             .prepared
             .resolutions()
@@ -1299,6 +1340,16 @@ const fn checker_resolution_mode(mode: ResolutionMode) -> AuthoritativeResolutio
 /// order. These diagnostics are returned by `Program.emit` only when
 /// `noEmitOnError` closes the emit path; an ordinary emit with type errors
 /// still returns emitter diagnostics only.
+///
+/// `Program.getGlobalDiagnostics` exposes the checker's global rows only when
+/// the original `rootNames` list is non-empty. This matters for compiler-suite
+/// JavaScript inputs rejected before `createProgram` because `allowJs` is off:
+/// no default library is loaded, but the resulting empty Program must not
+/// publish the checker's internal missing-global bootstrap rows.
+///
+/// tsc-port: getGlobalDiagnostics @6.0.3
+/// tsc-hash: 6158e0d2a7114fa2a8b180f439cba3a3694ed722c664c2bab405b113541a32b4
+/// tsc-span: _tsc.js:124038-124040
 fn emit_session_diagnostics(
     prepared: &PreparedProgram,
     checked: &CheckResult,
@@ -1313,7 +1364,11 @@ fn emit_session_diagnostics(
 
     let mut options = preparation.options().to_vec();
     options.extend(programmatic_option_diagnostics(prepared));
-    let mut semantic = checked.semantic_diagnostics.clone();
+    let mut semantic = checked
+        .program_semantic_diagnostics
+        .as_ref()
+        .expect("authoritative checker sessions publish whole-Program semantic diagnostics")
+        .clone();
     for diagnostic in preparation
         .program()
         .iter()
@@ -1333,12 +1388,17 @@ fn emit_session_diagnostics(
     sort_and_dedupe_diagnostics(&mut semantic);
     let mut syntactic = checked.syntactic_diagnostics.clone();
     sort_and_dedupe_diagnostics(&mut syntactic);
+    let global = if prepared.roots().is_empty() {
+        Vec::new()
+    } else {
+        checked.global_diagnostics.clone()
+    };
 
     EmitSessionDiagnostics {
         config: preparation.config().to_vec(),
         options,
         syntactic,
-        global: checked.global_diagnostics.clone(),
+        global,
         semantic,
     }
 }
@@ -1348,36 +1408,70 @@ fn emit_session_diagnostics(
 /// diagnostics remain owned by `ConfigRootPlan`, where their exact source
 /// locations are available.
 ///
+/// tsc-port: verifyCompilerOptions @6.0.3 (lib/noLib block)
+/// tsc-hash: 6cc5d6e4258b1645ed0788fb31322db101b9e6b9ae34f203e749610f23e48fb3
+/// tsc-span: _tsc.js:124888-124890
 /// tsc-port: verifyCompilerOptions @6.0.3 (module/moduleResolution arms)
 /// tsc-hash: 27def76917aef23a76e4b9d8b2036c28d04e47b44ef525ac578c6a1d48518e2d
 /// tsc-span: _tsc.js:125007-125017
 ///
-/// tsc-port: verifyDeprecatedCompilerOptions @6.0.3 (baseUrl arm)
+/// tsc-port: verifyDeprecatedCompilerOptions @6.0.3
 /// tsc-hash: 2565bc5d5347775444bdbd8c11a3cc1ff2411d066648ec1f7786a231ec23a112
 /// tsc-span: _tsc.js:125087-125250
 fn programmatic_option_diagnostics(prepared: &PreparedProgram) -> DiagnosticList {
     let options = prepared.compiler_options();
-    if prepared.program_options().config_file_path().is_some()
-        || prepared
-            .program_options()
-            .external_config_option_diagnostics()
+    if prepared
+        .program_options()
+        .external_config_option_diagnostics()
     {
         return Vec::new();
     }
 
     let mut diagnostics = Vec::new();
+    for violation in validate_compiler_options(options) {
+        push_programmatic_option_diagnostic(
+            prepared,
+            &mut diagnostics,
+            violation.option_names(),
+            match violation.location() {
+                CompilerOptionValidationLocation::Name => {
+                    ProgrammaticOptionDiagnosticLocation::Name
+                }
+                CompilerOptionValidationLocation::Value => {
+                    ProgrammaticOptionDiagnosticLocation::Value
+                }
+            },
+            true,
+            violation.message(),
+        );
+    }
+    if options.lib.is_some() && prepared.program_options().no_lib() == Some(true) {
+        push_programmatic_option_diagnostic(
+            prepared,
+            &mut diagnostics,
+            &["lib", "noLib"],
+            ProgrammaticOptionDiagnosticLocation::Name,
+            true,
+            MessageChain::new(
+                &gen::Option_0_cannot_be_specified_with_option_1,
+                &["lib".to_owned(), "noLib".to_owned()],
+            ),
+        );
+    }
     let module_kind = options.emit_module_kind();
     let module_resolution = options.emit_module_resolution_kind();
     if module_resolution == 100 && !matches!(module_kind, 1 | 5..=99 | 200) {
-        diagnostics.push(Diagnostic::new(
-            None,
-            None,
-            None,
+        push_programmatic_option_diagnostic(
+            prepared,
+            &mut diagnostics,
+            &["moduleResolution"],
+            ProgrammaticOptionDiagnosticLocation::Value,
+            false,
             MessageChain::new(
                 &gen::Option_0_can_only_be_used_when_module_is_set_to_preserve_commonjs_or_es2015_or_later,
                 &["bundler".to_owned()],
             ),
-        ));
+        );
     }
     if (3..=99).contains(&module_resolution) && !(100..=199).contains(&module_kind) {
         let module_resolution_name = if module_resolution == 99 {
@@ -1385,10 +1479,12 @@ fn programmatic_option_diagnostics(prepared: &PreparedProgram) -> DiagnosticList
         } else {
             "Node16"
         };
-        diagnostics.push(Diagnostic::new(
-            None,
-            None,
-            None,
+        push_programmatic_option_diagnostic(
+            prepared,
+            &mut diagnostics,
+            &["module"],
+            ProgrammaticOptionDiagnosticLocation::Value,
+            false,
             MessageChain::new(
                 &gen::Option_module_must_be_set_to_0_when_option_moduleResolution_is_set_to_1,
                 &[
@@ -1396,7 +1492,7 @@ fn programmatic_option_diagnostics(prepared: &PreparedProgram) -> DiagnosticList
                     module_resolution_name.to_owned(),
                 ],
             ),
-        ));
+        );
     } else if (100..=199).contains(&module_kind)
         && options.module_resolution.is_some()
         && !(3..=99).contains(&module_resolution)
@@ -1413,10 +1509,12 @@ fn programmatic_option_diagnostics(prepared: &PreparedProgram) -> DiagnosticList
         } else {
             "Node16"
         };
-        diagnostics.push(Diagnostic::new(
-            None,
-            None,
-            None,
+        push_programmatic_option_diagnostic(
+            prepared,
+            &mut diagnostics,
+            &["moduleResolution"],
+            ProgrammaticOptionDiagnosticLocation::Value,
+            false,
             MessageChain::new(
                 &gen::Option_moduleResolution_must_be_set_to_0_or_left_unspecified_when_option_module_is_set_to_1,
                 &[
@@ -1424,51 +1522,320 @@ fn programmatic_option_diagnostics(prepared: &PreparedProgram) -> DiagnosticList
                     module_kind_name.to_owned(),
                 ],
             ),
-        ));
+        );
     }
 
-    if options.ignore_deprecations.as_deref() != Some("6.0") && options.base_url.is_some() {
-        diagnostics.push(Diagnostic::new(
-            None,
-            None,
-            None,
-            MessageChain::new(
-                &gen::Option_0_is_deprecated_and_will_stop_functioning_in_TypeScript_1_Specify_compilerOption_ignoreDeprecations_2_to_silence_this_error,
-                &["baseUrl".to_owned(), "7.0".to_owned(), "6.0".to_owned()],
-            )
-            .with_next(vec![MessageChain::new(
-                &gen::Visit_https_aka_ms_ts6_for_migration_information,
-                &[],
-            )]),
-        ));
+    if options.target == Some(0) {
+        push_programmatic_removed_option_value(prepared, &mut diagnostics, "target", "ES3");
     }
-    let module_name = match options.module {
-        Some(0) => Some("None"),
-        Some(2) => Some("AMD"),
-        Some(3) => Some("UMD"),
-        Some(4) => Some("System"),
-        _ => None,
-    };
-    if options.ignore_deprecations.as_deref() != Some("6.0") {
-        if let Some(module_name) = module_name {
-            diagnostics.push(Diagnostic::new(
-                None,
-                None,
-                None,
-                MessageChain::new(
-                    &gen::Option_0_1_is_deprecated_and_will_stop_functioning_in_TypeScript_2_Specify_compilerOption_ignoreDeprecations_3_to_silence_this_error,
-                    &[
-                        "module".to_owned(),
-                        module_name.to_owned(),
-                        "7.0".to_owned(),
-                        "6.0".to_owned(),
-                    ],
-                ),
-            ));
+    for (enabled, name) in [
+        (
+            options.no_implicit_use_strict == Some(true),
+            "noImplicitUseStrict",
+        ),
+        (options.keyof_strings_only == Some(true), "keyofStringsOnly"),
+        (
+            options.suppress_excess_property_errors == Some(true),
+            "suppressExcessPropertyErrors",
+        ),
+        (
+            options.suppress_implicit_any_index_errors == Some(true),
+            "suppressImplicitAnyIndexErrors",
+        ),
+        (
+            options.no_strict_generic_checks == Some(true),
+            "noStrictGenericChecks",
+        ),
+    ] {
+        if enabled {
+            push_programmatic_removed_option_name(prepared, &mut diagnostics, name, None);
         }
     }
+    for (present, name) in [
+        (
+            options
+                .charset
+                .as_deref()
+                .is_some_and(|value| !value.is_empty()),
+            "charset",
+        ),
+        (
+            options
+                .out
+                .as_deref()
+                .is_some_and(|value| !value.is_empty()),
+            "out",
+        ),
+    ] {
+        if present {
+            push_programmatic_removed_option_name(prepared, &mut diagnostics, name, None);
+        }
+    }
+    if options
+        .imports_not_used_as_values
+        .is_some_and(|value| value != 0)
+    {
+        push_programmatic_removed_option_name(
+            prepared,
+            &mut diagnostics,
+            "importsNotUsedAsValues",
+            Some("verbatimModuleSyntax"),
+        );
+    }
+    if options.preserve_value_imports == Some(true) {
+        push_programmatic_removed_option_name(
+            prepared,
+            &mut diagnostics,
+            "preserveValueImports",
+            Some("verbatimModuleSyntax"),
+        );
+    }
+
+    if options.ignore_deprecations.as_deref() != Some("6.0") {
+        if options.target == Some(1) {
+            push_programmatic_option_deprecation_value(
+                prepared,
+                &mut diagnostics,
+                "target",
+                "ES5",
+                false,
+            );
+        }
+        if options.always_strict == Some(false) {
+            push_programmatic_option_deprecation_value(
+                prepared,
+                &mut diagnostics,
+                "alwaysStrict",
+                "false",
+                false,
+            );
+        }
+        match options.module_resolution {
+            Some(1) => push_programmatic_option_deprecation_value(
+                prepared,
+                &mut diagnostics,
+                "moduleResolution",
+                "classic",
+                false,
+            ),
+            Some(2) => push_programmatic_option_deprecation_value(
+                prepared,
+                &mut diagnostics,
+                "moduleResolution",
+                "node10",
+                true,
+            ),
+            _ => {}
+        }
+        if options.base_url.is_some() {
+            push_programmatic_option_deprecation_name(prepared, &mut diagnostics, "baseUrl", true);
+        }
+        if options.es_module_interop == Some(false) {
+            push_programmatic_option_deprecation_value(
+                prepared,
+                &mut diagnostics,
+                "esModuleInterop",
+                "false",
+                false,
+            );
+        }
+        if options.allow_synthetic_default_imports == Some(false) {
+            push_programmatic_option_deprecation_value(
+                prepared,
+                &mut diagnostics,
+                "allowSyntheticDefaultImports",
+                "false",
+                false,
+            );
+        }
+        if options.out_file.is_some() {
+            push_programmatic_option_deprecation_name(prepared, &mut diagnostics, "outFile", false);
+        }
+        if options.downlevel_iteration.is_some() {
+            push_programmatic_option_deprecation_name(
+                prepared,
+                &mut diagnostics,
+                "downlevelIteration",
+                false,
+            );
+        }
+        let module_name = match options.module {
+            Some(0) => Some("None"),
+            Some(2) => Some("AMD"),
+            Some(3) => Some("UMD"),
+            Some(4) => Some("System"),
+            _ => None,
+        };
+        if let Some(module_name) = module_name {
+            push_programmatic_option_deprecation_value(
+                prepared,
+                &mut diagnostics,
+                "module",
+                module_name,
+                false,
+            );
+        }
+    }
+    diagnostics.extend(validate_paths_option_diagnostics(
+        options,
+        prepared.program_options(),
+    ));
     sort_and_dedupe_diagnostics(&mut diagnostics);
     diagnostics
+}
+
+#[derive(Clone, Copy)]
+enum ProgrammaticOptionDiagnosticLocation {
+    Name,
+    Value,
+}
+
+fn push_programmatic_option_diagnostic(
+    prepared: &PreparedProgram,
+    diagnostics: &mut Vec<Diagnostic>,
+    names: &[&str],
+    location: ProgrammaticOptionDiagnosticLocation,
+    use_compiler_options_fallback: bool,
+    message: MessageChain,
+) {
+    let Some(config_file) = prepared.program_options().config_file() else {
+        diagnostics.push(Diagnostic::new(None, None, None, message));
+        return;
+    };
+
+    let mut locations = names
+        .iter()
+        .flat_map(|name| match location {
+            ProgrammaticOptionDiagnosticLocation::Name => {
+                config_file.compiler_option_name_locations(name)
+            }
+            ProgrammaticOptionDiagnosticLocation::Value => {
+                config_file.compiler_option_value_locations(name)
+            }
+        })
+        .copied()
+        .collect::<Vec<_>>();
+    locations.sort_unstable_by_key(|location| location.start());
+    if locations.is_empty() && use_compiler_options_fallback {
+        locations.extend(config_file.compiler_options_location());
+    }
+    if locations.is_empty() {
+        diagnostics.push(Diagnostic::new(None, None, None, message));
+        return;
+    }
+
+    let file_name = config_file.diagnostic_file_name().to_owned();
+    diagnostics.extend(locations.into_iter().map(|location| {
+        Diagnostic::new(
+            Some(file_name.clone()),
+            Some(location.start()),
+            Some(location.length()),
+            message.clone(),
+        )
+    }));
+}
+
+fn push_programmatic_option_deprecation_value(
+    prepared: &PreparedProgram,
+    diagnostics: &mut Vec<Diagnostic>,
+    name: &str,
+    value: &str,
+    related: bool,
+) {
+    let mut message = MessageChain::new(
+        &gen::Option_0_1_is_deprecated_and_will_stop_functioning_in_TypeScript_2_Specify_compilerOption_ignoreDeprecations_3_to_silence_this_error,
+        &[
+            name.to_owned(),
+            value.to_owned(),
+            "7.0".to_owned(),
+            "6.0".to_owned(),
+        ],
+    );
+    if related {
+        message = message.with_next(vec![MessageChain::new(
+            &gen::Visit_https_aka_ms_ts6_for_migration_information,
+            &[],
+        )]);
+    }
+    push_programmatic_option_diagnostic(
+        prepared,
+        diagnostics,
+        &[name],
+        ProgrammaticOptionDiagnosticLocation::Value,
+        true,
+        message,
+    );
+}
+
+fn push_programmatic_removed_option_value(
+    prepared: &PreparedProgram,
+    diagnostics: &mut Vec<Diagnostic>,
+    name: &str,
+    value: &str,
+) {
+    push_programmatic_option_diagnostic(
+        prepared,
+        diagnostics,
+        &[name],
+        ProgrammaticOptionDiagnosticLocation::Value,
+        true,
+        MessageChain::new(
+            &gen::Option_0_1_has_been_removed_Please_remove_it_from_your_configuration,
+            &[name.to_owned(), value.to_owned()],
+        ),
+    );
+}
+
+fn push_programmatic_removed_option_name(
+    prepared: &PreparedProgram,
+    diagnostics: &mut Vec<Diagnostic>,
+    name: &str,
+    use_instead: Option<&str>,
+) {
+    let mut message = MessageChain::new(
+        &gen::Option_0_has_been_removed_Please_remove_it_from_your_configuration,
+        &[name.to_owned()],
+    );
+    if let Some(use_instead) = use_instead {
+        message = message.with_next(vec![MessageChain::new(
+            &gen::Use_0_instead,
+            &[use_instead.to_owned()],
+        )]);
+    }
+    push_programmatic_option_diagnostic(
+        prepared,
+        diagnostics,
+        &[name],
+        ProgrammaticOptionDiagnosticLocation::Name,
+        true,
+        message,
+    );
+}
+
+fn push_programmatic_option_deprecation_name(
+    prepared: &PreparedProgram,
+    diagnostics: &mut Vec<Diagnostic>,
+    name: &str,
+    related: bool,
+) {
+    let mut message = MessageChain::new(
+        &gen::Option_0_is_deprecated_and_will_stop_functioning_in_TypeScript_1_Specify_compilerOption_ignoreDeprecations_2_to_silence_this_error,
+        &[name.to_owned(), "7.0".to_owned(), "6.0".to_owned()],
+    );
+    if related {
+        message = message.with_next(vec![MessageChain::new(
+            &gen::Visit_https_aka_ms_ts6_for_migration_information,
+            &[],
+        )]);
+    }
+    push_programmatic_option_diagnostic(
+        prepared,
+        diagnostics,
+        &[name],
+        ProgrammaticOptionDiagnosticLocation::Name,
+        true,
+        message,
+    );
 }
 
 fn check_work_counters(checked: &CheckResult) -> NoEmitWorkCounters {

@@ -538,7 +538,7 @@ impl<'a> CheckerState<'a> {
                             &text,
                             SymbolFlags::VALUE,
                             /*diagnostic*/ None,
-                        )
+                        )?
                 {
                     let value = if text == "NaN" {
                         f64::NAN
@@ -1591,9 +1591,8 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: fe02c67ee8f8715c4b3de45b7dec5f11b6bf6ba3831e07b74e0e672972cd0616
     /// tsc-span: _tsc.js:85770-85809
     ///
-    /// erasableSyntaxOnly is ABSENT from CompilerOptions (§13 options
-    /// audit) — its row stays dead. computeEnumMemberValues'
-    /// isolatedModules-gated rows stay dead behind the same audit.
+    /// Non-ambient enums require runtime emit and therefore fail the
+    /// erasableSyntaxOnly contract before member-value computation.
     fn check_enum_declaration_worker(&mut self, node: NodeId) -> CheckResult<()> {
         self.check_grammar_modifiers(node);
         let NodeData::EnumDeclaration(data) = self.data_of(node) else {
@@ -1604,6 +1603,18 @@ impl<'a> CheckerState<'a> {
         self.check_exports_on_merged_declarations(node)?;
         for member in self.nodes_of(members) {
             self.check_source_element(Some(member));
+        }
+        if self.options.erasable_syntax_only == Some(true)
+            && !self
+                .binder
+                .flags_of(node)
+                .intersects(tsc_types::NodeFlags::AMBIENT)
+        {
+            self.error_at(
+                Some(node),
+                &diagnostics::This_syntax_is_not_allowed_when_erasableSyntaxOnly_is_enabled,
+                &[],
+            );
         }
         self.compute_enum_member_values(node)?;
         let enum_symbol = self.get_symbol_of_declaration(node)?;

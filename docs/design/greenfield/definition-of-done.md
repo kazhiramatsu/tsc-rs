@@ -1,5 +1,11 @@
 # tsc-rs definition of done
 
+Document role: **normative definition for the frozen M8 batch-diagnostics
+product and its M9 confidence close**. Its explicit emitter/build/service
+exclusions describe that historical product boundary; they do not cancel the
+separate H0/H1/H2 and later follow-on finish lines owned by the
+[post-H1 completion schedule](post-h1-completion-slices.md).
+
 One page, normative. If any other doc disagrees with this one about
 WHAT "done" means, this doc wins; file a doc fix. (Milestone HOW
 lives in [greenfield.md](../greenfield.md) §§7-8 and the steps docs.)

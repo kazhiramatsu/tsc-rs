@@ -133,6 +133,36 @@ fn literal_and_block_nodes_retain_the_printer_multiline_bit() {
 }
 
 #[test]
+fn throw_line_break_recovery_ends_at_the_keyword_boundary() {
+    let source = parse_with_target("throw\na;", ScriptTarget::ES2015);
+    let NodeData::SourceFile(root) = &source.arena.node(source.root).data else {
+        unreachable!()
+    };
+    let statements = source
+        .arena
+        .node_array(root.statements.expect("source statements"));
+    assert_eq!(statements.nodes.len(), 2);
+
+    let throw_statement = source.arena.node(statements.nodes[0]);
+    let NodeData::ThrowStatement(throw_data) = &throw_statement.data else {
+        unreachable!()
+    };
+    let expression = source
+        .arena
+        .node(throw_data.expression.expect("throw recovery expression"));
+    let NodeData::Identifier(identifier) = &expression.data else {
+        unreachable!()
+    };
+    assert!(identifier.text.is_empty());
+    assert_eq!((expression.pos, expression.end), (5, 5));
+    assert_eq!((throw_statement.pos, throw_statement.end), (0, 5));
+
+    let following_statement = source.arena.node(statements.nodes[1]);
+    assert_eq!((following_statement.pos, following_statement.end), (5, 8));
+    assert!(source.parse_diagnostics.is_empty());
+}
+
+#[test]
 fn regex_flag_extent_is_target_aware() {
     let es5 = parse_with_target("/a/\u{08a1};", ScriptTarget::ES5);
     let es2015 = parse_with_target("/a/\u{08a1};", ScriptTarget::ES2015);

@@ -239,6 +239,17 @@ pub enum ResolutionTarget {
     Node(NodeId),
 }
 
+/// A mapped-type syntax node whose semantic shell is visible while its
+/// constraint is being resolved. tsc publishes that shell in the node links
+/// before walking the constraint; keeping the in-flight identity here gives
+/// recursive reads the same object without committing a partial link on an
+/// abort.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) struct InProgressMappedType {
+    pub node: NodeId,
+    pub ty: TypeId,
+}
+
 pub struct CheckerState<'a> {
     pub binder: ProgramBinder<'a>,
     pub options: &'a CompilerOptions,
@@ -361,6 +372,12 @@ pub struct CheckerState<'a> {
     /// the slice guards both — divergence is observable only on a
     /// symbol-less self-containing type, which cannot be constructed.
     pub(crate) slice_visited_types: std::collections::HashSet<TypeId>,
+    /// nodeBuilder context.inferTypeParameters. Conditional-type
+    /// rendering installs the root's infer parameters only while its
+    /// extends type is serialized; the type-parameter arm uses this
+    /// typed context to emit `infer T` (and a non-inferred constraint)
+    /// instead of an ordinary `T` reference.
+    pub(crate) slice_infer_type_parameters: Vec<TypeId>,
     /// nodeBuilder context.approximateLength/maxTruncationLength/
     /// truncating for one typeToString call. These fields are parked
     /// on CheckerState because the bounded renderer is method-based;
@@ -447,6 +464,10 @@ pub struct CheckerState<'a> {
     /// resolvingDefaultType sentinel (getResolvedTypeParameterDefault
     /// 59049), as a set so Err unwinds leave the links slot Vacant.
     pub(crate) type_parameter_defaults_in_progress: Vec<TypeId>,
+    /// Mapped type nodes whose shells have been allocated but whose
+    /// constraints are still resolving. This is the transaction-safe form
+    /// of tsc's eager `links.resolvedType = type` publication (62624).
+    pub(crate) mapped_types_in_progress: Vec<InProgressMappedType>,
 
     // ---- M5 6.1: control-flow query state ----
     /// tsc flowAnalysisDisabled (69399): latched by the depth-2000
@@ -716,6 +737,16 @@ pub struct CheckerState<'a> {
     /// Some reporting iteration paths force global getters whose
     /// file-less rows must remain observable after candidate rollback.
     pub(crate) tsc_eager_visible_global_diagnostics: DiagnosticList,
+    /// Diagnostics produced while a contextual function's once-state is
+    /// completed inside an overload-candidate transaction. A rejected,
+    /// fully checked candidate keeps `ContextChecked` and contextual
+    /// parameter types, so the diagnostics produced by that same semantic
+    /// operation must cross the candidate boundary with them. Aborted or
+    /// explicitly rolled-back checks discard these journals.
+    pub(crate) completed_contextual_diagnostics: DiagnosticList,
+    /// The visible-global counterpart of
+    /// `completed_contextual_diagnostics`.
+    pub(crate) completed_contextual_visible_global_diagnostics: DiagnosticList,
     /// Nesting depth of reporting-mode iteration entries. Nested
     /// entries provisionally journal their completed sink suffix
     /// before an inner overload transaction can roll it back; the
@@ -1069,6 +1100,7 @@ impl<'a> CheckerState<'a> {
             marker_sub_type_for_check: TypeId(0),
             variance_type_parameter: None,
             slice_visited_types: std::collections::HashSet::new(),
+            slice_infer_type_parameters: Vec::new(),
             slice_approximate_length: 0,
             slice_max_truncation_length: 160,
             slice_truncating: false,
@@ -1090,6 +1122,7 @@ impl<'a> CheckerState<'a> {
             total_instantiation_count: 0,
             class_interface_declared_in_progress: Vec::new(),
             type_parameter_defaults_in_progress: Vec::new(),
+            mapped_types_in_progress: Vec::new(),
             flow_analysis_disabled: false,
             shared_flow: Vec::new(),
             reduce_label_overrides: std::collections::HashMap::new(),
@@ -1151,6 +1184,8 @@ impl<'a> CheckerState<'a> {
             visible_global_diagnostics: Vec::new(),
             tsc_eager_diagnostics: Vec::new(),
             tsc_eager_visible_global_diagnostics: Vec::new(),
+            completed_contextual_diagnostics: Vec::new(),
+            completed_contextual_visible_global_diagnostics: Vec::new(),
             tsc_eager_iteration_capture_depth: 0,
             partially_checked_ranges: std::collections::HashMap::new(),
             contained_call_resolutions: std::collections::HashSet::new(),

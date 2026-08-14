@@ -320,6 +320,7 @@ fn apply_project_runner_existing_options(
 ) -> HarnessResult<()> {
     // createCompilerOptions initializes these before descriptor options.
     options.no_error_truncation = Some(false);
+    options.skip_default_lib_check = Some(false);
     options.module_resolution = Some(1); // Classic
     options.module = Some(match plan.module_variant {
         ProjectModule::Commonjs => 1,

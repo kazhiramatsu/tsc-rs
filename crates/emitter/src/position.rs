@@ -2,6 +2,7 @@ use std::error::Error;
 use std::fmt;
 
 use tsc_diagnostics::PositionIndex;
+use tsc_syntax::skip_trivia;
 
 /// A validated offset into source text, measured in UTF-8 bytes.
 ///
@@ -60,6 +61,32 @@ impl SourceByteRange {
 
     pub const fn end(self) -> SourceBytePosition {
         self.end
+    }
+
+    /// Remove leading JavaScript trivia without ever leaving this range.
+    ///
+    /// Node `pos` includes leading trivia, but recovery nodes can be empty at
+    /// a trivia boundary. Scanning the complete source from such a boundary
+    /// would advance into the following token and invert the node's text
+    /// range. Bounding the scan at `end` preserves tsc's `pos == end`
+    /// recovery nodes as empty source slices.
+    pub fn without_leading_trivia(
+        self,
+        source: &str,
+        positions: &PositionIndex,
+    ) -> Result<Self, SourcePositionError> {
+        let end = self.end.value() as usize;
+        let bounded_source = source.get(..end).ok_or(SourcePositionError::OutOfBounds {
+            domain: PositionDomain::SourceByte,
+            position: self.end.value(),
+            length: u32::try_from(source.len()).unwrap_or(u32::MAX),
+        })?;
+        let start = skip_trivia(bounded_source, self.start.value() as usize);
+        Self::new(
+            u32::try_from(start).expect("validated source range exceeds u32"),
+            self.end.value(),
+            positions,
+        )
     }
 }
 

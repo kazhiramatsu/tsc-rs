@@ -45,6 +45,7 @@ fn compiler_option_projection_keeps_aliases_lists_and_null() {
             "lib".to_owned(),
             OptionValue::String(" ES5, DOM ".to_owned()),
         ),
+        ("libReplacement".to_owned(), OptionValue::Bool(true)),
     ]);
 
     let permissive = compiler_options_from_options(&options);
@@ -72,6 +73,7 @@ fn compiler_option_projection_keeps_aliases_lists_and_null() {
         Some(vec!["browser".to_owned(), "development".to_owned()])
     );
     assert_eq!(closed.lib, Some(vec!["es5".to_owned(), "dom".to_owned()]));
+    assert_eq!(closed.lib_replacement, Some(true));
 }
 
 #[test]

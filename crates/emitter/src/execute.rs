@@ -10,6 +10,7 @@ use crate::{
     TransformArena, TransformRoot,
 };
 
+const MODULE_NONE: i32 = 0;
 const MODULE_COMMON_JS: i32 = 1;
 const MODULE_AMD: i32 = 2;
 const MODULE_UMD: i32 = 3;
@@ -69,12 +70,13 @@ impl EmitDiagnosticGate {
 /// before output planning, checker-to-emitter borrowing, or sink dispatch.
 pub fn validate_bootstrap_emit_options(options: &CompilerOptions) -> Result<(), EmitFailure> {
     let target = options.emit_script_target();
-    if target < ScriptTarget::ES2016 || target > ScriptTarget::ES_NEXT {
+    if target < ScriptTarget::ES2015 || target > ScriptTarget::ES_NEXT {
         return unsupported("target");
     }
     if !matches!(
         options.emit_module_kind(),
-        MODULE_PRESERVE
+        MODULE_NONE
+            | MODULE_PRESERVE
             | MODULE_ES_NEXT
             | MODULE_COMMON_JS
             | MODULE_AMD
@@ -98,10 +100,6 @@ pub fn validate_bootstrap_emit_options(options: &CompilerOptions) -> Result<(), 
         (options.no_emit == Some(true), "noEmit"),
         (options.import_helpers == Some(true), "importHelpers"),
         (options.no_check == Some(true), "noCheck"),
-        (
-            options.erasable_syntax_only == Some(true),
-            "erasableSyntaxOnly",
-        ),
         (options.isolated_modules == Some(true), "isolatedModules"),
         (
             options.verbatim_module_syntax == Some(true),
@@ -110,11 +108,6 @@ pub fn validate_bootstrap_emit_options(options: &CompilerOptions) -> Result<(), 
         (
             options.allow_importing_ts_extensions == Some(true),
             "allowImportingTsExtensions",
-        ),
-        (options.remove_comments == Some(true), "removeComments"),
-        (
-            options.no_implicit_use_strict == Some(true),
-            "noImplicitUseStrict",
         ),
         (options.source_map == Some(true), "sourceMap"),
         (options.inline_source_map == Some(true), "inlineSourceMap"),
@@ -126,10 +119,6 @@ pub fn validate_bootstrap_emit_options(options: &CompilerOptions) -> Result<(), 
             "emitDeclarationOnly",
         ),
         (
-            options.isolated_declarations == Some(true),
-            "isolatedDeclarations",
-        ),
-        (
             options.stable_type_ordering == Some(true),
             "stableTypeOrdering",
         ),
@@ -139,10 +128,6 @@ pub fn validate_bootstrap_emit_options(options: &CompilerOptions) -> Result<(), 
         (
             options.assume_changes_only_affect_direct_dependencies == Some(true),
             "assumeChangesOnlyAffectDirectDependencies",
-        ),
-        (
-            options.preserve_value_imports == Some(true),
-            "preserveValueImports",
         ),
         (
             options.emit_decorator_metadata == Some(true) && !options.experimental_decorators,
@@ -162,12 +147,7 @@ pub fn validate_bootstrap_emit_options(options: &CompilerOptions) -> Result<(), 
         (options.map_root.is_some(), "mapRoot"),
         (options.declaration_dir.is_some(), "declarationDir"),
         (options.out_file.is_some(), "outFile"),
-        (options.out.is_some(), "out"),
         (options.ts_build_info_file.is_some(), "tsBuildInfoFile"),
-        (
-            options.imports_not_used_as_values.is_some(),
-            "importsNotUsedAsValues",
-        ),
     ] {
         if present {
             return unsupported(name);
@@ -288,7 +268,7 @@ pub fn emit_files(
     diagnostic_gate: &EmitDiagnosticGate,
     sink: &mut dyn OutputSink,
 ) -> Result<EmitOutcome, EmitFailure> {
-    let mut activity = H2ActivityCanary::h2_5f_profile();
+    let mut activity = H2ActivityCanary::h2_5g_profile();
     activity.construct_emit_session();
     activity.construct_output_plan();
     if !preflight.plan().units().is_empty() {
@@ -350,7 +330,6 @@ pub fn emit_files_with_activity(
     let mut printer = create_printer(
         PrinterOptions::new(new_line)
             .with_remove_comments(options.remove_comments == Some(true))
-            .with_no_implicit_use_strict(options.no_implicit_use_strict == Some(true))
             .with_no_emit_helpers(options.no_emit_helpers == Some(true))
             .with_target(options.emit_script_target())
             .with_source_file_text_mode(SourceFileTextMode::Canonical),

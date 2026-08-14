@@ -55,6 +55,64 @@ fn eager_local_preferred_reservations_are_not_hoisted_bindings() {
         scopes.allocate_local_preferred_with_policy("_super".into(), true),
         "_super_1",
     );
-    assert!(scopes.exit(outer_scope, inner).is_empty());
-    assert!(scopes.exit(source, outer).is_empty());
+    assert!(scopes.exit(outer_scope, inner).names().is_empty());
+    assert!(scopes.exit(source, outer).names().is_empty());
+}
+
+#[test]
+fn formatted_private_temps_have_a_role_local_sequence() {
+    let mut scopes =
+        GeneratedBindingScopes::new(BTreeSet::new(), AncestorBindingPolicy::AllowShadow);
+    assert_eq!(scopes.allocate_local_temp(), "_a");
+    assert_eq!(
+        scopes.allocate_private_temp_with_role_suffix("_accessor_storage", &BTreeSet::new(),),
+        "_a_accessor_storage",
+    );
+    assert_eq!(
+        scopes.allocate_private_temp_with_role_suffix("_accessor_storage", &BTreeSet::new(),),
+        "_b_accessor_storage",
+    );
+}
+
+#[test]
+fn generated_private_names_reserve_ancestors_but_reuse_in_siblings() {
+    let mut scopes =
+        GeneratedBindingScopes::new(BTreeSet::new(), AncestorBindingPolicy::AllowShadow);
+    assert_eq!(
+        scopes.allocate_private_preferred_with_role_suffix(
+            "a",
+            "_accessor_storage",
+            &BTreeSet::new(),
+        ),
+        "a_accessor_storage",
+    );
+    let (source, outer) = scopes.enter(GeneratedBindingOwner::FunctionBody);
+    assert_eq!(
+        scopes.allocate_private_preferred_with_role_suffix(
+            "a",
+            "_accessor_storage",
+            &BTreeSet::new(),
+        ),
+        "a_1_accessor_storage",
+    );
+    assert_eq!(
+        scopes.allocate_private_preferred_with_role_suffix(
+            "b",
+            "_accessor_storage",
+            &BTreeSet::new(),
+        ),
+        "b_accessor_storage",
+    );
+    let _ = scopes.exit(source, outer);
+
+    let (source, sibling) = scopes.enter(GeneratedBindingOwner::FunctionBody);
+    assert_eq!(
+        scopes.allocate_private_preferred_with_role_suffix(
+            "b",
+            "_accessor_storage",
+            &BTreeSet::new(),
+        ),
+        "b_accessor_storage",
+    );
+    let _ = scopes.exit(source, sibling);
 }

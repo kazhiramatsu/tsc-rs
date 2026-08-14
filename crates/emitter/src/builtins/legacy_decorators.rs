@@ -6,16 +6,19 @@ use tsc_syntax::{
     for_each_child, try_visit_each_child, NodeArrayId, NodeData, NodeDataChildVisitor, NodeId,
     SyntaxKind,
 };
-use tsc_types::{CompilerOptions, NodeCheckFlags, NodeFlags};
+use tsc_types::{CompilerOptions, NodeCheckFlags, NodeFlags, ScriptTarget};
 
 use crate::{
-    EmitFlags, EmitHelper, EmitResolver, EmitResolverError, EmitResolverNode,
-    EmitTypeReferenceSerializationKind, TransformError, TransformFlags, TransformNode,
-    TransformNodeArray, TransformRoot, TransformSourceId, TransformationContext, Transformer,
-    UnsupportedEmitFeature,
+    factory::EmitHelperName, metadata::ClassExpressionDeclarationOrigin, EmitFlags, EmitHelper,
+    EmitResolver, EmitResolverError, EmitResolverNode, EmitTypeReferenceSerializationKind,
+    InternalEmitFlags, TransformError, TransformFlags, TransformNode, TransformNodeArray,
+    TransformRoot, TransformSourceId, TransformationContext, Transformer, UnsupportedEmitFeature,
 };
 
-use super::{flags_after_update, is_prologue_statement, system::collect_identifier_texts};
+use super::{
+    flags_after_update, is_prologue_statement, system::collect_identifier_texts,
+    target_bindings::TargetBinding,
+};
 
 const DECORATE_HELPER_TEXT: &str = r#"var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
     var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
@@ -41,6 +44,7 @@ pub(super) fn transform_legacy_decorators<'resolver>(
 ) -> Box<dyn Transformer + 'resolver> {
     Box::new(LegacyDecoratorTransformer {
         resolver,
+        target: options.emit_script_target(),
         emit_decorator_metadata: options.emit_decorator_metadata == Some(true),
         strict_null_checks: options.strict_option_value(options.strict_null_checks),
     })
@@ -48,6 +52,7 @@ pub(super) fn transform_legacy_decorators<'resolver>(
 
 struct LegacyDecoratorTransformer<'resolver> {
     resolver: &'resolver dyn EmitResolver,
+    target: ScriptTarget,
     emit_decorator_metadata: bool,
     strict_null_checks: bool,
 }
@@ -75,6 +80,7 @@ impl Transformer for LegacyDecoratorTransformer<'_> {
             context,
             source,
             self.resolver,
+            self.target,
             self.emit_decorator_metadata,
             self.strict_null_checks,
         );
@@ -98,16 +104,81 @@ struct LegacyDecoratorVisitor<'context, 'resolver> {
     context: &'context mut TransformationContext,
     source: TransformSourceId,
     resolver: &'resolver dyn EmitResolver,
+    target: ScriptTarget,
     emit_decorator_metadata: bool,
     strict_null_checks: bool,
     nodes: BTreeMap<NodeId, Option<NodeId>>,
     arrays: BTreeMap<NodeArrayId, Option<NodeArrayId>>,
     expanded_classes: BTreeMap<NodeId, Vec<NodeId>>,
     used_names: BTreeSet<String>,
-    hoisted_names: Vec<String>,
+    hoisted_bindings: Vec<LegacyHoistedBinding>,
     class_aliases: BTreeMap<NodeId, String>,
-    computed_names: BTreeMap<NodeId, String>,
+    computed_names: BTreeMap<NodeId, TargetBinding>,
     next_temp_name: usize,
+}
+
+#[derive(Clone)]
+enum LegacyHoistedBinding {
+    /// Source-derived aliases keep their preferred spelling. Computed-name
+    /// and metadata temporaries use the shared target-binding identity below.
+    Fixed(String),
+    Generated(TargetBinding),
+}
+
+/// Typed equivalent of tsc's class `shouldAddParamTypesMetadata` result.
+/// The plan cannot exist without the explicit constructor body that owns the
+/// serialized parameter list, so an implicit or signature-only constructor
+/// cannot accidentally request the metadata helper with an empty array.
+#[derive(Clone, Copy, Debug)]
+struct ConstructorMetadataPlan {
+    constructor_with_body: TransformNode,
+    serialization_context: MetadataSerializationContext,
+}
+
+impl ConstructorMetadataPlan {
+    fn for_class(
+        emit_decorator_metadata: bool,
+        has_constructor_decoration: bool,
+        constructor_with_body: Option<TransformNode>,
+        serialization_context: MetadataSerializationContext,
+    ) -> Option<Self> {
+        if !emit_decorator_metadata || !has_constructor_decoration {
+            return None;
+        }
+        Some(Self {
+            constructor_with_body: constructor_with_body?,
+            serialization_context,
+        })
+    }
+}
+
+/// The parse-tree name scope used by tsc's runtime type serializer. Keeping
+/// this separate from the annotated declaration is significant for parameter
+/// properties such as `constructor(Service: Service)`: value lookup for the
+/// type name starts at the class, not at the shadowing parameter.
+#[derive(Clone, Copy, Debug)]
+struct MetadataSerializationContext {
+    resolver_location: EmitResolverNode,
+}
+
+/// The source declaration that is allowed to materialize one legacy member
+/// decoration. Signature-only methods are deliberately absent, while an
+/// accessor pair has exactly one owner selected from its original nodes.
+#[derive(Clone, Copy, Debug)]
+enum DecoratorOwner {
+    Property(TransformNode),
+    MethodWithBody(TransformNode),
+    AccessorWithBody(TransformNode),
+}
+
+impl DecoratorOwner {
+    const fn member(self) -> TransformNode {
+        match self {
+            Self::Property(member)
+            | Self::MethodWithBody(member)
+            | Self::AccessorWithBody(member) => member,
+        }
+    }
 }
 
 impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
@@ -115,6 +186,7 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
         context: &'context mut TransformationContext,
         source: TransformSourceId,
         resolver: &'resolver dyn EmitResolver,
+        target: ScriptTarget,
         emit_decorator_metadata: bool,
         strict_null_checks: bool,
     ) -> Self {
@@ -123,13 +195,14 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
             context,
             source,
             resolver,
+            target,
             emit_decorator_metadata,
             strict_null_checks,
             nodes: BTreeMap::new(),
             arrays: BTreeMap::new(),
             expanded_classes: BTreeMap::new(),
             used_names,
-            hoisted_names: Vec::new(),
+            hoisted_bindings: Vec::new(),
             class_aliases: BTreeMap::new(),
             computed_names: BTreeMap::new(),
             next_temp_name: 0,
@@ -155,6 +228,12 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
                 }
             }
             NodeData::ClassExpression(mut data) => {
+                // The TypeScript transform caches decorated computed names for
+                // class expressions even though the legacy-decorator transform
+                // cannot append decoration statements for the expression. Keep
+                // that preparation separate from statement materialization so
+                // later target transforms observe the same key ownership.
+                self.prepare_decorated_computed_names(data.members)?;
                 data.modifiers = self.strip_decorators(data.modifiers)?;
                 Some(self.update_generic(original, NodeData::ClassExpression(data))?)
             }
@@ -219,6 +298,9 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
         let has_constructor_decoration =
             !class_decorators.is_empty() || !constructor_decorators.is_empty();
         let original_class = self.context.arena().get_original_node(current);
+        let serialization_context = MetadataSerializationContext {
+            resolver_location: self.resolver_node(original_class)?,
+        };
         let original_members = match &self.context.arena().node(original_class)?.data {
             NodeData::ClassDeclaration(data) => data.members,
             _ => data.members,
@@ -231,9 +313,22 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
             return Ok(vec![self.node(updated)]);
         }
         let explicit_name = data.name;
+        // transformTypeScript may have assigned `default_N` to an originally
+        // anonymous declaration so later passes can publish its statements.
+        // That generated local is not a source class-expression name: legacy
+        // decoration must retain anonymous named-evaluation semantics and
+        // ultimately call `__setFunctionName(..., "default")`.
+        let expression_name = match &self.context.arena().node(original_class)?.data {
+            NodeData::ClassDeclaration(data) if data.name.is_none() => None,
+            _ => explicit_name,
+        };
         let name = if let Some(name) = explicit_name {
             name
-        } else if is_export && is_default {
+        } else if is_default {
+            // Error-recovery syntax can contain `default class {}` without an
+            // `export` modifier. `getLocalName` still gives that decorated
+            // declaration a stable `default_N` binding so emit can continue;
+            // publication remains independently guarded by `is_export`.
             let generated = self.allocate_generated_class_name("default");
             self.create_identifier(&generated)?.node()
         } else {
@@ -243,14 +338,14 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
             });
         };
         let name_text = self.identifier_text(name)?.to_owned();
-        if self.emit_decorator_metadata && has_constructor_decoration {
-            let parameter_types = if let Some(constructor) = constructor {
-                self.serialize_parameter_types(constructor)?
-            } else {
-                Vec::new()
-            };
-            let value = self.create_array_literal(parameter_types, false)?;
-            constructor_decorators.push(self.create_metadata("design:paramtypes", value)?);
+        let constructor_metadata = ConstructorMetadataPlan::for_class(
+            self.emit_decorator_metadata,
+            has_constructor_decoration,
+            constructor,
+            serialization_context,
+        );
+        if let Some(plan) = constructor_metadata {
+            constructor_decorators.push(self.create_constructor_parameter_metadata(plan)?);
         }
         let class_alias = if has_constructor_decoration
             && self.resolver.has_node_check_flag(
@@ -266,7 +361,7 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
         };
 
         let (mut members, mut decoration_statements, private_decoration) =
-            self.transform_class_members(current, data.members, &name_text)?;
+            self.transform_class_members(current, data.members, &name_text, serialization_context)?;
         if private_decoration && !decoration_statements.is_empty() {
             let block = self.create_block(decoration_statements, true)?;
             let static_block = self.context.factory()?.create_node(
@@ -296,7 +391,7 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
                 current,
                 data,
                 name,
-                explicit_name,
+                expression_name,
                 class_alias.as_deref(),
             )?
         } else {
@@ -325,10 +420,10 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
             if let Some(explicit_name) = explicit_name {
                 self.set_original_and_range(class_name, self.node(explicit_name))?;
             }
-            self.context
-                .arena_mut()?
-                .metadata_mut(class_name)
-                .add_flags(EmitFlags::LOCAL_NAME);
+            // This is tsc's `getDeclarationName`, not `getLocalName`: the
+            // module transformer must still relate the assignment target to
+            // the original exported class and wrap it in `exports.name =`.
+            // The variable declaration above owns the local binding.
             let assignment = self.create_assignment(class_name, decorate)?;
             let statement = self.create_expression_statement(assignment)?;
             self.context
@@ -341,7 +436,13 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
             statements.push(if is_default {
                 self.create_export_default(&name_text)?
             } else {
-                self.create_named_export(&name_text)?
+                let declaration_name = explicit_name.map(|name| self.node(name)).ok_or(
+                    TransformError::RequiredChildRemoved {
+                        parent: SyntaxKind::ClassDeclaration,
+                        field: "name",
+                    },
+                )?;
+                self.create_named_export(&name_text, declaration_name)?
             });
         }
 
@@ -364,8 +465,13 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
         expression_name: Option<NodeId>,
         class_alias: Option<&str>,
     ) -> Result<Vec<TransformNode>, TransformError> {
-        let assign_class_alias_in_static_block =
-            class_alias.is_some() && self.class_has_static_property_or_block(data.members)?;
+        // tsc keeps the alias assignment in the variable initializer below
+        // ES2022.  Only native static fields/blocks need the class-this
+        // transport block; class-field lowering otherwise owns the ordered
+        // statements following the declaration.
+        let assign_class_alias_in_static_block = self.target >= ScriptTarget::ES2022
+            && class_alias.is_some()
+            && self.class_has_static_property_or_block(data.members)?;
         if assign_class_alias_in_static_block {
             let alias = self.create_identifier(class_alias.expect("class alias is present"))?;
             let this = self.context.factory()?.create_token(
@@ -409,6 +515,13 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
             transform_flags,
         )?;
         self.set_original_and_range(class_expression, original)?;
+        self.context
+            .arena_mut()?
+            .metadata_mut(class_expression)
+            .class_expression_declaration_origin =
+            Some(ClassExpressionDeclarationOrigin::LegacyDecorated {
+                declaration: original,
+            });
         let initializer =
             if let Some(alias) = class_alias.filter(|_| !assign_class_alias_in_static_block) {
                 let alias = self.create_identifier(alias)?;
@@ -443,7 +556,9 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
         class: TransformNode,
         members: Option<NodeArrayId>,
         class_name: &str,
+        serialization_context: MetadataSerializationContext,
     ) -> Result<(Option<NodeArrayId>, Vec<TransformNode>, bool), TransformError> {
+        self.prepare_decorated_computed_names(members)?;
         let current_members = self.array_nodes(members)?;
         let original_class = self.context.arena().get_original_node(class);
         let original_members = match &self.context.arena().node(original_class)?.data {
@@ -461,20 +576,26 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
         let mut static_ = Vec::new();
         let mut private_decoration = false;
         for original_member in original_members {
+            let Some(owner) = self.decorator_owner(original_member)? else {
+                continue;
+            };
+            let owner_member = owner.member();
             let source_member = by_original
-                .get(&original_member.node())
+                .get(&owner_member.node())
                 .copied()
-                .unwrap_or(original_member);
+                .unwrap_or(owner_member);
             if self.member_name_is_private(source_member)? {
                 continue;
             }
-            let Some(statement) =
-                self.create_member_decoration_statement(class_name, source_member)?
-            else {
-                continue;
-            };
+            let statement = self.create_member_decoration_statement(
+                class_name,
+                source_member,
+                owner,
+                &by_original,
+                serialization_context,
+            )?;
             private_decoration |= self.member_decorators_contain_private(source_member)?;
-            if self.has_static_modifier(source_member)? {
+            if self.has_static_modifier(owner_member)? {
                 static_.push(statement);
             } else {
                 instance.push(statement);
@@ -490,51 +611,103 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
         Ok((visited, instance, private_decoration))
     }
 
+    /// Establish the shared identity for decorated computed names before any
+    /// consumer rewrites class elements. This is the semantic boundary used by
+    /// tsc's TypeScript transform: legacy decoration and class-field lowering
+    /// must refer to one cache rather than independently evaluating the key.
+    fn prepare_decorated_computed_names(
+        &mut self,
+        members: Option<NodeArrayId>,
+    ) -> Result<(), TransformError> {
+        for member in self.array_nodes(members)? {
+            let Some(owner) = self.decorator_owner(member)? else {
+                continue;
+            };
+            let original_member = self.context.arena().get_original_node(member);
+            if owner.member() != original_member {
+                continue;
+            }
+            let record = self.context.arena().node(original_member)?.clone();
+            let name = match record.data {
+                NodeData::PropertyDeclaration(data) => data.name,
+                NodeData::MethodDeclaration(data) => data.name,
+                NodeData::GetAccessor(data) => data.name,
+                NodeData::SetAccessor(data) => data.name,
+                _ => continue,
+            };
+            let Some(name) = name.and_then(|name| self.context.arena().node_ref(self.source, name))
+            else {
+                continue;
+            };
+            let NodeData::ComputedPropertyName(data) =
+                self.context.arena().node(name)?.data.clone()
+            else {
+                continue;
+            };
+            let expression = data
+                .expression
+                .and_then(|expression| self.context.arena().node_ref(self.source, expression))
+                .ok_or(TransformError::RequiredChildRemoved {
+                    parent: SyntaxKind::ComputedPropertyName,
+                    field: "expression",
+                })?;
+            if self.is_simple_inlineable_expression(expression)? {
+                continue;
+            }
+            if !self.computed_names.contains_key(&original_member.node()) {
+                let generated = self.allocate_temp_name()?;
+                self.computed_names
+                    .insert(original_member.node(), generated);
+            }
+        }
+        Ok(())
+    }
+
     fn create_member_decoration_statement(
         &mut self,
         class_name: &str,
-        mut member: TransformNode,
-    ) -> Result<Option<TransformNode>, TransformError> {
-        let original_member = self.context.arena().get_original_node(member);
-        if matches!(
-            self.context.arena().node(original_member)?.kind,
-            SyntaxKind::GetAccessor | SyntaxKind::SetAccessor
-        ) {
-            let Some(owner) = self.accessor_decoration_owner(original_member)? else {
-                return Ok(None);
-            };
-            if owner != original_member {
-                return Ok(None);
-            }
-            member = owner;
-        }
-        let record = self.context.arena().node(member)?.clone();
-        let (name, modifiers, parameters, is_property) = match &record.data {
-            NodeData::PropertyDeclaration(data) => (data.name, data.modifiers, None, true),
-            NodeData::MethodDeclaration(data) => {
-                (data.name, data.modifiers, data.parameters, false)
-            }
+        member: TransformNode,
+        owner: DecoratorOwner,
+        current_members_by_original: &BTreeMap<NodeId, TransformNode>,
+        serialization_context: MetadataSerializationContext,
+    ) -> Result<TransformNode, TransformError> {
+        let owner_member = owner.member();
+        let record = self.context.arena().node(owner_member)?.clone();
+        let is_property = matches!(&record.data, NodeData::PropertyDeclaration(_));
+
+        // transformLegacyDecorators runs after transformTypeScript. Runtime
+        // decorator expressions must therefore come from the current member,
+        // whose assertions and other TypeScript-only syntax have already been
+        // erased. The parse-tree owner remains authoritative for ownership and
+        // metadata serialization, but reading its modifiers here would revive
+        // erased syntax such as `@dec(null as T)`.
+        let current_record = self.context.arena().node(member)?.clone();
+        let (modifiers, parameters) = match &current_record.data {
+            NodeData::PropertyDeclaration(data) => (data.modifiers, None),
+            NodeData::MethodDeclaration(data) => (data.modifiers, data.parameters),
             NodeData::GetAccessor(data) => {
-                let parameters = self.paired_set_accessor(member)?.and_then(|setter| {
+                let parameters = self.paired_set_accessor(owner_member)?.and_then(|setter| {
+                    let setter = current_members_by_original
+                        .get(&setter.node())
+                        .copied()
+                        .unwrap_or(setter);
                     match &self.context.arena().node(setter).ok()?.data {
                         NodeData::SetAccessor(data) => data.parameters,
                         _ => None,
                     }
                 });
-                (data.name, data.modifiers, parameters, false)
+                (data.modifiers, parameters)
             }
-            NodeData::SetAccessor(data) => (data.name, data.modifiers, data.parameters, false),
-            _ => return Ok(None),
+            NodeData::SetAccessor(data) => (data.modifiers, data.parameters),
+            _ => unreachable!("decorator owner is a supported class element"),
         };
         let mut decorators = self.decorator_expressions(modifiers)?;
         if let Some(parameters) = parameters {
             decorators.extend(self.parameter_decorators(parameters)?);
         }
-        if decorators.is_empty() {
-            return Ok(None);
-        }
+        debug_assert!(!decorators.is_empty());
         if self.emit_decorator_metadata {
-            decorators.extend(self.member_metadata(member)?);
+            decorators.extend(self.member_metadata(owner_member, serialization_context)?);
         }
         let target = if self.has_modifier(modifiers, SyntaxKind::StaticKeyword)? {
             self.create_identifier(class_name)?
@@ -542,7 +715,15 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
             let class = self.create_identifier(class_name)?;
             self.create_property_access(class, "prototype")?
         };
-        let name = name.ok_or(TransformError::RequiredChildRemoved {
+        let member_record = self.context.arena().node(member)?;
+        let name = match &member_record.data {
+            NodeData::PropertyDeclaration(data) => data.name,
+            NodeData::MethodDeclaration(data) => data.name,
+            NodeData::GetAccessor(data) => data.name,
+            NodeData::SetAccessor(data) => data.name,
+            _ => None,
+        }
+        .ok_or(TransformError::RequiredChildRemoved {
             parent: record.kind,
             field: "name",
         })?;
@@ -560,25 +741,31 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
             .arena_mut()?
             .metadata_mut(statement)
             .add_flags(EmitFlags::NO_COMMENTS);
-        Ok(Some(statement))
+        Ok(statement)
     }
 
     fn member_metadata(
         &mut self,
         member: TransformNode,
+        serialization_context: MetadataSerializationContext,
     ) -> Result<Vec<TransformNode>, TransformError> {
         let original = self.context.arena().get_original_node(member);
         let record = self.context.arena().node(original)?.clone();
         let mut metadata = Vec::new();
         match record.data {
             NodeData::PropertyDeclaration(data) => {
-                let value = self.serialize_type(data.r#type, MetadataFallback::Object)?;
+                let value = self.serialize_type(
+                    data.r#type,
+                    MetadataFallback::Object,
+                    serialization_context,
+                )?;
                 metadata.push(self.create_metadata("design:type", value)?);
             }
             NodeData::MethodDeclaration(data) => {
                 let value = self.create_identifier("Function")?;
                 metadata.push(self.create_metadata("design:type", value)?);
-                let parameters = self.serialize_parameter_types_from_array(data.parameters)?;
+                let parameters = self
+                    .serialize_parameter_types_from_array(data.parameters, serialization_context)?;
                 let value = self.create_array_literal(parameters, false)?;
                 metadata.push(self.create_metadata("design:paramtypes", value)?);
                 let value = if data.r#type.is_none()
@@ -586,7 +773,11 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
                 {
                     self.create_identifier("Promise")?
                 } else {
-                    self.serialize_type(data.r#type, MetadataFallback::VoidZero)?
+                    self.serialize_type(
+                        data.r#type,
+                        MetadataFallback::VoidZero,
+                        serialization_context,
+                    )?
                 };
                 metadata.push(self.create_metadata("design:returntype", value)?);
             }
@@ -606,9 +797,14 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
                 } else {
                     (data.r#type, data.parameters)
                 };
-                let value = self.serialize_type(accessor_type, MetadataFallback::Object)?;
+                let value = self.serialize_type(
+                    accessor_type,
+                    MetadataFallback::Object,
+                    serialization_context,
+                )?;
                 metadata.push(self.create_metadata("design:type", value)?);
-                let parameters = self.serialize_parameter_types_from_array(parameters)?;
+                let parameters =
+                    self.serialize_parameter_types_from_array(parameters, serialization_context)?;
                 let value = self.create_array_literal(parameters, false)?;
                 metadata.push(self.create_metadata("design:paramtypes", value)?);
             }
@@ -619,11 +815,14 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
                     .and_then(|array| self.context.arena().node_array(array).ok())
                     .and_then(|array| array.nodes.first().copied())
                     .and_then(|parameter| self.context.arena().node_ref(self.source, parameter))
-                    .map(|parameter| self.serialize_parameter_type(parameter))
+                    .map(|parameter| {
+                        self.serialize_parameter_type(parameter, serialization_context)
+                    })
                     .transpose()?
                     .unwrap_or(self.create_identifier("Object")?);
                 metadata.push(self.create_metadata("design:type", value)?);
-                let parameters = self.serialize_parameter_types_from_array(data.parameters)?;
+                let parameters = self
+                    .serialize_parameter_types_from_array(data.parameters, serialization_context)?;
                 let value = self.create_array_literal(parameters, false)?;
                 metadata.push(self.create_metadata("design:paramtypes", value)?);
             }
@@ -753,24 +952,45 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
     fn serialize_parameter_types(
         &mut self,
         constructor: TransformNode,
+        serialization_context: MetadataSerializationContext,
     ) -> Result<Vec<TransformNode>, TransformError> {
         let original = self.context.arena().get_original_node(constructor);
         let parameters = match &self.context.arena().node(original)?.data {
             NodeData::Constructor(data) => data.parameters,
             _ => None,
         };
-        self.serialize_parameter_types_from_array(parameters)
+        self.serialize_parameter_types_from_array(parameters, serialization_context)
+    }
+
+    /// tsc-port: shouldAddParamTypesMetadata @6.0.3
+    /// tsc-hash: 63e67fe79b1beb9f0fa2ec0f6f6059d3cfa10ee1e8eaff0cb50bfcee9fc7028c
+    /// tsc-span: _tsc.js:94708-94719
+    /// tsc-port: serializeParameterTypesOfNode @6.0.3
+    /// tsc-hash: e5db9892b8e6f775010ce8a63d06bfd2176efbe56de3bd63f3cd9c1582d8d098
+    /// tsc-span: _tsc.js:98124-98142
+    /// tsc-port: createMetadataHelper @6.0.3
+    /// tsc-hash: c651bd38047268e531374ba55fca896a765e6db5bf3aa9e237f25632456fb679
+    /// tsc-span: _tsc.js:25551-25562
+    fn create_constructor_parameter_metadata(
+        &mut self,
+        plan: ConstructorMetadataPlan,
+    ) -> Result<TransformNode, TransformError> {
+        let parameter_types =
+            self.serialize_parameter_types(plan.constructor_with_body, plan.serialization_context)?;
+        let value = self.create_array_literal(parameter_types, false)?;
+        self.create_metadata("design:paramtypes", value)
     }
 
     fn serialize_parameter_types_from_array(
         &mut self,
         parameters: Option<NodeArrayId>,
+        serialization_context: MetadataSerializationContext,
     ) -> Result<Vec<TransformNode>, TransformError> {
         let parameters = self.array_nodes(parameters)?;
         let mut serialized = Vec::with_capacity(parameters.len());
         for parameter in parameters {
             if !self.is_this_parameter(parameter) {
-                serialized.push(self.serialize_parameter_type(parameter)?);
+                serialized.push(self.serialize_parameter_type(parameter, serialization_context)?);
             }
         }
         Ok(serialized)
@@ -779,6 +999,7 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
     fn serialize_parameter_type(
         &mut self,
         parameter: TransformNode,
+        serialization_context: MetadataSerializationContext,
     ) -> Result<TransformNode, TransformError> {
         let original = self.context.arena().get_original_node(parameter);
         let r#type = match &self.context.arena().node(original)?.data {
@@ -788,7 +1009,7 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
             NodeData::Parameter(data) => data.r#type,
             _ => None,
         };
-        self.serialize_type(r#type, MetadataFallback::Object)
+        self.serialize_type(r#type, MetadataFallback::Object, serialization_context)
     }
 
     fn is_this_parameter(&self, parameter: TransformNode) -> bool {
@@ -835,6 +1056,7 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
         &mut self,
         r#type: Option<NodeId>,
         fallback: MetadataFallback,
+        serialization_context: MetadataSerializationContext,
     ) -> Result<TransformNode, TransformError> {
         let Some(r#type) = r#type else {
             return self.metadata_fallback(fallback);
@@ -870,24 +1092,29 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
                 _ => self.metadata_fallback(fallback),
             },
             SyntaxKind::ParenthesizedType => match record.data {
-                NodeData::ParenthesizedType(data) => self.serialize_type(data.r#type, fallback),
+                NodeData::ParenthesizedType(data) => {
+                    self.serialize_type(data.r#type, fallback, serialization_context)
+                }
                 _ => self.metadata_fallback(fallback),
             },
             SyntaxKind::TypeReference => match record.data {
-                NodeData::TypeReference(data) => {
-                    self.serialize_entity_name_type(data.type_name, fallback)
-                }
+                NodeData::TypeReference(data) => self.serialize_entity_name_type(
+                    node,
+                    data.type_name,
+                    fallback,
+                    serialization_context,
+                ),
                 _ => self.metadata_fallback(fallback),
             },
             SyntaxKind::IntersectionType => match record.data {
                 NodeData::IntersectionType(data) => {
-                    self.serialize_union_or_intersection(data.types, true)
+                    self.serialize_union_or_intersection(data.types, true, serialization_context)
                 }
                 _ => self.metadata_fallback(fallback),
             },
             SyntaxKind::UnionType => match record.data {
                 NodeData::UnionType(data) => {
-                    self.serialize_union_or_intersection(data.types, false)
+                    self.serialize_union_or_intersection(data.types, false, serialization_context)
                 }
                 _ => self.metadata_fallback(fallback),
             },
@@ -895,14 +1122,33 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
                 NodeData::ConditionalType(data) => self.serialize_type_constituents(
                     [data.true_type, data.false_type].into_iter().flatten(),
                     false,
+                    serialization_context,
                 ),
                 _ => self.metadata_fallback(fallback),
             },
             SyntaxKind::TypeOperator => match record.data {
                 NodeData::TypeOperator(data) if data.operator == SyntaxKind::ReadonlyKeyword => {
-                    self.serialize_type(data.r#type, fallback)
+                    self.serialize_type(data.r#type, fallback, serialization_context)
                 }
                 _ => self.create_identifier("Object"),
+            },
+            SyntaxKind::JSDocNullableType => match record.data {
+                NodeData::JSDocNullableType(data) => {
+                    self.serialize_type(data.r#type, fallback, serialization_context)
+                }
+                _ => self.metadata_fallback(fallback),
+            },
+            SyntaxKind::JSDocNonNullableType => match record.data {
+                NodeData::JSDocNonNullableType(data) => {
+                    self.serialize_type(data.r#type, fallback, serialization_context)
+                }
+                _ => self.metadata_fallback(fallback),
+            },
+            SyntaxKind::JSDocOptionalType => match record.data {
+                NodeData::JSDocOptionalType(data) => {
+                    self.serialize_type(data.r#type, fallback, serialization_context)
+                }
+                _ => self.metadata_fallback(fallback),
             },
             _ => self.metadata_fallback(fallback),
         }
@@ -947,18 +1193,20 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
         &mut self,
         types: Option<NodeArrayId>,
         is_intersection: bool,
+        serialization_context: MetadataSerializationContext,
     ) -> Result<TransformNode, TransformError> {
         let types = self
             .array_nodes(types)?
             .into_iter()
             .map(TransformNode::node);
-        self.serialize_type_constituents(types, is_intersection)
+        self.serialize_type_constituents(types, is_intersection, serialization_context)
     }
 
     fn serialize_type_constituents(
         &mut self,
         types: impl IntoIterator<Item = NodeId>,
         is_intersection: bool,
+        serialization_context: MetadataSerializationContext,
     ) -> Result<TransformNode, TransformError> {
         let mut serialized: Option<(TransformNode, String)> = None;
         for r#type in types {
@@ -982,7 +1230,11 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
             if !self.strict_null_checks && self.is_null_or_undefined_type(r#type)? {
                 continue;
             }
-            let node = self.serialize_type(Some(r#type), MetadataFallback::Object)?;
+            let node = self.serialize_type(
+                Some(r#type),
+                MetadataFallback::Object,
+                serialization_context,
+            )?;
             let key = self
                 .serialized_type_key(node)?
                 .unwrap_or_else(|| "other".to_owned());
@@ -1071,22 +1323,40 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
     /// tsc-span: _tsc.js:98331-98412
     fn serialize_entity_name_type(
         &mut self,
+        type_reference: TransformNode,
         name: Option<NodeId>,
         fallback: MetadataFallback,
+        serialization_context: MetadataSerializationContext,
     ) -> Result<TransformNode, TransformError> {
         let Some(name) = name else {
             return self.metadata_fallback(fallback);
         };
         let node = self.node(name);
-        let kind = self
-            .resolver
-            .get_type_reference_serialization_kind(self.resolver_node(node)?)?;
+        let kind =
+            if let Some(resolver_node) = self.context.arena().parse_tree_resolver_node(node)? {
+                self.resolver.get_type_reference_serialization_kind(
+                    resolver_node,
+                    serialization_context.resolver_location,
+                )?
+            } else {
+                EmitTypeReferenceSerializationKind::Unknown
+            };
         match kind {
             EmitTypeReferenceSerializationKind::Unknown => {
-                self.serialize_unknown_entity_name_type(node)
+                // A conditional type serializes both branches before deciding
+                // whether their runtime representations agree. Creating the
+                // Unknown fallback here would hoist a temporary even though a
+                // differing sibling immediately collapses the result to
+                // `Object`. tsc deliberately short-circuits every type
+                // reference nested in a direct true/false branch.
+                if self.type_reference_is_in_conditional_branch(type_reference)? {
+                    self.create_identifier("Object")
+                } else {
+                    self.serialize_unknown_entity_name_type(node, serialization_context)
+                }
             }
             EmitTypeReferenceSerializationKind::TypeWithConstructSignatureAndValue => {
-                self.entity_name_expression(node)
+                self.entity_name_expression(node, serialization_context)
             }
             EmitTypeReferenceSerializationKind::VoidNullableOrNeverType => self.create_void_zero(),
             EmitTypeReferenceSerializationKind::NumberLikeType => self.create_identifier("Number"),
@@ -1103,21 +1373,40 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
         }
     }
 
+    fn type_reference_is_in_conditional_branch(
+        &self,
+        type_reference: TransformNode,
+    ) -> Result<bool, TransformError> {
+        let mut current = type_reference;
+        while let Some(parent) = self.context.arena().node(current)?.parent {
+            let parent = self.node(parent);
+            if let NodeData::ConditionalType(data) = &self.context.arena().node(parent)?.data {
+                if data.true_type == Some(current.node()) || data.false_type == Some(current.node())
+                {
+                    return Ok(true);
+                }
+            }
+            current = parent;
+        }
+        Ok(false)
+    }
+
     fn serialize_unknown_entity_name_type(
         &mut self,
         name: TransformNode,
+        serialization_context: MetadataSerializationContext,
     ) -> Result<TransformNode, TransformError> {
-        let (guard, value) = self.checked_entity_name_parts(name)?;
+        let (guard, value) = self.checked_entity_name_parts(name, serialization_context)?;
         let checked = self.create_binary(guard, SyntaxKind::AmpersandAmpersandToken, value)?;
-        let temp_name = self.allocate_temp_name();
-        let temp = self.create_identifier(&temp_name)?;
+        let temp_name = self.allocate_temp_name()?;
+        let temp = self.create_generated_identifier(&temp_name)?;
         let assignment = self.create_assignment(temp, checked)?;
         let assignment = self.create_parenthesized(assignment)?;
         let type_of = self.create_typeof(assignment)?;
         let function = self.create_string_literal("function")?;
         let condition =
             self.create_binary(type_of, SyntaxKind::EqualsEqualsEqualsToken, function)?;
-        let when_true = self.create_identifier(&temp_name)?;
+        let when_true = self.create_generated_identifier(&temp_name)?;
         let when_false = self.create_identifier("Object")?;
         self.create_conditional(condition, when_true, when_false)
     }
@@ -1125,10 +1414,11 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
     fn checked_entity_name_parts(
         &mut self,
         name: TransformNode,
+        serialization_context: MetadataSerializationContext,
     ) -> Result<(TransformNode, TransformNode), TransformError> {
         match self.context.arena().node(name)?.data.clone() {
-            NodeData::Identifier(data) => {
-                let left = self.create_identifier(&data.text)?;
+            NodeData::Identifier(_) => {
+                let left = self.entity_identifier_expression(name, serialization_context)?;
                 let type_of = self.create_typeof(left)?;
                 let undefined = self.create_string_literal("undefined")?;
                 let guard = self.create_binary(
@@ -1136,7 +1426,7 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
                     SyntaxKind::ExclamationEqualsEqualsToken,
                     undefined,
                 )?;
-                let value = self.create_identifier(&data.text)?;
+                let value = self.entity_identifier_expression(name, serialization_context)?;
                 Ok((guard, value))
             }
             NodeData::QualifiedName(data) => {
@@ -1159,13 +1449,15 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
                     self.context.arena().node(left)?.data,
                     NodeData::Identifier(_)
                 ) {
-                    let (guard, left_value) = self.checked_entity_name_parts(left)?;
+                    let (guard, left_value) =
+                        self.checked_entity_name_parts(left, serialization_context)?;
                     let value = self.create_property_access(left_value, &right)?;
                     return Ok((guard, value));
                 }
-                let (left_guard, left_value) = self.checked_entity_name_parts(left)?;
-                let temp_name = self.allocate_temp_name();
-                let temp = self.create_identifier(&temp_name)?;
+                let (left_guard, left_value) =
+                    self.checked_entity_name_parts(left, serialization_context)?;
+                let temp_name = self.allocate_temp_name()?;
+                let temp = self.create_generated_identifier(&temp_name)?;
                 let assignment = self.create_assignment(temp, left_value)?;
                 let void_zero = self.create_void_zero()?;
                 let defined = self.create_binary(
@@ -1175,7 +1467,7 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
                 )?;
                 let guard =
                     self.create_binary(left_guard, SyntaxKind::AmpersandAmpersandToken, defined)?;
-                let temp = self.create_identifier(&temp_name)?;
+                let temp = self.create_generated_identifier(&temp_name)?;
                 let value = self.create_property_access(temp, &right)?;
                 Ok((guard, value))
             }
@@ -1189,11 +1481,11 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
     fn entity_name_expression(
         &mut self,
         node: TransformNode,
+        serialization_context: MetadataSerializationContext,
     ) -> Result<TransformNode, TransformError> {
         match self.context.arena().node(node)?.data.clone() {
-            NodeData::Identifier(data) => {
-                let expression = self.create_identifier(&data.text)?;
-                self.set_original_and_range(expression, node)
+            NodeData::Identifier(_) => {
+                self.entity_identifier_expression(node, serialization_context)
             }
             NodeData::QualifiedName(data) => {
                 let left = data
@@ -1211,12 +1503,44 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
                         field: "right",
                     })?;
                 let right = self.identifier_text(right.node())?.to_owned();
-                let left = self.entity_name_expression(left)?;
+                let left = self.entity_name_expression(left, serialization_context)?;
                 let expression = self.create_property_access(left, &right)?;
                 self.set_original_and_range(expression, node)
             }
             _ => self.create_identifier("Object"),
         }
+    }
+
+    fn entity_identifier_expression(
+        &mut self,
+        node: TransformNode,
+        serialization_context: MetadataSerializationContext,
+    ) -> Result<TransformNode, TransformError> {
+        let text = self.identifier_text(node.node())?.to_owned();
+        let expression = self.create_identifier(&text)?;
+        let expression = self.set_original_and_range(expression, node)?;
+        let resolver_node = self.resolver_node(node)?;
+        let declaration = self
+            .resolver
+            .get_referenced_import_declaration_at_location(
+                resolver_node,
+                serialization_context.resolver_location,
+            )?;
+        if let Some(declaration) = declaration {
+            let current_source = self.context.arena().source(self.source)?.program_source();
+            if current_source == Some(declaration.source()) {
+                let declaration = self
+                    .context
+                    .arena()
+                    .node_ref(self.source, declaration.node())
+                    .ok_or_else(|| TransformError::UnknownNode(self.node(declaration.node())))?;
+                self.context
+                    .arena_mut()?
+                    .metadata_mut(expression)
+                    .set_referenced_import_declaration(declaration);
+            }
+        }
+        Ok(expression)
     }
 
     fn metadata_fallback(
@@ -1229,6 +1553,9 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
         }
     }
 
+    /// tsc-port: getFirstConstructorWithBody @6.0.3
+    /// tsc-hash: 9a7337f235fb939299cfc0513bfd74f5a61039c196919e9dde7af622e2557370
+    /// tsc-span: _tsc.js:16674-16676
     fn first_constructor(
         &self,
         members: Option<NodeArrayId>,
@@ -1249,25 +1576,68 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
         members: Option<NodeArrayId>,
     ) -> Result<bool, TransformError> {
         for member in self.array_nodes(members)? {
-            let (modifiers, parameters) = match &self.context.arena().node(member)?.data {
-                NodeData::Constructor(data) => (data.modifiers, data.parameters),
-                NodeData::PropertyDeclaration(data) => (data.modifiers, None),
-                NodeData::MethodDeclaration(data) => (data.modifiers, data.parameters),
-                NodeData::GetAccessor(data) => (data.modifiers, data.parameters),
-                NodeData::SetAccessor(data) => (data.modifiers, data.parameters),
-                _ => continue,
+            if self.decorator_owner(member)?.is_some() {
+                return Ok(true);
+            }
+        }
+        Ok(false)
+    }
+
+    /// tsc-port: getAllDecoratorsOfClassElement/getAllDecoratorsOfMethod @6.0.3
+    /// tsc-hash: 1e32c7d45db7aacd65944d5393ca3f632a42c037d03fd6f795874e7a240870f8
+    /// tsc-span: _tsc.js:93146-93208
+    fn decorator_owner(
+        &self,
+        member: TransformNode,
+    ) -> Result<Option<DecoratorOwner>, TransformError> {
+        let original = self.context.arena().get_original_node(member);
+        let record = self.context.arena().node(original)?;
+        match &record.data {
+            NodeData::PropertyDeclaration(data) => {
+                Ok((!self.decorator_expressions(data.modifiers)?.is_empty())
+                    .then_some(DecoratorOwner::Property(original)))
+            }
+            NodeData::MethodDeclaration(data) => {
+                if data.body.is_none() {
+                    return Ok(None);
+                }
+                let decorated = !self.decorator_expressions(data.modifiers)?.is_empty()
+                    || self.parameters_have_decorators(data.parameters)?;
+                Ok(decorated.then_some(DecoratorOwner::MethodWithBody(original)))
+            }
+            NodeData::GetAccessor(data) => {
+                if data.body.is_none() {
+                    return Ok(None);
+                }
+                let Some(owner) = self.accessor_decoration_owner(original)? else {
+                    return Ok(None);
+                };
+                Ok((owner == original).then_some(DecoratorOwner::AccessorWithBody(owner)))
+            }
+            NodeData::SetAccessor(data) => {
+                if data.body.is_none() {
+                    return Ok(None);
+                }
+                let Some(owner) = self.accessor_decoration_owner(original)? else {
+                    return Ok(None);
+                };
+                Ok((owner == original).then_some(DecoratorOwner::AccessorWithBody(owner)))
+            }
+            _ => Ok(None),
+        }
+    }
+
+    fn parameters_have_decorators(
+        &self,
+        parameters: Option<NodeArrayId>,
+    ) -> Result<bool, TransformError> {
+        for parameter in self.array_nodes(parameters)? {
+            let modifiers = match &self.context.arena().node(parameter)?.data {
+                NodeData::Parameter(data) => data.modifiers,
+                _ => None,
             };
             if !self.decorator_expressions(modifiers)?.is_empty() {
                 return Ok(true);
-            }
-            for parameter in self.array_nodes(parameters)? {
-                let modifiers = match &self.context.arena().node(parameter)?.data {
-                    NodeData::Parameter(data) => data.modifiers,
-                    _ => None,
-                };
-                if !self.decorator_expressions(modifiers)?.is_empty() {
-                    return Ok(true);
-                }
             }
         }
         Ok(false)
@@ -1296,13 +1666,21 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
     ) -> Result<Vec<TransformNode>, TransformError> {
         let parameter_nodes = self.array_nodes(Some(parameters))?;
         let mut decorators = Vec::new();
-        for (index, parameter) in parameter_nodes.into_iter().enumerate() {
+        let mut runtime_index = 0usize;
+        for parameter in parameter_nodes {
             let modifiers = match &self.context.arena().node(parameter)?.data {
                 NodeData::Parameter(data) => data.modifiers,
                 _ => None,
             };
             for decorator in self.decorator_expressions(modifiers)? {
-                decorators.push(self.create_param(index, decorator)?);
+                decorators.push(self.create_param(runtime_index, decorator)?);
+            }
+            // A TypeScript `this` parameter is erased before runtime and does
+            // not consume a JavaScript argument position. tsc therefore
+            // numbers subsequent parameter decorators against the filtered
+            // runtime parameter list.
+            if !self.is_this_parameter(parameter) {
+                runtime_index += 1;
             }
         }
         Ok(decorators)
@@ -1486,7 +1864,7 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
     ) -> Result<TransformNode, TransformError> {
         let original_member = self.context.arena().get_original_node(member).node();
         if let Some(generated) = self.computed_names.get(&original_member).cloned() {
-            return self.create_identifier(&generated);
+            return self.create_generated_identifier(&generated);
         }
         let name = self.node(name);
         match self.context.arena().node(name)?.data.clone() {
@@ -1505,10 +1883,10 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
                 if self.is_simple_inlineable_expression(expression)? {
                     Ok(expression)
                 } else {
-                    let generated = self.allocate_temp_name();
+                    let generated = self.allocate_temp_name()?;
                     self.computed_names
                         .insert(original_member, generated.clone());
-                    self.create_identifier(&generated)
+                    self.create_generated_identifier(&generated)
                 }
             }
             NodeData::PrivateIdentifier(_) => self.create_identifier(""),
@@ -1543,7 +1921,7 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
                 parent: SyntaxKind::ComputedPropertyName,
                 field: "expression",
             })?;
-        let target = self.create_identifier(&generated)?;
+        let target = self.create_generated_identifier(&generated)?;
         let assignment = self.create_assignment(target, expression)?;
         let computed = self.context.factory()?.create_node(
             self.source,
@@ -1552,6 +1930,10 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
             }),
             TransformFlags::NONE,
         )?;
+        self.context
+            .arena_mut()?
+            .metadata_mut(computed)
+            .set_internal_flags(InternalEmitFlags::GENERATED_COMPUTED_PROPERTY_NAME);
         self.set_original_and_range(computed, name)?;
         Ok(Some(computed.node()))
     }
@@ -1560,8 +1942,9 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
         &self,
         node: TransformNode,
     ) -> Result<Option<String>, TransformError> {
-        let original = self.context.arena().get_original_node(node);
-        let resolver_node = self.resolver_node(original)?;
+        let Some(resolver_node) = self.context.arena().parse_tree_resolver_node(node)? else {
+            return Ok(None);
+        };
         let has_flag = match self.resolver.has_node_check_flag(
             resolver_node,
             NodeCheckFlags::CONSTRUCTOR_REFERENCE.bits() as u32,
@@ -1609,18 +1992,14 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
         &self,
         expression: TransformNode,
     ) -> Result<bool, TransformError> {
+        let kind = self.context.arena().node(expression)?.kind;
         Ok(matches!(
-            self.context.arena().node(expression)?.kind,
-            SyntaxKind::Identifier
-                | SyntaxKind::StringLiteral
-                | SyntaxKind::NumericLiteral
-                | SyntaxKind::BigIntLiteral
+            kind,
+            SyntaxKind::StringLiteral
                 | SyntaxKind::NoSubstitutionTemplateLiteral
-                | SyntaxKind::TrueKeyword
-                | SyntaxKind::FalseKeyword
-                | SyntaxKind::NullKeyword
-                | SyntaxKind::ThisKeyword
-        ))
+                | SyntaxKind::NumericLiteral
+        ) || kind.value() >= SyntaxKind::FirstKeyword.value()
+            && kind.value() <= SyntaxKind::LastKeyword.value())
     }
 
     fn allocate_class_alias(&mut self, class_name: &str) -> String {
@@ -1629,7 +2008,8 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
         loop {
             let candidate = format!("{base}_{ordinal}");
             if self.used_names.insert(candidate.clone()) {
-                self.hoisted_names.push(candidate.clone());
+                self.hoisted_bindings
+                    .push(LegacyHoistedBinding::Fixed(candidate.clone()));
                 return candidate;
             }
             ordinal += 1;
@@ -1647,7 +2027,7 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
         }
     }
 
-    fn allocate_temp_name(&mut self) -> String {
+    fn allocate_temp_name(&mut self) -> Result<TargetBinding, TransformError> {
         loop {
             let ordinal = self.next_temp_name;
             self.next_temp_name += 1;
@@ -1657,8 +2037,10 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
                 format!("_{}", ordinal - 26)
             };
             if self.used_names.insert(candidate.clone()) {
-                self.hoisted_names.push(candidate.clone());
-                return candidate;
+                let binding = TargetBinding::allocate(self.context, candidate)?;
+                self.hoisted_bindings
+                    .push(LegacyHoistedBinding::Generated(binding.clone()));
+                return Ok(binding);
             }
         }
     }
@@ -1667,7 +2049,7 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
         &mut self,
         root: TransformNode,
     ) -> Result<TransformNode, TransformError> {
-        if self.hoisted_names.is_empty() {
+        if self.hoisted_bindings.is_empty() {
             return Ok(root);
         }
         let NodeData::SourceFile(mut data) = self.context.arena().node(root)?.data.clone() else {
@@ -1675,9 +2057,14 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
                 actual: self.context.arena().node(root)?.kind,
             });
         };
-        let mut declarations = Vec::with_capacity(self.hoisted_names.len());
-        for name in self.hoisted_names.clone() {
-            let name = self.create_identifier(&name)?;
+        let mut declarations = Vec::with_capacity(self.hoisted_bindings.len());
+        for binding in self.hoisted_bindings.clone() {
+            let name = match binding {
+                LegacyHoistedBinding::Fixed(name) => self.create_identifier(&name)?,
+                LegacyHoistedBinding::Generated(binding) => {
+                    self.create_generated_identifier(&binding)?
+                }
+            };
             declarations.push(self.context.factory()?.create_node(
                 self.source,
                 NodeData::VariableDeclaration(tsc_syntax::nodes::VariableDeclarationData {
@@ -1690,6 +2077,14 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
             )?);
         }
         let hoisted = self.create_variable_statement(declarations, NodeFlags::NONE)?;
+        // `hoistVariableDeclaration` materializes this statement as part of
+        // the transform lexical environment. Module markers and export
+        // preinitializers are inserted after that custom-prologue region, so
+        // class-alias storage must retain the same ownership here.
+        self.context
+            .arena_mut()?
+            .metadata_mut(hoisted)
+            .add_flags(EmitFlags::CUSTOM_PROLOGUE);
         let mut statements = self.array_nodes(data.statements)?;
         let mut position = 0;
         while position < statements.len()
@@ -1710,8 +2105,18 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
             .update_node(root, NodeData::SourceFile(data), flags)
     }
 
-    fn create_named_export(&mut self, name: &str) -> Result<TransformNode, TransformError> {
+    fn create_named_export(
+        &mut self,
+        name: &str,
+        declaration_name: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
         let name = self.create_identifier(name)?;
+        // tsc passes `factory.getDeclarationName(node)` to
+        // `createExternalModuleExport`. Preserve that declaration identity:
+        // collectExternalModuleInfo asks the resolver for the value
+        // declaration behind this synthetic specifier, and the later module
+        // substitution uses the resulting exported-binding relation.
+        self.set_original_and_range(name, declaration_name)?;
         let specifier = self.context.factory()?.create_node(
             self.source,
             NodeData::ExportSpecifier(tsc_syntax::nodes::ExportSpecifierData {
@@ -1780,7 +2185,10 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
                 arguments.push(descriptor);
             }
         }
-        let helper = self.create_identifier("__decorate")?;
+        let helper = self
+            .context
+            .factory()?
+            .create_unscoped_helper_identifier(self.source, EmitHelperName::Decorate)?;
         self.create_call(helper, arguments)
     }
 
@@ -1796,7 +2204,10 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
             Some(3),
             Vec::new(),
         ))?;
-        let helper = self.create_identifier("__metadata")?;
+        let helper = self
+            .context
+            .factory()?
+            .create_unscoped_helper_identifier(self.source, EmitHelperName::Metadata)?;
         let key = self.create_string_literal(key)?;
         self.create_call(helper, vec![key, value])
     }
@@ -1813,7 +2224,10 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
             Some(4),
             Vec::new(),
         ))?;
-        let helper = self.create_identifier("__param")?;
+        let helper = self
+            .context
+            .factory()?
+            .create_unscoped_helper_identifier(self.source, EmitHelperName::Param)?;
         let index = self.create_numeric_literal(&index.to_string())?;
         self.create_call(helper, vec![index, decorator])
     }
@@ -1827,6 +2241,16 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
             }),
             TransformFlags::NONE,
         )
+    }
+
+    fn create_generated_identifier(
+        &mut self,
+        binding: &TargetBinding,
+    ) -> Result<TransformNode, TransformError> {
+        let text = binding.printable_text(self.context).to_owned();
+        let identifier = self.create_identifier(&text)?;
+        binding.write_generated_metadata(self.context.arena_mut()?, identifier);
+        Ok(identifier)
     }
 
     fn create_string_literal(&mut self, text: &str) -> Result<TransformNode, TransformError> {
@@ -2109,14 +2533,7 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
     }
 
     fn resolver_node(&self, node: TransformNode) -> Result<EmitResolverNode, TransformError> {
-        let original = self.context.arena().get_original_node(node);
-        let source = self
-            .context
-            .arena()
-            .source(original.source())?
-            .program_source()
-            .ok_or(TransformError::MissingProgramSource(original))?;
-        Ok(EmitResolverNode::new(source, original.node()))
+        self.context.arena().require_parse_tree_resolver_node(node)
     }
 
     fn identifier_text(&self, id: NodeId) -> Result<&str, TransformError> {

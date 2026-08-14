@@ -121,6 +121,25 @@ impl<'a> CheckerState<'a> {
         node: NodeId,
         check_mode: CheckMode,
     ) -> CheckResult<()> {
+        let diagnostics_start = self.diagnostics.len();
+        let visible_global_diagnostics_start = self.visible_global_diagnostics.len();
+        let result = self.contextually_check_function_expression_or_object_literal_method_worker(
+            node, check_mode,
+        );
+        if result.is_ok() {
+            self.record_completed_contextual_diagnostics_since(
+                diagnostics_start,
+                visible_global_diagnostics_start,
+            );
+        }
+        result
+    }
+
+    fn contextually_check_function_expression_or_object_literal_method_worker(
+        &mut self,
+        node: NodeId,
+        check_mode: CheckMode,
+    ) -> CheckResult<()> {
         if self
             .links
             .node(node)
@@ -1296,7 +1315,7 @@ impl<'a> CheckerState<'a> {
         if let Some(memo) = self.deferred_global_promise_like_type {
             return Ok((memo != self.empty_generic_type).then_some(memo));
         }
-        let symbol = self.get_global_type_symbol("PromiseLike", report_errors);
+        let symbol = self.get_global_type_symbol("PromiseLike", report_errors)?;
         if symbol.is_none() && !report_errors {
             return Ok(None);
         }
@@ -1865,8 +1884,9 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 1efd72b631aa59c1a5c9b853f95ad970dd43af2b03a95cb20024b2da103444da
     /// tsc-span: _tsc.js:81170-81205
     ///
-    /// checkGrammarModifiers is live; the erasableSyntaxOnly row is
-    /// option-absent (dead, §13 audit).
+    /// Parameter properties are runtime TypeScript syntax and are rejected
+    /// independently of their constructor-context grammar diagnostics when
+    /// erasableSyntaxOnly is enabled.
     pub(crate) fn check_parameter(&mut self, node: NodeId) -> CheckResult<()> {
         self.check_grammar_modifiers(node);
         self.check_variable_like_declaration(node)?;
@@ -1888,6 +1908,13 @@ impl<'a> CheckerState<'a> {
             node,
             tsc_types::ModifierFlags::PARAMETER_PROPERTY_MODIFIER,
         ) {
+            if self.options.erasable_syntax_only == Some(true) {
+                self.error_at(
+                    Some(node),
+                    &diagnostics::This_syntax_is_not_allowed_when_erasableSyntaxOnly_is_enabled,
+                    &[],
+                );
+            }
             if !(func_kind == SyntaxKind::Constructor && func_body.is_some()) {
                 self.error_at(
                     Some(node),
@@ -2835,9 +2862,10 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: a3f5ba27fc2fb97d9c9987c0a09b74d9301ff572b74a4a018ebb222c74367b42
     /// tsc-span: _tsc.js:81536-81551
     ///
-    /// The class-expression-in-iteration arm sets emit-only flags
-    /// (BlockScopedBindingInLoop / LoopWithCapturedBlockScopedBinding)
-    /// — elided; no check-path reads them.
+    /// The class-expression-in-iteration arm records checker-owned lexical
+    /// placement facts consumed by class-field emit. Private storage for a
+    /// class expression created on each iteration must be declared inside the
+    /// loop body rather than once in the enclosing source/function scope.
     fn set_node_links_for_private_identifier_scope(&mut self, node: NodeId) {
         let Some(name) = self.name_of_node(node) else {
             return;
@@ -2858,6 +2886,24 @@ impl<'a> CheckerState<'a> {
                     tsc_types::NodeCheckFlags::CONTAINS_CLASS_WITH_PRIVATE_IDENTIFIERS,
                 );
                 lexical_scope = self.get_enclosing_block_scope_container(scope);
+            }
+            if self
+                .parent_of(node)
+                .is_some_and(|parent| self.kind_of(parent) == SyntaxKind::ClassExpression)
+            {
+                let class_expression = self.parent_of(node).expect("class expression parent");
+                if let Some(iteration) = self.get_enclosing_iteration_statement(class_expression) {
+                    self.links.or_node_check_flags(
+                        self.speculation_depth,
+                        name,
+                        NodeCheckFlags::BLOCK_SCOPED_BINDING_IN_LOOP,
+                    );
+                    self.links.or_node_check_flags(
+                        self.speculation_depth,
+                        iteration,
+                        NodeCheckFlags::LOOP_WITH_CAPTURED_BLOCK_SCOPED_BINDING,
+                    );
+                }
             }
         }
     }
@@ -5501,7 +5547,7 @@ impl<'a> CheckerState<'a> {
         if let Some(memo) = self.deferred_global_promise_type {
             return Ok((memo != self.empty_generic_type).then_some(memo));
         }
-        let symbol = self.get_global_type_symbol("Promise", report_errors);
+        let symbol = self.get_global_type_symbol("Promise", report_errors)?;
         if symbol.is_none() && !report_errors {
             return Ok(None);
         }
@@ -5525,7 +5571,7 @@ impl<'a> CheckerState<'a> {
             "Promise",
             SymbolFlags::VALUE,
             report_errors.then_some(&diagnostics::Cannot_find_global_value_0),
-        );
+        )?;
         self.publish_visible_global_diagnostics_since(diagnostics_before);
         if symbol.is_some() || report_errors {
             self.deferred_global_promise_constructor_symbol = Some(symbol);

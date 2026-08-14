@@ -217,6 +217,31 @@ fn generic_indexed_access_defers_instantiates_and_constrains() {
 }
 
 #[test]
+fn generic_mapped_index_probe_does_not_materialize_members() {
+    with_program_state(
+        &[(
+            "a.ts",
+            "function f<K extends string>() { var value: { [P in K]: P }[K]; }\n",
+        )],
+        &CompilerOptions::default(),
+        |state| {
+            let access = annotation_type(state, "value");
+            let TypeData::IndexedAccess { object_type, .. } = state.tables.type_of(access).data
+            else {
+                panic!("generic mapped indexed access remains deferred");
+            };
+            assert!(
+                matches!(
+                    state.links.ty(object_type).resolved_members,
+                    crate::links::LinkSlot::Vacant
+                ),
+                "the string-index-only probe must not expand a generic mapped template"
+            );
+        },
+    );
+}
+
+#[test]
 fn keyof_distributes_over_unions_and_intersections() {
     with_program_state(
         &[(

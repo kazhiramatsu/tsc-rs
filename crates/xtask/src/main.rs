@@ -84,6 +84,10 @@ fn main() {
         Some("h2-5e-owner-controls") => run_or_exit(h2_5e_owner_controls(args)),
         Some("h2-5f-acceptance") => run_or_exit(h2_5f_acceptance(args)),
         Some("h2-5f-owner-controls") => run_or_exit(h2_5f_owner_controls(args)),
+        Some("h2-5g-acceptance") => run_or_exit(h2_5g_acceptance(args)),
+        Some("h2-5g-probe") => run_or_exit(h2_5g_probe(args)),
+        Some("h2-5g-inventory") => run_or_exit(h2_5g_inventory(args)),
+        Some("h2-5g-owner-controls") => run_or_exit(h2_5g_owner_controls(args)),
         Some("conformance") => run_or_exit(conformance(args)),
         Some("conformance-diff") => run_or_exit(conformance_diff(args)),
         Some("slice-evidence") => run_or_exit(slice_evidence::run(args)),
@@ -4309,20 +4313,14 @@ fn acceptance(mut args: impl Iterator<Item = String>) -> Result<(), Box<dyn Erro
     h2_3c_acceptance::run(&workspace)?;
     h2_3d_acceptance::run(&workspace)?;
     h2_2c_acceptance::run_h2_4a(&workspace)?;
-    h2_3d_acceptance::run_h2_4a_owner_controls(&workspace)?;
     h2_2c_acceptance::run_h2_4b(&workspace)?;
-    h2_3d_acceptance::run_h2_4b_owner_controls(&workspace)?;
     h2_2c_acceptance::run_h2_5a(&workspace)?;
-    h2_3d_acceptance::run_h2_5a_owner_controls(&workspace)?;
     h2_2c_acceptance::run_h2_5b(&workspace)?;
-    h2_3d_acceptance::run_h2_5b_owner_controls(&workspace)?;
     h2_2c_acceptance::run_h2_5c(&workspace)?;
-    h2_3d_acceptance::run_h2_5c_owner_controls(&workspace)?;
     h2_2c_acceptance::run_h2_5d(&workspace)?;
-    h2_3d_acceptance::run_h2_5d_owner_controls(&workspace)?;
     h2_2c_acceptance::run_h2_5e(&workspace)?;
     h2_2c_acceptance::run_h2_5f(&workspace)?;
-    h2_3d_acceptance::run_h2_5f_owner_controls(&workspace)
+    h2_2c_acceptance::run_h2_5g(&workspace)
 }
 
 fn h2_5a_acceptance(mut args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
@@ -4419,6 +4417,76 @@ fn h2_5f_owner_controls(mut args: impl Iterator<Item = String>) -> Result<(), Bo
         return Err(format!("unexpected h2-5f-owner-controls argument: {argument}").into());
     }
     h2_3d_acceptance::run_h2_5f_owner_controls(&find_workspace_root()?)
+}
+
+fn h2_5g_acceptance(mut args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
+    if let Some(argument) = args.next() {
+        return Err(format!("unexpected h2-5g-acceptance argument: {argument}").into());
+    }
+    let workspace = find_workspace_root()?;
+    h2_2c_acceptance::run_h2_5g(&workspace)?;
+    h2_3d_acceptance::run_h2_5g_owner_controls(&workspace)
+}
+
+fn h2_5g_probe(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
+    let mut indices = None;
+    let mut args = args.peekable();
+    while let Some(argument) = args.next() {
+        match argument.as_str() {
+            "--indices" => {
+                if indices.is_some() {
+                    return Err("h2-5g-probe accepts --indices only once".into());
+                }
+                let value = args.next().ok_or("missing value after --indices")?;
+                let parsed = value
+                    .split(',')
+                    .map(str::trim)
+                    .filter(|value| !value.is_empty())
+                    .map(str::parse)
+                    .collect::<Result<Vec<usize>, _>>()?;
+                if parsed.is_empty() {
+                    return Err("h2-5g-probe --indices must not be empty".into());
+                }
+                indices = Some(parsed);
+            }
+            _ => return Err(format!("unexpected h2-5g-probe argument: {argument}").into()),
+        }
+    }
+    let indices = indices.ok_or("usage: cargo xtask h2-5g-probe --indices <i,j,...>")?;
+    h2_2c_acceptance::run_h2_5g_probe(&find_workspace_root()?, &indices)
+}
+
+fn h2_5g_inventory(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
+    let mut start = None;
+    let mut end = None;
+    let mut args = args.peekable();
+    while let Some(argument) = args.next() {
+        match argument.as_str() {
+            "--start" => {
+                if start.is_some() {
+                    return Err("h2-5g-inventory accepts --start only once".into());
+                }
+                start = Some(args.next().ok_or("missing value after --start")?.parse()?);
+            }
+            "--end" => {
+                if end.is_some() {
+                    return Err("h2-5g-inventory accepts --end only once".into());
+                }
+                end = Some(args.next().ok_or("missing value after --end")?.parse()?);
+            }
+            _ => return Err(format!("unexpected h2-5g-inventory argument: {argument}").into()),
+        }
+    }
+    let start = start.ok_or("usage: cargo xtask h2-5g-inventory --start <i> --end <j>")?;
+    let end = end.ok_or("usage: cargo xtask h2-5g-inventory --start <i> --end <j>")?;
+    h2_2c_acceptance::run_h2_5g_inventory(&find_workspace_root()?, start, end)
+}
+
+fn h2_5g_owner_controls(mut args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
+    if let Some(argument) = args.next() {
+        return Err(format!("unexpected h2-5g-owner-controls argument: {argument}").into());
+    }
+    h2_3d_acceptance::run_h2_5g_owner_controls(&find_workspace_root()?)
 }
 
 fn conformance(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
@@ -7551,6 +7619,27 @@ fn ci_rust_gates(resume: &mut local_ci_resume::LocalCiResume) -> Result<(), Box<
         &[],
         || ci_workspace_tests(&workspace),
     )?;
+    // The current H2 runtime owner is intentionally isolated from the long
+    // historical oracle phase. Its 9,027-row TypeScript freshness proof runs
+    // after compile/tests have already failed fast, and a later owner-control
+    // failure cannot force it to run again.
+    resume.run_phase(
+        "h2-5g-oracle",
+        local_ci_resume::InputScope::Verification,
+        "",
+        &[],
+        || ci_h2_5g_oracle_gates(&workspace),
+    )?;
+    // Synthetic ownership controls are valuable local phase tests, but are
+    // deliberately outside the fixed hosted boundary, which executes only
+    // cases sourced from ts-tests.
+    resume.run_phase(
+        "h2-owner-controls",
+        local_ci_resume::InputScope::Verification,
+        "",
+        &[],
+        || ci_h2_owner_controls(&workspace),
+    )?;
     Ok(())
 }
 
@@ -8369,9 +8458,10 @@ fn ci_oracle_gates(workspace: &Path) -> Result<(), Box<dyn Error>> {
     )?;
     let h2_5e_profile = workspace.join("crates/oracle/h2-5e-profile.mjs");
     run_command(Command::new("node").arg("--check").arg(&h2_5e_profile))?;
-    // H2.5e is immutable lineage now that H2.5f owns current runtime
-    // freshness. The H2.5f profile pins its exact authority bytes;
-    // regenerating H2.5e against H2.5f inputs would reinterpret history.
+    // H2.5e and H2.5f are immutable lineage now that H2.5g owns current
+    // runtime freshness. The H2.5g profile pins their exact authority bytes;
+    // regenerating an older profile against H2.5g inputs would reinterpret
+    // history.
     let h2_5f_qualification = workspace.join("crates/oracle/h2-5f-qualification.mjs");
     run_command(
         Command::new("node")
@@ -8398,12 +8488,6 @@ fn ci_oracle_gates(workspace: &Path) -> Result<(), Box<dyn Error>> {
     )?;
     let h2_5f_profile = workspace.join("crates/oracle/h2-5f-profile.mjs");
     run_command(Command::new("node").arg("--check").arg(&h2_5f_profile))?;
-    run_command(
-        Command::new("node")
-            .current_dir(workspace)
-            .arg(&h2_5f_profile)
-            .arg("--check"),
-    )?;
     let h1_rust_omissions = workspace.join("crates/oracle/h1-rust-omission-inventory.mjs");
     run_command(Command::new("node").arg("--check").arg(&h1_rust_omissions))?;
     run_command(
@@ -8481,6 +8565,57 @@ fn ci_oracle_gates(workspace: &Path) -> Result<(), Box<dyn Error>> {
         )?;
     }
     Ok(())
+}
+
+fn ci_h2_5g_oracle_gates(workspace: &Path) -> Result<(), Box<dyn Error>> {
+    for driver in [
+        "crates/oracle/h2-5g-qualification.mjs",
+        "crates/oracle/h2-5g-owner-controls.mjs",
+        "crates/oracle/h2-5g-profile.mjs",
+        "crates/oracle/vfs-directory-overlay.mjs",
+        "crates/oracle/vfs-directory-overlay.test.mjs",
+    ] {
+        run_command(
+            Command::new("node")
+                .current_dir(workspace)
+                .arg("--check")
+                .arg(driver),
+        )?;
+    }
+    run_command(
+        Command::new("node")
+            .current_dir(workspace)
+            .arg("--test")
+            .arg("crates/oracle/vfs-directory-overlay.test.mjs"),
+    )?;
+    for driver in [
+        "crates/oracle/h2-5g-qualification.mjs",
+        "crates/oracle/h2-5g-owner-controls.mjs",
+        "crates/oracle/h2-5g-profile.mjs",
+    ] {
+        run_command(
+            Command::new("node")
+                .current_dir(workspace)
+                .arg(driver)
+                .arg("--check"),
+        )?;
+    }
+    Ok(())
+}
+
+fn ci_h2_owner_controls(workspace: &Path) -> Result<(), Box<dyn Error>> {
+    h2_3b_acceptance::run_owner_controls(workspace)?;
+    h2_3c_acceptance::run_owner_controls(workspace)?;
+    h2_3d_acceptance::run_owner_controls(workspace)?;
+    h2_3d_acceptance::run_h2_4a_owner_controls(workspace)?;
+    h2_3d_acceptance::run_h2_4b_owner_controls(workspace)?;
+    h2_3d_acceptance::run_h2_5a_owner_controls(workspace)?;
+    h2_3d_acceptance::run_h2_5b_owner_controls(workspace)?;
+    h2_3d_acceptance::run_h2_5c_owner_controls(workspace)?;
+    h2_3d_acceptance::run_h2_5d_owner_controls(workspace)?;
+    h2_3d_acceptance::run_h2_5e_owner_controls(workspace)?;
+    h2_3d_acceptance::run_h2_5f_owner_controls(workspace)?;
+    h2_3d_acceptance::run_h2_5g_owner_controls(workspace)
 }
 
 fn ci_semantic_gates(
@@ -11041,6 +11176,9 @@ const FIELDLESS_KINDS: &[&str] = &[
     "EmptyStatement",
     "JSDocAllType",
     "JSDocUnknownType",
+    // Transform-only statement anchor used when TypeScript syntax is erased.
+    // It owns an original source range without carrying printable children.
+    "NotEmittedStatement",
     "OmittedExpression",
     "SyntaxList",
 ];
@@ -11070,7 +11208,6 @@ const UNMATERIALIZED_KINDS: &[&str] = &[
     // Synthetic kinds tsc itself never parses: checker/transform/emit
     // fabrications.
     "Bundle",
-    "NotEmittedStatement",
     "NotEmittedTypeElement",
     "SyntheticExpression",
 ];

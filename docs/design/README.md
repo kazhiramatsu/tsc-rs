@@ -3,11 +3,34 @@
 `docs/design` is the place for durable design: north-star architecture,
 deep checker seams, and the active greenfield build. Tactical
 workstream plans, old snapshot-specific roadmaps, completed step
-guides, and v1-era operating instructions live under `archive/`.
+guides, and v1-era operating instructions normally live under `archive/`.
+The completed/paused M-stage guides retained in `greenfield/` are a documented
+historical exception and are classified by that directory's index.
+
+## Document roles and precedence
+
+Do not infer authority from detail or file age. Follow this order:
+
+| Class | Owns | Examples |
+| --- | --- | --- |
+| Pinned upstream authority | TypeScript semantics and observable phase behavior | vendored TypeScript 6.0.3 declarations/bodies pinned by each slice |
+| Active architecture | Current validated Rust ownership, types, invariants, and integration seams | core designs below; [current emitter architecture](greenfield/emitter-architecture.md) |
+| Execution schedule | Dependency order, slice boundaries, and readiness/close gates | [post-H1 completion slices](greenfield/post-h1-completion-slices.md) |
+| Slice packet | Exact bounded change, current symbols, commands, and expected results | the [slice-packet index](greenfield/slices/README.md) and active linked packet; H2.5g uses the indexed sole legacy-closure exception |
+| Frozen contract/evidence | A predecessor claim and its immutable observations | [H1 emit](greenfield/h1-emit.md), ratchets, schemas, tests |
+| Historical/reference | Rationale, navigation techniques, or superseded implementation instructions | v1 references and completed landing histories |
+
+A historical document never overrides current code-validated architecture.
+Conversely, current architecture does not redefine tsc semantics or turn a
+dormant seam into compatibility. When a required architecture row is stale,
+validate and update it before writing production code.
 
 **The authoritative execution docs for active work are under
-[greenfield/](greenfield/README.md)** — implementers start from the
-stage step docs referenced there.
+[greenfield/](greenfield/README.md)**. Post-H1 emitter work follows its current
+architecture, schedule, and slice-packet route; historical M-stage work uses
+the referenced stage step docs. The in-progress H2.5g slice alone follows its
+[existing-contract closure route](greenfield/slices/README.md#h25g-legacy-closure-route)
+instead of retroactively creating a packet; this exception ends with H2.5g.
 
 ## How to Use This Directory
 
@@ -30,16 +53,20 @@ stage step docs referenced there.
   instantiation, and member access.
 - [checker-key-functions.md](checker-key-functions.md): relation,
   inference, overload, and flow algorithms.
+- [greenfield/emitter-architecture.md](greenfield/emitter-architecture.md):
+  the current code-validated emitter pipeline, ownership map, lifecycle state,
+  extension seams, and open architectural constraints.
 
 ## Active Execution (greenfield)
 
 - [greenfield/](greenfield/README.md): the execution companion to the
-  five docs above — milestone-by-milestone (M0-M9) step guides that
-  sequence the from-scratch build for implementing agents, with
-  verified tsc anchors and per-stage acceptance gates.
+  five M/core documents above, plus the entry route for active post-H1 work.
+  Its M0-M9 step guides are completed or paused history; its post-H1 route
+  points to the current subsystem architecture, schedule, and
+  [slice packet](greenfield/slices/README.md).
 - [greenfield/completion-convergence-plan.md](greenfield/completion-convergence-plan.md):
-  the active cross-milestone execution plan — workstreams, required
-  landing order, and stop conditions from the current state through M9.
+  the historical/paused M4-M9 cross-milestone plan — workstreams, landing
+  order, and stop conditions for that claim, not the current H2 schedule.
 - [greenfield/measurement-integrity.md](greenfield/measurement-integrity.md):
   the A1/A2/A3/A5 + D2 measurement contracts — artifact schemas,
   anchors, and adversarial tests.
@@ -55,17 +82,22 @@ stage step docs referenced there.
   filesystem-hosted `--noEmit` compiler through exact host-owner closure,
   program/config loading, and CLI behavior.
 - [greenfield/h1-emit.md](greenfield/h1-emit.md):
-  the active H1 JavaScript-emit design — exact vendored resolver/transform/
-  printer/output owners, immutable source-tree and output-sink boundaries,
-  and a mandatory zero-cost/performance-ratcheted `--noEmit` path.
+  the frozen H1 JavaScript-emit contract and its design/qualification history.
+  It preserves predecessor invariants but is not the current broad-emitter
+  implementation map.
+- [greenfield/post-h1-completion-slices.md](greenfield/post-h1-completion-slices.md):
+  the active post-H1 execution schedule and mandatory implementation-ready
+  slice gate after H2.5g. It links bounded work to current architecture and
+  pinned tsc owners without duplicating either; H2.5g's sole non-retroactive
+  exception is confined to the existing-contract closure route above.
 - [greenfield/compiler-compatibility-residual.md](greenfield/compiler-compatibility-residual.md):
-  the audited gap from the current workspace through bounded H1 and the
-  broader TypeScript 6.0.3 compiler/tooling surfaces, with dependency order,
-  owner matrices, test evidence, and explicit claim boundaries.
+  an audited surface/owner inventory and historical gap analysis. Recompute
+  implementation-state gaps from current code before using it in a slice.
 - [greenfield/lsp-and-incremental.md](greenfield/lsp-and-incremental.md):
-  the audited persistent-source and incremental architecture: current Rust
-  ownership/identity gaps, L0/L1 prerequisites before H1 runtime work, and
-  later Program/resolution, Language Service, tsserver, and LSP layers.
+  the persistent-source and incremental architecture: frozen L0/L1 lineage
+  plus the current L2-L5 Program/resolution, Language Service, tsserver, and
+  LSP design targets. Revalidate implementation-state claims before an L2+
+  slice begins.
 - [greenfield/terminal-residue-protocol.md](greenfield/terminal-residue-protocol.md):
   the last-mile parity-sweep protocol — pipeline-layer classification,
   exact shape/provenance proof, and terminal identity-diff gates.

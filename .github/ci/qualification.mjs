@@ -7,6 +7,140 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 const workspace = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const policyPath = path.join(workspace, ".github/ci/qualification-policy.v2.json");
 const contractDirectory = path.join(workspace, ".github/ci/contracts");
+const JSON_SCHEMA_MAX_DEPTH = 256;
+const RUST_SOURCE_MAX_BYTES = 4 * 1024 * 1024;
+const RUST_LEXICAL_NESTING_MAX = 256;
+
+const HOSTED_ACCEPTANCE_MODULES = Object.freeze([
+  "crates/xtask/src/h1_emit_acceptance.rs",
+  "crates/xtask/src/h2_1a_acceptance.rs",
+  "crates/xtask/src/h2_1b_acceptance.rs",
+  "crates/xtask/src/h2_1c_acceptance.rs",
+  "crates/xtask/src/h2_1d_acceptance.rs",
+  "crates/xtask/src/h2_1e_acceptance.rs",
+  "crates/xtask/src/h2_2a_acceptance.rs",
+  "crates/xtask/src/h2_2b_acceptance.rs",
+  "crates/xtask/src/h2_2c_acceptance.rs",
+  "crates/xtask/src/h2_2d_acceptance.rs",
+  "crates/xtask/src/h2_3a_acceptance.rs",
+  "crates/xtask/src/h2_3b_acceptance.rs",
+  "crates/xtask/src/h2_3c_acceptance.rs",
+  "crates/xtask/src/h2_3d_acceptance.rs",
+]);
+
+const H2_OWNER_SPLIT_MODULES = Object.freeze([
+  "crates/xtask/src/h2_3b_acceptance.rs",
+  "crates/xtask/src/h2_3c_acceptance.rs",
+  "crates/xtask/src/h2_3d_acceptance.rs",
+]);
+
+const H2_LOCAL_OWNER_CALLS = Object.freeze([
+  "h2_3b_acceptance::run_owner_controls",
+  "h2_3c_acceptance::run_owner_controls",
+  "h2_3d_acceptance::run_owner_controls",
+  "h2_3d_acceptance::run_h2_4a_owner_controls",
+  "h2_3d_acceptance::run_h2_4b_owner_controls",
+  "h2_3d_acceptance::run_h2_5a_owner_controls",
+  "h2_3d_acceptance::run_h2_5b_owner_controls",
+  "h2_3d_acceptance::run_h2_5c_owner_controls",
+  "h2_3d_acceptance::run_h2_5d_owner_controls",
+  "h2_3d_acceptance::run_h2_5e_owner_controls",
+  "h2_3d_acceptance::run_h2_5f_owner_controls",
+  "h2_3d_acceptance::run_h2_5g_owner_controls",
+]);
+
+const HOSTED_ACCEPTANCE_QUALIFIED_CALLS = Object.freeze([
+  "std::iter::empty",
+  "h1_emit_acceptance::run",
+  "h2_1a_acceptance::run",
+  "h2_1b_acceptance::run",
+  "h2_1c_acceptance::run",
+  "h2_1d_acceptance::run",
+  "h2_1e_acceptance::run",
+  "h2_2a_acceptance::run",
+  "h2_2b_acceptance::run",
+  "h2_2c_acceptance::run",
+  "h2_2d_acceptance::run",
+  "h2_3a_acceptance::run",
+  "h2_3b_acceptance::run",
+  "h2_3c_acceptance::run",
+  "h2_3d_acceptance::run",
+  "h2_2c_acceptance::run_h2_4a",
+  "h2_2c_acceptance::run_h2_4b",
+  "h2_2c_acceptance::run_h2_5a",
+  "h2_2c_acceptance::run_h2_5b",
+  "h2_2c_acceptance::run_h2_5c",
+  "h2_2c_acceptance::run_h2_5d",
+  "h2_2c_acceptance::run_h2_5e",
+  "h2_2c_acceptance::run_h2_5f",
+  "h2_2c_acceptance::run_h2_5g",
+]);
+
+const HOSTED_ACCEPTANCE_CANONICAL_BODY = [
+  "ifletSome(argument)=args.next(){returnErr(format!().into());}",
+  "conformance(std::iter::empty())?;",
+  "letworkspace=find_workspace_root()?;",
+  ...HOSTED_ACCEPTANCE_QUALIFIED_CALLS.slice(1).map((callee, index, calls) =>
+    index + 1 === calls.length ? `${callee}(&workspace)` : `${callee}(&workspace)?;`,
+  ),
+].join("");
+
+export const H2_5G_ARTIFACT_CONTRACTS = Object.freeze([
+  Object.freeze({
+    label: "H2.5g qualification",
+    schema: ".github/ci/contracts/h2-5g-qualification.schema.json",
+    artifact: "ratchets/h2-5g-qualification.v1.json",
+  }),
+  Object.freeze({
+    label: "H2.5g owner controls",
+    schema: ".github/ci/contracts/h2-5g-owner-controls.schema.json",
+    artifact: "ratchets/h2-5g-owner-controls.v1.json",
+  }),
+  Object.freeze({
+    label: "H2.5g profile",
+    schema: ".github/ci/contracts/h2-5g-profile.schema.json",
+    artifact: "ratchets/h2-5g-profile.v1.json",
+  }),
+]);
+
+const JSON_SCHEMA_KEYWORDS = new Set([
+  "$schema",
+  "$id",
+  "title",
+  "$defs",
+  "$ref",
+  "type",
+  "const",
+  "enum",
+  "properties",
+  "required",
+  "additionalProperties",
+  "items",
+  "minItems",
+  "maxItems",
+  "uniqueItems",
+  "minLength",
+  "maxLength",
+  "pattern",
+  "minimum",
+  "maximum",
+  "exclusiveMinimum",
+  "exclusiveMaximum",
+  "oneOf",
+  "allOf",
+  "if",
+  "then",
+]);
+
+const JSON_SCHEMA_TYPES = new Set([
+  "null",
+  "object",
+  "array",
+  "string",
+  "boolean",
+  "number",
+  "integer",
+]);
 
 export function sha256(value) {
   return crypto.createHash("sha256").update(value).digest("hex");
@@ -46,6 +180,1247 @@ function canonical(value) {
       .join(",")}}`;
   }
   return JSON.stringify(value);
+}
+
+function isJsonObject(value) {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+function escapeJsonPointerToken(value) {
+  return value.replaceAll("~", "~0").replaceAll("/", "~1");
+}
+
+function appendJsonPointer(pointer, token) {
+  return `${pointer}/${escapeJsonPointerToken(token)}`;
+}
+
+function displayJsonPointer(pointer) {
+  return pointer.length === 0 ? "/" : pointer;
+}
+
+function schemaSubsetError(schemaPath, message) {
+  throw new Error(`unsupported JSON schema at ${displayJsonPointer(schemaPath)}: ${message}`);
+}
+
+function findJsonValueIssue(value, valuePath = "", depth = 0, active = new Set()) {
+  if (depth > JSON_SCHEMA_MAX_DEPTH) {
+    return { valuePath, message: "JSON value nesting exceeds its bound" };
+  }
+  if (value === null || typeof value === "string" || typeof value === "boolean") return undefined;
+  if (typeof value === "number") {
+    return Number.isFinite(value)
+      ? undefined
+      : { valuePath, message: "non-finite numbers are not JSON-compatible" };
+  }
+  if (typeof value !== "object") {
+    return { valuePath, message: `${typeof value} values are not JSON-compatible` };
+  }
+  if (active.has(value)) return { valuePath, message: "cyclic values are not JSON-compatible" };
+  active.add(value);
+  try {
+    if (Array.isArray(value)) {
+      for (let index = 0; index < value.length; index += 1) {
+        const itemPath = appendJsonPointer(valuePath, String(index));
+        if (!Object.hasOwn(value, index)) {
+          return { valuePath: itemPath, message: "sparse arrays are not JSON-compatible" };
+        }
+        const issue = findJsonValueIssue(value[index], itemPath, depth + 1, active);
+        if (issue) return issue;
+      }
+      return undefined;
+    }
+    for (const [name, child] of Object.entries(value)) {
+      const issue = findJsonValueIssue(
+        child,
+        appendJsonPointer(valuePath, name),
+        depth + 1,
+        active,
+      );
+      if (issue) return issue;
+    }
+    return undefined;
+  } finally {
+    active.delete(value);
+  }
+}
+
+function canonicalSchemaValue(value, schemaPath) {
+  const issue = findJsonValueIssue(value, schemaPath);
+  if (issue) schemaSubsetError(issue.valuePath, issue.message);
+  try {
+    const result = canonical(value);
+    if (typeof result !== "string") schemaSubsetError(schemaPath, "value is not JSON-compatible");
+    return result;
+  } catch (error) {
+    if (error instanceof Error && error.message.startsWith("unsupported JSON schema")) throw error;
+    schemaSubsetError(schemaPath, `value is not JSON-compatible: ${error.message}`);
+  }
+}
+
+function decodeJsonPointerToken(token, schemaPath) {
+  if (/~(?:[^01]|$)/u.test(token)) schemaSubsetError(schemaPath, "local $ref contains an invalid JSON Pointer escape");
+  return token.replaceAll("~1", "/").replaceAll("~0", "~");
+}
+
+function resolveLocalSchemaReference(rootSchema, reference, schemaPath) {
+  if (typeof reference !== "string" || (reference !== "#" && !reference.startsWith("#/"))) {
+    schemaSubsetError(schemaPath, "$ref must be a local JSON Pointer");
+  }
+  if (reference.includes("%")) {
+    schemaSubsetError(schemaPath, "percent-encoding is not supported in local $ref");
+  }
+  let target = rootSchema;
+  if (reference !== "#") {
+    for (const encodedToken of reference.slice(2).split("/")) {
+      const token = decodeJsonPointerToken(encodedToken, schemaPath);
+      if ((typeof target !== "object" || target === null) || !Object.hasOwn(target, token)) {
+        schemaSubsetError(schemaPath, `unresolved local $ref ${reference}`);
+      }
+      target = target[token];
+    }
+  }
+  if (!isJsonObject(target)) schemaSubsetError(schemaPath, `$ref ${reference} does not resolve to a schema object`);
+  return { target, schemaPath: reference };
+}
+
+function prepareJsonSchemaSubset(rootSchema) {
+  if (!isJsonObject(rootSchema)) schemaSubsetError("#", "root schema must be an object");
+  const references = new WeakMap();
+  const patterns = new WeakMap();
+  const constValues = new WeakMap();
+  const enumValues = new WeakMap();
+  const active = new Set();
+  const complete = new Set();
+
+  function visit(schema, schemaPath, depth) {
+    if (!isJsonObject(schema)) schemaSubsetError(schemaPath, "schema must be an object");
+    if (depth > JSON_SCHEMA_MAX_DEPTH) schemaSubsetError(schemaPath, "schema nesting exceeds its bound");
+    if (complete.has(schema)) return;
+    if (active.has(schema)) schemaSubsetError(schemaPath, "cyclic local $ref is not supported");
+    active.add(schema);
+    try {
+      for (const keyword of Object.keys(schema)) {
+        if (!JSON_SCHEMA_KEYWORDS.has(keyword)) {
+          schemaSubsetError(appendJsonPointer(schemaPath, keyword), `unsupported keyword ${keyword}`);
+        }
+      }
+      for (const keyword of ["$schema", "$id", "title"]) {
+        if (Object.hasOwn(schema, keyword) && typeof schema[keyword] !== "string") {
+          schemaSubsetError(appendJsonPointer(schemaPath, keyword), `${keyword} must be a string`);
+        }
+      }
+      for (const keyword of ["$schema", "$id"]) {
+        if (schema !== rootSchema && Object.hasOwn(schema, keyword)) {
+          schemaSubsetError(
+            appendJsonPointer(schemaPath, keyword),
+            `${keyword} is supported only on the root schema`,
+          );
+        }
+      }
+      if (
+        schema === rootSchema &&
+        Object.hasOwn(schema, "$schema") &&
+        schema.$schema !== "https://json-schema.org/draft/2020-12/schema"
+      ) {
+        schemaSubsetError(
+          appendJsonPointer(schemaPath, "$schema"),
+          "$schema must select JSON Schema draft 2020-12",
+        );
+      }
+      if (Object.hasOwn(schema, "$ref")) {
+        const resolved = resolveLocalSchemaReference(
+          rootSchema,
+          schema.$ref,
+          appendJsonPointer(schemaPath, "$ref"),
+        );
+        references.set(schema, resolved);
+        visit(resolved.target, resolved.schemaPath, depth + 1);
+      }
+      for (const keyword of ["$defs", "properties"]) {
+        if (!Object.hasOwn(schema, keyword)) continue;
+        if (!isJsonObject(schema[keyword])) {
+          schemaSubsetError(appendJsonPointer(schemaPath, keyword), `${keyword} must be an object`);
+        }
+        for (const [name, child] of Object.entries(schema[keyword])) {
+          visit(child, appendJsonPointer(appendJsonPointer(schemaPath, keyword), name), depth + 1);
+        }
+      }
+      if (Object.hasOwn(schema, "type")) {
+        const types = Array.isArray(schema.type) ? schema.type : [schema.type];
+        if (
+          types.length === 0 ||
+          types.some((type) => typeof type !== "string" || !JSON_SCHEMA_TYPES.has(type)) ||
+          new Set(types).size !== types.length
+        ) {
+          schemaSubsetError(appendJsonPointer(schemaPath, "type"), "type must name unique supported JSON types");
+        }
+      }
+      if (Object.hasOwn(schema, "const")) {
+        constValues.set(
+          schema,
+          canonicalSchemaValue(schema.const, appendJsonPointer(schemaPath, "const")),
+        );
+      }
+      if (Object.hasOwn(schema, "enum")) {
+        if (!Array.isArray(schema.enum) || schema.enum.length === 0) {
+          schemaSubsetError(appendJsonPointer(schemaPath, "enum"), "enum must be a non-empty array");
+        }
+        const values = schema.enum.map((value, index) =>
+          canonicalSchemaValue(value, appendJsonPointer(appendJsonPointer(schemaPath, "enum"), String(index))),
+        );
+        if (new Set(values).size !== values.length) {
+          schemaSubsetError(appendJsonPointer(schemaPath, "enum"), "enum values must be unique");
+        }
+        enumValues.set(schema, new Set(values));
+      }
+      if (Object.hasOwn(schema, "required")) {
+        if (
+          !Array.isArray(schema.required) ||
+          schema.required.some((name) => typeof name !== "string") ||
+          new Set(schema.required).size !== schema.required.length
+        ) {
+          schemaSubsetError(appendJsonPointer(schemaPath, "required"), "required must contain unique strings");
+        }
+      }
+      if (Object.hasOwn(schema, "additionalProperties")) {
+        if (typeof schema.additionalProperties === "boolean") {
+          // Boolean additionalProperties is complete at this boundary.
+        } else if (isJsonObject(schema.additionalProperties)) {
+          visit(
+            schema.additionalProperties,
+            appendJsonPointer(schemaPath, "additionalProperties"),
+            depth + 1,
+          );
+        } else {
+          schemaSubsetError(
+            appendJsonPointer(schemaPath, "additionalProperties"),
+            "additionalProperties must be a boolean or schema object",
+          );
+        }
+      }
+      if (Object.hasOwn(schema, "items")) {
+        visit(schema.items, appendJsonPointer(schemaPath, "items"), depth + 1);
+      }
+      for (const keyword of ["minItems", "maxItems", "minLength", "maxLength"]) {
+        if (
+          Object.hasOwn(schema, keyword) &&
+          (!Number.isInteger(schema[keyword]) || schema[keyword] < 0)
+        ) {
+          schemaSubsetError(appendJsonPointer(schemaPath, keyword), `${keyword} must be a non-negative integer`);
+        }
+      }
+      if (
+        Object.hasOwn(schema, "minItems") &&
+        Object.hasOwn(schema, "maxItems") &&
+        schema.minItems > schema.maxItems
+      ) {
+        schemaSubsetError(schemaPath, "minItems exceeds maxItems");
+      }
+      if (
+        Object.hasOwn(schema, "minLength") &&
+        Object.hasOwn(schema, "maxLength") &&
+        schema.minLength > schema.maxLength
+      ) {
+        schemaSubsetError(schemaPath, "minLength exceeds maxLength");
+      }
+      if (Object.hasOwn(schema, "uniqueItems") && typeof schema.uniqueItems !== "boolean") {
+        schemaSubsetError(appendJsonPointer(schemaPath, "uniqueItems"), "uniqueItems must be a boolean");
+      }
+      if (Object.hasOwn(schema, "pattern")) {
+        if (typeof schema.pattern !== "string") {
+          schemaSubsetError(appendJsonPointer(schemaPath, "pattern"), "pattern must be a string");
+        }
+        try {
+          patterns.set(schema, new RegExp(schema.pattern, "u"));
+        } catch (error) {
+          schemaSubsetError(appendJsonPointer(schemaPath, "pattern"), `invalid pattern: ${error.message}`);
+        }
+      }
+      for (const keyword of ["minimum", "maximum", "exclusiveMinimum", "exclusiveMaximum"]) {
+        if (
+          Object.hasOwn(schema, keyword) &&
+          (typeof schema[keyword] !== "number" || !Number.isFinite(schema[keyword]))
+        ) {
+          schemaSubsetError(appendJsonPointer(schemaPath, keyword), `${keyword} must be a finite number`);
+        }
+      }
+      for (const keyword of ["oneOf", "allOf"]) {
+        if (!Object.hasOwn(schema, keyword)) continue;
+        if (!Array.isArray(schema[keyword]) || schema[keyword].length === 0) {
+          schemaSubsetError(appendJsonPointer(schemaPath, keyword), `${keyword} must be a non-empty array`);
+        }
+        schema[keyword].forEach((child, index) => {
+          visit(
+            child,
+            appendJsonPointer(appendJsonPointer(schemaPath, keyword), String(index)),
+            depth + 1,
+          );
+        });
+      }
+      const hasIf = Object.hasOwn(schema, "if");
+      const hasThen = Object.hasOwn(schema, "then");
+      if (hasIf !== hasThen) {
+        schemaSubsetError(schemaPath, "if and then must appear together in the supported subset");
+      }
+      if (hasIf) {
+        visit(schema.if, appendJsonPointer(schemaPath, "if"), depth + 1);
+        visit(schema.then, appendJsonPointer(schemaPath, "then"), depth + 1);
+      }
+    } finally {
+      active.delete(schema);
+    }
+    complete.add(schema);
+  }
+
+  visit(rootSchema, "#", 0);
+  return { references, patterns, constValues, enumValues };
+}
+
+function matchesJsonSchemaType(value, type) {
+  switch (type) {
+    case "null":
+      return value === null;
+    case "object":
+      return isJsonObject(value);
+    case "array":
+      return Array.isArray(value);
+    case "string":
+      return typeof value === "string";
+    case "boolean":
+      return typeof value === "boolean";
+    case "number":
+      return typeof value === "number" && Number.isFinite(value);
+    case "integer":
+      return typeof value === "number" && Number.isFinite(value) && Number.isInteger(value);
+    default:
+      return false;
+  }
+}
+
+function schemaValidationFailure(instancePath, schemaPath, message) {
+  return { instancePath, schemaPath, message };
+}
+
+function canonicalInstanceValue(value) {
+  try {
+    const result = canonical(value);
+    return typeof result === "string" ? result : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function validatePreparedJsonSchema(schema, value, prepared, instancePath, schemaPath, depth) {
+  if (depth > JSON_SCHEMA_MAX_DEPTH) {
+    return schemaValidationFailure(instancePath, schemaPath, "instance nesting exceeds its bound");
+  }
+  const resolved = prepared.references.get(schema);
+  if (resolved) {
+    const failure = validatePreparedJsonSchema(
+      resolved.target,
+      value,
+      prepared,
+      instancePath,
+      resolved.schemaPath,
+      depth + 1,
+    );
+    if (failure) return failure;
+  }
+  if (Object.hasOwn(schema, "type")) {
+    const types = Array.isArray(schema.type) ? schema.type : [schema.type];
+    if (!types.some((type) => matchesJsonSchemaType(value, type))) {
+      return schemaValidationFailure(instancePath, appendJsonPointer(schemaPath, "type"), `expected type ${types.join(" or ")}`);
+    }
+  }
+  if (Object.hasOwn(schema, "const")) {
+    if (canonicalInstanceValue(value) !== prepared.constValues.get(schema)) {
+      return schemaValidationFailure(instancePath, appendJsonPointer(schemaPath, "const"), "value does not equal const");
+    }
+  }
+  if (Object.hasOwn(schema, "enum")) {
+    const rendered = canonicalInstanceValue(value);
+    if (rendered === undefined || !prepared.enumValues.get(schema).has(rendered)) {
+      return schemaValidationFailure(instancePath, appendJsonPointer(schemaPath, "enum"), "value is not in enum");
+    }
+  }
+  if (isJsonObject(value)) {
+    if (Object.hasOwn(schema, "required")) {
+      for (const name of schema.required) {
+        if (!Object.hasOwn(value, name)) {
+          return schemaValidationFailure(
+            instancePath,
+            appendJsonPointer(schemaPath, "required"),
+            `missing required property ${JSON.stringify(name)}`,
+          );
+        }
+      }
+    }
+    const properties = schema.properties ?? {};
+    for (const [name, child] of Object.entries(properties)) {
+      if (!Object.hasOwn(value, name)) continue;
+      const failure = validatePreparedJsonSchema(
+        child,
+        value[name],
+        prepared,
+        appendJsonPointer(instancePath, name),
+        appendJsonPointer(appendJsonPointer(schemaPath, "properties"), name),
+        depth + 1,
+      );
+      if (failure) return failure;
+    }
+    if (Object.hasOwn(schema, "additionalProperties")) {
+      for (const name of Object.keys(value)) {
+        if (Object.hasOwn(properties, name)) continue;
+        if (schema.additionalProperties === false) {
+          return schemaValidationFailure(
+            appendJsonPointer(instancePath, name),
+            appendJsonPointer(schemaPath, "additionalProperties"),
+            `additional property ${JSON.stringify(name)} is not allowed`,
+          );
+        }
+        if (isJsonObject(schema.additionalProperties)) {
+          const failure = validatePreparedJsonSchema(
+            schema.additionalProperties,
+            value[name],
+            prepared,
+            appendJsonPointer(instancePath, name),
+            appendJsonPointer(schemaPath, "additionalProperties"),
+            depth + 1,
+          );
+          if (failure) return failure;
+        }
+      }
+    }
+  }
+  if (Array.isArray(value)) {
+    if (Object.hasOwn(schema, "minItems") && value.length < schema.minItems) {
+      return schemaValidationFailure(instancePath, appendJsonPointer(schemaPath, "minItems"), "array is shorter than minItems");
+    }
+    if (Object.hasOwn(schema, "maxItems") && value.length > schema.maxItems) {
+      return schemaValidationFailure(instancePath, appendJsonPointer(schemaPath, "maxItems"), "array is longer than maxItems");
+    }
+    if (schema.uniqueItems === true) {
+      const seen = new Set();
+      for (const item of value) {
+        const rendered = canonicalInstanceValue(item);
+        if (rendered === undefined) {
+          return schemaValidationFailure(instancePath, appendJsonPointer(schemaPath, "uniqueItems"), "array item is not JSON-compatible");
+        }
+        if (seen.has(rendered)) {
+          return schemaValidationFailure(instancePath, appendJsonPointer(schemaPath, "uniqueItems"), "array items are not unique");
+        }
+        seen.add(rendered);
+      }
+    }
+    if (Object.hasOwn(schema, "items")) {
+      for (let index = 0; index < value.length; index += 1) {
+        const failure = validatePreparedJsonSchema(
+          schema.items,
+          value[index],
+          prepared,
+          appendJsonPointer(instancePath, String(index)),
+          appendJsonPointer(schemaPath, "items"),
+          depth + 1,
+        );
+        if (failure) return failure;
+      }
+    }
+  }
+  if (typeof value === "string") {
+    const length = Array.from(value).length;
+    if (Object.hasOwn(schema, "minLength") && length < schema.minLength) {
+      return schemaValidationFailure(instancePath, appendJsonPointer(schemaPath, "minLength"), "string is shorter than minLength");
+    }
+    if (Object.hasOwn(schema, "maxLength") && length > schema.maxLength) {
+      return schemaValidationFailure(instancePath, appendJsonPointer(schemaPath, "maxLength"), "string is longer than maxLength");
+    }
+    const pattern = prepared.patterns.get(schema);
+    if (pattern && !pattern.test(value)) {
+      return schemaValidationFailure(instancePath, appendJsonPointer(schemaPath, "pattern"), "string does not match pattern");
+    }
+  }
+  if (typeof value === "number" && Number.isFinite(value)) {
+    if (Object.hasOwn(schema, "minimum") && value < schema.minimum) {
+      return schemaValidationFailure(instancePath, appendJsonPointer(schemaPath, "minimum"), "number is below minimum");
+    }
+    if (Object.hasOwn(schema, "maximum") && value > schema.maximum) {
+      return schemaValidationFailure(instancePath, appendJsonPointer(schemaPath, "maximum"), "number is above maximum");
+    }
+    if (Object.hasOwn(schema, "exclusiveMinimum") && value <= schema.exclusiveMinimum) {
+      return schemaValidationFailure(instancePath, appendJsonPointer(schemaPath, "exclusiveMinimum"), "number is not above exclusiveMinimum");
+    }
+    if (Object.hasOwn(schema, "exclusiveMaximum") && value >= schema.exclusiveMaximum) {
+      return schemaValidationFailure(instancePath, appendJsonPointer(schemaPath, "exclusiveMaximum"), "number is not below exclusiveMaximum");
+    }
+  }
+  if (Object.hasOwn(schema, "allOf")) {
+    for (let index = 0; index < schema.allOf.length; index += 1) {
+      const failure = validatePreparedJsonSchema(
+        schema.allOf[index],
+        value,
+        prepared,
+        instancePath,
+        appendJsonPointer(appendJsonPointer(schemaPath, "allOf"), String(index)),
+        depth + 1,
+      );
+      if (failure) return failure;
+    }
+  }
+  if (Object.hasOwn(schema, "oneOf")) {
+    let matches = 0;
+    for (let index = 0; index < schema.oneOf.length; index += 1) {
+      const failure = validatePreparedJsonSchema(
+        schema.oneOf[index],
+        value,
+        prepared,
+        instancePath,
+        appendJsonPointer(appendJsonPointer(schemaPath, "oneOf"), String(index)),
+        depth + 1,
+      );
+      if (!failure) matches += 1;
+    }
+    if (matches !== 1) {
+      return schemaValidationFailure(
+        instancePath,
+        appendJsonPointer(schemaPath, "oneOf"),
+        `oneOf matched ${matches} branches instead of exactly one`,
+      );
+    }
+  }
+  if (Object.hasOwn(schema, "if")) {
+    const conditionFailure = validatePreparedJsonSchema(
+      schema.if,
+      value,
+      prepared,
+      instancePath,
+      appendJsonPointer(schemaPath, "if"),
+      depth + 1,
+    );
+    if (!conditionFailure) {
+      const failure = validatePreparedJsonSchema(
+        schema.then,
+        value,
+        prepared,
+        instancePath,
+        appendJsonPointer(schemaPath, "then"),
+        depth + 1,
+      );
+      if (failure) return failure;
+    }
+  }
+  return undefined;
+}
+
+export function validateJsonSchemaSubset(schema, value, label = "JSON value") {
+  const prepared = prepareJsonSchemaSubset(schema);
+  const issue = findJsonValueIssue(value);
+  if (issue) {
+    throw new Error(
+      `${label} violates JSON schema at instance ${displayJsonPointer(issue.valuePath)} ` +
+        `against /: ${issue.message}`,
+    );
+  }
+  const failure = validatePreparedJsonSchema(schema, value, prepared, "", "#", 0);
+  if (failure) {
+    throw new Error(
+      `${label} violates JSON schema at instance ${displayJsonPointer(failure.instancePath)} ` +
+        `against ${displayJsonPointer(failure.schemaPath)}: ${failure.message}`,
+    );
+  }
+  return value;
+}
+
+function readWorkspaceJson(relativePath, label) {
+  try {
+    return JSON.parse(fs.readFileSync(path.join(workspace, relativePath), "utf8"));
+  } catch (error) {
+    throw new Error(`${label} is not valid JSON: ${error.message}`);
+  }
+}
+
+export function validateH2_5gArtifacts() {
+  for (const contract of H2_5G_ARTIFACT_CONTRACTS) {
+    const schema = readWorkspaceJson(contract.schema, `${contract.label} schema`);
+    const artifact = readWorkspaceJson(contract.artifact, `${contract.label} artifact`);
+    validateJsonSchemaSubset(schema, artifact, `${contract.label} artifact`);
+  }
+  return H2_5G_ARTIFACT_CONTRACTS;
+}
+
+function rustBoundaryError(label, message) {
+  throw new Error(`${label}: ${message}`);
+}
+
+function blankRustRange(output, source, start, end) {
+  for (let index = start; index < end; index += 1) {
+    if (source[index] !== "\n" && source[index] !== "\r") output[index] = " ";
+  }
+}
+
+function rawRustStringAt(source, start, label) {
+  let rawMarker = start;
+  if ((source[start] === "b" || source[start] === "c") && source[start + 1] === "r") {
+    rawMarker += 1;
+  } else if (source[start] !== "r") {
+    return undefined;
+  }
+  if (start > 0 && /[A-Za-z0-9_]/u.test(source[start - 1])) return undefined;
+  let quote = rawMarker + 1;
+  while (source[quote] === "#") quote += 1;
+  if (source[quote] !== '"') return undefined;
+  const hashCount = quote - rawMarker - 1;
+  if (hashCount > 255) rustBoundaryError(label, "raw string delimiter exceeds Rust's bound");
+  const terminator = `"${"#".repeat(hashCount)}`;
+  const close = source.indexOf(terminator, quote + 1);
+  if (close < 0) rustBoundaryError(label, "unterminated raw string literal");
+  return close + terminator.length;
+}
+
+function quotedRustStringEnd(source, start, label) {
+  let cursor = start + 1;
+  while (cursor < source.length) {
+    if (source[cursor] === "\\") {
+      cursor += 2;
+      continue;
+    }
+    if (source[cursor] === '"') return cursor + 1;
+    cursor += 1;
+  }
+  rustBoundaryError(label, "unterminated quoted string literal");
+}
+
+function rustCharacterEnd(source, start) {
+  let cursor = start + 1;
+  if (cursor >= source.length || source[cursor] === "\n" || source[cursor] === "\r") {
+    return undefined;
+  }
+  if (source[cursor] === "\\") {
+    cursor += 1;
+    if (source[cursor] === "u" && source[cursor + 1] === "{") {
+      const brace = source.indexOf("}", cursor + 2);
+      if (brace < 0) return undefined;
+      cursor = brace + 1;
+    } else if (source[cursor] === "x") {
+      cursor += 3;
+    } else {
+      cursor += 1;
+    }
+  } else {
+    const codePoint = source.codePointAt(cursor);
+    cursor += codePoint > 0xffff ? 2 : 1;
+  }
+  return source[cursor] === "'" ? cursor + 1 : undefined;
+}
+
+function sanitizeRustSource(source, label) {
+  if (typeof source !== "string") rustBoundaryError(label, "Rust source must be a string");
+  if (Buffer.byteLength(source, "utf8") > RUST_SOURCE_MAX_BYTES) {
+    rustBoundaryError(label, "Rust source exceeds its byte bound");
+  }
+  const output = source.split("");
+  let cursor = 0;
+  while (cursor < source.length) {
+    if (source.startsWith("//", cursor)) {
+      let end = source.indexOf("\n", cursor + 2);
+      if (end < 0) end = source.length;
+      blankRustRange(output, source, cursor, end);
+      cursor = end;
+      continue;
+    }
+    if (source.startsWith("/*", cursor)) {
+      let nesting = 1;
+      let end = cursor + 2;
+      while (end < source.length && nesting > 0) {
+        if (source.startsWith("/*", end)) {
+          nesting += 1;
+          if (nesting > RUST_LEXICAL_NESTING_MAX) {
+            rustBoundaryError(label, "block-comment nesting exceeds its bound");
+          }
+          end += 2;
+        } else if (source.startsWith("*/", end)) {
+          nesting -= 1;
+          end += 2;
+        } else {
+          end += 1;
+        }
+      }
+      if (nesting !== 0) rustBoundaryError(label, "unterminated block comment");
+      blankRustRange(output, source, cursor, end);
+      cursor = end;
+      continue;
+    }
+    const rawEnd = rawRustStringAt(source, cursor, label);
+    if (rawEnd !== undefined) {
+      blankRustRange(output, source, cursor, rawEnd);
+      cursor = rawEnd;
+      continue;
+    }
+    if (source[cursor] === '"') {
+      const end = quotedRustStringEnd(source, cursor, label);
+      blankRustRange(output, source, cursor, end);
+      cursor = end;
+      continue;
+    }
+    if (source[cursor] === "'") {
+      const end = rustCharacterEnd(source, cursor);
+      if (end !== undefined) {
+        blankRustRange(output, source, cursor, end);
+        cursor = end;
+        continue;
+      }
+    }
+    cursor += 1;
+  }
+  return output.join("");
+}
+
+function regexEscape(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
+}
+
+function matchingRustDelimiter(source, openIndex, open, close, label) {
+  let nesting = 0;
+  for (let cursor = openIndex; cursor < source.length; cursor += 1) {
+    if (source[cursor] === open) {
+      nesting += 1;
+      if (nesting > RUST_LEXICAL_NESTING_MAX) {
+        rustBoundaryError(label, `${open}${close} nesting exceeds its bound`);
+      }
+    } else if (source[cursor] === close) {
+      nesting -= 1;
+      if (nesting === 0) return cursor;
+      if (nesting < 0) break;
+    }
+  }
+  rustBoundaryError(label, `unmatched ${open} in Rust source`);
+}
+
+function extractRustFunctionBody(sanitized, functionName, label) {
+  const declaration = new RegExp(
+    `^[\\t ]*(?:pub(?:\\([^\\n)]*\\))?[\\t ]+)?fn[\\t ]+${regexEscape(functionName)}[\\t \\r\\n]*\\(`,
+    "gmu",
+  );
+  const matches = [...sanitized.matchAll(declaration)];
+  if (matches.length !== 1) {
+    rustBoundaryError(label, `expected exactly one ${functionName} function, found ${matches.length}`);
+  }
+  const match = matches[0];
+  const parametersStart = match.index + match[0].lastIndexOf("(");
+  const parametersEnd = matchingRustDelimiter(
+    sanitized,
+    parametersStart,
+    "(",
+    ")",
+    `${label} ${functionName}`,
+  );
+  const signatureBound = Math.min(sanitized.length, parametersEnd + 65_536);
+  let bodyStart = parametersEnd + 1;
+  while (bodyStart < signatureBound && sanitized[bodyStart] !== "{") {
+    if (sanitized[bodyStart] === ";") {
+      rustBoundaryError(label, `${functionName} is a declaration without a body`);
+    }
+    bodyStart += 1;
+  }
+  if (bodyStart >= signatureBound) rustBoundaryError(label, `${functionName} body was not found within its bound`);
+  const bodyEnd = matchingRustDelimiter(
+    sanitized,
+    bodyStart,
+    "{",
+    "}",
+    `${label} ${functionName}`,
+  );
+  return sanitized.slice(bodyStart + 1, bodyEnd);
+}
+
+function rustCallSuffix(body, closeIndex) {
+  let cursor = closeIndex + 1;
+  while (/\s/u.test(body[cursor] ?? "")) cursor += 1;
+  if (body[cursor] === "?") {
+    cursor += 1;
+    while (/\s/u.test(body[cursor] ?? "")) cursor += 1;
+    if (body[cursor] === ";") return "?;";
+    return "expression";
+  }
+  if (body[cursor] === ";") return ";";
+  return body.slice(cursor).trim().length === 0 ? "tail" : "expression";
+}
+
+function extractRustCalls(body, label) {
+  const pattern = /\b([A-Za-z_][A-Za-z0-9_]*(?:::[A-Za-z_][A-Za-z0-9_]*)*)\s*\(/gu;
+  const keywords = new Set(["if", "while", "for", "match", "loop", "return"]);
+  const calls = [];
+  let braceCursor = 0;
+  let braceDepth = 0;
+  for (const match of body.matchAll(pattern)) {
+    while (braceCursor < match.index) {
+      if (body[braceCursor] === "{") braceDepth += 1;
+      if (body[braceCursor] === "}") braceDepth -= 1;
+      if (braceDepth < 0 || braceDepth > RUST_LEXICAL_NESTING_MAX) {
+        rustBoundaryError(label, "invalid call-statement brace nesting");
+      }
+      braceCursor += 1;
+    }
+    if (keywords.has(match[1])) continue;
+    const openIndex = match.index + match[0].lastIndexOf("(");
+    const closeIndex = matchingRustDelimiter(body, openIndex, "(", ")", label);
+    let previous = match.index - 1;
+    while (previous >= 0 && /\s/u.test(body[previous])) previous -= 1;
+    calls.push({
+      callee: match[1],
+      arguments: body.slice(openIndex + 1, closeIndex).replaceAll(/\s+/gu, ""),
+      method: body[previous] === ".",
+      topLevel: braceDepth === 0,
+      suffix: rustCallSuffix(body, closeIndex),
+    });
+  }
+  return calls;
+}
+
+function containsRustIdentifier(body, identifier) {
+  return new RegExp(`\\b${regexEscape(identifier)}\\b`, "u").test(body);
+}
+
+function containsRustOwnerControlIdentifier(body) {
+  return /\b[A-Za-z_][A-Za-z0-9_]*owner_controls?[A-Za-z0-9_]*\b/iu.test(body);
+}
+
+function rustModuleName(modulePath) {
+  return path.posix.basename(modulePath, ".rs");
+}
+
+function extractTopLevelRustFunctions(sanitized, moduleName, label) {
+  const declaration = /^[\t ]*(?:pub(?:\([^\n)]*\))?[\t ]+)?(?:(?:const|async|unsafe)[\t ]+)*(?:extern[\t ]+)?fn[\t ]+([A-Za-z_][A-Za-z0-9_]*)\b/gmu;
+  const functions = new Map();
+  let braceCursor = 0;
+  let braceDepth = 0;
+  for (const match of sanitized.matchAll(declaration)) {
+    while (braceCursor < match.index) {
+      if (sanitized[braceCursor] === "{") braceDepth += 1;
+      if (sanitized[braceCursor] === "}") braceDepth -= 1;
+      if (braceDepth < 0 || braceDepth > RUST_LEXICAL_NESTING_MAX) {
+        rustBoundaryError(label, "invalid top-level function brace nesting");
+      }
+      braceCursor += 1;
+    }
+    if (braceDepth !== 0) continue;
+    const parametersBound = Math.min(sanitized.length, match.index + match[0].length + 65_536);
+    const parametersStart = sanitized.indexOf("(", match.index + match[0].length);
+    if (parametersStart < 0 || parametersStart >= parametersBound) {
+      rustBoundaryError(label, `${match[1]} parameters were not found within their bound`);
+    }
+    const parametersEnd = matchingRustDelimiter(
+      sanitized,
+      parametersStart,
+      "(",
+      ")",
+      `${label} ${match[1]}`,
+    );
+    const signatureBound = Math.min(sanitized.length, parametersEnd + 65_536);
+    let bodyStart = parametersEnd + 1;
+    while (bodyStart < signatureBound && sanitized[bodyStart] !== "{") {
+      bodyStart += 1;
+    }
+    if (bodyStart >= signatureBound) {
+      rustBoundaryError(label, `${match[1]} body was not found within its bound`);
+    }
+    const bodyEnd = matchingRustDelimiter(
+      sanitized,
+      bodyStart,
+      "{",
+      "}",
+      `${label} ${match[1]}`,
+    );
+    if (functions.has(match[1])) {
+      rustBoundaryError(label, `duplicate top-level function ${match[1]} is ambiguous`);
+    }
+    functions.set(match[1], {
+      body: sanitized.slice(bodyStart + 1, bodyEnd),
+      functionName: match[1],
+      label,
+      moduleName,
+    });
+  }
+  return functions;
+}
+
+function addRustAlias(aliases, alias, target, label) {
+  if (alias === "_") return;
+  if (aliases.has(alias) && aliases.get(alias) !== target) {
+    rustBoundaryError(label, `Rust alias ${alias} has ambiguous targets`);
+  }
+  aliases.set(alias, target);
+}
+
+function extractRustUseAliases(sanitized, label) {
+  const aliases = new Map();
+  const pattern = /\buse\s+((?:crate|self|super|[A-Za-z_][A-Za-z0-9_]*)(?:::[A-Za-z_][A-Za-z0-9_]*)+)\s+as\s+([A-Za-z_][A-Za-z0-9_]*|_)\s*;/gu;
+  for (const match of sanitized.matchAll(pattern)) {
+    addRustAlias(aliases, match[2], match[1], label);
+  }
+  const grouped = /\buse\s+((?:crate|self|super|[A-Za-z_][A-Za-z0-9_]*)(?:::[A-Za-z_][A-Za-z0-9_]*)*)::\{([^{}]*)\}\s*;/gu;
+  for (const match of sanitized.matchAll(grouped)) {
+    for (const rawItem of match[2].split(",")) {
+      const item = rawItem.trim();
+      if (item.length === 0 || item === "*") continue;
+      const parsed = /^((?:self|[A-Za-z_][A-Za-z0-9_]*)(?:::[A-Za-z_][A-Za-z0-9_]*)*)(?:\s+as\s+([A-Za-z_][A-Za-z0-9_]*|_))?$/u.exec(item);
+      if (!parsed) rustBoundaryError(label, `unsupported grouped Rust alias item ${item}`);
+      const target = parsed[1] === "self" ? match[1] : `${match[1]}::${parsed[1]}`;
+      const alias = parsed[2] ?? parsed[1].split("::").at(-1);
+      addRustAlias(aliases, alias, target, label);
+    }
+  }
+  return aliases;
+}
+
+function extractRustLetAliases(body, label) {
+  const aliases = new Map();
+  const pattern = /\blet\s+(?:mut\s+)?([A-Za-z_][A-Za-z0-9_]*)(?:\s*:[^=;]+)?\s*=\s*\(?\s*((?:crate|self|super|[A-Za-z_][A-Za-z0-9_]*)(?:::[A-Za-z_][A-Za-z0-9_]*)*)\s*\)?\s*;/gu;
+  for (const match of body.matchAll(pattern)) {
+    addRustAlias(aliases, match[1], match[2], label);
+  }
+  return aliases;
+}
+
+function rustFunctionKey(moduleName, functionName) {
+  return `${moduleName}::${functionName}`;
+}
+
+function extractRustModuleNames(sanitized) {
+  return new Set(
+    [...sanitized.matchAll(/^[\t ]*(?:pub(?:\([^\n)]*\))?[\t ]+)?mod[\t ]+([A-Za-z_][A-Za-z0-9_]*)[\t ]*;/gmu)]
+      .map((match) => match[1]),
+  );
+}
+
+function resolveRustFunctionPath(rawPath, currentModule, tables, localModules, aliases, label) {
+  let callable = rawPath;
+  const expanded = new Set();
+  let usedAlias = false;
+  for (;;) {
+    const firstSeparator = callable.indexOf("::");
+    const first = firstSeparator < 0 ? callable : callable.slice(0, firstSeparator);
+    if (!aliases.has(first)) break;
+    if (expanded.has(first)) rustBoundaryError(label, `cyclic Rust alias ${first}`);
+    expanded.add(first);
+    usedAlias = true;
+    const suffix = firstSeparator < 0 ? "" : callable.slice(firstSeparator);
+    callable = `${aliases.get(first)}${suffix}`;
+  }
+
+  const segments = callable.split("::");
+  if (segments.length === 1) {
+    return tables.get(currentModule)?.has(segments[0])
+      ? rustFunctionKey(currentModule, segments[0])
+      : undefined;
+  }
+
+  const knownModules = new Set(tables.keys());
+  const functionName = segments.at(-1);
+  let targetModule;
+  if (segments[0] === "self") {
+    targetModule = currentModule;
+  } else if (segments[0] === "super" && segments.length === 2) {
+    targetModule = "main";
+  } else if (segments[0] === "crate" && segments.length === 2) {
+    targetModule = "main";
+  } else {
+    targetModule = segments.find((segment) => knownModules.has(segment));
+  }
+  if (targetModule !== undefined) {
+    if (!tables.get(targetModule)?.has(functionName)) {
+      rustBoundaryError(label, `unresolved local Rust function path ${callable}`);
+    }
+    return rustFunctionKey(targetModule, functionName);
+  }
+  if (["self", "super", "crate"].includes(segments[0])) {
+    const kind = usedAlias ? "alias target" : "function path";
+    rustBoundaryError(label, `unresolved local Rust ${kind} ${callable}`);
+  }
+  if (localModules.has(segments[0])) {
+    rustBoundaryError(label, `unresolved local Rust module path ${callable}`);
+  }
+  return undefined;
+}
+
+function validateHostedRustCallGraph(sanitizedXtask, sanitizedModules) {
+  const sources = new Map([
+    ["main", { label: "crates/xtask/src/main.rs", source: sanitizedXtask }],
+  ]);
+  for (const [modulePath, source] of Object.entries(sanitizedModules)) {
+    const moduleName = rustModuleName(modulePath);
+    if (sources.has(moduleName)) {
+      rustBoundaryError(modulePath, `duplicate Rust module name ${moduleName}`);
+    }
+    sources.set(moduleName, { label: modulePath, source });
+  }
+
+  const tables = new Map();
+  const localModules = extractRustModuleNames(sanitizedXtask);
+  const useAliases = new Map();
+  const functions = new Map();
+  for (const [moduleName, source] of sources) {
+    const table = extractTopLevelRustFunctions(source.source, moduleName, source.label);
+    tables.set(moduleName, table);
+    useAliases.set(moduleName, extractRustUseAliases(source.source, source.label));
+    for (const record of table.values()) {
+      functions.set(rustFunctionKey(moduleName, record.functionName), record);
+    }
+  }
+
+  const root = rustFunctionKey("main", "acceptance");
+  if (!functions.has(root)) rustBoundaryError("hosted call graph", "acceptance root is missing");
+  const pending = [root];
+  const visited = new Set();
+  while (pending.length > 0) {
+    const key = pending.pop();
+    if (visited.has(key)) continue;
+    visited.add(key);
+    if (visited.size > 4096) rustBoundaryError("hosted call graph", "reachable function bound exceeded");
+    const record = functions.get(key);
+    if (!record) rustBoundaryError("hosted call graph", `reachable function ${key} is unresolved`);
+    if (
+      containsRustOwnerControlIdentifier(record.functionName) ||
+      containsRustOwnerControlIdentifier(record.body)
+    ) {
+      rustBoundaryError(
+        "hosted call graph",
+        `reachable function ${key} contains an owner-control symbol or path`,
+      );
+    }
+
+    const aliases = new Map(useAliases.get(record.moduleName));
+    for (const [alias, target] of extractRustLetAliases(record.body, key)) {
+      addRustAlias(aliases, alias, target, key);
+      const targetKey = resolveRustFunctionPath(
+        target,
+        record.moduleName,
+        tables,
+        localModules,
+        aliases,
+        key,
+      );
+      if (targetKey) pending.push(targetKey);
+    }
+    for (const call of extractRustCalls(record.body, key)) {
+      if (call.method) continue;
+      const target = resolveRustFunctionPath(
+        call.callee,
+        record.moduleName,
+        tables,
+        localModules,
+        aliases,
+        key,
+      );
+      if (target) pending.push(target);
+    }
+  }
+  return visited;
+}
+
+function validateHostedRustSourcePins(
+  xtaskSource,
+  moduleSources,
+  sourceSha256,
+  rawSourceBytes,
+) {
+  const sources = rawSourceBytes ?? {
+    "crates/xtask/src/main.rs": xtaskSource,
+    ...moduleSources,
+  };
+  if (
+    !isJsonObject(sourceSha256) ||
+    canonical(Object.keys(sourceSha256).sort()) !== canonical(Object.keys(sources).sort())
+  ) {
+    rustBoundaryError("hosted Rust source pins", "source path set drifted");
+  }
+  // Hash the complete raw UTF-8 files, not lexer output. This is intentionally
+  // parser-independent: helper, macro, impl, nested-module, alias, attribute,
+  // comment, and literal changes all require an explicit policy pin update.
+  for (const [sourcePath, source] of Object.entries(sources)) {
+    if (typeof source !== "string" && !Buffer.isBuffer(source)) {
+      rustBoundaryError("hosted Rust source pins", `${sourcePath} is not raw source bytes`);
+    }
+    if (!isSha256(sourceSha256[sourcePath])) {
+      rustBoundaryError("hosted Rust source pins", `${sourcePath} has an invalid SHA-256 pin`);
+    }
+    if (sha256(source) !== sourceSha256[sourcePath]) {
+      rustBoundaryError("hosted Rust source pins", `${sourcePath} content hash drifted`);
+    }
+  }
+}
+
+function rustBraceDepthAt(sanitized, end, label) {
+  let depth = 0;
+  for (let index = 0; index < end; index += 1) {
+    if (sanitized[index] === "{") depth += 1;
+    if (sanitized[index] === "}") depth -= 1;
+    if (depth < 0 || depth > RUST_LEXICAL_NESTING_MAX) {
+      rustBoundaryError(label, "invalid module-declaration brace nesting");
+    }
+  }
+  return depth;
+}
+
+function validateHostedRustModuleDeclarations(sanitizedXtask) {
+  const indexes = [];
+  for (const modulePath of HOSTED_ACCEPTANCE_MODULES) {
+    const moduleName = rustModuleName(modulePath);
+    const pattern = new RegExp(`\\bmod[\\t ]+${regexEscape(moduleName)}\\b`, "gu");
+    const matches = [...sanitizedXtask.matchAll(pattern)];
+    if (matches.length !== 1) {
+      rustBoundaryError(
+        "crates/xtask/src/main.rs",
+        `expected exactly one canonical ${moduleName} module declaration`,
+      );
+    }
+    const match = matches[0];
+    const lineStart = sanitizedXtask.lastIndexOf("\n", match.index) + 1;
+    let lineEnd = sanitizedXtask.indexOf("\n", match.index);
+    if (lineEnd < 0) lineEnd = sanitizedXtask.length;
+    if (sanitizedXtask.slice(lineStart, lineEnd).trim() !== `mod ${moduleName};`) {
+      rustBoundaryError(
+        "crates/xtask/src/main.rs",
+        `${moduleName} must use the canonical mod name; declaration`,
+      );
+    }
+    if (rustBraceDepthAt(sanitizedXtask, match.index, "crates/xtask/src/main.rs") !== 0) {
+      rustBoundaryError(
+        "crates/xtask/src/main.rs",
+        `${moduleName} declaration must remain top-level`,
+      );
+    }
+    const priorLines = sanitizedXtask.slice(0, lineStart).split(/\r?\n/u);
+    while (priorLines.length > 0 && priorLines.at(-1).trim().length === 0) priorLines.pop();
+    if (priorLines.at(-1)?.trim().startsWith("#[")) {
+      rustBoundaryError(
+        "crates/xtask/src/main.rs",
+        `${moduleName} declaration must not have cfg/path attributes`,
+      );
+    }
+    indexes.push(match.index);
+  }
+  if (indexes.some((index, position) => position > 0 && index <= indexes[position - 1])) {
+    rustBoundaryError("crates/xtask/src/main.rs", "hosted module declaration order drifted");
+  }
+}
+
+export function validateRustOwnerControlBoundaries({
+  xtaskSource,
+  moduleSources,
+  sourceSha256,
+  rawSourceBytes,
+}) {
+  if (!isJsonObject(moduleSources)) rustBoundaryError("H2 owner-control boundary", "moduleSources must be an object");
+  if (
+    canonical(Object.keys(moduleSources).sort()) !== canonical([...HOSTED_ACCEPTANCE_MODULES].sort())
+  ) {
+    rustBoundaryError("H2 owner-control boundary", "hosted acceptance module set drifted");
+  }
+  const sanitizedXtask = sanitizeRustSource(xtaskSource, "crates/xtask/src/main.rs");
+  const sanitizedModules = Object.fromEntries(
+    HOSTED_ACCEPTANCE_MODULES.map((modulePath) => [
+      modulePath,
+      sanitizeRustSource(moduleSources[modulePath], modulePath),
+    ]),
+  );
+  validateHostedRustModuleDeclarations(sanitizedXtask);
+  const acceptanceBody = extractRustFunctionBody(
+    sanitizedXtask,
+    "acceptance",
+    "crates/xtask/src/main.rs",
+  );
+  if (acceptanceBody.replaceAll(/\s+/gu, "") !== HOSTED_ACCEPTANCE_CANONICAL_BODY) {
+    rustBoundaryError(
+      "hosted acceptance function",
+      "body differs from the pinned canonical ts-tests entrypoint",
+    );
+  }
+  const acceptanceCalls = extractRustCalls(acceptanceBody, "hosted acceptance function");
+  if (
+    acceptanceCalls.some((call) => call.callee.includes("owner_control")) ||
+    containsRustOwnerControlIdentifier(acceptanceBody) ||
+    containsRustIdentifier(acceptanceBody, "OWNER_CONTROLS_RELATIVE_PATH")
+  ) {
+    rustBoundaryError("hosted acceptance function", "contains a direct owner-control call or input");
+  }
+  if (
+    !acceptanceCalls.some(
+      (call) =>
+        call.callee === "h2_2c_acceptance::run_h2_5g" &&
+        call.arguments === "&workspace" &&
+        call.topLevel,
+    )
+  ) {
+    rustBoundaryError("hosted acceptance function", "does not call the qualified H2.5g runner");
+  }
+  const qualifiedAcceptanceCalls = acceptanceCalls
+    .filter((call) => !call.method && call.callee.includes("::"))
+    .map((call) => call.callee);
+  if (canonical(qualifiedAcceptanceCalls) !== canonical(HOSTED_ACCEPTANCE_QUALIFIED_CALLS)) {
+    rustBoundaryError(
+      "hosted acceptance function",
+      "qualified call sequence differs from the pinned ts-tests entrypoint",
+    );
+  }
+
+  for (const modulePath of H2_OWNER_SPLIT_MODULES) {
+    const sanitized = sanitizedModules[modulePath];
+    const runBody = extractRustFunctionBody(sanitized, "run", modulePath);
+    extractRustFunctionBody(sanitized, "run_owner_controls", modulePath);
+    const runCalls = extractRustCalls(runBody, `${modulePath} run function`);
+    if (
+      runCalls.some((call) => call.callee.includes("owner_control")) ||
+      containsRustOwnerControlIdentifier(runBody) ||
+      containsRustIdentifier(runBody, "OWNER_CONTROLS_RELATIVE_PATH")
+    ) {
+      rustBoundaryError(modulePath, "hosted run function contains a direct owner-control call or input");
+    }
+  }
+  validateHostedRustCallGraph(sanitizedXtask, sanitizedModules);
+
+  const localBody = extractRustFunctionBody(
+    sanitizedXtask,
+    "ci_h2_owner_controls",
+    "crates/xtask/src/main.rs",
+  );
+  const expectedLocalBody = H2_LOCAL_OWNER_CALLS.map((callee, index) =>
+    index + 1 === H2_LOCAL_OWNER_CALLS.length
+      ? `${callee}(workspace)`
+      : `${callee}(workspace)?;`,
+  ).join("");
+  if (localBody.replaceAll(/\s+/gu, "") !== expectedLocalBody) {
+    rustBoundaryError(
+      "ci_h2_owner_controls",
+      "body differs from the exact complete local owner-control statements",
+    );
+  }
+  const localQualifiedCalls = extractRustCalls(localBody, "ci_h2_owner_controls")
+    .filter((call) => call.callee.includes("::"));
+  if (
+    canonical(localQualifiedCalls.map((call) => call.callee)) !== canonical(H2_LOCAL_OWNER_CALLS)
+  ) {
+    rustBoundaryError(
+      "ci_h2_owner_controls",
+      "qualified owner-control call sequence differs from the complete local gate",
+    );
+  }
+  for (let index = 0; index < localQualifiedCalls.length; index += 1) {
+    const call = localQualifiedCalls[index];
+    const expectedSuffix = index + 1 === localQualifiedCalls.length ? "tail" : "?;";
+    if (!call.topLevel || call.arguments !== "workspace" || call.suffix !== expectedSuffix) {
+      rustBoundaryError(
+        "ci_h2_owner_controls",
+        `qualified call ${call.callee} is not an exact top-level local-gate statement`,
+      );
+    }
+  }
+  validateHostedRustSourcePins(
+    xtaskSource,
+    moduleSources,
+    sourceSha256,
+    rawSourceBytes,
+  );
+  return true;
 }
 
 function sortedUnique(values) {
@@ -281,7 +1656,7 @@ export function validatePolicy(policy) {
   if (policy.classification.usage !== "local-evidence-tooling-only" || policy.classification.unknown_non_documentation !== "select-all") throw new Error("classification utility policy must be local-only and fail closed");
 
   const hosted = policy.hosted_acceptance;
-  if (!exactKeys(hosted, ["authority_workflow", "authority_job", "test_root", "authoritative_command", "only_acceptance_tests"]) || hosted.authority_workflow !== ".github/workflows/ci.yml" || hosted.authority_job !== "gates" || hosted.test_root !== "ts-tests/" || canonical(hosted.authoritative_command) !== canonical(["cargo", "xtask", "acceptance"]) || hosted.only_acceptance_tests !== true) {
+  if (!exactKeys(hosted, ["authority_workflow", "authority_job", "test_root", "authoritative_command", "only_acceptance_tests", "rust_source_sha256"]) || hosted.authority_workflow !== ".github/workflows/ci.yml" || hosted.authority_job !== "gates" || hosted.test_root !== "ts-tests/" || canonical(hosted.authoritative_command) !== canonical(["cargo", "xtask", "acceptance"]) || hosted.only_acceptance_tests !== true) {
     throw new Error("invalid hosted ts-tests acceptance policy");
   }
   const local = policy.local_full_gate;
@@ -301,6 +1676,29 @@ export function validatePolicy(policy) {
   for (const forbidden of ["actions/setup-node", "runs-on: windows", "\n  schedule:"]) {
     if (workflow.includes(forbidden)) throw new Error(`hosted acceptance workflow contains forbidden non-acceptance work: ${forbidden}`);
   }
+  const xtaskBytes = fs.readFileSync(path.join(workspace, "crates/xtask/src/main.rs"));
+  const moduleSourceBytes = Object.fromEntries(
+    HOSTED_ACCEPTANCE_MODULES.map((modulePath) => [
+      modulePath,
+      fs.readFileSync(path.join(workspace, modulePath)),
+    ]),
+  );
+  const xtaskSource = xtaskBytes.toString("utf8");
+  const moduleSources = Object.fromEntries(
+    Object.entries(moduleSourceBytes).map(([modulePath, source]) => [
+      modulePath,
+      source.toString("utf8"),
+    ]),
+  );
+  validateRustOwnerControlBoundaries({
+    xtaskSource,
+    moduleSources,
+    sourceSha256: hosted.rust_source_sha256,
+    rawSourceBytes: {
+      "crates/xtask/src/main.rs": xtaskBytes,
+      ...moduleSourceBytes,
+    },
+  });
   if (
     !exactKeys(policy.approved_performance, [
       "runner_profile",
@@ -368,6 +1766,51 @@ export function validatePolicy(policy) {
     "h2-1e-profile",
     "h2-2a-qualification",
     "h2-2a-profile",
+    "h2-2b-qualification",
+    "h2-2b-profile",
+    "h2-2c-qualification",
+    "h2-2c-profile",
+    "h2-2d-qualification",
+    "h2-2d-profile",
+    "h2-3a-owner-controls",
+    "h2-3a-qualification",
+    "h2-3a-profile",
+    "h2-3b-owner-controls",
+    "h2-3b-qualification",
+    "h2-3b-profile",
+    "h2-3c-owner-controls",
+    "h2-3c-qualification",
+    "h2-3c-profile",
+    "h2-3d-owner-controls",
+    "h2-3d-qualification",
+    "h2-3d-profile",
+    "h2-4a-owner-controls",
+    "h2-4a-qualification",
+    "h2-4a-profile",
+    "h2-4b-owner-controls",
+    "h2-4b-qualification",
+    "h2-4b-profile",
+    "h2-5a-owner-controls",
+    "h2-5a-qualification",
+    "h2-5a-profile",
+    "h2-5b-owner-controls",
+    "h2-5b-qualification",
+    "h2-5b-profile",
+    "h2-5c-owner-controls",
+    "h2-5c-qualification",
+    "h2-5c-profile",
+    "h2-5d-owner-controls",
+    "h2-5d-qualification",
+    "h2-5d-profile",
+    "h2-5e-owner-controls",
+    "h2-5e-qualification",
+    "h2-5e-profile",
+    "h2-5f-owner-controls",
+    "h2-5f-qualification",
+    "h2-5f-profile",
+    "h2-5g-owner-controls",
+    "h2-5g-qualification",
+    "h2-5g-profile",
     "h2-source-reachability",
     "h2-emit-observation",
   ]) {
@@ -591,7 +2034,8 @@ function main() {
   const command = process.argv[2];
   if (command === "check") {
     validatePolicy(loadPolicy());
-    process.stdout.write("CI qualification policy and schemas are valid\n");
+    validateH2_5gArtifacts();
+    process.stdout.write("CI qualification policy, schemas, and H2.5g artifacts are valid\n");
     return;
   }
   if (command === "verify-selection") {

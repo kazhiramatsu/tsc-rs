@@ -14,8 +14,9 @@ use tsc_syntax::{
 use tsc_types::{CompilerOptions, NodeFlags, ScriptTarget};
 
 use crate::{
-    EmitFlags, LexicalEnvironment, TransformError, TransformFlags, TransformNode,
-    TransformNodeArray, TransformRoot, TransformSourceId, TransformationContext, Transformer,
+    factory::EmitHelperName, EmitFlags, LexicalEnvironment, TransformError, TransformFlags,
+    TransformNode, TransformNodeArray, TransformRoot, TransformSourceId, TransformationContext,
+    Transformer,
 };
 
 use super::{
@@ -53,23 +54,17 @@ impl FunctionMode {
     }
 }
 
-#[derive(Clone, Debug)]
-enum PlannedBinding {
-    Generated(TargetBinding),
-    Preferred(String),
-}
-
 #[derive(Debug)]
 struct ForAwaitLoweringPlan {
     mode: FunctionMode,
-    done: PlannedBinding,
-    error_record: PlannedBinding,
-    return_method: PlannedBinding,
-    bound_value: PlannedBinding,
-    non_user_code: PlannedBinding,
-    iterator: PlannedBinding,
-    result: PlannedBinding,
-    catch_variable: PlannedBinding,
+    done: TargetBinding,
+    error_record: TargetBinding,
+    return_method: TargetBinding,
+    bound_value: TargetBinding,
+    non_user_code: TargetBinding,
+    iterator: TargetBinding,
+    result: TargetBinding,
+    catch_variable: TargetBinding,
     reset_error_record: bool,
 }
 
@@ -91,6 +86,11 @@ struct DestructuringPlan {
     mode: DestructuringMode,
     helper_request_mode: HelperRequestMode,
     steps: Vec<DestructuringStep>,
+    /// tsc's `hasTransformedPriorElement`: once an array element is
+    /// deferred for object-rest lowering, every following non-simple
+    /// element must be deferred as well so its initializer observes the
+    /// bindings materialized by the earlier element.
+    has_transformed_prior_array_element: bool,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -105,6 +105,7 @@ impl DestructuringPlan {
             mode,
             helper_request_mode: HelperRequestMode::Immediate,
             steps: Vec::new(),
+            has_transformed_prior_array_element: false,
         }
     }
 
@@ -113,6 +114,7 @@ impl DestructuringPlan {
             mode: DestructuringMode::Binding,
             helper_request_mode: HelperRequestMode::AfterFunctionBody,
             steps: Vec::new(),
+            has_transformed_prior_array_element: false,
         }
     }
 
@@ -143,6 +145,19 @@ struct PatternElement {
 enum ExcludedProperty {
     Named(TransformNode),
     Computed(TransformNode),
+}
+
+/// Runtime key classification after applying
+/// `tryGetPropertyNameOfBindingOrAssignmentElement`. Bracketed string and
+/// numeric literals are static property names in tsc; only the remaining
+/// computed names own an evaluated key temporary.
+#[derive(Clone, Copy, Debug)]
+enum ObjectPatternPropertyKey {
+    Static(TransformNode),
+    Computed {
+        wrapper: TransformNode,
+        expression: TransformNode,
+    },
 }
 
 struct TransformedFunction {
@@ -233,10 +248,10 @@ impl Transformer for Es2018Transformer {
     }
 
     fn initialize(&mut self, _context: &mut TransformationContext) -> Result<(), TransformError> {
-        if self.target < ScriptTarget::ES2016 || self.target > ScriptTarget::ES2017 {
+        if self.target < ScriptTarget::ES2015 || self.target > ScriptTarget::ES2017 {
             return Err(TransformError::UnsupportedCompilerOption {
                 option: "transformES2018",
-                detail: "H2.5f composes transformES2018 for ES2016 and ES2017 targets",
+                detail: "H2.5g composes transformES2018 for ES2015 through ES2017 targets",
             });
         }
         Ok(())
@@ -320,6 +335,23 @@ impl<'context> Es2018Visitor<'context> {
     }
 
     fn visit(&mut self, id: NodeId) -> Result<Option<NodeId>, TransformError> {
+        // `discardedValueVisitor` applies to the expression at the current
+        // boundary, not recursively to every descendant. For example, an
+        // expression statement discards a call's result, while every call
+        // argument (including an object-rest assignment used as a descriptor
+        // value) is still required. Consume the pending mode exactly once and
+        // restore ordinary required-value semantics for recursive children.
+        let value_use = self.value_use;
+        self.with_value_use(ExpressionValueUse::Required, |visitor| {
+            visitor.visit_with_value_use(id, value_use)
+        })
+    }
+
+    fn visit_with_value_use(
+        &mut self,
+        id: NodeId,
+        value_use: ExpressionValueUse,
+    ) -> Result<Option<NodeId>, TransformError> {
         if let Some(mapped) = self.nodes.get(&id) {
             return Ok(*mapped);
         }
@@ -346,10 +378,22 @@ impl<'context> Es2018Visitor<'context> {
                 if self.binary_is_object_rest_destructuring(&data)? =>
             {
                 Some(
-                    self.flatten_destructuring_assignment(original, data, self.value_use)?
+                    self.flatten_destructuring_assignment(original, data, value_use)?
                         .node(),
                 )
             }
+            NodeData::BinaryExpression(data)
+                if self.operator_kind(data.operator_token)? == Some(SyntaxKind::CommaToken) =>
+            {
+                Some(self.visit_comma_expression(original, data, value_use)?)
+            }
+            NodeData::CommaListExpression(data) => {
+                Some(self.visit_comma_list_expression(original, data, value_use)?)
+            }
+            NodeData::ParenthesizedExpression(data) => {
+                Some(self.visit_parenthesized_expression(original, data, value_use)?)
+            }
+            NodeData::VoidExpression(data) => Some(self.visit_void_expression(original, data)?),
             NodeData::VariableDeclarationList(data) => {
                 Some(self.visit_variable_declaration_list(original, data)?)
             }
@@ -372,9 +416,7 @@ impl<'context> Es2018Visitor<'context> {
             NodeData::ForInStatement(data) => {
                 Some(self.visit_iteration_node(original, NodeData::ForInStatement(data))?)
             }
-            NodeData::ForStatement(data) => {
-                Some(self.visit_iteration_node(original, NodeData::ForStatement(data))?)
-            }
+            NodeData::ForStatement(data) => Some(self.visit_for_statement(original, data)?),
             NodeData::WhileStatement(data) => {
                 Some(self.visit_iteration_node(original, NodeData::WhileStatement(data))?)
             }
@@ -437,7 +479,23 @@ impl<'context> Es2018Visitor<'context> {
             NodeData::GetAccessor(data) => Some(self.visit_get_accessor(original, data)?),
             NodeData::SetAccessor(data) => Some(self.visit_set_accessor(original, data)?),
             NodeData::Constructor(data) => Some(self.visit_constructor(original, data)?),
-            NodeData::ObjectLiteralExpression(data) if self.object_literal_has_spread(&data)? => {
+            // `transformES2018` deliberately uses the propagated subtree bit,
+            // not a scan for a direct `SpreadAssignment`. A prior transform
+            // can synthesize an object literal around a value that still owns
+            // object-rest syntax (class-field property descriptors are one
+            // such composition). In that case tsc routes the one literal
+            // chunk through `createAssignHelper`, preserving the observable
+            // `Object.assign({...})` lookup and call.
+            //
+            // tsc-port: visitObjectLiteralExpression @6.0.3
+            // tsc-span: _tsc.js:102002-102017
+            NodeData::ObjectLiteralExpression(data)
+                if self
+                    .context
+                    .arena()
+                    .transform_flags(original)
+                    .contains(TransformFlags::CONTAINS_OBJECT_REST_OR_SPREAD) =>
+            {
                 Some(self.visit_object_literal_expression(original, data)?.node())
             }
             NodeData::Token => Some(id),
@@ -456,6 +514,81 @@ impl<'context> Es2018Visitor<'context> {
             visitor.visit_optional_node(data.expression)
         })?;
         self.update_without_visit(original, NodeData::ExpressionStatement(data))
+    }
+
+    fn visit_parenthesized_expression(
+        &mut self,
+        original: TransformNode,
+        mut data: tsc_syntax::nodes::ParenthesizedExpressionData,
+        value_use: ExpressionValueUse,
+    ) -> Result<NodeId, TransformError> {
+        data.expression = self.with_value_use(value_use, |visitor| {
+            visitor.visit_optional_node(data.expression)
+        })?;
+        self.update_without_visit(original, NodeData::ParenthesizedExpression(data))
+    }
+
+    fn visit_comma_expression(
+        &mut self,
+        original: TransformNode,
+        mut data: tsc_syntax::nodes::BinaryExpressionData,
+        value_use: ExpressionValueUse,
+    ) -> Result<NodeId, TransformError> {
+        data.left = self.with_value_use(ExpressionValueUse::Unused, |visitor| {
+            visitor.visit_optional_node(data.left)
+        })?;
+        data.right =
+            self.with_value_use(value_use, |visitor| visitor.visit_optional_node(data.right))?;
+        self.update_without_visit(original, NodeData::BinaryExpression(data))
+    }
+
+    fn visit_comma_list_expression(
+        &mut self,
+        original: TransformNode,
+        mut data: tsc_syntax::nodes::CommaListExpressionData,
+        value_use: ExpressionValueUse,
+    ) -> Result<NodeId, TransformError> {
+        if let Some(elements) = data.elements {
+            let original_elements = self.array(elements);
+            let nodes = self
+                .context
+                .arena()
+                .node_array(original_elements)?
+                .nodes
+                .clone();
+            let length = nodes.len();
+            let mut visited = Vec::with_capacity(length);
+            for (index, element) in nodes.into_iter().enumerate() {
+                let element_value_use = if index + 1 < length {
+                    ExpressionValueUse::Unused
+                } else {
+                    value_use
+                };
+                let element =
+                    self.with_value_use(element_value_use, |visitor| visitor.visit(element))?;
+                if let Some(element) = element {
+                    visited.push(self.node(element));
+                }
+            }
+            data.elements = Some(
+                self.context
+                    .factory()?
+                    .update_node_array(original_elements, visited)?
+                    .array(),
+            );
+        }
+        self.update_without_visit(original, NodeData::CommaListExpression(data))
+    }
+
+    fn visit_void_expression(
+        &mut self,
+        original: TransformNode,
+        mut data: tsc_syntax::nodes::VoidExpressionData,
+    ) -> Result<NodeId, TransformError> {
+        data.expression = self.with_value_use(ExpressionValueUse::Unused, |visitor| {
+            visitor.visit_optional_node(data.expression)
+        })?;
+        self.update_without_visit(original, NodeData::VoidExpression(data))
     }
 
     fn visit_variable_declaration_list(
@@ -1003,51 +1136,67 @@ impl<'context> Es2018Visitor<'context> {
         result
     }
 
-    fn allocate_hoisted_temp_binding(&mut self) -> Result<PlannedBinding, TransformError> {
+    fn visit_for_statement(
+        &mut self,
+        original: TransformNode,
+        mut data: tsc_syntax::nodes::ForStatementData,
+    ) -> Result<NodeId, TransformError> {
+        self.iteration_depth += 1;
+        let result = (|| {
+            data.initializer = self.with_value_use(ExpressionValueUse::Unused, |visitor| {
+                visitor.visit_optional_node(data.initializer)
+            })?;
+            data.condition = self.with_value_use(ExpressionValueUse::Required, |visitor| {
+                visitor.visit_optional_node(data.condition)
+            })?;
+            data.incrementor = self.with_value_use(ExpressionValueUse::Unused, |visitor| {
+                visitor.visit_optional_node(data.incrementor)
+            })?;
+            data.statement = self.with_value_use(ExpressionValueUse::Required, |visitor| {
+                visitor.visit_optional_node(data.statement)
+            })?;
+            self.update_without_visit(original, NodeData::ForStatement(data))
+        })();
+        self.iteration_depth -= 1;
+        result
+    }
+
+    fn allocate_hoisted_temp_binding(&mut self) -> Result<TargetBinding, TransformError> {
         let binding =
             TargetBinding::allocate(self.context, self.generated_bindings.allocate_temp())?;
         let declaration = self.create_generated_identifier(&binding)?;
         self.context.hoist_variable_declaration(declaration)?;
-        Ok(PlannedBinding::Generated(binding))
+        Ok(binding)
     }
 
     fn allocate_hoisted_numbered_binding(
         &mut self,
         source_name: &str,
-    ) -> Result<PlannedBinding, TransformError> {
+    ) -> Result<TargetBinding, TransformError> {
         let name = self.generated_bindings.allocate_numbered(source_name);
-        let declaration = self.create_identifier(&name)?;
+        let binding = TargetBinding::allocate_numbered(self.context, source_name.to_owned(), name)?;
+        let declaration = self.create_generated_identifier(&binding)?;
         self.context.hoist_variable_declaration(declaration)?;
-        Ok(PlannedBinding::Preferred(name))
+        Ok(binding)
     }
 
-    fn allocate_local_temp_binding(&mut self) -> Result<PlannedBinding, TransformError> {
+    fn allocate_local_temp_binding(&mut self) -> Result<TargetBinding, TransformError> {
         TargetBinding::allocate(self.context, self.generated_bindings.allocate_local_temp())
-            .map(PlannedBinding::Generated)
     }
 
-    fn allocate_local_numbered_binding(&mut self, source_name: &str) -> PlannedBinding {
-        PlannedBinding::Preferred(self.generated_bindings.allocate_local_numbered(source_name))
+    fn allocate_local_numbered_binding(
+        &mut self,
+        source_name: &str,
+    ) -> Result<TargetBinding, TransformError> {
+        let name = self.generated_bindings.allocate_local_numbered(source_name);
+        TargetBinding::allocate_numbered(self.context, source_name.to_owned(), name)
     }
 
     fn create_planned_identifier(
         &mut self,
-        binding: &PlannedBinding,
+        binding: &TargetBinding,
     ) -> Result<TransformNode, TransformError> {
-        match binding {
-            PlannedBinding::Generated(binding) => self.create_generated_identifier(binding),
-            PlannedBinding::Preferred(name) => self.create_identifier(name),
-        }
-    }
-
-    fn preferred_binding_text<'binding>(
-        &self,
-        binding: &'binding PlannedBinding,
-    ) -> Option<&'binding str> {
-        match binding {
-            PlannedBinding::Preferred(name) => Some(name),
-            PlannedBinding::Generated(_) => None,
-        }
+        self.create_generated_identifier(binding)
     }
 
     fn plan_for_await_lowering(
@@ -1072,19 +1221,17 @@ impl<'context> Es2018Visitor<'context> {
             _ => None,
         };
         let iterator = if let Some(iterator_base) = iterator_base {
-            self.allocate_local_numbered_binding(&iterator_base)
+            self.allocate_local_numbered_binding(&iterator_base)?
         } else {
             self.allocate_local_temp_binding()?
         };
-        let result = if let Some(iterator) = self.preferred_binding_text(&iterator) {
-            self.allocate_local_numbered_binding(iterator)
+        let result = if iterator.numbered_base().is_some() {
+            self.allocate_local_numbered_binding(iterator.provisional_name())?
         } else {
             self.allocate_local_temp_binding()?
         };
-        let error_name = self
-            .preferred_binding_text(&error_record)
-            .expect("error records use a preferred binding");
-        let catch_variable = self.allocate_local_numbered_binding(error_name);
+        let catch_variable =
+            self.allocate_local_numbered_binding(error_record.provisional_name())?;
 
         Ok(ForAwaitLoweringPlan {
             mode,
@@ -1124,7 +1271,10 @@ impl<'context> Es2018Visitor<'context> {
         self.context
             .request_emit_helper(super::helpers::async_values())?;
 
-        let async_values = self.create_identifier("__asyncValues")?;
+        let async_values = self
+            .context
+            .factory()?
+            .create_unscoped_helper_identifier(self.source, EmitHelperName::AsyncValues)?;
         let iterator_source = self.create_call(async_values, vec![expression])?;
         self.context
             .factory()?
@@ -1620,10 +1770,16 @@ impl<'context> Es2018Visitor<'context> {
                 .request_emit_helper(super::helpers::async_values())?;
             self.context
                 .request_emit_helper(super::helpers::async_delegator())?;
-            let async_values = self.create_identifier("__asyncValues")?;
+            let async_values = self
+                .context
+                .factory()?
+                .create_unscoped_helper_identifier(self.source, EmitHelperName::AsyncValues)?;
             let values = self.create_call(async_values, vec![expression])?;
             self.context.factory()?.set_text_range(values, expression)?;
-            let async_delegator = self.create_identifier("__asyncDelegator")?;
+            let async_delegator = self
+                .context
+                .factory()?
+                .create_unscoped_helper_identifier(self.source, EmitHelperName::AsyncDelegator)?;
             let delegated = self.create_call(async_delegator, vec![values])?;
             self.context
                 .factory()?
@@ -2452,7 +2608,10 @@ impl<'context> Es2018Visitor<'context> {
             }),
             inner_flags,
         )?;
-        let helper = self.create_identifier("__asyncGenerator")?;
+        let helper = self
+            .context
+            .factory()?
+            .create_unscoped_helper_identifier(self.source, EmitHelperName::AsyncGenerator)?;
         let this_arg = self.context.factory()?.create_token(
             self.source,
             SyntaxKind::ThisKeyword,
@@ -2757,13 +2916,8 @@ impl<'context> Es2018Visitor<'context> {
                     let expression = data.expression.map(|expression| self.node(expression));
                     let literal = expression.is_some_and(|expression| {
                         self.context.arena().node(expression).is_ok_and(|node| {
-                            matches!(
-                                node.kind,
-                                SyntaxKind::StringLiteral
-                                    | SyntaxKind::NumericLiteral
-                                    | SyntaxKind::BigIntLiteral
-                                    | SyntaxKind::NoSubstitutionTemplateLiteral
-                            )
+                            node.kind.value() >= SyntaxKind::FirstLiteralToken.value()
+                                && node.kind.value() <= SyntaxKind::LastLiteralToken.value()
                         })
                     });
                     if !literal {
@@ -2990,7 +3144,22 @@ impl<'context> Es2018Visitor<'context> {
             visitor.visit_required(data.right, SyntaxKind::BinaryExpression, "right")
         })?;
         let mut plan = DestructuringPlan::new(DestructuringMode::Assignment);
-        let value = if value_use == ExpressionValueUse::Required {
+        // The right-hand identifier cannot be reused when this pattern later
+        // assigns to the same name: every property read and computed key must
+        // continue to observe the pre-assignment value. Non-literal computed
+        // names likewise force the source value ahead of key evaluation.
+        // This is tsc's
+        // `bindingOrAssignmentElementAssignsToName ||
+        //  bindingOrAssignmentElementContainsNonLiteralComputedName` arm.
+        let force_fresh_value = match &self.context.arena().node(right)?.data {
+            NodeData::Identifier(data) => {
+                self.pattern_assigns_to_identifier(pattern, &data.text)?
+            }
+            _ => false,
+        } || self.pattern_contains_nonliteral_computed_name(pattern)?;
+        let value = if force_fresh_value {
+            self.ensure_destructuring_identifier(&mut plan, right, false, Some(original))?
+        } else if value_use == ExpressionValueUse::Required {
             self.ensure_destructuring_identifier(&mut plan, right, true, Some(original))?
         } else {
             right
@@ -3163,13 +3332,22 @@ impl<'context> Es2018Visitor<'context> {
                         pattern,
                     )?;
                     self.flatten_pattern_element(plan, element, rest)?;
+                } else if let Some(property) =
+                    self.non_last_object_rest_recovery_property(plan.mode, element)?
+                {
+                    excluded.push(ExcludedProperty::Named(property));
                 }
                 continue;
             }
 
-            let computed = element
+            let property_key = element
                 .property_name
-                .is_some_and(|name| self.is_computed_property_name(name));
+                .map(|name| self.object_pattern_property_key(name))
+                .transpose()?;
+            let computed = matches!(
+                property_key,
+                Some(ObjectPatternPropertyKey::Computed { .. })
+            );
             let target_requires_lowering = self.pattern_contains_object_rest(element.target)?;
             let initializer_requires_lowering = match element.initializer {
                 Some(initializer) => {
@@ -3181,15 +3359,19 @@ impl<'context> Es2018Visitor<'context> {
                 if let Some(visited) = self.visit(node.node())? {
                     retained.push(self.node(visited));
                 }
-                if let Some(name) = element.property_name {
+                if let Some(ObjectPatternPropertyKey::Static(name)) = property_key {
                     excluded.push(ExcludedProperty::Named(name));
                 }
                 continue;
             }
 
             self.flush_object_pattern_chunk(plan, pattern, &mut retained, value, original)?;
+            let property_key = property_key.ok_or(TransformError::RequiredChildRemoved {
+                parent: self.context.arena().node(element.original)?.kind,
+                field: "property name",
+            })?;
             let (property_value, exclusion) =
-                self.create_destructuring_property_access(plan, value, element)?;
+                self.create_destructuring_property_access(plan, value, property_key)?;
             if let Some(exclusion) = exclusion {
                 excluded.push(exclusion);
             }
@@ -3224,6 +3406,15 @@ impl<'context> Es2018Visitor<'context> {
         original: Option<TransformNode>,
     ) -> Result<(), TransformError> {
         let elements = self.array_nodes(elements)?;
+        // flattenArrayBindingOrAssignmentPattern's zero-element arm calls
+        // ensureIdentifier but never creates an empty bindingElements list.
+        // In assignment mode this deliberately leaves only the temporary
+        // assignment (`_a = value`); emitting `[] = value` is a different
+        // runtime operation and diverges for an object-rest target `...[]`.
+        if elements.is_empty() {
+            let _ = self.ensure_destructuring_identifier(plan, value, false, original)?;
+            return Ok(());
+        }
         let mut retained = Vec::with_capacity(elements.len());
         let mut deferred = Vec::new();
         for node in elements {
@@ -3232,13 +3423,18 @@ impl<'context> Es2018Visitor<'context> {
                 continue;
             }
             let element = self.pattern_element(node)?;
-            let initializer_requires_lowering = match element.initializer {
+            let initializer_contains_object_rest = match element.initializer {
                 Some(initializer) => {
                     self.expression_contains_object_rest_assignment(initializer)?
                 }
                 None => false,
             };
-            if self.pattern_contains_object_rest(element.target)? || initializer_requires_lowering {
+            let contains_object_rest = self.pattern_contains_object_rest(element.target)?
+                || initializer_contains_object_rest;
+            let defer_after_prior = plan.has_transformed_prior_array_element
+                && !self.is_simple_pattern_element(element)?;
+            if contains_object_rest || defer_after_prior {
+                plan.has_transformed_prior_array_element = true;
                 let binding = self.allocate_destructuring_temp(plan.mode)?;
                 let pattern_name = self.create_generated_identifier(&binding)?;
                 let read = self.create_generated_identifier(&binding)?;
@@ -3258,6 +3454,47 @@ impl<'context> Es2018Visitor<'context> {
             self.flatten_pattern_element(plan, element, read)?;
         }
         Ok(())
+    }
+
+    /// tsc `isSimpleBindingOrAssignmentElement` @6.0.3. Identifiers are
+    /// deliberately *not* simple inlineable initializers: retaining
+    /// `b = a` after a prior object-rest element would evaluate `a` before
+    /// that earlier element has been materialized.
+    fn is_simple_pattern_element(&self, element: PatternElement) -> Result<bool, TransformError> {
+        if self.context.arena().node(element.target)?.kind == SyntaxKind::OmittedExpression {
+            return Ok(true);
+        }
+        if let Some(property_name) = element.property_name {
+            if matches!(
+                self.object_pattern_property_key(property_name)?,
+                ObjectPatternPropertyKey::Computed { .. }
+            ) {
+                return Ok(false);
+            }
+        }
+        if let Some(initializer) = element.initializer {
+            if !self.is_simple_inlineable_expression(initializer)? {
+                return Ok(false);
+            }
+        }
+        if self.is_pattern_target(element.target)? {
+            for child in match &self.context.arena().node(element.target)?.data {
+                NodeData::ObjectBindingPattern(data) => self.array_nodes(data.elements)?,
+                NodeData::ObjectLiteralExpression(data) => self.array_nodes(data.properties)?,
+                NodeData::ArrayBindingPattern(data) => self.array_nodes(data.elements)?,
+                NodeData::ArrayLiteralExpression(data) => self.array_nodes(data.elements)?,
+                _ => Vec::new(),
+            } {
+                if self.context.arena().node(child)?.kind == SyntaxKind::OmittedExpression {
+                    continue;
+                }
+                if !self.is_simple_pattern_element(self.pattern_element(child)?)? {
+                    return Ok(false);
+                }
+            }
+            return Ok(true);
+        }
+        Ok(self.context.arena().node(element.target)?.kind == SyntaxKind::Identifier)
     }
 
     fn create_default_value_check(
@@ -3410,22 +3647,19 @@ impl<'context> Es2018Visitor<'context> {
         let Some(mut expression) = operands.next() else {
             return self.create_object_literal(Vec::new());
         };
+        let Some(first_source) = operands.next() else {
+            // createAssignHelper retains the call even when a spread happens
+            // to contain an object literal and therefore produces only one
+            // chunk. Besides matching emit shape, this preserves the
+            // observable Object.assign lookup/call required by object spread.
+            expression = self.create_object_assign_call(vec![expression])?;
+            return self.set_original_and_range(expression, original);
+        };
+        expression = self.create_object_assign(expression, first_source)?;
         for operand in operands {
             expression = self.create_object_assign(expression, operand)?;
         }
         self.set_original_and_range(expression, original)
-    }
-
-    fn object_literal_has_spread(
-        &self,
-        data: &tsc_syntax::nodes::ObjectLiteralExpressionData,
-    ) -> Result<bool, TransformError> {
-        Ok(self.array_nodes(data.properties)?.iter().any(|property| {
-            self.context
-                .arena()
-                .node(*property)
-                .is_ok_and(|record| matches!(record.data, NodeData::SpreadAssignment(_)))
-        }))
     }
 
     fn create_object_assign(
@@ -3433,47 +3667,124 @@ impl<'context> Es2018Visitor<'context> {
         target: TransformNode,
         source: TransformNode,
     ) -> Result<TransformNode, TransformError> {
+        self.create_object_assign_call(vec![target, source])
+    }
+
+    fn create_object_assign_call(
+        &mut self,
+        operands: Vec<TransformNode>,
+    ) -> Result<TransformNode, TransformError> {
         debug_assert!(self.target >= ScriptTarget::ES2015);
         let object = self.create_identifier("Object")?;
         let assign = self.create_identifier("assign")?;
         let callee = self.create_property_access(object, assign)?;
-        self.create_call(callee, vec![target, source])
+        self.create_call(callee, operands)
+    }
+
+    fn object_pattern_property_key(
+        &self,
+        property_name: TransformNode,
+    ) -> Result<ObjectPatternPropertyKey, TransformError> {
+        let NodeData::ComputedPropertyName(data) =
+            self.context.arena().node(property_name)?.data.clone()
+        else {
+            return Ok(ObjectPatternPropertyKey::Static(property_name));
+        };
+        let expression = data
+            .expression
+            .map(|expression| self.node(expression))
+            .ok_or(TransformError::RequiredChildRemoved {
+                parent: SyntaxKind::ComputedPropertyName,
+                field: "expression",
+            })?;
+        if matches!(
+            self.context.arena().node(expression)?.kind,
+            SyntaxKind::StringLiteral | SyntaxKind::NumericLiteral
+        ) {
+            Ok(ObjectPatternPropertyKey::Static(expression))
+        } else {
+            Ok(ObjectPatternPropertyKey::Computed {
+                wrapper: property_name,
+                expression,
+            })
+        }
+    }
+
+    /// In a declaration recovery tree, `{ ...a, x, ...b }` represents the
+    /// first rest as a BindingElement whose target is also its recoverable
+    /// property name. `createRestHelper` scans every element before the final
+    /// rest, so `a` remains excluded even though that invalid non-final rest
+    /// emits no binding. Assignment spreads do not expose such a property
+    /// name and therefore deliberately return `None`.
+    fn non_last_object_rest_recovery_property(
+        &self,
+        mode: DestructuringMode,
+        element: PatternElement,
+    ) -> Result<Option<TransformNode>, TransformError> {
+        if mode != DestructuringMode::Binding
+            || self.context.arena().node(element.original)?.kind != SyntaxKind::BindingElement
+        {
+            return Ok(None);
+        }
+        Ok(matches!(
+            self.context.arena().node(element.target)?.kind,
+            SyntaxKind::Identifier
+                | SyntaxKind::PrivateIdentifier
+                | SyntaxKind::StringLiteral
+                | SyntaxKind::NumericLiteral
+                | SyntaxKind::ComputedPropertyName
+        )
+        .then_some(element.target))
+    }
+
+    fn clone_property_name_literal(
+        &mut self,
+        property_name: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        let clone = self.context.factory()?.clone_node(property_name)?;
+        if self.context.arena().node(property_name)?.kind == SyntaxKind::StringLiteral {
+            self.context
+                .arena_mut()?
+                .metadata_mut(clone)
+                .set_string_literal_text_source(property_name);
+        }
+        Ok(clone)
     }
 
     fn create_destructuring_property_access(
         &mut self,
         plan: &mut DestructuringPlan,
         value: TransformNode,
-        element: PatternElement,
+        property_key: ObjectPatternPropertyKey,
     ) -> Result<(TransformNode, Option<ExcludedProperty>), TransformError> {
-        let property_name = element
-            .property_name
-            .ok_or(TransformError::RequiredChildRemoved {
-                parent: self.context.arena().node(element.original)?.kind,
-                field: "property name",
-            })?;
-        if let NodeData::ComputedPropertyName(data) =
-            self.context.arena().node(property_name)?.data.clone()
+        if let ObjectPatternPropertyKey::Computed {
+            wrapper,
+            expression,
+        } = property_key
         {
             let expression = self.with_value_use(ExpressionValueUse::Required, |visitor| {
                 visitor.visit_required(
-                    data.expression,
+                    Some(expression.node()),
                     SyntaxKind::ComputedPropertyName,
                     "expression",
                 )
             })?;
             let argument =
-                self.ensure_destructuring_identifier(plan, expression, false, Some(property_name))?;
+                self.ensure_destructuring_identifier(plan, expression, false, Some(wrapper))?;
             let access = self.create_element_access(value, argument)?;
             return Ok((access, Some(ExcludedProperty::Computed(argument))));
         }
+        let ObjectPatternPropertyKey::Static(property_name) = property_key else {
+            unreachable!("computed property key returned above")
+        };
         let kind = self.context.arena().node(property_name)?.kind;
         if matches!(
             kind,
             SyntaxKind::StringLiteral | SyntaxKind::NumericLiteral | SyntaxKind::BigIntLiteral
         ) {
+            let argument = self.clone_property_name_literal(property_name)?;
             return Ok((
-                self.create_element_access(value, property_name)?,
+                self.create_element_access(value, argument)?,
                 Some(ExcludedProperty::Named(property_name)),
             ));
         }
@@ -3500,8 +3811,7 @@ impl<'context> Es2018Visitor<'context> {
         for property in excluded {
             properties.push(match *property {
                 ExcludedProperty::Named(name) => {
-                    let text = self.property_name_text(name)?.to_owned();
-                    self.create_string_literal(&text)?
+                    self.create_string_literal_from_property_name(name)?
                 }
                 ExcludedProperty::Computed(temp) => {
                     let kind = self.create_string_literal("symbol")?;
@@ -3516,8 +3826,26 @@ impl<'context> Es2018Visitor<'context> {
         }
         let excluded = self.create_array_literal(properties)?;
         self.context.factory()?.set_text_range(excluded, original)?;
-        let helper = self.create_identifier("__rest")?;
+        let helper = self
+            .context
+            .factory()?
+            .create_unscoped_helper_identifier(self.source, EmitHelperName::Rest)?;
         self.create_call(helper, vec![value, excluded])
+    }
+
+    fn create_string_literal_from_property_name(
+        &mut self,
+        property_name: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        let text = self.property_name_text(property_name)?.to_owned();
+        let literal = self.create_string_literal(&text)?;
+        if self.context.arena().node(property_name)?.kind == SyntaxKind::StringLiteral {
+            self.context
+                .arena_mut()?
+                .metadata_mut(literal)
+                .set_string_literal_text_source(property_name);
+        }
+        Ok(literal)
     }
 
     fn create_object_pattern(
@@ -3591,13 +3919,6 @@ impl<'context> Es2018Visitor<'context> {
             }),
             flags,
         )
-    }
-
-    fn is_computed_property_name(&self, name: TransformNode) -> bool {
-        self.context
-            .arena()
-            .node(name)
-            .is_ok_and(|node| node.kind == SyntaxKind::ComputedPropertyName)
     }
 
     fn property_name_text(&self, name: TransformNode) -> Result<&str, TransformError> {
@@ -3843,7 +4164,10 @@ impl<'context> Es2018Visitor<'context> {
             FunctionMode::AsyncGenerator => {
                 self.context
                     .request_emit_helper(super::helpers::async_await())?;
-                let helper = self.create_identifier("__await")?;
+                let helper = self
+                    .context
+                    .factory()?
+                    .create_unscoped_helper_identifier(self.source, EmitHelperName::Await)?;
                 let awaited = self.create_call(helper, vec![expression])?;
                 let flags = self.context.arena().propagate_child_flags(awaited)?;
                 self.context.factory()?.create_node(
@@ -4275,8 +4599,7 @@ impl<'context> Es2018Visitor<'context> {
         let kind = self.context.arena().node(expression)?.kind;
         Ok(matches!(
             kind,
-            SyntaxKind::Identifier
-                | SyntaxKind::StringLiteral
+            SyntaxKind::StringLiteral
                 | SyntaxKind::NumericLiteral
                 | SyntaxKind::BigIntLiteral
                 | SyntaxKind::NoSubstitutionTemplateLiteral

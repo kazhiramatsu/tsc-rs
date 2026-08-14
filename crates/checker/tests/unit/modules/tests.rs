@@ -1,7 +1,8 @@
 use crate::state::test_support::with_program_state;
 use crate::{check_program, check_program_with_libs_at, CompilerOptions, InputFile};
 use tsc_diagnostics::{gen as diagnostics, DiagnosticCategory, MessageChain};
-use tsc_syntax::{NodeData, SyntaxKind};
+use tsc_emitter::EmitExportContainerMode;
+use tsc_syntax::{for_each_child, NodeData, SyntaxKind};
 
 fn internal_import_reference_state(tail: &str, options: &CompilerOptions) -> (bool, bool) {
     let text =
@@ -81,6 +82,260 @@ fn exported_import_equals_marks_alias_accessibility_without_a_use() {
     });
 }
 
+#[test]
+fn exported_namespace_import_alias_reference_reports_its_namespace_container() {
+    let text = concat!(
+        "export namespace m { export class c {} }\n",
+        "namespace m2 { export import exports = m.c; new exports(); }\n",
+    );
+    let options = CompilerOptions {
+        module: Some(tsc_types::ModuleKind::AMD.bits()),
+        ..CompilerOptions::default()
+    };
+    with_program_state(&[("a.ts", text)], &options, |state| {
+        state.check_source_file(0);
+        let source = state.binder.source(0);
+        let mut stack = vec![source.root];
+        let mut namespace = None;
+        let mut reference = None;
+        while let Some(id) = stack.pop() {
+            let node = source.arena.node(id);
+            match &node.data {
+                NodeData::ModuleDeclaration(data)
+                    if data.name.is_some_and(|name| {
+                        matches!(&source.arena.node(name).data,
+                            NodeData::Identifier(identifier) if identifier.text == "m2")
+                    }) =>
+                {
+                    namespace = Some(id);
+                }
+                NodeData::Identifier(identifier)
+                    if identifier.text == "exports"
+                        && state.parent_of(id).is_some_and(|parent| {
+                            matches!(&source.arena.node(parent).data,
+                                NodeData::NewExpression(data) if data.expression == Some(id))
+                        }) =>
+                {
+                    reference = Some(id);
+                }
+                _ => {}
+            }
+            for_each_child(&source.arena, node, |child| {
+                stack.push(child);
+                false
+            });
+        }
+        let namespace = namespace.expect("m2 namespace declaration");
+        let reference = reference.expect("exports constructor reference");
+        assert_eq!(
+            state
+                .emit_get_referenced_export_container(
+                    reference,
+                    EmitExportContainerMode::Reference,
+                )
+                .expect("export container query"),
+            Some(namespace),
+        );
+    });
+}
+
+#[test]
+fn classic_jsx_factory_lookup_reports_its_namespace_container_by_identity() {
+    let text = concat!(
+        "namespace M {\n",
+        "    export var React = { createElement() {} };\n",
+        "    export var X = () => null;\n",
+        "    var y = <X></X>;\n",
+        "}\n",
+    );
+    let options = CompilerOptions {
+        target: Some(tsc_types::ScriptTarget::ES2015.bits()),
+        jsx: Some(2),
+        ..CompilerOptions::default()
+    };
+    with_program_state(&[("a.tsx", text)], &options, |state| {
+        state.check_source_file(0);
+        let source = state.binder.source(0);
+        let mut stack = vec![source.root];
+        let mut namespace = None;
+        let mut opening = None;
+        let mut tag = None;
+        while let Some(node) = stack.pop() {
+            let record = source.arena.node(node);
+            match &record.data {
+                NodeData::ModuleDeclaration(_) => {
+                    namespace.get_or_insert(node);
+                }
+                NodeData::JsxOpeningElement(data) => {
+                    opening = Some(node);
+                    tag = data.tag_name;
+                }
+                _ => {}
+            }
+            for_each_child(&source.arena, record, |child| {
+                stack.push(child);
+                false
+            });
+        }
+        let namespace = namespace.expect("M namespace declaration");
+        assert_eq!(
+            state
+                .emit_get_referenced_export_container(
+                    tag.expect("X opening tag"),
+                    EmitExportContainerMode::Reference,
+                )
+                .expect("JSX tag export-container query"),
+            Some(namespace),
+        );
+        assert_eq!(
+            state
+                .emit_get_jsx_factory_export_container(
+                    opening.expect("JSX opening location"),
+                    "React",
+                )
+                .expect("JSX factory export-container query"),
+            Some(namespace),
+        );
+    });
+}
+
+#[test]
+fn ambient_export_reference_reports_its_source_container_after_property_recovery() {
+    let text = concat!("export declare let a: { __foo: 10 };\n", "a.___foo;\n",);
+    let options = CompilerOptions {
+        module: Some(tsc_types::ModuleKind::COMMON_JS.bits()),
+        ..CompilerOptions::default()
+    };
+    with_program_state(&[("a.ts", text)], &options, |state| {
+        state.check_source_file(0);
+        let source = state.binder.source(0);
+        let root = source.root;
+        let mut stack = vec![root];
+        let mut reference = None;
+        while let Some(node) = stack.pop() {
+            let record = source.arena.node(node);
+            if let NodeData::PropertyAccessExpression(data) = &record.data {
+                reference = data.expression.filter(|expression| {
+                    matches!(
+                        &source.arena.node(*expression).data,
+                        NodeData::Identifier(identifier) if identifier.text == "a"
+                    )
+                });
+            }
+            for_each_child(&source.arena, record, |child| {
+                stack.push(child);
+                false
+            });
+        }
+        let reference = reference.expect("ambient export receiver reference");
+        assert_eq!(
+            state
+                .emit_get_referenced_export_container(
+                    reference,
+                    EmitExportContainerMode::Reference,
+                )
+                .expect("export container query"),
+            Some(root),
+        );
+    });
+}
+
+#[test]
+fn export_container_mode_distinguishes_ordinary_merged_locals_from_export_names() {
+    let text = concat!(
+        "export default function Foo() {}\n",
+        "namespace Foo { export var x; }\n",
+        "interface Foo {}\n",
+        "export interface Foo {}\n",
+        "export function Bar() {}\n",
+        "namespace Local { export var y; }\n",
+    );
+    let options = CompilerOptions {
+        module: Some(tsc_types::ModuleKind::COMMON_JS.bits()),
+        ..CompilerOptions::default()
+    };
+    with_program_state(&[("a.ts", text)], &options, |state| {
+        state.check_source_file(0);
+        let source = state.binder.source(0);
+        let mut stack = vec![source.root];
+        let mut foo = None;
+        let mut bar = None;
+        let mut local = None;
+        while let Some(node) = stack.pop() {
+            let record = source.arena.node(node);
+            if let NodeData::ModuleDeclaration(data) = &record.data {
+                if let Some(name) = data.name {
+                    match &source.arena.node(name).data {
+                        NodeData::Identifier(identifier) if identifier.text == "Foo" => {
+                            foo = Some(name);
+                        }
+                        NodeData::Identifier(identifier) if identifier.text == "Local" => {
+                            local = Some(name);
+                        }
+                        _ => {}
+                    }
+                }
+            }
+            if let NodeData::FunctionDeclaration(data) = &record.data {
+                if let Some(name) = data.name.filter(|name| {
+                    matches!(
+                        &source.arena.node(*name).data,
+                        NodeData::Identifier(identifier) if identifier.text == "Bar"
+                    )
+                }) {
+                    bar = Some(name);
+                }
+            }
+            for_each_child(&source.arena, record, |child| {
+                stack.push(child);
+                false
+            });
+        }
+
+        let foo = foo.expect("merged Foo namespace name");
+        assert_eq!(
+            state
+                .emit_get_referenced_export_container(foo, EmitExportContainerMode::Reference)
+                .expect("ordinary export-container query"),
+            Some(source.root),
+        );
+        assert_eq!(
+            state
+                .emit_get_referenced_export_container(foo, EmitExportContainerMode::ExportName)
+                .expect("export-name container query"),
+            Some(source.root),
+        );
+
+        let bar = bar.expect("exported function name");
+        assert_eq!(
+            state
+                .emit_get_referenced_export_container(bar, EmitExportContainerMode::Reference)
+                .expect("ordinary function export-container query"),
+            None,
+        );
+        assert_eq!(
+            state
+                .emit_get_referenced_export_container(bar, EmitExportContainerMode::ExportName)
+                .expect("function export-name container query"),
+            Some(source.root),
+        );
+
+        let local = local.expect("non-exported namespace name");
+        assert_eq!(
+            state
+                .emit_get_referenced_export_container(local, EmitExportContainerMode::Reference)
+                .expect("ordinary local namespace query"),
+            None,
+        );
+        assert_eq!(
+            state
+                .emit_get_referenced_export_container(local, EmitExportContainerMode::ExportName)
+                .expect("prefixed local namespace query"),
+            None,
+        );
+    });
+}
+
 /// Driver-level multi-file rows: (file, code, start, length) for
 /// located diagnostics (noLib artifacts are locationless and drop
 /// with the filter — the calls.rs checked_rows discipline).
@@ -110,6 +365,61 @@ fn program_rows(files: &[(&str, &str)], options: &CompilerOptions) -> Vec<(Strin
 
 fn rows(files: &[(&str, &str)]) -> Vec<(String, u32, u32, u32)> {
     program_rows(files, &CompilerOptions::default())
+}
+
+#[test]
+fn nested_ambient_module_declarations_merge_into_their_target_module() {
+    let files = [
+        (
+            "/base.d.ts",
+            "declare module \"Observable\" { export class Observable {} }\n",
+        ),
+        (
+            "/first.d.ts",
+            concat!(
+                "declare module \"MapOne\" {\n",
+                "  module \"Observable\" { interface Observable { foo(): number; } }\n",
+                "}\n",
+            ),
+        ),
+        (
+            "/second.d.ts",
+            concat!(
+                "declare module \"MapTwo\" {\n",
+                "  module \"Observable\" { interface Observable { foo2(): string; } }\n",
+                "}\n",
+            ),
+        ),
+        (
+            "/main.ts",
+            concat!(
+                "import { Observable } from \"Observable\";\n",
+                "import \"MapOne\";\n",
+                "import \"MapTwo\";\n",
+                "declare const value: Observable;\n",
+                "value.foo();\n",
+                "value.foo2();\n",
+            ),
+        ),
+    ];
+    assert!(
+        rows(&files).into_iter().all(|row| row.1 != 2339),
+        "both nested augmentations must contribute instance members"
+    );
+}
+
+#[test]
+fn ambient_external_module_names_use_typescript_disk_path_semantics() {
+    let source = "declare module \"./forward\" {}\n\
+                  declare module \".\\\\backward\" {}\n\
+                  declare module \"C:\\\\rooted\" {}\n";
+    assert_eq!(
+        rows(&[("/main.ts", source)])
+            .into_iter()
+            .filter(|row| row.1 == 2436)
+            .count(),
+        3
+    );
 }
 
 #[test]
@@ -320,6 +630,12 @@ fn unmodified_import_and_export_declarations_do_not_report_modifier_rows() {
     );
 }
 
+#[test]
+fn export_assignment_modifiers_report_the_dedicated_grammar_row() {
+    let source = "var x;\nexport declare export = x;\n";
+    assert_eq!(rows(&[("a.ts", source)]), [("a.ts".to_owned(), 1120, 7, 6)]);
+}
+
 fn node16_options() -> CompilerOptions {
     CompilerOptions {
         module: Some(100),
@@ -491,7 +807,7 @@ fn missing_module_member_diagnostics_use_written_specifiers_and_names() {
             ),
             InputFile::new(
                 "/main.ts".to_owned(),
-                "import { \"missing\" as x, absent } from \"./mod.js\";\n".to_owned(),
+                "import { \"missing\" as x, absent } from './mod.js';\n".to_owned(),
             ),
         ],
         &CompilerOptions::default(),
@@ -506,6 +822,27 @@ fn missing_module_member_diagnostics_use_written_specifiers_and_names() {
             "Module '\"./mod.js\"' has no exported member '\"missing\"'.".to_owned(),
             "Module '\"./mod.js\"' has no exported member 'absent'.".to_owned(),
         ]
+    );
+
+    let escaped_specifier = check_program(
+        &[
+            InputFile::new(
+                "/mo\"d.ts".to_owned(),
+                "export const present = 1;\n".to_owned(),
+            ),
+            InputFile::new(
+                "/main.ts".to_owned(),
+                "import { absent } from './mo\"d.js';\n".to_owned(),
+            ),
+        ],
+        &CompilerOptions::default(),
+    );
+    assert_eq!(
+        targeted_rows(&escaped_specifier, &[2305])
+            .into_iter()
+            .map(|row| row.4)
+            .collect::<Vec<_>>(),
+        ["Module '\"./mo\\\"d.js\"' has no exported member 'absent'.".to_owned()]
     );
 
     let default_only = check_program(

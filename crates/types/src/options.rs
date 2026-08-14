@@ -186,6 +186,11 @@ pub struct CompilerOptions {
     /// containerSeemsToBeEmptyDomElement (75471) only asks whether the
     /// option EXISTS without "dom".
     pub lib: Option<Vec<String>>,
+    /// Resolve each selected `lib.*.d.ts` through the corresponding
+    /// `@typescript/lib-*` package before falling back to the injected
+    /// TypeScript library catalog. This changes Program source membership;
+    /// it is not an ordinary module-resolution or checker-only option.
+    pub lib_replacement: Option<bool>,
     /// tsc JsxEmit value (None=0/Preserve=1/React=2/ReactNative=3/
     /// ReactJSX=4/ReactJSXDev=5); None when the option is absent.
     /// checkJsxPreconditions' 17004 reads `(jsx || 0) === 0`.
@@ -247,6 +252,14 @@ pub struct CompilerOptions {
     /// outside the first executable profile.
     pub imports_not_used_as_values: Option<i32>,
     pub preserve_value_imports: Option<bool>,
+    /// Removed pre-6.0 options are retained as raw program inputs so the
+    /// option-diagnostic boundary can report TS5102 exactly. They no longer
+    /// alter binder, checker, or emitter behavior.
+    pub keyof_strings_only: Option<bool>,
+    pub suppress_excess_property_errors: Option<bool>,
+    pub suppress_implicit_any_index_errors: Option<bool>,
+    pub no_strict_generic_checks: Option<bool>,
+    pub charset: Option<String>,
     pub emit_decorator_metadata: Option<bool>,
     /// tsc `NewLineKind` value used by the JavaScript writer
     /// (CarriageReturnLineFeed=0, LineFeed=1). H0 retains but never reads it;
@@ -357,6 +370,10 @@ pub struct CompilerOptions {
     /// declaration files produce NO bind/check diagnostics when set.
     /// 100 conformance fixtures carry the directive.
     pub skip_lib_check: Option<bool>,
+    /// tsc skipTypeCheckingWorker's distinct default-library arm (18896).
+    /// Unlike `skip_lib_check`, this is keyed by Program-owned library
+    /// membership rather than by the source's declaration-file syntax.
+    pub skip_default_lib_check: Option<bool>,
     /// JSX namespace/runtime customization options.
     pub jsx_factory: Option<String>,
     pub jsx_fragment_factory: Option<String>,

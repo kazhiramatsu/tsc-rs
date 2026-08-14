@@ -1,5 +1,10 @@
 # 2XXX emitter inventory — the function-level reproduction checklist
 
+Document role: **historical M-track diagnostic-emission inventory**. Here,
+"emitter" means a tsc function that reports a 2000–2999 diagnostic; this file
+does not describe the current JavaScript emitter architecture. Follow
+[emitter-architecture.md](emitter-architecture.md) for current emit work.
+
 GENERATED ANALYSIS (2026-07-08, tsc 6.0.3 pin) — the answer to "is
 every tsc function that emits a 2XXX diagnostic reproduced?" as a
 complete, line-ordered checklist. Regenerate on re-vendor with

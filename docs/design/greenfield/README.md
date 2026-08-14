@@ -1,7 +1,7 @@
 # Greenfield execution guide (READ FIRST, FOLLOW EXACTLY)
 
-This directory turns the greenfield DESIGN set into an executable
-build plan. The five parent documents are the design authority:
+This directory began as the executable M-track build plan. For the completed
+M/core track, the five parent documents remain its design authority:
 
 - [../greenfield.md](../greenfield.md) — architecture, crate layout,
   harness, milestone plan (§12 is the master schedule).
@@ -16,21 +16,54 @@ build plan. The five parent documents are the design authority:
 - [../checker-key-functions.md](../checker-key-functions.md) — the
   relation, inference, overload, and flow algorithms.
 
-The steps docs here SEQUENCE those designs into stages a low-capability
-agent can implement one commit at a time. They do not restate the
+The historical M-stage step docs here sequence those designs into stages a
+low-capability agent can implement one commit at a time. They do not restate the
 algorithm skeletons — each stage names the parent-doc section and the
-tsc anchor to port from. If a steps doc and a parent doc disagree, the
-parent doc plus the tsc source win; file a doc fix.
+tsc anchor to port from. For that track, a parent doc plus the tsc source wins
+over a steps doc. An active subsystem architecture supersedes an older generic
+layout when it explicitly validates the current Rust symbols.
+
+Post-H1 emitter work has an additional mandatory route. Read the
+[current emitter architecture](emitter-architecture.md) for the validated
+Rust ownership/integration map, then the
+[post-H1 completion schedule and design gate](post-h1-completion-slices.md),
+then select the current packet from the
+[slice-packet index](slices/README.md) and read only the predecessor/history
+sections that packet names. A packet with a stale architecture reference,
+unresolved item, or unstated implementation choice is not ready for production
+edits.
+
+These roles stay separate:
+
+- **Active authority/current route:** pinned tsc semantics → current emitter
+  architecture → post-H1 schedule → selected ready packet. The schedule alone
+  owns live slice status.
+- **Frozen contract/evidence:** ratchets, schemas, generators, and tests prove
+  only the completed profile named by their owning close record.
+- **History/reference:** completed M-stage/H0/H1 designs and older emitter
+  analyses explain lineage or rationale but do not describe current Rust
+  ownership unless the active route cites and revalidates them.
+
+H2.5g is the sole non-retroactive exception to the ready-packet requirement.
+Because its implementation began under an already-established versioned
+qualification, owner-control, and profile contract set, it may finish through
+the [H2.5g legacy closure route](slices/README.md#h25g-legacy-closure-route)
+without manufacturing a packet after the fact. It remains in progress and not
+yet qualified until the schedule records closure. This exception authorizes
+neither H2.5h-a nor any later production work.
 
 **Completion authority:**
 [definition-of-done.md](definition-of-done.md) — the normative one
-page for WHAT "done" means (version pin, tiers, exclusions,
-go/no-go checkpoints). It wins over every other doc on that
-question.
+page for WHAT the frozen M8 batch-diagnostics claim means (version pin,
+tiers, exclusions, and go/no-go checkpoints). Follow-on H0/H1/H2, reuse,
+build/watch, API, service, server, and LSP products keep separate finish lines;
+the post-H1 schedule owns their dependency order and slice completion without
+rewriting the historical M8 denominator.
 
-**Completion convergence plan:**
+**M4-M9 completion convergence plan:**
 [completion-convergence-plan.md](completion-convergence-plan.md) — the
-ordered delivery plan from M4 close through M9. It owns sequence,
+historical/paused ordered delivery plan from M4 close through M9. It owns that
+track's sequence,
 dependencies, and acceptance gates; the definition of done still owns
 the end state. Its supporting contracts are
 [measurement-integrity.md](measurement-integrity.md) for A1/A2/A3/A5
@@ -67,33 +100,34 @@ and adjacent controls fail before their first sink write. The filesystem/CLI,
 partial-failure, standalone-package, repeated/two-worker, H0 no-emit, and
 approved-runner resource evidence are frozen. H1 remains the bounded
 `ESNext`/`Preserve` whole-Program `.ts` profile, not broad one-shot compiler
-compatibility.
+compatibility. This is a frozen predecessor contract and design history;
+[emitter-architecture.md](emitter-architecture.md) is the current Rust
+implementation map.
 
 **Post-H1 completion slices:**
 [post-h1-completion-slices.md](post-h1-completion-slices.md) — the approved
 branch-sized execution schedule for H2 broad one-shot compiler, L2 shared
 Program/resolution reuse, builder/project references/watch, public API,
 Language Service, tsserver, the independent Rust-native LSP adapter, and final
-release work. **H2.0a, H2.0b, and H2.1a are complete and H2.1b is next:** the
-first implied-format ESM runtime expansion executes all 295 candidates twice,
-admits 241 complete observations with 499 exact diagnostics and 251 exact
-writes, retains 5 output-exact diagnostic controls for H2.9, and proves 49
-source-deferred rows fail before the first sink callback. The earlier
-owner/converse inventory, all 15,642 candidate dispositions, and approved-runner
-cross-track baseline remain immutable lineage. The existing per-slice
-owner/oracle/profile/fail-closed/local-gate loop remains mandatory. Stateful
-tracks additionally require multi-generation fresh-versus-reused traces,
-explicit invalidation, release/resource bounds, cancellation safety, restart
-determinism, and schema/protocol contracts.
+release work. Its status header is the single progress authority; the root
+README may mirror its live phase label, but mirrors counts and compatibility
+claims only at completed-slice freezes. This index deliberately does not
+duplicate dated slice counts.
+Except for the bounded H2.5g legacy closure above, every production slice whose
+implementation begins after H2.5g first freezes the implementation-ready
+packet required by that document. Stateful tracks additionally require
+multi-generation fresh-versus-reused traces, explicit invalidation,
+release/resource bounds, cancellation safety, restart determinism, and
+schema/protocol contracts.
 
 **Compiler compatibility residual:**
 [compiler-compatibility-residual.md](compiler-compatibility-residual.md) — the
-audited current implementation boundary, L0/L1 prerequisites, H1 blocking
-dependency packages, exact built-in transformer/resolver expansion map, and
-the work remaining after H1 for declarations, maps, build/watch, public APIs,
-and the later L-track. It owns the cross-track inventory; the post-H1 slice
-document owns execution order. Neither expands H1 or replaces the normative
-M8/M9 definition of done.
+audited surface/owner inventory and historical gap analysis covering L0/L1,
+H1, broader transforms, declarations, maps, build/watch, public APIs, and the
+later L-track. Its current-implementation prose may age; sections 2–10 of that
+document are an audit-time snapshot, so every active slice regenerates a local
+gap matrix from current code. The post-H1 slice document
+owns execution order. Neither expands H1 nor rewrites the M8/M9 claim.
 
 **Complete JSDoc subsystem:**
 [m8-jsdoc-ast-materialization.md](m8-jsdoc-ast-materialization.md) — the
@@ -130,7 +164,10 @@ generated, complete checklist of all 246 tsc functions that emit
 band codes, each with its Rust module home — and
 [2xxx-emitter-descriptions.md](2xxx-emitter-descriptions.md), the
 hand-audited companion describing what each of those functions
-implements and when each code fires.
+implements and when each code fires. In both filenames, "emitter" means a
+diagnostic-reporting function in the historical M-track, not the current
+JavaScript emitter; current emit work follows
+[emitter-architecture.md](emitter-architecture.md).
 [program-and-modules.md](program-and-modules.md) closes the three
 architecture holes outside the classic four phases: the Program/host
 layer, module resolution, and checker initialization (globals
@@ -160,14 +197,16 @@ evidence, and the concrete 8.1a-g checker-grammar producer split.
 This implementation began as a FROM-SCRATCH build, isolated from the former
 v1 `src/`. It now occupies the repository-root virtual Cargo workspace:
 `Cargo.toml` owns the members under `crates/`, Rust sources live in each
-`crates/*/src`, and there is no top-level `src/`. The implementation
-references remain the vendored tsc and these documents; v1 is retained only
-at tag `v1-final`.
+`crates/*/src`, and there is no top-level `src/`. The implementation references
+remain the vendored tsc and the active route selected above; historical
+documents remain rationale only. v1 is retained only at tag `v1-final`.
 
 ## The prime directive
 
-PORT, never improvise. The tsc source is the specification and the
-oracle binary is the ground truth:
+Derive semantics from tsc; never improvise them. The tsc source is the
+semantic specification and the oracle binary is the observable ground truth.
+Current Rust representation and integration follow the active architecture;
+transcribing JavaScript ownership patterns is not a substitute for design:
 
 1. Before writing a function, read its cited tsc source. Anchors are
    given as `_tsc.js` line numbers at the 6.0.3 pin — they drift on
@@ -216,7 +255,7 @@ each stage is one commit.
 | H0 filesystem-hosted `--noEmit` — complete | [H0 execution](noemit-cli.md) | exact closure of the 241 host-resolution identities, MemoryHost/FsHost equivalence, config/CLI/output parity, embedded libraries, no emitted files |
 | L0/L1 persistent source + incremental parser — complete and performance-qualified | [persistent Program design](lsp-and-incremental.md) | shared text/position snapshots, domain-scoped identity leases, generated relocation, non-contiguous ownership, owned bind/Program snapshots, immutable incremental parse/rebind, exact fresh equivalence, reclamation stress, and approved large-edit evidence |
 | H1 JavaScript emit — H1.0a through H1.6 complete and qualified | [H1 execution](h1-emit.md) | zero-open-row owner closure, exact callback/transform/upstream qualification, all 15,680 pinned cases dispositioned, the sole compatible compiler case executed exactly, filesystem/CLI and sink-fault parity, standalone binary proof, frozen H0 `--noEmit` canaries, and approved-runner no-emit/emit resource evidence; broader transforms, options, and file kinds are the next separately qualified expansion |
-| H2 broad one-shot compiler — H2.0a/H2.0b/H2.1a complete; H2.1b next | [post-H1 slices](post-h1-completion-slices.md) | frozen 50-root owner/converse graph and 15,642 runner dispositions; first 241 exact implied-format ESM admissions plus explicit diagnostic/source controls; immutable cross-track baseline lineage before dependency-closed CommonJS, remaining TypeScript runtime, source-kind, JSX/decorator, target, map, declaration, output/config/System, CLI, and full upstream-runner qualification slices |
+| H2 broad one-shot compiler — active; see the linked status authority | [post-H1 slices](post-h1-completion-slices.md) + [current emitter architecture](emitter-architecture.md) | dependency-closed TypeScript runtime, source-kind, JSX/decorator, target, map, declaration, output/config/System, CLI, and full upstream-runner qualification slices; no duplicated status in this index |
 | L2 shared Program/resolution reuse — planned after H2 | [post-H1 slices](post-h1-completion-slices.md) | full registry, `isProgramUptoDate`, structure reuse, dependency-tracked caches/invalidation, publication/release/cancellation, multi-generation fresh equality, and bounded resources |
 | BLD1/W1 builder, project references, and watch — planned after L2 core | [post-H1 slices](post-h1-completion-slices.md) | deterministic affected queues/signatures/build info/restarts, solution build, virtual-clock watch traces, fault/cancellation behavior, and long-running qualification |
 | API1/L3-L5 public API and interactive products — planned | [post-H1 slices](post-h1-completion-slices.md) | explicit public ownership/identity contract, Language Service, tsserver Project Service/protocol, then independent LSP capability/protocol/resource qualification |
@@ -225,7 +264,12 @@ The T0 percentages are calibration points from the first
 implementation's history, not promises; the gate is "meets or beats,
 and the ratchet never regresses."
 
-## The loop (per stage; never deviate)
+## Historical M-stage loop
+
+The historical M-stage loop below still explains those completed step docs.
+For post-H1 work, the implementation-ready packet and current architecture are
+the controlling procedure; they may authorize a dependency-closed refactor
+that this older stage wording does not describe.
 
 1. Read the stage's parent-doc section and its tsc anchor lines.
 2. Implement EXACTLY the stage's scope. Do not refactor neighboring
@@ -254,7 +298,7 @@ fixture must be triaged before commit.
 - You are about to hand-write any value that M0's codegen should
   produce (a flag bit, a SyntaxKind number, a message text).
 
-## M8 close and M9 handoff
+## Historical M8 close and M9 handoff snapshot
 
 M8 applied the
 [execution contract](m8-execution-and-close.md) to the exact frozen entry
@@ -271,10 +315,11 @@ present-but-empty `relatedInformation` in a formatter-only sparse sidecar
 without changing the structured oracle records or diagnostic identities.
 
 The historical [readiness contract](m8-readiness.md) remains the reproducible
-entry gate. The fresh close report confirms completion rows 1-10 green,
-row 11 `m9-steady-state` pending, and `STAGE=M8`. M9 steady state remains the
-sole pending completion row, but its execution is paused after M9.1b while
-the independent H0 productization track runs. The fixed corpus continues to
+entry gate. The close report confirms completion rows 1-10 green, row 11
+`m9-steady-state` pending, and `STAGE=M8`. M9 steady state remains the sole
+pending completion row **for that M8/M9 claim**. Its execution was paused after
+M9.1b while the then-future H0 productization track ran; H0 is now complete and
+H2 proceeds under the separate post-H1 schedule. The fixed corpus continues to
 be reported whole, while only exact reviewed A2 identities leave the
 supported denominator. All historical `jsdoc-semantics` exclusions have
 returned through tombstones.
@@ -288,14 +333,14 @@ their exact pipeline-native owner. Only then does M9 freeze the producer
 fingerprint and start the 14 qualifying UTC windows. The M8
 32-case/eight-template smoke earns no window credit.
 
-H0 follows its separate
-[filesystem-hosted no-emit contract](noemit-cli.md). Its entry inventory is
+H0 subsequently followed its separate
+[filesystem-hosted no-emit contract](noemit-cli.md) and is complete. Its entry inventory was
 the 241 remaining exact host-resolution identities, not a new diagnostic
-band. It first freezes those identities in
+band. It first froze those identities in
 `ratchets/host-resolution.v1.json` with exact vendored request chains, owner
 declarations, positive canaries, and reviewed typed controls. The shared
-host/session and resolution-table seam follows, then package/module owners
-close under `MemoryCompilerHost` before the same implementation connects to
+host/session and resolution-table seam followed; package/module owners then
+closed under `MemoryCompilerHost` before the same implementation connected to
 the filesystem, tsconfig, and CLI. The recorded resource observations remain
 pre-H0 references; `ratchets/h0-qualification.v1.json` freezes H0.6's final
 CLI/local-gate profiles and budgets.
@@ -307,9 +352,12 @@ CLI/local-gate profiles and budgets.
   output; iteration over any symbol/member table uses ordered maps
   (IndexMap) or sorted keys — `cargo clippy` denies raw `HashMap`
   iteration in checker crates (M0 sets up the lint).
-- One exact tsc declaration identity = one Rust ported function, tsc's
-  name in snake_case with `tsc-span`/`tsc-hash` selecting the declaration
-  (greenfield §5/§8). Same-named bundle declarations are not one port;
-  coalescing "for elegance" is a stop condition.
+- In the historical M-stage ledger, one exact tsc declaration identity named
+  one tracked Rust port function, with `tsc-span`/`tsc-hash` selecting the
+  declaration (greenfield §5/§8). Post-H1 work still records exact semantic
+  ledger edges and never conflates same-named upstream declarations, but that
+  identity does not force a one-to-one Rust function boundary. The approved
+  slice packet maps the meaningful tsc state/call graph into Rust-owned types,
+  ownership, and function boundaries.
 - Diagnostics are emitted ONLY via `&'static DiagnosticMessage`
   references from the generated table.

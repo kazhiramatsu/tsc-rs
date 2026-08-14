@@ -3,9 +3,10 @@ use std::path::Path;
 
 use tsc_host::MemoryCompilerHost;
 use tsc_program::{
-    is_non_fatal_option_diagnostic, load_no_lib_program, parse_config_root_plan, ConfigHostError,
-    ConfigModuleResolutionOptions, ConfigParseHost, ConfigRootPlanRequest, ModuleResolver,
-    ModuleSuffix, ProgramLoadLimits, ProgramOptions, ResolutionMode, ResolutionOutcome,
+    is_non_fatal_option_diagnostic, load_no_lib_program, parse_config_root_plan,
+    validate_paths_option_diagnostics, ConfigHostError, ConfigModuleResolutionOptions,
+    ConfigParseHost, ConfigRootPlanRequest, ModuleResolver, ModuleSuffix, ProgramLoadLimits,
+    ProgramOptions, ResolutionMode, ResolutionOutcome,
 };
 
 #[derive(Default)]
@@ -427,6 +428,56 @@ fn official_paths_validation_shapes_are_options_diagnostics_not_parse_errors() {
         expected.sort_unstable();
         assert_eq!(actual, expected, "{text}");
     }
+}
+
+#[test]
+fn paths_validation_uses_final_base_url_and_raw_config_diagnostic_spelling() {
+    let text = r#"{"compilerOptions":{"paths":{"*":["bare"]}},"files":["a.ts"]}"#;
+    let plan = parse_config_root_plan(
+        &MemoryConfigHost::default().with_directory_files(&["/.src/a.ts"]),
+        ConfigRootPlanRequest {
+            file_name: "tsconfig.json".to_owned(),
+            text: text.to_owned(),
+            base_path: "/.src".to_owned(),
+        },
+    )
+    .expect("relative config paths validation plan");
+
+    let config_file = plan
+        .program_options()
+        .config_file()
+        .expect("config syntax provenance");
+    assert_eq!(
+        config_file.path().display(),
+        Path::new("/.src/tsconfig.json")
+    );
+    assert_eq!(config_file.diagnostic_file_name(), "tsconfig.json");
+
+    let diagnostics =
+        validate_paths_option_diagnostics(plan.compiler_options(), plan.program_options());
+    let [diagnostic] = diagnostics.as_slice() else {
+        panic!("one late TS5090 diagnostic expected")
+    };
+    assert_eq!(diagnostic.code(), 5090);
+    assert_eq!(diagnostic.file_name.as_deref(), Some("tsconfig.json"));
+    assert_eq!(
+        diagnostic.start,
+        Some(text.find("\"bare\"").unwrap() as u32)
+    );
+    assert_eq!(diagnostic.length, Some(6));
+
+    let mut effective = plan.compiler_options().clone();
+    effective.base_url = Some("/.src".to_owned());
+    assert!(validate_paths_option_diagnostics(&effective, plan.program_options()).is_empty());
+
+    effective.base_url = Some(String::new());
+    assert_eq!(
+        validate_paths_option_diagnostics(&effective, plan.program_options())
+            .iter()
+            .map(|diagnostic| diagnostic.code())
+            .collect::<Vec<_>>(),
+        [5090]
+    );
 }
 
 #[test]

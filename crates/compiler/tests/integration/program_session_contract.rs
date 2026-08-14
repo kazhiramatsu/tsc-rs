@@ -8,9 +8,10 @@ use tsc_host::MemoryCompilerHost;
 use tsc_program::{
     CompilerOptions, ModuleExtension, ModuleResolution, ModuleResolver, PackageId, PathContext,
     PreparationDiagnostics, PreparedAuxiliaryFile, PreparedProgram, PreparedProgramBuilder,
-    PreparedSourceFile, ProgramOptions, ProgramPath, ResolutionKey, ResolutionMode,
-    ResolutionOutcome, ResolutionRequestKind, ResolvedModule, ResolvedModuleTarget, SourceFileId,
-    TypeReferenceResolution, TypeReferenceResolutionKey, UnloadedModuleReason,
+    PreparedSourceFile, ProgramConfigFile, ProgramConfigSpan, ProgramOptions, ProgramPath,
+    ResolutionKey, ResolutionMode, ResolutionOutcome, ResolutionRequestKind, ResolvedModule,
+    ResolvedModuleTarget, SourceFileId, TypeReferenceResolution, TypeReferenceResolutionKey,
+    UnloadedModuleReason,
 };
 
 const MINIMAL_GLOBALS: &str = r#"
@@ -254,6 +255,43 @@ fn l0_work_counters_and_sorted_batch_syntax_diagnostics() {
 }
 
 #[test]
+fn no_emit_reports_both_owners_of_a_default_library_global_conflict() {
+    let library = format!("{MINIMAL_GLOBALS}\ndeclare function eval(x: string): any;\n");
+    let run = |skip_default_lib_check| {
+        consume(ProgramSession::new(prepared_program(
+            &[
+                ("lib.d.ts", library.as_str()),
+                ("main.ts", "\"use strict\";\nvar eval;\n"),
+            ],
+            1,
+            PreparationDiagnostics::default(),
+            |options| options.skip_default_lib_check = skip_default_lib_check,
+        )))
+    };
+
+    let checked = run(Some(false));
+    let mut duplicate_owners = checked
+        .semantic_diagnostics()
+        .iter()
+        .filter(|diagnostic| diagnostic.code() == 2300)
+        .map(|diagnostic| diagnostic.file_name.clone().unwrap_or_default())
+        .collect::<Vec<_>>();
+    duplicate_owners.sort();
+    assert_eq!(duplicate_owners, ["lib.d.ts", "main.ts"]);
+    assert!(codes(checked.semantic_diagnostics()).contains(&1100));
+
+    let skipped = run(Some(true));
+    let mut skipped_duplicate_owners = skipped
+        .semantic_diagnostics()
+        .iter()
+        .filter(|diagnostic| diagnostic.code() == 2300)
+        .map(|diagnostic| diagnostic.file_name.clone().unwrap_or_default())
+        .collect::<Vec<_>>();
+    skipped_duplicate_owners.sort();
+    assert_eq!(skipped_duplicate_owners, ["main.ts"]);
+}
+
+#[test]
 fn programmatic_base_url_deprecation_is_fileless_and_suppressible() {
     let deprecated = consume(ProgramSession::new(with_minimal_lib(
         &[("main.ts", "export {};\n")],
@@ -281,6 +319,42 @@ fn programmatic_base_url_deprecation_is_fileless_and_suppressible() {
         },
     )));
     assert!(silenced.options_diagnostics().is_empty());
+}
+
+#[test]
+fn programmatic_lib_and_no_lib_conflict_is_fileless() {
+    let mut builder = PreparedProgram::builder(
+        PathContext::new(current_directory(), true),
+        CompilerOptions {
+            no_emit: Some(true),
+            lib: Some(vec!["es5".to_owned()]),
+            ..CompilerOptions::default()
+        },
+    );
+    let lib = builder
+        .add_source_file(PreparedSourceFile::new(path("lib.d.ts"), MINIMAL_GLOBALS))
+        .expect("add lib");
+    let source = builder
+        .add_source_file(PreparedSourceFile::new(path("main.ts"), "export {};\n"))
+        .expect("add source");
+    builder.add_library_file(lib).expect("add library");
+    builder.add_root_file(source).expect("add root");
+    builder.set_program_options(ProgramOptions::default().with_no_lib(true));
+
+    let outcome = consume(ProgramSession::new(
+        builder.build().expect("build prepared program"),
+    ));
+    let [diagnostic] = outcome.options_diagnostics() else {
+        panic!("expected one lib/noLib option diagnostic");
+    };
+    assert_eq!(diagnostic.code(), 5053);
+    assert_eq!(diagnostic.file_name, None);
+    assert_eq!(diagnostic.start, None);
+    assert_eq!(diagnostic.length, None);
+    assert_eq!(
+        diagnostic.message_text(),
+        "Option 'lib' cannot be specified with option 'noLib'."
+    );
 }
 
 #[test]
@@ -315,6 +389,119 @@ fn programmatic_amd_and_umd_deprecations_are_fileless_and_suppressible() {
         )));
         assert!(silenced.options_diagnostics().is_empty());
     }
+}
+
+#[test]
+fn program_owned_config_option_diagnostics_use_effective_values_and_syntax_locations() {
+    let config_file = ProgramConfigFile::new(
+        path("/foo/tsconfig.json"),
+        r#"{"compilerOptions":{"module":"amd","target":"ES3"}}"#,
+    )
+    .with_compiler_options_location(ProgramConfigSpan::new(1, 17))
+    .with_compiler_option_location(
+        "module",
+        ProgramConfigSpan::new(35, 8),
+        ProgramConfigSpan::new(45, 5),
+    )
+    .with_compiler_option_location(
+        "target",
+        ProgramConfigSpan::new(60, 8),
+        ProgramConfigSpan::new(70, 5),
+    )
+    .with_compiler_option_location(
+        "noImplicitUseStrict",
+        ProgramConfigSpan::new(85, 21),
+        ProgramConfigSpan::new(108, 4),
+    )
+    .with_compiler_option_location(
+        "keyofStringsOnly",
+        ProgramConfigSpan::new(122, 18),
+        ProgramConfigSpan::new(142, 4),
+    )
+    .with_compiler_option_location(
+        "suppressExcessPropertyErrors",
+        ProgramConfigSpan::new(156, 30),
+        ProgramConfigSpan::new(188, 4),
+    )
+    .with_compiler_option_location(
+        "suppressImplicitAnyIndexErrors",
+        ProgramConfigSpan::new(202, 32),
+        ProgramConfigSpan::new(236, 4),
+    )
+    .with_compiler_option_location(
+        "noStrictGenericChecks",
+        ProgramConfigSpan::new(250, 23),
+        ProgramConfigSpan::new(275, 4),
+    )
+    .with_compiler_option_location(
+        "charset",
+        ProgramConfigSpan::new(289, 9),
+        ProgramConfigSpan::new(300, 6),
+    )
+    .with_compiler_option_location(
+        "out",
+        ProgramConfigSpan::new(316, 5),
+        ProgramConfigSpan::new(323, 9),
+    );
+    let mut builder = PreparedProgram::builder(
+        PathContext::new(current_directory(), true),
+        CompilerOptions {
+            no_emit: Some(true),
+            // The harness override wins over the config's written ES3 value.
+            target: Some(2),
+            module: Some(2),
+            no_implicit_use_strict: Some(true),
+            keyof_strings_only: Some(true),
+            suppress_excess_property_errors: Some(true),
+            suppress_implicit_any_index_errors: Some(true),
+            no_strict_generic_checks: Some(true),
+            charset: Some("utf8".to_owned()),
+            out: Some("dist.js".to_owned()),
+            ignore_deprecations: Some("5.0".to_owned()),
+            ..CompilerOptions::default()
+        },
+    );
+    let lib = builder
+        .add_source_file(PreparedSourceFile::new(path("lib.d.ts"), MINIMAL_GLOBALS))
+        .expect("add lib");
+    let source = builder
+        .add_source_file(PreparedSourceFile::new(path("main.ts"), "export {};\n"))
+        .expect("add source");
+    builder.add_library_file(lib).expect("add library");
+    builder.add_root_file(source).expect("add root");
+    builder.set_program_options(
+        ProgramOptions::default()
+            .with_config_file(config_file)
+            .with_program_owned_config_option_diagnostics(),
+    );
+
+    let outcome = consume(ProgramSession::new(
+        builder.build().expect("build prepared program"),
+    ));
+    assert_eq!(
+        outcome
+            .options_diagnostics()
+            .iter()
+            .map(|diagnostic| {
+                (
+                    diagnostic.code(),
+                    diagnostic.file_name.as_deref(),
+                    diagnostic.start,
+                    diagnostic.length,
+                )
+            })
+            .collect::<Vec<_>>(),
+        [
+            (5107, Some("/foo/tsconfig.json"), Some(45), Some(5)),
+            (5102, Some("/foo/tsconfig.json"), Some(85), Some(21)),
+            (5102, Some("/foo/tsconfig.json"), Some(122), Some(18)),
+            (5102, Some("/foo/tsconfig.json"), Some(156), Some(30)),
+            (5102, Some("/foo/tsconfig.json"), Some(202), Some(32)),
+            (5102, Some("/foo/tsconfig.json"), Some(250), Some(23)),
+            (5102, Some("/foo/tsconfig.json"), Some(289), Some(9)),
+            (5102, Some("/foo/tsconfig.json"), Some(316), Some(5)),
+        ]
+    );
 }
 
 #[test]
@@ -1163,6 +1350,39 @@ fn ambient_modules_keep_their_priority_around_authoritative_not_found() {
         .conformance_diagnostics()
         .iter()
         .all(|diagnostic| diagnostic.code() != 7016));
+}
+
+#[test]
+fn namespace_import_equals_consumes_an_authoritative_unpreprocessed_miss() {
+    let prepared = authoritative_program(
+        &[
+            ("/importInsideModule_file1.ts", "export var x = 1;\n"),
+            (
+                "/importInsideModule_file2.ts",
+                concat!(
+                    "export namespace outer {\n",
+                    "  import sibling = require(\"importInsideModule_file1\");\n",
+                    "  var a = sibling.x;\n",
+                    "  namespace middle.inner {\n",
+                    "    import also_missing = require(\"deep-missing\");\n",
+                    "    var b = also_missing.x;\n",
+                    "  }\n",
+                    "}\n",
+                ),
+            ),
+        ],
+        &[0, 1],
+        CompilerOptions {
+            module: Some(1),
+            module_resolution: Some(100),
+            ..CompilerOptions::default()
+        },
+        |_, _| {},
+    );
+
+    let outcome = consume(ProgramSession::new(prepared));
+    let codes = codes(outcome.semantic_diagnostics());
+    assert_eq!(codes.iter().filter(|&&code| code == 2307).count(), 2);
 }
 
 #[test]

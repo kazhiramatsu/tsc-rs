@@ -3,6 +3,7 @@ use tsc_types::{CompilerOptions, RelationComparisonResult, VarianceFlags};
 use crate::links::LinkSlot;
 use crate::relate::RelationKind;
 use crate::relpin::find_probe_annotation;
+use crate::speculate::SpeculationOutcome;
 use crate::state::test_support::with_program_state;
 use crate::state::CheckerState;
 
@@ -25,6 +26,13 @@ fn measured_variances(state: &CheckerState, name: &str) -> Vec<VarianceFlags> {
         other => panic!("variances not measured for {name}: {other:?}"),
     }
 }
+
+const TUPLE_REST_CLASS_SOURCE: &str = "type Item = {};\n\
+     type Items = [Item, ...Item[]];\n\
+     type Callback<T extends Items> = (...args: T) => void;\n\
+     class Holder<T extends Items> { callback: Callback<T> | undefined; }\n\
+     declare var a: Holder<[value: string]>;\n\
+     declare var b: Holder<[string, boolean]>;\n";
 
 #[test]
 fn structural_measurement_covers_the_four_shapes() {
@@ -163,6 +171,88 @@ fn template_members_mark_unreliable_variance_and_cache_entries() {
                     .any(|entry| entry.intersects(RelationComparisonResult::REPORTS_UNRELIABLE)),
                 "no cache entry carries ReportsUnreliable"
             );
+        },
+    );
+}
+
+#[test]
+fn class_union_tuple_rest_variance_survives_nested_candidate_measurement() {
+    with_program_state(
+        &[("a.ts", TUPLE_REST_CLASS_SOURCE)],
+        &CompilerOptions {
+            strict: Some(true),
+            ..CompilerOptions::default()
+        },
+        |state| {
+            let a = annotation_type(state, "a");
+            let b = annotation_type(state, "b");
+            let holder_symbol = *state.globals.get("Holder").expect("Holder class symbol");
+
+            // Contextual return inference of the nested generic call measures
+            // Holder's variance inside its candidate transaction. The outer
+            // call then relates the concrete Holder instantiations after that
+            // transaction has closed.
+            state
+                .speculate(|state| {
+                    let holder = state.get_declared_type_of_class_or_interface(holder_symbol)?;
+                    let _ = state.get_variances(holder)?;
+                    Ok(SpeculationOutcome::Commit(()))
+                })
+                .expect("nested candidate variance measurement completes");
+
+            // A one-parameter callback accepts a call site that may
+            // provide an additional argument. The measured
+            // contravariance therefore cannot be used as a definitive
+            // same-target verdict; tsc marks the tuple-rest comparison
+            // unreliable and falls through to structural comparison.
+            let forward = state.is_type_assignable_to(a, b);
+            let backward = state.is_type_assignable_to(b, a);
+
+            let expected = VarianceFlags::from_bits(
+                VarianceFlags::CONTRAVARIANT.bits() | VarianceFlags::UNRELIABLE.bits(),
+            );
+            assert_eq!(measured_variances(state, "Callback"), vec![expected]);
+            assert_eq!(measured_variances(state, "Holder"), vec![expected]);
+            assert_eq!(forward, Ok(true));
+            assert_eq!(backward, Ok(false));
+        },
+    );
+}
+
+#[test]
+fn rolled_back_tuple_rest_variance_replays_relation_cache_markers() {
+    with_program_state(
+        &[("a.ts", TUPLE_REST_CLASS_SOURCE)],
+        &CompilerOptions {
+            strict: Some(true),
+            ..CompilerOptions::default()
+        },
+        |state| {
+            let a = annotation_type(state, "a");
+            let b = annotation_type(state, "b");
+            let holder_symbol = *state.globals.get("Holder").expect("Holder class symbol");
+
+            state
+                .speculate(|state| {
+                    let holder = state.get_declared_type_of_class_or_interface(holder_symbol)?;
+                    let _ = state.get_variances(holder)?;
+                    Ok(SpeculationOutcome::Rollback(()))
+                })
+                .expect("rolled-back variance measurement completes");
+            assert!(matches!(
+                state.links.symbol(holder_symbol).variances,
+                LinkSlot::Vacant
+            ));
+
+            // Relation caches are monotone across candidate rollback. Their
+            // ReportsUnreliable bits must be replayed when the variance slot
+            // is measured again, otherwise the tuple-rest fallback is lost.
+            assert_eq!(state.is_type_assignable_to(a, b), Ok(true));
+            let expected = VarianceFlags::from_bits(
+                VarianceFlags::CONTRAVARIANT.bits() | VarianceFlags::UNRELIABLE.bits(),
+            );
+            assert_eq!(measured_variances(state, "Callback"), vec![expected]);
+            assert_eq!(measured_variances(state, "Holder"), vec![expected]);
         },
     );
 }

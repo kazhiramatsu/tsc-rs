@@ -6,16 +6,17 @@ use tsc_syntax::{
 use tsc_types::{CompilerOptions, NodeFlags};
 
 use crate::{
-    EmitHint, EmitResolver, EmitResolverNode, TransformArena, TransformError, TransformFlags,
-    TransformNode, TransformNodeArray, TransformRoot, TransformSourceId, TransformationContext,
-    Transformer, UnsupportedEmitFeature,
+    factory::EmitHelperName, EmitExportContainerMode, EmitHint, EmitResolver, EmitResolverNode,
+    TransformArena, TransformError, TransformFlags, TransformNode, TransformNodeArray,
+    TransformRoot, TransformSourceId, TransformationContext, Transformer, UnsupportedEmitFeature,
 };
 
 use super::{
     first_runtime_declaration_original, flags_after_update, generated_module_name, has_modifier,
     identifier_or_literal_text, is_identifier_export_name, is_prologue_statement, node_array_nodes,
-    source_contains_dynamic_import, source_file_statement_nodes, string_literal_text,
-    variable_declarations, CommonJsModuleInfo, ImportBinding,
+    parsed_source_file_statement_array, source_contains_dynamic_import,
+    source_file_statement_nodes, string_literal_text, variable_declarations, CommonJsModuleInfo,
+    ImportBinding,
 };
 
 /// tsc-port: transformSystemModule @6.0.3
@@ -80,7 +81,13 @@ impl Transformer for SystemModuleTransformer<'_> {
             return Ok(TransformRoot::SourceFile(source));
         }
 
-        let common = CommonJsModuleInfo::collect(context.arena(), source, root)?;
+        let common = CommonJsModuleInfo::collect(
+            context.arena(),
+            source,
+            root,
+            self.resolver,
+            super::MODULE_SYSTEM,
+        )?;
         let info = SystemModuleInfo::collect(context.arena(), source, root, common)?;
         let mut visitor =
             SystemVisitor::new(context, source, self.resolver, info, self.always_strict);
@@ -313,9 +320,123 @@ struct SystemVisitor<'context, 'resolver> {
     context_name: String,
     used_names: BTreeSet<String>,
     hoisted_names: Vec<String>,
+    hoisted_declarations: Vec<TransformNode>,
     destructuring_temps: BTreeMap<NodeId, String>,
     temp_ordinal: usize,
     arrays: BTreeMap<NodeArrayId, NodeArrayId>,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum SystemBlockScopeContainerKind {
+    SourceFile,
+    Block,
+    CaseBlock,
+    CatchClause,
+    ForStatement,
+    ForInStatement,
+    ForOfStatement,
+}
+
+/// The active `enclosingBlockScopedContainer` used by the System transform.
+/// Statements such as `if`, `while`, and labels do not create a new owner;
+/// their embedded statements inherit the current one. Only the container
+/// kinds represented here replace it.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+struct SystemBlockScopeOwner {
+    container: TransformNode,
+    kind: SystemBlockScopeContainerKind,
+}
+
+/// Required embedded-statement recovery after the System transform removes
+/// every executable statement. Labels use tsc's synthetic empty-identifier
+/// expression; other owners retain the ordinary `liftToBlock` behavior.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum SystemEmptyEmbeddedStatement {
+    LiftToBlock,
+    EmptyIdentifierExpression,
+}
+
+/// Ordered, typed result of flattening one SystemJS binding initializer.
+/// Evaluation-only steps (for stable temporaries) cannot accidentally be
+/// paired with an export name, while binding steps retain the local identity
+/// needed by the System live-binding callback.
+#[derive(Clone, Debug)]
+enum SystemBindingStep {
+    Evaluate(TransformNode),
+    Bind {
+        local: Box<str>,
+        expression: TransformNode,
+    },
+}
+
+#[derive(Clone, Debug, Default)]
+struct SystemBindingPlan {
+    steps: Vec<SystemBindingStep>,
+}
+
+impl SystemBindingPlan {
+    fn push_evaluation(&mut self, expression: TransformNode) {
+        self.steps.push(SystemBindingStep::Evaluate(expression));
+    }
+
+    fn push_binding(&mut self, local: impl Into<Box<str>>, expression: TransformNode) {
+        self.steps.push(SystemBindingStep::Bind {
+            local: local.into(),
+            expression,
+        });
+    }
+
+    fn into_expressions(self) -> Vec<TransformNode> {
+        self.steps
+            .into_iter()
+            .map(|step| match step {
+                SystemBindingStep::Evaluate(expression)
+                | SystemBindingStep::Bind { expression, .. } => expression,
+            })
+            .collect()
+    }
+}
+
+#[derive(Clone, Copy, Debug)]
+struct SystemBindingElement {
+    original: TransformNode,
+    target: TransformNode,
+    property_name: Option<TransformNode>,
+    initializer: Option<TransformNode>,
+    rest: bool,
+}
+
+#[derive(Clone, Debug)]
+enum SystemExcludedProperty {
+    Named(Box<str>),
+    Computed(TransformNode),
+}
+
+impl SystemBlockScopeOwner {
+    const fn source_file(container: TransformNode) -> Self {
+        Self {
+            container,
+            kind: SystemBlockScopeContainerKind::SourceFile,
+        }
+    }
+
+    fn entering(self, container: TransformNode, kind: SyntaxKind) -> Self {
+        debug_assert_eq!(self.container.source(), container.source());
+        let kind = match kind {
+            SyntaxKind::Block => SystemBlockScopeContainerKind::Block,
+            SyntaxKind::CaseBlock => SystemBlockScopeContainerKind::CaseBlock,
+            SyntaxKind::CatchClause => SystemBlockScopeContainerKind::CatchClause,
+            SyntaxKind::ForStatement => SystemBlockScopeContainerKind::ForStatement,
+            SyntaxKind::ForInStatement => SystemBlockScopeContainerKind::ForInStatement,
+            SyntaxKind::ForOfStatement => SystemBlockScopeContainerKind::ForOfStatement,
+            _ => return self,
+        };
+        Self { container, kind }
+    }
+
+    const fn is_source_file(self) -> bool {
+        matches!(self.kind, SystemBlockScopeContainerKind::SourceFile)
+    }
 }
 
 impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
@@ -339,6 +460,7 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
             context_name,
             used_names,
             hoisted_names: Vec::new(),
+            hoisted_declarations: Vec::new(),
             destructuring_temps: BTreeMap::new(),
             temp_ordinal: 0,
             arrays: BTreeMap::new(),
@@ -362,7 +484,10 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
             }
         };
         let input = node_array_nodes(self.context.arena(), self.source, original_array)?;
-        self.collect_hoisted_names(&input)?;
+        let parsed_statement_array =
+            parsed_source_file_statement_array(self.context.arena(), root)?;
+        let source_owner = SystemBlockScopeOwner::source_file(root);
+        self.collect_hoisted_names(&input, source_owner)?;
 
         let mut outer = Vec::new();
         let mut offset = 0usize;
@@ -385,14 +510,24 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
         }
 
         let mut execute = Vec::new();
-        let mut hoisted_functions = Vec::new();
         for statement in input.into_iter().skip(offset) {
             if self.context.arena().node(statement)?.kind == SyntaxKind::FunctionDeclaration {
-                hoisted_functions.extend(self.transform_hoisted_function(statement)?);
+                let transformed = self.transform_hoisted_function(statement, true)?;
+                self.hoisted_declarations.extend(transformed);
             } else {
-                execute.extend(self.transform_execute_statement(statement)?);
+                execute.extend(self.transform_execute_statement(statement, source_owner)?);
             }
         }
+        // Earlier transforms can replace the current array or prepend a
+        // synthetic directive. In the latter case `statementOffset` is
+        // non-zero even though the first execute statement still starts at
+        // the parse-tree SourceFile's detached-comment boundary. Retain that
+        // parsed array independently of the current prologue offset: the
+        // outer SourceFile owns its detached prefix, while the relocated
+        // execute body uses it only as a resume seed. The printer consumes
+        // the seed only when a retained statement has the same source owner.
+        let relocated_execute_comments = parsed_statement_array
+            .map(crate::metadata::RelocatedStatementListComments::owned_by_source_file);
 
         // Expression transforms can request temporaries, so materialize the
         // lexical hoist only after execute and hoisted functions are complete.
@@ -404,7 +539,7 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
             outer.push(self.create_variable_statement(declarations, NodeFlags::NONE)?);
         }
         outer.push(self.create_module_name_statement()?);
-        outer.extend(hoisted_functions);
+        outer.append(&mut self.hoisted_declarations);
 
         if self.has_export_star() {
             outer.extend(self.create_export_star_prelude()?);
@@ -412,6 +547,12 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
 
         let setters = self.create_setters_array()?;
         let execute_body = self.create_block(execute, true)?;
+        if let Some(relocated_execute_comments) = relocated_execute_comments {
+            self.context
+                .arena_mut()?
+                .metadata_mut(execute_body)
+                .set_relocated_statement_list_comments(relocated_execute_comments);
+        }
         let execute_function = self.create_function_expression(Vec::new(), execute_body, None)?;
         let setters_property = self.create_property_assignment_identifier("setters", setters)?;
         let execute_property =
@@ -458,10 +599,9 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
             first_runtime_declaration_original(self.context.arena(), self.source, original_array)?
         {
             self.set_original_and_range(wrapper, first)?;
-            self.context
-                .arena_mut()?
-                .metadata_mut(wrapper)
-                .add_flags(crate::EmitFlags::NO_TRAILING_COMMENTS);
+            self.context.arena_mut()?.metadata_mut(wrapper).add_flags(
+                crate::EmitFlags::NO_LEADING_COMMENTS | crate::EmitFlags::NO_TRAILING_COMMENTS,
+            );
         }
 
         let statements = if let Some(original) =
@@ -491,26 +631,38 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
     fn collect_hoisted_names(
         &mut self,
         statements: &[TransformNode],
+        owner: SystemBlockScopeOwner,
     ) -> Result<(), TransformError> {
-        for group in self.info.dependency_groups.clone() {
-            for entry in group.entries {
-                let entry = self.node(entry);
-                if let NodeData::ImportDeclaration(data) = &self.context.arena().node(entry)?.data {
-                    if data.import_clause.is_some() {
-                        let key = self.context.arena().get_original_node(entry).node();
-                        if let Some(name) = self
-                            .info
-                            .common
-                            .imports
-                            .get(&key)
-                            .map(|plan| plan.generated_name.to_string())
-                        {
-                            self.push_hoisted_name(&name);
-                        }
+        // Dependency groups define the setter topology, but lexical hoists are
+        // requested while tsc visits source statements. Walk each source
+        // statement once so an import's generated namespace identity retains
+        // its position relative to ordinary declarations and namespace/import-
+        // equals lowering, even though setter entries are grouped separately.
+        for statement in statements {
+            let statement = *statement;
+            match &self.context.arena().node(statement)?.data {
+                NodeData::ImportDeclaration(data) if data.import_clause.is_some() => {
+                    let key = self.context.arena().get_original_node(statement).node();
+                    if let Some(name) = self
+                        .info
+                        .common
+                        .imports
+                        .get(&key)
+                        .and_then(|plan| plan.runtime_name.as_deref().map(str::to_owned))
+                    {
+                        self.push_hoisted_name(&name);
                     }
-                } else if let NodeData::ImportEqualsDeclaration(data) =
-                    &self.context.arena().node(entry)?.data
-                {
+                    if let Some(alias) = self
+                        .info
+                        .common
+                        .imports
+                        .get(&key)
+                        .and_then(|plan| plan.namespace_alias.as_deref().map(str::to_owned))
+                    {
+                        self.push_hoisted_name(&alias);
+                    }
+                }
+                NodeData::ImportEqualsDeclaration(data) => {
                     if let Some(name) = data
                         .name
                         .and_then(|id| self.context.arena().node_ref(self.source, id))
@@ -521,10 +673,9 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
                         self.push_hoisted_name(&name);
                     }
                 }
+                _ => {}
             }
-        }
-        for statement in statements {
-            self.collect_statement_hoists(*statement, true)?;
+            self.collect_statement_hoists(statement, owner)?;
         }
         Ok(())
     }
@@ -532,9 +683,10 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
     fn collect_statement_hoists(
         &mut self,
         statement: TransformNode,
-        direct: bool,
+        owner: SystemBlockScopeOwner,
     ) -> Result<(), TransformError> {
         let record = self.context.arena().node(statement)?.clone();
+        let owner = owner.entering(statement, record.kind);
         match record.data {
             NodeData::VariableStatement(data) => {
                 let Some(list) = data
@@ -543,65 +695,35 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
                 else {
                     return Ok(());
                 };
-                let block_scoped = NodeFlags::from_bits(self.context.arena().node(list)?.flags)
-                    .contains(NodeFlags::BLOCK_SCOPED);
-                if direct || !block_scoped {
-                    for declaration in variable_declarations(
-                        self.context.arena(),
-                        self.source,
-                        data.declaration_list,
-                    )? {
-                        if let NodeData::VariableDeclaration(data) =
-                            self.context.arena().node(declaration)?.data.clone()
-                        {
-                            if data
-                                .name
-                                .and_then(|id| self.context.arena().node_ref(self.source, id))
-                                .is_some_and(|name| {
-                                    self.context.arena().node(name).is_ok_and(|node| {
-                                        matches!(
-                                            node.kind,
-                                            SyntaxKind::ObjectBindingPattern
-                                                | SyntaxKind::ArrayBindingPattern
-                                        )
-                                    })
-                                })
-                                && data.initializer.is_some()
-                            {
-                                let temp = self.next_temp_name();
-                                self.destructuring_temps.insert(
-                                    self.context.arena().get_original_node(declaration).node(),
-                                    temp.clone(),
-                                );
-                                self.push_hoisted_name(&temp);
-                            }
-                            let mut names = Vec::new();
-                            collect_binding_names(
-                                self.context.arena(),
-                                self.source,
-                                data.name,
-                                &mut names,
-                            )?;
-                            for name in names {
-                                self.push_hoisted_name(&name);
-                            }
-                        }
-                    }
+                if self.should_hoist_declaration_list(list, owner)? {
+                    self.collect_declaration_list_hoists(list)?;
                 }
             }
-            NodeData::ClassDeclaration(data) if direct => {
-                if let Some(name) = data
+            NodeData::VariableDeclarationList(_) => {
+                if self.should_hoist_declaration_list(statement, owner)? {
+                    self.collect_declaration_list_hoists(statement)?;
+                }
+            }
+            NodeData::ClassDeclaration(data) => {
+                let key = self.context.arena().get_original_node(statement).node();
+                let name = data
                     .name
                     .and_then(|id| self.context.arena().node_ref(self.source, id))
                     .and_then(|name| identifier_or_literal_text(self.context.arena(), name).ok())
-                {
+                    .or_else(|| {
+                        self.info
+                            .common
+                            .generated_declaration_names
+                            .get(&key)
+                            .map(ToString::to_string)
+                    });
+                if let Some(name) = name {
                     self.push_hoisted_name(&name);
                 }
             }
             NodeData::FunctionDeclaration(_)
             | NodeData::FunctionExpression(_)
             | NodeData::ArrowFunction(_)
-            | NodeData::ClassDeclaration(_)
             | NodeData::ClassExpression(_) => {}
             _ => {
                 let mut children = Vec::new();
@@ -614,8 +736,68 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
                 }
                 for child in children {
                     if let Some(child) = self.context.arena().node_ref(self.source, child) {
-                        self.collect_statement_hoists(child, false)?;
+                        self.collect_statement_hoists(child, owner)?;
                     }
+                }
+            }
+        }
+        Ok(())
+    }
+
+    fn should_hoist_declaration_list(
+        &self,
+        list: TransformNode,
+        owner: SystemBlockScopeOwner,
+    ) -> Result<bool, TransformError> {
+        let no_hoisting = self
+            .context
+            .arena()
+            .metadata(list)
+            .is_some_and(|metadata| metadata.flags().contains(crate::EmitFlags::NO_HOISTING));
+        let flags = NodeFlags::from_bits(self.context.arena().node(list)?.flags);
+        Ok(!no_hoisting && (owner.is_source_file() || !flags.intersects(NodeFlags::BLOCK_SCOPED)))
+    }
+
+    fn collect_declaration_list_hoists(
+        &mut self,
+        list: TransformNode,
+    ) -> Result<(), TransformError> {
+        if !matches!(
+            self.context.arena().node(list)?.data,
+            NodeData::VariableDeclarationList(_)
+        ) {
+            return Ok(());
+        }
+        for declaration in
+            variable_declarations(self.context.arena(), self.source, Some(list.node()))?
+        {
+            if let NodeData::VariableDeclaration(data) =
+                self.context.arena().node(declaration)?.data.clone()
+            {
+                if data
+                    .name
+                    .and_then(|id| self.context.arena().node_ref(self.source, id))
+                    .zip(
+                        data.initializer
+                            .and_then(|id| self.context.arena().node_ref(self.source, id)),
+                    )
+                    .map(|(name, initializer)| {
+                        self.binding_pattern_requires_root_temp(name, initializer)
+                    })
+                    .transpose()?
+                    .unwrap_or(false)
+                {
+                    let temp = self.next_temp_name();
+                    self.destructuring_temps.insert(
+                        self.context.arena().get_original_node(declaration).node(),
+                        temp.clone(),
+                    );
+                    self.push_hoisted_name(&temp);
+                }
+                let mut names = Vec::new();
+                collect_binding_names(self.context.arena(), self.source, data.name, &mut names)?;
+                for name in names {
+                    self.push_hoisted_name(&name);
                 }
             }
         }
@@ -647,28 +829,50 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
     fn transform_hoisted_function(
         &mut self,
         original: TransformNode,
+        publish_exports: bool,
     ) -> Result<Vec<TransformNode>, TransformError> {
         let NodeData::FunctionDeclaration(mut data) =
             self.context.arena().node(original)?.data.clone()
         else {
             return Ok(Vec::new());
         };
+        if data.name.is_none() {
+            let key = self.context.arena().get_original_node(original).node();
+            if let Some(name) = self
+                .info
+                .common
+                .generated_declaration_names
+                .get(&key)
+                .map(ToString::to_string)
+            {
+                data.name = Some(self.create_identifier(&name)?.node());
+            }
+        }
         let local = data
             .name
             .and_then(|id| self.context.arena().node_ref(self.source, id))
             .and_then(|name| identifier_or_literal_text(self.context.arena(), name).ok());
+        let exports = if publish_exports {
+            local
+                .as_deref()
+                .map(|local| {
+                    self.info.common.hoisted_declaration_exports(
+                        self.context.arena(),
+                        self.source,
+                        data.modifiers,
+                        local,
+                    )
+                })
+                .transpose()?
+                .unwrap_or_default()
+        } else {
+            Vec::new()
+        };
         data.modifiers = self.remove_export_modifiers(data.modifiers)?;
         let function = self.update_generic(original, NodeData::FunctionDeclaration(data))?;
         let mut output = vec![function];
         if let Some(local) = local {
-            for export in self
-                .info
-                .common
-                .exports_by_local
-                .get(local.as_str())
-                .cloned()
-                .unwrap_or_default()
-            {
+            for export in exports {
                 let value = self.create_identifier(&local)?;
                 let call = self.create_export_call(&export, value)?;
                 output.push(self.create_expression_statement(call)?);
@@ -680,12 +884,13 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
     fn transform_execute_statement(
         &mut self,
         statement: TransformNode,
+        owner: SystemBlockScopeOwner,
     ) -> Result<Vec<TransformNode>, TransformError> {
         let record = self.context.arena().node(statement)?.clone();
+        let owner = owner.entering(statement, record.kind);
         match record.data {
-            NodeData::ImportDeclaration(_)
-            | NodeData::ImportEqualsDeclaration(_)
-            | NodeData::ExportDeclaration(_) => Ok(Vec::new()),
+            NodeData::ImportDeclaration(data) => self.transform_import_declaration(data),
+            NodeData::ImportEqualsDeclaration(_) | NodeData::ExportDeclaration(_) => Ok(Vec::new()),
             NodeData::ExportAssignment(data) => {
                 if data.is_export_equals == Some(true) {
                     return Ok(Vec::new());
@@ -697,29 +902,59 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
                         field: "expression",
                     })?;
                 let expression = self.visit(expression)?;
+                // tsc's createExportExpression prevents the source value's
+                // comments from becoming argument-list comments inside the
+                // synthesized exports call. The export statement owns its
+                // own comment range independently.
+                self.context
+                    .arena_mut()?
+                    .metadata_mut(expression)
+                    .add_flags(crate::EmitFlags::NO_COMMENTS);
                 let call = self.create_export_call("default", expression)?;
                 let emitted = self.create_expression_statement(call)?;
                 self.set_original_and_range(emitted, statement)?;
                 Ok(vec![emitted])
             }
             NodeData::VariableStatement(data) => {
-                self.transform_top_level_variable_statement(statement, data)
+                let list = data
+                    .declaration_list
+                    .and_then(|id| self.context.arena().node_ref(self.source, id));
+                if let Some(list) = list {
+                    if self.should_hoist_declaration_list(list, owner)? {
+                        return self.transform_hoisted_variable_statement(statement, data);
+                    }
+                }
+                Ok(vec![self.visit(statement.node())?])
             }
-            NodeData::ClassDeclaration(data) => self.transform_top_level_class(statement, data),
-            NodeData::Block(data) => Ok(vec![self.transform_execute_block(statement, data)?]),
+            NodeData::ClassDeclaration(data) => {
+                self.transform_hoisted_class(statement, data, owner.is_source_file())
+            }
+            NodeData::FunctionDeclaration(_) => {
+                let declarations =
+                    self.transform_hoisted_function(statement, owner.is_source_file())?;
+                self.hoisted_declarations.extend(declarations);
+                Ok(Vec::new())
+            }
+            NodeData::Block(data) => {
+                Ok(vec![self.transform_execute_block(statement, data, owner)?])
+            }
             NodeData::IfStatement(mut data) => {
                 data.expression = data
                     .expression
                     .map(|id| self.visit(id).map(TransformNode::node))
                     .transpose()?;
                 data.then_statement = Some(
-                    self.transform_execute_embedded(data.then_statement, SyntaxKind::IfStatement)?
-                        .node(),
+                    self.transform_execute_embedded(
+                        data.then_statement,
+                        SyntaxKind::IfStatement,
+                        owner,
+                    )?
+                    .node(),
                 );
                 data.else_statement = data
                     .else_statement
                     .map(|id| {
-                        self.transform_execute_embedded(Some(id), SyntaxKind::IfStatement)
+                        self.transform_execute_embedded(Some(id), SyntaxKind::IfStatement, owner)
                             .map(TransformNode::node)
                     })
                     .transpose()?;
@@ -730,32 +965,375 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
                     flags,
                 )?])
             }
+            NodeData::ForStatement(mut data) => {
+                data.initializer = self
+                    .transform_for_initializer(data.initializer, owner)?
+                    .map(TransformNode::node);
+                data.condition = data
+                    .condition
+                    .map(|id| self.visit(id).map(TransformNode::node))
+                    .transpose()?;
+                data.incrementor = data
+                    .incrementor
+                    .map(|id| self.visit_expression(id, true).map(TransformNode::node))
+                    .transpose()?;
+                data.statement = Some(
+                    self.transform_execute_embedded(
+                        data.statement,
+                        SyntaxKind::ForStatement,
+                        owner,
+                    )?
+                    .node(),
+                );
+                Ok(vec![self.update_generic_without_visit(
+                    statement,
+                    NodeData::ForStatement(data),
+                )?])
+            }
+            NodeData::ForInStatement(mut data) => {
+                data.initializer = self
+                    .transform_for_initializer(data.initializer, owner)?
+                    .map(TransformNode::node);
+                data.expression = data
+                    .expression
+                    .map(|id| self.visit(id).map(TransformNode::node))
+                    .transpose()?;
+                data.statement = Some(
+                    self.transform_execute_embedded(
+                        data.statement,
+                        SyntaxKind::ForInStatement,
+                        owner,
+                    )?
+                    .node(),
+                );
+                Ok(vec![self.update_generic_without_visit(
+                    statement,
+                    NodeData::ForInStatement(data),
+                )?])
+            }
+            NodeData::ForOfStatement(mut data) => {
+                data.initializer = self
+                    .transform_for_initializer(data.initializer, owner)?
+                    .map(TransformNode::node);
+                data.expression = data
+                    .expression
+                    .map(|id| self.visit(id).map(TransformNode::node))
+                    .transpose()?;
+                data.statement = Some(
+                    self.transform_execute_embedded(
+                        data.statement,
+                        SyntaxKind::ForOfStatement,
+                        owner,
+                    )?
+                    .node(),
+                );
+                Ok(vec![self.update_generic_without_visit(
+                    statement,
+                    NodeData::ForOfStatement(data),
+                )?])
+            }
+            NodeData::DoStatement(mut data) => {
+                data.statement = Some(
+                    self.transform_execute_embedded(
+                        data.statement,
+                        SyntaxKind::DoStatement,
+                        owner,
+                    )?
+                    .node(),
+                );
+                data.expression = data
+                    .expression
+                    .map(|id| self.visit(id).map(TransformNode::node))
+                    .transpose()?;
+                Ok(vec![self.update_generic_without_visit(
+                    statement,
+                    NodeData::DoStatement(data),
+                )?])
+            }
+            NodeData::WhileStatement(mut data) => {
+                data.expression = data
+                    .expression
+                    .map(|id| self.visit(id).map(TransformNode::node))
+                    .transpose()?;
+                data.statement = Some(
+                    self.transform_execute_embedded(
+                        data.statement,
+                        SyntaxKind::WhileStatement,
+                        owner,
+                    )?
+                    .node(),
+                );
+                Ok(vec![self.update_generic_without_visit(
+                    statement,
+                    NodeData::WhileStatement(data),
+                )?])
+            }
+            NodeData::LabeledStatement(mut data) => {
+                data.statement = Some(
+                    self.transform_execute_embedded_with_empty_result(
+                        data.statement,
+                        SyntaxKind::LabeledStatement,
+                        owner,
+                        SystemEmptyEmbeddedStatement::EmptyIdentifierExpression,
+                    )?
+                    .node(),
+                );
+                Ok(vec![self.update_generic_without_visit(
+                    statement,
+                    NodeData::LabeledStatement(data),
+                )?])
+            }
+            NodeData::WithStatement(mut data) => {
+                data.expression = data
+                    .expression
+                    .map(|id| self.visit(id).map(TransformNode::node))
+                    .transpose()?;
+                data.statement = Some(
+                    self.transform_execute_embedded(
+                        data.statement,
+                        SyntaxKind::WithStatement,
+                        owner,
+                    )?
+                    .node(),
+                );
+                Ok(vec![self.update_generic_without_visit(
+                    statement,
+                    NodeData::WithStatement(data),
+                )?])
+            }
+            NodeData::SwitchStatement(mut data) => {
+                data.expression = data
+                    .expression
+                    .map(|id| self.visit(id).map(TransformNode::node))
+                    .transpose()?;
+                data.case_block = data
+                    .case_block
+                    .map(|id| {
+                        self.transform_execute_case_block(id, owner)
+                            .map(TransformNode::node)
+                    })
+                    .transpose()?;
+                Ok(vec![self.update_generic_without_visit(
+                    statement,
+                    NodeData::SwitchStatement(data),
+                )?])
+            }
+            NodeData::CaseClause(mut data) => {
+                data.expression = data
+                    .expression
+                    .map(|id| self.visit(id).map(TransformNode::node))
+                    .transpose()?;
+                data.statements = self.transform_execute_statement_array(data.statements, owner)?;
+                Ok(vec![self.update_generic_without_visit(
+                    statement,
+                    NodeData::CaseClause(data),
+                )?])
+            }
+            NodeData::DefaultClause(mut data) => {
+                data.statements = self.transform_execute_statement_array(data.statements, owner)?;
+                Ok(vec![self.update_generic_without_visit(
+                    statement,
+                    NodeData::DefaultClause(data),
+                )?])
+            }
+            NodeData::TryStatement(mut data) => {
+                data.try_block = data
+                    .try_block
+                    .map(|id| {
+                        self.transform_execute_required_block(id, owner)
+                            .map(TransformNode::node)
+                    })
+                    .transpose()?;
+                data.catch_clause = data
+                    .catch_clause
+                    .map(|id| {
+                        self.transform_execute_catch_clause(id, owner)
+                            .map(TransformNode::node)
+                    })
+                    .transpose()?;
+                data.finally_block = data
+                    .finally_block
+                    .map(|id| {
+                        self.transform_execute_required_block(id, owner)
+                            .map(TransformNode::node)
+                    })
+                    .transpose()?;
+                Ok(vec![self.update_generic_without_visit(
+                    statement,
+                    NodeData::TryStatement(data),
+                )?])
+            }
             NodeData::ExpressionStatement(mut data) => {
                 data.expression = data
                     .expression
                     .map(|id| self.visit_expression(id, true).map(TransformNode::node))
                     .transpose()?;
                 let flags = self.context.arena().transform_flags(statement);
-                Ok(vec![self.context.factory()?.update_node(
+                let emitted = self.context.factory()?.update_node(
                     statement,
                     NodeData::ExpressionStatement(data),
                     flags,
-                )?])
+                )?;
+                self.restore_runtime_declaration_leading_comments(emitted)?;
+                Ok(vec![emitted])
             }
-            NodeData::FunctionDeclaration(_) => Ok(vec![self.visit(statement.node())?]),
             _ => Ok(vec![self.visit(statement.node())?]),
         }
+    }
+
+    /// TypeScript's namespace/enum lowering places leading comments on the
+    /// declaration statement and suppresses them on its following runtime
+    /// IIFE. System hoists that declaration into a synthetic aggregate, so the
+    /// executable statement must retake ownership inside `execute`.
+    fn restore_runtime_declaration_leading_comments(
+        &mut self,
+        statement: TransformNode,
+    ) -> Result<(), TransformError> {
+        let original = self.context.arena().get_original_node(statement);
+        if !matches!(
+            self.context.arena().node(original)?.kind,
+            SyntaxKind::ModuleDeclaration | SyntaxKind::EnumDeclaration
+        ) {
+            return Ok(());
+        }
+        let Some(flags) = self
+            .context
+            .arena()
+            .metadata(statement)
+            .map(crate::EmitMetadata::flags)
+        else {
+            return Ok(());
+        };
+        if flags.intersects(crate::EmitFlags::NO_LEADING_COMMENTS) {
+            self.context.arena_mut()?.metadata_mut(statement).set_flags(
+                crate::EmitFlags::from_bits(
+                    flags.bits() & !crate::EmitFlags::NO_LEADING_COMMENTS.bits(),
+                ),
+            );
+        }
+        Ok(())
+    }
+
+    /// Imports receive their runtime value in a dependency setter, while
+    /// aliases exported through a later `export { local }` are published at
+    /// the import declaration's execute position. This mirrors tsc's
+    /// appendExportsOfImportDeclaration ownership; the export declaration
+    /// itself remains erased.
+    fn transform_import_declaration(
+        &mut self,
+        data: tsc_syntax::nodes::ImportDeclarationData,
+    ) -> Result<Vec<TransformNode>, TransformError> {
+        let Some(clause) = data
+            .import_clause
+            .and_then(|id| self.context.arena().node_ref(self.source, id))
+        else {
+            return Ok(Vec::new());
+        };
+        let NodeData::ImportClause(clause_data) = self.context.arena().node(clause)?.data.clone()
+        else {
+            return Ok(Vec::new());
+        };
+        let mut statements = Vec::new();
+        if let Some(name) = clause_data
+            .name
+            .and_then(|id| self.context.arena().node_ref(self.source, id))
+        {
+            self.append_exports_of_import_binding(&mut statements, clause, name)?;
+        }
+        if let Some(bindings) = clause_data
+            .named_bindings
+            .and_then(|id| self.context.arena().node_ref(self.source, id))
+        {
+            match self.context.arena().node(bindings)?.data.clone() {
+                NodeData::NamespaceImport(namespace) => {
+                    if let Some(name) = namespace
+                        .name
+                        .and_then(|id| self.context.arena().node_ref(self.source, id))
+                    {
+                        self.append_exports_of_import_binding(&mut statements, bindings, name)?;
+                    }
+                }
+                NodeData::NamedImports(named) => {
+                    for specifier in
+                        node_array_nodes(self.context.arena(), self.source, named.elements)?
+                    {
+                        let NodeData::ImportSpecifier(specifier_data) =
+                            self.context.arena().node(specifier)?.data.clone()
+                        else {
+                            continue;
+                        };
+                        if specifier_data.is_type_only {
+                            continue;
+                        }
+                        if let Some(name) = specifier_data
+                            .name
+                            .and_then(|id| self.context.arena().node_ref(self.source, id))
+                        {
+                            self.append_exports_of_import_binding(
+                                &mut statements,
+                                specifier,
+                                name,
+                            )?;
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
+        Ok(statements)
+    }
+
+    fn append_exports_of_import_binding(
+        &mut self,
+        statements: &mut Vec<TransformNode>,
+        declaration: TransformNode,
+        local_name: TransformNode,
+    ) -> Result<(), TransformError> {
+        let local = identifier_or_literal_text(self.context.arena(), local_name)?;
+        let exports = self
+            .info
+            .common
+            .export_specifiers_by_local
+            .get(local.as_str())
+            .cloned()
+            .unwrap_or_default();
+        if exports.is_empty() {
+            return Ok(());
+        }
+        let key = self.context.arena().get_original_node(declaration).node();
+        let Some(binding) = self.info.common.import_bindings.get(&key).cloned() else {
+            return Ok(());
+        };
+        for export in exports {
+            let target = self.create_identifier(&binding.generated_name)?;
+            let value = if let Some(property) = binding.property.as_deref() {
+                if is_identifier_export_name(property) {
+                    self.create_property_access(target, property)?
+                } else {
+                    let property = self.create_string_literal(property)?;
+                    self.create_element_access(target, property)?
+                }
+            } else {
+                target
+            };
+            let call = self.create_export_call(&export, value)?;
+            let statement = self.create_expression_statement(call)?;
+            statements.push(statement);
+        }
+        Ok(())
     }
 
     fn transform_execute_block(
         &mut self,
         original: TransformNode,
         mut data: tsc_syntax::nodes::BlockData,
+        owner: SystemBlockScopeOwner,
     ) -> Result<TransformNode, TransformError> {
+        let owner = owner.entering(original, SyntaxKind::Block);
         let input = node_array_nodes(self.context.arena(), self.source, data.statements)?;
         let mut output = Vec::new();
         for statement in input {
-            output.extend(self.transform_execute_statement(statement)?);
+            output.extend(self.transform_execute_statement(statement, owner)?);
         }
         data.statements = Some(
             if let Some(array) = data
@@ -783,6 +1361,22 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
         &mut self,
         statement: Option<NodeId>,
         parent: SyntaxKind,
+        owner: SystemBlockScopeOwner,
+    ) -> Result<TransformNode, TransformError> {
+        self.transform_execute_embedded_with_empty_result(
+            statement,
+            parent,
+            owner,
+            SystemEmptyEmbeddedStatement::LiftToBlock,
+        )
+    }
+
+    fn transform_execute_embedded_with_empty_result(
+        &mut self,
+        statement: Option<NodeId>,
+        parent: SyntaxKind,
+        owner: SystemBlockScopeOwner,
+        empty_result: SystemEmptyEmbeddedStatement,
     ) -> Result<TransformNode, TransformError> {
         let statement = statement
             .and_then(|id| self.context.arena().node_ref(self.source, id))
@@ -790,17 +1384,168 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
                 parent,
                 field: "statement",
             })?;
-        if let NodeData::Block(data) = self.context.arena().node(statement)?.data.clone() {
-            return self.transform_execute_block(statement, data);
-        }
-        let mut statements = self.transform_execute_statement(statement)?;
+        let mut statements = self.transform_execute_statement(statement, owner)?;
         if statements.len() == 1 {
             return Ok(statements.remove(0));
         }
-        self.create_block(statements, true)
+        if statements.is_empty()
+            && matches!(
+                empty_result,
+                SystemEmptyEmbeddedStatement::EmptyIdentifierExpression
+            )
+        {
+            let empty = self.create_identifier("")?;
+            return self.create_expression_statement(empty);
+        }
+        // `factory.liftToBlock` leaves the multi-line role unset. The printer
+        // makes non-empty regular blocks multi-line independently, but keeps
+        // a block synthesized for an erased statement on one line.
+        self.create_block(statements, false)
     }
 
-    fn transform_top_level_variable_statement(
+    fn transform_execute_statement_array(
+        &mut self,
+        statements: Option<NodeArrayId>,
+        owner: SystemBlockScopeOwner,
+    ) -> Result<Option<NodeArrayId>, TransformError> {
+        let Some(statements) = statements else {
+            return Ok(None);
+        };
+        let original = self.array(statements);
+        let input = node_array_nodes(self.context.arena(), self.source, Some(statements))?;
+        let mut output = Vec::new();
+        for statement in input {
+            output.extend(self.transform_execute_statement(statement, owner)?);
+        }
+        Ok(Some(
+            self.context
+                .factory()?
+                .update_node_array(original, output)?
+                .array(),
+        ))
+    }
+
+    fn transform_execute_case_block(
+        &mut self,
+        id: NodeId,
+        owner: SystemBlockScopeOwner,
+    ) -> Result<TransformNode, TransformError> {
+        let original = self.node(id);
+        let NodeData::CaseBlock(mut data) = self.context.arena().node(original)?.data.clone()
+        else {
+            return Err(TransformError::RequiredChildRemoved {
+                parent: SyntaxKind::SwitchStatement,
+                field: "case_block",
+            });
+        };
+        let owner = owner.entering(original, SyntaxKind::CaseBlock);
+        let clauses = node_array_nodes(self.context.arena(), self.source, data.clauses)?;
+        let mut output = Vec::new();
+        for clause in clauses {
+            output.extend(self.transform_execute_statement(clause, owner)?);
+        }
+        data.clauses = match data.clauses {
+            Some(clauses) => {
+                let original_clauses = self.array(clauses);
+                Some(
+                    self.context
+                        .factory()?
+                        .update_node_array(original_clauses, output)?
+                        .array(),
+                )
+            }
+            None => Some(
+                self.context
+                    .factory()?
+                    .create_node_array(self.source, output)?
+                    .array(),
+            ),
+        };
+        self.update_generic_without_visit(original, NodeData::CaseBlock(data))
+    }
+
+    fn transform_execute_required_block(
+        &mut self,
+        id: NodeId,
+        owner: SystemBlockScopeOwner,
+    ) -> Result<TransformNode, TransformError> {
+        let original = self.node(id);
+        let NodeData::Block(data) = self.context.arena().node(original)?.data.clone() else {
+            return Err(TransformError::RequiredChildRemoved {
+                parent: SyntaxKind::TryStatement,
+                field: "block",
+            });
+        };
+        self.transform_execute_block(original, data, owner)
+    }
+
+    fn transform_execute_catch_clause(
+        &mut self,
+        id: NodeId,
+        owner: SystemBlockScopeOwner,
+    ) -> Result<TransformNode, TransformError> {
+        let original = self.node(id);
+        let NodeData::CatchClause(mut data) = self.context.arena().node(original)?.data.clone()
+        else {
+            return Err(TransformError::RequiredChildRemoved {
+                parent: SyntaxKind::TryStatement,
+                field: "catch_clause",
+            });
+        };
+        let owner = owner.entering(original, SyntaxKind::CatchClause);
+        data.block = data
+            .block
+            .map(|id| {
+                self.transform_execute_required_block(id, owner)
+                    .map(TransformNode::node)
+            })
+            .transpose()?;
+        self.update_generic_without_visit(original, NodeData::CatchClause(data))
+    }
+
+    fn transform_for_initializer(
+        &mut self,
+        initializer: Option<NodeId>,
+        owner: SystemBlockScopeOwner,
+    ) -> Result<Option<TransformNode>, TransformError> {
+        let Some(initializer) = initializer else {
+            return Ok(None);
+        };
+        let original = self.node(initializer);
+        if !matches!(
+            self.context.arena().node(original)?.data,
+            NodeData::VariableDeclarationList(_)
+        ) || !self.should_hoist_declaration_list(original, owner)?
+        {
+            return self.visit(initializer).map(Some);
+        }
+
+        let declarations =
+            variable_declarations(self.context.arena(), self.source, Some(initializer))?;
+        let mut expressions = Vec::new();
+        for declaration in declarations {
+            let NodeData::VariableDeclaration(variable) =
+                self.context.arena().node(declaration)?.data.clone()
+            else {
+                continue;
+            };
+            if let Some(initializer) = variable.initializer {
+                let initializer = self.visit(initializer)?;
+                let flattened =
+                    self.flatten_binding_initialization(declaration, variable.name, initializer)?;
+                expressions.extend(flattened.into_expressions());
+            } else if let Some(name) = variable.name {
+                expressions.push(self.visit(name)?);
+            }
+        }
+        let Some(expression) = self.inline_expressions(expressions)? else {
+            return Ok(None);
+        };
+        self.set_original_and_range(expression, original)?;
+        Ok(Some(expression))
+    }
+
+    fn transform_hoisted_variable_statement(
         &mut self,
         original: TransformNode,
         data: tsc_syntax::nodes::VariableStatementData,
@@ -825,28 +1570,32 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
                 continue;
             };
             let initializer = self.visit(initializer)?;
-            let (mut expressions, locals) =
+            let mut plan =
                 self.flatten_binding_initialization(declaration, variable.name, initializer)?;
             if direct_export {
-                for (index, local) in locals.iter().enumerate() {
+                for step in &mut plan.steps {
+                    let SystemBindingStep::Bind { local, expression } = step else {
+                        continue;
+                    };
                     if let Some(exports) = self
                         .info
                         .common
                         .exports_by_local
-                        .get(local.as_str())
+                        .get(local.as_ref())
                         .cloned()
                     {
-                        if let Some(expression) = expressions.get_mut(index) {
-                            let mut wrapped = *expression;
-                            for export in exports {
-                                wrapped = self.create_export_call(&export, wrapped)?;
-                            }
-                            *expression = wrapped;
+                        let mut wrapped = *expression;
+                        for export in exports {
+                            wrapped = self.create_export_call(&export, wrapped)?;
                         }
+                        *expression = wrapped;
                     }
                 }
             } else {
-                for local in locals {
+                for local in plan.steps.iter().filter_map(|step| match step {
+                    SystemBindingStep::Bind { local, .. } => Some(local.to_string()),
+                    SystemBindingStep::Evaluate(_) => None,
+                }) {
                     for export in self
                         .info
                         .common
@@ -861,7 +1610,7 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
                     }
                 }
             }
-            initialization_expressions.extend(expressions);
+            initialization_expressions.extend(plan.into_expressions());
         }
         let mut output = Vec::new();
         if let Some(expression) = self.inline_expressions(initialization_expressions)? {
@@ -878,89 +1627,343 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
         declaration: TransformNode,
         name: Option<NodeId>,
         initializer: TransformNode,
-    ) -> Result<(Vec<TransformNode>, Vec<String>), TransformError> {
+    ) -> Result<SystemBindingPlan, TransformError> {
         let Some(name) = name.and_then(|id| self.context.arena().node_ref(self.source, id)) else {
-            return Ok((Vec::new(), Vec::new()));
+            return Ok(SystemBindingPlan::default());
         };
-        match self.context.arena().node(name)?.data.clone() {
+        let mut plan = SystemBindingPlan::default();
+        let key = self.context.arena().get_original_node(declaration).node();
+        let value = if let Some(temp) = self.destructuring_temps.get(&key).cloned() {
+            let target = self.create_identifier(&temp)?;
+            plan.push_evaluation(self.create_assignment(target, initializer)?);
+            self.create_identifier(&temp)?
+        } else {
+            initializer
+        };
+        self.flatten_system_binding_target(&mut plan, name, value)?;
+        Ok(plan)
+    }
+
+    fn flatten_system_binding_target(
+        &mut self,
+        plan: &mut SystemBindingPlan,
+        target: TransformNode,
+        value: TransformNode,
+    ) -> Result<(), TransformError> {
+        match self.context.arena().node(target)?.data.clone() {
             NodeData::Identifier(data) => {
-                let target = self.create_identifier(&data.text)?;
-                let assignment = self.create_assignment(target, initializer)?;
-                Ok((vec![assignment], vec![data.text]))
+                let local = data.text;
+                let target = self.create_identifier(&local)?;
+                let assignment = self.create_assignment(target, value)?;
+                plan.push_binding(local, assignment);
+                Ok(())
             }
             NodeData::ObjectBindingPattern(data) => {
-                let key = self.context.arena().get_original_node(declaration).node();
-                let temp = self
-                    .destructuring_temps
-                    .get(&key)
-                    .cloned()
-                    .unwrap_or_else(|| self.next_temp_name());
-                self.push_hoisted_name(&temp);
-                let target = self.create_identifier(&temp)?;
-                let mut expressions = vec![self.create_assignment(target, initializer)?];
-                let mut locals = vec![temp.clone()];
-                for element in node_array_nodes(self.context.arena(), self.source, data.elements)? {
-                    let NodeData::BindingElement(element_data) =
-                        self.context.arena().node(element)?.data.clone()
-                    else {
-                        continue;
-                    };
-                    if element_data.dot_dot_dot_token.is_some()
-                        || element_data.initializer.is_some()
-                    {
-                        return Err(TransformError::UnsupportedCompilerOption {
-                            option: "System destructuring",
-                            detail: "default and rest binding elements require the later lowering closure",
-                        });
-                    }
-                    let Some(binding_name) = element_data
-                        .name
-                        .and_then(|id| self.context.arena().node_ref(self.source, id))
-                    else {
-                        continue;
-                    };
-                    let local = identifier_or_literal_text(self.context.arena(), binding_name)?;
-                    let property = element_data
-                        .property_name
-                        .and_then(|id| self.context.arena().node_ref(self.source, id))
-                        .and_then(|node| {
-                            identifier_or_literal_text(self.context.arena(), node).ok()
-                        })
-                        .unwrap_or_else(|| local.clone());
-                    let base = self.create_identifier(&temp)?;
-                    let value = if is_identifier_export_name(&property) {
-                        self.create_property_access(base, &property)?
-                    } else {
-                        let property = self.create_string_literal(&property)?;
-                        self.create_element_access(base, property)?
-                    };
-                    let target = self.create_identifier(&local)?;
-                    expressions.push(self.create_assignment(target, value)?);
-                    locals.push(local);
-                }
-                Ok((expressions, locals))
+                self.flatten_system_object_binding(plan, data.elements, value)
             }
-            NodeData::ArrayBindingPattern(_) => Err(TransformError::UnsupportedCompilerOption {
-                option: "System destructuring",
-                detail: "array binding flattening requires the later lowering closure",
-            }),
-            _ => Ok((Vec::new(), Vec::new())),
+            NodeData::ArrayBindingPattern(data) => {
+                self.flatten_system_array_binding(plan, data.elements, value)
+            }
+            _ => Ok(()),
         }
     }
 
-    fn transform_top_level_class(
+    fn flatten_system_object_binding(
+        &mut self,
+        plan: &mut SystemBindingPlan,
+        elements: Option<NodeArrayId>,
+        mut value: TransformNode,
+    ) -> Result<(), TransformError> {
+        let elements = node_array_nodes(self.context.arena(), self.source, elements)?;
+        if elements.len() != 1 {
+            value = self.ensure_system_binding_identifier(plan, value, true)?;
+        }
+        let has_rest = elements.iter().any(|element| {
+            matches!(
+                self.context.arena().node(*element).map(|node| &node.data),
+                Ok(NodeData::BindingElement(data)) if data.dot_dot_dot_token.is_some()
+            )
+        });
+        let mut excluded = Vec::new();
+        for (index, element) in elements.iter().copied().enumerate() {
+            let element = self.system_binding_element(element)?;
+            if element.rest {
+                if index + 1 == elements.len() {
+                    let rest =
+                        self.create_system_object_rest(value, &excluded, element.original)?;
+                    self.flatten_system_binding_element(plan, element, rest)?;
+                }
+                continue;
+            }
+            let (property_value, excluded_property) =
+                self.create_system_binding_property_access(plan, value, element, has_rest)?;
+            excluded.push(excluded_property);
+            self.flatten_system_binding_element(plan, element, property_value)?;
+        }
+        Ok(())
+    }
+
+    fn flatten_system_array_binding(
+        &mut self,
+        plan: &mut SystemBindingPlan,
+        elements: Option<NodeArrayId>,
+        mut value: TransformNode,
+    ) -> Result<(), TransformError> {
+        let elements = node_array_nodes(self.context.arena(), self.source, elements)?;
+        let all_omitted = !elements.is_empty()
+            && elements.iter().all(|element| {
+                self.context
+                    .arena()
+                    .node(*element)
+                    .is_ok_and(|node| node.kind == SyntaxKind::OmittedExpression)
+            });
+        if elements.len() != 1 || all_omitted {
+            value = self.ensure_system_binding_identifier(plan, value, !all_omitted)?;
+        }
+        for (index, element) in elements.into_iter().enumerate() {
+            if self.context.arena().node(element)?.kind == SyntaxKind::OmittedExpression {
+                continue;
+            }
+            let element = self.system_binding_element(element)?;
+            let base = self.context.factory()?.clone_node(value)?;
+            let element_value = if element.rest {
+                let slice = self.create_property_access(base, "slice")?;
+                let index = self.create_numeric_literal(&index.to_string())?;
+                self.create_call(slice, vec![index])?
+            } else {
+                let index = self.create_numeric_literal(&index.to_string())?;
+                self.create_element_access(base, index)?
+            };
+            self.flatten_system_binding_element(plan, element, element_value)?;
+        }
+        Ok(())
+    }
+
+    fn flatten_system_binding_element(
+        &mut self,
+        plan: &mut SystemBindingPlan,
+        element: SystemBindingElement,
+        mut value: TransformNode,
+    ) -> Result<(), TransformError> {
+        if let Some(initializer) = element.initializer {
+            let initializer = self.visit(initializer.node())?;
+            value = self.ensure_system_binding_identifier(plan, value, true)?;
+            let condition_value = self.context.factory()?.clone_node(value)?;
+            let undefined = self.create_void_zero()?;
+            let condition = self.create_binary(
+                condition_value,
+                SyntaxKind::EqualsEqualsEqualsToken,
+                undefined,
+            )?;
+            let fallback = self.context.factory()?.clone_node(value)?;
+            value = self.create_conditional(condition, initializer, fallback)?;
+        }
+        self.flatten_system_binding_target(plan, element.target, value)
+    }
+
+    fn ensure_system_binding_identifier(
+        &mut self,
+        plan: &mut SystemBindingPlan,
+        value: TransformNode,
+        reuse_identifier: bool,
+    ) -> Result<TransformNode, TransformError> {
+        if reuse_identifier && self.context.arena().node(value)?.kind == SyntaxKind::Identifier {
+            return Ok(value);
+        }
+        let temp = self.next_temp_name();
+        self.push_hoisted_name(&temp);
+        let target = self.create_identifier(&temp)?;
+        plan.push_evaluation(self.create_assignment(target, value)?);
+        self.create_identifier(&temp)
+    }
+
+    fn system_binding_element(
+        &self,
+        element: TransformNode,
+    ) -> Result<SystemBindingElement, TransformError> {
+        let NodeData::BindingElement(data) = &self.context.arena().node(element)?.data else {
+            return Err(TransformError::RequiredChildRemoved {
+                parent: self.context.arena().node(element)?.kind,
+                field: "binding element",
+            });
+        };
+        let target = data
+            .name
+            .and_then(|name| self.context.arena().node_ref(self.source, name))
+            .ok_or(TransformError::RequiredChildRemoved {
+                parent: SyntaxKind::BindingElement,
+                field: "name",
+            })?;
+        Ok(SystemBindingElement {
+            original: element,
+            target,
+            property_name: data
+                .property_name
+                .and_then(|name| self.context.arena().node_ref(self.source, name))
+                .or_else(|| data.dot_dot_dot_token.is_none().then_some(target)),
+            initializer: data
+                .initializer
+                .and_then(|initializer| self.context.arena().node_ref(self.source, initializer)),
+            rest: data.dot_dot_dot_token.is_some(),
+        })
+    }
+
+    fn create_system_binding_property_access(
+        &mut self,
+        plan: &mut SystemBindingPlan,
+        value: TransformNode,
+        element: SystemBindingElement,
+        property_is_reused: bool,
+    ) -> Result<(TransformNode, SystemExcludedProperty), TransformError> {
+        let property_name = element
+            .property_name
+            .ok_or(TransformError::RequiredChildRemoved {
+                parent: SyntaxKind::BindingElement,
+                field: "property name",
+            })?;
+        let base = self.context.factory()?.clone_node(value)?;
+        if let NodeData::ComputedPropertyName(data) =
+            self.context.arena().node(property_name)?.data.clone()
+        {
+            let argument = data
+                .expression
+                .map(|expression| self.visit(expression))
+                .transpose()?
+                .ok_or(TransformError::RequiredChildRemoved {
+                    parent: SyntaxKind::ComputedPropertyName,
+                    field: "expression",
+                })?;
+            let argument = if property_is_reused {
+                self.ensure_system_binding_identifier(plan, argument, true)?
+            } else {
+                argument
+            };
+            let access_argument = self.context.factory()?.clone_node(argument)?;
+            return Ok((
+                self.create_element_access(base, access_argument)?,
+                SystemExcludedProperty::Computed(argument),
+            ));
+        }
+        let kind = self.context.arena().node(property_name)?.kind;
+        let text = identifier_or_literal_text(self.context.arena(), property_name)?;
+        let access = if matches!(
+            kind,
+            SyntaxKind::StringLiteral | SyntaxKind::NumericLiteral | SyntaxKind::BigIntLiteral
+        ) {
+            let argument = self.context.factory()?.clone_node(property_name)?;
+            self.create_element_access(base, argument)?
+        } else if is_identifier_export_name(&text) {
+            self.create_property_access(base, &text)?
+        } else {
+            let argument = self.create_string_literal(&text)?;
+            self.create_element_access(base, argument)?
+        };
+        Ok((access, SystemExcludedProperty::Named(text.into())))
+    }
+
+    fn create_system_object_rest(
+        &mut self,
+        value: TransformNode,
+        excluded: &[SystemExcludedProperty],
+        original: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        self.context
+            .request_emit_helper(super::helpers::object_rest())?;
+        let mut properties = Vec::with_capacity(excluded.len());
+        for property in excluded {
+            let property = match property {
+                SystemExcludedProperty::Named(name) => self.create_string_literal(name)?,
+                SystemExcludedProperty::Computed(temp) => {
+                    let type_value = self.context.factory()?.clone_node(*temp)?;
+                    let type_of = self.create_typeof(type_value)?;
+                    let symbol = self.create_string_literal("symbol")?;
+                    let condition =
+                        self.create_binary(type_of, SyntaxKind::EqualsEqualsEqualsToken, symbol)?;
+                    let symbol_value = self.context.factory()?.clone_node(*temp)?;
+                    let string_value = self.context.factory()?.clone_node(*temp)?;
+                    let empty = self.create_string_literal("")?;
+                    let as_string =
+                        self.create_binary(string_value, SyntaxKind::PlusToken, empty)?;
+                    self.create_conditional(condition, symbol_value, as_string)?
+                }
+            };
+            properties.push(property);
+        }
+        let excluded = self.create_array_literal(properties, false)?;
+        self.context.factory()?.set_text_range(excluded, original)?;
+        let helper = self
+            .context
+            .factory()?
+            .create_unscoped_helper_identifier(self.source, EmitHelperName::Rest)?;
+        let value = self.context.factory()?.clone_node(value)?;
+        self.create_call(helper, vec![value, excluded])
+    }
+
+    /// Mirrors flattenObject/ArrayBindingOrAssignmentPattern's root-value
+    /// ownership rule. Identifiers can be safely reused across leaves; other
+    /// expressions need a stable temporary whenever the root is read more
+    /// than once.
+    fn binding_pattern_requires_root_temp(
+        &self,
+        pattern: TransformNode,
+        initializer: TransformNode,
+    ) -> Result<bool, TransformError> {
+        if self.context.arena().node(initializer)?.kind == SyntaxKind::Identifier {
+            return Ok(false);
+        }
+        match &self.context.arena().node(pattern)?.data {
+            NodeData::ObjectBindingPattern(data) => {
+                Ok(node_array_nodes(self.context.arena(), self.source, data.elements)?.len() != 1)
+            }
+            NodeData::ArrayBindingPattern(data) => {
+                let elements = node_array_nodes(self.context.arena(), self.source, data.elements)?;
+                let all_omitted = !elements.is_empty()
+                    && elements.iter().all(|element| {
+                        self.context
+                            .arena()
+                            .node(*element)
+                            .is_ok_and(|node| node.kind == SyntaxKind::OmittedExpression)
+                    });
+                Ok(elements.len() != 1 || all_omitted)
+            }
+            _ => Ok(false),
+        }
+    }
+
+    fn transform_hoisted_class(
         &mut self,
         original: TransformNode,
         mut data: tsc_syntax::nodes::ClassDeclarationData,
+        publish_exports: bool,
     ) -> Result<Vec<TransformNode>, TransformError> {
+        let key = self.context.arena().get_original_node(original).node();
         let local = data
             .name
             .and_then(|id| self.context.arena().node_ref(self.source, id))
-            .and_then(|name| identifier_or_literal_text(self.context.arena(), name).ok());
-        let exports = local
-            .as_deref()
-            .and_then(|name| self.info.common.exports_by_local.get(name).cloned())
-            .unwrap_or_default();
+            .and_then(|name| identifier_or_literal_text(self.context.arena(), name).ok())
+            .or_else(|| {
+                self.info
+                    .common
+                    .generated_declaration_names
+                    .get(&key)
+                    .map(ToString::to_string)
+            });
+        let exports = if publish_exports {
+            local
+                .as_deref()
+                .map(|local| {
+                    self.info.common.hoisted_declaration_exports(
+                        self.context.arena(),
+                        self.source,
+                        data.modifiers,
+                        local,
+                    )
+                })
+                .transpose()?
+                .unwrap_or_default()
+        } else {
+            Vec::new()
+        };
         data.modifiers = self.remove_export_modifiers(data.modifiers)?;
         let mut expression_data =
             NodeData::ClassExpression(tsc_syntax::nodes::ClassExpressionData {
@@ -990,8 +1993,7 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
                 output.push(self.create_expression_statement(call)?);
             }
         } else {
-            let call = self.create_export_call("default", class_expression)?;
-            output.push(self.create_expression_statement(call)?);
+            output.push(self.create_expression_statement(class_expression)?);
         }
         Ok(output)
     }
@@ -1055,31 +2057,14 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
             return Ok(transformed);
         }
 
-        let imported_callee = data
-            .expression
-            .and_then(|id| self.context.arena().node_ref(self.source, id))
-            .map(|callee| self.import_binding_for_reference(callee))
-            .transpose()?
-            .flatten()
-            .is_some();
         let mut node_data = NodeData::CallExpression(data);
         try_visit_each_child(&mut node_data, self)?;
-        let NodeData::CallExpression(mut data) = node_data else {
+        let NodeData::CallExpression(data) = node_data else {
             unreachable!("call expression visitor preserves kind")
         };
-        if imported_callee {
-            let callee = data
-                .expression
-                .and_then(|id| self.context.arena().node_ref(self.source, id))
-                .ok_or(TransformError::RequiredChildRemoved {
-                    parent: SyntaxKind::CallExpression,
-                    field: "expression",
-                })?;
-            let zero = self.create_numeric_literal("0")?;
-            let indirect = self.create_binary(zero, SyntaxKind::CommaToken, callee)?;
-            let parenthesized = self.create_parenthesized(indirect)?;
-            data.expression = Some(parenthesized.node());
-        }
+        // SystemJS import substitution intentionally keeps a substituted
+        // namespace property as the direct callee. Unlike CommonJS, tsc's
+        // System transform does not synthesize `(0, imported)(...)` here.
         self.update_generic_without_visit(original, NodeData::CallExpression(data))
     }
 
@@ -1282,12 +2267,13 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
         &self,
         node: TransformNode,
     ) -> Result<Option<ImportBinding>, TransformError> {
-        if let Some(declaration) = self
-            .context
-            .arena()
-            .metadata(node)
-            .and_then(crate::EmitMetadata::referenced_import_declaration)
-        {
+        if let Some(metadata) = self.context.arena().metadata(node) {
+            if metadata.is_generated_import_reference() {
+                return Ok(None);
+            }
+            let Some(declaration) = metadata.referenced_import_declaration() else {
+                return self.import_binding_for_parsed_reference(node);
+            };
             return Ok(self
                 .info
                 .common
@@ -1295,6 +2281,13 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
                 .get(&declaration.node())
                 .cloned());
         }
+        self.import_binding_for_parsed_reference(node)
+    }
+
+    fn import_binding_for_parsed_reference(
+        &self,
+        node: TransformNode,
+    ) -> Result<Option<ImportBinding>, TransformError> {
         let original = self.context.arena().get_original_node(node);
         if NodeFlags::from_bits(self.context.arena().node(original)?.flags)
             .contains(NodeFlags::SYNTHESIZED)
@@ -1328,21 +2321,28 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
         let resolver_node = self.resolver_node(node)?;
         let exported_from_source = self
             .resolver
-            .get_referenced_export_container(resolver_node)?
+            .get_referenced_export_container(resolver_node, EmitExportContainerMode::Reference)?
             .is_some();
-        let exported_synthetic_declaration = if exported_from_source {
-            false
-        } else {
-            self.resolver
-                .get_referenced_value_declaration(resolver_node)?
-                .is_some_and(|declaration| {
-                    self.info
-                        .common
-                        .exported_variable_declarations
-                        .contains(&declaration.node())
-                })
-        };
-        if !exported_from_source && !exported_synthetic_declaration {
+        let value_declaration = self
+            .resolver
+            .get_referenced_value_declaration(resolver_node)?;
+        if let Some(exports) = value_declaration
+            .and_then(|declaration| self.info.common.exported_bindings.get(&declaration.node()))
+        {
+            return Ok(exports.clone());
+        }
+        for declaration in self
+            .resolver
+            .get_referenced_value_declarations(resolver_node)?
+        {
+            if Some(declaration) == value_declaration {
+                continue;
+            }
+            if let Some(exports) = self.info.common.exported_bindings.get(&declaration.node()) {
+                return Ok(exports.clone());
+            }
+        }
+        if !exported_from_source {
             return Ok(Vec::new());
         }
         let name = identifier_or_literal_text(self.context.arena(), node)?;
@@ -1510,7 +2510,7 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
                             side_effect_only = false;
                             let key = self.context.arena().get_original_node(entry).node();
                             if let Some(plan) = self.info.common.imports.get(&key) {
-                                local_name = Some(plan.generated_name.to_string());
+                                local_name = plan.runtime_name.as_deref().map(str::to_owned);
                                 break;
                             }
                         }
@@ -1543,10 +2543,18 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
                     NodeData::ImportDeclaration(data) if data.import_clause.is_some() => {
                         let key = self.context.arena().get_original_node(entry).node();
                         if let Some(plan) = self.info.common.imports.get(&key).cloned() {
-                            let target = self.create_identifier(&plan.generated_name)?;
-                            let value = self.create_identifier(&parameter_name)?;
-                            let assignment = self.create_assignment(target, value)?;
-                            statements.push(self.create_expression_statement(assignment)?);
+                            if let Some(runtime_name) = plan.runtime_name.as_deref() {
+                                let target = self.create_identifier(runtime_name)?;
+                                let value = self.create_identifier(&parameter_name)?;
+                                let assignment = self.create_assignment(target, value)?;
+                                statements.push(self.create_expression_statement(assignment)?);
+                                if let Some(namespace_alias) = plan.namespace_alias.as_deref() {
+                                    let target = self.create_identifier(namespace_alias)?;
+                                    let value = self.create_identifier(runtime_name)?;
+                                    let assignment = self.create_assignment(target, value)?;
+                                    statements.push(self.create_expression_statement(assignment)?);
+                                }
+                            }
                         }
                     }
                     NodeData::ImportEqualsDeclaration(data) => {
@@ -1762,6 +2770,17 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
         )
     }
 
+    fn create_string_literal(&mut self, text: &str) -> Result<TransformNode, TransformError> {
+        self.context.factory()?.create_node(
+            self.source,
+            NodeData::StringLiteral(tsc_syntax::nodes::StringLiteralData {
+                text: text.to_owned(),
+                has_extended_unicode_escape: None,
+            }),
+            TransformFlags::NONE,
+        )
+    }
+
     fn create_numeric_literal(&mut self, text: &str) -> Result<TransformNode, TransformError> {
         self.context.factory()?.create_node(
             self.source,
@@ -1772,14 +2791,61 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
         )
     }
 
-    fn create_string_literal(&mut self, text: &str) -> Result<TransformNode, TransformError> {
+    fn create_typeof(
+        &mut self,
+        expression: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        let flags = self.context.arena().propagate_child_flags(expression)?;
         self.context.factory()?.create_node(
             self.source,
-            NodeData::StringLiteral(tsc_syntax::nodes::StringLiteralData {
-                text: text.to_owned(),
-                has_extended_unicode_escape: None,
+            NodeData::TypeOfExpression(tsc_syntax::nodes::TypeOfExpressionData {
+                expression: Some(expression.node()),
             }),
+            flags,
+        )
+    }
+
+    fn create_void_zero(&mut self) -> Result<TransformNode, TransformError> {
+        let zero = self.create_numeric_literal("0")?;
+        let flags = self.context.arena().propagate_child_flags(zero)?;
+        self.context.factory()?.create_node(
+            self.source,
+            NodeData::VoidExpression(tsc_syntax::nodes::VoidExpressionData {
+                expression: Some(zero.node()),
+            }),
+            flags,
+        )
+    }
+
+    fn create_conditional(
+        &mut self,
+        condition: TransformNode,
+        when_true: TransformNode,
+        when_false: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        let question = self.context.factory()?.create_token(
+            self.source,
+            SyntaxKind::QuestionToken,
             TransformFlags::NONE,
+        )?;
+        let colon = self.context.factory()?.create_token(
+            self.source,
+            SyntaxKind::ColonToken,
+            TransformFlags::NONE,
+        )?;
+        let flags = self.context.arena().transform_flags(condition)
+            | self.context.arena().transform_flags(when_true)
+            | self.context.arena().transform_flags(when_false);
+        self.context.factory()?.create_node(
+            self.source,
+            NodeData::ConditionalExpression(tsc_syntax::nodes::ConditionalExpressionData {
+                condition: Some(condition.node()),
+                question_token: Some(question.node()),
+                when_true: Some(when_true.node()),
+                colon_token: Some(colon.node()),
+                when_false: Some(when_false.node()),
+            }),
+            flags,
         )
     }
 
@@ -2095,14 +3161,7 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
     }
 
     fn resolver_node(&self, node: TransformNode) -> Result<EmitResolverNode, TransformError> {
-        let original = self.context.arena().get_original_node(node);
-        let source = self
-            .context
-            .arena()
-            .source(original.source())?
-            .program_source()
-            .ok_or(TransformError::MissingProgramSource(original))?;
-        Ok(EmitResolverNode::new(source, original.node()))
+        self.context.arena().require_parse_tree_resolver_node(node)
     }
 
     const fn node(&self, id: NodeId) -> TransformNode {

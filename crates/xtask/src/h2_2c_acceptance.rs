@@ -1,17 +1,27 @@
 //! Hosted H2.2c acceptance projection over the source-dispositioned
 //! compiler/conformance rows in the pinned `ts-tests` tree.
 
+use std::collections::{BTreeSet, HashMap};
 use std::error::Error;
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
 use base64::Engine;
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use tsc_compiler::{H2RuntimeSlice, MemoryOutputSink, ProgramSession};
 use tsc_diagnostics::{Diagnostic, DiagnosticCategory, MessageChain};
-use tsc_harness::upstream_suites::execution::load_qualified_compiler_emit;
-use tsc_program::ProgramLoadLimits;
+use tsc_harness::upstream_suites::execution::{
+    load_compiler_emit, load_qualified_compiler_emit, load_recorded_execution_plans,
+    CompilerExecutionPlan, UpstreamExecutionInput,
+};
+use tsc_program::{PreparedProgram, PreparedSourceFile, ProgramLoadLimits, ResolutionMode};
+use tsc_syntax::{
+    for_each_child, parse_source_file_from_snapshot, LanguageVariant, NodeData, ParseOptions,
+    SourceFile, SyntaxKind,
+};
+use tsc_types::{CompilerOptions, ModuleKind};
 
 const QUALIFICATION_RELATIVE_PATH: &str = "ratchets/h2-2c-qualification.v1.json";
 const H2_4A_QUALIFICATION_RELATIVE_PATH: &str = "ratchets/h2-4a-qualification.v1.json";
@@ -22,6 +32,7 @@ const H2_5C_QUALIFICATION_RELATIVE_PATH: &str = "ratchets/h2-5c-qualification.v1
 const H2_5D_QUALIFICATION_RELATIVE_PATH: &str = "ratchets/h2-5d-qualification.v1.json";
 const H2_5E_QUALIFICATION_RELATIVE_PATH: &str = "ratchets/h2-5e-qualification.v1.json";
 const H2_5F_QUALIFICATION_RELATIVE_PATH: &str = "ratchets/h2-5f-qualification.v1.json";
+const H2_5G_QUALIFICATION_RELATIVE_PATH: &str = "ratchets/h2-5g-qualification.v1.json";
 
 #[derive(Clone, Copy)]
 enum AcceptanceSlice {
@@ -34,6 +45,7 @@ enum AcceptanceSlice {
     H2_5d,
     H2_5e,
     H2_5f,
+    H2_5g,
 }
 
 impl AcceptanceSlice {
@@ -48,6 +60,147 @@ impl AcceptanceSlice {
             Self::H2_5d => "H2.5d",
             Self::H2_5e => "H2.5e",
             Self::H2_5f => "H2.5f",
+            Self::H2_5g => "H2.5g",
+        }
+    }
+}
+
+struct RecordedCompilerCase {
+    expansion_case: u32,
+    plan: CompilerExecutionPlan,
+}
+
+struct H2_5gExecutionInputs {
+    compiler_cases: HashMap<String, RecordedCompilerCase>,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum H2_5gDeferredOwner {
+    H2_8a,
+    H2_9,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum H2_5gCaseDisposition {
+    Admitted,
+    Deferred(H2_5gDeferredOwner),
+}
+
+fn validate_h2_5g_qualification(artifact: &Value) -> Result<&[Value], Box<dyn Error>> {
+    if artifact["schema"] != 1
+        || artifact["status"] != "qualified-typescript-oracle"
+        || artifact["phase"] != "H2.5g-es2016-target"
+        || artifact["selection_contract"]["global_h2_5g_rows"] != 11_910
+        || artifact["selection_contract"]["global_candidate_denominator"] != 9_027
+        || artifact["selection_contract"]["candidate_denominator"] != 9_027
+        || artifact["selection_contract"]["future_deferred_rows"] != 2_883
+        || artifact["summary"]["candidates"] != 9_027
+        || artifact["summary"]["compiler_candidates"] != 4_712
+        || artifact["summary"]["conformance_candidates"] != 4_315
+        || artifact["summary"]["recorded_compiler_plan_cases"] != 4_712
+        || artifact["summary"]["qualified_vfs_cases"] != 4_315
+        || artifact["summary"]["virtual_config_cases"] != 56
+        || artifact["summary"]["vfs_symlink_cases"] != 3
+        || artifact["summary"]["vfs_symlink_paths"] != 4
+        || artifact["summary"]["admitted_cases"] != 8_511
+        || artifact["summary"]["deferred_cases"] != 516
+        || artifact["summary"]["source_deferred_cases"] != 516
+        || artifact["summary"]["no_emit_control_cases"] != 59
+        || artifact["summary"]["typescript_runs"] != 18_054
+        || artifact["summary"]["deterministic_typescript_cases"] != 9_027
+        || artifact["summary"]["admitted_typescript_writes"] != 9_466
+        || artifact["summary"]["admitted_typescript_diagnostics"] != 26_815
+        || artifact["summary"]["unexecuted_candidates"] != 0
+        || artifact["summary"]["undispositioned_candidates"] != 0
+        || artifact["owner_closure"]
+            .as_array()
+            .is_none_or(|owners| owners.len() != 1 || owners[0]["key"] != "transform-es2016")
+    {
+        return Err(failure("H2.5g qualification header is not closed"));
+    }
+    let cases = array(artifact, "cases")?;
+    if cases.len() != 9_027 {
+        return Err(failure("H2.5g qualification case denominator changed"));
+    }
+    Ok(cases)
+}
+
+fn classify_h2_5g_case(case: &Value) -> Result<H2_5gCaseDisposition, Box<dyn Error>> {
+    let case_id = string(case, "case_id")?;
+    match string(case, "disposition")? {
+        "admitted-for-execution" => Ok(H2_5gCaseDisposition::Admitted),
+        "deferred-to-slices"
+            if case["diagnostic_disposition"]["state"] == "not-observed-source-deferred"
+                && case["rust_expectation"] == "typed-failure-before-first-sink-write" =>
+        {
+            match array(case, "required_slices")?
+                .first()
+                .and_then(Value::as_str)
+            {
+                Some("H2.8a") => Ok(H2_5gCaseDisposition::Deferred(H2_5gDeferredOwner::H2_8a)),
+                Some("H2.9") => Ok(H2_5gCaseDisposition::Deferred(H2_5gDeferredOwner::H2_9)),
+                first => Err(failure(format!(
+                    "{case_id}: unknown first H2.5g deferred owner {first:?}"
+                ))),
+            }
+        }
+        disposition => Err(failure(format!(
+            "unknown H2.5g disposition {disposition} for {case_id}"
+        ))),
+    }
+}
+
+impl H2_5gExecutionInputs {
+    fn load(workspace: &Path) -> Result<Self, Box<dyn Error>> {
+        let corpus = load_recorded_execution_plans(workspace)?;
+        let compiler_cases = corpus
+            .plans
+            .iter()
+            .filter_map(|recorded| match &recorded.input {
+                UpstreamExecutionInput::Compiler(plan) => Some((
+                    recorded.provenance.case_id.to_string(),
+                    RecordedCompilerCase {
+                        expansion_case: recorded.provenance.case_index,
+                        plan: plan.clone(),
+                    },
+                )),
+                UpstreamExecutionInput::Project(_) => None,
+            })
+            .collect::<HashMap<_, _>>();
+        if compiler_cases.len() != 7_276 {
+            return Err(failure(format!(
+                "H2.5g recorded compiler-plan denominator changed: {}",
+                compiler_cases.len(),
+            )));
+        }
+        Ok(Self { compiler_cases })
+    }
+
+    fn prepare(
+        &self,
+        workspace: &Path,
+        case: &Value,
+    ) -> Result<tsc_program::PreparedProgram, Box<dyn Error>> {
+        match string(case, "execution_route")? {
+            "qualified-vfs" => case_input(workspace, case),
+            "recorded-compiler-plan" => {
+                let case_id = string(case, "case_id")?;
+                let recorded = self.compiler_cases.get(case_id).ok_or_else(|| {
+                    failure(format!("{case_id}: recorded compiler plan is absent"))
+                })?;
+                if case["suite"] != "compiler"
+                    || case["expansion_case"].as_u64() != Some(u64::from(recorded.expansion_case))
+                {
+                    return Err(failure(format!(
+                        "{case_id}: recorded compiler-plan provenance differs"
+                    )));
+                }
+                Ok(load_compiler_emit(workspace, &recorded.plan, limits())?)
+            }
+            route => Err(failure(format!(
+                "{}: unknown H2.5g execution route {route}",
+                string(case, "case_id")?,
+            ))),
         }
     }
 }
@@ -210,6 +363,242 @@ fn assert_exact_writes(
     Ok(())
 }
 
+/// Recover the source files that reached JavaScript artifact construction from
+/// the oracle's exact write provenance. A source can occur in more than one
+/// output (for example JavaScript plus a source map), so activity accounting
+/// is based on the unique source union rather than the write count.
+fn transform_source_paths<'a>(expected: &'a Value) -> Result<BTreeSet<&'a str>, Box<dyn Error>> {
+    let mut paths = BTreeSet::new();
+    for write in array(expected, "writes")? {
+        for source in array(write, "source_files")? {
+            let source = source
+                .as_str()
+                .ok_or_else(|| failure("write source provenance is not a string"))?;
+            paths.insert(source);
+        }
+    }
+    Ok(paths)
+}
+
+fn is_transform_source(file: &Value, paths: &BTreeSet<&str>) -> bool {
+    file["emit_eligible"] == true
+        && file["path"]
+            .as_str()
+            .is_some_and(|path| paths.contains(path))
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+struct ExpectedTypedActivity {
+    routed_sources: u64,
+    transformed_sources: u64,
+    preserve_sources: u64,
+    node_format_sources: u64,
+    javascript_sources: u64,
+    jsx_sources: u64,
+    automatic_jsx_sources: u64,
+    json_sources: u64,
+    decorator_sources: u64,
+    h2_4a_sources: u64,
+    h2_4b_sources: u64,
+    h2_1a_sources: u64,
+    h2_1b_sources: u64,
+    h2_1c_sources: u64,
+    h2_1d_sources: u64,
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+struct TypedSourceFacts {
+    has_decorator: bool,
+    has_import_attributes: bool,
+}
+
+/// Project activity from the same durable program facts consumed by the
+/// emitter. This deliberately does not use the qualification feature
+/// inventory: recovery nodes and per-file pragmas are typed syntax facts, and
+/// the global module transformer is selected before any per-file format is
+/// consulted.
+fn expected_typed_activity(
+    program: &PreparedProgram,
+    transform_source_paths: &BTreeSet<&str>,
+) -> ExpectedTypedActivity {
+    let options = program.compiler_options();
+    let module_kind = ModuleKind::from_bits(options.emit_module_kind());
+    let all_sources_own_node_format = matches!(
+        module_kind,
+        ModuleKind::NODE16 | ModuleKind::NODE18 | ModuleKind::NODE20 | ModuleKind::NODE_NEXT
+    ) || options.rewrite_relative_import_extensions == Some(true);
+    let mut activity = ExpectedTypedActivity::default();
+
+    for source in program
+        .source_files()
+        .iter()
+        .filter(|source| source.may_be_emitted())
+    {
+        let display_path = source.path().display().to_string_lossy();
+        let path = display_path.as_ref();
+        let lower_path = path.to_ascii_lowercase();
+        if is_declaration_file_path(&lower_path) {
+            continue;
+        }
+        let is_javascript = [".js", ".mjs", ".cjs", ".jsx"]
+            .iter()
+            .any(|extension| lower_path.ends_with(extension));
+        let is_jsx = lower_path.ends_with(".tsx") || lower_path.ends_with(".jsx");
+        let is_json = lower_path.ends_with(".json");
+        if is_json && options.out_dir.is_none() && options.out_file.is_none() {
+            continue;
+        }
+        activity.routed_sources += 1;
+        activity.javascript_sources += u64::from(is_javascript);
+        activity.jsx_sources += u64::from(is_jsx);
+        activity.json_sources += u64::from(is_json);
+        let is_transform_source = transform_source_paths.contains(path);
+        let syntax = (is_jsx || (is_transform_source && !is_json))
+            .then(|| parse_prepared_source(options, source, path, &lower_path));
+
+        if is_jsx
+            && syntax.as_ref().is_some_and(|syntax| {
+                syntax.jsx_runtime_pragma.as_deref() != Some("classic")
+                    && (matches!(options.jsx, Some(4 | 5))
+                        || options.jsx_import_source.is_some()
+                        || syntax.has_jsx_import_source_pragma
+                        || syntax.jsx_runtime_pragma.as_deref() == Some("automatic"))
+            })
+        {
+            activity.automatic_jsx_sources += 1;
+        }
+
+        if !is_transform_source {
+            continue;
+        }
+        activity.transformed_sources += 1;
+        let facts = syntax.as_ref().map(typed_source_facts).unwrap_or_default();
+        activity.decorator_sources += u64::from(facts.has_decorator);
+        if options.experimental_decorators && facts.has_decorator {
+            activity.h2_4a_sources += 1;
+        }
+        if !options.use_define_for_class_fields_effective()
+            || (!options.experimental_decorators && facts.has_decorator)
+        {
+            activity.h2_4b_sources += 1;
+        }
+        if all_sources_own_node_format
+            || lower_path.ends_with(".mts")
+            || lower_path.ends_with(".cts")
+            || facts.has_import_attributes
+        {
+            activity.node_format_sources += 1;
+        }
+
+        if module_kind == ModuleKind::PRESERVE {
+            activity.preserve_sources += 1;
+        } else if module_kind == ModuleKind::SYSTEM {
+            activity.h2_1d_sources += 1;
+        } else {
+            activity.h2_1a_sources += 1;
+            let emit_format = match source.implied_node_format_for_emit() {
+                Some(ResolutionMode::CommonJs) => ModuleKind::COMMON_JS,
+                Some(ResolutionMode::EsNext) => ModuleKind::ES_NEXT,
+                Some(ResolutionMode::Unspecified) | None => module_kind,
+            };
+            if emit_format.bits() < ModuleKind::ES2015.bits() {
+                activity.h2_1b_sources += 1;
+            }
+            if matches!(emit_format, ModuleKind::AMD | ModuleKind::UMD) {
+                activity.h2_1c_sources += 1;
+            }
+        }
+    }
+
+    activity
+}
+
+fn parse_prepared_source(
+    options: &CompilerOptions,
+    source: &PreparedSourceFile,
+    path: &str,
+    lower_path: &str,
+) -> SourceFile {
+    let javascript_file = [".js", ".jsx", ".mjs", ".cjs"]
+        .iter()
+        .any(|extension| lower_path.ends_with(extension));
+    let language_variant = if lower_path.ends_with(".tsx") || javascript_file {
+        LanguageVariant::Jsx
+    } else {
+        LanguageVariant::Standard
+    };
+    let is_declaration_file = is_declaration_file_path(lower_path);
+    let module_detection = options.emit_module_detection_kind();
+    let force_external_module = !is_declaration_file
+        && match module_detection {
+            3 => true,
+            2 => {
+                [".cjs", ".cts", ".mjs", ".mts"]
+                    .iter()
+                    .any(|extension| lower_path.ends_with(extension))
+                    || source.implied_node_format() == Some(ResolutionMode::EsNext)
+            }
+            _ => false,
+        };
+    let detect_external_module_from_jsx =
+        !is_declaration_file && module_detection == 2 && matches!(options.jsx, Some(4 | 5));
+    parse_source_file_from_snapshot(
+        path.to_owned(),
+        Arc::clone(source.snapshot()),
+        ParseOptions {
+            script_target: options.emit_script_target(),
+            language_variant,
+            javascript_file,
+            force_external_module,
+            detect_external_module_from_jsx,
+            ..ParseOptions::default()
+        },
+        None,
+    )
+}
+
+fn is_declaration_file_path(lower_path: &str) -> bool {
+    lower_path.ends_with(".d.ts")
+        || lower_path.ends_with(".d.cts")
+        || lower_path.ends_with(".d.mts")
+        || lower_path
+            .rsplit(['/', '\\'])
+            .next()
+            .is_some_and(|name| name.ends_with(".ts") && name.contains(".d."))
+}
+
+fn typed_source_facts(source: &SourceFile) -> TypedSourceFacts {
+    let mut facts = TypedSourceFacts::default();
+    let mut stack = vec![source.root];
+    while let Some(id) = stack.pop() {
+        let record = source.arena.node(id);
+        facts.has_decorator |= record.kind == SyntaxKind::Decorator;
+        facts.has_import_attributes |= matches!(
+            &record.data,
+            NodeData::ImportDeclaration(data) if data.attributes.is_some()
+        ) || matches!(
+            &record.data,
+            NodeData::ExportDeclaration(data) if data.attributes.is_some()
+        ) || matches!(
+            &record.data,
+            NodeData::CallExpression(data)
+                if data.expression.is_some_and(|expression| {
+                    source.arena.node(expression).kind == SyntaxKind::ImportKeyword
+                }) && data.arguments.is_some_and(|arguments| {
+                    source.arena.node_array(arguments).nodes.len() > 1
+                })
+        );
+        if facts.has_decorator && facts.has_import_attributes {
+            break;
+        }
+        for_each_child(&source.arena, record, |child| {
+            stack.push(child);
+            false
+        });
+    }
+    facts
+}
+
 fn exact_write_difference(expected: &[u8], actual: &[u8]) -> String {
     let index = expected
         .iter()
@@ -283,7 +672,26 @@ fn assert_reported_diagnostics(
                 serde_json::to_string_pretty(&actual)?,
             )
         } else {
-            String::new()
+            let index = expected
+                .iter()
+                .zip(actual.iter())
+                .position(|(expected, actual)| expected != actual)
+                .unwrap_or_else(|| expected.len().min(actual.len()));
+            format!(
+                " first_difference={index} expected_row={} actual_row={}",
+                expected
+                    .get(index)
+                    .map(serde_json::to_string)
+                    .transpose()?
+                    .as_deref()
+                    .unwrap_or("<missing>"),
+                actual
+                    .get(index)
+                    .map(serde_json::to_string)
+                    .transpose()?
+                    .as_deref()
+                    .unwrap_or("<missing>"),
+            )
         };
         return Err(failure(format!(
             "{case_id}: reported diagnostics differ: expected_count={} actual_count={} expected_sha256={expected_sha256} actual_sha256={actual_sha256}{detail}",
@@ -294,18 +702,63 @@ fn assert_reported_diagnostics(
     Ok(())
 }
 
+fn compact_typescript_observation<'a>(case: &'a Value) -> Result<&'a Value, Box<dyn Error>> {
+    let case_id = string(case, "case_id")?;
+    let fingerprints = array(case, "typescript_run_fingerprints")?;
+    let observation = &case["typescript_observation"];
+    let fingerprint = string(observation, "run_fingerprint_sha256")?;
+    if fingerprints.len() != 2
+        || fingerprints
+            .iter()
+            .any(|entry| entry.as_str() != Some(fingerprint))
+    {
+        return Err(failure(format!(
+            "{case_id}: compact TypeScript repetition proof differs"
+        )));
+    }
+    Ok(observation)
+}
+
 fn execute_slice_observed(
     workspace: &Path,
     case: &Value,
     accepted_slice: AcceptanceSlice,
 ) -> Result<(usize, usize), Box<dyn Error>> {
+    execute_slice_observed_with_inputs(workspace, case, accepted_slice, None)
+}
+
+fn execute_slice_observed_with_inputs(
+    workspace: &Path,
+    case: &Value,
+    accepted_slice: AcceptanceSlice,
+    h2_5g_inputs: Option<&H2_5gExecutionInputs>,
+) -> Result<(usize, usize), Box<dyn Error>> {
     let case_id = string(case, "case_id")?;
+    let prepare = || match h2_5g_inputs {
+        Some(inputs) => inputs.prepare(workspace, case),
+        None => case_input(workspace, case),
+    };
+    let expected = if matches!(accepted_slice, AcceptanceSlice::H2_5g) {
+        compact_typescript_observation(case)?
+    } else {
+        &array(case, "typescript_runs")?[0]
+    };
+    let transform_source_paths = transform_source_paths(expected)?;
+    let first_program = prepare()?;
+    let typed_activity = if matches!(accepted_slice, AcceptanceSlice::H2_5g) {
+        Some(expected_typed_activity(
+            &first_program,
+            &transform_source_paths,
+        ))
+    } else {
+        None
+    };
     let mut first_sink = MemoryOutputSink::new();
-    let (first, first_reported) = ProgramSession::new(case_input(workspace, case)?)
+    let (first, first_reported) = ProgramSession::new(first_program)
         .emit_with_reported_diagnostics_for_harness(&mut first_sink)
         .map_err(|error| failure(format!("{case_id}: first Rust emit failed: {error}")))?;
     let mut second_sink = MemoryOutputSink::new();
-    let (second, second_reported) = ProgramSession::new(case_input(workspace, case)?)
+    let (second, second_reported) = ProgramSession::new(prepare()?)
         .emit_with_reported_diagnostics_for_harness(&mut second_sink)
         .map_err(|error| failure(format!("{case_id}: second Rust emit failed: {error}")))?;
     if first != second || first_sink != second_sink || first_reported != second_reported {
@@ -313,7 +766,6 @@ fn execute_slice_observed(
             "{case_id}: repeated Rust emit is not deterministic"
         )));
     }
-    let expected = &array(case, "typescript_runs")?[0];
     let expected_reported = array(expected, "reported_diagnostics")?;
     if case["diagnostic_disposition"]["state"] != "exact-required" {
         return Err(failure(format!(
@@ -347,22 +799,35 @@ fn execute_slice_observed(
     }
     assert_exact_writes(case_id, array(expected, "writes")?, &first_sink)?;
     let activity = first.h2_activity();
-    let reached_sources = case["files"]
-        .as_array()
-        .map(|files| {
-            files
-                .iter()
-                .filter(|file| file["emit_eligible"] == true)
-                .count() as u64
-        })
-        .unwrap_or(0);
+    let files = array(case, "files")?;
+    let inventory_routed_sources = files
+        .iter()
+        .filter(|file| file["emit_eligible"] == true)
+        .count() as u64;
+    let routed_sources = typed_activity
+        .map(|activity| activity.routed_sources)
+        .unwrap_or(inventory_routed_sources);
+    for path in &transform_source_paths {
+        if !files
+            .iter()
+            .any(|file| file["emit_eligible"] == true && file["path"].as_str() == Some(path))
+        {
+            return Err(failure(format!(
+                "{case_id}: write provenance names non-emittable source {path}"
+            )));
+        }
+    }
+    let transformed_sources = files
+        .iter()
+        .filter(|file| is_transform_source(file, &transform_source_paths))
+        .count() as u64;
     let enum_sources = case["files"]
         .as_array()
         .map(|files| {
             files
                 .iter()
                 .filter(|file| {
-                    file["emit_eligible"] == true
+                    is_transform_source(file, &transform_source_paths)
                         && file["feature_roots"].as_array().is_some_and(|roots| {
                             roots.iter().any(|root| root["feature"] == "runtime-enums")
                         })
@@ -376,7 +841,7 @@ fn execute_slice_observed(
             files
                 .iter()
                 .filter(|file| {
-                    file["emit_eligible"] == true
+                    is_transform_source(file, &transform_source_paths)
                         && file["feature_roots"].as_array().is_some_and(|roots| {
                             roots
                                 .iter()
@@ -392,7 +857,7 @@ fn execute_slice_observed(
             files
                 .iter()
                 .filter(|file| {
-                    file["emit_eligible"] == true
+                    is_transform_source(file, &transform_source_paths)
                         && file["feature_roots"].as_array().is_some_and(|roots| {
                             roots
                                 .iter()
@@ -408,7 +873,7 @@ fn execute_slice_observed(
             files
                 .iter()
                 .filter(|file| {
-                    file["emit_eligible"] == true
+                    is_transform_source(file, &transform_source_paths)
                         && file["feature_roots"].as_array().is_some_and(|roots| {
                             roots.iter().any(|root| {
                                 matches!(
@@ -421,13 +886,13 @@ fn execute_slice_observed(
                 .count() as u64
         })
         .unwrap_or(0);
-    let decorator_sources = case["files"]
+    let inventory_decorator_sources = case["files"]
         .as_array()
         .map(|files| {
             files
                 .iter()
                 .filter(|file| {
-                    file["emit_eligible"] == true
+                    is_transform_source(file, &transform_source_paths)
                         && file["feature_roots"].as_array().is_some_and(|roots| {
                             roots.iter().any(|root| root["feature"] == "decorators")
                         })
@@ -435,6 +900,9 @@ fn execute_slice_observed(
                 .count() as u64
         })
         .unwrap_or(0);
+    let decorator_sources = typed_activity
+        .map(|activity| activity.decorator_sources)
+        .unwrap_or(inventory_decorator_sources);
     let legacy_decorator_sources = if array(&case["input"], "settings")?.iter().any(|setting| {
         setting["name"]
             .as_str()
@@ -459,9 +927,17 @@ fn execute_slice_observed(
         .map(|value| value.eq_ignore_ascii_case("false"))
         .unwrap_or(matches!(
             case["target_state"].as_str(),
-            Some("ES2016(3)" | "ES2017(4)" | "ES2018(5)" | "ES2019(6)" | "ES2020(7)" | "ES2021(8)")
+            Some(
+                "ES2015(2)"
+                    | "ES2016(3)"
+                    | "ES2017(4)"
+                    | "ES2018(5)"
+                    | "ES2019(6)"
+                    | "ES2020(7)"
+                    | "ES2021(8)"
+            )
         ));
-    let javascript_sources = case["files"]
+    let inventory_javascript_sources = case["files"]
         .as_array()
         .map(|files| {
             files
@@ -473,7 +949,10 @@ fn execute_slice_observed(
                 .count() as u64
         })
         .unwrap_or(0);
-    let jsx_sources = case["files"]
+    let javascript_sources = typed_activity
+        .map(|activity| activity.javascript_sources)
+        .unwrap_or(inventory_javascript_sources);
+    let inventory_jsx_sources = case["files"]
         .as_array()
         .map(|files| {
             files
@@ -485,22 +964,29 @@ fn execute_slice_observed(
                 .count() as u64
         })
         .unwrap_or(0);
-    let automatic_jsx_sources = if array(&case["input"], "settings")?.iter().any(|setting| {
-        setting["name"]
-            .as_str()
-            .is_some_and(|name| name.eq_ignore_ascii_case("jsx"))
-            && setting["value"].as_str().is_some_and(|value| {
-                matches!(
-                    value.to_ascii_lowercase().as_str(),
-                    "react-jsx" | "react-jsxdev"
-                )
-            })
-    }) {
-        jsx_sources
-    } else {
-        0
-    };
-    let json_sources = case["files"]
+    let jsx_sources = typed_activity
+        .map(|activity| activity.jsx_sources)
+        .unwrap_or(inventory_jsx_sources);
+    let configured_automatic_jsx_sources =
+        if array(&case["input"], "settings")?.iter().any(|setting| {
+            setting["name"]
+                .as_str()
+                .is_some_and(|name| name.eq_ignore_ascii_case("jsx"))
+                && setting["value"].as_str().is_some_and(|value| {
+                    matches!(
+                        value.to_ascii_lowercase().as_str(),
+                        "react-jsx" | "react-jsxdev"
+                    )
+                })
+        }) {
+            jsx_sources
+        } else {
+            0
+        };
+    let automatic_jsx_sources = typed_activity
+        .map(|activity| activity.automatic_jsx_sources)
+        .unwrap_or(configured_automatic_jsx_sources);
+    let inventory_json_sources = case["files"]
         .as_array()
         .map(|files| {
             files
@@ -509,14 +995,17 @@ fn execute_slice_observed(
                 .count() as u64
         })
         .unwrap_or(0);
+    let json_sources = typed_activity
+        .map(|activity| activity.json_sources)
+        .unwrap_or(inventory_json_sources);
     let transform_module_sources = case["files"]
         .as_array()
         .map(|files| {
             files
                 .iter()
                 .filter(|file| {
-                    file["emit_eligible"] == true
-                        && matches!(file["emit_module_format"].as_i64(), Some(1..=3))
+                    is_transform_source(file, &transform_source_paths)
+                        && matches!(file["emit_module_format"].as_i64(), Some(0..=3))
                 })
                 .count() as u64
         })
@@ -526,7 +1015,10 @@ fn execute_slice_observed(
         .map(|files| {
             files
                 .iter()
-                .filter(|file| file["emit_eligible"] == true && file["emit_module_format"] == 4)
+                .filter(|file| {
+                    is_transform_source(file, &transform_source_paths)
+                        && file["emit_module_format"] == 4
+                })
                 .count() as u64
         })
         .unwrap_or(0);
@@ -535,7 +1027,10 @@ fn execute_slice_observed(
         .map(|files| {
             files
                 .iter()
-                .filter(|file| file["emit_eligible"] == true && file["emit_module_format"] == 200)
+                .filter(|file| {
+                    is_transform_source(file, &transform_source_paths)
+                        && file["emit_module_format"] == 200
+                })
                 .count() as u64
         })
         .unwrap_or(0);
@@ -545,18 +1040,98 @@ fn execute_slice_observed(
             files
                 .iter()
                 .filter(|file| {
-                    file["emit_eligible"] == true
+                    is_transform_source(file, &transform_source_paths)
                         && matches!(file["emit_module_format"].as_i64(), Some(2 | 3))
                 })
                 .count() as u64
         })
         .unwrap_or(0);
-    let node_format_sources = expected_node_format_sources(case)?;
-    if activity.runtime_slice(H2RuntimeSlice::H2_1a)
-        != reached_sources - system_sources - preserve_sources
-        || activity.runtime_slice(H2RuntimeSlice::H2_1b) != transform_module_sources
-        || activity.runtime_slice(H2RuntimeSlice::H2_1c) != amd_umd_sources
-        || activity.runtime_slice(H2RuntimeSlice::H2_1d) != system_sources
+    let configured_node_format_sources =
+        expected_node_format_sources(case, &transform_source_paths)?;
+    let node_format_sources = typed_activity
+        .map(|activity| activity.node_format_sources)
+        .unwrap_or(configured_node_format_sources);
+    let (
+        expected_h2_1a_sources,
+        expected_h2_1b_sources,
+        expected_h2_1c_sources,
+        expected_h2_1d_sources,
+        preserve_sources,
+    ) = typed_activity.map_or_else(
+        || {
+            (
+                transformed_sources - system_sources - preserve_sources,
+                transform_module_sources,
+                amd_umd_sources,
+                system_sources,
+                preserve_sources,
+            )
+        },
+        |activity| {
+            (
+                activity.h2_1a_sources,
+                activity.h2_1b_sources,
+                activity.h2_1c_sources,
+                activity.h2_1d_sources,
+                activity.preserve_sources,
+            )
+        },
+    );
+    if let Some(activity) = typed_activity {
+        if activity.transformed_sources != transformed_sources {
+            return Err(failure(format!(
+                "{case_id}: prepared-program transform source count differs: expected={transformed_sources} actual={}",
+                activity.transformed_sources,
+            )));
+        }
+    }
+    let expected_h2_4a_sources = if matches!(
+        accepted_slice,
+        AcceptanceSlice::H2_4a
+            | AcceptanceSlice::H2_4b
+            | AcceptanceSlice::H2_5a
+            | AcceptanceSlice::H2_5b
+            | AcceptanceSlice::H2_5c
+            | AcceptanceSlice::H2_5d
+            | AcceptanceSlice::H2_5e
+            | AcceptanceSlice::H2_5f
+            | AcceptanceSlice::H2_5g
+    ) {
+        typed_activity
+            .map(|activity| activity.h2_4a_sources)
+            .unwrap_or(legacy_decorator_sources)
+    } else {
+        0
+    };
+    let expected_h2_4b_sources = match accepted_slice {
+        AcceptanceSlice::H2_4b => transformed_sources,
+        AcceptanceSlice::H2_5a if assignment_field_mode => transformed_sources,
+        AcceptanceSlice::H2_5a => standard_decorator_sources,
+        AcceptanceSlice::H2_5b if assignment_field_mode => transformed_sources,
+        AcceptanceSlice::H2_5b => standard_decorator_sources,
+        AcceptanceSlice::H2_5c if assignment_field_mode => transformed_sources,
+        AcceptanceSlice::H2_5c => standard_decorator_sources,
+        AcceptanceSlice::H2_5d if assignment_field_mode => transformed_sources,
+        AcceptanceSlice::H2_5d => standard_decorator_sources,
+        AcceptanceSlice::H2_5e if assignment_field_mode => transformed_sources,
+        AcceptanceSlice::H2_5e => standard_decorator_sources,
+        AcceptanceSlice::H2_5f if assignment_field_mode => transformed_sources,
+        AcceptanceSlice::H2_5f => standard_decorator_sources,
+        AcceptanceSlice::H2_5g => typed_activity
+            .map(|activity| activity.h2_4b_sources)
+            .unwrap_or_else(|| {
+                if assignment_field_mode {
+                    transformed_sources
+                } else {
+                    standard_decorator_sources
+                }
+            }),
+        AcceptanceSlice::H2_2c | AcceptanceSlice::H2_4a => 0,
+    };
+    if activity.runtime_slice(H2RuntimeSlice::H2_1a) != expected_h2_1a_sources
+        || activity.runtime_slice(H2RuntimeSlice::H2_1b) != expected_h2_1b_sources
+        || activity.runtime_slice(H2RuntimeSlice::H2_1c) != expected_h2_1c_sources
+        || activity.runtime_slice(H2RuntimeSlice::H2_1d) != expected_h2_1d_sources
         || activity.runtime_slice(H2RuntimeSlice::H2_1e) != node_format_sources
         || activity.runtime_slice(H2RuntimeSlice::H2_2a) != enum_sources
         || activity.runtime_slice(H2RuntimeSlice::H2_2b) != namespace_sources
@@ -566,39 +1141,8 @@ fn execute_slice_observed(
         || activity.runtime_slice(H2RuntimeSlice::H2_3b) != jsx_sources
         || activity.runtime_slice(H2RuntimeSlice::H2_3c) != automatic_jsx_sources
         || activity.runtime_slice(H2RuntimeSlice::H2_3d) != json_sources
-        || activity.runtime_slice(H2RuntimeSlice::H2_4a)
-            != if matches!(
-                accepted_slice,
-                AcceptanceSlice::H2_4a
-                    | AcceptanceSlice::H2_4b
-                    | AcceptanceSlice::H2_5a
-                    | AcceptanceSlice::H2_5b
-                    | AcceptanceSlice::H2_5c
-                    | AcceptanceSlice::H2_5d
-                    | AcceptanceSlice::H2_5e
-                    | AcceptanceSlice::H2_5f
-            ) {
-                legacy_decorator_sources
-            } else {
-                0
-            }
-        || activity.runtime_slice(H2RuntimeSlice::H2_4b)
-            != match accepted_slice {
-                AcceptanceSlice::H2_4b => reached_sources,
-                AcceptanceSlice::H2_5a if assignment_field_mode => reached_sources,
-                AcceptanceSlice::H2_5a => standard_decorator_sources,
-                AcceptanceSlice::H2_5b if assignment_field_mode => reached_sources,
-                AcceptanceSlice::H2_5b => standard_decorator_sources,
-                AcceptanceSlice::H2_5c if assignment_field_mode => reached_sources,
-                AcceptanceSlice::H2_5c => standard_decorator_sources,
-                AcceptanceSlice::H2_5d if assignment_field_mode => reached_sources,
-                AcceptanceSlice::H2_5d => standard_decorator_sources,
-                AcceptanceSlice::H2_5e if assignment_field_mode => reached_sources,
-                AcceptanceSlice::H2_5e => standard_decorator_sources,
-                AcceptanceSlice::H2_5f if assignment_field_mode => reached_sources,
-                AcceptanceSlice::H2_5f => standard_decorator_sources,
-                AcceptanceSlice::H2_2c | AcceptanceSlice::H2_4a => 0,
-            }
+        || activity.runtime_slice(H2RuntimeSlice::H2_4a) != expected_h2_4a_sources
+        || activity.runtime_slice(H2RuntimeSlice::H2_4b) != expected_h2_4b_sources
         || activity.runtime_slice(H2RuntimeSlice::H2_5a)
             != if matches!(
                 accepted_slice,
@@ -608,8 +1152,9 @@ fn execute_slice_observed(
                     | AcceptanceSlice::H2_5d
                     | AcceptanceSlice::H2_5e
                     | AcceptanceSlice::H2_5f
+                    | AcceptanceSlice::H2_5g
             ) {
-                reached_sources
+                transformed_sources
             } else {
                 0
             }
@@ -621,8 +1166,9 @@ fn execute_slice_observed(
                     | AcceptanceSlice::H2_5d
                     | AcceptanceSlice::H2_5e
                     | AcceptanceSlice::H2_5f
+                    | AcceptanceSlice::H2_5g
             ) {
-                reached_sources
+                transformed_sources
             } else {
                 0
             }
@@ -633,38 +1179,51 @@ fn execute_slice_observed(
                     | AcceptanceSlice::H2_5d
                     | AcceptanceSlice::H2_5e
                     | AcceptanceSlice::H2_5f
+                    | AcceptanceSlice::H2_5g
             ) {
-                reached_sources
+                transformed_sources
             } else {
                 0
             }
         || activity.runtime_slice(H2RuntimeSlice::H2_5d)
             != if matches!(
                 accepted_slice,
-                AcceptanceSlice::H2_5d | AcceptanceSlice::H2_5e | AcceptanceSlice::H2_5f
+                AcceptanceSlice::H2_5d
+                    | AcceptanceSlice::H2_5e
+                    | AcceptanceSlice::H2_5f
+                    | AcceptanceSlice::H2_5g
             ) {
-                reached_sources
+                transformed_sources
             } else {
                 0
             }
         || activity.runtime_slice(H2RuntimeSlice::H2_5e)
             != if matches!(
                 accepted_slice,
-                AcceptanceSlice::H2_5e | AcceptanceSlice::H2_5f
+                AcceptanceSlice::H2_5e | AcceptanceSlice::H2_5f | AcceptanceSlice::H2_5g
             ) {
-                reached_sources
+                transformed_sources
             } else {
                 0
             }
         || activity.runtime_slice(H2RuntimeSlice::H2_5f)
-            != if matches!(accepted_slice, AcceptanceSlice::H2_5f) {
-                reached_sources
+            != if matches!(
+                accepted_slice,
+                AcceptanceSlice::H2_5f | AcceptanceSlice::H2_5g
+            ) {
+                transformed_sources
+            } else {
+                0
+            }
+        || activity.runtime_slice(H2RuntimeSlice::H2_5g)
+            != if matches!(accepted_slice, AcceptanceSlice::H2_5g) {
+                transformed_sources
             } else {
                 0
             }
     {
         return Err(failure(format!(
-            "{case_id}: {} activity does not match {reached_sources} reached, {preserve_sources} preserve, {node_format_sources} node-format, {enum_sources} enum, {namespace_sources} namespace, {parameter_property_sources} parameter-property, {import_export_equals_sources} import/export-equals, {javascript_sources} JavaScript, {jsx_sources} JSX, {automatic_jsx_sources} automatic-JSX, {json_sources} JSON, and {decorator_sources} decorator sources: actual H2.1a={} H2.1b={} H2.1c={} H2.1d={} H2.1e={} H2.2a={} H2.2b={} H2.2c={} H2.2d={} H2.3a={} H2.3b={} H2.3c={} H2.3d={} H2.4a={} H2.4b={} H2.5a={} H2.5b={} H2.5c={} H2.5d={} H2.5e={} H2.5f={}",
+            "{case_id}: {} activity does not match {routed_sources} routed, {transformed_sources} transformed, {preserve_sources} preserve, {node_format_sources} node-format, {enum_sources} enum, {namespace_sources} namespace, {parameter_property_sources} parameter-property, {import_export_equals_sources} import/export-equals, {javascript_sources} JavaScript, {jsx_sources} JSX, {automatic_jsx_sources} automatic-JSX, {json_sources} JSON, and {decorator_sources} decorator sources: actual H2.1a={} H2.1b={} H2.1c={} H2.1d={} H2.1e={} H2.2a={} H2.2b={} H2.2c={} H2.2d={} H2.3a={} H2.3b={} H2.3c={} H2.3d={} H2.4a={} H2.4b={} H2.5a={} H2.5b={} H2.5c={} H2.5d={} H2.5e={} H2.5f={} H2.5g={}",
             accepted_slice.label(),
             activity.runtime_slice(H2RuntimeSlice::H2_1a),
             activity.runtime_slice(H2RuntimeSlice::H2_1b),
@@ -687,6 +1246,7 @@ fn execute_slice_observed(
             activity.runtime_slice(H2RuntimeSlice::H2_5d),
             activity.runtime_slice(H2RuntimeSlice::H2_5e),
             activity.runtime_slice(H2RuntimeSlice::H2_5f),
+            activity.runtime_slice(H2RuntimeSlice::H2_5g),
         )));
     }
     for slice in H2RuntimeSlice::ALL {
@@ -713,6 +1273,7 @@ fn execute_slice_observed(
                 | H2RuntimeSlice::H2_5d
                 | H2RuntimeSlice::H2_5e
                 | H2RuntimeSlice::H2_5f
+                | H2RuntimeSlice::H2_5g
         ) && activity.runtime_slice(slice) != 0
         {
             return Err(failure(format!(
@@ -784,12 +1345,27 @@ fn execute_h2_5f_observed(
     execute_slice_observed(workspace, case, AcceptanceSlice::H2_5f)
 }
 
-fn expected_node_format_sources(case: &Value) -> Result<u64, Box<dyn Error>> {
+fn execute_h2_5g_observed(
+    workspace: &Path,
+    case: &Value,
+    inputs: &H2_5gExecutionInputs,
+) -> Result<(usize, usize), Box<dyn Error>> {
+    execute_slice_observed_with_inputs(workspace, case, AcceptanceSlice::H2_5g, Some(inputs))
+}
+
+fn expected_node_format_sources(
+    case: &Value,
+    transform_source_paths: &BTreeSet<&str>,
+) -> Result<u64, Box<dyn Error>> {
     let settings = array(&case["input"], "settings")?;
     let all_sources = settings.iter().any(|setting| {
         let name = setting["name"].as_str().unwrap_or_default();
         let value = &setting["value"];
-        name == "rewriteRelativeImportExtensions" && value == true
+        name == "rewriteRelativeImportExtensions"
+            && (value == true
+                || value
+                    .as_str()
+                    .is_some_and(|value| value.eq_ignore_ascii_case("true")))
             || name == "module"
                 && value.as_str().is_some_and(|value| {
                     matches!(
@@ -798,35 +1374,16 @@ fn expected_node_format_sources(case: &Value) -> Result<u64, Box<dyn Error>> {
                     )
                 })
     });
-    let inputs = array(&case["input"], "files")?;
     let mut count = 0_u64;
     for file in array(case, "files")?
         .iter()
-        .filter(|file| file["emit_eligible"] == true)
+        .filter(|file| is_transform_source(file, transform_source_paths))
     {
         let path = string(file, "path")?;
         let owns_format = all_sources
             || path.to_ascii_lowercase().ends_with(".mts")
             || path.to_ascii_lowercase().ends_with(".cts")
-            || inputs
-                .iter()
-                .find(|input| input["path"].as_str() == Some(path))
-                .map(|input| {
-                    let bytes = base64::engine::general_purpose::STANDARD
-                        .decode(string(input, "utf8_base64")?)?;
-                    let text = String::from_utf8(bytes)?;
-                    Ok::<_, Box<dyn Error>>(
-                        text.contains(" with {")
-                            || text.contains(" assert {")
-                            || text.match_indices("import(").any(|(start, _)| {
-                                text[start + "import(".len()..]
-                                    .split_once(')')
-                                    .is_some_and(|(arguments, _)| arguments.contains(','))
-                            }),
-                    )
-                })
-                .transpose()?
-                .unwrap_or(false);
+            || file["import_attributes"] == true;
         if owns_format {
             count += 1;
         }
@@ -1437,6 +1994,159 @@ pub fn run_h2_5f(workspace: &Path) -> Result<(), Box<dyn Error>> {
     println!(
         "H2.5f emit acceptance: candidates=8 exact={} exact_diagnostics={diagnostics} exact_writes={writes} repetitions=2",
         cases.len(),
+    );
+    Ok(())
+}
+
+/// Execute every H2.5g ES2015 target row whose reached-source owners close
+/// through transformES2016 twice. Later comment/recovery owners remain typed
+/// pre-sink deferrals.
+pub fn run_h2_5g_probe(workspace: &Path, indices: &[usize]) -> Result<(), Box<dyn Error>> {
+    let artifact: Value = serde_json::from_slice(&fs::read(
+        workspace.join(H2_5G_QUALIFICATION_RELATIVE_PATH),
+    )?)?;
+    let cases = validate_h2_5g_qualification(&artifact)?;
+    let mut unique = BTreeSet::new();
+    if indices.iter().any(|index| !unique.insert(*index)) {
+        return Err(failure("H2.5g probe indices must be unique"));
+    }
+    let inputs = H2_5gExecutionInputs::load(workspace)?;
+    for index in indices {
+        let case = cases
+            .get(*index)
+            .ok_or_else(|| failure(format!("H2.5g probe index {index} is out of range")))?;
+        let case_id = string(case, "case_id")?;
+        compact_typescript_observation(case)?;
+        if classify_h2_5g_case(case)? != H2_5gCaseDisposition::Admitted {
+            return Err(failure(format!(
+                "H2.5g probe index {index} ({case_id}) is not admitted for execution"
+            )));
+        }
+        let (writes, diagnostics) = execute_h2_5g_observed(workspace, case, &inputs)?;
+        println!(
+            "H2.5g probe exact index={index} case={case_id} writes={writes} diagnostics={diagnostics} repetitions=2"
+        );
+    }
+    Ok(())
+}
+
+/// Execute a half-open H2.5g qualification range and emit one JSON line for
+/// each exact-oracle mismatch. Unlike acceptance this diagnostic traversal is
+/// intentionally exhaustive: a failing row does not hide independent later
+/// owners. The qualification and recorded execution plans are loaded once per
+/// range so callers can split the corpus without paying per-case setup costs.
+pub fn run_h2_5g_inventory(
+    workspace: &Path,
+    start: usize,
+    end: usize,
+) -> Result<(), Box<dyn Error>> {
+    let artifact: Value = serde_json::from_slice(&fs::read(
+        workspace.join(H2_5G_QUALIFICATION_RELATIVE_PATH),
+    )?)?;
+    let cases = validate_h2_5g_qualification(&artifact)?;
+    if start >= end || end > cases.len() {
+        return Err(failure(format!(
+            "H2.5g inventory range must satisfy 0 <= start < end <= {} (got {start}..{end})",
+            cases.len(),
+        )));
+    }
+    let inputs = H2_5gExecutionInputs::load(workspace)?;
+    let mut failing_cases = 0usize;
+    let mut admitted = 0usize;
+    let mut h2_8a_deferred = 0usize;
+    let mut h2_9_deferred = 0usize;
+    for (index, case) in cases.iter().enumerate().take(end).skip(start) {
+        let case_id = string(case, "case_id")?.to_owned();
+        let result = (|| -> Result<(), Box<dyn Error>> {
+            compact_typescript_observation(case)?;
+            match classify_h2_5g_case(case)? {
+                H2_5gCaseDisposition::Admitted => {
+                    admitted += 1;
+                    execute_h2_5g_observed(workspace, case, &inputs)?;
+                }
+                H2_5gCaseDisposition::Deferred(H2_5gDeferredOwner::H2_8a) => {
+                    h2_8a_deferred += 1;
+                }
+                H2_5gCaseDisposition::Deferred(H2_5gDeferredOwner::H2_9) => {
+                    h2_9_deferred += 1;
+                }
+            }
+            Ok(())
+        })();
+        if let Err(error) = result {
+            failing_cases += 1;
+            println!(
+                "{}",
+                json!({
+                    "index": index,
+                    "case_id": case_id,
+                    "error": error.to_string(),
+                })
+            );
+        }
+        let processed = index - start + 1;
+        if processed % 256 == 0 && index + 1 != end {
+            eprintln!(
+                "H2.5g inventory progress: range={start}..{end} processed={processed}/{} failing_cases={failing_cases}",
+                end - start,
+            );
+        }
+    }
+    let classified_cases = admitted + h2_8a_deferred + h2_9_deferred;
+    if classified_cases != end - start {
+        return Err(failure(format!(
+            "H2.5g inventory range classification differs: range={} classified={classified_cases} admitted={admitted} h2_8a_deferred={h2_8a_deferred} h2_9_deferred={h2_9_deferred} failing_cases={failing_cases}",
+            end - start,
+        )));
+    }
+    eprintln!(
+        "H2.5g inventory complete: range={start}..{end} cases={} admitted={admitted} h2_8a_deferred={h2_8a_deferred} h2_9_deferred={h2_9_deferred} failing_cases={failing_cases}",
+        end - start,
+    );
+    Ok(())
+}
+
+pub fn run_h2_5g(workspace: &Path) -> Result<(), Box<dyn Error>> {
+    let artifact: Value = serde_json::from_slice(&fs::read(
+        workspace.join(H2_5G_QUALIFICATION_RELATIVE_PATH),
+    )?)?;
+    let cases = validate_h2_5g_qualification(&artifact)?;
+    let inputs = H2_5gExecutionInputs::load(workspace)?;
+    let mut admitted = 0;
+    let mut h2_8a_deferred = 0;
+    let mut h2_9_deferred = 0;
+    let mut writes = 0;
+    let mut diagnostics = 0;
+    for case in cases {
+        compact_typescript_observation(case)?;
+        match classify_h2_5g_case(case)? {
+            H2_5gCaseDisposition::Admitted => {
+                admitted += 1;
+                let (case_writes, case_diagnostics) =
+                    execute_h2_5g_observed(workspace, case, &inputs)?;
+                writes += case_writes;
+                diagnostics += case_diagnostics;
+            }
+            H2_5gCaseDisposition::Deferred(H2_5gDeferredOwner::H2_8a) => {
+                h2_8a_deferred += 1;
+            }
+            H2_5gCaseDisposition::Deferred(H2_5gDeferredOwner::H2_9) => {
+                h2_9_deferred += 1;
+            }
+        }
+    }
+    if admitted != 8_511
+        || h2_8a_deferred != 6
+        || h2_9_deferred != 510
+        || writes != 9_466
+        || diagnostics != 26_815
+    {
+        return Err(failure(format!(
+            "H2.5g execution totals differ: admitted={admitted} h2_8a_deferred={h2_8a_deferred} h2_9_deferred={h2_9_deferred} writes={writes} diagnostics={diagnostics}"
+        )));
+    }
+    println!(
+        "H2.5g emit acceptance: candidates=9027 exact={admitted} h2_8a_deferred={h2_8a_deferred} h2_9_deferred={h2_9_deferred} exact_diagnostics={diagnostics} exact_writes={writes} repetitions=2"
     );
     Ok(())
 }

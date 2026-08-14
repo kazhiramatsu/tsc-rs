@@ -20,7 +20,9 @@ fn read_json(workspace: &Path, relative_path: &str) -> serde_json::Value {
 
 #[test]
 fn all_h2_3b_candidate_dispositions_and_owner_controls_execute() {
-    super::run(&workspace()).expect("H2.3b acceptance");
+    let workspace = workspace();
+    super::run(&workspace).expect("H2.3b acceptance");
+    super::run_owner_controls(&workspace).expect("H2.3b owner controls");
 }
 
 #[test]

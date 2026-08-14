@@ -2094,7 +2094,11 @@ impl<'a> CheckerState<'a> {
         let mut current = Some(symbol);
         while let Some(symbol) = current {
             let data = self.binder.symbol(symbol);
-            let mut display = self.symbol_display_name(symbol);
+            // `symbolToString(..., DoNotIncludeSymbolChain)` still obtains
+            // the declaration-backed written name. This is observable for
+            // the internal `__global` symbol, whose declaration is the
+            // `global` keyword in a global augmentation.
+            let mut display = self.symbol_name_as_written_slice(symbol);
             if data.parent.is_none()
                 && data
                     .declarations
@@ -2800,6 +2804,14 @@ impl<'a> CheckerState<'a> {
         if let Some(cached) = self.links.node(node).resolved_type.resolved() {
             return Ok(cached);
         }
+        if let Some(frame) = self
+            .mapped_types_in_progress
+            .iter()
+            .rev()
+            .find(|frame| frame.node == node)
+        {
+            return Ok(frame.ty);
+        }
         let symbol = self
             .node_symbol(node)
             .map(|symbol| self.get_merged_symbol(symbol));
@@ -2810,11 +2822,21 @@ impl<'a> CheckerState<'a> {
         type_object.alias_symbol = alias_symbol;
         type_object.alias_type_arguments = alias_type_arguments.map(Vec::into_boxed_slice);
 
-        // Resolve the constraint eagerly like tsc, but publish the node
-        // cache only after a successful Rust result. A CheckAbort
-        // unwind therefore cannot poison later queries with a partial
-        // shell.
-        self.get_constraint_type_from_mapped_type(mapped)?;
+        // tsc publishes this shell before resolving the constraint. Keep the
+        // same recursive identity in typed transient state, then commit the
+        // link only after success so a CheckAbort cannot poison later reads.
+        self.mapped_types_in_progress
+            .push(crate::state::InProgressMappedType { node, ty: mapped });
+        let constraint = self.get_constraint_type_from_mapped_type(mapped);
+        let frame = self
+            .mapped_types_in_progress
+            .pop()
+            .expect("mapped type resolution frame balances");
+        debug_assert_eq!(
+            frame,
+            crate::state::InProgressMappedType { node, ty: mapped }
+        );
+        constraint?;
         if let Some(cached) = self.links.node(node).resolved_type.resolved() {
             return Ok(cached);
         }
@@ -3510,83 +3532,15 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: d8e9b4a2ea79ce1b11bdaebf9b475b2b7175e9b653c0e8c0f87925ab8908f7c6
     /// tsc-span: _tsc.js:60596-60603
     ///
-    /// Slice: entity-name exprName over resolveEntityName +
-    /// getTypeOfSymbol — the checkExpressionWithTypeArguments route
-    /// (77963) with checkExpression's identifier/qualified-name arms
-    /// collapses to exactly this while identifiers carry their
-    /// declared types (flow narrowing is M5; type arguments on typeof
-    /// are `typeof f<...>` instantiation expressions, 5.2/M6).
+    /// TypeQuery deliberately uses the ordinary expression checker rather
+    /// than reading a resolved symbol's declaration type. That preserves
+    /// control-flow narrowing at the query location and shares the same
+    /// instantiation-expression path as `typeof f<T>`.
     pub(crate) fn get_type_from_type_query_node(&mut self, node: NodeId) -> CheckResult<TypeId> {
         if let Some(cached) = self.links.node(node).resolved_type.resolved() {
             return Ok(cached);
         }
-        let NodeData::TypeQuery(data) = self.data_of(node) else {
-            unreachable!("TypeQuery kind implies payload");
-        };
-        let type_arguments = data.type_arguments;
-        let expr_name = data
-            .expr_name
-            .expect("parser invariant: TypeQuery expr_name always parsed");
-        if type_arguments.is_some() {
-            // `typeof f<...>` instantiation expressions: tsc routes
-            // every TypeQuery through checkExpressionWithTypeArguments
-            // (60602), which runs the grammar check and each type
-            // argument as a source element BEFORE the exprName check
-            // (77964-77965; the instanceof arm is
-            // ExpressionWithTypeArguments-kind-gated, 77966-77972).
-            self.check_grammar_expression_with_type_arguments(node);
-            for argument in self.nodes_of(type_arguments) {
-                self.check_source_element(Some(argument));
-            }
-        }
-        // tsc checks exprName as an EXPRESSION (getWidenedType(
-        // checkExpression(node.exprName))): qualified names take the
-        // property-access route (2304 at the head identifier, 2339 on
-        // member misses — parserTypeQuery3 pins 2304, not 2503). The
-        // identifier face keeps the resolver path, which is the same
-        // resolveName + declared-type read minus M5 narrowing.
-        let ty = if self.kind_of(expr_name) == SyntaxKind::QualifiedName {
-            // Resolved qualified names keep the exports-table read
-            // (namespace members type without the VALUE_MODULE
-            // getTypeOfSymbol arm, pinned); an UNRESOLVED name takes
-            // the expression route for tsc's error parity.
-            match self.resolve_entity_name(
-                expr_name,
-                SymbolFlags::VALUE,
-                /*ignore_errors*/ true,
-                None,
-            )? {
-                Some(symbol) => self.get_type_of_symbol(symbol)?,
-                None => self.check_expression(expr_name, tsc_types::CheckMode::NORMAL)?,
-            }
-        } else if self.is_this_identifier(expr_name)
-            || self.kind_of(expr_name) == SyntaxKind::ThisKeyword
-        {
-            // (The [FLOW M5] typeof-this gate retired at 6.6f: the
-            // this-face consumes real flow types.)
-            // `typeof this` — checkExpression routes the this-face to
-            // checkThisExpression (75077's isThisIdentifier precedent).
-            self.check_this_expression(expr_name)?
-        } else {
-            match self.resolve_entity_name(
-                expr_name,
-                SymbolFlags::VALUE,
-                /*ignore_errors*/ false,
-                None,
-            )? {
-                Some(symbol) => self.get_type_of_symbol(symbol)?,
-                None => self.tables.intrinsics.error,
-            }
-        };
-        // getInstantiationExpressionType over the resolved exprName
-        // type (77974); without `some(typeArguments)` it returns the
-        // expression type untouched (77977-77979), so the no-list face
-        // is unchanged.
-        let ty = if type_arguments.is_some() {
-            self.get_instantiation_expression_type(ty, node, type_arguments)?
-        } else {
-            ty
-        };
+        let ty = self.check_expression_with_type_arguments(node)?;
         let widened = self.get_widened_type(ty)?;
         let resolved = self.tables.get_regular_type_of_literal_type(widened);
         // First write wins: the entity resolution above can re-enter
@@ -3741,10 +3695,9 @@ impl<'a> CheckerState<'a> {
         self.class_interface_declared_in_progress.pop();
         let (id, effective_symbol) = computed?;
         self.links
-            .set_symbol_declared_type(self.speculation_depth, symbol, LinkSlot::Resolved(id));
+            .set_declaration_owned_symbol_declared_type(symbol, LinkSlot::Resolved(id));
         if effective_symbol != symbol {
-            self.links.set_symbol_declared_type(
-                self.speculation_depth,
+            self.links.set_declaration_owned_symbol_declared_type(
                 effective_symbol,
                 LinkSlot::Resolved(id),
             );
@@ -5156,6 +5109,29 @@ impl<'a> CheckerState<'a> {
         Ok(self.property_name_from_type_usable(ty).is_some())
     }
 
+    /// tsc-port: hasLateBindableIndexSignature @6.0.3
+    /// tsc-hash: b90146356ec89153393365779944ede2aa1d87bdd7fae82b6eebbb0e9fbe2d23
+    /// tsc-span: _tsc.js:57619-57642
+    ///
+    /// Kept distinct from `has_late_bindable_name`: a computed name can
+    /// denote an index-key domain without denoting one concrete property.
+    /// The node-builder uses this distinction when deciding whether a
+    /// recursive static method may be named with `typeof`.
+    pub(crate) fn has_late_bindable_index_signature(
+        &mut self,
+        member: NodeId,
+    ) -> CheckResult<bool> {
+        if !self.has_late_bindable_ast_name(member) {
+            return Ok(false);
+        }
+        let Some(name) = self.name_of_named_declaration(member) else {
+            return Ok(false);
+        };
+        let ty = self.late_bindable_name_type(name)?;
+        let index_key_domain = self.tables.intrinsics.string_number_symbol;
+        self.is_type_assignable_to(ty, index_key_domain)
+    }
+
     fn late_bindable_name_type(&mut self, name: NodeId) -> CheckResult<TypeId> {
         match self.data_of(name) {
             NodeData::ElementAccessExpression(data) => {
@@ -5376,7 +5352,9 @@ impl<'a> CheckerState<'a> {
                 return self.is_valid_base_type(constraint);
             }
         }
-        if flags.intersects(TypeFlags::OBJECT | TypeFlags::NON_PRIMITIVE | TypeFlags::ANY) {
+        if flags.intersects(TypeFlags::OBJECT | TypeFlags::NON_PRIMITIVE | TypeFlags::ANY)
+            && !self.is_generic_mapped_type_state(ty)?
+        {
             return Ok(true);
         }
         if flags.intersects(TypeFlags::INTERSECTION) {
@@ -6887,21 +6865,25 @@ impl<'a> CheckerState<'a> {
     /// (58341-58407, complete since 5.9c): exports as members for
     /// functions/methods/classes/enums/namespaces/globalThis, static
     /// base inheritance, the enum number index, call/construct
-    /// signatures. The target/TypeLiteral arms publish EMPTY first;
-    /// the value-side arm publishes exports at 58354 before resolving
-    /// bases/index infos. Re-entrant reads therefore observe tsc's
-    /// staged table instead of recursing. Completion happens in place,
-    /// or the slot is retracted on an Err unwind.
+    /// signatures. The target/TypeLiteral arms publish EMPTY first. The
+    /// value-side arm first enters getExportsOfSymbol: it parks the early
+    /// export table, and a computed-name self-reference can then re-enter
+    /// this function and become the first owner of the type's member slot.
+    /// Once exports return, this frame adopts that slot and replaces its
+    /// contents with the current stage. This mirrors tsc's repeated
+    /// setStructuredTypeMembers writes while keeping one stable Rust
+    /// MembersId. Completion happens in place, or the slot is retracted on
+    /// an Err unwind.
     fn resolve_anonymous_type_members(&mut self, ty: TypeId) -> CheckResult<MembersId> {
-        let early_id = self.alloc_members(ResolvedMembers::default());
-        self.links
-            .set_type_members(self.speculation_depth, ty, LinkSlot::Resolved(early_id));
+        let mut active_id: Option<MembersId> = None;
         let resolved = (|state: &mut Self| -> CheckResult<ResolvedMembers> {
             if state
                 .tables
                 .object_flags_of(ty)
                 .intersects(ObjectFlags::INSTANTIATED)
             {
+                active_id =
+                    Some(state.publish_anonymous_members_stage(ty, ResolvedMembers::default()));
                 // 58317-58330: the target's members under type.mapper.
                 let target = state
                     .links
@@ -6945,6 +6927,8 @@ impl<'a> CheckerState<'a> {
             let symbol = state.get_merged_symbol(symbol);
             let flags = state.symbol_flags(symbol);
             if flags.intersects(SymbolFlags::TYPE_LITERAL) {
+                active_id =
+                    Some(state.publish_anonymous_members_stage(ty, ResolvedMembers::default()));
                 let members = state.get_members_of_symbol(symbol)?;
                 let properties = state.get_named_members(&members)?;
                 let call_signatures = state
@@ -6996,12 +6980,16 @@ impl<'a> CheckerState<'a> {
                 // A CommonJS alias such as `exports.a = exports.b`
                 // re-enters this type while resolving `a`; that read
                 // must see `b` in the staged table.
-                *state.members_mut(early_id) = ResolvedMembers {
-                    members: members.clone(),
-                    ..ResolvedMembers::default()
-                };
+                let stage_id = state.publish_anonymous_members_stage(
+                    ty,
+                    ResolvedMembers {
+                        members: members.clone(),
+                        ..ResolvedMembers::default()
+                    },
+                );
+                active_id = Some(stage_id);
                 let pre_merge_properties = state.get_named_members(&members)?;
-                state.members_mut(early_id).properties = pre_merge_properties.clone();
+                state.members_mut(stage_id).properties = pre_merge_properties.clone();
                 let mut base_constructor_index_info: Option<IndexInfo> = None;
                 if flags.intersects(SymbolFlags::CLASS) {
                     let class_type = state.get_declared_type_of_class_or_interface(symbol)?;
@@ -7130,14 +7118,33 @@ impl<'a> CheckerState<'a> {
         })(self);
         match resolved {
             Ok(resolved) => {
-                *self.members_mut(early_id) = resolved;
-                Ok(early_id)
+                let active_id = active_id
+                    .or_else(|| self.links.ty(ty).resolved_members.resolved())
+                    .expect("anonymous member resolution publishes a member stage");
+                *self.members_mut(active_id) = resolved;
+                Ok(active_id)
             }
             Err(err) => {
-                self.links.retract_type_members(ty);
+                if self.links.ty(ty).resolved_members.resolved().is_some() {
+                    self.links.retract_type_members(ty);
+                }
                 Err(err)
             }
         }
+    }
+
+    /// Publish one observable resolveAnonymousTypeMembers stage. A nested
+    /// value-side frame may already own the stable MembersId; later frames
+    /// replace its contents instead of replacing the Links slot itself.
+    fn publish_anonymous_members_stage(&mut self, ty: TypeId, stage: ResolvedMembers) -> MembersId {
+        if let Some(existing) = self.links.ty(ty).resolved_members.resolved() {
+            *self.members_mut(existing) = stage;
+            return existing;
+        }
+        let id = self.alloc_members(stage);
+        self.links
+            .set_type_members(self.speculation_depth, ty, LinkSlot::Resolved(id));
+        id
     }
 
     /// tsc-port: getNamedMembers @6.0.3
@@ -7419,15 +7426,13 @@ impl<'a> CheckerState<'a> {
     /// symbols. Mapped and ReverseMapped properties resolve through
     /// their synthesized checker links. Accessors, classes, enums,
     /// modules and aliases keep their owning-stage escapes.
-    /// tsc's DeferredType arm (getTypeOfSymbolWithDeferredType,
-    /// 56945-56947) is ELIDED as a documented divergence (m6 close):
-    /// createUnionOrIntersectionProperty computes eagerly, so
-    /// CheckFlags::DEFERRED_TYPE has no writer anywhere
-    /// (grep-provable) — restore the arm ahead of the Instantiated
-    /// check if a writer ever lands (guard note at the flag's
-    /// definition).
+    /// Deferred union/intersection properties are forced before every other
+    /// synthetic-property flavor, matching tsc's dispatch order.
     pub fn get_type_of_symbol(&mut self, symbol: SymbolId) -> CheckResult<TypeId> {
         let check_flags = self.links.symbol(symbol).check_flags;
+        if check_flags.intersects(CheckFlags::DEFERRED_TYPE) {
+            return self.get_type_of_symbol_with_deferred_type(symbol);
+        }
         if check_flags.intersects(CheckFlags::INSTANTIATED) {
             return self.get_type_of_instantiated_symbol(symbol);
         }
@@ -7464,6 +7469,33 @@ impl<'a> CheckerState<'a> {
         // in tsc too (typeHasStaticProperty probes hit this for
         // `{ ... }` __type receivers).
         Ok(self.tables.intrinsics.error)
+    }
+
+    /// tsc-port: getTypeOfSymbolWithDeferredType @6.0.3
+    /// tsc-hash: e43d1ff9cfaea1437cd28643a38d4e40e06959eb50daecef1f1309c905ddb8e4
+    /// tsc-span: _tsc.js:56911-56919
+    pub(crate) fn get_type_of_symbol_with_deferred_type(
+        &mut self,
+        symbol: SymbolId,
+    ) -> CheckResult<TypeId> {
+        let links = self.links.symbol(symbol);
+        if let LinkSlot::Resolved(ty) = links.type_of_symbol {
+            return Ok(ty);
+        }
+        let parent = links
+            .deferral_parent
+            .expect("DeferredType implies links.deferral_parent");
+        let constituents = links
+            .deferral_constituents
+            .expect("DeferredType implies links.deferral_constituents");
+        let ty = if self.tables.flags_of(parent).intersects(TypeFlags::UNION) {
+            self.get_union_type_ex(&constituents, UnionReduction::Literal)?
+        } else {
+            self.get_intersection_type(&constituents, IntersectionFlags::NONE)?
+        };
+        self.links
+            .set_symbol_type(self.speculation_depth, symbol, LinkSlot::Resolved(ty));
+        Ok(ty)
     }
 
     /// tsc-port: getTypeOfReverseMappedSymbol @6.0.3
@@ -8081,7 +8113,7 @@ impl<'a> CheckerState<'a> {
                     .map(|symbol| self.get_merged_symbol(symbol));
                 if let Some(parent_symbol) = parent_symbol {
                     // getGlobalESSymbolConstructorTypeSymbol(false).
-                    let global = self.get_global_type_symbol("SymbolConstructor", false);
+                    let global = self.get_global_type_symbol("SymbolConstructor", false)?;
                     if global == Some(parent_symbol) {
                         ty = self.get_es_symbol_like_type_for_node(declaration)?;
                     }
@@ -10574,7 +10606,17 @@ impl<'a> CheckerState<'a> {
                 .options
                 .strict_option_value(self.options.no_implicit_any)
             {
-                let name = declaration.and_then(|declaration| self.name_of_node(declaration));
+                // getNameOfDeclaration (59827): unlike a direct
+                // declaration.name read, this includes the assigned
+                // name of function expressions and arrow functions.
+                // That makes `const f = () => f()` a named 7023 on
+                // `f`, not an anonymous 7024 on the arrow.
+                let name = declaration.and_then(|declaration| {
+                    node_util::get_name_of_declaration(
+                        self.binder.source_of_node(declaration),
+                        declaration,
+                    )
+                });
                 match name {
                     Some(name) => {
                         let display = tsc_binder::node_util::declaration_name_to_string(

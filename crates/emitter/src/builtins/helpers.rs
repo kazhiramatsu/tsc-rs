@@ -12,6 +12,10 @@ const SET_FUNCTION_NAME_HELPER_TEXT: &str = r#"var __setFunctionName = (this && 
     return Object.defineProperty(f, "name", { configurable: true, value: prefix ? "".concat(prefix, " ", name) : name });
 };"#;
 
+const PROP_KEY_HELPER_TEXT: &str = r#"var __propKey = (this && this.__propKey) || function (x) {
+    return typeof x === "symbol" ? x : "".concat(x);
+};"#;
+
 const REST_HELPER_TEXT: &str = r#"var __rest = (this && this.__rest) || function (s, e) {
     var t = {};
     for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p) && e.indexOf(p) < 0)
@@ -22,6 +26,23 @@ const REST_HELPER_TEXT: &str = r#"var __rest = (this && this.__rest) || function
                 t[p[i]] = s[p[i]];
         }
     return t;
+};"#;
+
+const READ_HELPER_TEXT: &str = r#"var __read = (this && this.__read) || function (o, n) {
+    var m = typeof Symbol === "function" && o[Symbol.iterator];
+    if (!m) return o;
+    var i = m.call(o), r, ar = [], e;
+    try {
+        while ((n === void 0 || n-- > 0) && !(r = i.next()).done) ar.push(r.value);
+    }
+    catch (error) { e = { error: error }; }
+    finally {
+        try {
+            if (r && !r.done && (m = i["return"])) m.call(i);
+        }
+        finally { if (e) throw e.error; }
+    }
+    return ar;
 };"#;
 
 const AWAIT_HELPER_TEXT: &str = r#"var __await = (this && this.__await) || function (v) { return this instanceof __await ? (this.v = v, this) : new __await(v); }"#;
@@ -73,8 +94,22 @@ pub(super) fn set_function_name() -> EmitHelper {
     )
 }
 
+pub(super) fn prop_key() -> EmitHelper {
+    EmitHelper::with_text(
+        "typescript:propKey",
+        false,
+        PROP_KEY_HELPER_TEXT,
+        None,
+        Vec::new(),
+    )
+}
+
 pub(super) fn object_rest() -> EmitHelper {
     EmitHelper::with_text("typescript:rest", false, REST_HELPER_TEXT, None, Vec::new())
+}
+
+pub(super) fn read() -> EmitHelper {
+    EmitHelper::with_text("typescript:read", false, READ_HELPER_TEXT, None, Vec::new())
 }
 
 pub(super) fn async_await() -> EmitHelper {

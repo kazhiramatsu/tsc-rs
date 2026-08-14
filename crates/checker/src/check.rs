@@ -20,7 +20,7 @@
 //! default-options suggestion projection.
 
 use tsc_binder::{node_util, SymbolId};
-use tsc_diagnostics::{gen as diagnostics, DiagnosticCategory, DiagnosticMessage};
+use tsc_diagnostics::{gen as diagnostics, Diagnostic, DiagnosticCategory, DiagnosticMessage};
 use tsc_syntax::nodes::{ImportTypeData, JSDocFunctionTypeData, JSDocTypeLiteralData};
 use tsc_syntax::{for_each_child, NodeArrayId, NodeData, NodeId, SyntaxKind};
 use tsc_types::{
@@ -29,6 +29,7 @@ use tsc_types::{
 };
 
 use crate::evaluate::EvalValue;
+use crate::program::ProgramFileId;
 use crate::state::{
     CheckAbort, CheckResult, CheckerState, OracleCrashKind, SignatureId, SignatureKind,
 };
@@ -59,6 +60,7 @@ struct UnwindSnapshot {
     active_type_mappers: usize,
     active_type_mappers_caches: usize,
     slice_display_mappers: usize,
+    slice_infer_type_parameters: usize,
     slice_reuse_had_error: bool,
     slice_reuse_visit_depth: usize,
     slice_display_clone_indent: usize,
@@ -66,6 +68,7 @@ struct UnwindSnapshot {
     variance_handler_stack: usize,
     class_interface_declared_in_progress: usize,
     type_parameter_defaults_in_progress: usize,
+    mapped_types_in_progress: usize,
     // widening_contexts is deliberately ABSENT: it is an arena
     // (WideningContextId-indexed, tsc's GC'd context objects), not a
     // transient stack — growth across an element is allocation, not
@@ -105,6 +108,7 @@ impl<'a> CheckerState<'a> {
             active_type_mappers: self.active_type_mappers.len(),
             active_type_mappers_caches: self.active_type_mappers_caches.len(),
             slice_display_mappers: self.slice_display_mappers.len(),
+            slice_infer_type_parameters: self.slice_infer_type_parameters.len(),
             slice_reuse_had_error: self.slice_reuse_had_error,
             slice_reuse_visit_depth: self.slice_reuse_visit_depth,
             slice_display_clone_indent: self.slice_display_clone_indent,
@@ -112,6 +116,7 @@ impl<'a> CheckerState<'a> {
             variance_handler_stack: self.variance_handler_stack.len(),
             class_interface_declared_in_progress: self.class_interface_declared_in_progress.len(),
             type_parameter_defaults_in_progress: self.type_parameter_defaults_in_progress.len(),
+            mapped_types_in_progress: self.mapped_types_in_progress.len(),
             speculation_depth: self.speculation_depth,
             instantiation_depth: self.instantiation_depth,
             in_variance_computation: self.in_variance_computation,
@@ -265,6 +270,7 @@ impl<'a> CheckerState<'a> {
                 active_type_mappers: 0,
                 active_type_mappers_caches: 0,
                 slice_display_mappers: 0,
+                slice_infer_type_parameters: 0,
                 slice_reuse_had_error: false,
                 slice_reuse_visit_depth: 0,
                 slice_display_clone_indent: 0,
@@ -272,6 +278,7 @@ impl<'a> CheckerState<'a> {
                 variance_handler_stack: 0,
                 class_interface_declared_in_progress: 0,
                 type_parameter_defaults_in_progress: 0,
+                mapped_types_in_progress: 0,
                 speculation_depth: 0,
                 instantiation_depth: 0,
                 in_variance_computation: false,
@@ -297,14 +304,25 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 8dcc4a08f5b94c3c9ada5b6c1e86885714d7db12c71cbf857ca88531632bd0c3
     /// tsc-span: _tsc.js:18877-18903
     ///
-    /// The state-local arm represents skipLibCheck for declaration
-    /// files. The public program driver owns the source pragmas and
-    /// applies the @ts-nocheck/checkJs-off arms before entering this
-    /// method, so skipped files produce neither file diagnostics nor
-    /// shared global diagnostics.
+    /// Program membership is part of the decision: the same reusable bound
+    /// document can be a default library in one Program and an ordinary
+    /// declaration source in another.
     fn skip_type_checking(&self, root: NodeId) -> bool {
-        self.options.skip_lib_check == Some(true)
-            && self.binder.source_of_node(root).is_declaration_file
+        let file = ProgramFileId::from_raw(
+            u32::try_from(self.binder.file_index_of_node(root))
+                .expect("Program file index overflow"),
+        );
+        self.skip_type_checking_file(file)
+    }
+
+    /// tsrs-native: project a ProgramFileId through the binder-owned source
+    /// and file facts into the shared skipTypeCheckingWorker policy.
+    pub(crate) fn skip_type_checking_file(&self, file: ProgramFileId) -> bool {
+        crate::should_skip_type_checking_file(
+            self.binder.source(file.index()),
+            self.binder.file_facts(file),
+            self.options,
+        )
     }
 
     /// tsc-port: checkGrammarTopLevelElementForRequiredDeclareModifier @6.0.3
@@ -4262,13 +4280,12 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: c54f432c89f2f52677994a63f73b2d9e30dadfe890712c62749b4aab33e7f833
     /// tsc-span: _tsc.js:63931-63933
     ///
-    /// The verdict probe remains separate, but a failed diagnostic
-    /// call replays checkTypeRelatedTo in reporting mode. That replay
-    /// performs per-level read/write normalization and returns tsc's
-    /// errorInfo, relatedInfo, incompatibleStack collapse, literal
-    /// generalization, and TypeParameter-target elaboration under the
-    /// supplied head. Caller-specific head overrides below still run
-    /// before the common reporting walk.
+    /// With an error node this enters one reporting relation frame,
+    /// exactly like tsc's `checkTypeRelatedTo`. A preliminary boolean
+    /// probe is not equivalent: its failed cache entries can be read
+    /// by nested non-reporting overload candidates during the replay
+    /// and turn recursive `Maybe` results into hard failures. The
+    /// no-error-node face remains the ordinary boolean query.
     pub(crate) fn check_type_assignable_to(
         &mut self,
         source: TypeId,
@@ -4276,168 +4293,206 @@ impl<'a> CheckerState<'a> {
         error_node: Option<NodeId>,
         head_message: &'static DiagnosticMessage,
     ) -> CheckResult<bool> {
-        let original_source = source;
-        let original_target = target;
-        let related = self.is_type_assignable_to(source, target)?;
-        if !related {
-            if let Some(error_node) = error_node {
-                // reportErrorResults (65248-65253) receives the
-                // getNormalizedType pair produced by isRelatedTo.
-                // The helper also applies the 65185 nullable-candidate
-                // substitution after normalization. This is
-                // report-only: isTypeAssignableTo above still owns the
-                // verdict.
-                let (source, target) = self.normalized_relation_report_types(source, target)?;
-                // An EXPLICIT tsc headMessage chains OUTERMOST
-                // unconditionally (64860: errorInfo =
-                // chainDiagnosticMessages(errorInfo, headMessage)) —
-                // the reportUnmatchedProperty override and the 2696
-                // head selection replace only the relation-level
-                // GENERIC head. Our conflated signature distinguishes
-                // by message identity: only the generic 2322 head
-                // takes the override paths (the 5.8c class-band heads
-                // 2415/2417/2420/2430 keep their code —
-                // implementingAnInterfaceExtendingClassWithPrivates
-                // pins the 2739→2720 silence).
-                // isRelatedTo's excess-property arm (65197 →
-                // hasExcessProperties) precedes the common-property
-                // arm and every structural walk: a fresh object
-                // literal with an unknown property reports the
-                // parent-skipped 2353/2561 INSIDE the relation and no
-                // head lands, for ANY head message (argument excess
-                // rows are 2353 top-level too).
-                let generic_head = std::ptr::eq(
-                    head_message,
-                    &diagnostics::Type_0_is_not_assignable_to_type_1,
-                );
-                if generic_head
-                    && self
-                        .tables
-                        .object_flags_of(source)
-                        .intersects(ObjectFlags::JSX_ATTRIBUTES)
-                    && self
-                        .tables
-                        .flags_of(target)
-                        .intersects(TypeFlags::INTERSECTION)
-                {
-                    let constituents = match &self.tables.type_of(target).data {
-                        tsc_types::TypeData::Intersection { types } => types.to_vec(),
-                        _ => Vec::new(),
-                    };
-                    for constituent in constituents {
-                        let intrinsic = self
-                            .tables
-                            .type_of(constituent)
-                            .symbol
-                            .map(|symbol| self.binder.symbol(symbol).escaped_name.as_str())
-                            .is_some_and(|name| {
-                                matches!(name, "IntrinsicAttributes" | "IntrinsicClassAttributes")
-                            });
-                        if intrinsic
-                            && self.report_unmatched_property_head(
-                                source,
-                                constituent,
-                                error_node,
-                            )?
-                        {
-                            return Ok(related);
-                        }
-                    }
-                }
-                if self.report_excess_property_head(
-                    source,
-                    target,
-                    error_node,
-                    crate::relate::RelationKind::Assignable,
-                )? {
-                    return Ok(related);
-                }
-                // isRelatedTo's common-property arm (65208-65235)
-                // precedes ALL structural elaboration and its early
-                // return skips the head for ANY head message
-                // (subtypingWithObjectMembers5 pins 2420→2559).
-                if self.report_no_common_properties_head(source, target, error_node)? {
-                    return Ok(related);
-                }
-                // global Object's 2696 branch lives inside
-                // reportErrorResults, after structural elaboration.
-                // Let the relation frame preserve missing-property
-                // and incompatible-return descendants under it; the
-                // old flattened approximation lost those rows.
-                let global_object_source = generic_head
-                    && self.tables.flags_of(source).intersects(TypeFlags::OBJECT)
-                    && self.tables.type_of(source).symbol.is_some()
-                    && source == self.global_object_type()?;
-                if generic_head
-                    && !global_object_source
-                    && self.report_unmatched_property_head(source, target, error_node)?
-                {
-                    return Ok(related);
-                }
-                // Reporting is a refinement of the already-failed
-                // verdict. A still-unimplemented descendant may
-                // suppress only the nested chain, never this known
-                // parent diagnostic.
-                if let Ok(Some(output)) = self.relation_error_output_with_context(
-                    original_source,
-                    original_target,
-                    crate::relate::RelationKind::Assignable,
-                    if generic_head {
-                        None
-                    } else {
-                        Some(head_message)
-                    },
-                    None,
-                ) {
-                    let mut diagnostic = self.create_error(Some(error_node), head_message, &[]);
-                    diagnostic.message = output.message;
-                    diagnostic.related = output.related;
-                    self.push_error_diagnostic(diagnostic);
-                    return Ok(related);
-                }
-                let mut source_text = self.type_to_string_slice_with_error_enclosing(source)?;
-                let mut target_text = self.type_to_string_slice_with_error_enclosing(target)?;
-                if source_text == target_text {
-                    // getTypeNamesForErrorDisplay (50748-50756): equal
-                    // renders re-render fully qualified (no enclosing).
-                    source_text = self.get_type_name_for_error_display(source)?;
-                    target_text = self.get_type_name_for_error_display(target)?;
-                }
-                // reportRelationError 65097-65098: the GENERIC head
-                // whose faces stay identical after the fully-qualified
-                // re-render (unqualifiable same-name symbols — type
-                // parameters, unexported namespaces) swaps to the 2719
-                // "Two different types with this name exist" face. The
-                // selection reads the PRE-generalization source face
-                // (65066/65094-65099 ordering); explicit heads keep their
-                // code.
-                let head_message = if generic_head && source_text == target_text {
-                    &diagnostics::Type_0_is_not_assignable_to_type_1_Two_different_types_with_this_name_exist_but_they_are_unrelated
-                } else {
-                    head_message
-                };
-                // reportRelationError 65068-65072: a literal source
-                // generalizes to its base primitive unless the target
-                // could accept singletons.
-                let source_text = if !self.tables.flags_of(target).intersects(TypeFlags::NEVER)
-                    && self.is_literal_type(source)
-                    && !self.type_could_have_top_level_singleton_types(target)?
-                {
-                    let generalized = self.get_base_type_of_literal_type(source)?;
-                    // 65072: the generalized source renders through
-                    // getTypeNameForErrorDisplay.
-                    self.get_type_name_for_error_display(generalized)?
-                } else {
-                    source_text
-                };
-                self.error_at(
-                    Some(error_node),
-                    head_message,
-                    &[&source_text, &target_text],
-                );
-            }
+        let (related, diagnostic) =
+            self.check_type_assignable_to_worker(source, target, error_node, head_message)?;
+        if let Some(diagnostic) = diagnostic {
+            self.push_error_diagnostic(diagnostic);
         }
         Ok(related)
+    }
+
+    /// tsrs-native: return tsc's errorOutputContainer row as an owned
+    /// diagnostic instead of publishing it through the checker sink.
+    ///
+    /// Run one reporting relation with an explicit diagnostic result.
+    ///
+    /// This is the Rust-owned equivalent of tsc's
+    /// `errorOutputContainer`: the relation diagnostic is returned as
+    /// data even when an identical row already exists in the program
+    /// sink. Lazy global diagnostics still use the ordinary checker
+    /// sink; only the relation-owned row crosses this boundary.
+    pub(crate) fn capture_type_assignable_to_diagnostic(
+        &mut self,
+        source: TypeId,
+        target: TypeId,
+        error_node: NodeId,
+        head_message: &'static DiagnosticMessage,
+    ) -> CheckResult<(bool, Option<Diagnostic>)> {
+        self.check_type_assignable_to_worker(source, target, Some(error_node), head_message)
+    }
+
+    /// `(related, diagnostic)` worker shared by the ordinary program
+    /// sink and the applicability output container above.
+    fn check_type_assignable_to_worker(
+        &mut self,
+        source: TypeId,
+        target: TypeId,
+        error_node: Option<NodeId>,
+        head_message: &'static DiagnosticMessage,
+    ) -> CheckResult<(bool, Option<Diagnostic>)> {
+        let Some(error_node) = error_node else {
+            return Ok((self.is_type_assignable_to(source, target)?, None));
+        };
+        let generic_head = std::ptr::eq(
+            head_message,
+            &diagnostics::Type_0_is_not_assignable_to_type_1,
+        );
+        let (related, output) = self.check_relation_with_error_output_at(
+            source,
+            target,
+            crate::relate::RelationKind::Assignable,
+            if generic_head {
+                None
+            } else {
+                Some(head_message)
+            },
+            None,
+            Some(error_node),
+        )?;
+        if let Some(output) = output {
+            let mut diagnostic =
+                self.create_error(output.error_node.or(Some(error_node)), head_message, &[]);
+            diagnostic.message = output.message;
+            diagnostic.related = output.related;
+            // tsc logs errorInfo before returning `result !== False`.
+            // In particular, a reporting relation can return true for a
+            // `Maybe` verdict after publishing a useful diagnostic chain.
+            return Ok((related, Some(diagnostic)));
+        }
+        if related {
+            return Ok((true, None));
+        }
+
+        // A false relation normally owns an error chain. Retain the
+        // generic face as a defensive fallback for overflow or a
+        // contained checker abort, without introducing a second
+        // relation walk that could mutate the cache topology.
+        let (source, target) = self.normalized_relation_report_types(source, target)?;
+        // An EXPLICIT tsc headMessage chains OUTERMOST
+        // unconditionally (64860: errorInfo =
+        // chainDiagnosticMessages(errorInfo, headMessage)) —
+        // the reportUnmatchedProperty override and the 2696
+        // head selection replace only the relation-level
+        // GENERIC head. Our conflated signature distinguishes
+        // by message identity: only the generic 2322 head
+        // takes the override paths (the 5.8c class-band heads
+        // 2415/2417/2420/2430 keep their code —
+        // implementingAnInterfaceExtendingClassWithPrivates
+        // pins the 2739→2720 silence).
+        // isRelatedTo's excess-property arm (65197 →
+        // hasExcessProperties) precedes the common-property
+        // arm and every structural walk: a fresh object
+        // literal with an unknown property reports the
+        // parent-skipped 2353/2561 INSIDE the relation and no
+        // head lands, for ANY head message (argument excess
+        // rows are 2353 top-level too).
+        if generic_head
+            && self
+                .tables
+                .object_flags_of(source)
+                .intersects(ObjectFlags::JSX_ATTRIBUTES)
+            && self
+                .tables
+                .flags_of(target)
+                .intersects(TypeFlags::INTERSECTION)
+        {
+            let constituents = match &self.tables.type_of(target).data {
+                tsc_types::TypeData::Intersection { types } => types.to_vec(),
+                _ => Vec::new(),
+            };
+            for constituent in constituents {
+                let intrinsic = self
+                    .tables
+                    .type_of(constituent)
+                    .symbol
+                    .map(|symbol| self.binder.symbol(symbol).escaped_name.as_str())
+                    .is_some_and(|name| {
+                        matches!(name, "IntrinsicAttributes" | "IntrinsicClassAttributes")
+                    });
+                if intrinsic {
+                    let Some(diagnostic) =
+                        self.report_unmatched_property_head(source, constituent, error_node)?
+                    else {
+                        continue;
+                    };
+                    return Ok((related, Some(diagnostic)));
+                }
+            }
+        }
+        if let Some(diagnostic) = self.report_excess_property_head(
+            source,
+            target,
+            error_node,
+            crate::relate::RelationKind::Assignable,
+        )? {
+            return Ok((related, Some(diagnostic)));
+        }
+        // isRelatedTo's common-property arm (65208-65235)
+        // precedes ALL structural elaboration and its early
+        // return skips the head for ANY head message
+        // (subtypingWithObjectMembers5 pins 2420→2559).
+        if let Some(diagnostic) =
+            self.report_no_common_properties_head(source, target, error_node)?
+        {
+            return Ok((related, Some(diagnostic)));
+        }
+        // global Object's 2696 branch lives inside
+        // reportErrorResults, after structural elaboration.
+        // Let the relation frame preserve missing-property
+        // and incompatible-return descendants under it; the
+        // old flattened approximation lost those rows.
+        let global_object_source = generic_head
+            && self.tables.flags_of(source).intersects(TypeFlags::OBJECT)
+            && self.tables.type_of(source).symbol.is_some()
+            && source == self.global_object_type()?;
+        if generic_head && !global_object_source {
+            if let Some(diagnostic) =
+                self.report_unmatched_property_head(source, target, error_node)?
+            {
+                return Ok((related, Some(diagnostic)));
+            }
+        }
+        let mut source_text = self.type_to_string_slice_with_error_enclosing(source)?;
+        let mut target_text = self.type_to_string_slice_with_error_enclosing(target)?;
+        if source_text == target_text {
+            // getTypeNamesForErrorDisplay (50748-50756): equal
+            // renders re-render fully qualified (no enclosing).
+            source_text = self.get_type_name_for_error_display(source)?;
+            target_text = self.get_type_name_for_error_display(target)?;
+        }
+        // reportRelationError 65097-65098: the GENERIC head
+        // whose faces stay identical after the fully-qualified
+        // re-render (unqualifiable same-name symbols — type
+        // parameters, unexported namespaces) swaps to the 2719
+        // "Two different types with this name exist" face. The
+        // selection reads the PRE-generalization source face
+        // (65066/65094-65099 ordering); explicit heads keep their
+        // code.
+        let head_message = if generic_head && source_text == target_text {
+            &diagnostics::Type_0_is_not_assignable_to_type_1_Two_different_types_with_this_name_exist_but_they_are_unrelated
+        } else {
+            head_message
+        };
+        // reportRelationError 65068-65072: a literal source
+        // generalizes to its base primitive unless the target
+        // could accept singletons.
+        let source_text = if !self.tables.flags_of(target).intersects(TypeFlags::NEVER)
+            && self.is_literal_type(source)
+            && !self.type_could_have_top_level_singleton_types(target)?
+        {
+            let generalized = self.get_base_type_of_literal_type(source)?;
+            // 65072: the generalized source renders through
+            // getTypeNameForErrorDisplay.
+            self.get_type_name_for_error_display(generalized)?
+        } else {
+            source_text
+        };
+        let diagnostic = self.create_error(
+            Some(error_node),
+            head_message,
+            &[&source_text, &target_text],
+        );
+        Ok((false, Some(diagnostic)))
     }
 
     /// tsc-port: hasExcessProperties @6.0.3 (the head-site face)
@@ -4462,14 +4517,14 @@ impl<'a> CheckerState<'a> {
         target: TypeId,
         error_node: NodeId,
         relation: crate::relate::RelationKind,
-    ) -> CheckResult<bool> {
+    ) -> CheckResult<Option<Diagnostic>> {
         if !self.is_object_literal_type(source)
             || !self
                 .tables
                 .object_flags_of(source)
                 .intersects(ObjectFlags::FRESH_LITERAL)
         {
-            return Ok(false);
+            return Ok(None);
         }
         let relation_count = (16_000_000 - self.relations.cache(relation).len() as i64) >> 3;
         let mut checker = crate::engine::RelationChecker {
@@ -4487,15 +4542,17 @@ impl<'a> CheckerState<'a> {
             relation_count,
             error_state: Default::default(),
         };
-        Ok(matches!(
-            checker.excess_properties_worker(
+        Ok(
+            match checker.excess_properties_worker(
                 source,
                 target,
                 /*report_errors*/ true,
                 Some(error_node),
-            )?,
-            crate::engine::ExcessPropertyOutcome::UnknownProperty
-        ))
+            )? {
+                crate::engine::ExcessPropertyOutcome::UnknownProperty { diagnostic } => diagnostic,
+                _ => None,
+            },
+        )
     }
 
     /// tsc-port: reportUnmatchedProperty @6.0.3 (the head-override
@@ -4530,7 +4587,7 @@ impl<'a> CheckerState<'a> {
         source: TypeId,
         target: TypeId,
         error_node: NodeId,
-    ) -> CheckResult<bool> {
+    ) -> CheckResult<Option<Diagnostic>> {
         if !self
             .tables
             .flags_of(source)
@@ -4540,10 +4597,10 @@ impl<'a> CheckerState<'a> {
                     | TypeFlags::INTERSECTION.bits(),
             ))
         {
-            return Ok(false);
+            return Ok(None);
         }
         if source == self.global_object_type()? {
-            return Ok(false);
+            return Ok(None);
         }
         // typeRelatedToSomeType reports on the BEST-MATCHING union
         // member, and the common-property arm fires inside that member
@@ -4561,7 +4618,7 @@ impl<'a> CheckerState<'a> {
                 .collect();
             match non_nullable.as_slice() {
                 [only] => *only,
-                _ => return Ok(false),
+                _ => return Ok(None),
             }
         } else {
             target
@@ -4573,18 +4630,18 @@ impl<'a> CheckerState<'a> {
                 TypeFlags::OBJECT.bits() | TypeFlags::INTERSECTION.bits(),
             ))
         {
-            return Ok(false);
+            return Ok(None);
         }
         if !self.is_weak_type(target)? {
-            return Ok(false);
+            return Ok(None);
         }
         let has_surface = !self.get_properties_of_type(source)?.is_empty()
             || self.type_has_call_or_construct_signatures(source)?;
         if !has_surface {
-            return Ok(false);
+            return Ok(None);
         }
         if self.has_common_properties(source, target)? {
-            return Ok(false);
+            return Ok(None);
         }
         // reportRelationError computes the display pair once at entry
         // (65066) — the weak-type rows read the same
@@ -4610,8 +4667,11 @@ impl<'a> CheckerState<'a> {
         } else {
             &diagnostics::Type_0_has_no_properties_in_common_with_type_1
         };
-        self.error_at(Some(error_node), message, &[&source_text, &target_text]);
-        Ok(true)
+        Ok(Some(self.create_error(
+            Some(error_node),
+            message,
+            &[&source_text, &target_text],
+        )))
     }
 
     /// The pre-head missing-property approximation uses only
@@ -4649,7 +4709,7 @@ impl<'a> CheckerState<'a> {
         source: TypeId,
         target: TypeId,
         error_node: NodeId,
-    ) -> CheckResult<bool> {
+    ) -> CheckResult<Option<Diagnostic>> {
         // reportUnmatchedProperty runs over the isRelatedTo-NORMALIZED
         // pair: getNormalizedType's non-augmenting-subtype arm (64809)
         // substitutes an EMPTY single-base subclass with its base for
@@ -4710,7 +4770,7 @@ impl<'a> CheckerState<'a> {
             ))
             || !self.tables.flags_of(target).intersects(TypeFlags::OBJECT)
         {
-            return Ok(false);
+            return Ok(None);
         }
         // propertiesRelatedTo's tuple arm (66771-66774): a tuple
         // target with an array-or-tuple source takes the ARITY /
@@ -4725,7 +4785,7 @@ impl<'a> CheckerState<'a> {
         if self.tables.is_tuple_type(target)
             && (self.is_array_type(source)? || self.tables.is_tuple_type(source))
         {
-            return Ok(false);
+            return Ok(None);
         }
         // shouldReportUnmatchedPropertyError (67043-67054, gating the
         // 66879 report): a signature-shaped property-less source keeps
@@ -4752,7 +4812,7 @@ impl<'a> CheckerState<'a> {
                             .get_signatures_of_type(target, crate::state::SignatureKind::Construct)?
                             .is_empty());
                 if !target_reports {
-                    return Ok(false);
+                    return Ok(None);
                 }
             }
         }
@@ -4793,7 +4853,7 @@ impl<'a> CheckerState<'a> {
             }
         }
         if unmatched.is_empty() {
-            return Ok(false);
+            return Ok(None);
         }
         // reportUnmatchedProperty's PRIVATE arm (66710-66724): probed
         // on the FIRST unmatched property BEFORE the props-count
@@ -4840,7 +4900,7 @@ impl<'a> CheckerState<'a> {
                     .keys()
                     .any(|name| name.starts_with("__#") && name.ends_with(&suffix));
                 if has_own_twin {
-                    return Ok(false);
+                    return Ok(None);
                 }
             }
         }
@@ -4851,7 +4911,7 @@ impl<'a> CheckerState<'a> {
         if unmatched.len() > 1
             && !self.try_elaborate_array_like_errors_without_reporting(source, target)?
         {
-            return Ok(false);
+            return Ok(None);
         }
         // 66735: the single-property face renders through
         // getTypeNamesForErrorDisplay — the context-sensitive
@@ -4914,13 +4974,13 @@ impl<'a> CheckerState<'a> {
                 })
                 .into_iter()
                 .collect();
-            self.error_at_with_related(
+            let mut diagnostic = self.create_error(
                 Some(error_node),
                 &diagnostics::Property_0_is_missing_in_type_1_but_required_in_type_2,
                 &[&prop_name, &source_text, &target_text],
-                related,
             );
-            return Ok(true);
+            diagnostic.related = related;
+            return Ok(Some(diagnostic));
         }
         // 66752-66757: the multi-property lists ride plain
         // symbolToString (no WriteComputedProps) — late-bound computed
@@ -4929,22 +4989,22 @@ impl<'a> CheckerState<'a> {
         for &prop in &unmatched {
             names.push(self.missing_property_display_name(prop, false)?);
         }
-        if unmatched.len() > 5 {
+        let diagnostic = if unmatched.len() > 5 {
             let head: Vec<String> = names[..4].to_vec();
             let more = (unmatched.len() - 4).to_string();
-            self.error_at(
+            self.create_error(
                 Some(error_node),
                 &diagnostics::Type_0_is_missing_the_following_properties_from_type_1_2_and_3_more,
                 &[&source_text, &target_text, &head.join(", "), &more],
-            );
+            )
         } else {
-            self.error_at(
+            self.create_error(
                 Some(error_node),
                 &diagnostics::Type_0_is_missing_the_following_properties_from_type_1_2,
                 &[&source_text, &target_text, &names.join(", ")],
-            );
-        }
-        Ok(true)
+            )
+        };
+        Ok(Some(diagnostic))
     }
 
     /// tsrs-native: the missing-property display name — private
@@ -5239,19 +5299,20 @@ impl<'a> CheckerState<'a> {
                 // comparable relation too (65353) — a fresh-literal
                 // case expression reports the parent-skipped
                 // 2353/2561 and the 2678 head never lands.
-                if self.report_excess_property_head(
+                if let Some(diagnostic) = self.report_excess_property_head(
                     source,
                     target,
                     error_node,
                     crate::relate::RelationKind::Comparable,
                 )? {
+                    self.push_error_diagnostic(diagnostic);
                     return Ok(related);
                 }
                 let generic_head = std::ptr::eq(
                     head_message,
                     &diagnostics::Type_0_is_not_comparable_to_type_1,
                 );
-                if let Ok(Some(output)) = self.relation_error_output_with_context(
+                if let Ok(Some(output)) = self.relation_error_output_with_context_at(
                     original_source,
                     original_target,
                     crate::relate::RelationKind::Comparable,
@@ -5261,8 +5322,13 @@ impl<'a> CheckerState<'a> {
                         Some(head_message)
                     },
                     None,
+                    Some(error_node),
                 ) {
-                    let mut diagnostic = self.create_error(Some(error_node), head_message, &[]);
+                    let mut diagnostic = self.create_error(
+                        output.error_node.or(Some(error_node)),
+                        head_message,
+                        &[],
+                    );
                     diagnostic.message = output.message;
                     diagnostic.related = output.related;
                     self.push_error_diagnostic(diagnostic);
@@ -5460,6 +5526,7 @@ impl<'a> CheckerState<'a> {
         no_type_reduction: bool,
     ) -> CheckResult<String> {
         let saved_visited = std::mem::take(&mut self.slice_visited_types);
+        let saved_infer_type_parameters = std::mem::take(&mut self.slice_infer_type_parameters);
         let saved_approximate_length = std::mem::replace(&mut self.slice_approximate_length, 0);
         let saved_max_truncation_length = std::mem::replace(
             &mut self.slice_max_truncation_length,
@@ -5475,6 +5542,7 @@ impl<'a> CheckerState<'a> {
             std::mem::replace(&mut self.slice_no_type_reduction, no_type_reduction);
         let result = self.type_to_string_slice_ex(ty, fully_qualified);
         self.slice_visited_types = saved_visited;
+        self.slice_infer_type_parameters = saved_infer_type_parameters;
         self.slice_approximate_length = saved_approximate_length;
         self.slice_max_truncation_length = saved_max_truncation_length;
         self.slice_truncating = saved_truncating;
@@ -5932,6 +6000,48 @@ impl<'a> CheckerState<'a> {
             ) {
                 return Ok(("this".to_owned(), SliceTypeNodeKind::Keyword));
             }
+            // typeToTypeNodeWorker 51496-51512: an infer parameter is
+            // a declaration only inside its conditional root's
+            // extends type. The surrounding conditional arm installs
+            // that root-scoped context and restores it before either
+            // result branch is rendered.
+            if self.slice_infer_type_parameters.contains(&ty) {
+                let symbol = self
+                    .tables
+                    .type_of(ty)
+                    .symbol
+                    .expect("infer type parameters carry declaration symbols");
+                let name = self.symbol_display_name(symbol);
+                self.slice_add_approximate_length(Self::slice_js_length(&name) + 6);
+
+                let constraint_text = match self.get_constraint_of_type_parameter(ty)? {
+                    Some(constraint) => {
+                        let inferred_constraint =
+                            self.get_inferred_type_parameter_constraint(ty, true)?;
+                        let is_inferred_constraint = match inferred_constraint {
+                            Some(inferred_constraint) => {
+                                self.is_type_identical_to(constraint, inferred_constraint)?
+                            }
+                            None => false,
+                        };
+                        if is_inferred_constraint {
+                            None
+                        } else {
+                            self.slice_add_approximate_length(9);
+                            Some(
+                                self.type_to_string_slice_node(constraint, fully_qualified)?
+                                    .0,
+                            )
+                        }
+                    }
+                    None => None,
+                };
+                let text = match constraint_text {
+                    Some(constraint) => format!("infer {name} extends {constraint}"),
+                    None => format!("infer {name}"),
+                };
+                return Ok((text, SliceTypeNodeKind::Infer));
+            }
             return Ok((
                 match self.tables.type_of(ty).symbol {
                     Some(symbol) => self.symbol_type_face_slice(symbol, fully_qualified)?.0,
@@ -6167,7 +6277,7 @@ impl<'a> CheckerState<'a> {
                     )?;
                     if arguments.len() == 1
                         && self.binder.symbol(alias_symbol).escaped_name == "Array"
-                        && self.get_global_type_symbol("Array", /*report_errors*/ false)
+                        && self.get_global_type_symbol("Array", /*report_errors*/ false)?
                             == Some(alias_symbol)
                     {
                         let (element, kind) = rendered_nodes
@@ -6419,15 +6529,16 @@ impl<'a> CheckerState<'a> {
             };
             let array_kind = match array_name_kind {
                 Some(false)
-                    if self.get_global_type_symbol("Array", /*report_errors*/ false)
+                    if self.get_global_type_symbol("Array", /*report_errors*/ false)?
                         == Some(symbol) =>
                 {
                     Some(false)
                 }
                 Some(true)
-                    if self
-                        .get_global_type_symbol("ReadonlyArray", /*report_errors*/ false)
-                        == Some(symbol) =>
+                    if self.get_global_type_symbol(
+                        "ReadonlyArray",
+                        /*report_errors*/ false,
+                    )? == Some(symbol) =>
                 {
                     Some(true)
                 }
@@ -6658,8 +6769,20 @@ impl<'a> CheckerState<'a> {
                 check_text
             };
             self.slice_add_approximate_length(15);
-            let (extends_text, extends_kind) =
-                self.type_to_string_slice_node(data.extends_type, fully_qualified)?;
+            // conditionalTypeToTypeNode 51642-51645: only the
+            // extends branch sees this conditional root's infer
+            // parameters as declarations. Nested conditional renders
+            // replace this vector and restore the outer context.
+            let infer_type_parameters = self
+                .tables
+                .conditional_root(data.root)
+                .infer_type_parameters
+                .to_vec();
+            let saved_infer_type_parameters =
+                std::mem::replace(&mut self.slice_infer_type_parameters, infer_type_parameters);
+            let extends_result = self.type_to_string_slice_node(data.extends_type, fully_qualified);
+            self.slice_infer_type_parameters = saved_infer_type_parameters;
+            let (extends_text, extends_kind) = extends_result?;
             let extends = if extends_kind == SliceTypeNodeKind::Conditional {
                 format!("({extends_text})")
             } else {
@@ -6681,7 +6804,7 @@ impl<'a> CheckerState<'a> {
             if self.tables.is_no_infer_type(ty) {
                 let (argument, _) =
                     self.type_to_string_slice_node(data.base_type, fully_qualified)?;
-                if let Some(symbol) = self.get_global_type_symbol("NoInfer", false) {
+                if let Some(symbol) = self.get_global_type_symbol("NoInfer", false)? {
                     let name = self.symbol_type_face_slice(symbol, fully_qualified)?.0;
                     return Ok((format!("{name}<{argument}>"), SliceTypeNodeKind::Reference));
                 }
@@ -6811,13 +6934,27 @@ impl<'a> CheckerState<'a> {
         ty: TypeId,
         fully_qualified: bool,
     ) -> CheckResult<(String, SliceTypeNodeKind)> {
-        // InstantiationExpressionType (51755-51770): the TypeQuery
-        // syntactic-reuse leg needs an enclosing-armed context (the
-        // 9.3b probes established the reuse channel is inert for
-        // error display) and the visitedTypes placeholder is the
-        // recursion guard below — the error path renders these
-        // STRUCTURALLY through the ordinary symbol routing
-        // (oracle: 2635 prints `{ (): number; g<U>(): U; }`).
+        // InstantiationExpressionType (51755-51770): a TypeQuery can
+        // be reused only while it still resolves to this exact type.
+        // Failed partial instantiations rely on that identity check to
+        // retain `typeof f<T>` in a surrounding constraint diagnostic;
+        // the 2635 error still renders its original expression type,
+        // not this filtered result.
+        if self
+            .tables
+            .object_flags_of(ty)
+            .intersects(ObjectFlags::INSTANTIATION_EXPRESSION_TYPE)
+        {
+            if let Some(existing) = self.links.ty(ty).deferred_node {
+                if self.kind_of(existing) == SyntaxKind::TypeQuery
+                    && self.get_type_from_type_node(existing)? == ty
+                {
+                    if let Some(text) = self.reusable_annotation_node_text_slice(existing)? {
+                        return Ok((text, SliceTypeNodeKind::TypeQuery));
+                    }
+                }
+            }
+        }
         if let Some(symbol) = self.tables.type_of(ty).symbol {
             let symbol_flags = self.binder.symbol(symbol).flags;
             // 51771: a JS constructor's anonymous object is its VALUE
@@ -6838,15 +6975,15 @@ impl<'a> CheckerState<'a> {
             // shapes took the declared-type symbol head upstream;
             // anonymous class statics and enum objects arrive here,
             // including class+ns/enum+ns value sides.
-            // Function/method symbols fall THROUGH to the structural
-            // tail on the error path:
-            // shouldWriteTypeOfFunctionSymbol (51789-51795) requires
-            // UseTypeOfFunction or a revisit, and typeToString sets
-            // neither (oracle-probed: top-level, local, namespace-
-            // parented declarations and expressions all render
-            // structurally on first visit; a revisit takes the
-            // slice_visited_types alias/elision branch below). The
-            // isJSConstructor head is handled immediately above.
+            // Function/method symbols fall THROUGH on their first visit,
+            // but a recursive revisit of a nameable non-local function or
+            // static method is written as `typeof f`. That second half of
+            // shouldWriteTypeOfFunctionSymbol is what makes self-returning
+            // signatures finite without erasing the recursive edge to
+            // `any`. The isJSConstructor head is handled immediately above.
+            if self.should_write_type_of_function_symbol_slice(ty, symbol)? {
+                return self.symbol_value_face_slice(symbol, fully_qualified);
+            }
             let named_class = symbol_flags.intersects(SymbolFlags::CLASS)
                 && self.slice_base_type_variable_of_class(symbol)?.is_none();
             if named_class
@@ -6931,6 +7068,52 @@ impl<'a> CheckerState<'a> {
         let result = self.type_node_from_object_type_slice(ty, fully_qualified);
         self.slice_visited_types.remove(&ty);
         result
+    }
+
+    /// tsc-port: shouldWriteTypeOfFunctionSymbol @6.0.3
+    /// tsc-hash: c613afc58096a6ced8cbbaf0463b9eb7009d996d87842cfac380b4d1753d085a
+    /// tsc-span: _tsc.js:51799-51809
+    ///
+    /// `typeToString` does not set UseTypeOfFunction or
+    /// UseStructuralFallback, so the live admission is the visited-type
+    /// arm. Keeping the declaration-shape predicate intact matters: local
+    /// function expressions have no stable value name and must retain the
+    /// ordinary elision fallback on recursion.
+    fn should_write_type_of_function_symbol_slice(
+        &mut self,
+        ty: TypeId,
+        symbol: SymbolId,
+    ) -> CheckResult<bool> {
+        if !self.slice_visited_types.contains(&ty) {
+            return Ok(false);
+        }
+        let symbol_flags = self.binder.symbol(symbol).flags;
+        let declarations = self.binder.symbol(symbol).declarations.clone();
+        let is_static_method_symbol = if symbol_flags.intersects(SymbolFlags::METHOD) {
+            let mut admitted = false;
+            for declaration in &declarations {
+                if self.is_static_element(*declaration)
+                    && !self.has_late_bindable_index_signature(*declaration)?
+                {
+                    admitted = true;
+                    break;
+                }
+            }
+            admitted
+        } else {
+            false
+        };
+        let is_non_local_function_symbol = symbol_flags.intersects(SymbolFlags::FUNCTION)
+            && (self.binder.symbol(symbol).parent.is_some()
+                || declarations.iter().any(|&declaration| {
+                    self.parent_of(declaration).is_some_and(|parent| {
+                        matches!(
+                            self.kind_of(parent),
+                            SyntaxKind::SourceFile | SyntaxKind::ModuleBlock
+                        )
+                    })
+                }));
+        Ok(is_static_method_symbol || is_non_local_function_symbol)
     }
 
     /// tsc-port: getBaseTypeVariableOfClass @6.0.3
@@ -8851,6 +9034,22 @@ impl<'a> CheckerState<'a> {
         self.signature_to_string_slice_for_diagnostic(signature, slice_kind)
     }
 
+    /// tsrs-native: select the constructor-arrow printer face used by tsc's
+    /// single-constructor relation fallback.
+    ///
+    /// tsc's single-constructor relation fallback renders both signatures
+    /// with `WriteArrowStyleSignature`, even though the surrounding
+    /// signaturesRelatedTo diagnostics use declaration-style signatures.
+    pub(crate) fn signature_to_string_slice_for_construct_assignment_error(
+        &mut self,
+        signature: SignatureId,
+    ) -> CheckResult<String> {
+        self.signature_to_string_slice_for_diagnostic(
+            signature,
+            SliceSignatureKind::ConstructorType,
+        )
+    }
+
     /// Keep every standalone diagnostic render isolated from an
     /// enclosing typeToString slice. This mirrors tsc's fresh
     /// single-line writer per signatureToString call.
@@ -8860,6 +9059,7 @@ impl<'a> CheckerState<'a> {
         kind: SliceSignatureKind,
     ) -> CheckResult<String> {
         let saved_visited = std::mem::take(&mut self.slice_visited_types);
+        let saved_infer_type_parameters = std::mem::take(&mut self.slice_infer_type_parameters);
         let saved_approximate_length = std::mem::replace(&mut self.slice_approximate_length, 0);
         let saved_max_truncation_length = std::mem::replace(
             &mut self.slice_max_truncation_length,
@@ -8876,6 +9076,7 @@ impl<'a> CheckerState<'a> {
         let result =
             self.signature_to_string_slice(signature, kind, None, /*fully_qualified*/ false);
         self.slice_visited_types = saved_visited;
+        self.slice_infer_type_parameters = saved_infer_type_parameters;
         self.slice_approximate_length = saved_approximate_length;
         self.slice_max_truncation_length = saved_max_truncation_length;
         self.slice_truncating = saved_truncating;
@@ -9430,16 +9631,13 @@ impl<'a> CheckerState<'a> {
                 return Ok(false);
             };
             let signature = self.get_signature_from_declaration(parent)?;
-            let parameters = match self.data_of(parent) {
-                NodeData::FunctionDeclaration(data) => self.nodes_of(data.parameters),
-                NodeData::FunctionExpression(data) => self.nodes_of(data.parameters),
-                NodeData::ArrowFunction(data) => self.nodes_of(data.parameters),
-                NodeData::MethodDeclaration(data) => self.nodes_of(data.parameters),
-                NodeData::Constructor(data) => self.nodes_of(data.parameters),
-                NodeData::GetAccessor(data) => self.nodes_of(data.parameters),
-                NodeData::SetAccessor(data) => self.nodes_of(data.parameters),
-                _ => Vec::new(),
-            };
+            // The parser can retain an initializer on every
+            // signature-declaration parameter as error-recovery syntax, not
+            // only on implementation declarations. Use the shared typed AST
+            // projection for `node.parent.parameters` so function/constructor
+            // types and call/construct signatures preserve optional arity in
+            // diagnostics too.
+            let parameters = self.parameters_of_function(parent);
             let Some(parameter_index) = parameters.iter().position(|&p| p == node) else {
                 return Ok(false);
             };
@@ -9537,8 +9735,9 @@ impl<'a> CheckerState<'a> {
     ///
     /// SuppressAnyReturnType is never set on the slice's contexts, so
     /// the suppress legs are dead and a node always yields. The
-    /// syntactic arm rides the annotation-reuse gate; the inferred
-    /// arm renders the type predicate first (53548-53556).
+    /// syntactic arm first reuses an explicit annotation, then the
+    /// reusable type assertion of a single return expression; the
+    /// inferred arm renders the type predicate first (53548-53556).
     /// context.mapper re-instantiation of the predicate is identity
     /// here: getTypePredicateOfSignature already resolves through
     /// signature.target/mapper (narrow.rs), and enterNewScope's
@@ -9576,11 +9775,126 @@ impl<'a> CheckerState<'a> {
                     return Ok(text);
                 }
             }
+            if let Some(text) = self.syntactic_single_return_type_text_slice(declaration)? {
+                return Ok(text);
+            }
         }
         if let Some(predicate) = self.get_type_predicate_of_signature(signature)? {
             return self.type_predicate_text_slice(&predicate, fully_qualified);
         }
         self.type_to_string_slice_ex(return_type, fully_qualified)
+    }
+
+    /// tsc-port: typeFromSingleReturnExpression @6.0.3 (the reusable
+    /// assertion face exercised by diagnostic signature serialization).
+    /// tsc-hash: 8598fa12646f02f556815a62d604714593fb45f0342beebadc7d224ff9649c37
+    /// tsc-span: _tsc.js:134407-134438
+    ///
+    /// Keep the syntactic face separate from the semantic return type:
+    /// the former preserves an assertion such as `number | string` in
+    /// the enclosing function signature, while a nested relation still
+    /// prints the canonical semantic union `string | number`. The full
+    /// syntactic builder also derives primitive/function/literal faces;
+    /// unsupported expression shapes deliberately fall through to the
+    /// semantic serializer instead of duplicating that builder here.
+    fn syntactic_single_return_type_text_slice(
+        &mut self,
+        declaration: NodeId,
+    ) -> CheckResult<Option<String>> {
+        if !matches!(
+            self.kind_of(declaration),
+            SyntaxKind::FunctionDeclaration
+                | SyntaxKind::FunctionExpression
+                | SyntaxKind::ArrowFunction
+                | SyntaxKind::MethodDeclaration
+                | SyntaxKind::Constructor
+                | SyntaxKind::GetAccessor
+                | SyntaxKind::SetAccessor
+        ) {
+            return Ok(None);
+        }
+        if self.get_function_flags(declaration)
+            & (crate::functions::FUNCTION_FLAGS_ASYNC | crate::functions::FUNCTION_FLAGS_GENERATOR)
+            != 0
+        {
+            return Ok(None);
+        }
+        let source = self.binder.source_of_node(declaration);
+        let Some(body) = node_util::body_of(source, declaration) else {
+            return Ok(None);
+        };
+        if node_util::node_is_missing(source, Some(body)) {
+            return Ok(None);
+        }
+
+        let candidate = if self.kind_of(body) == SyntaxKind::Block {
+            let mut candidate = None;
+            let invalid = self.for_each_return_statement(body, &mut |state, statement| {
+                if state.parent_of(statement) != Some(body) {
+                    candidate = None;
+                    return true;
+                }
+                let expression = match state.data_of(statement) {
+                    NodeData::ReturnStatement(data) => data.expression,
+                    _ => None,
+                };
+                if candidate.is_some() {
+                    candidate = None;
+                    return true;
+                }
+                candidate = expression;
+                false
+            });
+            if invalid {
+                None
+            } else {
+                candidate
+            }
+        } else {
+            Some(body)
+        };
+        let Some(mut expression) = candidate else {
+            return Ok(None);
+        };
+
+        loop {
+            if let Some(type_node) = self.jsdoc_type_assertion_type_node(expression) {
+                return if self.is_const_type_reference_node(type_node) {
+                    Ok(None)
+                } else {
+                    self.type_annotation_text_slice(type_node).map(Some)
+                };
+            }
+            match self.data_of(expression) {
+                NodeData::ParenthesizedExpression(data) => {
+                    let Some(inner) = data.expression else {
+                        return Ok(None);
+                    };
+                    expression = inner;
+                }
+                NodeData::AsExpression(data) => {
+                    let Some(type_node) = data.r#type else {
+                        return Ok(None);
+                    };
+                    return if self.is_const_type_reference_node(type_node) {
+                        Ok(None)
+                    } else {
+                        self.type_annotation_text_slice(type_node).map(Some)
+                    };
+                }
+                NodeData::TypeAssertionExpression(data) => {
+                    let Some(type_node) = data.r#type else {
+                        return Ok(None);
+                    };
+                    return if self.is_const_type_reference_node(type_node) {
+                        Ok(None)
+                    } else {
+                        self.type_annotation_text_slice(type_node).map(Some)
+                    };
+                }
+                _ => return Ok(None),
+            }
+        }
     }
 
     /// tsc-port: typePredicateToTypePredicateNodeHelper @6.0.3
@@ -13045,7 +13359,7 @@ fn identifier_or_literal_name_slice(
 /// `escapeString` and then escapes every non-ASCII UTF-16 code unit.
 /// Iterating code units (rather than Rust scalar values) preserves the
 /// exact surrogate-pair spelling for astral characters.
-fn string_literal_name_slice(name: &str, single_quote: bool) -> CheckResult<String> {
+pub(crate) fn string_literal_name_slice(name: &str, single_quote: bool) -> CheckResult<String> {
     string_literal_name_text(&tsc_types::TemplateText::from_utf8(name), single_quote)
 }
 
