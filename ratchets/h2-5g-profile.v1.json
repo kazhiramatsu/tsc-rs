@@ -320,7 +320,7 @@
     },
     {
       "path": "crates/xtask/src/h2_2c_acceptance.rs",
-      "sha256": "58ed8360c1793e74a71793493b904d80351045ea5ce94711c026cf49ef0466db"
+      "sha256": "48430b334fd1485b5d8296c6bb22c8ee3b901481d7fbaa011f9b67560942c14b"
     },
     {
       "path": "crates/xtask/src/h2_2d_acceptance.rs",
@@ -1270,5 +1270,5 @@
     "undispositioned_candidates": 0,
     "historical_artifacts_reinterpreted": 0
   },
-  "profile_fingerprint_sha256": "7eeece879f77d5c88b04e6bf57c70fcbf297a731b039743b13dd88f0f0c6fda4"
+  "profile_fingerprint_sha256": "641db901e9c28403fca90cd81282c3cec7217a9a5a051132fa114ddd544bf436"
 }

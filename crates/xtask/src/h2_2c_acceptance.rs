@@ -744,7 +744,14 @@ fn execute_slice_observed_with_inputs(
         &array(case, "typescript_runs")?[0]
     };
     let transform_source_paths = transform_source_paths(expected)?;
+    // `PreparedProgram` is an immutable, fully-owned semantic input. Build it
+    // once, then clone that value for the second consuming session. This keeps
+    // the two `ProgramSession`s isolated while avoiding a second filesystem/
+    // parse/resolve traversal whose only purpose was to recreate identical
+    // bytes. The repetition still consumes two distinct owned programs and
+    // compares every observable below.
     let first_program = prepare()?;
+    let second_program = first_program.clone();
     let typed_activity = if matches!(accepted_slice, AcceptanceSlice::H2_5g) {
         Some(expected_typed_activity(
             &first_program,
@@ -758,7 +765,7 @@ fn execute_slice_observed_with_inputs(
         .emit_with_reported_diagnostics_for_harness(&mut first_sink)
         .map_err(|error| failure(format!("{case_id}: first Rust emit failed: {error}")))?;
     let mut second_sink = MemoryOutputSink::new();
-    let (second, second_reported) = ProgramSession::new(prepare()?)
+    let (second, second_reported) = ProgramSession::new(second_program)
         .emit_with_reported_diagnostics_for_harness(&mut second_sink)
         .map_err(|error| failure(format!("{case_id}: second Rust emit failed: {error}")))?;
     if first != second || first_sink != second_sink || first_reported != second_reported {
