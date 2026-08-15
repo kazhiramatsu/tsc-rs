@@ -21,8 +21,9 @@ product finish lines and never rewrites the M8 denominator.
 The [current emitter architecture](emitter-architecture.md) owns validated
 Rust emitter types, ownership, integration seams, and their lifecycle; this
 schedule does not duplicate that implementation map.
-The [functional CI evidence architecture](functional-ci-evidence.md) owns the
-post-H2.5g migration to a demand-driven typed impact graph, adapter-owned
+The [functional CI framework and evidence architecture](functional-ci-evidence.md)
+owns the post-H2.5g migration to a reusable protocol/runner with tsc-rs as its
+reference adapter, a demand-driven typed impact graph, adapter-owned
 deterministic plans and optional bundle interiors (H2 uses fixed shards),
 content-addressed verified roots, complete local-full projection, and exact-key
 hosted cache consumption. It does not amend or replace the current H2.5g
@@ -263,8 +264,10 @@ format before its implementation phase begins.
 
 ### 1.3 Functional-CI interlock after H2.5g
 
-The post-merge review does not proceed directly to H2.5h-a. It freezes the
-shared packet checker/schema and the first exact ready Functional-CI packet;
+The post-merge review does not proceed directly to H2.5h-a. FCI-0a and FCI-0b
+are documentation-only boundary/API-manifest records and never become runtime
+authorization. The review freezes the shared packet checker/schema and the
+first exact ready Functional-CI implementation packet, FCI-1a;
 subsequent short-lived packet branches then advance one indexed packet at a
 time through
 [the architecture's stage table](functional-ci-evidence.md#14-migration-stages-and-packets)
@@ -280,11 +283,15 @@ H2.5g close
   -> H2.5h-a
 ```
 
-Within a stage, lettered packets run in lexical order unless a packet records
-an earlier dependency explicitly. A stage closes only when all of its packets
-and immutable proofs close. FCI-8b is read-only protected-host/bootstrap
-research and FCI-8c is read-only hosted-provider research; bootstrap/provider
-code is forbidden until its respective packet freezes every workflow,
+Within a stage, lettered packets run in lexical order and numeric subpackets
+run in numeric order unless a packet records an earlier dependency explicitly.
+The required subdivisions are FCI-1a-c, FCI-2a-b, FCI-4a.1-a.3, FCI-5a-c,
+and FCI-7c.1-c.2; they refine but do not reorder the hard gate. A stage closes
+only when all of its packets and immutable proofs close. FCI-8 begins only
+after the FCI-7c.2 framework qualification/API freeze. FCI-8b is read-only
+protected-host/bootstrap research and FCI-8c is read-only hosted-provider
+research; bootstrap/provider code is forbidden until its respective packet
+freezes every workflow,
 attestation, atomicity, authority, scope, limit, retention, recovery, and
 failure decision. FCI-8d implements protected N+1 engine promotion, FCI-8e the
 provider backend, and FCI-8f the complete hosted shadow. FCI-8a/FCI-9a own

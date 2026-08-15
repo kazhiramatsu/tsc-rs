@@ -34,7 +34,7 @@ unresolved item, or unstated implementation choice is not ready for production
 edits.
 
 After H2.5g closes, the schedule inserts the
-[Functional CI evidence architecture](functional-ci-evidence.md) before
+[Functional CI framework and evidence architecture](functional-ci-evidence.md) before
 H2.5h-a. It defines an independent reusable framework: pure generic `ci-core`,
 bounded-effect generic `ci-runner`, and repository-owned adapters that inject
 namespace and semantics. Follow its FCI dependency stages only through exact

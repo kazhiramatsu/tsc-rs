@@ -1,12 +1,14 @@
-# Functional CI evidence architecture
+# Functional CI framework and evidence architecture
 
-Status: **normative architecture for the post-H2.5g functional-CI
-migration**. It is not an H2.5g closure amendment.
+Status: **normative architecture for the post-H2.5g reusable functional-CI
+framework migration**. It is not an H2.5g closure amendment.
 
-This document owns the future generic functional execution model,
-adapter-owned deterministic plans and optional bundle interiors (H2 uses fixed
-shards), content-addressed evidence, verified-root capabilities, and exact
-hosted-cache consumption. The
+This document owns the future reusable framework protocol and runner, their
+extension API, adapter-owned deterministic plans and optional bundle interiors
+(the tsc-rs reference adapter uses fixed H2 shards), content-addressed
+evidence, verified-root capabilities, and exact hosted-cache consumption.
+tsc-rs is the first reference application of this framework, not its semantic
+or permanent package boundary. The
 [evidence and steady-state contract](evidence-and-steady-state.md) continues to
 own the existing B1-B4 and M9 workflows. The
 [post-H1 schedule](post-h1-completion-slices.md) owns slice order, and the
@@ -15,10 +17,10 @@ own the existing B1-B4 and M9 workflows. The
 The current H2.5g qualification, inventory, owner-control, acceptance, hosted,
 and local-CI commands remain exactly as recorded in the slice-packet index.
 Nothing in this document changes an H2.5g count, permits a replacement command,
-turns a cache into current H2.5g evidence, or declares H2.5g qualified. FCI-0
-records this architecture only. Executable framework work starts with an
-indexed ready implementation packet for FCI-1 only after H2.5g closes and the post-merge roadmap
-review authorizes that packet.
+turns a cache into current H2.5g evidence, or declares H2.5g qualified. FCI-0a
+and FCI-0b record this architecture only. Executable framework work starts with
+an indexed ready implementation packet for FCI-1a only after H2.5g closes and
+the post-merge roadmap review authorizes that packet.
 
 The hard gate is:
 
@@ -165,7 +167,9 @@ Responsibilities are fixed:
 | --- | --- | --- |
 | Rust `ci-core` | Pure canonical values, action/impact graph, fingerprints, outcomes, Merkle verification, policy-state vocabulary, and projections | Filesystem, process, network, clock, cache transport, or compiler-specific dependencies |
 | Rust `ci-runner` | CAS and cache effects, atomic publication, bounded scheduling, sandbox invocation, authenticated receipt handling, and explanations | Compiler-specific semantics or changing a pure result based on cache/scheduler behavior |
-| Repository adapter (`xtask` in tsc-rs) | Application namespace, typed graph/node/action schemas, semantic execution hooks, verification, aggregation, projections, and profile membership | Adding repository/compiler branches to generic crates or bypassing their verification/publication contracts |
+| Repository adapter (`ci-adapter-tsc-rs-control` for the reference application) | Application namespace, typed graph/node/action schemas, semantic execution hooks, verification, aggregation, projections, and profile membership | Adding repository/compiler branches to generic crates, linking candidate production/compiler code into the protected control plane, or bypassing framework verification/publication contracts |
+| Candidate action harness (`ci-harness-tsc-rs` for the reference application) | Execute one adapter invocation against the mounted candidate snapshot and return one bounded canonical observation through the adapter protocol | Decide cache authority, aggregate a root, publish evidence, load into the protected control process, or provide a verifier/profile implementation |
+| Framework testkit | Reusable fake adapters/backends, compile-fail fixtures, golden protocol fixtures, and adversarial conformance helpers | Production authority, repository semantics, provider credentials, or a dependency from a production runtime path |
 | Remote provider adapter (runner-side, selected after FCI-8c) | Map one frozen storage/attestation provider to bounded reads, immutable objects, exact candidate indices, one selected atomic publication capability, authentication, and typed transport failures | Interpret repository nodes or semantic outcomes, invent keys, select trust from candidate content, provide an inexact fallback, or mint a local root capability |
 | Node | Generate and check pinned TypeScript oracle observations and compatibility fixtures | Mint a verified Rust root or decide that cached Rust execution is acceptable |
 | Nix, if adopted | Pin tools and provide an optional outer sandbox/derivation for Rust and Node commands | Define shard membership, canonical bytes, invalidation, summaries, or verified-root policy |
@@ -183,8 +187,8 @@ execution boundary.
 ### 2.1 Framework charter and qualification
 
 This is an incubating reusable **functional-CI framework**. tsc-rs is its first
-application and reference workload, not its permanent domain boundary. The
-framework is intended to make a repository's CI a deterministic function over
+application and reference adapter, not its permanent domain or package
+boundary. The framework is intended to make a repository's CI a deterministic function over
 typed inputs, preserve its complete logical gate membership, and reuse only
 exact verified evidence. A successful H2 run by itself proves only the tsc-rs
 adapter; it does not qualify the framework abstraction.
@@ -219,21 +223,24 @@ The workspace-public extension surface is deliberately small. Repository
 integration uses `ActionModel`, `AdapterCodec`, `Projection`, typed
 `AdapterRegistration`, versioned `ActionInvocationV1`,
 `CompositeProfileV1`/`CompletePhaseRegistryV1`/`AdapterInstanceRefV1` values,
-and strongly typed adapter
-ids/specs. Effect integration uses
+and strongly typed adapter ids/specs. Effect integration uses
 `SourceSnapshotProvider`, `Sandbox`, `CasBackend`, `ExactCacheBackend`, and one
 provider-neutral `AtomicSnapshotPublisher` capability whose concrete backend
-is selected by the frozen protected profile. These are
-public so another workspace adapter can implement them; they are not a crates.io
-stability promise. Canonical encoding and hash framing, graph closure rules,
+is selected by the frozen protected profile. Protected host composition alone
+uses `AdapterRegistryBuilder::seal` and the eventual blocking
+`Runner::evaluate` entry; adapters receive neither constructor authority nor a
+second evaluation callback. These are public so another workspace adapter can
+implement them; they are not a crates.io stability promise. Canonical encoding
+and hash framing, graph closure rules,
 outcome/Merkle validation, same-key conflict handling, authority commit order,
 and constructors for `VerifiedPolicySpec`, `IndexCommitGuard`, and
 `AuthorizedRoot` are framework invariants, not extension points. No adapter may
 override them with a callback, policy trait, string kind, or unchecked
 constructor.
 
-Framework qualification requires the FCI-7c second adapter. The required
-`workspace-audit` adapter has no TypeScript/compiler/oracle observation, case
+Framework qualification requires the FCI-7c.1 second adapter followed by the
+FCI-7c.2 API/conformance freeze. The required `workspace-audit` adapter has no
+TypeScript/compiler/oracle observation, case
 corpus, repetition policy, shard/bundle interior, or H2 projection. It uses a
 flat leaf set and its own audit observations, while using the same canonical
 input/key, typed graph, impact, outcome, runner, local CAS, sealed snapshot,
@@ -250,17 +257,62 @@ only when both H2 and workspace-audit use one frozen generic API with:
 If implementing the second adapter requires a generic API change, that change
 is a new reviewed framework packet: its signature, errors, invariants, and
 two-adapter fixtures are frozen first, then both adapters are rerun. The framework
-is not called qualified until the changed API satisfies the four checks. FCI-7c
-qualifies reuse inside this workspace; external publication/extraction remains
-a separate future decision. Complete tsc-rs framework migration still means
-FCI-10, after the distinct FCI-9a local and FCI-9b hosted activations.
+is not called qualified until the changed API satisfies the four checks and
+FCI-7c.2 records the frozen API manifest. FCI-7c.2 qualifies reuse inside this
+workspace for the repository/core/local-runner surface. FCI-8e later freezes
+the independently owned provider-publication SPI and may not reopen that
+adapter surface. External publication/extraction remains a separate future decision.
+Complete tsc-rs framework migration still means FCI-10, after the distinct
+FCI-9a local and FCI-9b hosted activations.
+
+Qualification is deliberately graduated; an earlier level cannot claim a
+later one:
+
+| Level | Closing packet or gate | Claim permitted |
+| --- | --- | --- |
+| Architecture recorded | FCI-0a boundary record plus FCI-0b API-manifest record | The intended framework/application/provider boundaries and the owner of every future public seam are normative. This is documentation only and grants no implementation authority. |
+| Generic seam proved | FCI-4a.3 | Two structurally different in-memory fake adapters pass the graph, sealed registry, preparation, membership, and negative-dependency contracts. No real repository reuse claim is permitted. |
+| Workspace framework qualified | FCI-7c.2 | The real H2 and workspace-audit adapters use one frozen API and shared conformance kit without a generic branch or downcast. |
+| Complete shadows and final extension manifest proved | FCI-8a and FCI-8f | The complete local and hosted logical denominators agree with their existing authoritative commands while reuse remains disabled; the appended host/provider API partitions are frozen without reopening the FCI-7c.2 adapter/local surface. |
+| Activated | FCI-9a and FCI-9b separately | The applicable local-full or unchanged hosted ts-tests-only boundary may consume verified reuse after its separate approval. |
+| Reference migration complete | FCI-10 | tsc-rs duplicate qualifying traversals are retired while the framework protocol and historical readers remain. |
+
+External packaging, crates.io publication, public SemVer, or support for an
+unrelated workspace is not implied by any level above. A later distribution
+design must add a separate compatibility/support matrix and external-workspace
+conformance proof without reopening the tsc-rs activation gate.
+
+#### 2.1.1 Functional-CI v1 non-goals
+
+Functional-CI v1 is a deterministic verification-and-evidence framework, not
+a second general-purpose workflow language. Its boundaries are fixed:
+
+- it stores and revalidates semantic evidence; it does not distribute or
+  execute restored build artifacts, and no remote-restored file becomes an
+  executable, library, source input, or `PATH` entry;
+- it runs bounded actions on one runner and does not define distributed remote
+  execution, speculative execution, or a cross-run scheduler protocol;
+- repository and provider registrations are compiled into a protected closed
+  registry; v1 has no runtime-loaded plugin, candidate-selected callback, or
+  opaque string dispatch;
+- it does not replace deployment/release automation or general secret-bearing
+  jobs. A typed `NonReusable` effect gate may represent such a mandatory local
+  phase, but it publishes no reusable semantic evidence and cannot enter a
+  hosted `ReuseAllowed` root;
+- it does not define a second build graph, compiler package manager, or
+  provider-specific workflow DSL. Existing build tools may produce a
+  miss-only harness, but their opaque cache is not semantic authority;
+- v1 requires exact protocol/schema matches and exposes no payload migration,
+  version negotiation, prefix restore, or best-effort compatibility hook; and
+- the workspace-private Rust API is reusable by checked-in adapters but is not
+  a crates.io stability promise during this migration.
 
 Version and portability boundaries are independent:
 
 | Boundary | Version authority | Required compatibility behavior |
 | --- | --- | --- |
 | Framework protocol | `ProtocolDomainV1`, canonical/schema ids, and store wire/layout version | A byte/hash interpretation change uses a new domain or schema and golden fixtures; old authority is never silently reinterpreted. |
-| Application adapter | `ApplicationNamespaceV1`, adapter id/schema, graph/action/root specs, and semantic implementation ids | A semantic change invalidates exactly its declared closures; a schema migration is explicit, total, versioned, and separately authorized. |
+| Application adapter | `ApplicationNamespaceV1`, adapter id/schema, graph/action/root specs, and semantic implementation ids | A semantic change invalidates exactly its declared closures. A changed payload uses a new exact schema/domain/namespace; any separately authorized total offline converter writes new objects and is not a v1 reader migration/negotiation hook. |
 | Provider adapter | FCI-8c capability record, provider/API version, selected publication strategy, namespace epoch, and trust-root binding | A provider change may change availability/receipts, never canonical semantic bytes; an unsupported atomicity, durability, auth, or quota contract fails closed. |
 | Execution platform | `ExecutionPlatformV1`, `ToolchainSetV1`, sandbox ABI, and runner capability probes | Platform-bound actions get distinct keys; a reviewed platform-independent action must pass partition-invariance fixtures on every admitted class. |
 
@@ -380,12 +432,22 @@ credential is never substituted.
 
 ## 3. Crate and dependency placement
 
-Add two workspace-private support crates in separate ready packets. The
-tree below is the final framework layout after the migration, not the file set
-created by FCI-1 or FCI-2. FCI-1 creates only the `ci-core` canonical, digest,
-input, and minimal associated graph/profile type seams plus their tests; FCI-2
-creates only the `ci-runner` crate boundary, `InfraError` taxonomy, bounded
-chunk-source/effect-result seams, and dependency/error tests. FCI-3b owns
+Add the workspace-private framework, testkit, and reference-application
+packages only through their separate ready packets. The tree below is the final
+provider-neutral package map after the migration, not the file set created by
+FCI-1 or FCI-2; FCI-8c/FCI-8e append the one separately researched provider
+package as described below.
+FCI-1a creates only `ci-core` identifiers and dependency guards; FCI-1b and
+FCI-1c add only adapter-descriptor and graph/profile/typestate record seams;
+the executable codec/registration API waits until FCI-4a.3 after strict decode
+and all types in its signature exist. FCI-2a creates the `ci-runner` crate and blocking
+error/cancellation taxonomy; FCI-2b adds only bounded effect seams and fakes.
+The complete `RunContext` and `Runner::evaluate` appear only at FCI-7b after
+all of their argument types exist. The shared
+`ci-testkit` package is extracted at FCI-4a.3 after both framework crates and
+both fake adapter shapes exist. The tsc-rs protocol/control adapter packages
+start only at FCI-5a, its candidate harness at FCI-5b, and the independent
+workspace-audit adapter at FCI-7c.1. FCI-3b owns
 invocation and sandbox-identity value types. FCI-3c owns source snapshots,
 mounted-source/path types, the `SourceSnapshotProvider` and `Sandbox` traits,
 staging, scheduling, and resource types as one invariant set. Because
@@ -430,21 +492,73 @@ crates/ci-runner/
   src/explain.rs
   src/resource.rs
   tests/unit/
+
+crates/ci-testkit/
+  Cargo.toml
+  src/lib.rs
+  src/adapter.rs
+  src/backend.rs
+  src/conformance.rs
+  src/golden.rs
+
+crates/ci-adapter-tsc-rs-protocol/
+  Cargo.toml
+  src/lib.rs
+  src/invocation.rs
+  src/observation.rs
+  src/root.rs
+
+crates/ci-adapter-tsc-rs-control/
+  Cargo.toml
+  src/lib.rs
+  src/registry.rs
+  src/plan.rs
+  src/invocation.rs
+  src/verify.rs
+  src/aggregate.rs
+  src/projection.rs
+
+crates/ci-harness-tsc-rs/
+  Cargo.toml
+  src/main.rs
+
+crates/ci-adapter-workspace-audit/
+  Cargo.toml
+  src/lib.rs
+
+crates/xtask/
+  # CLI parsing, protected composition, and command projection only;
+  # no repository semantic implementation remains here after FCI-10.
 ```
 
-Their Cargo packages are `tsc-rs-ci-core` and `tsc-rs-ci-runner`, their Rust
-libraries are `tsc_ci_core` and `tsc_ci_runner`, their root dependency aliases
-are `tsc-ci-core` and `tsc-ci-runner`, and their package roles are `ci-core` and
-`ci-runner`. Both manifests set `publish = false`. They are repository support
-crates, not a promised external API and not candidates for publication until a
-separate future design approves that change.
+Package identities and roles are fixed:
+
+| Directory | Cargo package / Rust target | Role and dependency boundary |
+| --- | --- | --- |
+| `crates/ci-core` | `tsc-rs-ci-core` / `tsc_ci_core` | Pure framework protocol; no I/O or other workspace dependency. |
+| `crates/ci-runner` | `tsc-rs-ci-runner` / `tsc_ci_runner` | Generic effect engine; depends on `ci-core`, never an adapter or production crate. |
+| `crates/ci-testkit` | `tsc-rs-ci-testkit` / `tsc_ci_testkit` | Development/test-only conformance helpers; may depend on both framework crates and cannot enter an authoritative binary's normal dependency closure. |
+| `crates/ci-adapter-tsc-rs-protocol` | `tsc-rs-ci-adapter-protocol` / `tsc_ci_adapter_protocol` | Pure tsc-rs invocation/observation/root wire schema shared across the process boundary; depends on `ci-core`, never production or `ci-runner`. |
+| `crates/ci-adapter-tsc-rs-control` | `tsc-rs-ci-adapter-control` / `tsc_ci_adapter_control` | Protected reference adapter; depends on the protocol, `ci-core`, and only the public `ci-runner` SPI, never candidate production/compiler crates. |
+| `crates/ci-harness-tsc-rs` | `tsc-rs-ci-harness` / `tsc-rs-ci-harness` binary | Candidate-side miss-only action executable; may depend on the protocol and production/compiler crates, never on control, cache, publication, or authority code. |
+| `crates/ci-adapter-workspace-audit` | `tsc-rs-ci-adapter-workspace-audit` / `tsc_ci_adapter_workspace_audit` | Independent shard/repetition/compiler-free qualification adapter; no production/compiler dependency. |
+| `crates/xtask` | existing package/binary | Protected/local host composition, CLI, profile selection, and final projection only; no adapter wire, graph, verifier, aggregate, or harness implementation after FCI-10. |
+
+The root dependency aliases for the three generic libraries are
+`tsc-ci-core`, `tsc-ci-runner`, and `tsc-ci-testkit`. Every listed new manifest
+sets `publish = false`. They are repository support packages, not a promised
+external API and not candidates for publication until a separate future design
+approves that change. The selected provider adapter is intentionally absent
+from this pre-research file map: FCI-8c freezes one exact provider package name,
+dependency set, and capability contract, and only FCI-8e may add it. It may
+depend on `ci-runner`, never on either repository adapter.
 
 Workspace-private is a distribution and stability boundary, not permission to
 specialize the framework for H2. The framework API must remain reusable across
 independently typed adapters, with H2 and the structurally different
-workspace-audit adapter as the first two proofs. Whether the crates are later extracted
-or published is a separate decision and cannot weaken this in-workspace
-genericity requirement.
+workspace-audit adapter as the first two proofs. Whether the crates are later
+extracted or published is a separate decision and cannot weaken this
+in-workspace genericity requirement.
 
 This is an independent, reusable functional-CI framework with repository
 adapters, not a tsc-rs-specific cache optimization. `ci-core` owns only the
@@ -452,9 +566,10 @@ pure function/graph/evidence protocol; `ci-runner` owns only bounded effects and
 publication; an adapter supplies application namespace, graph/node schemas,
 execution semantics, verification, aggregation, and projection. The internal
 Cargo package names may retain `tsc-rs` while the framework is incubated, but
-those names have no semantic role. Moving the two crates to another workspace
-must require only dependency/package wiring and new adapters, never removal of
-an H2, Cargo, branch, shard, or repository special case from generic code.
+those names have no semantic role. Moving the generic crates to another
+workspace must require only dependency/package wiring and new adapters, never
+removal of an H2, Cargo, branch, shard, or repository special case from generic
+code.
 
 `ci-core` may depend on `serde`, `serde_json`, and `sha2`; it performs no I/O and
 depends on no other workspace crate. `ci-runner` depends on `ci-core` and only
@@ -462,26 +577,15 @@ generic effect-support dependencies. Neither crate may depend on a `tsc-*`
 production, oracle, harness, conformance, or xtask crate. `ci-core` must not
 depend on `ci-runner`.
 
-H2 and other product-specific adapters remain in xtask. The first adapter has
-this layout:
-
-```text
-crates/xtask/src/h2_evidence/
-  mod.rs
-  registry.rs
-  wire_v1.rs
-  wire_v2.rs
-  plan.rs
-  invocation.rs
-  verify.rs
-  aggregate.rs
-  commands.rs
-```
-
-Only the protected control-engine/xtask assembly initially depends on both CI
-crates. Its adapter code consumes production source and artifact identities as
-data but must not link a candidate production/compiler crate. Miss-only
-candidate action harnesses are separate executables described by
+tsc-rs-specific semantics live in its protocol/control/harness packages, not
+in `xtask` and never in a generic framework crate. During shadow migration,
+`xtask` may retain an explicitly indexed legacy forwarding module only until
+the owning FCI-5a through FCI-5c packets move that implementation; it cannot be
+a second semantic owner, and FCI-10 removes the forwarding path. Only the
+protected control-engine/xtask composition depends on both framework crates
+and the control adapter. The control adapter consumes production source and artifact
+identities as data but must not link a candidate production/compiler crate.
+Miss-only candidate action harnesses are separate executables described by
 `ActionInvocationV1`; they communicate only through bounded canonical wire
 bytes and never load into the trusted process. The production roles
 `syntax`, `types`, `diagnostics`, `binder`, `host`, `program`, `emitter`,
@@ -501,12 +605,50 @@ adapter's versioned wire schema or in its isolated candidate harness, not in a
 generic crate or a trusted in-process dependency on candidate production code.
 H2 is the first adapter, not the framework's type model.
 
+### 3.1 Workspace-public API manifest
+
+FCI-0b owns the normative API-manifest record below. It freezes which packet
+must introduce each public seam, the owning crate, its error family, and the
+constructor that remains sealed. It does not create a Rust item, reserve an
+empty module, mark an implementation packet `ready`, or permit an implementer
+to invent a missing signature. Before each owning packet becomes `ready`, that
+packet must replace the applicable conceptual signature below with its exact
+Rust signature, full fields/bounds/visibility, errors, and compile-fail
+fixtures. The packet may make a surface smaller; it may not add an adapter
+escape or move a responsibility across this table without first amending
+FCI-0b.
+
+| Surface | Owning packet | Workspace-public extension | Sealed/private invariant |
+| --- | --- | --- | --- |
+| Canonical identifiers and adapter descriptors | FCI-1a/FCI-1b | Typed ids plus inert descriptor/schema records | Codec bounds, monomorphized registration, descriptor-set validation, and any executable registry remain unavailable. |
+| Graph/profile/root and pending/complete record seams | FCI-1c | Generic records and checked proposal builders that name no future codec/outcome type | Complete membership, adapter traits, and prepared-plan constructors remain unavailable. |
+| Blocking effect/error vocabulary | FCI-2a/FCI-2b | `InfraError`, `RunCancellation`, bounded chunk/result seams | No `RunContext`, worker, snapshot, sandbox, cache, or publication interface exists yet. |
+| Canonical codec and execution values | FCI-3a/FCI-3b | Strict bounded codec plus typed invocation/repetition/reuse/tool/platform values | Domain registration, canonical framing, and `PreparedExecutionV1` construction are framework-owned. |
+| Snapshot/sandbox/resource SPI | FCI-3c | `SourceSnapshotProvider`, `Sandbox`, resource claims and bounded readers | Snapshot/sandbox guards and authority-bearing constructors remain private. |
+| Model/codec, registry seal, prepared executions, and composite membership | FCI-4a.3 | Checked adapter model/codec registrations and registry-builder input | Only `AdapterRegistryBuilder::seal` yields `VerifiedAdapterRegistry`; only core preparation yields `PreparedExecutionV1` or a complete typed input. |
+| CAS/cache/outcome/projection/local commit SPI | FCI-6a through FCI-6c | Bounded backend/local publisher traits and typed projection registration | Verified objects, commit guards, verified outcome views, complete outcomes, and authority constructors remain sealed. |
+| Live planning and evaluation entry | FCI-7a/FCI-7b | Explicit immutable source/evidence snapshots and `Runner::evaluate` | The runner, not an adapter/backend, owns scheduling, retry, conflict handling, final commit order, and `RunError`. |
+| Remote atomic publisher | FCI-8e | One provider-neutral `AtomicSnapshotPublisher` capability | Concrete provider strategy, credentials, remote guards, and trust selection remain provider/protected-host private. |
+
+This manifest freezes in dependency-ordered partitions rather than pretending
+that a later type already exists. FCI-7c.2 freezes the repository/core/local
+runner partition. FCI-8a appends and freezes the host dispatcher and
+`CompletePhaseRegistryV1` partition. FCI-8e appends and freezes the
+provider-publication partition after FCI-8c research. FCI-8f records the exact
+union as the final workspace-public manifest and reruns the earlier conformance
+suite. A later partition may depend on an earlier one; it cannot change its
+signature, errors, visibility, semantics, or qualification evidence without a
+new FCI-0b amendment and all affected prior proofs.
+
 The minimum final cross-crate API shape is generic over adapter-owned
-semantics. This is the post-FCI-8f shape, not the API that FCI-1 must create in
-one commit. FCI-1 introduces only canonical identifiers, `NodeClass`, the
-graph/profile records, adapter-associated type seams, and composite-profile
-references needed by the two fake adapters. The verification, aggregation,
-projection, outcome, CAS, cache, and capability methods shown below are added
+semantics. This is the post-FCI-8f shape, not the API that FCI-1a through
+FCI-1c must create in one commit. Those subpackets introduce only canonical
+identifiers, inert descriptors, `NodeClass`, graph/profile/root records,
+pending/complete record shapes, and composite-profile references needed by the
+two fake data shapes. `ActionModel`, `AdapterCodec`,
+`AdapterRegistration::of`, strict runtime preparation, verification,
+aggregation, projection, outcome, CAS, cache, and capability methods shown
+below are added
 only by the migration packet that introduces their owning types and invariants:
 
 ```rust
@@ -560,7 +702,12 @@ pub trait ActionModel: Sized + 'static {
     fn graph(
         &self,
     ) -> &ActionGraph<Self::NodeId, Self::NodeKind, Self::NodeSpec>;
+    fn root_spec(&self) -> &Self::RootSpec;
     fn action_spec(&self, id: &Self::NodeId) -> Result<Self::ActionSpec, ModelError>;
+    fn execution_spec(
+        &self,
+        id: &Self::NodeId,
+    ) -> Result<AdapterExecutionSpec<Self::ActionSpec>, ModelError>;
     fn verify_observation(
         &self,
         spec: &Self::ActionSpec,
@@ -582,6 +729,7 @@ pub trait ActionModel: Sized + 'static {
 // Fields and constructors are private. Runtime membership is proven before an
 // adapter can aggregate; raw Vec values are never a verified input.
 pub struct VerifiedAdapterPlan<M: ActionModel> { /* root + ordered denominator */ }
+pub struct PreparedExecutionV1 { /* checked key + invocation + execution policy */ }
 pub struct ObservationCollector<'p, M: ActionModel> { /* pending slots */ }
 pub struct CompleteObservationSet<'p, M: ActionModel> { /* all slots exactly once */ }
 pub struct CompleteDependencyView<'p, M: ActionModel> { /* exact declared deps */ }
@@ -608,21 +756,36 @@ pub trait AdapterCodec: Sized + 'static {
 }
 
 pub struct AdapterRegistration { /* private monomorphized prepare fn */ }
-pub struct AdapterRegistry { /* unique (adapter id, schema) */ }
+pub struct AdapterRegistryBuilder { /* protected registrations under construction */ }
+pub struct VerifiedAdapterRegistry { /* sealed unique (adapter id, schema) set */ }
 
 impl AdapterRegistration {
     pub fn of<C: AdapterCodec>() -> Self;
 }
 
-pub trait Projection<M: ActionModel, R> {
+impl AdapterRegistryBuilder {
+    pub fn register(
+        &mut self,
+        registration: AdapterRegistration,
+    ) -> Result<(), RegistryError>;
+
+    pub fn seal(
+        self,
+        expected: &CompleteAdapterRegistryV1,
+    ) -> Result<VerifiedAdapterRegistry, RegistryError>;
+}
+
+pub trait Projection<M: ActionModel> {
+    type Output: CanonicalEncode;
+
     fn project(
         &self,
         outcome: VerifiedOutcomeView<'_, M>,
-    ) -> Result<R, ProjectionError>;
+    ) -> Result<Self::Output, ProjectionError>;
 }
 
 // ci-runner: effect shell implemented by local and hosted backends.
-pub trait SourceSnapshotProvider {
+pub trait SourceSnapshotProvider: Send + Sync {
     fn seal(
         &self,
         request: &SourceSnapshotRequestV1,
@@ -630,8 +793,8 @@ pub trait SourceSnapshotProvider {
     ) -> Result<VerifiedSourceSnapshot, InfraError>;
 }
 
-pub trait CasBackend {
-    type Reader: BoundedRead;
+pub trait CasBackend: Send + Sync {
+    type Reader: BoundedRead + Send;
     fn open_bounded(
         &self,
         digest: &ObjectDigest,
@@ -640,17 +803,17 @@ pub trait CasBackend {
     fn publish_no_replace(&self, object: &VerifiedObject) -> Result<(), InfraError>;
 }
 
-pub trait ExactCacheBackend {
+pub trait ExactCacheBackend: Send + Sync {
     fn open_candidate_index(
         &self,
         locator: &ExactActionLocator,
         limits: CandidateLimits,
-    ) -> Result<Option<Box<dyn BoundedRead>>, InfraError>;
+    ) -> Result<Option<Box<dyn BoundedRead + Send>>, InfraError>;
     fn open_candidate(
         &self,
         candidate: &CandidateRef,
         limits: ObjectLimits,
-    ) -> Result<Box<dyn BoundedRead>, InfraError>;
+    ) -> Result<Box<dyn BoundedRead + Send>, InfraError>;
     fn publish_immutable(
         &self,
         locator: &ExactActionLocator,
@@ -663,7 +826,7 @@ pub enum LocalConflictCommit {}
 pub enum RemotePublicationCommit {}
 pub enum RemoteConflictCommit {}
 
-pub trait LocalOutcomePublisher {
+pub trait LocalOutcomePublisher: Send + Sync {
     fn commit_outcome(
         &self,
         expected: &SealedLocalGeneration,
@@ -671,7 +834,7 @@ pub trait LocalOutcomePublisher {
     ) -> Result<IndexCommitGuard<LocalAuthorityCommit>, CommitError>;
 }
 
-pub trait LocalConflictPublisher {
+pub trait LocalConflictPublisher: Send + Sync {
     fn commit_conflict(
         &self,
         expected: &SealedLocalGeneration,
@@ -681,7 +844,7 @@ pub trait LocalConflictPublisher {
 
 // One provider-neutral atomic snapshot-root contract. The concrete CAS or
 // epoch mechanism selected by FCI-8c stays private to its provider adapter.
-pub trait AtomicSnapshotPublisher {
+pub trait AtomicSnapshotPublisher: Send + Sync {
     type CommitScope: sealed::CommitScope;
 
     fn compare_and_publish(
@@ -691,7 +854,7 @@ pub trait AtomicSnapshotPublisher {
     ) -> Result<IndexCommitGuard<Self::CommitScope>, InfraError>;
 }
 
-pub trait Sandbox {
+pub trait Sandbox: Send + Sync {
     fn execute(
         &self,
         invocation: &ActionInvocationV1,
@@ -700,7 +863,86 @@ pub trait Sandbox {
     )
         -> Result<GuardedProcessObservation, InfraError>;
 }
+
+pub struct RunContext<'a> { /* explicit cancellation + frozen resource/engine guards */ }
+pub struct Runner { /* bounded scheduler plus configured generic backends */ }
+
+impl Runner {
+    pub fn evaluate(
+        &self,
+        profile: &PreparedCompositeProfile,
+        plan: &SealedEvaluationPlan,
+        context: RunContext<'_>,
+    ) -> Result<CommittedEvaluation, RunError>;
+}
 ```
+
+### 3.2 Blocking runner, cancellation, panic, and error ownership
+
+The v1 runner API is synchronous and blocking. It has no public async trait,
+runtime handle, hidden global executor, or backend-selected scheduling model.
+`Runner` owns one bounded worker pool and bounded result channels under the
+frozen `ResourcePolicyV1`. Effect SPIs that may be called by workers are
+`Send + Sync`; a reader moved to a worker is `Send`. Adapter decoding,
+verification, derived evaluation, aggregation, projection, and the final
+coordinator commit run on the single coordinator in stable plan order. A ready
+packet may parallelize a pure adapter operation only after adding a
+partition-invariance fixture and without changing this public SPI.
+
+`RunContext` carries a borrowed explicit cancellation capability, the frozen
+resource policy, source/evidence snapshot guards, and the applicable local or
+protected consumer-engine guard. The host translates Ctrl-C, provider
+cancellation, and deadline expiry into that capability; backends do not read
+ambient global cancellation. The runner checks it before and after each
+blocking effect and while joining workers. Cancellation before semantic
+completion or before the authority commit is `InfraError::Cancelled`, abandons
+staging, and yields no outcome/capability/index generation. Cancellation after
+an already linearized commit cannot erase or rewrite that commit and does not
+turn the committed evaluation into `RunError`; it is recorded only as later
+nonsemantic execution-receipt state.
+
+A worker unwind is joined and classified as infrastructure failure. An unwind
+from framework or adapter code is caught only at the protected/local host
+boundary when the build supports unwinding; a `panic=abort` process exit is the
+same infrastructure failure to its caller. Panic text is log data, never a
+semantic observation. No panic path may synthesize a rejection, cache miss,
+successful slot, commit guard, or capability. Immutable unreachable staged
+bytes may remain exactly as for another infrastructure failure.
+
+Error ownership and terminal behavior are fixed:
+
+| Owner/type family | Meaning | Retry, outcome, and publication behavior |
+| --- | --- | --- |
+| `ci-core`: `CanonicalError`, `DecodeError`, `ModelError`, `AdapterDecodeError`, `MembershipError`, `ProjectionError` | Invalid current protocol/model/profile or incomplete/incorrect framework relationship | Fail closed; never a semantic rejection or cache miss. A new invocation is allowed only after its authoritative input changes or is repaired. |
+| `ci-core`: `CandidateVerificationError` | Bounded candidate observation cannot satisfy the current adapter verifier | Reject that acquisition source; a protected policy may continue with another exact source or fresh execution, but cannot reuse the invalid bytes. A fresh harness protocol violation is a failed evaluation, not a semantic rejection. |
+| `ci-core`: `AdapterInvariantError` | Trusted adapter violated the complete typed contract after preparation | Engine defect; terminate without outcome/publication/capability and do not retry as a miss. |
+| `ci-core`: `AdapterVerdict::Rejected` / `DerivedVerdict` rejection | Deterministic semantic result from a complete required input | Canonical rejected outcome; complete siblings, never convert to `Err`, and never mint acceptance authority. |
+| `ci-runner`: `InfraError` and `CommitError` | I/O, transport, spawn, signal, timeout, cancellation, OOM, panic, quota, guard, race, or durability failure before commit | No semantic outcome or capability. Retry only the explicitly typed bounded operation under the frozen policy; no retry may change membership or semantic bytes. |
+| `ci-runner`: `NondeterminismDetected` terminal | Two distinct authority-valid canonical objects for one exact action key | First commit the monotonic conflict control when possible, choose no winner, publish no semantic outcome, and return the typed terminal. |
+| `ci-runner`: `RunError` | Closed top-level sum preserving the exact family above | Adds context and stable explanation ids only; it has no catch-all success, rejection, or miss conversion. |
+
+`AdapterExecutionSpec<A>` is an adapter proposal, not executable authority.
+During FCI-4a.3, core validates its node/class/graph membership, root and action
+specs, schema-tagged `ActionInvocationV1`, repetition policy, resource claim,
+effective reuse scope, observation schema, and exact semantic closure; computes
+the action key; and constructs private-field `PreparedExecutionV1`. Runner
+workers receive only that prepared value. A backend, candidate profile, raw
+invocation, or decoded identity cannot construct or mutate it.
+
+Likewise, `AdapterRegistryBuilder` accepts only statically linked protected
+registrations. Its `seal` operation checks the expected complete descriptor
+set, uniqueness, schemas, implementation identities, and registry digest and
+then consumes the builder. Planning and `Runner::evaluate` accept only
+`VerifiedAdapterRegistry`-bound prepared profiles; there is no unseal, late
+registration, candidate registration, or id/kind callback path.
+
+`Runner::evaluate` is introduced only by FCI-7b, after every argument and error
+in its signature exists. It is the sole generic live evaluation entry: it
+consumes the FCI-7a sealed plan/context, performs exact acquisition and bounded
+execution, invokes adapter verification through the sealed registry, orders
+complete results, handles conflicts, and coordinates the final local commit.
+An adapter or backend may implement its own typed operation but cannot expose a
+second authoritative evaluation loop.
 
 Concrete types may refine these signatures, but they must preserve the split:
 `ci-core` validates values and relationships; `ci-runner` performs effects;
@@ -713,7 +955,10 @@ distinct enums; a deterministic semantic rejection is an `AdapterVerdict`, not
 `Result::Err`, and cannot be converted to a cache miss.
 
 This listing is the final post-FCI-8e surface, not permission to introduce
-forward declarations. FCI-3c owns `SourceSnapshotProvider` and `Sandbox` only;
+forward declarations. FCI-4a.3 owns the registry seal and
+`PreparedExecutionV1` construction only after its FCI-3 value dependencies
+exist; FCI-7b owns the complete `RunContext`, `Runner`, and live entry. FCI-3c
+owns `SourceSnapshotProvider` and `Sandbox` only;
 FCI-6a owns `CasBackend`; FCI-6b owns `ExactCacheBackend`,
 `PublicationEventV1`, `LocalConflictPublisher`, and its conflict guard; FCI-6c owns
 `LocalOutcomePublisher` and its outcome guard; FCI-8e owns
@@ -747,8 +992,8 @@ Adapter-local node ids are strongly decoded by that adapter and then wrapped in
 a generic `GlobalNodeIdV1(instance id, adapter id, canonical local-id bytes)`
 for ordering and Merkle
 composition; `ci-core` never interprets the local bytes as a kind. Each adapter
-is selected only through a closed, protected `AdapterRegistry`: candidate
-profile bytes cannot register code. `AdapterRegistration::of::<C>()` installs a
+is selected only through a closed, protected `VerifiedAdapterRegistry`:
+candidate profile bytes cannot register code. `AdapterRegistration::of::<C>()` installs a
 monomorphized strict decoder keyed by unique `(adapter id, schema)`. It strongly
 decodes every local id/spec/graph/root to `DecodedAdapterInstance<M>`; framework
 code then canonical-re-encodes it, checks the recorded digests, constructs the
@@ -917,13 +1162,15 @@ rewrite disclosure history.
 Hash domains and application identity are separate. `ProtocolDomainV1` is a
 closed, versioned registry with one unique tag for every hashed wire object,
 including canonical input, action/build/root keys, graph, node spec, source
-snapshot, object, outcome, interior, candidate/conflict manifest, authority
-receipt, publication event, generation/head, evidence/publication snapshot,
-trust/transition, policy proof, lease, and GC plan. FCI-3a freezes the
+snapshot, adapter descriptor/complete registry, object, outcome, interior,
+candidate/conflict manifest, authority receipt, publication event,
+generation/head, evidence/publication snapshot, trust/transition, policy proof,
+lease, and GC plan. FCI-3a freezes the
 complete v1 registry and golden framing; an unregistered or reused tag is a
 schema error. Purpose-specific newtypes such as `ActionKeyV1`, `ObjectDigest`,
-`OutcomeDigest`, `ConflictRegistryDigest`, `AuthorityReceiptDigest`, and
-`PublicationEventDigest` prevent cross-domain digest substitution; generic
+`OutcomeDigest`, `AdapterRegistryDigest`, `ConflictRegistryDigest`,
+`AuthorityReceiptDigest`, and `PublicationEventDigest` prevent cross-domain
+digest substitution; generic
 untyped `Digest` is not accepted at authority APIs. The domain tag and digest
 newtype do not forward-declare the later FCI-6b event schema.
 `ApplicationNamespaceV1` is a canonical value
@@ -2506,9 +2753,10 @@ Failure classes are exact:
 
 ### 13.1 Operator tooling and explanations
 
-`ci-runner` exposes generic operations through the xtask adapter. Every command
-prints deterministic text by default and supports canonical JSON for tests and
-automation:
+`ci-runner` exposes generic operations through the `xtask` host composition;
+the registered repository adapter supplies semantics but does not own a second
+CLI or evaluation loop. Every command prints deterministic text by default and
+supports canonical JSON for tests and automation:
 
 ```text
 cargo xtask functional-ci graph --profile <id> [--format text|json|dot]
@@ -2597,8 +2845,8 @@ Every packet freezes, without `TBD` or an implementer-selected alternative:
   produce.
 
 If those facts do not fit one bounded change, the design owner adds another
-lettered packet before implementation; "or smaller", "as needed", and
-"follow the design" do not delegate an architectural decision to a
+lettered or numeric subpacket before implementation; "or smaller", "as
+needed", and "follow the design" do not delegate an architectural decision to a
 lower-capability implementation agent. No packet may be combined with production
 emitter behavior. Commands below are future FCI requirements, not current
 H2.5g commands. Proof uses the repository's role-based
@@ -2607,31 +2855,40 @@ authoritative automation route.
 
 | Stage / proposed packet boundary | Frozen implementation boundary | Required proof before its successor |
 | --- | --- | --- |
-| FCI-0 documentation | This document and navigation links only. | Diff review confirms every current H2.5g command and count is unchanged. |
-| FCI-1 pure-core seam | After H2.5g closure, post-merge review, and a ready packet, add private `crates/ci-core`, generic protocol/application identifiers, `NodeClass`, typed node/action/root seams, closed `AdapterRegistration`/registry descriptors, pending/complete membership typestate declarations, composite references, canonical/digest/input skeletons, tests tree, and the negative-dependency audit. Do not add decode, outcome, aggregate, or effect behavior. | `cargo xtask test ci-core`; fake non-case and H2-shaped codecs compile through the same seam; pending values cannot satisfy complete APIs; no generic crate contains a tsc-rs/H2 branch or production dependency. |
-| FCI-2 runner seam | Add private `crates/ci-runner`, `InfraError` and effect-phase taxonomy, bounded chunk-source/effect-result seam, invocation-private staging vocabulary, dependency tests, and test fakes only. Do not mention or add placeholders for source snapshots, action invocations, sandbox guards, publication, resource policy, CAS/cache, or H2 types owned by later packets. | `cargo xtask test ci-runner`; fakes prove I/O/effect failure cannot become model data, no worker/publication API exists yet, and crate dependency/error direction is enforced without an undefined future type. |
+| FCI-0a framework boundary record | Documentation only: freeze the framework charter, v1 non-goals, qualification ladder, package/dependency/trust map, tsc-rs reference-adapter role, and unchanged hard gate in this canonical document. | Diff review proves no production/workflow/profile/evidence file changed and every current H2.5g command, count, hosted scope, and status is unchanged. This row is never a runtime-ready packet. |
+| FCI-0b extension API-manifest record | Documentation only: freeze the public/sealed ownership table, final conceptual API, blocking/threading/cancellation/panic contract, error ownership, registry seal, `PreparedExecutionV1`, and sole runner-entry ownership. It declares no Rust item or placeholder. | Cross-section review maps every conceptual symbol to exactly one later owning packet with no unresolved owner or implementation-selected alternative. This row is never a runtime-ready packet. |
+| FCI-1a core identifiers and dependency boundary | After H2.5g closure, post-merge review, and its own ready packet, add private `crates/ci-core`, generic protocol/application/schema identifiers, digest/input skeletons, tests tree, and the negative-dependency/domain-literal audit. Do not add canonical encode/decode behavior, graph types, adapter registration, outcome, aggregate, or effect behavior. | `cargo xtask test ci-core`; identifier ordering/type separation and negative dependency/literal tests pass with no production dependency or repository noun. |
+| FCI-1b inert adapter descriptors | Add `AdapterDescriptorV1`, typed adapter ids/schema references, and checked inert descriptor records only. Do not declare `ActionModel`, `AdapterCodec`, `AdapterRegistration`, a monomorphized function, registry builder, decode, prepare, dispatch, or executable callback. | Duplicate/opaque descriptor/id shapes fail their checked record constructors; no trait bound references a future canonical decoder/model type and no candidate/runtime registration API exists. |
+| FCI-1c graph/profile/typestate record seam | Add `NodeClass`, generic node/action/root record shapes, composite references, and pending/complete membership record declarations without adapter traits or constructors that can claim completeness. Do not add graph evaluation, codec, verification, aggregation, outcome, or effects. | Pending records cannot satisfy complete record APIs; case-shaped and flat fake data compile through the same generic records without downcast/id branch; every future typed constructor remains unavailable. |
+| FCI-2a blocking runner and error boundary | Add private `crates/ci-runner`, the closed `InfraError`/effect-phase taxonomy, explicit `RunCancellation` vocabulary, blocking/no-async public-SPI contract, panic ownership, dependency tests, and no other effect interface. Do not add `RunContext`, worker, snapshot, invocation, sandbox, resource, staging, publication, CAS/cache, or H2 placeholders. | `cargo xtask test ci-runner`; error-family conversion and panic/cancellation tests prove infrastructure failure cannot become model data, rejection, success, or miss, and crate dependency direction is enforced. |
+| FCI-2b bounded effect-result seam | Add bounded chunk-source/effect-result interfaces, invocation-private staging vocabulary, and test fakes only. Do not add a scheduler, live runner entry, source snapshot, action invocation, sandbox guard, publication, resource policy, CAS/cache, or H2 type owned by later packets. | Bounded read/truncate/over-limit/staging-abandon tests pass; no worker/publication/live-evaluation API exists and no undefined future type is forward-declared. |
 | FCI-3a canonical bytes and hashes | Complete bounded streaming `CanonicalSink`, strict decode/re-encode, the exhaustive wire-object `ProtocolDomainV1` registry, purpose-specific digest newtypes including `PublicationEventDigest`, application namespace/fork/rename rules, exact framing, and v1 Node fixtures. This reserves framing, not a future event schema. | Golden byte/digest tests cover every escape/order/integer/framing/domain boundary, cross-namespace non-aliasing, digest-type substitution compile failures, bounded incremental hashing, unknown/duplicate fields, and exact Node parity. |
 | FCI-3b execution, tool, build, reuse, disclosure, and sandbox identity | Add execution/invocation and sandbox-identity value schemas, generic tool/build/platform identities, separate current `ReuseScopeV1` and monotonic `DisclosureHistoryV1` schemas, sandbox capabilities/guard/observation values, secret exclusion, and adapter mapping. Do not declare the `Sandbox` trait before its mounted-source argument exists. | One-field invalidation and platform/toolchain/secret/audience tests pass; candidate widening/history shrink and retroactive-secrecy claims fail; every nondeterministic channel is classified; guard ownership/control-vs-harness tests pass; a non-Rust adapter compiles. |
 | FCI-3c source, path, sandbox, and resource primitives | Add immutable `SourceSnapshotV1`/guard plus `SourceSnapshotProvider`, `MountedSourceSnapshot` and the `Sandbox` trait, bounded regular-file/no-follow path reads and immutable no-replace staging, bounded scheduler/queues, and full child/control-plane `ResourcePolicyV1` as one invariant set. Do not declare CAS, cache, authority-publication, candidate, or remote-publication traits. | Mixed/live-state, symlink/traversal/special-file, mutation-after-seal, concurrent no-clobber, byte/allocation, child quota, control-plane CPU/RSS/concurrency, and fail-closed platform-capability tests pass. |
-| FCI-4a graph, registry, and membership validation | Add generic `ActionGraph<I,K,S>`, stored typed `NodeSpec`, closure recomputation, composite-profile schema, closed adapter registry, strict typed decode/core prepare/re-encode, executable/derived/aggregate evaluation-plan and required-membership derivation, structural validation, fake adapters, and `graph`. | Unknown/duplicate registry entries, candidate code registration, wrong schema/digest, missing spec, cycles/edges/stale closures, invalid derived topology/dependencies, missing/duplicate/global-collision membership fail; both fake shapes render byte-identically without downcast/`Any`/id branch. |
+| FCI-4a.1 graph schema and canonical rendering | Add generic `ActionGraph<I,K,S>`, stored typed `NodeSpec`, composite-profile schema, and pure canonical graph rendering for both fake data shapes. Do not add structural closure validation, runtime registry dispatch, prepared execution, or complete membership construction. | Missing/duplicate record fields and schema/digest errors fail; both fake graphs render byte-identically without repository nouns or a codec callback. |
+| FCI-4a.2 graph/model structural validation | Add closure recomputation, cycles/edge/spec/closure/global-id validation, typed root/action/execution/derived proposal records, and stable evaluation-plan derivation over already decoded fake values. Do not add adapter traits, runtime registry dispatch, prepared execution construction, or complete membership construction. | Cycles, invalid edges, stale closures, missing specs, global-id collisions, invalid topology, and invalid repetition/resource/scope proposal values fail without a downcast/`Any`/id branch. |
+| FCI-4a.3 sealed adapter preparation, membership, and testkit | Now that strict decode and every pure signature type exist, add the final `ActionModel`/`AdapterCodec` bounds, `AdapterRegistration::of`, `AdapterRegistryBuilder`, exact expected descriptor set, consuming `seal -> VerifiedAdapterRegistry`, private monomorphized decode/re-encode/dispatch, core-only `PreparedExecutionV1`, pure `LeafVerdict`/`DerivedVerdict`/`AdapterVerdict`, required-membership and pending-to-complete adapter/composite inputs, and dev-only `crates/ci-testkit`. Do not add an outcome manifest, verified outcome view, projection trait, CAS, or live runner behavior. | Unknown/duplicate/late/candidate registrations, wrong schema/implementation/registry digest, public prepared/complete construction, missing/duplicate/unexpected/wrong-key membership, and incomplete dependencies fail; both fake adapters pass reusable conformance without future-type placeholders; the generic seam reaches the first qualification-ladder proof. |
 | FCI-4b snapshot inventory, negative, and generated ownership | Add `WorkspaceInventorySpecV1`, global dispositions, negative lookups, generated/build-system ownership and unknown policy over one immutable source snapshot; Git tree plus dirty overlay is only the H2 provider implementation. | Exact tracked/untracked/delete/symlink/case/Unicode/submodule/negative/generated fixtures pass from one snapshot; a concurrent edit cannot form a mixed root; unsafe unknown or opaque producer fails closed. |
 | FCI-4c paired impact and protected transition | Add prior/current graph comparison, exact reverse closures, `TrustRootV1`/`GraphTransitionV1`, genesis and protected narrowing rules, and `impact-cases.v1.json` with synthetic availability only. | Exact node/edge add/remove/rename, no-impact, shared-owner, boundary/verifier-only, approved/unapproved narrowing, and candidate self-approval fixtures pass with no under- or over-impact. |
 | FCI-4d pure explanations and planning budgets | Add deterministic affected/reason-path/why-miss pure values over explicit synthetic evidence; freeze versioned cold/warm graph, inventory, hashing, decode, explanation CPU/RSS/byte/concurrency baselines and ceilings. No live cache or snapshot command. | Text/JSON replay is byte-identical, tie-breaking is exact, warm no-impact planning stays within the frozen control-plane envelope, and no semantic subprocess is available to the pure test harness. |
-| FCI-5 pure H2 record, harness wire, and fixed plan | Implement H2 as the first protected control adapter; refactor the observation spec/wire, miss-only `ActionInvocationV1` harness, strict decoder/verifier, pure shadow projections, checked-in plan, and `verify-plan`. Do not add generic outcomes or CAS. | Old/new totals match; controller dependency audit proves no production link; a warm synthetic lookup cannot build/spawn the harness; every fresh H2 case has exactly two isolated repetitions; union/partition negatives pass. |
+| FCI-5a tsc-rs protocol/control packages and fixed plan | Add `ci-adapter-tsc-rs-protocol` and `ci-adapter-tsc-rs-control`; move/refactor H2 invocation/observation/root schemas, protected graph/plan/verification inputs, and checked-in plan from the indexed legacy forwarding owner. Control links no production/compiler crate. Do not register an incomplete H2 `ActionModel`/`AdapterCodec`, add a candidate harness executable, generic outcomes, or CAS; FCI-5c owns the first complete H2 registration. | Protocol golden fixtures and `verify-plan` pass over typed plan values; old/new totals and union membership agree; dependency audit proves protocol/control have no production link, no placeholder adapter callback exists, and `xtask` is only composition/legacy forwarding. |
+| FCI-5b tsc-rs miss-only candidate harness | Add `ci-harness-tsc-rs` as the sole candidate-side executable for `ActionInvocationV1`; connect it to the protocol and production/compiler crates across the process boundary. It owns no verifier, graph, cache, registry, root, or authority API. | Control-to-production negative dependency and process-boundary tests pass; a warm synthetic lookup cannot build/spawn the harness; malformed invocation/output, nonzero/signal/timeout, sandbox escape, and over-limit cases fail in their frozen error family. |
+| FCI-5c complete H2 registration and verifier/aggregate shadow | Implement and register the complete H2 `ActionModel`/`AdapterCodec`, strict observation decoder/verifier, pure adapter derived/aggregate verdicts over the already complete typed input, fixed two-isolated-repetition policy, and the observation shadow connection through `VerifiedAdapterRegistry`/`PreparedExecutionV1`. User-facing summary comparison remains an adapter-local test oracle; do not add `VerifiedOutcomeView`, the framework `Projection` trait, an outcome manifest, or CAS. | Every fresh H2 case has exactly two isolated repetitions; old/new adapter verdicts, summary oracle, and dispositions match; union/partition/adjacent-negative controls pass; no H2 semantic implementation remains authored in `xtask` and no future outcome/projection type is referenced. |
 | FCI-6a immutable local CAS and local issuer | Add immutable objects, the `CasBackend` bounded/no-replace object interface, the initially empty local authority-generation envelope with mandatory conflict/disclosure heads, strict `LocalProducerReceiptV1`, issuer/anti-rollback state, `index-head/current.json`, exclusive lock, exact atomic durability protocol, bounded verification, and recovery. Do not add candidate or authority-publication interfaces. | Every publication/crash boundary yields exactly old/new state; restart receipt/prior-generation/disclosure validation, history-shrink, rollback/replay, permissions, loose files, no-replace, tamper/truncate/swap, and unsupported authority capability fail closed. |
 | FCI-6b candidate generations and durable conflicts | Add the local/remote-neutral `PublicationEventV1` schema, `CandidateRef`/`VerifiedCandidate`, bounded candidate sets, sealed generations, `ExactCacheBackend`, same-key uniqueness, monotonic conflict witnesses/tombstones/registry, `LocalConflictPublisher` and its conflict delta/guard, unchanged-head retry, read-only exact-restore and `RolloverPlanV1` validation, and `verify-cache`; remote remains absent. The plan requires unchanged semantic action keys plus exact predecessor conflict/disclosure roots and cannot apply a rollover. | Cached/fresh/repetition conflicts, acyclic prior-generation/receipt/event/replacement-generation construction, later candidate counts, commit races, registry corruption/capacity/deletion/readdition, exact-restore planning, refusal to plan from an unverifiable conflict set, membership-preserving capacity compaction, duplicate-same-object receipts, and no-winner behavior pass. No lease, barrier, capability, or rollover-apply API exists yet. |
-| FCI-6c complete typed outcomes and Merkle assembly | Implement leaf collection, stable derived evaluation through private complete dependency views, `CompleteAdapterInput`, adapter verdict payloads sealed by core, complete composite collection, lease-bound outcome view/projections, passed/rejected manifests, interiors, reconstruction, `LocalOutcomePublisher` plus its outcome delta/guard, and `verify-outcome`. | Compile-fail/runtime tests reject pending/missing/duplicate/unexpected/wrong-key observations/adapters and incomplete derived dependencies; every derived/aggregate slot evaluates once in stable order, rejection never omits siblings, raw/tree/mixed/rejected proofs pass, and only an unchanged generation returns the outcome guard. |
+| FCI-6c complete typed outcomes, projections, and Merkle assembly | Consume the FCI-4a.3 complete inputs/verdicts; add core sealing of adapter payloads, complete composite outcome collection, lease-bound `VerifiedOutcomeView`, typed `Projection` registration, the tsc-rs user-facing projections, passed/rejected manifests, interiors, reconstruction, `LocalOutcomePublisher` plus its outcome delta/guard, and `verify-outcome`. | Compile-fail/runtime tests reject unverified outcome/projection inputs and pending/missing/duplicate/unexpected/wrong-key observations/adapters; every derived/aggregate slot evaluates once in stable order, rejection never omits siblings, raw/tree/mixed/rejected/projection proofs pass, and only an unchanged generation returns the outcome guard. |
 | FCI-6d authority capabilities | Add private `VerifiedPolicySpec<P>`, effect-bound verified consumer-engine seam, non-generic `PolicyProof`, `AuthorizedRoot<P>`, `FreshOnly`, `ReuseAllowed`, a private typed execution-evidence witness including `FreshExecutionGuard`, and local outcome-guard consumption. | Markers/recorded identities grant no authority; private constructors cannot be bypassed; relevant types are noncloneable/nonserializable; conflict/remote guards cannot mint a root; fresh authority requires the pre-execution guard plus complete fresh trace; engine/source/scope/registry bindings are mandatory. |
 | FCI-6e leases, rollover apply, and GC | Add durable leases/liveness locks, the store-wide shared/exclusive epoch and GC barrier, guarded application of a still-exact `RolloverPlanV1`, permanent predecessor conflict/disclosure commitments, `GcPlanV1`, permanent live conflict-control pinning, bounded ordinary quarantine/retention, dry-run and exact-plan apply; GC is never repair. | Reader/publisher/GC/rollover races, crash/PID reuse, refusal of a changed or unverifiable rollover plan, old-lease/invocation drain, old-epoch lookup/publication/mint rejection, unchanged semantic keys and conflict membership, preservation of an already-returned in-process capability and old disclosure union, conflict tombstone deletion/forgetful-compaction attempts, changed GC plan/symlink refusal, mark/sweep ordering, and durability tests pass. |
 | FCI-7a sealed live planning | Add `EvidenceAvailabilitySnapshotV1` and live commands over exact source snapshots/guards, local head plus conflict registry, protected transition/trust/scope state, and bounded candidate inventory. | Every command binds one immutable source/evidence snapshot, replay is exact, ambient edits/late candidates cannot change sets, conflicted keys never execute/reuse, and planning meets resource ceilings. |
 | FCI-7b demand-driven local evaluation | Carry forward exact-current-key actions, build/spawn action harnesses only for misses, then revalidate/repack/rebuild and commit through the single coordinator beside existing authoritative commands. | Fresh/mixed roots agree; boundary/verifier-only and warm no-impact cases spawn and build zero semantic/compiler/oracle/test/harness processes while reopening all required evidence and rebuilding the root. |
-| FCI-7c second adapter and composite shadow | Add shard/repetition/compiler-free `workspace-audit` and compose it with H2 through the same closed registry, typestate collectors, core, and runner. | No generic branch/downcast appears; both adapter shapes produce complete suboutcomes through one frozen API; existing local commands remain authoritative and pass. |
-| FCI-8a `local-full` complete dispatcher and shadow | Add `CompletePhaseRegistryV1` as the sole denominator/dispatcher for fresh and reusable `cargo xtask ci`, move every existing implementation behind its typed entry/trace, forbid alternate authoritative spawn/call/list paths by dependency/call-graph/source audit, and shadow the complete profile. | Removing/reordering/unclassifying a phase, adding a direct call/spawn, using a partial trace, or diverging fresh/reuse denominators fails; `FreshAll` fallback uses the same registry; exact legacy-tail/`NonReusable` sets and complete projections agree, and activation readiness requires both sets empty plus resource proofs. |
+| FCI-7c.1 second adapter and composite shadow | Add separate shard/repetition/compiler-free `ci-adapter-workspace-audit` and compose it with H2 through the same sealed registry, typestate collectors, core, and runner; use `ci-testkit` only from its conformance tests. Existing local commands remain authoritative. | No generic branch/downcast appears; both real adapter shapes produce complete suboutcomes through one API; adapter dependency and contract suites pass without changing an authoritative command or adding testkit to a runtime dependency closure. |
+| FCI-7c.2 framework qualification and API freeze | Freeze the exact repository/core/local-runner portion of the workspace-public API manifest after both real adapters, run the reusable conformance suite, remove any duplicated generic mechanism from adapter crates, and record package/dependency/domain/branch audits. The FCI-8e provider-publication SPI remains separately owned and cannot reopen the adapter surface. A required shared API change first amends FCI-0b and reruns both adapters. | Both adapters and every then-existing fake local runner backend pass one frozen API and replay byte-identically; no generic crate contains repository/provider nouns or dependencies; the qualification ladder may first record `workspace framework qualified`. |
+| FCI-8a `local-full` complete dispatcher and shadow | Add and freeze the host-API manifest partition containing `CompletePhaseRegistryV1` as the sole denominator/dispatcher for fresh and reusable `cargo xtask ci`, move every existing implementation behind its typed entry/trace, forbid alternate authoritative spawn/call/list paths by dependency/call-graph/source audit, and shadow the complete profile without reopening the FCI-7c.2 adapter/local surface. | Removing/reordering/unclassifying a phase, adding a direct call/spawn, using a partial trace, diverging fresh/reuse denominators, or changing an earlier API partition fails; `FreshAll` fallback uses the same registry; exact legacy-tail/`NonReusable` sets and complete projections agree, and activation readiness requires both sets empty plus resource proofs. |
 | FCI-8b protected-host/bootstrap capability research | Read-only. Freeze required-workflow ownership, base/head/tested-tree identity, protected control directory and exact external `cargo xtask acceptance` resolution, signed engine channel/release/build attestation, candidate-as-data mounts, fork credential/log/process isolation, complete fresh fallback, and N+1 promotion. | Captured provider/workflow probes prove a PR cannot replace workflow/bootstrap/cargo/xtask/verifier/exit code, the visible semantic `run:` remains exactly the one command, and every required identity/attestation/isolation primitive is available or activation fails closed; no workflow/bootstrap implementation. |
 | FCI-8c hosted-provider capability research | Read-only. Freeze provider/API and one private atomic publisher realization; separately mandatory authenticated monotonic conflict/disclosure/event-history heads and ancestor/inclusion proofs; optional candidate roots; the receipt-to-event-to-head DAG; namespace/audience auth; quotas/retention; exact restore or epoch-barrier/drain rollover with unchanged semantic action keys and exact predecessor conflict/disclosure commitments; and failure classes. | Probes prove optional candidate outage can miss while authority-head outage fails, old-candidate inclusion against a newer current head, current conflict/disclosure proofs, atomic publication/rollback rejection, acyclic content references, monotonic conflict/audience unions with no tombstone bypass or retroactive secrecy, refusal to rollover an unverifiable conflict set, writer separation, repair/rollover drain and old-epoch rejection, or reject the provider; no backend code. |
 | FCI-8d protected consumer bootstrap and promotion | Only after FCI-8b, implement protected envelope, candidate snapshot acquisition, exact attested engine selection, control/action-harness split, complete fresh fallback, effect-verified consumer identity, and N+1 promotion shadow without cache writes or hosted activation. | Alias/PATH/fake xtask/verifier/exit-code, wrong issuer/audience/workflow/base/tree/channel/binary, replay, self-promotion, candidate process escape, and fallback-membership fixtures pass; candidate authority/write count is zero. |
-| FCI-8e trust, receipts, and hosted backend | Only after FCI-8c/8d, add protected trust/transition verification, engine/scope/disclosure-bound receipts, apply the FCI-6b `PublicationEventV1` schema to remote authority, optional candidates, mandatory monotonic conflict/disclosure/event-history heads, the provider-neutral `AtomicSnapshotPublisher` and remote guards, isolated extraction, read/write separation, and the frozen restore/rollover mechanism. Transfer packs remain outside v1 and expose no placeholder. | Optional-candidate versus mandatory-head outage, candidate-event ancestor/inclusion against a newer head, current conflict/disclosure proof, acyclic receipt/event/head generation, crash/conflict/disclosure rollback, history shrink/retroactive secrecy, forgery, wrong engine/scope/audience, quota, restore/rollover barrier and drain with exact predecessor conflict/disclosure roots, unchanged semantic action keys, already-returned capability stability, poisoned/squatted, credential revocation, and untrusted-PR tests pass. |
-| FCI-8f complete hosted shadow, disabled | Add exact protected adapters for every current conformance/H1/historical-H2 `cargo xtask acceptance` subcall, compose the complete hosted root, and run authenticated exact-hit/miss/mixed shadow without enabling workflow consumption. | Shadow membership equals the complete current ts-tests action union; fresh/mixed/rejected projections agree; corrupt/conflict/bootstrap attacks fail; owner roots and `NonReusable` actions are unrepresentable at hosted call sites. |
+| FCI-8e trust, receipts, hosted backend, and provider API partition | Only after FCI-8c/8d, add and freeze the provider-publication API partition containing protected trust/transition verification, engine/scope/disclosure-bound receipts, the provider-neutral `AtomicSnapshotPublisher` and remote guards; apply the FCI-6b `PublicationEventV1` schema to remote authority, optional candidates, mandatory monotonic conflict/disclosure/event-history heads, isolated extraction, read/write separation, and the frozen restore/rollover mechanism. It cannot change the FCI-7c.2 or FCI-8a partitions. Transfer packs remain outside v1 and expose no placeholder. | Optional-candidate versus mandatory-head outage, candidate-event ancestor/inclusion against a newer head, current conflict/disclosure proof, acyclic receipt/event/head generation, crash/conflict/disclosure rollback, history shrink/retroactive secrecy, forgery, wrong engine/scope/audience, quota, restore/rollover barrier and drain with exact predecessor conflict/disclosure roots, unchanged semantic action keys, already-returned capability stability, poisoned/squatted, credential revocation, untrusted-PR, and prior-partition API checks pass. |
+| FCI-8f complete hosted shadow and final extension-manifest freeze, disabled | Add exact protected adapters for every current conformance/H1/historical-H2 `cargo xtask acceptance` subcall, compose the complete hosted root, run authenticated exact-hit/miss/mixed shadow without enabling workflow consumption, and record the exact FCI-7c.2/FCI-8a/FCI-8e union as the final workspace-public API manifest. | Shadow membership equals the complete current ts-tests action union; fresh/mixed/rejected projections agree; all earlier adapter/local/host/provider conformance suites pass without signature drift; corrupt/conflict/bootstrap attacks fail; owner roots and `NonReusable` actions are unrepresentable at hosted call sites. |
 | FCI-9a local-full activation | After separate approval, and only with zero legacy-tail and zero selected `NonReusable` actions, make the complete FCI-8a `local-full` projection authoritative inside `cargo xtask ci`. A later unmodeled or newly nonreusable phase invalidates this activation for that revision and restores the complete fresh fallback until re-shadowed. | Fresh clone, warm no-impact process-count-zero proof, representative one-owner/shared-owner changes, forced misses, corrupt local evidence recovery, complete local gate, and recorded graph/root/resource digests pass. |
 | FCI-9b hosted activation | After FCI-9a, FCI-8f, and separate approval, enable exact authenticated reuse only inside the unchanged unsplit protected-engine `cargo xtask acceptance` ts-tests boundary through `HostedVerifiedRoot`; an H2-only subset cannot activate. | Fresh clone, no-impact, one-case hit/miss, boundary/shared-core/verifier/engine changes, forced miss, corrupt/poisoned recovery, protected trust/transition/bootstrap, and complete hosted acceptance pass with every current subcall represented and no owner control. |
 | FCI-10 cleanup | Remove duplicate qualifying traversals and demote arbitrary ranges to diagnostics; retain v1 ratchets/readers as immutable history. | No current profile points to a retired route; historical fixtures remain byte-identical; local-full and hosted commands retain their distinct complete memberships. |
@@ -2643,18 +2900,23 @@ expected values from the Rust result. FCI-8b and FCI-8c are deliberately
 read-only. Bootstrap implementation begins only at FCI-8d and provider implementation
 only at FCI-8e, after their independent reviewed freezes have made every
 security/provider choice explicit.
+FCI-8a through FCI-8f remain blocked until FCI-7c.2 closes; splitting the
+earlier stages does not insert, remove, or reorder a hard-gate stage.
 
 ### 14.1 Framework extraction criteria
 
-The two crates remain small repository-internal libraries throughout this
-migration. Code moves from an xtask adapter into them only when all of these are
-true:
+The three generic packages (`ci-core`, `ci-runner`, and dev-only `ci-testkit`)
+remain small repository-internal libraries throughout this migration.
+Repository semantics move from legacy `xtask` ownership into the dedicated
+protocol/control/harness adapter packages, never into a generic crate.
+Framework mechanism enters `ci-core` or `ci-runner`, and shared conformance
+mechanism enters `ci-testkit`, only when all of these are true:
 
 1. the API and implementation contain no tsc/H2 case, compiler, oracle,
    `EmitOutcome`, owner-control, slice, or workspace-role-specific type or
    branch;
-2. neither crate gains a dependency on production, oracle, harness,
-   conformance, or xtask crates;
+2. neither runtime framework crate gains a dependency on production, oracle,
+   harness, conformance, or xtask crates;
 3. behavior is covered by the generic adversarial suite using in-memory fake
    graphs, executors, CAS, caches, sandbox, clock, and authority verifier;
 4. errors remain separated into pure model/verification errors and runner
@@ -2669,10 +2931,14 @@ true:
 The second adapter is the proof of reuse; H2 alone is insufficient evidence
 that an abstraction is generic. Only the bounded mechanics explicitly
 authorized by FCI-1 through FCI-7 enter the generic crates before that proof;
-unproven H2 behavior remains in `crates/xtask/src/h2_evidence/`, and the
-workspace-audit adapter remains in its own xtask module. Passing the criteria
-does not authorize crates.io publication, generic branding, a public stability
-promise, or use outside this workspace.
+unproven H2 behavior remains in the tsc-rs protocol/control/harness adapter
+packages (or its explicitly temporary indexed `xtask` forwarding path), and
+the workspace-audit adapter remains in its own package. FCI-7c.1 proves the
+second real shape; FCI-7c.2 freezes and records the repository/core/local
+runner API partition, while FCI-8a/FCI-8e/FCI-8f append and freeze the later
+host/provider partitions without reopening it. Passing the criteria does not
+authorize crates.io publication, generic branding, a public stability promise,
+or use outside this workspace.
 
 Promotion from an adapter into a framework crate follows this exact sequence:
 
@@ -2980,8 +3246,8 @@ cargo xtask acceptance
 `cargo xtask ci` and `cargo xtask acceptance` already exist, but their current
 H2.5g meanings must not be replaced during FCI shadowing. The other commands do
 not exist yet and must not be substituted into the current H2.5g closure.
-FCI-1/FCI-2 introduce their role-test commands, FCI-4a introduces `graph`,
-FCI-5 introduces `verify-plan`, FCI-6b/FCI-6c/FCI-6e introduce local
+FCI-1/FCI-2 introduce their role-test commands, FCI-4a.1 introduces `graph`,
+FCI-5a introduces `verify-plan`, FCI-6b/FCI-6c/FCI-6e introduce local
 `verify-cache`/`verify-outcome`/`gc`, and FCI-7a introduces the live
 `snapshot`/`affected`/`why-miss` commands. FCI-8a and FCI-8f complete the local
 and hosted shadows; FCI-9a and FCI-9b activate them separately. Every command

@@ -18,22 +18,24 @@ invitation to fill in the answer during implementation.
 | Packet | Status | Authorized work |
 | --- | --- | --- |
 | [H2.5g legacy closure](#h25g-legacy-closure-route) | In progress; not yet qualified | Close the H2.5g dependency closure. Outside `transformES2016`, only repair a pre-existing composition difference directly exposed by a frozen witness; no new feature or H2.5h work. |
-| [FCI-0 architecture](../functional-ci-evidence.md) | Documentation record only; no runtime authorization | Maintain the Functional-CI architecture and navigation without changing H2.5g commands, counts, or authority. |
-| [FCI-1 pure-core](../functional-ci-evidence.md#14-migration-stages-and-packets) | Blocked on H2.5g closure, merge lineage, roadmap review, and a missing versioned ready packet | No production edits. |
-| [FCI-2 runner seam](../functional-ci-evidence.md#14-migration-stages-and-packets) | Blocked on FCI-1 and a missing ready packet | No production edits. |
-| [FCI-3a-c canonical/execution/runner primitives](../functional-ci-evidence.md#14-migration-stages-and-packets) | Blocked on FCI-2; each letter requires its own ready packet | No production edits. |
-| [FCI-4a-d graph/inventory/impact/explanations](../functional-ci-evidence.md#14-migration-stages-and-packets) | Blocked on FCI-3c; each letter requires its own ready packet | No production edits. |
-| [FCI-5 H2 record and plan](../functional-ci-evidence.md#14-migration-stages-and-packets) | Blocked on FCI-4d and a missing ready packet | No production edits. |
-| [FCI-6a-e CAS/outcomes/capabilities/rollover/GC](../functional-ci-evidence.md#14-migration-stages-and-packets) | Blocked on FCI-5; each letter requires its own ready packet | No production edits. |
-| [FCI-7a-c demand-driven local shadow](../functional-ci-evidence.md#14-migration-stages-and-packets) | Blocked on FCI-6e; each letter requires its own ready packet | No production edits. |
-| [FCI-8a-f local shadow and hosted research/bootstrap/backend/shadow](../functional-ci-evidence.md#14-migration-stages-and-packets) | Blocked on FCI-7c; FCI-8b/8c are separate read-only protected-host/provider research and every letter requires its own ready packet | No production, bootstrap, workflow, or provider-backend edits. |
+| [FCI-0a framework boundary record](../functional-ci-evidence.md#14-migration-stages-and-packets) | Documentation record only; never a runtime-ready packet | Maintain the charter, package/trust boundary, v1 non-goals, qualification ladder, and navigation without changing H2.5g commands, counts, scope, or authority. |
+| [FCI-0b extension API-manifest record](../functional-ci-evidence.md#31-workspace-public-api-manifest) | Documentation record only; never a runtime-ready packet | Maintain public/sealed ownership, blocking/cancellation/panic/error contracts, and later packet ownership without declaring a Rust item or authorizing production. |
+| [FCI-1a-c pure-core seams](../functional-ci-evidence.md#14-migration-stages-and-packets) | Blocked on H2.5g closure, merge lineage, roadmap review, and three missing versioned ready packets | No production edits; identifiers/dependencies, inert adapter descriptors, and graph/profile/typestate records remain separate packets in that order; executable codec/registration waits for FCI-4a.3. |
+| [FCI-2a-b runner seams](../functional-ci-evidence.md#14-migration-stages-and-packets) | Blocked on FCI-1c and two missing ready packets | No production edits; blocking error/cancellation ownership precedes bounded effect-result seams. |
+| [FCI-3a-c canonical/execution/runner primitives](../functional-ci-evidence.md#14-migration-stages-and-packets) | Blocked on FCI-2b; each letter requires its own ready packet | No production edits. |
+| [FCI-4a.1-a.3, 4b-d graph/registry/membership/inventory/impact/explanations](../functional-ci-evidence.md#14-migration-stages-and-packets) | Blocked on FCI-3c; every numeric/lettered boundary requires its own ready packet | No production edits; graph schema/rendering, structural validation, and sealed adapter preparation/membership/testkit remain separate before FCI-4b. |
+| [FCI-5a-c tsc-rs protocol/control/harness/verifier shadow](../functional-ci-evidence.md#14-migration-stages-and-packets) | Blocked on FCI-4d and three missing ready packets | No production edits; protocol/control extraction, candidate harness, and H2 verifier/aggregate shadow remain separate; framework projections wait for FCI-6c. |
+| [FCI-6a-e CAS/outcomes/capabilities/rollover/GC](../functional-ci-evidence.md#14-migration-stages-and-packets) | Blocked on FCI-5c; each letter requires its own ready packet | No production edits. |
+| [FCI-7a-b, 7c.1-c.2 demand-driven local/composite shadow and framework qualification](../functional-ci-evidence.md#14-migration-stages-and-packets) | Blocked on FCI-6e; every lettered/numeric boundary requires its own ready packet | No production edits; the second real adapter precedes the API/conformance freeze. |
+| [FCI-8a-f local shadow and hosted research/bootstrap/backend/shadow](../functional-ci-evidence.md#14-migration-stages-and-packets) | Blocked on FCI-7c.2; FCI-8b/8c are separate read-only protected-host/provider research and every letter requires its own ready packet | No production, bootstrap, workflow, or provider-backend edits; FCI-8a/8e append separately owned host/provider API partitions and FCI-8f freezes their exact union without reopening FCI-7c.2. |
 | [FCI-9a-b activation](../functional-ci-evidence.md#14-migration-stages-and-packets) | Blocked on all FCI-8 proofs and separate activation approvals | No activation or workflow edits. |
 | [FCI-10 cleanup](../functional-ci-evidence.md#14-migration-stages-and-packets) | Blocked on both FCI-9 activations and a missing ready packet | No cleanup edits. |
 | [H2.5h-a](h2-5h-a.md) | Blocked through FCI-10, including H2.5g freeze/merge lineage and every Functional-CI shadow/activation gate | No production edits; preserve this handoff only. |
 
 The post-H2.5g roadmap-review branch will add the shared versioned packet
-schema/checker before changing any FCI or remaining H2 packet to `ready`, then
-replace the stage-table links above with exact packet files one at a time.
+schema/checker before changing FCI-1a or any later FCI/remaining H2 packet to
+`ready`, then replace the stage-table links above with exact packet files one
+at a time.
 Completed packet prose remains as history, while its status and immutable
 evidence move to the owning profile/ratchet. The hard order is H2.5g close,
 post-merge review and packet freeze, FCI-1 through FCI-8 complete shadow,
@@ -41,8 +43,8 @@ FCI-9a local-full activation, FCI-9b hosted ts-tests-only activation, FCI-10
 cleanup, then H2.5h-a. Read-only work may overlap only under an indexed packet;
 no stage-table row authorizes production code.
 
-The [functional CI evidence architecture](../functional-ci-evidence.md) owns a
-separate post-H2.5g migration to a demand-driven typed impact graph,
+The [functional CI framework and evidence architecture](../functional-ci-evidence.md)
+owns a separate post-H2.5g migration to a demand-driven typed impact graph,
 adapter-owned deterministic plans and optional bundle interiors (H2 uses fixed
 shards), content-addressed verified roots, complete local-full projection, and
 exact-key hosted cache consumption. It preserves the hosted ts-tests-only scope
