@@ -8,6 +8,7 @@
 
 mod adapter;
 mod digest;
+mod graph;
 mod ids;
 mod input;
 
@@ -15,5 +16,9 @@ pub use adapter::{
     AdapterDescriptorError, AdapterDescriptorSetV1, AdapterDescriptorV1, AdapterIdV1,
 };
 pub use digest::{InputDigestV1, ObjectDigestV1};
+pub use graph::{
+    ActionRecord, AdapterInstanceRefV1, CompleteMembership, CompositeProfileV1, InstanceIdV1,
+    NodeClass, NodeRecord, PendingMembership, RootRecord,
+};
 pub use ids::{ApplicationNamespaceV1, ImplementationIdV1, ProtocolDomainV1, SchemaIdV1};
 pub use input::CanonicalInputRefV1;
