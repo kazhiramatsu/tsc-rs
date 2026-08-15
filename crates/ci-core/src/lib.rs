@@ -6,10 +6,14 @@
 
 #![forbid(unsafe_code)]
 
+mod adapter;
 mod digest;
 mod ids;
 mod input;
 
+pub use adapter::{
+    AdapterDescriptorError, AdapterDescriptorSetV1, AdapterDescriptorV1, AdapterIdV1,
+};
 pub use digest::{InputDigestV1, ObjectDigestV1};
 pub use ids::{ApplicationNamespaceV1, ImplementationIdV1, ProtocolDomainV1, SchemaIdV1};
 pub use input::CanonicalInputRefV1;
