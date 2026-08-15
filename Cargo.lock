@@ -344,6 +344,7 @@ dependencies = [
 name = "tsc-rs-ci-runner"
 version = "0.1.0"
 dependencies = [
+ "libc",
  "tsc-rs-ci-core",
 ]
 

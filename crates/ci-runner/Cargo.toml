@@ -13,4 +13,5 @@ name = "tsc_ci_runner"
 path = "src/lib.rs"
 
 [dependencies]
+libc.workspace = true
 tsc-ci-core.workspace = true
