@@ -338,6 +338,13 @@ name = "tsc-rs-ci-core"
 version = "0.1.0"
 
 [[package]]
+name = "tsc-rs-ci-runner"
+version = "0.1.0"
+dependencies = [
+ "tsc-rs-ci-core",
+]
+
+[[package]]
 name = "tsc-rs-compiler"
 version = "0.1.0"
 dependencies = [
