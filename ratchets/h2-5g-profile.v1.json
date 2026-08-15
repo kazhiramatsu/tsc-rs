@@ -260,7 +260,7 @@
     },
     {
       "path": "crates/program/src/loader.rs",
-      "sha256": "b4156c4a239a88e1d71e430ac430cd27ead950fa68f6f0edcfd150bdc06f15b5"
+      "sha256": "ae8de652835379ae56bf26e7c296536f7a5a2b48d047ae48deaa29b7772a7c18"
     },
     {
       "path": "crates/program/src/module_requests.rs",
@@ -1270,5 +1270,5 @@
     "undispositioned_candidates": 0,
     "historical_artifacts_reinterpreted": 0
   },
-  "profile_fingerprint_sha256": "3696608d7868a144e02bc5ec65b835f95a9a31812a8678e7b6b9e0434b886d80"
+  "profile_fingerprint_sha256": "7eeece879f77d5c88b04e6bf57c70fcbf297a731b039743b13dd88f0f0c6fda4"
 }
