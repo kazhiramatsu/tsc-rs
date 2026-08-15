@@ -1,0 +1,41 @@
+{
+  "schemaVersion": 1,
+  "packetId": "fci-5c.1b",
+  "status": "design",
+  "trustedBase": "fa762252749706d0991a8bd0fb9102ae9c7b544f",
+  "packet": {
+    "path": "docs/design/greenfield/slices/fci-5c.1b-h2-5g-observation.md",
+    "sha256": "c9c8bf3cd8a29000880c96f60f130250e9c3e247214148399087deb7c63e82e0"
+  },
+  "predecessors": [
+    {
+      "packetId": "fci-5c.1",
+      "receiptSha256": "c1b689f38ff4a315f429d95cdba7d02d4d505d10c8c22faf225ee5594be051d7"
+    }
+  ],
+  "allowedPaths": [
+    "docs/design/greenfield/slices/fci-5c.1b-h2-5g-observation.md",
+    "docs/design/greenfield/slices/README.md",
+    "docs/design/greenfield/functional-ci-evidence.md",
+    "docs/design/greenfield/post-h1-completion-slices.md",
+    "ratchets/fci-readiness/fci-5c.1b.v1.json"
+  ],
+  "forbiddenPrefixes": [
+    "crates/compiler",
+    "crates/checker",
+    "crates/emitter",
+    "crates/harness",
+    "crates/oracle",
+    "crates/xtask",
+    "crates/ci-harness-tsc-rs",
+    "crates/ci-runner",
+    ".github/workflows",
+    "ratchets/h2"
+  ],
+  "proof": {
+    "commands": [
+      "node .github/ci/slice-readiness.mjs --schema-check"
+    ],
+    "evidencePath": "ratchets/fci-readiness/fci-5c.1b.v1.json"
+  }
+}
